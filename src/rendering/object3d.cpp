@@ -1,0 +1,92 @@
+#include "rendering/object3d.h"
+
+
+
+void Object3D::setSimpleDirection(vec3 dir){
+
+    rotation[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
+    rotation[1] = vec4(0,1,0,0);
+    rotation[2] = vec4(-dir,0);
+    calculateModel();
+}
+
+
+
+void Object3D::turn(float angleX, float angleY){
+    rotateGlobal(vec3(0,1,0),angleX);
+    mat4 modeltmp = model;
+    rotateLocal(vec3(1,0,0),angleY);
+    if (model[1][1] < 0){
+        model = modeltmp;
+    }
+    calculateModel();
+}
+
+void Object3D::rotateLocal2(vec3 axis, float angle){
+    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
+    rotation =  rot*rotation ;
+    calculateModel();
+}
+
+
+void Object3D::rotateLocal(vec3 axis, float angle){
+    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
+    rotation =  rotation * rot ;
+    calculateModel();
+}
+
+
+void Object3D::rotateGlobal(vec3 axis, float angle){
+    axis = vec3((glm::inverse(rotation)) * vec4(axis,0));
+    axis = glm::normalize(axis);
+    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
+    rotation =  rotation * rot ;
+    calculateModel();
+//    model = glm::rotate(model,degreesToRadians(angle),axis);
+}
+
+void Object3D::translateLocal(vec4 d){
+    translateLocal(vec3(d));
+}
+
+void Object3D::translateGlobal(vec4 d){
+    translateGlobal(vec3(d));
+}
+
+void Object3D::translateLocal(vec3 d){
+//    base = glm::translate(base,d);
+
+    vec4 d2 = rotation*vec4(d,1);
+    translateGlobal(d2);
+//    calculateModel();
+}
+
+void Object3D::translateGlobal(vec3 d){
+    base[3] += vec4(d,0);
+    calculateModel();
+}
+
+void Object3D::normalize(){
+//    model[0] = glm::normalize(model[0]);
+//    model[1] = glm::normalize(model[1]);
+//    model[2] = glm::normalize(model[2]);
+}
+
+void Object3D::scale(vec3 s){
+    mat4 scale = glm::scale(mat4(), s);
+    size = size *scale ;
+    calculateModel();
+}
+
+void Object3D::setScale(vec3 s){
+    size[0][0] = s.x;
+    size[1][1] = s.y;
+    size[2][2] = s.z;
+    calculateModel();
+}
+
+void Object3D::getViewMatrix(mat4& view){
+    view = glm::inverse(model);
+}
+
+

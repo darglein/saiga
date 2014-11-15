@@ -1,0 +1,52 @@
+#include "geometry/grid.h"
+
+Grid::Grid(const vec3 &mid, const vec3 &d1, const vec3 &d2) : d1(d1),d2(d2),mid(mid)
+{
+    set(mid,glm::cross(d1,d2));
+}
+
+ void Grid::addToBuffer(std::vector<VertexN> &vertices,std::vector<GLuint> &indices, int linesX, int linesY){
+     vec3 xOffset = d2*(float)(linesY-1)*2.0f;
+     for(float i=-linesX+1;i<linesX;i++){
+         vec3 pos = mid+d1*i- xOffset*0.5f;
+         indices.push_back(vertices.size());
+         vertices.push_back(VertexN(pos,normal));
+         indices.push_back(vertices.size());
+         vertices.push_back(VertexN(pos+xOffset,normal));
+     }
+
+     vec3 yOffset = d1*(float)(linesX-1)*2.0f;
+     for(float i=-linesY+1;i<linesY;i++){
+         vec3 pos = mid+d2*i- yOffset*0.5f;
+         indices.push_back(vertices.size());
+         vertices.push_back(VertexN(pos,normal));
+         indices.push_back(vertices.size());
+         vertices.push_back(VertexN(pos+yOffset,normal));
+     }
+ }
+
+ void Grid::createBuffers(VertexBuffer<VertexN> &buffer){
+
+     std::vector<VertexN> vertices;
+    int linesY = 15;
+    int linesX = 15;
+
+     vec3 xOffset = d2*(float)(linesY-1)*2.0f;
+     for(float i=-linesX+1;i<linesX;i++){
+         vec3 pos = mid+d1*i- xOffset*0.5f;
+         vertices.push_back(VertexN(pos,normal));
+         vertices.push_back(VertexN(pos+xOffset,normal));
+     }
+
+     vec3 yOffset = d1*(float)(linesX-1)*2.0f;
+     for(float i=-linesY+1;i<linesY;i++){
+         vec3 pos = mid+d2*i- yOffset*0.5f;
+         vertices.push_back(VertexN(pos,normal));
+         vertices.push_back(VertexN(pos+yOffset,normal));
+     }
+
+
+
+   buffer.set(vertices);
+   buffer.setDrawMode(GL_LINES);
+ }
