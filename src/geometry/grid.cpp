@@ -25,11 +25,9 @@ Grid::Grid(const vec3 &mid, const vec3 &d1, const vec3 &d2) : d1(d1),d2(d2),mid(
      }
  }
 
- void Grid::createBuffers(VertexBuffer<VertexN> &buffer){
+ void Grid::createBuffers(VertexBuffer<VertexN> &buffer, int linesX, int linesY){
 
      std::vector<VertexN> vertices;
-    int linesY = 15;
-    int linesX = 15;
 
      vec3 xOffset = d2*(float)(linesY-1)*2.0f;
      for(float i=-linesX+1;i<linesX;i++){

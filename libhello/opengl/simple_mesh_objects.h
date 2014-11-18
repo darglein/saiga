@@ -1,7 +1,7 @@
 #pragma once
 
 #include "libhello/opengl/mesh_object.h"
-#include "libhello/opengl/shader.h"
+#include "libhello/opengl/basic_shaders.h"
 #include "libhello/geometry/triangle_mesh_generator.h"
 
 template<class T>

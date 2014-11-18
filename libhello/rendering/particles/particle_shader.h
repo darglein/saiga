@@ -1,6 +1,6 @@
 #pragma once
 
-#include "libhello/opengl/shader.h"
+#include "libhello/opengl/basic_shaders.h"
 
 class ParticleShader : public MVPShader {
 public:

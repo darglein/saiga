@@ -22,7 +22,7 @@ public:
     static void quitWhenError(const char* func){
         if(Error::checkGLError()){
             std::cout<<"Error in "<<func<<"."<<std::endl;
-//            exit(1);
+            exit(1);
         }
     }
 

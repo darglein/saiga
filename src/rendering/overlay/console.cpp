@@ -63,7 +63,7 @@ void Console::lastCommand(std::string &out){
 
 void Console::previousCommand(std::string &out){
     historyPointer++;
-    if(historyPointer<commandHistory.size()){
+    if(historyPointer<(int)commandHistory.size()){
         out = commandHistory[historyPointer];
     }else{
         historyPointer = 0;

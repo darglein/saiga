@@ -14,7 +14,7 @@ public:
     vec2 age_mass = vec2(0,1);
     float radius=1;
     Particle();
-}__attribute__((packed));
+}/*__attribute__((packed))*/;
 
 
 

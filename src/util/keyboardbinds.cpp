@@ -13,7 +13,7 @@ KeyboardBinds::KeyboardBinds(){
 }
 
 bool KeyboardBinds::key_event(GLFWwindow* window, int key, int scancode, int action, int mods){
-
+    (void)window;(void)scancode;(void)mods;
     if(waitingForKey){
         if(action!=GLFW_PRESS)
             return true;
@@ -42,5 +42,6 @@ bool KeyboardBinds::key_event(GLFWwindow* window, int key, int scancode, int act
 }
 
 bool KeyboardBinds::character_event(GLFWwindow* window, unsigned int codepoint){
+    (void)window;(void)codepoint;
     return false;
 }

@@ -1,0 +1,76 @@
+#pragma once
+
+#include <GL/glew.h>
+#include <GL/glu.h>
+
+
+#include <vector>
+#include <string>
+#include <iostream>
+#include "libhello/util/loader.h"
+#include "libhello/util/error.h"
+#include "libhello/util/png_wrapper.h"
+
+using std::string;
+using std::cout;
+using std::endl;
+
+class raw_Texture{
+
+protected:
+    GLuint id = 0;
+    const GLenum target;
+    int width,height;
+    int internal_format,color_type,data_type;
+
+    int channel_depth=0; //number of bytes per channel
+    int channels=0; //number of channels. example: RGB has 3 channels
+public:
+    raw_Texture(GLenum target):target(target){}
+    virtual ~raw_Texture();
+
+    void createTexture(int width, int height, int color_type, int internal_format, int data_type);
+    void createTexture(int width, int height, int color_type, int internal_format, int data_type,GLubyte* data );
+    void createEmptyTexture(int width, int height, int color_type, int internal_format, int data_type);
+
+    void createGlTexture();
+    virtual void setDefaultParameters() = 0;
+
+    bool isValid();
+    bool isSpecified();
+
+
+    //============= Required state: VALID =============
+
+    bool downloadFromGl(GLubyte *data);
+
+    virtual void uploadData(GLubyte* data);
+
+    void uploadSubImage(int x, int y, int width, int height,GLubyte* data );
+
+    virtual void bind();
+    virtual void bind(int location);
+    virtual void unbind();
+
+    void setWrap(GLint param);
+    void setFiltering(GLint param);
+
+    int getWidth(){return width;}
+    int getHeight(){return height;}
+    int getId(){return id;}
+
+    void specify(int channel_depth,int channels);
+
+    //============= Required state: SPECIFIED =============
+
+    GLubyte* downloadFromGl();
+    int bytesPerPixel();
+    int bytesPerChannel();
+    int colorChannels();
+
+    bool toPNG(PNG::Image *out_img);
+    bool fromPNG(PNG::Image *img);
+
+
+};
+

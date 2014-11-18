@@ -47,7 +47,7 @@ void TextGenerator::createTextureAtlas(){
 
     textureAtlas->bind();
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    textureAtlas->unBind();
+    textureAtlas->unbind();
     int x = 0;
 
     for(int i = 32; i < 128; i++) {
@@ -67,7 +67,7 @@ void TextGenerator::createTextureAtlas(){
 
         float tx = (float)x / (float)w;
         info.tcMin = vec2(tx,0);
-        info.tcMax = vec2(tx+(float)info.bw/(float)textureAtlas->width,(float)info.bh/(float)textureAtlas->height);
+        info.tcMax = vec2(tx+(float)info.bw/(float)textureAtlas->getWidth(),(float)info.bh/(float)textureAtlas->getHeight());
 
         textureAtlas->uploadSubImage(x, 0, g->bitmap.width, g->bitmap.rows, g->bitmap.buffer);
         x += g->bitmap.width+charOffset;

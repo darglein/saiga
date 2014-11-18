@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "libhello/opengl/vertexBuffer.h"
-#include "libhello/opengl/shader.h"
+#include "libhello/opengl/basic_shaders.h"
 #include "libhello/camera/camera.h"
 #include "libhello/opengl/texture.h"
 #include "libhello/opengl/framebuffer.h"

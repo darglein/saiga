@@ -10,8 +10,8 @@ void Framebuffer::create(){
     }
     glGenFramebuffers(1, &id);
     bind();
-//    glFramebufferParameteri(GL_DRAW_FRAMEBUFFER, GL_FRAMEBUFFER_DEFAULT_WIDTH, 1000);
-//    glFramebufferParameteri(GL_DRAW_FRAMEBUFFER, GL_FRAMEBUFFER_DEFAULT_HEIGHT, 1000);
+    //    glFramebufferParameteri(GL_DRAW_FRAMEBUFFER, GL_FRAMEBUFFER_DEFAULT_WIDTH, 1000);
+    //    glFramebufferParameteri(GL_DRAW_FRAMEBUFFER, GL_FRAMEBUFFER_DEFAULT_HEIGHT, 1000);
 
 }
 
@@ -37,14 +37,14 @@ void Framebuffer::check(){
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
         GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         switch(status)
-            {
-                    case GL_FRAMEBUFFER_COMPLETE:                       std::cerr << ("GL_FRAMEBUFFER_COMPLETE\n") << std::endl;                        break;
-                    case 0x8CDB:                                        std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n") << std::endl;          break;
-                    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:          std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n") << std::endl;           break;
-                    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:  std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n") << std::endl;   break;
-                    case GL_FRAMEBUFFER_UNSUPPORTED:                    std::cerr <<("GL_FRAMEBUFFER_UNSUPPORTED\n")<< std::endl ;                     break;
-                    default:                                            std::cerr <<"Unknown issue " << status << std::endl;                     break;
-                }
+        {
+        case GL_FRAMEBUFFER_COMPLETE:                       std::cerr << ("GL_FRAMEBUFFER_COMPLETE\n") << std::endl;                        break;
+        case 0x8CDB:                                        std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n") << std::endl;          break;
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:          std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n") << std::endl;           break;
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:  std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n") << std::endl;   break;
+        case GL_FRAMEBUFFER_UNSUPPORTED:                    std::cerr <<("GL_FRAMEBUFFER_UNSUPPORTED\n")<< std::endl ;                     break;
+        default:                                            std::cerr <<"Unknown issue " << status << std::endl;                     break;
+        }
 
         std::cerr << "Framebuffer error!" << std::endl;
         exit(1);
@@ -56,15 +56,15 @@ void Framebuffer::attachTexture(Texture* texture){
     int index = colorBuffers.size();
     colorBuffers.push_back(texture);
     int cid = GL_COLOR_ATTACHMENT0+index;
-//    glFramebufferTexture(GL_FRAMEBUFFER, cid,texture->id, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, cid,GL_TEXTURE_2D,texture->id, 0);
+    //    glFramebufferTexture(GL_FRAMEBUFFER, cid,texture->id, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, cid,GL_TEXTURE_2D,texture->getId(), 0);
 
 }
 
 void Framebuffer::attachTextureDepth(Texture* texture){
     bind();
     depthBuffer = texture;
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,texture->id, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,texture->getId(), 0);
 
 }
 
@@ -72,7 +72,7 @@ void Framebuffer::attachTextureDepthStencil(Texture* texture){
     bind();
     depthBuffer = texture;
     stencilBuffer = texture;
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,texture->id, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,texture->getId(), 0);
 }
 
 void Framebuffer::makeToDeferredFramebuffer(int w, int h){
@@ -84,8 +84,8 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
 
 
     Texture* normal = new Texture();
-//    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB8 ,GL_UNSIGNED_BYTE);
-//    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB16 ,GL_UNSIGNED_SHORT);
+    //    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB8 ,GL_UNSIGNED_BYTE);
+    //    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB16 ,GL_UNSIGNED_SHORT);
     normal->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
     attachTexture(normal);
 
@@ -99,11 +99,11 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
     colorFinal->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
     attachTexture(colorFinal);
 
-//    Texture* depth = new Texture();
-//    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-////    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
-////    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
-//    attachTextureDepth(depth);
+    //    Texture* depth = new Texture();
+    //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+    ////    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+    ////    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
+    //    attachTextureDepth(depth);
 
     //depth and stencil texture combined
     Texture* depth_stencil = new Texture();
@@ -121,8 +121,8 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
 }
 
 void Framebuffer::blitDepth(){
-glBindFramebuffer(GL_READ_FRAMEBUFFER, id);
-glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-glBlitFramebuffer(0, 0, depthBuffer->width, depthBuffer->height, 0, 0, depthBuffer->width, depthBuffer->height,
-                  GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, id);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(), 0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(),
+                      GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 }

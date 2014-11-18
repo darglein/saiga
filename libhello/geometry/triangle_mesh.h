@@ -81,6 +81,13 @@ public:
 
     void subdivideFace(int face);
 
+    /*
+     * Inverts the triangle at index 'face'.
+     * The order of the indices will be reversed.
+     */
+
+    void invertFace(int face);
+
     template<typename v, typename i>
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v,i>& dt);
 
@@ -156,5 +163,20 @@ void TriangleMesh<vertex_t,index_t>::subdivideFace(int f){
 
   faces.push_back(Face(v1,v3,v2));
   faces[f] = Face(face.v1,v1,v2);
+}
+
+
+
+template<typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t,index_t>::invertFace(int f){
+  Face& face = faces[f];
+
+  Face face2;
+  face2.v1 = face.v3;
+  face2.v2 = face.v2;
+  face2.v3 = face.v1;
+
+  face = face2;
+
 }
 

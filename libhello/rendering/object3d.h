@@ -41,7 +41,7 @@ public:
     void setScale(vec3 s);
     void normalize();
 
-    virtual void setPosition(vec3 cords){base[3] = vec4(cords,1);}  //sets the midpoint of this aabb to cords
+    virtual void setPosition(vec3 cords){base[3] = vec4(cords,1);}
     virtual void turn(float angleX, float angleY);
     virtual void getModelMatrix(mat4& m){m = model;}
     virtual void getViewMatrix(mat4& view); //the view matrix is the inverse model matrix

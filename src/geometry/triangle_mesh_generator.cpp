@@ -1,19 +1,18 @@
 #include "libhello/geometry/triangle_mesh_generator.h"
 
+typedef TriangleMesh<VertexNT,GLuint> default_mesh_t;
 
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &sphere, int rings, int sectors){
 
-std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createMesh(const Sphere &sphere, int rings, int sectors){
-
-    TriangleMesh<VertexNT,GLuint>* mesh = new TriangleMesh<VertexNT,GLuint>();
+    default_mesh_t* mesh = new default_mesh_t();
     float const R = 1./(float)(rings);
     float const S = 1./(float)(sectors);
-    int r, s;
 
-    for(r = 0; r < rings+1; r++){
-        for(s = 0; s < sectors; s++) {
-            float y = glm::sin( -M_PI_2 + M_PI * r * R );
-            float x = glm::cos(2*M_PI * s * S) * glm::sin( M_PI * r * R );
-            float z = glm::sin(2*M_PI * s * S) * glm::sin( M_PI * r * R );
+    for(int r = 0; r < rings+1; r++){
+        for(int s = 0; s < sectors; s++) {
+            float y = sphere.r * glm::sin( -M_PI_2 + M_PI * r * R );
+            float x = sphere.r * glm::cos(2*M_PI * s * S) * glm::sin( M_PI * r * R );
+            float z = sphere.r * glm::sin(2*M_PI * s * S) * glm::sin( M_PI * r * R );
 
             VertexNT vert;
             vert.texture = vec2(s*S,r*R);
@@ -24,8 +23,8 @@ std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createMesh
     }
 
 
-    for(r = 0; r < rings; r++){
-        for(s = 0; s < sectors; s++) {
+    for(int r = 0; r < rings; r++){
+        for(int s = 0; s < sectors; s++) {
             if(r!=rings-1){
                 Face face;
                 face.v1 =  (r+1) * sectors + s;
@@ -43,11 +42,11 @@ std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createMesh
         }
     }
 
-    return std::shared_ptr<TriangleMesh<VertexNT,GLuint>>(mesh);
+    return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createMesh(const Sphere &sphere, int resolution){
-    TriangleMesh<VertexNT,GLuint>* mesh = new TriangleMesh<VertexNT,GLuint>();
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &sphere, int resolution){
+    default_mesh_t* mesh = new default_mesh_t();
     float t = (1.0 + glm::sqrt(5.0)) / 2.0;
 
 
@@ -109,12 +108,12 @@ std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createMesh
     }
 
 
-    return std::shared_ptr<TriangleMesh<VertexNT,GLuint>>(mesh);
+    return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createQuadMesh(){
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createQuadMesh(){
 
-    TriangleMesh<VertexNT,GLuint>* mesh = new TriangleMesh<VertexNT,GLuint>();
+    default_mesh_t* mesh = new default_mesh_t();
     mesh->vertices.push_back(VertexNT(vec3(0,0,0),vec3(0,1,0),vec2(0,0)));
     mesh->vertices.push_back(VertexNT(vec3( 1,0,0),vec3(0,1,0),vec2(1,0)));
     mesh->vertices.push_back(VertexNT(vec3(1,0,1),vec3(0,1,0),vec2(1,1)));
@@ -122,11 +121,11 @@ std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createQuad
 
     mesh->faces.push_back(Face(0,2,1));
     mesh->faces.push_back(Face(0,3,2));
-    return std::shared_ptr<TriangleMesh<VertexNT,GLuint>>(mesh);
+    return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createFullScreenQuadMesh(){
-    TriangleMesh<VertexNT,GLuint>* mesh = new TriangleMesh<VertexNT,GLuint>();
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createFullScreenQuadMesh(){
+    default_mesh_t* mesh = new default_mesh_t();
     mesh->vertices.push_back(VertexNT(vec3(-1,-1,0),vec3(0,0,1),vec2(0,0)));
     mesh->vertices.push_back(VertexNT(vec3( 1,-1,0),vec3(0,0,1),vec2(1,0)));
     mesh->vertices.push_back(VertexNT(vec3(1,1,0),vec3(0,0,1),vec2(1,1)));
@@ -134,11 +133,11 @@ std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createFull
 
     mesh->faces.push_back(Face(0,2,3));
     mesh->faces.push_back(Face(0,1,2));
-    return std::shared_ptr<TriangleMesh<VertexNT,GLuint>>(mesh);
+    return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createMesh(const Plane &plane){
-    TriangleMesh<VertexNT,GLuint>* mesh = new TriangleMesh<VertexNT,GLuint>();
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Plane &plane){
+    default_mesh_t* mesh = new default_mesh_t();
     mesh->vertices.push_back(VertexNT(vec3(-1,0,-1),vec3(0,1,0),vec2(0,0)));
     mesh->vertices.push_back(VertexNT(vec3( 1,0,-1),vec3(0,1,0),vec2(1,0)));
     mesh->vertices.push_back(VertexNT(vec3(1,0,1),vec3(0,1,0),vec2(1,1)));
@@ -146,11 +145,11 @@ std::shared_ptr<TriangleMesh<VertexNT,GLuint>> TriangleMeshGenerator::createMesh
 
     mesh->faces.push_back(Face(0,2,1));
     mesh->faces.push_back(Face(0,3,2));
-    return std::shared_ptr<TriangleMesh<VertexNT,GLuint>>(mesh);
+    return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<TriangleMesh<VertexNT, GLuint>> TriangleMeshGenerator::createMesh(const Cone &cone, int sectors){
-    TriangleMesh<VertexNT, GLuint>* mesh = new TriangleMesh<VertexNT, GLuint>();
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone &cone, int sectors){
+    default_mesh_t* mesh = new default_mesh_t();
     mesh->vertices.push_back(VertexNT(vec3(0,0,0),vec3(0,1,0),vec2(0,0)));  //top
     mesh->vertices.push_back(VertexNT(vec3(0,-cone.height,0),vec3(0,-1,0),vec2(0,0)));  //bottom
 
@@ -176,7 +175,75 @@ std::shared_ptr<TriangleMesh<VertexNT, GLuint>> TriangleMeshGenerator::createMes
         mesh->faces.push_back(face);
     }
 
-    return std::shared_ptr<TriangleMesh<VertexNT, GLuint>>(mesh);
+    return std::shared_ptr<default_mesh_t>(mesh);
 }
 
 
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const aabb &box){
+    default_mesh_t* mesh = new default_mesh_t();
+
+    unsigned int indices[] {
+        0,1,2,3, //left
+        7,6,5,4, //right
+        1,0,4,5, //bottom
+        3,2,6,7, //top
+        0,3,7,4, //back
+        2,1,5,6  //front
+    };
+
+
+    //default
+//    vec2 texCoords[]{
+//        {0,0},{0,1},{1,1},{1,0},
+//        {0,0},{0,1},{1,1},{1,0},
+//        {0,0},{0,1},{1,1},{1,0},
+//        {0,0},{0,1},{1,1},{1,0},
+//        {0,0},{0,1},{1,1},{1,0},
+//        {0,0},{0,1},{1,1},{1,0}
+//    };
+
+    //cube strip
+#define CUBE_EPSILON 0.0001f
+    vec2 texCoords[]{
+        {1.0f/6.0f,0.0f},{0.0f/6.0f,0.0f},{0.0f/6.0f,1.0f},{1.0f/6.0f,1.0f},
+        {2.0f/6.0f,1.0f},{3.0f/6.0f,1.0f},{3.0f/6.0f,0.0f},{2.0f/6.0f,0.0f},
+        {5.0f/6.0f+CUBE_EPSILON,0.0f},{5.0f/6.0f+CUBE_EPSILON,1.0f},{6.0f/6.0f,1.0f},{6.0f/6.0f,0.0f}, //bottom
+        {5.0f/6.0f-CUBE_EPSILON,0.0f},{4.0f/6.0f+CUBE_EPSILON,0.0f},{4.0f/6.0f+CUBE_EPSILON,1.0f},{5.0f/6.0f-CUBE_EPSILON,1.0f}, //top
+        {1.0f/6.0f,0.0f},{1.0f/6.0f,1.0f},{2.0f/6.0f,1.0f},{2.0f/6.0f,0.0f},
+        {4.0f/6.0f-CUBE_EPSILON,1.0f},{4.0f/6.0f-CUBE_EPSILON,0.0f},{3.0f/6.0f,0.0f},{3.0f/6.0f,1.0f}
+
+    };
+
+    vec3 normals[]{
+        {-1,0,0},
+        {1,0,0},
+        {0,-1,0},
+        {0,1,0},
+        {0,0,-1},
+        {0,0,1}
+    };
+
+
+    for(int i=0;i<6;i++){
+        VertexNT verts[] ={
+            VertexNT(box.cornerPoint(indices[i*4+0]),normals[i],texCoords[i*4+0]),
+            VertexNT(box.cornerPoint(indices[i*4+1]),normals[i],texCoords[i*4+1]),
+            VertexNT(box.cornerPoint(indices[i*4+2]),normals[i],texCoords[i*4+2]),
+            VertexNT(box.cornerPoint(indices[i*4+3]),normals[i],texCoords[i*4+3])
+        };
+
+        mesh->addQuad(verts);
+    }
+
+    return std::shared_ptr<default_mesh_t>(mesh);
+}
+
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createSkyboxMesh(const aabb &box){
+    std::shared_ptr<default_mesh_t> mesh = createMesh(box);
+
+
+    for(unsigned int i = 0;i<mesh->faces.size();i++){
+        mesh->invertFace(i);
+    }
+    return mesh;
+}

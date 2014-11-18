@@ -71,71 +71,6 @@ public:
     virtual void checkUniforms(){}
 };
 
-class MVPShader : public Shader{
-public:
-    MVPShader(const string &multi_file) : Shader(multi_file){}
-    GLuint location_model, location_view, location_proj;
-    GLuint location_mvp, location_mv;
-    virtual void checkUniforms();
-
-    void uploadAll(const mat4& m1,const mat4& m2,const mat4& m3);
-    void uploadMVP(const mat4& matrix){upload(location_mvp,matrix);}
-    void uploadMV(const mat4& matrix){upload(location_mv,matrix);}
-    void uploadModel(const mat4& matrix){upload(location_model,matrix);}
-    void uploadView(const mat4& matrix){upload(location_view,matrix);}
-    void uploadProj(const mat4& matrix){upload(location_proj,matrix);}
-};
-
-class MVPColorShader : public MVPShader{
-public:
-    GLuint location_color;
-    MVPColorShader(const string &multi_file) : MVPShader(multi_file){}
-    virtual void checkUniforms();
-    virtual void uploadColor(const vec4 &color);
-};
-
-class FBShader : public MVPShader{
-public:
-    GLuint location_texture;
-    FBShader(const string &multi_file) : MVPShader(multi_file){}
-    virtual void checkUniforms();
-    virtual void uploadFramebuffer(Framebuffer* fb);
-};
-
-class DeferredShader : public FBShader{
-public:
-    GLuint location_screen_size;
-    GLuint location_texture_diffuse,location_texture_normal,location_texture_position,location_texture_depth;
-    DeferredShader(const string &multi_file) : FBShader(multi_file){}
-    virtual void checkUniforms();
-    void uploadFramebuffer(Framebuffer* fb);
-    void uploadScreenSize(vec2 sc){Shader::upload(location_screen_size,sc);}
-};
-
-
-
-class MaterialShader : public MVPShader{
-public:
-    GLuint location_colors;
-    GLuint location_textures, location_use_textures;
-    vec3 colors[3]; //ambiend, diffuse, specular
-    GLint textures[5]; //ambiend, diffuse, specular, alpha, bump
-    float use_textures[5]; //1.0 if related texture is valid
-    MaterialShader(const string &multi_file) : MVPShader(multi_file){}
-    virtual void checkUniforms();
-    void uploadMaterial(const Material &material);
-
-};
-
-class TextShader : public MVPShader {
-public:
-    GLuint location_color, location_texture;
-    TextShader(const string &multi_file) : MVPShader(multi_file){}
-    virtual void checkUniforms();
-
-    void upload(Texture* texture, const vec3 &color);
-};
-
 class ShaderLoader : public Loader<Shader>{
 public:
     Shader* loadFromFile(const std::string &name);
@@ -149,14 +84,19 @@ public:
 
 template<typename shader_t>
 shader_t* ShaderLoader::load(const std::string &name){
+    shader_t* object;
     //check if already exists
-    for(Shader* &object : objects){
-        if(object->name == name)
-            return dynamic_cast<shader_t*>(object);
+    for(Shader* &obj : objects){
+        if(obj->name == name){
+            object = dynamic_cast<shader_t*>(obj);
+            if(object != nullptr){
+                return object;
+            }
+        }
     }
 
     bool erg;
-    shader_t* object;
+
 
     for(std::string &path : locations){
         std::string complete_path = path + "/" + name;
