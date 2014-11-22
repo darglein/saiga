@@ -1,5 +1,5 @@
 
-#include "opengl/raw_texture.h"
+#include "opengl/texture/raw_texture.h"
 
 
 
@@ -110,6 +110,40 @@ void raw_Texture::setFiltering(GLint param){
     unbind();
 }
 
+void raw_Texture::specify(int channel_depth,int channels){
+    switch(channel_depth){
+    case 8:
+        data_type = GL_UNSIGNED_BYTE;
+        break;
+    case 16:
+        data_type = GL_UNSIGNED_SHORT;
+        break;
+    case 32:
+        data_type = GL_UNSIGNED_INT;
+        break;
+    default:
+        std::cout<<"Bit depth not supported: "<<channel_depth<<std::endl;
+        std::cout<<"Supported bit depths: 8,16,32"<<std::endl;
+    }
+    switch(channels){
+    case 1:
+        color_type = GL_RED;
+        break;
+    case 2:
+        color_type = GL_RG;
+        break;
+    case 3:
+        color_type = GL_RGB ;
+        break;
+    case 4:
+        color_type = GL_RGBA ;
+        break;
+    default:
+        std::cout<<"Channels not supported: "<<channels<<std::endl;
+    }
+    internal_format = color_type;
+}
+
 //============= Required state: SPECIFIED =============
 
 int raw_Texture::bytesPerChannel(){
@@ -146,81 +180,12 @@ int raw_Texture::bytesPerPixel(){
 }
 
 
-bool raw_Texture::toPNG(PNG::Image* out_img){
-//    if(data==nullptr){
-//        cout<<"Can't create PNG::Image: This texture has no data."<<endl;
-//        return false;
-//    }
-
-//    out_img->data = data;
-    out_img->width = width;
-    out_img->height = height;
-
-    switch(data_type){
-    case GL_UNSIGNED_BYTE:
-        out_img->bit_depth = 8;
-        break;
-    case GL_UNSIGNED_SHORT:
-        out_img->bit_depth = 16;
-        break;
-    default:
-        return false;
-    }
-    switch(color_type){
-
-    case GL_RED:
-        out_img->color_type = PNG_COLOR_TYPE_GRAY;
-        break;
-    case GL_RGB:
-        out_img->color_type = PNG_COLOR_TYPE_RGB;
-        break;
-    case GL_RGBA:
-        out_img->color_type = PNG_COLOR_TYPE_RGB_ALPHA ;
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
-
-bool raw_Texture::fromPNG(PNG::Image *img){
-//    data = img->data;
-    width = img->width;
-    height = img->height;
 
 
-        switch(img->color_type){
-        case PNG_COLOR_TYPE_GRAY:
-            color_type = GL_RED;
-            break;
-        case PNG_COLOR_TYPE_RGB:
-            color_type = GL_RGB;
-            break;
-        case PNG_COLOR_TYPE_RGB_ALPHA:
-            color_type = GL_RGBA;
-            break;
-        default:
-            std::cout<<"Image type not supported: "<<img->color_type<<std::endl;
-            std::cout<<"Supported types: Grayscale, RGB, RGBA"<<std::endl;
-            return false;
-        }
+void raw_Texture::setFormat(const Image &img){
+    width = img.width;
+    height = img.height;
 
-        internal_format = color_type;
-
-        switch(img->bit_depth){
-        case 8:
-            data_type = GL_UNSIGNED_BYTE;
-            break;
-        case 16:
-            data_type = GL_UNSIGNED_SHORT;
-            break;
-        default:
-            std::cout<<"Bit depth not supported: "<<img->bit_depth<<std::endl;
-            std::cout<<"Supported bit depths: 8,16"<<std::endl;
-            return false;
-        }
-        createGlTexture();
-        uploadData(img->data);
-        return true;
+    specify(img.getBitDepth(),img.getChannels());
 }
 

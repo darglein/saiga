@@ -4,9 +4,9 @@
 
 void Object3D::setSimpleDirection(vec3 dir){
 
-    rotation[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
-    rotation[1] = vec4(0,1,0,0);
-    rotation[2] = vec4(-dir,0);
+//    rotation[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
+//    rotation[1] = vec4(0,1,0,0);
+//    rotation[2] = vec4(-dir,0);
     calculateModel();
 }
 
@@ -20,27 +20,38 @@ void Object3D::turn(float angleX, float angleY){
         model = modeltmp;
     }
     calculateModel();
+
+//    std::cout<<this->getDirection()<<" "<<(rot*vec4(0,0,1,0))<<std::endl;
+//    std::cout<<this->getRightVector()<<" "<<(rot*vec4(1,0,0,0))<<std::endl;
+//    std::cout<<this->getUpVector()<<" "<<(rot*vec4(0,1,0,0))<<std::endl;
 }
 
 void Object3D::rotateLocal2(vec3 axis, float angle){
-    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
-    rotation =  rot*rotation ;
+//    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
+//    rotation =  rot*rotation ;
     calculateModel();
 }
 
 
 void Object3D::rotateLocal(vec3 axis, float angle){
-    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
-    rotation =  rotation * rot ;
+//    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
+//    rotation =  rotation * rot ;
+
+
+    this->rot = glm::rotate(this->rot,degreesToRadians(angle),axis);
+//    rotation = glm::mat4_cast(this->rot);
     calculateModel();
 }
 
 
 void Object3D::rotateGlobal(vec3 axis, float angle){
-    axis = vec3((glm::inverse(rotation)) * vec4(axis,0));
+    axis = vec3((glm::inverse(rot)) * vec4(axis,0));
     axis = glm::normalize(axis);
-    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
-    rotation =  rotation * rot ;
+//    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
+//    rotation =  rotation * rot ;
+
+    this->rot = glm::rotate(this->rot,degreesToRadians(angle),axis);
+//    rotation = glm::mat4_cast(this->rot);
     calculateModel();
 //    model = glm::rotate(model,degreesToRadians(angle),axis);
 }
@@ -56,7 +67,7 @@ void Object3D::translateGlobal(vec4 d){
 void Object3D::translateLocal(vec3 d){
 //    base = glm::translate(base,d);
 
-    vec4 d2 = rotation*vec4(d,1);
+    vec4 d2 = rot*vec4(d,1);
     translateGlobal(d2);
 //    calculateModel();
 }

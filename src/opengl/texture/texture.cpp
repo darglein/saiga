@@ -1,5 +1,5 @@
 
-#include "opengl/texture.h"
+#include "opengl/texture/texture.h"
 
 
 Texture* TextureLoader::loadFromFile(const std::string &path){
@@ -10,7 +10,9 @@ Texture* TextureLoader::loadFromFile(const std::string &path){
     PNG::Image img;
     erg = PNG::readPNG( &img,path);
     if (erg){
-        erg = text->fromPNG(&img);
+        Image im;
+        im.convertFrom(img);
+        erg = text->fromImage(im);
     }
 
     if(erg){
@@ -30,3 +32,12 @@ void basic_Texture_2D::setDefaultParameters(){
     glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP);
 }
 
+bool basic_Texture_2D::fromImage(Image &img){
+
+
+    setFormat(img);
+
+    createGlTexture();
+    uploadData(img.data);
+    return true;
+}

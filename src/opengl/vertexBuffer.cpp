@@ -1,7 +1,12 @@
 #include "opengl/vertexBuffer.h"
 
 
+template<>
+void VertexBuffer<Vertex>::setVertexAttributes(){
+    glEnableVertexAttribArray( 0 );
 
+    glVertexAttribPointer(0,3, GL_FLOAT, GL_FALSE, sizeof(Vertex), NULL );
+}
 
 
 template<>

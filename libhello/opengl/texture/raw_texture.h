@@ -1,19 +1,6 @@
 #pragma once
 
-#include <GL/glew.h>
-#include <GL/glu.h>
-
-
-#include <vector>
-#include <string>
-#include <iostream>
-#include "libhello/util/loader.h"
-#include "libhello/util/error.h"
-#include "libhello/util/png_wrapper.h"
-
-using std::string;
-using std::cout;
-using std::endl;
+#include "libhello/opengl/texture/image.h"
 
 class raw_Texture{
 
@@ -68,8 +55,7 @@ public:
     int bytesPerChannel();
     int colorChannels();
 
-    bool toPNG(PNG::Image *out_img);
-    bool fromPNG(PNG::Image *img);
+    void setFormat(const Image &img);
 
 
 };

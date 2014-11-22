@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-#include "libhello/opengl/texture.h"
+#include "libhello/opengl/texture/texture.h"
 #include "libhello/util/error.h"
 
 class Framebuffer{

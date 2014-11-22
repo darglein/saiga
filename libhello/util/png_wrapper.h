@@ -1,5 +1,4 @@
-#ifndef PNG_WRAPPER_H
-#define PNG_WRAPPER_H
+#pragma once
 
 /*
  * credits for write PNG:
@@ -32,6 +31,8 @@ public:
         FILE *infile;
         FILE *outfile;
         jmp_buf jmpbuf;
+
+
     };
     static void writepng_error_handler(png_structp png_ptr, png_const_charp msg);
 
@@ -43,4 +44,3 @@ public:
 
 };
 
-#endif // PNG_WRAPPER_H

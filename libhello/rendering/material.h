@@ -4,7 +4,7 @@
 #include <fstream>
 
 #include "libhello/util/glm.h"
-#include "libhello/opengl/texture.h"
+#include "libhello/opengl/texture/texture.h"
 #include "libhello/util/loader.h"
 
 class Material{

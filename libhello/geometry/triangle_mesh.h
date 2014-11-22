@@ -55,10 +55,25 @@ public:
     int addVertex(const vertex_t &v){vertices.push_back(v);boundingBox.growBox(v.position);return vertices.size()-1;}
 
     /*
+     * Adds face to mesh.
+     * The indices of the face should match existing vertices
+     * return: index of new face
+     */
+
+    int addFace(const Face &f){faces.push_back(f);return faces.size()-1;}
+
+    /*
      * Adds given vertices and the 2 corresponding triangles to mesh
      */
 
     void addQuad(vertex_t verts[4]);
+
+    /*
+     * Adds 2 Triangles given by 4 vertices and form a quad.
+     * The vertices should be orderd counter clockwise
+     */
+
+    void addQuad(index_t inds[4]);
 
     /*
      * Creates OpenGL buffer from indices and vertices
@@ -124,6 +139,12 @@ void TriangleMesh<vertex_t,index_t>::addQuad(vertex_t verts[]){
 
   faces.push_back(Face(index,index+1,index+2));
   faces.push_back(Face(index,index+2,index+3));
+}
+
+template<typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t,index_t>::addQuad(index_t inds[]){
+  faces.push_back(Face(inds[0],inds[1],inds[2]));
+  faces.push_back(Face(inds[2],inds[3],inds[0]));
 }
 
 template<typename vertex_t, typename index_t>

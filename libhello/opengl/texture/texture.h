@@ -1,6 +1,6 @@
 #pragma once
 
-#include "libhello/opengl/raw_texture.h"
+#include "libhello/opengl/texture/raw_texture.h"
 
 class basic_Texture_2D : public raw_Texture{
 public:
@@ -12,7 +12,7 @@ public:
     virtual ~basic_Texture_2D(){}
 
     void setDefaultParameters() override;
-
+     bool fromImage(Image &img);
 
 };
 

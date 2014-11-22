@@ -9,9 +9,6 @@ libhello_la_SOURCES = 	src/camera/camera.cpp \
 			src/opengl/framebuffer.cpp \
 			src/opengl/mesh.cpp \
 			src/opengl/objloader.cpp \
-			src/opengl/texture.cpp \
-			src/opengl/raw_texture.cpp \
-			src/opengl/cube_texture.cpp \
 			src/opengl/shader.cpp \
 			src/opengl/vertexBuffer.cpp \
 			src/opengl/indexedVertexBuffer.cpp \
@@ -19,6 +16,11 @@ libhello_la_SOURCES = 	src/camera/camera.cpp \
 			src/opengl/mesh_object.cpp \
 			src/opengl/simple_mesh_objects.cpp \
 			src/opengl/basic_shaders.cpp \
+			\
+			src/opengl/texture/texture.cpp \
+			src/opengl/texture/raw_texture.cpp \
+			src/opengl/texture/cube_texture.cpp \
+			src/opengl/texture/image.cpp \
 			\
 			src/rendering/renderer.cpp \
 			src/rendering/deferred_renderer.cpp \
@@ -67,7 +69,9 @@ libhello_la_SOURCES = 	src/camera/camera.cpp \
 			src/text/dynamic_text.cpp \
 			src/text/text_generator.cpp \
 			\
-			src/world/skybox.cpp 
+			src/world/skybox.cpp \
+			src/world/terrain.cpp \
+			src/world/heightmap.cpp 
 			
 			
 library_includedir = $(includedir)/$(PACKAGE)-$(VERSION)
@@ -79,9 +83,6 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			$(PACKAGE)/opengl/framebuffer.h \
 			$(PACKAGE)/opengl/mesh.h \
 			$(PACKAGE)/opengl/objloader.h \
-			$(PACKAGE)/opengl/texture.h \
-			$(PACKAGE)/opengl/raw_texture.h \
-			$(PACKAGE)/opengl/cube_texture.h \
 			$(PACKAGE)/opengl/shader.h \
 			$(PACKAGE)/opengl/vertexBuffer.h \
 			$(PACKAGE)/opengl/indexBuffer.h \
@@ -90,6 +91,11 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			$(PACKAGE)/opengl/mesh_object.h \
 			$(PACKAGE)/opengl/simple_mesh_objects.h \
 			$(PACKAGE)/opengl/basic_shaders.h \
+			\
+			$(PACKAGE)/opengl/texture/texture.h \
+			$(PACKAGE)/opengl/texture/raw_texture.h \
+			$(PACKAGE)/opengl/texture/cube_texture.h \
+			$(PACKAGE)/opengl/texture/image.h \
 			\
 			$(PACKAGE)/rendering/renderer.h \
 			$(PACKAGE)/rendering/deferred_renderer.h \
@@ -141,7 +147,9 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			$(PACKAGE)/text/dynamic_text.h \
 			$(PACKAGE)/text/text_generator.h \
 			\
-			$(PACKAGE)/world/skybox.h
+			$(PACKAGE)/world/skybox.h \
+			$(PACKAGE)/world/terrain.h \
+			$(PACKAGE)/world/heightmap.h
 
 
 libhello_la_CPPFLAGS = 	-D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" \

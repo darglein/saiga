@@ -1,0 +1,97 @@
+#include "opengl/texture/image.h"
+
+
+int Image::bytesPerPixel(){
+    return getChannels()*getBitDepth()/8;
+}
+
+size_t Image::getSize(){
+    return width*height*bytesPerPixel();
+}
+
+void Image::setPixel(int x, int y, void* data){
+    memcpy(this->data+position(x,y),data,bytesPerPixel());
+}
+
+int Image::position(int x, int y){
+    return y*width*bytesPerPixel()+x*bytesPerPixel();
+}
+
+void Image::convertFrom(PNG::Image &image){
+    this->width = image.width;
+    this->height = image.height;
+    this->bitDepth = image.bit_depth;
+
+
+    switch(image.color_type){
+    case PNG_COLOR_TYPE_GRAY:
+        this->channels  = 1;
+        break;
+    case PNG_COLOR_TYPE_GRAY_ALPHA:
+        this->channels = 2;
+        break;
+    case PNG_COLOR_TYPE_RGB:
+        this->channels = 3;
+        break;
+    case PNG_COLOR_TYPE_RGB_ALPHA:
+        this->channels = 4;
+        break;
+    default:
+        std::cout<<"Image type not supported: "<<image.color_type<<std::endl;
+    }
+
+    cout<<"bits "<<bitDepth<<" channels "<<channels<<endl;
+
+    this->data = image.data;
+}
+
+void Image::create(){
+    delete[] data;
+    data = new u_int8_t[getSize()];
+}
+
+void Image::createSubImage(int x, int y, int w, int h, Image &out){
+    out.width = w;
+    out.height = h;
+    out.bitDepth = bitDepth;
+    out.channels = channels;
+
+
+    out.create();
+
+    int rowsize = bytesPerPixel()*w;
+    for(int i=y;i<y+h;i++){//rows
+        memcpy(out.data+rowsize*i,data+position(x,y+i),rowsize);
+    }
+
+
+}
+
+//======================================================
+
+int Image::getChannels() const
+{
+    return channels;
+}
+
+void Image::setChannels(int value)
+{
+    channels = value;
+}
+
+int Image::getBitDepth() const
+{
+
+    return bitDepth;
+}
+
+void Image::setBitDepth(int value)
+{
+    if(value%8!=0){
+        cout<<"Error Bit Depth not supportet: "<<value<<endl;
+        return;
+    }
+    bitDepth = value;
+}
+
+

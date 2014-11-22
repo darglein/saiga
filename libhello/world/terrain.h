@@ -6,20 +6,25 @@
 #include "libhello/opengl/basic_shaders.h"
 
 
-
-
-class Skybox{
+class TerrainShader : public MVPTextureShader{
 public:
-    IndexedVertexBuffer<VertexNT,GLuint> mesh;
-    MVPTextureShader* shader;
+    TerrainShader(const string &multi_file) : MVPTextureShader(multi_file){}
+    virtual void checkUniforms();
+};
+
+class Terrain{
+public:
+    IndexedVertexBuffer<Vertex,GLuint> mesh;
+    TerrainShader* shader;
     Texture* texture;
     cube_Texture* cube_texture;
     mat4 model;
 
-    Skybox();
+    Terrain();
+
+    void createMesh();
 
     void setPosition(const vec3& p);
     void setDistance(float d);
-    void bindUniforms(const mat4& view, const mat4 &proj);
     void render(const mat4& view, const mat4 &proj);
 };

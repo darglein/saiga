@@ -1,8 +1,7 @@
-#ifndef OBJECT3D_H
-#define OBJECT3D_H
+#pragma once
 
 #include "libhello/util/glm.h"
-
+#include <glm/gtc/quaternion.hpp>
 
 
 //a moving object is an object that moves every game tick and collides with the world
@@ -16,16 +15,17 @@ public:
 
     //required for non uniform scaled rotations
     //TODO: extra class so uniform objects are faster
-    mat4 rotation;
+    glm::quat rot;
+//    mat4 rotation;
     mat4 size;
     mat4 base;
 
-    void calculateModel(){model = base*rotation*size;}
+    void calculateModel(){model = base*glm::mat4_cast(rot)*size;}
 
    vec4 getPosition(){return vec4(base[3]);} //returns global position
-    vec4 getDirection(){return vec4(rotation[2]);} //returns looking direction
-    vec4 getRightVector(){return vec4(rotation[0]);}
-    vec4 getUpVector(){return vec4(rotation[1]);}
+    vec4 getDirection(){return rot*vec4(0,0,1,0);} //returns looking direction
+    vec4 getRightVector(){return rot*vec4(1,0,0,0);}
+    vec4 getUpVector(){return rot*vec4(0,1,0,0);}
     void setSimpleDirection(vec3 dir); //sets looking direction to dir, up to (0,1,0) and right to cross(dir,up)
 
     void translateLocal(vec4 d);
@@ -50,8 +50,3 @@ public:
 };
 
 
-
-
-
-
-#endif // OBJECT3D_H
