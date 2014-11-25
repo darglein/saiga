@@ -104,10 +104,7 @@ vec2 readVec2(char* &str){
 
 MaterialMesh* ObjLoader::loadFromFile(const string &path){
 
-
-
-    outIndices.resize(0);
-    outVertices.resize(0);
+//    mesh.clear();
     triangleGroups.resize(0);
 
 
@@ -150,22 +147,24 @@ MaterialMesh* ObjLoader::loadFromFile(const string &path){
     TriangleGroup &group = triangleGroups[triangleGroups.size()-1];
     group.faces = faces.size()-group.startFace;
 
-    createOutput();
+    auto mesh = createOutput();
 
 
-    cout<<"Obj loading finished. Vertices: "<<outVertices.size()<<" Indices: "<<outIndices.size()<<" Faces: "<<faces.size()<<endl;
-
+//    cout<<"Obj loading finished. Vertices: "<<outVertices.size()<<" Indices: "<<outIndices.size()<<" Faces: "<<faces.size()<<endl;
+    cout<<"Obj loading finished. "<<*mesh<<endl;
 
     if(maxCorners>3)
         cout<<"Warning, this model is not triangulated. Maximum number of vertices per face: "<<maxCorners<<endl;
 
-    MaterialMesh* mesh = new MaterialMesh();
-    mesh->buffer.set(outVertices,outIndices);
-    mesh->buffer.setDrawMode(GL_TRIANGLES);
-//    mesh->buffer.createGLBuffers();
-    mesh->triangleGroups.swap(triangleGroups); //destroys Objloader::triangleGroups in the process
+    MaterialMesh* mmesh = new MaterialMesh();
 
-    return mesh;
+    mesh->createBuffers(mmesh->buffer);
+//    mmesh->buffer.set(outVertices,outIndices);
+//    mmesh->buffer.setDrawMode(GL_TRIANGLES);
+//    mesh->buffer.createGLBuffers();
+    mmesh->triangleGroups.swap(triangleGroups); //destroys Objloader::triangleGroups in the process
+
+    return mmesh;
 }
 
 
@@ -293,13 +292,19 @@ void ObjLoader::parseF(char* line){
     }
 }
 
-void ObjLoader::createOutput(){
+std::shared_ptr<ObjLoader::mesh_t> ObjLoader::createOutput(){
 //    cout<<"Triangle groups: "<<triangleGroups.size()<<endl;
     aabb voxel_bounds;
     voxel_bounds.makeNegative();
 
+    ObjLoader::mesh_t *mesh = new ObjLoader::mesh_t();
+
+    mesh->vertices.resize(vertices.size());
+
     vertices_used.resize(vertices.size());
-    outVertices.resize(vertices.size());
+//    outVertices.resize(vertices.size());
+
+
     for(unsigned int i=0;i<vertices_used.size();i++){
         vertices_used[i] = false;
         voxel_bounds.growBox(vertices[i]);
@@ -308,6 +313,7 @@ void ObjLoader::createOutput(){
 
 
     for(Face &f : faces){
+        GLuint fa[3];
         for(int i=0;i<3;i++){
             IndexedVertex &currentVertex = f.vertices[i];
             int vert = currentVertex.v;
@@ -325,23 +331,24 @@ void ObjLoader::createOutput(){
 
             int index = -1;
             if(vertices_used[vert]){
-                if(verte==outVertices[vert]){
+                if(verte==mesh->vertices[vert]){
                     index = vert;
                 }
             }else{
-                outVertices[vert] = verte;
+                mesh->vertices[vert] = verte;
                 index = vert;
                 vertices_used[vert] = true;
             }
 
             if(index==-1){
-                index = outVertices.size();
-                outVertices.push_back(verte);
+                index = mesh->vertices.size();
+                mesh->vertices.push_back(verte);
             }
-
-            outIndices.push_back(index);
-
-
+            fa[i] = index;
+//            outIndices.push_back(index);
         }
+        mesh->addFace(fa);
     }
+
+    return std::shared_ptr<ObjLoader::mesh_t>(mesh);
 }
