@@ -145,6 +145,7 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			$(PACKAGE)/geometry/raytracer.h \
 			$(PACKAGE)/geometry/grid.h \
 			$(PACKAGE)/geometry/triangle.h \
+			$(PACKAGE)/geometry/material_mesh.h \
 			$(PACKAGE)/geometry/triangle_mesh.h \
 			$(PACKAGE)/geometry/triangle_mesh_generator.h \
 			$(PACKAGE)/geometry/cone.h \

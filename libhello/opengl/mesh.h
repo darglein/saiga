@@ -11,20 +11,20 @@
 #include <functional>
 
 
-class MaterialMesh : public MeshObject<MaterialMesh,VertexNT,GLuint,MaterialShader>{
-public:
-    string name;
-    std::vector<TriangleGroup> triangleGroups;
-    MaterialMesh(){}
-    virtual ~MaterialMesh(){}
+//class MaterialMesh : public MeshObject<MaterialMesh,VertexNT,GLuint,MaterialShader>{
+//public:
+//    string name;
+//    std::vector<TriangleGroup> triangleGroups;
+//    MaterialMesh(){}
+//    virtual ~MaterialMesh(){}
 
-    void addTriangleGroup(const TriangleGroup &tg){
-        triangleGroups.push_back(tg);
-    }
+//    void addTriangleGroup(const TriangleGroup &tg){
+//        triangleGroups.push_back(tg);
+//    }
 
-    void bindUniforms(){};
-    void draw(const mat4 &model,const Camera &cam);
-};
+//    void bindUniforms(){};
+//    void draw(const mat4 &model,const Camera &cam);
+//};
 
 class FBMesh : public MeshObject<FBMesh,VertexNT,GLuint,FBShader>{
 public:

@@ -12,6 +12,7 @@
 #include "libhello/rendering/material.h"
 #include "libhello/geometry/aabb.h"
 #include "libhello/geometry/triangle_mesh.h"
+#include "libhello/geometry/material_mesh.h"
 
 struct IndexedVertex{
     int v,n,t;
@@ -26,9 +27,10 @@ struct Face{
 
 
 
+typedef MaterialMesh<VertexNT,GLuint> material_mesh_t;
 
-class ObjLoader : public Loader<MaterialMesh>{
-    typedef TriangleMesh<VertexNT,GLuint> mesh_t;
+class ObjLoader : public Loader<material_mesh_t>{
+
 public:
     MaterialLoader* materialLoader;
 
@@ -51,8 +53,10 @@ public:
     std::vector<TriangleGroup> triangleGroups;
 
     ObjLoader():state(0),maxCorners(0){}
+
+    void reset();
     void parseLine(char* line);
-    std::shared_ptr<mesh_t> createOutput();
+    material_mesh_t *createOutput();
 
     void parseV(char* line);
     void parseN(char* line);
@@ -61,7 +65,7 @@ public:
 
     bool extractIndices(char* line, int &v1, int &v2, int &v3);
 
-    MaterialMesh* loadFromFile(const string &name);
+    material_mesh_t* loadFromFile(const string &name);
 };
 
 #endif // OBJLOADER_H

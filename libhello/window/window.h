@@ -45,7 +45,7 @@ public:
         return textureLoader.load(name);
     }
 
-    MaterialMesh* loadObj(const std::string &name){
+    material_mesh_t* loadObj(const std::string &name){
         return objLoader.load(name);
     }
 

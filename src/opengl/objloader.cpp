@@ -100,13 +100,23 @@ vec2 readVec2(char* &str){
     return v;
 }
 
-
-
-MaterialMesh* ObjLoader::loadFromFile(const string &path){
-
-//    mesh.clear();
+void ObjLoader::reset(){
     triangleGroups.resize(0);
 
+    state = 0;
+    maxCorners = 0;
+    vertices.clear();
+    normals.clear();
+    texCoords.clear();
+     faces.clear();
+    vertices_used.clear();
+}
+
+material_mesh_t *ObjLoader::loadFromFile(const string &path){
+
+//    mesh.clear();
+
+    reset();
 
 
     std::fstream stream;
@@ -156,15 +166,16 @@ MaterialMesh* ObjLoader::loadFromFile(const string &path){
     if(maxCorners>3)
         cout<<"Warning, this model is not triangulated. Maximum number of vertices per face: "<<maxCorners<<endl;
 
-    MaterialMesh* mmesh = new MaterialMesh();
 
-    mesh->createBuffers(mmesh->buffer);
+//    MaterialMesh* mmesh = new MaterialMesh();
+
+//    mesh->createBuffers(mmesh->buffer);
 //    mmesh->buffer.set(outVertices,outIndices);
 //    mmesh->buffer.setDrawMode(GL_TRIANGLES);
 //    mesh->buffer.createGLBuffers();
-    mmesh->triangleGroups.swap(triangleGroups); //destroys Objloader::triangleGroups in the process
+    mesh->triangleGroups.swap(triangleGroups); //destroys Objloader::triangleGroups in the process
 
-    return mmesh;
+    return mesh;
 }
 
 
@@ -292,12 +303,12 @@ void ObjLoader::parseF(char* line){
     }
 }
 
-std::shared_ptr<ObjLoader::mesh_t> ObjLoader::createOutput(){
+material_mesh_t* ObjLoader::createOutput(){
 //    cout<<"Triangle groups: "<<triangleGroups.size()<<endl;
     aabb voxel_bounds;
     voxel_bounds.makeNegative();
 
-    ObjLoader::mesh_t *mesh = new ObjLoader::mesh_t();
+    material_mesh_t *mesh = new material_mesh_t();
 
     mesh->vertices.resize(vertices.size());
 
@@ -350,5 +361,5 @@ std::shared_ptr<ObjLoader::mesh_t> ObjLoader::createOutput(){
         mesh->addFace(fa);
     }
 
-    return std::shared_ptr<ObjLoader::mesh_t>(mesh);
+    return mesh;
 }
