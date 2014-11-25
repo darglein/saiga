@@ -60,7 +60,56 @@ bool Ray::intersectSphere(const Sphere &s, float &t1, float &t2) const{
     return true;
 }
 
+bool Ray::intersectTriangle(const Triangle &tri, float &out, bool &back) const{
+#define EPSILON 0.000001
+    vec3 e1, e2;  //Edge1, Edge2
+    vec3 P, Q, T;
+    float det, inv_det, u, v;
+    float t;
 
+    //Find vectors for two edges sharing V1
+    e1 = tri.b - tri.a;
+    e2 = tri.c-tri.a;
+
+    //culling
+    vec3 n = glm::cross(e1,e2);
+    back = glm::dot(direction,n)>0;
+
+    //Begin calculating determinant - also used to calculate u parameter
+    P = glm::cross( direction, e2);
+    //if determinant is near zero, ray lies in plane of triangle
+    det = glm::dot(e1, P);
+
+    //NOT CULLING
+    if(det > -EPSILON && det < EPSILON) return 0;
+    inv_det = 1.f / det;
+
+    //calculate distance from V1 to ray origin
+    T=origin-tri.a;
+
+    //Calculate u parameter and test bound
+    u = glm::dot(T, P) * inv_det;
+    //The intersection lies outside of the triangle
+    if(u < 0.f || u > 1.f) return 0;
+
+    //Prepare to test v parameter
+    Q = glm::cross( T, e1);
+
+    //Calculate V parameter and test bound
+    v = glm::dot(direction, Q) * inv_det;
+    //The intersection lies outside of the triangle
+    if(v < 0.f || u + v  > 1.f) return 0;
+
+    t = glm::dot(e2, Q) * inv_det;
+
+    if(t > EPSILON) { //ray intersection
+        out = t;
+        return 1;
+    }
+
+    // No hit, no win
+    return 0;
+}
 
 std::ostream& operator<<(std::ostream& os, const Ray& r)
 {

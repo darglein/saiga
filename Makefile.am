@@ -38,6 +38,7 @@ libhello_la_SOURCES = 	src/camera/camera.cpp \
 			src/rendering/overlay/console.cpp \
 			\
 			src/rendering/particles/particle.cpp \
+			src/rendering/particles/particleconverter.cpp \
 			src/rendering/particles/particle_shader.cpp \
 			src/rendering/particles/particlesystem.cpp \
 			\
@@ -60,7 +61,9 @@ libhello_la_SOURCES = 	src/camera/camera.cpp \
 			src/geometry/sphere.cpp \
 			src/geometry/plane.cpp \
 			src/geometry/ray.cpp \
+			src/geometry/raytracer.cpp \
 			src/geometry/grid.cpp \
+			src/geometry/triangle.cpp \
 			src/geometry/triangle_mesh.cpp \
 			src/geometry/triangle_mesh_generator.cpp \
 			src/geometry/cone.cpp \
@@ -110,6 +113,7 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			$(PACKAGE)/rendering/lighting/lighting_controller.h \
 			\
 			$(PACKAGE)/rendering/particles/particle.h \
+			$(PACKAGE)/rendering/particles/particleconverter.h \
 			$(PACKAGE)/rendering/particles/particle_shader.h \
 			$(PACKAGE)/rendering/particles/particlesystem.h \
 			\
@@ -138,7 +142,9 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			$(PACKAGE)/geometry/sphere.h \
 			$(PACKAGE)/geometry/plane.h \
 			$(PACKAGE)/geometry/ray.h \
+			$(PACKAGE)/geometry/raytracer.h \
 			$(PACKAGE)/geometry/grid.h \
+			$(PACKAGE)/geometry/triangle.h \
 			$(PACKAGE)/geometry/triangle_mesh.h \
 			$(PACKAGE)/geometry/triangle_mesh_generator.h \
 			$(PACKAGE)/geometry/cone.h \

@@ -13,11 +13,14 @@ void ParticleSystem::init(){
         p.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
     }
 
-    particleBuffer.set(particles);
-
-    particleBuffer.setDrawMode(GL_POINTS);
-
     this->translateGlobal(vec3(0,8,0));
+    createGlBuffer();
+}
+
+void ParticleSystem::createGlBuffer(){
+    particle_count = particles.size();
+    particleBuffer.set(particles);
+    particleBuffer.setDrawMode(GL_POINTS);
 }
 
 void ParticleSystem::render(){

@@ -2,6 +2,7 @@
 #include "libhello/util/glm.h"
 #include "libhello/geometry/aabb.h"
 #include "libhello/geometry/sphere.h"
+#include "libhello/geometry/triangle.h"
 
 using glm::min;
 using glm::max;
@@ -24,6 +25,8 @@ public:
     bool intersectAabb(const aabb &bb, float &t) const;
 
      bool intersectSphere(const Sphere &s, float &t1, float &t2) const;
+
+     bool intersectTriangle(const Triangle &s, float &t, bool &back) const;
 
     vec3 getAlphaPosition(float alpha) const { return origin+alpha*direction;}
 

@@ -4,7 +4,7 @@
 
 #include "libhello/opengl/indexedVertexBuffer.h"
 #include "libhello/geometry/aabb.h"
-
+#include "libhello/geometry/triangle.h"
 
 /*
  * Data structur for simple triangle meshes.
@@ -14,8 +14,6 @@
 template<typename vertex_t, typename index_t>
 class TriangleMesh
 {
-    friend class TriangleMeshGenerator;
-    friend class TextGenerator; //remove maybe later
 public:
     struct Face{
         index_t v1,v2,v3;
@@ -62,6 +60,8 @@ public:
 
     int addFace(const Face &f){faces.push_back(f);return faces.size()-1;}
 
+    int addFace(index_t f[3]){return addFace(Face(f[0],f[1],f[2]));}
+
     /*
      * Adds given vertices and the 2 corresponding triangles to mesh
      */
@@ -103,11 +103,21 @@ public:
 
     void invertFace(int face);
 
+    /*
+     * Converts the index face data structur to a simple triangle list.
+     */
+
+    void toTriangleList(std::vector<Triangle> &output);
+
+
+
+
+
     template<typename v, typename i>
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v,i>& dt);
 
     aabb& getAabb(){return boundingBox;}
-private:
+public:
     std::vector<vertex_t> vertices;
     std::vector<Face> faces;
     aabb boundingBox;
@@ -122,7 +132,7 @@ TriangleMesh<vertex_t,index_t>::TriangleMesh(void){
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo){
-  for(VertexNT &v : vertices){
+  for(vertex_t &v : vertices){
       v.position = vec3(trafo*vec4(v.position,1));
   }
   boundingBox.transform(trafo);
@@ -200,4 +210,16 @@ void TriangleMesh<vertex_t,index_t>::invertFace(int f){
   face = face2;
 
 }
+
+template<typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t,index_t>::toTriangleList(std::vector<Triangle> &output){
+    Triangle t;
+    for(Face &f : faces){
+        t.a = vertices[f.v1].position;
+        t.b = vertices[f.v2].position;
+        t.c = vertices[f.v3].position;
+        output.push_back(t);
+    }
+}
+
 
