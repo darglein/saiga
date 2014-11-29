@@ -91,7 +91,7 @@ void sdl_Window::startMainLoop(){
         eventHandler.update();
         running &= !eventHandler.shouldQuit();
 
-        update();
+        update(1.0/60.0);
 
         renderer->render_intern();
         SDL_GL_SwapWindow( gWindow );

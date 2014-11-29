@@ -18,7 +18,7 @@ public:
     bool dragging = false;
     float speed = 1;
     Controlable_Camera(camera_t* cam):cam(cam){ glfw_EventHandler::addKeyListener(this);glfw_EventHandler::addMouseListener(this);}
-    void update();
+    void update(float delta);
 
 
     //glfw events
@@ -32,8 +32,8 @@ public:
 };
 
 template<class camera_t>
-void Controlable_Camera<camera_t>::update(){
-    vec3 trans = speed*FORWARD*vec3(0,0,-1) + speed*RIGHT*vec3(1,0,0);
+void Controlable_Camera<camera_t>::update(float delta){
+    vec3 trans = delta*speed*FORWARD*vec3(0,0,-1) + delta*speed*RIGHT*vec3(1,0,0);
     cam->translateLocal(trans);
     cam->updateFromModel();
 }

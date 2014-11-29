@@ -11,7 +11,7 @@ Skybox::Skybox(){
 }
 
 void Skybox::setPosition(const vec3& p){
-    model[3] = vec4(p,1);
+    model[3] = vec4(p.x,0,p.z,1);
 }
 
 void Skybox::setDistance(float d){

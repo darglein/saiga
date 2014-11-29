@@ -24,7 +24,7 @@ protected:
 
     virtual bool initWindow() = 0;
     virtual bool initInput() = 0;
-    virtual void update() = 0;
+    virtual void update(float delta) = 0;
 public:
     Window(const std::string &name,int window_width,int window_height);
     void quit(){cout<<"Window: Quit"<<endl;running = false;}

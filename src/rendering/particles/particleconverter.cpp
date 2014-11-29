@@ -14,19 +14,15 @@ void Particleconverter::convert(std::vector<Triangle> &triangles, std::vector<ve
     Ray r(vec3(-1,0,0),vec3(10,0,0));
     //    auto res = rt.trace(r);
     rt.trace(r,reslist);
-    for(auto &res : reslist)
-        cout<<"res "<<res.valid<<" "<<res.distance<<" "<<res.triangle<<endl;
 
     cout<<"sorting..."<<endl;
     std::sort(reslist.begin(),reslist.end());
 
-    for(auto &res : reslist)
-        cout<<"res "<<res.valid<<" "<<res.distance<<" "<<res.triangle<<endl;
 
 
 
 
-    vec3 particleSize(1);
+    vec3 particleSize(2);
 
     //number of samples in each direction
     vec3 size = box.max - box.min;
@@ -82,7 +78,7 @@ void Particleconverter::convert(std::vector<Triangle> &triangles, std::vector<ve
 
 void Particleconverter::voxelizeRange(std::vector<vec3> &points,vec3 start, vec3 end){
     float distance = glm::distance(start,end);
-    vec3 particleSize(1);
+    vec3 particleSize(2);
      int sx = ((int)glm::floor(distance))/(int)particleSize.x+1;
 
      float d = ((distance-((sx-1.0f)*particleSize.x))/2.0f);

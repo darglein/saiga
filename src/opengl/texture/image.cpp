@@ -10,11 +10,27 @@ size_t Image::getSize(){
 }
 
 void Image::setPixel(int x, int y, void* data){
-    memcpy(this->data+position(x,y),data,bytesPerPixel());
+    memcpy(positionPtr(x,y),data,bytesPerPixel());
+}
+
+void Image::setPixel(int x, int y, u_int8_t data){
+    *(u_int8_t*)positionPtr(x,y) = data;
+}
+
+void Image::setPixel(int x, int y, u_int16_t data){
+    *(u_int16_t*)positionPtr(x,y) = data;
+}
+
+void Image::setPixel(int x, int y, u_int32_t data){
+    *(u_int32_t*)positionPtr(x,y) = data;
 }
 
 int Image::position(int x, int y){
     return y*width*bytesPerPixel()+x*bytesPerPixel();
+}
+
+u_int8_t* Image::positionPtr(int x, int y){
+    return this->data+position(x,y);
 }
 
 void Image::convertFrom(PNG::Image &image){

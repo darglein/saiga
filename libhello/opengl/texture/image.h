@@ -30,7 +30,11 @@ public:
     int bytesPerPixel();
     size_t getSize();
     void setPixel(int x, int y, void* data);
+    void setPixel(int x, int y, u_int8_t data);
+    void setPixel(int x, int y, u_int16_t data);
+    void setPixel(int x, int y, u_int32_t data);
     int position(int x, int y);
+    u_int8_t* positionPtr(int x, int y);
 
     void create();//allocates memory
     void createSubImage(int x, int y, int w, int h, Image &out);

@@ -51,6 +51,7 @@ libhello_la_SOURCES = 	src/camera/camera.cpp \
 			src/util/inputcontroller.cpp \
 			src/util/keyboardbinds.cpp \
 			src/util/observer.cpp \
+			src/util/perlinnoise.cpp \
 			\
 			src/window/sdl_window.cpp \
 			src/window/glfw_window.cpp \
@@ -132,6 +133,7 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			$(PACKAGE)/util/inputcontroller.h \
 			$(PACKAGE)/util/keyboardbinds.h \
 			$(PACKAGE)/util/observer.h \
+			$(PACKAGE)/util/perlinnoise.h \
 			\
 			$(PACKAGE)/window/sdl_window.h \
 			$(PACKAGE)/window/glfw_window.h \
