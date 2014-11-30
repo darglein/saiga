@@ -25,6 +25,13 @@ void Image::setPixel(int x, int y, u_int32_t data){
     *(u_int32_t*)positionPtr(x,y) = data;
 }
 
+void Image::setPixel(int x, int y, u_int8_t r, u_int8_t g, u_int8_t b){
+    u_int8_t* ptr = positionPtr(x,y);
+    ptr[0] = r;
+    ptr[1] = g;
+    ptr[2] = b;
+}
+
 int Image::position(int x, int y){
     return y*width*bytesPerPixel()+x*bytesPerPixel();
 }

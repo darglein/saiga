@@ -8,6 +8,7 @@ void TerrainShader::checkUniforms(){
     location_ScaleFactor = getUniformLocation("ScaleFactor");
     location_FineBlockOrig = getUniformLocation("FineBlockOrig");
     location_color = getUniformLocation("color");
+    location_TexSizeScale = getUniformLocation("TexSizeScale");
 
     location_ViewerPos = getUniformLocation("ViewerPos");
     location_AlphaOffset = getUniformLocation("AlphaOffset");
@@ -15,6 +16,8 @@ void TerrainShader::checkUniforms(){
 
     location_ZScaleFactor = getUniformLocation("ZScaleFactor");
     location_ZTexScaleFactor = getUniformLocation("ZTexScaleFactor");
+
+    location_normalMap = getUniformLocation("normalMap");
 }
 
 
@@ -34,7 +37,21 @@ void TerrainShader::uploadColor(const vec4 &s){
     Shader::upload(location_color,s);
 }
 
-Terrain::Terrain():heightmap(1000,1000){
+void TerrainShader::uploadTexSizeScale(const vec4 &s){
+    Shader::upload(location_TexSizeScale,s);
+}
+
+void TerrainShader::uploadZScale(float f){
+    Shader::upload(location_ZScaleFactor,f);
+}
+
+void TerrainShader::uploadNormalMap(raw_Texture *texture){
+    texture->bind(1);
+    Shader::upload(location_normalMap,1);
+}
+
+
+Terrain::Terrain():heightmap(2000,2000){
 
 }
 
@@ -60,8 +77,14 @@ void Terrain::createMesh(unsigned int w, unsigned int h){
     auto center = heightmap.createMeshCenter();
     center->createBuffers(this->center);
 
-    heightmap.createTestHeightmap();
-    this->texture = heightmap.createTexture();
+    auto degenerated = heightmap.createMeshDegenerated();
+    degenerated->createBuffers(this->degenerated);
+
+
+    heightmap.createNoiseHeightmap();
+    heightmap.createNormalmap();
+
+   heightmap.createTextures();
 
 }
 
@@ -79,16 +102,20 @@ void Terrain::setDistance(float d){
 
 void Terrain::render(const vec3 &viewPos, const mat4& view, const mat4 &proj){
     this->viewPos = viewPos;
+//    this->viewPos = vec3(0);
 
     shader->bind();
 
     shader->uploadAll(model,view,proj);
-    shader->uploadTexture(texture);
-    vec2 vp(viewPos.x,viewPos.z);
+    shader->uploadTexture(heightmap.texheightmap);
+    shader->uploadNormalMap(heightmap.texnormalmap);
+    vec2 vp(this->viewPos.x,this->viewPos.z);
     shader->uploadVP(vp);
+    shader->uploadZScale(200.0f);
+    shader->uploadTexSizeScale(vec4(heightmap.heightmap.width,heightmap.heightmap.height,heightmap.heightmap.width/8000.0f,heightmap.heightmap.height/8000.0f));
 
     //    renderBlocks(vec2(10,10),1);
-    renderCenter(vec4(1,1,0,0),vec2(40,40));
+    render(center,vec4(1,1,0,0),vec4(40,40,0,0),vec4(1,1,0,0));
 
 
     vec2 baseScale(20,20);
@@ -112,28 +139,114 @@ void Terrain::renderRing(vec2 scale, float f, vec2 off){
     vec4 offset = vec4(scale.x,scale.y,-scale.x*1.5f-cellWidth.x,-scale.y*1.5f-cellWidth.y);
     offset -= vec4(0,0,off.x,off.y);
 
+    vec2 ringSize = 4.0f*scale+2.0f*cellWidth;
+
     //render 12 blocks
-    renderBlocks(scale,cellWidth,offset);
+    renderBlocks(scale,cellWidth,offset,ringSize);
 
     //render 4 fix up rectangles
-    renderFixUpV(vec4(0,0,1,0),offset+vec4(0,0,scale.x*2,0));
-    renderFixUpV(vec4(0,0,1,0),offset+vec4(0,0,scale.x*2,scale.y*3+cellWidth.y*2));
-    renderFixUpH(vec4(0,0,1,0),offset+vec4(0,0,0,scale.y*2));
-    renderFixUpH(vec4(0,0,1,0),offset+vec4(0,0,scale.x*3+cellWidth.x*2,scale.y*2));
+    renderFixUps(scale,cellWidth,offset,ringSize);
 
     //render L shaped trim
-    if(f>0)
-        renderTrim(vec4(1,1,1,0),offset+vec4(0,0,scale.x,scale.y));
-    else
-        renderTrimi(vec4(1,1,1,0),offset+vec4(0,0,scale.x*2+cellWidth.x*2,scale.y*2+cellWidth.y*2));
+    renderTrim(scale,cellWidth,offset,ringSize,f);
+
+    //render degenerated triangles
+    renderDeg(scale,cellWidth,offset,ringSize);
 }
 
 
-void Terrain::renderBlocks(vec2 scale,vec2 cellWidth, vec4 offset){
+void Terrain::renderDeg(vec2 scale,vec2 cellWidth, vec4 offset,vec2 ringSize){
+    //blockOffset.xz: x offset scaled by 'scale'
+    //blockOffset.yw: y offset scaled by 'cellWidth'
+    static const vec4 blockOffset[] = {
+        vec4(0,0,0,0),
+        vec4(2,2,2,2)
+    };
+
+    vec2 blockSizeRel = vec2(offset.x/ringSize.x,offset.y/ringSize.y);
+    vec2 cellSizeRel = vec2(cellWidth.x/ringSize.x,cellWidth.y/ringSize.y);
+
+    int i = 0;
+    vec4 c = vec4(0,1,0,0);
+    vec4 s = offset+vec4(0,0,
+                         blockOffset[i].x*scale.x+blockOffset[i].y*cellWidth.x,
+                         blockOffset[i].z*scale.y+blockOffset[i].w*cellWidth.y);
+    vec4 fo = vec4(blockSizeRel.x,
+                   blockSizeRel.y,
+                   blockOffset[i].x*blockSizeRel.x+blockOffset[i].y*cellSizeRel.x,
+                   blockOffset[i].z*blockSizeRel.y+blockOffset[i].w*cellSizeRel.y);
+
+
+
+        render(degenerated,c,s,fo);
+
+}
+
+void Terrain::renderTrim(vec2 scale,vec2 cellWidth, vec4 offset,vec2 ringSize,float f){
+    //blockOffset.xz: x offset scaled by 'scale'
+    //blockOffset.yw: y offset scaled by 'cellWidth'
+    static const vec4 blockOffset[] = {
+        vec4(1,0,1,0),
+        vec4(2,2,2,2)
+    };
+
+    vec2 blockSizeRel = vec2(offset.x/ringSize.x,offset.y/ringSize.y);
+    vec2 cellSizeRel = vec2(cellWidth.x/ringSize.x,cellWidth.y/ringSize.y);
+
+    int i = (f>0)?0:1;
+    vec4 c = vec4(1,0,1,0);
+    vec4 s = offset+vec4(0,0,
+                         blockOffset[i].x*scale.x+blockOffset[i].y*cellWidth.x,
+                         blockOffset[i].z*scale.y+blockOffset[i].w*cellWidth.y);
+    vec4 fo = vec4(blockSizeRel.x,
+                   blockSizeRel.y,
+                   blockOffset[i].x*blockSizeRel.x+blockOffset[i].y*cellSizeRel.x,
+                   blockOffset[i].z*blockSizeRel.y+blockOffset[i].w*cellSizeRel.y);
+
+
+    if(i)
+        render(trimi,c,s,fo);
+    else
+        render(trim,c,s,fo);
+}
+
+void Terrain::renderFixUps(vec2 scale,vec2 cellWidth, vec4 offset,vec2 ringSize){
+    //blockOffset.xz: x offset scaled by 'scale'
+    //blockOffset.yw: y offset scaled by 'cellWidth'
+    static const vec4 blockOffset[] = {
+        vec4(2,0,0,0),
+        vec4(2,0,3,2),
+        vec4(0,0,2,0),
+        vec4(3,2,2,0)
+    };
+
+    vec2 blockSizeRel = vec2(offset.x/ringSize.x,offset.y/ringSize.y);
+    vec2 cellSizeRel = vec2(cellWidth.x/ringSize.x,cellWidth.y/ringSize.y);
+
+    for(int i=0;i<4;i++){
+        vec4 c = vec4(0,0,1,0);
+        vec4 s = offset+vec4(0,0,
+                             blockOffset[i].x*scale.x+blockOffset[i].y*cellWidth.x,
+                             blockOffset[i].z*scale.y+blockOffset[i].w*cellWidth.y);
+                vec4 fo = vec4(blockSizeRel.x,
+                               blockSizeRel.y,
+                               blockOffset[i].x*blockSizeRel.x+blockOffset[i].y*cellSizeRel.x,
+                               blockOffset[i].z*blockSizeRel.y+blockOffset[i].w*cellSizeRel.y);
+
+        if(i>=2)
+            render(fixuph,c,s,fo);
+        else
+
+            render(fixupv,c,s,fo);
+    }
+
+}
+
+void Terrain::renderBlocks(vec2 scale,vec2 cellWidth, vec4 offset,vec2 ringSize){
 
     //blockOffset.xz: x offset scaled by 'scale'
     //blockOffset.yw: y offset scaled by 'cellWidth'
-    const vec4 blockOffset[] = {
+    static const vec4 blockOffset[] = {
         vec4(0,0,0,0), //topleft
         vec4(1,0,0,0),
         vec4(2,2,0,0),
@@ -150,49 +263,35 @@ void Terrain::renderBlocks(vec2 scale,vec2 cellWidth, vec4 offset){
         vec4(3,2,3,2)   //bottomright
     };
 
+    vec2 blockSizeRel = vec2(offset.x/ringSize.x,offset.y/ringSize.y);
+    vec2 cellSizeRel = vec2(cellWidth.x/ringSize.x,cellWidth.y/ringSize.y);
+
     for(int i=0;i<12;i++){
-        renderBlock(vec4(1,0,0,0),offset+vec4(0,0,
-                                              blockOffset[i].x*scale.x+blockOffset[i].y*cellWidth.x,
-                                              blockOffset[i].z*scale.y+blockOffset[i].w*cellWidth.y));
+        vec4 c = vec4(1,0,0,0);
+        vec4 s = offset+vec4(0,0,
+                             blockOffset[i].x*scale.x+blockOffset[i].y*cellWidth.x,
+                             blockOffset[i].z*scale.y+blockOffset[i].w*cellWidth.y);
+        vec4 fo = vec4(blockSizeRel.x,
+                       blockSizeRel.y,
+                       blockOffset[i].x*blockSizeRel.x+blockOffset[i].y*cellSizeRel.x,
+                       blockOffset[i].z*blockSizeRel.y+blockOffset[i].w*cellSizeRel.y);
+
+        render(mesh,c,s,fo);
     }
 }
 
-void Terrain::renderBlock(vec4 color,vec4 scale){
+void Terrain::render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color,vec4 scale,vec4 fineOrigin){
+    shader->uploadScale(scale);
+    shader->uploadColor(color);
+    shader->uploadFineOrigin(fineOrigin);
+    mesh.bindAndDraw();
+}
 
-
+void Terrain::render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color,vec4 scale){
     shader->uploadScale(scale);
     shader->uploadColor(color);
     mesh.bindAndDraw();
 }
 
-void Terrain::renderFixUpV(vec4 color,vec4 scale){
-    shader->uploadScale(scale);
-    shader->uploadColor(color);
-    fixupv.bindAndDraw();
-}
-
-void Terrain::renderFixUpH(vec4 color,vec4 scale){
-    shader->uploadScale(scale);
-    shader->uploadColor(color);
-    fixuph.bindAndDraw();
-}
-
-void Terrain::renderTrim(vec4 color,vec4 scale){
-    shader->uploadScale(scale);
-    shader->uploadColor(color);
-    trim.bindAndDraw();
-}
-
-void Terrain::renderTrimi(vec4 color,vec4 scale){
-    shader->uploadScale(scale);
-    shader->uploadColor(color);
-    trimi.bindAndDraw();
-}
-
-void Terrain::renderCenter(vec4 color,vec2 scale){
-    shader->uploadScale(vec4(scale.x,scale.y,0,0));
-    shader->uploadColor(color);
-    center.bindAndDraw();
-}
 
 

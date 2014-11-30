@@ -33,6 +33,9 @@ public:
     void setPixel(int x, int y, u_int8_t data);
     void setPixel(int x, int y, u_int16_t data);
     void setPixel(int x, int y, u_int32_t data);
+
+    void setPixel(int x, int y, u_int8_t r, u_int8_t g, u_int8_t b);
+
     int position(int x, int y);
     u_int8_t* positionPtr(int x, int y);
 

@@ -13,12 +13,12 @@ public:
     typedef IndexBuffer<index_t> ibuffer_t;
 
 
-    void bind();
-    void unbind();
+    void bind() const;
+    void unbind() const;
 
-    void bindAndDraw();
-    void draw();
-    void draw(uint length, void* offset);
+    void bindAndDraw() const;
+    void draw() const;
+    void draw(uint length, void* offset) const;
 
     void set(std::vector<vertex_t> &vertices,std::vector<index_t> &indices){
         set(&vertices[0],vertices.size(),&indices[0],indices.size());
@@ -31,30 +31,30 @@ public:
 };
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::bindAndDraw(){
+void IndexedVertexBuffer<vertex_t,index_t>::bindAndDraw() const{
     bind();
     draw();
     unbind();
 }
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::draw(){
+void IndexedVertexBuffer<vertex_t,index_t>::draw() const{
     glDrawElements( vbuffer_t::draw_mode, ibuffer_t::index_count, GL_UNSIGNED_INT, NULL );
 }
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::draw(uint length, void *offset){
+void IndexedVertexBuffer<vertex_t,index_t>::draw(uint length, void *offset) const{
     glDrawElements( vbuffer_t::draw_mode, length, GL_UNSIGNED_INT, offset );
 }
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::bind(){
+void IndexedVertexBuffer<vertex_t,index_t>::bind() const{
     vbuffer_t::bind();
     ibuffer_t::bind();
 }
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::unbind(){
+void IndexedVertexBuffer<vertex_t,index_t>::unbind() const{
     vbuffer_t::unbind();
     ibuffer_t::unbind();
 }

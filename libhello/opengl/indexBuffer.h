@@ -22,8 +22,8 @@ public:
      void set(std::vector<index_t> &indices);
      void set(index_t* indices,int index_count);
 
-     void bind();
-     void unbind();
+     void bind() const;
+     void unbind() const;
 };
 
 template<class index_t>
@@ -53,11 +53,11 @@ void IndexBuffer<index_t>::set(index_t* indices,int index_count){
 }
 
 template<class index_t>
- void IndexBuffer<index_t>::bind(){
+ void IndexBuffer<index_t>::bind() const{
      glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gl_index_buffer );
  }
 
  template<class index_t>
-  void IndexBuffer<index_t>::unbind(){
+  void IndexBuffer<index_t>::unbind() const{
       glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
   }

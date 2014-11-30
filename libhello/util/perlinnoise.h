@@ -16,6 +16,9 @@ public:
     PerlinNoise(unsigned int seed);
     // Get a noise value, for 2D images z can have any value
     double noise(double x, double y, double z);
+
+
+    double fBm(double x, double y, double z, int octaves = 8, float lacunarity = 2.0, float gain = 0.5);
 private:
     double fade(double t);
     double lerp(double t, double a, double b);

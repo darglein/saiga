@@ -107,6 +107,7 @@ void raw_Texture::setWrap(GLint param){
 void raw_Texture::setFiltering(GLint param){
     bind();
     glTexParameteri(target, GL_TEXTURE_MIN_FILTER, param);
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, param);
     unbind();
 }
 

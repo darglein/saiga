@@ -77,3 +77,16 @@ double PerlinNoise::grad(int hash, double x, double y, double z) {
             v = h < 4 ? y : h == 12 || h == 14 ? x : z;
     return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
+
+ double PerlinNoise::fBm(double x, double y, double z, int octaves, float lacunarity, float gain){
+     float amplitude = 1.0;
+     float frequency = 1.0;
+     float sum = 0.0;
+     for(int i = 0; i < octaves; ++i)
+     {
+         sum += amplitude * noise(x * frequency, y * frequency, z * frequency);
+         amplitude *= gain;
+         frequency *= lacunarity;
+     }
+     return sum;
+ }

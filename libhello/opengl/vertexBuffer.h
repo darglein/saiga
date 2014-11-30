@@ -84,8 +84,8 @@ public:
      *  Binds/Unbinds OpenGL buffers.
      */
 
-    void bind();
-    void unbind();
+    void bind() const;
+    void unbind() const;
 
     /*
      *  Draws the vertex array in the specified draw mode.
@@ -98,7 +98,7 @@ public:
      *  If you want to use one vertex for multiple faces use IndexedVertexBuffer instead.
      */
 
-    void draw();
+    void draw() const;
 
     /*
      *  1. bind()
@@ -106,7 +106,7 @@ public:
      *  3. unbind()
      */
 
-    void bindAndDraw();
+    void bindAndDraw() const;
 
     /*
      *  Set draw type of primitives.
@@ -126,7 +126,7 @@ public:
 
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::bindAndDraw(){
+void VertexBuffer<vertex_t>::bindAndDraw() const{
     bind();
     draw();
     unbind();
@@ -181,18 +181,18 @@ void VertexBuffer<vertex_t>::updateVertexBuffer(vertex_t* vertices,int vertex_co
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::bind(){
+void VertexBuffer<vertex_t>::bind() const{
     glBindVertexArray(gl_vao);
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::unbind(){
+void VertexBuffer<vertex_t>::unbind() const{
     glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
     glBindVertexArray(0);
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::draw(){
+void VertexBuffer<vertex_t>::draw() const{
     glDrawArrays(draw_mode,0,vertex_count);
 }
 
