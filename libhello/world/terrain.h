@@ -6,13 +6,15 @@
 #include "libhello/opengl/basic_shaders.h"
 
 #include "libhello/world/heightmap.h"
+#include "libhello/world/terrainmesh.h"
 
 class TerrainShader : public MVPTextureShader{
 public:
     GLuint location_ScaleFactor, location_FineBlockOrig,location_color, location_TexSizeScale; //vec4
-    GLuint location_ViewerPos, location_AlphaOffset, location_OneOverWidth; //vec2
+    GLuint location_RingSize,location_ViewerPos, location_AlphaOffset, location_OneOverWidth; //vec2
     GLuint location_ZScaleFactor, location_ZTexScaleFactor; //float
-     GLuint location_normalMap;
+
+     GLuint location_imageUp,location_normalMap,location_normalMapUp;
 
     TerrainShader(const string &multi_file) : MVPTextureShader(multi_file){}
     virtual void checkUniforms();
@@ -21,8 +23,13 @@ public:
     void uploadScale(const vec4 &s);
     void uploadFineOrigin(const vec4 &s);
     void uploadTexSizeScale(const vec4 &s);
+    void uploadRingSize(const vec2 &s);
     void uploadZScale(float f);
     void uploadNormalMap(raw_Texture *texture);
+    void uploadImageUp(raw_Texture *texture);
+
+    void uploadNormalMapUp(raw_Texture *texture);
+
 
 };
 
@@ -32,7 +39,7 @@ public:
     IndexedVertexBuffer<Vertex,GLuint> fixupv,fixuph,trim,trimi,degenerated;
 
     TerrainShader* shader;
-    Texture* texture;
+//    std::vector<Texture*> texture;
 
     Heightmap heightmap;
     mat4 model;

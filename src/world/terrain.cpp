@@ -10,6 +10,7 @@ void TerrainShader::checkUniforms(){
     location_color = getUniformLocation("color");
     location_TexSizeScale = getUniformLocation("TexSizeScale");
 
+    location_RingSize = getUniformLocation("RingSize");
     location_ViewerPos = getUniformLocation("ViewerPos");
     location_AlphaOffset = getUniformLocation("AlphaOffset");
     location_OneOverWidth = getUniformLocation("OneOverWidth");
@@ -18,6 +19,8 @@ void TerrainShader::checkUniforms(){
     location_ZTexScaleFactor = getUniformLocation("ZTexScaleFactor");
 
     location_normalMap = getUniformLocation("normalMap");
+    location_imageUp = getUniformLocation("imageUp");
+    location_normalMapUp = getUniformLocation("normalMapUp");
 }
 
 
@@ -41,6 +44,10 @@ void TerrainShader::uploadTexSizeScale(const vec4 &s){
     Shader::upload(location_TexSizeScale,s);
 }
 
+void TerrainShader::uploadRingSize(const vec2 &s){
+    Shader::upload(location_RingSize,s);
+}
+
 void TerrainShader::uploadZScale(float f){
     Shader::upload(location_ZScaleFactor,f);
 }
@@ -50,39 +57,49 @@ void TerrainShader::uploadNormalMap(raw_Texture *texture){
     Shader::upload(location_normalMap,1);
 }
 
+void TerrainShader::uploadImageUp(raw_Texture *texture){
+    texture->bind(2);
+    Shader::upload(location_imageUp,2);
+}
 
-Terrain::Terrain():heightmap(2000,2000){
+void TerrainShader::uploadNormalMapUp(raw_Texture *texture){
+    texture->bind(3);
+    Shader::upload(location_normalMapUp,3);
+}
+
+
+Terrain::Terrain():heightmap(7,4096,4096){ //2560,4096
 
 }
 
 void Terrain::createMesh(unsigned int w, unsigned int h){
 
 
+    TerrainMesh tm;
 
-    auto block = heightmap.createMesh2();
+    auto block = tm.createMesh2();
     block->createBuffers(this->mesh);
 
-    auto fixupv = heightmap.createMeshFixUpV();
+    auto fixupv = tm.createMeshFixUpV();
     fixupv->createBuffers(this->fixupv);
 
-    auto fixuph = heightmap.createMeshFixUpH();
+    auto fixuph = tm.createMeshFixUpH();
     fixuph->createBuffers(this->fixuph);
 
-    auto trim = heightmap.createMeshTrim();
+    auto trim = tm.createMeshTrim();
     trim->createBuffers(this->trim);
 
-    auto trimi = heightmap.createMeshTrimi();
+    auto trimi = tm.createMeshTrimi();
     trimi->createBuffers(this->trimi);
 
-    auto center = heightmap.createMeshCenter();
+    auto center = tm.createMeshCenter();
     center->createBuffers(this->center);
 
-    auto degenerated = heightmap.createMeshDegenerated();
+    auto degenerated = tm.createMeshDegenerated();
     degenerated->createBuffers(this->degenerated);
 
 
-    heightmap.createNoiseHeightmap();
-    heightmap.createNormalmap();
+    heightmap.createHeightmaps();
 
    heightmap.createTextures();
 
@@ -107,14 +124,16 @@ void Terrain::render(const vec3 &viewPos, const mat4& view, const mat4 &proj){
     shader->bind();
 
     shader->uploadAll(model,view,proj);
-    shader->uploadTexture(heightmap.texheightmap);
-    shader->uploadNormalMap(heightmap.texnormalmap);
     vec2 vp(this->viewPos.x,this->viewPos.z);
     shader->uploadVP(vp);
     shader->uploadZScale(200.0f);
-    shader->uploadTexSizeScale(vec4(heightmap.heightmap.width,heightmap.heightmap.height,heightmap.heightmap.width/8000.0f,heightmap.heightmap.height/8000.0f));
+    shader->uploadTexSizeScale(vec4(heightmap.w,heightmap.h,heightmap.w/8000.0f,heightmap.h/8000.0f));
 
     //    renderBlocks(vec2(10,10),1);
+    shader->uploadTexture(heightmap.texheightmap[0]);
+    shader->uploadNormalMap(heightmap.texnormalmap[0]);
+    shader->uploadImageUp(heightmap.texheightmap[0]);
+    shader->uploadNormalMapUp(heightmap.texnormalmap[0]);
     render(center,vec4(1,1,0,0),vec4(40,40,0,0),vec4(1,1,0,0));
 
 
@@ -126,6 +145,12 @@ void Terrain::render(const vec3 &viewPos, const mat4& view, const mat4 &proj){
 
     vec2 scale = baseScale;
     for(int i=0;i<7;i++){
+        shader->uploadTexture(heightmap.texheightmap[i]);
+        shader->uploadNormalMap(heightmap.texnormalmap[0]);
+
+        int next = glm::clamp(i+1,0,6);
+        shader->uploadImageUp(heightmap.texheightmap[next]);
+        shader->uploadNormalMapUp(heightmap.texnormalmap[0]);
         renderRing(scale,(i+1)%2,offsets[i]*baseCellWidth);
         scale*=2.0f;
     }
@@ -140,6 +165,8 @@ void Terrain::renderRing(vec2 scale, float f, vec2 off){
     offset -= vec4(0,0,off.x,off.y);
 
     vec2 ringSize = 4.0f*scale+2.0f*cellWidth;
+
+    shader->uploadRingSize(ringSize-cellWidth);
 
     //render 12 blocks
     renderBlocks(scale,cellWidth,offset,ringSize);

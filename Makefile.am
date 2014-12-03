@@ -75,6 +75,7 @@ libhello_la_SOURCES = 	src/camera/camera.cpp \
 			\
 			src/world/skybox.cpp \
 			src/world/terrain.cpp \
+			src/world/terrainmesh.cpp \
 			src/world/heightmap.cpp 
 			
 			
@@ -158,6 +159,7 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			\
 			$(PACKAGE)/world/skybox.h \
 			$(PACKAGE)/world/terrain.h \
+			$(PACKAGE)/world/terrainmesh.h \
 			$(PACKAGE)/world/heightmap.h
 
 
