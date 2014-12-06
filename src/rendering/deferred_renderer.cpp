@@ -15,15 +15,29 @@ void Deferred_Renderer::setDeferredMixer(DeferredShader* deferred_shader){
 }
 
 void Deferred_Renderer::render_intern(){
-    mat4 &inview = (**currentCamera).model;
-    mat4 &view = (**currentCamera).view;
-    mat4 &proj  = (**currentCamera).proj;
 
     glViewport(0,0,width,height);
     glClear( GL_COLOR_BUFFER_BIT );
     glClear(GL_DEPTH_BUFFER_BIT);
 
 
+    renderGBuffer(*currentCamera);
+
+
+    renderDepthMaps(*currentCamera);
+
+    glDisable(GL_DEPTH_TEST);
+    glViewport(0,0,width,height);
+
+
+    renderLighting(*currentCamera);
+
+
+    renderOverlay(*currentCamera);
+
+}
+
+void Deferred_Renderer::renderGBuffer(Camera *cam){
     deferred_framebuffer.bind();
     glViewport(0,0,width,height);
     glClear( GL_COLOR_BUFFER_BIT );
@@ -36,40 +50,23 @@ void Deferred_Renderer::render_intern(){
         glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
         glLineWidth(wireframeLineSize);
     }
-    render();
+    render(cam);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-    glDisable(GL_DEPTH_TEST);
+
 
 
     deferred_framebuffer.unbind();
-
-
-
-
     deferred_framebuffer.blitDepth();
+}
 
-    //    glDisable(GL_CULL_FACE);
-    //    renderLighting();
-    //    glEnable(GL_CULL_FACE);
+void Deferred_Renderer::renderDepthMaps(Camera *cam){
+    lighting.renderDepthMaps(this);
+//    renderDepth(*currentCamera);
+}
 
-    //    glEnable(GL_BLEND);
-    //        glBlendEquation(GL_FUNC_ADD);
-    //        glBlendFunc(GL_ONE, GL_ONE);
+void Deferred_Renderer::renderLighting(Camera *cam){
     glDepthMask(GL_FALSE);
-    lighting.setViewProj(inview,view,proj);
-    lighting.render();
+    lighting.setViewProj(cam->model,cam->view,cam->proj);
+    lighting.render(cam);
     glDisable(GL_BLEND);
-    //    glDepthMask(GL_TRUE);
-
-    //    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-    //    glLineWidth(wireframeLineSize);
-    //    lighting.renderDebug(view,proj,&deferred_framebuffer);
-
-
-
-
-    renderOverlay();
-
-
-
 }

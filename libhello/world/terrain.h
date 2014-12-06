@@ -7,6 +7,7 @@
 
 #include "libhello/world/heightmap.h"
 #include "libhello/world/terrainmesh.h"
+#include "libhello/camera/camera.h"
 
 class TerrainShader : public MVPTextureShader{
 public:
@@ -39,6 +40,8 @@ public:
     IndexedVertexBuffer<Vertex,GLuint> fixupv,fixuph,trim,trimi,degenerated;
 
     TerrainShader* shader;
+    TerrainShader* deferredshader;
+    TerrainShader* depthshader;
 //    std::vector<Texture*> texture;
 
     Heightmap heightmap;
@@ -52,9 +55,10 @@ public:
 
     void setPosition(const vec3& p);
     void setDistance(float d);
-    void render(const vec3 &viewPos, const mat4& view, const mat4 &proj);
 
-
+    void render(Camera* cam);
+    void renderDepth(Camera* cam);
+    void renderintern(Camera* cam);
 
     void render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color, vec4 scale,vec4 fineOrigin);
     void render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color, vec4 scale);

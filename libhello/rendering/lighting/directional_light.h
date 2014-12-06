@@ -7,31 +7,43 @@
 #include "libhello/geometry/triangle_mesh_generator.h"
 
 #include "libhello/rendering/lighting/light.h"
+#include "libhello/camera/camera.h"
+#include "libhello/opengl/framebuffer.h"
 
 class DirectionalLightShader : public LightShader{
 public:
     GLuint location_direction;
+    GLuint location_depthBiasMV, location_depthTex;
+
     DirectionalLightShader(const string &multi_file) : LightShader(multi_file){}
     virtual void checkUniforms();
     void uploadDirection(vec3 &direction);
+    void uploadDepthBiasMV(mat4 &mat);
+    void uploadDepthTexture(raw_Texture* texture);
 };
 
-class DirectionalLight :  public Light //public LightMesh<DirectionalLight,DirectionalLightShader>
+class DirectionalLight :  public Light
 {
 protected:
 
 
     vec3 direction;
+
+
 public:
+    Framebuffer depthBuffer;
+     OrthographicCamera cam;
     const mat4 *view;
 //    static void createMesh();
     DirectionalLight();
     virtual ~DirectionalLight(){}
-    void bindUniforms(DirectionalLightShader& shader);
-    void setDirection(const vec3 &dir);
 
-//    void drawNoShaderBind();
-//    void drawRaw();
+    void bindUniforms(DirectionalLightShader& shader, Camera* cam);
+
+    void setDirection(const vec3 &dir);
+    void setFocus(const vec3 &pos);
+
+
 };
 
 

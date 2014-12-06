@@ -1,7 +1,7 @@
 #include "rendering/lighting/deferred_lighting.h"
 #include "util/inputcontroller.h"
 
-
+#include "rendering/deferred_renderer.h"
 
 
 
@@ -9,6 +9,10 @@ DeferredLighting::DeferredLighting(Framebuffer &framebuffer):framebuffer(framebu
     
     createInputCommands();
     createLightMeshes();
+
+
+
+
 }
 
 DeferredLighting::~DeferredLighting(){
@@ -25,11 +29,20 @@ DeferredLighting::~DeferredLighting(){
     }
 }
 
+void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
+    //    obj->fptr(0);
+    DirectionalLight* sun = directionalLights[0];
 
-void DeferredLighting::render(){
+    glViewport(0,0,1000,1000);
+    sun->depthBuffer.bind();
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    renderer->renderDepth(&sun->cam);
+    sun->depthBuffer.unbind();
+}
 
-
-
+void DeferredLighting::render(Camera* cam){
 
     //============= Point lights
 
@@ -45,25 +58,25 @@ void DeferredLighting::render(){
     renderSpotLights();
 
 
-//    glEnable(GL_DEPTH_TEST);
-//    glEnable(GL_STENCIL_TEST);
-//    glDepthMask(GL_FALSE);
+    //    glEnable(GL_DEPTH_TEST);
+    //    glEnable(GL_STENCIL_TEST);
+    //    glDepthMask(GL_FALSE);
     //============= Spot lights
-//    glClear(GL_STENCIL_BUFFER_BIT);
-//    renderSpotLightsStencil();
-//    glClear(GL_STENCIL_BUFFER_BIT);
+    //    glClear(GL_STENCIL_BUFFER_BIT);
+    //    renderSpotLightsStencil();
+    //    glClear(GL_STENCIL_BUFFER_BIT);
 
-//    glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
-//    glEnable(GL_BLEND);
-//    glBlendEquation(GL_FUNC_ADD);
-//    glBlendFunc(GL_ONE, GL_ONE);
-//    renderSpotLights();
-//    glDisable(GL_BLEND);
-
-
+    //    glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
+    //    glEnable(GL_BLEND);
+    //    glBlendEquation(GL_FUNC_ADD);
+    //    glBlendFunc(GL_ONE, GL_ONE);
+    //    renderSpotLights();
+    //    glDisable(GL_BLEND);
 
 
-    renderDirectionalLights();
+
+
+    renderDirectionalLights(cam);
 
     //draw solid on top
     glDisable(GL_BLEND);
@@ -94,24 +107,24 @@ void DeferredLighting::setupStencilPass(){
 
 
 }
- void DeferredLighting::setupLightPass(){
-     // Disable color/depth write and enable stencil
+void DeferredLighting::setupLightPass(){
+    // Disable color/depth write and enable stencil
 
-     glEnable(GL_BLEND);
-     glBlendEquation(GL_FUNC_ADD);
-     glBlendFunc(GL_ONE, GL_ONE);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ONE);
 
 
-     glEnable(GL_STENCIL_TEST);
-     glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
-     glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);//do nothing
-     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
-     glDisable(GL_DEPTH_TEST);
-     glDepthMask(GL_FALSE);
+    glEnable(GL_STENCIL_TEST);
+    glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
+    glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);//do nothing
+    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
 
-     glEnable(GL_CULL_FACE);
-     glCullFace(GL_FRONT);
- }
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+}
 
 
 void DeferredLighting::renderPointLights(){
@@ -194,7 +207,7 @@ void DeferredLighting::renderSpotLightsStencil(){
 }
 
 
-void DeferredLighting::renderDirectionalLights(){
+void DeferredLighting::renderDirectionalLights(Camera *cam){
     //reset stencil test
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_STENCIL_TEST);
@@ -216,7 +229,7 @@ void DeferredLighting::renderDirectionalLights(){
     for(DirectionalLight* &obj : directionalLights){
         if(obj->isActive()&&obj->isVisible()){
             obj->view = &view;
-            obj->bindUniforms(*directionalLightShader);
+            obj->bindUniforms(*directionalLightShader,cam);
             directionalLightMesh.draw();
         }
     }
@@ -230,8 +243,8 @@ void DeferredLighting::renderDebug(){
     debugShader->bind();
     debugShader->uploadView(view);
     debugShader->uploadProj(proj);
-//    debugShader->uploadFramebuffer(&framebuffer);
-//    debugShader->uploadScreenSize(vec2(width,height));
+    //    debugShader->uploadFramebuffer(&framebuffer);
+    //    debugShader->uploadScreenSize(vec2(width,height));
 
     pointLightMesh.bind();
     //center

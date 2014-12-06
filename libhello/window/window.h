@@ -7,6 +7,7 @@
 #include "libhello/opengl/objloader.h"
 #include "libhello/rendering/material.h"
 #include "libhello/rendering/deferred_renderer.h"
+#include "libhello/camera/camera.h"
 
 class Window{
 protected:
@@ -31,6 +32,10 @@ public:
     bool init();
     virtual void close() = 0;
 
+
+    inline Camera* getCamera(){
+        return currentCamera;
+    }
 
     inline Deferred_Renderer* getRenderer(){
         return renderer;

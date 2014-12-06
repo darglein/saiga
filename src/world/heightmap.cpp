@@ -37,8 +37,8 @@ void Heightmap::createInitialHeightmap(){
 
 
 
-            xf *= 30;
-            yf *= 30;
+            xf *= 10;
+            yf *= 10;
             float h = noise.fBm(xf,yf,0,2);
 
             setHeight(x,y,h);

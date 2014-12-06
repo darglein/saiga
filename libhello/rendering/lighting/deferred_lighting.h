@@ -7,6 +7,7 @@
 #include "libhello/rendering/lighting/point_light.h"
 #include "libhello/rendering/lighting/spot_light.h"
 
+class Deferred_Renderer;
 
 class DeferredLighting{
     friend class LightingController;
@@ -29,6 +30,7 @@ private:
 
     MVPShader* stencilShader;
     Framebuffer &framebuffer;
+
     mat4 inview,view,proj;
     bool drawDebug = true;
 public:
@@ -41,8 +43,10 @@ public:
     SpotLight* createSpotLight();
 
 
-    void render();
+    void render(Camera *cam);
+    void renderDepthMaps( Deferred_Renderer* renderer );
     void renderDebug();
+
 
     void setShader(SpotLightShader* pointLightShader);
     void setShader(PointLightShader* pointLightShader);
@@ -58,7 +62,7 @@ private:
     void createInputCommands();
 
     void setupStencilPass();
-     void setupLightPass();
+    void setupLightPass();
 
     void renderPointLights();
     void renderPointLightsStencil();
@@ -66,7 +70,7 @@ private:
     void renderSpotLights();
     void renderSpotLightsStencil();
 
-    void renderDirectionalLights();
+    void renderDirectionalLights(Camera *cam);
 
 };
 

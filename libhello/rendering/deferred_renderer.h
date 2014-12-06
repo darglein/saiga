@@ -6,8 +6,10 @@
 #include "libhello/opengl/mesh.h"
 
 class Deferred_Renderer : public Renderer{
-public:
+    public:
     Camera** currentCamera;
+
+
     Framebuffer deferred_framebuffer;
     DeferredShader* deferred_shader;
 
@@ -20,9 +22,14 @@ public:
     void setSize(int width, int height){this->width=width;this->height=height;}
 
     void render_intern();
-    virtual void render() = 0;
-    virtual void renderOverlay() = 0;
-    virtual void renderLighting() = 0;
+    void renderGBuffer(Camera *cam);
+    void renderDepthMaps(Camera *cam);
+    void renderLighting(Camera *cam);
+
+    virtual void render(Camera *cam) = 0;
+    virtual void renderDepth(Camera *cam) = 0;
+    virtual void renderOverlay(Camera *cam) = 0;
+//    virtual void renderLighting() = 0;
 };
 
 

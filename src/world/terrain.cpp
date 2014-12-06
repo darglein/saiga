@@ -68,7 +68,7 @@ void TerrainShader::uploadNormalMapUp(raw_Texture *texture){
 }
 
 
-Terrain::Terrain():heightmap(7,4096,4096){ //2560,4096
+Terrain::Terrain():heightmap(7,1024,1024){ //1024,2560,4096
 
 }
 
@@ -117,17 +117,27 @@ void Terrain::setDistance(float d){
 
 
 
-void Terrain::render(const vec3 &viewPos, const mat4& view, const mat4 &proj){
-    this->viewPos = viewPos;
+void Terrain::render(Camera *cam){
+    shader = deferredshader;
+    renderintern(cam);
+}
+
+void Terrain::renderDepth(Camera* cam){
+    shader = depthshader;
+    renderintern(cam);
+}
+
+void Terrain::renderintern(Camera *cam){
+//    this->viewPos = cam->m;
 //    this->viewPos = vec3(0);
 
     shader->bind();
 
-    shader->uploadAll(model,view,proj);
+    shader->uploadAll(model,cam->view,cam->proj);
     vec2 vp(this->viewPos.x,this->viewPos.z);
     shader->uploadVP(vp);
-    shader->uploadZScale(200.0f);
-    shader->uploadTexSizeScale(vec4(heightmap.w,heightmap.h,heightmap.w/8000.0f,heightmap.h/8000.0f));
+    shader->uploadZScale(heightmap.heightScale);
+    shader->uploadTexSizeScale(vec4(heightmap.w,heightmap.h,heightmap.w/2000.0f,heightmap.h/2000.0f));
 
     //    renderBlocks(vec2(10,10),1);
     shader->uploadTexture(heightmap.texheightmap[0]);
