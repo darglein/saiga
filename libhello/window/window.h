@@ -37,6 +37,10 @@ public:
         return currentCamera;
     }
 
+    inline void setCamera(Camera* c){
+        currentCamera = c;
+    }
+
     inline Deferred_Renderer* getRenderer(){
         return renderer;
     }

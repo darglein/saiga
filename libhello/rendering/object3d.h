@@ -37,7 +37,9 @@ public:
     void rotateLocal(vec3 axis, float angle); //rotate around local axis (this is much faster than rotateGlobal)
     void rotateGlobal(vec3 axis, float angle);
 
+
     void scale(vec3 s);
+    vec3 getScale();
     void setScale(vec3 s);
     void normalize();
 

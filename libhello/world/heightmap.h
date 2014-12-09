@@ -19,7 +19,7 @@ public:
 
      float* heights;
 
-     float heightScale = 20.0f;
+     float heightScale = 40.0f;
      float minH = 125725;
      float maxH = -0125725;
     std::vector<Image> heightmap;

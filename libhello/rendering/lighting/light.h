@@ -5,15 +5,18 @@
 #include "libhello/geometry/sphere.h"
 #include "libhello/geometry/plane.h"
 #include "libhello/geometry/triangle_mesh.h"
-
+#include "libhello/opengl/framebuffer.h"
 
 class LightShader : public DeferredShader{
 public:
     GLuint location_color; //rgba, rgb=color, a=intensity [0,1]
+    GLuint location_depthBiasMV, location_depthTex;
     LightShader(const string &multi_file) : DeferredShader(multi_file){}
     virtual void checkUniforms();
     void uploadColor(vec4 &color);
     void uploadColor(vec3 &color, float intensity);
+    void uploadDepthBiasMV(mat4 &mat);
+    void uploadDepthTexture(raw_Texture* texture);
 };
 
 
@@ -22,7 +25,12 @@ class Light  : public Object3D
 protected:
     bool visible=true, active=true, selected=false;
 
+    //shadow map
+    bool castShadows=false;
+    int shadowResX,shadowResY;
+
 public:
+    Framebuffer depthBuffer;
     vec4 color;
 
 
@@ -48,6 +56,15 @@ public:
     bool isVisible(){return visible;}
     void setSelected(bool selected){this->selected=selected;}
     bool isSelected(){return selected;}
+
+
+    bool hasShadows() const {return castShadows;}
+    void enableShadows() {castShadows=true;}
+    void disableShadows() {castShadows=false;}
+
+    void createShadowMap(int resX, int resY);
+    void bindShadowMap();
+    void unbindShadowMap();
 };
 
 

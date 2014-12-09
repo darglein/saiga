@@ -24,7 +24,7 @@ void raw_Texture::createTexture(int width, int height, int color_type, int inter
 
 
 void raw_Texture::createEmptyTexture(int width, int height, int color_type, int internal_format, int data_type){
-    createTexture(width,height,color_type,internal_format,data_type,NULL);
+    createTexture(width,height,color_type,internal_format,data_type,nullptr);
 }
 
 

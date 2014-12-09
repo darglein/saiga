@@ -26,6 +26,7 @@ public:
 
     void uploadData(GLenum target, GLubyte* data );
     void uploadData(GLubyte** data );
+    void uploadData(GLubyte* data);
 
     bool fromImage(Image *img);
     bool fromImage(Image &img);

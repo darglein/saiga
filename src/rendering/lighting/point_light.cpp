@@ -20,9 +20,11 @@ void PointLightShader::upload(vec3 &attenuation){
 
 PointLight::PointLight():PointLight(Sphere())
 {
+
+
 }
 
-PointLight::PointLight(const Sphere &sphere):sphere(sphere){
+PointLight::PointLight(const Sphere &sphere):cam("bla"),sphere(sphere){
 
 //    translateGlobal(sphere.pos);
 }
@@ -119,12 +121,25 @@ void PointLight::setAttenuation(const vec3 &value)
 //     model[2][2] = radius;
  }
 
- void PointLight::bindUniforms(PointLightShader &shader){
+ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
  //    LightMesh::bindUniforms();
      shader.uploadColor(color);
      shader.uploadModel(model);
      shader.upload(sphere.pos,sphere.r);
      shader.upload(attenuation);
+
+
+     const glm::mat4 biasMatrix(
+                 0.5, 0.0, 0.0, 0.0,
+                 0.0, 0.5, 0.0, 0.0,
+                 0.0, 0.0, 0.5, 0.0,
+                 0.5, 0.5, 0.5, 1.0
+                 );
+
+     mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
+     shader.uploadDepthBiasMV(shadow);
+
+     shader.uploadDepthTexture(cubeMap);
  }
 
   void PointLight::bindUniformsStencil(MVPShader& shader){
@@ -144,3 +159,70 @@ void PointLight::setAttenuation(const vec3 &value)
 // void PointLight::drawRaw(){
 //     buffer.bindAndDraw();
 // }
+
+  void PointLight::createShadow(){
+
+      shadowResX = 512;
+      shadowResY = 512;
+
+      depthBuffer.create();
+        depthBuffer.unbind();
+
+      Texture* depth = new Texture();
+      depth->createEmptyTexture(shadowResX,shadowResY,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+      depth->setWrap(GL_CLAMP_TO_EDGE);
+      depthBuffer.attachTextureDepth(depth);
+
+//      depthBuffer.check();
+
+
+
+      cubeMap = new cube_Texture();
+      cubeMap->createEmptyTexture(shadowResX,shadowResY,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+//      cubeMap->createEmptyTexture(shadowResX,shadowResY,GL_RED, GL_R32F,GL_FLOAT);
+
+      this->cam.setProj(90.0f,1,1.0,400.0);
+  }
+
+
+  struct CameraDirection
+  {
+      GLenum CubemapFace;
+      vec3 Target;
+      vec3 Up;
+  };
+
+  CameraDirection gCameraDirections[] =
+  {
+      { GL_TEXTURE_CUBE_MAP_POSITIVE_X, vec3(1.0f, 0.0f, 0.0f), vec3(0.0f, -1.0f, 0.0f) },
+      { GL_TEXTURE_CUBE_MAP_NEGATIVE_X, vec3(-1.0f, 0.0f, 0.0f), vec3(0.0f, -1.0f, 0.0f) },
+      { GL_TEXTURE_CUBE_MAP_POSITIVE_Y, vec3(0.0f, 1.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f) },
+      { GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, vec3(0.0f, -1.0f, 0.0f), vec3(0.0f, 0.0f, -1.0f) },
+      { GL_TEXTURE_CUBE_MAP_POSITIVE_Z, vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, -1.0f, 0.0f) },
+      { GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, -1.0f, 0.0f) }
+  };
+
+
+  void PointLight::bindFace(int i){
+//      glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, gCameraDirections[i].CubemapFace, cubeMap->getId(), 0);
+//      glDrawBuffer(GL_COLOR_ATTACHMENT0);
+    glViewport(0,0,shadowResX,shadowResY);
+
+      depthBuffer.bind();
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, gCameraDirections[i].CubemapFace, cubeMap->getId(), 0);
+        glDrawBuffer(GL_NONE);
+
+
+
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+
+      depthBuffer.check();
+
+      //calculate camera
+      vec3 pos(this->getPosition());
+      vec3 dir(gCameraDirections[i].Target);
+      vec3 up(gCameraDirections[i].Up);
+      cam.setView(pos,pos+dir,up);
+  }

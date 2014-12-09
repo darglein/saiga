@@ -5,8 +5,7 @@ void DirectionalLightShader::checkUniforms(){
     LightShader::checkUniforms();
     location_direction = getUniformLocation("direction");
     location_color = getUniformLocation("color");
-    location_depthBiasMV = getUniformLocation("depthBiasMV");
-    location_depthTex = getUniformLocation("depthTex");
+
 }
 
 
@@ -15,14 +14,6 @@ void DirectionalLightShader::uploadDirection(vec3 &direction){
     Shader::upload(location_direction,direction);
 }
 
-void DirectionalLightShader::uploadDepthBiasMV(mat4 &mat){
-    Shader::upload(location_depthBiasMV,mat);
-}
-
-void DirectionalLightShader::uploadDepthTexture(raw_Texture* texture){
-        texture->bind(4);
-        Shader::upload(location_depthTex,4);
-}
 
 //==================================
 
@@ -37,12 +28,7 @@ DirectionalLight::DirectionalLight():cam("Sun")
     float range = 400.0f;
     cam.setProj(-range,range,-range,range,10.f,800.0f);
 
-    depthBuffer.create();
-    Texture* depth = new Texture();
-    depth->createEmptyTexture(1000,1000,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    depthBuffer.attachTextureDepth(depth);
-
-    depthBuffer.check();
+    createShadowMap(2000,2000);
 
 }
 
@@ -71,8 +57,6 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
     0.0, 0.0, 0.5, 0.0,
     0.5, 0.5, 0.5, 1.0
     );
-
-    shader.uploadProj(cam->proj);
 
     mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
     shader.uploadDepthBiasMV(shadow);

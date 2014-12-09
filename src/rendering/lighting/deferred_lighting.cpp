@@ -31,15 +31,35 @@ DeferredLighting::~DeferredLighting(){
 
 void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
     //    obj->fptr(0);
-    DirectionalLight* sun = directionalLights[0];
+    for(DirectionalLight* &light : directionalLights){
 
-    glViewport(0,0,1000,1000);
-    sun->depthBuffer.bind();
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    renderer->renderDepth(&sun->cam);
-    sun->depthBuffer.unbind();
+        light->bindShadowMap();
+        renderer->renderDepth(&light->cam);
+        light->unbindShadowMap();
+
+    }
+
+    for(SpotLight* &light : spotLights){
+        light->calculateCamera();
+        light->bindShadowMap();
+        renderer->renderDepth(&light->cam);
+        light->unbindShadowMap();
+    }
+
+
+    for(PointLight* &light : pointLights){
+        for(int i=0;i<6;i++){
+//            light->bindShadowMap();
+            light->bindFace(i);
+            renderer->renderDepth(&light->cam);
+            light->unbindShadowMap();
+        }
+//        light->calculateCamera();
+//        light->bindShadowMap();
+//        renderer->renderDepth(&light->cam);
+//        light->unbindShadowMap();
+    }
+
 }
 
 void DeferredLighting::render(Camera* cam){
@@ -49,13 +69,13 @@ void DeferredLighting::render(Camera* cam){
     renderPointLightsStencil();
 
 
-    renderPointLights();
+    renderPointLights(cam);
 
 
     renderSpotLightsStencil();
 
 
-    renderSpotLights();
+    renderSpotLights(cam);
 
 
     //    glEnable(GL_DEPTH_TEST);
@@ -127,7 +147,7 @@ void DeferredLighting::setupLightPass(){
 }
 
 
-void DeferredLighting::renderPointLights(){
+void DeferredLighting::renderPointLights(Camera *cam){
 
     setupLightPass();
     pointLightShader->bind();
@@ -139,7 +159,7 @@ void DeferredLighting::renderPointLights(){
     pointLightMesh.bind();
     for(PointLight* &obj : pointLights){
         if(obj->isActive()&&obj->isVisible()){
-            obj->bindUniforms(*pointLightShader);
+            obj->bindUniforms(*pointLightShader,cam);
             pointLightMesh.draw();
         }
     }
@@ -166,7 +186,7 @@ void DeferredLighting::renderPointLightsStencil(){
 }
 
 
-void DeferredLighting::renderSpotLights(){
+void DeferredLighting::renderSpotLights(Camera *cam){
 
 
     setupLightPass();
@@ -180,7 +200,7 @@ void DeferredLighting::renderSpotLights(){
     spotLightMesh.bind();
     for(SpotLight* &obj : spotLights){
         if(obj->isActive()&&obj->isVisible()){
-            obj->bindUniforms(*spotLightShader);
+            obj->bindUniforms(*spotLightShader,cam);
             spotLightMesh.draw();
         }
     }

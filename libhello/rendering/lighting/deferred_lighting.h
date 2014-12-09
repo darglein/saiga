@@ -64,10 +64,10 @@ private:
     void setupStencilPass();
     void setupLightPass();
 
-    void renderPointLights();
+    void renderPointLights(Camera *cam);
     void renderPointLightsStencil();
 
-    void renderSpotLights();
+    void renderSpotLights(Camera *cam);
     void renderSpotLightsStencil();
 
     void renderDirectionalLights(Camera *cam);

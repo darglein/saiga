@@ -2,10 +2,11 @@
 
 #include "libhello/opengl/mesh_object.h"
 #include "libhello/opengl/shader.h"
+#include "libhello/opengl/texture/cube_texture.h"
 #include "libhello/geometry/sphere.h"
 #include "libhello/geometry/plane.h"
 #include "libhello/geometry/triangle_mesh_generator.h"
-
+#include "libhello/camera/camera.h"
 #include "libhello/rendering/lighting/light.h"
 
 class PointLightShader : public LightShader{
@@ -22,6 +23,8 @@ public:
 class PointLight : public Light// public LightMesh<PointLight,PointLightShader>
 {
 public:
+    PerspectiveCamera cam;
+    cube_Texture* cubeMap;
 
 
     vec3 attenuation;
@@ -35,7 +38,7 @@ public:
     void setSimpleAttenuation(float d, float cutoff=(1./256.));
     void calculateRadius(float cutoff=(1./256.));
 
-    virtual void bindUniforms(PointLightShader& shader);
+    virtual void bindUniforms(PointLightShader& shader, Camera *cam);
     virtual void bindUniformsStencil(MVPShader& shader);
 
 
@@ -44,6 +47,9 @@ public:
 
     vec3 getAttenuation() const;
     void setAttenuation(const vec3 &value);
+
+    void createShadow();
+    void bindFace(int i);
 
 
 //    void drawNoShaderBind();

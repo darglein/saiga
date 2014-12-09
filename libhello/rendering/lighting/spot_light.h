@@ -28,9 +28,11 @@ public:
 
     SpotLight();
     virtual ~SpotLight(){}
-    void bindUniforms(SpotLightShader& shader);
+    void bindUniforms(SpotLightShader& shader, Camera *cam);
     void bindUniformsStencil(MVPShader& shader) override;
 
+
+    void calculateCamera();
 
     void setRadius(float value) override;
 

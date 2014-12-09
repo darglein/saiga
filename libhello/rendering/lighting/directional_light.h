@@ -13,13 +13,12 @@
 class DirectionalLightShader : public LightShader{
 public:
     GLuint location_direction;
-    GLuint location_depthBiasMV, location_depthTex;
+
 
     DirectionalLightShader(const string &multi_file) : LightShader(multi_file){}
     virtual void checkUniforms();
     void uploadDirection(vec3 &direction);
-    void uploadDepthBiasMV(mat4 &mat);
-    void uploadDepthTexture(raw_Texture* texture);
+
 };
 
 class DirectionalLight :  public Light
@@ -31,7 +30,6 @@ protected:
 
 
 public:
-    Framebuffer depthBuffer;
      OrthographicCamera cam;
     const mat4 *view;
 //    static void createMesh();

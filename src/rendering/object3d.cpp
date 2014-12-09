@@ -89,6 +89,10 @@ void Object3D::scale(vec3 s){
     calculateModel();
 }
 
+vec3 Object3D::getScale(){
+    return vec3(size[0][0],size[1][1],size[2][2]);
+}
+
 void Object3D::setScale(vec3 s){
     size[0][0] = s.x;
     size[1][1] = s.y;
@@ -97,7 +101,7 @@ void Object3D::setScale(vec3 s){
 }
 
 void Object3D::getViewMatrix(mat4& view){
-    view = glm::inverse(model);
+    view = glm::inverse(base*glm::mat4_cast(rot));
 }
 
 
