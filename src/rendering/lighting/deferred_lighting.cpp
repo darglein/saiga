@@ -30,7 +30,7 @@ DeferredLighting::~DeferredLighting(){
 }
 
 void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
-    //    obj->fptr(0);
+
     for(DirectionalLight* &light : directionalLights){
 
         light->bindShadowMap();
@@ -49,15 +49,11 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
 
     for(PointLight* &light : pointLights){
         for(int i=0;i<6;i++){
-//            light->bindShadowMap();
             light->bindFace(i);
+            light->calculateCamera(i);
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
         }
-//        light->calculateCamera();
-//        light->bindShadowMap();
-//        renderer->renderDepth(&light->cam);
-//        light->unbindShadowMap();
     }
 
 }

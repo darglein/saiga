@@ -18,7 +18,7 @@ void SpotLightShader::uploadAngle(float angle){
 }
 
 SpotLight::SpotLight():PointLight(){
-    createShadowMap(1000,1000);
+
 }
 
 
@@ -47,7 +47,7 @@ void SpotLight::bindUniforms(SpotLightShader &shader, Camera *cam){
     mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
     shader.uploadDepthBiasMV(shadow);
 
-    shader.uploadDepthTexture(depthBuffer.depthBuffer);
+    shader.uploadDepthTexture(shadowmap.depthBuffer.depthBuffer);
 
     vec3 dir = vec3(this->getUpVector());
     shader.uploadDirection(dir);

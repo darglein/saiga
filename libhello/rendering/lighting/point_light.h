@@ -2,7 +2,7 @@
 
 #include "libhello/opengl/mesh_object.h"
 #include "libhello/opengl/shader.h"
-#include "libhello/opengl/texture/cube_texture.h"
+
 #include "libhello/geometry/sphere.h"
 #include "libhello/geometry/plane.h"
 #include "libhello/geometry/triangle_mesh_generator.h"
@@ -24,7 +24,7 @@ class PointLight : public Light// public LightMesh<PointLight,PointLightShader>
 {
 public:
     PerspectiveCamera cam;
-    cube_Texture* cubeMap;
+//    cube_Texture* cubeMap;
 
 
     vec3 attenuation;
@@ -48,9 +48,9 @@ public:
     vec3 getAttenuation() const;
     void setAttenuation(const vec3 &value);
 
-    void createShadow();
-    void bindFace(int i);
-
+    virtual void createShadowMap(int resX, int resY) override;
+    void bindFace(int face);
+    void calculateCamera(int face);
 
 //    void drawNoShaderBind();
 //    void drawNoShaderBindStencil();

@@ -38,6 +38,7 @@ public:
 
     void bindUniforms(DirectionalLightShader& shader, Camera* cam);
 
+    virtual void createShadowMap(int resX, int resY) override;
     void setDirection(const vec3 &dir);
     void setFocus(const vec3 &pos);
 

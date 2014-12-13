@@ -99,16 +99,16 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
     colorFinal->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
     attachTexture(colorFinal);
 
-    //    Texture* depth = new Texture();
-    //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    ////    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
-    ////    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
-    //    attachTextureDepth(depth);
+    Texture* depth = new Texture();
+    //        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+    //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
+    attachTextureDepth(depth);
 
     //depth and stencil texture combined
-    Texture* depth_stencil = new Texture();
-    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-    attachTextureDepthStencil(depth_stencil);
+    //    Texture* depth_stencil = new Texture();
+    //    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+    //    attachTextureDepthStencil(depth_stencil);
 
     GLenum DrawBuffers[4] = {GL_COLOR_ATTACHMENT0,GL_COLOR_ATTACHMENT1,GL_COLOR_ATTACHMENT2,GL_COLOR_ATTACHMENT3};
     glDrawBuffers(4, DrawBuffers);
@@ -120,9 +120,15 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
 
 }
 
-void Framebuffer::blitDepth(){
+
+void Framebuffer::blitDepth(int otherId){
     glBindFramebuffer(GL_READ_FRAMEBUFFER, id);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer(0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(), 0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(),
-                      GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, otherId);
+    glBlitFramebuffer(0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(), 0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(),GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+}
+
+void Framebuffer::blitColor(int otherId){
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, id);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, otherId);
+    glBlitFramebuffer(0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(), 0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(),GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }

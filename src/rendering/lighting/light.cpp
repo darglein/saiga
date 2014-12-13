@@ -28,25 +28,14 @@ void LightShader::uploadDepthTexture(raw_Texture* texture){
 }
 
 void Light::createShadowMap(int resX, int resY){
-    shadowResX = resX;
-    shadowResY = resY;
+    shadowmap.createFlat(resX,resY);
 
-    depthBuffer.create();
-    Texture* depth = new Texture();
-    depth->createEmptyTexture(shadowResX,shadowResY,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    depth->setWrap(GL_CLAMP_TO_EDGE);
-    depthBuffer.attachTextureDepth(depth);
-    depthBuffer.check();
 }
 
 void Light::bindShadowMap(){
-    glViewport(0,0,shadowResX,shadowResY);
-    depthBuffer.bind();
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
+    shadowmap.bind();
 }
 
 void Light::unbindShadowMap(){
-    depthBuffer.unbind();
+shadowmap.unbind();
 }

@@ -247,3 +247,32 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createSkyboxMesh(const aa
     }
     return mesh;
 }
+
+
+
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createGridMesh(int w, int h){
+    default_mesh_t* mesh = new default_mesh_t();
+
+    //creating uniform grid with w*h vertices
+    //the resulting mesh will fill the quad (-1,0,-1) - (1,0,1)
+    float dw = (2.0/w);
+    float dh = (2.0/h);
+    for(unsigned int y=0;y<h;y++){
+        for(unsigned int x=0;x<w;x++){
+            float fx = (float)x*dw-1.0f;
+            float fy = (float)y*dh-1.0f;
+            VertexNT v(vec3(fx,0.0f,fy),vec3(0,1,0),vec2(0));
+            mesh->addVertex(v);
+        }
+    }
+
+
+    for(unsigned int y=0;y<h-1;y++){
+        for(unsigned int x=0;x<w-1;x++){
+            GLuint quad[] = {y*w+x,(y+1)*w+x,(y+1)*w+x+1,y*w+x+1};
+            mesh->addQuad(quad);
+        }
+    }
+
+    return std::shared_ptr<default_mesh_t>(mesh);
+}

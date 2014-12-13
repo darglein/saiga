@@ -33,6 +33,7 @@ libhello_la_SOURCES = 	src/camera/camera.cpp \
 			src/rendering/lighting/spot_light.cpp \
 			src/rendering/lighting/light.cpp \
 			src/rendering/lighting/lighting_controller.cpp \
+			src/rendering/lighting/shadowmap.cpp \
 			\
 			src/rendering/overlay/overlay.cpp \
 			src/rendering/overlay/console.cpp \
@@ -113,6 +114,7 @@ nobase_include_HEADERS = $(PACKAGE)/camera/camera.h \
 			$(PACKAGE)/rendering/lighting/spot_light.h \
 			$(PACKAGE)/rendering/lighting/light.h \
 			$(PACKAGE)/rendering/lighting/lighting_controller.h \
+			$(PACKAGE)/rendering/lighting/shadowmap.h \
 			\
 			$(PACKAGE)/rendering/particles/particle.h \
 			$(PACKAGE)/rendering/particles/particleconverter.h \

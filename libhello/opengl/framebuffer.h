@@ -35,7 +35,8 @@ public:
     void unbind();
     void check();
 
-    void blitDepth();
+    void blitDepth(int otherId);
+    void blitColor(int otherId);
 };
 
 #endif // FRAMEBUFFER_H

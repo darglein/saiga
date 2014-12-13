@@ -6,6 +6,7 @@
 #include "libhello/geometry/plane.h"
 #include "libhello/geometry/triangle_mesh.h"
 #include "libhello/opengl/framebuffer.h"
+#include "libhello/rendering/lighting/shadowmap.h"
 
 class LightShader : public DeferredShader{
 public:
@@ -27,10 +28,10 @@ protected:
 
     //shadow map
     bool castShadows=false;
-    int shadowResX,shadowResY;
+
 
 public:
-    Framebuffer depthBuffer;
+    Shadowmap shadowmap;
     vec4 color;
 
 
@@ -62,7 +63,7 @@ public:
     void enableShadows() {castShadows=true;}
     void disableShadows() {castShadows=false;}
 
-    void createShadowMap(int resX, int resY);
+    virtual void createShadowMap(int resX, int resY);
     void bindShadowMap();
     void unbindShadowMap();
 };
