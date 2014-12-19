@@ -112,6 +112,7 @@ float PointLight::getRadius() const
     return radius;
 }
 
+
 void PointLight::setRadius(float value)
 {
     radius = value;
@@ -163,6 +164,7 @@ void PointLight::bindUniformsStencil(MVPShader& shader){
 
 void PointLight::createShadowMap(int resX, int resY) {
     cout<<"PointLight::createShadowMap"<<endl;
+
     shadowmap.createCube(resX,resY);
     this->cam.setProj(90.0f,1,1.0,400.0);
 }

@@ -56,6 +56,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
     vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
     shader.uploadDirection(viewd);
 
+
     if(this->hasShadows()){
         shader.uploadShadow(1.0f);
         const glm::mat4 biasMatrix(
@@ -72,6 +73,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
     }else{
         shader.uploadShadow(0.0f);
     }
+
 }
 
 

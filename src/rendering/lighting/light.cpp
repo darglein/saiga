@@ -33,7 +33,9 @@ void LightShader::uploadShadow(float shadow){
 }
 
 void Light::createShadowMap(int resX, int resY){
+
     cout<<"Light::createShadowMap"<<endl;
+
     shadowmap.createFlat(resX,resY);
 
 }
@@ -43,5 +45,7 @@ void Light::bindShadowMap(){
 }
 
 void Light::unbindShadowMap(){
+
     shadowmap.unbind();
+
 }

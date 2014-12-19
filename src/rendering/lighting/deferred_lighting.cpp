@@ -52,6 +52,7 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
 
 
     for(PointLight* &light : pointLights){
+
         if(light->hasShadows()){
             for(int i=0;i<6;i++){
                 light->bindFace(i);
@@ -59,6 +60,7 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
                 renderer->renderDepth(&light->cam);
                 light->unbindShadowMap();
             }
+
         }
     }
 

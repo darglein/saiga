@@ -71,7 +71,7 @@ void Deferred_Renderer::render_intern(){
 
     mix_framebuffer.bind();
     glClear( GL_COLOR_BUFFER_BIT );
-    glViewport(0,0,width,height);
+
     renderLighting(*currentCamera);
 
 
@@ -84,7 +84,9 @@ void Deferred_Renderer::render_intern(){
     else
         mix_framebuffer.blitColor(0);
 
+
     Error::quitWhenError("Deferred_Renderer::render_intern");
+
 }
 
 void Deferred_Renderer::renderGBuffer(Camera *cam){
@@ -107,13 +109,16 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
 
     deferred_framebuffer.unbind();
 
+
     Error::quitWhenError("Deferred_Renderer::renderGBuffer");
 
 }
 
 void Deferred_Renderer::renderDepthMaps(Camera *cam){
     lighting.renderDepthMaps(this);
+
      Error::quitWhenError("Deferred_Renderer::renderDepthMaps");
+
 }
 
 void Deferred_Renderer::renderLighting(Camera *cam){
@@ -138,3 +143,4 @@ void Deferred_Renderer::postProcess(){
 
      Error::quitWhenError("Deferred_Renderer::postProcess");
 }
+
