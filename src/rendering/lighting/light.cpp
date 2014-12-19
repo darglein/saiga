@@ -5,6 +5,7 @@ void LightShader::checkUniforms(){
     location_color = getUniformLocation("color");
     location_depthBiasMV = getUniformLocation("depthBiasMV");
     location_depthTex = getUniformLocation("depthTex");
+    location_readShadowMap = getUniformLocation("readShadowMap");
 }
 
 
@@ -23,30 +24,24 @@ void LightShader::uploadDepthBiasMV(mat4 &mat){
 
 void LightShader::uploadDepthTexture(raw_Texture* texture){
 
-        texture->bind(4);
-        Shader::upload(location_depthTex,4);
+    texture->bind(4);
+    Shader::upload(location_depthTex,4);
+}
+
+void LightShader::uploadShadow(float shadow){
+    Shader::upload(location_readShadowMap,shadow);
 }
 
 void Light::createShadowMap(int resX, int resY){
-    shadowResX = resX;
-    shadowResY = resY;
+    cout<<"Light::createShadowMap"<<endl;
+    shadowmap.createFlat(resX,resY);
 
-    depthBuffer.create();
-    Texture* depth = new Texture();
-    depth->createEmptyTexture(shadowResX,shadowResY,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    depth->setWrap(GL_CLAMP_TO_EDGE);
-    depthBuffer.attachTextureDepth(depth);
-    depthBuffer.check();
 }
 
 void Light::bindShadowMap(){
-    glViewport(0,0,shadowResX,shadowResY);
-    depthBuffer.bind();
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
+    shadowmap.bind();
 }
 
 void Light::unbindShadowMap(){
-    depthBuffer.unbind();
+    shadowmap.unbind();
 }

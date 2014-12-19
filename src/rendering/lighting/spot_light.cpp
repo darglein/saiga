@@ -18,7 +18,7 @@ void SpotLightShader::uploadAngle(float angle){
 }
 
 SpotLight::SpotLight():PointLight(){
-    createShadowMap(1000,1000);
+
 }
 
 
@@ -31,23 +31,8 @@ void SpotLight::calculateCamera(){
 }
 
 void SpotLight::bindUniforms(SpotLightShader &shader, Camera *cam){
-    shader.uploadColor(color);
-    shader.uploadModel(model);
-    shader.upload(sphere.pos,sphere.r);
-    shader.upload(attenuation);
+    PointLight::bindUniforms(shader,cam);
 
-
-    const glm::mat4 biasMatrix(
-                0.5, 0.0, 0.0, 0.0,
-                0.0, 0.5, 0.0, 0.0,
-                0.0, 0.0, 0.5, 0.0,
-                0.5, 0.5, 0.5, 1.0
-                );
-
-    mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
-    shader.uploadDepthBiasMV(shadow);
-
-    shader.uploadDepthTexture(depthBuffer.depthBuffer);
 
     vec3 dir = vec3(this->getUpVector());
     shader.uploadDirection(dir);
@@ -56,17 +41,7 @@ void SpotLight::bindUniforms(SpotLightShader &shader, Camera *cam){
 
     shader.uploadAngle(c);
 
-//    const glm::mat4 biasMatrix(
-//                0.5, 0.0, 0.0, 0.0,
-//                0.0, 0.5, 0.0, 0.0,
-//                0.0, 0.0, 0.5, 0.0,
-//                0.5, 0.5, 0.5, 1.0
-//                );
 
-//    mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
-//    shader.uploadDepthBiasMV(shadow);
-
-//    shader.uploadDepthTexture(depthBuffer.depthBuffer);
 }
 
 void SpotLight::bindUniformsStencil(MVPShader& shader){

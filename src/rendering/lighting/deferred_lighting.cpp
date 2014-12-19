@@ -30,52 +30,61 @@ DeferredLighting::~DeferredLighting(){
 }
 
 void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
-    //    obj->fptr(0);
+
     for(DirectionalLight* &light : directionalLights){
 
-        light->bindShadowMap();
-        renderer->renderDepth(&light->cam);
-        light->unbindShadowMap();
+        if(light->hasShadows()){
+            light->bindShadowMap();
+            renderer->renderDepth(&light->cam);
+            light->unbindShadowMap();
+        }
 
     }
 
     for(SpotLight* &light : spotLights){
-        light->calculateCamera();
-        light->bindShadowMap();
-        renderer->renderDepth(&light->cam);
-        light->unbindShadowMap();
+        if(light->hasShadows()){
+            light->calculateCamera();
+            light->bindShadowMap();
+            renderer->renderDepth(&light->cam);
+            light->unbindShadowMap();
+        }
     }
 
 
     for(PointLight* &light : pointLights){
-        for(int i=0;i<6;i++){
-//            light->bindShadowMap();
-            light->bindFace(i);
-            renderer->renderDepth(&light->cam);
-            light->unbindShadowMap();
+        if(light->hasShadows()){
+            for(int i=0;i<6;i++){
+                light->bindFace(i);
+                light->calculateCamera(i);
+                renderer->renderDepth(&light->cam);
+                light->unbindShadowMap();
+            }
         }
-//        light->calculateCamera();
-//        light->bindShadowMap();
-//        renderer->renderDepth(&light->cam);
-//        light->unbindShadowMap();
     }
 
 }
 
 void DeferredLighting::render(Camera* cam){
 
+    glViewport(0,0,width,height);
+
     //============= Point lights
-
-    renderPointLightsStencil();
-
-
-    renderPointLights(cam);
 
 
     renderSpotLightsStencil();
 
 
     renderSpotLights(cam);
+
+    Error::quitWhenError("DeferredLighting::spotLights");
+
+
+    renderPointLightsStencil();
+
+
+    renderPointLights(cam);
+
+    Error::quitWhenError("DeferredLighting::pointLights");
 
 
     //    glEnable(GL_DEPTH_TEST);
@@ -104,6 +113,9 @@ void DeferredLighting::render(Camera* cam){
     if(drawDebug)
         renderDebug();
     glDepthMask(GL_FALSE);
+
+
+    Error::quitWhenError("DeferredLighting::lighting");
 
 }
 
@@ -156,6 +168,8 @@ void DeferredLighting::renderPointLights(Camera *cam){
     pointLightShader->DeferredShader::uploadFramebuffer(&framebuffer);
     pointLightShader->uploadScreenSize(vec2(width,height));
 
+//    Error::quitWhenError("DeferredLighting::renderPointLights1");
+
     pointLightMesh.bind();
     for(PointLight* &obj : pointLights){
         if(obj->isActive()&&obj->isVisible()){
@@ -165,6 +179,8 @@ void DeferredLighting::renderPointLights(Camera *cam){
     }
     pointLightMesh.unbind();
     pointLightShader->unbind();
+
+      Error::quitWhenError("DeferredLighting::renderPointLights4");
 }
 
 void DeferredLighting::renderPointLightsStencil(){

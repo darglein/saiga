@@ -25,10 +25,15 @@ void DirectionalLightShader::uploadDirection(vec3 &direction){
 
 DirectionalLight::DirectionalLight():cam("Sun")
 {
+
+
+
+}
+
+void DirectionalLight::createShadowMap(int resX, int resY){
+    Light::createShadowMap(resX,resY);
     float range = 400.0f;
     cam.setProj(-range,range,-range,range,10.f,800.0f);
-
-    createShadowMap(2000,2000);
 
 }
 
@@ -51,17 +56,22 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
     vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
     shader.uploadDirection(viewd);
 
-    const glm::mat4 biasMatrix(
-    0.5, 0.0, 0.0, 0.0,
-    0.0, 0.5, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.5, 0.5, 0.5, 1.0
-    );
+    if(this->hasShadows()){
+        shader.uploadShadow(1.0f);
+        const glm::mat4 biasMatrix(
+                    0.5, 0.0, 0.0, 0.0,
+                    0.0, 0.5, 0.0, 0.0,
+                    0.0, 0.0, 0.5, 0.0,
+                    0.5, 0.5, 0.5, 1.0
+                    );
 
-    mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
-    shader.uploadDepthBiasMV(shadow);
+        mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
+        shader.uploadDepthBiasMV(shadow);
 
-    shader.uploadDepthTexture(depthBuffer.depthBuffer);
+        shader.uploadDepthTexture(shadowmap.depthTexture);
+    }else{
+        shader.uploadShadow(0.0f);
+    }
 }
 
 

@@ -6,17 +6,19 @@
 #include "libhello/geometry/plane.h"
 #include "libhello/geometry/triangle_mesh.h"
 #include "libhello/opengl/framebuffer.h"
+#include "libhello/rendering/lighting/shadowmap.h"
 
 class LightShader : public DeferredShader{
 public:
     GLuint location_color; //rgba, rgb=color, a=intensity [0,1]
-    GLuint location_depthBiasMV, location_depthTex;
+    GLuint location_depthBiasMV, location_depthTex,location_readShadowMap;
     LightShader(const string &multi_file) : DeferredShader(multi_file){}
     virtual void checkUniforms();
     void uploadColor(vec4 &color);
     void uploadColor(vec3 &color, float intensity);
     void uploadDepthBiasMV(mat4 &mat);
     void uploadDepthTexture(raw_Texture* texture);
+    void uploadShadow(float shadow);
 };
 
 
@@ -27,10 +29,11 @@ protected:
 
     //shadow map
     bool castShadows=false;
-    int shadowResX,shadowResY;
+
 
 public:
-    Framebuffer depthBuffer;
+
+    Shadowmap shadowmap;
     vec4 color;
 
 
@@ -59,10 +62,10 @@ public:
 
 
     bool hasShadows() const {return castShadows;}
-    void enableShadows() {castShadows=true;}
+    void enableShadows() {if(shadowmap.isInitialized()) castShadows=true;}
     void disableShadows() {castShadows=false;}
 
-    void createShadowMap(int resX, int resY);
+    virtual void createShadowMap(int resX, int resY);
     void bindShadowMap();
     void unbindShadowMap();
 };

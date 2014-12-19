@@ -43,6 +43,30 @@ LightingController::LightingController(DeferredLighting& lighting):lighting(ligh
         this->notify();
     });
 
+    IC.add("disable_shadows", [this](ICPARAMS){
+        (void)args;
+        Light* l = this->getSelectedLight();
+        if(l)
+            l->disableShadows();
+    });
+
+    IC.add("enable_shadows", [this](ICPARAMS){
+        (void)args;
+        Light* l = this->getSelectedLight();
+        if(l)
+            l->enableShadows();
+    });
+
+    IC.add("create_shadowmap", [this](ICPARAMS){
+        unsigned int x = args.next<unsigned int>();
+        unsigned int y = args.next<unsigned int>();
+        if(!args.isValid())
+            return;
+        Light* l = this->getSelectedLight();
+        if(l)
+            l->createShadowMap(x,y);
+    });
+
     setActive(false);
 }
 
