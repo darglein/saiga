@@ -40,7 +40,7 @@ void Heightmap::createInitialHeightmap(){
             xf *= 10;
             yf *= 10;
             float h = noise.fBm(xf,yf,0,2);
-
+//            cout<<h<<endl;
             setHeight(x,y,h);
 
         }
@@ -154,7 +154,7 @@ void Heightmap::createRemainingLayers(){
                 u_int16_t v4 = *((u_int16_t*)previous.positionPtr(xp+1,yp+1));
 
                 u_int32_t v = v1 + v2 + v3 + v4;
-                v = v / 4;
+                v = (v / 4)+(v%4);
                 next.setPixel(x,y,(u_int16_t)v);
             }
         }

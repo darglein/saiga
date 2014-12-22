@@ -18,7 +18,7 @@ void Shadowmap::createFlat(int w, int h){
     init(w,h);
 
     Texture* depth = new Texture();
-    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
     depth->setWrap(GL_CLAMP_TO_EDGE);
     depthTexture = depth;
 

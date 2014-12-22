@@ -24,8 +24,13 @@ public:
     std::shared_ptr<mesh_t> createMesh2();
      std::shared_ptr<TerrainMesh::mesh_t> createMeshFixUpV();
       std::shared_ptr<TerrainMesh::mesh_t> createMeshFixUpH();
-      std::shared_ptr<TerrainMesh::mesh_t> createMeshTrim();
-       std::shared_ptr<TerrainMesh::mesh_t> createMeshTrimi();
+
+      std::shared_ptr<TerrainMesh::mesh_t> createMeshTrimSW();
+       std::shared_ptr<TerrainMesh::mesh_t> createMeshTrimSE();
+
+       std::shared_ptr<TerrainMesh::mesh_t> createMeshTrimNW();
+        std::shared_ptr<TerrainMesh::mesh_t> createMeshTrimNE();
+
        std::shared_ptr<TerrainMesh::mesh_t> createMeshCenter();
 
        std::shared_ptr<TerrainMesh::mesh_t> createMeshDegenerated();

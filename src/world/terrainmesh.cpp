@@ -32,7 +32,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshFixUpH(){
     return createGridMesh(m,3,vec2(1.0f/(m-1)),vec2(0.5));
 }
 
-std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrim(){
+std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSW(){
 
     mesh_t* mesh = new mesh_t();
 
@@ -87,6 +87,29 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrim(){
     return std::shared_ptr<TerrainMesh::mesh_t>(mesh);
 }
 
+std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSE(){
+
+    auto mesh = createMeshTrimSW();
+    mesh->transform(glm::rotate(mat4(),glm::radians(90.0f),vec3(0,1,0)));
+    return mesh;
+}
+
+std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNW(){
+
+    auto mesh = createMeshTrimSW();
+    mesh->transform(glm::rotate(mat4(),glm::radians(-90.0f),vec3(0,1,0)));
+    return mesh;
+}
+
+
+std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNE(){
+
+    auto mesh = createMeshTrimSW();
+    mesh->transform(glm::rotate(mat4(),glm::radians(180.0f),vec3(0,1,0)));
+    return mesh;
+}
+
+
 
 
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated(){
@@ -127,9 +150,9 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated(){
             GLuint face1[] = {offset+idx,offset+idx+1,offset+idx+2};
             GLuint face2[] = {offset+idx,offset+idx+2,offset+idx+1};
 
-            if(orientation[i])
+//            if(orientation[i])
                 mesh->addFace(face1);
-            else
+//            else
                 mesh->addFace(face2);
         }
 
@@ -143,12 +166,6 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated(){
 }
 
 
-std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimi(){
-
-    auto mesh = createMeshTrim();
-    mesh->transform(glm::rotate(mat4(),glm::radians(180.0f),vec3(0,1,0)));
-    return mesh;
-}
 
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshCenter(){
     int m = this->m*2;
