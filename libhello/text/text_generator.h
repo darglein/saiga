@@ -4,6 +4,7 @@
 #include "libhello/opengl/mesh.h"
 #include "libhello/text/text.h"
 #include "libhello/text/dynamic_text.h"
+
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <iostream>
