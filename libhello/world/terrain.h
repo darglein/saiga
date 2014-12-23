@@ -29,6 +29,8 @@ public:
     Clipmap clipmaps[8];
     vec2 baseScale = vec2(1,1);
 
+
+
     Terrain();
 
     void createMesh(unsigned int w, unsigned int h);

@@ -32,8 +32,8 @@ DirectionalLight::DirectionalLight():cam("Sun")
 
 void DirectionalLight::createShadowMap(int resX, int resY){
     Light::createShadowMap(resX,resY);
-    float range = 20.0f;
-    cam.setProj(-range,range,-range,range,1.f,40.0f);
+    range = 40.0f;
+    cam.setProj(-range,range,-range,range,1.f,100.0f);
 
 }
 
@@ -47,7 +47,7 @@ void DirectionalLight::setDirection(const vec3 &dir){
 void DirectionalLight::setFocus(const vec3 &pos){
 
 
-    cam.setView(pos-direction*20.0f, pos, glm::vec3(0,1,0));
+    cam.setView(pos-direction*range, pos, glm::vec3(0,1,0));
 }
 
 void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam){

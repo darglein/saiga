@@ -22,6 +22,11 @@ public:
      float heightScale = 20.0f;
      float minH = 125725;
      float maxH = -0125725;
+
+     vec2 mapOffset = vec2(50,50);
+     vec2 mapScale = vec2(200,200);
+     vec2 mapScaleInv = 1.0f/mapScale;
+
     std::vector<Image> heightmap;
     std::vector<Image> normalmap;
 

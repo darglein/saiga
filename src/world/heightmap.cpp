@@ -84,12 +84,17 @@ void Heightmap::createNormalmap(){
         for(int x=0;x<normalmap[layer].width;++x){
             for(int y=0;y<normalmap[layer].height;++y){
 
+                vec3 norm(1.0f/w,1,1.0f/h);
+//                vec3 scale = vec3(8*mapScaleInv.x,1,8*mapScaleInv.y) * norm;
+//                 vec3 scale = vec3(200,1,200) * norm;
+                 vec3 scale = vec3(mapScale.x,1,mapScale.y) * norm;
 
-                vec3 x1 (x+1,getHeightScaled(layer,x+1,y),y);
-                vec3 x2 (x-1,getHeightScaled(layer,x-1,y),y);
 
-                vec3 y1 (x,getHeightScaled(layer,x,y+1),y+1);
-                vec3 y2 (x,getHeightScaled(layer,x,y-1),y-1);
+                vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
+                vec3 x2  = vec3(x-1,getHeightScaled(layer,x-1,y),y) * scale;
+
+                vec3 y1  = vec3(x,getHeightScaled(layer,x,y+1),y+1) * scale;
+                vec3 y2  = vec3(x,getHeightScaled(layer,x,y-1),y-1) * scale;
 
                 vec3 n = glm::cross(y2-y1,x2-x1);
 

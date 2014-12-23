@@ -95,7 +95,8 @@ void Terrain::renderintern(Camera *cam){
 
 
     shader->uploadZScale(heightmap.heightScale);
-    shader->uploadTexSizeScale(vec4(heightmap.w,heightmap.h,heightmap.w/5.0f,heightmap.h/5.0f));
+
+    shader->uploadTexSizeScale(vec4(heightmap.mapOffset.x,heightmap.mapOffset.y,heightmap.mapScaleInv.x,heightmap.mapScaleInv.y));
 
 
     shader->uploadTexture(heightmap.texheightmap[0]);

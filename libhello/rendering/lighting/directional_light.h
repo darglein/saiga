@@ -27,7 +27,7 @@ protected:
 
 
     vec3 direction;
-
+    float range;
 
 public:
      OrthographicCamera cam;
