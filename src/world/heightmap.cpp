@@ -1,5 +1,20 @@
 #include "world/heightmap.h"
 
+//typedef u_int32_t height_res_t;
+//typedef u_int64_t height_resn_t;
+//const int bits = 32;
+//const height_res_t max_res = 4294967295;
+
+typedef u_int16_t height_res_t;
+typedef u_int32_t height_resn_t;
+const int bits = 16;
+const height_res_t max_res = 65535;
+
+//typedef u_int8_t height_res_t;
+//typedef u_int16_t height_resn_t;
+//const int bits = 8;
+//const height_res_t max_res = 255;
+
 Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
 
     heights = new float[w*h];
@@ -12,7 +27,7 @@ Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
     for(int i=0;i<layers;++i){
         heightmap[i].width = w;
         heightmap[i].height = h;
-        heightmap[i].bitDepth = 16;
+        heightmap[i].bitDepth = bits;
         heightmap[i].channels = 1;
         heightmap[i].create();
 
@@ -39,7 +54,7 @@ void Heightmap::createInitialHeightmap(){
 
             xf *= 10;
             yf *= 10;
-            float h = noise.fBm(xf,yf,0,2);
+            float h = noise.fBm(xf,yf,0,6);
 //            cout<<h<<endl;
             setHeight(x,y,h);
 
@@ -52,9 +67,9 @@ void Heightmap::createInitialHeightmap(){
         for(unsigned int y=0;y<heightmap[0].height;++y){
 
             float h = getHeight(x,y);
-            h = h*65536.0f;
-            h = glm::clamp(h,0.0f,65535.0f);
-            u_int16_t n = (u_int16_t)h;
+            h = h*max_res;
+            h = glm::clamp(h,0.0f,(float)max_res);
+            height_res_t n = (height_res_t)h;
             heightmap[0].setPixel(x,y,n);
         }
     }
@@ -128,8 +143,8 @@ float Heightmap::getHeight(int layer, int x, int y){
     x = glm::clamp(x,0,(int)(img.width-1));
     y = glm::clamp(y,0,(int)(img.height-1));
 
-    u_int16_t v = *((u_int16_t*)img.positionPtr(x,y));
-    return (float)v / 65536.0f;
+    height_res_t v = *((height_res_t*)img.positionPtr(x,y));
+    return (float)v / (float)max_res;
 }
 
 float Heightmap::getHeightScaled(int layer, int x, int y){
@@ -153,14 +168,14 @@ void Heightmap::createRemainingLayers(){
                 int xp = 2*x;
                 int yp = 2*y;
                 //read 4 pixel from previous and average them
-                u_int16_t v1 = *((u_int16_t*)previous.positionPtr(xp,yp));
-                u_int16_t v2 = *((u_int16_t*)previous.positionPtr(xp+1,yp));
-                u_int16_t v3 = *((u_int16_t*)previous.positionPtr(xp,yp+1));
-                u_int16_t v4 = *((u_int16_t*)previous.positionPtr(xp+1,yp+1));
+                height_resn_t v1 = *((height_res_t*)previous.positionPtr(xp,yp));
+                height_resn_t v2 = *((height_res_t*)previous.positionPtr(xp+1,yp));
+                height_resn_t v3 = *((height_res_t*)previous.positionPtr(xp,yp+1));
+                height_resn_t v4 = *((height_res_t*)previous.positionPtr(xp+1,yp+1));
 
-                u_int32_t v = v1 + v2 + v3 + v4;
+                height_resn_t v = v1 + v2 + v3 + v4;
                 v = (v / 4)+(v%4);
-                next.setPixel(x,y,(u_int16_t)v);
+                next.setPixel(x,y,(height_res_t)v);
             }
         }
     }
@@ -171,16 +186,30 @@ void Heightmap::createTextures(){
     texheightmap.resize(7);
     texnormalmap.resize(7);
 
+    PNG::Image img;
+
     for(int i=0;i<7;i++){
+
+//        heightmap[i].convertTo(img);
+//        PNG::writePNG(&img,"heightmap"+std::to_string(i)+".png");
+
+//        PNG::readPNG(&img,"heightmap"+std::to_string(i)+".png");
+//        heightmap[i].convertFrom(img);
+
         texheightmap[i] = new Texture();
         texheightmap[i]->fromImage(heightmap[i]);
         texheightmap[i]->setWrap(GL_CLAMP_TO_EDGE);
         texheightmap[i]->setFiltering(GL_LINEAR);
+//        texheightmap[i]->setFiltering(GL_NEAREST);
 
         texnormalmap[i] = new Texture();
         texnormalmap[i]->fromImage(normalmap[i]);
         texnormalmap[i]->setWrap(GL_CLAMP_TO_EDGE);
+        texnormalmap[i]->setFiltering(GL_LINEAR);
     }
+
+
+
 }
 
 void Heightmap::createHeightmaps(){

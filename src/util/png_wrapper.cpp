@@ -320,6 +320,8 @@ int writepng_encode_image(PNG::Image *image,bool invertY)
 
     int bytes_per_pixel = color_channels * image->bit_depth/8;
 
+
+
     //the row pointers point to the first byte of each row of the image
     image->row_pointers = new uchar*[image->height];
 

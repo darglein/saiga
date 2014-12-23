@@ -23,7 +23,7 @@ public:
      float minH = 125725;
      float maxH = -0125725;
 
-     vec2 mapOffset = vec2(50,50);
+     vec2 mapOffset = vec2(0);//vec2(50,50);
      vec2 mapScale = vec2(200,200);
      vec2 mapScaleInv = 1.0f/mapScale;
 

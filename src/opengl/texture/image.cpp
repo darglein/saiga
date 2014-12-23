@@ -68,6 +68,32 @@ void Image::convertFrom(PNG::Image &image){
     this->data = image.data;
 }
 
+void Image::convertTo(PNG::Image &image){
+    image.width = this->width;
+    image.height =  this->height;
+    image.bit_depth = this->bitDepth;
+
+    switch(this->channels){
+    case 1:
+        image.color_type = PNG_COLOR_TYPE_GRAY;
+        break;
+    case 2:
+        image.color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
+        break;
+    case 3:
+        image.color_type = PNG_COLOR_TYPE_RGB;
+        break;
+    case 4:
+        image.color_type = PNG_COLOR_TYPE_RGB_ALPHA;
+        break;
+    default:
+        std::cout<<"Image type not supported: "<<this->channels<<std::endl;
+    }
+
+
+    image.data = this->data;
+}
+
 void Image::create(){
     delete[] data;
     data = new u_int8_t[getSize()];

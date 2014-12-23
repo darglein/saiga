@@ -61,7 +61,7 @@ public:
 
     State state;
 
-    bool colored = false;
+    bool colored = true;
 
     Clipmap* next, *previous;
 

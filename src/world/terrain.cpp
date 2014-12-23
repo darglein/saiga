@@ -2,7 +2,7 @@
 
 
 
-Terrain::Terrain():heightmap(7,1024,1024){ //1024,2560,4096
+Terrain::Terrain():heightmap(7,1024,1024){ //1024,2048,4096
 
 }
 

@@ -43,6 +43,7 @@ public:
     void createSubImage(int x, int y, int w, int h, Image &out);
 
     void convertFrom(PNG::Image &image);
+    void convertTo(PNG::Image &image);
 
     //======================================================
 
