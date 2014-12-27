@@ -1,19 +1,22 @@
 #include "world/heightmap.h"
+#include <libnoise/noise.h>
+using namespace noise;
+
 
 //typedef u_int32_t height_res_t;
 //typedef u_int64_t height_resn_t;
 //const int bits = 32;
 //const height_res_t max_res = 4294967295;
 
-typedef u_int16_t height_res_t;
-typedef u_int32_t height_resn_t;
-const int bits = 16;
-const height_res_t max_res = 65535;
+//typedef u_int16_t height_res_t;
+//typedef u_int32_t height_resn_t;
+//const int bits = 16;
+//const height_res_t max_res = 65535;
 
-//typedef u_int8_t height_res_t;
-//typedef u_int16_t height_resn_t;
-//const int bits = 8;
-//const height_res_t max_res = 255;
+typedef u_int8_t height_res_t;
+typedef u_int16_t height_resn_t;
+const int bits = 8;
+const height_res_t max_res = 255;
 
 Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
 
@@ -43,7 +46,39 @@ Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
 }
 
 void Heightmap::createInitialHeightmap(){
+
+
+
+
     PerlinNoise noise;
+
+    module::RidgedMulti mountainTerrain;
+
+    module::Perlin terrainType;
+    terrainType.SetFrequency (0.5);
+    terrainType.SetPersistence (0.25);
+
+    module::Billow baseFlatTerrain;
+      baseFlatTerrain.SetFrequency (2.0);
+      module::ScaleBias flatTerrain;
+        flatTerrain.SetSourceModule (0, baseFlatTerrain);
+        flatTerrain.SetScale (0.125);
+        flatTerrain.SetBias (-0.75);
+
+        module::Select terrainSelector;
+        terrainSelector.SetSourceModule (0, flatTerrain);
+        terrainSelector.SetSourceModule (1, mountainTerrain);
+        terrainSelector.SetControlModule (terrainType);
+        terrainSelector.SetBounds (0.0, 1000.0);
+        terrainSelector.SetEdgeFalloff (0.125);
+
+        module::Turbulence finalTerrain;
+        finalTerrain.SetSourceModule (0, terrainSelector);
+        finalTerrain.SetFrequency (4.0);
+        finalTerrain.SetPower (0.125);
+
+
+
     for(unsigned int x=0;x<w;++x){
         for(unsigned int y=0;y<h;++y){
             float xf = (float)x/(float)w;
@@ -54,9 +89,26 @@ void Heightmap::createInitialHeightmap(){
 
             xf *= 10;
             yf *= 10;
-            float h = noise.fBm(xf,yf,0,6);
+
+            float wf = 10.0f;
+            float hf = 10.0f;
+
+//            double value = myModule.GetValue (xf, yf, 0);
+//            float h = noise.fBm(xf,yf,0,5);
+//            float h = myModule.GetValue (xf, yf, 0);
+//            float h = finalTerrain.GetValue(xf,yf,0);
+
+            //seamless
+#define F(_X,_Y) finalTerrain.GetValue(_X,_Y,0)
+            float he = (
+            F(xf, yf) * (wf - xf) * (hf - yf) +
+            F(xf - wf, yf) * (xf) * (hf - yf) +
+            F(xf - wf, yf - hf) * (xf) * (yf) +
+            F(xf, yf - hf) * (wf - xf) * (yf)
+            ) / (wf * hf);
+
 //            cout<<h<<endl;
-            setHeight(x,y,h);
+            setHeight(x,y,he);
 
         }
     }
@@ -198,13 +250,15 @@ void Heightmap::createTextures(){
 
         texheightmap[i] = new Texture();
         texheightmap[i]->fromImage(heightmap[i]);
-        texheightmap[i]->setWrap(GL_CLAMP_TO_EDGE);
+//        texheightmap[i]->setWrap(GL_CLAMP_TO_EDGE);
+        texheightmap[i]->setWrap(GL_REPEAT);
         texheightmap[i]->setFiltering(GL_LINEAR);
 //        texheightmap[i]->setFiltering(GL_NEAREST);
 
         texnormalmap[i] = new Texture();
         texnormalmap[i]->fromImage(normalmap[i]);
-        texnormalmap[i]->setWrap(GL_CLAMP_TO_EDGE);
+//        texnormalmap[i]->setWrap(GL_CLAMP_TO_EDGE);
+        texnormalmap[i]->setWrap(GL_REPEAT);
         texnormalmap[i]->setFiltering(GL_LINEAR);
     }
 

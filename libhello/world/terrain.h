@@ -19,7 +19,8 @@ public:
     TerrainShader* shader;
     TerrainShader* deferredshader;
     TerrainShader* depthshader;
-//    std::vector<Texture*> texture;
+
+    Texture* texture1, *texture2;
 
     Heightmap heightmap;
     mat4 model;

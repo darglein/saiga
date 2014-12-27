@@ -18,6 +18,8 @@ public:
 
      GLuint location_imageUp,location_normalMap,location_normalMapUp;
 
+     GLuint location_texture1,location_texture2;
+
     TerrainShader(const string &multi_file) : MVPTextureShader(multi_file){}
     virtual void checkUniforms();
     virtual void uploadVP(const vec2 &pos);
@@ -31,6 +33,9 @@ public:
     void uploadImageUp(raw_Texture *texture);
 
     void uploadNormalMapUp(raw_Texture *texture);
+    void uploadTexture1(raw_Texture *texture);
+    void uploadTexture2(raw_Texture *texture);
+
 
 
 };
@@ -48,6 +53,7 @@ public:
 
     static IndexedVertexBuffer<Vertex,GLuint> fixupv,fixuph,degenerated;
      static IndexedVertexBuffer<Vertex,GLuint> trimSW,trimSE,trimNW,trimNE;
+
 
 
     int m;

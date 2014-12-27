@@ -40,6 +40,7 @@ void Terrain::createMesh(unsigned int w, unsigned int h){
     }
 
 
+    cout<<"Terrain initialized!"<<endl;
 
 
 }
@@ -104,6 +105,9 @@ void Terrain::renderintern(Camera *cam){
     shader->uploadImageUp(heightmap.texheightmap[0]);
     shader->uploadNormalMapUp(heightmap.texnormalmap[0]);
     shader->uploadColor(vec4(1));
+
+    shader->uploadTexture1(texture1);
+    shader->uploadTexture2(texture2);
 
     shader->uploadVP(clipmaps[0].vp);
     render(Clipmap::center,vec4(1),vec4(baseScale.x*2,baseScale.y*2,0,0),vec4(1,1,0,0));

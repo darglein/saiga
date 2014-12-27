@@ -23,6 +23,10 @@ include_directories(${SDL2_INCLUDE_DIRS})
 pkg_search_module(GLFW REQUIRED glfw3)
 include_directories(${GLFW_INCLUDE_DIRS})
 
+#libnoise
+find_library(NOISE_LIBRARIES noise)
+SET(LIBS ${LIBS} ${NOISE_LIBRARIES})
+
 ############# COMPILER FLAGS ###############
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")

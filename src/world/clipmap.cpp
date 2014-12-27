@@ -33,6 +33,9 @@ void TerrainShader::checkUniforms(){
     location_normalMap = getUniformLocation("normalMap");
     location_imageUp = getUniformLocation("imageUp");
     location_normalMapUp = getUniformLocation("normalMapUp");
+
+    location_texture1 = getUniformLocation("texture1");
+    location_texture2 = getUniformLocation("texture2");
 }
 
 
@@ -78,6 +81,18 @@ void TerrainShader::uploadNormalMapUp(raw_Texture *texture){
     texture->bind(3);
     Shader::upload(location_normalMapUp,3);
 }
+
+void TerrainShader::uploadTexture1(raw_Texture *texture){
+    texture->bind(4);
+    Shader::upload(location_texture1,4);
+}
+
+void TerrainShader::uploadTexture2(raw_Texture *texture){
+    texture->bind(5);
+    Shader::upload(location_texture2,5);
+}
+
+
 
 
 void Clipmap::createMeshes()
