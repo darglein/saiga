@@ -14,6 +14,9 @@
 #include "libhello/util/error.h"
 #include "libhello/util/png_wrapper.h"
 
+#include <FreeImagePlus.h>
+
+
 using std::string;
 using std::cout;
 using std::endl;
@@ -28,6 +31,7 @@ public:
 public:
 
     int bytesPerPixel();
+    int bitsPerPixel();
     size_t getSize();
     void setPixel(int x, int y, void* data);
     void setPixel(int x, int y, u_int8_t data);
@@ -44,6 +48,11 @@ public:
 
     void convertFrom(PNG::Image &image);
     void convertTo(PNG::Image &image);
+
+    void convertTo(fipImage &fipimg);
+    void convertFrom(fipImage &fipimg);
+
+    FREE_IMAGE_TYPE getFIT();
 
     //======================================================
 

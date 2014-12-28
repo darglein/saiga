@@ -27,6 +27,13 @@ include_directories(${GLFW_INCLUDE_DIRS})
 find_library(NOISE_LIBRARIES noise)
 SET(LIBS ${LIBS} ${NOISE_LIBRARIES})
 
+#libfreeimage
+find_library(FREEIMAGE_LIBRARIES freeimage)
+SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARIES})
+
+find_library(FREEIMAGEPLUS_LIBRARIES freeimageplus)
+SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
+
 ############# COMPILER FLAGS ###############
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")

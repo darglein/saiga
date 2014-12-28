@@ -8,15 +8,15 @@ using namespace noise;
 //const int bits = 32;
 //const height_res_t max_res = 4294967295;
 
-//typedef u_int16_t height_res_t;
-//typedef u_int32_t height_resn_t;
-//const int bits = 16;
-//const height_res_t max_res = 65535;
+typedef u_int16_t height_res_t;
+typedef u_int32_t height_resn_t;
+const int bits = 16;
+const height_res_t max_res = 65535;
 
-typedef u_int8_t height_res_t;
-typedef u_int16_t height_resn_t;
-const int bits = 8;
-const height_res_t max_res = 255;
+//typedef u_int8_t height_res_t;
+//typedef u_int16_t height_resn_t;
+//const int bits = 8;
+//const height_res_t max_res = 255;
 
 Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
 
@@ -235,12 +235,12 @@ void Heightmap::createRemainingLayers(){
 
 void Heightmap::createTextures(){
 
-    texheightmap.resize(7);
-    texnormalmap.resize(7);
+    texheightmap.resize(layers);
+    texnormalmap.resize(layers);
 
     PNG::Image img;
 
-    for(int i=0;i<7;i++){
+    for(int i=0;i<layers;i++){
 
 //        heightmap[i].convertTo(img);
 //        PNG::writePNG(&img,"heightmap"+std::to_string(i)+".png");
@@ -264,6 +264,76 @@ void Heightmap::createTextures(){
 
 
 
+
+
+
+}
+
+void Heightmap::saveMaps(){
+
+    for(int i=0;i<layers;i++){
+        fipImage fipimg;
+
+        heightmap[i].convertTo(fipimg);
+
+        string name = "heightmap"+std::to_string(i)+".png";
+
+        if(fipimg.save(name.c_str())){
+//            cout<<"save sucess"<<endl;
+        }else{
+            cout<<"save failed!"<<endl;
+        }
+
+
+//        cout << " is size: " << fipimg.getWidth() << "x" << fipimg.getHeight() << " colors " << fipimg.getColorsUsed() << " bits per pixel "<<fipimg.getBitsPerPixel()<< " type"<<fipimg.getColorType()<< endl;
+    }
+
+
+    for(int i=0;i<layers;i++){
+        fipImage fipimg;
+
+        normalmap[i].convertTo(fipimg);
+
+        string name = "normalmap"+std::to_string(i)+".png";
+
+        if(fipimg.save(name.c_str())){
+//            cout<<"save sucess"<<endl;
+        }else{
+            cout<<"save failed!"<<endl;
+        }
+
+
+//        cout << " is size: " << fipimg.getWidth() << "x" << fipimg.getHeight() << " colors " << fipimg.getColorsUsed() << " bits per pixel "<<fipimg.getBitsPerPixel()<< " type"<<fipimg.getColorType()<< endl;
+    }
+
+
+
+}
+
+
+
+void Heightmap::loadMaps(){
+
+    for(int i=0;i<layers;i++){
+        string name = "heightmap"+std::to_string(i)+".png";
+
+        fipImage fipimg;
+        fipimg.load(name.c_str());
+
+        heightmap[i].convertFrom(fipimg);
+ }
+
+    for(int i=0;i<layers;i++){
+        string name = "normalmap"+std::to_string(i)+".png";
+
+        fipImage fipimg;
+        fipimg.load(name.c_str());
+
+        normalmap[i].convertFrom(fipimg);
+ }
+
+
+
 }
 
 void Heightmap::createHeightmaps(){
@@ -273,4 +343,7 @@ void Heightmap::createHeightmaps(){
 
 
     createNormalmap();
+
+    saveMaps();
+
 }

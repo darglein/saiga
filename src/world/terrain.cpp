@@ -2,7 +2,7 @@
 
 
 
-Terrain::Terrain():heightmap(7,1024,1024){ //1024,2048,4096
+Terrain::Terrain():heightmap(7,2048,2048){ //1024,2048,4096
 
 }
 
@@ -11,7 +11,8 @@ void Terrain::createMesh(unsigned int w, unsigned int h){
 
 
 
-    heightmap.createHeightmaps();
+//    heightmap.createHeightmaps();
+    heightmap.loadMaps();
 
     heightmap.createTextures();
 
@@ -42,6 +43,10 @@ void Terrain::createMesh(unsigned int w, unsigned int h){
 
     cout<<"Terrain initialized!"<<endl;
 
+    Freeimage fi;
+
+     fi.load("heightmap0.png");
+     fi.load("textures/grass.png");
 
 }
 

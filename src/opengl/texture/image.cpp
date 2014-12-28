@@ -5,6 +5,10 @@ int Image::bytesPerPixel(){
     return getChannels()*getBitDepth()/8;
 }
 
+int Image::bitsPerPixel(){
+    return getChannels()*getBitDepth();
+}
+
 size_t Image::getSize(){
     return width*height*bytesPerPixel();
 }
@@ -92,6 +96,54 @@ void Image::convertTo(PNG::Image &image){
 
 
     image.data = this->data;
+}
+
+void Image::convertTo(fipImage &fipimg){
+    fipimg.setSize(	getFIT(),width,height,bitsPerPixel());
+
+    auto data = fipimg.accessPixels();
+
+    memcpy(data,this->data,getSize());
+}
+
+void Image::convertFrom(fipImage &fipimg){
+    width = fipimg.getWidth();
+    height = fipimg.getHeight();
+
+
+    switch(fipimg.getColorType()){
+    case FIC_MINISBLACK:
+        channels = 1;
+        break;
+    case FIC_RGB:
+        channels = 3;
+        break;
+    case FIC_RGBALPHA:
+        channels = 4;
+        break;
+    }
+
+    bitDepth = fipimg.getBitsPerPixel()/channels;
+
+    create();
+
+
+    auto data = fipimg.accessPixels();
+
+    memcpy(this->data,data,getSize());
+
+}
+
+FREE_IMAGE_TYPE Image::getFIT(){
+    if(bitDepth==16 && channels==3){
+        return FIT_RGB16;
+    }else if(bitDepth==16 && channels==4){
+        return FIT_RGBA16;
+    }else if(bitDepth==16 && channels==1){
+        return FIT_UINT16;
+    }
+
+    return FIT_BITMAP;
 }
 
 void Image::create(){

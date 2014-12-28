@@ -10,6 +10,8 @@
 #include "libhello/world/clipmap.h"
 #include "libhello/camera/camera.h"
 
+#include "libhello/opengl/texture/freeimage.h"
+
 #include "glm/gtc/random.hpp"
 
 class Terrain{

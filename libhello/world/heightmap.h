@@ -6,6 +6,7 @@
 #include "libhello/opengl/basic_shaders.h"
 #include "libhello/util/perlinnoise.h"
 #include "libhello/geometry/triangle_mesh_generator.h"
+#include <FreeImagePlus.h>
 
 
 class Heightmap{
@@ -38,6 +39,8 @@ public:
 
     void createTextures();
     void createHeightmaps();
+    void loadMaps();
+
 private:
 
     void createInitialHeightmap();
@@ -45,6 +48,8 @@ private:
     void createNormalmap();
 
     void normalizeHeightMap();
+
+    void saveMaps();
 
     float getHeight(int x, int y);
     float getHeight(int layer, int x, int y);
