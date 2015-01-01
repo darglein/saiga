@@ -44,7 +44,8 @@ public:
 
     int getWidth(){return width;}
     int getHeight(){return height;}
-    int getId(){return id;}
+    GLuint getId(){return id;}
+    GLenum getTarget(){return target;}
 
     void specify(int channel_depth,int channels);
 

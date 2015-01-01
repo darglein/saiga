@@ -56,7 +56,7 @@ void raw_Texture::uploadData(GLubyte* data ){
                  internal_format, // internalformat
                  width,  // width
                  height,  // height
-                 0,  // border, always 0 in OpenGL ES
+                 0,
                  color_type,  // format
                  data_type, // type
                  data);
@@ -143,6 +143,8 @@ void raw_Texture::specify(int channel_depth,int channels){
         std::cout<<"Channels not supported: "<<channels<<std::endl;
     }
     internal_format = color_type;
+
+
 }
 
 //============= Required state: SPECIFIED =============
