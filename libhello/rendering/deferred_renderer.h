@@ -27,6 +27,8 @@ class Deferred_Renderer : public Renderer{
 
     Framebuffer deferred_framebuffer;
     Framebuffer mix_framebuffer;
+    Framebuffer postProcess_framebuffer;
+
     DeferredShader* deferred_shader;
 
     int width,height;
@@ -46,6 +48,9 @@ class Deferred_Renderer : public Renderer{
     virtual void render(Camera *cam) = 0;
     virtual void renderDepth(Camera *cam) = 0;
     virtual void renderOverlay(Camera *cam) = 0;
+
+    virtual void cudaPostProcessing() = 0;
+    virtual void initCudaPostProcessing(Texture* src, Texture* dest) = 0;
 //    virtual void renderLighting() = 0;
 
 
