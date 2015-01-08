@@ -17,6 +17,7 @@ public:
     float radius=1;
     int rigid_body = 0;
     vec3 force = vec3(0);
+    vec3 reserved = vec3(0);
     Particle();
 }/*__attribute__((packed))*/;
 
