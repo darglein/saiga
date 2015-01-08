@@ -319,7 +319,6 @@ void Heightmap::loadMaps(){
 
         fipImage fipimg;
         fipimg.load(name.c_str());
-
         heightmap[i].convertFrom(fipimg);
  }
 

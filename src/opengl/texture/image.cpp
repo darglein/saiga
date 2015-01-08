@@ -121,17 +121,47 @@ void Image::convertFrom(fipImage &fipimg){
     case FIC_RGBALPHA:
         channels = 4;
         break;
+    default:
+        cout<<"warning unknown color type!"<<fipimg.getColorType()<<endl;
+        break;
     }
 
-    cout<<"test"<<fipimg.getBitsPerPixel()<<" "<<channels<<endl;
+
+
+    cout<<"test"<<fipimg.getBitsPerPixel()<<" "<<channels<<" "<<fipimg.getInfo()<<" "<<fipimg.getImageType()<<endl;
     bitDepth = fipimg.getBitsPerPixel()/channels;
+
 
     create();
 
 
+    RGBQUAD* palette = fipimg.getPalette();
     auto data = fipimg.accessPixels();
 
-    memcpy(this->data,data,getSize());
+
+        for(int y=0;y<height;++y){
+            for(int x=0;x<width;++x){
+            RGBQUAD pixel;
+            fipimg.getPixelColor(x,y,&pixel);
+            int offset = (y*width+x)*bytesPerPixel();
+            this->data[offset] = pixel.rgbRed;
+            this->data[offset+1] = pixel.rgbGreen;
+            this->data[offset+2] = pixel.rgbBlue;
+        }
+    }
+
+
+//    if(palette==0){
+//        memcpy(this->data,data,getSize());
+
+
+//    }else{
+//        cout<<"palette"<<endl;
+//        for(int i=0;i<getSize();++i){
+//            RGBQUAD& pixel = palette[data[i]];
+//            this->data[i] = pixel.rgbRed;
+//        }
+//    }
 
 }
 
