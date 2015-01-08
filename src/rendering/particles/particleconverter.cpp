@@ -2,7 +2,7 @@
 
 void Particleconverter::convert(std::vector<Triangle> &triangles, std::vector<vec3> &points){
     aabb box = getBoundingBox(triangles);
-    cout<<"box "<<box<<endl;
+//    cout<<"box "<<box<<endl;
 
 //    for(Triangle &t : triangles){
 //        t.stretch();
@@ -15,7 +15,7 @@ void Particleconverter::convert(std::vector<Triangle> &triangles, std::vector<ve
     //    auto res = rt.trace(r);
     rt.trace(r,reslist);
 
-    cout<<"sorting..."<<endl;
+//    cout<<"sorting..."<<endl;
     std::sort(reslist.begin(),reslist.end());
 
 
@@ -30,11 +30,11 @@ void Particleconverter::convert(std::vector<Triangle> &triangles, std::vector<ve
     int sy = ((int)glm::floor(size.y))/(int)particleSize.y+1;
     int sz = ((int)glm::floor(size.z))/(int)particleSize.z+1;
 
-    cout<<"Samples "<<sx<<","<<sy<<","<<sz<<endl;
+//    cout<<"Samples "<<sx<<","<<sy<<","<<sz<<endl;
 
 
     vec3 s(sx-1,sy-1,sz-1);
-    cout<<"Range "<<s<<endl;
+//    cout<<"Range "<<s<<endl;
 
     vec3 start = ((size-(s*particleSize))/2.0f)+box.min;
     start.z = box.min.z - 1.0f;

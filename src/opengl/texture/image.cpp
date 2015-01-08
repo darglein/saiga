@@ -128,7 +128,7 @@ void Image::convertFrom(fipImage &fipimg){
 
 
 
-    cout<<"test"<<fipimg.getBitsPerPixel()<<" "<<channels<<" "<<fipimg.getInfo()<<" "<<fipimg.getImageType()<<endl;
+//    cout<<"test"<<fipimg.getBitsPerPixel()<<" "<<channels<<" "<<fipimg.getInfo()<<" "<<fipimg.getImageType()<<endl;
     bitDepth = fipimg.getBitsPerPixel()/channels;
 
 
