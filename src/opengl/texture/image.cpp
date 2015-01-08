@@ -123,6 +123,7 @@ void Image::convertFrom(fipImage &fipimg){
         break;
     }
 
+    cout<<"test"<<fipimg.getBitsPerPixel()<<" "<<channels<<endl;
     bitDepth = fipimg.getBitsPerPixel()/channels;
 
     create();

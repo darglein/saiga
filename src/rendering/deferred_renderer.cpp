@@ -165,6 +165,6 @@ void Deferred_Renderer::postProcess(){
     cudaPostProcessing();
     postProcess_framebuffer.blitColor(0);
 
-     Error::quitWhenError("Deferred_Renderer::postProcess");
+//     Error::quitWhenError("Deferred_Renderer::postProcess");
 }
 
