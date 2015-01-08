@@ -35,7 +35,7 @@ bool glfw_Window::initWindow()
     glfwMakeContextCurrent(window);
 
 //    //vsync
-    glfwSwapInterval(0);
+    glfwSwapInterval(1);
 
     //Initialize GLEW
     glewExperimental = GL_TRUE;
