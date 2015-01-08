@@ -22,8 +22,7 @@ bool glfw_Window::initWindow()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
-//    //vsync
-    glfwSwapInterval(0);
+
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(window_width, window_height, "Hello World", NULL, NULL);
     if (!window)
@@ -34,6 +33,9 @@ bool glfw_Window::initWindow()
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
+
+//    //vsync
+    glfwSwapInterval(0);
 
     //Initialize GLEW
     glewExperimental = GL_TRUE;
