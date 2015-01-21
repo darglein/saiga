@@ -16,7 +16,7 @@
 
 class Terrain{
 public:
-    const int levels = 8;
+    int layers;
 
     TerrainShader* shader;
     TerrainShader* deferredshader;
@@ -29,14 +29,18 @@ public:
 
     vec3 viewPos;
 
-    Clipmap clipmaps[8];
+    std::vector<Clipmap> clipmaps;
+//    Clipmap clipmaps[8];
     vec2 baseScale = vec2(1,1);
 
 
 
-    Terrain();
+    Terrain(int layers, int w, int h , float heightScale);
 
-    void createMesh(unsigned int w, unsigned int h);
+    void loadHeightmap();
+    void createHeightmap();
+
+    void createMesh();
 
     void setDistance(float d);
 

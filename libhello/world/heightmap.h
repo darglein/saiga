@@ -25,7 +25,7 @@ public:
      float maxH = -0125725;
 
      vec2 mapOffset = vec2(0);//vec2(50,50);
-     vec2 mapScale = vec2(200,200);
+     vec2 mapScale = vec2(200);
      vec2 mapScaleInv = 1.0f/mapScale;
 
     std::vector<Image> heightmap;
@@ -36,9 +36,12 @@ public:
 
 
     Heightmap(int layers, int w, int h);
+    void setScale(vec2 mapScale, vec2 mapOffset = vec2(0));
 
     void createTextures();
     void createHeightmaps();
+    void createHeightmapsFrom(const string& image);
+
     void loadMaps();
 
 private:
@@ -49,7 +52,8 @@ private:
 
     void normalizeHeightMap();
 
-    void saveMaps();
+    void saveHeightmaps();
+    void saveNormalmaps();
 
     float getHeight(int x, int y);
     float getHeight(int layer, int x, int y);

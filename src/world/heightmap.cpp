@@ -45,6 +45,13 @@ Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
     }
 }
 
+void Heightmap::setScale(vec2 mapScale, vec2 mapOffset)
+{
+    this->mapOffset = mapOffset;
+    this->mapScale = mapScale;
+    this->mapScaleInv = 1.0f/mapScale;
+}
+
 void Heightmap::createInitialHeightmap(){
 
 
@@ -269,7 +276,7 @@ void Heightmap::createTextures(){
 
 }
 
-void Heightmap::saveMaps(){
+void Heightmap::saveHeightmaps(){
 
     for(int i=0;i<layers;i++){
         fipImage fipimg;
@@ -284,9 +291,9 @@ void Heightmap::saveMaps(){
             cout<<"save failed!"<<endl;
         }
 
-
-//        cout << " is size: " << fipimg.getWidth() << "x" << fipimg.getHeight() << " colors " << fipimg.getColorsUsed() << " bits per pixel "<<fipimg.getBitsPerPixel()<< " type"<<fipimg.getColorType()<< endl;
     }
+}
+void Heightmap::saveNormalmaps(){
 
 
     for(int i=0;i<layers;i++){
@@ -303,7 +310,6 @@ void Heightmap::saveMaps(){
         }
 
 
-//        cout << " is size: " << fipimg.getWidth() << "x" << fipimg.getHeight() << " colors " << fipimg.getColorsUsed() << " bits per pixel "<<fipimg.getBitsPerPixel()<< " type"<<fipimg.getColorType()<< endl;
     }
 
 
@@ -330,19 +336,32 @@ void Heightmap::loadMaps(){
 
         normalmap[i].convertFrom(fipimg);
  }
+}
 
 
+void Heightmap::createHeightmapsFrom(const string& image){
+    fipImage fipimg;
+    fipimg.load(image.c_str());
+    heightmap[0].convertFrom(fipimg);
+
+
+    createRemainingLayers();
+
+    createNormalmap();
+
+    saveHeightmaps();
+    saveNormalmaps();
 
 }
+
 
 void Heightmap::createHeightmaps(){
     createInitialHeightmap();
     createRemainingLayers();
 
-
-
     createNormalmap();
 
-    saveMaps();
+    saveHeightmaps();
+    saveNormalmaps();
 
 }

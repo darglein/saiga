@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include "libhello/rendering/particles/particle.h"
+//#include "libhello/rendering/particles/particle.h"
 #include "libhello/geometry/raytracer.h"
 #include "libhello/geometry/aabb.h"
 

@@ -2,19 +2,22 @@
 
 
 
-Terrain::Terrain():heightmap(7,2048,2048){ //1024,2048,4096
+Terrain::Terrain(int layers, int w, int h, float heightScale):layers(layers),heightmap(layers,w,h){ //1024,2048,4096
+    clipmaps.resize(layers+1);
+    heightmap.heightScale = heightScale;
+}
+
+void Terrain::loadHeightmap(){
+    heightmap.loadMaps();
+    heightmap.createTextures();
 
 }
 
-void Terrain::createMesh(unsigned int w, unsigned int h){
+void Terrain::createHeightmap(){
+    heightmap.createHeightmaps();
+}
 
-
-
-
-//    heightmap.createHeightmaps();
-    heightmap.loadMaps();
-
-    heightmap.createTextures();
+void Terrain::createMesh(){
 
 
     Clipmap::createMeshes();
@@ -32,8 +35,8 @@ void Terrain::createMesh(unsigned int w, unsigned int h){
     vec2 baseCellWidth = baseScale * (1.0f/(heightmap.m-1));
      vec2 scale = baseScale;
 
-    for(int i=0;i<levels;++i){
-        Clipmap* n = (i+1<levels)?&clipmaps[i+1]:nullptr;
+    for(int i=0;i<layers;++i){
+        Clipmap* n = (i+1<layers)?&clipmaps[i+1]:nullptr;
         Clipmap* p = (i-1>0)?&clipmaps[i-1]:nullptr;
 
         clipmaps[i].init(heightmap.m,offsets[i]*baseCellWidth,scale,states[i],n,p);
@@ -42,11 +45,6 @@ void Terrain::createMesh(unsigned int w, unsigned int h){
 
 
     cout<<"Terrain initialized!"<<endl;
-
-    Freeimage fi;
-
-     fi.load("heightmap0.png");
-     fi.load("textures/grass.png");
 
 }
 
@@ -78,7 +76,7 @@ void Terrain::renderDepth(Camera* cam){
 void Terrain::update(const vec3 &p)
 {
     viewPos = p;
-    for(int i=0;i<levels;++i){
+    for(int i=0;i<layers;++i){
         clipmaps[i].update(p);
     }
 
@@ -102,7 +100,8 @@ void Terrain::renderintern(Camera *cam){
 
     shader->uploadZScale(heightmap.heightScale);
 
-    shader->uploadTexSizeScale(vec4(heightmap.mapOffset.x,heightmap.mapOffset.y,heightmap.mapScaleInv.x,heightmap.mapScaleInv.y));
+    vec4 TexSizeScale = vec4(heightmap.mapOffset.x,heightmap.mapOffset.y,heightmap.mapScaleInv.x,heightmap.mapScaleInv.y);
+    shader->uploadTexSizeScale(TexSizeScale);
 
 
     shader->uploadTexture(heightmap.texheightmap[0]);
@@ -119,11 +118,11 @@ void Terrain::renderintern(Camera *cam){
 
 
 
-    for(int i=0;i<levels-1;i++){
+    for(int i=0;i<layers-1;i++){
         shader->uploadTexture(heightmap.texheightmap[i]);
         shader->uploadNormalMap(heightmap.texnormalmap[0]);
 
-        int next = glm::clamp(i+1,0,levels-2);
+        int next = glm::clamp(i+1,0,layers-2);
         shader->uploadImageUp(heightmap.texheightmap[next]);
         shader->uploadNormalMapUp(heightmap.texnormalmap[0]);
 
