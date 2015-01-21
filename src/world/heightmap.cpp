@@ -62,8 +62,8 @@ void Heightmap::createInitialHeightmap(){
     module::RidgedMulti mountainTerrain;
 
     module::Perlin terrainType;
-    terrainType.SetFrequency (0.5);
-    terrainType.SetPersistence (0.25);
+    terrainType.SetFrequency (0.3);
+    terrainType.SetPersistence (0);
 
     module::Billow baseFlatTerrain;
       baseFlatTerrain.SetFrequency (2.0);
@@ -92,13 +92,13 @@ void Heightmap::createInitialHeightmap(){
             float yf = (float)y/(float)h;
 
 
+            float f = 10.0f;
 
+            xf *= f;
+            yf *= f;
 
-            xf *= 10;
-            yf *= 10;
-
-            float wf = 10.0f;
-            float hf = 10.0f;
+            float wf = f;
+            float hf = f;
 
 //            double value = myModule.GetValue (xf, yf, 0);
 //            float h = noise.fBm(xf,yf,0,5);
@@ -107,6 +107,9 @@ void Heightmap::createInitialHeightmap(){
 
             //seamless
 #define F(_X,_Y) finalTerrain.GetValue(_X,_Y,0)
+            #define F(_X,_Y) terrainType.GetValue(_X,_Y,0)
+//#define F(_X,_Y) noise.fBm(_X,_Y,0,1)
+
             float he = (
             F(xf, yf) * (wf - xf) * (hf - yf) +
             F(xf - wf, yf) * (xf) * (hf - yf) +
@@ -164,9 +167,13 @@ void Heightmap::createNormalmap(){
                  vec3 scale = vec3(mapScale.x,1,mapScale.y) * norm;
 
 
+//                vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
+//                vec3 x2  = vec3(x-1,getHeightScaled(layer,x-1,y),y) * scale;
+//                vec3 y1  = vec3(x,getHeightScaled(layer,x,y+1),y+1) * scale;
+//                vec3 y2  = vec3(x,getHeightScaled(layer,x,y-1),y-1) * scale;
+
                 vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
                 vec3 x2  = vec3(x-1,getHeightScaled(layer,x-1,y),y) * scale;
-
                 vec3 y1  = vec3(x,getHeightScaled(layer,x,y+1),y+1) * scale;
                 vec3 y2  = vec3(x,getHeightScaled(layer,x,y-1),y-1) * scale;
 
@@ -323,6 +330,7 @@ bool Heightmap::loadMaps(){
     for(int i=0;i<layers;i++){
         string name = "heightmap"+std::to_string(i)+".png";
 
+        cout<<"load heightmap "<<endl;
         fipImage fipimg;
         if (!fipimg.load(name.c_str()))
             return false;

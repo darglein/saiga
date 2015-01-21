@@ -128,7 +128,7 @@ void Image::convertFrom(fipImage &fipimg){
 
 
 
-//    cout<<"test"<<fipimg.getBitsPerPixel()<<" "<<channels<<" "<<fipimg.getInfo()<<" "<<fipimg.getImageType()<<endl;
+    cout<<"test"<<fipimg.getBitsPerPixel()<<" "<<channels<<" "<<fipimg.getInfo()<<" "<<fipimg.getImageType()<<endl;
     bitDepth = fipimg.getBitsPerPixel()/channels;
 
 
@@ -177,6 +177,8 @@ FREE_IMAGE_TYPE Image::getFIT(){
         return FIT_RGBA16;
     }else if(bitDepth==16 && channels==1){
         return FIT_UINT16;
+    }else if(bitDepth==32 && channels==1){
+        return FIT_UINT32;
     }
 
     return FIT_BITMAP;
