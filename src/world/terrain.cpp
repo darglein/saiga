@@ -7,10 +7,12 @@ Terrain::Terrain(int layers, int w, int h, float heightScale):layers(layers),hei
     heightmap.heightScale = heightScale;
 }
 
-void Terrain::loadHeightmap(){
-    heightmap.loadMaps();
-    heightmap.createTextures();
+bool Terrain::loadHeightmap(){
+    if (!heightmap.loadMaps())
+        return false;
 
+    heightmap.createTextures();
+    return true;
 }
 
 void Terrain::createHeightmap(){

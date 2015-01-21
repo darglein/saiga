@@ -318,24 +318,28 @@ void Heightmap::saveNormalmaps(){
 
 
 
-void Heightmap::loadMaps(){
+bool Heightmap::loadMaps(){
 
     for(int i=0;i<layers;i++){
         string name = "heightmap"+std::to_string(i)+".png";
 
         fipImage fipimg;
-        fipimg.load(name.c_str());
+        if (!fipimg.load(name.c_str()))
+            return false;
+
         heightmap[i].convertFrom(fipimg);
- }
+    }
 
     for(int i=0;i<layers;i++){
         string name = "normalmap"+std::to_string(i)+".png";
 
         fipImage fipimg;
-        fipimg.load(name.c_str());
+        if(!fipimg.load(name.c_str()))
+            return false;
 
         normalmap[i].convertFrom(fipimg);
- }
+    }
+    return true;
 }
 
 

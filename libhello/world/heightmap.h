@@ -42,7 +42,7 @@ public:
     void createHeightmaps();
     void createHeightmapsFrom(const string& image);
 
-    void loadMaps();
+    bool loadMaps();
 
 private:
 

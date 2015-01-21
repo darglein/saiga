@@ -37,7 +37,7 @@ public:
 
     Terrain(int layers, int w, int h , float heightScale);
 
-    void loadHeightmap();
+    bool loadHeightmap();
     void createHeightmap();
 
     void createMesh();
