@@ -5,7 +5,7 @@
 class KeyboardBinds: public glfw_KeyListener
 {
 private:
-    bool waitingForKey;
+    bool waitingForKey = false;
     InputController::Operation::Arguments nextCommand;
     std::map<int,std::string> keyMap;
     typedef std::pair<int,std::string> mapElement;

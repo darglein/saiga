@@ -22,8 +22,8 @@ private:
 
     template<typename T>
     struct Listener{
-        T* listener;
-        int priority;
+        T* listener = nullptr;
+        int priority = 0;
         Listener(T* listener,int priority):listener(listener),priority(priority){}
     };
     static std::vector<Listener<glfw_KeyListener>> keyListener;

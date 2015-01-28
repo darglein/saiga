@@ -4,7 +4,7 @@
 #include <SDL2/SDL.h>
 typedef unsigned int uint;
 class Timer{
-    uint start_time;
+    uint start_time =0;
 public:
     Timer();
     void start();
