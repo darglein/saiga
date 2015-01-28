@@ -157,14 +157,15 @@ void Heightmap::normalizeHeightMap(){
 void Heightmap::createNormalmap(){
 
     int layer = 0;
-    for(int layer=0;layer<layers;++layer){
+    for(int layer=0;layer<1;++layer){
         for(int x=0;x<normalmap[layer].width;++x){
             for(int y=0;y<normalmap[layer].height;++y){
 
                 vec3 norm(1.0f/w,1,1.0f/h);
 //                vec3 scale = vec3(8*mapScaleInv.x,1,8*mapScaleInv.y) * norm;
 //                 vec3 scale = vec3(200,1,200) * norm;
-                 vec3 scale = vec3(mapScale.x,1,mapScale.y) * norm;
+                 vec3 scale = vec3(mapScale.x,1,mapScale.y) * norm * vec3(1,1,1);
+//                vec3 scale = vec3(mapScaleInv.x,1,mapScaleInv.y);
 
 
 //                vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
@@ -174,15 +175,30 @@ void Heightmap::createNormalmap(){
 
                 vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
                 vec3 x2  = vec3(x-1,getHeightScaled(layer,x-1,y),y) * scale;
+
                 vec3 y1  = vec3(x,getHeightScaled(layer,x,y+1),y+1) * scale;
                 vec3 y2  = vec3(x,getHeightScaled(layer,x,y-1),y-1) * scale;
 
+//                float h1 = getHeightScaled(layer,x-1,y);
+//                float h2 = getHeightScaled(layer,x+1,y);
+//                float h3 = getHeightScaled(layer,x,y-1);
+//                float h4 = getHeightScaled(layer,x,y+1);
+
+//                vec2 step = vec2(1.0f,0.0f);
+//                vec3 va = glm::normalize( vec3( 1, h2-h1,0 ));
+//                vec3 vb = glm::normalize( vec3( 0, h4-h3,1 ));
+
                 vec3 n = glm::cross(y2-y1,x2-x1);
 
-                //            cout<<"Normal "<<n<<" "<<x<<" "<<y<<" "<<x1<<" "<<x2<<" "<<y1<<" "<<y2<<endl;
+                std::swap(n.x,n.z);
+//                vec3 n = glm::cross(x2-x1,y2-y1);
+//                vec3 n = glm::cross(vb,va);
+
                 n = glm::normalize(n);
-                n = 0.5f * (n+vec3(1.0f)); //now in range 0,1
+//                 cout<<"Normal "<<n<<endl;
+                n = 0.5f * n + vec3(0.5f); //now in range 0,1
                 n = n*255.0f; //range 0,255
+//                cout<<"Normal "<<n<<endl;
                 n = glm::clamp(n,vec3(0),vec3(255));
 
                 normalmap[layer].setPixel(x,y,(u_int8_t)n.x,(u_int8_t)n.y,(u_int8_t)n.z);
@@ -206,8 +222,19 @@ float Heightmap::getHeightScaled(int x, int y){
 float Heightmap::getHeight(int layer, int x, int y){
     Image &img = heightmap[layer];
 
-    x = glm::clamp(x,0,(int)(img.width-1));
-    y = glm::clamp(y,0,(int)(img.height-1));
+
+    while(x<0)
+        x+=img.width;
+    while(x>=img.width)
+        x-=img.width;
+    while(y<0)
+        y+=img.height;
+    while(y>=img.height)
+        y-=img.height;
+
+
+//    x = glm::clamp(x,0,(int)(img.width-1));
+//    y = glm::clamp(y,0,(int)(img.height-1));
 
     height_res_t v = *((height_res_t*)img.positionPtr(x,y));
     return (float)v / (float)max_res;
