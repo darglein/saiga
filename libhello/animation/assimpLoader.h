@@ -1,0 +1,172 @@
+#pragma once
+
+#include <libhello/geometry/triangle_mesh.h>
+
+#include <libhello/animation/animation.h>
+
+#include <type_traits>
+
+
+#include <assimp/Importer.hpp> // C++ importer interface
+#include <assimp/scene.h> // Output data structure
+#include <assimp/postprocess.h> // Post processing flags
+#include <assimp/cimport.h>
+
+
+/**
+ * @brief The AssimpLoader class
+ *
+ * Warning: Use of SFINAE!
+ *
+ * Concept:
+ * SFINAE test are performed to test if the templated vertex type has specific attributes.
+ * For example:
+ * If the vertex has a member 'normal' we want to read the normal from assimp and save them in that vertex.
+ *
+ */
+class AssimpLoader{
+public:
+    const aiScene *scene = nullptr;
+    Assimp::Importer importer;
+
+public:
+    AssimpLoader(){}
+    AssimpLoader(const std::string &file);
+
+    void loadFile(const std::string &file);
+
+
+    template<typename vertex_t>
+    void getMesh(int id, TriangleMesh<vertex_t, GLuint> &out);
+
+
+    void getAnimation(int animationId, int meshId, Animation &out);
+
+    void transformmesh(const aiMesh *amesh, std::vector<mat4> &boneMatrices);
+    void createFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
+private:
+    int animationlength(aiAnimation *anim);
+    aiNode *findnode(aiNode *node, char *name);
+    void transformnode(aiMatrix4x4 *result, aiNode *node);
+    mat4 convert(aiMatrix4x4 mat);
+    void composematrix(aiMatrix4x4 *m, aiVector3D *t, aiQuaternion *q, aiVector3D *s);
+};
+
+
+//type trait that checks if a member name exists in a type
+#define HAS_MEMBER(_M,_NAME) \
+    template <typename T>\
+    class _NAME \
+{\
+    typedef char one;\
+    typedef long two;\
+    template <typename C> static one test( decltype(&C::_M) ) ;\
+    template <typename C> static two test(...);\
+    public:\
+    enum { value = sizeof(test<T>(0)) == sizeof(char) };\
+    };
+
+
+HAS_MEMBER(position,has_position)
+HAS_MEMBER(normal,has_normal)
+HAS_MEMBER(texture,has_texture)
+HAS_MEMBER(boneIndices,has_boneIndices)
+HAS_MEMBER(boneWeights,has_boneWeights)
+
+#define ENABLE_IF_FUNCTION(_NAME,_P1,_P2,_TRAIT) \
+    template<class T> \
+    void \
+    _NAME(_P1,_P2, typename std::enable_if<_TRAIT<T>::value, T>::type* = 0)
+
+#define ENABLED_FUNCTION(_NAME,_P1,_P2,_TRAIT) \
+    ENABLE_IF_FUNCTION(_NAME,_P1,_P2,!_TRAIT){} \
+    ENABLE_IF_FUNCTION(_NAME,_P1,_P2,_TRAIT)
+
+
+#define ENABLE_IF_FUNCTION3(_NAME,_P1,_P2,_P3,_TRAIT) \
+    template<class T> \
+    void \
+    _NAME(_P1,_P2,_P3, typename std::enable_if<_TRAIT<T>::value, T>::type* = 0)
+
+#define ENABLED_FUNCTION3(_NAME,_P1,_P2,_P3,_TRAIT) \
+    ENABLE_IF_FUNCTION3(_NAME,_P1,_P2,_P3,!_TRAIT){} \
+    ENABLE_IF_FUNCTION3(_NAME,_P1,_P2,_P3,_TRAIT)
+
+
+
+
+//these function will be executed if the type has the specified trait.
+//if not nothing will be done
+
+ENABLED_FUNCTION(loadPosition,T& vertex,const aiVector3D &v,has_position){
+    vertex.position = vec3(v.x,v.y,v.z);
+}
+
+
+ENABLED_FUNCTION(loadNormal,T& vertex,const aiVector3D &v,has_normal){
+    vertex.normal = vec3(v.x,v.y,v.z);
+}
+
+
+ENABLED_FUNCTION(loadTexture,T& vertex,const aiVector3D &v,has_texture){
+    vertex.texture = vec2(v.x,v.y);
+}
+
+
+ENABLED_FUNCTION3(loadBoneWeight,T& vertex, int index, float weight,has_texture){
+    vertex.addBone(index,weight);
+}
+
+
+
+template<typename vertex_t>
+void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, GLuint> &out){
+    const aiMesh *mesh = scene->mMeshes[id];
+
+    out.vertices.resize(mesh->mNumVertices);
+
+    if(mesh->HasPositions()){
+        for(int i=0;i<mesh->mNumVertices;++i){
+            vertex_t &bv = out.vertices[i];
+            loadPosition(bv,mesh->mVertices[i]);
+        }
+    }
+
+    if(mesh->HasNormals()){
+        for(int i=0;i<mesh->mNumVertices;++i){
+            vertex_t &bv = out.vertices[i];
+            loadNormal(bv,mesh->mNormals[i]);
+        }
+    }
+
+    if(mesh->HasTextureCoords(0)){
+        for(int i=0;i<mesh->mNumVertices;++i){
+            vertex_t &bv = out.vertices[i];
+            loadTexture(bv,mesh->mTextureCoords[i][0]);
+        }
+    }
+
+    if(mesh->HasFaces()){
+        for(int i=0;i<mesh->mNumFaces;++i){
+            aiFace* f = mesh->mFaces+i;
+            if(f->mNumIndices != 3){
+                cout<<"Mesh not triangulated!!!"<<endl;
+                continue;
+            }
+            out.addFace(f->mIndices);
+        }
+    }
+
+    if(mesh->HasBones()){
+        for(int i=0;i<mesh->mNumBones;++i){
+            aiBone* b = mesh->mBones[i];
+            for(int j=0;j<b->mNumWeights;++j){
+                aiVertexWeight* vw = b->mWeights+j;
+                vertex_t& bv = out.vertices[vw->mVertexId];
+                loadBoneWeight(bv,i,vw->mWeight);
+            }
+        }
+    }
+}
+
+

@@ -1,0 +1,19 @@
+#include "animation/boneVertex.h"
+
+template<>
+void VertexBuffer<BoneVertex>::setVertexAttributes(){
+    glEnableVertexAttribArray( 0 );
+    glEnableVertexAttribArray( 1 );
+    glEnableVertexAttribArray( 2 );
+    glEnableVertexAttribArray( 3 );
+    glEnableVertexAttribArray( 4 );
+
+    glVertexAttribPointer(0,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertex), NULL );
+    glVertexAttribPointer(1,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertex), (void*) (3 * sizeof(GLfloat)) );
+    glVertexAttribPointer(2,2, GL_FLOAT, GL_FALSE, sizeof(BoneVertex), (void*) (6 * sizeof(GLfloat)) );
+
+    glVertexAttribPointer(3,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertex), (void*) (8 * sizeof(GLfloat)) );
+    glVertexAttribPointer(4,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertex), (void*) (12 * sizeof(GLfloat)) );
+}
+
+
