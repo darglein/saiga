@@ -1,18 +1,25 @@
 cmake_minimum_required(VERSION 2.8)
 
-#set(GRALAB_INCLUDE_DIR "" CACHE FILEPATH "Path to yourlib includes")
-#include_directories(${GRALAB_INCLUDE_DIR}/include)
-#include_directories(${GRALAB_INCLUDE_DIR}/usr/include)
-#set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${GRALAB_INCLUDE_DIR}/lib ${GRALAB_INCLUDE_DIR}/usr/lib)
-#LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/lib)
-#LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/usr/lib)
-
+set(GRALAB_INCLUDE_DIR "" CACHE FILEPATH "Path to yourlib includes")
+set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${GRALAB_INCLUDE_DIR}/include)
+include_directories(${GRALAB_INCLUDE_DIR}/include)
+set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${GRALAB_INCLUDE_DIR}/lib)
+LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/lib)
+  LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/bin)
+  
 set(LIB_NAME hello)
 
+#include_directories(/F/Users/Dari/Programming/libs/FreeImage/Wrapper/FreeImagePlus)
+#LINK_DIRECTORIES(/F/Users/Dari/Programming/libs/FreeImage/Wrapper/FreeImagePlus/dist)
+
+#include_directories(/F/Users/Dari/Programming/libs/FreeImage/Dist)
+#LINK_DIRECTORIES(/F/Users/Dari/Programming/libs/FreeImage/Dist)
 
 project (${LIB_NAME})
 set(CMAKE_BUILD_TYPE Release)
-INCLUDE(FindPkgConfig)
+#INCLUDE(FindPkgConfig)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libhello)
 
@@ -38,7 +45,8 @@ endif (USE_SDL)
 
 #GLFW
 if (USE_GLFW)
-	pkg_search_module(GLFW REQUIRED glfw3)
+#	pkg_search_module(GLFW REQUIRED glfw3)
+  find_package(GLFW REQUIRED)
 	include_directories(${GLFW_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
 endif (USE_GLFW)
@@ -65,7 +73,8 @@ SET(LIBS ${LIBS} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
 
 
 #assimp
-pkg_search_module(ASSIMP REQUIRED assimp)
+#pkg_search_module(ASSIMP REQUIRED assimp)
+find_package(ASSIMP REQUIRED)
 include_directories(${ASSIMP_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 
@@ -73,33 +82,35 @@ SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 
 #libfreeimage
 #pkg_search_module(FREEIMAGE REQUIRED freeimage)
-find_library(FREEIMAGE_LIBRARIES freeimage)
+#find_library(FREEIMAGE_LIBRARIES freeimage)
+find_package(FREEIMAGE REQUIRED)
 SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARIES})
 
-find_library(FREEIMAGEPLUS_LIBRARIES freeimageplus)
+#find_library(FREEIMAGEPLUS_LIBRARIES freeimageplus)
+find_package(FREEIMAGEPLUS REQUIRED)
 SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
 
 
 find_library(X11_LIBRARIES X11)
-SET(LIBS ${LIBS} ${X11_LIBRARIES})
+#SET(LIBS ${LIBS} ${X11_LIBRARIES})
 
 find_library(Xxf86vm_LIBRARIES Xxf86vm)
-SET(LIBS ${LIBS} ${Xxf86vm_LIBRARIES})
+#SET(LIBS ${LIBS} ${Xxf86vm_LIBRARIES})
 
 find_library(Xrandr_LIBRARIES Xrandr)
-SET(LIBS ${LIBS} ${Xrandr_LIBRARIES})
+#SET(LIBS ${LIBS} ${Xrandr_LIBRARIES})
 
 find_library(pthread_LIBRARIES pthread)
-SET(LIBS ${LIBS} ${pthread_LIBRARIES})
+#SET(LIBS ${LIBS} ${pthread_LIBRARIES})
 
 find_library(Xi_LIBRARIES Xi)
-SET(LIBS ${LIBS} ${Xi_LIBRARIES})
+#SET(LIBS ${LIBS} ${Xi_LIBRARIES})
 
 find_library(Xcursor_LIBRARIES Xcursor)
-SET(LIBS ${LIBS} ${Xcursor_LIBRARIES})
+#SET(LIBS ${LIBS} ${Xcursor_LIBRARIES})
 
 find_library(Xinerama_LIBRARIES Xinerama)
-SET(LIBS ${LIBS} ${Xinerama_LIBRARIES})
+#SET(LIBS ${LIBS} ${Xinerama_LIBRARIES})
 
 
 ############# COMPILER FLAGS ###############
