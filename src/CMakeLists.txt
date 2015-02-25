@@ -1,14 +1,39 @@
 
+############# Required Source Files ###############
 
-FILE(GLOB_RECURSE FOO_SRC  *.cpp)
+FILE(GLOB_RECURSE animation_SRC  animation/*.cpp)
+FILE(GLOB_RECURSE camera_SRC  camera/*.cpp)
+FILE(GLOB_RECURSE geometry_SRC  geometry/*.cpp)
+FILE(GLOB_RECURSE opengl_SRC  opengl/*.cpp)
+FILE(GLOB_RECURSE rendering_SRC  rendering/*.cpp)
+FILE(GLOB_RECURSE text_SRC  text/*.cpp)
+FILE(GLOB_RECURSE util_SRC  util/*.cpp)
+FILE(GLOB_RECURSE window_SRC  window/*.cpp)
+FILE(GLOB_RECURSE world_SRC  world/*.cpp)
+
+SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} ${rendering_SRC} ${text_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC})
+
+############# Optional Source Files ###############
+
+if (USE_SDL)
+	FILE(GLOB SDL_SRC sdl/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${SDL_SRC})
+endif (USE_SDL)
+
+if (USE_GLFW)
+	FILE(GLOB GLFW_SRC glfw/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${GLFW_SRC})
+endif (USE_GLFW)
+
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-add_library(${LIB_NAME} SHARED ${FOO_SRC})
+add_library(${LIB_NAME} SHARED ${PROG_SRC})
 
-SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -lGL -lGLU -lglfw3 -lX11 -lXxf86vm -lXrandr -lpthread -lXi" )
+#SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -lGL -lGLU -lglfw3 -lX11 -lXxf86vm -lXrandr -lpthread -lXi" )
 
-target_link_libraries(${LIB_NAME} ${GLFW_LIBRARIES})
-target_link_libraries(${LIB_NAME} ${SDL2_LIBRARIES})
+
+
+
 target_link_libraries(${LIB_NAME} ${LIBS})
 
 install(TARGETS ${LIB_NAME} DESTINATION lib)

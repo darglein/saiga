@@ -1,4 +1,4 @@
-#include "window/glfw_window.h"
+#include "glfw/glfw_window.h"
 
 #include "util/inputcontroller.h"
 

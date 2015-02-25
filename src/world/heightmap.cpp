@@ -1,6 +1,13 @@
 #include "world/heightmap.h"
+
+#include "config.h"
+
+#ifdef USE_NOISE
 #include <libnoise/noise.h>
 using namespace noise;
+#endif
+
+
 
 
 //typedef u_int32_t height_res_t;
@@ -59,6 +66,8 @@ void Heightmap::createInitialHeightmap(){
 
     PerlinNoise noise;
 
+
+#ifdef USE_NOISE
     module::RidgedMulti mountainTerrain;
 
     module::Perlin terrainType;
@@ -66,23 +75,24 @@ void Heightmap::createInitialHeightmap(){
     terrainType.SetPersistence (0);
 
     module::Billow baseFlatTerrain;
-      baseFlatTerrain.SetFrequency (2.0);
-      module::ScaleBias flatTerrain;
-        flatTerrain.SetSourceModule (0, baseFlatTerrain);
-        flatTerrain.SetScale (0.125);
-        flatTerrain.SetBias (-0.75);
+    baseFlatTerrain.SetFrequency (2.0);
+    module::ScaleBias flatTerrain;
+    flatTerrain.SetSourceModule (0, baseFlatTerrain);
+    flatTerrain.SetScale (0.125);
+    flatTerrain.SetBias (-0.75);
 
-        module::Select terrainSelector;
-        terrainSelector.SetSourceModule (0, flatTerrain);
-        terrainSelector.SetSourceModule (1, mountainTerrain);
-        terrainSelector.SetControlModule (terrainType);
-        terrainSelector.SetBounds (0.0, 1000.0);
-        terrainSelector.SetEdgeFalloff (0.125);
+    module::Select terrainSelector;
+    terrainSelector.SetSourceModule (0, flatTerrain);
+    terrainSelector.SetSourceModule (1, mountainTerrain);
+    terrainSelector.SetControlModule (terrainType);
+    terrainSelector.SetBounds (0.0, 1000.0);
+    terrainSelector.SetEdgeFalloff (0.125);
 
-        module::Turbulence finalTerrain;
-        finalTerrain.SetSourceModule (0, terrainSelector);
-        finalTerrain.SetFrequency (4.0);
-        finalTerrain.SetPower (0.125);
+    module::Turbulence finalTerrain;
+    finalTerrain.SetSourceModule (0, terrainSelector);
+    finalTerrain.SetFrequency (4.0);
+    finalTerrain.SetPower (0.125);
+#endif
 
 
 
@@ -100,24 +110,27 @@ void Heightmap::createInitialHeightmap(){
             float wf = f;
             float hf = f;
 
-//            double value = myModule.GetValue (xf, yf, 0);
-//            float h = noise.fBm(xf,yf,0,5);
-//            float h = myModule.GetValue (xf, yf, 0);
-//            float h = finalTerrain.GetValue(xf,yf,0);
+            //            double value = myModule.GetValue (xf, yf, 0);
+            //            float h = noise.fBm(xf,yf,0,5);
+            //            float h = myModule.GetValue (xf, yf, 0);
+            //            float h = finalTerrain.GetValue(xf,yf,0);
 
             //seamless
+#ifdef USE_NOISE
 #define F(_X,_Y) finalTerrain.GetValue(_X,_Y,0)
-            #define F(_X,_Y) terrainType.GetValue(_X,_Y,0)
-//#define F(_X,_Y) noise.fBm(_X,_Y,0,1)
+#define F(_X,_Y) terrainType.GetValue(_X,_Y,0)
+#else
+#define F(_X,_Y) noise.fBm(_X,_Y,0,1)
+#endif
 
             float he = (
-            F(xf, yf) * (wf - xf) * (hf - yf) +
-            F(xf - wf, yf) * (xf) * (hf - yf) +
-            F(xf - wf, yf - hf) * (xf) * (yf) +
-            F(xf, yf - hf) * (wf - xf) * (yf)
-            ) / (wf * hf);
+                        F(xf, yf) * (wf - xf) * (hf - yf) +
+                        F(xf - wf, yf) * (xf) * (hf - yf) +
+                        F(xf - wf, yf - hf) * (xf) * (yf) +
+                        F(xf, yf - hf) * (wf - xf) * (yf)
+                        ) / (wf * hf);
 
-//            cout<<h<<endl;
+            //            cout<<h<<endl;
             setHeight(x,y,he);
 
         }
@@ -162,16 +175,16 @@ void Heightmap::createNormalmap(){
             for(int y=0;y<normalmap[layer].height;++y){
 
                 vec3 norm(1.0f/w,1,1.0f/h);
-//                vec3 scale = vec3(8*mapScaleInv.x,1,8*mapScaleInv.y) * norm;
-//                 vec3 scale = vec3(200,1,200) * norm;
-                 vec3 scale = vec3(mapScale.x,1,mapScale.y) * norm * vec3(1,1,1);
-//                vec3 scale = vec3(mapScaleInv.x,1,mapScaleInv.y);
+                //                vec3 scale = vec3(8*mapScaleInv.x,1,8*mapScaleInv.y) * norm;
+                //                 vec3 scale = vec3(200,1,200) * norm;
+                vec3 scale = vec3(mapScale.x,1,mapScale.y) * norm * vec3(1,1,1);
+                //                vec3 scale = vec3(mapScaleInv.x,1,mapScaleInv.y);
 
 
-//                vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
-//                vec3 x2  = vec3(x-1,getHeightScaled(layer,x-1,y),y) * scale;
-//                vec3 y1  = vec3(x,getHeightScaled(layer,x,y+1),y+1) * scale;
-//                vec3 y2  = vec3(x,getHeightScaled(layer,x,y-1),y-1) * scale;
+                //                vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
+                //                vec3 x2  = vec3(x-1,getHeightScaled(layer,x-1,y),y) * scale;
+                //                vec3 y1  = vec3(x,getHeightScaled(layer,x,y+1),y+1) * scale;
+                //                vec3 y2  = vec3(x,getHeightScaled(layer,x,y-1),y-1) * scale;
 
                 vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
                 vec3 x2  = vec3(x-1,getHeightScaled(layer,x-1,y),y) * scale;
@@ -179,26 +192,26 @@ void Heightmap::createNormalmap(){
                 vec3 y1  = vec3(x,getHeightScaled(layer,x,y+1),y+1) * scale;
                 vec3 y2  = vec3(x,getHeightScaled(layer,x,y-1),y-1) * scale;
 
-//                float h1 = getHeightScaled(layer,x-1,y);
-//                float h2 = getHeightScaled(layer,x+1,y);
-//                float h3 = getHeightScaled(layer,x,y-1);
-//                float h4 = getHeightScaled(layer,x,y+1);
+                //                float h1 = getHeightScaled(layer,x-1,y);
+                //                float h2 = getHeightScaled(layer,x+1,y);
+                //                float h3 = getHeightScaled(layer,x,y-1);
+                //                float h4 = getHeightScaled(layer,x,y+1);
 
-//                vec2 step = vec2(1.0f,0.0f);
-//                vec3 va = glm::normalize( vec3( 1, h2-h1,0 ));
-//                vec3 vb = glm::normalize( vec3( 0, h4-h3,1 ));
+                //                vec2 step = vec2(1.0f,0.0f);
+                //                vec3 va = glm::normalize( vec3( 1, h2-h1,0 ));
+                //                vec3 vb = glm::normalize( vec3( 0, h4-h3,1 ));
 
                 vec3 n = glm::cross(y2-y1,x2-x1);
 
                 std::swap(n.x,n.z);
-//                vec3 n = glm::cross(x2-x1,y2-y1);
-//                vec3 n = glm::cross(vb,va);
+                //                vec3 n = glm::cross(x2-x1,y2-y1);
+                //                vec3 n = glm::cross(vb,va);
 
                 n = glm::normalize(n);
-//                 cout<<"Normal "<<n<<endl;
+                //                 cout<<"Normal "<<n<<endl;
                 n = 0.5f * n + vec3(0.5f); //now in range 0,1
                 n = n*255.0f; //range 0,255
-//                cout<<"Normal "<<n<<endl;
+                //                cout<<"Normal "<<n<<endl;
                 n = glm::clamp(n,vec3(0),vec3(255));
 
                 normalmap[layer].setPixel(x,y,(u_int8_t)n.x,(u_int8_t)n.y,(u_int8_t)n.z);
@@ -233,8 +246,8 @@ float Heightmap::getHeight(int layer, int x, int y){
         y-=img.height;
 
 
-//    x = glm::clamp(x,0,(int)(img.width-1));
-//    y = glm::clamp(y,0,(int)(img.height-1));
+    //    x = glm::clamp(x,0,(int)(img.width-1));
+    //    y = glm::clamp(y,0,(int)(img.height-1));
 
     height_res_t v = *((height_res_t*)img.positionPtr(x,y));
     return (float)v / (float)max_res;
@@ -283,22 +296,22 @@ void Heightmap::createTextures(){
 
     for(int i=0;i<layers;i++){
 
-//        heightmap[i].convertTo(img);
-//        PNG::writePNG(&img,"heightmap"+std::to_string(i)+".png");
+        //        heightmap[i].convertTo(img);
+        //        PNG::writePNG(&img,"heightmap"+std::to_string(i)+".png");
 
-//        PNG::readPNG(&img,"heightmap"+std::to_string(i)+".png");
-//        heightmap[i].convertFrom(img);
+        //        PNG::readPNG(&img,"heightmap"+std::to_string(i)+".png");
+        //        heightmap[i].convertFrom(img);
 
         texheightmap[i] = new Texture();
         texheightmap[i]->fromImage(heightmap[i]);
-//        texheightmap[i]->setWrap(GL_CLAMP_TO_EDGE);
+        //        texheightmap[i]->setWrap(GL_CLAMP_TO_EDGE);
         texheightmap[i]->setWrap(GL_REPEAT);
         texheightmap[i]->setFiltering(GL_LINEAR);
-//        texheightmap[i]->setFiltering(GL_NEAREST);
+        //        texheightmap[i]->setFiltering(GL_NEAREST);
 
         texnormalmap[i] = new Texture();
         texnormalmap[i]->fromImage(normalmap[i]);
-//        texnormalmap[i]->setWrap(GL_CLAMP_TO_EDGE);
+        //        texnormalmap[i]->setWrap(GL_CLAMP_TO_EDGE);
         texnormalmap[i]->setWrap(GL_REPEAT);
         texnormalmap[i]->setFiltering(GL_LINEAR);
     }
@@ -320,7 +333,7 @@ void Heightmap::saveHeightmaps(){
         string name = "heightmap"+std::to_string(i)+".png";
 
         if(fipimg.save(name.c_str())){
-//            cout<<"save sucess"<<endl;
+            //            cout<<"save sucess"<<endl;
         }else{
             cout<<"save failed!"<<endl;
         }
@@ -338,7 +351,7 @@ void Heightmap::saveNormalmaps(){
         string name = "normalmap"+std::to_string(i)+".png";
 
         if(fipimg.save(name.c_str())){
-//            cout<<"save sucess"<<endl;
+            //            cout<<"save sucess"<<endl;
         }else{
             cout<<"save failed!"<<endl;
         }

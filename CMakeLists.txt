@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8)
 
-set(GRALAB_INCLUDE_DIR "" CACHE FILEPATH "Path to yourlib includes")
-include_directories(${GRALAB_INCLUDE_DIR}/include)
-include_directories(${GRALAB_INCLUDE_DIR}/usr/include)
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${GRALAB_INCLUDE_DIR}/lib ${GRALAB_INCLUDE_DIR}/usr/lib)
-LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/lib)
-LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/usr/lib)
+#set(GRALAB_INCLUDE_DIR "" CACHE FILEPATH "Path to yourlib includes")
+#include_directories(${GRALAB_INCLUDE_DIR}/include)
+#include_directories(${GRALAB_INCLUDE_DIR}/usr/include)
+#set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${GRALAB_INCLUDE_DIR}/lib ${GRALAB_INCLUDE_DIR}/usr/lib)
+#LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/lib)
+#LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/usr/lib)
 
 set(LIB_NAME hello)
 
@@ -16,23 +16,60 @@ INCLUDE(FindPkgConfig)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libhello)
 
-############# LIBRARIES ###############
+
+############# Optional Libraries ###############
+
+option (USE_SDL "Use SDL2" OFF) 
+option (USE_GLFW "Use GLFW" ON) 
+option (USE_NOISE "Use NOISE" OFF) 
+
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/libhello/config.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/libhello/config.h"
+)
+
+
+#SDL2
+if (USE_SDL)
+	PKG_SEARCH_MODULE(SDL2 REQUIRED sdl2)
+	include_directories(${SDL2_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${SDL2_LIBRARIES})
+endif (USE_SDL)
+
+#GLFW
+if (USE_GLFW)
+	pkg_search_module(GLFW REQUIRED glfw3)
+	include_directories(${GLFW_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
+endif (USE_GLFW)
+
+#libnoise
+if (USE_NOISE)
+	find_library(NOISE_LIBRARIES noise)
+	SET(LIBS ${LIBS} ${NOISE_LIBRARIES})
+endif (USE_NOISE)
+
+############# Required LIBRARIES ###############
 
 #freetype2
 find_package(Freetype REQUIRED)
 include_directories(${FREETYPE_INCLUDE_DIRS})
+SET(LIBS ${LIBS} ${FREETYPE_LIBRARIES})
 
-#SDL2
-PKG_SEARCH_MODULE(SDL2 REQUIRED sdl2)
-include_directories(${SDL2_INCLUDE_DIRS})
 
-#GLFW
-pkg_search_module(GLFW REQUIRED glfw3)
-include_directories(${GLFW_INCLUDE_DIRS})
+#OPENGL
+find_package(OpenGL REQUIRED)
+find_package(GLEW REQUIRED)
+include_directories( ${OPENGL_INCLUDE_DIRS}  ${GLEW_INCLUDE_DIRS} )
+SET(LIBS ${LIBS} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
 
-#libnoise
-find_library(NOISE_LIBRARIES noise)
-SET(LIBS ${LIBS} ${NOISE_LIBRARIES})
+
+#assimp
+pkg_search_module(ASSIMP REQUIRED assimp)
+include_directories(${ASSIMP_INCLUDE_DIRS})
+SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
+
+
 
 #libfreeimage
 #pkg_search_module(FREEIMAGE REQUIRED freeimage)
