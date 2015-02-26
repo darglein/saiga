@@ -5,8 +5,8 @@ typedef TriangleMesh<VertexNT,GLuint> default_mesh_t;
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &sphere, int rings, int sectors){
 
     default_mesh_t* mesh = new default_mesh_t();
-    float const R = 1./(float)(rings);
-    float const S = 1./(float)(sectors);
+    float const R = 1.f/(float)(rings);
+    float const S = 1.f/(float)(sectors);
 
     for(int r = 0; r < rings+1; r++){
         for(int s = 0; s < sectors; s++) {

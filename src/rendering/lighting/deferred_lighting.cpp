@@ -287,13 +287,13 @@ void DeferredLighting::renderDebug(){
     pointLightMesh.bind();
     //center
     for(PointLight* &obj : pointLights){
-        mat4 small = glm::scale(obj->model,vec3(0.05));
+        mat4 sm = glm::scale(obj->model,vec3(0.05));
         vec4 color = obj->color;
         if(!obj->isActive()||!obj->isVisible()){
             //render as black if light is turned off
             color = vec4(0);
         }
-        debugShader->uploadModel(small);
+        debugShader->uploadModel(sm);
         debugShader->uploadColor(color);
         pointLightMesh.draw();
     }
@@ -314,13 +314,13 @@ void DeferredLighting::renderDebug(){
     spotLightMesh.bind();
     //center
     for(SpotLight* &obj : spotLights){
-        mat4 small = glm::scale(obj->model,vec3(0.05));
+        mat4 sm = glm::scale(obj->model,vec3(0.05));
         vec4 color = obj->color;
         if(!obj->isActive()||!obj->isVisible()){
             //render as black if light is turned off
             color = vec4(0);
         }
-        debugShader->uploadModel(small);
+        debugShader->uploadModel(sm);
         debugShader->uploadColor(color);
         spotLightMesh.draw();
     }

@@ -11,7 +11,7 @@ void DynamicText::updateGLBuffer(int start){
 
 void DynamicText::compressText(string &str, int &start){
 
-    int s = glm::min(static_cast<int>(str.size()),size-start);
+    int s = min(static_cast<int>(str.size()),size-start);
     str.resize(s);
 
     int newSize = 0;

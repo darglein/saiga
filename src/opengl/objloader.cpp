@@ -295,7 +295,7 @@ void ObjLoader::parseF(char* line){
 
         //        lastIndex = index;
 
-        maxCorners = glm::max(maxCorners,cornerCount);
+        maxCorners = max(maxCorners,cornerCount);
 
 
         if(!skipTokens(line))

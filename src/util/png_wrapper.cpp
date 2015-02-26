@@ -168,7 +168,7 @@ int writepng_init(PNG::Image *image)
      * compression (NOT the default); and remaining compression flags should
      * be left alone */
 
-    png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
+   // png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
     /*
     >> this is default for no filtering; Z_FILTERED is default otherwise:
     png_set_compression_strategy(png_ptr, Z_DEFAULT_STRATEGY);
@@ -461,16 +461,16 @@ void PNG::writepng_error_handler(png_structp png_ptr, png_const_charp msg)
 void PNG::pngVersionInfo()
 {
     std::cout<<"libpng version: "<<png_libpng_ver<< std::endl;
-    std::cout<< "zlib version: "<<zlib_version<< std::endl;
+    //std::cout<< "zlib version: "<<zlib_version<< std::endl;
 }
 
 bool PNG::writePNG(Image *img, const std::string &path, bool invertY){
-    std::cout<<"write png: "<<path<<std::endl;
+    std::cout<<"write png: "<<path.c_str()<<std::endl;
 
     FILE *fp = fopen(path.c_str(), "wb");
     if (!fp)
     {
-        std::cout<<"could not open file: "<<path<<std::endl;
+		std::cout << "could not open file: " << path.c_str() << std::endl;
         return false;
     }
 

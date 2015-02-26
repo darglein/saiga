@@ -15,8 +15,8 @@ using namespace noise;
 //const int bits = 32;
 //const height_res_t max_res = 4294967295;
 
-typedef u_int16_t height_res_t;
-typedef u_int32_t height_resn_t;
+typedef uint16_t height_res_t;
+typedef uint32_t height_resn_t;
 const int bits = 16;
 const height_res_t max_res = 65535;
 
@@ -214,7 +214,7 @@ void Heightmap::createNormalmap(){
                 //                cout<<"Normal "<<n<<endl;
                 n = glm::clamp(n,vec3(0),vec3(255));
 
-                normalmap[layer].setPixel(x,y,(u_int8_t)n.x,(u_int8_t)n.y,(u_int8_t)n.z);
+                normalmap[layer].setPixel(x,y,(uint8_t)n.x,(uint8_t)n.y,(uint8_t)n.z);
 
             }
         }

@@ -11,16 +11,21 @@ struct BoneVertex{
 
     //every vertex has a maximum of 2 bones
 #define BONES_PER_VERTEX 4
-    float boneIndices[BONES_PER_VERTEX] = {0};
-    float boneWeights[BONES_PER_VERTEX] = {0};
+    float boneIndices[BONES_PER_VERTEX];
+    float boneWeights[BONES_PER_VERTEX];
 //    vec2 boneWeights = vec2(0);
 
-    BoneVertex(){}
+    BoneVertex(){
+		for (int i = 0; i < BONES_PER_VERTEX; ++i){
+			boneIndices[i] = 0;
+			boneWeights[i] = 0;
+		}
+	}
 
     void addBone(int index, float weight){
         for(int i=0;i<BONES_PER_VERTEX;i++){
             if(boneWeights[i] == 0){
-                boneIndices[i] = index;
+                boneIndices[i] = (float)index;
                 boneWeights[i] = weight;
                 return;
             }

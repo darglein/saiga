@@ -1,5 +1,5 @@
 #pragma once
-#include "libhello/window/glfw_eventhandler.h"
+#include "libhello/glfw/glfw_eventhandler.h"
 #include "libhello/util/inputcontroller.h"
 
 class KeyboardBinds: public glfw_KeyListener

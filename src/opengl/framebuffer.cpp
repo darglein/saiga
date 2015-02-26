@@ -99,16 +99,16 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
     colorFinal->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
     attachTexture(colorFinal);
 
-    Texture* depth = new Texture();
+   // Texture* depth = new Texture();
     //        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+   // depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
     //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
-    attachTextureDepth(depth);
+    //attachTextureDepth(depth);
 
     //depth and stencil texture combined
-    //    Texture* depth_stencil = new Texture();
-    //    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-    //    attachTextureDepthStencil(depth_stencil);
+        Texture* depth_stencil = new Texture();
+        depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+        attachTextureDepthStencil(depth_stencil);
 
     GLenum DrawBuffers[4] = {GL_COLOR_ATTACHMENT0,GL_COLOR_ATTACHMENT1,GL_COLOR_ATTACHMENT2,GL_COLOR_ATTACHMENT3};
     glDrawBuffers(4, DrawBuffers);

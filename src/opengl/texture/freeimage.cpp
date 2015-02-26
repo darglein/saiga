@@ -5,7 +5,7 @@
 
 Freeimage::Freeimage()
 {
-    FreeImage_Initialise(true);
+   // FreeImage_Initialise(true);
 
 
 

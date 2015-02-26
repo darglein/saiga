@@ -17,20 +17,20 @@ void Image::setPixel(int x, int y, void* data){
     memcpy(positionPtr(x,y),data,bytesPerPixel());
 }
 
-void Image::setPixel(int x, int y, u_int8_t data){
-    *(u_int8_t*)positionPtr(x,y) = data;
+void Image::setPixel(int x, int y, uint8_t data){
+    *(uint8_t*)positionPtr(x,y) = data;
 }
 
-void Image::setPixel(int x, int y, u_int16_t data){
-    *(u_int16_t*)positionPtr(x,y) = data;
+void Image::setPixel(int x, int y, uint16_t data){
+    *(uint16_t*)positionPtr(x,y) = data;
 }
 
-void Image::setPixel(int x, int y, u_int32_t data){
-    *(u_int32_t*)positionPtr(x,y) = data;
+void Image::setPixel(int x, int y, uint32_t data){
+    *(uint32_t*)positionPtr(x,y) = data;
 }
 
-void Image::setPixel(int x, int y, u_int8_t r, u_int8_t g, u_int8_t b){
-    u_int8_t* ptr = positionPtr(x,y);
+void Image::setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b){
+    uint8_t* ptr = positionPtr(x,y);
     ptr[0] = r;
     ptr[1] = g;
     ptr[2] = b;
@@ -40,7 +40,7 @@ int Image::position(int x, int y){
     return y*width*bytesPerPixel()+x*bytesPerPixel();
 }
 
-u_int8_t* Image::positionPtr(int x, int y){
+uint8_t* Image::positionPtr(int x, int y){
     return this->data+position(x,y);
 }
 
@@ -186,7 +186,7 @@ FREE_IMAGE_TYPE Image::getFIT(){
 
 void Image::create(){
     delete[] data;
-    data = new u_int8_t[getSize()];
+    data = new uint8_t[getSize()];
 }
 
 void Image::createSubImage(int x, int y, int w, int h, Image &out){

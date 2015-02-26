@@ -10,14 +10,14 @@
 class Material{
 public:
     std::string name;
-    float Ns = 0.2;   //specular coeffizient
+    float Ns = 0.2f;   //specular coeffizient
     float Ni = 1;
     float d = 1;    //transparency
     float Tr = 1;
     vec3 Tf;
     int illum ;
-    vec3 Ka = vec3(0.2);   //ambient color
-    vec3 Kd = vec3(0.8);   //diffuse color
+    vec3 Ka = vec3(0.2f);   //ambient color
+    vec3 Kd = vec3(0.8f);   //diffuse color
     vec3 Ks = vec3(1);   //specular color
     vec3 Ke = vec3(1);
     Texture* map_Ka = NULL;

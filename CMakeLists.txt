@@ -5,7 +5,7 @@ set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${GRALAB_INCLUDE_DIR}/include)
 include_directories(${GRALAB_INCLUDE_DIR}/include)
 set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${GRALAB_INCLUDE_DIR}/lib)
 LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/lib)
-  LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/bin)
+LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/bin)
   
 set(LIB_NAME hello)
 
@@ -26,7 +26,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libh
 
 ############# Optional Libraries ###############
 
-option (USE_SDL "Use SDL2" OFF) 
+option (USE_SDL "Use SDL2" ON) 
 option (USE_GLFW "Use GLFW" ON) 
 option (USE_NOISE "Use NOISE" OFF) 
 
@@ -38,14 +38,13 @@ configure_file (
 
 #SDL2
 if (USE_SDL)
-	PKG_SEARCH_MODULE(SDL2 REQUIRED sdl2)
+  find_package(SDL2 REQUIRED)
 	include_directories(${SDL2_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${SDL2_LIBRARIES})
 endif (USE_SDL)
 
 #GLFW
 if (USE_GLFW)
-#	pkg_search_module(GLFW REQUIRED glfw3)
   find_package(GLFW REQUIRED)
 	include_directories(${GLFW_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})

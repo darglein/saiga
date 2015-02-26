@@ -65,7 +65,7 @@ std::ostream& operator<<(std::ostream& os, const Camera& ca){
 //===================================================================================================
 
 
-void PerspectiveCamera::setProj( double fovy, double aspect, double zNear, double zFar){
+void PerspectiveCamera::setProj(float fovy, float aspect, float zNear, float zFar){
     fovy = degreesToRadians(fovy);
     this->fovy = fovy;
     this->aspect = aspect;

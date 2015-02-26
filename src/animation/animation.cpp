@@ -21,7 +21,7 @@ void Animation::setKeyFrame(int i){
 
 void Animation::update(){
 
-    animtick = animtick + (30.0/1000.0) * animfps;
+    animtick = animtick + (30.0f/1000.0f) * animfps;
     setKeyFrame((int)animtick);
 
 }

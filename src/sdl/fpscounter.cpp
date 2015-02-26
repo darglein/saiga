@@ -1,9 +1,11 @@
-#include "util/fpscounter.h"
+#include "sdl/fpscounter.h"
 
 FpsCounter::FpsCounter()
 {
     // Set all frame times to 0ms.
-    memset(frametimes, 0, sizeof(frametimes));
+	for (int i = 0; i < FRAME_VALUES; ++i){
+		frametimes[i] = 0;
+	}
     framecount = 0;
     framespersecond = 0;
     frametimelast = SDL_GetTicks();

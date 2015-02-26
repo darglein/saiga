@@ -18,7 +18,7 @@ public:
 
     void bindAndDraw() const;
     void draw() const;
-    void draw(uint length, void* offset) const;
+    void draw(unsigned int length, void* offset) const;
 
     void set(std::vector<vertex_t> &vertices,std::vector<index_t> &indices){
         set(&vertices[0],vertices.size(),&indices[0],indices.size());
@@ -43,7 +43,7 @@ void IndexedVertexBuffer<vertex_t,index_t>::draw() const{
 }
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::draw(uint length, void *offset) const{
+void IndexedVertexBuffer<vertex_t,index_t>::draw(unsigned int length, void *offset) const{
     glDrawElements( vbuffer_t::draw_mode, length, GL_UNSIGNED_INT, offset );
 }
 

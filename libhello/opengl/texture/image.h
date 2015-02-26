@@ -24,8 +24,9 @@ using std::endl;
 
 class Image{
 public:
-    u_int8_t* data = nullptr;
-    u_int64_t width, height;
+	
+	uint8_t* data = nullptr;
+    uint64_t width, height;
     int bitDepth;
     int channels;
 public:
@@ -34,14 +35,14 @@ public:
     int bitsPerPixel();
     size_t getSize();
     void setPixel(int x, int y, void* data);
-    void setPixel(int x, int y, u_int8_t data);
-    void setPixel(int x, int y, u_int16_t data);
-    void setPixel(int x, int y, u_int32_t data);
+    void setPixel(int x, int y, uint8_t data);
+    void setPixel(int x, int y, uint16_t data);
+    void setPixel(int x, int y, uint32_t data);
 
-    void setPixel(int x, int y, u_int8_t r, u_int8_t g, u_int8_t b);
+    void setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b);
 
     int position(int x, int y);
-    u_int8_t* positionPtr(int x, int y);
+    uint8_t* positionPtr(int x, int y);
 
     void create();//allocates memory
     void createSubImage(int x, int y, int w, int h, Image &out);

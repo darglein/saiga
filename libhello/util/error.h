@@ -85,7 +85,7 @@ public:
     }
 
     static void DebugLog( GLenum source , GLenum type , GLuint id , GLenum severity ,
-                   GLsizei length , const GLchar * message , GLvoid * userParam){
+                   GLsizei length , const GLchar * message ,const GLvoid * userParam){
         (void)length; //unused variables
         (void)userParam;
 

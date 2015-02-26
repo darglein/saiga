@@ -1,5 +1,5 @@
 #pragma once
-
+#define _USE_MATH_DEFINES
 #include "libhello/geometry/triangle_mesh.h"
 #include "libhello/geometry/sphere.h"
 #include "libhello/geometry/plane.h"

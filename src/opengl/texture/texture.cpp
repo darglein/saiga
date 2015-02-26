@@ -34,8 +34,8 @@ Texture* TextureLoader::loadFromFile(const std::string &path){
 
 void basic_Texture_2D::setDefaultParameters(){
     glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 bool basic_Texture_2D::fromImage(Image &img){

@@ -81,8 +81,12 @@ void Deferred_Renderer::render_intern(){
     glDisable(GL_DEPTH_TEST);
     glViewport(0,0,width,height);
 
+	Error::quitWhenError("Deferred_Renderer::before blit");
+
     //copy depth to lighting framebuffer. that is needed for stencil culling
     deferred_framebuffer.blitDepth(mix_framebuffer.id);
+
+	Error::quitWhenError("Deferred_Renderer::after blit");
 
     mix_framebuffer.bind();
     glClear( GL_COLOR_BUFFER_BIT );

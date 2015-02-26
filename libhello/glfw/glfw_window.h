@@ -6,7 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include "libhello/sdl/sdl_eventhandler.h"
-#include "libhello/window/glfw_eventhandler.h"
+#include "libhello/glfw/glfw_eventhandler.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 

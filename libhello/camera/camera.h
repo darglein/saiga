@@ -53,7 +53,7 @@ public:
      double fovy,  aspect;
       float tang;
     PerspectiveCamera(const string &name):Camera(name){}
-     void setProj( double fovy, double aspect, double zNear, double zFar);
+	void setProj(float fovy, float aspect, float zNear, float zFar);
        friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
 
 };
