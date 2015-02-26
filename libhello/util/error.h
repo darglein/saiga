@@ -84,18 +84,24 @@ public:
         }
     }
 
-    static void DebugLog( GLenum source , GLenum type , GLuint id , GLenum severity ,
+    static void DebugLogWin32( GLenum source , GLenum type , GLuint id , GLenum severity ,
                    GLsizei length , const GLchar * message ,const GLvoid * userParam){
+        std::cout<<"Type : "<<getStringForType(type)<<
+               " ; Source : "<<getStringForSource(source)<<
+               "; ID : "<<id<<
+               "; Severity : "<<getStringForSeverity(severity)<<std::endl;
+
+
+         std::cout<< "Message : "<<message<<std::endl;
+    }
+
+    static void DebugLog( GLenum source , GLenum type , GLuint id , GLenum severity ,
+                   GLsizei length , const GLchar * message , GLvoid * userParam){
         (void)length; //unused variables
         (void)userParam;
 
-       std::cout<<"Type : "<<getStringForType(type)<<
-              " ; Source : "<<getStringForSource(source)<<
-              "; ID : "<<id<<
-              "; Severity : "<<getStringForSeverity(severity)<<std::endl;
+        DebugLogWin32(source,type,id,severity,length,message,userParam);
 
-
-        std::cout<< "Message : "<<message<<std::endl;
     }
 };
 

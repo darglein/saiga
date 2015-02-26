@@ -38,15 +38,15 @@ configure_file (
 
 #SDL2
 if (USE_SDL)
-  find_package(SDL2 REQUIRED)
-	include_directories(${SDL2_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${SDL2_LIBRARIES})
+ 	find_package(SDL2 REQUIRED)
+	include_directories(${SDL2_INCLUDE_DIR})
+	SET(LIBS ${LIBS} ${SDL2_LIBRARY})
 endif (USE_SDL)
 
 #GLFW
 if (USE_GLFW)
   find_package(GLFW REQUIRED)
-	include_directories(${GLFW_INCLUDE_DIRS})
+	include_directories(${GLFW_INCLUDE_DIR})
 	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
 endif (USE_GLFW)
 
@@ -75,7 +75,7 @@ SET(LIBS ${LIBS} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
 #pkg_search_module(ASSIMP REQUIRED assimp)
 find_package(ASSIMP REQUIRED)
 include_directories(${ASSIMP_INCLUDE_DIRS})
-SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
+SET(LIBS ${LIBS} ${ASSIMP_LIBRARY})
 
 
 

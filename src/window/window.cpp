@@ -29,8 +29,11 @@ bool Window::init(){
     objLoader.materialLoader = &materialLoader;
     materialLoader.textureLoader = &textureLoader;
 
-
+#ifdef WIN32
+    glDebugMessageCallback(Error::DebugLogWin32,NULL);
+#else
     glDebugMessageCallback(Error::DebugLog,NULL);
+#endif
 
     cout<<">> Window inputs initialized!"<<endl;
     return true;
