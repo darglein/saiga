@@ -17,9 +17,9 @@ struct BoneVertex{
 
     BoneVertex(){
 		for (int i = 0; i < BONES_PER_VERTEX; ++i){
-			boneIndices[i] = 0;
+            boneIndices[i] = 0;
 			boneWeights[i] = 0;
-		}
+        }
 	}
 
     void addBone(int index, float weight){

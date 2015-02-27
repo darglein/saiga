@@ -62,6 +62,7 @@ endif (USE_NOISE)
 find_package(Freetype REQUIRED)
 include_directories(${FREETYPE_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${FREETYPE_LIBRARIES})
+SET(LIBS ${LIBS} freetype255)
 
 
 #OPENGL
@@ -76,6 +77,7 @@ SET(LIBS ${LIBS} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
 find_package(ASSIMP REQUIRED)
 include_directories(${ASSIMP_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${ASSIMP_LIBRARY})
+SET(LIBS ${LIBS} assimp)
 
 
 

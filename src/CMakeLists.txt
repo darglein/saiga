@@ -10,8 +10,9 @@ FILE(GLOB_RECURSE text_SRC  text/*.cpp)
 FILE(GLOB_RECURSE util_SRC  util/*.cpp)
 FILE(GLOB_RECURSE window_SRC  window/*.cpp)
 FILE(GLOB_RECURSE world_SRC  world/*.cpp)
+FILE(GLOB_RECURSE PROG_HEADER  ../libhello/*.h)
 
-SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} ${rendering_SRC} ${text_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC})
+SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} ${rendering_SRC} ${text_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC} ${PROG_HEADER})
 
 ############# Optional Source Files ###############
 
@@ -27,7 +28,7 @@ endif (USE_GLFW)
 
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-add_library(${LIB_NAME} SHARED ${PROG_SRC})
+add_library(${LIB_NAME} STATIC ${PROG_SRC})
 
 #SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -lGL -lGLU -lglfw3 -lX11 -lXxf86vm -lXrandr -lpthread -lXi" )
 
