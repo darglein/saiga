@@ -86,6 +86,11 @@ public:
 
     static void DebugLogWin32( GLenum source , GLenum type , GLuint id , GLenum severity ,
                    GLsizei length , const GLchar * message ,const GLvoid * userParam){
+        if (id == 131185){
+            //Buffer detailed info
+            return;
+        }
+
         std::cout<<"Type : "<<getStringForType(type)<<
                " ; Source : "<<getStringForSource(source)<<
                "; ID : "<<id<<
