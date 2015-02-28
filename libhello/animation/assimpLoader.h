@@ -42,6 +42,14 @@ public:
     template<typename vertex_t>
     void getPositions(int id, TriangleMesh<vertex_t, GLuint> &out);
 
+
+    template<typename vertex_t>
+    void getNormals(int id,  TriangleMesh<vertex_t, GLuint> &out);
+
+    template<typename vertex_t>
+    void getFaces(int id, TriangleMesh<vertex_t, GLuint> &out);
+
+
     void getAnimation(int animationId, int meshId, Animation &out);
 
     void transformmesh(const aiMesh *amesh, std::vector<mat4> &boneMatrices);
@@ -185,6 +193,40 @@ void AssimpLoader::getPositions(int id,  TriangleMesh<vertex_t, GLuint> &out){
         }
     }
 
+}
+
+
+template<typename vertex_t>
+void AssimpLoader::getNormals(int id,  TriangleMesh<vertex_t, GLuint> &out){
+    const aiMesh *mesh = scene->mMeshes[id];
+
+    out.vertices.resize(mesh->mNumVertices);
+
+    if(mesh->HasNormals()){
+        for(unsigned int i=0;i<mesh->mNumVertices;++i){
+            vertex_t &bv = out.vertices[i];
+            loadNormal(bv,mesh->mNormals[i]);
+        }
+    }
+
+}
+
+
+
+template<typename vertex_t>
+void AssimpLoader::getFaces(int id,  TriangleMesh<vertex_t, GLuint> &out){
+    const aiMesh *mesh = scene->mMeshes[id];
+
+    if(mesh->HasFaces()){
+        for(unsigned int i=0;i<mesh->mNumFaces;++i){
+            aiFace* f = mesh->mFaces+i;
+            if(f->mNumIndices != 3){
+                cout<<"Mesh not triangulated!!!"<<endl;
+                continue;
+            }
+            out.addFace(f->mIndices);
+        }
+    }
 }
 
 
