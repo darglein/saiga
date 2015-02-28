@@ -93,8 +93,6 @@ shader_t* ShaderLoader::load(const std::string &name){
         }
     }
 
-    bool erg;
-
 
     for(std::string &path : locations){
         std::string complete_path = path + "/" + name;

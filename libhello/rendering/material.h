@@ -10,7 +10,7 @@
 class Material{
 public:
     std::string name;
-    float Ns = 0.2f;   //specular coeffizient
+    float Ns = 0.2f;   //specular coefficient
     float Ni = 1;
     float d = 1;    //transparency
     float Tr = 1;

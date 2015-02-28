@@ -39,6 +39,8 @@ public:
     template<typename vertex_t>
     void getMesh(int id, TriangleMesh<vertex_t, GLuint> &out);
 
+    template<typename vertex_t>
+    void getPositions(int id, TriangleMesh<vertex_t, GLuint> &out);
 
     void getAnimation(int animationId, int meshId, Animation &out);
 
@@ -126,28 +128,28 @@ void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, GLuint> &out){
     out.vertices.resize(mesh->mNumVertices);
 
     if(mesh->HasPositions()){
-        for(int i=0;i<mesh->mNumVertices;++i){
+        for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
             loadPosition(bv,mesh->mVertices[i]);
         }
     }
 
     if(mesh->HasNormals()){
-        for(int i=0;i<mesh->mNumVertices;++i){
+        for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
             loadNormal(bv,mesh->mNormals[i]);
         }
     }
 
     if(mesh->HasTextureCoords(0)){
-        for(int i=0;i<mesh->mNumVertices;++i){
+        for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
             loadTexture(bv,mesh->mTextureCoords[i][0]);
         }
     }
 
     if(mesh->HasFaces()){
-        for(int i=0;i<mesh->mNumFaces;++i){
+        for(unsigned int i=0;i<mesh->mNumFaces;++i){
             aiFace* f = mesh->mFaces+i;
             if(f->mNumIndices != 3){
                 cout<<"Mesh not triangulated!!!"<<endl;
@@ -158,9 +160,9 @@ void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, GLuint> &out){
     }
 
     if(mesh->HasBones()){
-        for(int i=0;i<mesh->mNumBones;++i){
+        for(unsigned int i=0;i<mesh->mNumBones;++i){
             aiBone* b = mesh->mBones[i];
-            for(int j=0;j<b->mNumWeights;++j){
+            for(unsigned int j=0;j<b->mNumWeights;++j){
                 aiVertexWeight* vw = b->mWeights+j;
                 vertex_t& bv = out.vertices[vw->mVertexId];
                 loadBoneWeight(bv,i,vw->mWeight);
@@ -168,5 +170,22 @@ void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, GLuint> &out){
         }
     }
 }
+
+
+template<typename vertex_t>
+void AssimpLoader::getPositions(int id,  TriangleMesh<vertex_t, GLuint> &out){
+    const aiMesh *mesh = scene->mMeshes[id];
+
+    out.vertices.resize(mesh->mNumVertices);
+
+    if(mesh->HasPositions()){
+        for(unsigned int i=0;i<mesh->mNumVertices;++i){
+            vertex_t &bv = out.vertices[i];
+            loadPosition(bv,mesh->mVertices[i]);
+        }
+    }
+
+}
+
 
 
