@@ -8,6 +8,7 @@
  * http://blog.nobel-joergensen.com/2010/11/07/loading-a-png-as-texture-in-opengl-using-libpng/
  */
 
+#ifdef USE_PNG
 
 #include <png.h>
 #include <iostream>
@@ -43,4 +44,6 @@ public:
 
 
 };
+
+#endif
 

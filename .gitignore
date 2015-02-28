@@ -1,2 +1,7 @@
 CMakeLists.txt.user
 libhello/config.h
+build/
+reconf.sh
+test.sh
+gl_lib.*
+createFileList.sh

@@ -12,10 +12,10 @@ void AssimpLoader::loadFile(const std::string &file){
 
     int flags = aiProcess_Triangulate;
     flags |= aiProcess_JoinIdenticalVertices;
-    flags |= aiProcess_GenSmoothNormals;
+//    flags |= aiProcess_GenSmoothNormals;
     flags |= aiProcess_GenUVCoords;
     flags |= aiProcess_TransformUVCoords;
-    flags |= aiProcess_RemoveComponent;
+//    flags |= aiProcess_RemoveComponent;
     flags |= aiProcess_LimitBoneWeights;
 
     scene = importer.ReadFile( file,flags);
@@ -26,13 +26,13 @@ void AssimpLoader::loadFile(const std::string &file){
         return;
     }
 
-    cout<<"Loaded file with assimp "<<file<<endl;
-    cout<<"HasAnimations "<<scene->HasAnimations()<<
-          ", HasCameras "<<scene->HasCameras()<<
-          ", HasLights "<<scene->HasLights()<<
-          ", HasMaterials "<<scene->HasMaterials()<<
-          ", HasMeshes "<<scene->HasMeshes()<<
-          ", HasTextures "<<scene->HasTextures()<<endl;
+    cout<<"Loaded file with assimp2 "<<file<<endl;
+    cout<<"HasAnimations "<<scene->mNumAnimations<<
+          ", HasCameras "<<scene->mNumCameras<<
+          ", HasLights "<<scene->mNumLights<<
+          ", HasMaterials "<<scene->mNumMaterials<<
+          ", HasMeshes "<<scene->mNumMeshes<<
+          ", HasTextures "<<scene->mNumTextures<<endl;
 }
 
 void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)

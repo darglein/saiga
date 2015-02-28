@@ -47,8 +47,10 @@ public:
     void create();//allocates memory
     void createSubImage(int x, int y, int w, int h, Image &out);
 
+#ifdef USE_PNG
     void convertFrom(PNG::Image &image);
     void convertTo(PNG::Image &image);
+#endif
 
     void convertTo(fipImage &fipimg);
     void convertFrom(fipImage &fipimg);

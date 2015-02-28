@@ -62,8 +62,10 @@ endif (USE_NOISE)
 find_package(Freetype REQUIRED)
 include_directories(${FREETYPE_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${FREETYPE_LIBRARIES})
-SET(LIBS ${LIBS} freetype255)
 
+if(WIN32)
+SET(LIBS ${LIBS} freetype255)
+endif(WIN32)
 
 #OPENGL
 find_package(OpenGL REQUIRED)
@@ -84,11 +86,11 @@ SET(LIBS ${LIBS} assimp)
 #libfreeimage
 #pkg_search_module(FREEIMAGE REQUIRED freeimage)
 #find_library(FREEIMAGE_LIBRARIES freeimage)
-find_package(FREEIMAGE REQUIRED)
-SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARIES})
+find_package(FreeImage REQUIRED)
+SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARY})
 
 #find_library(FREEIMAGEPLUS_LIBRARIES freeimageplus)
-find_package(FREEIMAGEPLUS REQUIRED)
+find_package(FreeImagePlus REQUIRED)
 SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
 
 

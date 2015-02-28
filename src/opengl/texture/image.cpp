@@ -1,5 +1,5 @@
 #include "opengl/texture/image.h"
-
+#include <cstring>
 
 int Image::bytesPerPixel(){
     return getChannels()*getBitDepth()/8;
@@ -14,7 +14,7 @@ size_t Image::getSize(){
 }
 
 void Image::setPixel(int x, int y, void* data){
-    memcpy(positionPtr(x,y),data,bytesPerPixel());
+    std::memcpy(positionPtr(x,y),data,bytesPerPixel());
 }
 
 void Image::setPixel(int x, int y, uint8_t data){
@@ -44,6 +44,7 @@ uint8_t* Image::positionPtr(int x, int y){
     return this->data+position(x,y);
 }
 
+#ifdef USE_PNG
 void Image::convertFrom(PNG::Image &image){
     this->width = image.width;
     this->height = image.height;
@@ -97,6 +98,8 @@ void Image::convertTo(PNG::Image &image){
 
     image.data = this->data;
 }
+
+#endif
 
 void Image::convertTo(fipImage &fipimg){
     fipimg.setSize(	getFIT(),width,height,bitsPerPixel());

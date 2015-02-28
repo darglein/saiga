@@ -292,7 +292,7 @@ void Heightmap::createTextures(){
     texheightmap.resize(layers);
     texnormalmap.resize(layers);
 
-    PNG::Image img;
+//    PNG::Image img;
 
     for(int i=0;i<layers;i++){
 

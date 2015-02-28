@@ -133,6 +133,7 @@ template<typename vertex_t>
 void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, GLuint> &out){
     const aiMesh *mesh = scene->mMeshes[id];
 
+
     out.vertices.resize(mesh->mNumVertices);
 
     if(mesh->HasPositions()){

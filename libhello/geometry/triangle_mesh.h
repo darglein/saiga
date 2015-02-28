@@ -6,6 +6,8 @@
 #include "libhello/geometry/aabb.h"
 #include "libhello/geometry/triangle.h"
 
+
+#include <cstring>
 /*
  * Data structur for simple triangle meshes.
  * Can be turned into a IndexedVertexBuffer for drawing with OpenGL
@@ -160,7 +162,7 @@ void TriangleMesh<vertex_t,index_t>::addQuad(index_t inds[]){
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer){
   std::vector<index_t> indices(faces.size()*3);
-  memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
+  std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
   buffer.set(vertices,indices);
   buffer.setDrawMode(GL_TRIANGLES);
 }

@@ -1,6 +1,6 @@
 #include "util/png_wrapper.h"
 
-
+#ifdef USE_PNG
 
 bool PNG::readPNG(Image *img, const std::string &path, bool invertY){
     png_structp png_ptr;
@@ -494,3 +494,5 @@ bool PNG::writePNG(Image *img, const std::string &path, bool invertY){
     return true;
 
 }
+
+#endif
