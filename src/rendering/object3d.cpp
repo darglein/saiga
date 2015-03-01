@@ -3,10 +3,12 @@
 
 
 void Object3D::setSimpleDirection(vec3 dir){
+    glm::mat4 rotmat;
+    rotmat[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
+    rotmat[1] = vec4(0,1,0,0);
+    rotmat[2] = vec4(-dir,0);
 
-//    rotation[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
-//    rotation[1] = vec4(0,1,0,0);
-//    rotation[2] = vec4(-dir,0);
+    this->rot = glm::quat(rotmat);
     calculateModel();
 }
 
