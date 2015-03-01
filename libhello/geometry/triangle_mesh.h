@@ -117,6 +117,7 @@ public:
     void addMesh(const TriangleMesh<vertex_t,index_t> &other);
 
 
+    aabb calculateAabb();
 
 
     template<typename v, typename i>
@@ -241,4 +242,16 @@ template<typename vertex_t, typename index_t>
         f.v3 += oldVertexCount;
         this->addFace(f);
     }
+ }
+
+
+ template<typename vertex_t, typename index_t>
+ aabb TriangleMesh<vertex_t,index_t>::calculateAabb(){
+     aabb box;
+     box.makeNegative();
+
+     for(vertex_t &v : vertices){
+         box.growBox(v.position);
+     }
+     return box;
  }

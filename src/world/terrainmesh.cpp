@@ -146,7 +146,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated(){
 
         for(unsigned int x=0;x<w-1;x++){
             //add degenerated triangle
-            int idx = 2*x;
+            unsigned int idx = 2*x;
             GLuint face1[] = {offset+idx,offset+idx+1,offset+idx+2};
             GLuint face2[] = {offset+idx,offset+idx+2,offset+idx+1};
 
