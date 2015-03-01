@@ -8,7 +8,8 @@ void Object3D::setSimpleDirection(vec3 dir){
     rotmat[1] = vec4(0,1,0,0);
     rotmat[2] = vec4(-dir,0);
 
-    this->rot = glm::quat(rotmat);
+    this->rot = glm::normalize(glm::quat(rotmat));
+
     calculateModel();
 }
 

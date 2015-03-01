@@ -106,6 +106,7 @@ shader_t* ShaderLoader::load(const std::string &name){
     }
 
     std::cout<<"Failed to load "<<name<<"!!!"<<std::endl;
+    exit(0);
     return NULL;
 }
 

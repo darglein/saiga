@@ -23,7 +23,7 @@ void AssimpLoader::loadFile(const std::string &file){
     if( !scene)
     {
         cout<< importer.GetErrorString()<<endl;
-        return;
+        exit(0);
     }
 
     cout<<"Loaded file with assimp2 "<<file<<endl;
@@ -33,6 +33,7 @@ void AssimpLoader::loadFile(const std::string &file){
           ", HasMaterials "<<scene->mNumMaterials<<
           ", HasMeshes "<<scene->mNumMeshes<<
           ", HasTextures "<<scene->mNumTextures<<endl;
+
 }
 
 void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
