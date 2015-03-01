@@ -14,8 +14,8 @@ struct Vertex{
 
 
     friend std::ostream& operator<<(std::ostream& os, const Vertex& vert){
-          os<<vert.position;
-          return os;
+        os<<vert.position;
+        return os;
     }
 };
 
@@ -30,8 +30,8 @@ struct VertexN{
     }
     friend std::ostream& operator<<(std::ostream& os, const VertexN& vert){
         os<<vert.position<<",";
-          os<<vert.normal;
-          return os;
+        os<<vert.normal;
+        return os;
     }
 };
 
@@ -47,9 +47,27 @@ struct VertexNT{
     }
     friend std::ostream& operator<<(std::ostream& os, const VertexNT& vert){
         os<<vert.position<<",";
-          os<<vert.normal<<",";
-          os<<vert.texture;
-          return os;
+        os<<vert.normal<<",";
+        os<<vert.texture;
+        return os;
+    }
+};
+
+
+struct VertexNC : public VertexN{
+    vec3 color;
+    VertexNC() : color(0){}
+    VertexNC(const vec3 &position):VertexN(position){}
+    VertexNC(const vec3 &position,const vec3 &normal):VertexN(position,normal){}
+    VertexNC(const vec3 &position,const vec3 &normal,const vec3 &color):VertexN(position,normal),color(color){}
+    bool operator==(const VertexNC &other) const {
+        return position==other.position && normal==other.normal && color==other.color;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert){
+        os<<vert.position<<",";
+        os<<vert.normal<<",";
+        os<<vert.color;
+        return os;
     }
 };
 

@@ -49,11 +49,14 @@ public:
     template<typename vertex_t>
     void getFaces(int id, TriangleMesh<vertex_t, GLuint> &out);
 
+    template<typename vertex_t>
+    void getColors(int id, TriangleMesh<vertex_t, GLuint> &out);
 
     void getAnimation(int animationId, int meshId, Animation &out);
 
     void transformmesh(const aiMesh *amesh, std::vector<mat4> &boneMatrices);
     void createFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
+
 private:
     int animationlength(aiAnimation *anim);
     aiNode *findnode(aiNode *node, char *name);
@@ -191,6 +194,10 @@ void AssimpLoader::getPositions(int id,  TriangleMesh<vertex_t, GLuint> &out){
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
             loadPosition(bv,mesh->mVertices[i]);
+
+
+//            aiColor4D* c = mesh->mColors[i];
+//            cout<<"color "<<c->r<<","<<c->g<<","<<c->b<<","<<c->a<<endl;
         }
     }
 
@@ -230,5 +237,27 @@ void AssimpLoader::getFaces(int id,  TriangleMesh<vertex_t, GLuint> &out){
     }
 }
 
+
+
+template<typename vertex_t>
+void AssimpLoader::getColors(int id,  TriangleMesh<vertex_t, GLuint> &out){
+    const aiMesh *mesh = scene->mMeshes[id];
+
+    out.vertices.resize(mesh->mNumVertices);
+
+    aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+    aiColor3D color (0.f,0.f,0.f);
+    material->Get(AI_MATKEY_COLOR_DIFFUSE,color);
+
+
+        for(unsigned int i=0;i<mesh->mNumVertices;++i){
+            vertex_t &bv = out.vertices[i];
+
+            bv.color = vec3(color.r,color.g,color.b);
+        }
+
+
+}
 
 

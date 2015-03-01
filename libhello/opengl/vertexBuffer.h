@@ -214,4 +214,6 @@ template<>
 void VertexBuffer<VertexN>::setVertexAttributes();
 template<>
 void VertexBuffer<VertexNT>::setVertexAttributes();
+template<>
+void VertexBuffer<VertexNC>::setVertexAttributes();
 
