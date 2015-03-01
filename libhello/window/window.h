@@ -32,6 +32,18 @@ public:
     bool init();
     virtual void close() = 0;
 
+    inline int getWidth(){
+        return window_width;
+    }
+
+    inline int getHeight(){
+        return window_height;
+    }
+
+    inline float getAspectRatio(){
+        return (float)window_width/(float)window_height;
+    }
+
 
     inline Camera* getCamera(){
         return currentCamera;
