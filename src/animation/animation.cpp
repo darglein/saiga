@@ -9,6 +9,9 @@ Animation::Animation()
 
 
 void Animation::setKeyFrame(float f){
+    f = f - floor(f);
+    f = f*(frameCount-1);
+
     //get before and after that time
     int frame = floor(f);
     int nextFrame = frame+1;
@@ -17,11 +20,7 @@ void Animation::setKeyFrame(float f){
     frame = frame%animationFrames.size();
     nextFrame = nextFrame%animationFrames.size();
 
-    //don't interpolate between last and first frame
-    if(nextFrame==0){
-        frame = 0;
-        nextFrame = 1;
-    }
+
 
     AnimationFrame &k0 = animationFrames[frame];
     AnimationFrame &k1 = animationFrames[nextFrame];

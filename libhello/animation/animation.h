@@ -7,12 +7,14 @@
 class Animation
 {
 public:
+    std::string name;
     AnimationFrame restPosition;
 
 
     std::vector<AnimationFrame> animationFrames;
     std::vector<mat4> boneMatrices;
 
+    int frameCount = 0;
 
     int animfps = 30, animlen = 0;
     float animtick = 0;

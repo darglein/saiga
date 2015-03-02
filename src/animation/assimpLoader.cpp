@@ -73,6 +73,11 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 
 //    createFrames(mesh,curanim,out.animationFrames);
     createKeyFrames(mesh,curanim,out.animationFrames);
+
+    out.frameCount = out.animationFrames.size();
+    out.name = curanim->mName.data;
+
+    cout<<"loaded animation "<<out.name<<": "<<out.frameCount<<" frames"<<endl;
 }
 
 void AssimpLoader::transformmesh(const aiMesh *mesh, std::vector<mat4> &boneMatrices)
