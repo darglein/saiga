@@ -11,6 +11,7 @@ public:
     std::vector<AnimationNode> children;
     mat4 testMat;
 
+    int index = 0;
     int boneIndex = -1;
 
     mat4 matrix;
@@ -21,13 +22,19 @@ public:
     quat rotation;
     vec3 scaling;
 
+    void interpolate(AnimationNode& other, float alpha);
+
+    void initTree(std::vector<AnimationNode*> &nodes);
     void reset();
     void traverse(mat4 t, std::vector<mat4> &out_boneMatrices);
+
 };
 
 class AnimationFrame
 {
 public:
+    int nodeCount = 0;
+    std::vector<AnimationNode*> nodes;
     AnimationNode rootNode;
 
     int bones;
@@ -42,16 +49,14 @@ public:
     std::vector<glm::dvec3> bonePositions;
     std::vector<glm::dvec3> boneScalings;
 
-    void setBoneDeformation(std::vector<mat4> &boneMatrices);
 
-    void test(mat4 mat);
 
 
 
     static void interpolate(AnimationFrame &k0, AnimationFrame &k1, float alpha, std::vector<mat4> &out_boneMatrices);
-    void testd(glm::dmat4 mat);
 
     void calculateFromTree();
+    void initTree();
 };
 
 

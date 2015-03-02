@@ -56,7 +56,8 @@ void AssimpLoader::loadBones(){
 
     cout<<"unique bones: "<<boneCount<<endl;
 
-    cout<<"unique nodes: "<<countNodes(scene->mRootNode,rootNode)<<endl;
+    nodeCount = countNodes(scene->mRootNode,rootNode);
+    cout<<"unique nodes: "<<nodeCount<<endl;
 }
 
 void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
@@ -118,8 +119,9 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
     aiQuaternion r;
 
 
-    int frames = animationlength(anim)-1 ;
-    frames = 1;
+    //the last frame is the same as the first
+    int frames = animationlength(anim);
+//    frames = 1;
 
     animationFrames.resize(frames);
 
@@ -130,12 +132,11 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
         int frame = j;
         AnimationFrame &k = animationFrames[j];
 
-        cout<<">>>>>>>>>>>Keyframe "<<frame<<" channels "<<anim->mNumChannels<<endl;
+//        cout<<">>>>>>>>>>>Keyframe "<<frame<<" channels "<<anim->mNumChannels<<endl;
 
 
         for (int i = 0; i < anim->mNumChannels; i++) {
             aiNodeAnim *chan = anim->mChannels[i];
-            aiNode *node = findnode(scene->mRootNode, chan->mNodeName.data);
             p0 = chan->mPositionKeys + frame;
             r0 = chan->mRotationKeys + frame;
             s0 = chan->mScalingKeys + frame;
@@ -152,46 +153,19 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
             AnimationNode* an = nodeMap[str];
 
             an->position = vec3(p.x,p.y,p.z);
-//            an->rotation = quat(r.x,r.y,r.z,r.w);
             an->rotation = quat(r.w,r.x,r.y,r.z);
             an->scaling = vec3(s.x,s.y,s.z);
             an->keyFramed = true;
-
-            composematrix(&node->mTransformation, &p, &r, &s);
-
-//            an->testMat = convert(node->mTransformation);
-
-//            cout<<an->testMat<<composematrix(an->position,an->rotation,an->scaling)<<endl;
-//            cout<<"pos "<<an->position<<endl;
-//            cout<<an->testMat<<endl;
-
-
         }
 
-
-
-//        std::vector<mat4> boneMatrices;
-
-
-//        boneMatrices.resize(boneCount);
-//        rootNode.traverse(mat4(),boneMatrices);
-//        //        transformmesh(mesh,boneMatrices);
-//        for(int m =0;m<scene->mNumMeshes;++m){
-//            const aiMesh *mesh = scene->mMeshes[m];
-////            transformmesh(mesh,boneMatrices);
-//            //                    cout<<">>"<<endl;
-//        }
-
-//                        cout<<"============================================================"<<endl;
-
-
-//        k.setBoneDeformation(boneMatrices);
+        k.nodeCount = nodeCount;
+        k.bones = boneCount;
         k.boneMatrices.resize(boneCount);
         k.rootNode = rootNode;
         k.boneOffsets = boneOffsets;
+
+        k.initTree();
         k.calculateFromTree();
-
-
     }
 }
 
@@ -254,7 +228,7 @@ void AssimpLoader::createFrames(const aiMesh *mesh, aiAnimation *anim, std::vect
         //                cout<<"============================================================"<<endl;
 
 
-        k.setBoneDeformation(boneMatrices);
+//        k.setBoneDeformation(boneMatrices);
 
         tick += delta;
     }
@@ -298,10 +272,14 @@ int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
 //    cout<<"node "<<node->mName.data<<endl;
     int n = 1;
 
+    int index = 0;
     std::string str(node->mName.data);
     if(nodeMap.find(str)==nodeMap.end()){
+        index = nodeMap.size();
         nodeMap[str] = &an;
 
+    }else{
+        assert(0);
     }
 
 
@@ -311,10 +289,9 @@ int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
         an.boneIndex = -1;
     }
 
+    an.index = index;
     an.matrix = convert(node->mTransformation);
-
     an.name =str;
-
     an.children.resize(node->mNumChildren);
 
     for (int i = 0; i < node->mNumChildren; i++) {

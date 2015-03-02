@@ -17,6 +17,12 @@ void Animation::setKeyFrame(float f){
     frame = frame%animationFrames.size();
     nextFrame = nextFrame%animationFrames.size();
 
+    //don't interpolate between last and first frame
+    if(nextFrame==0){
+        frame = 0;
+        nextFrame = 1;
+    }
+
     AnimationFrame &k0 = animationFrames[frame];
     AnimationFrame &k1 = animationFrames[nextFrame];
 
@@ -45,6 +51,6 @@ void Animation::setKeyFrame(int i){
 void Animation::update(){
 
     animtick = animtick + (3.0f/1000.0f) * animfps;
-    setKeyFrame((int)animtick);
+    setKeyFrame(animtick);
 
 }
