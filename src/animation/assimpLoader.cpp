@@ -65,7 +65,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
     const aiMesh *mesh = scene->mMeshes[meshId];
 
     out.boneMatrices.resize(boneCount);
-    transformmesh(mesh,out.boneMatrices);
+//    transformmesh(mesh,out.boneMatrices);
 
 
     aiAnimation *curanim = scene->mAnimations[animationId];
@@ -86,10 +86,19 @@ void AssimpLoader::transformmesh(const aiMesh *mesh, std::vector<mat4> &boneMatr
         aiNode *node = findnode(scene->mRootNode, bone->mName.data);
 
         transformnode(&skin4, node);
-        aiMultiplyMatrix4(&skin4, &bone->mOffsetMatrix);
+
 
 
         std::string str(bone->mName.data);
+
+        AnimationNode* an = nodeMap[str];
+
+        cout<<"test"<<endl;
+        cout<<an->transformedMatrix<<endl<<convert(skin4)<<endl;
+
+        aiMultiplyMatrix4(&skin4, &bone->mOffsetMatrix);
+
+
         int index = boneMap[str];
         boneMatrices[index] = convert(skin4);
 
@@ -110,14 +119,14 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
 
 
     int frames = animationlength(anim)-1 ;
-
+    frames = 1;
 
     animationFrames.resize(frames);
 
     float tick =0;
 
     for(int j=0;j<frames;++j){
-
+        rootNode.reset();
         int frame = j;
         AnimationFrame &k = animationFrames[j];
 
@@ -143,28 +152,44 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
             AnimationNode* an = nodeMap[str];
 
             an->position = vec3(p.x,p.y,p.z);
-            an->rotation = quat(r.x,r.y,r.z,r.w);
+//            an->rotation = quat(r.x,r.y,r.z,r.w);
+            an->rotation = quat(r.w,r.x,r.y,r.z);
             an->scaling = vec3(s.x,s.y,s.z);
+            an->keyFramed = true;
 
             composematrix(&node->mTransformation, &p, &r, &s);
 
+//            an->testMat = convert(node->mTransformation);
+
+//            cout<<an->testMat<<composematrix(an->position,an->rotation,an->scaling)<<endl;
+//            cout<<"pos "<<an->position<<endl;
+//            cout<<an->testMat<<endl;
+
 
         }
 
-        std::vector<mat4> boneMatrices;
-        boneMatrices.resize(boneCount);
-        //        transformmesh(mesh,boneMatrices);
-        for(int m =0;m<scene->mNumMeshes;++m){
-            const aiMesh *mesh = scene->mMeshes[m];
-            transformmesh(mesh,boneMatrices);
-            //                    cout<<">>"<<endl;
-        }
-
-        //                cout<<"============================================================"<<endl;
 
 
-        k.setBoneDeformation(boneMatrices);
+//        std::vector<mat4> boneMatrices;
+
+
+//        boneMatrices.resize(boneCount);
+//        rootNode.traverse(mat4(),boneMatrices);
+//        //        transformmesh(mesh,boneMatrices);
+//        for(int m =0;m<scene->mNumMeshes;++m){
+//            const aiMesh *mesh = scene->mMeshes[m];
+////            transformmesh(mesh,boneMatrices);
+//            //                    cout<<">>"<<endl;
+//        }
+
+//                        cout<<"============================================================"<<endl;
+
+
+//        k.setBoneDeformation(boneMatrices);
+        k.boneMatrices.resize(boneCount);
         k.rootNode = rootNode;
+        k.boneOffsets = boneOffsets;
+        k.calculateFromTree();
 
 
     }
@@ -286,7 +311,9 @@ int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
         an.boneIndex = -1;
     }
 
+    an.matrix = convert(node->mTransformation);
 
+    an.name =str;
 
     an.children.resize(node->mNumChildren);
 
@@ -306,8 +333,25 @@ void AssimpLoader::transformnode(aiMatrix4x4 *result, aiNode *node)
     } else {
         *result = node->mTransformation;
     }
+
+    std::string str(node->mName.data);
+    AnimationNode* an = nodeMap[str];
+    an->testMat = convert(*result);
 }
 
+
+mat4 AssimpLoader::composematrix(vec3 position, quat rotation, vec3 scaling){
+    glm::mat4 t = glm::translate(glm::mat4(),position);
+    glm::mat4 r = glm::mat4_cast(rotation);
+    glm::mat4 s = glm::scale(glm::mat4(),scaling);
+
+
+
+    glm::mat4 erg = t*s*r;
+
+
+    return erg;
+}
 
 void AssimpLoader::composematrix(aiMatrix4x4 *m,
                                  aiVector3D *t, aiQuaternion *q, aiVector3D *s)

@@ -77,6 +77,7 @@ public:
 
     void createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
     int countNodes(aiNode *node, AnimationNode &an);
+    mat4 composematrix(vec3 t, quat q, vec3 s);
 private:
     int animationlength(aiAnimation *anim);
     aiNode *findnode(aiNode *node, char *name);

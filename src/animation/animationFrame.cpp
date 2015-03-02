@@ -188,6 +188,17 @@ void AnimationFrame::testd(glm::dmat4 mat)
 
 }
 
+void AnimationFrame::calculateFromTree()
+{
+    cout<<"AnimationFrame::calculateFromTree()"<<endl;
+    rootNode.traverse(mat4(),boneMatrices);
+
+    for(int i=0;i<boneMatrices.size();++i){
+//        boneMatrices[i] = boneOffsets[i] * boneMatrices[i];
+        boneMatrices[i] =  boneMatrices[i]* boneOffsets[i];
+    }
+}
+
 void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, float alpha, std::vector<mat4> &out_boneMatrices)
 {
     for(int i=0;i<k0.bones;++i){
@@ -202,5 +213,51 @@ void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, float a
 
         out_boneMatrices[i] = glm::translate( glm::dmat4(),pos)*glm::mat4_cast(rot)*glm::scale( glm::dmat4(),scale);
 
+    }
+}
+
+
+void AnimationNode::reset()
+{
+    position = vec3(0);
+    rotation = quat();
+    scaling = vec3(1);
+    transformedMatrix = mat4();
+    for(AnimationNode &an : children){
+        an.reset();
+    }
+}
+
+void AnimationNode::traverse(mat4 m,  std::vector<mat4> &out_boneMatrices)
+{
+//    cout<<"AnimationNode::traverse(mat4 m,  std::vector<mat4> out_boneMatrices)"<<endl;
+
+    if(keyFramed){
+        glm::mat4 t = glm::translate(glm::mat4(),position);
+        glm::mat4 r = glm::mat4_cast(rotation);
+        glm::mat4 s = glm::scale(glm::mat4(),scaling);
+        matrix = t*s*r;
+    }
+
+//    glm::mat4 erg = t*r ;
+
+    transformedMatrix = m*matrix;
+
+//    m = glm::scale(m,scaling);
+//    m = glm::mat4_cast(rotation) * m;
+//    m = glm::translate(m,position);
+
+//    cout<<"node "<<name<<" "<<keyFramed<<endl;
+////    cout<<"pos "<<position<<endl;
+//    cout<<testMat;
+//    cout<<"mine"<<endl;
+//    cout<<m<<endl;
+
+    if(boneIndex!=-1){
+        out_boneMatrices[boneIndex] = transformedMatrix;
+    }
+
+    for(AnimationNode &an : children){
+        an.traverse(transformedMatrix,out_boneMatrices);
     }
 }
