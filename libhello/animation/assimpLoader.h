@@ -6,6 +6,7 @@
 
 #include <type_traits>
 
+#include <map>
 
 #include <assimp/Importer.hpp> // C++ importer interface
 #include <assimp/scene.h> // Output data structure
@@ -24,14 +25,29 @@
  * If the vertex has a member 'normal' we want to read the normal from assimp and save them in that vertex.
  *
  */
+
+
+
+
 class AssimpLoader{
 public:
     const aiScene *scene = nullptr;
     Assimp::Importer importer;
 
+    int boneCount = 0;
+    std::map<std::string,int> boneMap;
+    std::vector<mat4> boneOffsets;
+
+    int nodeCount = 0;
+    std::map<std::string,AnimationNode*> nodeMap;
+
+    AnimationNode rootNode;
 public:
     AssimpLoader(){}
     AssimpLoader(const std::string &file);
+
+    void loadBones();
+
 
     void loadFile(const std::string &file);
 
@@ -42,9 +58,11 @@ public:
     template<typename vertex_t>
     void getPositions(int id, TriangleMesh<vertex_t, GLuint> &out);
 
-
     template<typename vertex_t>
     void getNormals(int id,  TriangleMesh<vertex_t, GLuint> &out);
+
+    template<typename vertex_t>
+    void getBones(int id,  TriangleMesh<vertex_t, GLuint> &out);
 
     template<typename vertex_t>
     void getFaces(int id, TriangleMesh<vertex_t, GLuint> &out);
@@ -57,6 +75,8 @@ public:
     void transformmesh(const aiMesh *amesh, std::vector<mat4> &boneMatrices);
     void createFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
 
+    void createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
+    int countNodes(aiNode *node, AnimationNode &an);
 private:
     int animationlength(aiAnimation *anim);
     aiNode *findnode(aiNode *node, char *name);
@@ -126,7 +146,7 @@ ENABLED_FUNCTION(loadTexture,T& vertex,const aiVector3D &v,has_texture){
 }
 
 
-ENABLED_FUNCTION3(loadBoneWeight,T& vertex, int index, float weight,has_texture){
+ENABLED_FUNCTION3(loadBoneWeight,T& vertex, int index, float weight,has_boneWeights){
     vertex.addBone(index,weight);
 }
 
@@ -214,6 +234,31 @@ void AssimpLoader::getNormals(int id,  TriangleMesh<vertex_t, GLuint> &out){
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
             loadNormal(bv,mesh->mNormals[i]);
+        }
+    }
+
+}
+
+template<typename vertex_t>
+void AssimpLoader::getBones(int id,  TriangleMesh<vertex_t, GLuint> &out){
+    const aiMesh *mesh = scene->mMeshes[id];
+
+    out.vertices.resize(mesh->mNumVertices);
+
+
+    if(mesh->HasBones()){
+        for(unsigned int i=0;i<mesh->mNumBones;++i){
+            aiBone* b = mesh->mBones[i];
+            std::string str(b->mName.data);
+            if(boneMap.find(str)==boneMap.end()){
+                assert(0);
+            }
+            int index = boneMap[str];
+            for(unsigned int j=0;j<b->mNumWeights;++j){
+                aiVertexWeight* vw = b->mWeights+j;
+                vertex_t& bv = out.vertices[vw->mVertexId];
+                loadBoneWeight(bv,index,vw->mWeight);
+            }
         }
     }
 

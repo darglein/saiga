@@ -7,6 +7,9 @@
 class Animation
 {
 public:
+    AnimationFrame restPosition;
+
+
     std::vector<AnimationFrame> animationFrames;
     std::vector<mat4> boneMatrices;
 
@@ -18,6 +21,7 @@ public:
 
     void update();
     void setKeyFrame(int i);
+    void setKeyFrame(float f);
 };
 
 

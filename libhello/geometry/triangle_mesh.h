@@ -40,6 +40,7 @@ public:
      */
 
     void transform(const mat4 &trafo);
+    void transformNormal(const mat4 &trafo);
 
     /*
      * Deletes all vertices and faces.
@@ -143,6 +144,13 @@ void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo){
       v.position = vec3(trafo*vec4(v.position,1));
   }
   boundingBox.transform(trafo);
+}
+
+template<typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t,index_t>::transformNormal(const mat4 &trafo){
+  for(vertex_t &v : vertices){
+      v.normal = vec3(trafo*vec4(v.normal,0));
+  }
 }
 
 

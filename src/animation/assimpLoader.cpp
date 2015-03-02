@@ -12,11 +12,12 @@ void AssimpLoader::loadFile(const std::string &file){
 
     int flags = aiProcess_Triangulate;
     flags |= aiProcess_JoinIdenticalVertices;
-//    flags |= aiProcess_GenSmoothNormals;
+    //    flags |= aiProcess_GenSmoothNormals;
     flags |= aiProcess_GenUVCoords;
     flags |= aiProcess_TransformUVCoords;
-//    flags |= aiProcess_RemoveComponent;
+    //    flags |= aiProcess_RemoveComponent;
     flags |= aiProcess_LimitBoneWeights;
+    flags |= aiProcess_GenNormals;
 
     scene = importer.ReadFile( file,flags);
     // If the import failed, report it
@@ -36,38 +37,63 @@ void AssimpLoader::loadFile(const std::string &file){
 
 }
 
+void AssimpLoader::loadBones(){
+    for(int m =0;m<scene->mNumMeshes;++m){
+        const aiMesh *mesh = scene->mMeshes[m];
+        for(unsigned int i=0;i<mesh->mNumBones;++i){
+            aiBone* b = mesh->mBones[i];
+
+            std::string str(b->mName.data);
+            if(boneMap.find(str)==boneMap.end()){
+
+                mat4 boneOffset = convert(b->mOffsetMatrix);
+                boneOffsets.push_back(boneOffset);
+                boneMap[str] = boneCount++;
+
+            }
+        }
+    }
+
+    cout<<"unique bones: "<<boneCount<<endl;
+
+    cout<<"unique nodes: "<<countNodes(scene->mRootNode,rootNode)<<endl;
+}
+
 void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 {
 
     const aiMesh *mesh = scene->mMeshes[meshId];
 
+    out.boneMatrices.resize(boneCount);
     transformmesh(mesh,out.boneMatrices);
 
 
     aiAnimation *curanim = scene->mAnimations[animationId];
 
-    createFrames(mesh,curanim,out.animationFrames);
+//    createFrames(mesh,curanim,out.animationFrames);
+    createKeyFrames(mesh,curanim,out.animationFrames);
 }
-
 
 void AssimpLoader::transformmesh(const aiMesh *mesh, std::vector<mat4> &boneMatrices)
 {
     aiMatrix4x4 skin4;
-    unsigned int k;
 
-    if (mesh->mNumBones == 0)
-        return;
 
-    boneMatrices.resize(mesh->mNumBones);
+    //    boneMatrices.resize(mesh->mNumBones);
 
-    for (k = 0; k < mesh->mNumBones; k++) {
+    for (unsigned int k = 0; k < mesh->mNumBones; k++) {
         aiBone *bone = mesh->mBones[k];
         aiNode *node = findnode(scene->mRootNode, bone->mName.data);
 
         transformnode(&skin4, node);
         aiMultiplyMatrix4(&skin4, &bone->mOffsetMatrix);
 
-        boneMatrices[k] = convert(skin4);
+
+        std::string str(bone->mName.data);
+        int index = boneMap[str];
+        boneMatrices[index] = convert(skin4);
+
+        //        cout<<"transform matrix "<<index<<endl;
 
 
     }
@@ -75,6 +101,74 @@ void AssimpLoader::transformmesh(const aiMesh *mesh, std::vector<mat4> &boneMatr
 }
 
 
+void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames)
+{
+    aiVectorKey *p0, *p1, *s0, *s1;
+    aiQuatKey *r0, *r1;
+    aiVector3D p, s;
+    aiQuaternion r;
+
+
+    int frames = animationlength(anim)-1 ;
+
+
+    animationFrames.resize(frames);
+
+    float tick =0;
+
+    for(int j=0;j<frames;++j){
+
+        int frame = j;
+        AnimationFrame &k = animationFrames[j];
+
+        cout<<">>>>>>>>>>>Keyframe "<<frame<<" channels "<<anim->mNumChannels<<endl;
+
+
+        for (int i = 0; i < anim->mNumChannels; i++) {
+            aiNodeAnim *chan = anim->mChannels[i];
+            aiNode *node = findnode(scene->mRootNode, chan->mNodeName.data);
+            p0 = chan->mPositionKeys + frame;
+            r0 = chan->mRotationKeys + frame;
+            s0 = chan->mScalingKeys + frame;
+
+
+            p = p0->mValue;;
+            r = r0->mValue;
+            s = s0->mValue;
+
+            std::string str(chan->mNodeName.data);
+            if(nodeMap.find(str)==nodeMap.end()){
+                assert(0);
+            }
+            AnimationNode* an = nodeMap[str];
+
+            an->position = vec3(p.x,p.y,p.z);
+            an->rotation = quat(r.x,r.y,r.z,r.w);
+            an->scaling = vec3(s.x,s.y,s.z);
+
+            composematrix(&node->mTransformation, &p, &r, &s);
+
+
+        }
+
+        std::vector<mat4> boneMatrices;
+        boneMatrices.resize(boneCount);
+        //        transformmesh(mesh,boneMatrices);
+        for(int m =0;m<scene->mNumMeshes;++m){
+            const aiMesh *mesh = scene->mMeshes[m];
+            transformmesh(mesh,boneMatrices);
+            //                    cout<<">>"<<endl;
+        }
+
+        //                cout<<"============================================================"<<endl;
+
+
+        k.setBoneDeformation(boneMatrices);
+        k.rootNode = rootNode;
+
+
+    }
+}
 
 void AssimpLoader::createFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames)
 {
@@ -87,6 +181,10 @@ void AssimpLoader::createFrames(const aiMesh *mesh, aiAnimation *anim, std::vect
     int up = 20;
     int frames = (animationlength(anim)-1) * up + 1 ;
     float delta = 1.0f/up;
+
+    //    frames = animationlength(anim);
+    //    delta = 1.0f;
+
     animationFrames.resize(frames);
 
     float tick =0;
@@ -120,7 +218,16 @@ void AssimpLoader::createFrames(const aiMesh *mesh, aiAnimation *anim, std::vect
         }
 
         std::vector<mat4> boneMatrices;
-        transformmesh(mesh,boneMatrices);
+        boneMatrices.resize(boneCount);
+        //        transformmesh(mesh,boneMatrices);
+        for(int m =0;m<scene->mNumMeshes;++m){
+            const aiMesh *mesh = scene->mMeshes[m];
+            transformmesh(mesh,boneMatrices);
+            //                    cout<<">>"<<endl;
+        }
+
+        //                cout<<"============================================================"<<endl;
+
 
         k.setBoneDeformation(boneMatrices);
 
@@ -159,6 +266,34 @@ aiNode *AssimpLoader::findnode(struct aiNode *node, char *name)
             return found;
     }
     return NULL;
+}
+
+int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
+{
+//    cout<<"node "<<node->mName.data<<endl;
+    int n = 1;
+
+    std::string str(node->mName.data);
+    if(nodeMap.find(str)==nodeMap.end()){
+        nodeMap[str] = &an;
+
+    }
+
+
+    if(boneMap.find(str)!=boneMap.end()){
+        an.boneIndex = boneMap[str];
+    }else{
+        an.boneIndex = -1;
+    }
+
+
+
+    an.children.resize(node->mNumChildren);
+
+    for (int i = 0; i < node->mNumChildren; i++) {
+        n += countNodes(node->mChildren[i],an.children[i]);
+    }
+    return n;
 }
 
 // calculate absolute transform for node to do mesh skinning

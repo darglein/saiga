@@ -17,3 +17,20 @@ void VertexBuffer<BoneVertex>::setVertexAttributes(){
 }
 
 
+template<>
+void VertexBuffer<BoneVertexNC>::setVertexAttributes(){
+    glEnableVertexAttribArray( 0 );
+    glEnableVertexAttribArray( 1 );
+    glEnableVertexAttribArray( 2 );
+    glEnableVertexAttribArray( 3 );
+    glEnableVertexAttribArray( 4 );
+
+    glVertexAttribPointer(0,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertexNC), NULL );
+    glVertexAttribPointer(1,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertexNC), (void*) (3 * sizeof(GLfloat)) );
+    glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertexNC), (void*) (6 * sizeof(GLfloat)) );
+
+    glVertexAttribPointer(3,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexNC), (void*) (9 * sizeof(GLfloat)) );
+    glVertexAttribPointer(4,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexNC), (void*) (13 * sizeof(GLfloat)) );
+}
+
+

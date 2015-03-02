@@ -4,9 +4,22 @@
 #include <vector>
 
 
+
+class AnimationNode{
+public:
+    std::vector<AnimationNode> children;
+    int boneIndex = -1;
+
+    vec3 position;
+    quat rotation;
+    vec3 scaling;
+};
+
 class AnimationFrame
 {
 public:
+    AnimationNode rootNode;
+
     int bones;
     std::vector<mat4> boneMatrices;
 
