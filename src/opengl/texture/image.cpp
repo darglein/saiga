@@ -154,6 +154,19 @@ void Image::convertFrom(fipImage &fipimg){
                 this->data[offset+2] = pixel.rgbBlue;
             }
         }
+    }else if(channels == 4){
+        for(int y=0;y<height;++y){
+            for(int x=0;x<width;++x){
+                RGBQUAD pixel;
+                fipimg.getPixelColor(x,y,&pixel);
+                int offset = (y*width+x)*bytesPerPixel();
+                this->data[offset] = pixel.rgbRed;
+                this->data[offset+1] = pixel.rgbGreen;
+                this->data[offset+2] = pixel.rgbBlue;
+                this->data[offset+3] =  pixel.rgbReserved;
+            }
+        }
+
     }else{
         cout<<"TODO: opengl/texture/image.cpp"<<endl;
     }

@@ -9,7 +9,7 @@ Texture* TextureLoader::loadFromFile(const std::string &path){
 
 //    PNG::Image img;
 //    erg = PNG::readPNG( &img,path);
-    cout<<"loading"<<path<<endl;
+    cout<<"loading "<<path<<endl;
 
     fipImage fipimg;
     erg = fipimg.load(path.c_str());

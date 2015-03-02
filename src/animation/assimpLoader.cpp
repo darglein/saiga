@@ -53,7 +53,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 void AssimpLoader::transformmesh(const aiMesh *mesh, std::vector<mat4> &boneMatrices)
 {
     aiMatrix4x4 skin4;
-    int i, k;
+    unsigned int k;
 
     if (mesh->mNumBones == 0)
         return;
