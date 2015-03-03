@@ -53,7 +53,7 @@ public:
 
 
 
-    static void interpolate(AnimationFrame &k0, AnimationFrame &k1, float alpha, std::vector<mat4> &out_boneMatrices);
+    static void interpolate(AnimationFrame &k0, AnimationFrame &k1, AnimationFrame &out, float alpha);
 
     void calculateFromTree();
     void initTree();

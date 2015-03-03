@@ -21,6 +21,8 @@ public:
 
     Animation();
 
+    void getFrame(float f, AnimationFrame &out);
+
     void update();
     void setKeyFrame(int i);
     void setKeyFrame(float f);

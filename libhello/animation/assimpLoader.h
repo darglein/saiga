@@ -31,6 +31,8 @@
 
 class AssimpLoader{
 public:
+    bool verbose = true;
+
     const aiScene *scene = nullptr;
     Assimp::Importer importer;
 

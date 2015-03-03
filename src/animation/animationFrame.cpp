@@ -17,23 +17,22 @@ void AnimationFrame::calculateFromTree()
     }
 }
 
-void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, float alpha, std::vector<mat4> &out_boneMatrices)
+void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, AnimationFrame& out, float alpha)
 {
 
-    AnimationFrame inter = k0;
-    inter.initTree();
+    out = k0;
+    out.initTree();
 
     for(int i=0;i<k0.nodeCount;++i){
         AnimationNode* n0 = k0.nodes[i];
         AnimationNode* n1 = k1.nodes[i];
 
-        inter.nodes[i]->interpolate(*n1,alpha);
+        out.nodes[i]->interpolate(*n1,alpha);
     }
 
 
-    inter.calculateFromTree();
+    out.calculateFromTree();
 
-    out_boneMatrices = inter.boneMatrices;
 }
 
 void AnimationFrame::initTree()

@@ -27,13 +27,15 @@ void AssimpLoader::loadFile(const std::string &file){
         exit(0);
     }
 
-    cout<<"Loaded file with assimp2 "<<file<<endl;
-    cout<<"HasAnimations "<<scene->mNumAnimations<<
-          ", HasCameras "<<scene->mNumCameras<<
-          ", HasLights "<<scene->mNumLights<<
-          ", HasMaterials "<<scene->mNumMaterials<<
-          ", HasMeshes "<<scene->mNumMeshes<<
-          ", HasTextures "<<scene->mNumTextures<<endl;
+    if(verbose){
+        cout<<">>>>AssimpLoader: "<<file<<" ";
+        cout<<"Animations "<<scene->mNumAnimations<<
+              ", Cameras "<<scene->mNumCameras<<
+              ", Lights "<<scene->mNumLights<<
+              ", Materials "<<scene->mNumMaterials<<
+              ", Meshes "<<scene->mNumMeshes<<
+              ", Textures "<<scene->mNumTextures<<endl;
+    }
 
 }
 
@@ -54,10 +56,13 @@ void AssimpLoader::loadBones(){
         }
     }
 
-    cout<<"unique bones: "<<boneCount<<endl;
+    //    cout<<"unique bones: "<<boneCount<<endl;
 
     nodeCount = countNodes(scene->mRootNode,rootNode);
-    cout<<"unique nodes: "<<nodeCount<<endl;
+    //    cout<<"unique nodes: "<<nodeCount<<endl;
+
+    if(verbose)
+        cout<<">>Created node map: "<<nodeCount<<" nodes, "<<boneCount<<" bones."<<endl;
 }
 
 void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
@@ -66,18 +71,19 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
     const aiMesh *mesh = scene->mMeshes[meshId];
 
     out.boneMatrices.resize(boneCount);
-//    transformmesh(mesh,out.boneMatrices);
+    //    transformmesh(mesh,out.boneMatrices);
 
 
     aiAnimation *curanim = scene->mAnimations[animationId];
 
-//    createFrames(mesh,curanim,out.animationFrames);
+    //    createFrames(mesh,curanim,out.animationFrames);
     createKeyFrames(mesh,curanim,out.animationFrames);
 
     out.frameCount = out.animationFrames.size();
     out.name = curanim->mName.data;
 
-    cout<<"loaded animation "<<out.name<<": "<<out.frameCount<<" frames"<<endl;
+    if(verbose)
+        cout<<">>loaded animation "<<out.name<<": "<<out.frameCount<<" frames"<<endl;
 }
 
 void AssimpLoader::transformmesh(const aiMesh *mesh, std::vector<mat4> &boneMatrices)
@@ -126,7 +132,7 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
 
     //the last frame is the same as the first
     int frames = animationlength(anim);
-//    frames = 1;
+    //    frames = 1;
 
     animationFrames.resize(frames);
 
@@ -137,7 +143,7 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
         int frame = j;
         AnimationFrame &k = animationFrames[j];
 
-//        cout<<">>>>>>>>>>>Keyframe "<<frame<<" channels "<<anim->mNumChannels<<endl;
+        //        cout<<">>>>>>>>>>>Keyframe "<<frame<<" channels "<<anim->mNumChannels<<endl;
 
 
         for (int i = 0; i < anim->mNumChannels; i++) {
@@ -233,7 +239,7 @@ void AssimpLoader::createFrames(const aiMesh *mesh, aiAnimation *anim, std::vect
         //                cout<<"============================================================"<<endl;
 
 
-//        k.setBoneDeformation(boneMatrices);
+        //        k.setBoneDeformation(boneMatrices);
 
         tick += delta;
     }
@@ -274,7 +280,7 @@ aiNode *AssimpLoader::findnode(struct aiNode *node, char *name)
 
 int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
 {
-//    cout<<"node "<<node->mName.data<<endl;
+    //    cout<<"node "<<node->mName.data<<endl;
     int n = 1;
 
     int index = 0;
