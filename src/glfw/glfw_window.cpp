@@ -47,11 +47,7 @@ bool glfw_Window::initWindow()
 
     glGetError(); //ignore first gl error after glew init
 
-
-
-
     Error::quitWhenError("initWindow()");
-
 
     return true;
 }
@@ -106,41 +102,30 @@ long long getTicksMS(){
 }
 
 void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond){
-    using namespace std::chrono;
-
     const long long SKIP_TICKS = 1000000 / ticksPerSecond;
     const int MAX_FRAMESKIP = 20;
 
     long long next_game_tick = getTicksMS();
 
-    int loops;
-    float interpolation;
-    update(1.0/60.0);
-
-    bool running = true;
+    running = true;
     while( running && !glfwWindowShouldClose(window) ) {
 
-        loops = 0;
+        int loops = 0;
         while( getTicksMS() > next_game_tick ) {
             if (loops > MAX_FRAMESKIP){
-                cout << "<Gameloop> Warning: Update loop is falling behind." << endl;
+                cout << "<Gameloop> Warning: Update loop is falling behind. (" << (getTicksMS() - next_game_tick)/1000 << "ms)" << endl;
                 break;
             }
             update(1.0/60.0);
 
             next_game_tick += SKIP_TICKS;
 
-            loops++;
-            //cout << "update"<< endl;
+            ++loops;
         }
 
-        interpolation = ((float)(getTicksMS() + SKIP_TICKS - next_game_tick )
-                        )/ (float) (SKIP_TICKS );
-     //   cout << "render "<< interpolation <<  endl;
+        renderer->render_intern( ((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ) );
 
-        renderer->render_intern( interpolation );
-
-       glfwSwapBuffers(window);
+        glfwSwapBuffers(window);
 
         /* Poll for and process events */
         glfwPollEvents();
