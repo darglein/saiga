@@ -39,13 +39,13 @@ class Deferred_Renderer : public Renderer{
     void setDeferredMixer(DeferredShader* deferred_shader);
     void setSize(int width, int height){this->width=width;this->height=height;}
 
-    void render_intern();
-    void renderGBuffer(Camera *cam);
+    void render_intern(float interpolation = 0.f);
+    void renderGBuffer(Camera *cam, float interpolation = 0.f);
     void renderDepthMaps(Camera *cam);
     void renderLighting(Camera *cam);
     void postProcess();
 
-    virtual void render(Camera *cam) = 0;
+    virtual void render(Camera *cam, float interpolation) = 0;
     virtual void renderDepth(Camera *cam) = 0;
     virtual void renderOverlay(Camera *cam) = 0;
 

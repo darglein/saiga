@@ -1,6 +1,7 @@
 #include "glfw/glfw_window.h"
 
 #include "util/inputcontroller.h"
+#include <chrono>
 
 glfw_Window::glfw_Window(const std::string &name, int window_width, int window_height):Window(name,window_width,window_height)
 {
@@ -24,7 +25,7 @@ bool glfw_Window::initWindow()
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
     /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(window_width, window_height, "Hello World", NULL, NULL);
+    window = glfwCreateWindow(window_width, window_height, name.c_str(), NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -35,7 +36,7 @@ bool glfw_Window::initWindow()
     glfwMakeContextCurrent(window);
 
 //    //vsync
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
 
     //Initialize GLEW
     glewExperimental = GL_TRUE;
@@ -96,8 +97,54 @@ void glfw_Window::startMainLoop(){
         /* Poll for and process events */
         glfwPollEvents();
     }
+}
 
+long long getTicksMS(){
+    using namespace std::chrono;
 
+    return  duration_cast<microseconds>(steady_clock::now().time_since_epoch()).count();
+}
+
+void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond){
+    using namespace std::chrono;
+
+    const long long SKIP_TICKS = 1000000 / ticksPerSecond;
+    const int MAX_FRAMESKIP = 20;
+
+    long long next_game_tick = getTicksMS();
+
+    int loops;
+    float interpolation;
+    update(1.0/60.0);
+
+    bool running = true;
+    while( running && !glfwWindowShouldClose(window) ) {
+
+        loops = 0;
+        while( getTicksMS() > next_game_tick ) {
+            if (loops > MAX_FRAMESKIP){
+                cout << "<Gameloop> Warning: Update loop is falling behind." << endl;
+                break;
+            }
+            update(1.0/60.0);
+
+            next_game_tick += SKIP_TICKS;
+
+            loops++;
+            //cout << "update"<< endl;
+        }
+
+        interpolation = ((float)(getTicksMS() + SKIP_TICKS - next_game_tick )
+                        )/ (float) (SKIP_TICKS );
+     //   cout << "render "<< interpolation <<  endl;
+
+        renderer->render_intern( interpolation );
+
+       glfwSwapBuffers(window);
+
+        /* Poll for and process events */
+        glfwPollEvents();
+    }
 }
 
 void glfw_Window::error_callback(int error, const char* description){

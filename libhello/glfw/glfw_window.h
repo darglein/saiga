@@ -25,6 +25,7 @@ public:
 
     void close();
     void startMainLoop();
+    void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond);
 
 
     static void error_callback(int error, const char* description);

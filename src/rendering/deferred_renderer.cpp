@@ -64,7 +64,7 @@ void Deferred_Renderer::setDeferredMixer(DeferredShader* deferred_shader){
     this->deferred_shader = deferred_shader;
 }
 
-void Deferred_Renderer::render_intern(){
+void Deferred_Renderer::render_intern(float interpolation){
 
     glViewport(0,0,width,height);
     glClear( GL_COLOR_BUFFER_BIT );
@@ -73,7 +73,7 @@ void Deferred_Renderer::render_intern(){
 
 
 
-    renderGBuffer(*currentCamera);
+    renderGBuffer(*currentCamera, interpolation);
 
 
     renderDepthMaps(*currentCamera);
@@ -108,7 +108,7 @@ void Deferred_Renderer::render_intern(){
 
 }
 
-void Deferred_Renderer::renderGBuffer(Camera *cam){
+void Deferred_Renderer::renderGBuffer(Camera *cam, float interpolation){
     deferred_framebuffer.bind();
     glViewport(0,0,width,height);
     glClear( GL_COLOR_BUFFER_BIT );
@@ -121,7 +121,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
         glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
         glLineWidth(wireframeLineSize);
     }
-    render(cam);
+    render(cam, interpolation);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
 
