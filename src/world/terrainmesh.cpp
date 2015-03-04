@@ -36,8 +36,8 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSW(){
 
     mesh_t* mesh = new mesh_t();
 
-    int w = 2*m+1;
-    int h = 2;
+    unsigned int w = 2*m+1;
+    unsigned int h = 2;
     vec2 d = vec2(1.0f/(m-1));
     vec2 o = vec2(0.5);
 
@@ -121,14 +121,14 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated(){
     vec2 d[] = {vec2(dx,0),vec2(dx,0),vec2(0,dx),vec2(0,dx)};
     vec2 o[] = {vec2(0.5),vec2(0.5,-3.5-(dx)),vec2(0.5),vec2(-3.5-(dx),0.5)};
 
-    int orientation[] = {1,0,0,1};
+//    int orientation[] = {1,0,0,1};
 
 
 
     for(int i=0;i<4;i++){
         int offset = mesh->vertices.size();
 
-        for(unsigned int x=0;x<w;x++){
+        for(int x=0;x<w;x++){
             float fx = (float)x*d[i].x-o[i].x;
             float fy = (float)x*d[i].y-o[i].y;
             Vertex v(vec3(fx,0.0f,fy));
@@ -144,7 +144,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated(){
         }
 
 
-        for(unsigned int x=0;x<w-1;x++){
+        for(int x=0;x<w-1;x++){
             //add degenerated triangle
             unsigned int idx = 2*x;
             GLuint face1[] = {offset+idx,offset+idx+1,offset+idx+2};

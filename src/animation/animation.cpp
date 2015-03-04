@@ -51,7 +51,7 @@ void Animation::setKeyFrame(float f){
 
     AnimationFrame::interpolate(k0,k1,out,t);
 
-    for(int m =0;m<out.boneMatrices.size();++m){
+    for(unsigned int m =0;m<out.boneMatrices.size();++m){
         boneMatrices[m] = out.boneMatrices[m];
     }
 }
@@ -63,7 +63,7 @@ void Animation::setKeyFrame(int i){
     AnimationFrame &k = animationFrames[i];
 
 
-    for(int m =0;m<boneMatrices.size();++m){
+    for(unsigned int m =0;m<boneMatrices.size();++m){
         boneMatrices[m] = k.boneMatrices[m];
 //        cout<<boneMatrices[m]<<endl;
     }

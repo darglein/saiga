@@ -11,7 +11,7 @@ void AnimationFrame::calculateFromTree()
 //    cout<<"AnimationFrame::calculateFromTree()"<<endl;
     rootNode.traverse(mat4(),boneMatrices);
 
-    for(int i=0;i<boneMatrices.size();++i){
+    for(unsigned int i=0;i<boneMatrices.size();++i){
         //        boneMatrices[i] = boneOffsets[i] * boneMatrices[i];
         boneMatrices[i] =  boneMatrices[i]* boneOffsets[i];
     }
@@ -24,7 +24,6 @@ void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, Animati
     out.initTree();
 
     for(int i=0;i<k0.nodeCount;++i){
-        AnimationNode* n0 = k0.nodes[i];
         AnimationNode* n1 = k1.nodes[i];
 
         out.nodes[i]->interpolate(*n1,alpha);

@@ -28,10 +28,12 @@ public:
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createSkyboxMesh(const aabb &box);
 
 
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createGridMesh(int w, int h);
+    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createGridMesh(unsigned int w, unsigned int h);
 
     template<typename vertex_t, typename index_t>
     static std::shared_ptr<TriangleMesh<vertex_t,index_t>> createGridMesh2(int w, int h);
+
+
 
 };
 

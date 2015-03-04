@@ -250,7 +250,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createSkyboxMesh(const aa
 
 
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createGridMesh(int w, int h){
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createGridMesh(unsigned int w,unsigned  int h){
     default_mesh_t* mesh = new default_mesh_t();
 
     //creating uniform grid with w*h vertices

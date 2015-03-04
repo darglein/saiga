@@ -96,8 +96,8 @@ void Heightmap::createInitialHeightmap(){
 
 
 
-    for(unsigned int x=0;x<w;++x){
-        for(unsigned int y=0;y<h;++y){
+    for(int x=0;x<w;++x){
+        for(int y=0;y<h;++y){
             float xf = (float)x/(float)w;
             float yf = (float)y/(float)h;
 
@@ -156,8 +156,8 @@ void Heightmap::normalizeHeightMap(){
     float m = minH;
 
     cout<<"min "<<minH<<" max "<<maxH<<endl;
-    for(unsigned int x=0;x<w;++x){
-        for(unsigned int y=0;y<h;++y){
+    for(int x=0;x<w;++x){
+        for(int y=0;y<h;++y){
             float h = getHeight(x,y);
             h = h-m;
             h = h/diff;
@@ -169,10 +169,9 @@ void Heightmap::normalizeHeightMap(){
 
 void Heightmap::createNormalmap(){
 
-    int layer = 0;
     for(int layer=0;layer<1;++layer){
-        for(int x=0;x<normalmap[layer].width;++x){
-            for(int y=0;y<normalmap[layer].height;++y){
+        for(unsigned int x=0;x<normalmap[layer].width;++x){
+            for(unsigned int y=0;y<normalmap[layer].height;++y){
 
                 vec3 norm(1.0f/w,1,1.0f/h);
                 //                vec3 scale = vec3(8*mapScaleInv.x,1,8*mapScaleInv.y) * norm;
@@ -232,7 +231,7 @@ float Heightmap::getHeightScaled(int x, int y){
     return getHeight(x,y)*heightScale;
 }
 
-float Heightmap::getHeight(int layer, int x, int y){
+float Heightmap::getHeight(int layer, unsigned int x, unsigned int y){
     Image &img = heightmap[layer];
 
 
@@ -269,8 +268,8 @@ void Heightmap::createRemainingLayers(){
         Image& next = heightmap[i];
         //reduce previous to get the next
         cout<<"reduce next "<<next.width<<" "<<next.height<<endl;
-        for(int x=0;x<next.width;++x){
-            for(int y=0;y<next.height;++y){
+        for(unsigned int x=0;x<next.width;++x){
+            for(unsigned int y=0;y<next.height;++y){
                 int xp = 2*x;
                 int yp = 2*y;
                 //read 4 pixel from previous and average them
