@@ -57,6 +57,12 @@ public:
 //    void getDrawData(GLfloat* vert, GLuint *vertpointer, GLuint *facedata, GLuint *facepointer, char visibility, int id=0); //cube + id (7 floats per vertex)
 //    void getDrawDataTx(GLfloat* vert, GLuint *vertpointer, GLuint *facedata, GLuint *facepointer, int visibility); //cube + texture coordinates (8 floats per  vertex)
 
+
+
+
+
+
+
 	friend std::ostream& operator<<(std::ostream& os, const aabb& dt);
 };
 

@@ -40,7 +40,7 @@ void AssimpLoader::loadFile(const std::string &file){
 }
 
 void AssimpLoader::loadBones(){
-    for(int m =0;m<scene->mNumMeshes;++m){
+    for(unsigned int m =0;m<scene->mNumMeshes;++m){
         const aiMesh *mesh = scene->mMeshes[m];
         for(unsigned int i=0;i<mesh->mNumBones;++i){
             aiBone* b = mesh->mBones[i];
@@ -124,8 +124,8 @@ void AssimpLoader::transformmesh(const aiMesh *mesh, std::vector<mat4> &boneMatr
 
 void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames)
 {
-    aiVectorKey *p0, *p1, *s0, *s1;
-    aiQuatKey *r0, *r1;
+    aiVectorKey *p0, *s0;
+    aiQuatKey *r0;
     aiVector3D p, s;
     aiQuaternion r;
 
@@ -136,7 +136,6 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
 
     animationFrames.resize(frames);
 
-    float tick =0;
 
     for(int j=0;j<frames;++j){
         rootNode.reset();
@@ -146,7 +145,7 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
         //        cout<<">>>>>>>>>>>Keyframe "<<frame<<" channels "<<anim->mNumChannels<<endl;
 
 
-        for (int i = 0; i < anim->mNumChannels; i++) {
+        for (unsigned int i = 0; i < anim->mNumChannels; i++) {
             aiNodeAnim *chan = anim->mChannels[i];
             p0 = chan->mPositionKeys + frame;
             r0 = chan->mRotationKeys + frame;
@@ -201,13 +200,11 @@ void AssimpLoader::createFrames(const aiMesh *mesh, aiAnimation *anim, std::vect
 
     for(int j=0;j<frames;++j){
 
-        AnimationFrame &k = animationFrames[j];
-
         int frame = floor(tick);
         float t = tick - floor(tick);
 
 
-        for (int i = 0; i < anim->mNumChannels; i++) {
+        for (unsigned int i = 0; i < anim->mNumChannels; i++) {
             aiNodeAnim *chan = anim->mChannels[i];
             aiNode *node = findnode(scene->mRootNode, chan->mNodeName.data);
             p0 = chan->mPositionKeys + (frame+0) % chan->mNumPositionKeys;
@@ -230,7 +227,7 @@ void AssimpLoader::createFrames(const aiMesh *mesh, aiAnimation *anim, std::vect
         std::vector<mat4> boneMatrices;
         boneMatrices.resize(boneCount);
         //        transformmesh(mesh,boneMatrices);
-        for(int m =0;m<scene->mNumMeshes;++m){
+        for(unsigned int m =0;m<scene->mNumMeshes;++m){
             const aiMesh *mesh = scene->mMeshes[m];
             transformmesh(mesh,boneMatrices);
             //                    cout<<">>"<<endl;
@@ -267,10 +264,10 @@ int AssimpLoader::animationlength(aiAnimation *anim)
 
 aiNode *AssimpLoader::findnode(struct aiNode *node, char *name)
 {
-    int i;
+
     if (!strcmp(name, node->mName.data))
         return node;
-    for (i = 0; i < node->mNumChildren; i++) {
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
         struct aiNode *found = findnode(node->mChildren[i], name);
         if (found)
             return found;
@@ -305,7 +302,7 @@ int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
     an.name =str;
     an.children.resize(node->mNumChildren);
 
-    for (int i = 0; i < node->mNumChildren; i++) {
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
         n += countNodes(node->mChildren[i],an.children[i]);
     }
     return n;
