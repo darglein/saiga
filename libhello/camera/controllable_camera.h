@@ -15,15 +15,18 @@ private:
     bool dragging = false;
     double lastmx=0,lastmy=0;
     int FORWARD=0,RIGHT=0;
-    vec3 interpolationTrans;
+    vec3 positionAtUpdate;
 
 public:
     camera_t* cam;
     float movementSpeed = 1;
     float rotationSpeed = 1;
-    Controllable_Camera(camera_t* cam):cam(cam),interpolationTrans(0,0,0){ glfw_EventHandler::addKeyListener(this);glfw_EventHandler::addMouseListener(this);}
+    Controllable_Camera(camera_t* cam):cam(cam){
+        glfw_EventHandler::addKeyListener(this);glfw_EventHandler::addMouseListener(this);
+    }
     void update(float delta);
     void predictInterpolate(float interpolation);
+    void setPosition(glm::vec3 cords);
 
 
     //glfw events
@@ -37,18 +40,25 @@ public:
 };
 
 template<class camera_t>
+void Controllable_Camera<camera_t>::setPosition(glm::vec3 cords)
+{
+    cam->setPosition(cords);
+    positionAtUpdate = vec3(cords);
+}
+
+template<class camera_t>
 void Controllable_Camera<camera_t>::update(float delta){
-    cam->translateLocal(-interpolationTrans);
-    interpolationTrans = vec3(0,0,0);
+    setPosition(positionAtUpdate);
     vec3 trans = delta*movementSpeed*FORWARD*vec3(0,0,-1) + delta*movementSpeed*RIGHT*vec3(1,0,0);
     cam->translateLocal(trans);
     cam->updateFromModel();
+    positionAtUpdate =vec3(cam->getPosition());
 }
 
 template<class camera_t>
 void Controllable_Camera<camera_t>::predictInterpolate(float interpolation){
-    cam->translateLocal(-interpolationTrans);
-    interpolationTrans = (float)(1.0/60.0) * interpolation*movementSpeed*FORWARD*vec3(0,0,-1) + (float)(1.0/60.0) *interpolation*movementSpeed*RIGHT*vec3(1,0,0);
+    vec3 interpolationTrans = (float)(1.0/60.0) * interpolation*movementSpeed*FORWARD*vec3(0,0,-1) + (float)(1.0/60.0) *interpolation*movementSpeed*RIGHT*vec3(1,0,0);
+    cam->setPosition(positionAtUpdate);
     cam->translateLocal(interpolationTrans);
     cam->updateFromModel();
 }
