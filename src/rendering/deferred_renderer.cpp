@@ -94,7 +94,7 @@ void Deferred_Renderer::render_intern(float interpolation){
     renderLighting(*currentCamera);
 
 
-    renderOverlay(*currentCamera);
+    renderOverlay(*currentCamera, interpolation);
     mix_framebuffer.unbind();
 
 
