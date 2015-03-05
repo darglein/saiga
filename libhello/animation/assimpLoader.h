@@ -277,7 +277,7 @@ void AssimpLoader::getFaces(int id,  TriangleMesh<vertex_t, GLuint> &out){
         for(unsigned int i=0;i<mesh->mNumFaces;++i){
             aiFace* f = mesh->mFaces+i;
             if(f->mNumIndices != 3){
-                cout<<"Mesh not triangulated!!!"<<endl;
+                cout<<"Mesh not triangulated!!! "<<f->mNumIndices<<endl;
                 continue;
             }
             out.addFace(f->mIndices);
