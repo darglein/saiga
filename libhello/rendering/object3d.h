@@ -20,6 +20,7 @@ public:
     mat4 size;
     mat4 base;
 
+    void getModelMatrix(mat4& m){m = base*glm::mat4_cast(rot)*size;}
     void calculateModel(){model = base*glm::mat4_cast(rot)*size;}
 
    vec4 getPosition(){return vec4(base[3]);} //returns global position
@@ -45,7 +46,7 @@ public:
 
     virtual void setPosition(vec3 cords){base[3] = vec4(cords,1);}
     virtual void turn(float angleX, float angleY);
-    virtual void getModelMatrix(mat4& m){m = model;}
+
     virtual void getViewMatrix(mat4& view); //the view matrix is the inverse model matrix
 
 

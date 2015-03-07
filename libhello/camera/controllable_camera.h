@@ -43,6 +43,7 @@ template<class camera_t>
 void Controllable_Camera<camera_t>::setPosition(glm::vec3 cords)
 {
     cam->setPosition(cords);
+    cam->calculateModel();
     positionAtUpdate = vec3(cords);
 }
 
@@ -51,6 +52,7 @@ void Controllable_Camera<camera_t>::update(float delta){
     setPosition(positionAtUpdate);
     vec3 trans = delta*movementSpeed*FORWARD*vec3(0,0,-1) + delta*movementSpeed*RIGHT*vec3(1,0,0);
     cam->translateLocal(trans);
+    cam->calculateModel();
     cam->updateFromModel();
     positionAtUpdate =vec3(cam->getPosition());
 }
@@ -60,6 +62,7 @@ void Controllable_Camera<camera_t>::predictInterpolate(float interpolation){
     vec3 interpolationTrans = (float)(1.0/60.0) * interpolation*movementSpeed*FORWARD*vec3(0,0,-1) + (float)(1.0/60.0) *interpolation*movementSpeed*RIGHT*vec3(1,0,0);
     cam->setPosition(positionAtUpdate);
     cam->translateLocal(interpolationTrans);
+    cam->calculateModel();
     cam->updateFromModel();
 }
 
@@ -96,6 +99,7 @@ bool Controllable_Camera<camera_t>::cursor_position_event(GLFWwindow* window, do
         double relx = lastmx-xpos;
         double rely = lastmy-ypos;
         cam->turn((float)relx*rotationSpeed,(float)rely*rotationSpeed);
+        cam->calculateModel();
         cam->updateFromModel();
     }
     lastmx = xpos;

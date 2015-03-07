@@ -10,7 +10,7 @@ void Object3D::setSimpleDirection(vec3 dir){
 
     this->rot = glm::normalize(glm::quat(rotmat));
 
-    calculateModel();
+//    calculateModel();
 }
 
 
@@ -22,7 +22,7 @@ void Object3D::turn(float angleX, float angleY){
     if (model[1][1] < 0){
         model = modeltmp;
     }
-    calculateModel();
+//    calculateModel();
 
 //    std::cout<<this->getDirection()<<" "<<(rot*vec4(0,0,1,0))<<std::endl;
 //    std::cout<<this->getRightVector()<<" "<<(rot*vec4(1,0,0,0))<<std::endl;
@@ -32,7 +32,7 @@ void Object3D::turn(float angleX, float angleY){
 void Object3D::rotateLocal2(vec3 axis, float angle){
 //    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
 //    rotation =  rot*rotation ;
-    calculateModel();
+//    calculateModel();
 }
 
 
@@ -43,7 +43,7 @@ void Object3D::rotateLocal(vec3 axis, float angle){
 
     this->rot = glm::rotate(this->rot,degreesToRadians(angle),axis);
 //    rotation = glm::mat4_cast(this->rot);
-    calculateModel();
+//    calculateModel();
 }
 
 
@@ -55,7 +55,7 @@ void Object3D::rotateGlobal(vec3 axis, float angle){
 
     this->rot = glm::rotate(this->rot,degreesToRadians(angle),axis);
 //    rotation = glm::mat4_cast(this->rot);
-    calculateModel();
+//    calculateModel();
 //    model = glm::rotate(model,degreesToRadians(angle),axis);
 }
 
@@ -77,7 +77,7 @@ void Object3D::translateLocal(vec3 d){
 
 void Object3D::translateGlobal(vec3 d){
     base[3] += vec4(d,0);
-    calculateModel();
+//    calculateModel();
 }
 
 void Object3D::normalize(){
@@ -89,7 +89,7 @@ void Object3D::normalize(){
 void Object3D::scale(vec3 s){
     mat4 scale = glm::scale(mat4(), s);
     size = size *scale ;
-    calculateModel();
+//    calculateModel();
 }
 
 vec3 Object3D::getScale(){
@@ -100,7 +100,7 @@ void Object3D::setScale(vec3 s){
     size[0][0] = s.x;
     size[1][1] = s.y;
     size[2][2] = s.z;
-    calculateModel();
+//    calculateModel();
 }
 
 void Object3D::getViewMatrix(mat4& view){

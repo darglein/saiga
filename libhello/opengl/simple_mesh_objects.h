@@ -16,7 +16,9 @@ public:
 
 template<class T>
 void SimpleMeshObject<T>::bindUniforms(){
-    this->shader->uploadModel(this->model);
+    mat4 model;
+    this->getModelMatrix(model);
+    this->shader->uploadModel(model);
     this->shader->uploadColor(this->color);
 }
 

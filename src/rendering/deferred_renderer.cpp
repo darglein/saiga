@@ -143,7 +143,9 @@ void Deferred_Renderer::renderDepthMaps(Camera *cam){
 void Deferred_Renderer::renderLighting(Camera *cam){
     glDepthMask(GL_FALSE);
 
-    lighting.setViewProj(cam->model,cam->view,cam->proj);
+    mat4 model;
+    cam->getModelMatrix(model);
+    lighting.setViewProj(model,cam->view,cam->proj);
     lighting.render(cam);
     glDisable(GL_BLEND);
     Error::quitWhenError("Deferred_Renderer::renderLighting");
