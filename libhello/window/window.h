@@ -28,6 +28,8 @@ protected:
     virtual void update(float delta) = 0;
 public:
     Window(const std::string &name,int window_width,int window_height);
+     virtual ~Window(){}
+
     void quit(){cout<<"Window: Quit"<<endl;running = false;}
     bool init();
     virtual void close() = 0;

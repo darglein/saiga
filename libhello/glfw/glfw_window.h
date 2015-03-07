@@ -21,7 +21,7 @@ public:
     SDL_EventHandler eventHandler;
 
     glfw_Window(const std::string &name,int window_width,int window_height);
-
+    virtual ~glfw_Window(){}
 
     void close();
     void startMainLoop();

@@ -107,31 +107,33 @@ find_package(FreeImagePlus REQUIRED)
 SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
 
 
-find_library(X11_LIBRARIES X11)
-#SET(LIBS ${LIBS} ${X11_LIBRARIES})
+if(UNIX)
+	find_library(X11_LIBRARIES X11)
+	SET(LIBS ${LIBS} ${X11_LIBRARIES})
+	find_library(Xxf86vm_LIBRARIES Xxf86vm)
+	SET(LIBS ${LIBS} ${Xxf86vm_LIBRARIES})
 
-find_library(Xxf86vm_LIBRARIES Xxf86vm)
-#SET(LIBS ${LIBS} ${Xxf86vm_LIBRARIES})
+	find_library(Xrandr_LIBRARIES Xrandr)
+	SET(LIBS ${LIBS} ${Xrandr_LIBRARIES})
 
-find_library(Xrandr_LIBRARIES Xrandr)
-#SET(LIBS ${LIBS} ${Xrandr_LIBRARIES})
+	find_library(pthread_LIBRARIES pthread)
+	SET(LIBS ${LIBS} ${pthread_LIBRARIES})
 
-find_library(pthread_LIBRARIES pthread)
-#SET(LIBS ${LIBS} ${pthread_LIBRARIES})
+	find_library(Xi_LIBRARIES Xi)
+	SET(LIBS ${LIBS} ${Xi_LIBRARIES})
 
-find_library(Xi_LIBRARIES Xi)
-#SET(LIBS ${LIBS} ${Xi_LIBRARIES})
+	find_library(Xcursor_LIBRARIES Xcursor)
+	SET(LIBS ${LIBS} ${Xcursor_LIBRARIES})
 
-find_library(Xcursor_LIBRARIES Xcursor)
-#SET(LIBS ${LIBS} ${Xcursor_LIBRARIES})
-
-find_library(Xinerama_LIBRARIES Xinerama)
-#SET(LIBS ${LIBS} ${Xinerama_LIBRARIES})
+	find_library(Xinerama_LIBRARIES Xinerama)
+	SET(LIBS ${LIBS} ${Xinerama_LIBRARIES})
+endif(UNIX)
 
 
 ############# COMPILER FLAGS ###############
-
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+if(UNIX)
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+endif(UNIX)
 
 ############# SOURCE ###############
 
