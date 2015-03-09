@@ -111,6 +111,21 @@ bool Ray::intersectTriangle(const Triangle &tri, float &out, bool &back) const{
     return 0;
 }
 
+bool Ray::intersectPlane(const Plane &p, float &t) const
+{
+#define EPSILON 0.000001
+
+    float denom = glm::dot(p.normal, direction);
+    if (abs(denom) > EPSILON)
+    {
+        t = glm::dot(p.point - origin, p.normal) / denom;
+        if (t >= 0){
+            return true;
+        }
+    }
+    return false;
+}
+
 std::ostream& operator<<(std::ostream& os, const Ray& r)
 {
     std::cout<<"Ray: ("<<r.origin.x<<","<<r.origin.y<<","<<r.origin.z<<")";

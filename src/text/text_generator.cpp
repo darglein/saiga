@@ -1,4 +1,7 @@
 #include "text/text_generator.h"
+#include <algorithm>
+#define NOMINMAX
+#undef max
 
 FT_Library* TextGenerator::ft = NULL;
 
@@ -37,7 +40,7 @@ void TextGenerator::createTextureAtlas(){
         }
 
         w += g->bitmap.width+charOffset;
-        h = max(h, g->bitmap.rows);
+        h = std::max(h, g->bitmap.rows);
 
     }
 

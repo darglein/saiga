@@ -9,10 +9,6 @@
 #include FT_FREETYPE_H
 #include <iostream>
 
-using glm::max;
-using glm::min;
-
-
 
 class TextGenerator{
 private:
