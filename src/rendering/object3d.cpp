@@ -2,6 +2,23 @@
 
 
 
+mat4 Object3D::getModelMatrix()
+{
+    mat4 model;
+    model = glm::mat4_cast(rot)*glm::scale(mat4(),scale);
+    model[3] = vec4(position,1);
+    return model;
+}
+
+void Object3D::getModelMatrix(mat4 &model){
+    model = getModelMatrix();
+}
+
+void Object3D::calculateModel(){
+    model = glm::mat4_cast(rot)*glm::scale(mat4(),scale);
+    model[3] = vec4(position,1);
+}
+
 void Object3D::setSimpleDirection(vec3 dir){
     glm::mat4 rotmat;
     rotmat[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
@@ -76,7 +93,7 @@ void Object3D::translateLocal(vec3 d){
 }
 
 void Object3D::translateGlobal(vec3 d){
-    base[3] += vec4(d,0);
+    position += d;
 //    calculateModel();
 }
 
@@ -86,25 +103,24 @@ void Object3D::normalize(){
 //    model[2] = glm::normalize(model[2]);
 }
 
-void Object3D::scale(vec3 s){
-    mat4 scale = glm::scale(mat4(), s);
-    size = size *scale ;
-//    calculateModel();
-}
+//void Object3D::scale(vec3 s){
+//    mat4 scale = glm::scale(mat4(), s);
+//    size = size *scale ;
+////    calculateModel();
+//}
 
 vec3 Object3D::getScale(){
-    return vec3(size[0][0],size[1][1],size[2][2]);
+    return scale;
 }
 
 void Object3D::setScale(vec3 s){
-    size[0][0] = s.x;
-    size[1][1] = s.y;
-    size[2][2] = s.z;
-//    calculateModel();
+   scale = s;
 }
 
-void Object3D::getViewMatrix(mat4& view){
-    view = glm::inverse(base*glm::mat4_cast(rot));
-}
+//void Object3D::getViewMatrix(mat4& view){
+//    view= glm::mat4_cast(rot);
+//    view[3] = vec4(position,1);
+//    view = glm::inverse(view);
+//}
 
 

@@ -288,6 +288,7 @@ bool LightingController::cursor_position_event(GLFWwindow* window, double xpos, 
         light->rotateGlobal(a,glm::degrees(angle));
     }
 
+//    light->calculateModel();
 
 
     return false;

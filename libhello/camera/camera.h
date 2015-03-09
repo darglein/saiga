@@ -15,6 +15,7 @@ class Camera : public Object3D{
 public:
     string name;
 
+//    mat4 model;
     mat4 view;
     mat4 proj;
     mat4 viewProj;

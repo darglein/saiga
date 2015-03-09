@@ -15,6 +15,7 @@ public:
     Texture* texture;
     Text(){}
     Text(const string &label);
+    virtual ~Text(){}
     void draw(TextShader* shader);
     void transform(const mat4 &trafo){mesh.transform(trafo);}
     void updateText(const string &label);

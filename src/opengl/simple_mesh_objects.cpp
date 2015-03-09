@@ -12,7 +12,7 @@ SphereMeshObject::SphereMeshObject()
 }
 
 SphereMeshObject::SphereMeshObject(const Sphere &sphere, const vec4 &color):SimpleMeshObject(color){
-    scale(vec3(sphere.r));
+    setScale(vec3(sphere.r));
     translateGlobal(sphere.pos);
 }
 
