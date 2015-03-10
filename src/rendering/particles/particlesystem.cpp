@@ -7,10 +7,12 @@ ParticleSystem::ParticleSystem(unsigned int particle_count):particle_count(parti
 }
 
 void ParticleSystem::init(){
-    std::vector<Particle> particles(particle_count);
+    particles.resize(particle_count);
     for(Particle& p : particles){
-        p.position = glm::sphericalRand(3.0f);
+        p.position = glm::sphericalRand(15.0f);
         p.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
+        p.radius = 0.2f;
+
     }
 
     this->translateGlobal(vec3(0,8,0));
@@ -23,22 +25,21 @@ void ParticleSystem::createGlBuffer(){
     particleBuffer.setDrawMode(GL_POINTS);
 }
 
-void ParticleSystem::render(){
-
-//    glEnable(GL_BLEND);
-//    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+void ParticleSystem::render(Camera *cam){
 
 
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
     particleShader->bind();
-    bindUniforms();
-    glPointSize(5.0f);
+
+    particleShader->uploadAll(model,cam->view,cam->proj);
+
     particleBuffer.bindAndDraw();
     particleShader->unbind();
-    glDepthMask(GL_TRUE);
 
-    glDisable(GL_BLEND);
+}
+
+void ParticleSystem::bindUniforms()
+{
+
 }
 
 

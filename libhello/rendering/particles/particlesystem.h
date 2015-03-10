@@ -8,7 +8,7 @@
 #include "libhello/opengl/vertexBuffer.h"
 
 #include "libhello/rendering/object3d.h"
-
+#include "libhello/camera/camera.h"
 
 class ParticleSystem : public Object3D
 {
@@ -22,8 +22,9 @@ public:
     ParticleSystem(unsigned int particle_count=0);
 
     virtual void init();
-    void render();
-    virtual void bindUniforms() = 0;
+
+    void render(Camera* cam);
+    virtual void bindUniforms();
 
     void createGlBuffer();
 
