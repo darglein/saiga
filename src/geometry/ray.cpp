@@ -116,7 +116,8 @@ bool Ray::intersectPlane(const Plane &p, float &t) const
 #define EPSILON 0.000001
 
     float denom = glm::dot(p.normal, direction);
-    if (abs(denom) > EPSILON)
+
+    if (glm::abs(denom) > EPSILON)
     {
         t = glm::dot(p.point - origin, p.normal) / denom;
         if (t >= 0){
