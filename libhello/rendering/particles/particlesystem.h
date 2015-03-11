@@ -17,18 +17,25 @@ public:
     VertexBuffer<Particle> particleBuffer;
 
     std::vector<Particle> particles;
-    unsigned int particle_count;
+    unsigned int particleCount;
+    unsigned int nextParticle = 0;
+    unsigned int saveParticle = 0;
+    bool uploadDataNextUpdate = false;
+    int tick = 0;
+    float timestep = 1.0f/60.0f;
 public:
-    ParticleSystem(unsigned int particle_count=0);
+    ParticleSystem(unsigned int particleCount=0);
 
     virtual void init();
 
-    void render(Camera* cam);
-    virtual void bindUniforms();
-
-    void createGlBuffer();
+    void update();
+    void render(Camera* cam, float interpolation);
 
 
+
+    void addParticle(Particle &p);
+    void updateParticleBuffer();
+    void flush();
 };
 
 
