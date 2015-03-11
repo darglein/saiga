@@ -12,8 +12,9 @@ public:
 
     vec4 color = vec4(1);
     float radius=1;
+    float lifetime = 0;
     int start = 0;
-    int lifetime = 0;
+
     Particle();
 }/*__attribute__((packed))*/;
 

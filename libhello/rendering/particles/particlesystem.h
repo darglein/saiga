@@ -1,6 +1,6 @@
 #pragma once
 
-#include "glm/gtc/random.hpp"
+
 
 #include "libhello/rendering/particles/particle.h"
 #include "libhello/rendering/particles/particle_shader.h"
@@ -22,7 +22,10 @@ public:
     unsigned int saveParticle = 0;
     bool uploadDataNextUpdate = false;
     int tick = 0;
-    float timestep = 1.0f/60.0f;
+
+    static float secondsPerTick;
+     static float ticksPerSecond;
+
 public:
     ParticleSystem(unsigned int particleCount=0);
 

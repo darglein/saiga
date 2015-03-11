@@ -1,6 +1,7 @@
 #include "rendering/particles/particleEmitter.h"
 
-float ParticleEmitter::tickRate = 1.0f/60.0f;
+
+
 
 ParticleEmitter::ParticleEmitter(ParticleSystem &particles) : particles(particles)
 {
@@ -14,7 +15,15 @@ void ParticleEmitter::setParticlesPerTick(float c)
 
 void ParticleEmitter::setParticlesPerSecond(float c)
 {
-    particlesPerTick = c * ParticleEmitter::tickRate;
+    particlesPerTick = c * ParticleSystem::secondsPerTick;
+}
+
+void ParticleEmitter::setLifetimeTicks(float c){
+    lifetime = c;
+}
+
+void ParticleEmitter::setLifetimeSeconds(float c){
+    lifetime = c * ParticleSystem::ticksPerSecond;
 }
 
 void ParticleEmitter::update()
@@ -56,4 +65,24 @@ void SphericalParticleEmitter::spawnParticles(int count)
 
 }
 
+
+ConaParticleEmitter::ConaParticleEmitter(ParticleSystem &particles) : ParticleEmitter(particles)
+{
+
+}
+
+void ConaParticleEmitter::spawnParticles(int count)
+{
+
+    for(int i=0;i<count;++i){
+        Particle p;
+        p.position = vec3(this->getPosition());
+        p.velocity = sampleCone(coneDirection,glm::radians(coneAngle));
+        p.color = color;
+        p.radius = radius;
+        p.lifetime = lifetime;
+        particles.addParticle(p);
+    }
+
+}
 

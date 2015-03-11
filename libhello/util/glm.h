@@ -1,5 +1,4 @@
-#ifndef GLM_H
-#define GLM_H
+#pragma once
 
 #include <string>
 #include <iostream>
@@ -10,6 +9,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/random.hpp>
 
 using std::ostream;
 
@@ -35,4 +35,10 @@ std::ostream& operator<<(std::ostream& os, const glm::dmat4& v);
 
 std::ostream& operator<<(std::ostream& os, const quat& v);
 
-#endif // GLM_H
+//returns quaternion that rotates v1 to v2
+quat getRotation(const vec3& v1, const vec3& v2);
+
+
+vec3 sampleCone(const vec3& dir, float angle);
+//samples cone along the z axis
+vec3 sampleUnitCone(float angle);

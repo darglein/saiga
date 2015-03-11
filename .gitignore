@@ -5,3 +5,5 @@ reconf.sh
 test.sh
 gl_lib.*
 createFileList.sh
+conf.sh
+makeinstall.sh

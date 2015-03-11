@@ -9,7 +9,13 @@ protected:
 
 public:
 
-    static float tickRate;
+    float velocity = 1.0f;
+    vec4 color = vec4(1);
+    float radius = 0.3f;
+    float lifetime = 150;
+
+
+
 
     float particlesPerTick = 0.5f;
 
@@ -20,6 +26,10 @@ public:
 
     void setParticlesPerTick(float c);
     void setParticlesPerSecond(float c);
+
+    void setLifetimeTicks(float c);
+    void setLifetimeSeconds(float c);
+
 private:
     float time = 0.0f;
 };
@@ -27,16 +37,15 @@ private:
 
 class SphericalParticleEmitter : public ParticleEmitter{
 public:
-
-    float velocity = 1.0f;
-    vec4 color = vec4(1);
-    float radius = 0.3f;
-    int lifetime = 150;
-
     SphericalParticleEmitter(ParticleSystem& particles);
-
-
-
     void spawnParticles(int count) override;
+};
 
+
+class ConaParticleEmitter : public ParticleEmitter{
+public:
+    vec3 coneDirection = vec3(0,1,0);
+    float coneAngle = 45.0f; //in degrees
+    ConaParticleEmitter(ParticleSystem& particles);
+    void spawnParticles(int count) override;
 };

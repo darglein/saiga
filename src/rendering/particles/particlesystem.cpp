@@ -1,5 +1,7 @@
 #include "rendering/particles/particlesystem.h"
 
+float ParticleSystem::ticksPerSecond = 60.0f;
+float ParticleSystem::secondsPerTick = 1.0f/60.0f;
 
 ParticleSystem::ParticleSystem(unsigned int particleCount):particleCount(particleCount)
 {
@@ -44,7 +46,7 @@ void ParticleSystem::render(Camera *cam, float interpolation){
     particleShader->uploadAll(model,cam->view,cam->proj);
 
     particleShader->uploadTiming(tick,interpolation);
-    particleShader->uploadTimestep(timestep);
+    particleShader->uploadTimestep(secondsPerTick);
     particleBuffer.bindAndDraw();
     particleShader->unbind();
 
