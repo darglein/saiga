@@ -3,7 +3,7 @@
 #include <libhello/util/glm.h>
 #include <vector>
 
-
+#include <map>
 
 class AnimationNode{
 public:
@@ -35,6 +35,7 @@ class AnimationFrame
 public:
     int nodeCount = 0;
     std::vector<AnimationNode*> nodes;
+    std::map<std::string,int> nodeindexMap;
     AnimationNode rootNode;
 
     int bones;

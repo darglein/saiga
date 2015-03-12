@@ -30,7 +30,9 @@ void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, Animati
     }
 
 
-    out.calculateFromTree();
+
+
+//    out.calculateFromTree();
 
 }
 
