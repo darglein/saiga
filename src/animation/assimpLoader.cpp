@@ -86,41 +86,6 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
         cout<<">>loaded animation "<<out.name<<": "<<out.frameCount<<" frames"<<endl;
 }
 
-void AssimpLoader::transformmesh(const aiMesh *mesh, std::vector<mat4> &boneMatrices)
-{
-    aiMatrix4x4 skin4;
-
-
-    //    boneMatrices.resize(mesh->mNumBones);
-
-    for (unsigned int k = 0; k < mesh->mNumBones; k++) {
-        aiBone *bone = mesh->mBones[k];
-        aiNode *node = findnode(scene->mRootNode, bone->mName.data);
-
-        transformnode(&skin4, node);
-
-
-
-        std::string str(bone->mName.data);
-
-        AnimationNode* an = nodeMap[str];
-
-        cout<<"test"<<endl;
-        cout<<an->transformedMatrix<<endl<<convert(skin4)<<endl;
-
-        aiMultiplyMatrix4(&skin4, &bone->mOffsetMatrix);
-
-
-        int index = boneMap[str];
-        boneMatrices[index] = convert(skin4);
-
-        //        cout<<"transform matrix "<<index<<endl;
-
-
-    }
-
-}
-
 
 void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames)
 {
@@ -179,69 +144,6 @@ void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::v
     }
 }
 
-void AssimpLoader::createFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames)
-{
-    aiVectorKey *p0, *p1, *s0, *s1;
-    aiQuatKey *r0, *r1;
-    aiVector3D p, s;
-    aiQuaternion r;
-
-
-    int up = 20;
-    int frames = (animationlength(anim)-1) * up + 1 ;
-    float delta = 1.0f/up;
-
-    //    frames = animationlength(anim);
-    //    delta = 1.0f;
-
-    animationFrames.resize(frames);
-
-    float tick =0;
-
-    for(int j=0;j<frames;++j){
-
-        int frame = floor(tick);
-        float t = tick - floor(tick);
-
-
-        for (unsigned int i = 0; i < anim->mNumChannels; i++) {
-            aiNodeAnim *chan = anim->mChannels[i];
-            aiNode *node = findnode(scene->mRootNode, chan->mNodeName.data);
-            p0 = chan->mPositionKeys + (frame+0) % chan->mNumPositionKeys;
-            p1 = chan->mPositionKeys + (frame+1) % chan->mNumPositionKeys;
-            r0 = chan->mRotationKeys + (frame+0) % chan->mNumRotationKeys;
-            r1 = chan->mRotationKeys + (frame+1) % chan->mNumRotationKeys;
-            s0 = chan->mScalingKeys + (frame+0) % chan->mNumScalingKeys;
-            s1 = chan->mScalingKeys + (frame+1) % chan->mNumScalingKeys;
-
-
-            p = p0->mValue*(1.0f-t) + p1->mValue*t;
-            aiQuaternion::Interpolate(r, r0->mValue, r1->mValue, t);
-            s = s0->mValue*(1.0f-t) + s1->mValue*t;
-
-            composematrix(&node->mTransformation, &p, &r, &s);
-
-
-        }
-
-        std::vector<mat4> boneMatrices;
-        boneMatrices.resize(boneCount);
-        //        transformmesh(mesh,boneMatrices);
-        for(unsigned int m =0;m<scene->mNumMeshes;++m){
-            const aiMesh *mesh = scene->mMeshes[m];
-            transformmesh(mesh,boneMatrices);
-            //                    cout<<">>"<<endl;
-        }
-
-        //                cout<<"============================================================"<<endl;
-
-
-        //        k.setBoneDeformation(boneMatrices);
-
-        tick += delta;
-    }
-}
-
 
 //========================= Assimp helper functions ==================================
 
@@ -296,7 +198,7 @@ int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
     }else{
         an.boneIndex = -1;
     }
-
+    nodeindexMap[str] = index;
     an.index = index;
     an.matrix = convert(node->mTransformation);
     an.name =str;

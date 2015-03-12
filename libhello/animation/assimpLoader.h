@@ -42,6 +42,7 @@ public:
 
     int nodeCount = 0;
     std::map<std::string,AnimationNode*> nodeMap;
+    std::map<std::string,int> nodeindexMap;
 
     AnimationNode rootNode;
 public:
