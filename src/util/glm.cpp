@@ -77,3 +77,21 @@ vec3 sampleUnitCone(float angle){
 
     return vec3(x, y, z);
 }
+
+
+glm::vec3 snapTo(glm::vec3 v, float snapAngleInDegrees)
+{
+    vec3 snapAxis = vec3(1,0,0);
+    float angle = glm::degrees(acos(glm::dot(v, snapAxis)));
+    if (angle < snapAngle / 2.0f) // Cannot do cross product
+        return snapAxis * glm::length(v); // with angles 0 & 180
+    if (angle > 180.0f - snapAngle / 2.0f)
+        return  -snapAxis* glm::length(v);
+    float t = glm::round(angle / snapAngle);
+
+    float deltaAngle = (t * snapAngle) - angle;
+
+    vec3 axis = glm::cross(snapAxis, v);
+    mat4 rot = glm::rotate(mat4(),glm::radians(deltaAngle),axis);
+    return vec3(rot * vec4(v,1));
+}

@@ -139,7 +139,7 @@ void VertexBuffer<vertex_t>::setDrawMode(int draw_mode){
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices){
-    set(&vertices[0],vertices.size());
+    set(&vertices[0],(int)vertices.size());
 }
 
 template<class vertex_t>

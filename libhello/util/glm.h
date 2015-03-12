@@ -18,6 +18,8 @@ using glm::vec3;
 using glm::vec4;
 using glm::vec2;
 using glm::quat;
+using std::cout;
+using std::endl;
 #define degreesToRadians(x) x*(3.141592f/180.0f)
 
 
@@ -42,3 +44,5 @@ quat getRotation(const vec3& v1, const vec3& v2);
 vec3 sampleCone(const vec3& dir, float angle);
 //samples cone along the z axis
 vec3 sampleUnitCone(float angle);
+
+vec3 snapTo(vec3 v, float snapAngleInDegrees);
