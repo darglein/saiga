@@ -1,3 +1,5 @@
+#pragma once
+
 #include "libhello/rendering/object3d.h"
 #include "libhello/rendering/particles/particlesystem.h"
 
