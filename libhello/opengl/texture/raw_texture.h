@@ -34,6 +34,8 @@ public:
     virtual void uploadData(GLubyte* data);
 
     void uploadSubImage(int x, int y, int width, int height,GLubyte* data );
+    //only works for 3d textures!!
+    void uploadSubImage(int x, int y, int z, int width, int height, int depth, GLubyte *data);
 
     virtual void bind();
     virtual void bind(int location);
@@ -57,6 +59,7 @@ public:
     int colorChannels();
 
     void setFormat(const Image &img);
+
 
 
 };

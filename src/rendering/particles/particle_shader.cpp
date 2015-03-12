@@ -4,7 +4,7 @@
 
 void ParticleShader::checkUniforms()
 {
-    MVPShader::checkUniforms();
+    MVPTextureShader::checkUniforms();
 
     location_timer = getUniformLocation("timer");
 

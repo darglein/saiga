@@ -9,10 +9,14 @@
 
 #include "libhello/rendering/object3d.h"
 #include "libhello/camera/camera.h"
+#include "libhello/opengl/texture/arrayTexture.h"
 
 class ParticleSystem : public Object3D
 {
 public:
+    Texture* texture;
+    ArrayTexture2D* arrayTexture;
+
     ParticleShader* particleShader;
     VertexBuffer<Particle> particleBuffer;
 

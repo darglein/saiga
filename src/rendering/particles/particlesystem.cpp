@@ -44,6 +44,7 @@ void ParticleSystem::render(Camera *cam, float interpolation){
     particleShader->bind();
 
     particleShader->uploadAll(model,cam->view,cam->proj);
+    particleShader->uploadTexture(arrayTexture);
 
     particleShader->uploadTiming(tick,interpolation);
     particleShader->uploadTimestep(secondsPerTick);
@@ -80,7 +81,7 @@ void ParticleSystem::updateParticleBuffer(){
 
         size = (nextParticle);
         offset = 0;
-        particleBuffer.updateVertexBuffer(&particles[saveParticle],size,offset);
+        particleBuffer.updateVertexBuffer(&particles[0],size,offset);
     }
 
     saveParticle = nextParticle;

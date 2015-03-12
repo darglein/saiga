@@ -4,11 +4,11 @@
 
 
 class ParticleEffect : public Object3D{
-protected:
+public:
     float velocity = 1.0f;
     vec4 color = vec4(1);
     float radius = 0.1f;
-    float lifetime = 150;
+    float lifetime = 1.0f;
 public:
 
     virtual void apply(ParticleSystem& ps) = 0;

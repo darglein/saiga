@@ -3,8 +3,7 @@
 
 
 
-ParticleEmitter::ParticleEmitter(ParticleSystem &particles) : particles(particles)
-{
+ParticleEmitter::ParticleEmitter(){
 
 }
 
@@ -18,15 +17,8 @@ void ParticleEmitter::setParticlesPerSecond(float c)
     particlesPerTick = c * ParticleSystem::secondsPerTick;
 }
 
-void ParticleEmitter::setLifetimeTicks(float c){
-    lifetime = c;
-}
 
-void ParticleEmitter::setLifetimeSeconds(float c){
-    lifetime = c * ParticleSystem::ticksPerSecond;
-}
-
-void ParticleEmitter::update()
+void ParticleEmitter::apply(ParticleSystem& ps)
 {
     time += particlesPerTick;
 
@@ -37,20 +29,20 @@ void ParticleEmitter::update()
     }
 
     if(c>0){
-        spawnParticles(c);
-        particles.flush();
+        spawnParticles(c,ps);
+        ps.flush();
     }
 }
 
 
 
 
-SphericalParticleEmitter::SphericalParticleEmitter(ParticleSystem &particles) : ParticleEmitter(particles)
+SphericalParticleEmitter::SphericalParticleEmitter()
 {
 
 }
 
-void SphericalParticleEmitter::spawnParticles(int count)
+void SphericalParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
 {
 
     for(int i=0;i<count;++i){
@@ -60,18 +52,19 @@ void SphericalParticleEmitter::spawnParticles(int count)
         p.color = color;
         p.radius = radius;
         p.lifetime = lifetime;
-        particles.addParticle(p);
+        p.image = rand()%4;
+        ps.addParticle(p);
     }
 
 }
 
 
-ConaParticleEmitter::ConaParticleEmitter(ParticleSystem &particles) : ParticleEmitter(particles)
+ConaParticleEmitter::ConaParticleEmitter()
 {
 
 }
 
-void ConaParticleEmitter::spawnParticles(int count)
+void ConaParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
 {
 
     for(int i=0;i<count;++i){
@@ -81,7 +74,8 @@ void ConaParticleEmitter::spawnParticles(int count)
         p.color = color;
         p.radius = radius;
         p.lifetime = lifetime;
-        particles.addParticle(p);
+        p.image = 4;
+        ps.addParticle(p);
     }
 
 }

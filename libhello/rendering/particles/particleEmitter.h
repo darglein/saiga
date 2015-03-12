@@ -1,34 +1,23 @@
 #pragma once
 
-#include "libhello/rendering/particles/particlesystem.h"
+#include "libhello/rendering/particles/particleEffect.h"
 #include "libhello/rendering/object3d.h"
 
-class ParticleEmitter : public Object3D{
-protected:
-    ParticleSystem& particles;
+class ParticleEmitter : public ParticleEffect{
 
 public:
-
-    float velocity = 1.0f;
-    vec4 color = vec4(1);
-    float radius = 0.3f;
-    float lifetime = 150;
-
-
 
 
     float particlesPerTick = 0.5f;
 
-    ParticleEmitter(ParticleSystem& particles);
+    ParticleEmitter();
 
-    void update();
-    virtual void spawnParticles(int count) = 0;
+    virtual void apply(ParticleSystem& ps);
+    virtual void spawnParticles(int count, ParticleSystem& ps) = 0;
 
     void setParticlesPerTick(float c);
     void setParticlesPerSecond(float c);
 
-    void setLifetimeTicks(float c);
-    void setLifetimeSeconds(float c);
 
 private:
     float time = 0.0f;
@@ -37,8 +26,8 @@ private:
 
 class SphericalParticleEmitter : public ParticleEmitter{
 public:
-    SphericalParticleEmitter(ParticleSystem& particles);
-    void spawnParticles(int count) override;
+    SphericalParticleEmitter();
+    void spawnParticles(int count, ParticleSystem& ps) override;
 };
 
 
@@ -46,6 +35,6 @@ class ConaParticleEmitter : public ParticleEmitter{
 public:
     vec3 coneDirection = vec3(0,1,0);
     float coneAngle = 45.0f; //in degrees
-    ConaParticleEmitter(ParticleSystem& particles);
-    void spawnParticles(int count) override;
+    ConaParticleEmitter();
+    void spawnParticles(int count, ParticleSystem& ps) override;
 };

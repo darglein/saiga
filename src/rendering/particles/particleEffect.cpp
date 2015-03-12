@@ -9,6 +9,7 @@ void ImpactParticleEffect::apply(ParticleSystem &ps)
         p.color = color;
         p.radius = radius;
         p.lifetime = lifetime;
+        p.image = rand()%4;
         ps.addParticle(p);
     }
     ps.flush();

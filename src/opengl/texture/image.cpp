@@ -215,7 +215,11 @@ void Image::createSubImage(int x, int y, int w, int h, Image &out){
     out.create();
 
     int rowsize = bytesPerPixel()*w;
-    for(int i=y;i<y+h;i++){//rows
+//    for(int i=y;i<y+h;i++){//rows
+//        memcpy(out.data+rowsize*i,data+position(x,y+i),rowsize);
+//    }
+
+    for(int i=0;i<h;i++){//rows
         memcpy(out.data+rowsize*i,data+position(x,y+i),rowsize);
     }
 

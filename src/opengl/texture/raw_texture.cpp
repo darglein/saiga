@@ -69,6 +69,12 @@ void raw_Texture::uploadSubImage(int x, int y, int width, int height,GLubyte* da
     unbind();
 }
 
+void raw_Texture::uploadSubImage(int x, int y, int z, int width, int height , int depth, GLubyte* data ){
+    bind();
+    glTexSubImage3D(target, 0, x, y, z,width, height,depth, color_type, data_type, data);
+    unbind();
+}
+
 bool raw_Texture::downloadFromGl(GLubyte* data ){
     if(id==0){
         return false;
@@ -111,6 +117,39 @@ void raw_Texture::setFiltering(GLint param){
     unbind();
 }
 
+
+int glinternalFormat(int channels, int depth){
+    int coffset = channels -1;
+    int doffset = 0;
+    switch(depth){
+    case 8:
+        doffset = 0;
+        break;
+    case 16:
+        doffset = 1;
+        break;
+    case 32:
+        doffset = 2;
+        break;
+    default:
+        std::cout<<"Bit depth not supported: "<<depth<<std::endl;
+        std::cout<<"Supported bit depths: 8,16,32"<<std::endl;
+        return 0;
+    }
+
+    static const int iformats[4][3] {
+        {GL_R8,GL_R16,GL_R32I}, //1 channel
+        {GL_RG8,GL_RG16,GL_RG32I}, //2 channels
+        {GL_RGB8,GL_RGB16,GL_RGB32I}, //3 channels
+        {GL_RGBA8,GL_RGBA16,GL_RGBA32I} //4 channels
+    };
+
+    return iformats[coffset][doffset];
+
+
+
+}
+
 void raw_Texture::specify(int channel_depth,int channels){
     switch(channel_depth){
     case 8:
@@ -142,10 +181,9 @@ void raw_Texture::specify(int channel_depth,int channels){
     default:
         std::cout<<"Channels not supported: "<<channels<<std::endl;
     }
-    internal_format = color_type;
-
-
+    internal_format = glinternalFormat(channels,channel_depth);
 }
+
 
 //============= Required state: SPECIFIED =============
 

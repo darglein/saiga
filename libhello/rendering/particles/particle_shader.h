@@ -2,11 +2,11 @@
 
 #include "libhello/opengl/basic_shaders.h"
 
-class ParticleShader : public MVPShader {
+class ParticleShader : public MVPTextureShader {
 public:
      GLuint location_timer, location_timestep, location_interpolation;
 
-    ParticleShader(const string &multi_file) : MVPShader(multi_file){}
+    ParticleShader(const string &multi_file) : MVPTextureShader(multi_file){}
 
     virtual void checkUniforms();
 
