@@ -40,7 +40,7 @@ void TextGenerator::createTextureAtlas(){
         }
 
         w += g->bitmap.width+charOffset;
-        h = std::max(h, g->bitmap.rows);
+        h = std::max(h, (int)g->bitmap.rows);
 
     }
 
