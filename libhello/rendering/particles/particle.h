@@ -10,7 +10,7 @@ public:
     vec3 position = vec3(0);
     vec3 velocity = vec3(0,0,0);
 
-    vec4 color = vec4(1);
+//    vec4 color = vec4(1);
     float radius=1;
     float lifetime = 0;
     int start = 0;

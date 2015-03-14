@@ -83,13 +83,13 @@ glm::vec3 snapTo(glm::vec3 v, float snapAngleInDegrees)
 {
     vec3 snapAxis = vec3(1,0,0);
     float angle = glm::degrees(acos(glm::dot(v, snapAxis)));
-    if (angle < snapAngle / 2.0f) // Cannot do cross product
+    if (angle < snapAngleInDegrees / 2.0f) // Cannot do cross product
         return snapAxis * glm::length(v); // with angles 0 & 180
-    if (angle > 180.0f - snapAngle / 2.0f)
+    if (angle > 180.0f - snapAngleInDegrees / 2.0f)
         return  -snapAxis* glm::length(v);
-    float t = glm::round(angle / snapAngle);
+    float t = glm::round(angle / snapAngleInDegrees);
 
-    float deltaAngle = (t * snapAngle) - angle;
+    float deltaAngle = (t * snapAngleInDegrees) - angle;
 
     vec3 axis = glm::cross(snapAxis, v);
     mat4 rot = glm::rotate(mat4(),glm::radians(deltaAngle),axis);
