@@ -1,6 +1,5 @@
 #pragma once
 #include "libhello/util/glm.h"
-#include "libhello/opengl/vertex.h"
 class Plane
 {
 public:

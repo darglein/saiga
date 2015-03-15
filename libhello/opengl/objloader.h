@@ -1,10 +1,8 @@
-#ifndef OBJLOADER_H
-#define OBJLOADER_H
+#pragma once
 
 #include <vector>
-#include <fstream>
-#include <iostream>
-#include <string.h>
+#include <string>
+
 #include "libhello/opengl/vertex.h"
 #include "libhello/opengl/vertexBuffer.h"
 #include "libhello/opengl/mesh.h"
@@ -68,4 +66,3 @@ public:
     material_mesh_t* loadFromFile(const string &name);
 };
 
-#endif // OBJLOADER_H

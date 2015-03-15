@@ -1,8 +1,7 @@
-#ifndef CAMERA_H
-#define CAMERA_H
+#pragma once
 
-#include "libhello/util/glm.h"
-#include "libhello/rendering/object3d.h"
+#include <libhello/util/glm.h>
+#include <libhello/rendering/object3d.h>
 
 #include <string>
 #include <iostream>
@@ -71,4 +70,3 @@ public:
 
 };
 
-#endif // CAMERA_H

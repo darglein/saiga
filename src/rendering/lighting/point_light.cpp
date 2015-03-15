@@ -1,5 +1,5 @@
 #include "libhello/rendering/lighting/point_light.h"
-
+#include "libhello/util/error.h"
 void PointLightShader::checkUniforms(){
     LightShader::checkUniforms();
     location_position = getUniformLocation("position");

@@ -2,6 +2,10 @@
 
 #include "libhello/opengl/shader.h"
 
+#include "libhello/opengl/vertex.h"
+#include "libhello/rendering/material.h"
+
+class Framebuffer;
 
 class MVPShader : public Shader{
 public:

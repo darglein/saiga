@@ -1,14 +1,14 @@
-#ifndef FRAMEBUFFER_H
-#define FRAMEBUFFER_H
+#pragma once
 
 
 #include <GL/glew.h>
 #include <GL/glu.h>
 
 #include <iostream>
+#include <vector>
+
 
 #include "libhello/opengl/texture/texture.h"
-#include "libhello/util/error.h"
 
 class Framebuffer{
 public:
@@ -37,4 +37,3 @@ public:
     void blitColor(int otherId);
 };
 
-#endif // FRAMEBUFFER_H

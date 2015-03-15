@@ -1,9 +1,11 @@
 #pragma once
 
 #include "libhello/util/glm.h"
-#include "libhello/opengl/shader.h"
-#include "libhello/text/text.h"
+
 #include <vector>
+
+class TextShader;
+class Text;
 
 class Overlay {
 public:

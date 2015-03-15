@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libhello/opengl/texture/raw_texture.h"
+#include "libhello/util/loader.h"
 
 class basic_Texture_2D : public raw_Texture{
 public:

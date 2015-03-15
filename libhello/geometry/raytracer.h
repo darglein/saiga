@@ -4,6 +4,8 @@
 #include "libhello/geometry/ray.h"
 #include "libhello/geometry/triangle.h"
 
+#include <vector>
+
 using glm::min;
 using glm::max;
 

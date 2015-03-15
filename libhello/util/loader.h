@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 
+#include <vector>
 template <typename T>
 class Loader{
 protected:

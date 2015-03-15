@@ -1,13 +1,6 @@
 #pragma once
 
-#include <libhello/opengl/vertexBuffer.h>
-#include <libhello/opengl/shader.h>
-#include <libhello/geometry/triangle_mesh.h>
-#include <libhello/rendering/object3d.h>
-#include <libhello/opengl/mesh.h>
-#include <libhello/opengl/mesh_object.h>
-#include <functional>
-
+#include <libhello/opengl/basic_shaders.h>
 
 
 

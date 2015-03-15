@@ -1,4 +1,6 @@
 #include "rendering/overlay/overlay.h"
+#include "libhello/opengl/shader.h"
+#include "libhello/text/text.h"
 
 Overlay::Overlay(int width, int height):width(width),height(height){
     proj = glm::ortho(0.0f,(float)width,0.0f,(float)height,1.0f,-1.0f);

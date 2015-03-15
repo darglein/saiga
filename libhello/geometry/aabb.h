@@ -1,10 +1,7 @@
 #pragma once
 
-#include "libhello/util/glm.h"
-#include "libhello/opengl/vertex.h"
+#include <libhello/util/glm.h>
 
-#include <vector>
-#include <glm/gtc/epsilon.hpp>
 
 class aabb
 {

@@ -10,9 +10,10 @@
 #include <string>
 #include <iostream>
 #include <memory>
-#include "libhello/util/loader.h"
-#include "libhello/util/error.h"
-#include "libhello/util/png_wrapper.h"
+
+//#include "libhello/util/loader.h"
+//#include "libhello/util/error.h"
+//#include "libhello/util/png_wrapper.h"
 
 #include <FreeImagePlus.h>
 

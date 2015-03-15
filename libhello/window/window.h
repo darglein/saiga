@@ -1,13 +1,11 @@
 #pragma once
 
-#include <stdio.h>
 #include <string>
 
-#include "libhello/opengl/shader.h"
 #include "libhello/opengl/objloader.h"
-#include "libhello/rendering/material.h"
-#include "libhello/rendering/deferred_renderer.h"
-#include "libhello/camera/camera.h"
+
+class Camera;
+class Deferred_Renderer;
 
 class Window{
 protected:

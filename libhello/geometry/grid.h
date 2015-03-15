@@ -1,9 +1,12 @@
 #pragma once
-#include <vector>
+
 #include "libhello/opengl/vertex.h"
 #include "libhello/opengl/vertexBuffer.h"
 #include "libhello/util/glm.h"
 #include "libhello/geometry/plane.h"
+
+#include <vector>
+
 class Grid : public Plane
 {
 public:

@@ -48,10 +48,11 @@ void SphericalParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
     for(int i=0;i<count;++i){
         Particle p;
         p.position = vec3(this->getPosition());
-        p.velocity = glm::sphericalRand(velocity);
+        p.velocity = vec4(glm::sphericalRand(1.0f),velocity);
         p.radius = radius;
         p.lifetime = lifetime;
         p.image = rand()%4;
+        p.scale = 1.0f;
         ps.addParticle(p);
     }
 
@@ -69,7 +70,7 @@ void ConaParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
     for(int i=0;i<count;++i){
         Particle p;
         p.position = vec3(this->getPosition());
-        p.velocity = sampleCone(coneDirection,glm::radians(coneAngle));
+        p.velocity = vec4(sampleCone(coneDirection,glm::radians(coneAngle)),velocity);
         p.radius = radius;
         p.lifetime = lifetime;
         p.image = 4;

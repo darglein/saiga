@@ -2,7 +2,7 @@
 #include "util/inputcontroller.h"
 
 #include "rendering/deferred_renderer.h"
-
+#include "libhello/util/error.h"
 
 
 DeferredLighting::DeferredLighting(Framebuffer &framebuffer):framebuffer(framebuffer){

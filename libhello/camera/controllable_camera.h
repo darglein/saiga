@@ -1,12 +1,8 @@
 #pragma once
 
-#include "libhello/sdl/listener.h"
-#include "libhello/util/glm.h"
+#include <libhello/util/glm.h>
+#include <libhello/glfw/glfw_eventhandler.h>
 
-#include "libhello/glfw/glfw_eventhandler.h"
-
-#include <SDL2/SDL.h>
-#include <iostream>
 
 
 template<typename camera_t>

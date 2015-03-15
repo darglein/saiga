@@ -1,5 +1,5 @@
 #include "rendering/deferred_renderer.h"
-
+#include "libhello/util/error.h"
 void PostProcessingShader::checkUniforms(){
     Shader::checkUniforms();
     location_texture = Shader::getUniformLocation("image");

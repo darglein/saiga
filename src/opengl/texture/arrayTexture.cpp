@@ -1,6 +1,6 @@
 
 #include "opengl/texture/arrayTexture.h"
-
+#include "libhello/util/error.h"
 void ArrayTexture2D::uploadData(GLenum target, GLubyte *data ){
     bind(0);
     glTexImage2D(target,

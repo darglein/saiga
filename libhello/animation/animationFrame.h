@@ -2,7 +2,6 @@
 
 #include <libhello/util/glm.h>
 #include <vector>
-
 #include <map>
 
 class AnimationNode{

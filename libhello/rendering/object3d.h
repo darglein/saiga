@@ -26,7 +26,7 @@ public:
     void getModelMatrix(mat4& model);
     void calculateModel();
 
-   vec4 getPosition(){return vec4(position,1);} //returns global position
+   vec3 getPosition(){return position;} //returns global position
     vec4 getDirection(){return rot*vec4(0,0,1,0);} //returns looking direction
     vec4 getRightVector(){return rot*vec4(1,0,0,0);}
     vec4 getUpVector(){return rot*vec4(0,1,0,0);}

@@ -267,7 +267,7 @@ bool LightingController::cursor_position_event(GLFWwindow* window, double xpos, 
         }
 
 
-        vec4 lp = light->getPosition();
+        vec4 lp = vec4(light->getPosition(),1);
         vec4 lpscreen = lighting.proj*lighting.view*lp;
         lpscreen = lpscreen/lpscreen.w;
         vec2 mousescreen = mouse/vec2(lighting.width,lighting.height);
@@ -288,7 +288,7 @@ bool LightingController::cursor_position_event(GLFWwindow* window, double xpos, 
         light->rotateGlobal(a,glm::degrees(angle));
     }
 
-//    light->calculateModel();
+    light->calculateModel();
 
 
     return false;
@@ -298,7 +298,6 @@ bool LightingController::mouse_button_event(GLFWwindow* window, int button, int 
     (void)window;(void)mods;
     if(!active || action!=GLFW_PRESS)
         return false;
-
 
     if(button==GLFW_MOUSE_BUTTON_1){
         if(state!=State::waiting)
@@ -318,7 +317,8 @@ Ray LightingController::createPixelRay(const vec2 &pixel){
     vec4 p = vec4(2*pixel.x/lighting.width-1.f,-(2*pixel.y/lighting.height-1.f),0,1.f);
     p = glm::inverse(lighting.proj)*p;
     p /= p.w;
-    vec4 der = lighting.inview*p;
+//    vec4 der = lighting.inview*p;
+    vec4 der = glm::inverse(lighting.view)*p;
     vec3 origin = vec3(glm::inverse(lighting.view)[3]);
     return Ray(glm::normalize(vec3(der)-origin),origin);
 }

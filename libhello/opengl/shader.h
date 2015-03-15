@@ -1,22 +1,14 @@
-#ifndef SHADER_H
-#define SHADER_H
+#pragma once
 
 #include <GL/glew.h>
 #include <GL/glu.h>
-#include <stdio.h>
-#include <string>
-#include <vector>
-#include <iostream>
-#include <fstream>
+
 
 #include "libhello/util/glm.h"
-#include "libhello/opengl/vertex.h"
-#include "libhello/rendering/material.h"
 #include "libhello/util/loader.h"
-#include "libhello/opengl/framebuffer.h"
 
 using std::cerr;
-
+using std::string;
 
 class Shader{
 public:
@@ -121,5 +113,3 @@ shader_t* ShaderLoader::loadFromFile(const std::string &name){
 }
 
 
-
-#endif // SHADER_H

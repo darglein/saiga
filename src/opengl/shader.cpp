@@ -1,5 +1,7 @@
 #include "opengl/shader.h"
 
+#include <fstream>
+
 #define STATUS_WAITING 0 //waiting for "start"
 #define STATUS_START 1 //found start + looking for type
 #define STATUS_READING 2 //found start + found type

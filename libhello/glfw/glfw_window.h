@@ -5,10 +5,7 @@
 
 #include <GLFW/glfw3.h>
 
-#include "libhello/sdl/sdl_eventhandler.h"
 #include "libhello/glfw/glfw_eventhandler.h"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
 
 
 class glfw_Window : public Window{
@@ -18,7 +15,6 @@ protected:
     bool initWindow();
     bool initInput();
 public:
-    SDL_EventHandler eventHandler;
 
     glfw_Window(const std::string &name,int window_width,int window_height);
     virtual ~glfw_Window(){}
