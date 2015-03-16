@@ -51,6 +51,7 @@ void SphericalParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
         p.velocity = vec4(glm::sphericalRand(1.0f),velocity);
         p.radius = radius;
         p.lifetime = lifetime;
+        p.fadetime = 0;
         p.image = rand()%4;
         p.scale = 1.0f;
         ps.addParticle(p);
@@ -74,6 +75,8 @@ void ConaParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
         p.radius = radius;
         p.lifetime = lifetime;
         p.image = 4;
+        p.force = vec3(0,-1,0);
+        p.orientation = Particle::VELOCITY;
         ps.addParticle(p);
     }
 

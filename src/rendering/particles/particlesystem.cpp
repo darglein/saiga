@@ -25,6 +25,7 @@ void ParticleSystem::init(){
 
 void ParticleSystem::update()
 {
+//    cout<<tick<<" ParticleSystem::update()"<<endl;
     tick++;
 
     if( uploadDataNextUpdate ){
@@ -35,7 +36,7 @@ void ParticleSystem::update()
 
 
 void ParticleSystem::render(Camera *cam, float interpolation){
-
+//    cout<<tick<<" ParticleSystem::renderr()"<<endl;
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -55,7 +56,7 @@ void ParticleSystem::render(Camera *cam, float interpolation){
 
 
 void ParticleSystem::addParticle(Particle &p){
-    p.start = tick;
+    p.start = tick+1;
 
 
     particles[nextParticle] = p;
@@ -64,7 +65,7 @@ void ParticleSystem::addParticle(Particle &p){
 }
 
 void ParticleSystem::updateParticleBuffer(){
-
+//    cout<<tick<<" ParticleSystem::updateParticleBuffer()"<<endl;
 
     if(nextParticle>saveParticle){
         int size = (nextParticle-saveParticle);
@@ -84,6 +85,8 @@ void ParticleSystem::updateParticleBuffer(){
     }
 
     saveParticle = nextParticle;
+
+
 
 }
 

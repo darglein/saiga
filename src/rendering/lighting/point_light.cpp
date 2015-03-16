@@ -89,7 +89,11 @@ void PointLight::calculateRadius(float cutoff){
     //    float c = attenuation.x-(getIntensity()/cutoff); //absolute
     float c = attenuation.x-(1.0f/cutoff); //relative
 
-    float x = (-b+sqrt(b*b-4.0f*a*c)) / (2.0f * a);
+    float x;
+    if(a==0)
+        x=-c/b;
+    else
+        x = (-b+sqrt(b*b-4.0f*a*c)) / (2.0f * a);
     setRadius(x);
 }
 

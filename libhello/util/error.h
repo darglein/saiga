@@ -1,5 +1,4 @@
-#ifndef ERROR_H
-#define ERROR_H
+#pragma once
 
 #include <iostream>
 #include <cstdlib>
@@ -110,4 +109,3 @@ public:
     }
 };
 
-#endif // ERROR_H

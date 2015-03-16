@@ -18,6 +18,7 @@ public:
     float radius=1;
     float lifetime = 0; //lifetime in seconds
     float scale = 0; //upscaling over time. increases the radius by 'scale' per second
+    float fadetime = 0; //time when fading begins. if(lifetime==fadetime) -> no fading at all
 
     int start = 0; //start tick
     int image = 0; //texture from texture array
