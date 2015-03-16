@@ -170,7 +170,7 @@ void PointLight::createShadowMap(int resX, int resY) {
 //    cout<<"PointLight::createShadowMap"<<endl;
 
     shadowmap.createCube(resX,resY);
-    this->cam.setProj(90.0f,1,1.0,400.0);
+    this->cam.setProj(90.0f,1,0.1f,50.0);
 }
 
 

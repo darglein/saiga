@@ -32,8 +32,8 @@ DirectionalLight::DirectionalLight():cam("Sun")
 
 void DirectionalLight::createShadowMap(int resX, int resY){
     Light::createShadowMap(resX,resY);
-    range = 40.0f;
-    cam.setProj(-range,range,-range,range,1.f,100.0f);
+    range = 20.0f;
+    cam.setProj(-range,range,-range,range,1.f,50.0f);
 
 }
 

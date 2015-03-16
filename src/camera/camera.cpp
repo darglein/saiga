@@ -11,6 +11,8 @@ void Camera::setView(const mat4_t &v){
     view=v;
     recalculateMatrices();
     model = glm::inverse(view);
+
+    this->position = vec3(model[3]);
 //    recalculatePlanes();
 
 }
