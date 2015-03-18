@@ -52,15 +52,28 @@ std::ostream& operator<<(std::ostream& os, const quat& v){
 
 quat getRotation(const vec3& v1, const vec3& v2){
     vec3 rotAxis = glm::cross(v1,v2);
+
+
+
     float rotAngle = glm::acos(glm::dot(v1,v2));
     return glm::rotate(quat(),rotAngle,rotAxis);
 
 }
 
 vec3 sampleCone(const glm::vec3 &dir, float angle){
+
     vec3 v = sampleUnitCone(angle);
 
-    vec4 test = getRotation(vec3(0,0,1),dir)*vec4(v,0);
+    vec3 cdir = vec3(0,0,1);
+
+    if(dir==cdir){
+        return v;
+    }else if(dir==-cdir){
+        return -v;
+    }
+
+
+    vec4 test = getRotation(cdir,dir)*vec4(v,0);
 
     return vec3(test);
 
