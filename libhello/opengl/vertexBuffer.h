@@ -21,7 +21,7 @@ class VertexBuffer{
 protected:
     int vertex_count;
     int draw_mode;
-    GLuint gl_vertex_buffer, gl_vao;
+    GLuint gl_vertex_buffer = 0, gl_vao = 0;
 
     /*
      *  Tells OpenGL how to handle the vertices.
@@ -147,6 +147,9 @@ void VertexBuffer<vertex_t>::set(vertex_t* vertices,int vertex_count){
     this->vertex_count = vertex_count;
 
 
+     deleteGLBuffers();
+
+
     //create VBO
     glGenBuffers( 1, &gl_vertex_buffer );
     glBindBuffer( GL_ARRAY_BUFFER, gl_vertex_buffer );
@@ -170,7 +173,7 @@ void VertexBuffer<vertex_t>::deleteGLBuffers(){
     glDeleteBuffers( 1, &gl_vertex_buffer );
     gl_vertex_buffer = 0;
     glDeleteVertexArrays(1, &gl_vao);
-   gl_vao = 0;
+    gl_vao = 0;
 
 }
 

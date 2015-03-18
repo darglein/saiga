@@ -13,7 +13,7 @@ class IndexBuffer{
 protected:
     int index_count;
 
-    GLuint gl_index_buffer;
+    GLuint gl_index_buffer = 0;
 public:
     IndexBuffer(){}
     ~IndexBuffer(){deleteGLBuffers();}

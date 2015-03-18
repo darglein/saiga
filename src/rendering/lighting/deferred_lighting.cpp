@@ -33,7 +33,7 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
 
     for(DirectionalLight* &light : directionalLights){
 
-        if(light->hasShadows()){
+        if(light->isActive() && light->hasShadows()){
             light->bindShadowMap();
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
@@ -42,7 +42,7 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
     }
 
     for(SpotLight* &light : spotLights){
-        if(light->hasShadows()){
+        if(light->isActive() && light->hasShadows()){
             light->calculateCamera();
             light->bindShadowMap();
             renderer->renderDepth(&light->cam);
@@ -53,7 +53,7 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
 
     for(PointLight* &light : pointLights){
 
-        if(light->hasShadows()){
+        if(light->isActive() && light->hasShadows()){
             for(int i=0;i<6;i++){
                 light->bindFace(i);
                 light->calculateCamera(i);
