@@ -9,12 +9,14 @@ class Particle
 public:
     enum Orientation{
         BILLBOARD = 0,
-        VELOCITY
+        VELOCITY,
+        FIXED
     };
 
     vec3 position = vec3(0);
     vec4 velocity = vec4(0); //normalized velocity x,y,z in worldspace. w is the scale factor
     vec3 force = vec3(0); //force on the particle. for example gravity
+    vec3 right = vec3(1,0,0); //still unused
     float radius=1;
     float lifetime = 0; //lifetime in seconds
     float scale = 0; //upscaling over time. increases the radius by 'scale' per second

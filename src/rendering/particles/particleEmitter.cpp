@@ -54,6 +54,9 @@ void SphericalParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
         p.fadetime = 0;
         p.image = rand()%4;
         p.scale = 1.0f;
+
+//        p.velocity = vec4(0,1,0,1);
+        p.orientation = Particle::BILLBOARD;
         ps.addParticle(p);
     }
 

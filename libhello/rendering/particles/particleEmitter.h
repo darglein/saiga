@@ -1,4 +1,4 @@
-#pragma once
+    #pragma once
 
 #include "libhello/rendering/particles/particleEffect.h"
 #include "libhello/rendering/object3d.h"
