@@ -23,6 +23,7 @@ bool glfw_Window::initWindow()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
+//    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(window_width, window_height, name.c_str(), NULL, NULL);
