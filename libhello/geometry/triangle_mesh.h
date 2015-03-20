@@ -239,7 +239,7 @@ void TriangleMesh<vertex_t,index_t>::toTriangleList(std::vector<Triangle> &outpu
 
 template<typename vertex_t, typename index_t>
  void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<vertex_t,index_t> &other){
-     int oldVertexCount = this->vertices.size();
+    int oldVertexCount = this->vertices.size();
     for(vertex_t v : other.vertices){
         this->vertices.push_back(v);
     }

@@ -14,7 +14,6 @@
 class ParticleSystem : public Object3D
 {
 public:
-    Texture* texture;
     ArrayTexture2D* arrayTexture;
 
     ParticleShader* particleShader;
