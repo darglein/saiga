@@ -36,6 +36,9 @@ public:
     PointLight& operator=(const PointLight& light);
     void setAttenuation(float c, float l , float q);
     void setSimpleAttenuation(float d, float cutoff=(1./256.));
+
+    void setLinearAttenuation(float r, float drop);
+
     void calculateRadius(float cutoff=(1./256.));
 
     virtual void bindUniforms(PointLightShader& shader, Camera *cam);
@@ -57,4 +60,5 @@ public:
 //    void drawRaw();
 
 
+    float getAttenuation(float r);
 };
