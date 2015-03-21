@@ -1,12 +1,13 @@
 #include "glfw/glfw_eventhandler.h"
 
+#include <iostream>
 
 std::vector<glfw_EventHandler::Listener<glfw_KeyListener>> glfw_EventHandler::keyListener;
 std::vector<glfw_EventHandler::Listener<glfw_MouseListener>> glfw_EventHandler::mouseListener;
 
 
 void glfw_EventHandler::addKeyListener(glfw_KeyListener* kl,int priority){
-//    keyListener.push_back(Listener<glfw_KeyListener>(kl,priority));
+    //    keyListener.push_back(Listener<glfw_KeyListener>(kl,priority));
 
     auto iter=keyListener.begin();
     for(;iter!=keyListener.end();++iter){
@@ -14,9 +15,11 @@ void glfw_EventHandler::addKeyListener(glfw_KeyListener* kl,int priority){
             break;
     }
     keyListener.insert(iter,Listener<glfw_KeyListener>(kl,priority));
+
+//    std::cout<<"add "<<keyListener.size()<<" "<<priority<<std::endl;
 }
 void glfw_EventHandler::addMouseListener(glfw_MouseListener* ml,int priority){
-//    mouseListener.push_back(Listener<glfw_MouseListener>(ml,priority));
+    //    mouseListener.push_back(Listener<glfw_MouseListener>(ml,priority));
 
     auto iter=mouseListener.begin();
     for(;iter!=mouseListener.end();++iter){
@@ -30,20 +33,24 @@ void glfw_EventHandler::removeKeyListener(glfw_KeyListener *kl, int priority)
 {
     auto it=keyListener.begin();
     for(;it!=keyListener.end();++it){
-        if(it->listener==kl)
-            break;
+        if(it->listener==kl){
+            keyListener.erase(it);
+            return;
+        }
     }
-    keyListener.erase(it);
+
 }
 
 void glfw_EventHandler::removeMouseListener(glfw_MouseListener *ml, int priority)
 {
     auto it=mouseListener.begin();
     for(;it!=mouseListener.end();++it){
-        if(it->listener==ml)
-            break;
+        if(it->listener==ml){
+            mouseListener.erase(it);
+            return;
+        }
     }
-    mouseListener.erase(it);
+
 }
 
 void glfw_EventHandler::cursor_position_callback(GLFWwindow* window, double xpos, double ypos){
@@ -66,15 +73,17 @@ void glfw_EventHandler::scroll_callback(GLFWwindow* window, double xoffset, doub
     //forward event to all listeners
     for(auto &ml : mouseListener){
         if(ml.listener->scroll_event(window,xoffset,yoffset))
-                return;
+            return;
     }
 }
 
 void glfw_EventHandler::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods){
     //forward event to all listeners
+//    std::cout<<"keyy callback"<<std::endl;
     for(auto &kl : keyListener){
+//        std::cout<<"key event "<<action<<" "<<kl.priority<<std::endl;
         if(kl.listener->key_event(window,key,scancode,action,mods))
-           return;
+            return;
     }
 }
 
@@ -82,6 +91,6 @@ void glfw_EventHandler::character_callback(GLFWwindow* window, unsigned int code
     //forward event to all listeners
     for(auto &kl : keyListener){
         if(kl.listener->character_event(window,codepoint))
-           return;
+            return;
     }
 }

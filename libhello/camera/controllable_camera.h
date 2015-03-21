@@ -18,7 +18,8 @@ public:
     float movementSpeed = 1;
     float rotationSpeed = 1;
     Controllable_Camera(camera_t* cam):cam(cam){
-        glfw_EventHandler::addKeyListener(this);glfw_EventHandler::addMouseListener(this);
+        glfw_EventHandler::addKeyListener(this,0);
+        glfw_EventHandler::addMouseListener(this,0);
     }
     void update(float delta);
     void predictInterpolate(float interpolation);
