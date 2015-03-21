@@ -31,7 +31,9 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
 
     Texture* ppsrc = new Texture();
 //    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
-    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
+//    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
+     ppsrc->createEmptyTexture(w,h,GL_RGB,GL_RGB16,GL_UNSIGNED_SHORT);
+//     ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_RGBA32F,GL_FLOAT);
     mix_framebuffer.attachTexture(ppsrc);
 
     glDrawBuffer( GL_COLOR_ATTACHMENT0);
