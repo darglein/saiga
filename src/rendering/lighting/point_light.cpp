@@ -83,6 +83,31 @@ void PointLight::setSimpleAttenuation(float d, float cutoff){
 
 }
 
+void PointLight::setLinearAttenuation(float r, float drop)
+{
+    float i = 1;
+    this->setIntensity(i);
+
+
+    float cutoff = 1-drop;
+    float l = (i/cutoff-1)/r;
+
+    setAttenuation(vec3(1,l,0));
+
+    setRadius(r);
+
+
+    for(int i=1;i<13;++i){
+        cout<<"Radius "<<i<<" "<<getIntensity()*getAttenuation(i)<<endl;
+    }
+}
+
+float PointLight::getAttenuation(float r){
+    return 1.0 / (attenuation.x +
+                    attenuation.y * r +
+                    attenuation.z * r * r);
+}
+
 void PointLight::calculateRadius(float cutoff){
     float a = attenuation.z;
     float b = attenuation.y;
@@ -131,7 +156,7 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
     //    LightMesh::bindUniforms();
     shader.uploadColor(color);
     shader.uploadModel(model);
-    shader.upload(sphere.pos,sphere.r);
+    shader.upload(sphere.pos,radius);
     shader.upload(attenuation);
 
     if(this->hasShadows()){
