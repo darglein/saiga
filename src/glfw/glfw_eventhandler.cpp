@@ -26,6 +26,26 @@ void glfw_EventHandler::addMouseListener(glfw_MouseListener* ml,int priority){
     mouseListener.insert(iter,Listener<glfw_MouseListener>(ml,priority));
 }
 
+void glfw_EventHandler::removeKeyListener(glfw_KeyListener *kl, int priority)
+{
+    auto it=keyListener.begin();
+    for(;it!=keyListener.end();++it){
+        if(it->listener==kl)
+            break;
+    }
+    keyListener.erase(it);
+}
+
+void glfw_EventHandler::removeMouseListener(glfw_MouseListener *ml, int priority)
+{
+    auto it=mouseListener.begin();
+    for(;it!=mouseListener.end();++it){
+        if(it->listener==ml)
+            break;
+    }
+    mouseListener.erase(it);
+}
+
 void glfw_EventHandler::cursor_position_callback(GLFWwindow* window, double xpos, double ypos){
     //forward event to all listeners
     for(auto &ml : mouseListener){
