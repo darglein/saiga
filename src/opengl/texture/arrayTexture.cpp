@@ -74,7 +74,7 @@ bool ArrayTexture2D::fromImage(std::vector<Image> &images){
     bind(0);
     glTexStorage3D(target, 1, internal_format, width, height, depth);
 
-    cout<<"format: "<<internal_format<<endl;
+//    cout<<"format: "<<internal_format<<endl;
     Error::quitWhenError("ArrayTexture2D::fromImage2");
     for(int i=0;i<depth;i++){
         GLubyte*  data = images[i].data;
