@@ -97,9 +97,9 @@ void PointLight::setLinearAttenuation(float r, float drop)
     setRadius(r);
 
 
-    for(int i=1;i<13;++i){
-        cout<<"Radius "<<i<<" "<<getIntensity()*getAttenuation(i)<<endl;
-    }
+//    for(int i=1;i<13;++i){
+//        cout<<"Radius "<<i<<" "<<getIntensity()*getAttenuation(i)<<endl;
+//    }
 }
 
 float PointLight::getAttenuation(float r){
