@@ -26,6 +26,9 @@ public:
     int image = 0; //texture from texture array
     int orientation = BILLBOARD;
     Particle();
+
+    void createFixedBillboard(const vec3& normal, float angle);
+    void createBillboard(float angle);
 }/*__attribute__((packed))*/;
 
 
