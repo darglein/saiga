@@ -138,25 +138,13 @@ void glfw_Window::error_callback(int error, const char* description){
     cout<<"glfw error: "<<error<<" "<<description<<endl;
 }
 
-
-void glfw_Window::createGLFWcursor(){
-
-    GLFWimage image;
-
-
-    image.width = 50;
-    image.height = 50;
-
-
-    unsigned char pixels[image.width * image.height * 4];
-    memset(pixels, 0xff, sizeof(pixels));
-    image.pixels = pixels;
-    GLFWcursor* cursor = glfwCreateCursor(&image, 0, 0);
-
+void glfw_Window::setGLFWcursor(GLFWcursor *cursor)
+{
     glfwSetCursor(window,cursor);
 }
 
-void glfw_Window::createGLFWcursor(Image *image)
+
+GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
 {
     if(image->bitDepth != 8 || image->channels != 4){
         cout<<"glfw_Window::createGLFWcursor(Image *image): image has the wrong format."<<endl;
@@ -169,7 +157,6 @@ void glfw_Window::createGLFWcursor(Image *image)
     glfwimage.height = image->height;
     glfwimage.pixels = image->data;
 
-    GLFWcursor* cursor = glfwCreateCursor(&glfwimage, 0, 0);
-    glfwSetCursor(window,cursor);
+    return glfwCreateCursor(&glfwimage, midX, midY);
 }
 

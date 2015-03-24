@@ -27,6 +27,6 @@ public:
     static void error_callback(int error, const char* description);
 
 
-    void createGLFWcursor();
-    void createGLFWcursor(Image* image);
+    void setGLFWcursor(GLFWcursor* cursor);
+    GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
 };
