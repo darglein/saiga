@@ -25,6 +25,8 @@ using std::endl;
 
 class Image{
 public:
+
+    ~Image();
 	
 	uint8_t* data = nullptr;
     uint64_t width, height;

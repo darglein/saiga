@@ -56,8 +56,6 @@ void AssimpLoader::loadBones(){
         }
     }
 
-    //    cout<<"unique bones: "<<boneCount<<endl;
-
     nodeCount = countNodes(scene->mRootNode,rootNode);
     //    cout<<"unique nodes: "<<nodeCount<<endl;
 

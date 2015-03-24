@@ -1,6 +1,11 @@
 #include "opengl/texture/image.h"
 #include <cstring>
 
+Image::~Image()
+{
+    //TODO delete data[] ?
+}
+
 int Image::bytesPerPixel(){
     return getChannels()*getBitDepth()/8;
 }
