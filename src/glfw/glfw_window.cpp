@@ -23,7 +23,7 @@ bool glfw_Window::initWindow()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
-//    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
+    //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(window_width, window_height, name.c_str(), NULL, NULL);
@@ -36,7 +36,7 @@ bool glfw_Window::initWindow()
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
-//    //vsync
+    //    //vsync
     glfwSwapInterval(0);
 
     //Initialize GLEW
@@ -71,7 +71,7 @@ void glfw_Window::close()
 {
 
     //Disable text input
-//    SDL_StopTextInput();
+    //    SDL_StopTextInput();
 
     glfwTerminate();
 }
@@ -82,8 +82,8 @@ void glfw_Window::startMainLoop(){
     while (running && !glfwWindowShouldClose(window))
     {
         /* Render here */
-//        eventHandler.update();
-//        running &= !eventHandler.shouldQuit();
+        //        eventHandler.update();
+        //        running &= !eventHandler.shouldQuit();
 
         update(1.0/60.0);
 
@@ -137,3 +137,39 @@ void glfw_Window::error_callback(int error, const char* description){
 
     cout<<"glfw error: "<<error<<" "<<description<<endl;
 }
+
+
+void glfw_Window::createGLFWcursor(){
+
+    GLFWimage image;
+
+
+    image.width = 50;
+    image.height = 50;
+
+
+    unsigned char pixels[image.width * image.height * 4];
+    memset(pixels, 0xff, sizeof(pixels));
+    image.pixels = pixels;
+    GLFWcursor* cursor = glfwCreateCursor(&image, 0, 0);
+
+    glfwSetCursor(window,cursor);
+}
+
+void glfw_Window::createGLFWcursor(Image *image)
+{
+    if(image->bitDepth != 8 || image->channels != 4){
+        cout<<"glfw_Window::createGLFWcursor(Image *image): image has the wrong format."<<endl;
+        cout<<"Required format: RGBA8"<<endl;
+    }
+
+
+    GLFWimage glfwimage;
+    glfwimage.width = image->width;
+    glfwimage.height = image->height;
+    glfwimage.pixels = image->data;
+
+    GLFWcursor* cursor = glfwCreateCursor(&glfwimage, 0, 0);
+    glfwSetCursor(window,cursor);
+}
+
