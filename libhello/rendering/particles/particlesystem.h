@@ -40,6 +40,10 @@ public:
 
 
     void addParticle(Particle &p);
+
+    //the returned particle is already added!
+    Particle& getNextParticle();
+
     void updateParticleBuffer();
     void flush();
 };

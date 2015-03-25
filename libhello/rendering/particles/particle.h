@@ -14,13 +14,18 @@ public:
     };
 
     vec3 position = vec3(0);
+    float radius=1;
+
+
     vec4 velocity = vec4(0); //normalized velocity x,y,z in worldspace. w is the scale factor
     vec3 force = vec3(0); //force on the particle. for example gravity
-    vec3 right = vec3(1,0,0); //still unused
-    float radius=1;
+    vec3 right = vec3(1,0,0); //right vector when orientation is BILLBARD or FIXED
+
+    float drag = 0;
     float lifetime = 0; //lifetime in seconds
     float scale = 0; //upscaling over time. increases the radius by 'scale' per second
     float fadetime = 0; //time when fading begins. if(lifetime==fadetime) -> no fading at all
+
 
     int start = 0; //start tick
     int image = 0; //texture from texture array

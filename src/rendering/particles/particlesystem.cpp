@@ -64,6 +64,15 @@ void ParticleSystem::addParticle(Particle &p){
 
 }
 
+Particle &ParticleSystem::getNextParticle()
+{
+    Particle &p = particles[nextParticle];
+    nextParticle = (nextParticle+1)%particleCount;
+    p.start = tick+1;
+
+    return p;
+}
+
 void ParticleSystem::updateParticleBuffer(){
 //    cout<<tick<<" ParticleSystem::updateParticleBuffer()"<<endl;
 
