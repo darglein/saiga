@@ -1,7 +1,6 @@
 #pragma once
 
 #include "libhello/util/glm.h"
-#include <glm/gtc/quaternion.hpp>
 
 
 //a moving object is an object that moves every game tick and collides with the world
