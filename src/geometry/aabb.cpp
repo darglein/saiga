@@ -114,6 +114,11 @@ int aabb::touching(const aabb &other){
 
 }
 
+vec3 aabb::getHalfExtends()
+{
+    return 0.5f * (max-min);
+}
+
 bool aabb::intersect2(const aabb &other, int side){
     side = (side+1)%3;
     if(min[side] >= other.max[side] || max[side] <= other.min[side] ) return false;

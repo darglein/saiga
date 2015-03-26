@@ -33,7 +33,7 @@ public:
     bool intersect2(const aabb &other, int side);
     int touching(const aabb &other); //used for visibility check (if air block is touching a cube the touched face is visible)
 
-
+    vec3 getHalfExtends();
 
 
     int intersectAabb(const aabb &other);
