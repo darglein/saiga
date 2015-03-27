@@ -31,12 +31,13 @@ private:
 
     void createTextureAtlas();
 
-     Texture *textureAtlas = NULL;
+     Texture *textureAtlas = nullptr;
 public:
 
     string font;
     int font_size;
     TextGenerator();
+    ~TextGenerator();
     void loadFont(const string &font, int font_size);
 
     void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const string &text, int startX=0, int startY=0);

@@ -193,7 +193,8 @@ std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t,index_t>&
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::subdivideFace(int f){
-  Face& face = faces[f];
+
+  Face face = faces[f];
 
 #define P(xs) vertices[face.xs].position
   //create 3 new vertices in the middle of the edges

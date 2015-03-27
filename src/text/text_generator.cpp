@@ -16,6 +16,11 @@ TextGenerator::TextGenerator(){
     }
 }
 
+TextGenerator::~TextGenerator()
+{
+    delete textureAtlas;
+}
+
 
 void TextGenerator::loadFont(const string &font, int font_size){
     this->font = font;
