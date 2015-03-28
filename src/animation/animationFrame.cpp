@@ -12,7 +12,7 @@ void AnimationFrame::calculateFromTree()
     rootNode.traverse(mat4(),boneMatrices);
 
     for(unsigned int i=0;i<boneMatrices.size();++i){
-        //        boneMatrices[i] = boneOffsets[i] * boneMatrices[i];
+//                boneMatrices[i] = boneOffsets[i] * boneMatrices[i];
         boneMatrices[i] =  boneMatrices[i]* boneOffsets[i];
     }
 }

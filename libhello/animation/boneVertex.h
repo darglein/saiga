@@ -68,6 +68,20 @@ struct BoneVertexNC{
         //to many weights
         assert(0);
     }
+
+
+    void apply(std::vector<mat4> boneMatrices){
+        mat4 boneMatrix(0);
+        for(int i=0;i<BONES_PER_VERTEX;++i){
+            int index = boneIndices[i];
+            boneMatrix += boneMatrices[index] * boneWeights[i];
+        }
+
+        position = vec3(boneMatrix*vec4(position,1));
+        normal = vec3(boneMatrix*vec4(normal,0));
+        normal = glm::normalize(normal);
+
+    }
 };
 
 template<>
