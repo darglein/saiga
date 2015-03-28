@@ -49,7 +49,7 @@ public:
     GLuint getId(){return id;}
     GLenum getTarget(){return target;}
 
-    void specify(int channel_depth,int channels);
+    void specify(int channel_depth, int channels, int srgb);
 
     //============= Required state: SPECIFIED =============
 

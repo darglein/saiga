@@ -118,7 +118,7 @@ void raw_Texture::setFiltering(GLint param){
 }
 
 
-int glinternalFormat(int channels, int depth){
+int glinternalFormat(int channels, int depth, bool srgb = false){
     int coffset = channels -1;
     int doffset = 0;
     switch(depth){
@@ -144,13 +144,25 @@ int glinternalFormat(int channels, int depth){
         {GL_RGBA8,GL_RGBA16,GL_RGBA32I} //4 channels
     };
 
-    return iformats[coffset][doffset];
+    static const int srgbiformats[4][3] {
+        {0,0,0}, //1 channel  - does not exist with srgb
+        {0,0,0}, //2 channels - does not exist with srgb
+        {GL_SRGB8,0,0}, //3 channels
+        {GL_SRGB8_ALPHA8,0,0} //4 channels
+    };
+
+    int f = (srgb)?srgbiformats[coffset][doffset]:iformats[coffset][doffset];
+
+    if(f==0){
+        std::cout<<"SRGB internal format not supported: "<<channels<<" channels, "<<depth<<" depth"<<std::endl;
+    }
+    return f;
 
 
 
 }
 
-void raw_Texture::specify(int channel_depth,int channels){
+void raw_Texture::specify(int channel_depth,int channels, int srgb){
     switch(channel_depth){
     case 8:
         data_type = GL_UNSIGNED_BYTE;
@@ -181,7 +193,7 @@ void raw_Texture::specify(int channel_depth,int channels){
     default:
         std::cout<<"Channels not supported: "<<channels<<std::endl;
     }
-    internal_format = glinternalFormat(channels,channel_depth);
+    internal_format = glinternalFormat(channels,channel_depth,srgb);
 }
 
 
@@ -227,6 +239,6 @@ void raw_Texture::setFormat(const Image &img){
     width = img.width;
     height = img.height;
 
-    specify(img.getBitDepth(),img.getChannels());
+    specify(img.getBitDepth(),img.getChannels(),img.srgb);
 }
 

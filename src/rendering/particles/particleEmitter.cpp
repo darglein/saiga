@@ -49,11 +49,9 @@ void SphericalParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
         Particle p;
         p.position = vec3(this->getPosition());
         p.velocity = vec4(glm::sphericalRand(1.0f),velocity);
-        p.radius = radius;
         p.lifetime = lifetime;
         p.fadetime = 0;
         p.image = rand()%4;
-        p.scale = 1.0f;
 
 //        p.velocity = vec4(0,1,0,1);
         p.orientation = Particle::BILLBOARD;
@@ -75,7 +73,6 @@ void ConaParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
         Particle p;
         p.position = vec3(this->getPosition());
         p.velocity = vec4(sampleCone(coneDirection,glm::radians(coneAngle)),velocity);
-        p.radius = radius;
         p.lifetime = lifetime;
         p.image = 4;
         p.force = vec3(0,-1,0);

@@ -26,12 +26,15 @@ using std::endl;
 class Image{
 public:
 
+    Image();
     ~Image();
 	
 	uint8_t* data = nullptr;
     uint64_t width, height;
     int bitDepth;
     int channels;
+    bool srgb = false;
+    bool shouldDelete = false;
 public:
 
     int bytesPerPixel();

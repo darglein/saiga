@@ -1,9 +1,14 @@
 #include "opengl/texture/image.h"
 #include <cstring>
 
+Image::Image()
+{
+}
+
 Image::~Image()
 {
-    //TODO delete data[] ?
+    if(shouldDelete)
+        delete[] data;
 }
 
 int Image::bytesPerPixel(){
@@ -206,8 +211,11 @@ FREE_IMAGE_TYPE Image::getFIT(){
 }
 
 void Image::create(){
+
     delete[] data;
     data = new uint8_t[getSize()];
+
+    shouldDelete = true;
 }
 
 void Image::createSubImage(int x, int y, int w, int h, Image &out){
@@ -215,6 +223,7 @@ void Image::createSubImage(int x, int y, int w, int h, Image &out){
     out.height = h;
     out.bitDepth = bitDepth;
     out.channels = channels;
+    out.srgb = srgb;
 
 
     out.create();

@@ -15,7 +15,6 @@ void ParticleSystem::init(){
         Particle p;
         p.position = glm::sphericalRand(15.0f);
         p.velocity = vec4(glm::sphericalRand(1.0f),1);
-        p.radius = 0.2f;
         addParticle(p);
     }
 
