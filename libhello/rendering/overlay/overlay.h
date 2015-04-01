@@ -15,6 +15,7 @@ public:
     std::vector<Text*> texts;
 
     int width,height;
+
     Overlay(int width, int height);
     void render();
 

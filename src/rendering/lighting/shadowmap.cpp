@@ -1,5 +1,14 @@
 #include "rendering/lighting/shadowmap.h"
 
+Shadowmap::Shadowmap()
+{
+
+}
+
+Shadowmap::~Shadowmap(){
+    delete depthTexture;
+}
+
 void Shadowmap::init(int w, int h){
     this->w = w;
     this->h = h;
@@ -40,6 +49,8 @@ void Shadowmap::createCube(int w, int h){
     initialized = true;
 
 }
+
+
 
 
 void Shadowmap::bind(){

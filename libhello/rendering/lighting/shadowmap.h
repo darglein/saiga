@@ -17,7 +17,8 @@ public:
     raw_Texture* depthTexture = nullptr;
 
 
-
+    Shadowmap();
+    ~Shadowmap();
     void bind();
     void unbind();
     void bindCubeFace(GLenum side);
