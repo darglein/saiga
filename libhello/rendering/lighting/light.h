@@ -32,7 +32,7 @@ protected:
 
 
 public:
-
+    raw_Texture* dummyTexture = nullptr; //0x0 texture to fix an ati error
     Shadowmap shadowmap;
     vec4 color;
 

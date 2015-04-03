@@ -12,6 +12,8 @@ DeferredLighting::DeferredLighting(Framebuffer &framebuffer):framebuffer(framebu
 
 
 
+    dummyTexture = new Texture();
+    dummyTexture->createEmptyTexture(0,0,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
 
 }
 
@@ -383,18 +385,24 @@ void DeferredLighting::createLightMeshes(){
 }
 
 DirectionalLight* DeferredLighting::createDirectionalLight(){
-    directionalLights.push_back(new DirectionalLight());
-    return directionalLights[directionalLights.size()-1];
+    DirectionalLight* l = new DirectionalLight();
+    l->dummyTexture = dummyTexture;
+    directionalLights.push_back(l);
+    return l;
 }
 
 PointLight* DeferredLighting::createPointLight(){
-    pointLights.push_back(new PointLight());
-    return pointLights[pointLights.size()-1];
+    PointLight* l = new PointLight();
+    l->dummyTexture = dummyTexture;
+    pointLights.push_back(l);
+    return l;
 }
 
 SpotLight* DeferredLighting::createSpotLight(){
-    spotLights.push_back(new SpotLight());
-    return spotLights[spotLights.size()-1];
+    SpotLight* l = new SpotLight();
+    l->dummyTexture = dummyTexture;
+    spotLights.push_back(l);
+    return l;
 }
 
 void DeferredLighting::setViewProj(const mat4 &iv,const mat4 &v,const mat4 &p)

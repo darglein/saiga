@@ -175,8 +175,9 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
 //        cout<<"hasShadows"<<endl;
     }else{
 
-         glActiveTexture(GL_TEXTURE0);
-         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+//         glActiveTexture(GL_TEXTURE0);
+//         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+         shader.uploadDepthTexture(dummyTexture);
 
         shader.uploadShadow(0.0f);
 //         cout<<"not hasShadows"<<endl;

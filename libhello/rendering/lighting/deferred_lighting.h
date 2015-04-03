@@ -33,6 +33,8 @@ private:
 
     mat4 inview,view,proj;
     bool drawDebug = true;
+
+    raw_Texture* dummyTexture;
 public:
     DeferredLighting(Framebuffer &framebuffer);
     ~DeferredLighting();

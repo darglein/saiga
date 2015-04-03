@@ -71,6 +71,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
 
         shader.uploadDepthTexture(shadowmap.depthTexture);
     }else{
+        shader.uploadDepthTexture(dummyTexture);
         shader.uploadShadow(0.0f);
     }
 
