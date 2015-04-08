@@ -17,6 +17,15 @@ void PostProcessingShader::uploadScreenSize(vec4 size){
 }
 
 
+Deferred_Renderer::Deferred_Renderer():Renderer(),lighting(deferred_framebuffer){
+
+}
+
+Deferred_Renderer::~Deferred_Renderer()
+{
+
+}
+
 void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
     setSize(w,h);
     lighting.setSize(w,h);

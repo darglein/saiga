@@ -34,7 +34,8 @@ class Deferred_Renderer : public Renderer{
     int width,height;
 
     DeferredLighting lighting;
-    Deferred_Renderer():Renderer(),lighting(deferred_framebuffer){}
+    Deferred_Renderer();
+    virtual ~Deferred_Renderer();
     void init(DeferredShader* deferred_shader, int w, int h);
     void setDeferredMixer(DeferredShader* deferred_shader);
     void setSize(int width, int height){this->width=width;this->height=height;}

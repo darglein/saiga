@@ -10,14 +10,14 @@
 
 class glfw_Window : public Window{
 protected:
-    GLFWwindow* window;
+    GLFWwindow* window = nullptr;
 
     bool initWindow();
     bool initInput();
 public:
 
     glfw_Window(const std::string &name,int window_width,int window_height);
-    virtual ~glfw_Window(){}
+    virtual ~glfw_Window();
 
     void close();
     void startMainLoop();

@@ -16,11 +16,11 @@ public:
 
     //there can be multiple color buffers, but only 1 depth and stencil buffer
     std::vector<Texture*> colorBuffers;
-    Texture* depthBuffer;
-    Texture* stencilBuffer;
+    Texture* depthBuffer = nullptr;
+    Texture* stencilBuffer = nullptr;
 public:
     Framebuffer();
-
+    ~Framebuffer();
     void attachTexture(Texture* texture);
     void attachTextureDepth(Texture* texture);
     void attachTextureDepthStencil(Texture* texture);

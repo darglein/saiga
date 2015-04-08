@@ -18,17 +18,18 @@ DeferredLighting::DeferredLighting(Framebuffer &framebuffer):framebuffer(framebu
 }
 
 DeferredLighting::~DeferredLighting(){
+    delete dummyTexture;
     //delete all lights
     //the shader loader will delete the shaders.
-    for(PointLight* &obj : pointLights){
-        delete obj;
-    }
-    for(SpotLight* &obj : spotLights){
-        delete obj;
-    }
-    for(DirectionalLight* &obj : directionalLights){
-        delete obj;
-    }
+//    for(PointLight* &obj : pointLights){
+//        delete obj;
+//    }
+//    for(SpotLight* &obj : spotLights){
+//        delete obj;
+//    }
+//    for(DirectionalLight* &obj : directionalLights){
+//        delete obj;
+//    }
 }
 
 void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){

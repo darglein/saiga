@@ -15,7 +15,7 @@ public:
     int w,h;
     Framebuffer depthBuffer;
     raw_Texture* depthTexture = nullptr;
-
+    raw_Texture* deleteTexture = nullptr;
 
     Shadowmap();
     ~Shadowmap();

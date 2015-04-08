@@ -7,6 +7,16 @@ glfw_Window::glfw_Window(const std::string &name, int window_width, int window_h
 {
 }
 
+glfw_Window::~glfw_Window()
+{
+    if(!window)
+        return;
+//    cout<<"~glfw_Window"<<endl;
+    glfwDestroyWindow(window);
+    glfwTerminate();
+
+}
+
 bool glfw_Window::initWindow()
 {
 

@@ -6,7 +6,8 @@ Shadowmap::Shadowmap()
 }
 
 Shadowmap::~Shadowmap(){
-    delete depthTexture;
+//    delete depthTexture;
+    delete deleteTexture;
 }
 
 void Shadowmap::init(int w, int h){
@@ -45,7 +46,7 @@ void Shadowmap::createCube(int w, int h){
     cube_Texture* cubeMap = new cube_Texture();
     cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
     depthTexture = cubeMap;
-
+    deleteTexture = cubeMap;
     initialized = true;
 
 }
