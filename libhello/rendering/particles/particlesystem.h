@@ -26,6 +26,8 @@ public:
     bool uploadDataNextUpdate = false;
     int tick = 0;
 
+    bool blending = true;
+
     static float secondsPerTick;
      static float ticksPerSecond;
 
