@@ -130,9 +130,8 @@ void Deferred_Renderer::render_intern(float interpolation){
 void Deferred_Renderer::renderGBuffer(Camera *cam, float interpolation){
     deferred_framebuffer.bind();
     glViewport(0,0,width,height);
-    glClear( GL_COLOR_BUFFER_BIT );
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glClear(GL_STENCIL_BUFFER_BIT);
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
 

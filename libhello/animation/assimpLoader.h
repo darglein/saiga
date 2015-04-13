@@ -73,6 +73,9 @@ public:
     template<typename vertex_t>
     void getColors(int id, TriangleMesh<vertex_t, GLuint> &out);
 
+    template<typename vertex_t>
+    void getData(int id, TriangleMesh<vertex_t, GLuint> &out);
+
     void getAnimation(int animationId, int meshId, Animation &out);
 
     void transformmesh(const aiMesh *amesh, std::vector<mat4> &boneMatrices);
@@ -305,8 +308,31 @@ void AssimpLoader::getColors(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
             bv.color = vec3(color.r,color.g,color.b);
         }
+}
+
+template<typename vertex_t>
+void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, GLuint> &out){
+    const aiMesh *mesh = scene->mMeshes[id];
+
+    out.vertices.resize(mesh->mNumVertices);
+
+    aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+    aiColor3D emissive (0.f,0.f,0.f);
+    material->Get(AI_MATKEY_COLOR_EMISSIVE,emissive);
+
+    aiColor3D specular (0.f,0.f,0.f);
+    material->Get(AI_MATKEY_COLOR_SPECULAR,emissive);
+
+
+        for(unsigned int i=0;i<mesh->mNumVertices;++i){
+            vertex_t &bv = out.vertices[i];
+
+            bv.data = vec3(specular.r,emissive.r,0);
+        }
 
 
 }
+
 
 

@@ -113,9 +113,6 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
     attachTexture(position);
 
 
-    Texture* colorFinal = new Texture();
-    colorFinal->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
-    attachTexture(colorFinal);
 
     // Texture* depth = new Texture();
     //        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
@@ -123,13 +120,29 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
     //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
     //attachTextureDepth(depth);
 
+
+
+    //specular and emissive texture
+    Texture* data = new Texture();
+    data->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
+    attachTexture(data);
+
+
+
+
     //depth and stencil texture combined
     Texture* depth_stencil = new Texture();
     depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
     attachTextureDepthStencil(depth_stencil);
 
-    GLenum DrawBuffers[4] = {GL_COLOR_ATTACHMENT0,GL_COLOR_ATTACHMENT1,GL_COLOR_ATTACHMENT2,GL_COLOR_ATTACHMENT3};
-    glDrawBuffers(4, DrawBuffers);
+
+    int count = colorBuffers.size();
+
+    std::vector<GLenum> DrawBuffers(count);
+    for(int i = 0 ;i < count ; ++i){
+        DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
+    }
+    glDrawBuffers(count, &DrawBuffers[0]);
 
 
     check();

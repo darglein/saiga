@@ -56,17 +56,19 @@ struct VertexNT{
 
 struct VertexNC : public VertexN{
     vec3 color;
+    vec3 data;
     VertexNC() : color(0){}
     VertexNC(const vec3 &position):VertexN(position){}
     VertexNC(const vec3 &position,const vec3 &normal):VertexN(position,normal){}
     VertexNC(const vec3 &position,const vec3 &normal,const vec3 &color):VertexN(position,normal),color(color){}
     bool operator==(const VertexNC &other) const {
-        return position==other.position && normal==other.normal && color==other.color;
+        return position==other.position && normal==other.normal && color==other.color && data==other.data;
     }
     friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert){
         os<<vert.position<<",";
         os<<vert.normal<<",";
-        os<<vert.color;
+        os<<vert.color<<",";
+        os<<vert.data;
         return os;
     }
 };

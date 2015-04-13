@@ -42,6 +42,7 @@ struct BoneVertexNC{
     vec3 position;
     vec3 normal;
     vec3 color;
+    vec3 data;
 
     //every vertex has a maximum of 2 bones
 #define BONES_PER_VERTEX 4
