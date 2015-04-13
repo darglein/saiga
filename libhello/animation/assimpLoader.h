@@ -322,7 +322,7 @@ void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, GLuint> &out){
     material->Get(AI_MATKEY_COLOR_EMISSIVE,emissive);
 
     aiColor3D specular (0.f,0.f,0.f);
-    material->Get(AI_MATKEY_COLOR_SPECULAR,emissive);
+    material->Get(AI_MATKEY_COLOR_SPECULAR,specular);
 
 
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
