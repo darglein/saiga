@@ -50,7 +50,7 @@ public:
 class DeferredShader : public FBShader{
 public:
     GLuint location_screen_size;
-    GLuint location_texture_diffuse,location_texture_normal,location_texture_position,location_texture_depth;
+    GLuint location_texture_diffuse,location_texture_normal,location_texture_position,location_texture_depth,location_texture_data;
     DeferredShader(const string &multi_file) : FBShader(multi_file){}
     virtual void checkUniforms();
     void uploadFramebuffer(Framebuffer* fb);
