@@ -17,6 +17,8 @@ public:
     ArrayTexture2D* arrayTexture;
 
     ParticleShader* particleShader;
+    DeferredParticleShader* deferredParticleShader;
+
     VertexBuffer<Particle> particleBuffer;
 
     std::vector<Particle> particles;
@@ -38,7 +40,7 @@ public:
 
     void update();
     void render(Camera* cam, float interpolation);
-
+    void renderDeferred(Camera* cam, float interpolation, raw_Texture *d);
 
 
     void addParticle(Particle &p);

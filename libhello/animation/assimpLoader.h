@@ -318,17 +318,23 @@ void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-    aiColor3D emissive (0.f,0.f,0.f);
-    material->Get(AI_MATKEY_COLOR_EMISSIVE,emissive);
+    aiColor3D emissivec (0.f,0.f,0.f);
+    aiReturn emissiveret = material->Get(AI_MATKEY_COLOR_EMISSIVE,emissivec);
+     float emissive = (emissiveret == aiReturn_SUCCESS)?emissivec.r : 0.0f;
 
-    aiColor3D specular (0.f,0.f,0.f);
-    material->Get(AI_MATKEY_COLOR_SPECULAR,specular);
+     //if term useless, because assimp uses default values if no specular specified
+    aiColor3D specularc (0.f,0.f,0.f);
+    aiReturn specularret = material->Get(AI_MATKEY_COLOR_SPECULAR,specularc);
+    float specular = (specularret == aiReturn_SUCCESS)?specularc.r : 0.0f;
+
+
+
 
 
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
 
-            bv.data = vec3(specular.r,emissive.r,0);
+            bv.data = vec3(specular,emissive,0);
         }
 
 
