@@ -22,3 +22,20 @@ void ParticleShader::uploadTimestep(float timestep)
 {
     Shader::upload(location_timestep,timestep);
 }
+
+
+//===============================================================
+
+void DeferredParticleShader::checkUniforms()
+{
+    ParticleShader::checkUniforms();
+
+    location_texture_depth = getUniformLocation("depthTexture");
+}
+
+
+
+void DeferredParticleShader::uploadDepthTexture(raw_Texture *texture){
+    texture->bind(1);
+    Shader::upload(location_texture_depth,1);
+}

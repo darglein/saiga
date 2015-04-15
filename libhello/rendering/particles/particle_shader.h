@@ -13,3 +13,15 @@ public:
     void uploadTiming(int tick, float interpolation);
     void uploadTimestep(float timestep);
 };
+
+
+class DeferredParticleShader : public ParticleShader {
+public:
+     GLuint location_texture_depth;
+
+    DeferredParticleShader(const string &multi_file) : ParticleShader(multi_file){}
+
+    virtual void checkUniforms();
+
+    void uploadDepthTexture(raw_Texture *texture);
+};

@@ -57,6 +57,21 @@ void ParticleSystem::render(Camera *cam, float interpolation){
     }
 }
 
+void ParticleSystem::renderDeferred(Camera *cam, float interpolation, raw_Texture* d)
+{
+
+    deferredParticleShader->bind();
+
+    deferredParticleShader->uploadAll(model,cam->view,cam->proj);
+    deferredParticleShader->uploadTexture(arrayTexture);
+    deferredParticleShader->uploadDepthTexture(d);
+    deferredParticleShader->uploadTiming(tick,interpolation);
+    deferredParticleShader->uploadTimestep(secondsPerTick);
+    particleBuffer.bindAndDraw();
+    deferredParticleShader->unbind();
+
+}
+
 
 void ParticleSystem::addParticle(Particle &p){
     p.start = tick+1;
