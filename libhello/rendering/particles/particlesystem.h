@@ -20,8 +20,9 @@ public:
     DeferredParticleShader* deferredParticleShader;
 
     VertexBuffer<Particle> particleBuffer;
-
     std::vector<Particle> particles;
+    bool initialized = false;
+
     unsigned int particleCount;
     unsigned int nextParticle = 0;
     unsigned int saveParticle = 0;
@@ -37,6 +38,8 @@ public:
     ParticleSystem(unsigned int particleCount=0);
 
     virtual void init();
+
+    void reset();
 
     void update();
     void render(Camera* cam, float interpolation);

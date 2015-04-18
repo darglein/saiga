@@ -20,11 +20,25 @@ void ParticleSystem::init(){
 
     particleBuffer.set(particles);
     particleBuffer.setDrawMode(GL_POINTS);
+
+    initialized = true;
+}
+
+void ParticleSystem::reset()
+{
+    if (!initialized) return;
+
+    for(unsigned int i=0;i<particleCount;++i){
+        Particle& p = particles[i];
+        p.lifetime = 0.f;
+        p.position = vec3(0);
+    }
+
+    particleBuffer.updateVertexBuffer(&particles[0],particles.size(),0);
 }
 
 void ParticleSystem::update()
 {
-    //    cout<<tick<<" ParticleSystem::update()"<<endl;
     tick++;
 
     if( uploadDataNextUpdate ){
