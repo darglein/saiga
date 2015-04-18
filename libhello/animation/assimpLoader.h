@@ -328,6 +328,8 @@ void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, GLuint> &out){
     float specular = (specularret == aiReturn_SUCCESS)?specularc.r : 0.0f;
 
 
+    //assimps default specular is 0.4
+    if(specular == 0.4f) specular = 0.0f;
 
 
 
