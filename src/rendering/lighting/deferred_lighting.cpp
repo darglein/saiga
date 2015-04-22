@@ -406,6 +406,21 @@ SpotLight* DeferredLighting::createSpotLight(){
     return l;
 }
 
+void DeferredLighting::removeDirectionalLight(DirectionalLight *l)
+{
+    directionalLights.erase(std::find(directionalLights.begin(),directionalLights.end(),l));
+}
+
+void DeferredLighting::removePointLight(PointLight *l)
+{
+    pointLights.erase(std::find(pointLights.begin(),pointLights.end(),l));
+}
+
+void DeferredLighting::removeSpotLight(SpotLight *l)
+{
+    spotLights.erase(std::find(spotLights.begin(),spotLights.end(),l));
+}
+
 void DeferredLighting::setViewProj(const mat4 &iv,const mat4 &v,const mat4 &p)
 {
     inview = iv;

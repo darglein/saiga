@@ -40,6 +40,7 @@ public:
     Light(){}
     Light(const vec3 &color, float intensity){setColor(color);setIntensity(intensity);}
     Light(const vec4 &color){setColor(color);}
+    virtual ~Light(){}
 
     void setColor(const vec3 &color){this->color = vec4(color,this->color.w);}
     void setColor(const vec4 &color){this->color = color;}

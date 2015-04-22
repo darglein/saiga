@@ -40,9 +40,14 @@ public:
     ~DeferredLighting();
 
     void createLightMeshes();
+
     DirectionalLight* createDirectionalLight();
     PointLight* createPointLight();
     SpotLight* createSpotLight();
+
+    void removeDirectionalLight(DirectionalLight* l);
+    void removePointLight(PointLight* l);
+    void removeSpotLight(SpotLight* l);
 
 
     void render(Camera *cam);
