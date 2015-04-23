@@ -26,8 +26,8 @@ class DirectionalLight :  public Light
 protected:
 
 
-    vec3 direction;
-    float range;
+    vec3 direction = vec3(0,-1,0);
+    float range = 20.0f;
 
 public:
      OrthographicCamera cam;
