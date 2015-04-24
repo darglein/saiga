@@ -28,6 +28,7 @@ private:
 public:
 
     LightingController(DeferredLighting& lighting);
+    virtual ~LightingController(){}
 
     //glfw events
     bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods);

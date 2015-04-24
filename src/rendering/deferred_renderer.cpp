@@ -118,6 +118,7 @@ void Deferred_Renderer::render_intern(float interpolation){
         postProcess();
     else{
 //        postProcess();
+
         mix_framebuffer.blitColor(0);
     }
 
@@ -181,6 +182,7 @@ void Deferred_Renderer::postProcess(){
     vec4 screenSize(width,height,1.0/width,1.0/height);
     postProcessingShader->uploadScreenSize(screenSize);
     postProcessingShader->uploadTexture(mix_framebuffer.colorBuffers[0]);
+    postProcessingShader->uploadAdditionalUniforms();
     quadMesh.bindAndDraw();
     postProcessingShader->unbind();
 

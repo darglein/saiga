@@ -6,6 +6,7 @@
 class Subject {
     std::vector < class Observer * > views;
   public:
+    virtual ~Subject(){}
     void attach(Observer *obs) {
         views.push_back(obs);
     }
@@ -17,6 +18,7 @@ class Observer {
   public:
     Observer() {
     }
+    virtual ~Observer(){}
     virtual void notify() = 0;
     void setSubject(Subject *model){
     this->model = model;

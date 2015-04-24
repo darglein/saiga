@@ -13,6 +13,7 @@ public:
     virtual void checkUniforms();
     virtual void uploadTexture(raw_Texture* texture);
     virtual void uploadScreenSize(vec4 size);
+    virtual void uploadAdditionalUniforms(){}
 };
 
 
