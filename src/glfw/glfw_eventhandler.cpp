@@ -1,6 +1,7 @@
 #include "glfw/glfw_eventhandler.h"
 
 #include <iostream>
+#include <algorithm>
 
 std::vector<glfw_EventHandler::Listener<glfw_KeyListener>> glfw_EventHandler::keyListener;
 std::vector<glfw_EventHandler::Listener<glfw_MouseListener>> glfw_EventHandler::mouseListener;
@@ -9,24 +10,35 @@ std::vector<glfw_EventHandler::Listener<glfw_MouseListener>> glfw_EventHandler::
 void glfw_EventHandler::addKeyListener(glfw_KeyListener* kl,int priority){
     //    keyListener.push_back(Listener<glfw_KeyListener>(kl,priority));
 
+    Listener<glfw_KeyListener> l(kl,priority);
+    auto it = std::find(keyListener.begin(),keyListener.end(),l);
+
+    if(it!=keyListener.end())
+        return;
+
     auto iter=keyListener.begin();
     for(;iter!=keyListener.end();++iter){
         if((*iter).priority<priority)
             break;
     }
-    keyListener.insert(iter,Listener<glfw_KeyListener>(kl,priority));
+    keyListener.insert(iter,l);
 
 //    std::cout<<"add "<<keyListener.size()<<" "<<priority<<std::endl;
 }
 void glfw_EventHandler::addMouseListener(glfw_MouseListener* ml,int priority){
     //    mouseListener.push_back(Listener<glfw_MouseListener>(ml,priority));
+    Listener<glfw_MouseListener> l(ml,priority);
+    auto it = std::find(mouseListener.begin(),mouseListener.end(),l);
+
+    if(it!=mouseListener.end())
+        return;
 
     auto iter=mouseListener.begin();
     for(;iter!=mouseListener.end();++iter){
         if((*iter).priority<priority)
             break;
     }
-    mouseListener.insert(iter,Listener<glfw_MouseListener>(ml,priority));
+    mouseListener.insert(iter,l);
 }
 
 void glfw_EventHandler::removeKeyListener(glfw_KeyListener *kl)

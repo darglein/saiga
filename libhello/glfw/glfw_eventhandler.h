@@ -26,6 +26,10 @@ private:
         T* listener = nullptr;
         int priority = 0;
         Listener(T* listener,int priority):listener(listener),priority(priority){}
+
+        bool operator==(const Listener<T> &l1){
+            return listener==l1.listener;
+        }
     };
     static std::vector<Listener<glfw_KeyListener>> keyListener;
     static std::vector<Listener<glfw_MouseListener>> mouseListener;
