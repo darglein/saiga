@@ -2,7 +2,7 @@
 
 #include <libhello/util/glm.h>
 #include <libhello/glfw/glfw_eventhandler.h>
-
+#include <array>
 
 
 template<typename camera_t>
@@ -17,14 +17,30 @@ public:
     camera_t* cam;
     float movementSpeed = 1;
     float rotationSpeed = 1;
+    int keyForward = GLFW_KEY_UP;
+    int keyRight = GLFW_KEY_RIGHT;
+    int keyLeft = GLFW_KEY_LEFT;
+    int keyBackwards = GLFW_KEY_DOWN;
+    enum Key{
+        Forward = 0,
+        Backward = 1,
+        Left = 2,
+        Right =3
+    };
+
+    std::array<bool,4> keyPressed;
+
+    int buttonDrag = GLFW_MOUSE_BUTTON_3;
+
     Controllable_Camera(camera_t* cam):cam(cam){
-        glfw_EventHandler::addKeyListener(this,0);
-        glfw_EventHandler::addMouseListener(this,0);
     }
+
     void update(float delta);
     void predictInterpolate(float interpolation);
-    void setPosition(glm::vec3 cords);
+    void setPosition(const glm::vec3 &cords);
 
+    void enableInput();
+    void disableInput();
 
     //glfw events
     bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -37,7 +53,24 @@ public:
 };
 
 template<class camera_t>
-void Controllable_Camera<camera_t>::setPosition(glm::vec3 cords)
+void Controllable_Camera<camera_t>::enableInput()
+{
+    glfw_EventHandler::addKeyListener(this,0);
+    glfw_EventHandler::addMouseListener(this,0);
+}
+
+template<class camera_t>
+void Controllable_Camera<camera_t>::disableInput()
+{
+    for (int i = 0; i < keyPressed.size(); ++i){
+        keyPressed[i] = false;
+    }
+    glfw_EventHandler::removeKeyListener(this);
+    glfw_EventHandler::removeKeyListener(this);
+}
+
+template<class camera_t>
+void Controllable_Camera<camera_t>::setPosition(const glm::vec3& cords)
 {
     cam->setPosition(cords);
     cam->calculateModel();
@@ -46,6 +79,9 @@ void Controllable_Camera<camera_t>::setPosition(glm::vec3 cords)
 
 template<class camera_t>
 void Controllable_Camera<camera_t>::update(float delta){
+    FORWARD =  keyPressed[Forward] - keyPressed[Backward];
+    RIGHT = keyPressed[Right] - keyPressed[Left];
+
     setPosition(positionAtUpdate);
     vec3 trans = delta*movementSpeed*FORWARD*vec3(0,0,-1) + delta*movementSpeed*RIGHT*vec3(1,0,0);
     cam->translateLocal(trans);
@@ -66,20 +102,20 @@ void Controllable_Camera<camera_t>::predictInterpolate(float interpolation){
 
 template<class camera_t>
 bool Controllable_Camera<camera_t>::key_event(GLFWwindow* window, int key, int scancode, int action, int mods){
-    switch(key){
-    case GLFW_KEY_UP:
-        FORWARD = (action!=GLFW_RELEASE  )?1:0;
+    if (key == keyForward){
+        keyPressed[Forward] = action!=GLFW_RELEASE;
         return true;
-    case GLFW_KEY_DOWN:
-        FORWARD = (action!=GLFW_RELEASE)?-1:0;
+    }  else if (key == keyBackwards){
+        keyPressed[Backward] = action!=GLFW_RELEASE;
         return true;
-    case GLFW_KEY_RIGHT:
-        RIGHT = (action!=GLFW_RELEASE)?1:0;
+    }else if (key == keyRight){
+        keyPressed[Right] = action!=GLFW_RELEASE;
         return true;
-    case GLFW_KEY_LEFT:
-        RIGHT = (action!=GLFW_RELEASE)?-1:0;
+    }else if (key == keyLeft){
+        keyPressed[Left] = action!=GLFW_RELEASE;
         return true;
     }
+
     return false;
 }
 
@@ -106,7 +142,7 @@ bool Controllable_Camera<camera_t>::cursor_position_event(GLFWwindow* window, do
 
 template<class camera_t>
 bool Controllable_Camera<camera_t>::mouse_button_event(GLFWwindow* window, int button, int action, int mods){
-    if(button==GLFW_MOUSE_BUTTON_3){
+    if(button==buttonDrag){
         dragging = (action==GLFW_PRESS)?true:false;
         return true;
     }

@@ -33,8 +33,8 @@ public:
     static void addKeyListener(glfw_KeyListener* kl, int priority = 0);
     static void addMouseListener(glfw_MouseListener* ml, int priority = 0);
 
-    static void removeKeyListener(glfw_KeyListener* kl, int priority = 0);
-    static void removeMouseListener(glfw_MouseListener* ml, int priority = 0);
+    static void removeKeyListener(glfw_KeyListener* kl);
+    static void removeMouseListener(glfw_MouseListener* ml);
 
 public:
     //these functions will be called by glfw from the method glfwPollEvents();

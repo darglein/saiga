@@ -74,7 +74,7 @@ struct BoneVertexNC{
     void apply(std::vector<mat4> boneMatrices){
         mat4 boneMatrix(0);
         for(int i=0;i<BONES_PER_VERTEX;++i){
-            int index = boneIndices[i];
+            int index = (int)boneIndices[i];
             boneMatrix += boneMatrices[index] * boneWeights[i];
         }
 

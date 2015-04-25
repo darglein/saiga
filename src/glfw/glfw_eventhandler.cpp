@@ -29,7 +29,7 @@ void glfw_EventHandler::addMouseListener(glfw_MouseListener* ml,int priority){
     mouseListener.insert(iter,Listener<glfw_MouseListener>(ml,priority));
 }
 
-void glfw_EventHandler::removeKeyListener(glfw_KeyListener *kl, int priority)
+void glfw_EventHandler::removeKeyListener(glfw_KeyListener *kl)
 {
     auto it=keyListener.begin();
     for(;it!=keyListener.end();++it){
@@ -41,7 +41,7 @@ void glfw_EventHandler::removeKeyListener(glfw_KeyListener *kl, int priority)
 
 }
 
-void glfw_EventHandler::removeMouseListener(glfw_MouseListener *ml, int priority)
+void glfw_EventHandler::removeMouseListener(glfw_MouseListener *ml)
 {
     auto it=mouseListener.begin();
     for(;it!=mouseListener.end();++it){
