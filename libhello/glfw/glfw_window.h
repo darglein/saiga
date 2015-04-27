@@ -16,8 +16,11 @@ protected:
     bool initInput();
 public:
 
-    glfw_Window(const std::string &name,int window_width,int window_height);
+    glfw_Window(const std::string &name,int window_width,int window_height, bool fullscreen);
     virtual ~glfw_Window();
+
+    static bool initGlfw();
+    static void getNativeResolution(int *width, int *height);
 
     void close();
     void startMainLoop();

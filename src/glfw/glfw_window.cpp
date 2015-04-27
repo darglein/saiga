@@ -3,7 +3,7 @@
 #include "util/inputcontroller.h"
 #include <chrono>
 #include "libhello/util/error.h"
-glfw_Window::glfw_Window(const std::string &name, int window_width, int window_height):Window(name,window_width,window_height)
+glfw_Window::glfw_Window(const std::string &name, int window_width, int window_height, bool fullscreen):Window(name,window_width,window_height, fullscreen)
 {
 }
 
@@ -17,15 +17,34 @@ glfw_Window::~glfw_Window()
 
 }
 
-bool glfw_Window::initWindow()
+void glfw_Window::getNativeResolution(int* width, int *height)
 {
+    GLFWmonitor* primary = glfwGetPrimaryMonitor();
+    //get max video mode resolution
+    int count;
+    const GLFWvidmode* mode = glfwGetVideoModes(primary,&count);
+//    cout << "Video modes:" << endl;
+//    for (int i = 0; i < count; i++){
+//        cout << "Mode "<< i << ": " << mode[i].width << " x "<< mode[i].height << " @" << mode[i].refreshRate << "Hz" << endl;
+//    }
 
+    cout << "Native Video Mode: " << mode[count-1].width << " x "<< mode[count-1].height << " @" << mode[count-1].refreshRate << "Hz" << endl;
+    *width = mode[count-1].width;
+    *height = mode[count-1].height;
+}
 
-
+bool glfw_Window::initGlfw(){
     glfwSetErrorCallback(glfw_Window::error_callback);
     /* Initialize the library */
     if (!glfwInit())
         return false;
+
+    return true;
+}
+
+bool glfw_Window::initWindow()
+{
+    //glfwInit has to be called before
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
@@ -35,8 +54,16 @@ bool glfw_Window::initWindow()
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
     //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 
+
+    GLFWmonitor* primary = glfwGetPrimaryMonitor();
+
     /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(window_width, window_height, name.c_str(), NULL, NULL);
+    if (fullscreen){
+        window = glfwCreateWindow(window_width, window_height, name.c_str(), primary, NULL);
+    } else {
+        window = glfwCreateWindow(window_width, window_height, name.c_str(), NULL, NULL);
+    }
+
     if (!window)
     {
         glfwTerminate();
@@ -47,7 +74,7 @@ bool glfw_Window::initWindow()
     glfwMakeContextCurrent(window);
 
     //    //vsync
-    glfwSwapInterval(0);
+    glfwSwapInterval(vsync ? 1 : 0);
 
     //Initialize GLEW
     glewExperimental = GL_TRUE;

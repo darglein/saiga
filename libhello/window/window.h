@@ -12,6 +12,8 @@ protected:
     std::string name;
     int window_width;
     int window_height;
+    bool fullscreen = false;
+
     bool running;
 
     Deferred_Renderer* renderer;
@@ -25,7 +27,9 @@ protected:
     virtual bool initInput() = 0;
     virtual void update(float delta) = 0;
 public:
-    Window(const std::string &name,int window_width,int window_height);
+    bool vsync = false;
+
+    Window(const std::string &name,int window_width,int window_height, bool fullscreen);
      virtual ~Window(){}
 
     void quit(){cout<<"Window: Quit"<<endl;running = false;}
