@@ -33,6 +33,21 @@ void glfw_Window::getNativeResolution(int* width, int *height)
     *height = mode[count-1].height;
 }
 
+void glfw_Window::hideMouseCursor()
+{
+     glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_HIDDEN);
+}
+
+void glfw_Window::showMouseCursor()
+{
+     glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_NORMAL);
+}
+
+void glfw_Window::disableMouseCursor()
+{
+     glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
+}
+
 bool glfw_Window::initGlfw(){
     glfwSetErrorCallback(glfw_Window::error_callback);
     /* Initialize the library */
@@ -55,6 +70,8 @@ bool glfw_Window::initWindow()
     //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 
 
+
+
     GLFWmonitor* primary = glfwGetPrimaryMonitor();
 
     /* Create a windowed mode window and its OpenGL context */
@@ -63,6 +80,7 @@ bool glfw_Window::initWindow()
     } else {
         window = glfwCreateWindow(window_width, window_height, name.c_str(), NULL, NULL);
     }
+
 
     if (!window)
     {

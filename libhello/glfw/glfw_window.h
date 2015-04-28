@@ -21,6 +21,9 @@ public:
 
     static bool initGlfw();
     static void getNativeResolution(int *width, int *height);
+    void showMouseCursor();
+    void hideMouseCursor();
+    void disableMouseCursor();
 
     void close();
     void startMainLoop();
