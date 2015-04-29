@@ -4,14 +4,18 @@
 void DirectionalLightShader::checkUniforms(){
     LightShader::checkUniforms();
     location_direction = getUniformLocation("direction");
-    location_color = getUniformLocation("color");
-
+    location_ambientIntensity = getUniformLocation("ambientIntensity");
 }
 
 
 
 void DirectionalLightShader::uploadDirection(vec3 &direction){
     Shader::upload(location_direction,direction);
+}
+
+void DirectionalLightShader::uploadAmbientIntensity(float i)
+{
+    Shader::upload(location_ambientIntensity,i);
 }
 
 
@@ -50,8 +54,14 @@ void DirectionalLight::setFocus(const vec3 &pos){
     cam.setView(pos-direction*range, pos, glm::vec3(0,1,0));
 }
 
+void DirectionalLight::setAmbientIntensity(float ai)
+{
+    ambientIntensity = ai;
+}
+
 void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam){
     shader.uploadColor(color);
+    shader.uploadAmbientIntensity(ambientIntensity);
 
     vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
     shader.uploadDirection(viewd);

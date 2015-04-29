@@ -4,6 +4,7 @@ void PointLightShader::checkUniforms(){
     LightShader::checkUniforms();
     location_position = getUniformLocation("position");
     location_attenuation = getUniformLocation("attenuation");
+    location_shadowPlanes = getUniformLocation("shadowPlanes");
 }
 
 void PointLightShader::upload(const vec3 &pos, float r){
@@ -15,7 +16,9 @@ void PointLightShader::upload(vec3 &attenuation){
     Shader::upload(location_attenuation,attenuation);
 }
 
-
+void PointLightShader::uploadShadowPlanes(float f , float n){
+    Shader::upload(location_shadowPlanes,vec2(f,n));
+}
 
 
 PointLight::PointLight():PointLight(Sphere())
@@ -158,6 +161,7 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
     shader.uploadModel(model);
     shader.upload(sphere.pos,radius);
     shader.upload(attenuation);
+    shader.uploadShadowPlanes(this->cam.zFar,this->cam.zNear);
 
     if(this->hasShadows()){
         shader.uploadShadow(1.0f);

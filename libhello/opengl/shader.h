@@ -14,6 +14,7 @@ class Shader{
 public:
     string name;
     string shaderPath;
+    string prefix;
     string typeToName(int type);
 
     Shader();
@@ -24,6 +25,8 @@ public:
     void printProgramLog( GLuint program );
     void printShaderLog( GLuint shader );
 
+
+    std::vector<string> loadAndPreproccess(const string &file);
     bool addMultiShaderFromFile(const string &multi_file);
     GLuint addShader(const char* content, int type);
     GLuint addShaderFromFile(const char* file, int type);
@@ -65,7 +68,7 @@ class ShaderLoader : public Loader<Shader>{
 public:
     Shader* loadFromFile(const std::string &name);
     template<typename shader_t> shader_t* load(const std::string &name);
-    template<typename shader_t> shader_t* loadFromFile(const std::string &name);
+    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix);
     void reload();
 };
 
@@ -88,7 +91,7 @@ shader_t* ShaderLoader::load(const std::string &name){
 
     for(std::string &path : locations){
         std::string complete_path = path + "/" + name;
-        object = loadFromFile<shader_t>(complete_path);
+        object = loadFromFile<shader_t>(complete_path,path);
         if (object){
             object->name = name;
             std::cout<<"Loaded from file: "<<complete_path<<std::endl;
@@ -103,8 +106,9 @@ shader_t* ShaderLoader::load(const std::string &name){
 }
 
 template<typename shader_t>
-shader_t* ShaderLoader::loadFromFile(const std::string &name){
+shader_t* ShaderLoader::loadFromFile(const std::string &name, const std::string &prefix){
     shader_t* shader = new shader_t(name);
+    shader->prefix = prefix;
     if(shader->reload()){
         return shader;
     }

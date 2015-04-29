@@ -12,12 +12,13 @@
 
 class DirectionalLightShader : public LightShader{
 public:
-    GLuint location_direction;
+    GLuint location_direction, location_ambientIntensity;
 
 
     DirectionalLightShader(const string &multi_file) : LightShader(multi_file){}
     virtual void checkUniforms();
     void uploadDirection(vec3 &direction);
+    void uploadAmbientIntensity(float i);
 
 };
 
@@ -28,6 +29,7 @@ protected:
 
     vec3 direction = vec3(0,-1,0);
     float range = 20.0f;
+    float ambientIntensity = 0.2f;
 
 public:
      OrthographicCamera cam;
@@ -41,6 +43,7 @@ public:
     virtual void createShadowMap(int resX, int resY) override;
     void setDirection(const vec3 &dir);
     void setFocus(const vec3 &pos);
+    void setAmbientIntensity(float ai);
 
 
 };

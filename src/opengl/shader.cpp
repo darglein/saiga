@@ -1,6 +1,7 @@
 #include "opengl/shader.h"
 
 #include <fstream>
+#include <algorithm>
 
 #define STATUS_WAITING 0 //waiting for "start"
 #define STATUS_START 1 //found start + looking for type
@@ -49,23 +50,63 @@ bool Shader::reload(){
 
 }
 
-bool Shader::addMultiShaderFromFile(const string &multi_file) {
-//    cout<<"Shader-Loader: Reading file "<<filePath<<"\n";
-    std::string content;
-    std::ifstream fileStream(multi_file, std::ios::in);
+std::vector<std::string> Shader::loadAndPreproccess(const std::string &file)
+{
+    std::vector<std::string> ret;
 
+    std::ifstream fileStream(file, std::ios::in);
     if(!fileStream.is_open()) {
-//        std::cerr << "Could not read file " << filePath << ". File does not exist." << std::endl;
-        return false;
+        return ret;
     }
+
+    const string include("#include ");
+
+    while(!fileStream.eof()) {
+        string line;
+        std::getline(fileStream, line);
+
+        if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
+            line = line.substr(include.size()-1);
+
+           auto it = std::remove(line.begin(),line.end(),'"');
+           line.erase(it,line.end());
+
+           it = std::remove(line.begin(),line.end(),' ');
+           line.erase(it,line.end());
+
+
+//            cout<<"found include ("<<line<<")"<<endl;
+            cout<<"including file "<<prefix<<"/"<<line<<endl;
+
+            //recursivly load includes
+            std::vector<std::string> tmp = loadAndPreproccess(prefix+"/"+line);
+            ret.insert(ret.end(),tmp.begin(),tmp.end());
+//            cout<<"shader path "<<shaderPath<<endl;
+        }else{
+            ret.push_back(line);
+        }
+
+
+    }
+    return ret;
+}
+
+bool Shader::addMultiShaderFromFile(const string &multi_file) {
+
+    std::string content,errorMsg;
+
+
+    std::vector<string> data = loadAndPreproccess(multi_file);
+
+    if(data.size()<=0)
+        return false;
 
     int status = STATUS_WAITING;
     int type = -1;
-    std::string line = "";
     int lineCount =0;
-    string errorMsg = "";
-    while(!fileStream.eof()) {
-        std::getline(fileStream, line);
+
+    for(string line : data){
+        //        std::getline(fileStream, line);
         lineCount++;
         if(line.compare("##start")==0){
             status = (status==STATUS_WAITING)?STATUS_START:STATUS_ERROR;
@@ -98,7 +139,6 @@ bool Shader::addMultiShaderFromFile(const string &multi_file) {
 
         if(status == STATUS_ERROR){
             std::cerr<<"Shader-Loader: Error "<<errorMsg<<" in line "<<lineCount<<"\n";
-            fileStream.close();
             return false;
         }else if(status == STATUS_READING){
             content.append(line);
@@ -106,7 +146,7 @@ bool Shader::addMultiShaderFromFile(const string &multi_file) {
         content.append("\n");
     }
 
-    fileStream.close();
+    //    fileStream.close();
     createProgram();
     return true;
 }
@@ -188,22 +228,19 @@ GLuint Shader::addShader(const char* content, int type){
 GLuint Shader::addShaderFromFile(const char* file, int type){
     cout<<"Shader-Loader: Reading file "<<file<<"\n";
     std::string content;
-    std::ifstream fileStream(file, std::ios::in);
 
-    if(!fileStream.is_open()) {
-        std::cerr << "Could not read file " << file << ". File does not exist." << std::endl;
-        return 0;
-    }
 
-    std::string line = "";
+    std::vector<string> data = loadAndPreproccess(file);
 
-    while(!fileStream.eof()) {
-        std::getline(fileStream, line);
+    if(data.size()<=0)
+        return false;
+
+
+    for(string line : data){
         content.append(line);
         content.append("\n");
     }
 
-    fileStream.close();
 
     return addShader(content.c_str(),type);
 }
@@ -237,7 +274,7 @@ void Shader::unbind(){
 GLint Shader::getUniformLocation(const char* name){
     int i = glGetUniformLocation(program,name);
     if(i==-1){
-//        cout<<"Cannot find uniform: "<<name<<endl;
+        //        cout<<"Cannot find uniform: "<<name<<endl;
     }
     return i;
 }
@@ -305,6 +342,8 @@ void Shader::printShaderLog( GLuint shader ){
     }
 }
 
+
+
 void Shader::upload(int location, const mat4 &m){
     glUniformMatrix4fv(location,1,GL_FALSE, (GLfloat*)&m[0]);
 }
@@ -353,7 +392,7 @@ Shader* ShaderLoader::loadFromFile(const std::string &name){
         return shader;
     }
     delete shader;
-    return NULL;
+    return nullptr;
 }
 
 void ShaderLoader::reload(){
