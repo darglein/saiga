@@ -106,6 +106,8 @@ void Deferred_Renderer::render_intern(float interpolation){
     mix_framebuffer.bind();
     glClear( GL_COLOR_BUFFER_BIT );
 
+
+
     renderLighting(*currentCamera);
 
 

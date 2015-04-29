@@ -24,8 +24,8 @@ void LightShader::uploadDepthBiasMV(mat4 &mat){
 
 void LightShader::uploadDepthTexture(raw_Texture* texture){
 
-    texture->bind(4);
-    Shader::upload(location_depthTex,4);
+    texture->bind(5);
+    Shader::upload(location_depthTex,5);
 }
 
 void LightShader::uploadShadow(float shadow){
