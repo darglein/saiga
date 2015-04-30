@@ -4,7 +4,6 @@
 #include <libhello/glfw/glfw_eventhandler.h>
 #include <array>
 
-
 template<typename camera_t>
 class Controllable_Camera : public glfw_KeyListener , public glfw_MouseListener{
 private:
@@ -32,11 +31,12 @@ public:
         Fast =4
     };
 
-    std::array<bool,5> keyPressed;
+    std::array<bool,5> keyPressed {};
 
     int buttonDrag = GLFW_MOUSE_BUTTON_3;
 
     Controllable_Camera(camera_t* cam):cam(cam){
+
     }
 
     void update(float delta);
