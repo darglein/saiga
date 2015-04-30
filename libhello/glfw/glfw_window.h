@@ -12,6 +12,9 @@ class glfw_Window : public Window{
 protected:
     GLFWwindow* window = nullptr;
 
+    long long SKIP_TICKS;
+    long long SKIP_TICKS_NORMAL_TIME;
+
     bool initWindow();
     bool initInput();
 public:
@@ -28,6 +31,7 @@ public:
     void close();
     void startMainLoop();
     void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond);
+    void setTimeScale(double timeScale);
 
 
     static void error_callback(int error, const char* description);
