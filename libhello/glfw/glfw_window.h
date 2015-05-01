@@ -12,8 +12,7 @@ class glfw_Window : public Window{
 protected:
     GLFWwindow* window = nullptr;
 
-    long long SKIP_TICKS;
-    long long SKIP_TICKS_NORMAL_TIME;
+    double timeScale = 1.f;
 
     bool initWindow();
     bool initInput();
