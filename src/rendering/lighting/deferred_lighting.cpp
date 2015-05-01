@@ -32,11 +32,28 @@ DeferredLighting::~DeferredLighting(){
 //    }
 }
 
+void DeferredLighting::cullLights(Camera *cam){
+    cam->recalculatePlanes();
+    //cull lights that are not visible
+    for(SpotLight* &light : spotLights){
+        if(light->isActive()){
+            light->cullLight(cam);
+        }
+    }
+
+
+    for(PointLight* &light : pointLights){
+        if(light->isActive()){
+            light->cullLight(cam);
+        }
+    }
+}
+
 void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
 
     for(DirectionalLight* &light : directionalLights){
 
-        if(light->isActive() && light->hasShadows()){
+        if(light->shouldCalculateShadowMap()){
             light->bindShadowMap();
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
@@ -45,7 +62,7 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
     }
 
     for(SpotLight* &light : spotLights){
-        if(light->isActive() && light->hasShadows()){
+        if(light->shouldCalculateShadowMap()){
             light->calculateCamera();
             light->bindShadowMap();
             renderer->renderDepth(&light->cam);
@@ -56,7 +73,7 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
 
     for(PointLight* &light : pointLights){
 
-        if(light->isActive() && light->hasShadows()){
+        if(light->shouldCalculateShadowMap()){
             for(int i=0;i<6;i++){
                 light->bindFace(i);
                 light->calculateCamera(i);
@@ -177,7 +194,7 @@ void DeferredLighting::renderPointLights(Camera *cam){
 
     pointLightMesh.bind();
     for(PointLight* &obj : pointLights){
-        if(obj->isActive()&&obj->isVisible()){
+        if(obj->shouldRender()){
             obj->bindUniforms(*pointLightShader,cam);
             pointLightMesh.draw();
         }
@@ -196,7 +213,7 @@ void DeferredLighting::renderPointLightsStencil(){
     stencilShader->uploadProj(proj);
     pointLightMesh.bind();
     for(PointLight* &obj : pointLights){
-        if(obj->isActive()&&obj->isVisible()){
+        if(obj->shouldRender()){
 
             obj->bindUniformsStencil(*stencilShader);
             pointLightMesh.draw();
@@ -220,7 +237,7 @@ void DeferredLighting::renderSpotLights(Camera *cam){
 
     spotLightMesh.bind();
     for(SpotLight* &obj : spotLights){
-        if(obj->isActive()&&obj->isVisible()){
+        if(obj->shouldRender()){
             obj->bindUniforms(*spotLightShader,cam);
             spotLightMesh.draw();
         }
@@ -237,7 +254,7 @@ void DeferredLighting::renderSpotLightsStencil(){
     stencilShader->uploadProj(proj);
     spotLightMesh.bind();
     for(SpotLight* &obj : spotLights){
-        if(obj->isActive()&&obj->isVisible()){
+        if(obj->shouldRender()){
 
             obj->bindUniformsStencil(*stencilShader);
             spotLightMesh.draw();
@@ -268,7 +285,7 @@ void DeferredLighting::renderDirectionalLights(Camera *cam){
 
     directionalLightMesh.bind();
     for(DirectionalLight* &obj : directionalLights){
-        if(obj->isActive()&&obj->isVisible()){
+        if(obj->shouldRender()){
             obj->view = &view;
             obj->bindUniforms(*directionalLightShader,cam);
             directionalLightMesh.draw();

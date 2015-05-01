@@ -2,6 +2,8 @@
 
 #include <libhello/util/glm.h>
 #include <libhello/rendering/object3d.h>
+#include <libhello/geometry/sphere.h>
+#include <libhello/geometry/plane.h>
 
 #include <string>
 #include <iostream>
@@ -22,6 +24,8 @@ public:
     float zNear,  zFar;
     float nw,nh,fw,fh; //dimensions of near and far plane
 
+    Plane planes[6];
+
     Camera(const string &name);
 
     void setView(const mat4 &v);
@@ -34,11 +38,19 @@ public:
 
     void updateFromModel();
     void recalculateMatrices(){viewProj = proj * view;}
-//    virtual void recalculatePlanes() = 0;
+    virtual void recalculatePlanes() = 0;
+
+
+
+    enum IntersectionResult{
+        OUTSIDE = 0,
+        INSIDE,
+        INTERSECT
+    };
 
 //    //culling stuff
-//    int pointInFrustum(const vec3_t &p);
-//    int sphereInFrustum(const Sphere &s);
+    IntersectionResult pointInFrustum(const vec3_t &p);
+    IntersectionResult sphereInFrustum(const Sphere &s);
 
 
 //    void draw();
@@ -56,6 +68,7 @@ public:
 	void setProj(float fovy, float aspect, float zNear, float zFar);
        friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
 
+       virtual void recalculatePlanes();
 };
 
 //========================= OrthographicCamera =========================
@@ -67,6 +80,9 @@ public:
      void setProj( float left, float right,float bottom,float top,float near,  float far);
 
        friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);
+
+
+       virtual void recalculatePlanes() ;
 
 };
 

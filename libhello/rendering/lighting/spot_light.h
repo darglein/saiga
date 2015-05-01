@@ -41,4 +41,6 @@ public:
     void recalculateScale();
     void setAngle(float value);
     float getAngle() const{return angle;}
+
+    void cullLight(Camera *cam);
 };

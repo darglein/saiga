@@ -27,7 +27,7 @@ public:
 class Light  : public Object3D
 {
 protected:
-    bool visible=true, active=true, selected=false;
+    bool visible=true, active=true, selected=false, culled=false;
 
     //shadow map
     bool castShadows=false;
@@ -71,6 +71,9 @@ public:
     virtual void createShadowMap(int resX, int resY);
     void bindShadowMap();
     void unbindShadowMap();
+
+    bool shouldCalculateShadowMap(){return castShadows&&active&&!culled;}
+    bool shouldRender(){return active&&!culled;}
 };
 
 

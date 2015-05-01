@@ -39,7 +39,7 @@ void DeferredShader::checkUniforms(){
     location_texture_diffuse = getUniformLocation("deferred_diffuse");
     location_texture_normal = getUniformLocation("deferred_normal");
     location_texture_depth = getUniformLocation("deferred_depth");
-//    location_texture_position = getUniformLocation("deferred_position");
+    location_texture_position = getUniformLocation("deferred_position");
     location_texture_data = getUniformLocation("deferred_data");
 
     cout<<"depth position "<<location_texture_depth<<endl;

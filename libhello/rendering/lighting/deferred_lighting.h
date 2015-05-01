@@ -65,6 +65,7 @@ public:
 
     void setViewProj(const mat4 &iv,const mat4 &v,const mat4 &p);
 
+    void cullLights(Camera *cam);
 private:
     void createInputCommands();
 

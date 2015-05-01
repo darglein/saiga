@@ -108,8 +108,9 @@ void PointLight::setLinearAttenuation(float r, float drop)
 float PointLight::getAttenuation(float r){
     return 1.0 / (attenuation.x +
                     attenuation.y * r +
-                    attenuation.z * r * r);
+                  attenuation.z * r * r);
 }
+
 
 void PointLight::calculateRadius(float cutoff){
     float a = attenuation.z;
@@ -239,3 +240,10 @@ void PointLight::calculateCamera(int face){
     vec3 up(gCameraDirections[face].Up);
     cam.setView(pos,pos+dir,up);
 }
+
+void PointLight::cullLight(Camera *cam)
+{
+    Sphere s(position,radius);
+    this->culled = cam->sphereInFrustum(s)==Camera::OUTSIDE;
+}
+

@@ -67,3 +67,11 @@ void SpotLight::setAngle(float value){
     this->angle = value;
     recalculateScale();
 }
+
+void SpotLight::cullLight(Camera *cam)
+{
+    //TODO: correct culling
+    Sphere s(position,radius);
+    this->culled = cam->sphereInFrustum(s)==Camera::OUTSIDE;
+//    cout<<this->culled<<endl;
+}

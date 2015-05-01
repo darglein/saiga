@@ -35,6 +35,7 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
     mix_framebuffer.create();
 
     Texture* depth_stencil = new Texture();
+//    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
     depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
     mix_framebuffer.attachTextureDepthStencil(depth_stencil);
 
@@ -88,7 +89,7 @@ void Deferred_Renderer::render_intern(float interpolation){
 
     renderGBuffer(*currentCamera, interpolation);
 
-
+    lighting.cullLights(*currentCamera);
     renderDepthMaps(*currentCamera);
 
     glDisable(GL_DEPTH_TEST);
