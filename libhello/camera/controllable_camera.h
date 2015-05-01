@@ -36,7 +36,14 @@ public:
     int buttonDrag = GLFW_MOUSE_BUTTON_3;
 
     Controllable_Camera(camera_t* cam):cam(cam){
+        cout << "Controllable_Camera() "<< endl;
+        positionAtUpdate  = cam->getPosition();
+        cam->rot = glm::quat_cast(cam->model);
+    }
 
+    ~Controllable_Camera(){
+        cout << "~Controllable_Camera" << endl;
+        disableInput();
     }
 
     void update(float delta);

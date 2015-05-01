@@ -1,5 +1,10 @@
 #pragma once
 
+//disable annoying visual studio warnings
+#ifdef _MSC_VER
+#pragma warning( disable : 4267 )
+#endif
+
 #include <string>
 #include <iostream>
 #define GLM_FORCE_RADIANS

@@ -23,7 +23,7 @@ void glfw_EventHandler::addKeyListener(glfw_KeyListener* kl,int priority){
     }
     keyListener.insert(iter,l);
 
-//    std::cout<<"add "<<keyListener.size()<<" "<<priority<<std::endl;
+//    std::cout<<"addKeyListener "<<keyListener.size()<<" "<<priority<<std::endl;
 }
 void glfw_EventHandler::addMouseListener(glfw_MouseListener* ml,int priority){
     //    mouseListener.push_back(Listener<glfw_MouseListener>(ml,priority));
