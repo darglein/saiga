@@ -10,8 +10,9 @@
 
 class LightShader : public DeferredShader{
 public:
-    GLuint location_color; //rgba, rgb=color, a=intensity [0,1]
-    GLuint location_depthBiasMV, location_depthTex,location_readShadowMap;
+    int location_color; //rgba, rgb=color, a=intensity [0,1]
+    int location_depthBiasMV, location_depthTex,location_readShadowMap;
+    int location_invProj;
     LightShader(const string &multi_file) : DeferredShader(multi_file){}
     virtual void checkUniforms();
     void uploadColor(vec4 &color);
@@ -19,6 +20,7 @@ public:
     void uploadDepthBiasMV(mat4 &mat);
     void uploadDepthTexture(raw_Texture* texture);
     void uploadShadow(float shadow);
+    void uploadInvProj(mat4 &mat);
 };
 
 

@@ -104,24 +104,26 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
     Texture* normal = new Texture();
     //    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB8 ,GL_UNSIGNED_BYTE);
     //    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB16 ,GL_UNSIGNED_SHORT);
-    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
+    normal->createEmptyTexture(w,h,GL_RG,GL_RG16F ,GL_HALF_FLOAT);
     attachTexture(normal);
-
-
-    Texture* position = new Texture();
-    position->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
-    attachTexture(position);
-
-
-
-
-
-
 
     //specular and emissive texture
     Texture* data = new Texture();
     data->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
     attachTexture(data);
+
+
+//    Texture* position = new Texture();
+//    position->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
+//    attachTexture(position);
+
+
+
+
+
+
+
+
 
 
 

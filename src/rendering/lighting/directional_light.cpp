@@ -66,6 +66,8 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
     vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
     shader.uploadDirection(viewd);
 
+    mat4 ip = glm::inverse(cam->proj);
+    shader.uploadInvProj(ip);
 
     if(this->hasShadows()){
         shader.uploadShadow(1.0f);

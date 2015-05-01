@@ -85,6 +85,7 @@ bool glfw_Window::initWindow()
     if (!window)
     {
         glfwTerminate();
+        cerr<<"glfwCreateWindow returned false!"<<endl;
         return false;
     }
 

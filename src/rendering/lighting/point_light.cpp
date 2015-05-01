@@ -163,6 +163,9 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
     shader.upload(attenuation);
     shader.uploadShadowPlanes(this->cam.zFar,this->cam.zNear);
 
+    mat4 ip = glm::inverse(cam->proj);
+    shader.uploadInvProj(ip);
+
     if(this->hasShadows()){
         shader.uploadShadow(1.0f);
         const glm::mat4 biasMatrix(

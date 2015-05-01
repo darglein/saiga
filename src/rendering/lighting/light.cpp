@@ -6,6 +6,7 @@ void LightShader::checkUniforms(){
     location_depthBiasMV = getUniformLocation("depthBiasMV");
     location_depthTex = getUniformLocation("depthTex");
     location_readShadowMap = getUniformLocation("readShadowMap");
+    location_invProj = getUniformLocation("invProj");
 }
 
 
@@ -20,6 +21,10 @@ void LightShader::uploadColor(vec3 &color, float intensity){
 
 void LightShader::uploadDepthBiasMV(mat4 &mat){
     Shader::upload(location_depthBiasMV,mat);
+}
+
+void LightShader::uploadInvProj(mat4 &mat){
+    Shader::upload(location_invProj,mat);
 }
 
 void LightShader::uploadDepthTexture(raw_Texture* texture){
