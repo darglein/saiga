@@ -18,6 +18,9 @@ protected:
     bool initInput();
 public:
 
+    double lastSwapBuffersMS = 0;
+    double lastPolleventsMS = 0;
+
     glfw_Window(const std::string &name,int window_width,int window_height, bool fullscreen);
     virtual ~glfw_Window();
 

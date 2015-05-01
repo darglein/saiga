@@ -159,7 +159,6 @@ long long getTicksMS(){
 }
 
 void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond){
-//    const long long SKIP_TICKS = 1000000 / ticksPerSecond;
     const long long SKIP_TICKS_NORMAL_TIME = 1000000 / ticksPerSecond;
     long long SKIP_TICKS = SKIP_TICKS_NORMAL_TIME;
 
@@ -188,13 +187,17 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
             ++loops;
         }
 
-//        cout << ((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ) << endl;
         renderer->render_intern( ((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ) );
 
+        double now = glfwGetTime()*1000;
+
         glfwSwapBuffers(window);
+        double now2 = glfwGetTime()*1000;
+        lastSwapBuffersMS = now2 - now;
 
         /* Poll for and process events */
         glfwPollEvents();
+        lastPolleventsMS = glfwGetTime()*1000 - now2;
     }
 }
 
