@@ -101,6 +101,11 @@ public:
     void draw() const;
 
     /*
+     * Like 'draw()' but only renders a part of the buffer
+     */
+    void draw(int startVertex, int count) const;
+
+    /*
      *  1. bind()
      *  2. draw()
      *  3. unbind()
@@ -198,6 +203,12 @@ template<class vertex_t>
 void VertexBuffer<vertex_t>::draw() const{
     glDrawArrays(draw_mode,0,vertex_count);
 }
+
+template<class vertex_t>
+void VertexBuffer<vertex_t>::draw(int startVertex, int count) const{
+    glDrawArrays(draw_mode,startVertex,count);
+}
+
 
 //=========================================================================
 

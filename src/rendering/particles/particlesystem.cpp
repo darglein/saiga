@@ -63,7 +63,14 @@ void ParticleSystem::render(Camera *cam, float interpolation){
 
     particleShader->uploadTiming(tick,interpolation);
     particleShader->uploadTimestep(secondsPerTick);
-    particleBuffer.bindAndDraw();
+
+//    particleBuffer.bindAndDraw();
+    //draw old particles first, so new ones are on top
+    particleBuffer.bind();
+    particleBuffer.draw(nextParticle,particleCount-nextParticle);
+    particleBuffer.draw(0,nextParticle);
+    particleBuffer.unbind();
+
     particleShader->unbind();
 
     if(blending){
@@ -81,7 +88,14 @@ void ParticleSystem::renderDeferred(Camera *cam, float interpolation, raw_Textur
     deferredParticleShader->uploadDepthTexture(d);
     deferredParticleShader->uploadTiming(tick,interpolation);
     deferredParticleShader->uploadTimestep(secondsPerTick);
-    particleBuffer.bindAndDraw();
+
+//    particleBuffer.bindAndDraw();
+
+    particleBuffer.bind();
+    particleBuffer.draw(nextParticle,particleCount-nextParticle);
+    particleBuffer.draw(0,nextParticle);
+    particleBuffer.unbind();
+
     deferredParticleShader->unbind();
 
 }
