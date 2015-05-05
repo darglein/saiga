@@ -36,6 +36,7 @@ void TextGenerator::loadFont(const string &font, int font_size){
 }
 
 void TextGenerator::createTextureAtlas(){
+    int chars= 0;
     int w=0,h=0;
     FT_GlyphSlot g = face->glyph;
     for(int i = 32; i < 128; i++) {
@@ -46,12 +47,17 @@ void TextGenerator::createTextureAtlas(){
 
         w += g->bitmap.width+charOffset;
         h = std::max(h, (int)g->bitmap.rows);
-
+        chars++;
     }
 
 
+    std::vector<unsigned char> data(w*h,0);
+
     textureAtlas = new Texture();
-    textureAtlas->createEmptyTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE);
+
+    //zero initialize texture
+    textureAtlas->createTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE,&data[0]);
+
 
     textureAtlas->bind();
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -79,6 +85,7 @@ void TextGenerator::createTextureAtlas(){
 
         textureAtlas->uploadSubImage(x, 0, g->bitmap.width, g->bitmap.rows, g->bitmap.buffer);
         x += g->bitmap.width+charOffset;
+
     }
 }
 
@@ -133,12 +140,22 @@ DynamicText* TextGenerator::createDynamicText(int size){
     return text;
 }
 
-Text* TextGenerator::createText(const string &label){
+Text* TextGenerator::createText(const string &label, bool normalize){
     Text* text = new Text(label);
 
     text->texture = textureAtlas;
 
     createTextMesh(text->mesh,label);
+
+    if(normalize){
+        aabb bb = text->mesh.getAabb();
+        vec3 offset = bb.getPosition();
+        mat4 t;
+        t[3] = vec4(-offset,0);
+        text->mesh.transform(t);
+    }
+
+
     text->mesh.createBuffers(text->buffer);
 
     return text;

@@ -7,7 +7,7 @@
 class TextShader;
 class Text;
 
-class Overlay {
+class TextOverlay2D {
 public:
 
     mat4 proj;
@@ -16,7 +16,7 @@ public:
 
     int width,height;
 
-    Overlay(int width, int height);
+    TextOverlay2D(int width, int height);
     void render();
 
     //text stuff

@@ -42,6 +42,8 @@ public:
 
     void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const string &text, int startX=0, int startY=0);
     DynamicText* createDynamicText(int size);
-    Text* createText(const string &label);
+
+    //if normalized-> origin of the textmesh is in the center of the text
+    Text* createText(const string &label, bool normalize=false);
     void updateText(DynamicText* text, const string &label, int startIndex);
 };
