@@ -17,7 +17,17 @@ glfw_Window::~glfw_Window()
 
 }
 
-void glfw_Window::getNativeResolution(int* width, int *height)
+void glfw_Window::getCurrentPrimaryMonitorResolution(int *width, int *height)
+{
+    const GLFWvidmode * mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+    cout << "Video Mode: " << mode->width << " x "<< mode->height << " @" << mode->refreshRate << "Hz" << endl;
+
+    *width = mode->width;
+    *height = mode->height;
+}
+
+void glfw_Window::getMaxResolution(int* width, int *height)
 {
     GLFWmonitor* primary = glfwGetPrimaryMonitor();
     //get max video mode resolution
@@ -57,19 +67,19 @@ bool glfw_Window::initGlfw(){
     return true;
 }
 
+
+
 bool glfw_Window::initWindow()
 {
     //glfwInit has to be called before
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+//    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+//    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
     //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
-
-
 
 
     GLFWmonitor* primary = glfwGetPrimaryMonitor();

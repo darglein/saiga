@@ -25,7 +25,10 @@ public:
     virtual ~glfw_Window();
 
     static bool initGlfw();
-    static void getNativeResolution(int *width, int *height);
+
+    static void getCurrentPrimaryMonitorResolution(int *width, int *height);
+
+    static void getMaxResolution(int *width, int *height);
     void showMouseCursor();
     void hideMouseCursor();
     void disableMouseCursor();
