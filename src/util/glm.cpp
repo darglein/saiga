@@ -64,7 +64,7 @@ quat getRotation(const vec3& v1, const vec3& v2){
 
     //see http://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
 
-    float k_cos_theta = dot(v1, v2);
+    float k_cos_theta = glm::dot(v1, v2);
     float k = glm::sqrt(glm::length(v1) * glm::length(v2));
 
     if (k_cos_theta / k == -1)
@@ -74,7 +74,7 @@ quat getRotation(const vec3& v1, const vec3& v2){
       return glm::angleAxis(glm::pi<float>(),glm::normalize(glm::cross(v1, other)) );
     }
 
-    return glm::normalize(quat(k_cos_theta + k, cross(v1, v2)));
+    return glm::normalize(quat(k_cos_theta + k, glm::cross(v1, v2)));
 }
 
 vec3 sampleCone(const glm::vec3 &dir, float angle){
