@@ -12,7 +12,8 @@ class TextOverlay3D {
 public:
 
     TextShader* textShader;
-    std::vector<Text*> texts;
+    //text + duration
+    std::vector<std::pair<Text*, float>> texts;
 
 
 
@@ -21,7 +22,10 @@ public:
     void renderText(Camera *cam);
 
     //text stuff
-    void addText(Text* text);
+    void addText(Text* text, float duration);
+
+    void update(float secondsPerTick);
+
 
     void setTextShader(TextShader* textShader);
 };
