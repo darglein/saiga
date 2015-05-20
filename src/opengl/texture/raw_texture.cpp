@@ -155,6 +155,7 @@ int glinternalFormat(int channels, int depth, bool srgb = false){
 
     if(f==0){
         std::cout<<"SRGB internal format not supported: "<<channels<<" channels, "<<depth<<" depth"<<std::endl;
+        f = iformats[coffset][doffset];
     }
     return f;
 

@@ -121,9 +121,10 @@ void Deferred_Renderer::render_intern(float interpolation){
         postProcess();
     else{
 //        postProcess();
-
         mix_framebuffer.blitColor(0);
     }
+
+    renderFinal(*currentCamera, interpolation);
 
 
 

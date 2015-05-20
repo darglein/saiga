@@ -151,6 +151,16 @@ void Image::convertFrom(fipImage &fipimg){
 //    RGBQUAD* palette = fipimg.getPalette();
     auto data = fipimg.accessPixels();
 
+//    if(bitDepth==1 && channels==1){
+//        for(unsigned int y=0;y<height;++y){
+//            for(unsigned int x=0;x<width;++x){
+//                int offset = (y*width+x)*bytesPerPixel();
+//                cout<<"p "<<(int)data[offset]<<endl;
+//            }
+
+//        }
+//    }
+
     if(channels==1){
         memcpy(this->data,data,getSize());
     }else if(channels == 3){

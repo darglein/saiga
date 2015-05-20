@@ -50,6 +50,7 @@ class Deferred_Renderer : public Renderer{
     virtual void render(Camera *cam, float interpolation) = 0;
     virtual void renderDepth(Camera *cam) = 0;
     virtual void renderOverlay(Camera *cam, float interpolation) = 0;
+    virtual void renderFinal(Camera *cam, float interpolation) = 0; //directly renders to screen (after post processing)
 
     virtual void cudaPostProcessing() = 0;
     virtual void initCudaPostProcessing(Texture* src, Texture* dest) = 0;

@@ -39,6 +39,7 @@ public:
     DeferredLighting(Framebuffer &framebuffer);
     ~DeferredLighting();
 
+    void setRenderDebug(bool b){drawDebug = b;}
     void createLightMeshes();
 
     DirectionalLight* createDirectionalLight();

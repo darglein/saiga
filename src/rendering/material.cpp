@@ -102,14 +102,19 @@ void MaterialLoader::parseLine(char* line){
         currentMaterial->Ke = readVec3(line);
     }else if(header == "map_Ka"){
         currentMaterial->map_Ka = textureLoader->load(line);
+        currentMaterial->map_Ka->setWrap(GL_REPEAT);
     }else if(header == "map_Kd"){
         currentMaterial->map_Kd = textureLoader->load(line);
+        currentMaterial->map_Kd->setWrap(GL_REPEAT);
     }else if(header == "map_Ks"){
         currentMaterial->map_Ks = textureLoader->load(line);
+         currentMaterial->map_Ks->setWrap(GL_REPEAT);
     }else if(header == "map_d"){
         currentMaterial->map_d = textureLoader->load(line);
+         currentMaterial->map_d->setWrap(GL_REPEAT);
     }else if(header == "map_bump" || header == "bump"){
         currentMaterial->map_bump = textureLoader->load(line);
+         currentMaterial->map_bump->setWrap(GL_REPEAT);
     }
 }
 
