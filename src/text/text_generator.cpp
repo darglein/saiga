@@ -86,6 +86,9 @@ void TextGenerator::createTextureAtlas(){
         textureAtlas->uploadSubImage(x, 0, g->bitmap.width, g->bitmap.rows, g->bitmap.buffer);
         x += g->bitmap.width+charOffset;
 
+        maxCharacter.min = glm::min(maxCharacter.min,vec3(info.bl,info.bt-info.bh,0));
+        maxCharacter.max = glm::max(maxCharacter.max,vec3(info.bl+info.bw,info.bt-info.bh+info.bh,0));
+
     }
 }
 

@@ -142,7 +142,14 @@ void Image::convertFrom(fipImage &fipimg){
 
 
     cout<<"create from fipimg: BitsPerPixel "<<fipimg.getBitsPerPixel()<<" channels "<<channels<<" type "<<fipimg.getImageType()<<endl;
+
     bitDepth = fipimg.getBitsPerPixel()/channels;
+
+    if(fipimg.getBitsPerPixel()==32 && channels ==3){
+        bitDepth = 8;
+    }
+
+
 
 
     create();

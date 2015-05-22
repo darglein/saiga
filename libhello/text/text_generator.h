@@ -33,7 +33,7 @@ private:
 
      Texture *textureAtlas = nullptr;
 public:
-
+    aabb maxCharacter;
     string font;
     int font_size;
     TextGenerator();
