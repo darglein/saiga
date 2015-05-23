@@ -2,6 +2,7 @@
 #include <algorithm>
 #define NOMINMAX
 #undef max
+#undef min
 
 FT_Library* TextGenerator::ft = NULL;
 
