@@ -4,6 +4,9 @@
 #include <libhello/glfw/glfw_eventhandler.h>
 #include <array>
 
+static int maxCamId = 0;
+
+
 template<typename camera_t>
 class Controllable_Camera : public glfw_KeyListener , public glfw_MouseListener{
 private:
@@ -11,6 +14,9 @@ private:
     double lastmx=0,lastmy=0;
     int FORWARD=0,RIGHT=0;
     vec3 positionAtUpdate;
+
+    bool recursive = false;
+    int camId;
 
 public:
     camera_t* cam;
@@ -39,6 +45,8 @@ public:
         cout << "Controllable_Camera() "<< endl;
         positionAtUpdate  = cam->getPosition();
         cam->rot = glm::quat_cast(cam->model);
+
+        camId = maxCamId++;
     }
 
     ~Controllable_Camera(){
@@ -68,6 +76,8 @@ void Controllable_Camera<camera_t>::enableInput()
 {
     glfw_EventHandler::addKeyListener(this,0);
     glfw_EventHandler::addMouseListener(this,0);
+//    cout << "ENABLE camera input " << camId << endl;
+
 }
 
 template<class camera_t>
@@ -77,7 +87,9 @@ void Controllable_Camera<camera_t>::disableInput()
         keyPressed[i] = false;
     }
     glfw_EventHandler::removeKeyListener(this);
-    glfw_EventHandler::removeKeyListener(this);
+    glfw_EventHandler::removeMouseListener(this);
+//    cout << "DISABLE camera input " << camId  << endl;
+
 }
 
 template<class camera_t>
@@ -148,13 +160,26 @@ bool Controllable_Camera<camera_t>::character_event(GLFWwindow* window, unsigned
 
 template<class camera_t>
 bool Controllable_Camera<camera_t>::cursor_position_event(GLFWwindow* window, double xpos, double ypos){
+    //prevent recursive call
+    if (recursive){
+        recursive = false;
+        return false;
+    }
+
 
     if(dragging){
+//        cout << "drag " << camId << " " << xpos << "  " << ypos << endl;
         double relx = lastmx-xpos;
         double rely = lastmy-ypos;
         cam->turn((float)relx*rotationSpeed,(float)rely*rotationSpeed);
         cam->calculateModel();
         cam->updateFromModel();
+
+        //prevent recursive call
+        recursive = true;
+        glfwSetCursorPos(window,lastmx, lastmy);
+        xpos = lastmx;
+        ypos = lastmy;
     }
     lastmx = xpos;
     lastmy = ypos;
@@ -165,6 +190,7 @@ template<class camera_t>
 bool Controllable_Camera<camera_t>::mouse_button_event(GLFWwindow* window, int button, int action, int mods){
     if(button==buttonDrag){
         dragging = (action==GLFW_PRESS)?true:false;
+
         return true;
     }
     return false;
