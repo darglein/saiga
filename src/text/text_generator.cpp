@@ -152,6 +152,7 @@ Text* TextGenerator::createText(const string &label, bool normalize){
     createTextMesh(text->mesh,label);
 
     if(normalize){
+        text->mesh.boundingBox.growBox(maxCharacter);
         aabb bb = text->mesh.getAabb();
         vec3 offset = bb.getPosition();
         mat4 t;
