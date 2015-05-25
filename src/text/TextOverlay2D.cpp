@@ -8,7 +8,13 @@ TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height){
 }
 
 void TextOverlay2D::render(){
-    renderText();
+    textShader->bind();
+    textShader->uploadProj(proj);
+    for(Text* &text : texts){
+        if(text->visible)
+            text->draw(textShader);
+    }
+    textShader->unbind();
 }
 
 void TextOverlay2D::addText(Text* text){
@@ -22,11 +28,3 @@ void TextOverlay2D::setTextShader(TextShader* textShader){
     this->textShader= textShader;
 }
 
-void TextOverlay2D::renderText(){
-    textShader->bind();
-    textShader->uploadProj(proj);
-    for(Text* &text : texts){
-        text->draw(textShader);
-    }
-    textShader->unbind();
-}

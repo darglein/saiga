@@ -8,6 +8,7 @@
 
 class Text : public Object3D{
 public:
+    bool visible = true;
     vec3 color;
     string label;
     TriangleMesh<VertexNT,GLuint> mesh;

@@ -21,7 +21,6 @@ public:
 
     //text stuff
     void addText(Text* text);
-    void renderText();
     void setTextShader(TextShader* textShader);
 };
 
