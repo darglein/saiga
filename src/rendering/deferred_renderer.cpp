@@ -80,9 +80,9 @@ void Deferred_Renderer::setDeferredMixer(DeferredShader* deferred_shader){
 
 void Deferred_Renderer::render_intern(float interpolation){
 
-    glViewport(0,0,width,height);
-    glClear( GL_COLOR_BUFFER_BIT );
-    glClear(GL_DEPTH_BUFFER_BIT);
+//    glViewport(0,0,width,height);
+//    glClear( GL_COLOR_BUFFER_BIT );
+//    glClear(GL_DEPTH_BUFFER_BIT);
 
 
 

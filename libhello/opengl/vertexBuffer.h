@@ -195,7 +195,7 @@ void VertexBuffer<vertex_t>::bind() const{
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::unbind() const{
-    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+//    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
     glBindVertexArray(0);
 }
 
