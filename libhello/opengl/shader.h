@@ -33,7 +33,18 @@ public:
     GLuint createProgram();
     GLint getUniformLocation(const char* name);
 
+    void getUniformInfo(GLuint location);
+    //uniform blocks
+    GLuint getUniformBlockLocation(const char* name);
+    void setUniformBlockBinding(GLuint blockLocation, GLuint bindingPoint);
 
+    //size of the complete block in bytes
+    GLint getUniformBlockSize(GLuint blockLocation);
+
+    std::vector<GLint> getUniformBlockIndices(GLuint blockLocation);
+    std::vector<GLint> getUniformBlockSize(GLuint blockLocation, std::vector<GLint> indices);
+    std::vector<GLint> getUniformBlockType(GLuint blockLocation, std::vector<GLint> indices);
+    std::vector<GLint> getUniformBlockOffset(GLuint blockLocation, std::vector<GLint> indices);
 
 public:
 

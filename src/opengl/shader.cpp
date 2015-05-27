@@ -68,20 +68,20 @@ std::vector<std::string> Shader::loadAndPreproccess(const std::string &file)
         if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
             line = line.substr(include.size()-1);
 
-           auto it = std::remove(line.begin(),line.end(),'"');
-           line.erase(it,line.end());
+            auto it = std::remove(line.begin(),line.end(),'"');
+            line.erase(it,line.end());
 
-           it = std::remove(line.begin(),line.end(),' ');
-           line.erase(it,line.end());
+            it = std::remove(line.begin(),line.end(),' ');
+            line.erase(it,line.end());
 
 
-//            cout<<"found include ("<<line<<")"<<endl;
+            //            cout<<"found include ("<<line<<")"<<endl;
             cout<<"including file "<<prefix<<"/"<<line<<endl;
 
             //recursivly load includes
             std::vector<std::string> tmp = loadAndPreproccess(prefix+"/"+line);
             ret.insert(ret.end(),tmp.begin(),tmp.end());
-//            cout<<"shader path "<<shaderPath<<endl;
+            //            cout<<"shader path "<<shaderPath<<endl;
         }else{
             ret.push_back(line);
         }
@@ -272,11 +272,83 @@ void Shader::unbind(){
 }
 
 GLint Shader::getUniformLocation(const char* name){
-    int i = glGetUniformLocation(program,name);
+    GLint i = glGetUniformLocation(program,name);
     if(i==-1){
         //        cout<<"Cannot find uniform: "<<name<<endl;
     }
     return i;
+}
+
+void Shader::getUniformInfo(GLuint location)
+{
+    const GLsizei bufSize = 128;
+
+    GLsizei length;
+    GLint size;
+    GLenum type;
+    GLchar name[bufSize];
+
+    glGetActiveUniform(program,location,bufSize,&length,&size,&type,name);
+
+    cout<<"uniform info "<<location<<endl;
+    cout<<"name "<<name<<endl;
+//    cout<<"length "<<length<<endl;
+    cout<<"size "<<size<<endl;
+    cout<<"type "<<type<<endl;
+}
+
+GLuint Shader::getUniformBlockLocation(const char *name)
+{
+    GLuint blockIndex = glGetUniformBlockIndex(program, name);
+
+    if(blockIndex==GL_INVALID_INDEX){
+        cerr<<"glGetUniformBlockIndex: uniform block invalid!"<<endl;
+    }
+    return blockIndex;
+}
+
+void Shader::setUniformBlockBinding(GLuint blockLocation, GLuint bindingPoint)
+{
+    glUniformBlockBinding(program, blockLocation, bindingPoint);
+}
+
+GLint Shader::getUniformBlockSize(GLuint blockLocation)
+{
+    GLint ret;
+    glGetActiveUniformBlockiv(program,blockLocation,GL_UNIFORM_BLOCK_DATA_SIZE,&ret);
+    return ret;
+}
+
+std::vector<GLint> Shader::getUniformBlockIndices(GLuint blockLocation)
+{
+    GLint ret;
+    glGetActiveUniformBlockiv(program,blockLocation,GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS,&ret);
+
+    std::vector<GLint> indices(ret);
+    glGetActiveUniformBlockiv(program,blockLocation,GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES,&indices[0]);
+
+    return indices;
+}
+
+std::vector<GLint> Shader::getUniformBlockSize(GLuint blockLocation, std::vector<GLint> indices)
+{
+    std::vector<GLint> ret(indices.size());
+    glGetActiveUniformsiv(program,indices.size(),(GLuint*)indices.data(),GL_UNIFORM_SIZE,ret.data());
+    return ret;
+}
+
+std::vector<GLint> Shader::getUniformBlockType(GLuint blockLocation, std::vector<GLint> indices)
+{
+    std::vector<GLint> ret(indices.size());
+    glGetActiveUniformsiv(program,indices.size(),(GLuint*)indices.data(),GL_UNIFORM_TYPE,ret.data());
+    return ret;
+}
+
+std::vector<GLint> Shader::getUniformBlockOffset(GLuint blockLocation, std::vector<GLint> indices)
+{
+    std::vector<GLint> ret(indices.size());
+    glGetActiveUniformsiv(program,indices.size(),(GLuint*)indices.data(),GL_UNIFORM_OFFSET,ret.data());
+    return ret;
 }
 
 
