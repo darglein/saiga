@@ -11,14 +11,14 @@ void TextOverlay3D::render(Camera *cam){
     renderText(cam);
 }
 
-void TextOverlay3D::addText(Text* text, float duration){
-    texts.push_back(std::make_pair(text, duration));
+void TextOverlay3D::addText(std::unique_ptr<Text> text, float duration){
+    texts.push_back(std::make_pair(std::move(text), duration));
 }
 
 void TextOverlay3D::update(float secondsPerTick)
 {
     texts.erase(std::remove_if(texts.begin(), texts.end(),
-                   [secondsPerTick](std::pair<Text*, float>& p){
+                   [secondsPerTick](std::pair<std::unique_ptr<Text>, float>& p){
                        p.second-=secondsPerTick;
                        return p.second<=0;}
                    ), texts.end());
@@ -39,7 +39,7 @@ void TextOverlay3D::renderText(Camera *cam){
     v[3] = vec4(0,0,0,1);
 
 
-    for(std::pair<Text*, float> &p : texts){
+    for(std::pair<std::unique_ptr<Text>, float> &p : texts){
 
         //make this text face towards the camera
         p.first->calculateModel();

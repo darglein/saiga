@@ -3,6 +3,7 @@
 #include "libhello/util/glm.h"
 
 #include <vector>
+#include <memory>
 
 class TextShader;
 class Text;
@@ -13,7 +14,7 @@ public:
 
     TextShader* textShader;
     //text + duration
-    std::vector<std::pair<Text*, float>> texts;
+    std::vector<std::pair<std::unique_ptr<Text>, float>> texts;
 
 
 
@@ -22,7 +23,7 @@ public:
     void renderText(Camera *cam);
 
     //text stuff
-    void addText(Text* text, float duration);
+    void addText(std::unique_ptr<Text> text, float duration);
 
     void update(float secondsPerTick);
 
