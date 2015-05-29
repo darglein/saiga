@@ -51,14 +51,18 @@ void TextGenerator::createTextureAtlas(){
         chars++;
     }
 
+    //increase width to a number dividable by 8 to fix possible alignment issues
+    while(w%8!=0)
+        w++;
 
-    std::vector<unsigned char> data(w*h,0);
 
+    std::vector<GLubyte> data(w*h,0x00);
+//    std::vector<GLubyte> charoffsetdata(charOffset*h,0x00);
     textureAtlas = new Texture();
 
     //zero initialize texture
-    textureAtlas->createTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE,&data[0]);
-
+    textureAtlas->createTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE,data.data());
+//    textureAtlas->createTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE,0);
 
     textureAtlas->bind();
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -86,7 +90,9 @@ void TextGenerator::createTextureAtlas(){
 
         textureAtlas->uploadSubImage(x, 0, g->bitmap.width, g->bitmap.rows, g->bitmap.buffer);
         x += g->bitmap.width+charOffset;
-
+//        x += g->bitmap.width;
+//        textureAtlas->uploadSubImage(x, 0, charOffset, h, charoffsetdata.data());
+//        x += charOffset;
         maxCharacter.min = glm::min(maxCharacter.min,vec3(info.bl,info.bt-info.bh,0));
         maxCharacter.max = glm::max(maxCharacter.max,vec3(info.bl+info.bw,info.bt-info.bh+info.bh,0));
 

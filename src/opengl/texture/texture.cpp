@@ -38,6 +38,8 @@ void basic_Texture_2D::setDefaultParameters(){
     glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+//    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 }
 
 bool basic_Texture_2D::fromImage(Image &img){
