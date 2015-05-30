@@ -10,12 +10,36 @@ class Text;
 class Camera;
 
 class TextOverlay3D {
+
 public:
+
+    struct TextContainer{
+        std::unique_ptr<Text> text;
+        float duration = 0.f;
+        bool orientToCamera = true;
+
+        TextContainer(std::unique_ptr<Text> text, float duration, bool orientToCamera)
+            : text(std::move(text)), duration(duration), orientToCamera(orientToCamera){}
+
+        TextContainer(TextContainer &&other) : text(std::move(other.text)), duration(other.duration), orientToCamera(other.orientToCamera)
+        {
+        }
+
+        TextContainer& operator=(TextContainer &&other)
+        {
+          text = std::move(other.text);
+          this->duration = other.duration;
+          this->orientToCamera = other.orientToCamera;
+          return *this;
+        }
+
+    };
 
     TextShader* textShader;
     //text + duration
-    std::vector<std::pair<std::unique_ptr<Text>, float>> texts;
+    std::vector<TextContainer> texts;
 
+    static const float INFINITE_DURATION;
 
 
     TextOverlay3D();
@@ -23,7 +47,7 @@ public:
     void renderText(Camera *cam);
 
     //text stuff
-    void addText(std::unique_ptr<Text> text, float duration);
+    void addText(std::unique_ptr<Text> text, float duration, bool orientToCamera = true);
 
     void update(float secondsPerTick);
 

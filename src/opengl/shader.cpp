@@ -161,6 +161,7 @@ GLuint Shader::createProgram(){
         glAttachShader(program, vertShader);
     if(geoShader){
         glAttachShader(program, geoShader);
+        //TODO disable this for NVIDIA nsight debugging
         glProgramParameteriEXT(program,GL_GEOMETRY_INPUT_TYPE_EXT,GL_TRIANGLES);
         glProgramParameteriEXT(program,GL_GEOMETRY_OUTPUT_TYPE_EXT,GL_TRIANGLE_STRIP);
 

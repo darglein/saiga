@@ -3,6 +3,8 @@
 #include "libhello/text/text.h"
 #include <algorithm>
 
+const float TextOverlay3D::INFINITE_DURATION = -1.f;
+
 TextOverlay3D::TextOverlay3D(){
 
 }
@@ -11,16 +13,17 @@ void TextOverlay3D::render(Camera *cam){
     renderText(cam);
 }
 
-void TextOverlay3D::addText(std::unique_ptr<Text> text, float duration){
-    texts.push_back(std::make_pair(std::move(text), duration));
+void TextOverlay3D::addText(std::unique_ptr<Text> text, float duration, bool orientToCamera){
+    texts.push_back(TextContainer(std::move(text), duration, orientToCamera));
 }
 
 void TextOverlay3D::update(float secondsPerTick)
 {
     texts.erase(std::remove_if(texts.begin(), texts.end(),
-                   [secondsPerTick](std::pair<std::unique_ptr<Text>, float>& p){
-                       p.second-=secondsPerTick;
-                       return p.second<=0;}
+                   [secondsPerTick](TextContainer& p){
+                    if (p.duration == INFINITE_DURATION)return false;
+                       p.duration-=secondsPerTick;
+                       return p.duration<=0;}
                    ), texts.end());
 }
 
@@ -30,6 +33,7 @@ void TextOverlay3D::setTextShader(TextShader* textShader){
 }
 
 void TextOverlay3D::renderText(Camera *cam){
+
     textShader->bind();
 
     textShader->uploadProj(cam->proj);
@@ -39,13 +43,16 @@ void TextOverlay3D::renderText(Camera *cam){
     v[3] = vec4(0,0,0,1);
 
 
-    for(std::pair<std::unique_ptr<Text>, float> &p : texts){
+    for(TextContainer &p : texts){
 
-        //make this text face towards the camera
-        p.first->calculateModel();
-        p.first->model =  p.first->model * v;
+        if (p.orientToCamera){
+            //make this text face towards the camera
+            p.text->calculateModel();
+            p.text->model =  p.text->model * v;
+        }
 
-        p.first->draw(textShader);
+
+        p.text->draw(textShader);
     }
     textShader->unbind();
 }
