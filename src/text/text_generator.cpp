@@ -65,6 +65,7 @@ void TextGenerator::createTextureAtlas(){
 //    textureAtlas->createTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE,0);
 
     textureAtlas->bind();
+    // The allowable values are 1 (byte-alignment), 2 (rows aligned to even-numbered bytes), Default: 4 (word-alignment), and 8 (rows start on double-word boundaries)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     textureAtlas->unbind();
     int x = 0;

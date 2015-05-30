@@ -27,6 +27,13 @@ public:
     void set(vertex_t* vertices,int vertex_count,index_t* indices,int index_count){
         vbuffer_t::set(vertices,vertex_count);
         ibuffer_t::set(indices,index_count);
+
+        //The ELEMENT_ARRAY_BUFFER_BINDING is part of VAO state.
+        //adds index buffer to vao state
+        vbuffer_t::bind();
+        ibuffer_t::bind();
+        vbuffer_t::unbind();
+        ibuffer_t::unbind();
     }
 };
 
@@ -50,11 +57,11 @@ void IndexedVertexBuffer<vertex_t,index_t>::draw(unsigned int length, void *offs
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::bind() const{
     vbuffer_t::bind();
-    ibuffer_t::bind();
+//    ibuffer_t::bind();
 }
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::unbind() const{
     vbuffer_t::unbind();
-    ibuffer_t::unbind();
+//    ibuffer_t::unbind();
 }
