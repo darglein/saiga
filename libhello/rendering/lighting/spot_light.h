@@ -36,7 +36,7 @@ public:
 
     void setRadius(float value) override;
 
-    virtual void createShadowMap(int resX, int resY) override {Light::createShadowMap(resX,resY);}
+    virtual void createShadowMap(int resX, int resY) override;
 
     void recalculateScale();
     void setAngle(float value);

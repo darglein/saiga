@@ -27,7 +27,7 @@ void SpotLight::calculateCamera(){
     vec3 pos = vec3(getPosition());
     vec3 up = vec3(getRightVector());
     this->cam.setView(pos,pos-dir,up);
-    this->cam.setProj(2*angle,1,1.0,400.0);
+
 }
 
 void SpotLight::bindUniforms(SpotLightShader &shader, Camera *cam){
@@ -61,6 +61,11 @@ void SpotLight::setRadius(float value)
 {
     radius = value;
     recalculateScale();
+}
+
+void SpotLight::createShadowMap(int resX, int resY) {
+    Light::createShadowMap(resX,resY);
+    this->cam.setProj(2*angle,1,0.1f,50.0);
 }
 
 void SpotLight::setAngle(float value){

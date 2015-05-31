@@ -42,6 +42,6 @@ void VertexBuffer<Particle>::setVertexAttributes(){
     glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*) (7 * sizeof(GLfloat)) );
     glVertexAttribPointer(3,3, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*) (10 * sizeof(GLfloat)) );
     glVertexAttribPointer(4,4, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*) (13 * sizeof(GLfloat)) );
-    glVertexAttribPointer(5,3, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*) (17 * sizeof(GLfloat)) );
-    glVertexAttribIPointer(6,3, GL_INT, sizeof(Particle), (void*) (20 * sizeof(GLfloat)) );
+    glVertexAttribPointer(5,4, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*) (17 * sizeof(GLfloat)) );
+    glVertexAttribIPointer(6,3, GL_INT, sizeof(Particle), (void*) (21 * sizeof(GLfloat)) );
 }

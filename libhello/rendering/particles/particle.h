@@ -27,7 +27,7 @@ public:
     float drag = 0;
     float lifetime = 0; //lifetime in seconds
     float fadetime = 0; //time when fading begins. if(lifetime==fadetime) -> no fading at all
-
+    float specular = 1.0f;
 
     int start = 0; //start tick
     int image = 0; //texture from texture array
@@ -40,14 +40,26 @@ public:
 
 
     //uniform scaled
-    inline void setScale(float radius, float upscale=0){ scale = vec4(radius,radius,upscale,upscale);}
-
+    void setScale(float radius, float upscale=0);
     //non uniform scaled
-    inline void setScale(const vec2& scale, const vec2& upscale=vec2(0)){ this->scale = vec4(scale,upscale);}
+    void setScale(const vec2& scale, const vec2& upscale=vec2(0));
 
-    inline void setVelocity(const vec3& v){float l = glm::length(v);velocity = vec4(v/l,l);}
+    void setVelocity(const vec3& v);
 
-}/*__attribute__((packed))*/;
+};/*__attribute__((packed))*/
+
+inline void Particle::setScale(float radius, float upscale){
+    scale = vec4(radius,radius,upscale,upscale);
+}
+
+inline void Particle::setScale(const vec2 &scale, const vec2 &upscale){
+    this->scale = vec4(scale,upscale);
+}
+
+inline void Particle::setVelocity(const vec3 &v){
+    float l = glm::length(v);
+    velocity = vec4(v/l,l);
+}
 
 
 
