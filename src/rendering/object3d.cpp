@@ -33,8 +33,8 @@ void Object3D::rotateAroundPoint(const glm::vec3& point, const glm::vec3& axis, 
     rotateLocal(axis,angle);
 
     translateGlobal(-point);
-    mat4 rot = glm::rotate(mat4(),degreesToRadians(angle),axis);
-    position = vec3(rot*vec4(position,1));
+    quat qrot = glm::angleAxis(degreesToRadians(angle),axis);
+    position = vec3(qrot*vec4(position,1));
     translateGlobal(point);
 }
 
