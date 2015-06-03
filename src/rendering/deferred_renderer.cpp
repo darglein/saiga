@@ -175,6 +175,7 @@ void Deferred_Renderer::renderLighting(Camera *cam){
 }
 
 void Deferred_Renderer::postProcess(){
+    glDisable(GL_DEPTH_TEST);
 
     //shader post process + gamma correction
     glEnable(GL_FRAMEBUFFER_SRGB);
