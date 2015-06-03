@@ -31,11 +31,14 @@ private:
     MVPShader* stencilShader;
     Framebuffer &framebuffer;
 
+
     mat4 inview,view,proj;
     bool drawDebug = true;
 
     raw_Texture* dummyTexture;
 public:
+    Texture* ssaoTexture;
+
     DeferredLighting(Framebuffer &framebuffer);
     ~DeferredLighting();
 

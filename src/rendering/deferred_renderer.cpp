@@ -17,6 +17,19 @@ void PostProcessingShader::uploadScreenSize(vec4 size){
 }
 
 
+
+void SSAOShader::checkUniforms(){
+    DeferredShader::checkUniforms();
+    location_invProj = getUniformLocation("invProj");
+}
+
+
+
+void SSAOShader::uploadInvProj(mat4 &mat){
+    Shader::upload(location_invProj,mat);
+}
+
+
 Deferred_Renderer::Deferred_Renderer():Renderer(),lighting(deferred_framebuffer){
 
 }
@@ -33,21 +46,17 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
     deferred_framebuffer.makeToDeferredFramebuffer(w,h);
 
     mix_framebuffer.create();
-
     Texture* depth_stencil = new Texture();
-//    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+    //    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
     depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
     mix_framebuffer.attachTextureDepthStencil(depth_stencil);
-
     Texture* ppsrc = new Texture();
-//    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
-//    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
-     ppsrc->createEmptyTexture(w,h,GL_RGB,GL_RGB16,GL_UNSIGNED_SHORT);
-//     ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_RGBA32F,GL_FLOAT);
+    //    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
+    //    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
+    ppsrc->createEmptyTexture(w,h,GL_RGB,GL_RGB16,GL_UNSIGNED_SHORT);
+    //     ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_RGBA32F,GL_FLOAT);
     mix_framebuffer.attachTexture(ppsrc);
-
     glDrawBuffer( GL_COLOR_ATTACHMENT0);
-
     mix_framebuffer.check();
     mix_framebuffer.unbind();
 
@@ -55,13 +64,26 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
     postProcess_framebuffer.create();
     Texture* ppdst = new Texture();
     ppdst->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
-//     ppdst->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
+    //     ppdst->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
     postProcess_framebuffer.attachTexture(ppdst);
-
     glDrawBuffer( GL_COLOR_ATTACHMENT0);
-
     postProcess_framebuffer.check();
     postProcess_framebuffer.unbind();
+
+
+    ssao_framebuffer.create();
+    Texture* ssaotex = new Texture();
+    ssaotex->createEmptyTexture(w,h,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
+    ssao_framebuffer.attachTexture(ssaotex);
+    glDrawBuffer( GL_COLOR_ATTACHMENT0);
+    ssao_framebuffer.check();
+
+    glClearColor(1.0f,1.0f,1.0f,1.0f);
+    glClear( GL_COLOR_BUFFER_BIT );
+    glClearColor(0.0f,0.0f,0.0f,0.0f);
+
+    lighting.ssaoTexture = ssaotex;
+    ssao_framebuffer.unbind();
 
 
     initCudaPostProcessing(ppsrc,ppdst);
@@ -78,16 +100,30 @@ void Deferred_Renderer::setDeferredMixer(DeferredShader* deferred_shader){
     this->deferred_shader = deferred_shader;
 }
 
+void Deferred_Renderer::toggleSSAO()
+{
+    ssao_framebuffer.bind();
+
+    glClearColor(1.0f,1.0f,1.0f,1.0f);
+    glClear( GL_COLOR_BUFFER_BIT );
+    glClearColor(0.0f,0.0f,0.0f,0.0f);
+    ssao_framebuffer.unbind();
+
+    ssao = !ssao;
+}
+
 void Deferred_Renderer::render_intern(float interpolation){
 
-//    glViewport(0,0,width,height);
-//    glClear( GL_COLOR_BUFFER_BIT );
-//    glClear(GL_DEPTH_BUFFER_BIT);
+    //    glViewport(0,0,width,height);
+    //    glClear( GL_COLOR_BUFFER_BIT );
+    //    glClear(GL_DEPTH_BUFFER_BIT);
 
 
 
 
     renderGBuffer(*currentCamera, interpolation);
+
+    renderSSAO(*currentCamera);
 
     lighting.cullLights(*currentCamera);
     renderDepthMaps(*currentCamera);
@@ -95,14 +131,14 @@ void Deferred_Renderer::render_intern(float interpolation){
     glDisable(GL_DEPTH_TEST);
     glViewport(0,0,width,height);
 
-	Error::quitWhenError("Deferred_Renderer::before blit");
+    Error::quitWhenError("Deferred_Renderer::before blit");
 
     //copy depth to lighting framebuffer. that is needed for stencil culling
     deferred_framebuffer.blitDepth(mix_framebuffer.id);
 
-	Error::quitWhenError("Deferred_Renderer::after blit");
+    Error::quitWhenError("Deferred_Renderer::after blit");
 
-//    glEnable(GL_FRAMEBUFFER_SRGB);
+    //    glEnable(GL_FRAMEBUFFER_SRGB);
 
     mix_framebuffer.bind();
     glClear( GL_COLOR_BUFFER_BIT );
@@ -115,12 +151,12 @@ void Deferred_Renderer::render_intern(float interpolation){
     renderOverlay(*currentCamera, interpolation);
     mix_framebuffer.unbind();
 
-//    glDisable(GL_FRAMEBUFFER_SRGB);
+    //    glDisable(GL_FRAMEBUFFER_SRGB);
 
     if(postProcessing)
         postProcess();
     else{
-//        postProcess();
+        //        postProcess();
         mix_framebuffer.blitColor(0);
     }
 
@@ -159,7 +195,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam, float interpolation){
 void Deferred_Renderer::renderDepthMaps(Camera *cam){
     lighting.renderDepthMaps(this);
 
-     Error::quitWhenError("Deferred_Renderer::renderDepthMaps");
+    Error::quitWhenError("Deferred_Renderer::renderDepthMaps");
 
 }
 
@@ -174,32 +210,62 @@ void Deferred_Renderer::renderLighting(Camera *cam){
     Error::quitWhenError("Deferred_Renderer::renderLighting");
 }
 
+void Deferred_Renderer::renderSSAO(Camera *cam)
+{
+
+    if(!ssao)
+        return;
+
+    ssao_framebuffer.bind();
+
+//    glClearColor(1.0f,1.0f,1.0f,1.0f);
+//    glClear( GL_COLOR_BUFFER_BIT );
+
+
+    if(ssaoShader){
+        ssaoShader->bind();
+        vec2 screenSize(width,height);
+        ssaoShader->uploadScreenSize(screenSize);
+        ssaoShader->uploadFramebuffer(&deferred_framebuffer);
+        mat4 iproj = glm::inverse(cam->proj);
+        ssaoShader->uploadInvProj(iproj);
+        quadMesh.bindAndDraw();
+        ssaoShader->unbind();
+    }
+
+
+    ssao_framebuffer.unbind();
+
+//    glClearColor(0.0f,0.0f,0.0f,0.0f);
+}
+
 void Deferred_Renderer::postProcess(){
     glDisable(GL_DEPTH_TEST);
 
     //shader post process + gamma correction
     glEnable(GL_FRAMEBUFFER_SRGB);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//    postProcess_framebuffer.bind();
-//    glClear( GL_COLOR_BUFFER_BIT );
+    //    postProcess_framebuffer.bind();
+    //    glClear( GL_COLOR_BUFFER_BIT );
     postProcessingShader->bind();
 
     vec4 screenSize(width,height,1.0/width,1.0/height);
     postProcessingShader->uploadScreenSize(screenSize);
     postProcessingShader->uploadTexture(mix_framebuffer.colorBuffers[0]);
+//    postProcessingShader->uploadTexture(ssao_framebuffer.colorBuffers[0]);
     postProcessingShader->uploadAdditionalUniforms();
     quadMesh.bindAndDraw();
     postProcessingShader->unbind();
 
-//    postProcess_framebuffer.unbind();
+    //    postProcess_framebuffer.unbind();
 
     glDisable(GL_FRAMEBUFFER_SRGB);
 
-//    postProcess_framebuffer.blitColor(0);
+    //    postProcess_framebuffer.blitColor(0);
 
-//    cudaPostProcessing();
-//    postProcess_framebuffer.blitColor(0);
+    //    cudaPostProcessing();
+    //    postProcess_framebuffer.blitColor(0);
 
-//     Error::quitWhenError("Deferred_Renderer::postProcess");
+    //     Error::quitWhenError("Deferred_Renderer::postProcess");
 }
 

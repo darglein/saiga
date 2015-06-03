@@ -16,6 +16,13 @@ public:
     virtual void uploadAdditionalUniforms(){}
 };
 
+class SSAOShader : public DeferredShader{
+public:
+    int location_invProj;
+    SSAOShader(const string &multi_file) : DeferredShader(multi_file){}
+    virtual void checkUniforms();
+    void uploadInvProj(mat4 &mat);
+};
 
 
 class Deferred_Renderer : public Renderer{
@@ -23,12 +30,17 @@ class Deferred_Renderer : public Renderer{
     Camera** currentCamera;
 
     bool postProcessing = false;
-    PostProcessingShader* postProcessingShader;
+    bool ssao = false;
+
+    PostProcessingShader* postProcessingShader = nullptr;
+    SSAOShader* ssaoShader = nullptr;
+
     IndexedVertexBuffer<VertexNT,GLuint> quadMesh;
 
     Framebuffer deferred_framebuffer;
     Framebuffer mix_framebuffer;
-    Framebuffer postProcess_framebuffer;
+    Framebuffer postProcess_framebuffer; //unused
+    Framebuffer ssao_framebuffer;
 
     DeferredShader* deferred_shader;
 
@@ -41,10 +53,13 @@ class Deferred_Renderer : public Renderer{
     void setDeferredMixer(DeferredShader* deferred_shader);
     void setSize(int width, int height){this->width=width;this->height=height;}
 
+    void toggleSSAO();
+
     void render_intern(float interpolation = 0.f);
     void renderGBuffer(Camera *cam, float interpolation = 0.f);
     void renderDepthMaps(Camera *cam);
     void renderLighting(Camera *cam);
+    void renderSSAO(Camera *cam);
     void postProcess();
 
     virtual void render(Camera *cam, float interpolation) = 0;

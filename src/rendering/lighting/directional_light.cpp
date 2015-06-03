@@ -5,6 +5,7 @@ void DirectionalLightShader::checkUniforms(){
     LightShader::checkUniforms();
     location_direction = getUniformLocation("direction");
     location_ambientIntensity = getUniformLocation("ambientIntensity");
+    location_ssaoTexture = getUniformLocation("ssaoTex");
 }
 
 
@@ -16,6 +17,13 @@ void DirectionalLightShader::uploadDirection(vec3 &direction){
 void DirectionalLightShader::uploadAmbientIntensity(float i)
 {
     Shader::upload(location_ambientIntensity,i);
+}
+
+void DirectionalLightShader::uploadSsaoTexture(raw_Texture *texture)
+{
+
+        texture->bind(6);
+        Shader::upload(location_ssaoTexture,6);
 }
 
 

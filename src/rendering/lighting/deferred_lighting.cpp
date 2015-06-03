@@ -282,6 +282,7 @@ void DeferredLighting::renderDirectionalLights(Camera *cam){
     directionalLightShader->uploadProj(proj);
     directionalLightShader->DeferredShader::uploadFramebuffer(&framebuffer);
     directionalLightShader->uploadScreenSize(vec2(width,height));
+    directionalLightShader->uploadSsaoTexture(ssaoTexture);
 
     directionalLightMesh.bind();
     for(DirectionalLight* &obj : directionalLights){

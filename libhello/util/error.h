@@ -4,7 +4,7 @@
 #include <cstdlib>
 
 
-#define ERROR_CHECKING_DISABLED
+//#define ERROR_CHECKING_DISABLED
 
 class Error{
 public:

@@ -13,12 +13,13 @@
 class DirectionalLightShader : public LightShader{
 public:
     GLuint location_direction, location_ambientIntensity;
-
+    GLuint location_ssaoTexture;
 
     DirectionalLightShader(const string &multi_file) : LightShader(multi_file){}
     virtual void checkUniforms();
     void uploadDirection(vec3 &direction);
     void uploadAmbientIntensity(float i);
+     void uploadSsaoTexture(raw_Texture* texture);
 
 };
 
