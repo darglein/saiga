@@ -21,6 +21,8 @@ void PostProcessingShader::uploadScreenSize(vec4 size){
 void SSAOShader::checkUniforms(){
     DeferredShader::checkUniforms();
     location_invProj = getUniformLocation("invProj");
+    location_filterRadius = getUniformLocation("filterRadius");
+    location_distanceThreshold = getUniformLocation("distanceThreshold");
 }
 
 
@@ -28,6 +30,12 @@ void SSAOShader::checkUniforms(){
 void SSAOShader::uploadInvProj(mat4 &mat){
     Shader::upload(location_invProj,mat);
 }
+
+void SSAOShader::uploadData(){
+    Shader::upload(location_filterRadius,filterRadius);
+    Shader::upload(location_distanceThreshold,distanceThreshold);
+}
+
 
 
 Deferred_Renderer::Deferred_Renderer():Renderer(),lighting(deferred_framebuffer){
@@ -227,6 +235,7 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
         vec2 screenSize(width,height);
         ssaoShader->uploadScreenSize(screenSize);
         ssaoShader->uploadFramebuffer(&deferred_framebuffer);
+        ssaoShader->uploadData();
         mat4 iproj = glm::inverse(cam->proj);
         ssaoShader->uploadInvProj(iproj);
         quadMesh.bindAndDraw();

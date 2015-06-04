@@ -135,7 +135,7 @@ void TextGenerator::createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const s
     }
 }
 
-DynamicText* TextGenerator::createDynamicText(int size){
+DynamicText* TextGenerator::createDynamicText(int size, bool normalize){
     DynamicText* text = new DynamicText(size);
 
     text->texture = textureAtlas;
@@ -145,7 +145,18 @@ DynamicText* TextGenerator::createDynamicText(int size){
     buffer.assign(size,'A');
 
     createTextMesh(text->mesh,buffer);
+
+    if(normalize){
+        text->mesh.boundingBox.growBox(maxCharacter);
+        aabb bb = text->mesh.getAabb();
+        vec3 offset = bb.getPosition();
+        mat4 t;
+        t[3] = vec4(-offset,0);
+        text->mesh.transform(t);
+    }
     text->mesh.createBuffers(text->buffer);
+
+
     text->label = buffer;
 
     return text;
@@ -166,8 +177,6 @@ Text* TextGenerator::createText(const string &label, bool normalize){
         t[3] = vec4(-offset,0);
         text->mesh.transform(t);
     }
-
-
     text->mesh.createBuffers(text->buffer);
 
     return text;

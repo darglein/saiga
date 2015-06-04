@@ -41,7 +41,7 @@ public:
     void loadFont(const string &font, int font_size);
 
     void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const string &text, int startX=0, int startY=0);
-    DynamicText* createDynamicText(int size);
+    DynamicText* createDynamicText(int size, bool normalize=false);
 
     //if normalized-> origin of the textmesh is in the center of the text
     Text* createText(const string &label, bool normalize=false);

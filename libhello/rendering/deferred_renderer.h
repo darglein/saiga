@@ -19,9 +19,15 @@ public:
 class SSAOShader : public DeferredShader{
 public:
     int location_invProj;
+     int location_filterRadius,location_distanceThreshold;
+
+     float distanceThreshold = 1.0f;
+     vec2 filterRadius = vec2(10.0f) / vec2(1600,900);
+
     SSAOShader(const string &multi_file) : DeferredShader(multi_file){}
     virtual void checkUniforms();
     void uploadInvProj(mat4 &mat);
+    void uploadData();
 };
 
 
