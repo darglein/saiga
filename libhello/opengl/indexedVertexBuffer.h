@@ -20,21 +20,12 @@ public:
     void draw() const;
     void draw(unsigned int length, void* offset) const;
 
-    void set(std::vector<vertex_t> &vertices,std::vector<index_t> &indices){
-        set(&vertices[0],vertices.size(),&indices[0],indices.size());
-    }
 
-    void set(vertex_t* vertices,int vertex_count,index_t* indices,int index_count){
-        vbuffer_t::set(vertices,vertex_count);
-        ibuffer_t::set(indices,index_count);
+    void drawInstanced(int instances) const;
+    void drawInstanced(int instances, int offset, int length) const;
 
-        //The ELEMENT_ARRAY_BUFFER_BINDING is part of VAO state.
-        //adds index buffer to vao state
-        vbuffer_t::bind();
-        ibuffer_t::bind();
-        vbuffer_t::unbind();
-        ibuffer_t::unbind();
-    }
+    void set(std::vector<vertex_t> &vertices,std::vector<index_t> &indices);
+    void set(vertex_t* vertices,int vertex_count,index_t* indices,int index_count);
 };
 
 template<class vertex_t, class index_t>
@@ -46,7 +37,7 @@ void IndexedVertexBuffer<vertex_t,index_t>::bindAndDraw() const{
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::draw() const{
-    glDrawElements( vbuffer_t::draw_mode, ibuffer_t::index_count, GL_UNSIGNED_INT, NULL );
+    glDrawElements( vbuffer_t::draw_mode, ibuffer_t::index_count, GL_UNSIGNED_INT, nullptr );
 }
 
 template<class vertex_t, class index_t>
@@ -54,14 +45,56 @@ void IndexedVertexBuffer<vertex_t,index_t>::draw(unsigned int length, void *offs
     glDrawElements( vbuffer_t::draw_mode, length, GL_UNSIGNED_INT, offset );
 }
 
+
+template<class vertex_t, class index_t>
+void IndexedVertexBuffer<vertex_t,index_t>::drawInstanced(int instances) const
+{
+    glDrawElementsInstanced(vbuffer_t::draw_mode,
+                            ibuffer_t::index_count,
+                            GL_UNSIGNED_INT,
+                            (void*)0,
+                            instances);
+}
+
+template<class vertex_t, class index_t>
+void IndexedVertexBuffer<vertex_t,index_t>::drawInstanced(int instances, int offset, int length) const
+{
+    glDrawElementsInstanced(vbuffer_t::draw_mode,
+                            length,
+                            GL_UNSIGNED_INT,
+                            (void*)offset,
+                            instances);
+}
+
+
+
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::bind() const{
     vbuffer_t::bind();
-//    ibuffer_t::bind();
+    //    ibuffer_t::bind();
 }
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::unbind() const{
     vbuffer_t::unbind();
-//    ibuffer_t::unbind();
+    //    ibuffer_t::unbind();
+}
+
+
+template<class vertex_t, class index_t>
+void IndexedVertexBuffer<vertex_t,index_t>::set(std::vector<vertex_t> &vertices, std::vector<index_t> &indices){
+    set(&vertices[0],vertices.size(),&indices[0],indices.size());
+}
+
+template<class vertex_t, class index_t>
+void IndexedVertexBuffer<vertex_t,index_t>::set(vertex_t *vertices, int vertex_count, index_t *indices, int index_count){
+    vbuffer_t::set(vertices,vertex_count);
+    ibuffer_t::set(indices,index_count);
+
+    //The ELEMENT_ARRAY_BUFFER_BINDING is part of VAO state.
+    //adds index buffer to vao state
+    vbuffer_t::bind();
+    ibuffer_t::bind();
+    vbuffer_t::unbind();
+    ibuffer_t::unbind();
 }

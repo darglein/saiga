@@ -1,47 +1,24 @@
 #include "opengl/uniformBuffer.h"
 
 
-UniformBuffer::UniformBuffer()
+UniformBuffer::UniformBuffer() : Buffer(GL_UNIFORM_BUFFER)
 {
 
 }
 
 UniformBuffer::~UniformBuffer()
 {
-    deleteGLBuffer();
 }
 
-void UniformBuffer::createGLBuffer(void *data, unsigned int size)
-{
-    glGenBuffers( 1, &buffer );
-
-    glBindBuffer( GL_UNIFORM_BUFFER, buffer );
-
-    glBufferData(GL_UNIFORM_BUFFER, size, data, GL_DYNAMIC_DRAW);
-
-}
-
-void UniformBuffer::deleteGLBuffer()
-{
-    if(buffer){
-        glDeleteBuffers( 1, &buffer );
-        buffer = 0;
-    }
-}
 
 
 
 void UniformBuffer::bind(GLuint bindingPoint)
 {
-    glBindBuffer( GL_UNIFORM_BUFFER, buffer );
-    glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, buffer);
+    Buffer::bind();
+    glBindBufferBase(target, bindingPoint, buffer);
 }
 
-void UniformBuffer::updateBuffer(void *data, unsigned int size, unsigned int offset)
-{
-    glBindBuffer( GL_UNIFORM_BUFFER, buffer );
-    glBufferSubData(GL_UNIFORM_BUFFER,offset,size,data);
-}
 
 void UniformBuffer::init(Shader *shader, GLuint location)
 {

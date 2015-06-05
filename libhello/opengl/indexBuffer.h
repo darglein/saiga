@@ -1,5 +1,7 @@
 #pragma once
 
+#include "libhello/opengl/buffer.h"
+
 #include <GL/glew.h>
 #include "libhello/opengl/vertex.h"
 #include <iostream>
@@ -9,30 +11,21 @@
 
 
 template<class index_t>
-class IndexBuffer{
-protected:
+class IndexBuffer : public Buffer{
+public:
     int index_count;
 
-    GLuint gl_index_buffer = 0;
 public:
-    IndexBuffer(){}
-    ~IndexBuffer(){deleteGLBuffers();}
-    void deleteGLBuffers();
+    IndexBuffer(): Buffer(GL_ELEMENT_ARRAY_BUFFER){}
+    ~IndexBuffer(){}
 
     void set(std::vector<index_t> &indices);
     void set(index_t* indices,int index_count);
 
-    void bind() const;
     void unbind() const;
 };
 
-template<class index_t>
-void IndexBuffer<index_t>::deleteGLBuffers(){
-    //glDeleteBuffers silently ignores 0's and names that do not correspond to existing buffer objects
-    glDeleteBuffers( 1, &gl_index_buffer );
-    gl_index_buffer = 0;
 
-}
 
 
 template<class index_t>
@@ -45,17 +38,8 @@ void IndexBuffer<index_t>::set(index_t* indices,int index_count){
 
     this->index_count = index_count;
 
-    //create IBO
-    glGenBuffers( 1, &gl_index_buffer );
-    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gl_index_buffer );
-    glBufferData( GL_ELEMENT_ARRAY_BUFFER, index_count * sizeof(index_t), indices, GL_STATIC_DRAW );
+    createGLBuffer(indices,index_count * sizeof(index_t),GL_STATIC_DRAW);
 
-    //    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
-}
-
-template<class index_t>
-void IndexBuffer<index_t>::bind() const{
-    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gl_index_buffer );
 }
 
 template<class index_t>

@@ -2,6 +2,7 @@
 
 
 #include <GL/glew.h>
+#include "libhello/opengl/buffer.h"
 #include "libhello/opengl/shader.h"
 #include <iostream>
 
@@ -11,21 +12,15 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-class UniformBuffer{
+class UniformBuffer : public Buffer{
 public:
-    GLuint buffer = 0;
-    GLuint size;
     int numUniforms; //one uniform buffer can contain multiple uniforms
 
     UniformBuffer();
     ~UniformBuffer();
 
-    void createGLBuffer(void* data, unsigned int size );
-    void deleteGLBuffer();
+
     void bind( GLuint bindingPoint);
-
-    void updateBuffer(void* data, unsigned int size, unsigned int offset);
-
 
     /**
      * Initializes this uniform buffer for the given shader.

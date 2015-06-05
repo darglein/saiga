@@ -1,5 +1,7 @@
 #pragma once
 
+#include "libhello/opengl/buffer.h"
+#include "libhello/opengl/instancedBuffer.h"
 #include <GL/glew.h>
 #include "libhello/opengl/vertex.h"
 #include <iostream>
@@ -17,11 +19,11 @@ using std::endl;
  */
 
 template<class vertex_t>
-class VertexBuffer{
+class VertexBuffer : public Buffer{
 protected:
     int vertex_count;
     int draw_mode;
-    GLuint gl_vertex_buffer = 0, gl_vao = 0;
+    GLuint  gl_vao = 0;
 
     /*
      *  Tells OpenGL how to handle the vertices.
@@ -48,7 +50,7 @@ public:
      *  use set() to initialized buffers.
      */
 
-    VertexBuffer(){}
+    VertexBuffer() : Buffer(GL_ARRAY_BUFFER){}
     ~VertexBuffer(){deleteGLBuffers();}
 
 
@@ -87,6 +89,14 @@ public:
     void bind() const;
     void unbind() const;
 
+    /**
+     *  Adds an instanced buffer to this vertex array object.
+     *  While rendering the instanced buffer does not have to be bound again.
+     */
+
+    template<typename data_t>
+    void addInstancedBuffer(InstancedBuffer<data_t> &buffer, int location, int divisor=1);
+
     /*
      *  Draws the vertex array in the specified draw mode.
      *  Uses consecutive vertices to form the specified primitive.
@@ -104,6 +114,10 @@ public:
      * Like 'draw()' but only renders a part of the buffer
      */
     void draw(int startVertex, int count) const;
+
+    void drawInstanced(int instances) const;
+    void drawInstanced(int instances, int offset, int length) const;
+
 
     /*
      *  1. bind()
@@ -125,9 +139,11 @@ public:
     void setDrawMode(int draw_mode);
 
 
-    int getVBO(){return gl_vertex_buffer;}
+    int getVBO(){return buffer;}
     int getVAO(){return gl_vao;}
 };
+
+
 
 
 template<class vertex_t>
@@ -155,28 +171,25 @@ void VertexBuffer<vertex_t>::set(vertex_t* vertices,int vertex_count){
      deleteGLBuffers();
 
 
-    //create VBO
-    glGenBuffers( 1, &gl_vertex_buffer );
-    glBindBuffer( GL_ARRAY_BUFFER, gl_vertex_buffer );
-    glBufferData( GL_ARRAY_BUFFER, vertex_count * sizeof(vertex_t), vertices, GL_STATIC_DRAW );
+    createGLBuffer(vertices,vertex_count * sizeof(vertex_t),GL_STATIC_DRAW);
 
     //create VAO and init
     glGenVertexArrays(1, &gl_vao);
     glBindVertexArray(gl_vao);
 
-    glBindBuffer( GL_ARRAY_BUFFER, gl_vertex_buffer );
+    Buffer::bind();
+
     setVertexAttributes();
 
     glBindVertexArray(0);
-    glBindBuffer( GL_ARRAY_BUFFER, 0 );
+    glBindBuffer( target, 0 );
 
 }
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::deleteGLBuffers(){
     //glDeleteBuffers silently ignores 0's and names that do not correspond to existing buffer objects
-    glDeleteBuffers( 1, &gl_vertex_buffer );
-    gl_vertex_buffer = 0;
+    Buffer::deleteGLBuffer();
     glDeleteVertexArrays(1, &gl_vao);
     gl_vao = 0;
 
@@ -184,8 +197,7 @@ void VertexBuffer<vertex_t>::deleteGLBuffers(){
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::updateVertexBuffer(vertex_t* vertices,int vertex_count, int vertex_offset){
-    glBindBuffer( GL_ARRAY_BUFFER, gl_vertex_buffer );
-    glBufferSubData(GL_ARRAY_BUFFER,vertex_offset*sizeof(vertex_t),vertex_count*sizeof(vertex_t),vertices);
+    Buffer::updateBuffer(vertices,vertex_count*sizeof(vertex_t),vertex_offset*sizeof(vertex_t));
 }
 
 template<class vertex_t>
@@ -195,8 +207,17 @@ void VertexBuffer<vertex_t>::bind() const{
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::unbind() const{
-//    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
     glBindVertexArray(0);
+}
+
+template<class vertex_t>
+template<typename data_t>
+void VertexBuffer<vertex_t>::addInstancedBuffer(InstancedBuffer<data_t> &buffer, int location, int divisor)
+{
+    bind();
+
+    buffer.setAttributes(location,divisor);
+    unbind();
 }
 
 template<class vertex_t>
@@ -207,6 +228,24 @@ void VertexBuffer<vertex_t>::draw() const{
 template<class vertex_t>
 void VertexBuffer<vertex_t>::draw(int startVertex, int count) const{
     glDrawArrays(draw_mode,startVertex,count);
+}
+
+template<class vertex_t>
+void VertexBuffer<vertex_t>::drawInstanced(int instances) const
+{
+    glDrawArraysInstanced(draw_mode,
+                            0,
+                            vertex_count,
+                            instances);
+}
+
+template<class vertex_t>
+void VertexBuffer<vertex_t>::drawInstanced(int instances, int offset, int length) const
+{
+    glDrawArraysInstanced(draw_mode,
+                            offset,
+                            length,
+                            instances);
 }
 
 
