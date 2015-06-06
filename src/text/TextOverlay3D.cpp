@@ -13,7 +13,7 @@ void TextOverlay3D::render(Camera *cam){
     renderText(cam);
 }
 
-void TextOverlay3D::addText(std::unique_ptr<Text> text, float duration, bool orientToCamera){
+void TextOverlay3D::addText(std::shared_ptr<Text> text, float duration, bool orientToCamera){
     texts.push_back(TextContainer(std::move(text), duration, orientToCamera));
 }
 

@@ -14,24 +14,24 @@ class TextOverlay3D {
 public:
 
     struct TextContainer{
-        std::unique_ptr<Text> text;
+        std::shared_ptr<Text> text;
         float duration = 0.f;
         bool orientToCamera = true;
 
-        TextContainer(std::unique_ptr<Text> text, float duration, bool orientToCamera)
-            : text(std::move(text)), duration(duration), orientToCamera(orientToCamera){}
+        TextContainer(std::shared_ptr<Text> text, float duration, bool orientToCamera)
+            : text(text), duration(duration), orientToCamera(orientToCamera){}
 
-        TextContainer(TextContainer &&other) : text(std::move(other.text)), duration(other.duration), orientToCamera(other.orientToCamera)
-        {
-        }
+//        TextContainer(TextContainer &&other) : text(std::move(other.text)), duration(other.duration), orientToCamera(other.orientToCamera)
+//        {
+//        }
 
-        TextContainer& operator=(TextContainer &&other)
-        {
-          text = std::move(other.text);
-          this->duration = other.duration;
-          this->orientToCamera = other.orientToCamera;
-          return *this;
-        }
+//        TextContainer& operator=(TextContainer &&other)
+//        {
+//          text = std::move(other.text);
+//          this->duration = other.duration;
+//          this->orientToCamera = other.orientToCamera;
+//          return *this;
+//        }
 
     };
 
@@ -47,7 +47,7 @@ public:
     void renderText(Camera *cam);
 
     //text stuff
-    void addText(std::unique_ptr<Text> text, float duration, bool orientToCamera = true);
+    void addText(std::shared_ptr<Text> text, float duration, bool orientToCamera = true);
 
     void update(float secondsPerTick);
 
