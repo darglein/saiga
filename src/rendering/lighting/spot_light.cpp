@@ -65,7 +65,9 @@ void SpotLight::setRadius(float value)
 
 void SpotLight::createShadowMap(int resX, int resY) {
     Light::createShadowMap(resX,resY);
-    this->cam.setProj(2*angle,1,0.1f,50.0);
+//    float farplane = 50.0f;
+    float farplane = radius;
+    this->cam.setProj(2*angle,1,0.1f,farplane);
 }
 
 void SpotLight::setAngle(float value){
@@ -73,10 +75,12 @@ void SpotLight::setAngle(float value){
     recalculateScale();
 }
 
-void SpotLight::cullLight(Camera *cam)
+bool SpotLight::cullLight(Camera *cam)
 {
     //TODO: correct culling
     Sphere s(position,radius);
-    this->culled = cam->sphereInFrustum(s)==Camera::OUTSIDE;
+//    this->culled = cam->sphereInFrustum(s)==Camera::OUTSIDE;
+    this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
 //    cout<<this->culled<<endl;
+    return culled;
 }

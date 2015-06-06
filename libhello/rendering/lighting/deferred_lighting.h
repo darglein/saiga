@@ -36,7 +36,13 @@ private:
     bool drawDebug = true;
 
     raw_Texture* dummyTexture;
+
+
 public:
+    int totalLights;
+    int visibleLights;
+    int renderedDepthmaps;
+
     Texture* ssaoTexture;
 
     DeferredLighting(Framebuffer &framebuffer);

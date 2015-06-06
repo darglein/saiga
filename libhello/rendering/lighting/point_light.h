@@ -63,5 +63,5 @@ public:
 
     float getAttenuation(float r);
 
-    void cullLight(Camera *cam);
+    bool cullLight(Camera *cam);
 };

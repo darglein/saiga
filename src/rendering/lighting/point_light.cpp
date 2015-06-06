@@ -241,9 +241,10 @@ void PointLight::calculateCamera(int face){
     cam.setView(pos,pos+dir,up);
 }
 
-void PointLight::cullLight(Camera *cam)
+bool PointLight::cullLight(Camera *cam)
 {
     Sphere s(position,radius);
     this->culled = cam->sphereInFrustum(s)==Camera::OUTSIDE;
+    return culled;
 }
 

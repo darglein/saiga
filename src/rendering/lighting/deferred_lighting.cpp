@@ -33,28 +33,35 @@ DeferredLighting::~DeferredLighting(){
 }
 
 void DeferredLighting::cullLights(Camera *cam){
-//    cam->recalculatePlanes();
+
+    visibleLights = directionalLights.size();
+
     //cull lights that are not visible
     for(SpotLight* &light : spotLights){
         if(light->isActive()){
-            light->cullLight(cam);
+            light->cam.recalculatePlanes();
+            visibleLights += (light->cullLight(cam))? 0 : 1;
         }
     }
 
 
     for(PointLight* &light : pointLights){
         if(light->isActive()){
-            light->cullLight(cam);
+            visibleLights += (light->cullLight(cam))? 0 : 1;
         }
     }
 }
 
 void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
+    totalLights = 0;
+    renderedDepthmaps = 0;
+
+    totalLights = directionalLights.size() + spotLights.size() + pointLights.size();
 
     for(DirectionalLight* &light : directionalLights){
 
         if(light->shouldCalculateShadowMap()){
-
+            renderedDepthmaps++;
             light->bindShadowMap();
             light->cam.recalculatePlanes();
             renderer->renderDepth(&light->cam);
@@ -65,10 +72,9 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
 
     for(SpotLight* &light : spotLights){
         if(light->shouldCalculateShadowMap()){
-
+            renderedDepthmaps++;
             light->calculateCamera();
             light->bindShadowMap();
-            light->cam.recalculatePlanes();
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
         }
@@ -78,6 +84,7 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
     for(PointLight* &light : pointLights){
 
         if(light->shouldCalculateShadowMap()){
+            renderedDepthmaps+=6;
             for(int i=0;i<6;i++){
                 light->bindFace(i);
                 light->calculateCamera(i);

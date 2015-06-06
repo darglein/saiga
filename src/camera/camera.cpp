@@ -130,15 +130,19 @@ void PerspectiveCamera::recalculatePlanes()
     planes[5].set(position,br,tr); //right
 
 
-    vec3 fbr = farplanepos - fh * up + fw * right;
+//    vec3 fbr = farplanepos - fh * up + fw * right;
+    vec3 fbr = farplanepos - fh * up;
     vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
     float r = glm::distance(fbr,sphereMid);
+
+    boundingSphere.r = r;
+    boundingSphere.pos = sphereMid;
 
 //    cout<<"recalculatePlanes"<<endl;
 //    cout<<zNear<<" "<<zFar<<endl;
 //    cout<<sphereMid<<" "<<fbr<<endl;
-//    boundingSphere.r = r;
-//    boundingSphere.pos = sphereMid;
+//    cout<<r<<endl;
+
 }
 
 std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca){

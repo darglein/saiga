@@ -42,5 +42,5 @@ public:
     void setAngle(float value);
     float getAngle() const{return angle;}
 
-    void cullLight(Camera *cam);
+    bool cullLight(Camera *cam);
 };
