@@ -127,7 +127,7 @@ void Deferred_Renderer::render_intern(float interpolation){
     //    glClear(GL_DEPTH_BUFFER_BIT);
 
 
-
+    (*currentCamera)->recalculatePlanes();
 
     renderGBuffer(*currentCamera, interpolation);
 

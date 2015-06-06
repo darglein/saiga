@@ -55,6 +55,24 @@ Camera::IntersectionResult Camera::sphereInFrustum(const Sphere &s){
     return result;
 }
 
+Camera::IntersectionResult Camera::pointInSphereFrustum(const vec3 &p) {
+
+    if(boundingSphere.contains(p)){
+        return INSIDE;
+    }else{
+        return OUTSIDE;
+    }
+
+}
+
+Camera::IntersectionResult Camera::sphereInSphereFrustum(const Sphere &s){
+    if(boundingSphere.intersect(s)){
+        return INSIDE;
+    }else{
+        return OUTSIDE;
+    }
+}
+
 
 
 std::ostream& operator<<(std::ostream& os, const Camera& ca){
@@ -110,6 +128,17 @@ void PerspectiveCamera::recalculatePlanes()
     planes[3].set(position,bl,br); //bottom
     planes[4].set(position,tl,bl); //left
     planes[5].set(position,br,tr); //right
+
+
+    vec3 fbr = farplanepos - fh * up + fw * right;
+    vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
+    float r = glm::distance(fbr,sphereMid);
+
+//    cout<<"recalculatePlanes"<<endl;
+//    cout<<zNear<<" "<<zFar<<endl;
+//    cout<<sphereMid<<" "<<fbr<<endl;
+//    boundingSphere.r = r;
+//    boundingSphere.pos = sphereMid;
 }
 
 std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca){

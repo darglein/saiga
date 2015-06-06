@@ -24,7 +24,8 @@ public:
     float zNear,  zFar;
     float nw,nh,fw,fh; //dimensions of near and far plane
 
-    Plane planes[6];
+    Plane planes[6]; //for exact frustum culling
+    Sphere boundingSphere; //for fast frustum culling
 
     Camera(const string &name);
 
@@ -51,6 +52,9 @@ public:
 //    //culling stuff
     IntersectionResult pointInFrustum(const vec3_t &p);
     IntersectionResult sphereInFrustum(const Sphere &s);
+
+    IntersectionResult pointInSphereFrustum(const vec3_t &p);
+    IntersectionResult sphereInSphereFrustum(const Sphere &s);
 
 
 //    void draw();

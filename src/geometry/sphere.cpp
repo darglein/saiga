@@ -58,6 +58,11 @@ bool Sphere::contains(vec3 p){
     return glm::length(p-pos) < r;
 }
 
+bool Sphere::intersect(const Sphere &other)
+{
+    return glm::distance(other.pos,pos) < r+other.r;
+}
+
 
 
 
