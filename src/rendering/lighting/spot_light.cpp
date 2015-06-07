@@ -77,10 +77,11 @@ void SpotLight::setAngle(float value){
 
 bool SpotLight::cullLight(Camera *cam)
 {
-    //TODO: correct culling
-    Sphere s(position,radius);
-//    this->culled = cam->sphereInFrustum(s)==Camera::OUTSIDE;
-    this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
-//    cout<<this->culled<<endl;
+    //do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
+    if(this->hasShadows())
+        this->culled = !this->cam.intersectSAT(cam);
+    else
+        this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
+
     return culled;
 }

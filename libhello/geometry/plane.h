@@ -13,9 +13,10 @@ public:
     void set(const vec3 &point,const vec3 &normal);
     void set(const vec3 &p1, const vec3 &p2, const vec3 &p3);
 
-    float distance(const vec3 &p);
+    float distance(const vec3 &p) const;
 
     void draw();
+
 
 
    friend std::ostream& operator<<(std::ostream& os, const Plane& ca);

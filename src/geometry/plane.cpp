@@ -27,7 +27,7 @@ void Plane::set(const vec3 &p1, const vec3 &p2, const vec3 &p3){
     d = -glm::dot(point,this->normal);
 }
 
-float Plane::distance(const vec3 &p){
+float Plane::distance(const vec3 &p) const{
     return d + glm::dot(p,normal);
 }
 
