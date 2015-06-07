@@ -117,6 +117,11 @@ void raw_Texture::setFiltering(GLint param){
     unbind();
 }
 
+void raw_Texture::setParameter(GLenum name, GLint param){
+    bind();
+    glTexParameteri(target, name, param);
+    unbind();
+}
 
 int glinternalFormat(int channels, int depth, bool srgb = false){
     int coffset = channels -1;

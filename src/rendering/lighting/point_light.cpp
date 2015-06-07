@@ -245,6 +245,8 @@ bool PointLight::cullLight(Camera *cam)
 {
     Sphere s(position,radius);
     this->culled = cam->sphereInFrustum(s)==Camera::OUTSIDE;
+//    this->culled = false;
+    cout<<culled<<endl;
     return culled;
 }
 

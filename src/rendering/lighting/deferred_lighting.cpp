@@ -39,6 +39,7 @@ void DeferredLighting::cullLights(Camera *cam){
     //cull lights that are not visible
     for(SpotLight* &light : spotLights){
         if(light->isActive()){
+            light->calculateCamera();
             light->cam.recalculatePlanes();
             visibleLights += (light->cullLight(cam))? 0 : 1;
         }
@@ -73,7 +74,6 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
     for(SpotLight* &light : spotLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
-            light->calculateCamera();
             light->bindShadowMap();
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();

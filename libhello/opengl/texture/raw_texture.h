@@ -62,5 +62,6 @@ public:
 
 
 
+    void setParameter(GLenum name, GLint param);
 };
 
