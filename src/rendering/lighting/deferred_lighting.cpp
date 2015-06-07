@@ -13,8 +13,12 @@ DeferredLighting::DeferredLighting(Framebuffer &framebuffer):framebuffer(framebu
 
 
     dummyTexture = new Texture();
-    dummyTexture->createEmptyTexture(0,0,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
-
+    dummyTexture->createEmptyTexture(0,0,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+    dummyTexture->setWrap(GL_CLAMP_TO_EDGE);
+    dummyTexture->setFiltering(GL_LINEAR);
+     //this requires the texture sampler in the shader to be sampler2DShadow
+    dummyTexture->setParameter(GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
+    dummyTexture->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
 }
 
 DeferredLighting::~DeferredLighting(){
