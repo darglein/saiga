@@ -111,6 +111,65 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
     return std::shared_ptr<default_mesh_t>(mesh);
 }
 
+
+
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float radius, float height, int sectors){
+
+    default_mesh_t* mesh = new default_mesh_t();
+
+    float const S = 1.f/(float)(sectors);
+
+    for(int s = 0; s < sectors; s++) {
+        float x = radius * glm::cos(2*M_PI * s * S);
+        float y = -height/2;
+        float z = radius * glm::sin(2*M_PI * s * S) ;
+
+        VertexNT vert;
+        vert.position = vec3(x, y, z );
+        vert.normal = vec3( x,y, z);
+        mesh->vertices.push_back( vert);
+
+    }
+
+    for(int s = 0; s < sectors; s++) {
+        float x = radius * glm::cos(2*M_PI * s * S);
+        float y = height/2;
+        float z = radius * glm::sin(2*M_PI * s * S) ;
+
+        VertexNT vert;
+        vert.position = vec3(x, y, z );
+        vert.normal = vec3( x,y, z);
+        mesh->vertices.push_back( vert);
+    }
+
+    mesh->vertices.push_back( VertexNT(vec3(0,height/2,0),vec3(0,1,0),vec2()));
+    mesh->vertices.push_back( VertexNT(vec3(0,-height/2,0),vec3(0,1,0),vec2()));
+
+    for(int s = 0; s < sectors; s++) {
+
+        //            GLuint f[] = {s,(s+1)%sectors,sectors + (s+1)%sectors,sectors + (s)};
+        GLuint f[] = {s,sectors + (s),sectors + (s+1)%sectors,(s+1)%sectors};
+        mesh->addQuad(f);
+
+        {
+            Face face;
+            face.v3 =   sectors+s;
+            face.v2 =  sectors+(s+1)%sectors;
+            face.v1 =  2* sectors;
+            mesh->faces.push_back(face);
+        }
+        {
+            Face face;
+            face.v1 =   s;
+            face.v2 =  (s+1)%sectors;
+            face.v3 =  2* sectors+1;
+            mesh->faces.push_back(face);
+        }
+    }
+
+    return std::shared_ptr<default_mesh_t>(mesh);
+}
+
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createQuadMesh(){
 
     default_mesh_t* mesh = new default_mesh_t();
@@ -193,14 +252,14 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const aabb &bo
 
 
     //default
-//    vec2 texCoords[]{
-//        {0,0},{0,1},{1,1},{1,0},
-//        {0,0},{0,1},{1,1},{1,0},
-//        {0,0},{0,1},{1,1},{1,0},
-//        {0,0},{0,1},{1,1},{1,0},
-//        {0,0},{0,1},{1,1},{1,0},
-//        {0,0},{0,1},{1,1},{1,0}
-//    };
+    //    vec2 texCoords[]{
+    //        {0,0},{0,1},{1,1},{1,0},
+    //        {0,0},{0,1},{1,1},{1,0},
+    //        {0,0},{0,1},{1,1},{1,0},
+    //        {0,0},{0,1},{1,1},{1,0},
+    //        {0,0},{0,1},{1,1},{1,0},
+    //        {0,0},{0,1},{1,1},{1,0}
+    //    };
 
     //cube strip
 #define CUBE_EPSILON 0.0001f
