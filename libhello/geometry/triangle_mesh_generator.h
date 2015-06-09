@@ -17,6 +17,8 @@ public:
     //TODO: uv mapping
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const Sphere &sphere, int resolution);
 
+     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createCylinderMesh(float radius, float height, int sectors);
+
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const Plane &plane);
 
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createFullScreenQuadMesh();

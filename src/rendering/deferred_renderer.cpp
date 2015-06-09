@@ -201,20 +201,26 @@ void Deferred_Renderer::renderGBuffer(Camera *cam, float interpolation){
 }
 
 void Deferred_Renderer::renderDepthMaps(Camera *cam){
+
+    // When GL_POLYGON_OFFSET_FILL, GL_POLYGON_OFFSET_LINE, or GL_POLYGON_OFFSET_POINT is enabled,
+    // each fragment's depth value will be offset after it is interpolated from the depth values of the appropriate vertices.
+    // The value of the offset is factor×DZ+r×units, where DZ is a measurement of the change in depth relative to the screen area of the polygon,
+    // and r is the smallest value that is guaranteed to produce a resolvable offset for a given implementation.
+    // The offset is added before the depth test is performed and before the value is written into the depth buffer.
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(1.0f,4.0f);
     lighting.renderDepthMaps(this);
+    glDisable(GL_POLYGON_OFFSET_FILL);
 
     Error::quitWhenError("Deferred_Renderer::renderDepthMaps");
 
 }
 
 void Deferred_Renderer::renderLighting(Camera *cam){
-    glDepthMask(GL_FALSE);
-
     mat4 model;
     cam->getModelMatrix(model);
     lighting.setViewProj(model,cam->view,cam->proj);
     lighting.render(cam);
-    glDisable(GL_BLEND);
     Error::quitWhenError("Deferred_Renderer::renderLighting");
 }
 
@@ -226,8 +232,8 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
     ssao_framebuffer.bind();
 
-//    glClearColor(1.0f,1.0f,1.0f,1.0f);
-//    glClear( GL_COLOR_BUFFER_BIT );
+    //    glClearColor(1.0f,1.0f,1.0f,1.0f);
+    //    glClear( GL_COLOR_BUFFER_BIT );
 
 
     if(ssaoShader){
@@ -245,7 +251,7 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
     ssao_framebuffer.unbind();
 
-//    glClearColor(0.0f,0.0f,0.0f,0.0f);
+    //    glClearColor(0.0f,0.0f,0.0f,0.0f);
 }
 
 void Deferred_Renderer::postProcess(){
@@ -261,7 +267,7 @@ void Deferred_Renderer::postProcess(){
     vec4 screenSize(width,height,1.0/width,1.0/height);
     postProcessingShader->uploadScreenSize(screenSize);
     postProcessingShader->uploadTexture(mix_framebuffer.colorBuffers[0]);
-//    postProcessingShader->uploadTexture(ssao_framebuffer.colorBuffers[0]);
+    //    postProcessingShader->uploadTexture(ssao_framebuffer.colorBuffers[0]);
     postProcessingShader->uploadAdditionalUniforms();
     quadMesh.bindAndDraw();
     postProcessingShader->unbind();

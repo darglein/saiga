@@ -103,54 +103,49 @@ void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
 }
 
 void DeferredLighting::render(Camera* cam){
-
+    //viewport is maybe different after shadow map rendering
     glViewport(0,0,width,height);
 
-    //============= Point lights
+    //deferred lighting uses additive blending of the lights.
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ONE);
+
+    //never overwrite current depthbuffer
+    glDepthMask(GL_FALSE);
+
+    //point- and spot- lights are using stencil culling
+    glEnable(GL_STENCIL_TEST);
 
 
-    renderSpotLightsStencil();
-
-
-    renderSpotLights(cam);
+    renderSpotLightsStencil(); //mark pixels inside the light volume
+    renderSpotLights(cam); //draw back faces without depthtest
 
     Error::quitWhenError("DeferredLighting::spotLights");
 
+    renderPointLightsStencil(); //mark pixels inside the light volume
+    renderPointLights(cam); //draw back faces without depthtest
 
-    renderPointLightsStencil();
-
-
-    renderPointLights(cam);
+    glDisable(GL_STENCIL_TEST);
 
     Error::quitWhenError("DeferredLighting::pointLights");
 
-
-    //    glEnable(GL_DEPTH_TEST);
-    //    glEnable(GL_STENCIL_TEST);
-    //    glDepthMask(GL_FALSE);
-    //============= Spot lights
-    //    glClear(GL_STENCIL_BUFFER_BIT);
-    //    renderSpotLightsStencil();
-    //    glClear(GL_STENCIL_BUFFER_BIT);
-
-    //    glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
-    //    glEnable(GL_BLEND);
-    //    glBlendEquation(GL_FUNC_ADD);
-    //    glBlendFunc(GL_ONE, GL_ONE);
-    //    renderSpotLights();
-    //    glDisable(GL_BLEND);
-
-
-
+    //use default culling
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 
     renderDirectionalLights(cam);
 
-    //draw solid on top
+    //reset state
+    glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
-    glDepthMask(GL_TRUE);
-    if(drawDebug)
+
+    if(drawDebug){
+        glDepthMask(GL_TRUE);
         renderDebug();
-    glDepthMask(GL_FALSE);
+        glDepthMask(GL_FALSE);
+    }
+
 
 
     Error::quitWhenError("DeferredLighting::lighting");
@@ -159,9 +154,7 @@ void DeferredLighting::render(Camera* cam){
 
 void DeferredLighting::setupStencilPass(){
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_STENCIL_TEST);
 
-    glDepthMask(GL_FALSE);
     glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
 
     glClear(GL_STENCIL_BUFFER_BIT);
@@ -172,25 +165,18 @@ void DeferredLighting::setupStencilPass(){
     // to succeed always. Only the depth test matters.
     glStencilFunc(GL_ALWAYS, 0, 0);
 
-    glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-    glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+    glStencilOpSeparate(GL_BACK, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+    glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
 
 
 }
 void DeferredLighting::setupLightPass(){
     // Disable color/depth write and enable stencil
 
-    glEnable(GL_BLEND);
-    glBlendEquation(GL_FUNC_ADD);
-    glBlendFunc(GL_ONE, GL_ONE);
-
-
-    glEnable(GL_STENCIL_TEST);
-    glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
+    glStencilFunc(GL_NOTEQUAL, 0, 0xFF); //pass when pixel is inside a light volume
     glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);//do nothing
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
     glDisable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
@@ -282,16 +268,7 @@ void DeferredLighting::renderSpotLightsStencil(){
 
 
 void DeferredLighting::renderDirectionalLights(Camera *cam){
-    //reset stencil test
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_STENCIL_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
 
-    //    glEnable(GL_DEPTH_TEST);
-
-    glEnable(GL_BLEND);
-    glBlendEquation(GL_FUNC_ADD);
 
     directionalLightShader->bind();
     directionalLightShader->uploadView(view);
