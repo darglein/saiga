@@ -112,6 +112,7 @@ void Deferred_Renderer::toggleSSAO()
 {
     ssao_framebuffer.bind();
 
+    //clear with 1 -> no ambient occlusion
     glClearColor(1.0f,1.0f,1.0f,1.0f);
     glClear( GL_COLOR_BUFFER_BIT );
     glClearColor(0.0f,0.0f,0.0f,0.0f);

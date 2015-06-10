@@ -18,10 +18,12 @@ public:
 class DeferredParticleShader : public ParticleShader {
 public:
      GLuint location_texture_depth;
+     GLuint location_cameraParameters;
 
     DeferredParticleShader(const string &multi_file) : ParticleShader(multi_file){}
 
     virtual void checkUniforms();
 
     void uploadDepthTexture(raw_Texture *texture);
+    void uploadCameraParameters(vec2 cp);
 };

@@ -89,6 +89,7 @@ void ParticleSystem::renderDeferred(Camera *cam, float interpolation, raw_Textur
     deferredParticleShader->uploadTiming(tick,interpolation);
     deferredParticleShader->uploadTimestep(secondsPerTick);
 
+    deferredParticleShader->uploadCameraParameters(vec2(cam->zNear,cam->zFar));
 //    particleBuffer.bindAndDraw();
 
     particleBuffer.bind();

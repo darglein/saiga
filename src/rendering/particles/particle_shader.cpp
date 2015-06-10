@@ -31,6 +31,7 @@ void DeferredParticleShader::checkUniforms()
     ParticleShader::checkUniforms();
 
     location_texture_depth = getUniformLocation("depthTexture");
+    location_cameraParameters = getUniformLocation("cameraParameters");
 }
 
 
@@ -38,4 +39,9 @@ void DeferredParticleShader::checkUniforms()
 void DeferredParticleShader::uploadDepthTexture(raw_Texture *texture){
     texture->bind(1);
     Shader::upload(location_texture_depth,1);
+}
+
+void DeferredParticleShader::uploadCameraParameters(vec2 cp)
+{
+    Shader::upload(location_cameraParameters,cp);
 }
