@@ -3,6 +3,12 @@
 #include "util/inputcontroller.h"
 #include <chrono>
 #include "libhello/util/error.h"
+
+//#define FORCEFRAMERATE 30
+//#ifdef FORCEFRAMERATE
+//#include <thread>
+//#endif
+
 glfw_Window::glfw_Window(const std::string &name, int window_width, int window_height, bool fullscreen):Window(name,window_width,window_height, fullscreen)
 {
 }
@@ -200,6 +206,11 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
         }
 
         renderer->render_intern( ((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ) );
+
+
+#ifdef FORCEFRAMERATE
+        std::this_thread::sleep_for(std::chrono::milliseconds((int)( 1000.f/FORCEFRAMERATE)));
+#endif
 
         double now = glfwGetTime()*1000;
 
