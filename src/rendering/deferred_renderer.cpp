@@ -55,9 +55,18 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
 
     mix_framebuffer.create();
     Texture* depth_stencil = new Texture();
-    //    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+        depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
     mix_framebuffer.attachTextureDepthStencil(depth_stencil);
+
+    //different textures for depth and stencil not supported!
+    //However, implementations are only required to support both a depth and stencil attachment simultaneously if both attachments refer to the same image.
+//    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+//    mix_framebuffer.attachTextureDepth(depth_stencil);
+//    Texture* stencil = new Texture();
+//    stencil->createEmptyTexture(w,h, GL_STENCIL_INDEX, GL_STENCIL_INDEX8,GL_UNSIGNED_BYTE);
+//     mix_framebuffer.attachTextureStencil(stencil);
+
+
     Texture* ppsrc = new Texture();
     //    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
     //    ppsrc->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);

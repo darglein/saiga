@@ -23,6 +23,7 @@ public:
     ~Framebuffer();
     void attachTexture(Texture* texture);
     void attachTextureDepth(Texture* texture);
+    void attachTextureStencil(Texture *texture);
     void attachTextureDepthStencil(Texture* texture);
     void makeToDeferredFramebuffer(int w, int h);
 
@@ -35,5 +36,6 @@ public:
 
     void blitDepth(int otherId);
     void blitColor(int otherId);
+
 };
 

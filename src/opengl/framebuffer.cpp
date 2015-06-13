@@ -83,8 +83,15 @@ void Framebuffer::attachTextureDepth(Texture* texture){
     bind();
     depthBuffer = texture;
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,texture->getId(), 0);
+}
+
+void Framebuffer::attachTextureStencil(Texture* texture){
+    bind();
+    stencilBuffer = texture;
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D,texture->getId(), 0);
 
 }
+
 
 void Framebuffer::attachTextureDepthStencil(Texture* texture){
     bind();
@@ -127,17 +134,17 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
 
 
 
-     Texture* depth = new Texture();
+//     Texture* depth = new Texture();
 //            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-     depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+//     depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
 //        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
-    attachTextureDepth(depth);
+//    attachTextureDepth(depth);
 
     //don't need stencil in gbuffer
     //depth and stencil texture combined
-//    Texture* depth_stencil = new Texture();
-//    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-//    attachTextureDepthStencil(depth_stencil);
+    Texture* depth_stencil = new Texture();
+    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+    attachTextureDepthStencil(depth_stencil);
 
 
     int count = colorBuffers.size();
