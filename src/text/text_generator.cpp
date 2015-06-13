@@ -28,7 +28,8 @@ void TextGenerator::loadFont(const string &font, int font_size){
     this->font_size = font_size;
 
     if(FT_New_Face(*ft, font.c_str(), 0, &face)) {
-        cerr<<"Could not open font\n"<<endl;
+        cerr<<"Could not open font "<<font<<endl;
+//        assert(0);
         return;
     }
     FT_Set_Pixel_Sizes(face, 0, font_size);

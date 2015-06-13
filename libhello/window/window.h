@@ -36,6 +36,9 @@ public:
     bool init();
     virtual void close() = 0;
 
+    void screenshot(const string &file);
+    string getTimeString();
+
     inline int getWidth(){
         return window_width;
     }
