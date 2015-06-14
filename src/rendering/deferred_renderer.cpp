@@ -151,6 +151,12 @@ void Deferred_Renderer::render_intern(float interpolation){
 
     Error::quitWhenError("Deferred_Renderer::before blit");
 
+
+    //remove maybe
+    mix_framebuffer.bind();
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+
     //copy depth to lighting framebuffer. that is needed for stencil culling
     deferred_framebuffer.blitDepth(mix_framebuffer.id);
 
@@ -159,7 +165,7 @@ void Deferred_Renderer::render_intern(float interpolation){
     //    glEnable(GL_FRAMEBUFFER_SRGB);
 
     mix_framebuffer.bind();
-    glClear( GL_COLOR_BUFFER_BIT );
+//    glClear( GL_COLOR_BUFFER_BIT );
 
 
 
@@ -190,6 +196,8 @@ void Deferred_Renderer::renderGBuffer(Camera *cam, float interpolation){
     deferred_framebuffer.bind();
     glViewport(0,0,width,height);
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glDisable(GL_BLEND);
+//    glClear( GL_DEPTH_BUFFER_BIT);
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
@@ -266,6 +274,9 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
 void Deferred_Renderer::postProcess(){
     glDisable(GL_DEPTH_TEST);
+
+    //remove maybe
+    glDisable(GL_BLEND);
 
     //shader post process + gamma correction
     glEnable(GL_FRAMEBUFFER_SRGB);
