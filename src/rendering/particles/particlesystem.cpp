@@ -109,6 +109,8 @@ void ParticleSystem::addParticle(Particle &p){
     particles[nextParticle] = p;
     nextParticle = (nextParticle+1)%particleCount;
 
+    newParticles++;
+
 }
 
 Particle &ParticleSystem::getNextParticle()
@@ -118,23 +120,28 @@ Particle &ParticleSystem::getNextParticle()
     nextParticle = (nextParticle+1)%particleCount;
     p.start = tick+1;
 
+    newParticles++;
     return p;
 }
 
 void ParticleSystem::updateParticleBuffer(){
     //    cout<<tick<<" ParticleSystem::updateParticleBuffer()"<<endl;
 
-    if(nextParticle>saveParticle){
+    if(newParticles>particleCount){
+        cout<<"warning: new particles spawned = "<<newParticles<<" , particle system size = "<<particleCount<<endl;
+        int size = particleCount;
+        int offset = 0;
+        particleBuffer.updateVertexBuffer(&particles[offset],size,offset);
+    }else if(nextParticle>saveParticle){
         int size = (nextParticle-saveParticle);
         int offset = saveParticle;
 
-        particleBuffer.updateVertexBuffer(&particles[saveParticle],size,offset);
-    }
-
-    if(nextParticle<saveParticle){
+        particleBuffer.updateVertexBuffer(&particles[offset],size,offset);
+    }else if(nextParticle<saveParticle){
         int size = (particleCount-saveParticle);
         int offset = saveParticle;
-        particleBuffer.updateVertexBuffer(&particles[saveParticle],size,offset);
+        particleBuffer.updateVertexBuffer(&particles[offset],size,offset);
+
 
         size = (nextParticle);
         offset = 0;
@@ -142,7 +149,7 @@ void ParticleSystem::updateParticleBuffer(){
     }
 
     saveParticle = nextParticle;
-
+    newParticles = 0;
 
 
 }

@@ -153,8 +153,8 @@ void Deferred_Renderer::render_intern(float interpolation){
 
 
     //remove maybe
-    mix_framebuffer.bind();
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+//    mix_framebuffer.bind();
+//    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 
     //copy depth to lighting framebuffer. that is needed for stencil culling
@@ -165,7 +165,7 @@ void Deferred_Renderer::render_intern(float interpolation){
     //    glEnable(GL_FRAMEBUFFER_SRGB);
 
     mix_framebuffer.bind();
-//    glClear( GL_COLOR_BUFFER_BIT );
+    glClear( GL_COLOR_BUFFER_BIT );
 
 
 

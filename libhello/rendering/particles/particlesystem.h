@@ -23,6 +23,7 @@ public:
     std::vector<Particle> particles;
     bool initialized = false;
 
+    unsigned int newParticles = 0 ;
     unsigned int particleCount;
     unsigned int nextParticle = 0;
     unsigned int saveParticle = 0;
