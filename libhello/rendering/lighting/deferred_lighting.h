@@ -36,6 +36,7 @@ private:
     bool drawDebug = true;
 
     raw_Texture* dummyTexture;
+    raw_Texture* dummyCubeTexture;
 
 
 public:

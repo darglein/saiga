@@ -19,10 +19,21 @@ DeferredLighting::DeferredLighting(Framebuffer &framebuffer):framebuffer(framebu
      //this requires the texture sampler in the shader to be sampler2DShadow
     dummyTexture->setParameter(GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
     dummyTexture->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
+
+
+
+    dummyCubeTexture = new cube_Texture();
+    dummyCubeTexture->createEmptyTexture(1,1,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+    dummyCubeTexture->setWrap(GL_CLAMP_TO_EDGE);
+    dummyCubeTexture->setFiltering(GL_LINEAR);
+     //this requires the texture sampler in the shader to be sampler2DShadow
+    dummyCubeTexture->setParameter(GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
+    dummyCubeTexture->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
 }
 
 DeferredLighting::~DeferredLighting(){
     delete dummyTexture;
+    delete dummyCubeTexture;
     //delete all lights
     //the shader loader will delete the shaders.
 //    for(PointLight* &obj : pointLights){
@@ -405,7 +416,7 @@ DirectionalLight* DeferredLighting::createDirectionalLight(){
 
 PointLight* DeferredLighting::createPointLight(){
     PointLight* l = new PointLight();
-    l->dummyTexture = dummyTexture;
+    l->dummyTexture = dummyCubeTexture;
     pointLights.push_back(l);
     return l;
 }
