@@ -5,15 +5,21 @@
 #include "libhello/text/text.h"
 #include "libhello/text/dynamic_text.h"
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
+
 #include <iostream>
+
+//forward declarations to avoid including the ft header
+//with that the ft library only has to be linked to the framework
+struct FT_FaceRec_;
+struct FT_LibraryRec_;
+typedef struct FT_FaceRec_*  FT_Face;
+typedef struct FT_LibraryRec_  *FT_Library;
 
 
 class TextGenerator{
 private:
-    static FT_Library* ft;
-    FT_Face face;
+    static FT_Library ft;
+    FT_Face face = nullptr;
     int charOffset = 5; //distance between characters in texture atlas
 
     struct character_info {

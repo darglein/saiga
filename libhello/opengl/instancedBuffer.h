@@ -1,7 +1,7 @@
 #pragma once
 
 #include "libhello/opengl/buffer.h"
-#include <GL/glew.h>
+#include "libhello/opengl/opengl.h"
 #include "libhello/opengl/shader.h"
 #include <iostream>
 

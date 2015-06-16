@@ -1,9 +1,7 @@
 #pragma once
 
 
-
-#include <GL/glew.h>
-#include <GL/glu.h>
+#include "libhello/opengl/opengl.h"
 
 
 #include <vector>

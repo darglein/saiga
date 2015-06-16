@@ -2,7 +2,7 @@
 
 #include "libhello/opengl/buffer.h"
 #include "libhello/opengl/instancedBuffer.h"
-#include <GL/glew.h>
+#include "libhello/opengl/opengl.h"
 #include "libhello/opengl/vertex.h"
 #include <iostream>
 

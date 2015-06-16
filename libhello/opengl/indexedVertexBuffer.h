@@ -1,6 +1,6 @@
 #pragma once
 
-#include <GL/glew.h>
+#include "libhello/opengl/opengl.h"
 #include "libhello/opengl/vertexBuffer.h"
 #include "libhello/opengl/indexBuffer.h"
 #include <iostream>

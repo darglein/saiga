@@ -1,7 +1,6 @@
 #pragma once
 
-#include <GL/glew.h>
-#include <GL/glu.h>
+#include "libhello/opengl/opengl.h"
 
 
 #include "libhello/util/glm.h"
@@ -10,8 +9,25 @@
 using std::cerr;
 using std::string;
 
+/**
+ * Currently supported shader types: GL_VERTEX_SHADER, GL_GEOMETRY_SHADER, GL_FRAGMENT_SHADER
+ * @brief The Shader class
+ */
+
+
 class Shader{
 public:
+    /**
+     * @brief The CodeInjection class
+     * The code injections are added to the top of the shader.
+     * This can for exapmple be used to add different #define.
+     */
+    class CodeInjection{
+    public:
+        //shader type, must be one of the supported types
+        int type;
+        std::string code;
+    };
     string name;
     string shaderPath;
     string prefix;

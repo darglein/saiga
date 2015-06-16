@@ -1,19 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
 
-set(GRALAB_INCLUDE_DIR "" CACHE FILEPATH "Path to yourlib includes")
-set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${GRALAB_INCLUDE_DIR}/include)
-include_directories(${GRALAB_INCLUDE_DIR}/include)
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${GRALAB_INCLUDE_DIR}/lib)
-LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/lib)
-LINK_DIRECTORIES(${GRALAB_INCLUDE_DIR}/bin)
+
+
+set(DEPENDENCIES_INCLUDE_DIR "" CACHE FILEPATH "Path to yourlib includes")
+set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${DEPENDENCIES_INCLUDE_DIR}/include)
+include_directories(${DEPENDENCIES_INCLUDE_DIR}/include)
+set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${DEPENDENCIES_INCLUDE_DIR}/lib)
+LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/lib)
+LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/bin)
   
 set(LIB_NAME hello)
-
-#include_directories(/F/Users/Dari/Programming/libs/FreeImage/Wrapper/FreeImagePlus)
-#LINK_DIRECTORIES(/F/Users/Dari/Programming/libs/FreeImage/Wrapper/FreeImagePlus/dist)
-
-#include_directories(/F/Users/Dari/Programming/libs/FreeImage/Dist)
-#LINK_DIRECTORIES(/F/Users/Dari/Programming/libs/FreeImage/Dist)
 
 project (${LIB_NAME})
 set(CMAKE_BUILD_TYPE Release)

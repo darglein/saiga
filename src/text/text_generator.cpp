@@ -1,16 +1,20 @@
 #include "text/text_generator.h"
 #include <algorithm>
+
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #define NOMINMAX
 #undef max
 #undef min
 
-FT_Library* TextGenerator::ft = NULL;
+FT_Library TextGenerator::ft = nullptr;
 
 TextGenerator::TextGenerator(){
 
-    if(ft==NULL){
-        ft = new FT_Library();
-        if(FT_Init_FreeType(ft)) {
+    if(ft==nullptr){
+//        ft = FT_Library> (new FT_Library());
+        if(FT_Init_FreeType(&ft)) {
             cerr<< "Could not init freetype library"<<endl;
             exit(1);
         }
@@ -19,6 +23,7 @@ TextGenerator::TextGenerator(){
 
 TextGenerator::~TextGenerator()
 {
+    FT_Done_Face(face);
     delete textureAtlas;
 }
 
@@ -27,7 +32,8 @@ void TextGenerator::loadFont(const string &font, int font_size){
     this->font = font;
     this->font_size = font_size;
 
-    if(FT_New_Face(*ft, font.c_str(), 0, &face)) {
+//    face = std::make_shared<FT_Face>();
+    if(FT_New_Face(ft, font.c_str(), 0, &face)) {
         cerr<<"Could not open font "<<font<<endl;
 //        assert(0);
         return;
@@ -40,7 +46,7 @@ void TextGenerator::loadFont(const string &font, int font_size){
 void TextGenerator::createTextureAtlas(){
     int chars= 0;
     int w=0,h=0;
-    FT_GlyphSlot g = face->glyph;
+    FT_GlyphSlot g = (face)->glyph;
     for(int i = 32; i < 128; i++) {
         if(FT_Load_Char(face, i, FT_LOAD_RENDER)) {
             cerr<<"Could not load character '"<<(char)i<<"'"<<endl;
