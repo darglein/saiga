@@ -8,7 +8,7 @@ raw_Texture::~raw_Texture(){
         glDeleteTextures(1,&id);
 }
 
-void raw_Texture::createTexture(int width, int height, int color_type, int internal_format, int data_type){
+void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type){
     this->width = width;
     this->height = height;
     this->color_type = color_type;
@@ -17,13 +17,13 @@ void raw_Texture::createTexture(int width, int height, int color_type, int inter
     createGlTexture();
 }
 
-void raw_Texture::createTexture(int width, int height, int color_type, int internal_format, int data_type, GLubyte* data){
+void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type, GLubyte* data){
     createTexture(width,height,color_type, internal_format,  data_type);
     uploadData(data);
 }
 
 
-void raw_Texture::createEmptyTexture(int width, int height, int color_type, int internal_format, int data_type){
+void raw_Texture::createEmptyTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type){
     createTexture(width,height,color_type,internal_format,data_type,nullptr);
 }
 
@@ -53,7 +53,7 @@ void raw_Texture::uploadData(GLubyte* data ){
     bind();
     glTexImage2D(target, // target
                  0,  // level, 0 = base, no minimap,
-                 internal_format, // internalformat
+                 static_cast<GLint>(internal_format), // internalformat
                  width,  // width
                  height,  // height
                  0,
@@ -104,26 +104,26 @@ void raw_Texture::unbind(){
     glBindTexture(target, 0);
 }
 
-void raw_Texture::setWrap(GLint param){
+void raw_Texture::setWrap(GLenum param){
     bind();
-    glTexParameteri(target, GL_TEXTURE_WRAP_S, param);
-    glTexParameteri(target, GL_TEXTURE_WRAP_T, param);
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(param));
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, static_cast<GLint>(param));
     unbind();
 }
-void raw_Texture::setFiltering(GLint param){
+void raw_Texture::setFiltering(GLenum param){
     bind();
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, param);
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, param);
-    unbind();
-}
-
-void raw_Texture::setParameter(GLenum name, GLint param){
-    bind();
-    glTexParameteri(target, name, param);
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(param));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(param));
     unbind();
 }
 
-int glinternalFormat(int channels, int depth, bool srgb = false){
+void raw_Texture::setParameter(GLenum name, GLenum param){
+    bind();
+    glTexParameteri(target, name, static_cast<GLint>(param));
+    unbind();
+}
+
+GLenum glinternalFormat(int channels, int depth, bool srgb = false){
     int coffset = channels -1;
     int doffset = 0;
     switch(depth){
@@ -139,26 +139,26 @@ int glinternalFormat(int channels, int depth, bool srgb = false){
     default:
         std::cout<<"Bit depth not supported: "<<depth<<std::endl;
         std::cout<<"Supported bit depths: 8,16,32"<<std::endl;
-        return 0;
+        return GL_INVALID_ENUM;
     }
 
-    static const int iformats[4][3] {
+    static const GLenum iformats[4][3] {
         {GL_R8,GL_R16,GL_R32I}, //1 channel
         {GL_RG8,GL_RG16,GL_RG32I}, //2 channels
         {GL_RGB8,GL_RGB16,GL_RGB32I}, //3 channels
         {GL_RGBA8,GL_RGBA16,GL_RGBA32I} //4 channels
     };
 
-    static const int srgbiformats[4][3] {
-        {0,0,0}, //1 channel  - does not exist with srgb
-        {0,0,0}, //2 channels - does not exist with srgb
-        {GL_SRGB8,0,0}, //3 channels
-        {GL_SRGB8_ALPHA8,0,0} //4 channels
+    static const GLenum srgbiformats[4][3] {
+        {GL_INVALID_ENUM,GL_INVALID_ENUM,GL_INVALID_ENUM}, //1 channel  - does not exist with srgb
+        {GL_INVALID_ENUM,GL_INVALID_ENUM,GL_INVALID_ENUM}, //2 channels - does not exist with srgb
+        {GL_SRGB8,GL_INVALID_ENUM,GL_INVALID_ENUM}, //3 channels
+        {GL_SRGB8_ALPHA8,GL_INVALID_ENUM,GL_INVALID_ENUM} //4 channels
     };
 
-    int f = (srgb)?srgbiformats[coffset][doffset]:iformats[coffset][doffset];
+    GLenum f = (srgb)?srgbiformats[coffset][doffset]:iformats[coffset][doffset];
 
-    if(f==0){
+    if(f==GL_INVALID_ENUM){
         std::cout<<"SRGB internal format not supported: "<<channels<<" channels, "<<depth<<" depth"<<std::endl;
         f = iformats[coffset][doffset];
     }
@@ -214,6 +214,11 @@ int raw_Texture::bytesPerChannel(){
     case GL_UNSIGNED_SHORT:
         bytes_per_channel = 2;
         break;
+    case GL_UNSIGNED_INT:
+        bytes_per_channel = 4;
+        break;
+    default:
+        break;
     }
     return bytes_per_channel;
 }
@@ -229,6 +234,8 @@ int raw_Texture::colorChannels(){
         break;
     case GL_RGBA:
         channels = 4;
+        break;
+    default:
         break;
     }
     return channels;

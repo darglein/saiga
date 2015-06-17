@@ -4,7 +4,7 @@
 
 #include "libhello/sdl/sdl_eventhandler.h"
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+//#include <SDL2/SDL_opengl.h>
 
 
 class sdl_Window : public Window{

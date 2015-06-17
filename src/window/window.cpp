@@ -32,7 +32,13 @@ bool Window::init(){
 #ifdef WIN32
     glDebugMessageCallback(Error::DebugLogWin32,NULL);
 #else
+
+#ifdef USE_GLEW
     glDebugMessageCallback(Error::DebugLog,NULL);
+#endif
+#ifdef USE_GLBINDING
+     glDebugMessageCallback(Error::DebugLogWin32,NULL);
+#endif
 #endif
 
     cout<<">> Window inputs initialized!"<<endl;

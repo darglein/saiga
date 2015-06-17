@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libhello/opengl/opengl.h>
 #include <iostream>
 #include <cstdlib>
 
@@ -35,11 +36,11 @@ public:
 inline bool Error::checkGLError(){
 #ifndef ERROR_CHECKING_DISABLED
     GLenum errCode;
-    const GLubyte *errString;
+//    const GLubyte *errString;
 
     if ((errCode = glGetError()) != GL_NO_ERROR) {
-        errString = gluErrorString(errCode);
-        std::cerr<< "OpenGL Error: "<<errString<<std::endl;
+//        errString = gluErrorString(errCode);
+//        std::cerr<< "OpenGL Error: "<<errString<<std::endl;
         return true;
     }
 #endif

@@ -85,7 +85,7 @@ bool glfw_Window::initWindow()
 //    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 //    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 //    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
     //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 
@@ -113,14 +113,7 @@ bool glfw_Window::initWindow()
     //    //vsync
     glfwSwapInterval(vsync ? 1 : 0);
 
-    //Initialize GLEW
-    glewExperimental = GL_TRUE;
-    GLenum glewError = glewInit();
-    if( glewError != GLEW_OK ){
-        printf( "Error initializing GLEW! %s\n", glewGetErrorString( glewError ) );
-    }
-
-    glGetError(); //ignore first gl error after glew init
+    initOpenGL();
 
     Error::quitWhenError("initWindow()");
 

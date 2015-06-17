@@ -102,7 +102,7 @@ bool Shader::addMultiShaderFromFile(const string &multi_file) {
         return false;
 
     int status = STATUS_WAITING;
-    int type = -1;
+    GLenum type = GL_INVALID_ENUM;
     int lineCount =0;
 
     for(string line : data){
@@ -162,8 +162,8 @@ GLuint Shader::createProgram(){
     if(geoShader){
         glAttachShader(program, geoShader);
         //TODO disable this for NVIDIA nsight debugging
-        glProgramParameteriEXT(program,GL_GEOMETRY_INPUT_TYPE_EXT,GL_TRIANGLES);
-        glProgramParameteriEXT(program,GL_GEOMETRY_OUTPUT_TYPE_EXT,GL_TRIANGLE_STRIP);
+        glProgramParameteriEXT(program,GL_GEOMETRY_INPUT_TYPE_EXT,static_cast<GLint>(GL_TRIANGLES));
+        glProgramParameteriEXT(program,GL_GEOMETRY_OUTPUT_TYPE_EXT,static_cast<GLint>(GL_TRIANGLE_STRIP));
 
     }
     if(fragShader)
@@ -191,11 +191,11 @@ GLuint Shader::createProgram(){
     return program;
 }
 
-GLuint Shader::addShader(const char* content, int type){
+GLuint Shader::addShader(const char* content, GLenum type){
     GLuint id = glCreateShader(type);
 
 
-    GLint result = GL_FALSE;
+    GLint result = 0;
     // Compile vertex shader
     glShaderSource(id, 1, &content, NULL);
     glCompileShader(id);
@@ -220,13 +220,16 @@ GLuint Shader::addShader(const char* content, int type){
     case GL_FRAGMENT_SHADER:
         fragShader = id;
         break;
+    default:
+        std::cerr<<"Invalid type: "<<type<<endl;
+        break;
 
     }
 
     return id;
 }
 
-GLuint Shader::addShaderFromFile(const char* file, int type){
+GLuint Shader::addShaderFromFile(const char* file, GLenum type){
     cout<<"Shader-Loader: Reading file "<<file<<"\n";
     std::string content;
 
@@ -246,7 +249,7 @@ GLuint Shader::addShaderFromFile(const char* file, int type){
     return addShader(content.c_str(),type);
 }
 
-string Shader::typeToName(int type){
+string Shader::typeToName(GLenum type){
     switch(type){
     case GL_VERTEX_SHADER:
         return "Vertex Shader";
@@ -255,7 +258,7 @@ string Shader::typeToName(int type){
     case GL_FRAGMENT_SHADER:
         return "Fragment Shader";
     default:
-        return "Unkown Shader type!";
+        return "Unkown Shader type! ";
     }
 }
 
@@ -355,7 +358,7 @@ std::vector<GLint> Shader::getUniformBlockOffset(GLuint blockLocation, std::vect
 
 void Shader::printProgramLog( GLuint program ){
     //Make sure name is shader
-    if( glIsProgram( program ) )
+    if( glIsProgram( program ) == GL_TRUE )
     {
         //Program log length
         int infoLogLength = 0;
@@ -386,7 +389,7 @@ void Shader::printProgramLog( GLuint program ){
 
 void Shader::printShaderLog( GLuint shader ){
     //Make sure name is shader
-    if( glIsShader( shader ) )
+    if( glIsShader( shader ) == GL_TRUE )
     {
         //Shader log length
         int infoLogLength = 0;

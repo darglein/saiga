@@ -35,9 +35,15 @@ endif()
 
 ############# Optional Libraries ###############
 
+set (LIBRARY_VERSION_MAJOR 1)
+set (LIBRARY_VERSION_MINOR 0)
+
+
 option (USE_SDL "Use SDL2" ON) 
 option (USE_GLFW "Use GLFW" ON) 
 option (USE_NOISE "Use NOISE" OFF) 
+option (USE_GLEW "Use GLEW" ON) 
+option (USE_GLBINDING "Use GLBINDING" OFF) 
 
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/libhello/config.h.in"
@@ -78,10 +84,22 @@ endif(WIN32)
 
 #OPENGL
 find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
-include_directories( ${OPENGL_INCLUDE_DIRS}  ${GLEW_INCLUDE_DIRS} )
-SET(LIBS ${LIBS} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
+include_directories( ${OPENGL_INCLUDE_DIRS}) 
+SET(LIBS ${LIBS} ${OPENGL_LIBRARIES})
 
+#GLEW
+if(USE_GLEW)
+	find_package(GLEW REQUIRED)
+	include_directories(${GLEW_INCLUDE_DIRS} )
+	SET(LIBS ${LIBS} ${GLEW_LIBRARIES})
+endif(USE_GLEW)
+
+#glbinding
+if(USE_GLBINDING)
+	find_package(glbinding REQUIRED)
+	include_directories(${GLBINDING_INCLUDE_DIRS} )
+	SET(LIBS ${LIBS} ${GLBINDING_LIBRARIES})
+endif(USE_GLBINDING)
 
 #assimp
 #pkg_search_module(ASSIMP REQUIRED assimp)

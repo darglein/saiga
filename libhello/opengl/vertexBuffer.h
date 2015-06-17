@@ -22,7 +22,7 @@ template<class vertex_t>
 class VertexBuffer : public Buffer{
 protected:
     int vertex_count;
-    int draw_mode;
+    GLenum draw_mode;
     GLuint  gl_vao = 0;
 
     /*
@@ -136,7 +136,7 @@ public:
      *  GL_TRIANGLE_STRIP_ADJACENCY, GL_TRIANGLES_ADJACENCY, GL_PATCHES
      */
 
-    void setDrawMode(int draw_mode);
+    void setDrawMode(GLenum draw_mode);
 
 
     int getVBO(){return buffer;}
@@ -154,7 +154,7 @@ void VertexBuffer<vertex_t>::bindAndDraw() const{
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::setDrawMode(int draw_mode){
+void VertexBuffer<vertex_t>::setDrawMode(GLenum draw_mode){
     this->draw_mode = draw_mode;
 }
 

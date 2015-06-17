@@ -42,12 +42,13 @@ bool sdl_Window::initWindow()
         return false;
     }
 
-    //Initialize GLEW
-    glewExperimental = GL_TRUE;
-    GLenum glewError = glewInit();
-    if( glewError != GLEW_OK ){
-        printf( "Error initializing GLEW! %s\n", glewGetErrorString( glewError ) );
-    }
+    initOpenGL();
+//    //Initialize GLEW
+//    glewExperimental = GL_TRUE;
+//    GLenum glewError = glewInit();
+//    if( glewError != GLEW_OK ){
+//        printf( "Error initializing GLEW! %s\n", glewGetErrorString( glewError ) );
+//    }
 
     //Use Vsync
     if( SDL_GL_SetSwapInterval( 1 ) < 0 ){

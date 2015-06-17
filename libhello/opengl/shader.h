@@ -31,7 +31,7 @@ public:
     string name;
     string shaderPath;
     string prefix;
-    string typeToName(int type);
+    string typeToName(GLenum type);
 
     Shader();
     virtual ~Shader();
@@ -44,8 +44,8 @@ public:
 
     std::vector<string> loadAndPreproccess(const string &file);
     bool addMultiShaderFromFile(const string &multi_file);
-    GLuint addShader(const char* content, int type);
-    GLuint addShaderFromFile(const char* file, int type);
+    GLuint addShader(const char* content, GLenum type);
+    GLuint addShaderFromFile(const char* file, GLenum type);
     GLuint createProgram();
     GLint getUniformLocation(const char* name);
 

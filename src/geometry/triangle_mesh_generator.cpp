@@ -145,7 +145,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float 
     mesh->vertices.push_back( VertexNT(vec3(0,height/2,0),vec3(0,1,0),vec2()));
     mesh->vertices.push_back( VertexNT(vec3(0,-height/2,0),vec3(0,1,0),vec2()));
 
-    for(int s = 0; s < sectors; s++) {
+    for(GLuint s = 0; s < GLuint(sectors); s++) {
 
         //            GLuint f[] = {s,(s+1)%sectors,sectors + (s+1)%sectors,sectors + (s)};
         GLuint f[] = {s,sectors + (s),sectors + (s+1)%sectors,(s+1)%sectors};

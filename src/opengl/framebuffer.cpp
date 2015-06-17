@@ -57,7 +57,7 @@ void Framebuffer::check(){
         switch(status)
         {
         case GL_FRAMEBUFFER_COMPLETE:                       std::cerr << ("GL_FRAMEBUFFER_COMPLETE\n") << std::endl;                        break;
-        case 0x8CDB:                                        std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n") << std::endl;          break;
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:         std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n") << std::endl;          break;
         case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:          std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n") << std::endl;           break;
         case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:  std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n") << std::endl;   break;
         case GL_FRAMEBUFFER_UNSUPPORTED:                    std::cerr <<("GL_FRAMEBUFFER_UNSUPPORTED\n")<< std::endl ;                     break;
@@ -73,7 +73,7 @@ void Framebuffer::attachTexture(Texture* texture){
     bind();
     int index = colorBuffers.size();
     colorBuffers.push_back(texture);
-    int cid = GL_COLOR_ATTACHMENT0+index;
+    GLenum cid = GL_COLOR_ATTACHMENT0+index;
     //    glFramebufferTexture(GL_FRAMEBUFFER, cid,texture->id, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, cid,GL_TEXTURE_2D,texture->getId(), 0);
 

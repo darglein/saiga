@@ -1,5 +1,7 @@
 #pragma once
 
+#include <libhello/opengl/opengl.h>
+
 #include <GLFW/glfw3.h>
 #include <vector>
 
