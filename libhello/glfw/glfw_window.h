@@ -6,8 +6,8 @@
 
 
 
-class GLFWwindow;
-class GLFWcursor;
+struct GLFWwindow;
+struct GLFWcursor;
 class Image;
 
 class glfw_Window : public Window{

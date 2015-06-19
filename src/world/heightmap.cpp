@@ -7,6 +7,9 @@
 using namespace noise;
 #endif
 
+#undef min
+#undef max
+
 
 
 
