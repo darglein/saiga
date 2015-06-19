@@ -1,5 +1,5 @@
 #include "text/TextOverlay2D.h"
-#include "libhello/opengl/shader.h"
+#include "libhello/opengl/basic_shaders.h"
 #include "libhello/text/text.h"
 
 TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height){

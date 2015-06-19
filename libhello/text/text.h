@@ -1,25 +1,30 @@
 #pragma once
+
+#include "libhello/rendering/object3d.h"
 #include "libhello/opengl/vertexBuffer.h"
 #include "libhello/geometry/triangle_mesh.h"
-#include "libhello/opengl/mesh.h"
+
 #include <iostream>
 
 
+//#include "libhello/opengl/mesh.h"
+class TextShader;
+class basic_Texture_2D;
 
 class Text : public Object3D{
 public:
     bool visible = true;
     vec3 color;
-    string label;
+    std::string label;
     TriangleMesh<VertexNT,GLuint> mesh;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
-    Texture* texture;
+    basic_Texture_2D* texture;
     Text(){}
-    Text(const string &label);
+    Text(const std::string &label);
     virtual ~Text(){}
     void draw(TextShader* shader);
     void transform(const mat4 &trafo){mesh.transform(trafo);}
-    void updateText(const string &label);
+    void updateText(const std::string &label);
 
     vec3 getSize(){ return mesh.getAabb().max-mesh.getAabb().min;}
 

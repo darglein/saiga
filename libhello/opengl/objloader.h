@@ -63,6 +63,6 @@ public:
 
     bool extractIndices(char* line, int &v1, int &v2, int &v3);
 
-    material_mesh_t* loadFromFile(const string &name);
+    material_mesh_t* loadFromFile(const std::string &name);
 };
 

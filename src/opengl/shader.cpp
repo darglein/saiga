@@ -30,7 +30,7 @@ Shader::~Shader(){
     }
 }
 
-Shader::Shader(const string &multi_file) : shaderPath(multi_file),program(0),vertShader(0),geoShader(0),fragShader(0){
+Shader::Shader(const std::string &multi_file) : shaderPath(multi_file),program(0),vertShader(0),geoShader(0),fragShader(0){
 
 }
 
@@ -59,10 +59,10 @@ std::vector<std::string> Shader::loadAndPreproccess(const std::string &file)
         return ret;
     }
 
-    const string include("#include ");
+    const std::string include("#include ");
 
     while(!fileStream.eof()) {
-        string line;
+        std::string line;
         std::getline(fileStream, line);
 
         if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
@@ -91,7 +91,7 @@ std::vector<std::string> Shader::loadAndPreproccess(const std::string &file)
     return ret;
 }
 
-bool Shader::addMultiShaderFromFile(const string &multi_file) {
+bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
 
     std::string content,errorMsg;
 
@@ -105,7 +105,7 @@ bool Shader::addMultiShaderFromFile(const string &multi_file) {
     GLenum type = GL_INVALID_ENUM;
     int lineCount =0;
 
-    for(string line : data){
+    for(std::string line : data){
         //        std::getline(fileStream, line);
         lineCount++;
         if(line.compare("##start")==0){
@@ -240,7 +240,7 @@ GLuint Shader::addShaderFromFile(const char* file, GLenum type){
         return false;
 
 
-    for(string line : data){
+    for(std::string line : data){
         content.append(line);
         content.append("\n");
     }
@@ -364,10 +364,10 @@ void Shader::printProgramLog( GLuint program ){
         int infoLogLength = 0;
         int maxLength = infoLogLength;
 
-        //Get info string length
+        //Get info std::string length
         glGetProgramiv( program, GL_INFO_LOG_LENGTH, &maxLength );
 
-        //Allocate string
+        //Allocate std::string
         char* infoLog = new char[ maxLength ];
 
         //Get info log
@@ -378,7 +378,7 @@ void Shader::printProgramLog( GLuint program ){
             printf( "%s\n", infoLog );
         }
 
-        //Deallocate string
+        //Deallocate std::string
         delete[] infoLog;
     }
     else
@@ -395,10 +395,10 @@ void Shader::printShaderLog( GLuint shader ){
         int infoLogLength = 0;
         int maxLength = infoLogLength;
 
-        //Get info string length
+        //Get info std::string length
         glGetShaderiv( shader, GL_INFO_LOG_LENGTH, &maxLength );
 
-        //Allocate string
+        //Allocate std::string
         char* infoLog = new char[ maxLength ];
 
         //Get info log
@@ -409,7 +409,7 @@ void Shader::printShaderLog( GLuint shader ){
             printf( "%s\n", infoLog );
         }
 
-        //Deallocate string
+        //Deallocate std::string
         delete[] infoLog;
     }
     else

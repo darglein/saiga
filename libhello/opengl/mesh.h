@@ -8,7 +8,7 @@
 
 //class MaterialMesh : public MeshObject<MaterialMesh,VertexNT,GLuint,MaterialShader>{
 //public:
-//    string name;
+//    std::string name;
 //    std::vector<TriangleGroup> triangleGroups;
 //    MaterialMesh(){}
 //    virtual ~MaterialMesh(){}

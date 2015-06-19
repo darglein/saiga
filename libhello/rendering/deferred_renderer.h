@@ -3,13 +3,13 @@
 #include "libhello/rendering/renderer.h"
 #include "libhello/rendering/lighting/deferred_lighting.h"
 #include "libhello/opengl/framebuffer.h"
-#include "libhello/opengl/mesh.h"
+//#include "libhello/opengl/mesh.h"
 
 
 class PostProcessingShader : public Shader{
 public:
     GLuint location_texture, location_screenSize;
-    PostProcessingShader(const string &multi_file) : Shader(multi_file){}
+    PostProcessingShader(const std::string &multi_file) : Shader(multi_file){}
     virtual void checkUniforms();
     virtual void uploadTexture(raw_Texture* texture);
     virtual void uploadScreenSize(vec4 size);
@@ -24,7 +24,7 @@ public:
     float distanceThreshold = 1.0f;
     vec2 filterRadius = vec2(10.0f) / vec2(1600,900);
 
-    SSAOShader(const string &multi_file) : DeferredShader(multi_file){}
+    SSAOShader(const std::string &multi_file) : DeferredShader(multi_file){}
     virtual void checkUniforms();
     void uploadInvProj(mat4 &mat);
     void uploadData();

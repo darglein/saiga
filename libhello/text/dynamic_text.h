@@ -12,8 +12,8 @@ public:
     virtual ~DynamicText(){}
     void updateGLBuffer(int start);
 
-    void compressText(string &str, int &start);
-    char updateText(string &str, int start);
+    void compressText(std::string &str, int &start);
+    char updateText(std::string &str, int start);
 
 
 };

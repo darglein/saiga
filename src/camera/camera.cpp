@@ -2,7 +2,7 @@
 
 #define ANG2RAD 3.14159265358979323846/180.0
 
-Camera::Camera(const string &name) : name(name)
+Camera::Camera(const std::string &name) : name(name)
 {
 }
 

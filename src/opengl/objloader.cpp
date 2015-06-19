@@ -1,6 +1,6 @@
 #include "opengl/objloader.h"
 
-bool splitAtFirst(string &str, string &erg, char de){
+bool splitAtFirst(std::string &str, std::string &erg, char de){
     unsigned int index = 0;
     for(;index<str.length();index++){
         if(str[index] == de){
@@ -80,7 +80,7 @@ bool readUntilToken(char* &str,string &out_value){
 }
 
 float nextFloat(char* &str){
-    string ergs;
+    std::string ergs;
     readUntilToken(str,ergs);
     skipTokens(str);
     return atof(ergs.c_str());
@@ -112,7 +112,7 @@ void ObjLoader::reset(){
     vertices_used.clear();
 }
 
-material_mesh_t *ObjLoader::loadFromFile(const string &path){
+material_mesh_t *ObjLoader::loadFromFile(const std::string &path){
 
 //    mesh.clear();
 
@@ -134,8 +134,8 @@ material_mesh_t *ObjLoader::loadFromFile(const string &path){
 //    cout<<"objloader: loading file "<<path<<endl;
 
     char buffer[1024];
-    string line;
-    string header;
+    std::string line;
+    std::string header;
 
     //set first group
     triangleGroups.push_back(TriangleGroup());
@@ -181,7 +181,7 @@ material_mesh_t *ObjLoader::loadFromFile(const string &path){
 
 void ObjLoader::parseLine(char* line){
     //    cout<<line<<endl;
-    string header;
+    std::string header;
     skipTokens(line);
     readUntilToken(line,header);
     skipTokens(line);
@@ -257,7 +257,7 @@ void ObjLoader::parseT(char* line){
 
 void ObjLoader::parseF(char* line){
     //    cout<<line<<endl;
-    string value;
+    std::string value;
     int cornerCount = 0;
     IndexedVertex currentVertex,startVertex, lastVertex;
     char buffer[1024];

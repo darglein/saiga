@@ -14,7 +14,7 @@ using std::string;
 
 class Camera : public Object3D{
 public:
-    string name;
+    std::string name;
 
     //    mat4 model;
     mat4 view;
@@ -28,7 +28,7 @@ public:
     Plane planes[6]; //for exact frustum culling
     Sphere boundingSphere; //for fast frustum culling
 
-    Camera(const string &name);
+    Camera(const std::string &name);
 
     void setView(const mat4 &v);
     void setView(const vec3 &eye,const vec3 &center,const vec3 &up);
@@ -118,7 +118,7 @@ class PerspectiveCamera : public Camera{
 public:
     double fovy,  aspect;
     float tang;
-    PerspectiveCamera(const string &name):Camera(name){}
+    PerspectiveCamera(const std::string &name):Camera(name){}
     void setProj(float fovy, float aspect, float zNear, float zFar);
     friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
 
@@ -130,7 +130,7 @@ public:
 class OrthographicCamera : public Camera{
 public:
     float left,right,bottom,top;
-    OrthographicCamera(const string &name):Camera(name){}
+    OrthographicCamera(const std::string &name):Camera(name){}
     void setProj( float left, float right,float bottom,float top,float near,  float far);
 
     friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);

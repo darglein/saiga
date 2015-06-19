@@ -10,7 +10,7 @@ public:
     GLuint location_boneMatricesBlock, binding_boneMatricesBlock;
 
 
-    BoneShader(const string &multi_file) : MVPShader(multi_file){}
+    BoneShader(const std::string &multi_file) : MVPShader(multi_file){}
     virtual void checkUniforms();
 
     void uploadBoneMatrices(mat4* matrices, int count);

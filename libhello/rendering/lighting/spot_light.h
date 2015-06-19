@@ -5,7 +5,7 @@
 class SpotLightShader : public PointLightShader{
 public:
     GLuint location_direction,location_angle;
-    SpotLightShader(const string &multi_file) : PointLightShader(multi_file){}
+    SpotLightShader(const std::string &multi_file) : PointLightShader(multi_file){}
     virtual void checkUniforms();
     void uploadDirection(vec3 &direction);
     void uploadAngle(float angle);

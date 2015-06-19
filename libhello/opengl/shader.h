@@ -28,22 +28,22 @@ public:
         int type;
         std::string code;
     };
-    string name;
-    string shaderPath;
-    string prefix;
-    string typeToName(GLenum type);
+    std::string name;
+    std::string shaderPath;
+    std::string prefix;
+    std::string typeToName(GLenum type);
 
     Shader();
     virtual ~Shader();
-    Shader(const string &multi_file);
+    Shader(const std::string &multi_file);
 
     //Shader loading utility programs
     void printProgramLog( GLuint program );
     void printShaderLog( GLuint shader );
 
 
-    std::vector<string> loadAndPreproccess(const string &file);
-    bool addMultiShaderFromFile(const string &multi_file);
+    std::vector<string> loadAndPreproccess(const std::string &file);
+    bool addMultiShaderFromFile(const std::string &multi_file);
     GLuint addShader(const char* content, GLenum type);
     GLuint addShaderFromFile(const char* file, GLenum type);
     GLuint createProgram();
