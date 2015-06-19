@@ -36,6 +36,7 @@ public:
     void close();
     void startMainLoop();
     void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond);
+    void startMainLoopNoRender(float ticksPerSecond);
     void setTimeScale(double timeScale);
 
 

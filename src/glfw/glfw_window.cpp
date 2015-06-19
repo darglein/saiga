@@ -9,6 +9,7 @@
 //#include <thread>
 //#endif
 
+
 glfw_Window::glfw_Window(const std::string &name, int window_width, int window_height, bool fullscreen):Window(name,window_width,window_height, fullscreen)
 {
 }
@@ -172,7 +173,7 @@ long long getTicksMS(){
 void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond){
     const long long SKIP_TICKS_NORMAL_TIME = 1000000 / ticksPerSecond;
     long long SKIP_TICKS = SKIP_TICKS_NORMAL_TIME;
-    float dt = 1.0f/ticksPerSecond;
+    const float dt = 1.0f/ticksPerSecond;
 
     setTimeScale(1.0);
 
@@ -217,6 +218,32 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
         /* Poll for and process events */
         glfwPollEvents();
         lastPolleventsMS = glfwGetTime()*1000 - now2;
+    }
+}
+
+void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
+{
+    const float dt = 1.0f/ticksPerSecond;
+    setTimeScale(1.0);
+
+    int simulatedTicks = 0;
+    running = true;
+    while( running && !glfwWindowShouldClose(window) ) {
+        renderer->renderer->update(dt);
+
+        renderer->renderer->interpolate(0);
+
+        double now2 = glfwGetTime()*1000;
+        /* Poll for and process events */
+        glfwPollEvents();
+        lastPolleventsMS = glfwGetTime()*1000 - now2;
+
+        simulatedTicks++;
+
+        if (simulatedTicks > 60 && ((int)(now2) % 5000) == 0){
+            cout << "<Gameloop> Simulated " << simulatedTicks  << "ticks (" << simulatedTicks*dt <<  "s)" << endl;
+            simulatedTicks = 0;
+        }
     }
 }
 
