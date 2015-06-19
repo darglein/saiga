@@ -6,6 +6,7 @@
 #include "libhello/util/glm.h"
 #include "libhello/opengl/texture/texture.h"
 #include "libhello/util/loader.h"
+#include "libhello/util/singleton.h"
 
 class Material{
 public:

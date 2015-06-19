@@ -1,12 +1,8 @@
 #pragma once
 
-#include "libhello/opengl/mesh_object.h"
 #include "libhello/opengl/basic_shaders.h"
-#include "libhello/geometry/sphere.h"
-#include "libhello/geometry/plane.h"
-#include "libhello/geometry/triangle_mesh.h"
-#include "libhello/opengl/framebuffer.h"
 #include "libhello/rendering/lighting/shadowmap.h"
+#include "libhello/rendering/object3d.h"
 
 class LightShader : public DeferredShader{
 public:

@@ -4,6 +4,12 @@
 
 #include "opengl/shaderLoader.h"
 #include "opengl/objloader.h"
+#include "libhello/opengl/texture/textureLoader.h"
+
+
+#include "libhello/rendering/lighting/directional_light.h"
+#include "libhello/rendering/lighting/point_light.h"
+#include "libhello/rendering/lighting/spot_light.h"
 
 void initFramework(Window *window)
 {

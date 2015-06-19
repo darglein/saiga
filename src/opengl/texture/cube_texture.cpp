@@ -19,7 +19,7 @@ void cube_Texture::uploadData(GLenum target, GLubyte *data ){
 
 
 void cube_Texture::uploadData(GLubyte *data ){
-    cout<<">>>>> uploadData"<<endl;
+    std::cout<<">>>>> uploadData"<<std::endl;
     bind(0);
     for (int i=0; i<6; i++) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
@@ -80,12 +80,12 @@ bool cube_Texture::fromImage(Image *img){
 bool cube_Texture::fromImage(Image &img){
     //cubestrip
     if(img.width%6!=0){
-        cout<<"Width no factor of 6!"<<endl;
+        std::cout<<"Width no factor of 6!"<<std::endl;
         return false;
     }
 
     if(img.width/6 != img.height){
-        cout<<"No square!"<<endl;
+        std::cout<<"No square!"<<std::endl;
         return false;
     }
 

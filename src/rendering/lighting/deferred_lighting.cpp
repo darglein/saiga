@@ -4,6 +4,12 @@
 #include "rendering/deferred_renderer.h"
 #include "libhello/util/error.h"
 
+#include "libhello/rendering/lighting/directional_light.h"
+#include "libhello/rendering/lighting/point_light.h"
+#include "libhello/rendering/lighting/spot_light.h"
+
+#include "libhello/geometry/triangle_mesh_generator.h"
+#include "libhello/opengl/texture/cube_texture.h"
 
 DeferredLighting::DeferredLighting(Framebuffer &framebuffer):framebuffer(framebuffer){
     

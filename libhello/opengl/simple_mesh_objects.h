@@ -2,7 +2,11 @@
 
 #include "libhello/opengl/mesh_object.h"
 #include "libhello/opengl/basic_shaders.h"
-#include "libhello/geometry/triangle_mesh_generator.h"
+
+class Sphere;
+class Cone;
+class Plane;
+
 
 template<class T>
 class SimpleMeshObject : public MeshObject<T,VertexNT,GLuint,MVPColorShader>
@@ -28,7 +32,7 @@ class SphereMeshObject :  public SimpleMeshObject<SphereMeshObject>
 public:
     static void createMesh();
     SphereMeshObject();
-    SphereMeshObject(const Sphere &sphere):SphereMeshObject(sphere,vec4(1)){}
+    SphereMeshObject(const Sphere &sphere);
     SphereMeshObject(const Sphere &sphere, const vec4 &color);
 };
 
@@ -37,7 +41,7 @@ class PlaneMeshObject :  public SimpleMeshObject<PlaneMeshObject>
 public:
     static void createMesh();
     PlaneMeshObject();
-    PlaneMeshObject(const Plane &plane):PlaneMeshObject(plane,vec4(1)){}
+    PlaneMeshObject(const Plane &plane);
     PlaneMeshObject(const Plane &plane, const vec4 &color);
 };
 
@@ -46,7 +50,7 @@ class ConeMeshObject :  public SimpleMeshObject<ConeMeshObject>
 public:
     static void createMesh();
     ConeMeshObject();
-    ConeMeshObject(const Cone &cone):ConeMeshObject(cone,vec4(1)){}
+    ConeMeshObject(const Cone &cone);
     ConeMeshObject(const Cone &cone, const vec4 &color);
 };
 

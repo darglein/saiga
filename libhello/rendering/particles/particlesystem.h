@@ -1,15 +1,14 @@
 #pragma once
 
-
-
 #include "libhello/rendering/particles/particle.h"
-#include "libhello/rendering/particles/particle_shader.h"
-
 #include "libhello/opengl/vertexBuffer.h"
-
 #include "libhello/rendering/object3d.h"
-#include "libhello/camera/camera.h"
-#include "libhello/opengl/texture/arrayTexture.h"
+
+class raw_Texture;
+class Camera;
+class ParticleShader;
+class DeferredParticleShader;
+class ArrayTexture2D;
 
 class ParticleSystem : public Object3D
 {
@@ -35,7 +34,7 @@ public:
     float interpolation = 0.0f;
 
     static float secondsPerTick;
-     static float ticksPerSecond;
+    static float ticksPerSecond;
 
 public:
     ParticleSystem(unsigned int particleCount=0);
@@ -47,7 +46,7 @@ public:
     void update();
     void interpolate(float interpolation);
     void render(Camera* cam);
-    void renderDeferred(Camera* cam, raw_Texture *d);
+    void renderDeferred(Camera* cam, raw_Texture *detphTexture);
 
 
     void addParticle(Particle &p);

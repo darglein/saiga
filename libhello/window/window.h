@@ -2,9 +2,6 @@
 
 #include <string>
 
-//#include "libhello/opengl/objloader.h"
-//#include "libhello/opengl/shaderLoader.h"
-
 class Camera;
 class Deferred_Renderer;
 

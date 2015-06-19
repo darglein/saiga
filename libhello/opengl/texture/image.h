@@ -4,21 +4,8 @@
 #include "libhello/opengl/opengl.h"
 
 
-#include <vector>
-#include <string>
-#include <iostream>
-#include <memory>
 
-//#include "libhello/util/loader.h"
-//#include "libhello/util/error.h"
-//#include "libhello/util/png_wrapper.h"
-
-#include <FreeImagePlus.h>
-
-
-using std::string;
-using std::cout;
-using std::endl;
+class fipImage;
 
 
 class Image{
@@ -59,7 +46,7 @@ public:
     void convertTo(fipImage &fipimg);
     void convertFrom(fipImage &fipimg);
 
-    FREE_IMAGE_TYPE getFIT();
+//    FREE_IMAGE_TYPE getFIT();
 
     //======================================================
 

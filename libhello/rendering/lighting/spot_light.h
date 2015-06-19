@@ -1,12 +1,5 @@
 #pragma once
 
-#include "libhello/opengl/mesh_object.h"
-#include "libhello/opengl/shader.h"
-#include "libhello/geometry/sphere.h"
-#include "libhello/geometry/plane.h"
-#include "libhello/geometry/triangle_mesh_generator.h"
-
-
 #include "libhello/rendering/lighting/point_light.h"
 
 class SpotLightShader : public PointLightShader{

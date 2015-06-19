@@ -4,9 +4,12 @@
 #include "libhello/opengl/framebuffer.h"
 #include "libhello/opengl/mesh.h"
 
-#include "libhello/rendering/lighting/directional_light.h"
-#include "libhello/rendering/lighting/point_light.h"
-#include "libhello/rendering/lighting/spot_light.h"
+class SpotLight;
+class PointLight;
+class DirectionalLight;
+class PointLightShader;
+class SpotLightShader;
+class DirectionalLightShader;
 
 class Deferred_Renderer;
 

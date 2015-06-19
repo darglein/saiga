@@ -1,9 +1,8 @@
 #pragma once
 
+#include "libhello/util/glm.h"
 #include "libhello/opengl/buffer.h"
-#include "libhello/opengl/opengl.h"
-#include "libhello/opengl/shader.h"
-#include <iostream>
+
 
 #include <vector>
 

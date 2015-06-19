@@ -1,4 +1,6 @@
 #include "rendering/material.h"
+#include "libhello/opengl/texture/textureLoader.h"
+using std::string;
 
 std::ostream& operator<< (std::ostream& stream, const Material& material){
     stream<<material.name<<material.Kd<<material.Ka;

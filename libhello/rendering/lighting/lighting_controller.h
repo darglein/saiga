@@ -4,6 +4,8 @@
 #include "libhello/geometry/ray.h"
 #include "libhello/util/observer.h"
 
+class Light;
+
 class LightingController : public Subject , public glfw_KeyListener , public glfw_MouseListener{
 private:
     DeferredLighting& lighting;

@@ -1,7 +1,8 @@
 #include "window/window.h"
 #include "libhello/util/error.h"
 #include <cstring>
-#include "libhello/opengl/texture/freeimage.h"
+#include <FreeImagePlus.h>
+
 using std::cout;
 using std::endl;
 
@@ -89,12 +90,12 @@ void Window::screenshot(const std::string &file)
     fipimg.save(file.c_str());
 }
 
-string Window::getTimeString()
+std::string Window::getTimeString()
 {
     time_t t = time(0);   // get time now
      struct tm * now = localtime( & t );
 
-     string str;
+     std::string str;
      str =     std::to_string(now->tm_year + 1900) + '-'
              + std::to_string(now->tm_mon + 1) + '-'
              + std::to_string(now->tm_mday) + '_'

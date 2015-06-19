@@ -1,5 +1,8 @@
 #include "rendering/particles/particlesystem.h"
-
+#include "libhello/opengl/texture/arrayTexture.h"
+#include "libhello/rendering/particles/particle_shader.h"
+#include "libhello/camera/camera.h"
+#include "libhello/opengl/shaderLoader.h"
 float ParticleSystem::ticksPerSecond = 60.0f;
 float ParticleSystem::secondsPerTick = 1.0f/60.0f;
 
@@ -22,6 +25,9 @@ void ParticleSystem::init(){
     particleBuffer.setDrawMode(GL_POINTS);
 
     initialized = true;
+
+    particleShader = ShaderLoader::instance()->load<ParticleShader>("particles.glsl");
+    deferredParticleShader = ShaderLoader::instance()->load<DeferredParticleShader>("deferred_particles.glsl");
 }
 
 void ParticleSystem::reset()
@@ -83,14 +89,14 @@ void ParticleSystem::render(Camera *cam){
     }
 }
 
-void ParticleSystem::renderDeferred(Camera *cam, raw_Texture* d)
+void ParticleSystem::renderDeferred(Camera *cam, raw_Texture* detphTexture)
 {
 
     deferredParticleShader->bind();
 
     deferredParticleShader->uploadAll(model,cam->view,cam->proj);
     deferredParticleShader->uploadTexture(arrayTexture);
-    deferredParticleShader->uploadDepthTexture(d);
+    deferredParticleShader->uploadDepthTexture(detphTexture);
     deferredParticleShader->uploadTiming(tick,interpolation);
     deferredParticleShader->uploadTimestep(secondsPerTick);
 
