@@ -1,11 +1,20 @@
-
 #include "window/window.h"
 #include "libhello/util/error.h"
+#include <cstring>
+#include <FreeImagePlus.h>
+
+using std::cout;
+using std::endl;
+
+
 Window::Window(const std::string &name, int window_width, int window_height, bool fullscreen)
     :name(name),window_width(window_width),window_height(window_height), fullscreen(fullscreen){
 
-    objLoader.addPath(".");
-    materialLoader.addPath(".");
+
+}
+
+void Window::quit(){
+    cout<<"Window: Quit"<<endl;running = false;
 }
 
 
@@ -26,8 +35,8 @@ bool Window::init(){
         return false;
     }
 
-    objLoader.materialLoader = &materialLoader;
-    materialLoader.textureLoader = &textureLoader;
+//    objLoader.materialLoader = &materialLoader;
+//    materialLoader.textureLoader = &textureLoader;
 
 #ifdef WIN32
     glDebugMessageCallback(Error::DebugLogWin32,NULL);
@@ -45,7 +54,7 @@ bool Window::init(){
     return true;
 }
 
-void Window::screenshot(const string &file)
+void Window::screenshot(const std::string &file)
 {
     cout<<"Window::screenshot "<<file<<endl;
     int size = window_width*window_height*4;
@@ -81,12 +90,12 @@ void Window::screenshot(const string &file)
     fipimg.save(file.c_str());
 }
 
-string Window::getTimeString()
+std::string Window::getTimeString()
 {
     time_t t = time(0);   // get time now
      struct tm * now = localtime( & t );
 
-     string str;
+     std::string str;
      str =     std::to_string(now->tm_year + 1900) + '-'
              + std::to_string(now->tm_mon + 1) + '-'
              + std::to_string(now->tm_mday) + '_'

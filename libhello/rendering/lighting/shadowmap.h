@@ -1,12 +1,7 @@
 #pragma once
 
-#include "libhello/opengl/mesh_object.h"
-#include "libhello/opengl/basic_shaders.h"
-#include "libhello/geometry/sphere.h"
-#include "libhello/geometry/plane.h"
-#include "libhello/geometry/triangle_mesh.h"
+
 #include "libhello/opengl/framebuffer.h"
-#include "libhello/opengl/texture/cube_texture.h"
 
 class Shadowmap{
 private:

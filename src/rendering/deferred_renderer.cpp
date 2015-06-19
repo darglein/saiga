@@ -1,5 +1,7 @@
 #include "rendering/deferred_renderer.h"
 #include "libhello/util/error.h"
+#include "libhello/geometry/triangle_mesh_generator.h"
+#include "libhello/camera/camera.h"
 void PostProcessingShader::checkUniforms(){
     Shader::checkUniforms();
     location_texture = Shader::getUniformLocation("image");
@@ -132,7 +134,7 @@ void Deferred_Renderer::toggleSSAO()
 
 void Deferred_Renderer::render_intern(){
 
-    cout<<"Deferred_Renderer::render_intern"<<endl;
+//    cout<<"Deferred_Renderer::render_intern"<<endl;
     //    glViewport(0,0,width,height);
     //    glClear( GL_COLOR_BUFFER_BIT );
     //    glClear(GL_DEPTH_BUFFER_BIT);

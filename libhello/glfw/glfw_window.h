@@ -3,10 +3,12 @@
 
 #include "libhello/window/window.h"
 
-#include <GLFW/glfw3.h>
 
-#include "libhello/glfw/glfw_eventhandler.h"
 
+
+class GLFWwindow;
+class GLFWcursor;
+class Image;
 
 class glfw_Window : public Window{
 protected:

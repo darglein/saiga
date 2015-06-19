@@ -1,5 +1,7 @@
 #include "util/keyboardbinds.h"
 
+#include <libhello/opengl/opengl.h>
+#include <GLFW/glfw3.h>
 
 KeyboardBinds::KeyboardBinds(){
     glfw_EventHandler::addKeyListener(this,20);

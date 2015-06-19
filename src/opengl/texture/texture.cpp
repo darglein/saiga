@@ -2,36 +2,6 @@
 #include "opengl/texture/texture.h"
 
 
-Texture* TextureLoader::loadFromFile(const std::string &path){
-
-    bool erg;
-    Texture* text = new Texture();
-
-//    PNG::Image img;
-//    erg = PNG::readPNG( &img,path);
-//    cout<<"loading "<<path<<endl;
-
-    fipImage fipimg;
-    erg = fipimg.load(path.c_str());
-
-
-    if (erg){
-        Image im;
-        im.convertFrom(fipimg);
-        im.srgb = true;
-        erg = text->fromImage(im);
-    }
-
-    if(erg){
-        return text;
-    }else{
-        delete text;
-    }
-
-
-
-    return nullptr;
-}
 
 void basic_Texture_2D::setDefaultParameters(){
     glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));

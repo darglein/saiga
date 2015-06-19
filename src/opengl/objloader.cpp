@@ -190,7 +190,7 @@ void ObjLoader::parseLine(char* line){
 
     }else if(header == "usemtl"){
 
-        Material* mat = materialLoader->load(line);
+        Material* mat = MaterialLoader::instance()->load(line);
         if(mat ==NULL){
             cout<<"Could not find material: "<<line<<endl;
             return;
@@ -219,7 +219,7 @@ void ObjLoader::parseLine(char* line){
 
     }else if(header == "mtllib"){
         cout<<"load material library: "<<line<<" "<<endl;
-        materialLoader->loadLibrary(line);
+        MaterialLoader::instance()->loadLibrary(line);
     }else if(header == "g"){
         //        cout<<"Found Group: "<<line<<endl;
     }else if(header == "o"){

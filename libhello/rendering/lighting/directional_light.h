@@ -1,14 +1,8 @@
 #pragma once
 
-#include "libhello/opengl/mesh_object.h"
-
-#include "libhello/geometry/sphere.h"
-#include "libhello/geometry/plane.h"
-#include "libhello/geometry/triangle_mesh_generator.h"
 
 #include "libhello/rendering/lighting/light.h"
 #include "libhello/camera/camera.h"
-#include "libhello/opengl/framebuffer.h"
 
 class DirectionalLightShader : public LightShader{
 public:

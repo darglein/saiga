@@ -1,10 +1,14 @@
 #include "libhello/opengl/simple_mesh_objects.h"
-
+#include "libhello/geometry/triangle_mesh_generator.h"
 
 void SphereMeshObject::createMesh(){
     Sphere s(vec3(0),1);
     auto m = TriangleMeshGenerator::createMesh(s,5);
     m->createBuffers(buffer);
+}
+
+SphereMeshObject::SphereMeshObject(const Sphere &sphere):SphereMeshObject(sphere,vec4(1)){
+
 }
 
 SphereMeshObject::SphereMeshObject()
@@ -26,6 +30,8 @@ SphereMeshObject::SphereMeshObject(const Sphere &sphere, const vec4 &color):Simp
      m->createBuffers(buffer);
  }
 
+ PlaneMeshObject::PlaneMeshObject(const Plane &plane):PlaneMeshObject(plane,vec4(1)){}
+
  PlaneMeshObject::PlaneMeshObject()
  {
  }
@@ -41,6 +47,8 @@ SphereMeshObject::SphereMeshObject(const Sphere &sphere, const vec4 &color):Simp
      auto m = TriangleMeshGenerator::createMesh(c,5);
      m->createBuffers(buffer);
  }
+
+ ConeMeshObject::ConeMeshObject(const Cone &cone):ConeMeshObject(cone,vec4(1)){}
 
  ConeMeshObject::ConeMeshObject()
  {

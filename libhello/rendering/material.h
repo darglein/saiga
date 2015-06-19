@@ -6,6 +6,7 @@
 #include "libhello/util/glm.h"
 #include "libhello/opengl/texture/texture.h"
 #include "libhello/util/loader.h"
+#include "libhello/util/singleton.h"
 
 class Material{
 public:
@@ -39,9 +40,10 @@ struct TriangleGroup{
 
 
 
-class MaterialLoader : public Loader<Material>{
+class MaterialLoader : public Loader<Material>, public Singleton <MaterialLoader>{
+    friend class Singleton <MaterialLoader>;
 public:
-    TextureLoader* textureLoader;
+//    TextureLoader* textureLoader;
     Material* currentMaterial = 0;
     void parseLine(char* line);
 

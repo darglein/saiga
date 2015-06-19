@@ -1,6 +1,7 @@
 #include "opengl/texture/image.h"
 #include <cstring>
-
+#include <iostream>
+#include <FreeImagePlus.h>
 Image::Image()
 {
 }
@@ -111,8 +112,24 @@ void Image::convertTo(PNG::Image &image){
 
 #endif
 
+
+FREE_IMAGE_TYPE getFIT(int bitDepth, int channels){
+    if(bitDepth==16 && channels==3){
+        return FIT_RGB16;
+    }else if(bitDepth==16 && channels==4){
+        return FIT_RGBA16;
+    }else if(bitDepth==16 && channels==1){
+        return FIT_UINT16;
+    }else if(bitDepth==32 && channels==1){
+        return FIT_UINT32;
+    }
+
+    return FIT_BITMAP;
+}
+
+
 void Image::convertTo(fipImage &fipimg){
-    fipimg.setSize(	getFIT(),width,height,bitsPerPixel());
+    fipimg.setSize(	getFIT(bitDepth,channels),width,height,bitsPerPixel());
 
     auto data = fipimg.accessPixels();
 
@@ -135,13 +152,13 @@ void Image::convertFrom(fipImage &fipimg){
         channels = 4;
         break;
     default:
-        cout<<"warning unknown color type!"<<fipimg.getColorType()<<endl;
+        std::cout<<"warning unknown color type!"<<fipimg.getColorType()<<std::endl;
         break;
     }
 
 
 
-    cout<<"create from fipimg: BitsPerPixel "<<fipimg.getBitsPerPixel()<<" channels "<<channels<<" type "<<fipimg.getImageType()<<endl;
+    std::cout<<"create from fipimg: BitsPerPixel "<<fipimg.getBitsPerPixel()<<" channels "<<channels<<" type "<<fipimg.getImageType()<<std::endl;
 
     bitDepth = fipimg.getBitsPerPixel()/channels;
 
@@ -195,7 +212,7 @@ void Image::convertFrom(fipImage &fipimg){
         }
 
     }else{
-        cout<<"TODO: opengl/texture/image.cpp"<<endl;
+        std::cout<<"TODO: opengl/texture/image.cpp"<<std::endl;
     }
 
 
@@ -213,19 +230,6 @@ void Image::convertFrom(fipImage &fipimg){
 
 }
 
-FREE_IMAGE_TYPE Image::getFIT(){
-    if(bitDepth==16 && channels==3){
-        return FIT_RGB16;
-    }else if(bitDepth==16 && channels==4){
-        return FIT_RGBA16;
-    }else if(bitDepth==16 && channels==1){
-        return FIT_UINT16;
-    }else if(bitDepth==32 && channels==1){
-        return FIT_UINT32;
-    }
-
-    return FIT_BITMAP;
-}
 
 void Image::create(){
 
@@ -278,7 +282,7 @@ int Image::getBitDepth() const
 void Image::setBitDepth(int value)
 {
     if(value%8!=0){
-        cout<<"Error Bit Depth not supportet: "<<value<<endl;
+        std::cout<<"Error Bit Depth not supportet: "<<value<<std::endl;
         return;
     }
     bitDepth = value;

@@ -2,9 +2,7 @@
 
 #include "libhello/opengl/buffer.h"
 
-#include "libhello/opengl/opengl.h"
-#include "libhello/opengl/vertex.h"
-#include <iostream>
+
 #include <vector>
 
 

@@ -1,14 +1,9 @@
-#ifndef MaterialMesh_H
-#define MaterialMesh_H
+#pragma once
 
 #include <vector>
-#include "libhello/opengl/vertexBuffer.h"
 #include "libhello/opengl/basic_shaders.h"
-#include "libhello/camera/camera.h"
-#include "libhello/opengl/texture/texture.h"
-#include "libhello/opengl/framebuffer.h"
 #include "libhello/opengl/mesh_object.h"
-#include <functional>
+
 
 
 //class MaterialMesh : public MeshObject<MaterialMesh,VertexNT,GLuint,MaterialShader>{
@@ -35,4 +30,3 @@ public:
 //    void draw(const Camera &cam);
 };
 
-#endif // MaterialMesh_H
