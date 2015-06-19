@@ -19,10 +19,10 @@ public:
 class SSAOShader : public DeferredShader{
 public:
     int location_invProj;
-     int location_filterRadius,location_distanceThreshold;
+    int location_filterRadius,location_distanceThreshold;
 
-     float distanceThreshold = 1.0f;
-     vec2 filterRadius = vec2(10.0f) / vec2(1600,900);
+    float distanceThreshold = 1.0f;
+    vec2 filterRadius = vec2(10.0f) / vec2(1600,900);
 
     SSAOShader(const string &multi_file) : DeferredShader(multi_file){}
     virtual void checkUniforms();
@@ -31,8 +31,14 @@ public:
 };
 
 
-class Deferred_Renderer : public Renderer{
-    public:
+class Deferred_Renderer{
+public:
+    RendererInterface* renderer;
+
+    bool wireframe = false;
+    float wireframeLineSize = 1;
+
+
     Camera** currentCamera;
 
     bool postProcessing = false;
@@ -61,21 +67,23 @@ class Deferred_Renderer : public Renderer{
 
     void toggleSSAO();
 
-    void render_intern(float interpolation = 0.f);
-    void renderGBuffer(Camera *cam, float interpolation = 0.f);
+    void render_intern();
+    void renderGBuffer(Camera *cam);
     void renderDepthMaps(Camera *cam);
     void renderLighting(Camera *cam);
     void renderSSAO(Camera *cam);
     void postProcess();
 
-    virtual void render(Camera *cam, float interpolation) = 0;
-    virtual void renderDepth(Camera *cam) = 0;
-    virtual void renderOverlay(Camera *cam, float interpolation) = 0;
-    virtual void renderFinal(Camera *cam, float interpolation) = 0; //directly renders to screen (after post processing)
+//    virtual void render(Camera *cam) = 0;
+//    virtual void renderDepth(Camera *cam) = 0;
+//    virtual void renderOverlay(Camera *cam) = 0;
+//    virtual void renderFinal(Camera *cam) = 0; //directly renders to screen (after post processing)
 
-    virtual void cudaPostProcessing() = 0;
-    virtual void initCudaPostProcessing(Texture* src, Texture* dest) = 0;
-//    virtual void renderLighting() = 0;
+    virtual void cudaPostProcessing() {};
+    virtual void initCudaPostProcessing(Texture* src, Texture* dest) {};
+
+//    virtual void interpolate(float interpolation) = 0;
+//    virtual void update(float interpolation) = 0;
 
 
     void enablePostProcessing(){postProcessing=true;}

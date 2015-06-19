@@ -172,6 +172,7 @@ long long getTicksMS(){
 void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond){
     const long long SKIP_TICKS_NORMAL_TIME = 1000000 / ticksPerSecond;
     long long SKIP_TICKS = SKIP_TICKS_NORMAL_TIME;
+    float dt = 1.0f/ticksPerSecond;
 
     setTimeScale(1.0);
 
@@ -188,7 +189,7 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
                 cout << "<Gameloop> Warning: Update loop is falling behind. (" << (getTicksMS() - next_game_tick)/1000 << "ms)" << endl;
                 break;
             }
-            update(1.0/60.0);
+            renderer->renderer->update(dt);
 
 
             SKIP_TICKS = ((double)SKIP_TICKS_NORMAL_TIME)/timeScale;
@@ -197,8 +198,10 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
 
             ++loops;
         }
+        float interpolation = glm::clamp(((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ),0.0f,1.0f);
 
-        renderer->render_intern( ((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ) );
+        renderer->renderer->interpolate(interpolation);
+        renderer->render_intern();
 
 
 #ifdef FORCEFRAMERATE

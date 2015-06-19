@@ -38,7 +38,7 @@ void SSAOShader::uploadData(){
 
 
 
-Deferred_Renderer::Deferred_Renderer():Renderer(),lighting(deferred_framebuffer){
+Deferred_Renderer::Deferred_Renderer():lighting(deferred_framebuffer){
 
 }
 
@@ -130,8 +130,9 @@ void Deferred_Renderer::toggleSSAO()
     ssao = !ssao;
 }
 
-void Deferred_Renderer::render_intern(float interpolation){
+void Deferred_Renderer::render_intern(){
 
+    cout<<"Deferred_Renderer::render_intern"<<endl;
     //    glViewport(0,0,width,height);
     //    glClear( GL_COLOR_BUFFER_BIT );
     //    glClear(GL_DEPTH_BUFFER_BIT);
@@ -139,7 +140,7 @@ void Deferred_Renderer::render_intern(float interpolation){
 
     (*currentCamera)->recalculatePlanes();
 
-    renderGBuffer(*currentCamera, interpolation);
+    renderGBuffer(*currentCamera);
 
     renderSSAO(*currentCamera);
 
@@ -172,7 +173,7 @@ void Deferred_Renderer::render_intern(float interpolation){
     renderLighting(*currentCamera);
 
 
-    renderOverlay(*currentCamera, interpolation);
+    renderer->renderOverlay(*currentCamera);
     mix_framebuffer.unbind();
 
     //    glDisable(GL_FRAMEBUFFER_SRGB);
@@ -184,7 +185,7 @@ void Deferred_Renderer::render_intern(float interpolation){
         mix_framebuffer.blitColor(0);
     }
 
-    renderFinal(*currentCamera, interpolation);
+    renderer->renderFinal(*currentCamera);
 
 
 
@@ -192,7 +193,7 @@ void Deferred_Renderer::render_intern(float interpolation){
 
 }
 
-void Deferred_Renderer::renderGBuffer(Camera *cam, float interpolation){
+void Deferred_Renderer::renderGBuffer(Camera *cam){
     deferred_framebuffer.bind();
     glViewport(0,0,width,height);
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -206,7 +207,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam, float interpolation){
         glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
         glLineWidth(wireframeLineSize);
     }
-    render(cam, interpolation);
+    renderer->render(cam);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
 
@@ -227,7 +228,7 @@ void Deferred_Renderer::renderDepthMaps(Camera *cam){
     // The offset is added before the depth test is performed and before the value is written into the depth buffer.
     glEnable(GL_POLYGON_OFFSET_FILL);
     glPolygonOffset(1.0f,4.0f);
-    lighting.renderDepthMaps(this);
+    lighting.renderDepthMaps(renderer);
     glDisable(GL_POLYGON_OFFSET_FILL);
 
     Error::quitWhenError("Deferred_Renderer::renderDepthMaps");

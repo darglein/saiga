@@ -22,6 +22,8 @@ void TextOverlay2D::addText(Text* text){
 }
 
 void TextOverlay2D::setTextShader(TextShader* textShader){
+//    cout<<"set text shader "<<textShader<<endl;
+
     textShader->bind();
     textShader->uploadProj(proj);
     textShader->unbind();

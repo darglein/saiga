@@ -68,7 +68,7 @@ void DeferredLighting::cullLights(Camera *cam){
     }
 }
 
-void DeferredLighting::renderDepthMaps(Deferred_Renderer *renderer){
+void DeferredLighting::renderDepthMaps(RendererInterface *renderer){
     totalLights = 0;
     renderedDepthmaps = 0;
 

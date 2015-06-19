@@ -47,8 +47,13 @@ void ParticleSystem::update()
     }
 }
 
+void ParticleSystem::interpolate(float interpolation)
+{
+    this->interpolation = interpolation;
+}
 
-void ParticleSystem::render(Camera *cam, float interpolation){
+
+void ParticleSystem::render(Camera *cam){
     //    cout<<tick<<" ParticleSystem::renderr()"<<endl;
 
     if(blending){
@@ -78,7 +83,7 @@ void ParticleSystem::render(Camera *cam, float interpolation){
     }
 }
 
-void ParticleSystem::renderDeferred(Camera *cam, float interpolation, raw_Texture* d)
+void ParticleSystem::renderDeferred(Camera *cam, raw_Texture* d)
 {
 
     deferredParticleShader->bind();

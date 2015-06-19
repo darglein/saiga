@@ -1,5 +1,6 @@
 #pragma once
 
+#include "libhello/rendering/renderer.h"
 #include "libhello/opengl/framebuffer.h"
 #include "libhello/opengl/mesh.h"
 
@@ -62,7 +63,7 @@ public:
 
 
     void render(Camera *cam);
-    void renderDepthMaps( Deferred_Renderer* renderer );
+    void renderDepthMaps(RendererInterface *renderer );
     void renderDebug();
 
 

@@ -6,13 +6,16 @@ std::ostream& operator<< (std::ostream& stream, const Material& material){
 }
 
 Material* MaterialLoader::load(const std::string &name){
-    //check if already exists
-    for(Material* &object : objects){
-        if(object->name == name)
-            return object;
-    }
-//    cout<<"Could not load Material: "<<name<<endl;
-    return NULL;
+
+    return exists(name);
+
+//    //check if already exists
+//    for(Material* &object : objects){
+//        if(object->name == name)
+//            return object;
+//    }
+////    cout<<"Could not load Material: "<<name<<endl;
+//    return NULL;
 }
 
 void MaterialLoader::loadLibrary(const std::string &file){
@@ -72,7 +75,8 @@ void MaterialLoader::parseLine(char* line){
     if(header == "newmtl"){
 //        cout<<"new material: "<<line<<endl;
         currentMaterial = new Material();
-        objects.push_back(currentMaterial);
+//        objects.push_back(currentMaterial);
+        objects.emplace_back(line,NoParams(),currentMaterial);
         currentMaterial->name = line;
     }
     if(currentMaterial==0){

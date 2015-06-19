@@ -32,6 +32,8 @@ public:
 
     bool blending = true;
 
+    float interpolation = 0.0f;
+
     static float secondsPerTick;
      static float ticksPerSecond;
 
@@ -43,8 +45,9 @@ public:
     void reset();
 
     void update();
-    void render(Camera* cam, float interpolation);
-    void renderDeferred(Camera* cam, float interpolation, raw_Texture *d);
+    void interpolate(float interpolation);
+    void render(Camera* cam);
+    void renderDeferred(Camera* cam, raw_Texture *d);
 
 
     void addParticle(Particle &p);

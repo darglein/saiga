@@ -462,17 +462,3 @@ void Shader::upload(int location, int count, vec2* v){
 }
 
 
-Shader* ShaderLoader::loadFromFile(const std::string &name){
-    Shader* shader = new Shader(name);
-    if(shader->reload()){
-        return shader;
-    }
-    delete shader;
-    return nullptr;
-}
-
-void ShaderLoader::reload(){
-    for(Shader* &object : objects){
-        object->reload();
-    }
-}

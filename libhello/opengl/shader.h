@@ -1,10 +1,10 @@
+
 #pragma once
 
 #include "libhello/opengl/opengl.h"
 
 
 #include "libhello/util/glm.h"
-#include "libhello/util/loader.h"
 
 using std::cerr;
 using std::string;
@@ -91,56 +91,6 @@ public:
     virtual void checkUniforms(){}
 };
 
-class ShaderLoader : public Loader<Shader>{
-public:
-    Shader* loadFromFile(const std::string &name);
-    template<typename shader_t> shader_t* load(const std::string &name);
-    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix);
-    void reload();
-};
 
-
-
-
-template<typename shader_t>
-shader_t* ShaderLoader::load(const std::string &name){
-    shader_t* object;
-    //check if already exists
-    for(Shader* &obj : objects){
-        if(obj->name == name){
-            object = dynamic_cast<shader_t*>(obj);
-            if(object != nullptr){
-                return object;
-            }
-        }
-    }
-
-
-    for(std::string &path : locations){
-        std::string complete_path = path + "/" + name;
-        object = loadFromFile<shader_t>(complete_path,path);
-        if (object){
-            object->name = name;
-            std::cout<<"Loaded from file: "<<complete_path<<std::endl;
-            objects.push_back(object);
-            return object;
-        }
-    }
-
-    std::cout<<"Failed to load "<<name<<"!!!"<<std::endl;
-    exit(0);
-    return NULL;
-}
-
-template<typename shader_t>
-shader_t* ShaderLoader::loadFromFile(const std::string &name, const std::string &prefix){
-    shader_t* shader = new shader_t(name);
-    shader->prefix = prefix;
-    if(shader->reload()){
-        return shader;
-    }
-    delete shader;
-    return NULL;
-}
 
 

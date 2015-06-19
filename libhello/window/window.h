@@ -3,12 +3,13 @@
 #include <string>
 
 #include "libhello/opengl/objloader.h"
+#include "libhello/opengl/shaderLoader.h"
 
 class Camera;
 class Deferred_Renderer;
 
 class Window{
-protected:
+public:
     std::string name;
     int window_width;
     int window_height;
@@ -21,7 +22,7 @@ protected:
     ObjLoader objLoader;
     TextureLoader textureLoader;
     MaterialLoader materialLoader;
-    ShaderLoader shaderLoader;
+//    ShaderLoader shaderLoader;
 
     virtual bool initWindow() = 0;
     virtual bool initInput() = 0;
@@ -66,7 +67,8 @@ public:
 
     template<typename shader_t>
     inline shader_t* loadShader(const std::string &name){
-        return shaderLoader.load<shader_t>(name);
+        return ShaderLoader::instance()->load<shader_t>(name);
+//        return shaderLoader.load<shader_t>(name);
     }
 
     Texture* loadTexture(const std::string &name){
