@@ -1,4 +1,9 @@
 #include "glfw/glfw_window.h"
+
+#include <libhello/opengl/opengl.h>
+#include "libhello/glfw/glfw_eventhandler.h"
+#include <GLFW/glfw3.h>
+
 #include "rendering/deferred_renderer.h"
 #include "util/inputcontroller.h"
 #include <chrono>

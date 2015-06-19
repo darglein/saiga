@@ -1,5 +1,8 @@
 #pragma once
 
+#include <libhello/opengl/opengl.h>
+#include <GLFW/glfw3.h>
+
 #include <libhello/util/glm.h>
 #include <libhello/glfw/glfw_eventhandler.h>
 #include <array>

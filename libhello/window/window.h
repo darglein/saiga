@@ -2,8 +2,8 @@
 
 #include <string>
 
-#include "libhello/opengl/objloader.h"
-#include "libhello/opengl/shaderLoader.h"
+//#include "libhello/opengl/objloader.h"
+//#include "libhello/opengl/shaderLoader.h"
 
 class Camera;
 class Deferred_Renderer;
@@ -33,12 +33,12 @@ public:
     Window(const std::string &name,int window_width,int window_height, bool fullscreen);
      virtual ~Window(){}
 
-    void quit(){cout<<"Window: Quit"<<endl;running = false;}
+    void quit();
     bool init();
     virtual void close() = 0;
 
-    void screenshot(const string &file);
-    string getTimeString();
+    void screenshot(const std::string &file);
+    std::string getTimeString();
 
     inline int getWidth(){
         return window_width;
@@ -65,19 +65,5 @@ public:
         return renderer;
     }
 
-//    template<typename shader_t>
-//    inline shader_t* loadShader(const std::string &name){
-//        return ShaderLoader::instance()->load<shader_t>(name);
-////        return shaderLoader.load<shader_t>(name);
-//    }
-
-//    Texture* loadTexture(const std::string &name){
-//        return TextureLoader::instance()->load(name);
-//    }
-
-//    material_mesh_t* loadObj(const std::string &name){
-//        return ObjLoader::instance()->load(name);
-////        return objLoader.load(name);
-//    }
 
 };

@@ -1,10 +1,19 @@
-
 #include "window/window.h"
 #include "libhello/util/error.h"
+#include <cstring>
+#include "libhello/opengl/texture/freeimage.h"
+using std::cout;
+using std::endl;
+
+
 Window::Window(const std::string &name, int window_width, int window_height, bool fullscreen)
     :name(name),window_width(window_width),window_height(window_height), fullscreen(fullscreen){
 
 
+}
+
+void Window::quit(){
+    cout<<"Window: Quit"<<endl;running = false;
 }
 
 
@@ -44,7 +53,7 @@ bool Window::init(){
     return true;
 }
 
-void Window::screenshot(const string &file)
+void Window::screenshot(const std::string &file)
 {
     cout<<"Window::screenshot "<<file<<endl;
     int size = window_width*window_height*4;

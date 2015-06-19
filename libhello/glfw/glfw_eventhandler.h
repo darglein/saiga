@@ -1,8 +1,7 @@
 #pragma once
 
-#include <libhello/opengl/opengl.h>
+class GLFWwindow;
 
-#include <GLFW/glfw3.h>
 #include <vector>
 
 class glfw_KeyListener{

@@ -1,6 +1,8 @@
 #include "rendering/lighting/lighting_controller.h"
 #include "util/inputcontroller.h"
 
+#include <libhello/opengl/opengl.h>
+#include <GLFW/glfw3.h>
 
 
 

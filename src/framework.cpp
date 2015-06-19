@@ -1,7 +1,10 @@
 #include "framework.h"
-#include "opengl/shaderLoader.h"
 #include "rendering/deferred_renderer.h"
 #include "window/window.h"
+
+#include "opengl/shaderLoader.h"
+#include "opengl/objloader.h"
+
 void initFramework(Window *window)
 {
     ShaderLoader::instance()->addPath("shader");
