@@ -9,6 +9,16 @@ void initFramework(Window *window)
     ShaderLoader::instance()->addPath("shader/lighting");
     ShaderLoader::instance()->addPath("shader/post_processing");
 
+    TextureLoader::instance()->addPath("./objs");
+    TextureLoader::instance()->addPath("./textures");
+    TextureLoader::instance()->addPath(".");
+
+    MaterialLoader::instance()->addPath(".");
+    MaterialLoader::instance()->addPath("./objs");
+
+    ObjLoader::instance()->addPath(".");
+    ObjLoader::instance()->addPath("./objs");
+
 
     DeferredShader* def = ShaderLoader::instance()->load<DeferredShader>("deferred_mixer.glsl");
 
@@ -34,11 +44,12 @@ void initFramework(Window *window)
 
     renderer->ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("ssao.glsl");
     renderer->ssao = true;
-//    renderer->otherShader  =  window->loadShader<PostProcessingShader>("post_processing.glsl");
+//    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
 
     renderer->postProcessingShader = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
 
     renderer->lighting.setRenderDebug( false);
+    renderer->enablePostProcessing();
 
     window->renderer = renderer;
 }

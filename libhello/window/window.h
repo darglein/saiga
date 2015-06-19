@@ -19,9 +19,9 @@ public:
 
     Deferred_Renderer* renderer;
     Camera* currentCamera = nullptr;
-    ObjLoader objLoader;
-    TextureLoader textureLoader;
-    MaterialLoader materialLoader;
+//    ObjLoader objLoader;
+//    TextureLoader textureLoader;
+//    MaterialLoader materialLoader;
 //    ShaderLoader shaderLoader;
 
     virtual bool initWindow() = 0;
@@ -65,18 +65,19 @@ public:
         return renderer;
     }
 
-    template<typename shader_t>
-    inline shader_t* loadShader(const std::string &name){
-        return ShaderLoader::instance()->load<shader_t>(name);
-//        return shaderLoader.load<shader_t>(name);
-    }
+//    template<typename shader_t>
+//    inline shader_t* loadShader(const std::string &name){
+//        return ShaderLoader::instance()->load<shader_t>(name);
+////        return shaderLoader.load<shader_t>(name);
+//    }
 
-    Texture* loadTexture(const std::string &name){
-        return textureLoader.load(name);
-    }
+//    Texture* loadTexture(const std::string &name){
+//        return TextureLoader::instance()->load(name);
+//    }
 
-    material_mesh_t* loadObj(const std::string &name){
-        return objLoader.load(name);
-    }
+//    material_mesh_t* loadObj(const std::string &name){
+//        return ObjLoader::instance()->load(name);
+////        return objLoader.load(name);
+//    }
 
 };

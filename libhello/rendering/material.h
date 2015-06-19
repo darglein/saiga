@@ -39,9 +39,10 @@ struct TriangleGroup{
 
 
 
-class MaterialLoader : public Loader<Material>{
+class MaterialLoader : public Loader<Material>, public Singleton <MaterialLoader>{
+    friend class Singleton <MaterialLoader>;
 public:
-    TextureLoader* textureLoader;
+//    TextureLoader* textureLoader;
     Material* currentMaterial = 0;
     void parseLine(char* line);
 

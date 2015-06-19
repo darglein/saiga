@@ -2,6 +2,7 @@
 
 #include "libhello/opengl/texture/raw_texture.h"
 #include "libhello/util/loader.h"
+#include "libhello/util/singleton.h"
 
 class basic_Texture_2D : public raw_Texture{
 public:
@@ -19,7 +20,8 @@ public:
 
 typedef basic_Texture_2D Texture;
 
-class TextureLoader : public Loader<Texture>{
+class TextureLoader : public Loader<Texture>, public Singleton <TextureLoader>{
+    friend class Singleton <TextureLoader>;
 public:
     Texture* loadFromFile(const std::string &name);
 };

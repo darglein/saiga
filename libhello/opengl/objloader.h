@@ -27,10 +27,10 @@ struct Face{
 
 typedef MaterialMesh<VertexNT,GLuint> material_mesh_t;
 
-class ObjLoader : public Loader<material_mesh_t>{
-
+class ObjLoader : public Loader<material_mesh_t>, public Singleton <ObjLoader>{
+ friend class Singleton <ObjLoader>;
 public:
-    MaterialLoader* materialLoader;
+//    MaterialLoader* materialLoader;
 
     int state;
     int maxCorners;

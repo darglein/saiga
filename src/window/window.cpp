@@ -4,8 +4,7 @@
 Window::Window(const std::string &name, int window_width, int window_height, bool fullscreen)
     :name(name),window_width(window_width),window_height(window_height), fullscreen(fullscreen){
 
-    objLoader.addPath(".");
-    materialLoader.addPath(".");
+
 }
 
 
@@ -26,8 +25,8 @@ bool Window::init(){
         return false;
     }
 
-    objLoader.materialLoader = &materialLoader;
-    materialLoader.textureLoader = &textureLoader;
+//    objLoader.materialLoader = &materialLoader;
+//    materialLoader.textureLoader = &textureLoader;
 
 #ifdef WIN32
     glDebugMessageCallback(Error::DebugLogWin32,NULL);
