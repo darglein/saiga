@@ -9,7 +9,7 @@ public:
     GLuint location_direction, location_ambientIntensity;
     GLuint location_ssaoTexture;
 
-    DirectionalLightShader(const string &multi_file) : LightShader(multi_file){}
+    DirectionalLightShader(const std::string &multi_file) : LightShader(multi_file){}
     virtual void checkUniforms();
     void uploadDirection(vec3 &direction);
     void uploadAmbientIntensity(float i);

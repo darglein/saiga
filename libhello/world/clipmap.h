@@ -20,7 +20,7 @@ public:
 
      GLuint location_texture1,location_texture2;
 
-    TerrainShader(const string &multi_file) : MVPTextureShader(multi_file){}
+    TerrainShader(const std::string &multi_file) : MVPTextureShader(multi_file){}
     virtual void checkUniforms();
     virtual void uploadVP(const vec2 &pos);
     void uploadColor(const vec4 &s);

@@ -1,7 +1,7 @@
 #pragma once
 #include "libhello/opengl/vertexBuffer.h"
 #include "libhello/geometry/triangle_mesh.h"
-#include "libhello/opengl/mesh.h"
+//#include "libhello/opengl/mesh.h"
 #include "libhello/text/text.h"
 #include "libhello/text/dynamic_text.h"
 
@@ -37,19 +37,19 @@ private:
 
     void createTextureAtlas();
 
-     Texture *textureAtlas = nullptr;
+     basic_Texture_2D *textureAtlas = nullptr;
 public:
     aabb maxCharacter;
-    string font;
+    std::string font;
     int font_size;
     TextGenerator();
     ~TextGenerator();
-    void loadFont(const string &font, int font_size);
+    void loadFont(const std::string &font, int font_size);
 
-    void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const string &text, int startX=0, int startY=0);
+    void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const std::string &text, int startX=0, int startY=0);
     DynamicText* createDynamicText(int size, bool normalize=false);
 
     //if normalized-> origin of the textmesh is in the center of the text
-    Text* createText(const string &label, bool normalize=false);
-    void updateText(DynamicText* text, const string &label, int startIndex);
+    Text* createText(const std::string &label, bool normalize=false);
+    void updateText(DynamicText* text, const std::string &label, int startIndex);
 };

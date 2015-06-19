@@ -40,7 +40,7 @@ public:
 
     void createTextures();
     void createHeightmaps();
-    void createHeightmapsFrom(const string& image);
+    void createHeightmapsFrom(const std::string& image);
 
     bool loadMaps();
 

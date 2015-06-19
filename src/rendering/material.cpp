@@ -49,8 +49,8 @@ bool MaterialLoader::loadLibraryFromFile(const std::string &path){
     cout<<"mtlloader: loading file "<<path<<endl;
 
     char buffer[1024];
-    string line;
-    string header;
+    std::string line;
+    std::string header;
     try {
         while(stream.getline(buffer,1024)){ //lines
             parseLine(buffer);
@@ -69,7 +69,7 @@ extern bool readUntilToken(char* &str,string &out_value);
 extern vec3 readVec3(char* &str);
 
 void MaterialLoader::parseLine(char* line){
-    string header;
+    std::string header;
     skipTokens(line);
     readUntilToken(line,header);
     skipTokens(line);

@@ -1,4 +1,5 @@
 #include "text/text_generator.h"
+#include "libhello/opengl/texture/texture.h"
 #include <algorithm>
 
 #include <ft2build.h>
@@ -28,7 +29,7 @@ TextGenerator::~TextGenerator()
 }
 
 
-void TextGenerator::loadFont(const string &font, int font_size){
+void TextGenerator::loadFont(const std::string &font, int font_size){
     this->font = font;
     this->font_size = font_size;
 
@@ -109,7 +110,7 @@ void TextGenerator::createTextureAtlas(){
 
 
 
-void TextGenerator::createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const string &text, int startX, int startY){
+void TextGenerator::createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const std::string &text, int startX, int startY){
 
     int x=startX,y=startY;
     VertexNT verts[4];
@@ -147,7 +148,7 @@ DynamicText* TextGenerator::createDynamicText(int size, bool normalize){
 
     text->texture = textureAtlas;
 
-    string buffer;
+    std::string buffer;
     buffer.resize(size);
     buffer.assign(size,'A');
 
@@ -169,7 +170,7 @@ DynamicText* TextGenerator::createDynamicText(int size, bool normalize){
     return text;
 }
 
-Text* TextGenerator::createText(const string &label, bool normalize){
+Text* TextGenerator::createText(const std::string &label, bool normalize){
     Text* text = new Text(label);
 
     text->texture = textureAtlas;
@@ -189,8 +190,8 @@ Text* TextGenerator::createText(const string &label, bool normalize){
     return text;
 }
 
-void TextGenerator::updateText(DynamicText* text, const string &l, int startIndex){
-    string label(l);
+void TextGenerator::updateText(DynamicText* text, const std::string &l, int startIndex){
+    std::string label(l);
     text->compressText(label,startIndex);
     if(label.size()==0){
         //no update needed

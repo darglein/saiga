@@ -15,13 +15,13 @@ public:
     static void quitWhenError(const char* func);
 
 
-    // aux function to translate source to string
+    // aux function to translate source to std::string
     static std::string getStringForSource(GLenum source);
 
-    // aux function to translate severity to string
+    // aux function to translate severity to std::string
     static std::string getStringForSeverity(GLenum severity);
 
-    // aux function to translate type to string
+    // aux function to translate type to std::string
     static std::string getStringForType(GLenum type);
 
     static void DebugLogWin32( GLenum source , GLenum type , GLuint id , GLenum severity ,

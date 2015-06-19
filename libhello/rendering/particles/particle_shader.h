@@ -6,7 +6,7 @@ class ParticleShader : public MVPTextureShader {
 public:
      GLuint location_timer, location_timestep, location_interpolation;
 
-    ParticleShader(const string &multi_file) : MVPTextureShader(multi_file){}
+    ParticleShader(const std::string &multi_file) : MVPTextureShader(multi_file){}
 
     virtual void checkUniforms();
 
@@ -20,7 +20,7 @@ public:
      GLuint location_texture_depth;
      GLuint location_cameraParameters;
 
-    DeferredParticleShader(const string &multi_file) : ParticleShader(multi_file){}
+    DeferredParticleShader(const std::string &multi_file) : ParticleShader(multi_file){}
 
     virtual void checkUniforms();
 

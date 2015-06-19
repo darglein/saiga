@@ -329,7 +329,7 @@ void Heightmap::saveHeightmaps(){
 
         heightmap[i].convertTo(fipimg);
 
-        string name = "heightmap"+std::to_string(i)+".png";
+        std::string name = "heightmap"+std::to_string(i)+".png";
 
         if(fipimg.save(name.c_str())){
             //            cout<<"save sucess"<<endl;
@@ -347,7 +347,7 @@ void Heightmap::saveNormalmaps(){
 
         normalmap[i].convertTo(fipimg);
 
-        string name = "normalmap"+std::to_string(i)+".png";
+        std::string name = "normalmap"+std::to_string(i)+".png";
 
         if(fipimg.save(name.c_str())){
             //            cout<<"save sucess"<<endl;
@@ -367,7 +367,7 @@ void Heightmap::saveNormalmaps(){
 bool Heightmap::loadMaps(){
 
     for(int i=0;i<layers;i++){
-        string name = "heightmap"+std::to_string(i)+".png";
+        std::string name = "heightmap"+std::to_string(i)+".png";
 
         cout<<"load heightmap "<<endl;
         fipImage fipimg;
@@ -378,7 +378,7 @@ bool Heightmap::loadMaps(){
     }
 
     for(int i=0;i<layers;i++){
-        string name = "normalmap"+std::to_string(i)+".png";
+        std::string name = "normalmap"+std::to_string(i)+".png";
 
         fipImage fipimg;
         if(!fipimg.load(name.c_str()))
@@ -390,7 +390,7 @@ bool Heightmap::loadMaps(){
 }
 
 
-void Heightmap::createHeightmapsFrom(const string& image){
+void Heightmap::createHeightmapsFrom(const std::string& image){
     fipImage fipimg;
     fipimg.load(image.c_str());
     heightmap[0].convertFrom(fipimg);

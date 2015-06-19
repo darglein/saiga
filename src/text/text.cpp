@@ -1,6 +1,6 @@
 #include "text/text.h"
-
-Text::Text(const string &label):label(label){
+#include "libhello/opengl/basic_shaders.h"
+Text::Text(const std::string &label):label(label){
 
 
 
@@ -8,7 +8,7 @@ Text::Text(const string &label):label(label){
 
 }
 
-void Text::updateText(const string &label){
+void Text::updateText(const std::string &label){
     cout<<"UPdate: "<<label<<endl;
 }
 

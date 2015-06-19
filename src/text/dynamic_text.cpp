@@ -9,7 +9,7 @@ void DynamicText::updateGLBuffer(int start){
     mesh.updateVerticesInBuffer(buffer,(size-start)*4,start*4);
 }
 
-void DynamicText::compressText(string &str, int &start){
+void DynamicText::compressText(std::string &str, int &start){
 
     int s = min(static_cast<int>(str.size()),size-start);
     str.resize(s);
@@ -29,7 +29,7 @@ void DynamicText::compressText(string &str, int &start){
     str.resize(newSize);
 }
 
-char DynamicText::updateText(string &str, int start){
+char DynamicText::updateText(std::string &str, int start){
 
     char c = label[start];
     int s = str.size();
