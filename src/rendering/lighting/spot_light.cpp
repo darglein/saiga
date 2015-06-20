@@ -55,6 +55,9 @@ void SpotLight::recalculateScale(){
     vec3 scale(l,radius,l);
 
     this->setScale(scale);
+
+    float farplane = radius;
+    this->cam.setProj(2*angle,1,0.1f,farplane);
 }
 
 void SpotLight::setRadius(float value)
@@ -66,8 +69,7 @@ void SpotLight::setRadius(float value)
 void SpotLight::createShadowMap(int resX, int resY) {
     Light::createShadowMap(resX,resY);
 //    float farplane = 50.0f;
-    float farplane = radius;
-    this->cam.setProj(2*angle,1,0.1f,farplane);
+
 }
 
 void SpotLight::setAngle(float value){

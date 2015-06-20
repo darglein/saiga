@@ -36,10 +36,25 @@ void initFramework(Window *window)
     Deferred_Renderer* renderer = new Deferred_Renderer();
     renderer->init(def,window->getWidth(),window->getHeight());
     //    renderer->lighting.setShader(shaderLoader.load<SpotLightShader>("deferred_lighting_spotlight.glsl"));
-    renderer->lighting.setShader(ShaderLoader::instance()->load<SpotLightShader>("deferred_lighting_spotlight_shadow.glsl"));
-    renderer->lighting.setShader(ShaderLoader::instance()->load<PointLightShader>("deferred_lighting_pointlight_shadow.glsl"));
-    //    renderer->lighting.setShader(shaderLoader.load<DirectionalLightShader>("deferred_lighting_directional.glsl"));
-    renderer->lighting.setShader(ShaderLoader::instance()->load<DirectionalLightShader>("deferred_lighting_directional_shadow.glsl"));
+
+    Shader::ShaderCodeInjections shadowInjection;
+    shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
+                                    "#define SHADOWS");
+
+    renderer->lighting.setShader(
+                ShaderLoader::instance()->load<SpotLightShader>("deferred_lighting_spotlight_shadow.glsl"),
+                ShaderLoader::instance()->load<SpotLightShader>("deferred_lighting_spotlight_shadow.glsl",shadowInjection)
+                );
+
+    renderer->lighting.setShader(
+                ShaderLoader::instance()->load<PointLightShader>("deferred_lighting_pointlight_shadow.glsl"),
+                ShaderLoader::instance()->load<PointLightShader>("deferred_lighting_pointlight_shadow.glsl",shadowInjection)
+                );
+
+    renderer->lighting.setShader(
+                ShaderLoader::instance()->load<DirectionalLightShader>("deferred_lighting_directional_shadow.glsl"),
+                ShaderLoader::instance()->load<DirectionalLightShader>("deferred_lighting_directional_shadow.glsl",shadowInjection)
+                                 );
 
     renderer->lighting.setDebugShader(ShaderLoader::instance()->load<MVPColorShader>("deferred_lighting_debug.glsl"));
     renderer->lighting.setStencilShader(ShaderLoader::instance()->load<MVPShader>("deferred_lighting_stencil.glsl"));

@@ -28,15 +28,24 @@ public:
         int type;
         std::string code;
     };
+
+    typedef std::vector<std::pair<GLenum,std::string>> ShaderCodeInjections;
+
     std::string name;
     std::string shaderPath;
     std::string prefix;
-    std::string typeToName(GLenum type);
+    ShaderCodeInjections injections;
+
+
 
     Shader();
     virtual ~Shader();
     Shader(const std::string &multi_file);
 
+    void addShaderCodeInjections(const ShaderCodeInjections& sci){injections=sci;}
+    void addInjectionsToCode(GLenum type,std::string&  content);
+
+    std::string typeToName(GLenum type);
     //Shader loading utility programs
     void printProgramLog( GLuint program );
     void printShaderLog( GLuint shader );
@@ -44,8 +53,8 @@ public:
 
     std::vector<string> loadAndPreproccess(const std::string &file);
     bool addMultiShaderFromFile(const std::string &multi_file);
-    GLuint addShader(const char* content, GLenum type);
-    GLuint addShaderFromFile(const char* file, GLenum type);
+    GLuint addShader(std::string&  content, GLenum type);
+    GLuint addShaderFromFile(const std::string& file, GLenum type);
     GLuint createProgram();
     GLint getUniformLocation(const char* name);
 

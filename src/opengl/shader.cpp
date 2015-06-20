@@ -35,6 +35,8 @@ Shader::Shader(const std::string &multi_file) : shaderPath(multi_file),program(0
 }
 
 
+
+
 bool Shader::reload(){
     if(shaderPath.length()<=0){
         cerr<<"Reload only works if the Shader object is created with a multishader in the constructor"<<endl;
@@ -116,7 +118,7 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
 
             if(status != STATUS_ERROR){
                 //reading shader part sucessfull
-                addShader(content.c_str(),type);
+                addShader(content,type);
                 content = "";
                 for(int i=0;i<lineCount-1;i++)
                     content.append("\n");
@@ -191,13 +193,26 @@ GLuint Shader::createProgram(){
     return program;
 }
 
-GLuint Shader::addShader(const char* content, GLenum type){
+void Shader::addInjectionsToCode(GLenum type, std::string &content)
+{
+    std::string injection;
+    for(std::pair<GLenum,std::string>& pair : injections){
+        if(pair.first==type){
+            injection = injection + '\n' + pair.second;
+        }
+    }
+    content = injection + content;
+}
+
+GLuint Shader::addShader(std::string& content, GLenum type){
     GLuint id = glCreateShader(type);
 
+    addInjectionsToCode(type,content);
 
     GLint result = 0;
     // Compile vertex shader
-    glShaderSource(id, 1, &content, NULL);
+    const GLchar* str = content.c_str();
+    glShaderSource(id, 1,&str , NULL);
     glCompileShader(id);
     // Check vertex shader
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
@@ -229,7 +244,7 @@ GLuint Shader::addShader(const char* content, GLenum type){
     return id;
 }
 
-GLuint Shader::addShaderFromFile(const char* file, GLenum type){
+GLuint Shader::addShaderFromFile(const std::string &file, GLenum type){
     cout<<"Shader-Loader: Reading file "<<file<<"\n";
     std::string content;
 
@@ -246,7 +261,7 @@ GLuint Shader::addShaderFromFile(const char* file, GLenum type){
     }
 
 
-    return addShader(content.c_str(),type);
+    return addShader(content,type);
 }
 
 string Shader::typeToName(GLenum type){

@@ -78,7 +78,6 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
     shader.uploadInvProj(ip);
 
     if(this->hasShadows()){
-        shader.uploadShadow(1.0f);
         const glm::mat4 biasMatrix(
                     0.5, 0.0, 0.0, 0.0,
                     0.0, 0.5, 0.0, 0.0,
@@ -90,9 +89,6 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
         shader.uploadDepthBiasMV(shadow);
 
         shader.uploadDepthTexture(shadowmap.depthTexture);
-    }else{
-        shader.uploadDepthTexture(dummyTexture);
-        shader.uploadShadow(0.0f);
     }
 
 }

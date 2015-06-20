@@ -168,7 +168,6 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
     shader.uploadInvProj(ip);
 
     if(this->hasShadows()){
-        shader.uploadShadow(1.0f);
 
         //glm like glsl is column major!
         const glm::mat4 biasMatrix(
@@ -183,14 +182,6 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
 
         shader.uploadDepthTexture(shadowmap.depthTexture);
 //        cout<<"hasShadows"<<endl;
-    }else{
-
-//         glActiveTexture(GL_TEXTURE0);
-//         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-         shader.uploadDepthTexture(dummyTexture);
-
-        shader.uploadShadow(0.0f);
-//         cout<<"not hasShadows"<<endl;
     }
 
     Error::quitWhenError("PointLight::bindUniforms");

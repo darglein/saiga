@@ -4,12 +4,12 @@
 #include "libhello/util/singleton.h"
 #include "libhello/util/loader.h"
 
-class ShaderLoader : public Loader<Shader> , public Singleton <ShaderLoader>{
+class ShaderLoader : public Loader<Shader,Shader::ShaderCodeInjections> , public Singleton <ShaderLoader>{
     friend class Singleton <ShaderLoader>;
 public:
     Shader* loadFromFile(const std::string &name);
-    template<typename shader_t> shader_t* load(const std::string &name);
-    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix);
+    template<typename shader_t> shader_t* load(const std::string &name, const Shader::ShaderCodeInjections& sci=Shader::ShaderCodeInjections());
+    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix, const Shader::ShaderCodeInjections& sci);
     void reload();
 };
 
@@ -17,14 +17,14 @@ public:
 
 
 template<typename shader_t>
-shader_t* ShaderLoader::load(const std::string &name){
+shader_t* ShaderLoader::load(const std::string &name, const Shader::ShaderCodeInjections& sci){
 
-    NoParams params;
+
 
     shader_t* object;
 
     for(data_t &data : objects){
-        if(std::get<0>(data)==name && std::get<1>(data)==params){
+        if(std::get<0>(data)==name && std::get<1>(data)==sci){
             object = dynamic_cast<shader_t*>(std::get<2>(data));
             if(object != nullptr){
                 return object;
@@ -44,12 +44,12 @@ shader_t* ShaderLoader::load(const std::string &name){
 
     for(std::string &path : locations){
         std::string complete_path = path + "/" + name;
-        object = loadFromFile<shader_t>(complete_path,path);
+        object = loadFromFile<shader_t>(complete_path,path,sci);
         if (object){
             object->name = name;
             std::cout<<"Loaded from file: "<<complete_path<<std::endl;
 //            objects.push_back(object);
-            objects.emplace_back(name,NoParams(),object);
+            objects.emplace_back(name,sci,object);
             return object;
         }
     }
@@ -60,9 +60,10 @@ shader_t* ShaderLoader::load(const std::string &name){
 }
 
 template<typename shader_t>
-shader_t* ShaderLoader::loadFromFile(const std::string &name, const std::string &prefix){
+shader_t* ShaderLoader::loadFromFile(const std::string &name, const std::string &prefix, const Shader::ShaderCodeInjections& sci){
     shader_t* shader = new shader_t(name);
     shader->prefix = prefix;
+    shader->injections = sci;
     if(shader->reload()){
         return shader;
     }

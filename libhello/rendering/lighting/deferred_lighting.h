@@ -19,15 +19,15 @@ private:
     int width,height;
     MVPColorShader* debugShader;
 
-    PointLightShader* pointLightShader;
+    PointLightShader* pointLightShader, *pointLightShadowShader;
     IndexedVertexBuffer<VertexNT,GLuint> pointLightMesh;
     std::vector<PointLight*> pointLights;
 
-    SpotLightShader* spotLightShader;
+    SpotLightShader* spotLightShader, *spotLightShadowShader;
     IndexedVertexBuffer<VertexNT,GLuint> spotLightMesh;
     std::vector<SpotLight*> spotLights;
 
-    DirectionalLightShader* directionalLightShader;
+    DirectionalLightShader* directionalLightShader,*directionalLightShadowShader;
     IndexedVertexBuffer<VertexNT,GLuint> directionalLightMesh;
     std::vector<DirectionalLight*> directionalLights;
 
@@ -39,8 +39,8 @@ private:
     mat4 inview,view,proj;
     bool drawDebug = true;
 
-    raw_Texture* dummyTexture;
-    raw_Texture* dummyCubeTexture;
+//    raw_Texture* dummyTexture;
+//    raw_Texture* dummyCubeTexture;
 
 
 public:
@@ -70,9 +70,9 @@ public:
     void renderDebug();
 
 
-    void setShader(SpotLightShader* pointLightShader);
-    void setShader(PointLightShader* pointLightShader);
-    void setShader(DirectionalLightShader* directionalLightShader);
+    void setShader(SpotLightShader* spotLightShader, SpotLightShader* spotLightShadowShader);
+    void setShader(PointLightShader* pointLightShader,PointLightShader* pointLightShadowShader);
+    void setShader(DirectionalLightShader* directionalLightShader,DirectionalLightShader* directionalLightShadowShader);
 
     void setDebugShader(MVPColorShader* shader);
     void setStencilShader(MVPShader* stencilShader);
@@ -87,13 +87,13 @@ private:
     void setupStencilPass();
     void setupLightPass();
 
-    void renderPointLights(Camera *cam);
+    void renderPointLights(Camera *cam, bool shadow);
     void renderPointLightsStencil();
 
-    void renderSpotLights(Camera *cam);
+    void renderSpotLights(Camera *cam, bool shadow);
     void renderSpotLightsStencil();
 
-    void renderDirectionalLights(Camera *cam);
+    void renderDirectionalLights(Camera *cam, bool shadow);
 
 };
 
