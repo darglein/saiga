@@ -343,11 +343,11 @@ void DeferredLighting::renderDebug(){
     //render outline
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     for(PointLight* &obj : pointLights){
-        if(obj->isSelected()){
+//        if(obj->isSelected()){
             debugShader->uploadModel(obj->model);
             debugShader->uploadColor(obj->color);
             pointLightMesh.draw();
-        }
+//        }
     }
     pointLightMesh.unbind();
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
@@ -370,11 +370,11 @@ void DeferredLighting::renderDebug(){
     //render outline
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     for(SpotLight* &obj : spotLights){
-        if(obj->isSelected()){
+//        if(obj->isSelected()){
             debugShader->uploadModel(obj->model);
             debugShader->uploadColor(obj->color);
             spotLightMesh.draw();
-        }
+//        }
     }
     spotLightMesh.unbind();
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
