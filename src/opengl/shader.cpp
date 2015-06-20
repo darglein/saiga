@@ -120,21 +120,28 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
                 //reading shader part sucessfull
                 addShader(content,type);
                 content = "";
-                for(int i=0;i<lineCount-1;i++)
-                    content.append("\n");
+//                for(int i=0;i<lineCount-1;i++)
+//                    content.append("\n");
             }
 
         }else if(line.compare("##vertex")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_VERTEX_SHADER;
+            line = "";
 
         }else if(line.compare("##fragment")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_FRAGMENT_SHADER;
+            line = "";
 
         }else if(line.compare("##geometry")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_GEOMETRY_SHADER;
+            line = "";
+        }else{
+            //normal code line
+            line = line + '\n';
+
         }
 
 
@@ -145,7 +152,7 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
         }else if(status == STATUS_READING){
             content.append(line);
         }
-        content.append("\n");
+//        content.append("\n");
     }
 
     //    fileStream.close();
@@ -196,13 +203,30 @@ GLuint Shader::createProgram(){
 void Shader::addInjectionsToCode(GLenum type, std::string &content)
 {
     std::string injection;
-    for(std::pair<GLenum,std::string>& pair : injections){
-        if(pair.first==type){
-            injection = injection + '\n' + pair.second;
+    for(auto& pair : injections){
+        if(std::get<0>(pair)==type){
+            injection =  std::get<1>(pair)+ '\n' ;
+            int line =  std::get<2>(pair);
+            int i = 0;
+            for(char& c : content){
+                i++;
+                if(c=='\n'){
+                    line--;
+                }
+                if(line==0)
+                    break;
+            }
+            cout<<"inserting at line "<<line<<" char "<<i<<" "<<injection;
+            //inject at correct position
+            content.insert(i,injection);
+
         }
     }
-//    std::cout<<"injected code: "<<endl<<injection<<endl;
-    content = injection + content;
+
+    if(injections.size()>0){
+    cout<<"full source: "<<endl;
+    cout<<content<<endl;
+    }
 }
 
 GLuint Shader::addShader(std::string& content, GLenum type){
@@ -391,7 +415,7 @@ void Shader::printProgramLog( GLuint program ){
         if( infoLogLength > 0 )
         {
             //Print Log
-            printf( "%s\n", infoLog );
+            std::cerr<<  infoLog << std::endl;
         }
 
         //Deallocate std::string

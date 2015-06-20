@@ -6,6 +6,8 @@
 
 #include "libhello/util/glm.h"
 
+#include <tuple>
+
 using std::cerr;
 using std::string;
 
@@ -29,7 +31,7 @@ public:
         std::string code;
     };
 
-    typedef std::vector<std::pair<GLenum,std::string>> ShaderCodeInjections;
+    typedef std::vector<std::tuple<GLenum,std::string,int>> ShaderCodeInjections;
 
     std::string name;
     std::string shaderPath;

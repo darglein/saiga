@@ -39,7 +39,7 @@ void initFramework(Window *window)
 
     Shader::ShaderCodeInjections shadowInjection;
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
-                                    "#define SHADOWS");
+                                    "#define SHADOWS",1); //after the version number
 
     renderer->lighting.setShader(
                 ShaderLoader::instance()->load<SpotLightShader>("deferred_lighting_spotlight_shadow.glsl"),
