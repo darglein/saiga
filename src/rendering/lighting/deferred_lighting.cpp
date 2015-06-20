@@ -207,7 +207,7 @@ void DeferredLighting::setupLightPass(){
 
 void DeferredLighting::renderPointLights(Camera *cam, bool shadow){
 
-    PointLightShader* shader = (shadow)?spotLightShadowShader:spotLightShader;
+    PointLightShader* shader = (shadow)?pointLightShadowShader:pointLightShader;
 
 
     shader->bind();

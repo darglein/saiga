@@ -201,6 +201,7 @@ void Shader::addInjectionsToCode(GLenum type, std::string &content)
             injection = injection + '\n' + pair.second;
         }
     }
+//    std::cout<<"injected code: "<<endl<<injection<<endl;
     content = injection + content;
 }
 
