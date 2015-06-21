@@ -49,6 +49,7 @@ public:
 
 
 
+
     vec3 getColor(){return vec3(color);}
     float getIntensity(){return color.w;}
 
@@ -70,6 +71,8 @@ public:
 
     bool shouldCalculateShadowMap(){return castShadows&&active&&!culled;}
     bool shouldRender(){return active&&!culled;}
+
+    void bindUniformsStencil(MVPShader &shader);
 };
 
 

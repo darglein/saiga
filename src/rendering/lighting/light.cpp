@@ -54,3 +54,7 @@ void Light::unbindShadowMap(){
     shadowmap.unbind();
 
 }
+
+void Light::bindUniformsStencil(MVPShader& shader){
+    shader.uploadModel(model);
+}

@@ -42,8 +42,8 @@ void DeferredShader::checkUniforms(){
     location_texture_position = getUniformLocation("deferred_position");
     location_texture_data = getUniformLocation("deferred_data");
 
-    cout<<"depth position "<<location_texture_depth<<endl;
-    cout<<"normal position "<<location_texture_normal<<endl;
+//    cout<<"depth position "<<location_texture_depth<<endl;
+//    cout<<"normal position "<<location_texture_normal<<endl;
 }
 
 void DeferredShader::uploadFramebuffer(Framebuffer* fb){

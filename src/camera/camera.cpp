@@ -250,14 +250,54 @@ void OrthographicCamera::setProj( float left, float right,float bottom,float top
 
     nh = (top-bottom)/2;
     nw = (right-left)/2;
-    fh = (top-bottom)/2;
-    fw = (right-left)/2;
+
+    fh = nh;
+    fw = nw;
+//    fh = (top-bottom)/2;
+//    fw = (right-left)/2;
     proj = glm::ortho(left,right,bottom,top,near,far);
 }
 
 void OrthographicCamera::recalculatePlanes()
 {
+    vec3 right = vec3(model[0]);
+    vec3 up = vec3(model[1]);
+    vec3 dir = -vec3(model[2]);
 
+    vec3 nearplanepos = position + dir*zNear;
+    vec3 farplanepos = position + dir*zFar;
+
+    //near plane
+    planes[0].set(nearplanepos,-dir);
+    //far plane
+    planes[1].set(farplanepos,dir);
+
+
+    //calcuate 4 corners of nearplane
+    vertices[0] = nearplanepos + nh * up - nw * right;
+    vertices[1] = nearplanepos + nh * up + nw * right;
+    vertices[2] = nearplanepos - nh * up - nw * right;
+    vertices[3] = nearplanepos - nh * up + nw * right;
+    //calcuate 4 corners of farplane
+    vertices[4] = farplanepos + fh * up - fw * right;
+    vertices[5] = farplanepos + fh * up + fw * right;
+    vertices[6] = farplanepos - fh * up - fw * right;
+    vertices[7] = farplanepos - fh * up + fw * right;
+
+    //side planes
+    planes[2].set(position,vertices[1],vertices[0]); //top
+    planes[3].set(position,vertices[2],vertices[3]); //bottom
+    planes[4].set(position,vertices[0],vertices[2]); //left
+    planes[5].set(position,vertices[3],vertices[1]); //right
+
+
+    //    vec3 fbr = farplanepos - fh * up + fw * right;
+    vec3 fbr = farplanepos - fh * up;
+    vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
+    float r = glm::distance(fbr,sphereMid);
+
+    boundingSphere.r = r;
+    boundingSphere.pos = sphereMid;
 }
 
 

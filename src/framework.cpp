@@ -10,6 +10,7 @@
 #include "libhello/rendering/lighting/directional_light.h"
 #include "libhello/rendering/lighting/point_light.h"
 #include "libhello/rendering/lighting/spot_light.h"
+#include "libhello/rendering/lighting/box_light.h"
 
 void initFramework(Window *window)
 {
@@ -55,6 +56,14 @@ void initFramework(Window *window)
                 ShaderLoader::instance()->load<DirectionalLightShader>("deferred_lighting_directional_shadow.glsl"),
                 ShaderLoader::instance()->load<DirectionalLightShader>("deferred_lighting_directional_shadow.glsl",shadowInjection)
                                  );
+
+    cout<<"loading boxlight shader"<<endl;
+    renderer->lighting.setShader(
+                ShaderLoader::instance()->load<BoxLightShader>("deferred_lighting_boxlight_shadow.glsl"),
+                ShaderLoader::instance()->load<BoxLightShader>("deferred_lighting_boxlight_shadow.glsl",shadowInjection)
+                                 );
+
+     cout<<"finished loading boxlight shader"<<endl;
 
     renderer->lighting.setDebugShader(ShaderLoader::instance()->load<MVPColorShader>("deferred_lighting_debug.glsl"));
     renderer->lighting.setStencilShader(ShaderLoader::instance()->load<MVPShader>("deferred_lighting_stencil.glsl"));

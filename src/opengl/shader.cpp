@@ -100,6 +100,8 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
 
     std::vector<string> data = loadAndPreproccess(multi_file);
 
+    //    cout<<"Preproccess finished. "<<data.size()<<" lines"<<endl;
+
     if(data.size()<=0)
         return false;
 
@@ -120,8 +122,8 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
                 //reading shader part sucessfull
                 addShader(content,type);
                 content = "";
-//                for(int i=0;i<lineCount-1;i++)
-//                    content.append("\n");
+                //                for(int i=0;i<lineCount-1;i++)
+                //                    content.append("\n");
             }
 
         }else if(line.compare("##vertex")==0){
@@ -152,11 +154,13 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
         }else if(status == STATUS_READING){
             content.append(line);
         }
-//        content.append("\n");
+        //        content.append("\n");
     }
 
     //    fileStream.close();
+//    cout<<"bla1"<<endl;
     createProgram();
+//    cout<<"bla2"<<endl;
     return true;
 }
 
@@ -223,13 +227,14 @@ void Shader::addInjectionsToCode(GLenum type, std::string &content)
         }
     }
 
-    if(injections.size()>0){
-    cout<<"full source: "<<endl;
-    cout<<content<<endl;
-    }
+    //    if(injections.size()>0){
+    //    cout<<"full source: "<<endl;
+    //    cout<<content<<endl;
+    //    }
 }
 
 GLuint Shader::addShader(std::string& content, GLenum type){
+//    cout<<"adding shader "<<this->typeToName(type)<<endl;
     GLuint id = glCreateShader(type);
 
     addInjectionsToCode(type,content);
@@ -336,7 +341,7 @@ void Shader::getUniformInfo(GLuint location)
 
     cout<<"uniform info "<<location<<endl;
     cout<<"name "<<name<<endl;
-//    cout<<"length "<<length<<endl;
+    //    cout<<"length "<<length<<endl;
     cout<<"size "<<size<<endl;
     cout<<"type "<<type<<endl;
 }
@@ -415,7 +420,7 @@ void Shader::printProgramLog( GLuint program ){
         if( infoLogLength > 0 )
         {
             //Print Log
-            std::cerr<<  infoLog << std::endl;
+            std::cout<<  infoLog << std::endl;
         }
 
         //Deallocate std::string
@@ -423,7 +428,7 @@ void Shader::printProgramLog( GLuint program ){
     }
     else
     {
-        printf( "Name %d is not a program\n", program );
+        cout<< "Name "<<program<<" is not a program"<<endl;
     }
 }
 

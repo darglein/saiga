@@ -37,7 +37,6 @@ public:
     void calculateRadius(float cutoff=(1./256.));
 
     virtual void bindUniforms(PointLightShader& shader, Camera *cam);
-    virtual void bindUniformsStencil(MVPShader& shader);
 
 
     float getRadius() const;
@@ -49,11 +48,6 @@ public:
     virtual void createShadowMap(int resX, int resY) override;
     void bindFace(int face);
     void calculateCamera(int face);
-
-//    void drawNoShaderBind();
-//    void drawNoShaderBindStencil();
-//    void drawRaw();
-
 
     float getAttenuation(float r);
 

@@ -187,9 +187,6 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
     Error::quitWhenError("PointLight::bindUniforms");
 }
 
-void PointLight::bindUniformsStencil(MVPShader& shader){
-    shader.uploadModel(model);
-}
 
 
 

@@ -22,10 +22,9 @@ public:
     SpotLight();
     virtual ~SpotLight(){}
     void bindUniforms(SpotLightShader& shader, Camera *cam);
-    void bindUniformsStencil(MVPShader& shader) override;
 
 
-    void calculateCamera();
+
 
     void setRadius(float value) override;
 
@@ -35,5 +34,6 @@ public:
     void setAngle(float value);
     float getAngle() const{return angle;}
 
+    void calculateCamera();
     bool cullLight(Camera *cam);
 };

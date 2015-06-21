@@ -7,9 +7,11 @@
 class SpotLight;
 class PointLight;
 class DirectionalLight;
+class BoxLight;
 class PointLightShader;
 class SpotLightShader;
 class DirectionalLightShader;
+class BoxLightShader;
 
 class Deferred_Renderer;
 
@@ -30,6 +32,10 @@ private:
     DirectionalLightShader* directionalLightShader,*directionalLightShadowShader;
     IndexedVertexBuffer<VertexNT,GLuint> directionalLightMesh;
     std::vector<DirectionalLight*> directionalLights;
+
+    BoxLightShader* boxLightShader,*boxLightShadowShader;
+    IndexedVertexBuffer<VertexNT,GLuint> boxLightMesh;
+    std::vector<BoxLight*> boxLights;
 
 
     MVPShader* stencilShader;
@@ -59,10 +65,12 @@ public:
     DirectionalLight* createDirectionalLight();
     PointLight* createPointLight();
     SpotLight* createSpotLight();
+    BoxLight* createBoxLight();
 
     void removeDirectionalLight(DirectionalLight* l);
     void removePointLight(PointLight* l);
     void removeSpotLight(SpotLight* l);
+    void removeBoxLight(BoxLight* l);
 
 
     void render(Camera *cam);
@@ -73,6 +81,7 @@ public:
     void setShader(SpotLightShader* spotLightShader, SpotLightShader* spotLightShadowShader);
     void setShader(PointLightShader* pointLightShader,PointLightShader* pointLightShadowShader);
     void setShader(DirectionalLightShader* directionalLightShader,DirectionalLightShader* directionalLightShadowShader);
+    void setShader(BoxLightShader* boxLightShader,BoxLightShader* boxLightShadowShader);
 
     void setDebugShader(MVPColorShader* shader);
     void setStencilShader(MVPShader* stencilShader);
@@ -92,6 +101,9 @@ private:
 
     void renderSpotLights(Camera *cam, bool shadow);
     void renderSpotLightsStencil();
+
+    void renderBoxLights(Camera *cam, bool shadow);
+    void renderBoxLightsStencil();
 
     void renderDirectionalLights(Camera *cam, bool shadow);
 

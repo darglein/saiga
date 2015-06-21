@@ -44,10 +44,6 @@ void SpotLight::bindUniforms(SpotLightShader &shader, Camera *cam){
 
 }
 
-void SpotLight::bindUniformsStencil(MVPShader& shader){
-
-    PointLight::bindUniformsStencil(shader);
-}
 
 void SpotLight::recalculateScale(){
     float l = glm::tan(glm::radians(angle))*radius;
