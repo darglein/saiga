@@ -30,7 +30,7 @@ protected:
     std::vector<data_t> objects;
 public:
 //    Loader(){};
-    ~Loader();
+    virtual ~Loader();
     void addPath(const std::string &path){locations.push_back(path);}
 
 
@@ -44,6 +44,7 @@ protected:
 
 template<typename object_t, typename param_t >
 Loader<object_t,param_t>:: ~Loader(){
+    std::cout<<"~Loader()"<<std::endl;
     for(data_t &object : objects){
         delete std::get<2>(object);
     }

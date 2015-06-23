@@ -7,6 +7,7 @@
 class ShaderLoader : public Loader<Shader,Shader::ShaderCodeInjections> , public Singleton <ShaderLoader>{
     friend class Singleton <ShaderLoader>;
 public:
+    virtual ~ShaderLoader(){}
     Shader* loadFromFile(const std::string &name);
     template<typename shader_t> shader_t* load(const std::string &name, const Shader::ShaderCodeInjections& sci=Shader::ShaderCodeInjections());
     template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix, const Shader::ShaderCodeInjections& sci);

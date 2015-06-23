@@ -7,18 +7,19 @@ template <typename C>
  public:
     static C* instance ()
     {
-       if (!_instance)
-          _instance = new C ();
-       return _instance;
+//       if (!_instance)
+//          _instance = new C ();
+        static C _instance;
+       return &_instance;
     }
     virtual
     ~Singleton ()
     {
-       _instance = 0;
+//       _instance = nullptr;
     }
  private:
-    static C* _instance;
+
  protected:
     Singleton () { }
  };
- template <typename C> C* Singleton <C>::_instance = 0;
+// template <typename C> C Singleton <C>::_instance;

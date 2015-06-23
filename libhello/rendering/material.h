@@ -48,6 +48,7 @@ public:
     void parseLine(char* line);
 
     MaterialLoader(){}
+    virtual ~MaterialLoader(){}
     Material* load(const std::string &name);
     Material* loadFromFile(const std::string &name){(void)name;return nullptr;}
     void loadLibrary(const std::string &file);

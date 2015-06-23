@@ -51,7 +51,7 @@ public:
     std::vector<TriangleGroup> triangleGroups;
 
     ObjLoader():state(0),maxCorners(0){}
-
+    virtual ~ObjLoader(){}
     void reset();
     void parseLine(char* line);
     material_mesh_t *createOutput();
