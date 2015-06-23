@@ -19,7 +19,7 @@ void cube_Texture::uploadData(GLenum target, GLubyte *data ){
 
 
 void cube_Texture::uploadData(GLubyte *data ){
-    std::cout<<">>>>> uploadData"<<std::endl;
+//    std::cout<<">>>>> uploadData"<<std::endl;
     bind(0);
     for (int i=0; i<6; i++) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,

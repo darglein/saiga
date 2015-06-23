@@ -57,13 +57,10 @@ void initFramework(Window *window)
                 ShaderLoader::instance()->load<DirectionalLightShader>("deferred_lighting_directional_shadow.glsl",shadowInjection)
                                  );
 
-    cout<<"loading boxlight shader"<<endl;
     renderer->lighting.setShader(
                 ShaderLoader::instance()->load<BoxLightShader>("deferred_lighting_boxlight_shadow.glsl"),
                 ShaderLoader::instance()->load<BoxLightShader>("deferred_lighting_boxlight_shadow.glsl",shadowInjection)
                                  );
-
-     cout<<"finished loading boxlight shader"<<endl;
 
     renderer->lighting.setDebugShader(ShaderLoader::instance()->load<MVPColorShader>("deferred_lighting_debug.glsl"));
     renderer->lighting.setStencilShader(ShaderLoader::instance()->load<MVPShader>("deferred_lighting_stencil.glsl"));
@@ -85,5 +82,7 @@ void initFramework(Window *window)
     renderer->enablePostProcessing();
 
     window->renderer = renderer;
+
+    cout<<"========================== Framework initialization done! =========================="<<endl;
 }
 

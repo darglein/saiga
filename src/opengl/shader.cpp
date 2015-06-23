@@ -78,7 +78,7 @@ std::vector<std::string> Shader::loadAndPreproccess(const std::string &file)
 
 
             //            cout<<"found include ("<<line<<")"<<endl;
-            cout<<"including file "<<prefix<<"/"<<line<<endl;
+//            cout<<"including file "<<prefix<<"/"<<line<<endl;
 
             //recursivly load includes
             std::vector<std::string> tmp = loadAndPreproccess(prefix+"/"+line);
