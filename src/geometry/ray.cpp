@@ -61,7 +61,7 @@ bool Ray::intersectSphere(const Sphere &s, float &t1, float &t2) const{
 }
 
 bool Ray::intersectTriangle(const Triangle &tri, float &out, bool &back) const{
-#define EPSILON 0.000001
+    const float EPSILON = 0.000001f;
     vec3 e1, e2;  //Edge1, Edge2
     vec3 P, Q, T;
     float det, inv_det, u, v;
@@ -113,7 +113,7 @@ bool Ray::intersectTriangle(const Triangle &tri, float &out, bool &back) const{
 
 bool Ray::intersectPlane(const Plane &p, float &t) const
 {
-#define EPSILON 0.000001
+    const float EPSILON = 0.000001;
 
     float denom = glm::dot(p.normal, direction);
 

@@ -20,6 +20,7 @@ public:
 
     VertexBuffer<Particle> particleBuffer;
     std::vector<Particle> particles;
+
     bool initialized = false;
 
     unsigned int newParticles = 0 ;
