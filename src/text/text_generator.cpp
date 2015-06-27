@@ -54,10 +54,63 @@ void TextGenerator::createTextureAtlas(){
             continue;
         }
 
-        w += g->bitmap.width+charOffset;
-        h = std::max(h, (int)g->bitmap.rows);
+
+
+        character_info &info = characters[i];
+
+        info.ax = g->advance.x >> 6;
+        info.ay = g->advance.y >> 6;
+
+        info.bw = g->bitmap.width;
+        info.bh = g->bitmap.rows;
+
+        info.bl = g->bitmap_left;
+        info.bt = g->bitmap_top;
+
+
+        maxCharacter.min = glm::min(maxCharacter.min,vec3(info.bl,info.bt-info.bh,0));
+        maxCharacter.max = glm::max(maxCharacter.max,vec3(info.bl+info.bw,info.bt-info.bh+info.bh,0));
+
+        //all characters in one row
+//        info.atlasX = w;
+//        info.atlasY = 0;
+//        w += info.bw+charOffset;
+//        h = std::max(h, (int)info.bh);
+
         chars++;
+
     }
+
+    int charsPerRow = glm::ceil(glm::sqrt((float)chars));
+//    cout<<"chars "<<chars<<" charsperrow "<<charsPerRow<<" total "<<charsPerRow*charsPerRow<<endl;
+
+    int atlasHeight = 0;
+    int atlasWidth = 0;
+
+    for(int cy = 0 ; cy < charsPerRow ; ++cy){
+        int currentW = 0;
+        int currentH = 0;
+
+        for(int cx = 0 ; cx < charsPerRow ; ++cx){
+            int i = cy * charsPerRow + cx;
+            if(i>=chars)
+                break;
+            character_info &info = characters[i+32];
+
+            info.atlasX = currentW;
+            info.atlasY = atlasHeight;
+
+            currentW += info.bw+charOffset;
+            currentH = std::max(currentH, info.bh);
+        }
+        atlasWidth = std::max(currentW, atlasWidth);
+        atlasHeight += currentH;
+    }
+
+    cout<<"AtlasWidth "<<atlasWidth<<" AtlasHeight "<<atlasHeight<<endl;
+
+    h = atlasHeight;
+    w = atlasWidth;
 
     //increase width to a number dividable by 8 to fix possible alignment issues
     while(w%8!=0)
@@ -76,34 +129,22 @@ void TextGenerator::createTextureAtlas(){
     // The allowable values are 1 (byte-alignment), 2 (rows aligned to even-numbered bytes), Default: 4 (word-alignment), and 8 (rows start on double-word boundaries)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     textureAtlas->unbind();
-    int x = 0;
+
 
     for(int i = 32; i < 128; i++) {
         if(FT_Load_Char(face, i, FT_LOAD_RENDER))
             continue;
         character_info &info = characters[i];
 
-        info.ax = g->advance.x >> 6;
-        info.ay = g->advance.y >> 6;
 
-        info.bw = g->bitmap.width;
-        info.bh = g->bitmap.rows;
+        float tx = (float)info.atlasX / (float)w;
+        float ty = (float)info.atlasY / (float)h;
 
-        info.bl = g->bitmap_left;
-        info.bt = g->bitmap_top;
+        info.tcMin = vec2(tx,ty);
+        info.tcMax = vec2(tx+(float)info.bw/(float)w,ty+(float)info.bh/(float)h);
 
+        textureAtlas->uploadSubImage(info.atlasX, info.atlasY, info.bw, info.bh, g->bitmap.buffer);
 
-        float tx = (float)x / (float)w;
-        info.tcMin = vec2(tx,0);
-        info.tcMax = vec2(tx+(float)info.bw/(float)textureAtlas->getWidth(),(float)info.bh/(float)textureAtlas->getHeight());
-
-        textureAtlas->uploadSubImage(x, 0, g->bitmap.width, g->bitmap.rows, g->bitmap.buffer);
-        x += g->bitmap.width+charOffset;
-//        x += g->bitmap.width;
-//        textureAtlas->uploadSubImage(x, 0, charOffset, h, charoffsetdata.data());
-//        x += charOffset;
-        maxCharacter.min = glm::min(maxCharacter.min,vec3(info.bl,info.bt-info.bh,0));
-        maxCharacter.max = glm::max(maxCharacter.max,vec3(info.bl+info.bw,info.bt-info.bh+info.bh,0));
 
     }
 }

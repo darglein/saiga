@@ -32,6 +32,7 @@ private:
       int bl; // bitmap_left;
       int bt; // bitmap_top;
 
+      int atlasX, atlasY; //position of this character in the texture atlas
       vec2 tcMin,tcMax;
     } characters[128];
 
