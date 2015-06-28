@@ -21,7 +21,7 @@ public:
     bool srgb = false;
     bool shouldDelete = false;
 public:
-
+    int bytesPerChannel();
     int bytesPerPixel();
     int bitsPerPixel();
     size_t getSize();
@@ -35,8 +35,19 @@ public:
     int position(int x, int y);
     uint8_t* positionPtr(int x, int y);
 
+    template<typename T>
+    T getPixel(int x, int y){
+        return *(T*)positionPtr(x,y);
+    }
+
+    void makeZero(); //zeros out all bytes
     void create();//allocates memory
-    void createSubImage(int x, int y, int w, int h, Image &out);
+
+    void setSubImage(int x, int y , int w , int h , uint8_t* data);
+    void getSubImage(int x, int y, int w, int h, Image &out);
+
+    //adds a zero initialized channel
+    void addChannel();
 
 #ifdef USE_PNG
     void convertFrom(PNG::Image &image);
@@ -54,5 +65,6 @@ public:
     void setBitDepth(int value);
     int getChannels() const;
     void setChannels(int value);
+
 
 };

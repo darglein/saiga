@@ -20,7 +20,13 @@ class TextGenerator{
 private:
     static FT_Library ft;
     FT_Face face = nullptr;
-    int charOffset = 5; //distance between characters in texture atlas
+
+    //distance between characters in texture atlas
+    int charPaddingX = 5;
+    int charPaddingY = 5;
+
+    //additional border pixels (usefull for border lines)
+    int charBorder = 5;
 
     struct character_info {
       int ax; // advance.x

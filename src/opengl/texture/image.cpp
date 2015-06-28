@@ -12,8 +12,12 @@ Image::~Image()
         delete[] data;
 }
 
+int Image::bytesPerChannel(){
+    return getBitDepth()/8;
+}
+
 int Image::bytesPerPixel(){
-    return getChannels()*getBitDepth()/8;
+    return getChannels()*bytesPerChannel();
 }
 
 int Image::bitsPerPixel(){
@@ -48,11 +52,16 @@ void Image::setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b){
 }
 
 int Image::position(int x, int y){
-    return y*width*bytesPerPixel()+x*bytesPerPixel();
+    return (y*width+x)*bytesPerPixel();
 }
 
 uint8_t* Image::positionPtr(int x, int y){
     return this->data+position(x,y);
+}
+
+void Image::makeZero()
+{
+    memset(data,0,getSize());
 }
 
 #ifdef USE_PNG
@@ -239,7 +248,15 @@ void Image::create(){
     shouldDelete = true;
 }
 
-void Image::createSubImage(int x, int y, int w, int h, Image &out){
+void Image::setSubImage(int x, int y, int w, int h, uint8_t *data)
+{
+    int rowsize = bytesPerPixel()*w;
+    for(int i=0;i<h;i++){//rows
+        memcpy(this->data+position(x,y+i),data+rowsize*i,rowsize);
+    }
+}
+
+void Image::getSubImage(int x, int y, int w, int h, Image &out){
     out.width = w;
     out.height = h;
     out.bitDepth = bitDepth;
@@ -250,15 +267,39 @@ void Image::createSubImage(int x, int y, int w, int h, Image &out){
     out.create();
 
     int rowsize = bytesPerPixel()*w;
-//    for(int i=y;i<y+h;i++){//rows
-//        memcpy(out.data+rowsize*i,data+position(x,y+i),rowsize);
-//    }
 
     for(int i=0;i<h;i++){//rows
         memcpy(out.data+rowsize*i,data+position(x,y+i),rowsize);
     }
 
 
+}
+
+void Image::addChannel()
+{
+    auto oldData = data;
+    data = nullptr;
+    int oldBpp = bytesPerPixel();
+
+
+    this->channels++;
+    this->create();
+
+    int newBpp = bytesPerPixel();
+
+    for(int y = 0 ; y < height ; ++y){
+        for(int x = 0 ; x < width ; ++x){
+            int pos = y * width + x;
+            auto posOld = oldData + pos * oldBpp;
+            auto posNew = data + pos * newBpp;
+
+            for(int i = 0 ;i < newBpp ; ++i){
+                posNew[i] = (i<oldBpp)?posOld[i] : 0;
+            }
+        }
+    }
+
+    delete oldData;
 }
 
 //======================================================

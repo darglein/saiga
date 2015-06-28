@@ -70,7 +70,7 @@ void GraphDebugOverlay::update()
         g.data.emplace_back(g.lastDataPoint);
         float min= 99999;
         float max = 0;
-        for(int i = 0; i < g.data.size(); ++i){
+        for(int i = 0; i < (int)g.data.size(); ++i){
             if (g.data[i] > max){
                 max = g.data[i];
             }
@@ -84,7 +84,7 @@ void GraphDebugOverlay::update()
 
         std::vector<Vertex> dataPoints(g.data.size());
 
-        for(int i = 0; i < dataPoints.size(); ++i){
+        for(int i = 0; i < (int)dataPoints.size(); ++i){
             dataPoints[i].position.x = i/(float)dataPoints.size();
             //scale to [0,1]
             dataPoints[i].position.y = (g.data[i]-min) / (max-min);

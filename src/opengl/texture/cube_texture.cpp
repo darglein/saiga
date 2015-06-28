@@ -93,7 +93,7 @@ bool cube_Texture::fromImage(Image &img){
     Image images[6];
     auto w = img.height;
     for(int i=0;i<6;i++){
-        img.createSubImage(w*i,0,w,w,images[i]);
+        img.getSubImage(w*i,0,w,w,images[i]);
         //        images[i] = img;
     }
 
