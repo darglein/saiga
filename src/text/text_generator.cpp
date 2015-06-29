@@ -15,7 +15,7 @@ FT_Library TextGenerator::ft = nullptr;
 TextGenerator::TextGenerator(){
 
     if(ft==nullptr){
-//        ft = FT_Library> (new FT_Library());
+        //        ft = FT_Library> (new FT_Library());
         if(FT_Init_FreeType(&ft)) {
             cerr<< "Could not init freetype library"<<endl;
             exit(1);
@@ -30,14 +30,15 @@ TextGenerator::~TextGenerator()
 }
 
 
-void TextGenerator::loadFont(const std::string &font, int font_size){
+void TextGenerator::loadFont(const std::string &font, int font_size, int stroke_size){
     this->font = font;
     this->font_size = font_size;
+    this->stroke_size = stroke_size;
 
-//    face = std::make_shared<FT_Face>();
+    //    face = std::make_shared<FT_Face>();
     if(FT_New_Face(ft, font.c_str(), 0, &face)) {
         cerr<<"Could not open font "<<font<<endl;
-//        assert(0);
+        //        assert(0);
         return;
     }
     FT_Set_Pixel_Sizes(face, 0, font_size);
@@ -46,48 +47,99 @@ void TextGenerator::loadFont(const std::string &font, int font_size){
 }
 
 void TextGenerator::createTextureAtlas(){
+
+
+    FT_Error error;
+    FT_Stroker stroker;
+
+    if(stroke_size>0){
+        // Set up a stroker.
+
+        FT_Stroker_New(ft, &stroker);
+        FT_Stroker_Set(stroker,
+                       stroke_size,
+                       FT_STROKER_LINECAP_ROUND,
+                       FT_STROKER_LINEJOIN_ROUND,
+                       0);
+    }
+
+
     charPaddingX = 2;
     charPaddingY = 2;
     charBorder = 0;
 
     int chars= 0;
     int w=0,h=0;
-    FT_GlyphSlot g = (face)->glyph;
+
+
+    const int count = 128-32;
+    FT_Glyph glyphs[count];
+    FT_Glyph glyph_strokes[count];
+
+    FT_GlyphSlot slot = (face)->glyph;
     for(int i = 32; i < 128; i++) {
-        if(FT_Load_Char(face, i, FT_LOAD_RENDER)) {
-            cerr<<"Could not load character '"<<(char)i<<"'"<<endl;
-            continue;
+        FT_UInt  glyph_index;
+
+        /* retrieve glyph index from character code */
+        glyph_index = FT_Get_Char_Index( face, i );
+
+        /* load glyph image into the slot (erase previous one) */
+        error = FT_Load_Glyph( face, glyph_index, FT_LOAD_DEFAULT );
+        if ( error )
+            continue;  /* ignore errors */
+
+        //copy glyph
+        error = FT_Get_Glyph( slot, &glyphs[i-32] );
+        /* render the glyph to a bitmap, don't destroy original */
+        error = FT_Glyph_To_Bitmap( &glyphs[i-32], FT_RENDER_MODE_NORMAL, NULL, 0 );
+
+        FT_Glyph glyph = glyphs[i-32];
+
+        if(stroke_size>0){
+            error = FT_Get_Glyph( slot, &glyph_strokes[i-32] );
+            error = FT_Glyph_Stroke( &glyph_strokes[i-32], stroker, 1 );
+            error = FT_Glyph_To_Bitmap( &glyph_strokes[i-32], FT_RENDER_MODE_NORMAL, NULL, 0 );
+            glyph = glyph_strokes[i-32];
         }
 
 
 
+
+
+        if ( glyph->format != FT_GLYPH_FORMAT_BITMAP )
+            cout<< "invalid glyph format returned!" <<endl;
+
+        FT_BitmapGlyph bitmap = (FT_BitmapGlyph)glyph;
+        FT_Bitmap* source = &bitmap->bitmap;
+
         character_info &info = characters[i];
 
-        info.ax = (g->advance.x >> 6) + 2*charBorder;
-        info.ay = g->advance.y >> 6;
+        info.ax = ( glyph->advance.x + 0x8000 ) >> 16;
+        info.ay = ( glyph->advance.y + 0x8000 ) >> 16;
+        info.ax += stroke_size/64; //????
 
-        info.bw = g->bitmap.width + 2*charBorder;
-        info.bh = g->bitmap.rows + 2*charBorder;
+        info.bw = source->width;
+        info.bh = source->rows;
 
-        info.bl = g->bitmap_left;
-        info.bt = g->bitmap_top;
+        info.bl = bitmap->left;
+        info.bt = bitmap->top;
 
 
         maxCharacter.min = glm::min(maxCharacter.min,vec3(info.bl,info.bt-info.bh,0));
         maxCharacter.max = glm::max(maxCharacter.max,vec3(info.bl+info.bw,info.bt-info.bh+info.bh,0));
 
-        //all characters in one row
-//        info.atlasX = w;
-//        info.atlasY = 0;
-//        w += info.bw+charOffset;
-//        h = std::max(h, (int)info.bh);
-
         chars++;
+
 
     }
 
+    if(stroke_size>0){
+    FT_Stroker_Done(stroker);
+    }
+
+
     int charsPerRow = glm::ceil(glm::sqrt((float)chars));
-//    cout<<"chars "<<chars<<" charsperrow "<<charsPerRow<<" total "<<charsPerRow*charsPerRow<<endl;
+    //    cout<<"chars "<<chars<<" charsperrow "<<charsPerRow<<" total "<<charsPerRow*charsPerRow<<endl;
 
     int atlasHeight = 0;
     int atlasWidth = 0;
@@ -132,23 +184,17 @@ void TextGenerator::createTextureAtlas(){
 
     img.addChannel();
 
-    // Set up a stroker.
-    FT_Stroker stroker;
-    FT_Stroker_New(ft, &stroker);
-    FT_Stroker_Set(stroker,
-                   (int)( 64),
-                   FT_STROKER_LINECAP_ROUND,
-                   FT_STROKER_LINEJOIN_ROUND,
-                   0);
+
 
 
 
     for(int i = 32; i < 128; i++) {
-        if(FT_Load_Char(face, i, FT_LOAD_RENDER | FT_LOAD_NO_BITMAP))
-            continue;
 
-        FT_Glyph  glyph;
-        FT_Get_Glyph( g, &glyph );
+        FT_BitmapGlyph bitmap = (FT_BitmapGlyph)glyphs[i-32];
+        FT_Bitmap* source = &bitmap->bitmap;
+
+
+
 
         character_info &info = characters[i];
 
@@ -159,78 +205,63 @@ void TextGenerator::createTextureAtlas(){
         info.tcMin = vec2(tx,ty);
         info.tcMax = vec2(tx+(float)info.bw/(float)w,ty+(float)info.bh/(float)h);
 
-//        textureAtlas->uploadSubImage(info.atlasX, info.atlasY, info.bw, info.bh, g->bitmap.buffer);
-//        img.setSubImage(info.atlasX, info.atlasY, info.bw, info.bh, g->bitmap.buffer);
+        //        textureAtlas->uploadSubImage(info.atlasX, info.atlasY, info.bw, info.bh, g->bitmap.buffer);
+        //        img.setSubImage(info.atlasX, info.atlasY, info.bw, info.bh, g->bitmap.buffer);
+        //        cout<<"left "<<bitmap->left<<" "<<bitmapstroke->left<<endl;
+        //        cout<<"top "<<bitmap->top<<" "<<bitmapstroke->top<<endl;
 
-        //place character int the middle of the block
-        for(int y = 0 ; y < info.bh - 2*charBorder ; ++y){
-            for(int x = 0 ; x < info.bw - 2*charBorder ; ++x){
-                unsigned char c = g->bitmap.buffer[y*(info.bw- 2*charBorder) + x];
-                uint16_t s = c;
-                img.setPixel(info.atlasX+x + charBorder,info.atlasY+y+ charBorder,s);
+        //offset from normal glyph relative to stroke glyph
+        int offsetX=0,offsetY=0;
+        if(stroke_size>0){
+            FT_BitmapGlyph bitmapstroke = (FT_BitmapGlyph)glyph_strokes[i-32];
+            FT_Bitmap* sourceStroke = &bitmapstroke->bitmap;
+            offsetX = bitmap->left - bitmapstroke->left;
+            offsetY = -bitmap->top + bitmapstroke->top;
+
+            //        cout<<offsetX<<" "<<offsetY<<endl;
+
+            for(int y = 0 ; y < info.bh  ; ++y){
+                for(int x = 0 ; x < info.bw ; ++x){
+                    unsigned char c = sourceStroke->buffer[y*(info.bw) + x];
+                    uint16_t s = c;
+                    img.setPixel(info.atlasX+x ,info.atlasY+y,s);
+                }
             }
         }
 
-        FT_Done_Glyph( glyph );
+        for(int y = 0 ; y < source->rows  ; ++y){
+            for(int x = 0 ; x < source->width ; ++x){
 
-//        //create border
-//        for(int y = 0 ; y < info.bh; ++y){
-//            for(int x = 0 ; x < info.bw; ++x){
+                unsigned char c = source->buffer[y*(source->width) + x];
+                uint16_t s = c;
+                //                uint16_t s = 0;
 
-////                uint16_t c = img.getPixel<uint16_t>(info.atlasX+x,info.atlasY+y);
-////                if(c<<8 == 0xFF00)
-////                    continue;
+                int ox = x + offsetX;
+                int oy = y + offsetY;
+                //                if(ox>=0 && ox<source->width && oy>=0 && oy <source->rows){
+                //                    unsigned char c = source->buffer[oy*(source->width) + ox];
+                //                    s = s + c<<8;
+                //                }
 
-////                for(int dy = -charBorder; dy<=charBorder;++dy){
-////                    for(int dx = -charBorder; dx<=charBorder;++dx){
-////                        int nx = x + dx;
-////                        int ny = y + dy;
-////                        if(nx<0 || nx >=info.bw || ny < 0 || ny >=info.bh)
-////                            continue;
+                uint16_t old = img.getPixel<uint16_t>(info.atlasX+ox ,info.atlasY+oy);
+                old = old + (s<<8);
+                //                old = s;
+                img.setPixel(info.atlasX+ox ,info.atlasY+oy,old);
+            }
+        }
 
-////                         uint16_t d = img.getPixel<uint16_t>(info.atlasX+nx,info.atlasY+ny);
-////                         if(d<<8 == 0xFF00){
-////                             c = c | 0xFF00;
-//////                             cout<<"found"<<endl;
-////                         }
-////                    }
-////                }
-////                img.setPixel(info.atlasX+x,info.atlasY+y,c);
-
-
-
-
-//                //sobel
-//                int weights[3][3] = { {-1,-2,-1},
-//                                 {0,0,0},
-//                                 {1,2,1}};
-
-//                int sum = 0;
-//                for(int dy = -1 ; dy <= 1 ; ++dy){
-//                    for(int dx = -1 ; dx <= 1 ; ++dx){
-//                        int nx = x + dx;
-//                        int ny = y + dy;
-//                        if(nx<0 || nx >=info.bw || ny < 0 || ny >=info.bh)
-//                            continue;
-//                        int weight = weights[dx+1][dy+1];
-//                        uint16_t d = img.getPixel<uint16_t>(info.atlasX+nx,info.atlasY+ny);
-//                        sum += (d & 0x00FF) * weight;
-//                    }
-//                }
-//                sum = glm::abs(sum);
-
-//                uint16_t c = img.getPixel<uint16_t>(info.atlasX+x,info.atlasY+y);
-//                c = c | ((sum & 0x00FF)<<8);
-
-
-//                img.setPixel(info.atlasX+x,info.atlasY+y,c);
-
-//            }
-//        }
     }
 
-    FT_Stroker_Done(stroker);
 
+    if(stroke_size>0){
+        for(int i = 32; i < 128; i++) {
+
+            FT_Done_Glyph(glyph_strokes[i-32]);
+        }
+    }
+    for(int i = 32; i < 128; i++) {
+        FT_Done_Glyph(glyphs[i-32]);
+    }
     img.addChannel();
 
 
@@ -242,10 +273,10 @@ void TextGenerator::createTextureAtlas(){
     }
 
     //    std::vector<GLubyte> data(w*h,0x00);
-        textureAtlas = new Texture();
+    textureAtlas = new Texture();
 
-        //zero initialize texture
-//        textureAtlas->createTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE,img.data);
+    //zero initialize texture
+    //        textureAtlas->createTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE,img.data);
     //    textureAtlas->createTexture(w ,h,GL_RED, GL_R8  ,GL_UNSIGNED_BYTE,0);
 
     textureAtlas->fromImage(img);

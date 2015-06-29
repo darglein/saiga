@@ -14,7 +14,7 @@ void Text::updateText(const std::string &label){
 
 void Text::draw(TextShader* shader){
 
-    shader->upload(texture,color);
+    shader->upload(texture,color,strokeColor);
     shader->uploadModel(model);
 
     buffer.bindAndDraw();

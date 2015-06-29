@@ -14,7 +14,7 @@ class basic_Texture_2D;
 class Text : public Object3D{
 public:
     bool visible = true;
-    vec3 color;
+    vec4 color=vec4(1), strokeColor=vec4(0,0,0,1);
     std::string label;
     TriangleMesh<VertexNT,GLuint> mesh;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;

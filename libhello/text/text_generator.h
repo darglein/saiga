@@ -49,9 +49,10 @@ public:
     aabb maxCharacter;
     std::string font;
     int font_size;
+    int stroke_size;
     TextGenerator();
     ~TextGenerator();
-    void loadFont(const std::string &font, int font_size);
+    void loadFont(const std::string &font, int font_size, int stroke_size=0);
 
     void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const std::string &text, int startX=0, int startY=0);
     DynamicText* createDynamicText(int size, bool normalize=false);
