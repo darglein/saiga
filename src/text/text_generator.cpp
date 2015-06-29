@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <FreeImagePlus.h>
 #include <ft2build.h>
-#include <ftstroke.h>
+#include <freetype2/freetype/ftstroke.h>
 #include FT_FREETYPE_H
 
 #define NOMINMAX
