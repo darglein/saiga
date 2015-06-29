@@ -131,13 +131,15 @@ void TextShader::checkUniforms(){
     location_model = getUniformLocation("model");
     location_proj = getUniformLocation("proj");
     location_color = getUniformLocation("color");
+    location_strokeColor = getUniformLocation("strokeColor");
     location_texture = getUniformLocation("text");
 }
 
 
 
-void TextShader::upload(Texture* texture, const vec3 &color){
+void TextShader::upload(Texture* texture, const vec4 &color, const vec4 &strokeColor){
     Shader::upload(location_color,color);
+    Shader::upload(location_strokeColor,strokeColor);
     texture->bind(0);
     Shader::upload(location_texture,0);
 

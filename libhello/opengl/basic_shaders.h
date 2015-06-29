@@ -74,11 +74,11 @@ public:
 
 class TextShader : public MVPShader {
 public:
-    int location_color, location_texture;
+    int location_color, location_texture,location_strokeColor;
     TextShader(const std::string &multi_file) : MVPShader(multi_file){}
     virtual void checkUniforms();
 
-    void upload(Texture* texture, const vec3 &color);
+    void upload(Texture* texture, const vec4 &color,const vec4 &strokeColor);
 };
 
 
