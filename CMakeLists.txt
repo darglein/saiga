@@ -33,7 +33,7 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -pedantic")
 endif()
 
-############# Optional Libraries ###############
+
 
 set (LIBRARY_VERSION_MAJOR 1)
 set (LIBRARY_VERSION_MINOR 0)
@@ -44,11 +44,15 @@ option (USE_GLFW "Use GLFW" ON)
 option (USE_NOISE "Use NOISE" OFF) 
 option (USE_GLEW "Use GLEW" ON) 
 option (USE_GLBINDING "Use GLBINDING" OFF) 
+option (USE_OPENAL "Use OPENAL" OFF) 
+option (USE_ALUT "Use ALUT" OFF) 
 
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/libhello/config.h.in"
   "${CMAKE_CURRENT_SOURCE_DIR}/libhello/config.h"
 )
+
+############# Optional Libraries ###############
 
 
 #SDL2
@@ -70,6 +74,20 @@ if (USE_NOISE)
 	find_library(NOISE_LIBRARIES noise)
 	SET(LIBS ${LIBS} ${NOISE_LIBRARIES})
 endif (USE_NOISE)
+
+#openal
+if(USE_OPENAL)
+	find_package(OpenAL REQUIRED)
+	include_directories(${OPENAL_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${OPENAL_LIBRARY})
+endif(USE_OPENAL)
+
+#alut
+if(USE_ALUT)
+	find_package(ALUT REQUIRED)
+	include_directories(${ALUT_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${ALUT_LIBRARIES})
+endif(USE_ALUT)
 
 ############# Required LIBRARIES ###############
 
@@ -107,6 +125,7 @@ find_package(ASSIMP REQUIRED)
 include_directories(${ASSIMP_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${ASSIMP_LIBRARY})
 SET(LIBS ${LIBS} assimp)
+
 
 
 

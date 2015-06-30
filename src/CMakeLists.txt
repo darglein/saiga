@@ -29,6 +29,11 @@ if (USE_GLFW)
 	SET(PROG_SRC ${PROG_SRC} ${GLFW_SRC})
 endif (USE_GLFW)
 
+if (USE_OPENAL)
+	FILE(GLOB OPENAL_SRC sound/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${OPENAL_SRC})
+endif (USE_OPENAL)
+
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
