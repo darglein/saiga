@@ -123,6 +123,18 @@ bool glfw_Window::initWindow()
 
     Error::quitWhenError("initWindow()");
 
+    for (int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; ++i){
+        if (glfwJoystickPresent(i)){
+            cout << "found joystick: " <<  i <<  ": " << glfwGetJoystickName(i) <<endl;
+
+            //take first joystick
+            if (joystick.joystickId == -1){
+                cout << "using joystick: " <<  i <<endl;
+                joystick.joystickId = i;
+            }
+        }
+    }
+
     return true;
 }
 
@@ -195,6 +207,8 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
                 cout << "<Gameloop> Warning: Update loop is falling behind. (" << (getTicksMS() - next_game_tick)/1000 << "ms)" << endl;
                 break;
             }
+
+            joystick.getCurrentStateFromGLFW();
             renderer->renderer->update(dt);
 
 
@@ -284,3 +298,42 @@ GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
     return glfwCreateCursor(&glfwimage, midX, midY);
 }
 
+
+
+void Joystick::getCurrentStateFromGLFW()
+{
+    if (joystickId == -1){
+
+        return;
+    }
+    int count;
+    const float* axes = glfwGetJoystickAxes(joystickId, &count);
+    //TODO count
+
+    //TODO button binding
+    moveX =  axes[0];
+    moveY = axes[1];
+    fire = axes[2];
+    aimX = axes[4];
+    aimY = axes[3];
+
+    int buttons;
+    const unsigned char* ax = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons);
+//    for (int i = 0; i < buttons; ++i){
+//        if (ax[i] == GLFW_PRESS){
+//            cout << "pressed: " << i << endl;
+//        }
+//    }
+
+    buttonsPressed[Confirm] = ax[0];
+    buttonsPressed[Back] = ax[1];
+
+    buttonsPressed[Lookahead] = ax[4];
+
+    buttonsPressed[Up] = ax[10];
+    buttonsPressed[Down] = ax[12];
+    buttonsPressed[Left] = ax[13];
+    buttonsPressed[Right] = ax[11];
+
+
+}

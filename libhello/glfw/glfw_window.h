@@ -2,13 +2,38 @@
 
 
 #include "libhello/window/window.h"
-
+#include <array>
 
 
 
 struct GLFWwindow;
 struct GLFWcursor;
 class Image;
+
+struct Joystick{
+    bool enabled(){return joystickId != -1;}
+    int joystickId = -1;
+
+    float moveX = 0.f;
+    float moveY = 0.f;
+    float aimX = 0.f;
+    float aimY = 0.f;
+    float fire = 0.f;
+
+    enum Buttons{
+        Confirm,
+        Back,
+        Left,
+        Right,
+        Up,
+        Down,
+        Lookahead
+    };
+
+    std::array<bool, 7> buttonsPressed = {{}};
+
+    void getCurrentStateFromGLFW();
+};
 
 class glfw_Window : public Window{
 protected:
@@ -19,6 +44,8 @@ protected:
     bool initWindow();
     bool initInput();
 public:
+
+    Joystick joystick;
 
     double lastSwapBuffersMS = 0;
     double lastPolleventsMS = 0;
@@ -40,6 +67,8 @@ public:
     void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond);
     void startMainLoopNoRender(float ticksPerSecond);
     void setTimeScale(double timeScale);
+
+
 
 
     static void error_callback(int error, const char* description);
