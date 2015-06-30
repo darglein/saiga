@@ -3,6 +3,7 @@
 #include <cstring>
 #include <FreeImagePlus.h>
 #include <vector>
+#include <ctime>
 
 using std::cout;
 using std::endl;

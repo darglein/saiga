@@ -4,6 +4,7 @@
 #include "libhello/opengl/opengl.h"
 
 
+#include <stdint.h>
 
 class fipImage;
 
