@@ -2,6 +2,8 @@
 
 #include "libhello/opengl/texture/raw_texture.h"
 
+#include <string>
+
 class basic_Texture_2D : public raw_Texture{
 public:
     std::string name;

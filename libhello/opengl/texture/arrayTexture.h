@@ -2,6 +2,7 @@
 
 #include "libhello/opengl/texture/raw_texture.h"
 
+#include <vector>
 
 class ArrayTexture2D : public raw_Texture{
 

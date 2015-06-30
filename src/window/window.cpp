@@ -2,6 +2,7 @@
 #include "libhello/util/error.h"
 #include <cstring>
 #include <FreeImagePlus.h>
+#include <vector>
 
 using std::cout;
 using std::endl;
