@@ -220,7 +220,7 @@ void Shader::addInjectionsToCode(GLenum type, std::string &content)
                 if(line==0)
                     break;
             }
-            cout<<"inserting at line "<<line<<" char "<<i<<" "<<injection;
+            cout<<"inserting at line "<<line<<" char "<<i<<" "<<injection<<endl;
             //inject at correct position
             content.insert(i,injection);
 
@@ -451,7 +451,7 @@ void Shader::printShaderLog( GLuint shader ){
         if( infoLogLength > 0 )
         {
             //Print Log
-            printf( "%s\n", infoLog );
+            std::cout<< infoLog << std::endl;
         }
 
         //Deallocate std::string

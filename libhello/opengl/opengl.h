@@ -2,7 +2,6 @@
 
 #include <libhello/config.h>
 
-#define USE_GLBINDING
 
 #ifdef USE_GLEW
 #include <GL/glew.h>

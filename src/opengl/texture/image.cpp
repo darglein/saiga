@@ -287,8 +287,8 @@ void Image::addChannel()
 
     int newBpp = bytesPerPixel();
 
-    for(int y = 0 ; y < height ; ++y){
-        for(int x = 0 ; x < width ; ++x){
+    for(int y = 0 ; y < (int)height ; ++y){
+        for(int x = 0 ; x < (int)width ; ++x){
             int pos = y * width + x;
             auto posOld = oldData + pos * oldBpp;
             auto posNew = data + pos * newBpp;

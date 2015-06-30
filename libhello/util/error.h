@@ -1,6 +1,7 @@
 #pragma once
 
 #include <libhello/opengl/opengl.h>
+#include <string>
 #include <iostream>
 #include <cstdlib>
 
