@@ -299,7 +299,7 @@ void Image::addChannel()
         }
     }
 
-    delete oldData;
+    delete[] oldData;
 }
 
 //======================================================
