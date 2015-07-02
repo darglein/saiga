@@ -65,6 +65,7 @@ void initFramework(Window *window)
     renderer->lighting.setDebugShader(ShaderLoader::instance()->load<MVPColorShader>("deferred_lighting_debug.glsl"));
     renderer->lighting.setStencilShader(ShaderLoader::instance()->load<MVPShader>("deferred_lighting_stencil.glsl"));
 
+    renderer->lighting.loadShaders();
 
 
     //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("fxaa.glsl");
@@ -76,10 +77,20 @@ void initFramework(Window *window)
     renderer->ssao = true;
 //    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
 
-    renderer->postProcessingShader = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
+    PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
+    std::vector<PostProcessingShader*> defaultEffects;
+    defaultEffects.push_back(pps);
+
+    renderer->postProcessor.setPostProcessingEffects(defaultEffects);
+//    renderer->postProcessor.postProcessingEffects.push_back(renderer->postProcessingShader);
+
+//    PostProcessingShader* bla = ShaderLoader::instance()->load<PostProcessingShader>("gaussian_blur.glsl");
+//    renderer->postProcessor.postProcessingEffects.push_back(bla);
+//    renderer->postProcessor.postProcessingEffects.push_back(bla);
+//    renderer->postProcessor.postProcessingEffects.push_back(bla);
+//    renderer->postProcessor.postProcessingEffects.push_back(bla);
 
     renderer->lighting.setRenderDebug( false);
-    renderer->enablePostProcessing();
 
     window->renderer = renderer;
 

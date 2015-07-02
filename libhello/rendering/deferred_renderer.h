@@ -1,20 +1,11 @@
 #pragma once
 
+#include "libhello/rendering/postProcessor.h"
 #include "libhello/rendering/renderer.h"
 #include "libhello/rendering/lighting/deferred_lighting.h"
 #include "libhello/opengl/framebuffer.h"
-//#include "libhello/opengl/mesh.h"
 
 
-class PostProcessingShader : public Shader{
-public:
-    GLuint location_texture, location_screenSize;
-    PostProcessingShader(const std::string &multi_file) : Shader(multi_file){}
-    virtual void checkUniforms();
-    virtual void uploadTexture(raw_Texture* texture);
-    virtual void uploadScreenSize(vec4 size);
-    virtual void uploadAdditionalUniforms(){}
-};
 
 class SSAOShader : public DeferredShader{
 public:
@@ -41,18 +32,16 @@ public:
 
     Camera** currentCamera;
 
-    bool postProcessing = false;
     bool ssao = false;
 
-    PostProcessingShader* postProcessingShader = nullptr;
     SSAOShader* ssaoShader = nullptr;
 
     IndexedVertexBuffer<VertexNT,GLuint> quadMesh;
 
     Framebuffer deferred_framebuffer;
-    Framebuffer mix_framebuffer;
-    Framebuffer postProcess_framebuffer; //unused
+
     Framebuffer ssao_framebuffer;
+    PostProcessor postProcessor;
 
     DeferredShader* deferred_shader;
 
@@ -72,7 +61,6 @@ public:
     void renderDepthMaps(Camera *cam);
     void renderLighting(Camera *cam);
     void renderSSAO(Camera *cam);
-    void postProcess();
 
 //    virtual void render(Camera *cam) = 0;
 //    virtual void renderDepth(Camera *cam) = 0;
@@ -86,8 +74,6 @@ public:
 //    virtual void update(float interpolation) = 0;
 
 
-    void enablePostProcessing(){postProcessing=true;}
-    void disablePostProcessing(){postProcessing=false;}
 };
 
 

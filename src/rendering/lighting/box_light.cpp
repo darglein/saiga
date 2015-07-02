@@ -50,7 +50,7 @@ void BoxLight::bindUniforms(BoxLightShader &shader, Camera *cam){
     shader.uploadModel(model);
 
 //    vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
-    vec3 viewd = -glm::normalize(vec3((*view)*model[2]));
+    vec3 viewd = -glm::normalize(vec3(cam->view*model[2]));
     shader.uploadDirection(viewd);
 
     mat4 ip = glm::inverse(cam->proj);

@@ -12,46 +12,41 @@
 #include "libhello/geometry/triangle_mesh_generator.h"
 #include "libhello/opengl/texture/cube_texture.h"
 
-DeferredLighting::DeferredLighting(Framebuffer &framebuffer):framebuffer(framebuffer){
+#include "libhello/opengl/shaderLoader.h"
+
+
+
+DeferredLighting::DeferredLighting(Framebuffer &framebuffer):gbuffer(framebuffer){
     
     createInputCommands();
     createLightMeshes();
 
 
-
-    //    dummyTexture = new Texture();
-    //    dummyTexture->createEmptyTexture(1,1,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    //    dummyTexture->setWrap(GL_CLAMP_TO_EDGE);
-    //    dummyTexture->setFiltering(GL_LINEAR);
-    //    //this requires the texture sampler in the shader to be sampler2DShadow
-    //    dummyTexture->setParameter(GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
-    //    dummyTexture->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
-
-
-
-    //    dummyCubeTexture = new cube_Texture();
-    //    dummyCubeTexture->createEmptyTexture(1,1,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    //    dummyCubeTexture->setWrap(GL_CLAMP_TO_EDGE);
-    //    dummyCubeTexture->setFiltering(GL_LINEAR);
-    //    //this requires the texture sampler in the shader to be sampler2DShadow
-    //    dummyCubeTexture->setParameter(GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
-    //    dummyCubeTexture->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
 }
 
 DeferredLighting::~DeferredLighting(){
-    //    delete dummyTexture;
-    //    delete dummyCubeTexture;
-    //delete all lights
-    //the shader loader will delete the shaders.
-    //    for(PointLight* &obj : pointLights){
-    //        delete obj;
-    //    }
-    //    for(SpotLight* &obj : spotLights){
-    //        delete obj;
-    //    }
-    //    for(DirectionalLight* &obj : directionalLights){
-    //        delete obj;
-    //    }
+}
+
+void DeferredLighting::loadShaders()
+{
+    lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>("deferred_lighting_accumulation.glsl");
+}
+
+void DeferredLighting::init(int width, int height){
+    this->width=width;this->height=height;
+
+
+    lightAccumulationBuffer.create();
+    Texture* depth_stencil = new Texture();
+    depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+    lightAccumulationBuffer.attachTextureDepthStencil(depth_stencil);
+
+    lightAccumulationTexture = new Texture();
+    lightAccumulationTexture->createEmptyTexture(width,height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
+    lightAccumulationBuffer.attachTexture(lightAccumulationTexture);
+    glDrawBuffer( GL_COLOR_ATTACHMENT0);
+    lightAccumulationBuffer.check();
+    lightAccumulationBuffer.unbind();
 }
 
 void DeferredLighting::cullLights(Camera *cam){
@@ -137,6 +132,12 @@ void DeferredLighting::renderDepthMaps(RendererInterface *renderer){
 }
 
 void DeferredLighting::render(Camera* cam){
+    gbuffer.blitDepth(lightAccumulationBuffer.id);
+
+    lightAccumulationBuffer.bind();
+    glClear( GL_COLOR_BUFFER_BIT );
+
+
     //viewport is maybe different after shadow map rendering
     glViewport(0,0,width,height);
 
@@ -152,28 +153,26 @@ void DeferredLighting::render(Camera* cam){
     glEnable(GL_STENCIL_TEST);
 
 
-    renderSpotLightsStencil(); //mark pixels inside the light volume
+    renderStencilVolume(spotLightMesh,spotLights); //mark pixels inside the light volume
     setupLightPass();
-    renderSpotLights(cam,false); //draw back faces without depthtest
-    renderSpotLights(cam,true);
-
+    renderLightVolume<SpotLight,SpotLightShader,false>(spotLightMesh,spotLights,cam,spotLightShader); //draw back faces without depthtest
+    renderLightVolume<SpotLight,SpotLightShader,true>(spotLightMesh,spotLights,cam,spotLightShadowShader);
     Error::quitWhenError("DeferredLighting::spotLights");
 
-    renderPointLightsStencil(); //mark pixels inside the light volume
+
+    renderStencilVolume(pointLightMesh,pointLights);  //mark pixels inside the light volume
     setupLightPass();
-    renderPointLights(cam,false); //draw back faces without depthtest
-    renderPointLights(cam,true);
-
-
+    renderLightVolume<PointLight,PointLightShader,false>(pointLightMesh,pointLights,cam,pointLightShader); //draw back faces without depthtest
+    renderLightVolume<PointLight,PointLightShader,true>(pointLightMesh,pointLights,cam,pointLightShadowShader);
     Error::quitWhenError("DeferredLighting::pointLights");
 
-    renderBoxLightsStencil(); //mark pixels inside the light volume
+
+    renderStencilVolume(boxLightMesh,boxLights); //mark pixels inside the light volume
     setupLightPass();
-    renderBoxLights(cam,false); //draw back faces without depthtest
-    renderBoxLights(cam,true);
-
-
+    renderLightVolume<BoxLight,BoxLightShader,false>(boxLightMesh,boxLights,cam,boxLightShader); //draw back faces without depthtest
+    renderLightVolume<BoxLight,BoxLightShader,true>(boxLightMesh,boxLights,cam,boxLightShadowShader);
     Error::quitWhenError("DeferredLighting::boxLights");
+
 
     glDisable(GL_STENCIL_TEST);
     //use default culling
@@ -193,10 +192,26 @@ void DeferredLighting::render(Camera* cam){
         glDepthMask(GL_FALSE);
     }
 
-
+    lightAccumulationBuffer.unbind();
 
     Error::quitWhenError("DeferredLighting::lighting");
 
+}
+
+void DeferredLighting::renderLightAccumulation()
+{
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    lightAccumulationShader->bind();
+    lightAccumulationShader->uploadFramebuffer(&gbuffer);
+    lightAccumulationShader->uploadLightAccumulationtexture(lightAccumulationTexture);
+    lightAccumulationShader->uploadScreenSize(vec2(width,height));
+
+    directionalLightMesh.bindAndDraw();
+
+    lightAccumulationShader->unbind();
+
+     glEnable(GL_DEPTH_TEST);
 }
 
 void DeferredLighting::setupStencilPass(){
@@ -230,136 +245,6 @@ void DeferredLighting::setupLightPass(){
 }
 
 
-void DeferredLighting::renderPointLights(Camera *cam, bool shadow){
-
-    PointLightShader* shader = (shadow)?pointLightShadowShader:pointLightShader;
-
-
-    shader->bind();
-    shader->uploadView(view);
-    shader->uploadProj(proj);
-    shader->DeferredShader::uploadFramebuffer(&framebuffer);
-    shader->uploadScreenSize(vec2(width,height));
-
-    //    Error::quitWhenError("DeferredLighting::renderPointLights1");
-
-    pointLightMesh.bind();
-    for(PointLight* &obj : pointLights){
-
-        bool render = (shadow&&obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->hasShadows());        if(render){
-            obj->bindUniforms(*shader,cam);
-            pointLightMesh.draw();
-        }
-    }
-    pointLightMesh.unbind();
-    shader->unbind();
-
-    Error::quitWhenError("DeferredLighting::renderPointLights4");
-}
-
-void DeferredLighting::renderPointLightsStencil(){
-
-    setupStencilPass();
-    stencilShader->bind();
-    stencilShader->uploadView(view);
-    stencilShader->uploadProj(proj);
-    pointLightMesh.bind();
-    for(PointLight* &obj : pointLights){
-        if(obj->shouldRender()){
-
-            obj->bindUniformsStencil(*stencilShader);
-            pointLightMesh.draw();
-        }
-    }
-    pointLightMesh.unbind();
-    stencilShader->unbind();
-}
-
-
-void DeferredLighting::renderSpotLights(Camera *cam, bool shadow){
-
-    SpotLightShader* shader = (shadow)?spotLightShadowShader:spotLightShader;
-
-    shader->bind();
-    shader->uploadView(view);
-    shader->uploadProj(proj);
-    shader->DeferredShader::uploadFramebuffer(&framebuffer);
-    shader->uploadScreenSize(vec2(width,height));
-
-    spotLightMesh.bind();
-    for(SpotLight* &obj : spotLights){
-        bool render = (shadow&&obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->hasShadows());
-        if(render){
-            obj->bindUniforms(*shader,cam);
-            spotLightMesh.draw();
-        }
-    }
-    spotLightMesh.unbind();
-    shader->unbind();
-
-}
-
-void DeferredLighting::renderSpotLightsStencil(){
-    setupStencilPass();
-
-    stencilShader->bind();
-    stencilShader->uploadView(view);
-    stencilShader->uploadProj(proj);
-    spotLightMesh.bind();
-    for(SpotLight* &obj : spotLights){
-        if(obj->shouldRender()){
-
-            obj->bindUniformsStencil(*stencilShader);
-            spotLightMesh.draw();
-        }
-    }
-    spotLightMesh.unbind();
-    stencilShader->unbind();
-}
-
-
-
-void DeferredLighting::renderBoxLights(Camera *cam, bool shadow){
-
-    BoxLightShader* shader = (shadow)?boxLightShadowShader:boxLightShader;
-
-    shader->bind();
-    shader->uploadView(view);
-    shader->uploadProj(proj);
-    shader->DeferredShader::uploadFramebuffer(&framebuffer);
-    shader->uploadScreenSize(vec2(width,height));
-
-    boxLightMesh.bind();
-    for(BoxLight* &obj : boxLights){
-        bool render = (shadow&&obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->hasShadows());
-        if(render){
-            obj->view = &view;
-            obj->bindUniforms(*shader,cam);
-            boxLightMesh.draw();
-        }
-    }
-    boxLightMesh.unbind();
-    shader->unbind();
-
-}
-
-void DeferredLighting::renderBoxLightsStencil(){
-    setupStencilPass();
-
-    stencilShader->bind();
-    stencilShader->uploadView(view);
-    stencilShader->uploadProj(proj);
-    boxLightMesh.bind();
-    for(BoxLight* &obj : boxLights){
-        if(obj->shouldRender()){
-
-            obj->bindUniformsStencil(*stencilShader);
-            boxLightMesh.draw();
-        }
-    }
-    boxLightMesh.unbind();
-    stencilShader->unbind();
-}
 
 void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
 
@@ -369,7 +254,7 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
     shader->bind();
     shader->uploadView(view);
     shader->uploadProj(proj);
-    shader->DeferredShader::uploadFramebuffer(&framebuffer);
+    shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
     shader->uploadSsaoTexture(ssaoTexture);
 
@@ -512,6 +397,8 @@ void DeferredLighting::setDebugShader(MVPColorShader *shader){
 void DeferredLighting::setStencilShader(MVPShader* stencilShader){
     this->stencilShader = stencilShader;
 }
+
+
 
 void DeferredLighting::createInputCommands(){
 

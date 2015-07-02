@@ -24,7 +24,7 @@ private:
 
     int width,height;
 
-    GbufferTexture color, normal, depth, data;
+    GbufferTexture color, normal, depth, data, light;
 
     void setScreenPosition(GbufferTexture* gbt, int id);
 public:
@@ -35,7 +35,7 @@ public:
     DeferredDebugOverlay(int width, int height);
     void render();
 
-    void setDeferredFramebuffer(Framebuffer* fb);
+    void setDeferredFramebuffer(Framebuffer* fb, basic_Texture_2D *light);
 
 
 };
