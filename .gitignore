@@ -1,5 +1,5 @@
 CMakeLists.txt.user
-libhello/config.h
+libhello/buildconfig.h
 build/
 reconf.sh
 test.sh
