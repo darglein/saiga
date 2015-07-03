@@ -40,8 +40,8 @@ class SAIGA_GLOBAL GraphDebugOverlay: public Object3D {
         }
 
         //no copying
-        Graph (const Graph&) = delete;
-        Graph& operator=(const Graph&) = delete;
+        //Graph (const Graph&) = delete;
+       // Graph& operator=(const Graph&) = delete;
 
     };
 
