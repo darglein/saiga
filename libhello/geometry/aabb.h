@@ -1,9 +1,10 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <libhello/util/glm.h>
 
 
-class aabb
+class SAIGA_GLOBAL aabb
 {
 public:
     vec3 min,max;

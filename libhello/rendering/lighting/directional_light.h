@@ -4,7 +4,7 @@
 #include "libhello/rendering/lighting/light.h"
 #include "libhello/camera/camera.h"
 
-class DirectionalLightShader : public LightShader{
+class SAIGA_GLOBAL DirectionalLightShader : public LightShader{
 public:
     GLuint location_direction, location_ambientIntensity;
     GLuint location_ssaoTexture;
@@ -17,7 +17,7 @@ public:
 
 };
 
-class DirectionalLight :  public Light
+class SAIGA_GLOBAL DirectionalLight :  public Light
 {
 protected:
 

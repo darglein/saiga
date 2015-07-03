@@ -1,6 +1,9 @@
 #pragma once
+
+#include <libhello/config.h>
 #include "libhello/util/glm.h"
-class Plane
+
+class SAIGA_GLOBAL Plane
 {
 public:
     vec3 point; //a random point on the plane

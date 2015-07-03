@@ -1,6 +1,6 @@
 #pragma once
 
-
+#include <libhello/config.h>
 #include "libhello/window/window.h"
 #include <array>
 
@@ -10,7 +10,7 @@ struct GLFWwindow;
 struct GLFWcursor;
 class Image;
 
-struct Joystick{
+struct SAIGA_GLOBAL Joystick{
     bool enabled(){return joystickId != -1;}
     int joystickId = -1;
 
@@ -35,7 +35,7 @@ struct Joystick{
     void getCurrentStateFromGLFW();
 };
 
-class glfw_Window : public Window{
+class SAIGA_GLOBAL glfw_Window : public Window{
 protected:
     GLFWwindow* window = nullptr;
 

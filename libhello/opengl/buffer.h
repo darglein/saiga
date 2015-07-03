@@ -14,7 +14,7 @@
  * The most common application is storing the Vertex-Data of a model (see VertexBuffer).
  */
 
-class Buffer{
+class SAIGA_GLOBAL Buffer{
 public:
     GLuint buffer = 0; //opengl id
     GLuint size = 0; //size of the buffer in bytes

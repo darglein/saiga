@@ -8,7 +8,7 @@
 #include "libhello/util/loader.h"
 #include "libhello/util/singleton.h"
 
-class Material{
+class SAIGA_GLOBAL Material{
 public:
     std::string name;
     float Ns = 0.2f;   //specular coefficient
@@ -32,7 +32,7 @@ public:
 
 };
 
-struct TriangleGroup{
+struct SAIGA_GLOBAL TriangleGroup{
     int startFace;
     int faces;
     Material* mat;
@@ -40,7 +40,7 @@ struct TriangleGroup{
 
 
 
-class MaterialLoader : public Loader<Material>, public Singleton <MaterialLoader>{
+class SAIGA_GLOBAL MaterialLoader : public Loader<Material>, public Singleton <MaterialLoader>{
     friend class Singleton <MaterialLoader>;
 public:
 //    TextureLoader* textureLoader;
@@ -50,7 +50,7 @@ public:
     MaterialLoader(){}
     virtual ~MaterialLoader(){}
     Material* load(const std::string &name);
-    Material* loadFromFile(const std::string &name){(void)name;return nullptr;}
+    Material* loadFromFile(const std::string &name, const NoParams &params){(void)name;return nullptr;}
     void loadLibrary(const std::string &file);
     bool loadLibraryFromFile(const std::string &path);
 };

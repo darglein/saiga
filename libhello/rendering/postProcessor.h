@@ -6,7 +6,7 @@
 //#include "libhello/opengl/mesh.h"
 
 
-class PostProcessingShader : public Shader{
+class SAIGA_GLOBAL PostProcessingShader : public Shader{
 public:
     GLuint location_texture, location_screenSize;
     PostProcessingShader(const std::string &multi_file) : Shader(multi_file){}
@@ -18,7 +18,7 @@ public:
 
 
 
-class LightAccumulationShader : public DeferredShader{
+class SAIGA_GLOBAL LightAccumulationShader : public DeferredShader{
 public:
     GLuint location_lightAccumulationtexture;
     LightAccumulationShader(const std::string &multi_file) : DeferredShader(multi_file){}
@@ -26,7 +26,7 @@ public:
     virtual void uploadLightAccumulationtexture(raw_Texture* texture);
 };
 
-class PostProcessor{
+class SAIGA_GLOBAL PostProcessor{
     int width,height;
     Framebuffer framebuffers[2];
     Texture* textures[2];

@@ -7,7 +7,7 @@
 
 
 
-class SSAOShader : public DeferredShader{
+class SAIGA_GLOBAL SSAOShader : public DeferredShader{
 public:
     int location_invProj;
     int location_filterRadius,location_distanceThreshold;
@@ -22,7 +22,7 @@ public:
 };
 
 
-class Deferred_Renderer{
+class SAIGA_GLOBAL Deferred_Renderer{
 public:
     RendererInterface* renderer;
 

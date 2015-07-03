@@ -6,7 +6,7 @@
 
 class Light;
 
-class LightingController : public Subject , public glfw_KeyListener , public glfw_MouseListener{
+class SAIGA_GLOBAL LightingController : public Subject , public glfw_KeyListener , public glfw_MouseListener{
 private:
     DeferredLighting& lighting;
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "libhello/config.h"
 #include "libhello/util/glm.h"
 
 #include <vector>
@@ -9,7 +10,7 @@ class TextShader;
 class Text;
 class Camera;
 
-class TextOverlay3D {
+class SAIGA_GLOBAL TextOverlay3D {
 
 public:
 

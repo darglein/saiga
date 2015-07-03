@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <map>
 #include <string>
 #include <functional>
@@ -16,7 +17,7 @@
 #define ICPARSEVEC4 vec3(args.next(std::stof),args.next(std::stof),args.next(std::stof),args.next(std::stof) )
 
 
-class InputController
+class SAIGA_GLOBAL InputController
 {
 public:
 

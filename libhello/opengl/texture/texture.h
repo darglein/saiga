@@ -4,7 +4,7 @@
 
 #include <string>
 
-class basic_Texture_2D : public raw_Texture{
+class SAIGA_GLOBAL basic_Texture_2D : public raw_Texture{
 public:
     std::string name;
     GLubyte* data = nullptr;

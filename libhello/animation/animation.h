@@ -1,10 +1,11 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <libhello/util/glm.h>
 #include <libhello/animation/animationFrame.h>
 
 
-class Animation
+class SAIGA_GLOBAL Animation
 {
 public:
     std::string name;

@@ -10,7 +10,7 @@ class ParticleShader;
 class DeferredParticleShader;
 class ArrayTexture2D;
 
-class ParticleSystem : public Object3D
+class SAIGA_GLOBAL ParticleSystem : public Object3D
 {
 public:
     ArrayTexture2D* arrayTexture;

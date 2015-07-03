@@ -1,8 +1,9 @@
 #pragma once
 
+#include <libhello/config.h>
 
 template <typename C>
- class Singleton
+ class SAIGA_GLOBAL Singleton
  {
  public:
     static C* instance ()

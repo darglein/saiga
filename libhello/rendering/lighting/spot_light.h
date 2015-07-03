@@ -2,7 +2,7 @@
 
 #include "libhello/rendering/lighting/point_light.h"
 
-class SpotLightShader : public PointLightShader{
+class SAIGA_GLOBAL SpotLightShader : public PointLightShader{
 public:
     GLuint location_direction,location_angle;
     SpotLightShader(const std::string &multi_file) : PointLightShader(multi_file){}
@@ -13,7 +13,7 @@ public:
 
 
 
-class SpotLight :  public PointLight
+class SAIGA_GLOBAL SpotLight :  public PointLight
 {
 private:
     float angle=60.0f;

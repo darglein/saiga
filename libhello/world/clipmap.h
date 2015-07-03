@@ -10,7 +10,7 @@
 #include "libhello/camera/camera.h"
 
 
-class TerrainShader : public MVPTextureShader{
+class SAIGA_GLOBAL TerrainShader : public MVPTextureShader{
 public:
     GLuint location_ScaleFactor, location_FineBlockOrig,location_color, location_TexSizeScale; //vec4
     GLuint location_RingSize,location_ViewerPos, location_AlphaOffset, location_OneOverWidth; //vec2

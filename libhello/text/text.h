@@ -11,7 +11,7 @@
 class TextShader;
 class basic_Texture_2D;
 
-class Text : public Object3D{
+class SAIGA_GLOBAL Text : public Object3D{
 public:
     bool visible = true;
     vec4 color=vec4(1), strokeColor=vec4(0,0,0,1);

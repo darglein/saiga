@@ -9,7 +9,7 @@
 class fipImage;
 
 
-class Image{
+class SAIGA_GLOBAL Image{
 public:
 
     Image();

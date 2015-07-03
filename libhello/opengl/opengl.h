@@ -14,4 +14,4 @@ using namespace gl;
 #define GLFW_INCLUDE_NONE
 #endif
 
-extern void initOpenGL();
+SAIGA_LOCAL extern void initOpenGL();

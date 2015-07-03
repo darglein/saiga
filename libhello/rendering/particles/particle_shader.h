@@ -2,7 +2,7 @@
 
 #include "libhello/opengl/basic_shaders.h"
 
-class ParticleShader : public MVPTextureShader {
+class SAIGA_GLOBAL ParticleShader : public MVPTextureShader {
 public:
      GLuint location_timer, location_timestep, location_interpolation;
 
@@ -15,7 +15,7 @@ public:
 };
 
 
-class DeferredParticleShader : public ParticleShader {
+class SAIGA_GLOBAL DeferredParticleShader : public ParticleShader {
 public:
      GLuint location_texture_depth;
      GLuint location_cameraParameters;

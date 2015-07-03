@@ -8,7 +8,7 @@
 
 //#define ERROR_CHECKING_DISABLED
 
-class Error{
+class SAIGA_GLOBAL Error{
 public:
 
     static bool checkGLError();

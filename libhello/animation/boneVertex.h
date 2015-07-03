@@ -1,10 +1,11 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <libhello/util/glm.h>
 #include <libhello/opengl/vertexBuffer.h>
 
 
-struct BoneVertex{
+struct SAIGA_GLOBAL BoneVertex{
     vec3 position;
     vec3 normal;
     vec2 texture;
@@ -38,7 +39,7 @@ struct BoneVertex{
 
 
 
-struct BoneVertexNC{
+struct SAIGA_GLOBAL BoneVertexNC{
     vec3 position;
     vec3 normal;
     vec3 color;

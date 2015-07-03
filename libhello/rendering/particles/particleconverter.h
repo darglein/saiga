@@ -5,7 +5,7 @@
 #include "libhello/geometry/raytracer.h"
 #include "libhello/geometry/aabb.h"
 
-class Particleconverter
+class SAIGA_GLOBAL Particleconverter
 {
 public:
     Particleconverter(){}

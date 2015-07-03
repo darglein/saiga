@@ -16,7 +16,7 @@ class LightAccumulationShader;
 
 class Deferred_Renderer;
 
-class DeferredLighting{
+class SAIGA_GLOBAL DeferredLighting{
     friend class LightingController;
 private:
     int width,height;

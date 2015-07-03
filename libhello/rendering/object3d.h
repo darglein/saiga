@@ -1,9 +1,10 @@
 #pragma once
 
+#include "libhello/config.h"
 #include "libhello/util/glm.h"
 
 
-class Object3D{
+class SAIGA_GLOBAL Object3D{
 
 public:
     mat4 model;

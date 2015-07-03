@@ -12,7 +12,7 @@ class Framebuffer;
 
 
 
-class DeferredDebugOverlay {
+class SAIGA_GLOBAL DeferredDebugOverlay {
 private:
     struct GbufferTexture : public Object3D{
         basic_Texture_2D *texture;

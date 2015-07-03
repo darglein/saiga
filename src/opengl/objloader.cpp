@@ -112,7 +112,7 @@ void ObjLoader::reset(){
     vertices_used.clear();
 }
 
-material_mesh_t *ObjLoader::loadFromFile(const std::string &path){
+material_mesh_t *ObjLoader::loadFromFile(const std::string &path, const NoParams &params){
 
 //    mesh.clear();
 

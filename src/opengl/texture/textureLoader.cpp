@@ -2,7 +2,11 @@
 #include "opengl/texture/textureLoader.h"
 #include <FreeImagePlus.h>
 
-Texture* TextureLoader::loadFromFile(const std::string &path){
+bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {
+    return std::tie(lhs.srgb) == std::tie(lhs.srgb);
+}
+
+Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParameters &params){
 
     bool erg;
     Texture* text = new Texture();
@@ -18,7 +22,7 @@ Texture* TextureLoader::loadFromFile(const std::string &path){
     if (erg){
         Image im;
         im.convertFrom(fipimg);
-        im.srgb = true;
+        im.srgb = params.srgb;
         erg = text->fromImage(im);
     }
 
@@ -32,4 +36,7 @@ Texture* TextureLoader::loadFromFile(const std::string &path){
 
     return nullptr;
 }
+
+
+
 

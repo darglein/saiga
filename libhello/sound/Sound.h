@@ -1,11 +1,12 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <string>
 
 
 namespace sound {
 
-class Sound
+class SAIGA_GLOBAL Sound
 {
 public:
 

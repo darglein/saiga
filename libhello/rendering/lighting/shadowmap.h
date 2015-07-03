@@ -3,7 +3,7 @@
 
 #include "libhello/opengl/framebuffer.h"
 
-class Shadowmap{
+class SAIGA_GLOBAL Shadowmap{
 private:
     bool initialized = false;
 public:

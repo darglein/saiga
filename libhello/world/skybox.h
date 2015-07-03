@@ -8,7 +8,7 @@
 
 
 
-class Skybox{
+class SAIGA_GLOBAL Skybox{
 public:
     IndexedVertexBuffer<VertexNT,GLuint> mesh;
     MVPTextureShader* shader;

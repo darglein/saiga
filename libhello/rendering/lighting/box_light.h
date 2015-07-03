@@ -4,7 +4,7 @@
 #include "libhello/rendering/lighting/directional_light.h"
 #include "libhello/camera/camera.h"
 
-class BoxLightShader : public DirectionalLightShader{
+class SAIGA_GLOBAL BoxLightShader : public DirectionalLightShader{
 public:
 
     BoxLightShader(const std::string &multi_file) : DirectionalLightShader(multi_file){}
@@ -12,7 +12,7 @@ public:
 
 };
 
-class BoxLight :  public DirectionalLight
+class SAIGA_GLOBAL BoxLight :  public DirectionalLight
 {
 protected:
 

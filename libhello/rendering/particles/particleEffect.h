@@ -5,7 +5,7 @@
 
 
 
-class ParticleEffect : public Object3D{
+class SAIGA_GLOBAL ParticleEffect : public Object3D{
 public:
     float velocity = 1.0f;
     float radius = 0.1f;

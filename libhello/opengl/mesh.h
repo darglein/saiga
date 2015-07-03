@@ -21,7 +21,7 @@
 //    void draw(const mat4 &model,const Camera &cam);
 //};
 
-class FBMesh : public MeshObject<FBMesh,VertexNT,GLuint,FBShader>{
+class SAIGA_GLOBAL FBMesh : public MeshObject<FBMesh,VertexNT,GLuint,FBShader>{
 public:
     Framebuffer* framebuffer;
     FBMesh();

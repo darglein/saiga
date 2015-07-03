@@ -3,7 +3,7 @@
 #include "libhello/rendering/particles/particleEffect.h"
 #include "libhello/rendering/object3d.h"
 
-class ParticleEmitter : public ParticleEffect{
+class SAIGA_GLOBAL ParticleEmitter : public ParticleEffect{
 
 public:
 
@@ -24,14 +24,14 @@ private:
 };
 
 
-class SphericalParticleEmitter : public ParticleEmitter{
+class SAIGA_GLOBAL SphericalParticleEmitter : public ParticleEmitter{
 public:
     SphericalParticleEmitter();
     void spawnParticles(int count, ParticleSystem& ps) override;
 };
 
 
-class ConaParticleEmitter : public ParticleEmitter{
+class SAIGA_GLOBAL ConaParticleEmitter : public ParticleEmitter{
 public:
     vec3 coneDirection = vec3(0,1,0);
     float coneAngle = 45.0f; //in degrees

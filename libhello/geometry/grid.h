@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libhello/config.h>
 #include "libhello/opengl/vertex.h"
 #include "libhello/opengl/vertexBuffer.h"
 #include "libhello/util/glm.h"
@@ -7,7 +8,7 @@
 
 #include <vector>
 
-class Grid : public Plane
+class SAIGA_GLOBAL Grid : public Plane
 {
 public:
     vec3 d1,d2,mid;

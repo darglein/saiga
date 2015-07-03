@@ -5,7 +5,7 @@
 
 
 
-class DynamicText : public Text{
+class SAIGA_GLOBAL DynamicText : public Text{
 public:
     int size; //dynamic text has fixed size
     DynamicText(int size);

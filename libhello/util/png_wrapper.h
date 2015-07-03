@@ -10,6 +10,7 @@
 
 #ifdef USE_PNG
 
+#include <libhello/config.h>
 #include <png.h>
 #include <iostream>
 
@@ -17,7 +18,7 @@ typedef unsigned char uchar;
 
 
 
-class PNG{
+class SAIGA_GLOBAL PNG{
 public:
     struct Image{
         png_uint_32 width, height;

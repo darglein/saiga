@@ -1,4 +1,6 @@
 #pragma once
+
+#include <libhello/config.h>
 #include "libhello/util/glm.h"
 #include "libhello/geometry/aabb.h"
 #include "libhello/geometry/ray.h"
@@ -10,7 +12,7 @@ using glm::min;
 using glm::max;
 
 
-class Raytracer
+class SAIGA_GLOBAL Raytracer
 {
 public:
 std::vector<Triangle> &triangles;

@@ -1,10 +1,11 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <libhello/util/glm.h>
 #include <vector>
 #include <map>
 
-class AnimationNode{
+class SAIGA_GLOBAL AnimationNode{
 public:
     std::string name;
     std::vector<AnimationNode> children;
@@ -29,7 +30,7 @@ public:
 
 };
 
-class AnimationFrame
+class SAIGA_GLOBAL AnimationFrame
 {
 public:
     int nodeCount = 0;

@@ -1,9 +1,10 @@
 #pragma once
 
 #include <string>
+#include "libhello/config.h"
 #include "libhello/util/glm.h"
 
-struct Vertex{
+struct SAIGA_GLOBAL Vertex{
     vec3 position;
     Vertex() : position(0){}
     Vertex(const vec3 &position):position(position){}
@@ -19,7 +20,7 @@ struct Vertex{
     }
 };
 
-struct VertexN{
+struct SAIGA_GLOBAL VertexN{
     vec3 position;
     vec3 normal;
     VertexN() : position(0),normal(0){}
@@ -35,7 +36,7 @@ struct VertexN{
     }
 };
 
-struct VertexNT{
+struct SAIGA_GLOBAL VertexNT{
     vec3 position;
     vec3 normal;
     vec2 texture;
@@ -54,7 +55,7 @@ struct VertexNT{
 };
 
 
-struct VertexNC : public VertexN{
+struct SAIGA_GLOBAL VertexNC : public VertexN{
     vec3 color;
     vec3 data;
     VertexNC() : color(0){}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libhello/config.h>
 #include "libhello/window/window.h"
 
 #include "libhello/sdl/sdl_eventhandler.h"
@@ -7,7 +8,7 @@
 //#include <SDL2/SDL_opengl.h>
 
 
-class sdl_Window : public Window{
+class SAIGA_GLOBAL sdl_Window : public Window{
 protected:
     SDL_Window* gWindow = NULL;
     SDL_GLContext gContext;

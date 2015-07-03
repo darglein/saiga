@@ -12,11 +12,11 @@
 #include "libhello/geometry/triangle_mesh.h"
 #include "libhello/geometry/material_mesh.h"
 
-struct IndexedVertex{
+struct SAIGA_GLOBAL IndexedVertex{
     int v,n,t;
 };
 
-struct Face{
+struct SAIGA_GLOBAL Face{
     IndexedVertex vertices[3];
     Face(){}
 
@@ -27,7 +27,7 @@ struct Face{
 
 typedef MaterialMesh<VertexNT,GLuint> material_mesh_t;
 
-class ObjLoader : public Loader<material_mesh_t>, public Singleton <ObjLoader>{
+class SAIGA_GLOBAL ObjLoader : public Loader<material_mesh_t>, public Singleton <ObjLoader>{
  friend class Singleton <ObjLoader>;
 public:
 //    MaterialLoader* materialLoader;
@@ -63,6 +63,6 @@ public:
 
     bool extractIndices(char* line, int &v1, int &v2, int &v3);
 
-    material_mesh_t* loadFromFile(const std::string &name);
+    material_mesh_t* loadFromFile(const std::string &name, const NoParams &params);
 };
 

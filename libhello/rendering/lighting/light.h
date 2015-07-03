@@ -4,7 +4,7 @@
 #include "libhello/rendering/lighting/shadowmap.h"
 #include "libhello/rendering/object3d.h"
 
-class LightShader : public DeferredShader{
+class SAIGA_GLOBAL LightShader : public DeferredShader{
 public:
     int location_color; //rgba, rgb=color, a=intensity [0,1]
     int location_depthBiasMV, location_depthTex,location_readShadowMap;
@@ -20,7 +20,7 @@ public:
 };
 
 
-class Light  : public Object3D
+class SAIGA_GLOBAL Light  : public Object3D
 {
 protected:
     bool visible=true, active=true, selected=false, culled=false;

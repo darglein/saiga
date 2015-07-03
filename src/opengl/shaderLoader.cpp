@@ -1,7 +1,7 @@
 #include "opengl/shaderLoader.h"
 
 
-Shader* ShaderLoader::loadFromFile(const std::string &name){
+Shader* ShaderLoader::loadFromFile(const std::string &name, const Shader::ShaderCodeInjections &params){
     Shader* shader = new Shader(name);
     if(shader->reload()){
         return shader;

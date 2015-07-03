@@ -7,7 +7,7 @@
 
 #include <memory>
 
-class TriangleMeshGenerator
+class SAIGA_GLOBAL TriangleMeshGenerator
 {
     typedef TriangleMesh<VertexNT,GLuint>::Face Face;
 

@@ -1,8 +1,10 @@
 #pragma once
 
+#include <libhello/config.h>
+
 class Camera;
 
-class RendererInterface{
+class SAIGA_GLOBAL RendererInterface{
 public:
     virtual void update(float dt) = 0;
     virtual void interpolate(float interpolation)  = 0;

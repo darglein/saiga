@@ -1,9 +1,10 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <vector>
 
 
-class Subject {
+class SAIGA_GLOBAL Subject {
     std::vector < class Observer * > views;
   public:
     virtual ~Subject(){}
@@ -13,7 +14,7 @@ class Subject {
     void notify();
 };
 
-class Observer {
+class SAIGA_GLOBAL Observer {
     Subject *model;
   public:
     Observer() {

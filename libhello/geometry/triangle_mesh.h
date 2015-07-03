@@ -14,7 +14,7 @@
  */
 
 template<typename vertex_t, typename index_t>
-class TriangleMesh
+class SAIGA_GLOBAL TriangleMesh
 {
 public:
     struct Face{

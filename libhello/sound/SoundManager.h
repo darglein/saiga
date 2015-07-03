@@ -16,7 +16,7 @@ extern void initOpenAL();
 extern void quitOpenAL();
 
 
-class SoundManager
+class SAIGA_GLOBAL SoundManager
 {
 private:
     SoundSource quietSoundSource;

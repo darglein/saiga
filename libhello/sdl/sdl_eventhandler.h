@@ -1,11 +1,12 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <SDL2/SDL.h>
 #include <iostream>
 #include <vector>
 #include "libhello/sdl/listener.h"
 
-class SDL_EventHandler{
+class SAIGA_GLOBAL SDL_EventHandler{
 private:
     bool quit;
     std::vector<SDL_KeyListener*> keyListener;

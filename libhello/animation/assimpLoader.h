@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <libhello/geometry/triangle_mesh.h>
 
 #include <libhello/animation/animation.h>
@@ -29,7 +30,7 @@
 
 
 
-class AssimpLoader{
+class SAIGA_GLOBAL AssimpLoader{
 public:
     bool verbose = false;
 

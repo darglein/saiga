@@ -12,7 +12,7 @@ typedef glm::vec3 vec3_t;
 
 using std::string;
 
-class Camera : public Object3D{
+class SAIGA_GLOBAL Camera : public Object3D{
 public:
     std::string name;
 
@@ -114,7 +114,7 @@ private:
 
 //========================= PerspectiveCamera =========================
 
-class PerspectiveCamera : public Camera{
+class SAIGA_GLOBAL PerspectiveCamera : public Camera{
 public:
     double fovy,  aspect;
     float tang;
@@ -127,7 +127,7 @@ public:
 
 //========================= OrthographicCamera =========================
 
-class OrthographicCamera : public Camera{
+class SAIGA_GLOBAL OrthographicCamera : public Camera{
 public:
     float left,right,bottom,top;
     OrthographicCamera(const std::string &name):Camera(name){}

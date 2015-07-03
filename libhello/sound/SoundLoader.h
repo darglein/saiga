@@ -12,7 +12,7 @@ namespace sound {
 
 
 
-struct RIFF_Header {
+struct SAIGA_LOCAL RIFF_Header {
   char chunkID[4];
   int chunkSize;//size not including chunkSize or chunkID
   char format[4];
@@ -21,7 +21,7 @@ struct RIFF_Header {
 /*
  * Struct to hold fmt subchunk data for WAVE files.
  */
-struct WAVE_Format {
+struct SAIGA_LOCAL WAVE_Format {
   char subChunkID[4];
   int subChunkSize;
   short audioFormat;
@@ -35,13 +35,13 @@ struct WAVE_Format {
 /*
 * Struct to hold the data of the wave file
 */
-struct WAVE_Data {
+struct SAIGA_LOCAL WAVE_Data {
   char subChunkID[4]; //should contain the word data
   int subChunk2Size; //Stores the size of the data block
 };
 
 
-class SoundLoader{
+class SAIGA_GLOBAL SoundLoader{
 
 public:
 

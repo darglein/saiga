@@ -12,7 +12,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-class UniformBuffer : public Buffer{
+class SAIGA_GLOBAL UniformBuffer : public Buffer{
 public:
     int numUniforms; //one uniform buffer can contain multiple uniforms
 

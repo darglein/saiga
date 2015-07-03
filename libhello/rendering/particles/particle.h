@@ -4,7 +4,7 @@
 #include "libhello/opengl/vertexBuffer.h"
 
 
-class Particle
+class SAIGA_GLOBAL Particle
 {
 public:
     enum Orientation{

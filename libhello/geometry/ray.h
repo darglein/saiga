@@ -1,4 +1,6 @@
 #pragma once
+
+#include <libhello/config.h>
 #include "libhello/util/glm.h"
 #include "libhello/geometry/aabb.h"
 #include "libhello/geometry/sphere.h"
@@ -9,7 +11,7 @@ using glm::min;
 using glm::max;
 
 
-class Ray
+class SAIGA_GLOBAL Ray
 {
 public:
     vec3 direction;

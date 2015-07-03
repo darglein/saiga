@@ -1,11 +1,12 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <string>
 
 class Camera;
 class Deferred_Renderer;
 
-class Window{
+class SAIGA_GLOBAL Window{
 public:
     std::string name;
     int window_width;

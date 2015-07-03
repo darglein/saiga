@@ -16,7 +16,7 @@ using std::string;
  */
 
 
-class Shader{
+class SAIGA_GLOBAL Shader{
 public:
     /**
      * @brief The CodeInjection class

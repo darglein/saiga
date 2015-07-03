@@ -37,16 +37,12 @@ endif (USE_OPENAL)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-if(WIN32)
-add_library(${LIB_NAME} STATIC ${PROG_SRC})
-endif(WIN32)
 
-if(UNIX)
-add_library(${LIB_NAME} SHARED ${PROG_SRC})
-endif(UNIX)
-#SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -lGL -lGLU -lglfw3 -lX11 -lXxf86vm -lXrandr -lpthread -lXi" )
-
-
+if(BUILD_SHARED)
+	add_library(${LIB_NAME} SHARED ${PROG_SRC})
+else (BUILD_SHARED)
+	add_library(${LIB_NAME} STATIC ${PROG_SRC})
+endif(BUILD_SHARED)
 
 
 target_link_libraries(${LIB_NAME} ${LIBS})

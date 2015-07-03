@@ -1,17 +1,20 @@
 #pragma once
 
-struct GLFWwindow;
 
+#include <libhello/config.h>
 #include <vector>
 
-class glfw_KeyListener{
+
+struct GLFWwindow;
+
+class SAIGA_GLOBAL glfw_KeyListener{
 public:
     virtual ~glfw_KeyListener(){}
     virtual bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) = 0;
     virtual bool character_event(GLFWwindow* window, unsigned int codepoint) = 0;
 };
 
-class glfw_MouseListener{
+class SAIGA_GLOBAL glfw_MouseListener{
 public:
     virtual ~glfw_MouseListener(){}
     virtual bool cursor_position_event(GLFWwindow* window, double xpos, double ypos) = 0;
@@ -19,7 +22,7 @@ public:
     virtual bool scroll_event(GLFWwindow* window, double xoffset, double yoffset) = 0;
 };
 
-class glfw_EventHandler{
+class SAIGA_GLOBAL glfw_EventHandler{
 private:
 
     template<typename T>

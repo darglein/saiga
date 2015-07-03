@@ -1,8 +1,9 @@
 #pragma once
 
+#include <libhello/config.h>
 #include "libhello/util/glm.h"
 
-class Cone
+class SAIGA_GLOBAL Cone
 {
 public:
     glm::vec3 position;

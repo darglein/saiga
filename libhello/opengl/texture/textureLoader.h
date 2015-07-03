@@ -6,9 +6,16 @@
 #include "libhello/util/singleton.h"
 
 
-class TextureLoader : public Loader<Texture>, public Singleton <TextureLoader>{
+struct SAIGA_GLOBAL TextureParameters{
+    bool srgb = true;
+};
+
+SAIGA_GLOBAL bool operator==(const TextureParameters& lhs, const TextureParameters& rhs);
+
+
+class SAIGA_GLOBAL TextureLoader : public Loader<Texture,TextureParameters>, public Singleton <TextureLoader>{
     friend class Singleton <TextureLoader>;
 public:
-    Texture* loadFromFile(const std::string &name);
+    Texture* loadFromFile(const std::string &name, const TextureParameters &params);
 };
 

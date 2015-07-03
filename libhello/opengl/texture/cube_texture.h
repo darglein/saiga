@@ -14,7 +14,7 @@
  *
  * -> Swap Y before creating a cube texture from a image
  */
-class cube_Texture : public raw_Texture{
+class SAIGA_GLOBAL cube_Texture : public raw_Texture{
 
 public:
     cube_Texture():raw_Texture(GL_TEXTURE_CUBE_MAP){}

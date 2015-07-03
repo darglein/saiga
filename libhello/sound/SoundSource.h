@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <libhello/util/glm.h>
 #include <libhello/sound/Sound.h>
 
@@ -7,7 +8,7 @@ namespace sound {
 
 
 
-class SoundSource{
+class SAIGA_GLOBAL SoundSource{
 //    ALuint source;
     unsigned int source;
     Sound* sound = nullptr;

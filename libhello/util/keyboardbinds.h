@@ -2,7 +2,7 @@
 #include "libhello/glfw/glfw_eventhandler.h"
 #include "libhello/util/inputcontroller.h"
 
-class KeyboardBinds: public glfw_KeyListener
+class SAIGA_GLOBAL KeyboardBinds: public glfw_KeyListener
 {
 private:
     bool waitingForKey = false;

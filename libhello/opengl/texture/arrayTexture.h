@@ -4,7 +4,7 @@
 
 #include <vector>
 
-class ArrayTexture2D : public raw_Texture{
+class SAIGA_GLOBAL ArrayTexture2D : public raw_Texture{
 
 public:
     int depth;

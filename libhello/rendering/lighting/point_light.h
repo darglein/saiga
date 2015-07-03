@@ -3,7 +3,7 @@
 #include "libhello/rendering/lighting/light.h"
 #include "libhello/camera/camera.h"
 
-class PointLightShader : public LightShader{
+class SAIGA_GLOBAL PointLightShader : public LightShader{
 public:
     GLuint location_position, location_attenuation, location_shadowPlanes;
     PointLightShader(const std::string &multi_file) : LightShader(multi_file){}
@@ -15,7 +15,7 @@ public:
 
 
 
-class PointLight : public Light// public LightMesh<PointLight,PointLightShader>
+class SAIGA_GLOBAL PointLight : public Light// public LightMesh<PointLight,PointLightShader>
 {
 public:
     PerspectiveCamera cam;

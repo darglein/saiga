@@ -1,6 +1,7 @@
 #ifndef FPSCOUNTER_H
 #define FPSCOUNTER_H
 
+#include <libhello/config.h>
 #include <SDL2/SDL.h>
 //http://sdl.beuc.net/sdl.wiki/SDL_Average_FPS_Measurement
 
@@ -8,7 +9,7 @@
 
 typedef unsigned int uint;
 
-class FpsCounter
+class SAIGA_GLOBAL FpsCounter
 {
     uint frametimes[FRAME_VALUES];
     uint frametimelast;

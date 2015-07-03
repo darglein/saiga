@@ -8,7 +8,7 @@
 #include "libhello/geometry/triangle_mesh_generator.h"
 
 
-class TerrainMesh{
+class SAIGA_GLOBAL TerrainMesh{
 private:
     typedef TriangleMesh<Vertex,GLuint> mesh_t;
 public:

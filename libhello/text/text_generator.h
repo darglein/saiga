@@ -16,7 +16,7 @@ typedef struct FT_FaceRec_*  FT_Face;
 typedef struct FT_LibraryRec_  *FT_Library;
 
 
-class TextGenerator{
+class SAIGA_GLOBAL TextGenerator{
 private:
     static FT_Library ft;
     FT_Face face = nullptr;
@@ -50,8 +50,10 @@ public:
     std::string font;
     int font_size;
     int stroke_size;
+
     TextGenerator();
     ~TextGenerator();
+
     void loadFont(const std::string &font, int font_size, int stroke_size=0);
 
     void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const std::string &text, int startX=0, int startY=0);

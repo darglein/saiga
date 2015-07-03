@@ -1,11 +1,13 @@
 #pragma once
+
+#include <libhello/config.h>
 #include "libhello/util/glm.h"
 
 using glm::min;
 using glm::max;
 
 
-class Triangle
+class SAIGA_GLOBAL Triangle
 {
 public:
     vec3 a,b,c;

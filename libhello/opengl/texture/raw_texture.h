@@ -2,7 +2,7 @@
 
 #include "libhello/opengl/texture/image.h"
 
-class raw_Texture{
+class SAIGA_GLOBAL raw_Texture{
 
 protected:
     GLuint id = 0;

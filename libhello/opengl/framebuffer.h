@@ -9,7 +9,7 @@
 
 #include "libhello/opengl/texture/texture.h"
 
-class Framebuffer{
+class SAIGA_GLOBAL Framebuffer{
 public:
     GLuint id = 0;
 

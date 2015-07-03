@@ -1,12 +1,13 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <vector>
 
 
-class Console : public std::ostream {
+class SAIGA_GLOBAL Console : public std::ostream {
 private:
     class ConsoleBuffer : public std::stringbuf {
     private:

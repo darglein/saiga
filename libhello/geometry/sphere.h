@@ -1,9 +1,10 @@
 #pragma once
 
+#include <libhello/config.h>
 #include "libhello/util/glm.h"
 #include "libhello/geometry/aabb.h"
 
-class Sphere
+class SAIGA_GLOBAL Sphere
 {
 public:
     glm::vec3 pos;

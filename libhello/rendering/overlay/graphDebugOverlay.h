@@ -7,7 +7,7 @@
 
 class MVPColorShader;
 
-class GraphDebugOverlay: public Object3D {
+class SAIGA_GLOBAL GraphDebugOverlay: public Object3D {
 
     struct Graph{
         std::vector<float> data;

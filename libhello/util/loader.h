@@ -1,24 +1,25 @@
 #pragma once
 
+#include <libhello/config.h>
 #include <string>
 #include <iostream>
 
 #include <vector>
 #include <tuple>
 
-struct NoParams{
+struct SAIGA_GLOBAL NoParams{
 //    bool operator==(const NoParams& other){
 //        return true;
 //    }
 };
 
-inline bool operator==(const NoParams& lhs, const NoParams& rhs) {
+SAIGA_GLOBAL inline bool operator==(const NoParams& lhs, const NoParams& rhs) {
     return true;
 }
 
 
 template <typename object_t, typename param_t = NoParams>
-class Loader{
+class SAIGA_GLOBAL Loader{
 protected:
     std::vector<std::string> locations; //locations where to search
 
@@ -39,7 +40,7 @@ public:
 
 protected:
     virtual object_t* exists(const std::string &name, const param_t &params=param_t());
-    virtual object_t* loadFromFile(const std::string &name) = 0;
+    virtual object_t* loadFromFile(const std::string &name, const param_t &params) = 0;
 };
 
 template<typename object_t, typename param_t >
@@ -73,7 +74,7 @@ object_t* Loader<object_t,param_t>::load(const std::string &name, const param_t 
 
     for(std::string &path : locations){
         std::string complete_path = path + "/" + name;
-        object = loadFromFile(complete_path);
+        object = loadFromFile(complete_path,params);
         if (object){
             object->name = name;
             std::cout<<"Loaded from file: "<<complete_path<<std::endl;

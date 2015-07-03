@@ -9,7 +9,7 @@
 #include <FreeImagePlus.h>
 
 
-class Heightmap{
+class SAIGA_GLOBAL Heightmap{
 private:
     typedef TriangleMesh<Vertex,GLuint> mesh_t;
 public:

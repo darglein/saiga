@@ -7,7 +7,7 @@
 
 class Framebuffer;
 
-class MVPShader : public Shader{
+class SAIGA_GLOBAL MVPShader : public Shader{
 public:
     MVPShader(const std::string &multi_file) : Shader(multi_file){}
     int location_model, location_view, location_proj;
@@ -22,7 +22,7 @@ public:
     void uploadProj(const mat4& matrix){upload(location_proj,matrix);}
 };
 
-class MVPColorShader : public MVPShader{
+class SAIGA_GLOBAL MVPColorShader : public MVPShader{
 public:
     int location_color;
     MVPColorShader(const std::string &multi_file) : MVPShader(multi_file){}
@@ -30,7 +30,7 @@ public:
     virtual void uploadColor(const vec4 &color);
 };
 
-class MVPTextureShader : public MVPShader{
+class SAIGA_GLOBAL MVPTextureShader : public MVPShader{
 public:
     int location_texture;
     MVPTextureShader(const std::string &multi_file) : MVPShader(multi_file){}
@@ -39,7 +39,7 @@ public:
 };
 
 
-class FBShader : public MVPShader{
+class SAIGA_GLOBAL FBShader : public MVPShader{
 public:
     int location_texture;
     FBShader(const std::string &multi_file) : MVPShader(multi_file){}
@@ -47,7 +47,7 @@ public:
     virtual void uploadFramebuffer(Framebuffer* fb);
 };
 
-class DeferredShader : public FBShader{
+class SAIGA_GLOBAL DeferredShader : public FBShader{
 public:
     int location_screen_size;
     int location_texture_diffuse,location_texture_normal,location_texture_depth,location_texture_data;
@@ -59,7 +59,7 @@ public:
 
 
 
-class MaterialShader : public MVPShader{
+class SAIGA_GLOBAL MaterialShader : public MVPShader{
 public:
     int location_colors;
     int location_textures, location_use_textures;
@@ -72,7 +72,7 @@ public:
 
 };
 
-class TextShader : public MVPShader {
+class SAIGA_GLOBAL TextShader : public MVPShader {
 public:
     int location_color, location_texture,location_strokeColor;
     TextShader(const std::string &multi_file) : MVPShader(multi_file){}

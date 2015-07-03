@@ -9,7 +9,7 @@ class Plane;
 
 
 template<class T>
-class SimpleMeshObject : public MeshObject<T,VertexNT,GLuint,MVPColorShader>
+class SAIGA_GLOBAL SimpleMeshObject : public MeshObject<T,VertexNT,GLuint,MVPColorShader>
 {
     vec4 color;
 public:
@@ -27,7 +27,7 @@ void SimpleMeshObject<T>::bindUniforms(){
 }
 
 
-class SphereMeshObject :  public SimpleMeshObject<SphereMeshObject>
+class SAIGA_GLOBAL SphereMeshObject :  public SimpleMeshObject<SphereMeshObject>
 {
 public:
     static void createMesh();
@@ -36,7 +36,7 @@ public:
     SphereMeshObject(const Sphere &sphere, const vec4 &color);
 };
 
-class PlaneMeshObject :  public SimpleMeshObject<PlaneMeshObject>
+class SAIGA_GLOBAL PlaneMeshObject :  public SimpleMeshObject<PlaneMeshObject>
 {
 public:
     static void createMesh();
@@ -45,7 +45,7 @@ public:
     PlaneMeshObject(const Plane &plane, const vec4 &color);
 };
 
-class ConeMeshObject :  public SimpleMeshObject<ConeMeshObject>
+class SAIGA_GLOBAL ConeMeshObject :  public SimpleMeshObject<ConeMeshObject>
 {
 public:
     static void createMesh();

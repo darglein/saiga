@@ -14,7 +14,7 @@
 
 #include "glm/gtc/random.hpp"
 
-class Terrain{
+class SAIGA_GLOBAL Terrain{
 public:
     int layers;
 

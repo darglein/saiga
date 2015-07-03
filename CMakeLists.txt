@@ -47,9 +47,11 @@ option (USE_GLBINDING "Use GLBINDING" OFF)
 option (USE_OPENAL "Use OPENAL" OFF) 
 option (USE_ALUT "Use ALUT" OFF) 
 
+option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
+
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/libhello/config.h.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/libhello/config.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/libhello/buildconfig.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/libhello/buildconfig.h"
 )
 
 ############# Optional Libraries ###############
@@ -165,7 +167,7 @@ endif(UNIX)
 
 ############# COMPILER FLAGS ###############
 if(UNIX)
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden")
 endif(UNIX)
 
 ############# SOURCE ###############

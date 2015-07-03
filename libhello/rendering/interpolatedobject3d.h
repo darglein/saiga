@@ -3,7 +3,7 @@
 #include "libhello/util/glm.h"
 #include "libhello/rendering/object3d.h"
 
-class InterpolatedObject3D : public Object3D{
+class SAIGA_GLOBAL InterpolatedObject3D : public Object3D{
 public:
     mat4 interpolatedmodel;
 
