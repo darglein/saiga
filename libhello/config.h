@@ -41,7 +41,6 @@
 // SAIGA_LOCAL is used for non-api symbols.
 
 #ifdef BUILD_SHARED // defined if SAIGA is compiled as a DLL
-  #define SAIGA_DLL_EXPORTS //always export
   #ifdef SAIGA_DLL_EXPORTS // defined if we are building the SAIGA DLL (instead of using it)
     #define SAIGA_GLOBAL SAIGA_HELPER_DLL_EXPORT
   #else

@@ -1,3 +1,0 @@
-#include "opengl/indexBuffer.h"
-
-

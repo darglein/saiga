@@ -1,3 +1,0 @@
-#include "opengl/indexedVertexBuffer.h"
-
-

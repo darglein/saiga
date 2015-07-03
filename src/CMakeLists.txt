@@ -39,6 +39,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 
 if(BUILD_SHARED)
+	add_definitions(-DSAIGA_DLL_EXPORTS)
 	add_library(${LIB_NAME} SHARED ${PROG_SRC})
 else (BUILD_SHARED)
 	add_library(${LIB_NAME} STATIC ${PROG_SRC})
