@@ -17,7 +17,7 @@
 #define ICPARSEVEC4 vec3(args.next(std::stof),args.next(std::stof),args.next(std::stof),args.next(std::stof) )
 
 
-class SAIGA_GLOBAL InputController
+class InputController
 {
 public:
 
@@ -54,21 +54,21 @@ public:
         return instance;
     }
 
-    void add(const std::string& key, op_t op, int argc=0, const std::string &description="");
-    void add(const std::string& key,const Operation &value);
+	SAIGA_GLOBAL void add(const std::string& key, op_t op, int argc = 0, const std::string &description = "");
+	SAIGA_GLOBAL void add(const std::string& key, const Operation &value);
 
 
-    bool execute(const std::string& line);
-    bool execute(const std::string& key, Operation::Arguments &args);
-    void setOstream(std::ostream* stream){this->stream=stream;}
+	SAIGA_GLOBAL bool execute(const std::string& line);
+	SAIGA_GLOBAL bool execute(const std::string& key, Operation::Arguments &args);
+	SAIGA_GLOBAL void setOstream(std::ostream* stream){ this->stream = stream; }
 
-    void functionList(std::vector<std::string> &out);
+	SAIGA_GLOBAL void functionList(std::vector<std::string> &out);
 
 private:
     std::ostream* stream;
-    InputController();
-    InputController(InputController const&);
-    void operator=(InputController const&);
+	SAIGA_GLOBAL InputController();
+	SAIGA_GLOBAL InputController(InputController const&);
+	SAIGA_GLOBAL void operator=(InputController const&);
 
 
     std::map<std::string,Operation> functionMap;
@@ -76,15 +76,15 @@ private:
 
 //the unspecialized next() is undefined!
 template<>
-int InputController::Operation::Arguments::next();
+SAIGA_GLOBAL int InputController::Operation::Arguments::next<int>();
 template<>
-unsigned int InputController::Operation::Arguments::next();
+SAIGA_GLOBAL unsigned int InputController::Operation::Arguments::next<unsigned int>();
 template<>
-float InputController::Operation::Arguments::next();
+SAIGA_GLOBAL float InputController::Operation::Arguments::next<float>();
 template<>
-vec3 InputController::Operation::Arguments::next();
+SAIGA_GLOBAL vec3 InputController::Operation::Arguments::next<vec3>();
 template<>
-vec4 InputController::Operation::Arguments::next();
+SAIGA_GLOBAL vec4 InputController::Operation::Arguments::next<vec4>();
 
 template<typename T>
 T InputController::Operation::Arguments::next(T (*arg)(const std::string&,std::size_t*,int)){

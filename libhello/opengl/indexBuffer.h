@@ -9,7 +9,7 @@
 
 
 template<class index_t>
-class SAIGA_GLOBAL IndexBuffer : public Buffer{
+class IndexBuffer : public Buffer{
 public:
     int index_count;
 

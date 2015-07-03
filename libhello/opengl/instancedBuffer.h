@@ -8,7 +8,7 @@
 
 
 template<typename data_t>
-class SAIGA_GLOBAL InstancedBuffer : protected Buffer{
+class InstancedBuffer : protected Buffer{
 public:
     int elements;
 

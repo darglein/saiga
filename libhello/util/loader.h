@@ -19,7 +19,7 @@ SAIGA_GLOBAL inline bool operator==(const NoParams& lhs, const NoParams& rhs) {
 
 
 template <typename object_t, typename param_t = NoParams>
-class SAIGA_GLOBAL Loader{
+class Loader{
 protected:
     std::vector<std::string> locations; //locations where to search
 

@@ -9,7 +9,7 @@ class Plane;
 
 
 template<class T>
-class SAIGA_GLOBAL SimpleMeshObject : public MeshObject<T,VertexNT,GLuint,MVPColorShader>
+class SimpleMeshObject : public MeshObject<T,VertexNT,GLuint,MVPColorShader>
 {
     vec4 color;
 public:

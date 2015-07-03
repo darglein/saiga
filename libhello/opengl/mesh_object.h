@@ -10,7 +10,7 @@
 //using: Curiously recurring template pattern
 //http://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
 
-class SAIGA_GLOBAL MeshObjectParent:  public Object3D{
+class MeshObjectParent:  public Object3D{
 public:
     virtual void draw() = 0;
     virtual void drawNoShaderBind() = 0;
@@ -19,7 +19,7 @@ public:
 
 
 template<MO_TEMPLATE_TYPES>
-class SAIGA_GLOBAL MeshObject :  public MeshObjectParent{
+class MeshObject :  public MeshObjectParent{
 public:
     static IndexedVertexBuffer<vertex_t,index_t> buffer;
     static shader_t* shader;

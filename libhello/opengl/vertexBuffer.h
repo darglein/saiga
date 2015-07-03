@@ -19,7 +19,7 @@ using std::endl;
  */
 
 template<class vertex_t>
-class SAIGA_GLOBAL VertexBuffer : public Buffer{
+class VertexBuffer : public Buffer{
 protected:
     int vertex_count;
     GLenum draw_mode;
@@ -262,11 +262,11 @@ void VertexBuffer<vertex_t>::setVertexAttributes(){
 }
 
 template<>
-void VertexBuffer<Vertex>::setVertexAttributes();
+SAIGA_GLOBAL void VertexBuffer<Vertex>::setVertexAttributes();
 template<>
-void VertexBuffer<VertexN>::setVertexAttributes();
+SAIGA_GLOBAL void VertexBuffer<VertexN>::setVertexAttributes();
 template<>
-void VertexBuffer<VertexNT>::setVertexAttributes();
+SAIGA_GLOBAL void VertexBuffer<VertexNT>::setVertexAttributes();
 template<>
-void VertexBuffer<VertexNC>::setVertexAttributes();
+SAIGA_GLOBAL void VertexBuffer<VertexNC>::setVertexAttributes();
 

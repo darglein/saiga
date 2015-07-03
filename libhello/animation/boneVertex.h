@@ -87,7 +87,7 @@ struct SAIGA_GLOBAL BoneVertexNC{
 };
 
 template<>
-void VertexBuffer<BoneVertex>::setVertexAttributes();
+SAIGA_GLOBAL void VertexBuffer<BoneVertex>::setVertexAttributes();
 
 template<>
-void VertexBuffer<BoneVertexNC>::setVertexAttributes();
+SAIGA_GLOBAL void VertexBuffer<BoneVertexNC>::setVertexAttributes();

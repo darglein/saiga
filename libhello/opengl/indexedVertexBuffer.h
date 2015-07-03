@@ -7,7 +7,7 @@
 
 
 template<class vertex_t, class index_t>
-class SAIGA_GLOBAL IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<index_t>{
+class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<index_t>{
 public:
     typedef VertexBuffer<vertex_t> vbuffer_t;
     typedef IndexBuffer<index_t> ibuffer_t;

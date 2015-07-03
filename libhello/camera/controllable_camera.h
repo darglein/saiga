@@ -11,7 +11,7 @@ static int maxCamId = 0;
 
 
 template<typename camera_t>
-class SAIGA_GLOBAL Controllable_Camera : public glfw_KeyListener , public glfw_MouseListener{
+class Controllable_Camera : public glfw_KeyListener , public glfw_MouseListener{
 private:
     bool dragging = false;
     double lastmx=0,lastmy=0;
