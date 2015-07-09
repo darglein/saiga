@@ -9,7 +9,7 @@ set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${DEPENDENCIES_INCLUDE_DIR}/lib)
 LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/lib)
 LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/bin)
   
-set(LIB_NAME hello)
+set(LIB_NAME saiga)
 
 project (${LIB_NAME})
 set(CMAKE_BUILD_TYPE Release)
@@ -17,7 +17,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libhello)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 ######### Show all warnings
 
@@ -50,8 +50,8 @@ option (USE_ALUT "Use ALUT" OFF)
 option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/libhello/buildconfig.h.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/libhello/buildconfig.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
 )
 
 ############# Optional Libraries ###############
@@ -173,7 +173,7 @@ endif(UNIX)
 ############# SOURCE ###############
 
 add_subdirectory(src)
-add_subdirectory(libhello)
+add_subdirectory(saiga)
 
 
 

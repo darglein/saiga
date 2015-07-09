@@ -1,5 +1,5 @@
-#include "libhello/window/window.h"
-#include "libhello/util/error.h"
+#include "saiga/window/window.h"
+#include "saiga/util/error.h"
 #include <cstring>
 #include <FreeImagePlus.h>
 #include <vector>

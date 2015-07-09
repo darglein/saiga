@@ -1,5 +1,5 @@
-#include "libhello/opengl/simple_mesh_objects.h"
-#include "libhello/geometry/triangle_mesh_generator.h"
+#include "saiga/opengl/simple_mesh_objects.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
 
 void SphereMeshObject::createMesh(){
     Sphere s(vec3(0),1);

@@ -1,19 +1,19 @@
-#include "libhello/rendering/lighting/deferred_lighting.h"
-#include "util/inputcontroller.h"
+#include "saiga/rendering/lighting/deferred_lighting.h"
+#include "saiga/util/inputcontroller.h"
 
-#include "rendering/deferred_renderer.h"
-#include "libhello/util/error.h"
+#include "saiga/rendering/deferred_renderer.h"
+#include "saiga/util/error.h"
 
-#include "libhello/rendering/lighting/directional_light.h"
-#include "libhello/rendering/lighting/point_light.h"
-#include "libhello/rendering/lighting/spot_light.h"
-#include "libhello/rendering/lighting/box_light.h"
+#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/rendering/lighting/point_light.h"
+#include "saiga/rendering/lighting/spot_light.h"
+#include "saiga/rendering/lighting/box_light.h"
 
-#include "libhello/geometry/triangle_mesh_generator.h"
-#include "libhello/opengl/texture/cube_texture.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/opengl/texture/cube_texture.h"
 
-#include "libhello/opengl/shaderLoader.h"
-#include "libhello/rendering/renderer.h"
+#include "saiga/opengl/shaderLoader.h"
+#include "saiga/rendering/renderer.h"
 
 
 

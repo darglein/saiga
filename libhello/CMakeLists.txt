@@ -1,1 +1,0 @@
-install(DIRECTORY ./ DESTINATION include/lib${LIB_NAME} FILES_MATCHING PATTERN "*.h")

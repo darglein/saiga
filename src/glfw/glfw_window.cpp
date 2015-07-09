@@ -1,14 +1,14 @@
-#include "glfw/glfw_window.h"
+#include "saiga/glfw/glfw_window.h"
 
-#include <libhello/opengl/opengl.h>
-#include "libhello/glfw/glfw_eventhandler.h"
+#include <saiga/opengl/opengl.h>
+#include "saiga/glfw/glfw_eventhandler.h"
 #include <GLFW/glfw3.h>
 
-#include "rendering/deferred_renderer.h"
-#include "util/inputcontroller.h"
+#include "saiga/rendering/deferred_renderer.h"
+#include "saiga/util/inputcontroller.h"
 #include <chrono>
-#include "libhello/util/error.h"
-#include "libhello/rendering/renderer.h"
+#include "saiga/util/error.h"
+#include "saiga/rendering/renderer.h"
 
 //#define FORCEFRAMERATE 30
 //#ifdef FORCEFRAMERATE

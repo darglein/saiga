@@ -1,8 +1,8 @@
-#include "libhello/text/text_generator.h"
-#include "libhello/opengl/texture/texture.h"
-#include "libhello/geometry/triangle_mesh.h"
-#include "libhello/text/text.h"
-#include "libhello/text/dynamic_text.h"
+#include "saiga/text/text_generator.h"
+#include "saiga/opengl/texture/texture.h"
+#include "saiga/geometry/triangle_mesh.h"
+#include "saiga/text/text.h"
+#include "saiga/text/dynamic_text.h"
 
 #include <algorithm>
 #include <FreeImagePlus.h>

@@ -1,4 +1,4 @@
-#include "libhello/rendering/lighting/spot_light.h"
+#include "saiga/rendering/lighting/spot_light.h"
 
 
 void SpotLightShader::checkUniforms(){

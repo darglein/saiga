@@ -1,4 +1,4 @@
-#include "world/clipmap.h"
+#include "saiga/world/clipmap.h"
 
 IndexedVertexBuffer<Vertex,GLuint> Clipmap::mesh;
 IndexedVertexBuffer<Vertex,GLuint> Clipmap::center;

@@ -1,13 +1,13 @@
-#include "libhello/rendering/lighting/lighting_controller.h"
-#include "util/inputcontroller.h"
+#include "saiga/rendering/lighting/lighting_controller.h"
+#include "saiga/util/inputcontroller.h"
 
-#include <libhello/opengl/opengl.h>
+#include <saiga/opengl/opengl.h>
 #include <GLFW/glfw3.h>
 
-#include "libhello/rendering/lighting/directional_light.h"
-#include "libhello/rendering/lighting/point_light.h"
-#include "libhello/rendering/lighting/spot_light.h"
-#include "libhello/rendering/lighting/deferred_lighting.h"
+#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/rendering/lighting/point_light.h"
+#include "saiga/rendering/lighting/spot_light.h"
+#include "saiga/rendering/lighting/deferred_lighting.h"
 
 LightingController::LightingController(DeferredLighting& lighting):lighting(lighting){
     glfw_EventHandler::addKeyListener(this,5);

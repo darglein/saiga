@@ -1,6 +1,6 @@
-#include "glfw/glfw_eventhandler.h"
+#include "saiga/glfw/glfw_eventhandler.h"
 
-#include <libhello/opengl/opengl.h>
+#include <saiga/opengl/opengl.h>
 #include <GLFW/glfw3.h>
 
 #include <iostream>

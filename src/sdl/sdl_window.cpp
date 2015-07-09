@@ -1,6 +1,6 @@
 
-#include "libhello/sdl/sdl_window.h"
-#include "rendering/deferred_renderer.h"
+#include "saiga/sdl/sdl_window.h"
+#include "saiga/rendering/deferred_renderer.h"
 
 sdl_Window::sdl_Window(const std::string &name, int window_width, int window_height):Window(name,window_width,window_height, false)
 {

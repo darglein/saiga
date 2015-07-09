@@ -1,8 +1,8 @@
-#include "libhello/rendering/particles/particlesystem.h"
-#include "libhello/opengl/texture/arrayTexture.h"
-#include "libhello/rendering/particles/particle_shader.h"
-#include "libhello/camera/camera.h"
-#include "libhello/opengl/shaderLoader.h"
+#include "saiga/rendering/particles/particlesystem.h"
+#include "saiga/opengl/texture/arrayTexture.h"
+#include "saiga/rendering/particles/particle_shader.h"
+#include "saiga/camera/camera.h"
+#include "saiga/opengl/shaderLoader.h"
 float ParticleSystem::ticksPerSecond = 60.0f;
 float ParticleSystem::secondsPerTick = 1.0f/60.0f;
 

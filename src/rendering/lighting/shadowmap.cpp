@@ -1,6 +1,6 @@
-#include "libhello/rendering/lighting/shadowmap.h"
+#include "saiga/rendering/lighting/shadowmap.h"
 
-#include "libhello/opengl/texture/cube_texture.h"
+#include "saiga/opengl/texture/cube_texture.h"
 
 Shadowmap::Shadowmap()
 {

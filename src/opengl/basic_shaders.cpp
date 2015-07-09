@@ -1,5 +1,5 @@
-#include "libhello/opengl/basic_shaders.h"
-#include "libhello/opengl/framebuffer.h"
+#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/framebuffer.h"
 void MVPColorShader::checkUniforms(){
     MVPShader::checkUniforms();
     location_color = getUniformLocation("color");

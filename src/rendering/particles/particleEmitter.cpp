@@ -1,6 +1,6 @@
-#include "libhello/rendering/particles/particleEmitter.h"
+#include "saiga/rendering/particles/particleEmitter.h"
 
-#include "libhello/rendering/particles/particlesystem.h"
+#include "saiga/rendering/particles/particlesystem.h"
 
 
 

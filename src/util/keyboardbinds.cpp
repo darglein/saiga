@@ -1,6 +1,6 @@
-#include "libhello/util/keyboardbinds.h"
+#include "saiga/util/keyboardbinds.h"
 
-#include <libhello/opengl/opengl.h>
+#include <saiga/opengl/opengl.h>
 #include <GLFW/glfw3.h>
 
 KeyboardBinds::KeyboardBinds(){

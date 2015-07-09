@@ -1,6 +1,6 @@
-#include "world/heightmap.h"
+#include "saiga/world/heightmap.h"
 
-#include "config.h"
+#include "saiga/config.h"
 
 #ifdef USE_NOISE
 #include <libnoise/noise.h>

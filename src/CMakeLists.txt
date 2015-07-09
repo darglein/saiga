@@ -12,7 +12,7 @@ FILE(GLOB_RECURSE window_SRC  window/*.cpp)
 FILE(GLOB_RECURSE world_SRC  world/*.cpp)
 FILE(GLOB main_SRC  *.cpp)
 
-FILE(GLOB_RECURSE PROG_HEADER  ../libhello/*.h)
+FILE(GLOB_RECURSE PROG_HEADER  ../${LIB_NAME}/*.h)
 
 SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} 
 ${rendering_SRC} ${text_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC} ${main_SRC} ${PROG_HEADER})

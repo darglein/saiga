@@ -1,16 +1,16 @@
-#include "libhello/framework.h"
-#include "libhello/rendering/deferred_renderer.h"
-#include "libhello/window/window.h"
+#include "saiga/framework.h"
+#include "saiga/rendering/deferred_renderer.h"
+#include "saiga/window/window.h"
 
-#include "libhello/opengl/shaderLoader.h"
-#include "libhello/opengl/objloader.h"
-#include "libhello/opengl/texture/textureLoader.h"
+#include "saiga/opengl/shaderLoader.h"
+#include "saiga/opengl/objloader.h"
+#include "saiga/opengl/texture/textureLoader.h"
 
 
-#include "libhello/rendering/lighting/directional_light.h"
-#include "libhello/rendering/lighting/point_light.h"
-#include "libhello/rendering/lighting/spot_light.h"
-#include "libhello/rendering/lighting/box_light.h"
+#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/rendering/lighting/point_light.h"
+#include "saiga/rendering/lighting/spot_light.h"
+#include "saiga/rendering/lighting/box_light.h"
 
 void initFramework(Window *window)
 {

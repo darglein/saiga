@@ -1,7 +1,7 @@
-#include "libhello/sound/SoundManager.h"
+#include "saiga/sound/SoundManager.h"
 
-#include "libhello/sound/SoundLoader.h"
-#include "libhello/sound/SoundSource.h"
+#include "saiga/sound/SoundLoader.h"
+#include "saiga/sound/SoundSource.h"
 #include <iostream>
 
 #include <AL/al.h>

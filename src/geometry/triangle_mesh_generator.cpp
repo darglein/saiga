@@ -1,4 +1,4 @@
-#include "libhello/geometry/triangle_mesh_generator.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
 
 typedef TriangleMesh<VertexNT,GLuint> default_mesh_t;
 

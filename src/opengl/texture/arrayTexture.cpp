@@ -1,5 +1,5 @@
-#include "libhello/opengl/texture/arrayTexture.h"
-#include "libhello/util/error.h"
+#include "saiga/opengl/texture/arrayTexture.h"
+#include "saiga/util/error.h"
 
 
 void ArrayTexture2D::uploadData(GLenum target, GLubyte *data ){

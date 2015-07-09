@@ -1,4 +1,4 @@
-#include "libhello/opengl/texture/image.h"
+#include "saiga/opengl/texture/image.h"
 #include <cstring>
 #include <iostream>
 #include <FreeImagePlus.h>

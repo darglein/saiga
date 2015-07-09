@@ -1,4 +1,4 @@
-#include "libhello/animation/boneVertex.h"
+#include "saiga/animation/boneVertex.h"
 
 template<>
 void VertexBuffer<BoneVertex>::setVertexAttributes(){

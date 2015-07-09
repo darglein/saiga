@@ -1,5 +1,5 @@
-#include "libhello/rendering/material.h"
-#include "libhello/opengl/texture/textureLoader.h"
+#include "saiga/rendering/material.h"
+#include "saiga/opengl/texture/textureLoader.h"
 using std::string;
 
 std::ostream& operator<< (std::ostream& stream, const Material& material){

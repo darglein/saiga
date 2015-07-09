@@ -1,5 +1,5 @@
-#include "world/skybox.h"
-#include "geometry/triangle_mesh_generator.h"
+#include "saiga/world/skybox.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
 
 
 

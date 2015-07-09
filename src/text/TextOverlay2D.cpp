@@ -1,6 +1,6 @@
-#include "libhello/text/TextOverlay2D.h"
-#include "libhello/opengl/basic_shaders.h"
-#include "libhello/text/text.h"
+#include "saiga/text/TextOverlay2D.h"
+#include "saiga/opengl/basic_shaders.h"
+#include "saiga/text/text.h"
 
 TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height){
     proj = glm::ortho(0.0f,(float)width,0.0f,(float)height,1.0f,-1.0f);

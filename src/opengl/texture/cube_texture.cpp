@@ -1,6 +1,6 @@
 
-#include "libhello/opengl/texture/cube_texture.h"
-#include "libhello/util/error.h"
+#include "saiga/opengl/texture/cube_texture.h"
+#include "saiga/util/error.h"
 void cube_Texture::uploadData(GLenum target, GLubyte *data ){
     bind(0);
     glTexImage2D(target,
