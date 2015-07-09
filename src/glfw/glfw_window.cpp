@@ -8,6 +8,7 @@
 #include "util/inputcontroller.h"
 #include <chrono>
 #include "libhello/util/error.h"
+#include "libhello/rendering/renderer.h"
 
 //#define FORCEFRAMERATE 30
 //#ifdef FORCEFRAMERATE

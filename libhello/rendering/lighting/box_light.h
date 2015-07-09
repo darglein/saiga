@@ -2,7 +2,6 @@
 
 
 #include "libhello/rendering/lighting/directional_light.h"
-#include "libhello/camera/camera.h"
 
 class SAIGA_GLOBAL BoxLightShader : public DirectionalLightShader{
 public:

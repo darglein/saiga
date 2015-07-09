@@ -1,9 +1,10 @@
 #pragma once
 
 #include <algorithm>
+#include <vector>
 //#include "libhello/rendering/particles/particle.h"
-#include "libhello/geometry/raytracer.h"
 #include "libhello/geometry/aabb.h"
+#include "libhello/geometry/triangle.h"
 
 class SAIGA_GLOBAL Particleconverter
 {

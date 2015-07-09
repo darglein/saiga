@@ -1,4 +1,4 @@
-#include "text/TextOverlay3D.h"
+#include "libhello/text/TextOverlay3D.h"
 #include "libhello/opengl/basic_shaders.h"
 #include "libhello/text/text.h"
 #include "libhello/camera/camera.h"

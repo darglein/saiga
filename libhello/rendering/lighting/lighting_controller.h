@@ -1,9 +1,10 @@
 #pragma once
-#include "libhello/rendering/lighting/deferred_lighting.h"
+
 #include "libhello/glfw/glfw_eventhandler.h"
 #include "libhello/geometry/ray.h"
 #include "libhello/util/observer.h"
 
+class DeferredLighting;
 class Light;
 
 class SAIGA_GLOBAL LightingController : public Subject , public glfw_KeyListener , public glfw_MouseListener{

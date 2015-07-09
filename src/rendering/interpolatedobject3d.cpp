@@ -1,4 +1,4 @@
-#include "rendering/interpolatedobject3d.h"
+#include "libhello/rendering/interpolatedobject3d.h"
 
 
 

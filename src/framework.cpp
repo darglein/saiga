@@ -1,9 +1,9 @@
-#include "framework.h"
-#include "rendering/deferred_renderer.h"
-#include "window/window.h"
+#include "libhello/framework.h"
+#include "libhello/rendering/deferred_renderer.h"
+#include "libhello/window/window.h"
 
-#include "opengl/shaderLoader.h"
-#include "opengl/objloader.h"
+#include "libhello/opengl/shaderLoader.h"
+#include "libhello/opengl/objloader.h"
 #include "libhello/opengl/texture/textureLoader.h"
 
 

@@ -1,4 +1,4 @@
-#include "camera/camera.h"
+#include "libhello/camera/camera.h"
 
 #define ANG2RAD 3.14159265358979323846/180.0
 

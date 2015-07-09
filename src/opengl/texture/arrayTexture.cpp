@@ -1,4 +1,4 @@
-#include "opengl/texture/arrayTexture.h"
+#include "libhello/opengl/texture/arrayTexture.h"
 #include "libhello/util/error.h"
 
 

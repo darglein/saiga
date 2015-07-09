@@ -1,4 +1,4 @@
-#include "text/dynamic_text.h"
+#include "libhello/text/dynamic_text.h"
 
 DynamicText::DynamicText(int size):size(size){
 

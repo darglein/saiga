@@ -1,5 +1,5 @@
 
-#include "opengl/texture/textureLoader.h"
+#include "libhello/opengl/texture/textureLoader.h"
 #include <FreeImagePlus.h>
 
 bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {

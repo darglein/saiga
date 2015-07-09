@@ -1,9 +1,8 @@
 #pragma once
 
-#include "libhello/rendering/renderer.h"
-#include "libhello/rendering/lighting/deferred_lighting.h"
+#include "libhello/opengl/basic_shaders.h"
 #include "libhello/opengl/framebuffer.h"
-//#include "libhello/opengl/mesh.h"
+#include "libhello/opengl/indexedVertexBuffer.h"
 
 
 class SAIGA_GLOBAL PostProcessingShader : public Shader{

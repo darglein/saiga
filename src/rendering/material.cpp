@@ -1,4 +1,4 @@
-#include "rendering/material.h"
+#include "libhello/rendering/material.h"
 #include "libhello/opengl/texture/textureLoader.h"
 using std::string;
 

@@ -1,20 +1,23 @@
 #pragma once
 
-#include "libhello/rendering/renderer.h"
+#include "libhello/camera/camera.h"
 #include "libhello/opengl/framebuffer.h"
-#include "libhello/opengl/mesh.h"
+#include "libhello/opengl/indexedVertexBuffer.h"
+#include "libhello/opengl/basic_shaders.h"
 
-class SpotLight;
-class PointLight;
-class DirectionalLight;
-class BoxLight;
 class PointLightShader;
 class SpotLightShader;
 class DirectionalLightShader;
 class BoxLightShader;
 class LightAccumulationShader;
 
-class Deferred_Renderer;
+class SpotLight;
+class PointLight;
+class DirectionalLight;
+class BoxLight;
+
+class RendererInterface;
+
 
 class SAIGA_GLOBAL DeferredLighting{
     friend class LightingController;

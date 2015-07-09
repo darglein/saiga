@@ -1,5 +1,6 @@
-#include "rendering/particles/particleEmitter.h"
+#include "libhello/rendering/particles/particleEmitter.h"
 
+#include "libhello/rendering/particles/particlesystem.h"
 
 
 

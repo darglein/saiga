@@ -1,4 +1,4 @@
-#include "animation/assimpLoader.h"
+#include "libhello/animation/assimpLoader.h"
 
 AssimpLoader::AssimpLoader(const std::string &file)
 {

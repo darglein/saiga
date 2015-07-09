@@ -1,4 +1,4 @@
-#include "text/text.h"
+#include "libhello/text/text.h"
 #include "libhello/opengl/basic_shaders.h"
 Text::Text(const std::string &label):label(label){
 

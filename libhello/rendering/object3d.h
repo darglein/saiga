@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libhello/config.h"
+
 #include "libhello/util/glm.h"
 
 
@@ -39,6 +40,8 @@ public:
     vec3 getScale() const;
     void setScale(const glm::vec3& s);
 
+    //todo: remove virtual methodes
+    virtual ~Object3D(){}
     virtual void setPosition(const glm::vec3& cords);
     virtual void turn(float angleX, float angleY);
 

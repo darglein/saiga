@@ -1,6 +1,6 @@
-#include "rendering/overlay/console.h"
+#include "libhello/rendering/overlay/console.h"
 
-#include "util/inputcontroller.h"
+#include "libhello/util/inputcontroller.h"
 
 Console::ConsoleBuffer::ConsoleBuffer(Console& parent):parent(parent){
 }

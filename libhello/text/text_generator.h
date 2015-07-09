@@ -1,12 +1,25 @@
 #pragma once
-#include "libhello/opengl/vertexBuffer.h"
-#include "libhello/geometry/triangle_mesh.h"
-//#include "libhello/opengl/mesh.h"
-#include "libhello/text/text.h"
-#include "libhello/text/dynamic_text.h"
 
+//#include "libhello/geometry/triangle_mesh.h"
+//#include "libhello/text/text.h"
+//#include "libhello/text/dynamic_text.h"
+
+#include "libhello/config.h"
+#include "libhello/util/glm.h"
+#include "libhello/geometry/aabb.h"
+#include "libhello/opengl/vertex.h"
+#include "libhello/opengl/opengl.h"
 
 #include <iostream>
+
+
+class Text;
+class DynamicText;
+
+template<typename vertex_t, typename index_t>
+class TriangleMesh;
+
+class basic_Texture_2D;
 
 //forward declarations to avoid including the ft header
 //with that the ft library only has to be linked to the framework

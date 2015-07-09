@@ -1,5 +1,5 @@
 
-#include "opengl/texture/raw_texture.h"
+#include "libhello/opengl/texture/raw_texture.h"
 #include "libhello/util/error.h"
 
 

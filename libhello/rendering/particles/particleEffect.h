@@ -1,8 +1,9 @@
 #pragma once
 
 #include "libhello/rendering/object3d.h"
-#include "libhello/rendering/particles/particlesystem.h"
 
+
+class ParticleSystem;
 
 
 class SAIGA_GLOBAL ParticleEffect : public Object3D{

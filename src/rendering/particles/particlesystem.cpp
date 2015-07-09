@@ -1,4 +1,4 @@
-#include "rendering/particles/particlesystem.h"
+#include "libhello/rendering/particles/particlesystem.h"
 #include "libhello/opengl/texture/arrayTexture.h"
 #include "libhello/rendering/particles/particle_shader.h"
 #include "libhello/camera/camera.h"

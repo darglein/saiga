@@ -1,4 +1,4 @@
-#include "window/window.h"
+#include "libhello/window/window.h"
 #include "libhello/util/error.h"
 #include <cstring>
 #include <FreeImagePlus.h>

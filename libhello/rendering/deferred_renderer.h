@@ -1,10 +1,11 @@
 #pragma once
 
 #include "libhello/rendering/postProcessor.h"
-#include "libhello/rendering/renderer.h"
 #include "libhello/rendering/lighting/deferred_lighting.h"
 #include "libhello/opengl/framebuffer.h"
 
+
+class RendererInterface;
 
 
 class SAIGA_GLOBAL SSAOShader : public DeferredShader{

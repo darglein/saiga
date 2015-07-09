@@ -1,4 +1,4 @@
-#include "opengl/shaderLoader.h"
+#include "libhello/opengl/shaderLoader.h"
 
 
 Shader* ShaderLoader::loadFromFile(const std::string &name, const Shader::ShaderCodeInjections &params){

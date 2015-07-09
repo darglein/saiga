@@ -1,4 +1,4 @@
-#include "rendering/object3d.h"
+#include "libhello/rendering/object3d.h"
 
 
 void Object3D::setSimpleDirection(const glm::vec3 &dir){

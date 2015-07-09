@@ -1,4 +1,4 @@
-#include "rendering/lighting/directional_light.h"
+#include "libhello/rendering/lighting/directional_light.h"
 
 
 void DirectionalLightShader::checkUniforms(){

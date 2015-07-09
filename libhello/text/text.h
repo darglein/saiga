@@ -1,7 +1,6 @@
 #pragma once
 
 #include "libhello/rendering/object3d.h"
-#include "libhello/opengl/vertexBuffer.h"
 #include "libhello/geometry/triangle_mesh.h"
 
 #include <iostream>

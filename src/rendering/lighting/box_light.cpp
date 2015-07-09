@@ -1,4 +1,4 @@
-#include "rendering/lighting/box_light.h"
+#include "libhello/rendering/lighting/box_light.h"
 
 
 void BoxLightShader::checkUniforms(){

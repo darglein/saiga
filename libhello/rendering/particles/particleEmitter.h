@@ -1,7 +1,6 @@
 #pragma once
 
 #include "libhello/rendering/particles/particleEffect.h"
-#include "libhello/rendering/object3d.h"
 
 class SAIGA_GLOBAL ParticleEmitter : public ParticleEffect{
 

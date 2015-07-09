@@ -1,4 +1,4 @@
-#include "animation/boneShader.h"
+#include "libhello/animation/boneShader.h"
 
 void BoneShader::checkUniforms(){
     MVPShader::checkUniforms();

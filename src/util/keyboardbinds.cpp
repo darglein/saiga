@@ -1,4 +1,4 @@
-#include "util/keyboardbinds.h"
+#include "libhello/util/keyboardbinds.h"
 
 #include <libhello/opengl/opengl.h>
 #include <GLFW/glfw3.h>

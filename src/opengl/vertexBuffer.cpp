@@ -1,4 +1,4 @@
-#include "opengl/vertexBuffer.h"
+#include "libhello/opengl/vertexBuffer.h"
 
 
 template<>

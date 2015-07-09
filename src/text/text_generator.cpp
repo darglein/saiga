@@ -1,5 +1,9 @@
-#include "text/text_generator.h"
+#include "libhello/text/text_generator.h"
 #include "libhello/opengl/texture/texture.h"
+#include "libhello/geometry/triangle_mesh.h"
+#include "libhello/text/text.h"
+#include "libhello/text/dynamic_text.h"
+
 #include <algorithm>
 #include <FreeImagePlus.h>
 #include <ft2build.h>
@@ -17,7 +21,7 @@ TextGenerator::TextGenerator(){
     if(ft==nullptr){
         //        ft = FT_Library> (new FT_Library());
         if(FT_Init_FreeType(&ft)) {
-            cerr<< "Could not init freetype library"<<endl;
+            std::cerr<< "Could not init freetype library"<<std::endl;
             exit(1);
         }
     }
@@ -37,7 +41,7 @@ void TextGenerator::loadFont(const std::string &font, int font_size, int stroke_
 
     //    face = std::make_shared<FT_Face>();
     if(FT_New_Face(ft, font.c_str(), 0, &face)) {
-        cerr<<"Could not open font "<<font<<endl;
+        std::cerr<<"Could not open font "<<font<<std::endl;
         //        assert(0);
         return;
     }

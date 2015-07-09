@@ -1,7 +1,8 @@
-#include "rendering/deferred_renderer.h"
+#include "libhello/rendering/deferred_renderer.h"
 #include "libhello/util/error.h"
 #include "libhello/geometry/triangle_mesh_generator.h"
 #include "libhello/camera/camera.h"
+#include "libhello/rendering/renderer.h"
 
 
 void SSAOShader::checkUniforms(){

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "libhello/util/glm.h"
 #include "libhello/rendering/object3d.h"
 
 class SAIGA_GLOBAL InterpolatedObject3D : public Object3D{

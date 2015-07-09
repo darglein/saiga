@@ -17,10 +17,7 @@ public:
 
     Deferred_Renderer* renderer;
     Camera* currentCamera = nullptr;
-//    ObjLoader objLoader;
-//    TextureLoader textureLoader;
-//    MaterialLoader materialLoader;
-//    ShaderLoader shaderLoader;
+
 
     virtual bool initWindow() = 0;
     virtual bool initInput() = 0;

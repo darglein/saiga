@@ -1,4 +1,4 @@
-#include "rendering/postProcessor.h"
+#include "libhello/rendering/postProcessor.h"
 #include "libhello/geometry/triangle_mesh_generator.h"
 void PostProcessingShader::checkUniforms(){
     Shader::checkUniforms();

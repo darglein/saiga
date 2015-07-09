@@ -1,4 +1,6 @@
-#include "rendering/particles/particleconverter.h"
+#include "libhello/rendering/particles/particleconverter.h"
+
+#include "libhello/geometry/raytracer.h"
 
 void Particleconverter::convert(std::vector<Triangle> &triangles, std::vector<vec3> &points){
     aabb box = getBoundingBox(triangles);

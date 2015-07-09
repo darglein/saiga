@@ -1,4 +1,4 @@
-#include "rendering/overlay/graphDebugOverlay.h"
+#include "libhello/rendering/overlay/graphDebugOverlay.h"
 #include "libhello/opengl/basic_shaders.h"
 #include "libhello/geometry/triangle_mesh.h"
 #include "libhello/opengl/framebuffer.h"

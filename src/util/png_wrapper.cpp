@@ -1,4 +1,4 @@
-#include "util/png_wrapper.h"
+#include "libhello/util/png_wrapper.h"
 
 #ifdef USE_PNG
 

@@ -1,4 +1,4 @@
-#include "geometry/raytracer.h"
+#include "libhello/geometry/raytracer.h"
 
 Raytracer::Result Raytracer::trace(Ray &r){
     Result res;

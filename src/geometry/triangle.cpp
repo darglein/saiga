@@ -1,4 +1,4 @@
-#include "geometry/triangle.h"
+#include "libhello/geometry/triangle.h"
 
 void Triangle::stretch(){
     vec3 c = center();

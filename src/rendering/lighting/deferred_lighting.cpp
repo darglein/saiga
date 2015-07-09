@@ -1,4 +1,4 @@
-#include "rendering/lighting/deferred_lighting.h"
+#include "libhello/rendering/lighting/deferred_lighting.h"
 #include "util/inputcontroller.h"
 
 #include "rendering/deferred_renderer.h"
@@ -13,6 +13,7 @@
 #include "libhello/opengl/texture/cube_texture.h"
 
 #include "libhello/opengl/shaderLoader.h"
+#include "libhello/rendering/renderer.h"
 
 
 

@@ -1,4 +1,4 @@
-#include "opengl/uniformBuffer.h"
+#include "libhello/opengl/uniformBuffer.h"
 
 
 UniformBuffer::UniformBuffer() : Buffer(GL_UNIFORM_BUFFER)

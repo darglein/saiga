@@ -1,4 +1,4 @@
-#include "opengl/basic_shaders.h"
+#include "libhello/opengl/basic_shaders.h"
 #include "libhello/opengl/framebuffer.h"
 void MVPColorShader::checkUniforms(){
     MVPShader::checkUniforms();

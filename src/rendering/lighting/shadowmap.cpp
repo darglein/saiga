@@ -1,4 +1,4 @@
-#include "rendering/lighting/shadowmap.h"
+#include "libhello/rendering/lighting/shadowmap.h"
 
 #include "libhello/opengl/texture/cube_texture.h"
 

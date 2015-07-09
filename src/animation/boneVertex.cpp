@@ -1,4 +1,4 @@
-#include "animation/boneVertex.h"
+#include "libhello/animation/boneVertex.h"
 
 template<>
 void VertexBuffer<BoneVertex>::setVertexAttributes(){

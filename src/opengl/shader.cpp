@@ -1,4 +1,4 @@
-#include "opengl/shader.h"
+#include "libhello/opengl/shader.h"
 
 #include <fstream>
 #include <algorithm>
