@@ -166,14 +166,46 @@ endif(UNIX)
 
 
 ############# COMPILER FLAGS ###############
+
+
 if(UNIX)
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden")
 endif(UNIX)
+
+
+############# INSTALL PATHS ###############
+
+#This part is partly copied from the CMakeLists.txt of glbinding.
+#If a relative path is given it is interpreted relative to the value of the CMAKE_INSTALL_PREFIX variable.
+if(UNIX)
+
+    # default CMAKE_INSTALL_PREFIX = /usr/local/
+    set(INSTALL_ROOT      "share/${LIB_NAME}")
+    set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
+    set(INSTALL_BIN       "bin")
+    set(INSTALL_SHARED    "lib")
+    set(INSTALL_LIB       "lib")
+    set(INSTALL_INCLUDE   "include/${LIB_NAME}")
+    set(INSTALL_DOC       "share/doc/${LIB_NAME}")
+
+elseif(WIN32) 
+
+    # default CMAKE_INSTALL_PREFIX = "%PROGRAMFILES%/<project>/"
+    set(INSTALL_ROOT      ".")
+    set(INSTALL_SHADER    "shader")
+    set(INSTALL_BIN       "bin")
+    set(INSTALL_SHARED    ".")
+    set(INSTALL_LIB       "lib")
+    set(INSTALL_INCLUDE   "include/${LIB_NAME}")
+    set(INSTALL_DOC       "doc")
+
+endif()
 
 ############# SOURCE ###############
 
 add_subdirectory(src)
 add_subdirectory(saiga)
+add_subdirectory(shader)
 
 
 

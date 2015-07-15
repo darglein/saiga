@@ -48,4 +48,20 @@ endif(BUILD_SHARED)
 
 target_link_libraries(${LIB_NAME} ${LIBS})
 
-install(TARGETS ${LIB_NAME} DESTINATION lib)
+
+
+
+if(BUILD_SHARED)
+    install(
+	TARGETS ${LIB_NAME} 
+        RUNTIME DESTINATION ${INSTALL_BIN}
+        LIBRARY DESTINATION ${INSTALL_SHARED}
+	)
+else()
+    install(
+	TARGETS ${LIB_NAME} 
+        ARCHIVE DESTINATION ${INSTALL_LIB}
+	)
+endif()
+
+

@@ -12,22 +12,44 @@
 #include "saiga/rendering/lighting/spot_light.h"
 #include "saiga/rendering/lighting/box_light.h"
 
+#include "saiga/util/configloader.h"
+
+
+std::string SHADER_PATH;
+std::string TEXTURE_PATH;
+std::string MATERIAL_PATH;
+std::string OBJ_PATH;
+
+void readConfigFile(){
+    ConfigLoader cl;
+    cl.loadFile("saiga-config.txt");
+
+    SHADER_PATH = cl.getString("SHADER_PATH","/usr/local/share/saiga/shader");
+    TEXTURE_PATH = cl.getString("TEXTURE_PATH","textures");
+    MATERIAL_PATH = cl.getString("MATERIAL_PATH","objs");
+    OBJ_PATH = cl.getString("OBJ_PATH","objs");
+
+}
+
+
 void initFramework(Window *window)
 {
-    ShaderLoader::instance()->addPath("shader");
-    ShaderLoader::instance()->addPath("shader/geometry");
-    ShaderLoader::instance()->addPath("shader/lighting");
-    ShaderLoader::instance()->addPath("shader/post_processing");
+    readConfigFile();
 
-    TextureLoader::instance()->addPath("./objs");
-    TextureLoader::instance()->addPath("./textures");
+    ShaderLoader::instance()->addPath(SHADER_PATH);
+    ShaderLoader::instance()->addPath(SHADER_PATH+"/geometry");
+    ShaderLoader::instance()->addPath(SHADER_PATH+"/lighting");
+    ShaderLoader::instance()->addPath(SHADER_PATH+"/post_processing");
+
+    TextureLoader::instance()->addPath(TEXTURE_PATH);
+    TextureLoader::instance()->addPath(OBJ_PATH);
     TextureLoader::instance()->addPath(".");
 
     MaterialLoader::instance()->addPath(".");
-    MaterialLoader::instance()->addPath("./objs");
+    MaterialLoader::instance()->addPath(OBJ_PATH);
 
     ObjLoader::instance()->addPath(".");
-    ObjLoader::instance()->addPath("./objs");
+    ObjLoader::instance()->addPath(OBJ_PATH);
 
 
     DeferredShader* def = ShaderLoader::instance()->load<DeferredShader>("deferred_mixer.glsl");
