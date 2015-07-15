@@ -58,7 +58,6 @@ void TextGenerator::createTextureAtlas(){
 
     if(stroke_size>0){
         // Set up a stroker.
-
         FT_Stroker_New(ft, &stroker);
         FT_Stroker_Set(stroker,
                        stroke_size,
@@ -77,11 +76,12 @@ void TextGenerator::createTextureAtlas(){
 
 
     const int count = 128-32;
-    FT_Glyph glyphs[count];
-    FT_Glyph glyph_strokes[count];
+    FT_Glyph glyphs[count], glyphs_bitmaps[count];
+    FT_Glyph glyph_strokes[count], glyph_strokes_bitmaps[count];
 
     FT_GlyphSlot slot = (face)->glyph;
     for(int i = 32; i < 128; i++) {
+        int id = i-32;
         FT_UInt  glyph_index;
 
         /* retrieve glyph index from character code */
@@ -92,18 +92,20 @@ void TextGenerator::createTextureAtlas(){
         if ( error )
             continue;  /* ignore errors */
 
-        //copy glyph
-        error = FT_Get_Glyph( slot, &glyphs[i-32] );
+        error = FT_Get_Glyph( slot, &glyphs[id]);
         /* render the glyph to a bitmap, don't destroy original */
-        error = FT_Glyph_To_Bitmap( &glyphs[i-32], FT_RENDER_MODE_NORMAL, NULL, 0 );
+        glyphs_bitmaps[id] = glyphs[id];
+        error = FT_Glyph_To_Bitmap( &glyphs_bitmaps[id], FT_RENDER_MODE_NORMAL, NULL, 0 );
 
-        FT_Glyph glyph = glyphs[i-32];
+        FT_Glyph glyph = glyphs_bitmaps[id];
 
         if(stroke_size>0){
-            error = FT_Get_Glyph( slot, &glyph_strokes[i-32] );
-            error = FT_Glyph_Stroke( &glyph_strokes[i-32], stroker, 1 );
-            error = FT_Glyph_To_Bitmap( &glyph_strokes[i-32], FT_RENDER_MODE_NORMAL, NULL, 0 );
-            glyph = glyph_strokes[i-32];
+            error = FT_Get_Glyph( slot, &glyph_strokes[id] );
+            error = FT_Glyph_Stroke( &glyph_strokes[id], stroker, 1 );
+
+            glyph_strokes_bitmaps[id] = glyph_strokes[id];
+            error = FT_Glyph_To_Bitmap( &glyph_strokes_bitmaps[id], FT_RENDER_MODE_NORMAL, NULL, 0 );
+            glyph = glyph_strokes_bitmaps[id];
         }
 
 
@@ -137,9 +139,7 @@ void TextGenerator::createTextureAtlas(){
 
     }
 
-    if(stroke_size>0){
-    FT_Stroker_Done(stroker);
-    }
+
 
 
     int charsPerRow = glm::ceil(glm::sqrt((float)chars));
@@ -190,15 +190,10 @@ void TextGenerator::createTextureAtlas(){
 
 
 
-
-
     for(int i = 32; i < 128; i++) {
 
-        FT_BitmapGlyph bitmap = (FT_BitmapGlyph)glyphs[i-32];
+        FT_BitmapGlyph bitmap = (FT_BitmapGlyph)glyphs_bitmaps[i-32];
         FT_Bitmap* source = &bitmap->bitmap;
-
-
-
 
         character_info &info = characters[i];
 
@@ -209,15 +204,10 @@ void TextGenerator::createTextureAtlas(){
         info.tcMin = vec2(tx,ty);
         info.tcMax = vec2(tx+(float)info.bw/(float)w,ty+(float)info.bh/(float)h);
 
-        //        textureAtlas->uploadSubImage(info.atlasX, info.atlasY, info.bw, info.bh, g->bitmap.buffer);
-        //        img.setSubImage(info.atlasX, info.atlasY, info.bw, info.bh, g->bitmap.buffer);
-        //        cout<<"left "<<bitmap->left<<" "<<bitmapstroke->left<<endl;
-        //        cout<<"top "<<bitmap->top<<" "<<bitmapstroke->top<<endl;
-
         //offset from normal glyph relative to stroke glyph
         int offsetX=0,offsetY=0;
         if(stroke_size>0){
-            FT_BitmapGlyph bitmapstroke = (FT_BitmapGlyph)glyph_strokes[i-32];
+            FT_BitmapGlyph bitmapstroke = (FT_BitmapGlyph)glyph_strokes_bitmaps[i-32];
             FT_Bitmap* sourceStroke = &bitmapstroke->bitmap;
             offsetX = bitmap->left - bitmapstroke->left;
             offsetY = -bitmap->top + bitmapstroke->top;
@@ -238,18 +228,12 @@ void TextGenerator::createTextureAtlas(){
 
                 unsigned char c = source->buffer[y*(source->width) + x];
                 uint16_t s = c;
-                //                uint16_t s = 0;
 
                 int ox = x + offsetX;
                 int oy = y + offsetY;
-                //                if(ox>=0 && ox<source->width && oy>=0 && oy <source->rows){
-                //                    unsigned char c = source->buffer[oy*(source->width) + ox];
-                //                    s = s + c<<8;
-                //                }
 
                 uint16_t old = img.getPixel<uint16_t>(info.atlasX+ox ,info.atlasY+oy);
                 old = old + (s<<8);
-                //                old = s;
                 img.setPixel(info.atlasX+ox ,info.atlasY+oy,old);
             }
         }
@@ -257,14 +241,17 @@ void TextGenerator::createTextureAtlas(){
     }
 
 
+    //cleanup freetype stuff
     if(stroke_size>0){
+        FT_Stroker_Done(stroker);
         for(int i = 32; i < 128; i++) {
-
             FT_Done_Glyph(glyph_strokes[i-32]);
+            FT_Done_Glyph(glyph_strokes_bitmaps[i-32]);
         }
     }
     for(int i = 32; i < 128; i++) {
         FT_Done_Glyph(glyphs[i-32]);
+        FT_Done_Glyph(glyphs_bitmaps[i-32]);
     }
     img.addChannel();
 
