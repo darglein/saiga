@@ -13,7 +13,7 @@ UniformBuffer::~UniformBuffer()
 
 
 
-void UniformBuffer::bind(GLuint bindingPoint)
+void UniformBuffer::bind(GLuint bindingPoint) const
 {
     Buffer::bind();
     glBindBufferBase(target, bindingPoint, buffer);

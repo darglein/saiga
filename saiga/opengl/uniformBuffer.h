@@ -20,7 +20,7 @@ public:
     ~UniformBuffer();
 
 
-    void bind( GLuint bindingPoint);
+    void bind( GLuint bindingPoint) const;
 
     /**
      * Initializes this uniform buffer for the given shader.

@@ -28,7 +28,7 @@ public:
 
     void updateBuffer(void* data, unsigned int size, unsigned int offset);
 
-    void bind();
+    void bind() const;
 };
 
 inline Buffer::Buffer(GLenum _target):target(_target)
@@ -66,7 +66,7 @@ inline void Buffer::updateBuffer(void *data, unsigned int size, unsigned int off
     glBufferSubData(target,offset,size,data);
 }
 
-inline void Buffer::bind()
+inline void Buffer::bind() const
 {
     glBindBuffer( target, buffer );
 }
