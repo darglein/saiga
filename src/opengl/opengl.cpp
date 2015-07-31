@@ -22,3 +22,16 @@ void initOpenGL()
     glbinding::Binding::initialize();
 }
 #endif
+
+
+int getVersionMajor(){
+    int v;
+    glGetIntegerv(GL_MAJOR_VERSION,&v);
+    return v;
+}
+
+int getVersionMinor(){
+    int v;
+    glGetIntegerv(GL_MINOR_VERSION,&v);
+    return v;
+}

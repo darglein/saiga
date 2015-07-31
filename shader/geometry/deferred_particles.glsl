@@ -220,8 +220,9 @@ void main() {
 ##end
 ##start
 ##fragment
-
 #version 400
+
+layout(early_fragment_tests) in; //force early depth tests. may not work on older versions
 
 uniform sampler2DArray image;
 uniform sampler2D depthTexture;
@@ -241,9 +242,6 @@ layout(location=0) out vec4 out_color;
 layout(location=1) out vec4 out_data;
 
 float linearDepth(float d){
-//    float f=600.0;
-//    float n = 0.1;
-
     float f=cameraParameters.y;
     float n = cameraParameters.x;
     return(2 * n) / (f + n - d * (f - n));

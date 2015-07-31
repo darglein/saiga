@@ -58,7 +58,7 @@ bool sdl_Window::initWindow()
 
 
 
-    cout<<"Opengl version: "<<glGetString(GL_VERSION)<<endl;
+    cout<<"Opengl version: "<<glGetString(  GL_VERSION)<<endl;
 
 
     return success;

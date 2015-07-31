@@ -123,6 +123,23 @@ void raw_Texture::setParameter(GLenum name, GLenum param){
     unbind();
 }
 
+void raw_Texture::generateMipmaps()
+{
+    bind();
+    glGenerateMipmap(target);
+    unbind();
+
+    setParameter(GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+}
+
+void raw_Texture::setBorderColor(vec4 color)
+{
+    bind();
+    glTexParameterfv(target,GL_TEXTURE_BORDER_COLOR,&color[0]);
+    unbind();
+}
+
+
 GLenum glinternalFormat(int channels, int depth, bool srgb = false){
     int coffset = channels -1;
     int doffset = 0;
@@ -254,4 +271,5 @@ void raw_Texture::setFormat(const Image &img){
 
     specify(img.getBitDepth(),img.getChannels(),img.srgb);
 }
+
 

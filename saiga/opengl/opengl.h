@@ -15,3 +15,5 @@ using namespace gl;
 #endif
 
 SAIGA_LOCAL extern void initOpenGL();
+SAIGA_GLOBAL int getVersionMajor();
+SAIGA_GLOBAL int getVersionMinor();

@@ -92,7 +92,7 @@ void main() {
 
     float visibility = 1.0f;
 #ifdef SHADOWS
-    visibility = calculateShadow(depthTex,vposition,0.0f);
+    visibility = calculateShadow(depthTex,vposition);
 #endif
 
     float localIntensity = intensity*visibility; //amount of light reaching the given point

@@ -67,8 +67,8 @@ void TextGenerator::createTextureAtlas(){
     }
 
 
-    charPaddingX = 2;
-    charPaddingY = 2;
+    charPaddingX = 4;
+    charPaddingY = 4;
     charBorder = 0;
 
     int chars= 0;
@@ -275,7 +275,11 @@ void TextGenerator::createTextureAtlas(){
     textureAtlas->bind();
     // The allowable values are 1 (byte-alignment), 2 (rows aligned to even-numbered bytes), Default: 4 (word-alignment), and 8 (rows start on double-word boundaries)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
     textureAtlas->unbind();
+
+    //create mipmaps to reduce aliasing effects
+    textureAtlas->generateMipmaps();
 }
 
 

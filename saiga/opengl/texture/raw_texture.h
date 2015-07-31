@@ -1,5 +1,6 @@
 #pragma once
 
+#include "saiga/util/glm.h"
 #include "saiga/opengl/texture/image.h"
 
 class SAIGA_GLOBAL raw_Texture{
@@ -28,8 +29,6 @@ public:
     bool isSpecified();
 
 
-    //============= Required state: VALID =============
-
     bool downloadFromGl(GLubyte *data);
 
     virtual void uploadData(GLubyte* data);
@@ -42,8 +41,7 @@ public:
     virtual void bind(int location);
     virtual void unbind();
 
-    void setWrap(GLenum param);
-    void setFiltering(GLenum param);
+
 
     int getWidth(){return width;}
     int getHeight(){return height;}
@@ -52,7 +50,6 @@ public:
 
     void specify(int channel_depth, int channels, int srgb);
 
-    //============= Required state: SPECIFIED =============
 
     GLubyte* downloadFromGl();
     int bytesPerPixel();
@@ -62,7 +59,24 @@ public:
     void setFormat(const Image &img);
 
 
-
+    void setBorderColor(vec4 color);
+    void setWrap(GLenum param);
+    void setFiltering(GLenum param);
     void setParameter(GLenum name, GLenum param);
+
+    /*
+     *
+     * Mipmap generation replaces texel image levels levelbase+1 through q with images derived from the levelbase image,
+     * regardless of their previous contents. All other mimap images,
+     * including the levelbase+1 image, are left unchanged by this computation.
+
+     * The internal formats of the derived mipmap images all match those of the levelbase image.
+     * The contents of the derived images are computed by repeated, filtered reduction of the levelbase+1 image.
+     * For one- and two-dimensional array and cube map array textures, each layer is filtered independently.
+     *
+     * Cube map and array textures are accepted only if the GL version is 4.0 or higher.
+     */
+
+    void generateMipmaps();
 };
 

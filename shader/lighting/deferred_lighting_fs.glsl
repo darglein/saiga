@@ -83,6 +83,16 @@ float calculateShadow(sampler2DShadow tex, vec3 position, float outside){
 
 }
 
+float calculateShadow(sampler2DShadow tex, vec3 position){
+    vec4 shadowPos = depthBiasMV * vec4(position,1);
+    shadowPos = shadowPos/shadowPos.w;
+
+     float visibility = 1.0f;
+         visibility = texture(tex, shadowPos.xyz);
+     return visibility ;
+
+}
+
 float calculateShadowPCF(sampler2D tex, vec3 position){
     vec4 shadowPos = depthBiasMV * vec4(position,1);
     shadowPos = shadowPos/shadowPos.w;

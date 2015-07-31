@@ -204,8 +204,9 @@ void main() {
 ##end
 ##start
 ##fragment
-
 #version 400
+
+layout(early_fragment_tests) in; //force early depth tests. may not work on older versions
 
 uniform sampler2DArray image;
 
