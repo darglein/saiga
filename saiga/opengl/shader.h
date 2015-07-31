@@ -37,24 +37,27 @@ public:
     std::string prefix;
     ShaderCodeInjections injections;
 
-
+    std::vector<std::string> vertexShaderCode;
+    std::vector<std::string> geometryShaderCode;
+    std::vector<std::string> fragmentShaderCode;
 
     Shader();
     virtual ~Shader();
     Shader(const std::string &multi_file);
 
     void addShaderCodeInjections(const ShaderCodeInjections& sci){injections=sci;}
-    void addInjectionsToCode(GLenum type,std::string&  content);
+    void addInjectionsToCode(GLenum type, std::vector<std::string> &content);
 
     std::string typeToName(GLenum type);
     //Shader loading utility programs
     void printProgramLog( GLuint program );
-    void printShaderLog( GLuint shader );
+    void printShaderLog(GLuint shader , GLenum type);
+    void parseShaderError(const std::string& message, GLenum type);
 
 
     std::vector<string> loadAndPreproccess(const std::string &file);
     bool addMultiShaderFromFile(const std::string &multi_file);
-    GLuint addShader(std::string&  content, GLenum type);
+    GLuint addShader(std::vector<std::string> &content, GLenum type);
     GLuint addShaderFromFile(const std::string& file, GLenum type);
     GLuint createProgram();
     GLint getUniformLocation(const char* name);

@@ -1,7 +1,9 @@
 ##start
 ##vertex
+#version 400
 
-#version 150
+
+
 #extension GL_ARB_explicit_attrib_location : enable
 layout(location=0) in vec3 in_position;
 layout(location=1) in vec3 in_normal;
@@ -21,8 +23,8 @@ void main() {
 ##start
 ##fragment
 
-#version 150
-
+#version 400
+#line 27
 in vec2 tc;
 
 uniform mat4 view;

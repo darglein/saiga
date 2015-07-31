@@ -55,6 +55,7 @@ void initFramework(Window *window)
     DeferredShader* def = ShaderLoader::instance()->load<DeferredShader>("deferred_mixer.glsl");
 
 
+//     exit(1);
 
     Deferred_Renderer* renderer = new Deferred_Renderer();
     renderer->init(def,window->getWidth(),window->getHeight());
@@ -117,5 +118,7 @@ void initFramework(Window *window)
     window->renderer = renderer;
 
     cout<<"========================== Framework initialization done! =========================="<<endl;
+
+
 }
 

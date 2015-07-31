@@ -76,10 +76,6 @@ std::vector<std::string> Shader::loadAndPreproccess(const std::string &file)
             it = std::remove(line.begin(),line.end(),' ');
             line.erase(it,line.end());
 
-
-            //            cout<<"found include ("<<line<<")"<<endl;
-//            cout<<"including file "<<prefix<<"/"<<line<<endl;
-
             //recursivly load includes
             std::vector<std::string> tmp = loadAndPreproccess(prefix+"/"+line);
             ret.insert(ret.end(),tmp.begin(),tmp.end());
@@ -100,6 +96,7 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
 
     std::vector<string> data = loadAndPreproccess(multi_file);
 
+    std::vector<std::string> code;
     //    cout<<"Preproccess finished. "<<data.size()<<" lines"<<endl;
 
     if(data.size()<=0)
@@ -120,8 +117,9 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
 
             if(status != STATUS_ERROR){
                 //reading shader part sucessfull
-                addShader(content,type);
+                addShader(code,type);
                 content = "";
+                code.clear();
                 //                for(int i=0;i<lineCount-1;i++)
                 //                    content.append("\n");
             }
@@ -129,21 +127,21 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
         }else if(line.compare("##vertex")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_VERTEX_SHADER;
-            line = "";
+//            line = "";
 
         }else if(line.compare("##fragment")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_FRAGMENT_SHADER;
-            line = "";
+//            line = "";
 
         }else if(line.compare("##geometry")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_GEOMETRY_SHADER;
-            line = "";
-        }else{
+//            line = "";
+        }else if(status == STATUS_READING){
             //normal code line
-            line = line + '\n';
-
+//            cout<<"adding "<<lineCount<<","<<line<<std::endl;
+            code.push_back(line+'\n');
         }
 
 
@@ -151,16 +149,10 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
         if(status == STATUS_ERROR){
             std::cerr<<"Shader-Loader: Error "<<errorMsg<<" in line "<<lineCount<<"\n";
             return false;
-        }else if(status == STATUS_READING){
-            content.append(line);
         }
-        //        content.append("\n");
     }
 
-    //    fileStream.close();
-//    cout<<"bla1"<<endl;
     createProgram();
-//    cout<<"bla2"<<endl;
     return true;
 }
 
@@ -204,7 +196,7 @@ GLuint Shader::createProgram(){
     return program;
 }
 
-void Shader::addInjectionsToCode(GLenum type, std::string &content)
+void Shader::addInjectionsToCode(GLenum type, std::vector<std::string> &content)
 {
     std::string injection;
     for(auto& pair : injections){
@@ -212,17 +204,31 @@ void Shader::addInjectionsToCode(GLenum type, std::string &content)
             injection =  std::get<1>(pair)+ '\n' ;
             int line =  std::get<2>(pair);
             int i = 0;
-            for(char& c : content){
-                i++;
-                if(c=='\n'){
-                    line--;
-                }
-                if(line==0)
-                    break;
-            }
-            cout<<"inserting at line "<<line<<" char "<<i<<" "<<injection<<endl;
-            //inject at correct position
-            content.insert(i,injection);
+
+            //            for(char& c : content){
+            //                i++;
+            //                if(c=='\n'){
+            //                    line--;
+            //                }
+            //                if(line==0)
+            //                    break;
+            //            }
+            ////            cout<<"inserting at line "<<line<<" char "<<i<<" "<<injection<<endl;
+            //            //inject at correct position
+            //            content.insert(i,injection);
+
+            content.insert(content.begin()+line,injection);
+            //            for(char& c : content){
+            //                i++;
+            //                if(c=='\n'){
+            //                    line--;
+            //                }
+            //                if(line==0)
+            //                    break;
+            //            }
+            ////            cout<<"inserting at line "<<line<<" char "<<i<<" "<<injection<<endl;
+            //            //inject at correct position
+            //            content.insert(i,injection);
 
         }
     }
@@ -233,21 +239,63 @@ void Shader::addInjectionsToCode(GLenum type, std::string &content)
     //    }
 }
 
-GLuint Shader::addShader(std::string& content, GLenum type){
-//    cout<<"adding shader "<<this->typeToName(type)<<endl;
-    GLuint id = glCreateShader(type);
+GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
 
     addInjectionsToCode(type,content);
 
+    switch(type){
+    case GL_VERTEX_SHADER:
+        vertexShaderCode = content;
+        break;
+    case GL_GEOMETRY_SHADER:
+        geometryShaderCode = content;
+        break;
+    case GL_FRAGMENT_SHADER:
+        fragmentShaderCode = content;
+        break;
+    default:
+        std::cerr<<"Invalid type: "<<type<<endl;
+        return 0;
+
+    }
+
+
+
+    GLuint id = glCreateShader(type);
+
+
+//    cout<<"addShader"<<endl;
+
+    std::vector<const GLchar *> test;
+    std::string data;
+    int i = 0;
+    for(std::string line : content){
+        data.append(line);
+        test.push_back(line.c_str());
+
+//        size_t n = std::count(line.begin(), line.end(), '\n');
+//        cout<<++i<<","<<n<<" "<<line<<std::flush;
+    }
+
+//    cout<<data<<"asldgh"<<endl;
+
+
     GLint result = 0;
     // Compile vertex shader
-    const GLchar* str = content.c_str();
-    glShaderSource(id, 1,&str , NULL);
+    const GLchar* str = data.c_str();
+
+
+
+    glShaderSource(id, 1,&str , 0);
+
+
+//    glShaderSource(id, test.size(),&test[0] , 0);
+
     glCompileShader(id);
     // Check vertex shader
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
 
-    printShaderLog(id);
+    printShaderLog(id,type);
 
 
     if(!result){
@@ -291,7 +339,7 @@ GLuint Shader::addShaderFromFile(const std::string &file, GLenum type){
     }
 
 
-    return addShader(content,type);
+    return addShader(data,type);
 }
 
 string Shader::typeToName(GLenum type){
@@ -420,6 +468,7 @@ void Shader::printProgramLog( GLuint program ){
         if( infoLogLength > 0 )
         {
             //Print Log
+            std::cout<<"program error:"<<std::endl;
             std::cout<<  infoLog << std::endl;
         }
 
@@ -432,7 +481,7 @@ void Shader::printProgramLog( GLuint program ){
     }
 }
 
-void Shader::printShaderLog( GLuint shader ){
+void Shader::printShaderLog( GLuint shader, GLenum type ){
     //Make sure name is shader
     if( glIsShader( shader ) == GL_TRUE )
     {
@@ -451,7 +500,8 @@ void Shader::printShaderLog( GLuint shader ){
         if( infoLogLength > 0 )
         {
             //Print Log
-            std::cout<< infoLog << std::endl;
+            parseShaderError(std::string(infoLog),type);
+
         }
 
         //Deallocate std::string
@@ -461,6 +511,49 @@ void Shader::printShaderLog( GLuint shader ){
     {
         printf( "Name %d is not a shader\n", shader );
     }
+}
+
+void Shader::parseShaderError(const std::string &message, GLenum type )
+{
+    //example message:
+    //0(276) : warning C7022: unrecognized profile specifier "ert"
+    //0(276) : error C0502: syntax error at token "ert"
+    std::cout<<"shader error:"<<std::endl;
+    std::cout<< message << std::endl;
+
+    //the nvidia compillers line numbers don't match the actual line numbers.
+
+//    auto f = message.find('(')+1;
+//    auto s = message.find(')')-2;
+
+
+//    std::string bla = message.substr(f,s);
+//    int line = std::atoi(bla.c_str());
+
+//    std::cout<<"line: "<<line<<","<<bla<<std::endl;
+
+//    std::vector<std::string> *data;
+//    switch(type){
+//    case GL_VERTEX_SHADER:
+//        data = &vertexShaderCode;
+//        break;
+//    case GL_GEOMETRY_SHADER:
+//        data = &vertexShaderCode;
+//        break;
+//    case GL_FRAGMENT_SHADER:
+//        data = &vertexShaderCode;
+//        break;
+//    default:
+//        break;
+
+//    }
+
+//    int i = 0;
+//    for(std::string line : (*data)){
+//        cout<<++i<<" "<<line<<std::flush;
+//    }
+
+//    cout<<">>> "<<(*data)[line-1]<<endl;
 }
 
 
