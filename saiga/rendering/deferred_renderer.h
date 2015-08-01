@@ -23,9 +23,39 @@ public:
 };
 
 
+
+
 class SAIGA_GLOBAL Deferred_Renderer{
 public:
+    enum DeferredTimings{
+        GEOMETRYPASS = 0,
+        SSAO,
+        DEPTHMAPS,
+        LIGHTING,
+        POSTPROCESSING,
+        LIGHTACCUMULATION,
+        OVERLAY,
+        FINAL,
+        TOTAL,
+        COUNT
+    };
+private:
+    std::vector<GPUTimer> timers;
+    bool useTimers = true;
+
+    void startTimer(DeferredTimings timer){if(useTimers)timers[timer].startTimer();}
+    void stopTimer(DeferredTimings timer){if(useTimers)timers[timer].stopTimer();}
+
+public:
+
+
+    float getTime(DeferredTimings timer){return timers[timer].getTimeMS();}
+    void printTimings();
+
+
     RendererInterface* renderer;
+
+
 
     bool wireframe = false;
     float wireframeLineSize = 1;
@@ -63,16 +93,9 @@ public:
     void renderLighting(Camera *cam);
     void renderSSAO(Camera *cam);
 
-//    virtual void render(Camera *cam) = 0;
-//    virtual void renderDepth(Camera *cam) = 0;
-//    virtual void renderOverlay(Camera *cam) = 0;
-//    virtual void renderFinal(Camera *cam) = 0; //directly renders to screen (after post processing)
+    virtual void cudaPostProcessing() {}
+    virtual void initCudaPostProcessing(Texture* src, Texture* dest) {}
 
-    virtual void cudaPostProcessing() {};
-    virtual void initCudaPostProcessing(Texture* src, Texture* dest) {};
-
-//    virtual void interpolate(float interpolation) = 0;
-//    virtual void update(float interpolation) = 0;
 
 
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/basic_shaders.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
@@ -26,6 +27,7 @@ public:
 };
 
 class SAIGA_GLOBAL PostProcessor{
+private:
     int width,height;
     Framebuffer framebuffers[2];
     Texture* textures[2];
@@ -33,6 +35,7 @@ class SAIGA_GLOBAL PostProcessor{
     int lastBuffer = 1;
     IndexedVertexBuffer<VertexNT,GLuint> quadMesh;
     std::vector<PostProcessingShader*> postProcessingEffects;
+    GPUTimer timer;
 
     void createFramebuffers();
     void applyShader(PostProcessingShader* postProcessingShader);

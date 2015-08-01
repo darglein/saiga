@@ -25,6 +25,8 @@ void SSAOShader::uploadData(){
 
 
 
+
+
 Deferred_Renderer::Deferred_Renderer():lighting(deferred_framebuffer){
 
 }
@@ -58,7 +60,7 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
     postProcessor.init(w,h);
 
 
-//    initCudaPostProcessing(ppsrc,ppdst);
+    //    initCudaPostProcessing(ppsrc,ppdst);
 
 
     setDeferredMixer(deferred_shader);
@@ -66,6 +68,11 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     qb->createBuffers(quadMesh);
+
+    timers.resize(DeferredTimings::COUNT);
+    for(auto &t : timers){
+        t.create();
+    }
 }
 
 void Deferred_Renderer::setDeferredMixer(DeferredShader* deferred_shader){
@@ -83,19 +90,27 @@ void Deferred_Renderer::toggleSSAO()
     ssao_framebuffer.unbind();
 
     ssao = !ssao;
+
 }
 
 void Deferred_Renderer::render_intern(){
 
+    startTimer(TOTAL);
 
     (*currentCamera)->recalculatePlanes();
 
     renderGBuffer(*currentCamera);
 
+
+
     renderSSAO(*currentCamera);
+
+
 
     lighting.cullLights(*currentCamera);
     renderDepthMaps(*currentCamera);
+
+
 
     glDisable(GL_DEPTH_TEST);
     glViewport(0,0,width,height);
@@ -115,30 +130,42 @@ void Deferred_Renderer::render_intern(){
     renderLighting(*currentCamera);
 
 
+    startTimer(LIGHTACCUMULATION);
     postProcessor.nextFrame(&deferred_framebuffer);
-
     postProcessor.bindCurrentBuffer();
     lighting.renderLightAccumulation();
+    stopTimer(LIGHTACCUMULATION);
 
-
+    startTimer(OVERLAY);
     renderer->renderOverlay(*currentCamera);
+    stopTimer(OVERLAY);
 
     postProcessor.switchBuffer();
 
+
+    startTimer(POSTPROCESSING);
     postProcessor.render();
+    stopTimer(POSTPROCESSING);
 
 
-
-
+    startTimer(FINAL);
     renderer->renderFinal(*currentCamera);
+    stopTimer(FINAL);
 
 
+    stopTimer(TOTAL);
+
+    //    std::cout<<"Time spent on the GPU: "<< getTime(TOTAL) <<std::endl;
+
+    //    printTimings();
 
     Error::quitWhenError("Deferred_Renderer::render_intern");
 
 }
 
 void Deferred_Renderer::renderGBuffer(Camera *cam){
+    startTimer(GEOMETRYPASS);
+
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
@@ -162,11 +189,15 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
     deferred_framebuffer.unbind();
 
 
+    stopTimer(GEOMETRYPASS);
+
     Error::quitWhenError("Deferred_Renderer::renderGBuffer");
 
 }
 
 void Deferred_Renderer::renderDepthMaps(Camera *cam){
+
+    startTimer(DEPTHMAPS);
 
     // When GL_POLYGON_OFFSET_FILL, GL_POLYGON_OFFSET_LINE, or GL_POLYGON_OFFSET_POINT is enabled,
     // each fragment's depth value will be offset after it is interpolated from the depth values of the appropriate vertices.
@@ -178,44 +209,66 @@ void Deferred_Renderer::renderDepthMaps(Camera *cam){
     lighting.renderDepthMaps(renderer);
     glDisable(GL_POLYGON_OFFSET_FILL);
 
+    stopTimer(DEPTHMAPS);
+
     Error::quitWhenError("Deferred_Renderer::renderDepthMaps");
 
 }
 
 void Deferred_Renderer::renderLighting(Camera *cam){
+    startTimer(LIGHTING);
+
     mat4 model;
     cam->getModelMatrix(model);
     lighting.setViewProj(model,cam->view,cam->proj);
     lighting.render(cam);
+
+    stopTimer(LIGHTING);
+
     Error::quitWhenError("Deferred_Renderer::renderLighting");
 }
 
 void Deferred_Renderer::renderSSAO(Camera *cam)
 {
+    startTimer(SSAO);
+    if(ssao){
 
-    if(!ssao)
-        return;
-
-    ssao_framebuffer.bind();
-
-    //    glClearColor(1.0f,1.0f,1.0f,1.0f);
-    //    glClear( GL_COLOR_BUFFER_BIT );
+        ssao_framebuffer.bind();
 
 
-    if(ssaoShader){
-        ssaoShader->bind();
-        vec2 screenSize(width,height);
-        ssaoShader->uploadScreenSize(screenSize);
-        ssaoShader->uploadFramebuffer(&deferred_framebuffer);
-        ssaoShader->uploadData();
-        mat4 iproj = glm::inverse(cam->proj);
-        ssaoShader->uploadInvProj(iproj);
-        quadMesh.bindAndDraw();
-        ssaoShader->unbind();
+        if(ssaoShader){
+            ssaoShader->bind();
+            vec2 screenSize(width,height);
+            ssaoShader->uploadScreenSize(screenSize);
+            ssaoShader->uploadFramebuffer(&deferred_framebuffer);
+            ssaoShader->uploadData();
+            mat4 iproj = glm::inverse(cam->proj);
+            ssaoShader->uploadInvProj(iproj);
+            quadMesh.bindAndDraw();
+            ssaoShader->unbind();
+        }
+
+
+        ssao_framebuffer.unbind();
     }
 
+    stopTimer(SSAO);
 
-    ssao_framebuffer.unbind();
+}
+
+void Deferred_Renderer::printTimings()
+{
+    cout<<"===================================="<<endl;
+    cout<<"Geometry pass: "<<getTime(GEOMETRYPASS)<<"ms"<<endl;
+    cout<<"SSAO: "<<getTime(SSAO)<<"ms"<<endl;
+    cout<<"Depthmaps: "<<getTime(DEPTHMAPS)<<"ms"<<endl;
+    cout<<"Lighting: "<<getTime(LIGHTING)<<"ms"<<endl;
+    cout<<"Light accumulation: "<<getTime(LIGHTACCUMULATION)<<"ms"<<endl;
+    cout<<"Overlay pass: "<<getTime(OVERLAY)<<"ms"<<endl;
+    cout<<"Postprocessing: "<<getTime(POSTPROCESSING)<<"ms"<<endl;
+    cout<<"Final pass: "<<getTime(FINAL)<<"ms"<<endl;
+    cout<<"Total: "<<getTime(TOTAL)<<"ms"<<endl;
+    cout<<"===================================="<<endl;
 
 }
 

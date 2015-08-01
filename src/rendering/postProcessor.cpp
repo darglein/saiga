@@ -42,6 +42,8 @@ void PostProcessor::init(int width, int height)
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     qb->createBuffers(quadMesh);
+
+    timer.create();
 }
 
 void PostProcessor::nextFrame(Framebuffer *gbuffer)
@@ -93,6 +95,9 @@ void PostProcessor::render()
         return;
     }
 
+
+    timer.startTimer();
+
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
@@ -104,6 +109,12 @@ void PostProcessor::render()
     applyShaderFinal(postProcessingEffects[effects-1]);
 
     glEnable(GL_DEPTH_TEST);
+
+
+    timer.stopTimer();
+
+//    std::cout<<"Time spent on the GPU: "<< timer.getTimeMS() <<std::endl;
+
 }
 
 void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
