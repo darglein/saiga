@@ -40,5 +40,34 @@ public:
     void stopTimer();
 
     float getTimeMS();
+    double getTimeMSd();
     GLuint64 getTimeNS();
 };
+
+/**
+ * Exponentially filtered GPUTimer.
+ * time = alpha * newTime + (1-alpha) * oldTime;
+ */
+
+class FilteredGPUTimer : public GPUTimer{
+private:
+    double currentTimeMS = 0;
+public:
+    double alpha = 0.05;
+
+    void stopTimer();
+    float getTimeMS();
+    double getTimeMSd();
+
+};
+
+
+
+
+
+
+
+
+
+
+

@@ -1,16 +1,12 @@
 #include "saiga/opengl/query/gpuTimer.h"
 
 
-
 GPUTimer::GPUTimer()
 {
-
-
 }
 
 GPUTimer::~GPUTimer()
 {
-
 }
 
 void GPUTimer::create()
@@ -30,18 +26,13 @@ void GPUTimer::swapQueries()
 
 void GPUTimer::startTimer()
 {
-//    glBeginQuery(GL_TIME_ELAPSED,queryBackBuffer);
     queries[queryBackBuffer][0].record();
 }
 
 void GPUTimer::stopTimer()
 {
-//    glEndQuery(GL_TIME_ELAPSED);
     queries[queryBackBuffer][1].record();
-
     time = queries[queryFrontBuffer][1].getTimestamp() - queries[queryFrontBuffer][0].getTimestamp();
-
-//    glGetQueryObjectui64v(queryFrontBuffer,GL_QUERY_RESULT, &time);
     swapQueries();
 }
 
@@ -50,9 +41,33 @@ float GPUTimer::getTimeMS()
     return time/1000000.0f;
 }
 
+double GPUTimer::getTimeMSd()
+{
+    return time/1000000.0;
+}
+
 GLuint64 GPUTimer::getTimeNS()
 {
     return time;
 }
 
 
+//========================================================================
+
+
+void FilteredGPUTimer::stopTimer()
+{
+    GPUTimer::stopTimer();
+    double newTime = GPUTimer::getTimeMSd();
+    currentTimeMS = newTime*alpha + (1.0f-alpha) * currentTimeMS;
+}
+
+float FilteredGPUTimer::getTimeMS()
+{
+    return currentTimeMS;
+}
+
+double FilteredGPUTimer::getTimeMSd()
+{
+    return currentTimeMS;
+}

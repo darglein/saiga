@@ -40,7 +40,7 @@ public:
         COUNT
     };
 private:
-    std::vector<GPUTimer> timers;
+    std::vector<FilteredGPUTimer> timers;
     bool useTimers = true;
 
     void startTimer(DeferredTimings timer){if(useTimers)timers[timer].startTimer();}
