@@ -13,7 +13,7 @@
  * Core since version 	3.3
  *
  */
-class TimerQuery{
+class SAIGA_GLOBAL TimerQuery{
 private:
 
     GLuint queryBackBuffer = 0, queryFrontBuffer = 0;

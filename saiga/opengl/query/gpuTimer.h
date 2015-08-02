@@ -18,7 +18,7 @@
  * Core since version 	3.3
  *
  */
-class GPUTimer{
+class SAIGA_GLOBAL GPUTimer{
 private:
 
     TimeStampQuery queries[2][2];
@@ -49,7 +49,7 @@ public:
  * time = alpha * newTime + (1-alpha) * oldTime;
  */
 
-class FilteredGPUTimer : public GPUTimer{
+class SAIGA_GLOBAL FilteredGPUTimer : public GPUTimer{
 private:
     double currentTimeMS = 0;
 public:

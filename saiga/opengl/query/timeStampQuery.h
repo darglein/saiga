@@ -2,7 +2,7 @@
 
 #include "saiga/opengl/opengl.h"
 
-class TimeStampQuery{
+class SAIGA_GLOBAL TimeStampQuery{
 private:
 
     GLuint id = 0;
