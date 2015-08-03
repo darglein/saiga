@@ -40,6 +40,7 @@ public:
 };
 
 
+
 template<typename vertex_t, typename index_t>
 std::shared_ptr<TriangleMesh<vertex_t,index_t>>  TriangleMeshGenerator::createGridMesh2(int w, int h){
     TriangleMesh<vertex_t,index_t>* mesh = new TriangleMesh<vertex_t,index_t>();

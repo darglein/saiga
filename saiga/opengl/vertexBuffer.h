@@ -215,14 +215,13 @@ template<typename data_t>
 void VertexBuffer<vertex_t>::addInstancedBuffer(InstancedBuffer<data_t> &buffer, int location, int divisor)
 {
     bind();
-
     buffer.setAttributes(location,divisor);
     unbind();
 }
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::draw() const{
-    glDrawArrays(draw_mode,0,vertex_count);
+    draw(0,vertex_count);
 }
 
 template<class vertex_t>
@@ -233,19 +232,13 @@ void VertexBuffer<vertex_t>::draw(int startVertex, int count) const{
 template<class vertex_t>
 void VertexBuffer<vertex_t>::drawInstanced(int instances) const
 {
-    glDrawArraysInstanced(draw_mode,
-                            0,
-                            vertex_count,
-                            instances);
+    drawInstanced(instances,0,vertex_count);
 }
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::drawInstanced(int instances, int offset, int length) const
 {
-    glDrawArraysInstanced(draw_mode,
-                            offset,
-                            length,
-                            instances);
+    glDrawArraysInstanced(draw_mode,offset,length,instances);
 }
 
 

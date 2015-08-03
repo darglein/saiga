@@ -85,6 +85,10 @@ public:
 
     void createBuffers(buffer_t &buffer);
 
+    template<typename buffer_index_t>
+    void createBuffers(IndexedVertexBuffer<vertex_t,buffer_index_t> &buffer);
+
+
     /*
      * Updates OpenGL buffer with the data currently saved in this mesh
      * see VertexBuffer::updateVertexBuffer for more details
@@ -135,95 +139,109 @@ public:
 
 template<typename vertex_t, typename index_t>
 TriangleMesh<vertex_t,index_t>::TriangleMesh(void){
-   boundingBox.makeNegative();
+    boundingBox.makeNegative();
 }
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo){
-  for(vertex_t &v : vertices){
-      v.position = vec3(trafo*vec4(v.position,1));
-  }
-  boundingBox.transform(trafo);
+    for(vertex_t &v : vertices){
+        v.position = vec3(trafo*vec4(v.position,1));
+    }
+    boundingBox.transform(trafo);
 }
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::transformNormal(const mat4 &trafo){
-  for(vertex_t &v : vertices){
-      v.normal = vec3(trafo*vec4(v.normal,0));
-  }
+    for(vertex_t &v : vertices){
+        v.normal = vec3(trafo*vec4(v.normal,0));
+    }
 }
 
 
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::addQuad(vertex_t verts[]){
-  int index = vertices.size();
-  for(int i=0;i<4;i++){
-      addVertex(verts[i]);
-  }
+    int index = vertices.size();
+    for(int i=0;i<4;i++){
+        addVertex(verts[i]);
+    }
 
-  faces.push_back(Face(index,index+1,index+2));
-  faces.push_back(Face(index,index+2,index+3));
+    faces.push_back(Face(index,index+1,index+2));
+    faces.push_back(Face(index,index+2,index+3));
 }
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::addQuad(index_t inds[]){
-  faces.push_back(Face(inds[0],inds[1],inds[2]));
-  faces.push_back(Face(inds[2],inds[3],inds[0]));
+    faces.push_back(Face(inds[0],inds[1],inds[2]));
+    faces.push_back(Face(inds[2],inds[3],inds[0]));
 }
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer){
-  std::vector<index_t> indices(faces.size()*3);
-  std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
-  buffer.set(vertices,indices);
-  buffer.setDrawMode(GL_TRIANGLES);
+    std::vector<index_t> indices(faces.size()*3);
+    std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
+    buffer.set(vertices,indices);
+    buffer.setDrawMode(GL_TRIANGLES);
+}
+
+template<typename vertex_t, typename index_t>
+template<typename buffer_index_t>
+void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<vertex_t,buffer_index_t> &buffer){
+    cout<<"<<<<<<<<<<<<<<<<<<<ljfsf convert buffers"<<endl;
+    std::vector<index_t> indices(faces.size()*3);
+    std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
+
+    //convert index_t to buffer_index_t
+    std::vector<buffer_index_t> bufferIndices(indices.begin(),indices.end());
+
+    buffer.set(vertices,bufferIndices);
+    buffer.setDrawMode(GL_TRIANGLES);
 }
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::updateVerticesInBuffer(buffer_t &buffer, int vertex_count, int vertex_offset){
-  buffer.updateVertexBuffer(&vertices[vertex_offset],vertex_count,vertex_offset);
+    buffer.updateVertexBuffer(&vertices[vertex_offset],vertex_count,vertex_offset);
 }
 
 template<typename vertex_t, typename index_t>
 std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t,index_t>& dt){
-  os<<"TriangleMesh. Faces: "<<dt.faces.size()<<" Vertices: "<<dt.vertices.size();
-  return os;
+    os<<"TriangleMesh. Faces: "<<dt.faces.size()<<" Vertices: "<<dt.vertices.size();
+    return os;
 }
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::subdivideFace(int f){
 
-  Face face = faces[f];
+    Face face = faces[f];
 
 #define P(xs) vertices[face.xs].position
-  //create 3 new vertices in the middle of the edges
+    //create 3 new vertices in the middle of the edges
 
-  int v1 = addVertex(vertex_t((P(v1)+P(v2))/2.0f));
-  int v2 = addVertex(vertex_t((P(v1)+P(v3))/2.0f));
-  int v3 = addVertex(vertex_t((P(v2)+P(v3))/2.0f));
+    int v1 = addVertex(vertex_t((P(v1)+P(v2))/2.0f));
+    int v2 = addVertex(vertex_t((P(v1)+P(v3))/2.0f));
+    int v3 = addVertex(vertex_t((P(v2)+P(v3))/2.0f));
 
 
-  faces.push_back(Face(face.v2,v3,v1));
+    faces.push_back(Face(face.v2,v3,v1));
 
-  faces.push_back(Face(face.v3,v2,v3));
+    faces.push_back(Face(face.v3,v2,v3));
 
-  faces.push_back(Face(v1,v3,v2));
-  faces[f] = Face(face.v1,v1,v2);
+    faces.push_back(Face(v1,v3,v2));
+    faces[f] = Face(face.v1,v1,v2);
 }
 
 
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::invertFace(int f){
-  Face& face = faces[f];
+    Face& face = faces[f];
 
-  Face face2;
-  face2.v1 = face.v3;
-  face2.v2 = face.v2;
-  face2.v3 = face.v1;
+    Face face2;
+    face2.v1 = face.v3;
+    face2.v2 = face.v2;
+    face2.v3 = face.v1;
 
-  face = face2;
+    face = face2;
 
 }
 
@@ -239,7 +257,7 @@ void TriangleMesh<vertex_t,index_t>::toTriangleList(std::vector<Triangle> &outpu
 }
 
 template<typename vertex_t, typename index_t>
- void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<vertex_t,index_t> &other){
+void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<vertex_t,index_t> &other){
     int oldVertexCount = this->vertices.size();
     for(vertex_t v : other.vertices){
         this->vertices.push_back(v);
@@ -251,16 +269,16 @@ template<typename vertex_t, typename index_t>
         f.v3 += oldVertexCount;
         this->addFace(f);
     }
- }
+}
 
 
- template<typename vertex_t, typename index_t>
- aabb TriangleMesh<vertex_t,index_t>::calculateAabb(){
-     aabb box;
-     box.makeNegative();
+template<typename vertex_t, typename index_t>
+aabb TriangleMesh<vertex_t,index_t>::calculateAabb(){
+    aabb box;
+    box.makeNegative();
 
-     for(vertex_t &v : vertices){
-         box.growBox(v.position);
-     }
-     return box;
- }
+    for(vertex_t &v : vertices){
+        box.growBox(v.position);
+    }
+    return box;
+}

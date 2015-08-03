@@ -37,33 +37,25 @@ void IndexedVertexBuffer<vertex_t,index_t>::bindAndDraw() const{
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::draw() const{
-    glDrawElements( vbuffer_t::draw_mode, ibuffer_t::index_count, GL_UNSIGNED_INT, nullptr );
+    draw(ibuffer_t::index_count,nullptr);
 }
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::draw(unsigned int length, void *offset) const{
-    glDrawElements( vbuffer_t::draw_mode, length, GL_UNSIGNED_INT, offset );
+    glDrawElements( vbuffer_t::draw_mode, length, ibuffer_t::GLType::value, offset );
 }
 
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::drawInstanced(int instances) const
 {
-    glDrawElementsInstanced(vbuffer_t::draw_mode,
-                            ibuffer_t::index_count,
-                            GL_UNSIGNED_INT,
-                            (void*)0,
-                            instances);
+    drawInstanced(instances,0,ibuffer_t::index_count);
 }
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::drawInstanced(int instances, int offset, int length) const
 {
-    glDrawElementsInstanced(vbuffer_t::draw_mode,
-                            length,
-                            GL_UNSIGNED_INT,
-                            (void*)offset,
-                            instances);
+    glDrawElementsInstanced(vbuffer_t::draw_mode,length,ibuffer_t::GLType::value,(void*)offset,instances);
 }
 
 

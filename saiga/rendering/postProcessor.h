@@ -33,7 +33,7 @@ private:
     Texture* textures[2];
     int currentBuffer = 0;
     int lastBuffer = 1;
-    IndexedVertexBuffer<VertexNT,GLuint> quadMesh;
+    IndexedVertexBuffer<VertexNT,GLubyte> quadMesh;
     std::vector<PostProcessingShader*> postProcessingEffects;
     GPUTimer timer;
 

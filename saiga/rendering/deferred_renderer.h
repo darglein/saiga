@@ -67,7 +67,7 @@ public:
 
     SSAOShader* ssaoShader = nullptr;
 
-    IndexedVertexBuffer<VertexNT,GLuint> quadMesh;
+    IndexedVertexBuffer<VertexNT,GLubyte> quadMesh;
 
     Framebuffer deferred_framebuffer;
 
