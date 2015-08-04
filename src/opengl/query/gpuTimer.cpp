@@ -1,5 +1,5 @@
 #include "saiga/opengl/query/gpuTimer.h"
-
+#include <algorithm> 
 
 GPUTimer::GPUTimer()
 {

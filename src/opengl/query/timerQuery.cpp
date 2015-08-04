@@ -1,5 +1,5 @@
 #include "saiga/opengl/query/timerQuery.h"
-
+#include <algorithm> 
 
 
 TimerQuery::TimerQuery()
