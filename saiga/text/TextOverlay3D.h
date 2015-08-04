@@ -18,21 +18,13 @@ public:
         std::shared_ptr<Text> text;
         float duration = 0.f;
         bool orientToCamera = true;
+        vec3 velocity = vec3(0);
 
+        TextContainer(){}
         TextContainer(std::shared_ptr<Text> text, float duration, bool orientToCamera)
             : text(text), duration(duration), orientToCamera(orientToCamera){}
 
-//        TextContainer(TextContainer &&other) : text(std::move(other.text)), duration(other.duration), orientToCamera(other.orientToCamera)
-//        {
-//        }
-
-//        TextContainer& operator=(TextContainer &&other)
-//        {
-//          text = std::move(other.text);
-//          this->duration = other.duration;
-//          this->orientToCamera = other.orientToCamera;
-//          return *this;
-//        }
+        bool update(float delta);
 
     };
 
@@ -49,6 +41,8 @@ public:
 
     //text stuff
     void addText(std::shared_ptr<Text> text, float duration, bool orientToCamera = true);
+    void addText(const TextContainer& tc);
+
 
     void update(float secondsPerTick);
 

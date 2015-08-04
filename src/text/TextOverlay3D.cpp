@@ -7,6 +7,16 @@
 
 const float TextOverlay3D::INFINITE_DURATION = -1.f;
 
+bool TextOverlay3D::TextContainer::update(float delta)
+{
+    text->position += velocity*delta;
+    if (duration == INFINITE_DURATION)
+        return false;
+    duration-=delta;
+    return duration<=0;
+}
+
+
 TextOverlay3D::TextOverlay3D(){
 
 }
@@ -19,14 +29,20 @@ void TextOverlay3D::addText(std::shared_ptr<Text> text, float duration, bool ori
     texts.push_back(TextContainer(std::move(text), duration, orientToCamera));
 }
 
+void TextOverlay3D::addText(const TextOverlay3D::TextContainer &tc)
+{
+    texts.push_back(tc);
+}
+
 void TextOverlay3D::update(float secondsPerTick)
 {
-    texts.erase(std::remove_if(texts.begin(), texts.end(),
-                   [secondsPerTick](TextContainer& p){
-                    if (p.duration == INFINITE_DURATION)return false;
-                       p.duration-=secondsPerTick;
-                       return p.duration<=0;}
-                   ), texts.end());
+
+    auto func = [secondsPerTick](TextContainer& p){
+        return p.update(secondsPerTick);
+
+    };
+
+    texts.erase(std::remove_if(texts.begin(), texts.end(),func ), texts.end());
 }
 
 void TextOverlay3D::setTextShader(TextShader* textShader){
@@ -58,3 +74,6 @@ void TextOverlay3D::renderText(Camera *cam){
     }
     textShader->unbind();
 }
+
+
+
