@@ -75,6 +75,17 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
     }
 }
 
+
+void Deferred_Renderer::resize(int width, int height)
+{
+    setSize(width,height);
+    postProcessor.resize(width,height);
+    deferred_framebuffer.resize(width,height);
+    ssao_framebuffer.resize(width,height);
+    lighting.resize(width,height);
+}
+
+
 void Deferred_Renderer::setDeferredMixer(DeferredShader* deferred_shader){
     this->deferred_shader = deferred_shader;
 }

@@ -2,7 +2,7 @@
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferred_renderer.h"
 
-sdl_Window::sdl_Window(const std::string &name, int window_width, int window_height):Window(name,window_width,window_height, false)
+sdl_Window::sdl_Window(const std::string &name, int width, int height):Window(name,width,height, false)
 {
 }
 
@@ -29,7 +29,7 @@ bool sdl_Window::initWindow()
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
     //Create window
-    gWindow = SDL_CreateWindow(name.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
+    gWindow = SDL_CreateWindow(name.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
     if( gWindow == NULL ){
         printf( "Window could not be created! SDL Error: %s\n", SDL_GetError() );
         return false;

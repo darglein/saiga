@@ -53,4 +53,5 @@ public:
     void setPostProcessingEffects(const std::vector<PostProcessingShader*> &postProcessingEffects ){this->postProcessingEffects = postProcessingEffects;}
 
 
+    void resize(int width, int height);
 };

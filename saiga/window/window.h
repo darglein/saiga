@@ -9,8 +9,8 @@ class Deferred_Renderer;
 class SAIGA_GLOBAL Window{
 public:
     std::string name;
-    int window_width;
-    int window_height;
+    int width;
+    int height;
     bool fullscreen = false;
 
     bool running;
@@ -25,40 +25,49 @@ public:
 public:
     bool vsync = false;
 
-    Window(const std::string &name,int window_width,int window_height, bool fullscreen);
+    Window(const std::string &name,int width,int height, bool fullscreen);
      virtual ~Window(){}
+
 
     void quit();
     bool init();
     virtual void close() = 0;
 
+    void resize(int width, int height);
+
     void screenshot(const std::string &file);
     std::string getTimeString();
 
-    inline int getWidth(){
-        return window_width;
-    }
-
-    inline int getHeight(){
-        return window_height;
-    }
-
-    inline float getAspectRatio(){
-        return (float)window_width/(float)window_height;
-    }
-
-
-    inline Camera* getCamera(){
-        return currentCamera;
-    }
-
-    inline void setCamera(Camera* c){
-        currentCamera = c;
-    }
-
-    inline Deferred_Renderer* getRenderer(){
-        return renderer;
-    }
+    int getWidth();
+    int getHeight();
+    float getAspectRatio();
+    Camera* getCamera();
+    void setCamera(Camera* c);
+    Deferred_Renderer* getRenderer();
 
 
 };
+
+inline int Window::getWidth(){
+    return width;
+}
+
+inline int Window::getHeight(){
+    return height;
+}
+
+inline float Window::getAspectRatio(){
+    return (float)width/(float)height;
+}
+
+inline Camera *Window::getCamera(){
+    return currentCamera;
+}
+
+inline void Window::setCamera(Camera *c){
+    currentCamera = c;
+}
+
+inline Deferred_Renderer *Window::getRenderer(){
+    return renderer;
+}

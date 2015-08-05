@@ -18,7 +18,7 @@ protected:
 public:
     SDL_EventHandler eventHandler;
 
-    sdl_Window(const std::string &name,int window_width,int window_height);
+    sdl_Window(const std::string &name,int width,int height);
 
 
     void close();

@@ -121,9 +121,9 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
     attachTexture(data);
 
 
-//    Texture* position = new Texture();
-//    position->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
-//    attachTexture(position);
+    //    Texture* position = new Texture();
+    //    position->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
+    //    attachTexture(position);
 
 
 
@@ -135,11 +135,11 @@ void Framebuffer::makeToDeferredFramebuffer(int w, int h){
 
 
 
-//     Texture* depth = new Texture();
-//            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-//     depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
-//        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
-//    attachTextureDepth(depth);
+    //     Texture* depth = new Texture();
+    //            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+    //     depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+    //        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
+    //    attachTextureDepth(depth);
 
     //don't need stencil in gbuffer
     //depth and stencil texture combined
@@ -174,4 +174,14 @@ void Framebuffer::blitColor(int otherId){
     glBindFramebuffer(GL_READ_FRAMEBUFFER, id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, otherId);
     glBlitFramebuffer(0, 0, colorBuffers[0]->getWidth(), colorBuffers[0]->getHeight(), 0, 0, colorBuffers[0]->getWidth(), colorBuffers[0]->getHeight(),GL_COLOR_BUFFER_BIT, GL_NEAREST);
+}
+
+void Framebuffer::resize(int width, int height)
+{
+    if(depthBuffer)
+        depthBuffer->resize(width,height);
+    if(stencilBuffer)
+        stencilBuffer->resize(width,height);
+    for(Texture* t : colorBuffers)
+        t->resize(width,height);
 }

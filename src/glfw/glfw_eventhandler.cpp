@@ -4,68 +4,58 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
-#include <algorithm>
+
 
 std::vector<glfw_EventHandler::Listener<glfw_KeyListener>> glfw_EventHandler::keyListener;
 std::vector<glfw_EventHandler::Listener<glfw_MouseListener>> glfw_EventHandler::mouseListener;
+std::vector<glfw_EventHandler::Listener<glfw_ResizeListener>> glfw_EventHandler::resizeListener;
 
 
 void glfw_EventHandler::addKeyListener(glfw_KeyListener* kl,int priority){
-    //    keyListener.push_back(Listener<glfw_KeyListener>(kl,priority));
 
-    Listener<glfw_KeyListener> l(kl,priority);
-    auto it = std::find(keyListener.begin(),keyListener.end(),l);
+    addListener<glfw_KeyListener>(keyListener,kl,priority);
 
-    if(it!=keyListener.end())
-        return;
-
-    auto iter=keyListener.begin();
-    for(;iter!=keyListener.end();++iter){
-        if((*iter).priority<priority)
-            break;
-    }
-    keyListener.insert(iter,l);
-
-//    std::cout<<"addKeyListener "<<keyListener.size()<<" "<<priority<<std::endl;
 }
-void glfw_EventHandler::addMouseListener(glfw_MouseListener* ml,int priority){
-    //    mouseListener.push_back(Listener<glfw_MouseListener>(ml,priority));
-    Listener<glfw_MouseListener> l(ml,priority);
-    auto it = std::find(mouseListener.begin(),mouseListener.end(),l);
 
-    if(it!=mouseListener.end())
-        return;
-
-    auto iter=mouseListener.begin();
-    for(;iter!=mouseListener.end();++iter){
-        if((*iter).priority<priority)
-            break;
-    }
-    mouseListener.insert(iter,l);
-}
 
 void glfw_EventHandler::removeKeyListener(glfw_KeyListener *kl)
 {
-    auto it=keyListener.begin();
-    for(;it!=keyListener.end();++it){
-        if(it->listener==kl){
-            keyListener.erase(it);
-            return;
-        }
-    }
+
+    removeListener<glfw_KeyListener>(keyListener,kl);
 
 }
 
-void glfw_EventHandler::removeMouseListener(glfw_MouseListener *ml)
-{
-    auto it=mouseListener.begin();
-    for(;it!=mouseListener.end();++it){
-        if(it->listener==ml){
-            mouseListener.erase(it);
-            return;
-        }
-    }
 
+void glfw_EventHandler::addMouseListener(glfw_MouseListener* l,int priority){
+    addListener<glfw_MouseListener>(mouseListener,l,priority);
+
+}
+
+void glfw_EventHandler::removeMouseListener(glfw_MouseListener *l)
+{
+    removeListener<glfw_MouseListener>(mouseListener,l);
+}
+
+
+
+void glfw_EventHandler::addResizeListener(glfw_ResizeListener* l,int priority){
+    addListener<glfw_ResizeListener>(resizeListener,l,priority);
+}
+
+void glfw_EventHandler::removeResizeListener(glfw_ResizeListener *l)
+{
+
+    removeListener<glfw_ResizeListener>(resizeListener,l);
+}
+
+void glfw_EventHandler::window_size_callback(GLFWwindow *window, int width, int height)
+{
+    std::cout<<"window_size_callback "<<width<<" "<<height<<std::endl;
+    //forward event to all listeners
+    for(auto &rl : resizeListener){
+        if(rl.listener->window_size_callback(window,width,height))
+            return;
+    }
 }
 
 void glfw_EventHandler::cursor_position_callback(GLFWwindow* window, double xpos, double ypos){

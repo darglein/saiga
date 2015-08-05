@@ -27,6 +27,13 @@ void raw_Texture::createEmptyTexture(int width, int height, GLenum color_type, G
     createTexture(width,height,color_type,internal_format,data_type,nullptr);
 }
 
+void raw_Texture::resize(int width, int height)
+{
+    this->width = width;
+    this->height = height;
+    uploadData(nullptr);
+}
+
 
 void raw_Texture::createGlTexture(){
     /* init_resources */
@@ -45,8 +52,6 @@ bool raw_Texture::isValid(){
 bool raw_Texture::isSpecified(){
     return channel_depth!=0 && channels!=0;
 }
-
-//============= Required state: VALID =============
 
 
 void raw_Texture::uploadData(GLubyte* data ){

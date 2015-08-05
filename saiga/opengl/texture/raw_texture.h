@@ -22,6 +22,12 @@ public:
     void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,GLubyte* data );
     void createEmptyTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
 
+    /**
+     * Resizes the texture.
+     * The old texture data is lost and the new texture is again uninitialized.
+     */
+    void resize(int width, int height);
+
     void createGlTexture();
     virtual void setDefaultParameters() = 0;
 

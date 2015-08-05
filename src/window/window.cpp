@@ -1,4 +1,5 @@
 #include "saiga/window/window.h"
+#include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/error.h"
 #include <cstring>
 #include <FreeImagePlus.h>
@@ -9,8 +10,8 @@ using std::cout;
 using std::endl;
 
 
-Window::Window(const std::string &name, int window_width, int window_height, bool fullscreen)
-    :name(name),window_width(window_width),window_height(window_height), fullscreen(fullscreen){
+Window::Window(const std::string &name, int width, int height, bool fullscreen)
+    :name(name),width(width),height(height), fullscreen(fullscreen){
 
 
 }
@@ -56,10 +57,17 @@ bool Window::init(){
     return true;
 }
 
+void Window::resize(int width, int height)
+{
+    this->width = width;
+    this->height = height;
+    renderer->resize(width,height);
+}
+
 void Window::screenshot(const std::string &file)
 {
     cout<<"Window::screenshot "<<file<<endl;
-    int size = window_width*window_height*4;
+    int size = width*height*4;
     std::vector<unsigned char> data(size);
 
 
@@ -67,7 +75,7 @@ void Window::screenshot(const std::string &file)
     GLint fb;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glReadPixels(0,0,window_width,window_height,GL_RGBA,GL_UNSIGNED_BYTE,data.data());
+    glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,data.data());
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
 
     for(int i = 0 ;i<size;i+=4){
@@ -86,7 +94,7 @@ void Window::screenshot(const std::string &file)
     }
 
     fipImage fipimg;
-    fipimg.setSize(	FIT_BITMAP,window_width,window_height,32);
+    fipimg.setSize(	FIT_BITMAP,width,height,32);
     auto idata = fipimg.accessPixels();
     memcpy(idata,data.data(),size);
     fipimg.save(file.c_str());

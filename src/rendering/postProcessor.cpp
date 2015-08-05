@@ -113,8 +113,15 @@ void PostProcessor::render()
 
     timer.stopTimer();
 
-//    std::cout<<"Time spent on the GPU: "<< timer.getTimeMS() <<std::endl;
+    //    std::cout<<"Time spent on the GPU: "<< timer.getTimeMS() <<std::endl;
 
+}
+
+void PostProcessor::resize(int width, int height)
+{
+    this->width=width;this->height=height;
+    framebuffers[0].resize(width,height);
+    framebuffers[1].resize(width,height);
 }
 
 void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)

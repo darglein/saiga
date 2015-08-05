@@ -50,6 +50,12 @@ void DeferredLighting::init(int width, int height){
     lightAccumulationBuffer.unbind();
 }
 
+void DeferredLighting::resize(int width, int height)
+{
+    this->width=width;this->height=height;
+    lightAccumulationBuffer.resize(width,height);
+}
+
 void DeferredLighting::cullLights(Camera *cam){
 
     visibleLights = directionalLights.size();

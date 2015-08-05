@@ -16,6 +16,10 @@
 //#endif
 
 
+
+
+
+
 glfw_Window::glfw_Window(const std::string &name, int window_width, int window_height, bool fullscreen):Window(name,window_width,window_height, fullscreen)
 {
 }
@@ -101,9 +105,9 @@ bool glfw_Window::initWindow()
 
     /* Create a windowed mode window and its OpenGL context */
     if (fullscreen){
-        window = glfwCreateWindow(window_width, window_height, name.c_str(), primary, NULL);
+        window = glfwCreateWindow(width, height, name.c_str(), primary, NULL);
     } else {
-        window = glfwCreateWindow(window_width, window_height, name.c_str(), NULL, NULL);
+        window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
     }
 
 
@@ -119,6 +123,10 @@ bool glfw_Window::initWindow()
 
     //    //vsync
     glfwSwapInterval(vsync ? 1 : 0);
+
+
+    //framebuffer size != window size
+    glfwGetFramebufferSize(window, &width, &height);
 
     initOpenGL();
 
@@ -140,6 +148,8 @@ bool glfw_Window::initWindow()
 }
 
 bool glfw_Window::initInput(){
+    glfwSetFramebufferSizeCallback(window, glfw_EventHandler::window_size_callback);
+
     //mouse
     glfwSetCursorPosCallback(window,glfw_EventHandler::cursor_position_callback);
     glfwSetMouseButtonCallback(window, glfw_EventHandler::mouse_button_callback);
@@ -147,6 +157,8 @@ bool glfw_Window::initInput(){
     //keyboard
     glfwSetCharCallback(window, glfw_EventHandler::character_callback);
     glfwSetKeyCallback(window, glfw_EventHandler::key_callback);
+
+    glfw_EventHandler::addResizeListener(this,0);
 
     IC.add("quit", [this](ICPARAMS){(void)args;this->quit();});
 
@@ -270,6 +282,12 @@ void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
 void glfw_Window::setTimeScale(double timeScale)
 {
     this->timeScale = timeScale;
+}
+
+bool glfw_Window::window_size_callback(GLFWwindow *window, int width, int height)
+{
+    this->resize(width,height);
+    return false;
 }
 
 void glfw_Window::error_callback(int error, const char* description){

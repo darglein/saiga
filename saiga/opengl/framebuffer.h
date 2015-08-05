@@ -36,5 +36,10 @@ public:
     void blitDepth(int otherId);
     void blitColor(int otherId);
 
+    /**
+    * Resizes all attached textures.
+    */
+    void resize(int width , int height);
+
 };
 

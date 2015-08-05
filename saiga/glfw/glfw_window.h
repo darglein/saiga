@@ -2,6 +2,8 @@
 
 #include <saiga/config.h>
 #include "saiga/window/window.h"
+#include "saiga/glfw/glfw_eventhandler.h"
+
 #include <array>
 
 
@@ -35,7 +37,7 @@ struct SAIGA_GLOBAL Joystick{
     void getCurrentStateFromGLFW();
 };
 
-class SAIGA_GLOBAL glfw_Window : public Window{
+class SAIGA_GLOBAL glfw_Window : public Window, public glfw_ResizeListener{
 protected:
     GLFWwindow* window = nullptr;
 
@@ -50,7 +52,7 @@ public:
     double lastSwapBuffersMS = 0;
     double lastPolleventsMS = 0;
 
-    glfw_Window(const std::string &name,int window_width,int window_height, bool fullscreen);
+    glfw_Window(const std::string &name,int width,int height, bool fullscreen);
     virtual ~glfw_Window();
 
     static bool initGlfw();
@@ -68,6 +70,7 @@ public:
     void startMainLoopNoRender(float ticksPerSecond);
     void setTimeScale(double timeScale);
 
+    virtual bool window_size_callback(GLFWwindow* window, int width, int height) override;
 
 
 

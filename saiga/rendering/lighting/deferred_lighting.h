@@ -68,6 +68,7 @@ public:
     ~DeferredLighting();
 
     void init(int width, int height);
+    void resize(int width, int height);
 
     void loadShaders();
 

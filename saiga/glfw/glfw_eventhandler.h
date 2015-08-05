@@ -3,7 +3,7 @@
 
 #include <saiga/config.h>
 #include <vector>
-
+#include <algorithm>
 
 struct GLFWwindow;
 
@@ -22,6 +22,13 @@ public:
     virtual bool scroll_event(GLFWwindow* window, double xoffset, double yoffset) = 0;
 };
 
+class SAIGA_GLOBAL glfw_ResizeListener{
+public:
+    virtual ~glfw_ResizeListener(){}
+    virtual bool window_size_callback(GLFWwindow* window, int width, int height) = 0;
+
+};
+
 class SAIGA_GLOBAL glfw_EventHandler{
 private:
 
@@ -37,14 +44,25 @@ private:
     };
     static std::vector<Listener<glfw_KeyListener>> keyListener;
     static std::vector<Listener<glfw_MouseListener>> mouseListener;
+    static std::vector<Listener<glfw_ResizeListener>> resizeListener;
+private:
+    template<typename T>
+    static void addListener(std::vector<Listener<T>> &list, T* t, int priority = 0);
+    template<typename T>
+    static void removeListener(std::vector<Listener<T>> &list, T* t);
 public:
     static void addKeyListener(glfw_KeyListener* kl, int priority = 0);
-    static void addMouseListener(glfw_MouseListener* ml, int priority = 0);
-
     static void removeKeyListener(glfw_KeyListener* kl);
+
+    static void addMouseListener(glfw_MouseListener* ml, int priority = 0);
     static void removeMouseListener(glfw_MouseListener* ml);
 
+    static void addResizeListener(glfw_ResizeListener* kl, int priority = 0);
+    static void removeResizeListener(glfw_ResizeListener* kl);
+
 public:
+    static void window_size_callback(GLFWwindow* window, int width, int height);
+
     //these functions will be called by glfw from the method glfwPollEvents();
     static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
     static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
@@ -54,3 +72,31 @@ public:
     static void character_callback(GLFWwindow* window, unsigned int codepoint);
 };
 
+
+template<typename T>
+void glfw_EventHandler::addListener(std::vector<Listener<T>> &list, T* t, int priority){
+    Listener<T> l(t,priority);
+    auto it = std::find(list.begin(),list.end(),l);
+
+    if(it!=list.end())
+        return;
+
+    auto iter=list.begin();
+    for(;iter!=list.end();++iter){
+        if((*iter).priority<priority)
+            break;
+    }
+    list.insert(iter,l);
+}
+
+
+template<typename T>
+void glfw_EventHandler::removeListener(std::vector<Listener<T>> &list, T* t){
+    auto it=list.begin();
+    for(;it!=list.end();++it){
+        if(it->listener==t){
+            list.erase(it);
+            return;
+        }
+    }
+}

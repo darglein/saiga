@@ -203,40 +203,13 @@ void Shader::addInjectionsToCode(GLenum type, std::vector<std::string> &content)
         if(std::get<0>(pair)==type){
             injection =  std::get<1>(pair)+ '\n' ;
             int line =  std::get<2>(pair);
-            int i = 0;
-
-            //            for(char& c : content){
-            //                i++;
-            //                if(c=='\n'){
-            //                    line--;
-            //                }
-            //                if(line==0)
-            //                    break;
-            //            }
-            ////            cout<<"inserting at line "<<line<<" char "<<i<<" "<<injection<<endl;
-            //            //inject at correct position
-            //            content.insert(i,injection);
 
             content.insert(content.begin()+line,injection);
-            //            for(char& c : content){
-            //                i++;
-            //                if(c=='\n'){
-            //                    line--;
-            //                }
-            //                if(line==0)
-            //                    break;
-            //            }
-            ////            cout<<"inserting at line "<<line<<" char "<<i<<" "<<injection<<endl;
-            //            //inject at correct position
-            //            content.insert(i,injection);
+
 
         }
     }
 
-    //    if(injections.size()>0){
-    //    cout<<"full source: "<<endl;
-    //    cout<<content<<endl;
-    //    }
 }
 
 GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
@@ -268,7 +241,6 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
 
     std::vector<const GLchar *> test;
     std::string data;
-    int i = 0;
     for(std::string line : content){
         data.append(line);
         test.push_back(line.c_str());
@@ -277,7 +249,6 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
 //        cout<<++i<<","<<n<<" "<<line<<std::flush;
     }
 
-//    cout<<data<<"asldgh"<<endl;
 
 
     GLint result = 0;

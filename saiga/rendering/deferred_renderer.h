@@ -70,8 +70,8 @@ public:
     IndexedVertexBuffer<VertexNT,GLubyte> quadMesh;
 
     Framebuffer deferred_framebuffer;
-
     Framebuffer ssao_framebuffer;
+
     PostProcessor postProcessor;
 
     DeferredShader* deferred_shader;
@@ -84,6 +84,7 @@ public:
     void init(DeferredShader* deferred_shader, int w, int h);
     void setDeferredMixer(DeferredShader* deferred_shader);
     void setSize(int width, int height){this->width=width;this->height=height;}
+    void resize(int width, int height);
 
     void toggleSSAO();
 
