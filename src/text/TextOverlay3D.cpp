@@ -16,6 +16,18 @@ bool TextOverlay3D::TextContainer::update(float delta)
     return duration<=0;
 }
 
+float TextOverlay3D::TextContainer::getFade()
+{
+
+    float a = 1.0f;
+    if(fade){
+
+        if(duration<fadeStart)
+            a = duration / (maxDuration-fadeStart) ;
+    }
+    return a;
+}
+
 
 TextOverlay3D::TextOverlay3D(){
 
@@ -45,7 +57,7 @@ void TextOverlay3D::update(float secondsPerTick)
     texts.erase(std::remove_if(texts.begin(), texts.end(),func ), texts.end());
 }
 
-void TextOverlay3D::setTextShader(TextShader* textShader){
+void TextOverlay3D::setTextShader(TextShaderFade* textShader){
 
     this->textShader= textShader;
 }
@@ -62,7 +74,7 @@ void TextOverlay3D::renderText(Camera *cam){
 
 
     for(TextContainer &p : texts){
-
+        textShader->uploadFade(p.getFade());
         if (p.orientToCamera){
             //make this text face towards the camera
             p.text->calculateModel();

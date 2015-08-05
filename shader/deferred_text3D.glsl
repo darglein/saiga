@@ -43,6 +43,7 @@ uniform vec4 strokeColor;
 
 uniform sampler2D text;
 
+uniform float fade = 0.1f;
 
 in vec2 texCoord;
 
@@ -58,6 +59,7 @@ void main() {
 
 
     out_color =  color*fill + strokeColor*stroke;
+    out_color.a *= fade;
 }
 
 ##end

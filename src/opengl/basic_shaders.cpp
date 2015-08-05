@@ -138,3 +138,15 @@ void TextShader::upload(Texture* texture, const vec4 &color, const vec4 &strokeC
     Shader::upload(location_texture,0);
 
 }
+
+
+void TextShaderFade::checkUniforms()
+{
+    TextShader::checkUniforms();
+     location_fade = getUniformLocation("fade");
+}
+
+void TextShaderFade::uploadFade(float fade)
+{
+    Shader::upload(location_fade,fade);
+}

@@ -81,4 +81,14 @@ public:
     void upload(Texture* texture, const vec4 &color,const vec4 &strokeColor);
 };
 
+class SAIGA_GLOBAL TextShaderFade : public TextShader {
+public:
+    int location_fade;
+    TextShaderFade(const std::string &multi_file) : TextShader(multi_file){}
+    virtual void checkUniforms();
+
+    void uploadFade(float fade);
+};
+
+
 

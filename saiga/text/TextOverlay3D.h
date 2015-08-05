@@ -9,6 +9,7 @@
 class TextShader;
 class Text;
 class Camera;
+class TextShaderFade;
 
 class SAIGA_GLOBAL TextOverlay3D {
 
@@ -16,19 +17,23 @@ public:
 
     struct TextContainer{
         std::shared_ptr<Text> text;
+        float fadeStart = 0.0f;
         float duration = 0.f;
+        float maxDuration = 0.0f;
         bool orientToCamera = true;
         vec3 velocity = vec3(0);
+        bool fade = false;
 
         TextContainer(){}
         TextContainer(std::shared_ptr<Text> text, float duration, bool orientToCamera)
-            : text(text), duration(duration), orientToCamera(orientToCamera){}
+            : text(text), duration(duration),maxDuration(duration), orientToCamera(orientToCamera){}
 
         bool update(float delta);
+        float getFade();
 
     };
 
-    TextShader* textShader;
+    TextShaderFade* textShader;
     //text + duration
     std::vector<TextContainer> texts;
 
@@ -47,7 +52,7 @@ public:
     void update(float secondsPerTick);
 
 
-    void setTextShader(TextShader* textShader);
+    void setTextShader(TextShaderFade* textShader);
 };
 
 
