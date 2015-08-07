@@ -19,6 +19,7 @@ out vec3 normalW;
 out vec3 vertexMV;
 out vec3 vertex;
 out vec2 texCoord;
+uniform float wobble;
 
 void main() {
 //    gl_Position = vec4( in_position, 1 );
@@ -43,6 +44,7 @@ uniform mat4 view;
 uniform mat4 proj;
 uniform sampler2D image;
 uniform float highlight;
+uniform float wobble;
 
 in vec3 normal;
 in vec3 normalW;
@@ -54,17 +56,65 @@ layout(location=0) out vec3 out_color;
 layout(location=1) out vec3 out_normal;
 layout(location=2) out vec3 out_position;
 
+const float C_PI    = 3.1415;
+const float C_2PI   = 2.0 * C_PI;
+const float C_2PI_I = 1.0 / (2.0 * C_PI);
+const float C_PI_2  = C_PI / 2.0;
+
 vec3 blackAndWhite(vec3 color){
 //    float light = dot(color,vec3(1))/3.0f;
     float light = dot(color,vec3(0.21f,0.72f,0.07f));
     return vec3(light);
 }
 
+vec2 Distort(vec2 p)
+{
+    float theta  = atan(p.y, p.x);
+    float radius = length(p);
+	
+	float w;
+	if (wobble < 0.2f){
+		w = wobble/0.2f;
+	} else {
+		w = 1- ((wobble-0.2f)/0.8f);
+	}
+	
+	
+    radius = pow(radius, 1.f+w*1.f);
+    p.x = radius * cos(theta);
+    p.y = radius * sin(theta);
+    return 0.5 * (p + 1.0);
+}
+
+
 void main() {
+	
+	vec2 tex = texCoord;
+  vec2 xy = 2.0 * tex.xy - 1.0;
+  vec2 uv;
+  float d = length(xy);
+  if (d < 1.5)
+  {
+    uv = Distort(xy);  }
+  else
+  {
+    uv = tex;
+  }
+  
+  mat2 RotationMatrix = mat2( cos(1.0), -sin(1.0),
+                               sin(1.0),  cos(1.0));
+	
+	vec2 texrot = RotationMatrix*tex;
+	
+    vec3 diffColor = texture(image, uv).rgb;
+	float factor = 0.f;
+ 	if (	texrot.y < 1-2*wobble){
+		//diffColor = vec3(1,0,0);
+		factor = 1.f;
+	} 
 
-     vec3 diffColor = texture(image, texCoord).rgb;
-
-    out_color =  highlight*diffColor + (1.0f-highlight) * blackAndWhite(diffColor);
+   // out_color = diffColor;
+    out_color =  mix(diffColor, blackAndWhite(diffColor), factor);
     out_normal = normalize(normal)*0.5f+0.5f;
     out_position = vertexMV;
 }
