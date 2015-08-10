@@ -49,7 +49,7 @@ in vec3 vertexMV;
 in vec3 vertex;
 in vec2 texCoord;
 
-layout(location=0) out vec3 out_color;
+layout(location=0) out vec4 out_color;
 layout(location=1) out vec3 out_normal;
 layout(location=2) out vec3 out_position;
 
@@ -57,7 +57,7 @@ void main() {
 
      vec4 diffColor = texture(image, texCoord);
 
-    out_color =  vec3(diffColor);
+    out_color =  diffColor;
     out_normal = normalize(normal)*0.5f+0.5f;
     out_position = vertexMV;
 }
