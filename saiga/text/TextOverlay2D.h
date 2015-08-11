@@ -22,6 +22,7 @@ public:
 
     //text stuff
     void addText(Text* text);
+    void removeText(Text* text);
     void setTextShader(TextShader* textShader);
 };
 
