@@ -222,7 +222,7 @@ void main() {
 ##fragment
 #version 400
 
-layout(early_fragment_tests) in; //force early depth tests. may not work on older versions
+//layout(early_fragment_tests) in; //force early depth tests. may not work on older versions
 
 uniform sampler2DArray image;
 uniform sampler2D depthTexture;

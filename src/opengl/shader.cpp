@@ -1,5 +1,6 @@
 #include "saiga/opengl/shader.h"
 
+#include "saiga/util/error.h"
 #include <fstream>
 #include <algorithm>
 
@@ -127,20 +128,20 @@ bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
         }else if(line.compare("##vertex")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_VERTEX_SHADER;
-//            line = "";
+            //            line = "";
 
         }else if(line.compare("##fragment")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_FRAGMENT_SHADER;
-//            line = "";
+            //            line = "";
 
         }else if(line.compare("##geometry")==0){
             status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
             type = GL_GEOMETRY_SHADER;
-//            line = "";
+            //            line = "";
         }else if(status == STATUS_READING){
             //normal code line
-//            cout<<"adding "<<lineCount<<","<<line<<std::endl;
+            //            cout<<"adding "<<lineCount<<","<<line<<std::endl;
             code.push_back(line+'\n');
         }
 
@@ -167,14 +168,22 @@ GLuint Shader::createProgram(){
     if(geoShader){
         glAttachShader(program, geoShader);
         //TODO disable this for NVIDIA nsight debugging
-        glProgramParameteriEXT(program,GL_GEOMETRY_INPUT_TYPE_EXT,static_cast<GLint>(GL_TRIANGLES));
-        glProgramParameteriEXT(program,GL_GEOMETRY_OUTPUT_TYPE_EXT,static_cast<GLint>(GL_TRIANGLE_STRIP));
+
+        //why was this there anyway?
+        //        glProgramParameteriEXT(program,GL_GEOMETRY_INPUT_TYPE_EXT,static_cast<GLint>(GL_TRIANGLES));
+        //        glProgramParameteriEXT(program,GL_GEOMETRY_OUTPUT_TYPE_EXT,static_cast<GLint>(GL_TRIANGLE_STRIP));
 
     }
     if(fragShader)
         glAttachShader(program, fragShader);
 
+    Error::quitWhenError("Shader::createProgram before link");
+
+
+
     glLinkProgram(program);
+
+    Error::quitWhenError("Shader::createProgram after link");
 
     printProgramLog(program);
 
@@ -237,7 +246,11 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
     GLuint id = glCreateShader(type);
 
 
-//    cout<<"addShader"<<endl;
+    if(id==0){
+        cout<<"Could not create shader of type: "<<typeToName(type)<<endl;
+        return 0;
+    }
+    Error::quitWhenError("Shader::addShader before");
 
     std::vector<const GLchar *> test;
     std::string data;
@@ -245,8 +258,8 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
         data.append(line);
         test.push_back(line.c_str());
 
-//        size_t n = std::count(line.begin(), line.end(), '\n');
-//        cout<<++i<<","<<n<<" "<<line<<std::flush;
+        //        size_t n = std::count(line.begin(), line.end(), '\n');
+        //        cout<<++i<<","<<n<<" "<<line<<std::flush;
     }
 
 
@@ -260,7 +273,7 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
     glShaderSource(id, 1,&str , 0);
 
 
-//    glShaderSource(id, test.size(),&test[0] , 0);
+    //    glShaderSource(id, test.size(),&test[0] , 0);
 
     glCompileShader(id);
     // Check vertex shader
@@ -289,6 +302,9 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
         break;
 
     }
+
+
+    Error::quitWhenError("Shader::addShader after");
 
     return id;
 }
@@ -494,37 +510,37 @@ void Shader::parseShaderError(const std::string &message, GLenum type )
 
     //the nvidia compillers line numbers don't match the actual line numbers.
 
-//    auto f = message.find('(')+1;
-//    auto s = message.find(')')-2;
+    //    auto f = message.find('(')+1;
+    //    auto s = message.find(')')-2;
 
 
-//    std::string bla = message.substr(f,s);
-//    int line = std::atoi(bla.c_str());
+    //    std::string bla = message.substr(f,s);
+    //    int line = std::atoi(bla.c_str());
 
-//    std::cout<<"line: "<<line<<","<<bla<<std::endl;
+    //    std::cout<<"line: "<<line<<","<<bla<<std::endl;
 
-//    std::vector<std::string> *data;
-//    switch(type){
-//    case GL_VERTEX_SHADER:
-//        data = &vertexShaderCode;
-//        break;
-//    case GL_GEOMETRY_SHADER:
-//        data = &vertexShaderCode;
-//        break;
-//    case GL_FRAGMENT_SHADER:
-//        data = &vertexShaderCode;
-//        break;
-//    default:
-//        break;
+    //    std::vector<std::string> *data;
+    //    switch(type){
+    //    case GL_VERTEX_SHADER:
+    //        data = &vertexShaderCode;
+    //        break;
+    //    case GL_GEOMETRY_SHADER:
+    //        data = &vertexShaderCode;
+    //        break;
+    //    case GL_FRAGMENT_SHADER:
+    //        data = &vertexShaderCode;
+    //        break;
+    //    default:
+    //        break;
 
-//    }
+    //    }
 
-//    int i = 0;
-//    for(std::string line : (*data)){
-//        cout<<++i<<" "<<line<<std::flush;
-//    }
+    //    int i = 0;
+    //    for(std::string line : (*data)){
+    //        cout<<++i<<" "<<line<<std::flush;
+    //    }
 
-//    cout<<">>> "<<(*data)[line-1]<<endl;
+    //    cout<<">>> "<<(*data)[line-1]<<endl;
 }
 
 
