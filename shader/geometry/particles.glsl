@@ -206,7 +206,12 @@ void main() {
 ##fragment
 #version 400
 
-//layout(early_fragment_tests) in; //force early depth tests. may not work on older versions
+//core in version 4.5 or with extension: ARB_shader_image_load_store
+
+#extension GL_ARB_shader_image_load_store: enable
+#ifdef GL_ARB_shader_image_load_store
+layout(early_fragment_tests) in; //force early depth tests. may not work on older versions
+#endif //GL_ARB_shader_image_load_store
 
 uniform sampler2DArray image;
 

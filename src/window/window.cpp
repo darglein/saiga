@@ -33,6 +33,9 @@ bool Window::init(){
     cout<<"Renderer version: "<<glGetString(GL_RENDERER)<<endl;
     cout<<"Vendor version: "<<glGetString(GL_VENDOR)<<endl;
 
+
+
+
     if(!initInput()){
         std::cerr<<"Failed to initialize Input!"<<std::endl;
         return false;

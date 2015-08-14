@@ -31,9 +31,27 @@ void readConfigFile(){
 
 }
 
+void writeExtensions(){
+
+    std::ofstream myfile;
+     myfile.open ("opengl-extensions.txt");
+
+
+
+    int n = getExtensionCount();
+    for (GLint i=0; i<n; i++)
+    {
+        const char* extension = (const char*) glGetStringi(GL_EXTENSIONS, i);
+
+          myfile << extension<<endl;
+    }
+
+    myfile.close();
+}
 
 void initFramework(Window *window)
 {
+    writeExtensions();
     readConfigFile();
 
     ShaderLoader::instance()->addPath(SHADER_PATH);
@@ -55,7 +73,7 @@ void initFramework(Window *window)
     DeferredShader* def = ShaderLoader::instance()->load<DeferredShader>("deferred_mixer.glsl");
 
 
-//     exit(1);
+    //     exit(1);
 
     Deferred_Renderer* renderer = new Deferred_Renderer();
     renderer->init(def,window->getWidth(),window->getHeight());
@@ -63,7 +81,7 @@ void initFramework(Window *window)
 
     Shader::ShaderCodeInjections shadowInjection;
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
-                                    "#define SHADOWS",1); //after the version number
+                                 "#define SHADOWS",1); //after the version number
 
     renderer->lighting.setShader(
                 ShaderLoader::instance()->load<SpotLightShader>("deferred_lighting_spotlight_shadow.glsl"),
@@ -78,12 +96,12 @@ void initFramework(Window *window)
     renderer->lighting.setShader(
                 ShaderLoader::instance()->load<DirectionalLightShader>("deferred_lighting_directional_shadow.glsl"),
                 ShaderLoader::instance()->load<DirectionalLightShader>("deferred_lighting_directional_shadow.glsl",shadowInjection)
-                                 );
+                );
 
     renderer->lighting.setShader(
                 ShaderLoader::instance()->load<BoxLightShader>("deferred_lighting_boxlight_shadow.glsl"),
                 ShaderLoader::instance()->load<BoxLightShader>("deferred_lighting_boxlight_shadow.glsl",shadowInjection)
-                                 );
+                );
 
     renderer->lighting.setDebugShader(ShaderLoader::instance()->load<MVPColorShader>("deferred_lighting_debug.glsl"));
     renderer->lighting.setStencilShader(ShaderLoader::instance()->load<MVPShader>("deferred_lighting_stencil.glsl"));
@@ -98,20 +116,20 @@ void initFramework(Window *window)
 
     renderer->ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("ssao.glsl");
     renderer->ssao = true;
-//    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
+    //    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
 
     PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
     std::vector<PostProcessingShader*> defaultEffects;
     defaultEffects.push_back(pps);
 
     renderer->postProcessor.setPostProcessingEffects(defaultEffects);
-//    renderer->postProcessor.postProcessingEffects.push_back(renderer->postProcessingShader);
+    //    renderer->postProcessor.postProcessingEffects.push_back(renderer->postProcessingShader);
 
-//    PostProcessingShader* bla = ShaderLoader::instance()->load<PostProcessingShader>("gaussian_blur.glsl");
-//    renderer->postProcessor.postProcessingEffects.push_back(bla);
-//    renderer->postProcessor.postProcessingEffects.push_back(bla);
-//    renderer->postProcessor.postProcessingEffects.push_back(bla);
-//    renderer->postProcessor.postProcessingEffects.push_back(bla);
+    //    PostProcessingShader* bla = ShaderLoader::instance()->load<PostProcessingShader>("gaussian_blur.glsl");
+    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
+    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
+    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
+    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
 
     renderer->lighting.setRenderDebug( false);
 

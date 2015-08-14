@@ -35,3 +35,22 @@ int getVersionMinor(){
     glGetIntegerv(GL_MINOR_VERSION,&v);
     return v;
 }
+
+
+int getExtensionCount(){
+    GLint n=0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &n);
+    return n;
+}
+
+bool hasExtension(const std::string &ext){
+    int n = getExtensionCount();
+    for (GLint i=0; i<n; i++)
+    {
+        const char* extension = (const char*) glGetStringi(GL_EXTENSIONS, i);
+        if(ext == std::string(extension)){
+            return true;
+        }
+    }
+    return false;
+}

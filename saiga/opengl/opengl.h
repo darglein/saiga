@@ -17,3 +17,6 @@ using namespace gl;
 SAIGA_LOCAL extern void initOpenGL();
 SAIGA_GLOBAL int getVersionMajor();
 SAIGA_GLOBAL int getVersionMinor();
+
+SAIGA_GLOBAL int getExtensionCount();
+SAIGA_GLOBAL bool hasExtension(const std::string &ext);

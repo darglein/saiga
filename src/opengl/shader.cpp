@@ -169,7 +169,7 @@ GLuint Shader::createProgram(){
         glAttachShader(program, geoShader);
         //TODO disable this for NVIDIA nsight debugging
 
-        //why was this there anyway?
+        //this is not needed since OpenGL 3.2
         //        glProgramParameteriEXT(program,GL_GEOMETRY_INPUT_TYPE_EXT,static_cast<GLint>(GL_TRIANGLES));
         //        glProgramParameteriEXT(program,GL_GEOMETRY_OUTPUT_TYPE_EXT,static_cast<GLint>(GL_TRIANGLE_STRIP));
 
