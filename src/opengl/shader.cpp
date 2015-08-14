@@ -165,8 +165,10 @@ GLuint Shader::createProgram(){
 
     if(vertShader)
         glAttachShader(program, vertShader);
+
     if(geoShader){
         glAttachShader(program, geoShader);
+
         //TODO disable this for NVIDIA nsight debugging
 
         //this is not needed since OpenGL 3.2
@@ -176,6 +178,7 @@ GLuint Shader::createProgram(){
     }
     if(fragShader)
         glAttachShader(program, fragShader);
+   // cout << "glLinkProgram " << endl;
 
     Error::quitWhenError("Shader::createProgram before link");
 
@@ -231,6 +234,7 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
         break;
     case GL_GEOMETRY_SHADER:
         geometryShaderCode = content;
+        cout<<"geometry shader!!!"<<endl;
         break;
     case GL_FRAGMENT_SHADER:
         fragmentShaderCode = content;
@@ -269,6 +273,7 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
     const GLchar* str = data.c_str();
 
 
+//    cout<<"shader created"<<endl;
 
     glShaderSource(id, 1,&str , 0);
 
@@ -303,6 +308,7 @@ GLuint Shader::addShader(std::vector<std::string>& content, GLenum type){
 
     }
 
+ //   cout<<"shader compiled and ready"<<endl;
 
     Error::quitWhenError("Shader::addShader after");
 

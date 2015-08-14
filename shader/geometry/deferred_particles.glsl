@@ -107,14 +107,14 @@ out vec3 normal;
 out vec3 vertexMV;
 
 vec3 getTC(int id){
-    const vec4 tx=vec4(0,1,0,1);
-    const vec4 ty=vec4(0,0,1,1);
+     vec4 tx=vec4(0,1,0,1);
+     vec4 ty=vec4(0,0,1,1);
     return vec3(tx[id],ty[id],layer[0]);
 }
 
 vec4 getOffset(int id){
-    const vec4 ix=vec4(-1,1,-1,1);
-    const vec4 iy=vec4(-1,-1,1,1);
+     vec4 ix=vec4(-1,1,-1,1);
+     vec4 iy=vec4(-1,-1,1,1);
 
     vec4 pos;
     pos.x =ix[id]*scale[0].x;
@@ -125,8 +125,8 @@ vec4 getOffset(int id){
 }
 
 vec4 getOffset(int i, vec3 right, vec3 dir){
-    const vec4 ix=vec4(1,-1,1,-1);
-    const vec4 iy=vec4(1,1,-1,-1);
+     vec4 ix=vec4(1,-1,1,-1);
+     vec4 iy=vec4(1,1,-1,-1);
 
     vec3 offset =  ix[i]*dir*scale[0].x+iy[i]*right*scale[0].y;
 
