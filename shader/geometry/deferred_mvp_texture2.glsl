@@ -52,9 +52,7 @@ in vec3 vertexMV;
 in vec3 vertex;
 in vec2 texCoord;
 
-layout(location=0) out vec3 out_color;
-layout(location=1) out vec3 out_normal;
-layout(location=2) out vec3 out_position;
+layout(location=0) out vec4 out_color;
 
 const float C_PI    = 3.1415;
 const float C_2PI   = 2.0 * C_PI;
@@ -113,10 +111,9 @@ void main() {
 		factor = 1.f;
 	} 
 
-   // out_color = diffColor;
-    out_color =  mix(diffColor, blackAndWhite(diffColor), factor);
-    out_normal = normalize(normal)*0.5f+0.5f;
-    out_position = vertexMV;
+//    out_color = vec4(diffColor,1);
+    out_color =  vec4(mix(diffColor, blackAndWhite(diffColor), (1.0f-highlight) ),1);
+
 }
 
 ##end
