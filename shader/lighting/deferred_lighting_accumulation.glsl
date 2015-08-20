@@ -40,9 +40,12 @@ void main() {
     vec3 diffColor,vposition,normal,data;
     float depth;
     getGbufferData(diffColor,vposition,depth,normal,data);
-    vec3 specColor = vec3(1);
+
 
     vec4 light = texture(lightAccumulationtexture,CalcTexCoord());
+
+//    vec3 specColor = vec3(1);
+    vec3 specColor = light.rgb;
 
     float specular = data.x;
     float emissive = data.y;
