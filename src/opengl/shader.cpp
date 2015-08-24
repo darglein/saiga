@@ -211,10 +211,10 @@ GLuint Shader::createProgram(){
 void Shader::addInjectionsToCode(GLenum type, std::vector<std::string> &content)
 {
     std::string injection;
-    for(auto& pair : injections){
-        if(std::get<0>(pair)==type){
-            injection =  std::get<1>(pair)+ '\n' ;
-            int line =  std::get<2>(pair);
+    for(ShaderCodeInjection& sci : injections){
+        if(sci.type==type){
+            injection =  sci.code+ '\n' ;
+            int line =  sci.line;
 
             content.insert(content.begin()+line,injection);
 

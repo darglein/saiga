@@ -3,6 +3,7 @@
 
 #include "saiga/opengl/opengl.h"
 #include "saiga/util/glm.h"
+#include "saiga/opengl/shaderpart.h"
 
 #include <vector>
 #include <tuple>
@@ -18,23 +19,15 @@ using std::string;
 
 class SAIGA_GLOBAL Shader{
 public:
-    /**
-     * @brief The CodeInjection class
-     * The code injections are added to the top of the shader.
-     * This can for exapmple be used to add different #define.
-     */
-    class CodeInjection{
-    public:
-        //shader type, must be one of the supported types
-        int type;
-        std::string code;
-    };
 
-    typedef std::vector<std::tuple<GLenum,std::string,int>> ShaderCodeInjections;
+
+//    typedef std::vector<std::tuple<GLenum,std::string,int>> ShaderCodeInjections;
+        typedef std::vector<ShaderCodeInjection> ShaderCodeInjections;
 
     std::string name;
     std::string shaderPath;
     std::string prefix;
+//    ShaderCodeInjections injections;
     ShaderCodeInjections injections;
 
     std::vector<std::string> vertexShaderCode;
@@ -45,7 +38,8 @@ public:
     virtual ~Shader();
     Shader(const std::string &multi_file);
 
-    void addShaderCodeInjections(const ShaderCodeInjections& sci){injections=sci;}
+    void addShaderCodeInjection(const ShaderCodeInjection& sci){injections.push_back(sci);}
+    void setShaderCodeInjections(const ShaderCodeInjections& sci){injections=sci;}
     void addInjectionsToCode(GLenum type, std::vector<std::string> &content);
 
     std::string typeToName(GLenum type);
