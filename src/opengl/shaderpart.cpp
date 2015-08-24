@@ -27,29 +27,16 @@ bool ShaderPart::compile()
     for(std::string line : code){
         data.append(line);
     }
-
-
-
-
     const GLchar* str = data.c_str();
-
-
     glShaderSource(id, 1,&str , 0);
-
-
-
     glCompileShader(id);
-
-
     //checking compile status
     GLint result = 0;
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
-
     if(result == static_cast<GLint>(GL_FALSE) ){
         printShaderLog();
         return false;
     }
-
     return true;
 }
 
@@ -70,6 +57,26 @@ void ShaderPart::printShaderLog()
 
     delete[] infoLog;
 }
+
+
+void ShaderPart::addInjection(const ShaderCodeInjection& sci)
+{
+    std::string injection;
+    if(sci.type==type){
+        injection =  sci.code+ '\n' ;
+        code.insert(code.begin()+sci.line,injection);
+    }
+
+
+}
+
+void ShaderPart::addInjections(const ShaderPart::ShaderCodeInjections &scis)
+{
+    for(const ShaderCodeInjection& sci : scis){
+        addInjection(sci);
+    }
+}
+
 
 void ShaderPart::parseShaderError(const std::string &message)
 {

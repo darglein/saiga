@@ -5,11 +5,6 @@
 #include "saiga/util/glm.h"
 
 #include <vector>
-#include <tuple>
-
-using std::cerr;
-using std::string;
-
 
 
 
@@ -41,6 +36,10 @@ SAIGA_GLOBAL inline bool operator==(const ShaderCodeInjection& lhs, const Shader
  */
 
 class SAIGA_GLOBAL ShaderPart{
+public:
+    typedef std::vector<ShaderCodeInjection> ShaderCodeInjections;
+
+
     GLenum type;
     std::vector<std::string> code;
 
@@ -53,5 +52,8 @@ class SAIGA_GLOBAL ShaderPart{
     void printShaderLog();
     void parseShaderError(const std::string& message);
 
-     std::string typeToName(GLenum type);
+    std::string typeToName(GLenum type);
+
+    void addInjection(const ShaderCodeInjection &sci);
+    void addInjections(const ShaderCodeInjections &scis);
 };

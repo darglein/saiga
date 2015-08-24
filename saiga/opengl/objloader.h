@@ -12,6 +12,8 @@
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/geometry/material_mesh.h"
 
+using std::string;
+
 struct SAIGA_GLOBAL IndexedVertex{
     int v,n,t;
 };
