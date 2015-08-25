@@ -2,7 +2,7 @@
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/window/window.h"
 
-#include "saiga/opengl/shaderLoader.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/objloader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 

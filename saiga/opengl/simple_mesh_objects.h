@@ -1,7 +1,7 @@
 #pragma once
 
 #include "saiga/opengl/mesh_object.h"
-#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 
 class Sphere;
 class Cone;

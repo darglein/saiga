@@ -12,7 +12,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/texture/cube_texture.h"
 
-#include "saiga/opengl/shaderLoader.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/rendering/renderer.h"
 
 

@@ -2,7 +2,8 @@
 #include "saiga/opengl/texture/arrayTexture.h"
 #include "saiga/rendering/particles/particle_shader.h"
 #include "saiga/camera/camera.h"
-#include "saiga/opengl/shaderLoader.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+
 float ParticleSystem::ticksPerSecond = 60.0f;
 float ParticleSystem::secondsPerTick = 1.0f/60.0f;
 

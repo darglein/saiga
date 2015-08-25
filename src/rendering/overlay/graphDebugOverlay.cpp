@@ -1,5 +1,5 @@
 #include "saiga/rendering/overlay/graphDebugOverlay.h"
-#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/opengl/framebuffer.h"
 

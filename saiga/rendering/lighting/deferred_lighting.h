@@ -3,7 +3,7 @@
 #include "saiga/camera/camera.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
-#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 
 class PointLightShader;
 class SpotLightShader;

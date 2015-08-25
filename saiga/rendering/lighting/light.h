@@ -1,6 +1,6 @@
 #pragma once
 
-#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/rendering/lighting/shadowmap.h"
 #include "saiga/rendering/object3d.h"
 

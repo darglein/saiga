@@ -1,5 +1,5 @@
 #include "saiga/text/TextOverlay3D.h"
-#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/text/text.h"
 #include "saiga/camera/camera.h"
 

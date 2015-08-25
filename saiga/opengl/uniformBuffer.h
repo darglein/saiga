@@ -3,7 +3,7 @@
 
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/buffer.h"
-#include "saiga/opengl/shader.h"
+#include "saiga/opengl/shader/shader.h"
 #include <iostream>
 
 #include <vector>

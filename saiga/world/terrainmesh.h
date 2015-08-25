@@ -3,7 +3,7 @@
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
-#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/util/perlinnoise.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
 

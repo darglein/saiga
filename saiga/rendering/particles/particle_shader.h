@@ -1,6 +1,6 @@
 #pragma once
 
-#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 
 class SAIGA_GLOBAL ParticleShader : public MVPTextureShader {
 public:

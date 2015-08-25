@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "saiga/opengl/basic_shaders.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/mesh_object.h"
 
 
