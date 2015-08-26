@@ -7,11 +7,10 @@
 
 class SAIGA_GLOBAL BoneShader : public MVPShader{
 public:
-    GLuint location_boneMatrices;
-    GLuint location_boneMatricesBlock, binding_boneMatricesBlock;
+    GLint location_boneMatrices;
+    GLint location_boneMatricesBlock, binding_boneMatricesBlock;
 
 
-    BoneShader(const std::string &multi_file) : MVPShader(multi_file){}
     virtual void checkUniforms();
 
     void uploadBoneMatrices(mat4* matrices, int count);

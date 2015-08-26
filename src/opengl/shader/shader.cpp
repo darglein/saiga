@@ -4,7 +4,7 @@
 #include <fstream>
 #include <algorithm>
 
-Shader::Shader() : Shader(""){
+Shader::Shader(){
 }
 
 Shader::~Shader(){
@@ -13,10 +13,6 @@ Shader::~Shader(){
         program = 0;
     }
 }
-
-Shader::Shader(const std::string &multi_file){
-}
-
 
 
 GLuint Shader::createProgram(){
@@ -34,7 +30,7 @@ GLuint Shader::createProgram(){
 
 
 
-    printProgramLog(program);
+    printProgramLog();
 
     for(auto& sp : shaders){
         sp->deleteGLShader();
@@ -142,7 +138,7 @@ std::vector<GLint> Shader::getUniformBlockOffset(GLuint blockLocation, std::vect
 }
 
 
-void Shader::printProgramLog( GLuint program ){
+void Shader::printProgramLog( ){
     //Make sure name is shader
     if( glIsProgram( program ) == GL_TRUE )
     {

@@ -8,8 +8,8 @@
 
 class SAIGA_GLOBAL PostProcessingShader : public Shader{
 public:
-    GLuint location_texture, location_screenSize;
-    PostProcessingShader(const std::string &multi_file) : Shader(multi_file){}
+    GLint location_texture, location_screenSize;
+
     virtual void checkUniforms();
     virtual void uploadTexture(raw_Texture* texture);
     virtual void uploadScreenSize(vec4 size);
@@ -20,8 +20,8 @@ public:
 
 class SAIGA_GLOBAL LightAccumulationShader : public DeferredShader{
 public:
-    GLuint location_lightAccumulationtexture;
-    LightAccumulationShader(const std::string &multi_file) : DeferredShader(multi_file){}
+    GLint location_lightAccumulationtexture;
+
     virtual void checkUniforms();
     virtual void uploadLightAccumulationtexture(raw_Texture* texture);
 };

@@ -12,15 +12,14 @@
 
 class SAIGA_GLOBAL TerrainShader : public MVPTextureShader{
 public:
-    GLuint location_ScaleFactor, location_FineBlockOrig,location_color, location_TexSizeScale; //vec4
-    GLuint location_RingSize,location_ViewerPos, location_AlphaOffset, location_OneOverWidth; //vec2
-    GLuint location_ZScaleFactor, location_ZTexScaleFactor; //float
+    GLint location_ScaleFactor, location_FineBlockOrig,location_color, location_TexSizeScale; //vec4
+    GLint location_RingSize,location_ViewerPos, location_AlphaOffset, location_OneOverWidth; //vec2
+    GLint location_ZScaleFactor, location_ZTexScaleFactor; //float
 
-     GLuint location_imageUp,location_normalMap,location_normalMapUp;
+    GLint location_imageUp,location_normalMap,location_normalMapUp;
 
-     GLuint location_texture1,location_texture2;
+    GLint location_texture1,location_texture2;
 
-    TerrainShader(const std::string &multi_file) : MVPTextureShader(multi_file){}
     virtual void checkUniforms();
     virtual void uploadVP(const vec2 &pos);
     void uploadColor(const vec4 &s);
@@ -52,7 +51,7 @@ public:
 public:
 
     static IndexedVertexBuffer<Vertex,GLuint> fixupv,fixuph,degenerated;
-     static IndexedVertexBuffer<Vertex,GLuint> trimSW,trimSE,trimNW,trimNE;
+    static IndexedVertexBuffer<Vertex,GLuint> trimSW,trimSE,trimNW,trimNE;
 
 
 
@@ -62,7 +61,7 @@ public:
     vec2 cellWidth;
     vec4 offset;
     vec2 ringSize;
-//    float f;
+    //    float f;
     vec2 vp;
 
     State state;
@@ -91,7 +90,7 @@ public:
     void renderRing();
 private:
     void render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color, vec4 scale,vec4 fineOrigin);
-//    void render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color, vec4 scale);
+    //    void render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color, vec4 scale);
 
     void renderDeg();
     void renderTrim();

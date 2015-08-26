@@ -9,10 +9,7 @@
 
 class raw_Texture;
 
-/**
- * Currently supported shader types: GL_VERTEX_SHADER, GL_GEOMETRY_SHADER, GL_FRAGMENT_SHADER
- * @brief The Shader class
- */
+
 
 
 class SAIGA_GLOBAL Shader{
@@ -24,7 +21,6 @@ public:
 
     Shader();
     virtual ~Shader();
-    Shader(const std::string &multi_file);
 
 
     // ================== program stuff ==================
@@ -32,7 +28,7 @@ public:
     void bind();
     void unbind();
     GLuint createProgram();
-    void printProgramLog( GLuint program );
+    void printProgramLog();
 
 
     // ================== uniforms ==================

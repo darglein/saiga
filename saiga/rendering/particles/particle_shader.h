@@ -4,9 +4,8 @@
 
 class SAIGA_GLOBAL ParticleShader : public MVPTextureShader {
 public:
-     GLuint location_timer, location_timestep, location_interpolation;
+    GLint location_timer, location_timestep, location_interpolation;
 
-    ParticleShader(const std::string &multi_file) : MVPTextureShader(multi_file){}
 
     virtual void checkUniforms();
 
@@ -17,10 +16,9 @@ public:
 
 class SAIGA_GLOBAL DeferredParticleShader : public ParticleShader {
 public:
-     GLuint location_texture_depth;
-     GLuint location_cameraParameters;
+    GLint location_texture_depth;
+    GLint location_cameraParameters;
 
-    DeferredParticleShader(const std::string &multi_file) : ParticleShader(multi_file){}
 
     virtual void checkUniforms();
 

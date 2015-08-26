@@ -4,8 +4,8 @@
 
 class SAIGA_GLOBAL SpotLightShader : public PointLightShader{
 public:
-    GLuint location_direction,location_angle;
-    SpotLightShader(const std::string &multi_file) : PointLightShader(multi_file){}
+    GLint location_direction,location_angle;
+
     virtual void checkUniforms();
     void uploadDirection(vec3 &direction);
     void uploadAngle(float angle);

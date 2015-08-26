@@ -41,7 +41,7 @@ shader_t* ShaderPartLoader::createShader()
     if(shaders.size()==0)
         return nullptr;
 
-    shader_t* shader = new shader_t("TODO");
+    shader_t* shader = new shader_t();
     shader->shaders = shaders;
     shader->createProgram();
 

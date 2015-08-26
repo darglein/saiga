@@ -6,10 +6,10 @@
 
 class SAIGA_GLOBAL LightShader : public DeferredShader{
 public:
-    int location_color; //rgba, rgb=color, a=intensity [0,1]
-    int location_depthBiasMV, location_depthTex,location_readShadowMap;
-    int location_invProj;
-    LightShader(const std::string &multi_file) : DeferredShader(multi_file){}
+    GLint location_color; //rgba, rgb=color, a=intensity [0,1]
+    GLint location_depthBiasMV, location_depthTex,location_readShadowMap;
+    GLint location_invProj;
+
     virtual void checkUniforms();
     void uploadColor(vec4 &color);
     void uploadColor(vec3 &color, float intensity);

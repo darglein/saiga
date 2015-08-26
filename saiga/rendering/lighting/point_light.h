@@ -5,8 +5,8 @@
 
 class SAIGA_GLOBAL PointLightShader : public LightShader{
 public:
-    GLuint location_position, location_attenuation, location_shadowPlanes;
-    PointLightShader(const std::string &multi_file) : LightShader(multi_file){}
+    GLint location_position, location_attenuation, location_shadowPlanes;
+
     virtual void checkUniforms();
     virtual void upload(const vec3 &pos, float r);
     virtual void upload(vec3 &attenuation);

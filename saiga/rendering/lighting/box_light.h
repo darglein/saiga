@@ -6,7 +6,6 @@
 class SAIGA_GLOBAL BoxLightShader : public DirectionalLightShader{
 public:
 
-    BoxLightShader(const std::string &multi_file) : DirectionalLightShader(multi_file){}
     virtual void checkUniforms();
 
 };
@@ -17,7 +16,6 @@ protected:
 
 
 public:
-//    static void createMesh();
     BoxLight();
     virtual ~BoxLight(){}
 
