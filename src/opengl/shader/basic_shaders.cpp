@@ -16,8 +16,7 @@ void MVPTextureShader::checkUniforms(){
 
 
 void MVPTextureShader::uploadTexture(raw_Texture *texture){
-    texture->bind(0);
-    Shader::upload(location_texture,0);
+    upload(location_texture,texture,0);
 }
 
 
@@ -28,8 +27,9 @@ void FBShader::checkUniforms(){
 }
 
 void FBShader::uploadFramebuffer(Framebuffer* fb){
-    fb->colorBuffers[0]->bind(0);
-    upload(location_texture,0);
+//    fb->colorBuffers[0]->bind(0);
+//    upload(location_texture,0);
+    upload(location_texture,fb->colorBuffers[0],0);
 }
 
 void DeferredShader::checkUniforms(){
@@ -44,18 +44,10 @@ void DeferredShader::checkUniforms(){
 }
 
 void DeferredShader::uploadFramebuffer(Framebuffer* fb){
-
-    fb->colorBuffers[0]->bind(0);
-    upload(location_texture_diffuse,0);
-
-    fb->colorBuffers[1]->bind(1);
-    upload(location_texture_normal,1);
-
-    fb->colorBuffers[2]->bind(2);
-    upload(location_texture_data,2);
-
-    fb->depthBuffer->bind(3);
-    upload(location_texture_depth,3);
+    upload(location_texture_diffuse,fb->colorBuffers[0],0);
+    upload(location_texture_normal,fb->colorBuffers[1],1);
+    upload(location_texture_data,fb->colorBuffers[2],2);
+    upload(location_texture_depth,fb->depthBuffer,3);
 }
 
 void MVPShader::checkUniforms(){
@@ -134,9 +126,7 @@ void TextShader::checkUniforms(){
 void TextShader::upload(Texture* texture, const vec4 &color, const vec4 &strokeColor){
     Shader::upload(location_color,color);
     Shader::upload(location_strokeColor,strokeColor);
-    texture->bind(0);
-    Shader::upload(location_texture,0);
-
+    Shader::upload(location_texture,texture,0);
 }
 
 

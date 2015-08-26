@@ -6,13 +6,13 @@
 #include "saiga/util/loader.h"
 
 
-class SAIGA_GLOBAL ShaderLoader : public Loader<Shader,Shader::ShaderCodeInjections> , public Singleton <ShaderLoader>{
+class SAIGA_GLOBAL ShaderLoader : public Loader<Shader,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
     friend class Singleton <ShaderLoader>;
 public:
     virtual ~ShaderLoader(){}
-    Shader* loadFromFile(const std::string &name, const Shader::ShaderCodeInjections &params);
-    template<typename shader_t> shader_t* load(const std::string &name, const Shader::ShaderCodeInjections& sci=Shader::ShaderCodeInjections());
-    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix, const Shader::ShaderCodeInjections& sci);
+    Shader* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
+    template<typename shader_t> shader_t* load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
+    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections& sci);
     void reload();
 };
 
@@ -20,7 +20,7 @@ public:
 
 
 template<typename shader_t>
-shader_t* ShaderLoader::load(const std::string &name, const Shader::ShaderCodeInjections& sci){
+shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
 
 
 
@@ -35,12 +35,10 @@ shader_t* ShaderLoader::load(const std::string &name, const Shader::ShaderCodeIn
         }
     }
 
-    for(std::string &path : locations){
-        std::string complete_path = path + "/" + name;
-        object = loadFromFile<shader_t>(complete_path,path,sci);
+    for(std::string &prefix : locations){
+        object = loadFromFile<shader_t>(name,prefix,sci);
         if (object){
-            object->name = name;
-            std::cout<<"Loaded from file: "<<complete_path<<std::endl;
+            //            std::cout<<"Loaded from file: "<<prefix + "/" + name<<std::endl;
             objects.emplace_back(name,sci,object);
             return object;
         }
@@ -52,17 +50,13 @@ shader_t* ShaderLoader::load(const std::string &name, const Shader::ShaderCodeIn
 }
 
 template<typename shader_t>
-shader_t* ShaderLoader::loadFromFile(const std::string &name, const std::string &prefix, const Shader::ShaderCodeInjections& sci){
-    shader_t* shader = new shader_t(name);
-    shader->prefix = prefix;
-    shader->injections = sci;
-    if(shader->reload()){
+shader_t* ShaderLoader::loadFromFile(const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections& sci){
 
-        //TODO:
-        ShaderPartLoader(name,prefix,sci);
-
-        return shader;
+    //TODO:
+    ShaderPartLoader spl(name,prefix,sci);
+    if(spl.load()){
+        return spl.createShader<shader_t>();
     }
-    delete shader;
+
     return nullptr;
 }

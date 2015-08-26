@@ -3,6 +3,16 @@
 #include "saiga/util/error.h"
 
 
+ShaderPart::ShaderPart()
+{
+
+}
+
+ShaderPart::~ShaderPart()
+{
+    deleteGLShader();
+}
+
 void ShaderPart::createGLShader()
 {
     deleteGLShader(); //delete shader if exists

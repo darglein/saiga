@@ -45,6 +45,9 @@ public:
 
     GLint id = 0;
 
+    ShaderPart();
+    ~ShaderPart();
+
     void createGLShader();
     void deleteGLShader();
 

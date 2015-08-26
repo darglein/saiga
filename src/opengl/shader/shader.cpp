@@ -1,13 +1,8 @@
 #include "saiga/opengl/shader/shader.h"
-
+#include "saiga/opengl/texture/raw_texture.h"
 #include "saiga/util/error.h"
 #include <fstream>
 #include <algorithm>
-
-#define STATUS_WAITING 0 //waiting for "start"
-#define STATUS_START 1 //found start + looking for type
-#define STATUS_READING 2 //found start + found type
-#define STATUS_ERROR 3
 
 Shader::Shader() : Shader(""){
 }
@@ -17,130 +12,9 @@ Shader::~Shader(){
         glDeleteProgram(program);
         program = 0;
     }
-
-    for(ShaderPart& sp : shaders){
-        sp.deleteGLShader();
-    }
-
 }
 
-Shader::Shader(const std::string &multi_file) : shaderPath(multi_file){
-
-}
-
-
-
-
-bool Shader::reload(){
-    if(shaderPath.length()<=0){
-        std::cerr<<"Reload only works if the Shader object is created with a multishader in the constructor"<<endl;
-        return false;
-    }
-    if(program!=0){
-        glDeleteProgram(program);
-        program = 0;
-    }
-
-    return addMultiShaderFromFile(shaderPath);
-
-
-}
-
-std::vector<std::string> Shader::loadAndPreproccess(const std::string &file)
-{
-    std::vector<std::string> ret;
-
-    std::ifstream fileStream(file, std::ios::in);
-    if(!fileStream.is_open()) {
-        return ret;
-    }
-
-    const std::string include("#include ");
-
-    while(!fileStream.eof()) {
-        std::string line;
-        std::getline(fileStream, line);
-
-        if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
-            line = line.substr(include.size()-1);
-
-            auto it = std::remove(line.begin(),line.end(),'"');
-            line.erase(it,line.end());
-
-            it = std::remove(line.begin(),line.end(),' ');
-            line.erase(it,line.end());
-
-            //recursivly load includes
-            std::vector<std::string> tmp = loadAndPreproccess(prefix+"/"+line);
-            ret.insert(ret.end(),tmp.begin(),tmp.end());
-            //            cout<<"shader path "<<shaderPath<<endl;
-        }else{
-            ret.push_back(line);
-        }
-
-
-    }
-    return ret;
-}
-
-bool Shader::addMultiShaderFromFile(const std::string &multi_file) {
-
-    std::string content,errorMsg;
-
-
-    std::vector<std::string> data = loadAndPreproccess(multi_file);
-
-    std::vector<std::string> code;
-    //    cout<<"Preproccess finished. "<<data.size()<<" lines"<<endl;
-
-    if(data.size()<=0)
-        return false;
-
-    int status = STATUS_WAITING;
-    GLenum type = GL_INVALID_ENUM;
-    int lineCount =0;
-
-    for(std::string line : data){
-        lineCount++;
-        if(line.compare("##start")==0){
-            status = (status==STATUS_WAITING)?STATUS_START:STATUS_ERROR;
-
-        }else if(line.compare("##end")==0){
-            status = (status==STATUS_READING)?STATUS_WAITING:STATUS_ERROR;
-
-            if(status != STATUS_ERROR){
-                //reading shader part sucessfull
-                addShader(code,type);
-                content = "";
-                code.clear();
-            }
-
-        }else if(line.compare("##vertex")==0){
-            status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
-            type = GL_VERTEX_SHADER;
-
-        }else if(line.compare("##fragment")==0){
-            status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
-            type = GL_FRAGMENT_SHADER;
-
-        }else if(line.compare("##geometry")==0){
-            status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
-            type = GL_GEOMETRY_SHADER;
-        }else if(status == STATUS_READING){
-            //normal code line
-            code.push_back(line+'\n');
-        }
-
-
-
-        if(status == STATUS_ERROR){
-            std::cerr<<"Shader-Loader: Error "<<errorMsg<<" in line "<<lineCount<<"\n";
-            return false;
-        }
-    }
-
-    createProgram();
-    return true;
+Shader::Shader(const std::string &multi_file){
 }
 
 
@@ -150,8 +24,8 @@ GLuint Shader::createProgram(){
     program = glCreateProgram();
 
     //attach all shaders
-    for(ShaderPart& sp : shaders){
-        glAttachShader(program,sp.id);
+    for(auto& sp : shaders){
+        glAttachShader(program,sp->id);
     }
 
 
@@ -162,8 +36,8 @@ GLuint Shader::createProgram(){
 
     printProgramLog(program);
 
-    for(ShaderPart& sp : shaders){
-        sp.deleteGLShader();
+    for(auto& sp : shaders){
+        sp->deleteGLShader();
     }
 
     Error::quitWhenError("Shader::createProgram after link");
@@ -172,45 +46,6 @@ GLuint Shader::createProgram(){
     return program;
 }
 
-
-void Shader::addShader(std::vector<std::string>& content, GLenum type){
-
-//    addInjectionsToCode(type,content);
-
-
-    ShaderPart shader;
-    shader.code = content;
-    shader.type = type;
-    shader.addInjections(injections);
-
-    shader.createGLShader();
-    if(shader.compile()){
-        shaders.push_back(shader);
-    }
-
-    Error::quitWhenError("Shader::addShader");
-
-}
-
-void Shader::addShaderFromFile(const std::string &file, GLenum type){
-    cout<<"Shader-Loader: Reading file "<<file<<"\n";
-    std::string content;
-
-
-    std::vector<std::string> data = loadAndPreproccess(file);
-
-    if(data.size()<=0)
-        return;
-
-
-    for(std::string line : data){
-        content.append(line);
-        content.append("\n");
-    }
-
-
-     addShader(data,type);
-}
 
 
 void Shader::bind(){
@@ -380,6 +215,12 @@ void Shader::upload(int location, int count, vec3* v){
 
 void Shader::upload(int location, int count, vec2* v){
     glUniform2fv(location,count,(GLfloat*)v);
+}
+
+void Shader::upload(int location, raw_Texture *texture, int textureUnit)
+{
+    texture->bind(textureUnit);
+    Shader::upload(location,textureUnit);
 }
 
 

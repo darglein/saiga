@@ -76,7 +76,6 @@ object_t* Loader<object_t,param_t>::load(const std::string &name, const param_t 
         std::string complete_path = path + "/" + name;
         object = loadFromFile(complete_path,params);
         if (object){
-            object->name = name;
             std::cout<<"Loaded from file: "<<complete_path<<std::endl;
             objects.emplace_back(name,params,object);
             return object;
