@@ -3,6 +3,10 @@
 #include "saiga/util/error.h"
 
 
+const GLenum ShaderPart::shaderTypes[] = {GL_COMPUTE_SHADER, GL_VERTEX_SHADER, GL_TESS_CONTROL_SHADER, GL_TESS_EVALUATION_SHADER, GL_GEOMETRY_SHADER,  GL_FRAGMENT_SHADER};
+const std::string ShaderPart::shaderTypeStrings[] = {"GL_COMPUTE_SHADER", "GL_VERTEX_SHADER", "GL_TESS_CONTROL_SHADER", "GL_TESS_EVALUATION_SHADER", "GL_GEOMETRY_SHADER",  "GL_FRAGMENT_SHADER"};
+
+
 ShaderPart::ShaderPart()
 {
 

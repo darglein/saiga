@@ -1,5 +1,5 @@
-##start
-##vertex
+
+##GL_VERTEX_SHADER
 
 #version 400
 layout(location=0) in vec3 in_position;
@@ -79,12 +79,12 @@ void main() {
 }
 
 
-##end
 
 
 
-##start
-##fragment
+
+
+##GL_FRAGMENT_SHADER
 
 #version 400
 uniform mat4 model;
@@ -109,4 +109,4 @@ void main() {
 
 }
 
-##end
+

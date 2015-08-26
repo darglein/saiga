@@ -1,5 +1,5 @@
-##start
-##vertex
+
+##GL_VERTEX_SHADER
 
 #version 150
 #extension GL_ARB_explicit_attrib_location : enable
@@ -27,10 +27,10 @@ void main() {
 }
 
 
-##end
 
-##start
-##fragment
+
+
+##GL_FRAGMENT_SHADER
 
 #version 150
 #extension GL_ARB_explicit_attrib_location : enable
@@ -119,4 +119,4 @@ void main() {
 //    LFragment = vec4( normal, 1.0 );
 }
 
-##end
+

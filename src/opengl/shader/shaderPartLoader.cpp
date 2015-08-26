@@ -4,10 +4,8 @@
 #include <fstream>
 #include <algorithm>
 
-#define STATUS_WAITING 0 //waiting for "start"
-#define STATUS_START 1 //found start + looking for type
-#define STATUS_READING 2 //found start + found type
-#define STATUS_ERROR 3
+#define STATUS_WAITING 0
+#define STATUS_READING 1
 
 ShaderPartLoader::ShaderPartLoader() : ShaderPartLoader("","",ShaderCodeInjections()){
 }
@@ -27,12 +25,13 @@ ShaderPartLoader::ShaderPartLoader(const std::string &file, const std::string &p
 
 bool ShaderPartLoader::load()
 {
+
+
+
     std::vector<std::string> data = loadAndPreproccess(file);
     if(data.size()<=0)
         return false;
 
-
-    //        cout<<"ShaderPartLoader::load "<<data.size()<<endl;
 
     std::vector<std::string> code;
     int status = STATUS_WAITING;
@@ -41,40 +40,31 @@ bool ShaderPartLoader::load()
 
     for(std::string line : data){
         lineCount++;
-        if(line.compare("##start")==0){
-            status = (status==STATUS_WAITING)?STATUS_START:STATUS_ERROR;
 
-        }else if(line.compare("##end")==0){
-            status = (status==STATUS_READING)?STATUS_WAITING:STATUS_ERROR;
+        bool readLine = true;
+        for(int i = 0 ; i < ShaderPart::shaderTypeCount ; ++i){
+            if(line.compare("##"+ShaderPart::shaderTypeStrings[i])==0){
+                if(status==STATUS_READING){
+                    addShader(code,type);
+                    code.clear();
+                }
+                status = STATUS_READING;
+                type = ShaderPart::shaderTypes[i];
+                readLine = false;
+                break;
 
-            if(status != STATUS_ERROR){
-                //reading shader part sucessfull
-                addShader(code,type);
-                code.clear();
             }
+        }
 
-        }else if(line.compare("##vertex")==0){
-            status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
-            type = GL_VERTEX_SHADER;
-
-        }else if(line.compare("##fragment")==0){
-            status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
-            type = GL_FRAGMENT_SHADER;
-
-        }else if(line.compare("##geometry")==0){
-            status = (status==STATUS_START)?STATUS_READING:STATUS_ERROR;
-            type = GL_GEOMETRY_SHADER;
-        }else if(status == STATUS_READING){
-            //normal code line
+        if(status == STATUS_READING && readLine){
             code.push_back(line+'\n');
         }
 
+    }
 
-
-        if(status == STATUS_ERROR){
-            //                std::cerr<<"Shader-Loader: Error "<<errorMsg<<" in line "<<lineCount<<"\n";
-            return false;
-        }
+    if(status==STATUS_READING){
+        addShader(code,type);
+        code.clear();
     }
 
 

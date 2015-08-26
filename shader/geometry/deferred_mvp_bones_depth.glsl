@@ -1,5 +1,5 @@
-##start
-##vertex
+
+##GL_VERTEX_SHADER
 
 #version 400
 
@@ -59,10 +59,10 @@ void main() {
 }
 
 
-##end
 
-##start
-##fragment
+
+
+##GL_FRAGMENT_SHADER
 
 #version 400
 uniform mat4 model;
@@ -86,4 +86,4 @@ void main() {
 
 }
 
-##end
+

@@ -37,6 +37,14 @@ SAIGA_GLOBAL inline bool operator==(const ShaderCodeInjection& lhs, const Shader
 
 class SAIGA_GLOBAL ShaderPart{
 public:
+
+    //supported shader types:
+    //GL_COMPUTE_SHADER, GL_VERTEX_SHADER, GL_TESS_CONTROL_SHADER, GL_TESS_EVALUATION_SHADER, GL_GEOMETRY_SHADER,  GL_FRAGMENT_SHADER
+    static const GLenum shaderTypes[];
+    static const std::string shaderTypeStrings[];
+    static const int shaderTypeCount = 6;
+
+
     typedef std::vector<ShaderCodeInjection> ShaderCodeInjections;
 
 
@@ -44,6 +52,8 @@ public:
     std::vector<std::string> code;
 
     GLint id = 0;
+
+
 
     ShaderPart();
     ~ShaderPart();

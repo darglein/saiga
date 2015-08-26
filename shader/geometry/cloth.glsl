@@ -1,5 +1,5 @@
-##start
-##vertex
+
+##GL_VERTEX_SHADER
 
 #version 400
 layout(location=0) in vec3 in_position;
@@ -20,11 +20,11 @@ void main() {
 }
 
 
-##end
 
 
-##start
-##geometry
+
+
+##GL_GEOMETRY_SHADER
 #version 400
 in vec3 vertexMV[3];
 layout(triangles) in;
@@ -47,11 +47,11 @@ void main()
   }
   EndPrimitive();
 }
-##end
 
 
-##start
-##fragment
+
+
+##GL_FRAGMENT_SHADER
 
 #version 400
 uniform mat4 model;
@@ -77,4 +77,4 @@ void main() {
     out_position = vertexMV2;
 }
 
-##end
+
