@@ -5,7 +5,7 @@
 #include "saiga/opengl/shader/shaderpart.h"
 
 #include <vector>
-
+#include <memory> //for shared pointer
 
 
 

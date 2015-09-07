@@ -1,7 +1,7 @@
 #pragma once
 
 #include <saiga/config.h>
-
+#include <string>
 
 #ifdef USE_GLEW
 #include <GL/glew.h>

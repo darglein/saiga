@@ -78,6 +78,12 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
 
 void Deferred_Renderer::resize(int width, int height)
 {
+	if (width <= 0 || height <= 0){
+		cout << "Warning: The framebuffer size must be greater than zero to be complete." << endl;
+		width = glm::max(width, 1);
+		height = glm::max(height, 1);
+	}
+	cout << "Resizing Gbuffer to : " << width << "," << height << endl;
     setSize(width,height);
     postProcessor.resize(width,height);
     deferred_framebuffer.resize(width,height);
