@@ -7,8 +7,6 @@
 
 #include <string>
 #include <iostream>
-typedef glm::mat4 mat4_t;
-typedef glm::vec3 vec3_t;
 
 using std::string;
 
@@ -34,7 +32,7 @@ public:
     void setView(const vec3 &eye,const vec3 &center,const vec3 &up);
 
 
-    void setProj(const mat4_t &p){proj=p;recalculateMatrices();}
+    void setProj(const mat4 &p){proj=p;recalculateMatrices();}
     //    virtual void setProj( double fovy, double aspect, double zNear, double zFar){}
     //    virtual void setProj( float left, float right,float bottom,float top,float near,  float far){}
 
@@ -51,10 +49,10 @@ public:
     };
 
     //culling stuff
-    IntersectionResult pointInFrustum(const vec3_t &p);
+    IntersectionResult pointInFrustum(const vec3 &p);
     IntersectionResult sphereInFrustum(const Sphere &s);
 
-    IntersectionResult pointInSphereFrustum(const vec3_t &p);
+    IntersectionResult pointInSphereFrustum(const vec3 &p);
     IntersectionResult sphereInSphereFrustum(const Sphere &s);
 
     /**

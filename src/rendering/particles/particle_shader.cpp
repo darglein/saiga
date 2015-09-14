@@ -1,5 +1,6 @@
 #include "saiga/rendering/particles/particle_shader.h"
 
+#include "saiga/opengl/texture/raw_texture.h"
 
 
 void ParticleShader::checkUniforms()

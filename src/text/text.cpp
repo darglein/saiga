@@ -1,15 +1,12 @@
 #include "saiga/text/text.h"
-#include "saiga/opengl/shader/basic_shaders.h"
+
+#include "saiga/text/textShader.h"
+
 Text::Text(const std::string &label):label(label){
-
-
-
-
-
 }
 
 void Text::updateText(const std::string &label){
-    cout<<"UPdate: "<<label<<endl;
+    cout<<"update: "<<label<<endl;
 }
 
 void Text::draw(TextShader* shader){

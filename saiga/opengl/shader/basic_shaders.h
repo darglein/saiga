@@ -2,8 +2,6 @@
 
 #include "saiga/opengl/shader/shader.h"
 
-#include "saiga/opengl/vertex.h"
-#include "saiga/rendering/material.h"
 
 class Framebuffer;
 
@@ -57,38 +55,6 @@ public:
     void uploadScreenSize(vec2 sc){Shader::upload(location_screen_size,sc);}
 };
 
-
-
-class SAIGA_GLOBAL MaterialShader : public MVPShader{
-public:
-    GLint location_colors;
-    GLint location_textures, location_use_textures;
-    vec3 colors[3]; //ambiend, diffuse, specular
-    GLint textures[5]; //ambiend, diffuse, specular, alpha, bump
-    float use_textures[5]; //1.0 if related texture is valid
-
-    virtual void checkUniforms();
-    void uploadMaterial(const Material &material);
-
-};
-
-class SAIGA_GLOBAL TextShader : public MVPShader {
-public:
-    GLint location_color, location_texture,location_strokeColor;
-
-    virtual void checkUniforms();
-
-    void upload(Texture* texture, const vec4 &color,const vec4 &strokeColor);
-};
-
-class SAIGA_GLOBAL TextShaderFade : public TextShader {
-public:
-    GLint location_fade;
-
-    virtual void checkUniforms();
-
-    void uploadFade(float fade);
-};
 
 
 

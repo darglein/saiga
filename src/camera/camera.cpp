@@ -7,7 +7,7 @@ Camera::Camera(const std::string &name) : name(name)
 }
 
 
-void Camera::setView(const mat4_t &v){
+void Camera::setView(const mat4 &v){
     view=v;
     recalculateMatrices();
     model = glm::inverse(view);
@@ -17,7 +17,7 @@ void Camera::setView(const mat4_t &v){
 
 }
 
-void Camera::setView(const vec3_t &eye,const vec3_t &center,const vec3_t &up){
+void Camera::setView(const vec3 &eye,const vec3 &center,const vec3 &up){
     setView(glm::lookAt(eye,center,up));
 }
 
