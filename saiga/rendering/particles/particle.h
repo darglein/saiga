@@ -29,6 +29,8 @@ public:
     float fadetime = 0; //time when fading begins. if(lifetime==fadetime) -> no fading at all
     float specular = 1.0f;
 
+    float startFade = 1.0f;
+
     int start = 0; //start tick
     int image = 0; //texture from texture array
     int orientation = BILLBOARD;

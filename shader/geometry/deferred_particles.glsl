@@ -8,7 +8,8 @@ layout(location=2) in vec3 in_force;
 layout(location=3) in vec3 in_right;
 layout(location=4) in vec4 in_scale;
 layout(location=5) in vec4 data;
-layout(location=6) in ivec3 idata;
+layout(location=6) in float in_startFade;
+layout(location=7) in ivec3 idata;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -44,7 +45,7 @@ void setBasicOutputs(float t){
     if(t>=lifetime)
         fade = 0;
     else
-        fade = clamp(1-((t-fadetime)/(lifetime-fadetime)),0,1);
+        fade = clamp(1-((t-fadetime)/(lifetime-fadetime)),0,1) * in_startFade;
 
     layer = idata.y;
     orientation = idata.z;
@@ -285,7 +286,7 @@ void main() {
 
     float alpha = 1-smoothstep(maxOffsetL,maxOffsetH,offset);
 
-    c.a *= alpha;
+    c.a *= alpha * fade2;
 //    out_color = vec3(c);
     out_color = c;
 //    out_normal = normalize(normal)*0.5f+vec3(0.5f);
