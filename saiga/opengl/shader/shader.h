@@ -28,6 +28,7 @@ public:
     void bind();
     void unbind();
     GLuint createProgram();
+    void destroyProgram();
     void printProgramLog();
 
 

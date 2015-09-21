@@ -1,5 +1,5 @@
 #include "saiga/opengl/shader/shaderPartLoader.h"
-
+#include "saiga/opengl/shader/shader.h"
 #include "saiga/util/error.h"
 #include <fstream>
 #include <algorithm>
@@ -11,22 +11,17 @@ ShaderPartLoader::ShaderPartLoader() : ShaderPartLoader("","",ShaderCodeInjectio
 }
 
 ShaderPartLoader::~ShaderPartLoader(){
-
-
 }
 
 
 
 ShaderPartLoader::ShaderPartLoader(const std::string &file, const std::string &prefix, const ShaderCodeInjections &injections)
     : file(file),prefix(prefix),injections(injections){
-    //    std::cout<<"TODO: ShaderPartLoader"<<std::endl;
 }
 
 
 bool ShaderPartLoader::load()
 {
-
-
 
     std::vector<std::string> data = loadAndPreproccess(file);
     if(data.size()<=0)
@@ -110,10 +105,7 @@ std::vector<std::string> ShaderPartLoader::loadAndPreproccess(const std::string 
 
 void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
 {
-    //    cout<<"ShaderPartLoader::addShader "<<content.size()<<" "<<type<<endl;
-
     auto shader = std::make_shared<ShaderPart>();
-    //    ShaderPart shader;
     shader->code = content;
     shader->type = type;
     shader->addInjections(injections);
@@ -124,6 +116,21 @@ void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
     }
 
     Error::quitWhenError("ShaderPartLoader::addShader");
+}
+
+void ShaderPartLoader::reloadShader(Shader *shader)
+{
+//    cout<<"ShaderPartLoader::reloadShader"<<endl;
+    shader->destroyProgram();
+
+    shader->shaders = shaders;
+    shader->createProgram();
+
+    std::cout<<"Loaded: "<<prefix + "/" + file<<" ( ";
+    for(auto& sp : shaders){
+        std::cout<<sp->type<<" ";
+    }
+    std::cout<<")"<<std::endl;
 }
 
 

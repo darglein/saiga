@@ -265,37 +265,28 @@ float reconstructCSZ(float d) {
 
 void main() {
 
+    //these values are scene dependend
+    const float maxOffsetL = 0.2f;
+    const float maxOffsetH = 0.5f;
 
-    float d = distance(tc.xy,vec2(0.5f,0.5f))*2;
 
-    vec4 c = texture(image,tc);
-
-
-    //TODO: clean up
-
+    //depth from particle
     float depth = gl_FragCoord.z;
-//    ivec2 itc = ivec2(round(gl_FragCoord.xy+0.5f));
+    //depth from background geometry
     float depth2 = texelFetch(depthTexture,ivec2(gl_FragCoord),0).r;
 
 
-    const float maxOffsetL = 0.2f;
-    const float maxOffsetH = 0.5f;
+    //world-space-distance between particle and geometry
     float offset = abs(reconstructCSZ(depth) - reconstructCSZ(depth2));
-//     if (> 0.5)
-//         discard;
-
+    //fade out particle when background is too far away
     float alpha = 1-smoothstep(maxOffsetL,maxOffsetH,offset);
-
+    //combine distance fade image alpha and particle fade
+    vec4 c = texture(image,tc);
     c.a *= alpha * fade2;
-//    out_color = vec3(c);
+
+    //only write color and data. the normals are not modified
     out_color = c;
-//    out_normal = normalize(normal)*0.5f+vec3(0.5f);
-//    out_position = vertexMV;
-//    out_color = vec4(1);
-
-//    out_color = vec4(color2.xyz,(1-d)*fade2);
     out_data = vec4(specular2,0,0,c.a);
-
 }
 
 

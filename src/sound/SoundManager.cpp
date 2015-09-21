@@ -195,7 +195,7 @@ void SoundManager::checkForSoundErrors()
     if (error != AL_NO_ERROR){
         std::cout << "AUDIO ERROR! ("  << error << ")" << std::endl;
         std::cout << getALCErrorString(error) << std::endl;
-        if (error != ALC_INVALID_DEVICE) //TODO limit number of sound sources
+        if (error != ALC_INVALID_DEVICE)
             exit(0);
     }
 }

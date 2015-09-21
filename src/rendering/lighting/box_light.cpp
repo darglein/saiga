@@ -34,8 +34,6 @@ void BoxLight::setDirection(const vec3 &dir){
 }
 
 void BoxLight::setFocus(const vec3 &pos){
-
-//    cout<<"todo: BoxLight::setFocus"<<endl;
     cam.setView(pos-direction*range, pos, glm::vec3(0,1,0));
 }
 

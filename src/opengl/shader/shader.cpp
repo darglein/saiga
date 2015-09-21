@@ -8,10 +8,7 @@ Shader::Shader(){
 }
 
 Shader::~Shader(){
-    if(program!=0){
-        glDeleteProgram(program);
-        program = 0;
-    }
+    destroyProgram();
 }
 
 
@@ -40,6 +37,14 @@ GLuint Shader::createProgram(){
 
     checkUniforms();
     return program;
+}
+
+void Shader::destroyProgram()
+{
+    if(program!=0){
+        glDeleteProgram(program);
+        program = 0;
+    }
 }
 
 

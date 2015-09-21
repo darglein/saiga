@@ -11,8 +11,29 @@ Shader* ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::Sh
 }
 
 void ShaderLoader::reload(){
-    cout<<"TODO: ShaderLoader::reload"<<endl;
-//    for(auto &object : objects){
-//        std::get<2>(object)->reload();
-//    }
+    cout<<"ShaderLoader::reload"<<endl;
+    for(auto &object : objects){
+        auto name = std::get<0>(object);
+        auto sci = std::get<1>(object);
+        auto shader = std::get<2>(object);
+
+        for(std::string &prefix : locations){
+            if (reload(shader,name,prefix,sci)){
+               break;
+            }
+        }
+
+    }
+
+
+}
+
+bool ShaderLoader::reload(Shader *shader, const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections &sci)
+{
+    ShaderPartLoader spl(name,prefix,sci);
+    if(spl.load()){
+       spl.reloadShader(shader);
+       return true;
+    }
+    return false;
 }

@@ -57,8 +57,6 @@ void DirectionalLight::setDirection(const vec3 &dir){
 }
 
 void DirectionalLight::setFocus(const vec3 &pos){
-
-//    cout<<"todo: DirectionalLight::setFocus"<<endl;
     cam.setView(pos-direction*range, pos, glm::vec3(0,1,0));
 }
 

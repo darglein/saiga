@@ -8,6 +8,7 @@
 #include <memory> //for shared pointer
 
 
+class Shader;
 
 class SAIGA_GLOBAL ShaderPartLoader{
 public:
@@ -32,6 +33,9 @@ public:
 
     //combine all loaded shader parts to a shader. the returned shader is linked and ready to use
     template<typename shader_t> shader_t* createShader();
+
+    //like create shader, but the passed shader is updated instead of creating a new one
+    void reloadShader(Shader* shader);
 };
 
 

@@ -13,7 +13,9 @@ public:
     Shader* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
     template<typename shader_t> shader_t* load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
     template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections& sci);
+
     void reload();
+    bool reload(Shader* shader, const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections& sci);
 };
 
 
@@ -52,7 +54,6 @@ shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCo
 template<typename shader_t>
 shader_t* ShaderLoader::loadFromFile(const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections& sci){
 
-    //TODO:
     ShaderPartLoader spl(name,prefix,sci);
     if(spl.load()){
         return spl.createShader<shader_t>();
