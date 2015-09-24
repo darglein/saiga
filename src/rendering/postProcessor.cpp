@@ -1,5 +1,8 @@
 #include "saiga/rendering/postProcessor.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/util/error.h"
+
 void PostProcessingShader::checkUniforms(){
     Shader::checkUniforms();
     location_texture = Shader::getUniformLocation("image");
@@ -44,6 +47,8 @@ void PostProcessor::init(int width, int height)
     qb->createBuffers(quadMesh);
 
     timer.create();
+
+    computeTest = ShaderLoader::instance()->load<Shader>("computeTest.glsl");
 }
 
 void PostProcessor::nextFrame(Framebuffer *gbuffer)
@@ -119,6 +124,7 @@ void PostProcessor::render()
 
 void PostProcessor::resize(int width, int height)
 {
+    glDispatchCompute(512/16, 512/16, 1);
     this->width=width;this->height=height;
     framebuffers[0].resize(width,height);
     framebuffers[1].resize(width,height);
@@ -139,10 +145,45 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
     postProcessingShader->unbind();
 
     framebuffers[currentBuffer].unbind();
+
+
+
 }
 
 void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)
 {
+
+
+
+    auto textureId = textures[lastBuffer]->getId();
+
+
+    computeTest->bind();
+
+//    auto loc = computeTest->getUniformLocation("destTex");
+//    computeTest->upload(loc,textures[lastBuffer],0);
+
+    const GLint location = glGetUniformLocation(computeTest->program, "destTex");
+     glUniform1i(location, 0);
+    glBindImageTexture(0,textureId , 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16);
+
+
+    GLint work_size[3];
+    glGetProgramiv(computeTest->program, GL_COMPUTE_WORK_GROUP_SIZE, work_size);
+    int res_x = 50, res_y = 50;
+//    int res_x = width, res_y = height;
+    int call_x = (res_x / work_size[0]) + (res_x % work_size[0] ? 1 : 0);
+    int call_y = (res_y / work_size[1]) + (res_y % work_size[1] ? 1 : 0);
+    glUniform2i(glGetUniformLocation(computeTest->program, "res"), res_x, res_y);
+    glDispatchCompute(call_x, call_y, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    cout<<"dispatch compute "<<call_x<<" "<<call_y<<endl;
+
+
+    computeTest->unbind();
+
+    Error::quitWhenError("compute shader stuff");
+
 
     //shader post process + gamma correction
     glEnable(GL_FRAMEBUFFER_SRGB);

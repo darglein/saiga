@@ -26,6 +26,8 @@ public:
     virtual void uploadLightAccumulationtexture(raw_Texture* texture);
 };
 
+
+
 class SAIGA_GLOBAL PostProcessor{
 private:
     int width,height;
@@ -36,6 +38,8 @@ private:
     IndexedVertexBuffer<VertexNT,GLubyte> quadMesh;
     std::vector<PostProcessingShader*> postProcessingEffects;
     GPUTimer timer;
+
+    Shader* computeTest;
 
     void createFramebuffers();
     void applyShader(PostProcessingShader* postProcessingShader);
