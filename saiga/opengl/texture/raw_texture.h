@@ -47,6 +47,18 @@ public:
     virtual void bind(int location);
     virtual void unbind();
 
+    /**
+     * Directly maps to glBindImageTexture.
+     * See here https://www.opengl.org/sdk/docs/man/html/glBindImageTexture.xhtml
+     *
+     * The OpenGL 4.2+ way of binding textures...
+     *
+     * If you want to read or write textures from Compute Shaders these functions have to be used instead of the normal bind(...).
+     */
+
+    void bindImageTexture(GLuint imageUnit, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format);
+    void bindImageTexture(GLuint imageUnit, GLint level, GLboolean layered, GLint layer, GLenum access);
+    void bindImageTexture(GLuint imageUnit, GLenum access);
 
 
     int getWidth(){return width;}

@@ -1,13 +1,12 @@
 ##GL_COMPUTE_SHADER
 
 #version 430
-//uniform float roll;
-//uniform image2D destTex;
-layout(binding=0, rgba16) uniform image2D destTex;
+
+
+layout(binding=3, rgba16) uniform image2D destTex;
 
 layout(local_size_x = 32, local_size_y = 32) in;
 
-uniform ivec2 res;
 
  void main() {
 

@@ -21,12 +21,7 @@ GLuint Shader::createProgram(){
         glAttachShader(program,sp->id);
     }
 
-
-
     glLinkProgram(program);
-
-
-
     printProgramLog();
 
     for(auto& sp : shaders){
@@ -47,8 +42,6 @@ void Shader::destroyProgram()
     }
 }
 
-
-
 void Shader::bind(){
     if(program==0){
         std::cerr<<"bind: no shader loaded!\n";
@@ -64,14 +57,10 @@ void Shader::unbind(){
 
 GLint Shader::getUniformLocation(const char* name){
     GLint i = glGetUniformLocation(program,name);
-    if(i==-1){
-        //        cout<<"Cannot find uniform: "<<name<<endl;
-    }
     return i;
 }
 
-void Shader::getUniformInfo(GLuint location)
-{
+void Shader::getUniformInfo(GLuint location){
     const GLsizei bufSize = 128;
 
     GLsizei length;
@@ -142,7 +131,6 @@ std::vector<GLint> Shader::getUniformBlockOffset(GLuint blockLocation, std::vect
     return ret;
 }
 
-
 void Shader::printProgramLog( ){
     //Make sure name is shader
     if( glIsProgram( program ) == GL_TRUE )
@@ -173,6 +161,54 @@ void Shader::printProgramLog( ){
     {
         cout<< "Name "<<program<<" is not a program"<<endl;
     }
+}
+
+glm::uvec3 Shader::getComputeWorkGroupSize()
+{
+    GLint work_size[3];
+    glGetProgramiv(program, GL_COMPUTE_WORK_GROUP_SIZE, work_size);
+    return glm::uvec3(work_size[0],work_size[1],work_size[2]);
+}
+
+glm::uvec3 Shader::getNumGroupsCeil(const glm::uvec3 &problem_size)
+{
+    return getNumGroupsCeil(problem_size,getComputeWorkGroupSize());
+}
+
+glm::uvec3 Shader::getNumGroupsCeil(const glm::uvec3 &problem_size, const glm::uvec3 &work_group_size)
+{
+    glm::uvec3 ret = problem_size/work_group_size;
+    glm::uvec3 rest = problem_size%work_group_size;
+
+    ret.x += rest.x ? 1 : 0;
+    ret.y += rest.y ? 1 : 0;
+    ret.z += rest.z ? 1 : 0;
+    return ret;
+}
+
+void Shader::dispatchCompute(const glm::uvec3 &num_groups)
+{
+    dispatchCompute(num_groups.x,num_groups.y,num_groups.z);
+}
+
+void Shader::dispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z)
+{
+    glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
+}
+
+void Shader::memoryBarrier(MemoryBarrierMask barriers)
+{
+    glMemoryBarrier(barriers);
+}
+
+void Shader::memoryBarrierTextureFetch()
+{
+    memoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+}
+
+void Shader::memoryBarrierImageAccess()
+{
+    memoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
 

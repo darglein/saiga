@@ -152,37 +152,16 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
 
 void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)
 {
+    //compute shader test
 
-
-
-    auto textureId = textures[lastBuffer]->getId();
-
-
-    computeTest->bind();
-
-//    auto loc = computeTest->getUniformLocation("destTex");
-//    computeTest->upload(loc,textures[lastBuffer],0);
-
-    const GLint location = glGetUniformLocation(computeTest->program, "destTex");
-     glUniform1i(location, 0);
-    glBindImageTexture(0,textureId , 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16);
-
-
-    GLint work_size[3];
-    glGetProgramiv(computeTest->program, GL_COMPUTE_WORK_GROUP_SIZE, work_size);
-    int res_x = 50, res_y = 50;
-//    int res_x = width, res_y = height;
-    int call_x = (res_x / work_size[0]) + (res_x % work_size[0] ? 1 : 0);
-    int call_y = (res_y / work_size[1]) + (res_y % work_size[1] ? 1 : 0);
-    glUniform2i(glGetUniformLocation(computeTest->program, "res"), res_x, res_y);
-    glDispatchCompute(call_x, call_y, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    cout<<"dispatch compute "<<call_x<<" "<<call_y<<endl;
-
-
-    computeTest->unbind();
-
-    Error::quitWhenError("compute shader stuff");
+//    computeTest->bind();
+//    textures[lastBuffer]->bindImageTexture(3,GL_WRITE_ONLY);
+//    glm::uvec3 problemSize(1000,500,1);
+//    auto groups = computeTest->getNumGroupsCeil(problemSize);
+//    computeTest->dispatchCompute(groups);
+//    computeTest->memoryBarrierTextureFetch();
+//    computeTest->unbind();
+//    Error::quitWhenError("compute shader stuff");
 
 
     //shader post process + gamma correction

@@ -109,6 +109,23 @@ void raw_Texture::unbind(){
     glBindTexture(target, 0);
 }
 
+void raw_Texture::bindImageTexture(GLuint imageUnit, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format)
+{
+    glBindImageTexture(imageUnit,id , level, layered, layer, access, format);
+}
+
+void raw_Texture::bindImageTexture(GLuint imageUnit, GLint level, GLboolean layered, GLint layer, GLenum access)
+{
+    bindImageTexture(imageUnit,level,layered,layer,access,internal_format);
+}
+
+void raw_Texture::bindImageTexture(GLuint imageUnit, GLenum access)
+{
+    bindImageTexture(imageUnit,0,GL_FALSE,0,access);
+}
+
+
+
 void raw_Texture::setWrap(GLenum param){
     bind();
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(param));
