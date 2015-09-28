@@ -17,7 +17,7 @@ public:
 
     int width,height;
 
-    TextOverlay2D(int width, int height);
+    TextOverlay2D(int width=1, int height=1);
     void render();
 
     //text stuff
