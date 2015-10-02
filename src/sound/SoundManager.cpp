@@ -52,7 +52,7 @@ extern void quitOpenAL(){
 
 
 
-SoundManager::SoundManager (int maxSources) : maxSources(maxSources){
+SoundManager::SoundManager (int maxSources, int fixedSources) : maxSources(maxSources),fixedSources(fixedSources),oldestSource(fixedSources){
     cout << "SoundManager()" << endl;
     initOpenAL();
 
@@ -91,33 +91,33 @@ SoundSource* SoundManager::getSoundSource(const std::string& file){
         sound = it->second;
     }
 
-//    int end = sourceIndex-1;
-//    if (end < 0) end += sources.size();
-
-//    while(end >= 0 && end != sourceIndex){
-//        SoundSource* s  = sources[sourceIndex];
-//        sourceIndex = (sourceIndex + 1) % sources.size();
-//        if (!s->isPlaying()){
-//            s->setSound(sound);
-//            return s;
-//        }
-//    }
-
-
-//    cout << "adding new soundsource: " << sources.size() << endl;
-
-//    SoundSource* news = new SoundSource(sound);
-//    sources.push_back(news);
-//    return news;
-
-
     SoundSource* s  = &sources[oldestSource];
     if(s->isPlaying()){
         cout << "<SoundManager> Stopping sound before playing a new one!" << endl;
         s->stop();
     }
     s->setSound(sound);
-    oldestSource = (oldestSource + 1) % maxSources;
+    oldestSource = glm::max( (oldestSource + 1) % maxSources, fixedSources );
+    return s;
+}
+
+SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id)
+{
+    Sound* sound = nullptr;
+
+    auto it = soundMap.find(file);
+    if(it==soundMap.end()){
+        std::cerr << "Sound not loaded: " << file << endl;
+        return &quietSoundSource;
+    }else{
+        sound = it->second;
+    }
+
+    SoundSource* s  = &sources[id];
+    if(s->isPlaying()){
+        s->stop();
+    }
+    s->setSound(sound);
     return s;
 }
 

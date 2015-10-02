@@ -79,5 +79,11 @@ void SoundSource::setReferenceDistance(float v){
     alSourcef(source,AL_REFERENCE_DISTANCE,v);
 }
 
+void SoundSource::makeBackground()
+{
+    alSourcei( source, AL_SOURCE_RELATIVE, AL_TRUE );
+    alSourcef( source, AL_ROLLOFF_FACTOR, 0.0 );
+}
+
 
 }

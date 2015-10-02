@@ -28,11 +28,11 @@ private:
     float masterVolumne = 1.0f;
 
     bool muted = false;
-    int maxSources;
+    int maxSources, fixedSources;
     int oldestSource = 0;
 public:
 
-    SoundManager (int maxSources);
+    SoundManager (int maxSources, int fixedSources=0);
     virtual ~SoundManager ();
 
     void setListenerPosition(const vec3& pos);
@@ -46,6 +46,8 @@ public:
 
 
     SoundSource *getSoundSource(const std::string &file);
+    SoundSource *getFixedSoundSource(const std::string &file, int id);
+
     void loadSound(const std::string &file);
 
     void checkForSoundErrors();

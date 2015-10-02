@@ -30,6 +30,8 @@ public:
     bool isPlaying();
     void setLooping(bool looping);
     void setReferenceDistance(float v);
+
+    void makeBackground();
 };
 
 
