@@ -1,16 +1,20 @@
 #include "saiga/rendering/overlay/Layout.h"
 
 
-int Layout::width ,Layout::height;
-float Layout::targetWidth, Layout::targetHeight;
-float Layout::aspect;
+//int Layout::width ,Layout::height;
+//float Layout::targetWidth, Layout::targetHeight;
+//float Layout::aspect;
 
 
-void Layout::init(int width, int height, float targetWidth, float targetHeight) {
-    Layout::width = width;
-    Layout::height = height;
-    Layout::targetHeight = targetHeight;
-    Layout::targetWidth = targetWidth;
+//void Layout::init(int width, int height, float targetWidth, float targetHeight) {
+//    Layout::width = width;
+//    Layout::height = height;
+//    Layout::targetHeight = targetHeight;
+//    Layout::targetWidth = targetWidth;
+//    aspect = (float)width/(float)height;
+//}
+
+Layout::Layout(int width, int height, float targetWidth, float targetHeight):width(width),height(height),targetWidth(targetWidth),targetHeight(targetHeight) {
     aspect = (float)width/(float)height;
 }
 

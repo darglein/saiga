@@ -1,16 +1,7 @@
 #pragma once
 
-
-
-#include <string>
-#include <vector>
-
-#include <saiga/text/TextOverlay2D.h>
-#include <saiga/text/dynamic_text.h>
-#include <saiga/text/text_generator.h>
-
-
-
+#include "saiga/rendering/object3d.h"
+#include "saiga/geometry/aabb.h"
 
 /**
  * @brief The Layout class
@@ -32,13 +23,22 @@ public:
         CENTER
     };
 
+//private:
+//    static int width,height;
+//    static float targetWidth, targetHeight;
+//    static float aspect;
+//public:
+
+//    static void init(int width, int height, float targetWidth,  float targetHeight);
+//    static void transform(Object3D* obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY);
+
 private:
-    static int width,height;
-    static float targetWidth, targetHeight;
-    static float aspect;
+    int width,height;
+    float targetWidth, targetHeight;
+    float aspect;
 public:
 
-    static void init(int width, int height, float targetWidth,  float targetHeight);
-    static void transform(Object3D* obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY);
+    Layout(int width, int height, float targetWidth=1,  float targetHeight=1);
+    void transform(Object3D* obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY);
 };
 
