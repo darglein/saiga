@@ -9,5 +9,6 @@
 #cmakedefine USE_GLBINDING
 #cmakedefine USE_OPENAL
 #cmakedefine USE_ALUT
+#cmakedefine USE_ASSIMP
 
 #cmakedefine BUILD_SHARED

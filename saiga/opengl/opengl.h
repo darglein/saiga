@@ -5,6 +5,7 @@
 
 #ifdef USE_GLEW
 #include <GL/glew.h>
+typedef int MemoryBarrierMask;
 #endif
 
 #ifdef USE_GLBINDING

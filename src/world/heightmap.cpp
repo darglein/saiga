@@ -120,7 +120,7 @@ void Heightmap::createInitialHeightmap(){
 
             //seamless
 #ifdef USE_NOISE
-#define F(_X,_Y) finalTerrain.GetValue(_X,_Y,0)
+//#define F(_X,_Y) finalTerrain.GetValue(_X,_Y,0)
 #define F(_X,_Y) terrainType.GetValue(_X,_Y,0)
 #else
 #define F(_X,_Y) noise.fBm(_X,_Y,0,1)

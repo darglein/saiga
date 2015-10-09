@@ -124,7 +124,6 @@ void PostProcessor::render()
 
 void PostProcessor::resize(int width, int height)
 {
-    glDispatchCompute(512/16, 512/16, 1);
     this->width=width;this->height=height;
     framebuffers[0].resize(width,height);
     framebuffers[1].resize(width,height);

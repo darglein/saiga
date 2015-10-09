@@ -1,5 +1,7 @@
 #include "saiga/animation/assimpLoader.h"
 
+#ifdef USE_ASSIMP
+
 AssimpLoader::AssimpLoader(const std::string &file)
 {
 
@@ -275,3 +277,4 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat){
 }
 
 
+#endif //USE_ASSIMP

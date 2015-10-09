@@ -39,13 +39,14 @@ set (LIBRARY_VERSION_MAJOR 1)
 set (LIBRARY_VERSION_MINOR 0)
 
 
-option (USE_SDL "Use SDL2" ON) 
+option (USE_SDL "Use SDL2" OFF) 
 option (USE_GLFW "Use GLFW" ON) 
 option (USE_NOISE "Use NOISE" OFF) 
 option (USE_GLEW "Use GLEW" ON) 
 option (USE_GLBINDING "Use GLBINDING" OFF) 
 option (USE_OPENAL "Use OPENAL" OFF) 
 option (USE_ALUT "Use ALUT" OFF) 
+option (USE_ASSIMP "Use Assimp" OFF) 
 
 option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
@@ -91,6 +92,14 @@ if(USE_ALUT)
 	SET(LIBS ${LIBS} ${ALUT_LIBRARIES})
 endif(USE_ALUT)
 
+#assimp
+if(USE_ASSIMP)
+	find_package(ASSIMP REQUIRED)
+	include_directories(${ASSIMP_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
+	#SET(LIBS ${LIBS} assimp)
+endif(USE_ASSIMP)
+
 ############# Required LIBRARIES ###############
 
 #freetype2
@@ -121,48 +130,16 @@ if(USE_GLBINDING)
 	SET(LIBS ${LIBS} ${GLBINDING_LIBRARIES})
 endif(USE_GLBINDING)
 
-#assimp
-#pkg_search_module(ASSIMP REQUIRED assimp)
-find_package(ASSIMP REQUIRED)
-include_directories(${ASSIMP_INCLUDE_DIRS})
-SET(LIBS ${LIBS} ${ASSIMP_LIBRARY})
-SET(LIBS ${LIBS} assimp)
-
-
 
 
 #libfreeimage
-#pkg_search_module(FREEIMAGE REQUIRED freeimage)
-#find_library(FREEIMAGE_LIBRARIES freeimage)
 find_package(FreeImage REQUIRED)
 SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARY})
 
-#find_library(FREEIMAGEPLUS_LIBRARIES freeimageplus)
 find_package(FreeImagePlus REQUIRED)
 SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
 
 
-if(UNIX)
-	find_library(X11_LIBRARIES X11)
-	SET(LIBS ${LIBS} ${X11_LIBRARIES})
-	find_library(Xxf86vm_LIBRARIES Xxf86vm)
-	SET(LIBS ${LIBS} ${Xxf86vm_LIBRARIES})
-
-	find_library(Xrandr_LIBRARIES Xrandr)
-	SET(LIBS ${LIBS} ${Xrandr_LIBRARIES})
-
-	find_library(pthread_LIBRARIES pthread)
-	SET(LIBS ${LIBS} ${pthread_LIBRARIES})
-
-	find_library(Xi_LIBRARIES Xi)
-	SET(LIBS ${LIBS} ${Xi_LIBRARIES})
-
-	find_library(Xcursor_LIBRARIES Xcursor)
-	SET(LIBS ${LIBS} ${Xcursor_LIBRARIES})
-
-	find_library(Xinerama_LIBRARIES Xinerama)
-	SET(LIBS ${LIBS} ${Xinerama_LIBRARIES})
-endif(UNIX)
 
 
 ############# COMPILER FLAGS ###############
