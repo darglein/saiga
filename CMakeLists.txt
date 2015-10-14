@@ -65,11 +65,14 @@ if (USE_SDL)
 	SET(LIBS ${LIBS} ${SDL2_LIBRARY})
 endif (USE_SDL)
 
+
 #GLFW
 if (USE_GLFW)
+	set(GLFW_LOCATION /home/um96udad/test/data)
   find_package(GLFW REQUIRED)
 	include_directories(${GLFW_INCLUDE_DIR})
 	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
+	message(STATUS "glfw include: ${GLFW_INCLUDE_DIR} glfw libraries: ${GLFW_LIBRARIES}")
 endif (USE_GLFW)
 
 #libnoise
