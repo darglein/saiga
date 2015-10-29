@@ -132,17 +132,7 @@ bool glfw_Window::initWindow()
 
     Error::quitWhenError("initWindow()");
 
-    for (int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; ++i){
-        if (glfwJoystickPresent(i)){
-            cout << "found joystick: " <<  i <<  ": " << glfwGetJoystickName(i) <<endl;
 
-            //take first joystick
-            if (joystick.joystickId == -1){
-                cout << "using joystick: " <<  i <<endl;
-                joystick.joystickId = i;
-            }
-        }
-    }
 
     return true;
 }
@@ -321,8 +311,20 @@ GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
 
 void Joystick::getCurrentStateFromGLFW()
 {
-    if (joystickId == -1){
+    joystickId = -1;
+    //check every frame, because controller may be disconnected in between
+    for (int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; ++i){
+        if (glfwJoystickPresent(i)){
+            //cout << "found joystick: " <<  i <<  ": " << glfwGetJoystickName(i) <<endl;
 
+            //take first joystick
+            //cout << "using joystick: " <<  i <<endl;
+            joystickId = i;
+            break;
+        }
+    }
+
+    if (joystickId == -1){
         return;
     }
     int count;
@@ -335,6 +337,7 @@ void Joystick::getCurrentStateFromGLFW()
     fire = axes[2];
     aimX = axes[4];
     aimY = axes[3];
+
 
     int buttons;
     const unsigned char* ax = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons);
