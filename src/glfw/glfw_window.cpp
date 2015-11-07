@@ -276,6 +276,7 @@ void glfw_Window::setTimeScale(double timeScale)
 
 bool glfw_Window::window_size_callback(GLFWwindow *window, int width, int height)
 {
+	(void)window;
     this->resize(width,height);
     return false;
 }

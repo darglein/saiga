@@ -58,6 +58,7 @@ bool MaterialLoader::loadLibraryFromFile(const std::string &path){
 
     }
     catch (std::fstream::failure &e) {
+		(void)e;
 //        cout<<"MTL Loading finished"<<endl;
     }
     return true;

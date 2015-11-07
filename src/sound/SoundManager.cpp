@@ -128,7 +128,7 @@ void SoundManager::loadSound(const std::string &file)
         SoundLoader sl;
 
         Sound* loadedsound;
-        if ((loadedsound = sl.loadSound(file))){
+        if ((loadedsound = sl.loadSound(file))!=0){
             soundMap[file] = loadedsound;
         } else {
             cout << "Could not load sound: " << file << endl;

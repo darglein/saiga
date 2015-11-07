@@ -54,7 +54,7 @@ void TextGenerator::createTextureAtlas(){
 
 
     FT_Error error;
-    FT_Stroker stroker;
+    FT_Stroker stroker = 0;
 
     if(stroke_size>0){
         // Set up a stroker.

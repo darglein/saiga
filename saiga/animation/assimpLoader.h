@@ -85,7 +85,7 @@ public:
     void transformmesh(const aiMesh *amesh, std::vector<mat4> &boneMatrices);
     void createFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
 
-    void createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
+    void createKeyFrames( aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
     int countNodes(aiNode *node, AnimationNode &an);
     mat4 composematrix(vec3 t, quat q, vec3 s);
 private:

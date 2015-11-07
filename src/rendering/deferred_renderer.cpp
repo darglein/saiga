@@ -125,7 +125,7 @@ void Deferred_Renderer::render_intern(){
 
 
     lighting.cullLights(*currentCamera);
-    renderDepthMaps(*currentCamera);
+    renderDepthMaps();
 
 
 
@@ -212,7 +212,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
 
 }
 
-void Deferred_Renderer::renderDepthMaps(Camera *cam){
+void Deferred_Renderer::renderDepthMaps(){
 
     startTimer(DEPTHMAPS);
 

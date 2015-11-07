@@ -3,7 +3,7 @@
 #include <FreeImagePlus.h>
 
 bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {
-    return std::tie(lhs.srgb) == std::tie(lhs.srgb);
+	return std::tie(lhs.srgb) == std::tie(rhs.srgb);
 }
 
 Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParameters &params){

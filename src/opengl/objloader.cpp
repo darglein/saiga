@@ -113,7 +113,7 @@ void ObjLoader::reset(){
 }
 
 material_mesh_t *ObjLoader::loadFromFile(const std::string &path, const NoParams &params){
-
+	(void)params;
 //    mesh.clear();
 
     reset();
@@ -150,6 +150,7 @@ material_mesh_t *ObjLoader::loadFromFile(const std::string &path, const NoParams
 
     }
     catch (std::fstream::failure &e) {
+		(void)e;
 //        cout<<"Loading finished"<<endl;
     }
 

@@ -112,7 +112,9 @@ inline std::string Error::getStringForType(GLenum type) {
 }
 
 inline void Error::DebugLogWin32(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam){
-    if (id == 131185){
+	(void)userParam; (void)length;
+
+	if (id == 131185){
         //Buffer detailed info
         return;
     }

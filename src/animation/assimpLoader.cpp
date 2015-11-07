@@ -67,8 +67,8 @@ void AssimpLoader::loadBones(){
 
 void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 {
-
-    const aiMesh *mesh = scene->mMeshes[meshId];
+	(void)meshId;
+    //const aiMesh *mesh = scene->mMeshes[meshId];
 
     out.boneMatrices.resize(boneCount);
     //    transformmesh(mesh,out.boneMatrices);
@@ -77,7 +77,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
     aiAnimation *curanim = scene->mAnimations[animationId];
 
     //    createFrames(mesh,curanim,out.animationFrames);
-    createKeyFrames(mesh,curanim,out.animationFrames);
+    createKeyFrames(curanim,out.animationFrames);
 
     out.frameCount = out.animationFrames.size();
     out.name = curanim->mName.data;
@@ -87,7 +87,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 }
 
 
-void AssimpLoader::createKeyFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames)
+void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFrame> &animationFrames)
 {
     aiVectorKey *p0, *s0;
     aiQuatKey *r0;

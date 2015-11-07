@@ -18,11 +18,7 @@ public:
     vec3 origin;
     vec3 dirfrac;
 public:
-    Ray(const vec3 &dir=vec3(0,0,0),const vec3 &ori=vec3(0,0,0)):direction(dir),origin(ori){
-        dirfrac.x = 1.0f / direction.x;
-        dirfrac.y = 1.0f / direction.y;
-        dirfrac.z = 1.0f / direction.z;
-    }
+	Ray(const vec3 &dir = vec3(0, 0, 0), const vec3 &ori = vec3(0, 0, 0));
 
     //[output] t: distance between ray origin and intersection
     bool intersectAabb(const aabb &bb, float &t) const;

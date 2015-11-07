@@ -31,6 +31,8 @@ private:
 public:
 
     LightingController(DeferredLighting& lighting);
+	LightingController& operator=(LightingController& l) = delete;
+
     virtual ~LightingController(){}
 
     //glfw events

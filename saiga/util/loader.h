@@ -14,6 +14,7 @@ struct SAIGA_GLOBAL NoParams{
 };
 
 SAIGA_GLOBAL inline bool operator==(const NoParams& lhs, const NoParams& rhs) {
+	(void)lhs; (void)rhs;
     return true;
 }
 

@@ -65,6 +65,7 @@ public:
     Framebuffer lightAccumulationBuffer;
 
     DeferredLighting(Framebuffer &gbuffer);
+	DeferredLighting& operator=(DeferredLighting& l) = delete;
     ~DeferredLighting();
 
     void init(int width, int height);

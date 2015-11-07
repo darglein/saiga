@@ -107,9 +107,9 @@ public:
     //size of the complete block in bytes
     GLint getUniformBlockSize(GLuint blockLocation);
     std::vector<GLint> getUniformBlockIndices(GLuint blockLocation);
-    std::vector<GLint> getUniformBlockSize(GLuint blockLocation, std::vector<GLint> indices);
-    std::vector<GLint> getUniformBlockType(GLuint blockLocation, std::vector<GLint> indices);
-    std::vector<GLint> getUniformBlockOffset(GLuint blockLocation, std::vector<GLint> indices);
+    std::vector<GLint> getUniformBlockSize(std::vector<GLint> indices);
+    std::vector<GLint> getUniformBlockType(std::vector<GLint> indices);
+    std::vector<GLint> getUniformBlockOffset(std::vector<GLint> indices);
 
 
     // ===================================== uniform uploads =====================================

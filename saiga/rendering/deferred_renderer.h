@@ -79,6 +79,7 @@ public:
 
     DeferredLighting lighting;
     Deferred_Renderer();
+	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
     void init(DeferredShader* deferred_shader, int w, int h);
     void setDeferredMixer(DeferredShader* deferred_shader);
@@ -89,12 +90,10 @@ public:
 
     void render_intern();
     void renderGBuffer(Camera *cam);
-    void renderDepthMaps(Camera *cam);
+    void renderDepthMaps(); //render the scene from the lights perspective (don't need user camera here)
     void renderLighting(Camera *cam);
     void renderSSAO(Camera *cam);
 
-    virtual void cudaPostProcessing() {}
-    virtual void initCudaPostProcessing(Texture* src, Texture* dest) {}
 
 
 

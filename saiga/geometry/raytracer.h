@@ -15,7 +15,7 @@ using glm::max;
 class SAIGA_GLOBAL Raytracer
 {
 public:
-std::vector<Triangle> &triangles;
+	std::vector<Triangle> &triangles;
     Raytracer(std::vector<Triangle> &triangles):triangles(triangles){}
 
     struct Result{
@@ -28,6 +28,7 @@ std::vector<Triangle> &triangles;
 
     //find closest intersection
     Result trace(Ray &r);
+	Raytracer& operator=(const Raytracer&) = delete;
 
     //writes all found intersections to output and returns number
     int trace(Ray &r, std::vector<Result> &output);

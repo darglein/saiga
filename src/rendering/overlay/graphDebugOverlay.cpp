@@ -106,7 +106,7 @@ void GraphDebugOverlay::setScreenPosition(vec2 start, vec2 end)
 }
 
 void GraphDebugOverlay::render(float interpolation){
-
+	(void)interpolation;
     shader->bind();
 
     shader->uploadModel(model);

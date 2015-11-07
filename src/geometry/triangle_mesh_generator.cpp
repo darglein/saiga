@@ -46,6 +46,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
 }
 
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &sphere, int resolution){
+	(void)sphere;
     default_mesh_t* mesh = new default_mesh_t();
     float t = (1.0 + glm::sqrt(5.0)) / 2.0;
 
@@ -107,6 +108,9 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
         }
     }
 
+	mat4 scale = glm::scale(mat4(), vec3(sphere.r));
+	mat4 translate = glm::translate(mat4(), vec3(sphere.pos));
+	mesh->transform(translate*scale);
 
     return std::shared_ptr<default_mesh_t>(mesh);
 }

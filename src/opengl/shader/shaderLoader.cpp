@@ -2,6 +2,9 @@
 
 
 Shader* ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params){
+	(void )params; 
+	cout << "fail ShaderLoader::loadFromFile "<<name << endl;
+	
 //    Shader* shader = new Shader(name);
 //    if(shader->reload()){
 //        return shader;

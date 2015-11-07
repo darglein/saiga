@@ -110,21 +110,21 @@ std::vector<GLint> Shader::getUniformBlockIndices(GLuint blockLocation)
     return indices;
 }
 
-std::vector<GLint> Shader::getUniformBlockSize(GLuint blockLocation, std::vector<GLint> indices)
+std::vector<GLint> Shader::getUniformBlockSize(std::vector<GLint> indices)
 {
     std::vector<GLint> ret(indices.size());
     glGetActiveUniformsiv(program,indices.size(),(GLuint*)indices.data(),GL_UNIFORM_SIZE,ret.data());
     return ret;
 }
 
-std::vector<GLint> Shader::getUniformBlockType(GLuint blockLocation, std::vector<GLint> indices)
+std::vector<GLint> Shader::getUniformBlockType(std::vector<GLint> indices)
 {
     std::vector<GLint> ret(indices.size());
     glGetActiveUniformsiv(program,indices.size(),(GLuint*)indices.data(),GL_UNIFORM_TYPE,ret.data());
     return ret;
 }
 
-std::vector<GLint> Shader::getUniformBlockOffset(GLuint blockLocation, std::vector<GLint> indices)
+std::vector<GLint> Shader::getUniformBlockOffset(std::vector<GLint> indices)
 {
     std::vector<GLint> ret(indices.size());
     glGetActiveUniformsiv(program,indices.size(),(GLuint*)indices.data(),GL_UNIFORM_OFFSET,ret.data());

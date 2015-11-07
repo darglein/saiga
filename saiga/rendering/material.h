@@ -50,7 +50,7 @@ public:
     MaterialLoader(){}
     virtual ~MaterialLoader(){}
     Material* load(const std::string &name);
-    Material* loadFromFile(const std::string &name, const NoParams &params){(void)name;return nullptr;}
+	Material* loadFromFile(const std::string &name, const NoParams &params){ (void)name; (void)params; return nullptr; }
     void loadLibrary(const std::string &file);
     bool loadLibraryFromFile(const std::string &path);
 };

@@ -1,5 +1,13 @@
 #include "saiga/geometry/ray.h"
 
+
+Ray::Ray(const vec3 &dir , const vec3 &ori) :direction(dir), origin(ori){
+	dirfrac.x = 1.0f / direction.x;
+	dirfrac.y = 1.0f / direction.y;
+	dirfrac.z = 1.0f / direction.z;
+}
+
+
 //using glm::min;
 //using glm::max;
 //source

@@ -7,7 +7,7 @@ class SAIGA_GLOBAL raw_Texture{
 
 protected:
     GLuint id = 0;
-    const GLenum target;
+    GLenum target;
     int width,height;
     GLenum internal_format;
     GLenum color_type,data_type;
