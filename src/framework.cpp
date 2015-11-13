@@ -22,12 +22,14 @@ std::string OBJ_PATH;
 
 void readConfigFile(){
     ConfigLoader cl;
-    cl.loadFile("saiga-config.txt");
+    cl.loadFile2("saiga-config.txt");
 
     SHADER_PATH = cl.getString("SHADER_PATH","/usr/local/share/saiga/shader");
     TEXTURE_PATH = cl.getString("TEXTURE_PATH","textures");
     MATERIAL_PATH = cl.getString("MATERIAL_PATH","objs");
     OBJ_PATH = cl.getString("OBJ_PATH","objs");
+
+    cl.writeFile();
 
 }
 

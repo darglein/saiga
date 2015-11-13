@@ -48,7 +48,7 @@ void PostProcessor::init(int width, int height)
 
     timer.create();
 
-    computeTest = ShaderLoader::instance()->load<Shader>("computeTest.glsl");
+//    computeTest = ShaderLoader::instance()->load<Shader>("computeTest.glsl");
 }
 
 void PostProcessor::nextFrame(Framebuffer *gbuffer)
