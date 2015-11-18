@@ -15,7 +15,7 @@ using namespace gl;
 #define GLFW_INCLUDE_NONE
 #endif
 
-SAIGA_LOCAL extern void initOpenGL();
+SAIGA_GLOBAL void initOpenGL();
 SAIGA_GLOBAL int getVersionMajor();
 SAIGA_GLOBAL int getVersionMinor();
 

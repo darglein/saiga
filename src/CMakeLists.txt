@@ -2,6 +2,7 @@
 ############# Required Source Files ###############
 
 FILE(GLOB_RECURSE animation_SRC  animation/*.cpp)
+FILE(GLOB_RECURSE assets_SRC  assets/*.cpp)
 FILE(GLOB_RECURSE camera_SRC  camera/*.cpp)
 FILE(GLOB_RECURSE geometry_SRC  geometry/*.cpp)
 FILE(GLOB_RECURSE opengl_SRC  opengl/*.cpp)
@@ -14,7 +15,7 @@ FILE(GLOB main_SRC  *.cpp)
 
 FILE(GLOB_RECURSE PROG_HEADER  ../${LIB_NAME}/*.h)
 
-SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} 
+SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${assets_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} 
 ${rendering_SRC} ${text_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC} ${main_SRC} ${PROG_HEADER})
 
 ############# Optional Source Files ###############
