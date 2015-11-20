@@ -35,6 +35,7 @@
 
 class SAIGA_GLOBAL AssimpLoader{
 public:
+    std::string file;
     bool verbose = false;
 
     const aiScene *scene = nullptr;
@@ -53,6 +54,8 @@ public:
     AssimpLoader(){}
     AssimpLoader(const std::string &file);
 
+    void printInfo();
+    void printMaterialInfo(const aiMaterial *material);
     void loadBones();
 
 
@@ -67,6 +70,9 @@ public:
 
     template<typename vertex_t>
     void getNormals(int id,  TriangleMesh<vertex_t, GLuint> &out);
+
+    template<typename vertex_t, typename index_t>
+    void getTextureCoordinates(int id,  TriangleMesh<vertex_t, index_t> &out);
 
     template<typename vertex_t>
     void getBones(int id,  TriangleMesh<vertex_t, GLuint> &out);
@@ -88,6 +94,7 @@ public:
     void createKeyFrames( aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
     int countNodes(aiNode *node, AnimationNode &an);
     mat4 composematrix(vec3 t, quat q, vec3 s);
+
 private:
     int animationlength(aiAnimation *anim);
     aiNode *findnode(aiNode *node, char *name);
@@ -187,7 +194,7 @@ void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, GLuint> &out){
     if(mesh->HasTextureCoords(0)){
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
-            loadTexture(bv,mesh->mTextureCoords[i][0]);
+            loadTexture(bv,mesh->mTextureCoords[0][i]);
         }
     }
 
@@ -221,6 +228,7 @@ void AssimpLoader::getPositions(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
     out.vertices.resize(mesh->mNumVertices);
 
+
     if(mesh->HasPositions()){
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
@@ -245,6 +253,21 @@ void AssimpLoader::getNormals(int id,  TriangleMesh<vertex_t, GLuint> &out){
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
             loadNormal(bv,mesh->mNormals[i]);
+        }
+    }
+}
+
+template<typename vertex_t, typename index_t>
+void AssimpLoader::getTextureCoordinates(int id,  TriangleMesh<vertex_t, index_t> &out){
+    const aiMesh *mesh = scene->mMeshes[id];
+
+    out.vertices.resize(mesh->mNumVertices);
+
+    if(mesh->HasTextureCoords(0)){
+        for(unsigned int i=0;i<mesh->mNumVertices;++i){
+            vertex_t &bv = out.vertices[i];
+//            loadTexture(bv,mesh->mTextureCoords[i][0]);
+            loadTexture(bv,mesh->mTextureCoords[0][i]);
         }
     }
 

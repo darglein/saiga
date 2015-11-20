@@ -15,7 +15,7 @@ public:
 	~aabb(void);
 
 
-
+    int maxDimension(); //returns the axis with the maximum extend
 
     void makeNegative();
     void growBox(const vec3 &v);

@@ -2,7 +2,7 @@
 
 #ifdef USE_ASSIMP
 
-AssimpLoader::AssimpLoader(const std::string &file)
+AssimpLoader::AssimpLoader(const std::string &file):file(file)
 {
 
     loadFile(file);
@@ -30,15 +30,54 @@ void AssimpLoader::loadFile(const std::string &file){
     }
 
     if(verbose){
-        cout<<">>>>AssimpLoader: "<<file<<" ";
-        cout<<"Animations "<<scene->mNumAnimations<<
-              ", Cameras "<<scene->mNumCameras<<
-              ", Lights "<<scene->mNumLights<<
-              ", Materials "<<scene->mNumMaterials<<
-              ", Meshes "<<scene->mNumMeshes<<
-              ", Textures "<<scene->mNumTextures<<endl;
+        printInfo();
     }
 
+}
+
+void AssimpLoader::printInfo(){
+    cout<<">> AssimpLoader: "<<file<<" ";
+    cout<<"Animations "<<scene->mNumAnimations<<
+          ", Cameras "<<scene->mNumCameras<<
+          ", Lights "<<scene->mNumLights<<
+          ", Materials "<<scene->mNumMaterials<<
+          ", Meshes "<<scene->mNumMeshes<<
+          ", Textures "<<scene->mNumTextures<<endl;
+
+    for(unsigned int m =0;m<scene->mNumMeshes;++m){
+        const aiMesh *mesh = scene->mMeshes[m];
+        cout<<">>> Mesh "<<m<<
+              ": Material id " <<mesh->mMaterialIndex<<
+               ", Vertices "<<mesh->mNumVertices<<
+              ", Faces "<<mesh->mNumFaces<<endl;
+    }
+
+    for(unsigned int m =0;m<scene->mNumMaterials;++m){
+        const aiMaterial *material = scene->mMaterials[m];
+        printMaterialInfo(material);
+    }
+}
+
+void AssimpLoader::printMaterialInfo(const aiMaterial *material){
+
+    aiString texturepath;
+    material->GetTexture(aiTextureType_DIFFUSE,0,&texturepath);
+
+    aiColor3D cd (0.f,0.f,0.f);
+    material->Get(AI_MATKEY_COLOR_DIFFUSE,cd);
+
+    aiColor3D ce (0.f,0.f,0.f);
+    material->Get(AI_MATKEY_COLOR_EMISSIVE,ce);
+
+    aiColor3D cs (0.f,0.f,0.f);
+    material->Get(AI_MATKEY_COLOR_SPECULAR,cs);
+
+
+    cout<<">>>> Material: "<<
+          "Color Diffuse ("<<cd.r<<" "<<cd.g<<" "<<cd.b<<
+          "), Color Emissive ("<<ce.r<<" "<<ce.g<<" "<<ce.b<<
+          "), Color Specular ("<<cs.r<<" "<<cs.g<<" "<<cs.b<<
+          "), Diffuse texture " <<texturepath.C_Str()<<endl;
 }
 
 void AssimpLoader::loadBones(){
@@ -67,7 +106,7 @@ void AssimpLoader::loadBones(){
 
 void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 {
-	(void)meshId;
+    (void)meshId;
     //const aiMesh *mesh = scene->mMeshes[meshId];
 
     out.boneMatrices.resize(boneCount);

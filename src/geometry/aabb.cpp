@@ -9,18 +9,23 @@ aabb::aabb(void)
 
 aabb::aabb(const glm::vec3 &p, const glm::vec3 &s) : min(p), max(s)
 {
-    //cout<<"init\n";
-    //min = glm::vec3(p);
-    //max = glm::vec3(s);
-    //omin = glm::vec3(p);
-    //omax = glm::vec3(s);
-    //angleY = 0;
-
-    //cout<<"init\n";
 }
 
 aabb::~aabb(void)
 {
+}
+
+int aabb::maxDimension()
+{
+     vec3 d = max - min;
+
+    int m = -1;
+    int mi = -1;
+
+    for(int i = 0 ; i < 3 ; ++i){
+//        if()
+    }
+    return 0;
 }
 
  void aabb::transform(const mat4 &trafo){
