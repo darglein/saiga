@@ -1,0 +1,21 @@
+Asset Loading + Rendering
+- AssetLoader that returns an object that can be rendered
+- Vertex colored meshes (without textures)
+- textured meshes
+- a mix of both
+- different file formats (use assimp)
+- load appropriate shaders
+
+- uncolored assets
+- Colored assets
+- Textured assets
+- animated assets
+
+
+
+General
+- better shader names
+- remove 'renderer interface' (to window)
+- multiple window support?
+- borderless fullscreen
+- shader loader more and better readable error messages

@@ -38,7 +38,9 @@ bool ShaderPartLoader::load()
 
         bool readLine = true;
         for(int i = 0 ; i < ShaderPart::shaderTypeCount ; ++i){
-            if(line.compare("##"+ShaderPart::shaderTypeStrings[i])==0){
+            std::string key("##"+ShaderPart::shaderTypeStrings[i]);
+            //this only compares the first characteres of line, so that for example addittional '\r's are ignored.
+            if(line.compare(0,key.size(),key)==0){
                 if(status==STATUS_READING){
                     addShader(code,type);
                     code.clear();
@@ -67,12 +69,17 @@ bool ShaderPartLoader::load()
 }
 
 
-std::vector<std::string> ShaderPartLoader::loadAndPreproccess(const std::string &file)
+std::vector<std::string> ShaderPartLoader::loadAndPreproccess(const std::string &file, bool quitOnError)
 {
     std::vector<std::string> ret;
 
     std::ifstream fileStream(prefix+"/"+file, std::ios::in);
     if(!fileStream.is_open()) {
+        if(quitOnError){
+            std::cerr<<"ShaderPartLoader: Could not open file: "<<prefix+"/"+file<<endl;
+            std::cerr<<"Make sure it exists and the path is correct"<<endl;
+            exit(1);
+        }
         return ret;
     }
 
@@ -92,7 +99,7 @@ std::vector<std::string> ShaderPartLoader::loadAndPreproccess(const std::string 
             line.erase(it,line.end());
 
             //recursivly load includes
-            std::vector<std::string> tmp = loadAndPreproccess(line);
+            std::vector<std::string> tmp = loadAndPreproccess(line,true);
             ret.insert(ret.end(),tmp.begin(),tmp.end());
         }else{
             ret.push_back(line);

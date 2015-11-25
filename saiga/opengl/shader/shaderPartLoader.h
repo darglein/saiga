@@ -28,7 +28,7 @@ public:
     ~ShaderPartLoader();
 
     bool load();
-    std::vector<std::string> loadAndPreproccess(const std::string &file);
+    std::vector<std::string> loadAndPreproccess(const std::string &file, bool quitOnError=false);
     void addShader(std::vector<std::string> &content, GLenum type);
 
     //combine all loaded shader parts to a shader. the returned shader is linked and ready to use
@@ -42,8 +42,12 @@ public:
 template<typename shader_t>
 shader_t* ShaderPartLoader::createShader()
 {
-    if(shaders.size()==0)
+    if(shaders.size()==0){
+        std::cerr<<file<<" does not contain any shaders."<<endl;
+        std::cerr<<"Use for example '##GL_FRAGMENT_SHADER' to mark the beginning of a fragment shader."<<endl;
+        std::cerr<<"Also make sure this makro is at a beginning of a new line."<<endl;
         return nullptr;
+    }
 
     shader_t* shader = new shader_t();
     shader->shaders = shaders;
