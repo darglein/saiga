@@ -28,7 +28,8 @@ public:
     ~ShaderPartLoader();
 
     bool load();
-    std::vector<std::string> loadAndPreproccess(const std::string &file, bool quitOnError=false);
+    bool loadAndPreproccess(const std::string &file, std::vector<std::string> &ret);
+
     void addShader(std::vector<std::string> &content, GLenum type);
 
     //combine all loaded shader parts to a shader. the returned shader is linked and ready to use

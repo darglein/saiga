@@ -18,4 +18,13 @@ General
 - remove 'renderer interface' (to window)
 - multiple window support?
 - borderless fullscreen
-- shader loader more and better readable error messages
+- init opengl and context always at beginning
+- don't derive from window
+
+
+new glfw_window(...) //init opengl context + window
+new program
+window.setProgram(...)
+
+window.startmainloop
+

@@ -17,25 +17,28 @@ aabb::~aabb(void)
 
 int aabb::maxDimension()
 {
-     vec3 d = max - min;
+    vec3 d = max - min;
 
-    int m = -1;
+    float m = -1;
     int mi = -1;
 
     for(int i = 0 ; i < 3 ; ++i){
-//        if()
+        if(d[i]>m){
+            mi = i;
+            m = d[i];
+        }
     }
-    return 0;
+    return mi;
 }
 
- void aabb::transform(const mat4 &trafo){
-     //only for scaling and translation correct !!!!
-     min = vec3(trafo*vec4(min,1));
-     max = vec3(trafo*vec4(max,1));
- }
+void aabb::transform(const mat4 &trafo){
+    //only for scaling and translation correct !!!!
+    min = vec3(trafo*vec4(min,1));
+    max = vec3(trafo*vec4(max,1));
+}
 
 void aabb::makeNegative(){
-    #define INFINITE 100000000000000.0f
+#define INFINITE 100000000000000.0f
     min = vec3(INFINITE);
     max = vec3(-INFINITE);
 }
@@ -207,210 +210,6 @@ bool aabb::contains(const glm::vec3 &p){
     return true; //overlap
 }
 
-
-//void aabb::getDrawData(GLfloat* vert, GLuint *vertpointer, GLuint *facedata, GLuint *facepointer, char visibility, int id){
-
-//    static GLfloat tc[8][2] =
-//    {
-//        {1.0,0.0}, //bottom
-//        {1.0,1.0},
-//        {2.0,2.0},
-//        {2.0,3.0}, //top
-
-//        {1.0,4.0},
-//        {1.0,5.0}, //bottom
-//        {2.0,6.0}, //top
-//        {2.0,7.0}
-//    };
-
-
-//    float l = 1/(glm::sqrt(3.0));
-//    for(int i = 0;i<8;i++){
-//        //x
-//        int ind = (i*8)+(*vertpointer);
-//        vert[ind+0] = (i&0x1) ? max.x : min.x;
-//        vert[ind+3] = (i&0x1) ? l : -l;
-//        //y
-//        vert[ind+1] = (i&0x2) ? max.y : min.y;
-//        vert[ind+4] = (i&0x2) ? l : -l;
-//         //z
-//        vert[ind+2] = (i&0x4) ? max.z : min.z;
-//        vert[ind+5] = (i&0x4) ? l : -l;
-
-//        //tex
-//        vert[ind+6] = id;
-//        vert[ind+7] = tc[i][1];
-
-
-//    }
-
-
-//    static GLuint ind[] = { 4,6,2, 2,0,4, //left
-//                            4,0,1, 1,5,4, //bottom
-//                            0,2,3, 3,1,0, //back
-//                            1,3,7, 7,5,1, //right
-//                            2,6,7, 7,3,2, //top
-//                            5,7,6, 6,4,5}; //front
-
-
-
-//    int count =0;
-//    for(int i=0;i<6;i++){
-
-//        if((visibility>>i)&0x1){
-
-//            for(int j=0;j<6;j++){
-//              facedata[count+j+(*facepointer)] = ind[i*6+j] + ((*vertpointer)/8);
-//             }
-//            count+=6;
-//        }
-
-
-//    }
-
-//    *vertpointer += 8*8;
-//    *facepointer += count;
-//}
-
-//void aabb::getDrawDataTx(GLfloat* vert, GLuint *vertpointer, GLuint *facedata, GLuint *facepointer, int visibility){
-
-//    static GLfloat tc[8][2] =
-//    {
-//        {1.0,0.0}, //bottom
-//        {1.0,1.0},
-//        {2.0,2.0},
-//        {2.0,3.0}, //top
-
-//        {1.0,4.0},
-//        {1.0,5.0}, //bottom
-//        {2.0,6.0}, //top
-//        {2.0,7.0}
-//    };
-
-
-//    float l = 1/(glm::sqrt(3.0));
-//    for(int i = 0;i<8;i++){
-//        //x
-//        int ind = (i*8)+(*vertpointer);
-//        vert[ind+0] = (i&0x1) ? max.x : min.x;
-//        vert[ind+3] = (i&0x1) ? l : -l;
-//        //y
-//        vert[ind+1] = (i&0x2) ? max.y : min.y;
-//        vert[ind+4] = (i&0x2) ? l : -l;
-//         //z
-//        vert[ind+2] = (i&0x4) ? max.z : min.z;
-//        vert[ind+5] = (i&0x4) ? l : -l;
-
-//        //tex
-//        vert[ind+6] = tc[i][0];
-//        vert[ind+7] = tc[i][1];
-
-
-//    }
-
-
-
-//    static GLuint ind[] = { 4,6,2, 2,0,4, //left
-//                            4,0,1, 1,5,4, //bottom
-//                            0,2,3, 3,1,0, //back
-//                            1,3,7, 7,5,1, //right
-//                            2,6,7, 7,3,2, //top
-//                            5,7,6, 6,4,5}; //front
-
-
-
-//    int count =0;
-//    for(int i=0;i<6;i++){
-
-//        if((visibility>>i)&1){
-
-//            for(int j=0;j<6;j++){
-//              facedata[count+j+(*facepointer)] = ind[i*6+j] + ((*vertpointer)/8);
-//             }
-//            count+=6;
-//        }
-
-
-//    }
-
-//    *vertpointer += 8*8;
-//    *facepointer += count;
-//}
-
-//void aabb::addOutlineToBuffer(std::vector<Vertex> &vertices,std::vector<GLuint> &indices){
-//    int offset = vertices.size();
-//    for(int i=0;i<8;i++){
-//        vec3 c = cornerPoint(i);
-//        Vertex v(c);
-//        vertices.push_back(v);
-//    }
-//    static GLuint ind[] = { 0,1, 1,2, 2,3, 3,0,
-//                                        4,5, 5,6, 6,7, 7,4,
-//                                        0,4, 1,5, 2,6, 3,7
-//                          };
-//    for(int i=0;i<24;i++){
-//        indices.push_back(ind[i]+offset);
-//    }
-//}
-
-//void aabb::addToBuffer(std::vector<Vertex> &vertices,std::vector<GLuint> &indices){
-//    int offset = vertices.size();
-//    for(int i=0;i<8;i++){
-//        vec3 c = cornerPoint(i);
-//        Vertex v(c);
-//        vertices.push_back(v);
-//    }
-//    static GLuint ind[] = { 4,6,2, 2,0,4, //left
-//                            4,0,1, 1,5,4, //bottom
-//                            0,2,3, 3,1,0, //back
-//                            1,3,7, 7,5,1, //right
-//                            2,6,7, 7,3,2, //top
-//                            5,7,6, 6,4,5}; //front
-//    for(int i=0;i<24;i++){
-//        indices.push_back(ind[i+offset]);
-//    }
-//}
-
-//void aabb::addToBuffer(std::vector<VertexN> &vertices,std::vector<GLuint> &indices){
-//    int offset = vertices.size();
-
-//    static vec3 normals[] = {
-//        {-1,0,0},
-//        {1,0,0},
-//        {0,-1,0},
-//        {0,1,0},
-//        {0,0,-1},
-//        {0,0,1}
-//    };
-//    static GLuint verts[] = {
-//        0, 1, 2 ,3,
-//        7, 6, 5, 4,
-//        4, 5, 1 ,0,
-//        3, 2, 6, 7,
-//        0, 3, 7, 4,
-//        2, 1, 5, 6
-//    };
-
-//    for(int f=0;f<6;f++){
-//        for(int i=0;i<4;i++){
-//            vec3 c = cornerPoint(verts[f*4+i]);
-//            vec3 n= normals[f];
-//            VertexN v(c,n);
-//            vertices.push_back(v);
-//        }
-
-//    }
-//    static GLuint ind[] = { 0,1,2, 2,3,0, //left
-//                            4,5,6, 6,7,4, //bottom
-//                            8,9,10, 10,11,8, //back
-//                            12,13,14, 14,15,12, //right
-//                            16,17,18, 18,19,16, //top
-//                            20,21,22, 22,23,20 //front
-//                          };
-//    for(int i=0;i<36;i++){
-//        indices.push_back(ind[i+offset]);
-//    }
-//}
 
 std::ostream& operator<<(std::ostream& os, const aabb& bb)
 {

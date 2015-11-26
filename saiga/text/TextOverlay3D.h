@@ -33,7 +33,7 @@ public:
 
     };
 
-    TextShaderFade* textShader;
+
     //text + duration
     std::vector<TextContainer> texts;
 
@@ -51,8 +51,9 @@ public:
 
     void update(float secondsPerTick);
 
-
-    void setTextShader(TextShaderFade* textShader);
+    void loadShader();
+private:
+    TextShaderFade* textShader = nullptr;
 };
 
 

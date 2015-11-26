@@ -12,7 +12,7 @@ class SAIGA_GLOBAL TextOverlay2D {
 public:
 
     mat4 proj;
-    TextShader* textShader;
+
     std::vector<Text*> texts;
 
     int width,height;
@@ -23,7 +23,12 @@ public:
     //text stuff
     void addText(Text* text);
     void removeText(Text* text);
-    void setTextShader(TextShader* textShader);
+
+    void loadShader();
+
+
+private:
+    TextShader* textShader = nullptr;
 };
 
 

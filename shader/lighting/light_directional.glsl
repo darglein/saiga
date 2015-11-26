@@ -38,7 +38,7 @@ uniform sampler2D ssaoTex;
 uniform vec3 direction;
 uniform float ambientIntensity;
 
-#include "deferred_lighting_fs.glsl"
+#include "lighting_helper_fs.glsl"
 
 layout(location=0) out vec4 out_color;
 

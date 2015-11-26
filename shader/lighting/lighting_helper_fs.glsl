@@ -181,16 +181,6 @@ vec3 reconstructPosition(float d, vec2 tc){
 //    return vec3(x,y,1);
 }
 
-//void getGbufferData(out vec3 color,out  vec3 position, out float depth, out vec3 normal, out vec3 data){
-
-//    vec2 tc = CalcTexCoord();
-//    color = texture( deferred_diffuse, tc ).rgb;
-//    position = texture( deferred_position, tc ).xyz;
-//    depth = texture( deferred_depth, tc ).r;
-//    normal = texture( deferred_normal, tc ).xyz;
-//    normal = normal*2.0f - 1.0f;
-//    data = texture(deferred_data,tc).xyz;
-//}
 
 
 void getGbufferData(out vec3 color,out  vec3 position, out float depth, out vec3 normal, out vec3 data){

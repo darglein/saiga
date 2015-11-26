@@ -31,7 +31,7 @@ uniform float useBinarySearch;
 
 in vec2 tc;
 
-#include "../lighting/deferred_lighting_fs.glsl"
+#include "../lighting/lighting_helper_fs.glsl"
 
 layout(location=0) out vec3 out_color;
 

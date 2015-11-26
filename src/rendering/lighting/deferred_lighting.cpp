@@ -30,7 +30,27 @@ DeferredLighting::~DeferredLighting(){
 
 void DeferredLighting::loadShaders()
 {
-    lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>("deferred_lighting_accumulation.glsl");
+    ShaderPart::ShaderCodeInjections shadowInjection;
+    shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define SHADOWS",1); //after the version number
+
+    spotLightShader = ShaderLoader::instance()->load<SpotLightShader>("light_spot.glsl");
+    spotLightShadowShader = ShaderLoader::instance()->load<SpotLightShader>("light_spot.glsl",shadowInjection);
+
+
+    pointLightShader = ShaderLoader::instance()->load<PointLightShader>("light_point.glsl");
+    pointLightShadowShader = ShaderLoader::instance()->load<PointLightShader>("light_point.glsl",shadowInjection);
+
+    directionalLightShader = ShaderLoader::instance()->load<DirectionalLightShader>("light_directional.glsl");
+    directionalLightShadowShader = ShaderLoader::instance()->load<DirectionalLightShader>("light_directional.glsl",shadowInjection);
+
+    boxLightShader = ShaderLoader::instance()->load<BoxLightShader>("light_box.glsl");
+    boxLightShadowShader = ShaderLoader::instance()->load<BoxLightShader>("light_box.glsl",shadowInjection);
+
+    debugShader = ShaderLoader::instance()->load<MVPColorShader>("debugmesh.glsl");
+    stencilShader = ShaderLoader::instance()->load<MVPShader>("stenciltest.glsl");
+
+    lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>("lightaccumulation.glsl");
 }
 
 void DeferredLighting::init(int width, int height){
@@ -218,7 +238,7 @@ void DeferredLighting::renderLightAccumulation()
 
     lightAccumulationShader->unbind();
 
-     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void DeferredLighting::setupStencilPass(){

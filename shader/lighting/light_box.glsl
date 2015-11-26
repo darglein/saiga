@@ -58,7 +58,7 @@ in vec3 lightPos;
 in vec3 lightDir2;
 
 
-#include "deferred_lighting_fs.glsl"
+#include "lighting_helper_fs.glsl"
 
 layout(location=0) out vec4 out_color;
 

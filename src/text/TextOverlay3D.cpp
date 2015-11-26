@@ -2,6 +2,7 @@
 #include "saiga/text/textShader.h"
 #include "saiga/text/text.h"
 #include "saiga/camera/camera.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 
 #include <algorithm>
 
@@ -57,10 +58,7 @@ void TextOverlay3D::update(float secondsPerTick)
     texts.erase(std::remove_if(texts.begin(), texts.end(),func ), texts.end());
 }
 
-void TextOverlay3D::setTextShader(TextShaderFade* textShader){
 
-    this->textShader= textShader;
-}
 
 void TextOverlay3D::renderText(Camera *cam){
 
@@ -88,4 +86,10 @@ void TextOverlay3D::renderText(Camera *cam){
 }
 
 
+void TextOverlay3D::loadShader()
+{
+    if(textShader!=nullptr)
+        return;
+    textShader = ShaderLoader::instance()->load<TextShaderFade>("deferred_text3D.glsl");
 
+}

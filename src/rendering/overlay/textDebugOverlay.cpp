@@ -9,8 +9,6 @@
 
 TextDebugOverlay::TextDebugOverlay(): overlay(1,1),layout(1600,900){
 
-    overlay.setTextShader(ShaderLoader::instance()->load<TextShader>("deferred_text.glsl"));
-
 }
 
 void TextDebugOverlay::init(TextGenerator *textGenerator)

@@ -36,7 +36,7 @@ Deferred_Renderer::~Deferred_Renderer()
 
 }
 
-void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
+void Deferred_Renderer::init(int w, int h){
     setSize(w,h);
     lighting.init(w,h);
     deferred_framebuffer.create();
@@ -60,10 +60,6 @@ void Deferred_Renderer::init(DeferredShader* deferred_shader, int w, int h){
     postProcessor.init(w,h);
 
 
-    //    initCudaPostProcessing(ppsrc,ppdst);
-
-
-    setDeferredMixer(deferred_shader);
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -92,9 +88,7 @@ void Deferred_Renderer::resize(int width, int height)
 }
 
 
-void Deferred_Renderer::setDeferredMixer(DeferredShader* deferred_shader){
-    this->deferred_shader = deferred_shader;
-}
+
 
 void Deferred_Renderer::toggleSSAO()
 {

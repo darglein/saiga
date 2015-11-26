@@ -73,7 +73,6 @@ public:
 
     PostProcessor postProcessor;
 
-    DeferredShader* deferred_shader;
 
     int width,height;
 
@@ -81,8 +80,7 @@ public:
     Deferred_Renderer();
 	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
-    void init(DeferredShader* deferred_shader, int w, int h);
-    void setDeferredMixer(DeferredShader* deferred_shader);
+    void init( int w, int h);
     void setSize(int width, int height){this->width=width;this->height=height;}
     void resize(int width, int height);
 

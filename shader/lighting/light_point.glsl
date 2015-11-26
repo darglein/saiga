@@ -6,7 +6,6 @@ layout(location=0) in vec3 in_position;
 layout(location=1) in vec3 in_normal;
 layout(location=2) in vec2 in_tex;
 
-
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
@@ -20,11 +19,9 @@ uniform vec4 position;
 out vec3 vertexMV;
 out vec3 vertex;
 out vec3 lightPos;
-out vec3 lightDir2;
 
 void main() {
     lightPos = vec3(view  * vec4(model[3]));
-    lightDir2 = vec3(view  * vec4(model[1]));
     vertexMV = vec3(view * model * vec4( in_position, 1 ));
     vertex = vec3(model * vec4( in_position, 1 ));
     gl_Position = proj*view *model* vec4(in_position,1);
@@ -38,43 +35,21 @@ void main() {
 #version 400
 
 #ifdef SHADOWS
-uniform sampler2DShadow depthTex;
+uniform samplerCubeShadow depthTex;
 #endif
 
-#define ACCUMULATE
-
-uniform vec2 shadowPlanes; //near and far plane for shadow mapping camera
 uniform vec3 attenuation;
 uniform vec4 position;
-uniform vec3 direction;
-uniform float angle;
+uniform vec2 shadowPlanes; //near and far plane for shadow mapping camera
 
 in vec3 vertexMV;
 in vec3 vertex;
 in vec3 lightPos;
-in vec3 lightDir2;
 
+#include "lighting_helper_fs.glsl"
 
-#include "deferred_lighting_fs.glsl"
 
 layout(location=0) out vec4 out_color;
-
-float spotAttenuation(vec3 lightDir){
-    vec3 dir;
-    dir = normalize(lightDir2);
-
-
-    float fConeCosine = angle;
-     float fCosine = dot(dir,lightDir);
-
-//    float fFactor = 0;
-
-    float fDif = 1.0-fConeCosine;
-     float fFactor = clamp((fCosine-fConeCosine)/fDif, 0.0, 1.0);
-
-     return fFactor;
-
-}
 
 
 void main() {
@@ -87,14 +62,22 @@ void main() {
     float intensity = color.w;
     vec3 lightColor = color.rgb;
 
+
+
+
     float visibility = 1.0f;
 #ifdef SHADOWS
-    visibility = calculateShadow(depthTex,vposition);
+
+    float farplane = shadowPlanes.x;
+    float nearplane = shadowPlanes.y;
+    vec3 lightW = vec3(model[3]);
+    vec3 fragW = vec3(inverse(view)*vec4(vposition,1));
+    visibility = calculateShadowCube(depthTex,lightW,fragW,farplane,nearplane);
 #endif
 
-
-    float atten = spotAttenuation(lightDir)*getAttenuation(attenuation,distance(vposition,lightPos),position.w);
+    float atten = getAttenuation(attenuation,distance(vposition,lightPos),position.w);
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
+
 
     float Idiff = localIntensity * intensityDiffuse(normal,lightDir);
     float Ispec = localIntensity * intensitySpecular(vposition,normal,lightDir,40);
@@ -102,6 +85,8 @@ void main() {
 
 //    out_color = vec4(lightColor*( Idiff*diffColor + Ispec*specColor),1);
     out_color = vec4(lightColor*Idiff ,Ispec); //accumulation
+
+
 }
 
 

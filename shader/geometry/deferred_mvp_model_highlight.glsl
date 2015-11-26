@@ -45,7 +45,7 @@ in vec3 vertexMV;
 in vec3 vertex;
 in vec3 color;
 
-#include "deferred_fs.glsl"
+#include "geometry_helper_fs.glsl"
 
 void main() {
 

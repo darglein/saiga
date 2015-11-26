@@ -50,7 +50,7 @@ in vec3 vertexMV;
 in vec3 vertex;
 in vec2 texCoord;
 
-#include "deferred_fs.glsl"
+#include "geometry_helper_fs.glsl"
 
 // http://www.thetenthplanet.de/archives/1180
 mat3 cotangent_frame(vec3 N, vec3 p, vec2 uv)

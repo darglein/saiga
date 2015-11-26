@@ -32,7 +32,7 @@ public:
     bool intersectTouching(const aabb &other); //returns true if boxes are touching
 
     bool intersect2(const aabb &other, int side);
-    int touching(const aabb &other); //used for visibility check (if air block is touching a cube the touched face is visible)
+    int touching(const aabb &other);
 
     vec3 getHalfExtends();
 
@@ -47,17 +47,6 @@ public:
     void setPosition(const glm::vec3 &v);
 
     bool contains(const glm::vec3 &p);
-
-//    void addOutlineToBuffer(std::vector<Vertex> &vertices,std::vector<GLuint> &indices);
-//    void addToBuffer(std::vector<Vertex> &vertices,std::vector<GLuint> &indices);
-//    void addToBuffer(std::vector<VertexN> &vertices,std::vector<GLuint> &indices);
-
-//    void getDrawData(GLfloat* vert, GLuint *vertpointer, GLuint *facedata, GLuint *facepointer, char visibility, int id=0); //cube + id (7 floats per vertex)
-//    void getDrawDataTx(GLfloat* vert, GLuint *vertpointer, GLuint *facedata, GLuint *facepointer, int visibility); //cube + texture coordinates (8 floats per  vertex)
-
-
-
-
 
 
 

@@ -23,8 +23,9 @@ ShaderPartLoader::ShaderPartLoader(const std::string &file, const std::string &p
 bool ShaderPartLoader::load()
 {
 
-    std::vector<std::string> data = loadAndPreproccess(file);
-    if(data.size()<=0)
+    std::vector<std::string> data;
+
+    if(!loadAndPreproccess(file,data))
         return false;
 
 
@@ -69,18 +70,12 @@ bool ShaderPartLoader::load()
 }
 
 
-std::vector<std::string> ShaderPartLoader::loadAndPreproccess(const std::string &file, bool quitOnError)
+bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<std::string> &ret)
 {
-    std::vector<std::string> ret;
 
     std::ifstream fileStream(prefix+"/"+file, std::ios::in);
     if(!fileStream.is_open()) {
-        if(quitOnError){
-            std::cerr<<"ShaderPartLoader: Could not open file: "<<prefix+"/"+file<<endl;
-            std::cerr<<"Make sure it exists and the path is correct"<<endl;
-            exit(1);
-        }
-        return ret;
+        return false;
     }
 
     const std::string include("#include ");
@@ -99,7 +94,12 @@ std::vector<std::string> ShaderPartLoader::loadAndPreproccess(const std::string 
             line.erase(it,line.end());
 
             //recursivly load includes
-            std::vector<std::string> tmp = loadAndPreproccess(line,true);
+            std::vector<std::string> tmp;
+            if(!loadAndPreproccess(line,tmp)){
+                std::cerr<<"ShaderPartLoader: Could not open included file: "<<prefix+"/"+file<<endl;
+                std::cerr<<"Make sure it exists and the path is correct"<<endl;
+                exit(1);
+            }
             ret.insert(ret.end(),tmp.begin(),tmp.end());
         }else{
             ret.push_back(line);
@@ -107,7 +107,7 @@ std::vector<std::string> ShaderPartLoader::loadAndPreproccess(const std::string 
 
 
     }
-    return ret;
+    return true;
 }
 
 void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)

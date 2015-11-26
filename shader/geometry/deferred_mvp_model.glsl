@@ -49,7 +49,7 @@ in vec3 vertex;
 in vec3 color;
 in vec3 data;
 
-#include "deferred_fs.glsl"
+#include "geometry_helper_fs.glsl"
 
 
 void main() {
