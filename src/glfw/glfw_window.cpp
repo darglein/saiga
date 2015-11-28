@@ -128,7 +128,6 @@ bool glfw_Window::initWindow()
     //framebuffer size != window size
     glfwGetFramebufferSize(window, &width, &height);
 
-    initOpenGL();
 
     Error::quitWhenError("initWindow()");
 

@@ -5,6 +5,7 @@
 
 class Camera;
 class Deferred_Renderer;
+class RendererInterface;
 
 class SAIGA_GLOBAL Window{
 public:
@@ -37,6 +38,9 @@ public:
 
     void screenshot(const std::string &file);
     std::string getTimeString();
+
+
+    void setProgram(RendererInterface* program);
 
     int getWidth();
     int getHeight();

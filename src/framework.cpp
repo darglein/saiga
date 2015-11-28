@@ -15,6 +15,8 @@
 #include "saiga/util/configloader.h"
 
 
+bool initialized = false;
+
 std::string SHADER_PATH;
 std::string TEXTURE_PATH;
 std::string MATERIAL_PATH;
@@ -53,7 +55,10 @@ void writeExtensions(){
 
 void initFramework(Window *window)
 {
-    writeExtensions();
+    if(initialized)
+        return;
+
+//    writeExtensions();
     readConfigFile();
 
     ShaderLoader::instance()->addPath(SHADER_PATH);
@@ -109,7 +114,7 @@ void initFramework(Window *window)
     window->renderer = renderer;
 
     cout<<"========================== Framework initialization done! =========================="<<endl;
-
+    initialized = true;
 
 }
 

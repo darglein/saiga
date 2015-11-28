@@ -1,6 +1,7 @@
 #include "saiga/window/window.h"
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/error.h"
+#include "saiga/framework.h"
 #include <cstring>
 #include <FreeImagePlus.h>
 #include <vector>
@@ -22,10 +23,16 @@ void Window::quit(){
 
 
 bool Window::init(){
+
+    //init window and opengl context
     if(!initWindow()){
         std::cerr<<"Failed to initialize Window!"<<std::endl;
         return false;
     }
+
+
+    //inits opengl (loads functions)
+    initOpenGL();
 
     cout<<">> Basic Window and OpenGL Context initialized!"<<endl;
     cout<<"Opengl version: "<<glGetString(GL_VERSION)<<endl;
@@ -57,6 +64,10 @@ bool Window::init(){
 #endif
 
     cout<<">> Window inputs initialized!"<<endl;
+
+
+    initFramework(this);
+
     return true;
 }
 
@@ -119,4 +130,9 @@ std::string Window::getTimeString()
              ;
 
      return str;
+}
+
+void Window::setProgram(RendererInterface *program)
+{
+    renderer->renderer = program;
 }

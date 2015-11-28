@@ -1,9 +1,14 @@
 #include "saiga/opengl/opengl.h"
 #include <iostream>
 
+bool openglinitialized = false;
+
 #ifdef USE_GLEW
 void initOpenGL()
 {
+    if(openglinitialized)
+        return;
+
     //Initialize GLEW
     glewExperimental = GL_TRUE;
     GLenum glewError = glewInit();
@@ -13,13 +18,18 @@ void initOpenGL()
     }
 
     glGetError(); //ignore first gl error after glew init
+
+    openglinitialized = true;
 }
 #endif
 
 #ifdef USE_GLBINDING
 void initOpenGL()
 {
+    if(openglinitialized)
+        return;
     glbinding::Binding::initialize();
+    openglinitialized = true;
 }
 #endif
 
