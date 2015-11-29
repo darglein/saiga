@@ -15,16 +15,6 @@ Asset Loading + Rendering
 
 General
 - better shader names
-- remove 'renderer interface' (to window)
-- multiple window support?
 - borderless fullscreen
 - init opengl and context always at beginning
-- don't derive from window
-
-
-new glfw_window(...) //init opengl context + window
-new program
-window.setProgram(...)
-
-window.startmainloop
-
+- derive assetloader from loader

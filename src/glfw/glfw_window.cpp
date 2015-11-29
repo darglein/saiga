@@ -88,6 +88,11 @@ bool glfw_Window::initGlfw(){
 
 bool glfw_Window::initWindow()
 {
+    if (!glfw_Window::initGlfw()){
+        cout << "Could not initialize GLFW" << endl;
+        return -1;
+    }
+
     //glfwInit has to be called before
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);

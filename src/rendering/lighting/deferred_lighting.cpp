@@ -105,11 +105,12 @@ void DeferredLighting::cullLights(Camera *cam){
     }
 }
 
-void DeferredLighting::renderDepthMaps(RendererInterface *renderer){
+void DeferredLighting::renderDepthMaps(Program *renderer){
     totalLights = 0;
     renderedDepthmaps = 0;
 
     totalLights = directionalLights.size() + spotLights.size() + pointLights.size();
+
 
     for(DirectionalLight* &light : directionalLights){
         if(light->shouldCalculateShadowMap()){
@@ -120,6 +121,7 @@ void DeferredLighting::renderDepthMaps(RendererInterface *renderer){
             light->unbindShadowMap();
         }
     }
+
 
     for(BoxLight* &light : boxLights){
         if(light->shouldCalculateShadowMap()){

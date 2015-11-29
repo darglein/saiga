@@ -3,10 +3,15 @@
 #include <saiga/config.h>
 
 class Camera;
+class Window;
 
-class SAIGA_GLOBAL RendererInterface{
+class SAIGA_GLOBAL Program{
 public:
-    virtual ~RendererInterface(){}
+    Window* parentWindow = nullptr;
+
+    Program(Window* parent);
+
+    virtual ~Program(){}
     virtual void update(float dt) = 0;
     virtual void interpolate(float interpolation)  = 0;
     virtual void render(Camera *cam)  = 0;

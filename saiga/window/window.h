@@ -1,11 +1,12 @@
 #pragma once
 
+#include "saiga/geometry/ray.h"
 #include <saiga/config.h>
 #include <string>
 
 class Camera;
 class Deferred_Renderer;
-class RendererInterface;
+class Program;
 
 class SAIGA_GLOBAL Window{
 public:
@@ -22,7 +23,7 @@ public:
 
     virtual bool initWindow() = 0;
     virtual bool initInput() = 0;
-    virtual void update(float delta) = 0;
+    virtual void update(float delta) {}
 public:
     bool vsync = false;
 
@@ -32,6 +33,8 @@ public:
 
     void quit();
     bool init();
+    void initDeferredRendering();
+
     virtual void close() = 0;
 
     void resize(int width, int height);
@@ -40,7 +43,7 @@ public:
     std::string getTimeString();
 
 
-    void setProgram(RendererInterface* program);
+    void setProgram(Program* program);
 
     int getWidth();
     int getHeight();
@@ -50,6 +53,7 @@ public:
     Deferred_Renderer* getRenderer();
 
 
+    Ray createPixelRay(const glm::vec2 &pixel);
 };
 
 inline int Window::getWidth(){

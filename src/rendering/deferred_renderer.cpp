@@ -113,7 +113,6 @@ void Deferred_Renderer::render_intern(){
     renderGBuffer(*currentCamera);
 
 
-
     renderSSAO(*currentCamera);
 
 
@@ -241,6 +240,7 @@ void Deferred_Renderer::renderLighting(Camera *cam){
 
 void Deferred_Renderer::renderSSAO(Camera *cam)
 {
+
     startTimer(SSAO);
     if(ssao){
 
@@ -264,6 +264,8 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
     }
 
     stopTimer(SSAO);
+
+    Error::quitWhenError("Deferred_Renderer::renderSSAO");
 
 }
 

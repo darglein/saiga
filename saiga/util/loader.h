@@ -33,6 +33,7 @@ protected:
 public:
 //    Loader(){};
     virtual ~Loader();
+    void clear();
     void addPath(const std::string &path){locations.push_back(path);}
 
 
@@ -46,12 +47,17 @@ protected:
 
 template<typename object_t, typename param_t >
 Loader<object_t,param_t>:: ~Loader(){
-    std::cout<<"~Loader()"<<std::endl;
+    clear();
+}
+
+
+template<typename object_t, typename param_t >
+void Loader<object_t,param_t>::clear(){
     for(data_t &object : objects){
         delete std::get<2>(object);
     }
+    objects.clear();
 }
-
 
 template<typename object_t, typename param_t >
 object_t* Loader<object_t,param_t>::exists(const std::string &name, const param_t &params){

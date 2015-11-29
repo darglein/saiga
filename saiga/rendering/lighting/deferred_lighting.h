@@ -16,7 +16,7 @@ class PointLight;
 class DirectionalLight;
 class BoxLight;
 
-class RendererInterface;
+class Program;
 
 
 class SAIGA_GLOBAL DeferredLighting{
@@ -89,7 +89,7 @@ public:
 
     void render(Camera *cam);
     void renderLightAccumulation();
-    void renderDepthMaps(RendererInterface *renderer );
+    void renderDepthMaps(Program *renderer );
     void renderDebug();
 
 

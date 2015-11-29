@@ -77,41 +77,7 @@ void initFramework(Window *window)
     ObjLoader::instance()->addPath(OBJ_PATH);
 
 
-    //     exit(1);
 
-    Deferred_Renderer* renderer = new Deferred_Renderer();
-    renderer->init(window->getWidth(),window->getHeight());
-    //    renderer->lighting.setShader(shaderLoader.load<SpotLightShader>("deferred_lighting_spotlight.glsl"));
-
-
-    renderer->lighting.loadShaders();
-
-
-    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("fxaa.glsl");
-    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("SMAA.glsl");
-    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("gaussian_blur.glsl");
-
-
-    renderer->ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("ssao.glsl");
-    renderer->ssao = true;
-    //    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
-
-    PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
-    std::vector<PostProcessingShader*> defaultEffects;
-    defaultEffects.push_back(pps);
-
-    renderer->postProcessor.setPostProcessingEffects(defaultEffects);
-    //    renderer->postProcessor.postProcessingEffects.push_back(renderer->postProcessingShader);
-
-    //    PostProcessingShader* bla = ShaderLoader::instance()->load<PostProcessingShader>("gaussian_blur.glsl");
-    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
-    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
-    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
-    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
-
-    renderer->lighting.setRenderDebug( false);
-
-    window->renderer = renderer;
 
     cout<<"========================== Framework initialization done! =========================="<<endl;
     initialized = true;

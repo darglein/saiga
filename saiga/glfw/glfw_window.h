@@ -55,11 +55,6 @@ public:
     glfw_Window(const std::string &name,int width,int height, bool fullscreen);
     virtual ~glfw_Window();
 
-    static bool initGlfw();
-
-    static void getCurrentPrimaryMonitorResolution(int *width, int *height);
-
-    static void getMaxResolution(int *width, int *height);
     void showMouseCursor();
     void hideMouseCursor();
     void disableMouseCursor();
@@ -73,10 +68,13 @@ public:
     virtual bool window_size_callback(GLFWwindow* window, int width, int height) override;
 
 
-
-    static void error_callback(int error, const char* description);
-
-
     void setGLFWcursor(GLFWcursor* cursor);
     GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
+
+
+
+    static void error_callback(int error, const char* description);
+    static bool initGlfw();
+    static void getCurrentPrimaryMonitorResolution(int *width, int *height);
+    static void getMaxResolution(int *width, int *height);
 };

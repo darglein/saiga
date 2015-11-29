@@ -1,5 +1,7 @@
 #include "saiga/window/window.h"
 #include "saiga/rendering/deferred_renderer.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+
 #include "saiga/util/error.h"
 #include "saiga/framework.h"
 #include <cstring>
@@ -68,7 +70,49 @@ bool Window::init(){
 
     initFramework(this);
 
+    initDeferredRendering();
+
     return true;
+}
+
+void Window::initDeferredRendering()
+{
+    //     exit(1);
+
+    renderer = new Deferred_Renderer();
+    renderer->init(getWidth(),getHeight());
+    //    renderer->lighting.setShader(shaderLoader.load<SpotLightShader>("deferred_lighting_spotlight.glsl"));
+
+
+    renderer->lighting.loadShaders();
+
+
+    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("fxaa.glsl");
+    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("SMAA.glsl");
+    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("gaussian_blur.glsl");
+
+
+    renderer->ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("ssao.glsl");
+    renderer->ssao = true;
+    //    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
+
+    PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
+    std::vector<PostProcessingShader*> defaultEffects;
+    defaultEffects.push_back(pps);
+
+    renderer->postProcessor.setPostProcessingEffects(defaultEffects);
+    //    renderer->postProcessor.postProcessingEffects.push_back(renderer->postProcessingShader);
+
+    //    PostProcessingShader* bla = ShaderLoader::instance()->load<PostProcessingShader>("gaussian_blur.glsl");
+    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
+    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
+    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
+    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
+
+    renderer->lighting.setRenderDebug( false);
+
+    renderer->currentCamera = &this->currentCamera;
+
 }
 
 void Window::resize(int width, int height)
@@ -132,7 +176,19 @@ std::string Window::getTimeString()
      return str;
 }
 
-void Window::setProgram(RendererInterface *program)
+void Window::setProgram(Program *program)
 {
     renderer->renderer = program;
+}
+
+Ray Window::createPixelRay(const glm::vec2 &pixel)
+{
+    vec4 p = vec4(2*pixel.x/Window::width-1.f,1.f-(2*pixel.y/Window::height),0,1.f);
+    p = glm::inverse(Window::currentCamera->proj)*p;
+    p /= p.w;
+
+    mat4 inverseView = glm::inverse(Window::currentCamera->view);
+    vec3 ray_world =vec3(inverseView*p);
+    vec3 origin = vec3(inverseView[3]);
+    return Ray(glm::normalize(ray_world-origin),origin);
 }

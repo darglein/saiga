@@ -5,7 +5,7 @@
 #include "saiga/opengl/framebuffer.h"
 
 
-class RendererInterface;
+class Program;
 
 
 class SAIGA_GLOBAL SSAOShader : public DeferredShader{
@@ -52,7 +52,7 @@ public:
     void printTimings();
 
 
-    RendererInterface* renderer;
+    Program* renderer;
 
 
 
