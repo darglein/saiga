@@ -7,9 +7,6 @@ class SAIGA_GLOBAL ColoredAsset : public BasicAsset<VertexNC,GLuint>{
 };
 
 
-
-
-
 class SAIGA_GLOBAL TexturedAsset : public BasicAsset<VertexNT,GLuint>{
 public:
     class SAIGA_GLOBAL TextureGroup{

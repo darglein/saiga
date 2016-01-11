@@ -177,13 +177,16 @@ glm::uvec3 Shader::getNumGroupsCeil(const glm::uvec3 &problem_size)
 
 glm::uvec3 Shader::getNumGroupsCeil(const glm::uvec3 &problem_size, const glm::uvec3 &work_group_size)
 {
-    glm::uvec3 ret = problem_size/work_group_size;
-    glm::uvec3 rest = problem_size%work_group_size;
+//    glm::uvec3 ret = problem_size/work_group_size;
+//    glm::uvec3 rest = problem_size%work_group_size;
 
-    ret.x += rest.x ? 1 : 0;
-    ret.y += rest.y ? 1 : 0;
-    ret.z += rest.z ? 1 : 0;
-    return ret;
+//    ret.x += rest.x ? 1 : 0;
+//    ret.y += rest.y ? 1 : 0;
+//    ret.z += rest.z ? 1 : 0;
+
+//    return ret;
+
+    return (problem_size+work_group_size-glm::uvec3(1))/(work_group_size);
 }
 
 void Shader::dispatchCompute(const glm::uvec3 &num_groups)

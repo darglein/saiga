@@ -29,6 +29,14 @@ public:
     void updateBuffer(void* data, unsigned int size, unsigned int offset);
 
     void bind() const;
+
+    /*
+     * glMapBuffer and glMapNamedBuffer map the entire data store of a specified buffer object into the client's address space.
+     * The data can then be directly read and/or written relative to the returned pointer, depending on the specified access policy.
+     */
+    void* mapBuffer(GLenum access=GL_READ_WRITE);
+    void unmapBuffer();
+
 };
 
 inline Buffer::Buffer(GLenum _target):target(_target)
@@ -69,4 +77,14 @@ inline void Buffer::updateBuffer(void *data, unsigned int size, unsigned int off
 inline void Buffer::bind() const
 {
     glBindBuffer( target, buffer );
+}
+
+inline void *Buffer::mapBuffer(GLenum access)
+{
+    return glMapBuffer(target,access);
+}
+
+inline void Buffer::unmapBuffer()
+{
+    glUnmapBuffer(target);
 }

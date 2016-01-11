@@ -31,7 +31,22 @@ void UniformBuffer::init(Shader *shader, GLuint location)
 
 }
 
+
 std::ostream &operator<<(std::ostream &os, const UniformBuffer &ub){
     os<<"UniformBuffer "<<"size="<<ub.size<<" numUniforms="<<ub.numUniforms;
     return os;
+}
+
+GLint UniformBuffer::getMaxUniformBlockSize()
+{
+    GLint ret;
+    glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE,&ret);
+    return ret;
+}
+
+GLint UniformBuffer::getMaxUniformBufferBindings()
+{
+    GLint ret;
+    glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,&ret);
+    return ret;
 }

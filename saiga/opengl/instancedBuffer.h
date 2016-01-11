@@ -3,8 +3,17 @@
 #include "saiga/util/glm.h"
 #include "saiga/opengl/buffer.h"
 
-
-#include <vector>
+/**
+ * Generic class for an instanced buffer used for instance rendering.
+ *
+ * Every instace gets an object of data_t type.
+ * For example, if every instance should be rendered with a different model matrix,
+ * an instanced buffer of type InstancedBuffer<mat4> should be used.
+ *
+ * For all other types the method void setAttributes(int location, int divisor=1); must be defined.
+ *
+ * Remember: The attribute pointers and divisors are part of the vao state, so setAttributes does not have to be called every frame.
+ */
 
 
 template<typename data_t>
