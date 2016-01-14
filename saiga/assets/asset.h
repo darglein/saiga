@@ -73,7 +73,14 @@ void BasicAsset<vertex_t,index_t>::render(Camera *cam, const mat4 &model)
 {
     shader->bind();
     shader->uploadAll(model,cam->view,cam->proj);
+
+//    glEnable(GL_POLYGON_OFFSET_FILL);
+//    glPolygonOffset(1.0f,1.0f);
+
     buffer.bindAndDraw();
+
+//    glDisable(GL_POLYGON_OFFSET_FILL);
+
     shader->unbind();
 }
 
@@ -92,13 +99,19 @@ void BasicAsset<vertex_t,index_t>::renderWireframe(Camera *cam, const mat4 &mode
     wireframeshader->bind();
     wireframeshader->uploadAll(model,cam->view,cam->proj);
 
-    glEnable(GL_POLYGON_OFFSET_LINE);
-    glPolygonOffset(-1.0f,-1.0f); //negative values shifts the wireframe towards the camera
+//    glEnable(GL_POLYGON_OFFSET_LINE);
+
+    //negative values shifts the wireframe towards the camera,
+    //but a non zero factors does strange things for lines and increases
+    //the depth on lines with high slope towards the camera by too much.
+    //a visually better solution is to shift the triangles back a bit glPolygonOffset(1,1);
+    //and draw the wireframe without polygon offset.
+//    glPolygonOffset(0.0f,-500.0f);
+
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-    glLineWidth(1.0f);
     buffer.bindAndDraw();
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-    glDisable(GL_POLYGON_OFFSET_LINE);
+//    glDisable(GL_POLYGON_OFFSET_LINE);
 
     wireframeshader->unbind();
 }

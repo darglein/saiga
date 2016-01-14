@@ -59,6 +59,9 @@ public:
     bool wireframe = false;
     float wireframeLineSize = 1;
 
+    bool offsetGeometry = false;
+    float offsetFactor = 1.0f, offsetUnits = 1.0f;
+
 
     Camera** currentCamera;
 

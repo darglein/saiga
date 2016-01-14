@@ -49,11 +49,10 @@ in vec3 vertex;
 in vec3 color;
 in vec3 data;
 
-#include "geometry_helper_fs.glsl"
-
+layout(location=0) out vec3 out_color;
 
 void main() {
-    setGbufferData(color,vertexMV,normal,data);
+    out_color = vec3(0.5f);
 }
 
 

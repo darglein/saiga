@@ -186,6 +186,10 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 
+    if(offsetGeometry){
+            glEnable(GL_POLYGON_OFFSET_FILL);
+            glPolygonOffset(offsetFactor,offsetUnits);
+    }
 
     if(wireframe){
         glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
@@ -195,6 +199,9 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
 
+    if(offsetGeometry){
+        glDisable(GL_POLYGON_OFFSET_FILL);
+    }
 
     deferred_framebuffer.unbind();
 

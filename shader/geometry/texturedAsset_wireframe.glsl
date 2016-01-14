@@ -49,13 +49,17 @@ in vec2 texCoord;
 
 
 
-#include "geometry_helper_fs.glsl"
+layout(location=0) out vec3 out_color;
 
 
 void main() {
-    vec4 diffColor = texture(image, texCoord);
-    vec3 data = vec3(0,0,0);
-    setGbufferData(vec3(diffColor),vertexMV,normal,data);
+//    vec4 diffColor = texture(image, texCoord);
+//    vec3 data = vec3(0,0,0);
+//    setGbufferData(vec3(diffColor),vertexMV,normal,data);
+
+    out_color = vec3(0.5f);
+
+
 }
 
 

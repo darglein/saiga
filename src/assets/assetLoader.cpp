@@ -24,6 +24,6 @@ void AssetLoader2::loadDefaultShaders()
     basicAssetWireframeShader = ShaderLoader::instance()->load<MVPShader>("deferred_mvp_model_wireframe.glsl");
 
     texturedAssetShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset.glsl");
-    texturedAssetDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset.glsl");
-    texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset.glsl");
+    texturedAssetDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_depth.glsl");
+    texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_wireframe.glsl");
 }
