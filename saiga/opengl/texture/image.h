@@ -53,15 +53,6 @@ public:
     //adds a zero initialized channel
     void addChannel();
 
-#ifdef USE_PNG
-    void convertFrom(PNG::Image &image);
-    void convertTo(PNG::Image &image);
-#endif
-
-    void convertTo(fipImage &fipimg);
-    void convertFrom(fipImage &fipimg);
-
-//    FREE_IMAGE_TYPE getFIT();
 
     //======================================================
 

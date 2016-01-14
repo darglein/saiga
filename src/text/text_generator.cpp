@@ -1,5 +1,6 @@
 #include "saiga/text/text_generator.h"
 #include "saiga/opengl/texture/texture.h"
+#include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/text/text.h"
 #include "saiga/text/dynamic_text.h"
@@ -256,10 +257,14 @@ void TextGenerator::createTextureAtlas(){
     img.addChannel();
 
 
-    fipImage fipimage;
-    img.convertTo(fipimage);
+//    fipImage fipimage;
+//    img.convertTo(fipimage);
+
+//    if(!fipimage.save(str.c_str())){
+//        cout<<"could not save "<<str<<endl;
+//    }
     std::string str = "debug/test"+std::to_string(w)+".png";
-    if(!fipimage.save(str.c_str())){
+    if(!TextureLoader::instance()->saveImage(str,img)){
         cout<<"could not save "<<str<<endl;
     }
 

@@ -24,5 +24,11 @@ public:
      * Uses libfreeimage if possible and libpng otherwise.
      */
     bool loadImage(const std::string &path, Image& outImage);
+
+    /**
+     * Saves an image to file.
+     * Uses libfreeimage if possible and libpng otherwise.
+     */
+    bool saveImage(const std::string &path, Image& image);
 };
 

@@ -1,5 +1,5 @@
 #include "saiga/world/heightmap.h"
-
+#include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/config.h"
 
 #ifdef USE_NOISE
@@ -328,17 +328,15 @@ void Heightmap::createTextures(){
 void Heightmap::saveHeightmaps(){
 
     for(int i=0;i<layers;i++){
-        fipImage fipimg;
-
-        heightmap[i].convertTo(fipimg);
 
         std::string name = "heightmap"+std::to_string(i)+".png";
 
-        if(fipimg.save(name.c_str())){
-            //            cout<<"save sucess"<<endl;
-        }else{
-            cout<<"save failed!"<<endl;
+
+        if(!TextureLoader::instance()->saveImage(name,heightmap[i])){
+            cout<<"could not save "<<name<<endl;
         }
+
+
 
     }
 }
@@ -346,19 +344,13 @@ void Heightmap::saveNormalmaps(){
 
 
     for(int i=0;i<layers;i++){
-        fipImage fipimg;
-
-        normalmap[i].convertTo(fipimg);
 
         std::string name = "normalmap"+std::to_string(i)+".png";
 
-        if(fipimg.save(name.c_str())){
-            //            cout<<"save sucess"<<endl;
-        }else{
-            cout<<"save failed!"<<endl;
+
+        if(!TextureLoader::instance()->saveImage(name,normalmap[i])){
+            cout<<"could not save "<<name<<endl;
         }
-
-
     }
 
 
@@ -373,30 +365,29 @@ bool Heightmap::loadMaps(){
         std::string name = "heightmap"+std::to_string(i)+".png";
 
         cout<<"load heightmap "<<endl;
-        fipImage fipimg;
-        if (!fipimg.load(name.c_str()))
+        if (!TextureLoader::instance()->loadImage(name,heightmap[i]))
             return false;
 
-        heightmap[i].convertFrom(fipimg);
     }
 
     for(int i=0;i<layers;i++){
         std::string name = "normalmap"+std::to_string(i)+".png";
 
-        fipImage fipimg;
-        if(!fipimg.load(name.c_str()))
+        if (!TextureLoader::instance()->loadImage(name,normalmap[i]))
             return false;
-
-        normalmap[i].convertFrom(fipimg);
     }
     return true;
 }
 
 
 void Heightmap::createHeightmapsFrom(const std::string& image){
-    fipImage fipimg;
-    fipimg.load(image.c_str());
-    heightmap[0].convertFrom(fipimg);
+
+
+
+
+    if(!TextureLoader::instance()->loadImage(image,heightmap[0])){
+
+    }
 
 
     createRemainingLayers();

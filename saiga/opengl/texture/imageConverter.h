@@ -14,7 +14,7 @@ class Image;
  * saigas 'Image' type.
  * @brief The ImageConverter class
  */
-class ImageConverter{
+class SAIGA_GLOBAL ImageConverter{
 public:
 #ifdef USE_PNG
     static void convert(PNG::Image &src, Image& dest);
