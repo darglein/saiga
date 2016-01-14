@@ -39,7 +39,7 @@ ColoredAsset* AssimpAssetLoader::loadBasicAsset(const std::string &file, bool no
         tmesh.addMesh(tmesh3);
     }
 
-    asset->create(file,basicAssetShader,basicAssetDepthshader,normalize,false);
+    asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
 
 
     return asset;
@@ -93,7 +93,7 @@ TexturedAsset *AssimpAssetLoader::loadTexturedAsset(const std::string &file, boo
             tmesh.addMesh(tmesh3);
         }
     }
-    asset->create(file,texturedAssetShader,texturedAssetDepthShader,normalize,false);
+    asset->create(file,texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
 
     return asset;
 }

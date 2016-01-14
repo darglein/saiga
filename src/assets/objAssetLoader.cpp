@@ -39,7 +39,7 @@ ColoredAsset* ObjAssetLoader::loadBasicAsset(const std::string &file, bool norma
         tmesh.addMesh(tmesh3);
     }
 
-    asset->create(file,basicAssetShader,basicAssetDepthshader,normalize,false);
+    asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
 
 
     return asset;

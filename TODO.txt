@@ -18,3 +18,5 @@ General
 - borderless fullscreen
 - init opengl and context always at beginning
 - derive assetloader from loader
+- wireframe assets
+- image loader: freeimage-libpng

@@ -14,6 +14,7 @@ class SAIGA_GLOBAL Asset{
 public:
     virtual void render(Camera *cam, const mat4 &model) = 0;
     virtual void renderDepth(Camera *cam, const mat4 &model) = 0;
+    virtual void renderWireframe(Camera *cam, const mat4 &model) = 0;
     virtual void renderRaw() = 0;
 };
 
@@ -27,6 +28,7 @@ public:
 
     MVPShader* shader  = nullptr;
     MVPShader* depthshader  = nullptr;
+    MVPShader* wireframeshader  = nullptr;
 
     TriangleMesh<vertex_t,index_t> mesh;
     IndexedVertexBuffer<vertex_t,index_t> buffer;
@@ -36,18 +38,19 @@ public:
      * Every call binds and unbinds the shader and uploads the camera matrices again.
      */
 
-    void render(Camera *cam, const mat4 &model) override;
-    void renderDepth(Camera *cam, const mat4 &model) override;
+    virtual void render(Camera *cam, const mat4 &model) override;
+    virtual void renderDepth(Camera *cam, const mat4 &model) override;
+    virtual void renderWireframe(Camera *cam, const mat4 &model) override;
 
     /**
      * Renders the mesh.
      * This maps to a single glDraw call and nothing else, so the shader
      * has to be setup before this renderRaw is called.
      */
-    void renderRaw() override;
+    virtual void renderRaw() override;
 
 
-    void create(std::string name, MVPShader* shader, MVPShader* depthshader, bool normalizePosition=false, bool ZUPtoYUP=false);
+    void create(std::string name, MVPShader* shader, MVPShader* depthshader, MVPShader* wireframeshader, bool normalizePosition=false, bool ZUPtoYUP=false);
 
 
     void normalizePosition();
@@ -81,6 +84,23 @@ void BasicAsset<vertex_t,index_t>::renderDepth(Camera *cam, const mat4 &model)
     depthshader->uploadAll(model,cam->view,cam->proj);
     buffer.bindAndDraw();
     depthshader->unbind();
+}
+
+template<typename vertex_t, typename index_t>
+void BasicAsset<vertex_t,index_t>::renderWireframe(Camera *cam, const mat4 &model)
+{
+    wireframeshader->bind();
+    wireframeshader->uploadAll(model,cam->view,cam->proj);
+
+    glEnable(GL_POLYGON_OFFSET_LINE);
+    glPolygonOffset(-1.0f,-1.0f); //negative values shifts the wireframe towards the camera
+    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+    glLineWidth(1.0f);
+    buffer.bindAndDraw();
+    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+    glDisable(GL_POLYGON_OFFSET_LINE);
+
+    wireframeshader->unbind();
 }
 
 template<typename vertex_t, typename index_t>
@@ -133,11 +153,12 @@ void BasicAsset<vertex_t,index_t>::ZUPtoYUP()
 }
 
 template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::create(std::string name, MVPShader* shader, MVPShader* depthshader, bool normalizePosition, bool ZUPtoYUP){
+void BasicAsset<vertex_t,index_t>::create(std::string name, MVPShader* shader, MVPShader* depthshader, MVPShader* wireframeshader, bool normalizePosition, bool ZUPtoYUP){
 
     this->name = name;
     this->shader = shader;
     this->depthshader = depthshader;
+    this->wireframeshader = wireframeshader;
     this->boundingBox = mesh.calculateAabb();
 
     if(ZUPtoYUP){
@@ -153,4 +174,4 @@ void BasicAsset<vertex_t,index_t>::create(std::string name, MVPShader* shader, M
 
 
 
- }
+}
