@@ -2,6 +2,12 @@
 #include <cstring>
 #include <iostream>
 #include <FreeImagePlus.h>
+
+#ifdef USE_PNG
+    #include "saiga/util/png_wrapper.h"
+#endif
+
+
 Image::Image()
 {
 }
@@ -88,7 +94,7 @@ void Image::convertFrom(PNG::Image &image){
         std::cout<<"Image type not supported: "<<image.color_type<<std::endl;
     }
 
-    cout<<"bits "<<bitDepth<<" channels "<<channels<<endl;
+    std::cout<<"bits "<<bitDepth<<" channels "<<channels<<std::endl;
 
     this->data = image.data;
 }

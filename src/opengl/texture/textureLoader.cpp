@@ -1,9 +1,10 @@
 
 #include "saiga/opengl/texture/textureLoader.h"
 #include <FreeImagePlus.h>
+#include "saiga/util/png_wrapper.h"
 
 bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {
-	return std::tie(lhs.srgb) == std::tie(rhs.srgb);
+    return std::tie(lhs.srgb) == std::tie(rhs.srgb);
 }
 
 Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParameters &params){
@@ -11,17 +12,16 @@ Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParam
     bool erg;
     Texture* text = new Texture();
 
-//    PNG::Image img;
-//    erg = PNG::readPNG( &img,path);
-//    cout<<"loading "<<path<<endl;
+    //    PNG::Image img;
+    //    erg = PNG::readPNG( &img,path);
+    //    cout<<"loading "<<path<<endl;
 
-    fipImage fipimg;
-    erg = fipimg.load(path.c_str());
-
+//    fipImage fipimg;
+//    erg = fipimg.load(path.c_str());
+    Image im;
+    erg = loadImage(path,im);
 
     if (erg){
-        Image im;
-        im.convertFrom(fipimg);
         im.srgb = params.srgb;
         erg = text->fromImage(im);
     }
@@ -35,6 +35,27 @@ Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParam
 
 
     return nullptr;
+}
+
+bool TextureLoader::loadImage(const std::string &path, Image &outImage)
+{
+    bool erg = false;
+
+#ifdef USE_FREEIMAGE
+    fipImage img;
+    erg = img.load(path.c_str());
+    if(erg)
+        outImage.convertFrom(img);
+#else
+
+#ifdef USE_PNG
+    PNG::Image img;
+    erg = PNG::readPNG( &img,path);
+    if(erg)
+        outImage.convertFrom(img);
+#endif
+#endif
+    return erg;
 }
 
 

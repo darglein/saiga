@@ -52,6 +52,8 @@ option (USE_GLBINDING "Use GLBINDING" OFF)
 option (USE_OPENAL "Use OPENAL" OFF) 
 option (USE_ALUT "Use ALUT" OFF) 
 option (USE_ASSIMP "Use Assimp" OFF) 
+option (USE_PNG "Use PNG" OFF) 
+option (USE_FREEIMAGE "Use FREEIMAGE" ON) 
 
 option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
@@ -108,6 +110,24 @@ if(USE_ASSIMP)
 	#SET(LIBS ${LIBS} assimp)
 endif(USE_ASSIMP)
 
+#png
+if(USE_PNG)
+	find_package(PNG REQUIRED)
+	include_directories(${PNG_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${PNG_LIBRARIES})
+endif(USE_PNG)
+
+#libfreeimage
+if(USE_FREEIMAGE)
+	find_package(FreeImage REQUIRED)
+	include_directories(${FREEIMAGE_INCLUDE_PATH})
+	SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARY})
+
+	find_package(FreeImagePlus REQUIRED)
+	include_directories(${FREEIMAGEPLUS_INCLUDE_PATH})
+	SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
+endif(USE_FREEIMAGE)
+
 ############# Required LIBRARIES ###############
 
 #freetype2
@@ -140,12 +160,7 @@ endif(USE_GLBINDING)
 
 
 
-#libfreeimage
-find_package(FreeImage REQUIRED)
-SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARY})
 
-find_package(FreeImagePlus REQUIRED)
-SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
 
 
 

@@ -1,14 +1,25 @@
 #define LIBRARY_VERSION_MAJOR @LIBRARY_VERSION_MAJOR@
 #define LIBRARY_VERSION_MINOR @LIBRARY_VERSION_MINOR@
 
-
+//opengl window and context managment
 #cmakedefine USE_SDL
 #cmakedefine USE_GLFW
-#cmakedefine USE_NOISE
+
+//opengl loader
 #cmakedefine USE_GLEW
 #cmakedefine USE_GLBINDING
+
+//sound
 #cmakedefine USE_OPENAL
 #cmakedefine USE_ALUT
+
+//asset loading
 #cmakedefine USE_ASSIMP
+
+//image loading
+#cmakedefine USE_PNG
+#cmakedefine USE_FREEIMAGE
+
+#cmakedefine USE_NOISE
 
 #cmakedefine BUILD_SHARED

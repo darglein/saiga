@@ -8,9 +8,11 @@
  * http://blog.nobel-joergensen.com/2010/11/07/loading-a-png-as-texture-in-opengl-using-libpng/
  */
 
+#include <saiga/config.h>
+
 #ifdef USE_PNG
 
-#include <saiga/config.h>
+
 #include <png.h>
 #include <iostream>
 
@@ -18,8 +20,8 @@ typedef unsigned char uchar;
 
 
 
-class SAIGA_GLOBAL PNG{
-public:
+namespace PNG{
+
     struct Image{
         png_uint_32 width, height;
         int bit_depth;
@@ -36,15 +38,15 @@ public:
 
 
     };
-    static void writepng_error_handler(png_structp png_ptr, png_const_charp msg);
+    void writepng_error_handler(png_structp png_ptr, png_const_charp msg);
 
-    static void pngVersionInfo();
+    void pngVersionInfo();
 
-    static bool readPNG(Image *img,const std::string &path, bool invertY=true);
-    static bool writePNG(Image *img,const std::string &path, bool invertY=true);
+    bool readPNG(Image *img,const std::string &path, bool invertY=true);
+    bool writePNG(Image *img,const std::string &path, bool invertY=true);
 
 
-};
+}
 
 #endif
 

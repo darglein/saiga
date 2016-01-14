@@ -6,6 +6,7 @@
 #include "saiga/util/singleton.h"
 
 
+
 struct SAIGA_GLOBAL TextureParameters{
     bool srgb = true;
 };
@@ -17,5 +18,11 @@ class SAIGA_GLOBAL TextureLoader : public Loader<Texture,TextureParameters>, pub
     friend class Singleton <TextureLoader>;
 public:
     Texture* loadFromFile(const std::string &name, const TextureParameters &params);
+
+    /**
+     * Loads an image from file.
+     * Uses libfreeimage if possible and libpng otherwise.
+     */
+    bool loadImage(const std::string &path, Image& outImage);
 };
 

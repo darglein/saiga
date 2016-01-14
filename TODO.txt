@@ -20,3 +20,4 @@ General
 - derive assetloader from loader
 - wireframe assets
 - image loader: freeimage-libpng
+- templated image class

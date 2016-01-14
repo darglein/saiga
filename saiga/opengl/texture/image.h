@@ -8,6 +8,9 @@
 
 class fipImage;
 
+namespace PNG{
+class Image;
+}
 
 class SAIGA_GLOBAL Image{
 public:
