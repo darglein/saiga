@@ -2,7 +2,7 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/opengl/framebuffer.h"
-
+#include "saiga/opengl/shader/shaderLoader.h"
 
 
 DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),height(height){
@@ -40,6 +40,15 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),h
     setScreenPosition(&data,3);
     setScreenPosition(&light,4);
 
+    loadShaders();
+
+}
+
+void DeferredDebugOverlay::loadShaders()
+{
+    shader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer.glsl");
+   depthShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_depth.glsl");
+    normalShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_normal.glsl");
 }
 
 void DeferredDebugOverlay::setScreenPosition(DeferredDebugOverlay::GbufferTexture *gbt, int id)

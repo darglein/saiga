@@ -78,7 +78,25 @@ public:
 
 
     void setBorderColor(vec4 color);
+
+    /**
+     * GL_CLAMP_TO_EDGE,
+     * GL_CLAMP_TO_BORDER,
+     * GL_MIRRORED_REPEAT,
+     * GL_REPEAT, or
+     * GL_MIRROR_CLAMP_TO_EDGE
+     */
     void setWrap(GLenum param);
+
+    /**
+     * GL_NEAREST
+     * GL_LINEAR
+     * GL_NEAREST_MIPMAP_NEAREST
+     * GL_LINEAR_MIPMAP_NEAREST
+     * GL_NEAREST_MIPMAP_LINEAR
+     * GL_LINEAR_MIPMAP_LINEAR
+     */
+
     void setFiltering(GLenum param);
     void setParameter(GLenum name, GLenum param);
 

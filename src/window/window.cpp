@@ -20,7 +20,8 @@ Window::Window(const std::string &name, int width, int height, bool fullscreen)
 }
 
 void Window::quit(){
-    cout<<"Window: Quit"<<endl;running = false;
+    cout<<"Window: Quit"<<endl;
+    running = false;
 }
 
 

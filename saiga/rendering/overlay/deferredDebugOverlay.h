@@ -33,6 +33,8 @@ public:
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
 
     DeferredDebugOverlay(int width, int height);
+
+    void loadShaders();
     void render();
 
     void setDeferredFramebuffer(Framebuffer* fb, basic_Texture_2D *light);

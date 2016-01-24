@@ -44,6 +44,7 @@ public:
         return *(T*)positionPtr(x,y);
     }
 
+
     void makeZero(); //zeros out all bytes
     void create();//allocates memory
 
