@@ -31,16 +31,18 @@ public:
     int keyRight = GLFW_KEY_RIGHT;
     int keyLeft = GLFW_KEY_LEFT;
     int keyBackwards = GLFW_KEY_DOWN;
+    int keyUp = GLFW_KEY_SPACE;
     int keyFast = GLFW_KEY_LEFT_SHIFT;
     enum Key{
         Forward = 0,
         Backward = 1,
         Left = 2,
-        Right =3,
-        Fast =4
+        Right = 3,
+        Fast = 4,
+        Up =5
     };
 
-    std::array<bool,5> keyPressed {};
+    std::array<bool,6> keyPressed {};
 
     int buttonDrag = GLFW_MOUSE_BUTTON_3;
 
@@ -117,7 +119,9 @@ void Controllable_Camera<camera_t>::update(float delta){
 
     setPosition(positionAtUpdate);
     vec3 trans = delta*speed*FORWARD*vec3(0,0,-1) + delta*speed*RIGHT*vec3(1,0,0);
+    vec3 transg =  vec3(0,1,0) * (delta*speed*keyPressed[Up]);
     cam->translateLocal(trans);
+    cam->translateGlobal(transg);
     cam->calculateModel();
     cam->updateFromModel();
     positionAtUpdate =vec3(cam->getPosition());
@@ -149,6 +153,9 @@ bool Controllable_Camera<camera_t>::key_event(GLFWwindow* window, int key, int s
         return true;
     }else if (key == keyFast){
         keyPressed[Fast] = action!=GLFW_RELEASE;
+        return true;
+    }else if (key == keyUp){
+        keyPressed[Up] = action!=GLFW_RELEASE;
         return true;
     }
 

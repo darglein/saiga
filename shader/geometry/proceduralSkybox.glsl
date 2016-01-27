@@ -17,10 +17,23 @@ uniform mat4 MVP;
 out vec2 texCoord;
 out vec4 pos;
 
+out vec3 viewDir;
+out vec4 eyePos;
+
 void main() {
     texCoord = in_tex;
     pos = vec4(in_position,1);
     gl_Position = vec4(in_position,1);
+
+
+    mat4 invView = inverse(view);
+    vec4 worldPos = inverse(proj) * pos;
+    worldPos /= worldPos.w;
+    worldPos =  invView * worldPos;
+
+
+    eyePos = invView[3];
+    viewDir = vec3(worldPos-eyePos);
 }
 
 
@@ -31,13 +44,21 @@ void main() {
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
+uniform vec4 params;
 
 in vec2 texCoord;
 in vec4 pos;
+in vec3 viewDir;
+in vec4 eyePos;
 
 layout(location=0) out vec4 out_color;
 
 void main() {
+    float horizonHeight = params.x;
+    float skyboxDistance = params.y;
+
+
+    //todo render without srgb
     vec4 darkBlueSky = vec4(43,99,192,255) / 255.0f;
     darkBlueSky = pow(darkBlueSky,vec4(2.2f));
 
@@ -49,31 +70,25 @@ void main() {
 
 
 
+    //direction of current viewing ray
+    vec3 dir = normalize(viewDir);
 
-    mat4 invView = inverse(view);
-    vec4 worldPos = inverse(proj) * pos;
-    worldPos /= worldPos.w;
-    worldPos =  invView * worldPos;
+    //intersection point of viewing ray with cylinder around viewer with radius=skyboxDistance
+    vec3 skyboxPos = vec3(eyePos) + dir * (skyboxDistance / length(vec2(dir.x,dir.z))) - horizonHeight;
 
-    vec4 eyePos = invView[3];
+    //this gives the tangens of the viewing ray towards the ground
+    float h = skyboxPos.y/skyboxDistance;
 
-    vec3 dir = normalize(vec3(worldPos)-vec3(eyePos));
-//    vec3 dir = normalize(vec3(worldPos));
+    //exponential gradient
+    float a = -exp(-h*3)+1;
 
-    float cosAlpha = dir.y;
-    float alpha = acos(cosAlpha);
-    out_color =  blueSky;
 
-//    out_color = mix(colorBottom,colorTop,1.0f-alpha/(3.141f/2.0f));
-//    out_color = mix(blueSky,darkBlueSky,cosAlpha);
+    out_color = mix(blueSky,darkBlueSky,a);
 
-    if(cosAlpha>0.5f)
-         out_color =  darkBlueSky;
+    //fade out bottom border to black
+    if(h<0)
+        out_color = mix(blueSky,vec4(0),-h*100.0f);
 
-    if(cosAlpha<0)
-        out_color =  vec4(0,0,0,1);
-
-//    out_color = worldPos;
 }
 
 

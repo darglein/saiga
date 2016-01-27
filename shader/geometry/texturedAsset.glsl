@@ -54,7 +54,7 @@ in vec2 texCoord;
 
 void main() {
     vec4 diffColor = texture(image, texCoord);
-    vec3 data = vec3(0,0,0);
+    vec3 data = vec3(1,0,0);
     setGbufferData(vec3(diffColor),vertexMV,normal,data);
 }
 

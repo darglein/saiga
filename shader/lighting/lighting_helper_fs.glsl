@@ -93,11 +93,10 @@ float calculateShadow(sampler2DShadow tex, vec3 position){
 
 }
 
-float calculateShadowPCF(sampler2D tex, vec3 position){
+float calculateShadowPCF(sampler2DShadow tex, vec3 position){
     vec4 shadowPos = depthBiasMV * vec4(position,1);
     shadowPos = shadowPos/shadowPos.w;
 
-     float bias =  0.0012;
      float visibility = 1.0f;
 //    visibility = texture(depthTex, vec3(shadowPos.xy, shadowPos.z -bias));
      if ((shadowPos.x < 0 || shadowPos.x > 1 || shadowPos.y < 0 || shadowPos.y > 1 || shadowPos.z < 0 || shadowPos.z > 1)){
@@ -105,15 +104,14 @@ float calculateShadowPCF(sampler2D tex, vec3 position){
      }else{
         visibility = 0.0f;
          float pcfSize = 1;
+         //todo
          float samples = (pcfSize+1.0)*2.0 * (pcfSize+1.0)*2.0;
-        const float texScale = 1.0/512.0;
+        const float texScale = 1.0/1024.0;
 
          for(float u = -pcfSize ; u <= pcfSize ; u = u+1.0){
              for(float v = -pcfSize ; v <= pcfSize ; v = v+1.0){
                  vec2 offset = vec2(u,v)*texScale;
-                 float shadowDepth = 0;
-                 shadowDepth = texture(tex, shadowPos.xy+offset).r;
-                 visibility += (shadowDepth<shadowPos.z-bias) ? 0.0f : 1.0f;
+                 visibility += texture(tex, shadowPos.xyz + vec3(offset,0));
              }
          }
          visibility *= 1.0/(samples);

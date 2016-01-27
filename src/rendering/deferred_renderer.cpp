@@ -222,7 +222,7 @@ void Deferred_Renderer::renderDepthMaps(){
     // and r is the smallest value that is guaranteed to produce a resolvable offset for a given implementation.
     // The offset is added before the depth test is performed and before the value is written into the depth buffer.
     glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(1.0f,4.0f);
+    glPolygonOffset(4.0f,4.0f);
     lighting.renderDepthMaps(renderer);
     glDisable(GL_POLYGON_OFFSET_FILL);
 

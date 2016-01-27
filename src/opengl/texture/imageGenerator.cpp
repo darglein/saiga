@@ -41,6 +41,8 @@ std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, in
         black = !black;
     }
 
+    image->srgb =true;
+
     return std::shared_ptr<Image>(image);
 
 }

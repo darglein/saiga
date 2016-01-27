@@ -8,10 +8,23 @@
 
 
 
+
+class SAIGA_GLOBAL ProceduralSkyboxShader : public MVPShader{
+public:
+    GLint location_params;
+
+
+    virtual void checkUniforms();
+    virtual void uploadParams(float horizonHeight, float distance);
+};
+
 class SAIGA_GLOBAL ProceduralSkybox{
 public:
+    float horizonHeight = 0;
+    float distance = 200;
+
     IndexedVertexBuffer<VertexNT,GLuint> mesh;
-    MVPShader* shader;
+    ProceduralSkyboxShader* shader;
     mat4 model;
 
     ProceduralSkybox();

@@ -29,11 +29,16 @@ void AssetLoader2::loadDefaultShaders()
     texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_wireframe.glsl");
 }
 
-TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, Color color1, Color color2)
+TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
 {
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
+
+
+    mat4 scale = glm::scale(mat4(),vec3(size.x,1,size.y));
+    plainMesh->transform(scale);
+
     for(auto& v : plainMesh->vertices){
-        v.texture *= 50.0f;
+        v.texture *= size / quadSize;
     }
 
     TexturedAsset* plainAsset = new TexturedAsset();
@@ -45,7 +50,7 @@ TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, Color color1, Color 
     tg.indices = plainMesh->numIndices();
 
 
-    auto cbImage = ImageGenerator::checkerBoard(color1.toVec3(),color2.toVec3(),16,2,2);
+    auto cbImage = ImageGenerator::checkerBoard(color1,color2,16,2,2);
     Texture* cbTexture = new Texture();
     cbTexture->fromImage(*cbImage);
     tg.texture = cbTexture;

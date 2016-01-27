@@ -15,8 +15,11 @@ public:
     Color(vec3 c);
     Color(vec4 c);
 
-    vec3 toVec3();
-    vec4 toVec4();
+    operator vec3() const;
+    operator vec4() const;
+
+    vec3 toVec3() const;
+    vec4 toVec4() const;
 
     //TODO:
     void toSRGB();

@@ -31,12 +31,23 @@ Color::Color(vec4 c)
     a = c.a;
 }
 
-vec3 Color::toVec3()
+Color::operator vec3() const
+{
+    return toVec3();
+}
+
+
+Color::operator vec4() const
+{
+    return toVec4();
+}
+
+vec3 Color::toVec3() const
 {
     return vec3(r/255.0f,g/255.0f,b/255.0f);
 }
 
-vec4 Color::toVec4()
+vec4 Color::toVec4() const
 {
     return vec4(r/255.0f,g/255.0f,b/255.0f,a/255.0f);
 }
