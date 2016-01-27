@@ -3,7 +3,8 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 
-
+#include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/opengl/texture/imageGenerator.h"
 
 
 AssetLoader2::AssetLoader2()
@@ -26,4 +27,37 @@ void AssetLoader2::loadDefaultShaders()
     texturedAssetShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset.glsl");
     texturedAssetDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_depth.glsl");
     texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_wireframe.glsl");
+}
+
+TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, Color color1, Color color2)
+{
+    auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
+    for(auto& v : plainMesh->vertices){
+        v.texture *= 50.0f;
+    }
+
+    TexturedAsset* plainAsset = new TexturedAsset();
+
+    plainAsset->mesh.addMesh(*plainMesh);
+
+    TexturedAsset::TextureGroup tg;
+    tg.startIndex = 0;
+    tg.indices = plainMesh->numIndices();
+
+
+    auto cbImage = ImageGenerator::checkerBoard(color1.toVec3(),color2.toVec3(),16,2,2);
+    Texture* cbTexture = new Texture();
+    cbTexture->fromImage(*cbImage);
+    tg.texture = cbTexture;
+//    tg.texture = TextureLoader::instance()->load("debug2x2.png");
+    tg.texture->setFiltering(GL_NEAREST);
+    tg.texture->setWrap(GL_REPEAT);
+    tg.texture->generateMipmaps();
+    //    tg.texture->setFiltering(GL_NEAREST_MIPMAP_LINEAR);
+    plainAsset->groups.push_back(tg);
+
+
+    plainAsset->create("test",texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader);
+
+    return plainAsset;
 }
