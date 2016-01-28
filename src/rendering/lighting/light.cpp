@@ -6,6 +6,7 @@ void LightShader::checkUniforms(){
     location_depthBiasMV = getUniformLocation("depthBiasMV");
     location_depthTex = getUniformLocation("depthTex");
     location_readShadowMap = getUniformLocation("readShadowMap");
+    location_shadowMapSize = getUniformLocation("shadowMapSize");
     location_invProj = getUniformLocation("invProj");
 }
 
@@ -35,6 +36,11 @@ void LightShader::uploadDepthTexture(raw_Texture* texture){
 
 void LightShader::uploadShadow(float shadow){
     Shader::upload(location_readShadowMap,shadow);
+}
+
+void LightShader::uploadShadowMapSize(float w, float h)
+{
+    Shader::upload(location_shadowMapSize,vec4(w,h,1.0f/w,1.0f/h));
 }
 
 void Light::createShadowMap(int resX, int resY){

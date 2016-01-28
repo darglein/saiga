@@ -8,6 +8,7 @@ class SAIGA_GLOBAL LightShader : public DeferredShader{
 public:
     GLint location_color; //rgba, rgb=color, a=intensity [0,1]
     GLint location_depthBiasMV, location_depthTex,location_readShadowMap;
+    GLint location_shadowMapSize; //vec4(w,h,1/w,1/h)
     GLint location_invProj;
 
     virtual void checkUniforms();
@@ -16,6 +17,7 @@ public:
     void uploadDepthBiasMV(mat4 &mat);
     void uploadDepthTexture(raw_Texture* texture);
     void uploadShadow(float shadow);
+    void uploadShadowMapSize(float w, float h);
     void uploadInvProj(mat4 &mat);
 };
 

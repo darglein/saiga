@@ -85,8 +85,8 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
 
         mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
         shader.uploadDepthBiasMV(shadow);
-
         shader.uploadDepthTexture(shadowmap.depthTexture);
+        shader.uploadShadowMapSize(shadowmap.w,shadowmap.h);
     }
 
 }

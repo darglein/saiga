@@ -66,6 +66,7 @@ void BoxLight::bindUniforms(BoxLightShader &shader, Camera *cam){
         shader.uploadDepthBiasMV(shadow);
 
         shader.uploadDepthTexture(shadowmap.depthTexture);
+        shader.uploadShadowMapSize(shadowmap.w,shadowmap.h);
     }
 
 }

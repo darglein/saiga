@@ -181,7 +181,7 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
         shader.uploadDepthBiasMV(shadow);
 
         shader.uploadDepthTexture(shadowmap.depthTexture);
-//        cout<<"hasShadows"<<endl;
+        shader.uploadShadowMapSize(shadowmap.w,shadowmap.h);
     }
 
     Error::quitWhenError("PointLight::bindUniforms");
