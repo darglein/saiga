@@ -6,10 +6,10 @@
 
 class SAIGA_GLOBAL Color{
 public:
-    u_int8_t r,g,b,a;
+    uint8_t r,g,b,a;
 
     Color(int r=255, int g=255, int b=255, int a=255);
-    Color(u_int8_t r=255, u_int8_t g=255, u_int8_t b=255, u_int8_t a=255);
+    Color(uint8_t r=255, uint8_t g=255, uint8_t b=255, uint8_t a=255);
     Color(float r=255, float g=255, float b=255, float a=255);
 
     Color(vec3 c);

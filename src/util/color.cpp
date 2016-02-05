@@ -1,12 +1,12 @@
 #include "saiga/util/color.h"
 
 Color::Color(int r, int g, int b, int a)
-    : Color((u_int8_t)r, (u_int8_t)g, (u_int8_t)b, (u_int8_t)a)
+    : Color((uint8_t)r, (uint8_t)g, (uint8_t)b, (uint8_t)a)
 {
 
 }
 
-Color::Color(u_int8_t r, u_int8_t g, u_int8_t b, u_int8_t a)
+Color::Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     : r(r), g(g), b(b), a(a)
 {
 }
