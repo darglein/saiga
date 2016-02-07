@@ -54,6 +54,7 @@ public:
 
 
     Ray createPixelRay(const glm::vec2 &pixel);
+    vec2 projectToScreen(const glm::vec3 &pos);
 };
 
 inline int Window::getWidth(){

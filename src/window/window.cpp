@@ -193,3 +193,16 @@ Ray Window::createPixelRay(const glm::vec2 &pixel)
     vec3 origin = vec3(inverseView[3]);
     return Ray(glm::normalize(ray_world-origin),origin);
 }
+
+
+vec2 Window::projectToScreen(const glm::vec3 &pos)
+{
+    vec4 r = Window::currentCamera->proj * Window::currentCamera->view * vec4(pos,1);
+    r /= r.w;
+
+    vec2 pixel;
+    pixel.x = (r.x +1.f)*Window::width *0.5f;
+    pixel.y = -(r.y - 1.f) * Window::height * 0.5f;
+
+    return pixel;
+}
