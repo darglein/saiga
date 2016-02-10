@@ -57,7 +57,7 @@ void Deferred_Renderer::init(int w, int h){
     lighting.ssaoTexture = ssaotex;
     ssao_framebuffer.unbind();
 
-    postProcessor.init(w,h,deferred_framebuffer.depthBuffer,deferred_framebuffer.colorBuffers[1]);
+	postProcessor.init(w, h, deferred_framebuffer.depthBuffer, deferred_framebuffer.colorBuffers[1], deferred_framebuffer.colorBuffers[0]);
 
 
 

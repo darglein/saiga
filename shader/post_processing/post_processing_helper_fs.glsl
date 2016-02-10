@@ -3,7 +3,7 @@ uniform vec4 screenSize;
 uniform sampler2D image;
 uniform sampler2D gbufferDepth;
 uniform sampler2D gbufferNormals;
-
+uniform sampler2D gbufferColor;
 
 in vec2 tc;
 

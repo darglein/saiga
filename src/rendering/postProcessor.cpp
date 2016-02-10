@@ -9,6 +9,7 @@ void PostProcessingShader::checkUniforms(){
     location_screenSize = Shader::getUniformLocation("screenSize");
     location_gbufferDepth = Shader::getUniformLocation("gbufferDepth");
     location_gbufferNormals = Shader::getUniformLocation("gbufferNormals");
+	location_gbufferColor = Shader::getUniformLocation("gbufferColor");
 }
 
 
@@ -17,12 +18,14 @@ void PostProcessingShader::uploadTexture(raw_Texture *texture){
     Shader::upload(location_texture,0);
 }
 
-void PostProcessingShader::uploadGbufferTextures(raw_Texture *depth, raw_Texture *normals)
+void PostProcessingShader::uploadGbufferTextures(raw_Texture *depth, raw_Texture *normals, raw_Texture* color)
 {
     depth->bind(1);
     Shader::upload(location_gbufferDepth,1);
     normals->bind(2);
     Shader::upload(location_gbufferNormals,2);
+	color->bind(3);
+	Shader::upload(location_gbufferColor, 3);
 }
 
 void PostProcessingShader::uploadScreenSize(vec4 size){
@@ -48,11 +51,12 @@ void LightAccumulationShader::uploadLightAccumulationtexture(raw_Texture *textur
 
 
 
-void PostProcessor::init(int width, int height, raw_Texture *gbufferDepth, raw_Texture *gbufferNormals)
+void PostProcessor::init(int width, int height, raw_Texture *gbufferDepth, raw_Texture *gbufferNormals, raw_Texture* gbufferColor)
 {
     this->width=width;this->height=height;
     this->gbufferDepth = gbufferDepth;
     this->gbufferNormals = gbufferNormals;
+	this->gbufferColor = gbufferColor;
     createFramebuffers();
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -151,7 +155,7 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
     vec4 screenSize(width,height,1.0/width,1.0/height);
     postProcessingShader->uploadScreenSize(screenSize);
     postProcessingShader->uploadTexture(textures[lastBuffer]);
-    postProcessingShader->uploadGbufferTextures(gbufferDepth,gbufferNormals);
+	postProcessingShader->uploadGbufferTextures(gbufferDepth, gbufferNormals, gbufferColor);
     postProcessingShader->uploadAdditionalUniforms();
     quadMesh.bindAndDraw();
     postProcessingShader->unbind();
@@ -185,7 +189,7 @@ void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)
     vec4 screenSize(width,height,1.0/width,1.0/height);
     postProcessingShader->uploadScreenSize(screenSize);
     postProcessingShader->uploadTexture(textures[lastBuffer]);
-    postProcessingShader->uploadGbufferTextures(gbufferDepth,gbufferNormals);
+	postProcessingShader->uploadGbufferTextures(gbufferDepth, gbufferNormals, gbufferColor);
     postProcessingShader->uploadAdditionalUniforms();
     quadMesh.bindAndDraw();
     postProcessingShader->unbind();
