@@ -1,35 +1,11 @@
-
-##GL_VERTEX_SHADER
-
-#version 400
-layout(location=0) in vec3 in_position;
-
-
-out vec2 tc;
-
-
-void main() {
-    tc = vec2(in_position.x,in_position.y);
-    tc = tc*0.5f+0.5f;
-    gl_Position = vec4(in_position.x,in_position.y,0,1);
-}
-
-
-
+#include "post_processing_vertex_shader.glsl"
 
 
 ##GL_FRAGMENT_SHADER
-
 #version 400
 
+#include "post_processing_helper_fs.glsl"
 
-uniform sampler2D image;
-
-uniform vec4 screenSize;
-
-in vec2 tc;
-
-layout(location=0) out vec3 out_color;
 
 const float gauss[9] = float[](0.077847,	0.123317,	0.077847,
 				 0.123317,	0.195346,	0.123317,

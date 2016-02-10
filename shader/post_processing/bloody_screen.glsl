@@ -1,37 +1,12 @@
-
-##GL_VERTEX_SHADER
-
-#version 400
-layout(location=0) in vec3 in_position;
-
-
-out vec2 tc;
-
-
-void main() {
-    tc = vec2(in_position.x,in_position.y);
-    tc = tc*0.5f+0.5f;
-    gl_Position = vec4(in_position.x,in_position.y,0,1);
-}
-
-
-
+#include "post_processing_vertex_shader.glsl"
 
 
 ##GL_FRAGMENT_SHADER
-
 #version 400
 
-
-uniform sampler2D image;
-
-uniform vec4 screenSize;
 uniform float intensity;
 
-
-in vec2 tc;
-
-layout(location=0) out vec3 out_color;
+#include "post_processing_helper_fs.glsl"
 
 
 float intensityRect(vec2 tc){

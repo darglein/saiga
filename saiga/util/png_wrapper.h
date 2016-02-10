@@ -24,20 +24,19 @@ namespace PNG{
 
     struct Image{
         png_uint_32 width, height;
-        int bit_depth;
-        int color_type;
+        int bit_depth;  //number of bits per color. 8 for basic rgb(a) images
+        int color_type; //PNG_COLOR_TYPE_GRAY,PNG_COLOR_TYPE_GRAY_ALPHA,PNG_COLOR_TYPE_RGB, PNG_COLOR_TYPE_RGB_ALPHA
         uchar* data;
 
-
+        //temp variables for libpng. Don't modify them!!!
         uchar **row_pointers;
         void *png_ptr;
         void *info_ptr;
         FILE *infile;
         FILE *outfile;
         jmp_buf jmpbuf;
-
-
     };
+
     void writepng_error_handler(png_structp png_ptr, png_const_charp msg);
 
     void pngVersionInfo();

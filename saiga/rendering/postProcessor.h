@@ -9,10 +9,15 @@
 class SAIGA_GLOBAL PostProcessingShader : public Shader{
 public:
     GLint location_texture, location_screenSize;
+    GLint location_gbufferDepth, location_gbufferNormals; //depth and normal texture of gbuffer
+
+
 
     virtual void checkUniforms();
     virtual void uploadTexture(raw_Texture* texture);
+    virtual void uploadGbufferTextures(raw_Texture* depth, raw_Texture* normals);
     virtual void uploadScreenSize(vec4 size);
+
     virtual void uploadAdditionalUniforms(){}
 };
 
@@ -33,6 +38,7 @@ private:
     int width,height;
     Framebuffer framebuffers[2];
     Texture* textures[2];
+    raw_Texture* gbufferDepth, *gbufferNormals;
     int currentBuffer = 0;
     int lastBuffer = 1;
     IndexedVertexBuffer<VertexNT,GLubyte> quadMesh;
@@ -46,7 +52,7 @@ private:
     void applyShaderFinal(PostProcessingShader *postProcessingShader);
 public:
 
-    void init(int width, int height);
+    void init(int width, int height, raw_Texture* gbufferDepth, raw_Texture* gbufferNormals);
 
     void nextFrame(Framebuffer* gbuffer);
     void bindCurrentBuffer();

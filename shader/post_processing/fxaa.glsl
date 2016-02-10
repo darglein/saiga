@@ -1,43 +1,18 @@
 
-##GL_VERTEX_SHADER
-
-#version 400
-layout(location=0) in vec3 in_position;
-
-
-out vec2 tc;
-
-
-void main() {
-    tc = vec2(in_position.x,in_position.y);
-    tc = tc*0.5f+0.5f;
-    gl_Position = vec4(in_position.x,in_position.y,0,1);
-}
-
-
-
+#include "post_processing_vertex_shader.glsl"
 
 
 ##GL_FRAGMENT_SHADER
-
 #version 400
+
+#include "post_processing_helper_fs.glsl"
+
 
 // FXAA shader, GLSL code adapted from:
 // http://horde3d.org/wiki/index.php5?title=Shading_Technique_-_FXAA
 //https://code.google.com/p/processing/source/browse/trunk/processing
 // Whitepaper describing the technique:
 // http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
-
-
-uniform sampler2D image;
-
-uniform vec4 screenSize;
-
-in vec2 tc;
-
-layout(location=0) out vec3 out_color;
-
-
 
 void main() {
     // The parameters are hardcoded for now, but could be

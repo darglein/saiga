@@ -285,16 +285,9 @@ vec3 unpackNormal3 (vec2 enc)
 
 
 vec3 reconstructPosition(float d, vec2 tc){
-
-//    float x = tc.x * 2 - 1;
-//    float y = (tc.y) * 2 - 1;
-//    float z = d*2-1;
-
     vec4 p = vec4(tc.x,tc.y,d,1)*2.0f - 1.0f;
-
     p = invProj * p;
     return p.xyz/p.w;
-//    return vec3(x,y,1);
 }
 
 
@@ -304,19 +297,15 @@ void getGbufferData(out vec3 color,out  vec3 position, out float depth, out vec3
     vec2 tc = CalcTexCoord();
     color = texture( deferred_diffuse, tc ).rgb;
 
-//    position = texture( deferred_position, tc ).xyz;
 
     depth = texture( deferred_depth, tc ).r;
     position = reconstructPosition(depth,tc);
 
     normal = texture( deferred_normal, tc ).xyz;
-//    normal = normal*2.0f - 1.0f;
     normal = unpackNormal3(normal.xy);
 
     data = texture(deferred_data,tc).xyz;
 
-
-//    normal = normal*2.0f - 1.0f;
 }
 
 
