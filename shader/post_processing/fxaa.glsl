@@ -14,6 +14,7 @@
 // Whitepaper describing the technique:
 // http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
 
+
 void main() {
     // The parameters are hardcoded for now, but could be
     // made into uniforms to control fromt he program.

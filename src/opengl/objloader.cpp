@@ -22,7 +22,7 @@ bool splitAtFirst(std::string &str, std::string &erg, char de){
     return true;
 }
 
-bool ObjLoader::extractIndices(char* line, int &v1,int &v2,int &v3){
+bool extractIndices(char* line, int &v1,int &v2,int &v3){
     char* cva1 = line;
     char* cva2 = line;
     char* cva3;
@@ -70,7 +70,7 @@ bool skipTokens(char* &str){
     return true;
 }
 
-bool readUntilToken(char* &str,string &out_value){
+bool readUntilToken(char* &str,std::string &out_value){
     out_value = "";
     while(str[0]!=0 && str[0]!='#' && !isToken(str[0])){
         out_value.append(str,1);

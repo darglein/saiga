@@ -71,7 +71,6 @@ void getLumaMinMax(sampler2D tex, vec2 tc, out float lumaMin, out float lumaMax)
 }
 
 
-
 void main() {
     float n = 1;
     float f = 30;
@@ -79,6 +78,8 @@ void main() {
     float normalThreshold = 10.45f;
     float colorThreshold = 0.01f;
     float lumaThreshold = 1990.1f;
+
+
     //TODO:
     //check normals or colors
 
@@ -94,6 +95,7 @@ void main() {
     getNormalMinMax(gbufferNormals,tc,nMin,nMax);
     nDiff = nMax-nMin;
     
+
     vec3 cMin,cMax, cDiff;
     getColorMinMax(gbufferColor,tc,cMin,cMax);
     cDiff = cMax-cMin;

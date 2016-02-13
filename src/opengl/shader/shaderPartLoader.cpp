@@ -96,7 +96,7 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
             //recursivly load includes
             std::vector<std::string> tmp;
             if(!loadAndPreproccess(line,tmp)){
-                std::cerr<<"ShaderPartLoader: Could not open included file: "<<prefix+"/"+file<<endl;
+                std::cerr<<"ShaderPartLoader: Could not open included file: "<<prefix+"/"+line<<endl;
                 std::cerr<<"Make sure it exists and the path is correct"<<endl;
                 exit(1);
             }

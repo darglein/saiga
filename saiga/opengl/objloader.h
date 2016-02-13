@@ -63,7 +63,7 @@ public:
     void parseT(char* line);
     void parseF(char* line);
 
-    bool extractIndices(char* line, int &v1, int &v2, int &v3);
+//    bool extractIndices(char* line, int &v1, int &v2, int &v3);
 
     material_mesh_t* loadFromFile(const std::string &name, const NoParams &params);
 };

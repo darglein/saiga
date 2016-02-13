@@ -3,6 +3,7 @@
 #include "saiga/animation/assimpLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
+#include "saiga/animation/objLoader2.h"
 
 ObjAssetLoader::ObjAssetLoader(){
 
@@ -15,6 +16,8 @@ ObjAssetLoader::~ObjAssetLoader()
 
 
 ColoredAsset* ObjAssetLoader::loadBasicAsset(const std::string &file, bool normalize){
+    ObjLoader2 ol(file);
+
 
     AssimpLoader al(file);
 
