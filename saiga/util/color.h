@@ -23,6 +23,17 @@ public:
 
     //TODO:
     void toSRGB();
+
+    static vec3 rgb2srgb(vec3 c);
+
+
+    static vec3 rgb2xyz(vec3 c);
+
+    static vec3 xyz2srgb(vec3 c);
+    static vec3 srgb2xyz(vec3 c);
+
+    static vec3 rgb2hsv(vec3 c);
+    static vec3 hsv2rgb(vec3 c);
 };
 
 namespace Colors{
