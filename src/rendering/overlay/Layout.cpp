@@ -18,13 +18,21 @@ Layout::Layout(int width, int height, float targetWidth, float targetHeight):wid
     aspect = (float)width/(float)height;
 }
 
-void Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY)
+void Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX)
 {
     //scale to correct size
-    vec3 s = box.max-box.min;
-    float ds = relSize/s.y;
-    obj->scale = vec3(ds);
-    obj->scale.x *= 1.0f/aspect;
+
+    if(scaleX){
+        vec3 s = box.max-box.min;
+        float ds = relSize/s.y;
+        obj->scale = vec3(ds);
+        obj->scale.x *= 1.0f/aspect;
+    }else{
+        vec3 s = box.max-box.min;
+        float ds = relSize/s.x;
+        obj->scale = vec3(ds);
+        obj->scale.y *= 1.0f/aspect;
+    }
 
 
     //alignment
@@ -65,8 +73,8 @@ void Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSiz
 
     obj->calculateModel();
 
-//    cout<<width<<" "<<height<<endl;
-//    cout<<"LAYOUT "<<aspect<<" "<<obj->scale<<" "<<obj->position<<" "<<box<<endl;
+    //    cout<<width<<" "<<height<<endl;
+    //    cout<<"LAYOUT "<<aspect<<" "<<obj->scale<<" "<<obj->position<<" "<<box<<endl;
 
 }
 
