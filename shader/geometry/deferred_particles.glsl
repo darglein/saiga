@@ -283,7 +283,7 @@ void main() {
     //combine distance fade image alpha and particle fade
     vec4 c = texture(image,tc);
     c.a *= alpha * fade2;
-
+    c.a = round(c.a);
     //only write color and data. the normals are not modified
     out_color = c;
     out_data = vec4(specular2,0,0,c.a);

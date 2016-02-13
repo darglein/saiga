@@ -229,7 +229,9 @@ void main() {
 //    d = 0;
     vec4 c = texture(image,tc);
     c.a *= fade2;
+//    c.a = round(c.a);
     out_color = c;
+
 //    out_color = vec4(1);
 
 //    out_color = vec4(color2.xyz,(1-d)*fade2);

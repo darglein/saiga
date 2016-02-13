@@ -146,6 +146,7 @@ void Deferred_Renderer::render_intern(){
     lighting.renderLightAccumulation();
     stopTimer(LIGHTACCUMULATION);
 
+
     startTimer(OVERLAY);
     renderer->renderOverlay(*currentCamera);
     stopTimer(OVERLAY);
@@ -157,7 +158,7 @@ void Deferred_Renderer::render_intern(){
     postProcessor.render();
     stopTimer(POSTPROCESSING);
 
-
+    deferred_framebuffer.blitDepth(0);
     startTimer(FINAL);
     renderer->renderFinal(*currentCamera);
     stopTimer(FINAL);

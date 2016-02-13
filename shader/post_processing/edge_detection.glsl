@@ -76,7 +76,7 @@ void main() {
     float f = 30;
     float distanceThreshold = 1990.015f;
     float normalThreshold = 10.45f;
-    float colorThreshold = 0.01f;
+    float colorThreshold = 0.13f;
     float lumaThreshold = 1990.1f;
 
 
