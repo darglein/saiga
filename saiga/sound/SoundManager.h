@@ -47,6 +47,7 @@ public:
 
     SoundSource *getSoundSource(const std::string &file);
     SoundSource *getFixedSoundSource(const std::string &file, int id);
+    SoundSource *getFixedSoundSource(int id);
 
     void loadSound(const std::string &file);
 

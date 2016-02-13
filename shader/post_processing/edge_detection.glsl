@@ -48,10 +48,13 @@ void getColorMinMax(sampler2D tex, vec2 tc, out vec3 dMin, out vec3 dMax){
     vec3 dNE = texture(tex, tc + (vec2(+1.0, -1.0) * screenSize.zw)).xyz;
     vec3 dSW = texture(tex, tc + (vec2(-1.0, +1.0) * screenSize.zw)).xyz;
     vec3 dSE = texture(tex, tc + (vec2(+1.0, +1.0) * screenSize.zw)).xyz;
-    
+    vec3 M = texture(tex, tc ).xyz;
 
     dMin = min(min(dNW, dNE), min(dSW, dSE));
     dMax = max(max(dNW, dNE), max(dSW, dSE));
+
+    dMin = min(dMin,M);
+    dMax = max(dMax,M);
 }
 
 void getLumaMinMax(sampler2D tex, vec2 tc, out float lumaMin, out float lumaMax){
@@ -76,7 +79,7 @@ void main() {
     float f = 30;
     float distanceThreshold = 1990.015f;
     float normalThreshold = 10.45f;
-    float colorThreshold = 0.13f;
+    float colorThreshold = 0.05f;
     float lumaThreshold = 1990.1f;
 
 

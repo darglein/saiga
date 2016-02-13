@@ -121,6 +121,11 @@ SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id)
     return s;
 }
 
+SoundSource *SoundManager::getFixedSoundSource(int id)
+{
+    return &sources[id];
+}
+
 void SoundManager::loadSound(const std::string &file)
 {
     auto it = soundMap.find(file);
