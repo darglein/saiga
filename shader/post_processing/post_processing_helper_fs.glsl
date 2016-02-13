@@ -7,7 +7,7 @@ uniform sampler2D gbufferColor;
 
 in vec2 tc;
 
-layout(location=0) out vec3 out_color;
+layout(location=0) out vec4 out_color;
 
 
 float linearDepth(float d, float nearPlane, float farPlane){

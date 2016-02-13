@@ -39,7 +39,7 @@ void main() {
 	
 	float a = intensityRect(tc);
 	a = smoothstep(0.3,0.5,a);
-    out_color = c + intensity*vec3(a,0,0);
+    out_color = vec4(c + intensity*vec3(a,0,0),1);
 }
 
 

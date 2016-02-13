@@ -34,7 +34,7 @@ void main() {
 
     hsvM.y = clamp(hsvM.y*2, 0 , 1);
 
-    out_color = hsv2rgb(hsvM);
+    out_color = vec4(hsv2rgb(hsvM),1);
     return;
 
 

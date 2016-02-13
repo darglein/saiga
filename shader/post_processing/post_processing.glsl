@@ -10,7 +10,7 @@
 
 //simple pass through shader
 void main() {
-    out_color = texture( image, tc ).rgb;
+    out_color = texture( image, tc );
 }
 
 

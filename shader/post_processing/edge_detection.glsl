@@ -104,12 +104,12 @@ void main() {
     getLumaMinMax(gbufferColor,tc,lMin,lMax);
     lDiff = lMax-lMin;
     
-    out_color = texture(image,tc).rgb;
+    out_color = texture(image,tc);
 
     float asdf = dot(cDiff,vec3(1));
 
     if( length(cDiff) > colorThreshold || length(nDiff) > normalThreshold || dDiff > distanceThreshold|| lDiff > lumaThreshold)
-        out_color = vec3(0.0);
+        out_color = vec4(0.0);
 
 //    if(dDiff > distanceThreshold)
 //        out_color = vec3(0);
