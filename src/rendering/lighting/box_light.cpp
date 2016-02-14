@@ -43,7 +43,8 @@ void BoxLight::setAmbientIntensity(float ai)
 }
 
 void BoxLight::bindUniforms(BoxLightShader &shader, Camera *cam){
-    shader.uploadColor(color);
+    shader.uploadColorDiffuse(colorDiffuse);
+    shader.uploadColorSpecular(colorSpecular);
     shader.uploadAmbientIntensity(ambientIntensity);
     shader.uploadModel(model);
 

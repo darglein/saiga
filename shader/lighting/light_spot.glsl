@@ -84,8 +84,8 @@ void main() {
     vec3 specColor = vec3(1);
     vec3 lightDir = normalize(lightPos-vposition);
 
-    float intensity = color.w;
-    vec3 lightColor = color.rgb;
+    float intensity = colorDiffuse.w;
+    vec3 lightColor = colorDiffuse.rgb;
 
     float visibility = 1.0f;
 #ifdef SHADOWS
@@ -98,7 +98,7 @@ void main() {
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
 
     float Idiff = localIntensity * intensityDiffuse(normal,lightDir);
-    float Ispec = localIntensity * intensitySpecular(vposition,normal,lightDir,40);
+    float Ispec = colorSpecular.w * localIntensity * data.x  * intensitySpecular(vposition,normal,lightDir,40);
 
 
 //    out_color = vec4(lightColor*( Idiff*diffColor + Ispec*specColor),1);

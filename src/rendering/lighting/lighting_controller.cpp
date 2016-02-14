@@ -39,7 +39,7 @@ LightingController::LightingController(DeferredLighting& lighting):lighting(ligh
         PointLight* light = this->lighting.createPointLight();
         light->translateGlobal(vec3(3,10,0));
         light->setSimpleAttenuation(10,1.f/50);
-        light->setColor(vec4(156./256, 42./256, 0,4));
+        light->setColorDiffuse(vec4(156./256, 42./256, 0,4));
     });
 
     IC.add("lighting_controller_toggle", [this](ICPARAMS){

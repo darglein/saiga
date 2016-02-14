@@ -6,14 +6,19 @@
 
 class SAIGA_GLOBAL LightShader : public DeferredShader{
 public:
-    GLint location_color; //rgba, rgb=color, a=intensity [0,1]
+    GLint location_colorDiffuse, location_colorSpecular; //rgba, rgb=color, a=intensity [0,1]
     GLint location_depthBiasMV, location_depthTex,location_readShadowMap;
     GLint location_shadowMapSize; //vec4(w,h,1/w,1/h)
     GLint location_invProj;
 
     virtual void checkUniforms();
-    void uploadColor(vec4 &color);
-    void uploadColor(vec3 &color, float intensity);
+
+    void uploadColorDiffuse(vec4 &color);
+    void uploadColorDiffuse(vec3 &color, float intensity);
+
+    void uploadColorSpecular(vec4 &color);
+    void uploadColorSpecular(vec3 &color, float intensity);
+
     void uploadDepthBiasMV(mat4 &mat);
     void uploadDepthTexture(raw_Texture* texture);
     void uploadShadow(float shadow);
@@ -34,26 +39,30 @@ protected:
 public:
 //    raw_Texture* dummyTexture = nullptr; //0x0 texture to fix an ati error
     Shadowmap shadowmap;
-    vec4 color;
+    vec4 colorDiffuse = vec4(1);
+    vec4 colorSpecular = vec4(1);
+
 
 
     Light(){}
-    Light(const vec3 &color, float intensity){setColor(color);setIntensity(intensity);}
-    Light(const vec4 &color){setColor(color);}
+    Light(const vec3 &color, float intensity){setColorDiffuse(color);setIntensity(intensity);}
+    Light(const vec4 &color){setColorDiffuse(color);}
     virtual ~Light(){}
 
-    void setColor(const vec3 &color){this->color = vec4(color,this->color.w);}
-    void setColor(const vec4 &color){this->color = color;}
-    void setIntensity(float f){this->color.w = f;}
-    void addIntensity(float f){this->color.w += f;}
+    void setColorDiffuse(const vec3 &color){this->colorDiffuse = vec4(color,this->colorDiffuse.w);}
+    void setColorDiffuse(const vec4 &color){this->colorDiffuse = color;}
+    void setColorSpecular(const vec3 &color){this->colorSpecular = vec4(color,this->colorSpecular.w);}
+    void setColorSpecular(const vec4 &color){this->colorSpecular = color;}
+    void setIntensity(float f){this->colorDiffuse.w = f;}
+    void addIntensity(float f){this->colorDiffuse.w += f;}
 
 
 
 
 
 
-    vec3 getColor(){return vec3(color);}
-    float getIntensity(){return color.w;}
+    vec3 getColorDiffuse(){return vec3(colorDiffuse);}
+    float getIntensity(){return colorDiffuse.w;}
 
     void setActive(bool active){this->active=active;}
     bool isActive(){return active;}

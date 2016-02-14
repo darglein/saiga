@@ -313,7 +313,7 @@ void DeferredLighting::renderDebug(){
     //center
     for(PointLight* &obj : pointLights){
         mat4 sm = glm::scale(obj->model,vec3(0.05));
-        vec4 color = obj->color;
+        vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
             //render as black if light is turned off
             color = vec4(0);
@@ -328,7 +328,7 @@ void DeferredLighting::renderDebug(){
     for(PointLight* &obj : pointLights){
         //        if(obj->isSelected()){
         debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->color);
+        debugShader->uploadColor(obj->colorDiffuse);
         pointLightMesh.draw();
         //        }
     }
@@ -342,7 +342,7 @@ void DeferredLighting::renderDebug(){
     //center
     for(SpotLight* &obj : spotLights){
         mat4 sm = glm::scale(obj->model,vec3(0.05));
-        vec4 color = obj->color;
+        vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
             //render as black if light is turned off
             color = vec4(0);
@@ -357,7 +357,7 @@ void DeferredLighting::renderDebug(){
     for(SpotLight* &obj : spotLights){
         //        if(obj->isSelected()){
         debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->color);
+        debugShader->uploadColor(obj->colorDiffuse);
         spotLightMesh.draw();
         //        }
     }
@@ -371,7 +371,7 @@ void DeferredLighting::renderDebug(){
     //center
     for(BoxLight* &obj : boxLights){
         mat4 sm = glm::scale(obj->model,vec3(0.05));
-        vec4 color = obj->color;
+        vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
             //render as black if light is turned off
             color = vec4(0);
@@ -386,7 +386,7 @@ void DeferredLighting::renderDebug(){
     for(BoxLight* &obj : boxLights){
         //        if(obj->isSelected()){
         debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->color);
+        debugShader->uploadColor(obj->colorDiffuse);
         boxLightMesh.draw();
         //        }
     }

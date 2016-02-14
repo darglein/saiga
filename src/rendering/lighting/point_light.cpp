@@ -34,7 +34,8 @@ PointLight::PointLight(const Sphere &sphere):cam("bla"),sphere(sphere){
 
 PointLight& PointLight::operator=(const PointLight& light){
     model = light.model;
-    color = light.color;
+    colorDiffuse = light.colorDiffuse;
+    colorSpecular = light.colorSpecular;
     attenuation = light.attenuation;
     sphere = light.sphere;
     radius = light.radius;
@@ -43,7 +44,7 @@ PointLight& PointLight::operator=(const PointLight& light){
 
 void PointLight::setAttenuation(float c, float l , float q){
     attenuation = vec3(c,l,q);
-    this->setColor(vec4(1));
+    this->setColorDiffuse(vec4(1));
 
 
     float a = attenuation.z;
@@ -158,7 +159,8 @@ void PointLight::setRadius(float value)
 void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
 
     //    LightMesh::bindUniforms();
-    shader.uploadColor(color);
+    shader.uploadColorDiffuse(colorDiffuse);
+    shader.uploadColorSpecular(colorSpecular);
     shader.uploadModel(model);
     shader.upload(sphere.pos,radius);
     shader.upload(attenuation);

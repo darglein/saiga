@@ -52,8 +52,8 @@ void main() {
 
     float ssao = texture(ssaoTex,CalcTexCoord()).r;
 
-    float intensity = color.w;
-    vec3 lightColor = color.rgb;
+    float intensity = colorDiffuse.w;
+    vec3 lightColor = colorDiffuse.rgb;
 
     float visibility = 1.0f;
 #ifdef SHADOWS
@@ -67,7 +67,7 @@ void main() {
 
     float Iamb = intensity*ambientIntensity*ssao;
     float Idiff = localIntensity * intensityDiffuse(normal,lightDir);
-    float Ispec = localIntensity * intensitySpecular(vposition,normal,lightDir,40);
+    float Ispec = colorSpecular.w * localIntensity * data.x  * intensitySpecular(vposition,normal,lightDir,40);
 
 //    float Iemissive = data.y ;
 //    vec3 Iemissive = diffColor*data.y ;

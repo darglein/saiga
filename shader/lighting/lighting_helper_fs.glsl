@@ -17,7 +17,9 @@ uniform sampler2D deferred_position;
 uniform sampler2D deferred_data;
 uniform vec2 screen_size;
 
-uniform vec4 color; //rgba, rgb=color, a=intensity [0,1]
+uniform vec4 colorDiffuse; //rgba, rgb=color, a=intensity [0,1]
+uniform vec4 colorSpecular; //rgba, rgb=color, a=intensity [0,1]
+
 uniform vec4 shadowMapSize;  //vec4(w,h,1/w,1/h)
 
 const vec2 poissonDisk[4] = vec2[](

@@ -66,7 +66,8 @@ void DirectionalLight::setAmbientIntensity(float ai)
 }
 
 void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam){
-    shader.uploadColor(color);
+    shader.uploadColorDiffuse(colorDiffuse);
+    shader.uploadColorSpecular(colorSpecular);
     shader.uploadAmbientIntensity(ambientIntensity);
 
     vec3 viewd = -glm::normalize(vec3(cam->view*vec4(direction,0)));

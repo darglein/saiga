@@ -2,7 +2,8 @@
 
 void LightShader::checkUniforms(){
     DeferredShader::checkUniforms();
-    location_color = getUniformLocation("color");
+    location_colorDiffuse = getUniformLocation("colorDiffuse");
+    location_colorSpecular = getUniformLocation("colorSpecular");
     location_depthBiasMV = getUniformLocation("depthBiasMV");
     location_depthTex = getUniformLocation("depthTex");
     location_readShadowMap = getUniformLocation("readShadowMap");
@@ -11,13 +12,22 @@ void LightShader::checkUniforms(){
 }
 
 
-void LightShader::uploadColor(vec4 &color){
-    Shader::upload(location_color,color);
+void LightShader::uploadColorDiffuse(vec4 &color){
+    Shader::upload(location_colorDiffuse,color);
 }
 
-void LightShader::uploadColor(vec3 &color, float intensity){
+void LightShader::uploadColorDiffuse(vec3 &color, float intensity){
     vec4 c = vec4(color,intensity);
-    Shader::upload(location_color,c);
+    Shader::upload(location_colorDiffuse,c);
+}
+
+void LightShader::uploadColorSpecular(vec4 &color){
+    Shader::upload(location_colorSpecular,color);
+}
+
+void LightShader::uploadColorSpecular(vec3 &color, float intensity){
+    vec4 c = vec4(color,intensity);
+    Shader::upload(location_colorSpecular,c);
 }
 
 void LightShader::uploadDepthBiasMV(mat4 &mat){
