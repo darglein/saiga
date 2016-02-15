@@ -22,7 +22,8 @@ public:
 
     Buffer(GLenum _target );
     ~Buffer();
-
+    Buffer(Buffer const&) = delete;
+    Buffer& operator=(Buffer const&) = delete;
     void createGLBuffer(void* data=nullptr,unsigned int size=0, GLenum usage=GL_DYNAMIC_DRAW);
     void deleteGLBuffer();
 

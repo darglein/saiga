@@ -25,7 +25,7 @@ void Window::quit(){
 }
 
 
-bool Window::init(){
+bool Window::init(const RenderingParameters& params){
 
     //init window and opengl context
     if(!initWindow()){
@@ -71,17 +71,17 @@ bool Window::init(){
 
     initFramework(this);
 
-    initDeferredRendering();
+    initDeferredRendering(params);
 
     return true;
 }
 
-void Window::initDeferredRendering()
+void Window::initDeferredRendering(const RenderingParameters &params)
 {
     //     exit(1);
 
-    renderer = new Deferred_Renderer();
-    renderer->init(getWidth(),getHeight());
+    renderer = new Deferred_Renderer(getWidth(),getHeight(),params);
+//    renderer->init(getWidth(),getHeight());
     //    renderer->lighting.setShader(shaderLoader.load<SpotLightShader>("deferred_lighting_spotlight.glsl"));
 
 

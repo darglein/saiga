@@ -2,8 +2,8 @@
 
 #include "saiga/opengl/shader/shader.h"
 
-
 class Framebuffer;
+class GBuffer;
 
 class SAIGA_GLOBAL MVPShader : public Shader{
 public:
@@ -45,13 +45,13 @@ public:
     virtual void uploadFramebuffer(Framebuffer* fb);
 };
 
-class SAIGA_GLOBAL DeferredShader : public FBShader{
+class SAIGA_GLOBAL DeferredShader : public MVPShader{
 public:
     GLint location_screen_size;
     GLint location_texture_diffuse,location_texture_normal,location_texture_depth,location_texture_data;
 
     virtual void checkUniforms();
-    void uploadFramebuffer(Framebuffer* fb);
+    void uploadFramebuffer(GBuffer* gbuffer);
     void uploadScreenSize(vec2 sc){Shader::upload(location_screen_size,sc);}
 };
 

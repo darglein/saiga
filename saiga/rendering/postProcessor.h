@@ -3,8 +3,9 @@
 #include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/framebuffer.h"
+#include "saiga/rendering/gbuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
-
+#include "saiga/util/quality.h"
 
 class SAIGA_GLOBAL PostProcessingShader : public Shader{
 public:
@@ -15,7 +16,7 @@ public:
 
     virtual void checkUniforms();
     virtual void uploadTexture(raw_Texture* texture);
-	virtual void uploadGbufferTextures(raw_Texture* depth, raw_Texture* normals, raw_Texture* color);
+    virtual void uploadGbufferTextures(GBuffer* gbuffer);
     virtual void uploadScreenSize(vec4 size);
 
     virtual void uploadAdditionalUniforms(){}
@@ -32,13 +33,18 @@ public:
 };
 
 
+struct SAIGA_GLOBAL PostProcessorParameters{
+    bool srgb = true; //colors stored in srgb. saves memory bandwith but adds conversion operations.
+    Quality quality = Quality::LOW;
+};
 
 class SAIGA_GLOBAL PostProcessor{
 private:
+    PostProcessorParameters params;
     int width,height;
     Framebuffer framebuffers[2];
     Texture* textures[2];
-	raw_Texture* gbufferDepth, *gbufferNormals, *gbufferColor;
+    GBuffer *gbuffer;
     int currentBuffer = 0;
     int lastBuffer = 1;
     IndexedVertexBuffer<VertexNT,GLubyte> quadMesh;
@@ -52,9 +58,9 @@ private:
     void applyShaderFinal(PostProcessingShader *postProcessingShader);
 public:
 
-	void init(int width, int height, raw_Texture* gbufferDepth, raw_Texture* gbufferNormals, raw_Texture* gbufferColor);
+    void init(int width, int height, GBuffer *gbuffer, PostProcessorParameters params);
 
-    void nextFrame(Framebuffer* gbuffer);
+    void nextFrame();
     void bindCurrentBuffer();
     void switchBuffer();
 

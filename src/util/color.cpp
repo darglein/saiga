@@ -52,7 +52,7 @@ vec4 Color::toVec4() const
     return vec4(r/255.0f,g/255.0f,b/255.0f,a/255.0f);
 }
 
-vec3 Color::rgb2srgb(vec3 c)
+vec3 Color::srgb2linearrgb(vec3 c)
 {
     if ( c.x > 0.04045 ) c.x =  glm::pow( ( c.x + 0.055 ) / 1.055 , 2.4);
     else                   c.x = c.x / 12.92;
@@ -63,7 +63,7 @@ vec3 Color::rgb2srgb(vec3 c)
     return c;
 }
 
-vec3 Color::srgb2rgb(vec3 c)
+vec3 Color::linearrgb2srgb(vec3 c)
 {
     if ( c.x > 0.0031308 ) c.x = 1.055 *  glm::pow( c.x , ( 1.0f / 2.4f ) ) - 0.055;
     else                     c.x = 12.92 * c.x;
@@ -76,7 +76,7 @@ vec3 Color::srgb2rgb(vec3 c)
 
 
 
-vec3 Color::xyz2srgb(vec3 c)
+vec3 Color::xyz2linearrgb(vec3 c)
 {
     vec3 rgbLinear;
     rgbLinear.x = c.x *  3.2406 + c.y * -1.5372 + c.z * -0.4986;
@@ -85,7 +85,7 @@ vec3 Color::xyz2srgb(vec3 c)
     return rgbLinear;
 }
 
-vec3 Color::srgb2xyz(vec3 c)
+vec3 Color::linearrgb2xyz(vec3 c)
 {
     //Observer. = 2°, Illuminant = D65
     float X = c.x * 0.4124 + c.y * 0.3576 + c.z * 0.1805;

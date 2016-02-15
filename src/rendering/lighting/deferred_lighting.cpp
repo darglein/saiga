@@ -17,7 +17,7 @@
 
 
 
-DeferredLighting::DeferredLighting(Framebuffer &framebuffer):gbuffer(framebuffer){
+DeferredLighting::DeferredLighting(GBuffer &framebuffer):gbuffer(framebuffer){
     
     createInputCommands();
     createLightMeshes();
@@ -161,7 +161,7 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
 }
 
 void DeferredLighting::render(Camera* cam){
-    gbuffer.blitDepth(lightAccumulationBuffer.id);
+    gbuffer.blitDepth(lightAccumulationBuffer.getId());
 
     lightAccumulationBuffer.bind();
     glClear( GL_COLOR_BUFFER_BIT );

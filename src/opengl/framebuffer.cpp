@@ -101,69 +101,6 @@ void Framebuffer::attachTextureDepthStencil(Texture* texture){
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,texture->getId(), 0);
 }
 
-void Framebuffer::makeToDeferredFramebuffer(int w, int h){
-
-    Texture* color = new Texture();
-    color->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
-    attachTexture(color);
-
-
-
-    Texture* normal = new Texture();
-    //    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB8 ,GL_UNSIGNED_BYTE);
-    //    normal->createEmptyTexture(w,h,GL_RGB,GL_RGB16 ,GL_UNSIGNED_SHORT);
-    normal->createEmptyTexture(w,h,GL_RG,GL_RG16F ,GL_HALF_FLOAT);
-    attachTexture(normal);
-
-    //specular and emissive texture
-    Texture* data = new Texture();
-    data->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
-    attachTexture(data);
-
-
-    //    Texture* position = new Texture();
-    //    position->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
-    //    attachTexture(position);
-
-
-
-
-
-
-
-
-
-
-
-    //     Texture* depth = new Texture();
-    //            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    //     depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
-    //        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
-    //    attachTextureDepth(depth);
-
-    //don't need stencil in gbuffer
-    //depth and stencil texture combined
-    Texture* depth_stencil = new Texture();
-    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-    attachTextureDepthStencil(depth_stencil);
-
-
-    int count = colorBuffers.size();
-
-    std::vector<GLenum> DrawBuffers(count);
-    for(int i = 0 ;i < count ; ++i){
-        DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
-    }
-    glDrawBuffers(count, &DrawBuffers[0]);
-
-
-    check();
-    unbind();
-
-
-}
-
-
 void Framebuffer::blitDepth(int otherId){
     glBindFramebuffer(GL_READ_FRAMEBUFFER, id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, otherId);

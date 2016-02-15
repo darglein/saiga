@@ -8,7 +8,7 @@
 class MVPTextureShader;
 class basic_Texture_2D;
 class Framebuffer;
-
+class GBuffer;
 
 
 
@@ -37,7 +37,7 @@ public:
     void loadShaders();
     void render();
 
-    void setDeferredFramebuffer(Framebuffer* fb, basic_Texture_2D *light);
+    void setDeferredFramebuffer(GBuffer *gbuffer, basic_Texture_2D *light);
 
 
 };

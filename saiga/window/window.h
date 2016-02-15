@@ -7,6 +7,7 @@
 class Camera;
 class Deferred_Renderer;
 class Program;
+class RenderingParameters;
 
 class SAIGA_GLOBAL Window{
 public:
@@ -32,8 +33,8 @@ public:
 
 
     void quit();
-    bool init();
-    void initDeferredRendering();
+    bool init(const RenderingParameters &params);
+    void initDeferredRendering(const RenderingParameters& params);
 
     virtual void close() = 0;
 

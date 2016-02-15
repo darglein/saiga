@@ -3,7 +3,7 @@
 #include "saiga/rendering/postProcessor.h"
 #include "saiga/rendering/lighting/deferred_lighting.h"
 #include "saiga/opengl/framebuffer.h"
-
+#include "saiga/rendering/gbuffer.h"
 
 class Program;
 
@@ -21,7 +21,25 @@ public:
     void uploadData();
 };
 
-
+struct SAIGA_GLOBAL RenderingParameters{
+    /**
+     * If srgbWrites is enabled all writes to srgb textures will cause a linear->srgb converesion.
+     * Important to note is that writes to the default framebuffer also be converted to srgb.
+     * This means if srgbWrites is enabled all shader inputs must be converted to linear rgb.
+     * For textures use the srgb flag.
+     * For vertex colors and uniforms this conversion must be done manually with Color::srgb2linearrgb()
+     *
+     * If srgbWrites is disabled the gbuffer and postprocessor are not allowed to have srgb textures.
+     *
+     * Note: If srgbWrites is enabled, you can still use a non-srgb gbuffer and post processor.
+     */
+    bool srgbWrites = true;
+    GBufferParameters gbp;
+    PostProcessorParameters ppp;
+    RenderingParameters(){}
+    RenderingParameters(bool srgbWrites,GBufferParameters gbp,PostProcessorParameters ppp):
+        srgbWrites(srgbWrites),gbp(gbp),ppp(ppp){}
+};
 
 
 class SAIGA_GLOBAL Deferred_Renderer{
@@ -71,16 +89,16 @@ public:
 
     IndexedVertexBuffer<VertexNT,GLubyte> quadMesh;
 
-    Framebuffer deferred_framebuffer;
+    GBuffer deferred_framebuffer;
     Framebuffer ssao_framebuffer;
 
     PostProcessor postProcessor;
 
-
+    RenderingParameters params;
     int width,height;
 
     DeferredLighting lighting;
-    Deferred_Renderer();
+    Deferred_Renderer(int w, int h, RenderingParameters params);
 	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
     void init( int w, int h);

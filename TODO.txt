@@ -26,3 +26,4 @@ General
 - optional srgb
 - rendering/lighting parameter struct
 - controlable camera
+- gbuffer class

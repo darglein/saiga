@@ -27,21 +27,11 @@ void SSAOShader::uploadData(){
 
 
 
-Deferred_Renderer::Deferred_Renderer():lighting(deferred_framebuffer){
-
-}
-
-Deferred_Renderer::~Deferred_Renderer()
-{
-
-}
-
-void Deferred_Renderer::init(int w, int h){
+Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):params(params),lighting(deferred_framebuffer) {
     setSize(w,h);
     lighting.init(w,h);
-    deferred_framebuffer.create();
-    deferred_framebuffer.makeToDeferredFramebuffer(w,h);
 
+    deferred_framebuffer.init(w,h,params.gbp);
 
     ssao_framebuffer.create();
     Texture* ssaotex = new Texture();
@@ -57,9 +47,7 @@ void Deferred_Renderer::init(int w, int h){
     lighting.ssaoTexture = ssaotex;
     ssao_framebuffer.unbind();
 
-	postProcessor.init(w, h, deferred_framebuffer.depthBuffer, deferred_framebuffer.colorBuffers[1], deferred_framebuffer.colorBuffers[0]);
-
-
+    postProcessor.init(w, h,&deferred_framebuffer,params.ppp);
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -70,6 +58,12 @@ void Deferred_Renderer::init(int w, int h){
         t.create();
     }
 }
+
+Deferred_Renderer::~Deferred_Renderer()
+{
+
+}
+
 
 
 void Deferred_Renderer::resize(int width, int height)
@@ -108,6 +102,15 @@ void Deferred_Renderer::render_intern(){
 
     startTimer(TOTAL);
 
+    // When GL_FRAMEBUFFER_SRGB is disabled, the system assumes that the color written by the fragment shader
+    // is in whatever colorspace the image it is being written to is. Therefore, no colorspace correction is performed.
+    // If GL_FRAMEBUFFER_SRGB is enabled however, then if the destination image is in the sRGB colorspace
+    // (as queried through glGetFramebufferAttachmentParameter(GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING)​),
+    // then it will assume the shader's output is in the linear RGB colorspace.
+    // It will therefore convert the output from linear RGB to sRGB.
+    if(params.srgbWrites)
+        glEnable(GL_FRAMEBUFFER_SRGB); //no reason to switch it off
+
     (*currentCamera)->recalculatePlanes();
 
     renderGBuffer(*currentCamera);
@@ -141,7 +144,7 @@ void Deferred_Renderer::render_intern(){
 
 
     startTimer(LIGHTACCUMULATION);
-    postProcessor.nextFrame(&deferred_framebuffer);
+    postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
     lighting.renderLightAccumulation();
     stopTimer(LIGHTACCUMULATION);

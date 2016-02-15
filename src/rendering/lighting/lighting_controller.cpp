@@ -154,16 +154,16 @@ void LightingController::undoChange(){
 }
 
 void LightingController::duplicateSelected(){
-    if(selectedLight!=nullptr){
-        undoChange();
-        if(SpotLight* l = dynamic_cast<SpotLight*>(selectedLight)){
-            (*lighting.createSpotLight()) = *l;
-        }else if(DirectionalLight* l = dynamic_cast<DirectionalLight*>(selectedLight)){
-            (*lighting.createDirectionalLight()) = *l;
-        }else if(PointLight* l = dynamic_cast<PointLight*>(selectedLight)){
-            (*lighting.createPointLight()) = *l;
-        }
-    }
+//    if(selectedLight!=nullptr){
+//        undoChange();
+//        if(SpotLight* l = dynamic_cast<SpotLight*>(selectedLight)){
+//            (*lighting.createSpotLight()) = *l;
+//        }else if(DirectionalLight* l = dynamic_cast<DirectionalLight*>(selectedLight)){
+//            (*lighting.createDirectionalLight()) = *l;
+//        }else if(PointLight* l = dynamic_cast<PointLight*>(selectedLight)){
+//            (*lighting.createPointLight()) = *l;
+//        }
+//    }
 }
 
 bool LightingController::key_event(GLFWwindow* window, int key, int scancode, int action, int mods){

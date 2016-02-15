@@ -21,12 +21,56 @@ public:
     vec3 toVec3() const;
     vec4 toVec4() const;
 
+    /**
+     * Almost every image is stored in srgb format nowadays.
+     * All monitors asume that the input is in srgb format.
+     *
+     * So if you just want to display a texture on the screen with opengl NO conversions have to be done.
+     *
+     * The problem with srgb is, that the intensity values are not stored linearly in memory. (The brightness is also called gamma)
+     * For example the gray value (0.2,0.2,0.2) is not twice as bright as (0.1,0.1,0.1).
+     * The gamma of srgb is approximately 2.2:  Brightness = value ^ 2.2
+     * With such an exponential curve the brightness near 0 has higher resolution than the brightness near 1.
+     * This fits the perception of colors of the human eye, because shades with low intensities are easier to differentiate.
+     *
+     * Ok, srgb is not linear, where is the problem?
+     *
+     * The problem is, that arithmetic operations on srgb colors do not produce the expected result.
+     * For example, there are 2 light sources, that want to light one pixel. The correct way is it to add the
+     * intensities of both lights up.
+     * C = C1 + C2
+     * But, because srgb is not linear the intensity does not add up correctly
+     * I = C1^2.2 + C2^2.2
+     *
+     * As a result doing lighting calculations in srgb color space is wrong!
+     *
+     *
+     * For this we want to convert the colors to a linear rgb space before doing any calculations
+     * and convert it back when we are finished:
+     *
+     * cl = srgb2linearrgb(c)
+     * cl = doLighting(cl)
+     * c = linearrgb2srgb(cl)
+     *
+     * Fortunately OpenGL offers an automatic way for doing this conversions, by using GL_SRGB8 or GL_SRGB8_ALPHA8 as texture format.
+     * From opengl.org:
+     * [...] What this means is that the values placed in images of this format are assumed to be stored in the sRGB colorspace.
+     * When fetching from sRGB images in Shaders, either through Samplers or images,
+     * the values retrieved are converted from the sRGB colors into linear colorspace.
+     * Thus, the shader only sees linear values. [...]
+     *
+     * If you want to write to srgb textures use glEnable(GL_FRAMEBUFFER_SRGB); this will do the conversion from linear to srgb.
+     *
+     *
+     * So all textures are now processed correctly. The last thing to do is to make sure all colors, that are passed as uniforms or vertex-data
+     * to the shader are in linear rgb space. For this use the functions below.
+     */
 
-    static vec3 rgb2srgb(vec3 c);
-    static vec3 srgb2rgb(vec3 c);
+    static vec3 srgb2linearrgb(vec3 c);
+    static vec3 linearrgb2srgb(vec3 c);
 
-    static vec3 xyz2srgb(vec3 c);
-    static vec3 srgb2xyz(vec3 c);
+    static vec3 xyz2linearrgb(vec3 c);
+    static vec3 linearrgb2xyz(vec3 c);
 
 
 };

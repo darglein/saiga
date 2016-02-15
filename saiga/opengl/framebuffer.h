@@ -10,7 +10,7 @@
 #include "saiga/opengl/texture/texture.h"
 
 class SAIGA_GLOBAL Framebuffer{
-public:
+protected:
     GLuint id = 0;
 
     //there can be multiple color buffers, but only 1 depth and stencil buffer
@@ -20,11 +20,13 @@ public:
 public:
     Framebuffer();
     ~Framebuffer();
+    Framebuffer(Framebuffer const&) = delete;
+    Framebuffer& operator=(Framebuffer const&) = delete;
+
     void attachTexture(Texture* texture);
     void attachTextureDepth(Texture* texture);
     void attachTextureStencil(Texture *texture);
     void attachTextureDepthStencil(Texture* texture);
-    void makeToDeferredFramebuffer(int w, int h);
 
     void destroy();
     void create();
@@ -36,6 +38,10 @@ public:
     void blitDepth(int otherId);
     void blitColor(int otherId);
 
+    Texture* getTextureStencil(){return this->stencilBuffer;}
+    Texture* getTextureDepth(){return this->depthBuffer;}
+    Texture* getTextureColor(int id){return this->colorBuffers[id];}
+    GLuint getId(){return id;}
     /**
     * Resizes all attached textures.
     */

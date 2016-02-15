@@ -1,5 +1,6 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/framebuffer.h"
+#include "saiga/rendering/gbuffer.h"
 void MVPColorShader::checkUniforms(){
     MVPShader::checkUniforms();
     location_color = getUniformLocation("color");
@@ -26,10 +27,10 @@ void FBShader::checkUniforms(){
     location_texture = getUniformLocation("text");
 }
 
-void FBShader::uploadFramebuffer(Framebuffer* fb){
+void FBShader::uploadFramebuffer(Framebuffer *fb){
 //    fb->colorBuffers[0]->bind(0);
 //    upload(location_texture,0);
-    upload(location_texture,fb->colorBuffers[0],0);
+//    upload(location_texture,fb->colorBuffers[0],0);
 }
 
 void DeferredShader::checkUniforms(){
@@ -43,11 +44,15 @@ void DeferredShader::checkUniforms(){
 
 }
 
-void DeferredShader::uploadFramebuffer(Framebuffer* fb){
-    upload(location_texture_diffuse,fb->colorBuffers[0],0);
-    upload(location_texture_normal,fb->colorBuffers[1],1);
-    upload(location_texture_data,fb->colorBuffers[2],2);
-    upload(location_texture_depth,fb->depthBuffer,3);
+void DeferredShader::uploadFramebuffer(GBuffer *gbuffer){
+//    upload(location_texture_diffuse,fb->colorBuffers[0],0);
+//    upload(location_texture_normal,fb->colorBuffers[1],1);
+//    upload(location_texture_data,fb->colorBuffers[2],2);
+//    upload(location_texture_depth,fb->depthBuffer,3);
+    upload(location_texture_diffuse,gbuffer->getTextureColor(),0);
+    upload(location_texture_normal,gbuffer->getTextureNormal(),1);
+    upload(location_texture_data,gbuffer->getTextureData(),2);
+    upload(location_texture_depth,gbuffer->getTextureDepth(),3);
 }
 
 void MVPShader::checkUniforms(){

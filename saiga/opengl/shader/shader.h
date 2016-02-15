@@ -23,6 +23,8 @@ public:
 
     Shader();
     virtual ~Shader();
+    Shader(Shader const&) = delete;
+    Shader& operator=(Shader const&) = delete;
 
 
     // ===================================== program stuff =====================================

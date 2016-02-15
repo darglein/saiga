@@ -44,7 +44,7 @@ private:
     LightAccumulationShader* lightAccumulationShader;
 
     MVPShader* stencilShader;
-    Framebuffer &gbuffer;
+    GBuffer &gbuffer;
 
 
     mat4 inview,view,proj;
@@ -64,7 +64,7 @@ public:
     Texture* lightAccumulationTexture;
     Framebuffer lightAccumulationBuffer;
 
-    DeferredLighting(Framebuffer &gbuffer);
+    DeferredLighting(GBuffer &gbuffer);
 	DeferredLighting& operator=(DeferredLighting& l) = delete;
     ~DeferredLighting();
 

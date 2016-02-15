@@ -3,7 +3,7 @@
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-
+#include "saiga/rendering/gbuffer.h"
 
 DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),height(height){
     proj = glm::ortho(0.0f,(float)width,0.0f,(float)height,1.0f,-1.0f);
@@ -101,11 +101,15 @@ void DeferredDebugOverlay::render(){
 
 }
 
-void DeferredDebugOverlay::setDeferredFramebuffer(Framebuffer *fb, basic_Texture_2D* light)
+void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer *gbuffer, basic_Texture_2D* light)
 {
-    color.texture = fb->colorBuffers[0];
-    normal.texture = fb->colorBuffers[1];
-    depth.texture = fb->depthBuffer;
-    data.texture = fb->colorBuffers[2];
+//    color.texture = fb->colorBuffers[0];
+//    normal.texture = fb->colorBuffers[1];
+//    depth.texture = fb->depthBuffer;
+//    data.texture = fb->colorBuffers[2];
+    color.texture = gbuffer->getTextureColor();
+    normal.texture = gbuffer->getTextureNormal();
+    depth.texture = gbuffer->getTextureDepth();
+    data.texture = gbuffer->getTextureData();
     this->light.texture = light;
 }

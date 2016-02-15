@@ -17,6 +17,8 @@ protected:
 public:
     raw_Texture(GLenum target):target(target){}
     virtual ~raw_Texture();
+    raw_Texture(raw_Texture const&) = delete;
+    raw_Texture& operator=(raw_Texture const&) = delete;
 
     void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
     void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,GLubyte* data );
