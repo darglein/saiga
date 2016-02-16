@@ -22,8 +22,6 @@ General
 - templated image class
 - bezier+bspline curves + surfaces + teapot
 - tesselation
--obj loader fix
-- optional srgb
+- obj loader fix
 - rendering/lighting parameter struct
 - controlable camera
-- gbuffer class

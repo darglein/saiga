@@ -14,6 +14,8 @@
 
 template<class index_t> struct IndexGLType;
 
+//on desktop pcs unsigned_short is faster than unsigned_byte
+//using unsigned_byte can create performance warnings on ati cards.
 template<> struct IndexGLType<GLubyte>
 { static const GLenum value = GL_UNSIGNED_BYTE;};
 template<> struct IndexGLType<GLushort>

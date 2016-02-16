@@ -47,7 +47,7 @@ private:
     GBuffer *gbuffer;
     int currentBuffer = 0;
     int lastBuffer = 1;
-    IndexedVertexBuffer<VertexNT,GLubyte> quadMesh;
+    IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
     std::vector<PostProcessingShader*> postProcessingEffects;
     GPUTimer timer;
 
