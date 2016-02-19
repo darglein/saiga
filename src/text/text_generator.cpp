@@ -23,7 +23,7 @@ TextGenerator::TextGenerator(){
         //        ft = FT_Library> (new FT_Library());
         if(FT_Init_FreeType(&ft)) {
             std::cerr<< "Could not init freetype library"<<std::endl;
-            exit(1);
+            assert(0);
         }
     }
 }

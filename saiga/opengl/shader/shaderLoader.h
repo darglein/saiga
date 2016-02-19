@@ -47,7 +47,7 @@ shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCo
     }
 
     std::cout<<"Failed to load "<<name<<"!!!"<<std::endl;
-    exit(0);
+    assert(0);
     return nullptr;
 }
 

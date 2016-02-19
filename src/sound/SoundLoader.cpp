@@ -173,7 +173,7 @@ Sound *SoundLoader::loadSoundALUT(const std::string &filename)
         }
 
 
-        exit(1);
+        assert(0);
         return nullptr;
     }
 

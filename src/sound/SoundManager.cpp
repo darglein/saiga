@@ -137,7 +137,7 @@ void SoundManager::loadSound(const std::string &file)
             soundMap[file] = loadedsound;
         } else {
             cout << "Could not load sound: " << file << endl;
-            exit(1);
+            assert(0);
         }
     }else{
         cout << "Sound already loaded: " << file << endl;
@@ -201,7 +201,7 @@ void SoundManager::checkForSoundErrors()
         std::cout << "AUDIO ERROR! ("  << error << ")" << std::endl;
         std::cout << getALCErrorString(error) << std::endl;
         if (error != ALC_INVALID_DEVICE)
-            exit(0);
+            assert(0);
     }
 }
 

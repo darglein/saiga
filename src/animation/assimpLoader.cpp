@@ -26,7 +26,7 @@ void AssimpLoader::loadFile(const std::string &file){
     if( !scene)
     {
         cout<< importer.GetErrorString()<<endl;
-        exit(0);
+        assert(0);
     }
 
     if(verbose){

@@ -51,3 +51,12 @@
   #define SAIGA_GLOBAL
   #define SAIGA_LOCAL
 #endif // BUILD_SHARED
+
+
+#ifdef DEBUG
+    #undef NDEBUG
+#else
+    #define NDEBUG
+#endif
+
+#include <assert.h>

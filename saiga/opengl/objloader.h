@@ -21,7 +21,6 @@ struct SAIGA_GLOBAL IndexedVertex{
 struct SAIGA_GLOBAL Face{
     IndexedVertex vertices[3];
     Face(){}
-
 };
 
 

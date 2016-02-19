@@ -78,7 +78,6 @@ bool Window::init(const RenderingParameters& params){
 
 void Window::initDeferredRendering(const RenderingParameters &params)
 {
-    //     exit(1);
 
     renderer = new Deferred_Renderer(getWidth(),getHeight(),params);
 //    renderer->init(getWidth(),getHeight());

@@ -14,7 +14,7 @@ void initOpenGL()
     GLenum glewError = glewInit();
     if( glewError != GLEW_OK ){
         std::cerr<<"Error initializing GLEW! "<< glewGetErrorString( glewError ) <<std::endl;
-        std::exit(1);
+        assert(0);
     }
 
     glGetError(); //ignore first gl error after glew init

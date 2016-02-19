@@ -52,7 +52,7 @@ inline void Error::quitWhenError(const char *func){
 #ifndef ERROR_CHECKING_DISABLED
     if(Error::checkGLError()){
         std::cout<<"Error in "<<func<<"."<<std::endl;
-        exit(1);
+        assert(0);
     }
 #endif
 }

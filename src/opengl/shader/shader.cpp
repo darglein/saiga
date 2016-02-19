@@ -45,7 +45,7 @@ void Shader::destroyProgram()
 void Shader::bind(){
     if(program==0){
         std::cerr<<"bind: no shader loaded!\n";
-        exit(1);
+        assert(0);
         return;
     }
     glUseProgram(program);

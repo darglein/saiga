@@ -452,7 +452,7 @@ void PNG::writepng_error_handler(png_structp png_ptr, png_const_charp msg)
         fprintf(stderr,
                 "writepng severe error:  jmpbuf not recoverable; terminating.\n");
         fflush(stderr);
-        exit(99);
+        assert(0);
     }
 
     longjmp(image->jmpbuf, 1);

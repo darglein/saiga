@@ -44,6 +44,7 @@ set (LIBRARY_VERSION_MAJOR 1)
 set (LIBRARY_VERSION_MINOR 0)
 
 
+
 option (USE_SDL "Use SDL2" OFF) 
 option (USE_GLFW "Use GLFW" ON) 
 option (USE_NOISE "Use NOISE" OFF) 
@@ -61,6 +62,15 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
   "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
 )
+
+############# Debug Option ###############
+
+option (DEBUG "Compile with debug symbols and DEBUG define" ON) 
+
+if (DEBUG AND UNIX)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DDEBUG -D_DEBUG")
+endif ()
+#TODO debug for windows
 
 ############# Optional Libraries ###############
 

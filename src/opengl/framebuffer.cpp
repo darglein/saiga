@@ -66,7 +66,7 @@ void Framebuffer::check(){
         }
 
         std::cerr << "Framebuffer error!" << std::endl;
-        exit(1);
+        assert(0);
     }
 }
 
