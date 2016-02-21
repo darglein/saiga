@@ -7,7 +7,7 @@
 class Camera;
 class Deferred_Renderer;
 class Program;
-class RenderingParameters;
+struct RenderingParameters;
 
 class SAIGA_GLOBAL Window{
 public:
