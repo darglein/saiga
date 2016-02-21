@@ -68,17 +68,17 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     //    position->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
     //    attachTexture(position);
 
-    //     Texture* depth = new Texture();
-    //            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-    //     depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
-    //        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
-    //    attachTextureDepth(depth);
+         Texture* depth = new Texture();
+//                depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+         depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+//            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
+        attachTextureDepth(depth);
 
     //don't need stencil in gbuffer (but blit would fail otherwise)
     //depth and stencil texture combined
-    Texture* depth_stencil = new Texture();
-    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-    attachTextureDepthStencil(depth_stencil);
+//    Texture* depth_stencil = new Texture();
+//    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+//    attachTextureDepthStencil(depth_stencil);
 
 
     int count = colorBuffers.size();

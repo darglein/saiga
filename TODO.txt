@@ -25,3 +25,4 @@ General
 - obj loader fix
 - rendering/lighting parameter struct
 - controlable camera
+- framebuffer shared pointer

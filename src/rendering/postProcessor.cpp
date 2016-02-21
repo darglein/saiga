@@ -83,9 +83,12 @@ void PostProcessor::createFramebuffers()
         framebuffers[i].create();
 
         if(i==0){
-            Texture* depth_stencil = new Texture();
-            depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-            framebuffers[i].attachTextureDepthStencil(depth_stencil);
+//            Texture* depth_stencil = new Texture();
+//            depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+//            framebuffers[i].attachTextureDepthStencil(depth_stencil);
+           Texture* depth = new Texture();
+           depth->createEmptyTexture(width,height,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_SHORT);
+           framebuffers[i].attachTextureDepth(depth);
         }
 
 

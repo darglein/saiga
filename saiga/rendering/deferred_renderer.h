@@ -34,6 +34,11 @@ struct SAIGA_GLOBAL RenderingParameters{
      * Note: If srgbWrites is enabled, you can still use a non-srgb gbuffer and post processor.
      */
     bool srgbWrites = true;
+
+    /**
+     * When true the depth of the gbuffer is blitted to the default framebuffer.
+     */
+    bool writeDepthToDefaultFramebuffer = false;
     GBufferParameters gbp;
     PostProcessorParameters ppp;
     RenderingParameters(){}
@@ -86,6 +91,7 @@ public:
     bool ssao = false;
 
     SSAOShader* ssaoShader = nullptr;
+    MVPTextureShader* blitDepthShader;
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
 
