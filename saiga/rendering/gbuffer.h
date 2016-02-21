@@ -11,7 +11,7 @@ struct SAIGA_GLOBAL GBufferParameters{
     Quality colorQuality = Quality::MEDIUM;
     Quality normalQuality = Quality::MEDIUM;
     Quality dataQuality = Quality::LOW;
-    Quality depthQuality = Quality::MEDIUM; //unused depth always 24 bit
+    Quality depthQuality = Quality::HIGH;
 };
 
 class SAIGA_GLOBAL GBuffer : public Framebuffer{

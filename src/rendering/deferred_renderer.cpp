@@ -1,6 +1,8 @@
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/error.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+
 #include "saiga/camera/camera.h"
 #include "saiga/rendering/renderer.h"
 
@@ -57,6 +59,10 @@ Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):p
     for(auto &t : timers){
         t.create();
     }
+
+    ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("ssao.glsl");
+    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("blitDepth.glsl");
+
 }
 
 Deferred_Renderer::~Deferred_Renderer()
@@ -68,12 +74,12 @@ Deferred_Renderer::~Deferred_Renderer()
 
 void Deferred_Renderer::resize(int width, int height)
 {
-	if (width <= 0 || height <= 0){
-		cout << "Warning: The framebuffer size must be greater than zero to be complete." << endl;
-		width = glm::max(width, 1);
-		height = glm::max(height, 1);
-	}
-	cout << "Resizing Gbuffer to : " << width << "," << height << endl;
+    if (width <= 0 || height <= 0){
+        cout << "Warning: The framebuffer size must be greater than zero to be complete." << endl;
+        width = glm::max(width, 1);
+        height = glm::max(height, 1);
+    }
+    cout << "Resizing Gbuffer to : " << width << "," << height << endl;
     setSize(width,height);
     postProcessor.resize(width,height);
     deferred_framebuffer.resize(width,height);
@@ -125,8 +131,8 @@ void Deferred_Renderer::render_intern(){
 
 
 
-    glDisable(GL_DEPTH_TEST);
-    glViewport(0,0,width,height);
+    //    glDisable(GL_DEPTH_TEST);
+    //    glViewport(0,0,width,height);
 
     Error::quitWhenError("Deferred_Renderer::before blit");
 
@@ -146,13 +152,29 @@ void Deferred_Renderer::render_intern(){
     startTimer(LIGHTACCUMULATION);
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
+
     lighting.renderLightAccumulation();
     stopTimer(LIGHTACCUMULATION);
 
 
+    if(params.writeDepthToOverlayBuffer){
+        writeGbufferDepthToCurrentFramebuffer();
+    }else{
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
+
     startTimer(OVERLAY);
     renderer->renderOverlay(*currentCamera);
     stopTimer(OVERLAY);
+
+
+
+    //write depth to default framebuffer
+    if(params.writeDepthToDefaultFramebuffer){
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        writeGbufferDepthToCurrentFramebuffer();
+    }
+
 
     postProcessor.switchBuffer();
 
@@ -161,7 +183,13 @@ void Deferred_Renderer::render_intern(){
     postProcessor.render();
     stopTimer(POSTPROCESSING);
 
-    deferred_framebuffer.blitDepth(0);
+    //    deferred_framebuffer.blitDepth(0);
+
+
+
+
+
+
     startTimer(FINAL);
     renderer->renderFinal(*currentCamera);
     stopTimer(FINAL);
@@ -191,8 +219,8 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
 
 
     if(offsetGeometry){
-            glEnable(GL_POLYGON_OFFSET_FILL);
-            glPolygonOffset(offsetFactor,offsetUnits);
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(offsetFactor,offsetUnits);
     }
 
     if(wireframe){
@@ -278,6 +306,20 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
     Error::quitWhenError("Deferred_Renderer::renderSSAO");
 
+}
+
+void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
+{
+    glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_ALWAYS);
+    blitDepthShader->bind();
+    blitDepthShader->uploadTexture(deferred_framebuffer.getTextureDepth());
+    quadMesh.bindAndDraw();
+    blitDepthShader->unbind();
+    glDepthFunc(GL_LESS);
+    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 }
 
 void Deferred_Renderer::printTimings()

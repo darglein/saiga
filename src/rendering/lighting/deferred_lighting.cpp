@@ -50,6 +50,7 @@ void DeferredLighting::loadShaders()
     debugShader = ShaderLoader::instance()->load<MVPColorShader>("debugmesh.glsl");
     stencilShader = ShaderLoader::instance()->load<MVPShader>("stenciltest.glsl");
 
+    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("blitDepth.glsl");
     lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>("lightaccumulation.glsl");
 }
 
@@ -161,14 +162,27 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
 }
 
 void DeferredLighting::render(Camera* cam){
-    gbuffer.blitDepth(lightAccumulationBuffer.getId());
+//    gbuffer.blitDepth(lightAccumulationBuffer.getId());
 
     lightAccumulationBuffer.bind();
-    glClear( GL_COLOR_BUFFER_BIT );
-
 
     //viewport is maybe different after shadow map rendering
     glViewport(0,0,width,height);
+
+
+
+//    glClear( GL_STENCIL_BUFFER_BIT );
+//    glClear( GL_COLOR_BUFFER_BIT );
+
+//    glDepthMask(GL_FALSE);
+//    glDisable(GL_DEPTH_TEST);
+
+    blitGbufferDepthToAccumulationBuffer();
+
+
+
+
+
 
     //deferred lighting uses additive blending of the lights.
     glEnable(GL_BLEND);
@@ -397,6 +411,16 @@ void DeferredLighting::renderDebug(){
 
 }
 
+void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
+{
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_ALWAYS);
+    blitDepthShader->bind();
+    blitDepthShader->uploadTexture(gbuffer.getTextureDepth());
+    directionalLightMesh.bindAndDraw();
+    blitDepthShader->unbind();
+    glDepthFunc(GL_LESS);
+}
 
 void DeferredLighting::setShader(SpotLightShader* spotLightShader, SpotLightShader* spotLightShadowShader){
     this->spotLightShader = spotLightShader;
@@ -432,6 +456,8 @@ void DeferredLighting::setStencilShader(MVPShader* stencilShader){
 void DeferredLighting::createInputCommands(){
 
 }
+
+
 
 void DeferredLighting::createLightMeshes(){
 

@@ -92,8 +92,8 @@ void Window::initDeferredRendering(const RenderingParameters &params)
     //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("gaussian_blur.glsl");
 
 
-    renderer->ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("ssao.glsl");
-    renderer->ssao = true;
+
+    //renderer->ssao = true;
     //    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
 
     PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");

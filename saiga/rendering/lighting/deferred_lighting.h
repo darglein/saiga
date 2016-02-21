@@ -41,6 +41,7 @@ private:
     IndexedVertexBuffer<VertexNT,GLuint> boxLightMesh;
     std::vector<BoxLight*> boxLights;
 
+    MVPTextureShader* blitDepthShader;
     LightAccumulationShader* lightAccumulationShader;
 
     MVPShader* stencilShader;
@@ -108,6 +109,7 @@ public:
 private:
     void createInputCommands();
 
+    void blitGbufferDepthToAccumulationBuffer();
     void setupStencilPass();
     void setupLightPass();
 
