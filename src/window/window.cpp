@@ -93,7 +93,7 @@ void Window::initDeferredRendering(const RenderingParameters &params)
 
 
 
-    renderer->ssao = true;
+    //renderer->ssao = true;
     //    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
 
     PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
