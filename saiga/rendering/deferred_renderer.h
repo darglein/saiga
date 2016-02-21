@@ -39,6 +39,12 @@ struct SAIGA_GLOBAL RenderingParameters{
      * When true the depth of the gbuffer is blitted to the default framebuffer.
      */
     bool writeDepthToDefaultFramebuffer = false;
+
+    /**
+     * When true the depth of the gbuffer is blitted to the default framebuffer.
+     */
+    bool writeDepthToOverlayBuffer = true;
+
     GBufferParameters gbp;
     PostProcessorParameters ppp;
     RenderingParameters(){}
@@ -119,7 +125,7 @@ public:
     void renderLighting(Camera *cam);
     void renderSSAO(Camera *cam);
 
-
+    void writeGbufferDepthToCurrentFramebuffer();
 
 
 };

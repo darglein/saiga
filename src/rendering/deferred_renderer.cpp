@@ -152,9 +152,16 @@ void Deferred_Renderer::render_intern(){
     startTimer(LIGHTACCUMULATION);
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
+
     lighting.renderLightAccumulation();
     stopTimer(LIGHTACCUMULATION);
 
+
+    if(params.writeDepthToOverlayBuffer){
+        writeGbufferDepthToCurrentFramebuffer();
+    }else{
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
 
     startTimer(OVERLAY);
     renderer->renderOverlay(*currentCamera);
@@ -164,16 +171,8 @@ void Deferred_Renderer::render_intern(){
 
     //write depth to default framebuffer
     if(params.writeDepthToDefaultFramebuffer){
-        //TODO: nicer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glEnable(GL_DEPTH_TEST);
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_ALWAYS);
-        blitDepthShader->bind();
-        blitDepthShader->uploadTexture(deferred_framebuffer.getTextureDepth());
-        quadMesh.bindAndDraw();
-        blitDepthShader->unbind();
-        glDepthFunc(GL_LESS);
+        writeGbufferDepthToCurrentFramebuffer();
     }
 
 
@@ -307,6 +306,20 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
     Error::quitWhenError("Deferred_Renderer::renderSSAO");
 
+}
+
+void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
+{
+    glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_ALWAYS);
+    blitDepthShader->bind();
+    blitDepthShader->uploadTexture(deferred_framebuffer.getTextureDepth());
+    quadMesh.bindAndDraw();
+    blitDepthShader->unbind();
+    glDepthFunc(GL_LESS);
+    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 }
 
 void Deferred_Renderer::printTimings()

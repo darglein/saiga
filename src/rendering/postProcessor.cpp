@@ -71,7 +71,7 @@ void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorP
 
 void PostProcessor::nextFrame()
 {
-    gbuffer->blitDepth(framebuffers[0].getId());
+//    gbuffer->blitDepth(framebuffers[0].getId());
     currentBuffer = 0;
     lastBuffer = 1;
 
