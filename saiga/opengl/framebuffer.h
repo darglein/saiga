@@ -5,7 +5,7 @@
 
 #include <iostream>
 #include <vector>
-
+#include <memory>
 
 #include "saiga/opengl/texture/texture.h"
 
@@ -14,9 +14,14 @@ protected:
     GLuint id = 0;
 
     //there can be multiple color buffers, but only 1 depth and stencil buffer
-    std::vector<Texture*> colorBuffers;
-    Texture* depthBuffer = nullptr;
-    Texture* stencilBuffer = nullptr;
+//    std::vector<std::shared_ptr<Texture*>> colorBuffers;
+//    std::shared_ptr<Texture*> depthBuffer = nullptr;
+//    std::shared_ptr<Texture*> stencilBuffer = nullptr;
+
+
+        std::vector<Texture*> colorBuffers;
+        Texture* depthBuffer = nullptr;
+        Texture* stencilBuffer = nullptr;
 public:
     Framebuffer();
     ~Framebuffer();
