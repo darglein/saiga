@@ -35,7 +35,7 @@ int opusTest(int argc, char *argv[])
     }
     catch(OpusErrorException const& e)
     {
-        std::cerr << "OpusErrorException: " << e.what() << "\n";
+        //std::cerr << "OpusErrorException: " << e.what() << "\n";
         return 255;
     }
     return 0;

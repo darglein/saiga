@@ -10,7 +10,7 @@
 struct OpusErrorException : public virtual std::exception
 {
     OpusErrorException(int code) : code(code) {}
-    const char* what() const noexcept;
+    const char* what();
 private:
     const int code;
 };

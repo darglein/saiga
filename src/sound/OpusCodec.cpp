@@ -9,12 +9,12 @@
 #include <sstream>
 #include <iostream>
 
-#include "opus/opus.h"
+#include "opus.h"
 
 
 #define MAX_PACKET 1500
 
-const char* OpusErrorException::what() const noexcept
+const char* OpusErrorException::what() 
 {
     return opus_strerror(code);
 }
