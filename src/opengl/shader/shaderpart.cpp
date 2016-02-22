@@ -24,7 +24,7 @@ void ShaderPart::createGLShader()
     if(id==0){
         cout<<"Could not create shader of type: "<<typeToName(type)<<endl;
     }
-    Error::quitWhenError("ShaderPart::createGLShader");
+    assert_no_glerror();
 }
 
 void ShaderPart::deleteGLShader()
@@ -44,6 +44,8 @@ bool ShaderPart::compile()
     const GLchar* str = data.c_str();
     glShaderSource(id, 1,&str , 0);
     glCompileShader(id);
+
+    assert_no_glerror();
     //checking compile status
     GLint result = 0;
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);

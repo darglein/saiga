@@ -15,7 +15,8 @@ void ArrayTexture2D::uploadData(GLenum target, GLubyte *data ){
                  data);
 
 
-    Error::quitWhenError("uploadData()");
+//    Error::quitWhenError("uploadData()");
+    assert_no_glerror();
 }
 
 
@@ -35,7 +36,8 @@ void ArrayTexture2D::uploadData(GLubyte *data ){
     }
 
     unbind();
-    Error::quitWhenError("uploadData()");
+//    Error::quitWhenError("uploadData()");
+    assert_no_glerror();
 }
 
 
@@ -54,7 +56,8 @@ void ArrayTexture2D::uploadData(GLubyte **data ){
     }
 
     unbind();
-    Error::quitWhenError("uploadData()");
+//    Error::quitWhenError("uploadData()");
+    assert_no_glerror();
 }
 
 void ArrayTexture2D::setDefaultParameters(){
@@ -76,7 +79,8 @@ bool ArrayTexture2D::fromImage(std::vector<Image> &images){
     glTexStorage3D(target, 1, internal_format, width, height, depth);
 
 //    cout<<"format: "<<internal_format<<endl;
-    Error::quitWhenError("ArrayTexture2D::fromImage2");
+//    Error::quitWhenError("ArrayTexture2D::fromImage2");
+    assert_no_glerror();
     for(int i=0;i<depth;i++){
         GLubyte*  data = images[i].data;
         uploadSubImage(0,0,i,width,height,1,data);

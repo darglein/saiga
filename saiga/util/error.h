@@ -5,15 +5,31 @@
 #include <iostream>
 #include <cstdlib>
 
+/*
+ * Use assert_no_glerror for normal gl error checking. If saiga is compiled in testing or release mode all these error checks are removed.
+ * In testing mode only the error checks with assert_no_glerror_end_frame are executed.
+ */
 
-//#define ERROR_CHECKING_DISABLED
+#if defined(DEBUG) && !defined(TESTING)
+    #define assert_no_glerror() assert(!Error::checkGLError())
+#else
+    #define assert_no_glerror() (void)0
+#endif
+
+#if defined(TESTING)
+    #define assert_no_glerror_end_frame() assert(!Error::checkGLError())
+#else
+    #define assert_no_glerror_end_frame() (void)0
+#endif
+
+
 
 class SAIGA_GLOBAL Error{
 public:
 
     static bool checkGLError();
 
-    static void quitWhenError(const char* func);
+//    static void quitWhenError(const char* func);
 
 
     // aux function to translate source to std::string
@@ -35,27 +51,14 @@ public:
 
 
 inline bool Error::checkGLError(){
-#ifndef ERROR_CHECKING_DISABLED
     GLenum errCode;
-//    const GLubyte *errString;
-
     if ((errCode = glGetError()) != GL_NO_ERROR) {
-//        errString = gluErrorString(errCode);
-//        std::cerr<< "OpenGL Error: "<<errString<<std::endl;
+        std::cout<<"OpenGL error: "<<errCode<<std::endl;
         return true;
     }
-#endif
     return false;
 }
 
-inline void Error::quitWhenError(const char *func){
-#ifndef ERROR_CHECKING_DISABLED
-    if(Error::checkGLError()){
-        std::cout<<"Error in "<<func<<"."<<std::endl;
-        assert(0);
-    }
-#endif
-}
 
 inline std::string Error::getStringForSource(GLenum source) {
 

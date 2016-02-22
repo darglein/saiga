@@ -32,6 +32,7 @@ void raw_Texture::resize(int width, int height)
     this->width = width;
     this->height = height;
     uploadData(nullptr);
+    assert_no_glerror();
 }
 
 
@@ -41,8 +42,7 @@ void raw_Texture::createGlTexture(){
     glBindTexture(target, id);
     setDefaultParameters();
     glBindTexture(target, 0);
-
-    Error::quitWhenError("createGlTexture()");
+    assert_no_glerror();
 }
 
 bool raw_Texture::isValid(){

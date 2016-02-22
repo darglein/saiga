@@ -122,7 +122,7 @@ void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
         shaders.push_back(shader);
     }
 
-    Error::quitWhenError("ShaderPartLoader::addShader");
+    assert_no_glerror();
 }
 
 void ShaderPartLoader::reloadShader(Shader *shader)
@@ -138,6 +138,8 @@ void ShaderPartLoader::reloadShader(Shader *shader)
         std::cout<<sp->type<<" ";
     }
     std::cout<<")"<<std::endl;
+
+    assert_no_glerror();
 }
 
 

@@ -30,28 +30,36 @@ find_path(OGG_INCLUDE_DIRS ogg/ogg.h
           /usr/include/opus
           /usr/include
 )
-find_library(OGG_LIBRARY NAMES libogg
+find_library(OGG_LIBRARY NAMES ogg
              PATHS /usr/local/lib /usr/lib)
-             
+          
+set(OPUS_LIBRARIES
+    	${OPUS_LIBRARY}
+	${OPUS_FILE_LIBRARY}
+   	${OGG_LIBRARY}
+)
+
+if(WIN32)   
 #celt codec
 find_library(CELT_LIBRARY NAMES celt
              PATHS /usr/local/lib /usr/lib)     
 #silk codec
 find_library(SILK_LIBRARY NAMES silk_common
              PATHS /usr/local/lib /usr/lib)
-             
-             
 set(OPUS_LIBRARIES
-    ${OPUS_LIBRARY}
-	  ${OPUS_FILE_LIBRARY}
-    ${OGG_LIBRARY}
-    ${CELT_LIBRARY}
-    ${SILK_LIBRARY}
+	${OPUS_LIBRARIES}
+    	${CELT_LIBRARY}
+    	${SILK_LIBRARY}
 )
+endif()
+             
+             
+
 
 #message(STATUS "Found libopus: ${OPUS_INCLUDE_DIRS}, ${OPUS_FILE_INCLUDE_DIRS}, ${OPUS_LIBRARY}, ${OPUS_FILE_LIBRARY}")
 
-if(OPUS_INCLUDE_DIRS AND OPUS_LIBRARY AND OPUS_FILE_INCLUDE_DIRS AND OPUS_FILE_LIBRARY AND OGG_LIBRARY AND CELT_LIBRARY AND SILK_LIBRARY)
+if(OPUS_INCLUDE_DIRS AND OPUS_LIBRARY AND OPUS_FILE_INCLUDE_DIRS AND OPUS_FILE_LIBRARY AND OGG_LIBRARY AND 
+(NOT WIN32 OR (CELT_LIBRARY AND SILK_LIBRARY)))
     set(OPUS_FOUND TRUE)
 endif()
 
@@ -61,7 +69,7 @@ if (OPUS_FOUND)
     endif()
 else()
     if(Opus_FIND_REQUIRED)
-        message(FATAL_ERROR "Could not find libopus")
+        message(FATAL_ERROR "Could not find libopus ${OPUS_LIBRARIES}")
     endif()
 endif()
 

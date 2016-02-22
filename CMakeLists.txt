@@ -59,19 +59,35 @@ option (USE_FREEIMAGE "Use FREEIMAGE" ON)
 
 option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
+
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
   "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
 )
 
-############# Debug Option ###############
+############# Build Options ###############
 
-option (DEBUG "Compile with debug symbols and DEBUG define" ON) 
+option (BUILD_MODE_DEBUG "Defines DEBUG, asserts=on, debug symbols in binary, opengl debug context, alot of glgeterror calls" OFF) 
+option (BUILD_MODE_TESTING "Defines DEBUG, Defines TESTING, asserts=on, debug symbols in binary, opengl debug context, one glgeterror per frame, (default)" ON) 
+option (BUILD_MODE_RELEASE "Defines RELEASE, asserts=off, no glgeterror calls" OFF) 
 
-if (DEBUG AND UNIX)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DDEBUG -D_DEBUG")
+
+if (BUILD_MODE_DEBUG OR BUILD_MODE_TESTING)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG -D_DEBUG")
+	if(UNIX)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g") #debug symbols in binary
+	endif()
 endif ()
-#TODO debug for windows
+
+if (BUILD_MODE_TESTING)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTESTING")
+endif()
+
+if (BUILD_MODE_RELEASE)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DRELEASE")
+endif()
+
+#TODO build options for windows
 
 ############# Optional Libraries ###############
 

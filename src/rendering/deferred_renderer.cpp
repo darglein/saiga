@@ -120,26 +120,22 @@ void Deferred_Renderer::render_intern(){
     (*currentCamera)->recalculatePlanes();
 
     renderGBuffer(*currentCamera);
-
+    assert_no_glerror();
 
     renderSSAO(*currentCamera);
-
 
 
     lighting.cullLights(*currentCamera);
     renderDepthMaps();
 
 
-
     //    glDisable(GL_DEPTH_TEST);
     //    glViewport(0,0,width,height);
 
-    Error::quitWhenError("Deferred_Renderer::before blit");
 
     //copy depth to lighting framebuffer. that is needed for stencil culling
 
 
-    Error::quitWhenError("Deferred_Renderer::after blit");
 
 
     //    mix_framebuffer.bind();
@@ -148,14 +144,12 @@ void Deferred_Renderer::render_intern(){
 
     renderLighting(*currentCamera);
 
-
     startTimer(LIGHTACCUMULATION);
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
 
     lighting.renderLightAccumulation();
     stopTimer(LIGHTACCUMULATION);
-
 
     if(params.writeDepthToOverlayBuffer){
         writeGbufferDepthToCurrentFramebuffer();
@@ -166,7 +160,6 @@ void Deferred_Renderer::render_intern(){
     startTimer(OVERLAY);
     renderer->renderOverlay(*currentCamera);
     stopTimer(OVERLAY);
-
 
 
     //write depth to default framebuffer
@@ -188,8 +181,6 @@ void Deferred_Renderer::render_intern(){
 
 
 
-
-
     startTimer(FINAL);
     renderer->renderFinal(*currentCamera);
     stopTimer(FINAL);
@@ -201,7 +192,7 @@ void Deferred_Renderer::render_intern(){
 
     //    printTimings();
 
-    Error::quitWhenError("Deferred_Renderer::render_intern");
+    assert_no_glerror();
 
 }
 
@@ -240,7 +231,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
 
     stopTimer(GEOMETRYPASS);
 
-    Error::quitWhenError("Deferred_Renderer::renderGBuffer");
+    assert_no_glerror();
 
 }
 
@@ -260,7 +251,7 @@ void Deferred_Renderer::renderDepthMaps(){
 
     stopTimer(DEPTHMAPS);
 
-    Error::quitWhenError("Deferred_Renderer::renderDepthMaps");
+    assert_no_glerror();
 
 }
 
@@ -274,7 +265,7 @@ void Deferred_Renderer::renderLighting(Camera *cam){
 
     stopTimer(LIGHTING);
 
-    Error::quitWhenError("Deferred_Renderer::renderLighting");
+    assert_no_glerror();
 }
 
 void Deferred_Renderer::renderSSAO(Camera *cam)
@@ -304,7 +295,7 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
     stopTimer(SSAO);
 
-    Error::quitWhenError("Deferred_Renderer::renderSSAO");
+    assert_no_glerror();
 
 }
 
@@ -320,6 +311,8 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+
+    assert_no_glerror();
 }
 
 void Deferred_Renderer::printTimings()

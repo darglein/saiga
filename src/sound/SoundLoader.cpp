@@ -149,8 +149,8 @@ Sound *SoundLoader::loadOpusFile(const std::string &filename)
     assert(linkCount==1);
     int currentLink = op_current_link(file);
     int bitRate = op_bitrate(file,currentLink);
-    int total = op_raw_total(file,currentLink);
-    int pcmtotal = op_pcm_total(file,currentLink);
+//    int total = op_raw_total(file,currentLink);
+//    int pcmtotal = op_pcm_total(file,currentLink);
     int channels = op_channel_count(file,currentLink);
     assert(channels==1 || channels==2);
 

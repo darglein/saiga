@@ -186,7 +186,7 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
         shader.uploadShadowMapSize(shadowmap.w,shadowmap.h);
     }
 
-    Error::quitWhenError("PointLight::bindUniforms");
+    assert_no_glerror();
 }
 
 

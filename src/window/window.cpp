@@ -57,7 +57,6 @@ bool Window::init(const RenderingParameters& params){
 #ifdef WIN32
     glDebugMessageCallback(Error::DebugLogWin32,NULL);
 #else
-
 #ifdef USE_GLEW
     glDebugMessageCallback(Error::DebugLog,NULL);
 #endif
@@ -65,7 +64,6 @@ bool Window::init(const RenderingParameters& params){
      glDebugMessageCallback(Error::DebugLogWin32,NULL);
 #endif
 #endif
-
     cout<<">> Window inputs initialized!"<<endl;
 
 

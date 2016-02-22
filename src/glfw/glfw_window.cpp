@@ -101,7 +101,10 @@ bool glfw_Window::initWindow()
 //    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 //    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
+
+#if !defined(RELEASE)
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+#endif
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
     //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 
@@ -134,7 +137,7 @@ bool glfw_Window::initWindow()
     glfwGetFramebufferSize(window, &width, &height);
 
 
-    Error::quitWhenError("initWindow()");
+    assert_no_glerror();
 
 
 
@@ -185,6 +188,8 @@ void glfw_Window::startMainLoop(){
 
         /* Poll for and process events */
         glfwPollEvents();
+
+        assert_no_glerror_end_frame();
     }
 }
 
@@ -244,6 +249,8 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
         /* Poll for and process events */
         glfwPollEvents();
         lastPolleventsMS = glfwGetTime()*1000 - now2;
+
+        assert_no_glerror_end_frame();
     }
 }
 
@@ -270,6 +277,8 @@ void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
             cout << "<Gameloop> Simulated " << simulatedTicks  << "ticks (" << simulatedTicks*dt <<  "s)" << endl;
             simulatedTicks = 0;
         }
+
+        assert_no_glerror_end_frame();
     }
 }
 

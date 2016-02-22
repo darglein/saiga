@@ -13,8 +13,7 @@ void cube_Texture::uploadData(GLenum target, GLubyte *data ){
                  data_type, // type
                  data);
 
-
-    Error::quitWhenError("uploadData()");
+    assert_no_glerror();
 }
 
 
@@ -34,7 +33,7 @@ void cube_Texture::uploadData(GLubyte *data ){
     }
 
     unbind();
-    Error::quitWhenError("uploadData()");
+    assert_no_glerror();
 }
 
 
@@ -53,7 +52,7 @@ void cube_Texture::uploadData(GLubyte **data ){
     }
 
     unbind();
-    Error::quitWhenError("uploadData()");
+    assert_no_glerror();
 }
 
 void cube_Texture::setDefaultParameters(){

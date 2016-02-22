@@ -20,17 +20,20 @@ GLuint Shader::createProgram(){
     for(auto& sp : shaders){
         glAttachShader(program,sp->id);
     }
-
+    assert_no_glerror();
     glLinkProgram(program);
     printProgramLog();
 
+    assert_no_glerror();
     for(auto& sp : shaders){
         sp->deleteGLShader();
     }
 
-    Error::quitWhenError("Shader::createProgram after link");
+    assert_no_glerror();
 
     checkUniforms();
+
+    assert_no_glerror();
     return program;
 }
 

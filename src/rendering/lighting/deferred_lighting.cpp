@@ -178,7 +178,7 @@ void DeferredLighting::render(Camera* cam){
 //    glDisable(GL_DEPTH_TEST);
 
     blitGbufferDepthToAccumulationBuffer();
-
+    assert_no_glerror();
 
 
 
@@ -200,21 +200,21 @@ void DeferredLighting::render(Camera* cam){
     setupLightPass();
     renderLightVolume<SpotLight,SpotLightShader,false>(spotLightMesh,spotLights,cam,spotLightShader); //draw back faces without depthtest
     renderLightVolume<SpotLight,SpotLightShader,true>(spotLightMesh,spotLights,cam,spotLightShadowShader);
-    Error::quitWhenError("DeferredLighting::spotLights");
+    assert_no_glerror();
 
 
     renderStencilVolume(pointLightMesh,pointLights);  //mark pixels inside the light volume
     setupLightPass();
     renderLightVolume<PointLight,PointLightShader,false>(pointLightMesh,pointLights,cam,pointLightShader); //draw back faces without depthtest
     renderLightVolume<PointLight,PointLightShader,true>(pointLightMesh,pointLights,cam,pointLightShadowShader);
-    Error::quitWhenError("DeferredLighting::pointLights");
+    assert_no_glerror();
 
 
     renderStencilVolume(boxLightMesh,boxLights); //mark pixels inside the light volume
     setupLightPass();
     renderLightVolume<BoxLight,BoxLightShader,false>(boxLightMesh,boxLights,cam,boxLightShader); //draw back faces without depthtest
     renderLightVolume<BoxLight,BoxLightShader,true>(boxLightMesh,boxLights,cam,boxLightShadowShader);
-    Error::quitWhenError("DeferredLighting::boxLights");
+    assert_no_glerror();
 
 
     glDisable(GL_STENCIL_TEST);
@@ -237,7 +237,7 @@ void DeferredLighting::render(Camera* cam){
 
     lightAccumulationBuffer.unbind();
 
-    Error::quitWhenError("DeferredLighting::lighting");
+    assert_no_glerror();
 
 }
 

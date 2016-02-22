@@ -1,7 +1,7 @@
 #include "saiga/rendering/lighting/shadowmap.h"
 
 #include "saiga/opengl/texture/cube_texture.h"
-
+#include "saiga/util/error.h"
 Shadowmap::Shadowmap()
 {
 
@@ -46,6 +46,8 @@ void Shadowmap::createFlat(int w, int h){
     depthBuffer.check();
 
     initialized = true;
+
+    assert_no_glerror();
 }
 
 void Shadowmap::createCube(int w, int h){
@@ -67,6 +69,7 @@ void Shadowmap::createCube(int w, int h){
     deleteTexture = cubeMap;
     initialized = true;
 
+    assert_no_glerror();
 }
 
 
