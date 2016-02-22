@@ -126,14 +126,14 @@ SoundSource *SoundManager::getFixedSoundSource(int id)
     return &sources[id];
 }
 
-void SoundManager::loadSound(const std::string &file)
+void SoundManager::loadWaveSound(const std::string &file)
 {
     auto it = soundMap.find(file);
     if(it==soundMap.end()){
         SoundLoader sl;
 
         Sound* loadedsound;
-        if ((loadedsound = sl.loadSound(file))!=0){
+        if ((loadedsound = sl.loadWaveFile(file))!=0){
             soundMap[file] = loadedsound;
         } else {
             cout << "Could not load sound: " << file << endl;
@@ -142,8 +142,24 @@ void SoundManager::loadSound(const std::string &file)
     }else{
         cout << "Sound already loaded: " << file << endl;
     }
+}
 
+void SoundManager::loadOpusSound(const std::string &file)
+{
+    auto it = soundMap.find(file);
+    if(it==soundMap.end()){
+        SoundLoader sl;
 
+        Sound* loadedsound;
+        if ((loadedsound = sl.loadOpusFile(file))!=0){
+            soundMap[file] = loadedsound;
+        } else {
+            cout << "Could not load sound: " << file << endl;
+            assert(0);
+        }
+    }else{
+        cout << "Sound already loaded: " << file << endl;
+    }
 }
 
 

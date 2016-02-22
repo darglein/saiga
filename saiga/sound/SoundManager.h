@@ -49,7 +49,8 @@ public:
     SoundSource *getFixedSoundSource(const std::string &file, int id);
     SoundSource *getFixedSoundSource(int id);
 
-    void loadSound(const std::string &file);
+    void loadWaveSound(const std::string &file);
+    void loadOpusSound(const std::string &file);
 
     void checkForSoundErrors();
 

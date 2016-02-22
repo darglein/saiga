@@ -51,6 +51,7 @@ option (USE_NOISE "Use NOISE" OFF)
 option (USE_GLEW "Use GLEW" ON) 
 option (USE_GLBINDING "Use GLBINDING" OFF) 
 option (USE_OPENAL "Use OPENAL" OFF) 
+option (USE_OPUS "Use Opus" OFF) 
 option (USE_ALUT "Use ALUT" OFF) 
 option (USE_ASSIMP "Use Assimp" OFF) 
 option (USE_PNG "Use PNG" OFF) 
@@ -104,6 +105,13 @@ if(USE_OPENAL)
 	include_directories(${OPENAL_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${OPENAL_LIBRARY})
 endif(USE_OPENAL)
+
+#openal
+if(USE_OPUS)
+	find_package(Opus REQUIRED)
+	include_directories(${OPUS_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${OPUS_LIBRARIES})
+endif(USE_OPUS)
 
 #alut
 if(USE_ALUT)

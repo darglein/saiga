@@ -12,6 +12,7 @@
 //sound
 #cmakedefine USE_OPENAL
 #cmakedefine USE_ALUT
+#cmakedefine USE_OPUS
 
 //asset loading
 #cmakedefine USE_ASSIMP

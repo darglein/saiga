@@ -1,5 +1,7 @@
 #include "saiga/sound/SoundLoader.h"
 
+#include <fstream>
+
 #include <AL/al.h>
 #include <AL/alc.h>
 
@@ -7,14 +9,21 @@
 #include <AL/alut.h>
 #endif
 
+#ifdef USE_OPUS
+#include "saiga/sound/OpusCodec.h"
+#endif
+
+#include "opus/opusfile.h"
+#include <cstdint>
+#include <cstring>
 namespace sound {
 
 
-Sound* SoundLoader::loadSound(const std::string &filename){
+Sound* SoundLoader::loadWaveFile(const std::string &filename){
 #ifdef USE_ALUT
-    return loadSoundALUT(filename);
+    return loadWaveFileALUT(filename);
 #else
-    return loadWaveFile(filename);
+    return loadWaveFileRaw(filename);
 #endif
 }
 
@@ -22,7 +31,7 @@ Sound* SoundLoader::loadSound(const std::string &filename){
 /*
  * Load wave file function. No need for ALUT with this
  */
-Sound* SoundLoader::loadWaveFile(const std::string &filename) {
+Sound* SoundLoader::loadWaveFileRaw(const std::string &filename) {
     //Local Declarations
     FILE* soundFile = NULL;
     WAVE_Format wave_format;
@@ -123,9 +132,62 @@ Sound* SoundLoader::loadWaveFile(const std::string &filename) {
     }
 }
 
+#ifdef USE_OPUS
+Sound *SoundLoader::loadOpusFile(const std::string &filename)
+{
+
+    int sampleRate = 48000;
+
+    int error;
+    OggOpusFile * file = op_open_file(filename.c_str(), &error);
+    if(error){
+        cout<<"could not open file: "<<filename<<endl;
+        return nullptr;
+    }
+
+    int linkCount = op_link_count(file);
+    assert(linkCount==1);
+    int currentLink = op_current_link(file);
+    int bitRate = op_bitrate(file,currentLink);
+    int total = op_raw_total(file,currentLink);
+    int pcmtotal = op_pcm_total(file,currentLink);
+    int channels = op_channel_count(file,currentLink);
+    assert(channels==1 || channels==2);
+
+    std::vector<opus_int16> data;
+
+    std::vector<opus_int16> readBuf(10000);
+    int readSamples = 0;
+    do{
+        readSamples = op_read(file,readBuf.data(),readBuf.size(),&currentLink);
+        data.insert(data.end(),readBuf.begin(),readBuf.begin()+readSamples*2);
+
+    }while(readSamples>0);
+
+    op_free(file);
+
+    Sound* sound = new Sound();
+    sound->size = data.size()*sizeof(opus_int16);
+    sound->frequency = sampleRate;
+
+
+    if (channels == 1) {
+        sound->format = AL_FORMAT_MONO16;
+    } else if (channels == 2) {
+        sound->format = AL_FORMAT_STEREO16;
+    }
+
+    alGenBuffers(1, &sound->buffer);
+    alBufferData(sound->buffer, sound->format, (void*)data.data(),
+                 sound->size, sound->frequency);
+
+    cout<<"Loaded opus file: "<<filename<<" ( "<<"bitRate="<<bitRate<<" memorydecoded="<<sound->size <<" channels="<<channels<<" )"<<endl;
+    return sound;
+}
+#endif
 
 #ifdef USE_ALUT
-Sound *SoundLoader::loadSoundALUT(const std::string &filename)
+Sound *SoundLoader::loadWaveFileALUT(const std::string &filename)
 {
     ALuint buffer = alutCreateBufferFromFile(filename.c_str());
 

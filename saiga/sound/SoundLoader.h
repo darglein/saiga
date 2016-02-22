@@ -46,14 +46,18 @@ class SAIGA_GLOBAL SoundLoader{
 public:
 
     //loads with alut if possible
-    Sound* loadSound(const std::string &filename);
-
-
-
     Sound* loadWaveFile(const std::string &filename);
+
+
+
+    Sound* loadWaveFileRaw(const std::string &filename);
 #ifdef USE_ALUT
     //use alut for sound loading
-    Sound* loadSoundALUT(const std::string &filename);
+    Sound* loadWaveFileALUT(const std::string &filename);
+#endif
+
+#ifdef USE_OPUS
+    Sound* loadOpusFile(const std::string &filename);
 #endif
 };
 
