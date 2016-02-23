@@ -68,6 +68,7 @@ void main() {
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
+uniform float userData; //blue channel of data texture in gbuffer. Not used in lighting.
 
 in vec3 normal;
 in vec3 normalW;
@@ -81,7 +82,7 @@ in vec3 data;
 
 
 void main() {
-    setGbufferData(vec3(1,0,0),vertexMV,normal,data);
+    setGbufferData(vec3(1,0,0),vertexMV,normal,vec4(data.xy,userData,0));
 }
 
 

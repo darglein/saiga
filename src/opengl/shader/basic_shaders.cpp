@@ -62,6 +62,7 @@ void MVPShader::checkUniforms(){
     location_proj = getUniformLocation("proj");
     location_mv = getUniformLocation("MV");
     location_mvp = getUniformLocation("MVP");
+    location_userData = getUniformLocation("userData");
 }
 
 void MVPShader::uploadAll(const mat4& m1,const mat4& m2,const mat4& m3){

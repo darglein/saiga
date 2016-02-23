@@ -49,7 +49,7 @@ in vec3 color;
 
 void main() {
 
-    setGbufferData(vec3(1),vertexMV,normal,vec3(1,0,0));
+    setGbufferData(vec3(1),vertexMV,normal,vec4(1,0,0,0));
 }
 
 

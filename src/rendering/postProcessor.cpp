@@ -10,6 +10,7 @@ void PostProcessingShader::checkUniforms(){
     location_gbufferDepth = Shader::getUniformLocation("gbufferDepth");
     location_gbufferNormals = Shader::getUniformLocation("gbufferNormals");
     location_gbufferColor = Shader::getUniformLocation("gbufferColor");
+    location_gbufferData = Shader::getUniformLocation("gbufferData");
 }
 
 
@@ -26,6 +27,8 @@ void PostProcessingShader::uploadGbufferTextures(GBuffer *gbuffer)
     Shader::upload(location_gbufferNormals,2);
     gbuffer->getTextureColor()->bind(3);
     Shader::upload(location_gbufferColor, 3);
+    gbuffer->getTextureData()->bind(4);
+    Shader::upload(location_gbufferData, 4);
 }
 
 void PostProcessingShader::uploadScreenSize(vec4 size){

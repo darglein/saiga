@@ -10,7 +10,7 @@
 class SAIGA_GLOBAL PostProcessingShader : public Shader{
 public:
     GLint location_texture, location_screenSize;
-	GLint location_gbufferDepth, location_gbufferNormals, location_gbufferColor; //depth and normal texture of gbuffer
+    GLint location_gbufferDepth, location_gbufferNormals, location_gbufferColor, location_gbufferData; //depth and normal texture of gbuffer
 
 
 

@@ -40,6 +40,7 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
 uniform sampler2D image;
+uniform float userData; //blue channel of data texture in gbuffer. Not used in lighting.
 
 in vec3 normal;
 in vec3 normalW;
@@ -55,7 +56,7 @@ in vec2 texCoord;
 void main() {
     vec4 diffColor = texture(image, texCoord);
     vec3 data = vec3(1,0,0);
-    setGbufferData(vec3(diffColor),vertexMV,normal,data);
+    setGbufferData(vec3(diffColor),vertexMV,normal,vec4(data.xy,userData,0));
 }
 
 

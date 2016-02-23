@@ -9,6 +9,7 @@ class SAIGA_GLOBAL MVPShader : public Shader{
 public:
     GLint location_model, location_view, location_proj;
     GLint location_mvp, location_mv;
+    GLint location_userData;
 
     virtual void checkUniforms();
 
@@ -18,6 +19,7 @@ public:
     void uploadModel(const mat4& matrix){upload(location_model,matrix);}
     void uploadView(const mat4& matrix){upload(location_view,matrix);}
     void uploadProj(const mat4& matrix){upload(location_proj,matrix);}
+    void uploadUserData(float f){upload(location_userData,f);}
 };
 
 class SAIGA_GLOBAL MVPColorShader : public MVPShader{

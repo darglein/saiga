@@ -4,6 +4,7 @@ uniform sampler2D image;
 uniform sampler2D gbufferDepth;
 uniform sampler2D gbufferNormals;
 uniform sampler2D gbufferColor;
+uniform sampler2D gbufferData;
 
 in vec2 tc;
 
