@@ -101,3 +101,19 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     check();
     unbind();
 }
+
+void GBuffer::sampleNearest()
+{
+    depthBuffer->setFiltering(GL_NEAREST);
+    for(Texture* t : colorBuffers){
+        t->setFiltering(GL_NEAREST);
+    }
+}
+
+void GBuffer::sampleLinear()
+{
+    depthBuffer->setFiltering(GL_LINEAR);
+    for(Texture* t : colorBuffers){
+        t->setFiltering(GL_LINEAR);
+    }
+}

@@ -25,5 +25,8 @@ public:
     Texture* getTextureColor(){return this->colorBuffers[0];}
     Texture* getTextureNormal(){return this->colorBuffers[1];}
     Texture* getTextureData(){return this->colorBuffers[2];}
+
+    void sampleNearest();
+    void sampleLinear();
 };
 
