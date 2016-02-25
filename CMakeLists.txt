@@ -73,7 +73,7 @@ option (BUILD_MODE_RELEASE "Defines RELEASE, asserts=off, no glgeterror calls" O
 
 
 if (BUILD_MODE_DEBUG OR BUILD_MODE_TESTING)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG -D_DEBUG")
+#	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG -D_DEBUG")
 	if(UNIX)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g") #debug symbols in binary
 	endif()
