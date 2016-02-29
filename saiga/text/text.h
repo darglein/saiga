@@ -14,6 +14,7 @@ class TextGenerator;
 class SAIGA_GLOBAL Text : public Object3D{
 public:
     int size; //dynamic text has fixed size
+    bool normalize; //normalized text is centered around the origin
     bool visible = true;
     vec4 color=vec4(1), strokeColor=vec4(0,0,0,1);
     std::string label;
@@ -22,8 +23,8 @@ public:
     basic_Texture_2D* texture;
     TextGenerator* textureAtlas;
 
-    Text(TextGenerator* textureAtlas);
-    Text(TextGenerator* textureAtlas, const std::string &label);
+    Text(TextGenerator* textureAtlas, int size, bool normalize=false);
+    Text(TextGenerator* textureAtlas, const std::string &label, bool normalize=false);
     virtual ~Text(){}
 
     void draw(TextShader* shader);
@@ -37,7 +38,6 @@ private:
     void updateGLBuffer(int start);
     void compressText(std::string &str, int &start);
 
-public:
     //adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
     void addTextToMesh(const std::string &text, int startX=0, int startY=0);
 };

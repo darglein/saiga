@@ -69,10 +69,7 @@ public:
 
     void loadFont(const std::string &font, int font_size, int stroke_size=0);
 
-//    void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const std::string &text, int startX=0, int startY=0);
-    Text* createDynamicText(int size, bool normalize=false);
-
-    //if normalized-> origin of the textmesh is in the center of the text
-    Text* createText(const std::string &label, bool normalize=false);
-//    void updateText(Text* text, const std::string &label, int startIndex);
+//    Text* createDynamicText(int size, bool normalize=false);
+//    //if normalized-> origin of the textmesh is in the center of the text
+//    Text* createText(const std::string &label, bool normalize=false);
 };

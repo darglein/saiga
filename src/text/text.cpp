@@ -1,12 +1,29 @@
 #include "saiga/text/all.h"
 #include "saiga/util/assert.h"
-Text::Text(TextGenerator *textureAtlas):Text(textureAtlas,""){
 
+
+Text::Text(TextGenerator *textureAtlas, int size, bool normalize):
+    Text(textureAtlas,std::string(size,'A'),normalize)
+{
 }
 
-Text::Text(TextGenerator *textureAtlas, const std::string &label):
-    textureAtlas(textureAtlas),label(label){
+Text::Text(TextGenerator *textureAtlas, const std::string &label, bool normalize):
+    textureAtlas(textureAtlas),label(label),size(label.size()){
+    this->texture = textureAtlas->textureAtlas;
+
+    addTextToMesh(label);
+    if(normalize){
+        mesh.boundingBox.growBox(textureAtlas->maxCharacter);
+        aabb bb = mesh.getAabb();
+        vec3 offset = bb.getPosition();
+        mat4 t;
+        t[3] = vec4(-offset,0);
+        mesh.transform(t);
+    }
+    mesh.createBuffers(this->buffer);
 }
+
+
 
 void Text::updateText123(const std::string &l, int startIndex){
 //    cout<<"update: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
