@@ -13,16 +13,20 @@ class TextGenerator;
 
 class SAIGA_GLOBAL Text : public Object3D{
 public:
-    int size; //dynamic text has fixed size
-    bool normalize; //normalized text is centered around the origin
     bool visible = true;
     vec4 color=vec4(1), strokeColor=vec4(0,0,0,1);
+
+private:
+    int size; //dynamic text has fixed size
+    bool normalize; //normalized text is centered around the origin
     std::string label;
     TriangleMesh<VertexNT,GLuint> mesh;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
     basic_Texture_2D* texture;
     TextGenerator* textureAtlas;
-
+    mat4 normalizationMatrix;
+    aabb boundingBox;
+public:
     Text(TextGenerator* textureAtlas, int size, bool normalize=false);
     Text(TextGenerator* textureAtlas, const std::string &label, bool normalize=false);
     virtual ~Text(){}
@@ -32,9 +36,10 @@ public:
 
     void updateText123(const std::string &label, int startIndex);
 
-    vec3 getSize(){ return mesh.getAabb().max-mesh.getAabb().min;}
-
+    vec3 getSize(){ return boundingBox.max-boundingBox.min;}
+    aabb getAabb(){return boundingBox;}
 private:
+    void calculateNormalizationMatrix();
     void updateGLBuffer(int start);
     void compressText(std::string &str, int &start);
 

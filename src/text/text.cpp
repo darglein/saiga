@@ -8,25 +8,33 @@ Text::Text(TextGenerator *textureAtlas, int size, bool normalize):
 }
 
 Text::Text(TextGenerator *textureAtlas, const std::string &label, bool normalize):
-    textureAtlas(textureAtlas),label(label),size(label.size()){
+    textureAtlas(textureAtlas),label(label),size(label.size()),normalize(normalize){
     this->texture = textureAtlas->textureAtlas;
 
     addTextToMesh(label);
-    if(normalize){
-        mesh.boundingBox.growBox(textureAtlas->maxCharacter);
-        aabb bb = mesh.getAabb();
-        vec3 offset = bb.getPosition();
-        mat4 t;
-        t[3] = vec4(-offset,0);
-        mesh.transform(t);
-    }
     mesh.createBuffers(this->buffer);
+
+    calculateNormalizationMatrix();
 }
 
+void Text::calculateNormalizationMatrix()
+{
+    boundingBox = mesh.calculateAabb();
+    normalizationMatrix = mat4();
+    if(normalize){
+        vec3 offset = boundingBox.getPosition();
+        normalizationMatrix[3] = vec4(-offset,1);
+        boundingBox.transform(normalizationMatrix);
+    }else{
+        boundingBox.growBox(textureAtlas->maxCharacter);
+    }
 
+//    cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
+
+}
 
 void Text::updateText123(const std::string &l, int startIndex){
-//    cout<<"update: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
+    //    cout<<"update: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
     std::string label(l);
     //checks how many leading characteres are already the same.
     //if the new text is the same as the old nothing has to be done.
@@ -55,22 +63,28 @@ void Text::updateText123(const std::string &l, int startIndex){
 
     //calculate new faces
 
-//    cout<<"label: '"<<label<<"' '"<<this->label<<"'"<<endl;
-//    textureAtlas->createTextMesh(this->mesh,label,startX);
+    //    cout<<"label: '"<<label<<"' '"<<this->label<<"'"<<endl;
+    //    textureAtlas->createTextMesh(this->mesh,label,startX);
     addTextToMesh(label,startX);
 
     //update gl mesh
     this->updateGLBuffer(startIndex);
+
+    calculateNormalizationMatrix();
 
     assert(verticesBefore==this->mesh.vertices.size());
 }
 
 
 
+
+
 void Text::draw(TextShader* shader){
 
     shader->upload(texture,color,strokeColor);
-    shader->uploadModel(model);
+//    shader->uploadModel(model);
+//    cout<<normalizationMatrix<<endl;
+        shader->uploadModel(model*normalizationMatrix);
 
     buffer.bindAndDraw();
 }
@@ -94,9 +108,12 @@ void Text::compressText(std::string &str, int &start){
             break;
         }
     }
+    std::fill(label.begin()+start+str.size(),label.end(),'\0');
     start += equalChars;
 
     std::copy(str.begin()+equalChars,str.end(),label.begin()+start);
+
+
 
 }
 
@@ -106,7 +123,7 @@ void Text::addTextToMesh(const std::string &text, int startX, int startY){
     int x=startX,y=startY;
     VertexNT verts[4];
     for(char c : text){
-//        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
+        //        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
         TextGenerator::character_info &info = textureAtlas->characters[(int)c];
 
         vec3 offset = vec3(x+info.bl,y+info.bt-info.bh,0);

@@ -281,11 +281,10 @@ int TriangleMesh<vertex_t,index_t>::numIndices(){
 
 template<typename vertex_t, typename index_t>
 aabb TriangleMesh<vertex_t,index_t>::calculateAabb(){
-    aabb box;
-    box.makeNegative();
+    boundingBox.makeNegative();
 
     for(vertex_t &v : vertices){
-        box.growBox(v.position);
+        boundingBox.growBox(v.position);
     }
-    return box;
+    return boundingBox;
 }

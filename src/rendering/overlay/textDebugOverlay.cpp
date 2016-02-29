@@ -39,7 +39,7 @@ int TextDebugOverlay::createItem(const std::string &name, int valueChars)
 
 //    textGenerator->updateText(entry.text,name+std::string(valueChars,' '),0);
     entry.text->updateText123(name+std::string(valueChars,' '),0);
-    aabb bb = entry.text->mesh.getAabb();
+    aabb bb = entry.text->getAabb();
     bb.growBox(textGenerator->maxCharacter);
 
 

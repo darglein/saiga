@@ -286,16 +286,3 @@ void TextGenerator::createTextureAtlas(){
     textureAtlas->generateMipmaps();
 }
 
-
-
-
-//Text* TextGenerator::createDynamicText(int size, bool normalize){
-//    Text* text = new Text(this,size,normalize);
-//    return text;
-//}
-
-//Text* TextGenerator::createText(const std::string &label, bool normalize){
-//    Text* text = new Text(this,label,normalize);
-//    return text;
-//}
-

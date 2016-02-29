@@ -69,7 +69,4 @@ public:
 
     void loadFont(const std::string &font, int font_size, int stroke_size=0);
 
-//    Text* createDynamicText(int size, bool normalize=false);
-//    //if normalized-> origin of the textmesh is in the center of the text
-//    Text* createText(const std::string &label, bool normalize=false);
 };
