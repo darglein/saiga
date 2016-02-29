@@ -60,34 +60,43 @@ option (USE_FREEIMAGE "Use FREEIMAGE" ON)
 option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
 
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
-)
 
 ############# Build Options ###############
 
-option (BUILD_MODE_DEBUG "Defines DEBUG, asserts=on, debug symbols in binary, opengl debug context, alot of glgeterror calls" OFF) 
-option (BUILD_MODE_TESTING "Defines DEBUG, Defines TESTING, asserts=on, debug symbols in binary, opengl debug context, one glgeterror per frame, (default)" ON) 
-option (BUILD_MODE_RELEASE "Defines RELEASE, asserts=off, no glgeterror calls" OFF) 
+option (BUILD_MODE_DEBUG "Defines SAIGA_DEBUG, asserts=on, debug symbols in binary, opengl debug context, alot of glgeterror calls" OFF) 
+option (BUILD_MODE_TESTING "Defines SAIGA_TESTING, asserts=on, debug symbols in binary, opengl debug context, one glgeterror per frame, (default)" ON) 
+option (BUILD_MODE_RELEASE "Defines SAIGA_RELEASE, asserts=off, no glgeterror calls" OFF) 
 
 
-if (BUILD_MODE_DEBUG OR BUILD_MODE_TESTING)
-#	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG -D_DEBUG")
+if (BUILD_MODE_DEBUG)
+	set(SAIGA_DEBUG on)
 	if(UNIX)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g") #debug symbols in binary
 	endif()
 endif ()
 
 if (BUILD_MODE_TESTING)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTESTING")
+	set(SAIGA_TESTING on)
+	if(UNIX)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g") #debug symbols in binary
+	endif()
 endif()
 
 if (BUILD_MODE_RELEASE)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DRELEASE")
+	set(SAIGA_RELEASE on)
 endif()
 
+
+
 #TODO build options for windows
+
+############# Generate config file ###############
+
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
+)
+
 
 ############# Optional Libraries ###############
 

@@ -12,13 +12,13 @@
 
 class TextGenerator;
 
-class DynamicText;
+class Text;
 
 class SAIGA_GLOBAL TextDebugOverlay {
 public:
     class TDOEntry{
     public:
-        DynamicText* text;
+        Text* text;
         int length;
         int valueIndex;
     };
@@ -35,7 +35,7 @@ public:
     TextOverlay2D overlay;
     TextGenerator* textGenerator;
 
-    DynamicText* text;
+    Text* text;
 
     Layout layout;
 

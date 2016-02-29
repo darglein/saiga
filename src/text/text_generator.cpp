@@ -3,7 +3,6 @@
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/text/text.h"
-#include "saiga/text/dynamic_text.h"
 
 #include <algorithm>
 #include <FreeImagePlus.h>
@@ -294,6 +293,7 @@ void TextGenerator::createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const s
     int x=startX,y=startY;
     VertexNT verts[4];
     for(char c : text){
+//        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
         character_info &info = characters[(int)c];
 
         vec3 offset = vec3(x+info.bl,y+info.bt-info.bh,0);
@@ -322,8 +322,9 @@ void TextGenerator::createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const s
     }
 }
 
-DynamicText* TextGenerator::createDynamicText(int size, bool normalize){
-    DynamicText* text = new DynamicText(size);
+Text* TextGenerator::createDynamicText(int size, bool normalize){
+    Text* text = new Text();
+    text->size = size;
 
     text->texture = textureAtlas;
 
@@ -369,14 +370,17 @@ Text* TextGenerator::createText(const std::string &label, bool normalize){
     return text;
 }
 
-void TextGenerator::updateText(DynamicText* text, const std::string &l, int startIndex){
+void TextGenerator::updateText(Text* text, const std::string &l, int startIndex){
     std::string label(l);
+    //checks how many leading characteres are already the same.
+    //if the new text is the same as the old nothing has to be done.
     text->compressText(label,startIndex);
     if(label.size()==0){
         //no update needed
         return;
     }
 
+//    cout<<"text after compress "<<label<<endl;
 
     character_info &info = characters[(int)text->label[startIndex]];
     text->updateText(label,startIndex);

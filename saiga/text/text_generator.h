@@ -14,7 +14,7 @@
 
 
 class Text;
-class DynamicText;
+class Text;
 
 template<typename vertex_t, typename index_t>
 class TriangleMesh;
@@ -42,16 +42,16 @@ private:
     int charBorder = 5;
 
     struct character_info {
-      int ax; // advance.x
-      int ay; // advance.y
+      int ax = 0; // advance.x
+      int ay = 0; // advance.y
 
-      int bw; // bitmap.width;
-      int bh; // bitmap.rows;
+      int bw = 0; // bitmap.width;
+      int bh = 0; // bitmap.rows;
 
-      int bl; // bitmap_left;
-      int bt; // bitmap_top;
+      int bl = 0; // bitmap_left;
+      int bt = 0; // bitmap_top;
 
-      int atlasX, atlasY; //position of this character in the texture atlas
+      int atlasX = 0, atlasY = 0; //position of this character in the texture atlas
       vec2 tcMin,tcMax;
     } characters[128];
 
@@ -70,9 +70,9 @@ public:
     void loadFont(const std::string &font, int font_size, int stroke_size=0);
 
     void createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const std::string &text, int startX=0, int startY=0);
-    DynamicText* createDynamicText(int size, bool normalize=false);
+    Text* createDynamicText(int size, bool normalize=false);
 
     //if normalized-> origin of the textmesh is in the center of the text
     Text* createText(const std::string &label, bool normalize=false);
-    void updateText(DynamicText* text, const std::string &label, int startIndex);
+    void updateText(Text* text, const std::string &label, int startIndex);
 };

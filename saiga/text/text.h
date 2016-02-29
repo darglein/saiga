@@ -12,20 +12,27 @@ class basic_Texture_2D;
 
 class SAIGA_GLOBAL Text : public Object3D{
 public:
+    int size; //dynamic text has fixed size
     bool visible = true;
     vec4 color=vec4(1), strokeColor=vec4(0,0,0,1);
     std::string label;
     TriangleMesh<VertexNT,GLuint> mesh;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
     basic_Texture_2D* texture;
-    Text(){}
+
+    Text():Text(""){}
     Text(const std::string &label);
     virtual ~Text(){}
+
     void draw(TextShader* shader);
     void transform(const mat4 &trafo){mesh.transform(trafo);}
     void updateText(const std::string &label);
 
     vec3 getSize(){ return mesh.getAabb().max-mesh.getAabb().min;}
+
+    void updateGLBuffer(int start);
+    void compressText(std::string &str, int &start);
+    char updateText(std::string &str, int start);
 
 
 };

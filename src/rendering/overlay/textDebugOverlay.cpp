@@ -4,8 +4,8 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/text/text_generator.h"
-#include "saiga/text/dynamic_text.h"
 #include "saiga/text/textShader.h"
+#include "saiga/text/text.h"
 
 TextDebugOverlay::TextDebugOverlay(): overlay(1,1),layout(1600,900){
 
