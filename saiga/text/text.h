@@ -33,9 +33,11 @@ public:
 
     vec3 getSize(){ return mesh.getAabb().max-mesh.getAabb().min;}
 
+private:
     void updateGLBuffer(int start);
     void compressText(std::string &str, int &start);
-    char updateText(std::string &str, int start);
 
-
+public:
+    //adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
+    void addTextToMesh(const std::string &text, int startX=0, int startY=0);
 };

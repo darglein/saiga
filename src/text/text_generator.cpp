@@ -288,39 +288,6 @@ void TextGenerator::createTextureAtlas(){
 
 
 
-void TextGenerator::createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const std::string &text, int startX, int startY){
-
-    int x=startX,y=startY;
-    VertexNT verts[4];
-    for(char c : text){
-//        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
-        character_info &info = characters[(int)c];
-
-        vec3 offset = vec3(x+info.bl,y+info.bt-info.bh,0);
-
-
-        //bottom left
-        verts[0] = VertexNT(offset,
-                            vec3(0,0,1),
-                            vec2(info.tcMin.x,info.tcMax.y));
-        //bottom right
-        verts[1] = VertexNT(offset+vec3(info.bw,0,0),
-                            vec3(0,0,1),
-                            vec2(info.tcMax.x,info.tcMax.y));
-        //top right
-        verts[2] = VertexNT(offset+vec3(info.bw,info.bh,0),
-                            vec3(0,0,1),
-                            vec2(info.tcMax.x,info.tcMin.y));
-        //top left
-        verts[3] = VertexNT(offset+vec3(0,info.bh,0),
-                            vec3(0,0,1),
-                            vec2(info.tcMin.x,info.tcMin.y));
-
-        x+=info.ax;
-        y+=info.ay;
-        mesh.addQuad(verts);
-    }
-}
 
 Text* TextGenerator::createDynamicText(int size, bool normalize){
     Text* text = new Text(this);
@@ -332,8 +299,8 @@ Text* TextGenerator::createDynamicText(int size, bool normalize){
     buffer.resize(size);
     buffer.assign(size,'A');
 
-    createTextMesh(text->mesh,buffer);
-
+//    createTextMesh(text->mesh,buffer);
+    text->addTextToMesh(buffer);
     if(normalize){
         text->mesh.boundingBox.growBox(maxCharacter);
         aabb bb = text->mesh.getAabb();

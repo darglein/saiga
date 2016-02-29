@@ -1,5 +1,5 @@
 #include "saiga/text/all.h"
-
+#include "saiga/util/assert.h"
 Text::Text(TextGenerator *textureAtlas):Text(textureAtlas,""){
 
 }
@@ -9,33 +9,43 @@ Text::Text(TextGenerator *textureAtlas, const std::string &label):
 }
 
 void Text::updateText123(const std::string &l, int startIndex){
-    cout<<"update: "<<l<<endl;
+//    cout<<"update: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
     std::string label(l);
     //checks how many leading characteres are already the same.
     //if the new text is the same as the old nothing has to be done.
     compressText(label,startIndex);
+    label = this->label.substr(startIndex);
     if(label.size()==0){
         //no update needed
+        return;
+    }
+
+    if(startIndex==this->label.size()){
         return;
     }
 
 
     //get position of last character
     TextGenerator::character_info &info = textureAtlas->characters[(int)this->label[startIndex]];
-    this->updateText(label,startIndex);
 
     //x offset of first new character
-    int start = this->mesh.vertices[startIndex*4].position.x - info.bl;
+    int startX = this->mesh.vertices[startIndex*4].position.x - info.bl;
     //delete everything from startindex to end
+    int verticesBefore = this->mesh.vertices.size();
     this->mesh.vertices.resize(startIndex*4);
     this->mesh.faces.resize(startIndex);
 
 
     //calculate new faces
-    textureAtlas->createTextMesh(this->mesh,label,start);
+
+//    cout<<"label: '"<<label<<"' '"<<this->label<<"'"<<endl;
+//    textureAtlas->createTextMesh(this->mesh,label,startX);
+    addTextToMesh(label,startX);
 
     //update gl mesh
     this->updateGLBuffer(startIndex);
+
+    assert(verticesBefore==this->mesh.vertices.size());
 }
 
 
@@ -56,40 +66,54 @@ void Text::updateGLBuffer(int start){
 
 void Text::compressText(std::string &str, int &start){
 
+    //if str is longer than size, cut it off
     int s = min(static_cast<int>(str.size()),size-start);
     str.resize(s);
 
-    int newSize = 0;
-    bool found = false;
-    for(unsigned int i=0;i<str.size();i++){
-        if(found || label[i+start]!=str[i]){
-            str[newSize++] = str[i];
-            found = true;
-        }else{
-
+    //count leading characters that are equal
+    int equalChars = 0;
+    for(;equalChars<str.size();equalChars++){
+        if(label[equalChars+start]!=str[equalChars]){
+            break;
         }
     }
+    start += equalChars;
 
-    start = start + (str.size()-newSize);
-    str.resize(newSize);
+    std::copy(str.begin()+equalChars,str.end(),label.begin()+start);
+
 }
 
-char Text::updateText(std::string &str, int start){
 
-    char c = label[start];
-    int s = str.size();
-//    cout<<s<<" "<<str.size()<<endl;
-    str.resize(size-start);
+void Text::addTextToMesh(const std::string &text, int startX, int startY){
+
+    int x=startX,y=startY;
+    VertexNT verts[4];
+    for(char c : text){
+//        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
+        TextGenerator::character_info &info = textureAtlas->characters[(int)c];
+
+        vec3 offset = vec3(x+info.bl,y+info.bt-info.bh,0);
 
 
+        //bottom left
+        verts[0] = VertexNT(offset,
+                            vec3(0,0,1),
+                            vec2(info.tcMin.x,info.tcMax.y));
+        //bottom right
+        verts[1] = VertexNT(offset+vec3(info.bw,0,0),
+                            vec3(0,0,1),
+                            vec2(info.tcMax.x,info.tcMax.y));
+        //top right
+        verts[2] = VertexNT(offset+vec3(info.bw,info.bh,0),
+                            vec3(0,0,1),
+                            vec2(info.tcMax.x,info.tcMin.y));
+        //top left
+        verts[3] = VertexNT(offset+vec3(0,info.bh,0),
+                            vec3(0,0,1),
+                            vec2(info.tcMin.x,info.tcMin.y));
 
-    for(int i=start;i<size;i++){
-        if(i<start+s){
-
-            label[i] = str[i-start];
-        }else{
-            str[i-start] = label[i];
-        }
+        x+=info.ax;
+        y+=info.ay;
+        mesh.addQuad(verts);
     }
-    return c;
 }
