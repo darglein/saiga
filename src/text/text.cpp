@@ -1,13 +1,44 @@
-#include "saiga/text/text.h"
+#include "saiga/text/all.h"
 
-#include "saiga/text/textShader.h"
+Text::Text(TextGenerator *textureAtlas):Text(textureAtlas,""){
 
-Text::Text(const std::string &label):label(label){
 }
 
-void Text::updateText(const std::string &label){
-    cout<<"update: "<<label<<endl;
+Text::Text(TextGenerator *textureAtlas, const std::string &label):
+    textureAtlas(textureAtlas),label(label){
 }
+
+void Text::updateText123(const std::string &l, int startIndex){
+    cout<<"update: "<<l<<endl;
+    std::string label(l);
+    //checks how many leading characteres are already the same.
+    //if the new text is the same as the old nothing has to be done.
+    compressText(label,startIndex);
+    if(label.size()==0){
+        //no update needed
+        return;
+    }
+
+
+    //get position of last character
+    TextGenerator::character_info &info = textureAtlas->characters[(int)this->label[startIndex]];
+    this->updateText(label,startIndex);
+
+    //x offset of first new character
+    int start = this->mesh.vertices[startIndex*4].position.x - info.bl;
+    //delete everything from startindex to end
+    this->mesh.vertices.resize(startIndex*4);
+    this->mesh.faces.resize(startIndex);
+
+
+    //calculate new faces
+    textureAtlas->createTextMesh(this->mesh,label,start);
+
+    //update gl mesh
+    this->updateGLBuffer(startIndex);
+}
+
+
 
 void Text::draw(TextShader* shader){
 

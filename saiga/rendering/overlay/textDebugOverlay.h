@@ -8,7 +8,7 @@
 #include "saiga/text/TextOverlay2D.h"
 #include "saiga/rendering/overlay/Layout.h"
 #include <vector>
-#include "saiga/text/text_generator.h"
+#include "saiga/text/text.h"
 
 class TextGenerator;
 
@@ -63,7 +63,8 @@ void TextDebugOverlay::updateEntry(int id, T v)
     std::stringstream sstream;
 
     sstream << v;
-    textGenerator->updateText(entries[id].text,sstream.str()+"                                  ",entries[id].valueIndex);
+//    textGenerator->updateText(entries[id].text,sstream.str()+"                                  ",entries[id].valueIndex);
+    entries[id].text->updateText123(sstream.str()+"                                  ",entries[id].valueIndex);
 }
 
 

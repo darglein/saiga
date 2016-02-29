@@ -30,7 +30,7 @@ typedef struct FT_LibraryRec_  *FT_Library;
 
 
 class SAIGA_GLOBAL TextGenerator{
-private:
+public:
     static FT_Library ft;
     FT_Face face = nullptr;
 
@@ -74,5 +74,5 @@ public:
 
     //if normalized-> origin of the textmesh is in the center of the text
     Text* createText(const std::string &label, bool normalize=false);
-    void updateText(Text* text, const std::string &label, int startIndex);
+//    void updateText(Text* text, const std::string &label, int startIndex);
 };

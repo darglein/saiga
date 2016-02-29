@@ -323,7 +323,7 @@ void TextGenerator::createTextMesh(TriangleMesh<VertexNT, GLuint> &mesh, const s
 }
 
 Text* TextGenerator::createDynamicText(int size, bool normalize){
-    Text* text = new Text();
+    Text* text = new Text(this);
     text->size = size;
 
     text->texture = textureAtlas;
@@ -351,52 +351,55 @@ Text* TextGenerator::createDynamicText(int size, bool normalize){
 }
 
 Text* TextGenerator::createText(const std::string &label, bool normalize){
-    Text* text = new Text(label);
+//    Text* text = new Text(label);
 
-    text->texture = textureAtlas;
+//    text->texture = textureAtlas;
 
-    createTextMesh(text->mesh,label);
+//    createTextMesh(text->mesh,label);
 
-    if(normalize){
-        text->mesh.boundingBox.growBox(maxCharacter);
-        aabb bb = text->mesh.getAabb();
-        vec3 offset = bb.getPosition();
-        mat4 t;
-        t[3] = vec4(-offset,0);
-        text->mesh.transform(t);
-    }
-    text->mesh.createBuffers(text->buffer);
+//    if(normalize){
+//        text->mesh.boundingBox.growBox(maxCharacter);
+//        aabb bb = text->mesh.getAabb();
+//        vec3 offset = bb.getPosition();
+//        mat4 t;
+//        t[3] = vec4(-offset,0);
+//        text->mesh.transform(t);
+//    }
+//    text->mesh.createBuffers(text->buffer);
 
+//    return text;
+    Text* text = createDynamicText(label.size(),normalize);
+    text->updateText123(label,0);
     return text;
 }
 
-void TextGenerator::updateText(Text* text, const std::string &l, int startIndex){
-    std::string label(l);
-    //checks how many leading characteres are already the same.
-    //if the new text is the same as the old nothing has to be done.
-    text->compressText(label,startIndex);
-    if(label.size()==0){
-        //no update needed
-        return;
-    }
+//void TextGenerator::updateText(Text* text, const std::string &l, int startIndex){
+//    std::string label(l);
+//    //checks how many leading characteres are already the same.
+//    //if the new text is the same as the old nothing has to be done.
+//    text->compressText(label,startIndex);
+//    if(label.size()==0){
+//        //no update needed
+//        return;
+//    }
 
-//    cout<<"text after compress "<<label<<endl;
+////    cout<<"text after compress "<<label<<endl;
 
-    character_info &info = characters[(int)text->label[startIndex]];
-    text->updateText(label,startIndex);
+//    character_info &info = characters[(int)text->label[startIndex]];
+//    text->updateText(label,startIndex);
 
-    //x offset of first new character
-    int start = text->mesh.vertices[startIndex*4].position.x - info.bl;
-    //delete everything from startindex to end
-    text->mesh.vertices.resize(startIndex*4);
-    text->mesh.faces.resize(startIndex);
-
-
-    //calculate new faces
-    createTextMesh(text->mesh,label,start);
-
-    //update gl mesh
-    text->updateGLBuffer(startIndex);
+//    //x offset of first new character
+//    int start = text->mesh.vertices[startIndex*4].position.x - info.bl;
+//    //delete everything from startindex to end
+//    text->mesh.vertices.resize(startIndex*4);
+//    text->mesh.faces.resize(startIndex);
 
 
-}
+//    //calculate new faces
+//    createTextMesh(text->mesh,label,start);
+
+//    //update gl mesh
+//    text->updateGLBuffer(startIndex);
+
+
+//}

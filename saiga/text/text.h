@@ -9,6 +9,7 @@
 //#include "saiga/opengl/mesh.h"
 class TextShader;
 class basic_Texture_2D;
+class TextGenerator;
 
 class SAIGA_GLOBAL Text : public Object3D{
 public:
@@ -19,14 +20,16 @@ public:
     TriangleMesh<VertexNT,GLuint> mesh;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
     basic_Texture_2D* texture;
+    TextGenerator* textureAtlas;
 
-    Text():Text(""){}
-    Text(const std::string &label);
+    Text(TextGenerator* textureAtlas);
+    Text(TextGenerator* textureAtlas, const std::string &label);
     virtual ~Text(){}
 
     void draw(TextShader* shader);
     void transform(const mat4 &trafo){mesh.transform(trafo);}
-    void updateText(const std::string &label);
+
+    void updateText123(const std::string &label, int startIndex);
 
     vec3 getSize(){ return mesh.getAabb().max-mesh.getAabb().min;}
 

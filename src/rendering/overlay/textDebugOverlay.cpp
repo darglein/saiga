@@ -37,8 +37,8 @@ int TextDebugOverlay::createItem(const std::string &name, int valueChars)
     overlay.addText(entry.text);
 
 
-    textGenerator->updateText(entry.text,name+std::string(valueChars,' '),0);
-
+//    textGenerator->updateText(entry.text,name+std::string(valueChars,' '),0);
+    entry.text->updateText123(name+std::string(valueChars,' '),0);
     aabb bb = entry.text->mesh.getAabb();
     bb.growBox(textGenerator->maxCharacter);
 
@@ -54,7 +54,7 @@ int TextDebugOverlay::createItem(const std::string &name, int valueChars)
     entries.push_back(entry);
 
 
-    textGenerator->updateText(entry.text,std::to_string(123),entry.valueIndex);
+    entry.text->updateText123(std::to_string(123),entry.valueIndex);
 
     return id;
 }
@@ -62,7 +62,7 @@ int TextDebugOverlay::createItem(const std::string &name, int valueChars)
 template<>
 void TextDebugOverlay::updateEntry<std::string>(int id, std::string v)
 {
-    textGenerator->updateText(entries[id].text,v,entries[id].valueIndex);
+    entries[id].text->updateText123(v,entries[id].valueIndex);
 }
 
 
