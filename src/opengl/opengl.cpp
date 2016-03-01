@@ -1,5 +1,6 @@
 #include "saiga/opengl/opengl.h"
 #include <iostream>
+#include "saiga/util/assert.h"
 
 bool openglinitialized = false;
 
