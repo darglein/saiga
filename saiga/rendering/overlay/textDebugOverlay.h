@@ -10,7 +10,7 @@
 #include <vector>
 #include "saiga/text/text.h"
 
-class TextGenerator;
+class TextureAtlas;
 
 class Text;
 
@@ -33,7 +33,7 @@ public:
 
 
     TextOverlay2D overlay;
-    TextGenerator* textGenerator;
+    TextureAtlas* textureAtlas;
 
     Text* text;
 
@@ -43,7 +43,7 @@ public:
 
     TextDebugOverlay();
 
-    void init(TextGenerator* textGenerator);
+    void init(TextureAtlas* textureAtlas);
     void render();
 
     int createItem(const std::string& name, int valueChars);
@@ -64,7 +64,7 @@ void TextDebugOverlay::updateEntry(int id, T v)
 
     sstream << v;
 //    textGenerator->updateText(entries[id].text,sstream.str()+"                                  ",entries[id].valueIndex);
-    entries[id].text->updateText123(sstream.str()+"                                  ",entries[id].valueIndex);
+    entries[id].text->updateText(sstream.str()+"                                  ",entries[id].valueIndex);
 }
 
 

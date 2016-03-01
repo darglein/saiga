@@ -52,6 +52,7 @@ inline Buffer::~Buffer()
 
 inline void Buffer::createGLBuffer(void *data, unsigned int size, GLenum usage)
 {
+    deleteGLBuffer();
     glGenBuffers( 1, &buffer );
     bind();
     glBufferData(target, size, data, usage);

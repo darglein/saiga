@@ -1,8 +1,7 @@
-#include "saiga/text/text_generator.h"
+#include "saiga/text/textureAtlas.h"
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/geometry/triangle_mesh.h"
-#include "saiga/text/text.h"
 
 #include <algorithm>
 #include <FreeImagePlus.h>
@@ -14,9 +13,9 @@
 #undef max
 #undef min
 
-FT_Library TextGenerator::ft = nullptr;
+FT_Library TextureAtlas::ft = nullptr;
 
-TextGenerator::TextGenerator(){
+TextureAtlas::TextureAtlas(){
 
     if(ft==nullptr){
         //        ft = FT_Library> (new FT_Library());
@@ -27,14 +26,14 @@ TextGenerator::TextGenerator(){
     }
 }
 
-TextGenerator::~TextGenerator()
+TextureAtlas::~TextureAtlas()
 {
     FT_Done_Face(face);
     delete textureAtlas;
 }
 
 
-void TextGenerator::loadFont(const std::string &font, int font_size, int stroke_size){
+void TextureAtlas::loadFont(const std::string &font, int font_size, int stroke_size){
     this->font = font;
     this->font_size = font_size;
     this->stroke_size = stroke_size;
@@ -50,7 +49,7 @@ void TextGenerator::loadFont(const std::string &font, int font_size, int stroke_
     createTextureAtlas();
 }
 
-void TextGenerator::createTextureAtlas(){
+void TextureAtlas::createTextureAtlas(){
 
 
     FT_Error error;

@@ -167,10 +167,6 @@ template<class vertex_t>
 void VertexBuffer<vertex_t>::set(vertex_t* vertices,int vertex_count){
     this->vertex_count = vertex_count;
 
-
-     deleteGLBuffers();
-
-
     createGLBuffer(vertices,vertex_count * sizeof(vertex_t),GL_STATIC_DRAW);
 
     //create VAO and init

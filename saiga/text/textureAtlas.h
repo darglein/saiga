@@ -29,7 +29,7 @@ typedef struct FT_FaceRec_*  FT_Face;
 typedef struct FT_LibraryRec_  *FT_Library;
 
 
-class SAIGA_GLOBAL TextGenerator{
+class SAIGA_GLOBAL TextureAtlas{
 public:
     static FT_Library ft;
     FT_Face face = nullptr;
@@ -64,8 +64,8 @@ public:
     int font_size;
     int stroke_size;
 
-    TextGenerator();
-    ~TextGenerator();
+    TextureAtlas();
+    ~TextureAtlas();
 
     void loadFont(const std::string &font, int font_size, int stroke_size=0);
 

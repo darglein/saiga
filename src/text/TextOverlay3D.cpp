@@ -80,7 +80,7 @@ void TextOverlay3D::renderText(Camera *cam){
         }
 
 
-        p.text->draw(textShader);
+        p.text->render(textShader);
     }
     textShader->unbind();
 }

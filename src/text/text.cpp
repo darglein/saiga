@@ -2,18 +2,11 @@
 #include "saiga/util/assert.h"
 
 
-Text::Text(TextGenerator *textureAtlas, int size, bool normalize):
-    Text(textureAtlas,std::string(size,'A'),normalize)
-{
-}
-
-Text::Text(TextGenerator *textureAtlas, const std::string &label, bool normalize):
-    textureAtlas(textureAtlas),label(label),size(label.size()),normalize(normalize){
-    this->texture = textureAtlas->textureAtlas;
+Text::Text(TextureAtlas *textureAtlas, const std::string &label, bool normalize):
+    size(label.size()),capacity(label.size()),normalize(normalize),label(label),textureAtlas(textureAtlas){
 
     addTextToMesh(label);
-    mesh.createBuffers(this->buffer);
-
+    updateGLBuffer(0,true);
     calculateNormalizationMatrix();
 }
 
@@ -29,32 +22,32 @@ void Text::calculateNormalizationMatrix()
         boundingBox.growBox(textureAtlas->maxCharacter);
     }
 
-//    cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
+    //    cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
 
 }
 
-void Text::updateText123(const std::string &l, int startIndex){
-    //    cout<<"update: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
+void Text::updateText(const std::string &l, int startIndex){
+    //        cout<<"update: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
     std::string label(l);
     //checks how many leading characteres are already the same.
     //if the new text is the same as the old nothing has to be done.
-    compressText(label,startIndex);
+    bool resize = compressText(label,startIndex);
     label = this->label.substr(startIndex);
     if(label.size()==0){
         //no update needed
         return;
     }
+    //    cout<<"start "<<startIndex<<" '"<<label<<"' size "<<size<<endl;
 
-    if(startIndex==this->label.size()){
-        return;
+    int startX = 0;
+
+    if(startIndex>0){
+        //get position of last character
+        TextureAtlas::character_info &info = textureAtlas->characters[(int)this->label[startIndex]];
+        //x offset of first new character
+        startX = this->mesh.vertices[startIndex*4].position.x - info.bl;
     }
 
-
-    //get position of last character
-    TextGenerator::character_info &info = textureAtlas->characters[(int)this->label[startIndex]];
-
-    //x offset of first new character
-    int startX = this->mesh.vertices[startIndex*4].position.x - info.bl;
     //delete everything from startindex to end
     int verticesBefore = this->mesh.vertices.size();
     this->mesh.vertices.resize(startIndex*4);
@@ -62,44 +55,54 @@ void Text::updateText123(const std::string &l, int startIndex){
 
 
     //calculate new faces
-
-    //    cout<<"label: '"<<label<<"' '"<<this->label<<"'"<<endl;
-    //    textureAtlas->createTextMesh(this->mesh,label,startX);
     addTextToMesh(label,startX);
 
     //update gl mesh
-    this->updateGLBuffer(startIndex);
+    this->updateGLBuffer(startIndex,resize);
 
     calculateNormalizationMatrix();
 
-    assert(verticesBefore==this->mesh.vertices.size());
+    //    assert(verticesBefore==this->mesh.vertices.size());
 }
 
 
 
 
 
-void Text::draw(TextShader* shader){
+void Text::render(TextShader* shader){
 
-    shader->upload(texture,color,strokeColor);
-//    shader->uploadModel(model);
-//    cout<<normalizationMatrix<<endl;
-        shader->uploadModel(model*normalizationMatrix);
+    shader->upload(textureAtlas->textureAtlas,color,strokeColor);
+    shader->uploadModel(model*normalizationMatrix);
 
-    buffer.bindAndDraw();
+    buffer.bind();
+    buffer.draw(size*6,0); //2 triangles per character
+    buffer.unbind();
 }
 
 
 
-void Text::updateGLBuffer(int start){
-    mesh.updateVerticesInBuffer(buffer,(size-start)*4,start*4);
+void Text::updateGLBuffer(int start, bool resize){
+    if(resize){
+        mesh.createBuffers(buffer);
+    }else{
+        mesh.updateVerticesInBuffer(buffer,(size-start)*4,start*4);
+    }
 }
 
-void Text::compressText(std::string &str, int &start){
+bool Text::compressText(std::string &str, int &start){
+    int newLength = str.size() + start;
+    size = newLength;
 
-    //if str is longer than size, cut it off
-    int s = min(static_cast<int>(str.size()),size-start);
-    str.resize(s);
+    label.resize(size);
+
+    //a resize needs to copy the complete label again
+    if(newLength>capacity){
+        std::copy(str.begin(),str.end(),label.begin()+start);
+        capacity = newLength;
+        start = 0;
+        cout<<"Increasing capacity of text '"<<label<<"' to "<<size<<endl;
+        return true;
+    }
 
     //count leading characters that are equal
     int equalChars = 0;
@@ -108,13 +111,9 @@ void Text::compressText(std::string &str, int &start){
             break;
         }
     }
-    std::fill(label.begin()+start+str.size(),label.end(),'\0');
     start += equalChars;
-
     std::copy(str.begin()+equalChars,str.end(),label.begin()+start);
-
-
-
+    return false;
 }
 
 
@@ -124,7 +123,7 @@ void Text::addTextToMesh(const std::string &text, int startX, int startY){
     VertexNT verts[4];
     for(char c : text){
         //        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
-        TextGenerator::character_info &info = textureAtlas->characters[(int)c];
+        TextureAtlas::character_info &info = textureAtlas->characters[(int)c];
 
         vec3 offset = vec3(x+info.bl,y+info.bt-info.bh,0);
 
