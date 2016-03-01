@@ -20,7 +20,7 @@ template<typename vertex_t, typename index_t>
 class TriangleMesh;
 
 class basic_Texture_2D;
-
+class Image;
 //forward declarations to avoid including the ft header
 //with that the ft library only has to be linked to the framework
 struct FT_FaceRec_;
@@ -31,19 +31,19 @@ typedef struct FT_LibraryRec_  *FT_Library;
 
 class SAIGA_GLOBAL TextureAtlas{
 public:
-     struct character_info {
-       int ax = 0; // advance.x
-       int ay = 0; // advance.y
+    struct character_info {
+        int ax = 0; // advance.x
+        int ay = 0; // advance.y
 
-       int bw = 0; // bitmap.width;
-       int bh = 0; // bitmap.rows;
+        int bw = 0; // bitmap.width;
+        int bh = 0; // bitmap.rows;
 
-       int bl = 0; // bitmap_left;
-       int bt = 0; // bitmap_top;
+        int bl = 0; // bitmap_left;
+        int bt = 0; // bitmap_top;
 
-       int atlasX = 0, atlasY = 0; //position of this character in the texture atlas
-       vec2 tcMin,tcMax;
-     } ;
+        int atlasX = 0, atlasY = 0; //position of this character in the texture atlas
+        vec2 tcMin,tcMax;
+    } ;
 
     TextureAtlas();
     ~TextureAtlas();
@@ -67,7 +67,7 @@ public:
     /**
      * Returns information to a specific character in this font.
      */
-    character_info getCharacterInfo(int c){ return characters[c];}
+    const character_info& getCharacterInfo(int c){ return characters[c];}
 private:
     static FT_Library ft;
     FT_Face face = nullptr;
@@ -77,17 +77,26 @@ private:
     int charPaddingY = 5;
 
     //additional border pixels (usefull for border lines)
-//    int charBorder = 5;
+    //    int charBorder = 5;
     int atlasHeight;
     int atlasWidth;
+    int charNum;
 
     character_info characters[128];
 
-     basic_Texture_2D *textureAtlas = nullptr;
-     aabb maxCharacter;
-     std::string font;
-     int font_size;
-     int stroke_size;
+    basic_Texture_2D *textureAtlas = nullptr;
+    aabb maxCharacter;
+    std::string font;
+    int font_size;
+    int stroke_size;
 
-     void createTextureAtlas();
+
+    void createTextureAtlas(Image &outImg);
+
+    //mono chromatic image without strokes
+    void createTextureAtlasMono(Image &outImg);
+
+    void createTextureAtlasSDF(Image &moneImage, Image &outImg);
+    //calculates the size and the position of each individual character in the texture atlas.
+    void calculateTextureAtlasPositions();
 };
