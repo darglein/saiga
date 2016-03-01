@@ -1,5 +1,5 @@
 #include "saiga/util/png_wrapper.h"
-
+#include "saiga/util/assert.h"
 #ifdef USE_PNG
 
 bool PNG::readPNG(Image *img, const std::string &path, bool invertY){

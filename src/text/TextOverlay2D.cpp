@@ -19,7 +19,7 @@ void TextOverlay2D::render(){
     textShader->uploadProj(proj);
     for(Text* &text : texts){
         if(text->visible)
-            text->draw(textShader);
+            text->render(textShader);
     }
     textShader->unbind();
 }

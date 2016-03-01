@@ -4,19 +4,19 @@
 #include <string>
 #include <iostream>
 #include <cstdlib>
-
+#include "saiga/util/assert.h"
 /*
  * Use assert_no_glerror for normal gl error checking. If saiga is compiled in testing or release mode all these error checks are removed.
  * In testing mode only the error checks with assert_no_glerror_end_frame are executed.
  */
 
-#if defined(DEBUG) && !defined(TESTING)
+#if defined(SAIGA_DEBUG)
     #define assert_no_glerror() assert(!Error::checkGLError())
 #else
     #define assert_no_glerror() (void)0
 #endif
 
-#if defined(TESTING)
+#if defined(SAIGA_DEBUG) || defined(SAIGA_TESTING)
     #define assert_no_glerror_end_frame() assert(!Error::checkGLError())
 #else
     #define assert_no_glerror_end_frame() (void)0

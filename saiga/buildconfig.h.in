@@ -23,4 +23,8 @@
 
 #cmakedefine USE_NOISE
 
+#cmakedefine SAIGA_DEBUG
+#cmakedefine SAIGA_TESTING
+#cmakedefine SAIGA_RELEASE
+
 #cmakedefine BUILD_SHARED
