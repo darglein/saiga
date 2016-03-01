@@ -7,6 +7,7 @@
 #include <FreeImagePlus.h>
 #include <ft2build.h>
 #include <ftstroke.h>
+#include "saiga/util/assert.h"
 #include FT_FREETYPE_H
 
 #define NOMINMAX
@@ -16,9 +17,7 @@
 FT_Library TextureAtlas::ft = nullptr;
 
 TextureAtlas::TextureAtlas(){
-
     if(ft==nullptr){
-        //        ft = FT_Library> (new FT_Library());
         if(FT_Init_FreeType(&ft)) {
             std::cerr<< "Could not init freetype library"<<std::endl;
             assert(0);
@@ -41,7 +40,7 @@ void TextureAtlas::loadFont(const std::string &font, int font_size, int stroke_s
     //    face = std::make_shared<FT_Face>();
     if(FT_New_Face(ft, font.c_str(), 0, &face)) {
         std::cerr<<"Could not open font "<<font<<std::endl;
-        //        assert(0);
+        assert(0);
         return;
     }
     FT_Set_Pixel_Sizes(face, 0, font_size);
@@ -50,7 +49,8 @@ void TextureAtlas::loadFont(const std::string &font, int font_size, int stroke_s
 }
 
 void TextureAtlas::createTextureAtlas(){
-
+    FT_Render_Mode renderMode = FT_RENDER_MODE_NORMAL; //it corresponds to 8-bit anti-aliased bitmaps.
+//    FT_Render_Mode renderMode = FT_RENDER_MODE_MONO; //This mode corresponds to 1-bit bitmaps (with 2 levels of opacity).
 
     FT_Error error;
     FT_Stroker stroker = 0;
@@ -66,9 +66,9 @@ void TextureAtlas::createTextureAtlas(){
     }
 
 
-    charPaddingX = 4;
-    charPaddingY = 4;
-    charBorder = 0;
+//    charPaddingX = 4;
+//    charPaddingY = 4;
+//    charBorder = 4;
 
     int chars= 0;
     int w=0,h=0;
@@ -87,14 +87,16 @@ void TextureAtlas::createTextureAtlas(){
         glyph_index = FT_Get_Char_Index( face, i );
 
         /* load glyph image into the slot (erase previous one) */
+//        error = FT_Load_Glyph( face, glyph_index, FT_LOAD_MONOCHROME );
         error = FT_Load_Glyph( face, glyph_index, FT_LOAD_DEFAULT );
+//        error = FT_Load_Glyph( face, glyph_index, FT_LOAD_TARGET_MONO );
         if ( error )
             continue;  /* ignore errors */
 
         error = FT_Get_Glyph( slot, &glyphs[id]);
         /* render the glyph to a bitmap, don't destroy original */
         glyphs_bitmaps[id] = glyphs[id];
-        error = FT_Glyph_To_Bitmap( &glyphs_bitmaps[id], FT_RENDER_MODE_NORMAL, NULL, 0 );
+        error = FT_Glyph_To_Bitmap( &glyphs_bitmaps[id], renderMode, NULL, 0 );
 
         FT_Glyph glyph = glyphs_bitmaps[id];
 
@@ -103,7 +105,7 @@ void TextureAtlas::createTextureAtlas(){
             error = FT_Glyph_Stroke( &glyph_strokes[id], stroker, 1 );
 
             glyph_strokes_bitmaps[id] = glyph_strokes[id];
-            error = FT_Glyph_To_Bitmap( &glyph_strokes_bitmaps[id], FT_RENDER_MODE_NORMAL, NULL, 0 );
+            error = FT_Glyph_To_Bitmap( &glyph_strokes_bitmaps[id], renderMode, NULL, 0 );
             glyph = glyph_strokes_bitmaps[id];
         }
 
@@ -144,12 +146,12 @@ void TextureAtlas::createTextureAtlas(){
     int charsPerRow = glm::ceil(glm::sqrt((float)chars));
     //    cout<<"chars "<<chars<<" charsperrow "<<charsPerRow<<" total "<<charsPerRow*charsPerRow<<endl;
 
-    int atlasHeight = 0;
-    int atlasWidth = 0;
+    atlasHeight = charPaddingY;
+    atlasWidth = 0;
 
     for(int cy = 0 ; cy < charsPerRow ; ++cy){
-        int currentW = 0;
-        int currentH = 0;
+        int currentW = charPaddingX;
+        int currentH = charPaddingY;
 
         for(int cx = 0 ; cx < charsPerRow ; ++cx){
             int i = cy * charsPerRow + cx;
@@ -167,25 +169,25 @@ void TextureAtlas::createTextureAtlas(){
         atlasHeight += currentH+charPaddingY;
     }
 
-    cout<<"AtlasWidth "<<atlasWidth<<" AtlasHeight "<<atlasHeight<<endl;
+    //increase width to a number dividable by 8 to fix possible alignment issues
+    while(atlasWidth%8!=0)
+        atlasWidth++;
 
     h = atlasHeight;
     w = atlasWidth;
 
-    //increase width to a number dividable by 8 to fix possible alignment issues
-    while(w%8!=0)
-        w++;
+    cout<<"AtlasWidth "<<w<<" AtlasHeight "<<h<<endl;
 
     Image img;
     img.bitDepth = 8;
-    img.channels = 1;
+    img.channels = 2;
     img.width = w;
     img.height = h;
     img.create();
     img.makeZero();
 
 
-    img.addChannel();
+//    img.addChannel();
 
 
 
@@ -193,6 +195,7 @@ void TextureAtlas::createTextureAtlas(){
 
         FT_BitmapGlyph bitmap = (FT_BitmapGlyph)glyphs_bitmaps[i-32];
         FT_Bitmap* source = &bitmap->bitmap;
+        cout<<"FT_Bitmap "<<source->width<<","<<source->rows<<endl;
 
         character_info &info = characters[i];
 
@@ -224,8 +227,18 @@ void TextureAtlas::createTextureAtlas(){
 
         for(int y = 0 ; y < source->rows  ; ++y){
             for(int x = 0 ; x < source->width ; ++x){
+                unsigned char c;
+                if(renderMode==FT_RENDER_MODE_MONO){
+                    int byteIndex = y*source->pitch + x/8;
+                    int bitIndex = 7 - (x % 8);
+                    unsigned char c = source->buffer[byteIndex];
+                    c = (c>>bitIndex) & 0x1;
+                    if(c)
+                        c = 255;
+                }else{
+                    c = source->buffer[y*(source->width) + x];
+                }
 
-                unsigned char c = source->buffer[y*(source->width) + x];
                 uint16_t s = c;
 
                 int ox = x + offsetX;

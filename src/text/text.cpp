@@ -19,7 +19,7 @@ void Text::calculateNormalizationMatrix()
         normalizationMatrix[3] = vec4(-offset,1);
         boundingBox.transform(normalizationMatrix);
     }else{
-        boundingBox.growBox(textureAtlas->maxCharacter);
+        boundingBox.growBox(textureAtlas->getMaxCharacter());
     }
 
     //    cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
@@ -43,7 +43,7 @@ void Text::updateText(const std::string &l, int startIndex){
 
     if(startIndex>0){
         //get position of last character
-        TextureAtlas::character_info &info = textureAtlas->characters[(int)this->label[startIndex]];
+        const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo((int)this->label[startIndex]);
         //x offset of first new character
         startX = this->mesh.vertices[startIndex*4].position.x - info.bl;
     }
@@ -71,7 +71,7 @@ void Text::updateText(const std::string &l, int startIndex){
 
 void Text::render(TextShader* shader){
 
-    shader->upload(textureAtlas->textureAtlas,color,strokeColor);
+    shader->upload(textureAtlas->getTexture(),color,strokeColor);
     shader->uploadModel(model*normalizationMatrix);
 
     buffer.bind();
@@ -123,7 +123,7 @@ void Text::addTextToMesh(const std::string &text, int startX, int startY){
     VertexNT verts[4];
     for(char c : text){
         //        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
-        TextureAtlas::character_info &info = textureAtlas->characters[(int)c];
+        const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo((int)c);
 
         vec3 offset = vec3(x+info.bl,y+info.bt-info.bh,0);
 

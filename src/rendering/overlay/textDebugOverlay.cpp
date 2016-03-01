@@ -40,7 +40,7 @@ int TextDebugOverlay::createItem(const std::string &name, int valueChars)
 //    textGenerator->updateText(entry.text,name+std::string(valueChars,' '),0);
     entry.text->updateText(name+std::string(valueChars,' '),0);
     aabb bb = entry.text->getAabb();
-    bb.growBox(textureAtlas->maxCharacter);
+    bb.growBox(textureAtlas->getMaxCharacter());
 
 
     int y = id;
