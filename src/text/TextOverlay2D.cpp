@@ -37,7 +37,8 @@ void TextOverlay2D::loadShader()
 {
     if(textShader!=nullptr)
         return;
-    textShader = ShaderLoader::instance()->load<TextShader>("deferred_text.glsl");
+//    textShader = ShaderLoader::instance()->load<TextShader>("deferred_text.glsl");
+    textShader = ShaderLoader::instance()->load<TextShader>("sdf_text.glsl");
 
 }
 

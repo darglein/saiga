@@ -2,12 +2,13 @@
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/geometry/triangle_mesh.h"
-
+#include "saiga/text/fontLoader.h"
 #include <algorithm>
 #include <FreeImagePlus.h>
 #include <ft2build.h>
 #include <ftstroke.h>
 #include "saiga/util/assert.h"
+
 #include FT_FREETYPE_H
 
 #define NOMINMAX
@@ -33,7 +34,12 @@ TextureAtlas::~TextureAtlas()
 
 
 void TextureAtlas::loadFont(const std::string &font, int font_size, int stroke_size){
+
+    FontLoader fl(font);
+    fl.loadMonochromatic(30);
+    fl.writeGlyphsToFiles("debug/fonts/");
     this->font = font;
+//    font_size*=6;
     this->font_size = font_size;
     this->stroke_size = stroke_size;
 
@@ -46,14 +52,14 @@ void TextureAtlas::loadFont(const std::string &font, int font_size, int stroke_s
     FT_Set_Pixel_Sizes(face, 0, font_size);
 
     Image img, monoImg, sdf;
-    charPaddingX = 10;
-    charPaddingY = 10;
-    createTextureAtlasMono(monoImg);
-    createTextureAtlasSDF(monoImg,sdf);
+    charPaddingX = 20;
+    charPaddingY = 20;
+    createTextureAtlasMono(img);
+    createTextureAtlasSDF(img,sdf);
 
-    charPaddingX = 5;
-    charPaddingY = 5;
-    createTextureAtlas(img);
+//    charPaddingX = 5;
+//    charPaddingY = 5;
+//    createTextureAtlas(img);
 
 
     std::string str = "debug/ta_normal_"+std::to_string(atlasWidth)+"x"+std::to_string(atlasHeight)+".png";
@@ -68,7 +74,7 @@ void TextureAtlas::loadFont(const std::string &font, int font_size, int stroke_s
 
     textureAtlas = new Texture();
 
-    textureAtlas->fromImage(img);
+    textureAtlas->fromImage(sdf);
 
     textureAtlas->bind();
     // The allowable values are 1 (byte-alignment), 2 (rows aligned to even-numbered bytes), Default: 4 (word-alignment), and 8 (rows start on double-word boundaries)
@@ -417,6 +423,28 @@ void TextureAtlas::createTextureAtlasSDF(Image &moneImage, Image &outImg)
             unsigned char out = d * 255.0f;
             outImg.setPixel(x,y,out);
         }
+    }
+
+    for(int i = 32; i < 128; i++) {
+        character_info &info = characters[i];
+//        info.bl -= charPaddingX;
+//        info.bt -= charPaddingY;
+//        cout<<"char "<<(char)i<<" "<<info.bw<<","<<info.bh<<endl;
+                info.atlasX -= charPaddingX/2;
+                info.atlasY -= charPaddingY/2;
+        info.bw += charPaddingX;
+        info.bh += charPaddingY;
+
+    }
+
+    //calculate the texture coordinates
+    for(int i = 32; i < 128; i++) {
+        character_info &info = characters[i];
+        float tx = (float)info.atlasX / (float)atlasWidth;
+        float ty = (float)info.atlasY / (float)atlasHeight;
+
+        info.tcMin = vec2(tx,ty);
+        info.tcMax = vec2(tx+(float)info.bw/(float)atlasWidth,ty+(float)info.bh/(float)atlasHeight);
     }
 }
 void TextureAtlas::calculateTextureAtlasPositions()

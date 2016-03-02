@@ -68,8 +68,10 @@ public:
      * Returns information to a specific character in this font.
      */
     const character_info& getCharacterInfo(int c){ return characters[c];}
-private:
+
     static FT_Library ft;
+private:
+
     FT_Face face = nullptr;
 
     //distance between characters in texture atlas

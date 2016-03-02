@@ -11,6 +11,13 @@ TextDebugOverlay::TextDebugOverlay(): overlay(1,1),layout(1600,900){
 
 }
 
+TextDebugOverlay::~TextDebugOverlay()
+{
+    for(TDOEntry &entry : entries){
+        delete entry.text;
+    }
+}
+
 void TextDebugOverlay::init(TextureAtlas *textureAtlas)
 {
     this->textureAtlas = textureAtlas;

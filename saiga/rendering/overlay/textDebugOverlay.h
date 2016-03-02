@@ -42,6 +42,7 @@ public:
     std::vector<TDOEntry> entries;
 
     TextDebugOverlay();
+    ~TextDebugOverlay();
 
     void init(TextureAtlas* textureAtlas);
     void render();
