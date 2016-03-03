@@ -24,6 +24,9 @@ public:
     int channels;
     bool srgb = false;
     bool shouldDelete = false;
+    //Alignment of the beginning of each row. Allowed values: 1,2,4,8
+    int rowAlignment = 4;
+    int bytesPerRow;
 public:
     int bytesPerChannel();
     int bytesPerPixel();
@@ -48,6 +51,8 @@ public:
     void makeZero(); //zeros out all bytes
     void create();//allocates memory
 
+    void resize(int w, int h);
+    void setSubImage(int x, int y, Image &src);
     void setSubImage(int x, int y , int w , int h , uint8_t* data);
     void getSubImage(int x, int y, int w, int h, Image &out);
 
@@ -61,6 +66,7 @@ public:
     void setBitDepth(int value);
     int getChannels() const;
     void setChannels(int value);
+
 
 
 };

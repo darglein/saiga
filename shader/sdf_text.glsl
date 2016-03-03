@@ -57,11 +57,28 @@ void main() {
 //    return;
 
     float d = texture(text,texCoord).r;
-    if(d<0.5f)
-        discard;
 
+    float gamma = 0.02f;
+     float alpha = smoothstep(0.5f-gamma, 0.5f+gamma, d);
 
-    out_color = vec4(color);
+//    float alpha;
+
+//    if(d<0.5f)
+//        discard;
+
+//    alpha = 1.0f;
+    out_color = vec4(color.rgb,alpha);
+     vec4 letterColor = vec4(color.rgb,alpha);
+
+     float borderSize = 0.03f;
+     float border = 0;
+     if(d<0.5f+borderSize && d>0.5f-borderSize){
+//         border = 1;
+//         out_color = strokeColor;
+     }
+
+//    out_color = mix(letterColor,vec4(strokeColor),border);
+//     out_color = vec4(border);
 
 }
 

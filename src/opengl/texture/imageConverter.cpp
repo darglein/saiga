@@ -83,16 +83,16 @@ void ImageConverter::convert(Image& src, fipImage &dest){
     dest.setSize(getFIT2(src.bitDepth,src.channels),src.width,src.height,src.bitsPerPixel());
 
     //free image pads lines to 4 bytes
-    int scanWidth = dest.getScanWidth();
+//    int scanWidth = dest.getScanWidth();
 
     auto data = dest.accessPixels();
-    for(int y = 0 ; y < src.height ; ++y){
+//    for(int y = 0 ; y < src.height ; ++y){
 
-        auto rowPtr = src.positionPtr(0,y);
-        memcpy(data+scanWidth*y,rowPtr,scanWidth);
-    }
+//        auto rowPtr = src.positionPtr(0,y);
+//        memcpy(data+scanWidth*y,rowPtr,scanWidth);
+//    }
 
-
+    memcpy(data,src.data,src.getSize());
 
 }
 

@@ -9,7 +9,7 @@
 #include "saiga/geometry/aabb.h"
 #include "saiga/opengl/vertex.h"
 #include "saiga/opengl/opengl.h"
-
+#include "saiga/text/fontLoader.h"
 #include <iostream>
 
 
@@ -32,16 +32,21 @@ typedef struct FT_LibraryRec_  *FT_Library;
 class SAIGA_GLOBAL TextureAtlas{
 public:
     struct character_info {
-        int ax = 0; // advance.x
-        int ay = 0; // advance.y
+//        int ax = 0; // advance.x
+//        int ay = 0; // advance.y
 
-        int bw = 0; // bitmap.width;
-        int bh = 0; // bitmap.rows;
+//        int bw = 0; // bitmap.width;
+//        int bh = 0; // bitmap.rows;
 
-        int bl = 0; // bitmap_left;
-        int bt = 0; // bitmap_top;
+//        int bl = 0; // bitmap_left;
+//        int bt = 0; // bitmap_top;
+
+        glm::vec2 advance; //distance to the origin of the next character
+        glm::vec2 offset;  //offset of the bitmap position to the origin of this character
+        glm::vec2 size; //size of bitmap
 
         int atlasX = 0, atlasY = 0; //position of this character in the texture atlas
+
         vec2 tcMin,tcMax;
     } ;
 
@@ -52,7 +57,7 @@ public:
      * Loads a True Type font (.ttf) with libfreetype.
      * This will create the textureAtlas, so it has to be called before any ussage.
      */
-    void loadFont(const std::string &font, int font_size, int stroke_size=0);
+    void loadFont(const std::string &font, int fontSize=40, int quality=4, int searchRange=5);
 
     /**
      * Returns the bounding box that could contain every character in this font.
@@ -84,7 +89,8 @@ private:
     int atlasWidth;
     int charNum;
 
-    character_info characters[128];
+    static const int maxNumCharacters = 256;
+    character_info characters[maxNumCharacters];
 
     basic_Texture_2D *textureAtlas = nullptr;
     aabb maxCharacter;
@@ -93,12 +99,20 @@ private:
     int stroke_size;
 
 
-    void createTextureAtlas(Image &outImg);
 
+    void createTextureAtlas(Image &outImg, std::vector<FontLoader::Glyph> &glyphs, int downsample, int searchRadius);
+    void calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &glyphs);
+    void padGlyphsToDivisor(std::vector<FontLoader::Glyph> &glyphs, int divisor);
+    void convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divisor, int searchRadius);
+    std::vector<glm::ivec2> generateSDFsamples(int searchRadius);
+
+#if 0
+     void createTextureAtlas(Image &outImg);
     //mono chromatic image without strokes
     void createTextureAtlasMono(Image &outImg);
 
     void createTextureAtlasSDF(Image &moneImage, Image &outImg);
     //calculates the size and the position of each individual character in the texture atlas.
     void calculateTextureAtlasPositions();
+#endif
 };

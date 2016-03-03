@@ -15,14 +15,21 @@ void Text::calculateNormalizationMatrix()
     boundingBox = mesh.calculateAabb();
     normalizationMatrix = mat4();
     if(normalize){
+
+//        float height = boundingBox.max.y - boundingBox.min.y;
+        float height = 1.0f;
+
         vec3 offset = boundingBox.getPosition();
-        normalizationMatrix[3] = vec4(-offset,1);
+        normalizationMatrix[3] = vec4(-offset*1.0f/height,1);
+        normalizationMatrix[0][0] = 1.0f/height;
+        normalizationMatrix[1][1] = 1.0f/height;
+        normalizationMatrix[2][2] = 1.0f/height;
         boundingBox.transform(normalizationMatrix);
     }else{
         boundingBox.growBox(textureAtlas->getMaxCharacter());
     }
 
-    //    cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
+//        cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
 
 }
 
@@ -45,7 +52,7 @@ void Text::updateText(const std::string &l, int startIndex){
         //get position of last character
         const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo((int)this->label[startIndex]);
         //x offset of first new character
-        startX = this->mesh.vertices[startIndex*4].position.x - info.bl;
+        startX = this->mesh.vertices[startIndex*4].position.x - info.offset.x;
     }
 
     //delete everything from startindex to end
@@ -125,7 +132,7 @@ void Text::addTextToMesh(const std::string &text, int startX, int startY){
         //        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
         const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo((int)c);
 
-        vec3 offset = vec3(x+info.bl,y+info.bt-info.bh,0);
+        vec3 offset = vec3(x+info.offset.x,y+info.offset.y-info.size.y,0);
 
 
         //bottom left
@@ -133,20 +140,20 @@ void Text::addTextToMesh(const std::string &text, int startX, int startY){
                             vec3(0,0,1),
                             vec2(info.tcMin.x,info.tcMax.y));
         //bottom right
-        verts[1] = VertexNT(offset+vec3(info.bw,0,0),
+        verts[1] = VertexNT(offset+vec3(info.size.x,0,0),
                             vec3(0,0,1),
                             vec2(info.tcMax.x,info.tcMax.y));
         //top right
-        verts[2] = VertexNT(offset+vec3(info.bw,info.bh,0),
+        verts[2] = VertexNT(offset+vec3(info.size.x,info.size.y,0),
                             vec3(0,0,1),
                             vec2(info.tcMax.x,info.tcMin.y));
         //top left
-        verts[3] = VertexNT(offset+vec3(0,info.bh,0),
+        verts[3] = VertexNT(offset+vec3(0,info.size.y,0),
                             vec3(0,0,1),
                             vec2(info.tcMin.x,info.tcMin.y));
 
-        x+=info.ax;
-        y+=info.ay;
+        x+=info.advance.x;
+        y+=info.advance.y;
         mesh.addQuad(verts);
     }
 }
