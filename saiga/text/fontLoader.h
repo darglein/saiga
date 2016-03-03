@@ -12,6 +12,7 @@
 #include "saiga/opengl/texture/image.h"
 
 #include <iostream>
+#include <vector>
 
 struct FT_FaceRec_;
 struct FT_LibraryRec_;
