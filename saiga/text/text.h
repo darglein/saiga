@@ -11,7 +11,16 @@ class TextureAtlas;
 class SAIGA_GLOBAL Text : public Object3D{
 public:
     bool visible = true;
-    vec4 color=vec4(1), strokeColor=vec4(0,0,0,1);
+
+    float alpha = 1.0f;
+
+    vec4 color = vec4(1,1,1,1);
+    vec4 outlineColor = vec4(0,0,0,0);
+    vec4 glowColor = vec4(0,0,0,0);
+
+    vec2 softEdgeData = vec2(0.5f,0.5f);
+    vec2 glowData = vec2(0.5f,0.5f);
+    vec4 outlineData = vec4(0.5f,0.5f,0.5f,0.5f);
 
     Text(TextureAtlas* textureAtlas, const std::string &label="", bool normalize=false);
     virtual ~Text(){}
@@ -35,6 +44,13 @@ public:
      */
     aabb getAabb(){return boundingBox;}
     vec3 getSize(){ return boundingBox.max-boundingBox.min;}
+
+
+    void setOutline(const vec4& outlineColor, float width, float smoothness);
+    void setGlow(const vec4& glowColor, float width);
+    void setColor(const vec4& color, float smoothness);
+
+    void setAlpha(float alpha);
 
 private:
     //similar to a std::vector the capacity is not decreased when the size is decreased

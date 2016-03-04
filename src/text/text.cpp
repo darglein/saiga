@@ -72,13 +72,43 @@ void Text::updateText(const std::string &l, int startIndex){
     //    assert(verticesBefore==this->mesh.vertices.size());
 }
 
+void Text::setOutline(const vec4 &outlineColor, float width, float smoothness)
+{
+    this->outlineColor = outlineColor;
+    width = width*0.5f;
+    outlineData = vec4(0.5f-width-smoothness,0.5f-width+smoothness,0.5f+width-smoothness,0.5f+width+smoothness);
+}
+
+void Text::setGlow(const vec4 &glowColor, float width)
+{
+    this->glowColor = glowColor;
+    width = glm::clamp(width,0.0f,1.0f) * 0.5f;
+    glowData = vec2(0.5f-width,0.6f);
+}
+
+void Text::setColor(const vec4 &color, float smoothness)
+{
+    this->color = color;
+    softEdgeData = vec2(0.5f-smoothness,0.5f+smoothness);
+}
+
+void Text::setAlpha(float alpha)
+{
+    this->alpha = alpha;
+}
+
 
 
 
 
 void Text::render(TextShader* shader){
 
-    shader->upload(textureAtlas->getTexture(),color,strokeColor);
+    shader->uploadTextureAtlas(textureAtlas->getTexture());
+
+    shader->uploadColor(color,softEdgeData);
+    shader->uploadOutline(outlineColor,outlineData);
+    shader->uploadGlow(glowColor,glowData);
+    shader->uploadAlpha(alpha);
     shader->uploadModel(model*normalizationMatrix);
 
     buffer.bind();

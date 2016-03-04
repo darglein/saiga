@@ -40,7 +40,7 @@ int TextDebugOverlay::createItem(const std::string &name, int valueChars)
 
     entry.text = new Text(textureAtlas,"");
     entry.text->color = vec4(1,0,0,1);
-    entry.text->strokeColor = vec4(0.1f,0.1f,0.1f,1.0f);
+//    entry.text->strokeColor = vec4(0.1f,0.1f,0.1f,1.0f);
     overlay.addText(entry.text);
 
 

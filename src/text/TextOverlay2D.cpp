@@ -16,6 +16,7 @@ void TextOverlay2D::render(){
 
 
     textShader->bind();
+    textShader->uploadView(mat4());
     textShader->uploadProj(proj);
     for(Text* &text : texts){
         if(text->visible)

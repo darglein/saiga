@@ -72,7 +72,8 @@ void TextOverlay3D::renderText(Camera *cam){
 
 
     for(TextContainer &p : texts){
-        textShader->uploadFade(p.getFade());
+//        textShader->uploadFade(p.getFade());
+        p.text->setAlpha(p.getFade());
         if (p.orientToCamera){
             //make this text face towards the camera
             p.text->calculateModel();
@@ -90,6 +91,7 @@ void TextOverlay3D::loadShader()
 {
     if(textShader!=nullptr)
         return;
-    textShader = ShaderLoader::instance()->load<TextShaderFade>("deferred_text3D.glsl");
+//    textShader = ShaderLoader::instance()->load<TextShaderFade>("deferred_text3D.glsl");
+    textShader = ShaderLoader::instance()->load<TextShader>("sdf_text.glsl");
 
 }

@@ -8,6 +8,7 @@ layout(location=1) in vec3 in_normal;
 layout(location=2) in vec2 in_tex;
 
 uniform mat4 model;
+uniform mat4 view;
 uniform mat4 proj;
 
 
@@ -16,7 +17,7 @@ out vec2 texCoord;
 void main() {
     texCoord = in_tex;
 //    gl_Position = proj * model * vec4(in_position,1);
-    gl_Position = proj * model * vec4(in_position.x,in_position.y,0,1);
+    gl_Position = proj * view * model * vec4(in_position.x,in_position.y,0,1);
 }
 
 
@@ -31,7 +32,14 @@ uniform mat4 model;
 uniform mat4 proj;
 
 uniform vec4 color;
-uniform vec4 strokeColor;
+uniform vec4 outlineColor;
+uniform vec4 glowColor;
+
+uniform vec4 outlineData;
+uniform vec2 softEdgeData;
+uniform vec2 glowData;
+
+uniform float alphaMultiplier;
 
 uniform sampler2D text;
 
@@ -40,46 +48,80 @@ in vec2 texCoord;
 
 out vec4 out_color;
 
+
+const bool SOFT_EDGES = true;
+//const float SOFT_EDGE_MIN = 0.48f;
+//const float SOFT_EDGE_MAX = 0.52f;
+
+const bool OUTLINE = true;
+//const float OUTLINE_MIN_VALUE0 = 0.40f;
+//const float OUTLINE_MIN_VALUE1 = 0.45f;
+//const float OUTLINE_MAX_VALUE0 = 0.55f;
+//const float OUTLINE_MAX_VALUE1 = 0.60f;
+
+const bool OUTER_GLOW = true;
+//const vec4 OUTER_GLOW_COLOR = vec4(0,1,0,1);
+//const float OUTER_GLOW_MIN_DVALUE = 0.0f;
+//const float OUTER_GLOW_MAX_DVALUE = 0.5f;
+
 void main() {
-//    vec4 diffColor = vec4(color,texture(text,texCoord).r);
-//    out_color =  diffColor;
+    float OUTLINE_MIN_VALUE0 = outlineData.x;
+    float OUTLINE_MIN_VALUE1 = outlineData.y;
+    float OUTLINE_MAX_VALUE0 = outlineData.z;
+    float OUTLINE_MAX_VALUE1 = outlineData.w;
 
-//    vec2 data = texture(text,texCoord).rg;
+    float OUTER_GLOW_MIN_DVALUE = glowData.x;
+    float OUTER_GLOW_MAX_DVALUE = glowData.y;
 
-//    float stroke = data.x;
-//    float fill = data.y;
-//    stroke = stroke * (1.0f-fill);
+    float SOFT_EDGE_MIN = softEdgeData.x;
+    float SOFT_EDGE_MAX = softEdgeData.y;
 
+    vec4 baseColor = color;
+    float distAlphaMask = texture(text,texCoord).r;
+//    baseColor.a = distAlphaMask;
 
-//    out_color =  color*fill + strokeColor*stroke;
+    if( SOFT_EDGES )
+    {
+        baseColor.a *= smoothstep ( SOFT_EDGE_MIN ,SOFT_EDGE_MAX,distAlphaMask ) ;
+    }
+    else
+    {
+        baseColor.a *= (distAlphaMask >= 0.5) ? 1.0f : 0.0f;
+    }
 
-//    out_color = vec4(texture(text,texCoord).rrr,1);
-//    return;
+//    baseColor = mix ( vec4(0) , baseColor , baseColor.a ) ;
 
-    float d = texture(text,texCoord).r;
+    if( OUTER_GLOW )
+    {
+        vec4 glowc = glowColor * smoothstep(OUTER_GLOW_MIN_DVALUE, OUTER_GLOW_MAX_DVALUE, distAlphaMask) ;
+        baseColor = mix ( glowc , baseColor , baseColor.a ) ;
+    }else{
+        baseColor = mix ( vec4(0) , baseColor , baseColor.a ) ;
+    }
 
-    float gamma = 0.02f;
-     float alpha = smoothstep(0.5f-gamma, 0.5f+gamma, d);
+//    baseColor = mix ( vec4(0) , baseColor , baseColor.a ) ;
 
-//    float alpha;
+    if( OUTLINE &&
+        ( distAlphaMask >= OUTLINE_MIN_VALUE0 ) &&
+        ( distAlphaMask <= OUTLINE_MAX_VALUE1 ) )
+    {
 
-//    if(d<0.5f)
-//        discard;
+        float oFactor = 1.0;
+        if( distAlphaMask<= OUTLINE_MIN_VALUE1 )
+        {
+            oFactor = smoothstep ( OUTLINE_MIN_VALUE0,OUTLINE_MIN_VALUE1,distAlphaMask ) ;
+        }
+        else
+        {
+            oFactor = smoothstep ( OUTLINE_MAX_VALUE1,OUTLINE_MAX_VALUE0,distAlphaMask ) ;
 
-//    alpha = 1.0f;
-    out_color = vec4(color.rgb,alpha);
-     vec4 letterColor = vec4(color.rgb,alpha);
+        }
+        baseColor = mix ( baseColor , outlineColor, oFactor ) ;
+    }
 
-     float borderSize = 0.03f;
-     float border = 0;
-     if(d<0.5f+borderSize && d>0.5f-borderSize){
-//         border = 1;
-//         out_color = strokeColor;
-     }
-
-//    out_color = mix(letterColor,vec4(strokeColor),border);
-//     out_color = vec4(border);
-
+    baseColor.a *= alphaMultiplier;
+    out_color = baseColor;
+    return;
 }
 
 

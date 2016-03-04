@@ -19,6 +19,10 @@ Window::Window(const std::string &name, int width, int height, bool fullscreen)
 
 }
 
+Window::~Window(){
+    delete renderer;
+}
+
 void Window::quit(){
     cout<<"Window: Quit"<<endl;
     running = false;

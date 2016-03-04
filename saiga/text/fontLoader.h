@@ -27,12 +27,13 @@ public:
         glm::vec2 advance; //distance to the origin of the next character
         glm::vec2 offset;  //offset of the bitmap position to the origin of this character
         glm::vec2 size; //size of bitmap
-        Image* bitmap;
+        Image* bitmap = nullptr;
     };
 
     std::vector<Glyph> glyphs;
 
     FontLoader(const std::string& file);
+    ~FontLoader();
     void loadMonochromatic(int fontSize, int glyphPadding = 0);
     void writeGlyphsToFiles(const std::string& prefix);
 

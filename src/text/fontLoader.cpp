@@ -13,6 +13,14 @@ FontLoader::FontLoader(const std::string &file)
 
 }
 
+FontLoader::~FontLoader()
+{
+    //TODO shared pointer
+    for(Glyph &g : glyphs){
+        delete g.bitmap;
+    }
+}
+
 void FontLoader::loadMonochromatic(int fontSize, int glyphPadding)
 {
     loadFace(fontSize);
