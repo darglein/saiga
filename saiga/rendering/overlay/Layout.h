@@ -40,5 +40,6 @@ public:
 
     Layout(int width, int height, float targetWidth=1,  float targetHeight=1);
     void transform(Object3D* obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX=true);
+    void transformNonUniform(Object3D* obj, const aabb &box, vec2 relPos, vec2 relSize, Alignment alignmentX, Alignment alignmentY);
 };
 
