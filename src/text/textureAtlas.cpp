@@ -262,10 +262,15 @@ bool TextureAtlas::readAtlasFromFiles()
 
 
     std::string str = uniqueFontString + ".png";
-    textureAtlas = TextureLoader::instance()->load(str);
-    if(textureAtlas==nullptr)
+    Image img;
+    if(!TextureLoader::instance()->loadImage(str,img)){
         return false;
+    }
+
+    textureAtlas = new Texture();
+    textureAtlas->fromImage(img);
     textureAtlas->generateMipmaps();
+
     return true;
 
 }
