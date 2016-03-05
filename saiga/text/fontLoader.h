@@ -1,14 +1,7 @@
 #pragma once
 
-//#include "saiga/geometry/triangle_mesh.h"
-//#include "saiga/text/text.h"
-//#include "saiga/text/dynamic_text.h"
-
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
-#include "saiga/geometry/aabb.h"
-#include "saiga/opengl/vertex.h"
-#include "saiga/opengl/opengl.h"
 #include "saiga/opengl/texture/image.h"
 
 #include <iostream>
@@ -38,6 +31,7 @@ public:
     void writeGlyphsToFiles(const std::string& prefix);
 
 private:
+    static FT_Library ft;
     std::string file;
     FT_Face face = nullptr;
 

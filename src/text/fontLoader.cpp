@@ -7,10 +7,17 @@
 #include <ft2build.h>
 #include <ftstroke.h>
 
+FT_Library FontLoader::ft = nullptr;
+
 FontLoader::FontLoader(const std::string &file)
     : file(file)
 {
-
+    if(ft==nullptr){
+        if(FT_Init_FreeType(&ft)) {
+            std::cerr<< "Could not init freetype library"<<std::endl;
+            assert(0);
+        }
+    }
 }
 
 FontLoader::~FontLoader()
@@ -19,6 +26,8 @@ FontLoader::~FontLoader()
     for(Glyph &g : glyphs){
         delete g.bitmap;
     }
+
+
 }
 
 void FontLoader::loadMonochromatic(int fontSize, int glyphPadding)
@@ -28,7 +37,6 @@ void FontLoader::loadMonochromatic(int fontSize, int glyphPadding)
     FT_Error error;
 
     for(int i = 32; i < 128; i++) {
-        int id = i-32;
         FT_UInt  glyph_index;
 
         /* retrieve glyph index from character code */
@@ -124,7 +132,7 @@ void FontLoader::writeGlyphsToFiles(const std::string &prefix)
 
 void FontLoader::loadFace(int fontSize)
 {
-    if(FT_New_Face(TextureAtlas::ft, file.c_str(), 0, &face)) {
+    if(FT_New_Face(ft, file.c_str(), 0, &face)) {
         std::cerr<<"Could not open font "<<file<<std::endl;
         assert(0);
         return;

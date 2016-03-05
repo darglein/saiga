@@ -56,7 +56,6 @@ void Text::updateText(const std::string &l, int startIndex){
     }
 
     //delete everything from startindex to end
-    int verticesBefore = this->mesh.vertices.size();
     this->mesh.vertices.resize(startIndex*4);
     this->mesh.faces.resize(startIndex);
 
@@ -68,8 +67,6 @@ void Text::updateText(const std::string &l, int startIndex){
     this->updateGLBuffer(startIndex,resize);
 
     calculateNormalizationMatrix();
-
-    //    assert(verticesBefore==this->mesh.vertices.size());
 }
 
 
@@ -116,7 +113,7 @@ bool Text::compressText(std::string &str, int &start){
 
     //count leading characters that are equal
     int equalChars = 0;
-    for(;equalChars<str.size();equalChars++){
+    for(;equalChars<(int)str.size();equalChars++){
         if(label[equalChars+start]!=str[equalChars]){
             break;
         }
