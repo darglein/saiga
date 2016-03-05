@@ -1,5 +1,6 @@
 #pragma once
 
+#include "saiga/text/textParameters.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/texture/texture.h"
 
@@ -11,11 +12,8 @@ public:
      GLint location_alphaMultiplier;
     virtual void checkUniforms();
 
+     void uploadTextParameteres(const TextParameters& params);
     void uploadTextureAtlas(Texture* texture);
-    void uploadColor(const vec4& color, const vec2& softEdgeData);
-    void uploadOutline(const vec4& outlineColor, const vec4& outlineData);
-    void uploadGlow(const vec4& glowColor, const vec2& glowData);
-    void uploadAlpha(float alpha);
 };
 
 class SAIGA_GLOBAL TextShaderFade : public TextShader {

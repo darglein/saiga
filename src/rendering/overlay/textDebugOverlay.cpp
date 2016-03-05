@@ -7,7 +7,7 @@
 #include "saiga/text/textShader.h"
 #include "saiga/text/text.h"
 
-TextDebugOverlay::TextDebugOverlay(): overlay(1,1),layout(1600,900){
+TextDebugOverlay::TextDebugOverlay(int w, int h): overlay(1,1),layout(w,h){
 
 }
 
@@ -39,13 +39,15 @@ int TextDebugOverlay::createItem(const std::string &name, int valueChars)
     entry.valueIndex = name.size();
 
     entry.text = new Text(textureAtlas,"");
-    entry.text->color = vec4(1,0,0,1);
+//    entry.text->color = vec4(1,0,0,1);
+//    entry.text->params.setColor(vec4(1,0,0,1),0.1f);
+    entry.text->params = textParameters;
 //    entry.text->strokeColor = vec4(0.1f,0.1f,0.1f,1.0f);
     overlay.addText(entry.text);
 
 
 //    textGenerator->updateText(entry.text,name+std::string(valueChars,' '),0);
-    entry.text->updateText(name+std::string(valueChars,' '),0);
+    entry.text->updateText(name+std::string(valueChars,'\0'),0);
     aabb bb = entry.text->getAabb();
     bb.growBox(textureAtlas->getMaxCharacter());
 

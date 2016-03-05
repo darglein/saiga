@@ -27,8 +27,10 @@ public:
     float borderX = 0.01f;
     float borderY = 0.05f;
 
-    float paddingY = 0.001f;
-    float textSize = 0.02f;
+    float paddingY = 0.002f;
+    float textSize = 0.04f;
+
+    TextParameters textParameters;
 
 
 
@@ -41,7 +43,7 @@ public:
 
     std::vector<TDOEntry> entries;
 
-    TextDebugOverlay();
+    TextDebugOverlay(int w, int h);
     ~TextDebugOverlay();
 
     void init(TextureAtlas* textureAtlas);

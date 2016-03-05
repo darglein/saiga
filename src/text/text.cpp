@@ -46,7 +46,7 @@ void Text::updateText(const std::string &l, int startIndex){
     }
     //    cout<<"start "<<startIndex<<" '"<<label<<"' size "<<size<<endl;
 
-    int startX = 0;
+    float startX = 0;
 
     if(startIndex>0){
         //get position of last character
@@ -62,7 +62,7 @@ void Text::updateText(const std::string &l, int startIndex){
 
 
     //calculate new faces
-    addTextToMesh(label,startX);
+    addTextToMesh(label,vec2(startX,0));
 
     //update gl mesh
     this->updateGLBuffer(startIndex,resize);
@@ -72,30 +72,6 @@ void Text::updateText(const std::string &l, int startIndex){
     //    assert(verticesBefore==this->mesh.vertices.size());
 }
 
-void Text::setOutline(const vec4 &outlineColor, float width, float smoothness)
-{
-    this->outlineColor = outlineColor;
-    width = width*0.5f;
-    outlineData = vec4(0.5f-width-smoothness,0.5f-width+smoothness,0.5f+width-smoothness,0.5f+width+smoothness);
-}
-
-void Text::setGlow(const vec4 &glowColor, float width)
-{
-    this->glowColor = glowColor;
-    width = glm::clamp(width,0.0f,1.0f) * 0.5f;
-    glowData = vec2(0.5f-width,0.6f);
-}
-
-void Text::setColor(const vec4 &color, float smoothness)
-{
-    this->color = color;
-    softEdgeData = vec2(0.5f-smoothness,0.5f+smoothness);
-}
-
-void Text::setAlpha(float alpha)
-{
-    this->alpha = alpha;
-}
 
 
 
@@ -105,10 +81,7 @@ void Text::render(TextShader* shader){
 
     shader->uploadTextureAtlas(textureAtlas->getTexture());
 
-    shader->uploadColor(color,softEdgeData);
-    shader->uploadOutline(outlineColor,outlineData);
-    shader->uploadGlow(glowColor,glowData);
-    shader->uploadAlpha(alpha);
+    shader->uploadTextParameteres(params);
     shader->uploadModel(model*normalizationMatrix);
 
     buffer.bind();
@@ -154,15 +127,16 @@ bool Text::compressText(std::string &str, int &start){
 }
 
 
-void Text::addTextToMesh(const std::string &text, int startX, int startY){
+void Text::addTextToMesh(const std::string &text, vec2 offset){
 
-    int x=startX,y=startY;
+    vec2 position = offset;
     VertexNT verts[4];
     for(char c : text){
         //        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
         const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo((int)c);
 
-        vec3 offset = vec3(x+info.offset.x,y+info.offset.y-info.size.y,0);
+        vec3 offset = vec3(position.x+info.offset.x,position.y+info.offset.y-info.size.y,0);
+
 
 
         //bottom left
@@ -182,8 +156,9 @@ void Text::addTextToMesh(const std::string &text, int startX, int startY){
                             vec3(0,0,1),
                             vec2(info.tcMin.x,info.tcMin.y));
 
-        x+=info.advance.x;
-        y+=info.advance.y;
+//        x+=info.advance.x;
+//        y+=info.advance.y;
+        position += info.advance;
         mesh.addQuad(verts);
     }
 }

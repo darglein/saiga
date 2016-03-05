@@ -19,34 +19,26 @@ void TextShader::checkUniforms(){
 
 }
 
+void TextShader::uploadTextParameteres(const TextParameters &params)
+{
+    Shader::upload(location_color,params.color);
+    Shader::upload(location_softEdgeData,params.softEdgeData);
+
+    Shader::upload(location_outlineColor,params.outlineColor);
+    Shader::upload(location_outlineData,params.outlineData);
+
+    Shader::upload(location_glowColor,params.glowColor);
+    Shader::upload(location_glowData,params.glowData);
+
+    Shader::upload(location_alphaMultiplier,params.alpha);
+}
+
 
 
 void TextShader::uploadTextureAtlas(Texture* texture){
     Shader::upload(location_texture,texture,0);
 }
 
-void TextShader::uploadColor(const vec4 &color, const vec2 &softEdgeData)
-{
-     Shader::upload(location_color,color);
-     Shader::upload(location_softEdgeData,softEdgeData);
-}
-
-void TextShader::uploadOutline(const vec4 &outlineColor, const vec4 &outlineData)
-{
-    Shader::upload(location_outlineColor,outlineColor);
-    Shader::upload(location_outlineData,outlineData);
-}
-
-void TextShader::uploadGlow(const vec4 &glowColor, const vec2 &glowData)
-{
-    Shader::upload(location_glowColor,glowColor);
-    Shader::upload(location_glowData,glowData);
-}
-
-void TextShader::uploadAlpha(float alpha)
-{
-    Shader::upload(location_alphaMultiplier,alpha);
-}
 
 
 void TextShaderFade::checkUniforms()

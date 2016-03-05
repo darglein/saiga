@@ -1,5 +1,6 @@
 #pragma once
 
+#include "saiga/text/textParameters.h"
 #include "saiga/rendering/object3d.h"
 #include "saiga/geometry/triangle_mesh.h"
 
@@ -12,15 +13,8 @@ class SAIGA_GLOBAL Text : public Object3D{
 public:
     bool visible = true;
 
-    float alpha = 1.0f;
 
-    vec4 color = vec4(1,1,1,1);
-    vec4 outlineColor = vec4(0,0,0,0);
-    vec4 glowColor = vec4(0,0,0,0);
-
-    vec2 softEdgeData = vec2(0.5f,0.5f);
-    vec2 glowData = vec2(0.5f,0.5f);
-    vec4 outlineData = vec4(0.5f,0.5f,0.5f,0.5f);
+    TextParameters params;
 
     Text(TextureAtlas* textureAtlas, const std::string &label="", bool normalize=false);
     virtual ~Text(){}
@@ -46,11 +40,6 @@ public:
     vec3 getSize(){ return boundingBox.max-boundingBox.min;}
 
 
-    void setOutline(const vec4& outlineColor, float width, float smoothness);
-    void setGlow(const vec4& glowColor, float width);
-    void setColor(const vec4& color, float smoothness);
-
-    void setAlpha(float alpha);
 
 private:
     //similar to a std::vector the capacity is not decreased when the size is decreased
@@ -70,5 +59,5 @@ private:
     bool compressText(std::string &str, int &start);
 
     //adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
-    void addTextToMesh(const std::string &text, int startX=0, int startY=0);
+    void addTextToMesh(const std::string &text, vec2 offset=vec2(0));
 };

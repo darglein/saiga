@@ -73,7 +73,7 @@ void TextOverlay3D::renderText(Camera *cam){
 
     for(TextContainer &p : texts){
 //        textShader->uploadFade(p.getFade());
-        p.text->setAlpha(p.getFade());
+        p.text->params.setAlpha(p.getFade());
         if (p.orientToCamera){
             //make this text face towards the camera
             p.text->calculateModel();
