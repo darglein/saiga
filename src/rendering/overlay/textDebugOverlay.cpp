@@ -8,7 +8,7 @@
 #include "saiga/text/text.h"
 
 TextDebugOverlay::TextDebugOverlay(int w, int h): overlay(1,1),layout(w,h){
-
+    overlay.proj = layout.proj;
 }
 
 TextDebugOverlay::~TextDebugOverlay()

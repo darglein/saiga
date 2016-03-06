@@ -36,10 +36,15 @@ private:
     int width,height;
     float targetWidth, targetHeight;
     float aspect;
+    vec3 scale;
 public:
+    mat4 proj;
 
     Layout(int width, int height, float targetWidth=1,  float targetHeight=1);
     void transform(Object3D* obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX=true);
     void transformNonUniform(Object3D* obj, const aabb &box, vec2 relPos, vec2 relSize, Alignment alignmentX, Alignment alignmentY);
+
+    //transforms a point in the range [(0,0),(width,height)] to the range [(0,0),(targetWidth,targetHeight)]
+    glm::vec2 transformToLocal(glm::vec2 p);
 };
 

@@ -1,6 +1,6 @@
 #include "saiga/opengl/texture/imageConverter.h"
 #include <iostream>
-
+#include "saiga/util/assert.h"
 
 #ifdef USE_PNG
 #include "saiga/util/png_wrapper.h"
@@ -156,6 +156,7 @@ void ImageConverter::convert(fipImage &src, Image& dest){
 
     }else{
         std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;
+        assert(0);
     }
 
 }
