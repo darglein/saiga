@@ -163,6 +163,22 @@ void Image::addChannel()
     delete[] oldData;
 }
 
+void Image::flipRB()
+{
+    assert(bitDepth==8);
+    assert(channels==3 || channels==4);
+
+    for(int y = 0 ; y < height ; ++y){
+        uint8_t* ptr = data + (y*bytesPerRow);
+        for(int x = 0 ; x < width ; ++x){
+            uint8_t r = *ptr;
+            *ptr = *(ptr+2);
+            *(ptr+2) = r;
+            ptr += channels;
+        }
+    }
+}
+
 //======================================================
 
 int Image::getChannels() const

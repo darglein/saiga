@@ -59,6 +59,7 @@ public:
     //adds a zero initialized channel
     void addChannel();
 
+    void flipRB();
 
     //======================================================
 
