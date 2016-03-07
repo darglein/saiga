@@ -9,7 +9,7 @@ Layout::Layout(int width, int height, float targetWidth, float targetHeight):wid
     scale = vec3(aspect,1.0f,1.0f);
 }
 
-void Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX)
+aabb Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX)
 {
     //scale to correct size
     if(scaleX){
@@ -23,16 +23,15 @@ void Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSiz
         obj->scale = vec3(ds);
         obj->scale.y *= 1.0f/aspect;
     }
-    obj->scale *= scale;
 
-//    cout<<"scale "<<obj->scale<<endl;
+    aabb resultBB = aabb(box.min*obj->scale,box.max*obj->scale);
+
 
     //alignment
     vec3 center = box.getPosition()*obj->scale;
     vec3 bbmin = box.min*obj->scale;
     vec3 bbmax = box.max*obj->scale;
 
-//    cout<<center<<" "<<bbmin<<" "<<bbmax<<endl;
 
     vec3 alignmentOffset(0);
 
@@ -60,25 +59,29 @@ void Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSiz
         break;
     }
 
+    obj->position = vec3(relPos,0)-alignmentOffset;
+    resultBB.setPosition(obj->position);
 
-    //move
-
-    obj->position = vec3(relPos,0)*scale-alignmentOffset;
+    obj->scale *= scale;
+    obj->position  *= scale;
 
     obj->calculateModel();
 
     //    cout<<width<<" "<<height<<endl;
     //    cout<<"LAYOUT "<<aspect<<" "<<obj->scale<<" "<<obj->position<<" "<<box<<endl;
-
+//    resultBB.translate(vec3(relPos,0)*scale-alignmentOffset);
+    return resultBB;
 }
 
-void Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 relSize, Layout::Alignment alignmentX, Layout::Alignment alignmentY)
+aabb Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 relSize, Layout::Alignment alignmentX, Layout::Alignment alignmentY)
 {
 
     vec3 s = box.max-box.min;
     obj->scale = vec3(relSize.x,relSize.y,1.0f) / vec3(s.x,s.y,1.0f);
 
-    obj->scale *= scale;
+    aabb resultBB = aabb(box.min*obj->scale,box.max*obj->scale);
+
+
 
     //alignment
     vec3 center = box.getPosition()*obj->scale;
@@ -113,10 +116,15 @@ void Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, ve
 
 
     //move
+    obj->position = vec3(relPos,0)-alignmentOffset;
+    resultBB.setPosition(obj->position);
 
-    obj->position = vec3(relPos,0)*scale-alignmentOffset;
+    obj->scale *= scale;
+    obj->position  *= scale;
 
     obj->calculateModel();
+
+    return resultBB;
 }
 
 glm::vec2 Layout::transformToLocal(glm::vec2 p)

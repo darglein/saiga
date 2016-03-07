@@ -107,7 +107,7 @@ bool Text::compressText(std::string &str, int &start){
         std::copy(str.begin(),str.end(),label.begin()+start);
         capacity = newLength;
         start = 0;
-        cout<<"Increasing capacity of text '"<<label<<"' to "<<size<<endl;
+//        cout<<"Increasing capacity of text '"<<label<<"' to "<<size<<endl;
         return true;
     }
 
