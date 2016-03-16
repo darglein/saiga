@@ -57,8 +57,8 @@ void main() {
 
     float visibility = 1.0f;
 #ifdef SHADOWS
-//    visibility = calculateShadow(depthTex,vposition,1.0f);
-    visibility = calculateShadowPCF(depthTex,vposition,1.0f);
+    visibility = calculateShadow(depthTex,vposition,1.0f);
+//    visibility = calculateShadowPCF(depthTex,vposition,1.0f);
 #endif
 
 
