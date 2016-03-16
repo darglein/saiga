@@ -64,7 +64,7 @@ void PointLight::setAttenuation(float c, float l , float q){
 }
 
 void PointLight::setSimpleAttenuation(float d, float cutoff){
-    //    this->setColor(vec4(1));
+    //    this->params.setColor(vec4(1));
     //    sphere.r = d;
     //    scale(vec3(sphere.r));
 

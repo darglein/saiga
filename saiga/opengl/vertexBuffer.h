@@ -51,7 +51,7 @@ public:
      */
 
     VertexBuffer() : Buffer(GL_ARRAY_BUFFER){}
-    ~VertexBuffer(){deleteGLBuffers();}
+    ~VertexBuffer(){deleteGLBuffer();}
 
 
     /*
@@ -80,7 +80,7 @@ public:
      *  Will be called by the destructor automatically
      */
 
-    void deleteGLBuffers();
+    void deleteGLBuffer();
 
     /*
      *  Binds/Unbinds OpenGL buffers.
@@ -167,9 +167,7 @@ template<class vertex_t>
 void VertexBuffer<vertex_t>::set(vertex_t* vertices,int vertex_count){
     this->vertex_count = vertex_count;
 
-
-     deleteGLBuffers();
-
+    deleteGLBuffer();
 
     createGLBuffer(vertices,vertex_count * sizeof(vertex_t),GL_STATIC_DRAW);
 
@@ -187,11 +185,13 @@ void VertexBuffer<vertex_t>::set(vertex_t* vertices,int vertex_count){
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::deleteGLBuffers(){
+void VertexBuffer<vertex_t>::deleteGLBuffer(){
     //glDeleteBuffers silently ignores 0's and names that do not correspond to existing buffer objects
     Buffer::deleteGLBuffer();
-    glDeleteVertexArrays(1, &gl_vao);
-    gl_vao = 0;
+    if(gl_vao){
+        glDeleteVertexArrays(1, &gl_vao);
+        gl_vao = 0;
+    }
 
 }
 

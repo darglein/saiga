@@ -18,7 +18,7 @@ public:
 
     bool running;
 
-    Deferred_Renderer* renderer;
+    Deferred_Renderer* renderer = nullptr;
     Camera* currentCamera = nullptr;
 
 
@@ -29,7 +29,7 @@ public:
     bool vsync = false;
 
     Window(const std::string &name,int width,int height, bool fullscreen);
-     virtual ~Window(){}
+     virtual ~Window();
 
 
     void quit();

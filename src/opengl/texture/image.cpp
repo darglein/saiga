@@ -2,7 +2,7 @@
 #include <cstring>
 #include <iostream>
 #include <FreeImagePlus.h>
-
+#include "saiga/util/assert.h"
 #ifdef USE_PNG
     #include "saiga/util/png_wrapper.h"
 #endif
@@ -31,7 +31,8 @@ int Image::bitsPerPixel(){
 }
 
 size_t Image::getSize(){
-    return width*height*bytesPerPixel();
+//    return width*height*bytesPerPixel();
+    return height*bytesPerRow;
 }
 
 void Image::setPixel(int x, int y, void* data){
@@ -58,7 +59,8 @@ void Image::setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b){
 }
 
 int Image::position(int x, int y){
-    return (y*width+x)*bytesPerPixel();
+//    return (y*width+x)*bytesPerPixel();
+    return y*bytesPerRow+x*bytesPerPixel();
 }
 
 uint8_t* Image::positionPtr(int x, int y){
@@ -71,11 +73,40 @@ void Image::makeZero()
 }
 
 void Image::create(){
+    bytesPerRow = width*bytesPerPixel();
+    int rowPadding = (rowAlignment - (bytesPerRow % rowAlignment)) % rowAlignment;
+    bytesPerRow += rowPadding;
 
     delete[] data;
     data = new uint8_t[getSize()];
 
     shouldDelete = true;
+}
+
+void Image::resize(int w, int h)
+{
+    Image newimg = *this;
+
+    this->data = nullptr;
+
+    width = w;
+    height = h;
+
+    create();
+    makeZero();
+
+    setSubImage(0,0,newimg);
+
+}
+
+void Image::setSubImage(int x, int y, Image& src)
+{
+    assert(src.width<=width && src.height<=height);
+
+
+    for(int i=0;i<src.height;i++){//rows
+        memcpy(this->data+position(x,y+i),src.data+src.bytesPerRow*i,src.bytesPerRow);
+    }
 }
 
 void Image::setSubImage(int x, int y, int w, int h, uint8_t *data)
@@ -130,6 +161,22 @@ void Image::addChannel()
     }
 
     delete[] oldData;
+}
+
+void Image::flipRB()
+{
+    assert(bitDepth==8);
+    assert(channels==3 || channels==4);
+
+    for(int y = 0 ; y < height ; ++y){
+        uint8_t* ptr = data + (y*bytesPerRow);
+        for(int x = 0 ; x < width ; ++x){
+            uint8_t r = *ptr;
+            *ptr = *(ptr+2);
+            *(ptr+2) = r;
+            ptr += channels;
+        }
+    }
 }
 
 //======================================================

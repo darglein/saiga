@@ -44,10 +44,13 @@ void ParticleSystem::reset()
     particleBuffer.updateVertexBuffer(&particles[0],particles.size(),0);
 }
 
+void ParticleSystem::nextTick()
+{
+    ++tick;
+}
+
 void ParticleSystem::update()
 {
-    tick++;
-
     if( uploadDataNextUpdate ){
         updateParticleBuffer();
         uploadDataNextUpdate = false;

@@ -1,5 +1,5 @@
 #include "saiga/sound/SoundLoader.h"
-
+#include "saiga/util/assert.h"
 #include <fstream>
 
 #include <AL/al.h>

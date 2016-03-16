@@ -44,6 +44,16 @@ public:
 
     void reset();
 
+    /**
+     * @brief nextTick
+     * Call this at the start of the update tick so particles added within this tick have the correct start tick
+     */
+    void nextTick();
+
+    /**
+     * @brief update
+     * Call this after all particles are added in a tick, to upload the data to the GPU
+     */
     void update();
     void interpolate(float interpolation);
     void render(Camera* cam);

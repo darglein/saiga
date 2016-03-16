@@ -53,7 +53,7 @@ public:
 
     void loadShader();
 private:
-    TextShaderFade* textShader = nullptr;
+    TextShader* textShader = nullptr;
 };
 
 

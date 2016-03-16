@@ -8,17 +8,17 @@
 #include "saiga/text/TextOverlay2D.h"
 #include "saiga/rendering/overlay/Layout.h"
 #include <vector>
-#include "saiga/text/text_generator.h"
+#include "saiga/text/text.h"
 
-class TextGenerator;
+class TextureAtlas;
 
-class DynamicText;
+class Text;
 
 class SAIGA_GLOBAL TextDebugOverlay {
 public:
     class TDOEntry{
     public:
-        DynamicText* text;
+        Text* text;
         int length;
         int valueIndex;
     };
@@ -27,23 +27,26 @@ public:
     float borderX = 0.01f;
     float borderY = 0.05f;
 
-    float paddingY = 0.001f;
-    float textSize = 0.02f;
+    float paddingY = 0.002f;
+    float textSize = 0.04f;
+
+    TextParameters textParameters;
 
 
 
     TextOverlay2D overlay;
-    TextGenerator* textGenerator;
+    TextureAtlas* textureAtlas;
 
-    DynamicText* text;
+    Text* text;
 
     Layout layout;
 
     std::vector<TDOEntry> entries;
 
-    TextDebugOverlay();
+    TextDebugOverlay(int w, int h);
+    ~TextDebugOverlay();
 
-    void init(TextGenerator* textGenerator);
+    void init(TextureAtlas* textureAtlas);
     void render();
 
     int createItem(const std::string& name, int valueChars);
@@ -63,7 +66,8 @@ void TextDebugOverlay::updateEntry(int id, T v)
     std::stringstream sstream;
 
     sstream << v;
-    textGenerator->updateText(entries[id].text,sstream.str()+"                                  ",entries[id].valueIndex);
+//    textGenerator->updateText(entries[id].text,sstream.str()+"                                  ",entries[id].valueIndex);
+    entries[id].text->updateText(sstream.str()+"                                  ",entries[id].valueIndex);
 }
 
 

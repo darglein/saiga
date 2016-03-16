@@ -50,6 +50,6 @@ public:
 
 
 
-	friend std::ostream& operator<<(std::ostream& os, const aabb& dt);
+    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const aabb& dt);
 };
 

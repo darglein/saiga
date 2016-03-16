@@ -26,3 +26,4 @@ General
 - rendering/lighting parameter struct
 - controlable camera
 - framebuffer shared pointer
+- deleteGLBuffer(s)
