@@ -13,6 +13,7 @@
 #pragma warning( disable : 4251 ) //needs to have dll-interface to be used by clients of class 'glbinding::Binding'
 #pragma warning( disable : 4201 ) //nonstandard extension used : nameless struct/union
 #pragma warning( disable : 4267 )
+#pragma warning(disable: 4505) //Unreferenced local function has been removed
 #endif
 
 
