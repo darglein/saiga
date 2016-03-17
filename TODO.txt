@@ -1,17 +1,5 @@
 Asset Loading + Rendering
-- AssetLoader that returns an object that can be rendered
-- Vertex colored meshes (without textures)
-- textured meshes
-- a mix of both
-- different file formats (use assimp)
-- load appropriate shaders
-
-- uncolored assets
-- Colored assets
-- Textured assets
 - animated assets
-
-
 
 General
 - better shader names
@@ -23,7 +11,5 @@ General
 - bezier+bspline curves + surfaces + teapot
 - tesselation
 - obj loader fix
-- rendering/lighting parameter struct
 - controlable camera
 - framebuffer shared pointer
-- deleteGLBuffer(s)

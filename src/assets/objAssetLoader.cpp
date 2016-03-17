@@ -51,5 +51,40 @@ ColoredAsset* ObjAssetLoader::loadBasicAsset(const std::string &file, bool norma
     return asset;
 }
 
+TexturedAsset *ObjAssetLoader::loadTexturedAsset(const std::string &file, bool normalize)
+{
+    ObjLoader2 ol(file);
+
+    TexturedAsset* asset = new TexturedAsset();
+    TriangleMesh<VertexNT,GLuint> &tmesh = asset->mesh;
+
+    for(ObjTriangle &oj : ol.outTriangles){
+        tmesh.addFace(oj.v);
+    }
+
+    for(VertexNT &v : ol.outVertices){
+        VertexNT vn;
+        vn.position = v.position;
+        vn.normal = v.normal;
+        vn.texture = v.texture;
+        tmesh.addVertex(vn);
+    }
+
+    for(ObjTriangleGroup &otg : ol.triangleGroups){
+        TexturedAsset::TextureGroup tg;
+        tg.indices = otg.faces * 3;
+        tg.startIndex = otg.startFace * 3;
+        tg.texture = otg.material.map_Kd;
+        if(tg.texture){
+            tg.texture->setWrap(GL_REPEAT);
+            asset->groups.push_back(tg);
+        }
+    }
+
+    asset->create(file,texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
+
+    return asset;
+}
+
 
 

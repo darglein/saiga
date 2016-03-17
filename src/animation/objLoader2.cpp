@@ -176,6 +176,11 @@ void ObjLoader2::parseLine(const std::string &line)
     std::string rest;
     std::getline(sstream,rest);
 
+    //remove first white space
+    if(rest[0]==' ' && rest.size()>1){
+        rest = rest.substr(1);
+    }
+
 
     if(header == "#"){
     }else if(header == "usemtl"){
@@ -203,7 +208,7 @@ void ObjLoader2::parseV(const std::string &line)
 {
     std::stringstream sstream(line);
     vec3 v;
-    sstream >> v.x >> v.y >> v.z;
+    sstream >> v;
     vertices.push_back(v);
 }
 
@@ -211,7 +216,7 @@ void ObjLoader2::parseVT(const std::string &line)
 {
     std::stringstream sstream(line);
     vec2 v;
-    sstream >> v.x >> v.y;
+    sstream >> v;
     texCoords.push_back(v);
 }
 
@@ -219,7 +224,7 @@ void ObjLoader2::parseVN(const std::string &line)
 {
     std::stringstream sstream(line);
     vec3 v;
-    sstream >> v.x >> v.y >> v.z;
+    sstream >> v;
     normals.push_back(glm::normalize(v));
 }
 
@@ -269,12 +274,24 @@ void ObjLoader2::parseUM(const std::string &line)
     }
     ObjTriangleGroup newGroup;
     newGroup.startFace = faces.size();
+    newGroup.material = materialLoader.getMaterial(line);
     triangleGroups.push_back(newGroup);
+
+
 }
+
+#include "saiga/util/fileChecker.h"
 
 void ObjLoader2::parseM(const std::string &line)
 {
+    FileChecker fc;
+//    cout<<fc.getParentDirectory("asdf1/asdf2/sldgj.png")<<endl;
+//    cout<<fc.getParentDirectory("asdf1/sldgj.png")<<endl;
+//    cout<<fc.getParentDirectory("sldgj.png")<<endl;
+//    cout<<fc.getRelative(file,line)<<endl;
+//    cout<<"parseM "<<line<<endl;
 
+    materialLoader.loadFile(fc.getRelative(file,line));
 }
 
 

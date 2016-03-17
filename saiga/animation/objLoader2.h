@@ -3,15 +3,13 @@
 #include <saiga/config.h>
 #include <saiga/geometry/triangle_mesh.h>
 #include <saiga/opengl/texture/texture.h>
+#include <saiga/animation/objMaterialLoader.h>
 
 struct SAIGA_GLOBAL IndexedVertex2{
     int v=-1,n=-1,t=-1;
 };
 
-struct SAIGA_GLOBAL ObjMaterial{
-    vec3 color = vec3(0,1,0);
-    Texture* diffuseTexture = nullptr;
-};
+
 
 struct SAIGA_GLOBAL ObjTriangleGroup{
     int startFace = 0;
@@ -47,6 +45,7 @@ private:
     std::vector<vec2> texCoords;
     std::vector<std::vector<IndexedVertex2>> faces;
 
+    ObjMaterialLoader materialLoader;
 
     void createVertexIndexList();
 

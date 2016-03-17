@@ -104,7 +104,7 @@ void Image::setSubImage(int x, int y, Image& src)
     assert(src.width<=width && src.height<=height);
 
 
-    for(int i=0;i<src.height;i++){//rows
+    for(int i=0;i<(int)src.height;i++){//rows
         memcpy(this->data+position(x,y+i),src.data+src.bytesPerRow*i,src.bytesPerRow);
     }
 }
@@ -168,9 +168,9 @@ void Image::flipRB()
     assert(bitDepth==8);
     assert(channels==3 || channels==4);
 
-    for(int y = 0 ; y < height ; ++y){
+    for(int y = 0 ; y < (int)height ; ++y){
         uint8_t* ptr = data + (y*bytesPerRow);
-        for(int x = 0 ; x < width ; ++x){
+        for(int x = 0 ; x < (int)width ; ++x){
             uint8_t r = *ptr;
             *ptr = *(ptr+2);
             *(ptr+2) = r;

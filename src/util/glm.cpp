@@ -50,6 +50,34 @@ std::ostream& operator<<(std::ostream& os, const glm::quat& v){
     return os;
 }
 
+// ===========================================================================
+
+
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec2& v){
+    is >> v.x >> v.y;
+    return is;
+}
+
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec3& v){
+    is >> v.x >> v.y >> v.z;
+    return is;
+}
+
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec4& v){
+    is >> v.x >> v.y >> v.z >> v.w;
+    return is;
+}
+
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::quat& v){
+    is >> v.x >> v.y >> v.z >> v.w;
+    return is;
+}
+
+
+
+
+// ===========================================================================
+
 quat getRotation(const glm::vec3& v1, const glm::vec3& v2){
 //    vec3 rotAxis = glm::cross(v1,v2);
 
