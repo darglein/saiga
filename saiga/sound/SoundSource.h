@@ -31,6 +31,8 @@ public:
     void setLooping(bool looping);
     void setReferenceDistance(float v);
 
+    void reset();
+
     void makeBackground();
 };
 

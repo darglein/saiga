@@ -96,6 +96,7 @@ SoundSource* SoundManager::getSoundSource(const std::string& file){
         cout << "<SoundManager> Stopping sound before playing a new one!" << endl;
         s->stop();
     }
+    s->reset();
     s->setSound(sound);
     oldestSource = glm::max( (oldestSource + 1) % maxSources, fixedSources );
     return s;

@@ -12,6 +12,7 @@ SoundSource::SoundSource(Sound *sound) : sound(sound){
     alGenSources(1, &source);
 
     alSourcei(source, AL_BUFFER, sound->buffer);
+    reset();
 }
 
 SoundSource::SoundSource()
@@ -77,6 +78,17 @@ void SoundSource::setLooping(bool looping){
 
 void SoundSource::setReferenceDistance(float v){
     alSourcef(source,AL_REFERENCE_DISTANCE,v);
+}
+
+void SoundSource::reset()
+{
+    setLooping(false);
+    setPosition(vec3(0));
+    setVelocity(vec3(0));
+    setVolume(1.f);
+    setPitch(1.f);
+    setReferenceDistance(1.f);
+
 }
 
 void SoundSource::makeBackground()
