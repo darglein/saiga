@@ -91,6 +91,7 @@ public:
     bool offsetGeometry = false;
     float offsetFactor = 1.0f, offsetUnits = 1.0f;
 
+    vec4 clearColor = vec4(0,0,0,0);
 
     Camera** currentCamera;
 
