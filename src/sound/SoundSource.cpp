@@ -86,15 +86,18 @@ void SoundSource::reset()
     setPosition(vec3(0));
     setVelocity(vec3(0));
     setVolume(1.f);
-    setPitch(1.f);
-    setReferenceDistance(1.f);
-
+//    setPitch(1.f); //this is set with timescale
+    setReferenceDistance(1.f); //TODO dont know if correct?
+    //make foreground
+    alSourcei( source, AL_SOURCE_RELATIVE, AL_FALSE );
+    alSourcef( source, AL_ROLLOFF_FACTOR, 1.0 ); //TODO dont know if correct?
 }
 
 void SoundSource::makeBackground()
 {
     alSourcei( source, AL_SOURCE_RELATIVE, AL_TRUE );
     alSourcef( source, AL_ROLLOFF_FACTOR, 0.0 );
+    setPosition(vec3(0));
 }
 
 
