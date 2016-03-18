@@ -292,6 +292,8 @@ void DeferredLighting::setupLightPass(){
 void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
 
 
+//    glViewport(0,0,width,height); //todo remove
+
     DirectionalLightShader* shader = (shadow)?directionalLightShadowShader:directionalLightShader;
 
     shader->bind();
@@ -300,6 +302,8 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
     shader->uploadSsaoTexture(ssaoTexture);
+
+//    cout<<"DeferredLighting::renderDirectionalLights "<<width<<" "<<height<<endl;
 
     directionalLightMesh.bind();
     for(DirectionalLight* &obj : directionalLights){

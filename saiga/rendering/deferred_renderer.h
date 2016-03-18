@@ -117,6 +117,7 @@ public:
     void setSize(int width, int height){this->width=width;this->height=height;}
     void resize(int width, int height);
 
+    void clearSSAO();
     void toggleSSAO();
 
     void render_intern();

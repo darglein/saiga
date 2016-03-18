@@ -84,7 +84,18 @@ void Deferred_Renderer::resize(int width, int height)
     postProcessor.resize(width,height);
     deferred_framebuffer.resize(width,height);
     ssao_framebuffer.resize(width,height);
+    clearSSAO();
     lighting.resize(width,height);
+}
+
+void Deferred_Renderer::clearSSAO()
+{
+    ssao_framebuffer.bind();
+    //clear with 1 -> no ambient occlusion
+    glClearColor(1.0f,1.0f,1.0f,1.0f);
+    glClear( GL_COLOR_BUFFER_BIT );
+    glClearColor(0.0f,0.0f,0.0f,0.0f);
+    ssao_framebuffer.unbind();
 }
 
 
@@ -92,16 +103,8 @@ void Deferred_Renderer::resize(int width, int height)
 
 void Deferred_Renderer::toggleSSAO()
 {
-    ssao_framebuffer.bind();
-
-    //clear with 1 -> no ambient occlusion
-    glClearColor(1.0f,1.0f,1.0f,1.0f);
-    glClear( GL_COLOR_BUFFER_BIT );
-    glClearColor(0.0f,0.0f,0.0f,0.0f);
-    ssao_framebuffer.unbind();
-
+    clearSSAO();
     ssao = !ssao;
-
 }
 
 void Deferred_Renderer::render_intern(){
