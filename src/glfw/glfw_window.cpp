@@ -220,7 +220,8 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
                 break;
             }
 
-            joystick.getCurrentStateFromGLFW();
+            if(updateJoystick)
+                joystick.getCurrentStateFromGLFW();
             renderer->renderer->update(dt);
 
 

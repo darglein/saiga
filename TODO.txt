@@ -10,6 +10,5 @@ General
 - templated image class
 - bezier+bspline curves + surfaces + teapot
 - tesselation
-- obj loader fix
 - controlable camera
 - framebuffer shared pointer

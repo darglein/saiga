@@ -48,6 +48,7 @@ protected:
 public:
 
     Joystick joystick;
+    bool updateJoystick = false;
 
     double lastSwapBuffersMS = 0;
     double lastPolleventsMS = 0;
