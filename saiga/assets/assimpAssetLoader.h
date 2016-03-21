@@ -12,7 +12,7 @@ public:
 
     ColoredAsset* loadBasicAsset(const std::string &file, bool normalize=false);
     TexturedAsset* loadTexturedAsset(const std::string &file, bool normalize=false);
-    AnimatedAsset* loadAnimatedAsset(const std::string &file);
+    AnimatedAsset* loadAnimatedAsset(const std::string &file, bool normalize=false);
 
 
     Asset* loadAsset(const std::string &file);
