@@ -20,6 +20,7 @@ void Animation::getFrame(float f, AnimationFrame &out){
     nextFrame = nextFrame%animationFrames.size();
 
 
+//    cout<<"getFrame "<<frame<<" "<<nextFrame<<" "<<t<<endl;
 
     AnimationFrame &k0 = animationFrames[frame];
     AnimationFrame &k1 = animationFrames[nextFrame];

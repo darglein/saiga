@@ -27,6 +27,10 @@ void AssetLoader2::loadDefaultShaders()
     texturedAssetShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset.glsl");
     texturedAssetDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_depth.glsl");
     texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_wireframe.glsl");
+
+    animatedAssetShader = ShaderLoader::instance()->load<BoneShader>("deferred_mvp_bones.glsl");
+    animatedAssetDepthshader = ShaderLoader::instance()->load<BoneShader>("deferred_mvp_bones_depth.glsl");
+    animatedAssetWireframeShader = ShaderLoader::instance()->load<BoneShader>("deferred_mvp_bones.glsl");
 }
 
 TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)

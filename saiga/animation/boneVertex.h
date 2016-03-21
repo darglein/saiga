@@ -3,6 +3,7 @@
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
 #include <saiga/opengl/vertexBuffer.h>
+#include "saiga/util/assert.h"
 
 
 struct SAIGA_GLOBAL BoneVertex{
@@ -76,6 +77,7 @@ struct SAIGA_GLOBAL BoneVertexNC{
         mat4 boneMatrix(0);
         for(int i=0;i<BONES_PER_VERTEX;++i){
             int index = (int)boneIndices[i];
+            assert(index>=0 && index<(int)boneMatrices.size());
             boneMatrix += boneMatrices[index] * boneWeights[i];
         }
 
@@ -83,6 +85,25 @@ struct SAIGA_GLOBAL BoneVertexNC{
         normal = vec3(boneMatrix*vec4(normal,0));
         normal = glm::normalize(normal);
 
+    }
+
+    void checkWeights(float epsilon){
+        float weightSum = 0;
+        for(int i=0;i<BONES_PER_VERTEX;++i){
+            weightSum += boneWeights[i];
+        }
+
+        assert(weightSum>(1.0f-epsilon) && weightSum<(1.0f+epsilon));
+    }
+
+    int activeBones(){
+        int count = 0;
+        for(int i=0;i<BONES_PER_VERTEX;++i){
+            if(boneWeights[i]>0){
+                count++;
+            }
+        }
+        return count;
     }
 };
 

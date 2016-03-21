@@ -2,6 +2,7 @@
 
 #include "saiga/util/color.h"
 #include <saiga/assets/coloredAsset.h>
+#include "saiga/animation/boneShader.h"
 
 class SAIGA_GLOBAL AssetLoader2{
 public:
@@ -12,6 +13,10 @@ public:
     MVPShader* texturedAssetShader  = nullptr;
     MVPShader* texturedAssetDepthShader  = nullptr;
     MVPShader* texturedAssetWireframeShader  = nullptr;
+
+    BoneShader* animatedAssetShader  = nullptr;
+    BoneShader* animatedAssetDepthshader  = nullptr;
+    BoneShader* animatedAssetWireframeShader  = nullptr;
 
     AssetLoader2();
     virtual ~AssetLoader2();

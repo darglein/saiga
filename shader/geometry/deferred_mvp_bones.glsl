@@ -78,7 +78,7 @@ in vec3 vertex;
 in vec3 color;
 in vec3 data;
 
-#include "geometry/geometry_helper_fs.glsl"
+#include "geometry_helper_fs.glsl"
 
 
 

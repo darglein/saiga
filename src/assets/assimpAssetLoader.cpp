@@ -98,6 +98,106 @@ TexturedAsset *AssimpAssetLoader::loadTexturedAsset(const std::string &file, boo
     return asset;
 }
 
+AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, bool normalize)
+{
+    AssimpLoader al(file);
+
+    int meshCount = al.scene->mNumMeshes;
+
+    if(meshCount==0){
+        return nullptr;
+    }
+
+    AnimatedAsset* asset = new AnimatedAsset();
+
+    TriangleMesh<BoneVertexNC,GLuint> &tmesh = asset->mesh;
+
+
+    al.loadBones();
+
+    for(int i=0;i<meshCount;++i){
+        TriangleMesh<BoneVertexNC,GLuint> tmesh3;
+        al.getPositions(i,tmesh3);
+        al.getFaces(i,tmesh3);
+        al.getNormals(i,tmesh3);
+        al.getColors(i,tmesh3);
+        al.getBones(i,tmesh3);
+        al.getData(i,tmesh3);
+        tmesh.addMesh(tmesh3);
+    }
+
+
+    for(BoneVertexNC &bv : asset->mesh.vertices){
+        bv.checkWeights(0.0001f);
+    }
+
+
+    //does not work xD
+
+//        //apply bone offset matrices to mesh
+//        for(BoneVertexNC &bv : asset->mesh.vertices){
+//            bv.apply(al.boneOffsets);
+//        }
+
+
+//        for(unsigned int i=0;i<al.boneOffsets.size();++i){
+//            al.boneOffsets[i] = mat4();
+//        }
+
+
+    asset->boneCount = al.boneOffsets.size();
+    asset->boneMap = al.boneMap;
+    asset->nodeindexMap = al.nodeindexMap;
+    asset->boneOffsets = al.boneOffsets;
+
+    for(unsigned int i=0;i<asset->boneOffsets.size();++i){
+        asset->inverseBoneOffsets.push_back(glm::inverse(asset->boneOffsets[i]));
+    }
+
+    int animationCount = al.scene->mNumAnimations;
+
+    asset->animations.resize(animationCount);
+    for(int i=0;i<animationCount;++i){
+        al.getAnimation(i,0,asset->animations[i]);
+    }
+
+    for(BoneVertexNC &v : asset->mesh.vertices){
+        vec3 c = v.color;
+        c = Color::srgb2linearrgb(c);
+        v.color = c;
+    }
+
+
+//    std::vector<mat4> boneMatrices(al.boneOffsets.size());
+//    for(int i = 0 ; i < al.boneOffsets.size() ; ++i){
+//        mat4 randomTransformation = glm::translate(mat4(),vec3(1,i,3));
+//        randomTransformation = glm::rotate(randomTransformation,123.123f+i,vec3(-14,2,i));
+//        randomTransformation = glm::scale(randomTransformation,vec3(i,3.5f,5.1f));
+//        randomTransformation = glm::rotate(randomTransformation,123.123f*i,vec3(4,2,-5*i));
+//        boneMatrices[i] = randomTransformation * al.boneOffsets[i];
+//    }
+
+//    int i = 0;
+//    for(BoneVertexNC v : asset->mesh.vertices){
+//        v.apply(boneMatrices);
+//        if(i%10==0){
+//            cout<<v.activeBones()<<" "<<v.position<<endl;
+//        }
+//        i++;
+//    }
+
+
+    asset->boneMatricesBuffer.init(animatedAssetShader,animatedAssetShader->location_boneMatricesBlock);
+
+    //    asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
+    asset->create(file,animatedAssetShader,animatedAssetDepthshader,animatedAssetWireframeShader,normalize,false);
+
+
+
+
+    return asset;
+}
+
 
 
 Asset *AssimpAssetLoader::loadAsset(const std::string &file)

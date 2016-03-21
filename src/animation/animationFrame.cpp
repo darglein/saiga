@@ -13,7 +13,7 @@ void AnimationFrame::calculateFromTree()
 
     for(unsigned int i=0;i<boneMatrices.size();++i){
 //                boneMatrices[i] = boneOffsets[i] * boneMatrices[i];
-        boneMatrices[i] =  boneMatrices[i]* boneOffsets[i];
+        boneMatrices[i] =  boneMatrices[i] * boneOffsets[i];
     }
 }
 
