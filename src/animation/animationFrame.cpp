@@ -8,18 +8,14 @@ using std::endl;
 
 void AnimationFrame::calculateFromTree()
 {
-//    cout<<"AnimationFrame::calculateFromTree()"<<endl;
     rootNode.traverse(mat4(),boneMatrices);
-
     for(unsigned int i=0;i<boneMatrices.size();++i){
-//                boneMatrices[i] = boneOffsets[i] * boneMatrices[i];
         boneMatrices[i] =  boneMatrices[i] * boneOffsets[i];
     }
 }
 
 void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, AnimationFrame& out, float alpha)
 {
-
     out = k0;
     out.initTree();
 

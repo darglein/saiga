@@ -1,79 +1,49 @@
 #include "saiga/animation/animation.h"
+#include "saiga/util/assert.h"
 
-using std::cout;
-using std::endl;
 
-Animation::Animation()
+int Animation::getActiveFrames()
 {
+    return skipLastFrame ? frameCount-1 : frameCount;
+}
+
+AnimationFrame &Animation::getKeyFrame(int frameIndex)
+{
+    assert(frameIndex>=0 && frameIndex<frameCount);
+    return keyFrames[frameIndex];
 }
 
 
-void Animation::getFrame(float f, AnimationFrame &out){
+void Animation::getFrame(float time, AnimationFrame &out){
 
-
-    //get before and after that time
-    int frame = floor(f);
+    //get frame index before and after
+    int frame = floor(time);
     int nextFrame = frame+1;
-    float t = f - frame;
+    float t = time - frame;
 
-    frame = frame%animationFrames.size();
-    nextFrame = nextFrame%animationFrames.size();
+    int modulo = getActiveFrames();
 
-
-//    cout<<"getFrame "<<frame<<" "<<nextFrame<<" "<<t<<endl;
-
-    AnimationFrame &k0 = animationFrames[frame];
-    AnimationFrame &k1 = animationFrames[nextFrame];
+    frame = frame%modulo;
+    nextFrame = nextFrame%modulo;
 
 
-    AnimationFrame::interpolate(k0,k1,out,t);
+    getFrame(frame,nextFrame,t,out);
 
 }
 
+void Animation::getFrameNormalized(float time, AnimationFrame &out)
+{
+    getFrame(time*getActiveFrames(),out);
+}
 
-void Animation::setKeyFrame(float f){
-    f = f - floor(f);
-    f = f*(frameCount-1);
+void Animation::getFrame(int frame0, int frame1, float alpha, AnimationFrame &out)
+{
+    assert(frame0>=0 && frame0<frameCount);
+    assert(frame1>=0 && frame1<frameCount);
 
-    //get before and after that time
-    int frame = floor(f);
-    int nextFrame = frame+1;
-    float t = f - frame;
-
-    frame = frame%animationFrames.size();
-    nextFrame = nextFrame%animationFrames.size();
-
-
-
-    AnimationFrame &k0 = animationFrames[frame];
-    AnimationFrame &k1 = animationFrames[nextFrame];
-
-    AnimationFrame out;
-
-    AnimationFrame::interpolate(k0,k1,out,t);
-
-    for(unsigned int m =0;m<out.boneMatrices.size();++m){
-        boneMatrices[m] = out.boneMatrices[m];
-    }
+    AnimationFrame &k0 = keyFrames[frame0];
+    AnimationFrame &k1 = keyFrames[frame1];
+    AnimationFrame::interpolate(k0,k1,out,alpha);
 }
 
 
-void Animation::setKeyFrame(int i){
-    i = i%animationFrames.size();
-
-    AnimationFrame &k = animationFrames[i];
-
-
-    for(unsigned int m =0;m<boneMatrices.size();++m){
-        boneMatrices[m] = k.boneMatrices[m];
-//        cout<<boneMatrices[m]<<endl;
-    }
-//    cout<<"========================================"<<endl;
-}
-
-void Animation::update(){
-
-    animtick = animtick + (3.0f/1000.0f) * animfps;
-    setKeyFrame(animtick);
-
-}
