@@ -9,7 +9,6 @@ class SAIGA_GLOBAL AnimationNode{
 public:
     std::string name;
     std::vector<AnimationNode> children;
-    mat4 testMat;
 
     int index = 0;
     int boneIndex = -1;
@@ -35,23 +34,11 @@ class SAIGA_GLOBAL AnimationFrame
 public:
     int nodeCount = 0;
     std::vector<AnimationNode*> nodes;
-    std::map<std::string,int> nodeindexMap;
     AnimationNode rootNode;
 
     int bones;
     std::vector<mat4> boneOffsets;
     std::vector<mat4> boneMatrices;
-
-//    std::vector<glm::quat> boneRotations;
-//    std::vector<vec3> bonePositions;
-//    std::vector<vec3> boneScalings;
-
-    std::vector<glm::dquat> boneRotations;
-    std::vector<glm::dvec3> bonePositions;
-    std::vector<glm::dvec3> boneScalings;
-
-
-
 
 
     static void interpolate(AnimationFrame &k0, AnimationFrame &k1, AnimationFrame &out, float alpha);

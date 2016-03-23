@@ -109,16 +109,16 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
     (void)meshId;
     //const aiMesh *mesh = scene->mMeshes[meshId];
 
-    out.boneMatrices.resize(boneCount);
+//    out.boneMatrices.resize(boneCount);
     //    transformmesh(mesh,out.boneMatrices);
 
 
     aiAnimation *curanim = scene->mAnimations[animationId];
 
     //    createFrames(mesh,curanim,out.animationFrames);
-    createKeyFrames(curanim,out.animationFrames);
+    createKeyFrames(curanim,out.keyFrames);
 
-    out.frameCount = out.animationFrames.size();
+    out.frameCount = out.keyFrames.size();
     out.name = curanim->mName.data;
 
     if(verbose)
@@ -262,7 +262,7 @@ void AssimpLoader::transformnode(aiMatrix4x4 *result, aiNode *node)
 
     std::string str(node->mName.data);
     AnimationNode* an = nodeMap[str];
-    an->testMat = convert(*result);
+//    an->testMat = convert(*result);
 }
 
 

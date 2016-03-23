@@ -1,7 +1,7 @@
 #pragma once
 
 #include <saiga/assets/assetLoader.h>
-#include <saiga/assets/coloredAsset.h>
+
 
 class SAIGA_GLOBAL AssimpAssetLoader : public AssetLoader2{
 public:

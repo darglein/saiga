@@ -2,6 +2,7 @@
 
 #include "saiga/util/color.h"
 #include <saiga/assets/coloredAsset.h>
+#include <saiga/assets/animatedAsset.h>
 #include "saiga/animation/boneShader.h"
 
 class SAIGA_GLOBAL AssetLoader2{
