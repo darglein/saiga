@@ -131,7 +131,7 @@ if(USE_OPENAL)
 	SET(LIBS ${LIBS} ${OPENAL_LIBRARY})
 endif(USE_OPENAL)
 
-#openal
+#opus
 if(USE_OPUS)
 	find_package(Opus REQUIRED)
 	include_directories(${OPUS_INCLUDE_DIRS})

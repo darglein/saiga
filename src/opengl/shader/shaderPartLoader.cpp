@@ -7,17 +7,18 @@
 #define STATUS_WAITING 0
 #define STATUS_READING 1
 
-ShaderPartLoader::ShaderPartLoader() : ShaderPartLoader("","",ShaderCodeInjections()){
+FileChecker shaderPathes;
+
+ShaderPartLoader::ShaderPartLoader() : ShaderPartLoader("",ShaderCodeInjections()){
+}
+
+ShaderPartLoader::ShaderPartLoader(const std::string &file, const ShaderCodeInjections &injections)
+    : file(file),injections(injections){
 }
 
 ShaderPartLoader::~ShaderPartLoader(){
 }
 
-
-
-ShaderPartLoader::ShaderPartLoader(const std::string &file, const std::string &prefix, const ShaderCodeInjections &injections)
-    : file(file),prefix(prefix),injections(injections){
-}
 
 
 bool ShaderPartLoader::load()
@@ -73,7 +74,7 @@ bool ShaderPartLoader::load()
 bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<std::string> &ret)
 {
 
-    std::ifstream fileStream(prefix+"/"+file, std::ios::in);
+    std::ifstream fileStream(file, std::ios::in);
     if(!fileStream.is_open()) {
         return false;
     }
@@ -94,10 +95,12 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
             line.erase(it,line.end());
 
             //recursivly load includes
+            std::string includeFileName = line;
+            includeFileName = shaderPathes.getRelative(file,includeFileName);
             std::vector<std::string> tmp;
-            if(!loadAndPreproccess(line,tmp)){
-                std::cerr<<"ShaderPartLoader: Could not open included file: "<<prefix+"/"+line<<endl;
-                std::cerr<<"Make sure it exists and the path is correct"<<endl;
+            if(!loadAndPreproccess(includeFileName,tmp)){
+                std::cerr<<"ShaderPartLoader: Could not open included file: "<<line<<endl;
+                std::cerr<<"Make sure it exists and the search pathes are set."<<endl;
                 assert(0);
             }
             ret.insert(ret.end(),tmp.begin(),tmp.end());
@@ -133,7 +136,7 @@ void ShaderPartLoader::reloadShader(Shader *shader)
     shader->shaders = shaders;
     shader->createProgram();
 
-    std::cout<<"Loaded: "<<prefix + "/" + file<<" ( ";
+    std::cout<<"Loaded: "<<file<<" ( ";
     for(auto& sp : shaders){
         std::cout<<sp->type<<" ";
     }

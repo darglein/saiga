@@ -66,6 +66,11 @@ void initFramework(Window *window)
     ShaderLoader::instance()->addPath(SHADER_PATH+"/lighting");
     ShaderLoader::instance()->addPath(SHADER_PATH+"/post_processing");
 
+    shaderPathes.addSearchPath(SHADER_PATH);
+    shaderPathes.addSearchPath(SHADER_PATH+"/geometry");
+    shaderPathes.addSearchPath(SHADER_PATH+"/lighting");
+    shaderPathes.addSearchPath(SHADER_PATH+"/post_processing");
+
     TextureLoader::instance()->addPath(TEXTURE_PATH);
     TextureLoader::instance()->addPath(OBJ_PATH);
     TextureLoader::instance()->addPath(".");
