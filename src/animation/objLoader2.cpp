@@ -285,11 +285,11 @@ void ObjLoader2::parseUM(const std::string &line)
 void ObjLoader2::parseM(const std::string &line)
 {
     FileChecker fc;
-//    cout<<fc.getParentDirectory("asdf1/asdf2/sldgj.png")<<endl;
-//    cout<<fc.getParentDirectory("asdf1/sldgj.png")<<endl;
-//    cout<<fc.getParentDirectory("sldgj.png")<<endl;
-//    cout<<fc.getRelative(file,line)<<endl;
-//    cout<<"parseM "<<line<<endl;
+    cout<<fc.getParentDirectory("asdf1/asdf2/sldgj.png")<<endl;
+    cout<<fc.getParentDirectory("asdf1/sldgj.png")<<endl;
+    cout<<fc.getParentDirectory("sldgj.png")<<endl;
+    cout<<fc.getRelative(file,line)<<endl;
+    cout<<"parseM "<<line<<endl;
 
     materialLoader.loadFile(fc.getRelative(file,line));
 }

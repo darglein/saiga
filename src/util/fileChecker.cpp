@@ -1,9 +1,32 @@
 #include "saiga/util/fileChecker.h"
 
+#include <fstream>
+
+FileChecker::FileChecker()
+{
+    addSearchPath(".");
+}
+
+std::string FileChecker::getFile(const std::string &file)
+{
+    for(std::string &path : searchPathes){
+        std::string fullName = path + "/" + file;
+        if(existsFile(fullName))
+            return fullName;
+    }
+    return "";
+}
+
 std::string FileChecker::getRelative(const std::string &baseFile, const std::string &file)
 {
+    //first check at path relative to the parent
     auto parent = getParentDirectory(baseFile);
-    return parent + file;
+    std::string relativeName = parent + file;
+    if(existsFile(relativeName))
+        return relativeName;
+
+    //search for the file at default pathes
+    return getFile(file);
 }
 
 std::string FileChecker::getParentDirectory(const std::string &file)
@@ -16,4 +39,15 @@ std::string FileChecker::getParentDirectory(const std::string &file)
         }
     }
     return "";
+}
+
+void FileChecker::addSearchPath(const std::string &path)
+{
+    searchPathes.push_back(path);
+}
+
+bool FileChecker::existsFile(const std::string &file)
+{
+    std::ifstream infile(file);
+    return infile.good();
 }
