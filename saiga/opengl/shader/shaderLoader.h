@@ -4,6 +4,7 @@
 #include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/util/singleton.h"
 #include "saiga/util/loader.h"
+#include "saiga/util/assert.h"
 
 
 class SAIGA_GLOBAL ShaderLoader : public Loader<Shader,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
@@ -12,10 +13,10 @@ public:
     virtual ~ShaderLoader(){}
     Shader* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
     template<typename shader_t> shader_t* load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
-    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections& sci);
+    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
 
     void reload();
-    bool reload(Shader* shader, const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections& sci);
+    bool reload(Shader* shader, const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
 };
 
 
@@ -37,24 +38,24 @@ shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCo
         }
     }
 
-    for(std::string &prefix : locations){
-        object = loadFromFile<shader_t>(name,prefix,sci);
-        if (object){
-            //            std::cout<<"Loaded from file: "<<prefix + "/" + name<<std::endl;
-            objects.emplace_back(name,sci,object);
-            return object;
-        }
+    std::string fullName = shaderPathes.getFile(name);
+
+    if(fullName == ""){
+        std::cout<<"Could not find file '"<<name<<"'. Make sure it exists and the search pathes are set."<<std::endl;
+        assert(0);
     }
 
-    std::cout<<"Failed to load "<<name<<"!!!"<<std::endl;
-    assert(0);
-    return nullptr;
+    object = loadFromFile<shader_t>(fullName,sci);
+    assert(object);
+    objects.emplace_back(name,sci,object);
+
+    return object;
 }
 
 template<typename shader_t>
-shader_t* ShaderLoader::loadFromFile(const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections& sci){
+shader_t* ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
 
-    ShaderPartLoader spl(name,prefix,sci);
+    ShaderPartLoader spl(name,sci);
     if(spl.load()){
         return spl.createShader<shader_t>();
     }

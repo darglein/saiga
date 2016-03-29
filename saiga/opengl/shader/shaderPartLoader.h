@@ -3,6 +3,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/util/glm.h"
 #include "saiga/opengl/shader/shaderpart.h"
+#include "saiga/util/fileChecker.h"
 
 #include <vector>
 #include <memory> //for shared pointer
@@ -17,14 +18,13 @@ public:
     typedef std::vector<ShaderCodeInjection> ShaderCodeInjections;
 
     std::string file;
-    std::string prefix;
     ShaderCodeInjections injections;
 
     std::vector<std::shared_ptr<ShaderPart>> shaders;
 
 
     ShaderPartLoader();
-    ShaderPartLoader(const std::string &file, const std::string &prefix, const ShaderCodeInjections &injections);
+    ShaderPartLoader(const std::string &file, const ShaderCodeInjections &injections);
     ~ShaderPartLoader();
 
     bool load();
@@ -54,7 +54,7 @@ shader_t* ShaderPartLoader::createShader()
     shader->shaders = shaders;
     shader->createProgram();
 
-    std::cout<<"Loaded: "<<prefix + "/" + file<<" ( ";
+    std::cout<<"Loaded: "<<file<<" ( ";
     for(auto& sp : shaders){
         std::cout<<sp->type<<" ";
     }
@@ -64,6 +64,6 @@ shader_t* ShaderPartLoader::createShader()
     return shader;
 }
 
-
+extern SAIGA_GLOBAL FileChecker shaderPathes;
 
 

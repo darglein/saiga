@@ -5,11 +5,8 @@ Shader* ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::Sh
 	(void )params; 
 	cout << "fail ShaderLoader::loadFromFile "<<name << endl;
 	
-//    Shader* shader = new Shader(name);
-//    if(shader->reload()){
-//        return shader;
-//    }
-//    delete shader;
+    assert(0);
+
     return nullptr;
 }
 
@@ -20,20 +17,18 @@ void ShaderLoader::reload(){
         auto sci = std::get<1>(object);
         auto shader = std::get<2>(object);
 
-        for(std::string &prefix : locations){
-            if (reload(shader,name,prefix,sci)){
-               break;
-            }
-        }
 
+        std::string fullName = shaderPathes.getFile(name);
+        auto ret = reload(shader,fullName,sci);
+        assert(ret);
     }
 
 
 }
 
-bool ShaderLoader::reload(Shader *shader, const std::string &name, const std::string &prefix, const ShaderPart::ShaderCodeInjections &sci)
+bool ShaderLoader::reload(Shader *shader, const std::string &name, const ShaderPart::ShaderCodeInjections &sci)
 {
-    ShaderPartLoader spl(name,prefix,sci);
+    ShaderPartLoader spl(name,sci);
     if(spl.load()){
        spl.reloadShader(shader);
        return true;
