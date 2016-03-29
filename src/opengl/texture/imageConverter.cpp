@@ -1,6 +1,7 @@
 #include "saiga/opengl/texture/imageConverter.h"
 #include <iostream>
 #include "saiga/util/assert.h"
+#include <cstring> //for memcpy
 
 #ifdef USE_PNG
 #include "saiga/util/png_wrapper.h"
