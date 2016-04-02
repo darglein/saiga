@@ -22,9 +22,9 @@ public:
     GBuffer(int w, int h, GBufferParameters params);
     void init(int w, int h, GBufferParameters params);
 
-    Texture* getTextureColor(){return this->colorBuffers[0];}
-    Texture* getTextureNormal(){return this->colorBuffers[1];}
-    Texture* getTextureData(){return this->colorBuffers[2];}
+    raw_Texture* getTextureColor(){return this->colorBuffers[0];}
+    raw_Texture* getTextureNormal(){return this->colorBuffers[1];}
+    raw_Texture* getTextureData(){return this->colorBuffers[2];}
 
     void sampleNearest();
     void sampleLinear();

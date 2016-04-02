@@ -34,8 +34,10 @@ float intensityRect(vec2 tc){
 
 void main() {
 
+    ivec2 tci = ivec2(gl_FragCoord.xy);
+    vec3 c = texelFetch( image, tci ,0).rgb;
 
-    vec3 c = texture( image, tc ).rgb;
+//    vec3 c = texture( image, tc ).rgb;
 	
 	float a = intensityRect(tc);
 	a = smoothstep(0.3,0.5,a);

@@ -7,6 +7,7 @@
 
 class MVPTextureShader;
 class basic_Texture_2D;
+class raw_Texture;
 class Framebuffer;
 class GBuffer;
 
@@ -15,7 +16,7 @@ class GBuffer;
 class SAIGA_GLOBAL DeferredDebugOverlay {
 private:
     struct GbufferTexture : public Object3D{
-        basic_Texture_2D *texture;
+        raw_Texture* texture;
     };
 
 
