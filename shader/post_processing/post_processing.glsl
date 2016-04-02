@@ -10,7 +10,11 @@
 
 //simple pass through shader
 void main() {
-    out_color = texture( image, tc );
+    ivec2 tci = ivec2(gl_FragCoord.xy);
+    out_color = texelFetch( image, tci ,0);
+
+
+//    out_color = texture( image, tc );
 }
 
 

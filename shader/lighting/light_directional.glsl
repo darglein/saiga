@@ -42,10 +42,10 @@ uniform float ambientIntensity;
 
 layout(location=0) out vec4 out_color;
 
-void main() {
+vec4 getDirectionalLightIntensity(int sampleId) {
     vec3 diffColor,vposition,normal,data;
     float depth;
-    getGbufferData(diffColor,vposition,depth,normal,data);
+    getGbufferData(diffColor,vposition,depth,normal,data,sampleId);
     vec3 specColor = vec3(1);
     vec3 ambColor = diffColor;
     vec3 lightDir = direction;
@@ -73,7 +73,19 @@ void main() {
 //    vec3 Iemissive = diffColor*data.y ;
 
 //    out_color = vec4(lightColor*( Idiff*diffColor + Ispec*specColor + Iamb*ambColor) + Iemissive,1);
-    out_color = vec4(lightColor*(Idiff+Iamb) ,Ispec); //accumulation
+    return vec4(lightColor*(Idiff+Iamb) ,Ispec); //accumulation
+//    out_color = vec4(1.0f);
+}
+
+void main(){
+//    vec4 c = vec4(0);
+//    int s = 1;
+//    for(int i = 0 ; i < s ; ++i){
+//        c += getDirectionalLightIntensity(i);
+//    }
+//    out_color = (c / s);
+
+    out_color = getDirectionalLightIntensity(0);
 }
 
 

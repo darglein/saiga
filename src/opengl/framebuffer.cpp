@@ -18,7 +18,7 @@ Framebuffer::~Framebuffer()
         delete depthBuffer;
         delete stencilBuffer;
     }
-    for(Texture* t : colorBuffers){
+    for(raw_Texture* t : colorBuffers){
         delete t;
     }
 }
@@ -70,35 +70,35 @@ void Framebuffer::check(){
     }
 }
 
-void Framebuffer::attachTexture(Texture* texture){
+void Framebuffer::attachTexture(raw_Texture* texture, GLenum textTarget){
     bind();
     int index = colorBuffers.size();
     colorBuffers.push_back(texture);
     GLenum cid = GL_COLOR_ATTACHMENT0+index;
     //    glFramebufferTexture(GL_FRAMEBUFFER, cid,texture->id, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, cid,GL_TEXTURE_2D,texture->getId(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, cid,texture->getTarget(),texture->getId(), 0);
 
 }
 
-void Framebuffer::attachTextureDepth(Texture* texture){
+void Framebuffer::attachTextureDepth(raw_Texture* texture, GLenum textTarget){
     bind();
     depthBuffer = texture;
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,texture->getId(), 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_ATTACHMENT, texture->getTarget(),texture->getId(), 0);
 }
 
-void Framebuffer::attachTextureStencil(Texture* texture){
+void Framebuffer::attachTextureStencil(raw_Texture* texture, GLenum textTarget){
     bind();
     stencilBuffer = texture;
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D,texture->getId(), 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_STENCIL_ATTACHMENT, texture->getTarget(),texture->getId(), 0);
 
 }
 
 
-void Framebuffer::attachTextureDepthStencil(Texture* texture){
+void Framebuffer::attachTextureDepthStencil(raw_Texture* texture, GLenum textTarget){
     bind();
     depthBuffer = texture;
     stencilBuffer = texture;
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,texture->getId(), 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_STENCIL_ATTACHMENT, texture->getTarget(),texture->getId(), 0);
 }
 
 void Framebuffer::blitDepth(int otherId){
@@ -119,6 +119,6 @@ void Framebuffer::resize(int width, int height)
         depthBuffer->resize(width,height);
     if(stencilBuffer)
         stencilBuffer->resize(width,height);
-    for(Texture* t : colorBuffers)
+    for(raw_Texture* t : colorBuffers)
         t->resize(width,height);
 }

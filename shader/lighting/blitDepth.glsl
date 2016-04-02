@@ -32,15 +32,18 @@ void main() {
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
+//uniform sampler2DMS image;
 uniform sampler2D image;
-
 
 in vec2 texCoord;
 
 layout(location=0) out vec4 out_color;
 
 void main() {
-     float d = texture(image, texCoord).r;
+    ivec2 tci = ivec2(gl_FragCoord.xy);
+    float d = texelFetch( image, tci ,0).r;
+
+//     float d = texture(image, texCoord).r;
     gl_FragDepth = d;
     out_color = vec4(0);
 }

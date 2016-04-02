@@ -36,10 +36,10 @@ uniform sampler2D lightAccumulationtexture;
 
 layout(location=0) out vec4 out_color;
 
-void main() {
+vec4 getAccumulatedColor(int sampleId) {
     vec3 diffColor,vposition,normal,data;
     float depth;
-    getGbufferData(diffColor,vposition,depth,normal,data);
+    getGbufferData(diffColor,vposition,depth,normal,data,sampleId);
 
 
     vec4 light = texture(lightAccumulationtexture,CalcTexCoord());
@@ -50,7 +50,19 @@ void main() {
     float specular = data.x;
     float emissive = data.y;
 
-    out_color = vec4(diffColor*(light.rgb+emissive) + specular*specColor*light.w,1); //accumulation
+    return vec4(diffColor*(light.rgb+emissive) + specular*specColor*light.w,1); //accumulation
 }
+
+void main(){
+//    vec4 c = vec4(0);
+//    int s = 16;
+//    for(int i = 0 ; i < s ; ++i){
+//        c += getAccumulatedColor(i);
+//    }
+//    out_color = (c / s);
+
+    out_color = getAccumulatedColor(0);
+}
+
 
 

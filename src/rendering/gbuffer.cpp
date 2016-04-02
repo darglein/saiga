@@ -15,7 +15,14 @@ void GBuffer::init(int w, int h, GBufferParameters params)
 {
     this->params = params;
     this->create();
+
+//    multisampled_Texture_2D* msTexture = new multisampled_Texture_2D(4);
+//    msTexture->createEmptyTexture(w,h,GL_RGB,GL_SRGB8,GL_UNSIGNED_BYTE);
+
+    glEnable(GL_MULTISAMPLE); //enabled by default anyways
+    int samples = 16;
     Texture* color = new Texture();
+//    multisampled_Texture_2D* color = new multisampled_Texture_2D(samples);
     if(params.srgb){
         color->createEmptyTexture(w,h,GL_RGB,GL_SRGB8,GL_UNSIGNED_BYTE);
     }else{
@@ -31,10 +38,12 @@ void GBuffer::init(int w, int h, GBufferParameters params)
             break;
         }
     }
+//    attachTexture(color);
     attachTexture(color);
 
 
     Texture* normal = new Texture();
+//    multisampled_Texture_2D* normal = new multisampled_Texture_2D(samples);
     switch(params.normalQuality){
     case Quality::LOW:
         normal->createEmptyTexture(w,h,GL_RG,GL_RG8,GL_UNSIGNED_BYTE);
@@ -50,6 +59,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
 
     //specular and emissive texture
     Texture* data = new Texture();
+//    multisampled_Texture_2D* data = new multisampled_Texture_2D(samples);
     switch(params.dataQuality){
     case Quality::LOW:
         data->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
@@ -69,6 +79,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     //    attachTexture(position);
 
     Texture* depth = new Texture();
+//    multisampled_Texture_2D* depth = new multisampled_Texture_2D(samples);
     switch(params.depthQuality){
     case Quality::LOW:
         depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
@@ -105,7 +116,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
 void GBuffer::sampleNearest()
 {
     depthBuffer->setFiltering(GL_NEAREST);
-    for(Texture* t : colorBuffers){
+    for(raw_Texture* t : colorBuffers){
         t->setFiltering(GL_NEAREST);
     }
 }
@@ -113,7 +124,7 @@ void GBuffer::sampleNearest()
 void GBuffer::sampleLinear()
 {
     depthBuffer->setFiltering(GL_LINEAR);
-    for(Texture* t : colorBuffers){
+    for(raw_Texture* t : colorBuffers){
         t->setFiltering(GL_LINEAR);
     }
 }

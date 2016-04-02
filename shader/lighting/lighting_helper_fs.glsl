@@ -15,6 +15,13 @@ uniform sampler2D deferred_normal;
 uniform sampler2D deferred_depth;
 uniform sampler2D deferred_position;
 uniform sampler2D deferred_data;
+
+//uniform sampler2DMS deferred_diffuse;
+//uniform sampler2DMS deferred_normal;
+//uniform sampler2DMS deferred_depth;
+//uniform sampler2DMS deferred_position;
+//uniform sampler2DMS deferred_data;
+
 uniform vec2 screen_size;
 
 uniform vec4 colorDiffuse; //rgba, rgb=color, a=intensity [0,1]
@@ -294,20 +301,19 @@ vec3 reconstructPosition(float d, vec2 tc){
 
 
 
-void getGbufferData(out vec3 color,out  vec3 position, out float depth, out vec3 normal, out vec3 data){
-
+void getGbufferData(out vec3 color,out  vec3 position, out float depth, out vec3 normal, out vec3 data, int sampleId=0){
     vec2 tc = CalcTexCoord();
-    color = texture( deferred_diffuse, tc ).rgb;
+    ivec2 tci = ivec2(gl_FragCoord.xy);
 
+    color = texelFetch( deferred_diffuse, tci ,sampleId).rgb;
 
-    depth = texture( deferred_depth, tc ).r;
+    depth = texelFetch( deferred_depth, tci ,sampleId).r;
     position = reconstructPosition(depth,tc);
 
-    normal = texture( deferred_normal, tc ).xyz;
+    normal = texelFetch( deferred_normal, tci,sampleId).xyz;
     normal = unpackNormal3(normal.xy);
 
-    data = texture(deferred_data,tc).xyz;
-
+    data = texelFetch(deferred_data,tci,sampleId).xyz;
 }
 
 

@@ -28,7 +28,11 @@ vec3 hsv2rgb(vec3 c)
 
 void main() {
 
-    vec3 rgbM = texture2D(image, tc).xyz;
+    ivec2 tci = ivec2(gl_FragCoord.xy);
+    vec3 rgbM = texelFetch( image, tci ,0).rgb;
+
+
+//    vec3 rgbM = texture(image, tc).xyz;
 
     vec3 hsvM = rgb2hsv(rgbM);
 

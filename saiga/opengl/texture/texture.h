@@ -20,4 +20,15 @@ public:
 
 typedef basic_Texture_2D Texture;
 
+class SAIGA_GLOBAL multisampled_Texture_2D : public raw_Texture{
+public:
+    int samples = 4;
+
+    multisampled_Texture_2D(int samples):raw_Texture(GL_TEXTURE_2D_MULTISAMPLE),samples(samples){}
+    virtual ~multisampled_Texture_2D(){}
+
+    void setDefaultParameters() override;
+    void uploadData(GLubyte *data) override;
+};
+
 

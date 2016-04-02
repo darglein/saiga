@@ -195,6 +195,12 @@ void Deferred_Renderer::render_intern(){
 
     //    printTimings();
 
+
+//    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);   // Make sure no FBO is set as the draw framebuffer
+//     glBindFramebuffer(GL_READ_FRAMEBUFFER, lighting.lightAccumulationBuffer.getId()); // Make sure your multisampled FBO is the read framebuffer
+//     glDrawBuffer(GL_BACK);                       // Set the back buffer as the draw buffer
+//     glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
     assert_no_glerror();
 
 }
