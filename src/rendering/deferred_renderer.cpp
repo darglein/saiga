@@ -330,7 +330,8 @@ void Deferred_Renderer::printTimings()
     cout<<"Overlay pass: "<<getTime(OVERLAY)<<"ms"<<endl;
     cout<<"Postprocessing: "<<getTime(POSTPROCESSING)<<"ms"<<endl;
     cout<<"Final pass: "<<getTime(FINAL)<<"ms"<<endl;
-    cout<<"Total: "<<getTime(TOTAL)<<"ms"<<endl;
+    float total = getTime(TOTAL);
+    cout<<"Total: "<<total<<"ms ("<< 1000/total << " fps)"<< endl;
     cout<<"===================================="<<endl;
 
 }
