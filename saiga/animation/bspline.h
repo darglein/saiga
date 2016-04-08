@@ -5,7 +5,7 @@
 template <typename P>
 class Bspline{
 public:
-    Bspline::Bspline(std::vector<P> controlPoints, int degree) : controlPoints(controlPoints), degree(degree)
+    Bspline(std::vector<P> controlPoints, int degree) : controlPoints(controlPoints), degree(degree)
     {
         int numKnots = controlPoints.size() + degree;
 
@@ -25,7 +25,7 @@ public:
      * @brief Bspline::getPointOnCurve
      * @param a: The position on the curve in the range [0,1]
      */
-    P Bspline::getPointOnCurve(float a)
+    P getPointOnCurve(float a)
     {
         a = glm::clamp(a,0.f,1.f);
         return deBoor(degree,controlPoints.size(), &controlPoints[0], &knots[0], a*(knots[controlPoints.size()] - knots[degree]) + knots[degree]);
@@ -50,7 +50,7 @@ private:
      * @param u The position from [0,1]
      * @return
      */
-    P Bspline::deBoor(int n, int m, P *d, float* t, float u)
+    P deBoor(int n, int m, P *d, float* t, float u)
     {
         // find interval
         int j;

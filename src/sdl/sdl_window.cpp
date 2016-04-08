@@ -88,8 +88,7 @@ void sdl_Window::startMainLoop(){
         running &= !eventHandler.shouldQuit();
 
         update(1.0/60.0);
-
-        renderer->render_intern();
+        render();
         SDL_GL_SwapWindow( gWindow );
     }
 

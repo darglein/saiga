@@ -5,10 +5,12 @@
 #include <GLFW/glfw3.h>
 
 #include "saiga/rendering/deferred_renderer.h"
+#include "saiga/rendering/renderer.h"
+
 #include "saiga/util/inputcontroller.h"
 #include <chrono>
 #include "saiga/util/error.h"
-#include "saiga/rendering/renderer.h"
+
 
 //#define FORCEFRAMERATE 30
 //#ifdef FORCEFRAMERATE
@@ -162,6 +164,8 @@ bool glfw_Window::initInput(){
     return true;
 }
 
+
+
 void glfw_Window::close()
 {
 
@@ -182,7 +186,7 @@ void glfw_Window::startMainLoop(){
 
         update(1.0/60.0);
 
-        renderer->render_intern();
+        render();
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
 
@@ -222,7 +226,8 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
 
             if(updateJoystick)
                 joystick.getCurrentStateFromGLFW();
-            renderer->renderer->update(dt);
+            update(dt);
+
 
 
             SKIP_TICKS = ((double)SKIP_TICKS_NORMAL_TIME)/timeScale;
@@ -232,9 +237,8 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
             ++loops;
         }
         float interpolation = glm::clamp(((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ),0.0f,1.0f);
+        render(interpolation);
 
-        renderer->renderer->interpolate(interpolation);
-        renderer->render_intern();
 
 
 #ifdef FORCEFRAMERATE
@@ -263,7 +267,7 @@ void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
     int simulatedTicks = 0;
     running = true;
     while( running && !glfwWindowShouldClose(window) ) {
-        renderer->renderer->update(dt);
+        update(dt);
 
         renderer->renderer->interpolate(0);
 

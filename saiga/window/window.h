@@ -1,5 +1,6 @@
 #pragma once
 
+#include "saiga/util/timer2.h"
 #include "saiga/geometry/ray.h"
 #include <saiga/config.h>
 #include <string>
@@ -21,10 +22,12 @@ public:
     Deferred_Renderer* renderer = nullptr;
     Camera* currentCamera = nullptr;
 
+    ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer;
+    AverageTimer fpsTimer;
+
 
     virtual bool initWindow() = 0;
     virtual bool initInput() = 0;
-    virtual void update(float delta) {}
 public:
     bool vsync = false;
 
@@ -56,6 +59,9 @@ public:
 
     Ray createPixelRay(const glm::vec2 &pixel);
     vec2 projectToScreen(const glm::vec3 &pos);
+protected:
+    void update(float dt);
+    void render(float interpolation = 0.0f);
 };
 
 inline int Window::getWidth(){

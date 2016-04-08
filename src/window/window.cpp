@@ -2,6 +2,10 @@
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
+
+#include "saiga/rendering/deferred_renderer.h"
+#include "saiga/rendering/renderer.h"
+
 #include "saiga/util/error.h"
 #include "saiga/framework.h"
 #include <cstring>
@@ -14,7 +18,8 @@ using std::endl;
 
 
 Window::Window(const std::string &name, int width, int height, bool fullscreen)
-    :name(name),width(width),height(height), fullscreen(fullscreen){
+    :name(name),width(width),height(height), fullscreen(fullscreen),
+updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),fpsTimer(100){
 
 
 }
@@ -206,4 +211,25 @@ vec2 Window::projectToScreen(const glm::vec3 &pos)
     pixel.y = -(r.y - 1.f) * Window::height * 0.5f;
 
     return pixel;
+}
+
+void Window::update(float dt)
+{
+    updateTimer.start();
+    renderer->renderer->update(dt);
+    updateTimer.stop();
+}
+
+void Window::render(float interpolation)
+{
+    interpolationTimer.start();
+    renderer->renderer->interpolate(interpolation);
+    interpolationTimer.stop();
+
+    renderCPUTimer.start();
+    renderer->render_intern();
+    renderCPUTimer.stop();
+
+    fpsTimer.stop();
+    fpsTimer.start();
 }
