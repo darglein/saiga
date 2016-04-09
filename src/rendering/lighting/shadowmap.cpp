@@ -42,7 +42,7 @@ void Shadowmap::createFlat(int w, int h){
     depth->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
     depthTexture = depth;
 
-    depthBuffer.attachTextureDepth(depth);
+    depthBuffer.attachTextureDepth( framebuffer_texture_t(depth) );
     depthBuffer.check();
 
     initialized = true;
@@ -92,8 +92,7 @@ void Shadowmap::bindCubeFace(GLenum side){
 
     depthBuffer.bind();
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, depthTexture->getId(), 0);
-    glDrawBuffer(GL_NONE);
-
+    depthBuffer.drawToNone();
 
 
     glClear(GL_DEPTH_BUFFER_BIT);

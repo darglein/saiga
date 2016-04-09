@@ -24,8 +24,8 @@ uniform sampler2D deferred_data;
 
 uniform vec2 screen_size;
 
-uniform vec4 colorDiffuse; //rgba, rgb=color, a=intensity [0,1]
-uniform vec4 colorSpecular; //rgba, rgb=color, a=intensity [0,1]
+uniform vec4 lightColorDiffuse; //rgba, rgb=color, a=intensity [0,1]
+uniform vec4 lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
 
 uniform vec4 shadowMapSize;  //vec4(w,h,1/w,1/h)
 
@@ -123,11 +123,24 @@ float intensityDiffuse(vec3 normal, vec3 lightDir){
 }
 
 float intensitySpecular(vec3 position, vec3 normal, vec3 lightDir, float exponent){
-    vec3 E = normalize(-position);
-    vec3 R = normalize(-reflect(lightDir,normal));
-    float i = pow(max(dot(R,E),0.0),exponent);
+    vec3 viewDir = normalize(-position);
+
+#if 0
+    // phong shading
+//    vec3 reflectDir = normalize(-reflect(lightDir,normal));
+    vec3 reflectDir = -reflect(lightDir,normal);
+    float specAngle = max(dot(reflectDir,viewDir),0.0);
+    float i = pow(specAngle, exponent);
+#else
+    // blinn phong shading
+    vec3 halfDir = normalize(lightDir + viewDir);
+    float specAngle = max(dot(halfDir, normal), 0.0);
+    float i = pow(specAngle, exponent*4);
+#endif
+
     return clamp(i,0.0f,1.0f);
 }
+
 
 
 float getFadeOut(float d, float r){

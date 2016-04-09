@@ -9,29 +9,26 @@
 
 #include "saiga/opengl/texture/texture.h"
 
+//todo: remove
+typedef std::shared_ptr<raw_Texture> framebuffer_texture_t;
+
 class SAIGA_GLOBAL Framebuffer{
 protected:
     GLuint id = 0;
 
-    //there can be multiple color buffers, but only 1 depth and stencil buffer
-//    std::vector<std::shared_ptr<raw_Texture*>> colorBuffers;
-//    std::shared_ptr<raw_Texture*> depthBuffer = nullptr;
-//    std::shared_ptr<raw_Texture*> stencilBuffer = nullptr;
-
-
-        std::vector<raw_Texture*> colorBuffers;
-        raw_Texture* depthBuffer = nullptr;
-        raw_Texture* stencilBuffer = nullptr;
+    std::vector<framebuffer_texture_t> colorBuffers;
+    framebuffer_texture_t depthBuffer = nullptr;
+    framebuffer_texture_t stencilBuffer = nullptr;
 public:
     Framebuffer();
     ~Framebuffer();
     Framebuffer(Framebuffer const&) = delete;
     Framebuffer& operator=(Framebuffer const&) = delete;
 
-    void attachTexture(raw_Texture* texture, GLenum textTarget=GL_TEXTURE_2D);
-    void attachTextureDepth(raw_Texture* texture, GLenum textTarget=GL_TEXTURE_2D);
-    void attachTextureStencil(raw_Texture* texture, GLenum textTarget=GL_TEXTURE_2D);
-    void attachTextureDepthStencil(raw_Texture* texture, GLenum textTarget=GL_TEXTURE_2D);
+    void attachTexture(framebuffer_texture_t texture);
+    void attachTextureDepth(framebuffer_texture_t texture);
+    void attachTextureStencil(framebuffer_texture_t texture);
+    void attachTextureDepthStencil(framebuffer_texture_t texture);
 
     void destroy();
     void create();
@@ -40,13 +37,32 @@ public:
     void unbind();
     void check();
 
+
+    /**
+     * Specifies a list of color buffers to be drawn into.
+     * Maps to glDrawBuffers.
+     *
+     * drawToAll: to all attached color buffers is drawn. The order is given by the attachment order.
+     *      So the first attached texture has the ID 0. To map different ids to textures use drawTo()
+     *
+     * drawToNone: to no color buffer is drawn.
+     *
+     * drawTo: to the passed buffer ids is drawn.
+     */
+
+    void drawToAll();
+    void drawToNone();
+    void drawTo(std::vector<int> colorBufferIds);
+
+
     void blitDepth(int otherId);
     void blitColor(int otherId);
 
-    raw_Texture* getTextureStencil(){return this->stencilBuffer;}
-    raw_Texture* getTextureDepth(){return this->depthBuffer;}
-    raw_Texture* getTextureColor(int id){return this->colorBuffers[id];}
+    framebuffer_texture_t getTextureStencil(){return this->stencilBuffer;}
+    framebuffer_texture_t getTextureDepth(){return this->depthBuffer;}
+    framebuffer_texture_t getTextureColor(int id){return this->colorBuffers[id];}
     GLuint getId(){return id;}
+
     /**
     * Resizes all attached textures.
     */

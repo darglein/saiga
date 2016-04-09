@@ -6,7 +6,7 @@
 
 class SAIGA_GLOBAL LightShader : public DeferredShader{
 public:
-    GLint location_colorDiffuse, location_colorSpecular; //rgba, rgb=color, a=intensity [0,1]
+    GLint location_lightColorDiffuse, location_lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
     GLint location_depthBiasMV, location_depthTex,location_readShadowMap;
     GLint location_shadowMapSize; //vec4(w,h,1/w,1/h)
     GLint location_invProj;

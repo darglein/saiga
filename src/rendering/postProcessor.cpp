@@ -91,7 +91,7 @@ void PostProcessor::createFramebuffers()
 //            framebuffers[i].attachTextureDepthStencil(depth_stencil);
            Texture* depth = new Texture();
            depth->createEmptyTexture(width,height,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_SHORT);
-           framebuffers[i].attachTextureDepth(depth);
+           framebuffers[i].attachTextureDepth( framebuffer_texture_t(depth) );
         }
 
 
@@ -111,8 +111,8 @@ void PostProcessor::createFramebuffers()
                 break;
             }
         }
-        framebuffers[i].attachTexture(textures[i]);
-        glDrawBuffer( GL_COLOR_ATTACHMENT0);
+        framebuffers[i].attachTexture( framebuffer_texture_t(textures[i]) );
+        framebuffers[i].drawToAll();
         framebuffers[i].check();
         framebuffers[i].unbind();
     }

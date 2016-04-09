@@ -42,18 +42,22 @@ uniform float ambientIntensity;
 
 layout(location=0) out vec4 out_color;
 
+
+float getSSAOIntensity(){
+//    ivec2 tci = ivec2(gl_FragCoord.xy);
+//    float ssao = texelFetch(ssaoTex,tci,0).r;
+//    return ssao;
+    return 1.0f;
+}
+
 vec4 getDirectionalLightIntensity(int sampleId) {
     vec3 diffColor,vposition,normal,data;
     float depth;
     getGbufferData(diffColor,vposition,depth,normal,data,sampleId);
-    vec3 specColor = vec3(1);
-    vec3 ambColor = diffColor;
+
     vec3 lightDir = direction;
-
-    float ssao = texture(ssaoTex,CalcTexCoord()).r;
-
-    float intensity = colorDiffuse.w;
-    vec3 lightColor = colorDiffuse.rgb;
+    float ssao = getSSAOIntensity();
+    float intensity = lightColorDiffuse.w;
 
     float visibility = 1.0f;
 #ifdef SHADOWS
@@ -61,19 +65,24 @@ vec4 getDirectionalLightIntensity(int sampleId) {
 //    visibility = calculateShadowPCF(depthTex,vposition,1.0f);
 #endif
 
+    float localIntensity = intensity * visibility; //amount of light reaching the given point
 
-    float localIntensity = intensity*visibility; //amount of light reaching the given point
-
-
-    float Iamb = intensity*ambientIntensity*ssao;
+    float Iamb = intensity * ambientIntensity * ssao;
     float Idiff = localIntensity * intensityDiffuse(normal,lightDir);
-    float Ispec = colorSpecular.w * localIntensity * data.x  * intensitySpecular(vposition,normal,lightDir,40);
+    float Ispec = 0;
+    if(Idiff > 0)
+        Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,lightDir,40);
 
-//    float Iemissive = data.y ;
-//    vec3 Iemissive = diffColor*data.y ;
+    float Iemissive = data.y ;
 
-//    out_color = vec4(lightColor*( Idiff*diffColor + Ispec*specColor + Iamb*ambColor) + Iemissive,1);
-    return vec4(lightColor*(Idiff+Iamb) ,Ispec); //accumulation
+    vec3 color = lightColorDiffuse.rgb * (
+                Idiff * diffColor +
+                Ispec * lightColorSpecular.w * lightColorSpecular.rgb +
+                Iamb * diffColor) +
+            Iemissive * diffColor;
+
+    return vec4(color,1);
+//    return vec4(lightColor*(Idiff+Iamb) ,Ispec); //accumulation
 //    out_color = vec4(1.0f);
 }
 

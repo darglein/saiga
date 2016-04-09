@@ -7,20 +7,18 @@ Framebuffer::Framebuffer(){
 
 Framebuffer::~Framebuffer()
 {
-
-
-
     destroy();
-    if(depthBuffer == stencilBuffer){
-        delete depthBuffer;
-    }else{
 
-        delete depthBuffer;
-        delete stencilBuffer;
-    }
-    for(raw_Texture* t : colorBuffers){
-        delete t;
-    }
+//    if(depthBuffer == stencilBuffer){
+//        delete depthBuffer;
+//    }else{
+
+//        delete depthBuffer;
+//        delete stencilBuffer;
+//    }
+//    for(framebuffer_texture_t t : colorBuffers){
+//        delete t;
+//    }
 }
 
 void Framebuffer::create(){
@@ -70,23 +68,53 @@ void Framebuffer::check(){
     }
 }
 
-void Framebuffer::attachTexture(raw_Texture* texture, GLenum textTarget){
+void Framebuffer::drawToAll()
+{
+    int count = colorBuffers.size();
+    if(count==0){
+        drawToNone();
+        return;
+    }
+    std::vector<GLenum> DrawBuffers(count);
+    for(int i = 0 ;i < count ; ++i){
+        DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
+    }
+    glDrawBuffers(count, &DrawBuffers[0]);
+}
+
+void Framebuffer::drawToNone()
+{
+    glDrawBuffer(GL_NONE);
+}
+
+void Framebuffer::drawTo(std::vector<int> colorBufferIds)
+{
+    int count = colorBufferIds.size();
+    std::vector<GLenum> DrawBuffers(count);
+    for(int i = 0 ;i < count ; ++i){
+        DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + colorBufferIds[i];
+    }
+    glDrawBuffers(count, &DrawBuffers[0]);
+}
+
+
+
+void Framebuffer::attachTexture(framebuffer_texture_t texture){
     bind();
     int index = colorBuffers.size();
     colorBuffers.push_back(texture);
     GLenum cid = GL_COLOR_ATTACHMENT0+index;
-    //    glFramebufferTexture(GL_FRAMEBUFFER, cid,texture->id, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, cid,texture->getTarget(),texture->getId(), 0);
 
 }
 
-void Framebuffer::attachTextureDepth(raw_Texture* texture, GLenum textTarget){
+void Framebuffer::attachTextureDepth(framebuffer_texture_t texture){
     bind();
     depthBuffer = texture;
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_ATTACHMENT, texture->getTarget(),texture->getId(), 0);
 }
 
-void Framebuffer::attachTextureStencil(raw_Texture* texture, GLenum textTarget){
+void Framebuffer::attachTextureStencil(framebuffer_texture_t texture){
     bind();
     stencilBuffer = texture;
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_STENCIL_ATTACHMENT, texture->getTarget(),texture->getId(), 0);
@@ -94,7 +122,7 @@ void Framebuffer::attachTextureStencil(raw_Texture* texture, GLenum textTarget){
 }
 
 
-void Framebuffer::attachTextureDepthStencil(raw_Texture* texture, GLenum textTarget){
+void Framebuffer::attachTextureDepthStencil(framebuffer_texture_t texture){
     bind();
     depthBuffer = texture;
     stencilBuffer = texture;
@@ -119,6 +147,6 @@ void Framebuffer::resize(int width, int height)
         depthBuffer->resize(width,height);
     if(stencilBuffer)
         stencilBuffer->resize(width,height);
-    for(raw_Texture* t : colorBuffers)
+    for(framebuffer_texture_t t : colorBuffers)
         t->resize(width,height);
 }

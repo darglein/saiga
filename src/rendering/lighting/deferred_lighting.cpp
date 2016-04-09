@@ -61,12 +61,12 @@ void DeferredLighting::init(int width, int height){
     lightAccumulationBuffer.create();
     Texture* depth_stencil = new Texture();
     depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-    lightAccumulationBuffer.attachTextureDepthStencil(depth_stencil);
+    lightAccumulationBuffer.attachTextureDepthStencil( framebuffer_texture_t(depth_stencil) );
 
     lightAccumulationTexture = new Texture();
     lightAccumulationTexture->createEmptyTexture(width,height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
-    lightAccumulationBuffer.attachTexture(lightAccumulationTexture);
-    glDrawBuffer( GL_COLOR_ATTACHMENT0);
+    lightAccumulationBuffer.attachTexture( framebuffer_texture_t(lightAccumulationTexture) );
+    lightAccumulationBuffer.drawToAll();
     lightAccumulationBuffer.check();
     lightAccumulationBuffer.unbind();
 }
@@ -420,7 +420,7 @@ void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
-    blitDepthShader->uploadTexture(gbuffer.getTextureDepth());
+    blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
     directionalLightMesh.bindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);

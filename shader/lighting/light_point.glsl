@@ -56,18 +56,12 @@ void main() {
     vec3 diffColor,vposition,normal,data;
     float depth;
     getGbufferData(diffColor,vposition,depth,normal,data);
-    vec3 specColor = vec3(1);
+
     vec3 lightDir = normalize(lightPos-vposition);
-
-    float intensity = colorDiffuse.w;
-    vec3 lightColor = colorDiffuse.rgb;
-
-
-
+    float intensity = lightColorDiffuse.w;
 
     float visibility = 1.0f;
 #ifdef SHADOWS
-
     float farplane = shadowPlanes.x;
     float nearplane = shadowPlanes.y;
     vec3 lightW = vec3(model[3]);
@@ -80,11 +74,18 @@ void main() {
 
 
     float Idiff = localIntensity * intensityDiffuse(normal,lightDir);
-    float Ispec = colorSpecular.w * localIntensity * data.x  * intensitySpecular(vposition,normal,lightDir,40);
+    float Ispec = 0;
+    if(Idiff > 0)
+        Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,lightDir,40);
 
+
+    vec3 color = lightColorDiffuse.rgb * (
+                Idiff * diffColor +
+                Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
+    out_color = vec4(color,1);
 
 //    out_color = vec4(lightColor*( Idiff*diffColor + Ispec*specColor),1);
-    out_color = vec4(lightColor*Idiff ,Ispec); //accumulation
+//    out_color = vec4(lightColor*Idiff ,Ispec); //accumulation
 
 
 }

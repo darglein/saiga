@@ -39,7 +39,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
         }
     }
 //    attachTexture(color);
-    attachTexture(color);
+    attachTexture( framebuffer_texture_t(color) );
 
 
     Texture* normal = new Texture();
@@ -55,7 +55,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
         normal->createEmptyTexture(w,h,GL_RG,GL_RG16 ,GL_UNSIGNED_SHORT);
         break;
     }
-    attachTexture(normal);
+    attachTexture( framebuffer_texture_t(normal) );
 
     //specular and emissive texture
     Texture* data = new Texture();
@@ -71,12 +71,8 @@ void GBuffer::init(int w, int h, GBufferParameters params)
         data->createEmptyTexture(w,h,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
         break;
     }
-    attachTexture(data);
+    attachTexture( framebuffer_texture_t(data) );
 
-
-    //    Texture* position = new Texture();
-    //    position->createEmptyTexture(w,h,GL_RGB,GL_RGB32F ,GL_FLOAT);
-    //    attachTexture(position);
 
     Texture* depth = new Texture();
 //    multisampled_Texture_2D* depth = new multisampled_Texture_2D(samples);
@@ -91,7 +87,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
         depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
         break;
     }
-    attachTextureDepth(depth);
+    attachTextureDepth( framebuffer_texture_t(depth) );
 
     //don't need stencil in gbuffer (but blit would fail otherwise)
     //depth and stencil texture combined
@@ -100,14 +96,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     //    attachTextureDepthStencil(depth_stencil);
 
 
-    int count = colorBuffers.size();
-
-    std::vector<GLenum> DrawBuffers(count);
-    for(int i = 0 ;i < count ; ++i){
-        DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
-    }
-    glDrawBuffers(count, &DrawBuffers[0]);
-
+    drawToAll();
 
     check();
     unbind();
@@ -116,7 +105,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
 void GBuffer::sampleNearest()
 {
     depthBuffer->setFiltering(GL_NEAREST);
-    for(raw_Texture* t : colorBuffers){
+    for(auto t : colorBuffers){
         t->setFiltering(GL_NEAREST);
     }
 }
@@ -124,7 +113,7 @@ void GBuffer::sampleNearest()
 void GBuffer::sampleLinear()
 {
     depthBuffer->setFiltering(GL_LINEAR);
-    for(raw_Texture* t : colorBuffers){
+    for(auto t : colorBuffers){
         t->setFiltering(GL_LINEAR);
     }
 }

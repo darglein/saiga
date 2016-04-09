@@ -103,13 +103,9 @@ void DeferredDebugOverlay::render(){
 
 void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer *gbuffer, basic_Texture_2D* light)
 {
-//    color.texture = fb->colorBuffers[0];
-//    normal.texture = fb->colorBuffers[1];
-//    depth.texture = fb->depthBuffer;
-//    data.texture = fb->colorBuffers[2];
-    color.texture = gbuffer->getTextureColor();
-    normal.texture = gbuffer->getTextureNormal();
-    depth.texture = gbuffer->getTextureDepth();
-    data.texture = gbuffer->getTextureData();
+    color.texture = gbuffer->getTextureColor().get();
+    normal.texture = gbuffer->getTextureNormal().get();
+    depth.texture = gbuffer->getTextureDepth().get();
+    data.texture = gbuffer->getTextureData().get();
     this->light.texture = light;
 }

@@ -41,8 +41,10 @@ vec4 getAccumulatedColor(int sampleId) {
     float depth;
     getGbufferData(diffColor,vposition,depth,normal,data,sampleId);
 
+    ivec2 tci = ivec2(gl_FragCoord.xy);
+    vec4 light = texelFetch(lightAccumulationtexture,tci,0);
 
-    vec4 light = texture(lightAccumulationtexture,CalcTexCoord());
+//    vec4 light = texture(lightAccumulationtexture,CalcTexCoord());
 
 //    vec3 specColor = vec3(1);
     vec3 specColor = light.rgb;
@@ -61,7 +63,14 @@ void main(){
 //    }
 //    out_color = (c / s);
 
-    out_color = getAccumulatedColor(0);
+//    out_color = getAccumulatedColor(0);
+
+
+
+
+    //pass through
+    ivec2 tci = ivec2(gl_FragCoord.xy);
+    out_color = texelFetch(lightAccumulationtexture,tci,0);
 }
 
 

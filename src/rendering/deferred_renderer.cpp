@@ -38,8 +38,8 @@ Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):p
     ssao_framebuffer.create();
     Texture* ssaotex = new Texture();
     ssaotex->createEmptyTexture(w,h,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
-    ssao_framebuffer.attachTexture(ssaotex);
-    glDrawBuffer( GL_COLOR_ATTACHMENT0);
+    ssao_framebuffer.attachTexture( std::shared_ptr<raw_Texture>(ssaotex) );
+    ssao_framebuffer.drawToAll();
     ssao_framebuffer.check();
 
     glClearColor(1.0f,1.0f,1.0f,1.0f);
@@ -316,7 +316,7 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
-    blitDepthShader->uploadTexture(deferred_framebuffer.getTextureDepth());
+    blitDepthShader->uploadTexture(deferred_framebuffer.getTextureDepth().get());
     quadMesh.bindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
