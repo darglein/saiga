@@ -25,20 +25,23 @@ private:
     int width,height;
     MVPColorShader* debugShader;
 
+    //the vertex position is sufficient. no normals and texture coordinates needed.
+    typedef IndexedVertexBuffer<Vertex,GLushort> lightMesh_t;
+
     PointLightShader* pointLightShader, *pointLightShadowShader;
-    IndexedVertexBuffer<VertexNT,GLuint> pointLightMesh;
+    lightMesh_t pointLightMesh;
     std::vector<PointLight*> pointLights;
 
     SpotLightShader* spotLightShader, *spotLightShadowShader;
-    IndexedVertexBuffer<VertexNT,GLuint> spotLightMesh;
+    lightMesh_t spotLightMesh;
     std::vector<SpotLight*> spotLights;
 
     DirectionalLightShader* directionalLightShader,*directionalLightShadowShader;
-    IndexedVertexBuffer<VertexNT,GLuint> directionalLightMesh;
+    lightMesh_t directionalLightMesh;
     std::vector<DirectionalLight*> directionalLights;
 
     BoxLightShader* boxLightShader,*boxLightShadowShader;
-    IndexedVertexBuffer<VertexNT,GLuint> boxLightMesh;
+    lightMesh_t boxLightMesh;
     std::vector<BoxLight*> boxLights;
 
     MVPTextureShader* blitDepthShader;
@@ -114,10 +117,10 @@ private:
     void setupLightPass();
 
     template<typename T>
-    void renderStencilVolume(IndexedVertexBuffer<VertexNT, GLuint> &mesh, std::vector<T*> &objs);
+    void renderStencilVolume(lightMesh_t &mesh, std::vector<T*> &objs);
 
     template<typename T,typename shader_t, bool shadow>
-    void renderLightVolume(IndexedVertexBuffer<VertexNT, GLuint> &mesh, std::vector<T *> &objs, Camera *cam, shader_t *shader);
+    void renderLightVolume(lightMesh_t &mesh, std::vector<T *> &objs, Camera *cam, shader_t *shader);
 
 
     void renderPointLights(Camera *cam, bool shadow);
@@ -135,7 +138,7 @@ private:
 };
 
 template<typename T>
-inline void DeferredLighting::renderStencilVolume(IndexedVertexBuffer<VertexNT, GLuint> &mesh, std::vector<T*> &objs)
+inline void DeferredLighting::renderStencilVolume(lightMesh_t &mesh, std::vector<T*> &objs)
 {
     setupStencilPass();
     stencilShader->bind();
@@ -155,7 +158,7 @@ inline void DeferredLighting::renderStencilVolume(IndexedVertexBuffer<VertexNT, 
 
 
 template<typename T,typename shader_t, bool shadow>
-inline void DeferredLighting::renderLightVolume(IndexedVertexBuffer<VertexNT, GLuint> &mesh, std::vector<T*> &objs, Camera *cam, shader_t* shader){
+inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, std::vector<T*> &objs, Camera *cam, shader_t* shader){
 
 //    SpotLightShader* shader = (shadow)?spotLightShadowShader:spotLightShader;
 

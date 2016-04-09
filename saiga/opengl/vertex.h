@@ -4,37 +4,6 @@
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
 
-struct SAIGA_GLOBAL Vertex{
-    vec3 position;
-    Vertex() : position(0){}
-    Vertex(const vec3 &position):position(position){}
-
-    bool operator==(const Vertex &other) const {
-        return position==other.position;
-    }
-
-
-    friend std::ostream& operator<<(std::ostream& os, const Vertex& vert){
-        os<<vert.position;
-        return os;
-    }
-};
-
-struct SAIGA_GLOBAL VertexN{
-    vec3 position;
-    vec3 normal;
-    VertexN() : position(0),normal(0){}
-    VertexN(const vec3 &position):position(position){}
-    VertexN(const vec3 &position,const vec3 &normal):position(position),normal(normal){}
-    bool operator==(const VertexN &other) const {
-        return position==other.position && normal==other.normal;
-    }
-    friend std::ostream& operator<<(std::ostream& os, const VertexN& vert){
-        os<<vert.position<<",";
-        os<<vert.normal;
-        return os;
-    }
-};
 
 struct SAIGA_GLOBAL VertexNT{
     vec3 position;
@@ -54,6 +23,44 @@ struct SAIGA_GLOBAL VertexNT{
     }
 };
 
+
+
+struct SAIGA_GLOBAL VertexN{
+    vec3 position;
+    vec3 normal;
+    VertexN() : position(0),normal(0){}
+    VertexN(const vec3 &position):position(position){}
+    VertexN(const vec3 &position,const vec3 &normal):position(position),normal(normal){}
+    VertexN(const VertexNT& v):position(v.position),normal(v.normal){}
+
+    bool operator==(const VertexN &other) const {
+        return position==other.position && normal==other.normal;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const VertexN& vert){
+        os<<vert.position<<",";
+        os<<vert.normal;
+        return os;
+    }
+};
+
+
+struct SAIGA_GLOBAL Vertex{
+    vec3 position;
+    Vertex() : position(0){}
+    Vertex(const vec3 &position):position(position){}
+    Vertex(const VertexN& v):position(v.position){}
+    Vertex(const VertexNT& v):position(v.position){}
+
+    bool operator==(const Vertex &other) const {
+        return position==other.position;
+    }
+
+
+    friend std::ostream& operator<<(std::ostream& os, const Vertex& vert){
+        os<<vert.position;
+        return os;
+    }
+};
 
 struct SAIGA_GLOBAL VertexNC : public VertexN{
     vec3 color;

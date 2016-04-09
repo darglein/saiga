@@ -18,7 +18,7 @@ uniform mat4 MVP;
 
 
 void main() {
-    gl_Position = proj*view *model* vec4(in_position,1);
+    gl_Position = proj * view * model * vec4(in_position,1);
 }
 
 
@@ -30,12 +30,7 @@ void main() {
 #version 400
 
 
-
-//layout(location=0) out vec3 out_color;
-//layout(location=3) out vec3 out_color2;
 void main() {
-//    out_color = vec3(0,1,0);
-//    out_color2 = vec3(0,1,0);
 }
 
 

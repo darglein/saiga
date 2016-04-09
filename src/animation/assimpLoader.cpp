@@ -260,8 +260,8 @@ void AssimpLoader::transformnode(aiMatrix4x4 *result, aiNode *node)
         *result = node->mTransformation;
     }
 
-    std::string str(node->mName.data);
-    AnimationNode* an = nodeMap[str];
+//    std::string str(node->mName.data);
+//    AnimationNode* an = nodeMap[str];
 //    an->testMat = convert(*result);
 }
 

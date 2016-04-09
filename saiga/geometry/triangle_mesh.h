@@ -85,8 +85,8 @@ public:
 
     void createBuffers(buffer_t &buffer);
 
-    template<typename buffer_index_t>
-    void createBuffers(IndexedVertexBuffer<vertex_t,buffer_index_t> &buffer);
+    template<typename buffer_vertex_t, typename buffer_index_t>
+    void createBuffers(IndexedVertexBuffer<buffer_vertex_t,buffer_index_t> &buffer);
 
 
     /*
@@ -187,8 +187,8 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer){
 }
 
 template<typename vertex_t, typename index_t>
-template<typename buffer_index_t>
-void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<vertex_t,buffer_index_t> &buffer){
+template<typename buffer_vertex_t, typename buffer_index_t>
+void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_vertex_t,buffer_index_t> &buffer){
     cout<<"<<<<<<<<<<<<<<<<<<<ljfsf convert buffers"<<endl;
     std::vector<index_t> indices(faces.size()*3);
     std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
@@ -196,7 +196,10 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<vertex_t,
     //convert index_t to buffer_index_t
     std::vector<buffer_index_t> bufferIndices(indices.begin(),indices.end());
 
-    buffer.set(vertices,bufferIndices);
+    //convert vertex_t to buffer_vertex_t
+    std::vector<buffer_vertex_t> bufferVertices(vertices.begin(),vertices.end());
+
+    buffer.set(bufferVertices,bufferIndices);
     buffer.setDrawMode(GL_TRIANGLES);
 }
 
