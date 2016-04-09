@@ -235,7 +235,7 @@ void DeferredLighting::render(Camera* cam){
         glDepthMask(GL_FALSE);
     }
 
-    lightAccumulationBuffer.unbind();
+//    lightAccumulationBuffer.unbind();
 
     assert_no_glerror();
 

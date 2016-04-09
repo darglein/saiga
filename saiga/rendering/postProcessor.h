@@ -53,12 +53,16 @@ private:
 
     Shader* computeTest;
 
+    //the first post processing shader reads from the lightaccumulation texture.
+    Texture* LightAccumulationTexture = nullptr;
+    bool first = false;
+
     void createFramebuffers();
     void applyShader(PostProcessingShader* postProcessingShader);
     void applyShaderFinal(PostProcessingShader *postProcessingShader);
 public:
 
-    void init(int width, int height, GBuffer *gbuffer, PostProcessorParameters params);
+    void init(int width, int height, GBuffer *gbuffer, PostProcessorParameters params, Texture* LightAccumulationTexture);
 
     void nextFrame();
     void bindCurrentBuffer();

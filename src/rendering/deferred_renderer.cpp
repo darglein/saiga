@@ -49,7 +49,7 @@ Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):p
     lighting.ssaoTexture = ssaotex;
     ssao_framebuffer.unbind();
 
-    postProcessor.init(w, h,&deferred_framebuffer,params.ppp);
+    postProcessor.init(w, h,&deferred_framebuffer,params.ppp,lighting.lightAccumulationTexture);
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -147,15 +147,15 @@ void Deferred_Renderer::render_intern(){
 
     renderLighting(*currentCamera);
 
-    startTimer(LIGHTACCUMULATION);
-    postProcessor.nextFrame();
-    postProcessor.bindCurrentBuffer();
+//    startTimer(LIGHTACCUMULATION);
+//    postProcessor.nextFrame();
+//    postProcessor.bindCurrentBuffer();
 
-    lighting.renderLightAccumulation();
-    stopTimer(LIGHTACCUMULATION);
+//    lighting.renderLightAccumulation();
+//    stopTimer(LIGHTACCUMULATION);
 
     if(params.writeDepthToOverlayBuffer){
-        writeGbufferDepthToCurrentFramebuffer();
+//        writeGbufferDepthToCurrentFramebuffer();
     }else{
         glClear(GL_DEPTH_BUFFER_BIT);
     }
@@ -171,8 +171,9 @@ void Deferred_Renderer::render_intern(){
         writeGbufferDepthToCurrentFramebuffer();
     }
 
-
-    postProcessor.switchBuffer();
+    postProcessor.nextFrame();
+    postProcessor.bindCurrentBuffer();
+//    postProcessor.switchBuffer();
 
 
     startTimer(POSTPROCESSING);

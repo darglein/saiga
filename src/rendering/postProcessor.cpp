@@ -54,7 +54,7 @@ void LightAccumulationShader::uploadLightAccumulationtexture(raw_Texture *textur
 
 
 
-void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params)
+void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params, Texture *LightAccumulationTexture)
 {
     this->params = params;
     this->width=width;this->height=height;
@@ -68,6 +68,8 @@ void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorP
     qb->createBuffers(quadMesh);
 
     timer.create();
+
+    this->LightAccumulationTexture = LightAccumulationTexture;
 
     //    computeTest = ShaderLoader::instance()->load<Shader>("computeTest.glsl");
 }
@@ -139,6 +141,8 @@ void PostProcessor::render()
     }
 
 
+    first = true;
+
     timer.startTimer();
 
     glDisable(GL_DEPTH_TEST);
@@ -175,7 +179,7 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
     postProcessingShader->bind();
     vec4 screenSize(width,height,1.0/width,1.0/height);
     postProcessingShader->uploadScreenSize(screenSize);
-    postProcessingShader->uploadTexture(textures[lastBuffer]);
+    postProcessingShader->uploadTexture( (first) ? LightAccumulationTexture : textures[lastBuffer] );
     postProcessingShader->uploadGbufferTextures(gbuffer);
     postProcessingShader->uploadAdditionalUniforms();
     quadMesh.bindAndDraw();
@@ -183,7 +187,7 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
 
     framebuffers[currentBuffer].unbind();
 
-
+    first = false;
 
 }
 
@@ -209,11 +213,12 @@ void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)
     postProcessingShader->bind();
     vec4 screenSize(width,height,1.0/width,1.0/height);
     postProcessingShader->uploadScreenSize(screenSize);
-    postProcessingShader->uploadTexture(textures[lastBuffer]);
+    postProcessingShader->uploadTexture((first) ? LightAccumulationTexture : textures[lastBuffer]);
     postProcessingShader->uploadGbufferTextures(gbuffer);
     postProcessingShader->uploadAdditionalUniforms();
     quadMesh.bindAndDraw();
     postProcessingShader->unbind();
 
+    first = false;
     //    glDisable(GL_FRAMEBUFFER_SRGB);
 }
