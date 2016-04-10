@@ -106,6 +106,8 @@ void DeferredLighting::cullLights(Camera *cam){
     }
 }
 
+
+
 void DeferredLighting::renderDepthMaps(Program *renderer){
     totalLights = 0;
     renderedDepthmaps = 0;
@@ -196,31 +198,39 @@ void DeferredLighting::render(Camera* cam){
     glEnable(GL_STENCIL_TEST);
 
 
-    renderStencilVolume(spotLightMesh,spotLights); //mark pixels inside the light volume
-    setupLightPass();
-    renderLightVolume<SpotLight,SpotLightShader,false>(spotLightMesh,spotLights,cam,spotLightShader); //draw back faces without depthtest
-    renderLightVolume<SpotLight,SpotLightShader,true>(spotLightMesh,spotLights,cam,spotLightShadowShader);
-    assert_no_glerror();
+//    renderStencilVolume(spotLightMesh,spotLights); //mark pixels inside the light volume
+//    setupLightPass();
+//    renderLightVolume<SpotLight,SpotLightShader,false>(spotLightMesh,spotLights,cam,spotLightShader); //draw back faces without depthtest
+//    renderLightVolume<SpotLight,SpotLightShader,true>(spotLightMesh,spotLights,cam,spotLightShadowShader);
+//    assert_no_glerror();
 
 
-    renderStencilVolume(pointLightMesh,pointLights);  //mark pixels inside the light volume
-    setupLightPass();
-    renderLightVolume<PointLight,PointLightShader,false>(pointLightMesh,pointLights,cam,pointLightShader); //draw back faces without depthtest
-    renderLightVolume<PointLight,PointLightShader,true>(pointLightMesh,pointLights,cam,pointLightShadowShader);
-    assert_no_glerror();
+//    renderStencilVolume(pointLightMesh,pointLights);  //mark pixels inside the light volume
+//    setupLightPass();
+//    renderLightVolume<PointLight,PointLightShader,false>(pointLightMesh,pointLights,cam,pointLightShader); //draw back faces without depthtest
+//    renderLightVolume<PointLight,PointLightShader,true>(pointLightMesh,pointLights,cam,pointLightShadowShader);
+//    assert_no_glerror();
+
+    glClear(GL_STENCIL_BUFFER_BIT);
+    currentStencilId = 0;
+    for(PointLight* p : pointLights){
+        renderPointLight(p,cam);
+    }
 
 
-    renderStencilVolume(boxLightMesh,boxLights); //mark pixels inside the light volume
-    setupLightPass();
-    renderLightVolume<BoxLight,BoxLightShader,false>(boxLightMesh,boxLights,cam,boxLightShader); //draw back faces without depthtest
-    renderLightVolume<BoxLight,BoxLightShader,true>(boxLightMesh,boxLights,cam,boxLightShadowShader);
-    assert_no_glerror();
+//    renderStencilVolume(boxLightMesh,boxLights); //mark pixels inside the light volume
+//    setupLightPass();
+//    renderLightVolume<BoxLight,BoxLightShader,false>(boxLightMesh,boxLights,cam,boxLightShader); //draw back faces without depthtest
+//    renderLightVolume<BoxLight,BoxLightShader,true>(boxLightMesh,boxLights,cam,boxLightShadowShader);
+//    assert_no_glerror();
 
 
     glDisable(GL_STENCIL_TEST);
     //use default culling
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+
+    glDisable(GL_DEPTH_TEST);
 
     renderDirectionalLights(cam,false);
     renderDirectionalLights(cam,true);
@@ -237,54 +247,80 @@ void DeferredLighting::render(Camera* cam){
 
 //    lightAccumulationBuffer.unbind();
 
+     glDepthFunc(GL_LESS);
+
+
     assert_no_glerror();
 
 }
 
-void DeferredLighting::renderLightAccumulation()
+
+void DeferredLighting::renderPointLight(PointLight *p, Camera* cam)
 {
-    glDisable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-    lightAccumulationShader->bind();
-    lightAccumulationShader->uploadFramebuffer(&gbuffer);
-    lightAccumulationShader->uploadLightAccumulationtexture(lightAccumulationTexture);
-    lightAccumulationShader->uploadScreenSize(vec2(width,height));
+    if(!p->shouldRender())
+        return;
+    setupStencilPass(currentStencilId);
+    stencilShader->bind();
+    stencilShader->uploadView(view);
+    stencilShader->uploadProj(proj);
 
-    directionalLightMesh.bindAndDraw();
+    p->bindUniformsStencil(*stencilShader);
+    pointLightMesh.bindAndDraw();
+    stencilShader->unbind();
 
-    lightAccumulationShader->unbind();
 
-    glEnable(GL_DEPTH_TEST);
+    setupLightPass(currentStencilId);
+    PointLightShader* shader = pointLightShader;
+    shader->bind();
+    shader->uploadView(view);
+    shader->uploadProj(proj);
+    shader->DeferredShader::uploadFramebuffer(&gbuffer);
+    shader->uploadScreenSize(vec2(width,height));
+
+    p->bindUniforms(*shader,cam);
+    pointLightMesh.bindAndDraw();
+    shader->unbind();
+
+    currentStencilId++;
 }
 
-void DeferredLighting::setupStencilPass(){
+
+
+void DeferredLighting::setupStencilPass(int id){
+
     glEnable(GL_DEPTH_TEST);
 
     glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
 
-    glClear(GL_STENCIL_BUFFER_BIT);
+//    glClear(GL_STENCIL_BUFFER_BIT);
 
-    glDisable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 
+    glDepthFunc(GL_LEQUAL);
     // We need the stencil test to be enabled but we want it
     // to succeed always. Only the depth test matters.
-    glStencilFunc(GL_ALWAYS, 0, 0);
+    glStencilFunc(GL_ALWAYS, id, 0);
+    glStencilOp(GL_KEEP,GL_REPLACE,GL_KEEP);
+//    glStencilOp(GL_KEEP,GL_KEEP,GL_INCR);
 
-    glStencilOpSeparate(GL_BACK, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
-    glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
 
 
 }
-void DeferredLighting::setupLightPass(){
-    // Disable color/depth write and enable stencil
+void DeferredLighting::setupLightPass(int id){
 
-    glStencilFunc(GL_NOTEQUAL, 0, 0xFF); //pass when pixel is inside a light volume
+    glEnable(GL_DEPTH_TEST);
+
+//    glStencilFunc(GL_EQUAL, 0, 0xFF);
+    glStencilFunc(GL_NOTEQUAL, 5, 0xFF);
     glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);//do nothing
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
-    glDisable(GL_DEPTH_TEST);
+
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
+
+    glDepthFunc(GL_GEQUAL);
 }
 
 

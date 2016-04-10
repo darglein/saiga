@@ -62,6 +62,7 @@ public:
     int totalLights;
     int visibleLights;
     int renderedDepthmaps;
+    int currentStencilId = 0;
 
     Texture* ssaoTexture;
 
@@ -110,11 +111,13 @@ public:
 
     void cullLights(Camera *cam);
 private:
+    void renderPointLight(PointLight* p, Camera *cam);
+
     void createInputCommands();
 
     void blitGbufferDepthToAccumulationBuffer();
-    void setupStencilPass();
-    void setupLightPass();
+    void setupStencilPass(int id=0);
+    void setupLightPass(int id=0);
 
     template<typename T>
     void renderStencilVolume(lightMesh_t &mesh, std::vector<T*> &objs);
