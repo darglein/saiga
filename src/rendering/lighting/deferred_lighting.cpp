@@ -183,9 +183,6 @@ void DeferredLighting::render(Camera* cam){
     assert_no_glerror();
 
 
-
-
-
     //deferred lighting uses additive blending of the lights.
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
@@ -194,38 +191,35 @@ void DeferredLighting::render(Camera* cam){
     //never overwrite current depthbuffer
     glDepthMask(GL_FALSE);
 
-    //point- and spot- lights are using stencil culling
+    //all light volumnes are using stencil culling
     glEnable(GL_STENCIL_TEST);
 
-
-//    renderStencilVolume(spotLightMesh,spotLights); //mark pixels inside the light volume
-//    setupLightPass();
-//    renderLightVolume<SpotLight,SpotLightShader,false>(spotLightMesh,spotLights,cam,spotLightShader); //draw back faces without depthtest
-//    renderLightVolume<SpotLight,SpotLightShader,true>(spotLightMesh,spotLights,cam,spotLightShadowShader);
-//    assert_no_glerror();
-
-
-//    renderStencilVolume(pointLightMesh,pointLights);  //mark pixels inside the light volume
-//    setupLightPass();
-//    renderLightVolume<PointLight,PointLightShader,false>(pointLightMesh,pointLights,cam,pointLightShader); //draw back faces without depthtest
-//    renderLightVolume<PointLight,PointLightShader,true>(pointLightMesh,pointLights,cam,pointLightShadowShader);
-//    assert_no_glerror();
+    //use depth test for all light volumnes
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 
     glClear(GL_STENCIL_BUFFER_BIT);
-    currentStencilId = 0;
-    for(PointLight* p : pointLights){
-        renderPointLight(p,cam);
+    currentStencilId = 1;
+
+    for(PointLight* l : pointLights){
+        renderLightVolume<PointLight,PointLightShader>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader);
     }
 
+    for(SpotLight* l : spotLights){
+        renderLightVolume<SpotLight,SpotLightShader>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader);
+    }
 
-//    renderStencilVolume(boxLightMesh,boxLights); //mark pixels inside the light volume
-//    setupLightPass();
-//    renderLightVolume<BoxLight,BoxLightShader,false>(boxLightMesh,boxLights,cam,boxLightShader); //draw back faces without depthtest
-//    renderLightVolume<BoxLight,BoxLightShader,true>(boxLightMesh,boxLights,cam,boxLightShadowShader);
-//    assert_no_glerror();
+    for(BoxLight* l : boxLights){
+        renderLightVolume<BoxLight,BoxLightShader>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader);
+    }
+    assert_no_glerror();
+
+    //reset depth test to default value
+     glDepthFunc(GL_LESS);
 
 
     glDisable(GL_STENCIL_TEST);
+
     //use default culling
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -235,6 +229,7 @@ void DeferredLighting::render(Camera* cam){
     renderDirectionalLights(cam,false);
     renderDirectionalLights(cam,true);
 
+    assert_no_glerror();
     //reset state
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
@@ -245,90 +240,55 @@ void DeferredLighting::render(Camera* cam){
         glDepthMask(GL_FALSE);
     }
 
-//    lightAccumulationBuffer.unbind();
-
-     glDepthFunc(GL_LESS);
-
 
     assert_no_glerror();
 
 }
 
 
-void DeferredLighting::renderPointLight(PointLight *p, Camera* cam)
-{
-    if(!p->shouldRender())
-        return;
-    setupStencilPass(currentStencilId);
-    stencilShader->bind();
-    stencilShader->uploadView(view);
-    stencilShader->uploadProj(proj);
 
-    p->bindUniformsStencil(*stencilShader);
-    pointLightMesh.bindAndDraw();
-    stencilShader->unbind();
-
-
-    setupLightPass(currentStencilId);
-    PointLightShader* shader = pointLightShader;
-    shader->bind();
-    shader->uploadView(view);
-    shader->uploadProj(proj);
-    shader->DeferredShader::uploadFramebuffer(&gbuffer);
-    shader->uploadScreenSize(vec2(width,height));
-
-    p->bindUniforms(*shader,cam);
-    pointLightMesh.bindAndDraw();
-    shader->unbind();
-
-    currentStencilId++;
-}
-
-
-
-void DeferredLighting::setupStencilPass(int id){
-
-    glEnable(GL_DEPTH_TEST);
-
+void DeferredLighting::setupStencilPass(){
+    //don't write color in stencil pass
     glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
 
-//    glClear(GL_STENCIL_BUFFER_BIT);
-
-    glEnable(GL_CULL_FACE);
+    //render only front faces
     glCullFace(GL_BACK);
 
+    //default depth test
     glDepthFunc(GL_LEQUAL);
-    // We need the stencil test to be enabled but we want it
-    // to succeed always. Only the depth test matters.
-    glStencilFunc(GL_ALWAYS, id, 0);
+
+    //set stencil to 'id' if depth test fails
+    //all 'failed' pixels are now marked in the stencil buffer with the id
+    glStencilFunc(GL_ALWAYS, currentStencilId, 0);
     glStencilOp(GL_KEEP,GL_REPLACE,GL_KEEP);
-//    glStencilOp(GL_KEEP,GL_KEEP,GL_INCR);
-
-
-
 }
-void DeferredLighting::setupLightPass(int id){
-
-    glEnable(GL_DEPTH_TEST);
-
-//    glStencilFunc(GL_EQUAL, 0, 0xFF);
-    glStencilFunc(GL_NOTEQUAL, id, 0xFF);
-    glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);//do nothing
+void DeferredLighting::setupLightPass(){
+    //write color in the light pass
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 
-
-    glEnable(GL_CULL_FACE);
+    //render only back faces
     glCullFace(GL_FRONT);
 
+    //reversed depth test: it passes if the light volumne is behind an object
     glDepthFunc(GL_GEQUAL);
+
+    //discard all pixels that are marked with 'id' from the previous pass
+    glStencilFunc(GL_NOTEQUAL, currentStencilId, 0xFF);
+    glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
+
+    //-> the reverse depth test + the stencil test make now sure that the current pixel is in the light volumne
+    //this also works, when the camera is inside the volumne, but fails when the far plane is intersecting the volumne
+
+
+    //increase stencil id, so the next light will write a different value to the stencil buffer.
+    //with this trick the expensive clear can be saved after each light
+    currentStencilId++;
+    assert(currentStencilId<256);
 }
 
 
 
 void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
-
-
-//    glViewport(0,0,width,height); //todo remove
 
     DirectionalLightShader* shader = (shadow)?directionalLightShadowShader:directionalLightShader;
 

@@ -116,14 +116,17 @@ private:
     void createInputCommands();
 
     void blitGbufferDepthToAccumulationBuffer();
-    void setupStencilPass(int id=0);
-    void setupLightPass(int id=0);
+    void setupStencilPass();
+    void setupLightPass();
 
     template<typename T>
     void renderStencilVolume(lightMesh_t &mesh, std::vector<T*> &objs);
 
     template<typename T,typename shader_t, bool shadow>
     void renderLightVolume(lightMesh_t &mesh, std::vector<T *> &objs, Camera *cam, shader_t *shader);
+
+    template<typename T,typename shader_t>
+    void renderLightVolume(lightMesh_t &mesh, T* obj, Camera *cam, shader_t *shader , shader_t *shaderShadow);
 
 
     void renderPointLights(Camera *cam, bool shadow);
@@ -140,48 +143,33 @@ private:
 
 };
 
-template<typename T>
-inline void DeferredLighting::renderStencilVolume(lightMesh_t &mesh, std::vector<T*> &objs)
-{
+
+template<typename T,typename shader_t>
+inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T* obj, Camera *cam, shader_t *shaderNormal , shader_t *shaderShadow){
+    if(!obj->shouldRender())
+        return;
+
     setupStencilPass();
     stencilShader->bind();
     stencilShader->uploadView(view);
     stencilShader->uploadProj(proj);
-    mesh.bind();
-    for(T* &obj : objs){
-        if(obj->shouldRender()){
 
-            obj->bindUniformsStencil(*stencilShader);
-            mesh.draw();
-        }
-    }
-    mesh.unbind();
+    obj->bindUniformsStencil(*stencilShader);
+    mesh.bindAndDraw();
     stencilShader->unbind();
-}
 
 
-template<typename T,typename shader_t, bool shadow>
-inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, std::vector<T*> &objs, Camera *cam, shader_t* shader){
-
-//    SpotLightShader* shader = (shadow)?spotLightShadowShader:spotLightShader;
-
+    setupLightPass();
+    shader_t* shader = (obj->hasShadows()) ? shaderShadow : shaderNormal;
     shader->bind();
     shader->uploadView(view);
     shader->uploadProj(proj);
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
 
-    mesh.bind();
-    for(T* &obj : objs){
-        bool render = (shadow&&obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->hasShadows());
-        if(render){
-            obj->bindUniforms(*shader,cam);
-            mesh.draw();
-        }
-    }
-    mesh.unbind();
+    obj->bindUniforms(*shader,cam);
+    mesh.bindAndDraw();
     shader->unbind();
 
+
 }
-
-
