@@ -312,7 +312,7 @@ void DeferredLighting::setupLightPass(int id){
     glEnable(GL_DEPTH_TEST);
 
 //    glStencilFunc(GL_EQUAL, 0, 0xFF);
-    glStencilFunc(GL_NOTEQUAL, 5, 0xFF);
+    glStencilFunc(GL_NOTEQUAL, id, 0xFF);
     glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);//do nothing
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 
