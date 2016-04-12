@@ -115,8 +115,8 @@ int aabb::touching(const aabb &other){
 
     for(int i = 0;i<3;i++){
         //glm::equalEpsilon(1,1,1);
-        if(glm::epsilonEqual(max[i], other.min[i],0.001f) && intersect2(other,i)) return 0x8<<i;
-        if(glm::epsilonEqual(min[i], other.max[i],0.001f) && intersect2(other,i)) return 0x1<<i;
+        if(glm::epsilonEqual(max[i], other.min[i],0.001f) && intersectBool(other,i)) return 0x8<<i;
+        if(glm::epsilonEqual(min[i], other.max[i],0.001f) && intersectBool(other,i)) return 0x1<<i;
     }
     return -1;
 
