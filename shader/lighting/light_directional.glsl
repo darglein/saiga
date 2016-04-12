@@ -77,6 +77,7 @@ vec4 getDirectionalLightIntensity(int sampleId) {
                 Iamb * diffColor) +
             Iemissive * diffColor;
 
+//    return vec4(1);
     return vec4(color,1);
 //    return vec4(lightColor*(Idiff+Iamb) ,Ispec); //accumulation
 //    out_color = vec4(1.0f);
