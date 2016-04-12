@@ -11,4 +11,3 @@ General
 - bezier+bspline curves + surfaces + teapot
 - tesselation
 - controlable camera
-- framebuffer shared pointer

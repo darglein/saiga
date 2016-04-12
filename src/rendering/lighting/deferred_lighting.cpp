@@ -22,6 +22,15 @@ DeferredLighting::DeferredLighting(GBuffer &framebuffer):gbuffer(framebuffer){
     createInputCommands();
     createLightMeshes();
 
+    for(int i = 0 ;i < 5 ;++i){
+        timers[i].create();
+    }
+
+    timerStrings[0] = "Init";
+    timerStrings[1] = "Point Lights";
+    timerStrings[2] = "Spot Lights";
+    timerStrings[3] = "Box Lights";
+    timerStrings[4] = "Directional Lights";
 
 }
 
@@ -59,9 +68,13 @@ void DeferredLighting::init(int width, int height){
 
 
     lightAccumulationBuffer.create();
-    Texture* depth_stencil = new Texture();
-    depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-    lightAccumulationBuffer.attachTextureDepthStencil( framebuffer_texture_t(depth_stencil) );
+
+    //    Texture* depth_stencil = new Texture();
+    //    depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+    //    lightAccumulationBuffer.attachTextureDepthStencil( framebuffer_texture_t(depth_stencil) );
+
+    //NOTE: Use the same depth-stencil buffer as the gbuffer. I hope this works on every hardware :).
+    lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
 
     lightAccumulationTexture = new Texture();
     lightAccumulationTexture->createEmptyTexture(width,height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
@@ -103,6 +116,13 @@ void DeferredLighting::cullLights(Camera *cam){
         if(light->isActive()){
             visibleLights += (light->cullLight(cam))? 0 : 1;
         }
+    }
+}
+
+void DeferredLighting::printTimings()
+{
+    for(int i = 0 ;i < 5 ;++i){
+        cout<<"\t "<<timers[i].getTimeMS()<<"ms "<<timerStrings[i]<<endl;
     }
 }
 
@@ -164,23 +184,31 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
 }
 
 void DeferredLighting::render(Camera* cam){
-//    gbuffer.blitDepth(lightAccumulationBuffer.getId());
+    //    gbuffer.blitDepth(lightAccumulationBuffer.getId());
 
-    lightAccumulationBuffer.bind();
+    timers[0].startTimer();
+
+
 
     //viewport is maybe different after shadow map rendering
     glViewport(0,0,width,height);
 
 
 
-//    glClear( GL_STENCIL_BUFFER_BIT );
-//    glClear( GL_COLOR_BUFFER_BIT );
+    //    glClear( GL_STENCIL_BUFFER_BIT );
+    //    glClear( GL_COLOR_BUFFER_BIT );
 
-//    glDepthMask(GL_FALSE);
-//    glDisable(GL_DEPTH_TEST);
+    //    glDepthMask(GL_FALSE);
+    //    glDisable(GL_DEPTH_TEST);
+
+
+    lightAccumulationBuffer.bind();
 
     blitGbufferDepthToAccumulationBuffer();
-    assert_no_glerror();
+
+
+
+
 
 
     //deferred lighting uses additive blending of the lights.
@@ -198,27 +226,37 @@ void DeferredLighting::render(Camera* cam){
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    glClear(GL_STENCIL_BUFFER_BIT);
+    //    glClearStencil(0x0);
+    //    glClear(GL_STENCIL_BUFFER_BIT);
     currentStencilId = 1;
+    timers[0].stopTimer();
 
+    assert_no_glerror();
+
+    timers[1].startTimer();
     for(PointLight* l : pointLights){
         renderLightVolume<PointLight,PointLightShader>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader);
     }
+    timers[1].stopTimer();
 
+    timers[2].startTimer();
     for(SpotLight* l : spotLights){
         renderLightVolume<SpotLight,SpotLightShader>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader);
     }
+    timers[2].stopTimer();
 
+    timers[3].startTimer();
     for(BoxLight* l : boxLights){
         renderLightVolume<BoxLight,BoxLightShader>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader);
     }
+    timers[3].stopTimer();
     assert_no_glerror();
 
     //reset depth test to default value
-     glDepthFunc(GL_LESS);
+    glDepthFunc(GL_LESS);
 
 
-    glDisable(GL_STENCIL_TEST);
+
 
     //use default culling
     glEnable(GL_CULL_FACE);
@@ -226,9 +264,17 @@ void DeferredLighting::render(Camera* cam){
 
     glDisable(GL_DEPTH_TEST);
 
+    timers[4].startTimer();
+
+    glStencilFunc(GL_NOTEQUAL, 0xFF, 0xFF);
+    //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
+    //    glStencilFunc(GL_ALWAYS, 0xFF, 0xFF);
+    glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
     renderDirectionalLights(cam,false);
     renderDirectionalLights(cam,true);
+    timers[4].stopTimer();
 
+    glDisable(GL_STENCIL_TEST);
     assert_no_glerror();
     //reset state
     glEnable(GL_DEPTH_TEST);
@@ -259,7 +305,8 @@ void DeferredLighting::setupStencilPass(){
 
     //set stencil to 'id' if depth test fails
     //all 'failed' pixels are now marked in the stencil buffer with the id
-    glStencilFunc(GL_ALWAYS, currentStencilId, 0);
+    glStencilFunc(GL_ALWAYS, currentStencilId, 0xFF);
+    //    glStencilFunc(GL_LEQUAL, currentStencilId, 0xFF);
     glStencilOp(GL_KEEP,GL_REPLACE,GL_KEEP);
 }
 void DeferredLighting::setupLightPass(){
@@ -274,6 +321,9 @@ void DeferredLighting::setupLightPass(){
 
     //discard all pixels that are marked with 'id' from the previous pass
     glStencilFunc(GL_NOTEQUAL, currentStencilId, 0xFF);
+    //    glStencilFunc(GL_NEVER, currentStencilId, 0xFF);
+    //    glStencilFunc(GL_GREATER, currentStencilId, 0xFF);
+    //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
     glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
 
     //-> the reverse depth test + the stencil test make now sure that the current pixel is in the light volumne
@@ -299,13 +349,10 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
     shader->uploadScreenSize(vec2(width,height));
     shader->uploadSsaoTexture(ssaoTexture);
 
-//    cout<<"DeferredLighting::renderDirectionalLights "<<width<<" "<<height<<endl;
-
     directionalLightMesh.bind();
     for(DirectionalLight* &obj : directionalLights){
         bool render = (shadow&&obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->hasShadows());
         if(render){
-            obj->view = &view;
             obj->bindUniforms(*shader,cam);
             directionalLightMesh.draw();
         }
@@ -314,6 +361,25 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
     shader->unbind();
 }
 
+
+void DeferredLighting::renderDirectionalLight(DirectionalLight* obj, Camera *cam){
+    if(!obj->shouldRender())
+        return;
+
+
+    DirectionalLightShader* shader = (obj->hasShadows()) ? directionalLightShadowShader : directionalLightShader;
+    shader->bind();
+    shader->uploadView(view);
+    shader->uploadProj(proj);
+    shader->DeferredShader::uploadFramebuffer(&gbuffer);
+    shader->uploadScreenSize(vec2(width,height));
+    shader->uploadSsaoTexture(ssaoTexture);
+    obj->bindUniforms(*shader,cam);
+    directionalLightMesh.bindAndDraw();
+    shader->unbind();
+
+
+}
 
 void DeferredLighting::renderDebug(){
 
@@ -413,13 +479,23 @@ void DeferredLighting::renderDebug(){
 
 void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
 {
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_ALWAYS);
-    blitDepthShader->bind();
-    blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
-    directionalLightMesh.bindAndDraw();
-    blitDepthShader->unbind();
-    glDepthFunc(GL_LESS);
+    //    glEnable(GL_DEPTH_TEST);
+    //    glDepthFunc(GL_ALWAYS);
+    //    blitDepthShader->bind();
+    //    blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
+    //    directionalLightMesh.bindAndDraw();
+    //    blitDepthShader->unbind();
+    //    glDepthFunc(GL_LESS);
+
+
+
+
+    //    glBindFramebuffer(GL_READ_FRAMEBUFFER, gbuffer.getId());
+    //    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, lightAccumulationBuffer.getId());
+    //    glBlitFramebuffer(0, 0, gbuffer.getTextureDepth()->getWidth(), gbuffer.getTextureDepth()->getHeight(), 0, 0, gbuffer.getTextureDepth()->getWidth(), gbuffer.getTextureDepth()->getHeight(),GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+
+    glClearColor(0,0,0,0);
+    glClear( GL_COLOR_BUFFER_BIT );
 }
 
 void DeferredLighting::setShader(SpotLightShader* spotLightShader, SpotLightShader* spotLightShadowShader){

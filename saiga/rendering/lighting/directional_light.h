@@ -27,7 +27,6 @@ protected:
 
 public:
     OrthographicCamera cam;
-    const mat4 *view;
     //    static void createMesh();
     DirectionalLight();
     virtual ~DirectionalLight(){}

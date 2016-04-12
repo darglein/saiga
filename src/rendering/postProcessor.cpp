@@ -67,11 +67,11 @@ void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorP
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     qb->createBuffers(quadMesh);
 
-    timer.create();
 
     this->LightAccumulationTexture = LightAccumulationTexture;
 
     //    computeTest = ShaderLoader::instance()->load<Shader>("computeTest.glsl");
+    assert_no_glerror();
 }
 
 void PostProcessor::nextFrame()
@@ -143,25 +143,44 @@ void PostProcessor::render()
 
     first = true;
 
-    timer.startTimer();
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
     for(int i = 0 ; i < effects-1; ++i){
+        shaderTimer[i].startTimer();
         applyShader(postProcessingEffects[i]);
         switchBuffer();
+        shaderTimer[i].stopTimer();
     }
 
+    shaderTimer[effects-1].startTimer();
     applyShaderFinal(postProcessingEffects[effects-1]);
+    shaderTimer[effects-1].stopTimer();
 
     glEnable(GL_DEPTH_TEST);
 
 
-    timer.stopTimer();
 
     //    std::cout<<"Time spent on the GPU: "<< timer.getTimeMS() <<std::endl;
+}
 
+void PostProcessor::setPostProcessingEffects(const std::vector<PostProcessingShader *> &postProcessingEffects){
+    assert_no_glerror();
+    this->postProcessingEffects = postProcessingEffects;
+    shaderTimer.clear();
+    shaderTimer.resize(postProcessingEffects.size());
+    for(auto &t : shaderTimer){
+        t.create();
+    }
+    assert_no_glerror();
+}
+
+void PostProcessor::printTimings()
+{
+    for(int i = 0 ; i < postProcessingEffects.size() ; ++i){
+        cout<<"\t"<<shaderTimer[i].getTimeMS()<<"ms "<<postProcessingEffects[i]->name<<endl;
+    }
 }
 
 void PostProcessor::resize(int width, int height)

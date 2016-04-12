@@ -31,9 +31,11 @@ void SSAOShader::uploadData(){
 
 Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):params(params),lighting(deferred_framebuffer) {
     setSize(w,h);
-    lighting.init(w,h);
+
 
     deferred_framebuffer.init(w,h,params.gbp);
+
+    lighting.init(w,h);
 
     ssao_framebuffer.create();
     Texture* ssaotex = new Texture();
@@ -147,15 +149,15 @@ void Deferred_Renderer::render_intern(){
 
     renderLighting(*currentCamera);
 
-//    startTimer(LIGHTACCUMULATION);
-//    postProcessor.nextFrame();
-//    postProcessor.bindCurrentBuffer();
+    //    startTimer(LIGHTACCUMULATION);
+    //    postProcessor.nextFrame();
+    //    postProcessor.bindCurrentBuffer();
 
-//    lighting.renderLightAccumulation();
-//    stopTimer(LIGHTACCUMULATION);
+    //    lighting.renderLightAccumulation();
+    //    stopTimer(LIGHTACCUMULATION);
 
     if(params.writeDepthToOverlayBuffer){
-//        writeGbufferDepthToCurrentFramebuffer();
+        //        writeGbufferDepthToCurrentFramebuffer();
     }else{
         glClear(GL_DEPTH_BUFFER_BIT);
     }
@@ -173,7 +175,7 @@ void Deferred_Renderer::render_intern(){
 
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
-//    postProcessor.switchBuffer();
+    //    postProcessor.switchBuffer();
 
 
     startTimer(POSTPROCESSING);
@@ -197,10 +199,10 @@ void Deferred_Renderer::render_intern(){
     //    printTimings();
 
 
-//    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);   // Make sure no FBO is set as the draw framebuffer
-//     glBindFramebuffer(GL_READ_FRAMEBUFFER, lighting.lightAccumulationBuffer.getId()); // Make sure your multisampled FBO is the read framebuffer
-//     glDrawBuffer(GL_BACK);                       // Set the back buffer as the draw buffer
-//     glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    //    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);   // Make sure no FBO is set as the draw framebuffer
+    //     glBindFramebuffer(GL_READ_FRAMEBUFFER, lighting.lightAccumulationBuffer.getId()); // Make sure your multisampled FBO is the read framebuffer
+    //     glDrawBuffer(GL_BACK);                       // Set the back buffer as the draw buffer
+    //     glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
     assert_no_glerror();
 
@@ -217,7 +219,19 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
     deferred_framebuffer.bind();
     glViewport(0,0,width,height);
     glClearColor(clearColor.x,clearColor.y,clearColor.z,clearColor.w);
+
+    if(params.maskUsedPixels){
+        glClearStencil(0xFF); //sets stencil buffer to 255
+        //mark all written pixels with 0 in the stencil buffer
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_ALWAYS, 0, 0xFF);
+        glStencilOp(GL_KEEP,GL_KEEP,GL_REPLACE);
+    }else{
+        glClearStencil(0x00);
+    }
+
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
 
 
     if(offsetGeometry){
@@ -236,6 +250,8 @@ void Deferred_Renderer::renderGBuffer(Camera *cam){
     if(offsetGeometry){
         glDisable(GL_POLYGON_OFFSET_FILL);
     }
+
+    glDisable(GL_STENCIL_TEST);
 
     deferred_framebuffer.unbind();
 
@@ -333,9 +349,11 @@ void Deferred_Renderer::printTimings()
     cout<<"SSAO: "<<getTime(SSAO)<<"ms"<<endl;
     cout<<"Depthmaps: "<<getTime(DEPTHMAPS)<<"ms"<<endl;
     cout<<"Lighting: "<<getTime(LIGHTING)<<"ms"<<endl;
-    cout<<"Light accumulation: "<<getTime(LIGHTACCUMULATION)<<"ms"<<endl;
+    lighting.printTimings();
+    //    cout<<"Light accumulation: "<<getTime(LIGHTACCUMULATION)<<"ms"<<endl;
     cout<<"Overlay pass: "<<getTime(OVERLAY)<<"ms"<<endl;
     cout<<"Postprocessing: "<<getTime(POSTPROCESSING)<<"ms"<<endl;
+    postProcessor.printTimings();
     cout<<"Final pass: "<<getTime(FINAL)<<"ms"<<endl;
     float total = getTime(TOTAL);
     cout<<"Total: "<<total<<"ms ("<< 1000/total << " fps)"<< endl;

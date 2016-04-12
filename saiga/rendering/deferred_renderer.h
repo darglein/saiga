@@ -45,6 +45,13 @@ struct SAIGA_GLOBAL RenderingParameters{
      */
     bool writeDepthToOverlayBuffer = true;
 
+    /**
+     * Mark all pixels rendered in the geometry pass in the stencil buffer. These pixels then will not be affected by directional lighting.
+     * This is especially good when alot of pixels do not need to be lit.
+     * For example when huge parts of the screeen is covered by the skybox.
+     */
+    bool maskUsedPixels = true;
+
     GBufferParameters gbp;
     PostProcessorParameters ppp;
     RenderingParameters(){}

@@ -24,17 +24,17 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     Texture* color = new Texture();
 //    multisampled_Texture_2D* color = new multisampled_Texture_2D(samples);
     if(params.srgb){
-        color->createEmptyTexture(w,h,GL_RGB,GL_SRGB8,GL_UNSIGNED_BYTE);
+        color->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
     }else{
         switch(params.colorQuality){
         case Quality::LOW:
-            color->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
+            color->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
             break;
         case Quality::MEDIUM:
-            color->createEmptyTexture(w,h,GL_RGB,GL_RGB16,GL_UNSIGNED_SHORT);
+            color->createEmptyTexture(w,h,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
             break;
         case Quality::HIGH:
-            color->createEmptyTexture(w,h,GL_RGB,GL_RGB16,GL_UNSIGNED_SHORT);
+            color->createEmptyTexture(w,h,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
             break;
         }
     }
@@ -74,20 +74,23 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     attachTexture( framebuffer_texture_t(data) );
 
 
-    Texture* depth = new Texture();
+//    Texture* depth = new Texture();
+    Texture* depth_stencil = new Texture();
+    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
 //    multisampled_Texture_2D* depth = new multisampled_Texture_2D(samples);
-    switch(params.depthQuality){
-    case Quality::LOW:
-        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-        break;
-    case Quality::MEDIUM:
-        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
-        break;
-    case Quality::HIGH:
-        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
-        break;
-    }
-    attachTextureDepth( framebuffer_texture_t(depth) );
+//    switch(params.depthQuality){
+//    case Quality::LOW:
+//        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+//        break;
+//    case Quality::MEDIUM:
+//        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+//        break;
+//    case Quality::HIGH:
+//        depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+//        break;
+//    }
+//    attachTextureDepth( framebuffer_texture_t(depth) );
+    attachTextureDepthStencil( framebuffer_texture_t(depth_stencil) );
 
     //don't need stencil in gbuffer (but blit would fail otherwise)
     //depth and stencil texture combined

@@ -60,6 +60,7 @@ shader_t* ShaderPartLoader::createShader()
     }
     std::cout<<")"<<std::endl;
 
+    shader->name = file;
 
     return shader;
 }
