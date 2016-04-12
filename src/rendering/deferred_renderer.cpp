@@ -333,9 +333,11 @@ void Deferred_Renderer::printTimings()
     cout<<"SSAO: "<<getTime(SSAO)<<"ms"<<endl;
     cout<<"Depthmaps: "<<getTime(DEPTHMAPS)<<"ms"<<endl;
     cout<<"Lighting: "<<getTime(LIGHTING)<<"ms"<<endl;
-    cout<<"Light accumulation: "<<getTime(LIGHTACCUMULATION)<<"ms"<<endl;
+    lighting.printTimings();
+//    cout<<"Light accumulation: "<<getTime(LIGHTACCUMULATION)<<"ms"<<endl;
     cout<<"Overlay pass: "<<getTime(OVERLAY)<<"ms"<<endl;
     cout<<"Postprocessing: "<<getTime(POSTPROCESSING)<<"ms"<<endl;
+    postProcessor.printTimings();
     cout<<"Final pass: "<<getTime(FINAL)<<"ms"<<endl;
     float total = getTime(TOTAL);
     cout<<"Total: "<<total<<"ms ("<< 1000/total << " fps)"<< endl;

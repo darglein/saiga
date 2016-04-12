@@ -19,6 +19,7 @@ public:
 
     GLuint program = 0;
     std::vector<std::shared_ptr<ShaderPart>> shaders;
+    std::string name;
 
 
     Shader();

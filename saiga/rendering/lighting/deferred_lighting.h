@@ -4,6 +4,7 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
+#include "saiga/opengl/query/gpuTimer.h"
 
 class PointLightShader;
 class SpotLightShader;
@@ -53,6 +54,10 @@ private:
 
     mat4 inview,view,proj;
     bool drawDebug = true;
+
+
+    FilteredGPUTimer timers[5];
+    std::string timerStrings[5];
 
 //    raw_Texture* dummyTexture;
 //    raw_Texture* dummyCubeTexture;
@@ -110,6 +115,9 @@ public:
     void setViewProj(const mat4 &iv,const mat4 &v,const mat4 &p);
 
     void cullLights(Camera *cam);
+
+    void printTimings();
+
 private:
     void renderPointLight(PointLight* p, Camera *cam);
 
@@ -139,7 +147,7 @@ private:
     void renderBoxLightsStencil();
 
     void renderDirectionalLights(Camera *cam, bool shadow);
-
+    void renderDirectionalLight(DirectionalLight *obj, Camera *cam);
 
 };
 

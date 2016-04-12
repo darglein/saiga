@@ -49,7 +49,7 @@ private:
     int lastBuffer = 1;
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
     std::vector<PostProcessingShader*> postProcessingEffects;
-    GPUTimer timer;
+    std::vector<FilteredGPUTimer> shaderTimer;
 
     Shader* computeTest;
 
@@ -70,8 +70,8 @@ public:
 
     void render();
 
-    void setPostProcessingEffects(const std::vector<PostProcessingShader*> &postProcessingEffects ){this->postProcessingEffects = postProcessingEffects;}
+    void setPostProcessingEffects(const std::vector<PostProcessingShader*> &postProcessingEffects );
 
-
+    void printTimings();
     void resize(int width, int height);
 };
