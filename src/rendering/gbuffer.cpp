@@ -24,17 +24,17 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     Texture* color = new Texture();
 //    multisampled_Texture_2D* color = new multisampled_Texture_2D(samples);
     if(params.srgb){
-        color->createEmptyTexture(w,h,GL_RGB,GL_SRGB8,GL_UNSIGNED_BYTE);
+        color->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
     }else{
         switch(params.colorQuality){
         case Quality::LOW:
-            color->createEmptyTexture(w,h,GL_RGB,GL_RGB8,GL_UNSIGNED_BYTE);
+            color->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
             break;
         case Quality::MEDIUM:
-            color->createEmptyTexture(w,h,GL_RGB,GL_RGB16,GL_UNSIGNED_SHORT);
+            color->createEmptyTexture(w,h,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
             break;
         case Quality::HIGH:
-            color->createEmptyTexture(w,h,GL_RGB,GL_RGB16,GL_UNSIGNED_SHORT);
+            color->createEmptyTexture(w,h,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
             break;
         }
     }
