@@ -127,7 +127,7 @@ vec3 aabb::getHalfExtends()
     return 0.5f * (max-min);
 }
 
-bool aabb::intersect2(const aabb &other, int side){
+bool aabb::intersectBool(const aabb &other, int side){
     side = (side+1)%3;
     if(min[side] >= other.max[side] || max[side] <= other.min[side] ) return false;
     side = (side+1)%3;
@@ -147,7 +147,7 @@ int aabb::intersect(const aabb &other){
     return 1; //overlap
 }
 
-bool aabb::intersect2(const aabb &other){
+bool aabb::intersectBool(const aabb &other){
     if(min.x >= other.max.x || max.x <= other.min.x ) return false;
     if(min.y >= other.max.y || max.y <= other.min.y) return false;
     if(min.z >= other.max.z || max.z <= other.min.z) return false;
@@ -163,26 +163,6 @@ bool aabb::intersectTouching(const aabb &other){
     return true; //overlap
 
 }
-
-int aabb::intersectAabb(const aabb &other){
-    if(min.x >= other.max.x || max.x <= other.min.x ) return 0;
-    if(min.y >= other.max.y || max.y <= other.min.y) return 0;
-    if(min.z >= other.max.z || max.z <= other.min.z) return 0;
-
-    if( other.min.x >= min.x && other.max.x <= max.x && //other inside this
-            other.min.y >= min.y && other.max.y <= max.y &&
-            other.min.z >= min.z && other.max.z <= max.z ) return 2; //contain
-    return 1; //overlap
-}
-
-bool aabb::intersectAabb2(const aabb &other){
-    if(min.x >= other.max.x || max.x <= other.min.x ) return false;
-    if(min.y >= other.max.y || max.y <= other.min.y) return false;
-    if(min.z >= other.max.z || max.z <= other.min.z) return false;
-
-    return true; //overlap
-}
-
 
 
 vec3 aabb::cornerPoint(int cornerIndex) const

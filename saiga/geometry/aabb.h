@@ -28,17 +28,16 @@ public:
     void ensureValidity();
 
 	int intersect(const aabb &other);
-	bool intersect2(const aabb &other);
+    bool intersectBool(const aabb &other);
     bool intersectTouching(const aabb &other); //returns true if boxes are touching
 
-    bool intersect2(const aabb &other, int side);
+    bool intersectBool(const aabb &other, int side);
     int touching(const aabb &other);
 
     vec3 getHalfExtends();
 
 
-    int intersectAabb(const aabb &other);
-    bool intersectAabb2(const aabb &other);
+
     void getMinimumAabb(aabb &box){ box = *this;}
 
     vec3 cornerPoint(int i) const;
