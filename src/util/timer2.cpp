@@ -14,7 +14,7 @@ void Timer2::start()
 
 
 
-    startTime = std::chrono::system_clock::now();
+    startTime = std::chrono::high_resolution_clock::now();
 }
 
 void Timer2::stop()
@@ -22,24 +22,25 @@ void Timer2::stop()
 //    double elapsed = (glfwGetTime() * 1000) - startTime;
 //    addMeassurment(elapsed);
 
-    auto endTime = std::chrono::system_clock::now();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
     auto elapsed = endTime - startTime;
 
-    double dt  = std::chrono::duration <double, std::milli> (elapsed).count();
+    time_interval_t dt = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
     addMeassurment(dt);
 }
 
 double Timer2::getTimeMS()
 {
-    return lastTime;
+    return lastTime/1000.0;
 }
 
 double Timer2::getLastTimeMS()
 {
-    return lastTime;
+    return lastTime/1000.0;
 }
 
-void Timer2::addMeassurment(double time)
+void Timer2::addMeassurment(time_interval_t time)
 {
     lastTime = time;
 }
@@ -55,13 +56,13 @@ ExponentialTimer::ExponentialTimer(double alpha) : alpha(alpha)
 
 double ExponentialTimer::getTimeMS()
 {
-    return currentTime;
+    return currentTimeMS;
 }
 
-void ExponentialTimer::addMeassurment(double time)
+void ExponentialTimer::addMeassurment(time_interval_t time)
 {
     lastTime = time;
-    currentTime = alpha*currentTime + (1-alpha)*time;
+    currentTimeMS = alpha*currentTimeMS + (1-alpha)*getLastTimeMS();
 }
 
 
@@ -75,20 +76,20 @@ AverageTimer::AverageTimer(int number) :  lastTimes(number,0), number(number)
 
 double AverageTimer::getTimeMS()
 {
-    return currentTime;
+    return currentTimeMS;
 }
 
-void AverageTimer::addMeassurment(double time)
+void AverageTimer::addMeassurment(time_interval_t time)
 {
     lastTime = time;
-    lastTimes[currentTimeId] = time;
+    lastTimes[currentTimeId] = getLastTimeMS();
     currentTimeId = (currentTimeId+1) % lastTimes.size();
 
-    currentTime = 0;
-    for(double &d : lastTimes){
-        currentTime += d;
+    currentTimeMS = 0;
+    for(auto &d : lastTimes){
+        currentTimeMS += d;
     }
-    currentTime /= lastTimes.size();
+    currentTimeMS /= lastTimes.size();
 }
 
 double AverageTimer::getMinimumTimeMS()

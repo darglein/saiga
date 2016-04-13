@@ -4,6 +4,9 @@
 #include <vector>
 #include <chrono>
 
+typedef long long time_interval_t;
+//typedef double time_interval_t;
+
 //uses c++ 11 chrono for time meassuerment
 class SAIGA_GLOBAL Timer2{
 public:
@@ -15,10 +18,10 @@ public:
     virtual double getTimeMS();
     double getLastTimeMS();
 protected:
-    virtual void addMeassurment(double time);
+    virtual void addMeassurment(time_interval_t time);
 //    double startTime;
-    std::chrono::time_point<std::chrono::system_clock> startTime;
-    double lastTime;
+    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+    time_interval_t lastTime;
 };
 
 
@@ -27,8 +30,8 @@ public:
     ExponentialTimer(double alpha = 0.9);
     virtual double getTimeMS() override;
 protected:
-    virtual void addMeassurment(double time) override;
-    double currentTime = 0.0; //smoothed
+    virtual void addMeassurment(time_interval_t time) override;
+    double currentTimeMS = 0.0; //smoothed
     double alpha;
 };
 
@@ -41,9 +44,9 @@ public:
     double getMinimumTimeMS();
     double getMaximumTimeMS();
 protected:
-    virtual void addMeassurment(double time) override;
+    virtual void addMeassurment(time_interval_t time) override;
     std::vector<double> lastTimes;
     int currentTimeId = 0;
-    double currentTime = 0.0; //smoothed
+    double currentTimeMS = 0.0; //smoothed
     int number;
 };
