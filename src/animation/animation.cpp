@@ -7,7 +7,7 @@ int Animation::getActiveFrames()
     return skipLastFrame ? frameCount-1 : frameCount;
 }
 
-AnimationFrame &Animation::getKeyFrame(int frameIndex)
+const AnimationFrame &Animation::getKeyFrame(int frameIndex)
 {
     assert(frameIndex>=0 && frameIndex<frameCount);
     return keyFrames[frameIndex];

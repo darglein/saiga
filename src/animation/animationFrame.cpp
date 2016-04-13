@@ -6,6 +6,29 @@
 using std::cout;
 using std::endl;
 
+
+
+AnimationFrame::AnimationFrame()
+{
+
+}
+
+AnimationFrame::AnimationFrame(const AnimationFrame &other)
+{
+    *this = other;
+}
+
+AnimationFrame &AnimationFrame::operator=(const AnimationFrame &other)
+{
+    this->nodeCount = other.nodeCount;
+    this->rootNode = other.rootNode;
+    this->bones = other.bones;
+    this->boneOffsets = other.boneOffsets;
+    this->boneMatrices = other.boneMatrices;
+    this->initTree();
+    return *this;
+}
+
 void AnimationFrame::calculateFromTree()
 {
     rootNode.traverse(mat4(),boneMatrices);
@@ -17,26 +40,19 @@ void AnimationFrame::calculateFromTree()
 void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, AnimationFrame& out, float alpha)
 {
     out = k0;
-    out.initTree();
 
     for(int i=0;i<k0.nodeCount;++i){
         AnimationNode* n1 = k1.nodes[i];
 
         out.nodes[i]->interpolate(*n1,alpha);
     }
-
-
-
-
 //    out.calculateFromTree();
-
 }
 
 void AnimationFrame::initTree()
 {
     nodes.resize(nodeCount);
     rootNode.initTree(nodes);
-
 }
 
 void AnimationNode::interpolate(AnimationNode &other, float alpha)
@@ -62,7 +78,6 @@ void AnimationNode::reset()
     position = vec3(0);
     rotation = quat();
     scaling = vec3(1);
-    transformedMatrix = mat4();
     for(AnimationNode &an : children){
         an.reset();
     }
@@ -72,23 +87,17 @@ void AnimationNode::reset()
 
 void AnimationNode::traverse(mat4 m,  std::vector<mat4> &out_boneMatrices)
 {
-    //    cout<<"AnimationNode::traverse(mat4 m,  std::vector<mat4> out_boneMatrices)"<<endl;
-
     if(keyFramed){
-        glm::mat4 t = glm::translate(glm::mat4(),position);
-        glm::mat4 r = glm::mat4_cast(rotation);
-        glm::mat4 s = glm::scale(glm::mat4(),scaling);
-        matrix = t*s*r;
+        matrix = createTRSmatrix(position,rotation,scaling);
     }
 
+    m = m*matrix;
 
-    transformedMatrix = m*matrix;
-
-    if(boneIndex!=-1){
-        out_boneMatrices[boneIndex] = transformedMatrix;
+    if(boneIndex != -1){
+        out_boneMatrices[boneIndex] = m;
     }
 
     for(AnimationNode &an : children){
-        an.traverse(transformedMatrix,out_boneMatrices);
+        an.traverse(m,out_boneMatrices);
     }
 }

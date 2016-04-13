@@ -14,7 +14,7 @@ public:
     int boneIndex = -1;
 
     mat4 matrix;
-    mat4 transformedMatrix;
+//    mat4 transformedMatrix;
 
     bool keyFramed = false; //not all nodes are keyframed
     vec3 position;
@@ -39,6 +39,10 @@ public:
     int bones;
     std::vector<mat4> boneOffsets;
     std::vector<mat4> boneMatrices;
+
+    AnimationFrame();
+    AnimationFrame(const AnimationFrame &other);
+    AnimationFrame& operator=(const AnimationFrame &other);
 
 
     static void interpolate(AnimationFrame &k0, AnimationFrame &k1, AnimationFrame &out, float alpha);

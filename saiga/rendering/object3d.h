@@ -65,8 +65,7 @@ inline void Object3D::getModelMatrix(mat4 &model) const{
 }
 
 inline void Object3D::calculateModel(){
-    model = glm::mat4_cast(rot)*glm::scale(mat4(),scale);
-    model[3] = vec4(position,1);
+    model = createTRSmatrix(position,rot,scale);
 }
 
 inline vec3 Object3D::getPosition() const {

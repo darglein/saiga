@@ -57,3 +57,14 @@ SAIGA_GLOBAL glm::vec3 sampleCone(const glm::vec3& dir, float angle);
 SAIGA_GLOBAL glm::vec3 sampleUnitCone(float angle);
 
 SAIGA_GLOBAL glm::vec3 snapTo(glm::vec3 v, float snapAngleInDegrees);
+
+
+
+SAIGA_GLOBAL inline glm::mat4 createTRSmatrix(const vec3& translation, const quat& rotation, const vec3& scaling){
+    glm::mat4 matrix = glm::mat4_cast(rotation);
+    matrix[0] *= scaling[0];
+    matrix[1] *= scaling[1];
+    matrix[2] *= scaling[2];
+    matrix[3] = vec4(translation,1);
+    return matrix;
+}

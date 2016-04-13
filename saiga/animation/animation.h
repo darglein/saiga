@@ -33,7 +33,7 @@ public:
      * Returns the keyframe at the given index.
      */
 
-    AnimationFrame& getKeyFrame(int frameIndex);
+    const AnimationFrame& getKeyFrame(int frameIndex);
 
     /**
      * Returns the interpolated frame at time 'time'.
