@@ -7,7 +7,8 @@
 typedef long long time_interval_t;
 //typedef double time_interval_t;
 
-//uses c++ 11 chrono for time meassuerment
+//Linux: c++ 11 chrono for time meassuerment 
+//Windows: queryPerformanceCounter because c++ 11 chrono only since VS2015 with good precision :(
 class SAIGA_GLOBAL Timer2{
 public:
     Timer2();
@@ -20,8 +21,15 @@ public:
 protected:
     virtual void addMeassurment(time_interval_t time);
 //    double startTime;
-    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+    
     time_interval_t lastTime;
+
+#ifdef WIN32
+	time_interval_t startTime;
+	double PCFreq = 0.0;
+#else
+	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+#endif
 };
 
 

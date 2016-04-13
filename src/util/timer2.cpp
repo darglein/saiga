@@ -1,6 +1,12 @@
+
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include "saiga/util/timer2.h"
 #include <GLFW/glfw3.h>
 #include "saiga/util/glm.h"
+
 
 Timer2::Timer2()
 {
@@ -9,35 +15,54 @@ Timer2::Timer2()
 
 void Timer2::start()
 {
-    //glfwgettime returns time in seconds since initialization
-//     startTime = glfwGetTime() * 1000;
+	//Since VS2015 the standard high resolution clock is implemented with queryperformanceCounters,
+	//so this special windows code is not needed anymore.
+#ifdef WIN32
+	LARGE_INTEGER li;
+	if (!QueryPerformanceFrequency(&li))
+		cout << "QueryPerformanceFrequency failed!\n";
 
+	PCFreq = double(li.QuadPart) / 1000.0;
 
-
+	QueryPerformanceCounter(&li);
+	startTime = li.QuadPart;
+#else
     startTime = std::chrono::high_resolution_clock::now();
+#endif
 }
 
 void Timer2::stop()
 {
-//    double elapsed = (glfwGetTime() * 1000) - startTime;
-//    addMeassurment(elapsed);
-
-
+#ifdef WIN32
+	LARGE_INTEGER li;
+	QueryPerformanceCounter(&li);
+	time_interval_t dt = li.QuadPart - startTime;
+	addMeassurment(dt);
+#else
     auto endTime = std::chrono::high_resolution_clock::now();
     auto elapsed = endTime - startTime;
 
     time_interval_t dt = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
     addMeassurment(dt);
+#endif
 }
 
 double Timer2::getTimeMS()
 {
+#ifdef WIN32
+	return lastTime / PCFreq;
+#else
     return lastTime/1000.0;
+#endif
 }
 
 double Timer2::getLastTimeMS()
 {
+#ifdef WIN32
+	return lastTime / PCFreq;
+#else
     return lastTime/1000.0;
+#endif
 }
 
 void Timer2::addMeassurment(time_interval_t time)
