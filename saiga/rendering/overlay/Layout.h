@@ -46,5 +46,8 @@ public:
 
     //transforms a point in the range [(0,0),(width,height)] to the range [(0,0),(targetWidth,targetHeight)]
     glm::vec2 transformToLocal(glm::vec2 p);
+
+    //transforms a point in the range [(0,0),(width,height)] to the range [(0,0),(1,1)]
+    glm::vec2 transformToLocalNormalized(glm::vec2 p);
 };
 
