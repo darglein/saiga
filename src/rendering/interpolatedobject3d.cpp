@@ -16,8 +16,10 @@ void InterpolatedObject3D::interpolate(float alpha)
     interpolatedscale = glm::mix(oldscale,scale,alpha);
     interpolatedposition = glm::mix(oldposition,position,alpha);
 
-    interpolatedmodel = glm::mat4_cast(interpolatedrot)*glm::scale(mat4(),interpolatedscale);
-    interpolatedmodel[3] = vec4(interpolatedposition,1);
+    interpolatedmodel = createTRSmatrix(interpolatedposition,interpolatedrot,interpolatedscale);
+//    interpolatedmodel = glm::mat4_cast(interpolatedrot)*glm::scale(mat4(),interpolatedscale);
+//    interpolatedmodel[3] = vec4(interpolatedposition,1);
+
 
 }
 
