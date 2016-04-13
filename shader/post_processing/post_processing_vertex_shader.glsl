@@ -10,6 +10,6 @@ out vec2 tc;
 
 void main() {
     tc = vec2(in_position.x,in_position.y);
-    tc = tc*0.5f+0.5f;
+    tc = tc * 0.5f + 0.5f;
     gl_Position = vec4(in_position.x,in_position.y,0,1);
 }

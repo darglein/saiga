@@ -33,7 +33,6 @@ void main() {
                 0,0,0,vec4(0)  // Only used on FXAA Console.
                 );
 
-
     out_color = vec4(c);
 }
 
