@@ -36,8 +36,12 @@ if (USE_OPENAL)
 endif (USE_OPENAL)
 
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+#creates 'folders' in the solution explorer of visual studio
+include(source_group_helper)
+GroupSources2(${PROJECT_SOURCE_DIR}/src)
+GroupSources2(${PROJECT_SOURCE_DIR}/saiga)
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 if(BUILD_SHARED)
 	add_definitions(-DSAIGA_DLL_EXPORTS)
