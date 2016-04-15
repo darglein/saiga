@@ -46,10 +46,10 @@ public:
     std::vector<mat4> boneOffsets;
 
     int nodeCount = 0;
-    std::map<std::string,AnimationNode*> nodeMap;
+    std::map<std::string,int> nodeMap;
     std::map<std::string,int> nodeindexMap;
-
-    AnimationNode rootNode;
+	std::vector<AnimationNode> animationNodes;
+    int rootNode = 0;
 public:
     AssimpLoader(){}
     AssimpLoader(const std::string &file);
@@ -92,7 +92,7 @@ public:
     void createFrames(const aiMesh *mesh, aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
 
     void createKeyFrames( aiAnimation *anim, std::vector<AnimationFrame> &animationFrames);
-    int countNodes(aiNode *node, AnimationNode &an);
+	int createNodeTree(aiNode *node);
     mat4 composematrix(vec3 t, quat q, vec3 s);
 
 private:

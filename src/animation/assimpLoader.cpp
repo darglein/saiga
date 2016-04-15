@@ -97,7 +97,8 @@ void AssimpLoader::loadBones(){
         }
     }
 
-    nodeCount = countNodes(scene->mRootNode,rootNode);
+	rootNode = createNodeTree(scene->mRootNode);
+	assert(rootNode == 0);
     //    cout<<"unique nodes: "<<nodeCount<<endl;
 
     if(verbose)
@@ -142,9 +143,13 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 
 
     for(int j=0;j<frames;++j){
-        rootNode.reset();
+		for (auto &an : animationNodes){
+			an.reset();
+			an.keyFramed = false;
+		}
+
         int frame = j;
-        AnimationFrame &k = animationFrames[j];
+        
 
         //        cout<<">>>>>>>>>>>Keyframe "<<frame<<" channels "<<anim->mNumChannels<<endl;
 
@@ -164,22 +169,26 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
             if(nodeMap.find(str)==nodeMap.end()){
                 assert(0);
             }
-            AnimationNode* an = nodeMap[str];
+            AnimationNode& an = animationNodes[nodeMap[str]];
 
-            an->position = vec3(p.x,p.y,p.z);
-            an->rotation = quat(r.w,r.x,r.y,r.z);
-            an->scaling = vec3(s.x,s.y,s.z);
-            an->keyFramed = true;
+            an.position = vec3(p.x,p.y,p.z);
+            an.rotation = quat(r.w,r.x,r.y,r.z);
+            an.scaling = vec3(s.x,s.y,s.z);
+            an.keyFramed = true;
         }
-
+		//k.initTree();
+		AnimationFrame &k = animationFrames[j];
         k.nodeCount = nodeCount;
         k.bones = boneCount;
         k.boneMatrices.resize(boneCount);
         k.rootNode = rootNode;
         k.boneOffsets = boneOffsets;
+		k.nodes = animationNodes;
 
-        k.initTree();
+     
         k.calculateFromTree();
+
+		//cout << k.nodes.size() << endl;
     }
 }
 
@@ -216,17 +225,20 @@ aiNode *AssimpLoader::findnode(struct aiNode *node, char *name)
     return NULL;
 }
 
-int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
+int AssimpLoader::createNodeTree(struct aiNode *node)
 {
     //    cout<<"node "<<node->mName.data<<endl;
     int n = 1;
+
+
+	AnimationNode an;
+	int nodeIndex = animationNodes.size();
 
     int index = 0;
     std::string str(node->mName.data);
     if(nodeMap.find(str)==nodeMap.end()){
         index = nodeMap.size();
-        nodeMap[str] = &an;
-
+		nodeMap[str] = nodeIndex;
     }else{
         assert(0);
     }
@@ -235,18 +247,24 @@ int AssimpLoader::countNodes(struct aiNode *node, AnimationNode& an)
     if(boneMap.find(str)!=boneMap.end()){
         an.boneIndex = boneMap[str];
     }else{
-        an.boneIndex = -1;
+		an.boneIndex = -1;
     }
-    nodeindexMap[str] = index;
-    an.index = index;
-    an.matrix = convert(node->mTransformation);
-    an.name =str;
-    an.children.resize(node->mNumChildren);
+	nodeindexMap[str] = nodeIndex;
+	an.index = nodeIndex;
+	an.matrix = convert(node->mTransformation);
+	an.name = str;
+	an.children.resize(node->mNumChildren);
 
+	animationNodes.push_back(an);
+
+	std::vector<int> children;
     for (unsigned int i = 0; i < node->mNumChildren; i++) {
-        n += countNodes(node->mChildren[i],an.children[i]);
+		children.push_back(createNodeTree(node->mChildren[i]));
     }
-    return n;
+	an.children = children;
+	animationNodes[nodeIndex] = an;
+
+	return nodeIndex;
 }
 
 // calculate absolute transform for node to do mesh skinning

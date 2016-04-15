@@ -13,6 +13,7 @@ void AnimatedAsset::render(Camera *cam, const mat4 &model)
 //    a.getFrame(test,af);
     a.getFrameNormalized(glm::fract(test),af);
     af.calculateFromTree();
+//	boneMatrices = a.getKeyFrame(glm::fract(test)*5).boneMatrices;
     boneMatrices = af.boneMatrices;
 
 //    cout<<"bonematrices "<<boneMatrices.size()<<endl;
