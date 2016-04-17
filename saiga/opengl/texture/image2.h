@@ -3,6 +3,7 @@
 
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/texture/imageFormat.h"
+#include <vector>
 
 class Image2{
 public:
