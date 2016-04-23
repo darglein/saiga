@@ -30,8 +30,8 @@ void ImageConverter::convert(PNG::Image &src, Image& dest){
     }
 
 //    std::cout<<"bits "<<bitDepth<<" channels "<<channels<<std::endl;
-
-    dest.data = src.data;
+    dest.create(src.data);
+//    dest.data = src.data;
 }
 
 void ImageConverter::convert(Image& src, PNG::Image &dest){
@@ -57,7 +57,7 @@ void ImageConverter::convert(Image& src, PNG::Image &dest){
     }
 
 
-    dest.data = src.data;
+    dest.data = src.getRawData();
 }
 
 #endif
@@ -93,7 +93,7 @@ void ImageConverter::convert(Image& src, fipImage &dest){
 //        memcpy(data+scanWidth*y,rowPtr,scanWidth);
 //    }
 
-    memcpy(data,src.data,src.getSize());
+    memcpy(data,src.getRawData(),src.getSize());
 
 }
 
@@ -131,12 +131,12 @@ void ImageConverter::convert(fipImage &src, Image& dest){
 
 
     if(dest.channels==1){
-        memcpy(dest.data,data,dest.getSize());
+        memcpy(dest.getRawData(),data,dest.getSize());
     }else if(dest.channels == 3 && src.getBitsPerPixel()==24){
-        memcpy(dest.data,data,dest.getSize());
+        memcpy(dest.getRawData(),data,dest.getSize());
         dest.flipRB();
     }else if(dest.channels == 4){
-        memcpy(dest.data,data,dest.getSize());
+        memcpy(dest.getRawData(),data,dest.getSize());
         dest.flipRB();
     }else{
         std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;

@@ -7,20 +7,30 @@
 
 class Image2{
 public:
-    std::vector<unsigned char> data;
-    int width, height;
+    typedef unsigned char byte_t;
 
+    //raw image data
+    std::vector<byte_t> data;
+
+    //image dimensions
+    int size = 0; //size of data in bytes
+    int width = 0;
+    int height = 0;
+
+    //alignment and helper values
     int rowAlignment = 4;
-    int bytesPerRow;
-    bool srgb = false;
+    int bytesPerRow = 0;
+    int bytesPerTexel = 0;
 
-    GLenum glInternalType;
-    GLenum glType;
-    int channels;
-    int bitDepth;
+    //image format
+    bool srgb = false;
+    int channels = 0;
+    int bitDepth = 0;
     ImageFormat format;
-    int bytesPerTexel;
-    int size;
+
+    //opengl type for the image format
+    GLenum glInternalType = GL_NONE;
+    GLenum glType = GL_NONE;
 };
 
 

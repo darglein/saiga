@@ -321,7 +321,7 @@ GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
     GLFWimage glfwimage;
     glfwimage.width = image->width;
     glfwimage.height = image->height;
-    glfwimage.pixels = image->data;
+    glfwimage.pixels = image->getRawData();
 
     return glfwCreateCursor(&glfwimage, midX, midY);
 }

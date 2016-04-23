@@ -69,7 +69,7 @@ bool cube_Texture::fromImage(Image *img){
 
     GLubyte* data[6];
     for(int i=0;i<6;i++){
-        data[i] = img[i].data;
+        data[i] = img[i].getRawData();
     }
     createGlTexture();
     uploadData(data);
@@ -101,13 +101,13 @@ bool cube_Texture::fromImage(Image &img){
 
     createGlTexture();
 
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_X,images[1].data);
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Z,images[0].data);
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_X,images[3].data);
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,images[2].data);
+    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_X,images[1].getRawData());
+    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Z,images[0].getRawData());
+    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_X,images[3].getRawData());
+    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,images[2].getRawData());
 
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Y,images[4].data);
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,images[5].data);
+    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Y,images[4].getRawData());
+    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,images[5].getRawData());
 
     return true;
 }

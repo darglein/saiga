@@ -18,8 +18,16 @@ public:
     Image();
     ~Image();
 	
-	uint8_t* data = nullptr;
-    uint64_t width, height;
+    typedef unsigned char byte_t;
+
+    //raw image data
+    std::vector<byte_t> data;
+
+    //image dimensions
+    int size = 0; //size of data in bytes
+    int width = 0;
+    int height = 0;
+
     int bitDepth;
     int channels;
     bool srgb = false;
@@ -28,6 +36,8 @@ public:
     int rowAlignment = 4;
     int bytesPerRow;
 public:
+    byte_t* getRawData();
+
     int bytesPerChannel();
     int bytesPerPixel();
     int bitsPerPixel();
@@ -49,7 +59,7 @@ public:
 
 
     void makeZero(); //zeros out all bytes
-    void create();//allocates memory
+    void create(byte_t* initialData=nullptr);//allocates memory
 
     void resize(int w, int h);
     void setSubImage(int x, int y, Image &src);

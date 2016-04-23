@@ -14,8 +14,13 @@ Image::Image()
 
 Image::~Image()
 {
-    if(shouldDelete)
-        delete[] data;
+//    if(shouldDelete)
+//        delete[] data;
+}
+
+Image::byte_t *Image::getRawData()
+{
+    return &data[0];
 }
 
 int Image::bytesPerChannel(){
@@ -64,22 +69,24 @@ int Image::position(int x, int y){
 }
 
 uint8_t* Image::positionPtr(int x, int y){
-    return this->data+position(x,y);
+    return &(this->data[position(x,y)]);
 }
 
 void Image::makeZero()
 {
-    memset(data,0,getSize());
+    memset(getRawData(),0,getSize());
 }
 
-void Image::create(){
+void Image::create(byte_t* initialData){
     bytesPerRow = width*bytesPerPixel();
     int rowPadding = (rowAlignment - (bytesPerRow % rowAlignment)) % rowAlignment;
     bytesPerRow += rowPadding;
 
-    delete[] data;
-    data = new uint8_t[getSize()];
+    data.resize(getSize());
 
+    if(initialData){
+        memcpy(getRawData(),initialData,getSize());
+    }
     shouldDelete = true;
 }
 
@@ -87,7 +94,7 @@ void Image::resize(int w, int h)
 {
     Image newimg = *this;
 
-    this->data = nullptr;
+//    this->data = nullptr;
 
     width = w;
     height = h;
@@ -105,7 +112,8 @@ void Image::setSubImage(int x, int y, Image& src)
 
 
     for(int i=0;i<(int)src.height;i++){//rows
-        memcpy(this->data+position(x,y+i),src.data+src.bytesPerRow*i,src.bytesPerRow);
+//        memcpy(this->data+position(x,y+i),src.data+src.bytesPerRow*i,src.bytesPerRow);
+        memcpy(this->positionPtr(x,y+i),src.getRawData()+src.bytesPerRow*i,src.bytesPerRow);
     }
 }
 
@@ -113,7 +121,7 @@ void Image::setSubImage(int x, int y, int w, int h, uint8_t *data)
 {
     int rowsize = bytesPerPixel()*w;
     for(int i=0;i<h;i++){//rows
-        memcpy(this->data+position(x,y+i),data+rowsize*i,rowsize);
+        memcpy(this->positionPtr(x,y+i),data+rowsize*i,rowsize);
     }
 }
 
@@ -130,7 +138,7 @@ void Image::getSubImage(int x, int y, int w, int h, Image &out){
     int rowsize = bytesPerPixel()*w;
 
     for(int i=0;i<h;i++){//rows
-        memcpy(out.data+rowsize*i,data+position(x,y+i),rowsize);
+        memcpy(out.getRawData()+rowsize*i,positionPtr(x,y+i),rowsize);
     }
 
 
@@ -138,29 +146,30 @@ void Image::getSubImage(int x, int y, int w, int h, Image &out){
 
 void Image::addChannel()
 {
-    auto oldData = data;
-    data = nullptr;
-    int oldBpp = bytesPerPixel();
+    assert(0);
+//    auto oldData = data;
+////    data = nullptr;
+//    int oldBpp = bytesPerPixel();
 
 
-    this->channels++;
-    this->create();
+//    this->channels++;
+//    this->create();
 
-    int newBpp = bytesPerPixel();
+//    int newBpp = bytesPerPixel();
 
-    for(int y = 0 ; y < (int)height ; ++y){
-        for(int x = 0 ; x < (int)width ; ++x){
-            int pos = y * width + x;
-            auto posOld = oldData + pos * oldBpp;
-            auto posNew = data + pos * newBpp;
+//    for(int y = 0 ; y < (int)height ; ++y){
+//        for(int x = 0 ; x < (int)width ; ++x){
+//            int pos = y * width + x;
+//            auto posOld = oldData + pos * oldBpp;
+//            auto posNew = data + pos * newBpp;
 
-            for(int i = 0 ;i < newBpp ; ++i){
-                posNew[i] = (i<oldBpp)?posOld[i] : 0;
-            }
-        }
-    }
+//            for(int i = 0 ;i < newBpp ; ++i){
+//                posNew[i] = (i<oldBpp)?posOld[i] : 0;
+//            }
+//        }
+//    }
 
-    delete[] oldData;
+//    delete[] oldData;
 }
 
 void Image::flipRB()
@@ -169,7 +178,7 @@ void Image::flipRB()
     assert(channels==3 || channels==4);
 
     for(int y = 0 ; y < (int)height ; ++y){
-        uint8_t* ptr = data + (y*bytesPerRow);
+        uint8_t* ptr = getRawData() + (y*bytesPerRow);
         for(int x = 0 ; x < (int)width ; ++x){
             uint8_t r = *ptr;
             *ptr = *(ptr+2);

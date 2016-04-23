@@ -16,7 +16,7 @@ bool basic_Texture_2D::fromImage(Image &img){
     setFormat(img);
 
     createGlTexture();
-    uploadData(img.data);
+    uploadData(img.getRawData());
     return true;
 }
 

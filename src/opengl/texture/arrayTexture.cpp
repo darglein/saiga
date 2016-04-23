@@ -82,7 +82,7 @@ bool ArrayTexture2D::fromImage(std::vector<Image> &images){
 //    Error::quitWhenError("ArrayTexture2D::fromImage2");
     assert_no_glerror();
     for(int i=0;i<depth;i++){
-        GLubyte*  data = images[i].data;
+        GLubyte*  data = images[i].getRawData();
         uploadSubImage(0,0,i,width,height,1,data);
     }
 
