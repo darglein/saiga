@@ -178,7 +178,7 @@ void PostProcessor::setPostProcessingEffects(const std::vector<PostProcessingSha
 
 void PostProcessor::printTimings()
 {
-    for(int i = 0 ; i < postProcessingEffects.size() ; ++i){
+    for(unsigned int i = 0 ; i < postProcessingEffects.size() ; ++i){
         cout<<"\t"<<shaderTimer[i].getTimeMS()<<"ms "<<postProcessingEffects[i]->name<<endl;
     }
 }

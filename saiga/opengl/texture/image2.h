@@ -26,7 +26,7 @@ public:
     bool srgb = false;
     int channels = 0;
     int bitDepth = 0;
-    ImageFormat format;
+    ImageElementFormat format;
 
     //opengl type for the image format
     GLenum glInternalType = GL_NONE;
@@ -34,7 +34,7 @@ public:
 };
 
 
-template<int CHANNELS, int BITDEPTH, ImageFormat FORMAT, bool SRGB=false>
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB=false>
 class TemplatedImage : public Image2{
 public:
     typedef Texel<CHANNELS,BITDEPTH,FORMAT> texel_t;
@@ -55,7 +55,7 @@ public:
 };
 
 
-template<int CHANNELS, int BITDEPTH, ImageFormat FORMAT, bool SRGB>
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage()
 {
     this->channels = CHANNELS;
@@ -67,7 +67,7 @@ TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage()
     this->bytesPerTexel = sizeof(texel_t);
 }
 
-template<int CHANNELS, int BITDEPTH, ImageFormat FORMAT, bool SRGB>
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage(int width, int height)
     : TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>()
 {
@@ -75,7 +75,7 @@ TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage(int width, int hei
     this->height = height;
 }
 
-template<int CHANNELS, int BITDEPTH, ImageFormat FORMAT, bool SRGB>
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 void TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::create(){
     bytesPerRow = width*bytesPerTexel;
     int rowPadding = (rowAlignment - (bytesPerRow % rowAlignment)) % rowAlignment;
@@ -84,17 +84,17 @@ void TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::create(){
     data.resize(size);
 }
 
-template<int CHANNELS, int BITDEPTH, ImageFormat FORMAT, bool SRGB>
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 typename TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::texel_t& TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::getTexel(int x, int y){
     return *(rowPointer(y) + x);
 }
 
-template<int CHANNELS, int BITDEPTH, ImageFormat FORMAT, bool SRGB>
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 typename TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::texel_t* TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::rowPointer(int y){
     return reinterpret_cast<texel_t*>(&data[bytesPerRow*y]);
 }
 
-template<int CHANNELS, int BITDEPTH, ImageFormat FORMAT, bool SRGB>
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 void TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::flipRB(){
     static_assert(CHANNELS>=3,"The image must have atleast 3 channels.");
     for(int y = 0 ; y < height ; ++y){

@@ -1,11 +1,7 @@
 #include "saiga/opengl/texture/image.h"
 #include <cstring>
 #include <iostream>
-#include <FreeImagePlus.h>
 #include "saiga/util/assert.h"
-#ifdef USE_PNG
-    #include "saiga/util/png_wrapper.h"
-#endif
 
 
 Image::Image()
@@ -14,8 +10,6 @@ Image::Image()
 
 Image::~Image()
 {
-//    if(shouldDelete)
-//        delete[] data;
 }
 
 Image::byte_t *Image::getRawData()
@@ -23,25 +17,18 @@ Image::byte_t *Image::getRawData()
     return &data[0];
 }
 
-int Image::bytesPerChannel(){
-    return getBitDepth()/8;
+int Image::position(int x, int y){
+    return y*bytesPerRow+x*format.bytesPerPixel();
 }
 
-int Image::bytesPerPixel(){
-    return getChannels()*bytesPerChannel();
+Image::byte_t *Image::positionPtr(int x, int y){
+//    return &(this->data[position(x,y)]);
+    return getRawData() + position(x,y);
 }
 
-int Image::bitsPerPixel(){
-    return getChannels()*getBitDepth();
-}
-
-size_t Image::getSize(){
-//    return width*height*bytesPerPixel();
-    return height*bytesPerRow;
-}
 
 void Image::setPixel(int x, int y, void* data){
-    std::memcpy(positionPtr(x,y),data,bytesPerPixel());
+    std::memcpy(positionPtr(x,y),data,format.bytesPerPixel());
 }
 
 void Image::setPixel(int x, int y, uint8_t data){
@@ -63,22 +50,15 @@ void Image::setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b){
     ptr[2] = b;
 }
 
-int Image::position(int x, int y){
-//    return (y*width+x)*bytesPerPixel();
-    return y*bytesPerRow+x*bytesPerPixel();
-}
 
-uint8_t* Image::positionPtr(int x, int y){
-    return &(this->data[position(x,y)]);
-}
 
 void Image::makeZero()
 {
-    memset(getRawData(),0,getSize());
+    std::fill(data.begin(), data.end(), 0);
 }
 
 void Image::create(byte_t* initialData){
-    bytesPerRow = width*bytesPerPixel();
+    bytesPerRow = width*format.bytesPerPixel();
     int rowPadding = (rowAlignment - (bytesPerRow % rowAlignment)) % rowAlignment;
     bytesPerRow += rowPadding;
 
@@ -87,23 +67,23 @@ void Image::create(byte_t* initialData){
     if(initialData){
         memcpy(getRawData(),initialData,getSize());
     }
-    shouldDelete = true;
 }
 
 void Image::resize(int w, int h)
 {
-    Image newimg = *this;
-
-//    this->data = nullptr;
-
     width = w;
     height = h;
+    create();
+}
 
+void Image::resizeCopy(int w, int h)
+{
+    Image newimg = *this;
+    width = w;
+    height = h;
     create();
     makeZero();
-
     setSubImage(0,0,newimg);
-
 }
 
 void Image::setSubImage(int x, int y, Image& src)
@@ -119,7 +99,7 @@ void Image::setSubImage(int x, int y, Image& src)
 
 void Image::setSubImage(int x, int y, int w, int h, uint8_t *data)
 {
-    int rowsize = bytesPerPixel()*w;
+    int rowsize = format.bytesPerPixel()*w;
     for(int i=0;i<h;i++){//rows
         memcpy(this->positionPtr(x,y+i),data+rowsize*i,rowsize);
     }
@@ -128,14 +108,11 @@ void Image::setSubImage(int x, int y, int w, int h, uint8_t *data)
 void Image::getSubImage(int x, int y, int w, int h, Image &out){
     out.width = w;
     out.height = h;
-    out.bitDepth = bitDepth;
-    out.channels = channels;
-    out.srgb = srgb;
-
+    out.format = format;
 
     out.create();
 
-    int rowsize = bytesPerPixel()*w;
+    int rowsize = format.bytesPerPixel()*w;
 
     for(int i=0;i<h;i++){//rows
         memcpy(out.getRawData()+rowsize*i,positionPtr(x,y+i),rowsize);
@@ -144,38 +121,10 @@ void Image::getSubImage(int x, int y, int w, int h, Image &out){
 
 }
 
-void Image::addChannel()
-{
-    assert(0);
-//    auto oldData = data;
-////    data = nullptr;
-//    int oldBpp = bytesPerPixel();
-
-
-//    this->channels++;
-//    this->create();
-
-//    int newBpp = bytesPerPixel();
-
-//    for(int y = 0 ; y < (int)height ; ++y){
-//        for(int x = 0 ; x < (int)width ; ++x){
-//            int pos = y * width + x;
-//            auto posOld = oldData + pos * oldBpp;
-//            auto posNew = data + pos * newBpp;
-
-//            for(int i = 0 ;i < newBpp ; ++i){
-//                posNew[i] = (i<oldBpp)?posOld[i] : 0;
-//            }
-//        }
-//    }
-
-//    delete[] oldData;
-}
-
 void Image::flipRB()
 {
-    assert(bitDepth==8);
-    assert(channels==3 || channels==4);
+    assert(format.getBitDepth()==8);
+    assert(format.getChannels()==3 || format.getChannels()==4);
 
     for(int y = 0 ; y < (int)height ; ++y){
         uint8_t* ptr = getRawData() + (y*bytesPerRow);
@@ -183,36 +132,26 @@ void Image::flipRB()
             uint8_t r = *ptr;
             *ptr = *(ptr+2);
             *(ptr+2) = r;
-            ptr += channels;
+            ptr += format.getChannels();
         }
     }
 }
 
 //======================================================
 
-int Image::getChannels() const
+
+ImageFormat &Image::Format()
 {
-    return channels;
+    return format;
 }
 
-void Image::setChannels(int value)
+const ImageFormat &Image::Format() const
 {
-    channels = value;
-}
-
-int Image::getBitDepth() const
-{
-
-    return bitDepth;
-}
-
-void Image::setBitDepth(int value)
-{
-    if(value%8!=0){
-        std::cout<<"Error Bit Depth not supportet: "<<value<<std::endl;
-        return;
-    }
-    bitDepth = value;
+    return format;
 }
 
 
+
+size_t Image::getSize(){
+    return height*bytesPerRow;
+}

@@ -91,8 +91,9 @@ void FontLoader::addGlyph(int gindex, int glyphPadding)
 
     Image* image = new Image();
     myGlyph.bitmap = image;
-    image->bitDepth = 8;
-    image->channels = 1;
+    image->Format() = ImageFormat(1,8);
+//    image->bitDepth = 8;
+//    image->channels = 1;
     image->width = source->width+glyphPadding*2;
     image->height = source->rows+glyphPadding*2;
     image->create();

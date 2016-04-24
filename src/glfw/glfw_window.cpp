@@ -312,7 +312,7 @@ void glfw_Window::setGLFWcursor(GLFWcursor *cursor)
 
 GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
 {
-    if(image->bitDepth != 8 || image->channels != 4){
+    if(image->Format().getBitDepth() != 8 || image->Format().getChannels() != 4){
         cout<<"glfw_Window::createGLFWcursor(Image *image): image has the wrong format."<<endl;
         cout<<"Required format: RGBA8"<<endl;
     }

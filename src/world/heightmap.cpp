@@ -40,14 +40,16 @@ Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
     for(int i=0;i<layers;++i){
         heightmap[i].width = w;
         heightmap[i].height = h;
-        heightmap[i].bitDepth = bits;
-        heightmap[i].channels = 1;
+        heightmap[i].Format() = ImageFormat(1,bits);
+//        heightmap[i].bitDepth = bits;
+//        heightmap[i].channels = 1;
         heightmap[i].create();
 
         normalmap[i].width = w;
         normalmap[i].height = h;
-        normalmap[i].bitDepth = 8;
-        normalmap[i].channels = 3;
+//        normalmap[i].bitDepth = 8;
+//        normalmap[i].channels = 3;
+        normalmap[i].Format() = ImageFormat(3,8);
         normalmap[i].create();
 
         w/=2;

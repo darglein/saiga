@@ -74,7 +74,7 @@ void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, Animati
 	//cout << "AnimationFrame::interpolate " << alpha << endl;
 	out = k0;
 
-	for (int i = 0; i<k0.nodes.size(); ++i){
+    for (unsigned int i = 0; i<k0.nodes.size(); ++i){
 		AnimationNode& n1 = k1.nodes[i];
 
 		out.nodes[i].interpolate(n1, alpha);

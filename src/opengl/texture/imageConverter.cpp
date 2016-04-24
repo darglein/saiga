@@ -9,37 +9,41 @@
 void ImageConverter::convert(PNG::Image &src, Image& dest){
     dest.width = src.width;
     dest.height = src.height;
-    dest.bitDepth = src.bit_depth;
+
+    ImageFormat format;
+
+    format.setBitDepth(src.bit_depth);
 
 
     switch(src.color_type){
     case PNG_COLOR_TYPE_GRAY:
-        dest.channels  = 1;
+        format.setChannels(1);
         break;
     case PNG_COLOR_TYPE_GRAY_ALPHA:
-        dest.channels = 2;
+        format.setChannels(2);
         break;
     case PNG_COLOR_TYPE_RGB:
-        dest.channels = 3;
+        format.setChannels(3);
         break;
     case PNG_COLOR_TYPE_RGB_ALPHA:
-        dest.channels = 4;
+        format.setChannels(4);
         break;
     default:
         std::cout<<"Image type not supported: "<<src.color_type<<std::endl;
     }
 
-//    std::cout<<"bits "<<bitDepth<<" channels "<<channels<<std::endl;
+    dest.Format() = format;
+    //    std::cout<<"bits "<<bitDepth<<" channels "<<channels<<std::endl;
     dest.create(src.data);
-//    dest.data = src.data;
+    //    dest.data = src.data;
 }
 
 void ImageConverter::convert(Image& src, PNG::Image &dest){
     dest.width = src.width;
     dest.height =  src.height;
-    dest.bit_depth = src.bitDepth;
+    dest.bit_depth = src.Format().getBitDepth();
 
-    switch(src.channels){
+    switch(src.Format().getChannels()){
     case 1:
         dest.color_type = PNG_COLOR_TYPE_GRAY;
         break;
@@ -53,7 +57,7 @@ void ImageConverter::convert(Image& src, PNG::Image &dest){
         dest.color_type = PNG_COLOR_TYPE_RGB_ALPHA;
         break;
     default:
-        std::cout<<"Image type not supported: "<<src.channels<<std::endl;
+        std::cout<<"Image type not supported: "<<src.Format().getChannels()<<std::endl;
     }
 
 
@@ -65,14 +69,14 @@ void ImageConverter::convert(Image& src, PNG::Image &dest){
 #ifdef USE_FREEIMAGE
 #include <FreeImagePlus.h>
 
-FREE_IMAGE_TYPE getFIT2(int bitDepth, int channels){
-    if(bitDepth==16 && channels==3){
+FREE_IMAGE_TYPE getFIT2(ImageFormat format){
+    if(format.getBitDepth()==16 && format.getChannels()==3){
         return FIT_RGB16;
-    }else if(bitDepth==16 && channels==4){
+    }else if(format.getBitDepth()==16 && format.getChannels()==4){
         return FIT_RGBA16;
-    }else if(bitDepth==16 && channels==1){
+    }else if(format.getBitDepth()==16 && format.getChannels()==1){
         return FIT_UINT16;
-    }else if(bitDepth==32 && channels==1){
+    }else if(format.getBitDepth()==32 && format.getChannels()==1){
         return FIT_UINT32;
     }
 
@@ -81,17 +85,17 @@ FREE_IMAGE_TYPE getFIT2(int bitDepth, int channels){
 
 
 void ImageConverter::convert(Image& src, fipImage &dest){
-    dest.setSize(getFIT2(src.bitDepth,src.channels),src.width,src.height,src.bitsPerPixel());
+    dest.setSize(getFIT2(src.Format()),src.width,src.height,src.Format().bitsPerPixel());
 
     //free image pads lines to 4 bytes
-//    int scanWidth = dest.getScanWidth();
+    //    int scanWidth = dest.getScanWidth();
 
     auto data = dest.accessPixels();
-//    for(int y = 0 ; y < src.height ; ++y){
+    //    for(int y = 0 ; y < src.height ; ++y){
 
-//        auto rowPtr = src.positionPtr(0,y);
-//        memcpy(data+scanWidth*y,rowPtr,scanWidth);
-//    }
+    //        auto rowPtr = src.positionPtr(0,y);
+    //        memcpy(data+scanWidth*y,rowPtr,scanWidth);
+    //    }
 
     memcpy(data,src.getRawData(),src.getSize());
 
@@ -102,16 +106,17 @@ void ImageConverter::convert(fipImage &src, Image& dest){
     dest.width = src.getWidth();
     dest.height = src.getHeight();
 
+    ImageFormat format;
 
     switch(src.getColorType()){
     case FIC_MINISBLACK:
-        dest.channels = 1;
+        format.setChannels(1);
         break;
     case FIC_RGB:
-        dest.channels = 3;
+        format.setChannels(3);
         break;
     case FIC_RGBALPHA:
-        dest.channels = 4;
+        format.setChannels(4);
         break;
     default:
         std::cout<<"warning unknown color type!"<<src.getColorType()<<std::endl;
@@ -119,23 +124,26 @@ void ImageConverter::convert(fipImage &src, Image& dest){
     }
 
 
-    dest.bitDepth = src.getBitsPerPixel()/dest.channels;
 
-    if(src.getBitsPerPixel()==32 && dest.channels ==3){
-        dest.bitDepth = 8;
-        dest.channels = 4;
+
+    if(src.getBitsPerPixel()==32 && format.getChannels() ==3){
+        format.setBitDepth(8);
+        format.setChannels(4);
+    }else{
+        format.setBitDepth(src.getBitsPerPixel()/format.getChannels());
     }
 
+    dest.Format() = format;
     dest.create();
     auto data = src.accessPixels();
 
 
-    if(dest.channels==1){
+    if(format.getChannels()==1){
         memcpy(dest.getRawData(),data,dest.getSize());
-    }else if(dest.channels == 3 && src.getBitsPerPixel()==24){
+    }else if(format.getChannels() == 3 && src.getBitsPerPixel()==24){
         memcpy(dest.getRawData(),data,dest.getSize());
         dest.flipRB();
-    }else if(dest.channels == 4){
+    }else if(format.getChannels() == 4){
         memcpy(dest.getRawData(),data,dest.getSize());
         dest.flipRB();
     }else{

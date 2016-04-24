@@ -228,16 +228,16 @@ aiNode *AssimpLoader::findnode(struct aiNode *node, char *name)
 int AssimpLoader::createNodeTree(struct aiNode *node)
 {
     //    cout<<"node "<<node->mName.data<<endl;
-    int n = 1;
+//    int n = 1;
 
 
 	AnimationNode an;
 	int nodeIndex = animationNodes.size();
 
-    int index = 0;
+//    int index = 0;
     std::string str(node->mName.data);
     if(nodeMap.find(str)==nodeMap.end()){
-        index = nodeMap.size();
+//        index = nodeMap.size();
 		nodeMap[str] = nodeIndex;
     }else{
         assert(0);

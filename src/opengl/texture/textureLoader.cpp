@@ -23,7 +23,7 @@ Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParam
     erg = loadImage(path,im);
 
     if (erg){
-        im.srgb = params.srgb;
+        im.Format().setSrgb(params.srgb);
         erg = text->fromImage(im);
     }
 

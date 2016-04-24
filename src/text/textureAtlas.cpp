@@ -58,8 +58,9 @@ void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Gly
     convertToSDF(glyphs,downsample,searchRadius);
     calculateTextureAtlasLayout(glyphs);
 
-    outImg.bitDepth = 8;
-    outImg.channels = 1;
+    outImg.Format() = ImageFormat(1,8);
+//    outImg.bitDepth = 8;
+//    outImg.channels = 1;
     outImg.width = atlasWidth;
     outImg.height = atlasHeight;
     outImg.create();
@@ -141,7 +142,7 @@ void TextureAtlas::padGlyphsToDivisor(std::vector<FontLoader::Glyph> &glyphs, in
         w += (divisor - (w % divisor)) % divisor;
         h += (divisor - (h % divisor)) % divisor;
         //        cout<<" new "<<w<<","<<h<<endl;
-        g.bitmap->resize(w,h);
+        g.bitmap->resizeCopy(w,h);
 
 
 
@@ -159,8 +160,9 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divi
         Image* sdfGlyph = new Image();
         sdfGlyph->width = g.bitmap->width / divisor;
         sdfGlyph->height = g.bitmap->height / divisor;
-        sdfGlyph->channels = g.bitmap->channels;
-        sdfGlyph->bitDepth = g.bitmap->bitDepth;
+//        sdfGlyph->channels = g.bitmap->channels;
+//        sdfGlyph->bitDepth = g.bitmap->bitDepth;
+        sdfGlyph->Format() = g.bitmap->Format();
         sdfGlyph->create();
         sdfGlyph->makeZero();
 
