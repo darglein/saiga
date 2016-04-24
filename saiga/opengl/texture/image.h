@@ -4,6 +4,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/texture/imageFormat.h"
 #include <stdint.h>
+#include <vector>
 
 
 class SAIGA_GLOBAL Image{
