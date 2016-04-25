@@ -314,7 +314,7 @@ vec3 reconstructPosition(float d, vec2 tc){
 
 
 
-void getGbufferData(out vec3 color,out  vec3 position, out float depth, out vec3 normal, out vec3 data, int sampleId=0){
+void getGbufferData(out vec3 color,out  vec3 position, out float depth, out vec3 normal, out vec3 data, int sampleId){
     vec2 tc = CalcTexCoord();
     ivec2 tci = ivec2(gl_FragCoord.xy);
 

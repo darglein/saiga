@@ -53,7 +53,7 @@ layout(location=0) out vec4 out_color;
 void main() {
     vec3 diffColor,vposition,normal,data;
     float depth;
-    getGbufferData(diffColor,vposition,depth,normal,data);
+    getGbufferData(diffColor,vposition,depth,normal,data,0);
 
     vec3 lightDir = normalize(lightPos-vposition);
     float intensity = lightColorDiffuse.w;

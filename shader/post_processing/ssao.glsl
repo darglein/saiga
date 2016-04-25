@@ -65,7 +65,7 @@ void main()
 {
     vec3 diffColor,position,normal,data;
     float depth;
-    getGbufferData(diffColor,position,depth,normal,data);
+    getGbufferData(diffColor,position,depth,normal,data,0);
 
 
 
