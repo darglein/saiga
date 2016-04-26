@@ -15,8 +15,13 @@ FILE(GLOB main_SRC  *.cpp)
 
 FILE(GLOB_RECURSE PROG_HEADER  ../${LIB_NAME}/*.h)
 
+FILE(GLOB_RECURSE SHADERS  ${PROJECT_SOURCE_DIR}/shader/*.glsl)
+
 SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${assets_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} 
 ${rendering_SRC} ${text_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC} ${main_SRC} ${PROG_HEADER})
+
+#add shaders to sources so they are added to the msvc solution.
+SET(PROG_SRC ${PROG_SRC} ${SHADERS})
 
 ############# Optional Source Files ###############
 
@@ -40,6 +45,7 @@ endif (USE_OPENAL)
 include(source_group_helper)
 GroupSources2(${PROJECT_SOURCE_DIR}/src)
 GroupSources2(${PROJECT_SOURCE_DIR}/saiga)
+GroupSources(${PROJECT_SOURCE_DIR} shader)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
