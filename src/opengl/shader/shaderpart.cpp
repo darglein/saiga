@@ -1,7 +1,7 @@
 #include "saiga/opengl/shader/shaderpart.h"
 
 #include "saiga/util/error.h"
-
+#include <fstream>
 
 const GLenum ShaderPart::shaderTypes[] = {GL_COMPUTE_SHADER, GL_VERTEX_SHADER, GL_TESS_CONTROL_SHADER, GL_TESS_EVALUATION_SHADER, GL_GEOMETRY_SHADER,  GL_FRAGMENT_SHADER};
 const std::string ShaderPart::shaderTypeStrings[] = {"GL_COMPUTE_SHADER", "GL_VERTEX_SHADER", "GL_TESS_CONTROL_SHADER", "GL_TESS_EVALUATION_SHADER", "GL_GEOMETRY_SHADER",  "GL_FRAGMENT_SHADER"};
@@ -33,6 +33,44 @@ void ShaderPart::deleteGLShader()
         glDeleteShader(id);
         id = 0;
     }
+}
+
+bool ShaderPart::writeToFile(const std::string& file){
+	std::cout << "Writing shader to file: " << file << std::endl;
+	std::fstream stream;
+	stream.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+	try {
+		stream.open(file, std::fstream::out);
+		for (auto str : code){
+			stream << str;
+		}
+		stream.close();
+	}
+	catch (const std::fstream::failure &e) {
+		std::cout << e.what() << std::endl;
+		std::cout << "Exception opening/reading file\n";
+		return false;
+	}
+
+	if (error == ""){
+		return true;
+	}
+
+	std::string errorFile = file + ".error.txt";
+	std::cout << "Writing shader error to file: " << errorFile << std::endl;
+
+	try {
+		stream.open(errorFile, std::fstream::out);
+		stream << error << endl;
+		stream.close();
+	}
+	catch (const std::fstream::failure &e) {
+		std::cout << e.what() << std::endl;
+		std::cout << "Exception opening/reading file\n";
+		return false;
+	}
+
+	return true;
 }
 
 bool ShaderPart::compile()
@@ -68,10 +106,18 @@ void ShaderPart::printShaderLog()
 
     glGetShaderInfoLog( id, maxLength, &infoLogLength, infoLog );
     if( infoLogLength > 0 ){
-        parseShaderError(std::string(infoLog));
+		this->error = std::string(infoLog);
+		printError();
     }
 
     delete[] infoLog;
+}
+
+void ShaderPart::printError()
+{
+	//no real parsing is done here because different drivers produce completly different messages
+	std::cout << this->getTypeString() << " compilation failed. Error:" << std::endl;
+	std::cout << error << std::endl;
 }
 
 
@@ -94,13 +140,6 @@ void ShaderPart::addInjections(const ShaderPart::ShaderCodeInjections &scis)
 }
 
 
-void ShaderPart::parseShaderError(const std::string &message)
-{
-    //no real parsing is done here because different drivers produce completly different messages
-    std::cout<<"shader error:"<<std::endl;
-    std::cout<< message << std::endl;
-}
-
 
 std::string ShaderPart::typeToName(GLenum type){
     switch(type){
@@ -113,4 +152,13 @@ std::string ShaderPart::typeToName(GLenum type){
     default:
         return "Unkown Shader type! ";
     }
+}
+
+std::string ShaderPart::getTypeString(){
+	int i = 0;
+	for (; i < shaderTypeCount; ++i){
+		if (shaderTypes[i] == type)
+			break;
+	}
+	return shaderTypeStrings[i];
 }

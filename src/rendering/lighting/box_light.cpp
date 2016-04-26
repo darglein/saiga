@@ -87,12 +87,12 @@ void BoxLight::calculateCamera(){
 bool BoxLight::cullLight(Camera *cam)
 {
     //do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
-//    if(this->hasShadows())
-//        this->culled = !this->cam.intersectSAT(cam);
-//    else
-//        this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
-
-    culled  = false;
+    if(this->hasShadows())
+        this->culled = !this->cam.intersectSAT(cam);
+    else
+        this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
+	//std::cout << "boxlight culled " <<this->culled << std::endl;
+    //culled  = false;
     return culled;
 }
 
