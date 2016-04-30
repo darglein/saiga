@@ -24,6 +24,13 @@ public:
      */
     std::string getParentDirectory(const std::string& file);
 
+	/**
+	* returns the raw file name of 'file'
+	* Example:
+	* test/image.png
+	* ->   image.png
+	*/
+	std::string getFileName(const std::string& file);
 
     void addSearchPath(const std::string& path);
 

@@ -41,6 +41,17 @@ std::string FileChecker::getParentDirectory(const std::string &file)
     return "";
 }
 
+std::string FileChecker::getFileName(const std::string &file)
+{
+	//search last '/' from the end
+	for (auto it = file.rbegin(); it != file.rend(); ++it){
+		if (*it == '/'){
+			auto d = std::distance(it, file.rend());
+			return file.substr(d);
+		}
+	}
+	return "";
+}
 void FileChecker::addSearchPath(const std::string &path)
 {
     searchPathes.push_back(path);

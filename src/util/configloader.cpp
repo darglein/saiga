@@ -101,7 +101,7 @@ bool ConfigLoader::writeFile()
 {
 
     try {
-        stream.open (name.c_str(),  std::fstream::out);
+        stream.open (name,  std::fstream::out);
     }
     catch (const std::fstream::failure &e) {
         std::cout<< e.what() <<std::endl;

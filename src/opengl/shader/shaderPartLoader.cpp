@@ -1,5 +1,6 @@
 #include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/opengl/shader/shader.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/error.h"
 #include <fstream>
 #include <algorithm>
@@ -123,7 +124,12 @@ void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
     shader->createGLShader();
     if(shader->compile()){
         shaders.push_back(shader);
-    }
+	}
+	else{
+		FileChecker fc;
+		std::string name = fc.getFileName(this->file);
+		shader->writeToFile("Debug/" + name);
+	}
 
     assert_no_glerror();
 }
