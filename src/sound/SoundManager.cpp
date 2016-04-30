@@ -118,6 +118,7 @@ SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id)
     if(s->isPlaying()){
         s->stop();
     }
+    s->reset();
     s->setSound(sound);
     return s;
 }

@@ -82,3 +82,21 @@ P Bspline<P>::deBoor(int n, int m, P *d, float* t, float u)
 
     return dd[0];
 }
+
+//vec2 deCasteljau(float u) const
+//{
+//    std::vector<vec2> tmp = points;
+//    int size = tmp.size();
+
+//    while (size > 1)
+//    {
+//        for (int i = 1; i < size; ++i)
+//        {
+//            tmp[i - 1] = vec2((1 - u) * tmp[i - 1].x + u * tmp[i].x, (1 - u) * tmp[i - 1].y + u * tmp[i].y);
+//        }
+//        size--;
+//    }
+
+
+//    return tmp[0];
+//}
