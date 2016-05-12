@@ -29,6 +29,7 @@ GLuint Shader::createProgram(){
 	glLinkProgram(program);
 
 	if (!printProgramLog()){
+        assert(0);
 		return 0;
 	}
 
