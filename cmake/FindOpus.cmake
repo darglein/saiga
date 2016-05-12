@@ -2,29 +2,50 @@ if(Opus_INCLUDE_DIR AND Opus_LIBRARY)
     set(Opus_FIND_QUIETLY TRUE)
 endif()
 
-find_path(OPUS_INCLUDE_DIRS opus.h
+find_path(OPUS_INCLUDE_DIRS 
+	NAMES 
+		opus.h
+	PATHS
           /usr/local/include/opus
           /usr/local/include
           /usr/include/opus
           /usr/include
+	PATH_SUFFIXES
+		opus
 )
 
 find_library(OPUS_LIBRARY NAMES opus
              PATHS /usr/local/lib /usr/lib)
+
+if(NOT OPUS_INCLUDE_DIRS OR NOT OPUS_LIBRARY)
+	message(FATAL_ERROR "Could not find libopus ${OPUS_INCLUDE_DIRS}, ${OPUS_LIBRARY}")
+endif()
              
 
-find_path(OPUS_FILE_INCLUDE_DIRS opusfile.h
+find_path(OPUS_FILE_INCLUDE_DIRS 
+	NAMES
+		opusfile.h
+	PATHS
           /usr/local/include/opus
           /usr/local/include
           /usr/include/opus
           /usr/include
+	PATH_SUFFIXES
+		opus
 )
 
 find_library(OPUS_FILE_LIBRARY NAMES opusfile
              PATHS /usr/local/lib /usr/lib)
+
+if(NOT OPUS_FILE_INCLUDE_DIRS  OR NOT OPUS_FILE_LIBRARY)
+	message(FATAL_ERROR "Could not find opusfile ${OPUS_FILE_INCLUDE_DIRS}, ${OPUS_FILE_LIBRARY}")
+endif()
              
 #opusfile requires libopus
-find_path(OGG_INCLUDE_DIRS ogg/ogg.h
+find_path(OGG_INCLUDE_DIRS 
+	NAMES	
+		ogg/ogg.h
+	PATHS
           /usr/local/include/opus
           /usr/local/include
           /usr/include/opus
@@ -32,6 +53,10 @@ find_path(OGG_INCLUDE_DIRS ogg/ogg.h
 )
 find_library(OGG_LIBRARY NAMES ogg
              PATHS /usr/local/lib /usr/lib)
+
+if(NOT OGG_INCLUDE_DIRS   OR NOT OGG_LIBRARY)
+	message(FATAL_ERROR "Could not find ogg ${OGG_INCLUDE_DIRS}, ${OGG_LIBRARY}")
+endif()
           
 set(OPUS_LIBRARIES
     	${OPUS_LIBRARY}
@@ -54,9 +79,6 @@ set(OPUS_LIBRARIES
 endif()
              
              
-
-
-#message(STATUS "Found libopus: ${OPUS_INCLUDE_DIRS}, ${OPUS_FILE_INCLUDE_DIRS}, ${OPUS_LIBRARY}, ${OPUS_FILE_LIBRARY}")
 
 if(OPUS_INCLUDE_DIRS AND OPUS_LIBRARY AND OPUS_FILE_INCLUDE_DIRS AND OPUS_FILE_LIBRARY AND OGG_LIBRARY AND 
 (NOT WIN32 OR (CELT_LIBRARY AND SILK_LIBRARY)))
