@@ -79,7 +79,7 @@ typename KDTree<D,point_t>::index_t KDTree<D,point_t>::sortByAxis(index_t startI
 }
 
 template<int D, typename point_t>
-typename KDTree<D,point_t>::index_t KDTree<D,point_t>::make_tree(KDTree::index_t startIndex, KDTree::index_t endIndex, KDTree::axis_t currentAxis)
+typename KDTree<D,point_t>::index_t KDTree<D,point_t>::make_tree(index_t startIndex, index_t endIndex, axis_t currentAxis)
 {
     if (startIndex == endIndex) return -1;
     if(startIndex+1 == endIndex) return startIndex;
@@ -105,7 +105,7 @@ point_t KDTree<D,point_t>::nearestNeighbour(const point_t &searchPoint)
 
 
 template<int D, typename point_t>
-void KDTree<D,point_t>::nearestNeighbour(KDTree::index_t currentNode, const point_t &searchPoint, KDTree::axis_t currentAxis, KDTree::index_t &bestNode, float &bestDist)
+void KDTree<D,point_t>::nearestNeighbour(index_t currentNode, const point_t &searchPoint, axis_t currentAxis, index_t &bestNode, float &bestDist)
 {
     if(currentNode == -1)
         return;
@@ -161,7 +161,7 @@ std::vector<point_t> KDTree<D,point_t>::nearestNeighbours(const point_t &searchP
 
 
 template<int D, typename point_t>
-void KDTree<D,point_t>::nearestNeighbours(KDTree::index_t currentNode, const point_t &searchPoint,int k, KDTree::axis_t currentAxis,  queue_t& queue)
+void KDTree<D,point_t>::nearestNeighbours(index_t currentNode, const point_t &searchPoint,int k, axis_t currentAxis,  queue_t& queue)
 {
     if(currentNode == -1)
         return;
@@ -192,7 +192,7 @@ void KDTree<D,point_t>::nearestNeighbours(KDTree::index_t currentNode, const poi
 }
 
 template<int D, typename point_t>
-float KDTree<D,point_t>::addToQueue(KDTree::queue_t &queue, KDTree::index_t currentNode, float distance)
+float KDTree<D,point_t>::addToQueue(queue_t &queue, index_t currentNode, float distance)
 {
     float lastD = queue[queue.size()-1].first;
     if(distance >= lastD)
