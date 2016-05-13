@@ -14,50 +14,12 @@
 namespace sound {
 
 
-//only init at first call and quit when init calls is back to 0
-int initCalls = 0;
-
-#ifndef USE_ALUT
-ALCdevice* device;
-ALCcontext* context;
-#endif
-
-void initOpenAL(){
-    initCalls++;
-    if(initCalls!=1)
-        return;
-
-#ifdef USE_ALUT
-    //let alut create the context
-    alutInit(0, NULL);
-#else
-    //manually create a context
-    device = alcOpenDevice(NULL);
-    context = alcCreateContext(device, NULL);
-    alcMakeContextCurrent(context);
-#endif
-}
-
-extern void quitOpenAL(){
-    initCalls--;
-    if(initCalls!=0)
-        return;
-#ifdef USE_ALUT
-    alutExit();
-#else
-    alcDestroyContext(context);
-    alcCloseDevice(device);
-#endif
-}
-
-
-
 SoundManager::SoundManager (int maxSources, int fixedSources) : maxSources(maxSources),fixedSources(fixedSources),oldestSource(fixedSources){
     cout << "SoundManager()" << endl;
     initOpenAL();
 
 
-    checkForSoundErrors();
+    quietSoundSource = new SoundSource();
 
     setListenerPosition(vec3(0));
     setListenerVelocity(vec3(0));
@@ -65,6 +27,8 @@ SoundManager::SoundManager (int maxSources, int fixedSources) : maxSources(maxSo
     setListenerGain(masterVolumne);
 
     sources.resize(maxSources);
+
+    assert_no_alerror();
 }
 
 SoundManager::~SoundManager () {
@@ -74,6 +38,10 @@ SoundManager::~SoundManager () {
         Sound* sound = it->second;
         delete sound;
     }
+
+    delete quietSoundSource;
+
+    sources.clear();
 
     quitOpenAL();
 
@@ -86,7 +54,7 @@ SoundSource* SoundManager::getSoundSource(const std::string& file){
     auto it = soundMap.find(file);
     if(it==soundMap.end()){
         std::cerr << "Sound not loaded: " << file << endl;
-        return &quietSoundSource;
+        return quietSoundSource;
     }else{
         sound = it->second;
     }
@@ -99,6 +67,7 @@ SoundSource* SoundManager::getSoundSource(const std::string& file){
     s->reset();
     s->setSound(sound);
     oldestSource = glm::max( (oldestSource + 1) % maxSources, fixedSources );
+    assert_no_alerror();
     return s;
 }
 
@@ -109,7 +78,7 @@ SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id)
     auto it = soundMap.find(file);
     if(it==soundMap.end()){
         std::cerr << "Sound not loaded: " << file << endl;
-        return &quietSoundSource;
+        return quietSoundSource;
     }else{
         sound = it->second;
     }
@@ -120,6 +89,7 @@ SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id)
     }
     s->reset();
     s->setSound(sound);
+    assert_no_alerror();
     return s;
 }
 
@@ -144,6 +114,7 @@ void SoundManager::loadWaveSound(const std::string &file)
     }else{
         cout << "Sound already loaded: " << file << endl;
     }
+    assert_no_alerror();
 }
 
 void SoundManager::loadOpusSound(const std::string &file)
@@ -162,6 +133,7 @@ void SoundManager::loadOpusSound(const std::string &file)
     }else{
         cout << "Sound already loaded: " << file << endl;
     }
+    assert_no_alerror();
 }
 
 
@@ -169,10 +141,12 @@ void SoundManager::loadOpusSound(const std::string &file)
 
 void SoundManager::setListenerPosition(const glm::vec3 &pos){
     alListenerfv(AL_POSITION,&pos[0]);
+    assert_no_alerror();
 }
 
 void SoundManager::setListenerVelocity(const vec3& velocity){
     alListenerfv(AL_VELOCITY,&velocity[0]);
+    assert_no_alerror();
 }
 
 void SoundManager::setListenerOrientation(const glm::vec3 &at, const glm::vec3 &up){
@@ -184,11 +158,13 @@ void SoundManager::setListenerOrientation(const glm::vec3 &at, const glm::vec3 &
     listenerOri[4] = up[1];
     listenerOri[5] = up[2];
     alListenerfv(AL_ORIENTATION,listenerOri);
+    assert_no_alerror();
 }
 
 void SoundManager::setListenerGain(float g){
     masterVolumne = g;
     alListenerf(AL_GAIN, masterVolumne);
+    assert_no_alerror();
 }
 
 void SoundManager::setMute(bool b)
@@ -198,6 +174,7 @@ void SoundManager::setMute(bool b)
         alListenerf(AL_GAIN, 0);
     else
         alListenerf(AL_GAIN, masterVolumne);
+    assert_no_alerror();
 }
 
 void SoundManager::setTimeScale(float scale)
@@ -206,41 +183,11 @@ void SoundManager::setTimeScale(float scale)
     for (SoundSource& s : sources){
         s.setPitch(scale);
     }
+    assert_no_alerror();
 }
 
 
 
-void SoundManager::checkForSoundErrors()
-{
-    ALCenum error;
-
-    error = alGetError();
-    if (error != AL_NO_ERROR){
-        std::cout << "AUDIO ERROR! ("  << error << ")" << std::endl;
-        std::cout << getALCErrorString(error) << std::endl;
-        if (error != ALC_INVALID_DEVICE)
-            assert(0);
-    }
-}
-
-std::string SoundManager::getALCErrorString(int err) {
-  switch (err) {
-    case ALC_NO_ERROR:
-      return "AL_NO_ERROR";
-    case ALC_INVALID_DEVICE:
-      return "ALC_INVALID_DEVICE";
-    case ALC_INVALID_CONTEXT:
-      return "ALC_INVALID_CONTEXT";
-    case ALC_INVALID_ENUM:
-      return "ALC_INVALID_ENUM";
-    case ALC_INVALID_VALUE:
-      return "ALC_INVALID_VALUE";
-    case ALC_OUT_OF_MEMORY:
-      return "ALC_OUT_OF_MEMORY";
-    default:
-      return "no such error code";
-  }
-}
 
 
 }

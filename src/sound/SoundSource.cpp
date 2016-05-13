@@ -13,11 +13,14 @@ SoundSource::SoundSource(Sound *sound) : sound(sound){
 
     alSourcei(source, AL_BUFFER, sound->buffer);
     reset();
+    assert_no_alerror();
 }
 
 SoundSource::SoundSource()
 {
+//    std::cout << "SoundSource::SoundSource()" << std::endl;
     alGenSources(1, &source);
+    assert_no_alerror();
 }
 
 SoundSource::~SoundSource()
@@ -30,54 +33,63 @@ void SoundSource::play(){
     if (!sound)
         return;
     alSourcePlay(source);
+    assert_no_alerror();
 #endif
 }
 
 void SoundSource::stop()
 {
     alSourceStop(source);
+    assert_no_alerror();
 }
 
 void SoundSource::setSound(Sound *sound)
 {
     this->sound = sound;
     alSourcei(source, AL_BUFFER, sound->buffer);
+    assert_no_alerror();
 }
 
 void SoundSource::setVolume(float f)
 {
     alSourcef(source, AL_GAIN, f);
+    assert_no_alerror();
 }
 
 void SoundSource::setPitch(float pitch)
 {
     alSourcef(source, AL_PITCH, pitch);
+    assert_no_alerror();
 }
 
 void SoundSource::setPosition(const glm::vec3 &pos)
 {
     alSourcefv(source,AL_POSITION,&pos[0]);
+    assert_no_alerror();
 }
 
 
 void SoundSource::setVelocity(const vec3& velocity){
     alSourcefv(source,AL_VELOCITY,&velocity[0]);
+    assert_no_alerror();
 }
 
 
 bool SoundSource::isPlaying(){
     ALint source_state;
     alGetSourcei(source, AL_SOURCE_STATE, &source_state);
-
+    assert_no_alerror();
     return source_state == AL_PLAYING;
 }
 
 void SoundSource::setLooping(bool looping){
     alSourcei(source, AL_LOOPING, looping);
+    assert_no_alerror();
 }
 
 void SoundSource::setReferenceDistance(float v){
     alSourcef(source,AL_REFERENCE_DISTANCE,v);
+    assert_no_alerror();
 }
 
 void SoundSource::reset()
@@ -91,6 +103,7 @@ void SoundSource::reset()
     //make foreground
     alSourcei( source, AL_SOURCE_RELATIVE, AL_FALSE );
     alSourcef( source, AL_ROLLOFF_FACTOR, 1.0 ); //TODO dont know if correct?
+    assert_no_alerror();
 }
 
 void SoundSource::makeBackground()
@@ -98,6 +111,7 @@ void SoundSource::makeBackground()
     alSourcei( source, AL_SOURCE_RELATIVE, AL_TRUE );
     alSourcef( source, AL_ROLLOFF_FACTOR, 0.0 );
     setPosition(vec3(0));
+    assert_no_alerror();
 }
 
 

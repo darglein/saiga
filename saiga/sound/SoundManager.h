@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 
+#include <saiga/sound/OpenAL.h>
 #include <saiga/util/glm.h>
 #include <saiga/sound/SoundSource.h>
 
@@ -12,14 +13,11 @@ class SoundSource;
 class Sound;
 
 
-extern void initOpenAL();
-extern void quitOpenAL();
-
 
 class SAIGA_GLOBAL SoundManager
 {
 private:
-    SoundSource quietSoundSource;
+    SoundSource* quietSoundSource;
     std::vector<SoundSource> sources;
     int sourceIndex = 0;
 
@@ -52,9 +50,7 @@ public:
     void loadWaveSound(const std::string &file);
     void loadOpusSound(const std::string &file);
 
-    void checkForSoundErrors();
 
-    static std::string getALCErrorString(int err);
 
 
 

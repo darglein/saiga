@@ -128,7 +128,7 @@ void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
 	else{
 		FileChecker fc;
 		std::string name = fc.getFileName(this->file);
-		shader->writeToFile("Debug/" + name);
+        shader->writeToFile("debug/" + name);
 	}
 
     assert_no_glerror();

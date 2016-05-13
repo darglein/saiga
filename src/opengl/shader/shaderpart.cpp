@@ -36,11 +36,13 @@ void ShaderPart::deleteGLShader()
 }
 
 bool ShaderPart::writeToFile(const std::string& file){
-	std::cout << "Writing shader to file: " << file << std::endl;
+
+    std::string shaderFile = file + "." + this->getTypeString() + ".txt";
+    std::cout << "Writing shader to file: " << shaderFile << std::endl;
 	std::fstream stream;
 	stream.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 	try {
-		stream.open(file, std::fstream::out);
+        stream.open(shaderFile, std::fstream::out);
 		for (auto str : code){
 			stream << str;
 		}
@@ -56,7 +58,7 @@ bool ShaderPart::writeToFile(const std::string& file){
 		return true;
 	}
 
-	std::string errorFile = file + ".error.txt";
+    std::string errorFile = file + "." + this->getTypeString() + ".error.txt";
 	std::cout << "Writing shader error to file: " << errorFile << std::endl;
 
 	try {
@@ -81,15 +83,17 @@ bool ShaderPart::compile()
     }
     const GLchar* str = data.c_str();
     glShaderSource(id, 1,&str , 0);
-    glCompileShader(id);
-
     assert_no_glerror();
+    glCompileShader(id);
+    assert_no_glerror();
+
+    printShaderLog();
+
     //checking compile status
     GLint result = 0;
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+    assert_no_glerror();
     if(result == static_cast<GLint>(GL_FALSE) ){
-        printShaderLog();
-        //TODO: print warnings
         return false;
     }
     return true;
@@ -103,21 +107,24 @@ void ShaderPart::printShaderLog()
 
     glGetShaderiv( id, GL_INFO_LOG_LENGTH, &maxLength );
 
-    GLchar* infoLog = new GLchar[ maxLength ];
+    if(maxLength == 0)
+        return;
 
-    glGetShaderInfoLog( id, maxLength, &infoLogLength, infoLog );
+    std::vector<GLchar> infoLog(maxLength,0);
+//    GLchar* infoLog = new GLchar[ maxLength ];
+
+    glGetShaderInfoLog( id, maxLength, &infoLogLength, infoLog.data() );
     if( infoLogLength > 0 ){
-		this->error = std::string(infoLog);
+        this->error = std::string(infoLog.begin(),infoLog.begin() + infoLogLength);
 		printError();
     }
 
-    delete[] infoLog;
 }
 
 void ShaderPart::printError()
 {
 	//no real parsing is done here because different drivers produce completly different messages
-	std::cout << this->getTypeString() << " compilation failed. Error:" << std::endl;
+    std::cout << this->getTypeString() << " info log:" << std::endl;
 	std::cout << error << std::endl;
 }
 

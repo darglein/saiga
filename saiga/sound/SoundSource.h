@@ -1,5 +1,6 @@
 #pragma once
 
+#include <saiga/sound/OpenAL.h>
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
 #include <saiga/sound/Sound.h>
@@ -10,12 +11,16 @@ namespace sound {
 
 class SAIGA_GLOBAL SoundSource{
 //    ALuint source;
-    unsigned int source;
+    unsigned int source = 0;
     Sound* sound = nullptr;
 public:
     SoundSource( Sound* sound);
     SoundSource();
     ~SoundSource();
+
+    SoundSource(SoundSource const&):SoundSource(){}
+    SoundSource& operator=(SoundSource const&){return *this;}
+
     void play();
     void stop();
 
