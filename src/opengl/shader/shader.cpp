@@ -11,6 +11,7 @@ Shader::Shader(){
 }
 
 Shader::~Shader(){
+	//cout << "~Shader " << name << endl;
 	destroyProgram();
 }
 
@@ -52,7 +53,7 @@ void Shader::destroyProgram()
 	if (program != 0){
 		glDeleteProgram(program);
 		program = 0;
-        assert_no_glerror();
+       // assert_no_glerror();
 	}
 }
 
