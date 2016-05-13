@@ -89,6 +89,7 @@ bool ShaderPart::compile()
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
     if(result == static_cast<GLint>(GL_FALSE) ){
         printShaderLog();
+        //TODO: print warnings
         return false;
     }
     return true;

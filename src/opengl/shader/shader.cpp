@@ -27,10 +27,11 @@ GLuint Shader::createProgram(){
 	}
 	assert_no_glerror();
 	glLinkProgram(program);
-
+    assert_no_glerror();
 	if (!printProgramLog()){
-        assert(0);
-		return 0;
+        //do not assert here, because printprogramlog will sometimes only print warnings.
+//        assert(0);
+//		return 0;
 	}
 
 	assert_no_glerror();
