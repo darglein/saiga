@@ -76,7 +76,7 @@ bool Window::init(const RenderingParameters& params){
     cout<<">> Window inputs initialized!"<<endl;
 
 
-    initFramework(this);
+
 
     initDeferredRendering(params);
 

@@ -1,19 +1,11 @@
 #include "saiga/framework.h"
-#include "saiga/rendering/deferred_renderer.h"
-#include "saiga/window/window.h"
 
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/objloader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 
-
-#include "saiga/rendering/lighting/directional_light.h"
-#include "saiga/rendering/lighting/point_light.h"
-#include "saiga/rendering/lighting/spot_light.h"
-#include "saiga/rendering/lighting/box_light.h"
-
 #include "saiga/util/configloader.h"
-
+#include "saiga/util/assert.h"
 
 bool initialized = false;
 
@@ -38,7 +30,7 @@ void readConfigFile(){
 void writeExtensions(){
 
     std::ofstream myfile;
-     myfile.open ("opengl-extensions.txt");
+    myfile.open ("opengl-extensions.txt");
 
 
 
@@ -47,18 +39,17 @@ void writeExtensions(){
     {
         const char* extension = (const char*) glGetStringi(GL_EXTENSIONS, i);
 
-          myfile << extension<<endl;
+        myfile << extension<<endl;
     }
 
     myfile.close();
 }
 
-void initFramework(Window *window)
+void initSaiga()
 {
-    if(initialized)
-        return;
+    assert(!initialized);
 
-//    writeExtensions();
+    //    writeExtensions();
     readConfigFile();
 
     ShaderLoader::instance()->addPath(SHADER_PATH);
@@ -87,5 +78,16 @@ void initFramework(Window *window)
     cout<<"========================== Framework initialization done! =========================="<<endl;
     initialized = true;
 
+}
+
+void cleanupSaiga()
+{
+    assert(initialized);
+
+    ShaderLoader::instance()->clear();
+    TextureLoader::instance()->clear();
+    MaterialLoader::instance()->clear();
+    ObjLoader::instance()->clear();
+    cout<<"========================== Framework cleanup done! =========================="<<endl;
 }
 
