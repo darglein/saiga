@@ -17,8 +17,8 @@ using std::cout;
 using std::endl;
 
 
-Window::Window(const std::string &name, int width, int height, bool fullscreen)
-    :name(name),width(width),height(height), fullscreen(fullscreen),
+Window::Window(const std::string &name, int width, int height)
+    :name(name),width(width),height(height),
 updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),fpsTimer(100){
 
 
@@ -45,6 +45,7 @@ bool Window::init(const RenderingParameters& params){
 
     //inits opengl (loads functions)
     initOpenGL();
+    assert_no_glerror();
 
     cout<<">> Basic Window and OpenGL Context initialized!"<<endl;
     cout<<"Opengl version: "<<glGetString(GL_VERSION)<<endl;
@@ -74,12 +75,12 @@ bool Window::init(const RenderingParameters& params){
 #endif
 #endif
     cout<<">> Window inputs initialized!"<<endl;
-
+    assert_no_glerror();
 
 
 
     initDeferredRendering(params);
-
+    assert_no_glerror();
     return true;
 }
 

@@ -2,7 +2,7 @@
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferred_renderer.h"
 
-sdl_Window::sdl_Window(const std::string &name, int width, int height):Window(name,width,height, false)
+sdl_Window::sdl_Window(const std::string &name, int width, int height):Window(name,width,height)
 {
 }
 

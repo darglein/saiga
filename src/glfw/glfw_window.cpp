@@ -19,10 +19,21 @@
 
 
 
+void glfw_Window_Parameters::setMode(bool fullscreen, bool borderLess)
+{
+    if(fullscreen){
+        mode = (borderLess) ? Mode::borderLessFullscreen : Mode::fullscreen;
+    }else{
+        mode = (borderLess) ? Mode::borderLessWindowed : Mode::windowed;
+    }
+}
 
 
 
-glfw_Window::glfw_Window(const std::string &name, int window_width, int window_height, bool fullscreen):Window(name,window_width,window_height, fullscreen)
+
+
+glfw_Window::glfw_Window(const std::string &name, glfw_Window_Parameters windowParameters):
+    Window(name,windowParameters.width,windowParameters.height),windowParameters(windowParameters)
 {
 }
 
@@ -30,7 +41,7 @@ glfw_Window::~glfw_Window()
 {
     if(!window)
         return;
-//    cout<<"~glfw_Window"<<endl;
+    //    cout<<"~glfw_Window"<<endl;
     glfwDestroyWindow(window);
     glfwTerminate();
 
@@ -52,10 +63,10 @@ void glfw_Window::getMaxResolution(int* width, int *height)
     //get max video mode resolution
     int count;
     const GLFWvidmode* mode = glfwGetVideoModes(primary,&count);
-//    cout << "Video modes:" << endl;
-//    for (int i = 0; i < count; i++){
-//        cout << "Mode "<< i << ": " << mode[i].width << " x "<< mode[i].height << " @" << mode[i].refreshRate << "Hz" << endl;
-//    }
+    //    cout << "Video modes:" << endl;
+    //    for (int i = 0; i < count; i++){
+    //        cout << "Mode "<< i << ": " << mode[i].width << " x "<< mode[i].height << " @" << mode[i].refreshRate << "Hz" << endl;
+    //    }
 
     cout << "Native Video Mode: " << mode[count-1].width << " x "<< mode[count-1].height << " @" << mode[count-1].refreshRate << "Hz" << endl;
     *width = mode[count-1].width;
@@ -64,17 +75,17 @@ void glfw_Window::getMaxResolution(int* width, int *height)
 
 void glfw_Window::hideMouseCursor()
 {
-     glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_HIDDEN);
+    glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_HIDDEN);
 }
 
 void glfw_Window::showMouseCursor()
 {
-     glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_NORMAL);
+    glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_NORMAL);
 }
 
 void glfw_Window::disableMouseCursor()
 {
-     glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
 }
 
 bool glfw_Window::initGlfw(){
@@ -95,31 +106,67 @@ bool glfw_Window::initWindow()
         return -1;
     }
 
+    int monitorCount;
+    GLFWmonitor** monitors = glfwGetMonitors(&monitorCount) ;
+    windowParameters.monitorId = glm::clamp(windowParameters.monitorId,0,monitorCount-1);
+
+    GLFWmonitor* monitor = monitors[windowParameters.monitorId];
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+
+    //don't allow other resolutions then the monitor ones in fullscreen mode
+    if(windowParameters.fullscreen()){
+        windowParameters.width = mode->width;
+        windowParameters.height = mode->height;
+    }
+    this->width = windowParameters.width;
+    this->height = windowParameters.height;
+
+
     //glfwInit has to be called before
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-//    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-//    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-//    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    //    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    //    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    //    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
 
 #if !defined(SAIGA_RELEASE)
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 #endif
-    glfwWindowHint(GLFW_STENCIL_BITS, 8);
+    //    glfwWindowHint(GLFW_STENCIL_BITS, 8);
     //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 
+    glfwWindowHint(GLFW_DECORATED,!windowParameters.borderLess());
+    glfwWindowHint(GLFW_FLOATING,windowParameters.alwaysOnTop);
+    glfwWindowHint(GLFW_RESIZABLE,windowParameters.resizeAble);
 
-    GLFWmonitor* primary = glfwGetPrimaryMonitor();
 
-    /* Create a windowed mode window and its OpenGL context */
-    if (fullscreen){
-        window = glfwCreateWindow(width, height, name.c_str(), primary, NULL);
-    } else {
+    std::cout << "Creating GLFW Window. " << width << "x" << height <<
+                 " Fullscreen=" << windowParameters.fullscreen() <<
+                 " Borderless=" << windowParameters.borderLess() <<
+                 std::endl;
+
+
+    switch (windowParameters.mode){
+    case glfw_Window_Parameters::Mode::windowed:
         window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
+        break;
+    case glfw_Window_Parameters::Mode::fullscreen:
+        window = glfwCreateWindow(width, height, name.c_str(), monitor, NULL);
+        break;
+    case glfw_Window_Parameters::Mode::borderLessWindowed:
+        window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
+        break;
+    case glfw_Window_Parameters::Mode::borderLessFullscreen:
+        glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+        glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+        glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+        glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+        window = glfwCreateWindow(width, height, name.c_str(), monitor, NULL);
+        break;
     }
-
 
     if (!window)
     {
@@ -132,14 +179,19 @@ bool glfw_Window::initWindow()
     glfwMakeContextCurrent(window);
 
     //    //vsync
-    glfwSwapInterval(vsync ? 1 : 0);
+    glfwSwapInterval(windowParameters.vsync ? 1 : 0);
 
 
     //framebuffer size != window size
     glfwGetFramebufferSize(window, &width, &height);
 
 
-    assert_no_glerror();
+    //not needed but makes start cleaner
+    glfwPollEvents();
+    glfwSwapBuffers(window);
+
+
+
 
 
 
@@ -224,7 +276,7 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
                 break;
             }
 
-            if(updateJoystick)
+            if(windowParameters.updateJoystick)
                 joystick.getCurrentStateFromGLFW();
             update(dt);
 
@@ -294,7 +346,7 @@ void glfw_Window::setTimeScale(double timeScale)
 
 bool glfw_Window::window_size_callback(GLFWwindow *window, int width, int height)
 {
-	(void)window;
+    (void)window;
     this->resize(width,height);
     return false;
 }
@@ -360,11 +412,11 @@ void Joystick::getCurrentStateFromGLFW()
 
     int buttons;
     const unsigned char* ax = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons);
-//    for (int i = 0; i < buttons; ++i){
-//        if (ax[i] == GLFW_PRESS){
-//            cout << "pressed: " << i << endl;
-//        }
-//    }
+    //    for (int i = 0; i < buttons; ++i){
+    //        if (ax[i] == GLFW_PRESS){
+    //            cout << "pressed: " << i << endl;
+    //        }
+    //    }
 
     buttonsPressed[Confirm] = ax[0];
     buttonsPressed[Back] = ax[1];
@@ -378,3 +430,4 @@ void Joystick::getCurrentStateFromGLFW()
 
 
 }
+

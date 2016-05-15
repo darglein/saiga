@@ -37,10 +37,35 @@ struct SAIGA_GLOBAL Joystick{
     void getCurrentStateFromGLFW();
 };
 
+
+struct SAIGA_GLOBAL glfw_Window_Parameters{
+    enum class Mode{
+        windowed,
+        fullscreen,
+        borderLessWindowed,
+        borderLessFullscreen
+    };
+
+    int width = 1600;
+    int height = 900;
+
+    Mode mode =  Mode::windowed;
+    bool alwaysOnTop = false;
+    bool resizeAble = true;
+    bool vsync = true;
+    bool updateJoystick = false;
+    int monitorId = 0; //Important for fullscreen mode. 0 is always the primary monitor.
+
+    bool borderLess(){ return mode==Mode::borderLessWindowed || mode==Mode::borderLessFullscreen;}
+    bool fullscreen(){ return mode==Mode::fullscreen || mode==Mode::borderLessFullscreen;}
+
+    void setMode(bool fullscreen, bool borderLess);
+};
+
 class SAIGA_GLOBAL glfw_Window : public Window, public glfw_ResizeListener{
 protected:
     GLFWwindow* window = nullptr;
-
+    glfw_Window_Parameters windowParameters;
     double timeScale = 1.f;
 
     bool initWindow();
@@ -48,12 +73,12 @@ protected:
 public:
 
     Joystick joystick;
-    bool updateJoystick = false;
+
 
     double lastSwapBuffersMS = 0;
     double lastPolleventsMS = 0;
 
-    glfw_Window(const std::string &name,int width,int height, bool fullscreen);
+    glfw_Window(const std::string &name,glfw_Window_Parameters windowParameters);
     virtual ~glfw_Window();
 
     void showMouseCursor();

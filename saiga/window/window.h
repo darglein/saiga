@@ -15,7 +15,6 @@ public:
     std::string name;
     int width;
     int height;
-    bool fullscreen = false;
 
     bool running;
 
@@ -29,9 +28,8 @@ public:
     virtual bool initWindow() = 0;
     virtual bool initInput() = 0;
 public:
-    bool vsync = false;
 
-    Window(const std::string &name,int width,int height, bool fullscreen);
+    Window(const std::string &name,int width,int height);
      virtual ~Window();
 
 
