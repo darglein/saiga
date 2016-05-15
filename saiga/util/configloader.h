@@ -53,7 +53,7 @@ public:
     float getFloat(const std::string &key , float defaultvalue, const std::string &description="");
     std::string getString(const std::string &key , const std::string &defaultvalue, const std::string &description="");
 
-    void setInt(const std::string &key , int value);
+    void setInt(const std::string &key , int value, const std::string &description="", bool updateDescription = false);
 
 };
 

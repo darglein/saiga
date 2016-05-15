@@ -203,11 +203,14 @@ std::string ConfigLoader::getString(const std::string &key , const std::string &
     return getLine2(key,defaultvalue,description);
 }
 
-void ConfigLoader::setInt(const std::string &key, int value)
+void ConfigLoader::setInt(const std::string &key, int value, const std::string &description, bool updateDescription)
 {
     for(ConfigEntry& ce : entries){
         if(ce.key==key){
             ce.value = std::to_string(value);
+            if (updateDescription){
+                ce.description = description;
+            }
             return;
         }
     }

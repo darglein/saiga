@@ -113,6 +113,7 @@ void SoundManager::loadWaveSound(const std::string &file)
         }
     }else{
         cout << "Sound already loaded: " << file << endl;
+        assert(0);
     }
     assert_no_alerror();
 }
@@ -132,6 +133,7 @@ void SoundManager::loadOpusSound(const std::string &file)
         }
     }else{
         cout << "Sound already loaded: " << file << endl;
+        assert(0);
     }
     assert_no_alerror();
 }
