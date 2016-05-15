@@ -160,11 +160,18 @@ bool glfw_Window::initWindow()
         window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
         break;
     case glfw_Window_Parameters::Mode::borderLessFullscreen:
+		//works in windows 7. TODO: test with other operating systems.
         glfwWindowHint(GLFW_RED_BITS, mode->redBits);
         glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
         glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
         glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-        window = glfwCreateWindow(width, height, name.c_str(), monitor, NULL);
+		
+		window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
+
+		//move to correct monitor
+		int xpos, ypos;
+		glfwGetMonitorPos(monitor, &xpos, &ypos);
+		glfwSetWindowPos(window, xpos, ypos);
         break;
     }
 
