@@ -182,6 +182,7 @@ void VertexBuffer<vertex_t>::set(vertex_t* vertices,int vertex_count){
     glBindVertexArray(0);
     glBindBuffer( target, 0 );
 
+    assert_no_glerror();
 }
 
 template<class vertex_t>
@@ -191,6 +192,7 @@ void VertexBuffer<vertex_t>::deleteGLBuffer(){
     if(gl_vao){
         glDeleteVertexArrays(1, &gl_vao);
         gl_vao = 0;
+        assert_no_glerror();
     }
 
 }
@@ -203,11 +205,13 @@ void VertexBuffer<vertex_t>::updateVertexBuffer(vertex_t* vertices,int vertex_co
 template<class vertex_t>
 void VertexBuffer<vertex_t>::bind() const{
     glBindVertexArray(gl_vao);
+    assert_no_glerror();
 }
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::unbind() const{
     glBindVertexArray(0);
+    assert_no_glerror();
 }
 
 template<class vertex_t>
@@ -222,23 +226,27 @@ void VertexBuffer<vertex_t>::addInstancedBuffer(InstancedBuffer<data_t> &buffer,
 template<class vertex_t>
 void VertexBuffer<vertex_t>::draw() const{
     draw(0,vertex_count);
+    assert_no_glerror();
 }
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::draw(int startVertex, int count) const{
     glDrawArrays(draw_mode,startVertex,count);
+    assert_no_glerror();
 }
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::drawInstanced(int instances) const
 {
     drawInstanced(instances,0,vertex_count);
+    assert_no_glerror();
 }
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::drawInstanced(int instances, int offset, int length) const
 {
     glDrawArraysInstanced(draw_mode,offset,length,instances);
+    assert_no_glerror();
 }
 
 
@@ -252,6 +260,7 @@ void VertexBuffer<vertex_t>::setVertexAttributes(){
     cerr<<"\tvoid VertexBuffer<YOUR_VERTEX_TYPE>::bindVertices(){"<<endl;
     cerr<<"\t\t//bind code"<<endl;
     cerr<<"\t}"<<endl;
+    assert(0);
 }
 
 template<>

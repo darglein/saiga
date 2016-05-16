@@ -57,4 +57,5 @@ inline void InstancedBuffer<glm::mat4>::setAttributes(int location, int divisor)
                               (const GLvoid*)(sizeof(GLfloat) * i * 4));
         glVertexAttribDivisor(location + i, divisor);
     }
+    assert_no_glerror();
 }

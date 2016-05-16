@@ -17,6 +17,7 @@ void UniformBuffer::bind(GLuint bindingPoint) const
 {
     Buffer::bind();
     glBindBufferBase(target, bindingPoint, buffer);
+    assert_no_glerror();
 }
 
 

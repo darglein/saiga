@@ -160,7 +160,11 @@ bool glfw_Window::initWindow()
         window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
         break;
     case glfw_Window_Parameters::Mode::borderLessFullscreen:
-		//works in windows 7. TODO: test with other operating systems.
+#ifndef WIN32
+        std::cerr << "Windowed Fullscreen may not work on your system." << std::endl;
+#endif
+
+        //works in windows 7. Does not work in ubuntu with gnome
         glfwWindowHint(GLFW_RED_BITS, mode->redBits);
         glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
         glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);

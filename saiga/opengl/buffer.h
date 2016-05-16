@@ -1,6 +1,7 @@
 #pragma once
 
 #include "saiga/opengl/opengl.h"
+#include "saiga/util/error.h"
 
 /**
  * @brief The Buffer class
@@ -18,12 +19,13 @@ class SAIGA_GLOBAL Buffer{
 public:
     GLuint buffer = 0; //opengl id
     GLuint size = 0; //size of the buffer in bytes
-    GLenum target ; //opengl target. example: GL_ARRAY_BUFFER
+    GLenum target = GL_NONE ; //opengl target. example: GL_ARRAY_BUFFER
 
     Buffer(GLenum _target );
     ~Buffer();
     Buffer(Buffer const&) = delete;
     Buffer& operator=(Buffer const&) = delete;
+
     void createGLBuffer(void* data=nullptr,unsigned int size=0, GLenum usage=GL_DYNAMIC_DRAW);
     void deleteGLBuffer();
 
@@ -56,10 +58,8 @@ inline void Buffer::createGLBuffer(void *data, unsigned int size, GLenum usage)
     glGenBuffers( 1, &buffer );
     bind();
     glBufferData(target, size, data, usage);
-
     this->size = size;
-
-
+    assert_no_glerror();
 }
 
 inline void Buffer::deleteGLBuffer()
@@ -67,6 +67,7 @@ inline void Buffer::deleteGLBuffer()
     if(buffer){
         glDeleteBuffers( 1, &buffer );
         buffer = 0;
+        assert_no_glerror();
     }
 }
 
@@ -74,19 +75,24 @@ inline void Buffer::updateBuffer(void *data, unsigned int size, unsigned int off
 {
     bind();
     glBufferSubData(target,offset,size,data);
+    assert_no_glerror();
 }
 
 inline void Buffer::bind() const
 {
     glBindBuffer( target, buffer );
+    assert_no_glerror();
 }
 
 inline void *Buffer::mapBuffer(GLenum access)
 {
-    return glMapBuffer(target,access);
+    void* ptr = glMapBuffer(target,access);
+    assert_no_glerror();
+    return ptr;
 }
 
 inline void Buffer::unmapBuffer()
 {
     glUnmapBuffer(target);
+    assert_no_glerror();
 }
