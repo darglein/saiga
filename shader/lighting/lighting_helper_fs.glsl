@@ -305,6 +305,16 @@ vec3 unpackNormal3 (vec2 enc)
     return n;
 }
 
+float linearizeDepth(in float depth, in mat4 projMatrix) {
+        return projMatrix[3][2] / (depth - projMatrix[2][2]);
+}
+
+float linearDepth(float depth, float farplane, float nearplane){
+//    float f=60.0f;
+//    float n = 1.0f;
+    return(2 * nearplane) / (farplane + nearplane - depth * (farplane - nearplane));
+}
+
 
 vec3 reconstructPosition(float d, vec2 tc){
     vec4 p = vec4(tc.x,tc.y,d,1)*2.0f - 1.0f;

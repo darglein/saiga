@@ -12,6 +12,7 @@ void asksdfkg(){
     TemplatedImage<3,8,ImageElementFormat::UnsignedNormalized,false> i(5,5);
     i.create();
     auto texel = i.getTexel(3,4);
+    i.setTexel(2,3,texel);
     i.flipRB();
 }
 

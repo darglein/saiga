@@ -40,10 +40,10 @@ layout(location=0) out vec4 out_color;
 
 
 float getSSAOIntensity(){
-//    ivec2 tci = ivec2(gl_FragCoord.xy);
-//    float ssao = texelFetch(ssaoTex,tci,0).r;
-//    return ssao;
-    return 1.0f;
+    ivec2 tci = ivec2(gl_FragCoord.xy);
+    float ssao = texelFetch(ssaoTex,tci,0).r;
+    return 1.0f - ssao;
+//    return 1.0f;
 }
 
 vec4 getDirectionalLightIntensity(int sampleId) {

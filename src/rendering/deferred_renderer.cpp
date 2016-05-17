@@ -7,29 +7,10 @@
 #include "saiga/rendering/renderer.h"
 
 
-void SSAOShader::checkUniforms(){
-    DeferredShader::checkUniforms();
-    location_invProj = getUniformLocation("invProj");
-    location_filterRadius = getUniformLocation("filterRadius");
-    location_distanceThreshold = getUniformLocation("distanceThreshold");
-}
 
-
-
-void SSAOShader::uploadInvProj(mat4 &mat){
-    Shader::upload(location_invProj,mat);
-}
-
-void SSAOShader::uploadData(){
-    Shader::upload(location_filterRadius,filterRadius);
-    Shader::upload(location_distanceThreshold,distanceThreshold);
-}
-
-
-
-
-
-Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):params(params),lighting(deferred_framebuffer) {
+Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):
+    params(params),lighting(deferred_framebuffer) , ssao(w,h)
+{
     setSize(w,h);
 
 
@@ -37,19 +18,7 @@ Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):p
 
     lighting.init(w,h);
 
-    ssao_framebuffer.create();
-    Texture* ssaotex = new Texture();
-    ssaotex->createEmptyTexture(w,h,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
-    ssao_framebuffer.attachTexture( std::shared_ptr<raw_Texture>(ssaotex) );
-    ssao_framebuffer.drawToAll();
-    ssao_framebuffer.check();
-
-    glClearColor(1.0f,1.0f,1.0f,1.0f);
-    glClear( GL_COLOR_BUFFER_BIT );
-    glClearColor(0.0f,0.0f,0.0f,0.0f);
-
-    lighting.ssaoTexture = ssaotex;
-    ssao_framebuffer.unbind();
+    lighting.ssaoTexture = ssao.bluredTexture;
 
     postProcessor.init(w, h,&deferred_framebuffer,params.ppp,lighting.lightAccumulationTexture);
 
@@ -62,7 +31,7 @@ Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):p
         t.create();
     }
 
-    ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("ssao.glsl");
+
     blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("blitDepth.glsl");
 
 }
@@ -85,29 +54,14 @@ void Deferred_Renderer::resize(int width, int height)
     setSize(width,height);
     postProcessor.resize(width,height);
     deferred_framebuffer.resize(width,height);
-    ssao_framebuffer.resize(width,height);
-    clearSSAO();
+    ssao.resize(width,height);
     lighting.resize(width,height);
 }
 
-void Deferred_Renderer::clearSSAO()
-{
-    ssao_framebuffer.bind();
-    //clear with 1 -> no ambient occlusion
-    glClearColor(1.0f,1.0f,1.0f,1.0f);
-    glClear( GL_COLOR_BUFFER_BIT );
-    glClearColor(0.0f,0.0f,0.0f,0.0f);
-    ssao_framebuffer.unbind();
-}
 
 
 
 
-void Deferred_Renderer::toggleSSAO()
-{
-    clearSSAO();
-    ssao = !ssao;
-}
 
 void Deferred_Renderer::render_intern(){
 
@@ -298,29 +252,12 @@ void Deferred_Renderer::renderLighting(Camera *cam){
 void Deferred_Renderer::renderSSAO(Camera *cam)
 {
 
-    startTimer(SSAO);
-    if(ssao){
+    startTimer(SSAOT);
 
-        ssao_framebuffer.bind();
-
-
-        if(ssaoShader){
-            ssaoShader->bind();
-            vec2 screenSize(width,height);
-            ssaoShader->uploadScreenSize(screenSize);
-            ssaoShader->uploadFramebuffer(&deferred_framebuffer);
-            ssaoShader->uploadData();
-            mat4 iproj = glm::inverse(cam->proj);
-            ssaoShader->uploadInvProj(iproj);
-            quadMesh.bindAndDraw();
-            ssaoShader->unbind();
-        }
+        ssao.render(cam,&deferred_framebuffer);
 
 
-        ssao_framebuffer.unbind();
-    }
-
-    stopTimer(SSAO);
+    stopTimer(SSAOT);
 
     assert_no_glerror();
 
@@ -346,7 +283,7 @@ void Deferred_Renderer::printTimings()
 {
     cout<<"===================================="<<endl;
     cout<<"Geometry pass: "<<getTime(GEOMETRYPASS)<<"ms"<<endl;
-    cout<<"SSAO: "<<getTime(SSAO)<<"ms"<<endl;
+    cout<<"SSAO: "<<getTime(SSAOT)<<"ms"<<endl;
     cout<<"Depthmaps: "<<getTime(DEPTHMAPS)<<"ms"<<endl;
     cout<<"Lighting: "<<getTime(LIGHTING)<<"ms"<<endl;
     lighting.printTimings();

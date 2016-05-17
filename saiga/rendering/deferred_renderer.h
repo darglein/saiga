@@ -4,22 +4,11 @@
 #include "saiga/rendering/lighting/deferred_lighting.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/rendering/gbuffer.h"
+#include "saiga/rendering/lighting/ssao.h"
 
 class Program;
 
 
-class SAIGA_GLOBAL SSAOShader : public DeferredShader{
-public:
-    GLint location_invProj;
-    GLint location_filterRadius,location_distanceThreshold;
-
-    float distanceThreshold = 1.0f;
-    vec2 filterRadius = vec2(10.0f) / vec2(1600,900);
-
-    virtual void checkUniforms();
-    void uploadInvProj(mat4 &mat);
-    void uploadData();
-};
 
 struct SAIGA_GLOBAL RenderingParameters{
     /**
@@ -64,7 +53,7 @@ class SAIGA_GLOBAL Deferred_Renderer{
 public:
     enum DeferredTimings{
         GEOMETRYPASS = 0,
-        SSAO,
+        SSAOT,
         DEPTHMAPS,
         LIGHTING,
         POSTPROCESSING,
@@ -102,15 +91,16 @@ public:
 
     Camera** currentCamera;
 
-    bool ssao = false;
+//    SSAOShader* ssaoShader = nullptr;
+//    Framebuffer ssao_framebuffer;
+    SSAO ssao;
 
-    SSAOShader* ssaoShader = nullptr;
     MVPTextureShader* blitDepthShader;
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
 
     GBuffer deferred_framebuffer;
-    Framebuffer ssao_framebuffer;
+
 
     PostProcessor postProcessor;
 
@@ -125,8 +115,6 @@ public:
     void setSize(int width, int height){this->width=width;this->height=height;}
     void resize(int width, int height);
 
-    void clearSSAO();
-    void toggleSSAO();
 
     void render_intern();
     void renderGBuffer(Camera *cam);

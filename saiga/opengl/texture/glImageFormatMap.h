@@ -12,7 +12,7 @@ enum class ImageElementFormat{
 
 
 template<int bitDepth, ImageElementFormat format>
-struct GLImageFormatMapElementType{
+struct SAIGA_GLOBAL GLImageFormatMapElementType{
 };
 
 template<> struct GLImageFormatMapElementType<8,ImageElementFormat::UnsignedNormalized>{using elementType = GLubyte;};
@@ -33,7 +33,7 @@ template<> struct GLImageFormatMapElementType<32,ImageElementFormat::SignedInteg
 template<> struct GLImageFormatMapElementType<32,ImageElementFormat::FloatingPoint>{using elementType = GLfloat;};
 
 template<int CHANNELS, int bitDepth, ImageElementFormat format, bool srgb>
-struct GLImageFormatMap{
+struct SAIGA_GLOBAL GLImageFormatMap{
 };
 
 template<> struct GLImageFormatMap<1,8,ImageElementFormat::UnsignedNormalized,false>{const static GLenum type = GL_R8;};

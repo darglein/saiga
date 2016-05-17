@@ -11,7 +11,7 @@ class SAIGA_GLOBAL Image{
 public:
 
     Image();
-    ~Image();
+    virtual ~Image();
 	
     typedef unsigned char byte_t;
 
@@ -22,7 +22,7 @@ public:
     int size = 0; //size of data in bytes
     int width = 0;
     int height = 0;
-private:
+protected:
     ImageFormat format;
 
     //Alignment of the beginning of each row. Allowed values: 1,2,4,8

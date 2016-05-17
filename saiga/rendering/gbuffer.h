@@ -28,5 +28,7 @@ public:
 
     void sampleNearest();
     void sampleLinear();
+
+    void clampToEdge();
 };
 

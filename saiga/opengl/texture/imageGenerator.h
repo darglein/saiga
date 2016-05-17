@@ -16,4 +16,10 @@ public:
      */
 
     static std::shared_ptr<Image> checkerBoard(vec3 color1, vec3 color2, int quadSize, int numQuadsX, int numQuadsY);
+
+
+    /**
+     * Creates a random rbga Image in the range [0,1].
+     */
+    static std::shared_ptr<Image> randomNormalized(int width, int height);
 };

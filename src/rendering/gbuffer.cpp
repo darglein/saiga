@@ -120,3 +120,11 @@ void GBuffer::sampleLinear()
         t->setFiltering(GL_LINEAR);
     }
 }
+
+void GBuffer::clampToEdge()
+{
+    depthBuffer->setWrap(GL_CLAMP);
+    for(auto t : colorBuffers){
+        t->setWrap(GL_CLAMP);
+    }
+}

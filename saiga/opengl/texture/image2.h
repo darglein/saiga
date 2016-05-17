@@ -3,39 +3,12 @@
 
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/texture/imageFormat.h"
+#include "saiga/opengl/texture/image.h"
 #include <vector>
-
-class Image2{
-public:
-    typedef unsigned char byte_t;
-
-    //raw image data
-    std::vector<byte_t> data;
-
-    //image dimensions
-    int size = 0; //size of data in bytes
-    int width = 0;
-    int height = 0;
-
-    //alignment and helper values
-    int rowAlignment = 4;
-    int bytesPerRow = 0;
-    int bytesPerTexel = 0;
-
-    //image format
-    bool srgb = false;
-    int channels = 0;
-    int bitDepth = 0;
-    ImageElementFormat format;
-
-    //opengl type for the image format
-    GLenum glInternalType = GL_NONE;
-    GLenum glType = GL_NONE;
-};
 
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB=false>
-class TemplatedImage : public Image2{
+class SAIGA_GLOBAL TemplatedImage : public Image{
 public:
     typedef Texel<CHANNELS,BITDEPTH,FORMAT> texel_t;
     typedef GLImageFormatMap<CHANNELS,BITDEPTH,FORMAT,SRGB> imageFormat_t;
@@ -58,13 +31,7 @@ public:
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage()
 {
-    this->channels = CHANNELS;
-    this->bitDepth = BITDEPTH;
-    this->format = FORMAT;
-    this->srgb = SRGB;
-    this->glType = texel_t::type;
-    this->glInternalType = imageFormat_t::type;
-    this->bytesPerTexel = sizeof(texel_t);
+    this->format = ImageFormat(CHANNELS,BITDEPTH,FORMAT,SRGB);
 }
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
@@ -77,7 +44,7 @@ TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage(int width, int hei
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 void TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::create(){
-    bytesPerRow = width*bytesPerTexel;
+    bytesPerRow = width*format.bytesPerPixel();
     int rowPadding = (rowAlignment - (bytesPerRow % rowAlignment)) % rowAlignment;
     bytesPerRow += rowPadding;
     size = bytesPerRow * height;
@@ -87,6 +54,11 @@ void TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::create(){
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 typename TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::texel_t& TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::getTexel(int x, int y){
     return *(rowPointer(y) + x);
+}
+
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
+void TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::setTexel(int x, int y, texel_t t){
+    getTexel(x,y) = t;
 }
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>

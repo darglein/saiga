@@ -3,11 +3,8 @@ Asset Loading + Rendering
 
 General
 - better shader names
-- borderless fullscreen
 - init opengl and context always at beginning
-- derive assetloader from loader
-- image loader: freeimage-libpng
 - templated image class
 - bezier+bspline curves + surfaces + teapot
-- tesselation
 - controlable camera
+- better ssao

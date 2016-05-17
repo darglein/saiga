@@ -36,11 +36,12 @@ public:
     GLenum getGlType() const;
 };
 
+
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const ImageFormat& f);
 
 
 template<int CHANNELS, int bitDepth, ImageElementFormat format>
-class Texel{
+class SAIGA_GLOBAL Texel{
 public:
 };
 
