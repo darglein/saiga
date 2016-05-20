@@ -10,7 +10,7 @@
 #include "saiga/util/inputcontroller.h"
 #include <chrono>
 #include "saiga/util/error.h"
-
+#include "saiga/framework.h"
 
 //#define FORCEFRAMERATE 30
 //#ifdef FORCEFRAMERATE
@@ -41,7 +41,9 @@ glfw_Window::~glfw_Window()
 {
     if(!window)
         return;
-    //    cout<<"~glfw_Window"<<endl;
+
+    cleanupSaiga();
+
     glfwDestroyWindow(window);
     glfwTerminate();
 

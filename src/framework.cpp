@@ -89,5 +89,6 @@ void cleanupSaiga()
     MaterialLoader::instance()->clear();
     ObjLoader::instance()->clear();
     cout<<"========================== Framework cleanup done! =========================="<<endl;
+    initialized = false;
 }
 

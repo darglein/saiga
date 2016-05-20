@@ -35,6 +35,7 @@ void Window::quit(){
 
 
 bool Window::init(const RenderingParameters& params){
+     initSaiga();
 
     //init window and opengl context
     if(!initWindow()){
