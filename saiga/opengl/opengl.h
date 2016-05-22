@@ -16,6 +16,9 @@ using namespace gl;
 #endif
 
 SAIGA_GLOBAL void initOpenGL();
+SAIGA_GLOBAL void terminateOpenGL();
+SAIGA_GLOBAL bool OpenGLisInitialized();
+
 SAIGA_GLOBAL int getVersionMajor();
 SAIGA_GLOBAL int getVersionMinor();
 

@@ -42,10 +42,13 @@ glfw_Window::~glfw_Window()
     if(!window)
         return;
 
+
     cleanupSaiga();
 
     glfwDestroyWindow(window);
     glfwTerminate();
+	terminateOpenGL();
+	cout << "GLFW: Terminated." << endl;
 
 }
 

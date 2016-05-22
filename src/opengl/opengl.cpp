@@ -7,8 +7,7 @@ bool openglinitialized = false;
 #ifdef USE_GLEW
 void initOpenGL()
 {
-    if(openglinitialized)
-        return;
+	assert(!openglinitialized);
 
     //Initialize GLEW
     glewExperimental = GL_TRUE;
@@ -27,13 +26,22 @@ void initOpenGL()
 #ifdef USE_GLBINDING
 void initOpenGL()
 {
-    if(openglinitialized)
-        return;
+	assert(!openglinitialized);
     glbinding::Binding::initialize();
     openglinitialized = true;
 }
 #endif
 
+
+void terminateOpenGL()
+{
+	assert(openglinitialized);
+	openglinitialized = false;
+}
+
+bool OpenGLisInitialized(){
+	return openglinitialized;
+}
 
 int getVersionMajor(){
     int v;

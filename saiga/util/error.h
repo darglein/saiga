@@ -51,6 +51,11 @@ public:
 
 
 inline bool Error::checkGLError(){
+	//don't call glGetError when OpenGL is not initialized
+	if (!OpenGLisInitialized()){
+		return false;
+	}
+
     GLenum errCode;
     if ((errCode = glGetError()) != GL_NO_ERROR) {
         std::cout<<"OpenGL error: "<<errCode<<std::endl;
