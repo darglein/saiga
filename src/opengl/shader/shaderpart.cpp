@@ -133,7 +133,7 @@ void ShaderPart::addInjection(const ShaderCodeInjection& sci)
 {
     std::string injection;
     if(sci.type==type){
-        injection =  sci.code+ '\n' ;
+        injection =  sci.code + "\n" ;
         code.insert(code.begin()+sci.line,injection);
     }
 

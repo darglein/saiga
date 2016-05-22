@@ -34,7 +34,7 @@ bool ShaderPartLoader::load()
     std::vector<std::string> code;
     int status = STATUS_WAITING;
     GLenum type = GL_INVALID_ENUM;
-    int lineCount =0;
+    int lineCount = 0;
 
     for(std::string line : data){
         lineCount++;
