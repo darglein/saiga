@@ -17,7 +17,8 @@ public:
         glm::vec2 offset;  //offset of the bitmap position to the origin of this character
         glm::vec2 size; //size of bitmap
 
-        int atlasX = 0, atlasY = 0; //position of this character in the texture atlas
+        glm::ivec2 atlasPos = glm::ivec2(0); //position of this character in the texture atlas
+//        int atlasX = 0, atlasY = 0;
 
         vec2 tcMin,tcMax;
     } ;
@@ -46,7 +47,17 @@ public:
      */
     const character_info& getCharacterInfo(int c){ return characters[c];}
 
+    /**
+     * Returns the distance between the bottom of one line to the bottom of the next line.
+     */
+    float getLineSpacing(){ return (maxCharacter.max - maxCharacter.min).y + additionalLineSpacing;}
 
+
+    //these values are added to the default line and character spacings.
+    //a positive value moves the characters and lines further apart
+    //and a negative values pulls them closer together.
+    float additionalLineSpacing = 0;
+    float additionalCharacterSpacing = 0;
 private:
 
     //distance between characters in texture atlas

@@ -46,6 +46,8 @@ private:
     int size; //current size of the label
     int capacity; //size of the gpu buffer
 
+    vec2 startPos = vec2(0); //bottom left corner of first character
+
     bool normalize; //normalized text is centered around the origin
     std::string label;
     TriangleMesh<VertexNT,GLuint> mesh;

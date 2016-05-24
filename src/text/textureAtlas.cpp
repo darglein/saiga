@@ -52,6 +52,8 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
     textureAtlas->generateMipmaps();
 }
 
+
+
 void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Glyph> &glyphs, int downsample, int searchRadius)
 {
     padGlyphsToDivisor(glyphs,downsample);
@@ -70,7 +72,7 @@ void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Gly
 
     for(FontLoader::Glyph &g : glyphs) {
         character_info &info = characters[g.character];
-        outImg.setSubImage(info.atlasX,info.atlasY,*g.bitmap);
+        outImg.setSubImage(info.atlasPos.x,info.atlasPos.y,*g.bitmap);
     }
 }
 
@@ -106,16 +108,20 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &g
             info.size.y = g.size.y;
 
             info.offset.x = g.offset.x;
-            info.offset.y = g.offset.y;
+            info.offset.y = g.offset.y - info.size.y; //freetype uses an y inverted glyph coordinate system
 
-            info.atlasX = currentW;
-            info.atlasY = atlasHeight;
+            maxCharacter.min = glm::min(maxCharacter.min,vec3(info.offset.x,info.offset.y,0));
+            maxCharacter.max = glm::max(maxCharacter.max,vec3(info.offset.x+info.size.x,info.offset.y+info.size.y,0));
+
+
+
+            info.atlasPos.x = currentW;
+            info.atlasPos.y = atlasHeight;
 
             currentW += g.bitmap->width+charPaddingX;
             currentH = std::max(currentH, (int)g.bitmap->height);
 
-            maxCharacter.min = glm::min(maxCharacter.min,vec3(info.offset.x,info.offset.y-info.size.y,0));
-            maxCharacter.max = glm::max(maxCharacter.max,vec3(info.offset.x+info.size.x,info.offset.y-info.size.y+info.size.y,0));
+
         }
         atlasWidth = std::max(currentW, atlasWidth);
         atlasHeight += currentH+charPaddingY;
@@ -124,8 +130,8 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &g
     //calculate the texture coordinates
     for(int i = 0; i < maxNumCharacters; i++) {
         character_info &info = characters[i];
-        float tx = (float)info.atlasX / (float)atlasWidth;
-        float ty = (float)info.atlasY / (float)atlasHeight;
+        float tx = (float)info.atlasPos.x / (float)atlasWidth;
+        float ty = (float)info.atlasPos.y / (float)atlasHeight;
 
         info.tcMin = vec2(tx,ty);
         info.tcMax = vec2(tx+(float)info.size.x/(float)atlasWidth,ty+(float)info.size.y/(float)atlasHeight);
