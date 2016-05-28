@@ -58,7 +58,7 @@ private:
 
     void calculateNormalizationMatrix();
     void updateGLBuffer(int start, bool resize);
-    bool compressText(std::string &str, int &start);
+    bool compressText(std::string &str, int &start, int &oldStartCharacter);
 
     //adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
     void addTextToMesh(const std::string &text, vec2 offset=vec2(0));

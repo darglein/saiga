@@ -39,19 +39,21 @@ void Text::updateText(const std::string &l, int startIndex){
     std::string label(l);
     //checks how many leading characteres are already the same.
     //if the new text is the same as the old nothing has to be done.
-    bool resize = compressText(label,startIndex);
+    int oldStartCharacter;
+    bool resize = compressText(label,startIndex,oldStartCharacter);
     label = this->label.substr(startIndex);
     if(label.size()==0){
         //no update needed
         return;
     }
-    //    cout<<"start "<<startIndex<<" '"<<label<<"' size "<<size<<endl;
+//        cout<<"start "<<startIndex<<" '"<<label<<"' size "<<size<<endl;
 
-    vec2 startOffset(0);
+    vec2 startOffset = startPos;
 
     if(startIndex>0){
         //get position of last character
-        const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo((int)this->label[startIndex]);
+        const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo(oldStartCharacter);
+
         //x offset of first new character
         startOffset.x = this->mesh.vertices[startIndex*4].position.x - info.offset.x;
         startOffset.y = this->mesh.vertices[startIndex*4].position.y - info.offset.y;
@@ -98,7 +100,7 @@ void Text::updateGLBuffer(int start, bool resize){
     }
 }
 
-bool Text::compressText(std::string &str, int &start){
+bool Text::compressText(std::string &str, int &start, int &oldStartCharacter){
     int newLength = str.size() + start;
     size = newLength;
 
@@ -121,12 +123,14 @@ bool Text::compressText(std::string &str, int &start){
         }
     }
     start += equalChars;
+    oldStartCharacter = label[start];
     std::copy(str.begin()+equalChars,str.end(),label.begin()+start);
     return false;
 }
 
 
 void Text::addTextToMesh(const std::string &text, vec2 offset){
+//    cout << "addTextToMesh '"<<text<<"' " << offset << endl;
 
     vec2 position = offset;
     VertexNT verts[4];
@@ -146,6 +150,8 @@ void Text::addTextToMesh(const std::string &text, vec2 offset){
                     position.y + info.offset.y,
                     0);
 
+//        cout << "bufferPosition '"<<c<<"' " << bufferPosition << " " << info.offset.y << endl;
+
         //bottom left
         verts[0] = VertexNT(bufferPosition,
                             vec3(0,0,1),
@@ -163,8 +169,9 @@ void Text::addTextToMesh(const std::string &text, vec2 offset){
                             vec3(0,0,1),
                             vec2(info.tcMin.x,info.tcMin.y));
 
+        mesh.addQuad(verts);
+
         position += info.advance;
         position.x += textureAtlas->additionalCharacterSpacing;
-        mesh.addQuad(verts);
     }
 }
