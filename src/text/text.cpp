@@ -35,7 +35,7 @@ void Text::calculateNormalizationMatrix()
 }
 
 void Text::updateText(const std::string &l, int startIndex){
-    //        cout<<"update: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
+//    cout<<"Text::updateText: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
     std::string label(l);
     //checks how many leading characteres are already the same.
     //if the new text is the same as the old nothing has to be done.
@@ -46,7 +46,7 @@ void Text::updateText(const std::string &l, int startIndex){
         //no update needed
         return;
     }
-//        cout<<"start "<<startIndex<<" '"<<label<<"' size "<<size<<endl;
+//        cout<<"start "<<startIndex<<" '"<<label<<"' size "<<size << " resize=" <<resize << " oldStartCharacter="<<(char)oldStartCharacter<<endl;
 
     vec2 startOffset = startPos;
 
@@ -96,6 +96,7 @@ void Text::updateGLBuffer(int start, bool resize){
     if(resize){
         mesh.createBuffers(buffer);
     }else{
+//        cout<<"Text::updateGLBuffer "<<"start="<<start << " " << mesh.vertices.size() << " " << (size-start)*4 << endl;
         mesh.updateVerticesInBuffer(buffer,(size-start)*4,start*4);
     }
 }
@@ -141,7 +142,8 @@ void Text::addTextToMesh(const std::string &text, vec2 offset){
         if(c == '\n'){
             position.x = startPos.x;
             position.y -= textureAtlas->getLineSpacing();
-            continue;
+            //emit a degenerated quad
+            //TODO: maybe remove this and count 'actual' characters
         }
 
 

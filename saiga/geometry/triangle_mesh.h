@@ -6,7 +6,7 @@
 #include "saiga/geometry/aabb.h"
 #include "saiga/geometry/triangle.h"
 
-
+#include "saiga/util/assert.h"
 #include <cstring>
 /*
  * Data structur for simple triangle meshes.
@@ -205,6 +205,7 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_ve
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::updateVerticesInBuffer(buffer_t &buffer, int vertex_count, int vertex_offset){
+    assert(vertices.size()>=vertex_offset+vertex_count);
     buffer.updateVertexBuffer(&vertices[vertex_offset],vertex_count,vertex_offset);
 }
 
