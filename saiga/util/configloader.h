@@ -43,6 +43,11 @@ public:
 
     ConfigLoader();
     ~ConfigLoader();
+
+    //copying doesnt really make much sense
+    ConfigLoader (const ConfigLoader&) = delete;
+    ConfigLoader& operator=(const ConfigLoader&) = delete;
+
     bool loadFile(const std::string &name);
 
     bool loadFile2(const std::string &name);

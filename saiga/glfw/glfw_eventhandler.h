@@ -51,9 +51,17 @@ private:
     template<typename T>
     static void removeListener(std::vector<Listener<T>> &list, T* t);
 public:
+    /**
+     * @brief addKeyListener
+     * Adds a Key Listener, does not add it, if it is already added
+     */
     static void addKeyListener(glfw_KeyListener* kl, int priority = 0);
     static void removeKeyListener(glfw_KeyListener* kl);
 
+    /**
+     * @brief addMouseListener
+     * Adds a Mouse Listener, does not add it, if it is already added
+     */
     static void addMouseListener(glfw_MouseListener* ml, int priority = 0);
     static void removeMouseListener(glfw_MouseListener* ml);
 
