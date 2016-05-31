@@ -13,6 +13,9 @@ class SAIGA_GLOBAL SoundSource{
 //    ALuint source;
     unsigned int source = 0;
     Sound* sound = nullptr;
+    bool music = false;
+    float myMasterVolume = 1.f;
+    float volume = 1.f;
 public:
     SoundSource( Sound* sound);
     SoundSource();
@@ -33,12 +36,14 @@ public:
     void setPosition(const vec3& pos);
     void setVelocity(const vec3& velocity);
     bool isPlaying();
+    bool isMusic(){return music;}
     void setLooping(bool looping);
     void setReferenceDistance(float v);
 
-    void reset();
+    void reset(bool isMusic, float masterVolume);
 
     void makeBackground();
+    void setMasterVolume(float v);
 };
 
 

@@ -24,7 +24,7 @@ SoundManager::SoundManager (int maxSources, int fixedSources) : maxSources(maxSo
     setListenerPosition(vec3(0));
     setListenerVelocity(vec3(0));
     setListenerOrientation(vec3(0,0,-1),vec3(0,1,0));
-    setListenerGain(masterVolumne);
+    setListenerGain(masterVolume);
 
     sources.resize(maxSources);
 
@@ -48,7 +48,7 @@ SoundManager::~SoundManager () {
 
 }
 
-SoundSource* SoundManager::getSoundSource(const std::string& file){
+SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic){
     Sound* sound = nullptr;
 
     auto it = soundMap.find(file);
@@ -64,14 +64,14 @@ SoundSource* SoundManager::getSoundSource(const std::string& file){
         cout << "<SoundManager> Stopping sound before playing a new one!" << endl;
         s->stop();
     }
-    s->reset();
+    s->reset(isMusic, isMusic ? musicVolume : effectsVolume);
     s->setSound(sound);
     oldestSource = glm::max( (oldestSource + 1) % maxSources, fixedSources );
     assert_no_alerror();
     return s;
 }
 
-SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id)
+SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id, bool isMusic)
 {
     Sound* sound = nullptr;
 
@@ -87,7 +87,7 @@ SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id)
     if(s->isPlaying()){
         s->stop();
     }
-    s->reset();
+    s->reset(isMusic, isMusic ? musicVolume : effectsVolume);
     s->setSound(sound);
     assert_no_alerror();
     return s;
@@ -164,9 +164,32 @@ void SoundManager::setListenerOrientation(const glm::vec3 &at, const glm::vec3 &
 }
 
 void SoundManager::setListenerGain(float g){
-    masterVolumne = g;
-    alListenerf(AL_GAIN, masterVolumne);
+    masterVolume = g;
+    alListenerf(AL_GAIN, masterVolume);
     assert_no_alerror();
+}
+
+void SoundManager::setMusicVolume(float v)
+{
+    musicVolume = v;
+    //update all sources
+    for (SoundSource& s : sources){
+        if(s.isMusic()){
+            s.setMasterVolume(musicVolume);
+        }
+    }
+}
+
+void SoundManager::setEffectsVolume(float v)
+{
+    effectsVolume = v;
+
+    //update all sources
+    for (SoundSource& s : sources){
+        if(!s.isMusic()){
+            s.setMasterVolume(effectsVolume);
+        }
+    }
 }
 
 void SoundManager::setMute(bool b)
@@ -175,7 +198,7 @@ void SoundManager::setMute(bool b)
     if(muted)
         alListenerf(AL_GAIN, 0);
     else
-        alListenerf(AL_GAIN, masterVolumne);
+        alListenerf(AL_GAIN, masterVolume);
     assert_no_alerror();
 }
 

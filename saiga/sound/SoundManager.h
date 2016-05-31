@@ -23,7 +23,9 @@ private:
 
     std::map<std::string,Sound*> soundMap;
 
-    float masterVolumne = 1.0f;
+    float masterVolume = 1.0f;
+    float musicVolume = 1.f;
+    float effectsVolume = 1.f;
 
     bool muted = false;
     int maxSources, fixedSources;
@@ -37,14 +39,16 @@ public:
     void setListenerVelocity(const vec3& velocity);
     void setListenerOrientation(const vec3& at, const vec3& up);
     void setListenerGain(float g);
+    void setMusicVolume(float v);
+    void setEffectsVolume(float v);
 
     void setMute(bool b);
 
     void setTimeScale(float scale);
 
 
-    SoundSource *getSoundSource(const std::string &file);
-    SoundSource *getFixedSoundSource(const std::string &file, int id);
+    SoundSource *getSoundSource(const std::string &file, bool isMusic = false);
+    SoundSource *getFixedSoundSource(const std::string &file, int id, bool isMusic = false);
     SoundSource *getFixedSoundSource(int id);
 
     void loadWaveSound(const std::string &file);

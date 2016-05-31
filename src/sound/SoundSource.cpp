@@ -1,4 +1,5 @@
 #include <saiga/sound/SoundSource.h>
+#include <saiga/sound/SoundManager.h>
 
 #include <AL/al.h>
 #include <AL/alc.h>
@@ -12,7 +13,7 @@ SoundSource::SoundSource(Sound *sound) : sound(sound){
     alGenSources(1, &source);
 
     alSourcei(source, AL_BUFFER, sound->buffer);
-    reset();
+//    reset();
     assert_no_alerror();
 }
 
@@ -52,8 +53,18 @@ void SoundSource::setSound(Sound *sound)
 
 void SoundSource::setVolume(float f)
 {
-    alSourcef(source, AL_GAIN, f);
+    volume = f;
+    alSourcef(source, AL_GAIN, volume*myMasterVolume);
     assert_no_alerror();
+}
+
+void SoundSource::setMasterVolume(float v){
+    float oldVolume = myMasterVolume;
+    myMasterVolume = v;
+
+    if (myMasterVolume != oldVolume ){
+        setVolume(volume);
+    }
 }
 
 void SoundSource::setPitch(float pitch)
@@ -92,8 +103,10 @@ void SoundSource::setReferenceDistance(float v){
     assert_no_alerror();
 }
 
-void SoundSource::reset()
+void SoundSource::reset(bool isMusic, float masterVolume)
 {
+    music = isMusic;
+    myMasterVolume = masterVolume;
     setLooping(false);
     setPosition(vec3(0));
     setVelocity(vec3(0));
