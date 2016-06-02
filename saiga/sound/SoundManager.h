@@ -7,6 +7,9 @@
 #include <saiga/sound/OpenAL.h>
 #include <saiga/util/glm.h>
 #include <saiga/sound/SoundSource.h>
+#include <thread>
+#include <list>
+#include <mutex>
 
 namespace sound {
 class SoundSource;
@@ -30,6 +33,18 @@ private:
     bool muted = false;
     int maxSources, fixedSources;
     int oldestSource = 0;
+    bool soundAlreadyLoaded(const std::string &file);
+    void insertLoadedSoundIntoMap(const std::string &file, Sound *sound);
+    void loadSoundsThreadStart();
+
+    int threadCount = -1;
+    std::vector<std::thread*> soundLoaderThreads;
+
+    std::list<std::string> soundQueue;
+    std::mutex soundQueueLock;
+    std::mutex soundMapLock;
+
+    bool parallelSoundLoaderRunning = false;
 public:
 
     SoundManager (int maxSources, int fixedSources=0);
@@ -54,10 +69,10 @@ public:
     void loadWaveSound(const std::string &file);
     void loadOpusSound(const std::string &file);
 
+    void addSoundToParallelQueue(const std::string &file);
 
-
-
-
+    void startParallelSoundLoader(int threadCount);
+    void joinParallelSoundLoader();
 };
 
 

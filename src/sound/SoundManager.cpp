@@ -39,6 +39,8 @@ SoundManager::~SoundManager () {
         delete sound;
     }
 
+
+
     delete quietSoundSource;
 
     sources.clear();
@@ -49,6 +51,8 @@ SoundManager::~SoundManager () {
 }
 
 SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic){
+
+    assert(!parallelSoundLoaderRunning);
     Sound* sound = nullptr;
 
     auto it = soundMap.find(file);
@@ -73,6 +77,8 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
 
 SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id, bool isMusic)
 {
+    assert(!parallelSoundLoaderRunning);
+
     Sound* sound = nullptr;
 
     auto it = soundMap.find(file);
@@ -100,6 +106,7 @@ SoundSource *SoundManager::getFixedSoundSource(int id)
 
 void SoundManager::loadWaveSound(const std::string &file)
 {
+    assert(!parallelSoundLoaderRunning);
     auto it = soundMap.find(file);
     if(it==soundMap.end()){
         SoundLoader sl;
@@ -120,6 +127,7 @@ void SoundManager::loadWaveSound(const std::string &file)
 
 void SoundManager::loadOpusSound(const std::string &file)
 {
+    assert(!parallelSoundLoaderRunning);
     auto it = soundMap.find(file);
     if(it==soundMap.end()){
         SoundLoader sl;
@@ -136,6 +144,100 @@ void SoundManager::loadOpusSound(const std::string &file)
         assert(0);
     }
     assert_no_alerror();
+}
+
+void SoundManager::addSoundToParallelQueue(const std::string &file)
+{
+    assert(!parallelSoundLoaderRunning);
+    soundQueue.push_back(file);
+}
+
+bool SoundManager::soundAlreadyLoaded(const std::string &file)
+{
+    std::lock_guard<std::mutex> lock(soundMapLock); //scoped lock
+
+    auto it = soundMap.find(file);
+    if(it==soundMap.end()){
+        return false;
+    }else{
+        cout << "Sound already loaded: " << file << endl;
+        assert(0);
+    }
+}
+
+void SoundManager::insertLoadedSoundIntoMap(const std::string &file, Sound* sound)
+{
+    std::lock_guard<std::mutex> lock(soundMapLock); //scoped lock
+    soundMap[file] = sound;
+
+}
+
+void SoundManager::startParallelSoundLoader(int threadCount)
+{
+    assert(!parallelSoundLoaderRunning);
+    assert(soundLoaderThreads.size() == 0);
+    assert(threadCount > 0);
+
+    this->threadCount = threadCount;
+    parallelSoundLoaderRunning = true;
+    for (int i = 0; i < threadCount; ++i){
+        soundLoaderThreads.push_back(new std::thread(&SoundManager::loadSoundsThreadStart, this));
+    }
+}
+
+void SoundManager::joinParallelSoundLoader()
+{
+    assert(parallelSoundLoaderRunning);
+    for (int i = 0; i < threadCount; ++i){
+        soundLoaderThreads[i]->join();
+        delete soundLoaderThreads[i];
+    }
+    soundLoaderThreads.clear();
+    parallelSoundLoaderRunning = false;
+}
+
+void SoundManager::loadSoundsThreadStart()
+{
+    while(parallelSoundLoaderRunning){
+        bool took = false;
+        soundQueueLock.lock();
+        std::string f;
+        if (!soundQueue.empty()){
+            f = soundQueue.front();
+            took = true;
+            soundQueue.pop_front();
+        }
+
+        soundQueueLock.unlock();
+
+        if (took){
+            cout << "parallel loadsound " << f << endl;
+            assert(!soundAlreadyLoaded(f));
+
+            SoundLoader sl;
+            Sound* loadedsound;
+            if(f.substr(f.find_last_of(".") + 1) == "opus") {
+                loadedsound = sl.loadOpusFile(f);
+            } else if ((f.substr(f.find_last_of(".") + 1) == "wav")){
+                loadedsound = sl.loadWaveFile(f);
+            } else {
+                cout << "Unknown file extension for sound file: " << f << endl;
+                assert(0);
+            }
+
+
+            if (loadedsound !=0){
+                insertLoadedSoundIntoMap(f, loadedsound);
+            } else {
+                cout << "Could not load sound (parallel): " << f << endl;
+                assert(0);
+            }
+        } else {
+//            cout << "sound list empty! joining... " << f << endl;
+            break;
+//            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
 }
 
 
