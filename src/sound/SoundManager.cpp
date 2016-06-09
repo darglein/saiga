@@ -77,7 +77,6 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
 
 SoundSource* SoundManager::getSoundSourceWhileStillLoading(const std::string& file, bool isMusic){
 
-    cout << "parallelSoundLoaderRunning " << parallelSoundLoaderRunning << endl;
     Sound* sound = nullptr;
 
     {

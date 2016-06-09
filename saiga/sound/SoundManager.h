@@ -64,16 +64,24 @@ public:
     void setTimeScale(float scale);
 
 
+    /**
+     * @brief getSoundSource
+     * Fast function of getting a sound source, can not be called if the sound loaders are still working in parallel
+     */
     SoundSource *getSoundSource(const std::string &file, bool isMusic = false);
-    SoundSource *getSoundSourceWhileStillLoading(const std::string &file, bool isMusic = false);
     SoundSource *getFixedSoundSource(const std::string &file, int id, bool isMusic = false);
     SoundSource *getFixedSoundSource(int id);
+
+    /**
+     * @brief getSoundSourceWhileStillLoading
+     * Thread safe function of getting a sound source while the parallel sound loaders are still working, may return a quiet sound source if the sound is not loaded
+     */
+    SoundSource *getSoundSourceWhileStillLoading(const std::string &file, bool isMusic = false);
 
     void loadWaveSound(const std::string &file);
     void loadOpusSound(const std::string &file);
 
     void addSoundToParallelQueue(const std::string &file);
-
     void startParallelSoundLoader(int threadCount);
     void joinParallelSoundLoader();
     bool isParallelLoadingDone();
