@@ -7,7 +7,7 @@
 typedef long long time_interval_t;
 //typedef double time_interval_t;
 
-//Linux: c++ 11 chrono for time meassuerment 
+//Linux: c++ 11 chrono for time measurement
 //Windows: queryPerformanceCounter because c++ 11 chrono only since VS2015 with good precision :(
 class SAIGA_GLOBAL Timer2{
 public:

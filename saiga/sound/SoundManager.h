@@ -10,6 +10,7 @@
 #include <thread>
 #include <list>
 #include <mutex>
+#include <atomic>
 
 namespace sound {
 class SoundSource;
@@ -45,6 +46,7 @@ private:
     std::mutex soundMapLock;
 
     bool parallelSoundLoaderRunning = false;
+    std::atomic<int> loadingDoneCounter = 0;
 public:
 
     SoundManager (int maxSources, int fixedSources=0);
@@ -63,6 +65,7 @@ public:
 
 
     SoundSource *getSoundSource(const std::string &file, bool isMusic = false);
+    SoundSource *getSoundSourceWhileStillLoading(const std::string &file, bool isMusic = false);
     SoundSource *getFixedSoundSource(const std::string &file, int id, bool isMusic = false);
     SoundSource *getFixedSoundSource(int id);
 
@@ -73,6 +76,8 @@ public:
 
     void startParallelSoundLoader(int threadCount);
     void joinParallelSoundLoader();
+    bool isParallelLoadingDone();
+    bool isParallelSoundLoaderNotJoined();
 };
 
 

@@ -75,11 +75,43 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
     return s;
 }
 
+SoundSource* SoundManager::getSoundSourceWhileStillLoading(const std::string& file, bool isMusic){
+
+    cout << "parallelSoundLoaderRunning " << parallelSoundLoaderRunning << endl;
+    Sound* sound = nullptr;
+
+    {
+        std::lock_guard<std::mutex> lock(soundMapLock); //scoped lock
+
+        auto it = soundMap.find(file);
+        if(it==soundMap.end()){
+            std::cerr << "Sound not loaded: " << file << endl;
+            return quietSoundSource;
+        }else{
+            sound = it->second;
+        }
+    }
+
+
+
+    SoundSource* s  = &sources[oldestSource];
+    if(s->isPlaying()){
+        cout << "<SoundManager> Stopping sound before playing a new one!" << endl;
+        s->stop();
+    }
+    s->reset(isMusic, isMusic ? musicVolume : effectsVolume);
+    s->setSound(sound);
+    oldestSource = glm::max( (oldestSource + 1) % maxSources, fixedSources );
+    assert_no_alerror();
+    return s;
+}
+
 SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id, bool isMusic)
 {
     assert(!parallelSoundLoaderRunning);
 
     Sound* sound = nullptr;
+
 
     auto it = soundMap.find(file);
     if(it==soundMap.end()){
@@ -179,6 +211,7 @@ void SoundManager::startParallelSoundLoader(int threadCount)
     assert(threadCount > 0);
 
     this->threadCount = threadCount;
+    loadingDoneCounter.store(0);
     parallelSoundLoaderRunning = true;
     for (int i = 0; i < threadCount; ++i){
         soundLoaderThreads.push_back(new std::thread(&SoundManager::loadSoundsThreadStart, this));
@@ -194,6 +227,18 @@ void SoundManager::joinParallelSoundLoader()
     }
     soundLoaderThreads.clear();
     parallelSoundLoaderRunning = false;
+
+    assert(loadingDoneCounter.load() == threadCount);
+}
+
+bool SoundManager::isParallelLoadingDone(){
+    assert(parallelSoundLoaderRunning);
+    return loadingDoneCounter.load() == threadCount;
+}
+
+bool SoundManager::isParallelSoundLoaderNotJoined()
+{
+    return parallelSoundLoaderRunning;
 }
 
 void SoundManager::loadSoundsThreadStart()
@@ -238,6 +283,8 @@ void SoundManager::loadSoundsThreadStart()
 //            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
     }
+
+    loadingDoneCounter.fetch_add(1);
 }
 
 
