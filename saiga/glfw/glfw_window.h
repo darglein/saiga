@@ -103,4 +103,5 @@ public:
     static bool initGlfw();
     static void getCurrentPrimaryMonitorResolution(int *width, int *height);
     static void getMaxResolution(int *width, int *height);
+    void setWindowIcon(Image *image);
 };
