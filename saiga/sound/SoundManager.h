@@ -46,7 +46,7 @@ private:
     std::mutex soundMapLock;
 
     bool parallelSoundLoaderRunning = false;
-    std::atomic<int> loadingDoneCounter = 0;
+    std::atomic<int> loadingDoneCounter = {0};
 public:
 
     SoundManager (int maxSources, int fixedSources=0);

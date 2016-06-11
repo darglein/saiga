@@ -4,6 +4,7 @@
 #include "saiga/util/error.h"
 #include <fstream>
 #include <algorithm>
+#include <regex>
 
 #define STATUS_WAITING 0
 #define STATUS_READING 1
@@ -71,6 +72,21 @@ bool ShaderPartLoader::load()
     return true;
 }
 
+inline std::string getFileFromInclude(const std::string &file, std::string line){
+    const std::string include("#include ");
+    line = line.substr(include.size()-1);
+
+    auto it = std::remove(line.begin(),line.end(),'"');
+    line.erase(it,line.end());
+
+    it = std::remove(line.begin(),line.end(),' ');
+    line.erase(it,line.end());
+
+    //recursivly load includes
+    std::string includeFileName = line;
+    includeFileName = shaderPathes.getRelative(file,includeFileName);
+    return includeFileName;
+}
 
 bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<std::string> &ret)
 {
@@ -80,36 +96,52 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
         return false;
     }
 
+    const std::string version("#version");
     const std::string include("#include ");
 
+    //TODO: parse with regex. Requires gcc 4.9+
+
+    //first pass:
+    //1. read file line by line and save it into ret vector
+    //2. add #line commands after #version and before and after #includes
     while(!fileStream.eof()) {
         std::string line;
         std::getline(fileStream, line);
-
         if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
-            line = line.substr(include.size()-1);
+            std::string includeFileName = getFileFromInclude(file,line);
 
-            auto it = std::remove(line.begin(),line.end(),'"');
-            line.erase(it,line.end());
+            //add #line commands after #version and before and after #includes
+            ret.push_back("#line " + std::to_string(1) + " \"" + includeFileName + "\"");
+            ret.push_back(line);
+            ret.push_back("#line " + std::to_string(ret.size()-2) + " \"" + file + "\"");
+        }else if(version.size()<line.size() && line.compare(0, version.length(), version)==0){
+            //add a #line command after the #version command
+            ret.push_back(line);
+            std::string lineCommand = "#line " + std::to_string(ret.size()) + " \"" + file + "\"";
+            ret.push_back(lineCommand);
+        }else{
+            ret.push_back(line);
+        }
+    }
 
-            it = std::remove(line.begin(),line.end(),' ');
-            line.erase(it,line.end());
+    //second pass:
+    //loop over vector and replace #include commands with the actual code
 
-            //recursivly load includes
-            std::string includeFileName = line;
-            includeFileName = shaderPathes.getRelative(file,includeFileName);
+    for (unsigned int i = 0; i < ret.size(); ++i){
+        std::string line = ret[i];
+        if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
+
+            std::string includeFileName = getFileFromInclude(file,line);
+
             std::vector<std::string> tmp;
             if(!loadAndPreproccess(includeFileName,tmp)){
                 std::cerr<<"ShaderPartLoader: Could not open included file: "<<line<<endl;
                 std::cerr<<"Make sure it exists and the search pathes are set."<<endl;
                 assert(0);
             }
-            ret.insert(ret.end(),tmp.begin(),tmp.end());
-        }else{
-            ret.push_back(line);
+            ret.erase(ret.begin()+i);
+            ret.insert(ret.begin()+i,tmp.begin(),tmp.end());
         }
-
-
     }
     return true;
 }
@@ -126,9 +158,9 @@ void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
         shaders.push_back(shader);
 	}
 	else{
-		FileChecker fc;
-		std::string name = fc.getFileName(this->file);
-        shader->writeToFile("debug/" + name);
+//		FileChecker fc;
+//		std::string name = fc.getFileName(this->file);
+//        shader->writeToFile("debug/" + name);
 	}
 
     assert_no_glerror();
