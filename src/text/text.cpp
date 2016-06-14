@@ -1,9 +1,14 @@
 #include "saiga/text/all.h"
 #include "saiga/util/assert.h"
-
+#include "saiga/text/encoding.h"
 
 Text::Text(TextureAtlas *textureAtlas, const std::string &label, bool normalize):
-    size(label.size()),capacity(label.size()),normalize(normalize),label(label),textureAtlas(textureAtlas){
+ normalize(normalize),textureAtlas(textureAtlas){
+
+//    this->label = Encoding::UTF8toUTF32(label);
+    this->label = label;
+    size = this->label.size();
+    capacity = this->label.size();
 
     addTextToMesh(label);
     updateGLBuffer(0,true);
@@ -39,9 +44,9 @@ void Text::updateText(const std::string &l, int startIndex){
     std::string label(l);
     //checks how many leading characteres are already the same.
     //if the new text is the same as the old nothing has to be done.
-    int oldStartCharacter;
-    bool resize = compressText(label,startIndex,oldStartCharacter);
-    label = this->label.substr(startIndex);
+    bool resize = compressText(label,startIndex);
+    label = std::string( this->label.begin() + startIndex , this->label.end() );
+
     if(label.size()==0){
         //no update needed
         return;
@@ -51,12 +56,19 @@ void Text::updateText(const std::string &l, int startIndex){
     vec2 startOffset = startPos;
 
     if(startIndex>0){
-        //get position of last character
+        //get position of last character before startindex
+        int lastCharPos = startIndex-1;
+        int oldStartCharacter = this->label[lastCharPos];
+
         const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo(oldStartCharacter);
 
-        //x offset of first new character
-        startOffset.x = this->mesh.vertices[startIndex*4].position.x - info.offset.x;
-        startOffset.y = this->mesh.vertices[startIndex*4].position.y - info.offset.y;
+        startOffset.x = this->mesh.vertices[lastCharPos*4].position.x;
+        startOffset.y = this->mesh.vertices[lastCharPos*4].position.y;
+
+        //calculate start position of next character
+        startOffset -= info.offset;
+        startOffset += info.advance;
+        startOffset.x += textureAtlas->additionalCharacterSpacing;
     }
 
     //delete everything from startindex to end
@@ -71,6 +83,11 @@ void Text::updateText(const std::string &l, int startIndex){
     this->updateGLBuffer(startIndex,resize);
 
     calculateNormalizationMatrix();
+}
+
+std::string Text::getText(){
+//    return Encoding::UTF32toUTF8(label);
+    return label;
 }
 
 
@@ -101,7 +118,7 @@ void Text::updateGLBuffer(int start, bool resize){
     }
 }
 
-bool Text::compressText(std::string &str, int &start, int &oldStartCharacter){
+bool Text::compressText(std::string &str, int &start){
     int newLength = str.size() + start;
     size = newLength;
 
@@ -124,7 +141,6 @@ bool Text::compressText(std::string &str, int &start, int &oldStartCharacter){
         }
     }
     start += equalChars;
-    oldStartCharacter = label[start];
     std::copy(str.begin()+equalChars,str.end(),label.begin()+start);
     return false;
 }
@@ -133,10 +149,13 @@ bool Text::compressText(std::string &str, int &start, int &oldStartCharacter){
 void Text::addTextToMesh(const std::string &text, vec2 offset){
 //    cout << "addTextToMesh '"<<text<<"' " << offset << endl;
 
+    std::vector<uint32_t> utf32string = Encoding::UTF8toUTF32(text);
+
+//    cout<<"convert back "<<Encoding::UTF32toUTF8(utf32string)<<endl;
     vec2 position = offset;
     VertexNT verts[4];
-    for(char c : text){
-        //        cout<<"create text mesh "<<(int)c<<" "<<c<<endl;
+    for(uint32_t c : utf32string){
+//        cout<<"create text mesh "<<std::dec<<(int)c<<" "<<std::hex<<(int)c<<" "<<c<<endl;
         const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo((int)c);
 
         if(c == '\n'){
@@ -152,7 +171,7 @@ void Text::addTextToMesh(const std::string &text, vec2 offset){
                     position.y + info.offset.y,
                     0);
 
-//        cout << "bufferPosition '"<<c<<"' " << bufferPosition << " " << info.offset.y << endl;
+//        cout << "bufferPosition '"<<(char)c<<"' " << bufferPosition << " " << info.offset.y << endl;
 
         //bottom left
         verts[0] = VertexNT(bufferPosition,

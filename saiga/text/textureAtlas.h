@@ -45,7 +45,7 @@ public:
     /**
      * Returns information to a specific character in this font.
      */
-    const character_info& getCharacterInfo(int c){ return characters[c];}
+    const character_info& getCharacterInfo(int c);
 
     /**
      * Returns the distance between the bottom of one line to the bottom of the next line.

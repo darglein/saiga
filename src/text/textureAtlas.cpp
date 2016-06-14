@@ -52,6 +52,15 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
     textureAtlas->generateMipmaps();
 }
 
+const TextureAtlas::character_info &TextureAtlas::getCharacterInfo(int c){
+    if(c<0 || c>=maxNumCharacters){
+           cerr<<"TextureAtlas::getCharacterInfo: Invalid character '"<<std::hex<<c<<"'"<<endl;
+           c=0;
+    }
+
+    return characters[c];
+}
+
 
 
 void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Glyph> &glyphs, int downsample, int searchRadius)

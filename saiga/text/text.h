@@ -1,6 +1,7 @@
 #pragma once
 
 #include "saiga/text/textParameters.h"
+#include "saiga/text/encoding.h"
 #include "saiga/rendering/object3d.h"
 #include "saiga/geometry/triangle_mesh.h"
 
@@ -29,7 +30,7 @@ public:
      * This may change the size of the OpenGL buffer.
      */
     void updateText(const std::string &label, int startIndex=0);
-    std::string getText(){ return label;}
+    std::string getText();
 
     /**
      * Returns the bounding box of the text mesh.
@@ -50,6 +51,7 @@ private:
 
     bool normalize; //normalized text is centered around the origin
     std::string label;
+//    utf32string label;
     TriangleMesh<VertexNT,GLuint> mesh;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
     TextureAtlas* textureAtlas;
@@ -58,7 +60,7 @@ private:
 
     void calculateNormalizationMatrix();
     void updateGLBuffer(int start, bool resize);
-    bool compressText(std::string &str, int &start, int &oldStartCharacter);
+    bool compressText(std::string &str, int &start);
 
     //adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
     void addTextToMesh(const std::string &text, vec2 offset=vec2(0));
