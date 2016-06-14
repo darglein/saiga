@@ -9,8 +9,8 @@
 
 FT_Library FontLoader::ft = nullptr;
 
-FontLoader::FontLoader(const std::string &file)
-    : file(file)
+FontLoader::FontLoader(const std::string &file, const std::vector<Unicode::UnicodeBlock> &blocks)
+    : file(file), blocks(blocks)
 {
     if(ft==nullptr){
         if(FT_Init_FreeType(&ft)) {
@@ -34,28 +34,50 @@ void FontLoader::loadMonochromatic(int fontSize, int glyphPadding)
 {
     loadFace(fontSize);
 
-    FT_Error error;
 
-    for(int i = 32; i < 128; i++) {
-        FT_UInt  glyph_index;
+    for(Unicode::UnicodeBlock block : blocks){
+//        std::cout << "block " << block.start<< " " << block.end << std::endl;
+        for(uint32_t i = block.start; i <= block.end; i++) {
 
-        /* retrieve glyph index from character code */
-        glyph_index = FT_Get_Char_Index( face, i );
-
-//        error = FT_Load_Glyph( face, glyph_index, FT_LOAD_DEFAULT );
-                error = FT_Load_Glyph( face, glyph_index, FT_LOAD_TARGET_MONO );
-        if ( error )
-            continue;  /* ignore errors */
-
-        addGlyph(i,glyphPadding);
+            int charCode = i;
+            loadAndAddGlyph(charCode,glyphPadding);
+        }
     }
+//    for(int i = 32; i < 0x04FF; i++) {
+//        int charCode = i;
+//        loadAndAddGlyph(charCode,glyphPadding);
+//    }
 
 }
 
-void FontLoader::addGlyph(int gindex, int glyphPadding)
+void FontLoader::loadAndAddGlyph(int charCode, int glyphPadding)
 {
-    if(gindex<32 || gindex>127)
+//    std::cout << "loadAndAddGlyph "<<charCode << std::endl;
+    FT_UInt  glyph_index;
+
+    /* retrieve glyph index from character code */
+    glyph_index = FT_Get_Char_Index( face, charCode );
+
+    //0 glyph index means undefined character code
+    if(glyph_index == 0){
+//        std::cerr << "can't find glyph for charcode: " << std::hex << charCode << std::endl;
         return;
+    }
+
+//        error = FT_Load_Glyph( face, glyph_index, FT_LOAD_DEFAULT );
+    FT_Error error = FT_Load_Glyph( face, glyph_index, FT_LOAD_TARGET_MONO );
+    if ( error ){
+        std::cerr << "random error"<< std::endl;
+        return;  /* ignore errors */
+    }
+
+    addGlyph(charCode,glyphPadding);
+}
+
+void FontLoader::addGlyph(int charCode, int glyphPadding)
+{
+//    if(charCode<32 || charCode>=256)
+//        return;
     FT_Error error;
     FT_Glyph glyph;
     FT_Glyph glyph_bitmap;
@@ -85,7 +107,7 @@ void FontLoader::addGlyph(int gindex, int glyphPadding)
     myGlyph.advance.y = ( g2->advance.y + 0x8000 ) >> 16;
 
     myGlyph.offset = vec2(bitmap->left,bitmap->top);
-    myGlyph.character = gindex;
+    myGlyph.character = charCode;
 
     myGlyph.size = vec2(source->width+glyphPadding*2,source->rows+glyphPadding*2);
 
@@ -140,6 +162,8 @@ void FontLoader::loadFace(int fontSize)
     }
     FT_Set_Pixel_Sizes(face, 0, fontSize);
 }
+
+
 
 
 

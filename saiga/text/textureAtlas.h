@@ -6,6 +6,7 @@
 #include "saiga/geometry/aabb.h"
 #include "saiga/text/fontLoader.h"
 #include <iostream>
+#include <map>
 
 class basic_Texture_2D;
 
@@ -13,6 +14,7 @@ class basic_Texture_2D;
 class SAIGA_GLOBAL TextureAtlas{
 public:
     struct character_info {
+        int character = 0; //unicode code point
         glm::vec2 advance = glm::vec2(0); //distance to the origin of the next character
         glm::vec2 offset = glm::vec2(0);  //offset of the bitmap position to the origin of this character
         glm::vec2 size = glm::vec2(0); //size of bitmap
@@ -30,7 +32,7 @@ public:
      * Loads a True Type font (.ttf) with libfreetype.
      * This will create the textureAtlas, so it has to be called before any ussage.
      */
-    void loadFont(const std::string &font, int fontSize=40, int quality=4, int searchRange=5, bool bufferToFile=false);
+    void loadFont(const std::string &font, int fontSize=40, int quality=4, int searchRange=5, bool bufferToFile=false, const std::vector<Unicode::UnicodeBlock> &blocks = {Unicode::BasicLatin});
 
     /**
      * Returns the bounding box that could contain every character in this font.
@@ -67,8 +69,13 @@ private:
     int atlasHeight;
     int atlasWidth;
 
-    static const int maxNumCharacters = 256;
-    character_info characters[maxNumCharacters];
+//    static const int maxNumCharacters = 256;
+
+    character_info invalidCharacter;
+    std::map<int,character_info> characterInfoMap;
+//    character_info characters[maxNumCharacters];
+    uint32_t numCharacters = 0;
+//    std::vector<character_info> characterInfoMap = std::vector<character_info>(maxNumCharacters);
 
     basic_Texture_2D *textureAtlas = nullptr;
     aabb maxCharacter;

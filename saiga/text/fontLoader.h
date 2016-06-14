@@ -3,6 +3,7 @@
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
 #include "saiga/opengl/texture/image.h"
+#include "saiga/text/encoding.h"
 
 #include <iostream>
 #include <vector>
@@ -25,7 +26,7 @@ public:
 
     std::vector<Glyph> glyphs;
 
-    FontLoader(const std::string& file);
+    FontLoader(const std::string& file, const std::vector<Unicode::UnicodeBlock> &blocks = {Unicode::BasicLatin});
     ~FontLoader();
     void loadMonochromatic(int fontSize, int glyphPadding = 0);
     void writeGlyphsToFiles(const std::string& prefix);
@@ -33,8 +34,10 @@ public:
 private:
     static FT_Library ft;
     std::string file;
+    std::vector<Unicode::UnicodeBlock> blocks;
     FT_Face face = nullptr;
 
     void loadFace(int fontSize);
-    void addGlyph(int gindex, int glyphPadding);
+    void loadAndAddGlyph(int charCode, int glyphPadding);
+    void addGlyph(int charCode, int glyphPadding);
 };

@@ -24,8 +24,14 @@ TextureAtlas::~TextureAtlas()
     delete textureAtlas;
 }
 
-void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, int searchRange, bool bufferToFile){
-    uniqueFontString = font+"."+std::to_string(fontSize)+"_"+std::to_string(quality)+"_"+std::to_string(searchRange)+".sdf";
+void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, int searchRange, bool bufferToFile, const std::vector<Unicode::UnicodeBlock> &blocks){
+    std::string blockString;
+    for(Unicode::UnicodeBlock ub : blocks){
+        blockString = blockString + std::to_string(ub.start);
+    }
+
+
+    uniqueFontString = font+"."+std::to_string(fontSize)+"_"+std::to_string(quality)+"_"+std::to_string(searchRange)+"_"+blockString+".sdf";
 
     if(bufferToFile && readAtlasFromFiles()){
         return;
@@ -34,7 +40,7 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
     cout<<"Generating new SDF Text Atlas: "<<uniqueFontString<<endl;
     quality = quality*2+1;
 
-    FontLoader fl(font);
+    FontLoader fl(font,blocks);
     fl.loadMonochromatic(fontSize*quality,(1+quality)*searchRange);
     //    fl.writeGlyphsToFiles("debug/fonts/");
 
@@ -53,18 +59,20 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
 }
 
 const TextureAtlas::character_info &TextureAtlas::getCharacterInfo(int c){
-    if(c<0 || c>=maxNumCharacters){
-           cerr<<"TextureAtlas::getCharacterInfo: Invalid character '"<<std::hex<<c<<"'"<<endl;
-           c=0;
+    auto it = characterInfoMap.find(c);
+    if(it==characterInfoMap.end()){
+        cerr<<"TextureAtlas::getCharacterInfo: Invalid character '"<<std::hex<<c<<"'"<<endl;
+        return invalidCharacter;
     }
-
-    return characters[c];
+    return (*it).second;
 }
 
 
 
 void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Glyph> &glyphs, int downsample, int searchRadius)
 {
+    numCharacters = glyphs.size();
+    cout<<"TextureAtlas::createTextureAtlas: Number of glyphs = "<<numCharacters<<endl;
     padGlyphsToDivisor(glyphs,downsample);
     convertToSDF(glyphs,downsample,searchRadius);
     calculateTextureAtlasLayout(glyphs);
@@ -80,7 +88,7 @@ void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Gly
     cout<<"AtlasWidth "<<atlasWidth<<" AtlasHeight "<<atlasHeight<<endl;
 
     for(FontLoader::Glyph &g : glyphs) {
-        character_info &info = characters[g.character];
+        character_info &info = characterInfoMap[g.character];
         outImg.setSubImage(info.atlasPos.x,info.atlasPos.y,*g.bitmap);
     }
 }
@@ -105,11 +113,9 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &g
 
             FontLoader::Glyph &g = glyphs[i];
 
-            assert(g.character>=0 && g.character<256);
+            character_info info;
 
-            character_info &info = characters[g.character];
-
-
+            info.character = g.character;
             info.advance.x = g.advance.x;
             info.advance.y = g.advance.y;
 
@@ -127,6 +133,8 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &g
             info.atlasPos.x = currentW;
             info.atlasPos.y = atlasHeight;
 
+            characterInfoMap[g.character] = info;
+
             currentW += g.bitmap->width+charPaddingX;
             currentH = std::max(currentH, (int)g.bitmap->height);
 
@@ -137,8 +145,8 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &g
     }
 
     //calculate the texture coordinates
-    for(int i = 0; i < maxNumCharacters; i++) {
-        character_info &info = characters[i];
+    for(FontLoader::Glyph &g : glyphs) {
+        character_info &info = characterInfoMap[g.character];
         float tx = (float)info.atlasPos.x / (float)atlasWidth;
         float ty = (float)info.atlasPos.y / (float)atlasHeight;
 
@@ -262,7 +270,11 @@ void TextureAtlas::writeAtlasToFiles(Image& img)
     }
 
     std::ofstream stream (uniqueFontString,std::ofstream::binary);
-    stream.write((char*)characters,sizeof(characters));
+    stream.write((char*)&numCharacters,sizeof(uint32_t));
+    for(std::pair<const int,character_info> ci : characterInfoMap){
+        stream.write((char*)&ci.second,sizeof(character_info));
+    }
+
     stream.write((char*)&maxCharacter,sizeof(aabb));
     stream.close();
 
@@ -273,7 +285,12 @@ bool TextureAtlas::readAtlasFromFiles()
     std::ifstream stream (uniqueFontString,std::ifstream::binary);
     if(!stream.is_open())
         return false;
-    stream.read((char*)characters,sizeof(characters));
+    stream.read((char*)&numCharacters,sizeof(uint32_t));
+    for(int i = 0 ; i < numCharacters ; ++i){
+        character_info ci;
+        stream.read((char*)&ci,sizeof(character_info));
+        characterInfoMap[ci.character] = ci;
+    }
     stream.read((char*)&maxCharacter,sizeof(aabb));
     stream.close();
 

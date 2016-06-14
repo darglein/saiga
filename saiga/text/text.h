@@ -50,8 +50,8 @@ private:
     vec2 startPos = vec2(0); //bottom left corner of first character
 
     bool normalize; //normalized text is centered around the origin
-    std::string label;
-//    utf32string label;
+//    std::string label;
+    utf32string label;
     TriangleMesh<VertexNT,GLuint> mesh;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
     TextureAtlas* textureAtlas;
@@ -60,8 +60,8 @@ private:
 
     void calculateNormalizationMatrix();
     void updateGLBuffer(int start, bool resize);
-    bool compressText(std::string &str, int &start);
+    bool compressText(utf32string &str, int &start);
 
     //adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
-    void addTextToMesh(const std::string &text, vec2 offset=vec2(0));
+    void addTextToMesh(const utf32string &text, vec2 offset=vec2(0));
 };

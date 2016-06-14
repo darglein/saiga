@@ -5,12 +5,12 @@
 Text::Text(TextureAtlas *textureAtlas, const std::string &label, bool normalize):
  normalize(normalize),textureAtlas(textureAtlas){
 
-//    this->label = Encoding::UTF8toUTF32(label);
-    this->label = label;
+    this->label = Encoding::UTF8toUTF32(label);
+//    this->label = label;
     size = this->label.size();
     capacity = this->label.size();
 
-    addTextToMesh(label);
+    addTextToMesh(this->label);
     updateGLBuffer(0,true);
     calculateNormalizationMatrix();
 }
@@ -41,11 +41,12 @@ void Text::calculateNormalizationMatrix()
 
 void Text::updateText(const std::string &l, int startIndex){
 //    cout<<"Text::updateText: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
-    std::string label(l);
+//    std::string label(l);
+    utf32string label = Encoding::UTF8toUTF32(l);
     //checks how many leading characteres are already the same.
     //if the new text is the same as the old nothing has to be done.
     bool resize = compressText(label,startIndex);
-    label = std::string( this->label.begin() + startIndex , this->label.end() );
+    label = utf32string( this->label.begin() + startIndex , this->label.end() );
 
     if(label.size()==0){
         //no update needed
@@ -86,8 +87,8 @@ void Text::updateText(const std::string &l, int startIndex){
 }
 
 std::string Text::getText(){
-//    return Encoding::UTF32toUTF8(label);
-    return label;
+    return Encoding::UTF32toUTF8(label);
+//    return label;
 }
 
 
@@ -118,7 +119,7 @@ void Text::updateGLBuffer(int start, bool resize){
     }
 }
 
-bool Text::compressText(std::string &str, int &start){
+bool Text::compressText(utf32string &str, int &start){
     int newLength = str.size() + start;
     size = newLength;
 
@@ -146,15 +147,15 @@ bool Text::compressText(std::string &str, int &start){
 }
 
 
-void Text::addTextToMesh(const std::string &text, vec2 offset){
+void Text::addTextToMesh(const utf32string &text, vec2 offset){
 //    cout << "addTextToMesh '"<<text<<"' " << offset << endl;
 
-    std::vector<uint32_t> utf32string = Encoding::UTF8toUTF32(text);
+//    std::vector<uint32_t> utf32string = Encoding::UTF8toUTF32(text);
 
 //    cout<<"convert back "<<Encoding::UTF32toUTF8(utf32string)<<endl;
     vec2 position = offset;
     VertexNT verts[4];
-    for(uint32_t c : utf32string){
+    for(uint32_t c : text){
 //        cout<<"create text mesh "<<std::dec<<(int)c<<" "<<std::hex<<(int)c<<" "<<c<<endl;
         const TextureAtlas::character_info &info = textureAtlas->getCharacterInfo((int)c);
 
