@@ -47,7 +47,7 @@ int TextDebugOverlay::createItem(const std::string &name, int valueChars)
 
 
 //    textGenerator->updateText(entry.text,name+std::string(valueChars,' '),0);
-    entry.text->updateText(name+std::string(valueChars,'\0'),0);
+    entry.text->updateText(name,0);
     aabb bb = entry.text->getAabb();
     bb.growBox(textureAtlas->getMaxCharacter());
 
