@@ -416,6 +416,8 @@ void glfw_Window::setWindowIcon(Image* image){
 
 void Joystick::getCurrentStateFromGLFW()
 {
+    //TODO use glfwSetJoystickCallback(joystick_callback); (from glfw version 3.2)
+
     joystickId = -1;
     //check every frame, because controller may be disconnected in between
     for (int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; ++i){

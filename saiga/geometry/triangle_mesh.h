@@ -189,7 +189,6 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer){
 template<typename vertex_t, typename index_t>
 template<typename buffer_vertex_t, typename buffer_index_t>
 void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_vertex_t,buffer_index_t> &buffer){
-    cout<<"<<<<<<<<<<<<<<<<<<<ljfsf convert buffers"<<endl;
     std::vector<index_t> indices(faces.size()*3);
     std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
 
