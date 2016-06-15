@@ -94,11 +94,13 @@ void glfw_Window::disableMouseCursor()
 }
 
 bool glfw_Window::initGlfw(){
+	
     glfwSetErrorCallback(glfw_Window::error_callback);
+	cout << "Initializing GLFW." << endl;
     /* Initialize the library */
     if (!glfwInit())
         return false;
-
+	cout << "Initializing GLFW sucessfull!" << endl;
     return true;
 }
 
