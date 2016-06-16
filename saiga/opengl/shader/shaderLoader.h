@@ -10,6 +10,7 @@
 class SAIGA_GLOBAL ShaderLoader : public Loader<Shader,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
     friend class Singleton <ShaderLoader>;
 public:
+	bool addLineDirectives = false;
     virtual ~ShaderLoader(){}
     Shader* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
     template<typename shader_t> shader_t* load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
@@ -56,6 +57,7 @@ template<typename shader_t>
 shader_t* ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
 
     ShaderPartLoader spl(name,sci);
+	spl.addLineDirectives = addLineDirectives;
     if(spl.load()){
         return spl.createShader<shader_t>();
     }

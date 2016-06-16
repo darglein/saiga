@@ -17,6 +17,9 @@ public:
 
     typedef std::vector<ShaderCodeInjection> ShaderCodeInjections;
 
+	//true if "#line <linenumber> <filename>" should be added
+	//at the beginning and around "#includes"
+	bool addLineDirectives = true;
     std::string file;
     ShaderCodeInjections injections;
 

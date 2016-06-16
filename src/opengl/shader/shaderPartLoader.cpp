@@ -110,15 +110,21 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
         if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
             std::string includeFileName = getFileFromInclude(file,line);
 
-            //add #line commands after #version and before and after #includes
-            ret.push_back("#line " + std::to_string(1) + " \"" + includeFileName + "\"");
-            ret.push_back(line);
-            ret.push_back("#line " + std::to_string(ret.size()-2) + " \"" + file + "\"");
-        }else if(version.size()<line.size() && line.compare(0, version.length(), version)==0){
+			if (addLineDirectives){
+				//add #line commands after #version and before and after #includes
+				ret.push_back("#line " + std::to_string(1) + " \"" + includeFileName + "\"");
+			}
+			ret.push_back(line);
+			if (addLineDirectives){
+				ret.push_back("#line " + std::to_string(ret.size() - 2) + " \"" + file + "\"");
+			}
+			}else if(version.size()<line.size() && line.compare(0, version.length(), version)==0){
             //add a #line command after the #version command
             ret.push_back(line);
-            std::string lineCommand = "#line " + std::to_string(ret.size()) + " \"" + file + "\"";
-            ret.push_back(lineCommand);
+			if (addLineDirectives){
+				std::string lineCommand = "#line " + std::to_string(ret.size()) + " \"" + file + "\"";
+				ret.push_back(lineCommand);
+			}
         }else{
             ret.push_back(line);
         }
