@@ -103,6 +103,7 @@ void ImageConverter::convert(Image& src, fipImage &dest){
 
 
 void ImageConverter::convert(fipImage &src, Image& dest){
+    assert(src.isValid());
     dest.width = src.getWidth();
     dest.height = src.getHeight();
 

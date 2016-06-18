@@ -7,4 +7,3 @@ General
 - templated image class
 - bezier+bspline curves + surfaces + teapot
 - controlable camera
-- better ssao

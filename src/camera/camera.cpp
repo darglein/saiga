@@ -2,7 +2,7 @@
 
 #define ANG2RAD 3.14159265358979323846/180.0
 
-Camera::Camera(const std::string &name) : name(name)
+Camera::Camera()
 {
 }
 
@@ -13,8 +13,7 @@ void Camera::setView(const mat4 &v){
     model = glm::inverse(view);
 
     this->position = vec3(model[3]);
-    //    recalculatePlanes();
-
+    this->rot = glm::quat_cast(model);
 }
 
 void Camera::setView(const vec3 &eye,const vec3 &center,const vec3 &up){

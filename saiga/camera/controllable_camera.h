@@ -1,6 +1,7 @@
 #pragma once
 
 #include <saiga/opengl/opengl.h>
+#include <saiga/camera/camera.h>
 #include <GLFW/glfw3.h>
 
 #include <saiga/util/glm.h>
@@ -11,7 +12,7 @@ static int maxCamId = 0;
 
 
 template<typename camera_t>
-class Controllable_Camera : public glfw_KeyListener , public glfw_MouseListener{
+class Controllable_Camera : public camera_t, public glfw_KeyListener , public glfw_MouseListener{
 private:
     bool dragging = false;
     double lastmx=0,lastmy=0;

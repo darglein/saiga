@@ -27,7 +27,7 @@ PointLight::PointLight():PointLight(Sphere())
 
 }
 
-PointLight::PointLight(const Sphere &sphere):cam("bla"),sphere(sphere){
+PointLight::PointLight(const Sphere &sphere):sphere(sphere){
 
     //    translateGlobal(sphere.pos);
 }
