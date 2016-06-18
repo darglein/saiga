@@ -26,7 +26,7 @@ public:
     Plane planes[6]; //for exact frustum culling
     Sphere boundingSphere; //for fast frustum culling
 
-    Camera(const std::string &name);
+    Camera();
 
     void setView(const mat4 &v);
     void setView(const vec3 &eye,const vec3 &center,const vec3 &up);
@@ -116,7 +116,7 @@ class SAIGA_GLOBAL PerspectiveCamera : public Camera{
 public:
     double fovy,  aspect;
     float tang;
-    PerspectiveCamera(const std::string &name):Camera(name){}
+    PerspectiveCamera(){}
     void setProj(float fovy, float aspect, float zNear, float zFar);
     friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
 
@@ -128,7 +128,7 @@ public:
 class SAIGA_GLOBAL OrthographicCamera : public Camera{
 public:
     float left,right,bottom,top;
-    OrthographicCamera(const std::string &name):Camera(name){}
+    OrthographicCamera(){}
     void setProj( float left, float right,float bottom,float top,float near,  float far);
 
     friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);

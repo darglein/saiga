@@ -1,6 +1,7 @@
 #pragma once
 
 #include <saiga/opengl/opengl.h>
+#include <saiga/camera/camera.h>
 #include <GLFW/glfw3.h>
 
 #include <saiga/util/glm.h>
@@ -11,7 +12,7 @@ static int maxCamId = 0;
 
 
 template<typename camera_t>
-class Controllable_Camera : public glfw_KeyListener , public glfw_MouseListener{
+class Controllable_Camera : public camera_t, public glfw_KeyListener , public glfw_MouseListener{
 private:
     bool dragging = false;
     double lastmx=0,lastmy=0;
@@ -22,7 +23,6 @@ private:
     int camId;
 
 public:
-    camera_t* cam;
     float movementSpeed = 1;
     float movementSpeedFast = 5;
 
@@ -46,10 +46,10 @@ public:
 
     int buttonDrag = GLFW_MOUSE_BUTTON_3;
 
-    Controllable_Camera(camera_t* cam):cam(cam){
+    Controllable_Camera(){
 //        cout << "Controllable_Camera() "<< endl;
-        positionAtUpdate  = cam->getPosition();
-        cam->rot = glm::quat_cast(cam->model);
+        positionAtUpdate  = this->getPosition();
+        this->rot = glm::quat_cast(this->model);
 
         camId = maxCamId++;
     }
@@ -100,8 +100,8 @@ void Controllable_Camera<camera_t>::disableInput()
 template<class camera_t>
 void Controllable_Camera<camera_t>::setPosition(const glm::vec3& cords)
 {
-    cam->setPosition(cords);
-    cam->calculateModel();
+    camera_t::setPosition(cords);
+    this->calculateModel();
     positionAtUpdate = vec3(cords);
 }
 
@@ -120,20 +120,20 @@ void Controllable_Camera<camera_t>::update(float delta){
     setPosition(positionAtUpdate);
     vec3 trans = delta*speed*FORWARD*vec3(0,0,-1) + delta*speed*RIGHT*vec3(1,0,0);
     vec3 transg =  vec3(0,1,0) * (delta*speed*keyPressed[Up]);
-    cam->translateLocal(trans);
-    cam->translateGlobal(transg);
-    cam->calculateModel();
-    cam->updateFromModel();
-    positionAtUpdate =vec3(cam->getPosition());
+    this->translateLocal(trans);
+    this->translateGlobal(transg);
+    this->calculateModel();
+    this->updateFromModel();
+    positionAtUpdate =vec3(this->getPosition());
 }
 
 template<class camera_t>
 void Controllable_Camera<camera_t>::predictInterpolate(float interpolation){
     vec3 interpolationTrans = (float)(1.0/60.0) * interpolation*movementSpeed*FORWARD*vec3(0,0,-1) + (float)(1.0/60.0) *interpolation*movementSpeed*RIGHT*vec3(1,0,0);
-    cam->setPosition(positionAtUpdate);
-    cam->translateLocal(interpolationTrans);
-    cam->calculateModel();
-    cam->updateFromModel();
+    this->setPosition(positionAtUpdate);
+    this->translateLocal(interpolationTrans);
+    this->calculateModel();
+    this->updateFromModel();
 }
 
 
@@ -181,9 +181,9 @@ bool Controllable_Camera<camera_t>::cursor_position_event(GLFWwindow* window, do
 //        cout << "drag " << camId << " " << xpos << "  " << ypos << endl;
         double relx = lastmx-xpos;
         double rely = lastmy-ypos;
-        cam->turn((float)relx*rotationSpeed,(float)rely*rotationSpeed);
-        cam->calculateModel();
-        cam->updateFromModel();
+        this->turn((float)relx*rotationSpeed,(float)rely*rotationSpeed);
+        this->calculateModel();
+        this->updateFromModel();
 
         //prevent recursive call
         recursive = true;

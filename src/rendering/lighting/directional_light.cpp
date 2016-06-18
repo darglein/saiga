@@ -35,7 +35,7 @@ void DirectionalLightShader::uploadSsaoTexture(raw_Texture *texture)
 //    m->createBuffers(buffer);
 //}
 
-DirectionalLight::DirectionalLight():cam("Sun")
+DirectionalLight::DirectionalLight()
 {
 
 

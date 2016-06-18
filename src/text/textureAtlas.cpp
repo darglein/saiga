@@ -33,6 +33,9 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
 
     uniqueFontString = font+"."+std::to_string(fontSize)+"_"+std::to_string(quality)+"_"+std::to_string(searchRange)+"_"+blockString+".sdf";
 
+    //add an 'empty' character for new line
+    characterInfoMap['\n'] = character_info();
+
     if(bufferToFile && readAtlasFromFiles()){
         return;
     }
@@ -51,6 +54,8 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
     if(bufferToFile){
         writeAtlasToFiles(img);
     }
+
+
 
 
     textureAtlas = new Texture();
