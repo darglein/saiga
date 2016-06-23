@@ -6,6 +6,13 @@
 #include <algorithm>
 
 struct GLFWwindow;
+enum class JoystickButton;
+
+class SAIGA_GLOBAL glfw_JoystickListener{
+public:
+    virtual ~glfw_JoystickListener(){}
+    virtual bool joystick_event(JoystickButton button, bool pressed) = 0;
+};
 
 class SAIGA_GLOBAL glfw_KeyListener{
 public:
@@ -42,6 +49,7 @@ private:
             return listener==l1.listener;
         }
     };
+    static std::vector<Listener<glfw_JoystickListener>> joystickListener;
     static std::vector<Listener<glfw_KeyListener>> keyListener;
     static std::vector<Listener<glfw_MouseListener>> mouseListener;
     static std::vector<Listener<glfw_ResizeListener>> resizeListener;
@@ -51,6 +59,15 @@ private:
     template<typename T>
     static void removeListener(std::vector<Listener<T>> &list, T* t);
 public:
+
+    /**
+     * @brief addJoysticklistener
+     * Adds a Joystick Listener, does not add it, if it is already added
+     */
+    static void addJoystickListener(glfw_JoystickListener* jl, int priority = 0);
+    static void removeJoystickListener(glfw_JoystickListener* kl);
+
+
     /**
      * @brief addKeyListener
      * Adds a Key Listener, does not add it, if it is already added
@@ -69,6 +86,9 @@ public:
     static void removeResizeListener(glfw_ResizeListener* kl);
 
 public:
+    //called from glfw window joystick //NOTE it is called inside the update step, not the glfwPollEvents function
+    static void joystick_key_callback(JoystickButton button,bool pressed);
+
     static void window_size_callback(GLFWwindow* window, int width, int height);
 
     //these functions will be called by glfw from the method glfwPollEvents();

@@ -17,7 +17,13 @@
 //#include <thread>
 //#endif
 
+Joystick* global_joystick = nullptr;
 
+void joystick_callback_wrapper(int joy, int event)
+{
+    assert(global_joystick);
+    global_joystick->joystick_callback(joy,event);
+}
 
 void glfw_Window_Parameters::setMode(bool fullscreen, bool borderLess)
 {
@@ -208,10 +214,10 @@ bool glfw_Window::initWindow()
     glfwPollEvents();
     glfwSwapBuffers(window);
 
+    global_joystick = &joystick;
 
-
-
-
+    glfwSetJoystickCallback(joystick_callback_wrapper);
+    joystick.enableFirstJoystick();
 
     return true;
 }
@@ -416,56 +422,5 @@ void glfw_Window::setWindowIcon(Image* image){
 
 
 
-void Joystick::getCurrentStateFromGLFW()
-{
-    //TODO use glfwSetJoystickCallback(joystick_callback); (from glfw version 3.2)
 
-    joystickId = -1;
-    //check every frame, because controller may be disconnected in between
-    for (int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; ++i){
-        if (glfwJoystickPresent(i)){
-            //cout << "found joystick: " <<  i <<  ": " << glfwGetJoystickName(i) <<endl;
-
-            //take first joystick
-            //cout << "using joystick: " <<  i <<endl;
-            joystickId = i;
-            break;
-        }
-    }
-
-    if (joystickId == -1){
-        return;
-    }
-    int count;
-    const float* axes = glfwGetJoystickAxes(joystickId, &count);
-    //TODO count
-
-    //TODO button binding
-    moveX =  axes[0];
-    moveY = axes[1];
-    fire = axes[2];
-    aimX = axes[4];
-    aimY = axes[3];
-
-
-    int buttons;
-    const unsigned char* ax = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttons);
-    //    for (int i = 0; i < buttons; ++i){
-    //        if (ax[i] == GLFW_PRESS){
-    //            cout << "pressed: " << i << endl;
-    //        }
-    //    }
-
-    buttonsPressed[Confirm] = ax[0];
-    buttonsPressed[Back] = ax[1];
-
-    buttonsPressed[Lookahead] = ax[4];
-
-    buttonsPressed[Up] = ax[10];
-    buttonsPressed[Down] = ax[12];
-    buttonsPressed[Left] = ax[13];
-    buttonsPressed[Right] = ax[11];
-
-
-}
 

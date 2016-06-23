@@ -3,40 +3,13 @@
 #include <saiga/config.h>
 #include "saiga/window/window.h"
 #include "saiga/glfw/glfw_eventhandler.h"
+#include "saiga/glfw/glfw_joystick.h"
 
 #include <array>
-
-
 
 struct GLFWwindow;
 struct GLFWcursor;
 class Image;
-
-struct SAIGA_GLOBAL Joystick{
-    bool enabled(){return joystickId != -1;}
-    int joystickId = -1;
-
-    float moveX = 0.f;
-    float moveY = 0.f;
-    float aimX = 0.f;
-    float aimY = 0.f;
-    float fire = 0.f;
-
-    enum Buttons{
-        Confirm,
-        Back,
-        Left,
-        Right,
-        Up,
-        Down,
-        Lookahead
-    };
-
-    std::array<bool, 7> buttonsPressed = {{}};
-
-    void getCurrentStateFromGLFW();
-};
-
 
 struct SAIGA_GLOBAL glfw_Window_Parameters{
     enum class Mode{

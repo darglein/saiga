@@ -4,31 +4,38 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include "saiga/glfw/glfw_joystick.h"
 
 
+std::vector<glfw_EventHandler::Listener<glfw_JoystickListener>> glfw_EventHandler::joystickListener;
 std::vector<glfw_EventHandler::Listener<glfw_KeyListener>> glfw_EventHandler::keyListener;
 std::vector<glfw_EventHandler::Listener<glfw_MouseListener>> glfw_EventHandler::mouseListener;
 std::vector<glfw_EventHandler::Listener<glfw_ResizeListener>> glfw_EventHandler::resizeListener;
 
 
+void glfw_EventHandler::addJoystickListener(glfw_JoystickListener *jl, int priority)
+{
+    addListener<glfw_JoystickListener>(joystickListener,jl,priority);
+}
+
+void glfw_EventHandler::removeJoystickListener(glfw_JoystickListener *jl)
+{
+    removeListener<glfw_JoystickListener>(joystickListener,jl);
+}
+
 void glfw_EventHandler::addKeyListener(glfw_KeyListener* kl,int priority){
-
     addListener<glfw_KeyListener>(keyListener,kl,priority);
-
 }
 
 
 void glfw_EventHandler::removeKeyListener(glfw_KeyListener *kl)
 {
-
     removeListener<glfw_KeyListener>(keyListener,kl);
-
 }
 
 
 void glfw_EventHandler::addMouseListener(glfw_MouseListener* l,int priority){
     addListener<glfw_MouseListener>(mouseListener,l,priority);
-
 }
 
 void glfw_EventHandler::removeMouseListener(glfw_MouseListener *l)
@@ -37,15 +44,24 @@ void glfw_EventHandler::removeMouseListener(glfw_MouseListener *l)
 }
 
 
-
 void glfw_EventHandler::addResizeListener(glfw_ResizeListener* l,int priority){
     addListener<glfw_ResizeListener>(resizeListener,l,priority);
 }
 
 void glfw_EventHandler::removeResizeListener(glfw_ResizeListener *l)
 {
-
     removeListener<glfw_ResizeListener>(resizeListener,l);
+}
+
+void glfw_EventHandler::joystick_key_callback(JoystickButton button, bool pressed)
+{
+    std::cout<<"joystick_key_callback "<<(int)button<<" "<<pressed<<std::endl;
+
+    //forward event to all listeners
+    for(auto &rl : joystickListener){
+        if(rl.listener->joystick_event(button,pressed))
+            return;
+    }
 }
 
 void glfw_EventHandler::window_size_callback(GLFWwindow *window, int width, int height)
