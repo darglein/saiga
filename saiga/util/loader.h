@@ -39,6 +39,7 @@ public:
 
 
     virtual object_t* load(const std::string &name, const param_t &params=param_t());
+    virtual object_t* getLoaded(const std::string &name, const param_t &params=param_t());
 
 protected:
     virtual object_t* exists(const std::string &name, const param_t &params=param_t());
@@ -75,8 +76,10 @@ template<typename object_t, typename param_t >
 object_t* Loader<object_t,param_t>::load(const std::string &name, const param_t &params){
 
     object_t* object = exists(name,params);
-    if(object)
+    if(object){
+        std::cerr << name << " already loaded!! " << std::endl;
         return object;
+    }
 
 
     for(std::string &path : locations){
@@ -95,3 +98,17 @@ object_t* Loader<object_t,param_t>::load(const std::string &name, const param_t 
 }
 
 
+
+template<typename object_t, typename param_t >
+object_t* Loader<object_t,param_t>::getLoaded(const std::string &name, const param_t &params){
+
+    object_t* object = exists(name,params);
+    if(object){
+        return object;
+    }
+
+    std::cout<< name << " not loaded !!!" <<std::endl;
+    assert(false);
+
+    return NULL;
+}

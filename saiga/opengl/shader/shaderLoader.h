@@ -14,6 +14,7 @@ public:
     virtual ~ShaderLoader(){}
     Shader* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
     template<typename shader_t> shader_t* load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
+    template<typename shader_t> shader_t* getLoaded(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
     template<typename shader_t> shader_t* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
 
     void reload();
@@ -25,9 +26,6 @@ public:
 
 template<typename shader_t>
 shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
-
-
-
     shader_t* object;
 
     for(data_t &data : objects){
@@ -51,6 +49,24 @@ shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCo
     objects.emplace_back(name,sci,object);
 
     return object;
+}
+
+template<typename shader_t>
+shader_t* ShaderLoader::getLoaded(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
+    shader_t* object;
+
+    for(data_t &data : objects){
+        if(std::get<0>(data)==name && std::get<1>(data)==sci){
+            object = dynamic_cast<shader_t*>(std::get<2>(data));
+            if(object != nullptr){
+                return object;
+            }
+        }
+    }
+
+    assert(false && "Shader was not loaded!");
+
+    return nullptr;
 }
 
 template<typename shader_t>

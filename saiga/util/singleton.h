@@ -8,15 +8,13 @@ template <typename C>
  public:
     static C* instance ()
     {
-//       if (!_instance)
-//          _instance = new C ();
         static C _instance;
        return &_instance;
     }
     virtual
     ~Singleton ()
     {
-//       _instance = nullptr;
+
     }
  private:
 
