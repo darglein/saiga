@@ -37,6 +37,16 @@ void PostProcessingShader::uploadScreenSize(vec4 size){
 
 
 
+void BrightnessShader::checkUniforms()
+{
+    PostProcessingShader::checkUniforms();
+    location_brightness = Shader::getUniformLocation("brightness");
+}
+
+void BrightnessShader::uploadAdditionalUniforms()
+{
+    Shader::upload(location_brightness, brightness);
+}
 
 
 
@@ -241,3 +251,5 @@ void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)
     first = false;
     //    glDisable(GL_FRAMEBUFFER_SRGB);
 }
+
+

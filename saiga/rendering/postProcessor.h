@@ -22,6 +22,16 @@ public:
     virtual void uploadAdditionalUniforms(){}
 };
 
+class SAIGA_GLOBAL BrightnessShader : public PostProcessingShader{
+public:
+    GLint location_brightness;
+    float brightness = 0.5f;
+
+    void setBrightness(float b){brightness=b;}
+
+    virtual void checkUniforms();
+    virtual void uploadAdditionalUniforms();
+};
 
 
 class SAIGA_GLOBAL LightAccumulationShader : public DeferredShader{
