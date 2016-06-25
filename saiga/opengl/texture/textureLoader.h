@@ -23,12 +23,13 @@ public:
      * Loads an image from file.
      * Uses libfreeimage if possible and libpng otherwise.
      */
-    bool loadImage(const std::string &path, Image& outImage);
+    bool loadImage(const std::string &path, Image& outImage) const;
 
     /**
      * Saves an image to file.
      * Uses libfreeimage if possible and libpng otherwise.
      */
-    bool saveImage(const std::string &path, Image& image);
+    bool saveImage(const std::string &path, Image& image) const;
+    Texture *textureFromImage(Image &im, const TextureParameters &params) const;
 };
 

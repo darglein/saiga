@@ -8,6 +8,21 @@ bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {
     return std::tie(lhs.srgb) == std::tie(rhs.srgb);
 }
 
+
+
+Texture* TextureLoader::textureFromImage(Image &im, const TextureParameters &params) const{
+    Texture* text = new Texture();
+
+    im.Format().setSrgb(params.srgb);
+    bool erg = text->fromImage(im);
+    if(erg){
+        return text;
+    }else{
+        delete text;
+    }
+    return nullptr;
+}
+
 Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParameters &params){
 
     bool erg;
@@ -33,12 +48,10 @@ Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParam
         delete text;
     }
 
-
-
     return nullptr;
 }
 
-bool TextureLoader::loadImage(const std::string &path, Image &outImage)
+bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
 {
     bool erg = false;
 
@@ -59,7 +72,7 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage)
     return erg;
 }
 
-bool TextureLoader::saveImage(const std::string &path, Image &image)
+bool TextureLoader::saveImage(const std::string &path, Image &image) const
 {
 
     fipImage fipimage;

@@ -102,7 +102,7 @@ void Joystick::getCurrentStateFromGLFW()
 
 void Joystick::checkButton(JoystickButton b, const unsigned char* ax){
     bool old = buttonsPressed[static_cast<int>(b)];
-    int newb = ax[static_cast<int>(b)];
+    bool newb = (ax[static_cast<int>(b)] == GLFW_PRESS);
     if (old != newb){
         glfw_EventHandler::joystick_key_callback(b,newb);
         buttonsPressed[static_cast<int>(b)] = newb;

@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <tuple>
+#include "assert.h"
 
 struct SAIGA_GLOBAL NoParams{
 //    bool operator==(const NoParams& other){
@@ -40,6 +41,7 @@ public:
 
     virtual object_t* load(const std::string &name, const param_t &params=param_t());
     virtual object_t* getLoaded(const std::string &name, const param_t &params=param_t());
+    void put(const std::string &name, object_t* obj, const param_t &params=param_t());
 
 protected:
     virtual object_t* exists(const std::string &name, const param_t &params=param_t());
@@ -111,4 +113,13 @@ object_t* Loader<object_t,param_t>::getLoaded(const std::string &name, const par
     assert(false);
 
     return NULL;
+}
+
+template<typename object_t, typename param_t >
+void Loader<object_t,param_t>::put(const std::string &name, object_t* obj, const param_t &params){
+
+    assert(!exists(name,params) && "object was already loaded!");
+    assert(obj);
+
+    objects.emplace_back(name,params,obj);
 }
