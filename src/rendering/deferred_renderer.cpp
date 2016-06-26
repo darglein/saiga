@@ -9,7 +9,7 @@
 
 
 Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):
-    params(params), ssao(w,h), lighting(deferred_framebuffer)
+    ssao(w,h), params(params), lighting(deferred_framebuffer)
 {
     setSize(w,h);
 

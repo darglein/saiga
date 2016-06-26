@@ -6,4 +6,4 @@ General
 - init opengl and context always at beginning
 - templated image class
 - bezier+bspline curves + surfaces + teapot
-- controlable camera
+- sdl camera

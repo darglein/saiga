@@ -21,11 +21,6 @@ void Object3D::turn(float angleX, float angleY){
     if (model[1][1] < 0){
         model = modeltmp;
     }
-//    calculateModel();
-
-//    std::cout<<this->getDirection()<<" "<<(rot*vec4(0,0,1,0))<<std::endl;
-//    std::cout<<this->getRightVector()<<" "<<(rot*vec4(1,0,0,0))<<std::endl;
-//    std::cout<<this->getUpVector()<<" "<<(rot*vec4(0,1,0,0))<<std::endl;
 }
 
 

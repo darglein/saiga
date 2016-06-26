@@ -37,23 +37,27 @@ vec3 adjustBrightness(vec3 color, float brightness){
     brightness *= 2.0f;
     vec3 ret;
 
-
     vec3 hsv = rgb2hsv(color);
     hsv.z = pow(hsv.z,brightness);
     ret = hsv2rgb(hsv);
 
+    return ret;
+}
 
-//    ret = pow(color,vec3(brightness));
-//    ret = color;// + vec3(brightness);
+vec3 adjustBrightness2(vec3 color, float brightness){
+    brightness = 1.0f - brightness;
+    brightness *= 2.0f;
+    vec3 ret;
+    ret = pow(color,vec3(brightness));
     return ret;
 }
 
 void main() {
     ivec2 tci = ivec2(gl_FragCoord.xy);
-    vec3 rgbM = texelFetch( image, tci ,0).rgb;
+    vec4 rgbM = texelFetch( image, tci ,0);
 
-    rgbM = adjustBrightness(rgbM,brightness);
-    out_color = vec4(rgbM,1);
+    rgbM.rgb = adjustBrightness2(rgbM.rgb,brightness);
+    out_color = rgbM;
     return;
 }
 
