@@ -143,7 +143,7 @@ void ParticleSystem::updateParticleBuffer(){
     //    cout<<tick<<" ParticleSystem::updateParticleBuffer()"<<endl;
 
     if(newParticles>particleCount){
-        cout<<"warning: new particles spawned = "<<newParticles<<" , particle system size = "<<particleCount<<endl;
+//        cout<<"warning: new particles spawned = "<<newParticles<<" , particle system size = "<<particleCount<<endl;
         int size = particleCount;
         int offset = 0;
         particleBuffer.updateVertexBuffer(&particles[offset],size,offset);
