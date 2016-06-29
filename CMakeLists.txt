@@ -112,10 +112,15 @@ endif (USE_SDL)
 #GLFW
 if (USE_GLFW)
 	set(GLFW_LOCATION /home/um96udad/test/data)
-  find_package(GLFW REQUIRED)
+  	find_package(GLFW REQUIRED)
 	include_directories(${GLFW_INCLUDE_DIR})
 	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
 	message(STATUS "glfw include: ${GLFW_INCLUDE_DIR} glfw libraries: ${GLFW_LIBRARIES}")
+
+	if(NOT( ${GLFW_VERSION_MAJOR} GREATER 3 AND ${GLFW_VERSION_MINOR} GREATER 2)  )
+	  message( FATAL_ERROR "ERROR: Need at least GLFW version 3.2. -- found GLFW version ${GLFW_VERSION_MAJOR}.${GLFW_VERSION_MINOR}.${GLFW_VERSION_REVISION}" )
+	endif()
+
 endif (USE_GLFW)
 
 #libnoise
