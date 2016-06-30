@@ -4,10 +4,10 @@
 #include <string>
 #include <map>
 #include <vector>
-
+#include <saiga/config.h>
 using std::string;
 
-class Translator{
+class SAIGA_GLOBAL Translator{
 private:
     bool isCollecting = false;
     std::map<std::string,std::string> translations;
@@ -27,17 +27,17 @@ public:
 };
 
 
-extern Translator* translator;
+SAIGA_GLOBAL extern Translator* translator;
 
 namespace translation{
 /**
  * @param note note for the translator for the context
  */
-inline std::string tr(const std::string& str,const std::string& note = ""){
+SAIGA_GLOBAL inline std::string tr(const std::string& str,const std::string& note = ""){
     return translator->translate(str,note);
 }
 
-inline void addTranslation(const std::string& str,const std::string& note = ""){
+SAIGA_GLOBAL inline void addTranslation(const std::string& str,const std::string& note = ""){
     translator->collect(str,note);
 }
 }
