@@ -10,7 +10,6 @@ public:
 
 	Color();
     Color(int r, int g, int b, int a=255);
-    Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a=255);
     Color(float r, float g, float b, float a=255);
 
     Color(vec3 c);
