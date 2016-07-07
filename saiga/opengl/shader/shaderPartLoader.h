@@ -19,7 +19,8 @@ public:
 
 	//true if "#line <linenumber> <filename>" should be added
 	//at the beginning and around "#includes"
-	bool addLineDirectives = true;
+	//Default: false, because ati and intel drivers do not support this
+	bool addLineDirectives = false;
     std::string file;
     ShaderCodeInjections injections;
 
