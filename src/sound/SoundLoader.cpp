@@ -181,7 +181,7 @@ Sound *SoundLoader::loadOpusFile(const std::string &filename)
     alBufferData(sound->buffer, sound->format, (void*)data.data(),
                  sound->size, sound->frequency);
 
-    cout<<"Loaded opus file: "<<filename<<" ( "<<"bitRate="<<bitRate<<" memorydecoded="<<sound->size <<" channels="<<channels<<" )"<<endl;
+//    cout<<"Loaded opus file: "<<filename<<" ( "<<"bitRate="<<bitRate<<" memorydecoded="<<sound->size <<" channels="<<channels<<" )"<<endl;
     return sound;
 }
 #endif

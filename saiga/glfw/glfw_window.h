@@ -47,6 +47,8 @@ public:
 
     Joystick joystick;
 
+    bool gameloopDropAccumulatedUpdates = false;
+
 
     double lastSwapBuffersMS = 0;
     double lastPolleventsMS = 0;

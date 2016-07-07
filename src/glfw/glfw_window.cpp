@@ -127,11 +127,11 @@ bool glfw_Window::initWindow()
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
 
-    //don't allow other resolutions then the monitor ones in fullscreen mode
-    if(windowParameters.fullscreen()){
-        windowParameters.width = mode->width;
-        windowParameters.height = mode->height;
-    }
+//    //don't allow other resolutions than the native monitor ones in fullscreen mode
+//    if(windowParameters.fullscreen()){
+//        windowParameters.width = mode->width;
+//        windowParameters.height = mode->height;
+//    }
     this->width = windowParameters.width;
     this->height = windowParameters.height;
 
@@ -304,6 +304,12 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
                 joystick.getCurrentStateFromGLFW();
             update(dt);
 
+            //if this flag is set, drop some updates, NOTE: this will cause the game to run slower!
+            if (gameloopDropAccumulatedUpdates){
+                cout << "<Gameloop> Dropping accumulated updates." << endl;
+                next_game_tick = getTicksMS();
+                gameloopDropAccumulatedUpdates = false;
+            }
 
 
             SKIP_TICKS = ((double)SKIP_TICKS_NORMAL_TIME)/timeScale;

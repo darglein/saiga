@@ -14,6 +14,11 @@ class SAIGA_GLOBAL ParticleSystem : public Object3D
 {
 public:
     ArrayTexture2D* arrayTexture;
+    bool blending = true;
+
+    static float secondsPerTick;
+    static float ticksPerSecond;
+private:
 
     ParticleShader* particleShader;
     DeferredParticleShader* deferredParticleShader;
@@ -30,12 +35,10 @@ public:
     bool uploadDataNextUpdate = false;
     int tick = 0;
 
-    bool blending = true;
 
     float interpolation = 0.0f;
 
-    static float secondsPerTick;
-    static float ticksPerSecond;
+
 
 public:
     ParticleSystem(unsigned int particleCount=0);
