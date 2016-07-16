@@ -123,6 +123,69 @@ aabb Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, ve
     return resultBB;
 }
 
+aabb Layout::transformUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 relSize, Layout::Alignment alignmentX, Layout::Alignment alignmentY)
+{
+    relSize.x *= aspect;
+    vec3 s = box.max-box.min;
+
+
+//    s.x *= aspect;
+    s = vec3(relSize.x,relSize.y,1.0f) / vec3(s.x,s.y,1.0f);
+
+    cout << "s: " << s << endl;
+    cout << "test: " << (s * (box.max-box.min)) << " " << relSize << endl;
+
+    //use lower value of s.x and s.y to scale uniformly.
+    //-> The result will fit in the box
+    float ds = glm::min(s.x,s.y);
+
+    obj->scale = vec3(ds,ds,1);
+    obj->scale.x *= 1.0f/aspect;
+
+    //alignment
+    vec3 center = box.getPosition()*obj->scale;
+    vec3 bbmin = box.min*obj->scale;
+    vec3 bbmax = box.max*obj->scale;
+
+    vec3 alignmentOffset(0);
+
+    switch(alignmentX){
+    case LEFT:
+        alignmentOffset.x += bbmin.x;
+        break;
+    case RIGHT:
+        alignmentOffset.x += bbmax.x;
+        break;
+    case CENTER:
+        alignmentOffset.x += center.x;
+        break;
+    }
+
+    switch(alignmentY){
+    case LEFT:
+        alignmentOffset.y += bbmin.y;
+        break;
+    case RIGHT:
+        alignmentOffset.y += bbmax.y;
+        break;
+    case CENTER:
+        alignmentOffset.y += center.y;
+        break;
+    }
+
+
+    obj->position = vec3(relPos,0)-alignmentOffset;
+
+    aabb resultBB = aabb(box.min*s,box.max*s);
+    resultBB.setPosition(obj->position);
+
+    obj->scale *= scale;
+    obj->position  *= scale;
+    obj->calculateModel();
+
+    return resultBB;
+}
+
 glm::vec2 Layout::transformToLocal(glm::vec2 p)
 {
     return vec2(p.x/width*targetWidth,p.y/height*targetHeight);
