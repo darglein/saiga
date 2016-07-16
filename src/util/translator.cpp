@@ -137,7 +137,7 @@ void Translator::collect(const std::string &str, const std::string &note)
             if (p.second == ""){
                 p.second = note;
             } else {
-                if (note != ""){
+                if (note != p.second){
                     cout << "Warning: " << "different notes for translated string: " << str << endl;
                 }
             }
