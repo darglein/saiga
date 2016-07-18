@@ -132,8 +132,8 @@ aabb Layout::transformUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 
 //    s.x *= aspect;
     s = vec3(relSize.x,relSize.y,1.0f) / vec3(s.x,s.y,1.0f);
 
-    cout << "s: " << s << endl;
-    cout << "test: " << (s * (box.max-box.min)) << " " << relSize << endl;
+//    cout << "s: " << s << endl;
+//    cout << "test: " << (s * (box.max-box.min)) << " " << relSize << endl;
 
     //use lower value of s.x and s.y to scale uniformly.
     //-> The result will fit in the box

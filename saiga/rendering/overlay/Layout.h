@@ -19,8 +19,10 @@ class SAIGA_GLOBAL Layout{
 public:
     enum Alignment{
         LEFT = 0,
-        RIGHT,
-        CENTER
+        RIGHT = 1,
+        CENTER = 2,
+        TOP = 1,
+        BOTTOM = 0
     };
 
 //private:
