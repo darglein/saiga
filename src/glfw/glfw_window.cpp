@@ -41,6 +41,7 @@ void glfw_Window_Parameters::setMode(bool fullscreen, bool borderLess)
 glfw_Window::glfw_Window(const std::string &name, glfw_Window_Parameters windowParameters):
     Window(name,windowParameters.width,windowParameters.height),windowParameters(windowParameters)
 {
+    timer.start();
 }
 
 glfw_Window::~glfw_Window()
@@ -251,18 +252,51 @@ void glfw_Window::close()
     glfwTerminate();
 }
 
+long long glfw_Window::getTicksMS(){
+//    using namespace std::chrono;
+
+//    return  duration_cast<microseconds>(steady_clock::now().time_since_epoch()).count();
+
+    timer.stop();
+
+    return timer.getTimeMicrS();
+}
+
 void glfw_Window::startMainLoop(){
     running = true;
+
+    const long long SKIP_TICKS_NORMAL_TIME = 1000000 / 60.0;
+    long long SKIP_TICKS = SKIP_TICKS_NORMAL_TIME;
+    const float dt = 1.0f/60.0;
+
+    long long next_game_tick = getTicksMS();
+
     /* Loop until the user closes the window */
     while (running && !glfwWindowShouldClose(window))
     {
-        /* Render here */
-        //        eventHandler.update();
-        //        running &= !eventHandler.shouldQuit();
 
-        update(1.0/60.0);
+        update(dt);
+
+        //in case timescale was changed
+        SKIP_TICKS = ((double)SKIP_TICKS_NORMAL_TIME)/timeScale;
 
         render();
+
+        if (recordingVideo)
+            screenshotParallelWrite("screenshots/video/");
+
+        long long durationTicks = getTicksMS() - next_game_tick;
+
+        if (durationTicks < SKIP_TICKS){
+//            cout << "sleeping for " << (SKIP_TICKS - durationTicks) << endl;
+
+            //force framerate
+            std::this_thread::sleep_for(std::chrono::milliseconds((int)( (SKIP_TICKS - durationTicks)/1000)));
+        }
+
+
+        next_game_tick = getTicksMS();
+
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
 
@@ -273,11 +307,7 @@ void glfw_Window::startMainLoop(){
     }
 }
 
-long long getTicksMS(){
-    using namespace std::chrono;
 
-    return  duration_cast<microseconds>(steady_clock::now().time_since_epoch()).count();
-}
 
 void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond){
     const long long SKIP_TICKS_NORMAL_TIME = 1000000 / ticksPerSecond;

@@ -21,10 +21,20 @@ Window::Window(const std::string &name, int width, int height)
     :name(name),width(width),height(height),
 updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),fpsTimer(100){
 
-
 }
 
 Window::~Window(){
+
+    if (ssRunning){
+        ssRunning = false;
+
+        for (int i = 0; i < WRITER_COUNT; ++i){
+            sswriterthreads[i]->join();
+            delete sswriterthreads[i];
+        }
+    }
+
+
     delete renderer;
 }
 
@@ -165,6 +175,117 @@ void Window::screenshot(const std::string &file)
     auto idata = fipimg.accessPixels();
     memcpy(idata,data.data(),size);
     fipimg.save(file.c_str());
+
+}
+
+void Window::screenshotParallelWrite(const std::string &file){
+
+    if (currentScreenshot == 0){
+        cout<<"Starting " << WRITER_COUNT << " screenshot writers" <<file<<endl;
+        for (int i = 0; i < WRITER_COUNT; ++i){
+            sswriterthreads[i] = new std::thread(&Window::processScreenshots, this);
+        }
+        ssRunning = true;
+    }
+
+//    cout<<"Window::screenshotParallel "<<file<<endl;
+    int size = width*height*4;
+    std::vector<unsigned char> data(size);
+
+
+    //read data from default framebuffer and restore currently bound fb.
+    GLint fb;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,data.data());
+    glBindFramebuffer(GL_FRAMEBUFFER, fb);
+
+    for(int i = 0 ;i<size;i+=4){
+        unsigned char r = data[i];
+        unsigned char g = data[i+1];
+        unsigned char b = data[i+2];
+        unsigned char a = data[i+3];
+
+        a = 255; //remove transparency
+
+        // Little Endian (x86 / MS Windows, Linux) : BGR(A) order
+        data[i+FI_RGBA_RED] = r;
+        data[i+FI_RGBA_GREEN] = g;
+        data[i+FI_RGBA_BLUE] = b;
+        data[i+FI_RGBA_ALPHA] = a;
+    }
+
+//    fipImage fipimg;
+//    fipimg.setSize(	FIT_BITMAP,width,height,32);
+//    auto idata = fipimg.accessPixels();
+//    memcpy(idata,data.data(),size);
+//    fipimg.save(file.c_str());
+
+
+    std::shared_ptr<fipImage> fipimg = std::make_shared<fipImage>();
+    fipimg->setSize(	FIT_BITMAP,width,height,32);
+    auto idata = fipimg->accessPixels();
+    memcpy(idata,data.data(),size);
+
+    if (waitForWriters){
+
+        while(true){
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            lock.lock();
+            if (queue.size() < 5){
+                lock.unlock();
+                break;
+            }
+            lock.unlock();
+        }
+
+        waitForWriters = false;
+    }
+    lock.lock();
+    parallelScreenshotPath = file;
+    queue.push_back(fipimg);
+
+
+    if (queue.size() > 200){
+        waitForWriters = true;
+    }
+//        cout << "queue size: " << queue.size() << endl;
+
+    lock.unlock();
+}
+
+
+void Window::processScreenshots()
+{
+
+    while(ssRunning){
+        int cur;
+        bool took = false;
+        int queueSize = 0;
+        lock.lock();
+        std::shared_ptr<fipImage> f;
+        if (!queue.empty()){
+            f = queue.front();
+            queueSize = queue.size();
+            if (f){
+                took = true;
+                queue.pop_front();
+                cur = currentScreenshot++;
+            }
+        }
+
+        lock.unlock();
+
+        if (took){
+            long long start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            f->save((parallelScreenshotPath+ std::to_string(cur) + ".bmp").c_str());
+            cout << "write " << cur  << " (" <<queueSize << ") " << (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - start)/1000 << "ms"<< endl;
+
+
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
 }
 
 std::string Window::getTimeString()

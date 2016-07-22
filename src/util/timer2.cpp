@@ -22,7 +22,8 @@ void Timer2::start()
 	if (!QueryPerformanceFrequency(&li))
 		cout << "QueryPerformanceFrequency failed!\n";
 
-	PCFreq = double(li.QuadPart) / 1000.0;
+//    cout << "QueryPerformanceFrequency " << double(li.QuadPart) << endl;
+    PCFreqPerMicrSecond = double(li.QuadPart) / 1000000.0;
 
 	QueryPerformanceCounter(&li);
 	startTime = li.QuadPart;
@@ -47,10 +48,20 @@ void Timer2::stop()
 #endif
 }
 
+
+double Timer2::getTimeMicrS()
+{
+#ifdef WIN32
+    return lastTime / (PCFreqPerMicrSecond);
+#else
+    return lastTime;
+#endif
+}
+
 double Timer2::getTimeMS()
 {
 #ifdef WIN32
-	return lastTime / PCFreq;
+    return lastTime / (PCFreqPerMicrSecond*1000);
 #else
     return lastTime/1000.0;
 #endif
@@ -59,7 +70,7 @@ double Timer2::getTimeMS()
 double Timer2::getLastTimeMS()
 {
 #ifdef WIN32
-	return lastTime / PCFreq;
+    return lastTime / (PCFreqPerMicrSecond*1000);
 #else
     return lastTime/1000.0;
 #endif

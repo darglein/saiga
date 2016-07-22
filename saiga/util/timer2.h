@@ -18,6 +18,7 @@ public:
 
     virtual double getTimeMS();
     double getLastTimeMS();
+    double getTimeMicrS();
 protected:
     virtual void addMeassurment(time_interval_t time);
 //    double startTime;
@@ -26,7 +27,7 @@ protected:
 
 #ifdef WIN32
 	time_interval_t startTime;
-	double PCFreq = 0.0;
+    double PCFreqPerMicrSecond = 0.0;
 #else
 	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 #endif

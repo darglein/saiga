@@ -4,11 +4,16 @@
 #include "saiga/geometry/ray.h"
 #include <saiga/config.h>
 #include <string>
+#include <mutex>
+#include <memory>
+#include <list>
+#include <thread>
 
 class Camera;
 class Deferred_Renderer;
 class Program;
 struct RenderingParameters;
+class fipImage;
 
 class SAIGA_GLOBAL Window{
 public:
@@ -57,9 +62,24 @@ public:
 
     Ray createPixelRay(const glm::vec2 &pixel);
     vec2 projectToScreen(const glm::vec3 &pos);
+    void screenshotParallelWrite(const std::string &file);
 protected:
     void update(float dt);
     void render(float interpolation = 0.0f);
+
+private:
+    int currentScreenshot = 0;
+    std::string parallelScreenshotPath;
+
+    std::list<std::shared_ptr<fipImage>> queue;
+    std::mutex lock;
+    bool ssRunning = false;
+
+    bool waitForWriters = false;
+
+#define WRITER_COUNT 7
+    std::thread* sswriterthreads[WRITER_COUNT];
+    void processScreenshots();
 };
 
 inline int Window::getWidth(){

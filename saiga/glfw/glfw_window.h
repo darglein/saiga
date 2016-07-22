@@ -48,6 +48,7 @@ public:
     Joystick joystick;
 
     bool gameloopDropAccumulatedUpdates = false;
+    bool recordingVideo = false;
 
 
     double lastSwapBuffersMS = 0;
@@ -79,4 +80,8 @@ public:
     static void getCurrentPrimaryMonitorResolution(int *width, int *height);
     static void getMaxResolution(int *width, int *height);
     void setWindowIcon(Image *image);
+private:
+
+    Timer2 timer;
+    long long getTicksMS();
 };
