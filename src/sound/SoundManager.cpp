@@ -58,6 +58,7 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
     auto it = soundMap.find(file);
     if(it==soundMap.end()){
         std::cerr << "Sound not loaded: " << file << endl;
+        assert(false);
         return quietSoundSource;
     }else{
         sound = it->second;
@@ -115,6 +116,7 @@ SoundSource *SoundManager::getFixedSoundSource(const std::string &file, int id, 
     auto it = soundMap.find(file);
     if(it==soundMap.end()){
         std::cerr << "Sound not loaded: " << file << endl;
+        assert(false);
         return quietSoundSource;
     }else{
         sound = it->second;
@@ -177,13 +179,52 @@ void SoundManager::loadOpusSound(const std::string &file)
     assert_no_alerror();
 }
 
+void SoundManager::loadSoundByEnding(const std::string &file)
+{
+    assert(!parallelSoundLoaderRunning);
+
+    if(file.substr(file.find_last_of(".") + 1) == "opus") {
+         loadOpusSound(file);
+    } else if ((file.substr(file.find_last_of(".") + 1) == "wav")){
+        loadWaveSound(file);
+    } else {
+        cout << "Unknown file extension for sound file: " << file << endl;
+        assert(0);
+    }
+}
+
+void SoundManager::unloadSound(const std::string &file)
+{
+    assert(!parallelSoundLoaderRunning);
+    assert(soundMap.find(file) != soundMap.end());
+
+
+    auto it = soundMap.find(file);
+    if(it==soundMap.end()){
+        std::cerr << "Sound to unload was not loaded: " << file << endl;
+        assert(false);
+        return;
+    }else{
+        Sound* sound = it->second;
+        delete sound;
+        soundMap.erase(it);
+    }
+
+}
+
 void SoundManager::addSoundToParallelQueue(const std::string &file)
 {
     assert(!parallelSoundLoaderRunning);
     soundQueue.push_back(file);
 }
 
-bool SoundManager::soundAlreadyLoaded(const std::string &file)
+void SoundManager::addSoundToParallelQueueLock(const std::string &file)
+{
+    std::lock_guard<std::mutex> lock(soundQueueLock); //scoped lock
+    soundQueue.push_back(file);
+}
+
+bool SoundManager::soundAlreadyLoaded(const std::string &file) const
 {
     std::lock_guard<std::mutex> lock(soundMapLock); //scoped lock
 
@@ -193,6 +234,7 @@ bool SoundManager::soundAlreadyLoaded(const std::string &file)
     }else{
         cout << "Sound already loaded: " << file << endl;
         assert(0);
+        return true;
     }
 }
 
@@ -205,20 +247,23 @@ void SoundManager::insertLoadedSoundIntoMap(const std::string &file, Sound* soun
 
 void SoundManager::startParallelSoundLoader(int threadCount)
 {
-    assert(!parallelSoundLoaderRunning);
-    assert(soundLoaderThreads.size() == 0);
+    //    assert(!parallelSoundLoaderRunning);
+    //    assert(soundLoaderThreads.size() == 0);
     assert(threadCount > 0);
+    cout << "startParallelSoundLoader " << threadCount << endl;
 
-    this->threadCount = threadCount;
-    loadingDoneCounter.store(0);
+    int oldthreadCount = this->threadCount;
+    this->threadCount += threadCount;
+    loadingDoneCounter += threadCount;
     parallelSoundLoaderRunning = true;
-    for (int i = 0; i < threadCount; ++i){
+    for (int i = oldthreadCount; i < this->threadCount; ++i){
         soundLoaderThreads.push_back(new std::thread(&SoundManager::loadSoundsThreadStart, this));
     }
 }
 
 void SoundManager::joinParallelSoundLoader()
 {
+    cout << "joinParallelSoundLoader " << endl;
     assert(parallelSoundLoaderRunning);
     for (int i = 0; i < threadCount; ++i){
         soundLoaderThreads[i]->join();
@@ -226,13 +271,14 @@ void SoundManager::joinParallelSoundLoader()
     }
     soundLoaderThreads.clear();
     parallelSoundLoaderRunning = false;
+    this->threadCount = 0;
 
-    assert(loadingDoneCounter.load() == threadCount);
+    assert(loadingDoneCounter.load() == 0);
 }
 
 bool SoundManager::isParallelLoadingDone(){
     assert(parallelSoundLoaderRunning);
-    return loadingDoneCounter.load() == threadCount;
+    return loadingDoneCounter.load() == 0;
 }
 
 bool SoundManager::isParallelSoundLoaderNotJoined()
@@ -277,13 +323,15 @@ void SoundManager::loadSoundsThreadStart()
                 assert(0);
             }
         } else {
-//            cout << "sound list empty! joining... " << f << endl;
+            //            cout << "sound list empty! joining... " << f << endl;
             break;
-//            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
     }
 
-    loadingDoneCounter.fetch_add(1);
+    loadingDoneCounter -= 1;
+    cout << "sound loader thread finished " << endl;
+
 }
 
 

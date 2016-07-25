@@ -34,16 +34,16 @@ private:
     bool muted = false;
     int maxSources, fixedSources;
     int oldestSource = 0;
-    bool soundAlreadyLoaded(const std::string &file);
+    bool soundAlreadyLoaded(const std::string &file) const;
     void insertLoadedSoundIntoMap(const std::string &file, Sound *sound);
     void loadSoundsThreadStart();
 
-    int threadCount = -1;
+    int threadCount = 0;
     std::vector<std::thread*> soundLoaderThreads;
 
     std::list<std::string> soundQueue;
-    std::mutex soundQueueLock;
-    std::mutex soundMapLock;
+    mutable std::mutex soundQueueLock;
+    mutable std::mutex soundMapLock;
 
     bool parallelSoundLoaderRunning = false;
     std::atomic<int> loadingDoneCounter = {0};
@@ -81,11 +81,16 @@ public:
     void loadWaveSound(const std::string &file);
     void loadOpusSound(const std::string &file);
 
+    void loadSoundByEnding(const std::string &file);
+
+    void unloadSound(const std::string &file);
+
     void addSoundToParallelQueue(const std::string &file);
     void startParallelSoundLoader(int threadCount);
     void joinParallelSoundLoader();
     bool isParallelLoadingDone();
     bool isParallelSoundLoaderNotJoined();
+    void addSoundToParallelQueueLock(const std::string &file);
 };
 
 
