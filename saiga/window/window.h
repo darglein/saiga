@@ -60,9 +60,12 @@ public:
     Deferred_Renderer* getRenderer();
 
 
-    Ray createPixelRay(const glm::vec2 &pixel);
-    vec2 projectToScreen(const glm::vec3 &pos);
+    Ray createPixelRay(const glm::vec2 &pixel) const;
+    Ray createPixelRay(const glm::vec2 &pixel, const glm::vec2 &resolution, const glm::mat4 &inverseProj) const;
+    vec2 projectToScreen(const glm::vec3 &pos) const;
     void screenshotParallelWrite(const std::string &file);
+    vec3 screenToWorld(const glm::vec2 &pixel) const;
+    vec3 screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
 protected:
     void update(float dt);
     void render(float interpolation = 0.0f);
