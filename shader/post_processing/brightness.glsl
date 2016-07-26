@@ -45,8 +45,34 @@ vec3 adjustBrightness(vec3 color, float brightness){
 }
 
 vec3 adjustBrightness2(vec3 color, float brightness){
-    brightness = 1.0f - brightness;
-    brightness *= 2.0f;
+    //polynomial fit with
+    //(x,f(x))
+    //(0,high)
+    //(0.5,1)
+    //(1,low)
+
+        float high = 4.0f;
+        float low = 0.4f;
+
+    float d = 1;
+    float e = 1;
+
+    float a = mix(high-1,low-1,step(0.5f,brightness));
+    float x = 2 * brightness;
+    brightness = a*(x-d)*(x-d) + e;
+
+
+
+//    float t = 2*brightness;
+//    if(t < 1){
+//        brightness = (2*t*t*t-3*t*t+1)*high + (-2*t*t*t+3*t*t)*mid;
+//    }else{
+//        t = t-1;
+//        brightness = (2*t*t*t-3*t*t+1)*mid + (-2*t*t*t+3*t*t)*low;
+//    }
+
+//    brightness = 1.0f - brightness;
+//    brightness *= 2.0f;
     vec3 ret;
     ret = pow(color,vec3(brightness));
     return ret;
