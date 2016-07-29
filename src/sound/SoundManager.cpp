@@ -64,11 +64,13 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
         sound = it->second;
     }
 
+//    cout << "returning source " << oldestSource << endl;
     SoundSource* s  = &sources[oldestSource];
     if(s->isPlaying()){
         cout << "<SoundManager> Stopping sound before playing a new one!" << endl;
         s->stop();
     }
+
     s->reset(isMusic, isMusic ? musicVolume : effectsVolume);
     s->setSound(sound);
     oldestSource = glm::max( (oldestSource + 1) % maxSources, fixedSources );
@@ -147,6 +149,7 @@ void SoundManager::loadWaveSound(const std::string &file)
         Sound* loadedsound;
         if ((loadedsound = sl.loadWaveFile(file))!=0){
             soundMap[file] = loadedsound;
+//            loadedsound->name = file;
         } else {
             cout << "Could not load sound: " << file << endl;
             assert(0);
@@ -168,6 +171,7 @@ void SoundManager::loadOpusSound(const std::string &file)
         Sound* loadedsound;
         if ((loadedsound = sl.loadOpusFile(file))!=0){
             soundMap[file] = loadedsound;
+//            loadedsound->name = file;
         } else {
             cout << "Could not load sound: " << file << endl;
             assert(0);
@@ -242,6 +246,8 @@ void SoundManager::insertLoadedSoundIntoMap(const std::string &file, Sound* soun
 {
     std::lock_guard<std::mutex> lock(soundMapLock); //scoped lock
     soundMap[file] = sound;
+//    sound->name = file;
+
 
 }
 

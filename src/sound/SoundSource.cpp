@@ -19,7 +19,6 @@ SoundSource::SoundSource(Sound *sound) : sound(sound){
 
 SoundSource::SoundSource()
 {
-//    std::cout << "SoundSource::SoundSource()" << std::endl;
     alGenSources(1, &source);
     assert_no_alerror();
 }
@@ -30,6 +29,7 @@ SoundSource::~SoundSource()
 }
 
 void SoundSource::play(){
+//        std::cout << "playing " << sound->name << std::endl;
 #ifndef NO_SOUND
     if (!sound)
         return;

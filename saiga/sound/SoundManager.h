@@ -17,7 +17,13 @@ class SoundSource;
 class Sound;
 
 
-
+/**
+ * @brief The SoundManager class
+ * It generates "maxSources" OpenAL soundsources and reuses them cyclic.
+ * Be careful, on reuse a "clicking noise" may be heard, that happens probably because the sound does not start with some quiet samples.
+ * Fix 1: Add silence on the start of the sound.
+ * Fix 2: Rewrite this class to not reuse sound sources but generate new ones, but care for performance!
+ */
 class SAIGA_GLOBAL SoundManager
 {
 private:

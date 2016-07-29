@@ -24,6 +24,7 @@ public:
     int size;
     int frequency;
     int format;
+//    std::string name = "test";
 
     Sound ();
     virtual ~Sound ();
