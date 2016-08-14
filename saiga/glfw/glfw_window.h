@@ -36,7 +36,7 @@ struct SAIGA_GLOBAL glfw_Window_Parameters{
 };
 
 class SAIGA_GLOBAL glfw_Window : public Window, public glfw_ResizeListener{
-protected:
+public:
     GLFWwindow* window = nullptr;
     glfw_Window_Parameters windowParameters;
     double timeScale = 1.f;
