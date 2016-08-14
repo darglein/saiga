@@ -301,8 +301,8 @@ bool    ImGui_GLFW_Renderer::init(GLFWwindow* window, std::string font)
     io.ImeWindowHandle = glfwGetWin32Window(g_Window);
 #endif
 
-        glfw_EventHandler::addKeyListener(this,0);
-        glfw_EventHandler::addMouseListener(this,0);
+        glfw_EventHandler::addKeyListener(this,10);
+        glfw_EventHandler::addMouseListener(this,10);
 
 
         io.Fonts->AddFontFromFileTTF(font.c_str(), 15.0f);
@@ -315,6 +315,11 @@ void ImGui_GLFW_Renderer::shutdown()
 {
     ImGui_ImplGlfwGL3_InvalidateDeviceObjects();
     ImGui::Shutdown();
+}
+
+void ImGui_GLFW_Renderer::checkWindowFocus()
+{
+    isFocused |= ImGui::IsWindowFocused();
 }
 
 void ImGui_GLFW_Renderer::beginFrame()
@@ -362,6 +367,7 @@ void ImGui_GLFW_Renderer::beginFrame()
     // Hide OS mouse cursor if ImGui is drawing it
     glfwSetInputMode(g_Window, GLFW_CURSOR, io.MouseDrawCursor ? GLFW_CURSOR_HIDDEN : GLFW_CURSOR_NORMAL);
 
+    isFocused = false;
     // Start the frame
     ImGui::NewFrame();
 }
@@ -385,7 +391,7 @@ bool ImGui_GLFW_Renderer::key_event(GLFWwindow *window, int key, int scancode, i
     io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
     io.KeyAlt = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
-    return false;
+    return isFocused;
 }
 
 bool ImGui_GLFW_Renderer::character_event(GLFWwindow *window, unsigned int codepoint)
@@ -393,7 +399,7 @@ bool ImGui_GLFW_Renderer::character_event(GLFWwindow *window, unsigned int codep
     ImGuiIO& io = ImGui::GetIO();
     if (codepoint > 0 && codepoint < 0x10000)
         io.AddInputCharacter((unsigned short)codepoint);
-    return false;
+    return isFocused;
 }
 
 bool ImGui_GLFW_Renderer::cursor_position_event(GLFWwindow *window, double xpos, double ypos)
@@ -405,11 +411,11 @@ bool ImGui_GLFW_Renderer::mouse_button_event(GLFWwindow *window, int button, int
 {
     if (action == GLFW_PRESS && button >= 0 && button < 3)
         g_MousePressed[button] = true;
-    return false;
+    return isFocused;
 }
 
 bool ImGui_GLFW_Renderer::scroll_event(GLFWwindow *window, double xoffset, double yoffset)
 {
     g_MouseWheel += (float)yoffset; // Use fractional mouse wheel, 1.0 unit 5 lines.
-    return false;
+    return isFocused;
 }
