@@ -96,7 +96,7 @@ T InputController::Operation::Arguments::next(T (*arg)(const std::string&,std::s
     try{
         i = arg(args, &idx,10);
         args = args.substr(idx);
-    }catch(std::exception e){
+    }catch(const std::exception& e){
         *os<<"Invalid Arguments!"<<std::endl;
         valid = false;
     }
@@ -113,7 +113,8 @@ T InputController::Operation::Arguments::next(T (*arg)(const std::string&,std::s
     try{
         i = arg(args, &idx);
         args = args.substr(idx);
-    }catch(std::exception e){
+	}
+	catch (const std::exception& e){
         *os<<"Invalid Arguments!"<<std::endl;
         valid = false;
     }

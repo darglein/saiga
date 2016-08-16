@@ -319,7 +319,8 @@ void ImGui_GLFW_Renderer::shutdown()
 
 void ImGui_GLFW_Renderer::checkWindowFocus()
 {
-    isFocused |= ImGui::IsWindowFocused();
+//    isFocused |= ImGui::IsWindowFocused();
+    wantsCaptureMouse |= ImGui::GetIO().WantCaptureMouse;
 }
 
 void ImGui_GLFW_Renderer::beginFrame()
@@ -367,7 +368,8 @@ void ImGui_GLFW_Renderer::beginFrame()
     // Hide OS mouse cursor if ImGui is drawing it
     glfwSetInputMode(g_Window, GLFW_CURSOR, io.MouseDrawCursor ? GLFW_CURSOR_HIDDEN : GLFW_CURSOR_NORMAL);
 
-    isFocused = false;
+//    isFocused = false;
+    wantsCaptureMouse = false;
     // Start the frame
     ImGui::NewFrame();
 }
@@ -391,7 +393,8 @@ bool ImGui_GLFW_Renderer::key_event(GLFWwindow *window, int key, int scancode, i
     io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
     io.KeyAlt = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
-    return isFocused;
+//    return wantsCaptureMouse;
+    return false;
 }
 
 bool ImGui_GLFW_Renderer::character_event(GLFWwindow *window, unsigned int codepoint)
@@ -399,7 +402,8 @@ bool ImGui_GLFW_Renderer::character_event(GLFWwindow *window, unsigned int codep
     ImGuiIO& io = ImGui::GetIO();
     if (codepoint > 0 && codepoint < 0x10000)
         io.AddInputCharacter((unsigned short)codepoint);
-    return isFocused;
+    return false;
+//    return wantsCaptureMouse;
 }
 
 bool ImGui_GLFW_Renderer::cursor_position_event(GLFWwindow *window, double xpos, double ypos)
@@ -411,11 +415,13 @@ bool ImGui_GLFW_Renderer::mouse_button_event(GLFWwindow *window, int button, int
 {
     if (action == GLFW_PRESS && button >= 0 && button < 3)
         g_MousePressed[button] = true;
-    return isFocused;
+    return false;
+//    return wantsCaptureMouse;
 }
 
 bool ImGui_GLFW_Renderer::scroll_event(GLFWwindow *window, double xoffset, double yoffset)
 {
     g_MouseWheel += (float)yoffset; // Use fractional mouse wheel, 1.0 unit 5 lines.
-    return isFocused;
+    return false;
+//    return wantsCaptureMouse;
 }

@@ -73,7 +73,7 @@ struct SAIGA_GLOBAL BoneVertexNC{
     }
 
 
-    void apply(std::vector<mat4> boneMatrices){
+    void apply(const std::vector<mat4>& boneMatrices){
         mat4 boneMatrix(0);
         for(int i=0;i<BONES_PER_VERTEX;++i){
             int index = (int)boneIndices[i];

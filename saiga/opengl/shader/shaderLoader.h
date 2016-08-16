@@ -39,7 +39,7 @@ shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCo
 
     std::string fullName = shaderPathes.getFile(name);
 
-    if(fullName == ""){
+    if(fullName.empty()){
         std::cout<<"Could not find file '"<<name<<"'. Make sure it exists and the search pathes are set."<<std::endl;
         assert(0);
     }

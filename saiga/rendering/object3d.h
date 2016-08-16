@@ -53,15 +53,15 @@ public:
 
 inline mat4 Object3D::getModelMatrix() const
 {
-    mat4 model;
-    model = glm::mat4_cast(rot)*glm::scale(mat4(),scale);
-    model[3] = vec4(position,1);
-    return model;
+    mat4 mod;
+	mod = glm::mat4_cast(rot)*glm::scale(mat4(), scale);
+	mod[3] = vec4(position, 1);
+	return mod;
 }
 
 
-inline void Object3D::getModelMatrix(mat4 &model) const{
-    model = getModelMatrix();
+inline void Object3D::getModelMatrix(mat4 &mod) const{
+    mod = getModelMatrix();
 }
 
 inline void Object3D::calculateModel(){

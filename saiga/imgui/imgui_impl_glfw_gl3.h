@@ -30,7 +30,8 @@ protected:
     static void ImGui_ImplGlfwGL3_SetClipboardText(const char *text);
     bool ImGui_ImplGlfwGL3_CreateFontsTexture();
 public:
-    bool isFocused = false;
+//    bool isFocused = false;
+    bool wantsCaptureMouse = false;
 
     bool        init(GLFWwindow* window, std::string font);
     void        shutdown();
