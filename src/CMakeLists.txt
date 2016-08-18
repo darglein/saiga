@@ -40,6 +40,10 @@ if (USE_OPENAL)
 	SET(PROG_SRC ${PROG_SRC} ${OPENAL_SRC})
 endif (USE_OPENAL)
 
+if (USE_FFMPEG)
+	FILE(GLOB_RECURSE ffmpeg_SRC  ffmpeg/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${ffmpeg_SRC})
+endif()
 
 #creates 'folders' in the solution explorer of visual studio
 include(source_group_helper)

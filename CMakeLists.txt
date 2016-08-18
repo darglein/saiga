@@ -56,6 +56,7 @@ option (USE_ALUT "Use ALUT" OFF)
 option (USE_ASSIMP "Use Assimp" OFF) 
 option (USE_PNG "Use PNG" OFF) 
 option (USE_FREEIMAGE "Use FREEIMAGE" ON) 
+option (USE_FFMPEG "Use FFMPEG" OFF) 
 
 option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
@@ -108,19 +109,22 @@ if (USE_SDL)
 	SET(LIBS ${LIBS} ${SDL2_LIBRARY})
 endif (USE_SDL)
 
+#FFMPEG
+if (USE_FFMPEG)
+ 	find_package(FFMPEG REQUIRED)
+	include_directories(${FFMPEG_INCLUDE_DIR})
+	SET(LIBS ${LIBS} ${FFMPEG_LIBRARIES})
+endif (USE_FFMPEG)
 
 #GLFW
 if (USE_GLFW)
-	set(GLFW_LOCATION /home/um96udad/test/data)
   	find_package(GLFW REQUIRED)
 	include_directories(${GLFW_INCLUDE_DIR})
 	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
 	message(STATUS "glfw include: ${GLFW_INCLUDE_DIR} glfw libraries: ${GLFW_LIBRARIES}")
-
 	if(NOT( ${GLFW_VERSION_MAJOR} GREATER 2 AND ${GLFW_VERSION_MINOR} GREATER 1)  )
 	  message( FATAL_ERROR "ERROR: Need at least GLFW version 3.2. -- found GLFW version ${GLFW_VERSION_MAJOR}.${GLFW_VERSION_MINOR}.${GLFW_VERSION_REVISION}" )
 	endif()
-
 endif (USE_GLFW)
 
 #libnoise
