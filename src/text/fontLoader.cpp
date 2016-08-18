@@ -5,7 +5,7 @@
 #include "saiga/util/assert.h"
 
 #include <ft2build.h>
-#include <ftstroke.h>
+#include <freetype/ftstroke.h>
 
 FT_Library FontLoader::ft = nullptr;
 

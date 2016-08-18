@@ -37,6 +37,7 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
     characterInfoMap['\n'] = character_info();
 
     if(bufferToFile && readAtlasFromFiles()){
+//        cout << "maxCharacter: " << maxCharacter << endl;
         return;
     }
 
@@ -54,6 +55,8 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
     if(bufferToFile){
         writeAtlasToFiles(img);
     }
+
+//    cout << "maxCharacter: " << maxCharacter << endl;
 
 
 
@@ -96,6 +99,7 @@ void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Gly
         character_info &info = characterInfoMap[g.character];
         outImg.setSubImage(info.atlasPos.x,info.atlasPos.y,*g.bitmap);
     }
+    numCharacters = characterInfoMap.size();
 }
 
 void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &glyphs)
@@ -276,9 +280,13 @@ void TextureAtlas::writeAtlasToFiles(Image& img)
 
     std::ofstream stream (uniqueFontString,std::ofstream::binary);
     stream.write((char*)&numCharacters,sizeof(uint32_t));
+    int i = 0;
     for(std::pair<const int,character_info> ci : characterInfoMap){
         stream.write((char*)&ci.second,sizeof(character_info));
+        i ++;
     }
+//    cout << i << " Characters written to file." << endl;
+    assert(i == numCharacters);
 
     stream.write((char*)&maxCharacter,sizeof(aabb));
     stream.close();
@@ -296,6 +304,7 @@ bool TextureAtlas::readAtlasFromFiles()
         stream.read((char*)&ci,sizeof(character_info));
         characterInfoMap[ci.character] = ci;
     }
+//    cout << numCharacters << " Characters read from file." << endl;
     stream.read((char*)&maxCharacter,sizeof(aabb));
     stream.close();
 

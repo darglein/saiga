@@ -79,7 +79,7 @@ bool Window::init(const RenderingParameters& params){
     glDebugMessageCallback(Error::DebugLogWin32,NULL);
 #else
 #ifdef USE_GLEW
-    glDebugMessageCallback(Error::DebugLog,NULL);
+    glDebugMessageCallback(Error::DebugLogWin32,NULL);
 #endif
 #ifdef USE_GLBINDING
      glDebugMessageCallback(Error::DebugLogWin32,NULL);
