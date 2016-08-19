@@ -73,9 +73,11 @@ public:
     //======================================================
 
 
+
     size_t getSize();
 
 
     ImageFormat& Format();
     const ImageFormat& Format() const;
+    int getBytesPerRow() const;
 };

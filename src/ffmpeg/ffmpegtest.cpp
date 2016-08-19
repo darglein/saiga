@@ -545,6 +545,13 @@ static void video_decode_example(const char *outfilename, const char *filename)
     av_frame_free(&frame);
     printf("\n");
 }
+
+void testffmpeg(){
+    avcodec_register_all();
+    video_encode_example("test.mpg", AV_CODEC_ID_H264);
+//    video_decode_example("test%02d.pgm", "test.mpg");
+}
+
 int mainalsdhg(int argc, char **argv)
 {
     const char *output_type;

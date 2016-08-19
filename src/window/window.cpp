@@ -175,7 +175,6 @@ void Window::screenshot(const std::string &file)
     auto idata = fipimg.accessPixels();
     memcpy(idata,data.data(),size);
     fipimg.save(file.c_str());
-
 }
 
 void Window::screenshotParallelWrite(const std::string &file){

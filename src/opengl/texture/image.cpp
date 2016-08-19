@@ -12,6 +12,11 @@ Image::~Image()
 {
 }
 
+int Image::getBytesPerRow() const
+{
+    return bytesPerRow;
+}
+
 Image::byte_t *Image::getRawData()
 {
     return &data[0];
