@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
+#include <memory>
 
 //ffmpeg is compiled with a pure c compiler, so all includes need an 'extern "C"'.
 extern "C"{

@@ -146,7 +146,7 @@ void FFMPEGEncoder::finishEncoding()
     printf("\n");
 }
 
-void FFMPEGEncoder::startEncoding(const std::__cxx11::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate)
+void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate)
 {
     this->outWidth = outWidth;
     this->outHeight = outHeight;

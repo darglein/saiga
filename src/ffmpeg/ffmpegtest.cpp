@@ -334,7 +334,7 @@ static void video_encode_example(const char *filename, int codec_id)
     c->width = 352;
     c->height = 288;
     /* frames per second */
-    c->time_base = (AVRational){1,25};
+    c->time_base = {1,25};
     /* emit one intra frame every ten frames
      * check frame pict_type before passing frame
      * to encoder, if frame->pict_type is AV_PICTURE_TYPE_I
@@ -456,7 +456,7 @@ static int decode_write_frame(const char *outfilename, AVCodecContext *avctx,
         printf("Saving %sframe %3d\n", last ? "last " : "", *frame_count);
         fflush(stdout);
         /* the picture is allocated by the decoder, no need to free it */
-        snprintf(buf, sizeof(buf), outfilename, *frame_count);
+        //snprintf(buf, sizeof(buf), outfilename, *frame_count);
         pgm_save(frame->data[0], frame->linesize[0],
                  frame->width, frame->height, buf);
         (*frame_count)++;
@@ -548,8 +548,8 @@ static void video_decode_example(const char *outfilename, const char *filename)
 
 void testffmpeg(){
     avcodec_register_all();
-    audio_encode_example("test.mp2");
-//    video_encode_example("test.mpg", AV_CODEC_ID_H264);
+    audio_encode_example("test2.pcm");
+   video_encode_example("test2.h264", AV_CODEC_ID_H264);
 //    video_decode_example("test%02d.pgm", "test.mpg");
 }
 
