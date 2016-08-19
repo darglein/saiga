@@ -64,7 +64,7 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
         sound = it->second;
     }
 
-//    cout << "returning source " << oldestSource << endl;
+    //    cout << "returning source " << oldestSource << endl;
     SoundSource* s  = &sources[oldestSource];
     if(s->isPlaying()){
         cout << "<SoundManager> Stopping sound before playing a new one!" << endl;
@@ -149,7 +149,7 @@ void SoundManager::loadWaveSound(const std::string &file)
         Sound* loadedsound;
         if ((loadedsound = sl.loadWaveFile(file))!=0){
             soundMap[file] = loadedsound;
-//            loadedsound->name = file;
+            //            loadedsound->name = file;
         } else {
             cout << "Could not load sound: " << file << endl;
             assert(0);
@@ -171,7 +171,7 @@ void SoundManager::loadOpusSound(const std::string &file)
         Sound* loadedsound;
         if ((loadedsound = sl.loadOpusFile(file))!=0){
             soundMap[file] = loadedsound;
-//            loadedsound->name = file;
+            //            loadedsound->name = file;
         } else {
             cout << "Could not load sound: " << file << endl;
             assert(0);
@@ -188,7 +188,7 @@ void SoundManager::loadSoundByEnding(const std::string &file)
     assert(!parallelSoundLoaderRunning);
 
     if(file.substr(file.find_last_of(".") + 1) == "opus") {
-         loadOpusSound(file);
+        loadOpusSound(file);
     } else if ((file.substr(file.find_last_of(".") + 1) == "wav")){
         loadWaveSound(file);
     } else {
@@ -228,6 +228,7 @@ void SoundManager::addSoundToParallelQueueLock(const std::string &file)
     soundQueue.push_back(file);
 }
 
+
 bool SoundManager::soundAlreadyLoaded(const std::string &file) const
 {
     std::lock_guard<std::mutex> lock(soundMapLock); //scoped lock
@@ -246,7 +247,7 @@ void SoundManager::insertLoadedSoundIntoMap(const std::string &file, Sound* soun
 {
     std::lock_guard<std::mutex> lock(soundMapLock); //scoped lock
     soundMap[file] = sound;
-//    sound->name = file;
+    //    sound->name = file;
 
 
 }
@@ -415,6 +416,41 @@ void SoundManager::setTimeScale(float scale)
 
 
 
+void SoundManager::startCapturing()
+{
+    const int SRATE = 44100;
+    const int SSIZE = 1024;
+
+    captureDevice = alcCaptureOpenDevice(NULL, SRATE, AL_FORMAT_STEREO16, SRATE/2);
+    assert(captureDevice);
+    alcCaptureStart(captureDevice);
+
+    captureBuffer.resize(SRATE * 2 * 2);
+    assert_no_alerror();
+}
+
+void SoundManager::stopCapturing()
+{
+    alcCaptureStop(captureDevice);
+    alcCaptureCloseDevice(captureDevice);
+    assert_no_alerror();
+
+}
+
+int SoundManager::getCapturedSamples()
+{
+    if(!captureDevice)
+        return 0;
+
+    ALint sampleCount;
+    alcGetIntegerv(captureDevice, ALC_CAPTURE_SAMPLES,4, &sampleCount);
+
+    alcCaptureSamples(captureDevice, (ALCvoid *)captureBuffer.data(), sampleCount);
+//    cout << "captured "<<sampleCount << " samples"<<endl;
+    assert_no_alerror();
+
+    return sampleCount;
+}
 
 
 }

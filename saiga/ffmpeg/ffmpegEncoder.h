@@ -58,7 +58,7 @@ private:
 public:
     std::ofstream  outputStream;
 
-    FFMPEGEncoder(int bufferSize);
+    FFMPEGEncoder(int bufferSize = 50);
 
     void startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate);
     void createBuffers();

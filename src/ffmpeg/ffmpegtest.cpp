@@ -548,7 +548,8 @@ static void video_decode_example(const char *outfilename, const char *filename)
 
 void testffmpeg(){
     avcodec_register_all();
-    video_encode_example("test.mpg", AV_CODEC_ID_H264);
+    audio_encode_example("test.mp2");
+//    video_encode_example("test.mpg", AV_CODEC_ID_H264);
 //    video_decode_example("test%02d.pgm", "test.mpg");
 }
 

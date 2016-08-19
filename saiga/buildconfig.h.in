@@ -21,6 +21,7 @@
 #cmakedefine USE_PNG
 #cmakedefine USE_FREEIMAGE
 
+#cmakedefine USE_FFMPEG
 #cmakedefine USE_NOISE
 
 #cmakedefine SAIGA_DEBUG

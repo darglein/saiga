@@ -103,7 +103,7 @@ void FFMPEGEncoder::writeFrame(AVPacket& pkt)
 void FFMPEGEncoder::addFrame(std::shared_ptr<Image> image)
 {
 
-    cout << "Add frame. Queue states: Scale="<<imageQueue.count()<<" Encode="<<frameQueue.count()<<endl;
+//    cout << "Add frame. Queue states: Scale="<<imageQueue.count()<<" Encode="<<frameQueue.count()<<endl;
     imageQueue.add(image);
 
 
@@ -130,7 +130,7 @@ void FFMPEGEncoder::finishEncoding()
             exit(1);
         }
         if (got_output) {
-            cout << "Write delayed frame "<<pkt.pts << "(size="<<pkt.size<<")"<<endl;
+//            cout << "Write delayed frame "<<pkt.pts << "(size="<<pkt.size<<")"<<endl;
             outputStream.write((const char*)pkt.data,pkt.size);
             av_packet_unref(&pkt);
         }

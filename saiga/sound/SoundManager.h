@@ -12,9 +12,12 @@
 #include <mutex>
 #include <atomic>
 
+typedef struct ALCdevice_struct ALCdevice;
+
 namespace sound {
 class SoundSource;
 class Sound;
+
 
 
 /**
@@ -97,6 +100,14 @@ public:
     bool isParallelLoadingDone();
     bool isParallelSoundLoaderNotJoined();
     void addSoundToParallelQueueLock(const std::string &file);
+
+
+    //capturing
+     ALCdevice *captureDevice = nullptr;
+     std::vector<unsigned char> captureBuffer;
+    void startCapturing();
+    void stopCapturing();
+    int getCapturedSamples();
 };
 
 
