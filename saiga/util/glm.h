@@ -12,6 +12,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/random.hpp>
+#include "glm/gtx/quaternion.hpp"
 
 using std::ostream;
 
@@ -49,7 +50,7 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::quat& v);
 //============== Helper functions =================
 
 //returns quaternion that rotates v1 to v2
-SAIGA_GLOBAL glm::quat getRotation(const glm::vec3& v1, const glm::vec3& v2);
+SAIGA_GLOBAL inline glm::quat getRotation(const glm::vec3& v1, const glm::vec3& v2){return glm::rotation(v1,v2);}
 
 
 SAIGA_GLOBAL glm::vec3 sampleCone(const glm::vec3& dir, float angle);
