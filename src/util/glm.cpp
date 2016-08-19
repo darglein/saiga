@@ -1,6 +1,5 @@
 #include "saiga/util/glm.h"
 
-
 std::ostream& operator<<(std::ostream& os, const glm::vec4& v)
 {
     os<<"("<<v.x<<","<<v.y<<","<<v.z<<","<<v.w<<")";
@@ -78,32 +77,24 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::quat& v){
 
 // ===========================================================================
 
-quat getRotation(const glm::vec3& v1, const glm::vec3& v2){
-//    vec3 rotAxis = glm::cross(v1,v2);
+////TODO use glm::rotate
+//quat getRotation(const glm::vec3& v1, const glm::vec3& v2){
 
+//    //see http://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
 
-//    if(glm::length(rotAxis)<0.0001f){
-//        rotAxis = glm::cross(vec3(1.2055,0.24f,3.24),v1);
+//    float k_cos_theta = glm::dot(v1, v2);
+//    float k = glm::sqrt(glm::length(v1) * glm::length(v2));
+
+//    if (k_cos_theta / k == -1)
+//    {
+//      // 180 degree rotation around any orthogonal vector
+//      vec3 other = (glm::abs(glm::dot(v1, vec3(1,0,0))) < 1.0) ? vec3(1,0,0) : vec3(0,1,0);
+//      return glm::angleAxis(glm::pi<float>(),glm::normalize(glm::cross(v1, other)) );
 //    }
 
-//    float rotAngle = glm::acos(glm::dot(v1,v2));
-//    return glm::rotate(quat(),rotAngle,rotAxis);
+//    return glm::normalize(quat(k_cos_theta + k, glm::cross(v1, v2)));
+//}
 
-
-    //see http://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
-
-    float k_cos_theta = glm::dot(v1, v2);
-    float k = glm::sqrt(glm::length(v1) * glm::length(v2));
-
-    if (k_cos_theta / k == -1)
-    {
-      // 180 degree rotation around any orthogonal vector
-      vec3 other = (glm::abs(glm::dot(v1, vec3(1,0,0))) < 1.0) ? vec3(1,0,0) : vec3(0,1,0);
-      return glm::angleAxis(glm::pi<float>(),glm::normalize(glm::cross(v1, other)) );
-    }
-
-    return glm::normalize(quat(k_cos_theta + k, glm::cross(v1, v2)));
-}
 
 glm::vec3 sampleCone(const glm::vec3 &dir, float angle){
 
