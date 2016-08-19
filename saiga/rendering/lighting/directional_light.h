@@ -37,6 +37,7 @@ public:
     void setDirection(const vec3 &dir);
     void setFocus(const vec3 &pos);
     void setAmbientIntensity(float ai);
+    float getAmbientIntensity(){return ambientIntensity;}
 
 
 };
