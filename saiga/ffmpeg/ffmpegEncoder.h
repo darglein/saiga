@@ -58,6 +58,7 @@ private:
     void encodeThreadFunc();
 public:
     std::ofstream  outputStream;
+	//FILE *f;
 
     FFMPEGEncoder(int bufferSize = 50);
 

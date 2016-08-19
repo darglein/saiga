@@ -181,7 +181,7 @@ void FFMPEGAudioEncoder::startEncoding(const std::string &filename)
             " c->frame_size="<<c->frame_size<<
             endl;
 
-     outputStream.open(filename);
+	outputStream.open(filename, std::ios::out | std::ios::binary);
 
     /* frame containing input raw audio */
     frame = av_frame_alloc();
