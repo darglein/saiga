@@ -244,6 +244,12 @@ void PostProcessor::blitLast(int windowWidth, int windowHeight){
 
 }
 
+framebuffer_texture_t PostProcessor::getCurrentTexture()
+{
+//    cout << "returning txture " << currentBuffer << endl;
+    return framebuffers[currentBuffer].getTextureColor(0);
+}
+
 void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)
 {
     //compute shader test

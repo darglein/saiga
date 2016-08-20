@@ -85,4 +85,6 @@ public:
     void printTimings();
     void resize(int width, int height);
     void blitLast(int windowWidth, int windowHeight);
+
+    framebuffer_texture_t getCurrentTexture();
 };

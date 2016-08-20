@@ -217,7 +217,7 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
 
 	assert(ctx == nullptr);
 	ctx = sws_getContext(inWidth, inHeight,
-		AV_PIX_FMT_RGB24, c->width, c->height,
+        AV_PIX_FMT_RGBA, c->width, c->height,
 		AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
 	assert(ctx);
 
@@ -242,7 +242,7 @@ void FFMPEGEncoder::createBuffers()
 		std::shared_ptr<Image> img = std::make_shared<Image>();
 		img->width = inWidth;
 		img->height = inHeight;
-		img->Format() = ImageFormat(3, 8);
+        img->Format() = ImageFormat(4, 8);
 		img->create();
 		imageStorage.add(img);
 	}
