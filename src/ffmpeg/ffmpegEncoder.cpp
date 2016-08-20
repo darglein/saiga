@@ -81,7 +81,7 @@ bool FFMPEGEncoder::encodeFrame(AVFrame *frame, AVPacket& pkt)
 {
 
 	/* encode the image */
-	av_init_packet(&pkt);
+
 	pkt.data = NULL;    // packet data will be allocated by the encoder
 	pkt.size = 0;
 	int got_output;
@@ -195,7 +195,7 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
 	}
 
 
-
+    av_init_packet(&pkt);
 
 	frame = av_frame_alloc();
 	if (!frame) {

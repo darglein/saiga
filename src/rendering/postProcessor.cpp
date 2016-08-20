@@ -157,16 +157,16 @@ void PostProcessor::render()
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
-    for(int i = 0 ; i < effects-1; ++i){
+    for(int i = 0 ; i < effects; ++i){
         shaderTimer[i].startTimer();
         applyShader(postProcessingEffects[i]);
         switchBuffer();
         shaderTimer[i].stopTimer();
     }
 
-    shaderTimer[effects-1].startTimer();
-    applyShaderFinal(postProcessingEffects[effects-1]);
-    shaderTimer[effects-1].stopTimer();
+//    shaderTimer[effects-1].startTimer();
+//    applyShaderFinal(postProcessingEffects[effects-1]);
+//    shaderTimer[effects-1].stopTimer();
 
     glEnable(GL_DEPTH_TEST);
 
@@ -214,10 +214,14 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
     quadMesh.bindAndDraw();
     postProcessingShader->unbind();
 
-    framebuffers[currentBuffer].unbind();
+//    framebuffers[currentBuffer].unbind();
 
     first = false;
 
+}
+
+void PostProcessor::blitLast(){
+    framebuffers[lastBuffer].blitColor(0);
 }
 
 void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)

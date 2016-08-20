@@ -56,7 +56,7 @@ private:
     void saveNormalmaps();
 
     float getHeight(int x, int y);
-    float getHeight(int layer, unsigned int x, unsigned int y);
+    float getHeight(int layer, int x, int y);
     float getHeightScaled(int x, int y);
     float getHeightScaled(int layer, int x, int y);
     void setHeight(int x, int y, float v);

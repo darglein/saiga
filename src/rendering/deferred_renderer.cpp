@@ -145,6 +145,7 @@ void Deferred_Renderer::render_intern(){
     renderer->renderFinal(*currentCamera);
     stopTimer(FINAL);
 
+    postProcessor.blitLast();
 
     stopTimer(TOTAL);
 

@@ -19,8 +19,8 @@ void GBuffer::init(int w, int h, GBufferParameters params)
 //    multisampled_Texture_2D* msTexture = new multisampled_Texture_2D(4);
 //    msTexture->createEmptyTexture(w,h,GL_RGB,GL_SRGB8,GL_UNSIGNED_BYTE);
 
-    glEnable(GL_MULTISAMPLE); //enabled by default anyways
-    int samples = 16;
+//    glEnable(GL_MULTISAMPLE); //enabled by default anyways
+//    int samples = 16;
     Texture* color = new Texture();
 //    multisampled_Texture_2D* color = new multisampled_Texture_2D(samples);
     if(params.srgb){

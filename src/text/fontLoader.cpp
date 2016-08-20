@@ -123,8 +123,8 @@ void FontLoader::addGlyph(int charCode, int glyphPadding)
 
     glyphs.push_back(myGlyph);
 
-    for(int y = 0 ; y < source->rows  ; ++y){
-        for(int x = 0 ; x < source->width ; ++x){
+    for(int y = 0 ; y < (int)source->rows  ; ++y){
+        for(int x = 0 ; x < (int)source->width ; ++x){
             int byteIndex = y*source->pitch + x/8;
             int bitIndex = 7 - (x % 8);
             unsigned char c = source->buffer[byteIndex];

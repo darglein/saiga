@@ -74,7 +74,7 @@ private:
     character_info invalidCharacter;
     std::map<int,character_info> characterInfoMap;
 //    character_info characters[maxNumCharacters];
-    uint32_t numCharacters = 0;
+    int numCharacters = 0;
 //    std::vector<character_info> characterInfoMap = std::vector<character_info>(maxNumCharacters);
 
     basic_Texture_2D *textureAtlas = nullptr;

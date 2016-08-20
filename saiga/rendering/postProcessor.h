@@ -84,4 +84,5 @@ public:
 
     void printTimings();
     void resize(int width, int height);
+    void blitLast();
 };

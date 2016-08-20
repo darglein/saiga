@@ -143,8 +143,8 @@ void Heightmap::createInitialHeightmap(){
 
     normalizeHeightMap();
 
-    for(unsigned int x=0;x<heightmap[0].width;++x){
-        for(unsigned int y=0;y<heightmap[0].height;++y){
+    for(int x=0;x<heightmap[0].width;++x){
+        for(int y=0;y<heightmap[0].height;++y){
 
             float h = getHeight(x,y);
             h = h*max_res;
@@ -175,8 +175,8 @@ void Heightmap::normalizeHeightMap(){
 void Heightmap::createNormalmap(){
 
     for(int layer=0;layer<1;++layer){
-        for(unsigned int x=0;x<normalmap[layer].width;++x){
-            for(unsigned int y=0;y<normalmap[layer].height;++y){
+        for(int x=0;x<normalmap[layer].width;++x){
+            for(int y=0;y<normalmap[layer].height;++y){
 
                 vec3 norm(1.0f/w,1,1.0f/h);
                 //                vec3 scale = vec3(8*mapScaleInv.x,1,8*mapScaleInv.y) * norm;
@@ -236,7 +236,7 @@ float Heightmap::getHeightScaled(int x, int y){
     return getHeight(x,y)*heightScale;
 }
 
-float Heightmap::getHeight(int layer, unsigned int x, unsigned int y){
+float Heightmap::getHeight(int layer, int x, int y){
     Image &img = heightmap[layer];
 
 
@@ -273,8 +273,8 @@ void Heightmap::createRemainingLayers(){
         Image& next = heightmap[i];
         //reduce previous to get the next
         cout<<"reduce next "<<next.width<<" "<<next.height<<endl;
-        for(unsigned int x=0;x<next.width;++x){
-            for(unsigned int y=0;y<next.height;++y){
+        for(int x=0;x<next.width;++x){
+            for(int y=0;y<next.height;++y){
                 int xp = 2*x;
                 int yp = 2*y;
                 //read 4 pixel from previous and average them
