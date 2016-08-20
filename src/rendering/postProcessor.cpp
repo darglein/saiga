@@ -158,9 +158,9 @@ void PostProcessor::render()
     glDisable(GL_BLEND);
 
     for(int i = 0 ; i < effects; ++i){
+        switchBuffer();
         shaderTimer[i].startTimer();
         applyShader(postProcessingEffects[i]);
-        switchBuffer();
         shaderTimer[i].stopTimer();
     }
 
@@ -220,8 +220,13 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
 
 }
 
-void PostProcessor::blitLast(){
-    framebuffers[lastBuffer].blitColor(0);
+void PostProcessor::blitLast(int windowWidth, int windowHeight){
+//    framebuffers[lastBuffer].blitColor(0);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffers[currentBuffer].getId());
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, windowWidth, windowHeight,GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
 }
 
 void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)

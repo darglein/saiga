@@ -8,19 +8,22 @@
 
 
 
-Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):
-    ssao(w,h), params(params), lighting(deferred_framebuffer)
+Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters params):
+    windowWidth(windowWidth),windowHeight(windowHeight),
+    width(windowWidth*params.renderScale),height(windowHeight*params.renderScale),
+    ssao(windowWidth*params.renderScale,windowHeight*params.renderScale),
+    params(params), lighting(deferred_framebuffer)
 {
-    setSize(w,h);
+//    setSize(windowWidth,windowHeight);
 
 
-    deferred_framebuffer.init(w,h,params.gbp);
+    deferred_framebuffer.init(width,height,params.gbp);
 
-    lighting.init(w,h);
+    lighting.init(width,height);
 
     lighting.ssaoTexture = ssao.bluredTexture;
 
-    postProcessor.init(w, h,&deferred_framebuffer,params.ppp,lighting.lightAccumulationTexture);
+    postProcessor.init(width,height,&deferred_framebuffer,params.ppp,lighting.lightAccumulationTexture);
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -34,6 +37,8 @@ Deferred_Renderer::Deferred_Renderer(int w, int h, RenderingParameters params):
 
     blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("blitDepth.glsl");
 
+    cout << "Deferred Renderer initialized. Render resolution: " << width << "x" << height << endl;
+
 }
 
 Deferred_Renderer::~Deferred_Renderer()
@@ -43,15 +48,21 @@ Deferred_Renderer::~Deferred_Renderer()
 
 
 
-void Deferred_Renderer::resize(int width, int height)
+void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 {
-    if (width <= 0 || height <= 0){
-        cout << "Warning: The framebuffer size must be greater than zero to be complete." << endl;
-        width = glm::max(width, 1);
-        height = glm::max(height, 1);
+
+
+    if (windowWidth <= 0 || windowHeight <= 0){
+        cout << "Warning: The window size must be greater than zero to be complete." << endl;
+        windowWidth = glm::max(windowWidth, 1);
+        windowHeight = glm::max(windowHeight, 1);
     }
-    cout << "Resizing Gbuffer to : " << width << "," << height << endl;
-    setSize(width,height);
+    this->windowWidth = windowWidth;
+    this->windowHeight = windowHeight;
+    this->width = windowWidth * params.renderScale;
+    this->height = windowHeight * params.renderScale;
+    cout << "Resizing Window to : " << windowWidth << "," << windowHeight << endl;
+    cout << "Framebuffer size: " << width << " " << height << endl;
     postProcessor.resize(width,height);
     deferred_framebuffer.resize(width,height);
     ssao.resize(width,height);
@@ -145,7 +156,7 @@ void Deferred_Renderer::render_intern(){
     renderer->renderFinal(*currentCamera);
     stopTimer(FINAL);
 
-    postProcessor.blitLast();
+    postProcessor.blitLast(windowWidth,windowHeight);
 
     stopTimer(TOTAL);
 

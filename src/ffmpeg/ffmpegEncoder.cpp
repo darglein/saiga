@@ -221,7 +221,7 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
 		AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
 	assert(ctx);
 
-	outputStream.open("test" + filename, std::ios::out | std::ios::binary);
+    outputStream.open(filename, std::ios::out | std::ios::binary);
 	//f = fopen(filename.c_str(), "wb");
 	//if (!f) {
 	//	fprintf(stderr, "Could not open %s\n", filename);

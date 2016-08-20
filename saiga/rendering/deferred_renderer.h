@@ -41,6 +41,10 @@ struct SAIGA_GLOBAL RenderingParameters{
      */
     bool maskUsedPixels = true;
 
+
+    float renderScale = 1.0f; //a render scale of 2 is equivalent to 4xSSAA
+
+
     GBufferParameters gbp;
     PostProcessorParameters ppp;
     RenderingParameters(){}
@@ -106,14 +110,14 @@ public:
 
     RenderingParameters params;
     int width,height;
+    int windowWidth, windowHeight;
 
     DeferredLighting lighting;
-    Deferred_Renderer(int w, int h, RenderingParameters params);
+    Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters params);
 	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
     void init( int w, int h);
-    void setSize(int width, int height){this->width=width;this->height=height;}
-    void resize(int width, int height);
+    void resize(int windowWidth, int windowHeight);
 
 
     void render_intern();

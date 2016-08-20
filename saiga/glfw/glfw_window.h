@@ -19,8 +19,9 @@ struct SAIGA_GLOBAL glfw_Window_Parameters{
         borderLessFullscreen
     };
 
-    int width = 1600;
-    int height = 900;
+    int width = 1280;
+    int height = 720;
+
 
     Mode mode =  Mode::windowed;
     bool alwaysOnTop = false;

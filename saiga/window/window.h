@@ -47,6 +47,7 @@ public:
     void resize(int width, int height);
 
     void screenshot(const std::string &file);
+    void screenshotRender(const std::string &file);
     std::string getTimeString();
 
 

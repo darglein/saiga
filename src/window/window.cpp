@@ -144,36 +144,41 @@ void Window::resize(int width, int height)
 void Window::screenshot(const std::string &file)
 {
     cout<<"Window::screenshot "<<file<<endl;
-    int size = width*height*4;
-    std::vector<unsigned char> data(size);
 
+    int w = renderer->windowWidth;
+     int h = renderer->windowHeight;
+
+     fipImage fipimg;
+     fipimg.setSize(	FIT_BITMAP,w,h,24);
+     auto idata = fipimg.accessPixels();
+
+     //read data from default framebuffer and restore currently bound fb.
+     GLint fb;
+     glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
+//     renderer->postProcessor.bindCurrentBuffer();
+     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+     glReadPixels(0,0,w,h,GL_BGR,GL_UNSIGNED_BYTE,idata);
+     glBindFramebuffer(GL_FRAMEBUFFER, fb);
+     fipimg.save(file.c_str());
+
+}
+
+void Window::screenshotRender(const std::string &file)
+{
+    cout<<"Window::render screenshot "<<file<<endl;
+    int w = renderer->width;
+    int h = renderer->height;
+
+    fipImage fipimg;
+    fipimg.setSize(	FIT_BITMAP,w,h,24);
+    auto idata = fipimg.accessPixels();
 
     //read data from default framebuffer and restore currently bound fb.
     GLint fb;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,data.data());
+    renderer->postProcessor.bindCurrentBuffer();
+    glReadPixels(0,0,w,h,GL_BGR,GL_UNSIGNED_BYTE,idata);
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
-
-    for(int i = 0 ;i<size;i+=4){
-        unsigned char r = data[i];
-        unsigned char g = data[i+1];
-        unsigned char b = data[i+2];
-        unsigned char a = data[i+3];
-
-        a = 255; //remove transparency
-
-        // Little Endian (x86 / MS Windows, Linux) : BGR(A) order
-        data[i+FI_RGBA_RED] = r;
-        data[i+FI_RGBA_GREEN] = g;
-        data[i+FI_RGBA_BLUE] = b;
-        data[i+FI_RGBA_ALPHA] = a;
-    }
-
-    fipImage fipimg;
-    fipimg.setSize(	FIT_BITMAP,width,height,32);
-    auto idata = fipimg.accessPixels();
-    memcpy(idata,data.data(),size);
     fipimg.save(file.c_str());
 }
 
