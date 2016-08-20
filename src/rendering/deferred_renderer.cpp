@@ -132,11 +132,6 @@ void Deferred_Renderer::render_intern(){
     stopTimer(OVERLAY);
 
 
-    //write depth to default framebuffer
-    if(params.writeDepthToDefaultFramebuffer){
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        writeGbufferDepthToCurrentFramebuffer();
-    }
 
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
@@ -149,6 +144,13 @@ void Deferred_Renderer::render_intern(){
 
     //    deferred_framebuffer.blitDepth(0);
 
+
+    //write depth to default framebuffer
+    if(params.writeDepthToDefaultFramebuffer){
+//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        postProcessor.bindCurrentBuffer();
+        writeGbufferDepthToCurrentFramebuffer();
+    }
 
 
 

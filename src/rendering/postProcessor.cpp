@@ -67,7 +67,8 @@ void LightAccumulationShader::uploadLightAccumulationtexture(raw_Texture *textur
 void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params, Texture *LightAccumulationTexture)
 {
     this->params = params;
-    this->width=width;this->height=height;
+    this->width=width;
+    this->height=height;
     this->gbuffer = gbuffer;
 //    this->gbufferDepth = gbuffer->getTextureDepth();
 //    this->gbufferNormals = gbuffer->getTextureNormal();
@@ -94,17 +95,23 @@ void PostProcessor::nextFrame()
 
 void PostProcessor::createFramebuffers()
 {
+    Texture* depth = new Texture();
+    depth->createEmptyTexture(width,height,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_SHORT);
+
+    auto tex = framebuffer_texture_t(depth);
+
     for(int i = 0 ;i <2 ;++i){
         framebuffers[i].create();
 
-        if(i==0){
+//        if(i==0){
 //            Texture* depth_stencil = new Texture();
 //            depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
 //            framebuffers[i].attachTextureDepthStencil(depth_stencil);
-           Texture* depth = new Texture();
-           depth->createEmptyTexture(width,height,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_SHORT);
-           framebuffers[i].attachTextureDepth( framebuffer_texture_t(depth) );
-        }
+
+           framebuffers[i].attachTextureDepth( tex );
+
+//           framebuffers[1].attachTextureDepth( tex );
+//        }
 
 
         textures[i] = new Texture();
@@ -128,6 +135,8 @@ void PostProcessor::createFramebuffers()
         framebuffers[i].check();
         framebuffers[i].unbind();
     }
+    assert_no_glerror();
+
 }
 
 void PostProcessor::bindCurrentBuffer()
@@ -171,6 +180,7 @@ void PostProcessor::render()
     glEnable(GL_DEPTH_TEST);
 
 
+    assert_no_glerror();
 
     //    std::cout<<"Time spent on the GPU: "<< timer.getTimeMS() <<std::endl;
 }
@@ -198,6 +208,8 @@ void PostProcessor::resize(int width, int height)
     this->width=width;this->height=height;
     framebuffers[0].resize(width,height);
     framebuffers[1].resize(width,height);
+    assert_no_glerror();
+
 }
 
 void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
@@ -217,6 +229,8 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
 //    framebuffers[currentBuffer].unbind();
 
     first = false;
+    assert_no_glerror();
+
 
 }
 
@@ -226,6 +240,7 @@ void PostProcessor::blitLast(int windowWidth, int windowHeight){
     glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffers[currentBuffer].getId());
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, 0, width, height, 0, 0, windowWidth, windowHeight,GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    assert_no_glerror();
 
 }
 
@@ -259,6 +274,8 @@ void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)
 
     first = false;
     //    glDisable(GL_FRAMEBUFFER_SRGB);
+    assert_no_glerror();
+
 }
 
 
