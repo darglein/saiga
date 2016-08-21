@@ -50,6 +50,8 @@ public:
     void screenshotRender(const std::string &file);
     std::string getTimeString();
 
+    void setVideoRecordingLimit(int limit){queueLimit = limit;}
+
 
     void setProgram(Program* program);
 
@@ -78,6 +80,7 @@ private:
     std::list<std::shared_ptr<fipImage>> queue;
     std::mutex lock;
     bool ssRunning = false;
+    int queueLimit = 200;
 
     bool waitForWriters = false;
 

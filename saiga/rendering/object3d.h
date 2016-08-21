@@ -40,6 +40,8 @@ public:
     vec3 getScale() const;
     void setScale(const glm::vec3& s);
 
+    static quat getSimpleDirectionQuat(const glm::vec3 &dir);
+
     //todo: remove virtual methodes
     virtual ~Object3D(){}
     virtual void setPosition(const glm::vec3& cords);

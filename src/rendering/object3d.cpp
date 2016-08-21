@@ -2,14 +2,7 @@
 
 
 void Object3D::setSimpleDirection(const glm::vec3 &dir){
-    glm::mat4 rotmat;
-    rotmat[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
-    rotmat[1] = vec4(0,1,0,0);
-    rotmat[2] = vec4(-dir,0);
-
-    this->rot = glm::normalize(glm::quat(rotmat));
-
-//    calculateModel();
+    this->rot = getSimpleDirectionQuat(dir);
 }
 
 
@@ -31,6 +24,15 @@ void Object3D::rotateAroundPoint(const glm::vec3& point, const glm::vec3& axis, 
     quat qrot = glm::angleAxis(degreesToRadians(angle),axis);
     position = vec3(qrot*vec4(position,1));
     translateGlobal(point);
+}
+
+glm::quat Object3D::getSimpleDirectionQuat(const glm::vec3 &dir){
+    glm::mat4 rotmat;
+    rotmat[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
+    rotmat[1] = vec4(0,1,0,0);
+    rotmat[2] = vec4(-dir,0);
+
+    return glm::normalize(glm::quat(rotmat));
 }
 
 
