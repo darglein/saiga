@@ -19,7 +19,15 @@ extern "C"{
 #include <libavutil/imgutils.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/samplefmt.h>
-#include <libswscale/swscale.h>
+#include <libavutil/opt.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/common.h>
+#include <libavutil/imgutils.h>
+#include <libavutil/mathematics.h>
+#include <libavutil/samplefmt.h>
+#include "libavformat/avformat.h"
+#include "libswscale/swscale.h"
 }
 
 class SAIGA_GLOBAL FFMPEGEncoder{
@@ -43,9 +51,12 @@ private:
     volatile bool running = false;
     volatile bool finishScale = false;
     volatile bool finishEncode = false;
-    AVCodec *codec;
-    AVCodecContext *c= NULL;
-    AVFrame *frame;
+//    AVCodec *codec;
+//    AVCodecContext *c= NULL;
+
+    AVCodecContext *m_codecContext;
+    AVFormatContext* m_formatCtx;
+    int ticksPerFrame;
     AVPacket pkt;
     SwsContext * ctx = nullptr;
     Timer2 timer1, timer2, timer3;
@@ -56,13 +67,15 @@ private:
     bool scaleFrame();
     void scaleThreadFunc();
     void encodeThreadFunc();
+    int64_t getNextFramePts();
 public:
-    std::ofstream  outputStream;
+//    std::ofstream  outputStream;
 	//FILE *f;
 
     FFMPEGEncoder(int bufferSize = 50);
 
-    void startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate);
+    //Recommended codecs: AV_CODEC_ID_H264, AV_CODEC_ID_MPEG2VIDEO, AV_CODEC_ID_MPEG4 or AV_CODEC_ID_NONE for the default codec
+    void startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate,AVCodecID videoCodecId=AV_CODEC_ID_NONE);
     void createBuffers();
     void addFrame(std::shared_ptr<Image> image);
     std::shared_ptr<Image> getFrameBuffer();
