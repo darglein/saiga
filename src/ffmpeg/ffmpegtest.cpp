@@ -562,11 +562,14 @@ static void video_decode_example(const char *outfilename, const char *filename)
 
 AVCodecContext *m_codecContext;
 AVFormatContext* m_formatCtx;
+int ticksPerFrame;
 
 static void init_econde_avformat(const char* outputFileName){
-    int width = 352;
-    int height = 288;
-    int frameRate = 25;
+    int width = 1280;
+    int height = 720;
+    int frameRate = 120;
+    int timeBase = frameRate * 1000;
+
 
     // outputFileName is a valid filename ending with .mkv
     AVOutputFormat *oformat = av_guess_format(NULL, outputFileName, NULL);
@@ -582,7 +585,7 @@ static void init_econde_avformat(const char* outputFileName){
     m_codecContext->codec_id = oformat->video_codec;
     m_codecContext->codec_type = AVMEDIA_TYPE_VIDEO;
     m_codecContext->gop_size = 30;
-    m_codecContext->bit_rate = 40000000;
+    m_codecContext->bit_rate = 400000;
     m_codecContext->width = width;
     m_codecContext->height = height;
 //    m_codecContext->time_base = {1,frameRate};
@@ -601,7 +604,7 @@ static void init_econde_avformat(const char* outputFileName){
        printf("Could not allocate stream\n");
     }
     videoStream->codec = m_codecContext;
-    videoStream->time_base = {1,frameRate};
+    videoStream->time_base = {1,timeBase};
     if(m_formatCtx->oformat->flags & AVFMT_GLOBALHEADER)
     {
        m_codecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
@@ -610,6 +613,16 @@ static void init_econde_avformat(const char* outputFileName){
     avcodec_open2(m_codecContext, codec, NULL);
     avio_open(&m_formatCtx->pb, outputFileName, AVIO_FLAG_WRITE);
     avformat_write_header(m_formatCtx, NULL);
+
+
+     av_dump_format(m_formatCtx, 0, outputFileName, 1);
+
+     if(videoStream->time_base.den != timeBase){
+         timeBase = videoStream->time_base.den;
+         std::cerr << "Warning: Stream time base different to desired time base. " << timeBase;
+     }
+     //assert(videoStream->time_base.num == 1);
+     ticksPerFrame = videoStream->time_base.den / frameRate;
 }
 
 
@@ -646,7 +659,7 @@ void writeImageToVideo(int frameIndex)
         {
             unsigned char b = 255;
             unsigned char g = 255;
-            unsigned char r = 255;
+            unsigned char r = 1*frameIndex;
 
             unsigned char Y = (0.257 * r) + (0.504 * g) + (0.098 * b) + 16;
 
@@ -663,9 +676,9 @@ void writeImageToVideo(int frameIndex)
         }
     }
 
-    int pts = frameIndex*1000;//(1.0 / 30.0) * 90.0 * frameIndex;
+    int pts = ticksPerFrame * frameIndex;
 
-    frame->pts = pts;//av_rescale_q(m_codecContext->coded_frame->pts, m_codecContext->time_base, formatCtx->streams[0]->time_base); //(1.0 / 30.0) * 90.0 * frameIndex;
+    frame->pts = pts;//av_rescale_q(pts, m_codecContext->time_base, m_formatCtx->streams[0]->time_base); //(1.0 / 30.0) * 90.0 * frameIndex;
 
     int got_packet_ptr;
     AVPacket packet;
@@ -680,20 +693,6 @@ void writeImageToVideo(int frameIndex)
     ret = avcodec_encode_video2(m_codecContext, &packet, frame, &got_packet_ptr);
     if (got_packet_ptr != 0)
     {
-//        m_codecContext->coded_frame->pts = pts;  // Set the time stamp
-
-//        if (m_codecContext->coded_frame->pts != (0x8000000000000000LL))
-//        {
-//            pts = av_rescale_q(m_codecContext->coded_frame->pts, m_codecContext->time_base, formatCtx->streams[0]->time_base);
-//        }
-//        packet.pts = pts;
-//        if(m_codecContext->coded_frame->key_frame)
-//        {
-//           packet.flags |= AV_PKT_FLAG_KEY;
-//        }
-
-        std::cout << "pts: " << packet.pts << ", dts: "  << packet.dts << std::endl;
-
         av_interleaved_write_frame(m_formatCtx, &packet);
         av_free_packet(&packet);
     }
@@ -701,7 +700,6 @@ void writeImageToVideo(int frameIndex)
     free(picture_buf);
     free(outbuf);
     av_free(frame);
-//    printf("\n");
 }
 
 static void cleanup(){
@@ -709,7 +707,6 @@ static void cleanup(){
     int got_packet_ptr = 1;
 
     int ret;
-    //        for(; got_packet_ptr != 0; i++)
     while (got_packet_ptr)
     {
         uint8_t *outbuf = (uint8_t *)malloc(numBytes);
