@@ -42,7 +42,17 @@ extern "C"{
 #include <libavutil/imgutils.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/samplefmt.h>
+#include <libavutil/opt.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/common.h>
+#include <libavutil/imgutils.h>
+#include <libavutil/mathematics.h>
+#include <libavutil/samplefmt.h>
+#include "libavformat/avformat.h"
+#include "libswscale/swscale.h"
 }
+#include "iostream"
 
 #define INBUF_SIZE 4096
 #define AUDIO_INBUF_SIZE 20480
@@ -284,7 +294,7 @@ static void audio_decode_example(const char *outfilename, const char *filename)
         avpkt.size -= len;
         avpkt.data += len;
         avpkt.dts =
-        avpkt.pts = AV_NOPTS_VALUE;
+                avpkt.pts = AV_NOPTS_VALUE;
         if (avpkt.size < AUDIO_REFILL_THRESH) {
             /* Refill the input buffer, to avoid trying to decode
              * incomplete frames. Instead of this, one could also use
@@ -309,6 +319,8 @@ static void audio_decode_example(const char *outfilename, const char *filename)
  */
 static void video_encode_example(const char *filename, int codec_id)
 {
+    av_log_set_level(AV_LOG_DEBUG);
+
     AVCodec *codec;
     AVCodecContext *c= NULL;
     int i, ret, x, y, got_output;
@@ -458,7 +470,7 @@ static int decode_write_frame(const char *outfilename, AVCodecContext *avctx,
         /* the picture is allocated by the decoder, no need to free it */
         //snprintf(buf, sizeof(buf), outfilename, *frame_count);
         pgm_save(frame->data[0], frame->linesize[0],
-                 frame->width, frame->height, buf);
+                frame->width, frame->height, buf);
         (*frame_count)++;
     }
     if (pkt->data) {
@@ -546,11 +558,355 @@ static void video_decode_example(const char *outfilename, const char *filename)
     printf("\n");
 }
 
+
+
+AVCodecContext *m_codecContext;
+AVFormatContext* m_formatCtx;
+
+static void init_econde_avformat(const char* outputFileName){
+    int width = 352;
+    int height = 288;
+    int frameRate = 25;
+
+    // outputFileName is a valid filename ending with .mkv
+    AVOutputFormat *oformat = av_guess_format(NULL, outputFileName, NULL);
+    if (oformat == NULL)
+    {
+        oformat = av_guess_format("mpeg", NULL, NULL);
+    }
+
+    // oformat->video_codec is AV_CODEC_ID_H264
+    AVCodec *codec = avcodec_find_encoder(oformat->video_codec);
+
+    m_codecContext = avcodec_alloc_context3(codec);
+    m_codecContext->codec_id = oformat->video_codec;
+    m_codecContext->codec_type = AVMEDIA_TYPE_VIDEO;
+    m_codecContext->gop_size = 30;
+    m_codecContext->bit_rate = 40000000;
+    m_codecContext->width = width;
+    m_codecContext->height = height;
+//    m_codecContext->time_base = {1,frameRate};
+    m_codecContext->max_b_frames = 1;
+    m_codecContext->pix_fmt = AV_PIX_FMT_YUV420P;
+
+    m_formatCtx = avformat_alloc_context();
+    m_formatCtx->oformat = oformat;
+    m_formatCtx->video_codec_id = oformat->video_codec;
+
+//    snprintf(m_formatCtx->filename, sizeof(m_formatCtx->filename), "%s", outputFileName);
+
+    AVStream *videoStream = avformat_new_stream(m_formatCtx, codec);
+    if(!videoStream)
+    {
+       printf("Could not allocate stream\n");
+    }
+    videoStream->codec = m_codecContext;
+    videoStream->time_base = {1,frameRate};
+    if(m_formatCtx->oformat->flags & AVFMT_GLOBALHEADER)
+    {
+       m_codecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
+    }
+//    1 = 1;
+    avcodec_open2(m_codecContext, codec, NULL);
+    avio_open(&m_formatCtx->pb, outputFileName, AVIO_FLAG_WRITE);
+    avformat_write_header(m_formatCtx, NULL);
+}
+
+
+void writeImageToVideo(int frameIndex)
+{
+    AVFrame *frame =  av_frame_alloc();
+
+    frame->format = m_codecContext->pix_fmt;
+    frame->width  = m_codecContext->width;
+    frame->height = m_codecContext->height;
+
+
+    /* alloc image and output buffer */
+
+    int size = m_codecContext->width * m_codecContext->height;
+    int numBytes = avpicture_get_size(m_codecContext->pix_fmt, m_codecContext->width, m_codecContext->height);
+
+    uint8_t *outbuf = (uint8_t *)malloc(numBytes);
+    uint8_t *picture_buf = (uint8_t *)av_malloc(numBytes);
+
+    int ret = av_image_fill_arrays(frame->data, frame->linesize, picture_buf, m_codecContext->pix_fmt, m_codecContext->width, m_codecContext->height, 1);
+
+    frame->data[0] = picture_buf;
+    frame->data[1] = frame->data[0] + size;
+    frame->data[2] = frame->data[1] + size/4;
+    frame->linesize[0] = m_codecContext->width;
+    frame->linesize[1] = m_codecContext->width/2;
+    frame->linesize[2] = m_codecContext->width/2;
+
+
+    for (int y = 0; y < m_codecContext->height; y++)
+    {
+        for (int x = 0; x < m_codecContext->width; x++)
+        {
+            unsigned char b = 255;
+            unsigned char g = 255;
+            unsigned char r = 255;
+
+            unsigned char Y = (0.257 * r) + (0.504 * g) + (0.098 * b) + 16;
+
+            frame->data[0][y * frame->linesize[0] + x] = Y;
+
+            if (y % 2 == 0 && x % 2 == 0)
+            {
+                unsigned char V = (0.439 * r) - (0.368 * g) - (0.071 * b) + 128;
+                unsigned char U = -(0.148 * r) - (0.291 * g) + (0.439 * b) + 128;
+
+                frame->data[1][y/2 * frame->linesize[1] + x/2] = U;
+                frame->data[2][y/2 * frame->linesize[2] + x/2] = V;
+            }
+        }
+    }
+
+    int pts = frameIndex*1000;//(1.0 / 30.0) * 90.0 * frameIndex;
+
+    frame->pts = pts;//av_rescale_q(m_codecContext->coded_frame->pts, m_codecContext->time_base, formatCtx->streams[0]->time_base); //(1.0 / 30.0) * 90.0 * frameIndex;
+
+    int got_packet_ptr;
+    AVPacket packet;
+    av_init_packet(&packet);
+    packet.data = outbuf;
+    packet.size = numBytes;
+    packet.stream_index = m_formatCtx->streams[0]->index;
+    packet.flags |= AV_PKT_FLAG_KEY;
+    packet.pts = packet.dts = pts;
+//    m_codecContext->coded_frame->pts = pts;
+
+    ret = avcodec_encode_video2(m_codecContext, &packet, frame, &got_packet_ptr);
+    if (got_packet_ptr != 0)
+    {
+//        m_codecContext->coded_frame->pts = pts;  // Set the time stamp
+
+//        if (m_codecContext->coded_frame->pts != (0x8000000000000000LL))
+//        {
+//            pts = av_rescale_q(m_codecContext->coded_frame->pts, m_codecContext->time_base, formatCtx->streams[0]->time_base);
+//        }
+//        packet.pts = pts;
+//        if(m_codecContext->coded_frame->key_frame)
+//        {
+//           packet.flags |= AV_PKT_FLAG_KEY;
+//        }
+
+        std::cout << "pts: " << packet.pts << ", dts: "  << packet.dts << std::endl;
+
+        av_interleaved_write_frame(m_formatCtx, &packet);
+        av_free_packet(&packet);
+    }
+
+    free(picture_buf);
+    free(outbuf);
+    av_free(frame);
+//    printf("\n");
+}
+
+static void cleanup(){
+    int numBytes = avpicture_get_size(m_codecContext->pix_fmt, m_codecContext->width, m_codecContext->height);
+    int got_packet_ptr = 1;
+
+    int ret;
+    //        for(; got_packet_ptr != 0; i++)
+    while (got_packet_ptr)
+    {
+        uint8_t *outbuf = (uint8_t *)malloc(numBytes);
+
+        AVPacket packet;
+        av_init_packet(&packet);
+        packet.data = outbuf;
+        packet.size = numBytes;
+
+        ret = avcodec_encode_video2(m_codecContext, &packet, NULL, &got_packet_ptr);
+        if (got_packet_ptr)
+        {
+            av_interleaved_write_frame(m_formatCtx, &packet);
+        }
+
+        av_free_packet(&packet);
+        free(outbuf);
+    }
+
+    av_write_trailer(m_formatCtx);
+
+    avcodec_close(m_codecContext);
+    av_free(m_codecContext);
+//    printf("\n")
+}
+
+static void video_encode_avformat_example(const char *filename, int codec_id)
+{
+    int currentFrame = 0;
+    av_log_set_level(AV_LOG_DEBUG);
+
+    //find codec
+    AVCodec* codec = avcodec_find_encoder((AVCodecID)codec_id);
+
+    // find output format
+    AVOutputFormat * outputFormat = av_guess_format("mp4", NULL, NULL);
+    AVFormatContext *outFmtCtx = NULL;
+
+    // create output cotext
+    avformat_alloc_output_context2(&outFmtCtx, outputFormat, NULL, NULL);
+
+    // create new stream
+    AVStream * outStrm = avformat_new_stream(outFmtCtx, codec);
+    avcodec_get_context_defaults3(outStrm->codec, codec);
+
+    //    outStrm->codec->codec_id = codec_id;
+    outStrm->codec->coder_type = AVMEDIA_TYPE_VIDEO;
+    /// outStrm->codec-> ...
+    /// set all fields marked as "MUST be set by user" in avcodec.h
+    /// ....
+    //    outStrm->disposition = inStrm->disposition;
+    //    outStrm->codec->bits_per_raw_sample = inStrm->codec->bits_per_raw_sample;
+    //    outStrm->codec->chroma_sample_location = inStrm->codec->chroma_sample_location;
+    //    outStrm->codec->codec_id = inStrm->codec->codec_id;
+    //    outStrm->codec->codec_type = inStrm->codec->codec_type;
+    //    outStrm->codec->bit_rate = inStrm->codec->bit_rate;
+    //    outStrm->codec->rc_max_rate = inStrm->codec->rc_max_rate;
+    //    outStrm->codec->rc_buffer_size = inStrm->codec->rc_buffer_size;
+    outStrm->codec->width = 352;
+    outStrm->codec->height = 288;
+    outStrm->codec->bit_rate = 400000;
+    outStrm->time_base = {1,25};
+    outStrm->codec->gop_size = 10;
+    outStrm->codec->max_b_frames = 1;
+    outStrm->codec->pix_fmt = AV_PIX_FMT_YUV420P;
+    outStrm->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+
+    if (codec_id == AV_CODEC_ID_H264)
+        av_opt_set(outStrm->codec->priv_data, "preset", "slow", 0);
+    /* open it */
+    if (avcodec_open2(outStrm->codec, codec, NULL) < 0) {
+        fprintf(stderr, "Could not open codec\n");
+        exit(1);
+    }
+
+
+    // create file
+    avio_open2(&outFmtCtx->pb, filename, AVIO_FLAG_WRITE, NULL, NULL);
+    avformat_write_header(outFmtCtx, NULL);
+
+    /// write packets
+    /// for ( )
+    //    av_interleaved_write_frame(outFmtCtx, packet);
+    AVFrame* frame = av_frame_alloc();
+    if (!frame) {
+        fprintf(stderr, "Could not allocate video frame\n");
+        exit(1);
+    }
+    frame->format = outStrm->codec->pix_fmt;
+    frame->width  = outStrm->codec->width;
+    frame->height = outStrm->codec->height;
+    /* the image can be allocated by any means and av_image_alloc() is
+     * just the most convenient way if av_malloc() is to be used */
+    int ret = av_image_alloc(frame->data, frame->linesize, frame->width, frame->height,
+                             outStrm->codec->pix_fmt, 32);
+    if (ret < 0) {
+        fprintf(stderr, "Could not allocate raw picture buffer\n");
+        exit(1);
+    }
+    /* encode 1 second of video */
+    for (int i = 0; i < 25; i++) {
+        AVPacket pkt;
+        av_init_packet(&pkt);
+        pkt.data = NULL;    // packet data will be allocated by the encoder
+        pkt.size = 0;
+        /* prepare a dummy image */
+        /* Y */
+        for (int y = 0; y < frame->height; y++) {
+            for (int x = 0; x < frame->width; x++) {
+                frame->data[0][y * frame->linesize[0] + x] = x + y + i * 3;
+            }
+        }
+        /* Cb and Cr */
+        for (int y = 0; y < frame->height/2; y++) {
+            for (int x = 0; x < frame->width/2; x++) {
+                frame->data[1][y * frame->linesize[1] + x] = 128 + y + i * 2;
+                frame->data[2][y * frame->linesize[2] + x] = 64 + x + i * 5;
+            }
+        }
+        //        frame->pts = i;
+//        frame->pts = (1000 / 25) * 90 * i;
+        frame->pts = i;
+
+        /* encode the image */
+        int got_output;
+        ret = avcodec_encode_video2(outStrm->codec, &pkt, frame, &got_output);
+        if (ret < 0) {
+            fprintf(stderr, "Error encoding frame\n");
+            exit(1);
+        }
+
+//        if (pkt.pts != AV_NOPTS_VALUE)
+//            pkt.pts =  av_rescale_q(pkt.pts, outStrm->codec->time_base, outStrm->time_base);
+//        if (pkt.dts != AV_NOPTS_VALUE)
+//            pkt.dts = av_rescale_q(pkt.dts, outStrm->codec->time_base, outStrm->time_base);
+
+
+
+        if (got_output) {
+            //            printf("Write frame %3d (size=%5d)\n", i, pkt.size);
+            //            fwrite(pkt.dadta, 1, pkt.size, f);
+//            pkt.pts = currentFrame++;
+            std::cout << "write frame " << pkt.pts << std::endl;
+            av_write_frame(outFmtCtx,&pkt);
+            av_packet_unref(&pkt);
+        }
+    }
+    /* get the delayed frames */
+        int got_output = 1;
+
+        for (int i = 0; got_output && i < 25;++i ) {
+            AVPacket pkt;
+            //        pkt.pts
+            av_init_packet(&pkt);
+            ret = avcodec_encode_video2(outStrm->codec, &pkt, frame, &got_output);
+            if (ret < 0) {
+                fprintf(stderr, "Error encoding frame\n");
+                exit(1);
+            }
+            if (got_output) {
+                //            printf("Write frame %3d (size=%5d)\n", i, pkt.size);
+                //            fwrite(pkt.data, 1, pkt.size, f);
+//                pkt.pts = currentFrame++;
+//                std::cout << "before pkt pts: " << pkt.pts << " dts: " <<pkt.dts << std::endl;
+
+//                if (pkt.pts != AV_NOPTS_VALUE)
+//                    pkt.pts =  av_rescale_q(pkt.pts, outStrm->codec->time_base, outStrm->time_base);
+//                if (pkt.dts != AV_NOPTS_VALUE)
+//                    pkt.dts = av_rescale_q(pkt.dts, outStrm->codec->time_base, outStrm->time_base);
+
+//                std::cout << "pkt pts: " << pkt.pts << " dts: " <<pkt.dts << std::endl;
+                av_write_frame(outFmtCtx,&pkt);
+                av_packet_unref(&pkt);
+            }
+        }
+
+    /// finish
+    av_write_trailer(outFmtCtx);
+    avio_close(outFmtCtx->pb);
+    avformat_free_context(outFmtCtx);
+}
+
 void testffmpeg(){
+    av_log_set_level(AV_LOG_DEBUG);
     avcodec_register_all();
-    audio_encode_example("test2.pcm");
-   video_encode_example("test2.h264", AV_CODEC_ID_H264);
-//    video_decode_example("test%02d.pgm", "test.mpg");
+    av_register_all();
+    //    audio_encode_example("test2.pcm");
+//    video_encode_avformat_example("test2.mp4", AV_CODEC_ID_H264);
+    //    video_decode_example("test%02d.pgm", "test.mpg");
+
+    auto file  = "test2.mp4";
+    init_econde_avformat(file);
+    for(int i = 0 ; i < 250 ; ++i){
+        writeImageToVideo(i);
+    }
+    cleanup();
 }
 
 int mainalsdhg(int argc, char **argv)
