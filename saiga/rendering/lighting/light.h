@@ -64,11 +64,11 @@ public:
     vec3 getColorDiffuse(){return vec3(colorDiffuse);}
     float getIntensity(){return colorDiffuse.w;}
 
-    void setActive(bool active){this->active=active;}
+    void setActive(bool _active){this->active= _active;}
     bool isActive(){return active;}
-    void setVisible(bool visible){this->visible=visible;}
+    void setVisible(bool _visible){this->visible= _visible;}
     bool isVisible(){return visible;}
-    void setSelected(bool selected){this->selected=selected;}
+    void setSelected(bool _selected){this->selected= _selected;}
     bool isSelected(){return selected;}
 
 

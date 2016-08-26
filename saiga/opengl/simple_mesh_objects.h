@@ -9,7 +9,7 @@ class Plane;
 
 
 template<class T>
-class SimpleMeshObject : public MeshObject<T,VertexNT,GLuint,MVPColorShader>
+class SAIGA_TEMPLATE SimpleMeshObject : public MeshObject<T,VertexNT,GLuint,MVPColorShader>
 {
     vec4 color;
 public:
@@ -20,9 +20,9 @@ public:
 
 template<class T>
 void SimpleMeshObject<T>::bindUniforms(){
-    mat4 model;
-    this->getModelMatrix(model);
-    this->shader->uploadModel(model);
+    mat4 _model;
+    this->getModelMatrix(_model);
+    this->shader->uploadModel(_model);
     this->shader->uploadColor(this->color);
 }
 

@@ -154,8 +154,8 @@ void VertexBuffer<vertex_t>::bindAndDraw() const{
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::setDrawMode(GLenum draw_mode){
-    this->draw_mode = draw_mode;
+void VertexBuffer<vertex_t>::setDrawMode(GLenum _draw_mode){
+    this->draw_mode = _draw_mode;
 }
 
 template<class vertex_t>
@@ -164,8 +164,8 @@ void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices){
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::set(vertex_t* vertices,int vertex_count){
-    this->vertex_count = vertex_count;
+void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count){
+    this->vertex_count = _vertex_count;
 
     deleteGLBuffer();
 
@@ -198,8 +198,8 @@ void VertexBuffer<vertex_t>::deleteGLBuffer(){
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::updateVertexBuffer(vertex_t* vertices,int vertex_count, int vertex_offset){
-    Buffer::updateBuffer(vertices,vertex_count*sizeof(vertex_t),vertex_offset*sizeof(vertex_t));
+void VertexBuffer<vertex_t>::updateVertexBuffer(vertex_t* vertices,int _vertex_count, int vertex_offset){
+    Buffer::updateBuffer(vertices,_vertex_count*sizeof(vertex_t),vertex_offset*sizeof(vertex_t));
 }
 
 template<class vertex_t>

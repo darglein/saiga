@@ -260,7 +260,7 @@ void ObjLoader::parseF(char* line){
     //    cout<<line<<endl;
     std::string value;
     int cornerCount = 0;
-    IndexedVertex currentVertex,startVertex, lastVertex;
+	IndexedVertex currentVertex = { 0,0,0 }, startVertex = { 0,0,0 }, lastVertex = { 0,0,0 };
     char buffer[1024];
     Face face;
     while(readUntilToken(line,value)){

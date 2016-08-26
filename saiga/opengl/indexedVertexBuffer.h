@@ -82,9 +82,9 @@ void IndexedVertexBuffer<vertex_t,index_t>::set(std::vector<vertex_t> &vertices,
 }
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::set(vertex_t *vertices, int vertex_count, index_t *indices, int index_count){
-    vbuffer_t::set(vertices,vertex_count);
-    ibuffer_t::set(indices,index_count);
+void IndexedVertexBuffer<vertex_t,index_t>::set(vertex_t *vertices, int _vertex_count, index_t *indices, int _index_count){
+    vbuffer_t::set(vertices,_vertex_count);
+    ibuffer_t::set(indices,_index_count);
 
     //The ELEMENT_ARRAY_BUFFER_BINDING is part of VAO state.
     //adds index buffer to vao state

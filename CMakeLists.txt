@@ -196,6 +196,10 @@ find_package(OpenGL REQUIRED)
 include_directories( ${OPENGL_INCLUDE_DIRS}) 
 SET(LIBS ${LIBS} ${OPENGL_LIBRARIES})
 
+#GLM
+find_package(GLM REQUIRED)
+include_directories( ${GLM_INCLUDE_DIRS}) 
+
 #GLEW
 if(USE_GLEW)
 	find_package(GLEW REQUIRED)

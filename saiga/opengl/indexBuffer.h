@@ -52,9 +52,9 @@ void IndexBuffer<index_t>::set(std::vector<index_t> &indices){
 }
 
 template<class index_t>
-void IndexBuffer<index_t>::set(index_t* indices,int index_count){
+void IndexBuffer<index_t>::set(index_t* indices,int _index_count){
 
-    this->index_count = index_count;
+    this->index_count = _index_count;
 
     createGLBuffer(indices,index_count * sizeof(index_t),GL_STATIC_DRAW);
 

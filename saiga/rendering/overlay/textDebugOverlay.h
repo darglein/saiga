@@ -57,7 +57,7 @@ public:
 
 };
 
-template<>
+template<> SAIGA_GLOBAL
 void TextDebugOverlay::updateEntry<std::string>(int id, std::string v);
 
 template<typename T>

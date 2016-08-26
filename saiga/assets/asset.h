@@ -20,7 +20,7 @@ public:
 
 
 template<typename vertex_t, typename index_t>
-class SAIGA_GLOBAL BasicAsset : public Asset{
+class SAIGA_TEMPLATE BasicAsset : public Asset{
 public:
     std::string name;
     aabb boundingBox;
@@ -137,8 +137,8 @@ void BasicAsset<vertex_t,index_t>::normalizeScale()
 {
     //TODO
     vec3 d = boundingBox.max - boundingBox.min;
-    int m = -1;
-    int mi = -1;
+   // int m = -1;
+    //int mi = -1;
 
     for(int i = 0 ; i < 3 ; ++i){
 
@@ -166,12 +166,12 @@ void BasicAsset<vertex_t,index_t>::ZUPtoYUP()
 }
 
 template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::create(std::string name, MVPShader* shader, MVPShader* depthshader, MVPShader* wireframeshader, bool normalizePosition, bool ZUPtoYUP){
+void BasicAsset<vertex_t,index_t>::create(std::string _name, MVPShader* _shader, MVPShader* _depthshader, MVPShader* _wireframeshader, bool normalizePosition, bool ZUPtoYUP){
 
-    this->name = name;
-    this->shader = shader;
-    this->depthshader = depthshader;
-    this->wireframeshader = wireframeshader;
+    this->name = _name;
+    this->shader = _shader;
+    this->depthshader = _depthshader;
+    this->wireframeshader = _wireframeshader;
     this->boundingBox = mesh.calculateAabb();
 
     if(ZUPtoYUP){

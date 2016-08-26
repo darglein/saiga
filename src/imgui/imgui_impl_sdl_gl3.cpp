@@ -10,6 +10,7 @@
 #include "saiga/imgui/imgui.h"
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
+#ifdef USE_SDL
 // SDL
 #include <SDL.h>
 #include <SDL_syswm.h>
@@ -387,3 +388,5 @@ void ImGui_ImplSdlGL3_NewFrame(SDL_Window* window)
     // Start the frame
     ImGui::NewFrame();
 }
+
+#endif

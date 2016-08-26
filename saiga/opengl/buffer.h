@@ -52,13 +52,13 @@ inline Buffer::~Buffer()
     deleteGLBuffer();
 }
 
-inline void Buffer::createGLBuffer(void *data, unsigned int size, GLenum usage)
+inline void Buffer::createGLBuffer(void *data, unsigned int _size, GLenum usage)
 {
     deleteGLBuffer();
     glGenBuffers( 1, &buffer );
     bind();
-    glBufferData(target, size, data, usage);
-    this->size = size;
+    glBufferData(target, _size, data, usage);
+    size = _size;
     assert_no_glerror();
 }
 
@@ -71,10 +71,10 @@ inline void Buffer::deleteGLBuffer()
     }
 }
 
-inline void Buffer::updateBuffer(void *data, unsigned int size, unsigned int offset)
+inline void Buffer::updateBuffer(void *data, unsigned int _size, unsigned int offset)
 {
     bind();
-    glBufferSubData(target,offset,size,data);
+    glBufferSubData(target,offset,_size,data);
     assert_no_glerror();
 }
 

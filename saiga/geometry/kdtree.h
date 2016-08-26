@@ -8,7 +8,7 @@
 //D : Dimension. for example D=3 for 3 dimensional points
 //point_t : should be a glm vector type. for example vec2 or vec3
 template<int D, typename point_t>
-class SAIGA_GLOBAL KDTree
+class SAIGA_TEMPLATE KDTree
 {
 public:
     //create an empty tree

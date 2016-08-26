@@ -20,10 +20,19 @@ protected:
     static bool         g_MousePressed[3];
     static float        g_MouseWheel ;
     static GLuint       g_FontTexture;
-    static int          g_ShaderHandle, g_VertHandle , g_FragHandle ;
-    static int          g_AttribLocationTex , g_AttribLocationProjMtx;
-    static int          g_AttribLocationPosition , g_AttribLocationUV, g_AttribLocationColor;
-    static unsigned int g_VboHandle , g_VaoHandle, g_ElementsHandle;
+
+	//a compiler bug in vs2015 prevents multiple static variables to be declared in one line
+	static int          g_ShaderHandle;
+	static int  g_VertHandle;
+	static int  g_FragHandle;
+	static int          g_AttribLocationTex;
+	static int  g_AttribLocationProjMtx;
+	static int          g_AttribLocationPosition;
+	static int g_AttribLocationUV;
+	static int g_AttribLocationColor;
+	static unsigned int g_VboHandle;
+	static unsigned int g_VaoHandle;
+	static unsigned int g_ElementsHandle;
 
     static void ImGui_ImplGlfwGL3_RenderDrawLists(ImDrawData *draw_data);
     static const char *ImGui_ImplGlfwGL3_GetClipboardText();

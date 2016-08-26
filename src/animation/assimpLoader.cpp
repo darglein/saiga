@@ -2,14 +2,15 @@
 
 #ifdef USE_ASSIMP
 
-AssimpLoader::AssimpLoader(const std::string &file):file(file)
+AssimpLoader::AssimpLoader(const std::string &_file):file(_file)
 {
 
     loadFile(file);
 
 }
 
-void AssimpLoader::loadFile(const std::string &file){
+void AssimpLoader::loadFile(const std::string &_file){
+	file = _file;
     importer.SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
 
     int flags = aiProcess_Triangulate;

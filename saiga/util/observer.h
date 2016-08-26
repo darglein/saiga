@@ -21,8 +21,8 @@ class SAIGA_GLOBAL Observer {
     }
     virtual ~Observer(){}
     virtual void notify() = 0;
-    void setSubject(Subject *model){
-    this->model = model;
+    void setSubject(Subject *_model){
+    this->model = _model;
     model->attach(this);
 }
 

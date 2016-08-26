@@ -15,7 +15,7 @@
  */
 
 template<typename real_t=float>
-class SAIGA_GLOBAL DiscreteProbabilityDistribution{
+class SAIGA_TEMPLATE DiscreteProbabilityDistribution{
     static_assert(std::is_floating_point<real_t>::value , "Only floating point types allowed!");
 private:
     std::default_random_engine re;

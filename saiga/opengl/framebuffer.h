@@ -60,7 +60,7 @@ public:
 
     framebuffer_texture_t getTextureStencil(){return this->stencilBuffer;}
     framebuffer_texture_t getTextureDepth(){return this->depthBuffer;}
-    framebuffer_texture_t getTextureColor(int id){return this->colorBuffers[id];}
+    framebuffer_texture_t getTextureColor(int _id){return this->colorBuffers[_id];}
     GLuint getId(){return id;}
 
     /**

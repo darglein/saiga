@@ -53,5 +53,7 @@
   #define SAIGA_LOCAL
 #endif // BUILD_SHARED
 
+//don't use any specifiers on templates
+#define SAIGA_TEMPLATE
 
 

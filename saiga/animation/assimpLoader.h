@@ -59,7 +59,7 @@ public:
     void loadBones();
 
 
-    void loadFile(const std::string &file);
+    void loadFile(const std::string &_file);
 
 
     template<typename vertex_t>

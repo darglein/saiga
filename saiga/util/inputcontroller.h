@@ -60,7 +60,7 @@ public:
 
 	SAIGA_GLOBAL bool execute(const std::string& line);
 	SAIGA_GLOBAL bool execute(const std::string& key, Operation::Arguments &args);
-	SAIGA_GLOBAL void setOstream(std::ostream* stream){ this->stream = stream; }
+	SAIGA_GLOBAL void setOstream(std::ostream* _stream){ this->stream = _stream; }
 
 	SAIGA_GLOBAL void functionList(std::vector<std::string> &out);
 
@@ -96,7 +96,8 @@ T InputController::Operation::Arguments::next(T (*arg)(const std::string&,std::s
     try{
         i = arg(args, &idx,10);
         args = args.substr(idx);
-    }catch(const std::exception& e){
+    }catch(const std::exception& ){
+		
         *os<<"Invalid Arguments!"<<std::endl;
         valid = false;
     }
@@ -114,7 +115,7 @@ T InputController::Operation::Arguments::next(T (*arg)(const std::string&,std::s
         i = arg(args, &idx);
         args = args.substr(idx);
 	}
-	catch (const std::exception& e){
+	catch (const std::exception& ){
         *os<<"Invalid Arguments!"<<std::endl;
         valid = false;
     }

@@ -14,11 +14,20 @@ find_path(OPUS_INCLUDE_DIRS
 		opus
 )
 
-find_library(OPUS_LIBRARY NAMES opus
-             PATHS /usr/local/lib /usr/lib)
+if(NOT OPUS_INCLUDE_DIRS)
+	message(FATAL_ERROR "Could not find libopus ${OPUS_INCLUDE_DIRS}")
+endif()
 
-if(NOT OPUS_INCLUDE_DIRS OR NOT OPUS_LIBRARY)
-	message(FATAL_ERROR "Could not find libopus ${OPUS_INCLUDE_DIRS}, ${OPUS_LIBRARY}")
+find_library(OPUS_LIBRARY 
+	NAMES 
+		opus
+    PATHS 
+		/usr/local/lib 
+		/usr/lib
+)
+
+if(NOT OPUS_LIBRARY)
+	message(FATAL_ERROR "Could not find libopus ${OPUS_LIBRARY}")
 endif()
              
 
@@ -51,8 +60,14 @@ find_path(OGG_INCLUDE_DIRS
           /usr/include/opus
           /usr/include
 )
-find_library(OGG_LIBRARY NAMES ogg
-             PATHS /usr/local/lib /usr/lib)
+find_library(OGG_LIBRARY 
+	NAMES 
+		ogg
+		libogg_static
+    PATHS 
+		/usr/local/lib 
+		/usr/lib
+)
 
 if(NOT OGG_INCLUDE_DIRS   OR NOT OGG_LIBRARY)
 	message(FATAL_ERROR "Could not find ogg ${OGG_INCLUDE_DIRS}, ${OGG_LIBRARY}")
