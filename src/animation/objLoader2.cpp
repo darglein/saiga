@@ -17,8 +17,8 @@ ObjLoader2::ObjLoader2(const std::string &file):file(file)
     loadFile(file);
 }
 
-bool ObjLoader2::loadFile(const std::string &file){
-
+bool ObjLoader2::loadFile(const std::string &_file){
+	this->file = _file;
     std::ifstream stream(file, std::ios::in);
     if(!stream.is_open()) {
         return false;
