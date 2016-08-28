@@ -3,13 +3,13 @@
 
 void TexturedAsset::render(Camera *cam, const mat4 &model)
 {
-    MVPTextureShader* shader = static_cast<MVPTextureShader*>(this->shader);
-    shader->bind();
-    shader->uploadAll(model,cam->view,cam->proj);
+    MVPTextureShader* tshader = static_cast<MVPTextureShader*>(this->shader);
+	tshader->bind();
+	tshader->uploadAll(model,cam->view,cam->proj);
 
     buffer.bind();
     for(TextureGroup& tg : groups){
-        shader->uploadTexture(tg.texture);
+		tshader->uploadTexture(tg.texture);
 
         int* start = 0 ;
         start += tg.startIndex;
@@ -19,19 +19,19 @@ void TexturedAsset::render(Camera *cam, const mat4 &model)
 
 
 
-    shader->unbind();
+	 tshader->unbind();
 }
 
 void TexturedAsset::renderDepth(Camera *cam, const mat4 &model)
 {
-    MVPTextureShader* shader = static_cast<MVPTextureShader*>(this->depthshader);
+    MVPTextureShader* dshader = static_cast<MVPTextureShader*>(this->depthshader);
 
-    shader->bind();
-    shader->uploadAll(model,cam->view,cam->proj);
+	dshader->bind();
+	dshader->uploadAll(model,cam->view,cam->proj);
 
     buffer.bind();
     for(TextureGroup& tg : groups){
-        shader->uploadTexture(tg.texture);
+		dshader->uploadTexture(tg.texture);
 
         int* start = 0 ;
         start += tg.startIndex;
@@ -41,7 +41,7 @@ void TexturedAsset::renderDepth(Camera *cam, const mat4 &model)
 
 
 
-    shader->unbind();
+	 dshader->unbind();
 }
 
 

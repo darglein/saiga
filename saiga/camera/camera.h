@@ -114,7 +114,7 @@ private:
 
 class SAIGA_GLOBAL PerspectiveCamera : public Camera{
 public:
-    double fovy,  aspect;
+    float fovy,  aspect;
     float tang;
     PerspectiveCamera(){}
     void setProj(float fovy, float aspect, float zNear, float zFar);

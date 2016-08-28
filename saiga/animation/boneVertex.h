@@ -88,6 +88,7 @@ struct SAIGA_GLOBAL BoneVertexNC{
     }
 
     void checkWeights(float epsilon){
+		(void)epsilon;
         float weightSum = 0;
         for(int i=0;i<BONES_PER_VERTEX;++i){
             weightSum += boneWeights[i];
