@@ -74,7 +74,10 @@ public:
 
     FFMPEGEncoder(int bufferSize = 50);
 
-    //Recommended codecs: AV_CODEC_ID_H264, AV_CODEC_ID_MPEG2VIDEO, AV_CODEC_ID_MPEG4 or AV_CODEC_ID_NONE for the default codec
+    //Recommended codecs and container formats:
+    //.mp4 AV_CODEC_ID_H264
+    //.mpeg AV_CODEC_ID_MPEG2VIDEO or AV_CODEC_ID_MPEG4
+    //.avi AV_CODEC_ID_RAWVIDEO
     void startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate,AVCodecID videoCodecId=AV_CODEC_ID_NONE);
     void createBuffers();
     void addFrame(std::shared_ptr<Image> image);

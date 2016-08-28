@@ -64,7 +64,7 @@ SSAO::SSAO(int w, int h)
     setKernelSize(32);
 
     auto randomImage = ImageGenerator::randomNormalized(32,32);
-    randomTexture = new Texture();
+    randomTexture = std::make_shared<Texture>();
     randomTexture->fromImage(*randomImage);
     randomTexture->setWrap(GL_REPEAT);
 
@@ -103,7 +103,7 @@ void SSAO::render(Camera *cam, GBuffer* gbuffer)
     //    gbuffer->clampToEdge();
     ssaoShader->uploadScreenSize(screenSize);
     ssaoShader->uploadFramebuffer(gbuffer);
-    ssaoShader->uploadRandomImage(randomTexture);
+    ssaoShader->uploadRandomImage(randomTexture.get());
     ssaoShader->uploadData();
     mat4 iproj = glm::inverse(cam->proj);
     ssaoShader->uploadInvProj(iproj);
