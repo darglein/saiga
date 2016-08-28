@@ -165,7 +165,11 @@ void FFMPEGEncoder::finishEncoding()
     av_write_trailer(m_formatCtx);
 
     avcodec_close(m_codecContext);
-    av_free(m_codecContext);
+    sws_freeContext(ctx);
+//    avformat_free_context(m_formatCtx);
+    avcodec_free_context(&m_codecContext);
+
+    //    av_free(m_codecContext);
 }
 
 void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate, AVCodecID videoCodecId)

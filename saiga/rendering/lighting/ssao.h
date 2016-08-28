@@ -36,9 +36,11 @@ public:
     bool ssao = false;
     MVPTextureShader* blurShader;
     SSAOShader* ssaoShader = nullptr;
+
+    std::shared_ptr<Texture>  randomTexture;
     Texture* ssaotex = nullptr;
 
-    Texture* randomTexture;
+//    Texture* randomTexture;
     Texture* bluredTexture;
 
     Framebuffer ssao_framebuffer, ssao_framebuffer2;
