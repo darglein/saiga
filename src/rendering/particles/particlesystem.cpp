@@ -37,8 +37,7 @@ void ParticleSystem::reset()
 
     for(unsigned int i=0;i<particleCount;++i){
         Particle& p = particles[i];
-        p.lifetime = 0.f;
-        p.position = vec3(0);
+        p = Particle();
     }
 
     particleBuffer.updateVertexBuffer(&particles[0],particles.size(),0);
