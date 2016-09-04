@@ -386,10 +386,10 @@ void Window::update(float dt)
     updateTimer.stop();
 }
 
-void Window::render(float interpolation)
+void Window::render(float dt, float interpolation)
 {
     interpolationTimer.start();
-    renderer->renderer->interpolate(interpolation);
+    renderer->renderer->interpolate(dt,interpolation);
     interpolationTimer.stop();
 
     renderCPUTimer.start();

@@ -280,7 +280,7 @@ void glfw_Window::startMainLoop(){
         //in case timescale was changed
         SKIP_TICKS = ((double)SKIP_TICKS_NORMAL_TIME)/timeScale;
 
-        render();
+        render(dt,0);
 
         if (recordingVideo)
             screenshotParallelWrite("screenshots/video/");
@@ -349,7 +349,7 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
             ++loops;
         }
         float interpolation = glm::clamp(((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ),0.0f,1.0f);
-        render(interpolation);
+        render(dt,interpolation);
 
 
 
@@ -381,7 +381,7 @@ void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
     while( running && !glfwWindowShouldClose(window) ) {
         update(dt);
 
-        renderer->renderer->interpolate(0);
+        renderer->renderer->interpolate(dt,0);
 
         double now2 = glfwGetTime()*1000;
         /* Poll for and process events */

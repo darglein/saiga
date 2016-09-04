@@ -187,7 +187,6 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
 //    }
 
 
-    asset->boneMatricesBuffer.init(animatedAssetShader,animatedAssetShader->location_boneMatricesBlock);
 
     //    asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
     asset->create(file,animatedAssetShader,animatedAssetDepthshader,animatedAssetWireframeShader,normalize,false);

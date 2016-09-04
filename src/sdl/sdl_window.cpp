@@ -83,12 +83,13 @@ void sdl_Window::close()
 void sdl_Window::startMainLoop(){
     running = true;
 
+    float dt = 1.0/60.0;
     while( running ){
         eventHandler.update();
         running &= !eventHandler.shouldQuit();
 
-        update(1.0/60.0);
-        render();
+        update(dt);
+        render(dt,0);
         SDL_GL_SwapWindow( gWindow );
     }
 
