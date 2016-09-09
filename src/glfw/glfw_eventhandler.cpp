@@ -55,7 +55,7 @@ void glfw_EventHandler::removeResizeListener(glfw_ResizeListener *l)
 
 void glfw_EventHandler::joystick_key_callback(JoystickButton button, bool pressed)
 {
-    std::cout<<"joystick_key_callback "<<(int)button<<" "<<pressed<<std::endl;
+//    std::cout<<"joystick_key_callback "<<(int)button<<" "<<pressed<<std::endl;
 
     //forward event to all listeners
     for(auto &rl : joystickListener){
