@@ -13,9 +13,9 @@ namespace sound {
 
 
 struct SAIGA_LOCAL RIFF_Header {
-  char chunkID[4];
+  unsigned char chunkID[4];
   int chunkSize;//size not including chunkSize or chunkID
-  char format[4];
+  unsigned char format[4];
 };
 
 /*
