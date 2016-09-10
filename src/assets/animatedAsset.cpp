@@ -8,25 +8,22 @@ void AnimatedAsset::render(Camera *cam, const mat4 &model, UniformBuffer& boneMa
 {
     BoneShader* bs = static_cast<BoneShader*>(this->shader);
 
-    BoneShader* bshader = static_cast<BoneShader*>(this->shader);
-	bshader->bind();
 
-//    std::vector<mat4> boneMatrices(boneCount);
-    boneMatricesBuffer.updateBuffer(boneMatrices.data(),boneMatrices.size()*sizeof(mat4),0);
-    boneMatricesBuffer.bind(bshader->binding_boneMatricesBlock);
-
-	bshader->uploadAll(model,cam->view,cam->proj);
+    bs->bind();
+    bs->uploadAll(model,cam->view,cam->proj);
+    boneMatrices.bind(bs->binding_boneMatricesBlock);
     buffer.bindAndDraw();
-	bshader->unbind();
-
+    bs->unbind();
 }
 
 void AnimatedAsset::renderDepth(Camera *cam, const mat4 &model, UniformBuffer &boneMatrices)
 {
-    BoneShader* bdepthshader = static_cast<BoneShader*>(this->depthshader);
-	bdepthshader->bind();
-	bdepthshader->uploadAll(model,cam->view,cam->proj);
-    buffer.bindAndDraw();
-	bdepthshader->unbind();
 
+    BoneShader* bs = static_cast<BoneShader*>(this->depthshader);
+
+    bs->bind();
+    bs->uploadAll(model,cam->view,cam->proj);
+    boneMatrices.bind(bs->binding_boneMatricesBlock);
+    buffer.bindAndDraw();
+    bs->unbind();
 }
