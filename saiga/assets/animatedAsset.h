@@ -20,7 +20,8 @@
 
 class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<BoneVertexNC,GLuint>{
 public:
-    float test = 0;
+
+
 
     int boneCount;
 
@@ -33,8 +34,10 @@ public:
     std::vector<Animation> animations;
     std::vector<float> animationSpeeds;
 
-    UniformBuffer boneMatricesBuffer;
 
-    virtual void render(Camera *cam, const mat4 &model) override;
-    virtual void renderDepth(Camera *cam, const mat4 &model) override;
+
+
+
+    void render(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices);
+    void renderDepth(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices);
 };

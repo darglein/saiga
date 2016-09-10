@@ -71,7 +71,7 @@ public:
     vec3 screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
 protected:
     void update(float dt);
-    void render(float interpolation = 0.0f);
+    void render(float dt, float interpolation);
 
 private:
     int currentScreenshot = 0;
