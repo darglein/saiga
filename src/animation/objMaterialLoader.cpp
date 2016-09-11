@@ -11,8 +11,8 @@ ObjMaterialLoader::ObjMaterialLoader(const std::string &file):file(file)
     loadFile(file);
 }
 
-bool ObjMaterialLoader::loadFile(const std::string &file){
-
+bool ObjMaterialLoader::loadFile(const std::string &_file){
+	file = _file;
     std::ifstream stream(file, std::ios::in);
     if(!stream.is_open()) {
         return false;

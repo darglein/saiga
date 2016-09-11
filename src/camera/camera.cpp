@@ -165,12 +165,12 @@ std::ostream& operator<<(std::ostream& os, const Camera& ca){
 //===================================================================================================
 
 
-void PerspectiveCamera::setProj(float fovy, float aspect, float zNear, float zFar){
-    fovy = degreesToRadians(fovy);
-    this->fovy = fovy;
-    this->aspect = aspect;
-    this->zNear = zNear;
-    this->zFar = zFar;
+void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float _zFar){
+	_fovy = degreesToRadians(_fovy);
+    this->fovy = _fovy;
+    this->aspect = _aspect;
+    this->zNear = _zNear;
+    this->zFar = _zFar;
 
 
     tang = (float)tan(fovy * 0.5) ;
@@ -239,13 +239,13 @@ std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca){
 
 //=========================================================================================================================
 
-void OrthographicCamera::setProj( float left, float right,float bottom,float top,float near,  float far){
-    this->left = left;
-    this->right = right;
-    this->bottom = bottom;
-    this->top = top;
-    this->zNear = near;
-    this->zFar = far;
+void OrthographicCamera::setProj( float _left, float _right,float _bottom,float _top,float _near,  float _far){
+    this->left = _left;
+    this->right = _right;
+    this->bottom = _bottom;
+    this->top = _top;
+    this->zNear = _near;
+    this->zFar = _far;
 
     nh = (top-bottom)/2;
     nw = (right-left)/2;
@@ -254,7 +254,7 @@ void OrthographicCamera::setProj( float left, float right,float bottom,float top
     fw = nw;
 //    fh = (top-bottom)/2;
 //    fw = (right-left)/2;
-    proj = glm::ortho(left,right,bottom,top,near,far);
+    proj = glm::ortho(left,right,bottom,top,zNear,zFar);
 }
 
 void OrthographicCamera::recalculatePlanes()

@@ -13,7 +13,7 @@ FFMPEGEncoder::FFMPEGEncoder(int bufferSize) : imageStorage(bufferSize + 1), ima
     avcodec_register_all();
     av_register_all();
 }
-
+ 
 void FFMPEGEncoder::scaleThreadFunc(){
 	while (running){
 		scaleFrame();
@@ -73,11 +73,11 @@ bool FFMPEGEncoder::encodeFrame()
 	if (!frameQueue.tryGet(frame)){
 		return false;
 	}
-    AVPacket pkt;
-	bool hasOutput = encodeFrame(frame, pkt);
+    AVPacket _pkt;
+	bool hasOutput = encodeFrame(frame, _pkt);
 	if (hasOutput){
 		//        cout << "write frame " << frame->pts << " " << pkt.pts << endl;
-		writeFrame(pkt);
+		writeFrame(_pkt);
 	}
 	frameStorage.add(frame);
 	finishedFrames++;
@@ -207,7 +207,7 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
     }
     m_codecContext->codec_id = oformat->video_codec;
     m_codecContext->codec_type = AVMEDIA_TYPE_VIDEO;
-    m_codecContext->gop_size = 30;
+    m_codecContext->gop_size = 10;
     m_codecContext->bit_rate = bitRate;
     m_codecContext->width = outWidth;
     m_codecContext->height = outHeight;
@@ -257,7 +257,7 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
      ticksPerFrame = videoStream->time_base.den / outFps;
 
 
-    av_init_packet(&pkt);
+  //  av_init_packet(&pkt);
 
 
 	assert(ctx == nullptr);

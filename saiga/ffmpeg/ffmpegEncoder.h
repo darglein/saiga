@@ -57,7 +57,7 @@ private:
     AVCodecContext *m_codecContext;
     AVFormatContext* m_formatCtx;
     int ticksPerFrame;
-    AVPacket pkt;
+    //AVPacket pkt;
     SwsContext * ctx = nullptr;
     Timer2 timer1, timer2, timer3;
     void scaleFrame(std::shared_ptr<Image> image, AVFrame *frame);
