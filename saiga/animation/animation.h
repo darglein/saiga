@@ -45,6 +45,7 @@ public:
      * The input time will be clamped to [0,duration]
      */
 
+    void getFrame(float time, AnimationFrame &out);
     void getFrame2(float time, AnimationFrame &out);
 
     /**
