@@ -18,6 +18,10 @@ public:
     //speed at which this animation should be played. Unused in this class.
     float animationSpeed = 1.0f;
 
+    //duration of animation in ticks
+    float duration = 5;
+    float ticksPerSecond = 1;
+
     //false if there should be an interpolation between the last and the first node.
     //typically if the first and the last node are equal it should be true, otherwise false.
     bool skipLastFrame = false;
@@ -58,6 +62,12 @@ public:
      */
 
     void getFrame(int frame0, int frame1, float alpha, AnimationFrame &out);
+
+
+    /**
+     * Prints all important information of this animation to stdout
+     */
+    void print();
 
 };
 

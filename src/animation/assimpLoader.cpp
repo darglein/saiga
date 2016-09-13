@@ -1,5 +1,5 @@
 #include "saiga/animation/assimpLoader.h"
-
+#include "saiga/util/assert.h"
 #ifdef USE_ASSIMP
 
 AssimpLoader::AssimpLoader(const std::string &_file):file(_file)
@@ -122,6 +122,11 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 
     out.frameCount = out.keyFrames.size();
     out.name = curanim->mName.data;
+    out.ticksPerSecond = curanim->mTicksPerSecond;
+
+    //the duration is the time of the last keyframe
+    out.duration = out.keyFrames.back().time;
+    out.print();
 
     if(verbose)
         cout<<">>loaded animation "<<out.name<<": "<<out.frameCount<<" frames"<<endl;
@@ -138,28 +143,39 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 
     //the last frame is the same as the first
     int frames = animationlength(anim);
+    assert(frames > 0);
     //    frames = 1;
 
     animationFrames.resize(frames);
 
+    //assimp supports animation that have different numbers of position rotation and scaling keys.
+    //this is not supported here. Every keyframe has to have exactly one of those keys.
+    assert(anim->mNumChannels > 0);
+    assert( (int)anim->mChannels[0]->mNumPositionKeys == frames);
+    assert( (int)anim->mChannels[0]->mNumRotationKeys == frames);
+    assert( (int)anim->mChannels[0]->mNumScalingKeys == frames);
 
-    for(int j=0;j<frames;++j){
+    //we shift the animation so that it starts at time 0
+    double firstKeyFrameTime = anim->mChannels[0]->mPositionKeys[0].mTime;
+
+    for(int frame=0;frame<frames;++frame){
 		for (auto &an : animationNodes){
 			an.reset();
 			an.keyFramed = false;
 		}
 
-        int frame = j;
+        double keyFrameTime = anim->mChannels[0]->mPositionKeys[frame].mTime;
         
-
-        //        cout<<">>>>>>>>>>>Keyframe "<<frame<<" channels "<<anim->mNumChannels<<endl;
-
 
         for (unsigned int i = 0; i < anim->mNumChannels; i++) {
             aiNodeAnim *chan = anim->mChannels[i];
             p0 = chan->mPositionKeys + frame;
             r0 = chan->mRotationKeys + frame;
             s0 = chan->mScalingKeys + frame;
+
+            //assimp supports that the keys do not sync to eachother.
+            //this is not supported here.
+            assert(keyFrameTime == p0->mTime && keyFrameTime == r0->mTime && keyFrameTime == s0->mTime);
 
 
             p = p0->mValue;;
@@ -178,13 +194,14 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
             an.keyFramed = true;
         }
 		//k.initTree();
-		AnimationFrame &k = animationFrames[j];
+        AnimationFrame &k = animationFrames[frame];
         k.nodeCount = nodeCount;
         k.bones = boneCount;
         k.boneMatrices.resize(boneCount);
         k.rootNode = rootNode;
         k.boneOffsets = boneOffsets;
 		k.nodes = animationNodes;
+        k.time = keyFrameTime - firstKeyFrameTime;
 
      
         k.calculateFromTree();

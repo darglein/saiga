@@ -5,6 +5,9 @@
 #include "saiga/opengl/uniformBuffer.h"
 
 /**
+ *
+ * Select Armature and click Rest Position.
+ *
  * Blender Collada animation export options: X = checked, O = unchecked
  *
  * X Apply Modifiers
@@ -15,6 +18,11 @@
  *
  * 0 Deform Bones only
  * 0 Export for Open Sim
+ *
+ * Note: The blender animation speed is equal to the loaded animation speed.
+ * You can change blender's frame rate in the render options.
+ * So if you set blender's frame rate to 30 fps and have your animation start at frame 0 and end at frame 30
+ * the animation will play for exactly one second.
  *
  */
 

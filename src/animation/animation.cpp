@@ -31,8 +31,11 @@ void Animation::getFrame(float time, AnimationFrame &out){
 
 }
 
+
+
 void Animation::getFrameNormalized(float time, AnimationFrame &out)
 {
+    assert(time >= 0 && time <= 1);
     getFrame(time*getActiveFrames(),out);
 }
 
@@ -44,6 +47,16 @@ void Animation::getFrame(int frame0, int frame1, float alpha, AnimationFrame &ou
     AnimationFrame &k0 = keyFrames[frame0];
     AnimationFrame &k1 = keyFrames[frame1];
     AnimationFrame::interpolate(k0,k1,out,alpha);
+}
+
+void Animation::print()
+{
+    cout << "[Animation] " + name << " Frames="<<frameCount << " tickspersecond="<<ticksPerSecond << " duration="<<duration<< endl;
+    cout << "\tKeyframes: [";
+    for(AnimationFrame& af : keyFrames){
+        cout << af.time << ", ";
+    }
+    cout << "]" << endl;
 }
 
 

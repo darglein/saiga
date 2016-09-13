@@ -35,6 +35,7 @@ public:
     int nodeCount = 0;
     std::vector<AnimationNode> nodes;
     int rootNode;
+    float time = 0;
 
     int bones;
     std::vector<mat4> boneOffsets;
