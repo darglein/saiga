@@ -122,7 +122,10 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 
     out.frameCount = out.keyFrames.size();
     out.name = curanim->mName.data;
-    out.ticksPerSecond = curanim->mTicksPerSecond;
+    auto tps = curanim->mTicksPerSecond;
+    for(AnimationFrame& af : out.keyFrames){
+        af.time = af.time / tps;
+    }
 
     //the duration is the time of the last keyframe
     out.duration = out.keyFrames.back().time;

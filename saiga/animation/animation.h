@@ -18,9 +18,8 @@ public:
     //speed at which this animation should be played. Unused in this class.
     float animationSpeed = 1.0f;
 
-    //duration of animation in ticks
-    float duration = 5;
-    float ticksPerSecond = 1;
+    //duration of animation in seconds
+    float duration = 1;
 
     //false if there should be an interpolation between the last and the first node.
     //typically if the first and the last node are equal it should be true, otherwise false.
@@ -45,7 +44,7 @@ public:
      * The input time will be clamped to [0,duration]
      */
 
-    void getFrame(float time, AnimationFrame &out);
+//    void getFrame(float time, AnimationFrame &out);
     void getFrame2(float time, AnimationFrame &out);
 
     /**

@@ -13,22 +13,22 @@ const AnimationFrame &Animation::getKeyFrame(int frameIndex)
     return keyFrames[frameIndex];
 }
 
-void Animation::getFrame(float time, AnimationFrame &out)
-{
-    //get frame index before and after
-    int frame = floor(time);
-    int nextFrame = frame+1;
-    float t = time - frame;
+//void Animation::getFrame(float time, AnimationFrame &out)
+//{
+//    //get frame index before and after
+//    int frame = floor(time);
+//    int nextFrame = frame+1;
+//    float t = time - frame;
 
-    int modulo = getActiveFrames();
+//    int modulo = getActiveFrames();
 
-    frame = frame%modulo;
-    nextFrame = nextFrame%modulo;
+//    frame = frame%modulo;
+//    nextFrame = nextFrame%modulo;
 
 
-    getFrame(frame,nextFrame,t,out);
+//    getFrame(frame,nextFrame,t,out);
 
-}
+//}
 
 
 void Animation::getFrame2(float time, AnimationFrame &out){
@@ -82,7 +82,7 @@ void Animation::getFrame(int frame0, int frame1, float alpha, AnimationFrame &ou
 
 void Animation::print()
 {
-    cout << "[Animation] " + name << " Frames="<<frameCount << " tickspersecond="<<ticksPerSecond << " duration="<<duration<< endl;
+    cout << "[Animation] " + name << " Frames="<<frameCount  << " duration="<<duration<<"s"<< endl;
     cout << "\tKeyframes: [";
     for(AnimationFrame& af : keyFrames){
         cout << af.time << ", ";
