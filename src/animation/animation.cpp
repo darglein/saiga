@@ -14,8 +14,9 @@ const AnimationFrame &Animation::getKeyFrame(int frameIndex)
 }
 
 
-void Animation::getFrame(float time, AnimationFrame &out){
+void Animation::getFrame2(float time, AnimationFrame &out){
 
+#if 0
     //get frame index before and after
     int frame = floor(time);
     int nextFrame = frame+1;
@@ -28,15 +29,42 @@ void Animation::getFrame(float time, AnimationFrame &out){
 
 
     getFrame(frame,nextFrame,t,out);
+#else
+    //here time is given in animation time base
+    time = glm::clamp(time,0.0f,duration);
+//    cout << "time " << time << " " << duration << endl;
+    assert(time >= 0 && time <= duration);
+    //seach for correct frame interval
+    int frame = 0;
+    for(AnimationFrame& af : keyFrames){
+        if(af.time >= time){
+            break;
+        }
+        frame++;
+    }
+    int prevFrame = glm::max(0,frame - 1);
 
+    AnimationFrame &k0 = keyFrames[prevFrame];
+    AnimationFrame &k1 = keyFrames[frame];
+
+    if(frame == prevFrame){
+        out = k0;
+        return;
+    }
+
+    float alpha = (time - k0.time) / (k1.time - k0.time);
+    AnimationFrame::interpolate(k0,k1,out,alpha);
+
+#endif
 }
 
 
 
 void Animation::getFrameNormalized(float time, AnimationFrame &out)
 {
+    time = glm::clamp(time,0.0f,1.0f);
     assert(time >= 0 && time <= 1);
-    getFrame(time*getActiveFrames(),out);
+    getFrame2(duration*time,out);
 }
 
 void Animation::getFrame(int frame0, int frame1, float alpha, AnimationFrame &out)

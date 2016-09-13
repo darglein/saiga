@@ -41,11 +41,11 @@ public:
 
     /**
      * Returns the interpolated frame at time 'time'.
-     * With time=0,1,2... the keyFrames 0,1,2... are returned.
-     * A time=1.5f will interpolate between the frames 1 and 2 with an alpha of 0.5f.
+     * The result will be based on the duration and the time stamps of the individual key frames.
+     * The input time will be clamped to [0,duration]
      */
 
-    void getFrame(float time, AnimationFrame &out);
+    void getFrame2(float time, AnimationFrame &out);
 
     /**
      * Returns the interpolated frame similar to @getFrame(float time, AnimationFrame &out);
