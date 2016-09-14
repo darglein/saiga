@@ -8,7 +8,7 @@ using std::endl;
 
 
 
-void AnimationNode::interpolate(AnimationNode &other, float alpha)
+void AnimationNode::interpolate(const AnimationNode &other, float alpha)
 {
 	//cout << "node " << this->boneIndex << " " << position << " " << other.position << " " << keyFramed << endl;
     if(this->keyFramed){
@@ -24,7 +24,7 @@ void AnimationNode::reset()
     position = vec3(0);
     rotation = quat();
     scaling = vec3(1);
-	//keyFramed = false;
+    //keyFramed = false;
 }
 
 
@@ -50,46 +50,47 @@ void AnimationNode::traverse(mat4 m, std::vector<mat4> &out_boneMatrices, std::v
 
 
 
+
+
 AnimationFrame::AnimationFrame()
 {
 
 }
 
-AnimationFrame::AnimationFrame(const AnimationFrame &other)
-{
-	*this = other;
-}
 
-
-void AnimationFrame::calculateFromTree()
+void AnimationFrame::calculateBoneMatrices()
 {
+    boneMatrices.resize(boneCount);
 	nodes[rootNode].traverse(mat4(), boneMatrices, nodes);
 	for (unsigned int i = 0; i<boneMatrices.size(); ++i){
 		boneMatrices[i] = boneMatrices[i] * boneOffsets[i];
-	}
+    }
 }
 
-void AnimationFrame::interpolate(AnimationFrame &k0, AnimationFrame &k1, AnimationFrame& out, float alpha)
+const std::vector<glm::mat4> &AnimationFrame::getBoneMatrices()
 {
-	//cout << "AnimationFrame::interpolate " << alpha << endl;
-	out = k0;
+    if(boneMatrices.size() == 0)
+        calculateBoneMatrices();
+    return boneMatrices;
+}
+
+void AnimationFrame::setBoneMatrices(const std::vector<mat4> &value)
+{
+    assert(value.size() == boneCount);
+    boneMatrices = value;
+}
+
+
+void AnimationFrame::interpolate(const AnimationFrame &k0,const AnimationFrame &k1, AnimationFrame& out, float alpha)
+{
+    assert(k0.boneCount == k1.boneCount);
+    assert(k0.nodeCount == k1.nodeCount);
+    out = k0;
+    out.time = glm::mix(k0.time,k1.time,alpha);
 
     for (unsigned int i = 0; i<k0.nodes.size(); ++i){
-		AnimationNode& n1 = k1.nodes[i];
-
-		out.nodes[i].interpolate(n1, alpha);
-	}
-	//    out.calculateFromTree();
-}
-
-void AnimationFrame::initTree()
-{
-	//nodes.resize(nodeCount);
-	reset();
-}
-
-void AnimationFrame::reset(){
-	for (auto &n : nodes){
-		n.reset();
-	}
+        const AnimationNode& n1 = k1.nodes[i];
+        out.nodes[i].interpolate(n1, alpha);
+    }
+    out.boneMatrices.clear(); //invalidate bone matrices
 }

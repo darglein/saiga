@@ -26,10 +26,10 @@ public:
     Buffer(Buffer const&) = delete;
     Buffer& operator=(Buffer const&) = delete;
 
-    void createGLBuffer(void* data=nullptr,unsigned int size=0, GLenum usage=GL_DYNAMIC_DRAW);
+    void createGLBuffer(const void* data=nullptr,unsigned int size=0, GLenum usage=GL_DYNAMIC_DRAW);
     void deleteGLBuffer();
 
-    void updateBuffer(void* data, unsigned int size, unsigned int offset);
+    void updateBuffer(const void* data, unsigned int size, unsigned int offset);
 
     void bind() const;
 
@@ -52,7 +52,7 @@ inline Buffer::~Buffer()
     deleteGLBuffer();
 }
 
-inline void Buffer::createGLBuffer(void *data, unsigned int _size, GLenum usage)
+inline void Buffer::createGLBuffer(const void *data, unsigned int _size, GLenum usage)
 {
     deleteGLBuffer();
     glGenBuffers( 1, &buffer );
@@ -71,7 +71,7 @@ inline void Buffer::deleteGLBuffer()
     }
 }
 
-inline void Buffer::updateBuffer(void *data, unsigned int _size, unsigned int offset)
+inline void Buffer::updateBuffer(const void *data, unsigned int _size, unsigned int offset)
 {
     bind();
     glBufferSubData(target,offset,_size,data);

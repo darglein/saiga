@@ -5,38 +5,40 @@
 
 #include "saiga/animation/boneShader.h"
 
+void AnimatedAssetObject::setAnimation(int id)
+{
+    assert(id>=0 && id < (int)asset->animations.size());
+    activeAnimation = id;
+    animationTotalTime = asset->animations[id].duration;
+}
+
 void AnimatedAssetObject::init(AnimatedAsset *_asset)
 {
+    assert(_asset);
     this->asset = _asset;
-
     BoneShader* bs = static_cast<BoneShader*>(asset->shader);
     boneMatricesBuffer.init(bs,bs->location_boneMatricesBlock);
+    setAnimation(0);
 }
 
 void AnimatedAssetObject::updateAnimation(float dt)
 {
-    animationTimeAtUpdate += dt / animationTotalTime;
+    animationTimeAtUpdate += dt ;
     //loop animation constantly
-    if(animationTimeAtUpdate >= 1)
-        animationTimeAtUpdate -= 1;
+    if(animationTimeAtUpdate >= animationTotalTime)
+        animationTimeAtUpdate -= animationTotalTime;
 }
 
 void AnimatedAssetObject::interpolateAnimation(float dt, float alpha)
 {
-    animationTimeAtRender = animationTimeAtUpdate + dt * alpha / animationTotalTime;
-
-    asset->animations[activeAnimation].getFrameNormalized(animationTimeAtRender,currentFrame);//Note: 5% CPU Time
-
-    currentFrame.calculateFromTree();
-
-    boneMatricesBuffer.updateBuffer(currentFrame.boneMatrices.data(),currentFrame.boneMatrices.size()*sizeof(mat4),0);
+    animationTimeAtRender = animationTimeAtUpdate + dt * alpha;
+    asset->animations[activeAnimation].getFrame(animationTimeAtRender,currentFrame);//Note: 5% CPU Time
+    boneMatricesBuffer.updateBuffer(currentFrame.getBoneMatrices().data(),currentFrame.getBoneMatrices().size()*sizeof(mat4),0);
 }
 
 
 void AnimatedAssetObject::render(Camera *cam)
 {
-
-
     asset->render(cam,model,boneMatricesBuffer);
 }
 

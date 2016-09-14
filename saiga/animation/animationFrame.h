@@ -8,7 +8,6 @@
 class SAIGA_GLOBAL AnimationNode{
 public:
     std::string name;
-    //std::vector<AnimationNode*> children;
 	std::vector<int> children;
 
     int index = 0;
@@ -22,34 +21,39 @@ public:
     quat rotation;
     vec3 scaling;
 
-    void interpolate(AnimationNode& other, float alpha);
+    void interpolate(const AnimationNode& other, float alpha);
 
-	void reset();
+    void reset();
 	void traverse(mat4 t, std::vector<mat4> &out_boneMatrices, std::vector<AnimationNode> &nodes);
 
 };
 
 class SAIGA_GLOBAL AnimationFrame
 {
-public:
-    int nodeCount = 0;
-    std::vector<AnimationNode> nodes;
-    int rootNode;
-    float time = 0;
-
-    int bones;
-    std::vector<mat4> boneOffsets;
+private:
     std::vector<mat4> boneMatrices;
+public:
+    float time = 0; //animation time in seconds of this frame
+
+    int nodeCount = 0; //Note: should be equal or larger than boneCount, because every bone has to be covered by a node, but a nodes can be parents of other nodes without directly having a bone.
+    std::vector<AnimationNode> nodes;
+    static constexpr int rootNode = 0;
+
+    int boneCount = 0;
+    std::vector<mat4> boneOffsets;
 
     AnimationFrame();
-    AnimationFrame(const AnimationFrame &other);
 
+    void calculateBoneMatrices();
 
-    static void interpolate(AnimationFrame &k0, AnimationFrame &k1, AnimationFrame &out, float alpha);
+    const std::vector<mat4>& getBoneMatrices();
+    void setBoneMatrices(const std::vector<mat4> &value);
+    /**
+     * Linear interpolation between two AnimationFrames. Used by Animation class to create smooth keyframe based animations.
+     */
 
-    void calculateFromTree();
-    void initTree();
-	void reset();
+    static void interpolate(const AnimationFrame &k0, const AnimationFrame &k1, AnimationFrame &out, float alpha);
+
 };
 
 

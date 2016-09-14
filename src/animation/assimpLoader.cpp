@@ -199,15 +199,14 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 		//k.initTree();
         AnimationFrame &k = animationFrames[frame];
         k.nodeCount = nodeCount;
-        k.bones = boneCount;
-        k.boneMatrices.resize(boneCount);
-        k.rootNode = rootNode;
+        k.boneCount = boneCount;
+        assert(rootNode == 0);
         k.boneOffsets = boneOffsets;
 		k.nodes = animationNodes;
         k.time = keyFrameTime - firstKeyFrameTime;
 
      
-        k.calculateFromTree();
+        k.calculateBoneMatrices();
 
 		//cout << k.nodes.size() << endl;
     }
@@ -260,6 +259,7 @@ int AssimpLoader::createNodeTree(struct aiNode *node)
     if(nodeMap.find(str)==nodeMap.end()){
 //        index = nodeMap.size();
 		nodeMap[str] = nodeIndex;
+        nodeCount++;
     }else{
         assert(0);
     }

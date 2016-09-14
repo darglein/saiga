@@ -28,9 +28,6 @@
 
 class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<BoneVertexNC,GLuint>{
 public:
-
-
-
     int boneCount;
 
     std::map<std::string,int> boneMap;
@@ -40,10 +37,6 @@ public:
     std::vector<mat4> inverseBoneOffsets;
 
     std::vector<Animation> animations;
-    std::vector<float> animationSpeeds;
-
-
-
 
 
     void render(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices);

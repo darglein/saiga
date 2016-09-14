@@ -6,9 +6,9 @@
 
 
 class SAIGA_GLOBAL AnimatedAssetObject : public Object3D{
-public:
+private:
     float test = 0;
-    float animationTotalTime = 10; //the complete animation should play in 10 seconds
+    float animationTotalTime = 10;
     float animationTimeAtUpdate = 0;
     float animationTimeAtRender = 0;
     int activeAnimation = 0;
@@ -19,6 +19,8 @@ public:
     //it's better to have the buffer here instead of in the asset, because otherwise it has to be uploaded for every render call (multiple times per frame)
     UniformBuffer boneMatricesBuffer;
 
+    public:
+    void setAnimation(int id);
 
     void init(AnimatedAsset* _asset);
 

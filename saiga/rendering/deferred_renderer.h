@@ -93,10 +93,12 @@ public:
 
     vec4 clearColor = vec4(0,0,0,0);
 
+
+    int windowWidth, windowHeight;
+    int width,height;
+
     Camera** currentCamera;
 
-//    SSAOShader* ssaoShader = nullptr;
-//    Framebuffer ssao_framebuffer;
     SSAO ssao;
 
     MVPTextureShader* blitDepthShader;
@@ -109,8 +111,7 @@ public:
     PostProcessor postProcessor;
 
     RenderingParameters params;
-    int width,height;
-    int windowWidth, windowHeight;
+
 
     DeferredLighting lighting;
     Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters params);

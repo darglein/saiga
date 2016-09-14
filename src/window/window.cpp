@@ -254,7 +254,7 @@ void Window::screenshotParallelWrite(const std::string &file){
     queue.push_back(fipimg);
 
 
-    if (queue.size() > queueLimit){ //one frame full HD ~ 4.5Mb
+    if ((int)queue.size() > queueLimit){ //one frame full HD ~ 4.5Mb
         waitForWriters = true;
     }
 //        cout << "queue size: " << queue.size() << endl;
