@@ -50,7 +50,7 @@ Bspline<P>::Bspline(std::vector<P> controlPoints, int degree) : controlPoints(co
 
 template <typename P>
 Bspline<P>::~Bspline(){
-    delete dd;
+    delete[] dd;
 }
 
 template <typename P>

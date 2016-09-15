@@ -22,10 +22,9 @@ std::string FileChecker::getRelative(const std::string &baseFile, const std::str
     //first check at path relative to the parent
     auto parent = getParentDirectory(baseFile);
     std::string relativeName = parent + file;
-    if(existsFile(relativeName))
+    if(existsFile(relativeName)){
         return relativeName;
-
-    //search for the file at default pathes
+    }
     return getFile(file);
 }
 

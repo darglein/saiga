@@ -11,11 +11,14 @@ FIND_PATH( ASSIMP_INCLUDE_DIR assimp/mesh.h
   /opt/local/include
 )
 
-FIND_LIBRARY( ASSIMP_LIBRARY assimp
-  /usr/lib64
-  /usr/lib
-  /usr/local/lib
-  /opt/local/lib
+FIND_LIBRARY( ASSIMP_LIBRARY 
+	NAMES 
+		assimp
+	PATHS
+  		/usr/lib64
+		/usr/lib
+  		/usr/local/lib
+  		/opt/local/lib
 )
 
 IF(ASSIMP_INCLUDE_DIR AND ASSIMP_LIBRARY)

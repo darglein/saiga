@@ -94,6 +94,7 @@ struct SAIGA_GLOBAL BoneVertexNC{
             weightSum += boneWeights[i];
         }
 
+//        cout << "weightsum="<<weightSum<<endl;
         assert(weightSum>(1.0f-epsilon) && weightSum<(1.0f+epsilon));
     }
 

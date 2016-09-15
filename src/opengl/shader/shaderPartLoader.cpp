@@ -107,6 +107,10 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
     while(!fileStream.eof()) {
         std::string line;
         std::getline(fileStream, line);
+
+        //remove carriage return from windows
+        line.erase( std::remove(line.begin(), line.end(), '\r'), line.end() );
+
         if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
             std::string includeFileName = getFileFromInclude(file,line);
 
@@ -141,7 +145,9 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
 
             std::vector<std::string> tmp;
             if(!loadAndPreproccess(includeFileName,tmp)){
-                std::cerr<<"ShaderPartLoader: Could not open included file: "<<line<<endl;
+                std::cerr<<"ShaderPartLoader: Could not open included file: "<<line <<endl;
+                std::cerr<<"Extracted filename: '"<<includeFileName<<"'"<<endl;
+                std::cerr<<"Basefile: " << file << endl;
                 std::cerr<<"Make sure it exists and the search pathes are set."<<endl;
                 assert(0);
             }

@@ -32,7 +32,9 @@ void AnimatedAssetObject::updateAnimation(float dt)
 void AnimatedAssetObject::interpolateAnimation(float dt, float alpha)
 {
     animationTimeAtRender = animationTimeAtUpdate + dt * alpha;
-    asset->animations[activeAnimation].getFrame(animationTimeAtRender,currentFrame);//Note: 5% CPU Time
+    if(animationTimeAtRender >= animationTotalTime)
+        animationTimeAtRender -= animationTotalTime;
+    asset->animations[activeAnimation].getFrame(animationTimeAtRender,currentFrame);
     boneMatricesBuffer.updateBuffer(currentFrame.getBoneMatrices().data(),currentFrame.getBoneMatrices().size()*sizeof(mat4),0);
 }
 

@@ -101,6 +101,8 @@ TexturedAsset *AssimpAssetLoader::loadTexturedAsset(const std::string &file, boo
 AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, bool normalize)
 {
     AssimpLoader al(file);
+//    al.verbose = true;
+    al.printInfo();
 
     int meshCount = al.scene->mNumMeshes;
 

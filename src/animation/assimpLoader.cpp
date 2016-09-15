@@ -129,7 +129,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 
     //the duration is the time of the last keyframe
     out.duration = out.keyFrames.back().time;
-    out.print();
+//    out.print();
 
     if(verbose)
         cout<<">>loaded animation "<<out.name<<": "<<out.frameCount<<" frames"<<endl;
