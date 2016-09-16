@@ -44,6 +44,8 @@ struct SAIGA_GLOBAL RenderingParameters{
 
     float renderScale = 1.0f; //a render scale of 2 is equivalent to 4xSSAA
 
+    bool useGPUTimers = true; //meassure gpu times of individual passes. This can decrease the overall performance
+
 
     GBufferParameters gbp;
     PostProcessorParameters ppp;
@@ -69,10 +71,9 @@ public:
     };
 private:
     std::vector<FilteredGPUTimer> timers;
-    bool useTimers = true;
 
-    void startTimer(DeferredTimings timer){if(useTimers)timers[timer].startTimer();}
-    void stopTimer(DeferredTimings timer){if(useTimers)timers[timer].stopTimer();}
+    void startTimer(DeferredTimings timer){if(params.useGPUTimers)timers[timer].startTimer();}
+    void stopTimer(DeferredTimings timer){if(params.useGPUTimers)timers[timer].stopTimer();}
 
 public:
 

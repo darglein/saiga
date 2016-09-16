@@ -24,6 +24,7 @@ GLuint Shader::createProgram(){
 
 	//attach all shaders
 	for (auto& sp : shaders){
+//        cout << "Attaching shader " << sp->id << endl;
 		glAttachShader(program, sp->id);
 	}
 	assert_no_glerror();

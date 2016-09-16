@@ -1,7 +1,7 @@
 
 ##GL_VERTEX_SHADER
 
-#version 400
+#version 330
 layout(location=0) in vec3 in_position;
 
 uniform mat4 model;
@@ -30,7 +30,7 @@ void main() {
 
 
 ##GL_FRAGMENT_SHADER
-#version 400
+#version 330
 
 #ifdef SHADOWS
 uniform samplerCubeShadow depthTex;

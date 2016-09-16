@@ -1,7 +1,7 @@
 
 ##GL_VERTEX_SHADER
 
-#version 150
+#version 330
 #extension GL_ARB_explicit_attrib_location : enable
 layout(location=0) in vec3 in_position;
 layout(location=1) in vec3 in_normal;
@@ -25,7 +25,7 @@ void main() {
 
 ##GL_FRAGMENT_SHADER
 
-#version 150
+#version 330
 #extension GL_ARB_explicit_attrib_location : enable
 uniform mat4 model;
 uniform mat4 proj;

@@ -62,7 +62,7 @@ shader_t* ShaderPartLoader::createShader()
     for(auto& sp : shaders){
         std::cout<<sp->type<<" ";
     }
-    std::cout<<")"<<std::endl;
+    std::cout<<") Id="<< shader->program << std::endl;
 
     shader->name = file;
 

@@ -64,12 +64,13 @@ void LightAccumulationShader::uploadLightAccumulationtexture(raw_Texture *textur
 
 
 
-void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params, Texture *LightAccumulationTexture)
+void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params, Texture *LightAccumulationTexture, bool _useTimers)
 {
     this->params = params;
     this->width=width;
     this->height=height;
     this->gbuffer = gbuffer;
+    this->useTimers = _useTimers;
 //    this->gbufferDepth = gbuffer->getTextureDepth();
 //    this->gbufferNormals = gbuffer->getTextureNormal();
 //    this->gbufferColor = gbuffer->getTextureColor();
@@ -168,9 +169,9 @@ void PostProcessor::render()
 
     for(int i = 0 ; i < effects; ++i){
         switchBuffer();
-        shaderTimer[i].startTimer();
+        if(useTimers) shaderTimer[i].startTimer();
         applyShader(postProcessingEffects[i]);
-        shaderTimer[i].stopTimer();
+        if(useTimers) shaderTimer[i].stopTimer();
     }
 
 //    shaderTimer[effects-1].startTimer();

@@ -1,7 +1,7 @@
 
 ##GL_VERTEX_SHADER
 
-#version 400
+#version 330
 
 #define BONE_COUNT 15
 #define BONES_PER_VERTEX 4
@@ -65,7 +65,7 @@ void main() {
 
 ##GL_FRAGMENT_SHADER
 
-#version 400
+#version 330
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;

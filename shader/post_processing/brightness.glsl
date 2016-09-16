@@ -3,7 +3,7 @@
 
 
 ##GL_FRAGMENT_SHADER
-#version 400
+#version 330
 
 uniform sampler2D image;
 

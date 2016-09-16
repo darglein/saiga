@@ -1,7 +1,7 @@
 
 ##GL_VERTEX_SHADER
 
-#version 400
+#version 330
 layout(location=0) in vec3 in_position;
 
 uniform mat4 model;
@@ -85,7 +85,7 @@ void main() {
 
 
 ##GL_GEOMETRY_SHADER
-#version 400
+#version 330
 in vec3 vertexMV[3];
 in vec2 otc[3];
 layout(triangles) in;
@@ -117,7 +117,7 @@ void main()
 
 ##GL_FRAGMENT_SHADER
 
-#version 400
+#version 330
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;

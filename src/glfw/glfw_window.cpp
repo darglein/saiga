@@ -146,9 +146,9 @@ bool glfw_Window::initWindow()
     //    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
 
-#if !defined(SAIGA_RELEASE)
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-#endif
+//#if !defined(SAIGA_RELEASE)
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, windowParameters.debugContext);
+//#endif
     //    glfwWindowHint(GLFW_STENCIL_BITS, 8);
     //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 

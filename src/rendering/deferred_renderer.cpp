@@ -20,10 +20,11 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     deferred_framebuffer.init(width,height,params.gbp);
 
     lighting.init(width,height);
+    lighting.useTimers = params.useGPUTimers;
 
     lighting.ssaoTexture = ssao.bluredTexture;
 
-    postProcessor.init(width,height,&deferred_framebuffer,params.ppp,lighting.lightAccumulationTexture);
+    postProcessor.init(width,height,&deferred_framebuffer,params.ppp,lighting.lightAccumulationTexture,params.useGPUTimers);
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -92,8 +93,9 @@ void Deferred_Renderer::render_intern(){
     renderGBuffer(*currentCamera);
     assert_no_glerror();
 
-    renderSSAO(*currentCamera);
 
+    renderSSAO(*currentCamera);
+//    return;
 
     lighting.cullLights(*currentCamera);
     renderDepthMaps();
@@ -113,6 +115,7 @@ void Deferred_Renderer::render_intern(){
 
 
     renderLighting(*currentCamera);
+
 
     //    startTimer(LIGHTACCUMULATION);
     //    postProcessor.nextFrame();
@@ -268,7 +271,7 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
     startTimer(SSAOT);
 
-        ssao.render(cam,&deferred_framebuffer);
+    ssao.render(cam,&deferred_framebuffer);
 
 
     stopTimer(SSAOT);

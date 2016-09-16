@@ -59,6 +59,8 @@ private:
     int lastBuffer = 1;
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
     std::vector<PostProcessingShader*> postProcessingEffects;
+
+    bool useTimers = false;
     std::vector<FilteredGPUTimer> shaderTimer;
 
     Shader* computeTest;
@@ -72,7 +74,7 @@ private:
     void applyShaderFinal(PostProcessingShader *postProcessingShader);
 public:
 
-    void init(int width, int height, GBuffer *gbuffer, PostProcessorParameters params, Texture* LightAccumulationTexture);
+    void init(int width, int height, GBuffer *gbuffer, PostProcessorParameters params, Texture* LightAccumulationTexture, bool _useTimers);
 
     void nextFrame();
     void bindCurrentBuffer();

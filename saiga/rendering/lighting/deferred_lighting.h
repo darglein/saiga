@@ -56,8 +56,11 @@ private:
     bool drawDebug = true;
 
 
+
     FilteredGPUTimer timers[5];
     std::string timerStrings[5];
+    void startTimer(int timer){if(useTimers)timers[timer].startTimer();}
+    void stopTimer(int timer){if(useTimers)timers[timer].stopTimer();}
 
 //    raw_Texture* dummyTexture;
 //    raw_Texture* dummyCubeTexture;
@@ -68,6 +71,7 @@ public:
     int visibleLights;
     int renderedDepthmaps;
     int currentStencilId = 0;
+    bool useTimers = true;
 
     Texture* ssaoTexture;
 

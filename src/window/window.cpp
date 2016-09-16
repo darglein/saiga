@@ -73,22 +73,10 @@ bool Window::init(const RenderingParameters& params){
         return false;
     }
 
-//    objLoader.materialLoader = &materialLoader;
-//    materialLoader.textureLoader = &textureLoader;
 
-#ifdef _WIN32
-#ifdef _WIN64
 	//this somehow doesn't work in 32 bit
     glDebugMessageCallback(Error::DebugLogWin32,NULL);
-#endif
-#else
-#ifdef USE_GLEW
-    glDebugMessageCallback(Error::DebugLogWin32,NULL);
-#endif
-#ifdef USE_GLBINDING
-     glDebugMessageCallback(Error::DebugLogWin32,NULL);
-#endif
-#endif
+
     cout<<">> Window inputs initialized!"<<endl;
     assert_no_glerror();
 

@@ -3,7 +3,7 @@
 
 
 ##GL_FRAGMENT_SHADER
-#version 400
+#version 330
 
 #include "post_processing_helper_fs.glsl"
 

@@ -33,6 +33,8 @@ void GPUTimer::stopTimer()
 {
     queries[queryBackBuffer][1].record();
     time = queries[queryFrontBuffer][1].getTimestamp() - queries[queryFrontBuffer][0].getTimestamp();
+
+//    time = queries[queryFrontBuffer][1].waitTimestamp() - queries[queryFrontBuffer][0].waitTimestamp();
     swapQueries();
 }
 

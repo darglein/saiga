@@ -3,7 +3,11 @@
 
 
 ##GL_FRAGMENT_SHADER
-#version 400
+#version 330
+
+//enables texture gather extension if present. Required for mesa 11.2 to work.
+#extension GL_ARB_texture_gather : enable
+#extension GL_ARB_gpu_shader5 : enable
 
 #include "post_processing_helper_fs.glsl"
 

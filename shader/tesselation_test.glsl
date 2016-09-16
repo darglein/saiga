@@ -1,7 +1,7 @@
 
 ##GL_VERTEX_SHADER
 
-#version 400
+#version 330
 layout(location=0) in vec3 in_position;
 layout(location=1) in vec3 in_normal;
 
@@ -15,7 +15,7 @@ void main()
 
 
 ##GL_TESS_CONTROL_SHADER
-#version 400
+#version 330
 layout(vertices = 3) out;
 in vec3 vPosition[];
 out vec3 tcPosition[];
@@ -36,7 +36,7 @@ void main()
 
 
 ##GL_TESS_EVALUATION_SHADER
-#version 400
+#version 330
 layout(triangles, equal_spacing, ccw) in;
 in vec3 tcPosition[];
 out vec3 tePosition;
@@ -63,7 +63,7 @@ void main()
 
 
 ##GL_GEOMETRY_SHADER
-#version 400
+#version 330
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
@@ -106,7 +106,7 @@ void main()
 
 ##GL_FRAGMENT_SHADER
 
-#version 400
+#version 330
 
 in vec4 gVertexMV;
 in vec3 gFacetNormal;

@@ -186,8 +186,7 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
 void DeferredLighting::render(Camera* cam){
     //    gbuffer.blitDepth(lightAccumulationBuffer.getId());
 
-    timers[0].startTimer();
-
+    startTimer(0);
 
 
     //viewport is maybe different after shadow map rendering
@@ -229,27 +228,26 @@ void DeferredLighting::render(Camera* cam){
     //    glClearStencil(0x0);
     //    glClear(GL_STENCIL_BUFFER_BIT);
     currentStencilId = 1;
-    timers[0].stopTimer();
+    stopTimer(0);
 
     assert_no_glerror();
-
-    timers[1].startTimer();
+    startTimer(1);
     for(PointLight* l : pointLights){
         renderLightVolume<PointLight,PointLightShader>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader);
     }
-    timers[1].stopTimer();
+    stopTimer(1);
 
-    timers[2].startTimer();
+    startTimer(2);
     for(SpotLight* l : spotLights){
         renderLightVolume<SpotLight,SpotLightShader>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader);
     }
-    timers[2].stopTimer();
+    stopTimer(2);
 
-    timers[3].startTimer();
+    startTimer(3);
     for(BoxLight* l : boxLights){
         renderLightVolume<BoxLight,BoxLightShader>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader);
     }
-    timers[3].stopTimer();
+    stopTimer(3);
     assert_no_glerror();
 
     //reset depth test to default value
@@ -264,15 +262,14 @@ void DeferredLighting::render(Camera* cam){
 
     glDisable(GL_DEPTH_TEST);
 
-    timers[4].startTimer();
-
+    startTimer(4);
     glStencilFunc(GL_NOTEQUAL, 0xFF, 0xFF);
     //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
     //    glStencilFunc(GL_ALWAYS, 0xFF, 0xFF);
     glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
     renderDirectionalLights(cam,false);
     renderDirectionalLights(cam,true);
-    timers[4].stopTimer();
+    stopTimer(4);
 
     glDisable(GL_STENCIL_TEST);
     assert_no_glerror();

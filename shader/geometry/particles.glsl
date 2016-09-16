@@ -1,7 +1,7 @@
 
 ##GL_VERTEX_SHADER
 
-#version 400
+#version 330
 layout(location=0) in vec3 in_position;
 layout(location=1) in vec4 in_velocity;
 layout(location=2) in vec3 in_force;
@@ -81,7 +81,7 @@ void main() {
 
 
 ##GL_GEOMETRY_SHADER
-#version 400
+#version 330
 
 layout(points) in;
 
@@ -205,7 +205,7 @@ void main() {
 
 
 ##GL_FRAGMENT_SHADER
-#version 400
+#version 330
 
 //core in version 4.5 or with extension: ARB_shader_image_load_store
 
