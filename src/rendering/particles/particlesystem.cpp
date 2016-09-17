@@ -22,7 +22,7 @@ void ParticleSystem::init(){
         addParticle(p);
     }
 
-    particleBuffer.set(particles);
+    particleBuffer.set(particles,GL_DYNAMIC_DRAW);
     particleBuffer.setDrawMode(GL_POINTS);
 
     initialized = true;

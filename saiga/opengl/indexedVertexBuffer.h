@@ -24,8 +24,8 @@ public:
     void drawInstanced(int instances) const;
     void drawInstanced(int instances, int offset, int length) const;
 
-    void set(std::vector<vertex_t> &vertices,std::vector<index_t> &indices);
-    void set(vertex_t* vertices,int vertex_count,index_t* indices,int index_count);
+    void set(std::vector<vertex_t> &vertices,std::vector<index_t> &indices, GLenum usage);
+    void set(vertex_t* vertices,int vertex_count,index_t* indices,int index_count, GLenum usage);
 };
 
 template<class vertex_t, class index_t>
@@ -77,14 +77,14 @@ void IndexedVertexBuffer<vertex_t,index_t>::unbind() const{
 
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::set(std::vector<vertex_t> &vertices, std::vector<index_t> &indices){
-    set(&vertices[0],vertices.size(),&indices[0],indices.size());
+void IndexedVertexBuffer<vertex_t,index_t>::set(std::vector<vertex_t> &vertices, std::vector<index_t> &indices, GLenum usage){
+    set(&vertices[0],vertices.size(),&indices[0],indices.size(),usage);
 }
 
 template<class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t,index_t>::set(vertex_t *vertices, int _vertex_count, index_t *indices, int _index_count){
-    vbuffer_t::set(vertices,_vertex_count);
-    ibuffer_t::set(indices,_index_count);
+void IndexedVertexBuffer<vertex_t,index_t>::set(vertex_t *vertices, int _vertex_count, index_t *indices, int _index_count, GLenum usage){
+    vbuffer_t::set(vertices,_vertex_count,usage);
+    ibuffer_t::set(indices,_index_count,usage);
 
     //The ELEMENT_ARRAY_BUFFER_BINDING is part of VAO state.
     //adds index buffer to vao state

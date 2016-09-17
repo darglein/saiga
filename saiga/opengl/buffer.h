@@ -26,7 +26,12 @@ public:
     Buffer(Buffer const&) = delete;
     Buffer& operator=(Buffer const&) = delete;
 
-    void createGLBuffer(const void* data=nullptr,unsigned int size=0, GLenum usage=GL_DYNAMIC_DRAW);
+    //usage:
+    //    Specifies the expected usage pattern of the data store. The symbolic constant must be
+    //    GL_STREAM_DRAW, GL_STREAM_READ, GL_STREAM_COPY,
+    //    GL_STATIC_DRAW, GL_STATIC_READ, GL_STATIC_COPY,
+    //    GL_DYNAMIC_DRAW, GL_DYNAMIC_READ, or GL_DYNAMIC_COPY.
+    void createGLBuffer(const void* data=nullptr,unsigned int size=0, GLenum usage=GL_STATIC_DRAW);
     void deleteGLBuffer();
 
     void updateBuffer(const void* data, unsigned int size, unsigned int offset);

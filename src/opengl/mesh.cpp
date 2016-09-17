@@ -44,7 +44,7 @@ void FBMesh::createQuadMesh(){
         VertexNT(vec3(-1,1,0),vec3(0,0,1),vec2(0,1))
     };
     GLuint indices[] = {0,1,2,3};
-    buffer.set(vertices,4,indices,4);
+    buffer.set(vertices,4,indices,4,GL_STATIC_DRAW);
     buffer.setDrawMode(GL_QUADS);
 }
 

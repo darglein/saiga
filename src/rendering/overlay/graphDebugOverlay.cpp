@@ -31,7 +31,7 @@ GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int n
     vertices.push_back(v);
     v.position = vec3(0,0,0);
     vertices.push_back(v);
-    borderBuffer.set(vertices);
+    borderBuffer.set(vertices,GL_STATIC_DRAW);
     borderBuffer.setDrawMode(GL_LINES);
 
 
@@ -46,7 +46,7 @@ GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int n
         }
 
         graphs[k].data.resize(numDataPoints);
-        graphs[k].buffer.set(dataPoints);
+        graphs[k].buffer.set(dataPoints,GL_DYNAMIC_DRAW);
         graphs[k].buffer.setDrawMode(GL_LINE_STRIP);
     }
 

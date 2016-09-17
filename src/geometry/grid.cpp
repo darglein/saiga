@@ -45,6 +45,6 @@ Grid::Grid(const vec3 &mid, const vec3 &d1, const vec3 &d2) : d1(d1),d2(d2),mid(
 
 
 
-   buffer.set(vertices);
+   buffer.set(vertices,GL_STATIC_DRAW);
    buffer.setDrawMode(GL_LINES);
  }

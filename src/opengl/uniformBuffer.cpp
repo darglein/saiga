@@ -28,7 +28,7 @@ void UniformBuffer::init(Shader *shader, GLuint location)
     std::vector<GLint> indices = shader->getUniformBlockIndices(location);
     numUniforms = indices.size();
 
-    createGLBuffer(nullptr,size);
+    createGLBuffer(nullptr,size,GL_DYNAMIC_DRAW);
 
 }
 

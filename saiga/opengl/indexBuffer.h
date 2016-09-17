@@ -36,8 +36,8 @@ public:
     IndexBuffer(): Buffer(GL_ELEMENT_ARRAY_BUFFER){}
     ~IndexBuffer(){}
 
-    void set(std::vector<index_t> &indices);
-    void set(index_t* indices,int index_count);
+    void set(std::vector<index_t> &indices, GLenum usage);
+    void set(index_t* indices, int index_count, GLenum usage);
 
     void unbind() const;
 
@@ -47,16 +47,16 @@ public:
 
 
 template<class index_t>
-void IndexBuffer<index_t>::set(std::vector<index_t> &indices){
-    set(&indices[0],indices.size());
+void IndexBuffer<index_t>::set(std::vector<index_t> &indices, GLenum usage){
+    set(&indices[0],indices.size(),usage);
 }
 
 template<class index_t>
-void IndexBuffer<index_t>::set(index_t* indices,int _index_count){
+void IndexBuffer<index_t>::set(index_t* indices,int _index_count, GLenum usage){
 
     this->index_count = _index_count;
 
-    createGLBuffer(indices,index_count * sizeof(index_t),GL_STATIC_DRAW);
+    createGLBuffer(indices,index_count * sizeof(index_t),usage);
 
 }
 

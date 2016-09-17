@@ -112,7 +112,7 @@ void Text::render(TextShader* shader){
 
 void Text::updateGLBuffer(int start, bool resize){
     if(resize){
-        mesh.createBuffers(buffer);
+        mesh.createBuffers(buffer,GL_DYNAMIC_DRAW);
     }else{
 //        cout<<"Text::updateGLBuffer "<<"start="<<start << " " << mesh.vertices.size() << " " << (size-start)*4 << endl;
         mesh.updateVerticesInBuffer(buffer,(size-start)*4,start*4);

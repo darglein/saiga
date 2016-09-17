@@ -65,7 +65,7 @@ public:
 
     void close();
     void startMainLoop();
-    void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond);
+    void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond, int maxFrameSkip = 1);
     void startMainLoopNoRender(float ticksPerSecond);
     void setTimeScale(double timeScale);
 

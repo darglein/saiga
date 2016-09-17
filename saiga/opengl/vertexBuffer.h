@@ -61,8 +61,8 @@ public:
      *  A VBO and a VAO will be created and initialized.
      */
 
-    void set(std::vector<vertex_t> &vertices);
-    void set(vertex_t* vertices,int vertex_count);
+    void set(std::vector<vertex_t> &vertices, GLenum usage);
+    void set(vertex_t* vertices, int vertex_count, GLenum usage);
 
     /*
      *  Updates the existing OpenGL buffer.
@@ -159,17 +159,17 @@ void VertexBuffer<vertex_t>::setDrawMode(GLenum _draw_mode){
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices){
-    set(&vertices[0],(int)vertices.size());
+void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices, GLenum usage){
+    set(&vertices[0],(int)vertices.size(),usage);
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count){
+void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count, GLenum usage){
     this->vertex_count = _vertex_count;
 
     deleteGLBuffer();
 
-    createGLBuffer(vertices,vertex_count * sizeof(vertex_t),GL_STATIC_DRAW);
+    createGLBuffer(vertices,vertex_count * sizeof(vertex_t),usage);
 
     //create VAO and init
     glGenVertexArrays(1, &gl_vao);

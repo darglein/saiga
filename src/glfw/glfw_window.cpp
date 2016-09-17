@@ -129,10 +129,10 @@ bool glfw_Window::initWindow()
 
 
 //    //don't allow other resolutions than the native monitor ones in fullscreen mode
-//    if(windowParameters.fullscreen()){
-//        windowParameters.width = mode->width;
-//        windowParameters.height = mode->height;
-//    }
+    if(windowParameters.fullscreen()){
+        windowParameters.width = mode->width;
+        windowParameters.height = mode->height;
+    }
     this->width = windowParameters.width;
     this->height = windowParameters.height;
 
@@ -309,14 +309,13 @@ void glfw_Window::startMainLoop(){
 
 
 
-void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond){
+void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond, int maxFrameSkip){
     const long long SKIP_TICKS_NORMAL_TIME = 1000000 / ticksPerSecond;
     long long SKIP_TICKS = SKIP_TICKS_NORMAL_TIME;
     const float dt = 1.0f/ticksPerSecond;
 
     setTimeScale(1.0);
 
-    const int MAX_FRAMESKIP = 20;
 
     long long next_game_tick = getTicksMS();
 
@@ -325,8 +324,8 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
 
         int loops = 0;
         while( getTicksMS() > next_game_tick ) {
-            if (loops > MAX_FRAMESKIP){
-                cout << "<Gameloop> Warning: Update loop is falling behind. (" << (getTicksMS() - next_game_tick)/1000 << "ms)" << endl;
+            if (loops > maxFrameSkip){
+//                cout << "<Gameloop> Warning: Update loop is falling behind. (" << (getTicksMS() - next_game_tick)/1000 << "ms)" << endl;
                 break;
             }
 
