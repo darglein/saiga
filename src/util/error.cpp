@@ -7,7 +7,10 @@ void Error::DebugLogWin32(GLenum source, GLenum type, GLuint id, GLenum severity
 
     if (id == 131185){
         //Buffer detailed info
-//        return;
+        //Example:
+        //Type : Other ; Source : API; ID : 131185; Severity :
+        //Message : Buffer detailed info: Buffer object 85 (bound to GL_ARRAY_BUFFER_ARB, usage hint is GL_STATIC_DRAW) will use VIDEO memory as the source for buffer object operations.
+       return;
     }
 
     auto typestr = getStringForType(type);
