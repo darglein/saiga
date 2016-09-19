@@ -3,114 +3,50 @@
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
 #include <saiga/opengl/vertexBuffer.h>
-#include "saiga/util/assert.h"
 
+/**
+ * We are using a maximum number of 4 bones per vertex here, because it fits nicely in a vec4 on the gpu
+ * and was sufficient in all cases I have encountered so far.
+ */
+
+#define MAX_BONES_PER_VERTEX 4
 
 struct SAIGA_GLOBAL BoneVertex{
+public:
+    int32_t boneIndices[MAX_BONES_PER_VERTEX];
+    float boneWeights[MAX_BONES_PER_VERTEX];
+
     vec3 position;
     vec3 normal;
-    vec2 texture;
 
-    //every vertex has a maximum of 2 bones
-#define BONES_PER_VERTEX 4
-    float boneIndices[BONES_PER_VERTEX];
-    float boneWeights[BONES_PER_VERTEX];
-//    vec2 boneWeights = vec2(0);
+    BoneVertex();
 
-    BoneVertex(){
-		for (int i = 0; i < BONES_PER_VERTEX; ++i){
-            boneIndices[i] = 0;
-			boneWeights[i] = 0;
-        }
-	}
+    //add a bone with given index and weight to this vertex
+    void addBone(int32_t index, float weight);
 
-    void addBone(int index, float weight){
-        for(int i=0;i<BONES_PER_VERTEX;i++){
-            if(boneWeights[i] == 0){
-                boneIndices[i] = (float)index;
-                boneWeights[i] = weight;
-                return;
-            }
-        }
+    //applies an array of bonematrices to this position and normal.
+    //That is a copy of the vertex shader functionality.
+    void apply(const std::vector<mat4>& boneMatrices);
 
-        //to many weights
-        assert(0);
-    }
+    //normalizes the weights so that the sum is 1.
+    void normalizeWeights();
+
+    //number of bones with weight > 0
+    int activeBones();
 };
 
 
+struct SAIGA_GLOBAL BoneVertexT : public BoneVertex{
+public:
+    vec2 texture;
+};
 
-struct SAIGA_GLOBAL BoneVertexNC{
-    vec3 position;
-    vec3 normal;
+struct SAIGA_GLOBAL BoneVertexCD : public BoneVertex{
+public:
     vec3 color;
     vec3 data;
-
-    //every vertex has a maximum of 2 bones
-#define BONES_PER_VERTEX 4
-    float boneIndices[BONES_PER_VERTEX];
-    float boneWeights[BONES_PER_VERTEX];
-//    vec2 boneWeights = vec2(0);
-
-    BoneVertexNC(){
-        for (int i = 0; i < BONES_PER_VERTEX; ++i){
-            boneIndices[i] = 0;
-            boneWeights[i] = 0;
-        }
-    }
-
-    void addBone(int index, float weight){
-        for(int i=0;i<BONES_PER_VERTEX;i++){
-            if(boneWeights[i] == 0){
-                boneIndices[i] = (float)index;
-                boneWeights[i] = weight;
-                return;
-            }
-        }
-
-        //to many weights
-        assert(0);
-    }
-
-
-    void apply(const std::vector<mat4>& boneMatrices){
-        mat4 boneMatrix(0);
-        for(int i=0;i<BONES_PER_VERTEX;++i){
-            int index = (int)boneIndices[i];
-            assert(index>=0 && index<(int)boneMatrices.size());
-            boneMatrix += boneMatrices[index] * boneWeights[i];
-        }
-
-        position = vec3(boneMatrix*vec4(position,1));
-        normal = vec3(boneMatrix*vec4(normal,0));
-        normal = glm::normalize(normal);
-
-    }
-
-    void checkWeights(float epsilon){
-		(void)epsilon;
-        float weightSum = 0;
-        for(int i=0;i<BONES_PER_VERTEX;++i){
-            weightSum += boneWeights[i];
-        }
-
-//        cout << "weightsum="<<weightSum<<endl;
-        assert(weightSum>(1.0f-epsilon) && weightSum<(1.0f+epsilon));
-    }
-
-    int activeBones(){
-        int count = 0;
-        for(int i=0;i<BONES_PER_VERTEX;++i){
-            if(boneWeights[i]>0){
-                count++;
-            }
-        }
-        return count;
-    }
 };
 
-template<>
-SAIGA_GLOBAL void VertexBuffer<BoneVertex>::setVertexAttributes();
 
 template<>
-SAIGA_GLOBAL void VertexBuffer<BoneVertexNC>::setVertexAttributes();
+SAIGA_GLOBAL void VertexBuffer<BoneVertexCD>::setVertexAttributes();

@@ -112,13 +112,13 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
 
     AnimatedAsset* asset = new AnimatedAsset();
 
-    TriangleMesh<BoneVertexNC,GLuint> &tmesh = asset->mesh;
+    TriangleMesh<BoneVertexCD,GLuint> &tmesh = asset->mesh;
 
 
     al.loadBones();
 
     for(int i=0;i<meshCount;++i){
-        TriangleMesh<BoneVertexNC,GLuint> tmesh3;
+        TriangleMesh<BoneVertexCD,GLuint> tmesh3;
         al.getPositions(i,tmesh3);
         al.getFaces(i,tmesh3);
         al.getNormals(i,tmesh3);
@@ -129,8 +129,9 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
     }
 
 
-    for(BoneVertexNC &bv : asset->mesh.vertices){
-        bv.checkWeights(0.0001f);
+    for(BoneVertexCD &bv : asset->mesh.vertices){
+//        bv.checkWeights(0.0001f);
+        bv.normalizeWeights();
     }
 
 
@@ -163,7 +164,7 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
         al.getAnimation(i,0,asset->animations[i]);
     }
 
-    for(BoneVertexNC &v : asset->mesh.vertices){
+    for(BoneVertexCD &v : asset->mesh.vertices){
         vec3 c = v.color;
         c = Color::srgb2linearrgb(c);
         v.color = c;

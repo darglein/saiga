@@ -3,7 +3,6 @@
 #include "saiga/opengl/buffer.h"
 #include "saiga/opengl/instancedBuffer.h"
 #include "saiga/opengl/opengl.h"
-#include "saiga/opengl/vertex.h"
 #include <iostream>
 
 #include <vector>
@@ -263,12 +262,4 @@ void VertexBuffer<vertex_t>::setVertexAttributes(){
     assert(0);
 }
 
-template<>
-SAIGA_GLOBAL void VertexBuffer<Vertex>::setVertexAttributes();
-template<>
-SAIGA_GLOBAL void VertexBuffer<VertexN>::setVertexAttributes();
-template<>
-SAIGA_GLOBAL void VertexBuffer<VertexNT>::setVertexAttributes();
-template<>
-SAIGA_GLOBAL void VertexBuffer<VertexNC>::setVertexAttributes();
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "saiga/opengl/vertex.h"
 #include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/framebuffer.h"

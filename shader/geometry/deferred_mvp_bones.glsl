@@ -5,12 +5,21 @@
 
 #define BONE_COUNT 15
 #define BONES_PER_VERTEX 4
-layout(location=0) in vec3 in_position;
-layout(location=1) in vec3 in_normal;
-layout(location=2) in vec3 in_color;
-layout(location=3) in vec3 in_data;
-layout(location=4) in vec4 in_boneIndices;
-layout(location=5) in vec4 in_boneWeights;
+
+
+layout(location=0) in ivec4 in_boneIndices;
+layout(location=1) in vec4 in_boneWeights;
+layout(location=2) in vec3 in_position;
+layout(location=3) in vec3 in_normal;
+layout(location=4) in vec3 in_color;
+layout(location=5) in vec3 in_data;
+
+//layout(location=0) in vec3 in_position;
+//layout(location=1) in vec3 in_normal;
+//layout(location=2) in vec3 in_color;
+//layout(location=3) in vec3 in_data;
+//layout(location=4) in vec4 in_boneIndices;
+//layout(location=5) in vec4 in_boneWeights;
 
 uniform mat4 model;
 uniform mat4 view;

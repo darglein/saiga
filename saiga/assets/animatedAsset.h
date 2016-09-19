@@ -26,7 +26,7 @@
  *
  */
 
-class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<BoneVertexNC,GLuint>{
+class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<BoneVertexCD,GLuint>{
 public:
     int boneCount;
 

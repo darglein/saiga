@@ -1,5 +1,6 @@
 #pragma once
 
+#include "saiga/opengl/vertex.h"
 #include "saiga/camera/camera.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"

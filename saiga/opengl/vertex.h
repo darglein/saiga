@@ -3,84 +3,70 @@
 #include <string>
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
+#include "saiga/opengl/vertexBuffer.h"
 
-
-struct SAIGA_GLOBAL VertexNT{
-    vec3 position;
-    vec3 normal;
-    vec2 texture;
-    VertexNT() : position(0),normal(0),texture(0){}
-    VertexNT(const vec3 &position):position(position){}
-    VertexNT(const vec3 &position,const vec3 &normal,const vec2 &texture):position(position),normal(normal),texture(texture){}
-    bool operator==(const VertexNT &other) const {
-        return position==other.position && normal==other.normal && texture==other.texture;
-    }
-    friend std::ostream& operator<<(std::ostream& os, const VertexNT& vert){
-        os<<vert.position<<",";
-        os<<vert.normal<<",";
-        os<<vert.texture;
-        return os;
-    }
-};
-
-
-
-struct SAIGA_GLOBAL VertexN{
-    vec3 position;
-    vec3 normal;
-    VertexN() : position(0),normal(0){}
-    VertexN(const vec3 &position):position(position){}
-    VertexN(const vec3 &position,const vec3 &normal):position(position),normal(normal){}
-    VertexN(const VertexNT& v):position(v.position),normal(v.normal){}
-
-    bool operator==(const VertexN &other) const {
-        return position==other.position && normal==other.normal;
-    }
-    friend std::ostream& operator<<(std::ostream& os, const VertexN& vert){
-        os<<vert.position<<",";
-        os<<vert.normal;
-        return os;
-    }
-};
-
+/**
+ * Using inherritance here to enable an easy conversion between vertex types by object slicing.
+ * Example:
+ * VertexN v;
+ * Vertex v2 = v;
+ */
 
 struct SAIGA_GLOBAL Vertex{
-    vec3 position;
-    Vertex() : position(0){}
-    Vertex(const vec3 &position):position(position){}
-    Vertex(const VertexN& v):position(v.position){}
-    Vertex(const VertexNT& v):position(v.position){}
+    vec3 position = vec3(0);
 
-    bool operator==(const Vertex &other) const {
-        return position==other.position;
-    }
+    Vertex() {}
+    Vertex(const vec3 &position) : position(position){}
 
-
-    friend std::ostream& operator<<(std::ostream& os, const Vertex& vert){
-        os<<vert.position;
-        return os;
-    }
+    bool operator==(const Vertex &other) const;
+    friend std::ostream& operator<<(std::ostream& os, const Vertex& vert);
 };
+
+struct SAIGA_GLOBAL VertexN : public Vertex{
+    vec3 normal =  vec3(0);
+
+    VertexN() {}
+    VertexN(const vec3 &position) : Vertex(position){}
+    VertexN(const vec3 &position,const vec3 &normal) : Vertex(position),normal(normal){}
+
+    bool operator==(const VertexN &other) const;
+    friend std::ostream& operator<<(std::ostream& os, const VertexN& vert);
+};
+
+
+struct SAIGA_GLOBAL VertexNT : public VertexN{
+    vec2 texture = vec2(0);
+
+    VertexNT() {}
+    VertexNT(const vec3 &position) : VertexN(position){}
+    VertexNT(const vec3 &position,const vec3 &normal,const vec2 &texture) : VertexN(position,normal),texture(texture){}
+
+    bool operator==(const VertexNT &other) const;
+    friend std::ostream& operator<<(std::ostream& os, const VertexNT& vert);
+};
+
 
 struct SAIGA_GLOBAL VertexNC : public VertexN{
-    vec3 color;
-    vec3 data;
-    VertexNC() : color(0){}
-    VertexNC(const vec3 &position):VertexN(position){}
-    VertexNC(const vec3 &position,const vec3 &normal):VertexN(position,normal){}
-    VertexNC(const vec3 &position,const vec3 &normal,const vec3 &color):VertexN(position,normal),color(color){}
-    bool operator==(const VertexNC &other) const {
-        return position==other.position && normal==other.normal && color==other.color && data==other.data;
-    }
-    friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert){
-        os<<vert.position<<",";
-        os<<vert.normal<<",";
-        os<<vert.color<<",";
-        os<<vert.data;
-        return os;
-    }
+    vec3 color = vec3(0);
+    vec3 data = vec3(0);
+
+    VertexNC() {}
+    VertexNC(const vec3 &position) : VertexN(position){}
+    VertexNC(const vec3 &position,const vec3 &normal) : VertexN(position,normal){}
+    VertexNC(const vec3 &position,const vec3 &normal,const vec3 &color) : VertexN(position,normal),color(color){}
+
+    bool operator==(const VertexNC &other) const;
+    friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert);
 };
 
 
 
+template<>
+SAIGA_GLOBAL void VertexBuffer<Vertex>::setVertexAttributes();
+template<>
+SAIGA_GLOBAL void VertexBuffer<VertexN>::setVertexAttributes();
+template<>
+SAIGA_GLOBAL void VertexBuffer<VertexNT>::setVertexAttributes();
+template<>
+SAIGA_GLOBAL void VertexBuffer<VertexNC>::setVertexAttributes();
 

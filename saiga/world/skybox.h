@@ -1,5 +1,6 @@
 #pragma once
 
+#include "saiga/opengl/vertex.h"
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
