@@ -1,5 +1,7 @@
 #include "saiga/geometry/aabb.h"
 #include <glm/gtc/epsilon.hpp>
+#include "saiga/geometry/bezier.h"
+
 
 aabb::aabb(void)
 {

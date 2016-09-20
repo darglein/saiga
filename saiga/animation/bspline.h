@@ -20,7 +20,8 @@ private:
     int degree;
 
     //temp storage needed for deBoor
-    P* dd;
+//    P* dd;
+    std::vector<P> dd;
 
     /**
      * @brief deBoor
@@ -45,12 +46,13 @@ Bspline<P>::Bspline(std::vector<P> controlPoints, int degree) : controlPoints(co
         knots.push_back(i);
     }
 
-    dd = new P[(degree+1)*(degree+1)];
+//    dd = new P[(degree+1)*(degree+1)];
+    dd.resize((degree+1)*(degree+1));
 }
 
 template <typename P>
 Bspline<P>::~Bspline(){
-    delete[] dd;
+//    delete[] dd;
 }
 
 template <typename P>
