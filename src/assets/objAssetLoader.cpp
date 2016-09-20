@@ -1,6 +1,5 @@
 #include "saiga/assets/objAssetLoader.h"
 
-#include "saiga/animation/assimpLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/animation/objLoader2.h"

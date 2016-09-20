@@ -2,7 +2,6 @@
 
 #include <saiga/config.h>
 
-#ifdef USE_ASSIMP
 
 #include <saiga/geometry/triangle_mesh.h>
 
@@ -369,5 +368,4 @@ void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
 }
 
-#endif //USE_ASSIMP
 

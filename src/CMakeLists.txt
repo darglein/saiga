@@ -45,6 +45,11 @@ if (USE_FFMPEG)
 	SET(PROG_SRC ${PROG_SRC} ${ffmpeg_SRC})
 endif()
 
+if (USE_ASSIMP)
+	FILE(GLOB_RECURSE assimp_SRC  assimp/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${assimp_SRC})
+endif()
+
 #creates 'folders' in the solution explorer of visual studio
 include(source_group_helper)
 GroupSources2(${PROJECT_SOURCE_DIR}/src)

@@ -1,6 +1,6 @@
-#include "saiga/assets/assimpAssetLoader.h"
+#include "saiga/assimp/assimpAssetLoader.h"
 
-#include "saiga/animation/assimpLoader.h"
+#include "saiga/assimp/assimpLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 
@@ -130,23 +130,8 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
 
 
     for(BoneVertexCD &bv : asset->mesh.vertices){
-//        bv.checkWeights(0.0001f);
         bv.normalizeWeights();
     }
-
-
-    //does not work xD
-
-//        //apply bone offset matrices to mesh
-//        for(BoneVertexNC &bv : asset->mesh.vertices){
-//            bv.apply(al.boneOffsets);
-//        }
-
-
-//        for(unsigned int i=0;i<al.boneOffsets.size();++i){
-//            al.boneOffsets[i] = mat4();
-//        }
-
 
     asset->boneCount = al.boneOffsets.size();
     asset->boneMap = al.boneMap;
