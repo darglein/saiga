@@ -37,7 +37,9 @@ public:
 
     int nodeCount = 0; //Note: should be equal or larger than boneCount, because every bone has to be covered by a node, but a nodes can be parents of other nodes without directly having a bone.
     std::vector<AnimationNode> nodes;
-    static constexpr int rootNode = 0;
+
+#define AnimationFrame_ROOT_NODE 0
+//    static constexpr int rootNode = 0;
 
     int boneCount = 0;
     std::vector<mat4> boneOffsets;
