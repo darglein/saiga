@@ -38,9 +38,13 @@ void Sound::setFormat(int _channels, int _bitsPerSample, int _frequency)
 void Sound::createBuffer(const void* data, int _size)
 {
 #if defined(SAIGA_DEBUG)
-    if(_size > bitsPerSample/8)
-        checkFirstSample(data);
-#endif
+	if (_size > bitsPerSample / 8) {
+		if(!checkFirstSample(data)){
+			std::cerr << "Warning: " << name << " The first sample of this sound is not zero. This may cause artifacts when playing with OpenAL." << std::endl;
+			std::cerr << "Value = " << toFloat(getSample(0, 0, data)) << std::endl;
+		}
+	}
+     #endif
     alGenBuffers(1, &buffer);
     alBufferData(buffer, format, data,
                  _size, frequency);
@@ -58,14 +62,18 @@ void Sound::deleteBuffer()
 }
 
 
-void Sound::checkFirstSample(const void *data)
+bool Sound::checkFirstSample(const void *data)
 {
-    float val = toFloat(getSample(0,0,data));
+	bool ret = true;
+	for (int c = 0; c < channels; ++c) {
+		float val = toFloat(getSample(0, 0, data));
 
-    if( glm::abs(val) > 0.0001f){
-        std::cerr << "Warning: " << name << " The first sample of this sound is not zero. This may cause artifacts when playing with OpenAL." << std::endl;
-        std::cerr << "Value = " << val << std::endl;
-    }
+		ret &= glm::abs(val) <= 0.0001f;
+
+		
+	}
+	return ret;
+        
 }
 
 int32_t Sound::getSample(int sample, int channel, const void *data)

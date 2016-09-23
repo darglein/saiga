@@ -135,21 +135,15 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string &filename) {
     Sound* sound = new Sound();
     sound->name = filename;
     sound->setFormat(wave_format.numChannels,wave_format.bitsPerSample,wave_format.sampleRate);
-//    sound->size = wave_data.subChunk2Size;
-//    sound->frequency = wave_format.sampleRate;
-//    //The format is worked out by looking at the number of
-//    //channels and the bits per sample.
-//    if (wave_format.numChannels == 1) {
-//        if (wave_format.bitsPerSample == 8 )
-//            sound->format = AL_FORMAT_MONO8;
-//        else if (wave_format.bitsPerSample == 16)
-//            sound->format = AL_FORMAT_MONO16;
-//    } else if (wave_format.numChannels == 2) {
-//        if (wave_format.bitsPerSample == 8 )
-//            sound->format = AL_FORMAT_STEREO8;
-//        else if (wave_format.bitsPerSample == 16)
-//            sound->format = AL_FORMAT_STEREO16;
-//    }
+
+	if (!sound->checkFirstSample(data.data())) {
+		int bytes = wave_format.bitsPerSample / 8 * wave_format.numChannels;
+		std::vector<unsigned char> zerobytes(bytes, 0);
+		data.insert(data.begin(), zerobytes.begin(), zerobytes.end());
+#if defined(SAIGA_DEBUG)
+		std::cerr << "Inserting " << bytes << " zero padding bytes at the beginning of sound " << sound->name << std::endl;
+#endif
+	}
 
     sound->createBuffer(data.data(),wave_data.subChunk2Size);
 

@@ -26,7 +26,7 @@ public:
 
 
     //check if first sample is 0. prints a warning if it's not 0.
-    void checkFirstSample(const void* data);
+    bool checkFirstSample(const void* data);
 
     int32_t getSample(int sample, int channel, const void* data);
     float toFloat(int32_t sample);
