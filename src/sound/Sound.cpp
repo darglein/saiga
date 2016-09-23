@@ -2,14 +2,90 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 namespace sound {
-// Constructors/Destructors
-//  
 
 Sound::Sound () {
 }
 
 Sound::~Sound () {
-//    alDeleteBuffers(1, &buffer);
+    deleteBuffer();
+}
+
+void Sound::setFormat(int _channels, int _bitsPerSample, int _frequency)
+{
+
+    channels = _channels;
+    bitsPerSample = _bitsPerSample;
+    frequency = _frequency;
+
+
+    assert(channels == 1 || channels == 2);
+    assert(bitsPerSample == 8 || bitsPerSample == 16);
+
+    if (channels == 1) {
+        if (bitsPerSample == 8 )
+            format = AL_FORMAT_MONO8;
+        else if (bitsPerSample == 16)
+            format = AL_FORMAT_MONO16;
+    } else if (channels == 2) {
+        if (bitsPerSample == 8 )
+            format = AL_FORMAT_STEREO8;
+        else if (bitsPerSample == 16)
+            format = AL_FORMAT_STEREO16;
+    }
+
+}
+
+void Sound::createBuffer(const void* data, int _size)
+{
+#if defined(SAIGA_DEBUG)
+    if(_size > bitsPerSample/8)
+        checkFirstSample(data);
+#endif
+    alGenBuffers(1, &buffer);
+    alBufferData(buffer, format, data,
+                 _size, frequency);
+    assert(buffer);
+    assert_no_alerror();
+}
+
+void Sound::deleteBuffer()
+{
+    if(buffer){
+        alDeleteBuffers(1, &buffer);
+        buffer = 0;
+        assert_no_alerror();
+    }
+}
+
+
+void Sound::checkFirstSample(const void *data)
+{
+    float val = toFloat(getSample(0,0,data));
+
+    if( glm::abs(val) > 0.0001f){
+        std::cerr << "Warning: " << name << " The first sample of this sound is not zero. This may cause artifacts when playing with OpenAL." << std::endl;
+        std::cerr << "Value = " << val << std::endl;
+    }
+}
+
+int32_t Sound::getSample(int sample, int channel, const void *data)
+{
+    int32_t val = 0;
+    if(bitsPerSample == 16){
+        int8_t* d = (int8_t*)data;
+        val = d[sample*channels+channel];
+    }
+    if(bitsPerSample == 16){
+        int16_t* d = (int16_t*)data;
+        val = d[sample*channels+channel];
+    }
+    return val;
+}
+
+float Sound::toFloat(int32_t sample)
+{
+    int32_t div = (1 << (bitsPerSample-1) );
+    return (float)sample/div;
 }
 
 }

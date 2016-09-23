@@ -133,29 +133,25 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string &filename) {
     //data from the structs
 
     Sound* sound = new Sound();
+    sound->name = filename;
+    sound->setFormat(wave_format.numChannels,wave_format.bitsPerSample,wave_format.sampleRate);
+//    sound->size = wave_data.subChunk2Size;
+//    sound->frequency = wave_format.sampleRate;
+//    //The format is worked out by looking at the number of
+//    //channels and the bits per sample.
+//    if (wave_format.numChannels == 1) {
+//        if (wave_format.bitsPerSample == 8 )
+//            sound->format = AL_FORMAT_MONO8;
+//        else if (wave_format.bitsPerSample == 16)
+//            sound->format = AL_FORMAT_MONO16;
+//    } else if (wave_format.numChannels == 2) {
+//        if (wave_format.bitsPerSample == 8 )
+//            sound->format = AL_FORMAT_STEREO8;
+//        else if (wave_format.bitsPerSample == 16)
+//            sound->format = AL_FORMAT_STEREO16;
+//    }
 
-    sound->size = wave_data.subChunk2Size;
-    sound->frequency = wave_format.sampleRate;
-    //The format is worked out by looking at the number of
-    //channels and the bits per sample.
-    if (wave_format.numChannels == 1) {
-        if (wave_format.bitsPerSample == 8 )
-            sound->format = AL_FORMAT_MONO8;
-        else if (wave_format.bitsPerSample == 16)
-            sound->format = AL_FORMAT_MONO16;
-    } else if (wave_format.numChannels == 2) {
-        if (wave_format.bitsPerSample == 8 )
-            sound->format = AL_FORMAT_STEREO8;
-        else if (wave_format.bitsPerSample == 16)
-            sound->format = AL_FORMAT_STEREO16;
-    }
-    //create our openAL buffer and check for success
-    alGenBuffers(1, &sound->buffer);
-    //        checkForSoundErrors();
-    //now we put our data into the openAL buffer and
-    //check for success
-    alBufferData(sound->buffer, sound->format, (void*)data.data(),
-                 sound->size, sound->frequency);
+    sound->createBuffer(data.data(),wave_data.subChunk2Size);
 
     return sound;
 }
@@ -195,19 +191,11 @@ Sound *SoundLoader::loadOpusFile(const std::string &filename)
     op_free(file);
 
     Sound* sound = new Sound();
-    sound->size = data.size()*sizeof(opus_int16);
-    sound->frequency = sampleRate;
+    sound->name = filename;
+    sound->setFormat(channels,16,sampleRate);
 
+    sound->createBuffer(data.data(),data.size()*sizeof(opus_int16));
 
-    if (channels == 1) {
-        sound->format = AL_FORMAT_MONO16;
-    } else if (channels == 2) {
-        sound->format = AL_FORMAT_STEREO16;
-    }
-
-    alGenBuffers(1, &sound->buffer);
-    alBufferData(sound->buffer, sound->format, (void*)data.data(),
-                 sound->size, sound->frequency);
 
     //    cout<<"Loaded opus file: "<<filename<<" ( "<<"bitRate="<<bitRate<<" memorydecoded="<<sound->size <<" channels="<<channels<<" )"<<endl;
     return sound;

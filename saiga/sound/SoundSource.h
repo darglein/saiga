@@ -44,6 +44,8 @@ public:
 
     void makeBackground();
     void setMasterVolume(float v);
+
+    void unloadSound();
 };
 
 

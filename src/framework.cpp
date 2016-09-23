@@ -74,8 +74,16 @@ void initSaiga()
 
 
 
+    std::string mode;
+#if defined(SAIGA_DEBUG)
+    mode = "DEBUG";
+#elif defined(SAIGA_TESTING)
+    mode = "TESTING";
+#elif defined(SAIGA_RELEASE)
+    mode = "RELEASE";
+#endif
 
-    cout<<"========================== Framework initialization done! =========================="<<endl;
+    cout<<"========================== Saiga initialization done! (" << mode << ") =========================="<<endl;
     initialized = true;
 
 }
@@ -88,7 +96,7 @@ void cleanupSaiga()
     TextureLoader::instance()->clear();
     MaterialLoader::instance()->clear();
     ObjLoader::instance()->clear();
-    cout<<"========================== Framework cleanup done! =========================="<<endl;
+    cout<<"========================== Saiga cleanup done! =========================="<<endl;
     initialized = false;
 }
 

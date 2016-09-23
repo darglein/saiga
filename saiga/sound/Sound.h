@@ -1,6 +1,6 @@
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/sound/OpenAL.h"
 #include <string>
 
 
@@ -9,27 +9,27 @@ namespace sound {
 class SAIGA_GLOBAL Sound
 {
 public:
+    std::string name;
 
-//    ALuint buffer;
-//    ALint channels;
-//    ALint bits;
-//    ALsizei size;
-//    ALint frequency;
-//    ALenum format;
-
-    //needed to remove the al dependencies
-    unsigned int buffer;
+    unsigned int buffer = 0;
     int channels;
-    int bits;
-    int size;
+    int bitsPerSample;
     int frequency;
     int format;
-//    std::string name = "test";
 
     Sound ();
     virtual ~Sound ();
 
+    void setFormat(int _channels, int _bitsPerSample, int _frequency);
+    void createBuffer(const void* data, int size);
+    void deleteBuffer();
 
+
+    //check if first sample is 0. prints a warning if it's not 0.
+    void checkFirstSample(const void* data);
+
+    int32_t getSample(int sample, int channel, const void* data);
+    float toFloat(int32_t sample);
 
 };
 }

@@ -67,6 +67,14 @@ void SoundSource::setMasterVolume(float v){
     }
 }
 
+void SoundSource::unloadSound()
+{
+    stop();
+    alSourcei(source, AL_BUFFER, AL_NONE);
+    sound = nullptr;
+    assert_no_alerror();
+}
+
 void SoundSource::setPitch(float pitch)
 {
     alSourcef(source, AL_PITCH, pitch);

@@ -34,6 +34,13 @@ SoundManager::SoundManager (int maxSources, int fixedSources) : maxSources(maxSo
 SoundManager::~SoundManager () {
 
     cout<<"~SoundManager"<<endl;
+
+
+    delete quietSoundSource;
+
+    sources.clear();
+
+
     for(auto it = soundMap.begin() ; it!=soundMap.end();++it){
         Sound* sound = it->second;
         delete sound;
@@ -41,9 +48,6 @@ SoundManager::~SoundManager () {
 
 
 
-    delete quietSoundSource;
-
-    sources.clear();
 
     quitOpenAL();
 
