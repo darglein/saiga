@@ -46,6 +46,7 @@ private:
     //similar to a std::vector the capacity is not decreased when the size is decreased
     int size; //current size of the label
     int capacity; //size of the gpu buffer
+    int lines = 1; //number of '\n' + 1
 
     vec2 startPos = vec2(0); //bottom left corner of first character
 
@@ -60,7 +61,7 @@ private:
 
     void calculateNormalizationMatrix();
     void updateGLBuffer(int start, bool resize);
-    bool compressText(utf32string &str, int &start);
+    bool compressText(utf32string &str, int &start, int &lines);
 
     //adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
     void addTextToMesh(const utf32string &text, vec2 offset=vec2(0));

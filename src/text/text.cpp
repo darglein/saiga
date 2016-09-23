@@ -32,8 +32,16 @@ void Text::calculateNormalizationMatrix()
         boundingBox.transform(normalizationMatrix);
     }else{
 //        cout << "boundingBox " << boundingBox << " " << textureAtlas->getMaxCharacter() << endl;
-        boundingBox.growBox(textureAtlas->getMaxCharacter());
-    }
+
+        //grow every line by max character
+        aabb maxCharacter = textureAtlas->getMaxCharacter();
+        for(int i = 0 ; i < lines ; ++i){
+
+            boundingBox.growBox(maxCharacter);
+            maxCharacter.translate( vec3(0,-textureAtlas->getLineSpacing(),0) );
+
+        }
+   }
 
 //        cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
 
@@ -45,7 +53,8 @@ void Text::updateText(const std::string &l, int startIndex){
     utf32string label = Encoding::UTF8toUTF32(l);
     //checks how many leading characteres are already the same.
     //if the new text is the same as the old nothing has to be done.
-    bool resize = compressText(label,startIndex);
+    lines = 1;
+    bool resize = compressText(label,startIndex,lines);
     label = utf32string( this->label.begin() + startIndex , this->label.end() );
 
     if(label.size()==0){
@@ -119,7 +128,7 @@ void Text::updateGLBuffer(int start, bool resize){
     }
 }
 
-bool Text::compressText(utf32string &str, int &start){
+bool Text::compressText(utf32string &str, int &start, int &lines){
     int newLength = str.size() + start;
     size = newLength;
 
@@ -135,10 +144,14 @@ bool Text::compressText(utf32string &str, int &start){
     }
 
     //count leading characters that are equal
+    //count new line characters
     int equalChars = 0;
     for(;equalChars<(int)str.size();equalChars++){
         if(label[equalChars+start]!=str[equalChars]){
             break;
+        }
+        if(str[equalChars] == '\n'){
+            lines++;
         }
     }
     start += equalChars;
@@ -162,6 +175,7 @@ void Text::addTextToMesh(const utf32string &text, vec2 offset){
         if(c == '\n'){
             position.x = startPos.x;
             position.y -= textureAtlas->getLineSpacing();
+            lines++;
             //emit a degenerated quad
             //TODO: maybe remove this and count 'actual' characters
         }
