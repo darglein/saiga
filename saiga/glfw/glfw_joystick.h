@@ -5,12 +5,12 @@
 
 
 enum class JoystickButton : int{
-    Confirm = 0,
-    Back = 1,
-    Unused1 = 2,
-    Unused2 = 3,
+    Confirm = 0, //A
+    Back = 1,    //B
+    Unused1 = 2, //X
+    Unused2 = 3, //Y
     Lookahead = 4,
-    Unused3 = 5,
+    Grenade = 5,
     Unused4 = 6,
     Unused5 = 7,
     Unused6 = 8,
