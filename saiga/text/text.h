@@ -37,9 +37,9 @@ public:
      * The mesh is always in the x-y Plane ( z=0 ).
      * If normalized is set to true the center of the mesh is vec3(0).
      */
-    aabb getAabb(){return boundingBox;}
-    vec3 getSize(){ return boundingBox.max-boundingBox.min;}
-
+    aabb getAabb(){ return boundingBox; }
+    vec3 getSize(){ return boundingBox.max-boundingBox.min; }
+    int getLines() { return lines; }
 
 
 private:
