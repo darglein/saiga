@@ -187,7 +187,7 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 
             std::string str(chan->mNodeName.data);
             if(nodeMap.find(str)==nodeMap.end()){
-                assert(0);
+                assert(0 && "nodeMap.find(str)==nodeMap.end()");
             }
             AnimationNode& an = animationNodes[nodeMap[str]];
 

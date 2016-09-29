@@ -10,7 +10,7 @@ using std::endl;
 Translator* translator = nullptr;
 
 
-void Translator::readTranslationFile(const std::string &file)
+bool Translator::readTranslationFile(const std::string &file)
 {
     assert(!isCollecting);
 
@@ -20,13 +20,14 @@ void Translator::readTranslationFile(const std::string &file)
         stream.open (file, std::fstream::in);
         if (!stream.good()){
             cout << "Warning Translator: file does not exist! " + file << endl;
+            return false;
         }
 
     }
     catch (const std::fstream::failure &e) {
         cout<< e.what() << endl;
         cout << "Exception opening/reading file\n";
-        return;
+        return false;
     }
 
     int lineNumber = 0;
@@ -82,7 +83,9 @@ void Translator::readTranslationFile(const std::string &file)
     }
     catch (const std::fstream::failure &e) {
         cout<< e.what() << std::endl;
+        return false;
     }
+    return true;
 }
 
 void Translator::startCollecting()

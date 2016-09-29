@@ -14,7 +14,7 @@ private:
 
     std::vector<std::pair<string,string>> collectedStrings;
 public:
-    void readTranslationFile(const std::string& file);
+    bool readTranslationFile(const std::string& file);
     void startCollecting();
     void writeToFile();
     /**
