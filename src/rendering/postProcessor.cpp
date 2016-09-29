@@ -189,16 +189,26 @@ void PostProcessor::render()
 void PostProcessor::setPostProcessingEffects(const std::vector<PostProcessingShader *> &postProcessingEffects){
     assert_no_glerror();
     this->postProcessingEffects = postProcessingEffects;
-    shaderTimer.clear();
-    shaderTimer.resize(postProcessingEffects.size());
-    for(auto &t : shaderTimer){
-        t.create();
-    }
+	createTimers();
     assert_no_glerror();
+}
+
+void PostProcessor::createTimers() {
+	shaderTimer.clear();
+
+	if (!useTimers)
+		return;
+
+	shaderTimer.resize(postProcessingEffects.size());
+	for (auto &t : shaderTimer) {
+		t.create();
+	}
 }
 
 void PostProcessor::printTimings()
 {
+	if (!useTimers)
+		return;
     for(unsigned int i = 0 ; i < postProcessingEffects.size() ; ++i){
         cout<<"\t"<<shaderTimer[i].getTimeMS()<<"ms "<<postProcessingEffects[i]->name<<endl;
     }

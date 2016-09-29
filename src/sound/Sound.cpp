@@ -44,7 +44,7 @@ void Sound::createBuffer(const void* data, int _size)
 			std::cerr << "Value = " << toFloat(getSample(0, 0, data)) << std::endl;
 		}
 	}
-     #endif
+#endif
     alGenBuffers(1, &buffer);
     alBufferData(buffer, format, data,
                  _size, frequency);

@@ -22,15 +22,7 @@ DeferredLighting::DeferredLighting(GBuffer &framebuffer):gbuffer(framebuffer){
     createInputCommands();
     createLightMeshes();
 
-    for(int i = 0 ;i < 5 ;++i){
-        timers[i].create();
-    }
 
-    timerStrings[0] = "Init";
-    timerStrings[1] = "Point Lights";
-    timerStrings[2] = "Spot Lights";
-    timerStrings[3] = "Box Lights";
-    timerStrings[4] = "Directional Lights";
 
 }
 
@@ -63,9 +55,23 @@ void DeferredLighting::loadShaders()
     lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>("lightaccumulation.glsl");
 }
 
-void DeferredLighting::init(int width, int height){
+void DeferredLighting::init(int width, int height, bool _useTimers){
     this->width=width;this->height=height;
+	useTimers = _useTimers;
 
+	if (useTimers) {
+		timers2.resize(5);
+		for (int i = 0; i < 5; ++i) {
+			timers2[i].create();
+
+		}
+		timerStrings.resize(5);
+		timerStrings[0] = "Init";
+		timerStrings[1] = "Point Lights";
+		timerStrings[2] = "Spot Lights";
+		timerStrings[3] = "Box Lights";
+		timerStrings[4] = "Directional Lights";
+	}
 
     lightAccumulationBuffer.create();
 
@@ -121,8 +127,10 @@ void DeferredLighting::cullLights(Camera *cam){
 
 void DeferredLighting::printTimings()
 {
+	if (!useTimers)
+		return;
     for(int i = 0 ;i < 5 ;++i){
-        cout<<"\t "<<timers[i].getTimeMS()<<"ms "<<timerStrings[i]<<endl;
+        cout<<"\t "<< getTime(i)<<"ms "<<timerStrings[i]<<endl;
     }
 }
 

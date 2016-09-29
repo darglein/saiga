@@ -56,13 +56,14 @@ private:
     mat4 inview,view,proj;
     bool drawDebug = true;
 
+	bool useTimers = true;
 
 
-    FilteredGPUTimer timers[5];
-    std::string timerStrings[5];
-    void startTimer(int timer){if(useTimers)timers[timer].startTimer();}
-    void stopTimer(int timer){if(useTimers)timers[timer].stopTimer();}
-
+    std::vector<FilteredGPUTimer> timers2;
+	std::vector<std::string> timerStrings;
+    void startTimer(int timer){if(useTimers)timers2[timer].startTimer();}
+    void stopTimer(int timer){if(useTimers)timers2[timer].stopTimer();}
+	float getTime(int timer) { if (!useTimers) return 0; return timers2[timer].getTimeMS(); }
 //    raw_Texture* dummyTexture;
 //    raw_Texture* dummyCubeTexture;
 
@@ -72,7 +73,6 @@ public:
     int visibleLights;
     int renderedDepthmaps;
     int currentStencilId = 0;
-    bool useTimers = true;
 
     Texture* ssaoTexture;
 
@@ -83,7 +83,7 @@ public:
 	DeferredLighting& operator=(DeferredLighting& l) = delete;
     ~DeferredLighting();
 
-    void init(int width, int height);
+    void init(int width, int height, bool _useTimers);
     void resize(int width, int height);
 
     void loadShaders();

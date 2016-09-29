@@ -156,6 +156,9 @@ bool glfw_Window::initWindow()
     glfwWindowHint(GLFW_FLOATING,windowParameters.alwaysOnTop);
     glfwWindowHint(GLFW_RESIZABLE,windowParameters.resizeAble);
 
+	glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
+	// GLFW_REFRESH_RATE, GLFW_DONT_CARE = highest
+	glfwWindowHint(GLFW_REFRESH_RATE, GLFW_DONT_CARE);
 
     std::cout << "Creating GLFW Window. " << width << "x" << height <<
                  " Fullscreen=" << windowParameters.fullscreen() <<
@@ -291,7 +294,7 @@ void glfw_Window::startMainLoop(){
 //            cout << "sleeping for " << (SKIP_TICKS - durationTicks) << endl;
 
             //force framerate
-            std::this_thread::sleep_for(std::chrono::milliseconds((int)( (SKIP_TICKS - durationTicks)/1000)));
+           // std::this_thread::sleep_for(std::chrono::milliseconds((int)( (SKIP_TICKS - durationTicks)/1000)));
         }
 
 
@@ -333,6 +336,7 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
                 joystick.getCurrentStateFromGLFW();
             update(dt);
 
+
             //if this flag is set, drop some updates, NOTE: this will cause the game to run slower!
             if (gameloopDropAccumulatedUpdates){
                 cout << "<Gameloop> Dropping accumulated updates." << endl;
@@ -357,7 +361,7 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
 #endif
 
         double now = glfwGetTime()*1000;
-
+		
         glfwSwapBuffers(window);
         double now2 = glfwGetTime()*1000;
         lastSwapBuffersMS = now2 - now;
