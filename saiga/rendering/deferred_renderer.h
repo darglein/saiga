@@ -46,6 +46,7 @@ struct SAIGA_GLOBAL RenderingParameters{
 
     bool useGPUTimers = true; //meassure gpu times of individual passes. This can decrease the overall performance
 
+	bool useGlFinish = false; //adds a 'glfinish' at the end of the rendering. usefull for debugging.
 
     GBufferParameters gbp;
     PostProcessorParameters ppp;
@@ -58,7 +59,8 @@ struct SAIGA_GLOBAL RenderingParameters{
 class SAIGA_GLOBAL Deferred_Renderer{
 public:
     enum DeferredTimings{
-        GEOMETRYPASS = 0,
+		TOTAL = 0,
+        GEOMETRYPASS,
         SSAOT,
         DEPTHMAPS,
         LIGHTING,
@@ -66,19 +68,18 @@ public:
         LIGHTACCUMULATION,
         OVERLAY,
         FINAL,
-        TOTAL,
         COUNT
     };
 private:
     std::vector<FilteredGPUTimer> timers;
 
-    void startTimer(DeferredTimings timer){if(params.useGPUTimers)timers[timer].startTimer();}
-    void stopTimer(DeferredTimings timer){if(params.useGPUTimers)timers[timer].stopTimer();}
+    void startTimer(DeferredTimings timer){if(params.useGPUTimers || timer==TOTAL)timers[timer].startTimer();}
+    void stopTimer(DeferredTimings timer){if(params.useGPUTimers || timer == TOTAL)timers[timer].stopTimer();}
 
 public:
 
 
-    float getTime(DeferredTimings timer){return timers[timer].getTimeMS();}
+    float getTime(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].getTimeMS();}
     void printTimings();
 
 
@@ -118,7 +119,6 @@ public:
     Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters params);
 	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
-    void init( int w, int h);
     void resize(int windowWidth, int windowHeight);
 
 

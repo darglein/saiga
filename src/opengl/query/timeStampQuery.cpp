@@ -1,9 +1,9 @@
 #include "saiga/opengl/query/timeStampQuery.h"
-
+#include <iostream>
 
 TimeStampQuery::TimeStampQuery()
 {
-
+	//std::cout << "queeerryyyyyyyyyyyyyyy ......................." << std::endl;
 }
 
 TimeStampQuery::~TimeStampQuery()
@@ -18,6 +18,7 @@ void TimeStampQuery::create()
         glGenQueries(1, &id);
     //prevent potential gl erros.
     record();
+	waitTimestamp();
 }
 
 void TimeStampQuery::record()

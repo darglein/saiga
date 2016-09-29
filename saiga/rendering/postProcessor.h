@@ -74,6 +74,7 @@ private:
     void applyShader(PostProcessingShader* postProcessingShader);
     void applyShaderFinal(PostProcessingShader *postProcessingShader);
 public:
+	void createTimers();
 
     void init(int width, int height, GBuffer *gbuffer, PostProcessorParameters params, Texture* LightAccumulationTexture, bool _useTimers);
 
