@@ -13,7 +13,7 @@ class Camera;
 class Deferred_Renderer;
 class Program;
 struct RenderingParameters;
-class fipImage;
+class Image;
 
 class SAIGA_GLOBAL Window{
 public:
@@ -77,7 +77,7 @@ private:
     int currentScreenshot = 0;
     std::string parallelScreenshotPath;
 
-    std::list<std::shared_ptr<fipImage>> queue;
+    std::list<std::shared_ptr<Image>> queue;
     std::mutex lock;
     bool ssRunning = false;
     int queueLimit = 200;

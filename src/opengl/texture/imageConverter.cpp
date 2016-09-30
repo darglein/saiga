@@ -30,12 +30,18 @@ void ImageConverter::convert(PNG::Image &src, Image& dest){
         break;
     default:
         std::cout<<"Image type not supported: "<<src.color_type<<std::endl;
+        assert(0);
     }
 
     dest.Format() = format;
-    //    std::cout<<"bits "<<bitDepth<<" channels "<<channels<<std::endl;
-    dest.create(src.data);
-    //    dest.data = src.data;
+
+
+
+    dest.create(src.data.data());
+
+//    std::cout << "Image: " << dest.Format() << std::endl;
+//    std::cout << "sizes: " << dest.getSize() << " " << src.data.size() << std::endl;
+    assert(dest.getSize() == src.data.size());
 }
 
 void ImageConverter::convert(Image& src, PNG::Image &dest){
@@ -58,10 +64,12 @@ void ImageConverter::convert(Image& src, PNG::Image &dest){
         break;
     default:
         std::cout<<"Image type not supported: "<<src.Format().getChannels()<<std::endl;
+        assert(0);
     }
 
 
-    dest.data = src.getRawData();
+//    dest.data = src.getRawData();
+    dest.data = src.data;
 }
 
 #endif
@@ -98,6 +106,7 @@ void ImageConverter::convert(Image& src, fipImage &dest){
     //    }
 
     memcpy(data,src.getRawData(),src.getSize());
+
 
 }
 
@@ -151,6 +160,8 @@ void ImageConverter::convert(fipImage &src, Image& dest){
         std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;
         assert(0);
     }
+
+//        std::cout << "Image: " << dest.Format() << std::endl;
 
 }
 #endif

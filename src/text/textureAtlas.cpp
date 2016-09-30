@@ -315,6 +315,8 @@ bool TextureAtlas::readAtlasFromFiles()
         return false;
     }
 
+//    TextureLoader::instance()->saveImage("asdf2.png",img);
+
     textureAtlas = new Texture();
     textureAtlas->fromImage(img);
     textureAtlas->generateMipmaps();

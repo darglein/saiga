@@ -28,12 +28,6 @@ Texture* TextureLoader::loadFromFile(const std::string &path, const TextureParam
     bool erg;
     Texture* text = new Texture();
 
-    //    PNG::Image img;
-    //    erg = PNG::readPNG( &img,path);
-    //    cout<<"loading "<<path<<endl;
-
-//    fipImage fipimg;
-//    erg = fipimg.load(path.c_str());
     Image im;
     erg = loadImage(path,im);
 
@@ -55,29 +49,53 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
 {
     bool erg = false;
 
+    //use libfreeimage if available, libpng otherwise
 #ifdef USE_FREEIMAGE
     fipImage img;
     erg = img.load(path.c_str());
     if(erg)
         ImageConverter::convert(img,outImage);
 #else
-
 #ifdef USE_PNG
-    PNG::Image img;
-    erg = PNG::readPNG( &img,path);
+    PNG::Image pngimg;
+    erg = PNG::readPNG( &pngimg,path);
     if(erg)
-        ImageConverter::convert(img,outImage);
+        ImageConverter::convert(pngimg,outImage);
 #endif
 #endif
+
+    if(!erg){
+        std::cout << "Error: Could not load Image: " << path << std::endl;
+        assert(0);
+    }
+
     return erg;
 }
 
 bool TextureLoader::saveImage(const std::string &path, Image &image) const
 {
+    bool erg = false;
 
+    //use libfreeimage if available, libpng otherwise
+#ifdef USE_FREEIMAGE
     fipImage fipimage;
     ImageConverter::convert(image,fipimage);
-    return fipimage.save(path.c_str());
+    erg = fipimage.save(path.c_str());
+#else
+#ifdef USE_PNG
+    PNG::Image pngimg;
+    ImageConverter::convert(image,pngimg);
+    erg = PNG::writePNG(&pngimg,path);
+#endif
+#endif
+
+    if(!erg){
+        std::cout << "Error: Could not save Image: " << path << std::endl;
+        assert(0);
+    }
+
+
+    return erg;
 }
 
 

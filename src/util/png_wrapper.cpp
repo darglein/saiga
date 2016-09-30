@@ -86,7 +86,12 @@ bool PNG::readPNG(Image *img, const std::string &path, bool invertY){
      * PNG_TRANSFORM_EXPAND forces to
      *  expand a palette into RGB
      */
-    png_read_png(png_ptr, info_ptr, PNG_TRANSFORM_STRIP_16 | PNG_TRANSFORM_PACKING | PNG_TRANSFORM_EXPAND, NULL);
+    png_read_png(png_ptr, info_ptr,
+//                 PNG_TRANSFORM_STRIP_16 | //Strip 16-bit samples to 8 bits
+                 PNG_TRANSFORM_PACKING | //Expand 1, 2 and 4-bit samples to bytes
+                 PNG_TRANSFORM_EXPAND //Perform set_expand()
+                 , NULL);
+
 
 
     png_get_IHDR(png_ptr, info_ptr, &img->width, &img->height, &img->bit_depth, &img->color_type,
@@ -94,7 +99,12 @@ bool PNG::readPNG(Image *img, const std::string &path, bool invertY){
 
 
     unsigned int row_bytes = png_get_rowbytes(png_ptr, info_ptr);
-    img->data = new unsigned char[row_bytes * img->height];
+
+    //we want to row-align the image in our output data
+    int rowPadding = (img->rowAlignment - (row_bytes % img->rowAlignment)) % img->rowAlignment;
+    img->bytesPerRow = row_bytes + rowPadding;
+
+    img->data.resize(img->bytesPerRow * img->height);
 
     png_bytepp row_pointers = png_get_rows(png_ptr, info_ptr);
 
@@ -102,11 +112,11 @@ bool PNG::readPNG(Image *img, const std::string &path, bool invertY){
 
     if(invertY){
         for (unsigned int i = 0; i < img->height; i++) {
-            memcpy(img->data+(row_bytes * (img->height-1-i)), row_pointers[i], row_bytes);
+            memcpy(img->data.data()+(img->bytesPerRow * (img->height-1-i)), row_pointers[i], row_bytes);
         }
     }else{
         for (unsigned int i = 0; i < img->height; i++) {
-            memcpy(img->data+(row_bytes * i), row_pointers[i], row_bytes);
+            memcpy(img->data.data()+(img->bytesPerRow * i), row_pointers[i], row_bytes);
         }
     }
 
@@ -321,21 +331,25 @@ int writepng_encode_image(PNG::Image *image,bool invertY)
     int bytes_per_pixel = color_channels * image->bit_depth/8;
 
 
+    unsigned int row_bytes = bytes_per_pixel * image->width;
+    //we want to row-align the image in our output data
+    int rowPadding = (image->rowAlignment - (row_bytes % image->rowAlignment)) % image->rowAlignment;
+    image->bytesPerRow = row_bytes + rowPadding;
 
     //the row pointers point to the first byte of each row of the image
     image->row_pointers = new uchar*[image->height];
 
     if(invertY){
         for(unsigned int i=0;i<image->height;i++){
-            int offset = i*image->width*bytes_per_pixel;
-            image->row_pointers[image->height-i-1] = image->data+offset;
+            int offset = i*image->bytesPerRow;
+            image->row_pointers[image->height-i-1] = image->data.data()+offset;
         }
     }else{
 
 
         for(unsigned int i=0;i<image->height;i++){
-            int offset = i*image->width*bytes_per_pixel;
-            image->row_pointers[i] = image->data+offset;
+            int offset = i*image->bytesPerRow;
+            image->row_pointers[i] = image->data.data()+offset;
         }
     }
     /* and now we just write the whole image; libpng takes care of interlacing
@@ -378,7 +392,7 @@ int writepng_encode_row(PNG::Image *image)  /* NON-interlaced only! */
 
     /* image_data points at our one row of image data */
 
-    png_write_row(png_ptr, image->data);
+    png_write_row(png_ptr, image->data.data());
 
     return 0;
 }
@@ -465,7 +479,7 @@ void PNG::pngVersionInfo()
 }
 
 bool PNG::writePNG(Image *img, const std::string &path, bool invertY){
-    std::cout<<"write png: "<<path.c_str()<<std::endl;
+//    std::cout<<"write png: "<<path.c_str()<<std::endl;
 
     FILE *fp = fopen(path.c_str(), "wb");
     if (!fp)

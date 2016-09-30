@@ -13,7 +13,9 @@
 #include "saiga/sound/OpusCodec.h"
 #endif
 
-#include "opusfile.h"
+#include "opus/opusfile.h"
+
+
 #include <cstdint>
 #include <cstring>
 namespace sound {
@@ -154,7 +156,9 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string &filename) {
 Sound *SoundLoader::loadOpusFile(const std::string &filename)
 {
 
-    int sampleRate = 48000;
+    // The <tt>libopusfile</tt> API always decodes files to 48kHz.
+    // The original sample rate is not preserved by the lossy compression.
+    const int sampleRate = 48000;
 
     int error;
     OggOpusFile * file = op_open_file(filename.c_str(), &error);
@@ -166,7 +170,7 @@ Sound *SoundLoader::loadOpusFile(const std::string &filename)
     int linkCount = op_link_count(file);
     assert(linkCount==1);
     int currentLink = op_current_link(file);
-    int bitRate = op_bitrate(file,currentLink);
+//    int bitRate = op_bitrate(file,currentLink); //TODO
     //    int total = op_raw_total(file,currentLink);
     //    int pcmtotal = op_pcm_total(file,currentLink);
     int channels = op_channel_count(file,currentLink);
@@ -191,7 +195,7 @@ Sound *SoundLoader::loadOpusFile(const std::string &filename)
     sound->createBuffer(data.data(),data.size()*sizeof(opus_int16));
 
 
-    //    cout<<"Loaded opus file: "<<filename<<" ( "<<"bitRate="<<bitRate<<" memorydecoded="<<sound->size <<" channels="<<channels<<" )"<<endl;
+//     cout<<"Loaded opus file: "<<filename<<" ( "<<"bitRate="<<bitRate<<" samplestotal="<<data.size() <<" channels="<<channels<<" )"<<endl;
     return sound;
 }
 #endif
