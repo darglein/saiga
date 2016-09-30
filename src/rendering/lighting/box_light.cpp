@@ -21,8 +21,7 @@ BoxLight::BoxLight()
 
 void BoxLight::createShadowMap(int resX, int resY){
     Light::createShadowMap(resX,resY);
-    range = scale.x;
-    cam.setProj(-range,range,-range,range,0.01f,scale.z*2.0f);
+    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,0.01f,scale.z*2.0f);
 
 }
 
