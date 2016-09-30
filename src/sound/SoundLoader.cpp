@@ -139,11 +139,13 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string &filename) {
     sound->setFormat(wave_format.numChannels,wave_format.bitsPerSample,wave_format.sampleRate);
 
 	if (!sound->checkFirstSample(data.data())) {
-		int bytes = wave_format.bitsPerSample / 8 * wave_format.numChannels;
+        int numberOfZeroSamples = 2;
+
+        int bytes = wave_format.bitsPerSample / 8 * wave_format.numChannels * numberOfZeroSamples;
 		std::vector<unsigned char> zerobytes(bytes, 0);
 		data.insert(data.begin(), zerobytes.begin(), zerobytes.end());
 #if defined(SAIGA_DEBUG)
-		std::cerr << "Inserting " << bytes << " zero padding bytes at the beginning of sound " << sound->name << std::endl;
+        std::cerr << "Inserting " << bytes << " zero padding bytes ("<<numberOfZeroSamples<<" samples) at the beginning of sound " << sound->name << std::endl;
 #endif
 	}
 
