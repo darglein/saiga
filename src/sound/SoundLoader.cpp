@@ -13,7 +13,7 @@
 #include "saiga/sound/OpusCodec.h"
 #endif
 
-#include "opus/opusfile.h"
+#include "opusfile.h"
 
 
 #include <cstdint>
