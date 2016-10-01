@@ -21,6 +21,8 @@ class SAIGA_GLOBAL Window{
 public:
 
 
+    int numUpdates = 0;
+    int numFrames = 0;
 
     std::string name;
     int width;
@@ -78,7 +80,7 @@ public:
 
     double timeScale = 1.f;
     void setTimeScale(double timeScale);
-    void startMainLoop(int updatesPerSecond, int framesPerSecond, int maxFrameSkip = 0);
+    void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0);
     virtual bool shouldClose() { return !running; }
     virtual void swapBuffers() = 0;
     virtual void checkEvents() = 0;

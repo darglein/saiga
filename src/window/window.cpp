@@ -334,6 +334,8 @@ void Window::update(float dt)
     renderer->renderer->update(dt);
     updateTimer.stop();
 
+    numUpdates++;
+
     upsTimer.stop();
     upsTimer.start();
 }
@@ -348,6 +350,8 @@ void Window::render(float dt, float interpolation)
     renderer->render_intern();
     renderCPUTimer.stop();
 
+    numFrames++;
+
     fpsTimer.stop();
     fpsTimer.start();
 }
@@ -361,7 +365,7 @@ void Window::sleep(tick_t ticks)
 {
     if(ticks > 0){
         std::this_thread::sleep_for(std::chrono::microseconds(ticks));
-//        std::cout << "Sleeping " << ticks << " ticks (" << ((float)ticks/getGameTicksPerSecond()) << " seconds)" << std::endl;
+        std::cout << "Sleeping " << ticks << " ticks (" << ((float)ticks/getGameTicksPerSecond()) << " seconds)" << std::endl;
     }
 }
 
@@ -372,9 +376,13 @@ void Window::setTimeScale(double timeScale)
 
 
 
-void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, int maxFrameSkip)
+void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip)
 {
     gameTimer.start();
+
+    cout << "> Starting the main loop..." << endl;
+    cout << "> updatesPerSecond=" << updatesPerSecond << " framesPerSecond=" << framesPerSecond << " maxFrameSkip=" << maxFrameSkip << endl;
+
 
     if(updatesPerSecond <= 0)
         updatesPerSecond = getGameTicksPerSecond();
@@ -387,31 +395,41 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, int maxFra
 
     tick_t ticksPerUpdate = getGameTicksPerSecond() / updatesPerSecond;
     tick_t ticksPerFrame = getGameTicksPerSecond() / framesPerSecond;
+    tick_t ticksPerInfo = getGameTicksPerSecond() * mainLoopInfoTime;
 
 
     tick_t nextUpdateTick = getGameTicks();
+    tick_t lastUpdateTick = nextUpdateTick;
     tick_t nextFrameTick = nextUpdateTick;
+    tick_t nextInfoTick = nextUpdateTick;
 
     while(!shouldClose()){
+        tick_t currentTicksPerUpdate = ticksPerUpdate / timeScale;
 
         checkEvents();
 
         //With this loop we are able to skip frames if the system can't keep up.
         for(int i = 0; i <= maxFrameSkip && getGameTicks() > nextUpdateTick; ++i){
             update(updateDT);
-            nextUpdateTick += ticksPerUpdate / timeScale;
+            lastUpdateTick = nextUpdateTick;
+            nextUpdateTick += currentTicksPerUpdate;
         }
 
         if(getGameTicks() > nextFrameTick){
             //calculate the interpolation value. Usefull when the framerate is higher than the update rate
-            tick_t lastUpdate = nextUpdateTick - ticksPerUpdate;
-            tick_t ticksSinceLastUpdate = getGameTicks() - lastUpdate;
-            float interpolation = ticksSinceLastUpdate / (float)ticksPerUpdate;
+            tick_t ticksSinceLastUpdate = getGameTicks() - lastUpdateTick;
+            float interpolation = ticksSinceLastUpdate / (float)(nextUpdateTick - lastUpdateTick);
             interpolation = glm::clamp(interpolation,0.0f,1.0f);
 
             render(updateDT,interpolation);
             swapBuffers();
             nextFrameTick += ticksPerFrame;
+        }
+
+        if(getGameTicks() > nextInfoTick){
+            float gameTime = (float)getGameTicks() / getGameTicksPerSecond();
+            cout << "> Time: " << gameTime << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames << "  UPS/FPS: " << (1000.0f/upsTimer.getTimeMS()) << "/" << (1000.0f/fpsTimer.getTimeMS()) << endl;
+            nextInfoTick += ticksPerInfo;
         }
 
         //sleep until the next interesting event
