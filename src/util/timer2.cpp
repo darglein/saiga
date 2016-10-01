@@ -122,26 +122,22 @@ void AverageTimer::addMeassurment(time_interval_t time)
     currentTimeId = (currentTimeId+1) % lastTimes.size();
 
     currentTimeMS = 0;
+    minimum = 93465943753535;
+    maximum = 0;
     for(auto &d : lastTimes){
         currentTimeMS += d;
+        minimum = glm::min(minimum,d);
+        maximum = glm::max(maximum,d);
     }
     currentTimeMS /= lastTimes.size();
 }
 
 double AverageTimer::getMinimumTimeMS()
 {
-    double m = 93465943753535;
-    for(double &d : lastTimes){
-        m = glm::min(d,m);
-    }
-    return m;
+    return minimum;
 }
 
 double AverageTimer::getMaximumTimeMS()
 {
-    double m = -93465943753535;
-    for(double &d : lastTimes){
-        m = glm::max(d,m);
-    }
-    return m;
+    return maximum;
 }

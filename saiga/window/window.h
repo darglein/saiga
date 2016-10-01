@@ -15,19 +15,24 @@ class Program;
 struct RenderingParameters;
 class Image;
 
+typedef long long tick_t;
+
 class SAIGA_GLOBAL Window{
 public:
+
+
+
     std::string name;
     int width;
     int height;
 
-    bool running;
+    bool running = true;
 
     Deferred_Renderer* renderer = nullptr;
     Camera* currentCamera = nullptr;
 
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer;
-    AverageTimer fpsTimer;
+    AverageTimer fpsTimer, upsTimer;
 
 
     virtual bool initWindow() = 0;
@@ -69,9 +74,21 @@ public:
     void screenshotParallelWrite(const std::string &file);
     vec3 screenToWorld(const glm::vec2 &pixel) const;
     vec3 screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
+
+    void startMainLoop(int updatesPerSecond, int framesPerSecond);
+    virtual bool shouldClose() { return !running; }
+    virtual void swapBuffers() = 0;
+    virtual void checkEvents() = 0;
 protected:
     void update(float dt);
     void render(float dt, float interpolation);
+
+
+    Timer2 gameTimer;
+    //the game ticks are the microseconds since the start
+    tick_t getGameTicks();
+    tick_t getGameTicksPerSecond() { return 1000000; }
+    void sleep(tick_t ticks);
 
 private:
     int currentScreenshot = 0;

@@ -75,6 +75,9 @@ public:
     void setGLFWcursor(GLFWcursor* cursor);
     GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
 
+    virtual bool shouldClose();
+    virtual void swapBuffers();
+    virtual void checkEvents();
 
 
     static void error_callback(int error, const char* description);
@@ -84,6 +87,4 @@ public:
     void setWindowIcon(Image *image);
 private:
 
-    Timer2 timer;
-    long long getTicksMS();
 };

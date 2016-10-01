@@ -18,7 +18,7 @@ using std::endl;
 
 Window::Window(const std::string &name, int width, int height)
     :name(name),width(width),height(height),
-updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),fpsTimer(100){
+updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),fpsTimer(50),upsTimer(50){
 
 }
 
@@ -315,6 +315,7 @@ vec3 Window::screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const
 }
 
 
+
 vec2 Window::projectToScreen(const glm::vec3 &pos) const
 {
     vec4 r = Window::currentCamera->proj * Window::currentCamera->view * vec4(pos,1);
@@ -332,6 +333,9 @@ void Window::update(float dt)
     updateTimer.start();
     renderer->renderer->update(dt);
     updateTimer.stop();
+
+    upsTimer.stop();
+    upsTimer.start();
 }
 
 void Window::render(float dt, float interpolation)
@@ -346,4 +350,67 @@ void Window::render(float dt, float interpolation)
 
     fpsTimer.stop();
     fpsTimer.start();
+}
+
+tick_t Window::getGameTicks(){
+    gameTimer.stop();
+    return gameTimer.getTimeMicrS();
+}
+
+void Window::sleep(tick_t ticks)
+{
+    if(ticks > 0){
+        std::this_thread::sleep_for(std::chrono::microseconds(ticks));
+//        std::cout << "Sleeping " << ticks << " ticks (" << ((float)ticks/getGameTicksPerSecond()) << " seconds)" << std::endl;
+    }
+}
+
+
+void Window::startMainLoop(int updatesPerSecond, int framesPerSecond)
+{
+    gameTimer.start();
+
+    if(updatesPerSecond <= 0)
+        updatesPerSecond = getGameTicksPerSecond();
+    if(framesPerSecond <= 0)
+        framesPerSecond = getGameTicksPerSecond();
+
+
+    float updateDT = 1.0f / updatesPerSecond;
+    float framesDT = 1.0f / framesPerSecond;
+
+    tick_t ticksPerUpdate = getGameTicksPerSecond() / updatesPerSecond;
+    tick_t ticksPerFrame = getGameTicksPerSecond() / framesPerSecond;
+
+
+    tick_t nextUpdateTick = getGameTicks();
+    tick_t nextFrameTick = nextUpdateTick;
+
+    tick_t currentTick = 0;
+    while(!shouldClose()){
+        currentTick = getGameTicks();
+
+        checkEvents();
+
+        if(currentTick > nextUpdateTick){
+            update(updateDT);
+            nextUpdateTick += ticksPerUpdate;
+        }
+
+        if(currentTick > nextFrameTick){
+            //calculate the interpolation value. Usefull when the framerate is higher than the update rate
+            tick_t lastUpdate = nextUpdateTick - ticksPerUpdate;
+            tick_t ticksSinceLastUpdate = getGameTicks() - lastUpdate;
+            float interpolation = ticksSinceLastUpdate / (float)ticksPerUpdate;
+            interpolation = glm::clamp(interpolation,0.0f,1.0f);
+
+            render(updateDT,interpolation);
+            swapBuffers();
+            nextFrameTick += ticksPerFrame;
+        }
+
+        //sleep until the next interesting event
+        tick_t nextEvent = glm::min(nextFrameTick,nextUpdateTick);
+        sleep(nextEvent - getGameTicks());
+    }
 }
