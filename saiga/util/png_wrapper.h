@@ -15,6 +15,7 @@
 
 #include <png.h>
 #include <iostream>
+#include <vector>
 
 typedef unsigned char uchar;
 
@@ -26,7 +27,10 @@ namespace PNG{
         png_uint_32 width, height;
         int bit_depth;  //number of bits per color. 8 for basic rgb(a) images
         int color_type; //PNG_COLOR_TYPE_GRAY,PNG_COLOR_TYPE_GRAY_ALPHA,PNG_COLOR_TYPE_RGB, PNG_COLOR_TYPE_RGB_ALPHA
-        uchar* data;
+//        uchar* data;
+        std::vector<uchar> data;
+        int rowAlignment = 4;
+        int bytesPerRow;
 
         //temp variables for libpng. Don't modify them!!!
         uchar **row_pointers;

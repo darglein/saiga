@@ -55,6 +55,7 @@ public:
 protected:
     virtual void addMeassurment(time_interval_t time) override;
     std::vector<double> lastTimes;
+    double minimum = 0 , maximum = 0;
     int currentTimeId = 0;
     double currentTimeMS = 0.0; //smoothed
     int number;

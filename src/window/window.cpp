@@ -1,7 +1,7 @@
 #include "saiga/window/window.h"
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-
+#include "saiga/opengl/texture/textureLoader.h"
 
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/rendering/renderer.h"
@@ -9,7 +9,6 @@
 #include "saiga/util/error.h"
 #include "saiga/framework.h"
 #include <cstring>
-#include <FreeImagePlus.h>
 #include <vector>
 #include <ctime>
 
@@ -19,7 +18,7 @@ using std::endl;
 
 Window::Window(const std::string &name, int width, int height)
     :name(name),width(width),height(height),
-updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),fpsTimer(100){
+updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),fpsTimer(50),upsTimer(50){
 
 }
 
@@ -91,34 +90,14 @@ void Window::initDeferredRendering(const RenderingParameters &params)
 {
 
     renderer = new Deferred_Renderer(getWidth(),getHeight(),params);
-//    renderer->init(getWidth(),getHeight());
-    //    renderer->lighting.setShader(shaderLoader.load<SpotLightShader>("deferred_lighting_spotlight.glsl"));
-
 
     renderer->lighting.loadShaders();
 
-
-    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("fxaa.glsl");
-    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("SMAA.glsl");
-    //    renderer->postProcessingShader  = shaderLoader.load<PostProcessingShader>("gaussian_blur.glsl");
-
-
-
-    //renderer->ssao = true;
-    //    renderer->otherShader  =  ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
-
-    PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl");
+    PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl"); //this shader does nothing
     std::vector<PostProcessingShader*> defaultEffects;
     defaultEffects.push_back(pps);
 
     renderer->postProcessor.setPostProcessingEffects(defaultEffects);
-    //    renderer->postProcessor.postProcessingEffects.push_back(renderer->postProcessingShader);
-
-    //    PostProcessingShader* bla = ShaderLoader::instance()->load<PostProcessingShader>("gaussian_blur.glsl");
-    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
-    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
-    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
-    //    renderer->postProcessor.postProcessingEffects.push_back(bla);
 
     renderer->lighting.setRenderDebug( false);
 
@@ -140,38 +119,40 @@ void Window::screenshot(const std::string &file)
     int w = renderer->windowWidth;
      int h = renderer->windowHeight;
 
-     fipImage fipimg;
-     fipimg.setSize(	FIT_BITMAP,w,h,24);
-     auto idata = fipimg.accessPixels();
+     Image img;
+     img.width = w;
+     img.height = h;
+     img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+     img.create();
 
      //read data from default framebuffer and restore currently bound fb.
      GLint fb;
      glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
-//     renderer->postProcessor.bindCurrentBuffer();
      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-     glReadPixels(0,0,w,h,GL_BGR,GL_UNSIGNED_BYTE,idata);
+     glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,img.getRawData());
      glBindFramebuffer(GL_FRAMEBUFFER, fb);
-     fipimg.save(file.c_str());
 
+     TextureLoader::instance()->saveImage(file,img);
 }
 
 void Window::screenshotRender(const std::string &file)
 {
-    cout<<"Window::render screenshot "<<file<<endl;
+    cout<<"Window::screenshotRender "<<file<<endl;
     int w = renderer->width;
     int h = renderer->height;
 
-    fipImage fipimg;
-    fipimg.setSize(	FIT_BITMAP,w,h,24);
-    auto idata = fipimg.accessPixels();
+    Image img;
+    img.width = w;
+    img.height = h;
+    img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    img.create();
 
-    //read data from default framebuffer and restore currently bound fb.
-    GLint fb;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
-    renderer->postProcessor.bindCurrentBuffer();
-    glReadPixels(0,0,w,h,GL_BGR,GL_UNSIGNED_BYTE,idata);
-    glBindFramebuffer(GL_FRAMEBUFFER, fb);
-    fipimg.save(file.c_str());
+    auto tex = getRenderer()->postProcessor.getCurrentTexture();
+    tex->bind();
+    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img.getRawData());
+    tex->unbind();
+
+    TextureLoader::instance()->saveImage(file,img);
 }
 
 void Window::screenshotParallelWrite(const std::string &file){
@@ -184,44 +165,22 @@ void Window::screenshotParallelWrite(const std::string &file){
         ssRunning = true;
     }
 
-//    cout<<"Window::screenshotParallel "<<file<<endl;
-    int size = width*height*4;
-    std::vector<unsigned char> data(size);
+
+    int w = renderer->width;
+    int h = renderer->height;
+
+    std::shared_ptr<Image> img = std::make_shared<Image>();
+    img->width = w;
+    img->height = h;
+    img->Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    img->create();
+
+    auto tex = getRenderer()->postProcessor.getCurrentTexture();
+    tex->bind();
+    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img->getRawData());
+    tex->unbind();
 
 
-    //read data from default framebuffer and restore currently bound fb.
-    GLint fb;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,data.data());
-    glBindFramebuffer(GL_FRAMEBUFFER, fb);
-
-    for(int i = 0 ;i<size;i+=4){
-        unsigned char r = data[i];
-        unsigned char g = data[i+1];
-        unsigned char b = data[i+2];
-        unsigned char a = data[i+3];
-
-        a = 255; //remove transparency
-
-        // Little Endian (x86 / MS Windows, Linux) : BGR(A) order
-        data[i+FI_RGBA_RED] = r;
-        data[i+FI_RGBA_GREEN] = g;
-        data[i+FI_RGBA_BLUE] = b;
-        data[i+FI_RGBA_ALPHA] = a;
-    }
-
-//    fipImage fipimg;
-//    fipimg.setSize(	FIT_BITMAP,width,height,32);
-//    auto idata = fipimg.accessPixels();
-//    memcpy(idata,data.data(),size);
-//    fipimg.save(file.c_str());
-
-
-    std::shared_ptr<fipImage> fipimg = std::make_shared<fipImage>();
-    fipimg->setSize(	FIT_BITMAP,width,height,32);
-    auto idata = fipimg->accessPixels();
-    memcpy(idata,data.data(),size);
 
     if (waitForWriters){
 
@@ -239,7 +198,7 @@ void Window::screenshotParallelWrite(const std::string &file){
     }
     lock.lock();
     parallelScreenshotPath = file;
-    queue.push_back(fipimg);
+    queue.push_back(img);
 
 
     if ((int)queue.size() > queueLimit){ //one frame full HD ~ 4.5Mb
@@ -259,7 +218,7 @@ void Window::processScreenshots()
         bool took = false;
         int queueSize = 0;
         lock.lock();
-        std::shared_ptr<fipImage> f;
+        std::shared_ptr<Image> f;
         if (!queue.empty()){
             f = queue.front();
             queueSize = queue.size();
@@ -274,7 +233,8 @@ void Window::processScreenshots()
 
         if (took){
             long long start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-            f->save((parallelScreenshotPath+ std::to_string(cur) + ".bmp").c_str());
+            TextureLoader::instance()->saveImage(parallelScreenshotPath+ std::to_string(cur) + ".bmp",*f);
+//            f->save(().c_str());
             cout << "write " << cur  << " (" <<queueSize << ") " << (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - start)/1000 << "ms"<< endl;
 
 
@@ -355,6 +315,7 @@ vec3 Window::screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const
 }
 
 
+
 vec2 Window::projectToScreen(const glm::vec3 &pos) const
 {
     vec4 r = Window::currentCamera->proj * Window::currentCamera->view * vec4(pos,1);
@@ -372,6 +333,9 @@ void Window::update(float dt)
     updateTimer.start();
     renderer->renderer->update(dt);
     updateTimer.stop();
+
+    upsTimer.stop();
+    upsTimer.start();
 }
 
 void Window::render(float dt, float interpolation)
@@ -386,4 +350,73 @@ void Window::render(float dt, float interpolation)
 
     fpsTimer.stop();
     fpsTimer.start();
+}
+
+tick_t Window::getGameTicks(){
+    gameTimer.stop();
+    return gameTimer.getTimeMicrS();
+}
+
+void Window::sleep(tick_t ticks)
+{
+    if(ticks > 0){
+        std::this_thread::sleep_for(std::chrono::microseconds(ticks));
+//        std::cout << "Sleeping " << ticks << " ticks (" << ((float)ticks/getGameTicksPerSecond()) << " seconds)" << std::endl;
+    }
+}
+
+void Window::setTimeScale(double timeScale)
+{
+    this->timeScale = timeScale;
+}
+
+
+
+void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, int maxFrameSkip)
+{
+    gameTimer.start();
+
+    if(updatesPerSecond <= 0)
+        updatesPerSecond = getGameTicksPerSecond();
+    if(framesPerSecond <= 0)
+        framesPerSecond = getGameTicksPerSecond();
+
+
+    float updateDT = 1.0f / updatesPerSecond;
+    float framesDT = 1.0f / framesPerSecond;
+
+    tick_t ticksPerUpdate = getGameTicksPerSecond() / updatesPerSecond;
+    tick_t ticksPerFrame = getGameTicksPerSecond() / framesPerSecond;
+
+
+    tick_t nextUpdateTick = getGameTicks();
+    tick_t nextFrameTick = nextUpdateTick;
+
+    while(!shouldClose()){
+
+        checkEvents();
+
+        //With this loop we are able to skip frames if the system can't keep up.
+        for(int i = 0; i <= maxFrameSkip && getGameTicks() > nextUpdateTick; ++i){
+            update(updateDT);
+            nextUpdateTick += ticksPerUpdate / timeScale;
+        }
+
+        if(getGameTicks() > nextFrameTick){
+            //calculate the interpolation value. Usefull when the framerate is higher than the update rate
+            tick_t lastUpdate = nextUpdateTick - ticksPerUpdate;
+            tick_t ticksSinceLastUpdate = getGameTicks() - lastUpdate;
+            float interpolation = ticksSinceLastUpdate / (float)ticksPerUpdate;
+            interpolation = glm::clamp(interpolation,0.0f,1.0f);
+
+            render(updateDT,interpolation);
+            swapBuffers();
+            nextFrameTick += ticksPerFrame;
+        }
+
+        //sleep until the next interesting event
+        tick_t nextEvent = glm::min(nextFrameTick,nextUpdateTick);
+        sleep(nextEvent - getGameTicks());
+        assert_no_glerror_end_frame();
+    }
 }

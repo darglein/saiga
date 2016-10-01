@@ -423,7 +423,7 @@ void SoundManager::setTimeScale(float scale)
 void SoundManager::startCapturing()
 {
     const int SRATE = 44100;
-    const int SSIZE = 1024;
+//    const int SSIZE = 1024;
 
     captureDevice = alcCaptureOpenDevice(NULL, SRATE, AL_FORMAT_STEREO16, SRATE/2);
     assert(captureDevice);

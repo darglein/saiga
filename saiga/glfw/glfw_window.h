@@ -41,7 +41,7 @@ class SAIGA_GLOBAL glfw_Window : public Window, public glfw_ResizeListener{
 public:
     GLFWwindow* window = nullptr;
     glfw_Window_Parameters windowParameters;
-    double timeScale = 1.f;
+
 
     bool initWindow();
     bool initInput();
@@ -64,10 +64,11 @@ public:
     void disableMouseCursor();
 
     void close();
+
+    using Window::startMainLoop;
     void startMainLoop();
     void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond, int maxFrameSkip = 1);
     void startMainLoopNoRender(float ticksPerSecond);
-    void setTimeScale(double timeScale);
 
     virtual bool window_size_callback(GLFWwindow* window, int width, int height) override;
 
@@ -75,6 +76,9 @@ public:
     void setGLFWcursor(GLFWcursor* cursor);
     GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
 
+    virtual bool shouldClose();
+    virtual void swapBuffers();
+    virtual void checkEvents();
 
 
     static void error_callback(int error, const char* description);
@@ -84,6 +88,4 @@ public:
     void setWindowIcon(Image *image);
 private:
 
-    Timer2 timer;
-    long long getTicksMS();
 };

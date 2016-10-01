@@ -40,7 +40,7 @@ bool Translator::readTranslationFile(const std::string &file)
 //            cout << "line: " << line << endl;
 
             int l = (int)line.find_last_of(",");
-            if (l == string::npos){
+            if (l == (int)string::npos){
                 cout << "corrupt translation file for line " << line << endl;
                 break;
             }

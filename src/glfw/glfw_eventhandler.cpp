@@ -75,6 +75,8 @@ void glfw_EventHandler::window_size_callback(GLFWwindow *window, int width, int 
 }
 
 void glfw_EventHandler::cursor_position_callback(GLFWwindow* window, double xpos, double ypos){
+    mouse.setPosition(glm::ivec2(xpos,ypos));
+
     //forward event to all listeners
     for(auto &ml : mouseListener){
         if(ml.listener->cursor_position_event(window,xpos,ypos))
@@ -83,6 +85,9 @@ void glfw_EventHandler::cursor_position_callback(GLFWwindow* window, double xpos
 }
 
 void glfw_EventHandler::mouse_button_callback(GLFWwindow* window, int button, int action, int mods){
+    if(action == GLFW_PRESS || action == GLFW_RELEASE)
+        mouse.setKeyState(button,action == GLFW_PRESS);
+
     //forward event to all listeners
     for(auto &ml : mouseListener){
         if(ml.listener->mouse_button_event(window,button,action,mods))
@@ -99,10 +104,11 @@ void glfw_EventHandler::scroll_callback(GLFWwindow* window, double xoffset, doub
 }
 
 void glfw_EventHandler::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods){
+    if(action == GLFW_PRESS || action == GLFW_RELEASE)
+        keyboard.setKeyState(key,action == GLFW_PRESS);
+
     //forward event to all listeners
-//    std::cout<<"keyy callback"<<std::endl;
     for(auto &kl : keyListener){
-//        std::cout<<"key event "<<action<<" "<<kl.priority<<std::endl;
         if(kl.listener->key_event(window,key,scancode,action,mods))
             return;
     }

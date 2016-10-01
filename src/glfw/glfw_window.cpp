@@ -41,7 +41,6 @@ void glfw_Window_Parameters::setMode(bool fullscreen, bool borderLess)
 glfw_Window::glfw_Window(const std::string &name, glfw_Window_Parameters windowParameters):
     Window(name,windowParameters.width,windowParameters.height),windowParameters(windowParameters)
 {
-    timer.start();
 }
 
 glfw_Window::~glfw_Window()
@@ -257,15 +256,7 @@ void glfw_Window::close()
     glfwTerminate();
 }
 
-long long glfw_Window::getTicksMS(){
-//    using namespace std::chrono;
 
-//    return  duration_cast<microseconds>(steady_clock::now().time_since_epoch()).count();
-
-    timer.stop();
-
-    return timer.getTimeMicrS();
-}
 
 void glfw_Window::startMainLoop(){
     running = true;
@@ -274,7 +265,7 @@ void glfw_Window::startMainLoop(){
     long long SKIP_TICKS = SKIP_TICKS_NORMAL_TIME;
     const float dt = 1.0f/60.0;
 
-    long long next_game_tick = getTicksMS();
+    long long next_game_tick = getGameTicks();
 
     /* Loop until the user closes the window */
     while (running && !glfwWindowShouldClose(window))
@@ -290,7 +281,7 @@ void glfw_Window::startMainLoop(){
         if (recordingVideo)
             screenshotParallelWrite("screenshots/video/");
 
-        long long durationTicks = getTicksMS() - next_game_tick;
+        long long durationTicks = getGameTicks() - next_game_tick;
 
         if (durationTicks < SKIP_TICKS){
 //            cout << "sleeping for " << (SKIP_TICKS - durationTicks) << endl;
@@ -300,13 +291,10 @@ void glfw_Window::startMainLoop(){
         }
 
 
-        next_game_tick = getTicksMS();
+        next_game_tick = getGameTicks();
 
-        /* Swap front and back buffers */
-        glfwSwapBuffers(window);
-
-        /* Poll for and process events */
-        glfwPollEvents();
+        swapBuffers();
+        checkEvents();
 
         assert_no_glerror_end_frame();
     }
@@ -322,27 +310,25 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
     setTimeScale(1.0);
 
 
-    long long next_game_tick = getTicksMS();
+    long long next_game_tick = getGameTicks();
 
     running = true;
     while( running && !glfwWindowShouldClose(window) ) {
 
         int loops = 0;
-        while( getTicksMS() > next_game_tick ) {
+        while( getGameTicks() > next_game_tick ) {
             if (loops > maxFrameSkip){
 //                cout << "<Gameloop> Warning: Update loop is falling behind. (" << (getTicksMS() - next_game_tick)/1000 << "ms)" << endl;
                 break;
             }
 
-            if(windowParameters.updateJoystick)
-                joystick.getCurrentStateFromGLFW();
             update(dt);
 
 
             //if this flag is set, drop some updates, NOTE: this will cause the game to run slower!
             if (gameloopDropAccumulatedUpdates){
                 cout << "<Gameloop> Dropping accumulated updates." << endl;
-                next_game_tick = getTicksMS();
+                next_game_tick = getGameTicks();
                 gameloopDropAccumulatedUpdates = false;
             }
 
@@ -353,7 +339,7 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
 
             ++loops;
         }
-        float interpolation = glm::clamp(((float)(getTicksMS() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ),0.0f,1.0f);
+        float interpolation = glm::clamp(((float)(getGameTicks() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ),0.0f,1.0f);
         render(dt,interpolation);
 
 
@@ -362,15 +348,9 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
         std::this_thread::sleep_for(std::chrono::milliseconds((int)( 1000.f/FORCEFRAMERATE)));
 #endif
 
-        double now = glfwGetTime()*1000;
-		
-        glfwSwapBuffers(window);
-        double now2 = glfwGetTime()*1000;
-        lastSwapBuffersMS = now2 - now;
+    swapBuffers();
+    checkEvents();
 
-        /* Poll for and process events */
-        glfwPollEvents();
-        lastPolleventsMS = glfwGetTime()*1000 - now2;
 
         assert_no_glerror_end_frame();
     }
@@ -388,26 +368,19 @@ void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
 
         renderer->renderer->interpolate(dt,0);
 
-        double now2 = glfwGetTime()*1000;
-        /* Poll for and process events */
-        glfwPollEvents();
-        lastPolleventsMS = glfwGetTime()*1000 - now2;
+        checkEvents();
 
         simulatedTicks++;
 
-        if (simulatedTicks > 60 && ((int)(now2) % 5000) == 0){
-            cout << "<Gameloop> Simulated " << simulatedTicks  << "ticks (" << simulatedTicks*dt <<  "s)" << endl;
-            simulatedTicks = 0;
-        }
+//        if (simulatedTicks > 60 && ((int)(now2) % 5000) == 0){
+//            cout << "<Gameloop> Simulated " << simulatedTicks  << "ticks (" << simulatedTicks*dt <<  "s)" << endl;
+//            simulatedTicks = 0;
+//        }
 
         assert_no_glerror_end_frame();
     }
 }
 
-void glfw_Window::setTimeScale(double timeScale)
-{
-    this->timeScale = timeScale;
-}
 
 bool glfw_Window::window_size_callback(GLFWwindow *window, int width, int height)
 {
@@ -441,6 +414,27 @@ GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
     glfwimage.pixels = image->getRawData();
 
     return glfwCreateCursor(&glfwimage, midX, midY);
+}
+
+bool glfw_Window::shouldClose() {
+    return glfwWindowShouldClose(window) || !running;
+}
+
+void glfw_Window::swapBuffers()
+{
+    double now = glfwGetTime()*1000;
+    glfwSwapBuffers(window);
+    double now2 = glfwGetTime()*1000;
+    lastSwapBuffersMS = now2 - now;
+}
+
+void glfw_Window::checkEvents()
+{
+    double now2 = glfwGetTime()*1000;
+    if(windowParameters.updateJoystick)
+        joystick.getCurrentStateFromGLFW();
+    glfwPollEvents();
+    lastPolleventsMS = glfwGetTime()*1000 - now2;
 }
 
 
