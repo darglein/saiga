@@ -202,10 +202,9 @@ bool glfw_Window::initWindow()
         return false;
     }
 
-    /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
-    //    //vsync
+    //vsync
     glfwSwapInterval(windowParameters.vsync ? 1 : 0);
 
 
@@ -219,8 +218,11 @@ bool glfw_Window::initWindow()
 
     global_joystick = &joystick;
 
-    glfwSetJoystickCallback(joystick_callback_wrapper);
-    joystick.enableFirstJoystick();
+    if (windowParameters.updateJoystick){
+        glfwSetJoystickCallback(joystick_callback_wrapper);
+        joystick.enableFirstJoystick();
+    }
+
 
     return true;
 }
