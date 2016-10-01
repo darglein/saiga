@@ -29,6 +29,7 @@ struct SAIGA_GLOBAL glfw_Window_Parameters{
     bool vsync = true;
     bool updateJoystick = false;
     bool debugContext = true;
+	bool coreContext = true;
     int monitorId = 0; //Important for fullscreen mode. 0 is always the primary monitor.
 
     bool borderLess(){ return mode==Mode::borderLessWindowed || mode==Mode::borderLessFullscreen;}
