@@ -75,7 +75,10 @@ public:
     vec3 screenToWorld(const glm::vec2 &pixel) const;
     vec3 screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
 
-    void startMainLoop(int updatesPerSecond, int framesPerSecond);
+
+    double timeScale = 1.f;
+    void setTimeScale(double timeScale);
+    void startMainLoop(int updatesPerSecond, int framesPerSecond, int maxFrameSkip = 0);
     virtual bool shouldClose() { return !running; }
     virtual void swapBuffers() = 0;
     virtual void checkEvents() = 0;

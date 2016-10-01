@@ -320,8 +320,6 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
                 break;
             }
 
-            if(windowParameters.updateJoystick)
-                joystick.getCurrentStateFromGLFW();
             update(dt);
 
 
@@ -381,10 +379,6 @@ void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
     }
 }
 
-void glfw_Window::setTimeScale(double timeScale)
-{
-    this->timeScale = timeScale;
-}
 
 bool glfw_Window::window_size_callback(GLFWwindow *window, int width, int height)
 {
@@ -435,7 +429,8 @@ void glfw_Window::swapBuffers()
 void glfw_Window::checkEvents()
 {
     double now2 = glfwGetTime()*1000;
-    /* Poll for and process events */
+    if(windowParameters.updateJoystick)
+        joystick.getCurrentStateFromGLFW();
     glfwPollEvents();
     lastPolleventsMS = glfwGetTime()*1000 - now2;
 }

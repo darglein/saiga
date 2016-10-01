@@ -365,8 +365,14 @@ void Window::sleep(tick_t ticks)
     }
 }
 
+void Window::setTimeScale(double timeScale)
+{
+    this->timeScale = timeScale;
+}
 
-void Window::startMainLoop(int updatesPerSecond, int framesPerSecond)
+
+
+void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, int maxFrameSkip)
 {
     gameTimer.start();
 
@@ -386,18 +392,17 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond)
     tick_t nextUpdateTick = getGameTicks();
     tick_t nextFrameTick = nextUpdateTick;
 
-    tick_t currentTick = 0;
     while(!shouldClose()){
-        currentTick = getGameTicks();
 
         checkEvents();
 
-        if(currentTick > nextUpdateTick){
+        //With this loop we are able to skip frames if the system can't keep up.
+        for(int i = 0; i <= maxFrameSkip && getGameTicks() > nextUpdateTick; ++i){
             update(updateDT);
-            nextUpdateTick += ticksPerUpdate;
+            nextUpdateTick += ticksPerUpdate / timeScale;
         }
 
-        if(currentTick > nextFrameTick){
+        if(getGameTicks() > nextFrameTick){
             //calculate the interpolation value. Usefull when the framerate is higher than the update rate
             tick_t lastUpdate = nextUpdateTick - ticksPerUpdate;
             tick_t ticksSinceLastUpdate = getGameTicks() - lastUpdate;
@@ -412,5 +417,6 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond)
         //sleep until the next interesting event
         tick_t nextEvent = glm::min(nextFrameTick,nextUpdateTick);
         sleep(nextEvent - getGameTicks());
+        assert_no_glerror_end_frame();
     }
 }
