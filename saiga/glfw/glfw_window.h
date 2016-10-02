@@ -6,87 +6,71 @@
 #include "saiga/glfw/glfw_joystick.h"
 
 #include <array>
+#include <string>
+#include <mutex>
+#include <memory>
+#include <list>
+#include <thread>
 
 struct GLFWwindow;
 struct GLFWcursor;
 class Image;
 
-struct SAIGA_GLOBAL glfw_Window_Parameters{
-    enum class Mode{
-        windowed,
-        fullscreen,
-        borderLessWindowed,
-        borderLessFullscreen
-    };
-
-    int width = 1280;
-    int height = 720;
-
-
-    Mode mode =  Mode::windowed;
-    bool alwaysOnTop = false;
-    bool resizeAble = true;
-    bool vsync = true;
-    bool updateJoystick = false;
-    bool debugContext = true;
-	bool coreContext = true;
-    int monitorId = 0; //Important for fullscreen mode. 0 is always the primary monitor.
-
-    bool borderLess(){ return mode==Mode::borderLessWindowed || mode==Mode::borderLessFullscreen;}
-    bool fullscreen(){ return mode==Mode::fullscreen || mode==Mode::borderLessFullscreen;}
-
-    void setMode(bool fullscreen, bool borderLess);
-};
 
 class SAIGA_GLOBAL glfw_Window : public Window, public glfw_ResizeListener{
 public:
     GLFWwindow* window = nullptr;
-    glfw_Window_Parameters windowParameters;
-
-
-    bool initWindow();
-    bool initInput();
-public:
-
     Joystick joystick;
 
     bool gameloopDropAccumulatedUpdates = false;
     bool recordingVideo = false;
 
-
-    double lastSwapBuffersMS = 0;
-    double lastPolleventsMS = 0;
-
-    glfw_Window(const std::string &name,glfw_Window_Parameters windowParameters);
+    glfw_Window(WindowParameters windowParameters);
     virtual ~glfw_Window();
 
     void showMouseCursor();
     void hideMouseCursor();
     void disableMouseCursor();
+    void setGLFWcursor(GLFWcursor* cursor);
+    GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
+    void setWindowIcon(Image *image);
 
-    void close();
+    virtual bool window_size_callback(GLFWwindow* window, int width, int height) override;
+protected:
+    virtual bool initWindow() override;
+    virtual bool initInput() override;
+    virtual bool shouldClose() override;
+    virtual void checkEvents() override;
+    virtual void swapBuffers() override;
+    virtual void freeContext() override;
+public:
+    //static glfw stuff
+    static void error_callback(int error, const char* description);
+    static bool initGlfw();
+    static void getCurrentPrimaryMonitorResolution(int *width, int *height);
+    static void getMaxResolution(int *width, int *height);
+public:
+    //TODO: remove everything from here
 
     using Window::startMainLoop;
     void startMainLoop();
     void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond, int maxFrameSkip = 1);
     void startMainLoopNoRender(float ticksPerSecond);
-
-    virtual bool window_size_callback(GLFWwindow* window, int width, int height) override;
-
-
-    void setGLFWcursor(GLFWcursor* cursor);
-    GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
-
-    virtual bool shouldClose();
-    virtual void swapBuffers();
-    virtual void checkEvents();
-
-
-    static void error_callback(int error, const char* description);
-    static bool initGlfw();
-    static void getCurrentPrimaryMonitorResolution(int *width, int *height);
-    static void getMaxResolution(int *width, int *height);
-    void setWindowIcon(Image *image);
+    void screenshotParallelWrite(const std::string &file);
+    void setVideoRecordingLimit(int limit){queueLimit = limit;}
 private:
 
+    int currentScreenshot = 0;
+    std::string parallelScreenshotPath;
+
+    std::list<std::shared_ptr<Image>> queue;
+    std::mutex lock;
+    bool ssRunning = false;
+    int queueLimit = 200;
+
+    bool waitForWriters = false;
+
+#define WRITER_COUNT 7
+    std::thread* sswriterthreads[WRITER_COUNT];
+    void processScreenshots();
 };

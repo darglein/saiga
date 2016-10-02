@@ -11,34 +11,24 @@
 #include <cstring>
 #include <vector>
 #include <ctime>
+#include <thread>
 
 using std::cout;
 using std::endl;
 
 
-Window::Window(const std::string &name, int width, int height)
-    :name(name),width(width),height(height),
-updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),fpsTimer(50),upsTimer(50){
+Window::Window(WindowParameters _windowParameters)
+    :windowParameters(_windowParameters),
+updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50){
 
 }
 
 Window::~Window(){
-
-    if (ssRunning){
-        ssRunning = false;
-
-        for (int i = 0; i < WRITER_COUNT; ++i){
-            sswriterthreads[i]->join();
-            delete sswriterthreads[i];
-        }
-    }
-
-
     delete renderer;
 }
 
-void Window::quit(){
-    cout<<"Window: Quit"<<endl;
+void Window::close(){
+    cout<<"Window: close"<<endl;
     running = false;
 }
 
@@ -107,8 +97,8 @@ void Window::initDeferredRendering(const RenderingParameters &params)
 
 void Window::resize(int width, int height)
 {
-    this->width = width;
-    this->height = height;
+    this->windowParameters.width = width;
+    this->windowParameters.height = height;
     renderer->resize(width,height);
 }
 
@@ -155,95 +145,6 @@ void Window::screenshotRender(const std::string &file)
     TextureLoader::instance()->saveImage(file,img);
 }
 
-void Window::screenshotParallelWrite(const std::string &file){
-
-    if (currentScreenshot == 0){
-        cout<<"Starting " << WRITER_COUNT << " screenshot writers" <<file<<endl;
-        for (int i = 0; i < WRITER_COUNT; ++i){
-            sswriterthreads[i] = new std::thread(&Window::processScreenshots, this);
-        }
-        ssRunning = true;
-    }
-
-
-    int w = renderer->width;
-    int h = renderer->height;
-
-    std::shared_ptr<Image> img = std::make_shared<Image>();
-    img->width = w;
-    img->height = h;
-    img->Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-    img->create();
-
-    auto tex = getRenderer()->postProcessor.getCurrentTexture();
-    tex->bind();
-    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img->getRawData());
-    tex->unbind();
-
-
-
-    if (waitForWriters){
-
-        while(true){
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            lock.lock();
-            if (queue.size() < 5){
-                lock.unlock();
-                break;
-            }
-            lock.unlock();
-        }
-
-        waitForWriters = false;
-    }
-    lock.lock();
-    parallelScreenshotPath = file;
-    queue.push_back(img);
-
-
-    if ((int)queue.size() > queueLimit){ //one frame full HD ~ 4.5Mb
-        waitForWriters = true;
-    }
-//        cout << "queue size: " << queue.size() << endl;
-
-    lock.unlock();
-}
-
-
-void Window::processScreenshots()
-{
-
-    while(ssRunning){
-        int cur = 0;
-        bool took = false;
-        int queueSize = 0;
-        lock.lock();
-        std::shared_ptr<Image> f;
-        if (!queue.empty()){
-            f = queue.front();
-            queueSize = queue.size();
-            if (f){
-                took = true;
-                queue.pop_front();
-                cur = currentScreenshot++;
-            }
-        }
-
-        lock.unlock();
-
-        if (took){
-            long long start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-            TextureLoader::instance()->saveImage(parallelScreenshotPath+ std::to_string(cur) + ".bmp",*f);
-//            f->save(().c_str());
-            cout << "write " << cur  << " (" <<queueSize << ") " << (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - start)/1000 << "ms"<< endl;
-
-
-        } else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
-    }
-}
-
 std::string Window::getTimeString()
 {
     time_t t = time(0);   // get time now
@@ -269,7 +170,7 @@ void Window::setProgram(Program *program)
 
 Ray Window::createPixelRay(const glm::vec2 &pixel) const
 {
-    vec4 p = vec4(2*pixel.x/Window::width-1.f,1.f-(2*pixel.y/Window::height),0,1.f);
+    vec4 p = vec4(2*pixel.x/getWidth()-1.f,1.f-(2*pixel.y/getHeight()),0,1.f);
     p = glm::inverse(Window::currentCamera->proj)*p;
     p /= p.w;
 
@@ -293,7 +194,7 @@ Ray Window::createPixelRay(const glm::vec2 &pixel, const vec2& resolution, const
 
 vec3 Window::screenToWorld(const glm::vec2 &pixel) const
 {
-    vec4 p = vec4(2*pixel.x/Window::width-1.f,1.f-(2*pixel.y/Window::height),0,1.f);
+    vec4 p = vec4(2*pixel.x/getWidth()-1.f,1.f-(2*pixel.y/getHeight()),0,1.f);
     p = glm::inverse(Window::currentCamera->proj)*p;
     p /= p.w;
 
@@ -322,8 +223,8 @@ vec2 Window::projectToScreen(const glm::vec3 &pos) const
     r /= r.w;
 
     vec2 pixel;
-    pixel.x = (r.x +1.f)*Window::width *0.5f;
-    pixel.y = -(r.y - 1.f) * Window::height * 0.5f;
+    pixel.x = (r.x +1.f)*getWidth() *0.5f;
+    pixel.y = -(r.y - 1.f) * getHeight() * 0.5f;
 
     return pixel;
 }
@@ -351,6 +252,10 @@ void Window::render(float dt, float interpolation)
     renderCPUTimer.stop();
 
     numFrames++;
+
+    swapBuffersTimer.start();
+    swapBuffers();
+    swapBuffersTimer.stop();
 
     fpsTimer.stop();
     fpsTimer.start();
@@ -391,7 +296,7 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
 
     float updateDT = 1.0f / updatesPerSecond;
-    float framesDT = 1.0f / framesPerSecond;
+//    float framesDT = 1.0f / framesPerSecond;
 
     tick_t ticksPerUpdate = getGameTicksPerSecond() / updatesPerSecond;
     tick_t ticksPerFrame = getGameTicksPerSecond() / framesPerSecond;
@@ -422,7 +327,6 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
             interpolation = glm::clamp(interpolation,0.0f,1.0f);
 
             render(updateDT,interpolation);
-            swapBuffers();
             nextFrameTick += ticksPerFrame;
         }
 
@@ -437,4 +341,6 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
         sleep(nextEvent - getGameTicks());
         assert_no_glerror_end_frame();
     }
+    float gameTime = (float)getGameTicks() / getGameTicksPerSecond();
+    cout << "> Main loop finished in " << gameTime << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames  << endl;
 }

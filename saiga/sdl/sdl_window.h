@@ -13,15 +13,17 @@ protected:
     SDL_Window* gWindow = NULL;
     SDL_GLContext gContext;
 
-    bool initWindow();
-    bool initInput();
+    virtual bool initWindow() override;
+    virtual bool initInput() override;
+    virtual bool shouldClose() override;
+    virtual void checkEvents() override;
+    virtual void swapBuffers() override;
+    virtual void freeContext() override;
 public:
     SDL_EventHandler eventHandler;
 
-    sdl_Window(const std::string &name,int width,int height);
+    sdl_Window(WindowParameters windowParameters);
 
 
-    void close();
-    void startMainLoop();
 };
 

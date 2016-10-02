@@ -7,15 +7,12 @@
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/rendering/renderer.h"
 
+#include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/util/inputcontroller.h"
 #include <chrono>
 #include "saiga/util/error.h"
 #include "saiga/framework.h"
 
-//#define FORCEFRAMERATE 30
-//#ifdef FORCEFRAMERATE
-//#include <thread>
-//#endif
 
 Joystick* global_joystick = nullptr;
 
@@ -25,7 +22,7 @@ void joystick_callback_wrapper(int joy, int event)
     global_joystick->joystick_callback(joy,event);
 }
 
-void glfw_Window_Parameters::setMode(bool fullscreen, bool borderLess)
+void WindowParameters::setMode(bool fullscreen, bool borderLess)
 {
     if(fullscreen){
         mode = (borderLess) ? Mode::borderLessFullscreen : Mode::fullscreen;
@@ -38,8 +35,8 @@ void glfw_Window_Parameters::setMode(bool fullscreen, bool borderLess)
 
 
 
-glfw_Window::glfw_Window(const std::string &name, glfw_Window_Parameters windowParameters):
-    Window(name,windowParameters.width,windowParameters.height),windowParameters(windowParameters)
+glfw_Window::glfw_Window(WindowParameters windowParameters):
+    Window(windowParameters)
 {
 }
 
@@ -47,6 +44,15 @@ glfw_Window::~glfw_Window()
 {
     if(!window)
         return;
+
+    if (ssRunning){
+        ssRunning = false;
+
+        for (int i = 0; i < WRITER_COUNT; ++i){
+            sswriterthreads[i]->join();
+            delete sswriterthreads[i];
+        }
+    }
 
 
     cleanupSaiga();
@@ -132,8 +138,8 @@ bool glfw_Window::initWindow()
         windowParameters.width = mode->width;
         windowParameters.height = mode->height;
     }
-    this->width = windowParameters.width;
-    this->height = windowParameters.height;
+//    this->width = windowParameters.width;
+//    this->height = windowParameters.height;
 
 
     //glfwInit has to be called before
@@ -160,23 +166,23 @@ bool glfw_Window::initWindow()
 	// GLFW_REFRESH_RATE, GLFW_DONT_CARE = highest
 	glfwWindowHint(GLFW_REFRESH_RATE, GLFW_DONT_CARE);
 
-    std::cout << "Creating GLFW Window. " << width << "x" << height <<
+    std::cout << "Creating GLFW Window. " << getWidth() << "x" << getHeight() <<
                  " Fullscreen=" << windowParameters.fullscreen() <<
                  " Borderless=" << windowParameters.borderLess() <<
                  std::endl;
 
 
     switch (windowParameters.mode){
-    case glfw_Window_Parameters::Mode::windowed:
-        window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
+    case WindowParameters::Mode::windowed:
+        window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), NULL, NULL);
         break;
-    case glfw_Window_Parameters::Mode::fullscreen:
-        window = glfwCreateWindow(width, height, name.c_str(), monitor, NULL);
+    case WindowParameters::Mode::fullscreen:
+        window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), monitor, NULL);
         break;
-    case glfw_Window_Parameters::Mode::borderLessWindowed:
-        window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
+    case WindowParameters::Mode::borderLessWindowed:
+        window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), NULL, NULL);
         break;
-    case glfw_Window_Parameters::Mode::borderLessFullscreen:
+    case WindowParameters::Mode::borderLessFullscreen:
 #ifndef WIN32
         std::cerr << "Windowed Fullscreen may not work on your system." << std::endl;
 #endif
@@ -187,7 +193,7 @@ bool glfw_Window::initWindow()
         glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
         glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 		
-		window = glfwCreateWindow(width, height, name.c_str(), NULL, NULL);
+        window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), NULL, NULL);
 
 		//move to correct monitor
 		int xpos, ypos;
@@ -210,7 +216,7 @@ bool glfw_Window::initWindow()
 
 
     //framebuffer size != window size
-    glfwGetFramebufferSize(window, &width, &height);
+    glfwGetFramebufferSize(window, &windowParameters.width, &windowParameters.height);
 
 
     //not needed but makes start cleaner
@@ -241,14 +247,14 @@ bool glfw_Window::initInput(){
 
     glfw_EventHandler::addResizeListener(this,0);
 
-    IC.add("quit", [this](ICPARAMS){(void)args;this->quit();});
+    IC.add("quit", [this](ICPARAMS){(void)args;this->close();});
 
     return true;
 }
 
 
 
-void glfw_Window::close()
+void glfw_Window::freeContext()
 {
 
     //Disable text input
@@ -294,7 +300,6 @@ void glfw_Window::startMainLoop(){
 
         next_game_tick = getGameTicks();
 
-        swapBuffers();
         checkEvents();
 
         assert_no_glerror_end_frame();
@@ -349,7 +354,6 @@ void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSec
         std::this_thread::sleep_for(std::chrono::milliseconds((int)( 1000.f/FORCEFRAMERATE)));
 #endif
 
-    swapBuffers();
     checkEvents();
 
 
@@ -424,19 +428,14 @@ bool glfw_Window::shouldClose() {
 
 void glfw_Window::swapBuffers()
 {
-    double now = glfwGetTime()*1000;
     glfwSwapBuffers(window);
-    double now2 = glfwGetTime()*1000;
-    lastSwapBuffersMS = now2 - now;
 }
 
 void glfw_Window::checkEvents()
 {
-    double now2 = glfwGetTime()*1000;
     if(windowParameters.updateJoystick)
         joystick.getCurrentStateFromGLFW();
     glfwPollEvents();
-    lastPolleventsMS = glfwGetTime()*1000 - now2;
 }
 
 
@@ -458,6 +457,95 @@ void glfw_Window::setWindowIcon(Image* image){
     glfwSetWindowIcon(window,1,&glfwimage);
 }
 
+
+void glfw_Window::screenshotParallelWrite(const std::string &file){
+
+    if (currentScreenshot == 0){
+        cout<<"Starting " << WRITER_COUNT << " screenshot writers" <<file<<endl;
+        for (int i = 0; i < WRITER_COUNT; ++i){
+            sswriterthreads[i] = new std::thread(&glfw_Window::processScreenshots, this);
+        }
+        ssRunning = true;
+    }
+
+
+    int w = renderer->width;
+    int h = renderer->height;
+
+    std::shared_ptr<Image> img = std::make_shared<Image>();
+    img->width = w;
+    img->height = h;
+    img->Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    img->create();
+
+    auto tex = getRenderer()->postProcessor.getCurrentTexture();
+    tex->bind();
+    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img->getRawData());
+    tex->unbind();
+
+
+
+    if (waitForWriters){
+
+        while(true){
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            lock.lock();
+            if (queue.size() < 5){
+                lock.unlock();
+                break;
+            }
+            lock.unlock();
+        }
+
+        waitForWriters = false;
+    }
+    lock.lock();
+    parallelScreenshotPath = file;
+    queue.push_back(img);
+
+
+    if ((int)queue.size() > queueLimit){ //one frame full HD ~ 4.5Mb
+        waitForWriters = true;
+    }
+//        cout << "queue size: " << queue.size() << endl;
+
+    lock.unlock();
+}
+
+
+void glfw_Window::processScreenshots()
+{
+
+    while(ssRunning){
+        int cur = 0;
+        bool took = false;
+        int queueSize = 0;
+        lock.lock();
+        std::shared_ptr<Image> f;
+        if (!queue.empty()){
+            f = queue.front();
+            queueSize = queue.size();
+            if (f){
+                took = true;
+                queue.pop_front();
+                cur = currentScreenshot++;
+            }
+        }
+
+        lock.unlock();
+
+        if (took){
+            long long start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            TextureLoader::instance()->saveImage(parallelScreenshotPath+ std::to_string(cur) + ".bmp",*f);
+//            f->save(().c_str());
+            cout << "write " << cur  << " (" <<queueSize << ") " << (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - start)/1000 << "ms"<< endl;
+
+
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
+}
 
 
 

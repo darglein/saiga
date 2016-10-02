@@ -1,6 +1,5 @@
 Asset Loading + Rendering
 - animated assets
-- image loader error
 
 General
 - better shader names
