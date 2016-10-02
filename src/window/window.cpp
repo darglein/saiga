@@ -365,7 +365,7 @@ void Window::sleep(tick_t ticks)
 {
     if(ticks > 0){
         std::this_thread::sleep_for(std::chrono::microseconds(ticks));
-        std::cout << "Sleeping " << ticks << " ticks (" << ((float)ticks/getGameTicksPerSecond()) << " seconds)" << std::endl;
+//        std::cout << "Sleeping " << ticks << " ticks (" << ((float)ticks/getGameTicksPerSecond()) << " seconds)" << std::endl;
     }
 }
 

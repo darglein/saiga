@@ -92,18 +92,22 @@ FREE_IMAGE_TYPE getFIT2(ImageFormat format){
 }
 
 
-void ImageConverter::convert(Image& src, fipImage &dest){
+void ImageConverter::convert(Image src, fipImage &dest){
+    if(src.Format().getChannels() == 3 && src.Format().bitsPerPixel()==24){
+        src.flipRB();
+    }else if(src.Format().getChannels() == 4){
+        src.flipRB();
+    }else{
+        std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;
+        assert(0);
+    }
+
+
+
     dest.setSize(getFIT2(src.Format()),src.width,src.height,src.Format().bitsPerPixel());
 
-    //free image pads lines to 4 bytes
-    //    int scanWidth = dest.getScanWidth();
-
     auto data = dest.accessPixels();
-    //    for(int y = 0 ; y < src.height ; ++y){
 
-    //        auto rowPtr = src.positionPtr(0,y);
-    //        memcpy(data+scanWidth*y,rowPtr,scanWidth);
-    //    }
 
     memcpy(data,src.getRawData(),src.getSize());
 

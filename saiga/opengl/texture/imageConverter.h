@@ -23,6 +23,6 @@ public:
 
 #ifdef USE_FREEIMAGE
     static void convert(fipImage &src, Image& dest);
-    static void convert(Image& src, fipImage &dest);
+    static void convert(Image src, fipImage &dest); //copy the src image because we need to flip red and blue :(
 #endif
 };
