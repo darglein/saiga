@@ -1,5 +1,10 @@
 #include "saiga/sdl/sdl_eventhandler.h"
 
+bool SDL_EventHandler::quit = false;
+std::vector<SDL_KeyListener*> SDL_EventHandler::keyListener;
+std::vector<SDL_MouseListener*> SDL_EventHandler::mouseListener;
+std::vector<SDL_EventListener*> SDL_EventHandler::eventListener;
+
 void SDL_EventHandler::update(){
     //Handle events on queue
     SDL_Event e;
@@ -32,6 +37,10 @@ void SDL_EventHandler::update(){
         {
             int key = e.button.button;
             mouseReleased(key,e.button.x,e.button.y);
+        }
+
+        for(SDL_EventListener* listener : eventListener){
+            listener->processEvent(e);
         }
     }
 }

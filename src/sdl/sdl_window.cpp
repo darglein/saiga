@@ -53,14 +53,14 @@ bool SDLWindow::initWindow()
     if(windowParameters.resizeAble) flags |=  SDL_WINDOW_RESIZABLE;
 
     //Create window
-    gWindow = SDL_CreateWindow(getName().c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, getWidth(), getHeight(), flags );
-    if( gWindow == NULL ){
+    window = SDL_CreateWindow(getName().c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, getWidth(), getHeight(), flags );
+    if( window == NULL ){
         std::cout << "Window could not be created! SDL Error: " << SDL_GetError() << std::endl;
         return false;
     }
 
     //Create context
-    gContext = SDL_GL_CreateContext( gWindow );
+    gContext = SDL_GL_CreateContext( window );
     if( gContext == NULL ){
         std::cout << "OpenGL context could not be created! SDL Error: " << SDL_GetError() << std::endl;
         return false;
@@ -83,18 +83,18 @@ bool SDLWindow::initInput(){
 
 bool SDLWindow::shouldClose()
 {
-    return eventHandler.shouldQuit() || !running;
+    return SDL_EventHandler::shouldQuit() || !running;
 }
 
 void SDLWindow::checkEvents()
 {
-    eventHandler.update();
+    SDL_EventHandler::update();
 }
 
 void SDLWindow::swapBuffers()
 {
 
-    SDL_GL_SwapWindow( gWindow );
+    SDL_GL_SwapWindow( window );
 }
 
 
@@ -105,8 +105,8 @@ void SDLWindow::freeContext()
     SDL_StopTextInput();
 
     //Destroy window
-    SDL_DestroyWindow( gWindow );
-    gWindow = NULL;
+    SDL_DestroyWindow( window );
+    window = NULL;
 
     //Quit SDL subsystems
     SDL_Quit();

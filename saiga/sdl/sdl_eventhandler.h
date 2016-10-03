@@ -10,22 +10,23 @@
 
 class SAIGA_GLOBAL SDL_EventHandler{
 private:
-    bool quit;
-    std::vector<SDL_KeyListener*> keyListener;
-    std::vector<SDL_MouseListener*> mouseListener;
+    static bool quit;
+    static std::vector<SDL_KeyListener*> keyListener;
+    static std::vector<SDL_MouseListener*> mouseListener;
+    static std::vector<SDL_EventListener*> eventListener;
 public:
-    SDL_EventHandler():quit(false){}
-    void addKeyListener(SDL_KeyListener* kl){keyListener.push_back(kl);}
-    void addMouseListener(SDL_MouseListener* ml){mouseListener.push_back(ml);}
-    void update();
+    static void addKeyListener(SDL_KeyListener* kl){keyListener.push_back(kl);}
+    static void addMouseListener(SDL_MouseListener* ml){mouseListener.push_back(ml);}
+    static void addEventListener(SDL_EventListener* ml){eventListener.push_back(ml);}
+    static void update();
 
 
-    void keyPressed(const SDL_Keysym &key);
-    void keyReleased(const SDL_Keysym &key);
+    static void keyPressed(const SDL_Keysym &key);
+    static void keyReleased(const SDL_Keysym &key);
 
-    void mouseMoved(int x, int y);
-    void mousePressed(int key, int x, int y);
-    void mouseReleased(int key, int x, int y);
-    bool shouldQuit(){return quit;}
+    static void mouseMoved(int x, int y);
+    static void mousePressed(int key, int x, int y);
+    static void mouseReleased(int key, int x, int y);
+    static bool shouldQuit(){return quit;}
 };
 

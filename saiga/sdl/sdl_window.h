@@ -9,8 +9,10 @@
 
 
 class SAIGA_GLOBAL SDLWindow : public Window{
+public:
+
+    SDL_Window* window = NULL;
 protected:
-    SDL_Window* gWindow = NULL;
     SDL_GLContext gContext;
 
     virtual bool initWindow() override;
@@ -20,7 +22,6 @@ protected:
     virtual void swapBuffers() override;
     virtual void freeContext() override;
 public:
-    SDL_EventHandler eventHandler;
 
     SDLWindow(WindowParameters windowParameters);
 };

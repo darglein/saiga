@@ -9,7 +9,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
-
+#include <iostream>
 #ifdef USE_SDL
 // SDL
 #include <SDL.h>
@@ -28,7 +28,7 @@ static unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
 // This is the main rendering function that you have to implement and provide to ImGui (via setting up 'RenderDrawListsFn' in the ImGuiIO structure)
 // If text or lines are blurry when integrating ImGui in your engine:
 // - in your Render function, try translating your projection matrix by (0.5f,0.5f) or (0.375f,0.375f)
-void ImGui_ImplSdlGL3_RenderDrawLists(ImDrawData* draw_data)
+void ImGui_SDL_Renderer::ImGui_ImplSdlGL3_RenderDrawLists(ImDrawData* draw_data)
 {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     ImGuiIO& io = ImGui::GetIO();
@@ -131,37 +131,37 @@ static void ImGui_ImplSdlGL3_SetClipboardText(const char* text)
     SDL_SetClipboardText(text);
 }
 
-bool ImGui_ImplSdlGL3_ProcessEvent(SDL_Event* event)
+bool ImGui_SDL_Renderer::processEvent(const SDL_Event &event)
 {
     ImGuiIO& io = ImGui::GetIO();
-    switch (event->type)
+    switch (event.type)
     {
     case SDL_MOUSEWHEEL:
         {
-            if (event->wheel.y > 0)
+            if (event.wheel.y > 0)
                 g_MouseWheel = 1;
-            if (event->wheel.y < 0)
+            if (event.wheel.y < 0)
                 g_MouseWheel = -1;
             return true;
         }
     case SDL_MOUSEBUTTONDOWN:
         {
-            if (event->button.button == SDL_BUTTON_LEFT) g_MousePressed[0] = true;
-            if (event->button.button == SDL_BUTTON_RIGHT) g_MousePressed[1] = true;
-            if (event->button.button == SDL_BUTTON_MIDDLE) g_MousePressed[2] = true;
+            if (event.button.button == SDL_BUTTON_LEFT) g_MousePressed[0] = true;
+            if (event.button.button == SDL_BUTTON_RIGHT) g_MousePressed[1] = true;
+            if (event.button.button == SDL_BUTTON_MIDDLE) g_MousePressed[2] = true;
             return true;
         }
     case SDL_TEXTINPUT:
         {
             ImGuiIO& io = ImGui::GetIO();
-            io.AddInputCharactersUTF8(event->text.text);
+            io.AddInputCharactersUTF8(event.text.text);
             return true;
         }
     case SDL_KEYDOWN:
     case SDL_KEYUP:
         {
-            int key = event->key.keysym.sym & ~SDLK_SCANCODE_MASK;
-            io.KeysDown[key] = (event->type == SDL_KEYDOWN);
+            int key = event.key.keysym.sym & ~SDLK_SCANCODE_MASK;
+            io.KeysDown[key] = (event.type == SDL_KEYDOWN);
             io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
             io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
             io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
@@ -172,7 +172,7 @@ bool ImGui_ImplSdlGL3_ProcessEvent(SDL_Event* event)
     return false;
 }
 
-void ImGui_ImplSdlGL3_CreateFontsTexture()
+void ImGui_SDL_Renderer::ImGui_ImplSdlGL3_CreateFontsTexture()
 {
     // Build texture atlas
     ImGuiIO& io = ImGui::GetIO();
@@ -196,7 +196,7 @@ void ImGui_ImplSdlGL3_CreateFontsTexture()
     glBindTexture(GL_TEXTURE_2D, last_texture);
 }
 
-bool ImGui_ImplSdlGL3_CreateDeviceObjects()
+bool ImGui_SDL_Renderer::ImGui_ImplSdlGL3_CreateDeviceObjects()
 {
     // Backup GL state
     GLint last_texture, last_array_buffer, last_vertex_array;
@@ -273,7 +273,7 @@ bool ImGui_ImplSdlGL3_CreateDeviceObjects()
     return true;
 }
 
-void    ImGui_ImplSdlGL3_InvalidateDeviceObjects()
+void    ImGui_SDL_Renderer::ImGui_ImplSdlGL3_InvalidateDeviceObjects()
 {
     if (g_VaoHandle) glDeleteVertexArrays(1, &g_VaoHandle);
     if (g_VboHandle) glDeleteBuffers(1, &g_VboHandle);
@@ -299,8 +299,9 @@ void    ImGui_ImplSdlGL3_InvalidateDeviceObjects()
     }
 }
 
-bool    ImGui_ImplSdlGL3_Init(SDL_Window* window)
+bool    ImGui_SDL_Renderer::init(SDL_Window* window, std::string font, float fontSize)
 {
+    this->window = window;
     ImGuiIO& io = ImGui::GetIO();
     io.KeyMap[ImGuiKey_Tab] = SDLK_TAB;                     // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
     io.KeyMap[ImGuiKey_LeftArrow] = SDL_SCANCODE_LEFT;
@@ -335,16 +336,22 @@ bool    ImGui_ImplSdlGL3_Init(SDL_Window* window)
     (void)window;
 #endif
 
+    SDL_EventHandler::addEventListener(this);
+
+    io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
+
+    std::cout<<"Imgui Initialized!"<<std::endl;
+
     return true;
 }
 
-void ImGui_ImplSdlGL3_Shutdown()
+void ImGui_SDL_Renderer::shutdown()
 {
     ImGui_ImplSdlGL3_InvalidateDeviceObjects();
     ImGui::Shutdown();
 }
 
-void ImGui_ImplSdlGL3_NewFrame(SDL_Window* window)
+void ImGui_SDL_Renderer::beginFrame()
 {
     if (!g_FontTexture)
         ImGui_ImplSdlGL3_CreateDeviceObjects();
@@ -387,6 +394,16 @@ void ImGui_ImplSdlGL3_NewFrame(SDL_Window* window)
 
     // Start the frame
     ImGui::NewFrame();
+}
+
+void ImGui_SDL_Renderer::endFrame()
+{
+    ImGui::Render();
+}
+
+void ImGui_SDL_Renderer::checkWindowFocus()
+{
+    wantsCaptureMouse |= ImGui::GetIO().WantCaptureMouse;
 }
 
 #endif

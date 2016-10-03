@@ -42,10 +42,10 @@ public:
 //    bool isFocused = false;
     bool wantsCaptureMouse = false;
 
-    bool        init(GLFWwindow* window, std::string font);
+    bool        init(GLFWwindow* window, std::string font, float fontSize = 15.0f);
     void        shutdown();
 
-    void checkWindowFocus();
+    void        checkWindowFocus();
     void        beginFrame();
     void        endFrame();
 

@@ -20,4 +20,10 @@ public:
     virtual void mouseReleased(int key, int x, int y) = 0;
 };
 
+class SAIGA_GLOBAL SDL_EventListener{
+public:
+    virtual ~SDL_EventListener(){}
+    virtual bool processEvent(const SDL_Event& event) = 0;
+};
+
 #endif // LISTENER_H

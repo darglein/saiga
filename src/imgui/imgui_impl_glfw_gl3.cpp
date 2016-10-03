@@ -268,7 +268,7 @@ void    ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_InvalidateDeviceObjects()
     }
 }
 
-bool    ImGui_GLFW_Renderer::init(GLFWwindow* window, std::string font)
+bool    ImGui_GLFW_Renderer::init(GLFWwindow* window, std::string font, float fontSize)
 {
     g_Window = window;
 
@@ -305,7 +305,7 @@ bool    ImGui_GLFW_Renderer::init(GLFWwindow* window, std::string font)
         glfw_EventHandler::addMouseListener(this,10);
 
 
-        io.Fonts->AddFontFromFileTTF(font.c_str(), 15.0f);
+        io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
 
         std::cout<<"Imgui Initialized!"<<std::endl;
     return true;
