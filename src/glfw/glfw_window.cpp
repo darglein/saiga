@@ -122,7 +122,7 @@ bool glfw_Window::initWindow()
 {
     if (!glfw_Window::initGlfw()){
         cout << "Could not initialize GLFW" << endl;
-        return -1;
+        return false;
     }
 
     int monitorCount;
@@ -138,11 +138,6 @@ bool glfw_Window::initWindow()
         windowParameters.width = mode->width;
         windowParameters.height = mode->height;
     }
-//    this->width = windowParameters.width;
-//    this->height = windowParameters.height;
-
-
-    //glfwInit has to be called before
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
@@ -151,10 +146,8 @@ bool glfw_Window::initWindow()
     //    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	if (windowParameters.coreContext) {
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
-	}
-//#if !defined(SAIGA_RELEASE)
+    }
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, windowParameters.debugContext);
-//#endif
     //    glfwWindowHint(GLFW_STENCIL_BITS, 8);
     //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
 

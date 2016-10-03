@@ -4,11 +4,10 @@
 
 bool openglinitialized = false;
 
-#ifdef USE_GLEW
 void initOpenGL()
 {
-	assert(!openglinitialized);
-
+    assert(!openglinitialized);
+#ifdef USE_GLEW
     //Initialize GLEW
     glewExperimental = GL_TRUE;
     GLenum glewError = glewInit();
@@ -16,21 +15,21 @@ void initOpenGL()
         std::cerr<<"Error initializing GLEW! "<< glewGetErrorString( glewError ) <<std::endl;
         assert(0);
     }
-
     glGetError(); //ignore first gl error after glew init
-
-    openglinitialized = true;
-}
 #endif
 
 #ifdef USE_GLBINDING
-void initOpenGL()
-{
-	assert(!openglinitialized);
     glbinding::Binding::initialize();
-    openglinitialized = true;
-}
 #endif
+    openglinitialized = true;
+    std::cout << "> OpenGL initialized" << std::endl;
+    std::cout << "Opengl version: " << glGetString(GL_VERSION) << std::endl;
+    std::cout << "GLSL version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+    std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
+}
+
+
 
 
 void terminateOpenGL()

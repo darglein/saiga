@@ -2,7 +2,6 @@
 
 #include "saiga/camera/controllable_camera.h"
 #include <GLFW/glfw3.h>
-#include <saiga/glfw/glfw_eventhandler.h>
 
 template<typename camera_t>
 class Glfw_Camera : public Controllable_Camera<camera_t>{

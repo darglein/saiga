@@ -3,7 +3,5 @@ Asset Loading + Rendering
 
 General
 - better shader names
-- init opengl and context always at beginning
 - templated image class
 - bezier+bspline curves + surfaces + teapot
-- sdl camera

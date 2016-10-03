@@ -48,14 +48,6 @@ bool Window::init(const RenderingParameters& params){
     initOpenGL();
     assert_no_glerror();
 
-    cout<<">> Basic Window and OpenGL Context initialized!"<<endl;
-    cout<<"Opengl version: "<<glGetString(GL_VERSION)<<endl;
-    cout<<"GLSL version: "<<glGetString(GL_SHADING_LANGUAGE_VERSION)<<endl;
-    cout<<"Renderer version: "<<glGetString(GL_RENDERER)<<endl;
-    cout<<"Vendor version: "<<glGetString(GL_VENDOR)<<endl;
-
-
-
 
     if(!initInput()){
         std::cerr<<"Failed to initialize Input!"<<std::endl;

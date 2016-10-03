@@ -2,88 +2,103 @@
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferred_renderer.h"
 
-sdl_Window::sdl_Window(WindowParameters windowParameters):Window(windowParameters)
+SDLWindow::SDLWindow(WindowParameters windowParameters):Window(windowParameters)
 {
-//    auto window = new sdl_Window("asf",1280,720);
 }
 
-bool sdl_Window::initWindow()
+bool SDLWindow::initWindow()
 {
     //Initialization flag
     bool success = true;
 
     //Initialize SDL
     if( SDL_Init( SDL_INIT_VIDEO ) < 0 ){
-        printf( "SDL could not initialize! SDL Error: %s\n", SDL_GetError() );
+        std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
         return false;
     }
 
-    //Use OpenGL 3.1 core
+    SDL_DisplayMode current;
+    SDL_GetCurrentDisplayMode(0 , &current);
+
+
+    if(windowParameters.fullscreen()){
+        windowParameters.width = current.w;
+        windowParameters.height = current.h;
+    }
+
     SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 2 );
 
-    //enable opengl debugging
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+    if(windowParameters.coreContext)
+        SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
 
-    //stencil buffer
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    if(windowParameters.debugContext)
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+
+
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, true);
+
+    /*  \param flags The flags for the window, a mask of any of the following:
+    *               ::SDL_WINDOW_FULLSCREEN,    ::SDL_WINDOW_OPENGL,
+    *               ::SDL_WINDOW_HIDDEN,        ::SDL_WINDOW_BORDERLESS,
+    *               ::SDL_WINDOW_RESIZABLE,     ::SDL_WINDOW_MAXIMIZED,
+    *               ::SDL_WINDOW_MINIMIZED,     ::SDL_WINDOW_INPUT_GRABBED,
+    *               ::SDL_WINDOW_ALLOW_HIGHDPI.
+    */
+    Uint32 flags =  SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+
+    if(windowParameters.resizeAble) flags |=  SDL_WINDOW_RESIZABLE;
+    if(windowParameters.borderLess()) flags |=  SDL_WINDOW_BORDERLESS;
+    if(windowParameters.fullscreen()) flags |=  SDL_WINDOW_FULLSCREEN;
+    if(windowParameters.resizeAble) flags |=  SDL_WINDOW_RESIZABLE;
 
     //Create window
-    gWindow = SDL_CreateWindow(getName().c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, getWidth(), getHeight(), SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
+    gWindow = SDL_CreateWindow(getName().c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, getWidth(), getHeight(), flags );
     if( gWindow == NULL ){
-        printf( "Window could not be created! SDL Error: %s\n", SDL_GetError() );
+        std::cout << "Window could not be created! SDL Error: " << SDL_GetError() << std::endl;
         return false;
     }
 
     //Create context
     gContext = SDL_GL_CreateContext( gWindow );
     if( gContext == NULL ){
-        printf( "OpenGL context could not be created! SDL Error: %s\n", SDL_GetError() );
+        std::cout << "OpenGL context could not be created! SDL Error: " << SDL_GetError() << std::endl;
         return false;
     }
 
-
-
-
     //Use Vsync
-//    if( SDL_GL_SetSwapInterval( 1 ) < 0 ){
-//        printf( "Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
-//    }
-
-
-
-
-    cout<<"Opengl version: "<<glGetString(  GL_VERSION)<<endl;
+    if( SDL_GL_SetSwapInterval( windowParameters.vsync ? 1 : 0) < 0 ){
+        std::cout << "Warning: Unable to set VSync! SDL Error: " << SDL_GetError() << std::endl;
+    }
 
 
     return success;
 }
 
-bool sdl_Window::initInput(){
+bool SDLWindow::initInput(){
     //Enable text input
     SDL_StartTextInput();
     return true;
 }
 
-bool sdl_Window::shouldClose()
+bool SDLWindow::shouldClose()
 {
     return eventHandler.shouldQuit() || !running;
 }
 
-void sdl_Window::checkEvents()
+void SDLWindow::checkEvents()
 {
     eventHandler.update();
 }
 
-void sdl_Window::swapBuffers()
+void SDLWindow::swapBuffers()
 {
 
     SDL_GL_SwapWindow( gWindow );
 }
 
 
-void sdl_Window::freeContext()
+void SDLWindow::freeContext()
 {
 
     //Disable text input

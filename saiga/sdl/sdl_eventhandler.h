@@ -4,7 +4,9 @@
 #include <SDL2/SDL.h>
 #include <iostream>
 #include <vector>
-#include "saiga/sdl/listener.h"
+#include "saiga/sdl/sdl_listener.h"
+#include <saiga/util/keyboard.h>
+#include <saiga/util/mouse.h>
 
 class SAIGA_GLOBAL SDL_EventHandler{
 private:
@@ -18,10 +20,10 @@ public:
     void update();
 
 
-    void keyPressed(const SDL_Event &e);
-    void keyReleased(const SDL_Event &e);
+    void keyPressed(const SDL_Keysym &key);
+    void keyReleased(const SDL_Keysym &key);
 
-    void mouseMoved(int relx, int rely);
+    void mouseMoved(int x, int y);
     void mousePressed(int key, int x, int y);
     void mouseReleased(int key, int x, int y);
     bool shouldQuit(){return quit;}

@@ -8,7 +8,7 @@
 //#include <SDL2/SDL_opengl.h>
 
 
-class SAIGA_GLOBAL sdl_Window : public Window{
+class SAIGA_GLOBAL SDLWindow : public Window{
 protected:
     SDL_Window* gWindow = NULL;
     SDL_GLContext gContext;
@@ -22,8 +22,6 @@ protected:
 public:
     SDL_EventHandler eventHandler;
 
-    sdl_Window(WindowParameters windowParameters);
-
-
+    SDLWindow(WindowParameters windowParameters);
 };
 
