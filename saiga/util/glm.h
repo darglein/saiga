@@ -12,7 +12,9 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/random.hpp>
-#include "glm/gtx/quaternion.hpp"
+#include <glm/gtx/quaternion.hpp>
+//#include <glm/gtc/type_aligned.hpp>
+#include <glm/gtx/type_aligned.hpp>
 
 using std::ostream;
 
@@ -22,6 +24,9 @@ typedef glm::vec3 vec3;
 typedef glm::vec4 vec4;
 typedef glm::mat4 mat4;
 typedef glm::quat quat;
+//typedef glm::aligned_vec4 vec4;
+//typedef glm::aligned_mat4 mat4;
+//typedef glm::aligned_quat quat;
 
 using std::cout;
 using std::endl;

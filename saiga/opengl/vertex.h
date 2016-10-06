@@ -47,13 +47,13 @@ struct SAIGA_GLOBAL VertexNT : public VertexN{
 
 
 struct SAIGA_GLOBAL VertexNC : public VertexN{
-    vec3 color = vec3(0);
-    vec3 data = vec3(0);
+    vec4 color = vec4(0);
+    vec4 data = vec4(0);
 
     VertexNC() {}
     VertexNC(const vec3 &position) : VertexN(position){}
     VertexNC(const vec3 &position,const vec3 &normal) : VertexN(position,normal){}
-    VertexNC(const vec3 &position,const vec3 &normal,const vec3 &color) : VertexN(position,normal),color(color){}
+    VertexNC(const vec3 &position,const vec3 &normal,const vec4 &color) : VertexN(position,normal),color(color){}
 
     bool operator==(const VertexNC &other) const;
     friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert);

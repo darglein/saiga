@@ -332,7 +332,7 @@ void AssimpLoader::getColors(int id,  TriangleMesh<vertex_t, GLuint> &out){
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
 
-            bv.color = vec3(color.r,color.g,color.b);
+            bv.color = vec4(color.r,color.g,color.b,0);
         }
 }
 
@@ -362,7 +362,7 @@ void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, GLuint> &out){
         for(unsigned int i=0;i<mesh->mNumVertices;++i){
             vertex_t &bv = out.vertices[i];
 
-            bv.data = vec3(specular,emissive,0);
+            bv.data = vec4(specular,emissive,0,0);
         }
 
 

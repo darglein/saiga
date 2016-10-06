@@ -7,7 +7,7 @@
 
 struct SAIGA_GLOBAL ObjMaterial{
     std::string name;
-    vec3 color = vec3(0,1,0);
+    vec4 color = vec4(0,1,0,0);
 
     float Ns = 0.2f;   //specular coefficient
     float Ni = 1;
@@ -16,7 +16,7 @@ struct SAIGA_GLOBAL ObjMaterial{
     vec3 Tf;
     int illum ;
     vec3 Ka = vec3(0.2f);   //ambient color
-    vec3 Kd = vec3(0.8f);   //diffuse color
+    vec4 Kd = vec4(0.8f);   //diffuse color
     vec3 Ks = vec3(1);   //specular color
     vec3 Ke = vec3(1);
 

@@ -28,7 +28,7 @@ ColoredAsset* ObjAssetLoader::loadBasicAsset(const std::string &file, bool norma
         VertexNC vn;
         vn.position = v.position;
         vn.normal = v.normal;
-        vn.color = vec3(1,0,0);
+        vn.color = vec4(1,0,0,0);
         tmesh.addVertex(vn);
     }
 

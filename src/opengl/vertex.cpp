@@ -38,8 +38,8 @@ void VertexBuffer<VertexNC>::setVertexAttributes(){
 
     glVertexAttribPointer(0,3, GL_FLOAT, GL_FALSE, sizeof(VertexNC), NULL );
     glVertexAttribPointer(1,3, GL_FLOAT, GL_FALSE, sizeof(VertexNC), (void*) (3 * sizeof(GLfloat)) );
-    glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE, sizeof(VertexNC), (void*) (6 * sizeof(GLfloat)) );
-    glVertexAttribPointer(3,3, GL_FLOAT, GL_FALSE, sizeof(VertexNC), (void*) (9 * sizeof(GLfloat)) );
+    glVertexAttribPointer(2,4, GL_FLOAT, GL_FALSE, sizeof(VertexNC), (void*) (6 * sizeof(GLfloat)) );
+    glVertexAttribPointer(3,4, GL_FLOAT, GL_FALSE, sizeof(VertexNC), (void*) (10 * sizeof(GLfloat)) );
 }
 
 
