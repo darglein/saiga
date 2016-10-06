@@ -1,6 +1,8 @@
 Asset Loading + Rendering
 - animated assets
 
+- Linearize animation trees (no tree traversal at interpolation time)
+
 General
 - better shader names
 - templated image class
