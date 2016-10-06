@@ -47,13 +47,13 @@ void InstancedBuffer<data_t>::updateBuffer(void *data, unsigned int elements, un
 
 
 template<>
-inline void InstancedBuffer<glm::mat4>::setAttributes(int location, int divisor)
+inline void InstancedBuffer<mat4>::setAttributes(int location, int divisor)
 {
     Buffer::bind();
 
     for (unsigned int i = 0; i < 4 ; i++) {
         glEnableVertexAttribArray(location + i);
-        glVertexAttribPointer(location + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4),
+        glVertexAttribPointer(location + i, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
                               (const GLvoid*)(sizeof(GLfloat) * i * 4));
         glVertexAttribDivisor(location + i, divisor);
     }

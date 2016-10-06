@@ -6,8 +6,8 @@
 class SAIGA_GLOBAL Cone
 {
 public:
-    glm::vec3 position;
-    glm::vec3 direction;
+    vec3 position;
+    vec3 direction;
     float alpha;
     float height;
 

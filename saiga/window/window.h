@@ -105,11 +105,11 @@ public:
     void screenshotRender(const std::string &file);
 
 
-    Ray createPixelRay(const glm::vec2 &pixel) const;
-    Ray createPixelRay(const glm::vec2 &pixel, const glm::vec2 &resolution, const glm::mat4 &inverseProj) const;
-    vec2 projectToScreen(const glm::vec3 &pos) const;
-    vec3 screenToWorld(const glm::vec2 &pixel) const;
-    vec3 screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
+    Ray createPixelRay(const vec2 &pixel) const;
+    Ray createPixelRay(const vec2 &pixel, const vec2 &resolution, const mat4 &inverseProj) const;
+    vec2 projectToScreen(const vec3 &pos) const;
+    vec3 screenToWorld(const vec2 &pixel) const;
+    vec3 screenToWorld(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
 };
 
 

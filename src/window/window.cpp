@@ -160,7 +160,7 @@ void Window::setProgram(Program *program)
     renderer->renderer = program;
 }
 
-Ray Window::createPixelRay(const glm::vec2 &pixel) const
+Ray Window::createPixelRay(const vec2 &pixel) const
 {
     vec4 p = vec4(2*pixel.x/getWidth()-1.f,1.f-(2*pixel.y/getHeight()),0,1.f);
     p = glm::inverse(Window::currentCamera->proj)*p;
@@ -172,7 +172,7 @@ Ray Window::createPixelRay(const glm::vec2 &pixel) const
     return Ray(glm::normalize(ray_world-origin),origin);
 }
 
-Ray Window::createPixelRay(const glm::vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
+Ray Window::createPixelRay(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
 {
     vec4 p = vec4(2*pixel.x/resolution.x-1.f,1.f-(2*pixel.y/resolution.y),0,1.f);
     p = inverseProj*p;
@@ -184,7 +184,7 @@ Ray Window::createPixelRay(const glm::vec2 &pixel, const vec2& resolution, const
     return Ray(glm::normalize(ray_world-origin),origin);
 }
 
-vec3 Window::screenToWorld(const glm::vec2 &pixel) const
+vec3 Window::screenToWorld(const vec2 &pixel) const
 {
     vec4 p = vec4(2*pixel.x/getWidth()-1.f,1.f-(2*pixel.y/getHeight()),0,1.f);
     p = glm::inverse(Window::currentCamera->proj)*p;
@@ -196,7 +196,7 @@ vec3 Window::screenToWorld(const glm::vec2 &pixel) const
 }
 
 
-vec3 Window::screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
+vec3 Window::screenToWorld(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
 {
     vec4 p = vec4(2*pixel.x/resolution.x-1.f,1.f-(2*pixel.y/resolution.y),0,1.f);
     p = inverseProj*p;
@@ -209,7 +209,7 @@ vec3 Window::screenToWorld(const glm::vec2 &pixel, const vec2& resolution, const
 
 
 
-vec2 Window::projectToScreen(const glm::vec3 &pos) const
+vec2 Window::projectToScreen(const vec3 &pos) const
 {
     vec4 r = Window::currentCamera->proj * Window::currentCamera->view * vec4(pos,1);
     r /= r.w;

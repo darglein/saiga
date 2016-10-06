@@ -15,9 +15,9 @@ class SAIGA_GLOBAL TextureAtlas{
 public:
     struct character_info {
         int character = 0; //unicode code point
-        glm::vec2 advance = glm::vec2(0); //distance to the origin of the next character
-        glm::vec2 offset = glm::vec2(0);  //offset of the bitmap position to the origin of this character
-        glm::vec2 size = glm::vec2(0); //size of bitmap
+        vec2 advance = vec2(0); //distance to the origin of the next character
+        vec2 offset = vec2(0);  //offset of the bitmap position to the origin of this character
+        vec2 size = vec2(0); //size of bitmap
 
         glm::ivec2 atlasPos = glm::ivec2(0); //position of this character in the texture atlas
 //        int atlasX = 0, atlasY = 0;

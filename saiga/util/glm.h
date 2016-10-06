@@ -16,51 +16,53 @@
 
 using std::ostream;
 
-using glm::mat4;
-using glm::vec3;
-using glm::vec4;
-using glm::vec2;
-using glm::quat;
+typedef glm::vec2 vec2;
+typedef glm::vec3 vec3;
+
+typedef glm::vec4 vec4;
+typedef glm::mat4 mat4;
+typedef glm::quat quat;
+
 using std::cout;
 using std::endl;
 
 //======= Output stream operator overloads =========
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::vec4& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec4& v);
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dvec4& v);
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::vec3& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec3& v);
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dvec3& v);
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::vec2& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec2& v);
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::mat4& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const mat4& v);
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dmat4& v);
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::quat& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const quat& v);
 
 //======= Input stream operator overloads =========
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec2& v);
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec3& v);
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec4& v);
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::quat& v);
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec2& v);
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec3& v);
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec4& v);
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v);
 
 //============== Helper functions =================
 
 
 
-SAIGA_GLOBAL glm::vec3 sampleCone(const glm::vec3& dir, float angle);
+SAIGA_GLOBAL vec3 sampleCone(const vec3& dir, float angle);
 //samples cone along the z axis
-SAIGA_GLOBAL glm::vec3 sampleUnitCone(float angle);
+SAIGA_GLOBAL vec3 sampleUnitCone(float angle);
 
-SAIGA_GLOBAL glm::vec3 snapTo(glm::vec3 v, float snapAngleInDegrees);
+SAIGA_GLOBAL vec3 snapTo(vec3 v, float snapAngleInDegrees);
 
 
 
-SAIGA_GLOBAL inline glm::mat4 createTRSmatrix(const vec3& translation, const quat& q, const vec3& scaling){
+SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec3& translation, const quat& q, const vec3& scaling){
     //equivalent to:
-    //    glm::mat4 matrix = glm::mat4_cast(rotation);
+    //    mat4 matrix = mat4_cast(rotation);
     //    matrix[0] *= scaling[0];
     //    matrix[1] *= scaling[1];
     //    matrix[2] *= scaling[2];
@@ -75,7 +77,7 @@ SAIGA_GLOBAL inline glm::mat4 createTRSmatrix(const vec3& translation, const qua
     float qwy(q.w * q.y);
     float qwz(q.w * q.z);
 
-    glm::mat4 Result(
+    mat4 Result(
                 1 - 2 * (qyy +  qzz),
                 2 * (qxy + qwz),
                 2 * (qxz - qwy),

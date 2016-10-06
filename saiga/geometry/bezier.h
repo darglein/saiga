@@ -1,6 +1,6 @@
 #pragma once
+#include "saiga/util/glm.h"
 #include <vector>
-#include "glm/glm.hpp"
 
 //the control point type. For example: float, vec2, vec3, vec4
 template <typename P>

@@ -57,7 +57,7 @@ void DirectionalLight::setDirection(const vec3 &dir){
 }
 
 void DirectionalLight::setFocus(const vec3 &pos){
-    cam.setView(pos-direction*range, pos, glm::vec3(0,1,0));
+    cam.setView(pos-direction*range, pos, vec3(0,1,0));
 }
 
 void DirectionalLight::setAmbientIntensity(float ai)
@@ -77,7 +77,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
     shader.uploadInvProj(ip);
 
     if(this->hasShadows()){
-        const glm::mat4 biasMatrix(
+        const mat4 biasMatrix(
                     0.5, 0.0, 0.0, 0.0,
                     0.0, 0.5, 0.0, 0.0,
                     0.0, 0.0, 0.5, 0.0,

@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "glm/glm.hpp"
+#include "saiga/util/glm.h"
 
 template <typename P>
 class Bspline{

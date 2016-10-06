@@ -11,7 +11,6 @@
 #include "saiga/camera/camera.h"
 
 
-#include "glm/gtc/random.hpp"
 
 class SAIGA_GLOBAL Terrain{
 public:

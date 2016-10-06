@@ -18,9 +18,9 @@ class FontLoader{
 public:
     struct Glyph{
         int character; //in ascii encoding
-        glm::vec2 advance; //distance to the origin of the next character
-        glm::vec2 offset;  //offset of the bitmap position to the origin of this character
-        glm::vec2 size; //size of bitmap
+        vec2 advance; //distance to the origin of the next character
+        vec2 offset;  //offset of the bitmap position to the origin of this character
+        vec2 size; //size of bitmap
         Image* bitmap = nullptr;
     };
 

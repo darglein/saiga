@@ -5,11 +5,11 @@
 
 aabb::aabb(void)
 {
-    min = glm::vec3(0,0,0);
-    max = glm::vec3(0,0,0);
+    min = vec3(0,0,0);
+    max = vec3(0,0,0);
 }
 
-aabb::aabb(const glm::vec3 &p, const glm::vec3 &s) : min(p), max(s)
+aabb::aabb(const vec3 &p, const vec3 &s) : min(p), max(s)
 {
 }
 
@@ -60,14 +60,14 @@ void aabb::growBox(const aabb &v){
 }
 
 
-void aabb::translate(const glm::vec3 &v)
+void aabb::translate(const vec3 &v)
 {
     min += v;
     max += v;
 
 }
 
-void aabb::scale(const glm::vec3 &s){
+void aabb::scale(const vec3 &s){
     vec3 pos = getPosition();
     setPosition(vec3(0));
     min*=s;
@@ -81,7 +81,7 @@ vec3 aabb::getPosition() const
 
 }
 
-void aabb::setPosition(const glm::vec3 &v)
+void aabb::setPosition(const vec3 &v)
 {
     vec3 mid = 0.5f*(min+max);
     mid = v-mid;
@@ -184,7 +184,7 @@ vec3 aabb::cornerPoint(int cornerIndex) const
     }
 }
 
-bool aabb::contains(const glm::vec3 &p){
+bool aabb::contains(const vec3 &p){
     if(min.x > p.x || max.x < p.x ) return false;
     if(min.y > p.y || max.y < p.y) return false;
     if(min.z > p.z || max.z < p.z) return false;

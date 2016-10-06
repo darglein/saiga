@@ -1,7 +1,7 @@
 #include "saiga/rendering/object3d.h"
 
 
-void Object3D::setSimpleDirection(const glm::vec3 &dir){
+void Object3D::setSimpleDirection(const vec3 &dir){
     this->rot = getSimpleDirectionQuat(dir);
 }
 
@@ -17,7 +17,7 @@ void Object3D::turn(float angleX, float angleY){
 }
 
 
-void Object3D::rotateAroundPoint(const glm::vec3& point, const glm::vec3& axis, float angle){
+void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angle){
     rotateLocal(axis,angle);
 
     translateGlobal(-point);
@@ -26,13 +26,13 @@ void Object3D::rotateAroundPoint(const glm::vec3& point, const glm::vec3& axis, 
     translateGlobal(point);
 }
 
-glm::quat Object3D::getSimpleDirectionQuat(const glm::vec3 &dir){
-    glm::mat4 rotmat;
+quat Object3D::getSimpleDirectionQuat(const vec3 &dir){
+    mat4 rotmat;
     rotmat[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
     rotmat[1] = vec4(0,1,0,0);
     rotmat[2] = vec4(-dir,0);
 
-    return glm::normalize(glm::quat(rotmat));
+    return glm::normalize(quat(rotmat));
 }
 
 

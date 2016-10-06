@@ -348,7 +348,7 @@ void SoundManager::loadSoundsThreadStart()
 
 
 
-void SoundManager::setListenerPosition(const glm::vec3 &pos){
+void SoundManager::setListenerPosition(const vec3 &pos){
     alListenerfv(AL_POSITION,&pos[0]);
     assert_no_alerror();
 }
@@ -358,7 +358,7 @@ void SoundManager::setListenerVelocity(const vec3& velocity){
     assert_no_alerror();
 }
 
-void SoundManager::setListenerOrientation(const glm::vec3 &at, const glm::vec3 &up){
+void SoundManager::setListenerOrientation(const vec3 &at, const vec3 &up){
     ALfloat	listenerOri[6];
     listenerOri[0] = at[0];
     listenerOri[1] = at[1];

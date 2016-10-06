@@ -7,7 +7,7 @@
 class SAIGA_GLOBAL Sphere
 {
 public:
-    glm::vec3 pos;
+    vec3 pos;
     float r;
 
 

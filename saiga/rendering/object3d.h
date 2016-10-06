@@ -13,7 +13,7 @@ public:
 
     //required for non uniform scaled rotations
     //TODO: extra class so uniform objects are faster
-    glm::quat rot;
+    quat rot;
     vec3 scale = vec3(1);
     vec3 position = vec3(0);
 
@@ -34,17 +34,17 @@ public:
     void translateGlobal(const vec4& d);
 
     void rotateLocal(const vec3& axis, float angle); //rotate around local axis (this is much faster than rotateGlobal)
-    void rotateGlobal(glm::vec3 axis, float angle);
+    void rotateGlobal(vec3 axis, float angle);
     void rotateAroundPoint(const vec3& point, const vec3& axis, float angle);
 
     vec3 getScale() const;
-    void setScale(const glm::vec3& s);
+    void setScale(const vec3& s);
 
-    static quat getSimpleDirectionQuat(const glm::vec3 &dir);
+    static quat getSimpleDirectionQuat(const vec3 &dir);
 
     //todo: remove virtual methodes
     virtual ~Object3D(){}
-    virtual void setPosition(const glm::vec3& cords);
+    virtual void setPosition(const vec3& cords);
     virtual void turn(float angleX, float angleY);
 
     //    virtual void getViewMatrix(mat4& view); //the view matrix is the inverse model matrix
@@ -56,7 +56,7 @@ public:
 inline mat4 Object3D::getModelMatrix() const
 {
     mat4 mod;
-	mod = glm::mat4_cast(rot)*glm::scale(mat4(), scale);
+	mod = mat4_cast(rot)*glm::scale(mat4(), scale);
 	mod[3] = vec4(position, 1);
 	return mod;
 }
@@ -86,35 +86,35 @@ inline vec4 Object3D::getUpVector() const {
     return rot*vec4(0,1,0,0);
 }
 
-inline void Object3D::setPosition(const glm::vec3 &cords){
+inline void Object3D::setPosition(const vec3 &cords){
     position = cords;
 }
 
 
-inline void Object3D::translateLocal(const glm::vec4& d){
+inline void Object3D::translateLocal(const vec4& d){
     translateLocal(vec3(d));
 }
 
-inline void Object3D::translateGlobal(const glm::vec4& d){
+inline void Object3D::translateGlobal(const vec4& d){
     translateGlobal(vec3(d));
 }
 
-inline void Object3D::translateLocal(const glm::vec3 &d){
+inline void Object3D::translateLocal(const vec3 &d){
     vec4 d2 = rot*vec4(d,1);
     translateGlobal(d2);
 }
 
-inline void Object3D::translateGlobal(const glm::vec3& d){
+inline void Object3D::translateGlobal(const vec3& d){
     position += d;
 }
 
 
-inline void Object3D::rotateLocal(const glm::vec3& axis, float angle){
+inline void Object3D::rotateLocal(const vec3& axis, float angle){
     this->rot = glm::rotate(this->rot,glm::radians(angle),axis);
 }
 
 
-inline void Object3D::rotateGlobal(glm::vec3 axis, float angle){
+inline void Object3D::rotateGlobal(vec3 axis, float angle){
     axis = vec3((glm::inverse(rot)) * vec4(axis,0));
     axis = glm::normalize(axis);
     this->rot = glm::rotate(this->rot,glm::radians(angle),axis);
@@ -124,7 +124,7 @@ inline vec3 Object3D::getScale() const{
     return scale;
 }
 
-inline void Object3D::setScale(const glm::vec3& s){
+inline void Object3D::setScale(const vec3& s){
     scale = s;
 }
 

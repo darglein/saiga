@@ -1,6 +1,6 @@
 #include "saiga/util/glm.h"
 
-std::ostream& operator<<(std::ostream& os, const glm::vec4& v)
+std::ostream& operator<<(std::ostream& os, const vec4& v)
 {
     os<<"("<<v.x<<","<<v.y<<","<<v.z<<","<<v.w<<")";
     return os;
@@ -12,7 +12,7 @@ std::ostream& operator<<(std::ostream& os, const glm::dvec4& v){
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const glm::vec3& v)
+std::ostream& operator<<(std::ostream& os, const vec3& v)
 {
     os<<"("<<v.x<<","<<v.y<<","<<v.z<<")";
     return os;
@@ -23,13 +23,13 @@ std::ostream& operator<<(std::ostream& os, const glm::dvec3& v){
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const glm::vec2& v)
+std::ostream& operator<<(std::ostream& os, const vec2& v)
 {
     os<<"("<<v.x<<","<<v.y<<")";
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const glm::mat4& v)
+std::ostream& operator<<(std::ostream& os, const mat4& v)
 {
     for (int i = 0; i < 4; ++i){
         os << v[i] << "\n";
@@ -44,7 +44,7 @@ std::ostream& operator<<(std::ostream& os, const glm::dmat4& v){
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const glm::quat& v){
+std::ostream& operator<<(std::ostream& os, const quat& v){
     os<<"("<<v.x<<","<<v.y<<","<<v.z<<","<<v.w<<")";
     return os;
 }
@@ -52,22 +52,22 @@ std::ostream& operator<<(std::ostream& os, const glm::quat& v){
 // ===========================================================================
 
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec2& v){
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec2& v){
     is >> v.x >> v.y;
     return is;
 }
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec3& v){
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec3& v){
     is >> v.x >> v.y >> v.z;
     return is;
 }
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::vec4& v){
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec4& v){
     is >> v.x >> v.y >> v.z >> v.w;
     return is;
 }
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::quat& v){
+SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v){
     is >> v.x >> v.y >> v.z >> v.w;
     return is;
 }
@@ -78,7 +78,7 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::quat& v){
 // ===========================================================================
 
 ////TODO use glm::rotate
-//quat glm::rotation(const glm::vec3& v1, const glm::vec3& v2){
+//quat glm::rotation(const vec3& v1, const vec3& v2){
 
 //    //see http://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
 
@@ -96,7 +96,7 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::quat& v){
 //}
 
 
-glm::vec3 sampleCone(const glm::vec3 &dir, float angle){
+vec3 sampleCone(const vec3 &dir, float angle){
 
     vec3 v = sampleUnitCone(angle);
 
@@ -115,7 +115,7 @@ glm::vec3 sampleCone(const glm::vec3 &dir, float angle){
 
 }
 
-glm::vec3 sampleUnitCone(float angle){
+vec3 sampleUnitCone(float angle){
     float z = glm::linearRand(glm::cos(angle), float(1));
     float a = glm::linearRand(float(0), float(6.283185307179586476925286766559f));
 
@@ -128,7 +128,7 @@ glm::vec3 sampleUnitCone(float angle){
 }
 
 
-glm::vec3 snapTo(glm::vec3 v, float snapAngleInDegrees)
+vec3 snapTo(vec3 v, float snapAngleInDegrees)
 {
     vec3 snapAxis = vec3(1,0,0);
     float angle = glm::degrees(acos(glm::dot(v, snapAxis)));
@@ -144,3 +144,12 @@ glm::vec3 snapTo(glm::vec3 v, float snapAngleInDegrees)
     mat4 rot = glm::rotate(mat4(),glm::radians(deltaAngle),axis);
     return vec3(rot * vec4(v,1));
 }
+
+
+void glmtest(){
+    auto r1 = glm::linearRand(vec4(0),vec4(1));
+    auto r2 = glm::diskRand(1.0f);
+    auto r3 = glm::sphericalRand(1.0f);
+    auto r4 = glm::ballRand(1.0f);
+}
+

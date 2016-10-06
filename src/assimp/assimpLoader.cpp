@@ -306,13 +306,13 @@ void AssimpLoader::transformnode(aiMatrix4x4 *result, aiNode *node)
 
 
 mat4 AssimpLoader::composematrix(vec3 position, quat rotation, vec3 scaling){
-    glm::mat4 t = glm::translate(glm::mat4(),position);
-    glm::mat4 r = glm::mat4_cast(rotation);
-    glm::mat4 s = glm::scale(glm::mat4(),scaling);
+    mat4 t = glm::translate(mat4(),position);
+    mat4 r = mat4_cast(rotation);
+    mat4 s = glm::scale(mat4(),scaling);
 
 
 
-    glm::mat4 erg = t*s*r;
+    mat4 erg = t*s*r;
 
 
     return erg;

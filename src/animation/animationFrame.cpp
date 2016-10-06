@@ -1,6 +1,5 @@
 #include "saiga/animation/animationFrame.h"
 
-#include <glm/gtx/quaternion.hpp>
 #include <iostream>
 
 using std::cout;
@@ -67,7 +66,7 @@ void AnimationFrame::calculateBoneMatrices()
     }
 }
 
-const std::vector<glm::mat4> &AnimationFrame::getBoneMatrices()
+const std::vector<mat4> &AnimationFrame::getBoneMatrices()
 {
     if(boneMatrices.size() == 0)
         calculateBoneMatrices();

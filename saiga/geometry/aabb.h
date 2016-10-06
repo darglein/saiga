@@ -11,7 +11,7 @@ public:
 
 	aabb(void);
 
-    aabb(const glm::vec3 &p, const glm::vec3 &s);
+    aabb(const vec3 &p, const vec3 &s);
 	~aabb(void);
 
 
@@ -22,8 +22,8 @@ public:
     void growBox(const aabb &v);
 
     void transform(const mat4 &trafo);
-	void translate(const glm::vec3 &v);
-    void scale(const glm::vec3 &s);
+	void translate(const vec3 &v);
+    void scale(const vec3 &s);
     float height(){ return max.y-min.y;}
     void ensureValidity();
 
@@ -43,9 +43,9 @@ public:
     vec3 cornerPoint(int i) const;
 
     vec3 getPosition() const;
-    void setPosition(const glm::vec3 &v);
+    void setPosition(const vec3 &v);
 
-    bool contains(const glm::vec3 &p);
+    bool contains(const vec3 &p);
 
 
 

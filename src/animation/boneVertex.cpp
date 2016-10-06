@@ -22,8 +22,8 @@ void BoneVertex::addBone(int32_t index, float weight){
     assert(0);
 }
 
-void BoneVertex::apply(const std::vector<glm::mat4> &boneMatrices){
-    mat4 boneMatrix(0);
+void BoneVertex::apply(const std::vector<mat4> &boneMatrices){
+    mat4 boneMatrix(0.0f);
     for(int i=0;i<MAX_BONES_PER_VERTEX;++i){
         int index = (int)boneIndices[i];
         assert(index>=0 && index<(int)boneMatrices.size());

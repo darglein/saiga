@@ -81,7 +81,7 @@ void SoundSource::setPitch(float pitch)
     assert_no_alerror();
 }
 
-void SoundSource::setPosition(const glm::vec3 &pos)
+void SoundSource::setPosition(const vec3 &pos)
 {
     alSourcefv(source,AL_POSITION,&pos[0]);
     assert_no_alerror();

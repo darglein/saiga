@@ -189,12 +189,12 @@ aabb Layout::transformUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 
     return resultBB;
 }
 
-glm::vec2 Layout::transformToLocal(glm::vec2 p)
+vec2 Layout::transformToLocal(vec2 p)
 {
     return vec2(p.x/width*targetWidth,p.y/height*targetHeight);
 }
 
-glm::vec2 Layout::transformToLocalNormalized(glm::vec2 p)
+vec2 Layout::transformToLocalNormalized(vec2 p)
 {
     return vec2(p.x/width,p.y/height);
 }
