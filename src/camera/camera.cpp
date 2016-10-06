@@ -166,7 +166,7 @@ std::ostream& operator<<(std::ostream& os, const Camera& ca){
 
 
 void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float _zFar){
-	_fovy = degreesToRadians(_fovy);
+    _fovy = glm::radians(_fovy);
     this->fovy = _fovy;
     this->aspect = _aspect;
     this->zNear = _zNear;

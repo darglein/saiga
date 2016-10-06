@@ -110,14 +110,14 @@ inline void Object3D::translateGlobal(const glm::vec3& d){
 
 
 inline void Object3D::rotateLocal(const glm::vec3& axis, float angle){
-    this->rot = glm::rotate(this->rot,degreesToRadians(angle),axis);
+    this->rot = glm::rotate(this->rot,glm::radians(angle),axis);
 }
 
 
 inline void Object3D::rotateGlobal(glm::vec3 axis, float angle){
     axis = vec3((glm::inverse(rot)) * vec4(axis,0));
     axis = glm::normalize(axis);
-    this->rot = glm::rotate(this->rot,degreesToRadians(angle),axis);
+    this->rot = glm::rotate(this->rot,glm::radians(angle),axis);
 }
 
 inline vec3 Object3D::getScale() const{

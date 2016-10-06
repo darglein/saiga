@@ -2,6 +2,8 @@ Asset Loading + Rendering
 - animated assets
 
 - Linearize animation trees (no tree traversal at interpolation time)
+- convert animation time to ticks (integer)
+- glm simd
 
 General
 - better shader names

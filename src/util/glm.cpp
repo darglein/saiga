@@ -78,7 +78,7 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, glm::quat& v){
 // ===========================================================================
 
 ////TODO use glm::rotate
-//quat getRotation(const glm::vec3& v1, const glm::vec3& v2){
+//quat glm::rotation(const glm::vec3& v1, const glm::vec3& v2){
 
 //    //see http://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
 
@@ -109,7 +109,7 @@ glm::vec3 sampleCone(const glm::vec3 &dir, float angle){
 //    }
 
 
-    vec4 test = getRotation(cdir,dir)*vec4(v,0);
+    vec4 test = glm::rotation(cdir,dir)*vec4(v,0);
 
     return vec3(test);
 

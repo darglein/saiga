@@ -13,13 +13,15 @@ public:
     int index = 0;
     int boneIndex = -1;
 
-    mat4 matrix;
-//    mat4 transformedMatrix;
 
     bool keyFramed = false; //not all nodes are keyframed
+
+    //these are the local transformations of this node relative to the parent node
+    //to get the absolute transformation of a single node the tree has to be traversed
     vec3 position;
     quat rotation;
     vec3 scaling;
+    mat4 matrix;
 
     void interpolate(const AnimationNode& other, float alpha);
 
