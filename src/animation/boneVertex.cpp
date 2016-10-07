@@ -30,8 +30,8 @@ void BoneVertex::apply(const std::vector<mat4> &boneMatrices){
         boneMatrix += boneMatrices[index] * boneWeights[i];
     }
 
-    position = vec3(boneMatrix*vec4(position,1));
-    normal = vec3(boneMatrix*vec4(normal,0));
+    position = boneMatrix*position;
+    normal = boneMatrix*normal;
     normal = glm::normalize(normal);
 
 }
@@ -74,12 +74,12 @@ void VertexBuffer<BoneVertexCD>::setVertexAttributes(){
     glVertexAttribPointer(1,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (4 * sizeof(GLfloat)) );
 
     //position normal
-    glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (8 * sizeof(GLfloat))  );
-    glVertexAttribPointer(3,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (11 * sizeof(GLfloat)) );
+    glVertexAttribPointer(2,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (8 * sizeof(GLfloat))  );
+    glVertexAttribPointer(3,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (12 * sizeof(GLfloat)) );
 
     //color data
-    glVertexAttribPointer(4,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (14 * sizeof(GLfloat)) );
-    glVertexAttribPointer(5,3, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (17 * sizeof(GLfloat)) );
+    glVertexAttribPointer(4,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (16 * sizeof(GLfloat)) );
+    glVertexAttribPointer(5,4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*) (20 * sizeof(GLfloat)) );
 
 }
 

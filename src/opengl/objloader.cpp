@@ -334,9 +334,9 @@ material_mesh_t* ObjLoader::createOutput(){
 
             VertexNT verte;
             if(vert>=0)
-                verte.position =vertices[vert];
+                verte.position = vec4(vertices[vert],1);
             if(norm>=0)
-                verte.normal = normals[norm];
+                verte.normal = vec4(normals[norm],0);
             if(tex>=0)
                 verte.texture =texCoords[tex];
 

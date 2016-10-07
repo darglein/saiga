@@ -12,25 +12,14 @@ GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int n
     std::vector<Vertex> vertices;
 
     Vertex v;
-    v.position = vec3(0,0,0);
-    vertices.push_back(v);
-    v.position = vec3(0,1,0);
-    vertices.push_back(v);
-
-    v.position = vec3(0,1,0);
-    vertices.push_back(v);
-    v.position = vec3(1,1,0);
-    vertices.push_back(v);
-
-    v.position = vec3(1,1,0);
-    vertices.push_back(v);
-    v.position = vec3(1,0,0);
-    vertices.push_back(v);
-
-    v.position = vec3(1,0,0);
-    vertices.push_back(v);
-    v.position = vec3(0,0,0);
-    vertices.push_back(v);
+    vertices.push_back(Vertex(vec3(0,0,0)));
+    vertices.push_back(Vertex(vec3(0,1,0)));
+    vertices.push_back(Vertex(vec3(0,1,0)));
+    vertices.push_back(Vertex(vec3(1,1,0)));
+    vertices.push_back(Vertex(vec3(1,1,0)));
+    vertices.push_back(Vertex(vec3(1,0,0)));
+    vertices.push_back(Vertex(vec3(1,0,0)));
+    vertices.push_back(Vertex(vec3(0,0,0)));
     borderBuffer.set(vertices,GL_STATIC_DRAW);
     borderBuffer.setDrawMode(GL_LINES);
 
@@ -42,7 +31,7 @@ GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int n
 
 
         for(unsigned int i=0;i<dataPoints.size();++i){
-            dataPoints[i].position = vec3(i/(float)dataPoints.size(),glm::linearRand(0.f,1.f),0);
+            dataPoints[i].position = vec4(i/(float)dataPoints.size(),glm::linearRand(0.f,1.f),0,1);
         }
 
         graphs[k].data.resize(numDataPoints);

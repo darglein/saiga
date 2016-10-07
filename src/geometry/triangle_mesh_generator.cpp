@@ -16,8 +16,8 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
 
             VertexNT vert;
             vert.texture = vec2(s*S,r*R);
-            vert.position = vec3(x, y, z );
-            vert.normal = vec3( x,y, z);
+            vert.position = vec4(x, y, z , 1);
+            vert.normal = vec4( x,y, z , 0);
             mesh->vertices.push_back( vert);
         }
     }
@@ -128,9 +128,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float 
         float y = -height/2;
         float z = radius * glm::sin(2*M_PI * s * S) ;
 
-        VertexNT vert;
-        vert.position = vec3(x, y, z );
-        vert.normal = vec3( x,y, z);
+        VertexNT vert(vec3(x, y, z ),vec3( x,y, z));
         mesh->vertices.push_back( vert);
 
     }
@@ -140,9 +138,8 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float 
         float y = height/2;
         float z = radius * glm::sin(2*M_PI * s * S) ;
 
-        VertexNT vert;
-        vert.position = vec3(x, y, z );
-        vert.normal = vec3( x,y, z);
+
+        VertexNT vert(vec3(x, y, z ),vec3( x,y, z));
         mesh->vertices.push_back( vert);
     }
 

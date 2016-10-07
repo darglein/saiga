@@ -16,8 +16,8 @@ public:
     int32_t boneIndices[MAX_BONES_PER_VERTEX];
     float boneWeights[MAX_BONES_PER_VERTEX];
 
-    vec3 position;
-    vec3 normal;
+    vec4 position;
+    vec4 normal;
 
     BoneVertex();
 
@@ -43,8 +43,8 @@ public:
 
 struct SAIGA_GLOBAL BoneVertexCD : public BoneVertex{
 public:
-    vec3 color;
-    vec3 data;
+    vec4 color;
+    vec4 data;
 };
 
 

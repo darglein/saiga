@@ -1,11 +1,12 @@
 #pragma once
 
-#define GLM_FORCE_RADIANS
-
 #include <saiga/config.h>
 
 #include <string>
 #include <iostream>
+
+
+#define GLM_FORCE_RADIANS
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -13,20 +14,47 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/random.hpp>
 #include <glm/gtx/quaternion.hpp>
-//#include <glm/gtc/type_aligned.hpp>
 #include <glm/gtx/type_aligned.hpp>
 
 using std::ostream;
 
-typedef glm::vec2 vec2;
-typedef glm::vec3 vec3;
 
+
+#if defined(GLM_USE_SSE)
+
+#if GLM_VERSION != 98
+#error GLM Version not supported!
+#endif
+
+//In version 98 this part is missing in glm/gtc/random.inl
+namespace glm{
+namespace detail{
+template <template <class, precision> class vecType>
+struct compute_linearRand<float, aligned_highp, vecType>
+{
+    GLM_FUNC_QUALIFIER static vecType<float, aligned_highp> call(vecType<float, aligned_highp> const & Min, vecType<float, aligned_highp> const & Max)
+    {
+        return vecType<float, aligned_highp>(compute_rand<uint32, aligned_highp, vecType>::call()) / static_cast<float>(std::numeric_limits<uint32>::max()) * (Max - Min) + Min;
+    }
+};
+}
+}
+
+typedef glm::tvec2<float, glm::precision::aligned_highp> vec2;
+typedef glm::tvec3<float, glm::precision::aligned_highp> vec3;
+typedef glm::tvec4<float, glm::precision::aligned_highp> vec4;
+typedef glm::tmat4x4<float, glm::precision::aligned_highp> mat4;
+typedef glm::tquat<float, glm::precision::aligned_highp>  quat;
+
+#else
 typedef glm::vec4 vec4;
 typedef glm::mat4 mat4;
 typedef glm::quat quat;
-//typedef glm::aligned_vec4 vec4;
-//typedef glm::aligned_mat4 mat4;
-//typedef glm::aligned_quat quat;
+typedef glm::vec2 vec2;
+typedef glm::vec3 vec3;
+#endif
+
+
 
 using std::cout;
 using std::endl;

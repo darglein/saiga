@@ -150,9 +150,9 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
     }
 
     for(BoneVertexCD &v : asset->mesh.vertices){
-        vec3 c = v.color;
-        c = Color::srgb2linearrgb(c);
-        v.color = c;
+//        vec3 c = v.color;
+//        c = Color::srgb2linearrgb(c);
+//        v.color = c;
     }
 
 

@@ -147,9 +147,9 @@ vec3 snapTo(vec3 v, float snapAngleInDegrees)
 
 
 void glmtest(){
-    auto r1 = glm::linearRand(vec4(0),vec4(1));
-    auto r2 = glm::diskRand(1.0f);
-    auto r3 = glm::sphericalRand(1.0f);
-    auto r4 = glm::ballRand(1.0f);
+    glm::linearRand(vec4(0),vec4(1));
+    glm::diskRand(1.0f);
+   glm::sphericalRand(1.0f);
+    glm::ballRand(1.0f);
 }
 

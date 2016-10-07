@@ -149,12 +149,12 @@ HAS_MEMBER(boneWeights,has_boneWeights)
 //if not nothing will be done
 
 ENABLED_FUNCTION(loadPosition,T& vertex,const aiVector3D &v,has_position){
-    vertex.position = vec3(v.x,v.y,v.z);
+    vertex.position = vec4(v.x,v.y,v.z,1);
 }
 
 
 ENABLED_FUNCTION(loadNormal,T& vertex,const aiVector3D &v,has_normal){
-    vertex.normal = vec3(v.x,v.y,v.z);
+    vertex.normal = vec4(v.x,v.y,v.z,0);
 }
 
 

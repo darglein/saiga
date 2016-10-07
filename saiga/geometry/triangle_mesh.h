@@ -148,7 +148,7 @@ TriangleMesh<vertex_t,index_t>::TriangleMesh(void){
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo){
     for(vertex_t &v : vertices){
-        v.position = vec3(trafo*vec4(v.position,1));
+        v.position = trafo*v.position;
     }
     boundingBox.transform(trafo);
 }
@@ -156,7 +156,7 @@ void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo){
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::transformNormal(const mat4 &trafo){
     for(vertex_t &v : vertices){
-        v.normal = vec3(trafo*vec4(v.normal,0));
+        v.normal = trafo*v.normal;
     }
 }
 
