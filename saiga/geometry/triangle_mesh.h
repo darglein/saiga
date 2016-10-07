@@ -54,7 +54,7 @@ public:
      * return: index of new vertex
      */
 
-    int addVertex(const vertex_t &v){vertices.push_back(v);boundingBox.growBox(v.position);return vertices.size()-1;}
+    int addVertex(const vertex_t &v){vertices.push_back(v);boundingBox.growBox(vec3(v.position));return vertices.size()-1;}
 
     /*
      * Adds face to mesh.
@@ -255,9 +255,9 @@ template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::toTriangleList(std::vector<Triangle> &output){
     Triangle t;
     for(Face &f : faces){
-        t.a = vertices[f.v1].position;
-        t.b = vertices[f.v2].position;
-        t.c = vertices[f.v3].position;
+        t.a = vec3(vertices[f.v1].position);
+        t.b = vec3(vertices[f.v2].position);
+        t.c = vec3(vertices[f.v3].position);
         output.push_back(t);
     }
 }
@@ -288,7 +288,7 @@ aabb TriangleMesh<vertex_t,index_t>::calculateAabb(){
     boundingBox.makeNegative();
 
     for(vertex_t &v : vertices){
-        boundingBox.growBox(v.position);
+        boundingBox.growBox(vec3(v.position));
     }
     return boundingBox;
 }
