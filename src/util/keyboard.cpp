@@ -27,7 +27,9 @@ int Keyboard::getMappedKeyState(int mappedKey, const std::vector<int> &keymap) {
 
 void Keyboard::setKeyState(int key, int state)
 {
-    assert(key >= 0 && key < (int)keystate.size());
-    assert(state == 0 || state == 1);
-    keystate[key] = state;
+    if(key >= 0 && key < (int)keystate.size()){
+        assert(state == 0 || state == 1);
+        keystate[key] = state;
+    }
+
 }

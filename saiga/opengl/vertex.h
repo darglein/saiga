@@ -6,7 +6,7 @@
 #include "saiga/opengl/vertexBuffer.h"
 
 /**
- * Using inherritance here to enable an easy conversion between vertex types by object slicing.
+ * Using inheritance here to enable an easy conversion between vertex types by object slicing.
  * Example:
  * VertexN v;
  * Vertex v2 = v;
