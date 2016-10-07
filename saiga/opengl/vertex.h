@@ -12,7 +12,7 @@
  * Vertex v2 = v;
  */
 
-struct SAIGA_GLOBAL Vertex{
+struct SAIGA_GLOBAL Vertex {
     vec4 position = vec4(0);
 
     Vertex() {}
@@ -21,7 +21,7 @@ struct SAIGA_GLOBAL Vertex{
 
     bool operator==(const Vertex &other) const;
     friend std::ostream& operator<<(std::ostream& os, const Vertex& vert);
-};
+} GLM_ALIGN(16);
 
 struct SAIGA_GLOBAL VertexN : public Vertex{
     vec4 normal =  vec4(0);
@@ -34,7 +34,7 @@ struct SAIGA_GLOBAL VertexN : public Vertex{
 
     bool operator==(const VertexN &other) const;
     friend std::ostream& operator<<(std::ostream& os, const VertexN& vert);
-};
+} GLM_ALIGN(16);
 
 
 struct SAIGA_GLOBAL VertexNT : public VertexN{
@@ -49,7 +49,7 @@ struct SAIGA_GLOBAL VertexNT : public VertexN{
 
     bool operator==(const VertexNT &other) const;
     friend std::ostream& operator<<(std::ostream& os, const VertexNT& vert);
-};
+} GLM_ALIGN(16);
 
 
 struct SAIGA_GLOBAL VertexNC : public VertexN{
@@ -66,7 +66,7 @@ struct SAIGA_GLOBAL VertexNC : public VertexN{
 
     bool operator==(const VertexNC &other) const;
     friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert);
-};
+} GLM_ALIGN(16);
 
 
 

@@ -126,7 +126,7 @@ template<typename vertex_t, typename index_t>
 void BasicAsset<vertex_t,index_t>::normalizePosition()
 {
     offset = boundingBox.getPosition();
-    mat4 t = glm::translate(mat4(),-offset);
+    mat4 t = glm::translate(mat4(1),-offset);
     mesh.transform(t);
     boundingBox.setPosition(vec3(0));
 }
@@ -145,7 +145,7 @@ void BasicAsset<vertex_t,index_t>::normalizeScale()
     }
 
 
-    mat4 t = glm::translate(mat4(),-offset);
+    mat4 t = glm::translate(mat4(1),-offset);
     mesh.transform(t);
     boundingBox.setPosition(vec3(0));
 }

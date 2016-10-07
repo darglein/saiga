@@ -141,7 +141,7 @@ vec3 snapTo(vec3 v, float snapAngleInDegrees)
     float deltaAngle = (t * snapAngleInDegrees) - angle;
 
     vec3 axis = glm::cross(snapAxis, v);
-    mat4 rot = glm::rotate(mat4(),glm::radians(deltaAngle),axis);
+    mat4 rot = glm::rotate(mat4(1),glm::radians(deltaAngle),axis);
     return vec3(rot * vec4(v,1));
 }
 

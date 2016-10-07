@@ -38,7 +38,7 @@ TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Colo
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
 
 
-    mat4 scale = glm::scale(mat4(),vec3(size.x,1,size.y));
+    mat4 scale = glm::scale(mat4(1),vec3(size.x,1,size.y));
     plainMesh->transform(scale);
 
     for(auto& v : plainMesh->vertices){

@@ -18,7 +18,7 @@ Text::Text(TextureAtlas *textureAtlas, const std::string &label, bool normalize)
 void Text::calculateNormalizationMatrix()
 {
     boundingBox = mesh.calculateAabb();
-    normalizationMatrix = mat4();
+    normalizationMatrix = mat4(1);
     if(normalize){
 
 //        float height = boundingBox.max.y - boundingBox.min.y;

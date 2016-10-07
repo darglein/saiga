@@ -60,7 +60,7 @@ AnimationFrame::AnimationFrame()
 void AnimationFrame::calculateBoneMatrices()
 {
     boneMatrices.resize(boneCount);
-    nodes[AnimationFrame_ROOT_NODE].traverse(mat4(), boneMatrices, nodes);
+    nodes[AnimationFrame_ROOT_NODE].traverse(mat4(1), boneMatrices, nodes);
 	for (unsigned int i = 0; i<boneMatrices.size(); ++i){
 		boneMatrices[i] = boneMatrices[i] * boneOffsets[i];
     }

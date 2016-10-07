@@ -42,9 +42,15 @@ struct compute_linearRand<float, aligned_highp, vecType>
 
 typedef glm::tvec2<float, glm::precision::aligned_highp> vec2;
 typedef glm::tvec3<float, glm::precision::aligned_highp> vec3;
-typedef glm::tvec4<float, glm::precision::aligned_highp> vec4;
-typedef glm::tmat4x4<float, glm::precision::aligned_highp> mat4;
-typedef glm::tquat<float, glm::precision::aligned_highp>  quat;
+typedef glm::tvec4<float, glm::precision::aligned_highp> avec4;
+typedef glm::tmat4x4<float, glm::precision::aligned_highp> amat4;
+typedef glm::tquat<float, glm::precision::aligned_highp>  aquat;
+
+//GLM_ALIGNED_TYPEDEF(avec2, vec2, 16);
+//GLM_ALIGNED_TYPEDEF(avec3, vec3, 16);
+GLM_ALIGNED_TYPEDEF(avec4, vec4, 16);
+GLM_ALIGNED_TYPEDEF(amat4, mat4, 16);
+GLM_ALIGNED_TYPEDEF(aquat, quat, 16);
 
 #else
 typedef glm::vec4 vec4;

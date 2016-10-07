@@ -90,7 +90,7 @@ void GraphDebugOverlay::setScreenPosition(vec2 start, vec2 end)
     mid.y = height - mid.y;
 
     vec2 scale = glm::abs(start-end);
-    model = glm::translate( mat4(),vec3(mid, 0)+vec3(-scale/2.f, 0));
+    model = glm::translate( mat4(1),vec3(mid, 0)+vec3(-scale/2.f, 0));
     model = glm::scale(model, vec3(scale,0));
 }
 

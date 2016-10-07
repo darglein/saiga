@@ -158,7 +158,7 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
 
 //    std::vector<mat4> boneMatrices(al.boneOffsets.size());
 //    for(int i = 0 ; i < al.boneOffsets.size() ; ++i){
-//        mat4 randomTransformation = glm::translate(mat4(),vec3(1,i,3));
+//        mat4 randomTransformation = glm::translate(mat4(1),vec3(1,i,3));
 //        randomTransformation = glm::rotate(randomTransformation,123.123f+i,vec3(-14,2,i));
 //        randomTransformation = glm::scale(randomTransformation,vec3(i,3.5f,5.1f));
 //        randomTransformation = glm::rotate(randomTransformation,123.123f*i,vec3(4,2,-5*i));

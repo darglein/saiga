@@ -24,6 +24,8 @@ void VertexBuffer<VertexNT>::setVertexAttributes(){
     glEnableVertexAttribArray( 1 );
     glEnableVertexAttribArray( 2 );
 
+//    cout << "sizeof(VertexNT) = " << sizeof(VertexNT) << endl;
+
     glVertexAttribPointer(0,4, GL_FLOAT, GL_FALSE, sizeof(VertexNT), NULL );
     glVertexAttribPointer(1,4, GL_FLOAT, GL_FALSE, sizeof(VertexNT), (void*) (4 * sizeof(GLfloat)) );
     glVertexAttribPointer(2,2, GL_FLOAT, GL_FALSE, sizeof(VertexNT), (void*) (8 * sizeof(GLfloat)) );

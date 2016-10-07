@@ -55,10 +55,11 @@ public:
 
 inline mat4 Object3D::getModelMatrix() const
 {
-    mat4 mod;
-	mod = mat4_cast(rot)*glm::scale(mat4(), scale);
-	mod[3] = vec4(position, 1);
-	return mod;
+//    mat4 mod;
+//	mod = mat4_cast(rot)*glm::scale(mat4(1), scale);
+//	mod[3] = vec4(position, 1);
+//	return mod;
+    return createTRSmatrix(position,rot,scale);
 }
 
 
