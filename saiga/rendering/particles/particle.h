@@ -13,14 +13,14 @@ public:
         FIXED
     };
 
-    vec3 position = vec3(0);
+    vec4 position = vec4(0,0,0,1);
 
 
     vec4 velocity = vec4(0); //normalized velocity x,y,z in worldspace. w is the scale factor
-    vec3 force = vec3(0); //force on the particle. for example gravity
+    vec4 force = vec4(0); //force on the particle. for example gravity
 
 private:
-    vec3 right = vec3(1,0,0); //right vector when orientation is BILLBARD or FIXED
+    vec4 right = vec4(1,0,0,0); //right vector when orientation is BILLBARD or FIXED
 
     vec4 scale = vec4(1,1,0,0); //x,y: initial size. z,w upscale over time
 public:

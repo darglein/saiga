@@ -17,7 +17,7 @@ void ParticleSystem::init(){
 
     for(unsigned int i=0;i<particleCount;++i){
         Particle p;
-        p.position = glm::sphericalRand(15.0f);
+        p.position = vec4(glm::sphericalRand(15.0f),1);
         p.velocity = vec4(glm::sphericalRand(1.0f),1);
         addParticle(p);
     }

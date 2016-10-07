@@ -42,12 +42,16 @@ TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Colo
     plainMesh->transform(scale);
 
     for(auto& v : plainMesh->vertices){
+        cout << v.position << endl;
         v.texture *= size / quadSize;
     }
 
     TexturedAsset* plainAsset = new TexturedAsset();
 
     plainAsset->mesh.addMesh(*plainMesh);
+
+    for(auto v : plainAsset->mesh.vertices)
+        cout << v.position << endl;
 
     TexturedAsset::TextureGroup tg;
     tg.startIndex = 0;

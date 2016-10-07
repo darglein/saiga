@@ -20,7 +20,7 @@ using std::ostream;
 
 
 
-#if defined(GLM_USE_SSE)
+#if defined(GLM_USE_SSE) //|| 1
 
 #if GLM_VERSION != 98
 #error GLM Version not supported!

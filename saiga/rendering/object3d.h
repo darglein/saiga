@@ -8,7 +8,7 @@
 class SAIGA_GLOBAL Object3D{
 
 public:
-    mat4 model;
+    mat4 model = mat4(1);
 
 
     //required for non uniform scaled rotations
@@ -50,7 +50,7 @@ public:
     //    virtual void getViewMatrix(mat4& view); //the view matrix is the inverse model matrix
 
 
-};
+} GLM_ALIGN(16);
 
 
 inline mat4 Object3D::getModelMatrix() const

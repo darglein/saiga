@@ -39,6 +39,7 @@ struct SAIGA_GLOBAL VertexN : public Vertex{
 
 struct SAIGA_GLOBAL VertexNT : public VertexN{
     vec2 texture = vec2(0);
+    vec2 padding;
 
     VertexNT() {}
     VertexNT(const vec3 &position) : VertexN(position){}
