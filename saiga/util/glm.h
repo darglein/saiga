@@ -5,8 +5,13 @@
 #include <string>
 #include <iostream>
 
+//#define GLM_USE_SSE
 
 #define GLM_FORCE_RADIANS
+
+#if defined(GLM_USE_SSE)
+#define GLM_FORCE_ALIGNED
+#endif
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -14,13 +19,13 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/random.hpp>
 #include <glm/gtx/quaternion.hpp>
-#include <glm/gtx/type_aligned.hpp>
+//#include <glm/gtx/type_aligned.hpp>
 
 using std::ostream;
 
 
 
-#if defined(GLM_USE_SSE) //|| 1
+#if defined(GLM_USE_SSE)
 
 #if GLM_VERSION != 98
 #error GLM Version not supported!

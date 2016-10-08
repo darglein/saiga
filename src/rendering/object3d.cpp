@@ -22,7 +22,8 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 
     translateGlobal(-point);
     quat qrot = glm::angleAxis(glm::radians(angle),axis);
-    position = vec3(qrot*vec4(position,1));
+//    position = vec3(qrot*vec4(position,1));
+    position = qrot*position;
     translateGlobal(point);
 }
 

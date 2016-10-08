@@ -75,7 +75,7 @@ void BoxLight::calculateCamera(){
     float length = scale.z;
 
     vec3 dir = glm::normalize(vec3(this->getDirection()));
-    vec3 pos = this->position - dir * length * 0.5f;
+    vec3 pos = getPosition() - dir * length * 0.5f;
     vec3 up = vec3(getUpVector());
 
 //    cout<<this->position<<" "<<dir<<" "<<pos<<endl;

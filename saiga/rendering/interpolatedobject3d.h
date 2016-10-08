@@ -4,11 +4,11 @@
 
 class SAIGA_GLOBAL InterpolatedObject3D : public Object3D{
 public:
-    mat4 interpolatedmodel;
+    mat4 interpolatedmodel = mat4(1);
 
     quat oldrot, interpolatedrot;
-    vec3 oldscale = vec3(1), interpolatedscale = vec3(1);
-    vec3 oldposition = vec3(0), interpolatedposition = vec3(0);
+    vec4 oldscale = vec4(1), interpolatedscale = vec4(1);
+    vec4 oldposition = vec4(0), interpolatedposition = vec4(0);
 
 
     void interpolate(float alpha);

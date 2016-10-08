@@ -10,7 +10,8 @@ const float TextOverlay3D::INFINITE_DURATION = -1.f;
 
 bool TextOverlay3D::TextContainer::update(float delta)
 {
-    text->position += velocity*delta;
+//    text->position += vec4(velocity*delta,0);
+    text->translateGlobal(velocity*delta);
     if (duration == INFINITE_DURATION)
         return false;
     duration-=delta;

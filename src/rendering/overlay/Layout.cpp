@@ -22,13 +22,13 @@ aabb Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSiz
         s = vec3(ds);
         s.y *= 1.0f/aspect;
     }
-    obj->scale = s;
+    obj->setScale(s);
 
 
     //alignment
-    vec3 center = box.getPosition()*obj->scale;
-    vec3 bbmin = box.min*obj->scale;
-    vec3 bbmax = box.max*obj->scale;
+    vec3 center = box.getPosition()*obj->getScale();
+    vec3 bbmin = box.min*obj->getScale();
+    vec3 bbmax = box.max*obj->getScale();
 
 
     vec3 alignmentOffset(0);
@@ -58,14 +58,14 @@ aabb Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSiz
     }
 
 
-    obj->position = vec3(relPos,0)-alignmentOffset;
+    obj->setPosition(vec3(relPos,0)-alignmentOffset);
 //    cout << "obj position " << relPos << " " << alignmentOffset << " " << obj->position << endl;
 
     aabb resultBB = aabb(box.min*s,box.max*s);
-    resultBB.setPosition(obj->position+center);
+    resultBB.setPosition(obj->getPosition()+center);
 
-    obj->scale *= scale;
-    obj->position  *= scale;
+    obj->multScale(scale);
+    obj->position  *= vec4(scale,1);
 
     obj->calculateModel();
 
@@ -77,13 +77,13 @@ aabb Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, ve
 {
     vec3 s = box.max-box.min;
     s = vec3(relSize.x,relSize.y,1.0f) / vec3(s.x,s.y,1.0f);
-    obj->scale = s;
+    obj->setScale(s);
 
 
     //alignment
-    vec3 center = box.getPosition()*obj->scale;
-    vec3 bbmin = box.min*obj->scale;
-    vec3 bbmax = box.max*obj->scale;
+    vec3 center = box.getPosition()*obj->getScale();
+    vec3 bbmin = box.min*obj->getScale();
+    vec3 bbmax = box.max*obj->getScale();
 
     vec3 alignmentOffset(0);
 
@@ -112,13 +112,13 @@ aabb Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, ve
     }
 
 
-    obj->position = vec3(relPos,0)-alignmentOffset;
+    obj->setPosition(vec3(relPos,0)-alignmentOffset);
 
     aabb resultBB = aabb(box.min*s,box.max*s);
-    resultBB.setPosition(obj->position+center);
+    resultBB.setPosition(obj->getPosition()+center);
 
-    obj->scale *= scale;
-    obj->position  *= scale;
+    obj->multScale( scale);
+    obj->position  *= vec4(scale,1);
     obj->calculateModel();
 
     return resultBB;
@@ -140,15 +140,15 @@ aabb Layout::transformUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 
     //-> The result will fit in the box
     float ds = glm::min(s.x,s.y);
 
-    obj->scale = vec3(ds,ds,1);
+    obj->setScale(vec3(ds,ds,1));
     obj->scale.x *= 1.0f/aspect;
 
-    s = obj->scale;
+    s = obj->getScale();
 
     //alignment
-    vec3 center = box.getPosition()*obj->scale;
-    vec3 bbmin = box.min*obj->scale;
-    vec3 bbmax = box.max*obj->scale;
+    vec3 center = box.getPosition()*obj->getScale();
+    vec3 bbmin = box.min*obj->getScale();
+    vec3 bbmax = box.max*obj->getScale();
 
     vec3 alignmentOffset(0);
 
@@ -177,13 +177,13 @@ aabb Layout::transformUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 
     }
 
 
-    obj->position = vec3(relPos,0)-alignmentOffset;
+    obj->setPosition(vec3(relPos,0)-alignmentOffset);
 
     aabb resultBB = aabb(box.min*s,box.max*s);
-    resultBB.setPosition(obj->position+center);
+    resultBB.setPosition(obj->getPosition()+center);
 
-    obj->scale *= scale;
-    obj->position  *= scale;
+    obj->multScale( scale);
+    obj->position  *= vec4(scale,1);
     obj->calculateModel();
 
     return resultBB;

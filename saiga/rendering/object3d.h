@@ -13,9 +13,9 @@ public:
 
     //required for non uniform scaled rotations
     //TODO: extra class so uniform objects are faster
-    quat rot;
-    vec3 scale = vec3(1);
-    vec3 position = vec3(0);
+    quat rot = quat(1,0,0,0);
+    vec4 scale = vec4(1);
+    vec4 position = vec4(0);
 
     mat4 getModelMatrix() const;
     void getModelMatrix(mat4& model) const;
@@ -39,6 +39,7 @@ public:
 
     vec3 getScale() const;
     void setScale(const vec3& s);
+    void multScale(const vec3& s);
 
     static quat getSimpleDirectionQuat(const vec3 &dir);
 
@@ -72,7 +73,7 @@ inline void Object3D::calculateModel(){
 }
 
 inline vec3 Object3D::getPosition() const {
-    return position;
+    return vec3(position);
 }
 
 inline vec4 Object3D::getDirection() const {
@@ -88,7 +89,7 @@ inline vec4 Object3D::getUpVector() const {
 }
 
 inline void Object3D::setPosition(const vec3 &cords){
-    position = cords;
+    position = vec4(cords,1);
 }
 
 
@@ -106,7 +107,7 @@ inline void Object3D::translateLocal(const vec3 &d){
 }
 
 inline void Object3D::translateGlobal(const vec3& d){
-    position += d;
+    position += vec4(d,0);
 }
 
 
@@ -122,10 +123,15 @@ inline void Object3D::rotateGlobal(vec3 axis, float angle){
 }
 
 inline vec3 Object3D::getScale() const{
-    return scale;
+    return vec3(scale);
 }
 
 inline void Object3D::setScale(const vec3& s){
-    scale = s;
+    scale = vec4(s,1);
+}
+
+inline void Object3D::multScale(const vec3 &s)
+{
+    setScale(getScale()*s);
 }
 

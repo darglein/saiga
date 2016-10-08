@@ -12,7 +12,7 @@ void Camera::setView(const mat4 &v){
     recalculateMatrices();
     model = glm::inverse(view);
 
-    this->position = vec3(model[3]);
+    this->position = model[3];
     this->rot = quat_cast(model);
 }
 
@@ -188,8 +188,8 @@ void PerspectiveCamera::recalculatePlanes()
     vec3 up = vec3(model[1]);
     vec3 dir = -vec3(model[2]);
 
-    vec3 nearplanepos = position + dir*zNear;
-    vec3 farplanepos = position + dir*zFar;
+    vec3 nearplanepos = getPosition() + dir*zNear;
+    vec3 farplanepos = getPosition() + dir*zFar;
 
     //near plane
     planes[0].set(nearplanepos,-dir);
@@ -263,8 +263,8 @@ void OrthographicCamera::recalculatePlanes()
     vec3 up = vec3(model[1]);
     vec3 dir = -vec3(model[2]);
 
-    vec3 nearplanepos = position + dir*zNear;
-    vec3 farplanepos = position + dir*zFar;
+    vec3 nearplanepos = getPosition() + dir*zNear;
+    vec3 farplanepos = getPosition() + dir*zFar;
 
     //near plane
     planes[0].set(nearplanepos,-dir);
