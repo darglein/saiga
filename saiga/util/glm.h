@@ -29,48 +29,48 @@ using std::ostream;
 #if defined(GLM_USE_SSE)
 
 
-#include <glm/gtx/simd_quat.hpp>
-#include <glm/gtx/simd_vec4.hpp>
-#include <glm/gtx/simd_mat4.hpp>
+//#include <glm/gtx/simd_quat.hpp>
+//#include <glm/gtx/simd_vec4.hpp>
+//#include <glm/gtx/simd_mat4.hpp>
 
-//#if GLM_VERSION != 98
-//#error GLM Version not supported!
-//#endif
+#if GLM_VERSION != 98
+#error GLM Version not supported!
+#endif
 
-////In version 98 this part is missing in glm/gtc/random.inl
-//namespace glm{
-//namespace detail{
-//template <template <class, precision> class vecType>
-//struct compute_linearRand<float, aligned_highp, vecType>
-//{
-//    GLM_FUNC_QUALIFIER static vecType<float, aligned_highp> call(vecType<float, aligned_highp> const & Min, vecType<float, aligned_highp> const & Max)
-//    {
-//        return vecType<float, aligned_highp>(compute_rand<uint32, aligned_highp, vecType>::call()) / static_cast<float>(std::numeric_limits<uint32>::max()) * (Max - Min) + Min;
-//    }
-//};
-//}
-//}
+//In version 98 this part is missing in glm/gtc/random.inl
+namespace glm{
+namespace detail{
+template <template <class, precision> class vecType>
+struct compute_linearRand<float, aligned_highp, vecType>
+{
+    GLM_FUNC_QUALIFIER static vecType<float, aligned_highp> call(vecType<float, aligned_highp> const & Min, vecType<float, aligned_highp> const & Max)
+    {
+        return vecType<float, aligned_highp>(compute_rand<uint32, aligned_highp, vecType>::call()) / static_cast<float>(std::numeric_limits<uint32>::max()) * (Max - Min) + Min;
+    }
+};
+}
+}
 
-//typedef glm::tvec2<float, glm::precision::aligned_highp> vec2;
-//typedef glm::tvec3<float, glm::precision::aligned_highp> vec3;
-//typedef glm::tvec4<float, glm::precision::aligned_highp> avec4;
-//typedef glm::tmat4x4<float, glm::precision::aligned_highp> amat4;
-//typedef glm::tquat<float, glm::precision::aligned_highp>  aquat;
+typedef glm::tvec2<float, glm::precision::aligned_highp> vec2;
+typedef glm::tvec3<float, glm::precision::aligned_highp> vec3;
+typedef glm::tvec4<float, glm::precision::aligned_highp> avec4;
+typedef glm::tmat4x4<float, glm::precision::aligned_highp> amat4;
+typedef glm::tquat<float, glm::precision::aligned_highp>  aquat;
 
 //GLM_ALIGNED_TYPEDEF(avec2, vec2, 16);
 //GLM_ALIGNED_TYPEDEF(avec3, vec3, 16);
-//GLM_ALIGNED_TYPEDEF(avec4, vec4, 16);
-//GLM_ALIGNED_TYPEDEF(amat4, mat4, 16);
-//GLM_ALIGNED_TYPEDEF(aquat, quat, 16);
+GLM_ALIGNED_TYPEDEF(avec4, vec4, 16);
+GLM_ALIGNED_TYPEDEF(amat4, mat4, 16);
+GLM_ALIGNED_TYPEDEF(aquat, quat, 16);
 
 
 //GLM_ALIGNED_TYPEDEF(glm::vec2, vec2, 16);
 //GLM_ALIGNED_TYPEDEF(glm::vec3, vec3, 16);
-typedef glm::vec2 vec2;
-typedef glm::vec3 vec3;
-typedef glm::simdVec4 vec4;
-typedef glm::simdQuat quat;
-typedef glm::simdMat4 mat4;
+//typedef glm::vec2 vec2;
+//typedef glm::vec3 vec3;
+//typedef glm::simdVec4 vec4;
+//typedef glm::simdQuat quat;
+//typedef glm::simdMat4 mat4;
 
 //GLM_ALIGNED_TYPEDEF(glm::vec4, vec4, 16);
 //GLM_ALIGNED_TYPEDEF(glm::mat4, mat4, 16);

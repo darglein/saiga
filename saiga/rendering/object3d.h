@@ -5,7 +5,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/util/assert.h"
 
-class GLM_ALIGN(16) SAIGA_GLOBAL Object3D{
+class SAIGA_GLOBAL Object3D{
 
 public:
     mat4 model = mat4(1);

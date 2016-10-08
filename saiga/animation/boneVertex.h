@@ -33,19 +33,19 @@ public:
 
     //number of bones with weight > 0
     int activeBones();
-} GLM_ALIGN(16);
+} ;
 
 
 struct SAIGA_GLOBAL BoneVertexT : public BoneVertex{
 public:
     vec2 texture;
-} GLM_ALIGN(16);
+};
 
 struct SAIGA_GLOBAL BoneVertexCD : public BoneVertex{
 public:
     vec4 color;
     vec4 data;
-} GLM_ALIGN(16);
+};
 
 
 template<>

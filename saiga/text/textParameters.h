@@ -18,4 +18,4 @@ struct SAIGA_GLOBAL TextParameters{
     void setGlow(const vec4& glowColor, float width);
     void setColor(const vec4& color, float smoothness);
     void setAlpha(float alpha);
-} GLM_ALIGN(16);
+} ;
