@@ -235,7 +235,7 @@ void PointLight::calculateCamera(int face){
 
 bool PointLight::cullLight(Camera *cam)
 {
-    Sphere s(position,radius);
+    Sphere s(getPosition(),radius);
     this->culled = cam->sphereInFrustum(s)==Camera::OUTSIDE;
 //    this->culled = false;
 //    cout<<culled<<endl;

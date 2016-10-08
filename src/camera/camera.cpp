@@ -209,10 +209,10 @@ void PerspectiveCamera::recalculatePlanes()
     vertices[7] = farplanepos - fh * up + fw * right;
 
     //side planes
-    planes[2].set(position,vertices[1],vertices[0]); //top
-    planes[3].set(position,vertices[2],vertices[3]); //bottom
-    planes[4].set(position,vertices[0],vertices[2]); //left
-    planes[5].set(position,vertices[3],vertices[1]); //right
+    planes[2].set(getPosition(),vertices[1],vertices[0]); //top
+    planes[3].set(getPosition(),vertices[2],vertices[3]); //bottom
+    planes[4].set(getPosition(),vertices[0],vertices[2]); //left
+    planes[5].set(getPosition(),vertices[3],vertices[1]); //right
 
 
     //    vec3 fbr = farplanepos - fh * up + fw * right;
@@ -284,10 +284,10 @@ void OrthographicCamera::recalculatePlanes()
     vertices[7] = farplanepos - fh * up + fw * right;
 
     //side planes
-    planes[2].set(position,vertices[1],vertices[0]); //top
-    planes[3].set(position,vertices[2],vertices[3]); //bottom
-    planes[4].set(position,vertices[0],vertices[2]); //left
-    planes[5].set(position,vertices[3],vertices[1]); //right
+    planes[2].set(getPosition(),vertices[1],vertices[0]); //top
+    planes[3].set(getPosition(),vertices[2],vertices[3]); //bottom
+    planes[4].set(getPosition(),vertices[0],vertices[2]); //left
+    planes[5].set(getPosition(),vertices[3],vertices[1]); //right
 
 
     //    vec3 fbr = farplanepos - fh * up + fw * right;

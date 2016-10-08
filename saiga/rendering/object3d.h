@@ -3,9 +3,9 @@
 #include "saiga/config.h"
 
 #include "saiga/util/glm.h"
+#include "saiga/util/assert.h"
 
-
-class SAIGA_GLOBAL Object3D{
+class GLM_ALIGN(16) SAIGA_GLOBAL Object3D{
 
 public:
     mat4 model = mat4(1);
@@ -17,6 +17,8 @@ public:
     vec4 scale = vec4(1);
     vec4 position = vec4(0);
 
+
+//    Object3D(){ assert( (size_t)this%16==0); }
     mat4 getModelMatrix() const;
     void getModelMatrix(mat4& model) const;
     void calculateModel();
@@ -44,14 +46,15 @@ public:
     static quat getSimpleDirectionQuat(const vec3 &dir);
 
     //todo: remove virtual methodes
-    virtual ~Object3D(){}
-    virtual void setPosition(const vec3& cords);
-    virtual void turn(float angleX, float angleY);
+    ~Object3D(){}
+    void setPosition(const vec3& cords);
+    void setPosition(const vec4& cords);
+    void turn(float angleX, float angleY);
 
     //    virtual void getViewMatrix(mat4& view); //the view matrix is the inverse model matrix
 
 
-} GLM_ALIGN(16);
+} ;
 
 
 inline mat4 Object3D::getModelMatrix() const
@@ -90,6 +93,10 @@ inline vec4 Object3D::getUpVector() const {
 
 inline void Object3D::setPosition(const vec3 &cords){
     position = vec4(cords,1);
+}
+
+inline void Object3D::setPosition(const vec4 &cords){
+    position = cords;
 }
 
 

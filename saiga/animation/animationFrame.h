@@ -7,6 +7,13 @@
 
 class SAIGA_GLOBAL AnimationNode{
 public:
+    //these are the local transformations of this node relative to the parent node
+    //to get the absolute transformation of a single node the tree has to be traversed
+    vec4 position;
+    quat rotation;
+    vec4 scaling;
+    mat4 matrix;
+
     std::string name;
 	std::vector<int> children;
 
@@ -16,12 +23,7 @@ public:
 
     bool keyFramed = false; //not all nodes are keyframed
 
-    //these are the local transformations of this node relative to the parent node
-    //to get the absolute transformation of a single node the tree has to be traversed
-    vec3 position;
-    quat rotation;
-    vec3 scaling;
-    mat4 matrix;
+
 
     void interpolate(const AnimationNode& other, float alpha);
 

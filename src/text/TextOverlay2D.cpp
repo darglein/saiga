@@ -9,6 +9,7 @@ TextOverlay2D::TextOverlay2D(const mat4 &proj)
 {
     this->proj = proj;
     loadShader();
+
 }
 
 TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height){

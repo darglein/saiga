@@ -191,9 +191,9 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
             }
             AnimationNode& an = animationNodes[nodeMap[str]];
 
-            an.position = vec3(p.x,p.y,p.z);
+            an.position = vec4(p.x,p.y,p.z,1);
             an.rotation = quat(r.w,r.x,r.y,r.z);
-            an.scaling = vec3(s.x,s.y,s.z);
+            an.scaling = vec4(s.x,s.y,s.z,1);
             an.keyFramed = true;
         }
 		//k.initTree();

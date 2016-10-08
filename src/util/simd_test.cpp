@@ -18,9 +18,15 @@ namespace saigatest{
 //Linux objdump -d -M intel -S simd_test.cpp.o
 
 
-typedef glm::tvec4<float, glm::precision::aligned_highp> vec4_t;
+//typedef glm::tvec4<float, glm::precision::aligned_highp> vec4_t;
 //typedef glm::aligned_vec4 vec4_t;
-typedef glm::tmat4x4<float, glm::precision::aligned_highp> mat4_t;
+//typedef glm::tmat4x4<float, glm::precision::aligned_highp> mat4_t;
+
+typedef vec4 vec4_t;
+typedef mat4 mat4_t;
+
+//typedef glm::simdVec4 vec4_t;
+//typedef glm::simdMat4 mat4_t;
 
 SAIGA_GLOBAL vec4_t globalA;
 SAIGA_GLOBAL vec4_t globalB;

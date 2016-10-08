@@ -31,15 +31,15 @@ void main() {
 uniform mat4 model;
 uniform mat4 proj;
 
-uniform vec4 color;
-uniform vec4 outlineColor;
-uniform vec4 glowColor;
+uniform vec4 color = vec4(1,1,1,1);
+uniform vec4 outlineColor = vec4(0,0,0,0);
+uniform vec4 glowColor = vec4(0,0,0,0);
 
-uniform vec4 outlineData;
-uniform vec2 softEdgeData;
-uniform vec2 glowData;
+uniform vec4 outlineData = vec4(0.5f,0.5f,0.5f,0.5f);
+uniform vec2 softEdgeData = vec2(0.5f,0.5f);
+uniform vec2 glowData = vec2(0.5f,0.5f);
 
-uniform float alphaMultiplier;
+uniform float alphaMultiplier = 1.0f;
 
 uniform sampler2D text;
 

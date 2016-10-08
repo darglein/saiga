@@ -13,16 +13,16 @@ void AnimationNode::interpolate(const AnimationNode &other, float alpha)
     if(this->keyFramed){
         rotation = glm::slerp(rotation,other.rotation,alpha);
         rotation = glm::normalize(rotation);
-        scaling = glm::mix(scaling,other.scaling,alpha);
-        position = glm::mix(position,other.position,alpha);
+        scaling = glm::mix(scaling,other.scaling,vec4(alpha));
+        position = glm::mix(position,other.position,vec4(alpha));
     }
 }
 
 void AnimationNode::reset()
 {
-    position = vec3(0);
+    position = vec4(0);
     rotation = quat();
-    scaling = vec3(1);
+    scaling = vec4(1);
     //keyFramed = false;
 }
 

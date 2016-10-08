@@ -12,10 +12,12 @@ class TextureAtlas;
 
 class SAIGA_GLOBAL Text : public Object3D{
 public:
+
+    mat4 normalizationMatrix;
+    TextParameters params;
     bool visible = true;
 
 
-    TextParameters params;
 
     Text(TextureAtlas* textureAtlas, const std::string &label="", bool normalize=false);
     virtual ~Text(){}
@@ -56,7 +58,6 @@ private:
     TriangleMesh<VertexNT,GLuint> mesh;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
     TextureAtlas* textureAtlas;
-    mat4 normalizationMatrix;
     aabb boundingBox;
 
     void calculateNormalizationMatrix();
