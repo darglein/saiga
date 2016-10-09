@@ -305,17 +305,20 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
         tick_t currentTicksPerUpdate = ticksPerUpdate / timeScale;
         checkEvents();
 
-        if (gameloopDropAccumulatedUpdates){
-            cout << "> Advancing game loop to live." << endl;
-            nextUpdateTick = getGameTicks();
-            lastUpdateTick = nextUpdateTick;
-            nextFrameTick = nextUpdateTick;
-            gameloopDropAccumulatedUpdates = false;
-        }
+
 
         //With this loop we are able to skip frames if the system can't keep up.
         for(int i = 0; i <= maxFrameSkip && getGameTicks() > nextUpdateTick; ++i){
             update(updateDT);
+
+            if (gameloopDropAccumulatedUpdates){
+                cout << "> Advancing game loop to live." << endl;
+                nextUpdateTick = getGameTicks();
+                nextFrameTick = nextUpdateTick;
+                gameloopDropAccumulatedUpdates = false;
+            }
+
+
             lastUpdateTick = nextUpdateTick;
             nextUpdateTick += currentTicksPerUpdate;
         }
