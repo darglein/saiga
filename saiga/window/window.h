@@ -54,6 +54,8 @@ protected:
 
     Deferred_Renderer* renderer = nullptr;
     Camera* currentCamera = nullptr;
+
+    bool gameloopDropAccumulatedUpdates = false;
 public:
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
     AverageTimer fpsTimer, upsTimer;
@@ -94,6 +96,10 @@ public:
     void setTimeScale(double timeScale);
     void setCamera(Camera* c) { currentCamera = c; }
     Deferred_Renderer* getRenderer() const {  return renderer; }
+
+    //When there are very long updates for example when loading a level, the
+    //gameloop tries to catch up, unless you call this method.
+    void jumpGameLoopToLive(){ gameloopDropAccumulatedUpdates = true; }
 
     //number of ticks since startgameloop has been called
     tick_t getGameTicks();

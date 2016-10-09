@@ -22,7 +22,6 @@ public:
     GLFWwindow* window = nullptr;
     Joystick joystick;
 
-    bool gameloopDropAccumulatedUpdates = false;
     bool recordingVideo = false;
 
     glfw_Window(WindowParameters windowParameters);

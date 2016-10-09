@@ -90,6 +90,11 @@ bool Translator::readTranslationFile(const std::string &file)
 
 void Translator::startCollecting()
 {
+
+#if defined(SAIGA_RELEASE)
+    return;
+#endif
+
     isCollecting = true;
     collectedStrings.clear();
     collectedStrings.push_back(std::make_pair("English","The language of this translation file"));
@@ -98,23 +103,27 @@ void Translator::startCollecting()
 void Translator::writeToFile()
 {
 
-#ifndef MYDEBUG
+#if defined(SAIGA_RELEASE)
     return;
 #endif
 
     if (!isCollecting)
         return;
 
+    std::string outFile = "lang/collected.txt";
+
     std::fstream stream;
 
     try {
-        stream.open ("lang/collected.txt",  std::fstream::out | std::fstream::trunc);
+        stream.open (outFile,  std::fstream::out | std::fstream::trunc);
     }
     catch (const std::fstream::failure &e) {
         cout<< e.what() << endl;
         cout << "Exception opening/reading file\n";
         return;
     }
+
+    std::cout << "Writing collected translation strings to " << outFile << std::endl;
 
     for(std::pair<string,string>& p : collectedStrings){
         stream << p.first << "," << p.second << endl;
