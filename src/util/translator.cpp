@@ -37,6 +37,55 @@ std::vector<Translator::TranslationEntry> Translator::getTranslationVector()
     return erg;
 }
 
+
+bool Translator::readTranslationFile()
+{
+    std::cout << "Reading translation file " << translationFile << endl;
+
+    std::fstream stream;
+
+    try {
+        stream.open (translationFile, std::fstream::in);
+        if (!stream.good()){
+            cout << "Warning Translator: file does not exist! " + translationFile << endl;
+            return false;
+        }
+
+    }
+    catch (const std::fstream::failure &e) {
+        cout<< e.what() << endl;
+        cout << "Exception opening/reading file\n";
+        return false;
+    }
+
+    int lineNumber = 0;
+    try {
+       for(std::string line;std::getline(stream, line);lineNumber++) {
+            if (stream.eof()){
+                break;
+            }
+            std::vector<std::string> linesplit = split(line,spacer);
+            if(linesplit.size() == 2){
+                //add empty note
+                linesplit.push_back("");
+            }
+            assert(linesplit.size() == 3);
+            TranslationEntry te;
+            te.key = linesplit[0];
+            te.translation = linesplit[1];
+            te.note = linesplit[2];
+            cout << lineNumber << " " << te.key << spacer << te.translation << spacer << te.note << endl;
+            addTranslation(te);
+        }
+    }
+    catch (const std::fstream::failure &e) {
+        cout<< e.what() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+
 void Translator::init(const std::string &file)
 {
     translationFile = file;
@@ -67,53 +116,6 @@ void Translator::writeToFile()
     }
 }
 
-
-bool Translator::readTranslationFile()
-{
-    std::cout << "Reading translation file " << translationFile << endl;
-
-    std::fstream stream;
-
-    try {
-        stream.open (translationFile, std::fstream::in);
-        if (!stream.good()){
-            cout << "Warning Translator: file does not exist! " + translationFile << endl;
-            return false;
-        }
-
-    }
-    catch (const std::fstream::failure &e) {
-        cout<< e.what() << endl;
-        cout << "Exception opening/reading file\n";
-        return false;
-    }
-
-    int lineNumber = 0;
-    try {
-       for(string line;std::getline(stream, line);lineNumber++) {
-            if (stream.eof()){
-                break;
-            }
-            std::vector<std::string> linesplit = split(line,spacer);
-            if(linesplit.size() == 2){
-                //add empty note
-                linesplit.push_back("");
-            }
-            assert(linesplit.size() == 3);
-            TranslationEntry te;
-            te.key = linesplit[0];
-            te.translation = linesplit[1];
-            te.note = linesplit[2];
-            cout << lineNumber << " " << te.key << spacer << te.translation << spacer << te.note << endl;
-            addTranslation(te);
-        }
-    }
-    catch (const std::fstream::failure &e) {
-        cout<< e.what() << std::endl;
-        return false;
-    }
-    return true;
-}
 
 
 std::string Translator::translate(const std::string &key,const std::string &note)

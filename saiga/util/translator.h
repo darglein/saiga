@@ -4,8 +4,8 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <iostream>
 #include <saiga/config.h>
-using std::string;
 
 class SAIGA_GLOBAL Translator{
 private:
@@ -27,25 +27,32 @@ public:
     void init(const std::string& file);
     void writeToFile();
 
-
-    /**
-     * @param note note for the translator for the context
-     */
     std::string translate(const std::string& key, const std::string &note);
-
-
 };
 
 
 SAIGA_GLOBAL extern Translator translator;
 
 namespace translation{
-/**
- * @param note note for the translator for the context
- */
-SAIGA_GLOBAL inline std::string tr(const std::string& str,const std::string& note = ""){
-    return translator.translate(str,note);
+
+
+SAIGA_GLOBAL inline std::string tr(const std::string& key,const std::string& note = ""){
+    return translator.translate(key,note);
 }
+
+//this is a usefull struct to only translate your strings once in a function.
+//Example:
+//void test(){
+//    static translation::trstring tstr("Hello world!");
+//    cout << tstr.str << endl;
+//}
+struct SAIGA_GLOBAL trstring{
+    std::string str;
+    trstring(const std::string& key, const std::string& note = ""){
+        str = tr(key,note);
+    }
+};
+
 
 }
 
