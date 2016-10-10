@@ -2,116 +2,53 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include "assert.h"
+#include "saiga/util/assert.h"
 
 using std::cout;
 using std::endl;
 
-Translator* translator = nullptr;
+Translator translator;
 
 
-bool Translator::readTranslationFile(const std::string &file)
+std::vector<std::string> split(const std::string &s, char delim);
+
+
+void Translator::addTranslation(const Translator::TranslationEntry &te)
 {
-    assert(!isCollecting);
-
-    std::fstream stream;
-
-    try {
-        stream.open (file, std::fstream::in);
-        if (!stream.good()){
-            cout << "Warning Translator: file does not exist! " + file << endl;
-            return false;
-        }
-
+    if(translationMap.find(te.key) != translationMap.end()){
+        std::cerr << "Key " << te.key << " is already in the translation map." << std::endl;
+        assert(0);
     }
-    catch (const std::fstream::failure &e) {
-        cout<< e.what() << endl;
-        cout << "Exception opening/reading file\n";
-        return false;
-    }
-
-    int lineNumber = 0;
-    try {
-
-        string line;
-       for(;;) {
-            std::getline(stream, line);
-
-//            cout << "line: " << line << endl;
-
-            int l = (int)line.find_last_of(",");
-            if (l == (int)string::npos){
-                cout << "corrupt translation file for line " << line << endl;
-                break;
-            }
-
-            std::string english = line.substr(0,l);
-            std::string translated = line.substr(l + 1);
-
-            //ignore first line
-            if (lineNumber == 0){
-                //does not work if string is encoded in another format
-                if (english == "English"){
-                    continue;
-                } else {
-                    cout << "Warning:  invalid first line in translation file!" << endl;
-                }
-            }
-
-            cout << "tr: " << english << ":" << translated << endl;
-
-            if (translations.find(english) != translations.end()){
-                if (translations[english] == translated){
-                    cout << "warning, duplicate entry for: " << english << endl;
-                } else{
-                    assert(false && "Duplicate, mismatching entry for translation file!");
-                }
-            }
-
-
-            translations[english] = translated;
-//            entries.push_back(entry);
-
-
-            if (stream.eof()){
-                break;
-            }
-
-
-            lineNumber++;
-        }
-    }
-    catch (const std::fstream::failure &e) {
-        cout<< e.what() << std::endl;
-        return false;
-    }
-    return true;
+    translationMap[te.key] = te;
 }
 
-void Translator::startCollecting()
+std::vector<Translator::TranslationEntry> Translator::getTranslationVector()
 {
+    std::vector<TranslationEntry> erg;
+    for(auto iterator = translationMap.begin(); iterator != translationMap.end(); iterator++) {
+        TranslationEntry te = iterator->second;
+        erg.push_back(te);
+    }
+    std::sort(erg.begin(),erg.end(),
+              [](TranslationEntry a, TranslationEntry b) -> bool{
+        return a.key < b.key;
+    }
+    );
+    return erg;
+}
 
-#if defined(SAIGA_RELEASE)
-    return;
-#endif
+void Translator::init(const std::string &file)
+{
+    translationFile = file;
+    translationMap.clear();
 
-    isCollecting = true;
-    collectedStrings.clear();
-    collectedStrings.push_back(std::make_pair("English","The language of this translation file"));
+    readTranslationFile();
 }
 
 void Translator::writeToFile()
 {
-
-#if defined(SAIGA_RELEASE)
-    return;
-#endif
-
-    if (!isCollecting)
-        return;
-
-    std::string outFile = "lang/collected.txt";
-
+    std::string outFile = translationFile;
+    std::vector<TranslationEntry> entries = getTranslationVector();
     std::fstream stream;
 
     try {
@@ -125,46 +62,71 @@ void Translator::writeToFile()
 
     std::cout << "Writing collected translation strings to " << outFile << std::endl;
 
-    for(std::pair<string,string>& p : collectedStrings){
-        stream << p.first << "," << p.second << endl;
+    for(TranslationEntry& te : entries){
+        stream << te.key << spacer << te.translation  << spacer  << te.note << endl;
     }
 }
 
-std::string Translator::translate(const std::string &str,const std::string &note)
+
+bool Translator::readTranslationFile()
 {
-    if (isCollecting){
-        collect(str,note);
-        return str;
-    } else {
-        assert(translations.find(str) != translations.end());
-        return translations[str];
+    std::cout << "Reading translation file " << translationFile << endl;
+
+    std::fstream stream;
+
+    try {
+        stream.open (translationFile, std::fstream::in);
+        if (!stream.good()){
+            cout << "Warning Translator: file does not exist! " + translationFile << endl;
+            return false;
+        }
+
     }
-}
+    catch (const std::fstream::failure &e) {
+        cout<< e.what() << endl;
+        cout << "Exception opening/reading file\n";
+        return false;
+    }
 
-void Translator::collect(const std::string &str, const std::string &note)
-{
-    if (!isCollecting)
-        return;
-
-    bool found = false;
-    for(auto& p : collectedStrings){
-        if (p.first == str){
-            //     cout << "warning: " << str << " already in collected list" << endl;
-            found = true;
-            if (p.second == ""){
-                p.second = note;
-            } else {
-#if defined(SAIGA_DEBUG)
-                if (note != p.second){
-                    cout << "Warning: " << "different notes for translated string: " << str << endl;
-                }
-#endif
+    int lineNumber = 0;
+    try {
+       for(string line;std::getline(stream, line);lineNumber++) {
+            if (stream.eof()){
+                break;
             }
-            break;
+            std::vector<std::string> linesplit = split(line,spacer);
+            if(linesplit.size() == 2){
+                //add empty note
+                linesplit.push_back("");
+            }
+            assert(linesplit.size() == 3);
+            TranslationEntry te;
+            te.key = linesplit[0];
+            te.translation = linesplit[1];
+            te.note = linesplit[2];
+            cout << lineNumber << " " << te.key << spacer << te.translation << spacer << te.note << endl;
+            addTranslation(te);
         }
     }
-
-    if (!found){
-        collectedStrings.push_back(std::make_pair(str,note));
+    catch (const std::fstream::failure &e) {
+        cout<< e.what() << std::endl;
+        return false;
     }
+    return true;
+}
+
+
+std::string Translator::translate(const std::string &key,const std::string &note)
+{
+     if(translationMap.find(key) == translationMap.end()){
+         //adding an identity mapping when entry is not present
+         std::cerr << "Could not find translation for '" << key << "' in file: " << translationFile << std::endl;
+         TranslationEntry te;
+         te.key = key;
+         te.translation = key;
+         te.note = note;
+         translationMap[key] = te;
+     }
+
+    return translationMap[key].translation;
 }

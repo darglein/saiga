@@ -23,9 +23,10 @@ Console::~Console() {
     delete rdbuf();
 }
 
-std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
+std::vector<std::string> split(const std::string &s, char delim) {
     std::stringstream ss(s);
     std::string item;
+    std::vector<std::string> elems;
     while (std::getline(ss, item, delim)) {
         elems.push_back(item);
     }
@@ -33,11 +34,6 @@ std::vector<std::string> &split(const std::string &s, char delim, std::vector<st
 }
 
 
-std::vector<std::string> split(const std::string &s, char delim) {
-    std::vector<std::string> elems;
-    split(s, delim, elems);
-    return elems;
-}
 
 void Console::execute(const std::string &line){
 
