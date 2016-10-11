@@ -197,7 +197,6 @@ void Translator::writeToFile()
     stream << "#" << endl;
     stream << "# Notes:" << endl;
     stream << "# - The key has to be unique" << endl;
-    stream << "# - No special characters in the key" << endl;
     stream << "# - <separator> and <escapesymbol> in the translation and note has to be escaped by " << escapesymbol << endl;
     stream << "# - Entries will be sorted alphabetically by the key" << endl;
     stream << "# - An optional new entry symbol will be added if the key was previously not defined" << endl;
@@ -209,7 +208,7 @@ void Translator::writeToFile()
         if(te.newEntry){
             stream << newEntry;
         }
-        stream << te.key << spacer <<
+        stream << escapeSpecialCharacters(te.key) << spacer <<
                   escapeSpecialCharacters(te.translation)  << spacer  <<
                   escapeSpecialCharacters(te.note) << endl;
     }
