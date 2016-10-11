@@ -11,9 +11,9 @@ void TexturedAsset::render(Camera *cam, const mat4 &model)
     for(TextureGroup& tg : groups){
 		tshader->uploadTexture(tg.texture);
 
-        int* start = 0 ;
+        int start = 0 ;
         start += tg.startIndex;
-        buffer.draw(tg.indices, (void*)start);
+        buffer.draw(tg.indices, start);
     }
      buffer.unbind();
 
@@ -33,9 +33,9 @@ void TexturedAsset::renderDepth(Camera *cam, const mat4 &model)
     for(TextureGroup& tg : groups){
 		dshader->uploadTexture(tg.texture);
 
-        int* start = 0 ;
+        int start = 0 ;
         start += tg.startIndex;
-        buffer.draw(tg.indices, (void*)start);
+        buffer.draw(tg.indices, start);
     }
      buffer.unbind();
 
