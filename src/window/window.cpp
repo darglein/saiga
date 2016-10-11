@@ -255,14 +255,13 @@ void Window::render(float dt, float interpolation)
 
 tick_t Window::getGameTicks(){
     gameTimer.stop();
-    return gameTimer.getTimeMicrS();
+    return gameTimer.getTime();
 }
 
 void Window::sleep(tick_t ticks)
 {
-    if(ticks > 0){
-        std::this_thread::sleep_for(std::chrono::microseconds(ticks));
-//        std::cout << "Sleeping " << ticks << " ticks (" << ((float)ticks/getGameTicksPerSecond()) << " seconds)" << std::endl;
+    if(ticks > tick_t(0)){
+        std::this_thread::sleep_for(ticks);
     }
 }
 
@@ -282,17 +281,20 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
 
     if(updatesPerSecond <= 0)
-        updatesPerSecond = getGameTicksPerSecond();
+        updatesPerSecond = gameTime.base.count();
     if(framesPerSecond <= 0)
-        framesPerSecond = getGameTicksPerSecond();
+        framesPerSecond = gameTime.base.count();
 
 
     float updateDT = 1.0f / updatesPerSecond;
 //    float framesDT = 1.0f / framesPerSecond;
 
-    tick_t ticksPerUpdate = getGameTicksPerSecond() / updatesPerSecond;
-    tick_t ticksPerFrame = getGameTicksPerSecond() / framesPerSecond;
-    tick_t ticksPerInfo = getGameTicksPerSecond() * mainLoopInfoTime;
+    tick_t ticksPerUpdate = gameTime.base / updatesPerSecond;
+    tick_t ticksPerFrame = gameTime.base / framesPerSecond;
+    tick_t ticksPerInfo = std::chrono::duration_cast<tick_t>(gameTime.base * mainLoopInfoTime);
+
+    gameTime.dt = ticksPerUpdate;
+    gameTime.dtr = ticksPerFrame;
 
 
     tick_t nextUpdateTick = getGameTicks();
@@ -302,13 +304,15 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
     while(!shouldClose()){
 
-        tick_t currentTicksPerUpdate = ticksPerUpdate / timeScale;
+        tick_t currentTicksPerUpdate = std::chrono::duration_cast<tick_t>(ticksPerUpdate / timeScale);
         checkEvents();
 
 
 
         //With this loop we are able to skip frames if the system can't keep up.
         for(int i = 0; i <= maxFrameSkip && getGameTicks() > nextUpdateTick; ++i){
+            gameTime.time = getGameTicks();
+            gameTime.updatetime = gameTime.time;
             update(updateDT);
 
             if (gameloopDropAccumulatedUpdates){
@@ -324,9 +328,10 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
         }
 
         if(getGameTicks() > nextFrameTick){
+            gameTime.time = getGameTicks();
             //calculate the interpolation value. Usefull when the framerate is higher than the update rate
-            tick_t ticksSinceLastUpdate = getGameTicks() - lastUpdateTick;
-            float interpolation = ticksSinceLastUpdate / (float)(nextUpdateTick - lastUpdateTick);
+            tick_t ticksSinceLastUpdate = gameTime.time - lastUpdateTick;
+            float interpolation = (float)ticksSinceLastUpdate.count() / (nextUpdateTick - lastUpdateTick).count();
             interpolation = glm::clamp(interpolation,0.0f,1.0f);
 
             render(updateDT,interpolation);
@@ -334,16 +339,16 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
         }
 
         if(getGameTicks() > nextInfoTick){
-            float gameTime = (float)getGameTicks() / getGameTicksPerSecond();
-            cout << "> Time: " << gameTime << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames << "  UPS/FPS: " << (1000.0f/upsTimer.getTimeMS()) << "/" << (1000.0f/fpsTimer.getTimeMS()) << endl;
+            auto gt = std::chrono::duration_cast<std::chrono::seconds>(getGameTicks());
+            cout << "> Time: " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames << "  UPS/FPS: " << (1000.0f/upsTimer.getTimeMS()) << "/" << (1000.0f/fpsTimer.getTimeMS()) << endl;
             nextInfoTick += ticksPerInfo;
         }
 
         //sleep until the next interesting event
-        tick_t nextEvent = glm::min(nextFrameTick,nextUpdateTick);
+        tick_t nextEvent = nextFrameTick < nextUpdateTick ? nextFrameTick : nextUpdateTick;
         sleep(nextEvent - getGameTicks());
         assert_no_glerror_end_frame();
     }
-    float gameTime = (float)getGameTicks() / getGameTicksPerSecond();
-    cout << "> Main loop finished in " << gameTime << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames  << endl;
+    auto gt = std::chrono::duration_cast<std::chrono::seconds>(getGameTicks());
+    cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames  << endl;
 }

@@ -12,7 +12,6 @@ class Program;
 struct RenderingParameters;
 class Image;
 
-typedef long long tick_t;
 
 
 struct SAIGA_GLOBAL WindowParameters{
@@ -103,9 +102,6 @@ public:
 
     //number of ticks since startgameloop has been called
     tick_t getGameTicks();
-
-    //one tick is here equal to one microsecond
-    tick_t getGameTicksPerSecond() { return 1000000; }
 
     void screenshot(const std::string &file);
     void screenshotRender(const std::string &file);
