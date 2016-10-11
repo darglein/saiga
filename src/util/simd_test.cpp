@@ -35,25 +35,25 @@ SAIGA_GLOBAL vec4_t globalB;
 SAIGA_GLOBAL vec4_t add2(vec4_t a,vec4_t b){
 //    glm::aligned_vec4 A(a);
 //    glm::aligned_vec4 B(b);
-    asm("#vec4 add start ");
+    //asm("#vec4 add start ");
     auto ret = a + b;
-    asm("#vec4 add end");
+    //asm("#vec4 add end");
     return ret;
 }
 
 
 SAIGA_GLOBAL vec4_t addGlobal(){
-    asm("#vec4 add start");
+    //asm("#vec4 add start");
     auto ret = globalA + globalB;
-    asm("#vec4 add end");
+    //asm("#vec4 add end");
     return ret;
 }
 
 SAIGA_GLOBAL mat4_t mult(mat4_t a, mat4_t b){
     mat4_t ret;
-    asm("#mat4 mult start");
+    //asm("#mat4 mult start");
     ret = a * b;
-    asm("#mat4 mult end");
+    //asm("#mat4 mult end");
     return ret;
 }
 

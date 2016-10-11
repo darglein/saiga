@@ -2,10 +2,11 @@
 #ifdef WIN32
 #include <windows.h>
 #endif
-
+#include <algorithm>
 #include "saiga/util/timer2.h"
 #include <GLFW/glfw3.h>
 #include "saiga/util/glm.h"
+#include "saiga/util/assert.h"
 
 
 Timer2::Timer2()
@@ -30,7 +31,7 @@ void Timer2::start()
 
     ticksPerSecond = li.QuadPart;
 
-    assert(ticksPerSecond >= gameTime.base.count());
+    //assert(ticksPerSecond >= gameTime.base.count());
 
     freq = (double)ticksPerSecond / gameTime.base.count();
 
@@ -50,7 +51,7 @@ void Timer2::stop()
     LARGE_INTEGER li;
     QueryPerformanceCounter(&li);
     double dt = (li.QuadPart - startTime) / freq;
-    std::chrono::duration<double,game_ratio_t> dtc = dt;
+    std::chrono::duration<double,game_ratio_t> dtc(dt);
     addMeassurment( std::chrono::duration_cast<tick_t>(dtc));
 #endif
 }

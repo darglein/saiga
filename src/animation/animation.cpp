@@ -10,7 +10,10 @@ const AnimationFrame &Animation::getKeyFrame(int frameIndex)
 }
 
 void Animation::getFrame(float time, AnimationFrame &out){
-
+	if (time == 0) {
+		out = keyFrames[0];
+		return;
+	}
 
     //here time is given in animation time base
     time = glm::clamp(time,0.0f,duration);
