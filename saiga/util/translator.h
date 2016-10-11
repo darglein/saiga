@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <saiga/config.h>
+#include <saiga/text/encoding.h>
 
 class SAIGA_GLOBAL Translator{
 private:
@@ -15,10 +16,18 @@ private:
         std::string key;
         std::string translation;
         std::string note;
+        bool newEntry = false;
     };
     char spacer = ',';
+    char newEntry = '>';
+    char comment = '#';
+    char escapesymbol = '\\';
+    char newlinesymbol = 'n';
     std::map<std::string,TranslationEntry> translationMap;
 
+    std::string replace(std::string str, const std::string& search, const std::string& replace);
+    std::string escapeSpecialCharacters(std::string str);
+    std::string unescapeSpecialCharacters(std::string str);
 
     void addTranslation(const TranslationEntry& te);
     std::vector<TranslationEntry> getTranslationVector();
