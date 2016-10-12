@@ -2,10 +2,11 @@
 #ifdef WIN32
 #include <windows.h>
 #endif
-
+#include <algorithm>
 #include "saiga/util/timer2.h"
 #include <GLFW/glfw3.h>
 #include "saiga/util/glm.h"
+#include "saiga/util/assert.h"
 
 
 Timer2::Timer2()
@@ -15,68 +16,59 @@ Timer2::Timer2()
 
 void Timer2::start()
 {
-	//Since VS2015 the standard high resolution clock is implemented with queryperformanceCounters,
-	//so this special windows code is not needed anymore.
-#ifdef WIN32
-	LARGE_INTEGER li;
-	if (!QueryPerformanceFrequency(&li))
-		cout << "QueryPerformanceFrequency failed!\n";
+
+#ifdef HAS_HIGH_RESOLUTION_CLOCK
+    startTime = std::chrono::high_resolution_clock::now();
+#else
+    //Since VS2015 the standard high resolution clock is implemented with queryperformanceCounters,
+    //so this special windows code is not needed anymore.
+    LARGE_INTEGER li;
+    if (!QueryPerformanceFrequency(&li))
+        cout << "QueryPerformanceFrequency failed!\n";
 
 //    cout << "QueryPerformanceFrequency " << double(li.QuadPart) << endl;
-    PCFreqPerMicrSecond = double(li.QuadPart) / 1000000.0;
+//    PCFreqPerMicrSecond = double(li.QuadPart) / 1000000.0;
 
-	QueryPerformanceCounter(&li);
-	startTime = li.QuadPart;
-#else
-    startTime = std::chrono::high_resolution_clock::now();
+    ticksPerSecond = li.QuadPart;
+
+    //assert(ticksPerSecond >= gameTime.base.count());
+
+    freq = (double)ticksPerSecond / gameTime.base.count();
+
+    QueryPerformanceCounter(&li);
+    startTime = li.QuadPart;
 #endif
 }
 
 void Timer2::stop()
 {
-#ifdef WIN32
-	LARGE_INTEGER li;
-	QueryPerformanceCounter(&li);
-	time_interval_t dt = li.QuadPart - startTime;
-	addMeassurment(dt);
-#else
+#ifdef HAS_HIGH_RESOLUTION_CLOCK
     auto endTime = std::chrono::high_resolution_clock::now();
     auto elapsed = endTime - startTime;
-
-    time_interval_t dt = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+    tick_t dt = std::chrono::duration_cast<tick_t>(elapsed);
     addMeassurment(dt);
+#else
+    LARGE_INTEGER li;
+    QueryPerformanceCounter(&li);
+    double dt = (li.QuadPart - startTime) / freq;
+    std::chrono::duration<double,game_ratio_t> dtc(dt);
+    addMeassurment( std::chrono::duration_cast<tick_t>(dtc));
 #endif
 }
 
 
 double Timer2::getTimeMicrS()
 {
-#ifdef WIN32
-    return lastTime / (PCFreqPerMicrSecond);
-#else
-    return lastTime;
-#endif
+   return std::chrono::duration_cast<std::chrono::duration<double,std::micro>> (getCurrentTime()).count();
 }
 
 double Timer2::getTimeMS()
 {
-#ifdef WIN32
-    return lastTime / (PCFreqPerMicrSecond*1000);
-#else
-    return lastTime/1000.0;
-#endif
+    return std::chrono::duration_cast<std::chrono::duration<double,std::milli>> (getCurrentTime()).count();
 }
 
-double Timer2::getLastTimeMS()
-{
-#ifdef WIN32
-    return lastTime / (PCFreqPerMicrSecond*1000);
-#else
-    return lastTime/1000.0;
-#endif
-}
 
-void Timer2::addMeassurment(time_interval_t time)
+void Timer2::addMeassurment(tick_t time)
 {
     lastTime = time;
 }
@@ -90,54 +82,46 @@ ExponentialTimer::ExponentialTimer(double alpha) : alpha(alpha)
 
 }
 
-double ExponentialTimer::getTimeMS()
-{
-    return currentTimeMS;
-}
-
-void ExponentialTimer::addMeassurment(time_interval_t time)
+void ExponentialTimer::addMeassurment(tick_t time)
 {
     lastTime = time;
-    currentTimeMS = alpha*currentTimeMS + (1-alpha)*getLastTimeMS();
+    currentTime = std::chrono::duration_cast<tick_t> (alpha*currentTime + (1-alpha)*time);
 }
 
 
 //============================================================================================
 
 
-AverageTimer::AverageTimer(int number) :  lastTimes(number,0), number(number)
+AverageTimer::AverageTimer(int number) :  lastTimes(number,tick_t(0)), number(number)
 {
 
 }
 
-double AverageTimer::getTimeMS()
-{
-    return currentTimeMS;
-}
 
-void AverageTimer::addMeassurment(time_interval_t time)
+
+void AverageTimer::addMeassurment(tick_t time)
 {
     lastTime = time;
-    lastTimes[currentTimeId] = getLastTimeMS();
+    lastTimes[currentTimeId] = time;
     currentTimeId = (currentTimeId+1) % lastTimes.size();
 
-    currentTimeMS = 0;
-    minimum = 93465943753535;
-    maximum = 0;
+    currentTime = tick_t(0);
+    minimum = lastTimes[0];
+    maximum = lastTimes[0];
     for(auto &d : lastTimes){
-        currentTimeMS += d;
-        minimum = glm::min(minimum,d);
-        maximum = glm::max(maximum,d);
+        currentTime += d;
+        minimum = std::min(minimum,d);
+        maximum = std::max(maximum,d);
     }
-    currentTimeMS /= lastTimes.size();
+    currentTime /= lastTimes.size();
 }
 
 double AverageTimer::getMinimumTimeMS()
 {
-    return minimum;
+    return std::chrono::duration_cast<std::chrono::duration<double,std::milli>> (minimum).count();
 }
 
 double AverageTimer::getMaximumTimeMS()
 {
-    return maximum;
+    return std::chrono::duration_cast<std::chrono::duration<double,std::milli>> (maximum).count();
 }

@@ -1,11 +1,20 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/util/time.h"
 #include <vector>
 #include <chrono>
 
-typedef long long time_interval_t;
-//typedef double time_interval_t;
+#ifdef WIN32
+#if _MSC_VER >= 1900 //VS2015 and newer
+#define HAS_HIGH_RESOLUTION_CLOCK
+#endif
+#else
+#define HAS_HIGH_RESOLUTION_CLOCK
+#endif
+
+//typedef long long tick_t;
+//typedef double tick_t;
 
 //Linux: c++ 11 chrono for time measurement
 //Windows: queryPerformanceCounter because c++ 11 chrono only since VS2015 with good precision :(
@@ -16,20 +25,23 @@ public:
     void start();
     void stop();
 
-    virtual double getTimeMS();
-    double getLastTimeMS();
+    double getTimeMS();
     double getTimeMicrS();
+
+    tick_t getTime() { return lastTime; }
+    virtual tick_t getCurrentTime() { return getTime(); }
 protected:
-    virtual void addMeassurment(time_interval_t time);
+    virtual void addMeassurment(tick_t time);
 //    double startTime;
     
-    time_interval_t lastTime;
+    tick_t lastTime = tick_t(0);
 
-#ifdef WIN32
-	time_interval_t startTime;
-    double PCFreqPerMicrSecond = 0.0;
+#ifdef HAS_HIGH_RESOLUTION_CLOCK
+    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 #else
-	std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+    int64_t startTime;
+    int64_t ticksPerSecond;
+    double freq = 0.0;
 #endif
 };
 
@@ -37,10 +49,10 @@ protected:
 class SAIGA_GLOBAL ExponentialTimer : public Timer2{
 public:
     ExponentialTimer(double alpha = 0.9);
-    virtual double getTimeMS() override;
+    virtual tick_t getCurrentTime() override { return currentTime; }
 protected:
-    virtual void addMeassurment(time_interval_t time) override;
-    double currentTimeMS = 0.0; //smoothed
+    virtual void addMeassurment(tick_t time) override;
+    tick_t currentTime = tick_t(0); //smoothed
     double alpha;
 };
 
@@ -48,15 +60,16 @@ protected:
 class SAIGA_GLOBAL AverageTimer : public Timer2{
 public:
     AverageTimer(int number = 10);
-    virtual double getTimeMS() override;
+    virtual tick_t getCurrentTime() override { return currentTime; }
 
     double getMinimumTimeMS();
     double getMaximumTimeMS();
 protected:
-    virtual void addMeassurment(time_interval_t time) override;
-    std::vector<double> lastTimes;
-    double minimum = 0 , maximum = 0;
+    virtual void addMeassurment(tick_t time) override;
+    std::vector<tick_t> lastTimes;
+    tick_t minimum = tick_t(0);
+    tick_t maximum = tick_t(0);
+    tick_t currentTime = tick_t(0); //smoothed
     int currentTimeId = 0;
-    double currentTimeMS = 0.0; //smoothed
     int number;
 };
