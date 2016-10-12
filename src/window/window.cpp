@@ -329,7 +329,7 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
         if(getGameTicks() > nextFrameTick){
             gameTime.time = getGameTicks();
-            //calculate the interpolation value. Usefull when the framerate is higher than the update rate
+            //calculate the interpolation value. Useful when the framerate is higher than the update rate
             tick_t ticksSinceLastUpdate = gameTime.time - lastUpdateTick;
             float interpolation = (float)ticksSinceLastUpdate.count() / (nextUpdateTick - lastUpdateTick).count();
             interpolation = glm::clamp(interpolation,0.0f,1.0f);
