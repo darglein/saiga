@@ -19,7 +19,7 @@ using std::endl;
 
 Window::Window(WindowParameters _windowParameters)
     :windowParameters(_windowParameters),
-updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50){
+      updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50){
 
 }
 
@@ -35,7 +35,7 @@ void Window::close(){
 
 
 bool Window::init(const RenderingParameters& params){
-     initSaiga();
+    initSaiga();
 
     //init window and opengl context
     if(!initWindow()){
@@ -55,7 +55,7 @@ bool Window::init(const RenderingParameters& params){
     }
 
 
-	//this somehow doesn't work in 32 bit
+    //this somehow doesn't work in 32 bit
     glDebugMessageCallback(Error::DebugLogWin32,NULL);
 
     cout<<">> Window inputs initialized!"<<endl;
@@ -99,22 +99,22 @@ void Window::screenshot(const std::string &file)
     cout<<"Window::screenshot "<<file<<endl;
 
     int w = renderer->windowWidth;
-     int h = renderer->windowHeight;
+    int h = renderer->windowHeight;
 
-     Image img;
-     img.width = w;
-     img.height = h;
-     img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-     img.create();
+    Image img;
+    img.width = w;
+    img.height = h;
+    img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    img.create();
 
-     //read data from default framebuffer and restore currently bound fb.
-     GLint fb;
-     glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
-     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-     glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,img.getRawData());
-     glBindFramebuffer(GL_FRAMEBUFFER, fb);
+    //read data from default framebuffer and restore currently bound fb.
+    GLint fb;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,img.getRawData());
+    glBindFramebuffer(GL_FRAMEBUFFER, fb);
 
-     TextureLoader::instance()->saveImage(file,img);
+    TextureLoader::instance()->saveImage(file,img);
 }
 
 void Window::screenshotRender(const std::string &file)
@@ -140,19 +140,19 @@ void Window::screenshotRender(const std::string &file)
 std::string Window::getTimeString()
 {
     time_t t = time(0);   // get time now
-     struct tm * now = localtime( & t );
+    struct tm * now = localtime( & t );
 
-     std::string str;
-     str =     std::to_string(now->tm_year + 1900) + '-'
-             + std::to_string(now->tm_mon + 1) + '-'
-             + std::to_string(now->tm_mday) + '_'
-             + std::to_string(now->tm_hour) + '-'
-             + std::to_string(now->tm_min) + '-'
-             + std::to_string(now->tm_sec);
+    std::string str;
+    str =     std::to_string(now->tm_year + 1900) + '-'
+            + std::to_string(now->tm_mon + 1) + '-'
+            + std::to_string(now->tm_mday) + '_'
+            + std::to_string(now->tm_hour) + '-'
+            + std::to_string(now->tm_min) + '-'
+            + std::to_string(now->tm_sec);
 
-             ;
+    ;
 
-     return str;
+    return str;
 }
 
 void Window::setProgram(Program *program)
@@ -224,13 +224,40 @@ vec2 Window::projectToScreen(const vec3 &pos) const
 void Window::update(float dt)
 {
     updateTimer.start();
+    endParallelUpdate();
     renderer->renderer->update(dt);
+    startParallelUpdate(dt);
     updateTimer.stop();
 
     numUpdates++;
 
     upsTimer.stop();
     upsTimer.start();
+}
+
+
+
+
+void Window::startParallelUpdate(float dt)
+{
+    if(parallelUpdate){
+        updateThread = std::thread(&Window::parallelUpdateCaller,this,dt);
+    }else{
+        parallelUpdateCaller(dt);
+    }
+}
+
+void Window::parallelUpdateCaller(float dt)
+{
+    renderer->renderer->parallelUpdate(dt);
+}
+
+void Window::endParallelUpdate()
+{
+    if(parallelUpdate){
+        if(updateThread.joinable())
+            updateThread.join();
+    }
 }
 
 void Window::render(float dt, float interpolation)
@@ -253,6 +280,8 @@ void Window::render(float dt, float interpolation)
     fpsTimer.start();
 }
 
+
+
 tick_t Window::getGameTicks(){
     gameTimer.stop();
     return gameTimer.getTime();
@@ -272,8 +301,9 @@ void Window::setTimeScale(double timeScale)
 
 
 
-void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip)
+void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip, bool _parallelUpdate)
 {
+    parallelUpdate = _parallelUpdate;
     gameTimer.start();
 
     cout << "> Starting the main loop..." << endl;
@@ -287,7 +317,7 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
 
     float updateDT = 1.0f / updatesPerSecond;
-//    float framesDT = 1.0f / framesPerSecond;
+    //    float framesDT = 1.0f / framesPerSecond;
 
     tick_t ticksPerUpdate = gameTime.base / updatesPerSecond;
     tick_t ticksPerFrame = gameTime.base / framesPerSecond;
@@ -349,6 +379,7 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
         sleep(nextEvent - getGameTicks());
         assert_no_glerror_end_frame();
     }
+    endParallelUpdate();
     auto gt = std::chrono::duration_cast<std::chrono::seconds>(getGameTicks());
     cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames  << endl;
 }

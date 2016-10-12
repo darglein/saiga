@@ -1,6 +1,7 @@
 #pragma once
 
 #include <saiga/config.h>
+#include <thread>
 #include "saiga/util/timer2.h"
 #include "saiga/geometry/ray.h"
 
@@ -51,6 +52,9 @@ protected:
     double timeScale = 1.f;
     bool running = true;
 
+    std::thread updateThread;
+    bool parallelUpdate = false;
+
     Deferred_Renderer* renderer = nullptr;
     Camera* currentCamera = nullptr;
 
@@ -64,13 +68,16 @@ public:
 
     void setProgram(Program* program);
     bool init(const RenderingParameters &params);
-    void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0);
+    void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false);
     void close();
 protected:
     void resize(int width, int height);
     void initDeferredRendering(const RenderingParameters& params);
     void update(float dt);
     void render(float dt, float interpolation);
+    void startParallelUpdate(float dt);
+    void parallelUpdateCaller(float dt);
+    void endParallelUpdate();
 
 
     virtual bool initWindow() = 0;
