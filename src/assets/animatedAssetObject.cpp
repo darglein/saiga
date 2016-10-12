@@ -23,7 +23,7 @@ void AnimatedAssetObject::init(AnimatedAsset *_asset)
 
 void AnimatedAssetObject::updateAnimation(float dt)
 {
-    animationTimeAtUpdate += dt ;
+    animationTimeAtUpdate += animationtime_t(dt);
     //loop animation constantly
     if(animationTimeAtUpdate >= animationTotalTime)
         animationTimeAtUpdate -= animationTotalTime;
@@ -31,11 +31,14 @@ void AnimatedAssetObject::updateAnimation(float dt)
 
 void AnimatedAssetObject::interpolateAnimation(float dt, float alpha)
 {
-    animationTimeAtRender = animationTimeAtUpdate + dt * alpha;
+    animationTimeAtRender = animationTimeAtUpdate + animationtime_t(dt*alpha);
     if(animationTimeAtRender >= animationTotalTime)
         animationTimeAtRender -= animationTotalTime;
     asset->animations[activeAnimation].getFrame(animationTimeAtRender,currentFrame);
-    boneMatricesBuffer.updateBuffer(currentFrame.getBoneMatrices().data(),currentFrame.getBoneMatrices().size()*sizeof(mat4),0);
+    boneMatricesBuffer.updateBuffer(
+                currentFrame.getBoneMatrices(asset->animations[activeAnimation]).data(),
+                currentFrame.getBoneMatrices(asset->animations[activeAnimation]).size()*sizeof(mat4),
+                0);
 }
 
 

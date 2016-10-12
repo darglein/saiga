@@ -1,6 +1,6 @@
 #include "saiga/animation/animation.h"
 #include "saiga/util/assert.h"
-
+#include <algorithm>
 
 
 const AnimationFrame &Animation::getKeyFrame(int frameIndex)
@@ -9,16 +9,11 @@ const AnimationFrame &Animation::getKeyFrame(int frameIndex)
     return keyFrames[frameIndex];
 }
 
-void Animation::getFrame(float time, AnimationFrame &out){
-	if (time == 0) {
-		out = keyFrames[0];
-		return;
-	}
+void Animation::getFrame(animationtime_t time, AnimationFrame &out){
 
     //here time is given in animation time base
-    time = glm::clamp(time,0.0f,duration);
-//    cout << "time " << time << " " << duration << endl;
-    assert(time >= 0 && time <= duration);
+    time = std::max(std::min(time,duration),animationtime_t(0));
+
     //seach for correct frame interval
     int frame = 0;
     for(AnimationFrame& af : keyFrames){
@@ -38,23 +33,23 @@ void Animation::getFrame(float time, AnimationFrame &out){
     }
 
     float alpha = (time - k0.time) / (k1.time - k0.time);
-    AnimationFrame::interpolate(k0,k1,out,alpha);
+    out = AnimationFrame(k0,k1,alpha);
 
 }
 
-void Animation::getFrameNormalized(float time, AnimationFrame &out)
+void Animation::getFrameNormalized(double time, AnimationFrame &out)
 {
-    time = glm::clamp(time,0.0f,1.0f);
+    time = glm::clamp(time,0.0,1.0);
     assert(time >= 0 && time <= 1);
-    getFrame(duration*time,out);
+    getFrame( duration*time,out);
 }
 
 void Animation::print()
 {
-    cout << "[Animation] " + name << " Frames="<<frameCount  << " duration="<<duration<<"s"<< endl;
+    cout << "[Animation] " + name << " Frames="<<frameCount  << " duration="<<duration.count()<<"s"<< endl;
     cout << "\tKeyframes: [";
     for(AnimationFrame& af : keyFrames){
-        cout << af.time << ", ";
+        cout << af.time.count() << ", ";
     }
     cout << "]" << endl;
 }

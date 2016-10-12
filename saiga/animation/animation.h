@@ -2,6 +2,7 @@
 
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
+#include <saiga/util/time.h>
 #include <saiga/animation/animationFrame.h>
 
 /**
@@ -17,6 +18,7 @@
  * For doing this interpolation use getFrame(..)
  */
 
+
 class SAIGA_GLOBAL Animation
 {
 public:
@@ -30,9 +32,12 @@ public:
     //speed at which this animation should be played. Unused in this class.
     float animationSpeed = 1.0f;
 
-    //duration of animation in seconds
-    float duration = 1;
+    //duration of animation
+    animationtime_t duration = animationtime_t(1);
 
+
+    int boneCount = 0;
+    std::vector<mat4> boneOffsets;
 
     /**
      * Returns the keyframe at the given index.
@@ -46,7 +51,7 @@ public:
      * The input time will be clamped to [0,duration]
      */
 
-    void getFrame(float time, AnimationFrame &out);
+    void getFrame(animationtime_t time, AnimationFrame &out);
 
     /**
      * Returns the interpolated frame similar to @getFrame(float time, AnimationFrame &out);
@@ -54,7 +59,7 @@ public:
      * A interpolation from 0 to 1 will always play the complete animation.
      */
 
-    void getFrameNormalized(float time, AnimationFrame &out);
+    void getFrameNormalized(double time, AnimationFrame &out);
 
     /**
      * Prints all important information of this animation to stdout

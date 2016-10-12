@@ -123,22 +123,24 @@ SAIGA_GLOBAL vec3 snapTo(vec3 v, float snapAngleInDegrees);
 
 
 
-SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& translation, const quat& q, const vec4& scaling){
-    //equivalent to:
-    //    mat4 matrix = mat4_cast(rotation);
-    //    matrix[0] *= scaling[0];
-    //    matrix[1] *= scaling[1];
-    //    matrix[2] *= scaling[2];
-    //    matrix[3] = vec4(translation,1);
-    float qxx(q.x * q.x);
-    float qyy(q.y * q.y);
-    float qzz(q.z * q.z);
-    float qxz(q.x * q.z);
-    float qxy(q.x * q.y);
-    float qyz(q.y * q.z);
-    float qwx(q.w * q.x);
-    float qwy(q.w * q.y);
-    float qwz(q.w * q.z);
+SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s){
+    //Equivalent to:
+    //    mat4 T = glm::translate(mat4(1),vec3(t));
+    //    mat4 R = mat4_cast(r);
+    //    mat4 S = glm::scale(mat4(1),vec3(s));
+    //    return T * R * S;
+
+    //Use optimized code here because T and S are sparse matrices and this
+    //function is used pretty often.
+    float qxx(r.x * r.x);
+    float qyy(r.y * r.y);
+    float qzz(r.z * r.z);
+    float qxz(r.x * r.z);
+    float qxy(r.x * r.y);
+    float qyz(r.y * r.z);
+    float qwx(r.w * r.x);
+    float qwy(r.w * r.y);
+    float qwz(r.w * r.z);
 
     mat4 Result(
                 1 - 2 * (qyy +  qzz),
@@ -156,13 +158,13 @@ SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& translation, const quat& q,
                 1 - 2 * (qxx +  qyy),
                 0,
 
-                translation.x,
-                translation.y,
-                translation.z,
+                t.x,
+                t.y,
+                t.z,
                 1
                 );
-    Result[0] *= scaling.x;
-    Result[1] *= scaling.y;
-    Result[2] *= scaling.z;
+    Result[0] *= s.x;
+    Result[1] *= s.y;
+    Result[2] *= s.z;
     return Result;
 }

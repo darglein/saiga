@@ -122,13 +122,18 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation &out)
 
     out.frameCount = out.keyFrames.size();
     out.name = curanim->mName.data;
-    auto tps = curanim->mTicksPerSecond;
-    for(AnimationFrame& af : out.keyFrames){
-        af.time = af.time / tps;
-    }
 
     //the duration is the time of the last keyframe
     out.duration = out.keyFrames.back().time;
+
+    out.boneOffsets = boneOffsets;
+    out.boneCount = boneCount;
+
+    auto tps = curanim->mTicksPerSecond;
+    for(AnimationFrame& af : out.keyFrames){
+        af.time = af.time / tps;
+        af.calculateBoneMatrices(out);
+    }
 //    out.print();
 
     if(verbose)
@@ -199,14 +204,10 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 		//k.initTree();
         AnimationFrame &k = animationFrames[frame];
         k.nodeCount = nodeCount;
-        k.boneCount = boneCount;
         assert(rootNode == 0);
-        k.boneOffsets = boneOffsets;
+//        k.boneOffsets = boneOffsets;
 		k.nodes = animationNodes;
-        k.time = keyFrameTime - firstKeyFrameTime;
-
-     
-        k.calculateBoneMatrices();
+        k.time = animationtime_t( (keyFrameTime - firstKeyFrameTime) );
 
 		//cout << k.nodes.size() << endl;
     }

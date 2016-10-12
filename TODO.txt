@@ -9,3 +9,7 @@ General
 - better shader names
 - templated image class
 - bezier+bspline curves + surfaces + teapot
+
+
+Ideas
+- shadow frequency
