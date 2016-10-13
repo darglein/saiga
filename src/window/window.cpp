@@ -75,7 +75,7 @@ void Window::initDeferredRendering(const RenderingParameters &params)
 
     renderer->lighting.loadShaders();
 
-    PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing.glsl"); //this shader does nothing
+    PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing/post_processing.glsl"); //this shader does nothing
     std::vector<PostProcessingShader*> defaultEffects;
     defaultEffects.push_back(pps);
 

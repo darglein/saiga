@@ -20,17 +20,17 @@ AssetLoader2::~AssetLoader2()
 
 void AssetLoader2::loadDefaultShaders()
 {
-    basicAssetShader = ShaderLoader::instance()->load<MVPShader>("deferred_mvp_model.glsl");
-    basicAssetDepthshader = ShaderLoader::instance()->load<MVPShader>("deferred_mvp_model_depth.glsl");
-    basicAssetWireframeShader = ShaderLoader::instance()->load<MVPShader>("deferred_mvp_model_wireframe.glsl");
+    basicAssetShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model.glsl");
+    basicAssetDepthshader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_depth.glsl");
+    basicAssetWireframeShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_wireframe.glsl");
 
-    texturedAssetShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset.glsl");
-    texturedAssetDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_depth.glsl");
-    texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("texturedAsset_wireframe.glsl");
+    texturedAssetShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
+    texturedAssetDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_depth.glsl");
+    texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_wireframe.glsl");
 
-    animatedAssetShader = ShaderLoader::instance()->load<BoneShader>("deferred_mvp_bones.glsl");
-    animatedAssetDepthshader = ShaderLoader::instance()->load<BoneShader>("deferred_mvp_bones_depth.glsl");
-    animatedAssetWireframeShader = ShaderLoader::instance()->load<BoneShader>("deferred_mvp_bones.glsl");
+    animatedAssetShader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones.glsl");
+    animatedAssetDepthshader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones_depth.glsl");
+    animatedAssetWireframeShader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones.glsl");
 }
 
 TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)

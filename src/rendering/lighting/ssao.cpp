@@ -58,8 +58,8 @@ SSAO::SSAO(int w, int h)
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     qb->createBuffers(quadMesh);
 
-    ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("ssao2.glsl");
-    blurShader = ShaderLoader::instance()->load<MVPTextureShader>("ssao_blur.glsl");
+    ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("post_processing/ssao2.glsl");
+    blurShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/ssao_blur.glsl");
 
     setKernelSize(32);
 

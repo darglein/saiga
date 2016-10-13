@@ -27,8 +27,8 @@ void ParticleSystem::init(){
 
     initialized = true;
 
-    particleShader = ShaderLoader::instance()->load<ParticleShader>("particles.glsl");
-    deferredParticleShader = ShaderLoader::instance()->load<DeferredParticleShader>("deferred_particles.glsl");
+    particleShader = ShaderLoader::instance()->load<ParticleShader>("geometry/particles.glsl");
+    deferredParticleShader = ShaderLoader::instance()->load<DeferredParticleShader>("geometry/deferred_particles.glsl");
 }
 
 void ParticleSystem::reset()

@@ -46,7 +46,7 @@ private:
     lightMesh_t boxLightMesh;
     std::vector<BoxLight*> boxLights;
 
-    MVPTextureShader* blitDepthShader;
+//    MVPTextureShader* blitDepthShader;
     LightAccumulationShader* lightAccumulationShader;
 
     MVPShader* stencilShader;

@@ -19,8 +19,6 @@ void readConfigFile(){
 
     SHADER_PATH = cl.getString("SHADER_PATH","/usr/local/share/saiga/shader");
     TEXTURE_PATH = cl.getString("TEXTURE_PATH","textures");
-    MATERIAL_PATH = cl.getString("MATERIAL_PATH","objs");
-    OBJ_PATH = cl.getString("OBJ_PATH","objs");
 
     cl.writeFile();
 
@@ -51,15 +49,15 @@ void initSaiga()
     //    writeExtensions();
     readConfigFile();
 
-    ShaderLoader::instance()->addPath(SHADER_PATH);
-    ShaderLoader::instance()->addPath(SHADER_PATH+"/geometry");
-    ShaderLoader::instance()->addPath(SHADER_PATH+"/lighting");
-    ShaderLoader::instance()->addPath(SHADER_PATH+"/post_processing");
+//    ShaderLoader::instance()->addPath(SHADER_PATH);
+//    ShaderLoader::instance()->addPath(SHADER_PATH+"/geometry");
+//    ShaderLoader::instance()->addPath(SHADER_PATH+"/lighting");
+//    ShaderLoader::instance()->addPath(SHADER_PATH+"/post_processing");
 
     shaderPathes.addSearchPath(SHADER_PATH);
-    shaderPathes.addSearchPath(SHADER_PATH+"/geometry");
-    shaderPathes.addSearchPath(SHADER_PATH+"/lighting");
-    shaderPathes.addSearchPath(SHADER_PATH+"/post_processing");
+//    shaderPathes.addSearchPath(SHADER_PATH+"/geometry");
+//    shaderPathes.addSearchPath(SHADER_PATH+"/lighting");
+//    shaderPathes.addSearchPath(SHADER_PATH+"/post_processing");
 
     TextureLoader::instance()->addPath(TEXTURE_PATH);
     TextureLoader::instance()->addPath(OBJ_PATH);

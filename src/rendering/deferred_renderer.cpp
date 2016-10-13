@@ -39,7 +39,7 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 
 
 
-	blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("blitDepth.glsl");
+    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/blitDepth.glsl");
 
 	cout << "Deferred Renderer initialized. Render resolution: " << width << "x" << height << endl;
 

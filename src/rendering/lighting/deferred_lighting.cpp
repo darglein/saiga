@@ -35,24 +35,24 @@ void DeferredLighting::loadShaders()
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
                                  "#define SHADOWS",1); //after the version number
 
-    spotLightShader = ShaderLoader::instance()->load<SpotLightShader>("light_spot.glsl");
-    spotLightShadowShader = ShaderLoader::instance()->load<SpotLightShader>("light_spot.glsl",shadowInjection);
+    spotLightShader = ShaderLoader::instance()->load<SpotLightShader>("lighting/light_spot.glsl");
+    spotLightShadowShader = ShaderLoader::instance()->load<SpotLightShader>("lighting/light_spot.glsl",shadowInjection);
 
 
-    pointLightShader = ShaderLoader::instance()->load<PointLightShader>("light_point.glsl");
-    pointLightShadowShader = ShaderLoader::instance()->load<PointLightShader>("light_point.glsl",shadowInjection);
+    pointLightShader = ShaderLoader::instance()->load<PointLightShader>("lighting/light_point.glsl");
+    pointLightShadowShader = ShaderLoader::instance()->load<PointLightShader>("lighting/light_point.glsl",shadowInjection);
 
-    directionalLightShader = ShaderLoader::instance()->load<DirectionalLightShader>("light_directional.glsl");
-    directionalLightShadowShader = ShaderLoader::instance()->load<DirectionalLightShader>("light_directional.glsl",shadowInjection);
+    directionalLightShader = ShaderLoader::instance()->load<DirectionalLightShader>("lighting/light_directional.glsl");
+    directionalLightShadowShader = ShaderLoader::instance()->load<DirectionalLightShader>("lighting/light_directional.glsl",shadowInjection);
 
-    boxLightShader = ShaderLoader::instance()->load<BoxLightShader>("light_box.glsl");
-    boxLightShadowShader = ShaderLoader::instance()->load<BoxLightShader>("light_box.glsl",shadowInjection);
+    boxLightShader = ShaderLoader::instance()->load<BoxLightShader>("lighting/light_box.glsl");
+    boxLightShadowShader = ShaderLoader::instance()->load<BoxLightShader>("lighting/light_box.glsl",shadowInjection);
 
-    debugShader = ShaderLoader::instance()->load<MVPColorShader>("debugmesh.glsl");
-    stencilShader = ShaderLoader::instance()->load<MVPShader>("stenciltest.glsl");
+    debugShader = ShaderLoader::instance()->load<MVPColorShader>("lighting/debugmesh.glsl");
+    stencilShader = ShaderLoader::instance()->load<MVPShader>("lighting/stenciltest.glsl");
 
-    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("blitDepth.glsl");
-    lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>("lightaccumulation.glsl");
+//    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/blitDepth.glsl");
+    lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>("lighting/lightaccumulation.glsl");
 }
 
 void DeferredLighting::init(int width, int height, bool _useTimers){
