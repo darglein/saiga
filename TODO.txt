@@ -2,8 +2,7 @@ Asset Loading + Rendering
 - animated assets
 
 - Linearize animation trees (no tree traversal at interpolation time)
-- convert animation time to ticks (integer)
-- glm simd
+- remove unused stuff (meshobjects)
 
 General
 - better shader names
@@ -13,3 +12,11 @@ General
 
 Ideas
 - shadow frequency
+
+Doc
+- text rendering
+- deferred rendering
+
+Long Term
+- Eigen
+- open source

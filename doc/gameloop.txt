@@ -224,6 +224,27 @@ again result in artifacts. Luckily normal players don't notice when the movement
 This paragraph doesn't really change the game loop anymore, but it the reason why in SAIGA it is called 'interpolate' instead of 'extrapolate'.
 
 
+
+
+Step 5: Parallel update
+
+To reduce the update time and have a more consistent framerate the update should be done parallel to the rendering.
+Since this is not always possible, for example when you have a list of objects to render (you can't modify the list in parallel)
+the parallel update can't replace the normal update. Instead at the end of every normal update a thread is started executing the parallel update, which is then
+joined again at the start of a normal update. So if the prallel update takes longer than the time between normal updates the main thread has to wait.
+
+MainThread: 	 |U|R|R|R|U|R|R|U|R|-U|
+Second Thread:	 |-|PU---|-|PU-|-|PU|
+
+The parallel update should not be used for rar expensive events like loading stuff from files. That should be parallised in a different way.
+A good use of the parallel update would be expensive physics calculations on the CPU that have to be done in every step. You can calculate the next 
+physic state of your program while rendering and then use it immediatly in your normal update.
+
+
+
 The full source code can be found in "saiga/window/window.cpp, startMainLoop(...)"
+
+
+
 
 

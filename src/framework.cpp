@@ -1,7 +1,6 @@
 #include "saiga/framework.h"
 
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/objloader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 
 #include "saiga/util/configloader.h"
@@ -66,12 +65,6 @@ void initSaiga()
     TextureLoader::instance()->addPath(OBJ_PATH);
     TextureLoader::instance()->addPath(".");
 
-    MaterialLoader::instance()->addPath(".");
-    MaterialLoader::instance()->addPath(OBJ_PATH);
-
-    ObjLoader::instance()->addPath(".");
-    ObjLoader::instance()->addPath(OBJ_PATH);
-
 
 
     std::string mode;
@@ -94,8 +87,6 @@ void cleanupSaiga()
 
     ShaderLoader::instance()->clear();
     TextureLoader::instance()->clear();
-    MaterialLoader::instance()->clear();
-    ObjLoader::instance()->clear();
     cout<<"========================== Saiga cleanup done! =========================="<<endl;
     initialized = false;
 }

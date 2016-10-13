@@ -42,7 +42,6 @@ TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Colo
     plainMesh->transform(scale);
 
     for(auto& v : plainMesh->vertices){
-        cout << v.position << endl;
         v.texture *= size / quadSize;
     }
 
