@@ -32,7 +32,7 @@ void Animation::getFrame(animationtime_t time, AnimationFrame &out){
         return;
     }
 
-    float alpha = (time - k0.time) / (k1.time - k0.time);
+    float alpha = ((time - k0.time).count() / (k1.time - k0.time).count());
     out = AnimationFrame(k0,k1,alpha);
 
 }
