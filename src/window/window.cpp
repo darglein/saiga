@@ -240,24 +240,34 @@ void Window::update(float dt)
 
 void Window::startParallelUpdate(float dt)
 {
+
     if(parallelUpdate){
-        updateThread = std::thread(&Window::parallelUpdateCaller,this,dt);
+        semStartUpdate.notify();
     }else{
         parallelUpdateCaller(dt);
+    }
+}
+
+void Window::endParallelUpdate()
+{
+    if(parallelUpdate)
+     semFinishUpdate.wait();
+}
+
+void Window::parallelUpdateThread(float dt)
+{
+    semFinishUpdate.notify();
+    semStartUpdate.wait();
+    while(running){
+            parallelUpdateCaller(dt);
+            semFinishUpdate.notify();
+            semStartUpdate.wait();
     }
 }
 
 void Window::parallelUpdateCaller(float dt)
 {
     renderer->renderer->parallelUpdate(dt);
-}
-
-void Window::endParallelUpdate()
-{
-    if(parallelUpdate){
-        if(updateThread.joinable())
-            updateThread.join();
-    }
 }
 
 void Window::render(float dt, float interpolation)
@@ -310,6 +320,7 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
     cout << "> updatesPerSecond=" << updatesPerSecond << " framesPerSecond=" << framesPerSecond << " maxFrameSkip=" << maxFrameSkip << endl;
 
 
+
     if(updatesPerSecond <= 0)
         updatesPerSecond = gameTime.base.count();
     if(framesPerSecond <= 0)
@@ -331,6 +342,11 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
     tick_t lastUpdateTick = nextUpdateTick;
     tick_t nextFrameTick = nextUpdateTick;
     tick_t nextInfoTick = nextUpdateTick;
+
+    if(parallelUpdate){
+        updateThread = std::thread(&Window::parallelUpdateThread,this,updateDT);
+    }
+
 
     while(!shouldClose()){
 
@@ -379,7 +395,15 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
         sleep(nextEvent - getGameTicks());
         assert_no_glerror_end_frame();
     }
-    endParallelUpdate();
+    running = false;
+
+    if(parallelUpdate){
+        //cleanup the update thread
+        endParallelUpdate();
+        semStartUpdate.notify();
+        updateThread.join();
+    }
+
     auto gt = std::chrono::duration_cast<std::chrono::seconds>(getGameTicks());
     cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames  << endl;
 }

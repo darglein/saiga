@@ -2,6 +2,7 @@
 
 #include <saiga/config.h>
 #include <thread>
+#include <saiga/util/semaphore.h>
 #include "saiga/util/timer2.h"
 #include "saiga/geometry/ray.h"
 
@@ -52,6 +53,7 @@ protected:
     double timeScale = 1.f;
     bool running = true;
 
+    Semaphore semStartUpdate, semFinishUpdate;
     std::thread updateThread;
     bool parallelUpdate = false;
 
@@ -78,6 +80,7 @@ protected:
     void startParallelUpdate(float dt);
     void parallelUpdateCaller(float dt);
     void endParallelUpdate();
+    void parallelUpdateThread(float dt);
 
 
     virtual bool initWindow() = 0;

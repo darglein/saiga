@@ -160,3 +160,9 @@ const ImageFormat &Image::Format() const
 size_t Image::getSize(){
     return height*bytesPerRow;
 }
+
+
+std::ostream& operator<<(std::ostream& os, const Image& f){
+    os << "Image " << f.width << "x" << f.height << " " << f.Format();
+    return os;
+}

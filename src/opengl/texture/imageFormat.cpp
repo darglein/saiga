@@ -192,22 +192,25 @@ std::ostream& operator<<(std::ostream& os, const ImageFormat& f){
     std::string efstr;
     switch (f.getElementFormat()){
     case ImageElementFormat::UnsignedNormalized:
-        efstr = "UnsignedNormalized";
+        efstr = "UN";
         break;
     case ImageElementFormat::SignedNormalized:
-        efstr = "SignedNormalized";
+        efstr = "SN";
         break;
     case ImageElementFormat::UnsignedIntegral:
-        efstr = "UnsignedIntegral";
+        efstr = "UI";
         break;
     case ImageElementFormat::SignedIntegral:
-        efstr = "SignedIntegral";
+        efstr = "SI";
         break;
     case ImageElementFormat::FloatingPoint:
-        efstr = "FloatingPoint";
+        efstr = "FP";
         break;
     }
-    os << "ImageFormat"<<" channels="<<f.getChannels()<<" bitDepth="<<f.getBitDepth()<<" elementFormat="<<efstr<<" srgb="<<f.getSrgb();
-          return os;
+    os << "ImageFormat: " << f.getChannels() << "x" << f.getBitDepth() << " " << efstr;
+    if(f.getSrgb()){
+        os << " SRGB";
+    }
+    return os;
 }
 

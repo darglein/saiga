@@ -81,3 +81,6 @@ public:
     const ImageFormat& Format() const;
     int getBytesPerRow() const;
 };
+
+
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Image& f);
