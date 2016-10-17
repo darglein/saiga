@@ -18,7 +18,7 @@ public:
     raw_Texture& operator=(raw_Texture const&) = delete;
 
     void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
-    void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,GLubyte* data );
+    void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,const GLubyte* data );
     void createEmptyTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
 
     /**
@@ -33,7 +33,7 @@ public:
 
     bool downloadFromGl(GLubyte *data);
 
-    virtual void uploadData(GLubyte* data);
+    virtual void uploadData(const GLubyte* data);
 
     void uploadSubImage(int x, int y, int width, int height,GLubyte* data );
     //only works for 3d textures!!

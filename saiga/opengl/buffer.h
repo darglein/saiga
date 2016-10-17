@@ -61,6 +61,7 @@ inline void Buffer::createGLBuffer(const void *data, unsigned int _size, GLenum 
 {
     deleteGLBuffer();
     glGenBuffers( 1, &buffer );
+    assert_no_glerror();
     bind();
     glBufferData(target, _size, data, usage);
     size = _size;

@@ -1,7 +1,7 @@
 
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/util/error.h"
-void cube_Texture::uploadData(GLenum target, GLubyte *data ){
+void cube_Texture::uploadData(GLenum target,const  GLubyte *data ){
     bind(0);
     glTexImage2D(target,
                  0,  // level, 0 = base, no minimap,
@@ -17,7 +17,7 @@ void cube_Texture::uploadData(GLenum target, GLubyte *data ){
 }
 
 
-void cube_Texture::uploadData(GLubyte *data ){
+void cube_Texture::uploadData(const GLubyte *data ){
 //    std::cout<<">>>>> uploadData"<<std::endl;
     bind(0);
     for (int i=0; i<6; i++) {
@@ -37,7 +37,7 @@ void cube_Texture::uploadData(GLubyte *data ){
 }
 
 
-void cube_Texture::uploadData(GLubyte **data ){
+void cube_Texture::uploadData(const GLubyte **data ){
     bind(0);
     for (int i=0; i<6; i++) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
@@ -67,7 +67,7 @@ void cube_Texture::setDefaultParameters(){
 bool cube_Texture::fromImage(Image *img){
     setFormat(img[0]);
 
-    GLubyte* data[6];
+    const GLubyte* data[6];
     for(int i=0;i<6;i++){
         data[i] = img[i].getRawData();
     }

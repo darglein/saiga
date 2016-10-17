@@ -72,7 +72,6 @@ private:
 
     void createFramebuffers();
     void applyShader(PostProcessingShader* postProcessingShader);
-    void applyShaderFinal(PostProcessingShader *postProcessingShader);
 public:
 	void createTimers();
 

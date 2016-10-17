@@ -2,7 +2,7 @@
 #include "saiga/util/error.h"
 
 
-void ArrayTexture2D::uploadData(GLenum target, GLubyte *data ){
+void ArrayTexture2D::uploadData(GLenum target,const GLubyte *data ){
     bind(0);
     glTexImage2D(target,
                  0,  // level, 0 = base, no minimap,
@@ -20,7 +20,7 @@ void ArrayTexture2D::uploadData(GLenum target, GLubyte *data ){
 }
 
 
-void ArrayTexture2D::uploadData(GLubyte *data ){
+void ArrayTexture2D::uploadData(const GLubyte *data ){
 //    std::cout<<">>>>> uploadData"<<std::endl;
     bind(0);
     for (int i=0; i<6; i++) {
@@ -41,7 +41,7 @@ void ArrayTexture2D::uploadData(GLubyte *data ){
 }
 
 
-void ArrayTexture2D::uploadData(GLubyte **data ){
+void ArrayTexture2D::uploadData(const GLubyte **data ){
     bind(0);
     for (int i=0; i<6; i++) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,

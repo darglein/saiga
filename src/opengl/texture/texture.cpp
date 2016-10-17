@@ -31,7 +31,7 @@ void multisampled_Texture_2D::setDefaultParameters(){
 }
 
 
-void multisampled_Texture_2D::uploadData(GLubyte* data ){
+void multisampled_Texture_2D::uploadData(const GLubyte* data ){
     bind();
     glTexImage2DMultisample(target,
                             samples,

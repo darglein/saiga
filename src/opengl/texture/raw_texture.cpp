@@ -17,7 +17,7 @@ void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum
     createGlTexture();
 }
 
-void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type, GLubyte* data){
+void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,const  GLubyte* data){
     createTexture(width,height,color_type, internal_format,  data_type);
     uploadData(data);
 }
@@ -46,7 +46,7 @@ void raw_Texture::createGlTexture(){
 }
 
 
-void raw_Texture::uploadData(GLubyte* data ){
+void raw_Texture::uploadData(const GLubyte* data ){
     bind();
     glTexImage2D(target, // target
                  0,  // level, 0 = base, no minimap,
@@ -57,18 +57,21 @@ void raw_Texture::uploadData(GLubyte* data ){
                  color_type,  // format
                  data_type, // type
                  data);
+    assert_no_glerror();
     unbind();
 }
 
 void raw_Texture::uploadSubImage(int x, int y, int width, int height,GLubyte* data ){
     bind();
     glTexSubImage2D(target, 0, x, y, width, height, color_type, data_type, data);
+    assert_no_glerror();
     unbind();
 }
 
 void raw_Texture::uploadSubImage(int x, int y, int z, int width, int height , int depth, GLubyte* data ){
     bind();
     glTexSubImage3D(target, 0, x, y, z,width, height,depth, color_type, data_type, data);
+    assert_no_glerror();
     unbind();
 }
 
@@ -83,22 +86,26 @@ bool raw_Texture::downloadFromGl(GLubyte* data ){
                   color_type,
                   data_type,
                   data);
+    assert_no_glerror();
     unbind();
     return true;
 }
 
 void raw_Texture::bind(){
     glBindTexture(target, id);
+    assert_no_glerror();
 }
 
 void raw_Texture::bind(int location){
     glActiveTexture(GL_TEXTURE0+location);
+    assert_no_glerror();
     bind();
 }
 
 
 void raw_Texture::unbind(){
     glBindTexture(target, 0);
+    assert_no_glerror();
 }
 
 void raw_Texture::bindImageTexture(GLuint imageUnit, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format)
@@ -123,18 +130,21 @@ void raw_Texture::setWrap(GLenum param){
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(param));
     glTexParameteri(target, GL_TEXTURE_WRAP_T, static_cast<GLint>(param));
     unbind();
+    assert_no_glerror();
 }
 void raw_Texture::setFiltering(GLenum param){
     bind();
     glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(param));
     glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(param));
     unbind();
+    assert_no_glerror();
 }
 
 void raw_Texture::setParameter(GLenum name, GLenum param){
     bind();
     glTexParameteri(target, name, static_cast<GLint>(param));
     unbind();
+    assert_no_glerror();
 }
 
 void raw_Texture::generateMipmaps()
@@ -144,6 +154,7 @@ void raw_Texture::generateMipmaps()
     unbind();
 
     setParameter(GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+    assert_no_glerror();
 }
 
 void raw_Texture::setBorderColor(vec4 color)
@@ -151,6 +162,7 @@ void raw_Texture::setBorderColor(vec4 color)
     bind();
     glTexParameterfv(target,GL_TEXTURE_BORDER_COLOR,&color[0]);
     unbind();
+    assert_no_glerror();
 }
 
 

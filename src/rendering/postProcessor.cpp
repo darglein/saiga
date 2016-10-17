@@ -257,42 +257,8 @@ void PostProcessor::blitLast(int windowWidth, int windowHeight){
 
 framebuffer_texture_t PostProcessor::getCurrentTexture()
 {
-//    cout << "returning txture " << currentBuffer << endl;
     return framebuffers[currentBuffer].getTextureColor(0);
 }
 
-void PostProcessor::applyShaderFinal(PostProcessingShader *postProcessingShader)
-{
-    //compute shader test
-
-    //    computeTest->bind();
-    //    textures[lastBuffer]->bindImageTexture(3,GL_WRITE_ONLY);
-    //    glm::uvec3 problemSize(1000,500,1);
-    //    auto groups = computeTest->getNumGroupsCeil(problemSize);
-    //    computeTest->dispatchCompute(groups);
-    //    computeTest->memoryBarrierTextureFetch();
-    //    computeTest->unbind();
-    //    Error::quitWhenError("compute shader stuff");
-
-
-
-//    glEnable(GL_FRAMEBUFFER_SRGB);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-    postProcessingShader->bind();
-    vec4 screenSize(width,height,1.0/width,1.0/height);
-    postProcessingShader->uploadScreenSize(screenSize);
-    postProcessingShader->uploadTexture((first) ? LightAccumulationTexture : textures[lastBuffer]);
-    postProcessingShader->uploadGbufferTextures(gbuffer);
-    postProcessingShader->uploadAdditionalUniforms();
-    quadMesh.bindAndDraw();
-    postProcessingShader->unbind();
-
-    first = false;
-    //    glDisable(GL_FRAMEBUFFER_SRGB);
-    assert_no_glerror();
-
-}
 
 

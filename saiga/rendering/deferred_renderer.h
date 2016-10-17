@@ -5,6 +5,7 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/rendering/gbuffer.h"
 #include "saiga/rendering/lighting/ssao.h"
+#include "saiga/smaa/SMAA.h"
 
 class Program;
 
@@ -102,6 +103,7 @@ public:
     Camera** currentCamera;
 
     SSAO ssao;
+    SMAA smaa;
 
     MVPTextureShader* blitDepthShader;
 

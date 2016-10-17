@@ -12,6 +12,7 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 	windowWidth(windowWidth), windowHeight(windowHeight),
 	width(windowWidth*params.renderScale), height(windowHeight*params.renderScale),
 	ssao(windowWidth*params.renderScale, windowHeight*params.renderScale),
+    smaa(windowWidth*params.renderScale, windowHeight*params.renderScale),
 	params(params), lighting(deferred_framebuffer)
 {
 	//    setSize(windowWidth,windowHeight);

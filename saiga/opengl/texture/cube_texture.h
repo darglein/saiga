@@ -24,9 +24,9 @@ public:
      void setDefaultParameters() override;
 
 
-    void uploadData(GLenum target, GLubyte* data );
-    void uploadData(GLubyte** data );
-    void uploadData(GLubyte* data);
+    void uploadData(GLenum target,const  GLubyte* data );
+    void uploadData(const GLubyte** data );
+    void uploadData(const GLubyte* data);
 
     bool fromImage(Image *img);
     bool fromImage(Image &img);

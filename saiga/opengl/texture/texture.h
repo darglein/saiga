@@ -28,7 +28,7 @@ public:
     virtual ~multisampled_Texture_2D(){}
 
     void setDefaultParameters() override;
-    void uploadData(GLubyte *data) override;
+    void uploadData(const GLubyte *data) override;
 };
 
 

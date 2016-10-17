@@ -167,12 +167,14 @@ void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count, GLenum us
     this->vertex_count = _vertex_count;
 
     deleteGLBuffer();
+    assert_no_glerror();
 
     createGLBuffer(vertices,vertex_count * sizeof(vertex_t),usage);
 
     //create VAO and init
     glGenVertexArrays(1, &gl_vao);
     glBindVertexArray(gl_vao);
+    assert_no_glerror();
 
     Buffer::bind();
 
