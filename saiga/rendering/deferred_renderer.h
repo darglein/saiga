@@ -49,6 +49,8 @@ struct SAIGA_GLOBAL RenderingParameters{
 
 	bool useGlFinish = false; //adds a 'glfinish' at the end of the rendering. usefull for debugging.
 
+    bool useSMAA = false;
+
     GBufferParameters gbp;
     PostProcessorParameters ppp;
     RenderingParameters(){}

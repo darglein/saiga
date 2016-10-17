@@ -260,5 +260,10 @@ framebuffer_texture_t PostProcessor::getCurrentTexture()
     return framebuffers[currentBuffer].getTextureColor(0);
 }
 
+Framebuffer &PostProcessor::getTargetBuffer()
+{
+    return framebuffers[lastBuffer];
+}
+
 
 

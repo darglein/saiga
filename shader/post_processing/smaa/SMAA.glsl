@@ -1,29 +1,3 @@
-
-##GL_VERTEX_SHADER
-
-#version 330
-layout(location=0) in vec3 in_position;
-layout(location=1) in vec3 in_normal;
-layout(location=2) in vec2 in_tex;
-
-out vec2 texCoord;
-
-void main() {
-    texCoord = in_tex;
-    gl_Position = vec4(in_position,1);
-}
-
-
-
-
-
-##GL_FRAGMENT_SHADER
-
-#define SMAA_RT_METRICS float4(1.0 / 1280.0, 1.0 / 720.0, 1280.0, 720.0)
-#define SMAA_GLSL_4
-#define SMAA_PRESET_HIGH
-
-
 /**
  * Copyright (C) 2013 Jorge Jimenez (jorge@iryoku.com)
  * Copyright (C) 2013 Jose I. Echevarria (joseignacioechevarria@gmail.com)

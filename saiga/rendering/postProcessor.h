@@ -45,7 +45,7 @@ public:
 
 
 struct SAIGA_GLOBAL PostProcessorParameters{
-    bool srgb = true; //colors stored in srgb. saves memory bandwith but adds conversion operations.
+    bool srgb = false; //colors stored in srgb.
     Quality quality = Quality::LOW;
 };
 
@@ -90,4 +90,5 @@ public:
     void blitLast(int windowWidth, int windowHeight);
 
     framebuffer_texture_t getCurrentTexture();
+    Framebuffer &getTargetBuffer();
 };
