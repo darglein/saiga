@@ -60,7 +60,7 @@ SMAA::SMAA(int w, int h)
     blendTex = new Texture();
     blendTex->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
     blendFb.create();
-    blendFb.attachTexture( framebuffer_texture_t(edgesTex) );
+    blendFb.attachTexture( framebuffer_texture_t(blendTex) );
     blendFb.drawToAll();
     blendFb.check();
     blendFb.unbind();
@@ -104,11 +104,8 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer &output)
     glViewport(0, 0, screenSize.x,screenSize.y);
 
     edgesFb.bind();
-
     glClear(GL_COLOR_BUFFER_BIT);
     smaaEdgeDetectionShader->bind();
-    vec4 ss(screenSize.x,screenSize.y,1.0/screenSize.x,1.0/screenSize.y);
-    smaaEdgeDetectionShader->uploadScreenSize(ss);
     smaaEdgeDetectionShader->uploadTexture(input.get() );
     quadMesh.bindAndDraw();
     smaaEdgeDetectionShader->unbind();

@@ -47,6 +47,7 @@ layout(location=0) out vec4 out_color;
 void main()
 {
     out_color = SMAANeighborhoodBlendingPS(texcoord, offset, colorTex, blendTex);
+//    out_color = texture(colorTex,texcoord);
 }
 
 

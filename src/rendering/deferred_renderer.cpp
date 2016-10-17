@@ -154,17 +154,19 @@ void Deferred_Renderer::render_intern() {
     //    deferred_framebuffer.blitDepth(0);
 
 
-    //write depth to default framebuffer
-    if (params.writeDepthToDefaultFramebuffer) {
-        //        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        postProcessor.bindCurrentBuffer();
-        writeGbufferDepthToCurrentFramebuffer();
-    }
+
 
     if(params.useSMAA){
         smaa.render(postProcessor.getCurrentTexture(),postProcessor.getTargetBuffer());
         postProcessor.switchBuffer();
         postProcessor.bindCurrentBuffer();
+    }
+
+    //write depth to default framebuffer
+    if (params.writeDepthToDefaultFramebuffer) {
+        //        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        postProcessor.bindCurrentBuffer();
+        writeGbufferDepthToCurrentFramebuffer();
     }
 
 
