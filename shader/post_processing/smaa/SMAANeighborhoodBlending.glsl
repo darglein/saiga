@@ -1,13 +1,10 @@
 
 ##GL_VERTEX_SHADER
-
 #version 330
 
 
-#define SMAA_RT_METRICS float4(1.0 / 1280.0, 1.0 / 720.0, 1280.0, 720.0)
 
 #define SMAA_GLSL_3 1
-#define SMAA_PRESET_HIGH 1
 #define SMAA_INCLUDE_VS 1
 #define SMAA_INCLUDE_PS 0
 #include "SMAA.glsl"
@@ -28,9 +25,7 @@ void main()
 #version 330
 
 
-#define SMAA_RT_METRICS float4(1.0 / 1280.0, 1.0 / 720.0, 1280.0, 720.0)
 #define SMAA_GLSL_3
-#define SMAA_PRESET_HIGH
 #define SMAA_INCLUDE_VS 0
 #define SMAA_INCLUDE_PS 1
 #include "SMAA.glsl"
