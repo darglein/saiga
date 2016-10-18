@@ -67,8 +67,9 @@ void Joystick::getCurrentStateFromGLFW()
     joystick.setCount(aC,bC);
 
     for(int i = 0 ; i < aC ; ++i){
-        joystick.setAxisState(i,axes[i]);
-        int changed = joystick.setVirtualAxisKeyState(i,axes[i]);
+		float state = glm::clamp(axes[i],-1.0f,1.0f);
+        joystick.setAxisState(i, state);
+        int changed = joystick.setVirtualAxisKeyState(i, state);
         if(changed != -1){
 //           cout << "changed " << i << " " << changed << " " << axes[i] << endl;
 
@@ -85,8 +86,8 @@ void Joystick::getCurrentStateFromGLFW()
             glfw_EventHandler::joystick_key_callback(i,state);
         }
     }
-//    joystick.printAxisState();
-//    joystick.printKeyState();
+ //   joystick.printAxisState();
+   joystick.printKeyState();
 
 }
 
