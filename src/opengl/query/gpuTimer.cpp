@@ -1,5 +1,6 @@
 #include "saiga/opengl/query/gpuTimer.h"
 #include <algorithm> 
+#include "saiga/util/assert.h"
 
 GPUTimer::GPUTimer()
 {
@@ -36,20 +37,27 @@ void GPUTimer::stopTimer()
 
 //    time = queries[queryFrontBuffer][1].waitTimestamp() - queries[queryFrontBuffer][0].waitTimestamp();
     swapQueries();
+
+#ifdef SAIGA_DEBUG
+    stopped = true;
+#endif
 }
 
 float GPUTimer::getTimeMS()
 {
-    return time/1000000.0f;
+    return getTimeNS()/1000000.0f;
 }
 
 double GPUTimer::getTimeMSd()
 {
-    return time/1000000.0;
+    return getTimeNS()/1000000.0;
 }
 
 GLuint64 GPUTimer::getTimeNS()
 {
+#ifdef SAIGA_DEBUG
+    assert(stopped && "GPU timer read before it was stopped once, time is not yet initialized");
+#endif
     return time;
 }
 

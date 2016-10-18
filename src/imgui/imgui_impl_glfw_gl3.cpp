@@ -301,8 +301,8 @@ bool    ImGui_GLFW_Renderer::init(GLFWwindow* window, std::string font, float fo
     io.ImeWindowHandle = glfwGetWin32Window(g_Window);
 #endif
 
-        glfw_EventHandler::addKeyListener(this,10);
-        glfw_EventHandler::addMouseListener(this,10);
+        glfw_EventHandler::addKeyListener(this,15);
+        glfw_EventHandler::addMouseListener(this,15);
 
 
         io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
