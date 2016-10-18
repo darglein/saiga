@@ -63,7 +63,13 @@ void Joystick::getCurrentStateFromGLFW()
 
     int aC, bC;
     const float* axes = glfwGetJoystickAxes(joystickId, &aC);
+	if (joystickId == -1) {
+		return;
+	}
     const unsigned char* ax = glfwGetJoystickButtons(joystickId, &bC);
+	if (joystickId == -1) {
+		return;
+	}
     joystick.setCount(aC,bC);
 
     for(int i = 0 ; i < aC ; ++i){
