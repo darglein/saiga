@@ -51,7 +51,9 @@ float Joystick2::getMappedAxisState(int mappedKey, const std::vector<int> &keyma
 {
     assert(mappedKey >= 0 && mappedKey < (int)keymap.size());
     int key = keymap[mappedKey];
-    assert(key >= 0 && key < (int)axis.size());
+	if (key < 0 || key >= (int)axis.size())
+		return 0;
+    //assert(key >= 0 && key < (int)axis.size());
     return axis[key];
 }
 
