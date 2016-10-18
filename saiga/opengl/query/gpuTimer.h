@@ -27,6 +27,10 @@ private:
     GLuint64 time;
 
     void swapQueries();
+
+#ifdef SAIGA_DEBUG
+    bool stopped = false;
+#endif
 public:
     GPUTimer();
     ~GPUTimer();

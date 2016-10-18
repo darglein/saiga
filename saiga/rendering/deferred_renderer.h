@@ -83,6 +83,8 @@ public:
 
 
     float getTime(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].getTimeMS();}
+    float getUnsmoothedTimeMS(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].GPUTimer::getTimeMS();}
+
     void printTimings();
 
 
