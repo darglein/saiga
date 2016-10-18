@@ -50,6 +50,7 @@ struct SAIGA_GLOBAL RenderingParameters{
 	bool useGlFinish = false; //adds a 'glfinish' at the end of the rendering. usefull for debugging.
 
     bool useSMAA = false;
+    SMAA::Quality smaaQuality = SMAA::Quality::SMAA_PRESET_HIGH;
 
     GBufferParameters gbp;
     PostProcessorParameters ppp;
@@ -71,7 +72,8 @@ public:
         LIGHTACCUMULATION,
         OVERLAY,
         FINAL,
-        COUNT
+        SMAATIME,
+        COUNT,
     };
 private:
     std::vector<FilteredGPUTimer> timers;

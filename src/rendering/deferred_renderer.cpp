@@ -12,7 +12,7 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     windowWidth(windowWidth), windowHeight(windowHeight),
     width(windowWidth*params.renderScale), height(windowHeight*params.renderScale),
     ssao(windowWidth*params.renderScale, windowHeight*params.renderScale),
-    smaa(windowWidth*params.renderScale, windowHeight*params.renderScale),
+    smaa(windowWidth*params.renderScale, windowHeight*params.renderScale,params.smaaQuality),
     params(params), lighting(deferred_framebuffer)
 {
     //    setSize(windowWidth,windowHeight);
@@ -72,6 +72,7 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
     deferred_framebuffer.resize(width, height);
     ssao.resize(width, height);
     lighting.resize(width, height);
+    smaa.resize(width,height);
 }
 
 
@@ -157,9 +158,11 @@ void Deferred_Renderer::render_intern() {
 
 
     if(params.useSMAA){
+        startTimer(SMAATIME);
         smaa.render(postProcessor.getCurrentTexture(),postProcessor.getTargetBuffer());
         postProcessor.switchBuffer();
         postProcessor.bindCurrentBuffer();
+        stopTimer(SMAATIME);
     }
 
     //write depth to default framebuffer
@@ -333,6 +336,7 @@ void Deferred_Renderer::printTimings()
     cout << "Overlay pass: " << getTime(OVERLAY) << "ms" << endl;
     cout << "Postprocessing: " << getTime(POSTPROCESSING) << "ms" << endl;
     postProcessor.printTimings();
+    cout << "SMAA: " << getTime(SMAATIME) << "ms" << endl;
     cout << "Final pass: " << getTime(FINAL) << "ms" << endl;
     float total = getTime(TOTAL);
     cout << "Total: " << total << "ms (" << 1000 / total << " fps)" << endl;

@@ -44,26 +44,42 @@ public:
 
 class SMAA{
 public:
+    enum class Quality{
+        SMAA_PRESET_LOW,          //(%60 of the quality)
+        SMAA_PRESET_MEDIUM,       //(%80 of the quality)
+        SMAA_PRESET_HIGH,         //(%95 of the quality)
+        SMAA_PRESET_ULTRA,        //(%99 of the quality)
+    };
+
+
+    SMAA(int w, int h, Quality _quality);
+    void loadShader();
+    void resize(int w, int h);
+    void render(framebuffer_texture_t input, Framebuffer& output);
+
+private:
+    //mark pixel in first pass and use it in second pass. The last pass is executed on all pixels.
+    framebuffer_texture_t stencilTex;
 
     //RGBA temporal render targets
-    Texture* edgesTex;
+    framebuffer_texture_t edgesTex;
     Framebuffer edgesFb;
 
-    Texture* blendTex;
+    framebuffer_texture_t blendTex;
     Framebuffer blendFb;
 
     //supporting precalculated textures
-    Texture* areaTex;
-    Texture* searchTex;
+    framebuffer_texture_t areaTex;
+    framebuffer_texture_t searchTex;
 
+    bool shaderLoaded = false;
     PostProcessingShader* smaaEdgeDetectionShader;
     SMAABlendingWeightCalculationShader* smaaBlendingWeightCalculationShader;
     SMAANeighborhoodBlendingShader* smaaNeighborhoodBlendingShader;
 
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
-    vec2 screenSize;
+    glm::ivec2 screenSize;
 
-    SMAA(int w, int h);
-    void render(framebuffer_texture_t input, Framebuffer& output);
+    Quality quality = Quality::SMAA_PRESET_HIGH;
 };
