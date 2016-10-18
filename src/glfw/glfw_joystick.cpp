@@ -87,7 +87,7 @@ void Joystick::getCurrentStateFromGLFW()
         }
     }
  //   joystick.printAxisState();
-   joystick.printKeyState();
+ //  joystick.printKeyState();
 
 }
 
