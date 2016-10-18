@@ -1,15 +1,13 @@
 #include "saiga/util/keyboard.h"
 #include "saiga/util/assert.h"
+#include <iostream>
 
 Keyboard keyboard(1024);
 
 
 Keyboard::Keyboard(int numKeys)
 {
-    keystate.resize(numKeys);
-    for(int i = 0 ; i < numKeys ; ++i){
-        keystate[i] = 0;
-    }
+    keystate.resize(numKeys,0);
 }
 
 int Keyboard::getKeyState(int key) {
@@ -25,11 +23,24 @@ int Keyboard::getMappedKeyState(int mappedKey, const std::vector<int> &keymap) {
 }
 
 
-void Keyboard::setKeyState(int key, int state)
+int Keyboard::setKeyState(int key, int state)
 {
     if(key >= 0 && key < (int)keystate.size()){
         assert(state == 0 || state == 1);
+        int old = keystate[key];
         keystate[key] = state;
+        if(old ^ state)
+            return key;
     }
+    return -1;
 
+}
+
+void Keyboard::printKeyState()
+{
+    std::cout << "[";
+    for(auto k : keystate){
+        std::cout << k << ",";
+    }
+    std::cout << "]" << std::endl;
 }

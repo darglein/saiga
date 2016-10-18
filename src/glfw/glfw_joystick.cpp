@@ -1,11 +1,17 @@
 #include "saiga/glfw/glfw_joystick.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include "assert.h"
+#include "saiga/util/assert.h"
 #include "saiga/glfw/glfw_eventhandler.h"
 
 using std::cout;
 using std::endl;
+
+Joystick::Joystick() : Keyboard(50)
+{
+
+}
+
 
 void Joystick::joystick_callback(int joy, int event)
 {
@@ -47,64 +53,41 @@ void Joystick::enableFirstJoystick()
     }
 }
 
+
 void Joystick::getCurrentStateFromGLFW()
 {
 
     if (joystickId == -1){
         return;
     }
-//    cout << "getCurrentStateFromGLFW " << joystickId << endl;
 
-    int count;
-    const float* axes = glfwGetJoystickAxes(joystickId, &count);
+    int aC, bC;
+    const float* axes = glfwGetJoystickAxes(joystickId, &aC);
+    const unsigned char* ax = glfwGetJoystickButtons(joystickId, &bC);
+    joystick.setCount(aC,bC);
 
-    //glfwGetJoystickAxes may call the joystick callback -> joystick may be disconnected now
-    if (joystickId == -1)
-        return;
+    for(int i = 0 ; i < aC ; ++i){
+        joystick.setAxisState(i,axes[i]);
+        int changed = joystick.setVirtualAxisKeyState(i,axes[i]);
+        if(changed != -1){
+//           cout << "changed " << i << " " << changed << " " << axes[i] << endl;
 
-    assert(count >= 6);
-    if (count < 6)
-        return;
-
-//    cout << "count " << count << " joystickId "  << joystickId<< endl;
-
-    //TODO button binding
-//    moveX =  axes[0];
-//    moveY = axes[1];
-//    fire = axes[2];
-//    aimX = axes[4];
-//    aimY = axes[3];
-
-    //the new glfw library version changed this button bindings somehow
-    moveX =  axes[0];
-    moveY = -axes[1];
-    fire = -axes[5]; //left trigger: -axes[4];
-    aimX = axes[2];
-    aimY = -axes[3];
-
-
-    int buttons;
-    const unsigned char* ax = glfwGetJoystickButtons(joystickId, &buttons);
-
-    //glfwGetJoystickButtons may call the joystick callback -> joystick may be disconnected now
-    if (joystickId == -1)
-        return;
-
-    assert(buttons >= 14);
-    if (buttons < 14)
-        return;
-
-    //TODO handle all buttons
-    for (int i = 0; i < 14; ++i){
-        checkButton(static_cast<JoystickButton>(i),ax);
+            glfw_EventHandler::joystick_key_callback(changed,joystick.getKeyState(changed));
+            glfw_EventHandler::joystick_key_callback(changed+1,joystick.getKeyState(changed+1));
+        }
     }
+
+    for(int i = 0 ; i < bC ; ++i){
+        int state = (int)ax[i] == GLFW_PRESS;
+        int changed = joystick.setKeyState(i,state);
+        if(changed != -1){
+//            cout << "changed " << i << " " << state << endl;
+            glfw_EventHandler::joystick_key_callback(i,state);
+        }
+    }
+//    joystick.printAxisState();
+//    joystick.printKeyState();
+
 }
 
-void Joystick::checkButton(JoystickButton b, const unsigned char* ax){
-    bool old = buttonsPressed[static_cast<int>(b)];
-    bool newb = (ax[static_cast<int>(b)] == GLFW_PRESS);
-    if (old != newb){
-        glfw_EventHandler::joystick_key_callback(b,newb);
-        buttonsPressed[static_cast<int>(b)] = newb;
-    }
-}
+

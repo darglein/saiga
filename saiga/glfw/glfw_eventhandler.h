@@ -8,12 +8,11 @@
 #include <algorithm>
 
 struct GLFWwindow;
-enum class JoystickButton;
 
 class SAIGA_GLOBAL glfw_JoystickListener{
 public:
     virtual ~glfw_JoystickListener(){}
-    virtual bool joystick_event(JoystickButton button, bool pressed) = 0;
+    virtual bool joystick_event(int button, bool pressed) = 0;
 };
 
 class SAIGA_GLOBAL glfw_KeyListener{
@@ -89,7 +88,7 @@ public:
 
 public:
     //called from glfw window joystick //NOTE it is called inside the update step, not the glfwPollEvents function
-    static void joystick_key_callback(JoystickButton button,bool pressed);
+    static void joystick_key_callback(int button,bool pressed);
 
     static void window_size_callback(GLFWwindow* window, int width, int height);
 

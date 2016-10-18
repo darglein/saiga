@@ -22,7 +22,10 @@ public:
     int getMappedKeyState(int mappedKey, const std::vector<int> &keymap);
 
     //should not be called by applications
-    void setKeyState(int key, int state);
+    //return true if the state has changed
+    int setKeyState(int key, int state);
+
+    void printKeyState();
 };
 
 
