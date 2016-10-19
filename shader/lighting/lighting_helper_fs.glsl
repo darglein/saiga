@@ -340,3 +340,15 @@ void getGbufferData(out vec3 color,out  vec3 position, out float depth, out vec3
 }
 
 
+void getGbufferData(vec2 tc, out vec3 color,out  vec3 position, out float depth, out vec3 normal, out vec3 data){
+
+    color = texture( deferred_diffuse, tc).rgb;
+
+    depth = texture( deferred_depth, tc).r;
+    position = reconstructPosition(depth,tc);
+
+    normal = texture( deferred_normal, tc).xyz;
+    normal = unpackNormal3(normal.xy);
+
+    data = texture(deferred_data,tc).xyz;
+}

@@ -40,8 +40,9 @@ layout(location=0) out vec4 out_color;
 
 
 float getSSAOIntensity(){
-    ivec2 tci = ivec2(gl_FragCoord.xy);
-    float ssao = texelFetch(ssaoTex,tci,0).r;
+//    ivec2 tci = ivec2(gl_FragCoord.xy);
+    vec2 tc = CalcTexCoord();
+    float ssao = texture(ssaoTex,tc).r;
     return 1.0f - ssao;
 //    return 1.0f;
 }

@@ -82,7 +82,7 @@ void main() {
 //	get view space origin:
         vec3 diffColor,vposition,normal,data;
         float depth;
-        getGbufferData(diffColor,vposition,depth,normal,data,0);
+        getGbufferData(tc,diffColor,vposition,depth,normal,data);
 
 //	construct kernel basis matrix:
 

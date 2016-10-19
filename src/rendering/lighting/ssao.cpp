@@ -38,10 +38,11 @@ void SSAOShader::uploadRandomImage(Texture *img)
 SSAO::SSAO(int w, int h)
 {
     screenSize = vec2(w,h);
+    ssaoSize = glm::ivec2(w/2,h/2);
 
     ssao_framebuffer.create();
     ssaotex = new Texture();
-    ssaotex->createEmptyTexture(w,h,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
+    ssaotex->createEmptyTexture(ssaoSize.x,ssaoSize.y,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
     ssao_framebuffer.attachTexture( std::shared_ptr<raw_Texture>(ssaotex) );
     ssao_framebuffer.drawToAll();
     ssao_framebuffer.check();
@@ -49,7 +50,7 @@ SSAO::SSAO(int w, int h)
 
     ssao_framebuffer2.create();
     bluredTexture = new Texture();
-    bluredTexture->createEmptyTexture(w,h,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
+    bluredTexture->createEmptyTexture(ssaoSize.x,ssaoSize.y,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
     ssao_framebuffer2.attachTexture( std::shared_ptr<raw_Texture>(bluredTexture) );
     ssao_framebuffer2.drawToAll();
     ssao_framebuffer2.check();
@@ -74,8 +75,10 @@ SSAO::SSAO(int w, int h)
 void SSAO::resize(int w, int h)
 {
     screenSize = vec2(w,h);
-    ssao_framebuffer.resize(w,h);
-    ssao_framebuffer2.resize(w,h);
+    ssaoSize = glm::ivec2(w/2,h/2);
+
+    ssao_framebuffer.resize(ssaoSize.x,ssaoSize.y);
+    ssao_framebuffer2.resize(ssaoSize.x,ssaoSize.y);
     clearSSAO();
 }
 
@@ -95,6 +98,7 @@ void SSAO::render(Camera *cam, GBuffer* gbuffer)
     if(!ssao)
         return;
 
+    glViewport(0,0,ssaoSize.x,ssaoSize.y);
     ssao_framebuffer.bind();
 
 
@@ -127,6 +131,7 @@ void SSAO::render(Camera *cam, GBuffer* gbuffer)
     ssao_framebuffer2.unbind();
 
 
+    glViewport(0,0,screenSize.x,screenSize.y);
 }
 
 void SSAO::setEnabled(bool enable)
