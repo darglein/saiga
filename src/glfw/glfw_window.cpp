@@ -135,7 +135,7 @@ bool glfw_Window::initWindow()
     //    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     //    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	if (windowParameters.coreContext) {
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
     }
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, windowParameters.debugContext);
     //    glfwWindowHint(GLFW_STENCIL_BITS, 8);
