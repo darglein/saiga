@@ -20,10 +20,11 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     if(params.srgbWrites){
         assert(hasExtension("GL_EXT_framebuffer_sRGB"));
 
-        blitLastFramebuffer = hasExtension("NV_framebuffer_blit");
-        if(!blitLastFramebuffer){
-            std::cerr << "Warning: OpenGL extension NV_framebuffer_blit not found. Blit srgb conversion disabled." << std::endl;
-        }
+        //Mesa drivers do not respect the spec when blitting with srgb framebuffers.
+        //https://lists.freedesktop.org/archives/mesa-dev/2015-February/077681.html
+
+        //TODO check for mesa
+        blitLastFramebuffer = true;
     }
 
 

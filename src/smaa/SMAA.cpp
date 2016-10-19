@@ -51,8 +51,7 @@ SMAA::SMAA(int w, int h, Quality _quality) : screenSize(w,h) , quality(_quality)
     stencilTex = framebuffer_texture_t(new Texture());
 
     //GL_STENCIL_INDEX may be used for format only if the GL version is 4.4 or higher.
-//    bool useStencilOnly = getVersionMajor() >= 4 && getVersionMinor() >= 4;
-    bool useStencilOnly = hasExtension("ARB_texture_stencil8");
+    bool useStencilOnly = hasExtension("GL_ARB_texture_stencil8");
     if(useStencilOnly){
         stencilTex->createEmptyTexture(w,h,GL_STENCIL_INDEX,GL_STENCIL_INDEX8,GL_UNSIGNED_BYTE);
     }else{
