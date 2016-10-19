@@ -76,6 +76,8 @@ void SSAO::resize(int w, int h)
 {
     screenSize = vec2(w,h);
     ssaoSize = glm::ivec2(w/2,h/2);
+	ssaoSize.x = glm::max(ssaoSize.x, 1);
+	ssaoSize.y = glm::max(ssaoSize.y, 1);
 
     ssao_framebuffer.resize(ssaoSize.x,ssaoSize.y);
     ssao_framebuffer2.resize(ssaoSize.x,ssaoSize.y);
