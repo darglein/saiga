@@ -60,6 +60,7 @@ private:
     int lastBuffer = 1;
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
     std::vector<PostProcessingShader*> postProcessingEffects;
+    PostProcessingShader* passThroughShader;
 
     bool useTimers = false;
     std::vector<FilteredGPUTimer> shaderTimer;
@@ -88,6 +89,7 @@ public:
     void printTimings();
     void resize(int width, int height);
     void blitLast(int windowWidth, int windowHeight);
+    void renderLast(int windowWidth, int windowHeight);
 
     framebuffer_texture_t getCurrentTexture();
     Framebuffer &getTargetBuffer();

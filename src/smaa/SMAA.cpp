@@ -49,13 +49,25 @@ SMAA::SMAA(int w, int h, Quality _quality) : screenSize(w,h) , quality(_quality)
 {
 
     stencilTex = framebuffer_texture_t(new Texture());
-    stencilTex->createEmptyTexture(w,h,GL_STENCIL_INDEX,GL_STENCIL_INDEX8,GL_UNSIGNED_BYTE);
+
+    //GL_STENCIL_INDEX may be used for format only if the GL version is 4.4 or higher.
+//    bool useStencilOnly = getVersionMajor() >= 4 && getVersionMinor() >= 4;
+    bool useStencilOnly = hasExtension("ARB_texture_stencil8");
+    if(useStencilOnly){
+        stencilTex->createEmptyTexture(w,h,GL_STENCIL_INDEX,GL_STENCIL_INDEX8,GL_UNSIGNED_BYTE);
+    }else{
+        stencilTex->createEmptyTexture(w,h,GL_DEPTH_STENCIL,GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
+        std::cerr << "Warning: OpenGL extension ARB_texture_stencil8 not found. Fallback to Depth Stencil Texture." << std::endl;
+    }
 
     edgesTex = framebuffer_texture_t(new Texture());
     edgesTex->createEmptyTexture(w,h,GL_RGBA,GL_RGBA8,GL_UNSIGNED_BYTE);
     edgesFb.create();
     edgesFb.attachTexture( edgesTex);
-    edgesFb.attachTextureStencil(stencilTex);
+    if(useStencilOnly)
+        edgesFb.attachTextureStencil(stencilTex);
+    else
+        edgesFb.attachTextureDepthStencil(stencilTex);
     edgesFb.drawToAll();
     edgesFb.check();
     edgesFb.unbind();

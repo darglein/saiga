@@ -17,6 +17,16 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 {
     //    setSize(windowWidth,windowHeight);
 
+    if(params.srgbWrites){
+        assert(hasExtension("GL_EXT_framebuffer_sRGB"));
+
+        blitLastFramebuffer = hasExtension("NV_framebuffer_blit");
+        if(!blitLastFramebuffer){
+            std::cerr << "Warning: OpenGL extension NV_framebuffer_blit not found. Blit srgb conversion disabled." << std::endl;
+        }
+    }
+
+
 
     deferred_framebuffer.init(width, height, params.gbp);
 
@@ -181,7 +191,12 @@ void Deferred_Renderer::render_intern() {
 
     if (params.srgbWrites)
         glEnable(GL_FRAMEBUFFER_SRGB);
-    postProcessor.blitLast(windowWidth, windowHeight);
+
+    if(blitLastFramebuffer)
+        postProcessor.blitLast(windowWidth, windowHeight);
+    else
+        postProcessor.renderLast(windowWidth, windowHeight);
+
     if (params.srgbWrites)
         glDisable(GL_FRAMEBUFFER_SRGB);
 

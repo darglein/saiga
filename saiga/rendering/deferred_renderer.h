@@ -81,6 +81,7 @@ private:
     void startTimer(DeferredTimings timer){if(params.useGPUTimers || timer==TOTAL)timers[timer].startTimer();}
     void stopTimer(DeferredTimings timer){if(params.useGPUTimers || timer == TOTAL)timers[timer].stopTimer();}
 
+    bool blitLastFramebuffer = true;
 public:
 
 

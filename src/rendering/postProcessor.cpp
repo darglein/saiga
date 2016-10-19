@@ -82,6 +82,8 @@ void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorP
 
     this->LightAccumulationTexture = LightAccumulationTexture;
 
+    passThroughShader = ShaderLoader::instance()->load<PostProcessingShader>("post_processing/post_processing.glsl");
+
     //    computeTest = ShaderLoader::instance()->load<Shader>("computeTest.glsl");
     assert_no_glerror();
 }
@@ -247,11 +249,26 @@ void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
 
 void PostProcessor::blitLast(int windowWidth, int windowHeight){
 //    framebuffers[lastBuffer].blitColor(0);
-
     glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffers[currentBuffer].getId());
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, 0, width, height, 0, 0, windowWidth, windowHeight,GL_COLOR_BUFFER_BIT, GL_LINEAR);
     assert_no_glerror();
+}
+
+void PostProcessor::renderLast(int windowWidth, int windowHeight){
+    glViewport(0,0,windowWidth,windowHeight);
+    glBindFramebuffer(GL_FRAMEBUFFER,0);
+    glDisable(GL_DEPTH_TEST);
+    passThroughShader->bind();
+    vec4 screenSize(width,height,1.0/width,1.0/height);
+    passThroughShader->uploadScreenSize(screenSize);
+    passThroughShader->uploadTexture( textures[currentBuffer] );
+    passThroughShader->uploadGbufferTextures(gbuffer);
+    passThroughShader->uploadAdditionalUniforms();
+    quadMesh.bindAndDraw();
+    passThroughShader->unbind();
+
+
 
 }
 
