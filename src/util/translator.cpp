@@ -144,7 +144,7 @@ bool Translator::readTranslationFile()
             te.key =            unescapeSpecialCharacters(Encoding::UTF32toUTF8(key));
             te.translation =    unescapeSpecialCharacters(Encoding::UTF32toUTF8(trans));
             te.note =           unescapeSpecialCharacters(Encoding::UTF32toUTF8(note));
-            cout << lineNumber << " " << te.key << spacer << te.translation << spacer << te.note << endl;
+//            cout << lineNumber << " " << te.key << spacer << te.translation << spacer << te.note << endl;
             addTranslation(te);
         }
     }

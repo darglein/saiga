@@ -251,7 +251,7 @@ void Window::startParallelUpdate(float dt)
 void Window::endParallelUpdate()
 {
     if(parallelUpdate)
-     semFinishUpdate.wait();
+        semFinishUpdate.wait();
 }
 
 void Window::parallelUpdateThread(float dt)
