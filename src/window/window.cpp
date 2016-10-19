@@ -348,12 +348,14 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
     }
 
 
-    while(!shouldClose()){
+    while(true){
 
         tick_t currentTicksPerUpdate = std::chrono::duration_cast<tick_t>(ticksPerUpdate / timeScale);
         checkEvents();
 
-
+        if(shouldClose()){
+            break;
+        }
 
         //With this loop we are able to skip frames if the system can't keep up.
         for(int i = 0; i <= maxFrameSkip && getGameTicks() > nextUpdateTick; ++i){
@@ -399,6 +401,7 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
     if(parallelUpdate){
         //cleanup the update thread
+        cout << "Finished main loop. Exiting update thread." << endl;
         endParallelUpdate();
         semStartUpdate.notify();
         updateThread.join();

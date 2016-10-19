@@ -14,14 +14,6 @@
 #include "saiga/framework.h"
 
 
-Joystick* global_joystick = nullptr;
-
-void joystick_callback_wrapper(int joy, int event)
-{
-    assert(global_joystick);
-    global_joystick->joystick_callback(joy,event);
-}
-
 void WindowParameters::setMode(bool fullscreen, bool borderLess)
 {
     if(fullscreen){
@@ -30,8 +22,6 @@ void WindowParameters::setMode(bool fullscreen, bool borderLess)
         mode = (borderLess) ? Mode::borderLessWindowed : Mode::windowed;
     }
 }
-
-
 
 
 
@@ -216,11 +206,10 @@ bool glfw_Window::initWindow()
     glfwPollEvents();
     glfwSwapBuffers(window);
 
-    global_joystick = &joystick;
 
     if (windowParameters.updateJoystick){
-        glfwSetJoystickCallback(joystick_callback_wrapper);
-        joystick.enableFirstJoystick();
+        glfwSetJoystickCallback(glfw_Joystick::joystick_callback);
+        glfw_Joystick::enableFirstJoystick();
     }
 
 
@@ -419,9 +408,9 @@ void glfw_Window::swapBuffers()
 
 void glfw_Window::checkEvents()
 {
-    if(windowParameters.updateJoystick)
-        joystick.getCurrentStateFromGLFW();
     glfwPollEvents();
+    if(windowParameters.updateJoystick)
+        glfw_Joystick::update();
 }
 
 

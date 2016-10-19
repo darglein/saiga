@@ -20,7 +20,6 @@ class Image;
 class SAIGA_GLOBAL glfw_Window : public Window, public glfw_ResizeListener{
 public:
     GLFWwindow* window = nullptr;
-    Joystick joystick;
 
     bool recordingVideo = false;
 
