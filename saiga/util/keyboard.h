@@ -19,7 +19,7 @@ public:
     //Usage:
     //create an enum for the actions
     //create a map that maps the enum value to a key
-    int getMappedKeyState(int mappedKey, const std::vector<int> &keymap);
+    bool getMappedKeyState(int mappedKey, const std::vector<int> &keymap);
 
     //should not be called by applications
     //return true if the state has changed

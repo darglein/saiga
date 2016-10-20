@@ -15,11 +15,11 @@ int Keyboard::getKeyState(int key) {
     return keystate[key];
 }
 
-int Keyboard::getMappedKeyState(int mappedKey, const std::vector<int> &keymap) {
+bool Keyboard::getMappedKeyState(int mappedKey, const std::vector<int> &keymap) {
     assert(mappedKey >= 0 && mappedKey < (int)keymap.size());
     int key = keymap[mappedKey];
     assert(key >= 0 && key < (int)keystate.size());
-    return keystate[key];
+    return keystate[key] > 0;
 }
 
 
