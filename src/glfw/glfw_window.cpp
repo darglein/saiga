@@ -14,14 +14,6 @@
 #include "saiga/framework.h"
 
 
-void WindowParameters::setMode(bool fullscreen, bool borderLess)
-{
-    if(fullscreen){
-        mode = (borderLess) ? Mode::borderLessFullscreen : Mode::fullscreen;
-    }else{
-        mode = (borderLess) ? Mode::borderLessWindowed : Mode::windowed;
-    }
-}
 
 
 

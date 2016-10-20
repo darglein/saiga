@@ -1,8 +1,10 @@
 #pragma once
 
-#include "saiga/glfw/glfw_eventhandler.h"
 #include "saiga/geometry/ray.h"
 #include "saiga/util/observer.h"
+
+#ifdef USE_GLFW
+#include "saiga/glfw/glfw_eventhandler.h"
 
 class DeferredLighting;
 class Light;
@@ -60,4 +62,4 @@ private:
     Light* closestPointLight(const Ray &r);
 };
 
-
+#endif

@@ -1,4 +1,4 @@
-#include "saiga/util/keyboardbinds.h"
+#include "saiga/glfw/keyboardbinds.h"
 
 #include <saiga/opengl/opengl.h>
 #include <GLFW/glfw3.h>

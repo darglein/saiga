@@ -5,6 +5,7 @@
 layout(location=0) in vec3 in_position;
 layout(location=1) in vec3 in_normal;
 layout(location=2) in vec2 in_tex;
+layout(location=3) in vec4 in_data;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -18,10 +19,12 @@ out vec3 normalW;
 out vec3 vertexMV;
 out vec3 vertex;
 out vec2 texCoord;
+out vec4 data;
 
 void main() {
 //    gl_Position = vec4( in_position, 1 );
     texCoord = in_tex;
+    data = in_data;
     normal = normalize(vec3(view*model * vec4( in_normal, 0 )));
     normalW = normalize(vec3(model * vec4( in_normal, 0 )));
     vertexMV = vec3(view * model * vec4( in_position, 1 ));
@@ -47,7 +50,7 @@ in vec3 normalW;
 in vec3 vertexMV;
 in vec3 vertex;
 in vec2 texCoord;
-
+in vec4 data;
 
 
 #include "geometry_helper_fs.glsl"
@@ -55,8 +58,7 @@ in vec2 texCoord;
 
 void main() {
     vec4 diffColor = texture(image, texCoord);
-    vec3 data = vec3(1,0,0);
-    setGbufferData(vec3(diffColor),vertexMV,normal,vec4(data.xy,userData,0));
+    setGbufferData(vec3(diffColor),vertexMV,normal,data);
 }
 
 

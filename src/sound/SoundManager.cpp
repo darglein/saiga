@@ -165,6 +165,7 @@ void SoundManager::loadWaveSound(const std::string &file)
     assert_no_alerror();
 }
 
+#ifdef USE_OPUS
 void SoundManager::loadOpusSound(const std::string &file)
 {
     assert(!parallelSoundLoaderRunning);
@@ -186,19 +187,23 @@ void SoundManager::loadOpusSound(const std::string &file)
     }
     assert_no_alerror();
 }
+#endif
 
 void SoundManager::loadSoundByEnding(const std::string &file)
 {
     assert(!parallelSoundLoaderRunning);
 
+#ifdef USE_OPUS
     if(file.substr(file.find_last_of(".") + 1) == "opus") {
         loadOpusSound(file);
-    } else if ((file.substr(file.find_last_of(".") + 1) == "wav")){
-        loadWaveSound(file);
-    } else {
-        cout << "Unknown file extension for sound file: " << file << endl;
-        assert(0);
-    }
+    } else
+#endif
+        if ((file.substr(file.find_last_of(".") + 1) == "wav")){
+            loadWaveSound(file);
+        } else {
+            cout << "Unknown file extension for sound file: " << file << endl;
+            assert(0);
+        }
 }
 
 void SoundManager::unloadSound(const std::string &file)
@@ -317,9 +322,13 @@ void SoundManager::loadSoundsThreadStart()
 
             SoundLoader sl;
             Sound* loadedsound;
+#ifdef USE_OPUS
             if(f.substr(f.find_last_of(".") + 1) == "opus") {
                 loadedsound = sl.loadOpusFile(f);
-            } else if ((f.substr(f.find_last_of(".") + 1) == "wav")){
+            } else
+#endif
+
+                if ((f.substr(f.find_last_of(".") + 1) == "wav")){
                 loadedsound = sl.loadWaveFile(f);
             } else {
                 cout << "Unknown file extension for sound file: " << f << endl;
@@ -423,7 +432,7 @@ void SoundManager::setTimeScale(float scale)
 void SoundManager::startCapturing()
 {
     const int SRATE = 44100;
-//    const int SSIZE = 1024;
+    //    const int SSIZE = 1024;
 
     captureDevice = alcCaptureOpenDevice(NULL, SRATE, AL_FORMAT_STEREO16, SRATE/2);
     assert(captureDevice);
@@ -450,7 +459,7 @@ int SoundManager::getCapturedSamples()
     alcGetIntegerv(captureDevice, ALC_CAPTURE_SAMPLES,4, &sampleCount);
 
     alcCaptureSamples(captureDevice, (ALCvoid *)captureBuffer.data(), sampleCount);
-//    cout << "captured "<<sampleCount << " samples"<<endl;
+    //    cout << "captured "<<sampleCount << " samples"<<endl;
     assert_no_alerror();
 
     return sampleCount;

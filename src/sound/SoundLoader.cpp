@@ -11,9 +11,9 @@
 
 #ifdef USE_OPUS
 #include "saiga/sound/OpusCodec.h"
+#include "opusfile.h"
 #endif
 
-#include "opusfile.h"
 
 
 #include <cstdint>

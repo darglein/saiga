@@ -17,6 +17,15 @@ using std::cout;
 using std::endl;
 
 
+void WindowParameters::setMode(bool fullscreen, bool borderLess)
+{
+    if(fullscreen){
+        mode = (borderLess) ? Mode::borderLessFullscreen : Mode::fullscreen;
+    }else{
+        mode = (borderLess) ? Mode::borderLessWindowed : Mode::windowed;
+    }
+}
+
 Window::Window(WindowParameters _windowParameters)
     :windowParameters(_windowParameters),
       updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50){
@@ -311,7 +320,7 @@ void Window::setTimeScale(double timeScale)
 
 
 
-void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip, bool _parallelUpdate)
+void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip, bool _parallelUpdate, bool catchUp)
 {
     parallelUpdate = _parallelUpdate;
     gameTimer.start();
@@ -359,31 +368,39 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
         //With this loop we are able to skip frames if the system can't keep up.
         for(int i = 0; i <= maxFrameSkip && getGameTicks() > nextUpdateTick; ++i){
-            gameTime.time = getGameTicks();
+            if(catchUp){
+                gameTime.time = nextUpdateTick;
+            }else{
+                gameTime.time = getGameTicks();
+            }
             gameTime.updatetime = gameTime.time;
             update(updateDT);
 
             if (gameloopDropAccumulatedUpdates){
                 cout << "> Advancing game loop to live." << endl;
-                nextUpdateTick = getGameTicks();
+                gameTime.updatetime = getGameTicks();
                 nextFrameTick = nextUpdateTick;
                 gameloopDropAccumulatedUpdates = false;
             }
 
 
-            lastUpdateTick = nextUpdateTick;
-            nextUpdateTick += currentTicksPerUpdate;
+            lastUpdateTick = gameTime.updatetime;
+            nextUpdateTick = gameTime.updatetime + currentTicksPerUpdate;
         }
 
         if(getGameTicks() > nextFrameTick){
-            gameTime.time = getGameTicks();
+            if(catchUp){
+                gameTime.time = nextFrameTick;
+            }else{
+                gameTime.time = getGameTicks();
+            }
             //calculate the interpolation value. Useful when the framerate is higher than the update rate
             tick_t ticksSinceLastUpdate = gameTime.time - lastUpdateTick;
             float interpolation = (float)ticksSinceLastUpdate.count() / (nextUpdateTick - lastUpdateTick).count();
             interpolation = glm::clamp(interpolation,0.0f,1.0f);
 
             render(updateDT,interpolation);
-            nextFrameTick += ticksPerFrame;
+            nextFrameTick = gameTime.time + ticksPerFrame;
         }
 
         if(getGameTicks() > nextInfoTick){

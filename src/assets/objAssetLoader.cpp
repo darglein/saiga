@@ -39,6 +39,8 @@ ColoredAsset* ObjAssetLoader::loadBasicAsset(const std::string &file, bool norma
             for(int f = 0 ; f < 3 ; ++f){
                 int index = face.v[f];
                 tmesh.vertices[index].color = tg.material.color;
+                float spec =  glm::dot(tg.material.Ks,vec3(1))/3.0f;
+                tmesh.vertices[index].data.x = spec;
             }
         }
     }
@@ -55,14 +57,14 @@ TexturedAsset *ObjAssetLoader::loadTexturedAsset(const std::string &file, bool n
     ObjLoader2 ol(file);
 
     TexturedAsset* asset = new TexturedAsset();
-    TriangleMesh<VertexNT,GLuint> &tmesh = asset->mesh;
+    TriangleMesh<VertexNTD,GLuint> &tmesh = asset->mesh;
 
     for(ObjTriangle &oj : ol.outTriangles){
         tmesh.addFace(oj.v);
     }
 
     for(VertexNT &v : ol.outVertices){
-        VertexNT vn;
+        VertexNTD vn;
         vn.position = v.position;
         vn.normal = v.normal;
         vn.texture = v.texture;
@@ -76,7 +78,19 @@ TexturedAsset *ObjAssetLoader::loadTexturedAsset(const std::string &file, bool n
         tg.texture = otg.material.map_Kd;
         if(tg.texture){
             tg.texture->setWrap(GL_REPEAT);
+            tg.texture->generateMipmaps();
             asset->groups.push_back(tg);
+        }
+    }
+
+    for(ObjTriangleGroup &tg : ol.triangleGroups){
+        for(int i = 0 ; i < tg.faces ; ++i){
+            ObjTriangle &face = ol.outTriangles[i+tg.startFace];
+            for(int f = 0 ; f < 3 ; ++f){
+                int index = face.v[f];
+                float spec =  glm::dot(tg.material.Ks,vec3(1))/3.0f;
+                tmesh.vertices[index].data.x = spec;
+            }
         }
     }
 

@@ -7,6 +7,8 @@
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 // https://github.com/ocornut/imgui
 #include "saiga/opengl/opengl.h"
+
+#ifdef USE_GLFW
 #include <saiga/glfw/glfw_eventhandler.h>
 #include <saiga/imgui/imgui.h>
 
@@ -60,3 +62,4 @@ public:
     bool mouse_button_event(GLFWwindow* window, int button, int action, int mods) override;
     bool scroll_event(GLFWwindow* window, double xoffset, double yoffset) override;
 };
+#endif

@@ -88,7 +88,10 @@ public:
     SoundSource *getSoundSourceWhileStillLoading(const std::string &file, bool isMusic = false);
 
     void loadWaveSound(const std::string &file);
+
+#ifdef USE_OPUS
     void loadOpusSound(const std::string &file);
+#endif
 
     void loadSoundByEnding(const std::string &file);
 

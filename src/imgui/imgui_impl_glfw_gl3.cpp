@@ -6,11 +6,12 @@
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 // https://github.com/ocornut/imgui
 
+#include "saiga/imgui/imgui_impl_glfw_gl3.h"
+#ifdef USE_GLFW
 #include "saiga/opengl/opengl.h"
 #include <GLFW/glfw3.h>
 
 #include <saiga/imgui/imgui.h>
-#include "saiga/imgui/imgui_impl_glfw_gl3.h"
 #include <iostream>
 
 #ifdef _WIN32
@@ -425,3 +426,4 @@ bool ImGui_GLFW_Renderer::scroll_event(GLFWwindow *window, double xoffset, doubl
     return false;
 //    return wantsCaptureMouse;
 }
+#endif

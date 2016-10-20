@@ -9,6 +9,8 @@
 #include <sstream>
 #include <iostream>
 
+#ifdef USE_OPUS
+
 #include "opus.h"
 
 
@@ -169,3 +171,4 @@ std::vector<unsigned char> COpusCodec::decode_frame(std::istream& fin)
     return _pimpl->decode_frame(fin);
 }
 
+#endif

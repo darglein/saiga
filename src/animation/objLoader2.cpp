@@ -41,14 +41,14 @@ bool ObjLoader2::loadFile(const std::string &_file){
     ObjTriangleGroup &lastGroup = triangleGroups[triangleGroups.size()-1];
     lastGroup.faces = faces.size() - lastGroup.startFace;
 
-    cout<<"number of vertices "<<vertices.size()<<" number of faces "<<faces.size()<<endl;
+//    cout<<"number of vertices "<<vertices.size()<<" number of faces "<<faces.size()<<endl;
     createVertexIndexList();
-    cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
+//    cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
     separateVerticesByGroup();
-    cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
+//    cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
 
 
-    cout<<"objloader finished :)"<<endl;
+//    cout<<"objloader finished :)"<<endl;
     return true;
 }
 
@@ -284,11 +284,11 @@ void ObjLoader2::parseUM(const std::string &line)
 void ObjLoader2::parseM(const std::string &line)
 {
     FileChecker fc;
-    cout<<fc.getParentDirectory("asdf1/asdf2/sldgj.png")<<endl;
-    cout<<fc.getParentDirectory("asdf1/sldgj.png")<<endl;
-    cout<<fc.getParentDirectory("sldgj.png")<<endl;
-    cout<<fc.getRelative(file,line)<<endl;
-    cout<<"parseM "<<line<<endl;
+//    cout<<fc.getParentDirectory("asdf1/asdf2/sldgj.png")<<endl;
+//    cout<<fc.getParentDirectory("asdf1/sldgj.png")<<endl;
+//    cout<<fc.getParentDirectory("sldgj.png")<<endl;
+//    cout<<fc.getRelative(file,line)<<endl;
+//    cout<<"parseM "<<line<<endl;
 
     materialLoader.loadFile(fc.getRelative(file,line));
 }

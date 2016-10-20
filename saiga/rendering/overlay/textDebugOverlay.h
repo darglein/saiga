@@ -19,7 +19,6 @@ public:
     class TDOEntry{
     public:
         Text* text;
-        int length;
         int valueIndex;
     };
 
@@ -49,7 +48,7 @@ public:
     void init(TextureAtlas* textureAtlas);
     void render();
 
-    int createItem(const std::string& name, int valueChars);
+    int createItem(const std::string& name);
 
     template<typename T>
     void updateEntry(int id, T v);
