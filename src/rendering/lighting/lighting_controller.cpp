@@ -1,4 +1,6 @@
 #include "saiga/rendering/lighting/lighting_controller.h"
+
+#ifdef USE_GLFW
 #include "saiga/util/inputcontroller.h"
 
 #include <saiga/opengl/opengl.h>
@@ -359,3 +361,5 @@ bool LightingController::scroll_event(GLFWwindow* window, double xoffset, double
     (void)window;(void)xoffset;(void)yoffset;
     return false;
 }
+
+#endif

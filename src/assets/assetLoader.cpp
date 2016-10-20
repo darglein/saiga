@@ -49,8 +49,10 @@ TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Colo
 
     plainAsset->mesh.addMesh(*plainMesh);
 
-    for(auto v : plainAsset->mesh.vertices)
-        cout << v.position << endl;
+    for(auto& v : plainAsset->mesh.vertices){
+        v.data = vec4(0.5,0,0,0);
+    }
+//        cout << v.position << endl;
 
     TexturedAsset::TextureGroup tg;
     tg.startIndex = 0;
@@ -61,11 +63,9 @@ TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Colo
     Texture* cbTexture = new Texture();
     cbTexture->fromImage(*cbImage);
     tg.texture = cbTexture;
-//    tg.texture = TextureLoader::instance()->load("debug2x2.png");
     tg.texture->setFiltering(GL_NEAREST);
     tg.texture->setWrap(GL_REPEAT);
     tg.texture->generateMipmaps();
-    //    tg.texture->setFiltering(GL_NEAREST_MIPMAP_LINEAR);
     plainAsset->groups.push_back(tg);
 
 

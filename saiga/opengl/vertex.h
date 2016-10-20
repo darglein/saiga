@@ -52,6 +52,21 @@ struct SAIGA_GLOBAL VertexNT : public VertexN{
     friend std::ostream& operator<<(std::ostream& os, const VertexNT& vert);
 };
 
+struct SAIGA_GLOBAL VertexNTD : public VertexNT{
+    vec4 data = vec4(0);
+
+    VertexNTD() {}
+    VertexNTD(const VertexNT &v) : VertexNT(v.position,v.normal,v.texture) {}
+    VertexNTD(const vec3 &position) : VertexNT(position){}
+    VertexNTD(const vec4 &position) : VertexNT(position){}
+    VertexNTD(const vec3 &position,const vec3 &normal) : VertexNT(position,normal){}
+    VertexNTD(const vec3 &position,const vec3 &normal,const vec2 &texture) : VertexNT(position,normal,texture){}
+    VertexNTD(const vec4 &position,const vec4 &normal,const vec2 &texture) : VertexNT(position,normal,texture){}
+
+    bool operator==(const VertexNTD &other) const;
+    friend std::ostream& operator<<(std::ostream& os, const VertexNTD& vert);
+};
+
 
 struct SAIGA_GLOBAL VertexNC : public VertexN{
     vec4 color = vec4(0);
@@ -77,6 +92,8 @@ template<>
 SAIGA_GLOBAL void VertexBuffer<VertexN>::setVertexAttributes();
 template<>
 SAIGA_GLOBAL void VertexBuffer<VertexNT>::setVertexAttributes();
+template<>
+SAIGA_GLOBAL void VertexBuffer<VertexNTD>::setVertexAttributes();
 template<>
 SAIGA_GLOBAL void VertexBuffer<VertexNC>::setVertexAttributes();
 

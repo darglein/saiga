@@ -60,7 +60,7 @@ TexturedAsset *AssimpAssetLoader::loadTexturedAsset(const std::string &file, boo
 
     TexturedAsset* asset = new TexturedAsset();
 
-    TriangleMesh<VertexNT,GLuint> &tmesh = asset->mesh;
+    TriangleMesh<VertexNTD,GLuint> &tmesh = asset->mesh;
 
 
     for(int i=0;i<meshCount;++i){

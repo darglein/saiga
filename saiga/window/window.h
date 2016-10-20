@@ -70,7 +70,7 @@ public:
 
     void setProgram(Program* program);
     bool init(const RenderingParameters &params);
-    void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false);
+    void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false, bool _catchUp=false);
     void close();
 protected:
     void resize(int width, int height);

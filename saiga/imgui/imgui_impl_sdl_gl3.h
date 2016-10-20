@@ -1,3 +1,4 @@
+#pragma once
 #include "saiga/opengl/opengl.h"
 #include <saiga/imgui/imgui.h>
 #include <saiga/sdl/sdl_eventhandler.h>

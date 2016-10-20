@@ -66,6 +66,8 @@ public:
 
     int addFace(index_t f[3]){return addFace(Face(f[0],f[1],f[2]));}
 
+    int addFace(index_t v0, index_t v1 ,index_t v2){return addFace(Face(v0,v1,v2));}
+
     /*
      * Adds given vertices and the 2 corresponding triangles to mesh
      */
@@ -121,6 +123,9 @@ public:
      * Adds the complete mesh 'other' to the current mesh.
      */
     void addMesh(const TriangleMesh<vertex_t,index_t> &other);
+
+    template<typename mesh_vertex_t, typename mesh_index_t>
+    void addMesh(const TriangleMesh<mesh_vertex_t,mesh_index_t> &other);
 
 
     int numIndices();
@@ -276,6 +281,23 @@ void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<vertex_t,index_t
         this->addFace(f);
     }
 }
+
+template<typename vertex_t, typename index_t>
+template<typename mesh_vertex_t, typename mesh_index_t>
+void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<mesh_vertex_t,mesh_index_t> &other){
+    int oldVertexCount = this->vertices.size();
+    for(vertex_t v : other.vertices){
+        this->vertices.push_back(v);
+    }
+
+    for(auto f : other.faces){
+        f.v1 += oldVertexCount;
+        f.v2 += oldVertexCount;
+        f.v3 += oldVertexCount;
+        this->addFace(f.v1,f.v2,f.v3);
+    }
+}
+
 
 template<typename vertex_t, typename index_t>
 int TriangleMesh<vertex_t,index_t>::numIndices(){

@@ -21,32 +21,25 @@ TextDebugOverlay::~TextDebugOverlay()
 void TextDebugOverlay::init(TextureAtlas *textureAtlas)
 {
     this->textureAtlas = textureAtlas;
-
-
 }
 
 void TextDebugOverlay::render()
 {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     overlay.render();
 }
 
-int TextDebugOverlay::createItem(const std::string &name, int valueChars)
+int TextDebugOverlay::createItem(const std::string &name)
 {
     int id = entries.size();
-    int length = name.size() + valueChars;
     TDOEntry entry;
-    entry.length = length;
     entry.valueIndex = name.size();
 
     entry.text = new Text(textureAtlas,"");
-//    entry.text->color = vec4(1,0,0,1);
-//    entry.text->params.setColor(vec4(1,0,0,1),0.1f);
     entry.text->params = textParameters;
-//    entry.text->strokeColor = vec4(0.1f,0.1f,0.1f,1.0f);
     overlay.addText(entry.text);
 
-
-//    textGenerator->updateText(entry.text,name+std::string(valueChars,' '),0);
     entry.text->updateText(name,0);
     aabb bb = entry.text->getAabb();
     bb.growBox(textureAtlas->getMaxCharacter());

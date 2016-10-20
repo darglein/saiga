@@ -24,11 +24,23 @@ void VertexBuffer<VertexNT>::setVertexAttributes(){
     glEnableVertexAttribArray( 1 );
     glEnableVertexAttribArray( 2 );
 
-//    cout << "sizeof(VertexNT) = " << sizeof(VertexNT) << endl;
-
     glVertexAttribPointer(0,4, GL_FLOAT, GL_FALSE, sizeof(VertexNT), NULL );
     glVertexAttribPointer(1,4, GL_FLOAT, GL_FALSE, sizeof(VertexNT), (void*) (4 * sizeof(GLfloat)) );
     glVertexAttribPointer(2,2, GL_FLOAT, GL_FALSE, sizeof(VertexNT), (void*) (8 * sizeof(GLfloat)) );
+}
+
+template<>
+void VertexBuffer<VertexNTD>::setVertexAttributes(){
+    glEnableVertexAttribArray( 0 );
+    glEnableVertexAttribArray( 1 );
+    glEnableVertexAttribArray( 2 );
+    glEnableVertexAttribArray( 3 );
+
+
+    glVertexAttribPointer(0,4, GL_FLOAT, GL_FALSE, sizeof(VertexNTD), NULL );
+    glVertexAttribPointer(1,4, GL_FLOAT, GL_FALSE, sizeof(VertexNTD), (void*) (4 * sizeof(GLfloat)) );
+    glVertexAttribPointer(2,2, GL_FLOAT, GL_FALSE, sizeof(VertexNTD), (void*) (8 * sizeof(GLfloat)) );
+    glVertexAttribPointer(3,4, GL_FLOAT, GL_FALSE, sizeof(VertexNTD), (void*) (12 * sizeof(GLfloat)) );
 }
 
 template<>
@@ -73,6 +85,18 @@ std::ostream &operator<<(std::ostream &os, const VertexNT &vert){
     os<<vert.position<<",";
     os<<vert.normal<<",";
     os<<vert.texture;
+    return os;
+}
+
+bool VertexNTD::operator==(const VertexNTD &other) const {
+    return VertexNTD::operator==(other) && data == other.data;
+}
+
+std::ostream &operator<<(std::ostream &os, const VertexNTD &vert){
+    os<<vert.position<<",";
+    os<<vert.normal<<",";
+    os<<vert.texture<<",";
+    os<<vert.data;
     return os;
 }
 
