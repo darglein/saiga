@@ -21,8 +21,6 @@ BoxLight::BoxLight()
 
 void BoxLight::createShadowMap(int resX, int resY){
     Light::createShadowMap(resX,resY);
-    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,0.01f,scale.z*2.0f);
-
 }
 
 
@@ -80,6 +78,7 @@ void BoxLight::calculateCamera(){
 
 //    cout<<this->position<<" "<<dir<<" "<<pos<<endl;
     this->cam.setView(pos,pos+dir,up);
+    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,0.01f,scale.z*2.0f);
 
 }
 

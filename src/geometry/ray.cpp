@@ -135,9 +135,8 @@ bool Ray::intersectPlane(const Plane &p, float &t) const
     return false;
 }
 
-std::ostream& operator<<(std::ostream& os, const Ray& r)
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Ray& r)
 {
-    std::cout<<"Ray: ("<<r.origin.x<<","<<r.origin.y<<","<<r.origin.z<<")";
-    std::cout<<" ("<<r.direction.x<<","<<r.direction.y<<","<<r.direction.z<<")";
+    std::cout<<"Ray: " << r.origin << " " << r.direction;
     return os;
 }
