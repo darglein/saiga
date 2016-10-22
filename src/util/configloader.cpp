@@ -1,5 +1,8 @@
 #include "saiga/util/configloader.h"
 
+using std::cout;
+using std::endl;
+
 ConfigLoader::ConfigEntry::ConfigEntry(const std::string &key, const std::string &value, const std::string &description)
     :key(key),value(value),description(description)
 {
@@ -8,7 +11,16 @@ ConfigLoader::ConfigEntry::ConfigEntry(const std::string &key, const std::string
 
 std::string ConfigLoader::ConfigEntry::toString()
 {
-    return key+"="+value+"             "+"#"+description;
+    std::string desc = "";
+    if (description != ""){
+        int maxAlign = 27;
+        int fillSize = maxAlign-(key.size() + value.size());
+        if(fillSize<=0) fillSize = 1;
+
+        std::string fill = std::string(fillSize, ' ');
+        desc = fill + "# " + description;
+    }
+    return key+"="+value+desc;
 }
 
 
@@ -163,6 +175,7 @@ std::string ConfigLoader::getLine(const std::string &key, const std::string &def
         int maxAlign = 25;
         int fillSize = maxAlign-(key.size() + defaultvalue.size());
         if(fillSize<=0) fillSize = 1;
+
         std::string fill = std::string(fillSize, ' ');
         stream  <<  fill << "# " << description;
     }
