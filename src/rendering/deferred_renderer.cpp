@@ -93,6 +93,9 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 
 void Deferred_Renderer::render_intern() {
 
+    if (params.srgbWrites)
+        glEnable(GL_FRAMEBUFFER_SRGB);
+
     startTimer(TOTAL);
 
     // When GL_FRAMEBUFFER_SRGB is disabled, the system assumes that the color written by the fragment shader
@@ -190,16 +193,14 @@ void Deferred_Renderer::render_intern() {
     renderer->renderFinal(*currentCamera);
     stopTimer(FINAL);
 
-    if (params.srgbWrites)
-        glEnable(GL_FRAMEBUFFER_SRGB);
 
     if(blitLastFramebuffer)
         postProcessor.blitLast(windowWidth, windowHeight);
     else
         postProcessor.renderLast(windowWidth, windowHeight);
 
-    if (params.srgbWrites)
-        glDisable(GL_FRAMEBUFFER_SRGB);
+//    if (params.srgbWrites)
+//        glDisable(GL_FRAMEBUFFER_SRGB);
 
     if (params.useGlFinish)
         glFinish();
