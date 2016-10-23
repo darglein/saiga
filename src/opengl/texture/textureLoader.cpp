@@ -65,7 +65,7 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
 #endif
 
     if(erg){
-        std::cout<<"Loaded: "<< path << " " << outImage << std::endl;
+//        std::cout<<"Loaded: "<< path << " " << outImage << std::endl;
     }else{
         std::cout << "Error: Could not load Image: " << path << std::endl;
         assert(0);

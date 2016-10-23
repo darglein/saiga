@@ -58,11 +58,11 @@ shader_t* ShaderPartLoader::createShader()
     shader->shaders = shaders;
     shader->createProgram();
 
-    std::cout<<"Loaded: "<<file<<" ( ";
-    for(auto& sp : shaders){
-        std::cout<<sp->type<<" ";
-    }
-    std::cout<<") Id="<< shader->program << std::endl;
+//    std::cout<<"Loaded: "<<file<<" ( ";
+//    for(auto& sp : shaders){
+//        std::cout<<sp->type<<" ";
+//    }
+//    std::cout<<") Id="<< shader->program << std::endl;
 
     shader->name = file;
 
