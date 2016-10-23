@@ -11,15 +11,24 @@ Keyboard::Keyboard(int numKeys)
 }
 
 int Keyboard::getKeyState(int key) {
-    assert(key >= 0 && key < (int)keystate.size());
-    return keystate[key];
+    if(key >= 0 && key < (int)keystate.size()){
+		return keystate[key];
+	} else {
+		std::cerr << "Keyboard::getKeyState Key not found: " << key << std::endl;
+		return 0;
+	}
 }
 
 bool Keyboard::getMappedKeyState(int mappedKey, const std::vector<int> &keymap) {
-    assert(mappedKey >= 0 && mappedKey < (int)keymap.size());
-    int key = keymap[mappedKey];
-    assert(key >= 0 && key < (int)keystate.size());
-    return keystate[key] > 0;
+	int key;
+	if (mappedKey >= 0 && mappedKey < (int)keymap.size()) {
+		key = keymap[mappedKey];
+	}
+	else {
+		std::cerr << "Keyboard::getMappedKeyState Keymap entry not found: " << mappedKey << std::endl;
+		key = -1;
+	}
+    return getKeyState(key) > 0;
 }
 
 

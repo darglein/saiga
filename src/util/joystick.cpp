@@ -19,10 +19,14 @@ void Joystick2::setCount(int _axisCount, int _buttonCount)
 
 void Joystick2::setAxisState(int ax, float state)
 {
+	assert(state >= -1 && state <= 1);
+
     if(ax >= 0 && ax < (int)axis.size()){
-       assert(state >= -1 && state <= 1);
         axis[ax] = state;
-    }
+	}
+	else {
+		std::cerr << "Joystick::setAxisState Axis not found: " << ax << std::endl;
+	}
 }
 
 int Joystick2::setVirtualAxisKeyState(int ax, float state)
@@ -41,20 +45,28 @@ int Joystick2::setVirtualAxisKeyState(int ax, float state)
     return -1;
 }
 
-float Joystick2::getAxisState(int key)
+float Joystick2::getAxisState(int ax)
 {
-    assert(key >= 0 && key < (int)axis.size());
-    return axis[key];
+    if(ax >= 0 && ax < (int)axis.size())
+		return axis[ax];
+	else {
+		std::cerr << "Joystick::getAxisState Axis not found: " << ax << std::endl;
+		return 0.0f;
+	}
 }
 
 float Joystick2::getMappedAxisState(int mappedKey, const std::vector<int> &keymap)
 {
-    assert(mappedKey >= 0 && mappedKey < (int)keymap.size());
-    int key = keymap[mappedKey];
-	if (key < 0 || key >= (int)axis.size())
-		return 0;
-    //assert(key >= 0 && key < (int)axis.size());
-    return axis[key];
+	int key;
+	if (mappedKey >= 0 && mappedKey < (int)keymap.size()) {
+		key = keymap[mappedKey];
+	}
+	else {
+		std::cerr << "Joystick::getMappedAxisState Keymap entry not found: " << mappedKey << std::endl;
+		key = -1;
+	}
+
+    return getAxisState(key);
 }
 
 void Joystick2::printAxisState()
