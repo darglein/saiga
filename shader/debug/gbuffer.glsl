@@ -39,6 +39,7 @@ out vec4 out_color;
 
 void main() {
     vec4 diffColor = texture(text,texCoord);
+//    vec3 d = texture(text,texCoord).rgb;
     out_color =  diffColor;
 }
 

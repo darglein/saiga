@@ -67,7 +67,7 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
 #endif
 
     if(erg){
-#ifdef SAIGA_DEBUG
+#ifndef SAIGA_RELEASE
         std::cout<<"Loaded: "<< path << " " << outImage << std::endl;
 #endif
     }else{

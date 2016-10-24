@@ -194,6 +194,7 @@ void Deferred_Renderer::render_intern() {
     renderer->renderFinal(*currentCamera);
     stopTimer(FINAL);
 
+    glDisable(GL_BLEND);
 
     if(blitLastFramebuffer)
         postProcessor.blitLast(windowWidth, windowHeight);
