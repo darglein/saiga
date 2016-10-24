@@ -5,7 +5,6 @@
 #include "saiga/text/fontLoader.h"
 #include <algorithm>
 #include <fstream>
-#include <FreeImagePlus.h>
 #include "saiga/util/assert.h"
 
 

@@ -6,7 +6,7 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/util/perlinnoise.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
-#include <FreeImagePlus.h>
+
 
 
 class SAIGA_GLOBAL Heightmap{

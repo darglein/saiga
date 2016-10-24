@@ -1,7 +1,9 @@
 
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/opengl/texture/imageConverter.h"
+#ifdef USE_FREEIMAGE
 #include <FreeImagePlus.h>
+#endif
 #include "saiga/util/png_wrapper.h"
 
 bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {
