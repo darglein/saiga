@@ -3,9 +3,9 @@
 #include <iostream>
 Joystick2 joystick;
 
-Joystick2::Joystick2() : Keyboard(50)
+Joystick2::Joystick2() : Keyboard(100)
 {
-
+    axis.resize(20,0);
 }
 
 void Joystick2::setCount(int _axisCount, int _buttonCount)
