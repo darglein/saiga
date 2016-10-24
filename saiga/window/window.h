@@ -60,6 +60,8 @@ protected:
     Deferred_Renderer* renderer = nullptr;
     Camera* currentCamera = nullptr;
 
+    tick_t gameLoopDelay = tick_t(0);
+
     bool gameloopDropAccumulatedUpdates = false;
 public:
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;

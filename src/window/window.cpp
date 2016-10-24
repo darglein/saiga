@@ -304,7 +304,7 @@ void Window::render(float dt, float interpolation)
 
 tick_t Window::getGameTicks(){
     gameTimer.stop();
-    return gameTimer.getTime();
+    return gameTimer.getTime() - gameLoopDelay;
 }
 
 void Window::sleep(tick_t ticks)
@@ -353,6 +353,11 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
     tick_t nextFrameTick = nextUpdateTick;
     tick_t nextInfoTick = nextUpdateTick;
 
+    tick_t actualUpdateTick = tick_t(0);
+    tick_t actualFrameTick = tick_t(0);
+
+    tick_t maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::milliseconds(1000));
+
     if(parallelUpdate){
         updateThread = std::thread(&Window::parallelUpdateThread,this,updateDT);
     }
@@ -369,16 +374,26 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
         //With this loop we are able to skip frames if the system can't keep up.
         for(int i = 0; i <= maxFrameSkip && getGameTicks() > nextUpdateTick; ++i){
-            if(catchUp){
-                gameTime.time = nextUpdateTick;
-            }else{
-                gameTime.time = getGameTicks();
-            }
+            actualUpdateTick = getGameTicks();
+
+            gameTime.time = nextUpdateTick;
             gameTime.updatetime = gameTime.time;
+
+            if(actualUpdateTick - gameTime.updatetime > maxGameLoopDelay){
+                if(catchUp == false){
+                    tick_t newDelay = actualUpdateTick - gameTime.updatetime;
+                    gameLoopDelay += newDelay;
+//                     cout << "> Warning: Cannot keep up with the set update rate. Adding delay of "
+//                          << std::chrono::duration_cast<std::chrono::duration<float,std::milli>>(newDelay).count() << "ms" << endl;
+                     gameloopDropAccumulatedUpdates = true;
+                }
+            }
+
+
             update(updateDT);
 
             if (gameloopDropAccumulatedUpdates){
-                cout << "> Advancing game loop to live." << endl;
+//                cout << "> Advancing game loop to live." << endl;
                 gameTime.updatetime = getGameTicks();
                 nextFrameTick = nextUpdateTick;
                 gameloopDropAccumulatedUpdates = false;
@@ -390,18 +405,19 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
         }
 
         if(getGameTicks() > nextFrameTick){
-            if(catchUp){
-                gameTime.time = nextFrameTick;
-            }else{
-                gameTime.time = getGameTicks();
-            }
+            actualFrameTick = getGameTicks();
+
+            tick_t ticksSinceLastUpdate = actualFrameTick - actualUpdateTick;
+
+           gameTime.time = gameTime.updatetime + ticksSinceLastUpdate;
+
+
             //calculate the interpolation value. Useful when the framerate is higher than the update rate
-            tick_t ticksSinceLastUpdate = gameTime.time - lastUpdateTick;
             float interpolation = (float)ticksSinceLastUpdate.count() / (nextUpdateTick - lastUpdateTick).count();
             interpolation = glm::clamp(interpolation,0.0f,1.0f);
 
             render(updateDT,interpolation);
-            nextFrameTick = gameTime.time + ticksPerFrame;
+            nextFrameTick = nextFrameTick + ticksPerFrame;
         }
 
         if(getGameTicks() > nextInfoTick){
