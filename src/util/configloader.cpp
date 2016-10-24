@@ -18,7 +18,7 @@ std::string ConfigLoader::ConfigEntry::toString()
         if(fillSize<=0) fillSize = 1;
 
         std::string fill = std::string(fillSize, ' ');
-        desc = fill + "# " + description;
+        desc = fill + "#" + description;
     }
     return key+"="+value+desc;
 }

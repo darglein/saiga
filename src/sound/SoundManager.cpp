@@ -317,7 +317,7 @@ void SoundManager::loadSoundsThreadStart()
         soundQueueLock.unlock();
 
         if (took){
-            cout << "parallel loadsound " << f << endl;
+//            cout << "parallel loadsound " << f << endl;
             assert(!soundAlreadyLoaded(f));
 
             SoundLoader sl;

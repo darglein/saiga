@@ -24,7 +24,8 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
         //https://lists.freedesktop.org/archives/mesa-dev/2015-February/077681.html
 
         //TODO check for mesa
-        blitLastFramebuffer = true;
+		//If this is true some recording softwares record the image too dark :(
+        blitLastFramebuffer = false;
     }
 
 

@@ -58,11 +58,13 @@ shader_t* ShaderPartLoader::createShader()
     shader->shaders = shaders;
     shader->createProgram();
 
+#ifdef SAIGA_DEBUG
     std::cout<<"Loaded: "<<file<<" ( ";
     for(auto& sp : shaders){
         std::cout<<sp->type<<" ";
     }
     std::cout<<") Id="<< shader->program << std::endl;
+#endif
 
     shader->name = file;
 
