@@ -64,7 +64,8 @@ bool Window::init(const RenderingParameters& params){
     }
 
 
-    //this somehow doesn't work in 32 bit
+    //this somehow doesn't work in 32 bit windows
+    //on older linux system the last parameter of the function is void* instead of const void*
     glDebugMessageCallback(Error::DebugLogWin32,NULL);
 
     cout<<">> Window inputs initialized!"<<endl;

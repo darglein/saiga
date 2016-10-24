@@ -4,7 +4,6 @@
 #endif
 #include <algorithm>
 #include "saiga/util/timer2.h"
-#include <GLFW/glfw3.h>
 #include "saiga/util/glm.h"
 #include "saiga/util/assert.h"
 

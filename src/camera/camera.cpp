@@ -13,7 +13,7 @@ void Camera::setView(const mat4 &v){
     model = glm::inverse(view);
 
     this->position = model[3];
-    this->rot = quat_cast(model);
+    this->rot = glm::quat_cast(model);
 }
 
 void Camera::setView(const vec3 &eye,const vec3 &center,const vec3 &up){

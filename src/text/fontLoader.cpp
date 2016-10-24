@@ -4,7 +4,6 @@
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/util/assert.h"
 
-#include <ft2build.h>
 #include <freetype/ftstroke.h>
 
 FT_Library FontLoader::ft = nullptr;
