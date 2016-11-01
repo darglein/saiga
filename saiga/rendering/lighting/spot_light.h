@@ -19,11 +19,13 @@ private:
     float angle=60.0f;
 public:
 
+    /**
+     * The default direction of the mesh is negative y
+     */
+
     SpotLight();
     virtual ~SpotLight(){}
     void bindUniforms(SpotLightShader& shader, Camera *cam);
-
-
 
 
     void setRadius(float value) override;
@@ -33,6 +35,8 @@ public:
     void recalculateScale();
     void setAngle(float value);
     float getAngle() const{return angle;}
+
+    void setDirection(vec3 dir);
 
     void calculateCamera();
     bool cullLight(Camera *cam);

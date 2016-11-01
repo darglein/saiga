@@ -24,20 +24,7 @@ void BoxLight::createShadowMap(int resX, int resY){
 }
 
 
-void BoxLight::setDirection(const vec3 &dir){
-    direction = glm::normalize(dir);
 
-
-}
-
-void BoxLight::setFocus(const vec3 &pos){
-    cam.setView(pos-direction*range, pos, vec3(0,1,0));
-}
-
-void BoxLight::setAmbientIntensity(float ai)
-{
-    ambientIntensity = ai;
-}
 
 void BoxLight::bindUniforms(BoxLightShader &shader, Camera *cam){
     shader.uploadColorDiffuse(colorDiffuse);
@@ -76,9 +63,8 @@ void BoxLight::calculateCamera(){
     vec3 pos = getPosition() - dir * length * 0.5f;
     vec3 up = vec3(getUpVector());
 
-//    cout<<this->position<<" "<<dir<<" "<<pos<<endl;
-    this->cam.setView(pos,pos+dir,up);
-    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,0.01f,scale.z*2.0f);
+    cam.setView(pos,pos+dir,up);
+    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,shadowNearPlane,scale.z*2.0f);
 
 }
 

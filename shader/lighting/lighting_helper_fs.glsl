@@ -143,31 +143,17 @@ float intensitySpecular(vec3 position, vec3 normal, vec3 lightDir, float exponen
 
 
 
-float getFadeOut(float d, float r){
-    //makes sure that the light at the border of the point light is always 0, with a smooth transition
-    //not physically corrrect, but looks good
-
-
-    //the light intensity will smoothly drecrease from b->xs
-    const float b = 0.6;
-    const float xs = 0.9f;
-
-
-    const float m = -(1/(xs-b));
-    const float t = -m*xs;
-
-    float alpha = d/r;
-    float x = m * alpha + t;
-    return clamp(x,0,1);
-}
-
 float getAttenuation(vec3 attenuation, float distance, float radius){
-//    float d = distance(fragposition,lightPos);
-
-
-    return getFadeOut(distance,radius) / (attenuation.x +
-                    attenuation.y * distance +
-                    attenuation.z * distance * distance);
+//    if(distance > 5.6f)
+//    return 1.0f;
+//    return 0.0f;
+    //normalize the distance, so the attenuation is independent of the radius
+    float x = distance / radius;
+    //make sure that we return 0 if distance > radius, otherwise we would get an hard edge
+    float smoothBorder = smoothstep(1.0f,0.9f,x);
+    return smoothBorder / (attenuation.x +
+                    attenuation.y * x +
+                    attenuation.z * x * x);
 }
 
 float calculateShadow(sampler2DShadow tex, vec3 position, float outside){

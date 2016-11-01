@@ -55,7 +55,7 @@ void main() {
     float depth;
     getGbufferData(diffColor,vposition,depth,normal,data,0);
 
-    vec3 lightDir = normalize(lightPos-vposition);
+    vec3 fragmentLightDir = normalize(lightPos-vposition);
     float intensity = lightColorDiffuse.w;
 
     float visibility = 1.0f;
@@ -71,10 +71,10 @@ void main() {
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
 
 
-    float Idiff = localIntensity * intensityDiffuse(normal,lightDir);
+    float Idiff = localIntensity * intensityDiffuse(normal,fragmentLightDir);
     float Ispec = 0;
     if(Idiff > 0)
-        Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,lightDir,40);
+        Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,fragmentLightDir,40);
 
 
     vec3 color = lightColorDiffuse.rgb * (

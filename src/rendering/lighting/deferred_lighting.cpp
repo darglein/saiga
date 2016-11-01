@@ -545,7 +545,15 @@ void DeferredLighting::createLightMeshes(){
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     qb->createBuffers(directionalLightMesh);
 
-    Sphere s(vec3(0),1);
+
+
+    //the create mesh returns a sphere with outer radius of 1
+    //but here we want the inner radius to be 1
+    //we estimate the required outer radius with apothem of regular polygons
+    float n = 4.9;
+    float r = 1.0f / glm::cos(glm::pi<float>() / n);
+    cout << "point light radius " << r << endl;
+    Sphere s(vec3(0),r);
     auto sb = TriangleMeshGenerator::createMesh(s,1);
     sb->createBuffers(pointLightMesh);
 

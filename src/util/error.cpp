@@ -2,7 +2,7 @@
 
 
 
-void Error::DebugLogWin32(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam){
+void Error::DebugLogConst(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam){
     (void)userParam; (void)length;
 
     if (id == 131185){
@@ -37,7 +37,7 @@ void Error::DebugLog(GLenum source, GLenum type, GLuint id, GLenum severity, GLs
     (void)length; //unused variables
     (void)userParam;
 
-    DebugLogWin32(source,type,id,severity,length,message,userParam);
+    DebugLogConst(source,type,id,severity,length,message,userParam);
 
 }
 
