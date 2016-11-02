@@ -149,11 +149,11 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
         al.getAnimation(i,0,asset->animations[i]);
     }
 
-    for(BoneVertexCD &v : asset->mesh.vertices){
+//    for(BoneVertexCD &v : asset->mesh.vertices){
 //        vec3 c = v.color;
 //        c = Color::srgb2linearrgb(c);
 //        v.color = c;
-    }
+//    }
 
 
 //    std::vector<mat4> boneMatrices(al.boneOffsets.size());

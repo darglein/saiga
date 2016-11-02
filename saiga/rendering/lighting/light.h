@@ -60,16 +60,16 @@ public:
 
 
 
-
-    vec3 getColorDiffuse(){return vec3(colorDiffuse);}
-    float getIntensity(){return colorDiffuse.w;}
+    vec3 getColorSpecular() const {return vec3(colorSpecular);}
+    vec3 getColorDiffuse()const {return vec3(colorDiffuse);}
+    float getIntensity()const {return colorDiffuse.w;}
 
     void setActive(bool _active){this->active= _active;}
-    bool isActive(){return active;}
+    bool isActive() const {return active;}
     void setVisible(bool _visible){this->visible= _visible;}
-    bool isVisible(){return visible;}
+    bool isVisible() const {return visible;}
     void setSelected(bool _selected){this->selected= _selected;}
-    bool isSelected(){return selected;}
+    bool isSelected() const {return selected;}
 
 
     bool hasShadows() const {return castShadows;}
