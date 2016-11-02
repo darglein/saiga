@@ -52,7 +52,7 @@ vec4 getDirectionalLightIntensity(int sampleId) {
     float depth;
     getGbufferData(diffColor,vposition,depth,normal,data,sampleId);
 
-    vec3 lightDir = direction;
+    vec3 fragmentLightDir = direction;
     float ssao = getSSAOIntensity();
     float intensity = lightColorDiffuse.w;
 
@@ -65,10 +65,10 @@ vec4 getDirectionalLightIntensity(int sampleId) {
     float localIntensity = intensity * visibility; //amount of light reaching the given point
 
     float Iamb = intensity * ambientIntensity * ssao;
-    float Idiff = localIntensity * intensityDiffuse(normal,lightDir);
+    float Idiff = localIntensity * intensityDiffuse(normal,fragmentLightDir);
     float Ispec = 0;
     if(Idiff > 0)
-        Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,lightDir,40);
+        Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,fragmentLightDir,40);
 
     float Iemissive = data.y ;
 

@@ -40,7 +40,6 @@ LightingController::LightingController(DeferredLighting& lighting):lighting(ligh
         (void)args;
         PointLight* light = this->lighting.createPointLight();
         light->translateGlobal(vec3(3,10,0));
-        light->setSimpleAttenuation(10,1.f/50);
         light->setColorDiffuse(vec4(156./256, 42./256, 0,4));
     });
 

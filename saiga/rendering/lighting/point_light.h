@@ -14,27 +14,67 @@ public:
 };
 
 
+namespace AttenuationPresets{
+static const vec3 NONE = vec3(1,0,0); //Cutoff = 1
 
-class SAIGA_GLOBAL PointLight : public Light// public LightMesh<PointLight,PointLightShader>
+static const vec3 LinearWeak = vec3(1,0.5,0); //Cutoff = 0.666667
+static const vec3 Linear = vec3(1,1,0); //Cutoff = 0.5
+static const vec3 LinearStrong = vec3(1,4,0); //Cutoff = 0.2
+
+
+static const vec3 QuadraticWeak = vec3(1,0.5,0.5); //Cutoff = 0.5
+static const vec3 Quadratic = vec3(1,1,1); //Cutoff = 0.333333
+static const vec3 QuadraticStrong = vec3(1,2,4); //Cutoff = 0.142857
+
+
+}
+
+
+class SAIGA_GLOBAL PointLight : public Light
 {
-public:
-    PerspectiveCamera cam;
-//    cube_Texture* cubeMap;
-
-
-    vec3 attenuation;
+protected:
+    vec3 attenuation = AttenuationPresets::Quadratic;
     float radius;
     Sphere sphere;
+public:
+    PerspectiveCamera cam;
+
+
+    /**
+     * Quadratic attenuation of the form:
+     * I = i/(a*x*x+b*x+c)
+     *
+     * Note: The attenuation is independent of the radius.
+     * x = d / r, where d is the distance to the light
+     *
+     * This normalized attenuation makes it easy to scale lights without having to change the attenuation
+     *
+     */
+
     PointLight();
     PointLight(const Sphere &sphere);
     virtual ~PointLight(){}
     PointLight& operator=(const PointLight& light);
-    void setAttenuation(float c, float l , float q);
-    void setSimpleAttenuation(float d, float cutoff=(1./256.));
 
-    void setLinearAttenuation(float r, float drop);
+    /**
+     * Use a simple linear attenuation, so that a=0 and c=1
+     * Note: The attenuation isn't really linear because it is inverted: 1/(b*r)
+     * Drop is the relative intensity lost over the distance
+     */
+    void setLinearAttenuation(float drop);
 
-    void calculateRadius(float cutoff=(1./256.));
+
+    /**
+     * Calculates the radius required of this light, so that 'cutoffPercentage' of the original intensity
+     * reaches the border.
+     *
+     * This solves:
+     * 1/(a*r*r+b*r+c) = h, where h is the cutoffPercentage
+     *
+     */
+
+    float calculateRadius(float cutoffPercentage);
+    float calculateRadiusAbsolute(float cutoff);
 
     virtual void bindUniforms(PointLightShader& shader, Camera *cam);
 
@@ -43,13 +83,14 @@ public:
     virtual void setRadius(float value);
 
     vec3 getAttenuation() const;
+    float getAttenuation(float r);
     void setAttenuation(const vec3 &value);
 
     virtual void createShadowMap(int resX, int resY) override;
+
     void bindFace(int face);
     void calculateCamera(int face);
 
-    float getAttenuation(float r);
 
     bool cullLight(Camera *cam);
 };

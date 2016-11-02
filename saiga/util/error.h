@@ -41,7 +41,7 @@ public:
     // aux function to translate type to std::string
     static std::string getStringForType(GLenum type);
 
-    static void DebugLogWin32( GLenum source , GLenum type , GLuint id , GLenum severity ,
+    static void DebugLogConst( GLenum source , GLenum type , GLuint id , GLenum severity ,
                                GLsizei length , const GLchar * message ,const GLvoid * userParam);
 
     static void DebugLog( GLenum source , GLenum type , GLuint id , GLenum severity ,

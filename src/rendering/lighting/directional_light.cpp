@@ -45,7 +45,7 @@ DirectionalLight::DirectionalLight()
 void DirectionalLight::createShadowMap(int resX, int resY){
     Light::createShadowMap(resX,resY);
     range = 20.0f;
-    cam.setProj(-range,range,-range,range,1.f,50.0f);
+    cam.setProj(-range,range,-range,range,shadowNearPlane,50.0f);
 
 }
 

@@ -26,7 +26,8 @@ void SpotLight::calculateCamera(){
     vec3 dir = vec3(this->getUpVector());
     vec3 pos = vec3(getPosition());
     vec3 up = vec3(getRightVector());
-    this->cam.setView(pos,pos-dir,up);
+    cam.setView(pos,pos-dir,up);
+    cam.setProj(2*angle,1,shadowNearPlane,radius);
 
 }
 
@@ -51,9 +52,6 @@ void SpotLight::recalculateScale(){
     vec3 scale(l,radius,l);
 
     this->setScale(scale);
-
-    float farplane = radius;
-    this->cam.setProj(2*angle,1,0.1f,farplane);
 }
 
 void SpotLight::setRadius(float value)
@@ -71,6 +69,11 @@ void SpotLight::createShadowMap(int resX, int resY) {
 void SpotLight::setAngle(float value){
     this->angle = value;
     recalculateScale();
+}
+
+void SpotLight::setDirection(vec3 dir)
+{
+    rot = glm::rotation(vec3(0,-1,0),glm::normalize(dir));
 }
 
 bool SpotLight::cullLight(Camera *cam)

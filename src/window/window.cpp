@@ -65,8 +65,14 @@ bool Window::init(const RenderingParameters& params){
 
 
     //this somehow doesn't work in 32 bit windows
-    //on older linux system the last parameter of the function is void* instead of const void*
-    glDebugMessageCallback(Error::DebugLogWin32,NULL);
+
+
+    //in older glew versions the last parameter of the function is void* instead of const void*
+#if defined(GLEW_VERSION_4_5) || defined(USE_GLBINDING)
+    glDebugMessageCallback(Error::DebugLogConst,NULL);
+#else
+    glDebugMessageCallback(Error::DebugLog,NULL);
+#endif
 
     cout<<">> Window inputs initialized!"<<endl;
     assert_no_glerror();
