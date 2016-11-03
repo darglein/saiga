@@ -6,6 +6,7 @@
 #include "saiga/util/timer.h"
 #include "saiga/util/glm.h"
 #include "saiga/util/assert.h"
+#include "saiga/util/gameTime.h"
 
 
 Timer::Timer()
