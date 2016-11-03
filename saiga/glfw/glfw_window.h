@@ -51,8 +51,6 @@ public:
     //TODO: remove everything from here
 
     using Window::startMainLoop;
-    void startMainLoop();
-    void startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond, int maxFrameSkip = 1);
     void startMainLoopNoRender(float ticksPerSecond);
     void screenshotParallelWrite(const std::string &file);
     void setVideoRecordingLimit(int limit){queueLimit = limit;}

@@ -2,7 +2,7 @@
 
 #include "saiga/config.h"
 #include "saiga/opengl/texture/image.h"
-#include "saiga/util/timer2.h"
+#include "saiga/util/timer.h"
 #include "saiga/util/synchronizedBuffer.h"
 #include <string>
 #include <iostream>

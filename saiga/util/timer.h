@@ -3,7 +3,6 @@
 #include "saiga/config.h"
 #include "saiga/util/time.h"
 #include <vector>
-#include <chrono>
 
 #ifdef WIN32
 #if _MSC_VER >= 1900 //VS2015 and newer
@@ -18,12 +17,12 @@
 
 //Linux: c++ 11 chrono for time measurement
 //Windows: queryPerformanceCounter because c++ 11 chrono only since VS2015 with good precision :(
-class SAIGA_GLOBAL Timer2{
+class SAIGA_GLOBAL Timer{
 public:
-    Timer2();
+    Timer();
 
     void start();
-    void stop();
+    tick_t stop();
 
     double getTimeMS();
     double getTimeMicrS();
@@ -46,7 +45,7 @@ protected:
 };
 
 
-class SAIGA_GLOBAL ExponentialTimer : public Timer2{
+class SAIGA_GLOBAL ExponentialTimer : public Timer{
 public:
     ExponentialTimer(double alpha = 0.9);
     virtual tick_t getCurrentTime() override { return currentTime; }
@@ -57,7 +56,7 @@ protected:
 };
 
 
-class SAIGA_GLOBAL AverageTimer : public Timer2{
+class SAIGA_GLOBAL AverageTimer : public Timer{
 public:
     AverageTimer(int number = 10);
     virtual tick_t getCurrentTime() override { return currentTime; }

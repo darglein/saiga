@@ -2,7 +2,7 @@
 
 #include "saiga/config.h"
 #include "saiga/opengl/texture/image.h"
-#include "saiga/util/timer2.h"
+#include "saiga/util/timer.h"
 #include "saiga/util/synchronizedBuffer.h"
 #include <string>
 #include <iostream>
@@ -59,7 +59,7 @@ private:
     int ticksPerFrame;
     //AVPacket pkt;
     SwsContext * ctx = nullptr;
-    Timer2 timer1, timer2, timer3;
+    Timer timer1, timer2, timer3;
     void scaleFrame(std::shared_ptr<Image> image, AVFrame *frame);
     bool encodeFrame(AVFrame *frame, AVPacket &pkt);
     void writeFrame(AVPacket &pkt);

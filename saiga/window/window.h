@@ -3,7 +3,7 @@
 #include <saiga/config.h>
 #include <thread>
 #include <saiga/util/semaphore.h>
-#include "saiga/util/timer2.h"
+#include "saiga/util/gameTime.h"
 #include "saiga/geometry/ray.h"
 
 
@@ -49,8 +49,6 @@ protected:
     int numUpdates = 0;
     int numFrames = 0;
 
-    Timer2 gameTimer;
-    double timeScale = 1.f;
     bool running = true;
 
     Semaphore semStartUpdate, semFinishUpdate;
@@ -104,16 +102,10 @@ public:
     float getAspectRatio() const { return (float)windowParameters.width/(float)windowParameters.height; }
     Camera* getCamera() const { return currentCamera; }
     std::string getName() const { return windowParameters.name; }
-    void setTimeScale(double timeScale);
+
     void setCamera(Camera* c) { currentCamera = c; }
     Deferred_Renderer* getRenderer() const {  return renderer; }
 
-    //When there are very long updates for example when loading a level, the
-    //gameloop tries to catch up, unless you call this method.
-    void jumpGameLoopToLive(){ gameloopDropAccumulatedUpdates = true; }
-
-    //number of ticks since startgameloop has been called
-    tick_t getGameTicks();
 
     void screenshot(const std::string &file);
     void screenshotRender(const std::string &file);

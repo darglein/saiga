@@ -238,100 +238,10 @@ void glfw_Window::freeContext()
 }
 
 
-
-void glfw_Window::startMainLoop(){
-    running = true;
-
-    const long long SKIP_TICKS_NORMAL_TIME = 1000000 / 60.0;
-    long long SKIP_TICKS = SKIP_TICKS_NORMAL_TIME;
-    const float dt = 1.0f/60.0;
-
-    tick_t next_game_tick = getGameTicks();
-
-    /* Loop until the user closes the window */
-    while (running && !glfwWindowShouldClose(window))
-    {
-
-        update(dt);
-
-        //in case timescale was changed
-        SKIP_TICKS = ((double)SKIP_TICKS_NORMAL_TIME)/timeScale;
-
-        render(dt,0);
-
-        if (recordingVideo)
-            screenshotParallelWrite("screenshots/video/");
-
-
-
-
-        next_game_tick = getGameTicks();
-
-        checkEvents();
-
-        assert_no_glerror_end_frame();
-    }
-}
-
-
-
-void glfw_Window::startMainLoopConstantUpdateRenderInterpolation(int ticksPerSecond, int maxFrameSkip){
-//    const long long SKIP_TICKS_NORMAL_TIME = 1000000 / ticksPerSecond;
-//    long long SKIP_TICKS = SKIP_TICKS_NORMAL_TIME;
-//    const float dt = 1.0f/ticksPerSecond;
-
-//    setTimeScale(1.0);
-
-
-//    long long next_game_tick = getGameTicks();
-
-//    running = true;
-//    while( running && !glfwWindowShouldClose(window) ) {
-
-//        int loops = 0;
-//        while( getGameTicks() > next_game_tick ) {
-//            if (loops > maxFrameSkip){
-////                cout << "<Gameloop> Warning: Update loop is falling behind. (" << (getTicksMS() - next_game_tick)/1000 << "ms)" << endl;
-//                break;
-//            }
-
-//            update(dt);
-
-
-//            //if this flag is set, drop some updates, NOTE: this will cause the game to run slower!
-//            if (gameloopDropAccumulatedUpdates){
-//                cout << "<Gameloop> Dropping accumulated updates." << endl;
-//                next_game_tick = getGameTicks();
-//                gameloopDropAccumulatedUpdates = false;
-//            }
-
-
-//            SKIP_TICKS = ((double)SKIP_TICKS_NORMAL_TIME)/timeScale;
-
-//            next_game_tick += SKIP_TICKS;
-
-//            ++loops;
-//        }
-//        float interpolation = glm::clamp(((float)(getGameTicks() + SKIP_TICKS - next_game_tick ))/ (float) (SKIP_TICKS ),0.0f,1.0f);
-//        render(dt,interpolation);
-
-
-
-//#ifdef FORCEFRAMERATE
-//        std::this_thread::sleep_for(std::chrono::milliseconds((int)( 1000.f/FORCEFRAMERATE)));
-//#endif
-
-//    checkEvents();
-
-
-//        assert_no_glerror_end_frame();
-//    }
-}
-
 void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
 {
     const float dt = 1.0f/ticksPerSecond;
-    setTimeScale(1.0);
+//    setTimeScale(1.0);
 
     int simulatedTicks = 0;
     running = true;

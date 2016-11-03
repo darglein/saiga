@@ -14,10 +14,10 @@
 template<typename camera_t>
 class Controllable_Camera : public camera_t{
 public:
-    float movementSpeed = 1;
-    float movementSpeedFast = 5;
+    float movementSpeed = 5;
+    float movementSpeedFast = 10;
 
-    float rotationSpeed = 1;
+    float rotationSpeed = 0.2f;
 
     enum Key{
         Forward = 0,
