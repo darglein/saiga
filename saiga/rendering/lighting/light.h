@@ -3,6 +3,7 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/rendering/lighting/shadowmap.h"
 #include "saiga/rendering/object3d.h"
+#include "saiga/util/color.h"
 
 class SAIGA_GLOBAL LightShader : public DeferredShader{
 public:
@@ -26,6 +27,33 @@ public:
     void uploadInvProj(mat4 &mat);
 };
 
+
+namespace LightColorPresets{
+
+//some values were taken from here
+//http://planetpixelemporium.com/tutorialpages/light.html
+
+
+// === Basic Lamps ===
+
+static const vec3 Candle = Color::srgb2linearrgb(Color(255, 147, 41));
+static const vec3 Tungsten40W = Color::srgb2linearrgb(Color(255, 197, 143));
+static const vec3 Tungsten100W = Color::srgb2linearrgb(Color(255, 214, 170));
+static const vec3 Halogen = Color::srgb2linearrgb(Color(255, 241, 224));
+static const vec3 CarbonArc = Color::srgb2linearrgb(Color(255, 250, 244));
+
+
+// === Special Effects ==
+
+static const vec3 MuzzleFlash = Color::srgb2linearrgb(Color(226, 184, 34));
+
+// === Sun Light ==
+
+static const vec3 HighNoonSun = Color::srgb2linearrgb(Color(255, 255, 251));
+static const vec3 DirectSunlight = Color::srgb2linearrgb(Color(255, 255, 255));
+static const vec3 OvercastSky = Color::srgb2linearrgb(Color(201, 226, 255));
+static const vec3 ClearBlueSky = Color::srgb2linearrgb(Color(64, 156, 255));
+}
 
 class SAIGA_GLOBAL Light  : public Object3D
 {
