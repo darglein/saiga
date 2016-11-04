@@ -73,7 +73,7 @@ void SpotLight::setAngle(float value){
 
 void SpotLight::setDirection(vec3 dir)
 {
-    rot = glm::rotation(vec3(0,-1,0),glm::normalize(dir));
+    rot = glm::rotation(glm::normalize(dir),vec3(0,-1,0));
 }
 
 bool SpotLight::cullLight(Camera *cam)
