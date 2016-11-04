@@ -25,6 +25,8 @@ private:
      //when updating this is equal to update time and while rendering this is equal to render time
      tick_t currentTime;
 
+     bool jtl = false;
+
 public:
     tick_t base = std::chrono::seconds(1);
 

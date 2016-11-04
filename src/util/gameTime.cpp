@@ -30,14 +30,7 @@ void GameTime::setTimeScale(double value)
 
 void GameTime::jumpToLive()
 {
-
-    update();
-
-    auto delay = scaledTime - nextUpdateTime;
-    std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(delay).count() << " ms" << std::endl;
-
-    scaledTime = nextUpdateTime;
-    nextFrameTime = realTime;
+    jtl = true;
 }
 
 
@@ -53,6 +46,19 @@ void GameTime::update()
 bool GameTime::shouldUpdate()
 {
     update();
+
+    if(jtl){
+
+        auto delay = scaledTime - nextUpdateTime;
+
+        if(delay.count() > 0){
+            std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(delay).count() << " ms" << std::endl;
+            scaledTime = nextUpdateTime;
+            nextFrameTime = realTime;
+        }
+        jtl = false;
+    }
+
     if(scaledTime > nextUpdateTime){
         actualUpdateTime = scaledTime;
         updatetime = nextUpdateTime;
@@ -90,6 +96,10 @@ bool GameTime::shouldRender()
 tick_t GameTime::getSleepTime()
 {
     update();
-    tick_t nextEvent = nextFrameTime < nextUpdateTime? nextFrameTime: nextUpdateTime;
-    return nextEvent - scaledTime;
+
+    auto timeTillU = nextUpdateTime - scaledTime;
+    auto timeTillR = nextFrameTime - realTime;
+
+    tick_t nextEvent = timeTillU < timeTillR? timeTillU: timeTillR;
+    return nextEvent;
 }
