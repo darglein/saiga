@@ -17,8 +17,10 @@ void main() {
 
     ivec2 tci = ivec2(gl_FragCoord.xy);
     vec3 rgbM = texelFetch( image, tci ,0).rgb;
+	//out_color = vec4(rgbM,1);
+	//out_color = vec4(texture(colorGradingLookupTable, vec3(0.5)).rgb,1);
 
-	out_color = vec4(texture(colorGradingLookupTable, scale * rgbM.xyz + offset),1);
+	out_color = vec4(texture(colorGradingLookupTable, scale * rgbM.xyz + offset).rgb,1);
 }
 
 
