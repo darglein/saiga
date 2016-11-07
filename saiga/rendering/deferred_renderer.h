@@ -116,7 +116,7 @@ public:
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
 
-    GBuffer deferred_framebuffer;
+    GBuffer gbuffer;
 
 
     PostProcessor postProcessor;
