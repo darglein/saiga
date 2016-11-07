@@ -14,7 +14,7 @@ public:
     IndexedVertexBuffer<VertexNT,GLuint> mesh;
     MVPTextureShader* shader;
     Texture* texture;
-    cube_Texture* cube_texture;
+    TextureCube* cube_texture;
     mat4 model;
 
     Skybox();

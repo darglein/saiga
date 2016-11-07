@@ -14,6 +14,7 @@ protected:
 public:
     raw_Texture(GLenum target):target(target){}
     virtual ~raw_Texture();
+
     raw_Texture(raw_Texture const&) = delete;
     raw_Texture& operator=(raw_Texture const&) = delete;
 
@@ -36,12 +37,11 @@ public:
     virtual void uploadData(const GLubyte* data);
 
     void uploadSubImage(int x, int y, int width, int height,GLubyte* data );
-    //only works for 3d textures!!
-    void uploadSubImage(int x, int y, int z, int width, int height, int depth, GLubyte *data);
 
-    virtual void bind();
-    virtual void bind(int location);
-    virtual void unbind();
+
+    void bind();
+    void bind(int location);
+    void unbind();
 
     /**
      * Directly maps to glBindImageTexture.

@@ -142,6 +142,19 @@ void Image::flipRB()
     }
 }
 
+void Image::flipY()
+{
+    auto copy = data;
+    for(int y = 0 ; y < height ; ++y){
+        int offset = bytesPerRow * y;
+        int invOffset = bytesPerRow * (height-y-1);
+        std::copy(copy.begin()+offset,
+                  copy.begin()+offset+bytesPerRow,
+                  data.begin()+invOffset
+                  );
+    }
+}
+
 //======================================================
 
 

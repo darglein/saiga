@@ -1,7 +1,9 @@
 
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/util/error.h"
-void cube_Texture::uploadData(GLenum target,const  GLubyte *data ){
+
+
+void TextureCube::uploadData(GLenum target,const  GLubyte *data ){
     bind(0);
     glTexImage2D(target,
                  0,  // level, 0 = base, no minimap,
@@ -17,45 +19,26 @@ void cube_Texture::uploadData(GLenum target,const  GLubyte *data ){
 }
 
 
-void cube_Texture::uploadData(const GLubyte *data ){
-//    std::cout<<">>>>> uploadData"<<std::endl;
-    bind(0);
-    for (int i=0; i<6; i++) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+
+void TextureCube::uploadData(const GLubyte* data ){
+    bind();
+    for(int i = 0 ; i < 6 ; ++i){
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, // target
                      0,  // level, 0 = base, no minimap,
                      static_cast<GLint>(internal_format), // internalformat
                      width,  // width
                      height,  // height
-                     0,  // border, always 0 in OpenGL ES
+                     0,
                      color_type,  // format
                      data_type, // type
                      data);
     }
-
-    unbind();
     assert_no_glerror();
+    unbind();
 }
 
 
-void cube_Texture::uploadData(const GLubyte **data ){
-    bind(0);
-    for (int i=0; i<6; i++) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                     0,  // level, 0 = base, no minimap,
-                     static_cast<GLint>(internal_format), // internalformat
-                     width,  // width
-                     height,  // height
-                     0,  // border, always 0 in OpenGL ES
-                     color_type,  // format
-                     data_type, // type
-                     data[i]);
-    }
-
-    unbind();
-    assert_no_glerror();
-}
-
-void cube_Texture::setDefaultParameters(){
+void TextureCube::setDefaultParameters(){
     glTexParameteri (target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
     glTexParameteri (target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
     glTexParameteri (target, GL_TEXTURE_WRAP_R, static_cast<GLint>(GL_CLAMP_TO_EDGE));
@@ -64,19 +47,7 @@ void cube_Texture::setDefaultParameters(){
 }
 
 
-bool cube_Texture::fromImage(Image *img){
-    setFormat(img[0]);
-
-    const GLubyte* data[6];
-    for(int i=0;i<6;i++){
-        data[i] = img[i].getRawData();
-    }
-    createGlTexture();
-    uploadData(data);
-    return true;
-}
-
-bool cube_Texture::fromImage(Image &img){
+bool TextureCube::fromImage(Image &img){
     //cubestrip
     if(img.width%6!=0){
         std::cout<<"Width no factor of 6!"<<std::endl;
@@ -89,14 +60,17 @@ bool cube_Texture::fromImage(Image &img){
     }
 
     //split into 6 small images
-    Image images[6];
+    std::vector<Image> images(6);
     auto w = img.height;
     for(int i=0;i<6;i++){
         img.getSubImage(w*i,0,w,w,images[i]);
-        //        images[i] = img;
     }
 
+    return fromImage(images);
+}
 
+bool TextureCube::fromImage(std::vector<Image> &images)
+{
     setFormat(images[0]);
 
     createGlTexture();
@@ -109,6 +83,7 @@ bool cube_Texture::fromImage(Image &img){
     uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Y,images[4].getRawData());
     uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,images[5].getRawData());
 
+    assert_no_glerror();
     return true;
 }
 

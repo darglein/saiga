@@ -56,7 +56,7 @@ void main() {
      vec4 diffColor = texture(image, texCoord2);
 
     out_color =  vec3(diffColor);
-    out_color = vec3(1,0,0);
+//    out_color = vec3(1,0,0);
 }
 
 

@@ -1,26 +1,16 @@
 #pragma once
 
-#include "saiga/opengl/texture/raw_texture.h"
+#include "saiga/opengl/texture/texture3D.h"
 
-#include <vector>
 
-class SAIGA_GLOBAL ArrayTexture2D : public raw_Texture{
+/**
+ * On CPU side the arraytexture behaves the same as a 3D texture.
+ * The only difference is the Opengl target (GL_TEXTURE_2D_ARRAY instead of GL_TEXTURE_3D).
+ */
 
+class SAIGA_GLOBAL ArrayTexture2D : public Texture3D{
 public:
-    int depth;
-
-    ArrayTexture2D():raw_Texture(GL_TEXTURE_2D_ARRAY){}
+    ArrayTexture2D():Texture3D(GL_TEXTURE_2D_ARRAY){}
     virtual ~ArrayTexture2D(){}
-
-
-     void setDefaultParameters() override;
-
-
-    void uploadData(GLenum target, const GLubyte* data );
-    void uploadData(const GLubyte** data );
-    void uploadData(const GLubyte* data);
-
-    bool fromImage(std::vector<Image> &images);
-    bool fromImage(Image &img);
 };
 

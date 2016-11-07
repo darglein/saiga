@@ -68,12 +68,6 @@ void raw_Texture::uploadSubImage(int x, int y, int width, int height,GLubyte* da
     unbind();
 }
 
-void raw_Texture::uploadSubImage(int x, int y, int z, int width, int height , int depth, GLubyte* data ){
-    bind();
-    glTexSubImage3D(target, 0, x, y, z,width, height,depth, color_type, data_type, data);
-    assert_no_glerror();
-    unbind();
-}
 
 bool raw_Texture::downloadFromGl(GLubyte* data ){
     if(id==0){

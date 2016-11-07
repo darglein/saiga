@@ -55,7 +55,7 @@ void Shadowmap::createCube(int w, int h){
 
 
 
-    cube_Texture* cubeMap = new cube_Texture();
+    TextureCube* cubeMap = new TextureCube();
     cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
 //    cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
     cubeMap->setWrap(GL_CLAMP_TO_EDGE);

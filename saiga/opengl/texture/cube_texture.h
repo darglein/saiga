@@ -14,21 +14,20 @@
  *
  * -> Swap Y before creating a cube texture from a image
  */
-class SAIGA_GLOBAL cube_Texture : public raw_Texture{
+class SAIGA_GLOBAL TextureCube : public raw_Texture{
 
 public:
-    cube_Texture():raw_Texture(GL_TEXTURE_CUBE_MAP){}
-    virtual ~cube_Texture(){}
+    TextureCube():raw_Texture(GL_TEXTURE_CUBE_MAP){}
+    virtual ~TextureCube(){}
 
 
-     void setDefaultParameters() override;
-
+    void setDefaultParameters() override;
+    void uploadData(const GLubyte* data ) override;
 
     void uploadData(GLenum target,const  GLubyte* data );
-    void uploadData(const GLubyte** data );
-    void uploadData(const GLubyte* data);
 
-    bool fromImage(Image *img);
+
     bool fromImage(Image &img);
+    bool fromImage(std::vector<Image> &images);
 };
 
