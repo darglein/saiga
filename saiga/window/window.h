@@ -116,6 +116,7 @@ public:
     vec2 projectToScreen(const vec3 &pos) const;
     vec3 screenToWorld(const vec2 &pixel) const;
     vec3 screenToWorld(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
+    void readToImage(Image &out);
 };
 
 

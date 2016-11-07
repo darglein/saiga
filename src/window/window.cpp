@@ -110,25 +110,31 @@ void Window::resize(int width, int height)
     renderer->resize(width,height);
 }
 
-void Window::screenshot(const std::string &file)
-{
-    cout<<"Window::screenshot "<<file<<endl;
-
+void Window::readToImage(Image& out){
     int w = renderer->windowWidth;
     int h = renderer->windowHeight;
 
-    Image img;
-    img.width = w;
-    img.height = h;
-    img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-    img.create();
+    out.width = w;
+    out.height = h;
+    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    out.create();
 
     //read data from default framebuffer and restore currently bound fb.
     GLint fb;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,img.getRawData());
+    glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
+}
+
+
+void Window::screenshot(const std::string &file)
+{
+    cout<<"Window::screenshot "<<file<<endl;
+
+    Image img;
+    readToImage(img);
+
 
     TextureLoader::instance()->saveImage(file,img);
 }
