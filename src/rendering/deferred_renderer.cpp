@@ -13,7 +13,7 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     width(windowWidth*params.renderScale), height(windowHeight*params.renderScale),
     ssao(windowWidth*params.renderScale, windowHeight*params.renderScale),
     smaa(windowWidth*params.renderScale, windowHeight*params.renderScale,params.smaaQuality),
-    params(params), lighting(deferred_framebuffer)
+    params(params), lighting(gbuffer)
 {
     //    setSize(windowWidth,windowHeight);
 
@@ -30,13 +30,13 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 
 
 
-    deferred_framebuffer.init(width, height, params.gbp);
+    gbuffer.init(width, height, params.gbp);
 
     lighting.init(width, height, params.useGPUTimers);
 
     lighting.ssaoTexture = ssao.bluredTexture;
 
-    postProcessor.init(width, height, &deferred_framebuffer, params.ppp, lighting.lightAccumulationTexture, params.useGPUTimers);
+    postProcessor.init(width, height, &gbuffer, params.ppp, lighting.lightAccumulationTexture, params.useGPUTimers);
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -81,7 +81,7 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
     cout << "Resizing Window to : " << windowWidth << "," << windowHeight << endl;
     cout << "Framebuffer size: " << width << " " << height << endl;
     postProcessor.resize(width, height);
-    deferred_framebuffer.resize(width, height);
+    gbuffer.resize(width, height);
     ssao.resize(width, height);
     lighting.resize(width, height);
     smaa.resize(width,height);
@@ -233,7 +233,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam) {
     glDepthMask(GL_TRUE);
 
 
-    deferred_framebuffer.bind();
+    gbuffer.bind();
     glViewport(0, 0, width, height);
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
 
@@ -271,7 +271,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam) {
 
     glDisable(GL_STENCIL_TEST);
 
-    deferred_framebuffer.unbind();
+    gbuffer.unbind();
 
 
     stopTimer(GEOMETRYPASS);
@@ -318,7 +318,7 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
     startTimer(SSAOT);
 
-    ssao.render(cam, &deferred_framebuffer);
+    ssao.render(cam, &gbuffer);
 
 
     stopTimer(SSAOT);
@@ -334,7 +334,7 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
-    blitDepthShader->uploadTexture(deferred_framebuffer.getTextureDepth().get());
+    blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
     quadMesh.bindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
