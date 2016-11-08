@@ -75,7 +75,6 @@ vec3 Color::linearrgb2srgb(vec3 c)
 }
 
 
-
 vec3 Color::xyz2linearrgb(vec3 c)
 {
     vec3 rgbLinear;

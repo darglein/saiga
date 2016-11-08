@@ -1,5 +1,5 @@
 #include "saiga/opengl/texture/imageGenerator.h"
-#include "saiga/opengl/texture/image2.h"
+#include "saiga/opengl/texture/templatedImage.h"
 
 std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, int quadSize, int numQuadsX, int numQuadsY)
 {
@@ -55,7 +55,6 @@ std::shared_ptr<Image> ImageGenerator::randomNormalized(int width, int height)
 {
     typedef TemplatedImage<4,8,ImageElementFormat::UnsignedNormalized,true> image_t;
     image_t* image = new image_t(width,height);
-    image->create();
     for(int i = 0 ; i < height ; ++i){
         for(int j = 0 ; j < width ; ++j){
             image_t::texel_t texel;

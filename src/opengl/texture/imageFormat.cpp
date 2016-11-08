@@ -1,5 +1,5 @@
 #include "saiga/opengl/texture/imageFormat.h"
-#include "saiga/opengl/texture/image2.h"
+#include "saiga/opengl/texture/templatedImage.h"
 #include "saiga/util/assert.h"
 #include <iostream>
 
@@ -9,11 +9,23 @@ void asksdfkg(){
     t.g = 1.0f;
 
     //    TemplatedImage<2,8,ImageFormat::SignedIntegral,false> i(5,5);
-    TemplatedImage<3,8,ImageElementFormat::UnsignedNormalized,false> i(5,5);
+    TemplatedImage<3,16,ImageElementFormat::UnsignedNormalized,false> i(5,5);
     i.create();
-    auto texel = i.getTexel(3,4);
+    auto& texel = i.getTexel(3,4);
+
+    texel.fromVec4(vec4(0.1f,0.2f,0.3f,0.4f));
     i.setTexel(2,3,texel);
     i.flipRB();
+    i.toSRGB();
+    i.toLinearRGB();
+
+
+    cout << texel.toVec4() << endl;
+
+
+    auto floatImg = i.convertToFloatImage();
+
+    cout << floatImg.getTexel(3,4).toVec4() << endl;
 }
 
 ImageFormat::ImageFormat(int channels, int bitDepth, ImageElementFormat elementFormat, bool srgb)
