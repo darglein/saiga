@@ -30,7 +30,7 @@ public:
      * The problem with srgb is, that the intensity values are not stored linearly in memory. (The brightness is also called gamma)
      * For example the gray value (0.2,0.2,0.2) is not twice as bright as (0.1,0.1,0.1).
      * The gamma of srgb is approximately 2.2:  Brightness = value ^ 2.2
-     * With such an exponential curve the brightness near 0 has higher resolution than the brightness near 1.
+     * With such an exponential curve, the brightness near 0 has higher resolution than the brightness near 1.
      * This fits the perception of colors of the human eye, because shades with low intensities are easier to differentiate.
      *
      * Ok, srgb is not linear, where is the problem?

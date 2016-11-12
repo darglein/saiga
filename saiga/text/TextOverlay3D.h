@@ -23,13 +23,20 @@ public:
         bool orientToCamera = true;
         vec3 velocity = vec3(0);
         bool fade = false;
+        vec4 startPosition = vec4(0);
+
+        float timeToUpscale = 0.3f;
+        float targetScale = 0.01f;
+        float startScale = 0.f;
+        vec4 upscale = vec4(0);
 
         TextContainer(){}
         TextContainer(std::shared_ptr<Text> text, float duration, bool orientToCamera)
             : text(text), duration(duration),maxDuration(duration), orientToCamera(orientToCamera){}
 
         bool update(float delta);
-        float getFade();
+        void interpolate(float interpolation, const mat4 &v);
+        float getFade(float interpolationInSeconds);
 
     };
 
@@ -41,8 +48,8 @@ public:
 
 
     TextOverlay3D();
-    void render(Camera* cam);
-    void renderText(Camera *cam);
+    void render(Camera* cam, float interpolation);
+    void renderText(Camera *cam, float interpolationInSeconds);
 
     //text stuff
     void addText(std::shared_ptr<Text> text, float duration, bool orientToCamera = true);

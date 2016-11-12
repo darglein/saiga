@@ -98,7 +98,7 @@ void ImageConverter::convert(Image src, fipImage &dest){
     }else if(src.Format().getChannels() == 4){
         src.flipRB();
     }else{
-        std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;
+        std::cout<<"INVALID FORMAT: channels: " << src.Format().getChannels() << ", bitsperpixel " << src.Format().bitsPerPixel() <<std::endl;
         assert(0);
     }
 
