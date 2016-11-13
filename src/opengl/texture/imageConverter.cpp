@@ -93,7 +93,9 @@ FREE_IMAGE_TYPE getFIT2(ImageFormat format){
 
 
 void ImageConverter::convert(Image src, fipImage &dest){
-    if(src.Format().getChannels() == 3 && src.Format().bitsPerPixel()==24){
+    if(src.Format().getChannels() == 1 && src.Format().bitsPerPixel()==8){
+
+    }else if(src.Format().getChannels() == 3 && src.Format().bitsPerPixel()==24){
         src.flipRB();
     }else if(src.Format().getChannels() == 4){
         src.flipRB();
