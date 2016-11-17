@@ -1,7 +1,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/timer.h"
+#include "saiga/time/timer.h"
 #include <chrono>
 
 
@@ -30,6 +30,8 @@ private:
 public:
     tick_t base = std::chrono::seconds(1);
 
+
+    tick_t maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::hours(1000));
 
 
     //time at which the last 'update' took place

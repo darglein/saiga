@@ -2,7 +2,7 @@
 
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
-#include <saiga/util/time.h>
+#include <saiga/time/time.h>
 #include <vector>
 #include <map>
 

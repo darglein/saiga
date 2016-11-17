@@ -1,7 +1,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/time.h"
+#include "saiga/time/time.h"
 #include <vector>
 
 #ifdef WIN32

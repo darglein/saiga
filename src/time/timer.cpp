@@ -3,10 +3,10 @@
 #include <windows.h>
 #endif
 #include <algorithm>
-#include "saiga/util/timer.h"
+#include "saiga/time/timer.h"
 #include "saiga/util/glm.h"
 #include "saiga/util/assert.h"
-#include "saiga/util/gameTime.h"
+#include "saiga/time/gameTime.h"
 
 
 Timer::Timer()

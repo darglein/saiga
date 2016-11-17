@@ -352,8 +352,10 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
     tick_t nextInfoTick = gameTime.getTime();
 
+    if(!catchUp){
+        gameTime.maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::milliseconds(1000));
+    }
 
-    tick_t maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::milliseconds(1000));
 
     if(parallelUpdate){
         updateThread = std::thread(&Window::parallelUpdateThread,this,updateDT);

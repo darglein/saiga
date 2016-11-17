@@ -9,6 +9,7 @@ FILE(GLOB_RECURSE opengl_SRC  opengl/*.cpp)
 FILE(GLOB_RECURSE imgui_SRC  imgui/*.cpp)
 FILE(GLOB_RECURSE rendering_SRC  rendering/*.cpp)
 FILE(GLOB_RECURSE smaa_SRC  smaa/*.cpp)
+FILE(GLOB_RECURSE time_SRC  time/*.cpp)
 FILE(GLOB_RECURSE text_SRC  text/*.cpp)
 FILE(GLOB_RECURSE util_SRC  util/*.cpp)
 FILE(GLOB_RECURSE window_SRC  window/*.cpp)
@@ -19,7 +20,7 @@ FILE(GLOB_RECURSE PROG_HEADER  ../${LIB_NAME}/*.h)
 
 FILE(GLOB_RECURSE SHADERS  ${PROJECT_SOURCE_DIR}/shader/*.glsl)
 
-SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${assets_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} ${imgui_SRC} ${rendering_SRC} ${smaa_SRC} ${text_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC} ${main_SRC} ${PROG_HEADER})
+SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${assets_SRC} ${camera_SRC} ${geometry_SRC} ${opengl_SRC} ${imgui_SRC} ${rendering_SRC} ${smaa_SRC} ${time_SRC} ${text_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC} ${main_SRC} ${PROG_HEADER})
 
 #add shaders to sources so they are added to the msvc solution.
 SET(PROG_SRC ${PROG_SRC} ${SHADERS})

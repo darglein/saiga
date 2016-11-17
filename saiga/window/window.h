@@ -3,7 +3,7 @@
 #include <saiga/config.h>
 #include <thread>
 #include <saiga/util/semaphore.h>
-#include "saiga/util/gameTime.h"
+#include "saiga/time/gameTime.h"
 #include "saiga/geometry/ray.h"
 
 

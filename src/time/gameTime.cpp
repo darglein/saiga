@@ -1,4 +1,4 @@
-#include "saiga/util/gameTime.h"
+#include "saiga/time/gameTime.h"
 #include "saiga/util/glm.h"
 #include <iostream>
 GameTime gameTime;
@@ -46,20 +46,25 @@ void GameTime::update()
 bool GameTime::shouldUpdate()
 {
     update();
+    auto currentDelay = scaledTime - nextUpdateTime;
+
+    if(currentDelay > maxGameLoopDelay){
+        jtl = true;
+    }
+
 
     if(jtl){
-
-        auto delay = scaledTime - nextUpdateTime;
-
-        if(delay.count() > 0){
-            std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(delay).count() << " ms" << std::endl;
+        if(currentDelay.count() > 0){
+            std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(currentDelay).count() << " ms" << std::endl;
             scaledTime = nextUpdateTime;
             nextFrameTime = realTime;
         }
         jtl = false;
     }
 
-    if(scaledTime > nextUpdateTime){
+
+
+    if(currentDelay > tick_t(0)){
         actualUpdateTime = scaledTime;
         updatetime = nextUpdateTime;
         currentTime = updatetime;
