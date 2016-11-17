@@ -121,17 +121,27 @@ bool glfw_Window::initWindow()
         windowParameters.height = mode->height;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    //    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    //    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    //    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	if (windowParameters.coreContext) {
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL
+    OpenGLParameters& oparams = windowParameters.openglparameters;
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, oparams.versionMajor);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, oparams.versionMinor);
+
+    switch (oparams.profile){
+    case OpenGLParameters::Profile::ANY:
+        //that is the default value
+        break;
+    case OpenGLParameters::Profile::CORE:
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        break;
+    case OpenGLParameters::Profile::COMPATIBILITY:
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
+        break;
     }
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, windowParameters.debugContext);
-    //    glfwWindowHint(GLFW_STENCIL_BITS, 8);
-    //    glfwWindowHint(GLFW_SRGB_CAPABLE,1);
+
+
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, oparams.debug);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, oparams.forwardCompatible);
+
+
 
     glfwWindowHint(GLFW_DECORATED,!windowParameters.borderLess());
     glfwWindowHint(GLFW_FLOATING,windowParameters.alwaysOnTop);

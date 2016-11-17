@@ -26,14 +26,27 @@ bool SDLWindow::initWindow()
         windowParameters.height = current.h;
     }
 
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 2 );
+    OpenGLParameters& oparams = windowParameters.openglparameters;
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, oparams.versionMajor );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, oparams.versionMinor );
 
-    if(windowParameters.coreContext)
+    switch (oparams.profile){
+    case OpenGLParameters::Profile::ANY:
+        //that is the default value
+        break;
+    case OpenGLParameters::Profile::CORE:
         SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+        break;
+    case OpenGLParameters::Profile::COMPATIBILITY:
+        SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
+        break;
+    }
 
-    if(windowParameters.debugContext)
+    if(oparams.debug)
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+
+    if(oparams.forwardCompatible)
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, true);

@@ -15,6 +15,23 @@ struct RenderingParameters;
 class Image;
 
 
+struct SAIGA_GLOBAL OpenGLParameters{
+    enum class Profile{
+        ANY,
+        CORE,
+        COMPATIBILITY
+    };
+    Profile profile = Profile::CORE;
+
+    bool debug = true;
+
+    //all functionality deprecated in the requested version of OpenGL is removed
+    bool forwardCompatible = false;
+
+    int versionMajor = 3;
+    int versionMinor = 2;
+
+};
 
 struct SAIGA_GLOBAL WindowParameters{
     enum class Mode{
@@ -33,9 +50,9 @@ struct SAIGA_GLOBAL WindowParameters{
     bool resizeAble = true;
     bool vsync = false;
     bool updateJoystick = false;
-    bool debugContext = true;
-    bool coreContext = true;
     int monitorId = 0; //Important for fullscreen mode. 0 is always the primary monitor.
+
+    OpenGLParameters openglparameters;
 
     bool borderLess(){ return mode==Mode::borderLessWindowed || mode==Mode::borderLessFullscreen;}
     bool fullscreen(){ return mode==Mode::fullscreen || mode==Mode::borderLessFullscreen;}
