@@ -36,7 +36,7 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
     characterInfoMap['\n'] = character_info();
 
     if(bufferToFile && readAtlasFromFiles()){
-//        cout << "maxCharacter: " << maxCharacter << endl;
+        initFont();
         return;
     }
 
@@ -63,7 +63,16 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
     textureAtlas = new Texture();
     textureAtlas->fromImage(img);
     textureAtlas->generateMipmaps();
+
+    initFont();
 }
+
+
+void TextureAtlas::initFont()
+{
+    invalidCharacter = getCharacterInfo('?');
+}
+
 
 const TextureAtlas::character_info &TextureAtlas::getCharacterInfo(int c){
     auto it = characterInfoMap.find(c);

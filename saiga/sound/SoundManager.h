@@ -71,6 +71,7 @@ public:
     void setMute(bool b);
 
     void setTimeScale(float scale);
+    void setTimeScaleNonFixed(float scale);
 
 
     /**

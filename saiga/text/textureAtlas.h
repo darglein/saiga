@@ -92,4 +92,6 @@ private:
     void writeAtlasToFiles(Image &img);
     bool readAtlasFromFiles();
 
+    void initFont();
+
 };

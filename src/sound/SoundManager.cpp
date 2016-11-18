@@ -418,6 +418,8 @@ void SoundManager::setMute(bool b)
     assert_no_alerror();
 }
 
+
+
 void SoundManager::setTimeScale(float scale)
 {
     //update all sources
@@ -427,7 +429,14 @@ void SoundManager::setTimeScale(float scale)
     assert_no_alerror();
 }
 
-
+void SoundManager::setTimeScaleNonFixed(float scale)
+{
+    for (int i = fixedSources ; i < maxSources ; ++i){
+        SoundSource& s = sources[i];
+        s.setPitch(scale);
+    }
+    assert_no_alerror();
+}
 
 void SoundManager::startCapturing()
 {
