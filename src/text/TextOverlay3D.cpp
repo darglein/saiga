@@ -37,9 +37,10 @@ void TextOverlay3D::TextContainer::interpolate(float interpolationInSeconds, con
     text->position = startPosition + vec4(vec3(timeAlive*velocity),0);
 
     text->params.setAlpha(getFade(interpolationInSeconds));
+
+	text->calculateModel();
     if (orientToCamera){
         //make this text face towards the camera
-        text->calculateModel();
         text->model =  text->model * v;
     }
 }

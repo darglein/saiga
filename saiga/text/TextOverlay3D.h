@@ -25,9 +25,9 @@ public:
         bool fade = false;
         vec4 startPosition = vec4(0);
 
-        float timeToUpscale = 0.3f;
-        float targetScale = 0.01f;
-        float startScale = 0.f;
+        float timeToUpscale = 1.0f;
+        vec4 targetScale = vec4(1.f);
+        vec4 startScale = vec4(1.f);
         vec4 upscale = vec4(0);
 
         TextContainer(){}
