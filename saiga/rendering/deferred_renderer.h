@@ -52,6 +52,8 @@ struct SAIGA_GLOBAL RenderingParameters{
     bool useSMAA = false;
     SMAA::Quality smaaQuality = SMAA::Quality::SMAA_PRESET_HIGH;
 
+    int shadowSamples = 16;
+
     GBufferParameters gbp;
     PostProcessorParameters ppp;
     RenderingParameters(){}

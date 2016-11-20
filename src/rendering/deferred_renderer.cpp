@@ -33,6 +33,8 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     gbuffer.init(width, height, params.gbp);
 
     lighting.init(width, height, params.useGPUTimers);
+    lighting.shadowSamples = params.shadowSamples;
+    lighting.loadShaders();
 
     lighting.ssaoTexture = ssao.bluredTexture;
 

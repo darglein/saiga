@@ -58,8 +58,9 @@ vec4 getDirectionalLightIntensity(int sampleId) {
 
     float visibility = 1.0f;
 #ifdef SHADOWS
-    visibility = calculateShadow(depthTex,vposition,1.0f);
-//    visibility = calculateShadowPCF(depthTex,vposition,1.0f);
+//        visibility = calculateShadow(depthTex,vposition);
+        visibility = calculateShadowPCF2(depthTex,vposition);
+    //    visibility = calculateShadowPCFdither4(depthTex,vposition);
 #endif
 
     float localIntensity = intensity * visibility; //amount of light reaching the given point

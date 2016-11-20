@@ -74,6 +74,8 @@ public:
     int renderedDepthmaps;
     int currentStencilId = 0;
 
+    int shadowSamples = 16; //Quadratic number (1,4,9,16,...)
+
     Texture* ssaoTexture;
 
     Texture* lightAccumulationTexture;

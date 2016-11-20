@@ -31,9 +31,15 @@ DeferredLighting::~DeferredLighting(){
 
 void DeferredLighting::loadShaders()
 {
+    int shadowSamplesX = glm::round( glm::sqrt( (float) shadowSamples) );
+//    cout << "DeferredLighting shadowSamplesX=" << shadowSamplesX << endl;
+
+
     ShaderPart::ShaderCodeInjections shadowInjection;
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
-                                 "#define SHADOWS",1); //after the version number
+                                 "#define SHADOWS",1);
+    shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define SHADOW_SAMPLES_X " + std::to_string(shadowSamplesX),2);
 
     spotLightShader = ShaderLoader::instance()->load<SpotLightShader>("lighting/light_spot.glsl");
     spotLightShadowShader = ShaderLoader::instance()->load<SpotLightShader>("lighting/light_spot.glsl",shadowInjection);
