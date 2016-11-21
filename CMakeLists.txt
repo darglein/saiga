@@ -180,6 +180,12 @@ if(USE_FREEIMAGE)
 	SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
 endif(USE_FREEIMAGE)
 
+
+#EGL
+find_package(EGL REQUIRED)
+include_directories( ${EGL_INCLUDE_DIRS}) 
+SET(LIBS ${LIBS} ${EGL_LIBRARIES})
+
 ############# Required LIBRARIES ###############
 
 #freetype2
