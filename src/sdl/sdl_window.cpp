@@ -64,6 +64,7 @@ bool SDLWindow::initWindow()
     if(windowParameters.borderLess()) flags |=  SDL_WINDOW_BORDERLESS;
     if(windowParameters.fullscreen()) flags |=  SDL_WINDOW_FULLSCREEN;
     if(windowParameters.resizeAble) flags |=  SDL_WINDOW_RESIZABLE;
+    if(windowParameters.hidden) flags |= SDL_WINDOW_HIDDEN;
 
     //Create window
     window = SDL_CreateWindow(getName().c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, getWidth(), getHeight(), flags );

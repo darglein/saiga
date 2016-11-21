@@ -137,6 +137,8 @@ bool glfw_Window::initWindow()
         break;
     }
 
+    if(windowParameters.hidden)
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, oparams.debug);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, oparams.forwardCompatible);
