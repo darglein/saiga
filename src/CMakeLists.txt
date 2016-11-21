@@ -52,6 +52,11 @@ if (USE_ASSIMP)
 	SET(PROG_SRC ${PROG_SRC} ${assimp_SRC})
 endif()
 
+if (USE_EGL)
+	FILE(GLOB_RECURSE egl_SRC  egl/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${egl_SRC})
+endif()
+
 #creates 'folders' in the solution explorer of visual studio
 include(source_group_helper)
 GroupSources2(${PROJECT_SOURCE_DIR}/src)

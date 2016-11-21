@@ -53,6 +53,10 @@ struct SAIGA_GLOBAL WindowParameters{
     bool updateJoystick = false;
     int monitorId = 0; //Important for fullscreen mode. 0 is always the primary monitor.
 
+    //time in seconds between debug screenshots. negativ for no debug screenshots
+    float debugScreenshotTime = -1.0f;
+    std::string debugScreenshotPath = "debug/";
+
     OpenGLParameters openglparameters;
 
     bool borderLess(){ return mode==Mode::borderLessWindowed || mode==Mode::borderLessFullscreen;}

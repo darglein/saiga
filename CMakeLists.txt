@@ -57,6 +57,7 @@ option (USE_ASSIMP "Use Assimp" ON)
 option (USE_PNG "Use PNG" ON) 
 option (USE_FREEIMAGE "Use FREEIMAGE" ON) 
 option (USE_FFMPEG "Use FFMPEG" OFF) 
+option (USE_EGL "Use EGL" OFF) 
 
 option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
@@ -182,9 +183,11 @@ endif(USE_FREEIMAGE)
 
 
 #EGL
-find_package(EGL REQUIRED)
-include_directories( ${EGL_INCLUDE_DIRS}) 
-SET(LIBS ${LIBS} ${EGL_LIBRARIES})
+if(USE_EGL)
+	find_package(EGL REQUIRED)
+	include_directories( ${EGL_INCLUDE_DIRS}) 
+	SET(LIBS ${LIBS} ${EGL_LIBRARIES})
+endif()
 
 ############# Required LIBRARIES ###############
 

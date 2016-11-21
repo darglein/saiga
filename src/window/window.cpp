@@ -129,7 +129,7 @@ void OpenGLWindow::readToImage(Image& out){
 
 void OpenGLWindow::screenshot(const std::string &file)
 {
-    cout<<"Window::screenshot "<<file<<endl;
+//    cout<<"Window::screenshot "<<file<<endl;
 
     Image img;
     readToImage(img);
@@ -140,7 +140,7 @@ void OpenGLWindow::screenshot(const std::string &file)
 
 void OpenGLWindow::screenshotRender(const std::string &file)
 {
-    cout<<"Window::screenshotRender "<<file<<endl;
+//    cout<<"Window::screenshotRender "<<file<<endl;
     int w = renderer->width;
     int h = renderer->height;
 
@@ -343,13 +343,19 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
 
     tick_t ticksPerUpdate = gameTime.base / updatesPerSecond;
     tick_t ticksPerFrame = gameTime.base / framesPerSecond;
+
     tick_t ticksPerInfo = std::chrono::duration_cast<tick_t>(gameTime.base * mainLoopInfoTime);
 
+    tick_t ticksPerScreenshot = std::chrono::duration_cast<tick_t>(gameTime.base * 5.0f);
+
+    if(windowParameters.debugScreenshotTime < 0)
+        ticksPerScreenshot = std::chrono::duration_cast<tick_t>(std::chrono::hours(100000));
 
     gameTime.init(ticksPerUpdate,ticksPerFrame);
 
 
     tick_t nextInfoTick = gameTime.getTime();
+    tick_t nextScreenshotTick = gameTime.getTime() + ticksPerScreenshot;
 
     if(!catchUp){
         gameTime.maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::milliseconds(1000));
@@ -381,6 +387,12 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
             auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
             cout << "> Time: " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames << "  UPS/FPS: " << (1000.0f/upsTimer.getTimeMS()) << "/" << (1000.0f/fpsTimer.getTimeMS()) << endl;
             nextInfoTick += ticksPerInfo;
+        }
+
+        if(gameTime.getTime() > nextScreenshotTick){
+            string file = windowParameters.debugScreenshotPath+getTimeString()+".png";
+            this->screenshot(file);
+            nextScreenshotTick += ticksPerScreenshot;
         }
 
         //sleep until the next interesting event
