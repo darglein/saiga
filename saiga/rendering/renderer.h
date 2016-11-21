@@ -3,13 +3,13 @@
 #include <saiga/config.h>
 
 class Camera;
-class Window;
+class OpenGLWindow;
 
 class SAIGA_GLOBAL Program{
 public:
-    Window* parentWindow = nullptr;
+    OpenGLWindow* parentWindow = nullptr;
 
-    Program(Window* parent);
+    Program(OpenGLWindow* parent);
 
     virtual ~Program(){}
 

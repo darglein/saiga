@@ -18,7 +18,7 @@
 
 
 glfw_Window::glfw_Window(WindowParameters windowParameters):
-    Window(windowParameters)
+    OpenGLWindow(windowParameters)
 {
 }
 

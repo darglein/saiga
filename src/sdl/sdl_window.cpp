@@ -2,7 +2,7 @@
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferred_renderer.h"
 
-SDLWindow::SDLWindow(WindowParameters windowParameters):Window(windowParameters)
+SDLWindow::SDLWindow(WindowParameters windowParameters):OpenGLWindow(windowParameters)
 {
 }
 

@@ -61,7 +61,7 @@ struct SAIGA_GLOBAL WindowParameters{
     void setMode(bool fullscreen, bool borderLess);
 };
 
-class SAIGA_GLOBAL Window{
+class SAIGA_GLOBAL OpenGLWindow{
 protected:
     WindowParameters windowParameters;
     int numUpdates = 0;
@@ -83,8 +83,8 @@ public:
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
     AverageTimer fpsTimer, upsTimer;
 public:
-    Window(WindowParameters windowParameters);
-    virtual ~Window();
+    OpenGLWindow(WindowParameters windowParameters);
+    virtual ~OpenGLWindow();
 
     void setProgram(Program* program);
     bool init(const RenderingParameters &params);

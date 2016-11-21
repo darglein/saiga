@@ -26,24 +26,24 @@ void WindowParameters::setMode(bool fullscreen, bool borderLess)
     }
 }
 
-Window::Window(WindowParameters _windowParameters)
+OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters)
     :windowParameters(_windowParameters),
       updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50){
 
 }
 
-Window::~Window(){
+OpenGLWindow::~OpenGLWindow(){
     delete renderer;
 }
 
-void Window::close(){
+void OpenGLWindow::close(){
     cout<<"Window: close"<<endl;
     running = false;
 }
 
 
 
-bool Window::init(const RenderingParameters& params){
+bool OpenGLWindow::init(const RenderingParameters& params){
     initSaiga();
 
     //init window and opengl context
@@ -84,7 +84,7 @@ bool Window::init(const RenderingParameters& params){
     return true;
 }
 
-void Window::initDeferredRendering(const RenderingParameters &params)
+void OpenGLWindow::initDeferredRendering(const RenderingParameters &params)
 {
 
     renderer = new Deferred_Renderer(getWidth(),getHeight(),params);
@@ -102,14 +102,14 @@ void Window::initDeferredRendering(const RenderingParameters &params)
 
 }
 
-void Window::resize(int width, int height)
+void OpenGLWindow::resize(int width, int height)
 {
     this->windowParameters.width = width;
     this->windowParameters.height = height;
     renderer->resize(width,height);
 }
 
-void Window::readToImage(Image& out){
+void OpenGLWindow::readToImage(Image& out){
     int w = renderer->windowWidth;
     int h = renderer->windowHeight;
 
@@ -127,7 +127,7 @@ void Window::readToImage(Image& out){
 }
 
 
-void Window::screenshot(const std::string &file)
+void OpenGLWindow::screenshot(const std::string &file)
 {
     cout<<"Window::screenshot "<<file<<endl;
 
@@ -138,7 +138,7 @@ void Window::screenshot(const std::string &file)
     TextureLoader::instance()->saveImage(file,img);
 }
 
-void Window::screenshotRender(const std::string &file)
+void OpenGLWindow::screenshotRender(const std::string &file)
 {
     cout<<"Window::screenshotRender "<<file<<endl;
     int w = renderer->width;
@@ -158,7 +158,7 @@ void Window::screenshotRender(const std::string &file)
     TextureLoader::instance()->saveImage(file,img);
 }
 
-std::string Window::getTimeString()
+std::string OpenGLWindow::getTimeString()
 {
     time_t t = time(0);   // get time now
     struct tm * now = localtime( & t );
@@ -176,63 +176,63 @@ std::string Window::getTimeString()
     return str;
 }
 
-void Window::setProgram(Program *program)
+void OpenGLWindow::setProgram(Program *program)
 {
     renderer->renderer = program;
 }
 
-Ray Window::createPixelRay(const vec2 &pixel) const
+Ray OpenGLWindow::createPixelRay(const vec2 &pixel) const
 {
     vec4 p = vec4(2*pixel.x/getWidth()-1.f,1.f-(2*pixel.y/getHeight()),0,1.f);
-    p = glm::inverse(Window::currentCamera->proj)*p;
+    p = glm::inverse(OpenGLWindow::currentCamera->proj)*p;
     p /= p.w;
 
-    mat4 inverseView = glm::inverse(Window::currentCamera->view);
+    mat4 inverseView = glm::inverse(OpenGLWindow::currentCamera->view);
     vec3 ray_world =vec3(inverseView*p);
     vec3 origin = vec3(inverseView[3]);
     return Ray(glm::normalize(ray_world-origin),origin);
 }
 
-Ray Window::createPixelRay(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
+Ray OpenGLWindow::createPixelRay(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
 {
     vec4 p = vec4(2*pixel.x/resolution.x-1.f,1.f-(2*pixel.y/resolution.y),0,1.f);
     p = inverseProj*p;
     p /= p.w;
 
-    mat4 inverseView = glm::inverse(Window::currentCamera->view);
+    mat4 inverseView = glm::inverse(OpenGLWindow::currentCamera->view);
     vec3 ray_world =vec3(inverseView*p);
     vec3 origin = vec3(inverseView[3]);
     return Ray(glm::normalize(ray_world-origin),origin);
 }
 
-vec3 Window::screenToWorld(const vec2 &pixel) const
+vec3 OpenGLWindow::screenToWorld(const vec2 &pixel) const
 {
     vec4 p = vec4(2*pixel.x/getWidth()-1.f,1.f-(2*pixel.y/getHeight()),0,1.f);
-    p = glm::inverse(Window::currentCamera->proj)*p;
+    p = glm::inverse(OpenGLWindow::currentCamera->proj)*p;
     p /= p.w;
 
-    mat4 inverseView = glm::inverse(Window::currentCamera->view);
+    mat4 inverseView = glm::inverse(OpenGLWindow::currentCamera->view);
     vec3 ray_world =vec3(inverseView*p);
     return ray_world;
 }
 
 
-vec3 Window::screenToWorld(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
+vec3 OpenGLWindow::screenToWorld(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
 {
     vec4 p = vec4(2*pixel.x/resolution.x-1.f,1.f-(2*pixel.y/resolution.y),0,1.f);
     p = inverseProj*p;
     p /= p.w;
 
-    mat4 inverseView = glm::inverse(Window::currentCamera->view);
+    mat4 inverseView = glm::inverse(OpenGLWindow::currentCamera->view);
     vec3 ray_world =vec3(inverseView*p);
     return ray_world;
 }
 
 
 
-vec2 Window::projectToScreen(const vec3 &pos) const
+vec2 OpenGLWindow::projectToScreen(const vec3 &pos) const
 {
-    vec4 r = Window::currentCamera->proj * Window::currentCamera->view * vec4(pos,1);
+    vec4 r = OpenGLWindow::currentCamera->proj * OpenGLWindow::currentCamera->view * vec4(pos,1);
     r /= r.w;
 
     vec2 pixel;
@@ -242,7 +242,7 @@ vec2 Window::projectToScreen(const vec3 &pos) const
     return pixel;
 }
 
-void Window::update(float dt)
+void OpenGLWindow::update(float dt)
 {
     updateTimer.start();
     endParallelUpdate();
@@ -259,7 +259,7 @@ void Window::update(float dt)
 
 
 
-void Window::startParallelUpdate(float dt)
+void OpenGLWindow::startParallelUpdate(float dt)
 {
 
     if(parallelUpdate){
@@ -269,13 +269,13 @@ void Window::startParallelUpdate(float dt)
     }
 }
 
-void Window::endParallelUpdate()
+void OpenGLWindow::endParallelUpdate()
 {
     if(parallelUpdate)
         semFinishUpdate.wait();
 }
 
-void Window::parallelUpdateThread(float dt)
+void OpenGLWindow::parallelUpdateThread(float dt)
 {
     semFinishUpdate.notify();
     semStartUpdate.wait();
@@ -286,12 +286,12 @@ void Window::parallelUpdateThread(float dt)
     }
 }
 
-void Window::parallelUpdateCaller(float dt)
+void OpenGLWindow::parallelUpdateCaller(float dt)
 {
     renderer->renderer->parallelUpdate(dt);
 }
 
-void Window::render(float dt, float interpolation)
+void OpenGLWindow::render(float dt, float interpolation)
 {
     interpolationTimer.start();
     renderer->renderer->interpolate(dt,interpolation);
@@ -313,7 +313,7 @@ void Window::render(float dt, float interpolation)
 
 
 
-void Window::sleep(tick_t ticks)
+void OpenGLWindow::sleep(tick_t ticks)
 {
     if(ticks > tick_t(0)){
         std::this_thread::sleep_for(ticks);
@@ -323,7 +323,7 @@ void Window::sleep(tick_t ticks)
 
 
 
-void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip, bool _parallelUpdate, bool catchUp)
+void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip, bool _parallelUpdate, bool catchUp)
 {
     parallelUpdate = _parallelUpdate;
 
@@ -357,7 +357,7 @@ void Window::startMainLoop(int updatesPerSecond, int framesPerSecond, float main
 
 
     if(parallelUpdate){
-        updateThread = std::thread(&Window::parallelUpdateThread,this,updateDT);
+        updateThread = std::thread(&OpenGLWindow::parallelUpdateThread,this,updateDT);
     }
 
 

@@ -17,7 +17,7 @@ struct GLFWcursor;
 class Image;
 
 
-class SAIGA_GLOBAL glfw_Window : public Window, public glfw_ResizeListener{
+class SAIGA_GLOBAL glfw_Window : public OpenGLWindow, public glfw_ResizeListener{
 public:
     GLFWwindow* window = nullptr;
 
@@ -50,7 +50,7 @@ public:
 public:
     //TODO: remove everything from here
 
-    using Window::startMainLoop;
+    using OpenGLWindow::startMainLoop;
     void startMainLoopNoRender(float ticksPerSecond);
     void screenshotParallelWrite(const std::string &file);
     void setVideoRecordingLimit(int limit){queueLimit = limit;}

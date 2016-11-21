@@ -2,7 +2,7 @@
 
 #include <saiga/config.h>
 
-class Window;
+class OpenGLWindow;
 
 
 

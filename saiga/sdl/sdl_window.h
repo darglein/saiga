@@ -8,7 +8,7 @@
 //#include <SDL2/SDL_opengl.h>
 
 
-class SAIGA_GLOBAL SDLWindow : public Window{
+class SAIGA_GLOBAL SDLWindow : public OpenGLWindow{
 public:
 
     SDL_Window* window = NULL;
