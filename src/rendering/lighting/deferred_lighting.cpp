@@ -558,7 +558,7 @@ void DeferredLighting::createLightMeshes(){
     //we estimate the required outer radius with apothem of regular polygons
     float n = 4.9;
     float r = 1.0f / glm::cos(glm::pi<float>() / n);
-    cout << "point light radius " << r << endl;
+//    cout << "point light radius " << r << endl;
     Sphere s(vec3(0),r);
     auto sb = TriangleMeshGenerator::createMesh(s,1);
     sb->createBuffers(pointLightMesh);

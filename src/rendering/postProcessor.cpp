@@ -227,6 +227,7 @@ void PostProcessor::resize(int width, int height)
 
 void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
 {
+
     framebuffers[currentBuffer].bind();
 
 
