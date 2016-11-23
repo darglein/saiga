@@ -105,6 +105,9 @@ SMAA::SMAA(int w, int h, Quality _quality) : screenSize(w,h) , quality(_quality)
     //    randomTexture->setWrap(GL_REPEAT);
 
     //    clearSSAO();
+
+
+	cout << "SMAA initialized!" << endl;
 }
 
 void SMAA::loadShader()

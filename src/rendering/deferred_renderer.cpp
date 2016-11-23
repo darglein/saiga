@@ -18,7 +18,9 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     //    setSize(windowWidth,windowHeight);
 
     if(params.srgbWrites){
-        assert(hasExtension("GL_EXT_framebuffer_sRGB"));
+
+		//intel graphics drivers on windows do not define this extension but srgb still works..
+        //assert(hasExtension("GL_EXT_framebuffer_sRGB"));
 
         //Mesa drivers do not respect the spec when blitting with srgb framebuffers.
         //https://lists.freedesktop.org/archives/mesa-dev/2015-February/077681.html

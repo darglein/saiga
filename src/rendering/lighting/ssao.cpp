@@ -70,6 +70,11 @@ SSAO::SSAO(int w, int h)
     randomTexture->setWrap(GL_REPEAT);
 
     clearSSAO();
+
+
+	assert_no_glerror();
+
+	cout << "SSAO initialized!" << endl;
 }
 
 void SSAO::resize(int w, int h)
