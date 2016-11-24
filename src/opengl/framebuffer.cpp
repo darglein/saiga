@@ -64,7 +64,7 @@ void Framebuffer::check(){
         }
 
         std::cerr << "Framebuffer error!" << std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 }
 

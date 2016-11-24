@@ -5,7 +5,7 @@ Shader* ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::Sh
 	(void )params; 
 	cout << "fail ShaderLoader::loadFromFile "<<name << endl;
 	
-    assert(0);
+    SAIGA_ASSERT(0);
 
     return nullptr;
 }
@@ -20,7 +20,7 @@ void ShaderLoader::reload(){
 
         std::string fullName = shaderPathes.getFile(name);
         auto ret = reload(shader,fullName,sci);
-        assert(ret);
+        SAIGA_ASSERT(ret);
     }
 
 

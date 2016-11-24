@@ -3,7 +3,7 @@
 
 Texture3D::Texture3D(GLenum target) : raw_Texture(target)
 {
-    assert(target == GL_TEXTURE_3D || target == GL_TEXTURE_2D_ARRAY);
+    SAIGA_ASSERT(target == GL_TEXTURE_3D || target == GL_TEXTURE_2D_ARRAY);
 }
 
 void Texture3D::setDefaultParameters(){
@@ -36,7 +36,7 @@ bool Texture3D::fromImage(std::vector<Image> &images){
     for(int i=0;i<depth;i++){
         Image& img = images[i];
         //make sure all images have the same format
-        assert(width == img.width && height == img.height && internal_format == img.Format().getGlInternalFormat());
+        SAIGA_ASSERT(width == img.width && height == img.height && internal_format == img.Format().getGlInternalFormat());
         uploadSubImage(0,0,i,width,height,1,img.getRawData());
     }
 

@@ -110,7 +110,7 @@ object_t* Loader<object_t,param_t>::getLoaded(const std::string &name, const par
     }
 
     std::cout<< name << " not loaded !!!" <<std::endl;
-    assert(false);
+    SAIGA_ASSERT(false);
 
     return NULL;
 }
@@ -118,8 +118,8 @@ object_t* Loader<object_t,param_t>::getLoaded(const std::string &name, const par
 template<typename object_t, typename param_t >
 void Loader<object_t,param_t>::put(const std::string &name, object_t* obj, const param_t &params){
 
-    assert(!exists(name,params) && "object was already loaded!");
-    assert(obj);
+    SAIGA_ASSERT(!exists(name,params) && "object was already loaded!");
+    SAIGA_ASSERT(obj);
 
     objects.emplace_back(name,params,obj);
 }

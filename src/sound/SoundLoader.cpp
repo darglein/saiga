@@ -170,13 +170,13 @@ Sound *SoundLoader::loadOpusFile(const std::string &filename)
     }
 
     int linkCount = op_link_count(file);
-    assert(linkCount==1);
+    SAIGA_ASSERT(linkCount==1);
     int currentLink = op_current_link(file);
 //    int bitRate = op_bitrate(file,currentLink); //TODO
     //    int total = op_raw_total(file,currentLink);
     //    int pcmtotal = op_pcm_total(file,currentLink);
     int channels = op_channel_count(file,currentLink);
-    assert(channels==1 || channels==2);
+    SAIGA_ASSERT(channels==1 || channels==2);
 
     std::vector<opus_int16> data;
 
@@ -251,7 +251,7 @@ Sound *SoundLoader::loadWaveFileALUT(const std::string &filename)
         }
 
 
-        assert(0);
+        SAIGA_ASSERT(0);
         return nullptr;
     }
 

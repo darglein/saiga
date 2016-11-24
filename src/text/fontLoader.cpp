@@ -14,7 +14,7 @@ FontLoader::FontLoader(const std::string &file, const std::vector<Unicode::Unico
     if(ft==nullptr){
         if(FT_Init_FreeType(&ft)) {
             std::cerr<< "Could not init freetype library"<<std::endl;
-            assert(0);
+            SAIGA_ASSERT(0);
         }
     }
 }
@@ -84,17 +84,17 @@ void FontLoader::addGlyph(int charCode, int glyphPadding)
     FT_GlyphSlot slot = (face)->glyph;
 
     error = FT_Get_Glyph( slot, &glyph);
-    assert(error==0);
+    SAIGA_ASSERT(error==0);
     /* render the glyph to a bitmap, don't destroy original */
     glyph_bitmap = glyph;
 //    error = FT_Glyph_To_Bitmap( &glyph_bitmap, FT_RENDER_MODE_NORMAL, NULL, 0 );
-    assert(error==0);
+    SAIGA_ASSERT(error==0);
     error = FT_Glyph_To_Bitmap( &glyph_bitmap, FT_RENDER_MODE_MONO, NULL, 0 );
 
     FT_Glyph g2 = glyph_bitmap;
     if ( g2->format != FT_GLYPH_FORMAT_BITMAP ){
         cout<< "invalid glyph format returned!" <<endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
     FT_BitmapGlyph bitmap = (FT_BitmapGlyph)g2;
@@ -156,7 +156,7 @@ void FontLoader::loadFace(int fontSize)
 {
     if(FT_New_Face(ft, file.c_str(), 0, &face)) {
         std::cerr<<"Could not open font "<<file<<std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
         return;
     }
     FT_Set_Pixel_Sizes(face, 0, fontSize);

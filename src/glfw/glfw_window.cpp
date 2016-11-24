@@ -306,7 +306,7 @@ GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
     if(image->Format().getBitDepth() != 8 || image->Format().getChannels() != 4){
         cout<<"glfw_Window::createGLFWcursor(Image *image): image has the wrong format."<<endl;
         cout<<"Required format: RGBA8"<<endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
 
@@ -336,11 +336,11 @@ void glfw_Window::checkEvents()
 
 
 void glfw_Window::setWindowIcon(Image* image){
-    assert(window);
+    SAIGA_ASSERT(window);
     if(image->Format().getBitDepth() != 8 || image->Format().getChannels() != 4){
         cout<<"glfw_Window::setWindowIcon(Image *image): image has the wrong format."<<endl;
         cout<<"Required format: RGBA8"<<endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
 

@@ -9,7 +9,7 @@
 #include "saiga/util/assert.h"
 
 #if defined(SAIGA_DEBUG)
-    #define assert_no_alerror() assert(!sound::checkSoundError())
+    #define assert_no_alerror() SAIGA_ASSERT(!sound::checkSoundError())
 #else
     #define assert_no_alerror() (void)0
 #endif

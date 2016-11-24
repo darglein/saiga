@@ -30,7 +30,7 @@ void ImageConverter::convert(PNG::Image &src, Image& dest){
         break;
     default:
         std::cout<<"Image type not supported: "<<src.color_type<<std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
     dest.Format() = format;
@@ -41,7 +41,7 @@ void ImageConverter::convert(PNG::Image &src, Image& dest){
 
 //    std::cout << "Image: " << dest.Format() << std::endl;
 //    std::cout << "sizes: " << dest.getSize() << " " << src.data.size() << std::endl;
-    assert(dest.getSize() == src.data.size());
+    SAIGA_ASSERT(dest.getSize() == src.data.size());
 }
 
 void ImageConverter::convert(Image& src, PNG::Image &dest){
@@ -64,7 +64,7 @@ void ImageConverter::convert(Image& src, PNG::Image &dest){
         break;
     default:
         std::cout<<"Image type not supported: "<<src.Format().getChannels()<<std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
 
@@ -101,7 +101,7 @@ void ImageConverter::convert(Image src, fipImage &dest){
         src.flipRB();
     }else{
         std::cout<<"INVALID FORMAT: channels: " << src.Format().getChannels() << ", bitsperpixel " << src.Format().bitsPerPixel() <<std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
 
@@ -118,7 +118,7 @@ void ImageConverter::convert(Image src, fipImage &dest){
 
 
 void ImageConverter::convert(fipImage &src, Image& dest){
-    assert(src.isValid());
+    SAIGA_ASSERT(src.isValid());
     dest.width = src.getWidth();
     dest.height = src.getHeight();
 
@@ -164,7 +164,7 @@ void ImageConverter::convert(fipImage &src, Image& dest){
         dest.flipRB();
     }else{
         std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
 //        std::cout << "Image: " << dest.Format() << std::endl;

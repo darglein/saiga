@@ -58,7 +58,7 @@ void AnimationNode::traverse(mat4 m, std::vector<mat4> &out_boneMatrices, std::v
 
 AnimationFrame::AnimationFrame(const AnimationFrame &k0, const AnimationFrame &k1, float alpha)
 {
-    assert(k0.nodeCount == k1.nodeCount);
+    SAIGA_ASSERT(k0.nodeCount == k1.nodeCount);
 
     if(alpha == 0){
         *this = k0;
@@ -97,7 +97,7 @@ const std::vector<mat4> &AnimationFrame::getBoneMatrices(const Animation &parent
 
 void AnimationFrame::setBoneMatrices(const std::vector<mat4> &value)
 {
-//    assert(value.size() == boneCount);
+//    SAIGA_ASSERT(value.size() == boneCount);
     boneMatrices = value;
 }
 

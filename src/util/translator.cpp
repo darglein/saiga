@@ -54,7 +54,7 @@ void Translator::addTranslation(const Translator::TranslationEntry &te)
 {
     if(translationMap.find(te.key) != translationMap.end()){
         std::cerr << "Key " << te.key << " is already in the translation map." << std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
     translationMap[te.key] = te;
 }
@@ -133,13 +133,13 @@ bool Translator::readTranslationFile()
                 prev = c;
                 pos++;
             }
-            assert(spacerPos.size() == 2);
+            SAIGA_ASSERT(spacerPos.size() == 2);
 
             utf32string key(utf32line.begin(),utf32line.begin()+spacerPos[0]);
             utf32string trans(utf32line.begin()+spacerPos[0]+1,utf32line.begin()+spacerPos[1]);
             utf32string note(utf32line.begin()+spacerPos[1]+1,utf32line.end());
 
-            assert(key.size() > 0);
+            SAIGA_ASSERT(key.size() > 0);
 
             te.key =            unescapeSpecialCharacters(Encoding::UTF32toUTF8(key));
             te.translation =    unescapeSpecialCharacters(Encoding::UTF32toUTF8(trans));

@@ -75,7 +75,7 @@ void ObjLoader2::separateVerticesByGroup()
                     outVertices.push_back(v);
                     face.v[j] = newIndex;
                     vertexReference.push_back(t);
-//                    assert(0);
+//                    SAIGA_ASSERT(0);
                 }
             }
         }

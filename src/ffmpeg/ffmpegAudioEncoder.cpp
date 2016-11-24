@@ -14,7 +14,7 @@ FFMPEGAudioEncoder::FFMPEGAudioEncoder()
 
 void FFMPEGAudioEncoder::addFrame(){
 //    cout << "Adding audio frame." << endl;
-    assert(currentSamples == buffer_size);
+    SAIGA_ASSERT(currentSamples == buffer_size);
 
     pkt.data = NULL; // packet data will be allocated by the encoder
     pkt.size = 0;
@@ -199,7 +199,7 @@ void FFMPEGAudioEncoder::startEncoding(const std::string &filename)
      * we calculate the size of the samples buffer in bytes */
     buffer_size = av_samples_get_buffer_size(NULL, c->channels, c->frame_size,
                                              c->sample_fmt, 0);
-    assert(buffer_size == bytesPerSample*c->frame_size);
+    SAIGA_ASSERT(buffer_size == bytesPerSample*c->frame_size);
     cout << "buffer size: " << buffer_size << " test " << 2*2*c->frame_size << endl;
     if (buffer_size < 0) {
         fprintf(stderr, "Could not get sample buffer size\n");

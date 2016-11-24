@@ -19,14 +19,14 @@ void BoneVertex::addBone(int32_t index, float weight){
     }
 
     //to many weights
-    assert(0);
+    SAIGA_ASSERT(0);
 }
 
 void BoneVertex::apply(const std::vector<mat4> &boneMatrices){
     mat4 boneMatrix(0.0f);
     for(int i=0;i<MAX_BONES_PER_VERTEX;++i){
         int index = (int)boneIndices[i];
-        assert(index>=0 && index<(int)boneMatrices.size());
+        SAIGA_ASSERT(index>=0 && index<(int)boneMatrices.size());
         boneMatrix += boneMatrices[index] * boneWeights[i];
     }
 

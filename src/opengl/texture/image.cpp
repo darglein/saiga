@@ -93,7 +93,7 @@ void Image::resizeCopy(int w, int h)
 
 void Image::setSubImage(int x, int y, Image& src)
 {
-    assert(src.width<=width && src.height<=height);
+    SAIGA_ASSERT(src.width<=width && src.height<=height);
 
 
     for(int i=0;i<(int)src.height;i++){//rows
@@ -128,8 +128,8 @@ void Image::getSubImage(int x, int y, int w, int h, Image &out){
 
 void Image::flipRB()
 {
-    assert(format.getBitDepth()==8);
-    assert(format.getChannels()==3 || format.getChannels()==4);
+    SAIGA_ASSERT(format.getBitDepth()==8);
+    SAIGA_ASSERT(format.getChannels()==3 || format.getChannels()==4);
 
     for(int y = 0 ; y < (int)height ; ++y){
         uint8_t* ptr = getRawData() + (y*bytesPerRow);

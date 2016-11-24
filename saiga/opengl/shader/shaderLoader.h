@@ -41,11 +41,11 @@ shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCo
 
     if(fullName.empty()){
         std::cout<<"Could not find file '"<<name<<"'. Make sure it exists and the search pathes are set."<<std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
     object = loadFromFile<shader_t>(fullName,sci);
-    assert(object);
+    SAIGA_ASSERT(object);
     objects.emplace_back(name,sci,object);
 
     return object;
@@ -64,7 +64,7 @@ shader_t* ShaderLoader::getLoaded(const std::string &name, const ShaderPart::Sha
         }
     }
 
-    assert(false && "Shader was not loaded!");
+    SAIGA_ASSERT(false && "Shader was not loaded!");
 
     return nullptr;
 }
