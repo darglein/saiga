@@ -26,6 +26,8 @@ public:
     glfw_Window(WindowParameters windowParameters);
     virtual ~glfw_Window();
 
+
+    void setCursorPosition(int x, int y);
     void showMouseCursor();
     void hideMouseCursor();
     void disableMouseCursor();

@@ -46,6 +46,7 @@ glfw_Window::~glfw_Window()
 
 }
 
+
 void glfw_Window::getCurrentPrimaryMonitorResolution(int *width, int *height)
 {
     const GLFWvidmode * mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -71,6 +72,12 @@ void glfw_Window::getMaxResolution(int* width, int *height)
     *width = mode[count-1].width;
     *height = mode[count-1].height;
 }
+
+void glfw_Window::setCursorPosition(int x, int y)
+{
+    glfwSetCursorPos(window,x,y);
+}
+
 
 void glfw_Window::hideMouseCursor()
 {
