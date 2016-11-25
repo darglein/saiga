@@ -133,6 +133,17 @@ bool Translator::readTranslationFile()
                 prev = c;
                 pos++;
             }
+
+//            //if no second spacer is found just add one to the end of the line
+//            if (spacerPos.size() == 1){
+//                spacerPos.push_back(utf32line.size());
+//                utf32line.push_back(spacer);
+//            }
+#if defined(SAIGA_DEBUG)
+            if (spacerPos.size() != 2){
+                 cout << "Line " << lineNumber << ": " << Encoding::UTF32toUTF8(utf32line) << endl;
+            }
+#endif
             assert(spacerPos.size() == 2);
 
             utf32string key(utf32line.begin(),utf32line.begin()+spacerPos[0]);

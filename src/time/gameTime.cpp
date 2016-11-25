@@ -5,6 +5,7 @@ GameTime gameTime;
 
 void GameTime::init(tick_t _dt, tick_t _dtr)
 {
+    maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::hours(1000));
     dt = _dt;
     dtr = _dtr;
 

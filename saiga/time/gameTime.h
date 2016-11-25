@@ -31,7 +31,7 @@ public:
     tick_t base = std::chrono::seconds(1);
 
 
-    tick_t maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::hours(1000));
+    tick_t maxGameLoopDelay;
 
 
     //time at which the last 'update' took place
