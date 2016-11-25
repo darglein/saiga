@@ -6,7 +6,7 @@
 
 #pragma once
 
-//---- Define assertion handler. Defaults to calling assert().
+//---- Define assertion handler. Defaults to calling SAIGA_ASSERT().
 //#define IM_ASSERT(_EXPR)  MyAssert(_EXPR)
 
 //---- Define attributes of all API symbols declarations, e.g. for DLL under Windows.

@@ -32,7 +32,7 @@ GLuint Shader::createProgram(){
     assert_no_glerror();
 	if (!printProgramLog()){
         //do not assert here, because printprogramlog will sometimes only print warnings.
-//        assert(0);
+//        SAIGA_SAIGA_ASSERT(0);
 //		return 0;
 	}
 
@@ -94,9 +94,9 @@ bool Shader::printProgramLog(){
 }
 
 void Shader::bind(){
-	assert(program);
+    SAIGA_ASSERT(program);
 	//allow double bind
-	assert(boundShader == program || boundShader == 0);
+    SAIGA_ASSERT(boundShader == program || boundShader == 0);
 	boundShader = program;
 	glUseProgram(program);
     assert_no_glerror();
@@ -104,7 +104,7 @@ void Shader::bind(){
 
 void Shader::unbind(){
 	//allow double unbind
-	assert(boundShader == program || boundShader == 0);
+    SAIGA_ASSERT(boundShader == program || boundShader == 0);
 	boundShader = 0;
 #if defined(SAIGA_DEBUG)
 	glUseProgram(0);
@@ -148,14 +148,14 @@ glm::uvec3 Shader::getNumGroupsCeil(const glm::uvec3 &problem_size, const glm::u
 
 void Shader::dispatchCompute(const glm::uvec3 &num_groups)
 {
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	dispatchCompute(num_groups.x, num_groups.y, num_groups.z);
     assert_no_glerror();
 }
 
 void Shader::dispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z)
 {
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
     assert_no_glerror();
 }
@@ -265,69 +265,69 @@ std::vector<GLint> Shader::getUniformBlockOffset(std::vector<GLint> indices)
 
 
 void Shader::upload(int location, const mat4 &m){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniformMatrix4fv(location, 1, GL_FALSE, (GLfloat*)&m[0]);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, const vec4 &v){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniform4fv(location, 1, (GLfloat*)&v[0]);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, const vec3 &v){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniform3fv(location, 1, (GLfloat*)&v[0]);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, const vec2 &v){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniform2fv(location, 1, (GLfloat*)&v[0]);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, const int &i){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniform1i(location, (GLint)i);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, const float &f){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniform1f(location, (GLfloat)f);
     assert_no_glerror();
 }
 
 
 void Shader::upload(int location, int count, mat4* m){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniformMatrix4fv(location, count, GL_FALSE, (GLfloat*)m);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, int count, vec4* v){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniform4fv(location, count, (GLfloat*)v);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, int count, vec3* v){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniform3fv(location, count, (GLfloat*)v);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, int count, vec2* v){
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	glUniform2fv(location, count, (GLfloat*)v);
     assert_no_glerror();
 }
 
 void Shader::upload(int location, raw_Texture *texture, int textureUnit)
 {
-	assert(isBound());
+    SAIGA_ASSERT(isBound());
 	texture->bind(textureUnit);
 	Shader::upload(location, textureUnit);
     assert_no_glerror();

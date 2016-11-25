@@ -261,7 +261,7 @@ void VertexBuffer<vertex_t>::setVertexAttributes(){
     cerr<<"\tvoid VertexBuffer<YOUR_VERTEX_TYPE>::bindVertices(){"<<endl;
     cerr<<"\t\t//bind code"<<endl;
     cerr<<"\t}"<<endl;
-    assert(0);
+    SAIGA_ASSERT(0);
 }
 
 

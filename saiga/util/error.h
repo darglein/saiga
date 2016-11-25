@@ -11,13 +11,13 @@
  */
 
 #if defined(SAIGA_DEBUG)
-    #define assert_no_glerror() assert(!Error::checkGLError())
+    #define assert_no_glerror() SAIGA_ASSERT(!Error::checkGLError())
 #else
     #define assert_no_glerror() (void)0
 #endif
 
 #if defined(SAIGA_DEBUG) || defined(SAIGA_TESTING)
-    #define assert_no_glerror_end_frame() assert(!Error::checkGLError())
+    #define assert_no_glerror_end_frame() SAIGA_ASSERT(!Error::checkGLError())
 #else
     #define assert_no_glerror_end_frame() (void)0
 #endif

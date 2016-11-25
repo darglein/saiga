@@ -192,7 +192,7 @@ void TextureAtlas::padGlyphsToDivisor(std::vector<FontLoader::Glyph> &glyphs, in
 
 void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divisor, int searchRadius)
 {
-    assert(divisor%2==1);
+    SAIGA_ASSERT(divisor%2==1);
     int halfDivisor = (divisor / 2);
 
     std::vector<glm::ivec2> samplePositions = generateSDFsamples(searchRadius);
@@ -294,7 +294,7 @@ void TextureAtlas::writeAtlasToFiles(Image& img)
         i ++;
     }
 //    cout << i << " Characters written to file." << endl;
-    assert(i == numCharacters);
+    SAIGA_ASSERT(i == numCharacters);
 
     stream.write((char*)&maxCharacter,sizeof(aabb));
     stream.close();

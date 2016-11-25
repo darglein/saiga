@@ -56,7 +56,7 @@ double GPUTimer::getTimeMSd()
 GLuint64 GPUTimer::getTimeNS()
 {
 #ifdef SAIGA_DEBUG
-    assert(stopped && "GPU timer read before it was stopped once, time is not yet initialized");
+    SAIGA_ASSERT(stopped && "GPU timer read before it was stopped once, time is not yet initialized");
 #endif
     return time;
 }

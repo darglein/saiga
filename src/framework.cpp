@@ -44,7 +44,7 @@ void writeExtensions(){
 
 void initSaiga()
 {
-    assert(!initialized);
+    SAIGA_ASSERT(!initialized);
 
     //    writeExtensions();
     readConfigFile();
@@ -81,7 +81,7 @@ void initSaiga()
 
 void cleanupSaiga()
 {
-    assert(initialized);
+    SAIGA_ASSERT(initialized);
 
     ShaderLoader::instance()->clear();
     TextureLoader::instance()->clear();

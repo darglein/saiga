@@ -18,7 +18,7 @@ public:
     vec4 position = vec4(0);
 
 
-//    Object3D(){ assert( (size_t)this%16==0); }
+//    Object3D(){ SAIGA_ASSERT( (size_t)this%16==0); }
     mat4 getModelMatrix() const;
     void getModelMatrix(mat4& model) const;
     void calculateModel();

@@ -7,14 +7,14 @@
 
 void AnimatedAssetObject::setAnimation(int id)
 {
-    assert(id>=0 && id < (int)asset->animations.size());
+    SAIGA_ASSERT(id>=0 && id < (int)asset->animations.size());
     activeAnimation = id;
     animationTotalTime = asset->animations[id].duration;
 }
 
 void AnimatedAssetObject::init(AnimatedAsset *_asset)
 {
-    assert(_asset);
+    SAIGA_ASSERT(_asset);
     this->asset = _asset;
     BoneShader* bs = static_cast<BoneShader*>(asset->shader);
     boneMatricesBuffer.init(bs,bs->location_boneMatricesBlock);

@@ -18,8 +18,8 @@ void Sound::setFormat(int _channels, int _bitsPerSample, int _frequency)
     frequency = _frequency;
 
 
-    assert(channels == 1 || channels == 2);
-    assert(bitsPerSample == 8 || bitsPerSample == 16);
+    SAIGA_ASSERT(channels == 1 || channels == 2);
+    SAIGA_ASSERT(bitsPerSample == 8 || bitsPerSample == 16);
 
     if (channels == 1) {
         if (bitsPerSample == 8 )
@@ -48,7 +48,7 @@ void Sound::createBuffer(const void* data, int _size)
     alGenBuffers(1, &buffer);
     alBufferData(buffer, format, data,
                  _size, frequency);
-    assert(buffer);
+    SAIGA_ASSERT(buffer);
     assert_no_alerror();
 }
 

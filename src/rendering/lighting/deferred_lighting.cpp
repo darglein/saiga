@@ -344,7 +344,7 @@ void DeferredLighting::setupLightPass(){
     //increase stencil id, so the next light will write a different value to the stencil buffer.
     //with this trick the expensive clear can be saved after each light
     currentStencilId++;
-    assert(currentStencilId<256);
+    SAIGA_ASSERT(currentStencilId<256);
 }
 
 

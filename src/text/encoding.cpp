@@ -37,7 +37,7 @@ int sizeTable[] = {
 uint32_t Encoding::UTF8toUTF32(const std::vector<unsigned char> &utf8char)
 {
     int size = utf8char.size();
-    assert(size>=1 && size<=4);
+    SAIGA_ASSERT(size>=1 && size<=4);
 
     uint32_t result = 0;
     switch(size){

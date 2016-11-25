@@ -6,14 +6,14 @@ bool openglinitialized = false;
 
 void initOpenGL()
 {
-    assert(!openglinitialized);
+    SAIGA_ASSERT(!openglinitialized);
 #ifdef USE_GLEW
     //Initialize GLEW
     glewExperimental = GL_TRUE;
     GLenum glewError = glewInit();
     if( glewError != GLEW_OK ){
         std::cerr<<"Error initializing GLEW! "<< glewGetErrorString( glewError ) <<std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
     glGetError(); //ignore first gl error after glew init
 #endif
@@ -34,7 +34,7 @@ void initOpenGL()
 
 void terminateOpenGL()
 {
-	assert(openglinitialized);
+    SAIGA_ASSERT(openglinitialized);
 	openglinitialized = false;
 }
 

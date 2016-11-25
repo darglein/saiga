@@ -72,7 +72,7 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
 #endif
     }else{
         std::cout << "Error: Could not load image: " << path << std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
     return erg;
@@ -99,7 +99,7 @@ bool TextureLoader::saveImage(const std::string &path, Image &image) const
         std::cout<<"Saved: "<< path << " " << image << std::endl;
     }else{
         std::cout << "Error: Could not save Image: " << path << std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
 

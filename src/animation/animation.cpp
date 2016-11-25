@@ -5,7 +5,7 @@
 
 const AnimationFrame &Animation::getKeyFrame(int frameIndex)
 {
-    assert(frameIndex>=0 && frameIndex<frameCount);
+    SAIGA_ASSERT(frameIndex>=0 && frameIndex<frameCount);
     return keyFrames[frameIndex];
 }
 
@@ -40,7 +40,7 @@ void Animation::getFrame(animationtime_t time, AnimationFrame &out){
 void Animation::getFrameNormalized(double time, AnimationFrame &out)
 {
     time = glm::clamp(time,0.0,1.0);
-    assert(time >= 0 && time <= 1);
+    SAIGA_ASSERT(time >= 0 && time <= 1);
     getFrame( duration*time,out);
 }
 

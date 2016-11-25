@@ -1,5 +1,6 @@
 #pragma once
 #include "saiga/util/glm.h"
+#include "saiga/util/assert.h"
 #include <vector>
 
 //the control point type. For example: float, vec2, vec3, vec4
@@ -27,7 +28,7 @@ public:
 template <typename P>
 Bezier<P>::Bezier(std::vector<P> _controlPoints) : controlPoints(_controlPoints), N(_controlPoints.size()-1)
 {
-    assert(N >= 0);
+    SAIGA_ASSERT(N >= 0);
 }
 
 template <typename P>

@@ -41,8 +41,8 @@ void TesselatedIndexedVertexBuffer<vertex_t,index_t>::bindAndDraw() const{
 
 template<class vertex_t, class index_t>
 void TesselatedIndexedVertexBuffer<vertex_t,index_t>::bind() const{
-    assert(patchSize > 0);
-    assert(this->draw_mode == GL_PATCHES);
+    SAIGA_ASSERT(patchSize > 0);
+    SAIGA_ASSERT(this->draw_mode == GL_PATCHES);
     ivbuffer_t::bind();
     glPatchParameteri(GL_PATCH_VERTICES, patchSize);
     assert_no_glerror();

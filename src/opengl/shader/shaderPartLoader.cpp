@@ -149,7 +149,7 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
                 std::cerr<<"Extracted filename: '"<<includeFileName<<"'"<<endl;
                 std::cerr<<"Basefile: " << file << endl;
                 std::cerr<<"Make sure it exists and the search pathes are set."<<endl;
-                assert(0);
+                SAIGA_ASSERT(0);
             }
             ret.erase(ret.begin()+i);
             ret.insert(ret.begin()+i,tmp.begin(),tmp.end());

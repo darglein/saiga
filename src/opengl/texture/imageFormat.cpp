@@ -44,7 +44,7 @@ int ImageFormat::getChannels() const
 
 void ImageFormat::setChannels(int value)
 {
-    assert(value>0 && value<=4);
+    SAIGA_ASSERT(value>0 && value<=4);
     channels = value;
 }
 
@@ -55,8 +55,8 @@ int ImageFormat::getBitDepth() const
 
 void ImageFormat::setBitDepth(int value)
 {
-    assert(value%8==0);
-    assert(value>=8 && value<=32);
+    SAIGA_ASSERT(value%8==0);
+    SAIGA_ASSERT(value>=8 && value<=32);
     bitDepth = value;
 }
 
@@ -135,9 +135,9 @@ GLenum ImageFormat::getGlInternalFormat() const
 
     if(srgb){
         //currently there are only 2 srgb formats.
-        assert(bitDepth == 8);
-        assert(channels == 3 || channels == 4);
-        assert(elementFormat == ImageElementFormat::UnsignedNormalized);
+        SAIGA_ASSERT(bitDepth == 8);
+        SAIGA_ASSERT(channels == 3 || channels == 4);
+        SAIGA_ASSERT(elementFormat == ImageElementFormat::UnsignedNormalized);
         return (channels==3)? GL_SRGB8 : GL_SRGB8_ALPHA8;
     }
 
@@ -167,7 +167,7 @@ GLenum ImageFormat::getGlInternalFormat() const
 
     if(internalFormat == GL_INVALID_ENUM){
         std::cout << "Invalid Image Format. " << (*this) << std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
 
@@ -196,7 +196,7 @@ GLenum ImageFormat::getGlType() const
         return (isSigned) ? GL_INT : GL_UNSIGNED_INT;
     default:
         std::cout<<"Bit depth not supported: "<<(*this)<<std::endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 }
 

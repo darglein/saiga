@@ -57,8 +57,8 @@
 //   1.07 (2015-08-01) allow PackFontRanges to accept arrays of sparse codepoints;
 //                     variant PackFontRanges to pack and render in separate phases;
 //                     fix stbtt_GetFontOFfsetForIndex (never worked for non-0 input?);
-//                     fixed an assert() bug in the new rasterizer
-//                     replace assert() with STBTT_assert() in new rasterizer
+//                     fixed an SAIGA_ASSERT() bug in the new rasterizer
+//                     replace SAIGA_ASSERT() with STBTT_assert() in new rasterizer
 //   1.06 (2015-07-14) performance improvements (~35% faster on x86 and x64 on test machine)
 //                     also more precise AA rasterizer, except if shapes overlap
 //                     remove need for STBTT_sort
@@ -422,7 +422,7 @@ int main(int arg, char **argv)
 
    #ifndef STBTT_assert
    #include <assert.h>
-   #define STBTT_assert(x)    assert(x)
+   #define STBTT_assert(x)    SAIGA_ASSERT(x)
    #endif
 
    #ifndef STBTT_strlen
@@ -3224,8 +3224,8 @@ STBTT_DEF int stbtt_FindMatchingFont(const unsigned char *font_collection, const
 //   1.07 (2015-08-01) allow PackFontRanges to accept arrays of sparse codepoints;
 //                     allow PackFontRanges to pack and render in separate phases;
 //                     fix stbtt_GetFontOFfsetForIndex (never worked for non-0 input?);
-//                     fixed an assert() bug in the new rasterizer
-//                     replace assert() with STBTT_assert() in new rasterizer
+//                     fixed an SAIGA_ASSERT() bug in the new rasterizer
+//                     replace SAIGA_ASSERT() with STBTT_assert() in new rasterizer
 //   1.06 (2015-07-14) performance improvements (~35% faster on x86 and x64 on test machine)
 //                     also more precise AA rasterizer, except if shapes overlap
 //                     remove need for STBTT_sort

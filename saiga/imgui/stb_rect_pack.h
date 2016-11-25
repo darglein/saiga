@@ -12,7 +12,7 @@
 //
 // More docs to come.
 //
-// No memory allocations; uses qsort() and assert() from stdlib.
+// No memory allocations; uses qsort() and SAIGA_ASSERT() from stdlib.
 // Can override those by defining STBRP_SORT and STBRP_ASSERT.
 //
 // This library currently uses the Skyline Bottom-Left algorithm.

@@ -35,7 +35,7 @@ bool Keyboard::getMappedKeyState(int mappedKey, const std::vector<int> &keymap) 
 int Keyboard::setKeyState(int key, int state)
 {
     if(key >= 0 && key < (int)keystate.size()){
-        assert(state == 0 || state == 1);
+        SAIGA_ASSERT(state == 0 || state == 1);
         int old = keystate[key];
         keystate[key] = state;
         if(old ^ state)

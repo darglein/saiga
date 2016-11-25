@@ -284,7 +284,7 @@ void AssimpLoader::getBones(int id,  TriangleMesh<vertex_t, GLuint> &out){
             aiBone* b = mesh->mBones[i];
             std::string str(b->mName.data);
             if(boneMap.find(str)==boneMap.end()){
-                assert(0);
+                SAIGA_ASSERT(0);
             }
             int index = boneMap[str];
             for(unsigned int j=0;j<b->mNumWeights;++j){

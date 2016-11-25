@@ -27,7 +27,7 @@ void AssimpLoader::loadFile(const std::string &_file){
     if( !scene)
     {
         cout<< importer.GetErrorString()<<endl;
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
     if(verbose){
@@ -99,7 +99,7 @@ void AssimpLoader::loadBones(){
     }
 
 	rootNode = createNodeTree(scene->mRootNode);
-	assert(rootNode == 0);
+    SAIGA_ASSERT(rootNode == 0);
     //    cout<<"unique nodes: "<<nodeCount<<endl;
 
     if(verbose)
@@ -151,17 +151,17 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 
     //the last frame is the same as the first
     int frames = animationlength(anim);
-    assert(frames > 0);
+    SAIGA_ASSERT(frames > 0);
     //    frames = 1;
 
     animationFrames.resize(frames);
 
     //assimp supports animation that have different numbers of position rotation and scaling keys.
     //this is not supported here. Every keyframe has to have exactly one of those keys.
-    assert(anim->mNumChannels > 0);
-    assert( (int)anim->mChannels[0]->mNumPositionKeys == frames);
-    assert( (int)anim->mChannels[0]->mNumRotationKeys == frames);
-    assert( (int)anim->mChannels[0]->mNumScalingKeys == frames);
+    SAIGA_ASSERT(anim->mNumChannels > 0);
+    SAIGA_ASSERT( (int)anim->mChannels[0]->mNumPositionKeys == frames);
+    SAIGA_ASSERT( (int)anim->mChannels[0]->mNumRotationKeys == frames);
+    SAIGA_ASSERT( (int)anim->mChannels[0]->mNumScalingKeys == frames);
 
     //we shift the animation so that it starts at time 0
     double firstKeyFrameTime = anim->mChannels[0]->mPositionKeys[0].mTime;
@@ -183,7 +183,7 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 
             //assimp supports that the keys do not sync to eachother.
             //this is not supported here.
-            assert(keyFrameTime == p0->mTime && keyFrameTime == r0->mTime && keyFrameTime == s0->mTime);
+            SAIGA_ASSERT(keyFrameTime == p0->mTime && keyFrameTime == r0->mTime && keyFrameTime == s0->mTime);
 
 
             p = p0->mValue;;
@@ -192,7 +192,7 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 
             std::string str(chan->mNodeName.data);
             if(nodeMap.find(str)==nodeMap.end()){
-                assert(0 && "nodeMap.find(str)==nodeMap.end()");
+                SAIGA_ASSERT(0 && "nodeMap.find(str)==nodeMap.end()");
             }
             AnimationNode& an = animationNodes[nodeMap[str]];
 
@@ -204,7 +204,7 @@ void AssimpLoader::createKeyFrames( aiAnimation *anim, std::vector<AnimationFram
 		//k.initTree();
         AnimationFrame &k = animationFrames[frame];
         k.nodeCount = nodeCount;
-        assert(rootNode == 0);
+        SAIGA_ASSERT(rootNode == 0);
 //        k.boneOffsets = boneOffsets;
 		k.nodes = animationNodes;
         k.time = animationtime_t( (keyFrameTime - firstKeyFrameTime) );
@@ -262,7 +262,7 @@ int AssimpLoader::createNodeTree(struct aiNode *node)
 		nodeMap[str] = nodeIndex;
         nodeCount++;
     }else{
-        assert(0);
+        SAIGA_ASSERT(0);
     }
 
 
