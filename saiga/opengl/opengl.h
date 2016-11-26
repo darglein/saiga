@@ -15,12 +15,14 @@ using namespace gl;
 #define GLFW_INCLUDE_NONE
 #endif
 
+
 SAIGA_GLOBAL void initOpenGL();
 SAIGA_GLOBAL void terminateOpenGL();
 SAIGA_GLOBAL bool OpenGLisInitialized();
 
 SAIGA_GLOBAL int getVersionMajor();
 SAIGA_GLOBAL int getVersionMinor();
+SAIGA_GLOBAL void printOpenGLVersion();
 
 SAIGA_GLOBAL int getExtensionCount();
 SAIGA_GLOBAL bool hasExtension(const std::string &ext);

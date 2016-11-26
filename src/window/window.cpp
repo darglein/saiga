@@ -69,7 +69,7 @@ bool OpenGLWindow::init(const RenderingParameters& params){
 
     //in older glew versions the last parameter of the function is void* instead of const void*
 #if defined(GLEW_VERSION_4_5) || defined(USE_GLBINDING)
-    glDebugMessageCallback(Error::DebugLogConst,NULL);
+   // glDebugMessageCallback(Error::DebugLogConst,NULL);
 #else
     glDebugMessageCallback(Error::DebugLog,NULL);
 #endif
