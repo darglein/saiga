@@ -33,12 +33,30 @@ typedef struct _sig_ucontext {
     sigset_t          uc_sigmask;
 } sig_ucontext_t;
 
-void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext)
-{
+
+void printCurrentStack(){
     void *             array[50];
-    void *             caller_address;
     char **            messages;
     int                size, i;
+
+    size = backtrace(array, 50);
+
+    /* overwrite sigaction with caller's address */
+//    array[1] = caller_address;
+
+    messages = backtrace_symbols(array, size);
+
+    /* skip first stack frame (points here) */
+    for (i = 0; i < size && messages != NULL; ++i){
+        std::cout << "[bt]: (" << i << ") " << messages[i] << std::endl;
+    }
+
+    free(messages);
+}
+
+void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext)
+{
+    void *             caller_address;
     sig_ucontext_t *   uc;
 
     uc = (sig_ucontext_t *)ucontext;
@@ -56,19 +74,7 @@ void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext)
                << ", address is " << info->si_addr << " from " << (void *)caller_address << std::endl;
 
 
-    size = backtrace(array, 50);
-
-    /* overwrite sigaction with caller's address */
-    array[1] = caller_address;
-
-    messages = backtrace_symbols(array, size);
-
-    /* skip first stack frame (points here) */
-    for (i = 1; i < size && messages != NULL; ++i){
-        std::cout << "[bt]: (" << i << ") " << messages[i] << std::endl;
-    }
-
-    free(messages);
+    printCurrentStack();
 
     if(customCrashHandler)
         customCrashHandler();
@@ -119,8 +125,9 @@ void printCurrentStack() {
 	// Capture up to 25 stack frames from the current call stack.  We're going to
 	// skip the first stack frame returned because that's the GetStackWalk function
 	// itself, which we don't care about.
-	PVOID addrs[25] = { 0 };
-	USHORT frames = CaptureStackBackTrace(1, 25, addrs, NULL);
+    const int numAddrs = 50;
+    PVOID addrs[numAddrs] = { 0 };
+    USHORT frames = CaptureStackBackTrace(0, numAddrs-1, addrs, NULL);
 
 	for (USHORT i = 0; i < frames; i++) {
 		// Allocate a buffer large enough to hold the symbol information on the stack and get 
