@@ -321,7 +321,7 @@ void SoundManager::loadSoundsThreadStart()
             SAIGA_ASSERT(!soundAlreadyLoaded(f));
 
             SoundLoader sl;
-            Sound* loadedsound;
+            Sound* loadedsound = 0;
 #ifdef USE_OPUS
             if(f.substr(f.find_last_of(".") + 1) == "opus") {
                 loadedsound = sl.loadOpusFile(f);

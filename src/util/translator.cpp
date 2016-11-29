@@ -110,11 +110,11 @@ bool Translator::readTranslationFile()
 
             utf32string utf32line = Encoding::UTF8toUTF32(line);
 
-            if(utf32line.size() == 0 || utf32line.front() == comment)
+            if( (int)utf32line.size() == 0 || (int)utf32line.front() == comment)
                 continue;
 
             //remove new entry symbol
-            if(utf32line.front() == newEntry){
+            if( (int)utf32line.front() == newEntry){
                 utf32line.erase(utf32line.begin());
                 te.newEntry = true;
             }
@@ -127,7 +127,7 @@ bool Translator::readTranslationFile()
             int pos = 0;
             uint32_t prev = 0;
             for(auto c : utf32line){
-                if(c == spacer && prev != escapesymbol){
+                if((int)c == spacer && (int)prev != escapesymbol){
                     spacerPos.push_back(pos);
                 }
                 prev = c;

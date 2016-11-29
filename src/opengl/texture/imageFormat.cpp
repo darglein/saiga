@@ -7,6 +7,7 @@ void asksdfkg(){
     Texel<2,8,ImageElementFormat::SignedIntegral> t;
     t.r = 0.5f;
     t.g = 1.0f;
+    cout << t.r << endl;
 
     //    TemplatedImage<2,8,ImageFormat::SignedIntegral,false> i(5,5);
     TemplatedImage<3,16,ImageElementFormat::UnsignedNormalized,false> i(5,5);
@@ -198,6 +199,7 @@ GLenum ImageFormat::getGlType() const
         std::cout<<"Bit depth not supported: "<<(*this)<<std::endl;
         SAIGA_ASSERT(0);
     }
+    return GL_INVALID_ENUM;
 }
 
 std::ostream& operator<<(std::ostream& os, const ImageFormat& f){
