@@ -17,7 +17,6 @@ LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/bin)
 set(LIB_NAME saiga)
 
 project (${LIB_NAME})
-set(CMAKE_BUILD_TYPE Release)
 #INCLUDE(FindPkgConfig)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
@@ -34,7 +33,6 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  # Update if necessary
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -pedantic")
 endif()
 
@@ -70,22 +68,23 @@ option (BUILD_MODE_TESTING "Defines SAIGA_TESTING, asserts=on, debug symbols in 
 option (BUILD_MODE_RELEASE "Defines SAIGA_RELEASE, asserts=off, no glgeterror calls" OFF) 
 
 
+#in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
 if (BUILD_MODE_DEBUG)
 	set(SAIGA_DEBUG on)
-	if(UNIX)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g") #debug symbols in binary
-	endif()
+	set(CMAKE_BUILD_TYPE debug)
+	#adds this flags on gcc: -g
 endif ()
 
 if (BUILD_MODE_TESTING)
 	set(SAIGA_TESTING on)
-	if(UNIX)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g") #debug symbols in binary
-	endif()
+	set(CMAKE_BUILD_TYPE relwithdebinfo)
+	#adds this flags on gcc: -O2 -g -DNDEBUG
 endif()
 
 if (BUILD_MODE_RELEASE)
 	set(SAIGA_RELEASE on)
+	set(CMAKE_BUILD_TYPE release)
+	#adds this flags on gcc: -O3 -DNDEBUG
 endif()
 
 
@@ -265,6 +264,11 @@ elseif(WIN32)
     set(INSTALL_DOC       "doc")
 
 endif()
+
+message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
+message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 
 ############# SOURCE ###############
 
