@@ -31,9 +31,14 @@ void main() {
 #version 330
 
 layout(points) in;
-in vec4[1] color;
-in float[1] radius;
 layout(triangle_strip, max_vertices=4) out;
+
+//in vec4[1] color;
+//in float[1] radius;
+
+in vec4 color[];
+in float radius[];
+
 uniform mat4 proj;
 
 out vec2 tc;

@@ -86,17 +86,26 @@ void main() {
 #version 330
 
 layout(points) in;
-
-in vec3[1] direction;
-in vec3[1] right;
-in vec2[1] scale;
-
-in float[1] fade;
-in float[1] specular;
-flat in int[1] layer;
-flat in int[1] orientation;
-
 layout(triangle_strip, max_vertices=4) out;
+
+//in vec3[1] direction;
+//in vec3[1] right;
+//in vec2[1] scale;
+
+//in float[1] fade;
+//in float[1] specular;
+//flat in int[1] layer;
+//flat in int[1] orientation;
+
+in vec3 direction[];
+in vec3 right[];
+in vec2 scale[];
+
+in float fade[];
+in float specular[];
+flat in int layer[];
+flat in int orientation[];
+
 
 uniform mat4 proj;
 uniform mat4 view;
