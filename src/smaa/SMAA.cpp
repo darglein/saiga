@@ -45,8 +45,16 @@ void SMAANeighborhoodBlendingShader::uploadTextures(raw_Texture *colorTex, raw_T
 }
 
 
-SMAA::SMAA(int w, int h, Quality _quality) : screenSize(w,h) , quality(_quality)
+SMAA::SMAA()
 {
+
+
+}
+
+void SMAA::init(int w, int h, SMAA::Quality _quality)
+{
+    screenSize = glm::ivec2(w,h);
+    quality = _quality;
 
     stencilTex = framebuffer_texture_t(new Texture());
 
@@ -107,7 +115,7 @@ SMAA::SMAA(int w, int h, Quality _quality) : screenSize(w,h) , quality(_quality)
     //    clearSSAO();
 
 
-	cout << "SMAA initialized!" << endl;
+    cout << "SMAA initialized!" << endl;
 }
 
 void SMAA::loadShader()

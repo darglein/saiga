@@ -11,11 +11,19 @@
 Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters params) :
     windowWidth(windowWidth), windowHeight(windowHeight),
     width(windowWidth*params.renderScale), height(windowHeight*params.renderScale),
-    ssao(windowWidth*params.renderScale, windowHeight*params.renderScale),
-    smaa(windowWidth*params.renderScale, windowHeight*params.renderScale,params.smaaQuality),
     params(params), lighting(gbuffer)
 {
     //    setSize(windowWidth,windowHeight);
+
+    if(params.useSMAA)
+        smaa.init(windowWidth*params.renderScale, windowHeight*params.renderScale,params.smaaQuality);
+    else
+        smaa.init(2,2,SMAA::Quality::SMAA_PRESET_LOW);
+
+    if(params.useSSAO)
+        ssao.init(windowWidth*params.renderScale, windowHeight*params.renderScale);
+    else
+        ssao.init(2,2);
 
     if(params.srgbWrites){
 
@@ -86,9 +94,13 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
     cout << "Framebuffer size: " << width << " " << height << endl;
     postProcessor.resize(width, height);
     gbuffer.resize(width, height);
-    ssao.resize(width, height);
     lighting.resize(width, height);
-    smaa.resize(width,height);
+
+    if(params.useSSAO)
+        ssao.resize(width, height);
+
+    if(params.useSMAA)
+        smaa.resize(width,height);
 }
 
 
@@ -322,7 +334,8 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
 
     startTimer(SSAOT);
 
-    ssao.render(cam, &gbuffer);
+    if(params.useSSAO)
+        ssao.render(cam, &gbuffer);
 
 
     stopTimer(SSAOT);

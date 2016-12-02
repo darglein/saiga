@@ -26,3 +26,14 @@ SAIGA_GLOBAL void printOpenGLVersion();
 
 SAIGA_GLOBAL int getExtensionCount();
 SAIGA_GLOBAL bool hasExtension(const std::string &ext);
+
+
+enum class OpenGLVendor{
+    Nvidia,
+    Ati,
+    Intel,
+    Mesa,
+    Unknown
+};
+
+SAIGA_GLOBAL OpenGLVendor getOpenGLVendor();

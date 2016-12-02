@@ -35,7 +35,12 @@ void SSAOShader::uploadRandomImage(Texture *img)
 }
 
 
-SSAO::SSAO(int w, int h)
+SSAO::SSAO()
+{
+
+}
+
+void SSAO::init(int w, int h)
 {
     screenSize = vec2(w,h);
     ssaoSize = glm::ivec2(w/2,h/2);
@@ -72,9 +77,9 @@ SSAO::SSAO(int w, int h)
     clearSSAO();
 
 
-	assert_no_glerror();
+    assert_no_glerror();
 
-	cout << "SSAO initialized!" << endl;
+    cout << "SSAO initialized!" << endl;
 }
 
 void SSAO::resize(int w, int h)

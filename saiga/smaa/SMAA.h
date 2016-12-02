@@ -52,7 +52,8 @@ public:
     };
 
 
-    SMAA(int w, int h, Quality _quality);
+    SMAA();
+    void init(int w, int h, Quality _quality);
     void loadShader();
     void resize(int w, int h);
     void render(framebuffer_texture_t input, Framebuffer& output);

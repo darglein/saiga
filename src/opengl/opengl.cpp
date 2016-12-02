@@ -1,5 +1,6 @@
 #include "saiga/opengl/opengl.h"
 #include <iostream>
+#include <algorithm>
 #include "saiga/util/assert.h"
 
 bool openglinitialized = false;
@@ -23,14 +24,33 @@ void initOpenGL()
 #endif
     openglinitialized = true;
     std::cout << "> OpenGL initialized" << std::endl;
-	printOpenGLVersion();
+    printOpenGLVersion();
 }
 
 void printOpenGLVersion() {
-	std::cout << "Opengl version: " << glGetString(GL_VERSION) << std::endl;
-	std::cout << "GLSL version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
-	std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
-	std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "Opengl version: " << glGetString(GL_VERSION) << std::endl;
+    std::cout << "GLSL version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+    std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "Vendor: " << glGetString(GL_VENDOR) << " - ";
+
+    switch(getOpenGLVendor()){
+    case OpenGLVendor::Nvidia:
+        std::cout << "Nvidia";
+        break;
+    case OpenGLVendor::Ati:
+        std::cout << "Ati";
+        break;
+    case OpenGLVendor::Intel:
+        std::cout << "Intel";
+        break;
+    case OpenGLVendor::Mesa:
+        std::cout << "Mesa";
+        break;
+    default:
+        std::cout << "Unknown";
+        break;
+    }
+    std::cout << std::endl;
 }
 
 
@@ -38,11 +58,11 @@ void printOpenGLVersion() {
 void terminateOpenGL()
 {
     SAIGA_ASSERT(openglinitialized);
-	openglinitialized = false;
+    openglinitialized = false;
 }
 
 bool OpenGLisInitialized(){
-	return openglinitialized;
+    return openglinitialized;
 }
 
 int getVersionMajor(){
@@ -74,4 +94,32 @@ bool hasExtension(const std::string &ext){
         }
     }
     return false;
+}
+
+OpenGLVendor getOpenGLVendor()
+{
+    std::string ven = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    std::transform(ven.begin(), ven.end(), ven.begin(), ::tolower);
+
+
+    if (ven.find("nvidia") != std::string::npos) {
+        return OpenGLVendor::Nvidia;
+    }
+
+    if (ven.find("ati") != std::string::npos) {
+        return OpenGLVendor::Ati;
+    }
+
+
+    if (ven.find("intel") != std::string::npos) {
+        return OpenGLVendor::Intel;
+    }
+
+
+    if (ven.find("mesa") != std::string::npos) {
+        return OpenGLVendor::Mesa;
+    }
+
+
+    return OpenGLVendor::Unknown;
 }

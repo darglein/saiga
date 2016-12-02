@@ -32,6 +32,8 @@ public:
 };
 
 class SAIGA_GLOBAL SSAO{
+private:
+
 public:
     bool ssao = false;
     MVPTextureShader* blurShader;
@@ -50,7 +52,8 @@ public:
     glm::ivec2 ssaoSize;
     std::vector<vec3> kernelOffsets;
 
-    SSAO(int w, int h);
+    SSAO();
+    void init(int w, int h);
     void resize(int w, int h);
     void clearSSAO();
     void render(Camera* cam, GBuffer *gbuffer);
