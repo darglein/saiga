@@ -44,7 +44,6 @@ void BoneShader::checkUniforms(){
 
 //    cout<<test<<endl;
 
-//    exit(1);
 }
 
 void BoneShader::uploadBoneMatrices(mat4 *matrices, int count)
