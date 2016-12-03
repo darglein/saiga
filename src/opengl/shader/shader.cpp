@@ -77,7 +77,7 @@ bool Shader::printProgramLog(){
 		if (infoLogLength > 0)
 		{
 			//Print Log
-			std::cout << "program error:" << std::endl;
+            std::cout << "Program info log:" << std::endl;
 			std::cout << infoLog << std::endl;
 		}
         assert_no_glerror();

@@ -16,6 +16,9 @@ private:
     //for every axis two virtual buttons are created
     float virtualButtonThreshold = 0.5f;
     std::vector<float> axis;
+
+    //if and axis value is +- this value it will be clamped to 0
+//    float axisClampThreshold = 0.01f;
 public:
     Joystick2();
 

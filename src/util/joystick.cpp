@@ -1,5 +1,6 @@
 #include "saiga/util/joystick.h"
 #include "saiga/util/assert.h"
+#include "saiga/util/glm.h"
 #include <iostream>
 Joystick2 joystick;
 
@@ -20,6 +21,8 @@ void Joystick2::setCount(int _axisCount, int _buttonCount)
 void Joystick2::setAxisState(int ax, float state)
 {
     SAIGA_ASSERT(state >= -1 && state <= 1);
+
+
 
     if(ax >= 0 && ax < (int)axis.size()){
         axis[ax] = state;
