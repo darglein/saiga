@@ -8,7 +8,6 @@
 #include "saiga/text/text.h"
 
 TextDebugOverlay::TextDebugOverlay(int w, int h): overlay(1,1),layout(w,h){
-    overlay.proj = layout.proj;
 }
 
 TextDebugOverlay::~TextDebugOverlay()
@@ -27,7 +26,7 @@ void TextDebugOverlay::render()
 {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    overlay.render();
+    overlay.render(&layout.cam);
 }
 
 int TextDebugOverlay::createItem(const std::string &name)

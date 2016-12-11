@@ -125,6 +125,8 @@ void Deferred_Renderer::render_intern() {
 //        glEnable(GL_FRAMEBUFFER_SRGB); //no reason to switch it off
 
     (*currentCamera)->recalculatePlanes();
+    (*currentCamera)->uploadToUniformBuffer();
+    (*currentCamera)->cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
 
     renderGBuffer(*currentCamera);
     assert_no_glerror();
@@ -150,6 +152,7 @@ void Deferred_Renderer::render_intern() {
     //    glClear( GL_COLOR_BUFFER_BIT );
 
 
+    (*currentCamera)->cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
     renderLighting(*currentCamera);
 
 
@@ -168,6 +171,8 @@ void Deferred_Renderer::render_intern() {
     }
 
     startTimer(OVERLAY);
+
+    (*currentCamera)->cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
     renderer->renderOverlay(*currentCamera);
     stopTimer(OVERLAY);
 
@@ -319,9 +324,6 @@ void Deferred_Renderer::renderDepthMaps() {
 void Deferred_Renderer::renderLighting(Camera *cam) {
     startTimer(LIGHTING);
 
-    mat4 model;
-    cam->getModelMatrix(model);
-    lighting.setViewProj(model, cam->view, cam->proj);
     lighting.render(cam);
 
     stopTimer(LIGHTING);

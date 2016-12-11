@@ -123,7 +123,7 @@ void SSAO::render(Camera *cam, GBuffer* gbuffer)
     ssaoShader->uploadData();
     mat4 iproj = glm::inverse(cam->proj);
     ssaoShader->uploadInvProj(iproj);
-    ssaoShader->uploadProj(cam->proj);
+    ssaoShader->bindCamera(cam);
     quadMesh.bindAndDraw();
     ssaoShader->unbind();
 

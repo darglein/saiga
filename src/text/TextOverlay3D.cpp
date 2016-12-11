@@ -92,8 +92,7 @@ void TextOverlay3D::renderText(Camera *cam, float interpolationInSeconds){
 
     textShader->bind();
 
-    textShader->uploadProj(cam->proj);
-    textShader->uploadView(cam->view);
+    textShader->bindCamera(cam);
 
     mat4 v = cam->model;
     v[3] = vec4(0,0,0,1);
