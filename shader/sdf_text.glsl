@@ -2,13 +2,14 @@
 ##GL_VERTEX_SHADER
 
 #version 330
+#extension GL_ARB_explicit_attrib_location : enable
 layout(location=0) in vec3 in_position;
 layout(location=1) in vec3 in_normal;
 layout(location=2) in vec2 in_tex;
 
-
-#include "camera.glsl"
 uniform mat4 model;
+uniform mat4 view;
+uniform mat4 proj;
 
 
 out vec2 texCoord;
@@ -26,9 +27,9 @@ void main() {
 ##GL_FRAGMENT_SHADER
 
 #version 330
-
-#include "camera.glsl"
+#extension GL_ARB_explicit_attrib_location : enable
 uniform mat4 model;
+uniform mat4 proj;
 
 uniform vec4 color = vec4(1,1,1,1);
 uniform vec4 outlineColor = vec4(0,0,0,0);

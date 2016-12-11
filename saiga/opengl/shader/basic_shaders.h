@@ -2,24 +2,25 @@
 
 #include "saiga/opengl/shader/shader.h"
 
-class Camera;
 class Framebuffer;
 class GBuffer;
-
-#define CAMERA_DATA_BINDING_POINT 0
 
 class SAIGA_GLOBAL MVPShader : public Shader{
 public:
     GLint location_model, location_view, location_proj;
     GLint location_mvp, location_mv;
-    GLint location_cameraData;
     GLint location_userData;
 
     virtual void checkUniforms();
 
-    void bindCamera(Camera* cam);
+    void uploadAll(const mat4& m1,const mat4& m2,const mat4& m3);
+    void uploadMVP(const mat4& matrix){upload(location_mvp,matrix);}
+    void uploadMV(const mat4& matrix){upload(location_mv,matrix);}
     void uploadModel(const mat4& matrix){upload(location_model,matrix);}
+    void uploadView(const mat4& matrix){upload(location_view,matrix);}
+    void uploadProj(const mat4& matrix){upload(location_proj,matrix);}
     void uploadUserData(float f){upload(location_userData,f);}
+<<<<<<< HEAD
         void uploadAll(Camera* cam, const mat4& model);
 
 //    void uploadAll(const mat4& m1,const mat4& m2,const mat4& m3);
@@ -27,6 +28,8 @@ public:
 //    void uploadMV(const mat4& matrix){upload(location_mv,matrix);}
     void uploadView(const mat4& matrix){upload(location_view,matrix);}
     void uploadProj(const mat4& matrix){upload(location_proj,matrix);}
+=======
+>>>>>>> parent of 4b45230... camera uniform buffer 1
 };
 
 class SAIGA_GLOBAL MVPColorShader : public MVPShader{

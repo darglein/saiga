@@ -10,10 +10,8 @@ void AnimatedAsset::render(Camera *cam, const mat4 &model, UniformBuffer& boneMa
 
 
     bs->bind();
-    bs->bindCamera(cam);
-    bs->uploadModel(model);
-//    boneMatrices.bind(0);
-    boneMatrices.bind(BONE_MATRICES_BINDING_POINT);
+    bs->uploadAll(model,cam->view,cam->proj);
+    boneMatrices.bind(bs->binding_boneMatricesBlock);
     buffer.bindAndDraw();
     bs->unbind();
 }
@@ -24,9 +22,8 @@ void AnimatedAsset::renderDepth(Camera *cam, const mat4 &model, UniformBuffer &b
     BoneShader* bs = static_cast<BoneShader*>(this->depthshader);
 
     bs->bind();
-    bs->bindCamera(cam);
-    bs->uploadModel(model);
-    boneMatrices.bind(BONE_MATRICES_BINDING_POINT);
+    bs->uploadAll(model,cam->view,cam->proj);
+    boneMatrices.bind(bs->binding_boneMatricesBlock);
     buffer.bindAndDraw();
     bs->unbind();
 }

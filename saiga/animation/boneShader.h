@@ -5,13 +5,10 @@
 
 #include <saiga/opengl/uniformBuffer.h>
 
-
-#define BONE_MATRICES_BINDING_POINT 1
-
 class SAIGA_GLOBAL BoneShader : public MVPShader{
 public:
     GLint location_boneMatrices;
-    GLint location_boneMatricesBlock;
+    GLint location_boneMatricesBlock, binding_boneMatricesBlock;
 
 
     virtual void checkUniforms();

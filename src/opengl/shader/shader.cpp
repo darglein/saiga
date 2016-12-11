@@ -212,16 +212,14 @@ GLuint Shader::getUniformBlockLocation(const char *name)
 	GLuint blockIndex = glGetUniformBlockIndex(program, name);
 
 	if (blockIndex == GL_INVALID_INDEX){
-        std::cout << "Warning: glGetUniformBlockIndex: uniform block '"<< name << "' invalid!" << endl;
+		std::cerr << "glGetUniformBlockIndex: uniform block invalid!" << endl;
 	}
-    assert_no_glerror();
 	return blockIndex;
 }
 
 void Shader::setUniformBlockBinding(GLuint blockLocation, GLuint bindingPoint)
 {
 	glUniformBlockBinding(program, blockLocation, bindingPoint);
-    assert_no_glerror();
 }
 
 GLint Shader::getUniformBlockSize(GLuint blockLocation)

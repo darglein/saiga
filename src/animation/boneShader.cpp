@@ -5,7 +5,8 @@ void BoneShader::checkUniforms(){
     location_boneMatrices = getUniformLocation("boneMatrices");
     location_boneMatricesBlock = getUniformBlockLocation("boneMatricesBlock");
 
-    setUniformBlockBinding(location_boneMatricesBlock,BONE_MATRICES_BINDING_POINT);
+    binding_boneMatricesBlock = 0;
+    setUniformBlockBinding(location_boneMatricesBlock,binding_boneMatricesBlock);
 //    cout<<"uniform block: "<<location_boneMatricesBlock<<endl;
 
 //        GLint ret;
@@ -48,7 +49,6 @@ void BoneShader::checkUniforms(){
 void BoneShader::uploadBoneMatrices(mat4 *matrices, int count)
 {
     Shader::upload(location_boneMatrices,count,matrices);
-    SAIGA_ASSERT(0);
 }
 
 

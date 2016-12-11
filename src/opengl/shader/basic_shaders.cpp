@@ -1,42 +1,6 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/rendering/gbuffer.h"
-
-
-void MVPShader::checkUniforms(){
-    Shader::checkUniforms();
-    location_model = getUniformLocation("model");
-    location_view = getUniformLocation("view");
-    location_proj = getUniformLocation("proj");
-    location_mv = getUniformLocation("MV");
-    location_mvp = getUniformLocation("MVP");
-    location_userData = getUniformLocation("userData");
-
-    location_cameraData = getUniformBlockLocation("cameraData");
-}
-
-void MVPShader::bindCamera(Camera *cam)
-{
-    setUniformBlockBinding(location_cameraData,CAMERA_DATA_BINDING_POINT);
-}
-
-void MVPShader::uploadAll(Camera *cam, const mat4 &model)
-{
-    bindCamera(cam);
-    uploadModel(model);
-}
-
-//void MVPShader::uploadAll(const mat4& m1,const mat4& m2,const mat4& m3){
-//    uploadModel(m1);
-//    uploadView(m2);
-//    uploadProj(m3);
-
-//    uploadMV(m2*m1);
-//    uploadMVP(m3*m2*m1);
-//}
-
-
-
 void MVPColorShader::checkUniforms(){
     MVPShader::checkUniforms();
     location_color = getUniformLocation("color");
@@ -77,6 +41,7 @@ void DeferredShader::checkUniforms(){
     location_texture_normal = getUniformLocation("deferred_normal");
     location_texture_depth = getUniformLocation("deferred_depth");
     location_texture_data = getUniformLocation("deferred_data");
+
 }
 
 void DeferredShader::uploadFramebuffer(GBuffer *gbuffer){
@@ -88,5 +53,24 @@ void DeferredShader::uploadFramebuffer(GBuffer *gbuffer){
     upload(location_texture_normal,gbuffer->getTextureNormal().get(),1);
     upload(location_texture_data,gbuffer->getTextureData().get(),2);
     upload(location_texture_depth,gbuffer->getTextureDepth().get(),3);
+}
+
+void MVPShader::checkUniforms(){
+    Shader::checkUniforms();
+    location_model = getUniformLocation("model");
+    location_view = getUniformLocation("view");
+    location_proj = getUniformLocation("proj");
+    location_mv = getUniformLocation("MV");
+    location_mvp = getUniformLocation("MVP");
+    location_userData = getUniformLocation("userData");
+}
+
+void MVPShader::uploadAll(const mat4& m1,const mat4& m2,const mat4& m3){
+    uploadModel(m1);
+    uploadView(m2);
+    uploadProj(m3);
+
+    uploadMV(m2*m1);
+    uploadMVP(m3*m2*m1);
 }
 

@@ -99,7 +99,7 @@ void GraphDebugOverlay::render(float interpolation){
     shader->bind();
 
     shader->uploadModel(model);
-//    shader->uploadProj(proj);
+    shader->uploadProj(proj);
 
     for (Graph& g : graphs){
         shader->uploadColor(vec4(g.color));

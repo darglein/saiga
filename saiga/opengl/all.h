@@ -9,6 +9,8 @@
 #include "saiga/opengl/indexBuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/instancedBuffer.h"
+#include "saiga/opengl/mesh_object.h"
+#include "saiga/opengl/objloader.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/opengl/vertex.h"

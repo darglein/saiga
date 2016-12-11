@@ -20,10 +20,16 @@ void Skybox::setDistance(float d){
     model[2][2] = d;
 }
 
+void Skybox::bindUniforms(const mat4& view, const mat4 &proj){
+    model[3] = -view[3];
+    shader->uploadAll(model,view,proj);
+}
 
-void Skybox::render(Camera* cam){
+void Skybox::render(const mat4& view, const mat4 &proj){
     shader->bind();
-    shader->uploadAll(cam,model);
+//    model[3] = -glm::transpose(view)[3];
+    shader->uploadAll(model,view,proj);
+//    shader->uploadTexture(texture);
     shader->uploadTexture(cube_texture);
     mesh.bindAndDraw();
     cube_texture->unbind();

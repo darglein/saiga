@@ -4,18 +4,6 @@
 
 Camera::Camera()
 {
-    cameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
-    cout << "Camera::Camera()" << endl;
-}
-
-void Camera::uploadToUniformBuffer()
-{
-    CameraDataGLSL cd;
-    cd.view = view;
-    cd.proj = proj;
-    cd.viewProj = proj * view;
-    cd.camera_position = position;
-    cameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 }
 
 

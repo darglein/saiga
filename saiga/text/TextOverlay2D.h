@@ -2,7 +2,6 @@
 
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
-#include "saiga/camera/camera.h"
 
 #include <vector>
 
@@ -12,14 +11,15 @@ class Text;
 class SAIGA_GLOBAL TextOverlay2D {
 public:
 
+    mat4 proj;
 
     std::vector<Text*> texts;
 
     int width,height;
 
-    TextOverlay2D();
+    TextOverlay2D(const mat4& proj);
     TextOverlay2D(int width=1, int height=1);
-    void render(Camera* camera);
+    void render();
 
     //text stuff
     void addText(Text* text);

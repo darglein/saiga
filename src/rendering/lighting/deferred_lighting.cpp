@@ -154,10 +154,6 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
             renderedDepthmaps++;
             light->bindShadowMap();
             light->cam.recalculatePlanes();
-
-            light->cam.uploadToUniformBuffer();
-            light->cam.cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
         }
@@ -169,10 +165,6 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
             renderedDepthmaps++;
             light->bindShadowMap();
             light->cam.recalculatePlanes();
-
-            light->cam.uploadToUniformBuffer();
-            light->cam.cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
         }
@@ -182,11 +174,6 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
             light->bindShadowMap();
-            light->cam.recalculatePlanes();
-
-            light->cam.uploadToUniformBuffer();
-            light->cam.cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
         }
@@ -201,10 +188,6 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
                 light->bindFace(i);
                 light->calculateCamera(i);
                 light->cam.recalculatePlanes();
-
-                light->cam.uploadToUniformBuffer();
-                light->cam.cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-
                 renderer->renderDepth(&light->cam);
                 light->unbindShadowMap();
             }
@@ -310,7 +293,7 @@ void DeferredLighting::render(Camera* cam){
 
     if(drawDebug){
         glDepthMask(GL_TRUE);
-        renderDebug(cam);
+        renderDebug();
         glDepthMask(GL_FALSE);
     }
 
@@ -371,7 +354,8 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
     DirectionalLightShader* shader = (shadow)?directionalLightShadowShader:directionalLightShader;
 
     shader->bind();
-    shader->bindCamera(cam);
+    shader->uploadView(view);
+    shader->uploadProj(proj);
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
     shader->uploadSsaoTexture(ssaoTexture);
@@ -396,7 +380,8 @@ void DeferredLighting::renderDirectionalLight(DirectionalLight* obj, Camera *cam
 
     DirectionalLightShader* shader = (obj->hasShadows()) ? directionalLightShadowShader : directionalLightShader;
     shader->bind();
-    shader->bindCamera(cam);
+    shader->uploadView(view);
+    shader->uploadProj(proj);
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
     shader->uploadSsaoTexture(ssaoTexture);
@@ -407,10 +392,11 @@ void DeferredLighting::renderDirectionalLight(DirectionalLight* obj, Camera *cam
 
 }
 
-void DeferredLighting::renderDebug(Camera *cam){
+void DeferredLighting::renderDebug(){
 
     debugShader->bind();
-    debugShader->bindCamera(cam);
+    debugShader->uploadView(view);
+    debugShader->uploadProj(proj);
 
     // ======================= Pointlights ===================
 
@@ -632,3 +618,9 @@ void DeferredLighting::removeBoxLight(BoxLight *l)
 
 }
 
+void DeferredLighting::setViewProj(const mat4 &iv,const mat4 &v,const mat4 &p)
+{
+    inview = iv;
+    view = v;
+    proj = p;
+}
