@@ -4,12 +4,9 @@
 #version 330
 layout(location=0) in vec3 in_position;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
 
-uniform mat4 MV;
-uniform mat4 MVP;
+#include "camera.glsl"
+uniform mat4 model;
 
 uniform vec4 position;
 

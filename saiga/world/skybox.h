@@ -21,6 +21,5 @@ public:
 
     void setPosition(const vec3& p);
     void setDistance(float d);
-    void bindUniforms(const mat4& view, const mat4 &proj);
-    void render(const mat4& view, const mat4 &proj);
+    void render(Camera* cam);
 };

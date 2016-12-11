@@ -2,6 +2,7 @@
 
 #include "saiga/rendering/object3d.h"
 #include "saiga/geometry/aabb.h"
+#include "saiga/camera/camera.h"
 
 /**
  * @brief The Layout class
@@ -40,7 +41,8 @@ private:
     float aspect;
     vec3 scale;
 public:
-    mat4 proj;
+//    mat4 proj;
+    OrthographicCamera cam;
 
     Layout(int width, int height, float targetWidth=1,  float targetHeight=1);
     void init(int width, int height, float targetWidth=1,  float targetHeight=1);

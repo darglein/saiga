@@ -225,76 +225,76 @@ bool LightingController::cursor_position_event(GLFWwindow* window, double xpos, 
     (void)window;
     if(!active || !active )
         return false;
-    vec2 mousenew = vec2(xpos,ypos);
-    vec2 mouserel = (mousenew-mouse)/vec2(lighting.width,lighting.height);
-    mouserel.x *= (float)lighting.width/(float)lighting.height;
-    mouserel.y  = -mouserel.y;
-    mouse = mousenew;
-    if(selectedLight==nullptr)
-        return false;
+//    vec2 mousenew = vec2(xpos,ypos);
+//    vec2 mouserel = (mousenew-mouse)/vec2(lighting.width,lighting.height);
+//    mouserel.x *= (float)lighting.width/(float)lighting.height;
+//    mouserel.y  = -mouserel.y;
+//    mouse = mousenew;
+//    if(selectedLight==nullptr)
+//        return false;
 
-    if(mouserel.x==0 && mouserel.y==0)
-        return false;
+//    if(mouserel.x==0 && mouserel.y==0)
+//        return false;
 
-    Light* light =selectedLight;
-    //        vec3 eye = vec3(lighting.view[0][3],lighting.view[1][3],lighting.view[2][3]);
+//    Light* light =selectedLight;
+//    //        vec3 eye = vec3(lighting.view[0][3],lighting.view[1][3],lighting.view[2][3]);
 
-    vec3 eye_pos = vec3(lighting.inview[3]);
-    float d = glm::distance(vec3(light->getPosition()),eye_pos);
-
-
-    if(state==State::moving){
-        if(axis==Axis::X){
-            vec3 screenAxis = glm::normalize(vec3(vec2(lighting.view[0]),0));
-            light->translateGlobal(glm::dot(vec3(mouserel.x,mouserel.y,0),screenAxis)*vec3(d,0,0));
-        }else if(axis==Axis::Y){
-            vec3 screenAxis = glm::normalize(vec3(vec2(lighting.view[1]),0));
-            light->translateGlobal(glm::dot(vec3(mouserel.x,mouserel.y,0),screenAxis)*vec3(0,d,0));
-        }else if(axis==Axis::Z){
-            vec3 screenAxis = glm::normalize(vec3(vec2(lighting.view[2]),0));
-            light->translateGlobal(glm::dot(vec3(mouserel.x,mouserel.y,0),screenAxis)*vec3(0,0,d));
-        }else {
-            vec4 trans = vec4(mouserel.x,mouserel.y,0,0)*d;
-            trans = lighting.inview*trans;
-            light->translateGlobal(trans);
-        }
-    }
-
-    if(state==State::rotating){
-        vec3 a;
-        if(axis==Axis::X){
-            a = vec3(1,0,0);
-        }else if(axis==Axis::Y){
-            a = vec3(0,1,0);
-        }else if(axis==Axis::Z){
-            a = vec3(0,0,1);
-        }else {
-            a = vec3(lighting.inview[2]);
-        }
+//    vec3 eye_pos = vec3(lighting.inview[3]);
+//    float d = glm::distance(vec3(light->getPosition()),eye_pos);
 
 
-        vec4 lp = vec4(light->getPosition(),1);
-        vec4 lpscreen = lighting.proj*lighting.view*lp;
-        lpscreen = lpscreen/lpscreen.w;
-        vec2 mousescreen = mouse/vec2(lighting.width,lighting.height);
-        mousescreen.y = 1.0f-mousescreen.y;
-        mousescreen = mousescreen*2.0f-1.0f;
+//    if(state==State::moving){
+//        if(axis==Axis::X){
+//            vec3 screenAxis = glm::normalize(vec3(vec2(lighting.view[0]),0));
+//            light->translateGlobal(glm::dot(vec3(mouserel.x,mouserel.y,0),screenAxis)*vec3(d,0,0));
+//        }else if(axis==Axis::Y){
+//            vec3 screenAxis = glm::normalize(vec3(vec2(lighting.view[1]),0));
+//            light->translateGlobal(glm::dot(vec3(mouserel.x,mouserel.y,0),screenAxis)*vec3(0,d,0));
+//        }else if(axis==Axis::Z){
+//            vec3 screenAxis = glm::normalize(vec3(vec2(lighting.view[2]),0));
+//            light->translateGlobal(glm::dot(vec3(mouserel.x,mouserel.y,0),screenAxis)*vec3(0,0,d));
+//        }else {
+//            vec4 trans = vec4(mouserel.x,mouserel.y,0,0)*d;
+//            trans = lighting.inview*trans;
+//            light->translateGlobal(trans);
+//        }
+//    }
 
-        vec2 v1 = glm::normalize(vec2(mousescreen)-vec2(lpscreen));
-        vec2 v2 = glm::normalize(vec2(mousescreen)-mouserel-vec2(lpscreen));
+//    if(state==State::rotating){
+//        vec3 a;
+//        if(axis==Axis::X){
+//            a = vec3(1,0,0);
+//        }else if(axis==Axis::Y){
+//            a = vec3(0,1,0);
+//        }else if(axis==Axis::Z){
+//            a = vec3(0,0,1);
+//        }else {
+//            a = vec3(lighting.inview[2]);
+//        }
 
 
-        float angle =  glm::atan(v2.y,v2.x) - glm::atan(v1.y,v1.x);
-//            float angle = glm::acos(glm::dot(v1,v2));
+//        vec4 lp = vec4(light->getPosition(),1);
+//        vec4 lpscreen = lighting.proj*lighting.view*lp;
+//        lpscreen = lpscreen/lpscreen.w;
+//        vec2 mousescreen = mouse/vec2(lighting.width,lighting.height);
+//        mousescreen.y = 1.0f-mousescreen.y;
+//        mousescreen = mousescreen*2.0f-1.0f;
 
-        //check if axis points towards screen
-        if(glm::dot(vec3(lighting.inview[2]),a)>0){
-            angle = -angle;
-        }
-        light->rotateGlobal(a,glm::degrees(angle));
-    }
+//        vec2 v1 = glm::normalize(vec2(mousescreen)-vec2(lpscreen));
+//        vec2 v2 = glm::normalize(vec2(mousescreen)-mouserel-vec2(lpscreen));
 
-    light->calculateModel();
+
+//        float angle =  glm::atan(v2.y,v2.x) - glm::atan(v1.y,v1.x);
+////            float angle = glm::acos(glm::dot(v1,v2));
+
+//        //check if axis points towards screen
+//        if(glm::dot(vec3(lighting.inview[2]),a)>0){
+//            angle = -angle;
+//        }
+//        light->rotateGlobal(a,glm::degrees(angle));
+//    }
+
+//    light->calculateModel();
 
 
     return false;
@@ -302,32 +302,32 @@ bool LightingController::cursor_position_event(GLFWwindow* window, double xpos, 
 
 bool LightingController::mouse_button_event(GLFWwindow* window, int button, int action, int mods){
     (void)window;(void)mods;
-    if(!active || action!=GLFW_PRESS)
-        return false;
+//    if(!active || action!=GLFW_PRESS)
+//        return false;
 
-    if(button==GLFW_MOUSE_BUTTON_1){
-        if(state!=State::waiting)
-            submitNotifyChange();
-    }
-    //select closest light with right click
-    if(button==GLFW_MOUSE_BUTTON_2){
-        Ray r = createPixelRay(mouse);
-        setSelectedLight(closestPointLight(r));
-        return true;
-    }
+//    if(button==GLFW_MOUSE_BUTTON_1){
+//        if(state!=State::waiting)
+//            submitNotifyChange();
+//    }
+//    //select closest light with right click
+//    if(button==GLFW_MOUSE_BUTTON_2){
+//        Ray r = createPixelRay(mouse);
+//        setSelectedLight(closestPointLight(r));
+//        return true;
+//    }
 
     return false;
 }
 
-Ray LightingController::createPixelRay(const vec2 &pixel){
-    vec4 p = vec4(2*pixel.x/lighting.width-1.f,-(2*pixel.y/lighting.height-1.f),0,1.f);
-    p = glm::inverse(lighting.proj)*p;
-    p /= p.w;
-//    vec4 der = lighting.inview*p;
-    vec4 der = glm::inverse(lighting.view)*p;
-    vec3 origin = vec3(glm::inverse(lighting.view)[3]);
-    return Ray(glm::normalize(vec3(der)-origin),origin);
-}
+//Ray LightingController::createPixelRay(const vec2 &pixel){
+//    vec4 p = vec4(2*pixel.x/lighting.width-1.f,-(2*pixel.y/lighting.height-1.f),0,1.f);
+//    p = glm::inverse(lighting.proj)*p;
+//    p /= p.w;
+////    vec4 der = lighting.inview*p;
+//    vec4 der = glm::inverse(lighting.view)*p;
+//    vec3 origin = vec3(glm::inverse(lighting.view)[3]);
+//    return Ray(glm::normalize(vec3(der)-origin),origin);
+//}
 
 Light *LightingController::closestPointLight(const Ray &r){
     PointLight* closest = nullptr;

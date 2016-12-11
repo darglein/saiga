@@ -1,6 +1,6 @@
+
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
 
 uniform mat4 invProj;
 

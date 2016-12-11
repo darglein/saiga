@@ -32,7 +32,7 @@ ProceduralSkybox::ProceduralSkybox(){
 
 void ProceduralSkybox::render(Camera* cam){
     shader->bind();
-    shader->uploadAll(model,cam->view,cam->proj);
+    shader->uploadAll(cam,model);
     shader->uploadParams(horizonHeight,distance);
     mesh.bindAndDraw();
 

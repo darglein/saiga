@@ -53,7 +53,6 @@ private:
     GBuffer &gbuffer;
 
 
-    mat4 inview,view,proj;
     bool drawDebug = true;
 
 	bool useTimers = true;
@@ -107,7 +106,7 @@ public:
     void render(Camera *cam);
     void renderLightAccumulation();
     void renderDepthMaps(Program *renderer );
-    void renderDebug();
+    void renderDebug(Camera *cam);
 
 
     void setShader(SpotLightShader* spotLightShader, SpotLightShader* spotLightShadowShader);
@@ -119,7 +118,6 @@ public:
     void setStencilShader(MVPShader* stencilShader);
 
 
-    void setViewProj(const mat4 &iv,const mat4 &v,const mat4 &p);
 
     void cullLights(Camera *cam);
 
@@ -166,8 +164,7 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T* obj, Camer
 
     setupStencilPass();
     stencilShader->bind();
-    stencilShader->uploadView(view);
-    stencilShader->uploadProj(proj);
+    stencilShader->bindCamera(cam);
 
     obj->bindUniformsStencil(*stencilShader);
     mesh.bindAndDraw();
@@ -177,8 +174,7 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T* obj, Camer
     setupLightPass();
     shader_t* shader = (obj->hasShadows()) ? shaderShadow : shaderNormal;
     shader->bind();
-    shader->uploadView(view);
-    shader->uploadProj(proj);
+    shader->bindCamera(cam);
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
 
