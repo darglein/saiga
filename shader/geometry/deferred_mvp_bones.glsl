@@ -21,12 +21,8 @@ layout(location=5) in vec3 in_data;
 //layout(location=4) in vec4 in_boneIndices;
 //layout(location=5) in vec4 in_boneWeights;
 
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
-
-uniform mat4 MV;
-uniform mat4 MVP;
 
 uniform mat4 boneMatrices[BONE_COUNT];
 
@@ -75,9 +71,7 @@ void main() {
 ##GL_FRAGMENT_SHADER
 
 #version 330
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
+
 uniform float userData; //blue channel of data texture in gbuffer. Not used in lighting.
 
 in vec3 normal;

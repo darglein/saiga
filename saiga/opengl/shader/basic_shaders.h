@@ -25,8 +25,8 @@ public:
 //    void uploadAll(const mat4& m1,const mat4& m2,const mat4& m3);
 //    void uploadMVP(const mat4& matrix){upload(location_mvp,matrix);}
 //    void uploadMV(const mat4& matrix){upload(location_mv,matrix);}
-//    void uploadView(const mat4& matrix){upload(location_view,matrix);}
-//    void uploadProj(const mat4& matrix){upload(location_proj,matrix);}
+    void uploadView(const mat4& matrix){upload(location_view,matrix);}
+    void uploadProj(const mat4& matrix){upload(location_proj,matrix);}
 };
 
 class SAIGA_GLOBAL MVPColorShader : public MVPShader{
