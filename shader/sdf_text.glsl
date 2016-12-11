@@ -8,7 +8,12 @@ layout(location=2) in vec2 in_tex;
 
 
 #include "camera.glsl"
+
+//uniform mat4 proj;
+//uniform mat4 view;
 uniform mat4 model;
+
+
 
 
 out vec2 texCoord;
@@ -27,8 +32,6 @@ void main() {
 
 #version 330
 
-#include "camera.glsl"
-uniform mat4 model;
 
 uniform vec4 color = vec4(1,1,1,1);
 uniform vec4 outlineColor = vec4(0,0,0,0);

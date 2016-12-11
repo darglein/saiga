@@ -11,6 +11,7 @@ Layout::Layout(int width, int height, float targetWidth, float targetHeight):wid
 //    proj = glm::ortho(0.0f,this->targetWidth,0.0f,this->targetHeight,-1.0f,1.0f);
 
     cam.setProj(0.0f,this->targetWidth,0.0f,this->targetHeight,-1.0f,1.0f);
+    proj = cam.proj;
 }
 
 aabb Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX)

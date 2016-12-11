@@ -12,13 +12,14 @@ class Text;
 class SAIGA_GLOBAL TextOverlay2D {
 public:
 
-
+    mat4 proj;
     std::vector<Text*> texts;
 
     int width,height;
 
     TextOverlay2D();
     TextOverlay2D(int width=1, int height=1);
+    void render();
     void render(Camera* camera);
 
     //text stuff

@@ -14,6 +14,18 @@ TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height){
     loadShader();
 }
 
+void TextOverlay2D::render()
+{
+    textShader->bind();
+    textShader->uploadView(mat4(1));
+    textShader->uploadProj(proj);
+    for(Text* &text : texts){
+        if(text->visible)
+            text->render(textShader);
+    }
+    textShader->unbind();
+}
+
 void TextOverlay2D::render(Camera *camera){
     textShader->bind();
 //    textShader->uploadView(mat4(1));

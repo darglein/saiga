@@ -41,7 +41,7 @@ private:
     float aspect;
     vec3 scale;
 public:
-//    mat4 proj;
+    mat4 proj;
     OrthographicCamera cam;
 
     Layout(int width, int height, float targetWidth=1,  float targetHeight=1);
