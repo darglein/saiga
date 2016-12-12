@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 744.09448819 1052.3622047"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="bindingPoints.svg">
+  <defs
+     id="defs4">
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible;"
+       id="marker7458"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend">
+      <path
+         transform="scale(0.4) rotate(180) translate(10,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path7460" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Mend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Mend"
+       style="overflow:visible;"
+       inkscape:isstock="true"
+       inkscape:collect="always">
+      <path
+         id="path4199"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.4) rotate(180) translate(10,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker6746"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path6748"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker6254"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path6256"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible;"
+       id="marker5400"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:collect="always">
+      <path
+         transform="scale(0.8) rotate(180) translate(12.5,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path5402" />
+    </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible;"
+       id="marker4506"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:collect="always">
+      <path
+         transform="scale(0.8) rotate(180) translate(12.5,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path4508" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lend"
+       style="overflow:visible;"
+       inkscape:isstock="true"
+       inkscape:collect="always">
+      <path
+         id="path4193"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lstart"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path4190"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) translate(12.5,0)" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.979899"
+     inkscape:cx="314.51749"
+     inkscape:cy="715.40386"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="true"
+     inkscape:snap-bbox="true"
+     inkscape:snap-bbox-midpoints="true"
+     inkscape:window-width="1920"
+     inkscape:window-height="993"
+     inkscape:window-x="0"
+     inkscape:window-y="24"
+     inkscape:window-maximized="1">
+    <inkscape:grid
+       type="xygrid"
+       id="grid4136"
+       units="px"
+       spacingx="10"
+       spacingy="10" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000"
+       id="rect4140"
+       width="40"
+       height="40"
+       x="250"
+       y="202.36223" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4142"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(15.859373,39.187841)"><flowRegion
+         id="flowRegion4144"><rect
+           id="rect4146"
+           width="120"
+           height="19.999994"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara4148"
+         style="font-size:15px">Binding Points</flowPara></flowRoot>    <rect
+       y="212.36223"
+       x="-20"
+       height="39.999989"
+       width="80"
+       id="rect4154"
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000;stroke-width:1" />
+    <rect
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000"
+       id="rect4156"
+       width="40"
+       height="40"
+       x="511.43921"
+       y="202.36223" />
+    <flowRoot
+       transform="translate(-260.60791,40.641698)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot4158"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4160"><rect
+           y="132.36223"
+           x="210"
+           height="30.812159"
+           width="194.14062"
+           id="rect4162" /></flowRegion><flowPara
+         style="font-size:15px"
+         id="flowPara4164">Shader - Uniform Blocks</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4166"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(284.36523,30.641699)"><flowRegion
+         id="flowRegion4168"><rect
+           id="rect4170"
+           width="120"
+           height="19.999994"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara4172"
+         style="font-size:15px">Uniform Buffer</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4174"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(-143.60352,106.54219)"><flowRegion
+         id="flowRegion4176"><rect
+           id="rect4178"
+           width="265.03052"
+           height="50.812153"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara4180"
+         style="font-size:10px">glUniformBlockBinding</flowPara><flowPara
+         style="font-size:10px"
+         id="flowPara4182">Shader::setUniformBlockBindings</flowPara></flowRoot>    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="m 60.40355,233.77592 188.68782,-9.09137"
+       id="path4184"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4504"
+       d="M 511.3743,224.68455 290.95035,225.6947"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker4506)"
+       sodipodi:nodetypes="cc" />
+    <flowRoot
+       transform="translate(150.91064,107.51143)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot5332"
+       xml:space="preserve"><flowRegion
+         id="flowRegion5334"><rect
+           y="132.36223"
+           x="210"
+           height="50.812153"
+           width="265.03052"
+           id="rect5336" /></flowRegion><flowPara
+         style="font-size:10px"
+         id="flowPara5338">glBindBufferBase</flowPara><flowPara
+         id="flowPara5340"
+         style="font-size:10px">UniformBuffer::bind</flowPara></flowRoot>    <flowRoot
+       transform="translate(-223.83301,92.638383)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot5342"
+       xml:space="preserve"><flowRegion
+         id="flowRegion5344"><rect
+           y="132.36223"
+           x="210"
+           height="23.457802"
+           width="83.603523"
+           id="rect5346" /></flowRegion><flowPara
+         id="flowPara5350"
+         style="font-size:10px">cameraData</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot5354"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(-223.91846,143.76143)"><flowRegion
+         id="flowRegion5356"><rect
+           id="rect5358"
+           width="70.65918"
+           height="16.392372"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         style="font-size:10px"
+         id="flowPara5360">boneMatrices</flowPara></flowRoot>    <rect
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000;stroke-width:1"
+       id="rect5362"
+       width="80"
+       height="39.999989"
+       x="-20"
+       y="262.36221" />
+    <flowRoot
+       transform="translate(55.096433,80.517186)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot5364"
+       xml:space="preserve"><flowRegion
+         id="flowRegion5366"><rect
+           y="132.36223"
+           x="210"
+           height="19.999994"
+           width="120"
+           id="rect5368" /></flowRegion><flowPara
+         style="font-size:15px"
+         id="flowPara5370">1</flowPara></flowRoot>    <rect
+       y="242.36223"
+       x="250"
+       height="40"
+       width="40"
+       id="rect5372"
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot5374"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(55.096431,120.51718)"><flowRegion
+         id="flowRegion5376"><rect
+           id="rect5378"
+           width="120"
+           height="19.999994"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara5380"
+         style="font-size:15px">2</flowPara></flowRoot>    <rect
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000"
+       id="rect5382"
+       width="40"
+       height="40"
+       x="250"
+       y="282.36221" />
+    <flowRoot
+       transform="translate(55.096429,160.51717)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot5384"
+       xml:space="preserve"><flowRegion
+         id="flowRegion5386"><rect
+           y="132.36223"
+           x="210"
+           height="19.999994"
+           width="120"
+           id="rect5388" /></flowRegion><flowPara
+         style="font-size:15px"
+         id="flowPara5390">3</flowPara></flowRoot>    <path
+       inkscape:connector-curvature="0"
+       id="path5398"
+       d="M 60.554451,282.46375 248.7372,264.78608"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker5400)"
+       sodipodi:nodetypes="cc" />
+    <rect
+       y="272.36221"
+       x="510"
+       height="40"
+       width="40"
+       id="rect6034"
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000" />
+    <path
+       sodipodi:nodetypes="cc"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker6254)"
+       d="M 508.59545,294.75913 290.69688,262.43425"
+       id="path6252"
+       inkscape:connector-curvature="0" />
+    <flowRoot
+       transform="translate(-149.75098,230.29219)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot6726"
+       xml:space="preserve"><flowRegion
+         id="flowRegion6728"><rect
+           y="132.36223"
+           x="210"
+           height="53.457798"
+           width="183.60352"
+           id="rect6730" /></flowRegion><flowPara
+         id="flowPara6734"
+         style="font-size:10px">This connection is constant and has to be done only once after linking the program.</flowPara></flowRoot>    <path
+       sodipodi:nodetypes="cc"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Mend)"
+       d="m 142.0996,361.50092 0.29437,-78.7919"
+       id="path6744"
+       inkscape:connector-curvature="0" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot7442"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(100.24902,240.29219)"><flowRegion
+         id="flowRegion7444"><rect
+           id="rect7446"
+           width="183.60352"
+           height="53.457798"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         style="font-size:10px"
+         id="flowPara7448">More shaders can use the binding points for different uniform blocks, so usually this connection has to be done once per frame. </flowPara></flowRoot>    <path
+       inkscape:connector-curvature="0"
+       id="path7456"
+       d="m 404.97921,369.39295 6.86036,-81.82236"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker7458)"
+       sodipodi:nodetypes="cc" />
+  </g>
+</svg>

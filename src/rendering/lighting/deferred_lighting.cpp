@@ -249,10 +249,10 @@ void DeferredLighting::render(Camera* cam){
     //never overwrite current depthbuffer
     glDepthMask(GL_FALSE);
 
-    //all light volumnes are using stencil culling
+    //all light volumes are using stencil culling
     glEnable(GL_STENCIL_TEST);
 
-    //use depth test for all light volumnes
+    //use depth test for all light volumes
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
@@ -344,7 +344,7 @@ void DeferredLighting::setupLightPass(){
     //render only back faces
     glCullFace(GL_FRONT);
 
-    //reversed depth test: it passes if the light volumne is behind an object
+    //reversed depth test: it passes if the light volume is behind an object
     glDepthFunc(GL_GEQUAL);
 
     //discard all pixels that are marked with 'id' from the previous pass
@@ -354,8 +354,8 @@ void DeferredLighting::setupLightPass(){
     //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
     glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
 
-    //-> the reverse depth test + the stencil test make now sure that the current pixel is in the light volumne
-    //this also works, when the camera is inside the volumne, but fails when the far plane is intersecting the volumne
+    //-> the reverse depth test + the stencil test make now sure that the current pixel is in the light volume
+    //this also works, when the camera is inside the volume, but fails when the far plane is intersecting the volume
 
 
     //increase stencil id, so the next light will write a different value to the stencil buffer.

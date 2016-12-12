@@ -1,0 +1,419 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="257.74332mm"
+   height="305.26678mm"
+   viewBox="0 0 913.26372 1081.654"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="stencilCulling.svg">
+  <defs
+     id="defs4">
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker4569"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 Z"
+         id="path4571"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="marker4487"
+       style="overflow:visible"
+       inkscape:isstock="true"
+       inkscape:collect="always">
+      <path
+         id="path4489"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 Z"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker4411"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:collect="always">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 Z"
+         id="path4413"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker7458"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 Z"
+         id="path7460"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="marker6746"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path6748"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 Z"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lstart"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow1Lstart"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path4190"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 Z"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         transform="matrix(0.8,0,0,0.8,10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.9899495"
+     inkscape:cx="452.57845"
+     inkscape:cy="654.16136"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="true"
+     inkscape:snap-bbox="true"
+     inkscape:snap-bbox-midpoints="true"
+     inkscape:window-width="1920"
+     inkscape:window-height="993"
+     inkscape:window-x="0"
+     inkscape:window-y="24"
+     inkscape:window-maximized="1"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0">
+    <inkscape:grid
+       type="xygrid"
+       id="grid4136"
+       units="px"
+       spacingx="10"
+       spacingy="10"
+       originx="232.76366"
+       originy="569.41771" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(232.76367,-540.12589)">
+    <path
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:6, 2;stroke-dashoffset:0"
+       d="m 316.07143,582.36218 c 102.17268,0 183.92857,82.82732 183.92857,185 0,102.17268 -82.82732,185 -185,185"
+       id="path4721"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="csc" />
+    <path
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none"
+       d="m 314.28571,952.36218 c -102.17268,0 -184.28571,-82.82732 -184.28571,-185 0,-102.17268 82.82732,-185 185,-185"
+       id="path4375"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="csc" />
+    <rect
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000"
+       id="rect4377"
+       width="110"
+       height="80"
+       x="25"
+       y="862.36218" />
+    <rect
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000"
+       id="rect4379"
+       width="70"
+       height="100"
+       x="225"
+       y="732.36218" />
+    <rect
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000"
+       id="rect4381"
+       width="160"
+       height="200"
+       x="520"
+       y="582.36224" />
+    <circle
+       style="opacity:0.98799995;fill:#000000;fill-opacity:1;stroke:#000000"
+       id="path4383"
+       cx="-220"
+       cy="782.36218"
+       r="10" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker4569)"
+       d="m -220,782.36221 240,120"
+       id="path4387"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker4487)"
+       d="m -220,782.36221 440,0"
+       id="path4401"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker4411)"
+       d="m -220,782.36221 740,-130"
+       id="path4403"
+       inkscape:connector-curvature="0" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4651"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(-437.63794,403.74838)"><flowRegion
+         id="flowRegion4653"><rect
+           id="rect4655"
+           width="373.8147"
+           height="189.589"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara4657"
+         style="font-size:15px">Pass 1</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4659">- Render front faces</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4661">- Default depth test</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4663">- Mark pixel that fail the depth test with 1</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4665" /><flowPara
+         style="font-size:15px"
+         id="flowPara4667">    glCullFace(GL_BACK);</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4687">    glDepthFunc(GL_LEQUAL);</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4689">    glStencilFunc(GL_ALWAYS, 1, 0xFF);</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4691">    glStencilOp(GL_KEEP,GL_REPLACE,GL_KEEP);</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4693"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(228.80127,480.64169)"><flowRegion
+         id="flowRegion4695"><rect
+           id="rect4697"
+           width="194.14062"
+           height="30.812159"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara4699"
+         style="font-size:15px">Stencil = 0</flowPara></flowRoot>    <flowRoot
+       transform="translate(-71.198732,620.64169)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot4701"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4703"><rect
+           y="132.36223"
+           x="210"
+           height="30.812159"
+           width="194.14062"
+           id="rect4705" /></flowRegion><flowPara
+         style="font-size:15px"
+         id="flowPara4707">Stencil = 0</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4709"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(-281.19873,770.64168)"><flowRegion
+         id="flowRegion4711"><rect
+           id="rect4713"
+           width="194.14062"
+           height="30.812159"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara4715"
+         style="font-size:15px">Stencil = 1</flowPara></flowRoot>    <path
+       sodipodi:nodetypes="csc"
+       inkscape:connector-curvature="0"
+       id="path4723"
+       d="m 316.07143,1112.3622 c 102.17268,0 183.92857,82.8273 183.92857,185 0,102.1726 -82.82732,185 -185,185"
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0" />
+    <path
+       sodipodi:nodetypes="csc"
+       inkscape:connector-curvature="0"
+       id="path4725"
+       d="m 314.28571,1482.3622 c -102.17268,0 -184.28571,-82.8274 -184.28571,-185 0,-102.1727 82.82732,-185 185,-185"
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:6, 2;stroke-dashoffset:0" />
+    <rect
+       y="1392.3622"
+       x="25"
+       height="80"
+       width="110"
+       id="rect4727"
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000" />
+    <rect
+       y="1262.3622"
+       x="225"
+       height="100"
+       width="70"
+       id="rect4729"
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000" />
+    <rect
+       y="1112.3622"
+       x="520"
+       height="200"
+       width="160"
+       id="rect4731"
+       style="opacity:0.98799995;fill:none;fill-opacity:1;stroke:#000000" />
+    <circle
+       r="10"
+       cy="1312.3622"
+       cx="-220"
+       id="circle4733"
+       style="opacity:0.98799995;fill:#000000;fill-opacity:1;stroke:#000000" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4735"
+       d="m -220,1312.3622 240.000001,120"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker4569)" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4737"
+       d="m -220,1312.3622 440,0"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker4487)" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4739"
+       d="m -220,1312.3622 740,-130"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker4411)" />
+    <flowRoot
+       transform="translate(-439.70708,895.72229)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot4741"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4743"><rect
+           y="132.36223"
+           x="210"
+           height="236.25162"
+           width="367.63791"
+           id="rect4745" /></flowRegion><flowPara
+         style="font-size:15px"
+         id="flowPara4747">Pass 2</flowPara><flowPara
+         id="flowPara4749"
+         style="font-size:15px">- Render back faces</flowPara><flowPara
+         id="flowPara4751"
+         style="font-size:15px">- Inverted depth test</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4804">- Only operate on pixels that were not marked with 1</flowPara><flowPara
+         id="flowPara4753"
+         style="font-size:15px">- Apply lighting computation on pixels that pass stencil and depth test</flowPara><flowPara
+         id="flowPara4755"
+         style="font-size:15px" /><flowPara
+         id="flowPara4763"
+         style="font-size:15px">    glCullFace(GL_FRONT);</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4798">    glDepthFunc(GL_GEQUAL);</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4800">    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4802">    glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);</flowPara></flowRoot>    <flowRoot
+       transform="translate(228.80127,1010.6417)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot4765"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4767"><rect
+           y="132.36223"
+           x="210"
+           height="30.812159"
+           width="194.14062"
+           id="rect4769" /></flowRegion><flowPara
+         style="font-size:15px"
+         id="flowPara4771">Fails Depth test</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4773"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(-93.129884,1159.1878)"><flowRegion
+         id="flowRegion4775"><rect
+           id="rect4777"
+           width="194.14062"
+           height="30.812159"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara4779"
+         style="font-size:15px">This pixel is lit</flowPara></flowRoot>    <flowRoot
+       transform="translate(-311.78345,1300.6417)"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       id="flowRoot4781"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4783"><rect
+           y="132.36223"
+           x="210"
+           height="30.812159"
+           width="194.14062"
+           id="rect4785" /></flowRegion><flowPara
+         style="font-size:15px"
+         id="flowPara4787">Fails Stencil Test</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4848"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       transform="translate(-443.49609,1415.0972)"><flowRegion
+         id="flowRegion4850"><rect
+           id="rect4852"
+           width="347.63794"
+           height="216.2516"
+           x="210"
+           y="132.36223" /></flowRegion><flowPara
+         id="flowPara4854"
+         style="font-size:15px">Notes</flowPara><flowPara
+         style="font-size:15px"
+         id="flowPara4856">- Works when camera is in the light volume</flowPara><flowPara
+         id="flowPara4872"
+         style="font-size:15px">- Fails when far plane of camera intersects light volume</flowPara></flowRoot>  </g>
+</svg>
