@@ -10,8 +10,15 @@ TextOverlay2D::TextOverlay2D()
     loadShader();
 }
 
+TextOverlay2D::TextOverlay2D(const mat4 &proj)
+{
+    this->proj = proj;
+    loadShader();
+}
+
 TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height){
     loadShader();
+    this->proj = glm::ortho(0.0f,(float)width,0.0f,(float)height,-1.0f,1.0f);
 }
 
 void TextOverlay2D::render()

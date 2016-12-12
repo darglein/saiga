@@ -6,12 +6,8 @@ layout(location=0) in vec3 in_position;
 layout(location=1) in vec4 in_color;
 layout(location=2) in float data;
 
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
-
-uniform mat4 MV;
-uniform mat4 MVP;
 
 out vec4 color;
 out float radius;
@@ -39,7 +35,8 @@ layout(triangle_strip, max_vertices=4) out;
 in vec4 color[];
 in float radius[];
 
-uniform mat4 proj;
+#include "camera.glsl"
+uniform mat4 model;
 
 out vec2 tc;
 out vec4 color2;
@@ -79,7 +76,6 @@ void main() {
 #version 330
 
 uniform sampler2D normal_map;
-uniform mat4 view;
 
 in vec2 tc;
 in vec4 color2;

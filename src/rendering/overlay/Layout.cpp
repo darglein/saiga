@@ -1,17 +1,26 @@
 #include "saiga/rendering/overlay/Layout.h"
 
 
-Layout::Layout(int width, int height, float targetWidth, float targetHeight):width(width),height(height),targetWidth(targetWidth),targetHeight(targetHeight) {
+Layout::Layout(int width, int height):width(width),height(height) {
+    init(width,height);
+}
+
+void Layout::init(int _width, int _height)
+{
+    width =_width;
+    height = _height;
+
     aspect = (float)width/(float)height;
-    this->targetWidth = aspect;
-    this->targetHeight = 1.0f;
+    targetWidth = aspect;
+    targetHeight = 1.0f;
     scale = vec3(aspect,1.0f,1.0f);
 
 
 //    proj = glm::ortho(0.0f,this->targetWidth,0.0f,this->targetHeight,-1.0f,1.0f);
 
-    cam.setProj(0.0f,this->targetWidth,0.0f,this->targetHeight,-1.0f,1.0f);
+    cam.setProj(0.0f,targetWidth,0.0f,targetHeight,-1.0f,1.0f);
     proj = cam.proj;
+
 }
 
 aabb Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX)

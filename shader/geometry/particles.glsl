@@ -11,11 +11,8 @@ layout(location=5) in vec4 data;
 layout(location=6) in float in_startFade;
 layout(location=7) in ivec3 idata;
 
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
-uniform mat4 MV;
-uniform mat4 MVP;
 
 uniform int timer;
 uniform float timestep;
@@ -103,8 +100,8 @@ flat in int layer[];
 flat in int orientation[];
 
 
-uniform mat4 proj;
-uniform mat4 view;
+#include "camera.glsl"
+uniform mat4 model;
 
 out vec3 tc;
 out float fade2;

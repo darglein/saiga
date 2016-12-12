@@ -44,8 +44,8 @@ public:
     mat4 proj;
     OrthographicCamera cam;
 
-    Layout(int width, int height, float targetWidth=1,  float targetHeight=1);
-    void init(int width, int height, float targetWidth=1,  float targetHeight=1);
+    Layout(int width, int height);
+    void init(int width, int height);
 
     //transforms the object uniformly to fit relSize.
     aabb transform(Object3D* obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX=true);
