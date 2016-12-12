@@ -371,7 +371,6 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
     DirectionalLightShader* shader = (shadow)?directionalLightShadowShader:directionalLightShader;
 
     shader->bind();
-    shader->bindCamera(cam);
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
     shader->uploadSsaoTexture(ssaoTexture);
@@ -396,7 +395,6 @@ void DeferredLighting::renderDirectionalLight(DirectionalLight* obj, Camera *cam
 
     DirectionalLightShader* shader = (obj->hasShadows()) ? directionalLightShadowShader : directionalLightShader;
     shader->bind();
-    shader->bindCamera(cam);
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
     shader->uploadSsaoTexture(ssaoTexture);
@@ -410,7 +408,6 @@ void DeferredLighting::renderDirectionalLight(DirectionalLight* obj, Camera *cam
 void DeferredLighting::renderDebug(Camera *cam){
 
     debugShader->bind();
-    debugShader->bindCamera(cam);
 
     // ======================= Pointlights ===================
 

@@ -13,18 +13,11 @@ void MVPShader::checkUniforms(){
     location_userData = getUniformLocation("userData");
 
     location_cameraData = getUniformBlockLocation("cameraData");
+
+    if(location_cameraData != -1)
+        setUniformBlockBinding(location_cameraData,CAMERA_DATA_BINDING_POINT);
 }
 
-void MVPShader::bindCamera(Camera *cam)
-{
-    setUniformBlockBinding(location_cameraData,CAMERA_DATA_BINDING_POINT);
-}
-
-void MVPShader::uploadAll(Camera *cam, const mat4 &model)
-{
-    bindCamera(cam);
-    uploadModel(model);
-}
 
 //void MVPShader::uploadAll(const mat4& m1,const mat4& m2,const mat4& m3){
 //    uploadModel(m1);

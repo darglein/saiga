@@ -164,7 +164,6 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T* obj, Camer
 
     setupStencilPass();
     stencilShader->bind();
-    stencilShader->bindCamera(cam);
 
     obj->bindUniformsStencil(*stencilShader);
     mesh.bindAndDraw();
@@ -174,7 +173,6 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T* obj, Camer
     setupLightPass();
     shader_t* shader = (obj->hasShadows()) ? shaderShadow : shaderNormal;
     shader->bind();
-    shader->bindCamera(cam);
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
 

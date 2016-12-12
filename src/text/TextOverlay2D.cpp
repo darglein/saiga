@@ -30,7 +30,6 @@ void TextOverlay2D::render(Camera *camera){
     textShader->bind();
 //    textShader->uploadView(mat4(1));
 //    textShader->uploadProj(proj);
-    textShader->bindCamera(camera);
     for(Text* &text : texts){
         if(text->visible)
             text->render(textShader);

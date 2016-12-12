@@ -17,10 +17,9 @@ public:
 
     virtual void checkUniforms();
 
-    void bindCamera(Camera* cam);
     void uploadModel(const mat4& matrix){upload(location_model,matrix);}
     void uploadUserData(float f){upload(location_userData,f);}
-        void uploadAll(Camera* cam, const mat4& model);
+//        void uploadAll(Camera* cam, const mat4& model);
 
 //    void uploadAll(const mat4& m1,const mat4& m2,const mat4& m3);
 //    void uploadMVP(const mat4& matrix){upload(location_mvp,matrix);}

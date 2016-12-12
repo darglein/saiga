@@ -7,10 +7,10 @@ layout(location=1) in vec3 in_normal;
 layout(location=2) in vec2 in_tex;
 
 
-#include "camera.glsl"
+//#include "camera.glsl"
 
-//uniform mat4 proj;
-//uniform mat4 view;
+uniform mat4 proj;
+uniform mat4 view;
 uniform mat4 model;
 
 

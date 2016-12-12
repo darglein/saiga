@@ -97,7 +97,7 @@ void Terrain::renderintern(Camera *cam){
 
     shader->bind();
 
-    shader->uploadAll(cam,model);
+    shader->uploadModel(model);
 
 
     shader->uploadZScale(heightmap.heightScale);

@@ -23,7 +23,7 @@ void Skybox::setDistance(float d){
 
 void Skybox::render(Camera* cam){
     shader->bind();
-    shader->uploadAll(cam,model);
+    shader->uploadModel(model);
     shader->uploadTexture(cube_texture);
     mesh.bindAndDraw();
     cube_texture->unbind();

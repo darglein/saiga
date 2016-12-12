@@ -74,7 +74,6 @@ void BasicAsset<vertex_t,index_t>::render(Camera *cam, const mat4 &model)
     shader->bind();
 //    shader->uploadAll(cam,model);
     shader->uploadModel(model);
-    shader->bindCamera(cam);
 
 //    glEnable(GL_POLYGON_OFFSET_FILL);
 //    glPolygonOffset(1.0f,1.0f);
@@ -90,9 +89,7 @@ template<typename vertex_t, typename index_t>
 void BasicAsset<vertex_t,index_t>::renderDepth(Camera *cam, const mat4 &model)
 {
     depthshader->bind();
-//    depthshader->uploadAll(cam,model);
     depthshader->uploadModel(model);
-    depthshader->bindCamera(cam);
     buffer.bindAndDraw();
     depthshader->unbind();
 }
@@ -101,9 +98,7 @@ template<typename vertex_t, typename index_t>
 void BasicAsset<vertex_t,index_t>::renderWireframe(Camera *cam, const mat4 &model)
 {
     wireframeshader->bind();
-//    wireframeshader->uploadAll(cam,model);
     wireframeshader->uploadModel(model);
-    wireframeshader->bindCamera(cam);
 
 //    glEnable(GL_POLYGON_OFFSET_LINE);
 

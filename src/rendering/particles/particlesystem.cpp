@@ -72,7 +72,7 @@ void ParticleSystem::render(Camera *cam){
 
     particleShader->bind();
 
-    particleShader->uploadAll(cam,model);
+    particleShader->uploadModel(model);
     particleShader->uploadTexture(arrayTexture);
 
     particleShader->uploadTiming(tick,interpolation);
@@ -97,7 +97,7 @@ void ParticleSystem::renderDeferred(Camera *cam, raw_Texture* detphTexture)
 
     deferredParticleShader->bind();
 
-    deferredParticleShader->uploadAll(cam,model);
+    deferredParticleShader->uploadModel(model);
     deferredParticleShader->uploadTexture(arrayTexture);
     deferredParticleShader->uploadDepthTexture(detphTexture);
     deferredParticleShader->uploadTiming(tick,interpolation);
