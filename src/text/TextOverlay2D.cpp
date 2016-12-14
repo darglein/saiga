@@ -24,8 +24,6 @@ TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height){
 void TextOverlay2D::render()
 {
     textShader->bind();
-    textShader->uploadView(mat4(1));
-    textShader->uploadProj(proj);
     for(Text* &text : texts){
         if(text->visible)
             text->render(textShader);

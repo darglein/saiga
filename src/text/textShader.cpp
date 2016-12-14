@@ -2,8 +2,6 @@
 
 void TextShader::checkUniforms(){
     MVPShader::checkUniforms();
-    location_model = getUniformLocation("model");
-    location_proj = getUniformLocation("proj");
 
     location_texture = getUniformLocation("text");
 

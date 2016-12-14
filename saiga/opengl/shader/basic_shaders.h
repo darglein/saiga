@@ -10,8 +10,7 @@ class GBuffer;
 
 class SAIGA_GLOBAL MVPShader : public Shader{
 public:
-    GLint location_model, location_view, location_proj;
-    GLint location_mvp, location_mv;
+    GLint location_model;
     GLint location_cameraData;
     GLint location_userData;
 
@@ -19,13 +18,7 @@ public:
 
     void uploadModel(const mat4& matrix){upload(location_model,matrix);}
     void uploadUserData(float f){upload(location_userData,f);}
-//        void uploadAll(Camera* cam, const mat4& model);
 
-    void uploadAll(const mat4& m1,const mat4& m2,const mat4& m3){uploadModel(m1);uploadView(m2);uploadProj(m3);}
-//    void uploadMVP(const mat4& matrix){upload(location_mvp,matrix);}
-//    void uploadMV(const mat4& matrix){upload(location_mv,matrix);}
-    void uploadView(const mat4& matrix){upload(location_view,matrix);}
-    void uploadProj(const mat4& matrix){upload(location_proj,matrix);}
 };
 
 class SAIGA_GLOBAL MVPColorShader : public MVPShader{
