@@ -52,8 +52,6 @@
 
 class SAIGA_GLOBAL UniformBuffer : public Buffer{
 public:
-    int numUniforms; //one uniform buffer can contain multiple uniforms
-
     UniformBuffer();
     ~UniformBuffer();
 

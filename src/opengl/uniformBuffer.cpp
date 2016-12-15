@@ -24,18 +24,14 @@ void UniformBuffer::bind(GLuint bindingPoint) const
 void UniformBuffer::init(Shader *shader, GLuint location)
 {
     size = shader->getUniformBlockSize(location);
-
-    std::vector<GLint> indices = shader->getUniformBlockIndices(location);
-    numUniforms = indices.size();
     assert_no_glerror();
-
     createGLBuffer(nullptr,size,GL_DYNAMIC_DRAW);
 
 }
 
 
 std::ostream &operator<<(std::ostream &os, const UniformBuffer &ub){
-    os<<"UniformBuffer "<<"size="<<ub.size<<" numUniforms="<<ub.numUniforms;
+    os<<"UniformBuffer "<<"size="<<ub.size;
     return os;
 }
 

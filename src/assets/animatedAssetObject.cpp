@@ -17,7 +17,9 @@ void AnimatedAssetObject::init(AnimatedAsset *_asset)
     SAIGA_ASSERT(_asset);
     this->asset = _asset;
     BoneShader* bs = static_cast<BoneShader*>(asset->shader);
+
     boneMatricesBuffer.init(bs,bs->location_boneMatricesBlock);
+
     setAnimation(0);
 }
 

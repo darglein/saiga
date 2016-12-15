@@ -50,7 +50,7 @@ public:
      */
 
     VertexBuffer() : Buffer(GL_ARRAY_BUFFER){}
-    ~VertexBuffer(){deleteGLBuffer();}
+    ~VertexBuffer(){}
 
 
     /*
