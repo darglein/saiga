@@ -221,7 +221,6 @@ layout(early_fragment_tests) in; //force early depth tests. may not work on olde
 
 uniform sampler2DArray image;
 
-uniform mat4 view;
 
 in vec3 tc;
 in float fade2;

@@ -43,12 +43,8 @@ out vec3 tePosition;
 out vec4 tePositionMV;
 out vec3 tePatchDistance;
 
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
-
-//uniform mat4 Projection;
-//uniform mat4 Modelview;
 
 void main()
 {

@@ -4,12 +4,8 @@
 #version 330
 layout(location=0) in vec3 in_position;
 
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
-
-uniform mat4 MV;
-uniform mat4 MVP;
 
 //current level
 uniform sampler2D image;
@@ -118,9 +114,8 @@ void main()
 ##GL_FRAGMENT_SHADER
 
 #version 330
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
 uniform vec4 color;
 uniform sampler2D normalMap;
 

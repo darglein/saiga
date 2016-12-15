@@ -6,12 +6,8 @@ layout(location=0) in vec3 in_position;
 layout(location=1) in vec3 in_normal;
 layout(location=2) in vec2 in_tex;
 
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
-
-uniform mat4 MV;
-uniform mat4 MVP;
 
 
 
@@ -26,9 +22,7 @@ void main() {
 ##GL_FRAGMENT_SHADER
 
 #version 330
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
+
 
 
 

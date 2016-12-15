@@ -37,9 +37,8 @@ void main() {
 ##GL_FRAGMENT_SHADER
 
 #version 330
+#include "camera.glsl"
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
 uniform vec4 params;
 
 in vec2 texCoord;

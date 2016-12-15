@@ -8,7 +8,6 @@ layout(location=1) in vec3 in_normal;
 layout(location=2) in vec2 in_tex;
 
 uniform mat4 model;
-uniform mat4 proj;
 
 
 out vec2 texCoord;
@@ -27,8 +26,6 @@ void main() {
 ##GL_FRAGMENT_SHADER
 
 #version 330
-uniform mat4 model;
-uniform mat4 proj;
 
 uniform sampler2D text;
 
