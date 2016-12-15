@@ -42,7 +42,7 @@ vec2 packNormal3 (vec3 n)
 //}
 
 
-void setGbufferData(vec3 color, vec3 position, vec3 normal, vec4 data){
+void setGbufferData(vec3 color, vec3 normal, vec4 data){
     out_color = color;
 //    out_position = position;
     out_normal.xy = packNormal3(normalize(normal));

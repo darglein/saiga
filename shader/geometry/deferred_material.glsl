@@ -105,7 +105,7 @@ void main() {
 //    LFragment = vec4( normal, 1.0 );
 //    float spec = (specColor.r+specColor.g+specColor.b)*0.333f;
     float spec = 0.3f;
-    setGbufferData(vec3(diffColor),vertexMV,N,vec3(spec,0,0));
+    setGbufferData(vec3(diffColor),N,vec3(spec,0,0));
 }
 
 

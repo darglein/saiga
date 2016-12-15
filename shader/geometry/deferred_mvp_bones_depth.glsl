@@ -22,9 +22,6 @@ layout (std140) uniform boneMatricesBlock {
 };
 
 out vec3 normal;
-out vec3 normalW;
-out vec3 vertexMV;
-out vec3 vertex;
 out vec3 color;
 out vec3 data;
 
@@ -46,12 +43,9 @@ void main() {
     mat4 boneMatrix = calculateBoneMatrix();
     mat4 newModel = model * boneMatrix;
     color = in_color;
-    normal = normalize(vec3(view*newModel * vec4( in_normal, 0 )));
-    normalW = normalize(vec3(newModel * vec4( in_normal, 0 )));
-    vertexMV = vec3(view * newModel * vec4( in_position, 1 ));
-    vertex = vec3(newModel * vec4( in_position, 1 ));
     data = in_data;
-    gl_Position = proj*view *newModel* vec4(in_position,1);
+    normal = normalize(vec3(view*newModel * vec4( in_normal, 0 )));
+    gl_Position = viewProj *newModel* vec4(in_position,1);
 }
 
 
@@ -64,9 +58,6 @@ void main() {
 
 
 in vec3 normal;
-in vec3 normalW;
-in vec3 vertexMV;
-in vec3 vertex;
 in vec3 color;
 in vec3 data;
 

@@ -126,7 +126,7 @@ void main() {
     vec3 color = vec3(1);
     color = amplify(d1, 40, -0.5) * amplify(d2, 60, -0.5) * color;
 
-    setGbufferData(color,vec3(gVertexMV),gFacetNormal,vec4(0));
+    setGbufferData(color,gFacetNormal,vec4(0));
 }
 
 

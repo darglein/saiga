@@ -12,9 +12,6 @@ layout(location=3) in vec4 in_data;
 uniform mat4 model;
 
 out vec3 normal;
-out vec3 normalW;
-out vec3 vertexMV;
-out vec3 vertex;
 out vec2 texCoord;
 out vec4 data;
 
@@ -23,10 +20,7 @@ void main() {
     texCoord = in_tex;
     data = in_data;
     normal = normalize(vec3(view*model * vec4( in_normal, 0 )));
-    normalW = normalize(vec3(model * vec4( in_normal, 0 )));
-    vertexMV = vec3(view * model * vec4( in_position, 1 ));
-    vertex = vec3(model * vec4( in_position, 1 ));
-    gl_Position = proj*view *model* vec4(in_position,1);
+    gl_Position = viewProj *model* vec4(in_position,1);
 }
 
 
@@ -41,9 +35,6 @@ uniform sampler2D image;
 uniform float userData; //blue channel of data texture in gbuffer. Not used in lighting.
 
 in vec3 normal;
-in vec3 normalW;
-in vec3 vertexMV;
-in vec3 vertex;
 in vec2 texCoord;
 in vec4 data;
 
@@ -53,7 +44,7 @@ in vec4 data;
 
 void main() {
     vec4 diffColor = texture(image, texCoord);
-    setGbufferData(vec3(diffColor),vertexMV,normal,data);
+    setGbufferData(vec3(diffColor),normal,data);
 }
 
 

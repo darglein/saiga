@@ -19,7 +19,7 @@ void main() {
     lightPos = vec3(view  * vec4(model[3]));
     vertexMV = vec3(view * model * vec4( in_position, 1 ));
     vertex = vec3(model * vec4( in_position, 1 ));
-    gl_Position = proj*view *model* vec4(in_position,1);
+    gl_Position = viewProj *model* vec4(in_position,1);
 }
 
 

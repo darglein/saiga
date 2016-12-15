@@ -71,7 +71,7 @@ void main() {
 
     vertex = vec3(position);
     vertexMV = vec3(view * position);
-    gl_Position = proj*view * position;
+    gl_Position = viewProj * position;
 
 //    c = texture(image,tc).rrr;
 
