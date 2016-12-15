@@ -86,8 +86,12 @@ private:
     void stopTimer(DeferredTimings timer){if(params.useGPUTimers || timer == TOTAL)timers[timer].stopTimer();}
 
     bool blitLastFramebuffer = true;
+
+
+    UniformBuffer cameraBuffer;
 public:
 
+    void bindCamera(Camera* cam);
 
     float getTime(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].getTimeMS();}
     float getUnsmoothedTimeMS(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].GPUTimer::getTimeMS();}

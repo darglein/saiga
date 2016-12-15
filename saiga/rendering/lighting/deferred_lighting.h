@@ -27,6 +27,8 @@ private:
     int width,height;
     MVPColorShader* debugShader;
 
+    UniformBuffer shadowCameraBuffer;
+
     //the vertex position is sufficient. no normals and texture coordinates needed.
     typedef IndexedVertexBuffer<Vertex,GLushort> lightMesh_t;
 

@@ -11,17 +11,7 @@
 
 using std::string;
 
-/**
- * Equivalent to the uniform block defined in camera.glsl
- * This makes uploading the camera parameters more efficient, because they can be shared in multiple shaders and
- * be upload at once.
- */
-struct CameraDataGLSL{
-    mat4 view;
-    mat4 proj;
-    mat4 viewProj;
-    vec4 camera_position;
-};
+
 
 
 class SAIGA_GLOBAL Camera : public Object3D{
@@ -33,7 +23,6 @@ public:
     mat4 proj;
     mat4 viewProj;
 
-    UniformBuffer cameraBuffer;
 
     float zNear,  zFar;
     float nw,nh,fw,fh; //dimensions of near and far plane
@@ -45,10 +34,7 @@ public:
     Camera();
     virtual ~Camera(){}
 
-    Camera(Camera const&) = delete;
-    Camera& operator=(Camera const&) = delete;
 
-    void uploadToUniformBuffer();
 
     void setView(const mat4 &v);
     void setView(const vec3 &eye,const vec3 &center,const vec3 &up);
@@ -160,3 +146,23 @@ public:
 
 };
 
+
+/**
+ * Equivalent to the uniform block defined in camera.glsl
+ * This makes uploading the camera parameters more efficient, because they can be shared in multiple shaders and
+ * be upload at once.
+ */
+struct CameraDataGLSL{
+    mat4 view;
+    mat4 proj;
+    mat4 viewProj;
+    vec4 camera_position;
+
+    CameraDataGLSL(){}
+    CameraDataGLSL(Camera* cam){
+        view = cam->view;
+        proj = cam->proj;
+        viewProj = proj * view;
+        camera_position = cam->position;
+    }
+};

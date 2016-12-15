@@ -13,6 +13,8 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     width(windowWidth*params.renderScale), height(windowHeight*params.renderScale),
     params(params), lighting(gbuffer)
 {
+    cameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
+
     //    setSize(windowWidth,windowHeight);
 
     if(params.useSMAA)
@@ -27,14 +29,14 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 
     if(params.srgbWrites){
 
-		//intel graphics drivers on windows do not define this extension but srgb still works..
+        //intel graphics drivers on windows do not define this extension but srgb still works..
         //assert(hasExtension("GL_EXT_framebuffer_sRGB"));
 
         //Mesa drivers do not respect the spec when blitting with srgb framebuffers.
         //https://lists.freedesktop.org/archives/mesa-dev/2015-February/077681.html
 
         //TODO check for mesa
-		//If this is true some recording softwares record the image too dark :(
+        //If this is true some recording softwares record the image too dark :(
         blitLastFramebuffer = false;
     }
 
@@ -121,13 +123,11 @@ void Deferred_Renderer::render_intern() {
     // (as queried through glGetFramebufferAttachmentParameter(GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING)​),
     // then it will assume the shader's output is in the linear RGB colorspace.
     // It will therefore convert the output from linear RGB to sRGB.
-//    if (params.srgbWrites)
-//        glEnable(GL_FRAMEBUFFER_SRGB); //no reason to switch it off
+    //    if (params.srgbWrites)
+    //        glEnable(GL_FRAMEBUFFER_SRGB); //no reason to switch it off
 
     (*currentCamera)->recalculatePlanes();
-    (*currentCamera)->uploadToUniformBuffer();
-    (*currentCamera)->cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-
+    bindCamera(*currentCamera);
     renderGBuffer(*currentCamera);
     assert_no_glerror();
 
@@ -152,7 +152,7 @@ void Deferred_Renderer::render_intern() {
     //    glClear( GL_COLOR_BUFFER_BIT );
 
 
-    (*currentCamera)->cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
+    bindCamera(*currentCamera);
     renderLighting(*currentCamera);
 
 
@@ -172,7 +172,7 @@ void Deferred_Renderer::render_intern() {
 
     startTimer(OVERLAY);
 
-    (*currentCamera)->cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
+    bindCamera(*currentCamera);
     renderer->renderOverlay(*currentCamera);
     stopTimer(OVERLAY);
 
@@ -222,8 +222,8 @@ void Deferred_Renderer::render_intern() {
     else
         postProcessor.renderLast(windowWidth, windowHeight);
 
-//    if (params.srgbWrites)
-//        glDisable(GL_FRAMEBUFFER_SRGB);
+    //    if (params.srgbWrites)
+    //        glDisable(GL_FRAMEBUFFER_SRGB);
 
     if (params.useGlFinish)
         glFinish();
@@ -360,6 +360,13 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
     assert_no_glerror();
+}
+
+void Deferred_Renderer::bindCamera(Camera *cam)
+{
+    CameraDataGLSL cd(cam);
+    cameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
+    cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
 }
 
 void Deferred_Renderer::printTimings()

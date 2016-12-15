@@ -22,6 +22,8 @@ DeferredLighting::DeferredLighting(GBuffer &framebuffer):gbuffer(framebuffer){
     createInputCommands();
     createLightMeshes();
 
+    shadowCameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
+
 
 
 }
@@ -149,14 +151,16 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
     totalLights = directionalLights.size() + spotLights.size() + pointLights.size();
 
 
+    shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
+
     for(DirectionalLight* &light : directionalLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
             light->bindShadowMap();
             light->cam.recalculatePlanes();
 
-            light->cam.uploadToUniformBuffer();
-            light->cam.cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
+            CameraDataGLSL cd(&light->cam);
+            shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
@@ -170,8 +174,8 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
             light->bindShadowMap();
             light->cam.recalculatePlanes();
 
-            light->cam.uploadToUniformBuffer();
-            light->cam.cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
+            CameraDataGLSL cd(&light->cam);
+            shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
@@ -184,8 +188,8 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
             light->bindShadowMap();
             light->cam.recalculatePlanes();
 
-            light->cam.uploadToUniformBuffer();
-            light->cam.cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
+            CameraDataGLSL cd(&light->cam);
+            shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
             renderer->renderDepth(&light->cam);
             light->unbindShadowMap();
@@ -202,8 +206,8 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
                 light->calculateCamera(i);
                 light->cam.recalculatePlanes();
 
-                light->cam.uploadToUniformBuffer();
-                light->cam.cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
+                CameraDataGLSL cd(&light->cam);
+                shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
                 renderer->renderDepth(&light->cam);
                 light->unbindShadowMap();
