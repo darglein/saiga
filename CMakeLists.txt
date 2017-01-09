@@ -208,6 +208,12 @@ SET(LIBS ${LIBS} ${OPENGL_LIBRARIES})
 find_package(GLM REQUIRED)
 include_directories( ${GLM_INCLUDE_DIRS}) 
 
+#eigen
+find_package(Eigen3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIRS})
+SET(LIBS ${LIBS} ${EIGEN3_LIBRARIES})
+message(STATUS "EIGEN3_INCLUDE_DIRS: ${EIGEN3_INCLUDE_DIRS} ${EIGEN3_LIBRARIES}")
+
 #GLEW
 if(USE_GLEW)
 	find_package(GLEW REQUIRED)
