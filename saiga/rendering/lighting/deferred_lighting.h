@@ -34,19 +34,21 @@ private:
 
     PointLightShader* pointLightShader, *pointLightShadowShader;
     lightMesh_t pointLightMesh;
-    std::vector<PointLight*> pointLights;
+    std::vector< std::shared_ptr<PointLight> > pointLights;
 
     SpotLightShader* spotLightShader, *spotLightShadowShader;
     lightMesh_t spotLightMesh;
-    std::vector<SpotLight*> spotLights;
-
-    DirectionalLightShader* directionalLightShader,*directionalLightShadowShader;
-    lightMesh_t directionalLightMesh;
-    std::vector<DirectionalLight*> directionalLights;
+    std::vector< std::shared_ptr<SpotLight> > spotLights;
 
     BoxLightShader* boxLightShader,*boxLightShadowShader;
     lightMesh_t boxLightMesh;
-    std::vector<BoxLight*> boxLights;
+    std::vector< std::shared_ptr<BoxLight> > boxLights;
+
+    DirectionalLightShader* directionalLightShader,*directionalLightShadowShader;
+    lightMesh_t directionalLightMesh;
+    std::vector< std::shared_ptr<DirectionalLight> > directionalLights;
+
+
 
 //    MVPTextureShader* blitDepthShader;
     LightAccumulationShader* lightAccumulationShader;
@@ -90,15 +92,15 @@ public:
     void setRenderDebug(bool b){drawDebug = b;}
     void createLightMeshes();
 
-    DirectionalLight* createDirectionalLight();
-    PointLight* createPointLight();
-    SpotLight* createSpotLight();
-    BoxLight* createBoxLight();
+    std::shared_ptr<DirectionalLight> createDirectionalLight();
+    std::shared_ptr<PointLight> createPointLight();
+    std::shared_ptr<SpotLight> createSpotLight();
+    std::shared_ptr<BoxLight> createBoxLight();
 
-    void removeLight(DirectionalLight* l);
-    void removeLight(PointLight* l);
-    void removeLight(SpotLight* l);
-    void removeLight(BoxLight* l);
+    void removeLight(std::shared_ptr<DirectionalLight> l);
+    void removeLight(std::shared_ptr<PointLight> l);
+    void removeLight(std::shared_ptr<SpotLight> l);
+    void removeLight(std::shared_ptr<BoxLight> l);
 
 
     void render(Camera *cam);
@@ -128,7 +130,7 @@ private:
     void setupLightPass();
 
     template<typename T,typename shader_t>
-    void renderLightVolume(lightMesh_t &mesh, T* obj, Camera *cam, shader_t *shader , shader_t *shaderShadow);
+    void renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t *shader , shader_t *shaderShadow);
 
 
     void renderDirectionalLights(Camera *cam, bool shadow);
@@ -137,7 +139,7 @@ private:
 
 
 template<typename T,typename shader_t>
-inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T* obj, Camera *cam, shader_t *shaderNormal , shader_t *shaderShadow){
+inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t *shaderNormal , shader_t *shaderShadow){
     if(!obj->shouldRender())
         return;
 

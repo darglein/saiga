@@ -103,7 +103,7 @@ void DeferredLighting::cullLights(Camera *cam){
     visibleLights = directionalLights.size();
 
     //cull lights that are not visible
-    for(SpotLight* &light : spotLights){
+    for(auto &light : spotLights){
         if(light->isActive()){
             light->calculateCamera();
             light->cam.recalculatePlanes();
@@ -111,7 +111,7 @@ void DeferredLighting::cullLights(Camera *cam){
         }
     }
 
-    for(BoxLight* &light : boxLights){
+    for(auto &light : boxLights){
         if(light->isActive()){
             light->calculateCamera();
             light->cam.recalculatePlanes();
@@ -120,7 +120,7 @@ void DeferredLighting::cullLights(Camera *cam){
     }
 
 
-    for(PointLight* &light : pointLights){
+    for(auto &light : pointLights){
         if(light->isActive()){
             visibleLights += (light->cullLight(cam))? 0 : 1;
         }
@@ -147,7 +147,7 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
 
     shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
 
-    for(DirectionalLight* &light : directionalLights){
+    for(auto &light : directionalLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
             light->bindShadowMap();
@@ -162,7 +162,7 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
     }
 
 
-    for(BoxLight* &light : boxLights){
+    for(auto &light : boxLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
             light->bindShadowMap();
@@ -176,7 +176,7 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
         }
     }
 
-    for(SpotLight* &light : spotLights){
+    for(auto &light : spotLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
             light->bindShadowMap();
@@ -191,7 +191,7 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
     }
 
 
-    for(PointLight* &light : pointLights){
+    for(auto &light : pointLights){
 
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps+=6;
@@ -261,20 +261,20 @@ void DeferredLighting::render(Camera* cam){
 
     assert_no_glerror();
     startTimer(1);
-    for(PointLight* l : pointLights){
-        renderLightVolume<PointLight,PointLightShader>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader);
+    for(auto& l : pointLights){
+        renderLightVolume< std::shared_ptr<PointLight> ,PointLightShader>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader);
     }
     stopTimer(1);
 
     startTimer(2);
-    for(SpotLight* l : spotLights){
-        renderLightVolume<SpotLight,SpotLightShader>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader);
+    for(auto& l : spotLights){
+        renderLightVolume< std::shared_ptr<SpotLight> ,SpotLightShader>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader);
     }
     stopTimer(2);
 
     startTimer(3);
-    for(BoxLight* l : boxLights){
-        renderLightVolume<BoxLight,BoxLightShader>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader);
+    for(auto& l : boxLights){
+        renderLightVolume< std::shared_ptr<BoxLight> ,BoxLightShader>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader);
     }
     stopTimer(3);
     assert_no_glerror();
@@ -374,7 +374,7 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
     shader->uploadSsaoTexture(ssaoTexture);
 
     directionalLightMesh.bind();
-    for(DirectionalLight* &obj : directionalLights){
+    for(auto &obj : directionalLights){
         bool render = (shadow&&obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->hasShadows());
         if(render){
             obj->bindUniforms(*shader,cam);
@@ -394,7 +394,7 @@ void DeferredLighting::renderDebug(Camera *cam){
 
     pointLightMesh.bind();
     //center
-    for(PointLight* &obj : pointLights){
+    for(auto &obj : pointLights){
         mat4 sm = glm::scale(obj->model,vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
@@ -408,7 +408,7 @@ void DeferredLighting::renderDebug(Camera *cam){
 
     //render outline
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-    for(PointLight* &obj : pointLights){
+    for(auto &obj : pointLights){
         //        if(obj->isSelected()){
         debugShader->uploadModel(obj->model);
         debugShader->uploadColor(obj->colorDiffuse);
@@ -423,7 +423,7 @@ void DeferredLighting::renderDebug(Camera *cam){
 
     spotLightMesh.bind();
     //center
-    for(SpotLight* &obj : spotLights){
+    for(auto &obj : spotLights){
         mat4 sm = glm::scale(obj->model,vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
@@ -437,7 +437,7 @@ void DeferredLighting::renderDebug(Camera *cam){
 
     //render outline
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-    for(SpotLight* &obj : spotLights){
+    for(auto &obj : spotLights){
         //        if(obj->isSelected()){
         debugShader->uploadModel(obj->model);
         debugShader->uploadColor(obj->colorDiffuse);
@@ -452,7 +452,7 @@ void DeferredLighting::renderDebug(Camera *cam){
 
     boxLightMesh.bind();
     //center
-    for(BoxLight* &obj : boxLights){
+    for(auto &obj : boxLights){
         mat4 sm = glm::scale(obj->model,vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
@@ -466,7 +466,7 @@ void DeferredLighting::renderDebug(Camera *cam){
 
     //render outline
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-    for(BoxLight* &obj : boxLights){
+    for(auto &obj : boxLights){
         //        if(obj->isSelected()){
         debugShader->uploadModel(obj->model);
         debugShader->uploadColor(obj->colorDiffuse);
@@ -561,46 +561,46 @@ void DeferredLighting::createLightMeshes(){
     bb->createBuffers(boxLightMesh);
 }
 
-DirectionalLight* DeferredLighting::createDirectionalLight(){
-    DirectionalLight* l = new DirectionalLight();
+std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight(){
+    std::shared_ptr<DirectionalLight> l =  std::make_shared<DirectionalLight>();
     directionalLights.push_back(l);
     return l;
 }
 
-PointLight* DeferredLighting::createPointLight(){
-    PointLight* l = new PointLight();
+std::shared_ptr<PointLight> DeferredLighting::createPointLight(){
+    std::shared_ptr<PointLight> l =  std::make_shared<PointLight>();
     pointLights.push_back(l);
     return l;
 }
 
-SpotLight* DeferredLighting::createSpotLight(){
-    SpotLight* l = new SpotLight();
+std::shared_ptr<SpotLight> DeferredLighting::createSpotLight(){
+    std::shared_ptr<SpotLight> l =  std::make_shared<SpotLight>();
     spotLights.push_back(l);
     return l;
 }
 
-BoxLight* DeferredLighting::createBoxLight(){
-    BoxLight* l = new BoxLight();
+std::shared_ptr<BoxLight> DeferredLighting::createBoxLight(){
+    std::shared_ptr<BoxLight> l =  std::make_shared<BoxLight>();
     boxLights.push_back(l);
     return l;
 }
 
-void DeferredLighting::removeLight(DirectionalLight *l)
+void DeferredLighting::removeLight(std::shared_ptr<DirectionalLight> l)
 {
     directionalLights.erase(std::find(directionalLights.begin(),directionalLights.end(),l));
 }
 
-void DeferredLighting::removeLight(PointLight *l)
+void DeferredLighting::removeLight(std::shared_ptr<PointLight> l)
 {
     pointLights.erase(std::find(pointLights.begin(),pointLights.end(),l));
 }
 
-void DeferredLighting::removeLight(SpotLight *l)
+void DeferredLighting::removeLight(std::shared_ptr<SpotLight> l)
 {
     spotLights.erase(std::find(spotLights.begin(),spotLights.end(),l));
 }
 
-void DeferredLighting::removeLight(BoxLight *l)
+void DeferredLighting::removeLight(std::shared_ptr<BoxLight> l)
 {
     boxLights.erase(std::find(boxLights.begin(),boxLights.end(),l));
 

@@ -38,7 +38,7 @@ LightingController::LightingController(DeferredLighting& lighting):lighting(ligh
 
     IC.add("lighting_controller_add_pointlight", [this](ICPARAMS){
         (void)args;
-        PointLight* light = this->lighting.createPointLight();
+        auto light = this->lighting.createPointLight();
         light->translateGlobal(vec3(3,10,0));
         light->setColorDiffuse(vec4(156./256, 42./256, 0,4));
     });
@@ -84,28 +84,28 @@ bool LightingController::isActive() const
 void LightingController::setActive(bool value)
 {
     if(value==false){
-        setSelectedLight(nullptr);
+//        setSelectedLight(nullptr);
     }
     lighting.drawDebug = value;
     active = value;
 }
 
 void LightingController::selectPointlight(unsigned int id){
-    if(lighting.pointLights.size()>id){
-        setSelectedLight(lighting.pointLights[id]);
-    }
+//    if(lighting.pointLights.size()>id){
+//        setSelectedLight(lighting.pointLights[id]);
+//    }
 }
 
 void LightingController::selectSpotlight(unsigned int id){
-    if(lighting.spotLights.size()>id){
-        setSelectedLight(lighting.spotLights[id]);
-    }
+//    if(lighting.spotLights.size()>id){
+//        setSelectedLight(lighting.spotLights[id]);
+//    }
 }
 
 void LightingController::selectDirectionallight(unsigned int id){
-    if(lighting.directionalLights.size()>id){
-        setSelectedLight(lighting.directionalLights[id]);
-    }
+//    if(lighting.directionalLights.size()>id){
+//        setSelectedLight(lighting.directionalLights[id]);
+//    }
 }
 
 
@@ -116,20 +116,20 @@ Light *LightingController::getSelectedLight() const
 
 void LightingController::setSelectedLight(Light *value)
 {
-    if(selectedLight!=nullptr){
-        selectedLight->setSelected(false);
-        selectedLight->model = oldModel;
-    }
-    selectedLight = value;
+//    if(selectedLight!=nullptr){
+//        selectedLight->setSelected(false);
+//        selectedLight->model = oldModel;
+//    }
+//    selectedLight = value;
 
-    if(selectedLight!=nullptr){
-        selectedLight->setSelected(true);
-        state = State::selected;
-        oldModel = selectedLight->model;
-    }else{
-        state = State::waiting;
-    }
-    notify(); //notify observers
+//    if(selectedLight!=nullptr){
+//        selectedLight->setSelected(true);
+//        state = State::selected;
+//        oldModel = selectedLight->model;
+//    }else{
+//        state = State::waiting;
+//    }
+//    notify(); //notify observers
 }
 
 void LightingController::submitChange(){
@@ -331,28 +331,28 @@ bool LightingController::mouse_button_event(GLFWwindow* window, int button, int 
 
 Light *LightingController::closestPointLight(const Ray &r){
     PointLight* closest = nullptr;
-    float t = 19857985275; //infinite
+//    float t = 19857985275; //infinite
 
-    for(PointLight* &obj : lighting.pointLights){
-        Sphere s(vec3(obj->getPosition()),0.05*obj->getRadius());
-        float x1,x2;
-        if(r.intersectSphere(s,x1,x2)){
-            if(x1>0 && x1<t){
-                closest = obj;
-                t = x1;
-            }
-        }
-    }
-    for(SpotLight* &obj : lighting.spotLights){
-        Sphere s(vec3(obj->getPosition()),0.05*obj->getRadius());
-        float x1,x2;
-        if(r.intersectSphere(s,x1,x2)){
-            if(x1>0 && x1<t){
-                closest = obj;
-                t = x1;
-            }
-        }
-    }
+//    for(PointLight* &obj : lighting.pointLights){
+//        Sphere s(vec3(obj->getPosition()),0.05*obj->getRadius());
+//        float x1,x2;
+//        if(r.intersectSphere(s,x1,x2)){
+//            if(x1>0 && x1<t){
+//                closest = obj;
+//                t = x1;
+//            }
+//        }
+//    }
+//    for(SpotLight* &obj : lighting.spotLights){
+//        Sphere s(vec3(obj->getPosition()),0.05*obj->getRadius());
+//        float x1,x2;
+//        if(r.intersectSphere(s,x1,x2)){
+//            if(x1>0 && x1<t){
+//                closest = obj;
+//                t = x1;
+//            }
+//        }
+//    }
     return closest;
 }
 
