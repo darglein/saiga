@@ -18,14 +18,8 @@
 
 
 DeferredLighting::DeferredLighting(GBuffer &framebuffer):gbuffer(framebuffer){
-    
-    createInputCommands();
     createLightMeshes();
-
     shadowCameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
-
-
-
 }
 
 DeferredLighting::~DeferredLighting(){
@@ -392,23 +386,6 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
 }
 
 
-void DeferredLighting::renderDirectionalLight(DirectionalLight* obj, Camera *cam){
-    if(!obj->shouldRender())
-        return;
-
-
-    DirectionalLightShader* shader = (obj->hasShadows()) ? directionalLightShadowShader : directionalLightShader;
-    shader->bind();
-    shader->DeferredShader::uploadFramebuffer(&gbuffer);
-    shader->uploadScreenSize(vec2(width,height));
-    shader->uploadSsaoTexture(ssaoTexture);
-    obj->bindUniforms(*shader,cam);
-    directionalLightMesh.bindAndDraw();
-    shader->unbind();
-
-
-}
-
 void DeferredLighting::renderDebug(Camera *cam){
 
     debugShader->bind();
@@ -555,10 +532,6 @@ void DeferredLighting::setStencilShader(MVPShader* stencilShader){
 
 
 
-void DeferredLighting::createInputCommands(){
-
-}
-
 
 
 void DeferredLighting::createLightMeshes(){
@@ -612,22 +585,22 @@ BoxLight* DeferredLighting::createBoxLight(){
     return l;
 }
 
-void DeferredLighting::removeDirectionalLight(DirectionalLight *l)
+void DeferredLighting::removeLight(DirectionalLight *l)
 {
     directionalLights.erase(std::find(directionalLights.begin(),directionalLights.end(),l));
 }
 
-void DeferredLighting::removePointLight(PointLight *l)
+void DeferredLighting::removeLight(PointLight *l)
 {
     pointLights.erase(std::find(pointLights.begin(),pointLights.end(),l));
 }
 
-void DeferredLighting::removeSpotLight(SpotLight *l)
+void DeferredLighting::removeLight(SpotLight *l)
 {
     spotLights.erase(std::find(spotLights.begin(),spotLights.end(),l));
 }
 
-void DeferredLighting::removeBoxLight(BoxLight *l)
+void DeferredLighting::removeLight(BoxLight *l)
 {
     boxLights.erase(std::find(boxLights.begin(),boxLights.end(),l));
 

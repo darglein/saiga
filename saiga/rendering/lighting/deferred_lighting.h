@@ -65,10 +65,6 @@ private:
     void startTimer(int timer){if(useTimers)timers2[timer].startTimer();}
     void stopTimer(int timer){if(useTimers)timers2[timer].stopTimer();}
 	float getTime(int timer) { if (!useTimers) return 0; return timers2[timer].getTimeMS(); }
-//    raw_Texture* dummyTexture;
-//    raw_Texture* dummyCubeTexture;
-
-
 public:
     int totalLights;
     int visibleLights;
@@ -99,10 +95,10 @@ public:
     SpotLight* createSpotLight();
     BoxLight* createBoxLight();
 
-    void removeDirectionalLight(DirectionalLight* l);
-    void removePointLight(PointLight* l);
-    void removeSpotLight(SpotLight* l);
-    void removeBoxLight(BoxLight* l);
+    void removeLight(DirectionalLight* l);
+    void removeLight(PointLight* l);
+    void removeLight(SpotLight* l);
+    void removeLight(BoxLight* l);
 
 
     void render(Camera *cam);
@@ -126,35 +122,16 @@ public:
     void printTimings();
 
 private:
-    void renderPointLight(PointLight* p, Camera *cam);
-
-    void createInputCommands();
 
     void blitGbufferDepthToAccumulationBuffer();
     void setupStencilPass();
     void setupLightPass();
 
-    template<typename T>
-    void renderStencilVolume(lightMesh_t &mesh, std::vector<T*> &objs);
-
-    template<typename T,typename shader_t, bool shadow>
-    void renderLightVolume(lightMesh_t &mesh, std::vector<T *> &objs, Camera *cam, shader_t *shader);
-
     template<typename T,typename shader_t>
     void renderLightVolume(lightMesh_t &mesh, T* obj, Camera *cam, shader_t *shader , shader_t *shaderShadow);
 
 
-    void renderPointLights(Camera *cam, bool shadow);
-    void renderPointLightsStencil();
-
-    void renderSpotLights(Camera *cam, bool shadow);
-    void renderSpotLightsStencil();
-
-    void renderBoxLights(Camera *cam, bool shadow);
-    void renderBoxLightsStencil();
-
     void renderDirectionalLights(Camera *cam, bool shadow);
-    void renderDirectionalLight(DirectionalLight *obj, Camera *cam);
 
 };
 
