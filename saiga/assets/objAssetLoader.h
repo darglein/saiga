@@ -9,6 +9,6 @@ public:
     ObjAssetLoader();
     virtual ~ObjAssetLoader();
 
-    ColoredAsset* loadBasicAsset(const std::string &file, bool normalize=false);
-    TexturedAsset* loadTexturedAsset(const std::string &file, bool normalize=false);
+    std::shared_ptr<ColoredAsset> loadBasicAsset(const std::string &file, bool normalize=false);
+    std::shared_ptr<TexturedAsset> loadTexturedAsset(const std::string &file, bool normalize=false);
 };

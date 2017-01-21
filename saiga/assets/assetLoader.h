@@ -31,5 +31,5 @@ public:
      * quadSize is the size of one individual quad of the checkerboard.
      */
 
-    TexturedAsset* loadDebugPlaneAsset(vec2 size, float quadSize=1.0f, Color color1=Colors::lightgray, Color color2=Colors::gray);
+    std::shared_ptr<TexturedAsset> loadDebugPlaneAsset(vec2 size, float quadSize=1.0f, Color color1=Colors::lightgray, Color color2=Colors::gray);
 };

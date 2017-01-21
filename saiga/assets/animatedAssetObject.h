@@ -22,7 +22,7 @@ private:
     public:
     void setAnimation(int id);
 
-    void init(AnimatedAsset* _asset);
+    void init(std::shared_ptr<AnimatedAsset> _asset);
 
 
     void updateAnimation(float dt);
@@ -34,6 +34,6 @@ private:
     void renderRaw();
 
 private:
-    AnimatedAsset* asset = nullptr;
+    std::shared_ptr<AnimatedAsset> asset = nullptr;
 
 };

@@ -14,7 +14,7 @@ ObjAssetLoader::~ObjAssetLoader()
 }
 
 
-ColoredAsset* ObjAssetLoader::loadBasicAsset(const std::string &file, bool normalize){
+std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string &file, bool normalize){
     ObjLoader2 ol(file);
 
     ColoredAsset* asset = new ColoredAsset();
@@ -49,10 +49,10 @@ ColoredAsset* ObjAssetLoader::loadBasicAsset(const std::string &file, bool norma
 
     asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
 
-    return asset;
+    return  std::shared_ptr<ColoredAsset>(asset);
 }
 
-TexturedAsset *ObjAssetLoader::loadTexturedAsset(const std::string &file, bool normalize)
+std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::string &file, bool normalize)
 {
     ObjLoader2 ol(file);
 
@@ -96,7 +96,7 @@ TexturedAsset *ObjAssetLoader::loadTexturedAsset(const std::string &file, bool n
 
     asset->create(file,texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
 
-    return asset;
+    return std::shared_ptr<TexturedAsset>(asset);
 }
 
 

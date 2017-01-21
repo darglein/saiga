@@ -33,7 +33,7 @@ void AssetLoader2::loadDefaultShaders()
     animatedAssetWireframeShader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones.glsl");
 }
 
-TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
+std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
 {
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
 
@@ -71,5 +71,5 @@ TexturedAsset *AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Colo
 
     plainAsset->create("test",texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader);
 
-    return plainAsset;
+    return std::shared_ptr<TexturedAsset>(plainAsset);
 }

@@ -12,7 +12,7 @@ void AnimatedAssetObject::setAnimation(int id)
     animationTotalTime = asset->animations[id].duration;
 }
 
-void AnimatedAssetObject::init(AnimatedAsset *_asset)
+void AnimatedAssetObject::init(std::shared_ptr<AnimatedAsset> _asset)
 {
     SAIGA_ASSERT(_asset);
     this->asset = _asset;

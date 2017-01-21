@@ -334,3 +334,8 @@ void Shader::upload(int location, raw_Texture *texture, int textureUnit)
 	Shader::upload(location, textureUnit);
     assert_no_glerror();
 }
+
+void Shader::upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit)
+{
+    upload(location,texture.get(),textureUnit);
+}

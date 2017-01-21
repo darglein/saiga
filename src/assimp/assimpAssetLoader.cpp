@@ -14,7 +14,7 @@ AssimpAssetLoader::~AssimpAssetLoader()
 }
 
 
-ColoredAsset* AssimpAssetLoader::loadBasicAsset(const std::string &file, bool normalize){
+std::shared_ptr<ColoredAsset> AssimpAssetLoader::loadBasicAsset(const std::string &file, bool normalize){
 
     AssimpLoader al(file);
 
@@ -42,10 +42,10 @@ ColoredAsset* AssimpAssetLoader::loadBasicAsset(const std::string &file, bool no
     asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
 
 
-    return asset;
+    return std::shared_ptr<ColoredAsset>(asset);
 }
 
-TexturedAsset *AssimpAssetLoader::loadTexturedAsset(const std::string &file, bool normalize)
+std::shared_ptr<TexturedAsset> AssimpAssetLoader::loadTexturedAsset(const std::string &file, bool normalize)
 {
     AssimpLoader al(file);
 
@@ -95,10 +95,10 @@ TexturedAsset *AssimpAssetLoader::loadTexturedAsset(const std::string &file, boo
     }
     asset->create(file,texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
 
-    return asset;
+    return std::shared_ptr<TexturedAsset>(asset);
 }
 
-AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, bool normalize)
+std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::string &file, bool normalize)
 {
     AssimpLoader al(file);
 //    al.verbose = true;
@@ -182,12 +182,12 @@ AnimatedAsset *AssimpAssetLoader::loadAnimatedAsset(const std::string &file, boo
 
 
 
-    return asset;
+    return std::shared_ptr<AnimatedAsset>(asset);
 }
 
 
 
-Asset *AssimpAssetLoader::loadAsset(const std::string &file)
+std::shared_ptr<Asset> AssimpAssetLoader::loadAsset(const std::string &file)
 {
     return loadBasicAsset(file);
 }

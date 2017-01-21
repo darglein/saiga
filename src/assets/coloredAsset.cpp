@@ -9,7 +9,7 @@ void TexturedAsset::render(Camera *cam, const mat4 &model)
 
     buffer.bind();
     for(TextureGroup& tg : groups){
-		tshader->uploadTexture(tg.texture);
+        tshader->uploadTexture(tg.texture);
 
         int start = 0 ;
         start += tg.startIndex;
@@ -31,7 +31,7 @@ void TexturedAsset::renderDepth(Camera *cam, const mat4 &model)
 
     buffer.bind();
     for(TextureGroup& tg : groups){
-		dshader->uploadTexture(tg.texture);
+        dshader->uploadTexture(tg.texture);
 
         int start = 0 ;
         start += tg.startIndex;
