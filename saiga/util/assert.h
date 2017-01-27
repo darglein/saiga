@@ -47,5 +47,5 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 #define SAIGA_ASSERT(...) GET_SAIGA_ASSERT_MACRO(__VA_ARGS__, SAIGA_ASSERT_MSG, SAIGA_ASSERT_NOMSG, 0)(__VA_ARGS__)
 
 
-#undef assert
+//#undef assert
 

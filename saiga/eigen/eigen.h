@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Eigen/Core>
-
+#include <Eigen/SVD>
 
 //Note: The DontAlign option disables all vectorisation.
 typedef Eigen::Matrix<float,2,1,Eigen::DontAlign> vec2_t;
