@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
-
+set(LIB_NAME saiga)
+project (${LIB_NAME})
 
 set(DEPENDENCIES_INCLUDE_DIR "" CACHE FILEPATH "Path to yourlib includes")
 
@@ -14,13 +15,8 @@ LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/lib)
 LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/usr/lib)
 LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/bin)
   
-set(LIB_NAME saiga)
 
-project (${LIB_NAME})
-#INCLUDE(FindPkgConfig)
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 ######### Show all warnings
@@ -211,8 +207,9 @@ include_directories( ${GLM_INCLUDE_DIRS})
 #eigen
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIRS})
+include_directories(${EIGEN3_INCLUDE_DIR})
 SET(LIBS ${LIBS} ${EIGEN3_LIBRARIES})
-message(STATUS "EIGEN3_INCLUDE_DIRS: ${EIGEN3_INCLUDE_DIRS} ${EIGEN3_LIBRARIES}")
+message(STATUS "EIGEN3_INCLUDE_DIRS: ${EIGEN3_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${EIGEN3_LIBRARIES}")
 
 #GLEW
 if(USE_GLEW)
