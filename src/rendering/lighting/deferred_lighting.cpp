@@ -552,7 +552,7 @@ void DeferredLighting::createLightMeshes(){
     sb->createBuffers(pointLightMesh);
 
 
-    Cone c(vec3(0),vec3(0,1,0),30.0f,1.0f);
+    Cone c(vec3(0),vec3(0,1,0),1.0f,1.0f);
     auto cb = TriangleMeshGenerator::createMesh(c,10);
     cb->createBuffers(spotLightMesh);
 

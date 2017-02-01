@@ -35,41 +35,65 @@ void AssetLoader2::loadDefaultShaders()
 
 std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
 {
+        auto cbImage = ImageGenerator::checkerBoard(color1,color2,16,2,2);
+        Texture* cbTexture = new Texture();
+        cbTexture->fromImage(*cbImage);
+        cbTexture->setFiltering(GL_NEAREST);
+        cbTexture->setWrap(GL_REPEAT);
+        cbTexture->generateMipmaps();
+        std::shared_ptr<TexturedAsset> asset = loadDebugTexturedPlane(cbTexture,size);
+        for(auto &v : asset->mesh.vertices){
+            v.texture *= size / quadSize;
+        }
+        asset->mesh.createBuffers(asset->buffer);
+        return asset;
+}
+
+std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugTexturedPlane(Texture *texture, vec2 size)
+{
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
-
-
     mat4 scale = glm::scale(mat4(1),vec3(size.x,1,size.y));
     plainMesh->transform(scale);
 
-    for(auto& v : plainMesh->vertices){
-        v.texture *= size / quadSize;
-    }
+    auto asset = std::make_shared<TexturedAsset>();
 
-    TexturedAsset* plainAsset = new TexturedAsset();
+    asset->mesh.addMesh(*plainMesh);
 
-    plainAsset->mesh.addMesh(*plainMesh);
-
-    for(auto& v : plainAsset->mesh.vertices){
+    for(auto& v : asset->mesh.vertices){
         v.data = vec4(0.5,0,0,0);
     }
-//        cout << v.position << endl;
 
     TexturedAsset::TextureGroup tg;
     tg.startIndex = 0;
     tg.indices = plainMesh->numIndices();
+    tg.texture = texture;
+    asset->groups.push_back(tg);
+    asset->create("Plane",texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader);
 
+    return asset;
+}
 
-    auto cbImage = ImageGenerator::checkerBoard(color1,color2,16,2,2);
-    Texture* cbTexture = new Texture();
-    cbTexture->fromImage(*cbImage);
-    tg.texture = cbTexture;
-    tg.texture->setFiltering(GL_NEAREST);
-    tg.texture->setWrap(GL_REPEAT);
-    tg.texture->generateMipmaps();
-    plainAsset->groups.push_back(tg);
+std::shared_ptr<ColoredAsset> AssetLoader2::loadDebugArrow(float radius, float length, vec4 color)
+{
+//    auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
+    auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius,length,12);
+    mat4 m = glm::translate(mat4(),vec3(0,length*0.5f,0));
+    cylinderMesh->transform(m);
 
+    float coneH = length * 0.3f;
+    float coneR = radius * 1.3f;
+    auto coneMesh = TriangleMeshGenerator::createMesh(Cone(vec3(0),vec3(0,1,0),coneR,coneH),12);
+    m = glm::translate(mat4(),vec3(0,length+coneH,0));
+        coneMesh->transform(m);
 
-    plainAsset->create("test",texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader);
+    auto asset = std::make_shared<ColoredAsset>();
+    asset->mesh.addMesh(*cylinderMesh);
+    asset->mesh.addMesh(*coneMesh);
 
-    return std::shared_ptr<TexturedAsset>(plainAsset);
+    for(auto& v : asset->mesh.vertices){
+        v.color = color;
+    }
+
+    asset->create("Arrow",basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader);
+    return asset;
 }

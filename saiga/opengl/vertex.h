@@ -80,6 +80,8 @@ struct SAIGA_GLOBAL VertexNC : public VertexN{
     VertexNC(const vec3 &position,const vec3 &normal,const vec3 &color) : VertexN(position,normal),color(color,0){}
     VertexNC(const vec4 &position,const vec4 &normal,const vec4 &color) : VertexN(position,normal),color(color){}
 
+    VertexNC(const VertexNT &v) : VertexNC(v.position,v.normal){}
+
     bool operator==(const VertexNC &other) const;
     friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert);
 };

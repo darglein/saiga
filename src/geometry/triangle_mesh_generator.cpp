@@ -214,7 +214,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone &co
     mesh->vertices.push_back(VertexNT(vec3(0,-cone.height,0),vec3(0,-1,0),vec2(0,0)));  //bottom
 
     float const R = 1./(float)(sectors);
-    float const r = 1;//glm::tan(glm::radians( cone.alpha))*cone.height; //radius
+    float const r = cone.radius; //radius
 
     for(int s=0;s<sectors;s++){
         float x = r * glm::sin((float)s*R*M_PI*2.0f);

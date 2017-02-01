@@ -4,17 +4,19 @@
 #include <Eigen/SVD>
 
 //Note: The DontAlign option disables all vectorisation.
-typedef Eigen::Matrix<float,2,1,Eigen::DontAlign> vec2_t;
-typedef Eigen::Matrix<float,3,1,Eigen::DontAlign> vec3_t;
-typedef Eigen::Matrix<float,4,1,Eigen::DontAlign> vec4_t;
-typedef Eigen::Matrix<float,3,3,Eigen::DontAlign> mat3_t;
-typedef Eigen::Matrix<float,4,4,Eigen::DontAlign> mat4_t;
-typedef Eigen::Quaternion<float,Eigen::DontAlign> quat_t;
+
+#define EIGEN_MATRIX_OPTIONS Eigen::DontAlign|Eigen::ColMajor
+typedef Eigen::Matrix<float,2,1,EIGEN_MATRIX_OPTIONS> vec2_t;
+typedef Eigen::Matrix<float,3,1,EIGEN_MATRIX_OPTIONS> vec3_t;
+typedef Eigen::Matrix<float,4,1,EIGEN_MATRIX_OPTIONS> vec4_t;
+typedef Eigen::Matrix<float,3,3,EIGEN_MATRIX_OPTIONS> mat3_t;
+typedef Eigen::Matrix<float,4,4,EIGEN_MATRIX_OPTIONS> mat4_t;
+typedef Eigen::Quaternion<float,EIGEN_MATRIX_OPTIONS> quat_t;
 
 
-typedef Eigen::Matrix<double,2,1,Eigen::DontAlign> vec2d_t;
-typedef Eigen::Matrix<double,3,1,Eigen::DontAlign> vec3d_t;
-typedef Eigen::Matrix<double,4,1,Eigen::DontAlign> vec4d_t;
-typedef Eigen::Matrix<double,3,3,Eigen::DontAlign> mat3d_t;
-typedef Eigen::Matrix<double,4,4,Eigen::DontAlign> mat4d_t;
-typedef Eigen::Quaternion<double,Eigen::DontAlign> quatd_t;
+typedef Eigen::Matrix<double,2,1,EIGEN_MATRIX_OPTIONS> vec2d_t;
+typedef Eigen::Matrix<double,3,1,EIGEN_MATRIX_OPTIONS> vec3d_t;
+typedef Eigen::Matrix<double,4,1,EIGEN_MATRIX_OPTIONS> vec4d_t;
+typedef Eigen::Matrix<double,3,3,EIGEN_MATRIX_OPTIONS> mat3d_t;
+typedef Eigen::Matrix<double,4,4,EIGEN_MATRIX_OPTIONS> mat4d_t;
+typedef Eigen::Quaternion<double,EIGEN_MATRIX_OPTIONS> quatd_t;

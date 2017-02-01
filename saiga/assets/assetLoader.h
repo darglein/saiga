@@ -32,4 +32,9 @@ public:
      */
 
     std::shared_ptr<TexturedAsset> loadDebugPlaneAsset(vec2 size, float quadSize=1.0f, Color color1=Colors::lightgray, Color color2=Colors::gray);
+
+    std::shared_ptr<TexturedAsset> loadDebugTexturedPlane(Texture* texture, vec2 size);
+
+    std::shared_ptr<ColoredAsset> loadDebugArrow(float radius, float length, vec4 color=vec4(1,0,0,1));
+
 };

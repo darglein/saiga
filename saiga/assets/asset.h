@@ -182,10 +182,5 @@ void BasicAsset<vertex_t,index_t>::create(std::string _name, MVPShader* _shader,
     if(normalizePosition){
         this->normalizePosition();
     }
-
-
     mesh.createBuffers(buffer);
-
-
-
 }
