@@ -90,7 +90,7 @@ public:
 
     void loadWaveSound(const std::string &file);
 
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
     void loadOpusSound(const std::string &file);
 #endif
 

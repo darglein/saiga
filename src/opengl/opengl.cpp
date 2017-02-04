@@ -8,7 +8,7 @@ bool openglinitialized = false;
 void initOpenGL()
 {
     SAIGA_ASSERT(!openglinitialized);
-#ifdef USE_GLEW
+#ifdef SAIGA_USE_GLEW
     //Initialize GLEW
     glewExperimental = GL_TRUE;
     GLenum glewError = glewInit();
@@ -19,7 +19,7 @@ void initOpenGL()
     glGetError(); //ignore first gl error after glew init
 #endif
 
-#ifdef USE_GLBINDING
+#ifdef SAIGA_USE_GLBINDING
     glbinding::Binding::initialize();
 #endif
     openglinitialized = true;

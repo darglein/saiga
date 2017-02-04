@@ -4,7 +4,6 @@
 FILE(GLOB_RECURSE animation_SRC  animation/*.cpp)
 FILE(GLOB_RECURSE assets_SRC  assets/*.cpp)
 FILE(GLOB_RECURSE camera_SRC  camera/*.cpp)
-FILE(GLOB_RECURSE eigen_SRC  eigen/*.cpp)
 FILE(GLOB_RECURSE geometry_SRC  geometry/*.cpp)
 FILE(GLOB_RECURSE opengl_SRC  opengl/*.cpp)
 FILE(GLOB_RECURSE imgui_SRC  imgui/*.cpp)
@@ -28,34 +27,39 @@ SET(PROG_SRC ${PROG_SRC} ${SHADERS})
 
 ############# Optional Source Files ###############
 
-if (USE_SDL)
+if (SDL2_FOUND)
 	FILE(GLOB SDL_SRC sdl/*.cpp)
 	SET(PROG_SRC ${PROG_SRC} ${SDL_SRC})
-endif (USE_SDL)
+endif ()
 
-if (USE_GLFW)
+if (GLFW_FOUND)
 	FILE(GLOB GLFW_SRC glfw/*.cpp)
 	SET(PROG_SRC ${PROG_SRC} ${GLFW_SRC})
-endif (USE_GLFW)
+endif ()
 
-if (USE_OPENAL)
+if (OPENAL_FOUND)
 	FILE(GLOB OPENAL_SRC sound/*.cpp)
 	SET(PROG_SRC ${PROG_SRC} ${OPENAL_SRC})
-endif (USE_OPENAL)
+endif ()
 
-if (USE_FFMPEG)
+if (FFMPEG_FOUND)
 	FILE(GLOB_RECURSE ffmpeg_SRC  ffmpeg/*.cpp)
 	SET(PROG_SRC ${PROG_SRC} ${ffmpeg_SRC})
 endif()
 
-if (USE_ASSIMP)
+if (ASSIMP_FOUND)
 	FILE(GLOB_RECURSE assimp_SRC  assimp/*.cpp)
 	SET(PROG_SRC ${PROG_SRC} ${assimp_SRC})
 endif()
 
-if (USE_EGL)
+if (EGL_FOUND)
 	FILE(GLOB_RECURSE egl_SRC  egl/*.cpp)
 	SET(PROG_SRC ${PROG_SRC} ${egl_SRC})
+endif()
+
+if(EIGEN_FOUND)
+	FILE(GLOB_RECURSE eigen_SRC  eigen/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${eigen_SRC})
 endif()
 
 #creates 'folders' in the solution explorer of visual studio

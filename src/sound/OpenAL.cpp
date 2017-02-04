@@ -4,7 +4,7 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 
-#ifdef USE_ALUT
+#ifdef SAIGA_USE_ALUT
 #include <AL/alut.h>
 #endif
 
@@ -15,7 +15,7 @@ namespace sound {
 //only init at first call and quit when init calls is back to 0
 int initCalls = 0;
 
-#ifndef USE_ALUT
+#ifndef SAIGA_USE_ALUT
 ALCdevice* device;
 ALCcontext* context;
 #endif
@@ -25,7 +25,7 @@ void initOpenAL(){
     if(initCalls!=1)
         return;
 
-#ifdef USE_ALUT
+#ifdef SAIGA_USE_ALUT
     //let alut create the context
     alutInit(0, NULL);
 #else
@@ -42,7 +42,7 @@ extern void quitOpenAL(){
     if(initCalls!=0)
         return;
     assert_no_alerror();
-#ifdef USE_ALUT
+#ifdef SAIGA_USE_ALUT
     alutExit();
 #else
     alcDestroyContext(context);

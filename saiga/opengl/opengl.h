@@ -3,12 +3,12 @@
 #include <saiga/config.h>
 #include <string>
 
-#ifdef USE_GLEW
+#ifdef SAIGA_USE_GLEW
 #include <GL/glew.h>
 typedef int MemoryBarrierMask;
 #endif
 
-#ifdef USE_GLBINDING
+#ifdef SAIGA_USE_GLBINDING
 #include <glbinding/gl/gl.h>
 #include <glbinding/Binding.h>
 using namespace gl;

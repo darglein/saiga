@@ -2,27 +2,27 @@
 #define SAIGA_VERSION_MINOR @LIBRARY_VERSION_MINOR@
 
 //opengl window and context managment
-#cmakedefine USE_SDL
-#cmakedefine USE_GLFW
+#cmakedefine SAIGA_USE_SDL
+#cmakedefine SAIGA_USE_GLFW
 
 //opengl loader
-#cmakedefine USE_GLEW
-#cmakedefine USE_GLBINDING
+#cmakedefine SAIGA_USE_GLBINDING
+#cmakedefine SAIGA_USE_GLEW
 
 //sound
-#cmakedefine USE_OPENAL
-#cmakedefine USE_ALUT
-#cmakedefine USE_OPUS
+#cmakedefine SAIGA_USE_OPENAL
+#cmakedefine SAIGA_USE_ALUT
+#cmakedefine SAIGA_USE_OPUS
 
 //asset loading
-#cmakedefine USE_ASSIMP
+#cmakedefine SAIGA_USE_ASSIMP
 
 //image loading
-#cmakedefine USE_PNG
-#cmakedefine USE_FREEIMAGE
+#cmakedefine SAIGA_USE_PNG
+#cmakedefine SAIGA_USE_FREEIMAGE
 
-#cmakedefine USE_FFMPEG
-#cmakedefine USE_NOISE
+#cmakedefine SAIGA_USE_FFMPEG
+#cmakedefine SAIGA_USE_NOISE
 
 #cmakedefine SAIGA_DEBUG
 #cmakedefine SAIGA_TESTING

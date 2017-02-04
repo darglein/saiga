@@ -7,7 +7,7 @@
 // https://github.com/ocornut/imgui
 
 #include "saiga/imgui/imgui_impl_glfw_gl3.h"
-#ifdef USE_GLFW
+#ifdef SAIGA_USE_GLFW
 #include "saiga/opengl/opengl.h"
 #include <GLFW/glfw3.h>
 

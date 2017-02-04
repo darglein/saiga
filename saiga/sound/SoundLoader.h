@@ -51,12 +51,12 @@ public:
 
 
     Sound* loadWaveFileRaw(const std::string &filename);
-#ifdef USE_ALUT
+#ifdef SAIGA_USE_ALUT
     //use alut for sound loading
     Sound* loadWaveFileALUT(const std::string &filename);
 #endif
 
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
     Sound* loadOpusFile(const std::string &filename);
 #endif
 };

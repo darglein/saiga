@@ -39,20 +39,6 @@ set (LIBRARY_VERSION_MINOR 0)
 
 
 
-option (USE_SDL "Use SDL2" OFF) 
-option (USE_GLFW "Use GLFW" ON) 
-option (USE_NOISE "Use NOISE" OFF) 
-option (USE_GLEW "Use GLEW" ON) 
-option (USE_GLBINDING "Use GLBINDING" OFF) 
-option (USE_OPENAL "Use OPENAL" ON) 
-option (USE_OPUS "Use Opus" OFF) 
-option (USE_ALUT "Use ALUT" OFF) 
-option (USE_ASSIMP "Use Assimp" ON) 
-option (USE_PNG "Use PNG" ON) 
-option (USE_FREEIMAGE "Use FREEIMAGE" ON) 
-option (USE_FFMPEG "Use FFMPEG" OFF) 
-option (USE_EGL "Use EGL" OFF) 
-
 option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
 
@@ -87,101 +73,115 @@ endif()
 
 #TODO build options for windows
 
-############# Generate config file ###############
-
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
-)
-
 
 ############# Optional Libraries ###############
 
 
 #SDL2
-if (USE_SDL)
- 	find_package(SDL2 REQUIRED)
+find_package(SDL2 QUIET)
+if (SDL2_FOUND)
 	include_directories(${SDL2_INCLUDE_DIR})
 	SET(LIBS ${LIBS} ${SDL2_LIBRARY})
-endif (USE_SDL)
+	SET(SAIGA_USE_SDL 1)
+endif ()
 
-#FFMPEG
-if (USE_FFMPEG)
- 	find_package(FFMPEG REQUIRED)
-	include_directories(${FFMPEG_INCLUDE_DIR})
-	SET(LIBS ${LIBS} ${FFMPEG_LIBRARIES})
-endif (USE_FFMPEG)
 
 #GLFW
-if (USE_GLFW)
-  	find_package(GLFW REQUIRED)
+find_package(GLFW QUIET)
+if (GLFW_FOUND)
 	include_directories(${GLFW_INCLUDE_DIR})
 	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
-	message(STATUS "glfw include: ${GLFW_INCLUDE_DIR} glfw libraries: ${GLFW_LIBRARIES}")
 	if(NOT( ${GLFW_VERSION_MAJOR} GREATER 2 AND ${GLFW_VERSION_MINOR} GREATER 1)  )
 	  message( FATAL_ERROR "ERROR: Need at least GLFW version 3.2. -- found GLFW version ${GLFW_VERSION_MAJOR}.${GLFW_VERSION_MINOR}.${GLFW_VERSION_REVISION}" )
 	endif()
-endif (USE_GLFW)
+	SET(SAIGA_USE_GLFW 1)
+endif ()
+
+
+#FFMPEG
+find_package(FFMPEG QUIET)
+if (FFMPEG_FOUND)
+	include_directories(${FFMPEG_INCLUDE_DIR})
+	SET(LIBS ${LIBS} ${FFMPEG_LIBRARIES})
+	SET(SAIGA_USE_FFMPEG 1)
+endif ()
 
 #libnoise
-if (USE_NOISE)
-	find_library(NOISE_LIBRARIES noise)
+find_library(NOISE_LIBRARIES noise)
+if (NOISE_FOUND)
 	SET(LIBS ${LIBS} ${NOISE_LIBRARIES})
-endif (USE_NOISE)
+	SET(SAIGA_USE_NOISE 1)
+endif ()
 
 #openal
-if(USE_OPENAL)
-	find_package(OpenAL REQUIRED)
+find_package(OpenAL QUIET)
+if(OPENAL_FOUND)
 	include_directories(${OPENAL_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${OPENAL_LIBRARY})
-endif(USE_OPENAL)
+	SET(SAIGA_USE_OPENAL 1)
+endif()
 
-#opus
-if(USE_OPUS)
-	find_package(Opus REQUIRED)
-	include_directories(${OPUS_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${OPUS_LIBRARIES})
-endif(USE_OPUS)
 
 #alut
-if(USE_ALUT)
-	find_package(ALUT REQUIRED)
+find_package(ALUT QUIET)
+if(ALUT_FOUND)
 	include_directories(${ALUT_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${ALUT_LIBRARIES})
-endif(USE_ALUT)
+	SET(SAIGA_USE_ALUT 1)
+endif()
+
+
+#opus
+find_package(Opus QUIET)
+if(OPUS_FOUND)
+	include_directories(${OPUS_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${OPUS_LIBRARIES})
+	SET(SAIGA_USE_OPUS 1)
+endif()
 
 #assimp
-if(USE_ASSIMP)
-	find_package(ASSIMP REQUIRED)
+find_package(ASSIMP QUIET)
+if(ASSIMP_FOUND)
 	include_directories(${ASSIMP_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
-	#SET(LIBS ${LIBS} assimp)
-endif(USE_ASSIMP)
+	SET(SAIGA_USE_ASSIMP 1)
+endif()
 
 #png
-if(USE_PNG)
-	find_package(PNG REQUIRED)
+find_package(PNG QUIET)
+if(PNG_FOUND)
 	include_directories(${PNG_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${PNG_LIBRARIES})
-endif(USE_PNG)
+	SET(SAIGA_USE_PNG 1)
+endif()
 
 #libfreeimage
-if(USE_FREEIMAGE)
-	find_package(FreeImage REQUIRED)
+find_package(FreeImage QUIET)
+find_package(FreeImagePlus QUIET)
+if(FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
 	include_directories(${FREEIMAGE_INCLUDE_PATH})
 	SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARY})
 
-	find_package(FreeImagePlus REQUIRED)
 	include_directories(${FREEIMAGEPLUS_INCLUDE_PATH})
 	SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
-endif(USE_FREEIMAGE)
+	SET(SAIGA_USE_FREEIMAGE 1)
+endif()
 
 
 #EGL
-if(USE_EGL)
-	find_package(EGL REQUIRED)
+find_package(EGL QUIET)
+if(EGL_FOUND)
 	include_directories( ${EGL_INCLUDE_DIRS}) 
 	SET(LIBS ${LIBS} ${EGL_LIBRARIES})
+	SET(SAIGA_USE_EGL 1)
+endif()
+
+
+#eigen
+find_package(Eigen3 QUIET)
+if(EIGEN_FOUND)
+	include_directories(${EIGEN3_INCLUDE_DIRS})
+	SET(SAIGA_USE_EIGEN 1)
 endif()
 
 ############# Required LIBRARIES ###############
@@ -204,26 +204,22 @@ SET(LIBS ${LIBS} ${OPENGL_LIBRARIES})
 find_package(GLM REQUIRED)
 include_directories( ${GLM_INCLUDE_DIRS}) 
 
-#eigen
-find_package(Eigen3 REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIRS})
-include_directories(${EIGEN3_INCLUDE_DIR})
-SET(LIBS ${LIBS} ${EIGEN3_LIBRARIES})
-message(STATUS "EIGEN3_INCLUDE_DIRS: ${EIGEN3_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${EIGEN3_LIBRARIES}")
-
-#GLEW
-if(USE_GLEW)
-	find_package(GLEW REQUIRED)
-	include_directories(${GLEW_INCLUDE_DIRS} )
-	SET(LIBS ${LIBS} ${GLEW_LIBRARIES})
-endif(USE_GLEW)
-
 #glbinding
-if(USE_GLBINDING)
-	find_package(glbinding REQUIRED)
+find_package(glbinding QUIET)
+if(GLBINDING_FOUND)
 	include_directories(${GLBINDING_INCLUDE_DIRS} )
 	SET(LIBS ${LIBS} ${GLBINDING_LIBRARIES})
-endif(USE_GLBINDING)
+	SET(SAIGA_USE_GLBINDING 1)
+else()
+#use GLEW as a fallback
+#GLEW
+find_package(GLEW QUIET)
+if(GLEW_FOUND)
+	include_directories(${GLEW_INCLUDE_DIRS} )
+	SET(LIBS ${LIBS} ${GLEW_LIBRARIES})
+	SET(SAIGA_USE_GLEW 1)
+endif()
+endif()
 
 
 
@@ -278,6 +274,14 @@ message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 add_subdirectory(src)
 add_subdirectory(saiga)
 add_subdirectory(shader)
+
+
+############# Generate config file ###############
+
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
+)
 
 
 

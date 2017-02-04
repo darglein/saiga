@@ -9,7 +9,7 @@
 #include <sstream>
 #include <iostream>
 
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
 
 #include "opus.h"
 

@@ -3,7 +3,7 @@
 #include "saiga/util/assert.h"
 #include <cstring> //for memcpy
 
-#ifdef USE_PNG
+#ifdef SAIGA_USE_PNG
 #include "saiga/util/png_wrapper.h"
 
 void ImageConverter::convert(PNG::Image &src, Image& dest){
@@ -74,7 +74,7 @@ void ImageConverter::convert(Image& src, PNG::Image &dest){
 
 #endif
 
-#ifdef USE_FREEIMAGE
+#ifdef SAIGA_USE_FREEIMAGE
 #include <FreeImagePlus.h>
 
 FREE_IMAGE_TYPE getFIT2(ImageFormat format){

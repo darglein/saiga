@@ -7,7 +7,7 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 
-#ifdef USE_ALUT
+#ifdef SAIGA_USE_ALUT
 #include <AL/alut.h>
 #endif
 
@@ -165,7 +165,7 @@ void SoundManager::loadWaveSound(const std::string &file)
     assert_no_alerror();
 }
 
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
 void SoundManager::loadOpusSound(const std::string &file)
 {
     SAIGA_ASSERT(!parallelSoundLoaderRunning);
@@ -193,7 +193,7 @@ void SoundManager::loadSoundByEnding(const std::string &file)
 {
     SAIGA_ASSERT(!parallelSoundLoaderRunning);
 
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
     if(file.substr(file.find_last_of(".") + 1) == "opus") {
         loadOpusSound(file);
     } else
@@ -322,7 +322,7 @@ void SoundManager::loadSoundsThreadStart()
 
             SoundLoader sl;
             Sound* loadedsound = 0;
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
             if(f.substr(f.find_last_of(".") + 1) == "opus") {
                 loadedsound = sl.loadOpusFile(f);
             } else

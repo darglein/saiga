@@ -1,7 +1,7 @@
 
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/opengl/texture/imageConverter.h"
-#ifdef USE_FREEIMAGE
+#ifdef SAIGA_USE_FREEIMAGE
 #include <FreeImagePlus.h>
 #endif
 #include "saiga/util/png_wrapper.h"
@@ -52,13 +52,13 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
     bool erg = false;
 
     //use libfreeimage if available, libpng otherwise
-#ifdef USE_FREEIMAGE
+#ifdef SAIGA_USE_FREEIMAGE
     fipImage img;
     erg = img.load(path.c_str());
     if(erg)
         ImageConverter::convert(img,outImage);
 #else
-#ifdef USE_PNG
+#ifdef SAIGA_USE_PNG
     PNG::Image pngimg;
     erg = PNG::readPNG( &pngimg,path);
     if(erg)
@@ -83,12 +83,12 @@ bool TextureLoader::saveImage(const std::string &path, Image &image) const
     bool erg = false;
 
     //use libfreeimage if available, libpng otherwise
-#ifdef USE_FREEIMAGE
+#ifdef SAIGA_USE_FREEIMAGE
     fipImage fipimage;
     ImageConverter::convert(image,fipimage);
     erg = fipimage.save(path.c_str());
 #else
-#ifdef USE_PNG
+#ifdef SAIGA_USE_PNG
     PNG::Image pngimg;
     ImageConverter::convert(image,pngimg);
     erg = PNG::writePNG(&pngimg,path);

@@ -30,7 +30,7 @@ bool Texture3D::fromImage(std::vector<Image> &images){
     createGlTexture();
     bind(0);
 //    glTexStorage3D(target, 1, internal_format, width, height, depth);
-    glTexImage3D(target, 0, internal_format, width, height, depth,0,color_type,data_type,nullptr);
+    glTexImage3D(target, 0, static_cast<GLint>(internal_format), width, height, depth,0,color_type,data_type,nullptr);
 
     assert_no_glerror();
     for(int i=0;i<depth;i++){

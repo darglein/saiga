@@ -16,12 +16,12 @@ class Image;
  */
 class SAIGA_GLOBAL ImageConverter{
 public:
-#ifdef USE_PNG
+#ifdef SAIGA_USE_PNG
     static void convert(PNG::Image &src, Image& dest);
     static void convert(Image& src, PNG::Image &dest);
 #endif
 
-#ifdef USE_FREEIMAGE
+#ifdef SAIGA_USE_FREEIMAGE
     static void convert(fipImage &src, Image& dest);
     static void convert(Image src, fipImage &dest); //copy the src image because we need to flip red and blue :(
 #endif

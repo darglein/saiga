@@ -5,7 +5,7 @@
 #include <fstream>
 #include <iostream>
 
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
 #include "saiga/sound/OpusCodec.h"
 
 int opusTest(int argc, char *argv[])

@@ -8,7 +8,7 @@
 // https://github.com/ocornut/imgui
 #include "saiga/opengl/opengl.h"
 
-#ifdef USE_GLFW
+#ifdef SAIGA_USE_GLFW
 #include <saiga/glfw/glfw_eventhandler.h>
 #include <saiga/imgui/imgui.h>
 

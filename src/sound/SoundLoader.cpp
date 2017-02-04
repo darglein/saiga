@@ -5,11 +5,11 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 
-#ifdef USE_ALUT
+#ifdef SAIGA_USE_ALUT
 #include <AL/alut.h>
 #endif
 
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
 #include "saiga/sound/OpusCodec.h"
 #include "opusfile.h"
 #endif
@@ -22,7 +22,7 @@ namespace sound {
 
 
 Sound* SoundLoader::loadWaveFile(const std::string &filename){
-#ifdef USE_ALUT
+#ifdef SAIGA_USE_ALUT
     return loadWaveFileALUT(filename);
 #else
     return loadWaveFileRaw(filename);
@@ -154,7 +154,7 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string &filename) {
     return sound;
 }
 
-#ifdef USE_OPUS
+#ifdef SAIGA_USE_OPUS
 Sound *SoundLoader::loadOpusFile(const std::string &filename)
 {
 
@@ -202,7 +202,7 @@ Sound *SoundLoader::loadOpusFile(const std::string &filename)
 }
 #endif
 
-#ifdef USE_ALUT
+#ifdef SAIGA_USE_ALUT
 Sound *SoundLoader::loadWaveFileALUT(const std::string &filename)
 {
     ALuint buffer = alutCreateBufferFromFile(filename.c_str());

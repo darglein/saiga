@@ -10,7 +10,7 @@
 
 #include <saiga/config.h>
 
-#ifdef USE_PNG
+#ifdef SAIGA_USE_PNG
 
 
 #include <png.h>
