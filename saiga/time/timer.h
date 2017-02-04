@@ -3,6 +3,7 @@
 #include "saiga/config.h"
 #include "saiga/time/time.h"
 #include <vector>
+#include <string>
 
 #ifdef WIN32
 #if _MSC_VER >= 1900 //VS2015 and newer
@@ -71,4 +72,11 @@ protected:
     tick_t currentTime = tick_t(0); //smoothed
     int currentTimeId = 0;
     int number;
+};
+
+class SAIGA_GLOBAL ScopedTimer : public Timer{
+public:
+    std::string name;
+    ScopedTimer(const std::string &name);
+    ~ScopedTimer();
 };

@@ -16,6 +16,12 @@ void Object3D::turn(float angleX, float angleY){
     }
 }
 
+void Object3D::turnLocal(float angleX, float angleY)
+{
+    rotateLocal(vec3(0,1,0),angleX);
+    rotateLocal(vec3(1,0,0),angleY);
+}
+
 
 void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angle){
     rotateLocal(axis,angle);

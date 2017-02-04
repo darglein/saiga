@@ -50,6 +50,7 @@ public:
     void setPosition(const vec3& cords);
     void setPosition(const vec4& cords);
     void turn(float angleX, float angleY);
+    void turnLocal(float angleX, float angleY);
 
     //    virtual void getViewMatrix(mat4& view); //the view matrix is the inverse model matrix
 

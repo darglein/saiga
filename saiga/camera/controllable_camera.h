@@ -37,6 +37,7 @@ public:
     std::array<bool,6> keyPressed {};
 
     bool input = true;
+    bool mouseTurnLocal = false;
 
 
     Controllable_Camera(){}
@@ -54,7 +55,10 @@ public:
 
 template<class camera_t>
 void Controllable_Camera<camera_t>::mouseRotate(float dx, float dy){
-    this->turn(dx*rotationSpeed,dy*rotationSpeed);
+    if(mouseTurnLocal)
+        this->turnLocal(dx*rotationSpeed,dy*rotationSpeed);
+    else
+        this->turn(dx*rotationSpeed,dy*rotationSpeed);
     this->calculateModel();
     this->updateFromModel();
 }
