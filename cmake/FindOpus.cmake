@@ -14,7 +14,7 @@ find_path(OPUS_INCLUDE_DIRS
 		opus
 )
 
-if(NOT OPUS_INCLUDE_DIRS)
+if(NOT OPUS_INCLUDE_DIRS AND NOT Opus_FIND_QUIETLY)
 	message(FATAL_ERROR "Could not find libopus ${OPUS_INCLUDE_DIRS}")
 endif()
 
@@ -26,7 +26,7 @@ find_library(OPUS_LIBRARY
 		/usr/lib
 )
 
-if(NOT OPUS_LIBRARY)
+if(NOT OPUS_LIBRARY AND NOT Opus_FIND_QUIETLY)
 	message(FATAL_ERROR "Could not find libopus ${OPUS_LIBRARY}")
 endif()
              
@@ -46,7 +46,7 @@ find_path(OPUS_FILE_INCLUDE_DIRS
 find_library(OPUS_FILE_LIBRARY NAMES opusfile
              PATHS /usr/local/lib /usr/lib)
 
-if(NOT OPUS_FILE_INCLUDE_DIRS  OR NOT OPUS_FILE_LIBRARY)
+if( (NOT OPUS_FILE_INCLUDE_DIRS OR NOT OPUS_FILE_LIBRARY)  AND NOT Opus_FIND_QUIETLY)
 	message(FATAL_ERROR "Could not find opusfile ${OPUS_FILE_INCLUDE_DIRS}, ${OPUS_FILE_LIBRARY}")
 endif()
              
@@ -69,7 +69,7 @@ find_library(OGG_LIBRARY
 		/usr/lib
 )
 
-if(NOT OGG_INCLUDE_DIRS   OR NOT OGG_LIBRARY)
+if( (NOT OGG_INCLUDE_DIRS OR NOT OGG_LIBRARY) AND NOT Opus_FIND_QUIETLY)
 	message(FATAL_ERROR "Could not find ogg ${OGG_INCLUDE_DIRS}, ${OGG_LIBRARY}")
 endif()
           
