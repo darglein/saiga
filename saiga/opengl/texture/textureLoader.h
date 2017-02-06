@@ -14,7 +14,7 @@ struct SAIGA_GLOBAL TextureParameters{
 SAIGA_GLOBAL bool operator==(const TextureParameters& lhs, const TextureParameters& rhs);
 
 
-class SAIGA_GLOBAL TextureLoader : public Loader<Texture,TextureParameters>, public Singleton <TextureLoader>{
+class SAIGA_GLOBAL TextureLoader : public Loader<Texture*,TextureParameters>, public Singleton <TextureLoader>{
     friend class Singleton <TextureLoader>;
 public:
     Texture* loadFromFile(const std::string &name, const TextureParameters &params);

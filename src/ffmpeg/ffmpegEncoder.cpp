@@ -253,18 +253,18 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
          std::cerr << "Warning: Stream time base different to desired time base. " << videoStream->time_base.den << " instead of " <<timeBase << std::endl;
         timeBase = videoStream->time_base.den;
      }
-     //assert(videoStream->time_base.num == 1);
+     //SAIGA_ASSERT(videoStream->time_base.num == 1);
      ticksPerFrame = videoStream->time_base.den / outFps;
 
 
   //  av_init_packet(&pkt);
 
 
-	assert(ctx == nullptr);
+    SAIGA_ASSERT(ctx == nullptr);
 	ctx = sws_getContext(inWidth, inHeight,
         AV_PIX_FMT_RGBA, m_codecContext->width, m_codecContext->height,
 		AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
-	assert(ctx);
+    SAIGA_ASSERT(ctx);
 
 	createBuffers();
 	running = true;

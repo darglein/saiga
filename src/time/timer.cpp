@@ -31,7 +31,7 @@ void Timer::start()
 
     ticksPerSecond = li.QuadPart;
 
-    //assert(ticksPerSecond >= gameTime.base.count());
+    //SAIGA_ASSERT(ticksPerSecond >= gameTime.base.count());
 
     freq = (double)ticksPerSecond / gameTime.base.count();
 

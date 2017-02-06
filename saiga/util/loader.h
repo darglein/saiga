@@ -27,7 +27,7 @@ protected:
 
 
     //string: name passed in load(), param: params passed in load()
-    typedef std::tuple<std::string, param_t, object_t*> data_t;
+    typedef std::tuple<std::string, param_t, object_t> data_t;
 
 
     std::vector<data_t> objects;
@@ -39,13 +39,13 @@ public:
 
 
 
-    virtual object_t* load(const std::string &name, const param_t &params=param_t());
-    virtual object_t* getLoaded(const std::string &name, const param_t &params=param_t());
+    virtual object_t load(const std::string &name, const param_t &params=param_t());
+    virtual object_t getLoaded(const std::string &name, const param_t &params=param_t());
     void put(const std::string &name, object_t* obj, const param_t &params=param_t());
 
 protected:
-    virtual object_t* exists(const std::string &name, const param_t &params=param_t());
-    virtual object_t* loadFromFile(const std::string &name, const param_t &params) = 0;
+    virtual object_t exists(const std::string &name, const param_t &params=param_t());
+    virtual object_t loadFromFile(const std::string &name, const param_t &params) = 0;
 };
 
 template<typename object_t, typename param_t >
@@ -63,7 +63,7 @@ void Loader<object_t,param_t>::clear(){
 }
 
 template<typename object_t, typename param_t >
-object_t* Loader<object_t,param_t>::exists(const std::string &name, const param_t &params){
+object_t Loader<object_t,param_t>::exists(const std::string &name, const param_t &params){
     //check if already exists
     for(data_t &data : objects){
         if(std::get<0>(data)==name && std::get<1>(data)==params){
@@ -75,9 +75,9 @@ object_t* Loader<object_t,param_t>::exists(const std::string &name, const param_
 
 
 template<typename object_t, typename param_t >
-object_t* Loader<object_t,param_t>::load(const std::string &name, const param_t &params){
+object_t Loader<object_t,param_t>::load(const std::string &name, const param_t &params){
 
-    object_t* object = exists(name,params);
+    object_t object = exists(name,params);
     if(object){
         std::cerr << name << " already loaded!! " << std::endl;
         return object;
@@ -102,9 +102,9 @@ object_t* Loader<object_t,param_t>::load(const std::string &name, const param_t 
 
 
 template<typename object_t, typename param_t >
-object_t* Loader<object_t,param_t>::getLoaded(const std::string &name, const param_t &params){
+object_t Loader<object_t,param_t>::getLoaded(const std::string &name, const param_t &params){
 
-    object_t* object = exists(name,params);
+    object_t object = exists(name,params);
     if(object){
         return object;
     }

@@ -621,7 +621,7 @@ static void init_econde_avformat(const char* outputFileName){
          timeBase = videoStream->time_base.den;
          std::cerr << "Warning: Stream time base different to desired time base. " << timeBase;
      }
-     //assert(videoStream->time_base.num == 1);
+     //SAIGA_ASSERT(videoStream->time_base.num == 1);
      ticksPerFrame = videoStream->time_base.den / frameRate;
 }
 

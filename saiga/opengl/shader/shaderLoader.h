@@ -7,7 +7,7 @@
 #include "saiga/util/assert.h"
 
 
-class SAIGA_GLOBAL ShaderLoader : public Loader<Shader,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
+class SAIGA_GLOBAL ShaderLoader : public Loader<Shader*,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
     friend class Singleton <ShaderLoader>;
 public:
 	bool addLineDirectives = false;
