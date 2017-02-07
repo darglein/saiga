@@ -34,6 +34,8 @@ bool ObjLoader2::loadFile(const std::string &_file){
     while(!stream.eof()) {
         std::string line;
         std::getline(stream, line);
+        //remove carriage return from windows
+        line.erase( std::remove(line.begin(), line.end(), '\r'), line.end() );
         parseLine(line);
     }
 
@@ -41,12 +43,17 @@ bool ObjLoader2::loadFile(const std::string &_file){
     ObjTriangleGroup &lastGroup = triangleGroups[triangleGroups.size()-1];
     lastGroup.faces = faces.size() - lastGroup.startFace;
 
+    cout << ".obj parsing finished. " << "V " << vertices.size() << " N " << normals.size() << " T " << texCoords.size() << " F " << faces.size() << endl;
+
+
+
 //    cout<<"number of vertices "<<vertices.size()<<" number of faces "<<faces.size()<<endl;
     createVertexIndexList();
 //    cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
     separateVerticesByGroup();
 //    cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
 
+    calculateMissingNormals();
 
 //    cout<<"objloader finished :)"<<endl;
     return true;
@@ -57,7 +64,7 @@ void ObjLoader2::separateVerticesByGroup()
     //make sure faces from different triangle groups do not reference the same vertex
     //needs to be called after createVertexIndexList()
 
-    std::vector<int> vertexReference(outVertices.size(),-1);
+    std::vector<int> vertexReference(outVertices.size(),INVALID_VERTEX_ID);
 
     for(int t = 0; t < (int)triangleGroups.size() ; ++t){
         ObjTriangleGroup &tg = triangleGroups[t];
@@ -66,7 +73,7 @@ void ObjLoader2::separateVerticesByGroup()
 
             for(int j = 0 ; j < 3 ; ++j){
                 int index = face.v[j];
-                if(vertexReference[index] == -1)
+                if(vertexReference[index] == INVALID_VERTEX_ID)
                     vertexReference[index] = t;
                 if(vertexReference[index] != t){
                     //duplicate vertices
@@ -84,18 +91,17 @@ void ObjLoader2::separateVerticesByGroup()
 
 }
 
+void ObjLoader2::calculateMissingNormals()
+{
+
+}
+
 void ObjLoader2::createVertexIndexList()
 {
     std::vector<bool> vertices_used(vertices.size(),false);
 
 
-    vertices_used.resize(vertices.size());
     outVertices.resize(vertices.size());
-
-
-//    for(unsigned int i=0;i<vertices_used.size();i++){
-//        vertices_used[i] = false;
-//    }
 
     for(std::vector<IndexedVertex2> &f : faces){
         ObjTriangle fa;
@@ -106,15 +112,21 @@ void ObjLoader2::createVertexIndexList()
             int tex = currentVertex.t;
 
             VertexNT verte;
-            if(vert>=0)
+            if(vert>=0){
+                SAIGA_ASSERT(vert < vertices.size());
                 verte.position = vec4(vertices[vert],1);
-            if(norm>=0)
+            }
+            if(norm>=0){
+                SAIGA_ASSERT(norm < normals.size());
                 verte.normal = vec4(normals[norm],0);
-            if(tex>=0)
+            }
+            if(tex>=0){
+                SAIGA_ASSERT(tex < texCoords.size());
                 verte.texture = texCoords[tex];
+            }
 
 
-            int index = -1;
+            int index = INVALID_VERTEX_ID;
             if(vertices_used[vert]){
                 if(verte==outVertices[vert]){
                     index = vert;
@@ -125,7 +137,7 @@ void ObjLoader2::createVertexIndexList()
                 vertices_used[vert] = true;
             }
 
-            if(index==-1){
+            if(index==INVALID_VERTEX_ID){
                 index = outVertices.size();
                 outVertices.push_back(verte);
             }
@@ -243,8 +255,26 @@ void ObjLoader2::parseF(std::string &line)
     }
 
     auto nf = triangulateFace(ivs);
-    faces.insert(faces.end(),nf.begin(),nf.end());
 
+    //relative indexing, when the index is negativ
+    for(auto &f : nf){
+        for(auto &i : f){
+            if(i.v < 0 && i.v != INVALID_VERTEX_ID){
+                int absIndex = vertices.size() + i.v + 1;
+                i.v = absIndex;
+            }
+            if(i.n < 0 && i.n != INVALID_VERTEX_ID){
+                int absIndex = normals.size() + i.n + 1;
+                i.n = absIndex;
+            }
+            if(i.t < 0 && i.t != INVALID_VERTEX_ID){
+                int absIndex = texCoords.size() + i.t + 1;
+                i.t = absIndex;
+            }
+        }
+    }
+
+    faces.insert(faces.end(),nf.begin(),nf.end());
 }
 
 //parsing index vertex

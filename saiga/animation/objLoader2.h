@@ -5,8 +5,12 @@
 #include <saiga/opengl/texture/texture.h>
 #include <saiga/animation/objMaterialLoader.h>
 
+
+#define INVALID_VERTEX_ID -911365965
 struct SAIGA_GLOBAL IndexedVertex2{
-    int v=-1,n=-1,t=-1;
+    int v=INVALID_VERTEX_ID;
+    int n=INVALID_VERTEX_ID;
+            int t=INVALID_VERTEX_ID;
 };
 
 
@@ -39,6 +43,8 @@ public:
     std::vector<ObjTriangle> outTriangles;
     std::vector<ObjTriangleGroup> triangleGroups;
     void separateVerticesByGroup();
+    void calculateMissingNormals();
+
 private:
     std::vector<vec3> vertices;
     std::vector<vec3> normals;

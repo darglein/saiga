@@ -25,6 +25,8 @@ bool ObjMaterialLoader::loadFile(const std::string &_file){
     while(!stream.eof()) {
         std::string line;
         std::getline(stream, line);
+        //remove carriage return from windows
+        line.erase( std::remove(line.begin(), line.end(), '\r'), line.end() );
         parseLine(line);
     }
     return true;
