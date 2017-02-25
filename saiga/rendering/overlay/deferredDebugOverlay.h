@@ -17,7 +17,7 @@ class GBuffer;
 class SAIGA_GLOBAL DeferredDebugOverlay {
 private:
     struct GbufferTexture : public Object3D{
-        raw_Texture* texture;
+        std::shared_ptr<raw_Texture> texture;
     };
 
 
@@ -39,7 +39,7 @@ public:
     void loadShaders();
     void render();
 
-    void setDeferredFramebuffer(GBuffer *gbuffer, basic_Texture_2D *light);
+    void setDeferredFramebuffer(GBuffer *gbuffer, std::shared_ptr<raw_Texture> light);
 
 
 };

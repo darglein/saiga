@@ -33,7 +33,7 @@ void TextShader::uploadTextParameteres(const TextParameters &params)
 
 
 
-void TextShader::uploadTextureAtlas(Texture* texture){
+void TextShader::uploadTextureAtlas(std::shared_ptr<Texture> texture){
     Shader::upload(location_texture,texture,0);
 }
 

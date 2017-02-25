@@ -75,9 +75,9 @@ public:
 
     int shadowSamples = 16; //Quadratic number (1,4,9,16,...)
 
-    Texture* ssaoTexture;
+    std::shared_ptr<Texture> ssaoTexture;
 
-    Texture* lightAccumulationTexture;
+    std::shared_ptr<Texture> lightAccumulationTexture;
     Framebuffer lightAccumulationBuffer;
 
     DeferredLighting(GBuffer &gbuffer);

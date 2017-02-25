@@ -36,7 +36,7 @@ void AssetLoader2::loadDefaultShaders()
 std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
 {
         auto cbImage = ImageGenerator::checkerBoard(color1,color2,16,2,2);
-        Texture* cbTexture = new Texture();
+        std::shared_ptr<Texture> cbTexture = std::make_shared<Texture>();
         cbTexture->fromImage(*cbImage);
         cbTexture->setFiltering(GL_NEAREST);
         cbTexture->setWrap(GL_REPEAT);
@@ -49,7 +49,7 @@ std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugPlaneAsset(vec2 size, floa
         return asset;
 }
 
-std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugTexturedPlane(Texture *texture, vec2 size)
+std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
 {
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
     mat4 scale = glm::scale(mat4(1),vec3(size.x,1,size.y));

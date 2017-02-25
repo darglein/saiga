@@ -29,7 +29,7 @@ void SSAOShader::uploadData(){
     Shader::upload(location_power,power);
 }
 
-void SSAOShader::uploadRandomImage(Texture *img)
+void SSAOShader::uploadRandomImage(std::shared_ptr<Texture> img)
 {
     Shader::upload(location_randomImage,img,4);
 }
@@ -46,17 +46,17 @@ void SSAO::init(int w, int h)
     ssaoSize = glm::ivec2(w/2,h/2);
 
     ssao_framebuffer.create();
-    ssaotex = new Texture();
+    ssaotex = std::make_shared<Texture>();
     ssaotex->createEmptyTexture(ssaoSize.x,ssaoSize.y,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
-    ssao_framebuffer.attachTexture( std::shared_ptr<raw_Texture>(ssaotex) );
+    ssao_framebuffer.attachTexture( ssaotex);
     ssao_framebuffer.drawToAll();
     ssao_framebuffer.check();
     ssao_framebuffer.unbind();
 
     ssao_framebuffer2.create();
-    bluredTexture = new Texture();
+    bluredTexture = std::make_shared<Texture>();
     bluredTexture->createEmptyTexture(ssaoSize.x,ssaoSize.y,GL_RED,GL_R8,GL_UNSIGNED_BYTE);
-    ssao_framebuffer2.attachTexture( std::shared_ptr<raw_Texture>(bluredTexture) );
+    ssao_framebuffer2.attachTexture( bluredTexture);
     ssao_framebuffer2.drawToAll();
     ssao_framebuffer2.check();
     ssao_framebuffer2.unbind();
@@ -119,7 +119,7 @@ void SSAO::render(Camera *cam, GBuffer* gbuffer)
     //    gbuffer->clampToEdge();
     ssaoShader->uploadScreenSize(screenSize);
     ssaoShader->uploadFramebuffer(gbuffer);
-    ssaoShader->uploadRandomImage(randomTexture.get());
+    ssaoShader->uploadRandomImage(randomTexture);
     ssaoShader->uploadData();
     mat4 iproj = glm::inverse(cam->proj);
     ssaoShader->uploadInvProj(iproj);

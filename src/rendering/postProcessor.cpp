@@ -14,7 +14,7 @@ void PostProcessingShader::checkUniforms(){
 }
 
 
-void PostProcessingShader::uploadTexture(raw_Texture *texture){
+void PostProcessingShader::uploadTexture(std::shared_ptr<raw_Texture> texture){
     texture->bind(0);
     Shader::upload(location_texture,0);
 }
@@ -56,7 +56,7 @@ void LightAccumulationShader::checkUniforms(){
 }
 
 
-void LightAccumulationShader::uploadLightAccumulationtexture(raw_Texture *texture){
+void LightAccumulationShader::uploadLightAccumulationtexture(std::shared_ptr<raw_Texture> texture){
     texture->bind(4);
     Shader::upload(location_lightAccumulationtexture,4);
 }
@@ -64,7 +64,7 @@ void LightAccumulationShader::uploadLightAccumulationtexture(raw_Texture *textur
 
 
 
-void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params, Texture *LightAccumulationTexture, bool _useTimers)
+void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params, std::shared_ptr<Texture> LightAccumulationTexture, bool _useTimers)
 {
     this->params = params;
     this->width=width;
@@ -98,7 +98,7 @@ void PostProcessor::nextFrame()
 
 void PostProcessor::createFramebuffers()
 {
-    Texture* depth = new Texture();
+    std::shared_ptr<Texture> depth = std::make_shared<Texture>();
     depth->createEmptyTexture(width,height,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_SHORT);
 
     auto tex = framebuffer_texture_t(depth);
@@ -107,7 +107,7 @@ void PostProcessor::createFramebuffers()
         framebuffers[i].create();
 
 //        if(i==0){
-//            Texture* depth_stencil = new Texture();
+//            std::shared_ptr<Texture> depth_stencil = new Texture();
 //            depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
 //            framebuffers[i].attachTextureDepthStencil(depth_stencil);
 
@@ -117,7 +117,7 @@ void PostProcessor::createFramebuffers()
 //        }
 
 
-        textures[i] = new Texture();
+        textures[i] = std::make_shared<Texture>();
         if(params.srgb){
             textures[i]->createEmptyTexture(width,height,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
         }else{

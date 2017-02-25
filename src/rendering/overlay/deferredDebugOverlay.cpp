@@ -51,7 +51,7 @@ void DeferredDebugOverlay::loadShaders()
     normalShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_normal.glsl");
 }
 
-void DeferredDebugOverlay::setScreenPosition(DeferredDebugOverlay::GbufferTexture *gbt, int id)
+void DeferredDebugOverlay::setScreenPosition(GbufferTexture *gbt, int id)
 {
     float images = 5;
 
@@ -101,11 +101,11 @@ void DeferredDebugOverlay::render(){
 
 }
 
-void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer *gbuffer, basic_Texture_2D* light)
+void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer *gbuffer, std::shared_ptr<raw_Texture> light)
 {
-    color.texture = gbuffer->getTextureColor().get();
-    normal.texture = gbuffer->getTextureNormal().get();
-    depth.texture = gbuffer->getTextureDepth().get();
-    data.texture = gbuffer->getTextureData().get();
+    color.texture = gbuffer->getTextureColor();
+    normal.texture = gbuffer->getTextureNormal();
+    depth.texture = gbuffer->getTextureDepth();
+    data.texture = gbuffer->getTextureData();
     this->light.texture = light;
 }

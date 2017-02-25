@@ -28,12 +28,12 @@ public:
     void uploadTexSizeScale(const vec4 &s);
     void uploadRingSize(const vec2 &s);
     void uploadZScale(float f);
-    void uploadNormalMap(raw_Texture *texture);
-    void uploadImageUp(raw_Texture *texture);
+    void uploadNormalMap(std::shared_ptr<raw_Texture> texture);
+    void uploadImageUp(std::shared_ptr<raw_Texture> texture);
 
-    void uploadNormalMapUp(raw_Texture *texture);
-    void uploadTexture1(raw_Texture *texture);
-    void uploadTexture2(raw_Texture *texture);
+    void uploadNormalMapUp(std::shared_ptr<raw_Texture> texture);
+    void uploadTexture1(std::shared_ptr<raw_Texture> texture);
+    void uploadTexture2(std::shared_ptr<raw_Texture> texture);
 
 
 

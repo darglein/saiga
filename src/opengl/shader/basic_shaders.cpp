@@ -32,7 +32,7 @@ void MVPTextureShader::checkUniforms(){
 }
 
 
-void MVPTextureShader::uploadTexture(raw_Texture *texture){
+void MVPTextureShader::uploadTexture(std::shared_ptr<raw_Texture> texture){
     upload(location_texture,texture,0);
 }
 
@@ -64,9 +64,9 @@ void DeferredShader::uploadFramebuffer(GBuffer *gbuffer){
 //    upload(location_texture_normal,fb->colorBuffers[1],1);
 //    upload(location_texture_data,fb->colorBuffers[2],2);
 //    upload(location_texture_depth,fb->depthBuffer,3);
-    upload(location_texture_diffuse,gbuffer->getTextureColor().get(),0);
-    upload(location_texture_normal,gbuffer->getTextureNormal().get(),1);
-    upload(location_texture_data,gbuffer->getTextureData().get(),2);
-    upload(location_texture_depth,gbuffer->getTextureDepth().get(),3);
+    upload(location_texture_diffuse,gbuffer->getTextureColor(),0);
+    upload(location_texture_normal,gbuffer->getTextureNormal(),1);
+    upload(location_texture_data,gbuffer->getTextureData(),2);
+    upload(location_texture_depth,gbuffer->getTextureDepth(),3);
 }
 

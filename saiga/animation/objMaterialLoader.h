@@ -20,14 +20,14 @@ struct SAIGA_GLOBAL ObjMaterial{
     vec3 Ks = vec3(1);   //specular color
     vec3 Ke = vec3(1);
 
-    Texture* map_Ka = nullptr;
-    Texture* map_Kd = nullptr;
-    Texture* map_Ks = nullptr;
-    Texture* map_d = nullptr;
-    Texture* map_bump = nullptr;
+    std::shared_ptr<Texture> map_Ka = nullptr;
+    std::shared_ptr<Texture> map_Kd = nullptr;
+    std::shared_ptr<Texture> map_Ks = nullptr;
+    std::shared_ptr<Texture> map_d = nullptr;
+    std::shared_ptr<Texture> map_bump = nullptr;
 
 
-    Texture* diffuseTexture = nullptr;
+    std::shared_ptr<Texture> diffuseTexture = nullptr;
     ObjMaterial(const std::string& name=""):name(name){}
 };
 

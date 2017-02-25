@@ -31,8 +31,8 @@ public:
     std::vector<Image> heightmap;
     std::vector<Image> normalmap;
 
-    std::vector<Texture*> texheightmap;
-    std::vector<Texture*> texnormalmap;
+    std::vector<std::shared_ptr<Texture>> texheightmap;
+    std::vector<std::shared_ptr<Texture>> texnormalmap;
 
 
     Heightmap(int layers, int w, int h);

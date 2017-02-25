@@ -56,9 +56,9 @@ Loader<object_t,param_t>:: ~Loader(){
 
 template<typename object_t, typename param_t >
 void Loader<object_t,param_t>::clear(){
-    for(data_t &object : objects){
-        delete std::get<2>(object);
-    }
+//    for(data_t &object : objects){
+//        delete std::get<2>(object);
+//    }
     objects.clear();
 }
 

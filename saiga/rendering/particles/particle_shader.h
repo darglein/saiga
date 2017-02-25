@@ -22,6 +22,6 @@ public:
 
     virtual void checkUniforms();
 
-    void uploadDepthTexture(raw_Texture *texture);
+    void uploadDepthTexture(std::shared_ptr<raw_Texture> texture);
     void uploadCameraParameters(vec2 cp);
 };

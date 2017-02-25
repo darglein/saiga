@@ -28,7 +28,7 @@ public:
     virtual void checkUniforms();
     void uploadInvProj(mat4 &mat);
     void uploadData();
-    void uploadRandomImage(Texture* img);
+    void uploadRandomImage(std::shared_ptr<Texture> img);
 };
 
 class SAIGA_GLOBAL SSAO{
@@ -40,10 +40,10 @@ public:
     SSAOShader* ssaoShader = nullptr;
 
     std::shared_ptr<Texture>  randomTexture;
-    Texture* ssaotex = nullptr;
+    std::shared_ptr<Texture> ssaotex = nullptr;
 
-//    Texture* randomTexture;
-    Texture* bluredTexture;
+//    std::shared_ptr<Texture> randomTexture;
+    std::shared_ptr<Texture> bluredTexture;
 
     Framebuffer ssao_framebuffer, ssao_framebuffer2;
 

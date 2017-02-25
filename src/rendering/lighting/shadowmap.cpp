@@ -9,7 +9,7 @@ Shadowmap::Shadowmap()
 
 Shadowmap::~Shadowmap(){
 //    delete depthTexture;
-    delete deleteTexture;
+//    delete deleteTexture;
 }
 
 void Shadowmap::init(int w, int h){
@@ -21,15 +21,15 @@ void Shadowmap::init(int w, int h){
     depthBuffer.create();
     depthBuffer.unbind();
 
-    delete depthTexture;
-    depthTexture = nullptr;
+//    delete depthTexture;
+//    depthTexture = nullptr;
 
 }
 
 void Shadowmap::createFlat(int w, int h){
     init(w,h);
 
-    Texture* depth = new Texture();
+    std::shared_ptr<Texture> depth = std::make_shared<Texture>();;
     depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
 //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
 //    depth->setWrap(GL_CLAMP_TO_EDGE);
@@ -55,7 +55,7 @@ void Shadowmap::createCube(int w, int h){
 
 
 
-    TextureCube* cubeMap = new TextureCube();
+    auto cubeMap = std::make_shared<TextureCube>();
     cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
 //    cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
     cubeMap->setWrap(GL_CLAMP_TO_EDGE);

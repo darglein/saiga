@@ -21,7 +21,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
 
 //    glEnable(GL_MULTISAMPLE); //enabled by default anyways
 //    int samples = 16;
-    Texture* color = new Texture();
+    std::shared_ptr<Texture> color = std::make_shared<Texture>();
 //    multisampled_Texture_2D* color = new multisampled_Texture_2D(samples);
     if(params.srgb){
         color->createEmptyTexture(w,h,GL_RGBA,GL_SRGB8_ALPHA8,GL_UNSIGNED_BYTE);
@@ -42,7 +42,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     attachTexture( framebuffer_texture_t(color) );
 
 
-    Texture* normal = new Texture();
+    std::shared_ptr<Texture> normal = std::make_shared<Texture>();
 //    multisampled_Texture_2D* normal = new multisampled_Texture_2D(samples);
     switch(params.normalQuality){
     case Quality::LOW:
@@ -58,7 +58,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     attachTexture( framebuffer_texture_t(normal) );
 
     //specular and emissive texture
-    Texture* data = new Texture();
+    std::shared_ptr<Texture> data = std::make_shared<Texture>();
 //    multisampled_Texture_2D* data = new multisampled_Texture_2D(samples);
     switch(params.dataQuality){
     case Quality::LOW:
@@ -74,8 +74,8 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     attachTexture( framebuffer_texture_t(data) );
 
 
-//    Texture* depth = new Texture();
-    Texture* depth_stencil = new Texture();
+//    std::shared_ptr<Texture> depth = new Texture();
+    std::shared_ptr<Texture> depth_stencil = std::make_shared<Texture>();
     depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
 //    multisampled_Texture_2D* depth = new multisampled_Texture_2D(samples);
 //    switch(params.depthQuality){
@@ -94,7 +94,7 @@ void GBuffer::init(int w, int h, GBufferParameters params)
 
     //don't need stencil in gbuffer (but blit would fail otherwise)
     //depth and stencil texture combined
-    //    Texture* depth_stencil = new Texture();
+    //    std::shared_ptr<Texture> depth_stencil = new Texture();
     //    depth_stencil->createEmptyTexture(w,h,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
     //    attachTextureDepthStencil(depth_stencil);
 

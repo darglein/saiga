@@ -12,7 +12,7 @@ public:
     virtual void checkUniforms();
     void uploadDirection(vec3 &direction);
     void uploadAmbientIntensity(float i);
-    void uploadSsaoTexture(raw_Texture* texture);
+    void uploadSsaoTexture(std::shared_ptr<raw_Texture> texture);
 
 };
 

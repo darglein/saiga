@@ -14,10 +14,10 @@ struct SAIGA_GLOBAL TextureParameters{
 SAIGA_GLOBAL bool operator==(const TextureParameters& lhs, const TextureParameters& rhs);
 
 
-class SAIGA_GLOBAL TextureLoader : public Loader<Texture*,TextureParameters>, public Singleton <TextureLoader>{
+class SAIGA_GLOBAL TextureLoader : public Loader<std::shared_ptr<Texture>,TextureParameters>, public Singleton <TextureLoader>{
     friend class Singleton <TextureLoader>;
 public:
-    Texture* loadFromFile(const std::string &name, const TextureParameters &params);
+    std::shared_ptr<Texture> loadFromFile(const std::string &name, const TextureParameters &params);
 
     /**
      * Loads an image from file.
@@ -30,6 +30,6 @@ public:
      * Uses libfreeimage if possible and libpng otherwise.
      */
     bool saveImage(const std::string &path, Image& image) const;
-    Texture *textureFromImage(Image &im, const TextureParameters &params) const;
+    std::shared_ptr<Texture> textureFromImage(Image &im, const TextureParameters &params) const;
 };
 

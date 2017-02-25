@@ -20,7 +20,7 @@ public:
     TerrainShader* deferredshader;
     TerrainShader* depthshader;
 
-    Texture* texture1, *texture2;
+    std::shared_ptr<Texture> texture1, texture2;
 
     Heightmap heightmap;
     mat4 model;

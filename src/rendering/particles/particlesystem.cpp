@@ -92,7 +92,7 @@ void ParticleSystem::render(Camera *cam){
     }
 }
 
-void ParticleSystem::renderDeferred(Camera *cam, raw_Texture* detphTexture)
+void ParticleSystem::renderDeferred(Camera *cam, std::shared_ptr<raw_Texture> detphTexture)
 {
 
     deferredParticleShader->bind();

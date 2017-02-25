@@ -13,7 +13,7 @@ class ArrayTexture2D;
 class SAIGA_GLOBAL ParticleSystem : public Object3D
 {
 public:
-    ArrayTexture2D* arrayTexture;
+    std::shared_ptr<ArrayTexture2D> arrayTexture;
     bool blending = true;
 
     static float secondsPerTick;
@@ -60,7 +60,7 @@ public:
     void update();
     void interpolate(float interpolation);
     void render(Camera* cam);
-    void renderDeferred(Camera* cam, raw_Texture *detphTexture);
+    void renderDeferred(Camera* cam, std::shared_ptr<raw_Texture> detphTexture);
 
 
     void addParticle(Particle &p);

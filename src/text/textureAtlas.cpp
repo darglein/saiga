@@ -20,7 +20,7 @@ TextureAtlas::TextureAtlas(){
 
 TextureAtlas::~TextureAtlas()
 {
-    delete textureAtlas;
+//    delete textureAtlas;
 }
 
 void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, int searchRange, bool bufferToFile, const std::vector<Unicode::UnicodeBlock> &blocks){
@@ -60,7 +60,7 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
 
 
 
-    textureAtlas = new Texture();
+    textureAtlas = std::make_shared<Texture>();
     textureAtlas->fromImage(img);
     textureAtlas->generateMipmaps();
 
@@ -325,7 +325,7 @@ bool TextureAtlas::readAtlasFromFiles()
 
 //    TextureLoader::instance()->saveImage("asdf2.png",img);
 
-    textureAtlas = new Texture();
+    textureAtlas = std::make_shared<Texture>();
     textureAtlas->fromImage(img);
     textureAtlas->generateMipmaps();
 

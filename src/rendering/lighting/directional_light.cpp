@@ -19,7 +19,7 @@ void DirectionalLightShader::uploadAmbientIntensity(float i)
     Shader::upload(location_ambientIntensity,i);
 }
 
-void DirectionalLightShader::uploadSsaoTexture(raw_Texture *texture)
+void DirectionalLightShader::uploadSsaoTexture(std::shared_ptr<raw_Texture> texture)
 {
 
         texture->bind(6);

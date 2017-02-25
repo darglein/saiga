@@ -13,7 +13,7 @@ public:
     public:
         int startIndex;
         int indices;
-        Texture* texture;
+        std::shared_ptr<Texture> texture;
     };
     std::vector<TextureGroup> groups;
 

@@ -37,7 +37,7 @@ void DeferredParticleShader::checkUniforms()
 
 
 
-void DeferredParticleShader::uploadDepthTexture(raw_Texture *texture){
+void DeferredParticleShader::uploadDepthTexture(std::shared_ptr<raw_Texture> texture){
     texture->bind(1);
     Shader::upload(location_texture_depth,1);
 }

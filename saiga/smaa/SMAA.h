@@ -32,14 +32,14 @@ class SAIGA_GLOBAL SMAABlendingWeightCalculationShader : public Shader{
 public:
     GLint location_edgeTex, location_areaTex, location_searchTex;
     virtual void checkUniforms();
-    virtual void uploadTextures(raw_Texture* edgeTex, raw_Texture* areaTex, raw_Texture* searchTex);
+    virtual void uploadTextures(std::shared_ptr<raw_Texture> edgeTex, std::shared_ptr<raw_Texture> areaTex, std::shared_ptr<raw_Texture> searchTex);
 };
 
 class SAIGA_GLOBAL SMAANeighborhoodBlendingShader : public Shader{
 public:
     GLint location_colorTex, location_blendTex;
     virtual void checkUniforms();
-    virtual void uploadTextures(raw_Texture* colorTex, raw_Texture* blendTex);
+    virtual void uploadTextures(std::shared_ptr<raw_Texture> colorTex, std::shared_ptr<raw_Texture> blendTex);
 };
 
 class SMAA{

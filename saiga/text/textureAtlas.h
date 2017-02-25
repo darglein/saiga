@@ -5,10 +5,10 @@
 #include "saiga/util/glm.h"
 #include "saiga/geometry/aabb.h"
 #include "saiga/text/fontLoader.h"
+#include "saiga/opengl/texture/texture.h"
 #include <iostream>
 #include <map>
 
-class basic_Texture_2D;
 
 
 class SAIGA_GLOBAL TextureAtlas{
@@ -42,7 +42,7 @@ public:
     /**
      * Returns the actual opengl texture.
      */
-    basic_Texture_2D *getTexture(){return textureAtlas;}
+    std::shared_ptr<Texture> getTexture(){return textureAtlas;}
 
     /**
      * Returns information to a specific character in this font.
@@ -77,7 +77,7 @@ private:
     int numCharacters = 0;
 //    std::vector<character_info> characterInfoMap = std::vector<character_info>(maxNumCharacters);
 
-    basic_Texture_2D *textureAtlas = nullptr;
+    std::shared_ptr<Texture> textureAtlas = nullptr;
     aabb maxCharacter;
     std::string font;
     std::string uniqueFontString;

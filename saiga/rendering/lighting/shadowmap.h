@@ -9,8 +9,8 @@ private:
 public:
     int w,h;
     Framebuffer depthBuffer;
-    raw_Texture* depthTexture = nullptr;
-    raw_Texture* deleteTexture = nullptr;
+    std::shared_ptr<raw_Texture> depthTexture;
+    std::shared_ptr<raw_Texture> deleteTexture;
 
     Shadowmap();
     ~Shadowmap();

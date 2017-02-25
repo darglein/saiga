@@ -178,8 +178,8 @@ public:
 	void upload(int location, int count, vec2* v);
 
 	//binds the texture to the given texture unit and sets the uniform.
-	void upload(int location, raw_Texture *texture, int textureUnit);
     void upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit);
+//    void upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit);
 };
 
 

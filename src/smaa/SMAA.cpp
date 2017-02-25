@@ -16,7 +16,7 @@ void SMAABlendingWeightCalculationShader::checkUniforms()
 
 }
 
-void SMAABlendingWeightCalculationShader::uploadTextures(raw_Texture *edgeTex, raw_Texture *areaTex, raw_Texture *searchTex)
+void SMAABlendingWeightCalculationShader::uploadTextures(std::shared_ptr<raw_Texture> edgeTex, std::shared_ptr<raw_Texture> areaTex, std::shared_ptr<raw_Texture> searchTex)
 {
     edgeTex->bind(0);
     Shader::upload(location_edgeTex,0);
@@ -35,7 +35,7 @@ void SMAANeighborhoodBlendingShader::checkUniforms()
     location_blendTex = Shader::getUniformLocation("blendTex");
 }
 
-void SMAANeighborhoodBlendingShader::uploadTextures(raw_Texture *colorTex, raw_Texture *blendTex)
+void SMAANeighborhoodBlendingShader::uploadTextures(std::shared_ptr<raw_Texture> colorTex, std::shared_ptr<raw_Texture> blendTex)
 {
     colorTex->bind(0);
     Shader::upload(location_colorTex,0);
@@ -185,7 +185,7 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer &output)
     edgesFb.bind();
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     smaaEdgeDetectionShader->bind();
-    smaaEdgeDetectionShader->uploadTexture(input.get() );
+    smaaEdgeDetectionShader->uploadTexture(input );
     quadMesh.bindAndDraw();
     smaaEdgeDetectionShader->unbind();
     assert_no_glerror();
@@ -199,7 +199,7 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer &output)
     blendFb.bind();
     glClear(GL_COLOR_BUFFER_BIT);
     smaaBlendingWeightCalculationShader->bind();
-    smaaBlendingWeightCalculationShader->uploadTextures(edgesTex.get(),areaTex.get(),searchTex.get());
+    smaaBlendingWeightCalculationShader->uploadTextures(edgesTex,areaTex,searchTex);
     quadMesh.bindAndDraw();
     smaaBlendingWeightCalculationShader->unbind();
     assert_no_glerror();
@@ -210,7 +210,7 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer &output)
     output.bind();
     glClear(GL_COLOR_BUFFER_BIT);
     smaaNeighborhoodBlendingShader->bind();
-    smaaNeighborhoodBlendingShader->uploadTextures(input.get(),blendTex.get());
+    smaaNeighborhoodBlendingShader->uploadTextures(input,blendTex);
     quadMesh.bindAndDraw();
     smaaNeighborhoodBlendingShader->unbind();
     assert_no_glerror();

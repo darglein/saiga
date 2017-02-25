@@ -306,14 +306,14 @@ void Heightmap::createTextures(){
         //        PNG::readPNG(&img,"heightmap"+std::to_string(i)+".png");
         //        heightmap[i].convertFrom(img);
 
-        texheightmap[i] = new Texture();
+        texheightmap[i] = std::make_shared<Texture>();
         texheightmap[i]->fromImage(heightmap[i]);
         //        texheightmap[i]->setWrap(GL_CLAMP_TO_EDGE);
         texheightmap[i]->setWrap(GL_REPEAT);
         texheightmap[i]->setFiltering(GL_LINEAR);
         //        texheightmap[i]->setFiltering(GL_NEAREST);
 
-        texnormalmap[i] = new Texture();
+        texnormalmap[i] = std::make_shared<Texture>();
         texnormalmap[i]->fromImage(normalmap[i]);
         //        texnormalmap[i]->setWrap(GL_CLAMP_TO_EDGE);
         texnormalmap[i]->setWrap(GL_REPEAT);

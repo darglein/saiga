@@ -21,7 +21,7 @@ public:
     void uploadColorSpecular(vec3 &color, float intensity);
 
     void uploadDepthBiasMV(mat4 &mat);
-    void uploadDepthTexture(raw_Texture* texture);
+    void uploadDepthTexture(std::shared_ptr<raw_Texture> texture);
     void uploadShadow(float shadow);
     void uploadShadowMapSize(float w, float h);
     void uploadInvProj(mat4 &mat);
@@ -65,7 +65,7 @@ protected:
 
 
 public:
-//    raw_Texture* dummyTexture = nullptr; //0x0 texture to fix an ati error
+//    std::shared_ptr<raw_Texture> dummyTexture = nullptr; //0x0 texture to fix an ati error
     Shadowmap shadowmap;
     float shadowNearPlane = 0.1f;
 

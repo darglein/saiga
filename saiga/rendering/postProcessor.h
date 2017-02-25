@@ -16,7 +16,7 @@ public:
 
 
     virtual void checkUniforms();
-    virtual void uploadTexture(raw_Texture* texture);
+    virtual void uploadTexture(std::shared_ptr<raw_Texture> texture);
     virtual void uploadGbufferTextures(GBuffer* gbuffer);
     virtual void uploadScreenSize(vec4 size);
 
@@ -40,7 +40,7 @@ public:
     GLint location_lightAccumulationtexture;
 
     virtual void checkUniforms();
-    virtual void uploadLightAccumulationtexture(raw_Texture* texture);
+    virtual void uploadLightAccumulationtexture(std::shared_ptr<raw_Texture> texture);
 };
 
 
@@ -54,7 +54,7 @@ private:
     PostProcessorParameters params;
     int width,height;
     Framebuffer framebuffers[2];
-    Texture* textures[2];
+    std::shared_ptr<Texture> textures[2];
     GBuffer *gbuffer;
     int currentBuffer = 0;
     int lastBuffer = 1;
@@ -68,7 +68,7 @@ private:
     Shader* computeTest;
 
     //the first post processing shader reads from the lightaccumulation texture.
-    Texture* LightAccumulationTexture = nullptr;
+    std::shared_ptr<Texture> LightAccumulationTexture = nullptr;
     bool first = false;
 
     void createFramebuffers();
@@ -76,7 +76,7 @@ private:
 public:
 	void createTimers();
 
-    void init(int width, int height, GBuffer *gbuffer, PostProcessorParameters params, Texture* LightAccumulationTexture, bool _useTimers);
+    void init(int width, int height, GBuffer *gbuffer, PostProcessorParameters params, std::shared_ptr<Texture> LightAccumulationTexture, bool _useTimers);
 
     void nextFrame();
     void bindCurrentBuffer();

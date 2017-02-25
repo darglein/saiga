@@ -34,7 +34,7 @@ public:
     GLint location_texture;
 
     virtual void checkUniforms();
-    virtual void uploadTexture(raw_Texture* texture);
+    virtual void uploadTexture(std::shared_ptr<raw_Texture> texture);
 };
 
 

@@ -13,7 +13,7 @@ public:
     virtual void checkUniforms();
 
      void uploadTextParameteres(const TextParameters& params);
-    void uploadTextureAtlas(Texture* texture);
+    void uploadTextureAtlas(std::shared_ptr<Texture> texture);
 };
 
 class SAIGA_GLOBAL TextShaderFade : public TextShader {

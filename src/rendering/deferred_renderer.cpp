@@ -353,7 +353,7 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
-    blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
+    blitDepthShader->uploadTexture(gbuffer.getTextureDepth());
     quadMesh.bindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
