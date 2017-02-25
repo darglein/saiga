@@ -105,7 +105,7 @@ std::string Text::getText(){
 
 
 
-void Text::render(TextShader* shader){
+void Text::render(std::shared_ptr<TextShader>  shader){
 
     shader->uploadTextureAtlas(textureAtlas->getTexture());
 

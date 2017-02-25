@@ -95,8 +95,8 @@ void OpenGLWindow::initDeferredRendering(const RenderingParameters &params)
     renderer = new Deferred_Renderer(getWidth(),getHeight(),params);
 
 
-    PostProcessingShader* pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing/post_processing.glsl"); //this shader does nothing
-    std::vector<PostProcessingShader*> defaultEffects;
+    std::shared_ptr<PostProcessingShader>  pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing/post_processing.glsl"); //this shader does nothing
+    std::vector<std::shared_ptr<PostProcessingShader> > defaultEffects;
     defaultEffects.push_back(pps);
 
     renderer->postProcessor.setPostProcessingEffects(defaultEffects);

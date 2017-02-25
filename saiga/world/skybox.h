@@ -12,7 +12,7 @@
 class SAIGA_GLOBAL Skybox{
 public:
     IndexedVertexBuffer<VertexNT,GLuint> mesh;
-    MVPTextureShader* shader;
+    std::shared_ptr<MVPTextureShader>  shader;
     std::shared_ptr<Texture> texture;
     std::shared_ptr<TextureCube> cube_texture;
     mat4 model;

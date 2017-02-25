@@ -31,7 +31,7 @@ private:
     void setScreenPosition(GbufferTexture* gbt, int id);
 public:
 
-    MVPTextureShader* shader, *depthShader, *normalShader;
+    std::shared_ptr<MVPTextureShader>  shader, depthShader, normalShader;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
 
     DeferredDebugOverlay(int width, int height);

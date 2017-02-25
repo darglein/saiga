@@ -26,9 +26,9 @@ public:
     aabb boundingBox;
     vec3 offset = vec3(0);
 
-    MVPShader* shader  = nullptr;
-    MVPShader* depthshader  = nullptr;
-    MVPShader* wireframeshader  = nullptr;
+    std::shared_ptr<MVPShader> shader  = nullptr;
+    std::shared_ptr<MVPShader> depthshader  = nullptr;
+    std::shared_ptr<MVPShader> wireframeshader  = nullptr;
 
     TriangleMesh<vertex_t,index_t> mesh;
     IndexedVertexBuffer<vertex_t,index_t> buffer;
@@ -50,7 +50,7 @@ public:
     virtual void renderRaw() override;
 
 
-    void create(std::string name, MVPShader* shader, MVPShader* depthshader, MVPShader* wireframeshader, bool normalizePosition=false, bool ZUPtoYUP=false);
+    void create(std::string name, std::shared_ptr<MVPShader> shader, std::shared_ptr<MVPShader> depthshader, std::shared_ptr<MVPShader> wireframeshader, bool normalizePosition=false, bool ZUPtoYUP=false);
 
 
     void normalizePosition();
@@ -167,7 +167,7 @@ void BasicAsset<vertex_t,index_t>::ZUPtoYUP()
 }
 
 template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::create(std::string _name, MVPShader* _shader, MVPShader* _depthshader, MVPShader* _wireframeshader, bool normalizePosition, bool ZUPtoYUP){
+void BasicAsset<vertex_t,index_t>::create(std::string _name, std::shared_ptr<MVPShader> _shader, std::shared_ptr<MVPShader> _depthshader, std::shared_ptr<MVPShader> _wireframeshader, bool normalizePosition, bool ZUPtoYUP){
 
     this->name = _name;
     this->shader = _shader;

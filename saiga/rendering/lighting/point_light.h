@@ -76,7 +76,7 @@ public:
     float calculateRadius(float cutoffPercentage);
     float calculateRadiusAbsolute(float cutoff);
 
-    virtual void bindUniforms(PointLightShader& shader, Camera *cam);
+    virtual void bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *cam);
 
 
     float getRadius() const;

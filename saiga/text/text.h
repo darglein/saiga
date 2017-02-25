@@ -25,7 +25,7 @@ public:
     /**
      * Uploads the texture atlas, color, strokecolor and model matrix to the shader and draws the mesh.
      */
-    void render(TextShader* shader);
+    void render(std::shared_ptr<TextShader>  shader);
 
     /**
      * Updates the current text beginning at 'startIndex'.

@@ -74,9 +74,9 @@ private:
     framebuffer_texture_t searchTex;
 
     bool shaderLoaded = false;
-    PostProcessingShader* smaaEdgeDetectionShader;
-    SMAABlendingWeightCalculationShader* smaaBlendingWeightCalculationShader;
-    SMAANeighborhoodBlendingShader* smaaNeighborhoodBlendingShader;
+    std::shared_ptr<PostProcessingShader>  smaaEdgeDetectionShader;
+    std::shared_ptr<SMAABlendingWeightCalculationShader>  smaaBlendingWeightCalculationShader;
+    std::shared_ptr<SMAANeighborhoodBlendingShader>  smaaNeighborhoodBlendingShader;
 
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;

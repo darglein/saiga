@@ -16,9 +16,9 @@ class SAIGA_GLOBAL Terrain{
 public:
     int layers;
 
-    TerrainShader* shader;
-    TerrainShader* deferredshader;
-    TerrainShader* depthshader;
+    std::shared_ptr<TerrainShader>  shader;
+    std::shared_ptr<TerrainShader>  deferredshader;
+    std::shared_ptr<TerrainShader>  depthshader;
 
     std::shared_ptr<Texture> texture1, texture2;
 

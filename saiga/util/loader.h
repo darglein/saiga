@@ -41,7 +41,7 @@ public:
 
     virtual object_t load(const std::string &name, const param_t &params=param_t());
     virtual object_t getLoaded(const std::string &name, const param_t &params=param_t());
-    void put(const std::string &name, object_t* obj, const param_t &params=param_t());
+    void put(const std::string &name, object_t obj, const param_t &params=param_t());
 
 protected:
     virtual object_t exists(const std::string &name, const param_t &params=param_t());
@@ -116,9 +116,9 @@ object_t Loader<object_t,param_t>::getLoaded(const std::string &name, const para
 }
 
 template<typename object_t, typename param_t >
-void Loader<object_t,param_t>::put(const std::string &name, object_t* obj, const param_t &params){
+void Loader<object_t,param_t>::put(const std::string &name, object_t obj, const param_t &params){
 
-    SAIGA_ASSERT(!exists(name,params) && "object was already loaded!");
+    SAIGA_ASSERT(!exists(name,params),"object was already loaded!");
     SAIGA_ASSERT(obj);
 
     objects.emplace_back(name,params,obj);

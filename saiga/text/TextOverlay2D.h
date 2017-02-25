@@ -31,7 +31,7 @@ public:
 
 
 private:
-    TextShader* textShader = nullptr;
+    std::shared_ptr<TextShader>  textShader = nullptr;
 };
 
 

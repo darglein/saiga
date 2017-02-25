@@ -31,16 +31,16 @@ void SpotLight::calculateCamera(){
 
 }
 
-void SpotLight::bindUniforms(SpotLightShader &shader, Camera *cam){
+void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *cam){
     PointLight::bindUniforms(shader,cam);
 
 
     vec3 dir = vec3(this->getUpVector());
-    shader.uploadDirection(dir);
+    shader->uploadDirection(dir);
 
     float c = glm::cos(glm::radians(angle*0.95f)); //make border smoother
 
-    shader.uploadAngle(c);
+    shader->uploadAngle(c);
 
 
 }

@@ -73,7 +73,7 @@ public:
 public:
 
 
-    static TerrainShader* shader;
+    static std::shared_ptr<TerrainShader>  shader;
     static IndexedVertexBuffer<Vertex,GLuint> mesh,center;
 
     static void createMeshes();

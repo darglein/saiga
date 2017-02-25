@@ -19,7 +19,7 @@ public:
     BoxLight();
     virtual ~BoxLight(){}
 
-    void bindUniforms(BoxLightShader& shader, Camera* cam);
+    void bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera* cam);
 
     virtual void createShadowMap(int resX, int resY) override;
 

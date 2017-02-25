@@ -188,7 +188,7 @@ void PostProcessor::render()
     //    std::cout<<"Time spent on the GPU: "<< timer.getTimeMS() <<std::endl;
 }
 
-void PostProcessor::setPostProcessingEffects(const std::vector<PostProcessingShader *> &postProcessingEffects){
+void PostProcessor::setPostProcessingEffects(const std::vector<std::shared_ptr<PostProcessingShader>  > &postProcessingEffects){
     assert_no_glerror();
     this->postProcessingEffects = postProcessingEffects;
 	createTimers();
@@ -225,7 +225,7 @@ void PostProcessor::resize(int width, int height)
 
 }
 
-void PostProcessor::applyShader(PostProcessingShader *postProcessingShader)
+void PostProcessor::applyShader(std::shared_ptr<PostProcessingShader>  postProcessingShader)
 {
 
     framebuffers[currentBuffer].bind();

@@ -59,20 +59,20 @@ private:
     int currentBuffer = 0;
     int lastBuffer = 1;
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
-    std::vector<PostProcessingShader*> postProcessingEffects;
-    PostProcessingShader* passThroughShader;
+    std::vector<std::shared_ptr<PostProcessingShader> > postProcessingEffects;
+    std::shared_ptr<PostProcessingShader>  passThroughShader;
 
     bool useTimers = false;
     std::vector<FilteredGPUTimer> shaderTimer;
 
-    Shader* computeTest;
+    std::shared_ptr<Shader>  computeTest;
 
     //the first post processing shader reads from the lightaccumulation texture.
     std::shared_ptr<Texture> LightAccumulationTexture = nullptr;
     bool first = false;
 
     void createFramebuffers();
-    void applyShader(PostProcessingShader* postProcessingShader);
+    void applyShader(std::shared_ptr<PostProcessingShader>  postProcessingShader);
 public:
 	void createTimers();
 
@@ -84,7 +84,7 @@ public:
 
     void render();
 
-    void setPostProcessingEffects(const std::vector<PostProcessingShader*> &postProcessingEffects );
+    void setPostProcessingEffects(const std::vector<std::shared_ptr<PostProcessingShader> > &postProcessingEffects );
 
     void printTimings();
     void resize(int width, int height);

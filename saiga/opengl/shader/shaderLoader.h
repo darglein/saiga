@@ -7,31 +7,31 @@
 #include "saiga/util/assert.h"
 
 
-class SAIGA_GLOBAL ShaderLoader : public Loader<Shader*,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
+class SAIGA_GLOBAL ShaderLoader : public Loader<std::shared_ptr<Shader>,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
     friend class Singleton <ShaderLoader>;
 public:
 	bool addLineDirectives = false;
     virtual ~ShaderLoader(){}
-    Shader* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
-    template<typename shader_t> shader_t* load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
-    template<typename shader_t> shader_t* getLoaded(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
-    template<typename shader_t> shader_t* loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
+    std::shared_ptr<Shader> loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
+    template<typename shader_t> std::shared_ptr<shader_t> load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
+    template<typename shader_t> std::shared_ptr<shader_t> getLoaded(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
+    template<typename shader_t> std::shared_ptr<shader_t> loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
 
     void reload();
-    bool reload(Shader* shader, const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
+    bool reload(std::shared_ptr<Shader> shader, const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
 };
 
 
 
 
 template<typename shader_t>
-shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
-    shader_t* object;
+std::shared_ptr<shader_t> ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
+    std::shared_ptr<shader_t> object;
 
     for(data_t &data : objects){
         if(std::get<0>(data)==name && std::get<1>(data)==sci){
-            object = dynamic_cast<shader_t*>(std::get<2>(data));
-            if(object != nullptr){
+            object = std::dynamic_pointer_cast<shader_t>(std::get<2>(data));
+            if(object){
                 return object;
             }
         }
@@ -52,13 +52,13 @@ shader_t* ShaderLoader::load(const std::string &name, const ShaderPart::ShaderCo
 }
 
 template<typename shader_t>
-shader_t* ShaderLoader::getLoaded(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
-    shader_t* object;
+std::shared_ptr<shader_t> ShaderLoader::getLoaded(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
+    std::shared_ptr<shader_t> object;
 
     for(data_t &data : objects){
         if(std::get<0>(data)==name && std::get<1>(data)==sci){
-            object = dynamic_cast<shader_t*>(std::get<2>(data));
-            if(object != nullptr){
+            object = std::dynamic_pointer_cast<shader_t>(std::get<2>(data));
+            if(object){
                 return object;
             }
         }
@@ -70,7 +70,7 @@ shader_t* ShaderLoader::getLoaded(const std::string &name, const ShaderPart::Sha
 }
 
 template<typename shader_t>
-shader_t* ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
+std::shared_ptr<shader_t> ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
 
     ShaderPartLoader spl(name,sci);
 	spl.addLineDirectives = addLineDirectives;

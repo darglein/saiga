@@ -9,7 +9,7 @@ IndexedVertexBuffer<Vertex,GLuint> Clipmap::trimSE;
 IndexedVertexBuffer<Vertex,GLuint> Clipmap::trimNW;
 IndexedVertexBuffer<Vertex,GLuint> Clipmap::trimNE;
 IndexedVertexBuffer<Vertex,GLuint> Clipmap::degenerated;
-TerrainShader* Clipmap::shader;
+std::shared_ptr<TerrainShader>  Clipmap::shader;
 
 
 

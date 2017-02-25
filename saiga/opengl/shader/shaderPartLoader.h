@@ -37,15 +37,15 @@ public:
     void addShader(std::vector<std::string> &content, GLenum type);
 
     //combine all loaded shader parts to a shader. the returned shader is linked and ready to use
-    template<typename shader_t> shader_t* createShader();
+    template<typename shader_t> std::shared_ptr<shader_t> createShader();
 
     //like create shader, but the passed shader is updated instead of creating a new one
-    void reloadShader(Shader* shader);
+    void reloadShader(std::shared_ptr<Shader>  shader);
 };
 
 
 template<typename shader_t>
-shader_t* ShaderPartLoader::createShader()
+std::shared_ptr<shader_t> ShaderPartLoader::createShader()
 {
     if(shaders.size()==0){
         std::cerr<<file<<" does not contain any shaders."<<endl;
@@ -54,7 +54,7 @@ shader_t* ShaderPartLoader::createShader()
         return nullptr;
     }
 
-    shader_t* shader = new shader_t();
+    auto shader = std::make_shared<shader_t>();
     shader->shaders = shaders;
     shader->createProgram();
 

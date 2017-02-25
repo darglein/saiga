@@ -7,17 +7,17 @@
 
 class SAIGA_GLOBAL AssetLoader2{
 public:
-    MVPShader* basicAssetShader  = nullptr;
-    MVPShader* basicAssetDepthshader  = nullptr;
-    MVPShader* basicAssetWireframeShader  = nullptr;
+    std::shared_ptr<MVPShader> basicAssetShader  = nullptr;
+    std::shared_ptr<MVPShader> basicAssetDepthshader  = nullptr;
+    std::shared_ptr<MVPShader> basicAssetWireframeShader  = nullptr;
 
-    MVPShader* texturedAssetShader  = nullptr;
-    MVPShader* texturedAssetDepthShader  = nullptr;
-    MVPShader* texturedAssetWireframeShader  = nullptr;
+    std::shared_ptr<MVPShader> texturedAssetShader  = nullptr;
+    std::shared_ptr<MVPShader> texturedAssetDepthShader  = nullptr;
+    std::shared_ptr<MVPShader> texturedAssetWireframeShader  = nullptr;
 
-    BoneShader* animatedAssetShader  = nullptr;
-    BoneShader* animatedAssetDepthshader  = nullptr;
-    BoneShader* animatedAssetWireframeShader  = nullptr;
+    std::shared_ptr<BoneShader> animatedAssetShader  = nullptr;
+    std::shared_ptr<BoneShader> animatedAssetDepthshader  = nullptr;
+    std::shared_ptr<BoneShader> animatedAssetWireframeShader  = nullptr;
 
     AssetLoader2();
     virtual ~AssetLoader2();

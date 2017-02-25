@@ -178,7 +178,7 @@ void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
     assert_no_glerror();
 }
 
-void ShaderPartLoader::reloadShader(Shader *shader)
+void ShaderPartLoader::reloadShader(std::shared_ptr<Shader>  shader)
 {
 //    cout<<"ShaderPartLoader::reloadShader"<<endl;
     shader->destroyProgram();

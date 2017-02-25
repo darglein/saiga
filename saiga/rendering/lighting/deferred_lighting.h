@@ -25,35 +25,35 @@ class SAIGA_GLOBAL DeferredLighting{
     friend class LightingController;
 private:
     int width,height;
-    MVPColorShader* debugShader;
+    std::shared_ptr<MVPColorShader>  debugShader;
 
     UniformBuffer shadowCameraBuffer;
 
     //the vertex position is sufficient. no normals and texture coordinates needed.
     typedef IndexedVertexBuffer<Vertex,GLushort> lightMesh_t;
 
-    PointLightShader* pointLightShader, *pointLightShadowShader;
+    std::shared_ptr<PointLightShader>  pointLightShader, pointLightShadowShader;
     lightMesh_t pointLightMesh;
     std::vector< std::shared_ptr<PointLight> > pointLights;
 
-    SpotLightShader* spotLightShader, *spotLightShadowShader;
+    std::shared_ptr<SpotLightShader>  spotLightShader, spotLightShadowShader;
     lightMesh_t spotLightMesh;
     std::vector< std::shared_ptr<SpotLight> > spotLights;
 
-    BoxLightShader* boxLightShader,*boxLightShadowShader;
+    std::shared_ptr<BoxLightShader>  boxLightShader,boxLightShadowShader;
     lightMesh_t boxLightMesh;
     std::vector< std::shared_ptr<BoxLight> > boxLights;
 
-    DirectionalLightShader* directionalLightShader,*directionalLightShadowShader;
+    std::shared_ptr<DirectionalLightShader>  directionalLightShader,directionalLightShadowShader;
     lightMesh_t directionalLightMesh;
     std::vector< std::shared_ptr<DirectionalLight> > directionalLights;
 
 
 
-//    MVPTextureShader* blitDepthShader;
-    LightAccumulationShader* lightAccumulationShader;
+//    std::shared_ptr<MVPTextureShader>  blitDepthShader;
+    std::shared_ptr<LightAccumulationShader>  lightAccumulationShader;
 
-    MVPShader* stencilShader;
+    std::shared_ptr<MVPShader> stencilShader;
     GBuffer &gbuffer;
 
 
@@ -109,13 +109,13 @@ public:
     void renderDebug(Camera *cam);
 
 
-    void setShader(SpotLightShader* spotLightShader, SpotLightShader* spotLightShadowShader);
-    void setShader(PointLightShader* pointLightShader,PointLightShader* pointLightShadowShader);
-    void setShader(DirectionalLightShader* directionalLightShader,DirectionalLightShader* directionalLightShadowShader);
-    void setShader(BoxLightShader* boxLightShader,BoxLightShader* boxLightShadowShader);
+    void setShader(std::shared_ptr<SpotLightShader>  spotLightShader, std::shared_ptr<SpotLightShader>  spotLightShadowShader);
+    void setShader(std::shared_ptr<PointLightShader>  pointLightShader,std::shared_ptr<PointLightShader>  pointLightShadowShader);
+    void setShader(std::shared_ptr<DirectionalLightShader>  directionalLightShader,std::shared_ptr<DirectionalLightShader>  directionalLightShadowShader);
+    void setShader(std::shared_ptr<BoxLightShader>  boxLightShader,std::shared_ptr<BoxLightShader>  boxLightShadowShader);
 
-    void setDebugShader(MVPColorShader* shader);
-    void setStencilShader(MVPShader* stencilShader);
+    void setDebugShader(std::shared_ptr<MVPColorShader>  shader);
+    void setStencilShader(std::shared_ptr<MVPShader> stencilShader);
 
 
 
@@ -130,7 +130,7 @@ private:
     void setupLightPass();
 
     template<typename T,typename shader_t>
-    void renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t *shader , shader_t *shaderShadow);
+    void renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shader , shader_t shaderShadow);
 
 
     void renderDirectionalLights(Camera *cam, bool shadow);
@@ -139,7 +139,7 @@ private:
 
 
 template<typename T,typename shader_t>
-inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t *shaderNormal , shader_t *shaderShadow){
+inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shaderNormal , shader_t shaderShadow){
     if(!obj->shouldRender())
         return;
 
@@ -152,12 +152,12 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera
 
 
     setupLightPass();
-    shader_t* shader = (obj->hasShadows()) ? shaderShadow : shaderNormal;
+    shader_t shader = (obj->hasShadows()) ? shaderShadow : shaderNormal;
     shader->bind();
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
 
-    obj->bindUniforms(*shader,cam);
+    obj->bindUniforms(shader,cam);
     mesh.bindAndDraw();
     shader->unbind();
 

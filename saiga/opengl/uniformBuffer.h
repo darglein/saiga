@@ -66,7 +66,7 @@ public:
      * in multiple shaders with one init() call.
      * @param shader
      */
-    void init(Shader* shader, GLuint location);
+    void init(std::shared_ptr<Shader>  shader, GLuint location);
 
 
     friend std::ostream& operator<<(std::ostream& os, const UniformBuffer& ub);

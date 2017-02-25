@@ -25,7 +25,7 @@ public:
 
     SpotLight();
     virtual ~SpotLight(){}
-    void bindUniforms(SpotLightShader& shader, Camera *cam);
+    void bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *cam);
 
 
     void setRadius(float value) override;

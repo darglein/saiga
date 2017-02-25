@@ -26,18 +26,18 @@ void BoxLight::createShadowMap(int resX, int resY){
 
 
 
-void BoxLight::bindUniforms(BoxLightShader &shader, Camera *cam){
-    shader.uploadColorDiffuse(colorDiffuse);
-    shader.uploadColorSpecular(colorSpecular);
-    shader.uploadAmbientIntensity(ambientIntensity);
-    shader.uploadModel(model);
+void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam){
+    shader->uploadColorDiffuse(colorDiffuse);
+    shader->uploadColorSpecular(colorSpecular);
+    shader->uploadAmbientIntensity(ambientIntensity);
+    shader->uploadModel(model);
 
 //    vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
     vec3 viewd = -glm::normalize(vec3(cam->view*model[2]));
-    shader.uploadDirection(viewd);
+    shader->uploadDirection(viewd);
 
     mat4 ip = glm::inverse(cam->proj);
-    shader.uploadInvProj(ip);
+    shader->uploadInvProj(ip);
 
     if(this->hasShadows()){
         const mat4 biasMatrix(
@@ -48,10 +48,10 @@ void BoxLight::bindUniforms(BoxLightShader &shader, Camera *cam){
                     );
 
         mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
-        shader.uploadDepthBiasMV(shadow);
+        shader->uploadDepthBiasMV(shadow);
 
-        shader.uploadDepthTexture(shadowmap.depthTexture);
-        shader.uploadShadowMapSize(shadowmap.w,shadowmap.h);
+        shader->uploadDepthTexture(shadowmap.depthTexture);
+        shader->uploadShadowMapSize(shadowmap.w,shadowmap.h);
     }
 
 }

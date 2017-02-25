@@ -120,7 +120,7 @@ public:
     SSAO ssao;
     SMAA smaa;
 
-    MVPTextureShader* blitDepthShader;
+    std::shared_ptr<MVPTextureShader>  blitDepthShader;
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
 

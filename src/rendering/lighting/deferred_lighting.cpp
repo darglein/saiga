@@ -262,19 +262,19 @@ void DeferredLighting::render(Camera* cam){
     assert_no_glerror();
     startTimer(1);
     for(auto& l : pointLights){
-        renderLightVolume< std::shared_ptr<PointLight> ,PointLightShader>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader);
+        renderLightVolume< std::shared_ptr<PointLight> ,std::shared_ptr<PointLightShader>>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader);
     }
     stopTimer(1);
 
     startTimer(2);
     for(auto& l : spotLights){
-        renderLightVolume< std::shared_ptr<SpotLight> ,SpotLightShader>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader);
+        renderLightVolume< std::shared_ptr<SpotLight> ,std::shared_ptr<SpotLightShader>>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader);
     }
     stopTimer(2);
 
     startTimer(3);
     for(auto& l : boxLights){
-        renderLightVolume< std::shared_ptr<BoxLight> ,BoxLightShader>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader);
+        renderLightVolume< std::shared_ptr<BoxLight> ,std::shared_ptr<BoxLightShader>>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader);
     }
     stopTimer(3);
     assert_no_glerror();
@@ -366,7 +366,7 @@ void DeferredLighting::setupLightPass(){
 
 void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
 
-    DirectionalLightShader* shader = (shadow)?directionalLightShadowShader:directionalLightShader;
+    std::shared_ptr<DirectionalLightShader>  shader = (shadow)?directionalLightShadowShader:directionalLightShader;
 
     shader->bind();
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
@@ -501,32 +501,32 @@ void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
     glClear( GL_COLOR_BUFFER_BIT );
 }
 
-void DeferredLighting::setShader(SpotLightShader* spotLightShader, SpotLightShader* spotLightShadowShader){
+void DeferredLighting::setShader(std::shared_ptr<SpotLightShader>  spotLightShader, std::shared_ptr<SpotLightShader>  spotLightShadowShader){
     this->spotLightShader = spotLightShader;
     this->spotLightShadowShader = spotLightShadowShader;
 }
 
-void DeferredLighting::setShader(PointLightShader* pointLightShader, PointLightShader *pointLightShadowShader){
+void DeferredLighting::setShader(std::shared_ptr<PointLightShader>  pointLightShader, std::shared_ptr<PointLightShader>  pointLightShadowShader){
     this->pointLightShader = pointLightShader;
     this->pointLightShadowShader = pointLightShadowShader;
 }
 
-void DeferredLighting::setShader(DirectionalLightShader* directionalLightShader, DirectionalLightShader *directionalLightShadowShader){
+void DeferredLighting::setShader(std::shared_ptr<DirectionalLightShader>  directionalLightShader, std::shared_ptr<DirectionalLightShader>  directionalLightShadowShader){
     this->directionalLightShader = directionalLightShader;
     this->directionalLightShadowShader = directionalLightShadowShader;
 }
 
-void DeferredLighting::setShader(BoxLightShader *boxLightShader, BoxLightShader *boxLightShadowShader)
+void DeferredLighting::setShader(std::shared_ptr<BoxLightShader>  boxLightShader, std::shared_ptr<BoxLightShader>  boxLightShadowShader)
 {
     this->boxLightShader = boxLightShader;
     this->boxLightShadowShader = boxLightShadowShader;
 }
 
-void DeferredLighting::setDebugShader(MVPColorShader *shader){
+void DeferredLighting::setDebugShader(std::shared_ptr<MVPColorShader>  shader){
     this->debugShader = shader;
 }
 
-void DeferredLighting::setStencilShader(MVPShader* stencilShader){
+void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader){
     this->stencilShader = stencilShader;
 }
 

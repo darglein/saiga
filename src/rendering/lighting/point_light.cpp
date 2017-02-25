@@ -116,18 +116,18 @@ void PointLight::setRadius(float value)
     this->setScale(vec3(radius));
 }
 
-void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
+void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *cam){
 
     //    LightMesh::bindUniforms();
-    shader.uploadColorDiffuse(colorDiffuse);
-    shader.uploadColorSpecular(colorSpecular);
-    shader.uploadModel(model);
-    shader.upload(sphere.pos,radius);
-    shader.upload(attenuation);
-    shader.uploadShadowPlanes(this->cam.zFar,this->cam.zNear);
+    shader->uploadColorDiffuse(colorDiffuse);
+    shader->uploadColorSpecular(colorSpecular);
+    shader->uploadModel(model);
+    shader->upload(sphere.pos,radius);
+    shader->upload(attenuation);
+    shader->uploadShadowPlanes(this->cam.zFar,this->cam.zNear);
 
     mat4 ip = glm::inverse(cam->proj);
-    shader.uploadInvProj(ip);
+    shader->uploadInvProj(ip);
 
     if(this->hasShadows()){
 
@@ -140,10 +140,10 @@ void PointLight::bindUniforms(PointLightShader &shader, Camera *cam){
                     );
 
         mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
-        shader.uploadDepthBiasMV(shadow);
+        shader->uploadDepthBiasMV(shadow);
 
-        shader.uploadDepthTexture(shadowmap.depthTexture);
-        shader.uploadShadowMapSize(shadowmap.w,shadowmap.h);
+        shader->uploadDepthTexture(shadowmap.depthTexture);
+        shader->uploadShadowMapSize(shadowmap.w,shadowmap.h);
     }
 
     assert_no_glerror();

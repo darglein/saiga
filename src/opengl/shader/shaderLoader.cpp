@@ -1,7 +1,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 
 
-Shader* ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params){
+std::shared_ptr<Shader> ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params){
 	(void )params; 
 	cout << "fail ShaderLoader::loadFromFile "<<name << endl;
 	
@@ -26,7 +26,7 @@ void ShaderLoader::reload(){
 
 }
 
-bool ShaderLoader::reload(Shader *shader, const std::string &name, const ShaderPart::ShaderCodeInjections &sci)
+bool ShaderLoader::reload(std::shared_ptr<Shader> shader, const std::string &name, const ShaderPart::ShaderCodeInjections &sci)
 {
     ShaderPartLoader spl(name,sci);
     if(spl.load()){

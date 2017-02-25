@@ -20,8 +20,8 @@ public:
     static float ticksPerSecond;
 private:
 
-    ParticleShader* particleShader;
-    DeferredParticleShader* deferredParticleShader;
+    std::shared_ptr<ParticleShader>  particleShader;
+    std::shared_ptr<DeferredParticleShader>  deferredParticleShader;
 
     VertexBuffer<Particle> particleBuffer;
     std::vector<Particle> particles;

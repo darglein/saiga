@@ -3,7 +3,7 @@
 
 void TexturedAsset::render(Camera *cam, const mat4 &model)
 {
-    MVPTextureShader* tshader = static_cast<MVPTextureShader*>(this->shader);
+    auto tshader = std::static_pointer_cast<MVPTextureShader>(this->shader);
     tshader->bind();
     tshader->uploadModel(model);
 
@@ -24,7 +24,7 @@ void TexturedAsset::render(Camera *cam, const mat4 &model)
 
 void TexturedAsset::renderDepth(Camera *cam, const mat4 &model)
 {
-    MVPTextureShader* dshader = static_cast<MVPTextureShader*>(this->depthshader);
+    auto dshader = std::static_pointer_cast<MVPTextureShader>(this->depthshader);
 
     dshader->bind();
     dshader->uploadModel(model);

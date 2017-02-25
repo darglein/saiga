@@ -58,7 +58,7 @@ private:
 
 public:
 
-    MVPColorShader* shader;
+    std::shared_ptr<MVPColorShader>  shader;
 
     VertexBuffer<Vertex> borderBuffer;
 

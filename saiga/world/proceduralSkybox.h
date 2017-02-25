@@ -25,7 +25,7 @@ public:
     float distance = 200;
 
     IndexedVertexBuffer<VertexNT,GLuint> mesh;
-    ProceduralSkyboxShader* shader;
+    std::shared_ptr<ProceduralSkyboxShader>  shader;
     mat4 model;
 
     ProceduralSkybox();
