@@ -1,7 +1,7 @@
 #include "saiga/util/crash.h"
 #include "saiga/util/assert.h"
 
-#include <iostream>
+
 
 std::function<void()> customCrashHandler;
 

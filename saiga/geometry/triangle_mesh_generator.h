@@ -5,7 +5,7 @@
 #include "saiga/geometry/plane.h"
 #include "saiga/geometry/cone.h"
 
-#include <memory>
+
 
 class SAIGA_GLOBAL TriangleMeshGenerator
 {

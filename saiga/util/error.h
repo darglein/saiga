@@ -1,8 +1,8 @@
 #pragma once
 
 #include <saiga/opengl/opengl.h>
-#include <string>
-#include <iostream>
+
+
 #include <cstdlib>
 #include "saiga/util/assert.h"
 /*

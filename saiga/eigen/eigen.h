@@ -17,6 +17,7 @@ typedef Eigen::Quaternion<float,EIGEN_MATRIX_OPTIONS> quat_t;
 typedef Eigen::Matrix<double,2,1,EIGEN_MATRIX_OPTIONS> vec2d_t;
 typedef Eigen::Matrix<double,3,1,EIGEN_MATRIX_OPTIONS> vec3d_t;
 typedef Eigen::Matrix<double,4,1,EIGEN_MATRIX_OPTIONS> vec4d_t;
+typedef Eigen::Matrix<double,2,2,EIGEN_MATRIX_OPTIONS> mat2d_t;
 typedef Eigen::Matrix<double,3,3,EIGEN_MATRIX_OPTIONS> mat3d_t;
 typedef Eigen::Matrix<double,4,4,EIGEN_MATRIX_OPTIONS> mat4d_t;
 typedef Eigen::Quaternion<double,EIGEN_MATRIX_OPTIONS> quatd_t;

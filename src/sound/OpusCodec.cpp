@@ -5,9 +5,9 @@
 #include "saiga/sound/OpusCodec.h"
 #include <vector>
 #include <iomanip>
-#include <memory>
+
 #include <sstream>
-#include <iostream>
+
 
 #ifdef SAIGA_USE_OPUS
 

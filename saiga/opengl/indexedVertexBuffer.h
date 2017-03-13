@@ -3,7 +3,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/vertexBuffer.h"
 #include "saiga/opengl/indexBuffer.h"
-#include <iostream>
+
 
 
 template<class vertex_t, class index_t>

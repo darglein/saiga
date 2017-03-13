@@ -2,7 +2,7 @@
 
 #include "saiga/util/glm.h"
 #include "saiga/opengl/texture/image.h"
-#include <memory>
+
 
 class SAIGA_GLOBAL ImageGenerator{
 public:

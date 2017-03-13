@@ -1,5 +1,5 @@
 #include "saiga/opengl/opengl.h"
-#include <iostream>
+
 #include <algorithm>
 #include "saiga/util/assert.h"
 

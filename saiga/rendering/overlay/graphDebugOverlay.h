@@ -6,6 +6,7 @@
 #include "saiga/rendering/object3d.h"
 #include <vector>
 
+
 class MVPColorShader;
 
 class SAIGA_GLOBAL GraphDebugOverlay: public Object3D {

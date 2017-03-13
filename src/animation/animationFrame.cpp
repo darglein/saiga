@@ -1,6 +1,6 @@
 #include "saiga/animation/animationFrame.h"
 #include "saiga/animation/animation.h"
-#include <iostream>
+
 #include "saiga/util/assert.h"
 
 using std::cout;

@@ -4,7 +4,7 @@
 #include "saiga/util/glm.h"
 
 #include <vector>
-#include <memory>
+
 
 class TextShader;
 class Text;

@@ -9,7 +9,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
-#include <iostream>
+
 #ifdef SAIGA_USE_SDL
 // SDL
 #include <SDL.h>

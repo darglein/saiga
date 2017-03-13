@@ -2,7 +2,7 @@
 
 #include <saiga/config.h>
 #include <SDL2/SDL.h>
-#include <iostream>
+
 #include <vector>
 #include "saiga/sdl/sdl_listener.h"
 #include <saiga/util/keyboard.h>

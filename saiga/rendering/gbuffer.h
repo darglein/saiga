@@ -1,6 +1,6 @@
 #pragma once
 
-#include <memory>
+
 
 #include "saiga/util/quality.h"
 #include "saiga/opengl/framebuffer.h"

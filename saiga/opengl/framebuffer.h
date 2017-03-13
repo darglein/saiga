@@ -3,9 +3,9 @@
 
 #include "saiga/opengl/opengl.h"
 
-#include <iostream>
+
 #include <vector>
-#include <memory>
+
 
 #include "saiga/opengl/texture/texture.h"
 

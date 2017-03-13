@@ -56,4 +56,7 @@
 //don't use any specifiers on templates
 #define SAIGA_TEMPLATE
 
-
+//includes that are used for everything
+#include <string>
+#include <iostream>
+#include <memory>

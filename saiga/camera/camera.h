@@ -6,8 +6,8 @@
 #include <saiga/geometry/plane.h>
 #include <saiga/opengl/uniformBuffer.h>
 
-#include <string>
-#include <iostream>
+
+
 
 using std::string;
 

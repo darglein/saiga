@@ -1,6 +1,6 @@
 #include "saiga/opengl/texture/image.h"
 #include <cstring>
-#include <iostream>
+
 #include "saiga/util/assert.h"
 
 

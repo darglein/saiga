@@ -2,7 +2,7 @@
 
 #include "saiga/config.h"
 #include "saiga/rendering/object3d.h"
-#include <memory>
+
 
 class Asset;
 class Camera;

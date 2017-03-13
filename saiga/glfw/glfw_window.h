@@ -6,9 +6,9 @@
 #include "saiga/glfw/glfw_joystick.h"
 
 #include <array>
-#include <string>
+
 #include <mutex>
-#include <memory>
+
 #include <list>
 #include <thread>
 

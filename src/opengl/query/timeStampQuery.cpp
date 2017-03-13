@@ -1,5 +1,5 @@
 #include "saiga/opengl/query/timeStampQuery.h"
-#include <iostream>
+
 
 TimeStampQuery::TimeStampQuery()
 {

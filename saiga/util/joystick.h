@@ -2,7 +2,7 @@
 #pragma once
 
 #include <saiga/util/keyboard.h>
-#include <string>
+
 #include <map>
 #include <vector>
 #include <saiga/config.h>

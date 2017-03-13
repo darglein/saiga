@@ -3,7 +3,7 @@
 #include "saiga/config.h"
 #include "saiga/time/time.h"
 #include <vector>
-#include <string>
+
 
 #ifdef WIN32
 #if _MSC_VER >= 1900 //VS2015 and newer

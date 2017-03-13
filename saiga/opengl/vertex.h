@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
 #include "saiga/opengl/vertexBuffer.h"

@@ -12,7 +12,7 @@
 #include <GLFW/glfw3.h>
 
 #include <saiga/imgui/imgui.h>
-#include <iostream>
+
 
 #ifdef _WIN32
 #undef APIENTRY

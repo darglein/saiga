@@ -2,9 +2,6 @@
 
 #include <saiga/config.h>
 
-#include <string>
-#include <iostream>
-
 //#define GLM_USE_SSE
 
 #define GLM_FORCE_RADIANS

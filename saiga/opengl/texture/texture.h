@@ -2,7 +2,7 @@
 
 #include "saiga/opengl/texture/raw_texture.h"
 
-#include <string>
+
 
 class SAIGA_GLOBAL basic_Texture_2D : public raw_Texture{
 public:

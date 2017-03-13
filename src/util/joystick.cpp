@@ -1,7 +1,7 @@
 #include "saiga/util/joystick.h"
 #include "saiga/util/assert.h"
 #include "saiga/util/glm.h"
-#include <iostream>
+
 Joystick2 joystick;
 
 Joystick2::Joystick2() : Keyboard(100)

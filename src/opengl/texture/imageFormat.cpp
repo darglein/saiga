@@ -1,7 +1,7 @@
 #include "saiga/opengl/texture/imageFormat.h"
 #include "saiga/opengl/texture/templatedImage.h"
 #include "saiga/util/assert.h"
-#include <iostream>
+
 
 void asksdfkg(){
     Texel<2,8,ImageElementFormat::SignedIntegral> t;

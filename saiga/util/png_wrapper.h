@@ -14,7 +14,7 @@
 
 
 #include <png.h>
-#include <iostream>
+
 #include <vector>
 
 typedef unsigned char uchar;

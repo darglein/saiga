@@ -3,6 +3,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/opengl/texture/image.h"
 
+
 class SAIGA_GLOBAL raw_Texture{
 
 protected:

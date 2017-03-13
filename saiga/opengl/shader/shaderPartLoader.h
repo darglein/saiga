@@ -6,7 +6,7 @@
 #include "saiga/util/fileChecker.h"
 
 #include <vector>
-#include <memory> //for shared pointer
+ //for shared pointer
 
 
 class Shader;

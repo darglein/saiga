@@ -1,7 +1,7 @@
 #pragma once
 
 #include "saiga/util/ringBuffer.h"
-#include <iostream>
+
 #include <condition_variable>
 #include <mutex>
 

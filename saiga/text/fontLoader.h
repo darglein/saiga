@@ -5,7 +5,7 @@
 #include "saiga/opengl/texture/image.h"
 #include "saiga/text/encoding.h"
 
-#include <iostream>
+
 #include <vector>
 
 struct FT_FaceRec_;

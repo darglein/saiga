@@ -4,8 +4,8 @@
 #include "saiga/opengl/texture/image.h"
 #include "saiga/time/timer.h"
 #include "saiga/util/synchronizedBuffer.h"
-#include <string>
-#include <iostream>
+
+
 #include <fstream>
 #include <thread>
 

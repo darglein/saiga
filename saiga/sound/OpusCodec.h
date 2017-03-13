@@ -3,9 +3,10 @@
 // Based on src/opus_demo.c in opus-1.0.2
 // License see http://www.opus-codec.org/license/
 #include <stdexcept>
-#include <memory>
+
 #include <iosfwd>
 #include <vector>
+#include <memory>
 
 struct OpusErrorException : public virtual std::exception
 {

@@ -4,7 +4,7 @@
 #include "saiga/rendering/object3d.h"
 #include "saiga/geometry/triangle_mesh.h"
 
-#include <iostream>
+
 #include <cstdint>
 
 typedef std::vector<uint32_t> utf32string;

@@ -2,7 +2,7 @@
 
 #include "saiga/sound/SoundLoader.h"
 #include "saiga/sound/SoundSource.h"
-#include <iostream>
+
 
 #include <AL/al.h>
 #include <AL/alc.h>

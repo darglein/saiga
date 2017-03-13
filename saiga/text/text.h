@@ -5,7 +5,7 @@
 #include "saiga/rendering/object3d.h"
 #include "saiga/geometry/triangle_mesh.h"
 
-#include <iostream>
+
 
 class TextShader;
 class TextureAtlas;

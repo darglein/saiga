@@ -1,6 +1,6 @@
 #include "saiga/util/assert.h"
 
-#include <iostream>
+
 #include <csignal>
 
 void saiga_assert_fail (const char *__assertion, const char *__file,

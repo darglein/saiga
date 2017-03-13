@@ -6,7 +6,7 @@
 #include "saiga/geometry/aabb.h"
 #include "saiga/text/fontLoader.h"
 #include "saiga/opengl/texture/texture.h"
-#include <iostream>
+
 #include <map>
 
 

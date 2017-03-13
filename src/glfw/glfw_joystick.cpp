@@ -1,6 +1,6 @@
 #include "saiga/glfw/glfw_joystick.h"
 #include <GLFW/glfw3.h>
-#include <iostream>
+
 #include "saiga/util/assert.h"
 #include "saiga/glfw/glfw_eventhandler.h"
 

@@ -1,5 +1,5 @@
 #include "saiga/util/translator.h"
-#include <iostream>
+
 #include <fstream>
 #include <algorithm>
 #include "saiga/util/assert.h"
