@@ -2,6 +2,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/SVD>
+#include <Eigen/Eigen>
 
 //Note: The DontAlign option disables all vectorisation.
 
