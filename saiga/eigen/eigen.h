@@ -9,6 +9,7 @@
 typedef Eigen::Matrix<float,2,1,EIGEN_MATRIX_OPTIONS> vec2_t;
 typedef Eigen::Matrix<float,3,1,EIGEN_MATRIX_OPTIONS> vec3_t;
 typedef Eigen::Matrix<float,4,1,EIGEN_MATRIX_OPTIONS> vec4_t;
+typedef Eigen::Matrix<float,2,2,EIGEN_MATRIX_OPTIONS> mat2_t;
 typedef Eigen::Matrix<float,3,3,EIGEN_MATRIX_OPTIONS> mat3_t;
 typedef Eigen::Matrix<float,4,4,EIGEN_MATRIX_OPTIONS> mat4_t;
 typedef Eigen::Quaternion<float,EIGEN_MATRIX_OPTIONS> quat_t;
