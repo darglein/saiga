@@ -68,6 +68,7 @@ private:
     void stopTimer(int timer){if(useTimers)timers2[timer].stopTimer();}
 	float getTime(int timer) { if (!useTimers) return 0; return timers2[timer].getTimeMS(); }
 public:
+    vec4 clearColor = vec4(0);
     int totalLights;
     int visibleLights;
     int renderedDepthmaps;

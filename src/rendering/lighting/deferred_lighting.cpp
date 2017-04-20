@@ -232,7 +232,11 @@ void DeferredLighting::render(Camera* cam){
 
     lightAccumulationBuffer.bind();
 
-    blitGbufferDepthToAccumulationBuffer();
+//    glClearColor(0,0,0,0);
+    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+    glClear( GL_COLOR_BUFFER_BIT );
+
+//    blitGbufferDepthToAccumulationBuffer();
 
 
 
@@ -497,8 +501,8 @@ void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
     //    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, lightAccumulationBuffer.getId());
     //    glBlitFramebuffer(0, 0, gbuffer.getTextureDepth()->getWidth(), gbuffer.getTextureDepth()->getHeight(), 0, 0, gbuffer.getTextureDepth()->getWidth(), gbuffer.getTextureDepth()->getHeight(),GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 
-    glClearColor(0,0,0,0);
-    glClear( GL_COLOR_BUFFER_BIT );
+//    glClearColor(0,0,0,0);
+//    glClear( GL_COLOR_BUFFER_BIT );
 }
 
 void DeferredLighting::setShader(std::shared_ptr<SpotLightShader>  spotLightShader, std::shared_ptr<SpotLightShader>  spotLightShadowShader){

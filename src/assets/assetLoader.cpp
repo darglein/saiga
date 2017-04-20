@@ -92,8 +92,24 @@ std::shared_ptr<ColoredAsset> AssetLoader2::loadDebugArrow(float radius, float l
 
     for(auto& v : asset->mesh.vertices){
         v.color = color;
+        v.data = vec4(0.5,0,0,0);
     }
 
     asset->create("Arrow",basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader);
+    return asset;
+}
+
+std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(std::shared_ptr<TriangleMesh<VertexNT, GLuint> > mesh, const vec4 &color)
+{
+
+    auto asset = std::make_shared<ColoredAsset>();
+    asset->mesh.addMesh(*mesh);
+
+    for(auto& v : asset->mesh.vertices){
+        v.color = color;
+        v.data = vec4(0.5,0,0,0);
+    }
+
+    asset->create("Fromsdfg",basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
 }

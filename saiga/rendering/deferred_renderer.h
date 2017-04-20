@@ -54,6 +54,9 @@ struct SAIGA_GLOBAL RenderingParameters{
     bool useSMAA = false;
     SMAA::Quality smaaQuality = SMAA::Quality::SMAA_PRESET_HIGH;
 
+    vec4 gbufferClearColor = vec4(0,0,0,0);
+    vec4 lightingClearColor = vec4(0,0,0,0);
+
     int shadowSamples = 16;
 
     GBufferParameters gbp;
@@ -109,7 +112,6 @@ public:
     bool offsetGeometry = false;
     float offsetFactor = 1.0f, offsetUnits = 1.0f;
 
-    vec4 clearColor = vec4(0,0,0,0);
 
 
     int windowWidth, windowHeight;

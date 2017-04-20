@@ -65,6 +65,7 @@ void DeferredDebugOverlay::setScreenPosition(GbufferTexture *gbt, int id)
 }
 
 void DeferredDebugOverlay::render(){
+    glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     shader->bind();
 
@@ -96,9 +97,6 @@ void DeferredDebugOverlay::render(){
     buffer.bindAndDraw();
 
     depthShader->unbind();
-    glEnable(GL_BLEND);
-
-
 }
 
 void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer *gbuffer, std::shared_ptr<raw_Texture> light)

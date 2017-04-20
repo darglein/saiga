@@ -3,7 +3,6 @@
 
 TimeStampQuery::TimeStampQuery()
 {
-	//std::cout << "queeerryyyyyyyyyyyyyyy ......................." << std::endl;
 }
 
 TimeStampQuery::~TimeStampQuery()
@@ -28,14 +27,14 @@ void TimeStampQuery::record()
 
 bool TimeStampQuery::isAvailable()
 {
-    GLint res;
+    GLint res = 0;
     glGetQueryObjectiv(id,GL_QUERY_RESULT_AVAILABLE,&res);
     return res!=0;
 }
 
 GLuint64 TimeStampQuery::getTimestamp()
 {
-    GLuint64 time;
+    GLuint64 time = 0;
     glGetQueryObjectui64v(id, GL_QUERY_RESULT, &time);
     return time;
 }

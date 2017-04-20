@@ -4,6 +4,7 @@
 ##GL_FRAGMENT_SHADER
 #version 330
 
+#include "camera.glsl"
 #include "post_processing_helper_fs.glsl"
 
 

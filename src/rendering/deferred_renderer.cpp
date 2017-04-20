@@ -46,6 +46,7 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 
     lighting.init(width, height, params.useGPUTimers);
     lighting.shadowSamples = params.shadowSamples;
+    lighting.clearColor = params.lightingClearColor;
     lighting.loadShaders();
 
     lighting.ssaoTexture = ssao.bluredTexture;
@@ -256,7 +257,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam) {
 
     gbuffer.bind();
     glViewport(0, 0, width, height);
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+    glClearColor(params.gbufferClearColor.x, params.gbufferClearColor.y, params.gbufferClearColor.z, params.gbufferClearColor.w);
 
     if (params.maskUsedPixels) {
         glClearStencil(0xFF); //sets stencil buffer to 255

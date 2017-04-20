@@ -8,7 +8,7 @@ layout(location=1) in vec3 in_normal;
 layout(location=2) in vec2 in_tex;
 
 uniform mat4 model;
-
+#include "camera.glsl"
 
 out vec2 texCoord;
 
