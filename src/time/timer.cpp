@@ -129,12 +129,12 @@ double AverageTimer::getMaximumTimeMS()
     return std::chrono::duration_cast<std::chrono::duration<double,std::milli>> (maximum).count();
 }
 
-ScopedTimer::ScopedTimer(const std::string &name) : name(name)
+ScopedTimerPrint::ScopedTimerPrint(const std::string &name) : name(name)
 {
     start();
 }
 
-ScopedTimer::~ScopedTimer()
+ScopedTimerPrint::~ScopedTimerPrint()
 {
     stop();
     auto time = getTimeMS();

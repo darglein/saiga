@@ -74,9 +74,25 @@ protected:
     int number;
 };
 
-class SAIGA_GLOBAL ScopedTimer : public Timer{
+class SAIGA_GLOBAL ScopedTimerPrint : public Timer{
 public:
     std::string name;
-    ScopedTimer(const std::string &name);
-    ~ScopedTimer();
+    ScopedTimerPrint(const std::string &name);
+    ~ScopedTimerPrint();
+};
+
+
+template<typename T>
+class SAIGA_GLOBAL ScopedTimer : public Timer{
+public:
+    T* target;
+    ScopedTimer(T* target) : target(target){
+        start();
+    }
+
+    ~ScopedTimer(){
+        stop();
+        T time = static_cast<T>(getTimeMS());
+        *target = time;
+    }
 };

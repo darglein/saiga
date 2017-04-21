@@ -67,7 +67,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
     mesh->vertices.push_back(VertexNT(vec3(-t,  0,  1),vec3(),vec2()));
 
     for(VertexNT &v : mesh->vertices){
-        v.position = glm::normalize(v.position);
+        v.position = vec4(glm::normalize( vec3(v.position) ),1);
         v.normal = v.position;
     }
 
@@ -103,7 +103,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
         }
 
         for(VertexNT &v : mesh->vertices){
-            v.position = glm::normalize(v.position);
+            v.position = vec4(glm::normalize( vec3(v.position) ),1);
             v.normal = v.position;
         }
     }
