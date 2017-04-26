@@ -1,5 +1,7 @@
 #pragma once
 
+#define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
+
 #include <Eigen/Core>
 #include <Eigen/SVD>
 #include <Eigen/Eigen>
