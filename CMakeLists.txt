@@ -29,7 +29,7 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -pedantic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long")
 endif()
 
 
@@ -184,6 +184,56 @@ if(EIGEN_FOUND)
 	SET(SAIGA_USE_EIGEN 1)
 endif()
 
+
+############# CUDA ###############
+
+find_package(CUDA QUIET)
+if(CUDA_FOUND)
+	include_directories(${CUDA_INCLUDE_DIRS})
+	SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES} ${CUDA_cusparse_LIBRARY} ${CUDA_cublas_LIBRARY})
+	SET(LIBS ${LIBS} ${ALL_CUDA_LIBS})
+	message(STATUS "CUDA_LIBRARIES: ${CUDA_INCLUDE_DIRS} ${ALL_CUDA_LIBS}")
+
+	#set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+	set(CUDA_PROPAGATE_HOST_FLAGS ON)
+	set(CUDA_SEPARABLE_COMPILATION OFF)
+
+	list( APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=compute_30 )
+	list( APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_52,code=sm_52 )
+
+	list( APPEND CUDA_NVCC_FLAGS -use_fast_math)
+
+	#disables an eigen warning
+	list( APPEND CUDA_NVCC_FLAGS --expt-relaxed-constexpr)
+
+	if(BUILD_SHARED)
+	      set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS)
+	endif()
+
+	if(UNIX)
+	      set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xcompiler -fPIC)
+	endif()
+
+	SET(SAIGA_USE_CUDA 1)
+endif()
+
+
+
+
+
+#my laptop only supports Compute capabilities 3.0
+
+#for the frontlab sm_52 is enough
+
+
+
+
+
+
+message(STATUS "NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
+message(STATUS "CUDA_LIBRARIES: ${CUDA_LIBRARIES}")
+
+
 ############# Required LIBRARIES ###############
 
 #freetype2
@@ -232,7 +282,8 @@ endif()
 
 
 if(UNIX)
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden")
+#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden")
 endif(UNIX)
 
 

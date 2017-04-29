@@ -1,0 +1,8 @@
+saiga
+src
+shader
+/usr/include/eigen3
+.
+/usr/local/cuda/include
+saiga/cuda
+src/cuda

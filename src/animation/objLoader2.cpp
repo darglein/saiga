@@ -113,15 +113,15 @@ void ObjLoader2::createVertexIndexList()
 
             VertexNT verte;
             if(vert>=0){
-                SAIGA_ASSERT(vert < vertices.size());
+                SAIGA_ASSERT(vert < (int)vertices.size());
                 verte.position = vec4(vertices[vert],1);
             }
             if(norm>=0){
-                SAIGA_ASSERT(norm < normals.size());
+                SAIGA_ASSERT(norm < (int)normals.size());
                 verte.normal = vec4(normals[norm],0);
             }
             if(tex>=0){
-                SAIGA_ASSERT(tex < texCoords.size());
+                SAIGA_ASSERT(tex < (int)texCoords.size());
                 verte.texture = texCoords[tex];
             }
 

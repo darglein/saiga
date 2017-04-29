@@ -13,43 +13,43 @@ FFMPEGEncoder::FFMPEGEncoder(int bufferSize) : imageStorage(bufferSize + 1), ima
     avcodec_register_all();
     av_register_all();
 }
- 
-void FFMPEGEncoder::scaleThreadFunc(){
-	while (running){
-		scaleFrame();
-	}
-	while (scaleFrame()){
 
-	}
-	finishScale = true;
+void FFMPEGEncoder::scaleThreadFunc(){
+    while (running){
+        scaleFrame();
+    }
+    while (scaleFrame()){
+
+    }
+    finishScale = true;
 }
 
 bool FFMPEGEncoder::scaleFrame()
 {
-	std::shared_ptr<Image> image;
-	if (!imageQueue.tryGet(image)){
-		return false;
-	}
-	AVFrame *frame = frameStorage.get();
-	scaleFrame(image, frame);
-	imageStorage.add(image);
-	frameQueue.add(frame);
-	return true;
+    std::shared_ptr<Image> image;
+    if (!imageQueue.tryGet(image)){
+        return false;
+    }
+    AVFrame *frame = frameStorage.get();
+    scaleFrame(image, frame);
+    imageStorage.add(image);
+    frameQueue.add(frame);
+    return true;
 }
 
 void FFMPEGEncoder::scaleFrame(std::shared_ptr<Image> image, AVFrame *frame)
 {
 
-	uint8_t * inData[1] = { image->getRawData() }; // RGB24 have one plane
-	int inLinesize[1] = { image->getBytesPerRow() }; // RGB stride
+    uint8_t * inData[1] = { image->getRawData() }; // RGB24 have one plane
+    int inLinesize[1] = { image->getBytesPerRow() }; // RGB stride
 
-	//flip
-	if (true) {
-		inData[0] += inLinesize[0] * (image->height - 1);
-		inLinesize[0] = -inLinesize[0];
-	}
+    //flip
+    if (true) {
+        inData[0] += inLinesize[0] * (image->height - 1);
+        inLinesize[0] = -inLinesize[0];
+    }
 
-	sws_scale(ctx, inData, inLinesize, 0, image->height, frame->data, frame->linesize);
+    sws_scale(ctx, inData, inLinesize, 0, image->height, frame->data, frame->linesize);
     frame->pts = getNextFramePts();
 }
 
@@ -58,39 +58,39 @@ int64_t FFMPEGEncoder::getNextFramePts(){
 }
 
 void FFMPEGEncoder::encodeThreadFunc(){
-	while (!finishScale){
-		encodeFrame();
-	}
-	while (encodeFrame()){
+    while (!finishScale){
+        encodeFrame();
+    }
+    while (encodeFrame()){
 
-	}
-	finishEncode = true;
+    }
+    finishEncode = true;
 }
 
 bool FFMPEGEncoder::encodeFrame()
 {
-	AVFrame *frame;
-	if (!frameQueue.tryGet(frame)){
-		return false;
-	}
+    AVFrame *frame;
+    if (!frameQueue.tryGet(frame)){
+        return false;
+    }
     AVPacket _pkt;
-	bool hasOutput = encodeFrame(frame, _pkt);
-	if (hasOutput){
-		//        cout << "write frame " << frame->pts << " " << pkt.pts << endl;
-		writeFrame(_pkt);
-	}
-	frameStorage.add(frame);
-	finishedFrames++;
-	return true;
+    bool hasOutput = encodeFrame(frame, _pkt);
+    if (hasOutput){
+        //        cout << "write frame " << frame->pts << " " << pkt.pts << endl;
+        writeFrame(_pkt);
+    }
+    frameStorage.add(frame);
+    finishedFrames++;
+    return true;
 }
 
 bool FFMPEGEncoder::encodeFrame(AVFrame *frame, AVPacket& pkt)
 {
 
-	/* encode the image */
+    /* encode the image */
     av_init_packet(&pkt);
-	pkt.data = NULL;    // packet data will be allocated by the encoder
-	pkt.size = 0;
+    pkt.data = NULL;    // packet data will be allocated by the encoder
+    pkt.size = 0;
 
 //    packet.data = outbuf;
 //    packet.size = numBytes;
@@ -99,22 +99,22 @@ bool FFMPEGEncoder::encodeFrame(AVFrame *frame, AVPacket& pkt)
 //    packet.pts = packet.dts = pts;
 //    m_codecContext->coded_frame->pts = pts;
 
-	int got_output;
+    int got_output;
 //	int ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
     int ret = avcodec_encode_video2(m_codecContext, &pkt, frame, &got_output);
 
-	if (ret < 0) {
-		fprintf(stderr, "Error encoding frame\n");
-		exit(1);
-	}
-	return got_output;
+    if (ret < 0) {
+        fprintf(stderr, "Error encoding frame\n");
+        exit(1);
+    }
+    return got_output;
 }
 
 void FFMPEGEncoder::writeFrame(AVPacket& pkt)
 {
-	//    cout << "Write frame "<<pkt.pts << "(size="<<pkt.size<<")"<<endl;
+    //    cout << "Write frame "<<pkt.pts << "(size="<<pkt.size<<")"<<endl;
 //	outputStream.write((const char*)pkt.data, pkt.size);
-	//fwrite(pkt.data, 1, pkt.size, f);
+    //fwrite(pkt.data, 1, pkt.size, f);
     av_interleaved_write_frame(m_formatCtx, &pkt);
 //    av_interleaved_write_frame(m_formatCtx, &packet);
     av_free_packet(&pkt);
@@ -123,24 +123,24 @@ void FFMPEGEncoder::writeFrame(AVPacket& pkt)
 void FFMPEGEncoder::addFrame(std::shared_ptr<Image> image)
 {
 
-	//    cout << "Add frame. Queue states: Scale="<<imageQueue.count()<<" Encode="<<frameQueue.count()<<endl;
-	imageQueue.add(image);
+    //    cout << "Add frame. Queue states: Scale="<<imageQueue.count()<<" Encode="<<frameQueue.count()<<endl;
+    imageQueue.add(image);
 
 
 }
 
 std::shared_ptr<Image> FFMPEGEncoder::getFrameBuffer()
 {
-	return imageStorage.get();
+    return imageStorage.get();
 }
 
 void FFMPEGEncoder::finishEncoding()
 {
-	std::cout << "finishEncoding()" << endl;
-	running = false;
+    std::cout << "finishEncoding()" << endl;
+    running = false;
 
-	scaleThread.join();
-	encodeThread.join();
+    scaleThread.join();
+    encodeThread.join();
 
     int got_packet_ptr = 1;
 
@@ -174,10 +174,10 @@ void FFMPEGEncoder::finishEncoding()
 
 void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate, AVCodecID videoCodecId)
 {
-	this->outWidth = outWidth;
-	this->outHeight = outHeight;
-	this->inWidth = inWidth;
-	this->inHeight = inHeight;
+    this->outWidth = outWidth;
+    this->outHeight = outHeight;
+    this->inWidth = inWidth;
+    this->inHeight = inHeight;
     int timeBase = outFps * 1000;
 
     AVOutputFormat *oformat = av_guess_format(NULL, filename.c_str(), NULL);
@@ -261,50 +261,50 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
 
 
     SAIGA_ASSERT(ctx == nullptr);
-	ctx = sws_getContext(inWidth, inHeight,
+    ctx = sws_getContext(inWidth, inHeight,
         AV_PIX_FMT_RGBA, m_codecContext->width, m_codecContext->height,
-		AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
+        AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
     SAIGA_ASSERT(ctx);
 
-	createBuffers();
-	running = true;
+    createBuffers();
+    running = true;
 
-	scaleThread = std::thread(&FFMPEGEncoder::scaleThreadFunc, this);
-	encodeThread = std::thread(&FFMPEGEncoder::encodeThreadFunc, this);
+    scaleThread = std::thread(&FFMPEGEncoder::scaleThreadFunc, this);
+    encodeThread = std::thread(&FFMPEGEncoder::encodeThreadFunc, this);
 
 }
 
 void FFMPEGEncoder::createBuffers()
 {
-	for (int i = 0; i < imageStorage.capacity; ++i){
-		std::shared_ptr<Image> img = std::make_shared<Image>();
-		img->width = inWidth;
-		img->height = inHeight;
+    for (int i = 0; i < imageStorage.capacity; ++i){
+        std::shared_ptr<Image> img = std::make_shared<Image>();
+        img->width = inWidth;
+        img->height = inHeight;
         img->Format() = ImageFormat(4, 8);
-		img->create();
-		imageStorage.add(img);
-	}
+        img->create();
+        imageStorage.add(img);
+    }
 
-	for (int i = 0; i < frameStorage.capacity; ++i){
-		AVFrame* frame = av_frame_alloc();
-		if (!frame) {
-			fprintf(stderr, "Could not allocate video frame\n");
-			exit(1);
-		}
+    for (int i = 0; i < frameStorage.capacity; ++i){
+        AVFrame* frame = av_frame_alloc();
+        if (!frame) {
+            fprintf(stderr, "Could not allocate video frame\n");
+            exit(1);
+        }
         frame->format = m_codecContext->pix_fmt;
         frame->width = m_codecContext->width;
         frame->height = m_codecContext->height;
 
-		/* the image can be allocated by any means and av_image_alloc() is
-		 * just the most convenient way if av_malloc() is to be used */
+        /* the image can be allocated by any means and av_image_alloc() is
+         * just the most convenient way if av_malloc() is to be used */
         int ret = av_image_alloc(frame->data, frame->linesize, m_codecContext->width, m_codecContext->height,
             m_codecContext->pix_fmt, 32);
-		if (ret < 0) {
-			fprintf(stderr, "Could not allocate raw picture buffer\n");
-			exit(1);
-		}
-		frameStorage.add(frame);
-	}
+        if (ret < 0) {
+            fprintf(stderr, "Could not allocate raw picture buffer\n");
+            exit(1);
+        }
+        frameStorage.add(frame);
+    }
 
 
 

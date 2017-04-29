@@ -11,6 +11,8 @@ typedef int MemoryBarrierMask;
 #ifdef SAIGA_USE_GLBINDING
 #include <glbinding/gl/gl.h>
 #include <glbinding/Binding.h>
+//make sure nobody else includes gl.h after this
+#define __gl_h_
 using namespace gl;
 #define GLFW_INCLUDE_NONE
 #endif

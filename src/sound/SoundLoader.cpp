@@ -259,9 +259,9 @@ Sound *SoundLoader::loadWaveFileALUT(const std::string &filename)
     Sound* sound = new Sound();
     sound->buffer = buffer;
 
-    alGetBufferi(buffer, AL_SIZE, &sound->size);
+//    alGetBufferi(buffer, AL_SIZE, &sound->size);
     alGetBufferi(buffer, AL_CHANNELS, &sound->channels);
-    alGetBufferi(buffer, AL_BITS, &sound->bits);
+    alGetBufferi(buffer, AL_BITS, &sound->bitsPerSample);
     alGetBufferi(buffer, AL_FREQUENCY, &sound->frequency);
 
     return sound;
