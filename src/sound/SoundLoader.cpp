@@ -22,7 +22,7 @@ namespace sound {
 
 
 Sound* SoundLoader::loadWaveFile(const std::string &filename){
-#ifdef SAIGA_USE_ALUT
+#ifdef SAIGA_USE_ALUT123
     return loadWaveFileALUT(filename);
 #else
     return loadWaveFileRaw(filename);

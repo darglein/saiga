@@ -6,3 +6,4 @@ shader
 /usr/local/cuda/include
 saiga/cuda
 src/cuda
+saiga/opengl

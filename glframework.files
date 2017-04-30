@@ -1,5 +1,6 @@
 glframework.files
 glframework.includes
+saiga/opengl/templatedBuffer.h
 src/glfw/glfw_eventhandler.cpp
 src/glfw/glfw_joystick.cpp
 src/glfw/keyboardbinds.cpp
@@ -137,6 +138,7 @@ src/camera/camera.cpp
 src/cuda/cusparseHelper.cu
 src/cuda/cudaTimer.cu
 src/cuda/cudaTest.cu
+src/cuda/interop.cu
 src/cuda/cusparsetest.cu
 src/cuda/cudaHelper.cu
 saiga/buildconfig.h.in
@@ -313,10 +315,13 @@ saiga/opengl/tesselatedIndexedVertexBuffer.h
 saiga/window/window.h
 saiga/camera/controllable_camera.h
 saiga/camera/camera.h
+saiga/cuda/physics/integration.h
 saiga/cuda/thrust_helper.h
 saiga/cuda/cudaTimer.h
 saiga/cuda/device_helper.h
+saiga/cuda/random.h
 saiga/cuda/cudaHelper.h
+saiga/cuda/interop.h
 saiga/cuda/common.h
 saiga/cuda/array_view.h
 saiga/cuda/cusparseHelper.h

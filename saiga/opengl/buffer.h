@@ -25,7 +25,7 @@ public:
     GLenum usage = GL_NONE;
 
 
-    Buffer(GLenum _target );
+    Buffer(GLenum _target);
     ~Buffer();
 
     //copy and swap idiom

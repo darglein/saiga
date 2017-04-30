@@ -211,7 +211,7 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_ve
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::updateVerticesInBuffer(buffer_t &buffer, int vertex_count, int vertex_offset){
     SAIGA_ASSERT((int)vertices.size()>=vertex_offset+vertex_count);
-    buffer.updateVertexBuffer(&vertices[vertex_offset],vertex_count,vertex_offset);
+    buffer.VertexBuffer<vertex_t>::updateBuffer(&vertices[vertex_offset],vertex_count,vertex_offset);
 }
 
 template<typename vertex_t, typename index_t>

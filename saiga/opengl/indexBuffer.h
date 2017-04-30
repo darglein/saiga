@@ -1,7 +1,7 @@
 #pragma once
 
 #include <type_traits>
-#include "saiga/opengl/buffer.h"
+#include "saiga/opengl/templatedBuffer.h"
 
 
 #include <vector>
@@ -24,44 +24,28 @@ template<> struct IndexGLType<GLuint>
 { static const GLenum value = GL_UNSIGNED_INT;};
 
 template<class index_t>
-class IndexBuffer : public Buffer{
+class IndexBuffer : public TemplatedBuffer<index_t>{
     static_assert(std::is_integral<index_t>::value && std::is_unsigned<index_t>::value,
                    "Only unsigned integral types allowed!");
     static_assert(sizeof(index_t)==1 || sizeof(index_t)==2 || sizeof(index_t)==4,
                    "Only 1,2 and 4 byte index types allowed!");
 public:
-    int index_count;
     typedef IndexGLType<index_t> GLType;
 
-    IndexBuffer(): Buffer(GL_ELEMENT_ARRAY_BUFFER){}
+    IndexBuffer(): TemplatedBuffer<index_t>(GL_ELEMENT_ARRAY_BUFFER){}
     ~IndexBuffer(){}
-
-    void set(std::vector<index_t> &indices, GLenum usage);
-    void set(index_t* indices, int index_count, GLenum usage);
 
     void unbind() const;
 
+//    int getIndexCount() const {return Buffer::size/sizeof(index_t);}
+private:
+//    int index_count;
 };
 
 
 
-
 template<class index_t>
-void IndexBuffer<index_t>::set(std::vector<index_t> &indices, GLenum usage){
-    set(&indices[0],indices.size(),usage);
-}
-
-template<class index_t>
-void IndexBuffer<index_t>::set(index_t* indices,int _index_count, GLenum usage){
-
-    this->index_count = _index_count;
-
-    createGLBuffer(indices,index_count * sizeof(index_t),usage);
-
-}
-
-template<class index_t>
-void IndexBuffer<index_t>::unbind() const{
+inline void IndexBuffer<index_t>::unbind() const{
     //Binding 0 is deprecated!
 
     // Application-generated object names - the names of all object types, such as buffer, query, and texture objects,

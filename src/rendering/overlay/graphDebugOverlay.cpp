@@ -79,7 +79,7 @@ void GraphDebugOverlay::update()
             dataPoints[i].position.y = (g.data[i]-min) / (max-min);
         }
 
-        g.buffer.updateVertexBuffer(&dataPoints[0],dataPoints.size(),0);
+        g.buffer.updateBuffer(&dataPoints[0],dataPoints.size(),0);
 
     }
 }

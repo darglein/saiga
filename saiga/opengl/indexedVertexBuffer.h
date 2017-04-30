@@ -37,7 +37,7 @@ void IndexedVertexBuffer<vertex_t,index_t>::bindAndDraw() const{
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::draw() const{
-    draw(ibuffer_t::index_count,0);
+    draw(ibuffer_t::getElementCount(),0);
 }
 
 template<class vertex_t, class index_t>
@@ -50,7 +50,7 @@ void IndexedVertexBuffer<vertex_t,index_t>::draw(unsigned int length, int offset
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::drawInstanced(int instances) const
 {
-    drawInstanced(instances,0,ibuffer_t::index_count);
+    drawInstanced(instances,0,ibuffer_t::getElementCount());
     assert_no_glerror();
 }
 
