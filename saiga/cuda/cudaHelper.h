@@ -2,7 +2,7 @@
 #include "saiga/config.h"
 
 //uncomment to remove all CUDA_SYNC_CHECK_ERROR
-//#define CUDA_DEBUG
+#define CUDA_DEBUG
 
 
 

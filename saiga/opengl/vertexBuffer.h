@@ -22,7 +22,7 @@ using std::endl;
 template<class vertex_t>
 class VertexBuffer : public TemplatedBuffer<vertex_t>{
 private:
-    int vertex_count;
+//    int vertex_count;
 protected:
     GLenum draw_mode;
     GLuint  gl_vao = 0;
@@ -167,7 +167,7 @@ void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices, GLenum usage){
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count, GLenum usage){
-    this->vertex_count = _vertex_count;
+//    this->vertex_count = _vertex_count;
 
     deleteGLBuffer();
     assert_no_glerror();
@@ -226,7 +226,7 @@ void VertexBuffer<vertex_t>::addInstancedBuffer(InstancedBuffer<data_t> &buffer,
 
 template<class vertex_t>
 void VertexBuffer<vertex_t>::draw() const{
-    draw(0,vertex_count);
+    draw(0,TemplatedBuffer<vertex_t>::getElementCount());
     assert_no_glerror();
 }
 
@@ -239,7 +239,7 @@ void VertexBuffer<vertex_t>::draw(int startVertex, int count) const{
 template<class vertex_t>
 void VertexBuffer<vertex_t>::drawInstanced(int instances) const
 {
-    drawInstanced(instances,0,vertex_count);
+    drawInstanced(instances,0,TemplatedBuffer<vertex_t>::getElementCount());
     assert_no_glerror();
 }
 
