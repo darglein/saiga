@@ -10,12 +10,10 @@
 
 find_path(SAIGA_INCLUDE_DIRS 
 	NAMES 
-		rendering/deferred_renderer.h
+		saiga/rendering/deferred_renderer.h
 	PATHS
           /usr/local/include
           /usr/include
-	PATH_SUFFIXES
-		saiga
 )
 
 find_library(SAIGA_LIBRARY 

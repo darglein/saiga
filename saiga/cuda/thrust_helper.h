@@ -14,9 +14,17 @@
 
 
 namespace CUDA {
-
+/**
+ * Use this function to compute the optimal number of blocks to start for a given kernel and block size.
+ * With that trick you can start exactly as many threads as needed for 100% occupancy and no more.
+ *
+ * Example Usage:
+ * const int blockSize = 256;
+ * auto numBlocks = CUDA::max_active_blocks(deviceReduceBlockAtomicKernel,blockSize,0);
+ * deviceReduceBlockAtomicKernel<<<numBlocks,blockSize>>>(v,res);
+ */
 template <typename KernelFunction>
-size_t max_active_blocks(KernelFunction kernel, const size_t CTA_SIZE, const size_t dynamic_smem_bytes)
+size_t max_active_blocks(KernelFunction kernel, const size_t CTA_SIZE, const size_t dynamic_smem_bytes = 0)
 {
   using namespace thrust::system::cuda::detail;
   function_attributes_t attributes = function_attributes(kernel);

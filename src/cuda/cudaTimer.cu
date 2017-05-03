@@ -6,6 +6,26 @@ using std::endl;
 
 namespace CUDA {
 
+CudaScopedTimer::CudaScopedTimer(float& time) : time(time){
+
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+}
+
+CudaScopedTimer::~CudaScopedTimer(){
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+}
+
+
+
+
+
 CudaScopedTimerPrint::CudaScopedTimerPrint(const std::string &name) : name(name){
 
     cudaEventCreate(&start);
