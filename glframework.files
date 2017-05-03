@@ -1,6 +1,8 @@
 glframework.files
 glframework.includes
+saiga/cuda/reduce.h
 saiga/opengl/templatedBuffer.h
+src/cuda/reduce_test.cu
 src/glfw/glfw_eventhandler.cpp
 src/glfw/glfw_joystick.cpp
 src/glfw/keyboardbinds.cpp

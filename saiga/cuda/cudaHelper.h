@@ -56,4 +56,5 @@ SAIGA_GLOBAL extern void initCUDA();
 SAIGA_GLOBAL extern void destroyCUDA();
 SAIGA_GLOBAL extern void runTests();
 
+
 }
