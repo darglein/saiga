@@ -38,8 +38,10 @@ namespace CUDA {
 #endif
 
 
-inline int getBlockCount(int problemSize, int threadCount){
-    return (problemSize + threadCount - 1) / (threadCount);
+template<typename T1, typename T2>
+__host__ __device__
+T1 getBlockCount(T1 problemSize, T2 threadCount){
+    return ( problemSize + (threadCount - T2(1)) ) / (threadCount);
 }
 
 
@@ -56,5 +58,7 @@ SAIGA_GLOBAL extern void initCUDA();
 SAIGA_GLOBAL extern void destroyCUDA();
 SAIGA_GLOBAL extern void runTests();
 
+//defined in reduce_test.cu
+SAIGA_GLOBAL extern void reduceTest();
 
 }

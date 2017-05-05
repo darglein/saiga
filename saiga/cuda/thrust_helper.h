@@ -18,6 +18,9 @@ namespace CUDA {
  * Use this function to compute the optimal number of blocks to start for a given kernel and block size.
  * With that trick you can start exactly as many threads as needed for 100% occupancy and no more.
  *
+ * Credits for this function goes to the CUSP Library.
+ * https://cusplibrary.github.io/
+ *
  * Example Usage:
  * const int blockSize = 256;
  * auto numBlocks = CUDA::max_active_blocks(deviceReduceBlockAtomicKernel,blockSize,0);

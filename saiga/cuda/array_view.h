@@ -9,6 +9,8 @@
 #include <type_traits>
 
 
+//Thanks to Johannes Pieger
+
 template<typename T>
 struct array_view{
     using value_type = T;
@@ -18,7 +20,8 @@ struct array_view{
     using const_pointer = value_type const*;
     using iterator = pointer;
     using const_iterator = const_pointer;
-    using size_type = size_t;
+//    using size_type = size_t;
+    using size_type = uint32_t; //32 bit integer are faster in cuda!
     using difference_type = ptrdiff_t;
 
     HD array_view() : data_(nullptr), n(0){}
@@ -106,7 +109,7 @@ struct array_view{
 
 private:
     T* data_;
-    size_t n;
+    size_type n;
 };
 
 template<typename T>

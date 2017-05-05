@@ -1,6 +1,8 @@
 glframework.files
 glframework.includes
 saiga/cuda/reduce.h
+saiga/cuda/shfl_helper.h
+saiga/cuda/thread_info.h
 saiga/opengl/templatedBuffer.h
 src/cuda/reduce_test.cu
 src/glfw/glfw_eventhandler.cpp

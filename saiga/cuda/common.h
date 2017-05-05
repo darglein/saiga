@@ -8,6 +8,9 @@
 #	endif
 #else
 #	define HD
+#   if !defined(__launch_bounds__)
+#       define __launch_bounds__
+#   endif
 #endif
 
 // constants defined as functions, because cuda device code
@@ -16,3 +19,6 @@ HD constexpr float PI() {return 3.1415926535897932f;}
 HD constexpr float TWOPI() {return 2*PI();}
 HD constexpr float INV_PI() {return 1.f/PI();}
 HD constexpr float INV_TWOPI() {return 1.f/TWOPI();}
+
+
+#define WARP_SIZE 32
