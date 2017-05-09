@@ -2,6 +2,7 @@
 
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/thread_info.h"
+#include "saiga/cuda/shfl_helper.h"
 
 
 namespace CUDA{
@@ -18,10 +19,11 @@ T warpReduceSum(T val) {
 }
 
 
+
+
 template<typename T, unsigned int BLOCK_SIZE>
 __device__ inline
-T blockReduceSum(T val) {
-    static __shared__ T shared[BLOCK_SIZE/WARP_SIZE];
+T blockReduceSum(T val, T* shared) {
     int lane = threadIdx.x & (WARP_SIZE-1);
     int wid = threadIdx.x / WARP_SIZE;
 
@@ -39,30 +41,29 @@ T blockReduceSum(T val) {
 
 template<typename T, unsigned int BLOCK_SIZE>
 __device__ inline
-T blockReduceAtomicSum(T val) {
-
-    static __shared__ T shared;
+T blockReduceAtomicSum(T val, T* shared) {
     int lane = threadIdx.x & (WARP_SIZE-1);
 
     if(threadIdx.x == 0)
-        shared = T(0);
+        shared[0] = T(0);
 
     __syncthreads();
 
     val = warpReduceSum(val);
 
     if (lane==0){
-        atomicAdd(&shared,val);
+        atomicAdd(&shared[0],val);
     }
 
     __syncthreads();
 
 
     if(threadIdx.x == 0)
-        val = shared;
+        val = shared[0];
 
     return val;
 }
+
 
 
 template<typename T, typename VECTOR_TYPE>
@@ -111,8 +112,10 @@ T reduceLocalVector(array_view<T> in){
 template<typename T, unsigned int BLOCK_SIZE>
 __global__
 void reduceBlockShared(array_view<T> in, T* out) {
+    __shared__ T shared[BLOCK_SIZE/WARP_SIZE];
+
     T sum = reduceLocalVector<T,BLOCK_SIZE>(in);
-    sum = blockReduceSum<T,BLOCK_SIZE>(sum);
+    sum = blockReduceSum<T,BLOCK_SIZE>(sum,shared);
     if (threadIdx.x == 0)
         atomicAdd(out, sum);
 }
@@ -120,8 +123,9 @@ void reduceBlockShared(array_view<T> in, T* out) {
 template<typename T, unsigned int BLOCK_SIZE>
 __global__
 void reduceBlockSharedAtomic(array_view<T> in, T* out) {
+    __shared__ T shared;
     T sum = reduceLocalVector<T,BLOCK_SIZE>(in);
-    sum = blockReduceAtomicSum<T,BLOCK_SIZE>(sum);
+    sum = blockReduceAtomicSum<T,BLOCK_SIZE>(sum,&shared);
     if (threadIdx.x == 0)
         atomicAdd(out, sum);
 }
@@ -136,6 +140,7 @@ void reduceAtomic(array_view<T> in, T* out) {
     if(lane == 0)
         atomicAdd(out, sum);
 }
+
 
 
 

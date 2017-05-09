@@ -9,6 +9,8 @@ namespace CUDA {
 
 
 void reduceTest(){
+
+    /*
     int N = 10 * 1000 * 1000;
     int numIterations = 10;
     thrust::device_vector<int> v(N,1);
@@ -78,6 +80,7 @@ void reduceTest(){
         int sum = res[0]/numIterations;
         SAIGA_ASSERT(sum == N);
     }
+    */
 }
 
 }

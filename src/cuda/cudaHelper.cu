@@ -188,8 +188,14 @@ void initCUDA(){
     cout << "  Multi-Processors: " << deviceProp.multiProcessorCount << endl;
     cout << "  Memory Clock Rate (KHz): " << deviceProp.memoryClockRate << endl;
     cout << "  Memory Bus Width (bits): " << deviceProp.memoryBusWidth << endl;
-    cout << "  Peak Memory Bandwidth (GB/s): " << 2.0*deviceProp.memoryClockRate*(deviceProp.memoryBusWidth/8)/1.0e6 << endl;
 
+
+    //In this calculation, we convert the memory clock rate to Hz,
+    //multiply it by the interface width (divided by 8, to convert bits to bytes)
+    //and multiply by 2 due to the double data rate. Finally, we divide by 109 to convert the result to GB/s.
+    double clockRateHz = deviceProp.memoryClockRate * 1000.0;
+    cout << "  Theoretical Memory Bandwidth (GB/s): " << 2.0*clockRateHz*(deviceProp.memoryBusWidth/8)/1.0e9 << endl;
+    cout << endl;
 }
 
 void destroyCUDA(){
