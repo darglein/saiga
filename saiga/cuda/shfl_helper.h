@@ -1,7 +1,7 @@
 #pragma once
 
-#include "saiga/cuda/common.h"
-//#include "saiga/cuda/device_helper.h"
+
+#include "saiga/cuda/device_helper.h"
 
 __device__ inline
 double fetch_double(uint2 p){

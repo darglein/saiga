@@ -11,13 +11,23 @@ cusparseHandle_t cusparseHandle = 0;
 cublasHandle_t cublashandle = 0;
 
 void initBLASSPARSE(){
-    cublasCreate(&cublashandle);
-    cusparseCreate(&cusparseHandle);
+    if(!isBLASSPARSEInitialized()){
+        cublasCreate(&cublashandle);
+        cusparseCreate(&cusparseHandle);
+    }
 }
 
 void destroyBLASSPARSE(){
-    cusparseDestroy(cusparseHandle);
-    cublasDestroy(cublashandle);
+    if(isBLASSPARSEInitialized()){
+        cusparseDestroy(cusparseHandle);
+        cublasDestroy(cublashandle);
+        cusparseHandle = 0;
+        cublashandle = 0;
+    }
+}
+
+bool isBLASSPARSEInitialized(){
+    return cusparseHandle != 0;
 }
 
 extern void testCuBLAS();

@@ -3,7 +3,7 @@
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/shfl_helper.h"
-
+#include "saiga/cuda/memory.h"
 
 namespace CUDA{
 
@@ -66,11 +66,6 @@ T blockReduceAtomicSum(T val, T* shared) {
 
 
 
-template<typename T, typename VECTOR_TYPE>
-__device__ inline
-void loadVector(const T* location, T* locals){
-    reinterpret_cast<VECTOR_TYPE*>( locals )[0] = reinterpret_cast<const VECTOR_TYPE*>( location )[0];
-}
 
 
 template<typename T, unsigned int BLOCK_SIZE>
@@ -90,7 +85,7 @@ T reduceLocalVector(array_view<T> in){
 //        int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
         for(auto i = ti.thread_id; i < N / elements_per_vector; i += ti.grid_size){
             T locals[elements_per_vector];
-            loadVector<T,vector_type>( in.data() + (i*elements_per_vector) , locals);
+            vectorArrayCopy<T,vector_type>( in.data() + (i*elements_per_vector) , locals);
 #pragma unroll
             for(auto i = 0 ; i < elements_per_vector; ++i)
                 sum += locals[i];
