@@ -82,6 +82,18 @@ uint2 loadNoL1Cache8(uint2 const *ptr){
     return retval;
 }
 
+__device__ __forceinline__
+uint4 loadNoL1Cache16(uint4 const *ptr){
+    uint4 retval;
+    asm volatile ("ld.cg.v4.u32 {%0, %1, %2, %3}, [%4];" :
+                  "=r"(retval.x),
+                  "=r"(retval.y),
+                  "=r"(retval.z),
+                  "=r"(retval.w):
+                  "l"(ptr));
+    return retval;
+}
+
 template<typename T>
 __device__ inline
 T loadNoL1Cache(T const *ptr){
@@ -90,6 +102,8 @@ T loadNoL1Cache(T const *ptr){
         reinterpret_cast<unsigned int*>(&t)[0] = loadNoL1Cache4(reinterpret_cast<unsigned int const *>(ptr));
     if(sizeof(T)==8)
         reinterpret_cast<uint2*>(&t)[0] = loadNoL1Cache8(reinterpret_cast<uint2 const *>(ptr));
+    if(sizeof(T)==16)
+        reinterpret_cast<uint4*>(&t)[0] = loadNoL1Cache16(reinterpret_cast<uint4 const *>(ptr));
     return t;
 }
 

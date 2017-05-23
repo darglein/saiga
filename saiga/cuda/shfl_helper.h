@@ -22,33 +22,21 @@ double __shfl_down(double var, unsigned int srcLane, int width=32) {
 }
 #endif
 
-/*
+
 namespace CUDA{
 
 
 
+template<typename T, typename ShuffleType = int>
 __device__ inline
-double warpReduceSumD(double val, int width=warpSize) {
-    for (int offset = width/2; offset > 0; offset /= 2)
-        val += __shfl_downD(val, offset,width);
-    return val;
-}
-
-//broadcasts
-__device__ inline
-double warpBroadcast(double val, int srcLane, int width=warpSize) {
-    int2 a = *reinterpret_cast<int2*>(&val);
-    a.x = __shfl(a.x, srcLane, width);
-    a.y = __shfl(a.y, srcLane, width);
-    return *reinterpret_cast<double*>(&a);
-}
-
-__device__ inline
-float warpReduceSum(float val, int width=warpSize) {
-    for (int offset = width/2; offset > 0; offset /= 2)
-        val += __shfl_down(val, offset,width);
-    return val;
+T shfl(T var, unsigned int srcLane, int width=WARP_SIZE) {
+    static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
+    ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
+    for(int i = 0 ; i < sizeof(T) / sizeof(ShuffleType) ; ++i){
+        a[i] = __shfl(a[i], srcLane, width);
+    }
+    return var;
 }
 
 }
-*/
+

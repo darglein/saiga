@@ -22,3 +22,6 @@ HD constexpr float INV_TWOPI() {return 1.f/TWOPI();}
 
 
 #define WARP_SIZE 32
+
+#define L1_CACHE_LINE_SIZE 128
+#define L2_CACHE_LINE_SIZE 32

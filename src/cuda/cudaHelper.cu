@@ -195,6 +195,8 @@ void initCUDA(){
     //and multiply by 2 due to the double data rate. Finally, we divide by 109 to convert the result to GB/s.
     double clockRateHz = deviceProp.memoryClockRate * 1000.0;
     cout << "  Theoretical Memory Bandwidth (GB/s): " << 2.0*clockRateHz*(deviceProp.memoryBusWidth/8)/1.0e9 << endl;
+
+
     cout << endl;
 }
 
