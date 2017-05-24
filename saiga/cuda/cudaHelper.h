@@ -39,7 +39,7 @@ namespace CUDA {
 
 
 template<typename T1, typename T2>
-__host__ __device__
+__host__ __device__ constexpr
 T1 getBlockCount(T1 problemSize, T2 threadCount){
     return ( problemSize + (threadCount - T2(1)) ) / (threadCount);
 }
