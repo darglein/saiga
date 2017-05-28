@@ -56,9 +56,7 @@ T1 getBlockCount(T1 problemSize, T2 threadCount){
 
 SAIGA_GLOBAL extern void initCUDA();
 SAIGA_GLOBAL extern void destroyCUDA();
-SAIGA_GLOBAL extern void runTests();
 
-//defined in reduce_test.cu
-SAIGA_GLOBAL extern void reduceTest();
+
 
 }

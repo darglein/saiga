@@ -178,10 +178,11 @@ endif()
 
 
 #eigen
-find_package(Eigen3 QUIET)
-if(EIGEN_FOUND)
+find_package(Eigen3 REQUIRED)
+if(EIGEN_FOUND OR EIGEN3_FOUND)
 	include_directories(${EIGEN3_INCLUDE_DIRS})
 	SET(SAIGA_USE_EIGEN 1)
+	message(STATUS "Found Eigen3: ${EIGEN3_INCLUDE_DIRS}")
 endif()
 
 
@@ -283,9 +284,11 @@ endif()
 
 if(UNIX)
 #	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden")
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -msse2 -mfpmath=sse")
 endif(UNIX)
-
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2 /fp:strict")
+endif()
 
 ############# INSTALL PATHS ###############
 

@@ -25,6 +25,7 @@
 #cmakedefine SAIGA_USE_NOISE
 
 #cmakedefine SAIGA_USE_CUDA
+#cmakedefine SAIGA_USE_EIGEN
 
 #cmakedefine SAIGA_DEBUG
 #cmakedefine SAIGA_TESTING

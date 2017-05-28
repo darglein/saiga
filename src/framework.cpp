@@ -6,6 +6,9 @@
 #include "saiga/util/configloader.h"
 #include "saiga/util/assert.h"
 
+#include "saiga/cuda/tests/test.h"
+#include "saiga/util/floatingPoint.h"
+
 bool initialized = false;
 
 std::string SHADER_PATH;
@@ -46,6 +49,9 @@ void initSaiga()
 {
     SAIGA_ASSERT(!initialized);
 
+    FP::resetSSECSR();
+
+//    CUDA::bandwidthTest();
     //    writeExtensions();
     readConfigFile();
 

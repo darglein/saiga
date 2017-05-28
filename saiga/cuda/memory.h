@@ -107,4 +107,18 @@ T loadNoL1Cache(T const *ptr){
     return t;
 }
 
+
+
+//B.10. Read-Only Data Cache Load Function
+template<typename T>
+__device__ inline
+T ldg(const T* address){
+#if __CUDA_ARCH__ >= 350
+    //The read-only data cache load function is only supported by devices of compute capability 3.5 and higher.
+    return __ldg(address);
+#else
+    return *address;
+#endif
+}
+
 }

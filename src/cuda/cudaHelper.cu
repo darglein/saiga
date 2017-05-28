@@ -209,11 +209,5 @@ void destroyCUDA(){
     cudaDeviceReset();
 }
 
-extern void testCuda();
-extern void testThrust();
 
-void runTests(){
-    testCuda();
-    testThrust();
-}
 }

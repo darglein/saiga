@@ -132,7 +132,7 @@ private:
 
 public:
 	EntryParser(const uint8_t* _buf, unsigned _len, unsigned _tiff_header_start, bool _alignIntel)
-		: buf(_buf), tiff_header_start(_tiff_header_start), len(_len), alignIntel(_alignIntel), offs(0) {}
+        : buf(_buf), len(_len), tiff_header_start(_tiff_header_start), alignIntel(_alignIntel), offs(0) {}
 
 	void Init(unsigned _offs) {
 		offs = _offs - 12;
