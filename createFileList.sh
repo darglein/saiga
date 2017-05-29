@@ -6,6 +6,15 @@ rm $FILE
 echo "glframework.files" >> $FILE
 echo "glframework.includes" >> $FILE
 
+for f in $(find samples/ -name '*.cpp'); 
+do 
+echo $f >> $FILE; 
+done
+
+for f in $(find samples/ -name '*.h'); 
+do 
+echo $f >> $FILE; 
+done
 
 for f in $(find src/ -name '*.cpp'); 
 do 
