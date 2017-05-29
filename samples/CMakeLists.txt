@@ -1,1 +1,2 @@
 add_subdirectory(runTests)
+add_subdirectory(simpleSDLWindow)

@@ -16,7 +16,7 @@ public:
     //advances the state of the program by dt. All game logic should happen here
     virtual void update(float dt) = 0;
 
-    virtual void parallelUpdate(float dt) = 0;
+    virtual void parallelUpdate(float dt){}
 
     //interpolation between two logic steps for high fps rendering.
     //Example:

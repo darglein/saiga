@@ -1,6 +1,9 @@
 glframework.files
 glframework.includes
 samples/runTests/main.cpp
+samples/simpleSDLWindow/simpleWindow.cpp
+samples/simpleSDLWindow/main.cpp
+samples/simpleSDLWindow/simpleWindow.h
 src/text/encoding.cpp
 src/text/TextOverlay2D.cpp
 src/text/textureAtlas.cpp

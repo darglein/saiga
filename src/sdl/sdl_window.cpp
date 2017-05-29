@@ -2,6 +2,7 @@
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferred_renderer.h"
 
+
 SDLWindow::SDLWindow(WindowParameters windowParameters):OpenGLWindow(windowParameters)
 {
 }
@@ -92,6 +93,7 @@ bool SDLWindow::initWindow()
 bool SDLWindow::initInput(){
     //Enable text input
     SDL_StartTextInput();
+    SDL_EventHandler::addResizeListener(this);
     return true;
 }
 
@@ -120,10 +122,18 @@ void SDLWindow::freeContext()
 
     //Destroy window
     SDL_DestroyWindow( window );
-    window = NULL;
+    window = nullptr;
 
     //Quit SDL subsystems
     SDL_Quit();
+}
+
+bool SDLWindow::resizeWindow(Uint32 windowId, int width, int height)
+{
+    if(SDL_GetWindowID(window) ==  windowId){
+        this->resize(width,height);
+    }
+    return false;
 }
 
 

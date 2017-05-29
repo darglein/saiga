@@ -20,6 +20,13 @@ public:
     virtual void mouseReleased(int key, int x, int y) = 0;
 };
 
+class SAIGA_GLOBAL SDL_ResizeListener{
+public:
+    virtual ~SDL_ResizeListener(){}
+    virtual bool resizeWindow(Uint32 windowId, int width, int height) = 0;
+
+};
+
 class SAIGA_GLOBAL SDL_EventListener{
 public:
     virtual ~SDL_EventListener(){}

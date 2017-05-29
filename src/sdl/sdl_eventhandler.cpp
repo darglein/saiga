@@ -3,6 +3,7 @@
 bool SDL_EventHandler::quit = false;
 std::vector<SDL_KeyListener*> SDL_EventHandler::keyListener;
 std::vector<SDL_MouseListener*> SDL_EventHandler::mouseListener;
+std::vector<SDL_ResizeListener*> SDL_EventHandler::resizeListener;
 std::vector<SDL_EventListener*> SDL_EventHandler::eventListener;
 
 void SDL_EventHandler::update(){
@@ -37,6 +38,14 @@ void SDL_EventHandler::update(){
         {
             int key = e.button.button;
             mouseReleased(key,e.button.x,e.button.y);
+        }
+
+        if(e.type == SDL_WINDOWEVENT){
+            SDL_WindowEvent we = e.window;
+            if(we.event == SDL_WINDOWEVENT_RESIZED){
+                cout << "Window " << we.windowID << " resized to " << we.data1 << "x" << we.data2 << endl;
+                resizeWindow(we.windowID,we.data1,we.data2);
+            }
         }
 
         for(SDL_EventListener* listener : eventListener){
@@ -77,5 +86,12 @@ void SDL_EventHandler::mouseReleased(int key, int x, int y){
     mouse.setKeyState(key,0);
     for(SDL_MouseListener* listener : mouseListener){
         listener->mouseReleased(key,x,y);
+    }
+}
+
+void SDL_EventHandler::resizeWindow(Uint32 windowId, int width, int height)
+{
+    for(SDL_ResizeListener* listener : resizeListener){
+        listener->resizeWindow(windowId,width,height);
     }
 }

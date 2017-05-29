@@ -8,10 +8,10 @@
 //#include <SDL2/SDL_opengl.h>
 
 
-class SAIGA_GLOBAL SDLWindow : public OpenGLWindow{
+class SAIGA_GLOBAL SDLWindow : public OpenGLWindow, public SDL_ResizeListener{
 public:
 
-    SDL_Window* window = NULL;
+    SDL_Window* window = nullptr;
 protected:
     SDL_GLContext gContext;
 
@@ -21,6 +21,8 @@ protected:
     virtual void checkEvents() override;
     virtual void swapBuffers() override;
     virtual void freeContext() override;
+
+    virtual bool resizeWindow(Uint32 windowId, int width, int height) override;
 public:
 
     SDLWindow(WindowParameters windowParameters);
