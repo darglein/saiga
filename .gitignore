@@ -2,10 +2,10 @@ CMakeLists.txt.user
 saiga/buildconfig.h
 build/
 build_gralab/
+build_steam/
 create_frontlab2.sh
 reconf.sh
 test.sh
-createFileList.sh
 conf.sh
 makeinstall.sh
 bin/
