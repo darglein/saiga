@@ -3,7 +3,10 @@ glframework.includes
 samples/runTests/main.cpp
 samples/simpleSDLWindow/simpleWindow.cpp
 samples/simpleSDLWindow/main.cpp
+samples/advancedSDLWindow/advancedWindow.cpp
+samples/advancedSDLWindow/main.cpp
 samples/simpleSDLWindow/simpleWindow.h
+samples/advancedSDLWindow/advancedWindow.h
 src/text/encoding.cpp
 src/text/TextOverlay2D.cpp
 src/text/textureAtlas.cpp

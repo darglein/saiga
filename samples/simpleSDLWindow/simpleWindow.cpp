@@ -68,6 +68,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     auto sun = window->getRenderer()->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-3,-2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
+    sun->setIntensity(1.0);
     sun->setAmbientIntensity(0.3f);
     sun->setFocus(vec3(0));
     sun->createShadowMap(2048,2048);

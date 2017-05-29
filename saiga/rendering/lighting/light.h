@@ -105,6 +105,7 @@ public:
     bool hasShadows() const {return castShadows;}
     void enableShadows() {if(shadowmap.isInitialized()) castShadows=true;}
     void disableShadows() {castShadows=false;}
+    void setCastShadows(bool s){ if(shadowmap.isInitialized()) castShadows = s;}
 
     virtual void createShadowMap(int resX, int resY);
     void bindShadowMap();

@@ -8,5 +8,4 @@ reconf.sh
 test.sh
 conf.sh
 makeinstall.sh
-bin/
 *.creator.user
