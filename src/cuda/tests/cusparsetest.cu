@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"

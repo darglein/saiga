@@ -57,6 +57,7 @@ void fpTest(float x){
     SAIGA_ASSERT( fToUint(x) == 0x3f800000);
 
 
+    FP::printCPUInfo();
 
     {
         //add test

@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
@@ -249,6 +249,7 @@ void randomAccessTest2(int numIndices, int numElements){
 }
 
 void randomAccessTest(){
+    CUDA_SYNC_CHECK_ERROR();
     randomAccessTest2<int>(1,       10 * 1000 * 1000);
     randomAccessTest2<int>(100,     10 * 1000 * 1000);
     randomAccessTest2<int>(1000,    10 * 1000 * 1000);
@@ -257,6 +258,7 @@ void randomAccessTest(){
     randomAccessTest2<int>(1000000, 10 * 1000 * 1000);
     randomAccessTest2<int>(10000000,10 * 1000 * 1000);
 //    randomAccessTest2<int>(10 * 1000 * 1000, 10 * 1000 * 1000);
+    CUDA_SYNC_CHECK_ERROR();
 }
 
 }

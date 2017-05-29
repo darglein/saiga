@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
@@ -63,6 +63,7 @@ void recurseFib(array_view<T> data){
 
 
 void recursionTest(){
+    CUDA_SYNC_CHECK_ERROR();
 
     using ElementType = int;
 
@@ -113,6 +114,7 @@ void recursionTest(){
 
 
     std::cout << "Recursion test success!" << std::endl;
+    CUDA_SYNC_CHECK_ERROR();
 
 }
 

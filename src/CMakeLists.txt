@@ -91,7 +91,9 @@ endif(BUILD_SHARED)
 
 target_link_libraries(${LIB_NAME} ${LIBS})
 
-
+set_target_properties( ${LIB_NAME}
+	PROPERTIES
+    	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 
 if(BUILD_SHARED)
@@ -106,5 +108,7 @@ else()
         ARCHIVE DESTINATION ${INSTALL_LIB}
 	)
 endif()
+
+
 
 

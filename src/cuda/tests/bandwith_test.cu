@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
@@ -52,6 +52,7 @@ void copyFixed(void* src, void* dest, unsigned int size) {
 
 
 void bandwidthTest(){
+    CUDA_SYNC_CHECK_ERROR();
     size_t N = 100 * 1000 * 1000;
     size_t readWrites = N * 2 * sizeof(int);
 
@@ -113,6 +114,7 @@ void bandwidthTest(){
         }
         pth.addMeassurement("my memcpy (" + std::to_string(NUM_BLOCKS) + " blocks)", time);
    }
+    CUDA_SYNC_CHECK_ERROR();
 
 }
 

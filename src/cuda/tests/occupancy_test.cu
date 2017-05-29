@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
@@ -64,13 +64,17 @@ void occupancyTest2(){
 
 
 
+
     const        size_t THREADS_PER_BLOCK = 128;
     cudaDeviceProp deviceProp;
     CHECK_CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, 0));
-    auto sharedMem = deviceProp.sharedMemPerMultiprocessor;
+    auto sharedMemMP = deviceProp.sharedMemPerMultiprocessor;
+    auto sharedMem = deviceProp.sharedMemPerBlock;
+
     auto threads = deviceProp.maxThreadsPerMultiProcessor;
     auto sharedMemAllocationUnitSize = 256;
     int maxBlocks = threads / THREADS_PER_BLOCK;
+
     {
         for(int i = 1; i <= maxBlocks ; ++i){
             auto blocksPerSM = i;
@@ -78,6 +82,7 @@ void occupancyTest2(){
             //floor to next 256 byte boundary
             auto res = targetSharedMem % sharedMemAllocationUnitSize;
             targetSharedMem = targetSharedMem - res;
+
 //            std::cout << blocksPerSM << " " << targetSharedMem << " = " << sharedMem << " / " << blocksPerSM << std::endl;
             float time;
             const        size_t NUM_BLOCKS = CUDA::getBlockCount(N*sizeof(int)/sizeof(vectorT),THREADS_PER_BLOCK);
@@ -89,6 +94,8 @@ void occupancyTest2(){
             pth.addMeassurement("Memcpy Occupancy: " + std::to_string(occupancy) + "%)", time);
         }
     }
+
+
 
 
     {
@@ -105,9 +112,11 @@ void occupancyTest2(){
 }
 
 void occupancyTest(){
+    CUDA_SYNC_CHECK_ERROR();
     occupancyTest2<int>();
     occupancyTest2<int2>();
     occupancyTest2<int4>();
+    CUDA_SYNC_CHECK_ERROR();
 
 }
 

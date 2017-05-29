@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
@@ -19,6 +19,7 @@ void addFive(float *g_idata, float *g_odata)
 }
 
 void testCuda(){
+    CUDA_SYNC_CHECK_ERROR();
     unsigned int num_threads = 32;
     unsigned int mem_size = sizeof(float) * num_threads;
 
@@ -107,7 +108,7 @@ struct ReduceMySortStructOp{
 };
 
 void testThrust(){
-
+    CUDA_SYNC_CHECK_ERROR();
     {
         // simple sort test
         thrust::host_vector<int> H(4);

@@ -1,9 +1,12 @@
 CMakeLists.txt.user
 saiga/buildconfig.h
 build/
+build_gralab/
+create_frontlab2.sh
 reconf.sh
 test.sh
-gl_lib.*
 createFileList.sh
 conf.sh
 makeinstall.sh
+bin/
+*.creator.user

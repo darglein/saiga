@@ -23,4 +23,7 @@ SAIGA_GLOBAL extern bool checkSSECSR();
 //set a different floating point rounding mode
 //use this only for tests
 SAIGA_GLOBAL extern void breakSSECSR();
+
+
+SAIGA_GLOBAL extern void printCPUInfo();
 }

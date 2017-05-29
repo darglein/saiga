@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
@@ -197,7 +197,7 @@ void sharedMemoryCoalesced2(array_view<T> data, array_view<T> result){
 
     static_assert(vectorsPerElement * sizeof(VectorType) == elementSize, "T cannot be loaded with VectorType");
 
-//    const int vectorsPerWarp = fullVectorsPerElement * WARP_SIZE;
+    //    const int vectorsPerWarp = fullVectorsPerElement * WARP_SIZE;
 
     const int tileSizeBytes = 64;
     const int tileSizeVectors = tileSizeBytes / sizeof(VectorType);
@@ -206,7 +206,7 @@ void sharedMemoryCoalesced2(array_view<T> data, array_view<T> result){
     //    const int vectorsPerTile = N > 8 ? 8 : N;
     const int fullTiles = fullVectorsPerElement == 0 ? fullVectorsPerElement : fullVectorsPerElement / fullVectorsPerTile;
 
-//    const int fullTiles = fullVectorsPerElement == 0 ? fullVectorsPerElement : fullVectorsPerElement / fullVectorsPerTile;
+    //    const int fullTiles = fullVectorsPerElement == 0 ? fullVectorsPerElement : fullVectorsPerElement / fullVectorsPerTile;
     //    const int tiles = 2;
     //    const int elementsPerTile = N / tiles;
     const int fullVectorsPerBlock = fullVectorsPerElement * BLOCK_SIZE;
@@ -234,7 +234,7 @@ void sharedMemoryCoalesced2(array_view<T> data, array_view<T> result){
 
 
         auto localMatrixId = ti.local_thread_id; //id in shared buffer
-//        auto warpStart = ti.warp_id * vectorsPerWarp;
+        //        auto warpStart = ti.warp_id * vectorsPerWarp;
         auto blockStart = ti.block_id * fullVectorsPerBlock;
 
         auto warpOffset = ti.warp_lane * WARP_SIZE; //start matrix of this warp in block local shared memory
@@ -249,7 +249,7 @@ void sharedMemoryCoalesced2(array_view<T> data, array_view<T> result){
                 auto globalIndex = blockStart + localMatrix * fullVectorsPerElement + tileOffset + localOffset;
                 if(globalIndex < NVectors){
                     buffer[localMatrix][localOffset] = global[globalIndex];
-//                    printf("read %d %d %d \n",ti.thread_id,localMatrix,globalIndex);
+                    //                    printf("read %d %d %d \n",ti.thread_id,localMatrix,globalIndex);
                 }
             }
 
@@ -321,7 +321,7 @@ void sharedMemoryCoalesced2(array_view<T> data, array_view<T> result){
                 auto globalIndex = blockStart + localMatrix * fullVectorsPerElement + tileOffset + localOffset;
                 if(globalIndex < NVectors){
                     globalResult[globalIndex] = buffer[localMatrix][localOffset];
-//                    printf("write %d %d %d \n",ti.thread_id,localMatrix,globalIndex);
+                    //                    printf("write %d %d %d \n",ti.thread_id,localMatrix,globalIndex);
                 }
             }
 
@@ -354,7 +354,7 @@ void loadShuffle(VectorType* globalStart, VectorType* localStart, int lane, int 
             auto globalIdx = globalOffset + lane + c * G + g * vectorsPerElement;
 
             if(globalIdx < Nvectors){
-//                printf("read %d, %d \n",globalIdx,lane);
+                //                printf("read %d, %d \n",globalIdx,lane);
                 tmp = global[globalIdx];
             }
 
@@ -416,7 +416,7 @@ void storeShuffle(VectorType* globalStart, VectorType* localStart, int lane, int
 
             auto globalIdx = globalOffset + lane + c * G + g * vectorsPerElement;
             if(globalIdx < Nvectors)
-            global[globalIdx] = tmp;
+                global[globalIdx] = tmp;
         }
 
     }
@@ -448,25 +448,25 @@ void shuffleCopy(array_view<T> data, array_view<T> result){
 
 
     //grid stride loop
-//    for(auto id = ti.thread_id * ElementSize; id < data.size(); id += ti.grid_size * ElementSize){
+    //    for(auto id = ti.thread_id * ElementSize; id < data.size(); id += ti.grid_size * ElementSize){
     for(auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps){
 
         T l[ElementSize];
 
-//        auto matrixId = ti.thread_id;
-//        auto globalOffset = matrixId * ElementSize;
-//        auto localMatrixId = ti.local_thread_id; //id in shared buffer
+        //        auto matrixId = ti.thread_id;
+        //        auto globalOffset = matrixId * ElementSize;
+        //        auto localMatrixId = ti.local_thread_id; //id in shared buffer
 
 
         auto globalStart = wId * localWarpSize * vectorsPerElement;
 
-//        printf("warp %d %d %d %d \n", wId,ti.lane_id,localWarpSize,Nelements);
+        //        printf("warp %d %d %d %d \n", wId,ti.lane_id,localWarpSize,Nelements);
 
         VectorType* global = reinterpret_cast<VectorType*>(data.data());
         VectorType* globalResult = reinterpret_cast<VectorType*>(result.data());
         VectorType* local = reinterpret_cast<VectorType*>(l);
 
-//        loadShuffle<localWarpSize,sizeof(T)*ElementSize,VectorType>(data.data()+globalStart,local,ti.lane_id);
+        //        loadShuffle<localWarpSize,sizeof(T)*ElementSize,VectorType>(data.data()+globalStart,local,ti.lane_id);
         loadShuffle<localWarpSize,sizeof(T)*ElementSize,VectorType>(global,local,ti.lane_id,globalStart,NVectors);
 
 
@@ -682,7 +682,7 @@ void coalescedCopyTest2(int ElementCount){
     //        std::cout << ref[i] << " == " << d_result[i] << std::endl;
     //    }
 
-        SAIGA_ASSERT(ref == d_result);
+    SAIGA_ASSERT(ref == d_result);
 
     {
         result = result;
@@ -701,15 +701,17 @@ void coalescedCopyTest2(int ElementCount){
 }
 
 void coalescedCopyTest(){
-//    coalescedCopyTest2<int,4>(1);
-//    coalescedCopyTest2<int,2>(1);
-//    coalescedCopyTest2<int,16>(1);
-//    coalescedCopyTest2<int,16>(3);
-//    coalescedCopyTest2<int,16>(5);
-//            coalescedCopyTest2<int,16>(1000 * 1000 + 1);
-//    coalescedCopyTest2<int,16>(32);
-            coalescedCopyTest2<int,32>(1000 * 1000 + 1);
-            coalescedCopyTest2<int,64>(1000 * 1000 + 1);
+    CUDA_SYNC_CHECK_ERROR();
+    //    coalescedCopyTest2<int,4>(1);
+    //    coalescedCopyTest2<int,2>(1);
+    //    coalescedCopyTest2<int,16>(1);
+    //    coalescedCopyTest2<int,16>(3);
+    //    coalescedCopyTest2<int,16>(5);
+    //            coalescedCopyTest2<int,16>(1000 * 1000 + 1);
+    //    coalescedCopyTest2<int,16>(32);
+    coalescedCopyTest2<int,32>(1000 * 1000 + 1);
+    coalescedCopyTest2<int,64>(1000 * 1000 + 1);
+    CUDA_SYNC_CHECK_ERROR();
 }
 
 }

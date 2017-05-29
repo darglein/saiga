@@ -48,6 +48,7 @@ option (BUILD_SHARED "Build this library as a shared/dynamic library" ON)
 option (BUILD_MODE_DEBUG "Defines SAIGA_DEBUG, asserts=on, debug symbols in binary, opengl debug context, alot of glgeterror calls" OFF) 
 option (BUILD_MODE_TESTING "Defines SAIGA_TESTING, asserts=on, debug symbols in binary, opengl debug context, one glgeterror per frame, (default)" ON) 
 option (BUILD_MODE_RELEASE "Defines SAIGA_RELEASE, asserts=off, no glgeterror calls" OFF) 
+option (BUILD_SAMPLES "build samples" ON) 
 
 
 #in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
@@ -325,9 +326,18 @@ message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 
 ############# SOURCE ###############
 
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+
 add_subdirectory(src)
 add_subdirectory(saiga)
 add_subdirectory(shader)
+if(BUILD_SAMPLES)
+	message(STATUS "Building samples.")
+	add_subdirectory(samples)
+else()
+	message(STATUS "No samples.")
+endif()
 
 
 ############# Generate config file ###############

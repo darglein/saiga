@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
@@ -10,6 +10,8 @@ namespace CUDA {
 
 
 void scanTest(){
+
+    CUDA_SYNC_CHECK_ERROR();
 
     const bool exclusive = false;
     const        size_t THREADS_PER_BLOCK = 256;
@@ -128,6 +130,7 @@ void scanTest(){
         }
         pth.addMeassurement("cudaMemcpy",time);
     }
+    CUDA_SYNC_CHECK_ERROR();
 
 }
 

@@ -1,5 +1,5 @@
 #include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
@@ -14,6 +14,8 @@ namespace CUDA {
 
 
 void reduceTest(){
+    CUDA_SYNC_CHECK_ERROR();
+
     int N = 100 * 1000 * 1000;
 
     size_t readWrites = N * sizeof(int);
@@ -99,6 +101,7 @@ void reduceTest(){
         int sum = res[0];
         SAIGA_ASSERT(sum == N);
     }
+    CUDA_SYNC_CHECK_ERROR();
 }
 
 

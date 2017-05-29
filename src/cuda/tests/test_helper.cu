@@ -1,4 +1,4 @@
-#include "saiga/cuda/test_helper.h"
+#include "saiga/cuda/tests/test_helper.h"
 #include <iomanip>
 
 namespace CUDA{

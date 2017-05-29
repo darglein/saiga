@@ -1,5 +1,6 @@
 #include "saiga/util/floatingPoint.h"
 #include "xmmintrin.h"
+#include <fstream>
 namespace FP {
 
 enum SSECSR : unsigned int
@@ -23,22 +24,22 @@ enum SSECSR : unsigned int
     //    ZE	bit 2	Divide By Zero Flag
     //    DE	bit 1	Denormal Flag
     //    IE	bit 0	Invalid Operation Flag
-      FZ   = 15,
-      RZ   = 14,
-      RN   = 13,
-      PM   = 12,
-      UM   = 11,
-      OM   = 10,
-      ZM   = 9,
-      DM   = 8,
-      IM   = 7,
-      DAZ  = 6,
-      PE   = 5,
-      UE   = 4,
-      OE   = 3,
-      ZE   = 2,
-      DE   = 1,
-      IE   = 0,
+    FZ   = 15,
+    RZ   = 14,
+    RN   = 13,
+    PM   = 12,
+    UM   = 11,
+    OM   = 10,
+    ZM   = 9,
+    DM   = 8,
+    IM   = 7,
+    DAZ  = 6,
+    PE   = 5,
+    UE   = 4,
+    OE   = 3,
+    ZE   = 2,
+    DE   = 1,
+    IE   = 0,
 };
 
 void resetSSECSR(){
@@ -53,9 +54,9 @@ void resetSSECSR(){
 
 bool checkSSECSR(){
     unsigned int csr = _mm_getcsr();
-//    for(int i = 0 ; i < 32 ; ++i){
-//        cout << i << " " << ((csr>>i)&1) << endl;
-//    }
+    //    for(int i = 0 ; i < 32 ; ++i){
+    //        cout << i << " " << ((csr>>i)&1) << endl;
+    //    }
 
     if(((csr>>FZ)&1) != 0)
         return false;
@@ -75,5 +76,18 @@ void breakSSECSR(){
     _mm_setcsr(csr);
 }
 
+void printCPUInfo(){
+    //TODO: Windows
+    std::string line;
+    std::ifstream myfile ("/proc/cpuinfo");
+    if (myfile.is_open())
+    {
+        while ( getline (myfile,line) )
+        {
+            std::cout << line << std::endl;
+        }
+        myfile.close();
+    }
+}
 
 }
