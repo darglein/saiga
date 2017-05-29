@@ -1,0 +1,2 @@
+SHADER_PATH=../shader
+TEXTURE_PATH=textures
