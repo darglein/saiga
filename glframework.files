@@ -1,5 +1,6 @@
 glframework.files
 glframework.includes
+saiga/cuda/shuffle_copy.h
 samples/runTests/main.cpp
 samples/simpleSDLWindow/simpleWindow.cpp
 samples/simpleSDLWindow/main.cpp
