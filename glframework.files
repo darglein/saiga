@@ -1,6 +1,5 @@
 glframework.files
 glframework.includes
-saiga/cuda/shuffle_copy.h
 samples/runTests/main.cpp
 samples/simpleSDLWindow/simpleWindow.cpp
 samples/simpleSDLWindow/main.cpp
@@ -47,6 +46,7 @@ src/glfw/glfw_eventhandler.cpp
 src/glfw/keyboardbinds.cpp
 src/glfw/glfw_window.cpp
 src/geometry/kdtree.cpp
+src/geometry/obb.cpp
 src/geometry/raytracer.cpp
 src/geometry/ray.cpp
 src/geometry/plane.cpp
@@ -203,6 +203,7 @@ saiga/glfw/glfw_camera.h
 saiga/glfw/glfw_joystick.h
 saiga/glfw/glfw_window.h
 saiga/geometry/triangle_mesh.h
+saiga/geometry/obb.h
 saiga/geometry/ray.h
 saiga/geometry/raytracer.h
 saiga/geometry/triangle.h
@@ -251,6 +252,7 @@ saiga/time/gameTime.h
 saiga/time/timer.h
 saiga/cuda/cudaTimer.h
 saiga/cuda/device_helper.h
+saiga/cuda/shuffle_copy.h
 saiga/cuda/array_view.h
 saiga/cuda/scan.h
 saiga/cuda/thrust_helper.h

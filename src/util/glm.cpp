@@ -29,6 +29,13 @@ std::ostream& operator<<(std::ostream& os, const vec2& v)
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const glm::mat3& v){
+    for (int i = 0; i < 3; ++i){
+        os << v[i] << "\n";
+    }
+    return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const mat4& v)
 {
     for (int i = 0; i < 4; ++i){

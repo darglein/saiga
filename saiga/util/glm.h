@@ -96,6 +96,8 @@ SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dvec3& v);
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec2& v);
 
+
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::mat3& v);
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const mat4& v);
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dmat4& v);
 

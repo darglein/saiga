@@ -1,7 +1,6 @@
 #include "simpleWindow.h"
 
 #include "saiga/rendering/deferred_renderer.h"
-#include "saiga/rendering/lighting/directional_light.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 #include "saiga/geometry/triangle_mesh_generator.h"
@@ -65,7 +64,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
 
     //create one directional light
-    auto sun = window->getRenderer()->lighting.createDirectionalLight();
+    sun = window->getRenderer()->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-3,-2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(1.0);
@@ -85,6 +84,7 @@ SimpleWindow::~SimpleWindow()
 void SimpleWindow::update(float dt){
     //Update the camera position
     camera.update(dt);
+    sun->fitShadowToCamera(&camera);
 }
 
 void SimpleWindow::interpolate(float dt, float interpolation) {

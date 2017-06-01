@@ -10,6 +10,7 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_window.h"
 
+#include "saiga/rendering/lighting/directional_light.h"
 
 class SimpleWindow : public Program, public SDL_KeyListener
 {
@@ -21,6 +22,8 @@ public:
     SimpleAssetObject sphere;
 
     ProceduralSkybox skybox;
+
+    std::shared_ptr<DirectionalLight> sun;
 
     SimpleWindow(OpenGLWindow* window);
     ~SimpleWindow();
