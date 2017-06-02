@@ -10,10 +10,16 @@ namespace CUDA {
 template<int G, int SIZE, typename VectorType=int4>
 __device__ inline
 void loadShuffle(VectorType* globalStart, VectorType* localStart, int lane, int globalOffset, int Nvectors){
+    static_assert(SIZE % sizeof(VectorType) == 0, "Type must be loadable by vector type.");
+
     int bytesPerCycle = G * sizeof(VectorType);
-    int cycles = SIZE / bytesPerCycle;
+//    int cycles = SIZE / bytesPerCycle;
+    int cycles = getBlockCount(SIZE, bytesPerCycle);
     //    int vectorsPerCycle = bytesPerCycle / sizeof(VectorType);
     int vectorsPerElement = SIZE / sizeof(VectorType);
+
+//    printf("bytesPerCycle %d, cycles %d, vectorsPerElement %d\n",bytesPerCycle,cycles,vectorsPerElement);
+
 
     VectorType* global = reinterpret_cast<VectorType*>(globalStart);
     VectorType* local = reinterpret_cast<VectorType*>(localStart);
@@ -24,16 +30,17 @@ void loadShuffle(VectorType* globalStart, VectorType* localStart, int lane, int 
     for(int g = 0 ; g < G ; ++g){
 
         for(int c = 0 ; c < cycles; ++c){
-            auto globalIdx = globalOffset + lane + c * G + g * vectorsPerElement;
+            auto localIdx = lane + c * G;
+            auto globalIdx = globalOffset + localIdx + g * vectorsPerElement;
 
-            if(globalIdx < Nvectors){
+            if(globalIdx < Nvectors && localIdx < vectorsPerElement){
                 //                printf("read %d, %d \n",globalIdx,lane);
                 tmp = global[globalIdx];
             }
 
             //broadcast loaded value to all threads in this warp
             for(int s = 0 ; s < G ; ++s){
-                l[s] = CUDA::shfl(tmp,s,G);
+                l[s] = shfl(tmp,s,G);
             }
 
             //this thread now has the correct value
@@ -51,8 +58,11 @@ void loadShuffle(VectorType* globalStart, VectorType* localStart, int lane, int 
 template<int G, int SIZE, typename VectorType=int4>
 __device__ inline
 void storeShuffle(VectorType* globalStart, VectorType* localStart, int lane, int globalOffset, int Nvectors){
+    static_assert(SIZE % sizeof(VectorType) == 0, "Type must be loadable by vector type.");
+
     int bytesPerCycle = G * sizeof(VectorType);
-    int cycles = SIZE / bytesPerCycle;
+//    int cycles = SIZE / bytesPerCycle;
+    int cycles = getBlockCount(SIZE, bytesPerCycle);
     //    int vectorsPerCycle = bytesPerCycle / sizeof(VectorType);
     int vectorsPerElement = SIZE / sizeof(VectorType);
 
@@ -76,7 +86,7 @@ void storeShuffle(VectorType* globalStart, VectorType* localStart, int lane, int
 
             //broadcast loaded value to all threads in this warp
             for(int s = 0 ; s < G ; ++s){
-                l[s] = CUDA::shfl(l[s],g,G);
+                l[s] = shfl(l[s],g,G);
             }
 
             //this loop does the same as "tmp = l[lane]", but with static indexing
@@ -87,8 +97,12 @@ void storeShuffle(VectorType* globalStart, VectorType* localStart, int lane, int
                     tmp = l[i];
             }
 
-            auto globalIdx = globalOffset + lane + c * G + g * vectorsPerElement;
-            if(globalIdx < Nvectors)
+//            auto globalIdx = globalOffset + lane + c * G + g * vectorsPerElement;
+
+            auto localIdx = lane + c * G;
+            auto globalIdx = globalOffset + localIdx + g * vectorsPerElement;
+
+            if(globalIdx < Nvectors && localIdx < vectorsPerElement)
                 global[globalIdx] = tmp;
         }
 
