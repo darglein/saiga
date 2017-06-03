@@ -195,7 +195,6 @@ bool aabb::contains(const vec3 &p){
 
 std::ostream& operator<<(std::ostream& os, const aabb& bb)
 {
-    std::cout<<"aabb: ("<<bb.min.x<<","<<bb.min.y<<","<<bb.min.z<<")";
-    std::cout<<" ("<<bb.max.x<<","<<bb.max.y<<","<<bb.max.z<<")";
+    std::cout<<"aabb: " << bb.min << " " << bb.max;
     return os;
 }

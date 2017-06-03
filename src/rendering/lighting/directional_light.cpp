@@ -69,8 +69,9 @@ void DirectionalLight::setAmbientIntensity(float ai)
 void DirectionalLight::fitShadowToCamera(Camera *cam)
 {
     vec3 dir = -direction;
-    vec3 right = cross(vec3(0,1,0),dir);
-    vec3 up = cross(dir,right);
+    vec3 right = normalize(cross(vec3(1,1,0),dir));
+    vec3 up = normalize(cross(dir,right));
+#if 0
 
     OBB obb;
     obb.setOrientationScale( normalize(right), normalize(up), normalize(dir) );
@@ -80,46 +81,11 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
     obb.fitToPoints(2,cam->vertices,8);
 
 
-
-
-//    obb.orientationScale[0] *= increase[0];
-//    obb.orientationScale[0] *= increase[1];
-//    obb.orientationScale[0] *= increase[2];
-
-//    float xMin = 234235125, xMax = -34853690;
-//    float yMin = 234235125, yMax = -34853690;
-//    float zMin = 234235125, zMax = -34853690;
-
-
-//    //project vertices of camera frustum to direction vector
-//    for(int i = 0 ; i < 8 ; ++i){
-//        float x = dot(right,cam->vertices[i]);
-//        xMin = glm::min(xMin,x); xMax = glm::max(xMax,x);
-
-//        float y = dot(up,cam->vertices[i]);
-//        yMin = glm::min(yMin,y); yMax = glm::max(yMax,y);
-
-//        float z = dot(direction,cam->vertices[i]);
-//        zMin = glm::min(zMin,z); zMax = glm::max(zMax,z);
-//    }
     vec3 increase(0,0,5.0);
 
     float xDiff = 2.0f * length(obb.orientationScale[0]) + increase.x;
     float yDiff = 2.0f * length(obb.orientationScale[1]) + increase.y;
     float zDiff = 2.0f * length(obb.orientationScale[2]) + increase.z;
-//    float yDiff = yMax - yMin;
-//    float zDiff = zMax - zMin;
-//    cout << xMin << "," << xMax << " "  << yMin << "," << yMax << " "  << zMin << "," << zMax << endl;
-//    cout << xDiff << " " << yDiff << " " << zDiff << endl;
-//    cout << obb.center << endl << obb.orientationScale << endl << endl;
-
-
-
-    //other idea use bounding sphere of frustum
-    //make sure shadow box aligned to light fits bounding sphere
-    //note: camera movement or rotation doesn't change the size of the shadow box anymore
-    //translate the box only by texel size increments to remove flickering
-
 
     shadowNearPlane = 0;
     this->cam.setProj(
@@ -135,6 +101,86 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
 
     this->cam.calculateModel();
     this->cam.updateFromModel();
+
+
+//    vec4 test = this->cam.proj * this->cam.view * vec4(obb.center,1);
+//    cout << "test " << test << endl;
+#else
+    //other idea use bounding sphere of frustum
+    //make sure shadow box aligned to light fits bounding sphere
+    //note: camera movement or rotation doesn't change the size of the shadow box anymore
+    //translate the box only by texel size increments to remove flickering
+
+
+    //TODO: clip near plane to scene bounding box
+    //transform scene aabb to light space
+    //clip triangles of scene aabb to the 4 side planes of the frustum
+    //the min and max z of all cliped triangles are the required values
+
+    glm::mat3 m;
+    m[0] = right;
+    m[1] = up;
+    m[2] = dir;
+
+
+
+    vec3 cp = vec3(0);
+
+    this->cam.setPosition( cp );
+
+
+    this->cam.rot = glm::quat_cast( m );
+
+    this->cam.calculateModel();
+    this->cam.updateFromModel();
+
+    glm::mat3 v = glm::mat3(this->cam.view);
+
+
+    float r = cam->boundingSphere.r;
+    r = ceil(r);
+
+
+    vec3 texelSize;
+    texelSize.x = 2.0f * r / shadowmap.w;
+    texelSize.y = 2.0f * r / shadowmap.h;
+    texelSize.z = 0.0001f;
+
+    vec3 p = cam->boundingSphere.pos;
+
+
+    vec3 t = v * p - v * cp;
+
+    t.z = -t.z;
+
+    vec3 orthoMin(-r);
+    vec3 orthoMax(r);
+
+    orthoMin +=  t ;
+    orthoMax +=  t ;
+
+#if 1
+    {
+        //move camera in texel size increments
+        orthoMin /= texelSize;
+        orthoMin = floor(orthoMin);
+        orthoMin *= texelSize;
+
+        orthoMax /= texelSize;
+        orthoMax = ceil(orthoMax);
+        orthoMax *= texelSize;
+    }
+#endif
+    this->cam.setProj(
+                orthoMin.x ,orthoMax.x,
+                orthoMin.y ,orthoMax.y,
+                orthoMin.z ,orthoMax.z
+                );
+
+
+
+
+#endif
 }
 
 void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam){

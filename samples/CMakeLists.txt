@@ -1,3 +1,4 @@
 add_subdirectory(runTests)
 add_subdirectory(simpleSDLWindow)
 add_subdirectory(advancedSDLWindow)
+add_subdirectory(cascadedShadowMaps)

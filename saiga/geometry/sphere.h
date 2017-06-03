@@ -29,5 +29,7 @@ public:
 
 //    TriangleMesh* createMesh(int rings, int sectors);
 //    void addToBuffer(std::vector<VertexNT> &vertices, std::vector<GLuint> &indices, int rings, int sectors);
+
+    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Sphere& dt);
 };
 

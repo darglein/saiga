@@ -65,4 +65,10 @@ bool Sphere::intersect(const Sphere &other)
 
 
 
+std::ostream& operator<<(std::ostream& os, const Sphere& s)
+{
+    std::cout<<"Sphere: " << s.pos << s.r;
+
+    return os;
+}
 
