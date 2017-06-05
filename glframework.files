@@ -172,6 +172,8 @@ saiga/tests/test.h
 saiga/geometry/plane.h
 saiga/geometry/sphere.h
 saiga/geometry/aabb.h
+saiga/geometry/polygon.h
+saiga/geometry/clipping.h
 saiga/geometry/grid.h
 saiga/geometry/triangle_mesh.h
 saiga/geometry/ray.h

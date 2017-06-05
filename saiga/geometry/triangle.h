@@ -19,6 +19,7 @@ public:
 
     vec3 center();
 
+
     friend std::ostream& operator<<(std::ostream& os, const Triangle& dt);
 };
 

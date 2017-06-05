@@ -3,6 +3,8 @@
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
 
+#include <vector>
+#include "saiga/geometry/triangle.h"
 
 class SAIGA_GLOBAL aabb
 {
@@ -47,6 +49,8 @@ public:
 
     bool contains(const vec3 &p);
 
+    //A list the 12 triangles (2 for each face)
+    std::vector<Triangle> toTriangles();
 
 
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const aabb& dt);

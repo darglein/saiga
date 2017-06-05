@@ -192,6 +192,40 @@ bool aabb::contains(const vec3 &p){
     return true; //overlap
 }
 
+std::vector<Triangle> aabb::toTriangles()
+{
+    std::vector<Triangle> res = {
+        //bottom
+        Triangle( vec3(min.x,min.y,min.z) , vec3(max.x,min.y,min.z) , vec3(max.x,min.y,max.z) ),
+        Triangle( vec3(min.x,min.y,min.z) , vec3(max.x,min.y,max.z) , vec3(min.x,min.y,max.z) ),
+
+        //top
+        Triangle( vec3(min.x,max.y,min.z) , vec3(max.x,max.y,min.z) , vec3(max.x,max.y,max.z) ),
+        Triangle( vec3(min.x,max.y,min.z) , vec3(max.x,max.y,max.z) , vec3(min.x,max.y,max.z) ),
+
+
+        //left
+        Triangle( vec3(min.x,min.y,min.z) , vec3(min.x,min.y,max.z) , vec3(min.x,max.y,max.z) ),
+        Triangle( vec3(min.x,min.y,min.z) , vec3(min.x,max.y,max.z) , vec3(min.x,max.y,min.z) ),
+
+        //right
+        Triangle( vec3(max.x,min.y,min.z) , vec3(max.x,min.y,max.z) , vec3(max.x,max.y,max.z) ),
+        Triangle( vec3(max.x,min.y,min.z) , vec3(max.x,max.y,max.z) , vec3(max.x,max.y,min.z) ),
+
+
+        //back
+        Triangle( vec3(min.x,min.y,min.z) , vec3(min.x,max.y,min.z) , vec3(max.x,max.y,min.z) ),
+        Triangle( vec3(min.x,min.y,min.z) , vec3(max.x,max.y,min.z) , vec3(max.x,min.y,min.z) ),
+
+
+        //front
+        Triangle( vec3(min.x,min.y,max.z) , vec3(min.x,max.y,max.z) , vec3(max.x,max.y,max.z) ),
+        Triangle( vec3(min.x,min.y,max.z) , vec3(max.x,max.y,max.z) , vec3(max.x,min.y,max.z) )
+    };
+
+    return res;
+}
+
 
 std::ostream& operator<<(std::ostream& os, const aabb& bb)
 {
