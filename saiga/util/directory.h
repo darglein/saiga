@@ -1,19 +1,18 @@
 #pragma once
 
+#include "saiga/config.h"
 
-
-#include <iostream>
-#include <string>
 #include <vector>
 
 #ifdef _WIN32
 #include "util/windows_dirent.h"
 #else
 #include <dirent.h>
-#include <sys/stat.h>
 #endif
 
-class Directory {
+
+
+class SAIGA_GLOBAL Directory {
 public:
     std::string dirname;
     DIR *dir;

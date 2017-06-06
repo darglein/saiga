@@ -169,7 +169,7 @@ bool aabb::intersectTouching(const aabb &other){
 
 vec3 aabb::cornerPoint(int cornerIndex) const
 {
-    // assume(0 <= cornerIndex && cornerIndex <= 7);
+     SAIGA_ASSERT(0 <= cornerIndex && cornerIndex <= 7);
     switch(cornerIndex)
     {
     default:

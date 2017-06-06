@@ -11,6 +11,7 @@
 #include "saiga/sdl/sdl_window.h"
 
 #include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
 class SimpleWindow : public Program, public SDL_KeyListener
 {
@@ -22,7 +23,12 @@ public:
 //    SimpleAssetObject sphere;
     std::vector<SimpleAssetObject> cubes;
 
+    ImGui_SDL_Renderer imgui;
+    aabb sceneBB;
     ProceduralSkybox skybox;
+
+
+    bool moveSun = true;
 
     std::shared_ptr<DirectionalLight> sun;
 

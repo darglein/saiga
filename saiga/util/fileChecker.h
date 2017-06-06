@@ -34,6 +34,7 @@ public:
 
     void addSearchPath(const std::string& path);
 
+    bool existsFile(const std::string& file);
 private:
     //all file search functions search at these pathes.
     //the first match will return.
@@ -41,5 +42,4 @@ private:
     std::vector<std::string> searchPathes;
 
 
-    bool existsFile(const std::string& file);
 };

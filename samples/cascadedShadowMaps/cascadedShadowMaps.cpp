@@ -13,7 +13,8 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     //create a perspective camera
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
-    camera.setView(vec3(0,5,10),vec3(0,5,0),vec3(0,1,0));
+    //    camera.setView(vec3(0,5,10),vec3(0,5,0),vec3(0,1,0));
+    camera.setView(vec3(0,10,-10),vec3(0,9,0),vec3(0,1,0));
     camera.enableInput();
     //How fast the camera moves
     camera.movementSpeed = 2;
@@ -29,38 +30,40 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     //This simple AssetLoader can create assets from meshes and generate some generic debug assets
     AssetLoader2 assetLoader;
 
+    float height = 20;
     //First create the triangle mesh of a cube
-    auto cubeMesh = TriangleMeshGenerator::createMesh(aabb(vec3(-1),vec3(1,20,1)));
+    auto cubeMesh = TriangleMeshGenerator::createMesh(aabb(vec3(-1,0,-1),vec3(1,height,1)));
 
     //To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and provides
     //render functions.
     auto cubeAsset = assetLoader.assetFromMesh(cubeMesh,Colors::blue);
 
-    float s = 100;
+    float s = 200;
 
-    for(int i = 0 ;i < 200; ++i){
+    for(int i = 0 ;i < 500; ++i){
         SimpleAssetObject cube;
-
-
-
         cube.asset = cubeAsset;
-        cube.translateGlobal(glm::linearRand(vec3(-s,1,-s),vec3(s,1,s)));
+        cube.translateGlobal(glm::linearRand(vec3(-s,0,-s),vec3(s,0,s)));
         cube.calculateModel();
         cubes.push_back(cube);
     }
+
+    sceneBB = aabb(vec3(-s,0,-s),vec3(s,height,s));
 
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(s,s),1.0f,Colors::lightgray,Colors::gray);
 
     //create one directional light
     sun = window->getRenderer()->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-2,-2.5));
-//    sun->setDirection(vec3(0,-1,0));
+    //    sun->setDirection(vec3(0,-1,0));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(1.0);
     sun->setAmbientIntensity(0.02f);
     sun->setFocus(vec3(0));
     sun->createShadowMap(2048,2048);
     sun->enableShadows();
+
+    imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
 
     cout<<"Program Initialized!"<<endl;
 }
@@ -73,7 +76,8 @@ SimpleWindow::~SimpleWindow()
 void SimpleWindow::update(float dt){
     //Update the camera position
     camera.update(dt);
-    sun->fitShadowToCamera(&camera);
+    if(moveSun)
+        sun->fitShadowToCamera(&camera,sceneBB);
 }
 
 void SimpleWindow::interpolate(float dt, float interpolation) {
@@ -111,8 +115,21 @@ void SimpleWindow::renderOverlay(Camera *cam)
 
 void SimpleWindow::renderFinal(Camera *cam)
 {
-    //The final render path (after post processing).
-    //Usually the GUI is rendered here.
+
+    imgui.beginFrame();
+
+    {
+        ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
+        ImGui::Begin("An Imgui Window :D");
+
+        ImGui::Checkbox("Move Sun",&moveSun);
+
+        ImGui::End();
+    }
+
+
+    imgui.endFrame();
 }
 
 

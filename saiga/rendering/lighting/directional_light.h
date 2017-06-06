@@ -39,7 +39,7 @@ public:
     void setAmbientIntensity(float ai);
     float getAmbientIntensity(){return ambientIntensity;}
 
-    void fitShadowToCamera(Camera* cam);
+    void fitShadowToCamera(Camera* cam, aabb sceneBB=aabb());
 
 };
 

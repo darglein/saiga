@@ -1,5 +1,6 @@
 #include "saiga/rendering/lighting/directional_light.h"
 
+#include "saiga/geometry/clipping.h"
 #include "saiga/geometry/obb.h"
 
 void DirectionalLightShader::checkUniforms(){
@@ -66,7 +67,7 @@ void DirectionalLight::setAmbientIntensity(float ai)
     ambientIntensity = ai;
 }
 
-void DirectionalLight::fitShadowToCamera(Camera *cam)
+void DirectionalLight::fitShadowToCamera(Camera *cam, aabb sceneBB)
 {
     vec3 dir = -direction;
     vec3 right = normalize(cross(vec3(1,1,0),dir));
@@ -112,10 +113,6 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
     //translate the box only by texel size increments to remove flickering
 
 
-    //TODO: clip near plane to scene bounding box
-    //transform scene aabb to light space
-    //clip triangles of scene aabb to the 4 side planes of the frustum
-    //the min and max z of all cliped triangles are the required values
 
     glm::mat3 m;
     m[0] = right;
@@ -159,6 +156,11 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
     orthoMin +=  t ;
     orthoMax +=  t ;
 
+    {
+        auto s = 0;
+        orthoMin -= vec3(s);
+        orthoMax += vec3(s);
+    }
 #if 1
     {
         //move camera in texel size increments
@@ -171,6 +173,74 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
         orthoMax *= texelSize;
     }
 #endif
+
+
+
+    //TODO: clip near plane to scene bounding box
+
+    //transform scene aabb to light space
+//    std::vector<vec3> corners(8);
+//    for(int i = 0 ; i < 8; ++i){
+//        vec3 c = sceneBB.cornerPoint(i);
+//        corners[i] = vec3(this->cam.view * vec4(c,1));
+//        cout << "corner " << i << " " << corners[i] << endl;
+//    }
+
+    auto tris = sceneBB.toTriangles();
+    std::vector<PolygonType> trisp;
+    for(auto t : tris){
+        trisp.push_back( Polygon::toPolygon(t) );
+    }
+    for(auto& p : trisp){
+        for(auto &v : p){
+            v = vec3(this->cam.view * vec4(v,1));
+        }
+//        tri.a = vec3(this->cam.view * vec4(tri.a,1));
+//        tri.b = vec3(this->cam.view * vec4(tri.b,1));
+//        tri.c = vec3(this->cam.view * vec4(tri.c,1));
+    }
+
+    //clip triangles of scene aabb to the 4 side planes of the frustum
+
+    for(auto &p : trisp){
+        p = Clipping::clipPolygonAxisAlignedPlane(p,0,orthoMin.x,true);
+        p = Clipping::clipPolygonAxisAlignedPlane(p,0,orthoMax.x,false);
+
+        p = Clipping::clipPolygonAxisAlignedPlane(p,1,orthoMin.y,true);
+        p = Clipping::clipPolygonAxisAlignedPlane(p,1,orthoMax.y,false);
+    }
+
+    float maxZ = -12057135;
+    float minZ = 0213650235;
+
+    for(auto& p : trisp){
+        for(auto &v : p){
+            minZ = std::min(minZ,v.z);
+            maxZ = std::max(maxZ,v.z);
+        }
+    }
+
+    std::swap(minZ,maxZ);
+    minZ = -minZ;
+    maxZ = -maxZ;
+
+    auto s = 0;
+    minZ -= s;
+    maxZ += s;
+
+    cout << "min max Z " << minZ << " " << maxZ << endl;
+    cout << "ortho min max Z " << orthoMin.z << " " << orthoMax.z << endl;
+
+
+//    orthoMin.z = minZ;
+//    orthoMax.z = maxZ;
+
+    //the min and max z of all cliped triangles are the required values
+
+
+
+
+
     this->cam.setProj(
                 orthoMin.x ,orthoMax.x,
                 orthoMin.y ,orthoMax.y,
@@ -178,6 +248,12 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
                 );
 
 
+    //test if all cam vertices are in the shadow volume
+    for(int i = 0 ;i < 8 ; ++i){
+        vec3 v = cam->vertices[i];
+        vec4 p = this->cam.proj * this->cam.view * vec4(v,1);
+        cout << p << endl;
+    }
 
 
 #endif
