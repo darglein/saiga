@@ -217,7 +217,8 @@ void PerspectiveCamera::recalculatePlanes()
 
 
     //    vec3 fbr = farplanepos - fh * up + fw * right;
-    vec3 fbr = farplanepos - fh * up;
+//    vec3 fbr = farplanepos - fh * up;
+    vec3 fbr = vertices[4];
     vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
     float r = glm::distance(fbr,sphereMid);
 

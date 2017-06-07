@@ -232,8 +232,8 @@ void DirectionalLight::fitShadowToCamera(Camera *cam, aabb sceneBB)
     cout << "ortho min max Z " << orthoMin.z << " " << orthoMax.z << endl;
 
 
-//    orthoMin.z = minZ;
-//    orthoMax.z = maxZ;
+    orthoMin.z = minZ;
+    orthoMax.z = maxZ;
 
     //the min and max z of all cliped triangles are the required values
 
