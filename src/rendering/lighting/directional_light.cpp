@@ -46,33 +46,45 @@ DirectionalLight::DirectionalLight()
 
 void DirectionalLight::createShadowMap(int resX, int resY){
     Light::createShadowMap(resX,resY);
-    range = 20.0f;
-//    cam.setProj(-range,range,-range,range,shadowNearPlane,50.0f);
-
 }
 
 
 void DirectionalLight::setDirection(const vec3 &dir){
     direction = glm::normalize(dir);
 
+    vec3 d = -direction;
+    vec3 right = normalize(cross(vec3(1,1,0),d));
+    vec3 up = normalize(cross(d,right));
 
+
+    glm::mat3 m;
+    m[0] = right;
+    m[1] = up;
+    m[2] = d;
+
+    vec3 cp = vec3(0);
+
+    this->cam.setPosition( cp );
+
+
+    this->cam.rot = glm::quat_cast( m );
+
+    this->cam.calculateModel();
+    this->cam.updateFromModel();
 }
 
-void DirectionalLight::setFocus(const vec3 &pos){
-//    cam.setView(pos-direction*range, pos, vec3(0,1,0));
-}
 
 void DirectionalLight::setAmbientIntensity(float ai)
 {
     ambientIntensity = ai;
 }
 
-void DirectionalLight::fitShadowToCamera(Camera *cam, aabb sceneBB)
+void DirectionalLight::fitShadowToCamera(Camera *cam)
 {
+#if 0
     vec3 dir = -direction;
     vec3 right = normalize(cross(vec3(1,1,0),dir));
     vec3 up = normalize(cross(dir,right));
-#if 0
 
     OBB obb;
     obb.setOrientationScale( normalize(right), normalize(up), normalize(dir) );
@@ -112,26 +124,7 @@ void DirectionalLight::fitShadowToCamera(Camera *cam, aabb sceneBB)
     //note: camera movement or rotation doesn't change the size of the shadow box anymore
     //translate the box only by texel size increments to remove flickering
 
-
-
-    glm::mat3 m;
-    m[0] = right;
-    m[1] = up;
-    m[2] = dir;
-
-
-
-    vec3 cp = vec3(0);
-
-    this->cam.setPosition( cp );
-
-
-    this->cam.rot = glm::quat_cast( m );
-
-    this->cam.calculateModel();
-    this->cam.updateFromModel();
-
-    glm::mat3 v = glm::mat3(this->cam.view);
+    vec3 cp = this->cam.getPosition();
 
 
     float r = cam->boundingSphere.r;
@@ -143,24 +136,16 @@ void DirectionalLight::fitShadowToCamera(Camera *cam, aabb sceneBB)
     texelSize.y = 2.0f * r / shadowmap.h;
     texelSize.z = 0.0001f;
 
+    //project the position of the actual camera to light space
     vec3 p = cam->boundingSphere.pos;
-
-
+    glm::mat3 v = glm::mat3(this->cam.view);
     vec3 t = v * p - v * cp;
-
     t.z = -t.z;
 
-    vec3 orthoMin(-r);
-    vec3 orthoMax(r);
 
-    orthoMin +=  t ;
-    orthoMax +=  t ;
+    vec3 orthoMin = t - vec3(r);
+    vec3 orthoMax = t + vec3(r);
 
-    {
-        auto s = 0;
-        orthoMin -= vec3(s);
-        orthoMax += vec3(s);
-    }
 #if 1
     {
         //move camera in texel size increments
@@ -169,23 +154,38 @@ void DirectionalLight::fitShadowToCamera(Camera *cam, aabb sceneBB)
         orthoMin *= texelSize;
 
         orthoMax /= texelSize;
-        orthoMax = ceil(orthoMax);
+        orthoMax = floor(orthoMax);
         orthoMax *= texelSize;
     }
 #endif
 
 
+    this->cam.setProj(
+                orthoMin.x ,orthoMax.x,
+                orthoMin.y ,orthoMax.y,
+                orthoMin.z ,orthoMax.z
+                );
 
-    //TODO: clip near plane to scene bounding box
+
+#if 0
+    //test if all cam vertices are in the shadow volume
+    for(int i = 0 ;i < 8 ; ++i){
+        vec3 v = cam->vertices[i];
+        vec4 p = this->cam.proj * this->cam.view * vec4(v,1);
+        cout << p << endl;
+    }
+#endif
+
+#endif
+}
+
+void DirectionalLight::fitNearPlaneToScene(aabb sceneBB)
+{
+    vec3 orthoMin(cam.left,cam.bottom,cam.zNear);
+    vec3 orthoMax(cam.right,cam.top,cam.zFar);
+
 
     //transform scene aabb to light space
-//    std::vector<vec3> corners(8);
-//    for(int i = 0 ; i < 8; ++i){
-//        vec3 c = sceneBB.cornerPoint(i);
-//        corners[i] = vec3(this->cam.view * vec4(c,1));
-//        cout << "corner " << i << " " << corners[i] << endl;
-//    }
-
     auto tris = sceneBB.toTriangles();
     std::vector<PolygonType> trisp;
     for(auto t : tris){
@@ -195,9 +195,6 @@ void DirectionalLight::fitShadowToCamera(Camera *cam, aabb sceneBB)
         for(auto &v : p){
             v = vec3(this->cam.view * vec4(v,1));
         }
-//        tri.a = vec3(this->cam.view * vec4(tri.a,1));
-//        tri.b = vec3(this->cam.view * vec4(tri.b,1));
-//        tri.c = vec3(this->cam.view * vec4(tri.c,1));
     }
 
     //clip triangles of scene aabb to the 4 side planes of the frustum
@@ -224,39 +221,18 @@ void DirectionalLight::fitShadowToCamera(Camera *cam, aabb sceneBB)
     minZ = -minZ;
     maxZ = -maxZ;
 
-    auto s = 0;
-    minZ -= s;
-    maxZ += s;
-
-    cout << "min max Z " << minZ << " " << maxZ << endl;
-    cout << "ortho min max Z " << orthoMin.z << " " << orthoMax.z << endl;
+//    cout << "min max Z " << minZ << " " << maxZ << endl;
+//    cout << "ortho min max Z " << orthoMin.z << " " << orthoMax.z << endl;
 
 
     orthoMin.z = minZ;
     orthoMax.z = maxZ;
-
-    //the min and max z of all cliped triangles are the required values
-
-
-
-
 
     this->cam.setProj(
                 orthoMin.x ,orthoMax.x,
                 orthoMin.y ,orthoMax.y,
                 orthoMin.z ,orthoMax.z
                 );
-
-
-    //test if all cam vertices are in the shadow volume
-    for(int i = 0 ;i < 8 ; ++i){
-        vec3 v = cam->vertices[i];
-        vec4 p = this->cam.proj * this->cam.view * vec4(v,1);
-        cout << p << endl;
-    }
-
-
-#endif
 }
 
 void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam){

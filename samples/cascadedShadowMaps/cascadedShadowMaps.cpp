@@ -59,7 +59,6 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(1.0);
     sun->setAmbientIntensity(0.02f);
-    sun->setFocus(vec3(0));
     sun->createShadowMap(2048,2048);
     sun->enableShadows();
 
@@ -76,8 +75,12 @@ SimpleWindow::~SimpleWindow()
 void SimpleWindow::update(float dt){
     //Update the camera position
     camera.update(dt);
-    if(moveSun)
-        sun->fitShadowToCamera(&camera,sceneBB);
+    if(fitShadowToCamera){
+        sun->fitShadowToCamera(&camera);
+    }
+    if(fitNearPlaneToScene){
+        sun->fitNearPlaneToScene(sceneBB);
+    }
 }
 
 void SimpleWindow::interpolate(float dt, float interpolation) {
@@ -123,8 +126,14 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
 
-        ImGui::Checkbox("Move Sun",&moveSun);
+        ImGui::Checkbox("fitShadowToCamera",&fitShadowToCamera);
+        ImGui::Checkbox("fitNearPlaneToScene",&fitNearPlaneToScene);
 
+
+
+        static float farPlane = 50;
+        if(ImGui::InputFloat("Camera Far Plane",&farPlane))
+            camera.setProj(60.0f,parentWindow->getAspectRatio(),0.1f,farPlane);
         ImGui::End();
     }
 
