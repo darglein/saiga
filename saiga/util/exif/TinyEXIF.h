@@ -103,6 +103,8 @@ public:
 	std::string ImageDescription;       // Image description
 	std::string Make;                   // Camera manufacturer's name
 	std::string Model;                  // Camera model
+
+    //http://sylvana.net/jpegcrop/exif_orientation.html
 	uint16_t Orientation;               // Image orientation, start of data corresponds to
 									    // 0: unspecified in EXIF data
 									    // 1: upper left of image
