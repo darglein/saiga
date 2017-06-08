@@ -28,7 +28,9 @@ public:
     ProceduralSkybox skybox;
 
 
-    bool moveSun = true;
+    bool debugLightShader = false;
+    bool fitShadowToCamera = true;
+    bool fitNearPlaneToScene = true;
 
     std::shared_ptr<DirectionalLight> sun;
 

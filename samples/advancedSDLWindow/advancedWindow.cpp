@@ -56,7 +56,6 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(0.5);
     sun->setAmbientIntensity(0.1f);
-    sun->setFocus(vec3(0));
     sun->createShadowMap(2048,2048);
     sun->enableShadows();
 

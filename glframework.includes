@@ -8,3 +8,4 @@ saiga/cuda
 src/cuda
 saiga/opengl
 /soft/devtools/nvidia/cuda-7.5/include
+shader/lighting

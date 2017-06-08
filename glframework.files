@@ -10,6 +10,7 @@ samples/cascadedShadowMaps/main.cpp
 samples/simpleSDLWindow/simpleWindow.h
 samples/advancedSDLWindow/advancedWindow.h
 samples/cascadedShadowMaps/cascadedShadowMaps.h
+shader/lighting/light_cascaded.glsl
 src/text/encoding.cpp
 src/text/TextOverlay2D.cpp
 src/text/textureAtlas.cpp

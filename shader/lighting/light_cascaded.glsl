@@ -1,0 +1,104 @@
+
+##GL_VERTEX_SHADER
+
+#version 330
+layout(location=0) in vec3 in_position;
+
+
+#include "camera.glsl"
+uniform mat4 model;
+
+
+void main() {
+    gl_Position = vec4(in_position.x,in_position.y,0,1);
+
+}
+
+
+
+##GL_FRAGMENT_SHADER
+#version 330
+
+
+#ifdef SHADOWS
+uniform sampler2DShadow depthTex;
+#endif
+
+uniform sampler2D ssaoTex;
+
+uniform vec3 direction;
+uniform float ambientIntensity;
+
+#include "lighting_helper_fs.glsl"
+
+layout(location=0) out vec4 out_color;
+
+
+float getSSAOIntensity(){
+//    ivec2 tci = ivec2(gl_FragCoord.xy);
+    vec2 tc = CalcTexCoord();
+    float ssao = texture(ssaoTex,tc).r;
+    return 1.0f - ssao;
+//    return 1.0f;
+}
+
+vec4 getDirectionalLightIntensity(int sampleId) {
+    vec3 diffColor,vposition,normal,data;
+    float depth;
+    getGbufferData(diffColor,vposition,depth,normal,data,sampleId);
+
+    vec3 fragmentLightDir = direction;
+    float ssao = getSSAOIntensity();
+    float intensity = lightColorDiffuse.w;
+
+
+    float viewDepth = -vposition.z;
+
+    float visibility = 1.0f;
+#ifdef SHADOWS
+//        visibility = calculateShadow(depthTex,vposition);
+        visibility = calculateShadowPCF2(depthTex,vposition);
+    //    visibility = calculateShadowPCFdither4(depthTex,vposition);
+#endif
+
+    float localIntensity = intensity * visibility; //amount of light reaching the given point
+
+    float Iamb = intensity * ambientIntensity * ssao;
+    float Idiff = localIntensity * intensityDiffuse(normal,fragmentLightDir);
+    float Ispec = 0;
+    if(Idiff > 0)
+        Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,fragmentLightDir,40);
+
+    float Iemissive = data.y ;
+
+    vec3 color = lightColorDiffuse.rgb * (
+                Idiff * diffColor +
+                Ispec * lightColorSpecular.w * lightColorSpecular.rgb +
+                Iamb * diffColor) +
+            Iemissive * diffColor;
+
+
+    if(viewDepth < 25)
+        color += vec3(0.4,0,0);
+    else
+        color += vec3(0,0.5,0);
+//    return vec4(depth);
+//    if(-vposition.z > 48.5)
+//    return vec4(1,0,0,1);
+    return vec4(color,1);
+//    return vec4(lightColor*(Idiff+Iamb) ,Ispec); //accumulation
+//    out_color = vec4(1.0f);
+}
+
+void main(){
+//    vec4 c = vec4(0);
+//    int s = 1;
+//    for(int i = 0 ; i < s ; ++i){
+//        c += getDirectionalLightIntensity(i);
+//    }
+//    out_color = (c / s);
+
+    out_color = getDirectionalLightIntensity(0);
+}
+
+
