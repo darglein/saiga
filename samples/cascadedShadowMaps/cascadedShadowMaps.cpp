@@ -123,7 +123,7 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
 
-        ImGui::Checkbox("Move Sun",&moveSun);
+        ImGui::Checkbox("Move Sun",&moveSun);z
 
         ImGui::End();
     }

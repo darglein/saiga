@@ -20,6 +20,16 @@ class BoxLight;
 
 class Program;
 
+struct DeferredLightingShaderNames{
+    std::string pointLightShader = "lighting/light_point.glsl";
+    std::string spotLightShader = "lighting/light_spot.glsl";
+    std::string directionalLightShader = "lighting/light_directional.glsl";
+    std::string boxLightShader = "lighting/light_box.glsl";
+    std::string debugShader = "lighting/debugmesh.glsl";
+    std::string stencilShader = "lighting/stenciltest.glsl";
+    std::string lightAccumulationShader = "lighting/lightaccumulation.glsl";
+};
+
 
 class SAIGA_GLOBAL DeferredLighting{
     friend class LightingController;
@@ -31,6 +41,8 @@ private:
 
     //the vertex position is sufficient. no normals and texture coordinates needed.
     typedef IndexedVertexBuffer<Vertex,GLushort> lightMesh_t;
+
+
 
     std::shared_ptr<PointLightShader>  pointLightShader, pointLightShadowShader;
     lightMesh_t pointLightMesh;
@@ -88,7 +100,7 @@ public:
     void init(int width, int height, bool _useTimers);
     void resize(int width, int height);
 
-    void loadShaders();
+    void loadShaders(const DeferredLightingShaderNames& names = DeferredLightingShaderNames());
 
     void setRenderDebug(bool b){drawDebug = b;}
     void createLightMeshes();
