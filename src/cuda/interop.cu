@@ -67,7 +67,7 @@ void Interop::mapImage(){
     mapped = true;
 }
 
-void Interop::initImage(unsigned int gl_buffer, unsigned int gl_target)
+void Interop::initImage(unsigned int gl_buffer, GLenum gl_target)
 {
     this->gl_buffer = gl_buffer;
     this->gl_target = gl_target;

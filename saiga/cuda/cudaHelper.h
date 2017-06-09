@@ -5,7 +5,7 @@
 #define CUDA_DEBUG
 
 
-
+#include "saiga/opengl/opengl.h"
 #include "saiga/cuda/array_view.h"
 #include "saiga/cuda/cudaTimer.h"
 

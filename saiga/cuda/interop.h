@@ -18,7 +18,7 @@ private:
     bool mapped;
 
 
-    unsigned int gl_target;
+    GLenum gl_target;
 public:
     Interop();
     ~Interop();
@@ -38,7 +38,7 @@ public:
     void* getDevicePtr();
 
     size_t  get_size(){return size;}
-    void initImage(unsigned int gl_buffer, unsigned int gl_target);
+    void initImage(unsigned int gl_buffer, GLenum gl_target);
     void mapImage();
 };
 }

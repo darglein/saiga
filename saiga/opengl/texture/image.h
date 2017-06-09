@@ -71,6 +71,12 @@ public:
     void flipRB();
     void flipY();
 
+    //convert to 8-bit bitmap if image is in heigher bitdepth
+    void to8bitImage();
+
+    //removes alpha channel if this image has one
+    void removeAlpha();
+
     //======================================================
 
 

@@ -27,7 +27,7 @@ int Image::position(int x, int y){
 }
 
 Image::byte_t *Image::positionPtr(int x, int y){
-//    return &(this->data[position(x,y)]);
+    //    return &(this->data[position(x,y)]);
     return getRawData() + position(x,y);
 }
 
@@ -97,7 +97,7 @@ void Image::setSubImage(int x, int y, Image& src)
 
 
     for(int i=0;i<(int)src.height;i++){//rows
-//        memcpy(this->data+position(x,y+i),src.data+src.bytesPerRow*i,src.bytesPerRow);
+        //        memcpy(this->data+position(x,y+i),src.data+src.bytesPerRow*i,src.bytesPerRow);
         memcpy(this->positionPtr(x,y+i),src.getRawData()+src.bytesPerRow*i,src.bytesPerRow);
     }
 }
@@ -128,16 +128,28 @@ void Image::getSubImage(int x, int y, int w, int h, Image &out){
 
 void Image::flipRB()
 {
-    SAIGA_ASSERT(format.getBitDepth()==8);
+    SAIGA_ASSERT(format.getBitDepth()==8 || format.getBitDepth()==16);
     SAIGA_ASSERT(format.getChannels()==3 || format.getChannels()==4);
 
-    for(int y = 0 ; y < (int)height ; ++y){
-        uint8_t* ptr = getRawData() + (y*bytesPerRow);
-        for(int x = 0 ; x < (int)width ; ++x){
-            uint8_t r = *ptr;
-            *ptr = *(ptr+2);
-            *(ptr+2) = r;
-            ptr += format.getChannels();
+    if(format.getBitDepth() == 8){
+        for(int y = 0 ; y < (int)height ; ++y){
+            uint8_t* ptr = getRawData() + (y*bytesPerRow);
+            for(int x = 0 ; x < (int)width ; ++x){
+                uint8_t r = *ptr;
+                *ptr = *(ptr+2);
+                *(ptr+2) = r;
+                ptr += format.getChannels();
+            }
+        }
+    }else if(format.getBitDepth() == 16){
+        for(int y = 0 ; y < (int)height ; ++y){
+            uint16_t* ptr = (uint16_t*)(getRawData() + (y*bytesPerRow));
+            for(int x = 0 ; x < (int)width ; ++x){
+                uint16_t r = *ptr;
+                *ptr = *(ptr+2);
+                *(ptr+2) = r;
+                ptr += format.getChannels();
+            }
         }
     }
 }
@@ -153,6 +165,58 @@ void Image::flipY()
                   data.begin()+invOffset
                   );
     }
+}
+
+void Image::to8bitImage()
+{
+    if(format.getBitDepth() == 8)
+        return;
+
+    SAIGA_ASSERT(format.getElementFormat() == ImageElementFormat::UnsignedNormalized);
+    SAIGA_ASSERT(format.getBitDepth() == 16);
+
+    Image old = *this;
+
+
+    format.setBitDepth(8);
+    create();
+
+    for(int y = 0 ; y < height; ++y){
+        uint16_t* srcPtr = reinterpret_cast<uint16_t*>(old.positionPtr(0,y));
+        uint8_t* targetPtr = reinterpret_cast<uint8_t*>(positionPtr(0,y));
+        for(int x = 0 ; x < width * format.getChannels(); ++x){
+            targetPtr[x] = int(double(srcPtr[x]) / (65535.0) * 255.0);
+        }
+
+    }
+
+
+
+}
+
+void Image::removeAlpha()
+{
+    if(format.getChannels() != 4)
+        return;
+
+    Image old = *this;
+
+    format.setChannels(3);
+    create();
+
+    for(int y = 0 ; y < height; ++y){
+        uint8_t* srcPtr = reinterpret_cast<uint8_t*>(old.positionPtr(0,y));
+        uint8_t* targetPtr = reinterpret_cast<uint8_t*>(positionPtr(0,y));
+        for(int x = 0 ; x < width; ++x){
+            int srcOffset = x * old.Format().bytesPerPixel();
+            int targetOffset = x * format.bytesPerPixel();
+            for(int i = 0; i < format.bytesPerPixel(); ++ i){
+                targetPtr[targetOffset + i] = srcPtr[srcOffset + i];
+            }
+        }
+
+    }
+
 }
 
 //======================================================
