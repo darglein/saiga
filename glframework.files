@@ -22,7 +22,7 @@ src/geometry/ray.cpp
 src/geometry/obb.cpp
 src/geometry/sphere.cpp
 src/geometry/triangle.cpp
-src/geometry/AABB.cpp
+src/geometry/aabb.cpp
 src/geometry/kdtree.cpp
 src/geometry/grid.cpp
 src/geometry/raytracer.cpp
@@ -175,7 +175,7 @@ saiga/glfw/glfw_eventhandler.h
 saiga/tests/test.h
 saiga/geometry/plane.h
 saiga/geometry/sphere.h
-saiga/geometry/AABB.h
+saiga/geometry/aabb.h
 saiga/geometry/polygon.h
 saiga/geometry/clipping.h
 saiga/geometry/grid.h
@@ -369,6 +369,7 @@ saiga/cuda/scan.h
 saiga/cuda/array_view.h
 saiga/cuda/cusparseHelper.h
 saiga/cuda/memory.h
+saiga/geometry/aabb.inl
 shader/post_processing/fxaa.glsl
 shader/post_processing/NVIDIA_fxaa_luma.glsl
 shader/post_processing/ssr.glsl

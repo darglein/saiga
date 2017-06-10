@@ -9,15 +9,18 @@
 class SAIGA_GLOBAL AABB
 {
 public:
-    vec3 min,max;
+    vec3 min = vec3(0);
+    vec3 max = vec3(0);
 
-    AABB(void);
+public:
 
-    AABB(const vec3 &p, const vec3 &s);
-    ~AABB(void);
+    AABB();
+    AABB(const vec3 &min, const vec3 &max);
+    ~AABB();
 
 
-    int maxDimension(); //returns the axis with the maximum extend
+    //returns the axis with the maximum extend
+    int maxDimension();
 
     void makeNegative();
     void growBox(const vec3 &v);
@@ -56,3 +59,4 @@ public:
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const AABB& dt);
 };
 
+#include "saiga/geometry/aabb.inl"

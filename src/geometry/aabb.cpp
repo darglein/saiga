@@ -3,19 +3,6 @@
 #include "saiga/util/assert.h"
 
 
-AABB::AABB(void)
-{
-    min = vec3(0,0,0);
-    max = vec3(0,0,0);
-}
-
-AABB::AABB(const vec3 &p, const vec3 &s) : min(p), max(s)
-{
-}
-
-AABB::~AABB(void)
-{
-}
 
 int AABB::maxDimension()
 {
@@ -33,17 +20,6 @@ int AABB::maxDimension()
     return mi;
 }
 
-void AABB::transform(const mat4 &trafo){
-    //only for scaling and translation correct !!!!
-    min = vec3(trafo*vec4(min,1));
-    max = vec3(trafo*vec4(max,1));
-}
-
-void AABB::makeNegative(){
-#define INFINITE 100000000000000.0f
-    min = vec3(INFINITE);
-    max = vec3(-INFINITE);
-}
 #define MIN(X,Y) ((X<Y)?X:Y)
 #define MAX(X,Y) ((X>Y)?X:Y)
 #define MINV(V1,V2) vec3(MIN(V1.x,V2.x),MIN(V1.y,V2.y),MIN(V1.z,V2.z))
@@ -59,35 +35,6 @@ void AABB::growBox(const AABB &v){
     max = MAXV(max,v.max);
 }
 
-
-void AABB::translate(const vec3 &v)
-{
-    min += v;
-    max += v;
-
-}
-
-void AABB::scale(const vec3 &s){
-    vec3 pos = getPosition();
-    setPosition(vec3(0));
-    min*=s;
-    max*=s;
-    setPosition(pos);
-}
-
-vec3 AABB::getPosition() const
-{
-    return 0.5f*(min+max);
-
-}
-
-void AABB::setPosition(const vec3 &v)
-{
-    vec3 mid = 0.5f*(min+max);
-    mid = v-mid;
-    translate(mid);
-
-}
 
 
 void AABB::ensureValidity()
@@ -124,10 +71,6 @@ int AABB::touching(const AABB &other){
 
 }
 
-vec3 AABB::getHalfExtends()
-{
-    return 0.5f * (max-min);
-}
 
 bool AABB::intersectBool(const AABB &other, int side){
     side = (side+1)%3;

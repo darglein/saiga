@@ -32,6 +32,12 @@ do
 echo $f >> $FILE; 
 done
 
+
+for f in $(find saiga/ -name '*.inl*'); 
+do 
+echo $f >> $FILE; 
+done
+
 for f in $(find shader/ -name '*.glsl'); 
 do 
 echo $f >> $FILE; 
