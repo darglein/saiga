@@ -21,7 +21,7 @@ public:
 
     void bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera* cam);
 
-    virtual void createShadowMap(int resX, int resY) override;
+    void createShadowMap(int resX, int resY);
 
     void calculateCamera();
     bool cullLight(Camera *cam);

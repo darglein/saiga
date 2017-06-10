@@ -36,7 +36,9 @@ protected:
     vec3 attenuation = AttenuationPresets::Quadratic;
     float radius;
     Sphere sphere;
+
 public:
+    float shadowNearPlane = 0.1f;
     PerspectiveCamera cam;
 
 
@@ -86,7 +88,7 @@ public:
     float getAttenuation(float r);
     void setAttenuation(const vec3 &value);
 
-    virtual void createShadowMap(int resX, int resY) override;
+    void createShadowMap(int resX, int resY);
 
     void bindFace(int face);
     void calculateCamera(int face);

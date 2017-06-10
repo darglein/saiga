@@ -34,7 +34,7 @@ void Text::calculateNormalizationMatrix()
 //        cout << "boundingBox " << boundingBox << " " << textureAtlas->getMaxCharacter() << endl;
 
         //grow every line by max character
-        aabb maxCharacter = textureAtlas->getMaxCharacter();
+        AABB maxCharacter = textureAtlas->getMaxCharacter();
         for(int i = 0 ; i < lines ; ++i){
 
             boundingBox.growBox(maxCharacter);

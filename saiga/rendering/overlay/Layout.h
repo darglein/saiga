@@ -33,7 +33,7 @@ public:
 //public:
 
 //    static void init(int width, int height, float targetWidth,  float targetHeight);
-//    static void transform(Object3D* obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY);
+//    static void transform(Object3D* obj, const AABB &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY);
 
 private:
     int width,height;
@@ -48,13 +48,13 @@ public:
     void init(int width, int height);
 
     //transforms the object uniformly to fit relSize.
-    aabb transform(Object3D* obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX=true);
+    AABB transform(Object3D* obj, const AABB &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX=true);
 
     //transofrms the obejct to fit relsize
-    aabb transformNonUniform(Object3D* obj, const aabb &box, vec2 relPos, vec2 relSize, Alignment alignmentX, Alignment alignmentY);
+    AABB transformNonUniform(Object3D* obj, const AABB &box, vec2 relPos, vec2 relSize, Alignment alignmentX, Alignment alignmentY);
 
     //transforms the object uniformly to fit relSize. The resulting object may not cover the complete box defined by relsize.
-    aabb transformUniform(Object3D* obj, const aabb &box, vec2 relPos, vec2 relSize, Alignment alignmentX, Alignment alignmentY);
+    AABB transformUniform(Object3D* obj, const AABB &box, vec2 relPos, vec2 relSize, Alignment alignmentX, Alignment alignmentY);
 
     //transforms a point in the range [(0,0),(width,height)] to the range [(0,0),(targetWidth,targetHeight)]
     vec2 transformToLocal(vec2 p);

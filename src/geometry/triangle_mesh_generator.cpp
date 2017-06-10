@@ -239,7 +239,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone &co
 }
 
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const aabb &box){
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const AABB &box){
     default_mesh_t* mesh = new default_mesh_t();
 
     unsigned int indices[] {
@@ -298,7 +298,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const aabb &bo
     return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createSkyboxMesh(const aabb &box){
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createSkyboxMesh(const AABB &box){
     std::shared_ptr<default_mesh_t> mesh = createMesh(box);
 
 

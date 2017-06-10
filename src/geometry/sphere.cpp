@@ -1,6 +1,6 @@
 #include "saiga/geometry/sphere.h"
 
-int Sphere::intersectAabb(const aabb &other){
+int Sphere::intersectAabb(const AABB &other){
 
     if(!intersectAabb2(other))
         return 0;
@@ -15,13 +15,13 @@ int Sphere::intersectAabb(const aabb &other){
     return 2;
 }
 
-void Sphere::getMinimumAabb(aabb &box){
+void Sphere::getMinimumAabb(AABB &box){
     vec3 rad(r+1,r+1,r+1);
     box.min = pos-rad;
     box.max = pos+rad;
 }
 
-bool Sphere::intersectAabb2(const aabb &other){
+bool Sphere::intersectAabb2(const AABB &other){
 
 
     float s, d = 0;

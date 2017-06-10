@@ -37,7 +37,7 @@ public:
     /**
      * Returns the bounding box that could contain every character in this font.
      */
-    aabb getMaxCharacter(){return maxCharacter;}
+    AABB getMaxCharacter(){return maxCharacter;}
 
     /**
      * Returns the actual opengl texture.
@@ -78,7 +78,7 @@ private:
 //    std::vector<character_info> characterInfoMap = std::vector<character_info>(maxNumCharacters);
 
     std::shared_ptr<Texture> textureAtlas = nullptr;
-    aabb maxCharacter;
+    AABB maxCharacter;
     std::string font;
     std::string uniqueFontString;
 

@@ -21,7 +21,7 @@ public:
 	Ray(const vec3 &dir = vec3(0, 0, 0), const vec3 &ori = vec3(0, 0, 0));
 
     //[output] t: distance between ray origin and intersection
-    bool intersectAabb(const aabb &bb, float &t) const;
+    bool intersectAabb(const AABB &bb, float &t) const;
 
      bool intersectSphere(const Sphere &s, float &t1, float &t2) const;
 

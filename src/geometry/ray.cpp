@@ -11,9 +11,9 @@ Ray::Ray(const vec3 &dir , const vec3 &ori) :direction(dir), origin(ori){
 //using glm::min;
 //using glm::max;
 //source
-//http://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
+//http://gamedev.stackexchange.com/questions/18436/most-efficient-AABB-vs-ray-collision-algorithms
 
-bool Ray::intersectAabb(const aabb &bb, float &t) const{
+bool Ray::intersectAabb(const AABB &bb, float &t) const{
     // lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
     // r.org is origin of ray
     float t1 = (bb.min.x - origin.x)*dirfrac.x;

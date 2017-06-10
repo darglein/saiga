@@ -23,7 +23,7 @@ public:
     void uploadDepthBiasMV(mat4 &mat);
     void uploadDepthTexture(std::shared_ptr<raw_Texture> texture);
     void uploadShadow(float shadow);
-    void uploadShadowMapSize(float w, float h);
+    void uploadShadowMapSize(glm::ivec2 s);
     void uploadInvProj(mat4 &mat);
 };
 
@@ -64,10 +64,10 @@ protected:
     bool castShadows=false;
 
 
-public:
-//    std::shared_ptr<raw_Texture> dummyTexture = nullptr; //0x0 texture to fix an ati error
     Shadowmap shadowmap;
-    float shadowNearPlane = 0.1f;
+public:
+
+
 
     vec4 colorDiffuse = vec4(1);
     vec4 colorSpecular = vec4(1);
@@ -107,7 +107,7 @@ public:
     void disableShadows() {castShadows=false;}
     void setCastShadows(bool s){ if(shadowmap.isInitialized()) castShadows = s;}
 
-    virtual void createShadowMap(int resX, int resY);
+
     void bindShadowMap();
     void unbindShadowMap();
 

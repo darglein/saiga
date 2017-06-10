@@ -1,23 +1,23 @@
 #include "saiga/geometry/aabb.h"
 #include <glm/gtc/epsilon.hpp>
-#include "saiga/geometry/bezier.h"
+#include "saiga/util/assert.h"
 
 
-aabb::aabb(void)
+AABB::AABB(void)
 {
     min = vec3(0,0,0);
     max = vec3(0,0,0);
 }
 
-aabb::aabb(const vec3 &p, const vec3 &s) : min(p), max(s)
+AABB::AABB(const vec3 &p, const vec3 &s) : min(p), max(s)
 {
 }
 
-aabb::~aabb(void)
+AABB::~AABB(void)
 {
 }
 
-int aabb::maxDimension()
+int AABB::maxDimension()
 {
     vec3 d = max - min;
 
@@ -33,13 +33,13 @@ int aabb::maxDimension()
     return mi;
 }
 
-void aabb::transform(const mat4 &trafo){
+void AABB::transform(const mat4 &trafo){
     //only for scaling and translation correct !!!!
     min = vec3(trafo*vec4(min,1));
     max = vec3(trafo*vec4(max,1));
 }
 
-void aabb::makeNegative(){
+void AABB::makeNegative(){
 #define INFINITE 100000000000000.0f
     min = vec3(INFINITE);
     max = vec3(-INFINITE);
@@ -48,26 +48,26 @@ void aabb::makeNegative(){
 #define MAX(X,Y) ((X>Y)?X:Y)
 #define MINV(V1,V2) vec3(MIN(V1.x,V2.x),MIN(V1.y,V2.y),MIN(V1.z,V2.z))
 #define MAXV(V1,V2) vec3(MAX(V1.x,V2.x),MAX(V1.y,V2.y),MAX(V1.z,V2.z))
-void aabb::growBox(const vec3 &v){
+void AABB::growBox(const vec3 &v){
 
     min = MINV(min,v);
     max = MAXV(max,v);
 }
 
-void aabb::growBox(const aabb &v){
+void AABB::growBox(const AABB &v){
     min = MINV(min,v.min);
     max = MAXV(max,v.max);
 }
 
 
-void aabb::translate(const vec3 &v)
+void AABB::translate(const vec3 &v)
 {
     min += v;
     max += v;
 
 }
 
-void aabb::scale(const vec3 &s){
+void AABB::scale(const vec3 &s){
     vec3 pos = getPosition();
     setPosition(vec3(0));
     min*=s;
@@ -75,13 +75,13 @@ void aabb::scale(const vec3 &s){
     setPosition(pos);
 }
 
-vec3 aabb::getPosition() const
+vec3 AABB::getPosition() const
 {
     return 0.5f*(min+max);
 
 }
 
-void aabb::setPosition(const vec3 &v)
+void AABB::setPosition(const vec3 &v)
 {
     vec3 mid = 0.5f*(min+max);
     mid = v-mid;
@@ -90,7 +90,7 @@ void aabb::setPosition(const vec3 &v)
 }
 
 
-void aabb::ensureValidity()
+void AABB::ensureValidity()
 {
     float tmp;
     if(min.x > max.x){
@@ -113,7 +113,7 @@ void aabb::ensureValidity()
 
 }
 
-int aabb::touching(const aabb &other){
+int AABB::touching(const AABB &other){
 
     for(int i = 0;i<3;i++){
         //glm::equalEpsilon(1,1,1);
@@ -124,12 +124,12 @@ int aabb::touching(const aabb &other){
 
 }
 
-vec3 aabb::getHalfExtends()
+vec3 AABB::getHalfExtends()
 {
     return 0.5f * (max-min);
 }
 
-bool aabb::intersectBool(const aabb &other, int side){
+bool AABB::intersectBool(const AABB &other, int side){
     side = (side+1)%3;
     if(min[side] >= other.max[side] || max[side] <= other.min[side] ) return false;
     side = (side+1)%3;
@@ -138,7 +138,7 @@ bool aabb::intersectBool(const aabb &other, int side){
     return true; //overlap
 }
 
-int aabb::intersect(const aabb &other){
+int AABB::intersect(const AABB &other){
     if(min.x >= other.max.x || max.x <= other.min.x ) return 0;
     if(min.y >= other.max.y || max.y <= other.min.y) return 0;
     if(min.z >= other.max.z || max.z <= other.min.z) return 0;
@@ -149,7 +149,7 @@ int aabb::intersect(const aabb &other){
     return 1; //overlap
 }
 
-bool aabb::intersectBool(const aabb &other){
+bool AABB::intersectBool(const AABB &other){
     if(min.x >= other.max.x || max.x <= other.min.x ) return false;
     if(min.y >= other.max.y || max.y <= other.min.y) return false;
     if(min.z >= other.max.z || max.z <= other.min.z) return false;
@@ -157,7 +157,7 @@ bool aabb::intersectBool(const aabb &other){
     return true; //overlap
 }
 
-bool aabb::intersectTouching(const aabb &other){
+bool AABB::intersectTouching(const AABB &other){
     if(min.x > other.max.x || max.x < other.min.x ) return false;
     if(min.y > other.max.y || max.y < other.min.y) return false;
     if(min.z > other.max.z || max.z < other.min.z) return false;
@@ -167,7 +167,7 @@ bool aabb::intersectTouching(const aabb &other){
 }
 
 
-vec3 aabb::cornerPoint(int cornerIndex) const
+vec3 AABB::cornerPoint(int cornerIndex) const
 {
      SAIGA_ASSERT(0 <= cornerIndex && cornerIndex <= 7);
     switch(cornerIndex)
@@ -184,7 +184,7 @@ vec3 aabb::cornerPoint(int cornerIndex) const
     }
 }
 
-bool aabb::contains(const vec3 &p){
+bool AABB::contains(const vec3 &p){
     if(min.x > p.x || max.x < p.x ) return false;
     if(min.y > p.y || max.y < p.y) return false;
     if(min.z > p.z || max.z < p.z) return false;
@@ -192,7 +192,7 @@ bool aabb::contains(const vec3 &p){
     return true; //overlap
 }
 
-std::vector<Triangle> aabb::toTriangles()
+std::vector<Triangle> AABB::toTriangles()
 {
     std::vector<Triangle> res = {
         //bottom
@@ -227,8 +227,8 @@ std::vector<Triangle> aabb::toTriangles()
 }
 
 
-std::ostream& operator<<(std::ostream& os, const aabb& bb)
+std::ostream& operator<<(std::ostream& os, const AABB& bb)
 {
-    std::cout<<"aabb: " << bb.min << " " << bb.max;
+    std::cout<<"AABB: " << bb.min << " " << bb.max;
     return os;
 }

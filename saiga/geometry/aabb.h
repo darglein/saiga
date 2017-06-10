@@ -6,22 +6,22 @@
 #include <vector>
 #include "saiga/geometry/triangle.h"
 
-class SAIGA_GLOBAL aabb
+class SAIGA_GLOBAL AABB
 {
 public:
     vec3 min,max;
 
-	aabb(void);
+    AABB(void);
 
-    aabb(const vec3 &p, const vec3 &s);
-	~aabb(void);
+    AABB(const vec3 &p, const vec3 &s);
+    ~AABB(void);
 
 
     int maxDimension(); //returns the axis with the maximum extend
 
     void makeNegative();
     void growBox(const vec3 &v);
-    void growBox(const aabb &v);
+    void growBox(const AABB &v);
 
     void transform(const mat4 &trafo);
 	void translate(const vec3 &v);
@@ -29,18 +29,18 @@ public:
     float height(){ return max.y-min.y;}
     void ensureValidity();
 
-	int intersect(const aabb &other);
-    bool intersectBool(const aabb &other);
-    bool intersectTouching(const aabb &other); //returns true if boxes are touching
+    int intersect(const AABB &other);
+    bool intersectBool(const AABB &other);
+    bool intersectTouching(const AABB &other); //returns true if boxes are touching
 
-    bool intersectBool(const aabb &other, int side);
-    int touching(const aabb &other);
+    bool intersectBool(const AABB &other, int side);
+    int touching(const AABB &other);
 
     vec3 getHalfExtends();
 
 
 
-    void getMinimumAabb(aabb &box){ box = *this;}
+    void getMinimumAabb(AABB &box){ box = *this;}
 
     vec3 cornerPoint(int i) const;
 
@@ -53,6 +53,6 @@ public:
     std::vector<Triangle> toTriangles();
 
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const aabb& dt);
+    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const AABB& dt);
 };
 

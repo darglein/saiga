@@ -61,9 +61,9 @@ void SpotLight::setRadius(float value)
 }
 
 void SpotLight::createShadowMap(int resX, int resY) {
-    Light::createShadowMap(resX,resY);
+//    Light::createShadowMap(resX,resY);
 //    float farplane = 50.0f;
-
+    shadowmap.createFlat(resX,resY);
 }
 
 void SpotLight::setAngle(float value){

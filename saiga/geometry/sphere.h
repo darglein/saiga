@@ -19,10 +19,10 @@ public:
 
 
 
-    int intersectAabb(const aabb &other);
-    bool intersectAabb2(const aabb &other);
+    int intersectAabb(const AABB &other);
+    bool intersectAabb2(const AABB &other);
 
-    void getMinimumAabb(aabb &box);
+    void getMinimumAabb(AABB &box);
 
     bool contains(vec3 p);
     bool intersect(const Sphere &other);

@@ -20,8 +20,8 @@ inline vec3 center(const PolygonType& pol){
     return c / (float)pol.size();
 }
 
-inline aabb boundingBox(const PolygonType& pol){
-    aabb res;
+inline AABB boundingBox(const PolygonType& pol){
+    AABB res;
     res.makeNegative();
     for(auto p : pol){
         res.growBox(p);

@@ -259,6 +259,14 @@ void OrthographicCamera::setProj( float _left, float _right,float _bottom,float 
     proj = glm::ortho(left,right,bottom,top,zNear,zFar);
 }
 
+void OrthographicCamera::setProj( AABB bb){
+    setProj(
+                    bb.min.x ,bb.max.x,
+                    bb.min.y ,bb.max.y,
+                    bb.min.z ,bb.max.z
+                    );
+}
+
 void OrthographicCamera::recalculatePlanes()
 {
     vec3 right = vec3(model[0]);

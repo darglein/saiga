@@ -26,8 +26,8 @@ public:
 
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const Cone &cone, int sectors);
 
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const aabb &box);
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createSkyboxMesh(const aabb &box);
+    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const AABB &box);
+    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createSkyboxMesh(const AABB &box);
 
 
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createGridMesh(unsigned int w, unsigned int h);

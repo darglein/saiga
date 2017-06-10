@@ -30,7 +30,7 @@ public:
 
     void setRadius(float value) override;
 
-    virtual void createShadowMap(int resX, int resY) override;
+    void createShadowMap(int resX, int resY);
 
     void recalculateScale();
     void setAngle(float value);

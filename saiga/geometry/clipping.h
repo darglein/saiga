@@ -10,7 +10,7 @@ namespace Clipping {
  * Sutherland–Hodgman algorithm
  *
  * Clips each input edge of the polygon to all clip planes.
- * Only implemented for aabbs here.
+ * Only implemented for AABBs here.
  * TODO: More general convex clip objects
  *
  * Some sources:
@@ -71,7 +71,7 @@ PolygonType clipPolygonAxisAlignedPlane(const PolygonType& polygon, int axis, fl
     return res;
 }
 
-PolygonType clipPolygonAABB(const PolygonType& p, const aabb& box){
+PolygonType clipPolygonAABB(const PolygonType& p, const AABB& box){
     PolygonType res = p;
     for(int axis = 0; axis < 3 ; axis ++){
         res = clipPolygonAxisAlignedPlane(res,axis,box.min[axis],true);
@@ -80,13 +80,13 @@ PolygonType clipPolygonAABB(const PolygonType& p, const aabb& box){
     return res;
 }
 
-PolygonType clipTriAABB(const Triangle& tri, const aabb& box){
+PolygonType clipTriAABB(const Triangle& tri, const AABB& box){
     PolygonType triP = {tri.a, tri.b, tri.c};
     return clipPolygonAABB(triP,box);
 
 }
 
-aabb clipTriAABBtoBox(Triangle tri, aabb box){
+AABB clipTriAABBtoBox(Triangle tri, AABB box){
     auto p = clipTriAABB(tri,box);
     return Polygon::boundingBox(p);
 }

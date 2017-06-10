@@ -12,7 +12,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 
     //create a perspective camera
     float aspect = window->getAspectRatio();
-    camera.setProj(60.0f,aspect,1.0f,50.0f);
+    camera.setProj(60.0f,aspect,1.0f,150.0f);
     //    camera.setView(vec3(0,5,10),vec3(0,5,0),vec3(0,1,0));
     camera.setView(vec3(0,10,-10),vec3(0,9,0),vec3(0,1,0));
     camera.enableInput();
@@ -32,7 +32,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 
     float height = 20;
     //First create the triangle mesh of a cube
-    auto cubeMesh = TriangleMeshGenerator::createMesh(aabb(vec3(-1,0,-1),vec3(1,height,1)));
+    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1,0,-1),vec3(1,height,1)));
 
     //To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and provides
     //render functions.
@@ -48,7 +48,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
         cubes.push_back(cube);
     }
 
-    sceneBB = aabb(vec3(-s,0,-s),vec3(s,height,s));
+    sceneBB = AABB(vec3(-s,0,-s),vec3(s,height,s));
 
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(s,s),1.0f,Colors::lightgray,Colors::gray);
 
@@ -59,7 +59,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(1.0);
     sun->setAmbientIntensity(0.02f);
-    sun->createShadowMap(2048,2048);
+    sun->createShadowMap(512,512);
     sun->enableShadows();
 
     imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
@@ -141,9 +141,47 @@ void SimpleWindow::renderFinal(Camera *cam)
 
 
 
-        static float farPlane = 50;
+        static float cascadeInterpolateRange = sun->getCascadeInterpolateRange();
+        if(ImGui::InputFloat("Cascade Interpolate Range",&cascadeInterpolateRange)){
+            sun->setCascadeInterpolateRange(cascadeInterpolateRange);
+        }
+
+        static float farPlane = 150;
+        static float nearPlane = 1;
         if(ImGui::InputFloat("Camera Far Plane",&farPlane))
-            camera.setProj(60.0f,parentWindow->getAspectRatio(),0.1f,farPlane);
+            camera.setProj(60.0f,parentWindow->getAspectRatio(),nearPlane,farPlane);
+
+        if(ImGui::InputFloat("Camera Near Plane",&nearPlane))
+            camera.setProj(60.0f,parentWindow->getAspectRatio(),nearPlane,farPlane);
+
+        static int numCascades = 1;
+
+        static int currentItem = 2;
+        static const char *items[5] = {
+            "128",
+            "256",
+            "512",
+            "1024",
+            "2048"
+        };
+
+        static int itemsi[5] = {
+            128,
+            256,
+            512,
+            1024,
+            2048
+        };
+
+        if(ImGui::InputInt("Num Cascades",&numCascades)){
+            sun->createShadowMap(itemsi[currentItem],itemsi[currentItem],numCascades);
+        }
+
+        if(ImGui::Combo("Shadow Map Resolution",&currentItem,items,5)){
+//            state = static_cast<State>(currentItem);
+//            switchToState(static_cast<State>(currentItem));
+            sun->createShadowMap(itemsi[currentItem],itemsi[currentItem],numCascades);
+        }
         ImGui::End();
     }
 

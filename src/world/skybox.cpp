@@ -5,7 +5,7 @@
 
 
 Skybox::Skybox(){
-    aabb bb(vec3(-1),vec3(1));
+    AABB bb(vec3(-1),vec3(1));
     auto sb = TriangleMeshGenerator::createSkyboxMesh(bb);
     sb->createBuffers(mesh);
 }

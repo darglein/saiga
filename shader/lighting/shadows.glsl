@@ -22,8 +22,8 @@ float calculateShadow(sampler2DShadow tex, vec3 position){
 
 
 //classic pcf
-float calculateShadowPCF2(sampler2DShadow shadowmap, vec3 position){
-    vec4 shadowPos = depthBiasMV * vec4(position,1);
+float calculateShadowPCF2(mat4 viewToLight, sampler2DShadow shadowmap, vec3 position){
+    vec4 shadowPos = viewToLight * vec4(position,1);
     float visibility = 1.0f;
 
     float sum = 0;

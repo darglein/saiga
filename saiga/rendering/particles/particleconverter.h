@@ -13,7 +13,7 @@ public:
 
     void convert(std::vector<Triangle> &triangles, std::vector<vec3> &points);
 
-    aabb getBoundingBox(std::vector<Triangle> &triangles);
+    AABB getBoundingBox(std::vector<Triangle> &triangles);
 
 private:
     void voxelizeRange(std::vector<vec3> &points, vec3 start, vec3 end);

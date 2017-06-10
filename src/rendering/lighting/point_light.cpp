@@ -142,8 +142,8 @@ void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *
         mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
         shader->uploadDepthBiasMV(shadow);
 
-        shader->uploadDepthTexture(shadowmap.depthTexture);
-        shader->uploadShadowMapSize(shadowmap.w,shadowmap.h);
+        shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
+        shader->uploadShadowMapSize(shadowmap.getSize());
     }
 
     assert_no_glerror();
@@ -153,8 +153,6 @@ void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *
 
 
 void PointLight::createShadowMap(int resX, int resY) {
-//    cout<<"PointLight::createShadowMap"<<endl;
-
     shadowmap.createCube(resX,resY);
 }
 
@@ -182,7 +180,6 @@ static const CameraDirection gCameraDirections[] =
 
 void PointLight::bindFace(int face){
     shadowmap.bindCubeFace(gCameraDirections[face].CubemapFace);
-    shadowmap.depthBuffer.check();
 }
 
 void PointLight::calculateCamera(int face){

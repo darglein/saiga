@@ -28,7 +28,7 @@ DeferredLighting::~DeferredLighting(){
 void DeferredLighting::loadShaders(const DeferredLightingShaderNames &names)
 {
     int shadowSamplesX = glm::round( glm::sqrt( (float) shadowSamples) );
-//    cout << "DeferredLighting shadowSamplesX=" << shadowSamplesX << endl;
+    //    cout << "DeferredLighting shadowSamplesX=" << shadowSamplesX << endl;
 
 
     ShaderPart::ShaderCodeInjections shadowInjection;
@@ -52,27 +52,27 @@ void DeferredLighting::loadShaders(const DeferredLightingShaderNames &names)
     debugShader = ShaderLoader::instance()->load<MVPColorShader>(names.debugShader);
     stencilShader = ShaderLoader::instance()->load<MVPShader>(names.stencilShader);
 
-//    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/blitDepth.glsl");
+    //    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/blitDepth.glsl");
     lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>(names.lightAccumulationShader);
 }
 
 void DeferredLighting::init(int width, int height, bool _useTimers){
     this->width=width;this->height=height;
-	useTimers = _useTimers;
+    useTimers = _useTimers;
 
-	if (useTimers) {
-		timers2.resize(5);
-		for (int i = 0; i < 5; ++i) {
-			timers2[i].create();
+    if (useTimers) {
+        timers2.resize(5);
+        for (int i = 0; i < 5; ++i) {
+            timers2[i].create();
 
-		}
-		timerStrings.resize(5);
-		timerStrings[0] = "Init";
-		timerStrings[1] = "Point Lights";
-		timerStrings[2] = "Spot Lights";
-		timerStrings[3] = "Box Lights";
-		timerStrings[4] = "Directional Lights";
-	}
+        }
+        timerStrings.resize(5);
+        timerStrings[0] = "Init";
+        timerStrings[1] = "Point Lights";
+        timerStrings[2] = "Spot Lights";
+        timerStrings[3] = "Box Lights";
+        timerStrings[4] = "Directional Lights";
+    }
 
     lightAccumulationBuffer.create();
 
@@ -128,8 +128,8 @@ void DeferredLighting::cullLights(Camera *cam){
 
 void DeferredLighting::printTimings()
 {
-	if (!useTimers)
-		return;
+    if (!useTimers)
+        return;
     for(int i = 0 ;i < 5 ;++i){
         cout<<"\t "<< getTime(i)<<"ms "<<timerStrings[i]<<endl;
     }
@@ -149,14 +149,17 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
     for(auto &light : directionalLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
-            light->bindShadowMap();
-            light->cam.recalculatePlanes();
+            for(int i = 0; i < light->getNumCascades(); ++i){
+//                light->bindShadowMap();
+                light->bindCascade(i);
+                light->cam.recalculatePlanes();
 
-            CameraDataGLSL cd(&light->cam);
-            shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
+                CameraDataGLSL cd(&light->cam);
+                shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
-            renderer->renderDepth(&light->cam);
-            light->unbindShadowMap();
+                renderer->renderDepth(&light->cam);
+                light->unbindShadowMap();
+            }
         }
     }
 
@@ -194,7 +197,7 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
 
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps+=6;
-            for(int i=0;i<6;i++){
+            for(int i = 0; i < 6; i++){
                 light->bindFace(i);
                 light->calculateCamera(i);
                 light->cam.recalculatePlanes();
@@ -231,11 +234,11 @@ void DeferredLighting::render(Camera* cam){
 
     lightAccumulationBuffer.bind();
 
-//    glClearColor(0,0,0,0);
+    //    glClearColor(0,0,0,0);
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear( GL_COLOR_BUFFER_BIT );
 
-//    blitGbufferDepthToAccumulationBuffer();
+    //    blitGbufferDepthToAccumulationBuffer();
 
 
 
@@ -500,8 +503,8 @@ void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
     //    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, lightAccumulationBuffer.getId());
     //    glBlitFramebuffer(0, 0, gbuffer.getTextureDepth()->getWidth(), gbuffer.getTextureDepth()->getHeight(), 0, 0, gbuffer.getTextureDepth()->getWidth(), gbuffer.getTextureDepth()->getHeight(),GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 
-//    glClearColor(0,0,0,0);
-//    glClear( GL_COLOR_BUFFER_BIT );
+    //    glClearColor(0,0,0,0);
+    //    glClear( GL_COLOR_BUFFER_BIT );
 }
 
 void DeferredLighting::setShader(std::shared_ptr<SpotLightShader>  spotLightShader, std::shared_ptr<SpotLightShader>  spotLightShadowShader){
@@ -549,7 +552,7 @@ void DeferredLighting::createLightMeshes(){
     //we estimate the required outer radius with apothem of regular polygons
     float n = 4.9;
     float r = 1.0f / glm::cos(glm::pi<float>() / n);
-//    cout << "point light radius " << r << endl;
+    //    cout << "point light radius " << r << endl;
     Sphere s(vec3(0),r);
     auto sb = TriangleMeshGenerator::createMesh(s,1);
     sb->createBuffers(pointLightMesh);
@@ -559,7 +562,7 @@ void DeferredLighting::createLightMeshes(){
     auto cb = TriangleMeshGenerator::createMesh(c,10);
     cb->createBuffers(spotLightMesh);
 
-    aabb box(vec3(-1),vec3(1));
+    AABB box(vec3(-1),vec3(1));
     auto bb = TriangleMeshGenerator::createMesh(box);
     bb->createBuffers(boxLightMesh);
 }

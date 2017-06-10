@@ -20,7 +20,8 @@ BoxLight::BoxLight()
 }
 
 void BoxLight::createShadowMap(int resX, int resY){
-    Light::createShadowMap(resX,resY);
+//    Light::createShadowMap(resX,resY);
+        shadowmap.createFlat(resX,resY);
 }
 
 
@@ -50,8 +51,8 @@ void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam)
         mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
         shader->uploadDepthBiasMV(shadow);
 
-        shader->uploadDepthTexture(shadowmap.depthTexture);
-        shader->uploadShadowMapSize(shadowmap.w,shadowmap.h);
+        shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
+        shader->uploadShadowMapSize(shadowmap.getSize());
     }
 
 }
@@ -64,7 +65,7 @@ void BoxLight::calculateCamera(){
     vec3 up = vec3(getUpVector());
 
     cam.setView(pos,pos+dir,up);
-    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,shadowNearPlane,scale.z*2.0f);
+    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,0.1,scale.z*2.0f);
 
 }
 

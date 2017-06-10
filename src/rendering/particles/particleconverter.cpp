@@ -3,7 +3,7 @@
 #include "saiga/geometry/raytracer.h"
 
 void Particleconverter::convert(std::vector<Triangle> &triangles, std::vector<vec3> &points){
-    aabb box = getBoundingBox(triangles);
+    AABB box = getBoundingBox(triangles);
 //    cout<<"box "<<box<<endl;
 
 //    for(Triangle &t : triangles){
@@ -98,8 +98,8 @@ void Particleconverter::voxelizeRange(std::vector<vec3> &points,vec3 start, vec3
 }
 
 
-aabb Particleconverter::getBoundingBox(std::vector<Triangle> &triangles){
-    aabb box;
+AABB Particleconverter::getBoundingBox(std::vector<Triangle> &triangles){
+    AABB box;
     box.makeNegative();
     for(Triangle &t : triangles){
         box.growBox(t.a);

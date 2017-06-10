@@ -296,7 +296,7 @@ void TextureAtlas::writeAtlasToFiles(Image& img)
 //    cout << i << " Characters written to file." << endl;
     SAIGA_ASSERT(i == numCharacters);
 
-    stream.write((char*)&maxCharacter,sizeof(aabb));
+    stream.write((char*)&maxCharacter,sizeof(AABB));
     stream.close();
 
 }
@@ -313,7 +313,7 @@ bool TextureAtlas::readAtlasFromFiles()
         characterInfoMap[ci.character] = ci;
     }
 //    cout << numCharacters << " Characters read from file." << endl;
-    stream.read((char*)&maxCharacter,sizeof(aabb));
+    stream.read((char*)&maxCharacter,sizeof(AABB));
     stream.close();
 
 

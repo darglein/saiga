@@ -39,7 +39,6 @@ void LightShader::uploadInvProj(mat4 &mat){
 }
 
 void LightShader::uploadDepthTexture(std::shared_ptr<raw_Texture> texture){
-
     texture->bind(5);
     Shader::upload(location_depthTex,5);
 }
@@ -48,27 +47,27 @@ void LightShader::uploadShadow(float shadow){
     Shader::upload(location_readShadowMap,shadow);
 }
 
-void LightShader::uploadShadowMapSize(float w, float h)
+void LightShader::uploadShadowMapSize(glm::ivec2 s)
 {
+    auto w = s.x;
+    auto h = s.y;
     Shader::upload(location_shadowMapSize,vec4(w,h,1.0f/w,1.0f/h));
 }
 
-void Light::createShadowMap(int resX, int resY){
+//void Light::createShadowMap(int resX, int resY){
 
-//    cout<<"Light::createShadowMap"<<endl;
+////    cout<<"Light::createShadowMap"<<endl;
 
-    shadowmap.createFlat(resX,resY);
+//    shadowmap.createFlat(resX,resY);
 
-}
+//}
 
 void Light::bindShadowMap(){
-    shadowmap.bind();
+    shadowmap.bindFramebuffer();
 }
 
 void Light::unbindShadowMap(){
-
-    shadowmap.unbind();
-
+    shadowmap.unbindFramebuffer();
 }
 
 void Light::bindUniformsStencil(MVPShader& shader){

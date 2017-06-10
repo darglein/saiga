@@ -23,7 +23,7 @@ template<typename vertex_t, typename index_t>
 class SAIGA_TEMPLATE BasicAsset : public Asset{
 public:
     std::string name;
-    aabb boundingBox;
+    AABB boundingBox;
     vec3 offset = vec3(0);
 
     std::shared_ptr<MVPShader> shader  = nullptr;

@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 
     auto tri = Polygon::toPolygon(trit);
 
-    aabb bb(vec3(-1,-1,-1),vec3(1,1,1));
+    AABB bb(vec3(-1,-1,-1),vec3(1,1,1));
 
     PolygonType res = Clipping::clipPolygonAABB(tri,bb);
 

@@ -23,7 +23,7 @@ void Layout::init(int _width, int _height)
 
 }
 
-aabb Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX)
+AABB Layout::transform(Object3D *obj, const AABB &box, vec2 relPos, float relSize, Alignment alignmentX, Alignment alignmentY, bool scaleX)
 {
     vec3 s = box.max-box.min;
     //scale to correct size
@@ -75,7 +75,7 @@ aabb Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSiz
     obj->setPosition(vec3(relPos,0)-alignmentOffset);
 //    cout << "obj position " << relPos << " " << alignmentOffset << " " << obj->position << endl;
 
-    aabb resultBB = aabb(box.min*s,box.max*s);
+    AABB resultBB = AABB(box.min*s,box.max*s);
     resultBB.setPosition(obj->getPosition()+center);
 
     obj->multScale(scale);
@@ -87,7 +87,7 @@ aabb Layout::transform(Object3D *obj, const aabb &box, vec2 relPos, float relSiz
     return resultBB;
 }
 
-aabb Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 relSize, Layout::Alignment alignmentX, Layout::Alignment alignmentY)
+AABB Layout::transformNonUniform(Object3D *obj, const AABB &box, vec2 relPos, vec2 relSize, Layout::Alignment alignmentX, Layout::Alignment alignmentY)
 {
     vec3 s = box.max-box.min;
     s = vec3(relSize.x,relSize.y,1.0f) / vec3(s.x,s.y,1.0f);
@@ -128,7 +128,7 @@ aabb Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, ve
 
     obj->setPosition(vec3(relPos,0)-alignmentOffset);
 
-    aabb resultBB = aabb(box.min*s,box.max*s);
+    AABB resultBB = AABB(box.min*s,box.max*s);
     resultBB.setPosition(obj->getPosition()+center);
 
     obj->multScale( scale);
@@ -138,7 +138,7 @@ aabb Layout::transformNonUniform(Object3D *obj, const aabb &box, vec2 relPos, ve
     return resultBB;
 }
 
-aabb Layout::transformUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 relSize, Layout::Alignment alignmentX, Layout::Alignment alignmentY)
+AABB Layout::transformUniform(Object3D *obj, const AABB &box, vec2 relPos, vec2 relSize, Layout::Alignment alignmentX, Layout::Alignment alignmentY)
 {
     relSize.x *= aspect;
     vec3 s = box.max-box.min;
@@ -193,7 +193,7 @@ aabb Layout::transformUniform(Object3D *obj, const aabb &box, vec2 relPos, vec2 
 
     obj->setPosition(vec3(relPos,0)-alignmentOffset);
 
-    aabb resultBB = aabb(box.min*s,box.max*s);
+    AABB resultBB = AABB(box.min*s,box.max*s);
     resultBB.setPosition(obj->getPosition()+center);
 
     obj->multScale( scale);

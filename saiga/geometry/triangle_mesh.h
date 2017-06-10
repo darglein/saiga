@@ -50,7 +50,7 @@ public:
     void clear(){vertices.resize(0);faces.resize(0);}
 
     /*
-     * Adds vertex to mesh and updates enclosing aabb.
+     * Adds vertex to mesh and updates enclosing AABB.
      * return: index of new vertex
      */
 
@@ -130,17 +130,17 @@ public:
 
     int numIndices();
 
-    aabb calculateAabb();
+    AABB calculateAabb();
 
 
     template<typename v, typename i>
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v,i>& dt);
 
-    aabb& getAabb(){return boundingBox;}
+    AABB& getAabb(){return boundingBox;}
 public:
     std::vector<vertex_t> vertices;
     std::vector<Face> faces;
-    aabb boundingBox;
+    AABB boundingBox;
 };
 
 
@@ -306,7 +306,7 @@ int TriangleMesh<vertex_t,index_t>::numIndices(){
 
 
 template<typename vertex_t, typename index_t>
-aabb TriangleMesh<vertex_t,index_t>::calculateAabb(){
+AABB TriangleMesh<vertex_t,index_t>::calculateAabb(){
     boundingBox.makeNegative();
 
     for(vertex_t &v : vertices){

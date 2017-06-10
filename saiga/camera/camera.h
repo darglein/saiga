@@ -138,6 +138,7 @@ public:
     float left,right,bottom,top;
     OrthographicCamera(){}
     void setProj( float left, float right,float bottom,float top,float near,  float far);
+    void setProj( AABB bb);
 
     friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);
 

@@ -8,6 +8,11 @@ void DirectionalLightShader::checkUniforms(){
     location_direction = getUniformLocation("direction");
     location_ambientIntensity = getUniformLocation("ambientIntensity");
     location_ssaoTexture = getUniformLocation("ssaoTex");
+    location_depthTexures = getUniformLocation("depthTexures");
+    location_viewToLightTransforms = getUniformLocation("viewToLightTransforms");
+    location_depthCuts = getUniformLocation("depthCuts");
+    location_numCascades = getUniformLocation("numCascades");
+    location_cascadeInterpolateRange = getUniformLocation("cascadeInterpolateRange");
 }
 
 
@@ -21,31 +26,75 @@ void DirectionalLightShader::uploadAmbientIntensity(float i)
     Shader::upload(location_ambientIntensity,i);
 }
 
+
+void DirectionalLightShader::uploadNumCascades(int n)
+{
+    Shader::upload(location_numCascades,n);
+}
+
+void DirectionalLightShader::uploadCascadeInterpolateRange(float r)
+{
+    Shader::upload(location_cascadeInterpolateRange,r);
+}
+
 void DirectionalLightShader::uploadSsaoTexture(std::shared_ptr<raw_Texture> texture)
 {
 
-        texture->bind(6);
-        Shader::upload(location_ssaoTexture,6);
+    texture->bind(5);
+    Shader::upload(location_ssaoTexture,5);
+}
+
+void DirectionalLightShader::uploadDepthTextures(std::vector<std::shared_ptr<raw_Texture> > &textures){
+
+//    int i = 7;
+    int startTexture = 6;
+    std::vector<int> ids;
+
+    for(int i = 0; i < MAX_CASCADES; ++i){
+//    for(auto& t : textures){
+        if(i < (int)textures.size()){
+            textures[i]->bind(i + startTexture);
+            ids.push_back(i + startTexture);
+
+        }else{
+            ids.push_back(startTexture);
+        }
+//        i++;
+
+    }
+    Shader::upload(location_depthTexures,ids.size(),ids.data());
+}
+
+void DirectionalLightShader::uploadViewToLightTransforms(std::vector<mat4> &transforms)
+{
+    Shader::upload(location_viewToLightTransforms,transforms.size(),transforms.data());
+}
+
+void DirectionalLightShader::uploadDepthCuts(std::vector<float> &depthCuts)
+{
+    Shader::upload(location_depthCuts,depthCuts.size(),depthCuts.data());
 }
 
 
 //==================================
 
-//void DirectionalLight::createMesh(){
-//    Plane p(vec3(0),vec3(0,1,0));
-//    auto* m = TriangleMeshGenerator::createFullScreenQuadMesh();
-//    m->createBuffers(buffer);
-//}
 
-DirectionalLight::DirectionalLight()
-{
-
+void DirectionalLight::createShadowMap(int resX, int resY, int numCascades){
+    SAIGA_ASSERT(numCascades > 0 && numCascades <= MAX_CASCADES);
+    this->numCascades = numCascades;
+    //    Light::createShadowMap(resX,resY);
+    shadowmap.createCascaded(resX,resY,numCascades);
+    orthoBoxes.resize(numCascades);
 
 
-}
+//     depthCutsRelative = std::vector<float>{0,0.5,1.0};
+    depthCutsRelative.resize(numCascades + 1);
+     depthCuts.resize(numCascades + 1);
 
-void DirectionalLight::createShadowMap(int resX, int resY){
-    Light::createShadowMap(resX,resY);
+     for(int i = 0; i < numCascades; ++i){
+         depthCutsRelative[i] = float(i) / numCascades;
+     }
+     depthCutsRelative.back() = 1.0f;
 }
 
 
@@ -73,11 +122,6 @@ void DirectionalLight::setDirection(const vec3 &dir){
     this->cam.updateFromModel();
 }
 
-
-void DirectionalLight::setAmbientIntensity(float ai)
-{
-    ambientIntensity = ai;
-}
 
 void DirectionalLight::fitShadowToCamera(Camera *cam)
 {
@@ -116,8 +160,8 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
     this->cam.updateFromModel();
 
 
-//    vec4 test = this->cam.proj * this->cam.view * vec4(obb.center,1);
-//    cout << "test " << test << endl;
+    //    vec4 test = this->cam.proj * this->cam.view * vec4(obb.center,1);
+    //    cout << "test " << test << endl;
 #else
     //other idea use bounding sphere of frustum
     //make sure shadow box aligned to light fits bounding sphere
@@ -126,78 +170,106 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
 
 
 
+
     Sphere boundingSphere = cam->boundingSphere;
 
-
-    {
-        PerspectiveCamera *pc = static_cast<PerspectiveCamera*>(cam);
-        //compute bounding sphere for cascade
-
-//        vec3 d = -vec3(cam->model[2]);
-        vec3 right = vec3(cam->model[0]);
-        vec3 up = vec3(cam->model[1]);
-        vec3 dir = -vec3(cam->model[2]);
-
-
-        float zFar = 10;
-
-        float tang = (float)tan(pc->fovy * 0.5) ;
-
-        float fh = zFar  * tang;
-        float fw = fh * pc->aspect;
-
-        vec3 nearplanepos = cam->getPosition() + dir*cam->zNear;
-        vec3 farplanepos = cam->getPosition() + dir*zFar;
-        vec3 v = farplanepos + fh * up - fw * right;
-
-
-        vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
-        float r = glm::distance(v,sphereMid);
-
-        boundingSphere.r = r;
-        boundingSphere.pos = sphereMid;
+    for(int i = 0; i < (int)depthCutsRelative.size(); ++i){
+        float a = depthCutsRelative[i];
+        depthCuts[i] = (1.0f - a) * cam->zNear + (a) * cam->zFar;
     }
 
-    vec3 lightPos = this->cam.getPosition();
+    for(int c = 0 ; c < numCascades; ++c){
 
-    float r = boundingSphere.r;
-    r = ceil(r);
+        AABB& orthoBox = orthoBoxes[c];
 
+        {
+            PerspectiveCamera *pc = static_cast<PerspectiveCamera*>(cam);
+            //compute bounding sphere for cascade
 
-    vec3 texelSize;
-    texelSize.x = 2.0f * r / shadowmap.w;
-    texelSize.y = 2.0f * r / shadowmap.h;
-    texelSize.z = 0.0001f;
-
-    //project the position of the actual camera to light space
-    vec3 p = boundingSphere.pos;
-    glm::mat3 v = glm::mat3(this->cam.view);
-    vec3 t = v * p - v * lightPos;
-    t.z = -t.z;
+            //        vec3 d = -vec3(cam->model[2]);
+            vec3 right = vec3(cam->model[0]);
+            vec3 up = vec3(cam->model[1]);
+            vec3 dir = -vec3(cam->model[2]);
 
 
-    vec3 orthoMin = t - vec3(r);
-    vec3 orthoMax = t + vec3(r);
+                    float zNear = depthCuts[c]     - cascadeInterpolateRange;
+                    float zFar =  depthCuts[c + 1] + cascadeInterpolateRange;
+            //        float zNear = cam->zNear;
+            //        float zFar = cam->zFar;
+
+//            float zNear = 1;
+//            float zFar = 10;
+
+//            if(c == 1){
+//                zNear = 10;
+//                zFar = 50;
+//            }
+
+//            cout << "znear/far: " << zNear << " " << zFar << endl;
+
+            float tang = (float)tan(pc->fovy * 0.5) ;
+
+            float fh = zFar  * tang;
+            float fw = fh * pc->aspect;
+
+            vec3 nearplanepos = cam->getPosition() + dir*zNear;
+            vec3 farplanepos = cam->getPosition() + dir*zFar;
+            vec3 v = farplanepos + fh * up - fw * right;
+
+
+            vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
+            float r = glm::distance(v,sphereMid);
+
+            boundingSphere.r = r;
+            boundingSphere.pos = sphereMid;
+        }
+
+        vec3 lightPos = this->cam.getPosition();
+
+        float r = boundingSphere.r;
+        r = ceil(r);
+
+        vec3 smsize = vec3(shadowmap.getSize(),128468);
+
+        vec3 texelSize;
+        //    texelSize.x = 2.0f * r / shadowmap.w;
+        //    texelSize.y = 2.0f * r / shadowmap.h;
+        //    texelSize.z = 0.0001f;
+        texelSize = 2.0f * r / smsize;
+
+        //project the position of the actual camera to light space
+        vec3 p = boundingSphere.pos;
+        glm::mat3 v = glm::mat3(this->cam.view);
+        vec3 t = v * p - v * lightPos;
+        t.z = -t.z;
+
+
+
+
+        orthoBox.min = t - vec3(r);
+        orthoBox.max = t + vec3(r);
 
 #if 1
-    {
-        //move camera in texel size increments
-        orthoMin /= texelSize;
-        orthoMin = floor(orthoMin);
-        orthoMin *= texelSize;
+        {
+            //move camera in texel size increments
+            orthoBox.min /= texelSize;
+            orthoBox.min = floor(orthoBox.min);
+            orthoBox.min *= texelSize;
 
-        orthoMax /= texelSize;
-        orthoMax = floor(orthoMax);
-        orthoMax *= texelSize;
-    }
+            orthoBox.max /= texelSize;
+            orthoBox.max = floor(orthoBox.max);
+            orthoBox.max *= texelSize;
+        }
 #endif
 
+    }
 
-    this->cam.setProj(
-                orthoMin.x ,orthoMax.x,
-                orthoMin.y ,orthoMax.y,
-                orthoMin.z ,orthoMax.z
-                );
+    //    this->cam.setProj(orthoBox);
+    //    this->cam.setProj(
+    //                orthoMin.x ,orthoMax.x,
+    //                orthoMin.y ,orthoMax.y,
+    //                orthoMin.z ,orthoMax.z
+    //                );
 
 
 #if 0
@@ -212,60 +284,64 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
 #endif
 }
 
-void DirectionalLight::fitNearPlaneToScene(aabb sceneBB)
+void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
 {
-    vec3 orthoMin(cam.left,cam.bottom,cam.zNear);
-    vec3 orthoMax(cam.right,cam.top,cam.zFar);
+    //    vec3 orthoMin(cam.left,cam.bottom,cam.zNear);
+    //    vec3 orthoMax(cam.right,cam.top,cam.zFar);
 
 
-    //transform scene aabb to light space
-    auto tris = sceneBB.toTriangles();
-    std::vector<PolygonType> trisp;
-    for(auto t : tris){
-        trisp.push_back( Polygon::toPolygon(t) );
-    }
-    for(auto& p : trisp){
-        for(auto &v : p){
-            v = vec3(this->cam.view * vec4(v,1));
+    for(auto& orthoBox : orthoBoxes){
+
+        //transform scene AABB to light space
+        auto tris = sceneBB.toTriangles();
+        std::vector<PolygonType> trisp;
+        for(auto t : tris){
+            trisp.push_back( Polygon::toPolygon(t) );
         }
-    }
-
-    //clip triangles of scene aabb to the 4 side planes of the frustum
-
-    for(auto &p : trisp){
-        p = Clipping::clipPolygonAxisAlignedPlane(p,0,orthoMin.x,true);
-        p = Clipping::clipPolygonAxisAlignedPlane(p,0,orthoMax.x,false);
-
-        p = Clipping::clipPolygonAxisAlignedPlane(p,1,orthoMin.y,true);
-        p = Clipping::clipPolygonAxisAlignedPlane(p,1,orthoMax.y,false);
-    }
-
-    float maxZ = -12057135;
-    float minZ = 0213650235;
-
-    for(auto& p : trisp){
-        for(auto &v : p){
-            minZ = std::min(minZ,v.z);
-            maxZ = std::max(maxZ,v.z);
+        for(auto& p : trisp){
+            for(auto &v : p){
+                v = vec3(this->cam.view * vec4(v,1));
+            }
         }
+
+
+        //clip triangles of scene AABB to the 4 side planes of the frustum
+        for(auto &p : trisp){
+            p = Clipping::clipPolygonAxisAlignedPlane(p,0,orthoBox.min.x,true);
+            p = Clipping::clipPolygonAxisAlignedPlane(p,0,orthoBox.max.x,false);
+
+            p = Clipping::clipPolygonAxisAlignedPlane(p,1,orthoBox.min.y,true);
+            p = Clipping::clipPolygonAxisAlignedPlane(p,1,orthoBox.max.y,false);
+        }
+
+        float maxZ = -12057135;
+        float minZ = 0213650235;
+
+        for(auto& p : trisp){
+            for(auto &v : p){
+                minZ = std::min(minZ,v.z);
+                maxZ = std::max(maxZ,v.z);
+            }
+        }
+
+        std::swap(minZ,maxZ);
+        minZ = -minZ;
+        maxZ = -maxZ;
+
+        //    cout << "min max Z " << minZ << " " << maxZ << endl;
+        //    cout << "ortho min max Z " << orthoMin.z << " " << orthoMax.z << endl;
+
+
+        orthoBox.min.z = minZ;
+        orthoBox.max.z = maxZ;
     }
 
-    std::swap(minZ,maxZ);
-    minZ = -minZ;
-    maxZ = -maxZ;
-
-//    cout << "min max Z " << minZ << " " << maxZ << endl;
-//    cout << "ortho min max Z " << orthoMin.z << " " << orthoMax.z << endl;
-
-
-    orthoMin.z = minZ;
-    orthoMax.z = maxZ;
-
-    this->cam.setProj(
-                orthoMin.x ,orthoMax.x,
-                orthoMin.y ,orthoMax.y,
-                orthoMin.z ,orthoMax.z
-                );
+    //    this->cam.setProj(orthoBox);
+    //    this->cam.setProj(
+    //                orthoMin.x ,orthoMax.x,
+    //                orthoMin.y ,orthoMax.y,
+    //                orthoMin.z ,orthoMax.z
+    //                );
 }
 
 void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam){
@@ -286,13 +362,41 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
                     0.0, 0.0, 0.5, 0.0,
                     0.5, 0.5, 0.5, 1.0
                     );
+        std::vector<mat4> viewToLight(numCascades);
 
-        mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
-        shader.uploadDepthBiasMV(shadow);
-        shader.uploadDepthTexture(shadowmap.depthTexture);
-        shader.uploadShadowMapSize(shadowmap.w,shadowmap.h);
+        for(int i = 0 ; i < numCascades; ++i){
+            this->cam.setProj(orthoBoxes[i]);
+            mat4 shadow = biasMatrix * this->cam.proj * this->cam.view * cam->model;
+            viewToLight[i] = shadow;
+        }
+
+        //        shader.uploadDepthBiasMV(shadow);
+        shader.uploadViewToLightTransforms(viewToLight);
+        shader.uploadDepthCuts(depthCuts);
+        //        shader.uploadDepthTexture(shadowmap.getDepthTexture(0));
+        shader.uploadDepthTextures(shadowmap.getDepthTextures());
+        shader.uploadShadowMapSize(shadowmap.getSize());
+        shader.uploadNumCascades(numCascades);
+        shader.uploadCascadeInterpolateRange(cascadeInterpolateRange);
     }
 
 }
 
+void DirectionalLight::bindCascade(int n){
+    //    shadowmap.bindCubeFace(gCameraDirections[face].CubemapFace);
+    this->cam.setProj(orthoBoxes[n]);
+    shadowmap.bindAttachCascade(n);
+}
 
+
+void DirectionalLight::setDepthCutsRelative(const std::vector<float> &value)
+{
+    SAIGA_ASSERT((int)value.size() == numCascades + 1);
+    depthCutsRelative = value;
+}
+
+
+std::vector<float> DirectionalLight::getDepthCutsRelative() const
+{
+    return depthCutsRelative;
+}

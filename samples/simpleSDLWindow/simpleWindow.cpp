@@ -30,7 +30,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     AssetLoader2 assetLoader;
 
     //First create the triangle mesh of a cube
-    auto cubeMesh = TriangleMeshGenerator::createMesh(aabb(vec3(-1),vec3(1)));
+    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1),vec3(1)));
 
     //To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and provides
     //render functions.
