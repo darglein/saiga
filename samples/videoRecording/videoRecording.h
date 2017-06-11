@@ -16,9 +16,11 @@
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/rendering/overlay/textDebugOverlay.h"
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
-#include "saiga/rendering/lighting/directional_light.h"
 
-class AdvancedWindow : public Program, public SDL_KeyListener
+#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/ffmpeg/ffmpegEncoder.h"
+
+class VideoRecording : public Program, public SDL_KeyListener
 {
 public:
     SDLCamera<PerspectiveCamera> camera;
@@ -29,23 +31,20 @@ public:
 
     ProceduralSkybox skybox;
 
-    DeferredDebugOverlay ddo;
-    TextDebugOverlay tdo;
     ImGui_SDL_Renderer imgui;
     TextureAtlas textAtlas;
 
-    std::vector<std::shared_ptr<PointLight>> lights;
-
-    float rotationSpeed = 0.1;
-    bool showddo = false;
-    bool showimguidemo = false;
-    bool lightDebug = false;
-    bool pointLightShadows = false;
 
     std::shared_ptr<DirectionalLight> sun;
 
-    AdvancedWindow(OpenGLWindow* window);
-    ~AdvancedWindow();
+    int remainingFrames;
+    bool rotateCamera = false;
+    int frame = 0;
+    int frameSkip = 0;
+    std::shared_ptr<FFMPEGEncoder> encoder;
+
+    VideoRecording(OpenGLWindow* window);
+    ~VideoRecording();
 
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;

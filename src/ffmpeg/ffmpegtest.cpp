@@ -643,7 +643,7 @@ void writeImageToVideo(int frameIndex)
     uint8_t *outbuf = (uint8_t *)malloc(numBytes);
     uint8_t *picture_buf = (uint8_t *)av_malloc(numBytes);
 
-    int ret = av_image_fill_arrays(frame->data, frame->linesize, picture_buf, m_codecContext->pix_fmt, m_codecContext->width, m_codecContext->height, 1);
+    av_image_fill_arrays(frame->data, frame->linesize, picture_buf, m_codecContext->pix_fmt, m_codecContext->width, m_codecContext->height, 1);
 
     frame->data[0] = picture_buf;
     frame->data[1] = frame->data[0] + size;
@@ -690,7 +690,7 @@ void writeImageToVideo(int frameIndex)
     packet.pts = packet.dts = pts;
 //    m_codecContext->coded_frame->pts = pts;
 
-    ret = avcodec_encode_video2(m_codecContext, &packet, frame, &got_packet_ptr);
+    avcodec_encode_video2(m_codecContext, &packet, frame, &got_packet_ptr);
     if (got_packet_ptr != 0)
     {
         av_interleaved_write_frame(m_formatCtx, &packet);
@@ -706,7 +706,7 @@ static void cleanup(){
     int numBytes = avpicture_get_size(m_codecContext->pix_fmt, m_codecContext->width, m_codecContext->height);
     int got_packet_ptr = 1;
 
-    int ret;
+//    int ret;
     while (got_packet_ptr)
     {
         uint8_t *outbuf = (uint8_t *)malloc(numBytes);
@@ -716,7 +716,7 @@ static void cleanup(){
         packet.data = outbuf;
         packet.size = numBytes;
 
-        ret = avcodec_encode_video2(m_codecContext, &packet, NULL, &got_packet_ptr);
+        avcodec_encode_video2(m_codecContext, &packet, NULL, &got_packet_ptr);
         if (got_packet_ptr)
         {
             av_interleaved_write_frame(m_formatCtx, &packet);
@@ -733,9 +733,10 @@ static void cleanup(){
 //    printf("\n")
 }
 
+
 static void video_encode_avformat_example(const char *filename, int codec_id)
 {
-    int currentFrame = 0;
+//    int currentFrame = 0;
     av_log_set_level(AV_LOG_DEBUG);
 
     //find codec
@@ -895,7 +896,7 @@ void testffmpeg(){
     avcodec_register_all();
     av_register_all();
     //    audio_encode_example("test2.pcm");
-//    video_encode_avformat_example("test2.mp4", AV_CODEC_ID_H264);
+    video_encode_avformat_example("test2.mp4", AV_CODEC_ID_H264);
     //    video_decode_example("test%02d.pgm", "test.mpg");
 
     auto file  = "test2.mp4";

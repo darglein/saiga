@@ -1,9 +1,4 @@
 #include "saiga/ffmpeg/ffmpegEncoder.h"
-
-
-#include "saiga/util/glm.h"
-
-
 #include "saiga/util/assert.h"
 
 
@@ -92,15 +87,15 @@ bool FFMPEGEncoder::encodeFrame(AVFrame *frame, AVPacket& pkt)
     pkt.data = NULL;    // packet data will be allocated by the encoder
     pkt.size = 0;
 
-//    packet.data = outbuf;
-//    packet.size = numBytes;
-//    packet.stream_index = m_formatCtx->streams[0]->index;
-//    packet.flags |= AV_PKT_FLAG_KEY;
-//    packet.pts = packet.dts = pts;
-//    m_codecContext->coded_frame->pts = pts;
+    //    packet.data = outbuf;
+    //    packet.size = numBytes;
+    //    packet.stream_index = m_formatCtx->streams[0]->index;
+    //    packet.flags |= AV_PKT_FLAG_KEY;
+    //    packet.pts = packet.dts = pts;
+    //    m_codecContext->coded_frame->pts = pts;
 
     int got_output;
-//	int ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
+    //	int ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
     int ret = avcodec_encode_video2(m_codecContext, &pkt, frame, &got_output);
 
     if (ret < 0) {
@@ -113,10 +108,10 @@ bool FFMPEGEncoder::encodeFrame(AVFrame *frame, AVPacket& pkt)
 void FFMPEGEncoder::writeFrame(AVPacket& pkt)
 {
     //    cout << "Write frame "<<pkt.pts << "(size="<<pkt.size<<")"<<endl;
-//	outputStream.write((const char*)pkt.data, pkt.size);
+    //	outputStream.write((const char*)pkt.data, pkt.size);
     //fwrite(pkt.data, 1, pkt.size, f);
     av_interleaved_write_frame(m_formatCtx, &pkt);
-//    av_interleaved_write_frame(m_formatCtx, &packet);
+    //    av_interleaved_write_frame(m_formatCtx, &packet);
     av_free_packet(&pkt);
 }
 
@@ -144,7 +139,7 @@ void FFMPEGEncoder::finishEncoding()
 
     int got_packet_ptr = 1;
 
-    int ret;
+    //    int ret;
     while (got_packet_ptr)
     {
 
@@ -153,7 +148,8 @@ void FFMPEGEncoder::finishEncoding()
         packet.data = NULL;    // packet data will be allocated by the encoder
         packet.size = 0;
 
-        ret = avcodec_encode_video2(m_codecContext, &packet, NULL, &got_packet_ptr);
+        //        ret =
+        avcodec_encode_video2(m_codecContext, &packet, NULL, &got_packet_ptr);
         if (got_packet_ptr)
         {
             av_interleaved_write_frame(m_formatCtx, &packet);
@@ -166,7 +162,7 @@ void FFMPEGEncoder::finishEncoding()
 
     avcodec_close(m_codecContext);
     sws_freeContext(ctx);
-//    avformat_free_context(m_formatCtx);
+    //    avformat_free_context(m_formatCtx);
     avcodec_free_context(&m_codecContext);
 
     //    av_free(m_codecContext);
@@ -224,15 +220,15 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
     AVStream *videoStream = avformat_new_stream(m_formatCtx, codec);
     if(!videoStream)
     {
-       printf("Could not allocate stream\n");
+        printf("Could not allocate stream\n");
     }
     videoStream->codec = m_codecContext;
     videoStream->time_base = {1,timeBase};
     if(m_formatCtx->oformat->flags & AVFMT_GLOBALHEADER)
     {
-       m_codecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
+        m_codecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
     }
-//    1 = 1;
+    //    1 = 1;
     if(avcodec_open2(m_codecContext, codec, NULL) < 0){
         std::cerr << "Failed to open codec. " << std::endl;
         exit(1);
@@ -246,24 +242,24 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
     avformat_write_header(m_formatCtx, NULL);
 
 
-     av_dump_format(m_formatCtx, 0, filename.c_str(), 1);
+    av_dump_format(m_formatCtx, 0, filename.c_str(), 1);
 
-     if(videoStream->time_base.den != timeBase){
+    if(videoStream->time_base.den != timeBase){
 
-         std::cerr << "Warning: Stream time base different to desired time base. " << videoStream->time_base.den << " instead of " <<timeBase << std::endl;
+        std::cerr << "Warning: Stream time base different to desired time base. " << videoStream->time_base.den << " instead of " <<timeBase << std::endl;
         timeBase = videoStream->time_base.den;
-     }
-     //SAIGA_ASSERT(videoStream->time_base.num == 1);
-     ticksPerFrame = videoStream->time_base.den / outFps;
+    }
+    //SAIGA_ASSERT(videoStream->time_base.num == 1);
+    ticksPerFrame = videoStream->time_base.den / outFps;
 
 
-  //  av_init_packet(&pkt);
+    //  av_init_packet(&pkt);
 
 
     SAIGA_ASSERT(ctx == nullptr);
     ctx = sws_getContext(inWidth, inHeight,
-        AV_PIX_FMT_RGBA, m_codecContext->width, m_codecContext->height,
-        AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
+                         AV_PIX_FMT_RGBA, m_codecContext->width, m_codecContext->height,
+                         AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
     SAIGA_ASSERT(ctx);
 
     createBuffers();
@@ -298,7 +294,7 @@ void FFMPEGEncoder::createBuffers()
         /* the image can be allocated by any means and av_image_alloc() is
          * just the most convenient way if av_malloc() is to be used */
         int ret = av_image_alloc(frame->data, frame->linesize, m_codecContext->width, m_codecContext->height,
-            m_codecContext->pix_fmt, 32);
+                                 m_codecContext->pix_fmt, 32);
         if (ret < 0) {
             fprintf(stderr, "Could not allocate raw picture buffer\n");
             exit(1);

@@ -47,6 +47,8 @@ public:
     void interpolate(float dt, float interpolation);
 
     void mouseRotate(float dx, float dy);
+    void mouseRotateAroundPoint(float dx, float dy, vec3 point);
+    void mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up);
 
     void enableInput() { input = true; }
     void disableInput() { input = false; }
@@ -63,6 +65,61 @@ void Controllable_Camera<camera_t>::mouseRotate(float dx, float dy){
     this->updateFromModel();
 }
 
+
+template<class camera_t>
+void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, vec3 point){
+    vec2 relMovement(dx,dy);
+    float angle = glm::length(relMovement);
+    if(angle == 0)
+        return;
+
+    vec4 right = this->getRightVector();
+    vec4 up = this->getUpVector();
+
+    vec3 axis = -glm::normalize(vec3(right * relMovement.y + up * relMovement.x));
+//        cout << angle << camera.position << endl;
+
+    quat qrot = glm::angleAxis(glm::radians(angle),axis);
+    this->rot = qrot * this->rot;
+    this->position = vec4(qrot * (this->getPosition()-point),1);
+
+
+    this->position = vec4(point + this->getPosition(),1);
+
+    this->calculateModel();
+    this->updateFromModel();
+}
+
+
+
+template<class camera_t>
+void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up){
+    vec2 relMovement(dx,dy);
+    float angle = glm::length(relMovement);
+    if(angle == 0)
+        return;
+
+    vec3 dir = normalize(point - this->getPosition());
+
+    vec3 right = normalize(cross(dir,up));
+    up = normalize(cross(right,dir));
+
+//    vec4 right = this->getRightVector();
+//    vec4 up = this->getUpVector();
+
+    vec3 axis = -glm::normalize(vec3(right * relMovement.y + up * relMovement.x));
+//        cout << angle << camera.position << endl;
+
+    quat qrot = glm::angleAxis(glm::radians(angle),axis);
+    this->rot = qrot * this->rot;
+    this->position = vec4(qrot * (this->getPosition()-point),1);
+
+
+    this->position = vec4(point + this->getPosition(),1);
+
+    this->calculateModel();
+    this->updateFromModel();
+}
 template<class camera_t>
 void Controllable_Camera<camera_t>::update(float delta){
     if(!input)

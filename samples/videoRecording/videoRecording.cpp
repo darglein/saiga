@@ -1,4 +1,4 @@
-#include "advancedWindow.h"
+#include "videoRecording.h"
 
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/rendering/lighting/directional_light.h"
@@ -6,8 +6,7 @@
 
 #include "saiga/geometry/triangle_mesh_generator.h"
 
-AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
-    ddo(window->getWidth(),window->getHeight()),tdo(window->getWidth(),window->getHeight())
+VideoRecording::VideoRecording(OpenGLWindow *window): Program(window)
 {
     //this simplifies shader debugging
     ShaderLoader::instance()->addLineDirectives = true;
@@ -59,87 +58,51 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
     sun->createShadowMap(2048,2048);
     sun->enableShadows();
 
-    //create 10 point lights in a circle
-    for(int i = 0 ; i < 10 ; ++i){
-        auto pl = window->getRenderer()->lighting.createPointLight();
-        pl->setAttenuation(AttenuationPresets::Quadratic);
-        pl->setIntensity(3);
-        pl->setRadius(10);
-        pl->setPosition(vec3(10,3,0));
-        pl->rotateAroundPoint(vec3(0,3,0),vec3(0,1,0),i * 360/10);
-        pl->setColorDiffuse(glm::linearRand(vec3(0),vec3(1)));
-        pl->calculateModel();
-        pl->createShadowMap(256,256);
-        lights.push_back(pl);
-    }
-
-
-    ddo.setDeferredFramebuffer(&window->getRenderer()->gbuffer,window->getRenderer()->ssao.bluredTexture);
 
     imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
 
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
-    tdo.init(&textAtlas);
-    tdo.borderX = 0.01f;
-    tdo.borderY = 0.01f;
-    tdo.paddingY = 0.000f;
-    tdo.textSize = 0.04f;
-
-    tdo.textParameters.setColor(vec4(1),0.1f);
-    tdo.textParameters.setGlow(vec4(0,0,0,1),1.0f);
-
-    tdo.createItem("Fps: ");
-    tdo.createItem("Ups: ");
-    tdo.createItem("Render Time: ");
-    tdo.createItem("Update Time: ");
-
-
 
     cout<<"Program Initialized!"<<endl;
 }
 
-AdvancedWindow::~AdvancedWindow()
+VideoRecording::~VideoRecording()
 {
     //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
 }
 
-void AdvancedWindow::update(float dt){
+void VideoRecording::update(float dt){
     //Update the camera position
     camera.update(dt);
-
-
     sun->fitShadowToCamera(&camera);
-//    sun->fitNearPlaneToScene(sceneBB);
 
-    int  fps = (int) glm::round(1000.0/parentWindow->fpsTimer.getTimeMS());
-    tdo.updateEntry(0,std::to_string(fps));
-
-    int  ups = (int) glm::round(1000.0/parentWindow->upsTimer.getTimeMS());
-    tdo.updateEntry(1,std::to_string(ups));
-
-    float renderTime = parentWindow->getRenderer()->getTime(Deferred_Renderer::TOTAL);
-    tdo.updateEntry(2,std::to_string(renderTime));
-
-    float updateTime = parentWindow->updateTimer.getTimeMS();
-    tdo.updateEntry(3,std::to_string(updateTime));
-
-
-    for(auto l : lights){
-        l->rotateAroundPoint(vec3(0,3,0),vec3(0,1,0),rotationSpeed);
-        l->calculateModel();
+    if(encoder && frame++%frameSkip==0){
+        //the encoder manages a buffer of a few frames
+        auto img = encoder->getFrameBuffer();
+        //read the current framebuffer to the buffer
+        parentWindow->readToExistingImage(*img);
+        //add an image to the video stream
+        encoder->addFrame(img);
     }
-    //    sphere.rotateLocal(vec3(0,1,0),rotationSpeed);
-    //    sphere.calculateModel();
+
+    remainingFrames--;
+
+    if(rotateCamera){
+        float speed = 360.0f / 10.0 * dt;
+//        float speed = 2 * glm::pi<float>();
+        camera.mouseRotateAroundPoint(speed,0,vec3(0,5,0),vec3(0,1,0));
+    }
+    //    camera.rotateAroundPoint(vec3(0),vec3(0,1,0),1.0f);
 }
 
-void AdvancedWindow::interpolate(float dt, float interpolation) {
+void VideoRecording::interpolate(float dt, float interpolation) {
     //Update the camera rotation. This could also be done in 'update' but
     //doing it in the interpolate step will reduce latency
     camera.interpolate(dt,interpolation);
 }
 
-void AdvancedWindow::render(Camera *cam)
+void VideoRecording::render(Camera *cam)
 {
     //Render all objects from the viewpoint of 'cam'
     groundPlane.render(cam);
@@ -148,7 +111,7 @@ void AdvancedWindow::render(Camera *cam)
     sphere.render(cam);
 }
 
-void AdvancedWindow::renderDepth(Camera *cam)
+void VideoRecording::renderDepth(Camera *cam)
 {
     //Render the depth of all objects from the viewpoint of 'cam'
     //This will be called automatically for shadow casting light sources to create shadow maps
@@ -158,22 +121,17 @@ void AdvancedWindow::renderDepth(Camera *cam)
     sphere.render(cam);
 }
 
-void AdvancedWindow::renderOverlay(Camera *cam)
+void VideoRecording::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
     skybox.render(cam);
 }
 
-void AdvancedWindow::renderFinal(Camera *cam)
+void VideoRecording::renderFinal(Camera *cam)
 {
 
     //The final render path (after post processing).
     //Usually the GUI is rendered here.
-
-    parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
-    tdo.render();
-    if(showddo)
-        ddo.render();
 
 
     imgui.beginFrame();
@@ -183,34 +141,107 @@ void AdvancedWindow::renderFinal(Camera *cam)
         ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
 
-        ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
-        ImGui::Checkbox("Show Imgui demo", &showimguidemo );
-        ImGui::Checkbox("Show deferred debug overlay", &showddo );
+        int w = parentWindow->getRenderer()->width;
+        int h = parentWindow->getRenderer()->height;
 
-        if(ImGui::Checkbox("Light debug",&lightDebug)){
-            parentWindow->getRenderer()->lighting.setRenderDebug(lightDebug);
+        static int outW = w;
+        static int outH = h;
+        static int bitRate = 4000000;
+        static char file[256] = "test.mp4";
+        static int frameRateId = 0;
+        static int codecId = 0;
+        static int maxTimeSeconds = 10;
+
+        ImGui::InputInt("Output Width",&outW);
+
+        ImGui::InputInt("Output Height",&outH);
+        ImGui::InputInt("Bitrate",&bitRate);
+
+
+        static const char *fpsitems[3] = {
+            "15",
+            "30",
+            "60"
+        };
+        ImGui::Combo("Framerate",&frameRateId,fpsitems,3);
+
+        int frameRate = 30;
+        switch(frameRateId){
+        case 0:
+            frameRate = 15;
+            frameSkip = 4;
+            break;
+        case 1:
+            frameRate = 30;
+            frameSkip = 2;
+            break;
+        case 2:
+            frameRate = 60;
+            frameSkip = 1;
+            break;
         }
 
-        if(ImGui::Checkbox("Point Light Shadows",&pointLightShadows)){
-            for(auto l : lights){
-                l->setCastShadows(pointLightShadows);
+
+        static const char *codecitems[4] = {
+            "AV_CODEC_ID_H264",
+            "AV_CODEC_ID_MPEG2VIDEO",
+            "AV_CODEC_ID_MPEG4",
+            "AV_CODEC_ID_RAWVIDEO"
+        };
+        ImGui::Combo("Codec",&codecId,codecitems,4);
+
+        AVCodecID codec = AV_CODEC_ID_H264;
+        switch(codecId){
+        case 0:
+            codec = AV_CODEC_ID_H264;
+            break;
+        case 1:
+            codec = AV_CODEC_ID_MPEG2VIDEO;
+            break;
+        case 2:
+            codec = AV_CODEC_ID_MPEG4;
+            break;
+        case 3:
+            codec = AV_CODEC_ID_RAWVIDEO;
+            break;
+
+        }
+
+        ImGui::InputInt("Max Video Length in seconds",&maxTimeSeconds);
+
+        ImGui::InputText("Output File",file,256);
+
+        if(!encoder){
+            if(ImGui::Button("Start Recording")){
+                SAIGA_ASSERT(!encoder);
+                remainingFrames = maxTimeSeconds * 60;
+                encoder = std::make_shared<FFMPEGEncoder>();
+
+                encoder->startEncoding(file,outW,outH,w,h,frameRate,bitRate,codec);
             }
         }
+
+
+        if(encoder){
+            if(remainingFrames <= 0 || ImGui::Button("Stop Recording")){
+                SAIGA_ASSERT(encoder);
+                encoder->finishEncoding();
+                encoder.reset();
+            }
+        }
+
+        ImGui::Checkbox("Rotate Camera",&rotateCamera);
 
         ImGui::End();
     }
 
-    if (showimguidemo)
-    {
-        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-        ImGui::ShowTestWindow(&showimguidemo);
-    }
+
 
     imgui.endFrame();
 }
 
 
-void AdvancedWindow::keyPressed(SDL_Keysym key)
+void VideoRecording::keyPressed(SDL_Keysym key)
 {
     switch(key.scancode){
     case SDL_SCANCODE_ESCAPE:
@@ -230,7 +261,7 @@ void AdvancedWindow::keyPressed(SDL_Keysym key)
     }
 }
 
-void AdvancedWindow::keyReleased(SDL_Keysym key)
+void VideoRecording::keyReleased(SDL_Keysym key)
 {
 }
 

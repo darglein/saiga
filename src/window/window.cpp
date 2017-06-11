@@ -114,6 +114,23 @@ void OpenGLWindow::resize(int width, int height)
     renderer->resize(width,height);
 }
 
+
+void OpenGLWindow::readToExistingImage(Image &out)
+{
+    //read data from default framebuffer and restore currently bound fb.
+    GLint fb;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+//    glReadPixels(0,0,out.width,out.height,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
+    glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
+
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fb);
+}
+
+
 void OpenGLWindow::readToImage(Image& out){
     int w = renderer->windowWidth;
     int h = renderer->windowHeight;
@@ -123,12 +140,7 @@ void OpenGLWindow::readToImage(Image& out){
     out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
     out.create();
 
-    //read data from default framebuffer and restore currently bound fb.
-    GLint fb;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
-    glBindFramebuffer(GL_FRAMEBUFFER, fb);
+    readToExistingImage(out);
 }
 
 

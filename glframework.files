@@ -4,12 +4,15 @@ samples/advancedSDLWindow/main.cpp
 samples/advancedSDLWindow/advancedWindow.cpp
 samples/simpleSDLWindow/simpleWindow.cpp
 samples/simpleSDLWindow/main.cpp
+samples/videoRecording/videoRecording.cpp
+samples/videoRecording/main.cpp
 samples/runTests/main.cpp
 samples/cascadedShadowMaps/cascadedShadowMaps.cpp
 samples/cascadedShadowMaps/main.cpp
 samples/test/main.cpp
 samples/advancedSDLWindow/advancedWindow.h
 samples/simpleSDLWindow/simpleWindow.h
+samples/videoRecording/videoRecording.h
 samples/cascadedShadowMaps/cascadedShadowMaps.h
 src/glfw/glfw_eventhandler.cpp
 src/glfw/glfw_joystick.cpp
@@ -90,7 +93,6 @@ src/rendering/postProcessor.cpp
 src/util/directory.cpp
 src/util/lightning.cpp
 src/util/perlinnoise.cpp
-src/util/png_wrapper.cpp
 src/util/joystick.cpp
 src/util/mouse.cpp
 src/util/configloader.cpp
@@ -279,7 +281,6 @@ saiga/util/translator.h
 saiga/util/exif/TinyEXIF.h
 saiga/util/exif/exif.h
 saiga/util/tinyxml2.h
-saiga/util/png_wrapper.h
 saiga/util/glm.h
 saiga/util/joystick.h
 saiga/util/fileChecker.h

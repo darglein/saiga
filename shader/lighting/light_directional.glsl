@@ -28,25 +28,7 @@ uniform mat4 viewToLightTransforms[MAX_CASCADES];
 uniform float depthCuts[MAX_CASCADES + 1];
 uniform int numCascades;
 uniform float cascadeInterpolateRange = 3.0f;
-#endif
 
-uniform sampler2D ssaoTex;
-
-uniform vec3 direction;
-uniform float ambientIntensity;
-
-#include "lighting_helper_fs.glsl"
-
-layout(location=0) out vec4 out_color;
-
-
-float getSSAOIntensity(){
-//    ivec2 tci = ivec2(gl_FragCoord.xy);
-    vec2 tc = CalcTexCoord();
-    float ssao = texture(ssaoTex,tc).r;
-    return 1.0f - ssao;
-//    return 1.0f;
-}
 
 void computeCascadeId(float viewDepth, int numCascades, out int cascadeId, out int interpolateCascade, out float interpolateAlpha){
     for(int i = 1; i <= numCascades; ++i){
@@ -74,6 +56,27 @@ void computeCascadeId(float viewDepth, int numCascades, out int cascadeId, out i
     if(cascadeId == numCascades-1 &&  interpolateCascade == 1)
         interpolateCascade = 0;
 }
+
+#endif
+
+uniform sampler2D ssaoTex;
+
+uniform vec3 direction;
+uniform float ambientIntensity;
+
+#include "lighting_helper_fs.glsl"
+
+layout(location=0) out vec4 out_color;
+
+
+float getSSAOIntensity(){
+//    ivec2 tci = ivec2(gl_FragCoord.xy);
+    vec2 tc = CalcTexCoord();
+    float ssao = texture(ssaoTex,tc).r;
+    return 1.0f - ssao;
+//    return 1.0f;
+}
+
 
 
 vec4 getDirectionalLightIntensity(int sampleId) {
