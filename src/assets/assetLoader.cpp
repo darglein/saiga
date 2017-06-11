@@ -4,7 +4,7 @@
 #include "saiga/opengl/texture/textureLoader.h"
 
 #include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/opengl/texture/imageGenerator.h"
+#include "saiga/image/imageGenerator.h"
 
 
 AssetLoader2::AssetLoader2()

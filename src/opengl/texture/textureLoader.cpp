@@ -1,10 +1,11 @@
 
 #include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/opengl/texture/imageConverter.h"
+#include "saiga/image/imageConverter.h"
 #ifdef SAIGA_USE_FREEIMAGE
 #include <FreeImagePlus.h>
+#include "saiga/image/freeimage.h"
 #endif
-#include "saiga/util/png_wrapper.h"
+#include "saiga/image/png_wrapper.h"
 
 bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {
     return std::tie(lhs.srgb) == std::tie(rhs.srgb);
@@ -53,10 +54,12 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
 
     //use libfreeimage if available, libpng otherwise
 #ifdef SAIGA_USE_FREEIMAGE
-    fipImage img;
-    erg = img.load(path.c_str());
-    if(erg)
-        ImageConverter::convert(img,outImage);
+    erg = FIP::load(path,outImage,0);
+//    fipImage img;
+//    erg = img.load(path.c_str());
+//    if(erg){
+//        ImageConverter::convert(img,outImage);
+//    }
 #else
 #ifdef SAIGA_USE_PNG
     PNG::Image pngimg;
@@ -84,9 +87,10 @@ bool TextureLoader::saveImage(const std::string &path, Image &image) const
 
     //use libfreeimage if available, libpng otherwise
 #ifdef SAIGA_USE_FREEIMAGE
-    fipImage fipimage;
-    ImageConverter::convert(image,fipimage);
-    erg = fipimage.save(path.c_str());
+//    fipImage fipimage;
+//    ImageConverter::convert(image,fipimage);
+//    erg = fipimage.save(path.c_str());
+    erg = FIP::save(path,image);
 #else
 #ifdef SAIGA_USE_PNG
     PNG::Image pngimg;

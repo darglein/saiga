@@ -1,7 +1,7 @@
 #include "saiga/rendering/lighting/ssao.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/opengl/texture/imageGenerator.h"
+#include "saiga/image/imageGenerator.h"
 #include "saiga/rendering/gbuffer.h"
 
 void SSAOShader::checkUniforms(){

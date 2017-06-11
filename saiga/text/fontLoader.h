@@ -2,7 +2,7 @@
 
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
-#include "saiga/opengl/texture/image.h"
+#include "saiga/image/image.h"
 #include "saiga/text/encoding.h"
 
 

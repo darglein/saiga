@@ -1,7 +1,7 @@
 #pragma once
 
 #include "saiga/util/glm.h"
-#include "saiga/opengl/texture/image.h"
+#include "saiga/image/image.h"
 
 
 class SAIGA_GLOBAL raw_Texture{

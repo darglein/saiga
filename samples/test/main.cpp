@@ -11,7 +11,7 @@
 
 #include "saiga/geometry/clipping.h"
 
-#include "saiga/opengl/texture/freeimage.h"
+#include "saiga/image/freeimage.h"
 //#include <FreeImagePlus.h>
 //#include "saiga/opengl/texture/textureLoader.h"
 
