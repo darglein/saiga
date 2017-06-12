@@ -9,3 +9,4 @@ src/cuda
 saiga/opengl
 /soft/devtools/nvidia/cuda-7.5/include
 shader/lighting
+/home/um96udad/Master/libs/data/include

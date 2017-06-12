@@ -25,7 +25,7 @@ std::ostream& operator<<(std::ostream& os, const ImageMetadata& d){
 
     os << "FocalPlaneResolutionUnit: " << resStr << endl;
     os << "FocalPlaneXResolution: " << d.FocalPlaneXResolution << endl;
-    os << "FocalPlaneYResolution: " << d.FocalPlaneYResolution << endl;
+    os << "FocalPlaneYResolution: " << d.FocalPlaneYResolution;
     return os;
 }
 

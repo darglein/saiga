@@ -7,8 +7,32 @@
 namespace FIP {
 
 
+bool load(const std::string &path, Image &img, ImageMetadata *metaData)
+{
+    fipImage fimg;
+    if(!loadFIP(path,fimg)){
+        return false;
+    }
+
+    if(metaData){
+        getMetaData(fimg,*metaData);
+    }
+
+    convert(fimg,img);
+
+    return true;
+}
+
+bool save(const std::string &path, Image &img)
+{
+    fipImage fimg;
+    convert(img,fimg);
+
+    return saveFIP(path,fimg);
+}
+
 bool loadFIP(const std::string &path, fipImage &img){
-    auto ret = img.load(path.c_str());
+    auto ret = img.load(path.c_str(),JPEG_EXIFROTATE);
     return ret;
 }
 
@@ -32,23 +56,26 @@ FREE_IMAGE_TYPE getFIT2(ImageFormat format){
 }
 
 
-void convert(Image src, fipImage &dest){
-//    if(src.Format().getChannels() == 1 && src.Format().bitsPerPixel()==8){
+void convert(const Image &_src, fipImage &dest){
+    auto src = _src;
+    //    if(src.Format().getChannels() == 1 && src.Format().bitsPerPixel()==8){
 
-////    }else if(src.Format().getChannels() == 3 && src.Format().bitsPerPixel()==24){
-//        }else if(src.Format().getChannels() == 3 ){
-//        src.flipRB();
-//    }else if(src.Format().getChannels() == 4){
-//        src.flipRB();
-//    }else{
-//        std::cout<<"INVALID FORMAT: channels: " << src.Format().getChannels() << ", bitsperpixel " << src.Format().bitsPerPixel() <<std::endl;
-//        SAIGA_ASSERT(0);
-//    }
+    ////    }else if(src.Format().getChannels() == 3 && src.Format().bitsPerPixel()==24){
+    //        }else if(src.Format().getChannels() == 3 ){
+    //        src.flipRB();
+    //    }else if(src.Format().getChannels() == 4){
+    //        src.flipRB();
+    //    }else{
+    //        std::cout<<"INVALID FORMAT: channels: " << src.Format().getChannels() << ", bitsperpixel " << src.Format().bitsPerPixel() <<std::endl;
+    //        SAIGA_ASSERT(0);
+    //    }
 
+#if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
+    //convert RGB -> BGR
     if(src.Format().getChannels() == 3 || src.Format().getChannels() == 4){
-//        src.flipRB();
+        src.flipRB();
     }
-
+#endif
 
 
     dest.setSize(getFIT2(src.Format()),src.width,src.height,src.Format().bitsPerPixel());
@@ -56,7 +83,7 @@ void convert(Image src, fipImage &dest){
     auto data = dest.accessPixels();
 
 
-//    memcpy(data,src.getRawData(),src.getSize());
+    //    memcpy(data,src.getRawData(),src.getSize());
 
     for(int y = 0; y < src.height; ++y){
 
@@ -68,7 +95,7 @@ void convert(Image src, fipImage &dest){
 }
 
 
-void convert(fipImage &src, Image& dest){
+void convert(const fipImage &src, Image& dest){
     SAIGA_ASSERT(src.isValid());
     dest.width = src.getWidth();
     dest.height = src.getHeight();
@@ -101,24 +128,26 @@ void convert(fipImage &src, Image& dest){
     }
 
 
-    cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth: " << format.getBitDepth() << endl;
+    //    cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth: " << format.getBitDepth() << endl;
+
+    cout << format << endl;
 
     dest.Format() = format;
     dest.create();
     auto data = src.accessPixels();
 
 
-//    if(format.getChannels()==1){
-//        memcpy(dest.getRawData(),data,dest.getSize());
-//    }else if(format.getChannels() == 3 && src.getBitsPerPixel()==24){
-//        memcpy(dest.getRawData(),data,dest.getSize());
-//        dest.flipRB();
-//    }else if(format.getChannels() == 4){
-//        memcpy(dest.getRawData(),data,dest.getSize());
-//    }else{
-//        std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;
-//        SAIGA_ASSERT(0);
-//    }
+    //    if(format.getChannels()==1){
+    //        memcpy(dest.getRawData(),data,dest.getSize());
+    //    }else if(format.getChannels() == 3 && src.getBitsPerPixel()==24){
+    //        memcpy(dest.getRawData(),data,dest.getSize());
+    //        dest.flipRB();
+    //    }else if(format.getChannels() == 4){
+    //        memcpy(dest.getRawData(),data,dest.getSize());
+    //    }else{
+    //        std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;
+    //        SAIGA_ASSERT(0);
+    //    }
 
     for(int y = 0; y < dest.height; ++y){
 
@@ -127,11 +156,13 @@ void convert(fipImage &src, Image& dest){
         mempcpy(targetPtr,srcPtr,dest.getBytesPerRow());
     }
 
-//    if(format.getChannels() == 3 && src.getBitsPerPixel()==24){
-        if(format.getChannels() == 3 || format.getChannels() == 4){
+
+#if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
+    //convert BGR -> RGB
+    if(format.getChannels() == 3 || format.getChannels() == 4){
         dest.flipRB();
     }
-//        std::cout << "Image: " << dest.Format() << std::endl;
+#endif
 
 }
 
@@ -148,7 +179,7 @@ void getMetaData(fipImage &img, ImageMetadata& metaData){
     fipTag tag;
     fipMetadataFind finder;
     if( finder.findFirstMetadata(FIMD_EXIF_MAIN, img, tag) ) {
-      do {
+        do {
             std::string t = tag.getKey();
 
             if(t == "DateTime"){
@@ -157,15 +188,17 @@ void getMetaData(fipImage &img, ImageMetadata& metaData){
                 metaData.Make = (char*)tag.getValue();
             }else if(t == "Model"){
                 metaData.Model = (char*)tag.getValue();
+            }else{
+                //                cout << "Tag: " << tag.getKey() << " Value: " << tag.toString(FIMD_EXIF_MAIN) << endl;
             }
 
-      } while( finder.findNextMetadata(tag) );
+        } while( finder.findNextMetadata(tag) );
     }
 
     // the class can be called again with another metadata model
     if( finder.findFirstMetadata(FIMD_EXIF_EXIF, img, tag) ) {
-      do {
-        std::string t = tag.getKey();
+        do {
+            std::string t = tag.getKey();
             if(t == "FocalLength"){
                 metaData.FocalLengthMM = parseFraction(tag.getValue());
             }else if(t == "FocalPlaneResolutionUnit"){
@@ -173,36 +206,37 @@ void getMetaData(fipImage &img, ImageMetadata& metaData){
             }else if(t == "FocalPlaneXResolution"){
                 metaData.FocalPlaneXResolution = parseFraction(tag.getValue());
             }else if(t == "FocalPlaneYResolution"){
-            metaData.FocalPlaneYResolution = parseFraction(tag.getValue());
+                metaData.FocalPlaneYResolution = parseFraction(tag.getValue());
+            }else{
+                //                cout << "Tag: " << tag.getKey() << " Value: " << tag.toString(FIMD_EXIF_MAIN) << endl;
+            }
+        } while( finder.findNextMetadata(tag) );
+    }
+
+
+
+
+}
+
+
+void printAllMetaData(fipImage &img)
+{
+    for(int i = -1; i <= 11; ++i){
+        FREE_IMAGE_MDMODEL model = (FREE_IMAGE_MDMODEL)i;
+        cout << "Model: " << model << endl;
+        fipTag tag;
+        fipMetadataFind finder;
+        if( finder.findFirstMetadata(model, img, tag) ) {
+            do {
+                std::string t = tag.getKey();
+
+                 cout << tag.getKey() << " : " << tag.toString(model) << endl;
+
+
+            } while( finder.findNextMetadata(tag) );
         }
-      } while( finder.findNextMetadata(tag) );
     }
 
-
-}
-
-bool load(const std::string &path, Image &img, ImageMetadata *metaData)
-{
-    fipImage fimg;
-    if(!loadFIP(path,fimg)){
-        return false;
-    }
-
-    if(metaData){
-        getMetaData(fimg,*metaData);
-    }
-
-    convert(fimg,img);
-
-    return true;
-}
-
-bool save(const std::string &path, Image &img)
-{
-    fipImage fimg;
-    convert(img,fimg);
-
-    return saveFIP(path,fimg);
 }
 
 

@@ -12,7 +12,7 @@
 #include "saiga/geometry/clipping.h"
 
 #include "saiga/image/freeimage.h"
-//#include <FreeImagePlus.h>
+#include <FreeImagePlus.h>
 //#include "saiga/opengl/texture/textureLoader.h"
 
 int main(int argc, char *argv[]) {
@@ -23,11 +23,15 @@ int main(int argc, char *argv[]) {
     cout << "asdf" << endl;
 
     std::vector<std::string> images = {
-        "A002C015_130612_R4MX.848124.tif",
-        "8D0A5523.CR2",
-        "8D0A5579.CR2",
-        "8D0A1390.CR2",
-        "box.png"
+//        "A002C015_130612_R4MX.848124.tif",
+//        "8D0A5523.CR2",
+//        "8D0A5579.CR2",
+//        "8D0A1390.CR2",
+//        "8D0A5553.CR2",
+//        "8D0A5554.CR2",
+        "8D0A5553.jpg",
+        "8D0A5554.jpg",
+//        "box.png",
     };
 
     for(auto str : images){
@@ -42,6 +46,9 @@ int main(int argc, char *argv[]) {
         SAIGA_ASSERT(ret);
 
         cout << metaData << endl;
+//        fipImage fimg;
+//        FIP::loadFIP("textures/" + str,fimg);
+//        FIP::printAllMetaData(fimg);
     }
 
 }
