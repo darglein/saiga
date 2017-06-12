@@ -1,50 +1,72 @@
 #
-# Try to find the FreeImage library and include path.
-# Once done this will define
+# Find FreeImage
 #
-# FREEIMAGE_FOUND
-# FREEIMAGE_INCLUDE_PATH
-# FREEIMAGE_LIBRARY
+# Try to find FreeImage.
+# This module defines the following variables:
+# - FREEIMAGE_INCLUDE_DIRS
+# - FREEIMAGE_LIBRARIES
+# - FREEIMAGE_FOUND
+#
+# The following variables can be set as arguments for the module.
+# - FREEIMAGE_ROOT_DIR : Root library directory of FreeImage
 #
 
-IF (WIN32)
-FIND_PATH( FREEIMAGE_INCLUDE_PATH FreeImage.h
-${PROJECT_SOURCE_DIR}/extern/FreeImage
-DOC "The directory where FreeImage.h resides")
-FIND_LIBRARY( FREEIMAGE_LIBRARY
-NAMES FreeImage freeimage
-PATHS
-${PROJECT_SOURCE_DIR}/FreeImage
-DOC "The FreeImage library")
-ELSE (WIN32)
-FIND_PATH( FREEIMAGE_INCLUDE_PATH FreeImage.h
-/usr/include
-/usr/local/include
-/sw/include
-/opt/local/include
-DOC "The directory where FreeImage.h resides")
-FIND_LIBRARY( FREEIMAGE_LIBRARY
-NAMES FreeImage freeimage
-PATHS
-/usr/lib64
-/usr/lib
-/usr/local/lib64
-/usr/local/lib
-/sw/lib
-/opt/local/lib
-DOC "The FreeImage library")
-ENDIF (WIN32)
+# Additional modules
+include(FindPackageHandleStandardArgs)
 
-SET(FREEIMAGE_LIBRARIES ${FREEIMAGE_LIBRARY})
+if (WIN32)
+	# Find include files
+	find_path(
+		FREEIMAGE_INCLUDE_DIR
+		NAMES FreeImage.h
+		PATHS
+			$ENV{PROGRAMFILES}/include
+			${FREEIMAGE_ROOT_DIR}/include
+		DOC "The directory where FreeImage.h resides")
 
-IF (FREEIMAGE_INCLUDE_PATH AND FREEIMAGE_LIBRARY)
-SET( FREEIMAGE_FOUND TRUE CACHE BOOL "Set to TRUE if GLEW is found, FALSE otherwise")
-ELSE (FREEIMAGE_INCLUDE_PATH AND FREEIMAGE_LIBRARY)
-SET( FREEIMAGE_FOUND FALSE CACHE BOOL "Set to TRUE if GLEW is found, FALSE otherwise")
-ENDIF (FREEIMAGE_INCLUDE_PATH AND FREEIMAGE_LIBRARY)
+	# Find library files
+	find_library(
+		FREEIMAGE_LIBRARY
+		NAMES FreeImage
+		PATHS
+			$ENV{PROGRAMFILES}/lib
+			${FREEIMAGE_ROOT_DIR}/lib)
+else()
+	# Find include files
+	find_path(
+		FREEIMAGE_INCLUDE_DIR
+		NAMES FreeImage.h
+		PATHS
+			/usr/include
+			/usr/local/include
+			/sw/include
+			/opt/local/include
+		DOC "The directory where FreeImage.h resides")
 
-MARK_AS_ADVANCED(
-FREEIMAGE_FOUND
-FREEIMAGE_LIBRARY
-FREEIMAGE_LIBRARIES
-FREEIMAGE_INCLUDE_PATH)
+	# Find library files
+	find_library(
+		FREEIMAGE_LIBRARY
+		NAMES freeimage
+		PATHS
+			/usr/lib64
+			/usr/lib
+			/usr/local/lib64
+			/usr/local/lib
+			/sw/lib
+			/opt/local/lib
+			${FREEIMAGE_ROOT_DIR}/lib
+		DOC "The FreeImage library")
+endif()
+
+# Handle REQUIRD argument, define *_FOUND variable
+find_package_handle_standard_args(FREEIMAGE DEFAULT_MSG FREEIMAGE_INCLUDE_DIR FREEIMAGE_LIBRARY)
+
+
+if (FREEIMAGE_FOUND)
+	set(FREEIMAGE_LIBRARIES ${FREEIMAGE_LIBRARY})
+	set(FREEIMAGE_INCLUDE_DIRS ${FREEIMAGE_INCLUDE_DIR})
+endif()
+
+# Hide some variables
+mark_as_advanced(FREEIMAGE_INCLUDE_DIR FREEIMAGE_LIBRARY)
+

@@ -22,22 +22,26 @@ int main(int argc, char *argv[]) {
 
     cout << "asdf" << endl;
 
+    std::vector<std::string> images = {
+        "A002C015_130612_R4MX.848124.tif",
+        "8D0A5523.CR2",
+        "8D0A5579.CR2",
+        "8D0A1390.CR2",
+        "box.png"
+    };
 
+    for(auto str : images){
 
-    Image img;
-    ImageMetadata metaData;
-//    FIP::load("textures/test.CR2",img,&metaData);
-//    FIP::load("textures/8D0A1390.jpg",img,&metaData);
-    auto ret = FIP::load("textures/A002C015_130612_R4MX.848124.tif",img,&metaData);
-    SAIGA_ASSERT(ret);
-    img.to8bitImage();
-    ret = FIP::save("textures/test.jpg",img);
-    SAIGA_ASSERT(ret);
-//    img.flipY();
+        Image img;
+        ImageMetadata metaData;
+        auto ret = FIP::load("textures/" + str,img,&metaData);
+        SAIGA_ASSERT(ret);
+//        img.flipRB();
+        img.to8bitImage();
+        ret = FIP::save("textures/" + str + ".jpg",img);
+        SAIGA_ASSERT(ret);
 
-//    FIP::save("textures/test_flipped.jpg",img);
-//    img.flipY();
-//    FIP::save("textures/test_flipped2.jpg",img);
-    cout << metaData << endl;
+        cout << metaData << endl;
+    }
 
 }

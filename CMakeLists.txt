@@ -138,6 +138,7 @@ if(OPUS_FOUND)
 	include_directories(${OPUS_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${OPUS_LIBRARIES})
 	SET(SAIGA_USE_OPUS 1)
+	message(STATUS "Found Opus: ${OPUS_LIBRARIES}")
 endif()
 
 #assimp
@@ -146,6 +147,7 @@ if(ASSIMP_FOUND)
 	include_directories(${ASSIMP_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 	SET(SAIGA_USE_ASSIMP 1)
+	message(STATUS "Found ASSIMP: ${ASSIMP_LIBRARIES}")
 endif()
 
 #png
@@ -154,18 +156,20 @@ if(PNG_FOUND)
 	include_directories(${PNG_INCLUDE_DIRS})
 	SET(LIBS ${LIBS} ${PNG_LIBRARIES})
 	SET(SAIGA_USE_PNG 1)
+	message(STATUS "Found libpng: ${PNG_LIBRARIES}")
 endif()
 
 #libfreeimage
 find_package(FreeImage QUIET)
 find_package(FreeImagePlus QUIET)
+
 if(FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
 	include_directories(${FREEIMAGE_INCLUDE_PATH})
-	SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARY})
-
+	SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARIES})
 	include_directories(${FREEIMAGEPLUS_INCLUDE_PATH})
 	SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
 	SET(SAIGA_USE_FREEIMAGE 1)
+	message(STATUS "Found FreeImage: ${FREEIMAGE_LIBRARIES} ${FREEIMAGEPLUS_LIBRARIES}")
 endif()
 
 
