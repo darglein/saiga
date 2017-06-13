@@ -130,7 +130,7 @@ void convert(const fipImage &src, Image& dest){
 
     //    cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth: " << format.getBitDepth() << endl;
 
-    cout << format << endl;
+//    cout << format << endl;
 
     dest.Format() = format;
     dest.create();
