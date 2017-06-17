@@ -16,6 +16,7 @@ bool load(const std::string &path, Image &img, ImageMetadata *metaData)
 
     if(metaData){
         getMetaData(fimg,*metaData);
+//        printAllMetaData(fimg);
     }
 
     convert(fimg,img);
@@ -201,6 +202,8 @@ void getMetaData(fipImage &img, ImageMetadata& metaData){
             std::string t = tag.getKey();
             if(t == "FocalLength"){
                 metaData.FocalLengthMM = parseFraction(tag.getValue());
+            }else if(t == "FocalLengthIn35mmFilm"){
+                metaData.FocalLengthMM35 = reinterpret_cast<const short*>(tag.getValue())[0];
             }else if(t == "FocalPlaneResolutionUnit"){
                 metaData.FocalPlaneResolutionUnit = (ImageMetadata::ResolutionUnit) reinterpret_cast<const short*>(tag.getValue())[0];
             }else if(t == "FocalPlaneXResolution"){
@@ -230,7 +233,7 @@ void printAllMetaData(fipImage &img)
             do {
                 std::string t = tag.getKey();
 
-                 cout << tag.getKey() << " : " << tag.toString(model) << endl;
+                 cout << tag.getKey() << " : " << tag.toString(model) << " Type: " << tag.getType() << endl;
 
 
             } while( finder.findNextMetadata(tag) );

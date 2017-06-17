@@ -11,6 +11,7 @@ struct SAIGA_GLOBAL ImageMetadata{
     std::string Model;
 
     double FocalLengthMM = 0;
+    double FocalLengthMM35 = 0;
 
     enum ResolutionUnit : int{
         NoUnit = 1,

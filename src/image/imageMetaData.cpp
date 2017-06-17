@@ -9,6 +9,7 @@ std::ostream& operator<<(std::ostream& os, const ImageMetadata& d){
     os << "Model: " << d.Model << endl;
 
     os << "FocalLengthMM: " << d.FocalLengthMM << endl;
+    os << "FocalLengthMM35: " << d.FocalLengthMM35 << endl;
 
     std::string resStr;
     switch(d.FocalPlaneResolutionUnit){
