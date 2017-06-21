@@ -145,6 +145,7 @@ src/util/assert.cpp
 src/util/observer.cpp
 src/util/floatingPoint.cpp
 src/util/glm.cpp
+src/util/table.cpp
 src/util/keyboard.cpp
 src/util/lightning.cpp
 src/util/mouse.cpp
@@ -348,6 +349,7 @@ saiga/util/crash.h
 saiga/util/color.h
 saiga/util/perlinnoise.h
 saiga/util/directory.h
+saiga/util/table.h
 saiga/util/exif/exif.h
 saiga/util/exif/TinyEXIF.h
 saiga/util/inputcontroller.h

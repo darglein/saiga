@@ -90,6 +90,10 @@ public:
         start();
     }
 
+    ScopedTimer(T& target) : target(&target){
+        start();
+    }
+
     ~ScopedTimer(){
         stop();
         T time = static_cast<T>(getTimeMS());

@@ -6,7 +6,7 @@
 #include "saiga/cuda/cusparseHelper.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/tests/test.h"
-
+#include "saiga/util/table.h"
 
 
 #include "saiga/geometry/clipping.h"
@@ -18,6 +18,20 @@
 int main(int argc, char *argv[]) {
 
     catchSegFaults();
+
+    {
+        //table test
+        Table t({10,10});
+        //t.setFloatPrecision(4);
+        t << "asdf" << "bla";
+        t << 345 << 1.0/3.0;
+        t << 345 << rand();
+        t << 1.0/rand() << 1.0/rand();
+        t << 1.0/rand() << 1.0/3.0;
+    }
+
+    return 0;
+
 
 
     cout << "asdf" << endl;
