@@ -4,8 +4,7 @@
 
 
 raw_Texture::~raw_Texture(){
-    if(id != 0)
-        glDeleteTextures(1,&id);
+    deleteGlTexture();
 }
 
 void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type){
@@ -37,12 +36,21 @@ void raw_Texture::resize(int width, int height)
 
 
 void raw_Texture::createGlTexture(){
+    deleteGlTexture();
     /* init_resources */
     glGenTextures(1, &id);
     glBindTexture(target, id);
     setDefaultParameters();
     glBindTexture(target, 0);
     assert_no_glerror();
+}
+
+void raw_Texture::deleteGlTexture()
+{
+    if(id != 0){
+        glDeleteTextures(1,&id);
+        id = 0;
+    }
 }
 
 

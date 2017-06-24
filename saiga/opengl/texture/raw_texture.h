@@ -30,6 +30,7 @@ public:
     void resize(int width, int height);
 
     void createGlTexture();
+    void deleteGlTexture();
     virtual void setDefaultParameters() = 0;
 
 
