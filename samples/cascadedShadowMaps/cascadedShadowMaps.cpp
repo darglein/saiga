@@ -64,6 +64,8 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 
     imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
 
+
+
     cout<<"Program Initialized!"<<endl;
 }
 
@@ -189,10 +191,23 @@ void SimpleWindow::renderFinal(Camera *cam)
     imgui.endFrame();
 }
 
+#include <fstream>
 
 void SimpleWindow::keyPressed(SDL_Keysym key)
 {
     switch(key.scancode){
+    case SDL_SCANCODE_T:
+    {
+        std::vector<uint8_t> binary;
+        GLenum format;
+         parentWindow->getRenderer()->blitDepthShader->getBinary(binary,format);
+         parentWindow->getRenderer()->blitDepthShader->setBinary(binary,format);
+         cout << "binary size: " << binary.size() << endl;
+
+         std::ofstream outfile ("binary.txt",std::ofstream::binary);
+         outfile.write( (char*)binary.data(),binary.size());
+        break;
+    }
     case SDL_SCANCODE_ESCAPE:
         parentWindow->close();
         break;

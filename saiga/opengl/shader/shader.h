@@ -77,6 +77,13 @@ public:
 	bool isBound();
 
 
+    /**
+     * Returns the binary code of this program and the internal format.
+     */
+    bool getBinary(std::vector<uint8_t>& binary, GLenum& format);
+
+    bool setBinary(const std::vector<uint8_t>& binary, GLenum format);
+
 	// ===================================== Compute Shaders =====================================
 	// Note: Compute shaders require OpenGL 4.3+
 

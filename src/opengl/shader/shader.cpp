@@ -113,7 +113,50 @@ void Shader::unbind(){
 }
 
 bool Shader::isBound(){
-	return boundShader == program;
+    return boundShader == program;
+}
+
+bool Shader::getBinary(std::vector<uint8_t>& binary, GLenum& format)
+{
+#if 0
+    GLint num_program_binary_formats[1];
+     glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS,num_program_binary_formats);
+
+     std::vector<GLint> program_binary_formats(num_program_binary_formats[0]);
+     glGetIntegerv(GL_PROGRAM_BINARY_FORMATS,program_binary_formats.data());
+
+     cout << "Num binary formats: " << num_program_binary_formats[0] << endl;
+     for(auto f : program_binary_formats){
+         cout << f << endl;
+     }
+#endif
+
+    GLint length[1];
+    glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, length);
+    assert_no_glerror();
+    GLsizei size = length[0];
+    if(size == 0){
+        //When a progam's GL_LINK_STATUS is GL_FALSE, its program binary length is zero.
+        return false;
+    }
+
+    binary.resize(size);
+//    cout << "Binary length: " << size << endl;
+    GLsizei actualLength;
+    glGetProgramBinary(program,size,&actualLength,&format,binary.data());
+
+    SAIGA_ASSERT(size == actualLength);
+//    cout << "recieved format: " << format << endl;
+//    cout << "actualLength: " << actualLength << endl;
+    assert_no_glerror();
+    return true;
+}
+
+bool Shader::setBinary(const std::vector<uint8_t> &binary, GLenum format)
+{
+    glProgramBinary(program,format,binary.data(),binary.size());
+    assert_no_glerror();
+    return true;
 }
 
 // ===================================== Compute Shaders =====================================
