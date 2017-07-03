@@ -356,6 +356,7 @@ saiga/util/inputcontroller.h
 saiga/util/loader.h
 saiga/util/ringBuffer.h
 saiga/util/assert.h
+saiga/util/tostring.h
 saiga/util/joystick.h
 saiga/util/singleton.h
 saiga/util/mouse.h
@@ -370,6 +371,7 @@ saiga/util/synchronizedBuffer.h
 saiga/util/error.h
 saiga/util/observer.h
 saiga/util/glm.h
+saiga/util/threadPool.h
 saiga/tests/test.h
 saiga/buildconfig.h.in
 saiga/egl/offscreen_window.h

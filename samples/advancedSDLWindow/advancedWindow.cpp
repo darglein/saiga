@@ -95,7 +95,6 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
     tdo.createItem("Update Time: ");
 
 
-
     cout<<"Program Initialized!"<<endl;
 }
 
@@ -113,16 +112,16 @@ void AdvancedWindow::update(float dt){
 //    sun->fitNearPlaneToScene(sceneBB);
 
     int  fps = (int) glm::round(1000.0/parentWindow->fpsTimer.getTimeMS());
-    tdo.updateEntry(0,std::to_string(fps));
+    tdo.updateEntry(0,fps);
 
     int  ups = (int) glm::round(1000.0/parentWindow->upsTimer.getTimeMS());
-    tdo.updateEntry(1,std::to_string(ups));
+    tdo.updateEntry(1,ups);
 
     float renderTime = parentWindow->getRenderer()->getTime(Deferred_Renderer::TOTAL);
-    tdo.updateEntry(2,std::to_string(renderTime));
+    tdo.updateEntry(2,renderTime);
 
     float updateTime = parentWindow->updateTimer.getTimeMS();
-    tdo.updateEntry(3,std::to_string(updateTime));
+    tdo.updateEntry(3,updateTime);
 
 
     for(auto l : lights){

@@ -1,5 +1,6 @@
 #pragma once
-#include <sstream>
+
+#include "saiga/util/tostring.h"
 
 #include "saiga/util/glm.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
@@ -51,22 +52,16 @@ public:
     int createItem(const std::string& name);
 
     template<typename T>
-    void updateEntry(int id, T v);
+    void updateEntry(int id,const T& v);
 
 
 };
 
-template<> SAIGA_GLOBAL
-void TextDebugOverlay::updateEntry<std::string>(int id, std::string v);
 
 template<typename T>
-void TextDebugOverlay::updateEntry(int id, T v)
+void TextDebugOverlay::updateEntry(int id,const T& v)
 {
-    std::stringstream sstream;
-
-    sstream << v;
-//    textGenerator->updateText(entries[id].text,sstream.str()+"                                  ",entries[id].valueIndex);
-    entries[id].text->updateText(sstream.str()+"                                  ",entries[id].valueIndex);
+        entries[id].text->updateText(saiga::to_string(v),entries[id].valueIndex);
 }
 
 

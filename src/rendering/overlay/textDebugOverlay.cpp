@@ -55,15 +55,8 @@ int TextDebugOverlay::createItem(const std::string &name)
     entries.push_back(entry);
 
 
-    entry.text->updateText(std::to_string(123),entry.valueIndex);
+    entry.text->updateText("123",entry.valueIndex);
 
     return id;
 }
-
-template<>
-void TextDebugOverlay::updateEntry<std::string>(int id, std::string v)
-{
-    entries[id].text->updateText(v,entries[id].valueIndex);
-}
-
 
