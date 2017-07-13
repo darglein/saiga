@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
     cout << Clipping::clipTriAABBtoBox(trit,bb) << endl;
 
-    return 0;
+//    return 0;
 
     {
         //CUDA tests
