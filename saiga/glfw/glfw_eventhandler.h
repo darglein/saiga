@@ -9,6 +9,8 @@
 
 struct GLFWwindow;
 
+namespace Saiga {
+
 class SAIGA_GLOBAL glfw_JoystickListener{
 public:
     virtual ~glfw_JoystickListener(){}
@@ -128,4 +130,6 @@ void glfw_EventHandler::removeListener(std::vector<Listener<T>> &list, T* t){
             return;
         }
     }
+}
+
 }

@@ -1,6 +1,7 @@
 #include "saiga/rendering/particles/particleconverter.h"
-
 #include "saiga/geometry/raytracer.h"
+
+namespace Saiga {
 
 void Particleconverter::convert(std::vector<Triangle> &triangles, std::vector<vec3> &points){
     AABB box = getBoundingBox(triangles);
@@ -107,4 +108,6 @@ AABB Particleconverter::getBoundingBox(std::vector<Triangle> &triangles){
         box.growBox(t.c);
     }
     return box;
+}
+
 }

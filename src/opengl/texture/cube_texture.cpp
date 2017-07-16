@@ -1,7 +1,7 @@
-
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/util/error.h"
 
+namespace Saiga {
 
 void TextureCube::uploadData(GLenum target,const  GLubyte *data ){
     bind(0);
@@ -87,3 +87,4 @@ bool TextureCube::fromImage(std::vector<Image> &images)
     return true;
 }
 
+}

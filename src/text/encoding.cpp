@@ -1,6 +1,6 @@
 #include "saiga/text/encoding.h"
 
-
+namespace Saiga {
 
 int sizeTable[] = {
     //ascii characters: starting with 0
@@ -156,4 +156,6 @@ std::string Encoding::UTF32toUTF8(const utf32string &str)
         }
     }
     return result;
+}
+
 }

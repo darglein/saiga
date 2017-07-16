@@ -3,6 +3,7 @@
 #include <saiga/config.h>
 #include <iostream>
 
+namespace Saiga {
 namespace CUDA {
 
 class SAIGA_GLOBAL PerformanceTestHelper{
@@ -16,7 +17,5 @@ public:
 
 };
 
-
 }
-
-
+}

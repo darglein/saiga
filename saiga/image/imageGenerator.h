@@ -3,6 +3,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/image/image.h"
 
+namespace Saiga {
 
 class SAIGA_GLOBAL ImageGenerator{
 public:
@@ -23,3 +24,5 @@ public:
      */
     static std::shared_ptr<Image> randomNormalized(int width, int height);
 };
+
+}

@@ -4,8 +4,9 @@
 #include "saiga/rendering/object3d.h"
 #include "saiga/geometry/triangle_mesh.h"
 
-
 #include <cstdint>
+
+namespace Saiga {
 
 typedef std::vector<uint32_t> utf32string;
 
@@ -34,3 +35,5 @@ public:
     static std::vector<unsigned char> UTF32toUTF8(uint32_t utf32char);
     static std::string UTF32toUTF8(const utf32string &str);
 };
+
+}

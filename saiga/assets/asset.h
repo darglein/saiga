@@ -9,6 +9,7 @@
 
 #include <saiga/camera/camera.h>
 
+namespace Saiga {
 
 class SAIGA_GLOBAL Asset{
 public:
@@ -183,4 +184,6 @@ void BasicAsset<vertex_t,index_t>::create(std::string _name, std::shared_ptr<MVP
         this->normalizePosition();
     }
     mesh.createBuffers(buffer);
+}
+
 }

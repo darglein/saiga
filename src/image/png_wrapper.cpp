@@ -1,7 +1,7 @@
 #include "saiga/image/png_wrapper.h"
 #include "saiga/util/assert.h"
 #ifdef SAIGA_USE_PNG
-
+namespace Saiga {
 namespace PNG{
 
 
@@ -513,6 +513,6 @@ bool writePNG(PngImage *img, const std::string &path, bool invertY){
     return true;
 
 }
-
+}
 }
 #endif

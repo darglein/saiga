@@ -20,6 +20,8 @@
 #include "saiga/rendering/lighting/directional_light.h"
 #include "saiga/ffmpeg/ffmpegEncoder.h"
 
+using namespace Saiga;
+
 class VideoRecording : public Program, public SDL_KeyListener
 {
 public:

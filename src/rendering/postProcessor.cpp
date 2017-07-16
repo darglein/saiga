@@ -3,6 +3,8 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/util/error.h"
 
+namespace Saiga {
+
 void PostProcessingShader::checkUniforms(){
     Shader::checkUniforms();
     location_texture = Shader::getUniformLocation("image");
@@ -283,5 +285,4 @@ Framebuffer &PostProcessor::getTargetBuffer()
     return framebuffers[lastBuffer];
 }
 
-
-
+}

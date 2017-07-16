@@ -1,6 +1,7 @@
 #include "saiga/opengl/query/gpuTimer.h"
-#include <algorithm> 
 #include "saiga/util/assert.h"
+
+namespace Saiga {
 
 GPUTimer::GPUTimer()
 {
@@ -80,4 +81,6 @@ float FilteredGPUTimer::getTimeMS()
 double FilteredGPUTimer::getTimeMSd()
 {
     return currentTimeMS;
+}
+
 }

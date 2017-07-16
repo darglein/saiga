@@ -9,6 +9,9 @@
 
 #include "saiga/util/assert.h"
 #include <cstring>
+
+namespace Saiga {
+
 /*
  * Data structur for simple triangle meshes.
  * Can be turned into a IndexedVertexBuffer for drawing with OpenGL
@@ -313,4 +316,6 @@ AABB TriangleMesh<vertex_t,index_t>::calculateAabb(){
         boundingBox.growBox(vec3(v.position));
     }
     return boundingBox;
+}
+
 }

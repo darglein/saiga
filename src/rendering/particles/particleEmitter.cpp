@@ -1,8 +1,7 @@
 #include "saiga/rendering/particles/particleEmitter.h"
-
 #include "saiga/rendering/particles/particlesystem.h"
 
-
+namespace Saiga {
 
 ParticleEmitter::ParticleEmitter(){
 
@@ -83,3 +82,4 @@ void ConaParticleEmitter::spawnParticles(int count,ParticleSystem& ps)
 
 }
 
+}

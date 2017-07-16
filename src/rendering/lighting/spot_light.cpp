@@ -1,5 +1,6 @@
 #include "saiga/rendering/lighting/spot_light.h"
 
+namespace Saiga {
 
 void SpotLightShader::checkUniforms(){
     PointLightShader::checkUniforms();
@@ -85,4 +86,6 @@ bool SpotLight::cullLight(Camera *cam)
         this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
 
     return culled;
+}
+
 }

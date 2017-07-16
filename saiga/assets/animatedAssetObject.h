@@ -4,6 +4,7 @@
 #include "saiga/rendering/object3d.h"
 #include "saiga/assets/animatedAsset.h"
 
+namespace Saiga {
 
 class SAIGA_GLOBAL AnimatedAssetObject : public Object3D{
 private:
@@ -37,3 +38,5 @@ private:
     std::shared_ptr<AnimatedAsset> asset = nullptr;
 
 };
+
+}

@@ -1,5 +1,6 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 
+namespace Saiga {
 
 std::shared_ptr<Shader> ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params){
 	(void )params; 
@@ -34,4 +35,6 @@ bool ShaderLoader::reload(std::shared_ptr<Shader> shader, const std::string &nam
        return true;
     }
     return false;
+}
+
 }

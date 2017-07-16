@@ -1,12 +1,13 @@
 #pragma once
 
 #include <saiga/config.h>
-#include <thread>
 #include <saiga/util/semaphore.h>
 #include "saiga/time/gameTime.h"
 #include "saiga/geometry/ray.h"
 
+#include <thread>
 
+namespace Saiga {
 
 class Camera;
 class Deferred_Renderer;
@@ -143,6 +144,4 @@ public:
     void readToImage(Image &out);
 };
 
-
-
-
+}

@@ -1,8 +1,8 @@
 #pragma once
 
-
 #include "saiga/cuda/common.h"
 
+namespace Saiga {
 namespace CUDA{
 
 /**
@@ -59,6 +59,5 @@ struct ThreadInfo{
     }
 };
 
-
-
+}
 }

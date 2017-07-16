@@ -1,11 +1,12 @@
-
-
 #include "saiga/util/perlinnoise.h"
 
 #include <cmath>
 #include <random>
 #include <algorithm>
 #include <numeric>
+
+namespace Saiga {
+
 // THIS IS A DIRECT TRANSLATION TO C++11 FROM THE REFERENCE
 // JAVA IMPLEMENTATION OF THE IMPROVED PERLIN FUNCTION (see http://mrl.nyu.edu/~perlin/noise/)
 // THE ORIGINAL JAVA IMPLEMENTATION IS COPYRIGHT 2002 KEN PERLIN
@@ -79,15 +80,17 @@ double PerlinNoise::grad(int hash, double x, double y, double z) {
     return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
 
- double PerlinNoise::fBm(double x, double y, double z, int octaves, float lacunarity, float gain){
-     float amplitude = 1.0;
-     float frequency = 1.0;
-     float sum = 0.0;
-     for(int i = 0; i < octaves; ++i)
-     {
-         sum += amplitude * noise(x * frequency, y * frequency, z * frequency);
-         amplitude *= gain;
-         frequency *= lacunarity;
-     }
-     return sum;
- }
+double PerlinNoise::fBm(double x, double y, double z, int octaves, float lacunarity, float gain){
+    float amplitude = 1.0;
+    float frequency = 1.0;
+    float sum = 0.0;
+    for(int i = 0; i < octaves; ++i)
+    {
+        sum += amplitude * noise(x * frequency, y * frequency, z * frequency);
+        amplitude *= gain;
+        frequency *= lacunarity;
+    }
+    return sum;
+}
+
+}

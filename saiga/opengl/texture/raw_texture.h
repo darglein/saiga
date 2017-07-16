@@ -3,6 +3,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/image/image.h"
 
+namespace Saiga {
 
 class SAIGA_GLOBAL raw_Texture{
 
@@ -113,3 +114,4 @@ public:
     void generateMipmaps();
 };
 
+}

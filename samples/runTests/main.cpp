@@ -1,13 +1,11 @@
 #include "saiga/util/crash.h"
-
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/cusparseHelper.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/tests/test.h"
-
-
-
 #include "saiga/geometry/clipping.h"
+
+using namespace Saiga;
 
 int main(int argc, char *argv[]) {
 

@@ -1,11 +1,8 @@
 #include "saiga/ffmpeg/ffmpegAudioEncoder.h"
-
-
 #include "saiga/util/glm.h"
-
-
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 
 FFMPEGAudioEncoder::FFMPEGAudioEncoder()
 {
@@ -217,6 +214,4 @@ void FFMPEGAudioEncoder::startEncoding(const std::string &filename)
     av_init_packet(&pkt);
 }
 
-
-
-
+}

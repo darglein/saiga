@@ -1,12 +1,12 @@
 #pragma once
 
+#include <saiga/util/glm.h>
+#include "saiga/util/assert.h"
 
 #include <vector>
 #include <map>
 
-#include <saiga/util/glm.h>
-
-#include "saiga/util/assert.h"
+namespace Saiga {
 
 #if defined(SAIGA_DEBUG)
     #define assert_no_alerror() SAIGA_ASSERT(!sound::checkSoundError())
@@ -32,3 +32,4 @@ SAIGA_GLOBAL  extern std::string getALCErrorString(int err);
 
 }
 
+}

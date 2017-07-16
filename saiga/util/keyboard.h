@@ -1,10 +1,11 @@
-
 #pragma once
 
+#include <saiga/config.h>
 
 #include <map>
 #include <vector>
-#include <saiga/config.h>
+
+namespace Saiga {
 
 class SAIGA_GLOBAL Keyboard{
 protected:
@@ -28,6 +29,6 @@ public:
     void printKeyState();
 };
 
-
-
 extern SAIGA_GLOBAL Keyboard keyboard;
+
+}

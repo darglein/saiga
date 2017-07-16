@@ -2,6 +2,8 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
+namespace Saiga {
+
 void ProceduralSkyboxShader::checkUniforms()
 {
     MVPShader::checkUniforms();
@@ -39,4 +41,4 @@ void ProceduralSkybox::render(Camera* cam){
     shader->unbind();
 }
 
-
+}

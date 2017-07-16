@@ -1,6 +1,7 @@
 #include "saiga/cuda/tests/test_helper.h"
 #include <iomanip>
 
+namespace Saiga {
 namespace CUDA{
 
 using std::cout;
@@ -34,6 +35,5 @@ void PerformanceTestHelper::addMeassurement(const std::string& name, float timeM
             << endl ;
 }
 
-
-
+}
 }

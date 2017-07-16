@@ -2,6 +2,8 @@
 
 #include "saiga/opengl/opengl.h"
 
+namespace Saiga {
+
 enum class ImageElementFormat{
     UnsignedNormalized,
     SignedNormalized,
@@ -102,3 +104,4 @@ template<> struct GLImageFormatMap<4,32,ImageElementFormat::FloatingPoint,false>
 template<> struct GLImageFormatMap<3,8,ImageElementFormat::UnsignedNormalized,true>{const static GLenum type = GL_SRGB8;};
 template<> struct GLImageFormatMap<4,8,ImageElementFormat::UnsignedNormalized,true>{const static GLenum type = GL_SRGB8_ALPHA8;};
 
+}

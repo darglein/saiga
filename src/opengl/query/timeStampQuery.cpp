@@ -1,5 +1,6 @@
 #include "saiga/opengl/query/timeStampQuery.h"
 
+namespace Saiga {
 
 TimeStampQuery::TimeStampQuery()
 {
@@ -47,3 +48,4 @@ GLuint64 TimeStampQuery::waitTimestamp()
     return getTimestamp();
 }
 
+}

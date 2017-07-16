@@ -5,7 +5,6 @@
 #include "saiga/image/image.h"
 #include "saiga/text/encoding.h"
 
-
 #include <vector>
 
 struct FT_FaceRec_;
@@ -13,6 +12,7 @@ struct FT_LibraryRec_;
 typedef struct FT_FaceRec_*  FT_Face;
 typedef struct FT_LibraryRec_  *FT_Library;
 
+namespace Saiga {
 
 class FontLoader{
 public:
@@ -41,3 +41,5 @@ private:
     void loadAndAddGlyph(int charCode, int glyphPadding);
     void addGlyph(int charCode, int glyphPadding);
 };
+
+}

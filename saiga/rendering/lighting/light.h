@@ -5,6 +5,8 @@
 #include "saiga/rendering/object3d.h"
 #include "saiga/util/color.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL LightShader : public DeferredShader{
 public:
     GLint location_lightColorDiffuse, location_lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
@@ -117,4 +119,4 @@ public:
     void bindUniformsStencil(MVPShader &shader);
 };
 
-
+}

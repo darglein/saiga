@@ -2,6 +2,9 @@
 
 #include "saiga/util/glm.h"
 #include <vector>
+
+namespace Saiga {
+
 /**
  * Creation of "Lightning-like" line strips.
  *
@@ -20,3 +23,5 @@ public:
 
     static std::vector<LineSegment> createLightningBolt(vec3 startPoint, vec3 endPoint, int generations=5, float offsetAmount=1.0f, float splitProbability=0.4f, float splitLength=0.5f, float splitIntensityDrop=0.5f);
 };
+
+}

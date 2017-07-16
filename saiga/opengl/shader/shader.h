@@ -6,6 +6,7 @@
 
 #include <vector>
 
+namespace Saiga {
 
 class raw_Texture;
 
@@ -191,6 +192,4 @@ public:
 //    void upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit);
 };
 
-
-
-
+}

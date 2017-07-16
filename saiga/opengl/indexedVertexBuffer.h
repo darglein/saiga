@@ -4,7 +4,7 @@
 #include "saiga/opengl/vertexBuffer.h"
 #include "saiga/opengl/indexBuffer.h"
 
-
+namespace Saiga {
 
 template<class vertex_t, class index_t>
 class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<index_t>{
@@ -92,4 +92,6 @@ void IndexedVertexBuffer<vertex_t,index_t>::set(vertex_t *vertices, int _vertex_
     ibuffer_t::bind();
     vbuffer_t::unbind();
     ibuffer_t::unbind();
+}
+
 }

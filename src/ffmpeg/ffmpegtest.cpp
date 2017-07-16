@@ -54,6 +54,8 @@ extern "C"{
 }
 #include "iostream"
 
+namespace Saiga {
+
 #define INBUF_SIZE 4096
 #define AUDIO_INBUF_SIZE 20480
 #define AUDIO_REFILL_THRESH 4096
@@ -937,4 +939,6 @@ int mainalsdhg(int argc, char **argv)
         return 1;
     }
     return 0;
+}
+
 }

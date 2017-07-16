@@ -2,6 +2,7 @@
 
 #include "saiga/opengl/texture/texture3D.h"
 
+namespace Saiga {
 
 /**
  * On CPU side the arraytexture behaves the same as a 3D texture.
@@ -14,3 +15,4 @@ public:
     virtual ~ArrayTexture2D(){}
 };
 
+}

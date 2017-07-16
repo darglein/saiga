@@ -6,16 +6,16 @@
 #include "saiga/glfw/glfw_joystick.h"
 
 #include <array>
-
 #include <mutex>
-
 #include <list>
 #include <thread>
 
 struct GLFWwindow;
 struct GLFWcursor;
-class Image;
 
+namespace Saiga {
+
+class Image;
 
 class SAIGA_GLOBAL glfw_Window : public OpenGLWindow, public glfw_ResizeListener{
 public:
@@ -72,3 +72,5 @@ private:
     std::thread* sswriterthreads[WRITER_COUNT];
     void processScreenshots();
 };
+
+}

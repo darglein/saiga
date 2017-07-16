@@ -1,13 +1,10 @@
 #pragma once
 
-
-
-
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
 #include <saiga/sound/Sound.h>
 
-
+namespace Saiga {
 namespace sound {
 
 
@@ -62,5 +59,5 @@ public:
 };
 
 }
-
+}
 

@@ -5,9 +5,8 @@
 #include "saiga/cuda/shfl_helper.h"
 #include "saiga/cuda/memory.h"
 
+namespace Saiga {
 namespace CUDA{
-
-
 
 template<typename T, unsigned int LOCAL_WARP_SIZE=32, bool RESULT_FOR_ALL_THREADS=false>
 __device__ inline
@@ -149,7 +148,5 @@ void reduceAtomic(array_view<T> in, T* out) {
         atomicAdd(out, sum);
 }
 
-
-
-
+}
 }

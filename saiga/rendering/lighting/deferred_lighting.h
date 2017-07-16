@@ -7,6 +7,8 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/query/gpuTimer.h"
 
+namespace Saiga {
+
 class PointLightShader;
 class SpotLightShader;
 class DirectionalLightShader;
@@ -174,5 +176,7 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera
     mesh.bindAndDraw();
     shader->unbind();
 
+
+}
 
 }

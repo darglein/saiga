@@ -4,6 +4,8 @@
 #include "saiga/util/assert.h"
 #include "saiga/glfw/glfw_eventhandler.h"
 
+namespace Saiga {
+
 using std::cout;
 using std::endl;
 
@@ -93,4 +95,6 @@ void glfw_Joystick::joystick_callback(int joy, int event)
         }
 
     }
+}
+
 }

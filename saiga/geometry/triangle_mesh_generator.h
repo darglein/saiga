@@ -5,7 +5,7 @@
 #include "saiga/geometry/plane.h"
 #include "saiga/geometry/cone.h"
 
-
+namespace Saiga {
 
 class SAIGA_GLOBAL TriangleMeshGenerator
 {
@@ -68,4 +68,6 @@ std::shared_ptr<TriangleMesh<vertex_t,index_t>>  TriangleMeshGenerator::createGr
     }
 
     return std::shared_ptr<TriangleMesh<vertex_t,index_t>>(mesh);
+}
+
 }

@@ -2,7 +2,7 @@
 
 #include <saiga/config.h>
 
-
+namespace Saiga {
 namespace CUDA {
 
 SAIGA_GLOBAL extern void occupancyTest();
@@ -21,7 +21,5 @@ SAIGA_GLOBAL extern void reduceTest();
 SAIGA_GLOBAL extern void testCuda();
 SAIGA_GLOBAL extern void testThrust();
 
-
 }
-
-
+}

@@ -1,5 +1,7 @@
 #include "saiga/util/inputcontroller.h"
 
+namespace Saiga {
+
 template<>
 int InputController::Operation::Arguments::next(){
     return next(std::stoi);
@@ -85,5 +87,7 @@ void InputController::functionList(std::vector<std::string> &out){
         out.push_back(iter->first);
     }
     std::sort(out.begin(), out.end());
+
+}
 
 }

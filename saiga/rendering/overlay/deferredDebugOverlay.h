@@ -6,6 +6,8 @@
 #include "saiga/rendering/object3d.h"
 #include <vector>
 
+namespace Saiga {
+
 class MVPTextureShader;
 class basic_Texture_2D;
 class raw_Texture;
@@ -44,4 +46,4 @@ public:
 
 };
 
-
+}

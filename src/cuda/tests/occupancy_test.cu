@@ -4,10 +4,8 @@
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
 
-
+namespace Saiga {
 namespace CUDA {
-
-
 
 template<unsigned int THREADS_PER_BLOCK, typename vector_type = int2>
 __global__ static
@@ -121,4 +119,4 @@ void occupancyTest(){
 }
 
 }
-
+}

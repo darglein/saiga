@@ -2,12 +2,10 @@
 
 #include <saiga/config.h>
 #include <stdlib.h>
-
 #include <fstream>
-
 #include <vector>
 
-
+namespace Saiga {
 
 class SAIGA_GLOBAL ConfigLoader
 {
@@ -62,4 +60,4 @@ public:
 
 };
 
-
+}

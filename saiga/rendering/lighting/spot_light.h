@@ -2,6 +2,8 @@
 
 #include "saiga/rendering/lighting/point_light.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL SpotLightShader : public PointLightShader{
 public:
     GLint location_direction,location_angle;
@@ -41,3 +43,5 @@ public:
     void calculateCamera();
     bool cullLight(Camera *cam);
 };
+
+}

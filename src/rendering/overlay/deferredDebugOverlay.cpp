@@ -5,6 +5,8 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/rendering/gbuffer.h"
 
+namespace Saiga {
+
 DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),height(height){
     proj = glm::ortho(0.0f,(float)width,0.0f,(float)height,1.0f,-1.0f);
 
@@ -106,4 +108,6 @@ void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer *gbuffer, std::shared_
     depth.texture = gbuffer->getTextureDepth();
     data.texture = gbuffer->getTextureData();
     this->light.texture = light;
+}
+
 }

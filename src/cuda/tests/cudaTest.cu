@@ -9,8 +9,8 @@
 #include <thrust/sort.h>
 #include <thrust/extrema.h>
 
+namespace Saiga {
 namespace CUDA {
-
 
 __global__ static
 void addFive(float *g_idata, float *g_odata)
@@ -180,6 +180,5 @@ void testThrust(){
     CUDA_SYNC_CHECK_ERROR();
 }
 
-
-
+}
 }

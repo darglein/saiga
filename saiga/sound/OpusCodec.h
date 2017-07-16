@@ -2,11 +2,15 @@
 //
 // Based on src/opus_demo.c in opus-1.0.2
 // License see http://www.opus-codec.org/license/
-#include <stdexcept>
 
+#pragma once
+
+#include <stdexcept>
 #include <iosfwd>
 #include <vector>
 #include <memory>
+
+namespace Saiga {
 
 struct OpusErrorException : public virtual std::exception
 {
@@ -26,3 +30,5 @@ private:
     struct Impl;
     std::unique_ptr<Impl> _pimpl;
 };
+
+}

@@ -2,7 +2,7 @@
 
 #include "saiga/opengl/texture/raw_texture.h"
 
-
+namespace Saiga {
 
 class SAIGA_GLOBAL basic_Texture_2D : public raw_Texture{
 public:
@@ -31,4 +31,4 @@ public:
     void uploadData(const GLubyte *data) override;
 };
 
-
+}

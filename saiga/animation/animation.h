@@ -5,6 +5,8 @@
 #include <saiga/time/time.h>
 #include <saiga/animation/animationFrame.h>
 
+namespace Saiga {
+
 /**
  * Animation time:
  * The duration of an animation is the time between the first and the last keyframe.
@@ -68,4 +70,4 @@ public:
 
 };
 
-
+}

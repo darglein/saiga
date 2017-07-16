@@ -1,13 +1,9 @@
 #pragma once
-
-
 #include "saiga/opengl/opengl.h"
-
-
+#include "saiga/opengl/texture/texture.h"
 #include <vector>
 
-
-#include "saiga/opengl/texture/texture.h"
+namespace Saiga {
 
 //todo: remove
 typedef std::shared_ptr<raw_Texture> framebuffer_texture_t;
@@ -70,3 +66,4 @@ public:
 
 };
 
+}

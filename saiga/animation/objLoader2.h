@@ -5,6 +5,7 @@
 #include <saiga/opengl/texture/texture.h>
 #include <saiga/animation/objMaterialLoader.h>
 
+namespace Saiga {
 
 #define INVALID_VERTEX_ID -911365965
 struct SAIGA_GLOBAL IndexedVertex2{
@@ -70,4 +71,4 @@ private:
 
 };
 
-
+}

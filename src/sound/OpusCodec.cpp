@@ -5,7 +5,6 @@
 #include "saiga/sound/OpusCodec.h"
 #include <vector>
 #include <iomanip>
-
 #include <sstream>
 
 
@@ -13,6 +12,7 @@
 
 #include "opus.h"
 
+namespace Saiga {
 
 #define MAX_PACKET 1500
 
@@ -171,4 +171,5 @@ std::vector<unsigned char> COpusCodec::decode_frame(std::istream& fin)
     return _pimpl->decode_frame(fin);
 }
 
+}
 #endif

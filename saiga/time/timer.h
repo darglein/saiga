@@ -4,6 +4,7 @@
 #include "saiga/time/time.h"
 #include <vector>
 
+namespace Saiga {
 
 #ifdef WIN32
 #if _MSC_VER >= 1900 //VS2015 and newer
@@ -100,3 +101,5 @@ public:
         *target = time;
     }
 };
+
+}

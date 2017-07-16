@@ -1,10 +1,12 @@
 #pragma once
 
+#include "saiga/util/assert.h"
 #include <saiga/opengl/opengl.h>
 
-
 #include <cstdlib>
-#include "saiga/util/assert.h"
+
+namespace Saiga {
+
 /*
  * Use assert_no_glerror for normal gl error checking. If saiga is compiled in testing or release mode all these error checks are removed.
  * In testing mode only the error checks with assert_no_glerror_end_frame are executed.
@@ -48,17 +50,4 @@ public:
                           GLsizei length , const GLchar * message , GLvoid * userParam);
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}

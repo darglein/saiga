@@ -3,14 +3,13 @@
 #include "saiga/cuda/common.h"
 
 #include <thrust/device_vector.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
 
+namespace Saiga {
 
-//Thanks to Johannes Pieger
-
+//currently not working (maybe in later cuda releases)
 template<typename T>
 struct cr_array_view{
 public:
@@ -18,5 +17,4 @@ public:
     int n;
 };
 
-
-
+}

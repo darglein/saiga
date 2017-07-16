@@ -1,7 +1,8 @@
 #pragma once
 
-
 #include "saiga/rendering/lighting/directional_light.h"
+
+namespace Saiga {
 
 class SAIGA_GLOBAL BoxLightShader : public DirectionalLightShader{
 public:
@@ -28,4 +29,4 @@ public:
 
 };
 
-
+}

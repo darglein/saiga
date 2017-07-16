@@ -1,7 +1,9 @@
 #pragma once
 
-
 #include "saiga/cuda/device_helper.h"
+
+namespace Saiga {
+namespace CUDA{
 
 __device__ inline
 double fetch_double(uint2 p){
@@ -22,11 +24,6 @@ double __shfl_down(double var, unsigned int srcLane, int width=32) {
 }
 #endif
 
-
-namespace CUDA{
-
-
-
 template<typename T, typename ShuffleType = int>
 __device__ inline
 T shfl(T var, unsigned int srcLane, int width=WARP_SIZE) {
@@ -39,4 +36,4 @@ T shfl(T var, unsigned int srcLane, int width=WARP_SIZE) {
 }
 
 }
-
+}

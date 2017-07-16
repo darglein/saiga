@@ -4,7 +4,7 @@
 #include "saiga/cuda/cudaHelper.h"
 #include <curand_kernel.h>
 
-
+namespace Saiga {
 namespace CUDA{
 
 __device__ inline float linearRand(float min, float max, curandState &state)
@@ -47,6 +47,5 @@ __device__ inline vec3 sampleCone(const vec3 &dir, float angle, curandState &sta
     return vec3(r);
 }
 
-
-
+}
 }

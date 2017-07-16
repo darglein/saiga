@@ -1,8 +1,8 @@
-#ifndef SHUFFLE_COPY_H
-#define SHUFFLE_COPY_H
+#pragma once
 
 #include "shfl_helper.h"
 
+namespace Saiga {
 namespace CUDA {
 
 
@@ -109,7 +109,5 @@ void storeShuffle(VectorType* globalStart, VectorType* localStart, int lane, int
     }
 }
 
-
 }
-
-#endif // SHUFFLE_COPY_H
+}

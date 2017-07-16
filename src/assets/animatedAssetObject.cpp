@@ -5,6 +5,8 @@
 
 #include "saiga/animation/boneShader.h"
 
+namespace Saiga {
+
 void AnimatedAssetObject::setAnimation(int id)
 {
     SAIGA_ASSERT(id>=0 && id < (int)asset->animations.size());
@@ -64,3 +66,4 @@ void AnimatedAssetObject::renderRaw()
     asset->renderRaw();
 }
 
+}

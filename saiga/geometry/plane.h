@@ -3,6 +3,8 @@
 #include <saiga/config.h>
 #include "saiga/util/glm.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL Plane
 {
 public:
@@ -25,4 +27,4 @@ public:
    friend std::ostream& operator<<(std::ostream& os, const Plane& ca);
 };
 
-
+}

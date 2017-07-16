@@ -3,6 +3,7 @@
 #include <saiga/config.h>
 #include <vector>
 
+namespace Saiga {
 
 class SAIGA_GLOBAL Subject {
     std::vector < class Observer * > views;
@@ -31,3 +32,5 @@ class SAIGA_GLOBAL Observer {
         return model;
     }
 };
+
+}

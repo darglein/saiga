@@ -4,6 +4,7 @@
 #include "saiga/time/timer.h"
 #include <chrono>
 
+namespace Saiga {
 
 class SAIGA_GLOBAL GameTime{
 private:
@@ -70,3 +71,5 @@ public:
 
 //use a global variable here so every object can access it easily
 SAIGA_GLOBAL extern GameTime gameTime;
+
+}

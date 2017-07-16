@@ -18,6 +18,8 @@
 
 #include <cstdint>
 #include <cstring>
+
+namespace Saiga {
 namespace sound {
 
 
@@ -268,5 +270,5 @@ Sound *SoundLoader::loadWaveFileALUT(const std::string &filename)
 }
 #endif
 
-
+}
 }

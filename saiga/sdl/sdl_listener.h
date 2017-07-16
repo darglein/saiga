@@ -1,8 +1,9 @@
-#ifndef LISTENER_H
-#define LISTENER_H
+#pragma once
 
 #include <saiga/config.h>
 #include <SDL2/SDL.h>
+
+namespace Saiga {
 
 class SAIGA_GLOBAL SDL_KeyListener{
 public:
@@ -33,4 +34,4 @@ public:
     virtual bool processEvent(const SDL_Event& event) = 0;
 };
 
-#endif // LISTENER_H
+}

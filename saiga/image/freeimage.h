@@ -6,12 +6,9 @@
 
 #ifdef SAIGA_USE_FREEIMAGE
 
-
-
-
 class fipImage;
 
-
+namespace Saiga {
 namespace FIP {
 
 //loads an image with freeimage converts it to Image and reads metadata if != 0
@@ -36,5 +33,6 @@ SAIGA_GLOBAL extern void printAllMetaData(fipImage &img);
 
 }
 
+}
 
 #endif

@@ -1,6 +1,7 @@
 #include "saiga/assimp/assimpLoader.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 
 AssimpLoader::AssimpLoader(const std::string &_file):file(_file)
 {
@@ -355,4 +356,4 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat){
     return ret;
 }
 
-
+}

@@ -1,7 +1,7 @@
-
 #include "saiga/opengl/texture/raw_texture.h"
 #include "saiga/util/error.h"
 
+namespace Saiga {
 
 raw_Texture::~raw_Texture(){
     deleteGlTexture();
@@ -226,4 +226,4 @@ void raw_Texture::setFormat(const Image &image)
     height = image.height;
 }
 
-
+}

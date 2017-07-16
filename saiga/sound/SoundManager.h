@@ -14,6 +14,7 @@
 
 typedef struct ALCdevice_struct ALCdevice;
 
+namespace Saiga {
 namespace sound {
 class SoundSource;
 class Sound;
@@ -116,4 +117,4 @@ public:
 
 
 }
-
+}

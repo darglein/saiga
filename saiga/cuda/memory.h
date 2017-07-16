@@ -2,10 +2,8 @@
 
 #include "cudaHelper.h"
 
-
-
+namespace Saiga {
 namespace CUDA{
-
 
 /**
  *  Copy a large datatype T with vector instructions.
@@ -121,4 +119,5 @@ T ldg(const T* address){
 #endif
 }
 
+}
 }

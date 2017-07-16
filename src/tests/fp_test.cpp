@@ -6,8 +6,8 @@
 
 #include <random>
 
+namespace Saiga {
 namespace Tests {
-
 
 using namespace std;
 
@@ -172,4 +172,5 @@ void fpTest(float x){
     }
 }
 
+}
 }

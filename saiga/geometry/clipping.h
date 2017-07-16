@@ -4,6 +4,8 @@
 #include <saiga/util/glm.h>
 #include "saiga/geometry/polygon.h"
 
+namespace Saiga {
+
 namespace Clipping {
 
 /**
@@ -93,3 +95,4 @@ AABB clipTriAABBtoBox(Triangle tri, AABB box){
 
 }
 
+}

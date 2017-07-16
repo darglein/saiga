@@ -1,9 +1,10 @@
 #pragma once
 
 #include "saiga/config.h"
-
 #include "saiga/util/glm.h"
 #include "saiga/util/assert.h"
+
+namespace Saiga {
 
 class SAIGA_GLOBAL Object3D{
 
@@ -143,3 +144,4 @@ inline void Object3D::multScale(const vec3 &s)
     setScale(getScale()*s);
 }
 
+}

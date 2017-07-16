@@ -2,6 +2,7 @@
 
 #include <saiga/assets/assetLoader.h>
 
+namespace Saiga {
 
 class SAIGA_GLOBAL AssimpAssetLoader : public AssetLoader2{
 public:
@@ -17,3 +18,5 @@ public:
 
     std::shared_ptr<Asset> loadAsset(const std::string &file);
 };
+
+}

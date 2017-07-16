@@ -1,6 +1,8 @@
 #include "saiga/opengl/texture/texture3D.h"
 #include "saiga/util/error.h"
 
+namespace Saiga {
+
 Texture3D::Texture3D(GLenum target) : raw_Texture(target)
 {
     SAIGA_ASSERT(target == GL_TEXTURE_3D || target == GL_TEXTURE_2D_ARRAY);
@@ -45,3 +47,4 @@ bool Texture3D::fromImage(std::vector<Image> &images){
     return true;
 }
 
+}

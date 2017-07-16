@@ -1,12 +1,12 @@
-
 #pragma once
 
+#include <saiga/config.h>
+#include <saiga/text/encoding.h>
 
 #include <map>
 #include <vector>
 
-#include <saiga/config.h>
-#include <saiga/text/encoding.h>
+namespace Saiga {
 
 class SAIGA_GLOBAL Translator{
 private:
@@ -65,4 +65,4 @@ struct SAIGA_GLOBAL trstring{
 
 }
 
-
+}

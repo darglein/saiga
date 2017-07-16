@@ -1,6 +1,7 @@
 #include "saiga/rendering/overlay/console.h"
-
 #include "saiga/util/inputcontroller.h"
+
+namespace Saiga {
 
 Console::ConsoleBuffer::ConsoleBuffer(Console& parent):parent(parent){
 }
@@ -117,5 +118,7 @@ std::string Console::completeText(const std::string &line){
     int c = (res.first-(*start).begin());
 
     return (*start).substr(0,c);
+
+}
 
 }

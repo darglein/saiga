@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+namespace Saiga {
+
 const float TextOverlay3D::INFINITE_DURATION = -1.f;
 
 bool TextOverlay3D::TextContainer::update(float delta)
@@ -115,5 +117,7 @@ void TextOverlay3D::loadShader()
         return;
 //    textShader = ShaderLoader::instance()->load<TextShaderFade>("deferred_text3D.glsl");
     textShader = ShaderLoader::instance()->load<TextShader>("sdf_text.glsl");
+
+}
 
 }

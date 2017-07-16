@@ -1,6 +1,9 @@
 #pragma once
 
 #include "saiga/opengl/opengl.h"
+
+namespace Saiga {
+
 /**
  * Asynchronous OpenGL GPU timer.
  *
@@ -36,3 +39,5 @@ public:
     float getTimeMS();
     GLuint64 getTimeNS();
 };
+
+}

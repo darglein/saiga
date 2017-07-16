@@ -1,5 +1,7 @@
 #include "saiga/geometry/raytracer.h"
 
+namespace Saiga {
+
 Raytracer::Result Raytracer::trace(Ray &r){
     Result res;
     res.distance = std::numeric_limits<float>::infinity();
@@ -40,4 +42,6 @@ int Raytracer::trace(Ray &r, std::vector<Result> &output){
     }
 
     return count;
+}
+
 }

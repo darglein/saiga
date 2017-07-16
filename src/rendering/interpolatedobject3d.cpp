@@ -1,9 +1,6 @@
 #include "saiga/rendering/interpolatedobject3d.h"
 
-
-
-
-
+namespace Saiga {
 
 void InterpolatedObject3D::interpolate(float alpha)
 {
@@ -28,4 +25,6 @@ void InterpolatedObject3D::update()
     oldrot = rot;
     oldscale = scale;
     oldposition = position;
+}
+
 }

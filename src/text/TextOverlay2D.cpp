@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+namespace Saiga {
+
 TextOverlay2D::TextOverlay2D()
 {
     loadShader();
@@ -58,4 +60,4 @@ void TextOverlay2D::loadShader()
     textShader = ShaderLoader::instance()->load<TextShader>("sdf_text.glsl");
 }
 
-
+}

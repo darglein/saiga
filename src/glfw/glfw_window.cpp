@@ -15,7 +15,7 @@
 
 
 
-
+namespace Saiga {
 
 glfw_Window::glfw_Window(WindowParameters windowParameters):
     OpenGLWindow(windowParameters)
@@ -443,6 +443,4 @@ void glfw_Window::processScreenshots()
     }
 }
 
-
-
-
+}

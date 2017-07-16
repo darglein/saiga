@@ -6,6 +6,8 @@
 #ifdef USE_GLFW
 #include "saiga/glfw/glfw_eventhandler.h"
 
+namespace Saiga {
+
 class DeferredLighting;
 class Light;
 
@@ -62,4 +64,5 @@ private:
     Light* closestPointLight(const Ray &r);
 };
 
+}
 #endif

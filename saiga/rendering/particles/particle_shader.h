@@ -2,6 +2,8 @@
 
 #include "saiga/opengl/shader/basic_shaders.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL ParticleShader : public MVPTextureShader {
 public:
     GLint location_timer, location_timestep, location_interpolation;
@@ -25,3 +27,5 @@ public:
     void uploadDepthTexture(std::shared_ptr<raw_Texture> texture);
     void uploadCameraParameters(vec2 cp);
 };
+
+}

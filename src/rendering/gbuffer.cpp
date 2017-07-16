@@ -1,6 +1,8 @@
 #include "saiga/rendering/gbuffer.h"
 #include "saiga/opengl/vertexBuffer.h"
 
+namespace Saiga {
+
 GBuffer::GBuffer()
 {
 
@@ -127,4 +129,6 @@ void GBuffer::clampToEdge()
     for(auto t : colorBuffers){
         t->setWrap(GL_CLAMP);
     }
+}
+
 }

@@ -4,6 +4,8 @@
 #include "saiga/opengl/vertexBuffer.h"
 #include "saiga/rendering/object3d.h"
 
+namespace Saiga {
+
 class raw_Texture;
 class Camera;
 class ParticleShader;
@@ -72,6 +74,4 @@ public:
     void flush();
 };
 
-
-
-
+}

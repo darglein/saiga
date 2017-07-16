@@ -1,6 +1,6 @@
 #include "saiga/util/error.h"
 
-
+namespace Saiga {
 
 void Error::DebugLogConst(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam){
     (void)userParam; (void)length;
@@ -107,4 +107,6 @@ std::string Error::getStringForSeverity(GLenum severity) {
     default:
         return("");
     }
+}
+
 }

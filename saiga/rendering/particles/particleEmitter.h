@@ -2,6 +2,8 @@
 
 #include "saiga/rendering/particles/particleEffect.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL ParticleEmitter : public ParticleEffect{
 
 public:
@@ -37,3 +39,5 @@ public:
     ConaParticleEmitter();
     void spawnParticles(int count, ParticleSystem& ps) override;
 };
+
+}

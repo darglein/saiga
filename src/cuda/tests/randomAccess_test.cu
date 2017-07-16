@@ -8,7 +8,7 @@
 
 #include <random>
 
-
+namespace Saiga {
 namespace CUDA {
 
 
@@ -261,4 +261,5 @@ void randomAccessTest(){
     CUDA_SYNC_CHECK_ERROR();
 }
 
+}
 }

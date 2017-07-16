@@ -4,6 +4,7 @@
 #include <saiga/geometry/triangle_mesh.h>
 #include <saiga/opengl/texture/texture.h>
 
+namespace Saiga {
 
 struct SAIGA_GLOBAL ObjMaterial{
     std::string name;
@@ -54,4 +55,4 @@ private:
 
 };
 
-
+}

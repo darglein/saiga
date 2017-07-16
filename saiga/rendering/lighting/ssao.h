@@ -6,6 +6,8 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/rendering/postProcessor.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL SSAOShader : public DeferredShader{
 public:
     GLint location_invProj;
@@ -66,4 +68,4 @@ public:
     void setPower(float power){ssaoShader->power = power;}
 };
 
-
+}

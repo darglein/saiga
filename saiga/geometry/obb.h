@@ -3,6 +3,8 @@
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
 
+namespace Saiga {
+
 /**
  * Oriented Bounding Box
  */
@@ -24,3 +26,4 @@ public:
 
 };
 
+}

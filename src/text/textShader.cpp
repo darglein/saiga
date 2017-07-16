@@ -1,5 +1,7 @@
 #include "saiga/text/textShader.h"
 
+namespace Saiga {
+
 void TextShader::checkUniforms(){
     MVPShader::checkUniforms();
 
@@ -48,4 +50,6 @@ void TextShaderFade::checkUniforms()
 void TextShaderFade::uploadFade(float fade)
 {
     Shader::upload(location_fade,fade);
+}
+
 }

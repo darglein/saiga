@@ -3,6 +3,8 @@
 #include <saiga/opengl/opengl.h>
 #include <GLFW/glfw3.h>
 
+namespace Saiga {
+
 KeyboardBinds::KeyboardBinds(){
     glfw_EventHandler::addKeyListener(this,20);
 
@@ -46,4 +48,6 @@ bool KeyboardBinds::key_event(GLFWwindow* window, int key, int scancode, int act
 bool KeyboardBinds::character_event(GLFWwindow* window, unsigned int codepoint){
     (void)window;(void)codepoint;
     return false;
+}
+
 }

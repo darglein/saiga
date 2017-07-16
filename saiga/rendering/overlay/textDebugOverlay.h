@@ -1,15 +1,15 @@
 #pragma once
 
 #include "saiga/util/tostring.h"
-
 #include "saiga/util/glm.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/rendering/object3d.h"
-
 #include "saiga/text/TextOverlay2D.h"
 #include "saiga/rendering/overlay/Layout.h"
-#include <vector>
 #include "saiga/text/text.h"
+#include <vector>
+
+namespace Saiga {
 
 class TextureAtlas;
 
@@ -61,11 +61,7 @@ public:
 template<typename T>
 void TextDebugOverlay::updateEntry(int id,const T& v)
 {
-        entries[id].text->updateText(saiga::to_string(v),entries[id].valueIndex);
+        entries[id].text->updateText(to_string(v),entries[id].valueIndex);
 }
 
-
-
-
-
-
+}

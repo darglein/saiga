@@ -4,6 +4,8 @@
 #include "saiga/camera/camera.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
+namespace Saiga {
+
 float ParticleSystem::ticksPerSecond = 60.0f;
 float ParticleSystem::secondsPerTick = 1.0f/60.0f;
 
@@ -172,4 +174,4 @@ void ParticleSystem::flush(){
     uploadDataNextUpdate = true;
 }
 
-
+}

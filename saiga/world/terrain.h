@@ -10,7 +10,7 @@
 #include "saiga/world/clipmap.h"
 #include "saiga/camera/camera.h"
 
-
+namespace Saiga {
 
 class SAIGA_GLOBAL Terrain{
 public:
@@ -53,3 +53,5 @@ private:
     void render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color, vec4 scale,vec4 fineOrigin);
 
 };
+
+}

@@ -4,6 +4,8 @@
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/animation/objLoader2.h"
 
+namespace Saiga {
+
 ObjAssetLoader::ObjAssetLoader(){
 
 }
@@ -99,5 +101,4 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
     return std::shared_ptr<TexturedAsset>(asset);
 }
 
-
-
+}

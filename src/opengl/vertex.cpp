@@ -1,5 +1,6 @@
 #include "saiga/opengl/vertex.h"
 
+namespace Saiga {
 
 template<>
 void VertexBuffer<Vertex>::setVertexAttributes(){
@@ -110,4 +111,6 @@ std::ostream &operator<<(std::ostream &os, const VertexNC &vert){
     os<<vert.color<<",";
     os<<vert.data;
     return os;
+}
+
 }

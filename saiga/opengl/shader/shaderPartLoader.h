@@ -8,6 +8,7 @@
 #include <vector>
  //for shared pointer
 
+namespace Saiga {
 
 class Shader;
 
@@ -61,7 +62,8 @@ std::shared_ptr<shader_t> ShaderPartLoader::createShader()
 #ifndef SAIGA_RELEASE
     std::cout<<"Loaded: "<<file<<" ( ";
     for(auto& sp : shaders){
-        std::cout<<sp->type<<" ";
+        //todo use glbinding ostream
+        std::cout<<(int)sp->type<<" ";
     }
     std::cout<<") Id="<< shader->program << std::endl;
 #endif
@@ -73,4 +75,4 @@ std::shared_ptr<shader_t> ShaderPartLoader::createShader()
 
 extern SAIGA_GLOBAL FileChecker shaderPathes;
 
-
+}

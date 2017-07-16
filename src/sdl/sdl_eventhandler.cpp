@@ -1,5 +1,7 @@
 #include "saiga/sdl/sdl_eventhandler.h"
 
+namespace Saiga {
+
 bool SDL_EventHandler::quit = false;
 std::vector<SDL_KeyListener*> SDL_EventHandler::keyListener;
 std::vector<SDL_MouseListener*> SDL_EventHandler::mouseListener;
@@ -94,4 +96,6 @@ void SDL_EventHandler::resizeWindow(Uint32 windowId, int width, int height)
     for(SDL_ResizeListener* listener : resizeListener){
         listener->resizeWindow(windowId,width,height);
     }
+}
+
 }

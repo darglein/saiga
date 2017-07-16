@@ -6,6 +6,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/image/imageGenerator.h"
 
+namespace Saiga {
 
 AssetLoader2::AssetLoader2()
 {
@@ -112,4 +113,6 @@ std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(std::shared_ptr<Triang
 
     asset->create("Fromsdfg",basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
+}
+
 }

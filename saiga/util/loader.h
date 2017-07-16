@@ -1,12 +1,12 @@
 #pragma once
 
 #include <saiga/config.h>
-
-
+#include "saiga/util/assert.h"
 
 #include <vector>
 #include <tuple>
-#include "assert.h"
+
+namespace Saiga {
 
 struct SAIGA_GLOBAL NoParams{
 //    bool operator==(const NoParams& other){
@@ -122,4 +122,6 @@ void Loader<object_t,param_t>::put(const std::string &name, object_t obj, const 
     SAIGA_ASSERT(obj);
 
     objects.emplace_back(name,params,obj);
+}
+
 }

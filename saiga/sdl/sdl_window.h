@@ -5,8 +5,8 @@
 
 #include "saiga/sdl/sdl_eventhandler.h"
 #include <SDL2/SDL.h>
-//#include <SDL2/SDL_opengl.h>
 
+namespace Saiga {
 
 class SAIGA_GLOBAL SDLWindow : public OpenGLWindow, public SDL_ResizeListener{
 public:
@@ -28,3 +28,4 @@ public:
     SDLWindow(WindowParameters windowParameters);
 };
 
+}

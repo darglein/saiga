@@ -3,6 +3,8 @@
 #include "saiga/assets/asset.h"
 #include "saiga/camera/camera.h"
 
+namespace Saiga {
+
 void SimpleAssetObject::render(Camera *cam)
 {
     asset->render(cam,model);
@@ -21,4 +23,6 @@ void SimpleAssetObject::renderWireframe(Camera *cam)
 void SimpleAssetObject::renderRaw()
 {
     asset->renderRaw();
+}
+
 }

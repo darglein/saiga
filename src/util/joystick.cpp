@@ -2,6 +2,8 @@
 #include "saiga/util/assert.h"
 #include "saiga/util/glm.h"
 
+namespace Saiga {
+
 Joystick2 joystick;
 
 Joystick2::Joystick2() : Keyboard(100)
@@ -79,4 +81,6 @@ void Joystick2::printAxisState()
         std::cout << k << ",";
     }
     std::cout << "]" << std::endl;
+}
+
 }

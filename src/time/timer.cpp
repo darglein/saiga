@@ -8,6 +8,7 @@
 #include "saiga/util/assert.h"
 #include "saiga/time/gameTime.h"
 
+namespace Saiga {
 
 Timer::Timer()
 {
@@ -139,4 +140,6 @@ ScopedTimerPrint::~ScopedTimerPrint()
     stop();
     auto time = getTimeMS();
     std::cout << name << " : " << time << "ms." << std::endl;
+}
+
 }

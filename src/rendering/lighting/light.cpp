@@ -1,5 +1,7 @@
 #include "saiga/rendering/lighting/light.h"
 
+namespace Saiga {
+
 void LightShader::checkUniforms(){
     DeferredShader::checkUniforms();
     location_lightColorDiffuse = getUniformLocation("lightColorDiffuse");
@@ -72,4 +74,6 @@ void Light::unbindShadowMap(){
 
 void Light::bindUniformsStencil(MVPShader& shader){
     shader.uploadModel(model);
+}
+
 }

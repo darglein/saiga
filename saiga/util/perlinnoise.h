@@ -2,6 +2,9 @@
 
 #include <saiga/config.h>
 #include <vector>
+
+namespace Saiga {
+
 // THIS CLASS IS A TRANSLATION TO C++11 FROM THE REFERENCE
 // JAVA IMPLEMENTATION OF THE IMPROVED PERLIN FUNCTION (see http://mrl.nyu.edu/~perlin/noise/)
 // THE ORIGINAL JAVA IMPLEMENTATION IS COPYRIGHT 2002 KEN PERLIN
@@ -25,3 +28,5 @@ private:
     double lerp(double t, double a, double b);
     double grad(int hash, double x, double y, double z);
 };
+
+}

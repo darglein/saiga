@@ -9,6 +9,8 @@
 #include "saiga/cuda/tests/test.h"
 #include "saiga/util/floatingPoint.h"
 
+namespace Saiga {
+
 bool initialized = false;
 
 std::string SHADER_PATH;
@@ -51,19 +53,19 @@ void initSaiga()
 
     FP::resetSSECSR();
 
-//    CUDA::bandwidthTest();
+    //    CUDA::bandwidthTest();
     //    writeExtensions();
     readConfigFile();
 
-//    ShaderLoader::instance()->addPath(SHADER_PATH);
-//    ShaderLoader::instance()->addPath(SHADER_PATH+"/geometry");
-//    ShaderLoader::instance()->addPath(SHADER_PATH+"/lighting");
-//    ShaderLoader::instance()->addPath(SHADER_PATH+"/post_processing");
+    //    ShaderLoader::instance()->addPath(SHADER_PATH);
+    //    ShaderLoader::instance()->addPath(SHADER_PATH+"/geometry");
+    //    ShaderLoader::instance()->addPath(SHADER_PATH+"/lighting");
+    //    ShaderLoader::instance()->addPath(SHADER_PATH+"/post_processing");
 
     shaderPathes.addSearchPath(SHADER_PATH);
-//    shaderPathes.addSearchPath(SHADER_PATH+"/geometry");
-//    shaderPathes.addSearchPath(SHADER_PATH+"/lighting");
-//    shaderPathes.addSearchPath(SHADER_PATH+"/post_processing");
+    //    shaderPathes.addSearchPath(SHADER_PATH+"/geometry");
+    //    shaderPathes.addSearchPath(SHADER_PATH+"/lighting");
+    //    shaderPathes.addSearchPath(SHADER_PATH+"/post_processing");
 
     TextureLoader::instance()->addPath(TEXTURE_PATH);
     TextureLoader::instance()->addPath(OBJ_PATH);
@@ -95,3 +97,4 @@ void cleanupSaiga()
     initialized = false;
 }
 
+}

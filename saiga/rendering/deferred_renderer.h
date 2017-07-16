@@ -7,6 +7,8 @@
 #include "saiga/rendering/lighting/ssao.h"
 #include "saiga/smaa/SMAA.h"
 
+namespace Saiga {
+
 class Program;
 
 
@@ -152,4 +154,4 @@ public:
 
 };
 
-
+}

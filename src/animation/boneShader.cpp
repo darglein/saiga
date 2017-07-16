@@ -1,5 +1,7 @@
 #include "saiga/animation/boneShader.h"
 
+namespace Saiga {
+
 void BoneShader::checkUniforms(){
     MVPShader::checkUniforms();
     location_boneMatrices = getUniformLocation("boneMatrices");
@@ -51,4 +53,4 @@ void BoneShader::uploadBoneMatrices(mat4 *matrices, int count)
     SAIGA_ASSERT(0);
 }
 
-
+}

@@ -3,6 +3,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/opengl/vertexBuffer.h"
 
+namespace Saiga {
 
 class SAIGA_GLOBAL Particle
 {
@@ -67,3 +68,5 @@ inline void Particle::setVelocity(const vec3 &v){
 
 template<>
 void VertexBuffer<Particle>::setVertexAttributes();
+
+}

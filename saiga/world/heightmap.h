@@ -7,7 +7,7 @@
 #include "saiga/util/perlinnoise.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
 
-
+namespace Saiga {
 
 class SAIGA_GLOBAL Heightmap{
 private:
@@ -63,3 +63,5 @@ private:
 
 
 };
+
+}

@@ -2,8 +2,9 @@
 
 #include <saiga/config.h>
 
-
 #include <vector>
+
+namespace Saiga {
 
 class SAIGA_GLOBAL FileChecker{
 public:
@@ -43,3 +44,5 @@ private:
 
 
 };
+
+}

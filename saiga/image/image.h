@@ -1,11 +1,11 @@
 #pragma once
 
-
 #include "saiga/opengl/opengl.h"
 #include "saiga/image/imageFormat.h"
 #include <stdint.h>
 #include <vector>
 
+namespace Saiga {
 
 class SAIGA_GLOBAL Image{
 public:
@@ -98,3 +98,5 @@ public:
 
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Image& f);
+
+}

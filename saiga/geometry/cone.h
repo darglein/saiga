@@ -3,6 +3,9 @@
 #include <saiga/config.h>
 #include "saiga/util/glm.h"
 
+namespace Saiga {
+
+
 class SAIGA_GLOBAL Cone
 {
 public:
@@ -22,3 +25,4 @@ public:
 
 };
 
+}

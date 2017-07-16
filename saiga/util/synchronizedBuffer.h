@@ -5,6 +5,8 @@
 #include <condition_variable>
 #include <mutex>
 
+namespace Saiga {
+
 template<typename T>
 class SAIGA_GLOBAL SynchronizedBuffer : public RingBuffer<T>{
 public:
@@ -45,3 +47,5 @@ public:
         return true;
     }
 };
+
+}

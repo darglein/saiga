@@ -5,6 +5,8 @@
 
 #include <vector>
 
+namespace Saiga {
+
 /**
  * @brief The CodeInjection class
  * The code injections are added to the top of the shader.
@@ -69,3 +71,5 @@ public:
 	void addInjection(const ShaderCodeInjection &sci);
 	void addInjections(const ShaderCodeInjections &scis);
 };
+
+}

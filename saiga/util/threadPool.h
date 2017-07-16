@@ -32,6 +32,8 @@
 #include <functional>
 #include <stdexcept>
 
+namespace Saiga {
+
 class ThreadPool {
 public:
     ThreadPool(size_t);
@@ -116,4 +118,5 @@ inline ThreadPool::~ThreadPool()
         worker.join();
 }
 
+}
 #endif

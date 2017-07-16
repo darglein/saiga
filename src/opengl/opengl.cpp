@@ -3,6 +3,8 @@
 #include <algorithm>
 #include "saiga/util/assert.h"
 
+namespace Saiga {
+
 bool openglinitialized = false;
 
 void initOpenGL()
@@ -122,4 +124,6 @@ OpenGLVendor getOpenGLVendor()
 
 
     return OpenGLVendor::Unknown;
+}
+
 }

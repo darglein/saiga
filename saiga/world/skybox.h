@@ -6,8 +6,7 @@
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 
-
-
+namespace Saiga {
 
 class SAIGA_GLOBAL Skybox{
 public:
@@ -23,3 +22,5 @@ public:
     void setDistance(float d);
     void render(Camera* cam);
 };
+
+}

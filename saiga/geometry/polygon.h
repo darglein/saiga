@@ -8,6 +8,8 @@
 
 #include <vector>
 
+namespace Saiga {
+
 using PolygonType = std::vector<vec3>;
 
 namespace Polygon {
@@ -35,5 +37,7 @@ inline PolygonType toPolygon(const Triangle& tri){
 }
 
 
+
+}
 
 }

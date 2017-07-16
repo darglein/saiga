@@ -3,6 +3,8 @@
 #include "saiga/camera/controllable_camera.h"
 #include <SDL2/SDL.h>
 
+namespace Saiga {
+
 template<typename camera_t>
 class SDLCamera : public Controllable_Camera<camera_t>{
 public:
@@ -25,4 +27,4 @@ public:
     }
 };
 
-
+}

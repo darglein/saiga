@@ -1,13 +1,15 @@
 #pragma once
 
+#include "saiga/opengl/opengl.h"
 #include "saiga/cuda/cudaHelper.h"
+
+#include <cuda_gl_interop.h>
 #include <iostream>
 
 struct cudaGraphicsResource;
 
+namespace Saiga {
 namespace CUDA{
-
-
 
 class SAIGA_GLOBAL Interop{
 private:
@@ -41,4 +43,6 @@ public:
     void initImage(unsigned int gl_buffer, GLenum gl_target);
     void mapImage();
 };
+
+}
 }

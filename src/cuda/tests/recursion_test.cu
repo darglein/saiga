@@ -4,6 +4,7 @@
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
 
+namespace Saiga {
 namespace CUDA {
 
 
@@ -118,4 +119,5 @@ void recursionTest(){
 
 }
 
+}
 }

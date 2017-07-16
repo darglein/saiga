@@ -1,7 +1,6 @@
-
 #include "saiga/opengl/texture/texture.h"
 
-
+namespace Saiga {
 
 void basic_Texture_2D::setDefaultParameters(){
     glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
@@ -41,4 +40,6 @@ void multisampled_Texture_2D::uploadData(const GLubyte* data ){
                             GL_TRUE //fixedsamplelocations
                             );
     unbind();
+}
+
 }

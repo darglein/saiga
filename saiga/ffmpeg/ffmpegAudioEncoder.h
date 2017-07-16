@@ -21,6 +21,8 @@ extern "C"{
 #include <libswscale/swscale.h>
 }
 
+namespace Saiga {
+
 class SAIGA_GLOBAL FFMPEGAudioEncoder{
 private:
 
@@ -48,3 +50,5 @@ public:
     void finishEncoding();
     void addFrame();
 };
+
+}

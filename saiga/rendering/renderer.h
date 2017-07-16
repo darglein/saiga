@@ -2,6 +2,8 @@
 
 #include <saiga/config.h>
 
+namespace Saiga {
+
 class Camera;
 class OpenGLWindow;
 
@@ -42,3 +44,5 @@ public:
     //typical used for the gui
     virtual void renderFinal(Camera *cam)  = 0;
 };
+
+}

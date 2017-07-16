@@ -3,6 +3,8 @@
 #include "saiga/rendering/lighting/light.h"
 #include "saiga/camera/camera.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL PointLightShader : public LightShader{
 public:
     GLint location_position, location_attenuation, location_shadowPlanes;
@@ -96,3 +98,5 @@ public:
 
     bool cullLight(Camera *cam);
 };
+
+}

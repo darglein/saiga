@@ -8,6 +8,8 @@
 
 #include <vector>
 
+namespace Saiga {
+
 class SAIGA_GLOBAL Grid : public Plane
 {
 public:
@@ -17,4 +19,4 @@ public:
       void createBuffers(VertexBuffer<VertexN> &buffer, int linesX, int linesY);
 };
 
-
+}

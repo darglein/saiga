@@ -1,5 +1,7 @@
 #include "saiga/geometry/sphere.h"
 
+namespace Saiga {
+
 int Sphere::intersectAabb(const AABB &other){
 
     if(!intersectAabb2(other))
@@ -63,11 +65,12 @@ bool Sphere::intersect(const Sphere &other)
     return glm::distance(other.pos,pos) < r+other.r;
 }
 
+}
 
 
-std::ostream& operator<<(std::ostream& os, const Sphere& s)
+std::ostream& operator<<(std::ostream& os, const Saiga::Sphere& s)
 {
-    std::cout<<"Sphere: " << s.pos << s.r;
+    std::cout<< "Sphere: " << s.pos << s.r;
 
     return os;
 }

@@ -1,12 +1,13 @@
 #pragma once
 
 #include <saiga/config.h>
-#include <SDL2/SDL.h>
-
-#include <vector>
 #include "saiga/sdl/sdl_listener.h"
 #include <saiga/util/keyboard.h>
 #include <saiga/util/mouse.h>
+#include <SDL2/SDL.h>
+#include <vector>
+
+namespace Saiga {
 
 class SAIGA_GLOBAL SDL_EventHandler{
 private:
@@ -35,3 +36,4 @@ public:
     static bool shouldQuit(){return quit;}
 };
 
+}

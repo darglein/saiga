@@ -1,5 +1,6 @@
 #include "saiga/opengl/uniformBuffer.h"
 
+namespace Saiga {
 
 UniformBuffer::UniformBuffer() : Buffer(GL_UNIFORM_BUFFER)
 {
@@ -47,4 +48,6 @@ GLint UniformBuffer::getMaxUniformBufferBindings()
     GLint ret;
     glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,&ret);
     return ret;
+}
+
 }

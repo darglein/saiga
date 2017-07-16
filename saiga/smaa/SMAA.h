@@ -8,6 +8,8 @@
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/rendering/postProcessor.h"
 
+namespace Saiga {
+
 /*
  *
  *
@@ -84,3 +86,5 @@ private:
 
     Quality quality = Quality::SMAA_PRESET_HIGH;
 };
+
+}

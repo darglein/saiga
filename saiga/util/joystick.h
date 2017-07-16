@@ -1,11 +1,12 @@
-
 #pragma once
 
+#include <saiga/config.h>
 #include <saiga/util/keyboard.h>
 
 #include <map>
 #include <vector>
-#include <saiga/config.h>
+
+namespace Saiga {
 
 class SAIGA_GLOBAL Joystick2 : public Keyboard{
 private:
@@ -41,3 +42,5 @@ public:
 
 
 extern SAIGA_GLOBAL Joystick2 joystick;
+
+}

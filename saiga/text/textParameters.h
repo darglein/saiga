@@ -3,6 +3,8 @@
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
 
+namespace Saiga {
+
 struct SAIGA_GLOBAL TextParameters{
 
     vec4 color = vec4(1,1,1,1);
@@ -19,3 +21,5 @@ struct SAIGA_GLOBAL TextParameters{
     void setColor(const vec4& color, float smoothness);
     void setAlpha(float alpha);
 } ;
+
+}

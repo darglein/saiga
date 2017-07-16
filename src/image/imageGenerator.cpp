@@ -1,6 +1,8 @@
 #include "saiga/image/imageGenerator.h"
 #include "saiga/image/templatedImage.h"
 
+namespace Saiga {
+
 std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, int quadSize, int numQuadsX, int numQuadsY)
 {
     Image* image = new Image();
@@ -66,4 +68,6 @@ std::shared_ptr<Image> ImageGenerator::randomNormalized(int width, int height)
         }
     }
     return std::shared_ptr<Image>(image);
+}
+
 }

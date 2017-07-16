@@ -7,6 +7,7 @@
 #include <fstream>
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 
 #define NOMINMAX
 #undef max
@@ -330,5 +331,7 @@ bool TextureAtlas::readAtlasFromFiles()
     textureAtlas->generateMipmaps();
 
     return true;
+
+}
 
 }

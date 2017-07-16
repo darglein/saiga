@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <regex>
 
+namespace Saiga {
+
 #define STATUS_WAITING 0
 #define STATUS_READING 1
 
@@ -195,6 +197,4 @@ void ShaderPartLoader::reloadShader(std::shared_ptr<Shader>  shader)
     assert_no_glerror();
 }
 
-
-
-
+}

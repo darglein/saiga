@@ -21,6 +21,7 @@
 #include <GLFW/glfw3native.h>
 #endif
 
+namespace Saiga {
 
 GLFWwindow*  ImGui_GLFW_Renderer::g_Window = NULL;
 double       ImGui_GLFW_Renderer::g_Time = 0.0f;
@@ -425,5 +426,7 @@ bool ImGui_GLFW_Renderer::scroll_event(GLFWwindow *window, double xoffset, doubl
     g_MouseWheel += (float)yoffset; // Use fractional mouse wheel, 1.0 unit 5 lines.
     return false;
 //    return wantsCaptureMouse;
+}
+
 }
 #endif

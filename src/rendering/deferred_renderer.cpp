@@ -6,7 +6,7 @@
 #include "saiga/camera/camera.h"
 #include "saiga/rendering/renderer.h"
 
-
+namespace Saiga {
 
 Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters params) :
     windowWidth(windowWidth), windowHeight(windowHeight),
@@ -390,3 +390,4 @@ void Deferred_Renderer::printTimings()
 
 }
 
+}

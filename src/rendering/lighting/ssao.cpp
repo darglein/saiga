@@ -4,6 +4,8 @@
 #include "saiga/image/imageGenerator.h"
 #include "saiga/rendering/gbuffer.h"
 
+namespace Saiga {
+
 void SSAOShader::checkUniforms(){
     DeferredShader::checkUniforms();
     location_invProj = getUniformLocation("invProj");
@@ -172,4 +174,6 @@ void SSAO::setKernelSize(int kernelSize)
         kernelOffsets[i] = sample;
     }
     ssaoShader->kernelOffsets = kernelOffsets;
+}
+
 }

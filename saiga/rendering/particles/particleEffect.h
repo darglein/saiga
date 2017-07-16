@@ -2,6 +2,7 @@
 
 #include "saiga/rendering/object3d.h"
 
+namespace Saiga {
 
 class ParticleSystem;
 
@@ -16,3 +17,4 @@ public:
     virtual void apply(ParticleSystem& ps) = 0;
 };
 
+}

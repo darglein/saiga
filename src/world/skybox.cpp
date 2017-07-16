@@ -1,8 +1,7 @@
 #include "saiga/world/skybox.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
 
-
-
+namespace Saiga {
 
 Skybox::Skybox(){
     AABB bb(vec3(-1),vec3(1));
@@ -29,4 +28,6 @@ void Skybox::render(Camera* cam){
     cube_texture->unbind();
 
     shader->unbind();
+}
+
 }

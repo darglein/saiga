@@ -2,6 +2,7 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/rendering/gbuffer.h"
 
+namespace Saiga {
 
 void MVPShader::checkUniforms(){
     Shader::checkUniforms();
@@ -70,3 +71,4 @@ void DeferredShader::uploadFramebuffer(GBuffer *gbuffer){
     upload(location_texture_depth,gbuffer->getTextureDepth(),3);
 }
 
+}

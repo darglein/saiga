@@ -1,9 +1,11 @@
 #include "saiga/util/directory.h"
+#include "saiga/util/assert.h"
 
 #include <iostream>
 #include <string>
 #include <sys/stat.h>
-#include "saiga/util/assert.h"
+
+namespace Saiga {
 
 Directory::Directory(const std::string &dir)
 {
@@ -68,6 +70,4 @@ void Directory::getFiles(std::vector<std::string> &out, const std::string &endin
 
 }
 
-
-
-
+}

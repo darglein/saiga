@@ -3,6 +3,8 @@
 #include "saiga/util/glm.h"
 #include "saiga/opengl/buffer.h"
 
+namespace Saiga {
+
 /**
  * Generic class for an instanced buffer used for instance rendering.
  *
@@ -58,4 +60,6 @@ inline void InstancedBuffer<mat4>::setAttributes(int location, int divisor)
         glVertexAttribDivisor(location + i, divisor);
     }
     assert_no_glerror();
+}
+
 }

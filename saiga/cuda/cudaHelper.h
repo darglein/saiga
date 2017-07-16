@@ -1,26 +1,25 @@
 #pragma once
 #include "saiga/config.h"
 
-//uncomment to remove all CUDA_SYNC_CHECK_ERROR
+//remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
+//for gcc add cppflag: -DCUDA_NDEBUG
+#ifndef CUDA_NDEBUG
 #define CUDA_DEBUG
+#else
+#undef CUDA_DEBUG
+#endif
 
-
-#include "saiga/opengl/opengl.h"
 #include "saiga/cuda/array_view.h"
 #include "saiga/cuda/cudaTimer.h"
 
 #include <iostream>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <cuda_gl_interop.h>
 #include "saiga/util/assert.h"
 
 #include "thrust_helper.h"
 
-
-
-
-
+namespace Saiga {
 namespace CUDA {
 
 
@@ -50,13 +49,8 @@ T1 getBlockCount(T1 problemSize, T2 threadCount){
 #define THREAD_BLOCK(_problemSize, _threadCount) getBlockCount(_problemSize,_threadCount) , _threadCount
 
 
-
-
-
-
 SAIGA_GLOBAL extern void initCUDA();
 SAIGA_GLOBAL extern void destroyCUDA();
 
-
-
+}
 }

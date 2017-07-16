@@ -1,10 +1,9 @@
 #pragma once
 
-
-
 #include "saiga/util/quality.h"
 #include "saiga/opengl/framebuffer.h"
 
+namespace Saiga {
 
 struct SAIGA_GLOBAL GBufferParameters{
     bool srgb = false; //colors stored in srgb. saves memory bandwith but adds conversion operations.
@@ -32,3 +31,4 @@ public:
     void clampToEdge();
 };
 
+}

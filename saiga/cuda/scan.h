@@ -5,17 +5,8 @@
 #include "saiga/cuda/reduce.h"
 #include "saiga/cuda/device_helper.h"
 
-
-
-
-
-
+namespace Saiga {
 namespace CUDA {
-
-
-
-
-
 
 template<typename T, unsigned int LOCAL_WARP_SIZE=32>
 __device__ inline
@@ -309,5 +300,5 @@ void tiledSinglePassScan(array_view<uint> in, array_view<uint> out, array_view<u
     }
 }
 
-
+}
 }

@@ -2,6 +2,8 @@
 
 #include <fstream>
 
+namespace Saiga {
+
 FileChecker::FileChecker()
 {
     addSearchPath(".");
@@ -60,4 +62,6 @@ bool FileChecker::existsFile(const std::string &file)
 {
     std::ifstream infile(file);
     return infile.good();
+}
+
 }

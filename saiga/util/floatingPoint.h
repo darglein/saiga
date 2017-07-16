@@ -1,9 +1,8 @@
 #pragma once
 
-
 #include "saiga/config.h"
 
-
+namespace Saiga {
 namespace FP {
 
 //Note:
@@ -26,4 +25,5 @@ SAIGA_GLOBAL extern void breakSSECSR();
 
 
 SAIGA_GLOBAL extern void printCPUInfo();
+}
 }

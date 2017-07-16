@@ -8,6 +8,8 @@
 
 #include <vector>
 
+namespace Saiga {
+
 using glm::min;
 using glm::max;
 
@@ -38,3 +40,5 @@ inline bool operator< (const Raytracer::Result& lhs, const Raytracer::Result& rh
 inline bool operator> (const Raytracer::Result& lhs, const Raytracer::Result& rhs){return rhs < lhs;}
 inline bool operator<=(const Raytracer::Result& lhs, const Raytracer::Result& rhs){return !(lhs > rhs);}
 inline bool operator>=(const Raytracer::Result& lhs, const Raytracer::Result& rhs){return !(lhs < rhs);}
+
+}

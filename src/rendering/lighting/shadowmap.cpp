@@ -1,7 +1,9 @@
 #include "saiga/rendering/lighting/shadowmap.h"
-
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/util/error.h"
+
+namespace Saiga {
+
 Shadowmap::Shadowmap()
 {
 
@@ -187,4 +189,6 @@ void Shadowmap::bindAttachCascade(int n){
 //#if defined(SAIGA_DEBUG)
     depthBuffer.check();
 //#endif
+}
+
 }

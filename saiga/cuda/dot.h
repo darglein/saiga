@@ -12,6 +12,8 @@
  * It is not possible to go faster on current hardware.
  *
  */
+
+namespace Saiga {
 namespace CUDA{
 
 
@@ -66,7 +68,5 @@ void dot(array_view<T> v1, array_view<T> v2, T* out) {
         atomicAdd(out, sum);
 }
 
-
-
-
+}
 }

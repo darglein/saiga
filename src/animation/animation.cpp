@@ -2,6 +2,7 @@
 #include "saiga/util/assert.h"
 #include <algorithm>
 
+namespace Saiga {
 
 const AnimationFrame &Animation::getKeyFrame(int frameIndex)
 {
@@ -54,4 +55,4 @@ void Animation::print()
     cout << "]" << endl;
 }
 
-
+}

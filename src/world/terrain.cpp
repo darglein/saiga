@@ -1,6 +1,6 @@
 #include "saiga/world/terrain.h"
 
-
+namespace Saiga {
 
 Terrain::Terrain(int layers, int w, int h, float heightScale):layers(layers),heightmap(layers,w,h){ //1024,2048,4096
     clipmaps.resize(layers+1);
@@ -144,5 +144,4 @@ void Terrain::render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color,
     mesh.bindAndDraw();
 }
 
-
-
+}

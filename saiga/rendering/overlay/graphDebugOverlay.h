@@ -6,6 +6,7 @@
 #include "saiga/rendering/object3d.h"
 #include <vector>
 
+namespace Saiga {
 
 class MVPColorShader;
 
@@ -73,4 +74,4 @@ public:
 
 };
 
-
+}

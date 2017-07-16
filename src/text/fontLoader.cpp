@@ -6,6 +6,8 @@
 
 #include <freetype/ftstroke.h>
 
+namespace Saiga {
+
 FT_Library FontLoader::ft = nullptr;
 
 FontLoader::FontLoader(const std::string &file, const std::vector<Unicode::UnicodeBlock> &blocks)
@@ -162,7 +164,4 @@ void FontLoader::loadFace(int fontSize)
     FT_Set_Pixel_Sizes(face, 0, fontSize);
 }
 
-
-
-
-
+}

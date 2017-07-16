@@ -4,6 +4,8 @@
 #include <saiga/util/glm.h>
 #include <saiga/opengl/vertexBuffer.h>
 
+namespace Saiga {
+
 /**
  * We are using a maximum number of 4 bones per vertex here, because it fits nicely in a vec4 on the gpu
  * and was sufficient in all cases I have encountered so far.
@@ -50,3 +52,5 @@ public:
 
 template<>
 SAIGA_GLOBAL void VertexBuffer<BoneVertexCD>::setVertexAttributes();
+
+}

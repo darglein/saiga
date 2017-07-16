@@ -4,6 +4,8 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 
+namespace Saiga {
+
 AssimpAssetLoader::AssimpAssetLoader(){
 
 }
@@ -192,4 +194,4 @@ std::shared_ptr<Asset> AssimpAssetLoader::loadAsset(const std::string &file)
     return loadBasicAsset(file);
 }
 
-
+}

@@ -30,6 +30,8 @@
 #ifndef AREATEX_H
 #define AREATEX_H
 
+namespace Saiga {
+
 #define AREATEX_WIDTH 160
 #define AREATEX_HEIGHT 560
 #define AREATEX_PITCH (AREATEX_WIDTH * 2)
@@ -14977,4 +14979,5 @@ static const unsigned char areaTexBytes[] = {
     0x00, 0x00, 0x00, 0x00
 };
 
+}
 #endif

@@ -4,6 +4,8 @@
 #include "saiga/geometry/aabb.h"
 #include "saiga/camera/camera.h"
 
+namespace Saiga {
+
 /**
  * @brief The Layout class
  *
@@ -63,3 +65,4 @@ public:
     vec2 transformToLocalNormalized(vec2 p);
 };
 
+}

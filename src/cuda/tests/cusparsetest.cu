@@ -5,7 +5,7 @@
 #include "saiga/time/timer.h"
 #include "saiga/cuda/cusparseHelper.h"
 
-
+namespace Saiga {
 namespace CUDA {
 
 
@@ -312,4 +312,5 @@ void testCuBLAS(){
 
 }
 
+}
 }

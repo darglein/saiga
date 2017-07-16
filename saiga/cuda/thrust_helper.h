@@ -12,8 +12,9 @@
 #include <thrust/device_vector.h>
 #include <thrust/system/cuda/detail/detail/launch_calculator.h>
 
-
+namespace Saiga {
 namespace CUDA {
+
 /**
  * Use this function to compute the optimal number of blocks to start for a given kernel and block size.
  * With that trick you can start exactly as many threads as needed for 100% occupancy and no more.
@@ -35,4 +36,5 @@ size_t max_active_blocks(KernelFunction kernel, const size_t CTA_SIZE, const siz
   return properties.multiProcessorCount * cuda_launch_config_detail::max_active_blocks_per_multiprocessor(properties, attributes, CTA_SIZE, dynamic_smem_bytes);
 }
 
+}
 }

@@ -2,23 +2,26 @@
 
 #include <saiga/config.h>
 
+namespace Saiga {
+
 template <typename C>
- class SAIGA_GLOBAL Singleton
- {
- public:
+class SAIGA_GLOBAL Singleton
+{
+public:
     static C* instance ()
     {
         static C _instance;
-       return &_instance;
+        return &_instance;
     }
     virtual
     ~Singleton ()
     {
 
     }
- private:
+private:
 
- protected:
+protected:
     Singleton () { }
- };
-// template <typename C> C Singleton <C>::_instance;
+};
+
+}

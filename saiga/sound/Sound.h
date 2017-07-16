@@ -2,7 +2,7 @@
 
 #include "saiga/sound/OpenAL.h"
 
-
+namespace Saiga {
 
 namespace sound {
 
@@ -34,3 +34,4 @@ public:
 };
 }
 
+}

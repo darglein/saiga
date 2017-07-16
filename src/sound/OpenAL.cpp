@@ -10,6 +10,7 @@
 
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 namespace sound {
 
 //only init at first call and quit when init calls is back to 0
@@ -67,22 +68,23 @@ bool checkSoundError()
 }
 
 std::string getALCErrorString(int err) {
-  switch (err) {
+    switch (err) {
     case ALC_NO_ERROR:
-      return "AL_NO_ERROR";
+        return "AL_NO_ERROR";
     case ALC_INVALID_DEVICE:
-      return "ALC_INVALID_DEVICE";
+        return "ALC_INVALID_DEVICE";
     case ALC_INVALID_CONTEXT:
-      return "ALC_INVALID_CONTEXT";
+        return "ALC_INVALID_CONTEXT";
     case ALC_INVALID_ENUM:
-      return "ALC_INVALID_ENUM";
+        return "ALC_INVALID_ENUM";
     case ALC_INVALID_VALUE:
-      return "ALC_INVALID_VALUE";
+        return "ALC_INVALID_VALUE";
     case ALC_OUT_OF_MEMORY:
-      return "ALC_OUT_OF_MEMORY";
+        return "ALC_OUT_OF_MEMORY";
     default:
-      return "no such error code";
-  }
+        return "no such error code";
+    }
 }
 
+}
 }

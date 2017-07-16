@@ -18,6 +18,8 @@
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
 #include "saiga/rendering/lighting/directional_light.h"
 
+using namespace Saiga;
+
 class AdvancedWindow : public Program, public SDL_KeyListener
 {
 public:

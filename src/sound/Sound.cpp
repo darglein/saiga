@@ -1,6 +1,8 @@
 #include "saiga/sound/Sound.h"
 #include <AL/al.h>
 #include <AL/alc.h>
+
+namespace Saiga {
 namespace sound {
 
 Sound::Sound () {
@@ -96,4 +98,5 @@ float Sound::toFloat(int32_t sample)
     return (float)sample/div;
 }
 
+}
 }

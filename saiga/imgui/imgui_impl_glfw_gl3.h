@@ -14,6 +14,8 @@
 
 struct GLFWwindow;
 
+namespace Saiga {
+
 class SAIGA_GLOBAL ImGui_GLFW_Renderer : public glfw_KeyListener, public glfw_MouseListener{
 protected:
     // Data
@@ -62,4 +64,6 @@ public:
     bool mouse_button_event(GLFWwindow* window, int button, int action, int mods) override;
     bool scroll_event(GLFWwindow* window, double xoffset, double yoffset) override;
 };
+
+}
 #endif

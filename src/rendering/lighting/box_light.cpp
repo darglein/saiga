@@ -1,5 +1,6 @@
 #include "saiga/rendering/lighting/box_light.h"
 
+namespace Saiga {
 
 void BoxLightShader::checkUniforms(){
     DirectionalLightShader::checkUniforms();
@@ -81,3 +82,4 @@ bool BoxLight::cullLight(Camera *cam)
     return culled;
 }
 
+}

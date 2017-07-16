@@ -1,5 +1,7 @@
 #include "saiga/geometry/plane.h"
 
+namespace Saiga {
+
 Plane::Plane() : point(vec3(0,0,0)),normal(vec3(1,0,0)),d(0)
 {
 
@@ -36,4 +38,6 @@ std::ostream& operator<<(std::ostream& os, const Plane& pl){
 
     os<<"("<<pl.point.x<<","<<pl.point.y<<","<<pl.point.z<<") ("<<pl.normal.x<<","<<pl.normal.y<<","<<pl.normal.z<<")";
     return os;
+}
+
 }

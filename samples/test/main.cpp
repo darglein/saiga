@@ -15,6 +15,8 @@
 #include <FreeImagePlus.h>
 //#include "saiga/opengl/texture/textureLoader.h"
 
+using namespace Saiga;
+
 int main(int argc, char *argv[]) {
 
     catchSegFaults();

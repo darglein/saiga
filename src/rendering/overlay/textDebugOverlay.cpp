@@ -7,6 +7,8 @@
 #include "saiga/text/textShader.h"
 #include "saiga/text/text.h"
 
+namespace Saiga {
+
 TextDebugOverlay::TextDebugOverlay(int w, int h): overlay(1,1),layout(w,h){
 }
 
@@ -60,3 +62,4 @@ int TextDebugOverlay::createItem(const std::string &name)
     return id;
 }
 
+}

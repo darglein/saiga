@@ -1,9 +1,10 @@
 #pragma once
 
-
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
 #include "saiga/opengl/vertexBuffer.h"
+
+namespace Saiga {
 
 /**
  * Using inheritance here to enable an easy conversion between vertex types by object slicing.
@@ -99,3 +100,4 @@ SAIGA_GLOBAL void VertexBuffer<VertexNTD>::setVertexAttributes();
 template<>
 SAIGA_GLOBAL void VertexBuffer<VertexNC>::setVertexAttributes();
 
+}

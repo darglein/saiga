@@ -1,5 +1,6 @@
 #include "saiga/rendering/object3d.h"
 
+namespace Saiga {
 
 void Object3D::setSimpleDirection(const vec3 &dir){
     this->rot = getSimpleDirectionQuat(dir);
@@ -42,8 +43,4 @@ quat Object3D::getSimpleDirectionQuat(const vec3 &dir){
     return glm::normalize(quat(rotmat));
 }
 
-
-
-
-
-
+}

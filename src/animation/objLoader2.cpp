@@ -1,10 +1,11 @@
 #include "saiga/animation/objLoader2.h"
+#include "saiga/util/fileChecker.h"
 
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 
-
+namespace Saiga {
 
 std::vector<std::string> split(const std::string &s, char delim);
 
@@ -309,18 +310,10 @@ void ObjLoader2::parseUM(const std::string &line)
 
 }
 
-#include "saiga/util/fileChecker.h"
-
 void ObjLoader2::parseM(const std::string &line)
 {
     FileChecker fc;
-//    cout<<fc.getParentDirectory("asdf1/asdf2/sldgj.png")<<endl;
-//    cout<<fc.getParentDirectory("asdf1/sldgj.png")<<endl;
-//    cout<<fc.getParentDirectory("sldgj.png")<<endl;
-//    cout<<fc.getRelative(file,line)<<endl;
-//    cout<<"parseM "<<line<<endl;
-
     materialLoader.loadFile(fc.getRelative(file,line));
 }
 
-
+}

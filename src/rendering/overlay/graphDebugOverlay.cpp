@@ -3,7 +3,7 @@
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/opengl/framebuffer.h"
 
-
+namespace Saiga {
 
 GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int numDataPoints):width(width),height(height), graphs(numGraphs){
     proj = glm::ortho(0.0f,(float)width,0.0f,(float)height,1.0f,-1.0f);
@@ -113,3 +113,4 @@ void GraphDebugOverlay::render(float interpolation){
     shader->unbind();
 }
 
+}

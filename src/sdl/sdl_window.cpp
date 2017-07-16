@@ -1,7 +1,7 @@
-
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferred_renderer.h"
 
+namespace Saiga {
 
 SDLWindow::SDLWindow(WindowParameters windowParameters):OpenGLWindow(windowParameters)
 {
@@ -136,6 +136,4 @@ bool SDLWindow::resizeWindow(Uint32 windowId, int width, int height)
     return false;
 }
 
-
-
-
+}

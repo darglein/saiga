@@ -1,7 +1,8 @@
 #include "saiga/rendering/lighting/directional_light.h"
-
 #include "saiga/geometry/clipping.h"
 #include "saiga/geometry/obb.h"
+
+namespace Saiga {
 
 void DirectionalLightShader::checkUniforms(){
     LightShader::checkUniforms();
@@ -399,4 +400,6 @@ void DirectionalLight::setDepthCutsRelative(const std::vector<float> &value)
 std::vector<float> DirectionalLight::getDepthCutsRelative() const
 {
     return depthCutsRelative;
+}
+
 }

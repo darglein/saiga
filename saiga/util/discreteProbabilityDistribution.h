@@ -1,8 +1,10 @@
 #pragma once
 
+#include "saiga/util/glm.h"
 #include <random>
 #include <vector>
-#include "saiga/util/glm.h"
+
+namespace Saiga {
 
 /**
  * Samples a discrete probability distribution with the alias method.
@@ -98,4 +100,6 @@ int DiscreteProbabilityDistribution<real_t>::sample()
     float f = uniform_distf(re);
 
     return (f<=prob[i])? i : alias[i];
+}
+
 }

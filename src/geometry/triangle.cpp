@@ -1,5 +1,7 @@
 #include "saiga/geometry/triangle.h"
 
+namespace Saiga {
+
 void Triangle::stretch(){
     vec3 c = center();
 
@@ -16,4 +18,6 @@ std::ostream& operator<<(std::ostream& os, const Triangle& t)
 {
     std::cout<<"Triangle: "<<t.a<<t.b<<t.c;
     return os;
+}
+
 }

@@ -3,6 +3,7 @@
 #include "saiga/config.h"
 #include <vector>
 
+namespace Saiga {
 
 template<typename T>
 class SAIGA_GLOBAL RingBuffer{
@@ -43,3 +44,5 @@ public:
         return result;
     }
 };
+
+}

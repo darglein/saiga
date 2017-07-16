@@ -4,6 +4,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/image/glImageFormatMap.h"
 
+namespace Saiga {
 
 class SAIGA_GLOBAL ImageFormat{
 private:
@@ -40,4 +41,4 @@ public:
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const ImageFormat& f);
 
-
+}

@@ -1,7 +1,7 @@
 #include "saiga/util/crash.h"
 #include "saiga/util/assert.h"
 
-
+namespace Saiga {
 
 std::function<void()> customCrashHandler;
 
@@ -172,3 +172,5 @@ void catchSegFaults()
 	previousHandler = signal(SIGSEGV, SignalHandler);
 }
 #endif
+
+}

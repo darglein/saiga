@@ -3,6 +3,8 @@
 #include "saiga/opengl/buffer.h"
 #include <vector>
 
+namespace Saiga {
+
 template<typename T>
 class TemplatedBuffer : public Buffer{
 public:
@@ -35,4 +37,6 @@ void TemplatedBuffer<T>::set(T* data,int count, GLenum usage){
 template<typename T>
 void TemplatedBuffer<T>::updateBuffer(T* data,int count, int offset){
     Buffer::updateBuffer(data,count*sizeof(T),offset*sizeof(T));
+}
+
 }

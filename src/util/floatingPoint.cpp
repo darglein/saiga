@@ -1,6 +1,8 @@
 #include "saiga/util/floatingPoint.h"
 #include "xmmintrin.h"
 #include <fstream>
+
+namespace Saiga {
 namespace FP {
 
 enum SSECSR : unsigned int
@@ -90,4 +92,5 @@ void printCPUInfo(){
     }
 }
 
+}
 }

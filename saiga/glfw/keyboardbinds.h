@@ -2,6 +2,8 @@
 #include "saiga/glfw/glfw_eventhandler.h"
 #include "saiga/util/inputcontroller.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL KeyboardBinds: public glfw_KeyListener
 {
 private:
@@ -17,4 +19,4 @@ public:
     bool character_event(GLFWwindow* window, unsigned int codepoint);
 };
 
-
+}

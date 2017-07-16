@@ -3,6 +3,9 @@
 #include "saiga/util/assert.h"
 #include <vector>
 
+namespace Saiga {
+
+
 //the control point type. For example: float, vec2, vec3, vec4
 template <typename P>
 class Bezier{
@@ -108,4 +111,6 @@ std::vector<P> Bezier<P>::createLine(int subdivisions)
     //add last cp of the last curve
     line.push_back(sub.back().controlPoints.back());
     return line;
+}
+
 }

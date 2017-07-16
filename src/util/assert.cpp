@@ -1,7 +1,8 @@
 #include "saiga/util/assert.h"
 
-
 #include <csignal>
+
+namespace Saiga {
 
 void saiga_assert_fail (const char *__assertion, const char *__file,
                unsigned int __line, const char *__function, const char *__message){
@@ -21,4 +22,4 @@ void saiga_assert_fail (const char *__assertion, const char *__file,
     exit(1);
 }
 
-
+}

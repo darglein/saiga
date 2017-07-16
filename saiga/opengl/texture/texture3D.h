@@ -1,8 +1,9 @@
 #pragma once
 
 #include "saiga/opengl/texture/raw_texture.h"
-
 #include <vector>
+
+namespace Saiga {
 
 class SAIGA_GLOBAL Texture3D : public raw_Texture{
 
@@ -19,3 +20,4 @@ public:
     bool fromImage(std::vector<Image> &images);
 };
 
+}

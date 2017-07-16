@@ -2,10 +2,12 @@
 
 #include "saiga/util/assert.h"
 
+namespace Saiga {
+namespace CUDA {
+
 using std::cout;
 using std::endl;
 
-namespace CUDA {
 
 cusparseHandle_t cusparseHandle = 0;
 cublasHandle_t cublashandle = 0;
@@ -37,4 +39,5 @@ void runBLASSPARSETests(){
     testCuSparse();
 }
 
+}
 }

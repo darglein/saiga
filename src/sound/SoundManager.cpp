@@ -11,6 +11,7 @@
 #include <AL/alut.h>
 #endif
 
+namespace Saiga {
 namespace sound {
 
 
@@ -475,4 +476,5 @@ int SoundManager::getCapturedSamples()
 }
 
 
+}
 }

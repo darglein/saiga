@@ -1,6 +1,6 @@
 #include "saiga/text/textParameters.h"
 
-
+namespace Saiga {
 
 void TextParameters::setOutline(const vec4 &outlineColor, float width, float smoothness)
 {
@@ -25,4 +25,6 @@ void TextParameters::setColor(const vec4 &color, float smoothness)
 void TextParameters::setAlpha(float alpha)
 {
     this->alpha = alpha;
+}
+
 }

@@ -4,7 +4,7 @@
 #include <sstream>
 #include <algorithm>
 
-
+namespace Saiga {
 
 ObjMaterialLoader::ObjMaterialLoader(const std::string &file):file(file)
 {
@@ -112,4 +112,6 @@ void ObjMaterialLoader::parseLine(const std::string &line)
         currentMaterial->map_bump = TextureLoader::instance()->load(rest);
          currentMaterial->map_bump->setWrap(GL_REPEAT);
     }
+}
+
 }

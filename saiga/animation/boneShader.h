@@ -5,6 +5,7 @@
 
 #include <saiga/opengl/uniformBuffer.h>
 
+namespace Saiga {
 
 #define BONE_MATRICES_BINDING_POINT 1
 
@@ -19,5 +20,4 @@ public:
     void uploadBoneMatrices(mat4* matrices, int count);
 };
 
-
-
+}

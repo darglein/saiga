@@ -6,6 +6,7 @@
 #include "saiga/util/loader.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 
 class SAIGA_GLOBAL ShaderLoader : public Loader<std::shared_ptr<Shader>,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
     friend class Singleton <ShaderLoader>;
@@ -79,4 +80,6 @@ std::shared_ptr<shader_t> ShaderLoader::loadFromFile(const std::string &name, co
     }
 
     return nullptr;
+}
+
 }

@@ -1,11 +1,9 @@
 #include "saiga/glfw/glfw_eventhandler.h"
-
 #include <saiga/opengl/opengl.h>
 #include <GLFW/glfw3.h>
-
-
 #include "saiga/glfw/glfw_joystick.h"
 
+namespace Saiga {
 
 std::vector<glfw_EventHandler::Listener<glfw_JoystickListener>> glfw_EventHandler::joystickListener;
 std::vector<glfw_EventHandler::Listener<glfw_KeyListener>> glfw_EventHandler::keyListener;
@@ -120,4 +118,6 @@ void glfw_EventHandler::character_callback(GLFWwindow* window, unsigned int code
         if(kl.listener->character_event(window,codepoint))
             return;
     }
+}
+
 }

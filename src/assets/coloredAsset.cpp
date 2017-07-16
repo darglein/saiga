@@ -1,5 +1,6 @@
 #include "saiga/assets/coloredAsset.h"
 
+namespace Saiga {
 
 void TexturedAsset::render(Camera *cam, const mat4 &model)
 {
@@ -44,4 +45,4 @@ void TexturedAsset::renderDepth(Camera *cam, const mat4 &model)
 	 dshader->unbind();
 }
 
-
+}

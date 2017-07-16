@@ -4,6 +4,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/image/glImageFormatMap.h"
 
+namespace Saiga {
 
 template<typename T, ImageElementFormat format>
 struct SAIGA_GLOBAL TexelElementToFloatConversion{
@@ -188,3 +189,5 @@ struct Texel<4,bitDepth,format>{
         a = fromFloatConversion::fromFloat(t.a);
     }
 };
+
+}

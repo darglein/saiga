@@ -1,6 +1,7 @@
 #include "saiga/animation/boneVertex.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 
 BoneVertex::BoneVertex(){
     for (int i = 0; i < MAX_BONES_PER_VERTEX; ++i){
@@ -83,3 +84,4 @@ void VertexBuffer<BoneVertexCD>::setVertexAttributes(){
 
 }
 
+}

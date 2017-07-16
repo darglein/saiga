@@ -1,9 +1,9 @@
 #pragma once
 
-
 #include "saiga/rendering/lighting/light.h"
 #include "saiga/camera/camera.h"
 
+namespace Saiga {
 
 #define MAX_CASCADES 5
 
@@ -120,4 +120,4 @@ public:
     float getAmbientIntensity(){return ambientIntensity;}
 };
 
-
+}

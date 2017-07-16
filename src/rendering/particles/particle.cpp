@@ -1,6 +1,6 @@
 #include "saiga/rendering/particles/particle.h"
 
-
+namespace Saiga {
 
 Particle::Particle()
 {
@@ -48,4 +48,6 @@ void VertexBuffer<Particle>::setVertexAttributes(){
 
     glVertexAttribPointer(6,1, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*) (24 * sizeof(GLfloat)) );
     glVertexAttribIPointer(7,3, GL_INT, sizeof(Particle), (void*) (25 * sizeof(GLfloat)) );
+}
+
 }

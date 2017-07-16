@@ -3,7 +3,7 @@
 #include <saiga/util/joystick.h>
 #include <saiga/config.h>
 
-
+namespace Saiga {
 
 struct SAIGA_GLOBAL glfw_Joystick {
 private:
@@ -22,3 +22,5 @@ public:
     static bool isEnabled(){return joystickId != -1;}
 
 };
+
+}

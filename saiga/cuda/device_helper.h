@@ -1,8 +1,7 @@
 #pragma once
 
-#include "cudaHelper.h"
 #include "saiga/util/assert.h"
-
+#include "saiga/cuda/cudaHelper.h"
 
 #if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
 //atomicAdd is already defined for compute capability 6.x and higher.
@@ -42,6 +41,8 @@ double atomicAdd(double* address, double val)
 #if defined(CUDA_DEBUG)
 
 
+namespace Saiga {
+namespace CUDA {
 __device__ inline
 void cuda_assert_fail (const char *__assertion, const char *__file,
                unsigned int __line, const char *__function){
@@ -56,16 +57,16 @@ void cuda_assert_fail (const char *__assertion, const char *__file,
     //provoke a segfault
      *(int*)0 = 0;
 }
+}
+}
 
 # define CUDA_ASSERT(expr)							\
   ((expr)								\
    ? static_cast<void>(0)						\
-   : cuda_assert_fail (#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION))
+   : Saiga::CUDA::cuda_assert_fail (#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION))
 
 #else
 
 # define CUDA_ASSERT(expr)		( static_cast<void>(0))
 
 #endif
-
-

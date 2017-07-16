@@ -4,6 +4,8 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/texture/texture.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL TextShader : public MVPShader {
 public:
     GLint location_texture;
@@ -24,3 +26,5 @@ public:
 
     void uploadFade(float fade);
 };
+
+}

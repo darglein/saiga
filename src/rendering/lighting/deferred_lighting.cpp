@@ -15,7 +15,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/rendering/renderer.h"
 
-
+namespace Saiga {
 
 DeferredLighting::DeferredLighting(GBuffer &framebuffer):gbuffer(framebuffer){
     createLightMeshes();
@@ -612,3 +612,4 @@ void DeferredLighting::removeLight(std::shared_ptr<BoxLight> l)
 
 }
 
+}

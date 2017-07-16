@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
 #include "saiga/geometry/aabb.h"
@@ -9,7 +8,7 @@
 
 #include <map>
 
-
+namespace Saiga {
 
 class SAIGA_GLOBAL TextureAtlas{
 public:
@@ -95,3 +94,5 @@ private:
     void initFont();
 
 };
+
+}

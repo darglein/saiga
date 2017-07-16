@@ -1,4 +1,3 @@
-
 #ifdef _MSC_VER
 #include <windows.h>
 #endif
@@ -6,9 +5,8 @@
 #include "saiga/cuda/interop.h"
 #include "saiga/cuda/cudaHelper.h"
 
+namespace Saiga {
 namespace CUDA{
-
-
 
 Interop::Interop():mapped(false){
 
@@ -75,5 +73,5 @@ void Interop::initImage(unsigned int gl_buffer, GLenum gl_target)
 
 }
 
-
+}
 }

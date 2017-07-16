@@ -2,6 +2,7 @@
 
 #include "saiga/opengl/opengl.h"
 
+namespace Saiga {
 
 template<class buffer_t>
 class CombinedBuffer {
@@ -25,4 +26,6 @@ void CombinedBuffer<buffer_t>::bindAndDraw() const{
     buffer->bind();
     buffer->draw(count,offset);
     buffer->unbind();
+}
+
 }

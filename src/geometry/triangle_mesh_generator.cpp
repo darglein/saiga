@@ -1,5 +1,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 
+namespace Saiga {
+
 typedef TriangleMesh<VertexNT,GLuint> default_mesh_t;
 
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &sphere, int rings, int sectors){
@@ -335,4 +337,6 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createGridMesh(unsigned i
     }
 
     return std::shared_ptr<default_mesh_t>(mesh);
+}
+
 }

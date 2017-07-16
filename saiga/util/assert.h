@@ -3,11 +3,11 @@
 
 //similar to unix assert.h implementation
 
-
+namespace Saiga {
 SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char *__file,
                unsigned int __line, const char *__function, const char *__message);
 //      throw __attribute__ ((__noreturn__));
-
+}
 
 # if defined WIN32
 #   define SAIGA_ASSERT_FUNCTION	__FUNCSIG__
@@ -31,7 +31,7 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 # define SAIGA_ASSERT_MSG(expr,msg)							\
   ((expr)								\
    ? static_cast<void>(0)						\
-   : saiga_assert_fail (#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION,msg))
+   : Saiga::saiga_assert_fail (#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION,msg))
 
 #else
 

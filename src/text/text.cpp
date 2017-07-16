@@ -2,6 +2,8 @@
 #include "saiga/util/assert.h"
 #include "saiga/text/encoding.h"
 
+namespace Saiga {
+
 Text::Text(TextureAtlas *textureAtlas, const std::string &label, bool normalize):
  normalize(normalize),textureAtlas(textureAtlas){
 
@@ -210,4 +212,6 @@ void Text::addTextToMesh(const utf32string &text, vec2 offset){
         position += info.advance;
         position.x += textureAtlas->additionalCharacterSpacing;
     }
+}
+
 }

@@ -4,6 +4,8 @@
 #include "saiga/util/glm.h"
 #include "saiga/geometry/aabb.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL Sphere
 {
 public:
@@ -33,3 +35,4 @@ public:
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Sphere& dt);
 };
 
+}

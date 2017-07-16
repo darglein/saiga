@@ -1,7 +1,7 @@
 #include "saiga/assets/animatedAsset.h"
 #include "saiga/animation/boneShader.h"
 
-
+namespace Saiga {
 
 
 void AnimatedAsset::render(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices)
@@ -27,4 +27,6 @@ void AnimatedAsset::renderDepth(Camera *cam, const mat4 &model, UniformBuffer &b
     boneMatrices.bind(BONE_MATRICES_BINDING_POINT);
     buffer.bindAndDraw();
     bs->unbind();
+}
+
 }

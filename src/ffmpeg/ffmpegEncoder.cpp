@@ -1,6 +1,7 @@
 #include "saiga/ffmpeg/ffmpegEncoder.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 
 FFMPEGEncoder::FFMPEGEncoder(int bufferSize) : imageStorage(bufferSize + 1), imageQueue(bufferSize), frameStorage(bufferSize + 1), frameQueue(bufferSize)
 {
@@ -303,5 +304,7 @@ void FFMPEGEncoder::createBuffers()
     }
 
 
+
+}
 
 }

@@ -7,7 +7,7 @@
 #include "saiga/cuda/cusparseHelper.h"
 #include <thrust/inner_product.h>
 
-
+namespace Saiga {
 namespace CUDA {
 
 
@@ -182,4 +182,4 @@ void dotTest(){
 }
 
 }
-
+}

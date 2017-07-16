@@ -2,6 +2,8 @@
 
 #include "saiga/opengl/query/timeStampQuery.h"
 
+namespace Saiga {
+
 /**
  * Asynchronous OpenGL GPU timer.
  *
@@ -65,13 +67,4 @@ public:
 
 };
 
-
-
-
-
-
-
-
-
-
-
+}

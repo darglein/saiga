@@ -2,6 +2,8 @@
 
 #include "saiga/opengl/opengl.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL TimeStampQuery{
 private:
 
@@ -27,3 +29,5 @@ public:
      */
     GLuint64 waitTimestamp();
 };
+
+}

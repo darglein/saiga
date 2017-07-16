@@ -4,6 +4,8 @@
 #include <vector>
 #include <iomanip>
 
+namespace Saiga {
+
 class SAIGA_GLOBAL Table{
 private:
     int currentCol = 0;
@@ -35,3 +37,5 @@ public:
     }
 
 };
+
+}

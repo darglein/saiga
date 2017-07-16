@@ -15,6 +15,8 @@
 #include <SDL.h>
 #include <SDL_syswm.h>
 
+namespace Saiga {
+
 // Data
 static double       g_Time = 0.0f;
 static bool         g_MousePressed[3] = { false, false, false };
@@ -406,4 +408,5 @@ void ImGui_SDL_Renderer::checkWindowFocus()
     wantsCaptureMouse |= ImGui::GetIO().WantCaptureMouse;
 }
 
+}
 #endif

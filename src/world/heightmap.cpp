@@ -11,7 +11,7 @@ using namespace noise;
 #undef max
 
 
-
+namespace Saiga {
 
 //typedef u_int32_t height_res_t;
 //typedef u_int64_t height_resn_t;
@@ -410,5 +410,7 @@ void Heightmap::createHeightmaps(){
 
     saveHeightmaps();
     saveNormalmaps();
+
+}
 
 }

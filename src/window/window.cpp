@@ -8,10 +8,13 @@
 
 #include "saiga/util/error.h"
 #include "saiga/framework.h"
+
 #include <cstring>
 #include <vector>
 #include <ctime>
 #include <thread>
+
+namespace Saiga {
 
 using std::cout;
 using std::endl;
@@ -428,4 +431,6 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
 
     auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
     cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames  << endl;
+}
+
 }

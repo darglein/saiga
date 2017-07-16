@@ -6,8 +6,7 @@
 #include <saiga/geometry/plane.h>
 #include <saiga/opengl/uniformBuffer.h>
 
-
-
+namespace Saiga {
 
 using std::string;
 
@@ -167,3 +166,5 @@ struct CameraDataGLSL{
         camera_position = cam->position;
     }
 };
+
+}

@@ -5,7 +5,7 @@
 #include "saiga/rendering/object3d.h"
 #include "saiga/geometry/triangle_mesh.h"
 
-
+namespace Saiga {
 
 class TextShader;
 class TextureAtlas;
@@ -67,3 +67,5 @@ private:
     //adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
     void addTextToMesh(const utf32string &text, vec2 offset=vec2(0));
 };
+
+}

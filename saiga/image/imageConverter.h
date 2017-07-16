@@ -1,8 +1,9 @@
 #pragma once
 
-
 #include "saiga/opengl/opengl.h"
 #include "saiga/image/image.h"
+
+namespace Saiga {
 
 class fipImage;
 namespace PNG{
@@ -26,3 +27,5 @@ public:
 //    static void convert(Image src, fipImage &dest); //copy the src image because we need to flip red and blue :(
 #endif
 };
+
+}

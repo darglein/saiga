@@ -2,6 +2,7 @@
 
 #include "saiga/cuda/cudaHelper.h"
 
+namespace Saiga {
 namespace CUDA {
 
 
@@ -24,4 +25,5 @@ public:
 };
 
 
+}
 }

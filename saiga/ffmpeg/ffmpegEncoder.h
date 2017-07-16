@@ -30,6 +30,8 @@ extern "C"{
 #include "libswscale/swscale.h"
 }
 
+namespace Saiga {
+
 class SAIGA_GLOBAL FFMPEGEncoder{
 private:
     int outWidth, outHeight, inWidth, inHeight;
@@ -84,3 +86,5 @@ public:
     std::shared_ptr<Image> getFrameBuffer();
     void finishEncoding();
 };
+
+}

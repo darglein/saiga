@@ -9,7 +9,7 @@
 
 #include <array>
 
-
+namespace Saiga {
 
 template<typename camera_t>
 class Controllable_Camera : public camera_t{
@@ -155,5 +155,7 @@ void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation){
     if(mouse.getMappedKeyState(Dragging,mousemap)){
         this->mouseRotate(mousedelta.x,mousedelta.y);
     }
+
+}
 
 }

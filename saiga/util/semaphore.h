@@ -1,5 +1,9 @@
+#pragma once
+
 #include <mutex>
 #include <condition_variable>
+
+namespace Saiga {
 
 class Semaphore {
 public:
@@ -42,3 +46,5 @@ private:
     std::condition_variable cv;
     int count;
 };
+
+}

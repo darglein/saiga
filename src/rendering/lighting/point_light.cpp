@@ -2,6 +2,8 @@
 #include "saiga/util/error.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
+
 void PointLightShader::checkUniforms(){
     LightShader::checkUniforms();
     location_position = getUniformLocation("position");
@@ -199,3 +201,4 @@ bool PointLight::cullLight(Camera *cam)
     return culled;
 }
 
+}

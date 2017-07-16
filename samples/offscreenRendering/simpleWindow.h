@@ -12,6 +12,8 @@
 
 #include "saiga/rendering/lighting/directional_light.h"
 
+using namespace Saiga;
+
 class SimpleWindow : public Program
 {
 public:

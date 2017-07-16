@@ -11,6 +11,8 @@
 #include "saiga/rendering/lighting/spot_light.h"
 #include "saiga/rendering/lighting/deferred_lighting.h"
 
+namespace Saiga {
+
 LightingController::LightingController(DeferredLighting& lighting):lighting(lighting){
     glfw_EventHandler::addKeyListener(this,5);
     glfw_EventHandler::addMouseListener(this,5);
@@ -361,4 +363,5 @@ bool LightingController::scroll_event(GLFWwindow* window, double xoffset, double
     return false;
 }
 
+}
 #endif

@@ -7,6 +7,8 @@
 #include "saiga/geometry/triangle.h"
 #include "saiga/geometry/plane.h"
 
+namespace Saiga {
+
 using glm::min;
 using glm::max;
 
@@ -34,3 +36,4 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const Ray& dt);
 };
 
+}

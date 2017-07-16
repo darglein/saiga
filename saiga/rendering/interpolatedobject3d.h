@@ -2,6 +2,8 @@
 
 #include "saiga/rendering/object3d.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL InterpolatedObject3D : public Object3D{
 public:
     mat4 interpolatedmodel = mat4(1);
@@ -16,4 +18,4 @@ public:
 
 };
 
-
+}

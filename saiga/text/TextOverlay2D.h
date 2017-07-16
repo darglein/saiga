@@ -6,6 +6,8 @@
 
 #include <vector>
 
+namespace Saiga {
+
 class TextShader;
 class Text;
 
@@ -34,4 +36,4 @@ private:
     std::shared_ptr<TextShader>  textShader = nullptr;
 };
 
-
+}

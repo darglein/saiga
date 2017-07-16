@@ -1,10 +1,12 @@
 #include "saiga/cuda/cudaTimer.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
+namespace CUDA {
+
 using std::cout;
 using std::endl;
 
-namespace CUDA {
 
 CudaScopedTimer::CudaScopedTimer(float& time) : time(time){
 
@@ -45,5 +47,5 @@ CudaScopedTimerPrint::~CudaScopedTimerPrint(){
     std::cout << name << " : " << time << "ms." << std::endl;
 }
 
-
+}
 }

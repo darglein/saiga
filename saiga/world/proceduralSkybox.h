@@ -7,8 +7,7 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/camera/camera.h"
 
-
-
+namespace Saiga {
 
 class SAIGA_GLOBAL ProceduralSkyboxShader : public MVPShader{
 public:
@@ -32,3 +31,5 @@ public:
 
     void render(Camera *cam);
 };
+
+}

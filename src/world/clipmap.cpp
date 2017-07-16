@@ -1,5 +1,7 @@
 #include "saiga/world/clipmap.h"
 
+namespace Saiga {
+
 IndexedVertexBuffer<Vertex,GLuint> Clipmap::mesh;
 IndexedVertexBuffer<Vertex,GLuint> Clipmap::center;
 IndexedVertexBuffer<Vertex,GLuint> Clipmap::fixupv;
@@ -392,3 +394,5 @@ void Clipmap::render(const IndexedVertexBuffer<Vertex,GLuint> &mesh, vec4 color,
 //    shader->uploadColor(color);
 //    mesh.bindAndDraw();
 //}
+
+}

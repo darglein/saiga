@@ -2,6 +2,8 @@
 #include <vector>
 #include "saiga/util/glm.h"
 
+namespace Saiga {
+
 template <typename P>
 class Bspline{
 public:
@@ -102,3 +104,5 @@ P Bspline<P>::deBoor(int n, int m, P *d, float* t, float u)
 
 //    return tmp[0];
 //}
+
+}

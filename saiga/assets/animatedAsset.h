@@ -4,6 +4,8 @@
 #include <saiga/opengl/texture/texture.h>
 #include "saiga/opengl/uniformBuffer.h"
 
+namespace Saiga {
+
 /**
  *
  * Select Armature and click Rest Position.
@@ -42,3 +44,5 @@ public:
     void render(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices);
     void renderDepth(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices);
 };
+
+}

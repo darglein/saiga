@@ -1,8 +1,8 @@
 #include "saiga/image/image.h"
+#include "saiga/util/assert.h"
 #include <cstring>
 
-#include "saiga/util/assert.h"
-
+namespace Saiga {
 
 int Image::getBytesPerRow() const
 {
@@ -234,4 +234,6 @@ size_t Image::getSize(){
 std::ostream& operator<<(std::ostream& os, const Image& f){
     os << "Image " << f.width << "x" << f.height << " " << f.Format();
     return os;
+}
+
 }

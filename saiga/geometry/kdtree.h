@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <saiga/util/glm.h>
 
+namespace Saiga {
+
 //D : Dimension. for example D=3 for 3 dimensional points
 //point_t : should be a glm vector type. for example vec2 or vec3
 template<int D, typename point_t>
@@ -225,4 +227,4 @@ void KDTree<D,point_t>::printPoints(index_t startIndex, index_t endIndex)
     }
 }
 
-
+}

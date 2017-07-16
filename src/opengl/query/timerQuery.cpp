@@ -1,6 +1,7 @@
 #include "saiga/opengl/query/timerQuery.h"
 #include <algorithm> 
 
+namespace Saiga {
 
 TimerQuery::TimerQuery()
 {
@@ -63,4 +64,4 @@ GLuint64 TimerQuery::getTimeNS()
     return time;
 }
 
-
+}

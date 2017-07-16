@@ -11,7 +11,7 @@
  * This allows for a simple conversion of vec3 -> string
  */
 
-namespace saiga {
+namespace Saiga {
 
 inline std::string to_string(int v)                 { return std::to_string(v); }
 inline std::string to_string(long v)                { return std::to_string(v); }

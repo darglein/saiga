@@ -1,10 +1,9 @@
 #pragma once
-
-#include <type_traits>
 #include "saiga/opengl/templatedBuffer.h"
-
-
+#include <type_traits>
 #include <vector>
+
+namespace Saiga {
 
 /**
  * Converting the template argument to a GLenum with template spezialisation.
@@ -55,4 +54,6 @@ inline void IndexBuffer<index_t>::unbind() const{
     // may also bind the default object, even though it is not returned by Gen*.
 
     //      glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+}
+
 }

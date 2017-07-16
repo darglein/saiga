@@ -1,6 +1,8 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/util/error.h"
 
+namespace Saiga {
+
 Framebuffer::Framebuffer(){
 
 }
@@ -60,7 +62,7 @@ void Framebuffer::check(){
         case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:          std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n") << std::endl;           break;
         case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:  std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n") << std::endl;   break;
         case GL_FRAMEBUFFER_UNSUPPORTED:                    std::cerr <<("GL_FRAMEBUFFER_UNSUPPORTED\n")<< std::endl ;                     break;
-        default:                                            std::cerr <<"Unknown issue " << status << std::endl;                     break;
+        default:                                            std::cerr <<"Unknown issue " << (int)status << std::endl;                     break;
         }
 
         std::cerr << "Framebuffer error!" << std::endl;
@@ -149,4 +151,6 @@ void Framebuffer::resize(int width, int height)
         stencilBuffer->resize(width,height);
     for(framebuffer_texture_t t : colorBuffers)
         t->resize(width,height);
+}
+
 }

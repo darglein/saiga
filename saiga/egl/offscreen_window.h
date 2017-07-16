@@ -3,6 +3,7 @@
 #include <saiga/config.h>
 #include "saiga/window/window.h"
 
+namespace Saiga {
 
 typedef void *EGLDisplay;
 typedef void *EGLSurface;
@@ -31,3 +32,4 @@ public:
     OffscreenWindow(WindowParameters windowParameters);
 };
 
+}

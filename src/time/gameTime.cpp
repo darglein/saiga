@@ -1,6 +1,8 @@
 #include "saiga/time/gameTime.h"
 #include "saiga/util/glm.h"
 
+namespace Saiga {
+
 GameTime gameTime;
 
 void GameTime::init(tick_t _dt, tick_t _dtr)
@@ -108,4 +110,6 @@ tick_t GameTime::getSleepTime()
 
     tick_t nextEvent = timeTillU < timeTillR? timeTillU: timeTillR;
     return nextEvent;
+}
+
 }

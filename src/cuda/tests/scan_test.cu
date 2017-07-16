@@ -5,9 +5,8 @@
 #include "saiga/time/timer.h"
 #include "saiga/cuda/scan.h"
 
+namespace Saiga {
 namespace CUDA {
-
-
 
 void scanTest(){
 
@@ -135,6 +134,4 @@ void scanTest(){
 }
 
 }
-
-
-
+}

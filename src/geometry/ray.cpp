@@ -1,5 +1,6 @@
 #include "saiga/geometry/ray.h"
 
+namespace Saiga {
 
 Ray::Ray(const vec3 &dir , const vec3 &ori) :direction(dir), origin(ori){
 	dirfrac.x = 1.0f / direction.x;
@@ -139,4 +140,6 @@ SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Ray& r)
 {
     std::cout<<"Ray: " << r.origin << " " << r.direction;
     return os;
+}
+
 }

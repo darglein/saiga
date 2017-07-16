@@ -5,8 +5,7 @@
 #include <cublas_v2.h>
 #include <cusparse.h>
 
-
-
+namespace Saiga {
 namespace CUDA{
 
 
@@ -20,4 +19,5 @@ SAIGA_GLOBAL extern bool isBLASSPARSEInitialized();
 
 SAIGA_GLOBAL extern void runBLASSPARSETests();
 
+}
 }

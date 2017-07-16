@@ -6,6 +6,8 @@
 #include <vector>
 #include "saiga/geometry/triangle.h"
 
+namespace Saiga{
+
 class SAIGA_GLOBAL AABB
 {
 public:
@@ -27,7 +29,7 @@ public:
     void growBox(const AABB &v);
 
     void transform(const mat4 &trafo);
-	void translate(const vec3 &v);
+    void translate(const vec3 &v);
     void scale(const vec3 &s);
     float height(){ return max.y-min.y;}
     void ensureValidity();
@@ -60,3 +62,5 @@ public:
 };
 
 #include "saiga/geometry/aabb.inl"
+
+}

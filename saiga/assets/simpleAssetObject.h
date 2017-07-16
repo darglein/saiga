@@ -3,6 +3,7 @@
 #include "saiga/config.h"
 #include "saiga/rendering/object3d.h"
 
+namespace Saiga {
 
 class Asset;
 class Camera;
@@ -16,3 +17,5 @@ public:
     void renderWireframe(Camera *cam);
     void renderRaw();
 };
+
+}

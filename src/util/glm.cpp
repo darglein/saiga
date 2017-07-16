@@ -1,5 +1,7 @@
 #include "saiga/util/glm.h"
 
+namespace glm {
+
 std::ostream& operator<<(std::ostream& os, const vec4& v)
 {
     os<<"("<<v.x<<","<<v.y<<","<<v.z<<","<<v.w<<")";
@@ -80,7 +82,7 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v){
 }
 
 
-
+}
 
 // ===========================================================================
 

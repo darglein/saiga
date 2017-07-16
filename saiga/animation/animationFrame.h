@@ -6,6 +6,8 @@
 #include <vector>
 #include <map>
 
+namespace Saiga {
+
 class Animation;
 
 class SAIGA_GLOBAL AnimationNode{
@@ -56,4 +58,4 @@ public:
     void setBoneMatrices(const std::vector<mat4> &value);
 };
 
-
+}

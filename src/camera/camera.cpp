@@ -1,5 +1,7 @@
 #include "saiga/camera/camera.h"
 
+namespace Saiga {
+
 #define ANG2RAD 3.14159265358979323846/180.0
 
 Camera::Camera()
@@ -318,3 +320,4 @@ std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca){
     return os;
 }
 
+}

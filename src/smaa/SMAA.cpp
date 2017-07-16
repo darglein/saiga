@@ -1,11 +1,12 @@
 #include "saiga/smaa/SMAA.h"
 #include "saiga/smaa/AreaTex.h"
 #include "saiga/smaa/SearchTex.h"
-
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/image/imageGenerator.h"
 #include "saiga/rendering/gbuffer.h"
+
+namespace Saiga {
 
 void SMAABlendingWeightCalculationShader::checkUniforms()
 {
@@ -220,6 +221,4 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer &output)
 
 }
 
-
-
-
+}

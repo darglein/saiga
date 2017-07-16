@@ -2,6 +2,7 @@
 
 #include "saiga/opengl/texture/raw_texture.h"
 
+namespace Saiga {
 
 /*
  *  From Stackoverflow:
@@ -31,3 +32,4 @@ public:
     bool fromImage(std::vector<Image> &images);
 };
 
+}

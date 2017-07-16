@@ -1,8 +1,10 @@
 #include "saiga/util/translator.h"
+#include "saiga/util/assert.h"
 
 #include <fstream>
 #include <algorithm>
-#include "saiga/util/assert.h"
+
+namespace Saiga {
 
 using std::cout;
 using std::endl;
@@ -242,4 +244,6 @@ std::string Translator::translate(const std::string &key,const std::string &note
     }
 
     return translationMap[key].translation;
+}
+
 }

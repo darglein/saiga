@@ -1,5 +1,7 @@
 #include "saiga/world/terrainmesh.h"
 
+namespace Saiga {
+
 TerrainMesh::TerrainMesh(){
 
 
@@ -121,7 +123,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated(){
     vec2 d[] = {vec2(dx,0),vec2(dx,0),vec2(0,dx),vec2(0,dx)};
     vec2 o[] = {vec2(0.5),vec2(0.5,-3.5-(dx)),vec2(0.5),vec2(-3.5-(dx),0.5)};
 
-//    int orientation[] = {1,0,0,1};
+    //    int orientation[] = {1,0,0,1};
 
 
 
@@ -150,10 +152,10 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated(){
             GLuint face1[] = {offset+idx,offset+idx+1,offset+idx+2};
             GLuint face2[] = {offset+idx,offset+idx+2,offset+idx+1};
 
-//            if(orientation[i])
-                mesh->addFace(face1);
-//            else
-                mesh->addFace(face2);
+            //            if(orientation[i])
+            mesh->addFace(face1);
+            //            else
+            mesh->addFace(face2);
         }
 
 
@@ -198,4 +200,6 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createGridMesh(unsigned int w,
     }
 
     return std::shared_ptr<TerrainMesh::mesh_t>(mesh);
+}
+
 }

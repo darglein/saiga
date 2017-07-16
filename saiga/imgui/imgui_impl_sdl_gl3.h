@@ -1,7 +1,13 @@
 #pragma once
+
 #include "saiga/opengl/opengl.h"
 #include <saiga/imgui/imgui.h>
 #include <saiga/sdl/sdl_eventhandler.h>
+
+struct SDL_Window;
+typedef union SDL_Event SDL_Event;
+
+namespace Saiga {
 
 // ImGui SDL2 binding with OpenGL3
 // In this binding, ImTextureID is used to store an OpenGL 'GLuint' texture identifier. Read the FAQ about ImTextureID in imgui.cpp.
@@ -11,8 +17,6 @@
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 // https://github.com/ocornut/imgui
 
-struct SDL_Window;
-typedef union SDL_Event SDL_Event;
 
 class SAIGA_GLOBAL ImGui_SDL_Renderer : public SDL_EventListener{
 protected:
@@ -33,3 +37,5 @@ void        ImGui_ImplSdlGL3_InvalidateDeviceObjects();
 bool        ImGui_ImplSdlGL3_CreateDeviceObjects();
 bool        processEvent(const SDL_Event& event);
 };
+
+}

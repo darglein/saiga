@@ -5,9 +5,8 @@
 #include <AL/alc.h>
 
 
-
+namespace Saiga {
 namespace sound {
-
 
 SoundSource::SoundSource(Sound *sound) : sound(sound){
     alGenSources(1, &source);
@@ -135,5 +134,5 @@ void SoundSource::makeBackground()
     assert_no_alerror();
 }
 
-
+}
 }

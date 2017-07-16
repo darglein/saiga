@@ -3,11 +3,11 @@
 #include "saiga/cuda/common.h"
 
 #include <thrust/device_vector.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
 
+namespace Saiga {
 
 //Thanks to Johannes Pieger
 
@@ -129,3 +129,4 @@ auto make_array_view(Container const& cont) -> array_view<typename std::remove_r
     return array_view<type>(cont);
 }
 
+}

@@ -1,6 +1,7 @@
 #include "saiga/util/keyboard.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 
 Keyboard keyboard(1024);
 
@@ -52,4 +53,6 @@ void Keyboard::printKeyState()
         std::cout << k << ",";
     }
     std::cout << "]" << std::endl;
+}
+
 }

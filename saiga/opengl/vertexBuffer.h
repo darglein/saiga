@@ -4,8 +4,9 @@
 #include "saiga/opengl/instancedBuffer.h"
 #include "saiga/opengl/opengl.h"
 
-
 #include <vector>
+
+namespace Saiga {
 
 using std::cerr;
 using std::cout;
@@ -264,4 +265,4 @@ void VertexBuffer<vertex_t>::setVertexAttributes(){
     SAIGA_ASSERT(0);
 }
 
-
+}

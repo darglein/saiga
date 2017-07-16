@@ -16,6 +16,7 @@
 #include <assimp/postprocess.h> // Post processing flags
 #include <assimp/cimport.h>
 
+namespace Saiga {
 
 /**
  * @brief The AssimpLoader class
@@ -368,4 +369,4 @@ void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
 }
 
-
+}

@@ -1,8 +1,9 @@
 #pragma once
 
-
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/util/assert.h"
+
+namespace Saiga {
 
 class SAIGA_GLOBAL Shadowmap{
 private:
@@ -47,3 +48,4 @@ public:
     void createCascaded(int w, int h, int numCascades, ShadowQuality quality = LOW);
 };
 
+}

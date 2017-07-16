@@ -1,12 +1,11 @@
 #include "saiga/cuda/cudaHelper.h"
-
 #include "saiga/util/assert.h"
+
+namespace Saiga {
+namespace CUDA {
 
 using std::cout;
 using std::endl;
-
-namespace CUDA {
-
 
 void assert_no_cuda_error(cudaError_t code,const char *file, int line) {
     if (code != cudaSuccess) {
@@ -209,5 +208,5 @@ void destroyCUDA(){
     cudaDeviceReset();
 }
 
-
+}
 }

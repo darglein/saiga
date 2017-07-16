@@ -3,9 +3,10 @@
 #include <saiga/assets/asset.h>
 #include <saiga/opengl/texture/texture.h>
 
+namespace Saiga {
+
 class SAIGA_GLOBAL ColoredAsset : public BasicAsset<VertexNC,GLuint>{
 };
-
 
 class SAIGA_GLOBAL TexturedAsset : public BasicAsset<VertexNTD,GLuint>{
 public:
@@ -21,3 +22,5 @@ public:
     virtual void renderDepth(Camera *cam, const mat4 &model) override;
 
 };
+
+}

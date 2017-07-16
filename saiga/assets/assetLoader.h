@@ -5,6 +5,8 @@
 #include <saiga/assets/animatedAsset.h>
 #include "saiga/animation/boneShader.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL AssetLoader2{
 public:
     std::shared_ptr<MVPShader> basicAssetShader  = nullptr;
@@ -40,3 +42,5 @@ public:
     std::shared_ptr<ColoredAsset> assetFromMesh(std::shared_ptr<TriangleMesh<VertexNT,GLuint>> mesh, const vec4& color=vec4(1,1,1,1));
 
 };
+
+}

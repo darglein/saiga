@@ -5,9 +5,8 @@
 #include <saiga/util/glm.h>
 #include <saiga/sound/Sound.h>
 
+namespace Saiga {
 namespace sound {
-
-
 
 class SAIGA_GLOBAL SoundSource{
 //    ALuint source;
@@ -48,7 +47,5 @@ public:
     void unloadSound();
 };
 
-
-
 }
-
+}

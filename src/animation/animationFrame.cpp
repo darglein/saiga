@@ -3,6 +3,8 @@
 
 #include "saiga/util/assert.h"
 
+namespace Saiga {
+
 using std::cout;
 using std::endl;
 
@@ -101,5 +103,4 @@ void AnimationFrame::setBoneMatrices(const std::vector<mat4> &value)
     boneMatrices = value;
 }
 
-
-
+}

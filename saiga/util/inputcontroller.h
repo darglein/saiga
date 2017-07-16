@@ -1,14 +1,15 @@
 #pragma once
 
 #include <saiga/config.h>
+#include "saiga/util/glm.h"
+
 #include <map>
-
 #include <functional>
-
 #include <vector>
 #include <algorithm>
 #include <cstdarg>
-#include "saiga/util/glm.h"
+
+namespace Saiga {
 
 #define IC InputController::getInstance()
 #define ICPARAMS InputController::Operation::Arguments &args
@@ -120,4 +121,6 @@ T InputController::Operation::Arguments::next(T (*arg)(const std::string&,std::s
         valid = false;
     }
     return i;
+}
+
 }

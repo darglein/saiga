@@ -1,7 +1,7 @@
 #include "saiga/rendering/particles/particle_shader.h"
-
 #include "saiga/opengl/texture/raw_texture.h"
 
+namespace Saiga {
 
 void ParticleShader::checkUniforms()
 {
@@ -45,4 +45,6 @@ void DeferredParticleShader::uploadDepthTexture(std::shared_ptr<raw_Texture> tex
 void DeferredParticleShader::uploadCameraParameters(vec2 cp)
 {
     Shader::upload(location_cameraParameters,cp);
+}
+
 }

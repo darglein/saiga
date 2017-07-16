@@ -5,7 +5,7 @@
 #include "saiga/time/timer.h"
 #include "saiga/cuda/reduce.h"
 
-
+namespace Saiga {
 namespace CUDA {
 
 
@@ -104,5 +104,5 @@ void reduceTest(){
     CUDA_SYNC_CHECK_ERROR();
 }
 
-
+}
 }

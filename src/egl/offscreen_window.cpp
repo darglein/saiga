@@ -1,12 +1,10 @@
-
 #include "saiga/egl/offscreen_window.h"
 #include "saiga/rendering/deferred_renderer.h"
-
-
 #include "saiga/util/assert.h"
 
-
 #include <EGL/egl.h>
+
+namespace Saiga {
 
 OffscreenWindow::OffscreenWindow(WindowParameters windowParameters):OpenGLWindow(windowParameters)
 {
@@ -65,4 +63,4 @@ bool OffscreenWindow::initWindow(){
     return true;
 }
 
-
+}

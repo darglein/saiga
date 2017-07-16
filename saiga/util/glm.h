@@ -88,6 +88,9 @@ using std::endl;
 
 //======= Output stream operator overloads =========
 
+namespace glm {
+
+
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec4& v);
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dvec4& v);
 
@@ -110,6 +113,7 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec3& v);
 SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec4& v);
 SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v);
 
+}
 //============== Helper functions =================
 
 

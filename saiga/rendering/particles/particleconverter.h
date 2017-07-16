@@ -2,9 +2,10 @@
 
 #include <algorithm>
 #include <vector>
-//#include "saiga/rendering/particles/particle.h"
 #include "saiga/geometry/aabb.h"
 #include "saiga/geometry/triangle.h"
+
+namespace Saiga {
 
 class SAIGA_GLOBAL Particleconverter
 {
@@ -19,4 +20,4 @@ private:
     void voxelizeRange(std::vector<vec3> &points, vec3 start, vec3 end);
 };
 
-
+}

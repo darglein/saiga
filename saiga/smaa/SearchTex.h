@@ -30,6 +30,8 @@
 #ifndef SEARCHTEX_H
 #define SEARCHTEX_H
 
+namespace Saiga {
+
 #define SEARCHTEX_WIDTH 64
 #define SEARCHTEX_HEIGHT 16
 #define SEARCHTEX_PITCH SEARCHTEX_WIDTH
@@ -129,4 +131,5 @@ static const unsigned char searchTexBytes[] = {
     0x00, 0x00, 0x00, 0x00,
 };
 
+}
 #endif

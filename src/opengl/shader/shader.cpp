@@ -5,6 +5,8 @@
 #include <algorithm>
 #include "saiga/util/assert.h"
 
+namespace Saiga {
+
 GLuint Shader::boundShader = 0;
 
 Shader::Shader(){
@@ -245,7 +247,7 @@ void Shader::getUniformInfo(GLuint location){
 	cout << "name " << name << endl;
 	//    cout<<"length "<<length<<endl;
 	cout << "size " << size << endl;
-	cout << "type " << type << endl;
+    cout << "type " << (int)type << endl;
 }
 
 // ===================================== uniform blocks =====================================
@@ -395,3 +397,5 @@ void Shader::upload(int location, std::shared_ptr<raw_Texture> texture, int text
 //{
 //    upload(location,texture.get(),textureUnit);
 //}
+
+}

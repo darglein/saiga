@@ -1,5 +1,7 @@
 #include "saiga/util/color.h"
 
+namespace Saiga {
+
 Color::Color() : r(255), g(255),b(255),a(255){
 
 }
@@ -93,3 +95,4 @@ vec3 Color::linearrgb2xyz(vec3 c)
     return vec3(X,Y,Z);
 }
 
+}

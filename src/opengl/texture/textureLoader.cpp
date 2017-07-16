@@ -7,6 +7,8 @@
 #endif
 #include "saiga/image/png_wrapper.h"
 
+namespace Saiga {
+
 bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {
     return std::tie(lhs.srgb) == std::tie(rhs.srgb);
 }
@@ -110,6 +112,6 @@ bool TextureLoader::saveImage(const std::string &path, Image &image) const
     return erg;
 }
 
-
+}
 
 

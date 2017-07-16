@@ -6,9 +6,9 @@
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/shfl_helper.h"
 #include "saiga/cuda/shuffle_copy.h"
+
+namespace Saiga {
 namespace CUDA {
-
-
 
 template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
@@ -619,4 +619,5 @@ void coalescedCopyTest(){
     CUDA_SYNC_CHECK_ERROR();
 }
 
+}
 }

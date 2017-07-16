@@ -13,10 +13,12 @@ typedef int MemoryBarrierMask;
 #include <glbinding/Binding.h>
 //make sure nobody else includes gl.h after this
 #define __gl_h_
+//todo: fix glbinding support
 using namespace gl;
 #define GLFW_INCLUDE_NONE
 #endif
 
+namespace Saiga {
 
 SAIGA_GLOBAL void initOpenGL();
 SAIGA_GLOBAL void terminateOpenGL();
@@ -39,3 +41,5 @@ enum class OpenGLVendor{
 };
 
 SAIGA_GLOBAL OpenGLVendor getOpenGLVendor();
+
+}

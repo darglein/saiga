@@ -8,7 +8,7 @@
 #include "saiga/util/color.h"
 #include <vector>
 
-
+namespace Saiga {
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB=false>
 class SAIGA_GLOBAL TemplatedImage : public Image{
@@ -152,3 +152,4 @@ TemplatedImage<OTHER_CHANNELS,OTHER_BITDEPTH,OTHER_FORMAT,OTHER_SRGB> TemplatedI
     return img;
 }
 
+}

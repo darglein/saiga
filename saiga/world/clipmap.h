@@ -9,6 +9,7 @@
 #include "saiga/world/terrainmesh.h"
 #include "saiga/camera/camera.h"
 
+namespace Saiga {
 
 class SAIGA_GLOBAL TerrainShader : public MVPTextureShader{
 public:
@@ -98,3 +99,5 @@ private:
     void renderBlocks();
 
 };
+
+}

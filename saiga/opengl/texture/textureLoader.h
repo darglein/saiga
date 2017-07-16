@@ -5,7 +5,7 @@
 #include "saiga/util/loader.h"
 #include "saiga/util/singleton.h"
 
-
+namespace Saiga {
 
 struct SAIGA_GLOBAL TextureParameters{
     bool srgb = true;
@@ -33,3 +33,4 @@ public:
     std::shared_ptr<Texture> textureFromImage(Image &im, const TextureParameters &params) const;
 };
 
+}

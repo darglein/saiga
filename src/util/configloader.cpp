@@ -1,5 +1,7 @@
 #include "saiga/util/configloader.h"
 
+namespace Saiga {
+
 using std::cout;
 using std::endl;
 
@@ -229,7 +231,4 @@ void ConfigLoader::setInt(const std::string &key, int value, const std::string &
     }
 }
 
-
-
-
-
+}

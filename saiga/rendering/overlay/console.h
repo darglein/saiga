@@ -1,11 +1,10 @@
 #pragma once
 
 #include <saiga/config.h>
-
-
 #include <sstream>
 #include <vector>
 
+namespace Saiga {
 
 class SAIGA_GLOBAL Console : public std::ostream {
 private:
@@ -37,5 +36,4 @@ public:
 
 };
 
-
-
+}

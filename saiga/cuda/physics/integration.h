@@ -3,8 +3,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/cuda/cudaHelper.h"
 
-
-
+namespace Saiga {
 namespace CUDA{
 
 
@@ -59,4 +58,5 @@ HD void integrateEuler(vec3& p, vec3& v, const vec3& a, float dT)
 }
 
 
+}
 }

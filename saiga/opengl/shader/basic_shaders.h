@@ -2,6 +2,8 @@
 
 #include "saiga/opengl/shader/shader.h"
 
+namespace Saiga {
+
 class Camera;
 class Framebuffer;
 class GBuffer;
@@ -56,6 +58,4 @@ public:
     void uploadScreenSize(vec2 sc){Shader::upload(location_screen_size,sc);}
 };
 
-
-
-
+}

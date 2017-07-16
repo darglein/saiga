@@ -3,6 +3,8 @@
 #include <saiga/config.h>
 #include "saiga/util/glm.h"
 
+namespace Saiga {
+
 using glm::min;
 using glm::max;
 
@@ -23,3 +25,4 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const Triangle& dt);
 };
 
+}

@@ -8,6 +8,8 @@
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/util/quality.h"
 
+namespace Saiga {
+
 class SAIGA_GLOBAL PostProcessingShader : public Shader{
 public:
     GLint location_texture, location_screenSize;
@@ -94,3 +96,5 @@ public:
     framebuffer_texture_t getCurrentTexture();
     Framebuffer &getTargetBuffer();
 };
+
+}

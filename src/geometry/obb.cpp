@@ -1,5 +1,7 @@
 #include "saiga/geometry/obb.h"
 
+namespace Saiga {
+
 void OBB::setOrientationScale(vec3 x, vec3 y, vec3 z)
 {
     orientationScale[0] = x;
@@ -32,4 +34,6 @@ void OBB::normalize()
     orientationScale[0] = glm::normalize( orientationScale[0] );
     orientationScale[1] = glm::normalize( orientationScale[1] );
     orientationScale[2] = glm::normalize( orientationScale[2] );
+}
+
 }

@@ -3,6 +3,8 @@
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
+
 /**
  *  Requires OpenGL 4.0+
  */
@@ -46,4 +48,6 @@ void TesselatedIndexedVertexBuffer<vertex_t,index_t>::bind() const{
     ivbuffer_t::bind();
     glPatchParameteri(GL_PATCH_VERTICES, patchSize);
     assert_no_glerror();
+}
+
 }

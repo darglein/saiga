@@ -2,6 +2,7 @@
 #include "saiga/image/templatedImage.h"
 #include "saiga/util/assert.h"
 
+namespace Saiga {
 
 void asksdfkg(){
     Texel<2,8,ImageElementFormat::SignedIntegral> t;
@@ -228,3 +229,4 @@ std::ostream& operator<<(std::ostream& os, const ImageFormat& f){
     return os;
 }
 
+}

@@ -1,13 +1,13 @@
-
 #pragma once
 
-
-#include <map>
-#include <vector>
 #include <saiga/config.h>
 #include <saiga/util/glm.h>
 #include <saiga/util/keyboard.h>
 
+#include <map>
+#include <vector>
+
+namespace Saiga {
 
 class SAIGA_GLOBAL Mouse : public Keyboard{
 protected:
@@ -26,4 +26,4 @@ public:
 
 extern SAIGA_GLOBAL Mouse mouse;
 
-
+}

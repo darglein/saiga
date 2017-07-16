@@ -1,5 +1,6 @@
 #include "saiga/rendering/overlay/Layout.h"
 
+namespace Saiga {
 
 Layout::Layout(int width, int height):width(width),height(height) {
     init(width,height);
@@ -213,5 +214,4 @@ vec2 Layout::transformToLocalNormalized(vec2 p)
     return vec2(p.x/width,p.y/height);
 }
 
-
-
+}

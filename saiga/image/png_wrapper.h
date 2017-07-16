@@ -1,5 +1,6 @@
 #pragma once
 
+
 /*
  * credits for write PNG:
  * http://www.libpng.org/pub/png/book/chapter15.html
@@ -16,6 +17,7 @@
 #include <png.h>
 #include <vector>
 
+namespace Saiga {
 
 namespace PNG{
 using uchar = unsigned char;
@@ -53,5 +55,6 @@ using uchar = unsigned char;
 
 }
 
+}
 #endif
 

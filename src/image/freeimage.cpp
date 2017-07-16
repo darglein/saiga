@@ -1,11 +1,11 @@
 #include "saiga/image/freeimage.h"
+#include "saiga/util/assert.h"
 
 #include <FreeImagePlus.h>
-#include "saiga/util/assert.h"
 #include <cstring>
 
+namespace Saiga {
 namespace FIP {
-
 
 bool load(const std::string &path, Image &img, ImageMetadata *metaData)
 {
@@ -243,4 +243,5 @@ void printAllMetaData(fipImage &img)
 }
 
 
+}
 }

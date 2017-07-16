@@ -2,7 +2,7 @@
 #include <glm/gtc/epsilon.hpp>
 #include "saiga/util/assert.h"
 
-
+namespace Saiga {
 
 int AABB::maxDimension()
 {
@@ -172,6 +172,9 @@ std::vector<Triangle> AABB::toTriangles()
 
 std::ostream& operator<<(std::ostream& os, const AABB& bb)
 {
+     sampleCone(bb.min,5);
     std::cout<<"AABB: " << bb.min << " " << bb.max;
     return os;
+}
+
 }

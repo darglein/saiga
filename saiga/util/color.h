@@ -1,8 +1,8 @@
 #pragma once
 
-
 #include "saiga/util/glm.h"
 
+namespace Saiga {
 
 class SAIGA_GLOBAL Color{
 public:
@@ -216,4 +216,6 @@ static const Color lightgray = Color(211,211,211);
 static const Color gainsboro = Color(220,220,220);
 static const Color whitesmoke = Color(245,245,245);
 static const Color white = Color(255,255,255);
+}
+
 }

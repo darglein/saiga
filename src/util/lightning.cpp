@@ -1,8 +1,6 @@
 #include "saiga/util/lightning.h"
 
-
-
-
+namespace Saiga {
 
 std::vector<Lightning::LineSegment> Lightning::createLightningBolt(vec3 startPoint, vec3 endPoint, int generations, float offsetAmount, float splitProbability, float splitLength, float splitIntensityDrop)
 {
@@ -50,4 +48,6 @@ std::vector<Lightning::LineSegment> Lightning::createLightningBolt(vec3 startPoi
     }
 
     return segmentList;
+}
+
 }

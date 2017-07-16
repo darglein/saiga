@@ -2,6 +2,8 @@
 
 #include "saiga/config.h"
 
+namespace Saiga {
+
 struct SAIGA_GLOBAL ImageMetadata{
     int width = 0;
     int height = 0;
@@ -24,3 +26,5 @@ struct SAIGA_GLOBAL ImageMetadata{
 
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const ImageMetadata& d);
 };
+
+}

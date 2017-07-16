@@ -4,6 +4,7 @@
 #include "saiga/util/error.h"
 #include <vector>
 
+namespace Saiga {
 
 /**
  * @brief The Buffer class
@@ -143,4 +144,6 @@ inline void Buffer::unmapBuffer()
 {
     glUnmapBuffer(target);
     assert_no_glerror();
+}
+
 }
