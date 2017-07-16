@@ -19,15 +19,12 @@
 
 #include "thrust_helper.h"
 
-namespace Saiga {
-namespace CUDA {
-
 
 # define CHECK_CUDA_ERROR(cudaFunction) {							\
   cudaError_t  cudaErrorCode = cudaFunction;                                                       \
   ((cudaErrorCode == cudaSuccess)								\
    ? static_cast<void>(0)						\
-   : saiga_assert_fail (#cudaFunction " == cudaSuccess", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION,cudaGetErrorString(cudaErrorCode))); \
+   : Saiga::saiga_assert_fail (#cudaFunction " == cudaSuccess", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION,cudaGetErrorString(cudaErrorCode))); \
 }
 
 #if defined(CUDA_DEBUG)
@@ -37,20 +34,21 @@ namespace CUDA {
 #endif
 
 
+
+namespace Saiga {
+namespace CUDA {
+
 template<typename T1, typename T2>
 __host__ __device__ constexpr
 T1 getBlockCount(T1 problemSize, T2 threadCount){
     return ( problemSize + (threadCount - T2(1)) ) / (threadCount);
 }
 
-
-
-
-#define THREAD_BLOCK(_problemSize, _threadCount) getBlockCount(_problemSize,_threadCount) , _threadCount
-
-
 SAIGA_GLOBAL extern void initCUDA();
 SAIGA_GLOBAL extern void destroyCUDA();
 
 }
 }
+
+
+#define THREAD_BLOCK(_problemSize, _threadCount) Saiga::CUDA::getBlockCount(_problemSize,_threadCount) , _threadCount
