@@ -10,6 +10,10 @@
 
 namespace Saiga {
 
+//TODO: Better bitmap to sdf conversion
+//Paper: Distance Transforms of Sampled Functions
+//https://cs.brown.edu/~pff/papers/dt-final.pdf
+
 class SAIGA_GLOBAL TextureAtlas{
 public:
     struct character_info {
