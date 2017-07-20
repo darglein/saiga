@@ -1,9 +1,3 @@
-/**
- * Copyright (c) 2017 Darius Rückert 
- * Licensed under the MIT License.
- * See LICENSE file for more information.
- */
-
 // [ImGui] this is a slightly modified version of stb_truetype.h 1.8
 // [ImGui] - fixed a state corruption/crash bug in stb_text_redo and stb_textedit_discard_redo (#715)
 // [ImGui] - fixed a crash bug in stb_textedit_discard_redo (#681)

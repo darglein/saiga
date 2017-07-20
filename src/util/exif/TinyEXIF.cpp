@@ -1,9 +1,3 @@
-/**
- * Copyright (c) 2017 Darius Rückert 
- * Licensed under the MIT License.
- * See LICENSE file for more information.
- */
-
 /*
   TinyEXIF.cpp -- A simple ISO C++ library to parse basic EXIF and XMP
                   information from a JPEG file.
