@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 // stb_truetype.h - v1.10 - public domain
 // authored from 2009-2015 by Sean Barrett / RAD Game Tools
 //

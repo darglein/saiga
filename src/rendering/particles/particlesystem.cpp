@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/rendering/particles/particlesystem.h"
 #include "saiga/opengl/texture/arrayTexture.h"
 #include "saiga/rendering/particles/particle_shader.h"

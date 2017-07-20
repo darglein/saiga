@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"

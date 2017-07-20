@@ -1,4 +1,10 @@
 /**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+/**
  * Copyright (C) 2013 Jorge Jimenez (jorge@iryoku.com)
  * Copyright (C) 2013 Jose I. Echevarria (joseignacioechevarria@gmail.com)
  * Copyright (C) 2013 Belen Masia (bmasia@unizar.es)

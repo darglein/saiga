@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 // (c) Seth Heeren 2013
 //
 // Based on src/opus_demo.c in opus-1.0.2

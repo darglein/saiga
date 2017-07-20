@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/rendering/lighting/shadowmap.h"
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/util/error.h"
