@@ -25,8 +25,10 @@
 
 #include "saiga/opengl/opengl.h"
 #include <saiga/imgui/imgui.h>
-#include <saiga/sdl/sdl_eventhandler.h>
 
+
+#ifdef SAIGA_USE_SDL
+#include <saiga/sdl/sdl_eventhandler.h>
 struct SDL_Window;
 typedef union SDL_Event SDL_Event;
 
@@ -62,3 +64,5 @@ bool        processEvent(const SDL_Event& event);
 };
 
 }
+
+#endif

@@ -183,11 +183,11 @@ endif()
 
 
 #eigen
-find_package(Eigen3 REQUIRED)
-if(EIGEN_FOUND OR EIGEN3_FOUND)
-	include_directories(${EIGEN3_INCLUDE_DIRS})
+find_package(Eigen)
+if(EIGEN_FOUND)
+	include_directories(${EIGEN_INCLUDE_DIRS})
 	SET(SAIGA_USE_EIGEN 1)
-	message(STATUS "Found Eigen3: ${EIGEN3_INCLUDE_DIRS}")
+	message(STATUS "Found Eigen3: ${EIGEN_INCLUDE_DIRS}")
 endif()
 
 
@@ -222,16 +222,6 @@ if(CUDA_FOUND)
 
 	SET(SAIGA_USE_CUDA 1)
 endif()
-
-
-
-
-
-#my laptop only supports Compute capabilities 3.0
-
-#for the frontlab sm_52 is enough
-
-
 
 
 
@@ -279,6 +269,10 @@ endif()
 
 
 
+#dbghelp for crash.cpp
+if(WIN32)
+SET(LIBS ${LIBS} DbgHelp)
+endif(WIN32)
 
 
 

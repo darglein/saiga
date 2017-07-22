@@ -39,7 +39,7 @@ public:
 
     vec3 getAlphaPosition(float alpha) const { return origin+alpha*direction;}
 
-    friend std::ostream& operator<<(std::ostream& os, const Ray& dt);
+	SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Ray& dt);
 };
 
 }

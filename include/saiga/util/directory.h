@@ -10,7 +10,7 @@
 
 #include <vector>
 #ifdef _WIN32
-#include "util/windows_dirent.h"
+#include "saiga/util/windows_dirent.h"
 #else
 #include <dirent.h>
 #endif

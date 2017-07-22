@@ -77,7 +77,7 @@ endif()
 #creates 'folders' in the solution explorer of visual studio
 include(source_group_helper)
 GroupSources2(${PROJECT_SOURCE_DIR}/src)
-GroupSources2(${PROJECT_SOURCE_DIR}/saiga)
+GroupSources2(${PROJECT_SOURCE_DIR}/include/saiga)
 GroupSources(${PROJECT_SOURCE_DIR} shader)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

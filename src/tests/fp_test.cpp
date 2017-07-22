@@ -97,7 +97,7 @@ void fpTest(float x){
     {
         //sin test
         const int N = 9;
-        float input[N] = {0.1f,0.2f,0.3f,1.0f,2.0f,3.0f,float(M_PI) , float(M_PI) / 2.0f, float(M_PI) / 4.0f };
+        float input[N] = {0.1f,0.2f,0.3f,1.0f,2.0f,3.0f,glm::pi<float>() , glm::pi<float>() / 2.0f, glm::pi<float>() / 4.0f };
         float output[N];
         for(int i = 0 ; i < N ; ++i){
             output[i] = sinf(input[i]);

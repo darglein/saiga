@@ -96,7 +96,7 @@ void convert(const Image &_src, fipImage &dest){
 
         auto srcPtr = src.positionPtr(0,y);
         auto targetPtr = data + y * dest.getScanWidth();
-        mempcpy(targetPtr,srcPtr,dest.getScanWidth());
+        memcpy(targetPtr,srcPtr,dest.getScanWidth());
     }
 
 }
@@ -160,7 +160,7 @@ void convert(const fipImage &src, Image& dest){
 
         auto targetPtr = dest.positionPtr(0,y);
         auto srcPtr = data + y * src.getScanWidth();
-        mempcpy(targetPtr,srcPtr,dest.getBytesPerRow());
+        memcpy(targetPtr,srcPtr,dest.getBytesPerRow());
     }
 
 
