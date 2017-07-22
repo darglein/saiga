@@ -17,7 +17,7 @@ LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/bin)
   
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 ######### Show all warnings
 
@@ -334,7 +334,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 add_subdirectory(src)
-add_subdirectory(saiga)
+add_subdirectory(include/saiga)
 add_subdirectory(shader)
 if(BUILD_SAMPLES)
 	message(STATUS "Building samples.")
@@ -347,8 +347,8 @@ endif()
 ############# Generate config file ###############
 
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/buildconfig.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/buildconfig.h"
 )
 
 
