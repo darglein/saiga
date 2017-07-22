@@ -23,6 +23,7 @@ public:
 
 class SAIGA_GLOBAL SpotLight :  public PointLight
 {
+    friend class DeferredLighting;
 private:
     float angle=60.0f;
 public:

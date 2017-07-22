@@ -166,7 +166,7 @@ void Shadowmap::bindCubeFace(GLenum side){
     glViewport(0,0,w,h);
 
     depthBuffer.bind();
-//    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture(0)->getId(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture(0)->getId(), 0);
 //    depthBuffer.drawToNone();
 
 

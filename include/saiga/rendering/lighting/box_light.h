@@ -19,6 +19,7 @@ public:
 
 class SAIGA_GLOBAL BoxLight :  public DirectionalLight
 {
+    friend class DeferredLighting;
 protected:
 
 

@@ -14,7 +14,7 @@
 SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 {
     //this simplifies shader debugging
-    ShaderLoader::instance()->addLineDirectives = true;
+    ShaderLoader::instance()->addLineDirectives = false;
 
     //create a perspective camera
     float aspect = window->getAspectRatio();

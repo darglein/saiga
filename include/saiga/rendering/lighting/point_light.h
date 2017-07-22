@@ -40,10 +40,14 @@ static const vec3 QuadraticStrong = vec3(1,2,4); //Cutoff = 0.142857
 
 class SAIGA_GLOBAL PointLight : public Light
 {
+    friend class DeferredLighting;
 protected:
     vec3 attenuation = AttenuationPresets::Quadratic;
     float radius;
     Sphere sphere;
+
+
+    Shadowmap shadowmap;
 
 public:
     float shadowNearPlane = 0.1f;

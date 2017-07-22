@@ -70,13 +70,6 @@ void LightShader::uploadShadowMapSize(glm::ivec2 s)
 
 //}
 
-void Light::bindShadowMap(){
-    shadowmap.bindFramebuffer();
-}
-
-void Light::unbindShadowMap(){
-    shadowmap.unbindFramebuffer();
-}
 
 void Light::bindUniformsStencil(MVPShader& shader){
     shader.uploadModel(model);

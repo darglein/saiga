@@ -72,7 +72,6 @@ protected:
     bool castShadows=false;
 
 
-    Shadowmap shadowmap;
 public:
 
 
@@ -111,13 +110,11 @@ public:
 
 
     bool hasShadows() const {return castShadows;}
-    void enableShadows() {if(shadowmap.isInitialized()) castShadows=true;}
+    void enableShadows() {castShadows=true;}
     void disableShadows() {castShadows=false;}
-    void setCastShadows(bool s){ if(shadowmap.isInitialized()) castShadows = s;}
+    void setCastShadows(bool s){castShadows = s;}
 
 
-    void bindShadowMap();
-    void unbindShadowMap();
 
     bool shouldCalculateShadowMap(){return castShadows&&active&&!culled;}
     bool shouldRender(){return active&&!culled;}

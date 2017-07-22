@@ -164,7 +164,7 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
                 shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
                 renderer->renderDepth(&light->cam);
-                light->unbindShadowMap();
+//                light->unbindShadowMap();
             }
         }
     }
@@ -173,28 +173,32 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
     for(auto &light : boxLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
-            light->bindShadowMap();
+//            light->bindShadowMap();
+            light->shadowmap.bindFramebuffer();
             light->cam.recalculatePlanes();
 
             CameraDataGLSL cd(&light->cam);
             shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
             renderer->renderDepth(&light->cam);
-            light->unbindShadowMap();
+//            light->unbindShadowMap();
+            light->shadowmap.unbindFramebuffer();
         }
     }
 
     for(auto &light : spotLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
-            light->bindShadowMap();
+//            light->bindShadowMap();
+            light->shadowmap.bindFramebuffer();
             light->cam.recalculatePlanes();
 
             CameraDataGLSL cd(&light->cam);
             shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
             renderer->renderDepth(&light->cam);
-            light->unbindShadowMap();
+//            light->unbindShadowMap();
+            light->shadowmap.unbindFramebuffer();
         }
     }
 
@@ -212,7 +216,8 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
                 shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
                 renderer->renderDepth(&light->cam);
-                light->unbindShadowMap();
+//                light->unbindShadowMap();
+                light->shadowmap.unbindFramebuffer();
             }
 
         }

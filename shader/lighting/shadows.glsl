@@ -17,6 +17,15 @@ float offset_lookup(sampler2DShadow map, vec4 loc, vec2 offset)
     return texture(map,pos.xyz);
 }
 
+
+float offset_lookup_array(sampler2DArrayShadow map, vec4 loc, vec2 offset, int layer)
+{
+    vec2 texmapscale = shadowMapSize.zw;
+    vec4 pos = vec4(loc.xy + offset * texmapscale * loc.w, loc.z, loc.w);
+    pos = pos/pos.w;
+    return texture(map,vec4(pos.x,pos.y,layer,pos.z));
+}
+
 float calculateShadow(sampler2DShadow tex, vec3 position){
     vec4 shadowPos = depthBiasMV * vec4(position,1);
     shadowPos = shadowPos/shadowPos.w;
@@ -41,6 +50,26 @@ float calculateShadowPCF2(mat4 viewToLight, sampler2DShadow shadowmap, vec3 posi
     for (float y = -s; y <= s; y += 1.0f)
         for (float x = -s; x <= s; x += 1.0f)
             sum += offset_lookup(shadowmap, shadowPos, vec2(x, y));
+    visibility = sum / samples;
+
+    return visibility;
+}
+
+
+//classic pcf array
+float calculateShadowPCF_array(mat4 viewToLight, sampler2DArrayShadow shadowmap, vec3 position, int layer){
+    vec4 shadowPos = viewToLight * vec4(position,1);
+    float visibility = 1.0f;
+
+    float sum = 0;
+
+
+    float s = SHADOW_SAMPLES_X * 0.5f - 0.5f;
+    float samples = SHADOW_SAMPLES_X * SHADOW_SAMPLES_X;
+
+    for (float y = -s; y <= s; y += 1.0f)
+        for (float x = -s; x <= s; x += 1.0f)
+            sum += offset_lookup_array(shadowmap, shadowPos, vec2(x, y),layer);
     visibility = sum / samples;
 
     return visibility;

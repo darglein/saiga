@@ -40,6 +40,9 @@ class SAIGA_GLOBAL DirectionalLight :  public Light
 {
     friend class DeferredLighting;
 protected:
+
+    Shadowmap shadowmap;
+
     //direction of the light in world space
     vec3 direction = vec3(0,-1,0);
 
