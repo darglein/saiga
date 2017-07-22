@@ -11,6 +11,8 @@
 
 #include "cascadedShadowMaps.h"
 
+#undef main
+
 int main( int argc, char* args[] )
 {
     //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught

@@ -195,6 +195,8 @@ void TriangleMesh<vertex_t,index_t>::addQuad(index_t inds[]){
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer, GLenum usage){
+	if (faces.empty() || vertices.empty())
+		return;
     std::vector<index_t> indices(faces.size()*3);
     std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
     buffer.set(vertices,indices,usage);
@@ -204,6 +206,8 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer, GLenum usag
 template<typename vertex_t, typename index_t>
 template<typename buffer_vertex_t, typename buffer_index_t>
 void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_vertex_t,buffer_index_t> &buffer, GLenum usage){
+	if (faces.empty() || vertices.empty())
+		return;
     std::vector<index_t> indices(faces.size()*3);
     std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
 

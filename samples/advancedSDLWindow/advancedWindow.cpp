@@ -57,13 +57,13 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
 
     //create one directional light
-    sun = window->getRenderer()->lighting.createDirectionalLight();
-    sun->setDirection(vec3(-1,-3,-2));
-    sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(0.5);
-    sun->setAmbientIntensity(0.1f);
-    sun->createShadowMap(2048,2048);
-    sun->enableShadows();
+    //sun = window->getRenderer()->lighting.createDirectionalLight();
+    //sun->setDirection(vec3(-1,-3,-2));
+    //sun->setColorDiffuse(LightColorPresets::DirectSunlight);
+    //sun->setIntensity(0.5);
+    //sun->setAmbientIntensity(0.1f);
+    //sun->createShadowMap(2048,2048);
+    //sun->enableShadows();
 
     //create 10 point lights in a circle
     for(int i = 0 ; i < 10 ; ++i){
@@ -114,7 +114,7 @@ void AdvancedWindow::update(float dt){
     camera.update(dt);
 
 
-    sun->fitShadowToCamera(&camera);
+    //sun->fitShadowToCamera(&camera);
 //    sun->fitNearPlaneToScene(sceneBB);
 
     int  fps = (int) glm::round(1000.0/parentWindow->fpsTimer.getTimeMS());

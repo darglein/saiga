@@ -12,7 +12,7 @@
 #include <saiga/util/mouse.h>
 #include <SDL2/SDL.h>
 #include <vector>
-
+ 
 namespace Saiga {
 
 class SAIGA_GLOBAL SDL_EventHandler{

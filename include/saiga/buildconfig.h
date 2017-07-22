@@ -17,21 +17,21 @@
 
 //sound
 #define SAIGA_USE_OPENAL
-#define SAIGA_USE_ALUT
+/* #undef SAIGA_USE_ALUT */
 #define SAIGA_USE_OPUS
 
 //asset loading
 #define SAIGA_USE_ASSIMP
 
 //image loading
-#define SAIGA_USE_PNG
+/* #undef SAIGA_USE_PNG */
 #define SAIGA_USE_FREEIMAGE
 
 #define SAIGA_USE_FFMPEG
 /* #undef SAIGA_USE_NOISE */
 
-#define SAIGA_USE_CUDA
-#define SAIGA_USE_EIGEN
+/* #undef SAIGA_USE_CUDA */
+/* #undef SAIGA_USE_EIGEN */
 
 /* #undef SAIGA_DEBUG */
 #define SAIGA_TESTING

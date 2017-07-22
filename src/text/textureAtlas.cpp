@@ -336,6 +336,8 @@ bool TextureAtlas::readAtlasFromFiles()
     textureAtlas->fromImage(img);
     textureAtlas->generateMipmaps();
 
+	cout << "readAtlasFromFiles: " << uniqueFontString << " numCharacters: " << numCharacters << endl;
+
     return true;
 
 }

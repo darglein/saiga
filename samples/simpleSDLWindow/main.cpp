@@ -11,6 +11,8 @@
 
 #include "simpleWindow.h"
 
+#undef main
+
 int main( int argc, char* args[] )
 {
     //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
@@ -37,7 +39,7 @@ int main( int argc, char* args[] )
     int updatesPerSecond = 60;
     int framesPerSecond = 0; //no limit
     window->startMainLoop(updatesPerSecond,framesPerSecond);
-
+	 
     delete simpleWindow;
     delete window;
 
