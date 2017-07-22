@@ -11,12 +11,14 @@ samples/videoRecording/main.cpp
 samples/runTests/main.cpp
 samples/cascadedShadowMaps/cascadedShadowMaps.cpp
 samples/cascadedShadowMaps/main.cpp
-samples/test/main.cpp
+samples/simpleGLFWWindow/simpleWindow.cpp
+samples/simpleGLFWWindow/main.cpp
 samples/offscreenRendering/simpleWindow.h
 samples/advancedSDLWindow/advancedWindow.h
 samples/simpleSDLWindow/simpleWindow.h
 samples/videoRecording/videoRecording.h
 samples/cascadedShadowMaps/cascadedShadowMaps.h
+samples/simpleGLFWWindow/simpleWindow.h
 src/glfw/glfw_eventhandler.cpp
 src/glfw/glfw_joystick.cpp
 src/glfw/keyboardbinds.cpp
@@ -179,6 +181,7 @@ include/saiga/glfw/glfw_window.h
 include/saiga/glfw/glfw_joystick.h
 include/saiga/glfw/glfw_camera.h
 include/saiga/glfw/glfw_eventhandler.h
+include/saiga/glfw/all.h
 include/saiga/tests/test.h
 include/saiga/geometry/plane.h
 include/saiga/geometry/sphere.h
@@ -272,6 +275,7 @@ include/saiga/util/inputcontroller.h
 include/saiga/util/quality.h
 include/saiga/util/ringBuffer.h
 include/saiga/util/threadPool.h
+include/saiga/util/windows_dirent.h
 include/saiga/util/keyboard.h
 include/saiga/util/semaphore.h
 include/saiga/util/directory.h
