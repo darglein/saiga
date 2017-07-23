@@ -14,8 +14,6 @@ layout(location=0) in vec3 in_position;
 #include "camera.glsl"
 uniform mat4 model;
 
-uniform vec4 position;
-
 
 out vec3 vertexMV;
 out vec3 vertex;
@@ -39,8 +37,8 @@ void main() {
 uniform samplerCubeShadow depthTex;
 #endif
 
-uniform vec3 attenuation;
-uniform vec4 position;
+uniform vec4 attenuation;
+
 uniform vec2 shadowPlanes; //near and far plane for shadow mapping camera
 
 in vec3 vertexMV;
@@ -71,7 +69,7 @@ void main() {
 //    visibility = calculateShadowCubePCF(depthTex,lightW,fragW,farplane,nearplane);
 #endif
 
-    float atten = getAttenuation(attenuation,distance(vposition,lightPos),position.w);
+    float atten = getAttenuation(attenuation,distance(vposition,lightPos));
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
 
 

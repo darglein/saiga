@@ -18,7 +18,7 @@ public:
     GLint location_lightColorDiffuse, location_lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
     GLint location_depthBiasMV, location_depthTex,location_readShadowMap;
     GLint location_shadowMapSize; //vec4(w,h,1/w,1/h)
-    GLint location_invProj;
+    GLint location_invProj; //required to compute the viewspace position from the gbuffer
 
     virtual void checkUniforms();
 
@@ -28,11 +28,11 @@ public:
     void uploadColorSpecular(vec4 &color);
     void uploadColorSpecular(vec3 &color, float intensity);
 
-    void uploadDepthBiasMV(mat4 &mat);
+    void uploadDepthBiasMV(const mat4 &mat);
     void uploadDepthTexture(std::shared_ptr<raw_Texture> texture);
     void uploadShadow(float shadow);
     void uploadShadowMapSize(glm::ivec2 s);
-    void uploadInvProj(mat4 &mat);
+    void uploadInvProj(const mat4 &mat);
 };
 
 
@@ -93,10 +93,6 @@ public:
     void setIntensity(float f){this->colorDiffuse.w = f;}
     void addIntensity(float f){this->colorDiffuse.w += f;}
 
-
-
-
-
     vec3 getColorSpecular() const {return vec3(colorSpecular);}
     vec3 getColorDiffuse()const {return vec3(colorDiffuse);}
     float getIntensity()const {return colorDiffuse.w;}
@@ -120,6 +116,13 @@ public:
     bool shouldRender(){return active&&!culled;}
 
     void bindUniformsStencil(MVPShader &shader);
+
+    /**
+     * computes the transformation matrix from view space of "camera" to
+     * fragment space of "shadowCamera" .
+     * This is used in shadow mapping for all light types.
+     */
+    static mat4 viewToLightTransform(const Camera& camera, const Camera& shadowCamera);
 };
 
 }

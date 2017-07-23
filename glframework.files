@@ -8,6 +8,8 @@ samples/simpleSDLWindow/simpleWindow.cpp
 samples/simpleSDLWindow/main.cpp
 samples/videoRecording/videoRecording.cpp
 samples/videoRecording/main.cpp
+samples/lighting/main.cpp
+samples/lighting/lighting.cpp
 samples/runTests/main.cpp
 samples/cascadedShadowMaps/cascadedShadowMaps.cpp
 samples/cascadedShadowMaps/main.cpp
@@ -17,6 +19,7 @@ samples/offscreenRendering/simpleWindow.h
 samples/advancedSDLWindow/advancedWindow.h
 samples/simpleSDLWindow/simpleWindow.h
 samples/videoRecording/videoRecording.h
+samples/lighting/lighting.h
 samples/cascadedShadowMaps/cascadedShadowMaps.h
 samples/simpleGLFWWindow/simpleWindow.h
 src/glfw/glfw_eventhandler.cpp
@@ -87,11 +90,13 @@ src/rendering/particles/particle_shader.cpp
 src/rendering/particles/particlesystem.cpp
 src/rendering/lighting/shadowmap.cpp
 src/rendering/lighting/point_light.cpp
+src/rendering/lighting/attenuated_light.cpp
 src/rendering/lighting/ssao.cpp
 src/rendering/lighting/box_light.cpp
 src/rendering/lighting/light.cpp
 src/rendering/lighting/directional_light.cpp
 src/rendering/lighting/spot_light.cpp
+src/rendering/lighting/uniform_light.cpp
 src/rendering/lighting/lighting_controller.cpp
 src/rendering/lighting/deferred_lighting.cpp
 src/rendering/postProcessor.cpp
@@ -260,10 +265,13 @@ include/saiga/rendering/particles/particle_shader.h
 include/saiga/rendering/particles/particleconverter.h
 include/saiga/rendering/particles/particle.h
 include/saiga/rendering/particles/particlesystem.h
+include/saiga/rendering/lighting/uniform_light.h
 include/saiga/rendering/lighting/shadowmap.h
 include/saiga/rendering/lighting/ssao.h
 include/saiga/rendering/lighting/directional_light.h
 include/saiga/rendering/lighting/deferred_lighting.h
+include/saiga/rendering/lighting/attenuated_light.h
+include/saiga/rendering/lighting/all.h
 include/saiga/rendering/lighting/box_light.h
 include/saiga/rendering/lighting/point_light.h
 include/saiga/rendering/lighting/spot_light.h

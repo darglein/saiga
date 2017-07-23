@@ -10,23 +10,26 @@
 
 namespace Saiga {
 
-class SAIGA_GLOBAL SpotLightShader : public PointLightShader{
+class SAIGA_GLOBAL SpotLightShader : public AttenuatedLightShader{
 public:
-    GLint location_direction,location_angle;
-
+    GLint location_angle;
+    GLint location_shadowPlanes;
     virtual void checkUniforms();
-    void uploadDirection(vec3 &direction);
     void uploadAngle(float angle);
+    void uploadShadowPlanes(float f, float n);
 };
 
 
 
-class SAIGA_GLOBAL SpotLight :  public PointLight
+class SAIGA_GLOBAL SpotLight :  public AttenuatedLight
 {
     friend class DeferredLighting;
-private:
+protected:
     float angle=60.0f;
+    Shadowmap shadowmap;
 public:
+    float shadowNearPlane = 0.1f;
+    PerspectiveCamera cam;
 
     /**
      * The default direction of the mesh is negative y

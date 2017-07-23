@@ -5,6 +5,7 @@
  */
 
 #include "saiga/rendering/lighting/light.h"
+#include "saiga/camera/camera.h"
 
 namespace Saiga {
 
@@ -38,11 +39,11 @@ void LightShader::uploadColorSpecular(vec3 &color, float intensity){
     Shader::upload(location_lightColorSpecular,c);
 }
 
-void LightShader::uploadDepthBiasMV(mat4 &mat){
+void LightShader::uploadDepthBiasMV(const mat4 &mat){
     Shader::upload(location_depthBiasMV,mat);
 }
 
-void LightShader::uploadInvProj(mat4 &mat){
+void LightShader::uploadInvProj(const mat4 &mat){
     Shader::upload(location_invProj,mat);
 }
 
@@ -73,6 +74,19 @@ void LightShader::uploadShadowMapSize(glm::ivec2 s)
 
 void Light::bindUniformsStencil(MVPShader& shader){
     shader.uploadModel(model);
+}
+
+mat4 Light::viewToLightTransform(const Camera &camera, const Camera &shadowCamera)
+{
+    //glm like glsl is column major!
+    const mat4 biasMatrix(
+                0.5, 0.0, 0.0, 0.0,
+                0.0, 0.5, 0.0, 0.0,
+                0.0, 0.0, 0.5, 0.0,
+                0.5, 0.5, 0.5, 1.0
+                );
+    //We could also use inverse(camera.view) but using the model matrix is faster
+    return biasMatrix * shadowCamera.proj * shadowCamera.view * camera.model;
 }
 
 }

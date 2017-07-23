@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -27,8 +27,8 @@ BoxLight::BoxLight()
 }
 
 void BoxLight::createShadowMap(int resX, int resY){
-//    Light::createShadowMap(resX,resY);
-        shadowmap.createFlat(resX,resY);
+    //    Light::createShadowMap(resX,resY);
+    shadowmap.createFlat(resX,resY);
 }
 
 
@@ -40,7 +40,7 @@ void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam)
     shader->uploadAmbientIntensity(ambientIntensity);
     shader->uploadModel(model);
 
-//    vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
+    //    vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
     vec3 viewd = -glm::normalize(vec3(cam->view*model[2]));
     shader->uploadDirection(viewd);
 
@@ -48,16 +48,7 @@ void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam)
     shader->uploadInvProj(ip);
 
     if(this->hasShadows()){
-        const mat4 biasMatrix(
-                    0.5, 0.0, 0.0, 0.0,
-                    0.0, 0.5, 0.0, 0.0,
-                    0.0, 0.0, 0.5, 0.0,
-                    0.5, 0.5, 0.5, 1.0
-                    );
-
-        mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
-        shader->uploadDepthBiasMV(shadow);
-
+        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->cam));
         shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
         shader->uploadShadowMapSize(shadowmap.getSize());
     }
@@ -65,15 +56,14 @@ void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam)
 }
 
 void BoxLight::calculateCamera(){
-    float length = scale.z;
-
     vec3 dir = glm::normalize(vec3(this->getDirection()));
-    vec3 pos = getPosition() - dir * length * 0.5f;
+    vec3 pos = getPosition() ;
     vec3 up = vec3(getUpVector());
 
+    //the camera is centred at the centre of the shadow volume.
+    //we define the box only by the sides of the orthographic projection
     cam.setView(pos,pos+dir,up);
-    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,0.1,scale.z*2.0f);
-
+    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,-scale.z,scale.z);
 }
 
 bool BoxLight::cullLight(Camera *cam)
@@ -83,8 +73,6 @@ bool BoxLight::cullLight(Camera *cam)
         this->culled = !this->cam.intersectSAT(cam);
     else
         this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
-	//std::cout << "boxlight culled " <<this->culled << std::endl;
-    //culled  = false;
     return culled;
 }
 

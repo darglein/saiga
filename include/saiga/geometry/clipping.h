@@ -51,7 +51,7 @@ inline vec3 intersection(vec3 p1, vec3 p2, int axis, float d){
                 return res;
 }
 
-PolygonType clipPolygonAxisAlignedPlane(const PolygonType& polygon, int axis, float d, bool isMin){
+inline PolygonType clipPolygonAxisAlignedPlane(const PolygonType& polygon, int axis, float d, bool isMin){
     PolygonType res;
     if(polygon.size() <= 1){
         return res;
@@ -79,7 +79,7 @@ PolygonType clipPolygonAxisAlignedPlane(const PolygonType& polygon, int axis, fl
     return res;
 }
 
-PolygonType clipPolygonAABB(const PolygonType& p, const AABB& box){
+inline PolygonType clipPolygonAABB(const PolygonType& p, const AABB& box){
     PolygonType res = p;
     for(int axis = 0; axis < 3 ; axis ++){
         res = clipPolygonAxisAlignedPlane(res,axis,box.min[axis],true);
@@ -88,13 +88,13 @@ PolygonType clipPolygonAABB(const PolygonType& p, const AABB& box){
     return res;
 }
 
-PolygonType clipTriAABB(const Triangle& tri, const AABB& box){
+inline PolygonType clipTriAABB(const Triangle& tri, const AABB& box){
     PolygonType triP = {tri.a, tri.b, tri.c};
     return clipPolygonAABB(triP,box);
 
 }
 
-AABB clipTriAABBtoBox(Triangle tri, AABB box){
+inline AABB clipTriAABBtoBox(Triangle tri, AABB box){
     auto p = clipTriAABB(tri,box);
     return Polygon::boundingBox(p);
 }

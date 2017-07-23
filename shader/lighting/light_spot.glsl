@@ -14,9 +14,6 @@ layout(location=0) in vec3 in_position;
 #include "camera.glsl"
 uniform mat4 model;
 
-uniform vec4 position;
-
-
 out vec3 vertexMV;
 out vec3 vertex;
 out vec3 lightPos;
@@ -44,9 +41,8 @@ uniform sampler2DShadow depthTex;
 #define ACCUMULATE
 
 uniform vec2 shadowPlanes; //near and far plane for shadow mapping camera
-uniform vec3 attenuation;
-uniform vec4 position;
-uniform vec3 direction;
+uniform vec4 attenuation;
+
 uniform float angle;
 
 in vec3 vertexMV;
@@ -95,7 +91,7 @@ void main() {
 
 //    float distanceToLight = length(vposition - lightPos);
     float distanceToLight = length( dot(vposition - lightPos,lightDir) );
-    float atten = spotAttenuation(fragmentLightDir)*getAttenuation(attenuation,distanceToLight,position.w);
+    float atten = spotAttenuation(fragmentLightDir)*getAttenuation(attenuation,distanceToLight);
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
 
     float Idiff = localIntensity * intensityDiffuse(normal,fragmentLightDir);
