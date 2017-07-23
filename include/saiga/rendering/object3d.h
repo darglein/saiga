@@ -59,18 +59,14 @@ public:
     void turn(float angleX, float angleY);
     void turnLocal(float angleX, float angleY);
 
-    //    virtual void getViewMatrix(mat4& view); //the view matrix is the inverse model matrix
 
-
+    void setModelMatrix(const mat4& model);
+    void setViewMatrix(const mat4& view);
 } ;
 
 
 inline mat4 Object3D::getModelMatrix() const
 {
-//    mat4 mod;
-//	mod = mat4_cast(rot)*glm::scale(mat4(1), scale);
-//	mod[3] = vec4(position, 1);
-//	return mod;
     return createTRSmatrix(position,rot,scale);
 }
 
@@ -107,7 +103,6 @@ inline void Object3D::setPosition(const vec4 &cords){
     position = cords;
 }
 
-
 inline void Object3D::translateLocal(const vec4& d){
     translateLocal(vec3(d));
 }
@@ -125,11 +120,9 @@ inline void Object3D::translateGlobal(const vec3& d){
     position += vec4(d,0);
 }
 
-
 inline void Object3D::rotateLocal(const vec3& axis, float angle){
     this->rot = glm::rotate(this->rot,glm::radians(angle),axis);
 }
-
 
 inline void Object3D::rotateGlobal(vec3 axis, float angle){
     axis = vec3((glm::inverse(rot)) * vec4(axis,0));
@@ -148,6 +141,26 @@ inline void Object3D::setScale(const vec3& s){
 inline void Object3D::multScale(const vec3 &s)
 {
     setScale(getScale()*s);
+}
+
+inline void Object3D::setModelMatrix(const mat4 &model)
+{
+    //this is the inverse of createTRSmatrix
+    this->model = model;
+    position = model[3];
+    glm::mat3 R(model);
+    scale.x = length(R[0]);
+    scale.y = length(R[1]);
+    scale.z = length(R[2]);
+    R[0] /= scale.x;
+    R[1] /= scale.y;
+    R[2] /= scale.z;
+    rot = glm::quat_cast(R);
+}
+
+inline void Object3D::setViewMatrix(const mat4 &view)
+{
+    setModelMatrix(inverse(view));
 }
 
 }

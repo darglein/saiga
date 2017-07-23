@@ -32,8 +32,8 @@ void SpotLight::calculateCamera(){
     vec3 dir = vec3(this->getUpVector());
     vec3 pos = vec3(getPosition());
     vec3 up = vec3(getRightVector());
-    cam.setView(pos,pos-dir,up);
-    cam.setProj(2*angle,1,shadowNearPlane,cutoffRadius);
+    shadowCamera.setView(pos,pos-dir,up);
+    shadowCamera.setProj(2*angle,1,shadowNearPlane,cutoffRadius);
 
 }
 
@@ -41,10 +41,10 @@ void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *ca
     AttenuatedLight::bindUniforms(shader,cam);
     float cosa = glm::cos(glm::radians(angle*0.95f)); //make border smoother
     shader->uploadAngle(cosa);
-    shader->uploadShadowPlanes(this->cam.zFar,this->cam.zNear);
+    shader->uploadShadowPlanes(this->shadowCamera.zFar,this->shadowCamera.zNear);
     shader->uploadInvProj(glm::inverse(cam->proj));
     if(this->hasShadows()){
-        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->cam));
+        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
         shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
         shader->uploadShadowMapSize(shadowmap.getSize());
     }
@@ -84,9 +84,9 @@ bool SpotLight::cullLight(Camera *cam)
 {
     //do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
     if(this->hasShadows())
-        this->culled = !this->cam.intersectSAT(cam);
+        this->culled = !this->shadowCamera.intersectSAT(cam);
     else
-        this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
+        this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere)==Camera::OUTSIDE;
 
     return culled;
 }

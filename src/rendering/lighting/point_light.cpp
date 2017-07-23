@@ -53,10 +53,10 @@ void PointLight::setRadius(float value)
 
 void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *cam){
     AttenuatedLight::bindUniforms(shader,cam);
-    shader->uploadShadowPlanes(this->cam.zFar,this->cam.zNear);
+    shader->uploadShadowPlanes(this->shadowCamera.zFar,this->shadowCamera.zNear);
     shader->uploadInvProj(glm::inverse(cam->proj));
     if(this->hasShadows()){
-        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->cam));
+        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
         shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
         shader->uploadShadowMapSize(shadowmap.getSize());
     }
@@ -100,8 +100,8 @@ void PointLight::calculateCamera(int face){
     vec3 pos(this->getPosition());
     vec3 dir(gCameraDirections[face].Target);
     vec3 up(gCameraDirections[face].Up);
-    cam.setView(pos,pos+dir,up);
-    cam.setProj(90.0f,1,shadowNearPlane,cutoffRadius);
+    shadowCamera.setView(pos,pos+dir,up);
+    shadowCamera.setProj(90.0f,1,shadowNearPlane,cutoffRadius);
 }
 
 bool PointLight::cullLight(Camera *cam)

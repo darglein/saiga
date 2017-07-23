@@ -10,29 +10,33 @@
 
 namespace Saiga {
 
-class SAIGA_GLOBAL BoxLightShader : public DirectionalLightShader{
+class SAIGA_GLOBAL BoxLightShader : public LightShader{
 public:
 
     virtual void checkUniforms();
 
 };
 
-class SAIGA_GLOBAL BoxLight :  public DirectionalLight
+class SAIGA_GLOBAL BoxLight :  public Light
 {
     friend class DeferredLighting;
 protected:
 
+    Shadowmap shadowmap;
 
 public:
+    OrthographicCamera shadowCamera;
     BoxLight();
     virtual ~BoxLight(){}
 
     void bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera* cam);
 
+    void setView(vec3 pos, vec3 target, vec3 up);
+
     void createShadowMap(int resX, int resY);
 
     void calculateCamera();
-    bool cullLight(Camera *cam);
+    bool cullLight(Camera *shadowCamera);
 
 };
 

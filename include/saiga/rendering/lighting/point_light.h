@@ -30,7 +30,7 @@ protected:
     Shadowmap shadowmap;
 public:
     float shadowNearPlane = 0.1f;
-    PerspectiveCamera cam;
+    PerspectiveCamera shadowCamera;
 
 
     PointLight();
@@ -40,7 +40,7 @@ public:
 
 
 
-    virtual void bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *cam);
+    virtual void bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *shadowCamera);
 
 
     float getRadius() const;
@@ -53,7 +53,7 @@ public:
     void calculateCamera(int face);
 
 
-    bool cullLight(Camera *cam);
+    bool cullLight(Camera *shadowCamera);
 };
 
 }

@@ -96,8 +96,6 @@ src/rendering/lighting/box_light.cpp
 src/rendering/lighting/light.cpp
 src/rendering/lighting/directional_light.cpp
 src/rendering/lighting/spot_light.cpp
-src/rendering/lighting/uniform_light.cpp
-src/rendering/lighting/lighting_controller.cpp
 src/rendering/lighting/deferred_lighting.cpp
 src/rendering/postProcessor.cpp
 src/util/directory.cpp
@@ -265,7 +263,6 @@ include/saiga/rendering/particles/particle_shader.h
 include/saiga/rendering/particles/particleconverter.h
 include/saiga/rendering/particles/particle.h
 include/saiga/rendering/particles/particlesystem.h
-include/saiga/rendering/lighting/uniform_light.h
 include/saiga/rendering/lighting/shadowmap.h
 include/saiga/rendering/lighting/ssao.h
 include/saiga/rendering/lighting/directional_light.h
@@ -275,7 +272,6 @@ include/saiga/rendering/lighting/all.h
 include/saiga/rendering/lighting/box_light.h
 include/saiga/rendering/lighting/point_light.h
 include/saiga/rendering/lighting/spot_light.h
-include/saiga/rendering/lighting/lighting_controller.h
 include/saiga/rendering/lighting/light.h
 include/saiga/rendering/interpolatedobject3d.h
 include/saiga/util/floatingPoint.h
@@ -438,8 +434,6 @@ shader/geometry/texturedAsset_wireframe.glsl
 shader/geometry/texturedAsset.glsl
 shader/geometry/deferred_mvp_model_highlight.glsl
 shader/geometry/deferred_mvp_bones_highlight.glsl
-shader/geometry/terrain
-(copy).glsl
 shader/geometry/deferred_mvp_texture.glsl
 shader/camera.glsl
 shader/sdf_text.glsl

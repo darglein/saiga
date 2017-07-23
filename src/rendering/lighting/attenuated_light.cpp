@@ -109,12 +109,10 @@ void AttenuatedLight::setRadius(float value)
 }
 
 void AttenuatedLight::bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera *cam){
-
     shader->uploadColorDiffuse(colorDiffuse);
     shader->uploadColorSpecular(colorSpecular);
     shader->uploadModel(model);
     shader->uploadA(attenuation,cutoffRadius);
-
     assert_no_glerror();
 }
 

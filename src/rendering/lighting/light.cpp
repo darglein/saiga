@@ -6,6 +6,7 @@
 
 #include "saiga/rendering/lighting/light.h"
 #include "saiga/camera/camera.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -87,6 +88,15 @@ mat4 Light::viewToLightTransform(const Camera &camera, const Camera &shadowCamer
                 );
     //We could also use inverse(camera.view) but using the model matrix is faster
     return biasMatrix * shadowCamera.proj * shadowCamera.view * camera.model;
+}
+
+void Light::renderImGui()
+{
+    ImGui::Checkbox("active",&active);
+    ImGui::Checkbox("castShadows",&castShadows);
+    ImGui::InputFloat("intensity",&colorDiffuse.w,0.1,1);
+    ImGui::ColorEdit3("colorDiffuse",&colorDiffuse[0]);
+    ImGui::ColorEdit3("colorSpecular",&colorSpecular[0]);
 }
 
 }

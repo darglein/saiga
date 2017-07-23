@@ -77,7 +77,7 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
 
         spotLight = window->getRenderer()->lighting.createSpotLight();
         spotLight->setAttenuation(AttenuationPresets::Quadratic);
-        spotLight->setIntensity(20);
+        spotLight->setIntensity(2);
         spotLight->setRadius(8);
         spotLight->setPosition(vec3(-10,5,0));
         spotLight->setColorDiffuse(vec3(1));
@@ -86,12 +86,13 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
         spotLight->enableShadows();
 
         boxLight = window->getRenderer()->lighting.createBoxLight();
-        boxLight->setIntensity(1);
-        boxLight->setDirection(vec3(1,0,0));
-        boxLight->setPosition(vec3(0,2,10));
-        boxLight->rotateLocal(vec3(1,0,0),30);
+        boxLight->setIntensity(1.5);
+
+//        boxLight->setPosition(vec3(0,2,10));
+//        boxLight->rotateLocal(vec3(1,0,0),30);
+        boxLight->setView(vec3(0,2,10),vec3(0,0,13),vec3(0,1,0));
         boxLight->setColorDiffuse(vec3(1));
-        boxLight->setScale(vec3(5,6,5));
+        boxLight->setScale(vec3(5,5,8));
         boxLight->calculateModel();
         boxLight->createShadowMap(512,512);
         boxLight->enableShadows();
@@ -208,6 +209,13 @@ void Lighting::renderFinal(Camera *cam)
         if(ImGui::Checkbox("Light debug",&lightDebug)){
             parentWindow->getRenderer()->lighting.setRenderDebug(lightDebug);
         }
+
+        ImGui::PushID(0);
+        sun->renderImGui();
+        ImGui::PopID();
+        ImGui::PushID(1);
+        spotLight->renderImGui();
+        ImGui::PopID();
 
 //        if(ImGui::Checkbox("Point Light Shadows",&pointLightShadows)){
 //            for(auto l : pointLights){

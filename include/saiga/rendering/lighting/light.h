@@ -71,7 +71,6 @@ protected:
     //shadow map
     bool castShadows=false;
 
-
 public:
 
 
@@ -123,6 +122,8 @@ public:
      * This is used in shadow mapping for all light types.
      */
     static mat4 viewToLightTransform(const Camera& camera, const Camera& shadowCamera);
+
+    void renderImGui();
 };
 
 }

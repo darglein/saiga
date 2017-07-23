@@ -73,10 +73,10 @@ protected:
 
     //shadow camera for depth map rendering
     //is different for every cascade and is set in bindCascade
-    OrthographicCamera cam;
+    OrthographicCamera shadowCamera;
 
     //Bind the uniforms for light rendering
-    void bindUniforms(DirectionalLightShader& shader, Camera* cam);
+    void bindUniforms(DirectionalLightShader& shader, Camera* shadowCamera);
 public:
 
     DirectionalLight(){}
@@ -101,7 +101,7 @@ public:
      * it fits the given camera. This should be called every time the camera is translated
      * or rotated to be sure, that all visible objects have shadows.
      */
-    void fitShadowToCamera(Camera* cam);
+    void fitShadowToCamera(Camera* shadowCamera);
 
     /**
      * Computes the near plane of the shadow frustum so that all objects in the scene cast shadows.
@@ -127,6 +127,8 @@ public:
 
     void setAmbientIntensity(float ai) { ambientIntensity = ai;}
     float getAmbientIntensity(){return ambientIntensity;}
+
+    void renderImGui();
 };
 
 }

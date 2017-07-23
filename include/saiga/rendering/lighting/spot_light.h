@@ -29,7 +29,7 @@ protected:
     Shadowmap shadowmap;
 public:
     float shadowNearPlane = 0.1f;
-    PerspectiveCamera cam;
+    PerspectiveCamera shadowCamera;
 
     /**
      * The default direction of the mesh is negative y
@@ -37,7 +37,7 @@ public:
 
     SpotLight();
     virtual ~SpotLight(){}
-    void bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *cam);
+    void bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *shadowCamera);
 
 
     void setRadius(float value) override;
@@ -51,7 +51,7 @@ public:
     void setDirection(vec3 dir);
 
     void calculateCamera();
-    bool cullLight(Camera *cam);
+    bool cullLight(Camera *shadowCamera);
 };
 
 }
