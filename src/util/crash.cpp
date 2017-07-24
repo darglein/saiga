@@ -1,6 +1,32 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/util/crash.h"
 #include "saiga/util/assert.h"
 
+
+#if defined(_WIN32)
+#include <windows.h>
+#include <DbgHelp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <tchar.h>
+#endif
+
+
+#if defined(__unix__)
+#include <execinfo.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ucontext.h>
+#include <unistd.h>
+#endif
 namespace Saiga {
 
 std::function<void()> customCrashHandler;
@@ -10,18 +36,7 @@ void addCustomSegfaultHandler(std::function<void()> fnc)
 	customCrashHandler = fnc;
 }
 
-
 #if defined(__unix__)
-
-#include <execinfo.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ucontext.h>
-#include <unistd.h>
-
-
 //Source: http://stackoverflow.com/questions/77005/how-to-generate-a-stacktrace-when-my-gcc-c-app-crashes
 
 /* This structure mirrors the one found in /usr/include/asm/ucontext.h */
@@ -102,15 +117,6 @@ void catchSegFaults()
 #endif
 
 #if defined(_WIN32)
-
-#include <windows.h>
-#include <DbgHelp.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <tchar.h>
-
 //The code requires you to link against the DbgHelp.lib library
 
 void printCurrentStack() {

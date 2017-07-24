@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/rendering/lighting/deferred_lighting.h"
 #include "saiga/util/inputcontroller.h"
 
@@ -105,7 +111,7 @@ void DeferredLighting::cullLights(Camera *cam){
     for(auto &light : spotLights){
         if(light->isActive()){
             light->calculateCamera();
-            light->cam.recalculatePlanes();
+            light->shadowCamera.recalculatePlanes();
             visibleLights += (light->cullLight(cam))? 0 : 1;
         }
     }
@@ -113,7 +119,7 @@ void DeferredLighting::cullLights(Camera *cam){
     for(auto &light : boxLights){
         if(light->isActive()){
             light->calculateCamera();
-            light->cam.recalculatePlanes();
+            light->shadowCamera.recalculatePlanes();
             visibleLights += (light->cullLight(cam))? 0 : 1;
         }
     }
@@ -152,13 +158,13 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
             for(int i = 0; i < light->getNumCascades(); ++i){
 //                light->bindShadowMap();
                 light->bindCascade(i);
-                light->cam.recalculatePlanes();
+                light->shadowCamera.recalculatePlanes();
 
-                CameraDataGLSL cd(&light->cam);
+                CameraDataGLSL cd(&light->shadowCamera);
                 shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
-                renderer->renderDepth(&light->cam);
-                light->unbindShadowMap();
+                renderer->renderDepth(&light->shadowCamera);
+//                light->unbindShadowMap();
             }
         }
     }
@@ -167,28 +173,32 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
     for(auto &light : boxLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
-            light->bindShadowMap();
-            light->cam.recalculatePlanes();
+//            light->bindShadowMap();
+            light->shadowmap.bindFramebuffer();
+            light->shadowCamera.recalculatePlanes();
 
-            CameraDataGLSL cd(&light->cam);
+            CameraDataGLSL cd(&light->shadowCamera);
             shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
-            renderer->renderDepth(&light->cam);
-            light->unbindShadowMap();
+            renderer->renderDepth(&light->shadowCamera);
+//            light->unbindShadowMap();
+            light->shadowmap.unbindFramebuffer();
         }
     }
 
     for(auto &light : spotLights){
         if(light->shouldCalculateShadowMap()){
             renderedDepthmaps++;
-            light->bindShadowMap();
-            light->cam.recalculatePlanes();
+//            light->bindShadowMap();
+            light->shadowmap.bindFramebuffer();
+            light->shadowCamera.recalculatePlanes();
 
-            CameraDataGLSL cd(&light->cam);
+            CameraDataGLSL cd(&light->shadowCamera);
             shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
-            renderer->renderDepth(&light->cam);
-            light->unbindShadowMap();
+            renderer->renderDepth(&light->shadowCamera);
+//            light->unbindShadowMap();
+            light->shadowmap.unbindFramebuffer();
         }
     }
 
@@ -200,13 +210,14 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
             for(int i = 0; i < 6; i++){
                 light->bindFace(i);
                 light->calculateCamera(i);
-                light->cam.recalculatePlanes();
+                light->shadowCamera.recalculatePlanes();
 
-                CameraDataGLSL cd(&light->cam);
+                CameraDataGLSL cd(&light->shadowCamera);
                 shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
 
-                renderer->renderDepth(&light->cam);
-                light->unbindShadowMap();
+                renderer->renderDepth(&light->shadowCamera);
+//                light->unbindShadowMap();
+                light->shadowmap.unbindFramebuffer();
             }
 
         }

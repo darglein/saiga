@@ -1,9 +1,17 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/framework.h"
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/crash.h"
 
 #include "cascadedShadowMaps.h"
+
+#undef main
 
 int main( int argc, char* args[] )
 {

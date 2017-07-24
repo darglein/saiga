@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 
 #include "camera.glsl"
 uniform mat4 model;
@@ -67,7 +73,8 @@ float intensitySpecular(vec3 position, vec3 normal, vec3 lightDir, float exponen
 
 
 
-float getAttenuation(vec3 attenuation, float distance, float radius){
+float getAttenuation(vec4 attenuation, float distance){
+    float radius = attenuation.w;
 //    if(distance > 5.6f)
 //    return 1.0f;
 //    return 0.0f;

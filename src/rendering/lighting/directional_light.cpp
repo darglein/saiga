@@ -1,6 +1,13 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/rendering/lighting/directional_light.h"
 #include "saiga/geometry/clipping.h"
 #include "saiga/geometry/obb.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -114,13 +121,13 @@ void DirectionalLight::setDirection(const vec3 &dir){
 
     vec3 cp = vec3(0);
 
-    this->cam.setPosition( cp );
+    this->shadowCamera.setPosition( cp );
 
 
-    this->cam.rot = glm::quat_cast( m );
+    this->shadowCamera.rot = glm::quat_cast( m );
 
-    this->cam.calculateModel();
-    this->cam.updateFromModel();
+    this->shadowCamera.calculateModel();
+    this->shadowCamera.updateFromModel();
 }
 
 
@@ -225,7 +232,7 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
             boundingSphere.pos = sphereMid;
         }
 
-        vec3 lightPos = this->cam.getPosition();
+        vec3 lightPos = this->shadowCamera.getPosition();
 
         float r = boundingSphere.r;
         r = ceil(r);
@@ -240,7 +247,7 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
 
         //project the position of the actual camera to light space
         vec3 p = boundingSphere.pos;
-        glm::mat3 v = glm::mat3(this->cam.view);
+        glm::mat3 v = glm::mat3(this->shadowCamera.view);
         vec3 t = v * p - v * lightPos;
         t.z = -t.z;
 
@@ -301,7 +308,7 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
         }
         for(auto& p : trisp){
             for(auto &v : p){
-                v = vec3(this->cam.view * vec4(v,1));
+                v = vec3(this->shadowCamera.view * vec4(v,1));
             }
         }
 
@@ -366,8 +373,8 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
         std::vector<mat4> viewToLight(numCascades);
 
         for(int i = 0 ; i < numCascades; ++i){
-            this->cam.setProj(orthoBoxes[i]);
-            mat4 shadow = biasMatrix * this->cam.proj * this->cam.view * cam->model;
+            this->shadowCamera.setProj(orthoBoxes[i]);
+            mat4 shadow = biasMatrix * this->shadowCamera.proj * this->shadowCamera.view * cam->model;
             viewToLight[i] = shadow;
         }
 
@@ -385,7 +392,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
 
 void DirectionalLight::bindCascade(int n){
     //    shadowmap.bindCubeFace(gCameraDirections[face].CubemapFace);
-    this->cam.setProj(orthoBoxes[n]);
+    this->shadowCamera.setProj(orthoBoxes[n]);
     shadowmap.bindAttachCascade(n);
 }
 
@@ -400,6 +407,12 @@ void DirectionalLight::setDepthCutsRelative(const std::vector<float> &value)
 std::vector<float> DirectionalLight::getDepthCutsRelative() const
 {
     return depthCutsRelative;
+}
+
+void DirectionalLight::renderImGui()
+{
+    Light::renderImGui();
+    ImGui::InputFloat("Cascade Interpolate Range",&cascadeInterpolateRange);
 }
 
 }

@@ -1,24 +1,29 @@
+/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/rendering/lighting/spot_light.h"
 
 namespace Saiga {
 
 void SpotLightShader::checkUniforms(){
-    PointLightShader::checkUniforms();
-    location_direction = getUniformLocation("direction");
+    AttenuatedLightShader::checkUniforms();
     location_angle = getUniformLocation("angle");
+    location_shadowPlanes = getUniformLocation("shadowPlanes");
 }
 
-
-
-void SpotLightShader::uploadDirection(vec3 &direction){
-    Shader::upload(location_direction,direction);
-}
 
 void SpotLightShader::uploadAngle(float angle){
     Shader::upload(location_angle,angle);
 }
 
-SpotLight::SpotLight():PointLight(){
+void SpotLightShader::uploadShadowPlanes(float f , float n){
+    Shader::upload(location_shadowPlanes,vec2(f,n));
+}
+
+SpotLight::SpotLight(){
 
 }
 
@@ -27,43 +32,41 @@ void SpotLight::calculateCamera(){
     vec3 dir = vec3(this->getUpVector());
     vec3 pos = vec3(getPosition());
     vec3 up = vec3(getRightVector());
-    cam.setView(pos,pos-dir,up);
-    cam.setProj(2*angle,1,shadowNearPlane,radius);
+    shadowCamera.setView(pos,pos-dir,up);
+    shadowCamera.setProj(2*angle,1,shadowNearPlane,cutoffRadius);
 
 }
 
 void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *cam){
-    PointLight::bindUniforms(shader,cam);
-
-
-    vec3 dir = vec3(this->getUpVector());
-    shader->uploadDirection(dir);
-
-    float c = glm::cos(glm::radians(angle*0.95f)); //make border smoother
-
-    shader->uploadAngle(c);
-
-
+    AttenuatedLight::bindUniforms(shader,cam);
+    float cosa = glm::cos(glm::radians(angle*0.95f)); //make border smoother
+    shader->uploadAngle(cosa);
+    shader->uploadShadowPlanes(this->shadowCamera.zFar,this->shadowCamera.zNear);
+    shader->uploadInvProj(glm::inverse(cam->proj));
+    if(this->hasShadows()){
+        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
+        shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
+        shader->uploadShadowMapSize(shadowmap.getSize());
+    }
+    assert_no_glerror();
 }
 
 
 void SpotLight::recalculateScale(){
-    float l = glm::tan(glm::radians(angle))*radius;
-
-    vec3 scale(l,radius,l);
-
+    float l = glm::tan(glm::radians(angle))*cutoffRadius;
+    vec3 scale(l,cutoffRadius,l);
     this->setScale(scale);
 }
 
 void SpotLight::setRadius(float value)
 {
-    radius = value;
+    cutoffRadius = value;
     recalculateScale();
 }
 
 void SpotLight::createShadowMap(int resX, int resY) {
-//    Light::createShadowMap(resX,resY);
-//    float farplane = 50.0f;
+    //    Light::createShadowMap(resX,resY);
+    //    float farplane = 50.0f;
     shadowmap.createFlat(resX,resY);
 }
 
@@ -81,9 +84,9 @@ bool SpotLight::cullLight(Camera *cam)
 {
     //do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
     if(this->hasShadows())
-        this->culled = !this->cam.intersectSAT(cam);
+        this->culled = !this->shadowCamera.intersectSAT(cam);
     else
-        this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
+        this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere)==Camera::OUTSIDE;
 
     return culled;
 }

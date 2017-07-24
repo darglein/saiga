@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/rendering/lighting/shadowmap.h"
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/util/error.h"
@@ -160,7 +166,7 @@ void Shadowmap::bindCubeFace(GLenum side){
     glViewport(0,0,w,h);
 
     depthBuffer.bind();
-//    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture(0)->getId(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture(0)->getId(), 0);
 //    depthBuffer.drawToNone();
 
 

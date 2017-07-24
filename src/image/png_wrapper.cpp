@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/image/png_wrapper.h"
 #include "saiga/util/assert.h"
 #ifdef SAIGA_USE_PNG

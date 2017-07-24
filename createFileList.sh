@@ -27,13 +27,13 @@ echo $f >> $FILE;
 done
 
 
-for f in $(find saiga/ -name '*.h*'); 
+for f in $(find include/saiga/ -name '*.h*'); 
 do 
 echo $f >> $FILE; 
 done
 
 
-for f in $(find saiga/ -name '*.inl*'); 
+for f in $(find include/saiga/ -name '*.inl*'); 
 do 
 echo $f >> $FILE; 
 done

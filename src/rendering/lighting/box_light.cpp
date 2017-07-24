@@ -1,13 +1,16 @@
+/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/rendering/lighting/box_light.h"
 
 namespace Saiga {
 
 void BoxLightShader::checkUniforms(){
-    DirectionalLightShader::checkUniforms();
+    LightShader::checkUniforms();
 }
-
-
-
 
 
 //==================================
@@ -15,70 +18,48 @@ void BoxLightShader::checkUniforms(){
 
 BoxLight::BoxLight()
 {
-
-
-
 }
 
 void BoxLight::createShadowMap(int resX, int resY){
-//    Light::createShadowMap(resX,resY);
-        shadowmap.createFlat(resX,resY);
+    shadowmap.createFlat(resX,resY);
 }
-
-
 
 
 void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam){
     shader->uploadColorDiffuse(colorDiffuse);
     shader->uploadColorSpecular(colorSpecular);
-    shader->uploadAmbientIntensity(ambientIntensity);
     shader->uploadModel(model);
-
-//    vec3 viewd = -glm::normalize(vec3((*view)*vec4(direction,0)));
-    vec3 viewd = -glm::normalize(vec3(cam->view*model[2]));
-    shader->uploadDirection(viewd);
-
-    mat4 ip = glm::inverse(cam->proj);
-    shader->uploadInvProj(ip);
-
+    shader->uploadInvProj(glm::inverse(cam->proj));
     if(this->hasShadows()){
-        const mat4 biasMatrix(
-                    0.5, 0.0, 0.0, 0.0,
-                    0.0, 0.5, 0.0, 0.0,
-                    0.0, 0.0, 0.5, 0.0,
-                    0.5, 0.5, 0.5, 1.0
-                    );
-
-        mat4 shadow = biasMatrix*this->cam.proj * this->cam.view * cam->model;
-        shader->uploadDepthBiasMV(shadow);
-
+        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
         shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
         shader->uploadShadowMapSize(shadowmap.getSize());
     }
+}
 
+void BoxLight::setView(vec3 pos, vec3 target, vec3 up)
+{
+    this->setViewMatrix(glm::lookAt(pos,pos +  (pos-target),up));
 }
 
 void BoxLight::calculateCamera(){
-    float length = scale.z;
-
     vec3 dir = glm::normalize(vec3(this->getDirection()));
-    vec3 pos = getPosition() - dir * length * 0.5f;
+    vec3 pos = getPosition() ;
     vec3 up = vec3(getUpVector());
 
-    cam.setView(pos,pos+dir,up);
-    cam.setProj(-scale.x,scale.x,-scale.y,scale.y,0.1,scale.z*2.0f);
-
+    //the camera is centred at the centre of the shadow volume.
+    //we define the box only by the sides of the orthographic projection
+    shadowCamera.setView(pos,pos+dir,up);
+    shadowCamera.setProj(-scale.x,scale.x,-scale.y,scale.y,-scale.z,scale.z);
 }
 
 bool BoxLight::cullLight(Camera *cam)
 {
     //do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
     if(this->hasShadows())
-        this->culled = !this->cam.intersectSAT(cam);
+        this->culled = !this->shadowCamera.intersectSAT(cam);
     else
-        this->culled = cam->sphereInFrustum(this->cam.boundingSphere)==Camera::OUTSIDE;
-	//std::cout << "boxlight culled " <<this->culled << std::endl;
-    //culled  = false;
+        this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere)==Camera::OUTSIDE;
     return culled;
 }
 

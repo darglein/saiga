@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/text/TextOverlay2D.h"
 #include "saiga/text/textShader.h"
 #include "saiga/text/text.h"
@@ -7,10 +13,6 @@
 
 namespace Saiga {
 
-TextOverlay2D::TextOverlay2D()
-{
-    loadShader();
-}
 
 TextOverlay2D::TextOverlay2D(const mat4 &proj)
 {
@@ -18,9 +20,10 @@ TextOverlay2D::TextOverlay2D(const mat4 &proj)
     loadShader();
 }
 
-TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height){
-    loadShader();
+TextOverlay2D::TextOverlay2D(int width, int height):width(width),height(height)
+{
     this->proj = glm::ortho(0.0f,(float)width,0.0f,(float)height,-1.0f,1.0f);
+	loadShader();
 }
 
 void TextOverlay2D::render()

@@ -1,4 +1,12 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/rendering/lighting/light.h"
+#include "saiga/camera/camera.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -32,11 +40,11 @@ void LightShader::uploadColorSpecular(vec3 &color, float intensity){
     Shader::upload(location_lightColorSpecular,c);
 }
 
-void LightShader::uploadDepthBiasMV(mat4 &mat){
+void LightShader::uploadDepthBiasMV(const mat4 &mat){
     Shader::upload(location_depthBiasMV,mat);
 }
 
-void LightShader::uploadInvProj(mat4 &mat){
+void LightShader::uploadInvProj(const mat4 &mat){
     Shader::upload(location_invProj,mat);
 }
 
@@ -64,16 +72,31 @@ void LightShader::uploadShadowMapSize(glm::ivec2 s)
 
 //}
 
-void Light::bindShadowMap(){
-    shadowmap.bindFramebuffer();
-}
-
-void Light::unbindShadowMap(){
-    shadowmap.unbindFramebuffer();
-}
 
 void Light::bindUniformsStencil(MVPShader& shader){
     shader.uploadModel(model);
+}
+
+mat4 Light::viewToLightTransform(const Camera &camera, const Camera &shadowCamera)
+{
+    //glm like glsl is column major!
+    const mat4 biasMatrix(
+                0.5, 0.0, 0.0, 0.0,
+                0.0, 0.5, 0.0, 0.0,
+                0.0, 0.0, 0.5, 0.0,
+                0.5, 0.5, 0.5, 1.0
+                );
+    //We could also use inverse(camera.view) but using the model matrix is faster
+    return biasMatrix * shadowCamera.proj * shadowCamera.view * camera.model;
+}
+
+void Light::renderImGui()
+{
+    ImGui::Checkbox("active",&active);
+    ImGui::Checkbox("castShadows",&castShadows);
+    ImGui::InputFloat("intensity",&colorDiffuse.w,0.1,1);
+    ImGui::ColorEdit3("colorDiffuse",&colorDiffuse[0]);
+    ImGui::ColorEdit3("colorSpecular",&colorSpecular[0]);
 }
 
 }

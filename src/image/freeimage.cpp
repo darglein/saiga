@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/image/freeimage.h"
 #include "saiga/util/assert.h"
 
@@ -90,7 +96,7 @@ void convert(const Image &_src, fipImage &dest){
 
         auto srcPtr = src.positionPtr(0,y);
         auto targetPtr = data + y * dest.getScanWidth();
-        mempcpy(targetPtr,srcPtr,dest.getScanWidth());
+        memcpy(targetPtr,srcPtr,dest.getScanWidth());
     }
 
 }
@@ -154,7 +160,7 @@ void convert(const fipImage &src, Image& dest){
 
         auto targetPtr = dest.positionPtr(0,y);
         auto srcPtr = data + y * src.getScanWidth();
-        mempcpy(targetPtr,srcPtr,dest.getBytesPerRow());
+        memcpy(targetPtr,srcPtr,dest.getBytesPerRow());
     }
 
 

@@ -18,7 +18,7 @@ FILE(GLOB_RECURSE window_SRC  window/*.cpp)
 FILE(GLOB_RECURSE world_SRC  world/*.cpp)
 FILE(GLOB main_SRC  *.cpp)
 
-FILE(GLOB_RECURSE PROG_HEADER  ../${LIB_NAME}/*.h)
+FILE(GLOB_RECURSE PROG_HEADER  ${PROJECT_SOURCE_DIR}/include/${LIB_NAME}/*.h)
 
 FILE(GLOB_RECURSE SHADERS  ${PROJECT_SOURCE_DIR}/shader/*.glsl)
 
@@ -77,7 +77,7 @@ endif()
 #creates 'folders' in the solution explorer of visual studio
 include(source_group_helper)
 GroupSources2(${PROJECT_SOURCE_DIR}/src)
-GroupSources2(${PROJECT_SOURCE_DIR}/saiga)
+GroupSources2(${PROJECT_SOURCE_DIR}/include/saiga)
 GroupSources(${PROJECT_SOURCE_DIR} shader)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

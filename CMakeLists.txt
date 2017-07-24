@@ -17,7 +17,7 @@ LINK_DIRECTORIES(${DEPENDENCIES_INCLUDE_DIR}/bin)
   
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 ######### Show all warnings
 
@@ -183,11 +183,11 @@ endif()
 
 
 #eigen
-find_package(Eigen3 REQUIRED)
-if(EIGEN_FOUND OR EIGEN3_FOUND)
-	include_directories(${EIGEN3_INCLUDE_DIRS})
+find_package(Eigen)
+if(EIGEN_FOUND)
+	include_directories(${EIGEN_INCLUDE_DIRS})
 	SET(SAIGA_USE_EIGEN 1)
-	message(STATUS "Found Eigen3: ${EIGEN3_INCLUDE_DIRS}")
+	message(STATUS "Found Eigen3: ${EIGEN_INCLUDE_DIRS}")
 endif()
 
 
@@ -222,16 +222,6 @@ if(CUDA_FOUND)
 
 	SET(SAIGA_USE_CUDA 1)
 endif()
-
-
-
-
-
-#my laptop only supports Compute capabilities 3.0
-
-#for the frontlab sm_52 is enough
-
-
 
 
 
@@ -279,6 +269,10 @@ endif()
 
 
 
+#dbghelp for crash.cpp
+if(WIN32)
+SET(LIBS ${LIBS} DbgHelp)
+endif(WIN32)
 
 
 
@@ -334,7 +328,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 add_subdirectory(src)
-add_subdirectory(saiga)
+add_subdirectory(include/saiga)
 add_subdirectory(shader)
 if(BUILD_SAMPLES)
 	message(STATUS "Building samples.")
@@ -347,8 +341,8 @@ endif()
 ############# Generate config file ###############
 
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/${LIB_NAME}/buildconfig.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/buildconfig.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/buildconfig.h"
 )
 
 

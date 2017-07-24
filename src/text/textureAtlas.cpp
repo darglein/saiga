@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2017 Darius Rückert 
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "saiga/text/textureAtlas.h"
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/texture/textureLoader.h"
@@ -329,6 +335,8 @@ bool TextureAtlas::readAtlasFromFiles()
     textureAtlas = std::make_shared<Texture>();
     textureAtlas->fromImage(img);
     textureAtlas->generateMipmaps();
+
+	cout << "readAtlasFromFiles: " << uniqueFontString << " numCharacters: " << numCharacters << endl;
 
     return true;
 
