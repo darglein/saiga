@@ -106,6 +106,10 @@ struct array_view{
         return data_;
     }
 
+    HD operator T*() const noexcept {
+        return data_;
+    }
+
 
 private:
     T* data_;
