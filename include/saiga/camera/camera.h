@@ -118,6 +118,23 @@ public:
 
     std::pair<vec3,vec3> getEdge(int i);
 
+    vec3 projectToViewSpace(vec3 worldPosition){
+        return vec3(view * vec4(worldPosition,1));
+    }
+
+    vec3 projectToNDC(vec3 worldPosition){
+        vec4 p = (viewProj * vec4(worldPosition,1));
+        p /= p.w;
+        return vec3(p);
+    }
+
+    vec2 projectToScreenSpace(vec3 worldPosition, int w, int h){
+        vec3 p = projectToNDC(worldPosition);
+        vec2 ip = vec2(p);
+        ip = ip * 0.5f + vec2(0.5f);
+        ip *= vec2(w,h);
+        return ip;
+    }
 
 private:
     friend std::ostream& operator<<(std::ostream& os, const Camera& ca);

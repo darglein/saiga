@@ -417,6 +417,7 @@ void ImGui_SDL_Renderer::beginFrame()
     // Hide OS mouse cursor if ImGui is drawing it
     SDL_ShowCursor(io.MouseDrawCursor ? 0 : 1);
 
+    wantsCaptureMouse = false;
     // Start the frame
     ImGui::NewFrame();
 }

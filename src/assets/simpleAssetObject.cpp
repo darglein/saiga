@@ -16,6 +16,11 @@ void SimpleAssetObject::render(Camera *cam)
     asset->render(cam,model);
 }
 
+void SimpleAssetObject::renderForward(Camera *cam)
+{
+    asset->renderForward(cam,model);
+}
+
 void SimpleAssetObject::renderDepth(Camera *cam)
 {
     asset->renderDepth(cam,model);

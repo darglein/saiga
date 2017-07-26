@@ -55,7 +55,7 @@ std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string &
 
 
 
-    asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
+    asset->create(file,basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
 
     return  std::shared_ptr<ColoredAsset>(asset);
 }
@@ -102,7 +102,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
         }
     }
 
-    asset->create(file,texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
+    asset->create(file,texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
 
     return std::shared_ptr<TexturedAsset>(asset);
 }

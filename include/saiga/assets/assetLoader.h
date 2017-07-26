@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -15,17 +15,20 @@ namespace Saiga {
 
 class SAIGA_GLOBAL AssetLoader2{
 public:
-    std::shared_ptr<MVPShader> basicAssetShader  = nullptr;
-    std::shared_ptr<MVPShader> basicAssetDepthshader  = nullptr;
-    std::shared_ptr<MVPShader> basicAssetWireframeShader  = nullptr;
+    std::shared_ptr<MVPShader> basicAssetShader;
+    std::shared_ptr<MVPShader> basicAssetForwardShader;
+    std::shared_ptr<MVPShader> basicAssetDepthshader;
+    std::shared_ptr<MVPShader> basicAssetWireframeShader;
 
-    std::shared_ptr<MVPShader> texturedAssetShader  = nullptr;
-    std::shared_ptr<MVPShader> texturedAssetDepthShader  = nullptr;
-    std::shared_ptr<MVPShader> texturedAssetWireframeShader  = nullptr;
+    std::shared_ptr<MVPShader> texturedAssetShader;
+    std::shared_ptr<MVPShader> texturedAssetForwardShader;
+    std::shared_ptr<MVPShader> texturedAssetDepthShader;
+    std::shared_ptr<MVPShader> texturedAssetWireframeShader;
 
-    std::shared_ptr<BoneShader> animatedAssetShader  = nullptr;
-    std::shared_ptr<BoneShader> animatedAssetDepthshader  = nullptr;
-    std::shared_ptr<BoneShader> animatedAssetWireframeShader  = nullptr;
+    std::shared_ptr<BoneShader> animatedAssetShader;
+    std::shared_ptr<BoneShader> animatedAssetForwardShader;
+    std::shared_ptr<BoneShader> animatedAssetDepthshader;
+    std::shared_ptr<BoneShader> animatedAssetWireframeShader;
 
     AssetLoader2();
     virtual ~AssetLoader2();
@@ -47,6 +50,7 @@ public:
 
     std::shared_ptr<ColoredAsset> assetFromMesh(std::shared_ptr<TriangleMesh<VertexNT,GLuint>> mesh, const vec4& color=vec4(1,1,1,1));
 
+    std::shared_ptr<ColoredAsset> nonTriangleMesh(std::vector<vec3> vertices, std::vector<GLuint> indices, GLenum mode = GL_TRIANGLES, const vec4& color=vec4(1,1,1,1));
 };
 
 }

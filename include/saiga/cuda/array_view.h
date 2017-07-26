@@ -99,8 +99,9 @@ struct array_view{
         return thrust::device_pointer_cast(end());
     }
 
+    //remove elements from the right and left
     HD array_view<T> slice(size_t left, size_t right) const {
-        return array_view<T>(data_ + left, n - right);
+        return array_view<T>(data_ + left, n - right - left);
     }
 
     HD array_view<T> slice_n(size_t offset, size_t n) const {

@@ -28,6 +28,7 @@ AssetLoader2::~AssetLoader2()
 void AssetLoader2::loadDefaultShaders()
 {
     basicAssetShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model.glsl");
+    basicAssetForwardShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_forward.glsl");
     basicAssetDepthshader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_depth.glsl");
     basicAssetWireframeShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_wireframe.glsl");
 
@@ -75,7 +76,7 @@ std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugTexturedPlane(std::shared_
     tg.indices = plainMesh->numIndices();
     tg.texture = texture;
     asset->groups.push_back(tg);
-    asset->create("Plane",texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader);
+    asset->create("Plane",texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader);
 
     return asset;
 }
@@ -102,7 +103,7 @@ std::shared_ptr<ColoredAsset> AssetLoader2::loadDebugArrow(float radius, float l
         v.data = vec4(0.5,0,0,0);
     }
 
-    asset->create("Arrow",basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader);
+    asset->create("Arrow",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
 }
 
@@ -117,8 +118,29 @@ std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(std::shared_ptr<Triang
         v.data = vec4(0.5,0,0,0);
     }
 
-    asset->create("Fromsdfg",basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader);
+    asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
+}
+
+std::shared_ptr<ColoredAsset> AssetLoader2::nonTriangleMesh(std::vector<vec3> vertices, std::vector<GLuint> indices, GLenum mode, const vec4& color){
+
+    auto asset = std::make_shared<ColoredAsset>();
+
+
+
+
+    for(auto v : vertices){
+        asset->mesh.vertices.push_back(VertexNC(v,vec3(0,1,0),vec3(color)));
+    }
+//    for(auto& v : asset->mesh.vertices){
+//        v.color = color;
+//        v.data = vec4(0.5,0,0,0);
+//    }
+    asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
+    asset->buffer.set(asset->mesh.vertices,indices,GL_STATIC_DRAW);
+    asset->buffer.setDrawMode(mode);
+    return asset;
+
 }
 
 }

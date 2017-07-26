@@ -20,6 +20,7 @@ namespace Saiga {
 class SAIGA_GLOBAL Asset{
 public:
     virtual void render(Camera *cam, const mat4 &model) = 0;
+    virtual void renderForward(Camera *cam, const mat4 &model) = 0;
     virtual void renderDepth(Camera *cam, const mat4 &model) = 0;
     virtual void renderWireframe(Camera *cam, const mat4 &model) = 0;
     virtual void renderRaw() = 0;
@@ -33,9 +34,10 @@ public:
     AABB boundingBox;
     vec3 offset = vec3(0);
 
-    std::shared_ptr<MVPShader> shader  = nullptr;
-    std::shared_ptr<MVPShader> depthshader  = nullptr;
-    std::shared_ptr<MVPShader> wireframeshader  = nullptr;
+    std::shared_ptr<MVPShader> shader;
+    std::shared_ptr<MVPShader> forwardShader;
+    std::shared_ptr<MVPShader> depthshader;
+    std::shared_ptr<MVPShader> wireframeshader;
 
     TriangleMesh<vertex_t,index_t> mesh;
     IndexedVertexBuffer<vertex_t,index_t> buffer;
@@ -46,6 +48,7 @@ public:
      */
 
     virtual void render(Camera *cam, const mat4 &model) override;
+    virtual void renderForward(Camera *cam, const mat4 &model) override;
     virtual void renderDepth(Camera *cam, const mat4 &model) override;
     virtual void renderWireframe(Camera *cam, const mat4 &model) override;
 
@@ -57,7 +60,9 @@ public:
     virtual void renderRaw() override;
 
 
-    void create(std::string name, std::shared_ptr<MVPShader> shader, std::shared_ptr<MVPShader> depthshader, std::shared_ptr<MVPShader> wireframeshader, bool normalizePosition=false, bool ZUPtoYUP=false);
+    void create(std::string name,
+                std::shared_ptr<MVPShader> shader, std::shared_ptr<MVPShader> forwardShader, std::shared_ptr<MVPShader> depthshader, std::shared_ptr<MVPShader> wireframeshader,
+                bool normalizePosition=false, bool ZUPtoYUP=false);
 
 
     void normalizePosition();
@@ -90,6 +95,23 @@ void BasicAsset<vertex_t,index_t>::render(Camera *cam, const mat4 &model)
 //    glDisable(GL_POLYGON_OFFSET_FILL);
 
     shader->unbind();
+}
+
+template<typename vertex_t, typename index_t>
+void BasicAsset<vertex_t,index_t>::renderForward(Camera *cam, const mat4 &model)
+{
+    forwardShader->bind();
+//    shader->uploadAll(cam,model);
+    forwardShader->uploadModel(model);
+
+//    glEnable(GL_POLYGON_OFFSET_FILL);
+//    glPolygonOffset(1.0f,1.0f);
+
+    buffer.bindAndDraw();
+
+//    glDisable(GL_POLYGON_OFFSET_FILL);
+
+    forwardShader->unbind();
 }
 
 template<typename vertex_t, typename index_t>
@@ -174,10 +196,13 @@ void BasicAsset<vertex_t,index_t>::ZUPtoYUP()
 }
 
 template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::create(std::string _name, std::shared_ptr<MVPShader> _shader, std::shared_ptr<MVPShader> _depthshader, std::shared_ptr<MVPShader> _wireframeshader, bool normalizePosition, bool ZUPtoYUP){
+void BasicAsset<vertex_t,index_t>::create(std::string _name,
+                                          std::shared_ptr<MVPShader> _shader, std::shared_ptr<MVPShader> _forwardShader, std::shared_ptr<MVPShader> _depthshader, std::shared_ptr<MVPShader> _wireframeshader,
+                                          bool normalizePosition, bool ZUPtoYUP){
 
     this->name = _name;
     this->shader = _shader;
+    this->forwardShader = _forwardShader;
     this->depthshader = _depthshader;
     this->wireframeshader = _wireframeshader;
     this->boundingBox = mesh.calculateAabb();

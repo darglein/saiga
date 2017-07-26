@@ -19,6 +19,7 @@ public:
     std::shared_ptr<Asset> asset;
 
     void render(Camera *cam);
+    void renderForward(Camera *cam);
     void renderDepth(Camera *cam);
     void renderWireframe(Camera *cam);
     void renderRaw();

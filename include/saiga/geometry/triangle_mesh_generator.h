@@ -42,6 +42,9 @@ public:
     static std::shared_ptr<TriangleMesh<vertex_t,index_t>> createGridMesh2(int w, int h);
 
 
+    //a circle at the origin parallel to the x-z plane
+    template<typename vertex_t, typename index_t>
+    static std::shared_ptr<TriangleMesh<vertex_t,index_t>> createCircleMesh(int segments, float radius);
 
 };
 
@@ -49,7 +52,8 @@ public:
 
 template<typename vertex_t, typename index_t>
 std::shared_ptr<TriangleMesh<vertex_t,index_t>>  TriangleMeshGenerator::createGridMesh2(int w, int h){
-    TriangleMesh<vertex_t,index_t>* mesh = new TriangleMesh<vertex_t,index_t>();
+//    TriangleMesh<vertex_t,index_t>* mesh = new TriangleMesh<vertex_t,index_t>();
+    auto mesh = std::make_shared<TriangleMesh<vertex_t,index_t>>();
 
     //creating uniform grid with w*h vertices
     //the resulting mesh will fill the quad (-1,0,-1) - (1,0,1)
@@ -73,7 +77,44 @@ std::shared_ptr<TriangleMesh<vertex_t,index_t>>  TriangleMeshGenerator::createGr
         }
     }
 
-    return std::shared_ptr<TriangleMesh<vertex_t,index_t>>(mesh);
+//    return std::shared_ptr<TriangleMesh<vertex_t,index_t>>(mesh);
+    return mesh;
+}
+
+
+template<typename vertex_t, typename index_t>
+std::shared_ptr<TriangleMesh<vertex_t,index_t>>  TriangleMeshGenerator::createCircleMesh(int segments, float radius){
+    auto mesh = std::make_shared<TriangleMesh<vertex_t,index_t>>();
+
+
+    float R = 1./(float)(segments);
+    float r = radius;
+
+//    vertex_t v;
+//    v.position = vec3(0,0,0);
+//    v.normal = vec3(0,1,0);
+//    mesh->vertices.push_back(v);
+    mesh->vertices.push_back(vertex_t(vec3(0,0,0),vec3(0,1,0)));
+
+    for(int s=0;s<segments;s++){
+        float x = r * glm::sin((float)s*R*glm::two_pi<float>());
+        float y = r * glm::cos((float)s*R*glm::two_pi<float>());
+//        v.position = vec3(x,0,y);
+//        v.normal = vec3(0,1,0);
+//        mesh->vertices.push_back(v);
+        mesh->vertices.push_back(vertex_t(vec3(x,0,y),vec3(0,1,0)));
+    }
+
+    //create a triangle from each 2 neighbouring vertices to the center
+    for(int s=0;s<segments;s++){
+        Face face;
+        face.v3 =  0;
+        face.v2 =  ((s+1)%segments)+1;
+        face.v1 =  s+1;
+        mesh->faces.push_back(face);
+    }
+
+    return mesh;
 }
 
 }

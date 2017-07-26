@@ -47,7 +47,7 @@ std::shared_ptr<ColoredAsset> AssimpAssetLoader::loadBasicAsset(const std::strin
         tmesh.addMesh(tmesh3);
     }
 
-    asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
+    asset->create(file,basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
 
 
     return std::shared_ptr<ColoredAsset>(asset);
@@ -101,7 +101,7 @@ std::shared_ptr<TexturedAsset> AssimpAssetLoader::loadTexturedAsset(const std::s
             tmesh.addMesh(tmesh3);
         }
     }
-    asset->create(file,texturedAssetShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
+    asset->create(file,texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
 
     return std::shared_ptr<TexturedAsset>(asset);
 }
@@ -185,7 +185,7 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
 
 
     //    asset->create(file,basicAssetShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
-    asset->create(file,animatedAssetShader,animatedAssetDepthshader,animatedAssetWireframeShader,normalize,false);
+    asset->create(file,animatedAssetShader,animatedAssetForwardShader,animatedAssetDepthshader,animatedAssetWireframeShader,normalize,false);
 
 
 
