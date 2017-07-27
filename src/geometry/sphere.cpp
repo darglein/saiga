@@ -71,13 +71,12 @@ bool Sphere::intersect(const Sphere &other)
     return glm::distance(other.pos,pos) < r+other.r;
 }
 
-}
-
-
 std::ostream& operator<<(std::ostream& os, const Saiga::Sphere& s)
 {
     std::cout<< "Sphere: " << s.pos << s.r;
-
     return os;
 }
+
+}
+
 

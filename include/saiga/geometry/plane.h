@@ -25,8 +25,8 @@ public:
     void set(const vec3 &p1, const vec3 &p2, const vec3 &p3);
 
     float distance(const vec3 &p) const;
+    vec3 closestPointOnPlane(const vec3 &p) const;
 
-    void draw();
 
 
 

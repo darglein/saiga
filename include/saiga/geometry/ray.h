@@ -31,7 +31,7 @@ public:
     //[output] t: distance between ray origin and intersection
     bool intersectAabb(const AABB &bb, float &t) const;
 
-    bool intersectSphere(const Sphere &s, float &t1, float &t2) const;
+
 
     bool intersectTriangle(const Triangle &s, float &t, bool &back) const;
 

@@ -5,6 +5,7 @@
  */
 
 #include "saiga/rendering/lighting/spot_light.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -89,6 +90,13 @@ bool SpotLight::cullLight(Camera *cam)
         this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere)==Camera::OUTSIDE;
 
     return culled;
+}
+
+void SpotLight::renderImGui()
+{
+    ImGui::Separator();
+    ImGui::Text("SpotLight");
+    Light::renderImGui();
 }
 
 }

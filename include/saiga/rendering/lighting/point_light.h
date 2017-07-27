@@ -54,6 +54,8 @@ public:
 
 
     bool cullLight(Camera *shadowCamera);
+
+    void renderImGui();
 };
 
 }

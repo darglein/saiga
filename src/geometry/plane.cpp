@@ -39,6 +39,12 @@ float Plane::distance(const vec3 &p) const{
     return d + glm::dot(p,normal);
 }
 
+vec3 Plane::closestPointOnPlane(const vec3 &p) const
+{
+    float dis = distance(p);
+    return p - dis * normal;
+}
+
 
 std::ostream& operator<<(std::ostream& os, const Plane& pl){
 

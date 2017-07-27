@@ -66,7 +66,9 @@ src/glfw/glfw_window.cpp
 src/geometry/kdtree.cpp
 src/geometry/obb.cpp
 src/geometry/raytracer.cpp
+src/geometry/circle.cpp
 src/geometry/ray.cpp
+src/geometry/intersection.cpp
 src/geometry/plane.cpp
 src/geometry/sphere.cpp
 src/geometry/grid.cpp
@@ -231,11 +233,13 @@ include/saiga/geometry/triangle_mesh.h
 include/saiga/geometry/obb.h
 include/saiga/geometry/ray.h
 include/saiga/geometry/raytracer.h
+include/saiga/geometry/intersection.h
 include/saiga/geometry/clipping.h
 include/saiga/geometry/triangle.h
 include/saiga/geometry/sphere.h
 include/saiga/geometry/bezier.h
 include/saiga/geometry/grid.h
+include/saiga/geometry/circle.h
 include/saiga/geometry/kdtree.h
 include/saiga/geometry/polygon.h
 include/saiga/geometry/triangle_mesh_generator.h
@@ -352,6 +356,7 @@ include/saiga/imgui/stb_truetype.h
 include/saiga/imgui/imgui_orient.h
 include/saiga/imgui/imgui_internal.h
 include/saiga/imgui/imconfig.h
+include/saiga/imgui/imgui_user.h
 include/saiga/imgui/imgui_impl_sdl_gl3.h
 include/saiga/imgui/stb_rect_pack.h
 include/saiga/util/tinyxml2.h

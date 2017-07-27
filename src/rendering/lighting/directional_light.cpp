@@ -411,6 +411,8 @@ std::vector<float> DirectionalLight::getDepthCutsRelative() const
 
 void DirectionalLight::renderImGui()
 {
+    ImGui::Separator();
+    ImGui::Text("DirectionalLight");
     Light::renderImGui();
     ImGui::InputFloat("Cascade Interpolate Range",&cascadeInterpolateRange);
 }

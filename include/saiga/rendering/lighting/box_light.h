@@ -38,6 +38,8 @@ public:
     void calculateCamera();
     bool cullLight(Camera *shadowCamera);
 
+    void renderImGui();
+
 };
 
 }

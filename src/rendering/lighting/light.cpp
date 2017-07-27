@@ -7,6 +7,7 @@
 #include "saiga/rendering/lighting/light.h"
 #include "saiga/camera/camera.h"
 #include "saiga/imgui/imgui.h"
+#include "saiga/util/tostring.h"
 
 namespace Saiga {
 
@@ -97,6 +98,8 @@ void Light::renderImGui()
     ImGui::InputFloat("intensity",&colorDiffuse.w,0.1,1);
     ImGui::ColorEdit3("colorDiffuse",&colorDiffuse[0]);
     ImGui::ColorEdit3("colorSpecular",&colorSpecular[0]);
+    auto str = to_string(visible) + "/" + to_string(selected) + "/" + to_string(culled);
+    ImGui::Text("visible/selected/culled: %s",str.c_str());
 }
 
 }

@@ -216,6 +216,12 @@ void Lighting::renderFinal(Camera *cam)
         ImGui::PushID(1);
         spotLight->renderImGui();
         ImGui::PopID();
+        ImGui::PushID(2);
+        pointLight->renderImGui();
+        ImGui::PopID();
+        ImGui::PushID(3);
+        boxLight->renderImGui();
+        ImGui::PopID();
 
 //        if(ImGui::Checkbox("Point Light Shadows",&pointLightShadows)){
 //            for(auto l : pointLights){

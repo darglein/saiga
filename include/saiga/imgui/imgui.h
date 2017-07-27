@@ -31,7 +31,7 @@
 // Get latest version at https://github.com/ocornut/imgui
 
 #pragma once
-#include "saiga/config.h"
+
 
 #if !defined(IMGUI_DISABLE_INCLUDE_IMCONFIG_H) || defined(IMGUI_INCLUDE_IMCONFIG_H)
 #include "imconfig.h"       // User-editable configuration file
@@ -1428,4 +1428,3 @@ struct ImFont
 #include "imgui_user.h"
 #endif
 
-#include "saiga/imgui/imgui_orient.h"

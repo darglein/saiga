@@ -277,7 +277,7 @@ void OrthographicCamera::setProj( AABB bb){
 
 void OrthographicCamera::recalculatePlanes()
 {
-    vec3 right = vec3(model[0]);
+    vec3 rightv = vec3(model[0]);
     vec3 up = vec3(model[1]);
     vec3 dir = -vec3(model[2]);
 
@@ -290,6 +290,7 @@ void OrthographicCamera::recalculatePlanes()
     planes[1].set(farplanepos,dir);
 
 
+#if 0
     //calcuate 4 corners of nearplane
     vertices[0] = nearplanepos + nh * up - nw * right;
     vertices[1] = nearplanepos + nh * up + nw * right;
@@ -300,18 +301,33 @@ void OrthographicCamera::recalculatePlanes()
     vertices[5] = farplanepos + fh * up + fw * right;
     vertices[6] = farplanepos - fh * up - fw * right;
     vertices[7] = farplanepos - fh * up + fw * right;
+#else
+    //calcuate 4 corners of nearplane
+    vertices[0] = nearplanepos + top * up + left * rightv;
+    vertices[1] = nearplanepos + top * up + right * rightv;
+    vertices[2] = nearplanepos + bottom * up + left * rightv;
+    vertices[3] = nearplanepos + bottom  * up + right * rightv;
+    //calcuate 4 corners of farplane
+    vertices[4] = farplanepos + top * up + left * rightv;
+    vertices[5] = farplanepos + top * up + right * rightv;
+    vertices[6] = farplanepos + bottom * up + left * rightv;
+    vertices[7] = farplanepos + bottom  * up + right * rightv;
+#endif
 
     //side planes
-    planes[2].set(getPosition(),vertices[1],vertices[0]); //top
-    planes[3].set(getPosition(),vertices[2],vertices[3]); //bottom
-    planes[4].set(getPosition(),vertices[0],vertices[2]); //left
-    planes[5].set(getPosition(),vertices[3],vertices[1]); //right
-
+//    planes[2].set(getPosition(),vertices[1],vertices[0]); //top
+//    planes[3].set(getPosition(),vertices[2],vertices[3]); //bottom
+//    planes[4].set(getPosition(),vertices[0],vertices[2]); //left
+//    planes[5].set(getPosition(),vertices[3],vertices[1]); //right
+    planes[2].set(vertices[0],up); //top
+    planes[3].set(vertices[3],-up); //bottom
+    planes[4].set(vertices[0],-rightv); //left
+    planes[5].set(vertices[3],rightv); //right
 
     //    vec3 fbr = farplanepos - fh * up + fw * right;
-    vec3 fbr = farplanepos - fh * up;
+//    vec3 fbr = farplanepos - fh * up;
     vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
-    float r = glm::distance(fbr,sphereMid);
+    float r = glm::distance(vertices[0],sphereMid);
 
     boundingSphere.r = r;
     boundingSphere.pos = sphereMid;

@@ -136,6 +136,15 @@ public:
         return ip;
     }
 
+    vec3 inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h){
+        ip /= vec2(w,h);
+        ip = (ip - vec2(0.5f)) * 2.0f;
+        vec3 p = vec3(ip,depth);
+        vec4 wp = inverse(viewProj) * vec4(p,1);
+        wp /= wp.w;
+        return vec3(wp);
+    }
+
 private:
     friend std::ostream& operator<<(std::ostream& os, const Camera& ca);
 };

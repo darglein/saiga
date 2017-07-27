@@ -7,6 +7,7 @@
 #include "saiga/rendering/lighting/point_light.h"
 #include "saiga/util/error.h"
 #include "saiga/util/assert.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -111,6 +112,14 @@ bool PointLight::cullLight(Camera *cam)
 //    this->culled = false;
 //    cout<<culled<<endl;
     return culled;
+}
+
+void PointLight::renderImGui()
+{
+    ImGui::Separator();
+    ImGui::Text("PointLight");
+    Light::renderImGui();
+
 }
 
 }

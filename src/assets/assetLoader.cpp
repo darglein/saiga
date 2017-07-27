@@ -124,7 +124,7 @@ std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(std::shared_ptr<Triang
 
 std::shared_ptr<ColoredAsset> AssetLoader2::nonTriangleMesh(std::vector<vec3> vertices, std::vector<GLuint> indices, GLenum mode, const vec4& color){
 
-    auto asset = std::make_shared<ColoredAsset>();
+    std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
 
 
 

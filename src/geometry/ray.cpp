@@ -51,29 +51,6 @@ bool Ray::intersectAabb(const AABB &bb, float &t) const{
     return true;
 }
 
-bool Ray::intersectSphere(const Sphere &s, float &t1, float &t2) const{
-    vec3 L = origin-s.pos;
-    float a = glm::dot(direction,direction);
-    float b = 2*glm::dot(direction,( L));
-    float c = glm::dot(L,L) - s.r*s.r;
-    float D = b*b + (-4.0f)*a*c;
-
-    // If ray can not intersect then stop
-    if (D < 0)
-        return false;
-
-
-    if(D==0){
-        t1 = t2 = - 0.5 * b / a;
-    }else{
-        t1 = -0.5 * (b + sqrt(D)) / a ;
-        t2 =  -0.5 * (b - sqrt(D)) / a;
-    }
-    if (t1 > t2) std::swap(t1, t2);
-
-
-    return true;
-}
 
 bool Ray::intersectTriangle(const Triangle &tri, float &out, bool &back) const{
     const float EPSILON = 0.000001f;
