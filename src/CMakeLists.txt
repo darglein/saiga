@@ -81,6 +81,7 @@ GroupSources2(${PROJECT_SOURCE_DIR}/include/saiga)
 GroupSources(${PROJECT_SOURCE_DIR} shader)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${PROJECT_SOURCE_DIR}/include/saiga/imgui)
 
 if(BUILD_SHARED)
 	add_definitions(-DSAIGA_DLL_EXPORTS)

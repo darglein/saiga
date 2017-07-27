@@ -97,6 +97,11 @@ void SpotLight::renderImGui()
     ImGui::Separator();
     ImGui::Text("SpotLight");
     Light::renderImGui();
+    if(ImGui::SliderFloat("Angle",&angle,0,85)){
+        recalculateScale();
+        calculateModel();
+    }
+    ImGui::InputFloat("shadowNearPlane",&shadowNearPlane);
 }
 
 }

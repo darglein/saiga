@@ -415,6 +415,10 @@ void DirectionalLight::renderImGui()
     ImGui::Text("DirectionalLight");
     Light::renderImGui();
     ImGui::InputFloat("Cascade Interpolate Range",&cascadeInterpolateRange);
+    if(ImGui::Direction("Direction",direction)){
+        setDirection(direction);
+    }
+    ImGui::InputFloat("ambientIntensity",&ambientIntensity);
 }
 
 }

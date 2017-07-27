@@ -96,6 +96,8 @@ void Light::renderImGui()
     ImGui::Checkbox("active",&active);
     ImGui::Checkbox("castShadows",&castShadows);
     ImGui::InputFloat("intensity",&colorDiffuse.w,0.1,1);
+    ImGui::InputFloat("specular intensity",&colorSpecular.w,0.1,1);
+    //todo: check srgb
     ImGui::ColorEdit3("colorDiffuse",&colorDiffuse[0]);
     ImGui::ColorEdit3("colorSpecular",&colorSpecular[0]);
     auto str = to_string(visible) + "/" + to_string(selected) + "/" + to_string(culled);

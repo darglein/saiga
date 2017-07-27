@@ -70,6 +70,12 @@
         ImVec4(const glm::vec4& f) { x = f.x; y = f.y; z = f.z; w = f.w; }     \
         operator glm::vec4() const { return glm::vec4(x,y,z,w); }
 
+#define IM_QUAT_CLASS_EXTRA                                                 \
+        ImQuat(const glm::quat& f) { x = f.x; y = f.y; z = f.z; w = f.w; }     \
+        operator glm::quat() const { return glm::quat(w,x,y,z); }
+
+
+
 
 //---- Tip: You can add extra functions within the ImGui:: namespace, here or in your own headers files.
 //---- e.g. create variants of the ImGui::Value() helper for your low-level math types, or your own widgets/helpers.

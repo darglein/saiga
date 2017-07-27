@@ -67,14 +67,9 @@ class SAIGA_GLOBAL Light  : public Object3D
 {
 protected:
     bool visible=true, active=true, selected=false, culled=false;
-
     //shadow map
     bool castShadows=false;
-
 public:
-
-
-
     vec4 colorDiffuse = vec4(1);
     vec4 colorSpecular = vec4(1);
 
@@ -108,8 +103,6 @@ public:
     void enableShadows() {castShadows=true;}
     void disableShadows() {castShadows=false;}
     void setCastShadows(bool s){castShadows = s;}
-
-
 
     bool shouldCalculateShadowMap(){return castShadows&&active&&!culled;}
     bool shouldRender(){return active&&!culled;}

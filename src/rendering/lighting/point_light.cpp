@@ -119,6 +119,7 @@ void PointLight::renderImGui()
     ImGui::Separator();
     ImGui::Text("PointLight");
     Light::renderImGui();
+    ImGui::InputFloat("shadowNearPlane",&shadowNearPlane);
 
 }
 

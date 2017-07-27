@@ -207,25 +207,26 @@ IMGUI_API bool AxisAngleGizmo(const char* label, ImVec3& axis, float& angle);
 IMGUI_API bool DirectionGizmo(const char* label, ImVec3& dir);
 
 
-//glm wrapper for the 3 functions above
+////glm wrapper for the 3 functions above
 inline bool Quaternion(const char* label, glm::quat& quat){
-    ImQuat q(quat.x,quat.y,quat.z,quat.w);
+    ImQuat q(quat);
     bool ret = QuaternionGizmo(label,q);
-    quat = glm::quat(q.w,q.x,q.y,q.z);
+    quat = q;
     return ret;
 }
 
 inline bool AxisAngle(const char* label, glm::vec3& axis, float& angle){
-    ImVec3 d(axis.x,axis.y,axis.z);
+    ImVec3 d(axis);
     bool ret = AxisAngleGizmo(label,d,angle);
-    axis = glm::vec3(d.x,d.y,d.z);
+    axis = d;
     return ret;
 }
 
 inline bool Direction(const char* label, glm::vec3& dir){
-    ImVec3 d(dir.x,dir.y,dir.z);
+    ImVec3 d(dir);
     bool ret = DirectionGizmo(label,d);
-    dir = glm::vec3(d.x,d.y,d.z);
+    dir = d;
+//    dir = glm::vec3(d.x,d.y,d.z);
     return ret;
 }
 
