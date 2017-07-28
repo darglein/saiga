@@ -71,7 +71,7 @@ private:
     std::shared_ptr<PostProcessingShader>  passThroughShader;
 
     bool useTimers = false;
-    std::vector<FilteredGPUTimer> shaderTimer;
+    std::vector<FilteredMultiFrameOpenGLTimer> shaderTimer;
 
     std::shared_ptr<Shader>  computeTest;
 

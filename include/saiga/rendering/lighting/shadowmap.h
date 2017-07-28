@@ -11,20 +11,32 @@
 
 namespace Saiga {
 
-class SAIGA_GLOBAL Shadowmap{
-private:
+enum class ShadowQuality{
+    LOW,        // 16 uint
+    MEDIUM,     // 32 uint
+    HIGH        // 32 bit float
+};
+
+
+class SAIGA_GLOBAL ShadowmapBase{
+protected:
     bool initialized = false;
     int w,h;
-
     Framebuffer depthBuffer;
+public:
+    void bindFramebuffer();
+    void unbindFramebuffer();
+    bool isInitialized(){ return initialized;}
+};
+
+class SAIGA_GLOBAL Shadowmap : public ShadowmapBase{
 
     std::vector<std::shared_ptr<raw_Texture>> depthTextures;
-//    std::shared_ptr<raw_Texture> depthTexture;
-public:
-//    std::shared_ptr<raw_Texture> deleteTexture;
 
-    Shadowmap();
-    ~Shadowmap();
+public:
+
+    Shadowmap(){}
+    ~Shadowmap(){}
 
     std::shared_ptr<raw_Texture> getDepthTexture(unsigned int n){
         SAIGA_ASSERT(n < depthTextures.size());
@@ -33,25 +45,17 @@ public:
 
     std::vector<std::shared_ptr<raw_Texture>>& getDepthTextures(){ return depthTextures;}
 
-    void bindFramebuffer();
-    void unbindFramebuffer();
 
     glm::ivec2 getSize(){ return glm::ivec2(w,h);}
     void bindCubeFace(GLenum side);
     void bindAttachCascade(int n);
 
-    bool isInitialized(){ return initialized;}
     void init(int w, int h);
 
-    enum ShadowQuality{
-        LOW,        // 16 uint
-        MEDIUM,     // 32 uint
-        HIGH        // 32 bit float
-    };
 
-    void createFlat(int w, int h, ShadowQuality quality = LOW);
-    void createCube(int w, int h, ShadowQuality quality = LOW);
-    void createCascaded(int w, int h, int numCascades, ShadowQuality quality = LOW);
+    void createFlat(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
+    void createCube(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
+    void createCascaded(int w, int h, int numCascades, ShadowQuality quality = ShadowQuality::LOW);
 };
 
 }

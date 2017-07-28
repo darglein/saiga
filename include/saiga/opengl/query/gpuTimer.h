@@ -26,7 +26,7 @@ namespace Saiga {
  * Core since version 	3.3
  *
  */
-class SAIGA_GLOBAL GPUTimer{
+class SAIGA_GLOBAL MultiFrameOpenGLTimer{
 private:
 
     TimeStampQuery queries[2][2];
@@ -40,8 +40,8 @@ private:
     bool stopped = false;
 #endif
 public:
-    GPUTimer();
-    ~GPUTimer();
+    MultiFrameOpenGLTimer();
+    ~MultiFrameOpenGLTimer();
 
     /**
      * Creates the underlying OpenGL objects.
@@ -61,7 +61,7 @@ public:
  * time = alpha * newTime + (1-alpha) * oldTime;
  */
 
-class SAIGA_GLOBAL FilteredGPUTimer : public GPUTimer{
+class SAIGA_GLOBAL FilteredMultiFrameOpenGLTimer : public MultiFrameOpenGLTimer{
 private:
     double currentTimeMS = 0;
 public:
@@ -72,5 +72,46 @@ public:
     double getTimeMSd();
 
 };
+
+
+class SAIGA_GLOBAL OpenGLTimer{
+protected:
+    TimeStampQuery queries[2];
+    GLuint64 time;
+public:
+    OpenGLTimer();
+
+    void start();
+    GLuint64 stop();
+    float getTimeMS();
+};
+
+
+template<typename T>
+class SAIGA_GLOBAL ScopedOpenGLTimer : public OpenGLTimer{
+public:
+    T* target;
+    ScopedOpenGLTimer(T* target) : target(target){
+        start();
+    }
+
+    ScopedOpenGLTimer(T& target) : target(&target){
+        start();
+    }
+
+    ~ScopedOpenGLTimer(){
+        stop();
+        T time = static_cast<T>(getTimeMS());
+        *target = time;
+    }
+};
+
+class SAIGA_GLOBAL ScopedOpenGLTimerPrint : public OpenGLTimer{
+public:
+    std::string name;
+    ScopedOpenGLTimerPrint(const std::string &name);
+    ~ScopedOpenGLTimerPrint();
+};
+
 
 }

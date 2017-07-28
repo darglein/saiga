@@ -82,7 +82,7 @@ private:
 	bool useTimers = true;
 
 
-    std::vector<FilteredGPUTimer> timers2;
+    std::vector<FilteredMultiFrameOpenGLTimer> timers2;
 	std::vector<std::string> timerStrings;
     void startTimer(int timer){if(useTimers)timers2[timer].startTimer();}
     void stopTimer(int timer){if(useTimers)timers2[timer].stopTimer();}

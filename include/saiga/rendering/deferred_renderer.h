@@ -91,7 +91,7 @@ public:
         COUNT,
     };
 private:
-    std::vector<FilteredGPUTimer> timers;
+    std::vector<FilteredMultiFrameOpenGLTimer> timers;
 
     void startTimer(DeferredTimings timer){if(params.useGPUTimers || timer==TOTAL)timers[timer].startTimer();}
     void stopTimer(DeferredTimings timer){if(params.useGPUTimers || timer == TOTAL)timers[timer].stopTimer();}
@@ -105,7 +105,7 @@ public:
     void bindCamera(Camera* cam);
 
     float getTime(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].getTimeMS();}
-    float getUnsmoothedTimeMS(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].GPUTimer::getTimeMS();}
+    float getUnsmoothedTimeMS(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].MultiFrameOpenGLTimer::getTimeMS();}
 
     void printTimings();
 

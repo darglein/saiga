@@ -10,14 +10,17 @@
 
 namespace Saiga {
 
-Shadowmap::Shadowmap()
-{
 
+void ShadowmapBase::bindFramebuffer(){
+    glViewport(0,0,w,h);
+    depthBuffer.bind();
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
 }
 
-Shadowmap::~Shadowmap(){
-    //    delete depthTexture;
-    //    delete deleteTexture;
+void ShadowmapBase::unbindFramebuffer(){
+    depthBuffer.unbind();
 }
 
 void Shadowmap::init(int w, int h){
@@ -42,13 +45,13 @@ void Shadowmap::createFlat(int w, int h, ShadowQuality quality){
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
 
     switch(quality){
-    case LOW:
+    case ShadowQuality::LOW:
         depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
         break;
-    case MEDIUM:
+    case ShadowQuality::MEDIUM:
         depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
         break;
-    case HIGH:
+    case ShadowQuality::HIGH:
         depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
         break;
     }
@@ -81,13 +84,13 @@ void Shadowmap::createCube(int w, int h, ShadowQuality quality){
     auto cubeMap = std::make_shared<TextureCube>();
     //    cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
     switch(quality){
-    case LOW:
+    case ShadowQuality::LOW:
         cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
         break;
-    case MEDIUM:
+    case ShadowQuality::MEDIUM:
         cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
         break;
-    case HIGH:
+    case ShadowQuality::HIGH:
         cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
         break;
     }
@@ -116,13 +119,13 @@ void Shadowmap::createCascaded(int w, int h, int numCascades, ShadowQuality qual
         std::shared_ptr<Texture> depth = std::make_shared<Texture>();
 
         switch(quality){
-        case LOW:
+        case ShadowQuality::LOW:
             depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
             break;
-        case MEDIUM:
+        case ShadowQuality::MEDIUM:
             depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
             break;
-        case HIGH:
+        case ShadowQuality::HIGH:
             depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
             break;
         }
@@ -150,17 +153,6 @@ void Shadowmap::createCascaded(int w, int h, int numCascades, ShadowQuality qual
 
 
 
-void Shadowmap::bindFramebuffer(){
-    glViewport(0,0,w,h);
-    depthBuffer.bind();
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-}
-
-void Shadowmap::unbindFramebuffer(){
-    depthBuffer.unbind();
-}
 
 void Shadowmap::bindCubeFace(GLenum side){
     glViewport(0,0,w,h);
