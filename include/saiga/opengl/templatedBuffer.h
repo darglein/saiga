@@ -35,8 +35,8 @@ void TemplatedBuffer<T>::set(std::vector<T> &data, GLenum usage){
 }
 
 template<typename T>
-void TemplatedBuffer<T>::set(T* data,int count, GLenum usage){
-    Buffer::createGLBuffer(data,count * sizeof(T),usage);
+void TemplatedBuffer<T>::set(T* data,int count, GLenum _usage){
+    Buffer::createGLBuffer(data,count * sizeof(T),_usage);
 }
 
 

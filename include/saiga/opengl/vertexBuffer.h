@@ -173,13 +173,13 @@ void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices, GLenum usage){
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count, GLenum usage){
+void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count, GLenum _usage){
 //    this->vertex_count = _vertex_count;
 
     deleteGLBuffer();
     assert_no_glerror();
 
-    TemplatedBuffer<vertex_t>::set(vertices,_vertex_count,usage);
+    TemplatedBuffer<vertex_t>::set(vertices,_vertex_count,_usage);
 //    createGLBuffer(vertices,_vertex_count * sizeof(vertex_t),usage);
 
     //create VAO and init
