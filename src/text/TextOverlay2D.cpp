@@ -37,11 +37,7 @@ void TextOverlay2D::render()
 }
 
 void TextOverlay2D::render(Camera *camera){
-    cout << camera->view << " " << camera->proj << endl;
-
     textShader->bind();
-//    textShader->uploadView(mat4(1));
-//    textShader->uploadProj(proj);
     for(Text* &text : texts){
         if(text->visible)
             text->render(textShader);
