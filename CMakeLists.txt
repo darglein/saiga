@@ -286,7 +286,8 @@ if(UNIX)
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -msse2 -mfpmath=sse")
 endif(UNIX)
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2 /fp:strict")
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2 /fp:strict")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:strict")
 endif()
 
 ############# INSTALL PATHS ###############

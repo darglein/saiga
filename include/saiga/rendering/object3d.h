@@ -143,10 +143,10 @@ inline void Object3D::multScale(const vec3 &s)
     setScale(getScale()*s);
 }
 
-inline void Object3D::setModelMatrix(const mat4 &model)
+inline void Object3D::setModelMatrix(const mat4 &_model)
 {
     //this is the inverse of createTRSmatrix
-    this->model = model;
+    model = _model;
     position = model[3];
     glm::mat3 R(model);
     scale.x = length(R[0]);
