@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/framebuffer.h"
+#include "saiga/opengl/texture/arrayTexture.h"
 #include "saiga/util/assert.h"
 
 namespace Saiga {
@@ -58,15 +59,22 @@ public:
  * Used by directional light
  */
 class SAIGA_GLOBAL CascadedShadowmap : public ShadowmapBase{
-    std::vector<std::shared_ptr<raw_Texture>> depthTextures;
+//    std::vector<std::shared_ptr<raw_Texture>> depthTextures;
+    std::shared_ptr<ArrayTexture2D> depthTexture;
 public:
     CascadedShadowmap(int w, int h, int numCascades, ShadowQuality quality = ShadowQuality::LOW);
     ~CascadedShadowmap(){}
-    std::shared_ptr<raw_Texture> getDepthTexture(unsigned int n){
-        SAIGA_ASSERT(n < depthTextures.size());
-        return depthTextures[n];
+
+//    std::shared_ptr<raw_Texture> getDepthTexture(unsigned int n){
+//        SAIGA_ASSERT(n < depthTextures.size());
+//        return depthTextures[n];
+//    }
+//    std::vector<std::shared_ptr<raw_Texture>>& getDepthTextures(){ return depthTextures;}
+
+    std::shared_ptr<ArrayTexture2D> getDepthTexture(){
+        return depthTexture;
     }
-    std::vector<std::shared_ptr<raw_Texture>>& getDepthTextures(){ return depthTextures;}
+
     void bindAttachCascade(int n);
 };
 

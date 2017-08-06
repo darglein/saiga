@@ -130,6 +130,8 @@ CascadedShadowmap::CascadedShadowmap(int w, int h, int numCascades, ShadowQualit
     depthBuffer.unbind();
 
 
+
+#if 0
     for(int i = 0 ; i < numCascades; ++i){
         std::shared_ptr<Texture> depth = std::make_shared<Texture>();
 
@@ -157,6 +159,29 @@ CascadedShadowmap::CascadedShadowmap(int w, int h, int numCascades, ShadowQualit
 
         depthTextures.push_back(depth);
     }
+#endif
+
+        depthTexture = std::make_shared<ArrayTexture2D>();
+
+        switch(quality){
+        case ShadowQuality::LOW:
+            depthTexture->createEmptyTexture(w,h,numCascades,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+            break;
+        case ShadowQuality::MEDIUM:
+            depthTexture->createEmptyTexture(w,h,numCascades,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+            break;
+        case ShadowQuality::HIGH:
+            depthTexture->createEmptyTexture(w,h,numCascades,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
+            break;
+        }
+        depthTexture->setWrap(GL_CLAMP_TO_BORDER);
+        depthTexture->setBorderColor(vec4(1.0f));
+        depthTexture->setFiltering(GL_LINEAR);
+
+        //this requires the texture sampler in the shader to be sampler2DShadow
+        depthTexture->setParameter(GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
+        depthTexture->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
+
     assert_no_glerror();
 }
 
@@ -164,7 +189,8 @@ void CascadedShadowmap::bindAttachCascade(int n){
     glViewport(0,0,w,h);
 
     depthBuffer.bind();
-    depthBuffer.attachTextureDepth(getDepthTexture(n));
+    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthTexture->getId(),0, n);
+//    depthBuffer.attachTextureDepth(getDepthTexture(n));
     //    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture(0)->getId(), 0);
     //    depthBuffer.drawToNone();
 

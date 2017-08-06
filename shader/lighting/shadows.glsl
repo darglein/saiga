@@ -40,24 +40,18 @@ float calculateShadow(sampler2DShadow tex, vec3 position){
 float calculateShadowPCF2(mat4 viewToLight, sampler2DShadow shadowmap, vec3 position){
     vec4 shadowPos = viewToLight * vec4(position,1);
     float visibility = 1.0f;
-
     float sum = 0;
-
-
     float s = SHADOW_SAMPLES_X * 0.5f - 0.5f;
     float samples = SHADOW_SAMPLES_X * SHADOW_SAMPLES_X;
-
     for (float y = -s; y <= s; y += 1.0f)
         for (float x = -s; x <= s; x += 1.0f)
             sum += offset_lookup(shadowmap, shadowPos, vec2(x, y));
     visibility = sum / samples;
-
     return visibility;
 }
 
-
-//classic pcf array
-float calculateShadowPCF_array(mat4 viewToLight, sampler2DArrayShadow shadowmap, vec3 position, int layer){
+//classic pcf for cascaded shadow mapping
+float calculateShadowPCFArray(mat4 viewToLight, sampler2DArrayShadow shadowmap, int layer, vec3 position){
     vec4 shadowPos = viewToLight * vec4(position,1);
     float visibility = 1.0f;
 

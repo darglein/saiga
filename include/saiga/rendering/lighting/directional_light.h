@@ -34,6 +34,7 @@ public:
     void uploadDepthCuts(std::vector<float> &depthCuts);
     void uploadNumCascades(int n);
     void uploadCascadeInterpolateRange(float r);
+    void uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures);
 };
 
 class SAIGA_GLOBAL DirectionalLight :  public Light

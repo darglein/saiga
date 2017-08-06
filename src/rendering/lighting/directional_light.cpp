@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -54,12 +54,12 @@ void DirectionalLightShader::uploadSsaoTexture(std::shared_ptr<raw_Texture> text
 
 void DirectionalLightShader::uploadDepthTextures(std::vector<std::shared_ptr<raw_Texture> > &textures){
 
-//    int i = 7;
+    //    int i = 7;
     int startTexture = 6;
     std::vector<int> ids;
 
     for(int i = 0; i < MAX_CASCADES; ++i){
-//    for(auto& t : textures){
+        //    for(auto& t : textures){
         if(i < (int)textures.size()){
             textures[i]->bind(i + startTexture);
             ids.push_back(i + startTexture);
@@ -67,10 +67,15 @@ void DirectionalLightShader::uploadDepthTextures(std::vector<std::shared_ptr<raw
         }else{
             ids.push_back(startTexture);
         }
-//        i++;
+        //        i++;
 
     }
     Shader::upload(location_depthTexures,ids.size(),ids.data());
+}
+
+void DirectionalLightShader::uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures){
+    textures->bind(6);
+    Shader::upload(location_depthTexures,6);
 }
 
 void DirectionalLightShader::uploadViewToLightTransforms(std::vector<mat4> &transforms)
@@ -92,18 +97,18 @@ void DirectionalLight::createShadowMap(int w, int h, int numCascades, ShadowQual
     this->numCascades = numCascades;
     //    Light::createShadowMap(resX,resY);
     shadowmap = std::make_shared<CascadedShadowmap>(w,h,numCascades,quality);
-//    shadowmap->createCascaded(w,h,numCascades);
+    //    shadowmap->createCascaded(w,h,numCascades);
     orthoBoxes.resize(numCascades);
 
 
-//     depthCutsRelative = std::vector<float>{0,0.5,1.0};
+    //     depthCutsRelative = std::vector<float>{0,0.5,1.0};
     depthCutsRelative.resize(numCascades + 1);
-     depthCuts.resize(numCascades + 1);
+    depthCuts.resize(numCascades + 1);
 
-     for(int i = 0; i < numCascades; ++i){
-         depthCutsRelative[i] = float(i) / numCascades;
-     }
-     depthCutsRelative.back() = 1.0f;
+    for(int i = 0; i < numCascades; ++i){
+        depthCutsRelative[i] = float(i) / numCascades;
+    }
+    depthCutsRelative.back() = 1.0f;
 }
 
 
@@ -201,20 +206,20 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
             vec3 dir = -vec3(cam->model[2]);
 
 
-                    float zNear = depthCuts[c]     - cascadeInterpolateRange;
-                    float zFar =  depthCuts[c + 1] + cascadeInterpolateRange;
+            float zNear = depthCuts[c]     - cascadeInterpolateRange;
+            float zFar =  depthCuts[c + 1] + cascadeInterpolateRange;
             //        float zNear = cam->zNear;
             //        float zFar = cam->zFar;
 
-//            float zNear = 1;
-//            float zFar = 10;
+            //            float zNear = 1;
+            //            float zFar = 10;
 
-//            if(c == 1){
-//                zNear = 10;
-//                zFar = 50;
-//            }
+            //            if(c == 1){
+            //                zNear = 10;
+            //                zFar = 50;
+            //            }
 
-//            cout << "znear/far: " << zNear << " " << zFar << endl;
+            //            cout << "znear/far: " << zNear << " " << zFar << endl;
 
             float tang = (float)tan(pc->fovy * 0.5) ;
 
@@ -383,7 +388,8 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
         shader.uploadViewToLightTransforms(viewToLight);
         shader.uploadDepthCuts(depthCuts);
         //        shader.uploadDepthTexture(shadowmap->getDepthTexture(0));
-        shader.uploadDepthTextures(shadowmap->getDepthTextures());
+//        shader.uploadDepthTextures(shadowmap->getDepthTextures());
+        shader.uploadDepthTextures(shadowmap->getDepthTexture());
         shader.uploadShadowMapSize(shadowmap->getSize());
         shader.uploadNumCascades(numCascades);
         shader.uploadCascadeInterpolateRange(cascadeInterpolateRange);
@@ -391,11 +397,6 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
 
 }
 
-void DirectionalLight::bindCascade(int n){
-    //    shadowmap.bindCubeFace(gCameraDirections[face].CubemapFace);
-    this->shadowCamera.setProj(orthoBoxes[n]);
-    shadowmap->bindAttachCascade(n);
-}
 
 
 void DirectionalLight::setDepthCutsRelative(const std::vector<float> &value)
@@ -410,26 +411,25 @@ std::vector<float> DirectionalLight::getDepthCutsRelative() const
     return depthCutsRelative;
 }
 
+void DirectionalLight::bindCascade(int n){
+    this->shadowCamera.setProj(orthoBoxes[n]);
+    shadowmap->bindAttachCascade(n);
+}
+
 bool DirectionalLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCameraBuffer)
 {
     if(shouldCalculateShadowMap()){
-
         for(int i = 0; i < getNumCascades(); ++i){
-//                light->bindShadowMap();
             bindCascade(i);
             shadowCamera.recalculatePlanes();
-
             CameraDataGLSL cd(&shadowCamera);
             shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
-
             f(&shadowCamera);
-//                light->unbindShadowMap();
         }
         return true;
     }else{
         return false;
     }
-
 }
 
 void DirectionalLight::renderImGui()
