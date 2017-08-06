@@ -63,8 +63,8 @@ protected:
 	static unsigned int g_ElementsHandle;
 
     static void ImGui_ImplGlfwGL3_RenderDrawLists(ImDrawData *draw_data);
-    static const char *ImGui_ImplGlfwGL3_GetClipboardText();
-    static void ImGui_ImplGlfwGL3_SetClipboardText(const char *text);
+    static const char * ImGui_ImplGlfwGL3_GetClipboardText(void *user_data);
+    static void ImGui_ImplGlfwGL3_SetClipboardText(void *user_data, const char *text);
     bool ImGui_ImplGlfwGL3_CreateFontsTexture();
 public:
 //    bool isFocused = false;

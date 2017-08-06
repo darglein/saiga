@@ -41,7 +41,7 @@ class SAIGA_GLOBAL DirectionalLight :  public Light
     friend class DeferredLighting;
 protected:
 
-    Shadowmap shadowmap;
+    std::shared_ptr<CascadedShadowmap> shadowmap;
 
     //direction of the light in world space
     vec3 direction = vec3(0,-1,0);
@@ -88,7 +88,7 @@ public:
      * If this function is called when a shadow map was already created before,
      * the old shadow map is deleted and overwritten by the new one.
      */
-    void createShadowMap(int resX, int resY, int numCascades = 1);
+    void createShadowMap(int w, int h, int numCascades = 1, ShadowQuality quality = ShadowQuality::LOW);
 
     /**
      * Sets the light direction in world coordinates.
@@ -128,6 +128,9 @@ public:
     void setAmbientIntensity(float ai) { ambientIntensity = ai;}
     float getAmbientIntensity(){return ambientIntensity;}
 
+    //the directional light is always visible
+    bool cullLight(Camera *shadowCamera){ culled = false; return culled; }
+    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 

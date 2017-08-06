@@ -27,7 +27,7 @@ class SAIGA_GLOBAL PointLight : public AttenuatedLight
 {
     friend class DeferredLighting;
 protected:
-    Shadowmap shadowmap;
+    std::shared_ptr<CubeShadowmap> shadowmap;
 public:
     float shadowNearPlane = 0.1f;
     PerspectiveCamera shadowCamera;
@@ -47,14 +47,14 @@ public:
     virtual void setRadius(float value);
 
 
-    void createShadowMap(int resX, int resY);
+    void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
 
     void bindFace(int face);
     void calculateCamera(int face);
 
 
     bool cullLight(Camera *shadowCamera);
-
+    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 

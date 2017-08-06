@@ -146,83 +146,24 @@ void DeferredLighting::printTimings()
 void DeferredLighting::renderDepthMaps(Program *renderer){
     totalLights = 0;
     renderedDepthmaps = 0;
-
     totalLights = directionalLights.size() + spotLights.size() + pointLights.size();
-
-
     shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-
+    DepthFunction depthFunc = [&](Camera* cam) -> void{
+        renderedDepthmaps++;
+        renderer->renderDepth(cam);
+    };
     for(auto &light : directionalLights){
-        if(light->shouldCalculateShadowMap()){
-            renderedDepthmaps++;
-            for(int i = 0; i < light->getNumCascades(); ++i){
-//                light->bindShadowMap();
-                light->bindCascade(i);
-                light->shadowCamera.recalculatePlanes();
-
-                CameraDataGLSL cd(&light->shadowCamera);
-                shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
-
-                renderer->renderDepth(&light->shadowCamera);
-//                light->unbindShadowMap();
-            }
-        }
+        light->renderShadowmap(depthFunc,shadowCameraBuffer);
     }
-
-
     for(auto &light : boxLights){
-        if(light->shouldCalculateShadowMap()){
-            renderedDepthmaps++;
-//            light->bindShadowMap();
-            light->shadowmap.bindFramebuffer();
-            light->shadowCamera.recalculatePlanes();
-
-            CameraDataGLSL cd(&light->shadowCamera);
-            shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
-
-            renderer->renderDepth(&light->shadowCamera);
-//            light->unbindShadowMap();
-            light->shadowmap.unbindFramebuffer();
-        }
+        light->renderShadowmap(depthFunc,shadowCameraBuffer);
     }
-
     for(auto &light : spotLights){
-        if(light->shouldCalculateShadowMap()){
-            renderedDepthmaps++;
-//            light->bindShadowMap();
-            light->shadowmap.bindFramebuffer();
-            light->shadowCamera.recalculatePlanes();
-
-            CameraDataGLSL cd(&light->shadowCamera);
-            shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
-
-            renderer->renderDepth(&light->shadowCamera);
-//            light->unbindShadowMap();
-            light->shadowmap.unbindFramebuffer();
-        }
+        light->renderShadowmap(depthFunc,shadowCameraBuffer);
     }
-
-
     for(auto &light : pointLights){
-
-        if(light->shouldCalculateShadowMap()){
-            renderedDepthmaps+=6;
-            for(int i = 0; i < 6; i++){
-                light->bindFace(i);
-                light->calculateCamera(i);
-                light->shadowCamera.recalculatePlanes();
-
-                CameraDataGLSL cd(&light->shadowCamera);
-                shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
-
-                renderer->renderDepth(&light->shadowCamera);
-//                light->unbindShadowMap();
-                light->shadowmap.unbindFramebuffer();
-            }
-
-        }
+        light->renderShadowmap(depthFunc,shadowCameraBuffer);
     }
-
 }
 
 void DeferredLighting::render(Camera* cam){

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -12,6 +12,9 @@ namespace Saiga {
 
 
 void ShadowmapBase::bindFramebuffer(){
+#if defined(SAIGA_DEBUG)
+    depthBuffer.check();
+#endif
     glViewport(0,0,w,h);
     depthBuffer.bind();
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -23,24 +26,12 @@ void ShadowmapBase::unbindFramebuffer(){
     depthBuffer.unbind();
 }
 
-void Shadowmap::init(int w, int h){
+
+SimpleShadowmap::SimpleShadowmap(int w, int h, ShadowQuality quality){
     this->w = w;
     this->h = h;
-
-    depthBuffer.destroy();
-
     depthBuffer.create();
     depthBuffer.unbind();
-
-    depthTextures.clear();
-
-    //    delete depthTexture;
-    //    depthTexture = nullptr;
-
-}
-
-void Shadowmap::createFlat(int w, int h, ShadowQuality quality){
-    init(w,h);
 
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
 
@@ -66,19 +57,23 @@ void Shadowmap::createFlat(int w, int h, ShadowQuality quality){
     depth->setParameter(GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
     depth->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
 
-    depthTextures.push_back(depth);
+    depthTexture = depth;
 
     depthBuffer.attachTextureDepth( depth );
     depthBuffer.check();
 
-    initialized = true;
+    //    initialized = true;
 
     assert_no_glerror();
 }
 
-void Shadowmap::createCube(int w, int h, ShadowQuality quality){
-    init(w,h);
 
+CubeShadowmap::CubeShadowmap(int w, int h, ShadowQuality quality)
+{
+    this->w = w;
+    this->h = h;
+    depthBuffer.create();
+    depthBuffer.unbind();
 
 
     auto cubeMap = std::make_shared<TextureCube>();
@@ -103,16 +98,36 @@ void Shadowmap::createCube(int w, int h, ShadowQuality quality){
     cubeMap->setParameter(GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
     cubeMap->setParameter(GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
 
-    depthTextures.push_back(cubeMap);
+    depthTexture = cubeMap;
     //    deleteTexture = cubeMap;
-    initialized = true;
+    //    initialized = true;
 
     assert_no_glerror();
 }
 
+void CubeShadowmap::bindCubeFace(GLenum side){
+    glViewport(0,0,w,h);
 
-void Shadowmap::createCascaded(int w, int h, int numCascades, ShadowQuality quality){
-    init(w,h);
+    depthBuffer.bind();
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture()->getId(), 0);
+    //    depthBuffer.drawToNone();
+
+
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+
+#if defined(SAIGA_DEBUG)
+    depthBuffer.check();
+#endif
+}
+
+
+CascadedShadowmap::CascadedShadowmap(int w, int h, int numCascades, ShadowQuality quality){
+    this->w = w;
+    this->h = h;
+    depthBuffer.create();
+    depthBuffer.unbind();
 
 
     for(int i = 0 ; i < numCascades; ++i){
@@ -142,24 +157,16 @@ void Shadowmap::createCascaded(int w, int h, int numCascades, ShadowQuality qual
 
         depthTextures.push_back(depth);
     }
-
-//    depthBuffer.attachTextureDepth( depth );
-//    depthBuffer.check();
-
-    initialized = true;
-
     assert_no_glerror();
 }
 
-
-
-
-void Shadowmap::bindCubeFace(GLenum side){
+void CascadedShadowmap::bindAttachCascade(int n){
     glViewport(0,0,w,h);
 
     depthBuffer.bind();
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture(0)->getId(), 0);
-//    depthBuffer.drawToNone();
+    depthBuffer.attachTextureDepth(getDepthTexture(n));
+    //    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture(0)->getId(), 0);
+    //    depthBuffer.drawToNone();
 
 
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -171,22 +178,5 @@ void Shadowmap::bindCubeFace(GLenum side){
 #endif
 }
 
-void Shadowmap::bindAttachCascade(int n){
-    glViewport(0,0,w,h);
-
-    depthBuffer.bind();
-    depthBuffer.attachTextureDepth(getDepthTexture(n));
-//    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, side, getDepthTexture(0)->getId(), 0);
-//    depthBuffer.drawToNone();
-
-
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-
-//#if defined(SAIGA_DEBUG)
-    depthBuffer.check();
-//#endif
-}
 
 }

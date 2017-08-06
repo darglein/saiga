@@ -26,7 +26,7 @@ class SAIGA_GLOBAL SpotLight :  public AttenuatedLight
     friend class DeferredLighting;
 protected:
     float angle=60.0f;
-    Shadowmap shadowmap;
+    std::shared_ptr<SimpleShadowmap> shadowmap;
 public:
     float shadowNearPlane = 0.1f;
     PerspectiveCamera shadowCamera;
@@ -42,7 +42,7 @@ public:
 
     void setRadius(float value) override;
 
-    void createShadowMap(int resX, int resY);
+    void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
 
     void recalculateScale();
     void setAngle(float value);
@@ -51,8 +51,9 @@ public:
     void setDirection(vec3 dir);
 
     void calculateCamera();
-    bool cullLight(Camera *shadowCamera);
 
+    bool cullLight(Camera *shadowCamera);
+    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 

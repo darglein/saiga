@@ -63,6 +63,8 @@ static const vec3 OvercastSky = Color::srgb2linearrgb(Color(201, 226, 255));
 static const vec3 ClearBlueSky = Color::srgb2linearrgb(Color(64, 156, 255));
 }
 
+using DepthFunction = std::function<void(Camera*)>;
+
 class SAIGA_GLOBAL Light  : public Object3D
 {
 protected:

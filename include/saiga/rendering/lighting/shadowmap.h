@@ -20,42 +20,54 @@ enum class ShadowQuality{
 
 class SAIGA_GLOBAL ShadowmapBase{
 protected:
-    bool initialized = false;
     int w,h;
     Framebuffer depthBuffer;
 public:
+    glm::ivec2 getSize(){ return glm::ivec2(w,h);}
     void bindFramebuffer();
     void unbindFramebuffer();
-    bool isInitialized(){ return initialized;}
 };
 
-class SAIGA_GLOBAL Shadowmap : public ShadowmapBase{
-
-    std::vector<std::shared_ptr<raw_Texture>> depthTextures;
-
+/**
+ * Simple shadow map with one 2D depth texture.
+ * Used by box- and spotlight
+ */
+class SAIGA_GLOBAL SimpleShadowmap : public ShadowmapBase{
+    std::shared_ptr<raw_Texture> depthTexture;
 public:
+    SimpleShadowmap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
+    ~SimpleShadowmap(){}
+    std::shared_ptr<raw_Texture> getDepthTexture(){return depthTexture;}
+};
 
-    Shadowmap(){}
-    ~Shadowmap(){}
+/**
+ * Cube shadow map with one cube depth texture.
+ * Used by point light
+ */
+class SAIGA_GLOBAL CubeShadowmap : public ShadowmapBase{
+    std::shared_ptr<raw_Texture> depthTexture;
+public:
+    CubeShadowmap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
+    ~CubeShadowmap(){}
+    std::shared_ptr<raw_Texture> getDepthTexture(){return depthTexture;}
+    void bindCubeFace(GLenum side);
+};
 
+/**
+ * Cascaded shadow map with numCascades depth textures.
+ * Used by directional light
+ */
+class SAIGA_GLOBAL CascadedShadowmap : public ShadowmapBase{
+    std::vector<std::shared_ptr<raw_Texture>> depthTextures;
+public:
+    CascadedShadowmap(int w, int h, int numCascades, ShadowQuality quality = ShadowQuality::LOW);
+    ~CascadedShadowmap(){}
     std::shared_ptr<raw_Texture> getDepthTexture(unsigned int n){
         SAIGA_ASSERT(n < depthTextures.size());
         return depthTextures[n];
     }
-
     std::vector<std::shared_ptr<raw_Texture>>& getDepthTextures(){ return depthTextures;}
-
-
-    glm::ivec2 getSize(){ return glm::ivec2(w,h);}
-    void bindCubeFace(GLenum side);
     void bindAttachCascade(int n);
-
-    void init(int w, int h);
-
-
-    void createFlat(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
-    void createCube(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
-    void createCascaded(int w, int h, int numCascades, ShadowQuality quality = ShadowQuality::LOW);
 };
 
 }

@@ -46,8 +46,8 @@ void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *ca
     shader->uploadInvProj(glm::inverse(cam->proj));
     if(this->hasShadows()){
         shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
-        shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
-        shader->uploadShadowMapSize(shadowmap.getSize());
+        shader->uploadDepthTexture(shadowmap->getDepthTexture());
+        shader->uploadShadowMapSize(shadowmap->getSize());
     }
     assert_no_glerror();
 }
@@ -65,10 +65,11 @@ void SpotLight::setRadius(float value)
     recalculateScale();
 }
 
-void SpotLight::createShadowMap(int resX, int resY) {
+void SpotLight::createShadowMap(int w, int h, ShadowQuality quality) {
     //    Light::createShadowMap(resX,resY);
     //    float farplane = 50.0f;
-    shadowmap.createFlat(resX,resY);
+    shadowmap = std::make_shared<SimpleShadowmap>(w,h,quality);
+//    shadowmap->createFlat(w,h);
 }
 
 void SpotLight::setAngle(float value){
@@ -90,6 +91,21 @@ bool SpotLight::cullLight(Camera *cam)
         this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere)==Camera::OUTSIDE;
 
     return culled;
+}
+
+bool SpotLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCameraBuffer)
+{
+    if(shouldCalculateShadowMap()){
+        shadowmap->bindFramebuffer();
+        shadowCamera.recalculatePlanes();
+        CameraDataGLSL cd(&shadowCamera);
+        shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
+        f(&shadowCamera);
+shadowmap->unbindFramebuffer();
+        return true;
+    }else{
+        return false;
+    }
 }
 
 void SpotLight::renderImGui()

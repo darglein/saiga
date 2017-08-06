@@ -21,9 +21,7 @@ class SAIGA_GLOBAL BoxLight :  public Light
 {
     friend class DeferredLighting;
 protected:
-
-    Shadowmap shadowmap;
-
+    std::shared_ptr<SimpleShadowmap> shadowmap;
 public:
     OrthographicCamera shadowCamera;
     BoxLight();
@@ -33,11 +31,12 @@ public:
 
     void setView(vec3 pos, vec3 target, vec3 up);
 
-    void createShadowMap(int resX, int resY);
+    void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
 
     void calculateCamera();
-    bool cullLight(Camera *shadowCamera);
 
+    bool cullLight(Camera *shadowCamera);
+    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 
 };

@@ -58,8 +58,8 @@ void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *
     shader->uploadInvProj(glm::inverse(cam->proj));
     if(this->hasShadows()){
         shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
-        shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
-        shader->uploadShadowMapSize(shadowmap.getSize());
+        shader->uploadDepthTexture(shadowmap->getDepthTexture());
+        shader->uploadShadowMapSize(shadowmap->getSize());
     }
     assert_no_glerror();
 }
@@ -67,8 +67,9 @@ void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *
 
 
 
-void PointLight::createShadowMap(int resX, int resY) {
-    shadowmap.createCube(resX,resY);
+void PointLight::createShadowMap(int w, int h, ShadowQuality quality) {
+    shadowmap = std::make_shared<CubeShadowmap>(w,h,quality);
+//    shadowmap->createCube(w,h);
 }
 
 
@@ -94,7 +95,7 @@ static const CameraDirection gCameraDirections[] =
 
 
 void PointLight::bindFace(int face){
-    shadowmap.bindCubeFace(gCameraDirections[face].CubemapFace);
+    shadowmap->bindCubeFace(gCameraDirections[face].CubemapFace);
 }
 
 void PointLight::calculateCamera(int face){
@@ -112,6 +113,24 @@ bool PointLight::cullLight(Camera *cam)
 //    this->culled = false;
 //    cout<<culled<<endl;
     return culled;
+}
+
+bool PointLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCameraBuffer)
+{
+    if(shouldCalculateShadowMap()){
+        for(int i = 0; i < 6; i++){
+            bindFace(i);
+            calculateCamera(i);
+            shadowCamera.recalculatePlanes();
+            CameraDataGLSL cd(&shadowCamera);
+            shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
+            f(&shadowCamera);
+            shadowmap->unbindFramebuffer();
+        }
+    return true;
+    }else{
+        return false;
+    }
 }
 
 void PointLight::renderImGui()

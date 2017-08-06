@@ -153,12 +153,12 @@ void ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_RenderDrawLists(ImDrawData* draw_dat
     glViewport(last_viewport[0], last_viewport[1], (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
 }
 
-const char* ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_GetClipboardText()
+const char* ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_GetClipboardText(void* user_data)
 {
     return glfwGetClipboardString(g_Window);
 }
 
-void ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_SetClipboardText(const char* text)
+void ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_SetClipboardText(void* user_data, const char* text)
 {
     glfwSetClipboardString(g_Window, text);
 }

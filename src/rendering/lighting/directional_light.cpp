@@ -87,11 +87,12 @@ void DirectionalLightShader::uploadDepthCuts(std::vector<float> &depthCuts)
 //==================================
 
 
-void DirectionalLight::createShadowMap(int resX, int resY, int numCascades){
+void DirectionalLight::createShadowMap(int w, int h, int numCascades, ShadowQuality quality){
     SAIGA_ASSERT(numCascades > 0 && numCascades <= MAX_CASCADES);
     this->numCascades = numCascades;
     //    Light::createShadowMap(resX,resY);
-    shadowmap.createCascaded(resX,resY,numCascades);
+    shadowmap = std::make_shared<CascadedShadowmap>(w,h,numCascades,quality);
+//    shadowmap->createCascaded(w,h,numCascades);
     orthoBoxes.resize(numCascades);
 
 
@@ -237,7 +238,7 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
         float r = boundingSphere.r;
         r = ceil(r);
 
-        vec3 smsize = vec3(shadowmap.getSize(),128468);
+        vec3 smsize = vec3(shadowmap->getSize(),128468);
 
         vec3 texelSize;
         //    texelSize.x = 2.0f * r / shadowmap.w;
@@ -381,9 +382,9 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
         //        shader.uploadDepthBiasMV(shadow);
         shader.uploadViewToLightTransforms(viewToLight);
         shader.uploadDepthCuts(depthCuts);
-        //        shader.uploadDepthTexture(shadowmap.getDepthTexture(0));
-        shader.uploadDepthTextures(shadowmap.getDepthTextures());
-        shader.uploadShadowMapSize(shadowmap.getSize());
+        //        shader.uploadDepthTexture(shadowmap->getDepthTexture(0));
+        shader.uploadDepthTextures(shadowmap->getDepthTextures());
+        shader.uploadShadowMapSize(shadowmap->getSize());
         shader.uploadNumCascades(numCascades);
         shader.uploadCascadeInterpolateRange(cascadeInterpolateRange);
     }
@@ -393,7 +394,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
 void DirectionalLight::bindCascade(int n){
     //    shadowmap.bindCubeFace(gCameraDirections[face].CubemapFace);
     this->shadowCamera.setProj(orthoBoxes[n]);
-    shadowmap.bindAttachCascade(n);
+    shadowmap->bindAttachCascade(n);
 }
 
 
@@ -407,6 +408,28 @@ void DirectionalLight::setDepthCutsRelative(const std::vector<float> &value)
 std::vector<float> DirectionalLight::getDepthCutsRelative() const
 {
     return depthCutsRelative;
+}
+
+bool DirectionalLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCameraBuffer)
+{
+    if(shouldCalculateShadowMap()){
+
+        for(int i = 0; i < getNumCascades(); ++i){
+//                light->bindShadowMap();
+            bindCascade(i);
+            shadowCamera.recalculatePlanes();
+
+            CameraDataGLSL cd(&shadowCamera);
+            shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
+
+            f(&shadowCamera);
+//                light->unbindShadowMap();
+        }
+        return true;
+    }else{
+        return false;
+    }
+
 }
 
 void DirectionalLight::renderImGui()

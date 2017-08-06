@@ -16,7 +16,7 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
     ddo(window->getWidth(),window->getHeight()),tdo(window->getWidth(),window->getHeight())
 {
     //this simplifies shader debugging
-    ShaderLoader::instance()->addLineDirectives = true;
+//    ShaderLoader::instance()->addLineDirectives = true;
 
 
     //create a perspective camera

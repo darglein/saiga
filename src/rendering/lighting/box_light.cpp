@@ -21,10 +21,9 @@ BoxLight::BoxLight()
 {
 }
 
-void BoxLight::createShadowMap(int resX, int resY){
-    shadowmap.createFlat(resX,resY);
+void BoxLight::createShadowMap(int w, int h, ShadowQuality quality){
+    shadowmap = std::make_shared<SimpleShadowmap>(w,h,quality);
 }
-
 
 void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam){
     shader->uploadColorDiffuse(colorDiffuse);
@@ -33,8 +32,8 @@ void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam)
     shader->uploadInvProj(glm::inverse(cam->proj));
     if(this->hasShadows()){
         shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
-        shader->uploadDepthTexture(shadowmap.getDepthTexture(0));
-        shader->uploadShadowMapSize(shadowmap.getSize());
+        shader->uploadDepthTexture(shadowmap->getDepthTexture());
+        shader->uploadShadowMapSize(shadowmap->getSize());
     }
 }
 
@@ -65,6 +64,21 @@ bool BoxLight::cullLight(Camera *cam)
     else
         this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere)==Camera::OUTSIDE;
     return culled;
+}
+
+bool BoxLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCameraBuffer)
+{
+    if(shouldCalculateShadowMap()){
+        shadowmap->bindFramebuffer();
+        shadowCamera.recalculatePlanes();
+        CameraDataGLSL cd(&shadowCamera);
+        shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
+        f(&shadowCamera);
+        shadowmap->unbindFramebuffer();
+        return true;
+    }else{
+        return false;
+    }
 }
 
 void BoxLight::renderImGui()
