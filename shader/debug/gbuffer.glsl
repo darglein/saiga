@@ -22,7 +22,7 @@ out vec2 texCoord;
 void main() {
     texCoord = in_tex;
 //    gl_Position = proj * model * vec4(in_position,1);
-    gl_Position = proj * model * vec4(in_position.x,in_position.y,0,1);
+    gl_Position =  model * vec4(in_position.x,in_position.y,0,1);
 //    gl_Position = vec4(in_position.x,in_position.y,0,1);
 }
 

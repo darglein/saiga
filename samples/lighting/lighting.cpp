@@ -191,6 +191,7 @@ void Lighting::renderFinal(Camera *cam)
 
     parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
+
     if(showddo)
         ddo.render();
 
@@ -238,7 +239,9 @@ void Lighting::renderFinal(Camera *cam)
         ImGui::ShowTestWindow(&showimguidemo);
     }
 
+
     imgui.endFrame();
+
 }
 
 

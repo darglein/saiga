@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -49,13 +49,14 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),h
     setScreenPosition(&light,4);
 
     loadShaders();
+    //    exit(0);
 
 }
 
 void DeferredDebugOverlay::loadShaders()
 {
     shader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer.glsl");
-   depthShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_depth.glsl");
+    depthShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_depth.glsl");
     normalShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_normal.glsl");
 }
 
@@ -66,7 +67,7 @@ void DeferredDebugOverlay::setScreenPosition(GbufferTexture *gbt, int id)
     float s = 1.0f/images;
     gbt->setScale(vec3(s));
 
-    float dy = -s*2.0f;
+    float dy = -s * 2.0f;
     float y = id*dy+dy*0.5f+1.0f;
     gbt->translateGlobal(vec3(1.0f-s,y,0));
     gbt->calculateModel();

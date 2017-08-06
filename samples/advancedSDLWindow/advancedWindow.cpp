@@ -16,7 +16,7 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
     ddo(window->getWidth(),window->getHeight()),tdo(window->getWidth(),window->getHeight())
 {
     //this simplifies shader debugging
-    ShaderLoader::instance()->addLineDirectives = true;
+//    ShaderLoader::instance()->addLineDirectives = true;
 
 
     //create a perspective camera
@@ -166,7 +166,7 @@ void AdvancedWindow::renderDepth(Camera *cam)
 void AdvancedWindow::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
-    skybox.render(cam);
+//    skybox.render(cam);
 }
 
 void AdvancedWindow::renderFinal(Camera *cam)
@@ -175,9 +175,14 @@ void AdvancedWindow::renderFinal(Camera *cam)
     //The final render path (after post processing).
     //Usually the GUI is rendered here.
 
+    tdo.layout.cam.calculateModel();
+    tdo.layout.cam.recalculateMatrices();
+    tdo.layout.cam.recalculatePlanes();
+
     parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
-    if(showddo)
+//    return;
+//    if(showddo)
         ddo.render();
 
 

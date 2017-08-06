@@ -46,8 +46,9 @@ std::ostream& operator<<(std::ostream& os, const glm::mat3& v){
 
 std::ostream& operator<<(std::ostream& os, const mat4& v)
 {
+    auto vt = transpose(v);
     for (int i = 0; i < 4; ++i){
-        os << v[i] << "\n";
+            os << vt[i] << endl;
     }
     return os;
 }

@@ -32,6 +32,7 @@ void TextDebugOverlay::init(TextureAtlas *textureAtlas)
 
 void TextDebugOverlay::render()
 {
+    glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     overlay.render(&layout.cam);
@@ -56,6 +57,7 @@ int TextDebugOverlay::createItem(const std::string &name)
 
     vec2 relPos(0);
     relPos.x = borderX;
+//    relPos.x = 0.5;
     relPos.y =  1.0f-((y) * (paddingY+textSize) + borderY);
 
     layout.transform(entry.text,bb,relPos,textSize,Layout::LEFT,Layout::RIGHT);
