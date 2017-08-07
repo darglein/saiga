@@ -118,9 +118,9 @@ T blockInclusiveScan(T val, T* shared, T* sharedBlockPrefix) {
 template<bool EXCLUSIVE_SCAN=true, unsigned int BLOCK_SIZE=256, unsigned int TILES_PER_BLOCK=8, typename vector_type=int4, bool CHECK_BOUNDS=true>
 __global__
 __launch_bounds__(BLOCK_SIZE)
-void tiledSinglePassScan(array_view<uint> in, array_view<uint> out, array_view<uint> aggregate) {
+void tiledSinglePassScan(array_view<unsigned int> in, array_view<unsigned int> out, array_view<unsigned int> aggregate) {
 
-    const unsigned int ELEMENTS_PER_VECTOR  = sizeof(vector_type) / sizeof(uint);
+    const unsigned int ELEMENTS_PER_VECTOR  = sizeof(vector_type) / sizeof(unsigned int);
     const unsigned int ELEMENTS_PER_TILE    = BLOCK_SIZE * ELEMENTS_PER_VECTOR;
     const unsigned int ELEMENTS_PER_BLOCK   = TILES_PER_BLOCK * ELEMENTS_PER_TILE;
 
@@ -129,12 +129,12 @@ void tiledSinglePassScan(array_view<uint> in, array_view<uint> out, array_view<u
     const unsigned int numTiles   = getBlockCount(N,ELEMENTS_PER_TILE);
 
     __shared__ int orderedBlockId;
-    __shared__ uint blockExclusive;
-    __shared__ uint currentTilePrefix;
-    __shared__ uint shared[BLOCK_SIZE/WARP_SIZE];
+    __shared__ unsigned int blockExclusive;
+    __shared__ unsigned int currentTilePrefix;
+    __shared__ unsigned int shared[BLOCK_SIZE/WARP_SIZE];
 
     //this alone requires 8 * 5 * 256 = 10240 registers per block
-    uint elementsLocal[TILES_PER_BLOCK][ELEMENTS_PER_VECTOR + 1];
+    unsigned int elementsLocal[TILES_PER_BLOCK][ELEMENTS_PER_VECTOR + 1];
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
 
@@ -182,11 +182,11 @@ void tiledSinglePassScan(array_view<uint> in, array_view<uint> out, array_view<u
                         elementsLocal[i][z] = ( idx < N ) ? in[idx] : 0;
                     }
                 }else{
-                    vectorArrayCopy<uint,vector_type>( in.data() + (localIndex) , &elementsLocal[i][0]);
+                    vectorArrayCopy<unsigned int,vector_type>( in.data() + (localIndex) , &elementsLocal[i][0]);
                 }
             }
         }else{
-            vectorArrayCopy<uint,vector_type>( in.data() + (localIndex) , &elementsLocal[i][0]);
+            vectorArrayCopy<unsigned int,vector_type>( in.data() + (localIndex) , &elementsLocal[i][0]);
         }
 
 
@@ -201,12 +201,12 @@ void tiledSinglePassScan(array_view<uint> in, array_view<uint> out, array_view<u
 //        val = blockInclusiveScan<BLOCK_SIZE>(val,shared,&currentTilePrefix);
     }
 
-    uint global_exclusive_prefix(0);
+    unsigned int global_exclusive_prefix(0);
 
     if(ti.local_thread_id == 0){
 
         //the inclusive prefix of that block is still stored in shared memory
-        uint blockSum = shared[BLOCK_SIZE/WARP_SIZE - 1];
+        unsigned int blockSum = shared[BLOCK_SIZE/WARP_SIZE - 1];
 
 
         aggregate[block] = (((blockSum) & ((1 << 30) - 1)) | (1 << 30));
@@ -220,13 +220,13 @@ void tiledSinglePassScan(array_view<uint> in, array_view<uint> out, array_view<u
 #if 0
                 //In fact L1 cache is disabled by default for global memory reads,
                 //if this changes use this special function
-                uint blockData = loadNoL1Cache(aggregate.data()+current_pred);
-                //                uint blockData = atomicCAS(aggregate.data()+current_pred,0,0);
+                unsigned int blockData = loadNoL1Cache(aggregate.data()+current_pred);
+                //                unsigned int blockData = atomicCAS(aggregate.data()+current_pred,0,0);
 #else
-                uint blockData = aggregate[current_pred];
+                unsigned int blockData = aggregate[current_pred];
 #endif
 
-                uint offsetData = (blockData) & ((1 << 30) - 1);
+                unsigned int offsetData = (blockData) & ((1 << 30) - 1);
                 bool prefixAvailable = blockData >> 30 == SCAN_BLOCK_PREFIX;
                 bool aggregateAvailable = blockData >> 30 == SCAN_BLOCK_AGGREGATE;
 
@@ -295,12 +295,12 @@ void tiledSinglePassScan(array_view<uint> in, array_view<uint> out, array_view<u
 
                 }else{
                     //complete vector is inside
-                    vectorArrayCopy<uint,vector_type>( &elementsLocal[i][0], out.data() + (localIndex) );
+                    vectorArrayCopy<unsigned int,vector_type>( &elementsLocal[i][0], out.data() + (localIndex) );
                 }
             }
         }else{
             //no bounds check
-            vectorArrayCopy<uint,vector_type>( &elementsLocal[i][0], out.data() + (localIndex) );
+            vectorArrayCopy<unsigned int,vector_type>( &elementsLocal[i][0], out.data() + (localIndex) );
         }
 
     }

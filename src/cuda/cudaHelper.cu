@@ -6,6 +6,7 @@
 
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/util/assert.h"
+#include <algorithm>
 
 namespace Saiga {
 namespace CUDA {

@@ -43,9 +43,9 @@ ConfigLoader::~ConfigLoader(){
 }
 
 
-bool ConfigLoader::loadFile(const std::string &name)
+bool ConfigLoader::loadFile(const std::string &_name)
 {
-    this->name = name;
+    this->name = _name;
 
 //    stream.exceptions ( std::fstream::failbit | std::fstream::badbit );
 
@@ -63,10 +63,10 @@ bool ConfigLoader::loadFile(const std::string &name)
     return true;
 }
 
-bool ConfigLoader::loadFile2(const std::string &name)
+bool ConfigLoader::loadFile2(const std::string &_name)
 {
     entries.clear();
-    this->name = name;
+    this->name = _name;
 
 
     try {

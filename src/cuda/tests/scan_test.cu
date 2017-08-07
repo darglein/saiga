@@ -14,6 +14,8 @@
 namespace Saiga {
 namespace CUDA {
 
+	using uint = unsigned int;
+
 void scanTest(){
 
     CUDA_SYNC_CHECK_ERROR();
@@ -104,14 +106,14 @@ void scanTest(){
 
     /*
     //check if the aggregate was computed correctly
-    thrust::host_vector<uint> h_a = aggregate;
+    thrust::host_vector<unsigned int> h_a = aggregate;
     int i = ELEMENTS_PER_BLOCK;
     for(int ag : h_a){
         //        SAIGA_ASSERT(ag == i);
         i += ELEMENTS_PER_BLOCK;
     }
 
-    thrust::host_vector<uint> h_res2 = d_res;
+    thrust::host_vector<unsigned int> h_res2 = d_res;
 
     int maxPrint = ELEMENTS_PER_BLOCK * 2;
     for(int i = 0 ; i < int(h_res.size()) ; ++i){

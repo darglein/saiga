@@ -64,8 +64,8 @@ void DeferredLighting::loadShaders(const DeferredLightingShaderNames &names)
     lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>(names.lightAccumulationShader);
 }
 
-void DeferredLighting::init(int width, int height, bool _useTimers){
-    this->width=width;this->height=height;
+void DeferredLighting::init(int _width, int _height, bool _useTimers){
+    this->width=_width;this->height=_height;
     useTimers = _useTimers;
 
     if (useTimers) {
@@ -92,17 +92,17 @@ void DeferredLighting::init(int width, int height, bool _useTimers){
     lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
 
     lightAccumulationTexture = std::make_shared<Texture>();
-    lightAccumulationTexture->createEmptyTexture(width,height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
+    lightAccumulationTexture->createEmptyTexture(_width,_height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
     lightAccumulationBuffer.attachTexture( framebuffer_texture_t(lightAccumulationTexture) );
     lightAccumulationBuffer.drawToAll();
     lightAccumulationBuffer.check();
     lightAccumulationBuffer.unbind();
 }
 
-void DeferredLighting::resize(int width, int height)
+void DeferredLighting::resize(int _width, int _height)
 {
-    this->width=width;this->height=height;
-    lightAccumulationBuffer.resize(width,height);
+    this->width=_width;this->height=_height;
+    lightAccumulationBuffer.resize(_width,_height);
 }
 
 void DeferredLighting::cullLights(Camera *cam){

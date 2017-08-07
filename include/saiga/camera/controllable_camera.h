@@ -151,8 +151,14 @@ void Controllable_Camera<camera_t>::update(float delta){
 
 template<class camera_t>
 void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation){
-    if(!input)
+	//the camera isn't actually "interpolated" 
+	//we just use the latest mouse position
+	(void)dt; (void)interpolation;
+
+	if(!input)
         return;
+
+	
 
     //only do mouse handling here
     glm::ivec2 mousedelta = lastMousePos - mouse.getPosition();

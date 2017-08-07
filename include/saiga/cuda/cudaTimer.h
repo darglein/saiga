@@ -13,9 +13,9 @@ namespace CUDA {
 
 
 class SAIGA_GLOBAL CudaScopedTimer{
-public:
     float& time;
     cudaEvent_t start, stop;
+public:
     CudaScopedTimer(float& time);
     ~CudaScopedTimer();
 };
@@ -23,9 +23,9 @@ public:
 
 
 class SAIGA_GLOBAL CudaScopedTimerPrint {
-public:
     std::string name;
     cudaEvent_t start, stop;
+public:
     CudaScopedTimerPrint(const std::string &name);
     ~CudaScopedTimerPrint();
 };

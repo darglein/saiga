@@ -88,7 +88,7 @@ private:
 
     std::shared_ptr<Texture> textureAtlas = nullptr;
     AABB maxCharacter;
-    std::string font;
+    //std::string font;
     std::string uniqueFontString;
 
 

@@ -53,7 +53,7 @@ public:
     void calculateCamera(int face);
 
 
-    bool cullLight(Camera *shadowCamera);
+    bool cullLight(Camera *camera);
     bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };

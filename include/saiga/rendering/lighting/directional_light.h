@@ -130,7 +130,7 @@ public:
     float getAmbientIntensity(){return ambientIntensity;}
 
     //the directional light is always visible
-    bool cullLight(Camera *shadowCamera){ culled = false; return culled; }
+	bool cullLight(Camera *cam) { (void)cam; culled = false; return culled; }
     bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };

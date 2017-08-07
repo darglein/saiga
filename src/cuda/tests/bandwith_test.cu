@@ -9,6 +9,7 @@
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
+#include <algorithm>
 
 namespace Saiga {
 namespace CUDA {

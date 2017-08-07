@@ -92,20 +92,20 @@ void DirectionalLightShader::uploadDepthCuts(std::vector<float> &depthCuts)
 //==================================
 
 
-void DirectionalLight::createShadowMap(int w, int h, int numCascades, ShadowQuality quality){
-    SAIGA_ASSERT(numCascades > 0 && numCascades <= MAX_CASCADES);
-    this->numCascades = numCascades;
+void DirectionalLight::createShadowMap(int w, int h, int _numCascades, ShadowQuality quality){
+    SAIGA_ASSERT(_numCascades > 0 && _numCascades <= MAX_CASCADES);
+    this->numCascades = _numCascades;
     //    Light::createShadowMap(resX,resY);
-    shadowmap = std::make_shared<CascadedShadowmap>(w,h,numCascades,quality);
+    shadowmap = std::make_shared<CascadedShadowmap>(w,h,_numCascades,quality);
     //    shadowmap->createCascaded(w,h,numCascades);
-    orthoBoxes.resize(numCascades);
+    orthoBoxes.resize(_numCascades);
 
 
-    depthCutsRelative.resize(numCascades + 1);
-    depthCuts.resize(numCascades + 1);
+    depthCutsRelative.resize(_numCascades + 1);
+    depthCuts.resize(_numCascades + 1);
 
-    for(int i = 0; i < numCascades; ++i){
-        depthCutsRelative[i] = float(i) / numCascades;
+    for(int i = 0; i < _numCascades; ++i){
+        depthCutsRelative[i] = float(i) / _numCascades;
     }
     depthCutsRelative.back() = 1.0f;
 

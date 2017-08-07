@@ -168,8 +168,8 @@ void VertexBuffer<vertex_t>::setDrawMode(GLenum _draw_mode){
 }
 
 template<class vertex_t>
-void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices, GLenum usage){
-    set(&vertices[0],(int)vertices.size(),usage);
+void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices, GLenum _usage){
+    set(&vertices[0],(int)vertices.size(),_usage);
 }
 
 template<class vertex_t>

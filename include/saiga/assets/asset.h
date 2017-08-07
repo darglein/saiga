@@ -83,6 +83,7 @@ public:
 template<typename vertex_t, typename index_t>
 void BasicAsset<vertex_t,index_t>::render(Camera *cam, const mat4 &model)
 {
+	(void)cam;
     shader->bind();
 //    shader->uploadAll(cam,model);
     shader->uploadModel(model);
@@ -100,6 +101,7 @@ void BasicAsset<vertex_t,index_t>::render(Camera *cam, const mat4 &model)
 template<typename vertex_t, typename index_t>
 void BasicAsset<vertex_t,index_t>::renderForward(Camera *cam, const mat4 &model)
 {
+	(void)cam;
     forwardShader->bind();
 //    shader->uploadAll(cam,model);
     forwardShader->uploadModel(model);
@@ -117,6 +119,7 @@ void BasicAsset<vertex_t,index_t>::renderForward(Camera *cam, const mat4 &model)
 template<typename vertex_t, typename index_t>
 void BasicAsset<vertex_t,index_t>::renderDepth(Camera *cam, const mat4 &model)
 {
+	(void)cam;
     depthshader->bind();
     depthshader->uploadModel(model);
     buffer.bindAndDraw();
@@ -126,6 +129,7 @@ void BasicAsset<vertex_t,index_t>::renderDepth(Camera *cam, const mat4 &model)
 template<typename vertex_t, typename index_t>
 void BasicAsset<vertex_t,index_t>::renderWireframe(Camera *cam, const mat4 &model)
 {
+	(void)cam;
     wireframeshader->bind();
     wireframeshader->uploadModel(model);
 
