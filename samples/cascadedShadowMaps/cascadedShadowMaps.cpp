@@ -193,6 +193,7 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::End();
     }
 
+    parentWindow->getRenderer()->lighting.renderImGui();
 
     imgui.endFrame();
 }

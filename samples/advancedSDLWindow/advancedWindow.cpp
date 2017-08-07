@@ -210,6 +210,8 @@ void AdvancedWindow::renderFinal(Camera *cam)
         ImGui::End();
     }
 
+    parentWindow->getRenderer()->lighting.renderImGui();
+
     if (showimguidemo)
     {
         ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);

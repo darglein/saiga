@@ -101,7 +101,6 @@ void DirectionalLight::createShadowMap(int w, int h, int numCascades, ShadowQual
     orthoBoxes.resize(numCascades);
 
 
-    //     depthCutsRelative = std::vector<float>{0,0.5,1.0};
     depthCutsRelative.resize(numCascades + 1);
     depthCuts.resize(numCascades + 1);
 
@@ -109,6 +108,7 @@ void DirectionalLight::createShadowMap(int w, int h, int numCascades, ShadowQual
         depthCutsRelative[i] = float(i) / numCascades;
     }
     depthCutsRelative.back() = 1.0f;
+
 }
 
 
@@ -434,14 +434,12 @@ bool DirectionalLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCam
 
 void DirectionalLight::renderImGui()
 {
-    ImGui::Separator();
-    ImGui::Text("DirectionalLight");
     Light::renderImGui();
+    ImGui::InputFloat("ambientIntensity",&ambientIntensity,0.1,1);
     ImGui::InputFloat("Cascade Interpolate Range",&cascadeInterpolateRange);
     if(ImGui::Direction("Direction",direction)){
         setDirection(direction);
     }
-    ImGui::InputFloat("ambientIntensity",&ambientIntensity);
 }
 
 }

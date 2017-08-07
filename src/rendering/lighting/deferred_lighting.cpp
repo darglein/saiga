@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -20,6 +20,8 @@
 
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/rendering/renderer.h"
+#include "saiga/imgui/imgui.h"
+#include "saiga/util/tostring.h"
 
 namespace Saiga {
 
@@ -142,11 +144,29 @@ void DeferredLighting::printTimings()
 }
 
 
-
-void DeferredLighting::renderDepthMaps(Program *renderer){
+void DeferredLighting::initRender()
+{
     totalLights = 0;
     renderedDepthmaps = 0;
-    totalLights = directionalLights.size() + spotLights.size() + pointLights.size();
+    totalLights = directionalLights.size() + spotLights.size() + pointLights.size()  + boxLights.size();
+}
+
+void DeferredLighting::renderDepthMaps(Program *renderer){
+    // When GL_POLYGON_OFFSET_FILL, GL_POLYGON_OFFSET_LINE, or GL_POLYGON_OFFSET_POINT is enabled,
+    // each fragment's depth value will be offset after it is interpolated from the depth values of the appropriate vertices.
+    // The value of the offset is factor×DZ+r×units, where DZ is a measurement of the change in depth relative to the screen area of the polygon,
+    // and r is the smallest value that is guaranteed to produce a resolvable offset for a given implementation.
+    // The offset is added before the depth test is performed and before the value is written into the depth buffer.
+    glEnable(GL_POLYGON_OFFSET_FILL);
+
+    float shadowMult = backFaceShadows ? -1 : 1;
+    glPolygonOffset(shadowMult*shadowOffsetFactor,shadowMult*shadowOffsetUnits);
+    if(backFaceShadows)
+        glCullFace(GL_FRONT);
+    else
+        glCullFace(GL_BACK);
+
+
     shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
     DepthFunction depthFunc = [&](Camera* cam) -> void{
         renderedDepthmaps++;
@@ -164,6 +184,8 @@ void DeferredLighting::renderDepthMaps(Program *renderer){
     for(auto &light : pointLights){
         light->renderShadowmap(depthFunc,shadowCameraBuffer);
     }
+    glCullFace(GL_BACK);
+    glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
 void DeferredLighting::render(Camera* cam){
@@ -561,6 +583,57 @@ void DeferredLighting::removeLight(std::shared_ptr<SpotLight> l)
 void DeferredLighting::removeLight(std::shared_ptr<BoxLight> l)
 {
     boxLights.erase(std::find(boxLights.begin(),boxLights.end(),l));
+
+}
+
+
+template<typename T>
+static void imGuiLightBox(int id, const std::string &name, T& lights){
+    ImGui::NewLine();
+    ImGui::Separator();
+    ImGui::NewLine();
+    ImGui::PushID(id);
+    if(ImGui::CollapsingHeader(name.c_str())){
+        int i = 0;
+        for(auto &light : lights){
+            ImGui::PushID(i);
+            if(ImGui::CollapsingHeader(to_string(i).c_str())){
+                light->renderImGui();
+            }
+            i++;
+            ImGui::PopID();
+        }
+    }
+    ImGui::PopID();
+}
+
+void DeferredLighting::renderImGui()
+{
+    ImGui::SetNextWindowPos(ImVec2(400, 20), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400,600), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("DeferredLighting");
+
+    ImGui::Text("resolution: %dx%d",width,height);
+    ImGui::Text("visibleLights/totalLights: %d/%d",visibleLights,totalLights);
+    ImGui::Text("renderedDepthmaps: %d",renderedDepthmaps);
+    ImGui::Text("shadowSamples: %d",shadowSamples);
+    ImGui::ColorEdit4("clearColor ",&clearColor[0]);
+    ImGui::Checkbox("drawDebug",&drawDebug);
+    ImGui::Checkbox("useTimers",&useTimers);
+
+    ImGui::Text("Render Time (without shadow map computation)");
+    for(int i = 0 ;i < 5 ;++i){
+        ImGui::Text("  %f ms %s",getTime(i),timerStrings[i].c_str());
+    }
+    ImGui::Checkbox("backFaceShadows",&backFaceShadows);
+    ImGui::InputFloat("shadowOffsetFactor",&shadowOffsetFactor,0.1,1);
+    ImGui::InputFloat("shadowOffsetUnits",&shadowOffsetUnits,0.1,1);
+    imGuiLightBox(0,"Directional Lights",directionalLights);
+    imGuiLightBox(1,"Spot Lights",spotLights);
+    imGuiLightBox(2,"Point Lights",pointLights);
+    imGuiLightBox(3,"Box Lights",boxLights);
+
+    ImGui::End();
 
 }
 

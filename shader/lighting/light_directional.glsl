@@ -38,6 +38,8 @@ uniform float cascadeInterpolateRange = 3.0f;
 
 
 void computeCascadeId(float viewDepth, int numCascades, out int cascadeId, out int interpolateCascade, out float interpolateAlpha){
+    cascadeId = 0;
+    interpolateCascade = 0;
     for(int i = 1; i <= numCascades; ++i){
         if(viewDepth <= depthCuts[i]){
             cascadeId = i - 1;
@@ -60,7 +62,7 @@ void computeCascadeId(float viewDepth, int numCascades, out int cascadeId, out i
     if(cascadeId == 0 &&  interpolateCascade == 2)
         interpolateCascade = 0;
 
-    if(cascadeId == numCascades-1 &&  interpolateCascade == 1)
+    if(cascadeId == numCascades-1 && interpolateCascade == 1)
         interpolateCascade = 0;
 }
 
@@ -105,30 +107,17 @@ vec4 getDirectionalLightIntensity(int sampleId) {
     float interpolateAlpha = 0;
 
 #ifdef SHADOWS
-
    computeCascadeId(viewDepth,numCascades,cascadeId,interpolateCascade,interpolateAlpha);
-
-//    if(interpolateCascade == 0){
-//        visibility = calculateShadowPCF2(viewToLightTransforms[cascadeId],getShadowSampler(cascadeId),vposition);
-//    }else if(interpolateCascade == 1){
-//        float v1 = calculateShadowPCF2(viewToLightTransforms[cascadeId],getShadowSampler(cascadeId),vposition);
-//        float v2 = calculateShadowPCF2(viewToLightTransforms[cascadeId + 1],getShadowSampler(cascadeId+1),vposition);
-//        visibility = mix(v1,v2,interpolateAlpha * 0.5);
-//    }else{
-//        float v1 = calculateShadowPCF2(viewToLightTransforms[cascadeId],getShadowSampler(cascadeId),vposition);
-//        float v2 = calculateShadowPCF2(viewToLightTransforms[cascadeId - 1],getShadowSampler(cascadeId-1),vposition);
-//        visibility = mix(v1,v2,interpolateAlpha * 0.5);
-//    }
 
    if(interpolateCascade == 0){
        visibility = calculateShadowPCFArray(viewToLightTransforms[cascadeId],depthTexures,cascadeId,vposition);
    }else if(interpolateCascade == 1){
        float v1 = calculateShadowPCFArray(viewToLightTransforms[cascadeId],depthTexures,cascadeId,vposition);
-       float v2 = calculateShadowPCFArray(viewToLightTransforms[cascadeId + 1],depthTexures,cascadeId,vposition);
+       float v2 = calculateShadowPCFArray(viewToLightTransforms[cascadeId + 1],depthTexures,cascadeId+1,vposition);
        visibility = mix(v1,v2,interpolateAlpha * 0.5);
    }else{
        float v1 = calculateShadowPCFArray(viewToLightTransforms[cascadeId],depthTexures,cascadeId,vposition);
-       float v2 = calculateShadowPCFArray(viewToLightTransforms[cascadeId - 1],depthTexures,cascadeId,vposition);
+       float v2 = calculateShadowPCFArray(viewToLightTransforms[cascadeId - 1],depthTexures,cascadeId-1,vposition);
        visibility = mix(v1,v2,interpolateAlpha * 0.5);
    }
 #endif

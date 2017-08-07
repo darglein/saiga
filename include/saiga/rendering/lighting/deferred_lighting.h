@@ -81,6 +81,9 @@ private:
 
 	bool useTimers = true;
 
+    bool backFaceShadows = false;
+    float shadowOffsetFactor = 4;
+    float shadowOffsetUnits = 10;
 
     std::vector<FilteredMultiFrameOpenGLTimer> timers2;
 	std::vector<std::string> timerStrings;
@@ -124,6 +127,7 @@ public:
     void removeLight(std::shared_ptr<BoxLight> l);
 
 
+    void initRender();
     void render(Camera *cam);
     void renderLightAccumulation();
     void renderDepthMaps(Program *renderer );
@@ -143,6 +147,7 @@ public:
     void cullLights(Camera *cam);
 
     void printTimings();
+    void renderImGui();
 
 private:
 

@@ -38,7 +38,6 @@ public:
     bool cullLight(Camera *shadowCamera);
     bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
-
 };
 
 }

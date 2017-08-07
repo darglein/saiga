@@ -83,8 +83,6 @@ bool BoxLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCameraBuffe
 
 void BoxLight::renderImGui()
 {
-    ImGui::Separator();
-    ImGui::Text("BoxLight");
     Light::renderImGui();
 }
 

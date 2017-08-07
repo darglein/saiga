@@ -57,12 +57,14 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
 
 
+    ShadowQuality sq = ShadowQuality::HIGH;
+
     sun = window->getRenderer()->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-3,-2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(0.5);
     sun->setAmbientIntensity(0.1f);
-    sun->createShadowMap(2048,2048);
+    sun->createShadowMap(2048,2048,1,sq);
     sun->enableShadows();
 
         pointLight = window->getRenderer()->lighting.createPointLight();
@@ -72,7 +74,7 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
         pointLight->setPosition(vec3(10,3,0));
         pointLight->setColorDiffuse(vec3(1));
         pointLight->calculateModel();
-        pointLight->createShadowMap(256,256);
+        pointLight->createShadowMap(256,256,sq);
         pointLight->enableShadows();
 
         spotLight = window->getRenderer()->lighting.createSpotLight();
@@ -82,7 +84,7 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
         spotLight->setPosition(vec3(-10,5,0));
         spotLight->setColorDiffuse(vec3(1));
         spotLight->calculateModel();
-        spotLight->createShadowMap(512,512);
+        spotLight->createShadowMap(512,512,sq);
         spotLight->enableShadows();
 
         boxLight = window->getRenderer()->lighting.createBoxLight();
@@ -94,7 +96,7 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
         boxLight->setColorDiffuse(vec3(1));
         boxLight->setScale(vec3(5,5,8));
         boxLight->calculateModel();
-        boxLight->createShadowMap(512,512);
+        boxLight->createShadowMap(512,512,sq);
         boxLight->enableShadows();
 
 
@@ -207,31 +209,12 @@ void Lighting::renderFinal(Camera *cam)
         ImGui::Checkbox("Show Imgui demo", &showimguidemo );
         ImGui::Checkbox("Show deferred debug overlay", &showddo );
 
-        if(ImGui::Checkbox("Light debug",&lightDebug)){
-            parentWindow->getRenderer()->lighting.setRenderDebug(lightDebug);
-        }
 
-        ImGui::PushID(0);
-        sun->renderImGui();
-        ImGui::PopID();
-        ImGui::PushID(1);
-        spotLight->renderImGui();
-        ImGui::PopID();
-        ImGui::PushID(2);
-        pointLight->renderImGui();
-        ImGui::PopID();
-        ImGui::PushID(3);
-        boxLight->renderImGui();
-        ImGui::PopID();
-
-//        if(ImGui::Checkbox("Point Light Shadows",&pointLightShadows)){
-//            for(auto l : pointLights){
-//                l->setCastShadows(pointLightShadows);
-//            }
-//        }
 
         ImGui::End();
     }
+
+    parentWindow->getRenderer()->lighting.renderImGui();
 
     if (showimguidemo)
     {
