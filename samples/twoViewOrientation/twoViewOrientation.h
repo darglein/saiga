@@ -93,8 +93,8 @@ public:
     void keyReleased(SDL_Keysym key) override;
 
     void mouseMoved(int x, int y) override;
-    void mousePressed(int key, int x, int y) {}
-    void mouseReleased(int key, int x, int y) {}
+    void mousePressed(int key, int x, int y) override {}
+    void mouseReleased(int key, int x, int y) override {}
 
     void projectGeometryToSurface();
     float computeSecondCameraOrientation(vec3 n);

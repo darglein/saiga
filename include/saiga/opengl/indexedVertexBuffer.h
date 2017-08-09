@@ -48,7 +48,7 @@ void IndexedVertexBuffer<vertex_t,index_t>::draw() const{
 
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::draw(unsigned int length, int offset) const{
-    glDrawElements( vbuffer_t::draw_mode, length, ibuffer_t::GLType::value, (void*)(offset*sizeof(index_t)) );
+    glDrawElements( vbuffer_t::draw_mode, length, ibuffer_t::GLType::value, (void*)(intptr_t)(offset*sizeof(index_t)) );
     assert_no_glerror();
 }
 
@@ -63,7 +63,7 @@ void IndexedVertexBuffer<vertex_t,index_t>::drawInstanced(int instances) const
 template<class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t,index_t>::drawInstanced(int instances, int offset, int length) const
 {
-    glDrawElementsInstanced(vbuffer_t::draw_mode,length,ibuffer_t::GLType::value,(void*)offset,instances);
+    glDrawElementsInstanced(vbuffer_t::draw_mode,length,ibuffer_t::GLType::value,(void*)(intptr_t)offset,instances);
     assert_no_glerror();
 }
 

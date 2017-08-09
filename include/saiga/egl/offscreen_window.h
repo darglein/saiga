@@ -25,12 +25,12 @@ public:
 protected:
 
     //there are no inputs and events without a window
-    virtual bool initInput() { return true; }
-    virtual void checkEvents() {}
+    virtual bool initInput() override { return true; }
+    virtual void checkEvents() override {}
 
 
-    virtual void swapBuffers();
-    virtual void freeContext();
+    virtual void swapBuffers() override;
+    virtual void freeContext() override;
 
     virtual bool initWindow() override;
 public:

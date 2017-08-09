@@ -12,9 +12,9 @@ SAIGA is a lightweight OpenGL utitliy and rendering framework. It was successful
 
 ## Supported Compilers
 
- * gcc 5.4 and newer
+ * g++ 5.4 or newer
  * Visual Studio 2015 and newer
- * TODO: clang
+ * clang++ 3.8 or newer
 
 ## Supported Operating Systems
 
@@ -29,7 +29,7 @@ SAIGA is a lightweight OpenGL utitliy and rendering framework. It was successful
 
 ## Required Dependencies
 
- * OpenGL 3.3 or newer
+ * OpenGL 3.3
  * [GLEW](https://github.com/nigels-com/glew) or [glbinding](https://github.com/cginternals/glbinding)
  * [GLM](https://github.com/g-truc/glm)
  * [freetype](https://www.freetype.org/)
