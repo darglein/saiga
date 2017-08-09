@@ -62,5 +62,5 @@ Utility
 
 ## License
 
-SAIGA is licensed under the 3-clause BSD License
+SAIGA is licensed under the MIT License. See LICENSE file for more information.
 
