@@ -27,7 +27,7 @@ public:
     GLint location_power;
 
     float radius = 1.0f;
-    float power = 1.0f;
+    float exponent = 1.0f;
 
 
     std::vector<vec3> kernelOffsets;
@@ -42,36 +42,31 @@ public:
 class SAIGA_GLOBAL SSAO{
 private:
 
-public:
-    bool ssao = false;
     std::shared_ptr<MVPTextureShader>  blurShader;
     std::shared_ptr<SSAOShader>  ssaoShader = nullptr;
 
     std::shared_ptr<Texture>  randomTexture;
-    std::shared_ptr<Texture> ssaotex = nullptr;
-
-//    std::shared_ptr<Texture> randomTexture;
-    std::shared_ptr<Texture> bluredTexture;
-
     Framebuffer ssao_framebuffer, ssao_framebuffer2;
+    std::shared_ptr<Texture> ssaotex;
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
     vec2 screenSize;
     glm::ivec2 ssaoSize;
     std::vector<vec3> kernelOffsets;
+    int kernelSize = 32;
+public:
+    std::shared_ptr<Texture> bluredTexture;
 
-    SSAO();
+    SSAO(int w, int h);
     void init(int w, int h);
     void resize(int w, int h);
     void clearSSAO();
     void render(Camera* cam, GBuffer *gbuffer);
 
-    void setEnabled(bool enable);
-    void toggle();
 
     void setKernelSize(int kernelSize);
-    void setRadius(float radius){ssaoShader->radius = radius;}
-    void setPower(float power){ssaoShader->power = power;}
+
+    void renderImGui();
 };
 
 }

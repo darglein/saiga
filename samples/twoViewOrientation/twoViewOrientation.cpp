@@ -15,7 +15,7 @@
 
 
 AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
-    ddo(window->getWidth(),window->getHeight()),tdo(window->getWidth(),window->getHeight())
+    tdo(window->getWidth(),window->getHeight())
 {
     //this simplifies shader debugging
     ShaderLoader::instance()->addLineDirectives = true;
@@ -90,9 +90,6 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
     sun->enableShadows();
 
 
-
-
-    ddo.setDeferredFramebuffer(&window->getRenderer()->gbuffer,window->getRenderer()->ssao.bluredTexture);
 
     imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
 
@@ -219,9 +216,6 @@ void AdvancedWindow::renderFinal(Camera *cam)
 
     parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
-    if(showddo)
-        ddo.render();
-
 
 
     imgui.beginFrame();
@@ -232,7 +226,6 @@ void AdvancedWindow::renderFinal(Camera *cam)
         ImGui::Begin("An Imgui Window :D");
 
         ImGui::Checkbox("Show Imgui demo", &showimguidemo );
-        ImGui::Checkbox("Show deferred debug overlay", &showddo );
 
 
         if(ImGui::Button("reset camera")){

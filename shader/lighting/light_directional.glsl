@@ -124,8 +124,8 @@ vec4 getDirectionalLightIntensity(int sampleId) {
 
     float localIntensity = intensity * visibility; //amount of light reaching the given point
 
-    float Iamb = intensity * ambientIntensity * ssao;
-    float Idiff = localIntensity * intensityDiffuse(normal,fragmentLightDir);
+    float Iamb = ssao * intensity * ambientIntensity;
+    float Idiff = ssao * localIntensity * intensityDiffuse(normal,fragmentLightDir);
     float Ispec = 0;
     if(Idiff > 0)
         Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,fragmentLightDir,40);
@@ -138,23 +138,7 @@ vec4 getDirectionalLightIntensity(int sampleId) {
                 Iamb * diffColor) +
             Iemissive * diffColor;
 
-
-    if(cascadeId % 2 == 0){
-//        color += vec3(0.2,0,0);
-    }else{
-//        color += vec3(0,0.2,0);
-    }
-
-//    if(interpolateCascade ==   1)
-//        color += vec3(interpolateAlpha,0,interpolateAlpha);
-//    if(interpolateCascade == 2)
-//        color += vec3(0,interpolateAlpha,interpolateAlpha);
-//    return vec4(depth);
-//    if(-vposition.z > 48.5)
-//    return vec4(1,0,0,1);
     return vec4(color,1);
-//    return vec4(lightColor*(Idiff+Iamb) ,Ispec); //accumulation
-//    out_color = vec4(1.0f);
 }
 
 void main(){

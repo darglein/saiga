@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,27 +11,39 @@
 
 #include "saiga/camera/camera.h"
 #include "saiga/rendering/renderer.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
-Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters params) :
+Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters _params) :
+    ddo(windowWidth,windowHeight),
     windowWidth(windowWidth), windowHeight(windowHeight),
-    width(windowWidth*params.renderScale), height(windowHeight*params.renderScale),
-    params(params), lighting(gbuffer)
+    width(windowWidth*_params.renderScale), height(windowHeight*_params.renderScale),
+    params(_params),lighting(gbuffer)
 {
     cameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
 
     //    setSize(windowWidth,windowHeight);
 
-    if(params.useSMAA)
-        smaa.init(windowWidth*params.renderScale, windowHeight*params.renderScale,params.smaaQuality);
-    else
-        smaa.init(2,2,SMAA::Quality::SMAA_PRESET_LOW);
+    if(params.useSMAA){
+      smaa = std::make_shared<SMAA>(width, height);
+      smaa->loadShader(params.smaaQuality);
+    }
 
-    if(params.useSSAO)
-        ssao.init(windowWidth*params.renderScale, windowHeight*params.renderScale);
-    else
-        ssao.init(2,2);
+    {
+        //create a 2x2 grayscale black dummy texture
+        blackDummyTexture = std::make_shared<Texture>();
+        std::vector<int> data(2*2,0);
+        blackDummyTexture->createTexture(2,2,GL_RED,GL_R8,GL_UNSIGNED_BYTE, (GLubyte*)data.data());
+
+    }
+    if(params.useSSAO){
+        ssao = std::make_shared<SSAO>(width, height);
+    }
+    lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
+//        ssao.init(windowWidth*params.renderScale, windowHeight*params.renderScale);
+//    else
+//        ssao.init(2,2);
 
     if(params.srgbWrites){
 
@@ -55,7 +67,7 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     lighting.clearColor = params.lightingClearColor;
     lighting.loadShaders();
 
-    lighting.ssaoTexture = ssao.bluredTexture;
+
 
     postProcessor.init(width, height, &gbuffer, params.ppp, lighting.lightAccumulationTexture, params.useGPUTimers);
 
@@ -74,6 +86,8 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 
 
     blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/blitDepth.glsl");
+
+    ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
 
     cout << "Deferred Renderer initialized. Render resolution: " << width << "x" << height << endl;
 
@@ -105,11 +119,12 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
     gbuffer.resize(width, height);
     lighting.resize(width, height);
 
-    if(params.useSSAO)
-        ssao.resize(width, height);
+    if(ssao)
+        ssao->resize(width, height);
 
-    if(params.useSMAA)
-        smaa.resize(width,height);
+    if(smaa){
+        smaa->resize(width,height);
+    }
 }
 
 
@@ -203,7 +218,7 @@ void Deferred_Renderer::render_intern() {
 
     if(params.useSMAA){
         startTimer(SMAATIME);
-        smaa.render(postProcessor.getCurrentTexture(),postProcessor.getTargetBuffer());
+        smaa->render(postProcessor.getCurrentTexture(),postProcessor.getTargetBuffer());
         postProcessor.switchBuffer();
         postProcessor.bindCurrentBuffer();
         stopTimer(SMAATIME);
@@ -220,6 +235,10 @@ void Deferred_Renderer::render_intern() {
     //glBindFramebuffer(GL_FRAMEBUFFER, 0);
     //glClear(GL_COLOR_BUFFER_BIT);
     startTimer(FINAL);
+    if(renderDDO){
+        bindCamera(&ddo.layout.cam);
+        ddo.render();
+    }
     renderer->renderFinal(*currentCamera);
     stopTimer(FINAL);
 
@@ -339,7 +358,7 @@ void Deferred_Renderer::renderSSAO(Camera *cam)
     startTimer(SSAOT);
 
     if(params.useSSAO)
-        ssao.render(cam, &gbuffer);
+        ssao->render(cam, &gbuffer);
 
 
     stopTimer(SSAOT);
@@ -363,6 +382,7 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
 
     assert_no_glerror();
 }
+
 
 void Deferred_Renderer::bindCamera(Camera *cam)
 {
@@ -389,6 +409,59 @@ void Deferred_Renderer::printTimings()
     cout << "Total: " << total << "ms (" << 1000 / total << " fps)" << endl;
     cout << "====================================" << endl;
 
+}
+
+
+void Deferred_Renderer::renderImGui()
+{
+    ImGui::SetNextWindowPos(ImVec2(400, 20), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400,600), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("Deferred Renderer");
+
+    ImGui::Checkbox("renderDDO", &renderDDO);
+    ImGui::Checkbox("wireframe", &wireframe);
+    ImGui::Checkbox("offsetGeometry", &offsetGeometry);
+
+    ImGui::Text("Render Time");
+    ImGui::Text("%fms - Geometry pass",getTime(GEOMETRYPASS));
+    ImGui::Text("%fms - SSAO",getTime(SSAOT));
+    ImGui::Text("%fms - Depthmaps",getTime(DEPTHMAPS));
+    ImGui::Text("%fms - Lighting",getTime(LIGHTING));
+    ImGui::Text("%fms - Overlay pass",getTime(OVERLAY));
+    ImGui::Text("%fms - Postprocessing",getTime(POSTPROCESSING));
+    ImGui::Text("%fms - SMAA",getTime(SMAATIME));
+    ImGui::Text("%fms - Final pass",getTime(FINAL));
+    ImGui::Text("%fms - Total",getTime(TOTAL));
+
+    ImGui::Separator();
+
+   if(ImGui::Checkbox("SMAA",&params.useSMAA)){
+       if(params.useSMAA){
+           smaa = std::make_shared<SMAA>(width, height);
+           smaa->loadShader(params.smaaQuality);
+       }else{
+           smaa.reset();
+       }
+   }
+   if(smaa){
+        smaa->renderImGui();
+    }
+
+
+   if(ImGui::Checkbox("SSAO",&params.useSSAO)){
+       if(params.useSSAO){
+           ssao = std::make_shared<SSAO>(width, height);
+       }else{
+           ssao.reset();
+       }
+       lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
+       ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
+   }
+   if(ssao){
+        ssao->renderImGui();
+    }
+
+    ImGui::End();
 }
 
 }

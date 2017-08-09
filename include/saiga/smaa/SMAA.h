@@ -52,20 +52,20 @@ public:
 
 class SMAA{
 public:
-    enum class Quality{
-        SMAA_PRESET_LOW,          //(%60 of the quality)
+    enum class Quality : int{
+        SMAA_PRESET_LOW = 0,          //(%60 of the quality)
         SMAA_PRESET_MEDIUM,       //(%80 of the quality)
         SMAA_PRESET_HIGH,         //(%95 of the quality)
         SMAA_PRESET_ULTRA,        //(%99 of the quality)
     };
 
 
-    SMAA();
-    void init(int w, int h, Quality _quality);
-    void loadShader();
+    SMAA(int w, int h);
+    void loadShader(SMAA::Quality _quality);
     void resize(int w, int h);
     void render(framebuffer_texture_t input, Framebuffer& output);
 
+    void renderImGui();
 private:
     //mark pixel in first pass and use it in second pass. The last pass is executed on all pixels.
     framebuffer_texture_t stencilTex;
@@ -92,5 +92,7 @@ private:
 
     Quality quality = Quality::SMAA_PRESET_HIGH;
 };
+
+
 
 }

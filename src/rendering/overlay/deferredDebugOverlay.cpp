@@ -13,9 +13,7 @@
 
 namespace Saiga {
 
-DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),height(height){
-    proj = glm::ortho(0.0f,(float)width,0.0f,(float)height,1.0f,-1.0f);
-
+DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),height(height),layout(width,height){
     TriangleMesh<VertexNT, GLuint> tm;
 
 
@@ -38,6 +36,9 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),h
                         vec2(0,1));
     tm.addQuad(verts);
 
+    tm.transform(glm::scale(mat4(),vec3(float(width)/height,1,1)));
+    meshBB = tm.calculateAabb();
+
 
     tm.createBuffers(buffer);
 
@@ -49,8 +50,6 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),h
     setScreenPosition(&light,4);
 
     loadShaders();
-    //    exit(0);
-
 }
 
 void DeferredDebugOverlay::loadShaders()
@@ -65,8 +64,10 @@ void DeferredDebugOverlay::setScreenPosition(GbufferTexture *gbt, int id)
     float images = 5;
 
     float s = 1.0f/images;
-    gbt->setScale(vec3(s));
 
+    layout.transform(gbt,meshBB,vec2(1,1 - s * id),s,Layout::RIGHT,Layout::RIGHT);
+    return;
+    gbt->setScale(vec3(s));
     float dy = -s * 2.0f;
     float y = id*dy+dy*0.5f+1.0f;
     gbt->translateGlobal(vec3(1.0f-s,y,0));

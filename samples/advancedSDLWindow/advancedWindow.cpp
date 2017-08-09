@@ -13,7 +13,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 
 AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
-    ddo(window->getWidth(),window->getHeight()),tdo(window->getWidth(),window->getHeight())
+   tdo(window->getWidth(),window->getHeight())
 {
     //this simplifies shader debugging
 //    ShaderLoader::instance()->addLineDirectives = true;
@@ -79,8 +79,6 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
         lights.push_back(pl);
     }
 
-
-    ddo.setDeferredFramebuffer(&window->getRenderer()->gbuffer,window->getRenderer()->ssao.bluredTexture);
 
     imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
 
@@ -181,10 +179,6 @@ void AdvancedWindow::renderFinal(Camera *cam)
 
     parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
-//    return;
-//    if(showddo)
-        ddo.render();
-
 
     imgui.beginFrame();
 
@@ -195,7 +189,6 @@ void AdvancedWindow::renderFinal(Camera *cam)
 
         ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
         ImGui::Checkbox("Show Imgui demo", &showimguidemo );
-        ImGui::Checkbox("Show deferred debug overlay", &showddo );
 
         if(ImGui::Checkbox("Light debug",&lightDebug)){
             parentWindow->getRenderer()->lighting.setRenderDebug(lightDebug);

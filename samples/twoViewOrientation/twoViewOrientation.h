@@ -53,7 +53,6 @@ public:
 
     ProceduralSkybox skybox;
 
-    DeferredDebugOverlay ddo;
     TextDebugOverlay tdo;
     ImGui_SDL_Renderer imgui;
     TextureAtlas textAtlas;
@@ -72,7 +71,6 @@ public:
 
       const float maxAngle = 60;
     float rotationSpeed = 0.1;
-    bool showddo = false;
     bool showimguidemo = false;
     bool lightDebug = false;
     bool pointLightShadows = false;

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,6 +9,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/image/imageGenerator.h"
 #include "saiga/rendering/gbuffer.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -34,7 +35,7 @@ void SSAOShader::uploadData(){
     Shader::upload(location_kernelOffsets,kernelOffsets.size(),kernelOffsets.data());
 
     Shader::upload(location_radius,radius);
-    Shader::upload(location_power,power);
+    Shader::upload(location_power,exponent);
 }
 
 void SSAOShader::uploadRandomImage(std::shared_ptr<Texture> img)
@@ -43,9 +44,9 @@ void SSAOShader::uploadRandomImage(std::shared_ptr<Texture> img)
 }
 
 
-SSAO::SSAO()
+SSAO::SSAO(int w, int h)
 {
-
+    init(w,h);
 }
 
 void SSAO::init(int w, int h)
@@ -75,12 +76,8 @@ void SSAO::init(int w, int h)
     ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("post_processing/ssao2.glsl");
     blurShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/ssao_blur.glsl");
 
-    setKernelSize(32);
+    setKernelSize(kernelSize);
 
-    auto randomImage = ImageGenerator::randomNormalized(32,32);
-    randomTexture = std::make_shared<Texture>();
-    randomTexture->fromImage(*randomImage);
-    randomTexture->setWrap(GL_REPEAT);
 
     clearSSAO();
 
@@ -94,8 +91,8 @@ void SSAO::resize(int w, int h)
 {
     screenSize = vec2(w,h);
     ssaoSize = glm::ivec2(w/2,h/2);
-	ssaoSize.x = glm::max(ssaoSize.x, 1);
-	ssaoSize.y = glm::max(ssaoSize.y, 1);
+    ssaoSize.x = glm::max(ssaoSize.x, 1);
+    ssaoSize.y = glm::max(ssaoSize.y, 1);
 
     ssao_framebuffer.resize(ssaoSize.x,ssaoSize.y);
     ssao_framebuffer2.resize(ssaoSize.x,ssaoSize.y);
@@ -106,17 +103,15 @@ void SSAO::clearSSAO()
 {
     ssao_framebuffer2.bind();
     //clear with 1 -> no ambient occlusion
-//    glClearColor(1.0f,1.0f,1.0f,1.0f);
+    //    glClearColor(1.0f,1.0f,1.0f,1.0f);
     glClearColor(0.0f,0.0f,0.0f,0.0f);
     glClear( GL_COLOR_BUFFER_BIT );
-//    glClearColor(0.0f,0.0f,0.0f,0.0f);
+    //    glClearColor(0.0f,0.0f,0.0f,0.0f);
     ssao_framebuffer2.unbind();
 }
 
 void SSAO::render(Camera *cam, GBuffer* gbuffer)
 {
-    if(!ssao)
-        return;
 
     glViewport(0,0,ssaoSize.x,ssaoSize.y);
     ssao_framebuffer.bind();
@@ -153,20 +148,10 @@ void SSAO::render(Camera *cam, GBuffer* gbuffer)
     glViewport(0,0,screenSize.x,screenSize.y);
 }
 
-void SSAO::setEnabled(bool enable)
-{
-    ssao = enable;
-    clearSSAO();
-}
 
-void SSAO::toggle()
+void SSAO::setKernelSize(int _kernelSize)
 {
-    setEnabled(!ssao);
-}
-
-void SSAO::setKernelSize(int kernelSize)
-{
-
+    kernelSize = _kernelSize;
     kernelOffsets.resize(kernelSize);
     for (int i = 0; i < kernelSize; ++i) {
         vec3 sample = glm::normalize(glm::linearRand(vec3(-1,-1,0),vec3(1,1,1)));
@@ -174,12 +159,30 @@ void SSAO::setKernelSize(int kernelSize)
         scale = glm::mix(0.1f, 1.0f, scale * scale);
         sample *= scale;
 
-//        vec3 sample = glm::ballRand(1.0f);
-//        sample.z = glm::abs(sample.z);
+        //        vec3 sample = glm::ballRand(1.0f);
+        //        sample.z = glm::abs(sample.z);
 
         kernelOffsets[i] = sample;
     }
     ssaoShader->kernelOffsets = kernelOffsets;
+
+    auto randomImage = ImageGenerator::randomNormalized(32,32);
+    randomTexture = std::make_shared<Texture>();
+    randomTexture->fromImage(*randomImage);
+    randomTexture->setWrap(GL_REPEAT);
+
+}
+
+void SSAO::renderImGui()
+{
+    ImGui::PushID("SSAO::renderImGui");
+    ImGui::InputInt("kernelSize",&kernelSize,1,8);
+    ImGui::InputFloat("radius",&ssaoShader->radius,1);
+    ImGui::SliderFloat("exponent",&ssaoShader->exponent,0,1);
+    if(ImGui::Button("Reload")){
+        setKernelSize(kernelSize);
+    }
+    ImGui::PopID();
 }
 
 }

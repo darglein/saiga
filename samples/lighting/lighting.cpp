@@ -13,7 +13,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 
 Lighting::Lighting(OpenGLWindow *window): Program(window),
-    ddo(window->getWidth(),window->getHeight()),tdo(window->getWidth(),window->getHeight())
+   tdo(window->getWidth(),window->getHeight())
 {
     //this simplifies shader debugging
 //    ShaderLoader::instance()->addLineDirectives = true;
@@ -99,8 +99,6 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
         boxLight->createShadowMap(512,512,sq);
         boxLight->enableShadows();
 
-
-    ddo.setDeferredFramebuffer(&window->getRenderer()->gbuffer,window->getRenderer()->ssao.bluredTexture);
 
     imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
 
@@ -194,8 +192,6 @@ void Lighting::renderFinal(Camera *cam)
     parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
 
-    if(showddo)
-        ddo.render();
 
 
     imgui.beginFrame();
@@ -207,13 +203,11 @@ void Lighting::renderFinal(Camera *cam)
 
         ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
         ImGui::Checkbox("Show Imgui demo", &showimguidemo );
-        ImGui::Checkbox("Show deferred debug overlay", &showddo );
-
-
 
         ImGui::End();
     }
 
+    parentWindow->getRenderer()->renderImGui();
     parentWindow->getRenderer()->lighting.renderImGui();
 
     if (showimguidemo)

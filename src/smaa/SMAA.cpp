@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,6 +11,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/image/imageGenerator.h"
 #include "saiga/rendering/gbuffer.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -52,18 +53,11 @@ void SMAANeighborhoodBlendingShader::uploadTextures(std::shared_ptr<raw_Texture>
 }
 
 
-SMAA::SMAA()
-{
-
-
-}
-
-void SMAA::init(int w, int h, SMAA::Quality _quality)
+SMAA::SMAA(int w, int h)
 {
     screenSize = glm::ivec2(w,h);
-    quality = _quality;
-
     stencilTex = framebuffer_texture_t(new Texture());
+
 
     //GL_STENCIL_INDEX may be used for format only if the GL version is 4.4 or higher.
     bool useStencilOnly = hasExtension("GL_ARB_texture_stencil8");
@@ -104,29 +98,11 @@ void SMAA::init(int w, int h, SMAA::Quality _quality)
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     qb->createBuffers(quadMesh);
-
-    loadShader();
-
-    assert_no_glerror();
-
-    //    ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("post_processing/ssao2.glsl");
-    //    blurShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/ssao_blur.glsl");
-
-    //    setKernelSize(32);
-
-    //    auto randomImage = ImageGenerator::randomNormalized(32,32);
-    //    randomTexture = std::make_shared<Texture>();
-    //    randomTexture->fromImage(*randomImage);
-    //    randomTexture->setWrap(GL_REPEAT);
-
-    //    clearSSAO();
-
-
-    cout << "SMAA initialized!" << endl;
 }
 
-void SMAA::loadShader()
+void SMAA::loadShader(SMAA::Quality _quality)
 {
+    quality = _quality;
     //example:
     //#define SMAA_RT_METRICS float4(1.0 / 1280.0, 1.0 / 720.0, 1280.0, 720.0)
     vec4 rtMetrics(1.0f/screenSize.x,1.0f/screenSize.y,screenSize.x,screenSize.y);
@@ -179,7 +155,7 @@ void SMAA::resize(int w, int h)
 void SMAA::render(framebuffer_texture_t input, Framebuffer &output)
 {
     if(!shaderLoaded)
-        loadShader();
+        loadShader(quality);
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
@@ -225,6 +201,24 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer &output)
 
     glEnable(GL_DEPTH_TEST);
 
+}
+
+void SMAA::renderImGui()
+{
+    ImGui::PushID("SMAA::renderImGui");
+    static const char *items[4] = {
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "ULTRA"
+    };
+    int currentItem = (int)quality;
+
+    if(ImGui::Combo("Quality",&currentItem,items,4)){
+        quality = (Quality)currentItem;
+        shaderLoaded = false;
+    }
+    ImGui::PopID();
 }
 
 }

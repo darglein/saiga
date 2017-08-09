@@ -10,7 +10,7 @@
 #include "saiga/opengl/vertex.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/rendering/object3d.h"
-#include <vector>
+#include "saiga/rendering/overlay/Layout.h"
 
 namespace Saiga {
 
@@ -29,8 +29,7 @@ private:
     };
 
 
-    mat4 proj;
-
+    AABB meshBB;
 
     int width,height;
 
@@ -38,6 +37,7 @@ private:
 
     void setScreenPosition(GbufferTexture* gbt, int id);
 public:
+    Layout layout;
 
     std::shared_ptr<MVPTextureShader>  shader, depthShader, normalShader;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;

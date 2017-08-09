@@ -12,6 +12,7 @@
 #include "saiga/rendering/gbuffer.h"
 #include "saiga/rendering/lighting/ssao.h"
 #include "saiga/smaa/SMAA.h"
+#include "saiga/rendering/overlay/deferredDebugOverlay.h"
 
 namespace Saiga {
 
@@ -98,7 +99,10 @@ private:
 
     bool blitLastFramebuffer = true;
 
+     std::shared_ptr<Texture> blackDummyTexture;
 
+    bool renderDDO = false;
+    DeferredDebugOverlay ddo;
     UniformBuffer cameraBuffer;
 public:
 
@@ -127,8 +131,9 @@ public:
 
     Camera** currentCamera;
 
-    SSAO ssao;
-    SMAA smaa;
+    std::shared_ptr<SSAO> ssao;
+
+    std::shared_ptr<SMAA> smaa;
 
     std::shared_ptr<MVPTextureShader>  blitDepthShader;
 
@@ -143,7 +148,7 @@ public:
 
 
     DeferredLighting lighting;
-    Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters params);
+    Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters _params);
 	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
     void resize(int windowWidth, int windowHeight);
@@ -157,6 +162,7 @@ public:
 
     void writeGbufferDepthToCurrentFramebuffer();
 
+    void renderImGui();
 
 };
 
