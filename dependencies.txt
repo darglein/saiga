@@ -1,7 +1,0 @@
-CMake
-OpenGL 3.3+
-Glew
-SDL 2
-GLM
-Freetype
-PNG

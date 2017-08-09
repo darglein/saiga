@@ -1,11 +1,2 @@
-CMakeLists.txt.user
 include/saiga/buildconfig.h
 build/
-build_gralab/
-build_steam/
-create_frontlab2.sh
-reconf.sh
-test.sh
-conf.sh
-makeinstall.sh
-*.creator.user
