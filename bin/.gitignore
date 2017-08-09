@@ -1,0 +1,17 @@
+*.creator.user
+*.sdf
+*.sdf.png
+imgui.ini
+libsaiga.so
+
+advancedSDLWindow
+cascadedShadowMaps
+lighting
+offscreenRendering
+runTests
+simpleSDLWindow
+simpleWindow
+test
+twoViewOrientation
+videoRecording
+valgrind_output.txt

@@ -37,6 +37,7 @@ For the CUDA samples a NVIDIA GPU with compute capability 3 or newer is required
 OpenGL 3.3 or newer
 GLEW or glbinding
 GLM
+freetype2
 
 
 ## Compiling SAIGA
