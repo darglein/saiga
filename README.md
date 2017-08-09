@@ -14,7 +14,6 @@ SAIGA is a lightweight OpenGL utitliy and rendering framework. It was successful
 
 SAIGA is licensed under the 3-clause BSD License
 
-
 ## Supported Compilers
 
 gcc 5.4 and newer
