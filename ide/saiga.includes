@@ -1,8 +1,0 @@
-include/saiga
-include/saiga/imgui
-include
-src
-/usr/include/eigen3
-/usr/local/cuda/include
-/soft/devtools/nvidia/cuda-7.5/include
-/home/um96udad/Master/libs/data/include
