@@ -98,6 +98,14 @@ if (GLFW_FOUND)
 	SET(SAIGA_USE_GLFW 1)
 endif ()
 
+#EGL
+find_package(EGL QUIET)
+if(EGL_FOUND)
+	include_directories( ${EGL_INCLUDE_DIRS}) 
+	SET(LIBS ${LIBS} ${EGL_LIBRARIES})
+	SET(SAIGA_USE_EGL 1)
+endif()
+
 
 #FFMPEG
 find_package(FFMPEG QUIET)
@@ -172,14 +180,6 @@ if(FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
 	message(STATUS "Found FreeImage: ${FREEIMAGE_LIBRARIES} ${FREEIMAGEPLUS_LIBRARIES}")
 endif()
 
-
-#EGL
-find_package(EGL QUIET)
-if(EGL_FOUND)
-	include_directories( ${EGL_INCLUDE_DIRS}) 
-	SET(LIBS ${LIBS} ${EGL_LIBRARIES})
-	SET(SAIGA_USE_EGL 1)
-endif()
 
 
 #eigen

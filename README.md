@@ -36,16 +36,22 @@ SAIGA is a lightweight OpenGL utitliy and rendering framework. It was successful
 
 ## Optional Dependencies
 
+Window creation and GL-Context managment
  * SDL2
  * GLFW
  * EGL
- * FFMPEG
+Sound loading and playback
  * OpenAL
  * ALUT
  * Opus
+Video Recording
+ * FFMPEG
+Model Loading
  * ASSIMP
+Image loading
  * PNG
  * FreeImage + FreeImagePlus
+Utility
  * Eigen
  * CUDA
 
