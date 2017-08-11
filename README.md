@@ -4,16 +4,16 @@ SAIGA is a lightweight OpenGL utitliy and rendering framework. It was successful
 
 ## History
 
- * 2014 January: Development start as a private OpenGL framework for university projects
- * 2015 September: The name SAIGA was chosen as a reference to the [saiga antelope](https://en.wikipedia.org/wiki/Saiga_antelope).
- * 2014 April - 2016 December: Development of the game [Redie](http://store.steampowered.com/app/536990/). In this time most of SAIGA's functionality was added so it could be used as a lightweight game engine.
- * 2017 January - 2017 August: Increased usability and documentation in preparation of the open source release
- * 2017 9. August: SAIGA goes Open-Source
+ * January 2014: Development start as a private OpenGL framework for university projects.
+ * September 2015: The name SAIGA was chosen as a reference to the [saiga antelope](https://en.wikipedia.org/wiki/Saiga_antelope).
+ * April 2014 - December 2016: Development of the game [Redie](http://store.steampowered.com/app/536990/). In this time most of SAIGA's functionality was added so it could be used as a lightweight game engine.
+ * January 2017 - August 2017: Increased usability and documentation in preparation of the open source release.
+ * August 2017: Open-Source Release.
 
 ## Supported Compilers
 
  * g++ 5.4 or newer
- * Visual Studio 2015 and newer
+ * Visual Studio 2015 or newer
  * clang++ 3.8 or newer
 
 ## Supported Operating Systems
@@ -24,7 +24,7 @@ SAIGA is a lightweight OpenGL utitliy and rendering framework. It was successful
 ## Supported Graphics Hardware
 
  * All NVIDIA and AMD cards supporting atleast OpenGL 3.3.
- * Intel on chip graphic processor with linux mesa drivers. TODO: for windows
+ * Intel on chip graphic processor with linux mesa drivers or similiar windows driver.
  * For the CUDA samples a NVIDIA GPU with compute capability 3 or newer is required.
 
 ## Required Dependencies
