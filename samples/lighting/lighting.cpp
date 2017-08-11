@@ -207,6 +207,7 @@ void Lighting::renderFinal(Camera *cam)
         ImGui::End();
     }
 
+    parentWindow->renderImGui();
     parentWindow->getRenderer()->renderImGui();
     parentWindow->getRenderer()->lighting.renderImGui();
 

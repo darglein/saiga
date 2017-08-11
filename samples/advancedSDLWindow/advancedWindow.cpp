@@ -203,7 +203,7 @@ void AdvancedWindow::renderFinal(Camera *cam)
         ImGui::End();
     }
 
-    parentWindow->getRenderer()->lighting.renderImGui();
+    parentWindow->renderImGui();
 
     if (showimguidemo)
     {

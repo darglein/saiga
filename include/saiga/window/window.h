@@ -75,11 +75,15 @@ struct SAIGA_GLOBAL WindowParameters{
 class SAIGA_GLOBAL OpenGLWindow{
 protected:
     WindowParameters windowParameters;
+
+    //total number of updateticks/frames rendered so far
     int numUpdates = 0;
     int numFrames = 0;
 
-    bool running = true;
+    //game loop running
+    bool running = false;
 
+    //basic variables for the parallel update
     Semaphore semStartUpdate, semFinishUpdate;
     std::thread updateThread;
     bool parallelUpdate = false;
@@ -90,6 +94,12 @@ protected:
     tick_t gameLoopDelay = tick_t(0);
 
     bool gameloopDropAccumulatedUpdates = false;
+
+    //for imgui graph
+    static const int numGraphValues = 80;
+    int imCurrentIndex = 0;
+    float imUpdateTimes[numGraphValues];
+    float imRenderTimes[numGraphValues];
 public:
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
     AverageTimer fpsTimer, upsTimer;
@@ -101,6 +111,37 @@ public:
     bool init(const RenderingParameters &params);
     void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false, bool _catchUp=false);
     void close();
+    void renderImGui();
+
+
+    //uses the current camera to project between world and screen
+    Ray createPixelRay(const vec2 &pixel) const;
+    Ray createPixelRay(const vec2 &pixel, const vec2 &resolution, const mat4 &inverseProj) const;
+    vec2 projectToScreen(const vec3 &pos) const;
+    vec3 screenToWorld(const vec2 &pixel) const;
+    vec3 screenToWorld(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
+
+    //reading the default framebuffer
+    void readToExistingImage(Image &out);
+    void readToImage(Image &out);
+
+    //read the default framebuffer and save to file
+    void screenshot(const std::string &file);
+    void screenshotRender(const std::string &file);
+
+
+    //Basic getters and setters
+
+    std::string getTimeString();
+    int getWidth() const { return windowParameters.width; }
+    int getHeight() const { return windowParameters.height; }
+    float getAspectRatio() const { return (float)windowParameters.width/(float)windowParameters.height; }
+    Camera* getCamera() const { return currentCamera; }
+    std::string getName() const { return windowParameters.name; }
+    void setCamera(Camera* c) { currentCamera = c; }
+    Deferred_Renderer* getRenderer() const {  return renderer; }
+
+
 protected:
     void resize(int width, int height);
     void initDeferredRendering(const RenderingParameters& params);
@@ -121,33 +162,6 @@ protected:
 
     void sleep(tick_t ticks);
 
-public:
-
-    //Basic getters and setters
-
-    std::string getTimeString();
-    int getWidth() const { return windowParameters.width; }
-    int getHeight() const { return windowParameters.height; }
-    float getAspectRatio() const { return (float)windowParameters.width/(float)windowParameters.height; }
-    Camera* getCamera() const { return currentCamera; }
-    std::string getName() const { return windowParameters.name; }
-
-    void setCamera(Camera* c) { currentCamera = c; }
-    Deferred_Renderer* getRenderer() const {  return renderer; }
-
-
-    void screenshot(const std::string &file);
-    void screenshotRender(const std::string &file);
-
-
-    Ray createPixelRay(const vec2 &pixel) const;
-    Ray createPixelRay(const vec2 &pixel, const vec2 &resolution, const mat4 &inverseProj) const;
-    vec2 projectToScreen(const vec3 &pos) const;
-    vec3 screenToWorld(const vec2 &pixel) const;
-    vec3 screenToWorld(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const;
-
-    void readToExistingImage(Image &out);
-    void readToImage(Image &out);
 };
 
 }
