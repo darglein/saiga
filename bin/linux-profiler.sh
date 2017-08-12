@@ -3,11 +3,16 @@
 #install:
 #sudo apt-get install linux-tools-common linux-tools-generic linux-tools-`uname -r`
 #git clone https://github.com/brendangregg/FlameGraph
-OUTPUTFILE=cpu_profile
+OUTPUTFILE=perf.data
 EXEFILE="./lighting"
 FLAMEGRAPHDIR=/home/dari/Programming/FlameGraph
 
-perf record -F 2000 -g $EXEFILE
+
+#sudo sh -c 'echo 0 >/proc/sys/kernel/perf_event_paranoid'
+#sudo sh -c 'echo kernel.perf_event_paranoid=0 > /etc/sysctl.d/local.conf'
+
+perf record -g --call-graph dwarf -a -e instructions:u -F 1000 -o $OUTPUTFILE -- $EXEFILE
+
 perf script | $FLAMEGRAPHDIR/stackcollapse-perf.pl > out.perf-folded
 $FLAMEGRAPHDIR/flamegraph.pl out.perf-folded > perf-kernel.svg
 firefox perf-kernel.svg
