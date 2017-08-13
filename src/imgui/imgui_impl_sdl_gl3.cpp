@@ -34,21 +34,13 @@
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
 #ifdef SAIGA_USE_SDL
-// SDL
-#include <SDL.h>
-#include <SDL_syswm.h>
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 
 namespace Saiga {
 
-// Data
-static double       g_Time = 0.0f;
-static bool         g_MousePressed[3] = { false, false, false };
-static float        g_MouseWheel = 0.0f;
-static GLuint       g_FontTexture = 0;
-static int          g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;
-static int          g_AttribLocationTex = 0, g_AttribLocationProjMtx = 0;
-static int          g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
-static unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
+
 
 // This is the main rendering function that you have to implement and provide to ImGui (via setting up 'RenderDrawListsFn' in the ImGuiIO structure)
 // If text or lines are blurry when integrating ImGui in your engine:
@@ -156,47 +148,6 @@ static void ImGui_ImplSdlGL3_SetClipboardText(void* user_data, const char* text)
     SDL_SetClipboardText(text);
 }
 
-bool ImGui_SDL_Renderer::processEvent(const SDL_Event &event)
-{
-    ImGuiIO& io = ImGui::GetIO();
-    switch (event.type)
-    {
-    case SDL_MOUSEWHEEL:
-        {
-            if (event.wheel.y > 0)
-                g_MouseWheel = 1;
-            if (event.wheel.y < 0)
-                g_MouseWheel = -1;
-            return true;
-        }
-    case SDL_MOUSEBUTTONDOWN:
-        {
-            if (event.button.button == SDL_BUTTON_LEFT) g_MousePressed[0] = true;
-            if (event.button.button == SDL_BUTTON_RIGHT) g_MousePressed[1] = true;
-            if (event.button.button == SDL_BUTTON_MIDDLE) g_MousePressed[2] = true;
-            return true;
-        }
-    case SDL_TEXTINPUT:
-        {
-            ImGuiIO& io = ImGui::GetIO();
-            io.AddInputCharactersUTF8(event.text.text);
-            return true;
-        }
-    case SDL_KEYDOWN:
-    case SDL_KEYUP:
-        {
-            int key = event.key.keysym.sym & ~SDLK_SCANCODE_MASK;
-            io.KeysDown[key] = (event.type == SDL_KEYDOWN);
-            io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
-            io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
-            io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
-            io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
-            return true;
-        }
-    }
-    return false;
-}
-
 void ImGui_SDL_Renderer::ImGui_ImplSdlGL3_CreateFontsTexture()
 {
     // Build texture atlas
@@ -230,30 +181,30 @@ bool ImGui_SDL_Renderer::ImGui_ImplSdlGL3_CreateDeviceObjects()
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &last_vertex_array);
 
     const GLchar *vertex_shader =
-        "#version 330\n"
-        "uniform mat4 ProjMtx;\n"
-        "in vec2 Position;\n"
-        "in vec2 UV;\n"
-        "in vec4 Color;\n"
-        "out vec2 Frag_UV;\n"
-        "out vec4 Frag_Color;\n"
-        "void main()\n"
-        "{\n"
-        "	Frag_UV = UV;\n"
-        "	Frag_Color = Color;\n"
-        "	gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
-        "}\n";
+            "#version 330\n"
+            "uniform mat4 ProjMtx;\n"
+            "in vec2 Position;\n"
+            "in vec2 UV;\n"
+            "in vec4 Color;\n"
+            "out vec2 Frag_UV;\n"
+            "out vec4 Frag_Color;\n"
+            "void main()\n"
+            "{\n"
+            "	Frag_UV = UV;\n"
+            "	Frag_Color = Color;\n"
+            "	gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
+            "}\n";
 
     const GLchar* fragment_shader =
-        "#version 330\n"
-        "uniform sampler2D Texture;\n"
-        "in vec2 Frag_UV;\n"
-        "in vec4 Frag_Color;\n"
-        "out vec4 Out_Color;\n"
-        "void main()\n"
-        "{\n"
-        "	Out_Color = Frag_Color * texture( Texture, Frag_UV.st);\n"
-        "}\n";
+            "#version 330\n"
+            "uniform sampler2D Texture;\n"
+            "in vec2 Frag_UV;\n"
+            "in vec4 Frag_Color;\n"
+            "out vec4 Out_Color;\n"
+            "void main()\n"
+            "{\n"
+            "	Out_Color = Frag_Color * texture( Texture, Frag_UV.st);\n"
+            "}\n";
 
     g_ShaderHandle = glCreateProgram();
     g_VertHandle = glCreateShader(GL_VERTEX_SHADER);
@@ -348,7 +299,8 @@ bool    ImGui_SDL_Renderer::init(SDL_Window* window, std::string font, float fon
     io.KeyMap[ImGuiKey_Y] = SDLK_y;
     io.KeyMap[ImGuiKey_Z] = SDLK_z;
 
-    io.RenderDrawListsFn = ImGui_ImplSdlGL3_RenderDrawLists;   // Alternatively you can set this to NULL and call ImGui::GetDrawData() after ImGui::Render() to get the same ImDrawData pointer.
+    //    io.RenderDrawListsFn = ImGui_ImplSdlGL3_RenderDrawLists;   // Alternatively you can set this to NULL and call ImGui::GetDrawData() after ImGui::Render() to get the same ImDrawData pointer.
+    io.RenderDrawListsFn = 0;
     io.SetClipboardTextFn = ImGui_ImplSdlGL3_SetClipboardText;
     io.GetClipboardTextFn = ImGui_ImplSdlGL3_GetClipboardText;
 
@@ -365,6 +317,8 @@ bool    ImGui_SDL_Renderer::init(SDL_Window* window, std::string font, float fon
 
     io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
 
+    ImGui_ImplSdlGL3_CreateDeviceObjects();
+
     std::cout<<"Imgui Initialized!"<<std::endl;
 
     return true;
@@ -378,9 +332,6 @@ void ImGui_SDL_Renderer::shutdown()
 
 void ImGui_SDL_Renderer::beginFrame()
 {
-    if (!g_FontTexture)
-        ImGui_ImplSdlGL3_CreateDeviceObjects();
-
     ImGuiIO& io = ImGui::GetIO();
 
     // Setup display size (every frame to accommodate for window resizing)
@@ -425,12 +376,51 @@ void ImGui_SDL_Renderer::beginFrame()
 void ImGui_SDL_Renderer::endFrame()
 {
     ImGui::Render();
+    ImGui_ImplSdlGL3_RenderDrawLists(ImGui::GetDrawData());
 }
 
-void ImGui_SDL_Renderer::checkWindowFocus()
+
+bool ImGui_SDL_Renderer::processEvent(const SDL_Event &event)
 {
-    wantsCaptureMouse |= ImGui::GetIO().WantCaptureMouse;
+    ImGuiIO& io = ImGui::GetIO();
+    switch (event.type)
+    {
+    case SDL_MOUSEWHEEL:
+    {
+        if (event.wheel.y > 0)
+            g_MouseWheel = 1;
+        if (event.wheel.y < 0)
+            g_MouseWheel = -1;
+        return true;
+    }
+    case SDL_MOUSEBUTTONDOWN:
+    {
+        if (event.button.button == SDL_BUTTON_LEFT) g_MousePressed[0] = true;
+        if (event.button.button == SDL_BUTTON_RIGHT) g_MousePressed[1] = true;
+        if (event.button.button == SDL_BUTTON_MIDDLE) g_MousePressed[2] = true;
+        return true;
+    }
+    case SDL_TEXTINPUT:
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        io.AddInputCharactersUTF8(event.text.text);
+        return true;
+    }
+    case SDL_KEYDOWN:
+    case SDL_KEYUP:
+    {
+        int key = event.key.keysym.sym & ~SDLK_SCANCODE_MASK;
+        io.KeysDown[key] = (event.type == SDL_KEYDOWN);
+        io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
+        io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
+        io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
+        io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
+        return true;
+    }
+    }
+    return false;
 }
+
 
 }
 #endif
