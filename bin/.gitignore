@@ -17,5 +17,6 @@ test
 twoViewOrientation
 videoRecording
 simpleGLFWWindow
-
+*.exe
+*.dll
 valgrind_output.txt

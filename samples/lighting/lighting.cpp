@@ -194,17 +194,17 @@ void Lighting::renderFinal(Camera *cam)
 
 
 
-    {
-        ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
-        ImGui::Begin("An Imgui Window :D");
+    //{
+    //    ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
+    //    ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
+    //    ImGui::Begin("An Imgui Window :D");
 
-        ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
+    //    ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
 
-        ImGui::End();
-    }
+    //    ImGui::End();
+    //}
 
-    parentWindow->renderImGui();
+    //parentWindow->renderImGui();
 
 
 
