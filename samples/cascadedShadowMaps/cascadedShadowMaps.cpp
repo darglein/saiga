@@ -68,9 +68,6 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     sun->createShadowMap(512,512);
     sun->enableShadows();
 
-    imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
-
-
 
     cout<<"Program Initialized!"<<endl;
 }
@@ -127,7 +124,6 @@ void SimpleWindow::renderOverlay(Camera *cam)
 void SimpleWindow::renderFinal(Camera *cam)
 {
 
-    imgui.beginFrame();
 
     {
         ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiSetCond_FirstUseEver);
@@ -193,9 +189,8 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::End();
     }
 
-    parentWindow->getRenderer()->lighting.renderImGui();
+    parentWindow->renderImGui();
 
-    imgui.endFrame();
 }
 
 #include <fstream>

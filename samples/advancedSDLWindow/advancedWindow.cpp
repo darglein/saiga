@@ -80,8 +80,6 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
     }
 
 
-    imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
-
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
     tdo.init(&textAtlas);
@@ -180,7 +178,6 @@ void AdvancedWindow::renderFinal(Camera *cam)
     parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
 
-    imgui.beginFrame();
 
     {
         ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
@@ -188,11 +185,7 @@ void AdvancedWindow::renderFinal(Camera *cam)
         ImGui::Begin("An Imgui Window :D");
 
         ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
-        ImGui::Checkbox("Show Imgui demo", &showimguidemo );
 
-        if(ImGui::Checkbox("Light debug",&lightDebug)){
-            parentWindow->getRenderer()->lighting.setRenderDebug(lightDebug);
-        }
 
         if(ImGui::Checkbox("Point Light Shadows",&pointLightShadows)){
             for(auto l : lights){
@@ -203,15 +196,7 @@ void AdvancedWindow::renderFinal(Camera *cam)
         ImGui::End();
     }
 
-    parentWindow->getRenderer()->lighting.renderImGui();
 
-    if (showimguidemo)
-    {
-        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-        ImGui::ShowTestWindow(&showimguidemo);
-    }
-
-    imgui.endFrame();
 }
 
 

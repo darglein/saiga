@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -12,8 +12,10 @@
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/rendering/renderer.h"
 
+#include "saiga/util/tostring.h"
 #include "saiga/util/error.h"
 #include "saiga/framework.h"
+#include "saiga/imgui/imgui.h"
 
 #include <cstring>
 #include <vector>
@@ -50,6 +52,71 @@ void OpenGLWindow::close(){
     running = false;
 }
 
+void OpenGLWindow::renderImGui(bool *p_open)
+{
+    p_open = &showImgui;
+
+    int w = 340;
+    int h = 240;
+    ImGui::SetNextWindowPos(ImVec2(0, getHeight() - h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(w,h), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("OpenGLWindow",&showImgui);
+
+
+
+    float ut = std::chrono::duration<double, std::milli>(updateTimer.getTime()).count();
+    float ft = renderer->getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL);
+
+
+    float avUt = 0, avFt = 0;
+    for(int i = 0 ;i < numGraphValues; ++i){
+        avUt +=   imUpdateTimes[i];
+        avFt +=   imRenderTimes[i];
+    }
+    avUt /= numGraphValues;
+    avFt /= numGraphValues;
+
+    imUpdateTimes[imCurrentIndex] = ut;
+    imRenderTimes[imCurrentIndex] = ft;
+    imCurrentIndex = (imCurrentIndex+1) % numGraphValues;
+
+
+    ImGui::Text("Update Time: %fms Ups: %f",ut, 1000.0f / upsTimer.getTimeMS());
+    ImGui::PlotLines("Update Time", imUpdateTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avUt)).c_str(), 0,20, ImVec2(0,80));
+    ImGui::Text("Render Time: %fms Fps: %f",ft, 1000.0f / fpsTimer.getTimeMS());
+    ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avFt)).c_str(), 0,20, ImVec2(0,80));
+
+
+    ImGui::Text("Running: %d",running);
+    ImGui::Text("numUpdates: %d",numUpdates);
+    ImGui::Text("numFrames: %d",numFrames);
+
+    std::chrono::duration<double, std::milli> dt = gameTime.dt;
+    ImGui::Text("Timestep: %fms",dt.count());
+
+    std::chrono::duration<double, std::milli> delay = gameLoopDelay;
+    ImGui::Text("Delay: %fms",delay.count());
+
+    float scale = gameTime.getTimeScale();
+    ImGui::SliderFloat("Time Scale",&scale,0,5);
+    gameTime.setTimeScale(scale);
+
+
+    ImGui::Checkbox("showRendererImgui",&showRendererImgui);
+    ImGui::Checkbox("showImguiDemo",&showImguiDemo);
+
+    ImGui::End();
+
+    if(showRendererImgui){
+        renderer->renderImGui(&showRendererImgui);
+    }
+
+
+    if(showImguiDemo){
+        ImGui::SetNextWindowPos(ImVec2(340, 0), ImGuiSetCond_FirstUseEver);
+        ImGui::ShowTestWindow(&showImguiDemo);
+    }
+}
 
 
 bool OpenGLWindow::init(const RenderingParameters& params){
@@ -79,9 +146,9 @@ bool OpenGLWindow::init(const RenderingParameters& params){
     //in older glew versions the last parameter of the function is void* instead of const void*
 #if defined(GLEW_VERSION_4_5) || defined(SAIGA_USE_GLBINDING)
 
-	//this somehow doesn't work on windows 32 bit
+    //this somehow doesn't work on windows 32 bit
 #if !defined _WIN32 || defined _WIN64
-   glDebugMessageCallback(Error::DebugLogConst,NULL);
+    glDebugMessageCallback(Error::DebugLogConst,NULL);
 #endif
 
 #else
@@ -132,7 +199,7 @@ void OpenGLWindow::readToExistingImage(Image &out)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
-//    glReadPixels(0,0,out.width,out.height,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
+    //    glReadPixels(0,0,out.width,out.height,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
     glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
 
 
@@ -155,7 +222,7 @@ void OpenGLWindow::readToImage(Image& out){
 
 void OpenGLWindow::screenshot(const std::string &file)
 {
-//    cout<<"Window::screenshot "<<file<<endl;
+    //    cout<<"Window::screenshot "<<file<<endl;
 
     Image img;
     readToImage(img);
@@ -166,7 +233,7 @@ void OpenGLWindow::screenshot(const std::string &file)
 
 void OpenGLWindow::screenshotRender(const std::string &file)
 {
-//    cout<<"Window::screenshotRender "<<file<<endl;
+    //    cout<<"Window::screenshotRender "<<file<<endl;
     int w = renderer->width;
     int h = renderer->height;
 
@@ -306,9 +373,9 @@ void OpenGLWindow::parallelUpdateThread(float dt)
     semFinishUpdate.notify();
     semStartUpdate.wait();
     while(running){
-            parallelUpdateCaller(dt);
-            semFinishUpdate.notify();
-            semStartUpdate.wait();
+        parallelUpdateCaller(dt);
+        semFinishUpdate.notify();
+        semStartUpdate.wait();
     }
 }
 
@@ -354,6 +421,7 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
     parallelUpdate = _parallelUpdate;
     printInfoMsg = _printInfoMsg;
     gameTime.printInfoMsg = printInfoMsg;
+    running = true;
 
     cout << "> Starting the main loop..." << endl;
     cout << "> updatesPerSecond=" << updatesPerSecond << " framesPerSecond=" << framesPerSecond << " maxFrameSkip=" << maxFrameSkip << endl;

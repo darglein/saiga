@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -18,7 +18,7 @@
 #include <chrono>
 #include "saiga/util/error.h"
 #include "saiga/framework.h"
-
+#include "saiga/imgui/imgui_impl_glfw_gl3.h"
 
 
 namespace Saiga {
@@ -47,8 +47,8 @@ glfw_Window::~glfw_Window()
 
     glfwDestroyWindow(window);
     glfwTerminate();
-	terminateOpenGL();
-	cout << "GLFW: Terminated." << endl;
+    terminateOpenGL();
+    cout << "GLFW: Terminated." << endl;
 
 }
 
@@ -101,13 +101,13 @@ void glfw_Window::disableMouseCursor()
 }
 
 bool glfw_Window::initGlfw(){
-	
+
     glfwSetErrorCallback(glfw_Window::error_callback);
-	cout << "Initializing GLFW." << endl;
+    cout << "Initializing GLFW." << endl;
     /* Initialize the library */
     if (!glfwInit())
         return false;
-	cout << "Initializing GLFW sucessfull!" << endl;
+    cout << "Initializing GLFW sucessfull!" << endl;
     return true;
 }
 
@@ -128,7 +128,7 @@ bool glfw_Window::initWindow()
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
 
-//    //don't allow other resolutions than the native monitor ones in fullscreen mode
+    //    //don't allow other resolutions than the native monitor ones in fullscreen mode
     if(windowParameters.fullscreen()){
         windowParameters.width = mode->width;
         windowParameters.height = mode->height;
@@ -162,9 +162,9 @@ bool glfw_Window::initWindow()
     glfwWindowHint(GLFW_FLOATING,windowParameters.alwaysOnTop);
     glfwWindowHint(GLFW_RESIZABLE,windowParameters.resizeAble);
 
-	glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
-	// GLFW_REFRESH_RATE, GLFW_DONT_CARE = highest
-	glfwWindowHint(GLFW_REFRESH_RATE, GLFW_DONT_CARE);
+    glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
+    // GLFW_REFRESH_RATE, GLFW_DONT_CARE = highest
+    glfwWindowHint(GLFW_REFRESH_RATE, GLFW_DONT_CARE);
 
     std::cout << "Creating GLFW Window. " << getWidth() << "x" << getHeight() <<
                  " Fullscreen=" << windowParameters.fullscreen() <<
@@ -192,13 +192,13 @@ bool glfw_Window::initWindow()
         glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
         glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
         glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-		
+
         window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), NULL, NULL);
 
-		//move to correct monitor
-		int xpos, ypos;
-		glfwGetMonitorPos(monitor, &xpos, &ypos);
-		glfwSetWindowPos(window, xpos, ypos);
+        //move to correct monitor
+        int xpos, ypos;
+        glfwGetMonitorPos(monitor, &xpos, &ypos);
+        glfwSetWindowPos(window, xpos, ypos);
         break;
     }
 
@@ -248,6 +248,13 @@ bool glfw_Window::initInput(){
 
     IC.add("quit", [this](ICPARAMS){(void)args;this->close();});
 
+
+    if(windowParameters.createImgui){
+        std::shared_ptr<ImGui_GLFW_Renderer> glfwimgui = std::make_shared<ImGui_GLFW_Renderer>();
+        glfwimgui->init(window,windowParameters.imguiFont,windowParameters.imguiFontSize);
+        imgui = glfwimgui;
+    }
+
     return true;
 }
 
@@ -266,7 +273,7 @@ void glfw_Window::freeContext()
 void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
 {
     const float dt = 1.0f/ticksPerSecond;
-//    setTimeScale(1.0);
+    //    setTimeScale(1.0);
 
     int simulatedTicks = 0;
     running = true;
@@ -279,10 +286,10 @@ void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
 
         simulatedTicks++;
 
-//        if (simulatedTicks > 60 && ((int)(now2) % 5000) == 0){
-//            cout << "<Gameloop> Simulated " << simulatedTicks  << "ticks (" << simulatedTicks*dt <<  "s)" << endl;
-//            simulatedTicks = 0;
-//        }
+        //        if (simulatedTicks > 60 && ((int)(now2) % 5000) == 0){
+        //            cout << "<Gameloop> Simulated " << simulatedTicks  << "ticks (" << simulatedTicks*dt <<  "s)" << endl;
+        //            simulatedTicks = 0;
+        //        }
 
         assert_no_glerror_end_frame();
     }
@@ -409,7 +416,7 @@ void glfw_Window::screenshotParallelWrite(const std::string &file){
     if ((int)queue.size() > queueLimit){ //one frame full HD ~ 4.5Mb
         waitForWriters = true;
     }
-//        cout << "queue size: " << queue.size() << endl;
+    //        cout << "queue size: " << queue.size() << endl;
 
     lock.unlock();
 }
@@ -439,7 +446,7 @@ void glfw_Window::processScreenshots()
         if (took){
             long long start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
             TextureLoader::instance()->saveImage(parallelScreenshotPath+ std::to_string(cur) + ".bmp",*f);
-//            f->save(().c_str());
+            //            f->save(().c_str());
             cout << "write " << cur  << " (" <<queueSize << ") " << (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - start)/1000 << "ms"<< endl;
 
 

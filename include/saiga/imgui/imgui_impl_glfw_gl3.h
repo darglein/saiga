@@ -31,6 +31,7 @@
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 // https://github.com/ocornut/imgui
 #include "saiga/opengl/opengl.h"
+#include "saiga/imgui/imgui_renderer.h"
 
 #ifdef SAIGA_USE_GLFW
 #include <saiga/glfw/glfw_eventhandler.h>
@@ -40,47 +41,35 @@ struct GLFWwindow;
 
 namespace Saiga {
 
-class SAIGA_GLOBAL ImGui_GLFW_Renderer : public glfw_KeyListener, public glfw_MouseListener{
+class SAIGA_GLOBAL ImGui_GLFW_Renderer : public ImGuiRenderer, public glfw_KeyListener, public glfw_MouseListener{
 protected:
-    // Data
-    static GLFWwindow*  g_Window;
-    static double       g_Time;
-    static bool         g_MousePressed[3];
-    static float        g_MouseWheel ;
-    static GLuint       g_FontTexture;
+    double       g_Time = 0.0f;
+    bool         g_MousePressed[3] = { false, false, false };
+    float        g_MouseWheel = 0.0f;
+    GLuint       g_FontTexture = 0;
+    int          g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;
+    int          g_AttribLocationTex = 0, g_AttribLocationProjMtx = 0;
+    int          g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
+    unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
 
-	//a compiler bug in vs2015 prevents multiple static variables to be declared in one line
-	static int          g_ShaderHandle;
-	static int  g_VertHandle;
-	static int  g_FragHandle;
-	static int          g_AttribLocationTex;
-	static int  g_AttribLocationProjMtx;
-	static int          g_AttribLocationPosition;
-	static int g_AttribLocationUV;
-	static int g_AttribLocationColor;
-	static unsigned int g_VboHandle;
-	static unsigned int g_VaoHandle;
-	static unsigned int g_ElementsHandle;
 
-    static void ImGui_ImplGlfwGL3_RenderDrawLists(ImDrawData *draw_data);
-    static const char * ImGui_ImplGlfwGL3_GetClipboardText(void *user_data);
-    static void ImGui_ImplGlfwGL3_SetClipboardText(void *user_data, const char *text);
     bool ImGui_ImplGlfwGL3_CreateFontsTexture();
-public:
-//    bool isFocused = false;
-    bool wantsCaptureMouse = false;
-
-    bool        init(GLFWwindow* window, std::string font, float fontSize = 15.0f);
-    void        shutdown();
-
-    void        checkWindowFocus();
-    void        beginFrame();
-    void        endFrame();
 
     // Use if you want to reset your rendering device without losing ImGui state.
-    void        ImGui_ImplGlfwGL3_InvalidateDeviceObjects();
-    bool        ImGui_ImplGlfwGL3_CreateDeviceObjects();
+    void ImGui_ImplGlfwGL3_InvalidateDeviceObjects();
+    bool ImGui_ImplGlfwGL3_CreateDeviceObjects();
 
+    //not nice to make this window static
+    static GLFWwindow*  g_Window;
+    static const char* ImGui_ImplGlfwGL3_GetClipboardText(void* user_data);
+    static void ImGui_ImplGlfwGL3_SetClipboardText(void* user_data, const char* text);
+public:
+
+    bool init(GLFWwindow* window, std::string font, float fontSize = 15.0f);
+
+    virtual void shutdown() override;
+    virtual void beginFrame() override;
+    virtual void renderDrawLists(ImDrawData *draw_data) override;
 
     bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) override;
     bool character_event(GLFWwindow* window, unsigned int codepoint) override;

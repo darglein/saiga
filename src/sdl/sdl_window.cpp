@@ -6,6 +6,7 @@
 
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferred_renderer.h"
+#include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
 namespace Saiga {
 
@@ -100,6 +101,13 @@ bool SDLWindow::initInput(){
     //Enable text input
     SDL_StartTextInput();
     SDL_EventHandler::addResizeListener(this);
+
+    if(windowParameters.createImgui){
+        std::shared_ptr<ImGui_SDL_Renderer> sdlimgui = std::make_shared<ImGui_SDL_Renderer>();
+        sdlimgui->init(window,windowParameters.imguiFont,windowParameters.imguiFontSize);
+        imgui = sdlimgui;
+    }
+
     return true;
 }
 

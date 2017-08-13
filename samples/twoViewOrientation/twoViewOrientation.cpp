@@ -91,8 +91,6 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
 
 
 
-    imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
-
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
     tdo.init(&textAtlas);
@@ -116,7 +114,6 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
 AdvancedWindow::~AdvancedWindow()
 {
     //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
-    imgui.shutdown();
 }
 
 void AdvancedWindow::update(float dt){
@@ -217,8 +214,6 @@ void AdvancedWindow::renderFinal(Camera *cam)
     parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
 
-
-    imgui.beginFrame();
 
     {
         ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
@@ -467,9 +462,6 @@ void AdvancedWindow::renderFinal(Camera *cam)
         ImGui::ShowTestWindow(&showimguidemo);
     }
 
-    imgui.endFrame();
-
-    imgui.checkWindowFocus();
 }
 
 float AdvancedWindow::computeSecondCameraOrientation(vec3 n){
@@ -584,7 +576,7 @@ void AdvancedWindow::keyReleased(SDL_Keysym key)
 
 void AdvancedWindow::mouseMoved(int x, int y)
 {
-    if(imgui.wantsCaptureMouse)
+    if(parentWindow->imgui->wantsCaptureMouse)
         return;
     vec2 pos(x,y);
     static vec2 lastPos = pos;

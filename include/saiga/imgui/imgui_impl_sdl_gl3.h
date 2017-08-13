@@ -24,7 +24,8 @@
 #pragma once
 
 #include "saiga/opengl/opengl.h"
-#include <saiga/imgui/imgui.h>
+#include "saiga/imgui/imgui.h"
+#include "saiga/imgui/imgui_renderer.h"
 
 
 #ifdef SAIGA_USE_SDL
@@ -43,24 +44,33 @@ namespace Saiga {
 // https://github.com/ocornut/imgui
 
 
-class SAIGA_GLOBAL ImGui_SDL_Renderer : public SDL_EventListener{
+class SAIGA_GLOBAL ImGui_SDL_Renderer : public ImGuiRenderer, public SDL_EventListener{
 protected:
     SDL_Window* window;
-    static void ImGui_ImplSdlGL3_RenderDrawLists(ImDrawData *draw_data);
+
+    // Data
+    double       g_Time = 0.0f;
+    bool         g_MousePressed[3] = { false, false, false };
+    float        g_MouseWheel = 0.0f;
+    GLuint       g_FontTexture = 0;
+    int          g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;
+    int          g_AttribLocationTex = 0, g_AttribLocationProjMtx = 0;
+    int          g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
+    unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
+
     void ImGui_ImplSdlGL3_CreateFontsTexture();
+    // Use if you want to reset your rendering device without losing ImGui state.
+    void ImGui_ImplSdlGL3_InvalidateDeviceObjects();
+    bool ImGui_ImplSdlGL3_CreateDeviceObjects();
 public:
-    bool wantsCaptureMouse = false;
 
-bool        init(SDL_Window* window, std::string font, float fontSize = 15.0f);
-void        shutdown();
-void        beginFrame();
-void        endFrame();
-void        checkWindowFocus();
+    bool init(SDL_Window* window, std::string font, float fontSize = 15.0f);
 
-// Use if you want to reset your rendering device without losing ImGui state.
-void        ImGui_ImplSdlGL3_InvalidateDeviceObjects();
-bool        ImGui_ImplSdlGL3_CreateDeviceObjects();
-bool        processEvent(const SDL_Event& event);
+    virtual void shutdown() override;
+    virtual void beginFrame() override;
+    virtual void renderDrawLists(ImDrawData *draw_data) override;
+
+    virtual bool processEvent(const SDL_Event& event) override;
 };
 
 }

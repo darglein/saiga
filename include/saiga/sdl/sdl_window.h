@@ -14,6 +14,7 @@
 
 namespace Saiga {
 
+
 class SAIGA_GLOBAL SDLWindow : public OpenGLWindow, public SDL_ResizeListener{
 public:
 

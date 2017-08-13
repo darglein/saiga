@@ -104,6 +104,9 @@ private:
     bool renderDDO = false;
     DeferredDebugOverlay ddo;
     UniformBuffer cameraBuffer;
+
+    //for imgui
+    bool showLightingImgui = false;
 public:
 
     void bindCamera(Camera* cam);
@@ -162,7 +165,7 @@ public:
 
     void writeGbufferDepthToCurrentFramebuffer();
 
-    void renderImGui();
+    void renderImGui(bool* p_open = NULL);
 
 };
 

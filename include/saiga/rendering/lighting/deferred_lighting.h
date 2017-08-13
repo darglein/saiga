@@ -147,7 +147,7 @@ public:
     void cullLights(Camera *cam);
 
     void printTimings();
-    void renderImGui();
+    void renderImGui(bool* p_open = NULL);
 
 private:
 
