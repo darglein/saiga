@@ -18,6 +18,7 @@ void ImGuiRenderer::checkWindowFocus()
 void ImGuiRenderer::endFrame()
 {
      ImGui::Render();
+     renderDrawLists(ImGui::GetDrawData());
 }
 
 

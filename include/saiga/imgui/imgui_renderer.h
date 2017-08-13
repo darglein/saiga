@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -20,7 +21,8 @@ public:
 
     virtual void shutdown() = 0;
     virtual void beginFrame() = 0;
-    virtual void endFrame() = 0;
+    virtual void endFrame();
+    virtual void renderDrawLists(ImDrawData *draw_data) = 0;
 };
 
 }

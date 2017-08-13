@@ -58,7 +58,6 @@ protected:
     int          g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
     unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
 
-    void ImGui_ImplSdlGL3_RenderDrawLists(ImDrawData *draw_data);
     void ImGui_ImplSdlGL3_CreateFontsTexture();
     // Use if you want to reset your rendering device without losing ImGui state.
     void ImGui_ImplSdlGL3_InvalidateDeviceObjects();
@@ -69,7 +68,7 @@ public:
 
     virtual void shutdown() override;
     virtual void beginFrame() override;
-    virtual void endFrame() override;
+    virtual void renderDrawLists(ImDrawData *draw_data) override;
 
     virtual bool processEvent(const SDL_Event& event) override;
 };
