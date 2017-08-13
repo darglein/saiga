@@ -90,6 +90,7 @@ protected:
     tick_t gameLoopDelay = tick_t(0);
 
     bool gameloopDropAccumulatedUpdates = false;
+    bool printInfoMsg = true;
 public:
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
     AverageTimer fpsTimer, upsTimer;
@@ -99,7 +100,7 @@ public:
 
     void setProgram(Program* program);
     bool init(const RenderingParameters &params);
-    void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false, bool _catchUp=false);
+    void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false, bool _catchUp=false, bool _printInfoMsg=true);
     void close();
 protected:
     void resize(int width, int height);

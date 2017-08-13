@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -64,7 +64,9 @@ bool GameTime::shouldUpdate()
 
     if(jtl){
         if(currentDelay.count() > 0){
-            std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(currentDelay).count() << " ms" << std::endl;
+            if(printInfoMsg){
+                std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(currentDelay).count() << " ms" << std::endl;
+            }
             scaledTime = nextUpdateTime;
             nextFrameTime = realTime;
         }

@@ -55,6 +55,8 @@ public:
     //timestep of 'render' (only != 0 if fps are limited)
     tick_t dtr;
 
+    bool printInfoMsg = true;
+
     void init(tick_t _dt, tick_t _dtr);
 
     void update();

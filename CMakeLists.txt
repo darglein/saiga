@@ -188,7 +188,7 @@ if(EIGEN_FOUND)
 	include_directories(${EIGEN_INCLUDE_DIRS})
 	SET(SAIGA_USE_EIGEN 1)
 	message(STATUS "Found Eigen3: ${EIGEN_INCLUDE_DIRS}")
-endif()z
+endif()
 
 
 ############# CUDA ###############

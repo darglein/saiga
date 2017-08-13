@@ -349,10 +349,11 @@ void OpenGLWindow::sleep(tick_t ticks)
 
 
 
-void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip, bool _parallelUpdate, bool catchUp)
+void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip, bool _parallelUpdate, bool catchUp, bool _printInfoMsg)
 {
     parallelUpdate = _parallelUpdate;
-
+    printInfoMsg = _printInfoMsg;
+    gameTime.printInfoMsg = printInfoMsg;
 
     cout << "> Starting the main loop..." << endl;
     cout << "> updatesPerSecond=" << updatesPerSecond << " framesPerSecond=" << framesPerSecond << " maxFrameSkip=" << maxFrameSkip << endl;
@@ -409,7 +410,7 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
             render(updateDT,gameTime.interpolation);
         }
 
-        if(gameTime.getTime() > nextInfoTick){
+        if(printInfoMsg && gameTime.getTime() > nextInfoTick){
             auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
             cout << "> Time: " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames << "  UPS/FPS: " << (1000.0f/upsTimer.getTimeMS()) << "/" << (1000.0f/fpsTimer.getTimeMS()) << endl;
             nextInfoTick += ticksPerInfo;
