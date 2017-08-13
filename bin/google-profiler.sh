@@ -2,7 +2,7 @@
 #sudo apt-get install libgoogle-perftools-de
 
 OUTPUTFILE=cpu_profile
-EXEFILE="./lighting"
+EXEFILE="$1"
 
 export LD_PRELOAD=/usr/lib/libprofiler.so 
 export CPUPROFILE=$OUTPUTFILE

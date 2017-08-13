@@ -3,7 +3,9 @@
 *.sdf.png
 imgui.ini
 libsaiga.so
-
+perf.data*
+perf-kernel.svg
+*perf-folded
 advancedSDLWindow
 cascadedShadowMaps
 lighting
@@ -14,4 +16,6 @@ simpleWindow
 test
 twoViewOrientation
 videoRecording
+simpleGLFWWindow
+
 valgrind_output.txt

@@ -1,0 +1,66 @@
+{
+   nvidia-query
+   Memcheck:Cond
+   ...
+   fun:_ZN5Saiga14TimeStampQuery6createEv
+}
+
+{
+   nvidia-query2
+   Memcheck:Cond
+   ...
+   fun:_ZN5Saiga29FilteredMultiFrameOpenGLTimer9stopTimerEv
+}
+
+{
+   sdl_init_error
+   Memcheck:Param
+   writev(vector[...])
+   ...
+   fun:XInternAtom
+   ...
+   obj:*libSDL2*
+}
+
+{
+   nvidia_init_stuff
+   Memcheck:Cond
+   ...
+   obj:*libnvidia-glcore.so*
+   ...
+   fun:_dl_fini
+}
+
+{
+   init_gl_leak
+   Memcheck:Leak
+   match-leak-kinds: definite,reachable
+   ...
+   fun:_ZN5Saiga9SDLWindow10initWindowEv
+}
+
+{
+   init_gl_leak2
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*libGLX_nvidia.so*
+   ...
+   fun:_dl_fini
+}
+
+{
+   initx11_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*libX11.so*
+}
+
+{
+   sdl_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:*libSDL2*
+}

@@ -4,7 +4,9 @@
 #sudo apt-get install linux-tools-common linux-tools-generic linux-tools-`uname -r`
 #git clone https://github.com/brendangregg/FlameGraph
 OUTPUTFILE=perf.data
-EXEFILE="./lighting"
+EXEFILE="$1"
+
+#set your own flamegraph directory here
 FLAMEGRAPHDIR=/home/dari/Programming/FlameGraph
 
 
