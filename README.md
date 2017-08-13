@@ -2,6 +2,8 @@
 
 SAIGA is a lightweight OpenGL utility and rendering framework. It was successfully used as a game engine for [Redie](http://store.steampowered.com/app/536990/) and in many privat and university projects.
 
+<img src="bin/textures/sample.png" width="425"/> <img src="bin/textures/redie.jpg" width="425"/> 
+
 ## History
 
  * January 2014: Development start as a private OpenGL framework for university projects.
