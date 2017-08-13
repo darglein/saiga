@@ -412,11 +412,13 @@ void Deferred_Renderer::printTimings()
 }
 
 
-void Deferred_Renderer::renderImGui()
+void Deferred_Renderer::renderImGui(bool *p_open)
 {
-    ImGui::SetNextWindowPos(ImVec2(400, 20), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(400,600), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin("Deferred Renderer");
+    int w = 340;
+    int h = 240;
+    ImGui::SetNextWindowPos(ImVec2(340, windowHeight - h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(w,h), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("Deferred Renderer",p_open);
 
     ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &wireframe);
@@ -461,7 +463,14 @@ void Deferred_Renderer::renderImGui()
         ssao->renderImGui();
     }
 
-    ImGui::End();
+
+   ImGui::Checkbox("showLightingImgui",&showLightingImgui);
+
+   ImGui::End();
+
+   if(showLightingImgui){
+       lighting.renderImGui(&showLightingImgui);
+   }
 }
 
 }

@@ -100,6 +100,8 @@ protected:
     int imCurrentIndex = 0;
     float imUpdateTimes[numGraphValues];
     float imRenderTimes[numGraphValues];
+    bool showRendererImgui = false;
+    bool showImguiDemo = false;
 public:
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
     AverageTimer fpsTimer, upsTimer;
@@ -111,7 +113,7 @@ public:
     bool init(const RenderingParameters &params);
     void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false, bool _catchUp=false);
     void close();
-    void renderImGui();
+    void renderImGui(bool* p_open = NULL);
 
 
     //uses the current camera to project between world and screen

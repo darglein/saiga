@@ -105,6 +105,7 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
 AdvancedWindow::~AdvancedWindow()
 {
     //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
+    imgui.shutdown();
 }
 
 void AdvancedWindow::update(float dt){

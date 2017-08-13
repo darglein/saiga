@@ -607,11 +607,13 @@ static void imGuiLightBox(int id, const std::string &name, T& lights){
     ImGui::PopID();
 }
 
-void DeferredLighting::renderImGui()
+void DeferredLighting::renderImGui(bool *p_open)
 {
-    ImGui::SetNextWindowPos(ImVec2(400, 20), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(400,600), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin("DeferredLighting");
+    int w = 340;
+    int h = 240;
+    ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(w,h), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("DeferredLighting",p_open);
 
     ImGui::Text("resolution: %dx%d",width,height);
     ImGui::Text("visibleLights/totalLights: %d/%d",visibleLights,totalLights);

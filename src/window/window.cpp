@@ -52,21 +52,15 @@ void OpenGLWindow::close(){
     running = false;
 }
 
-void OpenGLWindow::renderImGui()
+void OpenGLWindow::renderImGui(bool *p_open)
 {
-    ImGui::SetNextWindowPos(ImVec2(400, 20), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(400,600), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin(windowParameters.name.c_str());
+    int w = 340;
+    int h = 240;
+    ImGui::SetNextWindowPos(ImVec2(0, getHeight() - h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(w,h), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("OpenGLWindow",p_open);
 
-    ImGui::Text("Running: %d",running);
-    ImGui::Text("numUpdates: %d",numUpdates);
-    ImGui::Text("numFrames: %d",numFrames);
 
-    std::chrono::duration<double, std::milli> dt = gameTime.dt;
-    ImGui::Text("Timestep: %fms",dt.count());
-
-    std::chrono::duration<double, std::milli> delay = gameLoopDelay;
-    ImGui::Text("Delay: %fms",delay.count());
 
     float ut = std::chrono::duration<double, std::milli>(updateTimer.getTime()).count();
     float ft = renderer->getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL);
@@ -90,12 +84,36 @@ void OpenGLWindow::renderImGui()
     ImGui::Text("Render Time: %fms Fps: %f",ft, 1000.0f / fpsTimer.getTimeMS());
     ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avFt)).c_str(), 0,20, ImVec2(0,80));
 
+
+    ImGui::Text("Running: %d",running);
+    ImGui::Text("numUpdates: %d",numUpdates);
+    ImGui::Text("numFrames: %d",numFrames);
+
+    std::chrono::duration<double, std::milli> dt = gameTime.dt;
+    ImGui::Text("Timestep: %fms",dt.count());
+
+    std::chrono::duration<double, std::milli> delay = gameLoopDelay;
+    ImGui::Text("Delay: %fms",delay.count());
+
     float scale = gameTime.getTimeScale();
     ImGui::SliderFloat("Time Scale",&scale,0,5);
     gameTime.setTimeScale(scale);
 
 
+    ImGui::Checkbox("showRendererImgui",&showRendererImgui);
+    ImGui::Checkbox("showImguiDemo",&showImguiDemo);
+
     ImGui::End();
+
+    if(showRendererImgui){
+        renderer->renderImGui(&showRendererImgui);
+    }
+
+
+    if(showImguiDemo){
+        ImGui::SetNextWindowPos(ImVec2(340, 0), ImGuiSetCond_FirstUseEver);
+        ImGui::ShowTestWindow(&showImguiDemo);
+    }
 }
 
 
