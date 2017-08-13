@@ -54,11 +54,13 @@ void OpenGLWindow::close(){
 
 void OpenGLWindow::renderImGui(bool *p_open)
 {
+    p_open = &showImgui;
+
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(0, getHeight() - h), ImGuiSetCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w,h), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin("OpenGLWindow",p_open);
+    ImGui::Begin("OpenGLWindow",&showImgui);
 
 
 

@@ -54,7 +54,6 @@ public:
     ProceduralSkybox skybox;
 
     TextDebugOverlay tdo;
-    ImGui_SDL_Renderer imgui;
     TextureAtlas textAtlas;
 
     std::vector<std::shared_ptr<PointLight>> lights;

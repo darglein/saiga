@@ -10,6 +10,7 @@
 #include <saiga/util/semaphore.h>
 #include "saiga/time/gameTime.h"
 #include "saiga/geometry/ray.h"
+#include "saiga/imgui/imgui_renderer.h"
 
 #include <thread>
 
@@ -66,6 +67,10 @@ struct SAIGA_GLOBAL WindowParameters{
 
     OpenGLParameters openglparameters;
 
+    bool createImgui = true;
+    std::string imguiFont = "fonts/SourceSansPro-Regular.ttf";
+    int imguiFontSize = 15;
+
     bool borderLess(){ return mode==Mode::borderLessWindowed || mode==Mode::borderLessFullscreen;}
     bool fullscreen(){ return mode==Mode::fullscreen || mode==Mode::borderLessFullscreen;}
 
@@ -96,6 +101,7 @@ protected:
     bool gameloopDropAccumulatedUpdates = false;
 
     //for imgui graph
+    bool showImgui = true;
     static const int numGraphValues = 80;
     int imCurrentIndex = 0;
     float imUpdateTimes[numGraphValues];
@@ -103,6 +109,7 @@ protected:
     bool showRendererImgui = false;
     bool showImguiDemo = false;
 public:
+    std::shared_ptr<ImGuiRenderer> imgui;
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
     AverageTimer fpsTimer, upsTimer;
 public:

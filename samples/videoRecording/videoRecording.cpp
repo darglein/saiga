@@ -65,8 +65,6 @@ VideoRecording::VideoRecording(OpenGLWindow *window): Program(window)
     sun->enableShadows();
 
 
-    imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
-
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
 
@@ -140,7 +138,6 @@ void VideoRecording::renderFinal(Camera *cam)
     //Usually the GUI is rendered here.
 
 
-    imgui.beginFrame();
 
     {
         ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
@@ -243,7 +240,6 @@ void VideoRecording::renderFinal(Camera *cam)
 
 
 
-    imgui.endFrame();
 }
 
 

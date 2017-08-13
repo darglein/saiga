@@ -11,6 +11,7 @@
 
 #include "saiga/camera/camera.h"
 #include "saiga/rendering/renderer.h"
+#include "saiga/window/window.h"
 #include "saiga/imgui/imgui.h"
 
 namespace Saiga {
@@ -26,8 +27,8 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
     //    setSize(windowWidth,windowHeight);
 
     if(params.useSMAA){
-      smaa = std::make_shared<SMAA>(width, height);
-      smaa->loadShader(params.smaaQuality);
+        smaa = std::make_shared<SMAA>(width, height);
+        smaa->loadShader(params.smaaQuality);
     }
 
     {
@@ -41,9 +42,9 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
         ssao = std::make_shared<SSAO>(width, height);
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
-//        ssao.init(windowWidth*params.renderScale, windowHeight*params.renderScale);
-//    else
-//        ssao.init(2,2);
+    //        ssao.init(windowWidth*params.renderScale, windowHeight*params.renderScale);
+    //    else
+    //        ssao.init(2,2);
 
     if(params.srgbWrites){
 
@@ -239,7 +240,18 @@ void Deferred_Renderer::render_intern() {
         bindCamera(&ddo.layout.cam);
         ddo.render();
     }
-    renderer->renderFinal(*currentCamera);
+
+    {
+        //final render pass
+        if(renderer->parentWindow->imgui){
+            renderer->parentWindow->imgui->beginFrame();
+        }
+        renderer->renderFinal(*currentCamera);
+        if(renderer->parentWindow->imgui){
+            renderer->parentWindow->renderImGui();
+            renderer->parentWindow->imgui->endFrame();
+        }
+    }
     stopTimer(FINAL);
 
     glDisable(GL_BLEND);
@@ -437,40 +449,40 @@ void Deferred_Renderer::renderImGui(bool *p_open)
 
     ImGui::Separator();
 
-   if(ImGui::Checkbox("SMAA",&params.useSMAA)){
-       if(params.useSMAA){
-           smaa = std::make_shared<SMAA>(width, height);
-           smaa->loadShader(params.smaaQuality);
-       }else{
-           smaa.reset();
-       }
-   }
-   if(smaa){
+    if(ImGui::Checkbox("SMAA",&params.useSMAA)){
+        if(params.useSMAA){
+            smaa = std::make_shared<SMAA>(width, height);
+            smaa->loadShader(params.smaaQuality);
+        }else{
+            smaa.reset();
+        }
+    }
+    if(smaa){
         smaa->renderImGui();
     }
 
 
-   if(ImGui::Checkbox("SSAO",&params.useSSAO)){
-       if(params.useSSAO){
-           ssao = std::make_shared<SSAO>(width, height);
-       }else{
-           ssao.reset();
-       }
-       lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
-       ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
-   }
-   if(ssao){
+    if(ImGui::Checkbox("SSAO",&params.useSSAO)){
+        if(params.useSSAO){
+            ssao = std::make_shared<SSAO>(width, height);
+        }else{
+            ssao.reset();
+        }
+        lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
+        ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
+    }
+    if(ssao){
         ssao->renderImGui();
     }
 
 
-   ImGui::Checkbox("showLightingImgui",&showLightingImgui);
+    ImGui::Checkbox("showLightingImgui",&showLightingImgui);
 
-   ImGui::End();
+    ImGui::End();
 
-   if(showLightingImgui){
-       lighting.renderImGui(&showLightingImgui);
-   }
+    if(showLightingImgui){
+        lighting.renderImGui(&showLightingImgui);
+    }
 }
 
 }

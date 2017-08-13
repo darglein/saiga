@@ -14,7 +14,6 @@
 
 namespace Saiga {
 
-class ImGui_SDL_Renderer;
 
 class SAIGA_GLOBAL SDLWindow : public OpenGLWindow, public SDL_ResizeListener{
 public:
@@ -22,7 +21,6 @@ public:
     SDL_Window* window = nullptr;
 protected:
     SDL_GLContext gContext;
-    std::shared_ptr<ImGui_SDL_Renderer> imgui;
 
     virtual bool initWindow() override;
     virtual bool initInput() override;

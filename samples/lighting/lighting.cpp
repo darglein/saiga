@@ -100,7 +100,6 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
         boxLight->enableShadows();
 
 
-    imgui.init(((SDLWindow*)window)->window,"fonts/SourceSansPro-Regular.ttf");
 
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
@@ -194,7 +193,6 @@ void Lighting::renderFinal(Camera *cam)
 
 
 
-    imgui.beginFrame();
 
     {
         ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
@@ -202,23 +200,13 @@ void Lighting::renderFinal(Camera *cam)
         ImGui::Begin("An Imgui Window :D");
 
         ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
-        ImGui::Checkbox("Show Imgui demo", &showimguidemo );
 
         ImGui::End();
     }
 
     parentWindow->renderImGui();
-    parentWindow->getRenderer()->renderImGui();
-    parentWindow->getRenderer()->lighting.renderImGui();
-
-    if (showimguidemo)
-    {
-        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-        ImGui::ShowTestWindow(&showimguidemo);
-    }
 
 
-    imgui.endFrame();
 
 }
 

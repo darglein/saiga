@@ -31,7 +31,6 @@ public:
 //    SimpleAssetObject sphere;
     std::vector<SimpleAssetObject> cubes;
 
-    ImGui_SDL_Renderer imgui;
     AABB sceneBB;
     ProceduralSkybox skybox;
 

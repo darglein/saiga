@@ -39,7 +39,6 @@ public:
 
     ProceduralSkybox skybox;
 
-    ImGui_SDL_Renderer imgui;
     TextureAtlas textAtlas;
 
 

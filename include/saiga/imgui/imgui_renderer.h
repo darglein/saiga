@@ -7,7 +7,8 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/imgui/imgui.h"
+
+struct ImDrawData;
 
 namespace Saiga {
 
