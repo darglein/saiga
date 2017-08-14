@@ -62,7 +62,46 @@ Utility
  * [Eigen](http://eigen.tuxfamily.org)
  * [CUDA](https://developer.nvidia.com/cuda-downloads)
 
+## Building + Running the samples
+
+#### Linux
+ - Install dependencies with the package manager (in older Linux systems you might have to compile the latest library versions by yourself)
+```
+sudo apt-get install libglew-dev libglm-dev libfreetype6-dev libsdl2-dev libpng-dev
+```
+ - Build Saiga
+```
+cd saiga
+mkdir build
+cd build
+cmake ..
+make
+```
+ - Running the samples
+```
+cd saiga/bin
+./simpleSDLWindow
+```
+
+#### Windows
+ - Download and compile the dependencies from source. (For a quick start only get glew,glm,freetype,sdl2 and png).
+ - Install the dependencies or copy them to a common location with the following structure:
+```
+<your_dependencies_dir>
+<your_dependencies_dir>/include      <- Put all header files here
+<your_dependencies_dir>/lib          <- Put all .lib files here
+<your_dependencies_dir>/bin          <- Put all .dll files here
+```
+Use cmake to create the Visual Studio solution with the following cmake variable set:
+```
+DEPENDENCIES_DIR=<your_dependencies_dir>
+```
+ - Compile the solution with Visual Studio. 
+ - saiga.dll and all executables will be placed for example in saiga/bin/RelWithDebugInfo. 
+ - When running the samples make sure the working directory is saiga/bin instead of saiga/bin/RelWithDebugInfo.
+
 ## License
 
 SAIGA is licensed under the MIT License. See LICENSE file for more information.
+
 
