@@ -8,6 +8,7 @@
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/cusparseHelper.h"
 #include "saiga/cuda/tests/test.h"
+#include "saiga/cuda/random.h"
 #include "saiga/tests/test.h"
 #include "saiga/geometry/clipping.h"
 
@@ -42,6 +43,9 @@ int main(int argc, char *argv[]) {
         CUDA::initCUDA();
         CUDA::initBLASSPARSE();
 
+        CUDA::randomTest();
+
+        return 0;
         CUDA::occupancyTest();
         CUDA::randomAccessTest();
         CUDA::coalescedCopyTest();
