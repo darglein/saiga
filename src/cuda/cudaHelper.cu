@@ -195,6 +195,9 @@ void initCUDA(){
     cout << "  Memory Clock Rate (KHz): " << deviceProp.memoryClockRate << endl;
     cout << "  Memory Bus Width (bits): " << deviceProp.memoryBusWidth << endl;
 
+    cout << "  32-Bit Registers per Thread (100% Occ): " << deviceProp.regsPerBlock / deviceProp.maxThreadsPerMultiProcessor << endl;
+    cout << "  Shared Memory per Thread (100% Occ): " << deviceProp.sharedMemPerBlock/ deviceProp.maxThreadsPerMultiProcessor << endl;
+
 
     //In this calculation, we convert the memory clock rate to Hz,
     //multiply it by the interface width (divided by 8, to convert bits to bytes)

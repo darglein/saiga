@@ -1,2 +1,3 @@
 include/saiga/buildconfig.h
 build/
+*.ptx

@@ -22,7 +22,7 @@ SAIGA_GLOBAL extern void bandwidthTest();
 SAIGA_GLOBAL extern void scanTest();
 
 SAIGA_GLOBAL extern void reduceTest();
-
+SAIGA_GLOBAL extern void warpStrideLoopTest();
 
 SAIGA_GLOBAL extern void testCuda();
 SAIGA_GLOBAL extern void testThrust();

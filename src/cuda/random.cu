@@ -16,6 +16,8 @@
 namespace Saiga {
 namespace CUDA{
 
+//nvcc $CPPFLAGS -ptx -src-in-ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr random.cu
+
 template<int BLOCK_SIZE>
 __global__
 static void curand_setup_kernel( array_view<curandState> state, unsigned long long seed)
@@ -27,7 +29,7 @@ static void curand_setup_kernel( array_view<curandState> state, unsigned long lo
        number, no offset */
         curandState localState = state[tid];
         curand_init(seed, tid % 997 , tid / 997 * 10, &localState);
-//        curand_init(seed, tid, 0, &localState);
+        //        curand_init(seed, tid, 0, &localState);
         state[tid] = localState;
     }
 }
@@ -45,7 +47,7 @@ static void random_test( array_view<curandState> state, array_view<float> out)
             f += linearRand(0,1,localState);
         }
         out[tid] = f / N;
-//        state[tid] = localState;
+        //        state[tid] = localState;
     }
 }
 

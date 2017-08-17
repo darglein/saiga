@@ -43,23 +43,25 @@ int main(int argc, char *argv[]) {
         CUDA::initCUDA();
         CUDA::initBLASSPARSE();
 
+        CUDA::warpStrideLoopTest();
+        return 1;
         CUDA::randomTest();
 
-        return 0;
-        CUDA::occupancyTest();
-        CUDA::randomAccessTest();
-        CUDA::coalescedCopyTest();
-        CUDA::dotTest();
-        CUDA::recursionTest();
+//        return 0;
+//        CUDA::occupancyTest();
+//        CUDA::randomAccessTest();
+//        CUDA::coalescedCopyTest();
+//        CUDA::dotTest();
+//        CUDA::recursionTest();
 
 
-        CUDA::bandwidthTest();
+//        CUDA::bandwidthTest();
         CUDA::scanTest();
 
         CUDA::reduceTest();
 
-        CUDA::testCuda();
-        CUDA::testThrust();
+//        CUDA::testCuda();
+//        CUDA::testThrust();
 
         CUDA::destroyBLASSPARSE();
         CUDA::destroyCUDA();
@@ -67,6 +69,6 @@ int main(int argc, char *argv[]) {
 
 
 
-    Tests::fpTest();
+//    Tests::fpTest();
 
 }
