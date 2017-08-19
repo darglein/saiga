@@ -38,20 +38,34 @@ int main(int argc, char *argv[]) {
             CUDA::CudaImage<uchar3> cimg(img);
             CUDA::CudaImage<uchar4> cimg4(cimg.width,cimg.height);
             CUDA::CudaImage<float> cimggray(cimg.width,cimg.height);
+            CUDA::CudaImage<float> cimggrayhalf(cimg.width/2,cimg.height/2);
+            CUDA::CudaImage<float> cimggraydouble(cimg.width*2,cimg.height*2);
 
             CUDA::convertRGBtoRGBA(cimg,cimg4,255);
             CUDA::convertRGBAtoGrayscale(cimg4,cimggray);
+            CUDA::scaleDown2EveryOther(cimggray,cimggrayhalf);
+            CUDA::scaleUp2Linear(cimggray,cimggraydouble);
 
             //copy back to cpu
             TemplatedImage<4,8,ImageElementFormat::UnsignedNormalized> res4;
             TemplatedImage<1,32,ImageElementFormat::FloatingPoint> resGray;
-            TemplatedImage<1,8,ImageElementFormat::UnsignedNormalized> resGray8;
             res4 = (Image)cimg4;
+
+            saveImage("debug/test4.png",res4);
+
+            TemplatedImage<1,8,ImageElementFormat::UnsignedNormalized> resGray8;
+
             resGray = (Image)cimggray;
             resGray8 = resGray.convertImage<1,8,ImageElementFormat::UnsignedNormalized>();
+            saveImage("debug/testgray.png",resGray8);
 
-            saveImage("test4.png",res4);
-            saveImage("testgray.png",resGray8);
+            resGray = (Image)cimggrayhalf;
+            resGray8 = resGray.convertImage<1,8,ImageElementFormat::UnsignedNormalized>();
+            saveImage("debug/testgrayhalf.png",resGray8);
+
+            resGray = (Image)cimggraydouble;
+            resGray8 = resGray.convertImage<1,8,ImageElementFormat::UnsignedNormalized>();
+            saveImage("debug/testgraydouble.png",resGray8);
 
         }
         CUDA::destroyCUDA();

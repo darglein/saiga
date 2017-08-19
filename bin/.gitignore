@@ -17,6 +17,7 @@ test
 twoViewOrientation
 videoRecording
 simpleGLFWWindow
+cudaImageProcessing
 *.exe
 *.dll
 valgrind_output.txt
