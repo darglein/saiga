@@ -20,12 +20,12 @@ namespace FIP {
 //loads an image with freeimage converts it to Image and reads metadata if != 0
 SAIGA_GLOBAL bool load(const std::string& path, Image& img, ImageMetadata* metaData = nullptr);
 //writes an image to file with freeimage
-SAIGA_GLOBAL bool save(const std::string& path, Image& img);
+SAIGA_GLOBAL bool save(const std::string& path, const Image& img);
 
 //helper functions if you want to actually have fipimages
 //these are used by load and save from above
 SAIGA_GLOBAL bool loadFIP(const std::string& path, fipImage& img);
-SAIGA_GLOBAL bool saveFIP(const std::string& path, fipImage& img);
+SAIGA_GLOBAL bool saveFIP(const std::string& path, const fipImage& img);
 
 //conersion between saiga's image and freeimage's fipimage
 //these are used by load and save from above

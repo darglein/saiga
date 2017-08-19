@@ -16,16 +16,17 @@
 
 namespace Saiga {
 
-template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB=false>
+template<int CHANNELS, int BITDEPTH = 8, ImageElementFormat FORMAT = ImageElementFormat::UnsignedNormalized, bool SRGB=false>
 class SAIGA_GLOBAL TemplatedImage : public Image{
 public:
     using TexelType = Texel<CHANNELS,BITDEPTH,FORMAT>;
     using ImageFormatType = GLImageFormatMap<CHANNELS,BITDEPTH,FORMAT,SRGB>;
 
     TemplatedImage();
-    TemplatedImage(int width, int height);
+    TemplatedImage(int w, int h, void* data = nullptr);
+    TemplatedImage(int w, int h, int p, void* data = nullptr);
+    TemplatedImage(const Image& img);
 
-    void create();
 
     TexelType& getTexel(int x, int y);
     void setTexel(int x, int y, TexelType t);
@@ -51,27 +52,32 @@ public:
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage()
+    : Image(ImageFormat(CHANNELS,BITDEPTH,FORMAT,SRGB))
 {
-    this->format = ImageFormat(CHANNELS,BITDEPTH,FORMAT,SRGB);
 }
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
-TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage(int width, int height)
-    : TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>()
+TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage(int w, int h, void* data)
+    : Image(ImageFormat(CHANNELS,BITDEPTH,FORMAT,SRGB),w,h,data)
 {
-    this->width = width;
-    this->height = height;
-    create();
 }
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
-void TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::create(){
-    bytesPerRow = width*format.bytesPerPixel();
-    int rowPadding = (rowAlignment - (bytesPerRow % rowAlignment)) % rowAlignment;
-    bytesPerRow += rowPadding;
-    auto size = bytesPerRow * height;
-    data.resize(size);
+TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage(int w, int h, int p, void* data)
+    : Image(ImageFormat(CHANNELS,BITDEPTH,FORMAT,SRGB),w,h,p,data)
+{
 }
+
+template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
+TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TemplatedImage(const Image& img)
+    : Image(img)
+{
+    SAIGA_ASSERT(CHANNELS == img.Format().getChannels());
+    SAIGA_ASSERT(BITDEPTH == img.Format().getBitDepth());
+    SAIGA_ASSERT(FORMAT == img.Format().getElementFormat());
+    SAIGA_ASSERT(SRGB == img.Format().getSrgb());
+}
+
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 typename TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TexelType& TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::getTexel(int x, int y){
@@ -85,7 +91,7 @@ void TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::setTexel(int x, int y, Texel
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>
 typename TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::TexelType* TemplatedImage<CHANNELS,BITDEPTH,FORMAT,SRGB>::rowPointer(int y){
-    return reinterpret_cast<TexelType*>(&data[bytesPerRow*y]);
+    return reinterpret_cast<TexelType*>(&data[pitch*y]);
 }
 
 template<int CHANNELS, int BITDEPTH, ImageElementFormat FORMAT, bool SRGB>

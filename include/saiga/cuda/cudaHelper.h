@@ -17,7 +17,7 @@
 
 #include "saiga/cuda/array_view.h"
 #include "saiga/cuda/cudaTimer.h"
-
+#include "saiga/util/imath.h"
 #include <iostream>
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -49,38 +49,6 @@ __host__ __device__ constexpr
 T1 getBlockCount(T1 problemSize, T2 threadCount){
     return ( problemSize + (threadCount - T2(1)) ) / (threadCount);
 }
-
-
-HD constexpr inline
-//int iDivUp(int a, int b) { return (a % b != 0) ? (a / b + 1) : (a / b); }
-int iDivUp(int a, int b) { return (a + b - 1) / b; }
-
-HD constexpr inline
-int iDivDown(int a, int b) { return a / b; }
-
-HD constexpr inline
-int iAlignUp(int a, int b) { return (a % b != 0) ?  (a - a % b + b) : a; }
-
-HD constexpr inline
-int iAlignDown(int a, int b) {return a - a % b; }
-
-HD inline
-int iFloor(float value){
-    int i = (int)value;
-    return i - (i > value);
-}
-
-HD inline
-int iCeil(float value){
-    int i = (int)value;
-    return i + (i < value);
-}
-
-HD inline
-int iRound(float value){
-    return (int)(value + (value >= 0 ? 0.5f : -0.5f));
-}
-
 
 
 SAIGA_GLOBAL extern void initCUDA();

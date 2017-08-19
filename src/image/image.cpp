@@ -7,21 +7,51 @@
 #include "saiga/image/image.h"
 #include "saiga/util/assert.h"
 #include <cstring>
+#ifdef SAIGA_USE_FREEIMAGE
+#include <FreeImagePlus.h>
+#include "saiga/image/freeimage.h"
+#endif
+#include "saiga/image/png_wrapper.h"
+#include "saiga/util/imath.h"
 
 namespace Saiga {
 
+Image::Image(ImageFormat format, int w, int h, void* _data) : format(format), width(w), height(h){
+    pitch = width * format.bytesPerPixel();
+    pitch = iAlignUp(pitch,rowAlignment);
+    data.resize(getSize());
+    if(_data){
+        memcpy(getRawData(),_data,getSize());
+    }
+}
+
+Image::Image(ImageFormat format, int w, int h, int p, void* _data) : format(format), width(w), height(h){
+    pitch = p;
+    data.resize(getSize());
+    if(_data){
+        memcpy(getRawData(),_data,getSize());
+    }
+}
+
+
+
 int Image::getBytesPerRow() const
 {
-    return bytesPerRow;
+    return pitch;
 }
 
 Image::byte_t *Image::getRawData()
 {
-    return &data[0];
+    return data.data();
+}
+
+const Image::byte_t *Image::getRawData() const
+{
+    return data.data();
 }
 
 int Image::position(int x, int y){
-    return y*bytesPerRow+x*format.bytesPerPixel();
+    return y*pitch+x*format.bytesPerPixel();
 }
 
 Image::byte_t *Image::positionPtr(int x, int y){
@@ -61,9 +91,9 @@ void Image::makeZero()
 }
 
 void Image::create(byte_t* initialData){
-    bytesPerRow = width*format.bytesPerPixel();
-    int rowPadding = (rowAlignment - (bytesPerRow % rowAlignment)) % rowAlignment;
-    bytesPerRow += rowPadding;
+    pitch = width*format.bytesPerPixel();
+    int rowPadding = (rowAlignment - (pitch % rowAlignment)) % rowAlignment;
+    pitch += rowPadding;
 
     data.resize(getSize());
 
@@ -94,7 +124,7 @@ void Image::setSubImage(int x, int y, Image& src)
     SAIGA_ASSERT(src.width<=width && src.height<=height);
     //copy row by row
     for(int i = 0; i < src.height; i++){
-        memcpy(this->positionPtr(x,y+i),src.getRawData()+src.bytesPerRow*i,src.bytesPerRow);
+        memcpy(this->positionPtr(x,y+i),src.getRawData()+src.pitch*i,src.pitch);
     }
 }
 
@@ -131,7 +161,7 @@ void Image::flipRB()
 
     if(format.getBitDepth() == 8){
         for(int y = 0 ; y < (int)height ; ++y){
-            uint8_t* ptr = getRawData() + (y*bytesPerRow);
+            uint8_t* ptr = getRawData() + (y*pitch);
             for(int x = 0 ; x < (int)width ; ++x){
                 uint8_t r = *ptr;
                 *ptr = *(ptr+2);
@@ -141,7 +171,7 @@ void Image::flipRB()
         }
     }else if(format.getBitDepth() == 16){
         for(int y = 0 ; y < (int)height ; ++y){
-            uint16_t* ptr = (uint16_t*)(getRawData() + (y*bytesPerRow));
+            uint16_t* ptr = (uint16_t*)(getRawData() + (y*pitch));
             for(int x = 0 ; x < (int)width ; ++x){
                 uint16_t r = *ptr;
                 *ptr = *(ptr+2);
@@ -156,10 +186,10 @@ void Image::flipY()
 {
     auto copy = data;
     for(int y = 0 ; y < height ; ++y){
-        int offset = bytesPerRow * y;
-        int invOffset = bytesPerRow * (height-y-1);
+        int offset = pitch * y;
+        int invOffset = pitch * (height-y-1);
         std::copy(copy.begin()+offset,
-                  copy.begin()+offset+bytesPerRow,
+                  copy.begin()+offset+pitch,
                   data.begin()+invOffset
                   );
     }
@@ -233,9 +263,71 @@ const ImageFormat &Image::Format() const
 
 
 size_t Image::getSize(){
-    return height*bytesPerRow;
+    return height*pitch;
 }
 
+
+bool loadImage(const std::string &path, Image &outImage)
+{
+    bool erg = false;
+
+    //use libfreeimage if available, libpng otherwise
+#ifdef SAIGA_USE_FREEIMAGE
+    erg = FIP::load(path,outImage,0);
+//    fipImage img;
+//    erg = img.load(path.c_str());
+//    if(erg){
+//        ImageConverter::convert(img,outImage);
+//    }
+#else
+#ifdef SAIGA_USE_PNG
+    PNG::Image pngimg;
+    erg = PNG::readPNG( &pngimg,path);
+    if(erg)
+        ImageConverter::convert(pngimg,outImage);
+#endif
+#endif
+
+    if(erg){
+#ifndef SAIGA_RELEASE
+        std::cout<<"Loaded: "<< path << " " << outImage << std::endl;
+#endif
+    }else{
+        std::cout << "Error: Could not load image: " << path << std::endl;
+        SAIGA_ASSERT(0);
+    }
+
+    return erg;
+}
+
+bool saveImage(const std::string &path, const Image &image)
+{
+    bool erg = false;
+
+    //use libfreeimage if available, libpng otherwise
+#ifdef SAIGA_USE_FREEIMAGE
+//    fipImage fipimage;
+//    ImageConverter::convert(image,fipimage);
+//    erg = fipimage.save(path.c_str());
+    erg = FIP::save(path,image);
+#else
+#ifdef SAIGA_USE_PNG
+    PNG::Image pngimg;
+    ImageConverter::convert(image,pngimg);
+    erg = PNG::writePNG(&pngimg,path);
+#endif
+#endif
+
+    if(erg){
+        std::cout<<"Saved: "<< path << " " << image << std::endl;
+    }else{
+        std::cout << "Error: Could not save Image: " << path << std::endl;
+        SAIGA_ASSERT(0);
+    }
+
+
+    return erg;
+}
 
 std::ostream& operator<<(std::ostream& os, const Image& f){
     os << "Image " << f.width << "x" << f.height << " " << f.Format();

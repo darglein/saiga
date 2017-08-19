@@ -1,5 +1,6 @@
 if(CUDA_FOUND)
 	add_subdirectory(runTests)
+	add_subdirectory(cudaImageProcessing)
 endif ()
 
 if (GLFW_FOUND)

@@ -30,7 +30,7 @@ bool load(const std::string &path, Image &img, ImageMetadata *metaData)
     return true;
 }
 
-bool save(const std::string &path, Image &img)
+bool save(const std::string &path, const Image &img)
 {
     fipImage fimg;
     convert(img,fimg);
@@ -43,7 +43,7 @@ bool loadFIP(const std::string &path, fipImage &img){
     return ret;
 }
 
-bool saveFIP(const std::string &path, fipImage &img){
+bool saveFIP(const std::string &path, const fipImage &img){
     auto ret = img.save(path.c_str());
     return ret;
 }

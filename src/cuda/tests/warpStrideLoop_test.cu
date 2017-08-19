@@ -118,7 +118,7 @@ void warpStrideLoopTest2(){
     {
         const int blockSize = 128;
         const int LOCAL_WARP_SIZE = 1;
-        auto numBlocks = CUDA::iDivUp(K*LOCAL_WARP_SIZE,blockSize);
+        auto numBlocks = iDivUp(K*LOCAL_WARP_SIZE,blockSize);
 
         float time;
         {
@@ -135,7 +135,7 @@ void warpStrideLoopTest2(){
     {
         const int blockSize = 128;
         const int LOCAL_WARP_SIZE = 32;
-        auto numBlocks = CUDA::iDivUp(K*LOCAL_WARP_SIZE,blockSize);
+        auto numBlocks = iDivUp(K*LOCAL_WARP_SIZE,blockSize);
 
         float time;
         {
@@ -151,7 +151,7 @@ void warpStrideLoopTest2(){
     {
         const int blockSize = 128;
         const int LOCAL_WARP_SIZE = 32;
-        auto numBlocks = CUDA::iDivUp(K*LOCAL_WARP_SIZE,blockSize);
+        auto numBlocks = iDivUp(K*LOCAL_WARP_SIZE,blockSize);
 
         float time;
         {

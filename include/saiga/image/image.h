@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,6 +8,7 @@
 
 #include "saiga/opengl/opengl.h"
 #include "saiga/image/imageFormat.h"
+#include "saiga/cuda/imageProcessing/imageView.h"
 #include <stdint.h>
 #include <vector>
 
@@ -21,23 +22,29 @@ public:
     //image dimensions
     int width = 0;
     int height = 0;
+    int pitch;
     //raw image data
     std::vector<byte_t> data;
 protected:
     //size of data in bytes
-//    int size = 0;
+    //    int size = 0;
 
     ImageFormat format;
 
     //Alignment of the beginning of each row. Allowed values: 1,2,4,8
     int rowAlignment = 4;
-    int bytesPerRow;
 public:
 
     Image(){}
+    Image(ImageFormat _format) : format(_format) {}
+    Image(ImageFormat format, int w, int h, void* data);
+    Image(ImageFormat format, int w, int h, int p, void* data);
+
 
     //raw image data
     byte_t* getRawData();
+    const byte_t* getRawData() const;
+
     //byte offset of the given texel in the raw data
     int position(int x, int y);
     //pointer to the beginning of a given texel
@@ -52,6 +59,11 @@ public:
     void setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b);
 
 
+    template<typename T>
+    ImageView<T> getImageView(){
+        ImageView<T> res(width,height,getBytesPerRow(),getRawData());
+        return res;
+    }
 
     template<typename T>
     T getPixel(int x, int y){
@@ -101,6 +113,22 @@ public:
     const ImageFormat& Format() const;
     int getBytesPerRow() const;
 };
+
+/**
+ * Loads an image from file.
+ * Uses libfreeimage if possible and libpng otherwise.
+ *
+ * Returns true when the images was loaded successfully.
+ */
+SAIGA_GLOBAL bool loadImage(const std::string &path, Image& outImage);
+
+/**
+ * Saves an image to file.
+ * Uses libfreeimage if possible and libpng otherwise.
+ *
+ * Returns false when the images was loaded successfully.
+ */
+SAIGA_GLOBAL bool saveImage(const std::string &path, const Image& image);
 
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Image& f);

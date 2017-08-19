@@ -10,31 +10,6 @@
 
 namespace Saiga {
 
-void asksdfkg(){
-    Texel<2,8,ImageElementFormat::SignedIntegral> t;
-    t.r = 0.5f;
-    t.g = 1.0f;
-    cout << t.r << endl;
-
-    //    TemplatedImage<2,8,ImageFormat::SignedIntegral,false> i(5,5);
-    TemplatedImage<3,16,ImageElementFormat::UnsignedNormalized,false> i(5,5);
-    i.create();
-    auto& texel = i.getTexel(3,4);
-
-    texel.fromVec4(vec4(0.1f,0.2f,0.3f,0.4f));
-    i.setTexel(2,3,texel);
-    i.flipRB();
-    i.toSRGB();
-    i.toLinearRGB();
-
-
-    cout << texel.toVec4() << endl;
-
-
-    auto floatImg = i.convertToFloatImage();
-
-    cout << floatImg.getTexel(3,4).toVec4() << endl;
-}
 
 ImageFormat::ImageFormat(int channels, int bitDepth, ImageElementFormat elementFormat, bool srgb)
 {
