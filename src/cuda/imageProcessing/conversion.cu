@@ -9,65 +9,88 @@
 namespace Saiga {
 namespace CUDA {
 
-template<int BLOCK_W, int BLOCK_H>
+template<int BLOCK_W, int BLOCK_H, int ROWS_PER_THREAD = 1>
 __global__
-static void d_convertRGBtoRGBA(ImageView<uchar3> src, ImageView<uchar4> dst, unsigned char alpha)
+static void d_convertRGBtoRGBA(ImageView<uchar3> src, ImageView<uchar4> dst, int h, unsigned char alpha)
 {
     const int tx = threadIdx.x;
     const int ty = threadIdx.y;
 
-    const int xp = blockIdx.x*BLOCK_W + tx;
-    const int yp = blockIdx.y*BLOCK_H + ty;
+    int x = blockIdx.x*BLOCK_W + tx;
+    int y = blockIdx.y*BLOCK_H + ty;
 
-    if(xp >= src.width || yp >= src.height)
+    if(x >= dst.width)
         return;
 
-    uchar3 v3 = src(xp,yp);
-    uchar4 v4;
-    v4.x = v3.x;
-    v4.y = v3.y;
-    v4.z = v3.z;
-    v4.w = alpha;
-    dst(xp,yp) = v4;
+
+#pragma unroll
+    for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
+        if(y < dst.height){
+            uchar3 v3 = src(x,y);
+            uchar4 v4;
+            v4.x = v3.x;
+            v4.y = v3.y;
+            v4.z = v3.z;
+            v4.w = alpha;
+            dst(x,y) = v4;
+        }
+    }
+
+
 }
 
 
 void convertRGBtoRGBA(ImageView<uchar3> src, ImageView<uchar4> dst, unsigned char alpha){
     SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
-    const int BLOCK_W = 16;
-    const int BLOCK_H = 16;
-    dim3 blocks(iDivUp(src.width, BLOCK_W), iDivUp(src.height, BLOCK_H));
+    const int ROWS_PER_THREAD = 4;
+    const int BLOCK_W = 128;
+    const int BLOCK_H = 1;
+    int w = dst.width;
+    int h = iDivUp(dst.height,ROWS_PER_THREAD);
+    dim3 blocks(iDivUp(w, BLOCK_W), iDivUp(h, BLOCK_H));
     dim3 threads(BLOCK_W, BLOCK_H);
-    d_convertRGBtoRGBA<BLOCK_W,BLOCK_H> <<<blocks, threads>>>(src,dst,alpha);
+    d_convertRGBtoRGBA<BLOCK_W,BLOCK_H,ROWS_PER_THREAD> <<<blocks, threads>>>(src,dst,h,alpha);
 }
 
-template<int BLOCK_W, int BLOCK_H>
+
+
+
+template<int BLOCK_W, int BLOCK_H, int ROWS_PER_THREAD = 1>
 __global__
-static void d_convertRGBAtoGrayscale(ImageView<uchar4> src, ImageView<float> dst)
+static void d_convertRGBAtoGrayscale(ImageView<uchar4> src, ImageView<float> dst, int h)
 {
     const int tx = threadIdx.x;
     const int ty = threadIdx.y;
 
-    const int xp = blockIdx.x*BLOCK_W + tx;
-    const int yp = blockIdx.y*BLOCK_H + ty;
+    int x = blockIdx.x*BLOCK_W + tx;
+    int y = blockIdx.y*BLOCK_H + ty;
 
-    if(xp >= src.width || yp >= src.height)
+    if(x >= dst.width)
         return;
 
-    uchar4 u = src(xp,yp);
-    vec3 uv = vec3(u.x,u.y,u.z) * (1.0f / 255.0f);
-    vec3 conv(0.2126,0.7152,0.0722);
-    float v =  dot(uv,conv);
-    dst(xp,yp) = v;
+    const vec3 conv(0.2126f / 255.0f,0.7152f / 255.0f,0.0722f / 255.0f);
+
+#pragma unroll
+    for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
+        if(y < dst.height){
+            uchar4 u = src(x,y);
+            vec3 uv = vec3(u.x,u.y,u.z);
+            float v =  dot(uv,conv);
+            dst(x,y) = v;
+        }
+    }
 }
 
 void convertRGBAtoGrayscale(ImageView<uchar4> src, ImageView<float> dst){
     SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
-    const int BLOCK_W = 16;
-    const int BLOCK_H = 16;
-    dim3 blocks(iDivUp(src.width, BLOCK_W), iDivUp(src.height, BLOCK_H));
+    const int ROWS_PER_THREAD = 4;
+    const int BLOCK_W = 128;
+    const int BLOCK_H = 1;
+    int w = dst.width;
+    int h = iDivUp(dst.height,ROWS_PER_THREAD);
+    dim3 blocks(iDivUp(w, BLOCK_W), iDivUp(h, BLOCK_H));
     dim3 threads(BLOCK_W, BLOCK_H);
-    d_convertRGBAtoGrayscale<BLOCK_W,BLOCK_H> <<<blocks, threads>>>(src,dst);
+    d_convertRGBAtoGrayscale<BLOCK_W,BLOCK_H,ROWS_PER_THREAD> <<<blocks, threads>>>(src,dst,h);
 }
 
 }

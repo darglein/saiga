@@ -10,4 +10,5 @@
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/cuda/imageProcessing/conversion.h"
 #include "saiga/cuda/imageProcessing/scale.h"
+#include "saiga/cuda/imageProcessing/filter.h"
 

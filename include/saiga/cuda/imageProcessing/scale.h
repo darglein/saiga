@@ -11,6 +11,8 @@
 namespace Saiga {
 namespace CUDA {
 
+SAIGA_GLOBAL void fill(ImageView<float> img, float value);
+
 SAIGA_GLOBAL void scaleDown2EveryOther(ImageView<float> src, ImageView<float> dst);
 
 SAIGA_GLOBAL void scaleUp2Linear(ImageView<float> src, ImageView<float> dst);

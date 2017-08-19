@@ -41,5 +41,9 @@ void PerformanceTestHelper::addMeassurement(const std::string& name, float timeM
             << endl ;
 }
 
+void PerformanceTestHelper::updateBytes(size_t _bytesReadWrite){
+    bytesReadWrite = _bytesReadWrite;
+}
+
 }
 }

@@ -24,9 +24,11 @@ int main(int argc, char *argv[]) {
     {
         //CUDA tests
         CUDA::initCUDA();
-        //        CUDA::convolutionTest();
+                CUDA::convolutionTest();
 
+        CUDA::imageProcessingTest();
 
+        return 1;
         {
 
             //load an image from file
@@ -38,6 +40,7 @@ int main(int argc, char *argv[]) {
             CUDA::CudaImage<uchar3> cimg(img);
             CUDA::CudaImage<uchar4> cimg4(cimg.width,cimg.height);
             CUDA::CudaImage<float> cimggray(cimg.width,cimg.height);
+            CUDA::CudaImage<float> cimgblurred(cimg.width,cimg.height);
             CUDA::CudaImage<float> cimggrayhalf(cimg.width/2,cimg.height/2);
             CUDA::CudaImage<float> cimggraydouble(cimg.width*2,cimg.height*2);
 
@@ -45,6 +48,7 @@ int main(int argc, char *argv[]) {
             CUDA::convertRGBAtoGrayscale(cimg4,cimggray);
             CUDA::scaleDown2EveryOther(cimggray,cimggrayhalf);
             CUDA::scaleUp2Linear(cimggray,cimggraydouble);
+            CUDA::gaussianBlur(cimggray,cimgblurred,2,4);
 
             //copy back to cpu
             TemplatedImage<4,8,ImageElementFormat::UnsignedNormalized> res4;
@@ -66,6 +70,10 @@ int main(int argc, char *argv[]) {
             resGray = (Image)cimggraydouble;
             resGray8 = resGray.convertImage<1,8,ImageElementFormat::UnsignedNormalized>();
             saveImage("debug/testgraydouble.png",resGray8);
+
+            resGray = (Image)cimgblurred;
+            resGray8 = resGray.convertImage<1,8,ImageElementFormat::UnsignedNormalized>();
+            saveImage("debug/testgrayblurred.png",resGray8);
 
         }
         CUDA::destroyCUDA();

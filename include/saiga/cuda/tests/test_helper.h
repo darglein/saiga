@@ -21,6 +21,8 @@ public:
     ~PerformanceTestHelper();
     void addMeassurement(const std::string& name, float timeMS);
 
+    //usefull when the size changes but you don't want to create a new testhelper
+    void updateBytes(size_t bytesReadWrite);
 };
 
 }
