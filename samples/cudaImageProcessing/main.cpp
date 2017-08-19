@@ -43,9 +43,6 @@ int main(int argc, char *argv[]) {
             CUDA::convertRGBAtoGrayscale(cimg4,cimggray);
 
             //copy back to cpu
-//            Image resimg;
-//            resimg = cimg4;
-
             TemplatedImage<4,8,ImageElementFormat::UnsignedNormalized> res4;
             TemplatedImage<1,32,ImageElementFormat::FloatingPoint> resGray;
             TemplatedImage<1,8,ImageElementFormat::UnsignedNormalized> resGray8;
