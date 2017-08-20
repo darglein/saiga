@@ -15,6 +15,7 @@
 
 //here are only some cv::Mat <-> ImageView conversions
 //so saiga's cuda image processing can be used
+//Note: these functions DON'T copy the actual image data
 
 namespace Saiga {
 
@@ -27,6 +28,7 @@ ImageView<T> MatToImageView(cv::Mat& img){
     return res;
 }
 
+
 template<typename T>
 inline
 cv::Mat ImageViewToMat(ImageView<T> img){
@@ -36,7 +38,7 @@ cv::Mat ImageViewToMat(ImageView<T> img){
     if(typeid(T) == typeid(uchar4))type = CV_8UC4;
 #endif
     if(typeid(T) == typeid(float))type = CV_32FC1;
-    return cv::Mat(img.height,img.width,type,img.pitchBytes,img.data);
+    return cv::Mat(img.height,img.width,type);
 }
 
 

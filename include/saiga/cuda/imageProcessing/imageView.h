@@ -24,13 +24,21 @@ struct ImageView{
         int height;
         int rows;
     };
-//    int width, height;
+    //    int width, height;
     //    int pitch; //important: the pitch is not in bytes!!!
     int pitchBytes;
-    void* data;
+
+    union{
+        void* data;
+        uint8_t* data8;
+    };
+
+
 
     HD inline
-    ImageView(){}
+    ImageView(){
+        static_assert(sizeof(ImageView<T>) == 24, "ImageView size wrong!");
+    }
 
     HD inline
     ImageView(int w, int h , int p, void* data)
@@ -54,16 +62,18 @@ struct ImageView{
         SAIGA_ASSERT(inImage(x,y));
 #endif
         //        return data[y * pitch + x];
-        uint8_t* data8 = reinterpret_cast<uint8_t*>(data);
-        data8 += y * pitchBytes + x * sizeof(T);
-        return reinterpret_cast<T*>(data8)[0];
+//        uint8_t* data8 = reinterpret_cast<uint8_t*>(data);
+//        data8 += y * pitchBytes + x * sizeof(T);
+        auto ptr = data8 + y * pitchBytes + x * sizeof(T);
+        return reinterpret_cast<T*>(ptr)[0];
     }
 
     HD inline
     T* rowPtr(int y){
-        uint8_t* data8 = reinterpret_cast<uint8_t*>(data);
-        data8 += y * pitchBytes;
-        return reinterpret_cast<T*>(data8);
+//        uint8_t* data8 = reinterpret_cast<uint8_t*>(data);
+//        data8 += y * pitchBytes;
+        auto ptr = data8 + y * pitchBytes;
+        return reinterpret_cast<T*>(ptr);
     }
 
     //bilinear interpolated pixel with clamp to edge boundary
@@ -143,6 +153,26 @@ struct ImageView{
         y = std::min(std::max(0,y),height-1);
 #endif
     }
+};
+
+//multiple images that are stored in memory consecutively
+template<typename T>
+struct ImageArrayView{
+    ImageView<T> imgStart;
+    int n;
+
+    ImageArrayView(){}
+    ImageArrayView(ImageView<T> _imgStart, int _n) : imgStart(_imgStart), n(_n) {}
+
+    HD inline
+    ImageView<T> at(int i){
+        ImageView<T> res = imgStart;
+        res.data =  imgStart.data8 + imgStart.size() * i;
+        return res;
+    }
+
+    HD inline
+    ImageView<T> operator[](int i){ return at(i); }
 };
 
 }
