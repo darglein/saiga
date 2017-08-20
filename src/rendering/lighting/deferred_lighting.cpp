@@ -340,6 +340,10 @@ void DeferredLighting::setupLightPass(){
     //with this trick the expensive clear can be saved after each light
     currentStencilId++;
     SAIGA_ASSERT(currentStencilId<256);
+
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_DEPTH_TEST);
+    glStencilFunc(GL_ALWAYS, currentStencilId, 0xFF);
 }
 
 

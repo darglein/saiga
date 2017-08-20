@@ -62,33 +62,33 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
     sun = window->getRenderer()->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-3,-2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(0.5);
+    sun->setIntensity(0.0);
     sun->setAmbientIntensity(0.1f);
     sun->createShadowMap(2048,2048,1,sq);
     sun->enableShadows();
 
-        pointLight = window->getRenderer()->lighting.createPointLight();
-        pointLight->setAttenuation(AttenuationPresets::Quadratic);
-        pointLight->setIntensity(2);
-        pointLight->setRadius(10);
-        pointLight->setPosition(vec3(10,3,0));
-        pointLight->setColorDiffuse(vec3(1));
-        pointLight->calculateModel();
-        pointLight->createShadowMap(256,256,sq);
-        pointLight->enableShadows();
+//        pointLight = window->getRenderer()->lighting.createPointLight();
+//        pointLight->setAttenuation(AttenuationPresets::Quadratic);
+//        pointLight->setIntensity(2);
+//        pointLight->setRadius(10);
+//        pointLight->setPosition(vec3(10,3,0));
+//        pointLight->setColorDiffuse(vec3(1));
+//        pointLight->calculateModel();
+//        pointLight->createShadowMap(256,256,sq);
+//        pointLight->enableShadows();
 
-        spotLight = window->getRenderer()->lighting.createSpotLight();
-        spotLight->setAttenuation(AttenuationPresets::Quadratic);
-        spotLight->setIntensity(2);
-        spotLight->setRadius(8);
-        spotLight->setPosition(vec3(-10,5,0));
-        spotLight->setColorDiffuse(vec3(1));
-        spotLight->calculateModel();
-        spotLight->createShadowMap(512,512,sq);
-        spotLight->enableShadows();
+//        spotLight = window->getRenderer()->lighting.createSpotLight();
+//        spotLight->setAttenuation(AttenuationPresets::Quadratic);
+//        spotLight->setIntensity(2);
+//        spotLight->setRadius(8);
+//        spotLight->setPosition(vec3(-10,5,0));
+//        spotLight->setColorDiffuse(vec3(1));
+//        spotLight->calculateModel();
+//        spotLight->createShadowMap(512,512,sq);
+//        spotLight->enableShadows();
 
         boxLight = window->getRenderer()->lighting.createBoxLight();
-        boxLight->setIntensity(1.5);
+        boxLight->setIntensity(1.0);
 
 //        boxLight->setPosition(vec3(0,2,10));
 //        boxLight->rotateLocal(vec3(1,0,0),30);
@@ -179,7 +179,7 @@ void Lighting::renderDepth(Camera *cam)
 void Lighting::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
-    skybox.render(cam);
+//    skybox.render(cam);
 }
 
 void Lighting::renderFinal(Camera *cam)
