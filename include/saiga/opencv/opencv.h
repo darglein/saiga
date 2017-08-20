@@ -20,30 +20,22 @@ namespace Saiga {
 
 
 template<typename T>
+inline
 ImageView<T> MatToImageView(cv::Mat& img){
     auto res = ImageView<T>(img.cols,img.rows,img.step,img.data);
-    SAIGA_ASSERT(res.size() == img.size);
+    SAIGA_ASSERT(res.size() == img.step[0] * img.rows);
     return res;
 }
 
 template<typename T>
+inline
 cv::Mat ImageViewToMat(ImageView<T> img){
     int type;
-    switch(typeid(T)){
 #if defined(SAIGA_USE_CUDA)
-    case typeid(uchar3):
-        type = CV_8UC3;
-        break;
-    case typeid(uchar4):
-        type = CV_8UC4;
-        break;
+    if(typeid(T) == typeid(uchar3))type = CV_8UC3;
+    if(typeid(T) == typeid(uchar4))type = CV_8UC4;
 #endif
-    case typeid(float):
-        type = CV_32FC1;
-        break;
-    default:
-        SAIGA_ASSERT(0,"Unknown Type");
-    }
+    if(typeid(T) == typeid(float))type = CV_32FC1;
     return cv::Mat(img.height,img.width,type,img.pitchBytes,img.data);
 }
 

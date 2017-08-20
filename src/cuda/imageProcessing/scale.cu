@@ -67,7 +67,7 @@ static void d_scaleDown2EveryOther(ImageView<float> src, ImageView<float> dst, i
 
 
 void scaleDown2EveryOther(ImageView<float> src, ImageView<float> dst){
-    SAIGA_ASSERT(src.width == dst.width*2 && src.height == dst.height*2);
+    SAIGA_ASSERT(src.width/2 == dst.width && src.height/2 == dst.height);
     const int ROWS_PER_THREAD = 2;
     const int BLOCK_W = 128;
     const int BLOCK_H = 1;
@@ -78,7 +78,12 @@ void scaleDown2EveryOther(ImageView<float> src, ImageView<float> dst){
     d_scaleDown2EveryOther<BLOCK_W,BLOCK_H,ROWS_PER_THREAD> <<<blocks, threads>>>(src,dst,h);
 }
 
+
+#define USE_HARDWARE_INTER
+
+#ifdef USE_HARDWARE_INTER
 static texture<float, cudaTextureType2D, cudaReadModeElementType> floatTex;
+#endif
 
 template<int BLOCK_W, int BLOCK_H, int ROWS_PER_THREAD = 1>
 __global__
@@ -96,16 +101,16 @@ static void d_scaleUp2Linear(ImageView<float> src, ImageView<float> dst, int h, 
 #pragma unroll
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
         if(y < dst.height){
-#if 0
-            //software bil. interpolation
-            float xf = (float(x) + 0.5f) * scale_x - 0.5f;
-            float yf = (float(y) + 0.5f) * scale_y - 0.5f;
-            dst(x,y) = src.inter(xf,yf);
-#else
+#ifdef USE_HARDWARE_INTER
             //use hardware bil. interpolation
             float xf = (float(x) + 0.5f) * scale_x;
             float yf = (float(y) + 0.5f) * scale_y;
             dst(x,y) = tex2D(floatTex,xf,yf);
+#else
+            //software bil. interpolation
+            float xf = (float(x) + 0.5f) * scale_x - 0.5f;
+            float yf = (float(y) + 0.5f) * scale_y - 0.5f;
+            dst(x,y) = src.inter(xf,yf);
 #endif
 
         }
@@ -117,8 +122,8 @@ static void d_scaleUp2Linear(ImageView<float> src, ImageView<float> dst, int h, 
 void scaleUp2Linear(ImageView<float> src, ImageView<float> dst){
     SAIGA_ASSERT(src.width*2 == dst.width && src.height*2 == dst.height);
 
+#ifdef USE_HARDWARE_INTER
     textureReference& floatTexRef = floatTex;
-
     cudaChannelFormatDesc desc = cudaCreateChannelDesc( 32, 0, 0, 0, cudaChannelFormatKindFloat );
     size_t offset;
     CHECK_CUDA_ERROR(cudaBindTexture2D(&offset, &floatTexRef, src.data, &desc, src.width, src.height, src.pitchBytes));
@@ -127,6 +132,7 @@ void scaleUp2Linear(ImageView<float> src, ImageView<float> dst){
     floatTexRef.addressMode[1] = cudaAddressModeClamp;
     floatTexRef.filterMode = cudaFilterModeLinear;
     floatTexRef.normalized = false;
+#endif
 
 
 

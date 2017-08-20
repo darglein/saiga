@@ -103,7 +103,9 @@ void convolve(ImageView<T> src, ImageView<T> dst){
     singlePassConvolve2<T,RADIUS,BLOCK_W,BLOCK_H> <<<blocks, threads>>>(src,dst);
 }
 
-void convolve(ImageView<float> src, ImageView<float> dst, int radius){
+void convolveSinglePassSeparate(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
+    CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float)));
+
     switch (radius){
     case 1: CUDA::convolve<float,1>(src,dst); break;
     case 2: CUDA::convolve<float,2>(src,dst); break;
@@ -118,12 +120,6 @@ void convolve(ImageView<float> src, ImageView<float> dst, int radius){
     }
 
 }
-
-
-void copyConvolutionKernel(Saiga::array_view<float> kernel){
-    CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float)));
-}
-
 
 }
 }

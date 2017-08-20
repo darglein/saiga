@@ -16,7 +16,15 @@ namespace Saiga {
 
 template<typename T>
 struct ImageView{
-    int width, height;
+    union{
+        int width;
+        int cols;
+    };
+    union{
+        int height;
+        int rows;
+    };
+//    int width, height;
     //    int pitch; //important: the pitch is not in bytes!!!
     int pitchBytes;
     void* data;
@@ -49,6 +57,13 @@ struct ImageView{
         uint8_t* data8 = reinterpret_cast<uint8_t*>(data);
         data8 += y * pitchBytes + x * sizeof(T);
         return reinterpret_cast<T*>(data8)[0];
+    }
+
+    HD inline
+    T* rowPtr(int y){
+        uint8_t* data8 = reinterpret_cast<uint8_t*>(data);
+        data8 += y * pitchBytes;
+        return reinterpret_cast<T*>(data8);
     }
 
     //bilinear interpolated pixel with clamp to edge boundary

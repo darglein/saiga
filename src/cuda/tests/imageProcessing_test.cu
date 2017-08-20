@@ -26,7 +26,7 @@ void imageProcessingTest(){
 
 
     TemplatedImage<3,8,ImageElementFormat::UnsignedNormalized> img;
-//    loadImage("textures/redie.png",img);
+    //    loadImage("textures/redie.png",img);
     loadImage("textures/landscape.jpg",img);
 
 
@@ -37,6 +37,7 @@ void imageProcessingTest(){
     CUDA::CudaImage<uchar3> cimg(img);
     CUDA::CudaImage<uchar4> cimg4(cimg.width,cimg.height);
     CUDA::CudaImage<float> cimggray(cimg.width,cimg.height);
+    CUDA::CudaImage<float> cimgtmp(cimg.width,cimg.height);
     CUDA::CudaImage<float> cimgblurred(cimg.width,cimg.height);
     CUDA::CudaImage<float> cimggrayhalf(cimg.width/2,cimg.height/2);
     CUDA::CudaImage<float> cimggraydouble(cimg.width*2,cimg.height*2);
@@ -70,13 +71,57 @@ void imageProcessingTest(){
         float time;
         int radius = 4;
         pth.updateBytes(cimggray.size() + cimggray.size());
-        setGaussianBlurKernel(2,radius);
+        auto kernel = createGaussianBlurKernel(radius,2);
         {
             CUDA::CudaScopedTimer t(time);
             for(int i = 0; i < its; ++i)
-                CUDA::gaussianBlur(cimggray,cimgblurred,radius);
+                CUDA::applyFilterSeparate(cimggray,cimgtmp,cimgblurred,kernel,kernel);
         }
-        pth.addMeassurement("gaussianBlur", time/its);
+        pth.addMeassurement("applyFilterSeparate", time/its);
+    }
+
+    {
+        int its = 5;
+        float time;
+        int radius = 4;
+        pth.updateBytes(cimggray.size() + cimggray.size());
+        auto kernel = createGaussianBlurKernel(radius,2);
+        {
+            CUDA::CudaScopedTimer t(time);
+            for(int i = 0; i < its; ++i)
+                CUDA::applyFilterSeparateSinglePass(cimggray,cimgblurred,kernel);
+        }
+        pth.addMeassurement("applyFilterSeparateSinglePass", time/its);
+    }
+
+    {
+        int its = 5;
+        float time;
+        int radius = 4;
+        auto kernel = createGaussianBlurKernel(radius,2);
+        pth.updateBytes(cimggray.size() + cimggray.size());
+        //        setGaussianBlurKernel(2,radius);
+        {
+            CUDA::CudaScopedTimer t(time);
+            for(int i = 0; i < its; ++i)
+                CUDA::convolveRow(cimggray,cimgtmp,kernel,radius);
+        }
+        pth.addMeassurement("convolveRow", time/its);
+    }
+
+    {
+        int its = 5;
+        float time;
+        int radius = 4;
+        auto kernel = createGaussianBlurKernel(radius,2);
+        pth.updateBytes(cimggray.size() + cimggray.size());
+        //        setGaussianBlurKernel(2,radius);
+        {
+            CUDA::CudaScopedTimer t(time);
+            for(int i = 0; i < its; ++i)
+                CUDA::convolveCol(cimggray,cimgtmp,kernel,radius);
+        }
+        pth.addMeassurement("convolveCol", time/its);
     }
 
     {

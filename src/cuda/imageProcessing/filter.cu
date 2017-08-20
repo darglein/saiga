@@ -10,31 +10,31 @@
 namespace Saiga {
 namespace CUDA {
 
-void setGaussianBlurKernel(float sigma, int RADIUS){
-    SAIGA_ASSERT(RADIUS <= MAX_RADIUS && RADIUS > 0);
-    const int ELEMENTS = RADIUS * 2 + 1;
-    float kernel[ELEMENTS];
+thrust::device_vector<float>  createGaussianBlurKernel(int radius, float sigma){
+    SAIGA_ASSERT(radius <= MAX_RADIUS && radius > 0);
+    const int ELEMENTS = radius * 2 + 1;
+    thrust::host_vector<float> kernel(ELEMENTS);
     float kernelSum = 0.0f;
     float ivar2 = 1.0f/(2.0f*sigma*sigma);
-    for (int j=-RADIUS;j<=RADIUS;j++) {
-        kernel[j+RADIUS] = (float)expf(-(double)j*j*ivar2);
-        kernelSum += kernel[j+RADIUS];
+    for (int j=-radius;j<=radius;j++) {
+        kernel[j+radius] = (float)expf(-(double)j*j*ivar2);
+        kernelSum += kernel[j+radius];
     }
-    for (int j=-RADIUS;j<=RADIUS;j++)
-        kernel[j+RADIUS] /= kernelSum;
-
-    CUDA::copyConvolutionKernel(Saiga::array_view<float>(kernel,RADIUS*2+1));
-}
-
-void gaussianBlur(ImageView<float> src, ImageView<float> dst, float sigma, int radius){
-    setGaussianBlurKernel(sigma,radius);
-    gaussianBlur(src,dst,radius);
+    for (int j=-radius;j<=radius;j++)
+        kernel[j+radius] /= kernelSum;
+    return thrust::device_vector<float>(kernel);
 }
 
 
-void gaussianBlur(ImageView<float> src, ImageView<float> dst, int radius){
-    convolve(src,dst,radius);
+void applyFilterSeparate(ImageView<float> src, ImageView<float> dst, ImageView<float> tmp, array_view<float> kernelRow, array_view<float> kernelCol){
+    convolveRow(src,tmp,kernelRow,kernelRow.size() / 2);
+    convolveCol(tmp,dst,kernelCol,kernelCol.size() / 2);
 }
+
+void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, array_view<float> kernel){
+    convolveSinglePassSeparate(src,dst,kernel,kernel.size()/2);
+}
+
 
 }
 }

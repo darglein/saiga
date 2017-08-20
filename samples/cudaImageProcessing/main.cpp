@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 
         CUDA::imageProcessingTest();
 
-        return 1;
+//        return 1;
         {
 
             //load an image from file
@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
             CUDA::CudaImage<uchar3> cimg(img);
             CUDA::CudaImage<uchar4> cimg4(cimg.width,cimg.height);
             CUDA::CudaImage<float> cimggray(cimg.width,cimg.height);
+            CUDA::CudaImage<float> cimgtmp(cimg.width,cimg.height);
             CUDA::CudaImage<float> cimgblurred(cimg.width,cimg.height);
             CUDA::CudaImage<float> cimggrayhalf(cimg.width/2,cimg.height/2);
             CUDA::CudaImage<float> cimggraydouble(cimg.width*2,cimg.height*2);
@@ -48,7 +49,10 @@ int main(int argc, char *argv[]) {
             CUDA::convertRGBAtoGrayscale(cimg4,cimggray);
             CUDA::scaleDown2EveryOther(cimggray,cimggrayhalf);
             CUDA::scaleUp2Linear(cimggray,cimggraydouble);
-            CUDA::gaussianBlur(cimggray,cimgblurred,2,4);
+
+            auto filter = CUDA::createGaussianBlurKernel(4,2);
+//            CUDA::gaussianBlur(cimggray,cimgblurred,2,4);
+            CUDA::applyFilterSeparate(cimggray,cimgblurred,cimgtmp,filter,filter);
 
             //copy back to cpu
             TemplatedImage<4,8,ImageElementFormat::UnsignedNormalized> res4;

@@ -50,15 +50,12 @@ struct CudaImage : public ImageView<T>{
 
     CudaImage(int w, int h , int p)
         : ImageView<T>(w,h,p,0) {
-        resizeDeviceVector(v,this->size());
-        this->data = thrust::raw_pointer_cast(v.data());
+        create();
     }
 
     CudaImage(int w, int h)
         : ImageView<T>(w,h,0) {
-//        v.resize(this->size());
-        resizeDeviceVector(v,this->size());
-        this->data = thrust::raw_pointer_cast(v.data());
+        create();
     }
 
 
@@ -84,6 +81,25 @@ struct CudaImage : public ImageView<T>{
     inline
     operator Image(){
         return deviceImageViewToImage(*this);
+    }
+
+    //upload a host imageview to the device
+    inline
+    void upload(ImageView<T> h_img){
+        this->ImageView<T>::operator=(h_img);
+        create();
+        copyImage(h_img,*this,cudaMemcpyHostToDevice);
+    }
+
+    //download a host imageview from the device
+    inline
+    void download(ImageView<T> h_img){
+        copyImage(*this,h_img,cudaMemcpyDeviceToHost);
+    }
+
+    inline void create(){
+        resizeDeviceVector(v,this->size());
+        this->data = thrust::raw_pointer_cast(v.data());
     }
 
     //copy and swap idiom

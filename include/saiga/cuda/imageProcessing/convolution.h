@@ -20,9 +20,12 @@ namespace CUDA {
 
 
 #define MAX_RADIUS 10
+#define MAX_KERNEL_SIZE (MAX_RADIUS*2+1)
 
-SAIGA_GLOBAL void copyConvolutionKernel(Saiga::array_view<float> kernel);
-SAIGA_GLOBAL void convolve(ImageView<float> src, ImageView<float> dst, int radius);
+
+SAIGA_GLOBAL void convolveSinglePassSeparate(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 
 }
 }

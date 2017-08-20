@@ -483,7 +483,7 @@ void convolutionTest(){
         src = h_src;
     }
 
-    copyConvolutionKernel(h_kernel);
+//    copyConvolutionKernel(h_kernel);
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, h_kernel.data(), h_kernel.size()*sizeof(float)));
 
     {
@@ -569,12 +569,12 @@ void convolutionTest(){
     }
 
     {
+        thrust::device_vector<float> d_kernel = h_kernel;
         dest = src;
         float time;
         {
             Saiga::CUDA::CudaScopedTimer t(time);
-            convolve(imgSrc,imgDst,kernel_radius);
-//            gaussianBlur(imgSrc,imgDst,);
+            convolveSinglePassSeparate(imgSrc,imgDst,d_kernel,4);
         }
         pth.addMeassurement("GPU Convolve Single Pass2",time);
         thrust::host_vector<float> test = dest;
@@ -593,18 +593,6 @@ void convolutionTest(){
         {
             Saiga::CUDA::CudaScopedTimer t(time1);
             convolutionRowsGPU((float*)imgTmp.data,(float*)imgSrc.data,w,h);
-
-            //            thrust::host_vector<float> test = tmp;
-            //            for(int i = 0; i < 4096* 10;++i){ //test.size()
-            //                           cout << i << " " << test[i] << " " << h_tmp[i] << " " << h_src[i] << endl;
-            //                if(std::abs(test[i]-h_tmp[i]) > 1e-5){
-            //                    cout << "error " << i << " " << test[i] << "!=" << h_ref[i] << endl;
-            //                    SAIGA_ASSERT(0);
-            //                }
-            //            }
-
-            //           for(int i = 0; i < 258;++i)
-            //           cout << i << " " << tmp[i] << " " << h_tmp[i] << " " << src[i] << endl;
         }
         pth.addMeassurement("GPU Convolve Separate Row",time1);
         float time2;
@@ -616,14 +604,6 @@ void convolutionTest(){
         pth.addMeassurement("GPU Convolve Separate Total",time1+time2);
 
 
-        for(int y =0; y < 32 ; ++y){
-            for(int x =0; x < 8 ; ++x){
-//                int i = y * imgDst.pitch + x;
-                //                cout << i << " " << tmp[i] << " " << h_tmp[i] << " " << dest[i] << endl;
-            }
-        }
-
-        //        SAIGA_ASSERT(0);
 
         thrust::host_vector<float> test = dest;
         for(int i = 0; i < test.size();++i){
