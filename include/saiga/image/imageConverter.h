@@ -11,7 +11,7 @@
 
 namespace Saiga {
 
-class fipImage;
+//class fipImage;
 namespace PNG{
 class PngImage;
 }

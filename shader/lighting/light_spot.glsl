@@ -90,7 +90,7 @@ void main() {
                 Idiff * diffColor +
                 Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
 #ifdef VOLUMETRIC
-    vec3 vf = volumetricFactorSpot(depthTex,depthBiasMV,vposition,vertexMV,lightPos,lightDir,angle,attenuation) * lightColorDiffuse.rgb;
+    vec3 vf = volumetricFactorSpot(depthTex,depthBiasMV,vposition,vertexMV,lightPos,lightDir,angle,attenuation) * lightColorDiffuse.rgb * intensity;
     color += vf;
 #endif
     out_color = vec4(color,1);
