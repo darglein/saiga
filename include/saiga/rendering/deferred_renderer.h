@@ -104,10 +104,10 @@ private:
     bool renderDDO = false;
     DeferredDebugOverlay ddo;
     UniformBuffer cameraBuffer;
+public:
 
     //for imgui
     bool showLightingImgui = false;
-public:
 
     void bindCamera(Camera* cam);
 

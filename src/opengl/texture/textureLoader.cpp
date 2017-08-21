@@ -82,8 +82,8 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
         std::cout<<"Loaded: "<< path << " " << outImage << std::endl;
 #endif
     }else{
-        std::cout << "Error: Could not load image: " << path << std::endl;
-        SAIGA_ASSERT(0);
+//        std::cout << "Error: Could not load image: " << path << std::endl;
+//        SAIGA_ASSERT(0);
     }
 
     return erg;

@@ -107,9 +107,9 @@ protected:
     int imCurrentIndex = 0;
     float imUpdateTimes[numGraphValues] = {0};
     float imRenderTimes[numGraphValues] = {0};
-    bool showRendererImgui = false;
     bool showImguiDemo = false;
 public:
+    bool showRendererImgui = false;
     std::shared_ptr<ImGuiRenderer> imgui;
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
     AverageTimer fpsTimer, upsTimer;

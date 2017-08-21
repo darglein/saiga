@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "lighting.h"
+#include "volumetricLights.h"
 
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/rendering/lighting/directional_light.h"
@@ -12,17 +12,21 @@
 
 #include "saiga/geometry/triangle_mesh_generator.h"
 
-Lighting::Lighting(OpenGLWindow *window): Program(window),
+VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
    tdo(window->getWidth(),window->getHeight())
 {
     //this simplifies shader debugging
-    ShaderLoader::instance()->addLineDirectives = true;
+//    ShaderLoader::instance()->addLineDirectives = true;
 
+    parentWindow->showRendererImgui = true;
+    parentWindow->getRenderer()->showLightingImgui = true;
 
     //create a perspective camera
     float aspect = window->getAspectRatio();
-    camera.setProj(60.0f,aspect,0.1f,50.0f);
-    camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
+    camera.setProj(60.0f,aspect,0.1f,75.0f);
+    auto pos = vec3(23.7,12.5,-6.1);
+    auto dir = -vec3(0.617,0.0656,-0.784);
+    camera.setView(pos,pos+dir,vec3(0,1,0));
     camera.enableInput();
     //How fast the camera moves
     camera.movementSpeed = 10;
@@ -39,13 +43,15 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
 
 
     auto cubeAsset = assetLoader.loadTexturedAsset("objs/box.obj");
+    auto cubeAsset2 = assetLoader.loadTexturedAsset("objs/sponza.obj");
 
     cube1.asset = cubeAsset;
-    cube2.asset = cubeAsset;
+    cube2.asset = cubeAsset2;
     cube1.translateGlobal(vec3(11,1,-2));
     cube1.calculateModel();
 
-    cube2.translateGlobal(vec3(-11,1,2));
+    cube2.setScale(vec3(0.02));
+//    cube2.translateGlobal(vec3(-11,1,2));
     cube2.calculateModel();
 
     auto sphereAsset = assetLoader.loadBasicAsset("objs/teapot.obj");
@@ -60,12 +66,13 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
     ShadowQuality sq = ShadowQuality::HIGH;
 
     sun = window->getRenderer()->lighting.createDirectionalLight();
-    sun->setDirection(vec3(-1,-3,-2));
+    sun->setDirection(vec3(2,-3,0.4));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(0.5);
+    sun->setIntensity(0.3);
     sun->setAmbientIntensity(0.1f);
     sun->createShadowMap(2048,2048,1,sq);
-    sun->enableShadows();
+//    sun->enableShadows();
+//    sun->setActive(false);
 
         pointLight = window->getRenderer()->lighting.createPointLight();
         pointLight->setAttenuation(AttenuationPresets::Quadratic);
@@ -74,9 +81,9 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
         pointLight->setPosition(vec3(10,3,0));
         pointLight->setColorDiffuse(vec3(1));
         pointLight->calculateModel();
-//        pointLight->createShadowMap(256,256,sq);
-        pointLight->createShadowMap(512,512,sq);
+        pointLight->createShadowMap(256,256,sq);
         pointLight->enableShadows();
+        pointLight->setActive(false);
 
         spotLight = window->getRenderer()->lighting.createSpotLight();
         spotLight->setAttenuation(AttenuationPresets::Quadratic);
@@ -87,18 +94,21 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
         spotLight->calculateModel();
         spotLight->createShadowMap(512,512,sq);
         spotLight->enableShadows();
+        spotLight->setActive(false);
 
         boxLight = window->getRenderer()->lighting.createBoxLight();
         boxLight->setIntensity(1.0);
 
 //        boxLight->setPosition(vec3(0,2,10));
 //        boxLight->rotateLocal(vec3(1,0,0),30);
-        boxLight->setView(vec3(0,2,10),vec3(0,0,13),vec3(0,1,0));
-        boxLight->setColorDiffuse(vec3(1));
-        boxLight->setScale(vec3(5,5,8));
+        pos = vec3(0,19,0);
+        boxLight->setView(pos,pos+vec3(3,-3,0.3),vec3(0,1,0));
+        boxLight->setColorDiffuse(LightColorPresets::Tungsten40W);
+        boxLight->setScale(vec3(8,20,32));
         boxLight->calculateModel();
         boxLight->createShadowMap(512,512,sq);
         boxLight->enableShadows();
+//        boxLight->setActive(false);
 
 
 
@@ -122,12 +132,12 @@ Lighting::Lighting(OpenGLWindow *window): Program(window),
     cout<<"Program Initialized!"<<endl;
 }
 
-Lighting::~Lighting()
+VolumetricLights::~VolumetricLights()
 {
     //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
 }
 
-void Lighting::update(float dt){
+void VolumetricLights::update(float dt){
     //Update the camera position
     camera.update(dt);
 
@@ -152,13 +162,13 @@ void Lighting::update(float dt){
     //    sphere.calculateModel();
 }
 
-void Lighting::interpolate(float dt, float interpolation) {
+void VolumetricLights::interpolate(float dt, float interpolation) {
     //Update the camera rotation. This could also be done in 'update' but
     //doing it in the interpolate step will reduce latency
     camera.interpolate(dt,interpolation);
 }
 
-void Lighting::render(Camera *cam)
+void VolumetricLights::render(Camera *cam)
 {
     //Render all objects from the viewpoint of 'cam'
     groundPlane.render(cam);
@@ -167,7 +177,7 @@ void Lighting::render(Camera *cam)
     sphere.render(cam);
 }
 
-void Lighting::renderDepth(Camera *cam)
+void VolumetricLights::renderDepth(Camera *cam)
 {
     //Render the depth of all objects from the viewpoint of 'cam'
     //This will be called automatically for shadow casting light sources to create shadow maps
@@ -177,13 +187,13 @@ void Lighting::renderDepth(Camera *cam)
     sphere.render(cam);
 }
 
-void Lighting::renderOverlay(Camera *cam)
+void VolumetricLights::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
 //    skybox.render(cam);
 }
 
-void Lighting::renderFinal(Camera *cam)
+void VolumetricLights::renderFinal(Camera *cam)
 {
 
     //The final render path (after post processing).
@@ -212,7 +222,7 @@ void Lighting::renderFinal(Camera *cam)
 }
 
 
-void Lighting::keyPressed(SDL_Keysym key)
+void VolumetricLights::keyPressed(SDL_Keysym key)
 {
     switch(key.scancode){
     case SDL_SCANCODE_ESCAPE:
@@ -232,7 +242,7 @@ void Lighting::keyPressed(SDL_Keysym key)
     }
 }
 
-void Lighting::keyReleased(SDL_Keysym key)
+void VolumetricLights::keyReleased(SDL_Keysym key)
 {
 }
 

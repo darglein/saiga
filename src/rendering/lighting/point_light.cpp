@@ -135,7 +135,7 @@ bool PointLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCameraBuf
 
 void PointLight::renderImGui()
 {
-    Light::renderImGui();
+    AttenuatedLight::renderImGui();
     ImGui::InputFloat("shadowNearPlane",&shadowNearPlane);
 
 }

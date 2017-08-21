@@ -52,15 +52,15 @@ private:
 
 
 
-    std::shared_ptr<PointLightShader>  pointLightShader, pointLightShadowShader;
+    std::shared_ptr<PointLightShader>  pointLightShader, pointLightShadowShader, pointLightVolumetricShader;
     lightMesh_t pointLightMesh;
     std::vector< std::shared_ptr<PointLight> > pointLights;
 
-    std::shared_ptr<SpotLightShader>  spotLightShader, spotLightShadowShader;
+    std::shared_ptr<SpotLightShader>  spotLightShader, spotLightShadowShader, spotLightVolumetricShader;
     lightMesh_t spotLightMesh;
     std::vector< std::shared_ptr<SpotLight> > spotLights;
 
-    std::shared_ptr<BoxLightShader>  boxLightShader,boxLightShadowShader;
+    std::shared_ptr<BoxLightShader>  boxLightShader, boxLightShadowShader, boxLightVolumetricShader;
     lightMesh_t boxLightMesh;
     std::vector< std::shared_ptr<BoxLight> > boxLights;
 
@@ -77,6 +77,7 @@ private:
     GBuffer &gbuffer;
 
 
+    bool lightDepthTest = true;
     bool stencilCulling = true;
     bool drawDebug = true;
 
@@ -154,10 +155,10 @@ private:
 
     void blitGbufferDepthToAccumulationBuffer();
     void setupStencilPass();
-    void setupLightPass();
+    void setupLightPass(bool isVolumetric);
 
     template<typename T,typename shader_t>
-    void renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shader , shader_t shaderShadow);
+    void renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shader , shader_t shaderShadow, shader_t shaderVolumetric);
 
 
     void renderDirectionalLights(Camera *cam, bool shadow);
@@ -166,7 +167,7 @@ private:
 
 
 template<typename T,typename shader_t>
-inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shaderNormal , shader_t shaderShadow){
+inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shaderNormal , shader_t shaderShadow, shader_t shaderVolumetric){
     if(!obj->shouldRender())
         return;
 
@@ -179,8 +180,8 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera
         stencilShader->unbind();
     }
 
-    setupLightPass();
-    shader_t shader = (obj->hasShadows()) ? shaderShadow : shaderNormal;
+    setupLightPass(obj->isVolumetric());
+    shader_t shader = (obj->hasShadows() ?  (obj->isVolumetric() ? shaderVolumetric : shaderShadow) : shaderNormal);
     shader->bind();
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));

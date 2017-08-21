@@ -101,6 +101,9 @@ void OpenGLWindow::renderImGui(bool *p_open)
     ImGui::SliderFloat("Time Scale",&scale,0,5);
     gameTime.setTimeScale(scale);
 
+    ImGui::Text("Camera Position: %s" , to_string(currentCamera->getPosition()).c_str());
+    ImGui::Text("Camera Direction: %s" , to_string(-currentCamera->getDirection()).c_str());
+
 
     ImGui::Checkbox("showRendererImgui",&showRendererImgui);
     ImGui::Checkbox("showImguiDemo",&showImguiDemo);

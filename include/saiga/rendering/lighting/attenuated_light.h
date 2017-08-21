@@ -103,6 +103,7 @@ public:
 
 
     bool cullLight(Camera *cam);
+    void renderImGui();
 };
 
 }

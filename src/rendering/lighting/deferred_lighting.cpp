@@ -45,17 +45,24 @@ void DeferredLighting::loadShaders(const DeferredLightingShaderNames &names)
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
                                  "#define SHADOW_SAMPLES_X " + std::to_string(shadowSamplesX),2);
 
+    ShaderPart::ShaderCodeInjections volumetricInjection = shadowInjection;
+    volumetricInjection.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define VOLUMETRIC",3);
+
     spotLightShader         = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader);
     spotLightShadowShader   = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader,shadowInjection);
+    spotLightVolumetricShader   = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader,volumetricInjection);
 
     pointLightShader = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader);
     pointLightShadowShader = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader,shadowInjection);
-
-    directionalLightShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader);
-    directionalLightShadowShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader,shadowInjection);
+    pointLightVolumetricShader   = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader,volumetricInjection);
 
     boxLightShader = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader);
     boxLightShadowShader = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader,shadowInjection);
+    boxLightVolumetricShader  = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader,volumetricInjection);
+
+    directionalLightShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader);
+    directionalLightShadowShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader,shadowInjection);
 
     debugShader = ShaderLoader::instance()->load<MVPColorShader>(names.debugShader);
     stencilShader = ShaderLoader::instance()->load<MVPShader>(names.stencilShader);
@@ -230,6 +237,8 @@ void DeferredLighting::render(Camera* cam){
     if(stencilCulling){
         //all light volumes are using stencil culling
         glEnable(GL_STENCIL_TEST);
+    }else{
+        glDisable(GL_STENCIL_TEST);
     }
 
     //use depth test for all light volumes
@@ -244,19 +253,19 @@ void DeferredLighting::render(Camera* cam){
     assert_no_glerror();
     startTimer(1);
     for(auto& l : pointLights){
-        renderLightVolume< std::shared_ptr<PointLight> ,std::shared_ptr<PointLightShader>>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader);
+        renderLightVolume< std::shared_ptr<PointLight> ,std::shared_ptr<PointLightShader>>(pointLightMesh,l,cam,pointLightShader,pointLightShadowShader,pointLightVolumetricShader);
     }
     stopTimer(1);
 
     startTimer(2);
     for(auto& l : spotLights){
-        renderLightVolume< std::shared_ptr<SpotLight> ,std::shared_ptr<SpotLightShader>>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader);
+        renderLightVolume< std::shared_ptr<SpotLight> ,std::shared_ptr<SpotLightShader>>(spotLightMesh,l,cam,spotLightShader,spotLightShadowShader,spotLightVolumetricShader);
     }
     stopTimer(2);
 
     startTimer(3);
     for(auto& l : boxLights){
-        renderLightVolume< std::shared_ptr<BoxLight> ,std::shared_ptr<BoxLightShader>>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader);
+        renderLightVolume< std::shared_ptr<BoxLight> ,std::shared_ptr<BoxLightShader>>(boxLightMesh,l,cam,boxLightShader,boxLightShadowShader,boxLightVolumetricShader);
     }
     stopTimer(3);
     assert_no_glerror();
@@ -322,7 +331,7 @@ void DeferredLighting::setupStencilPass(){
     //    glStencilFunc(GL_LEQUAL, currentStencilId, 0xFF);
     glStencilOp(GL_KEEP,GL_REPLACE,GL_KEEP);
 }
-void DeferredLighting::setupLightPass(){
+void DeferredLighting::setupLightPass(bool isVolumetric){
 
     //write color in the light pass
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
@@ -330,8 +339,13 @@ void DeferredLighting::setupLightPass(){
     //render only back faces
     glCullFace(GL_FRONT);
 
-    //reversed depth test: it passes if the light volume is behind an object
-    glDepthFunc(GL_GEQUAL);
+    if(lightDepthTest && !isVolumetric){
+        //reversed depth test: it passes if the light volume is behind an object
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_GEQUAL);
+    }else{
+        glDisable(GL_DEPTH_TEST);
+    }
 
     if(stencilCulling){
         //discard all pixels that are marked with 'id' from the previous pass
@@ -350,10 +364,6 @@ void DeferredLighting::setupLightPass(){
         currentStencilId++;
         SAIGA_ASSERT(currentStencilId<256);
     }
-
-//    glDisable(GL_STENCIL_TEST);
-//    glDisable(GL_DEPTH_TEST);
-//    glStencilFunc(GL_ALWAYS, currentStencilId, 0xFF);
 }
 
 
@@ -637,6 +647,7 @@ void DeferredLighting::renderImGui(bool *p_open)
     ImGui::Checkbox("drawDebug",&drawDebug);
     ImGui::Checkbox("useTimers",&useTimers);
     ImGui::Checkbox("stencilCulling",&stencilCulling);
+    ImGui::Checkbox("lightDepthTest",&lightDepthTest);
 
 
     ImGui::Text("Render Time (without shadow map computation)");

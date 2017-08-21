@@ -26,12 +26,13 @@ void BoxLight::createShadowMap(int w, int h, ShadowQuality quality){
 }
 
 void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam){
+    if(isVolumetric()) shader->uploadVolumetricDensity(volumetricDensity);
     shader->uploadColorDiffuse(colorDiffuse);
     shader->uploadColorSpecular(colorSpecular);
     shader->uploadModel(model);
     shader->uploadInvProj(glm::inverse(cam->proj));
+    shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
     if(this->hasShadows()){
-        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
         shader->uploadDepthTexture(shadowmap->getDepthTexture());
         shader->uploadShadowMapSize(shadowmap->getSize());
     }

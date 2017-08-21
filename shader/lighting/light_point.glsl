@@ -50,6 +50,8 @@ in vec3 lightPos;
 
 layout(location=0) out vec4 out_color;
 
+#include "volumetric.glsl"
+
 
 void main() {
     vec3 diffColor,vposition,normal,data;
@@ -82,6 +84,13 @@ void main() {
     vec3 color = lightColorDiffuse.rgb * (
                 Idiff * diffColor +
                 Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
+#ifdef VOLUMETRIC
+    mat4 invV = inverse(view);
+    vec3 camera = vec3(invV[3]);
+//    vec3 fragW2 =vec3(invV * vec4(vertexMV,1));
+    vec3 vf = volumetricFactorPoint(depthTex,camera,fragW,vertex,lightW,farplane,nearplane,attenuation,intensity) * lightColorDiffuse.rgb;
+    color += vf;
+#endif
     out_color = vec4(color,1);
 
 //    out_color = vec4(lightColor*( Idiff*diffColor + Ispec*specColor),1);
