@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -70,26 +70,27 @@ private:
 
 
 
-//    std::shared_ptr<MVPTextureShader>  blitDepthShader;
+    //    std::shared_ptr<MVPTextureShader>  blitDepthShader;
     std::shared_ptr<LightAccumulationShader>  lightAccumulationShader;
 
     std::shared_ptr<MVPShader> stencilShader;
     GBuffer &gbuffer;
 
 
+    bool stencilCulling = true;
     bool drawDebug = true;
 
-	bool useTimers = true;
+    bool useTimers = true;
 
     bool backFaceShadows = false;
     float shadowOffsetFactor = 4;
     float shadowOffsetUnits = 10;
 
     std::vector<FilteredMultiFrameOpenGLTimer> timers2;
-	std::vector<std::string> timerStrings;
+    std::vector<std::string> timerStrings;
     void startTimer(int timer){if(useTimers)timers2[timer].startTimer();}
     void stopTimer(int timer){if(useTimers)timers2[timer].stopTimer();}
-	float getTime(int timer) { if (!useTimers) return 0; return timers2[timer].getTimeMS(); }
+    float getTime(int timer) { if (!useTimers) return 0; return timers2[timer].getTimeMS(); }
 public:
     vec4 clearColor = vec4(0);
     int totalLights;
@@ -105,7 +106,7 @@ public:
     Framebuffer lightAccumulationBuffer;
 
     DeferredLighting(GBuffer &gbuffer);
-	DeferredLighting& operator=(DeferredLighting& l) = delete;
+    DeferredLighting& operator=(DeferredLighting& l) = delete;
     ~DeferredLighting();
 
     void init(int width, int height, bool _useTimers);
@@ -169,13 +170,14 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera
     if(!obj->shouldRender())
         return;
 
-    setupStencilPass();
-    stencilShader->bind();
+    if(stencilCulling){
+        setupStencilPass();
+        stencilShader->bind();
 
-    obj->bindUniformsStencil(*stencilShader);
-    mesh.bindAndDraw();
-    stencilShader->unbind();
-
+        obj->bindUniformsStencil(*stencilShader);
+        mesh.bindAndDraw();
+        stencilShader->unbind();
+    }
 
     setupLightPass();
     shader_t shader = (obj->hasShadows()) ? shaderShadow : shaderNormal;

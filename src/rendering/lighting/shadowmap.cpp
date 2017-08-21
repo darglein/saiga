@@ -50,7 +50,8 @@ SimpleShadowmap::SimpleShadowmap(int w, int h, ShadowQuality quality){
     //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
     //    depth->setWrap(GL_CLAMP_TO_EDGE);
     depth->setWrap(GL_CLAMP_TO_BORDER);
-    depth->setBorderColor(vec4(1.0f));
+//    depth->setBorderColor(vec4(1.0f));
+    depth->setBorderColor(vec4(0.0f)); //no light on the outside
     depth->setFiltering(GL_LINEAR);
 
     //this requires the texture sampler in the shader to be sampler2DShadow

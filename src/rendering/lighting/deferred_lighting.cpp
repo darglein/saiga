@@ -227,8 +227,10 @@ void DeferredLighting::render(Camera* cam){
     //never overwrite current depthbuffer
     glDepthMask(GL_FALSE);
 
-    //all light volumes are using stencil culling
-    glEnable(GL_STENCIL_TEST);
+    if(stencilCulling){
+        //all light volumes are using stencil culling
+        glEnable(GL_STENCIL_TEST);
+    }
 
     //use depth test for all light volumes
     glEnable(GL_DEPTH_TEST);
@@ -272,15 +274,20 @@ void DeferredLighting::render(Camera* cam){
     glDisable(GL_DEPTH_TEST);
 
     startTimer(4);
-    glStencilFunc(GL_NOTEQUAL, 0xFF, 0xFF);
-    //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
-    //    glStencilFunc(GL_ALWAYS, 0xFF, 0xFF);
-    glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
+
+    if(stencilCulling){
+        glStencilFunc(GL_NOTEQUAL, 0xFF, 0xFF);
+        //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
+        //    glStencilFunc(GL_ALWAYS, 0xFF, 0xFF);
+        glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
+    }
     renderDirectionalLights(cam,false);
     renderDirectionalLights(cam,true);
     stopTimer(4);
 
-    glDisable(GL_STENCIL_TEST);
+    if(stencilCulling){
+        glDisable(GL_STENCIL_TEST);
+    }
     assert_no_glerror();
     //reset state
     glEnable(GL_DEPTH_TEST);
@@ -316,6 +323,7 @@ void DeferredLighting::setupStencilPass(){
     glStencilOp(GL_KEEP,GL_REPLACE,GL_KEEP);
 }
 void DeferredLighting::setupLightPass(){
+
     //write color in the light pass
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 
@@ -325,25 +333,27 @@ void DeferredLighting::setupLightPass(){
     //reversed depth test: it passes if the light volume is behind an object
     glDepthFunc(GL_GEQUAL);
 
-    //discard all pixels that are marked with 'id' from the previous pass
-    glStencilFunc(GL_NOTEQUAL, currentStencilId, 0xFF);
-    //    glStencilFunc(GL_NEVER, currentStencilId, 0xFF);
-    //    glStencilFunc(GL_GREATER, currentStencilId, 0xFF);
-    //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
-    glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
+    if(stencilCulling){
+        //discard all pixels that are marked with 'id' from the previous pass
+        glStencilFunc(GL_NOTEQUAL, currentStencilId, 0xFF);
+        //    glStencilFunc(GL_NEVER, currentStencilId, 0xFF);
+        //    glStencilFunc(GL_GREATER, currentStencilId, 0xFF);
+        //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
+        glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
 
-    //-> the reverse depth test + the stencil test make now sure that the current pixel is in the light volume
-    //this also works, when the camera is inside the volume, but fails when the far plane is intersecting the volume
+        //-> the reverse depth test + the stencil test make now sure that the current pixel is in the light volume
+        //this also works, when the camera is inside the volume, but fails when the far plane is intersecting the volume
 
 
-    //increase stencil id, so the next light will write a different value to the stencil buffer.
-    //with this trick the expensive clear can be saved after each light
-    currentStencilId++;
-    SAIGA_ASSERT(currentStencilId<256);
+        //increase stencil id, so the next light will write a different value to the stencil buffer.
+        //with this trick the expensive clear can be saved after each light
+        currentStencilId++;
+        SAIGA_ASSERT(currentStencilId<256);
+    }
 
-    glDisable(GL_STENCIL_TEST);
-    glDisable(GL_DEPTH_TEST);
-    glStencilFunc(GL_ALWAYS, currentStencilId, 0xFF);
+//    glDisable(GL_STENCIL_TEST);
+//    glDisable(GL_DEPTH_TEST);
+//    glStencilFunc(GL_ALWAYS, currentStencilId, 0xFF);
 }
 
 
@@ -626,6 +636,8 @@ void DeferredLighting::renderImGui(bool *p_open)
     ImGui::ColorEdit4("clearColor ",&clearColor[0]);
     ImGui::Checkbox("drawDebug",&drawDebug);
     ImGui::Checkbox("useTimers",&useTimers);
+    ImGui::Checkbox("stencilCulling",&stencilCulling);
+
 
     ImGui::Text("Render Time (without shadow map computation)");
     for(int i = 0 ;i < 5 ;++i){
