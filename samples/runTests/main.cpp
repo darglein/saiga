@@ -43,7 +43,8 @@ int main(int argc, char *argv[]) {
         CUDA::initCUDA();
         CUDA::initBLASSPARSE();
 
-        CUDA::warpStrideLoopTest();
+        CUDA::inverseTest();
+//        CUDA::warpStrideLoopTest();
         return 1;
         CUDA::randomTest();
 

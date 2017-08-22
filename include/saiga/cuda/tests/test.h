@@ -30,5 +30,7 @@ SAIGA_GLOBAL extern void imageProcessingTest();
 SAIGA_GLOBAL extern void testCuda();
 SAIGA_GLOBAL extern void testThrust();
 
+SAIGA_GLOBAL extern void inverseTest();
+
 }
 }
