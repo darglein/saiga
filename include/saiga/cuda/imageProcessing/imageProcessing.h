@@ -12,4 +12,5 @@
 #include "saiga/cuda/imageProcessing/scale.h"
 #include "saiga/cuda/imageProcessing/filter.h"
 #include "saiga/cuda/imageProcessing/convolution.h"
+#include "saiga/cuda/imageProcessing/difference.h"
 

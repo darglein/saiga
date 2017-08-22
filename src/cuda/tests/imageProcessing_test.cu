@@ -42,6 +42,11 @@ void imageProcessingTest(){
     CUDA::CudaImage<float> cimggrayhalf(cimg.width/2,cimg.height/2);
     CUDA::CudaImage<float> cimggraydouble(cimg.width*2,cimg.height*2);
 
+    CUDA::CudaImage<float> cimgmulti1v(cimg.width,cimg.height*6);
+    CUDA::CudaImage<float> cimgmulti2v(cimg.width,cimg.height*5);
+    ImageArrayView<float> cimgmulti1( ImageView<float>(cimg.width,cimg.height,cimgmulti1v.data), 6 );
+    ImageArrayView<float> cimgmulti2( ImageView<float>(cimg.width,cimg.height,cimgmulti1v.data), 5 );
+
     {
         int its = 5;
         float time;
@@ -159,6 +164,31 @@ void imageProcessingTest(){
                 CUDA::scaleUp2Linear(cimggray,cimggraydouble);
         }
         pth.addMeassurement("scaleUp2Linear", time/its);
+    }
+
+
+    {
+        int its = 5;
+        float time;
+        pth.updateBytes(cimggray.size() * 3);
+        {
+            CUDA::CudaScopedTimer t(time);
+            for(int i = 0; i < its; ++i)
+                CUDA::subtract(cimggray,cimgtmp,cimgblurred);
+        }
+        pth.addMeassurement("subtract", time/its);
+    }
+
+    {
+        int its = 5;
+        float time;
+        pth.updateBytes(cimggray.size() * (cimgmulti1.n+cimgmulti2.n) );
+        {
+            CUDA::CudaScopedTimer t(time);
+            for(int i = 0; i < its; ++i)
+                CUDA::subtractMulti(cimgmulti1,cimgmulti2);
+        }
+        pth.addMeassurement("subtract multi", time/its);
     }
 
     CUDA_SYNC_CHECK_ERROR();
