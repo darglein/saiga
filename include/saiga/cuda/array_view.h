@@ -109,9 +109,9 @@ struct array_view{
     }
 
 
-    HD operator bool() const noexcept {
-        return data_;
-    }
+//    HD operator bool() const noexcept {
+//        return data_;
+//    }
 
     HD operator T*() const noexcept {
         return data_;

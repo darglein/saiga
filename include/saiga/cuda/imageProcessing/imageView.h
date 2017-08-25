@@ -54,6 +54,19 @@ struct ImageView{
         return height * pitchBytes;
     }
 
+    //a view to a sub image
+    HD inline
+    ImageView<T> subImageView(int startX, int startY, int w, int h){
+#ifdef ON_DEVICE
+#else
+        SAIGA_ASSERT(startX >= 0 && startX < width);
+        SAIGA_ASSERT(startY >= 0 && startY < height);
+        SAIGA_ASSERT(startX + w <= width);
+        SAIGA_ASSERT(startY + h <= height);
+#endif
+        ImageView<T> iv(w,h,pitchBytes,&(*this)(startX,startY));
+        return iv;
+    }
 
     HD inline
     T& operator()(int x, int y){
