@@ -293,9 +293,69 @@ void matrixCopy(Saiga::array_view<T> data, Saiga::array_view<T> result){
     }
 }
 
+
+static void testCorrectness(){
+    cout << "testCorrectness" << endl;
+    const int MatrixSize = 3;
+    using fixed_matrix_t = Eigen::Matrix<double,MatrixSize,MatrixSize,Eigen::RowMajor>;
+
+    fixed_matrix_t A, Aref, Ares;
+    std::vector<double> Ahalf,Ahalfres;
+
+    for(int i = 0 ; i < MatrixSize ; ++i){
+        double d = rand() % 10 + 2;
+        A(i,i) = d;
+        for(int j = 0 ; j < i ; ++j){
+            double d = rand() % 3 - 1;
+            A(i,j) = d;
+            A(j,i) = d;
+        }
+    }
+
+    for(int i = 0 ; i < MatrixSize ; ++i){
+        for(int j = 0 ; j <= i ; ++j){
+            Ahalf.push_back(A(i,j));
+        }
+    }
+
+    Ahalfres.resize(Ahalf.size());
+    SAIGA_ASSERT(Ahalf.size() == 6);
+
+    cout << "A: " << endl << A << endl;
+
+    Aref = A.inverse();
+
+    cout << "Eigen inverse: " << endl << Aref << endl;
+
+    invertSymmetric<double,MatrixSize>(A.data(),Ares.data());
+    cout << "invertSymmetric: " << endl << Ares << endl;
+
+    invertSymmetric<double,MatrixSize,MatrixIndexOp::Half>(Ahalf.data(),Ahalfres.data());
+    cout << "invertSymmetric Half: "  << endl;
+    for(auto d : Ahalfres){
+        cout << d << endl;
+    }
+
+
+    inverse3x3<double>(A.data(),Ares.data());
+    cout << "inverse3x3: " << endl << Ares << endl;
+
+    inverse3x3Symmetric<double>(Ahalf.data(),Ahalfres.data());
+    cout << "inverse3x3Half: "  << endl;
+    for(auto d : Ahalfres){
+        cout << d << endl;
+    }
+
+
+    cout << endl;
+
+}
+
 //nvcc $CPPFLAGS -I ~/Master/libs/data/include/eigen3/ -ptx -lineinfo -src-in-ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr inverse_test.cu
 //nvcc $CPPFLAGS -I ~/Master/libs/data/include/eigen3/ -ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr inverse_test.cu
 void inverseTest(){
+
+    testCorrectness();
 
     const int MatrixSize = 4;
     const int MatrixCount = 1000000;

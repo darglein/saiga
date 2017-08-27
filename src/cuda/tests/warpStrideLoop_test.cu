@@ -61,10 +61,14 @@ static void batchReduce2(array_view<T> in, array_view<T> out){
 
     T sum = 0;
 
-    for(int k = 0, i = ti.lane_id; k < iDivUp(N,LOCAL_WARP_SIZE) ; ++k, i+=LOCAL_WARP_SIZE){
-        if(i < N){
-            sum += in[i+inoffset];
-        }
+//    for(int k = 0, i = ti.lane_id; k < iDivUp(N,LOCAL_WARP_SIZE) ; ++k, i+=LOCAL_WARP_SIZE){
+//        if(i < N){
+//            sum += in[i+inoffset];
+//        }
+//    }
+
+    WARP_FOR(i,ti.lane_id,N,LOCAL_WARP_SIZE){
+        sum += in[i+inoffset];
     }
 
     sum = warpReduceSum<T,LOCAL_WARP_SIZE>(sum);

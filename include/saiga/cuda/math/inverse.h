@@ -16,7 +16,15 @@ template<typename T, int N, MatrixIndexOp op>
 struct MatrixIndex{
 };
 
-
+/**
+ * Full Matrix:
+ *
+ * | a b c |
+ * | d e f |
+ * | g h i |
+ *
+ * Stored as: [a,b,c,d,e,f,g,h,i]
+ */
 template<typename T, int N>
 struct MatrixIndex<T,N,Full>{
     T* A;
@@ -30,6 +38,15 @@ struct MatrixIndex<T,N,Full>{
     }
 };
 
+/**
+ * Half (lower) Matrix:
+ *
+ * | a * * |
+ * | b c * |
+ * | d e f |
+ *
+ * Stored as: [a,b,c,d,e,f]
+ */
 template<typename T, int N>
 struct MatrixIndex<T,N,Half>{
     T* A;
@@ -190,6 +207,32 @@ void inverse3x3(const T* A, T* C){
     minv(2, 0) = (m(1, 0) * m(2, 1) - m(2, 0) * m(1, 1)) * invdet;
     minv(2, 1) = (m(2, 0) * m(0, 1) - m(0, 0) * m(2, 1)) * invdet;
     minv(2, 2) = (m(0, 0) * m(1, 1) - m(1, 0) * m(0, 1)) * invdet;
+
+}
+
+
+template<typename T>
+inline HD
+void inverse3x3Symmetric(const T* A, T* C){
+    const int N = 3;
+    MatrixIndex<const T,N,MatrixIndexOp::Half> m(A);
+    MatrixIndex<T,N,MatrixIndexOp::Half> minv(C);
+
+    //https://stackoverflow.com/questions/983999/simple-3x3-matrix-inverse-code-c
+
+    // computes the inverse of a matrix m
+    T det = m(0, 0) * (m(1, 1) * m(2, 2) - m(2, 1) * m(2, 1)) -
+                 m(1, 0) * (m(1, 0) * m(2, 2) - m(2, 1) * m(2, 0)) +
+                 m(2, 0) * (m(1, 0) * m(2, 1) - m(1, 1) * m(2, 0));
+
+    T invdet = T(1) / det;
+
+    minv(0, 0) = (m(1, 1) * m(2, 2) - m(2, 1) * m(2, 1)) * invdet;
+    minv(1, 0) = (m(2, 1) * m(2, 0) - m(1, 0) * m(2, 2)) * invdet;
+    minv(1, 1) = (m(0, 0) * m(2, 2) - m(2, 0) * m(2, 0)) * invdet;
+    minv(2, 0) = (m(1, 0) * m(2, 1) - m(2, 0) * m(1, 1)) * invdet;
+    minv(2, 1) = (m(2, 0) * m(1, 0) - m(0, 0) * m(2, 1)) * invdet;
+    minv(2, 2) = (m(0, 0) * m(1, 1) - m(1, 0) * m(1, 0)) * invdet;
 
 }
 

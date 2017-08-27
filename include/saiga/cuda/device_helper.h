@@ -84,7 +84,7 @@ void cuda_assert_fail (const char *__assertion, const char *__file,
 
 #define WARP_FOR_NO_IF(_variableName, _initExpr, _length, _step) for (unsigned int _variableName=_initExpr, _k=0; _k < Saiga::iDivUp(_length,_step);_k++, _variableName+=_step)
 
-#define WARP_FOR(_variableName, _initExpr, _length, _step) WARPFOR_NO_IF(_variableName, _initExpr, _length, _step) \
+#define WARP_FOR(_variableName, _initExpr, _length, _step) WARP_FOR_NO_IF(_variableName, _initExpr, _length, _step) \
     if(_variableName < _length)
 
 
