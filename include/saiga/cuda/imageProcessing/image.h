@@ -20,22 +20,7 @@ void copyImage(ImageView<T> imgSrc, ImageView<T> imgDst, enum cudaMemcpyKind kin
     cudaMemcpy2D(imgDst.data,imgDst.pitchBytes,imgSrc.data,imgSrc.pitchBytes,imgSrc.width*sizeof(T),imgSrc.height,kind);
 }
 
-//creates a cpu Image from a deviec imageview
-template<typename T>
-inline
-Image deviceImageViewToImage(ImageView<T> img){
-    ImageFormat imageFormat;
-    if (typeid(T) == typeid(float)){
-        imageFormat = ImageFormat(1,32,ImageElementFormat::FloatingPoint);
-    }else if(typeid(T) == typeid(uchar4)){
-        imageFormat = ImageFormat(4,8,ImageElementFormat::UnsignedNormalized);
-    }else if(typeid(T) == typeid(uchar3)){
-        imageFormat = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-    }
-    Image h_img(imageFormat,img.width,img.height,img.pitchBytes,0);
-    copyImage(img,h_img.getImageView<T>(),cudaMemcpyDeviceToHost);
-    return h_img;
-}
+
 
 
 SAIGA_GLOBAL void resizeDeviceVector(thrust::device_vector<uint8_t>& v, int size);
@@ -59,28 +44,8 @@ struct CudaImage : public ImageView<T>{
     }
 
 
-    CudaImage(Image& h_img) : CudaImage<T>(h_img.width,h_img.height,h_img.getBytesPerRow()){
-#if !defined(SAIGA_RELEASE)
-        if (typeid(T) == typeid(float)){
-            SAIGA_ASSERT(h_img.Format().getChannels() == 1
-                         && h_img.Format().getElementFormat() == ImageElementFormat::FloatingPoint
-                         && h_img.Format().getBitDepth() == 32);
-        }else if(typeid(T) == typeid(uchar4)){
-            SAIGA_ASSERT(h_img.Format().getChannels() == 4
-                         && h_img.Format().getElementFormat() == ImageElementFormat::UnsignedNormalized
-                         && h_img.Format().getBitDepth() == 8);
-        }else if(typeid(T) == typeid(uchar3)){
-            SAIGA_ASSERT(h_img.Format().getChannels() == 3
-                         && h_img.Format().getElementFormat() == ImageElementFormat::UnsignedNormalized
-                         && h_img.Format().getBitDepth() == 8);
-        }
-#endif
-        copyImage(h_img.getImageView<T>(),*this,cudaMemcpyHostToDevice);
-    }
-
-    inline
-    operator Image(){
-        return deviceImageViewToImage(*this);
+    CudaImage(ImageView<T> h_img) {
+        upload(h_img);
     }
 
     //upload a host imageview to the device
@@ -128,6 +93,19 @@ void swap(CudaImage<T> &first, CudaImage<T> &second)
     swap(first.height,second.height);
     swap(first.pitchBytes,second.pitchBytes);
     swap(first.data,second.data);
+}
+
+
+template<typename T>
+void convert(Image& src, CudaImage<T>& dst){
+    dst.upload(src.getImageView<T>());
+}
+
+
+template<typename T>
+void convert(CudaImage<T>& src, Image& dst){
+    dst.setFormatFromImageView(src);
+    CUDA::copyImage(src,dst.getImageView<T>(),cudaMemcpyDeviceToHost);
 }
 
 }

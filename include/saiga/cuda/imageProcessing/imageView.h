@@ -11,6 +11,22 @@
 #include "saiga/util/glm.h"
 #include <algorithm>
 
+#if defined(SAIGA_USE_CUDA)
+#include <vector_types.h>
+#else
+#if !defined (__VECTOR_TYPES_H__)
+struct uchar3
+{
+    unsigned char x, y, z;
+};
+
+struct GLM_ALIGN(4) uchar4
+{
+    unsigned char x, y, z, w;
+};
+#endif
+#endif
+
 namespace Saiga {
 
 

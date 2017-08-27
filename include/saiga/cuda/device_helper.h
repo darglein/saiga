@@ -9,6 +9,10 @@
 #include "saiga/util/assert.h"
 #include "saiga/cuda/cudaHelper.h"
 
+#if !defined(IS_CUDA)
+#error device_helper.h must only be included by nvcc
+#endif
+
 #if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
 //atomicAdd is already defined for compute capability 6.x and higher.
 #else
@@ -76,3 +80,11 @@ void cuda_assert_fail (const char *__assertion, const char *__file,
 # define CUDA_ASSERT(expr)		( static_cast<void>(0))
 
 #endif
+
+
+#define WARP_FOR_NO_IF(_variableName, _initExpr, _length, _step) for (unsigned int _variableName=_initExpr, _k=0; _k < Saiga::iDivUp(_length,_step);_k++, _variableName+=_step)
+
+#define WARP_FOR(_variableName, _initExpr, _length, _step) WARPFOR_NO_IF(_variableName, _initExpr, _length, _step) \
+    if(_variableName < _length)
+
+

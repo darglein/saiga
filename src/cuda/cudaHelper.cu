@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -14,12 +14,6 @@ namespace CUDA {
 using std::cout;
 using std::endl;
 
-void assert_no_cuda_error(cudaError_t code,const char *file, int line) {
-    if (code != cudaSuccess) {
-        std::cout<<"GPUassert: "<< cudaGetErrorString(code) << " " << file << " " << line << std::endl;
-        SAIGA_ASSERT(0);
-    }
-}
 
 
 // Beginning of GPU Architecture definitions
@@ -167,6 +161,13 @@ void initCUDA(){
     cout << "CUDA Runtime Version: " << runtimeVersion << endl;
     cout << "CUDA Driver Version: " << driverVersion << endl;
 
+#ifdef CUDA_DEBUG
+    bool cudadebug = true;
+#else
+    bool cudadebug = false;
+#endif
+    cout << "CUDA DEBUG = " << cudadebug << endl;
+
     int deviceCount;
     CHECK_CUDA_ERROR( cudaGetDeviceCount(&deviceCount));
     SAIGA_ASSERT(deviceCount > 0);
@@ -181,7 +182,7 @@ void initCUDA(){
     cudaDeviceProp deviceProp;
     CHECK_CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, devID));
     /* Statistics about the GPU device */
-    cout << "Device Number: " << devID << endl;
+    cout << "Device Properties for CUDA device: " << devID << endl;
     cout << "  Device name: " << deviceProp.name << endl;
     cout << "  Compute capabilities: " << deviceProp.major << "." << deviceProp.minor << endl;
     cout << "  Global Memory: " << deviceProp.totalGlobalMem << endl;
@@ -195,16 +196,16 @@ void initCUDA(){
     cout << "  Memory Clock Rate (KHz): " << deviceProp.memoryClockRate << endl;
     cout << "  Memory Bus Width (bits): " << deviceProp.memoryBusWidth << endl;
 
-    cout << "  32-Bit Registers per Thread (100% Occ): " << deviceProp.regsPerBlock / deviceProp.maxThreadsPerMultiProcessor << endl;
-    cout << "  Shared Memory per Thread (100% Occ): " << deviceProp.sharedMemPerBlock/ deviceProp.maxThreadsPerMultiProcessor << endl;
-
-
     //In this calculation, we convert the memory clock rate to Hz,
     //multiply it by the interface width (divided by 8, to convert bits to bytes)
     //and multiply by 2 due to the double data rate. Finally, we divide by 109 to convert the result to GB/s.
     double clockRateHz = deviceProp.memoryClockRate * 1000.0;
     cout << "  Theoretical Memory Bandwidth (GB/s): " << 2.0*clockRateHz*(deviceProp.memoryBusWidth/8)/1.0e9 << endl;
 
+
+    cout << "  32-Bit Registers per Thread (100% Occ): " << deviceProp.regsPerBlock / deviceProp.maxThreadsPerMultiProcessor << endl;
+    cout << "  Shared Memory per Thread (100% Occ): " << deviceProp.sharedMemPerBlock/ deviceProp.maxThreadsPerMultiProcessor << endl;
+    cout << "  32-Bit Shared Memory elements per Thread (100% Occ): " << deviceProp.sharedMemPerBlock/ deviceProp.maxThreadsPerMultiProcessor/4 << endl;
 
     cout << endl;
 }
@@ -215,7 +216,7 @@ void destroyCUDA(){
     // needed to ensure correct operation when the application is being
     // profiled. Calling cudaDeviceReset causes all profile data to be
     // flushed before the application exits
-    cudaDeviceReset();
+    CHECK_CUDA_ERROR(cudaDeviceReset());
 }
 
 }

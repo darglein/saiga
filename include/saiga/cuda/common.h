@@ -6,6 +6,15 @@
 
 #pragma once
 
+//remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
+//for gcc add cppflag: -DCUDA_NDEBUG
+#ifndef CUDA_NDEBUG
+#define CUDA_DEBUG
+#else
+#undef CUDA_DEBUG
+#endif
+
+
 #ifdef __CUDACC__
 #	define HD __host__ __device__
 #	define IS_CUDA

@@ -123,7 +123,7 @@ __global__ void convolutionRowsKernel(
     const int xp = blockIdx.x*BLOCK_W + tx;
     const int yp = blockIdx.y*BLOCK_H + ty;
 
-    const int baseX = blockIdx.x*BLOCK_W - KERNEL_RADIUS;
+//    const int baseX = blockIdx.x*BLOCK_W - KERNEL_RADIUS;
 
     const int baseXV = blockIdx.x * BLOCK_W - KERNEL_RADIUS / elements_per_vector;
 
@@ -282,9 +282,9 @@ __global__ void convolutionColumnsKernel(
     vector_type* src2 = reinterpret_cast<vector_type*>(d_Src);
     vector_type* dest2 = reinterpret_cast<vector_type*>(d_Dst);
 
-    T* s_Data2 = reinterpret_cast<T*>(s_Data);
+//    T* s_Data2 = reinterpret_cast<T*>(s_Data);
 
-    int imageWV = imageW / elements_per_vector;
+//    int imageWV = imageW / elements_per_vector;
     int pitchV = pitch / elements_per_vector;
 
 
@@ -297,9 +297,9 @@ __global__ void convolutionColumnsKernel(
     const int xp = blockIdx.x*BLOCK_W + tx;
     const int yp = blockIdx.y*BLOCK_H + ty;
 
-    const int baseX = blockIdx.x*BLOCK_W - KERNEL_RADIUS;
+//    const int baseX = blockIdx.x*BLOCK_W - KERNEL_RADIUS;
 
-    const int baseXV = blockIdx.x * BLOCK_W - KERNEL_RADIUS / elements_per_vector;
+//    const int baseXV = blockIdx.x * BLOCK_W - KERNEL_RADIUS / elements_per_vector;
 
 
 
@@ -312,9 +312,9 @@ __global__ void convolutionColumnsKernel(
         y = min(max(0,y),imageH-1);
         s_Data[tx*shared_block_width + i] = src2[y * pitchV + xp];
 
-        vector_type v;
-        v.x = 1;
-        v.y = 1;
+//        vector_type v;
+//        v.x = 1;
+//        v.y = 1;
         //        s_Data[tx*shared_block_width + i] = v;
 
         //                if(blockIdx.x == 0 && blockIdx.y == 0){

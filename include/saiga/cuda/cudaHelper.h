@@ -6,15 +6,7 @@
 
 #pragma once
 #include "saiga/config.h"
-
-//remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
-//for gcc add cppflag: -DCUDA_NDEBUG
-#ifndef CUDA_NDEBUG
-#define CUDA_DEBUG
-#else
-#undef CUDA_DEBUG
-#endif
-
+#include "saiga/cuda/common.h"
 #include "saiga/cuda/array_view.h"
 #include "saiga/cuda/cudaTimer.h"
 #include "saiga/util/imath.h"

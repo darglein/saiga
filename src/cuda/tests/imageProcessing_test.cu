@@ -34,7 +34,7 @@ void imageProcessingTest(){
     CUDA::PerformanceTestHelper pth("imageProcessingTest ImageSize: " + to_string(img.width) + "x" + to_string(img.height), readWrites);
 
 
-    CUDA::CudaImage<uchar3> cimg(img);
+    CUDA::CudaImage<uchar3> cimg(img.getImageView<uchar3>());
     CUDA::CudaImage<uchar4> cimg4(cimg.width,cimg.height);
     CUDA::CudaImage<float> cimggray(cimg.width,cimg.height);
     CUDA::CudaImage<float> cimgtmp(cimg.width,cimg.height);

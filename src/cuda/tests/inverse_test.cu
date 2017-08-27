@@ -18,124 +18,6 @@ namespace Saiga {
 namespace CUDA{
 
 
-static void cholesky(const matrix_t &A, matrix_t &L){
-    Saiga::ScopedTimerPrint t("cholesky");
-    int n = A.rows();
-
-    //for all rows
-    for (int i = 0; i < n; i++){
-        //for all cols until diagonal
-        for (int j = 0; j <= i; j++) {
-            double s = 0;
-            //dot product of row i with row j,
-            //but only until col j
-            //this requires the top left block to be computed
-            for (int k = 0; k < j; k++){
-                s += L(i,k) * L(j,k);
-            }
-            s = A(i,j) - s;
-            L(i,j) = (i == j) ?
-                        sqrt(s) :
-                        (1.0 / L(j,j) * (s));
-        }
-    }
-}
-
-static void choleskyCol(const matrix_t &A, matrix_t &L){
-    Saiga::ScopedTimerPrint t("cholesky");
-    int n = A.rows();
-
-    //for all cols
-    for (int j = 0; j < n; j++){
-        //for all cols until diagonal
-        for (int i = j; i < n; i++) {
-            double s = 0;
-            //dot product of row i with row j,
-            //but only until col j
-            //this requires the top left block to be computed
-            for (int k = 0; k < j; k++){
-                s += L(i,k) * L(j,k);
-            }
-            s = A(i,j) - s;
-            L(i,j) = (i == j) ?
-                        sqrt(s) :
-                        (1.0 / L(j,j) * (s));
-        }
-    }
-}
-
-static void inverseTriangular(const matrix_t &L, matrix_t &Linv){
-    Saiga::ScopedTimerPrint t("inverseTriangular");
-    int n = L.rows();
-
-
-    for(int i = 0 ; i < n ; ++i){
-        //invert the diagonal element
-        Linv(i,i) = 1.0 / L(i,i);
-    }
-
-    for(int i = 0 ; i < n ; ++i){
-        for(int j = 0; j < i ; ++j){
-            double sum = 0;
-            //dot product of row i with col j
-            for(int k = j; k < i ; ++k){
-                sum += L(i,k) * Linv(k,j);
-            }
-            //divide by diagonal element of this row
-            Linv(i,j) = - Linv(i,i) * sum;
-        }
-    }
-}
-
-
-//A = L^T * L
-static void multLTL(const matrix_t &L, matrix_t &A){
-    Saiga::ScopedTimerPrint t("multLTL");
-    int n = L.rows();
-
-    for(int i = 0 ; i < n ; ++i){
-        for(int j = 0; j <= i ; ++j){
-            //dot product of col i with col j
-            double sum = 0;
-            //Note: we can start at i here because all values above the diagonal are 0 and i >= j
-            for(int k = i ; k < n ; ++k){
-                sum += L(k,i) * L(k,j);
-            }
-            A(i,j) = sum;
-            //            A(j,i) = sum;
-        }
-
-    }
-}
-
-
-
-static void inverseTriangularInplace(matrix_t &L){
-    inverseTriangular(L,L);
-}
-
-static void invertSymmetric(const matrix_t &A, matrix_t &Ainv){
-    Ainv = A;
-
-    std::vector<double> data;
-    for(int i = 0 ; i < A.rows(); ++i){
-        for(int j = 0; j <= i ; ++j){
-            data.push_back(Ainv(i,j));
-        }
-    }
-    invertSymmetric<double,3,Half>(data.data());
-
-    MatrixIndex<double,3,Half> M(data.data());
-    for(int i = 0 ; i < A.rows(); ++i){
-        for(int j = 0; j <= i ; ++j){
-            Ainv(i,j) = M(i,j);
-            Ainv(j,i) = M(i,j);
-        }
-    }
-}
-
-
-
 template<typename T, int N, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__
@@ -168,7 +50,7 @@ __global__
 void invertMatrices2(Saiga::array_view<T> data, Saiga::array_view<T> result){
     const int matrixElements = N * N;
     const int elementsPerWarp = matrixElements * WARP_SIZE;
-    const int elementsPerBlock = matrixElements * BLOCK_SIZE;
+//    const int elementsPerBlock = matrixElements * BLOCK_SIZE;
 
     __shared__ double buffer[BLOCK_SIZE][matrixElements];
 
@@ -176,12 +58,12 @@ void invertMatrices2(Saiga::array_view<T> data, Saiga::array_view<T> result){
     //grid stride loop
     for(auto id = ti.thread_id * matrixElements; id < data.size(); id += ti.grid_size * matrixElements){
 
-        auto matrixId = ti.thread_id;
-        auto globalOffset = matrixId * matrixElements;
+//        auto matrixId = ti.thread_id;
+//        auto globalOffset = matrixId * matrixElements;
         auto localMatrixId = ti.local_thread_id; //id in shared buffer
 
         auto warpStart = ti.warp_id * elementsPerWarp;
-        auto sharedBlockWarpStart = ti.warp_lane * elementsPerWarp;
+//        auto sharedBlockWarpStart = ti.warp_lane * elementsPerWarp;
 
 
         //strided copy
@@ -192,30 +74,12 @@ void invertMatrices2(Saiga::array_view<T> data, Saiga::array_view<T> result){
         }
 
 
-//        auto offset = 1;
-
-//        T l[N*N];
-//        for(int i = 0; i < N*N; ++i){
-//            l[i] = data[offset+i];
-//        }
-
-//        choleskyKernel2<T,N>(l);
-
-
-//        for(int i = 0; i < N*N; ++i){
-//            data[offset+i] =  l[i];
-//        }
-
-
-        auto offset = 1;
 
         T l[matrixElements];
         for(int i = 0; i < matrixElements; ++i){
             l[i] = buffer[localMatrixId][i];
         }
 
-//        choleskyKernel2<T,N>(l);
-//        invertSymmetric<T,N>(l);
         invertSymmetric<T,N,Full>(l);
 
 
@@ -244,7 +108,7 @@ void invertMatrices3(Saiga::array_view<T> data, Saiga::array_view<T> result){
 
 
 
-    const int elementsPerWarp = matrixElements * WARP_SIZE;
+//    const int elementsPerWarp = matrixElements * WARP_SIZE;
     const int tiles = 2;
     const int elementsPerTile = matrixElements / tiles;
     const int elementsPerBlock = matrixElements * BLOCK_SIZE;
@@ -259,7 +123,7 @@ void invertMatrices3(Saiga::array_view<T> data, Saiga::array_view<T> result){
         T l[matrixElements];
 
         auto localMatrixId = ti.local_thread_id; //id in shared buffer
-        auto warpStart = ti.warp_id * elementsPerWarp;
+//        auto warpStart = ti.warp_id * elementsPerWarp;
         auto blockStart = ti.block_id * elementsPerBlock;
 
         auto warpOffset = ti.warp_lane * WARP_SIZE; //start matrix of this warp in block local shared memory
@@ -325,10 +189,10 @@ template<typename T, int N, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__
 void matrixCopy(Saiga::array_view<T> data, Saiga::array_view<T> result){
-    const int padding = 1;
+//    const int padding = 1;
     const int matrixElements = N * N;
     const int elementsPerWarp = matrixElements * WARP_SIZE;
-    const int elementsPerBlock = matrixElements * BLOCK_SIZE;
+//    const int elementsPerBlock = matrixElements * BLOCK_SIZE;
 
     //    __shared__ double buffer[elementsPerBlock];
     __shared__ double buffer[BLOCK_SIZE][matrixElements + 0];
@@ -338,12 +202,12 @@ void matrixCopy(Saiga::array_view<T> data, Saiga::array_view<T> result){
     for(auto id = ti.thread_id * matrixElements; id < data.size(); id += ti.grid_size * matrixElements){
 
 
-        auto matrixId = ti.thread_id;
-        auto globalOffset = matrixId * matrixElements;
+//        auto matrixId = ti.thread_id;
+//        auto globalOffset = matrixId * matrixElements;
         auto localMatrixId = ti.local_thread_id; //id in shared buffer
 
         auto warpStart = ti.warp_id * elementsPerWarp;
-        auto sharedBlockWarpStart = ti.warp_lane * elementsPerWarp;
+//        auto sharedBlockWarpStart = ti.warp_lane * elementsPerWarp;
 
 
 
@@ -635,13 +499,11 @@ void inverseTest(){
 
 
     {
-        const int BLOCK_SIZE = 128;
         result = data;
         float time;
         {
             Saiga::CUDA::CudaScopedTimer t(time);
             cudaMemcpy(thrust::raw_pointer_cast(d_result.data()),thrust::raw_pointer_cast(d_data.data()),d_data.size()*sizeof(double),cudaMemcpyDeviceToDevice);
-            //            matrixCopy<double,MatrixSize,BLOCK_SIZE> <<< Saiga::CUDA::getBlockCount(MatrixCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
         }
         test.addMeassurement("cudaMemcpy",time);
         CUDA_SYNC_CHECK_ERROR();

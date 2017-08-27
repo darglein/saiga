@@ -61,8 +61,38 @@ public:
 
     template<typename T>
     ImageView<T> getImageView(){
+#if !defined(SAIGA_RELEASE)
+        if (typeid(T) == typeid(float)){
+            SAIGA_ASSERT(Format().getChannels() == 1
+                         && Format().getElementFormat() == ImageElementFormat::FloatingPoint
+                         && Format().getBitDepth() == 32);
+        }else if(typeid(T) == typeid(uchar4)){
+            SAIGA_ASSERT(Format().getChannels() == 4
+                         && Format().getElementFormat() == ImageElementFormat::UnsignedNormalized
+                         && Format().getBitDepth() == 8);
+        }else if(typeid(T) == typeid(uchar3)){
+            SAIGA_ASSERT(Format().getChannels() == 3
+                         && Format().getElementFormat() == ImageElementFormat::UnsignedNormalized
+                         && Format().getBitDepth() == 8);
+        }
+#endif
         ImageView<T> res(width,height,getBytesPerRow(),getRawData());
+
         return res;
+    }
+
+    template<typename T>
+    void setFormatFromImageView(ImageView<T> img){
+        ImageFormat imageFormat;
+        if (typeid(T) == typeid(float)){
+            imageFormat = ImageFormat(1,32,ImageElementFormat::FloatingPoint);
+        }else if(typeid(T) == typeid(uchar4)){
+            imageFormat = ImageFormat(4,8,ImageElementFormat::UnsignedNormalized);
+        }else if(typeid(T) == typeid(uchar3)){
+            imageFormat = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+        }
+        Format() = imageFormat;
+        *this = Image(imageFormat,img.width,img.height,img.pitchBytes,0);
     }
 
     template<typename T>

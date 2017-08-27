@@ -107,7 +107,7 @@ std::vector<unsigned char> Encoding::UTF32toUTF8(uint32_t utf32char)
     int size = 0;
 
 
-    if(utf32char >= 0 && utf32char <= 0x7F)
+    if(utf32char <= 0x7F)
         size = 1;
     else if(utf32char >= 0x80 && utf32char <= 0x7FF)
         size = 2;

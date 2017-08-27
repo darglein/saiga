@@ -49,6 +49,7 @@ option (BUILD_MODE_DEBUG "Defines SAIGA_DEBUG, asserts=on, debug symbols in bina
 option (BUILD_MODE_TESTING "Defines SAIGA_TESTING, asserts=on, debug symbols in binary, opengl debug context, one glgeterror per frame, (default)" ON) 
 option (BUILD_MODE_RELEASE "Defines SAIGA_RELEASE, asserts=off, no glgeterror calls" OFF) 
 option (BUILD_SAMPLES "build samples" ON) 
+option (CUDA_DEBUG "cuda debug flag" ON) 
 
 
 #in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
@@ -284,6 +285,10 @@ endif(WIN32)
 if(UNIX)
 #	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden")
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -msse2 -mfpmath=sse")
+	if(CUDA_DEBUG)
+	else()
+		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCUDA_NDEBUG")
+	endif()
 endif(UNIX)
 if(MSVC)
     #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2 /fp:strict")

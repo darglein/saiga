@@ -28,7 +28,6 @@ ImageView<T> MatToImageView(cv::Mat& img){
     return res;
 }
 
-
 template<typename T>
 inline
 cv::Mat ImageViewToMat(ImageView<T> img){

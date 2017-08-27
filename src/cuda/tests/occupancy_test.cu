@@ -72,7 +72,7 @@ void occupancyTest2(){
     const        size_t THREADS_PER_BLOCK = 128;
     cudaDeviceProp deviceProp;
     CHECK_CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, 0));
-    auto sharedMemMP = deviceProp.sharedMemPerMultiprocessor;
+//    auto sharedMemMP = deviceProp.sharedMemPerMultiprocessor;
     auto sharedMem = deviceProp.sharedMemPerBlock;
 
     auto threads = deviceProp.maxThreadsPerMultiProcessor;
