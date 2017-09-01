@@ -22,7 +22,7 @@ public:
     virtual ~Program(){}
 
     //advances the state of the program by dt. All game logic should happen here
-    virtual void update(float dt) = 0;
+    virtual void update(float dt) {}
 
 	virtual void parallelUpdate(float dt) { (void)dt; }
 
@@ -34,21 +34,21 @@ public:
     //
     //We don't want to render two times the same image, so the game state should be interpolated either into the future or from the past.
     //Alpha is in the range [0,1] where 1 is equivalent to a timestep of dt
-    virtual void interpolate(float dt, float alpha)  = 0;
+    virtual void interpolate(float dt, float alpha) {}
 
     //rendering into the gbuffer
-    virtual void render(Camera *cam)  = 0;
+    virtual void render(Camera *cam) {}
 
     //render depth maps for shadow lights
-    virtual void renderDepth(Camera *cam)  = 0;
+    virtual void renderDepth(Camera *cam) {}
 
     //forward rendering path after lighting, but before post processing
     //this could be used for transparent objects
-    virtual void renderOverlay(Camera *cam)  = 0;
+    virtual void renderOverlay(Camera *cam) {}
 
     //forward rendering path after lighting and after post processing
     //typical used for the gui
-    virtual void renderFinal(Camera *cam)  = 0;
+    virtual void renderFinal(Camera *cam) {}
 };
 
 }

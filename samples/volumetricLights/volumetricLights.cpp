@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -16,17 +16,13 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
    tdo(window->getWidth(),window->getHeight())
 {
     //this simplifies shader debugging
-//    ShaderLoader::instance()->addLineDirectives = true;
+    ShaderLoader::instance()->addLineDirectives = true;
 
-    parentWindow->showRendererImgui = true;
-    parentWindow->getRenderer()->showLightingImgui = true;
 
     //create a perspective camera
     float aspect = window->getAspectRatio();
-    camera.setProj(60.0f,aspect,0.1f,75.0f);
-    auto pos = vec3(23.7,12.5,-6.1);
-    auto dir = -vec3(0.617,0.0656,-0.784);
-    camera.setView(pos,pos+dir,vec3(0,1,0));
+    camera.setProj(60.0f,aspect,0.1f,50.0f);
+    camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
     camera.enableInput();
     //How fast the camera moves
     camera.movementSpeed = 10;
@@ -43,15 +39,13 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
 
 
     auto cubeAsset = assetLoader.loadTexturedAsset("objs/box.obj");
-    auto cubeAsset2 = assetLoader.loadTexturedAsset("objs/sponza.obj");
 
     cube1.asset = cubeAsset;
-    cube2.asset = cubeAsset2;
+    cube2.asset = cubeAsset;
     cube1.translateGlobal(vec3(11,1,-2));
     cube1.calculateModel();
 
-    cube2.setScale(vec3(0.02));
-//    cube2.translateGlobal(vec3(-11,1,2));
+    cube2.translateGlobal(vec3(-11,1,2));
     cube2.calculateModel();
 
     auto sphereAsset = assetLoader.loadBasicAsset("objs/teapot.obj");
@@ -66,27 +60,28 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     ShadowQuality sq = ShadowQuality::HIGH;
 
     sun = window->getRenderer()->lighting.createDirectionalLight();
-    sun->setDirection(vec3(2,-3,0.4));
+    sun->setDirection(vec3(-1,-3,-2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(0.3);
+    sun->setIntensity(0.5);
     sun->setAmbientIntensity(0.1f);
     sun->createShadowMap(2048,2048,1,sq);
-//    sun->enableShadows();
-//    sun->setActive(false);
+    sun->enableShadows();
 
         pointLight = window->getRenderer()->lighting.createPointLight();
-        pointLight->setAttenuation(AttenuationPresets::Quadratic);
+//        pointLight->setAttenuation(AttenuationPresets::Quadratic);
+        pointLight->setAttenuation(vec3(0,0,5));
         pointLight->setIntensity(2);
         pointLight->setRadius(10);
-        pointLight->setPosition(vec3(10,3,0));
+        pointLight->setPosition(vec3(9,3,0));
         pointLight->setColorDiffuse(vec3(1));
         pointLight->calculateModel();
-        pointLight->createShadowMap(256,256,sq);
+//        pointLight->createShadowMap(256,256,sq);
+        pointLight->createShadowMap(512,512,sq);
         pointLight->enableShadows();
-        pointLight->setActive(false);
+        pointLight->setVolumetric(true);
 
         spotLight = window->getRenderer()->lighting.createSpotLight();
-        spotLight->setAttenuation(AttenuationPresets::Quadratic);
+        spotLight->setAttenuation(vec3(0,0,5));
         spotLight->setIntensity(2);
         spotLight->setRadius(8);
         spotLight->setPosition(vec3(-10,5,0));
@@ -94,21 +89,18 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
         spotLight->calculateModel();
         spotLight->createShadowMap(512,512,sq);
         spotLight->enableShadows();
-        spotLight->setActive(false);
 
         boxLight = window->getRenderer()->lighting.createBoxLight();
         boxLight->setIntensity(1.0);
 
 //        boxLight->setPosition(vec3(0,2,10));
 //        boxLight->rotateLocal(vec3(1,0,0),30);
-        pos = vec3(0,19,0);
-        boxLight->setView(pos,pos+vec3(3,-3,0.3),vec3(0,1,0));
-        boxLight->setColorDiffuse(LightColorPresets::Tungsten40W);
-        boxLight->setScale(vec3(8,20,32));
+        boxLight->setView(vec3(0,2,10),vec3(0,0,13),vec3(0,1,0));
+        boxLight->setColorDiffuse(vec3(1));
+        boxLight->setScale(vec3(5,5,8));
         boxLight->calculateModel();
         boxLight->createShadowMap(512,512,sq);
         boxLight->enableShadows();
-//        boxLight->setActive(false);
 
 
 
@@ -205,15 +197,19 @@ void VolumetricLights::renderFinal(Camera *cam)
 
 
 
-    //{
-    //    ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
-    //    ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
-    //    ImGui::Begin("An Imgui Window :D");
+    {
+        ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
+        ImGui::Begin("An Imgui Window :D");
 
-    //    ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
+        ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
 
-    //    ImGui::End();
-    //}
+        if(ImGui::Button("Reload Shaders")){
+            ShaderLoader::instance()->reload();
+        }
+
+        ImGui::End();
+    }
 
     //parentWindow->renderImGui();
 

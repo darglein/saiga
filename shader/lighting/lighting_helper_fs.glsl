@@ -15,18 +15,11 @@ uniform mat4 depthBiasMV;
 //uniform sampler2DShadow depthTex;
 
 
-
 uniform sampler2D deferred_diffuse;
 uniform sampler2D deferred_normal;
 uniform sampler2D deferred_depth;
 uniform sampler2D deferred_position;
 uniform sampler2D deferred_data;
-
-//uniform sampler2DMS deferred_diffuse;
-//uniform sampler2DMS deferred_normal;
-//uniform sampler2DMS deferred_depth;
-//uniform sampler2DMS deferred_position;
-//uniform sampler2DMS deferred_data;
 
 uniform vec2 screen_size;
 
@@ -35,6 +28,7 @@ uniform vec4 lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
 
 uniform vec4 shadowMapSize;  //vec4(w,h,1/w,1/h)
 
+#include "light_models.glsl"
 
 float random(vec4 seed4){
     float dot_product = dot(seed4, vec4(12.9898,78.233,45.164,94.673));
@@ -48,62 +42,6 @@ vec2 CalcTexCoord()
 
 
 
-float intensityDiffuse(vec3 normal, vec3 lightDir){
-    return max(dot(normal,lightDir), 0.0);
-}
-
-float intensitySpecular(vec3 position, vec3 normal, vec3 lightDir, float exponent){
-    vec3 viewDir = normalize(-position);
-
-#if 0
-    // phong shading
-//    vec3 reflectDir = normalize(-reflect(lightDir,normal));
-    vec3 reflectDir = -reflect(lightDir,normal);
-    float specAngle = max(dot(reflectDir,viewDir),0.0);
-    float i = pow(specAngle, exponent);
-#else
-    // blinn phong shading
-    vec3 halfDir = normalize(lightDir + viewDir);
-    float specAngle = max(dot(halfDir, normal), 0.0);
-    float i = pow(specAngle, exponent*4);
-#endif
-
-    return clamp(i,0.0f,1.0f);
-}
-
-
-
-float getAttenuation(vec4 attenuation, float distance){
-    float radius = attenuation.w;
-//    if(distance > 5.6f)
-//    return 1.0f;
-//    return 0.0f;
-    //normalize the distance, so the attenuation is independent of the radius
-    float x = distance / radius;
-    //make sure that we return 0 if distance > radius, otherwise we would get an hard edge
-    float smoothBorder = smoothstep(1.0f,0.9f,x);
-    return smoothBorder / (attenuation.x +
-                    attenuation.y * x +
-                    attenuation.z * x * x);
-}
-
-
-float spotAttenuation(vec3 fragmentLightDir, float angle, vec3 lightDir){
-
-    float fConeCosine = angle;
-    float fCosine = dot(lightDir,fragmentLightDir);
-    return smoothstep(fConeCosine, (1-fConeCosine)*0.6f + fConeCosine,fCosine);
-
-    //similar to the code above but with expensive acos functions
-//     float alpha = acos(fConeCosine);
-//     float beta = acos(fCosine);
-//     return smoothstep(alpha,0.8f*alpha,beta);
-
-
-
-     //old (not that good)
-//          return smoothstep(fConeCosine,1,fCosine);
-}
 
 vec3 unpackNormal2 (vec2 enc)
 {

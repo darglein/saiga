@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -42,6 +42,9 @@ protected:
      * Quadratic attenuation of the form:
      * I = i/(a*x*x+b*x+c)
      *
+     * It is stored in the format:
+     * vec3(c,b,a)
+     *
      * Note: The attenuation is independent of the radius.
      * x = d / r, where d is the distance to the light
      *
@@ -66,25 +69,8 @@ public:
     virtual ~AttenuatedLight(){}
     AttenuatedLight& operator=(const AttenuatedLight& light);
 
-    /**
-     * Use a simple linear attenuation, so that a=0 and c=1
-     * Note: The attenuation isn't really linear because it is inverted: 1/(b*r)
-     * Drop is the relative intensity lost over the distance
-     */
-    void setLinearAttenuation(float drop);
-
-
-    /**
-     * Calculates the radius required of this light, so that 'cutoffPercentage' of the original intensity
-     * reaches the border.
-     *
-     * This solves:
-     * 1/(a*r*r+b*r+c) = h, where h is the cutoffPercentage
-     *
-     */
-
-    float calculateRadius(float cutoffPercentage);
-    float calculateRadiusAbsolute(float cutoff);
+    //evaluates the attenuation formula at a given radius
+    float evaluateAttenuation(float distance);
 
     virtual void bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera *cam);
 
