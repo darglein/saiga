@@ -86,7 +86,7 @@ private:
     bool backFaceShadows = false;
     float shadowOffsetFactor = 4;
     float shadowOffsetUnits = 10;
-    bool renderVolumetric = true;
+    bool renderVolumetric = false;
 
     std::vector<FilteredMultiFrameOpenGLTimer> timers2;
     std::vector<std::string> timerStrings;

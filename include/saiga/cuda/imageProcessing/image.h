@@ -67,6 +67,18 @@ struct CudaImage : public ImageView<T>{
         this->data = thrust::raw_pointer_cast(v.data());
     }
 
+    inline void create(int w, int h){
+        create(w,h,w*sizeof(T));
+    }
+
+
+    inline void create(int w, int h , int p){
+        this->width = w;
+        this->height = h;
+        this->pitchBytes = p;
+        create();
+    }
+
     //copy and swap idiom
     //http://stackoverflow.com/questions/3279543/what-is-the-copy-and-swap-idiom
     CudaImage(CudaImage const& other) : ImageView<T>(other){

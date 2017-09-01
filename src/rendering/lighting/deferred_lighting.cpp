@@ -542,6 +542,9 @@ void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
 
 void DeferredLighting::applyVolumetricLightBuffer()
 {
+    if(!renderVolumetric)
+        return;
+
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
