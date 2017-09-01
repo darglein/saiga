@@ -182,7 +182,7 @@ void VolumetricLights::renderDepth(Camera *cam)
 void VolumetricLights::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
-//    skybox.render(cam);
+    skybox.render(cam);
 }
 
 void VolumetricLights::renderFinal(Camera *cam)

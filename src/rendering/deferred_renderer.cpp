@@ -88,7 +88,8 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 
     blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/blitDepth.glsl");
 
-    ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
+//    ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
+    ddo.setDeferredFramebuffer(&gbuffer,lighting.volumetricLightTexture);
 
     cout << "Deferred Renderer initialized. Render resolution: " << width << "x" << height << endl;
 
@@ -163,29 +164,10 @@ void Deferred_Renderer::render_intern() {
     renderDepthMaps();
 
 
-    //    glDisable(GL_DEPTH_TEST);
-    //    glViewport(0,0,width,height);
-
-
-    //copy depth to lighting framebuffer. that is needed for stencil culling
-
-
-
-
-    //    mix_framebuffer.bind();
-    //    glClear( GL_COLOR_BUFFER_BIT );
-
-
     bindCamera(*currentCamera);
     renderLighting(*currentCamera);
 
 
-    //    startTimer(LIGHTACCUMULATION);
-    //    postProcessor.nextFrame();
-    //    postProcessor.bindCurrentBuffer();
-
-    //    lighting.renderLightAccumulation();
-    //    stopTimer(LIGHTACCUMULATION);
 
     if (params.writeDepthToOverlayBuffer) {
         //        writeGbufferDepthToCurrentFramebuffer();
@@ -201,6 +183,8 @@ void Deferred_Renderer::render_intern() {
     stopTimer(OVERLAY);
 
 
+
+    lighting.applyVolumetricLightBuffer();
 
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();

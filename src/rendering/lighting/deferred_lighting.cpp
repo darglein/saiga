@@ -47,7 +47,7 @@ void DeferredLighting::loadShaders(const DeferredLightingShaderNames &names)
 
     ShaderPart::ShaderCodeInjections volumetricInjection = shadowInjection;
     volumetricInjection.emplace_back(GL_FRAGMENT_SHADER,
-                                 "#define VOLUMETRIC",3);
+                                     "#define VOLUMETRIC",3);
 
     spotLightShader         = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader);
     spotLightShadowShader   = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader,shadowInjection);
@@ -69,6 +69,9 @@ void DeferredLighting::loadShaders(const DeferredLightingShaderNames &names)
 
     //    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/blitDepth.glsl");
     lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>(names.lightAccumulationShader);
+
+    textureShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/light_test.glsl");
+
 }
 
 void DeferredLighting::init(int _width, int _height, bool _useTimers){
@@ -98,10 +101,20 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers){
     //NOTE: Use the same depth-stencil buffer as the gbuffer. I hope this works on every hardware :).
     lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
 
-    lightAccumulationTexture = std::make_shared<Texture>();
-    lightAccumulationTexture->createEmptyTexture(_width,_height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
-    lightAccumulationBuffer.attachTexture( framebuffer_texture_t(lightAccumulationTexture) );
-    lightAccumulationBuffer.drawToAll();
+    {
+        lightAccumulationTexture = std::make_shared<Texture>();
+        lightAccumulationTexture->createEmptyTexture(_width,_height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
+        lightAccumulationBuffer.attachTexture( framebuffer_texture_t(lightAccumulationTexture) );
+    }
+
+    {
+        volumetricLightTexture = std::make_shared<Texture>();
+        volumetricLightTexture->createEmptyTexture(_width,_height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
+        lightAccumulationBuffer.attachTexture( framebuffer_texture_t(volumetricLightTexture) );
+    }
+
+    //    lightAccumulationBuffer.drawToAll();
+    lightAccumulationBuffer.drawTo( {0} );
     lightAccumulationBuffer.check();
     lightAccumulationBuffer.unbind();
 }
@@ -213,7 +226,15 @@ void DeferredLighting::render(Camera* cam){
     //    glDisable(GL_DEPTH_TEST);
 
 
+
+
     lightAccumulationBuffer.bind();
+
+
+    if(renderVolumetric)
+        lightAccumulationBuffer.drawTo( {0,1} );
+    else
+        lightAccumulationBuffer.drawTo( {0} );
 
     //    glClearColor(0,0,0,0);
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
@@ -290,6 +311,12 @@ void DeferredLighting::render(Camera* cam){
         //    glStencilFunc(GL_ALWAYS, 0xFF, 0xFF);
         glStencilOp( GL_KEEP, GL_KEEP, GL_KEEP);
     }
+
+
+    //volumetric directional lights are not supported
+    if(renderVolumetric)
+        lightAccumulationBuffer.drawTo( {0} );
+
     renderDirectionalLights(cam,false);
     renderDirectionalLights(cam,true);
     stopTimer(4);
@@ -298,6 +325,8 @@ void DeferredLighting::render(Camera* cam){
         glDisable(GL_STENCIL_TEST);
     }
     assert_no_glerror();
+
+
     //reset state
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
@@ -310,6 +339,7 @@ void DeferredLighting::render(Camera* cam){
 
 
     assert_no_glerror();
+
 
 }
 
@@ -364,6 +394,11 @@ void DeferredLighting::setupLightPass(bool isVolumetric){
         currentStencilId++;
         SAIGA_ASSERT(currentStencilId<256);
     }
+
+    if(renderVolumetric && isVolumetric)
+        lightAccumulationBuffer.drawTo( {0,1} );
+    else
+        lightAccumulationBuffer.drawTo( {0} );
 }
 
 
@@ -505,6 +540,29 @@ void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
     //    glClear( GL_COLOR_BUFFER_BIT );
 }
 
+void DeferredLighting::applyVolumetricLightBuffer()
+{
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ONE);
+
+    lightAccumulationBuffer.bind();
+
+    lightAccumulationBuffer.drawTo( {0} );
+
+
+    textureShader->bind();
+
+    textureShader->uploadModel(mat4());
+    textureShader->uploadTexture(volumetricLightTexture);
+    directionalLightMesh.bindAndDraw();
+    textureShader->unbind();
+
+    assert_no_glerror();
+}
+
+
 void DeferredLighting::setShader(std::shared_ptr<SpotLightShader>  spotLightShader, std::shared_ptr<SpotLightShader>  spotLightShadowShader){
     this->spotLightShader = spotLightShader;
     this->spotLightShadowShader = spotLightShadowShader;
@@ -533,6 +591,7 @@ void DeferredLighting::setDebugShader(std::shared_ptr<MVPColorShader>  shader){
 void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader){
     this->stencilShader = stencilShader;
 }
+
 
 
 
@@ -648,6 +707,7 @@ void DeferredLighting::renderImGui(bool *p_open)
     ImGui::Checkbox("useTimers",&useTimers);
     ImGui::Checkbox("stencilCulling",&stencilCulling);
     ImGui::Checkbox("lightDepthTest",&lightDepthTest);
+    ImGui::Checkbox("renderVolumetric",&renderVolumetric);
 
 
     ImGui::Text("Render Time (without shadow map computation)");

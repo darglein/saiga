@@ -55,7 +55,7 @@ in vec3 lightDir;
 
 
 layout(location=0) out vec4 out_color;
-
+layout(location=1) out vec4 out_volumetric;
 
 #include "volumetric.glsl"
 
@@ -91,10 +91,9 @@ void main() {
                 Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
 #ifdef VOLUMETRIC
     vec3 vf = volumetricFactorSpot(depthTex,depthBiasMV,vposition,vertexMV,lightPos,lightDir,angle,attenuation) * lightColorDiffuse.rgb * intensity;
-    color += vf;
+    out_volumetric = vec4(vf,1);
 #endif
     out_color = vec4(color,1);
-
 
 //    out_color = vec4(lightColor*Idiff ,Ispec); //accumulation
 }

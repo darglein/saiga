@@ -44,7 +44,7 @@ class SAIGA_GLOBAL DeferredLighting{
 private:
     int width,height;
     std::shared_ptr<MVPColorShader>  debugShader;
-
+    std::shared_ptr<MVPTextureShader>  textureShader;
     UniformBuffer shadowCameraBuffer;
 
     //the vertex position is sufficient. no normals and texture coordinates needed.
@@ -86,6 +86,7 @@ private:
     bool backFaceShadows = false;
     float shadowOffsetFactor = 4;
     float shadowOffsetUnits = 10;
+    bool renderVolumetric = true;
 
     std::vector<FilteredMultiFrameOpenGLTimer> timers2;
     std::vector<std::string> timerStrings;
@@ -104,6 +105,7 @@ public:
     std::shared_ptr<Texture> ssaoTexture;
 
     std::shared_ptr<Texture> lightAccumulationTexture;
+    std::shared_ptr<Texture> volumetricLightTexture;
     Framebuffer lightAccumulationBuffer;
 
     DeferredLighting(GBuffer &gbuffer);
@@ -144,6 +146,8 @@ public:
     void setDebugShader(std::shared_ptr<MVPColorShader>  shader);
     void setStencilShader(std::shared_ptr<MVPShader> stencilShader);
 
+    //add the volumetric light texture that was previously rendered to the scene
+    void applyVolumetricLightBuffer();
 
 
     void cullLights(Camera *cam);
