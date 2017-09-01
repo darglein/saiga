@@ -110,7 +110,7 @@ shadowmap->unbindFramebuffer();
 
 void SpotLight::renderImGui()
 {
-    Light::renderImGui();
+    AttenuatedLight::renderImGui();
     if(ImGui::SliderFloat("Angle",&angle,0,85)){
         recalculateScale();
         calculateModel();

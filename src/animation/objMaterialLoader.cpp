@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -76,9 +76,9 @@ void ObjMaterialLoader::parseLine(const std::string &line)
         return;
     }
 
-//    if(header == "Kd"){
-//        restStream >> currentMaterial->color;
-//    }
+    //    if(header == "Kd"){
+    //        restStream >> currentMaterial->color;
+    //    }
 
     if(header == "Ns"){
         restStream >> currentMaterial->Ns;
@@ -104,19 +104,19 @@ void ObjMaterialLoader::parseLine(const std::string &line)
     }
     else if(header == "map_Ka"){
         currentMaterial->map_Ka = TextureLoader::instance()->load(rest);
-        currentMaterial->map_Ka->setWrap(GL_REPEAT);
+        if(currentMaterial->map_Ka) currentMaterial->map_Ka->setWrap(GL_REPEAT);
     }else if(header == "map_Kd"){
         currentMaterial->map_Kd = TextureLoader::instance()->load(rest);
-        currentMaterial->map_Kd->setWrap(GL_REPEAT);
+        if(currentMaterial->map_Kd) currentMaterial->map_Kd->setWrap(GL_REPEAT);
     }else if(header == "map_Ks"){
         currentMaterial->map_Ks = TextureLoader::instance()->load(rest);
-         currentMaterial->map_Ks->setWrap(GL_REPEAT);
+        if(currentMaterial->map_Ks) currentMaterial->map_Ks->setWrap(GL_REPEAT);
     }else if(header == "map_d"){
         currentMaterial->map_d = TextureLoader::instance()->load(rest);
-         currentMaterial->map_d->setWrap(GL_REPEAT);
+        if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
     }else if(header == "map_bump" || header == "bump"){
         currentMaterial->map_bump = TextureLoader::instance()->load(rest);
-         currentMaterial->map_bump->setWrap(GL_REPEAT);
+        if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
     }
 }
 

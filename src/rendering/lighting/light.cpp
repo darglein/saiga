@@ -20,6 +20,12 @@ void LightShader::checkUniforms(){
     location_readShadowMap = getUniformLocation("readShadowMap");
     location_shadowMapSize = getUniformLocation("shadowMapSize");
     location_invProj = getUniformLocation("invProj");
+    location_volumetricDensity = getUniformLocation("volumetricDensity");
+}
+
+void LightShader::uploadVolumetricDensity(float density)
+{
+    Shader::upload(location_volumetricDensity,density);
 }
 
 
@@ -95,8 +101,10 @@ void Light::renderImGui()
 {
     ImGui::Checkbox("active",&active);
     ImGui::Checkbox("castShadows",&castShadows);
+    ImGui::Checkbox("volumetric",&volumetric);
     ImGui::InputFloat("intensity",&colorDiffuse.w,0.1,1);
     ImGui::InputFloat("specular intensity",&colorSpecular.w,0.1,1);
+    ImGui::SliderFloat("volumetricDensity",&volumetricDensity,0.0f,0.5f);
     //todo: check srgb
     ImGui::ColorEdit3("colorDiffuse",&colorDiffuse[0]);
     ImGui::ColorEdit3("colorSpecular",&colorSpecular[0]);

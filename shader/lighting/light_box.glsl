@@ -47,6 +47,7 @@ in vec3 lightDir;
 
 
 #include "lighting_helper_fs.glsl"
+#include "volumetric.glsl"
 
 layout(location=0) out vec4 out_color;
 
@@ -61,8 +62,16 @@ void main() {
 #ifdef SHADOWS
     visibility = calculateShadowPCF2(depthBiasMV,depthTex,vposition);
 #endif
+    //we have to this check because some fragments outside of the light volume
+    //would be visible without stencilculling + depth test.
+    //stencilculling + depth test must be disabled for volumetric lights
+    vec4 vLight =  depthBiasMV * vec4(vposition,1);
+    vLight = vLight / vLight.w;
+    float fragmentInLight = 0;
+    if(vLight.x>0 && vLight.x<1 && vLight.y>0 && vLight.y<1&& vLight.z>0 && vLight.z<1)
+        fragmentInLight = 1;
 
-    float localIntensity = intensity*visibility; //amount of light reaching the given point
+    float localIntensity = fragmentInLight*intensity*visibility; //amount of light reaching the given point
 
 
     float Idiff = localIntensity * intensityDiffuse(normal,lightDir);
@@ -73,10 +82,13 @@ void main() {
     vec3 color = lightColorDiffuse.rgb * (
                 Idiff * diffColor +
                 Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
+
+#ifdef VOLUMETRIC
+    vec3 vf = volumetricFactor(depthTex,depthBiasMV,vposition,vertexMV,lightDir) * lightColorDiffuse.rgb;
+    color += vf;
+#endif
+//    out_color = vec4(1);
     out_color = vec4(color,1);
-
-
-    //    out_color = vec4(lightColor*Idiff ,Ispec); //accumulation
 }
 
 

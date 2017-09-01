@@ -53,25 +53,11 @@ in vec3 lightDir;
 
 #include "lighting_helper_fs.glsl"
 
+
 layout(location=0) out vec4 out_color;
 
-float spotAttenuation(vec3 fragmentLightDir){
 
-    float fConeCosine = angle;
-    float fCosine = dot(lightDir,fragmentLightDir);
-    return smoothstep(fConeCosine, (1-fConeCosine)*0.6f + fConeCosine,fCosine);
-
-    //similar to the code above but with expensive acos functions
-//     float alpha = acos(fConeCosine);
-//     float beta = acos(fCosine);
-//     return smoothstep(alpha,0.8f*alpha,beta);
-
-
-
-     //old (not that good)
-//          return smoothstep(fConeCosine,1,fCosine);
-}
-
+#include "volumetric.glsl"
 
 void main() {
     vec3 diffColor,vposition,normal,data;
@@ -91,7 +77,7 @@ void main() {
 
 //    float distanceToLight = length(vposition - lightPos);
     float distanceToLight = length( dot(vposition - lightPos,lightDir) );
-    float atten = spotAttenuation(fragmentLightDir)*getAttenuation(attenuation,distanceToLight);
+    float atten = spotAttenuation(fragmentLightDir,angle,lightDir)*getAttenuation(attenuation,distanceToLight);
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
 
     float Idiff = localIntensity * intensityDiffuse(normal,fragmentLightDir);
@@ -103,6 +89,10 @@ void main() {
     vec3 color = lightColorDiffuse.rgb * (
                 Idiff * diffColor +
                 Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
+#ifdef VOLUMETRIC
+    vec3 vf = volumetricFactorSpot(depthTex,depthBiasMV,vposition,vertexMV,lightPos,lightDir,angle,attenuation) * lightColorDiffuse.rgb * intensity;
+    color += vf;
+#endif
     out_color = vec4(color,1);
 
 

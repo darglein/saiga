@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -52,15 +52,15 @@ private:
 
 
 
-    std::shared_ptr<PointLightShader>  pointLightShader, pointLightShadowShader;
+    std::shared_ptr<PointLightShader>  pointLightShader, pointLightShadowShader, pointLightVolumetricShader;
     lightMesh_t pointLightMesh;
     std::vector< std::shared_ptr<PointLight> > pointLights;
 
-    std::shared_ptr<SpotLightShader>  spotLightShader, spotLightShadowShader;
+    std::shared_ptr<SpotLightShader>  spotLightShader, spotLightShadowShader, spotLightVolumetricShader;
     lightMesh_t spotLightMesh;
     std::vector< std::shared_ptr<SpotLight> > spotLights;
 
-    std::shared_ptr<BoxLightShader>  boxLightShader,boxLightShadowShader;
+    std::shared_ptr<BoxLightShader>  boxLightShader, boxLightShadowShader, boxLightVolumetricShader;
     lightMesh_t boxLightMesh;
     std::vector< std::shared_ptr<BoxLight> > boxLights;
 
@@ -70,26 +70,28 @@ private:
 
 
 
-//    std::shared_ptr<MVPTextureShader>  blitDepthShader;
+    //    std::shared_ptr<MVPTextureShader>  blitDepthShader;
     std::shared_ptr<LightAccumulationShader>  lightAccumulationShader;
 
     std::shared_ptr<MVPShader> stencilShader;
     GBuffer &gbuffer;
 
 
+    bool lightDepthTest = true;
+    bool stencilCulling = true;
     bool drawDebug = true;
 
-	bool useTimers = true;
+    bool useTimers = true;
 
     bool backFaceShadows = false;
     float shadowOffsetFactor = 4;
     float shadowOffsetUnits = 10;
 
     std::vector<FilteredMultiFrameOpenGLTimer> timers2;
-	std::vector<std::string> timerStrings;
+    std::vector<std::string> timerStrings;
     void startTimer(int timer){if(useTimers)timers2[timer].startTimer();}
     void stopTimer(int timer){if(useTimers)timers2[timer].stopTimer();}
-	float getTime(int timer) { if (!useTimers) return 0; return timers2[timer].getTimeMS(); }
+    float getTime(int timer) { if (!useTimers) return 0; return timers2[timer].getTimeMS(); }
 public:
     vec4 clearColor = vec4(0);
     int totalLights;
@@ -105,7 +107,7 @@ public:
     Framebuffer lightAccumulationBuffer;
 
     DeferredLighting(GBuffer &gbuffer);
-	DeferredLighting& operator=(DeferredLighting& l) = delete;
+    DeferredLighting& operator=(DeferredLighting& l) = delete;
     ~DeferredLighting();
 
     void init(int width, int height, bool _useTimers);
@@ -153,10 +155,10 @@ private:
 
     void blitGbufferDepthToAccumulationBuffer();
     void setupStencilPass();
-    void setupLightPass();
+    void setupLightPass(bool isVolumetric);
 
     template<typename T,typename shader_t>
-    void renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shader , shader_t shaderShadow);
+    void renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shader , shader_t shaderShadow, shader_t shaderVolumetric);
 
 
     void renderDirectionalLights(Camera *cam, bool shadow);
@@ -165,20 +167,21 @@ private:
 
 
 template<typename T,typename shader_t>
-inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shaderNormal , shader_t shaderShadow){
+inline void DeferredLighting::renderLightVolume(lightMesh_t &mesh, T obj, Camera *cam, shader_t shaderNormal , shader_t shaderShadow, shader_t shaderVolumetric){
     if(!obj->shouldRender())
         return;
 
-    setupStencilPass();
-    stencilShader->bind();
+    if(stencilCulling){
+        setupStencilPass();
+        stencilShader->bind();
 
-    obj->bindUniformsStencil(*stencilShader);
-    mesh.bindAndDraw();
-    stencilShader->unbind();
+        obj->bindUniformsStencil(*stencilShader);
+        mesh.bindAndDraw();
+        stencilShader->unbind();
+    }
 
-
-    setupLightPass();
-    shader_t shader = (obj->hasShadows()) ? shaderShadow : shaderNormal;
+    setupLightPass(obj->isVolumetric());
+    shader_t shader = (obj->hasShadows() ?  (obj->isVolumetric() ? shaderVolumetric : shaderShadow) : shaderNormal);
     shader->bind();
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));

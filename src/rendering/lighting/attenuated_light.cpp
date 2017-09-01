@@ -7,6 +7,7 @@
 #include "saiga/rendering/lighting/attenuated_light.h"
 #include "saiga/util/error.h"
 #include "saiga/util/assert.h"
+#include "saiga/imgui/imgui.h"
 
 namespace Saiga {
 
@@ -109,6 +110,7 @@ void AttenuatedLight::setRadius(float value)
 }
 
 void AttenuatedLight::bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera *cam){
+    if(isVolumetric()) shader->uploadVolumetricDensity(volumetricDensity);
     shader->uploadColorDiffuse(colorDiffuse);
     shader->uploadColorSpecular(colorSpecular);
     shader->uploadModel(model);
@@ -116,6 +118,13 @@ void AttenuatedLight::bindUniforms(std::shared_ptr<AttenuatedLightShader> shader
     assert_no_glerror();
 }
 
+
+void AttenuatedLight::renderImGui()
+{
+    Light::renderImGui();
+    ImGui::InputFloat3("attenuation",&attenuation[0]);
+    ImGui::InputFloat("cutoffRadius",&cutoffRadius);
+}
 
 
 }

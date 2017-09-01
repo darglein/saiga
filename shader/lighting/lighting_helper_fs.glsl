@@ -88,6 +88,23 @@ float getAttenuation(vec4 attenuation, float distance){
 }
 
 
+float spotAttenuation(vec3 fragmentLightDir, float angle, vec3 lightDir){
+
+    float fConeCosine = angle;
+    float fCosine = dot(lightDir,fragmentLightDir);
+    return smoothstep(fConeCosine, (1-fConeCosine)*0.6f + fConeCosine,fCosine);
+
+    //similar to the code above but with expensive acos functions
+//     float alpha = acos(fConeCosine);
+//     float beta = acos(fCosine);
+//     return smoothstep(alpha,0.8f*alpha,beta);
+
+
+
+     //old (not that good)
+//          return smoothstep(fConeCosine,1,fCosine);
+}
+
 vec3 unpackNormal2 (vec2 enc)
 {
     vec3 n;

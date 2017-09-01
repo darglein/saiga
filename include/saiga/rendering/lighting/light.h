@@ -19,8 +19,11 @@ public:
     GLint location_depthBiasMV, location_depthTex,location_readShadowMap;
     GLint location_shadowMapSize; //vec4(w,h,1/w,1/h)
     GLint location_invProj; //required to compute the viewspace position from the gbuffer
+    GLint location_volumetricDensity;
 
     virtual void checkUniforms();
+
+    void uploadVolumetricDensity(float density);
 
     void uploadColorDiffuse(vec4 &color);
     void uploadColorDiffuse(vec3 &color, float intensity);
@@ -71,9 +74,12 @@ protected:
     bool visible=true, active=true, selected=false, culled=false;
     //shadow map
     bool castShadows=false;
+    bool volumetric = false;
 public:
     vec4 colorDiffuse = vec4(1);
     vec4 colorSpecular = vec4(1);
+    //density of the participating media
+    float volumetricDensity = 0.02f;
 
 
 
@@ -99,6 +105,8 @@ public:
     bool isVisible() const {return visible;}
     void setSelected(bool _selected){this->selected= _selected;}
     bool isSelected() const {return selected;}
+    void setVolumetric(bool _volumetric){this->volumetric= _volumetric;}
+    bool isVolumetric() const {return volumetric;}
 
 
     bool hasShadows() const {return castShadows;}
