@@ -45,9 +45,6 @@ void MultiFrameOpenGLTimer::stopTimer()
 //    time = queries[queryFrontBuffer][1].waitTimestamp() - queries[queryFrontBuffer][0].waitTimestamp();
     swapQueries();
 
-#ifdef SAIGA_DEBUG
-    stopped = true;
-#endif
 }
 
 float MultiFrameOpenGLTimer::getTimeMS()
@@ -62,9 +59,6 @@ double MultiFrameOpenGLTimer::getTimeMSd()
 
 GLuint64 MultiFrameOpenGLTimer::getTimeNS()
 {
-#ifdef SAIGA_DEBUG
-    SAIGA_ASSERT(stopped && "GPU timer read before it was stopped once, time is not yet initialized");
-#endif
     return time;
 }
 

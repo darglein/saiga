@@ -37,46 +37,14 @@ AttenuatedLight& AttenuatedLight::operator=(const AttenuatedLight& light){
     return *this;
 }
 
-
-void AttenuatedLight::setLinearAttenuation(float drop)
+float AttenuatedLight::evaluateAttenuation(float distance)
 {
-    float r = 1;
-    float cutoff = 1-drop;
-    //solve
-    // 1/(bx+c) = cutoff, for b
-    float c = 1.0f;
-    float b = (1.0f/cutoff-c)/r;
+    //normalize the distance, so the attenuation is independent of the radius
+    float x = distance / cutoffRadius;
 
-    attenuation = vec3(c,b,0);
-
-}
-
-
-float AttenuatedLight::calculateRadius(float cutoff){
-    float a = attenuation.z;
-    float b = attenuation.y;
-    float c = attenuation.x-(1.0f/cutoff); //relative
-
-    float x;
-    if(a==0)
-        x=-c/b;
-    else
-        x = (-b+sqrt(b*b-4.0f*a*c)) / (2.0f * a);
-    return x;
-}
-
-float AttenuatedLight::calculateRadiusAbsolute(float cutoff)
-{
-    float a = attenuation.z;
-    float b = attenuation.y;
-    float c = attenuation.x-(getIntensity()/cutoff); //absolute
-
-    float x;
-    if(a==0)
-        x=-c/b;
-    else
-        x = (-b+sqrt(b*b-4.0f*a*c)) / (2.0f * a);
-    return x;
+    return 1.0f / (attenuation.x +
+                    attenuation.y * x +
+                    attenuation.z * x * x);
 }
 
 vec3 AttenuatedLight::getAttenuation() const
@@ -123,6 +91,8 @@ void AttenuatedLight::renderImGui()
 {
     Light::renderImGui();
     ImGui::InputFloat3("attenuation",&attenuation[0]);
+    float c = evaluateAttenuation(cutoffRadius);
+    ImGui::Text("Cutoff Intensity: %f",c);
     ImGui::InputFloat("cutoffRadius",&cutoffRadius);
 }
 

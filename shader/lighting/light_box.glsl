@@ -50,6 +50,7 @@ in vec3 lightDir;
 #include "volumetric.glsl"
 
 layout(location=0) out vec4 out_color;
+layout(location=1) out vec4 out_volumetric;
 
 void main() {
     vec3 diffColor,vposition,normal,data;
@@ -85,7 +86,7 @@ void main() {
 
 #ifdef VOLUMETRIC
     vec3 vf = volumetricFactor(depthTex,depthBiasMV,vposition,vertexMV,lightDir) * lightColorDiffuse.rgb;
-    color += vf;
+    out_volumetric = vec4(vf,1);
 #endif
 //    out_color = vec4(1);
     out_color = vec4(color,1);

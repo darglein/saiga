@@ -32,13 +32,9 @@ private:
     TimeStampQuery queries[2][2];
 
     int queryBackBuffer=0,queryFrontBuffer=1;
-    GLuint64 time;
+    GLuint64 time = 0;
 
     void swapQueries();
-
-#ifdef SAIGA_DEBUG
-    bool stopped = false;
-#endif
 public:
     MultiFrameOpenGLTimer();
     ~MultiFrameOpenGLTimer();

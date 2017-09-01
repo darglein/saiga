@@ -49,6 +49,7 @@ in vec3 lightPos;
 
 
 layout(location=0) out vec4 out_color;
+layout(location=1) out vec4 out_volumetric;
 
 #include "volumetric.glsl"
 
@@ -89,9 +90,11 @@ void main() {
     vec3 camera = vec3(invV[3]);
 //    vec3 fragW2 =vec3(invV * vec4(vertexMV,1));
     vec3 vf = volumetricFactorPoint(depthTex,camera,fragW,vertex,lightW,farplane,nearplane,attenuation,intensity) * lightColorDiffuse.rgb;
-    color += vf;
+    out_volumetric = vec4(vf,1);
 #endif
     out_color = vec4(color,1);
+
+//    out_volumetric = vec4(0);
 
 //    out_color = vec4(lightColor*( Idiff*diffColor + Ispec*specColor),1);
 //    out_color = vec4(lightColor*Idiff ,Ispec); //accumulation

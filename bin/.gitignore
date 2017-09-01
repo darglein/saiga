@@ -18,6 +18,7 @@ twoViewOrientation
 videoRecording
 simpleGLFWWindow
 cudaImageProcessing
+volumetricLights
 *.exe
 *.dll
 valgrind_output.txt
