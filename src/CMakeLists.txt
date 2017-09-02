@@ -98,18 +98,19 @@ set_target_properties( ${LIB_NAME}
     	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 
-if(BUILD_SHARED)
+#if(BUILD_SHARED)
     install(
 	TARGETS ${LIB_NAME} 
         RUNTIME DESTINATION ${INSTALL_BIN}
         LIBRARY DESTINATION ${INSTALL_SHARED}
+		ARCHIVE DESTINATION ${INSTALL_LIB}
 	)
-else()
-    install(
-	TARGETS ${LIB_NAME} 
-        ARCHIVE DESTINATION ${INSTALL_LIB}
-	)
-endif()
+#else()
+#    install(
+#	TARGETS ${LIB_NAME} 
+#        ARCHIVE DESTINATION ${INSTALL_LIB}
+#	)
+#endif()
 
 
 

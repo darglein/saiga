@@ -13,25 +13,25 @@
 namespace Saiga {
 
 template<typename T, ImageElementFormat format>
-struct SAIGA_GLOBAL TexelElementToFloatConversion{
+struct TexelElementToFloatConversion{
 };
 
 template<>
-struct SAIGA_GLOBAL TexelElementToFloatConversion<GLubyte,ImageElementFormat::UnsignedNormalized>{
+struct TexelElementToFloatConversion<GLubyte,ImageElementFormat::UnsignedNormalized>{
     static float toFloat(GLubyte e){
         return e / 255.0f;
     }
 };
 
 template<>
-struct SAIGA_GLOBAL TexelElementToFloatConversion<GLushort,ImageElementFormat::UnsignedNormalized>{
+struct TexelElementToFloatConversion<GLushort,ImageElementFormat::UnsignedNormalized>{
     static float toFloat(GLushort e){
         return e / 65535.0f;
     }
 };
 
 template<>
-struct SAIGA_GLOBAL TexelElementToFloatConversion<GLuint,ImageElementFormat::UnsignedNormalized>{
+struct TexelElementToFloatConversion<GLuint,ImageElementFormat::UnsignedNormalized>{
     static float toFloat(GLuint e){
         //some precision is lost here...
         return e / 4294967295.0f;
@@ -39,7 +39,7 @@ struct SAIGA_GLOBAL TexelElementToFloatConversion<GLuint,ImageElementFormat::Uns
 };
 
 template<>
-struct SAIGA_GLOBAL TexelElementToFloatConversion<GLfloat,ImageElementFormat::FloatingPoint>{
+struct TexelElementToFloatConversion<GLfloat,ImageElementFormat::FloatingPoint>{
     static float toFloat(GLfloat e){
         return e;
     }
@@ -47,25 +47,25 @@ struct SAIGA_GLOBAL TexelElementToFloatConversion<GLfloat,ImageElementFormat::Fl
 
 
 template<typename T, ImageElementFormat format>
-struct SAIGA_GLOBAL TexelElementFromFloatConversion{
+struct TexelElementFromFloatConversion{
 };
 
 template<>
-struct SAIGA_GLOBAL TexelElementFromFloatConversion<GLubyte,ImageElementFormat::UnsignedNormalized>{
+struct TexelElementFromFloatConversion<GLubyte,ImageElementFormat::UnsignedNormalized>{
     static GLubyte fromFloat(float f){
         return f * 255.0f;
     }
 };
 
 template<>
-struct SAIGA_GLOBAL TexelElementFromFloatConversion<GLushort,ImageElementFormat::UnsignedNormalized>{
+struct TexelElementFromFloatConversion<GLushort,ImageElementFormat::UnsignedNormalized>{
     static GLushort fromFloat(float f){
         return f * 65535.0f;
     }
 };
 
 template<>
-struct SAIGA_GLOBAL TexelElementFromFloatConversion<GLuint,ImageElementFormat::UnsignedNormalized>{
+struct TexelElementFromFloatConversion<GLuint,ImageElementFormat::UnsignedNormalized>{
     static GLuint fromFloat(float f){
         //some precision is lost here...
         return f * 4294967295.0f;
@@ -73,7 +73,7 @@ struct SAIGA_GLOBAL TexelElementFromFloatConversion<GLuint,ImageElementFormat::U
 };
 
 template<>
-struct SAIGA_GLOBAL TexelElementFromFloatConversion<GLfloat,ImageElementFormat::FloatingPoint>{
+struct TexelElementFromFloatConversion<GLfloat,ImageElementFormat::FloatingPoint>{
     static GLfloat fromFloat(float f){
         return f;
     }
@@ -81,7 +81,7 @@ struct SAIGA_GLOBAL TexelElementFromFloatConversion<GLfloat,ImageElementFormat::
 
 
 template<int CHANNELS, int bitDepth, ImageElementFormat format>
-struct SAIGA_GLOBAL Texel{
+struct Texel{
 };
 
 

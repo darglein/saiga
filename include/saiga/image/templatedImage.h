@@ -17,7 +17,7 @@
 namespace Saiga {
 
 template<int CHANNELS, int BITDEPTH = 8, ImageElementFormat FORMAT = ImageElementFormat::UnsignedNormalized, bool SRGB=false>
-class SAIGA_GLOBAL TemplatedImage : public Image{
+class TemplatedImage : public Image{
 public:
     using TexelType = Texel<CHANNELS,BITDEPTH,FORMAT>;
     using ImageFormatType = GLImageFormatMap<CHANNELS,BITDEPTH,FORMAT,SRGB>;

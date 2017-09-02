@@ -17,6 +17,10 @@
 
 using namespace Saiga;
 
+#if defined(SAIGA_DLL_EXPORTS)
+#error build shared still defined
+#endif
+
 int main(int argc, char *argv[]) {
 
     catchSegFaults();

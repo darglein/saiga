@@ -238,9 +238,9 @@ find_package(Freetype REQUIRED)
 include_directories(${FREETYPE_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${FREETYPE_LIBRARIES})
 
-if(WIN32)
-SET(LIBS ${LIBS} freetype255)
-endif(WIN32)
+#if(WIN32)
+#SET(LIBS ${LIBS} freetype255)
+#endif(WIN32)
 
 #OPENGL
 find_package(OpenGL REQUIRED)
