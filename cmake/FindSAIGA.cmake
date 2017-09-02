@@ -14,6 +14,8 @@ find_path(SAIGA_INCLUDE_DIRS
 	PATHS
           /usr/local/include
           /usr/include
+	PATH_SUFFIXES
+		  saiga/include
 )
 
 find_library(SAIGA_LIBRARY 
@@ -22,6 +24,8 @@ find_library(SAIGA_LIBRARY
     PATHS 
 		/usr/local/lib 
 		/usr/lib
+	PATH_SUFFIXES
+		saiga/lib
 )
 
 if(SAIGA_INCLUDE_DIRS AND SAIGA_LIBRARY)
@@ -34,7 +38,7 @@ if (SAIGA_FOUND)
     endif()
 else()
     if(SAIGA_FIND_REQUIRED)
-        message(FATAL_ERROR "Could not find saiga ${SAIGA_INCLUDE_DIRS}")
+        message(FATAL_ERROR "Could not find saiga ${SAIGA_INCLUDE_DIRS} ${SAIGA_LIBRARY}")
     endif()
 endif()
 
@@ -64,6 +68,11 @@ if(GLEW_FOUND)
 	SET(SAIGA_INCLUDE_DIRS ${SAIGA_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS})
 	SET(SAIGA_LIBRARY ${SAIGA_LIBRARY} ${GLEW_LIBRARIES})
 endif()
+endif()
+
+
+if(NOT GLBINDING_FOUND AND NOT GLEW_FOUND)
+	message(FATAL_ERROR "No OpenGL loading library found.")
 endif()
 
 endif()
