@@ -67,6 +67,7 @@ public:
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const AABB& dt);
 };
 
-#include "saiga/geometry/aabb.inl"
 
 }
+
+#include "saiga/geometry/aabb.inl"

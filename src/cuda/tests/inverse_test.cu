@@ -9,7 +9,9 @@
 using std::cout;
 using std::endl;
 
-#ifdef SAIGA_USE_EIGEN
+
+
+#ifdef SAIGA_USE_EIGEN2
 #include "saiga/eigen/eigen.h"
 
 using matrix_t = Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor>;
