@@ -28,6 +28,7 @@ namespace Saiga {
 class SAIGA_GLOBAL Timer{
 public:
     Timer();
+	virtual ~Timer() {}
 
     void start();
     tick_t stop();
@@ -90,7 +91,7 @@ public:
 
 
 template<typename T>
-class SAIGA_GLOBAL ScopedTimer : public Timer{
+class ScopedTimer : public Timer{
 public:
     T* target;
     ScopedTimer(T* target) : target(target){
