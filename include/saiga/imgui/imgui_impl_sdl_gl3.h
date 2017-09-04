@@ -50,7 +50,7 @@ protected:
 
     // Data
     double       g_Time = 0.0f;
-    bool         g_MousePressed[3] = { false, false, false };
+    bool         g_MousePressed[3] = {};
     float        g_MouseWheel = 0.0f;
     GLuint       g_FontTexture = 0;
     int          g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;

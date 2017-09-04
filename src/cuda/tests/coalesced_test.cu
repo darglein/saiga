@@ -199,9 +199,15 @@ void sharedMemoryCoalesced2(array_view<T> data, array_view<T> result){
 
     const int elementSize = sizeof(T) * ElementSize;
     const int fullVectorsPerElement = elementSize / sizeof(VectorType);
-    const int vectorsPerElement = CUDA::getBlockCount(elementSize, sizeof(VectorType));
 
+    
+
+#ifdef SAIGA_HAS_CONSTEXPR
+	const int vectorsPerElement = CUDA::getBlockCount(elementSize, sizeof(VectorType));
     static_assert(vectorsPerElement * sizeof(VectorType) == elementSize, "T cannot be loaded with VectorType");
+#else
+	const int vectorsPerElement = 1;
+#endif
 
     //    const int vectorsPerWarp = fullVectorsPerElement * WARP_SIZE;
 

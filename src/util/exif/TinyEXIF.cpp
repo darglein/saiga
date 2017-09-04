@@ -709,7 +709,9 @@ int EXIFInfo::parseFromEXIFSegment(const uint8_t* buf, unsigned len) {
 					parser.Fetch(m, 1);
 					parser.Fetch(s, 2);
 					char buffer[256];
+#if _MSC_VER > 1800 || !defined(_MSC_VER)
 					snprintf(buffer, 256, "%g %g %g", h, m, s);
+#endif
 					GeoLocation.GPSTimeStamp = buffer;
 				}
 				break;

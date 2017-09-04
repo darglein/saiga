@@ -56,7 +56,7 @@ struct array_view{
                  >::type>
     array_view(Cont& dv) : data_(dv.data()), n(dv.size()){}
 
-    HD reference operator[](size_t id) const noexcept{
+	HD reference operator[](size_t id) const SAIGA_NOEXCEPT{
         //			if(id >= n) {
         //				printf("invalid access: id %lu >= size %lu\n", id, n);
         //				assert(false);
@@ -64,31 +64,31 @@ struct array_view{
         return data_[id];
     }
 
-    HD reference back() noexcept {
+		HD reference back() SAIGA_NOEXCEPT{
         return data_[n-1];
     }
 
-    HD const_reference back() const noexcept {
+		HD const_reference back() const SAIGA_NOEXCEPT{
         return data_[n-1];
     }
 
 
-    HD pointer data() const noexcept {
+		HD pointer data() const SAIGA_NOEXCEPT{
         return data_;
     }
 
-    HD size_type size() const noexcept {
+		HD size_type size() const SAIGA_NOEXCEPT{
         return n;
     }
-    HD size_type byte_size() const noexcept {
+		HD size_type byte_size() const SAIGA_NOEXCEPT{
         return sizeof(T) * n;
     }
 
-    HD iterator begin() const noexcept {
+		HD iterator begin() const SAIGA_NOEXCEPT{
         return data_;
     }
 
-    HD iterator end() const noexcept {
+		HD iterator end() const SAIGA_NOEXCEPT{
         return data_+n;
     }
 
@@ -109,11 +109,11 @@ struct array_view{
     }
 
 
-//    HD operator bool() const noexcept {
+//    HD operator bool() const SAIGA_NOEXCEPT {
 //        return data_;
 //    }
 
-    HD operator T*() const noexcept {
+	HD operator T*() const SAIGA_NOEXCEPT{
         return data_;
     }
 

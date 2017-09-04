@@ -76,7 +76,7 @@ void initSaiga()
     TextureLoader::instance()->addPath(TEXTURE_PATH);
     TextureLoader::instance()->addPath(OBJ_PATH);
     TextureLoader::instance()->addPath(".");
-
+	 
 
 
     std::string mode;

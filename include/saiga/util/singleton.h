@@ -11,7 +11,7 @@
 namespace Saiga {
 
 template <typename C>
-class SAIGA_GLOBAL Singleton
+class SAIGA_TEMPLATE Singleton
 {
 public:
     static C* instance ()
@@ -22,7 +22,7 @@ public:
     virtual
     ~Singleton ()
     {
-
+		 
     }
 private:
 

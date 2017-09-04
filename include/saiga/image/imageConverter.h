@@ -24,8 +24,8 @@ class PngImage;
 class SAIGA_GLOBAL ImageConverter{
 public:
 #ifdef SAIGA_USE_PNG
-//    static void convert(PNG::PngImage &src, Image& dest);
-//    static void convert(Image& src, PNG::PngImage &dest);
+    static void convert(PNG::PngImage src, Image& dest);
+	static void convert(Image src, PNG::PngImage &dest);
 #endif
 
 #ifdef SAIGA_USE_FREEIMAGE

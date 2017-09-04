@@ -12,6 +12,7 @@
 #include "saiga/image/freeimage.h"
 #endif
 #include "saiga/image/png_wrapper.h"
+#include "saiga/image/imageConverter.h"
 #include "saiga/util/imath.h"
 
 namespace Saiga {
@@ -281,7 +282,7 @@ bool loadImage(const std::string &path, Image &outImage)
 //    }
 #else
 #ifdef SAIGA_USE_PNG
-    PNG::Image pngimg;
+    PNG::PngImage pngimg;
     erg = PNG::readPNG( &pngimg,path);
     if(erg)
         ImageConverter::convert(pngimg,outImage);
@@ -312,7 +313,7 @@ bool saveImage(const std::string &path, const Image &image)
     erg = FIP::save(path,image);
 #else
 #ifdef SAIGA_USE_PNG
-    PNG::Image pngimg;
+    PNG::PngImage pngimg;
     ImageConverter::convert(image,pngimg);
     erg = PNG::writePNG(&pngimg,path);
 #endif

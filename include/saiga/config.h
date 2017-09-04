@@ -62,6 +62,16 @@
 //don't use any specifiers on templates
 #define SAIGA_TEMPLATE
 
+#if _MSC_VER > 1800 || !defined(_MSC_VER)
+#define SAIGA_HAS_CONSTEXPR
+#define SAIGA_HAS_NOEXCEPT
+#define SAIGA_CONSTEXPR constexpr
+#define SAIGA_NOEXCEPT noexcept
+#else
+#define SAIGA_CONSTEXPR
+#define SAIGA_NOEXCEPT
+#endif
+
 //includes that are used for everything
 #include <string>
 #include <iostream>

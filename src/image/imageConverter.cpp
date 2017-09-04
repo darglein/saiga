@@ -9,73 +9,77 @@
 #include "saiga/util/assert.h"
 #include <cstring> //for memcpy
 
-#ifdef SAIGA_USE_PNG1
+#ifdef SAIGA_USE_PNG
 #include "saiga/image/png_wrapper.h"
 
-void ImageConverter::convert(PNG::PngImage &src, Image& dest){
-    dest.width = src.width;
-    dest.height = src.height;
+namespace Saiga {
 
-    ImageFormat format;
+	void ImageConverter::convert(PNG::PngImage src, Image& dest){
+		dest.width = src.width;
+		dest.height = src.height;
 
-    format.setBitDepth(src.bit_depth);
+		ImageFormat format;
 
-
-    switch(src.color_type){
-    case PNG_COLOR_TYPE_GRAY:
-        format.setChannels(1);
-        break;
-    case PNG_COLOR_TYPE_GRAY_ALPHA:
-        format.setChannels(2);
-        break;
-    case PNG_COLOR_TYPE_RGB:
-        format.setChannels(3);
-        break;
-    case PNG_COLOR_TYPE_RGB_ALPHA:
-        format.setChannels(4);
-        break;
-    default:
-        std::cout<<"Image type not supported: "<<src.color_type<<std::endl;
-        SAIGA_ASSERT(0);
-    }
-
-    dest.Format() = format;
+		format.setBitDepth(src.bit_depth);
 
 
+		switch (src.color_type){
+		case PNG_COLOR_TYPE_GRAY:
+			format.setChannels(1);
+			break;
+		case PNG_COLOR_TYPE_GRAY_ALPHA:
+			format.setChannels(2);
+			break;
+		case PNG_COLOR_TYPE_RGB:
+			format.setChannels(3);
+			break;
+		case PNG_COLOR_TYPE_RGB_ALPHA:
+			format.setChannels(4);
+			break;
+		default:
+			std::cout << "Image type not supported: " << src.color_type << std::endl;
+			SAIGA_ASSERT(0);
+		}
 
-    dest.create(src.data.data());
-
-//    std::cout << "Image: " << dest.Format() << std::endl;
-//    std::cout << "sizes: " << dest.getSize() << " " << src.data.size() << std::endl;
-    SAIGA_ASSERT(dest.getSize() == src.data.size());
-}
-
-void ImageConverter::convert(Image& src, PNG::PngImage &dest){
-    dest.width = src.width;
-    dest.height =  src.height;
-    dest.bit_depth = src.Format().getBitDepth();
-
-    switch(src.Format().getChannels()){
-    case 1:
-        dest.color_type = PNG_COLOR_TYPE_GRAY;
-        break;
-    case 2:
-        dest.color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
-        break;
-    case 3:
-        dest.color_type = PNG_COLOR_TYPE_RGB;
-        break;
-    case 4:
-        dest.color_type = PNG_COLOR_TYPE_RGB_ALPHA;
-        break;
-    default:
-        std::cout<<"Image type not supported: "<<src.Format().getChannels()<<std::endl;
-        SAIGA_ASSERT(0);
-    }
+		dest.Format() = format;
 
 
-//    dest.data = src.getRawData();
-    dest.data = src.data;
+
+		dest.create(src.data.data());
+
+		//    std::cout << "Image: " << dest.Format() << std::endl;
+		//    std::cout << "sizes: " << dest.getSize() << " " << src.data.size() << std::endl;
+		SAIGA_ASSERT(dest.getSize() == src.data.size());
+	}
+
+	void ImageConverter::convert(Image src, PNG::PngImage &dest){
+		dest.width = src.width;
+		dest.height = src.height;
+		dest.bit_depth = src.Format().getBitDepth();
+
+		switch (src.Format().getChannels()){
+		case 1:
+			dest.color_type = PNG_COLOR_TYPE_GRAY;
+			break;
+		case 2:
+			dest.color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
+			break;
+		case 3:
+			dest.color_type = PNG_COLOR_TYPE_RGB;
+			break;
+		case 4:
+			dest.color_type = PNG_COLOR_TYPE_RGB_ALPHA;
+			break;
+		default:
+			std::cout << "Image type not supported: " << src.Format().getChannels() << std::endl;
+			SAIGA_ASSERT(0);
+		}
+
+
+		//    dest.data = src.getRawData();
+		dest.data = src.data;
+	}
+
 }
 
 #endif

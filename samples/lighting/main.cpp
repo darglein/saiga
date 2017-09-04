@@ -13,8 +13,13 @@
 
 #undef main
 
+
+
 int main( int argc, char* args[] )
 {
+	
+	cout << TextureLoader::instance() << endl;
+	return 0;
     //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
     catchSegFaults();
 

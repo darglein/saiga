@@ -70,7 +70,7 @@ bool TextureLoader::loadImage(const std::string &path, Image &outImage) const
 //    }
 #else
 #ifdef SAIGA_USE_PNG
-    PNG::Image pngimg;
+	PNG::PngImage pngimg;
     erg = PNG::readPNG( &pngimg,path);
     if(erg)
         ImageConverter::convert(pngimg,outImage);
@@ -101,7 +101,7 @@ bool TextureLoader::saveImage(const std::string &path, Image &image) const
     erg = FIP::save(path,image);
 #else
 #ifdef SAIGA_USE_PNG
-    PNG::Image pngimg;
+    PNG::PngImage pngimg;
     ImageConverter::convert(image,pngimg);
     erg = PNG::writePNG(&pngimg,path);
 #endif

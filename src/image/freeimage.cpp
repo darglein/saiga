@@ -7,6 +7,7 @@
 #include "saiga/image/freeimage.h"
 #include "saiga/util/assert.h"
 
+#ifdef SAIGA_USE_FREEIMAGE
 #include <FreeImagePlus.h>
 #include <cstring>
 
@@ -251,3 +252,5 @@ void printAllMetaData(fipImage &img)
 
 }
 }
+
+#endif

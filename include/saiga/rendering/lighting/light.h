@@ -10,6 +10,7 @@
 #include "saiga/rendering/lighting/shadowmap.h"
 #include "saiga/rendering/object3d.h"
 #include "saiga/util/color.h"
+#include <functional>
 
 namespace Saiga {
 
