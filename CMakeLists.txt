@@ -50,7 +50,8 @@ option (BUILD_MODE_TESTING "Defines SAIGA_TESTING, asserts=on, debug symbols in 
 option (BUILD_MODE_RELEASE "Defines SAIGA_RELEASE, asserts=off, no glgeterror calls" OFF) 
 option (BUILD_SAMPLES "build samples" ON) 
 option (WITH_CUDA "use cuda if possible" ON) 
-option (CUDA_DEBUG "cuda debug flag" ON) 
+option (CUDA_DEBUG "cuda debug flag" OFF) 
+option (STRICT_FP "strict ieee floating point" OFF) 
 
 
 #in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
@@ -277,7 +278,7 @@ endif()
 
 #dbghelp for crash.cpp
 if(WIN32)
-SET(LIBS ${LIBS} DbgHelp)
+	SET(LIBS ${LIBS} DbgHelp)
 endif(WIN32)
 
 
@@ -288,18 +289,29 @@ endif(WIN32)
 
 
 if(UNIX)
-#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden")
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -msse2 -mfpmath=sse")
-	if(CUDA_DEBUG)
-	else()
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCUDA_NDEBUG")
-	endif()
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden")
 endif(UNIX)
+
 if(MSVC)
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2 /fp:strict")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:strict")
+	#multiprocessor compilation for visual studio
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP") 
 endif()
 
+#strict fp behaviour flags if determinism is required
+if(STRICT_FP)
+	if(UNIX)
+		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -mfpmath=sse")
+	endif()
+	if(MSVC)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:strict")
+	endif()
+endif()
+
+if(CUDA_DEBUG)
+	add_definitions(-DCUDA_DEBUG)
+else()
+	add_definitions(-DCUDA_NDEBUG)
+endif()
 ############# INSTALL PATHS ###############
 
 #This part is partly copied from the CMakeLists.txt of glbinding.
