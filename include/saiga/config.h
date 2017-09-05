@@ -20,6 +20,9 @@
 #pragma warning( disable : 4201 ) //nonstandard extension used : nameless struct/union
 #pragma warning( disable : 4267 )
 #pragma warning(disable: 4505) //Unreferenced local function has been removed
+
+//because windows.h has stupid min/max defines
+#define NOMINMAX
 #endif
 
 

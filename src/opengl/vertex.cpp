@@ -96,7 +96,7 @@ std::ostream &operator<<(std::ostream &os, const VertexNT &vert){
 }
 
 bool VertexNTD::operator==(const VertexNTD &other) const {
-    return VertexNTD::operator==(other) && data == other.data;
+	return VertexNT::operator==(other) && data == other.data;
 }
 
 std::ostream &operator<<(std::ostream &os, const VertexNTD &vert){

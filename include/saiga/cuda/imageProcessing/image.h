@@ -22,8 +22,9 @@ void copyImage(ImageView<T> imgSrc, ImageView<T> imgDst, enum cudaMemcpyKind kin
 
 
 
-
+//with these two functions we are able to use CudaImage from cpp files.
 SAIGA_GLOBAL void resizeDeviceVector(thrust::device_vector<uint8_t>& v, int size);
+SAIGA_GLOBAL void copyDeviceVector(const thrust::device_vector<uint8_t>& src, thrust::device_vector<uint8_t>& dst);
 
 //supported types:
 //float, uchar3, uchar4
@@ -82,7 +83,7 @@ struct CudaImage : public ImageView<T>{
     //copy and swap idiom
     //http://stackoverflow.com/questions/3279543/what-is-the-copy-and-swap-idiom
     CudaImage(CudaImage const& other) : ImageView<T>(other){
-        v = other.v;
+		copyDeviceVector(other.v, v);
         this->data = thrust::raw_pointer_cast(v.data());
     }
 

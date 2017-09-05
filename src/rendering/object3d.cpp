@@ -41,7 +41,7 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 }
 
 quat Object3D::getSimpleDirectionQuat(const vec3 &dir){
-    mat4 rotmat;
+    mat4 rotmat(1);
     rotmat[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
     rotmat[1] = vec4(0,1,0,0);
     rotmat[2] = vec4(-dir,0);

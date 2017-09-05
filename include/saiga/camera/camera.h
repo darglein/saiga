@@ -24,9 +24,9 @@ public:
     std::string name;
 
     //    mat4 model;
-    mat4 view;
-    mat4 proj;
-    mat4 viewProj;
+	mat4 view = mat4(1);
+	mat4 proj = mat4(1);
+	mat4 viewProj = mat4(1);
 
 
     float zNear,  zFar;

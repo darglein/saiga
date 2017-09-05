@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <saiga/config.h>
+
 #define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
 
 //these two headers work also with cuda and windows :o

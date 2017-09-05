@@ -105,8 +105,8 @@ protected:
     bool showImgui = true;
     static const int numGraphValues = 80;
     int imCurrentIndex = 0;
-    float imUpdateTimes[numGraphValues] = {};
-    float imRenderTimes[numGraphValues] = {};
+    float imUpdateTimes[numGraphValues];
+    float imRenderTimes[numGraphValues];
     bool showImguiDemo = false;
 public:
     bool showRendererImgui = false;

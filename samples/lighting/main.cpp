@@ -13,13 +13,14 @@
 
 #undef main
 
+struct Test : public Loader<std::shared_ptr<Texture>, TextureParameters>,  public Singleton<Test>{
+	virtual std::shared_ptr<Texture> loadFromFile(const std::string &name, const TextureParameters &params) { return 0; }
+};
 
 
 int main( int argc, char* args[] )
 {
 	
-	cout << TextureLoader::instance() << endl;
-	return 0;
     //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
     catchSegFaults();
 

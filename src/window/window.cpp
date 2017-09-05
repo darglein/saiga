@@ -40,7 +40,8 @@ void WindowParameters::setMode(bool fullscreen, bool borderLess)
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters)
     :windowParameters(_windowParameters),
       updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50){
-
+	memset(imUpdateTimes, 0, numGraphValues * sizeof(float));
+	memset(imRenderTimes, 0, numGraphValues * sizeof(float));
 }
 
 OpenGLWindow::~OpenGLWindow(){

@@ -13,5 +13,10 @@ void resizeDeviceVector(thrust::device_vector<uint8_t>& v, int size){
     v.resize(size);
 }
 
+void copyDeviceVector(const thrust::device_vector<uint8_t>& src, thrust::device_vector<uint8_t>& dst)
+{
+	dst = src;
+}
+
 }
 }

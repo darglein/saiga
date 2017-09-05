@@ -50,7 +50,7 @@ protected:
 
     // Data
     double       g_Time = 0.0f;
-    bool         g_MousePressed[3] = {};
+    bool         g_MousePressed[3];
     float        g_MouseWheel = 0.0f;
     GLuint       g_FontTexture = 0;
     int          g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;
@@ -63,7 +63,7 @@ protected:
     void ImGui_ImplSdlGL3_InvalidateDeviceObjects();
     bool ImGui_ImplSdlGL3_CreateDeviceObjects();
 public:
-
+	ImGui_SDL_Renderer() { memset(g_MousePressed, 0, 3 * sizeof(bool)); }
     bool init(SDL_Window* window, std::string font, float fontSize = 15.0f);
 
     virtual void shutdown() override;

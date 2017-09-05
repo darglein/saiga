@@ -189,6 +189,7 @@ void Lighting::renderFinal(Camera *cam)
     //The final render path (after post processing).
     //Usually the GUI is rendered here.
 
+
     parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
 

@@ -49,6 +49,7 @@ option (BUILD_MODE_DEBUG "Defines SAIGA_DEBUG, asserts=on, debug symbols in bina
 option (BUILD_MODE_TESTING "Defines SAIGA_TESTING, asserts=on, debug symbols in binary, opengl debug context, one glgeterror per frame, (default)" ON) 
 option (BUILD_MODE_RELEASE "Defines SAIGA_RELEASE, asserts=off, no glgeterror calls" OFF) 
 option (BUILD_SAMPLES "build samples" ON) 
+option (WITH_CUDA "use cuda if possible" ON) 
 option (CUDA_DEBUG "cuda debug flag" ON) 
 
 
@@ -194,7 +195,11 @@ endif()
 
 ############# CUDA ###############
 
-find_package(CUDA QUIET)
+if(WITH_CUDA)
+	find_package(CUDA QUIET)
+else()
+	set(CUDA_FOUND FALSE)
+endif()
 if(CUDA_FOUND)
 	include_directories(${CUDA_INCLUDE_DIRS})
 	SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES} ${CUDA_cusparse_LIBRARY} ${CUDA_cublas_LIBRARY})
@@ -314,12 +319,12 @@ elseif(WIN32)
 
     # default CMAKE_INSTALL_PREFIX = "%PROGRAMFILES%/<project>/"
     set(INSTALL_ROOT      ".")
-    set(INSTALL_SHADER    "shader")
+    set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
     set(INSTALL_BIN       "bin")
     set(INSTALL_SHARED    ".")
     set(INSTALL_LIB       "lib")
     set(INSTALL_INCLUDE   "include/${LIB_NAME}")
-    set(INSTALL_DOC       "doc")
+    set(INSTALL_DOC       "share/doc/${LIB_NAME}")
 
 endif()
 

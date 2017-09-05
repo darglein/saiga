@@ -49,6 +49,11 @@ int main(int argc, char *argv[]) {
             CUDA::CudaImage<float> cimggrayhalf(cimg.width/2,cimg.height/2);
             CUDA::CudaImage<float> cimggraydouble(cimg.width*2,cimg.height*2);
 
+
+			//test image copy from cpp file
+			CUDA::CudaImage<uchar4> cimg5 = cimg4;
+
+
             CUDA::convertRGBtoRGBA(cimg,cimg4,255);
             CUDA::convertRGBAtoGrayscale(cimg4,cimggray);
             CUDA::scaleDown2EveryOther(cimggray,cimggrayhalf);
