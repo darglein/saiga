@@ -8,12 +8,15 @@
 #include "saiga/eigen/eigen.h"
 #include "saiga/eigen/lse.h"
 #include "saiga/time/performanceMeasure.h"
+#include <random>
 
 using namespace Saiga;
 using std::cout;
 using std::endl;
 
 static void printVectorInstructions(){
+	cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION << endl;
+
     std::cout << "defined EIGEN Vector Instructions:" << std::endl;
 #ifdef EIGEN_VECTORIZE_FMA
     std::cout << "EIGEN_VECTORIZE_FMA" << std::endl;
@@ -36,6 +39,7 @@ static void printVectorInstructions(){
 #ifdef EIGEN_VECTORIZE_AVX2
     std::cout << "EIGEN_VECTORIZE_AVX2" << std::endl;
 #endif
+
 
 }
 
