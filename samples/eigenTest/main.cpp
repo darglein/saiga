@@ -50,36 +50,56 @@ inline void multMatrixVector(const Eigen::MatrixXf& M, const Eigen::VectorXf& x,
     y += M * x;
 }
 
+template<typename MatrixType>
+void randomMatrix(MatrixType& M)
+{
+    std::mt19937 engine(345345);
+    std::uniform_real_distribution<float> dist(-1,1);
+    for(int i = 0; i < M.rows(); ++i){
+        for(int j = 0; j < M.cols(); ++j){
+            M(i,j) = dist(engine);
+        }
+
+    }
+}
+
 int main(int argc, char *argv[]) {
 
     printVectorInstructions();
     Eigen::setNbThreads(1);
-    srand(3649346);
-    cout << "random: " << rand() << endl;
+
 
     catchSegFaults();
 
     const int N = 10000;
 
+    //    using MatrixType = Eigen::MatrixXf;
+    //    using VectorType = Eigen::VectorXf;
 
-    Eigen::MatrixXf M = Eigen::MatrixXf::Random(N,N);
-    Eigen::VectorXf x = Eigen::VectorXf::Random(N);
-    Eigen::VectorXf y = Eigen::VectorXf::Random(N);
+    using MatrixType = Eigen::Matrix<float,-1,-1,Eigen::ColMajor>;
+    using VectorType = Eigen::Matrix<float,-1,1>;
 
+    MatrixType M(N,N);
+    VectorType x(N);
+    VectorType y(N);
+
+    randomMatrix(M);
+    randomMatrix(x);
+
+    cout << "random check: " << M(0,0) << " == " << -0.571635 << endl;
     measureFunction("multMatrixVector",100,multMatrixVector,M,x,y);
 
 
-    using MatrixType = Eigen::MatrixXf;
-    using VectorType = Eigen::VectorXf;
-    MatrixType Ms = MatrixType::Random(200,200);
-    VectorType xs = VectorType::Random(200);
+    MatrixType Ms(200,200);
+    VectorType xs(200);
+    randomMatrix(Ms);
     measureFunction("solveNullspaceSVD",100,solveNullspaceSVD<MatrixType,VectorType>,Ms,xs);
 
 
-    using MatrixType2 = Eigen::Matrix<float,100,100>;
+    using MatrixType2 = Eigen::Matrix<float,100,100,Eigen::ColMajor>;
     using VectorType2 = Eigen::Matrix<float,100,1>;
-    MatrixType2 Ms2 = MatrixType2::Random();
-    VectorType2 xs2 = VectorType2::Random();
+    MatrixType2 Ms2;
+    VectorType2 xs2;
+    randomMatrix(Ms2);
     measureFunction("solveNullspaceSVD2",100,solveNullspaceSVD<MatrixType2,VectorType2>,Ms2,xs2);
-//    std::cout << y.transpose() << std::endl;
 }
