@@ -10,6 +10,8 @@
 #include "saiga/time/performanceMeasure.h"
 
 using namespace Saiga;
+using std::cout;
+using std::endl;
 
 static void printVectorInstructions(){
     std::cout << "defined EIGEN Vector Instructions:" << std::endl;
@@ -52,6 +54,8 @@ int main(int argc, char *argv[]) {
 
     printVectorInstructions();
     Eigen::setNbThreads(1);
+    srand(3649346);
+    cout << "random: " << rand() << endl;
 
     catchSegFaults();
 
@@ -62,27 +66,20 @@ int main(int argc, char *argv[]) {
     Eigen::VectorXf x = Eigen::VectorXf::Random(N);
     Eigen::VectorXf y = Eigen::VectorXf::Random(N);
 
-//    Eigen::Matrix<float,N,N> M = Eigen::Matrix<float,N,N>::Random();
-//    Eigen::Matrix<float,N,1> x = Eigen::Matrix<float,N,1>::Random();
-//    Eigen::Matrix<float,N,1> y = Eigen::Matrix<float,N,1>::Random();
-//    Eigen::VectorXf x = Eigen::VectorXf::Random(N);
-//    Eigen::VectorXf y = Eigen::VectorXf::Random(N);
-
-//    {
-//        ScopedTimerPrint tim("test");
-//        y = M * x;
-//    }
-
-//    measureFunction("empty",10000,empty);
-//    measureObject("empty",10000,EmptyOp());
-
     measureFunction("multMatrixVector",100,multMatrixVector,M,x,y);
-//    measureObject("multMatrixVector",100,[&](){ y = M*x;});
 
 
-    Eigen::MatrixXf Ms = Eigen::MatrixXf::Random(100,500);
-    Eigen::VectorXf xs = Eigen::VectorXf::Random(100);
-    measureFunction("solveNullspaceSVD",100,solveNullspaceSVD<Eigen::MatrixXf,Eigen::VectorXf>,Ms,xs);
+    using MatrixType = Eigen::MatrixXf;
+    using VectorType = Eigen::VectorXf;
+    MatrixType Ms = MatrixType::Random(200,200);
+    VectorType xs = VectorType::Random(200);
+    measureFunction("solveNullspaceSVD",100,solveNullspaceSVD<MatrixType,VectorType>,Ms,xs);
 
+
+    using MatrixType2 = Eigen::Matrix<float,100,100>;
+    using VectorType2 = Eigen::Matrix<float,100,1>;
+    MatrixType2 Ms2 = MatrixType2::Random();
+    VectorType2 xs2 = VectorType2::Random();
+    measureFunction("solveNullspaceSVD2",100,solveNullspaceSVD<MatrixType2,VectorType2>,Ms2,xs2);
 //    std::cout << y.transpose() << std::endl;
 }
