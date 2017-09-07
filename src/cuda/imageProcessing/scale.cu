@@ -126,6 +126,7 @@ void scaleUp2Linear(ImageView<float> src, ImageView<float> dst){
     textureReference& floatTexRef = floatTex;
     cudaChannelFormatDesc desc = cudaCreateChannelDesc( 32, 0, 0, 0, cudaChannelFormatKindFloat );
     size_t offset;
+    SAIGA_ASSERT(src.pitchBytes % 256 == 0);
     CHECK_CUDA_ERROR(cudaBindTexture2D(&offset, &floatTexRef, src.data, &desc, src.width, src.height, src.pitchBytes));
     SAIGA_ASSERT(offset == 0);
     floatTexRef.addressMode[0] = cudaAddressModeClamp;
