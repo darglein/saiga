@@ -37,7 +37,7 @@ int main( int argc, char* args[] )
     VolumetricLights* simpleWindow = new VolumetricLights(window);
 
     int updatesPerSecond = 60;
-    int framesPerSecond = 0; //no limit
+    int framesPerSecond = 30; //no limit
     window->startMainLoop(updatesPerSecond,framesPerSecond);
 
     delete simpleWindow;

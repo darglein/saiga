@@ -32,6 +32,7 @@ SAIGA_GLOBAL bool PlanePlane(const Plane& p1, const Plane& p2, Ray& outRay);
  * There are either 2 intersections or 0, given by the return value.
  * t2 is always greater or equal to t1
  */
+SAIGA_GLOBAL bool RaySphere(const vec3& rayOrigin, const vec3& rayDir, const vec3& spherePos, float sphereRadius, float &t1, float &t2);
 SAIGA_GLOBAL bool RaySphere(const Ray& ray, const Sphere &sphere, float &t1, float &t2);
 
 }

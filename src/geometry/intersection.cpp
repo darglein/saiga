@@ -25,28 +25,39 @@ bool PlanePlane(const Plane &p1, const Plane &p2, Ray& outRay)
 }
 
 
-bool RaySphere(const Ray& ray, const Sphere &sphere, float &t1, float &t2){
-    vec3 L = ray.origin-sphere.pos;
-    float a = glm::dot(ray.direction,ray.direction);
-    float b = 2*glm::dot(ray.direction,L);
-    float c = glm::dot(L,L) - sphere.r*sphere.r;
+bool RaySphere(const vec3& rayOrigin, const vec3& rayDir, const vec3& spherePos, float sphereRadius, float &t1, float &t2)
+{
+    vec3 L = rayOrigin - spherePos;
+    float a = dot(rayDir,rayDir);
+    float b = 2*dot(rayDir,L);
+    float c = dot(L,L) - sphereRadius * sphereRadius;
     float D = b*b + (-4.0f)*a*c;
 
-    // If ray can not intersect then stop
+    // rays misses sphere
     if (D < 0)
         return false;
 
 
     if(D==0){
+        //ray touches sphere
         t1 = t2 = - 0.5 * b / a;
     }else{
+        //ray interescts sphere
         t1 = -0.5 * (b + sqrt(D)) / a ;
         t2 =  -0.5 * (b - sqrt(D)) / a;
     }
-    if (t1 > t2) std::swap(t1, t2);
 
-
+    if (t1 > t2){
+        auto tmp = t1;
+        t1 = t2;
+        t2 = tmp;
+//        std::swap(t1, t2);
+    }
     return true;
+}
+
+bool RaySphere(const Ray& ray, const Sphere &sphere, float &t1, float &t2){
+   return RaySphere(ray.origin,ray.direction,sphere.pos,sphere.r,t1,t2);
 }
 
 }
