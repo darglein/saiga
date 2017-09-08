@@ -12,7 +12,7 @@
 namespace Saiga {
 
 template<typename T>
-class SAIGA_GLOBAL RingBuffer{
+class SAIGA_TEMPLATE RingBuffer{
 public:
     std::vector<T> buffer;
 
@@ -27,23 +27,25 @@ public:
     ~RingBuffer(){
     }
 
-    bool empty(){
+	bool empty() const{
         return front == rear;
     }
 
-    bool full(){
+	bool full() const{
         return count()>= capacity-1;
     }
 
-    int count(){
+    int count() const{
         return (front <= rear) ? rear-front : rear + capacity - front;
     }
 
-    void add(T data){
+	//adds one element to the buffer
+    void add(const T& data){
         buffer[rear] = data;
         rear = (rear + 1) % capacity;
     }
 
+	//removes one element and returns it
     T get(){
         T result = buffer[front];
         front = (front + 1) % capacity;

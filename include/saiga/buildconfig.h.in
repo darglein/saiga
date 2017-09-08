@@ -34,7 +34,7 @@
 #cmakedefine SAIGA_USE_EIGEN
 
 #cmakedefine SAIGA_DEBUG
-#cmakedefine SAIGA_TESTING
-#cmakedefine SAIGA_RELEASE
+#cmakedefine SAIGA_ASSERTS
 
-#cmakedefine BUILD_SHARED
+#cmakedefine SAIGA_BUILD_SHARED
+

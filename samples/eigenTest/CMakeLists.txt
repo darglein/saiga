@@ -6,8 +6,6 @@ SET(PROG_SRC ${main_SRC})
 
 include_directories(.)
 
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
 add_executable(${PROG_NAME} ${PROG_SRC})
 target_link_libraries(${PROG_NAME} ${LIBS} ${LIB_NAME} )

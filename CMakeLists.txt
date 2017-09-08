@@ -39,43 +39,35 @@ set (LIBRARY_VERSION_MINOR 0)
 
 
 
-option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
 
 
 
 ############# Build Options ###############
 
-option (BUILD_MODE_DEBUG "Defines SAIGA_DEBUG, asserts=on, debug symbols in binary, opengl debug context, alot of glgeterror calls" OFF) 
-option (BUILD_MODE_TESTING "Defines SAIGA_TESTING, asserts=on, debug symbols in binary, opengl debug context, one glgeterror per frame, (default)" ON) 
-option (BUILD_MODE_RELEASE "Defines SAIGA_RELEASE, asserts=off, no glgeterror calls" OFF) 
+option (SAIGA_BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
+option (SAIGA_DEBUG,  "alot of error checks and more console output" ON) 
+option (SAIGA_ASSERTS,  "enable the SAIGA_ASSERT makro" ON) 
 option (BUILD_SAMPLES "build samples" ON) 
 option (WITH_CUDA "use cuda if possible" ON) 
-option (CUDA_DEBUG "cuda debug flag" OFF) 
 option (STRICT_FP "strict ieee floating point" OFF) 
+option (FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
+option (CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" OFF) 
 
 
 #in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
-if (BUILD_MODE_DEBUG)
-	set(SAIGA_DEBUG on)
+if (SAIGA_DEBUG)
 	set(CMAKE_BUILD_TYPE debug)
 	#adds this flags on gcc: -g
-endif ()
-
-if (BUILD_MODE_TESTING)
-	set(SAIGA_TESTING on)
-	set(CMAKE_BUILD_TYPE relwithdebinfo)
-	#adds this flags on gcc: -O2 -g -DNDEBUG
+else ()
+	if(FULL_OPTIMIZE)
+		set(CMAKE_BUILD_TYPE relwithdebinfo)
+		#adds this flags on gcc: -O2 -g -DNDEBUG
+	else()
+		set(CMAKE_BUILD_TYPE release)
+		#adds this flags on gcc: -O3 -DNDEBUG
+	endif()
 endif()
 
-if (BUILD_MODE_RELEASE)
-	set(SAIGA_RELEASE on)
-	set(CMAKE_BUILD_TYPE release)
-	#adds this flags on gcc: -O3 -DNDEBUG
-endif()
-
-
-
-#TODO build options for windows
 
 
 ############# Optional Libraries ###############
@@ -288,31 +280,9 @@ endif(WIN32)
 
 ############# COMPILER FLAGS ###############
 
+include(Saiga_compiler_flags)
 
-if(UNIX)
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden")
-endif(UNIX)
 
-if(MSVC)
-	#multiprocessor compilation for visual studio
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP") 
-endif()
-
-#strict fp behaviour flags if determinism is required
-if(STRICT_FP)
-	if(UNIX)
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -mfpmath=sse")
-	endif()
-	if(MSVC)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:strict")
-	endif()
-endif()
-
-if(CUDA_DEBUG)
-	add_definitions(-DCUDA_DEBUG)
-else()
-	add_definitions(-DCUDA_NDEBUG)
-endif()
 ############# INSTALL PATHS ###############
 
 #This part is partly copied from the CMakeLists.txt of glbinding.

@@ -11,7 +11,7 @@
 
 namespace Saiga {
 
-class Semaphore {
+	class SAIGA_GLOBAL Semaphore {
 public:
     Semaphore (int count_ = 0)
         : count(count_) {}
