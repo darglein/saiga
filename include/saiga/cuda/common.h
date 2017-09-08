@@ -10,8 +10,10 @@
 
 //remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
 //for gcc add cppflag: -DCUDA_NDEBUG
-#ifndef CUDA_NDEBUG
+#if !defined(CUDA_NDEBUG) 
+#if !defined(CUDA_DEBUG)
 #define CUDA_DEBUG
+#endif
 #else
 #undef CUDA_DEBUG
 #endif
