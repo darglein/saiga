@@ -1,3 +1,12 @@
+######### enable warnings #########
+
+if(MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
+elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long")
+endif()
+
+
 
 if(UNIX)
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden")
@@ -9,7 +18,7 @@ if(MSVC)
 endif()
 
 #strict fp behaviour flags if determinism is required
-if(STRICT_FP)
+if(SAIGA_STRICT_FP)
 	if(UNIX)
 		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -mfpmath=sse")
 	endif()
@@ -18,14 +27,13 @@ if(STRICT_FP)
 	endif()
 endif()
 
-if(CUDA_DEBUG)
+if(SAIGA_CUDA_DEBUG)
 	add_definitions(-DCUDA_DEBUG)
 else()
 	add_definitions(-DCUDA_NDEBUG)
 endif()
 
-
-if(FULL_OPTIMIZE)
+if(SAIGA_FULL_OPTIMIZE)
 	if(UNIX)
 		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 	endif()

@@ -7,6 +7,8 @@
 #define SAIGA_VERSION_MAJOR @LIBRARY_VERSION_MAJOR@
 #define SAIGA_VERSION_MINOR @LIBRARY_VERSION_MINOR@
 
+//############# Libraries found ###############
+
 //opengl window and context managment
 #cmakedefine SAIGA_USE_SDL
 #cmakedefine SAIGA_USE_GLFW
@@ -28,13 +30,18 @@
 #cmakedefine SAIGA_USE_FREEIMAGE
 
 #cmakedefine SAIGA_USE_FFMPEG
-#cmakedefine SAIGA_USE_NOISE
 
 #cmakedefine SAIGA_USE_CUDA
 #cmakedefine SAIGA_USE_EIGEN
 
-#cmakedefine SAIGA_DEBUG
-#cmakedefine SAIGA_ASSERTS
+//############# Build Options ###############
 
 #cmakedefine SAIGA_BUILD_SHARED
+#cmakedefine SAIGA_DEBUG
+#cmakedefine SAIGA_ASSERTS
+#cmakedefine SAIGA_BUILD_SAMPLES
+#cmakedefine SAIGA_WITH_CUDA
+#cmakedefine SAIGA_STRICT_FP
+#cmakedefine SAIGA_FULL_OPTIMIZE
+#cmakedefine SAIGA_CUDA_DEBUG
 

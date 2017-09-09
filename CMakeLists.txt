@@ -3,55 +3,24 @@ cmake_minimum_required(VERSION 2.8)
 set(LIB_NAME saiga)
 project (${LIB_NAME})
 
-set(DEPENDENCIES_DIR "" CACHE FILEPATH "Path to your lib includes")
-
-set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${DEPENDENCIES_DIR}/include)
-set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${DEPENDENCIES_DIR}/usr/include)
-include_directories(${DEPENDENCIES_DIR}/include)
-include_directories(${DEPENDENCIES_DIR}/usr/include)
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${DEPENDENCIES_DIR}/lib)
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${DEPENDENCIES_DIR}/usr/lib)
-LINK_DIRECTORIES(${DEPENDENCIES_DIR}/lib)
-LINK_DIRECTORIES(${DEPENDENCIES_DIR}/usr/lib)
-LINK_DIRECTORIES(${DEPENDENCIES_DIR}/bin)
-  
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-######### Show all warnings
-
-if(MSVC)
-  # Force to always compile with W4
-  if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
-    string(REGEX REPLACE "/W[0-4]" "/W1" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-  else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
-  endif()
-elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long")
-endif()
-
-
-
 set (LIBRARY_VERSION_MAJOR 1)
-set (LIBRARY_VERSION_MINOR 0)
-
-
-
-
+set (LIBRARY_VERSION_MINOR 1)
 
 
 ############# Build Options ###############
 
-option (SAIGA_BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
-option (SAIGA_DEBUG,  "alot of error checks and more console output" ON) 
-option (SAIGA_ASSERTS,  "enable the SAIGA_ASSERT makro" ON) 
-option (BUILD_SAMPLES "build samples" ON) 
-option (WITH_CUDA "use cuda if possible" ON) 
-option (STRICT_FP "strict ieee floating point" OFF) 
-option (FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
-option (CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" OFF) 
+option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON) 
+option (SAIGA_DEBUG "alot of error checks and more console output" ON) 
+option (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON) 
+option (SAIGA_BUILD_SAMPLES "build samples" ON) 
+option (SAIGA_WITH_CUDA "use cuda if possible" ON) 
+option (SAIGA_STRICT_FP "strict ieee floating point" OFF) 
+option (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
+option (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
 
 
 #in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
@@ -59,7 +28,7 @@ if (SAIGA_DEBUG)
 	set(CMAKE_BUILD_TYPE debug)
 	#adds this flags on gcc: -g
 else ()
-	if(FULL_OPTIMIZE)
+	if(OPTION_FULL_OPTIMIZE)
 		set(CMAKE_BUILD_TYPE relwithdebinfo)
 		#adds this flags on gcc: -O2 -g -DNDEBUG
 	else()
@@ -110,12 +79,6 @@ if (FFMPEG_FOUND)
 	SET(SAIGA_USE_FFMPEG 1)
 endif ()
 
-#libnoise
-find_library(NOISE_LIBRARIES noise)
-if (NOISE_FOUND)
-	SET(LIBS ${LIBS} ${NOISE_LIBRARIES})
-	SET(SAIGA_USE_NOISE 1)
-endif ()
 
 #openal
 find_package(OpenAL QUIET)
@@ -188,7 +151,7 @@ endif()
 
 ############# CUDA ###############
 
-if(WITH_CUDA)
+if(SAIGA_WITH_CUDA)
 	find_package(CUDA QUIET)
 else()
 	set(CUDA_FOUND FALSE)

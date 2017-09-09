@@ -83,12 +83,12 @@ GroupSources(${PROJECT_SOURCE_DIR} shader)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include/saiga/imgui)
 
-if(BUILD_SHARED)
+if(SAIGA_BUILD_SHARED)
 	#only add to src, not to samples
 	add_definitions(-DSAIGA_DLL_EXPORTS)
 endif()
 
-if(BUILD_SHARED)
+if(SAIGA_BUILD_SHARED)
 	add_library(${LIB_NAME} SHARED ${PROG_SRC})
 else ()
 	add_library(${LIB_NAME} STATIC ${PROG_SRC})
