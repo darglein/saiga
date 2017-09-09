@@ -10,6 +10,7 @@
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/time/timer.h"
+#include "saiga/time/performanceMeasure.h"
 
 using std::cout;
 using std::endl;
@@ -218,10 +219,11 @@ void convolutionTest3x3(){
         h_ref = h_dest;
     }
 
+    int its = 50;
+
     {
-        float time;
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            Saiga::CUDA::CudaScopedTimer t(time);
             const int TILE_W = 128;
             const int TILE_H = 1;
             dim3 blocks(
@@ -231,16 +233,15 @@ void convolutionTest3x3(){
                         );
             dim3 threads(TILE_W,TILE_H);
             d_convolve3x3<TILE_W,TILE_H><<<blocks,threads>>>(imgSrc,imgDst);
-        }
-        pth.addMeassurement("d_convolve3x3", time);
+        });
+        pth.addMeassurement("d_convolve3x3", st.median);
         h_dest = dest;
         SAIGA_ASSERT(h_dest == h_ref);
     }
 
     {
-        float time;
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            Saiga::CUDA::CudaScopedTimer t(time);
             const int TILE_W = 32;
             const int TILE_H = 16;
             dim3 blocks(
@@ -250,15 +251,15 @@ void convolutionTest3x3(){
                         );
             dim3 threads(TILE_W,TILE_H);
             d_convolve3x3Shared<TILE_W,TILE_H><<<blocks,threads>>>(imgSrc,imgDst);
-        }
-        pth.addMeassurement("d_convolve3x3Shared", time);
+        });
+        pth.addMeassurement("d_convolve3x3Shared", st.median);
         h_dest = dest;
         SAIGA_ASSERT(h_dest == h_ref);
     }
+
     {
-        float time;
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            Saiga::CUDA::CudaScopedTimer t(time);
             const int TILE_W = 32;
             const int TILE_H = 16;
             dim3 blocks(
@@ -268,15 +269,15 @@ void convolutionTest3x3(){
                         );
             dim3 threads(TILE_W,TILE_H);
             d_convolve3x3Shared2<TILE_W,TILE_H><<<blocks,threads>>>(imgSrc,imgDst);
-        }
-        pth.addMeassurement("d_convolve3x3Shared2", time);
+        });
+        pth.addMeassurement("d_convolve3x3Shared2", st.median);
         h_dest = dest;
 //        SAIGA_ASSERT(h_dest == h_ref);
     }
+
     {
-        float time;
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            Saiga::CUDA::CudaScopedTimer t(time);
             const int TILE_W = 32;
             const int TILE_H = 16;
             dim3 blocks(
@@ -286,21 +287,20 @@ void convolutionTest3x3(){
                         );
             dim3 threads(TILE_W,TILE_H);
             d_copySharedSync<TILE_W,TILE_H><<<blocks,threads>>>(imgSrc,imgDst);
-        }
-        pth.addMeassurement("d_copySharedSync", time);
+        });
+        pth.addMeassurement("d_copySharedSync", st.median);
         h_dest = dest;
 //        SAIGA_ASSERT(h_dest == h_ref);
     }
 
     {
-        float time;
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            Saiga::CUDA::CudaScopedTimer t(time);
-            cudaMemcpy(thrust::raw_pointer_cast(dest.data()),thrust::raw_pointer_cast(src.data()),N * sizeof(int),cudaMemcpyDeviceToDevice);
-
-        }
-        pth.addMeassurement("cudaMemcpy", time);
+             cudaMemcpy(thrust::raw_pointer_cast(dest.data()),thrust::raw_pointer_cast(src.data()),N * sizeof(int),cudaMemcpyDeviceToDevice);
+        });
+        pth.addMeassurement("cudaMemcpy", st.median);
     }
+
     CUDA_SYNC_CHECK_ERROR();
 
 }
