@@ -50,8 +50,7 @@ void d_convolve3x3(ImageView<float> src, ImageView<float> dst
 
 template<unsigned int TILE_W, unsigned int TILE_H>
 __global__ static
-void d_convolve3x3Shared(ImageView<float> src, ImageView<float> dst
-                   )
+void d_convolve3x3Shared(ImageView<float> src, ImageView<float> dst)
 {
     const unsigned int tx = threadIdx.x;
     const unsigned int ty = threadIdx.y;
@@ -94,6 +93,69 @@ void d_convolve3x3Shared(ImageView<float> src, ImageView<float> dst
     const unsigned int x = x_tile + tx;
     const unsigned int y = y_tile + ty;
     dst(x,y) = sum;
+}
+
+
+
+template<unsigned int TILE_W, unsigned int TILE_H>
+__global__ static
+void d_convolve3x3Shared2(ImageView<float> src, ImageView<float> dst)
+{
+    const unsigned int tx = threadIdx.x;
+    const unsigned int ty = threadIdx.y;
+    const unsigned int t = ty * TILE_W + tx;
+
+    const unsigned int x_tile = blockIdx.x * TILE_W;
+    const unsigned int y_tile = blockIdx.y * TILE_H;
+    const unsigned int blockStartX = x_tile - 1;
+    const unsigned int blockStartY = y_tile - 1;
+
+
+    const unsigned int TILE_SIZE =  TILE_H * TILE_W;
+    const unsigned int TILE_SIZE_WITH_BORDER = (TILE_H+2) * (TILE_W+2);
+    __shared__ float sbuffer[TILE_H + 2][TILE_W + 2];
+
+
+    //copy main data
+
+
+    __syncthreads();
+
+
+    float sum = 0;
+#if 1
+    for(int dy = -1; dy <= 1; ++dy){
+        for(int dx = -1; dx <= 1; ++dx){
+            int x = tx + 1 + dx;
+            int y = ty + 1 + dy;
+            sum += sbuffer[y][x];
+        }
+    }
+#endif
+
+    const unsigned int x = x_tile + tx;
+    const unsigned int y = y_tile + ty;
+    dst(x,y) = sum;
+}
+
+
+template<unsigned int TILE_W, unsigned int TILE_H>
+__global__ static
+void d_copySharedSync(ImageView<float> src, ImageView<float> dst)
+{
+    const unsigned int tx = threadIdx.x;
+    const unsigned int ty = threadIdx.y;
+    const unsigned int t = ty * TILE_W + tx;
+    const unsigned int x_tile = blockIdx.x * TILE_W;
+    const unsigned int y_tile = blockIdx.y * TILE_H;
+    const unsigned int x = x_tile + tx;
+    const unsigned int y = y_tile + ty;
+
+    __shared__ float sbuffer[TILE_H][TILE_W];
+
+    sbuffer[ty][tx]  = src(x,y);
+    __syncthreads();
+    dst(x,y) = sbuffer[ty][tx];
 }
 
 void convolutionTest3x3(){
@@ -192,6 +254,42 @@ void convolutionTest3x3(){
         pth.addMeassurement("d_convolve3x3Shared", time);
         h_dest = dest;
         SAIGA_ASSERT(h_dest == h_ref);
+    }
+    {
+        float time;
+        {
+            Saiga::CUDA::CudaScopedTimer t(time);
+            const int TILE_W = 32;
+            const int TILE_H = 16;
+            dim3 blocks(
+                        Saiga::iDivUp(w, TILE_W),
+                        Saiga::iDivUp(h, TILE_H),
+                        1
+                        );
+            dim3 threads(TILE_W,TILE_H);
+            d_convolve3x3Shared2<TILE_W,TILE_H><<<blocks,threads>>>(imgSrc,imgDst);
+        }
+        pth.addMeassurement("d_convolve3x3Shared2", time);
+        h_dest = dest;
+//        SAIGA_ASSERT(h_dest == h_ref);
+    }
+    {
+        float time;
+        {
+            Saiga::CUDA::CudaScopedTimer t(time);
+            const int TILE_W = 32;
+            const int TILE_H = 16;
+            dim3 blocks(
+                        Saiga::iDivUp(w, TILE_W),
+                        Saiga::iDivUp(h, TILE_H),
+                        1
+                        );
+            dim3 threads(TILE_W,TILE_H);
+            d_copySharedSync<TILE_W,TILE_H><<<blocks,threads>>>(imgSrc,imgDst);
+        }
+        pth.addMeassurement("d_copySharedSync", time);
+        h_dest = dest;
+//        SAIGA_ASSERT(h_dest == h_ref);
     }
 
     {
