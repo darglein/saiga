@@ -106,9 +106,10 @@ void d_convolve3x3Shared2(ImageView<float> src, ImageView<float> dst)
     const unsigned int ty = threadIdx.y;
     const unsigned int t = ty * TILE_W + tx;
     const unsigned int warp_lane = t / 32;
+    const unsigned int lane_id = t & 31;
 
     const unsigned int x_tile = blockIdx.x * TILE_W;
-    const unsigned int y_tile = blockIdx.y * TILE_H;
+    const unsigned int y_tile = blockIdx.y * TILE_H * 2;
 
     const unsigned int x = x_tile + tx;
     const unsigned int y = y_tile + ty;
@@ -117,10 +118,36 @@ void d_convolve3x3Shared2(ImageView<float> src, ImageView<float> dst)
 
 
     //copy main data
-    //    sbuffer[ty + 1][tx + 1]  = src(x,y);
-
     for(int i = 0; i < 2; ++i)
         sbuffer[ty + i * TILE_H + 1][tx + 1]  = src.clampedRead(x,y + i * TILE_H);
+
+    //top halo
+    if(warp_lane == 0){
+        sbuffer[0][lane_id + 1]  = src.clampedRead(x_tile + lane_id,y_tile - 1);
+    }
+
+    //bottom
+    if(warp_lane == 1){
+        sbuffer[TILE_H * 2 + 1][lane_id + 1]  = src.clampedRead(x_tile + lane_id,y_tile + TILE_H * 2);
+    }
+
+    //left
+    if(warp_lane == 2){
+        sbuffer[lane_id + 1][0]  = src.clampedRead(x_tile - 1, y_tile + lane_id);
+    }
+
+    //right
+    if(warp_lane == 3){
+        sbuffer[lane_id + 1][TILE_W + 1]  = src.clampedRead(x_tile + TILE_W, y_tile + lane_id);
+    }
+
+    //corners
+    if(warp_lane == 4){
+        if(lane_id == 0) sbuffer[0][0]  = src.clampedRead(x_tile - 1, y_tile - 1);
+        if(lane_id == 1) sbuffer[0][TILE_W + 1]  = src.clampedRead(x_tile + TILE_W, y_tile - 1);
+        if(lane_id == 2) sbuffer[TILE_H * 2 + 1][0]  = src.clampedRead(x_tile - 1, y_tile + TILE_H * 2);
+        if(lane_id == 3) sbuffer[TILE_H * 2 + 1][TILE_W + 1]  = src.clampedRead(x_tile + TILE_W, y_tile + TILE_H * 2);
+    }
 
     __syncthreads();
 
@@ -284,6 +311,7 @@ void convolutionTest3x3(){
     }
 
     {
+        dest = tmp;
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
             const int TILE_W = 32;
@@ -298,7 +326,7 @@ void convolutionTest3x3(){
         });
         pth.addMeassurement("d_convolve3x3Shared2", st.median);
         h_dest = dest;
-        //        SAIGA_ASSERT(h_dest == h_ref);
+                SAIGA_ASSERT(h_dest == h_ref);
     }
 
     {
