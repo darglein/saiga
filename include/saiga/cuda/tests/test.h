@@ -25,6 +25,8 @@ SAIGA_GLOBAL extern void reduceTest();
 SAIGA_GLOBAL extern void warpStrideLoopTest();
 
 SAIGA_GLOBAL extern void convolutionTest();
+SAIGA_GLOBAL extern void convolutionTest3x3();
+
 SAIGA_GLOBAL extern void imageProcessingTest();
 
 SAIGA_GLOBAL extern void testCuda();

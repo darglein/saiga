@@ -202,6 +202,12 @@ struct ImageArrayView{
 
     HD inline
     ImageView<T> operator[](int i){ return at(i); }
+
+    HD inline
+    T& operator()(int x, int y, int z){
+        auto ptr = imgStart.data8 + z * imgStart.size() + y * imgStart.pitchBytes + x * sizeof(T);
+        return reinterpret_cast<T*>(ptr)[0];
+    }
 };
 
 }
