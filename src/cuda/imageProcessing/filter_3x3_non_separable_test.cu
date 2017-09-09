@@ -105,38 +105,40 @@ void d_convolve3x3Shared2(ImageView<float> src, ImageView<float> dst)
     const unsigned int tx = threadIdx.x;
     const unsigned int ty = threadIdx.y;
     const unsigned int t = ty * TILE_W + tx;
+    const unsigned int warp_lane = t / 32;
 
     const unsigned int x_tile = blockIdx.x * TILE_W;
     const unsigned int y_tile = blockIdx.y * TILE_H;
-    const unsigned int blockStartX = x_tile - 1;
-    const unsigned int blockStartY = y_tile - 1;
-
-
-    const unsigned int TILE_SIZE =  TILE_H * TILE_W;
-    const unsigned int TILE_SIZE_WITH_BORDER = (TILE_H+2) * (TILE_W+2);
-    __shared__ float sbuffer[TILE_H + 2][TILE_W + 2];
-
-
-    //copy main data
-
-
-    __syncthreads();
-
-
-    float sum = 0;
-#if 1
-    for(int dy = -1; dy <= 1; ++dy){
-        for(int dx = -1; dx <= 1; ++dx){
-            int x = tx + 1 + dx;
-            int y = ty + 1 + dy;
-            sum += sbuffer[y][x];
-        }
-    }
-#endif
 
     const unsigned int x = x_tile + tx;
     const unsigned int y = y_tile + ty;
-    dst(x,y) = sum;
+
+    __shared__ float sbuffer[TILE_H * 2 + 2][TILE_W + 2];
+
+
+    //copy main data
+    //    sbuffer[ty + 1][tx + 1]  = src(x,y);
+
+    for(int i = 0; i < 2; ++i)
+        sbuffer[ty + i * TILE_H + 1][tx + 1]  = src.clampedRead(x,y + i * TILE_H);
+
+    __syncthreads();
+
+    for(int i = 0; i < 2; ++i)
+    {
+        float sum = 0;
+#if 1
+        for(int dy = -1; dy <= 1; ++dy){
+            for(int dx = -1; dx <= 1; ++dx){
+                int x = tx + 1 + dx;
+                int y = ty + 1 + dy + i * TILE_H;
+                sum += sbuffer[y][x];
+            }
+        }
+#endif
+
+        dst(x,y + i * TILE_H) = sum;
+    }
 }
 
 
@@ -157,6 +159,30 @@ void d_copySharedSync(ImageView<float> src, ImageView<float> dst)
     sbuffer[ty][tx]  = src(x,y);
     __syncthreads();
     dst(x,y) = sbuffer[ty][tx];
+}
+
+
+template<unsigned int TILE_W, unsigned int TILE_H>
+__global__ static
+void d_copySharedSync2(ImageView<float> src, ImageView<float> dst)
+{
+    const unsigned int tx = threadIdx.x;
+    const unsigned int ty = threadIdx.y;
+    const unsigned int t = ty * TILE_W + tx;
+    const unsigned int x_tile = blockIdx.x * TILE_W;
+    const unsigned int y_tile = blockIdx.y * TILE_H * 2;
+    const unsigned int x = x_tile + tx;
+    const unsigned int y = y_tile + ty;
+
+    __shared__ float sbuffer[TILE_H * 2][TILE_W];
+
+    for(int i = 0; i < 2; ++i)
+        sbuffer[ty + i * TILE_H][tx]  = src.clampedRead(x,y + i * TILE_H);
+
+    __syncthreads();
+
+    for(int i = 0; i < 2; ++i)
+        dst.clampedWrite(x,y + i * TILE_H, sbuffer[ty + i * TILE_H][tx]);
 }
 
 void convolutionTest3x3(){
@@ -264,7 +290,7 @@ void convolutionTest3x3(){
             const int TILE_H = 16;
             dim3 blocks(
                         Saiga::iDivUp(w, TILE_W),
-                        Saiga::iDivUp(h, TILE_H),
+                        Saiga::iDivUp(h, TILE_H * 2),
                         1
                         );
             dim3 threads(TILE_W,TILE_H);
@@ -272,7 +298,7 @@ void convolutionTest3x3(){
         });
         pth.addMeassurement("d_convolve3x3Shared2", st.median);
         h_dest = dest;
-//        SAIGA_ASSERT(h_dest == h_ref);
+        //        SAIGA_ASSERT(h_dest == h_ref);
     }
 
     {
@@ -290,13 +316,31 @@ void convolutionTest3x3(){
         });
         pth.addMeassurement("d_copySharedSync", st.median);
         h_dest = dest;
-//        SAIGA_ASSERT(h_dest == h_ref);
+        //        SAIGA_ASSERT(h_dest == h_ref);
     }
 
     {
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-             cudaMemcpy(thrust::raw_pointer_cast(dest.data()),thrust::raw_pointer_cast(src.data()),N * sizeof(int),cudaMemcpyDeviceToDevice);
+            const int TILE_W = 32;
+            const int TILE_H = 16;
+            dim3 blocks(
+                        Saiga::iDivUp(w, TILE_W),
+                        Saiga::iDivUp(h, TILE_H * 2),
+                        1
+                        );
+            dim3 threads(TILE_W,TILE_H);
+            d_copySharedSync2<TILE_W,TILE_H><<<blocks,threads>>>(imgSrc,imgDst);
+        });
+        pth.addMeassurement("d_copySharedSync2", st.median);
+        h_dest = dest;
+        //        SAIGA_ASSERT(h_dest == h_ref);
+    }
+
+    {
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
+        {
+            cudaMemcpy(thrust::raw_pointer_cast(dest.data()),thrust::raw_pointer_cast(src.data()),N * sizeof(int),cudaMemcpyDeviceToDevice);
         });
         pth.addMeassurement("cudaMemcpy", st.median);
     }

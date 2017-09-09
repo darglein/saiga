@@ -182,6 +182,25 @@ struct ImageView{
         y = std::min(std::max(0,y),height-1);
 #endif
     }
+
+    HD inline
+    T clampedRead(int x, int y){
+        clampToEdge(x,y);
+        return (*this)(x,y);
+    }
+
+
+    HD inline
+    T borderRead(int x, int y, const T& borderValue){
+        return inImage(x,y) ? (*this)(x,y) : borderValue;
+    }
+
+    //write only if the point is in the image
+    HD inline
+    void clampedWrite(int x, int y, const T& v){
+        if(inImage(x,y))
+            (*this)(x,y) = v;
+    }
 };
 
 //multiple images that are stored in memory consecutively
