@@ -19,7 +19,7 @@ namespace CUDA {
 
 __constant__ float d_Kernel[MAX_RADIUS*2+1];
 
-#define KERNEL_RADIUS 4
+#define KERNEL_RADIUS 3
 
 ////////////////////////////////////////////////////////////////////////////////
 // Row convolution filter
@@ -577,7 +577,7 @@ void convolutionTest(){
         float time;
         {
             Saiga::CUDA::CudaScopedTimer t(time);
-            convolveSinglePassSeparate(imgSrc,imgDst,d_kernel,4);
+            convolveSinglePassSeparate(imgSrc,imgDst,d_kernel,KERNEL_RADIUS);
         }
         pth.addMeassurement("GPU Convolve Single Pass2",time);
         thrust::host_vector<float> test = dest;
@@ -595,7 +595,7 @@ void convolutionTest(){
         float time;
         {
             Saiga::CUDA::CudaScopedTimer t(time);
-            convolveSinglePassSeparate2(imgSrc,imgDst,d_kernel,4);
+            convolveSinglePassSeparate2(imgSrc,imgDst,d_kernel,KERNEL_RADIUS);
         }
         pth.addMeassurement("GPU Convolve Single Pass2",time);
         thrust::host_vector<float> test = dest;
@@ -613,9 +613,27 @@ void convolutionTest(){
         float time;
         {
             Saiga::CUDA::CudaScopedTimer t(time);
-            convolveSinglePassSeparate3(imgSrc,imgDst,d_kernel,4);
+            convolveSinglePassSeparate3(imgSrc,imgDst,d_kernel,KERNEL_RADIUS);
         }
         pth.addMeassurement("GPU Convolve Single Pass3",time);
+        thrust::host_vector<float> test = dest;
+        for(int i = 0; i < test.size();++i){
+            if(std::abs(test[i]-h_ref[i]) > 1e-5){
+                cout << "error " << i << " " << test[i] << "!=" << h_ref[i] << endl;
+                SAIGA_ASSERT(0);
+            }
+        }
+    }
+
+    {
+        thrust::device_vector<float> d_kernel = h_kernel;
+        dest = src;
+        float time;
+        {
+            Saiga::CUDA::CudaScopedTimer t(time);
+            convolveSinglePassSeparate4(imgSrc,imgDst,d_kernel,KERNEL_RADIUS);
+        }
+        pth.addMeassurement("GPU Convolve Single Pass4",time);
         thrust::host_vector<float> test = dest;
         for(int i = 0; i < test.size();++i){
             if(std::abs(test[i]-h_ref[i]) > 1e-5){

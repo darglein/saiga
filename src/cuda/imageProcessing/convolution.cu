@@ -348,6 +348,139 @@ void convolve3(ImageView<T> src, ImageView<T> dst){
     singlePassConvolve3<T,RADIUS,BLOCK_W,BLOCK_H,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
 }
 
+
+template<typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int Y_ELEMENTS>
+__global__ static
+void singlePassConvolve4(ImageView<T> src, ImageView<T> dst)
+{
+    const unsigned int TILE_H = BLOCK_H;
+    const unsigned int TILE_W = BLOCK_W;
+
+    const unsigned int TILE_H2 = TILE_H * Y_ELEMENTS;
+    const unsigned int tx = threadIdx.x;
+    const unsigned int ty = threadIdx.y;
+    int t = tx + ty * BLOCK_W;
+
+    int x_tile = blockIdx.x * (TILE_W - 2 * RADIUS) - RADIUS;
+    int y_tile = blockIdx.y * (TILE_H2 - 2 * RADIUS) - RADIUS;
+
+    int x = x_tile + tx;
+    int y = y_tile + ty;
+
+
+    __shared__ T buffer[TILE_H2][TILE_W];
+    __shared__ T buffer2[TILE_H2 - RADIUS * 2][TILE_W];
+
+
+
+    //copy main data
+    for(int i = 0; i < Y_ELEMENTS; ++i)
+        buffer[ty + i * TILE_H][tx]  = src.clampedRead(x,y + i * TILE_H);
+
+
+
+    __syncthreads();
+
+
+    T *kernel = d_Kernel;
+
+    //convolve along y axis
+    //    if(ty > RADIUS && ty < TILE_H2 - RADIUS)
+    //    {
+    //        int oy = ty - RADIUS;
+
+    for(int i = 0; i < Y_ELEMENTS; ++i)
+    {
+//        int gx = x;
+//        int gy = y + i * TILE_H;
+        int lx = tx;
+        int ly = ty + i * TILE_H;
+
+        if(ly < RADIUS || ly >= TILE_H2 - RADIUS)
+            continue;
+
+        T sum = 0;
+#pragma unroll
+        for (int j=-RADIUS;j<=RADIUS;j++)
+        {
+            int kernelIndex = j + RADIUS;
+            sum += buffer[ly + j][lx] * kernel[kernelIndex];
+        }
+        buffer2[ly - RADIUS][lx] = sum;
+    }
+
+
+
+    __syncthreads();
+
+    for(int i = 0; i < Y_ELEMENTS; ++i)
+    {
+        int gx = x;
+        int gy = y + i * TILE_H;
+
+        int lx = tx;
+        int ly = ty + i * TILE_H;
+
+        if(ly < RADIUS || ly >= TILE_H2 - RADIUS)
+            continue;
+
+        if(lx < RADIUS || lx >= TILE_W - RADIUS)
+            continue;
+
+        T sum = 0;
+#pragma unroll
+        for (int j=-RADIUS;j<=RADIUS;j++)
+        {
+            int kernelIndex = j + RADIUS;
+            sum += buffer2[ly - RADIUS][lx + j] * kernel[kernelIndex];
+        }
+
+//        if(dst.inImage(gx,gy))
+//            dst(g,yp) = sum;
+        dst.clampedWrite(gx,gy,sum);
+    }
+
+
+
+#if 0
+
+    for(int i =0; i < Y_ELEMENTS; ++i){
+        T sum = 0;
+#pragma unroll
+        for (int j=-RADIUS;j<=RADIUS;j++){
+            int kernelIndex = j + RADIUS;
+            sum += buffer2[ty][tx + RADIUS + j] * kernel[kernelIndex];
+        }
+
+        if(dst.inImage(xp,yp))
+            dst(xp,yp) = sum;
+        yp += BLOCK_H;
+        ty += BLOCK_H;
+    }
+#endif
+}
+
+template<typename T, int RADIUS>
+inline
+void convolve4(ImageView<T> src, ImageView<T> dst){
+    int w = src.width;
+    int h = src.height;
+
+    const int BLOCK_W = 32;
+    const int BLOCK_H = 16;
+    const int Y_ELEMENTS = 2;
+    dim3 blocks(
+                Saiga::iDivUp(w, BLOCK_W - 2 * RADIUS),
+                Saiga::iDivUp(h, BLOCK_H * Y_ELEMENTS - 2 * RADIUS),
+                1
+                );
+
+    //    dim3 blocks(Saiga::CUDA::getBlockCount(w, BLOCK_W), Saiga::CUDA::getBlockCount(h, BLOCK_H));
+    dim3 threads(BLOCK_W, BLOCK_H);
+
+    singlePassConvolve4<T,RADIUS,BLOCK_W,BLOCK_H,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
+}
+
 void convolveSinglePassSeparate(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
 
@@ -369,18 +502,26 @@ void convolveSinglePassSeparate(ImageView<float> src, ImageView<float> dst, Saig
 
 void convolveSinglePassSeparate2(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
-
-
-    CUDA::convolve2<float,4>(src,dst);
-
+    switch (radius){
+    case 3: CUDA::convolve2<float,3>(src,dst); break;
+    case 4: CUDA::convolve2<float,4>(src,dst); break;
+    }
 }
 
 void convolveSinglePassSeparate3(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
+    switch (radius){
+    case 3: CUDA::convolve3<float,3>(src,dst); break;
+    case 4: CUDA::convolve3<float,4>(src,dst); break;
+    }
+}
 
-
-    CUDA::convolve3<float,4>(src,dst);
-
+void convolveSinglePassSeparate4(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
+    CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
+    switch (radius){
+    case 3: CUDA::convolve4<float,3>(src,dst); break;
+    case 4: CUDA::convolve4<float,4>(src,dst); break;
+    }
 }
 
 }
