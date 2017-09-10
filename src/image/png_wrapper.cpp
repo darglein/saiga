@@ -6,6 +6,7 @@
 
 #include "saiga/image/png_wrapper.h"
 #include "saiga/util/assert.h"
+#include <cstring> // for memcpy
 #ifdef SAIGA_USE_PNG
 namespace Saiga {
 namespace PNG{
