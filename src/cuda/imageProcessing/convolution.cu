@@ -234,17 +234,6 @@ void singlePassConvolve3(ImageView<T> src, ImageView<T> dst)
     const int blockSizeX = BLOCK_W + 2*RADIUS;
     const int blockSizeY = BLOCK_H2 + 2*RADIUS;
 
-    //fill buffer
-    //    for(int i = t; i < blockSizeX * blockSizeY; i += (BLOCK_W*BLOCK_H)){
-    //        int x = i % blockSizeX;
-    //        int y = i / blockSizeX;
-    //        int gx = x + blockStartX;
-    //        int gy = y + blockStartY;
-    //        src.clampToEdge(gx,gy);
-    //        buffer[y][x] = src(gx,gy);
-    //    }
-
-
     //copy main data
     for(int i = 0; i < Y_ELEMENTS; ++i)
     {
@@ -252,8 +241,10 @@ void singlePassConvolve3(ImageView<T> src, ImageView<T> dst)
     }
 
     //top and bottom halo
-    if(warp_lane < 4){
-        for(int i = 0; i < RADIUS; ++i)
+    if(warp_lane < 4)
+    {
+        const unsigned int num_warps = 4;
+        for(int i = warp_lane; i < RADIUS; i+=num_warps)
         {
             buffer[i][lane_id + RADIUS]  =
                     src.clampedRead(x_tile + lane_id,blockStartY + i);
@@ -263,31 +254,41 @@ void singlePassConvolve3(ImageView<T> src, ImageView<T> dst)
         }
     }
 
+    const unsigned int side_halo_rows_per_warp = 32 / RADIUS;
+
+    int local_warp_id = lane_id / RADIUS;
+    int local_lane_id = lane_id % RADIUS;
 
     //left halo
-    if(warp_lane >= 4 && warp_lane < 8){
+    if(warp_lane >= 4 && warp_lane < 10)
+    {
+        const unsigned int num_warps = 6;
         int wid = warp_lane - 4;
         int rows = BLOCK_H2 + 2 * RADIUS;
-        for(int i = wid;i < rows; i+=4)
+
+        for(int i = wid * side_halo_rows_per_warp + local_warp_id;i < rows; i += num_warps*side_halo_rows_per_warp)
         {
-            if(lane_id < RADIUS)
+            if(local_warp_id < side_halo_rows_per_warp)
             {
-                buffer[i][lane_id]  =
-                        src.clampedRead(blockStartX + lane_id,blockStartY + i);
+                buffer[i][local_lane_id]  =
+                        src.clampedRead(blockStartX + local_lane_id,blockStartY + i);
             }
         }
     }
 
     //right halo
-    if(warp_lane >= 8 && warp_lane < 12){
-        int wid = warp_lane - 8;
+    if(warp_lane >= 10 && warp_lane < 16)
+    {
+        const unsigned int num_warps = 6;
+        int wid = warp_lane - 10;
         int rows = BLOCK_H2 + 2 * RADIUS;
-        for(int i = wid;i < rows; i+=4)
+
+        for(int i = wid * side_halo_rows_per_warp + local_warp_id;i < rows; i += num_warps*side_halo_rows_per_warp)
         {
-            if(lane_id < RADIUS)
+            if(local_warp_id < side_halo_rows_per_warp)
             {
-                buffer[i][BLOCK_W + RADIUS + lane_id]  =
-                        src.clampedRead(BLOCK_W + RADIUS + blockStartX + lane_id,blockStartY + i);
+                buffer[i][local_lane_id + RADIUS + BLOCK_W]  =
+                        src.clampedRead(blockStartX + local_lane_id + RADIUS + BLOCK_W,blockStartY + i);
             }
         }
     }
