@@ -123,7 +123,7 @@ __global__ void convolutionRowsKernel(
     const int xp = blockIdx.x*BLOCK_W + tx;
     const int yp = blockIdx.y*BLOCK_H + ty;
 
-//    const int baseX = blockIdx.x*BLOCK_W - KERNEL_RADIUS;
+    //    const int baseX = blockIdx.x*BLOCK_W - KERNEL_RADIUS;
 
     const int baseXV = blockIdx.x * BLOCK_W - KERNEL_RADIUS / elements_per_vector;
 
@@ -282,9 +282,9 @@ __global__ void convolutionColumnsKernel(
     vector_type* src2 = reinterpret_cast<vector_type*>(d_Src);
     vector_type* dest2 = reinterpret_cast<vector_type*>(d_Dst);
 
-//    T* s_Data2 = reinterpret_cast<T*>(s_Data);
+    //    T* s_Data2 = reinterpret_cast<T*>(s_Data);
 
-//    int imageWV = imageW / elements_per_vector;
+    //    int imageWV = imageW / elements_per_vector;
     int pitchV = pitch / elements_per_vector;
 
 
@@ -297,9 +297,9 @@ __global__ void convolutionColumnsKernel(
     const int xp = blockIdx.x*BLOCK_W + tx;
     const int yp = blockIdx.y*BLOCK_H + ty;
 
-//    const int baseX = blockIdx.x*BLOCK_W - KERNEL_RADIUS;
+    //    const int baseX = blockIdx.x*BLOCK_W - KERNEL_RADIUS;
 
-//    const int baseXV = blockIdx.x * BLOCK_W - KERNEL_RADIUS / elements_per_vector;
+    //    const int baseXV = blockIdx.x * BLOCK_W - KERNEL_RADIUS / elements_per_vector;
 
 
 
@@ -312,9 +312,9 @@ __global__ void convolutionColumnsKernel(
         y = min(max(0,y),imageH-1);
         s_Data[tx*shared_block_width + i] = src2[y * pitchV + xp];
 
-//        vector_type v;
-//        v.x = 1;
-//        v.y = 1;
+        //        vector_type v;
+        //        v.x = 1;
+        //        v.y = 1;
         //        s_Data[tx*shared_block_width + i] = v;
 
         //                if(blockIdx.x == 0 && blockIdx.y == 0){
@@ -403,8 +403,8 @@ void singlePassConvolve(ImageView<T> src, ImageView<T> dst)
     int nx = min(max(0,xp-RADIUS),src.width-1);
 
     float *buff = buffer + ty*(BLOCK_W + 2*RADIUS);
-//    int h = src.height-1;
-//    int pitch = src.pitch;
+    //    int h = src.height-1;
+    //    int pitch = src.pitch;
 
     if (yp<src.height){
         float sum = 0;
@@ -436,6 +436,7 @@ void convolutionTest(){
     const int kernel_radius = KERNEL_RADIUS;
     const int kernel_size = kernel_radius * 2 + 1;
     float sigma = 2.0f;
+//    int h = 256;
     int h = 2048;
     int w = h * 2;
 
@@ -483,13 +484,14 @@ void convolutionTest(){
         src = h_src;
     }
 
-//    copyConvolutionKernel(h_kernel);
+    //    copyConvolutionKernel(h_kernel);
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, h_kernel.data(), h_kernel.size()*sizeof(float)));
 
     {
         float time;
         {
             Saiga::ScopedTimer<float> t(&time);
+#pragma omp parallel for
             for(int y = 0; y < h; ++y){
                 for(int x = 0; x < w; ++x){
                     float sum = 0;
@@ -517,6 +519,7 @@ void convolutionTest(){
         float time;
         {
             Saiga::ScopedTimer<float> t(&time);
+            #pragma omp parallel for
             for(int y = 0; y < h; ++y){
                 for(int x = 0; x < w; ++x){
                     float sum = 0;
@@ -528,7 +531,7 @@ void convolutionTest(){
                 }
             }
 
-
+#pragma omp parallel for
             for(int x = 0; x < w; ++x){
                 for(int y = 0; y < h; ++y){
                     float sum = 0;
@@ -577,6 +580,42 @@ void convolutionTest(){
             convolveSinglePassSeparate(imgSrc,imgDst,d_kernel,4);
         }
         pth.addMeassurement("GPU Convolve Single Pass2",time);
+        thrust::host_vector<float> test = dest;
+        for(int i = 0; i < test.size();++i){
+            if(std::abs(test[i]-h_ref[i]) > 1e-5){
+                cout << "error " << i << " " << test[i] << "!=" << h_ref[i] << endl;
+                SAIGA_ASSERT(0);
+            }
+        }
+    }
+
+    {
+        thrust::device_vector<float> d_kernel = h_kernel;
+        dest = src;
+        float time;
+        {
+            Saiga::CUDA::CudaScopedTimer t(time);
+            convolveSinglePassSeparate2(imgSrc,imgDst,d_kernel,4);
+        }
+        pth.addMeassurement("GPU Convolve Single Pass2",time);
+        thrust::host_vector<float> test = dest;
+        for(int i = 0; i < test.size();++i){
+            if(std::abs(test[i]-h_ref[i]) > 1e-5){
+                cout << "error " << i << " " << test[i] << "!=" << h_ref[i] << endl;
+                SAIGA_ASSERT(0);
+            }
+        }
+    }
+
+    {
+        thrust::device_vector<float> d_kernel = h_kernel;
+        dest = src;
+        float time;
+        {
+            Saiga::CUDA::CudaScopedTimer t(time);
+            convolveSinglePassSeparate3(imgSrc,imgDst,d_kernel,4);
+        }
+        pth.addMeassurement("GPU Convolve Single Pass3",time);
         thrust::host_vector<float> test = dest;
         for(int i = 0; i < test.size();++i){
             if(std::abs(test[i]-h_ref[i]) > 1e-5){

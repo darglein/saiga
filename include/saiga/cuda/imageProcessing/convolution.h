@@ -24,6 +24,9 @@ namespace CUDA {
 
 
 SAIGA_GLOBAL void convolveSinglePassSeparate(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparate2(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparate3(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+
 SAIGA_GLOBAL void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 SAIGA_GLOBAL void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 
