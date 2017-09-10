@@ -164,6 +164,17 @@ void convolutionTest2(int w, int h){
         checkRes(h_ref,thrust::host_vector<float>(dest));
     }
 
+    {
+        thrust::device_vector<float> d_kernel = h_kernel;
+        dest = src;
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
+        {
+            convolveSinglePassSeparateInner75(imgSrc,imgDst,d_kernel,KERNEL_RADIUS);
+        });
+        pth.addMeassurement("convolveSinglePassSeparateInner75",st.median);
+        checkRes(h_ref,thrust::host_vector<float>(dest));
+    }
+
 
     {
         dest = src;
@@ -200,11 +211,19 @@ void convolutionTest2(int w, int h){
 void convolutionTest()
 {
     //    convolutionTest2<3>(17,53);
-    convolutionTest2<3>(2048,1024);
-    convolutionTest2<4>(2048,1024);
-    convolutionTest2<5>(2048,1024);
-    convolutionTest2<6>(2048,1024);
-    convolutionTest2<7>(2048,1024);
+    int w = 2048;
+    int h = 1024;
+//    int w = 512;
+//    int h = 256;
+
+    convolutionTest2<1>(w,h);
+    convolutionTest2<2>(w,h);
+    convolutionTest2<3>(w,h);
+    convolutionTest2<4>(w,h);
+//    return;
+    convolutionTest2<5>(w,h);
+    convolutionTest2<6>(w,h);
+    convolutionTest2<7>(w,h);
 }
 
 }

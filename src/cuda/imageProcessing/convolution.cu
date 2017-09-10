@@ -378,15 +378,16 @@ void d_convolveInner(ImageView<T> src, ImageView<T> dst)
 #endif
 }
 
-template<typename T, int RADIUS>
+template<typename T, int RADIUS, bool LOW_OCC = false>
 inline
 void convolveInner(ImageView<T> src, ImageView<T> dst){
     int w = src.width;
     int h = src.height;
 
-    const int BLOCK_W = 32;
-    const int BLOCK_H = 16;
-    const int Y_ELEMENTS = 2;
+
+    const int BLOCK_W = LOW_OCC ? 64 : 32;
+    const int BLOCK_H = LOW_OCC ? 8 : 16;
+    const int Y_ELEMENTS = LOW_OCC ? 4 : 2;
     dim3 blocks(
                 Saiga::iDivUp(w, BLOCK_W - 2 * RADIUS),
                 Saiga::iDivUp(h, BLOCK_H * Y_ELEMENTS - 2 * RADIUS),
@@ -441,6 +442,21 @@ void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst,
     case 6: CUDA::convolveInner<float,6>(src,dst); break;
     case 7: CUDA::convolveInner<float,7>(src,dst); break;
     case 8: CUDA::convolveInner<float,8>(src,dst); break;
+    }
+}
+
+
+void convolveSinglePassSeparateInner75(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
+    CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
+    switch (radius){
+    case 1: CUDA::convolveInner<float,1,true>(src,dst); break;
+    case 2: CUDA::convolveInner<float,2,true>(src,dst); break;
+    case 3: CUDA::convolveInner<float,3,true>(src,dst); break;
+    case 4: CUDA::convolveInner<float,4,true>(src,dst); break;
+    case 5: CUDA::convolveInner<float,5,true>(src,dst); break;
+    case 6: CUDA::convolveInner<float,6,true>(src,dst); break;
+    case 7: CUDA::convolveInner<float,7,true>(src,dst); break;
+    case 8: CUDA::convolveInner<float,8,true>(src,dst); break;
     }
 }
 
