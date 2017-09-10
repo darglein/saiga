@@ -20,7 +20,10 @@ SAIGA is a lightweight OpenGL utility and rendering framework. It was successful
 
 ## Supported Operating Systems
 
- * Ubuntu 16 64 bit and similiar Linux distros. (Older Linux systems should work by installing one of the supported compilers and building the dependencies from source.)
+ * Ubuntu 16 64 bit and similiar Linux distros
+ * Fedora 25 64 bit or newer
+
+   Other Linux systems should work by installing one of the supported compilers and building the dependencies from source.
  * Windows Vista/7/8/10 32 and 64 bit
 
 ## Supported Graphics Hardware
@@ -66,9 +69,15 @@ Utility
 
 #### Linux
  - Install dependencies with the package manager (in older Linux systems you might have to compile the latest library versions by yourself)
-```
-sudo apt-get install libglew-dev libglm-dev libfreetype6-dev libsdl2-dev libpng-dev
-```
+
+   For Ubuntu and other Debian-based distributions:
+   ```
+   sudo apt-get install libglew-dev libglm-dev libfreetype6-dev libsdl2-dev libpng-dev
+   ```
+   For Fedora:
+   ```
+   sudo dnf install glew-devel glm-devel freetype-devel SDL2-devel libXrandr-devel libXcursor-devel libXinerama-devel
+   ```
  - Build Saiga
 ```
 cd saiga
