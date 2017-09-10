@@ -21,91 +21,9 @@ namespace CUDA {
 __constant__ float d_Kernel[MAX_RADIUS*2+1];
 
 
-template<typename T, int RADIUS, int BLOCK_W, int BLOCK_H>
-__global__ static
-void singlePassConvolve(ImageView<T> src, ImageView<T> dst)
-{
-    //for radius = 4: elements = (32+8) * (16+8) = 960 = 3840
-    __shared__ T buffer[BLOCK_H + 2*RADIUS][BLOCK_W + 2*RADIUS];
-    //for radius = 4: elements = (32+8) * (16) = 640 = 2560
-    __shared__ T buffer2[BLOCK_H][BLOCK_W + 2*RADIUS];
-    //total s mem per block = 6400
-    //with 512 threads per block smem per sm: 25600 -> 100% occ
-
-
-    const int tx = threadIdx.x;
-    const int ty = threadIdx.y;
-    const int t = tx + ty * BLOCK_W;
-    const int xp = blockIdx.x*BLOCK_W + tx;
-    const int yp = blockIdx.y*BLOCK_H + ty;
-
-
-    int blockStartX = blockIdx.x*BLOCK_W - RADIUS;
-    int blockStartY = blockIdx.y*BLOCK_H - RADIUS;
-
-    const int blockSizeX = BLOCK_W + 2*RADIUS;
-    const int blockSizeY = BLOCK_H + 2*RADIUS;
-
-    //fill buffer
-    for(int i = t; i < blockSizeX * blockSizeY; i += (BLOCK_W*BLOCK_H)){
-        int x = i % blockSizeX;
-        int y = i / blockSizeX;
-        int gx = x + blockStartX;
-        int gy = y + blockStartY;
-        src.clampToEdge(gx,gy);
-        buffer[y][x] = src(gx,gy);
-    }
-
-    __syncthreads();
-
-
-    T *kernel = d_Kernel;
-
-    for(int i = t; i < blockSizeX * BLOCK_H; i += (BLOCK_W*BLOCK_H)){
-        int x = i % blockSizeX;
-        int y = i / blockSizeX;
-        T sum = 0;
-#pragma unroll
-        for (int j=-RADIUS;j<=RADIUS;j++){
-            int kernelIndex = j + RADIUS;
-            sum += buffer[y + RADIUS + j][x] * kernel[kernelIndex];
-        }
-        buffer2[y][x] = sum;
-    }
-
-    __syncthreads();
-
-    T sum = 0;
-
-#pragma unroll
-    for (int j=-RADIUS;j<=RADIUS;j++){
-        int kernelIndex = j + RADIUS;
-        sum += buffer2[ty][tx + RADIUS + j] * kernel[kernelIndex];
-    }
-
-    if(dst.inImage(xp,yp))
-        dst(xp,yp) = sum;
-}
-
-template<typename T, int RADIUS>
-inline
-void convolve(ImageView<T> src, ImageView<T> dst){
-    int w = src.width;
-    int h = src.height;
-
-    const int BLOCK_W = 32;
-    const int BLOCK_H = 16;
-
-    dim3 blocks(Saiga::CUDA::getBlockCount(w, BLOCK_W), Saiga::CUDA::getBlockCount(h, BLOCK_H));
-    dim3 threads(BLOCK_W, BLOCK_H);
-
-    singlePassConvolve<T,RADIUS,BLOCK_W,BLOCK_H> <<<blocks, threads>>>(src,dst);
-}
-
-
 template<typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int Y_ELEMENTS>
 __global__ static
-void singlePassConvolve2(ImageView<T> src, ImageView<T> dst)
+void d_convolveOuterLinear(ImageView<T> src, ImageView<T> dst)
 {
     const unsigned BLOCK_H2 = BLOCK_H * Y_ELEMENTS;
 
@@ -176,7 +94,7 @@ void singlePassConvolve2(ImageView<T> src, ImageView<T> dst)
 
 template<typename T, int RADIUS>
 inline
-void convolve2(ImageView<T> src, ImageView<T> dst){
+void convolveOuterLinear(ImageView<T> src, ImageView<T> dst){
     int w = src.width;
     int h = src.height;
 
@@ -192,13 +110,13 @@ void convolve2(ImageView<T> src, ImageView<T> dst){
     //    dim3 blocks(Saiga::CUDA::getBlockCount(w, BLOCK_W), Saiga::CUDA::getBlockCount(h, BLOCK_H));
     dim3 threads(BLOCK_W, BLOCK_H);
 
-    singlePassConvolve2<T,RADIUS,BLOCK_W,BLOCK_H,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
+    d_convolveOuterLinear<T,RADIUS,BLOCK_W,BLOCK_H,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
 }
 
 
 template<typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int Y_ELEMENTS>
 __global__ static
-void singlePassConvolve3(ImageView<T> src, ImageView<T> dst)
+void d_convolveOuterHalo(ImageView<T> src, ImageView<T> dst)
 {
     const unsigned int BLOCK_H2 = BLOCK_H * Y_ELEMENTS;
     const unsigned int WARPS_PER_BLOCK = BLOCK_W * BLOCK_H / 32; //16
@@ -329,7 +247,7 @@ void singlePassConvolve3(ImageView<T> src, ImageView<T> dst)
 
 template<typename T, int RADIUS>
 inline
-void convolve3(ImageView<T> src, ImageView<T> dst){
+void convolveOuterHalo(ImageView<T> src, ImageView<T> dst){
     int w = src.width;
     int h = src.height;
 
@@ -345,13 +263,13 @@ void convolve3(ImageView<T> src, ImageView<T> dst){
     //    dim3 blocks(Saiga::CUDA::getBlockCount(w, BLOCK_W), Saiga::CUDA::getBlockCount(h, BLOCK_H));
     dim3 threads(BLOCK_W, BLOCK_H);
 
-    singlePassConvolve3<T,RADIUS,BLOCK_W,BLOCK_H,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
+    d_convolveOuterHalo<T,RADIUS,BLOCK_W,BLOCK_H,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
 }
 
 
 template<typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int Y_ELEMENTS>
 __global__ static
-void singlePassConvolve4(ImageView<T> src, ImageView<T> dst)
+void d_convolveInner(ImageView<T> src, ImageView<T> dst)
 {
     const unsigned int TILE_H = BLOCK_H;
     const unsigned int TILE_W = BLOCK_W;
@@ -391,8 +309,8 @@ void singlePassConvolve4(ImageView<T> src, ImageView<T> dst)
 
     for(int i = 0; i < Y_ELEMENTS; ++i)
     {
-//        int gx = x;
-//        int gy = y + i * TILE_H;
+        //        int gx = x;
+        //        int gy = y + i * TILE_H;
         int lx = tx;
         int ly = ty + i * TILE_H;
 
@@ -435,8 +353,8 @@ void singlePassConvolve4(ImageView<T> src, ImageView<T> dst)
             sum += buffer2[ly - RADIUS][lx + j] * kernel[kernelIndex];
         }
 
-//        if(dst.inImage(gx,gy))
-//            dst(g,yp) = sum;
+        //        if(dst.inImage(gx,gy))
+        //            dst(g,yp) = sum;
         dst.clampedWrite(gx,gy,sum);
     }
 
@@ -462,7 +380,7 @@ void singlePassConvolve4(ImageView<T> src, ImageView<T> dst)
 
 template<typename T, int RADIUS>
 inline
-void convolve4(ImageView<T> src, ImageView<T> dst){
+void convolveInner(ImageView<T> src, ImageView<T> dst){
     int w = src.width;
     int h = src.height;
 
@@ -478,49 +396,51 @@ void convolve4(ImageView<T> src, ImageView<T> dst){
     //    dim3 blocks(Saiga::CUDA::getBlockCount(w, BLOCK_W), Saiga::CUDA::getBlockCount(h, BLOCK_H));
     dim3 threads(BLOCK_W, BLOCK_H);
 
-    singlePassConvolve4<T,RADIUS,BLOCK_W,BLOCK_H,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
-}
-
-void convolveSinglePassSeparate(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
-    CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
-
-    switch (radius){
-    case 1: CUDA::convolve<float,1>(src,dst); break;
-    case 2: CUDA::convolve<float,2>(src,dst); break;
-    case 3: CUDA::convolve<float,3>(src,dst); break;
-    case 4: CUDA::convolve<float,4>(src,dst); break;
-    case 5: CUDA::convolve<float,5>(src,dst); break;
-    case 6: CUDA::convolve<float,6>(src,dst); break;
-    case 7: CUDA::convolve<float,7>(src,dst); break;
-    case 8: CUDA::convolve<float,8>(src,dst); break;
-    case 9: CUDA::convolve<float,9>(src,dst); break;
-    case 10: CUDA::convolve<float,10>(src,dst); break;
-    }
-
+    d_convolveInner<T,RADIUS,BLOCK_W,BLOCK_H,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
 }
 
 
-void convolveSinglePassSeparate2(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
+
+void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
     switch (radius){
-    case 3: CUDA::convolve2<float,3>(src,dst); break;
-    case 4: CUDA::convolve2<float,4>(src,dst); break;
+    case 1: CUDA::convolveOuterLinear<float,1>(src,dst); break;
+    case 2: CUDA::convolveOuterLinear<float,2>(src,dst); break;
+    case 3: CUDA::convolveOuterLinear<float,3>(src,dst); break;
+    case 4: CUDA::convolveOuterLinear<float,4>(src,dst); break;
+    case 5: CUDA::convolveOuterLinear<float,5>(src,dst); break;
+    case 6: CUDA::convolveOuterLinear<float,6>(src,dst); break;
+    case 7: CUDA::convolveOuterLinear<float,7>(src,dst); break;
+    case 8: CUDA::convolveOuterLinear<float,8>(src,dst); break;
+    case 9: CUDA::convolveOuterLinear<float,9>(src,dst); break;
     }
 }
 
-void convolveSinglePassSeparate3(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
+void convolveSinglePassSeparateOuterHalo(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
     switch (radius){
-    case 3: CUDA::convolve3<float,3>(src,dst); break;
-    case 4: CUDA::convolve3<float,4>(src,dst); break;
+    case 1: CUDA::convolveOuterHalo<float,1>(src,dst); break;
+    case 2: CUDA::convolveOuterHalo<float,2>(src,dst); break;
+    case 3: CUDA::convolveOuterHalo<float,3>(src,dst); break;
+    case 4: CUDA::convolveOuterHalo<float,4>(src,dst); break;
+    case 5: CUDA::convolveOuterHalo<float,5>(src,dst); break;
+    case 6: CUDA::convolveOuterHalo<float,6>(src,dst); break;
+    case 7: CUDA::convolveOuterHalo<float,7>(src,dst); break;
+    case 8: CUDA::convolveOuterHalo<float,8>(src,dst); break;
     }
 }
 
-void convolveSinglePassSeparate4(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
+void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
     switch (radius){
-    case 3: CUDA::convolve4<float,3>(src,dst); break;
-    case 4: CUDA::convolve4<float,4>(src,dst); break;
+    case 1: CUDA::convolveInner<float,1>(src,dst); break;
+    case 2: CUDA::convolveInner<float,2>(src,dst); break;
+    case 3: CUDA::convolveInner<float,3>(src,dst); break;
+    case 4: CUDA::convolveInner<float,4>(src,dst); break;
+    case 5: CUDA::convolveInner<float,5>(src,dst); break;
+    case 6: CUDA::convolveInner<float,6>(src,dst); break;
+    case 7: CUDA::convolveInner<float,7>(src,dst); break;
+    case 8: CUDA::convolveInner<float,8>(src,dst); break;
     }
 }
 

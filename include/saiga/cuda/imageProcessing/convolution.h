@@ -23,10 +23,10 @@ namespace CUDA {
 #define MAX_KERNEL_SIZE (MAX_RADIUS*2+1)
 
 
-SAIGA_GLOBAL void convolveSinglePassSeparate(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
-SAIGA_GLOBAL void convolveSinglePassSeparate2(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
-SAIGA_GLOBAL void convolveSinglePassSeparate3(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
-SAIGA_GLOBAL void convolveSinglePassSeparate4(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+
+SAIGA_GLOBAL void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparateOuterHalo(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 
 SAIGA_GLOBAL void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 SAIGA_GLOBAL void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);

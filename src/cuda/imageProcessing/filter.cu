@@ -32,7 +32,7 @@ void applyFilterSeparate(ImageView<float> src, ImageView<float> dst, ImageView<f
 }
 
 void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, array_view<float> kernel){
-    convolveSinglePassSeparate(src,dst,kernel,kernel.size()/2);
+    convolveSinglePassSeparateOuterHalo(src,dst,kernel,kernel.size()/2);
 }
 
 
