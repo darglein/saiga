@@ -22,4 +22,5 @@ volumetricLights
 *.exe
 *.dll
 valgrind_output.txt
+Release/
 RelWithDebInfo/

@@ -64,6 +64,11 @@ if(EIGEN_FOUND)
 	SET(PROG_SRC ${PROG_SRC} ${eigen_SRC})
 endif()
 
+if(SAIGA_BUILD_SHARED)
+	#only add to src, not to samples
+	add_definitions(-DSAIGA_DLL_EXPORTS)
+endif()
+
 if(CUDA_FOUND)
 	FILE(GLOB_RECURSE CUDA_SRC  cuda/*.cu)
 	cuda_compile(cuda_objs ${CUDA_SRC})
@@ -83,10 +88,6 @@ GroupSources(${PROJECT_SOURCE_DIR} shader)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include/saiga/imgui)
 
-if(SAIGA_BUILD_SHARED)
-	#only add to src, not to samples
-	add_definitions(-DSAIGA_DLL_EXPORTS)
-endif()
 
 if(SAIGA_BUILD_SHARED)
 	add_library(${LIB_NAME} SHARED ${PROG_SRC})
