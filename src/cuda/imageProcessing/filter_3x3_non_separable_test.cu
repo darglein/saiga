@@ -28,7 +28,7 @@ void d_convolve3x3(ImageView<float> src, ImageView<float> dst
 {
     const unsigned int tx = threadIdx.x;
     const unsigned int ty = threadIdx.y;
-    const unsigned int t = ty * TILE_W + tx;
+//    const unsigned int t = ty * TILE_W + tx;
 
     const unsigned int x_tile = blockIdx.x * TILE_W;
     const unsigned int y_tile = blockIdx.y * TILE_H;
@@ -222,7 +222,7 @@ void d_copySharedSync(ImageView<float> src, ImageView<float> dst)
 {
     const unsigned int tx = threadIdx.x;
     const unsigned int ty = threadIdx.y;
-    const unsigned int t = ty * TILE_W + tx;
+//    const unsigned int t = ty * TILE_W + tx;
     const unsigned int x_tile = blockIdx.x * TILE_W;
     const unsigned int y_tile = blockIdx.y * TILE_H;
     const unsigned int x = x_tile + tx;
@@ -244,7 +244,7 @@ void d_copySharedSync2(ImageView<float> src, ImageView<float> dst)
 
     const unsigned int tx = threadIdx.x;
     const unsigned int ty = threadIdx.y;
-    const unsigned int t = ty * TILE_W + tx;
+//    const unsigned int t = ty * TILE_W + tx;
     const unsigned int x_tile = blockIdx.x * TILE_W;
     const unsigned int y_tile = blockIdx.y * TILE_H2;
     const unsigned int x = x_tile + tx;

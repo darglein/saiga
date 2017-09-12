@@ -59,7 +59,7 @@ if (EGL_FOUND)
 	SET(PROG_SRC ${PROG_SRC} ${egl_SRC})
 endif()
 
-if(EIGEN_FOUND)
+if(EIGEN3_FOUND)
 	FILE(GLOB_RECURSE eigen_SRC  eigen/*.cpp)
 	SET(PROG_SRC ${PROG_SRC} ${eigen_SRC})
 endif()

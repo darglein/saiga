@@ -17,7 +17,14 @@ using std::endl;
 static void printVectorInstructions(){
 	cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION << endl;
 
-    std::cout << "defined EIGEN Vector Instructions:" << std::endl;
+    std::cout << "defined EIGEN Macros:" << std::endl;
+
+#ifdef EIGEN_NO_DEBUG
+    std::cout << "EIGEN_NO_DEBUG" << std::endl;
+#else
+    std::cout << "EIGEN_DEBUG" << std::endl;
+#endif
+
 #ifdef EIGEN_VECTORIZE_FMA
     std::cout << "EIGEN_VECTORIZE_FMA" << std::endl;
 #endif
@@ -40,6 +47,7 @@ static void printVectorInstructions(){
     std::cout << "EIGEN_VECTORIZE_AVX2" << std::endl;
 #endif
 
+    std::cout << std::endl;
 
 }
 

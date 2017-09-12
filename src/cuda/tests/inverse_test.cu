@@ -438,7 +438,7 @@ void inverseTest(){
         test.addMeassurement("Eigen::LLT::inverse()",time);
     }
 
-    for(int i = 0; i < ref.size(); ++i){
+    for(int i = 0; i < (int)ref.size(); ++i){
         if(abs(ref[i] - result[i]) > 1e-10){
             SAIGA_ASSERT(0);
         }
@@ -457,7 +457,7 @@ void inverseTest(){
         test.addMeassurement("My inverse CPU",time);
     }
 
-    for(int i = 0; i < ref.size(); ++i){
+    for(int i = 0; i < (int)ref.size(); ++i){
         if(abs(ref[i] - result[i]) > 1e-10){
             SAIGA_ASSERT(0);
         }
@@ -480,7 +480,7 @@ void inverseTest(){
     thrust::host_vector<double> test2 = d_result;
 
 
-    for(int i = 0; i < ref.size(); ++i){
+    for(int i = 0; i < (int)ref.size(); ++i){
         if(abs(ref[i] - test2[i]) > 1e-10){
             SAIGA_ASSERT(0);
         }
@@ -505,7 +505,7 @@ void inverseTest(){
     test2 = d_result;
 
 
-    for(int i = 0; i < ref.size(); ++i){
+    for(int i = 0; i < (int)ref.size(); ++i){
         if(abs(ref[i] - test2[i]) > 1e-10){
             cout << ref[i] << " " << test2[i] << endl;
             SAIGA_ASSERT(0);
@@ -528,7 +528,7 @@ void inverseTest(){
     test2 = d_result;
 
 
-    for(int i = 0; i < ref.size(); ++i){
+    for(int i = 0; i < (int)ref.size(); ++i){
         if(abs(ref[i] - test2[i]) > 1e-10){
             SAIGA_ASSERT(0);
         }

@@ -24,6 +24,6 @@ if (EGL_FOUND)
 endif ()
 
 
-if (EIGEN_FOUND)
+if (EIGEN3_FOUND)
 	add_subdirectory(eigenTest)
 endif ()

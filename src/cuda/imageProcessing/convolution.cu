@@ -144,13 +144,13 @@ void d_convolveOuterHalo(ImageView<T> src, ImageView<T> dst)
     int y = yp;
 
     const unsigned int x_tile = blockIdx.x * BLOCK_W;
-    const unsigned int y_tile = blockIdx.y * BLOCK_H2;
+//    const unsigned int y_tile = blockIdx.y * BLOCK_H2;
 
     int blockStartX = blockIdx.x*BLOCK_W - RADIUS;
     int blockStartY = blockIdx.y*BLOCK_H2 - RADIUS;
 
     const int blockSizeX = BLOCK_W + 2*RADIUS;
-    const int blockSizeY = BLOCK_H2 + 2*RADIUS;
+//    const int blockSizeY = BLOCK_H2 + 2*RADIUS;
 
     //copy main data
     for(int i = 0; i < Y_ELEMENTS; ++i)
@@ -277,7 +277,7 @@ void d_convolveInner(ImageView<T> src, ImageView<T> dst)
     const unsigned int TILE_H2 = TILE_H * Y_ELEMENTS;
     const unsigned int tx = threadIdx.x;
     const unsigned int ty = threadIdx.y;
-    int t = tx + ty * BLOCK_W;
+//    int t = tx + ty * BLOCK_W;
 
     int x_tile = blockIdx.x * (TILE_W - 2 * RADIUS) - RADIUS;
     int y_tile = blockIdx.y * (TILE_H2 - 2 * RADIUS) - RADIUS;

@@ -170,7 +170,6 @@ void initCUDA(){
 
     int deviceCount;
     CHECK_CUDA_ERROR( cudaGetDeviceCount(&deviceCount));
-    SAIGA_ASSERT(deviceCount > 0);
 
 
     /* This will pick the best possible CUDA capable device */

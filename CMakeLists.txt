@@ -141,11 +141,11 @@ endif()
 
 
 #eigen
-find_package(Eigen)
-if(EIGEN_FOUND)
-	include_directories(${EIGEN_INCLUDE_DIRS})
+find_package(Eigen3)
+if(EIGEN3_FOUND)
+	include_directories(${EIGEN3_INCLUDE_DIRS})
 	SET(SAIGA_USE_EIGEN 1)
-	message(STATUS "Found Eigen3: ${EIGEN_INCLUDE_DIRS}")
+	message(STATUS "Found Eigen3: ${EIGEN3_INCLUDE_DIRS}")
 endif()
 
 
