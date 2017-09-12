@@ -16,13 +16,13 @@ namespace Saiga {
 
 class SAIGA_GLOBAL ShaderLoader : public Loader<std::shared_ptr<Shader>,ShaderPart::ShaderCodeInjections> , public Singleton <ShaderLoader>{
     friend class Singleton <ShaderLoader>;
+    std::shared_ptr<Shader> loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
+    template<typename shader_t> std::shared_ptr<shader_t> loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
 public:
 	bool addLineDirectives = false;
     virtual ~ShaderLoader(){}
-    std::shared_ptr<Shader> loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
     template<typename shader_t> std::shared_ptr<shader_t> load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
     template<typename shader_t> std::shared_ptr<shader_t> getLoaded(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
-    template<typename shader_t> std::shared_ptr<shader_t> loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
 
     void reload();
     bool reload(std::shared_ptr<Shader> shader, const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
@@ -54,6 +54,7 @@ std::shared_ptr<shader_t> ShaderLoader::load(const std::string &name, const Shad
     object = loadFromFile<shader_t>(fullName,sci);
     SAIGA_ASSERT(object);
     objects.emplace_back(name,sci,object);
+//    std::cout << objects.size() << std::endl;
 
     return object;
 }

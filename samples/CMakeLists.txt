@@ -22,3 +22,8 @@ endif ()
 if (EGL_FOUND)
 	add_subdirectory(offscreenRendering)
 endif ()
+
+
+if (EIGEN3_FOUND)
+	add_subdirectory(eigenTest)
+endif ()

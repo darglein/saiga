@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "geometry/intersection.glsl"
 
 uniform float volumetricDensity = 0.01f;
 
@@ -17,8 +18,81 @@ float ComputeScattering(float lightDotView)
     return result;
 }
 
-
 float volumetricFactorPoint(samplerCubeShadow shadowMap, vec3 cameraPos, vec3 fragWPos, vec3 vertexW, vec3 lightPosW, float farplane, float nearplane, vec4 attenuation, float intensity){
+    const int NB_STEPS = 10;
+
+
+    vec3 rayOrigin = cameraPos;
+
+    vec3 rayEnd = vertexW;
+    rayEnd = (distance(rayOrigin,fragWPos) < distance(rayOrigin,vertexW)) ? fragWPos : vertexW;
+
+
+    vec3 rayVector = rayEnd - rayOrigin;
+    float rayLength = length(rayVector);
+    vec3 rayDirection = rayVector / rayLength;
+
+#if 1
+    //clamp ray start to intersection with sphere
+    float t1,t2;
+    RaySphere(rayOrigin,rayDirection,lightPosW,attenuation.w,t1,t2);
+    if(t1 > 0){
+        rayOrigin = rayOrigin + rayDirection * t1;
+    }
+    rayVector = rayEnd - rayOrigin;
+    rayLength = length(rayVector);
+    rayDirection = rayVector / rayLength;
+#endif
+
+    float stepLength = rayLength / NB_STEPS;
+    vec3 step = rayDirection * stepLength;
+
+    const float dither[16] = float[]( 0.0f, 0.5f, 0.125f, 0.625f,
+     0.75f, 0.22f, 0.875f, 0.375f,
+    0.1875f, 0.6875f, 0.0625f, 0.5625,
+    0.9375f, 0.4375f, 0.8125f, 0.3125);
+     ivec2 tci = ivec2(gl_FragCoord.xy);
+     int ditherId = tci.y % 4 * 4 + tci.x % 4;
+//     int ditherId = 0;
+
+//    vec3 currentPosition = rayOrigin + step * (dither[ditherId] * 0.5f - 0.5f);
+     vec3 currentPosition = rayOrigin + step * (dither[ditherId]);
+
+    float accumFog = 0;
+
+    for (int i = 0; i < NB_STEPS; i++)
+    {
+
+        vec3 direction =  currentPosition-lightPosW;
+        float visibility = 1.0f;
+
+        float d = VectorToDepth(direction,farplane,nearplane);
+        //the bias is applied with glPolygonOffset
+       float shadowMapValue = texture(shadowMap, vec4(direction,d));
+
+
+        float atten = getAttenuation(attenuation,distance(currentPosition,lightPosW));
+
+        if (shadowMapValue > 0.5f)
+        {
+//                        accumFog += ComputeScattering(dot(rayDirection, sunDirection));
+//            accumFog += dot(rayDirection, sunDirection) * dot(rayDirection, sunDirection);
+            accumFog += intensity * atten;
+
+        }
+        currentPosition += step;
+    }
+    accumFog /= NB_STEPS;
+
+    float tau = volumetricDensity;
+    accumFog = (-exp(-rayLength*tau*accumFog)+1);
+//    accumFog = (-exp(-rayLength*tau)+1) * accumFog;
+
+//    return 1;
+    return accumFog;
+}
+
+float volumetricFactorPoint2(samplerCubeShadow shadowMap, vec3 cameraPos, vec3 fragWPos, vec3 vertexW, vec3 lightPosW, float farplane, float nearplane, vec4 attenuation, float intensity){
     const int NB_STEPS = 100;
 
 

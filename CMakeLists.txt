@@ -3,79 +3,40 @@ cmake_minimum_required(VERSION 2.8)
 set(LIB_NAME saiga)
 project (${LIB_NAME})
 
-set(DEPENDENCIES_DIR "" CACHE FILEPATH "Path to your lib includes")
-
-set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${DEPENDENCIES_DIR}/include)
-set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${DEPENDENCIES_DIR}/usr/include)
-include_directories(${DEPENDENCIES_DIR}/include)
-include_directories(${DEPENDENCIES_DIR}/usr/include)
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${DEPENDENCIES_DIR}/lib)
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${DEPENDENCIES_DIR}/usr/lib)
-LINK_DIRECTORIES(${DEPENDENCIES_DIR}/lib)
-LINK_DIRECTORIES(${DEPENDENCIES_DIR}/usr/lib)
-LINK_DIRECTORIES(${DEPENDENCIES_DIR}/bin)
-  
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-######### Show all warnings
-
-if(MSVC)
-  # Force to always compile with W4
-  if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
-    string(REGEX REPLACE "/W[0-4]" "/W1" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-  else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
-  endif()
-elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long")
-endif()
-
-
-
 set (LIBRARY_VERSION_MAJOR 1)
-set (LIBRARY_VERSION_MINOR 0)
-
-
-
-option (BUILD_SHARED "Build this library as a shared/dynamic library" ON) 
-
+set (LIBRARY_VERSION_MINOR 1)
 
 
 ############# Build Options ###############
 
-option (BUILD_MODE_DEBUG "Defines SAIGA_DEBUG, asserts=on, debug symbols in binary, opengl debug context, alot of glgeterror calls" OFF) 
-option (BUILD_MODE_TESTING "Defines SAIGA_TESTING, asserts=on, debug symbols in binary, opengl debug context, one glgeterror per frame, (default)" ON) 
-option (BUILD_MODE_RELEASE "Defines SAIGA_RELEASE, asserts=off, no glgeterror calls" OFF) 
-option (BUILD_SAMPLES "build samples" ON) 
-option (WITH_CUDA "use cuda if possible" ON) 
-option (CUDA_DEBUG "cuda debug flag" OFF) 
-option (STRICT_FP "strict ieee floating point" OFF) 
+option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON) 
+option (SAIGA_DEBUG "alot of error checks and more console output" ON) 
+option (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON) 
+option (SAIGA_BUILD_SAMPLES "build samples" ON) 
+option (SAIGA_WITH_CUDA "use cuda if possible" ON) 
+option (SAIGA_STRICT_FP "strict ieee floating point" OFF) 
+option (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
+option (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
 
 
 #in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
-if (BUILD_MODE_DEBUG)
-	set(SAIGA_DEBUG on)
+if (SAIGA_DEBUG)
 	set(CMAKE_BUILD_TYPE debug)
 	#adds this flags on gcc: -g
-endif ()
-
-if (BUILD_MODE_TESTING)
-	set(SAIGA_TESTING on)
-	set(CMAKE_BUILD_TYPE relwithdebinfo)
-	#adds this flags on gcc: -O2 -g -DNDEBUG
+else ()
+	if(OPTION_FULL_OPTIMIZE)
+		set(CMAKE_BUILD_TYPE relwithdebinfo)
+		#adds this flags on gcc: -O2 -g -DNDEBUG
+	else()
+		set(CMAKE_BUILD_TYPE release)
+		#adds this flags on gcc: -O3 -DNDEBUG
+	endif()
 endif()
 
-if (BUILD_MODE_RELEASE)
-	set(SAIGA_RELEASE on)
-	set(CMAKE_BUILD_TYPE release)
-	#adds this flags on gcc: -O3 -DNDEBUG
-endif()
-
-
-
-#TODO build options for windows
 
 
 ############# Optional Libraries ###############
@@ -118,12 +79,6 @@ if (FFMPEG_FOUND)
 	SET(SAIGA_USE_FFMPEG 1)
 endif ()
 
-#libnoise
-find_library(NOISE_LIBRARIES noise)
-if (NOISE_FOUND)
-	SET(LIBS ${LIBS} ${NOISE_LIBRARIES})
-	SET(SAIGA_USE_NOISE 1)
-endif ()
 
 #openal
 find_package(OpenAL QUIET)
@@ -186,20 +141,21 @@ endif()
 
 
 #eigen
-find_package(Eigen)
-if(EIGEN_FOUND)
-	include_directories(${EIGEN_INCLUDE_DIRS})
+find_package(Eigen3)
+if(EIGEN3_FOUND)
+	include_directories(${EIGEN3_INCLUDE_DIRS})
 	SET(SAIGA_USE_EIGEN 1)
-	message(STATUS "Found Eigen3: ${EIGEN_INCLUDE_DIRS}")
+	message(STATUS "Found Eigen3: ${EIGEN3_INCLUDE_DIRS}")
 endif()
 
 
 ############# CUDA ###############
 
-if(WITH_CUDA)
+if(SAIGA_WITH_CUDA)
 	find_package(CUDA QUIET)
 else()
 	set(CUDA_FOUND FALSE)
+	SET(SAIGA_USE_CUDA 0)
 endif()
 if(CUDA_FOUND)
 	include_directories(${CUDA_INCLUDE_DIRS})
@@ -287,31 +243,9 @@ endif(WIN32)
 
 ############# COMPILER FLAGS ###############
 
+include(Saiga_compiler_flags)
 
-if(UNIX)
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden")
-endif(UNIX)
 
-if(MSVC)
-	#multiprocessor compilation for visual studio
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP") 
-endif()
-
-#strict fp behaviour flags if determinism is required
-if(STRICT_FP)
-	if(UNIX)
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -mfpmath=sse")
-	endif()
-	if(MSVC)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:strict")
-	endif()
-endif()
-
-if(CUDA_DEBUG)
-	add_definitions(-DCUDA_DEBUG)
-else()
-	add_definitions(-DCUDA_NDEBUG)
-endif()
 ############# INSTALL PATHS ###############
 
 #This part is partly copied from the CMakeLists.txt of glbinding.
@@ -357,7 +291,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 add_subdirectory(src)
 add_subdirectory(include/saiga)
 add_subdirectory(shader)
-if(BUILD_SAMPLES)
+if(SAIGA_BUILD_SAMPLES)
 	message(STATUS "Building samples.")
 	add_subdirectory(samples)
 else()

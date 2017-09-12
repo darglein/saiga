@@ -10,8 +10,10 @@
 
 //remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
 //for gcc add cppflag: -DCUDA_NDEBUG
-#ifndef CUDA_NDEBUG
+#if !defined(CUDA_NDEBUG) 
+#if !defined(CUDA_DEBUG)
 #define CUDA_DEBUG
+#endif
 #else
 #undef CUDA_DEBUG
 #endif
@@ -33,10 +35,10 @@
 
 // constants defined as functions, because cuda device code
 // can access constexpr functions but not constexpr globals
-HD SAIGA_CONSTEXPR inline float PI() { return 3.1415926535897932f; }
-HD SAIGA_CONSTEXPR inline float TWOPI() { return 2 * PI(); }
-HD SAIGA_CONSTEXPR inline float INV_PI() { return 1.f / PI(); }
-HD SAIGA_CONSTEXPR inline float INV_TWOPI() { return 1.f / TWOPI(); }
+//HD SAIGA_CONSTEXPR inline float PI() { return 3.1415926535897932f; }
+//HD SAIGA_CONSTEXPR inline float TWOPI() { return 2 * PI(); }
+//HD SAIGA_CONSTEXPR inline float INV_PI() { return 1.f / PI(); }
+//HD SAIGA_CONSTEXPR inline float INV_TWOPI() { return 1.f / TWOPI(); }
 
 
 #define WARP_SIZE 32

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -42,27 +42,6 @@ ConfigLoader::~ConfigLoader(){
     }
 }
 
-
-bool ConfigLoader::loadFile(const std::string &_name)
-{
-    this->name = _name;
-
-//    stream.exceptions ( std::fstream::failbit | std::fstream::badbit );
-
-
-    try {
-        stream.open (name.c_str(), std::fstream::in | std::fstream::out | std::fstream::app);
-    }
-    catch (const std::fstream::failure &e) {
-        std::cout<< e.what() <<std::endl;
-        std::cout << "Exception opening/reading file\n";
-        return false;
-    }
-
-    state = State::LOADED;
-    return true;
-}
-
 bool ConfigLoader::loadFile2(const std::string &_name)
 {
     entries.clear();
@@ -95,7 +74,7 @@ bool ConfigLoader::loadFile2(const std::string &_name)
 
             if(commentStart != std::string::npos){
                 comment = value.substr(commentStart+1);
-                 value = value.substr(0,commentStart);
+                value = value.substr(0,commentStart);
             }
 
 
@@ -107,8 +86,11 @@ bool ConfigLoader::loadFile2(const std::string &_name)
 
 
             entries.emplace_back(key,value,comment);
-            std::cout<<"Key "<<key<<"  Value='"<<value<<"'"<<" Comment: "<<comment<<std::endl;
-
+#ifdef SAIGA_DEBUG
+            std::cout << "Key " << key
+                      << "  Value='" << value << "'"
+                      << " Comment: " << comment << std::endl;
+#endif
         }
     }
 
@@ -119,6 +101,12 @@ bool ConfigLoader::loadFile2(const std::string &_name)
 
 bool ConfigLoader::writeFile()
 {
+    if(!update){
+#ifdef SAIGA_DEBUG
+        cout << "Config file " << name << " not updated." << endl;
+#endif
+        return true;
+    }
 
     try {
         stream.open (name,  std::fstream::out);
@@ -130,8 +118,9 @@ bool ConfigLoader::writeFile()
     }
 
     for(ConfigEntry& ce : entries){
-        stream<<ce.toString()<<std::endl;
+        stream << ce.toString() << std::endl;
     }
+    cout << "Saved config file " << name << endl;
 
     stream.close();
     return true;
@@ -143,7 +132,7 @@ void ConfigLoader::parseValue(std::string &value)
     auto commentStart = value.find('#');
 
     if(commentStart != std::string::npos){
-         value = value.substr(0,commentStart);
+        value = value.substr(0,commentStart);
     }
 
 
@@ -154,47 +143,6 @@ void ConfigLoader::parseValue(std::string &value)
     value = value.substr(strBegin, strRange);
 }
 
-std::string ConfigLoader::getLine(const std::string &key, const std::string &defaultvalue, const std::string &description){
-    if(state!=State::LOADED)
-        return "";
-
-    stream.seekg (0, stream.beg); //set pointer to beginning of file
-
-    //read file line by line
-    std::string line;
-    while (std::getline(stream, line))
-    {
-        if(line.find(key) == 0){
-            auto pos = line.find('=');
-            std::string value = line.substr(pos+1,line.length()-pos-1);
-            parseValue(value);
-            std::cout<<"Key "<<key<<" found. Value='"<<value<<"'"<<std::endl;
-            return value;
-        }
-    }
-
-
-    std::cout << "Key '"<<key<<"' not found. Adding default value '"<<defaultvalue<<"'."<<std::endl;
-    stream.clear();
-    stream << key << "=" << defaultvalue ;
-
-
-    if (description != ""){
-        int maxAlign = 25;
-        int fillSize = maxAlign-(key.size() + defaultvalue.size());
-        if(fillSize<=0) fillSize = 1;
-
-        std::string fill = std::string(fillSize, ' ');
-        stream  <<  fill << "# " << description;
-    }
-
-    stream<<std::endl;
-
-    stream.flush();
-    return defaultvalue;
-
-}
-
 std::string ConfigLoader::getLine2(const std::string &key, const std::string &defaultvalue, const std::string &description)
 {
     for(ConfigEntry& ce : entries){
@@ -203,6 +151,7 @@ std::string ConfigLoader::getLine2(const std::string &key, const std::string &de
         }
     }
 
+    update = true;
     entries.emplace_back(key,defaultvalue,description);
     return defaultvalue;
 }

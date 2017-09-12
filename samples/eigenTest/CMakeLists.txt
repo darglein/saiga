@@ -1,4 +1,4 @@
-set(PROG_NAME "simpleGLFWWindow")
+set(PROG_NAME "eigenTest")
 
 FILE(GLOB main_SRC  *.cpp)
 

@@ -13,7 +13,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 
 VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
-   tdo(window->getWidth(),window->getHeight())
+    tdo(window->getWidth(),window->getHeight())
 {
     //this simplifies shader debugging
     ShaderLoader::instance()->addLineDirectives = true;
@@ -67,42 +67,43 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     sun->createShadowMap(2048,2048,1,sq);
     sun->enableShadows();
 
-        pointLight = window->getRenderer()->lighting.createPointLight();
-//        pointLight->setAttenuation(AttenuationPresets::Quadratic);
-        pointLight->setAttenuation(vec3(0,0,5));
-        pointLight->setIntensity(2);
-        pointLight->setRadius(10);
-        pointLight->setPosition(vec3(9,3,0));
-        pointLight->setColorDiffuse(vec3(1));
-        pointLight->calculateModel();
-//        pointLight->createShadowMap(256,256,sq);
-        pointLight->createShadowMap(512,512,sq);
-        pointLight->enableShadows();
-        pointLight->setVolumetric(true);
+    pointLight = window->getRenderer()->lighting.createPointLight();
+    //        pointLight->setAttenuation(AttenuationPresets::Quadratic);
+    pointLight->setAttenuation(vec3(0,0,5));
+    pointLight->setIntensity(2);
+    pointLight->setRadius(10);
+    pointLight->setPosition(vec3(9,3,0));
+    pointLight->setColorDiffuse(vec3(1));
+    pointLight->calculateModel();
+    //        pointLight->createShadowMap(256,256,sq);
+    pointLight->createShadowMap(512,512,sq);
+    pointLight->enableShadows();
+    pointLight->setVolumetric(true);
 
-        spotLight = window->getRenderer()->lighting.createSpotLight();
-        spotLight->setAttenuation(vec3(0,0,5));
-        spotLight->setIntensity(2);
-        spotLight->setRadius(8);
-        spotLight->setPosition(vec3(-10,5,0));
-        spotLight->setColorDiffuse(vec3(1));
-        spotLight->calculateModel();
-        spotLight->createShadowMap(512,512,sq);
-        spotLight->enableShadows();
+    spotLight = window->getRenderer()->lighting.createSpotLight();
+    spotLight->setAttenuation(vec3(0,0,5));
+    spotLight->setIntensity(2);
+    spotLight->setRadius(8);
+    spotLight->setPosition(vec3(-10,5,0));
+    spotLight->setColorDiffuse(vec3(1));
+    spotLight->calculateModel();
+    spotLight->createShadowMap(512,512,sq);
+    spotLight->enableShadows();
 
-        boxLight = window->getRenderer()->lighting.createBoxLight();
-        boxLight->setIntensity(1.0);
+    boxLight = window->getRenderer()->lighting.createBoxLight();
+    boxLight->setIntensity(1.0);
 
-//        boxLight->setPosition(vec3(0,2,10));
-//        boxLight->rotateLocal(vec3(1,0,0),30);
-        boxLight->setView(vec3(0,2,10),vec3(0,0,13),vec3(0,1,0));
-        boxLight->setColorDiffuse(vec3(1));
-        boxLight->setScale(vec3(5,5,8));
-        boxLight->calculateModel();
-        boxLight->createShadowMap(512,512,sq);
-        boxLight->enableShadows();
+    //        boxLight->setPosition(vec3(0,2,10));
+    //        boxLight->rotateLocal(vec3(1,0,0),30);
+    boxLight->setView(vec3(0,2,10),vec3(0,0,13),vec3(0,1,0));
+    boxLight->setColorDiffuse(vec3(1));
+    boxLight->setScale(vec3(5,5,8));
+    boxLight->calculateModel();
+    boxLight->createShadowMap(512,512,sq);
+    boxLight->enableShadows();
 
 
+    parentWindow->getRenderer()->lighting.renderVolumetric = true;
 
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
@@ -126,7 +127,6 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
 
 VolumetricLights::~VolumetricLights()
 {
-    //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
 }
 
 void VolumetricLights::update(float dt){
@@ -135,7 +135,7 @@ void VolumetricLights::update(float dt){
 
 
     sun->fitShadowToCamera(&camera);
-//    sun->fitNearPlaneToScene(sceneBB);
+    //    sun->fitNearPlaneToScene(sceneBB);
 
     int  fps = (int) glm::round(1000.0/parentWindow->fpsTimer.getTimeMS());
     tdo.updateEntry(0,fps);
@@ -149,9 +149,6 @@ void VolumetricLights::update(float dt){
     float updateTime = parentWindow->updateTimer.getTimeMS();
     tdo.updateEntry(3,updateTime);
 
-
-    //    sphere.rotateLocal(vec3(0,1,0),rotationSpeed);
-    //    sphere.calculateModel();
 }
 
 void VolumetricLights::interpolate(float dt, float interpolation) {

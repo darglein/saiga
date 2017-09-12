@@ -35,7 +35,80 @@ void readConfigFile(){
 
 }
 
+static void printSaigaInfo(){
+    cout << "Saiga Version " << SAIGA_VERSION_MAJOR << "." <<  SAIGA_VERSION_MINOR << endl;
+    std::string libs;
+#ifdef SAIGA_USE_SDL
+    libs += "SDL,";
+#endif
+#ifdef SAIGA_USE_GLFW
+    libs += "GLFW,";
+#endif
+#ifdef SAIGA_USE_GLBINDING
+    libs += "GLBINDING,";
+#endif
+#ifdef SAIGA_USE_GLEW
+    libs += "GLEW,";
+#endif
+#ifdef SAIGA_USE_OPENAL
+    libs += "OPENAL,";
+#endif
+#ifdef SAIGA_USE_ALUT
+    libs += "ALUT,";
+#endif
+#ifdef SAIGA_USE_OPUS
+    libs += "OPUS,";
+#endif
+#ifdef SAIGA_USE_ASSIMP
+    libs += "ASSIMP,";
+#endif
+#ifdef SAIGA_USE_PNG
+    libs += "PNG,";
+#endif
+#ifdef SAIGA_USE_FREEIMAGE
+    libs += "FREEIMAGE,";
+#endif
+#ifdef SAIGA_USE_FFMPEG
+    libs += "FFMPEG,";
+#endif
+#ifdef SAIGA_USE_CUDA
+    libs += "CUDA,";
+#endif
+#ifdef SAIGA_USE_EIGEN
+    libs += "EIGEN,";
+#endif
+    cout << "Libs: " << libs << endl;
+
+    std::string options;
+#ifdef SAIGA_BUILD_SHARED
+    options += "BUILD_SHARED,";
+#endif
+#ifdef SAIGA_DEBUG
+    options += "DEBUG,";
+#endif
+#ifdef SAIGA_ASSERTS
+    options += "ASSERTS,";
+#endif
+#ifdef SAIGA_BUILD_SAMPLES
+    options += "BUILD_SAMPLES,";
+#endif
+#ifdef SAIGA_WITH_CUDA
+    options += "WITH_CUDA,";
+#endif
+#ifdef SAIGA_STRICT_FP
+    options += "STRICT_FP,";
+#endif
+#ifdef SAIGA_FULL_OPTIMIZE
+    options += "FULL_OPTIMIZE,";
+#endif
+#ifdef SAIGA_CUDA_DEBUG
+    options += "CUDA_DEBUG,";
+#endif
+    cout << "Build Options: " << options << endl;
+}
+
 void writeExtensions(){
+
 
     std::ofstream myfile;
     myfile.open ("opengl-extensions.txt");
@@ -79,16 +152,8 @@ void initSaiga()
 	 
 
 
-    std::string mode;
-#if defined(SAIGA_DEBUG)
-    mode = "DEBUG";
-#elif defined(SAIGA_TESTING)
-    mode = "TESTING";
-#elif defined(SAIGA_RELEASE)
-    mode = "RELEASE";
-#endif
-
-    cout<<"========================== Saiga initialization done! (" << mode << ") =========================="<<endl;
+    printSaigaInfo();
+    cout<<"========================== Saiga initialization done!  =========================="<<endl;
     initialized = true;
 
 }
@@ -102,5 +167,6 @@ void cleanupSaiga()
     cout<<"========================== Saiga cleanup done! =========================="<<endl;
     initialized = false;
 }
+
 
 }

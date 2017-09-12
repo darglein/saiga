@@ -59,9 +59,14 @@ if (EGL_FOUND)
 	SET(PROG_SRC ${PROG_SRC} ${egl_SRC})
 endif()
 
-if(EIGEN_FOUND)
+if(EIGEN3_FOUND)
 	FILE(GLOB_RECURSE eigen_SRC  eigen/*.cpp)
 	SET(PROG_SRC ${PROG_SRC} ${eigen_SRC})
+endif()
+
+if(SAIGA_BUILD_SHARED)
+	#only add to src, not to samples
+	add_definitions(-DSAIGA_DLL_EXPORTS)
 endif()
 
 if(CUDA_FOUND)
@@ -83,12 +88,12 @@ GroupSources(${PROJECT_SOURCE_DIR} shader)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include/saiga/imgui)
 
-if(BUILD_SHARED)
-	add_definitions(-DSAIGA_DLL_EXPORTS)
+
+if(SAIGA_BUILD_SHARED)
 	add_library(${LIB_NAME} SHARED ${PROG_SRC})
-else (BUILD_SHARED)
+else ()
 	add_library(${LIB_NAME} STATIC ${PROG_SRC})
-endif(BUILD_SHARED)
+endif()
 
 
 target_link_libraries(${LIB_NAME} ${LIBS})
@@ -98,19 +103,13 @@ set_target_properties( ${LIB_NAME}
     	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 
-#if(BUILD_SHARED)
-    install(
+install(
 	TARGETS ${LIB_NAME} 
         RUNTIME DESTINATION ${INSTALL_BIN}
         LIBRARY DESTINATION ${INSTALL_SHARED}
 		ARCHIVE DESTINATION ${INSTALL_LIB}
-	)
-#else()
-#    install(
-#	TARGETS ${LIB_NAME} 
-#        ARCHIVE DESTINATION ${INSTALL_LIB}
-#	)
-#endif()
+)
+
 
 
 

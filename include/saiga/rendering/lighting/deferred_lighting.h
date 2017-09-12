@@ -45,6 +45,8 @@ private:
     int width,height;
     std::shared_ptr<MVPColorShader>  debugShader;
     std::shared_ptr<MVPTextureShader>  textureShader;
+    std::shared_ptr<MVPTextureShader>  volumetricBlurShader;
+    std::shared_ptr<Shader>  volumetricBlurShader2;
     UniformBuffer shadowCameraBuffer;
 
     //the vertex position is sufficient. no normals and texture coordinates needed.
@@ -79,14 +81,7 @@ private:
 
     bool lightDepthTest = true;
     bool stencilCulling = true;
-    bool drawDebug = true;
 
-    bool useTimers = true;
-
-    bool backFaceShadows = false;
-    float shadowOffsetFactor = 4;
-    float shadowOffsetUnits = 10;
-    bool renderVolumetric = false;
 
     std::vector<FilteredMultiFrameOpenGLTimer> timers2;
     std::vector<std::string> timerStrings;
@@ -102,11 +97,20 @@ public:
 
     int shadowSamples = 16; //Quadratic number (1,4,9,16,...)
 
+    bool drawDebug = true;
+
+    bool useTimers = true;
+
+    bool backFaceShadows = false;
+    float shadowOffsetFactor = 4;
+    float shadowOffsetUnits = 10;
+    bool renderVolumetric = false;
+
     std::shared_ptr<Texture> ssaoTexture;
 
     std::shared_ptr<Texture> lightAccumulationTexture;
-    std::shared_ptr<Texture> volumetricLightTexture;
-    Framebuffer lightAccumulationBuffer;
+    std::shared_ptr<Texture> volumetricLightTexture, volumetricLightTexture2;
+    Framebuffer lightAccumulationBuffer, volumetricBuffer;
 
     DeferredLighting(GBuffer &gbuffer);
     DeferredLighting& operator=(DeferredLighting& l) = delete;
@@ -133,7 +137,7 @@ public:
 
     void initRender();
     void render(Camera *cam);
-    void renderLightAccumulation();
+    void postprocessVolumetric();
     void renderDepthMaps(Program *renderer );
     void renderDebug(Camera *cam);
 

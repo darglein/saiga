@@ -14,7 +14,7 @@
 namespace Saiga {
 
 template<typename T>
-class SAIGA_GLOBAL SynchronizedBuffer : public RingBuffer<T>{
+class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>{
 public:
     std::mutex lock;
 
@@ -27,7 +27,7 @@ public:
     ~SynchronizedBuffer(){
     }
 
-    void add(T data){
+    void add(const T& data){
         std::unique_lock<std::mutex> l(lock);
         not_full.wait(l, [this](){return !this->full();});
         RingBuffer<T>::add(data);
@@ -36,18 +36,28 @@ public:
 
     T get(){
         std::unique_lock<std::mutex> l(lock);
-        not_empty.wait(l, [this](){return this->count() != 0; });
+        //not_empty.wait(l, [this](){return this->count() != 0; });
+		not_empty.wait(l, [this](){return !this->empty(); });
         T result = RingBuffer<T>::get();
         not_full.notify_one();
         return result;
     }
+
+	bool tryAdd(const T& v){
+		std::unique_lock<std::mutex> l(lock);
+		if (this->full()){
+			return false;
+		}
+		RingBuffer<T>::add(v);
+		not_empty.notify_one();
+		return true;
+	}
 
     bool tryGet(T& v){
         std::unique_lock<std::mutex> l(lock);
         if(this->empty()){
             return false;
         }
-
         v = RingBuffer<T>::get();
         not_full.notify_one();
         return true;

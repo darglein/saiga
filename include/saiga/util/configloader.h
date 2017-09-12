@@ -37,9 +37,9 @@ private:
     State state;
     std::string name;
     std::fstream stream;
+    bool update = false;
 
 
-    std::string getLine(const std::string &key, const std::string &defaultvalue, const std::string &description);
     std::string getLine2(const std::string &key, const std::string &defaultvalue, const std::string &description);
 
     void parseValue(std::string &value);

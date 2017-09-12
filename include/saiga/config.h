@@ -50,7 +50,7 @@
 // SAIGA_API is used for the public API symbols. It either DLL imports or DLL exports (or does nothing for static build)
 // SAIGA_LOCAL is used for non-api symbols.
 
-#ifdef BUILD_SHARED // defined if SAIGA is compiled as a DLL
+#ifdef SAIGA_BUILD_SHARED // defined if SAIGA is compiled as a DLL
   #ifdef SAIGA_DLL_EXPORTS // defined if we are building the SAIGA DLL (instead of using it)
     #define SAIGA_GLOBAL SAIGA_HELPER_DLL_EXPORT
   #else
@@ -60,7 +60,7 @@
 #else // SAIGA_DLL is not defined: this means SAIGA is a static lib.
   #define SAIGA_GLOBAL
   #define SAIGA_LOCAL
-#endif // BUILD_SHARED
+#endif // SAIGA_BUILD_SHARED
 
 //don't use any specifiers on templates
 #define SAIGA_TEMPLATE

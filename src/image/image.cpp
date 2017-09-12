@@ -17,7 +17,7 @@
 
 namespace Saiga {
 
-Image::Image(ImageFormat format, int w, int h, void* _data) : format(format), width(w), height(h){
+Image::Image(ImageFormat format, int w, int h, void* _data) : width(w), height(h), format(format){
     pitch = width * format.bytesPerPixel();
     pitch = iAlignUp(pitch,rowAlignment);
     data.resize(getSize());
@@ -26,7 +26,7 @@ Image::Image(ImageFormat format, int w, int h, void* _data) : format(format), wi
     }
 }
 
-Image::Image(ImageFormat format, int w, int h, int p, void* _data) : format(format), width(w), height(h){
+Image::Image(ImageFormat format, int w, int h, int p, void* _data) : width(w), height(h), format(format){
     pitch = p;
     data.resize(getSize());
     if(_data){

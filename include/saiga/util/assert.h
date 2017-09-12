@@ -32,7 +32,7 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 
 
 
-#if defined(SAIGA_DEBUG) || defined(SAIGA_TESTING)
+#if defined(SAIGA_ASSERTS)
 
 # define SAIGA_ASSERT_MSG(expr,msg)							\
   ((expr)								\
@@ -41,7 +41,13 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 
 #else
 
-# define SAIGA_ASSERT_MSG(expr,msg)		( static_cast<void>(0))
+//# define SAIGA_ASSERT_MSG(expr,msg)		(static_cast<void>(0))
+
+//this is a trick so that no unused variable warnings are generated if a variable
+//is only used in an assert
+# define SAIGA_ASSERT_MSG(expr,msg)         \
+   if(false) static_cast<void>(expr)
+
 
 #endif
 

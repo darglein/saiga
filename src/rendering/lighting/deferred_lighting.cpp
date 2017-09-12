@@ -22,6 +22,7 @@
 #include "saiga/rendering/renderer.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/util/tostring.h"
+#include "saiga/util/imath.h"
 
 namespace Saiga {
 
@@ -71,6 +72,8 @@ void DeferredLighting::loadShaders(const DeferredLightingShaderNames &names)
     lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>(names.lightAccumulationShader);
 
     textureShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/light_test.glsl");
+    volumetricBlurShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/volumetricBlur.glsl");
+    volumetricBlurShader2 = ShaderLoader::instance()->load<Shader>("lighting/volumetricBlur2.glsl");
 
 }
 
@@ -117,6 +120,17 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers){
     lightAccumulationBuffer.drawTo( {0} );
     lightAccumulationBuffer.check();
     lightAccumulationBuffer.unbind();
+
+
+    volumetricBuffer.create();
+    {
+        volumetricLightTexture2 = std::make_shared<Texture>();
+        volumetricLightTexture2->createEmptyTexture(_width,_height,GL_RGBA,GL_RGBA16,GL_UNSIGNED_SHORT);
+        volumetricBuffer.attachTexture( framebuffer_texture_t(volumetricLightTexture2) );
+    }
+    volumetricBuffer.drawTo( {0} );
+    volumetricBuffer.check();
+    volumetricBuffer.unbind();
 }
 
 void DeferredLighting::resize(int _width, int _height)
@@ -326,6 +340,10 @@ void DeferredLighting::render(Camera* cam){
     }
     assert_no_glerror();
 
+    if(renderVolumetric){
+        postprocessVolumetric();
+        lightAccumulationBuffer.bind();
+    }
 
     //reset state
     glEnable(GL_DEPTH_TEST);
@@ -340,6 +358,40 @@ void DeferredLighting::render(Camera* cam){
 
     assert_no_glerror();
 
+
+}
+
+void DeferredLighting::postprocessVolumetric()
+{
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+
+    volumetricBuffer.bind();
+    volumetricBlurShader->bind();
+    volumetricBlurShader->uploadModel(mat4(1));
+    volumetricBlurShader->uploadTexture(volumetricLightTexture);
+    directionalLightMesh.bindAndDraw();
+    volumetricBlurShader->unbind();
+    volumetricBuffer.unbind();
+
+
+
+
+    volumetricBlurShader2->bind();
+//    volumetricLightTexture2->bind(0);
+    volumetricLightTexture2->bindImageTexture(0,GL_WRITE_ONLY);
+//    glBindImageTexture( 0, volumetricLightTexture2->getId(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16 );
+//    volumetricBlurShader2->upload(5,5);
+//    cout << width << "x" << height << endl;
+    volumetricBlurShader2->dispatchCompute(Saiga::iDivUp(width,16),Saiga::iDivUp(height,16),1);
+//    volumetricBlurShader2->dispatchCompute(width,height,1);
+    volumetricBlurShader2->unbind();
+
+
+    glMemoryBarrier( GL_ALL_BARRIER_BITS );
+
+    assert_no_glerror();
 
 }
 
@@ -557,8 +609,8 @@ void DeferredLighting::applyVolumetricLightBuffer()
 
     textureShader->bind();
 
-    textureShader->uploadModel(mat4());
-    textureShader->uploadTexture(volumetricLightTexture);
+    textureShader->uploadModel(mat4(1));
+    textureShader->uploadTexture(volumetricLightTexture2);
     directionalLightMesh.bindAndDraw();
     textureShader->unbind();
 

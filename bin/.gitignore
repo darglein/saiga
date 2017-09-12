@@ -14,6 +14,7 @@ runTests
 simpleSDLWindow
 simpleWindow
 test
+eigenTest
 twoViewOrientation
 videoRecording
 simpleGLFWWindow
@@ -22,4 +23,5 @@ volumetricLights
 *.exe
 *.dll
 valgrind_output.txt
+Release/
 RelWithDebInfo/

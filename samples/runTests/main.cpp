@@ -19,6 +19,7 @@ int main(int argc, char *argv[]) {
     catchSegFaults();
 
 
+    /*
     Triangle trit;
     trit.a = vec3(-2,0,0);
     trit.b = vec3(2,0,0);
@@ -35,6 +36,7 @@ int main(int argc, char *argv[]) {
     }
 
     cout << Clipping::clipTriAABBtoBox(trit,bb) << endl;
+    */
 
 //    return 0;
 
@@ -43,9 +45,12 @@ int main(int argc, char *argv[]) {
         CUDA::initCUDA();
         CUDA::initBLASSPARSE();
 
+        CUDA::imageProcessingTest();
 //        CUDA::inverseTest();
-        CUDA::warpStrideLoopTest();
-        return 1;
+//        CUDA::warpStrideLoopTest();
+//        CUDA::convolutionTest();
+//        CUDA::convolutionTest3x3();
+        return 0;
         CUDA::randomTest();
 
 //        return 0;
