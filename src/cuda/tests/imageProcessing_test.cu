@@ -13,6 +13,7 @@
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include <algorithm>
 #include "saiga/util/tostring.h"
+#include "saiga/time/performanceMeasure.h"
 
 namespace Saiga {
 namespace CUDA {
@@ -46,6 +47,8 @@ void imageProcessingTest(){
     CUDA::CudaImage<float> cimgmulti2v(cimg.width,cimg.height*5);
     ImageArrayView<float> cimgmulti1( ImageView<float>(cimg.width,cimg.height,cimgmulti1v.data), 6 );
     ImageArrayView<float> cimgmulti2( ImageView<float>(cimg.width,cimg.height,cimgmulti1v.data), 5 );
+
+     int its = 50;
 
     {
         int its = 5;
@@ -168,28 +171,33 @@ void imageProcessingTest(){
 
 
     {
-        int its = 5;
-        float time;
         pth.updateBytes(cimggray.size() * 3);
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            CUDA::CudaScopedTimer t(time);
-            for(int i = 0; i < its; ++i)
-                CUDA::subtract(cimggray,cimgtmp,cimgblurred);
-        }
-        pth.addMeassurement("subtract", time/its);
+            CUDA::subtract(cimggray,cimgtmp,cimgblurred);
+        });
+        pth.addMeassurement("subtract",st.median);
     }
 
-    {
-        int its = 5;
-        float time;
-        pth.updateBytes(cimggray.size() * (cimgmulti1.n+cimgmulti2.n) );
-        {
-            CUDA::CudaScopedTimer t(time);
-            for(int i = 0; i < its; ++i)
-                CUDA::subtractMulti(cimgmulti1,cimgmulti2);
-        }
-        pth.addMeassurement("subtract multi", time/its);
-    }
+
+     {
+         pth.updateBytes(cimggray.size() * (cimgmulti1.n+cimgmulti2.n) );
+         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
+         {
+             CUDA::subtractMulti(cimgmulti1,cimgmulti2);
+         });
+         pth.addMeassurement("subtractMulti",st.median);
+     }
+
+
+     {
+         pth.updateBytes(cimggray.size() * 2);
+         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
+         {
+             cudaMemcpy(cimggray.data8,cimgtmp.data8,cimggray.size(),cudaMemcpyDeviceToDevice);
+         });
+         pth.addMeassurement("cudaMemcpy", st.median);
+     }
 
     CUDA_SYNC_CHECK_ERROR();
 
