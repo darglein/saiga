@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#pragma once
+
 #include "saiga/config.h"
 #include "saiga/cuda/common.h"
 

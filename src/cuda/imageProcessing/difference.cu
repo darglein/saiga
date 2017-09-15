@@ -28,7 +28,7 @@ static void d_subtract(ImageView<float> src1, ImageView<float> src2, ImageView<f
 #pragma unroll
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y += BLOCK_H){
         if(y < dst.height){
-            dst.atIVxxx(y,x) = src1.atIVxxx(y,x) - src2.atIVxxx(y,x);
+            dst(y,x) = src1(y,x) - src2(y,x);
         }
     }
 }
@@ -61,7 +61,7 @@ __global__ void d_subtractMulti(
 
     int height = dst.imgStart.height;
 
-    if(!src.imgStart.inImage7(ys,x))
+    if(!src.imgStart.inImage(ys,x))
         return;
 
     T lastVals[ROWS_PER_THREAD];

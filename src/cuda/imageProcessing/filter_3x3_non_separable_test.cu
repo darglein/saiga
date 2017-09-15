@@ -41,11 +41,11 @@ void d_convolve3x3(ImageView<float> src, ImageView<float> dst
         for(int dx = -1; dx <= 1; ++dx){
             int gx = x + dx;
             int gy = y + dy;
-            src.clampToEdge7(gy,gx);
-            sum += src.atIVxxx(gy,gx);
+            src.clampToEdge(gy,gx);
+            sum += src(gy,gx);
         }
     }
-    dst.atIVxxx(y,x) = sum;
+    dst(y,x) = sum;
 }
 
 
@@ -73,8 +73,8 @@ void d_convolve3x3Shared(ImageView<float> src, ImageView<float> dst)
         int y = i / (TILE_W+2);
         int gx = x + blockStartX;
         int gy = y + blockStartY;
-        src.clampToEdge7(gy,gx);
-        sbuffer[y][x] = src.atIVxxx(gy,gx);
+        src.clampToEdge(gy,gx);
+        sbuffer[y][x] = src(gy,gx);
     }
 
     __syncthreads();
@@ -93,7 +93,7 @@ void d_convolve3x3Shared(ImageView<float> src, ImageView<float> dst)
 
     const unsigned int x = x_tile + tx;
     const unsigned int y = y_tile + ty;
-    dst.atIVxxx(y,x) = sum;
+    dst(y,x) = sum;
 }
 
 
@@ -119,34 +119,34 @@ void d_convolve3x3Shared2(ImageView<float> src, ImageView<float> dst)
 
     //copy main data
     for(int i = 0; i < 2; ++i)
-        sbuffer[ty + i * TILE_H + 1][tx + 1]  = src.clampedRead7(y + i * TILE_H,x);
+        sbuffer[ty + i * TILE_H + 1][tx + 1]  = src.clampedRead(y + i * TILE_H,x);
 
     //top halo
     if(warp_lane == 0){
-        sbuffer[0][lane_id + 1]  = src.clampedRead7(y_tile - 1,x_tile + lane_id);
+        sbuffer[0][lane_id + 1]  = src.clampedRead(y_tile - 1,x_tile + lane_id);
     }
 
     //bottom
     if(warp_lane == 1){
-        sbuffer[TILE_H * 2 + 1][lane_id + 1]  = src.clampedRead7(y_tile + TILE_H * 2,x_tile + lane_id);
+        sbuffer[TILE_H * 2 + 1][lane_id + 1]  = src.clampedRead(y_tile + TILE_H * 2,x_tile + lane_id);
     }
 
     //left
     if(warp_lane == 2){
-        sbuffer[lane_id + 1][0]  = src.clampedRead7(y_tile + lane_id,x_tile - 1);
+        sbuffer[lane_id + 1][0]  = src.clampedRead(y_tile + lane_id,x_tile - 1);
     }
 
     //right
     if(warp_lane == 3){
-        sbuffer[lane_id + 1][TILE_W + 1]  = src.clampedRead7(y_tile + lane_id,x_tile + TILE_W);
+        sbuffer[lane_id + 1][TILE_W + 1]  = src.clampedRead(y_tile + lane_id,x_tile + TILE_W);
     }
 
     //corners
     if(warp_lane == 4){
-        if(lane_id == 0) sbuffer[0][0]  = src.clampedRead7(y_tile - 1,x_tile - 1);
-        if(lane_id == 1) sbuffer[0][TILE_W + 1]  = src.clampedRead7(y_tile - 1,x_tile + TILE_W);
-        if(lane_id == 2) sbuffer[TILE_H * 2 + 1][0]  = src.clampedRead7(y_tile + TILE_H * 2,x_tile - 1);
-        if(lane_id == 3) sbuffer[TILE_H * 2 + 1][TILE_W + 1]  = src.clampedRead7(y_tile + TILE_H * 2,x_tile + TILE_W);
+        if(lane_id == 0) sbuffer[0][0]  = src.clampedRead(y_tile - 1,x_tile - 1);
+        if(lane_id == 1) sbuffer[0][TILE_W + 1]  = src.clampedRead(y_tile - 1,x_tile + TILE_W);
+        if(lane_id == 2) sbuffer[TILE_H * 2 + 1][0]  = src.clampedRead(y_tile + TILE_H * 2,x_tile - 1);
+        if(lane_id == 3) sbuffer[TILE_H * 2 + 1][TILE_W + 1]  = src.clampedRead(y_tile + TILE_H * 2,x_tile + TILE_W);
     }
 
     __syncthreads();
@@ -164,7 +164,7 @@ void d_convolve3x3Shared2(ImageView<float> src, ImageView<float> dst)
         }
 #endif
 
-        dst.atIVxxx(y + i * TILE_H,x) = sum;
+        dst(y + i * TILE_H,x) = sum;
     }
 }
 
@@ -186,7 +186,7 @@ void d_convolve3x3Shared3(ImageView<float> src, ImageView<float> dst)
 
     //copy main data
     for(int i = 0; i < Y_ELEMENTS; ++i)
-        sbuffer[ty + i * TILE_H][tx]  = src.clampedRead7(y + i * TILE_H,x);
+        sbuffer[ty + i * TILE_H][tx]  = src.clampedRead(y + i * TILE_H,x);
 
     __syncthreads();
 
@@ -198,7 +198,7 @@ void d_convolve3x3Shared3(ImageView<float> src, ImageView<float> dst)
         int lx = tx;
         int ly = ty + i * TILE_H;
 
-        if(!dst.inImage7(gy,gx))
+        if(!dst.inImage(gy,gx))
             continue;
 
         if(lx > 0 && lx < TILE_W - 1 && ly > 0 && ly < TILE_H2 - 1)
@@ -209,7 +209,7 @@ void d_convolve3x3Shared3(ImageView<float> src, ImageView<float> dst)
                     sum += sbuffer[ly + dy][lx + dx];
                 }
             }
-            dst.atIVxxx(gy,gx) = sum;
+            dst(gy,gx) = sum;
         }
     }
 }
@@ -230,9 +230,9 @@ void d_copySharedSync(ImageView<float> src, ImageView<float> dst)
 
     __shared__ float sbuffer[TILE_H][TILE_W];
 
-    sbuffer[ty][tx]  = src.atIVxxx(y,x);
+    sbuffer[ty][tx]  = src(y,x);
     __syncthreads();
-    dst.atIVxxx(y,x) = sbuffer[ty][tx];
+    dst(y,x) = sbuffer[ty][tx];
 }
 
 
@@ -253,12 +253,12 @@ void d_copySharedSync2(ImageView<float> src, ImageView<float> dst)
     __shared__ float sbuffer[TILE_H2][TILE_W];
 
     for(int i = 0; i < Y_ELEMENTS; ++i)
-        sbuffer[ty + i * TILE_H][tx]  = src.clampedRead7(y + i * TILE_H,x);
+        sbuffer[ty + i * TILE_H][tx]  = src.clampedRead(y + i * TILE_H,x);
 
     __syncthreads();
 
     for(int i = 0; i < Y_ELEMENTS; ++i)
-        dst.clampedWrite7(y + i * TILE_H,x, sbuffer[ty + i * TILE_H][tx]);
+        dst.clampedWrite(y + i * TILE_H,x, sbuffer[ty + i * TILE_H][tx]);
 }
 
 void convolutionTest3x3(){
@@ -297,7 +297,7 @@ void convolutionTest3x3(){
     {
         for(int y = 0; y < h; ++y){
             for(int x = 0; x < w; ++x){
-                h_imgSrc.atIVxxx(y,x) = (rand()%3) - 1;
+                h_imgSrc(y,x) = (rand()%3) - 1;
             }
         }
         src = h_src;
@@ -311,11 +311,11 @@ void convolutionTest3x3(){
                     for(int dx = -1; dx <= 1; ++dx){
                         int gx = x + dx;
                         int gy = y + dy;
-                        h_imgSrc.clampToEdge7(gy,gx);
-                        sum += h_imgSrc.atIVxxx(gy,gx);
+                        h_imgSrc.clampToEdge(gy,gx);
+                        sum += h_imgSrc(gy,gx);
                     }
                 }
-                h_imgDst.atIVxxx(y,x) = sum;
+                h_imgDst(y,x) = sum;
             }
         }
         h_ref = h_dest;

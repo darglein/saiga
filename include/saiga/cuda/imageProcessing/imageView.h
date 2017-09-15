@@ -72,7 +72,7 @@ struct ImageView{
 
     //a view to a sub image
     HD inline
-    ImageView<T> subImageView7(int startY, int startX, int h, int w){
+    ImageView<T> subImageView(int startY, int startX, int h, int w){
 #ifdef ON_DEVICE
 #else
         SAIGA_ASSERT(startX >= 0 && startX < width);
@@ -80,7 +80,7 @@ struct ImageView{
         SAIGA_ASSERT(startX + w <= width);
         SAIGA_ASSERT(startY + h <= height);
 #endif
-        ImageView<T> iv(w,h,pitchBytes,&atIVxxx(startY,startX));
+        ImageView<T> iv(w,h,pitchBytes,&(*this)(startY,startX));
         return iv;
     }
 
@@ -100,7 +100,7 @@ struct ImageView{
 #endif
 
     HD inline
-    T& atIVxxx(int y, int x){
+    T& operator()(int y, int x){
         return rowPtr(y)[x];
     }
 
@@ -148,13 +148,13 @@ struct ImageView{
     }
 
     HD inline
-    bool inImage7(int y, int x){
+    bool inImage(int y, int x){
         return x >= 0 && x < width && y >=0 && y < height;
     }
 
     //minimum distance of the pixel to all edges
     HD inline
-    int distanceFromEdge7(int y, int x){
+    int distanceFromEdge(int y, int x){
         int x0 = x;
         int x1 = width - 1 - x;
         int y0 = y;
@@ -168,7 +168,7 @@ struct ImageView{
 
     template<typename AT>
     HD inline
-    bool inImage7(AT y, AT x){
+    bool inImage(AT y, AT x){
         return x >= 0 && x <= AT(width-1) && y >=0 && y <= AT(height-1);
     }
 
@@ -183,7 +183,7 @@ struct ImageView{
     }
 
     HD inline
-    void clampToEdge7(int& y, int& x){
+    void clampToEdge(int& y, int& x){
 #ifdef ON_DEVICE
         x = min(max(0,x),width-1);
         y = min(max(0,y),height-1);
@@ -194,22 +194,22 @@ struct ImageView{
     }
 
     HD inline
-    T clampedRead7(int y, int x){
-        clampToEdge7(y,x);
-        return atIVxxx(y,x);
+    T clampedRead(int y, int x){
+        clampToEdge(y,x);
+        return (*this)(y,x);
     }
 
 
     HD inline
-    T borderRead7(int y, int x, const T& borderValue){
-        return inImage7(y,x) ? atIVxxx(y,x) : borderValue;
+    T borderRead(int y, int x, const T& borderValue){
+        return inImage(y,x) ? (*this)(y,x) : borderValue;
     }
 
     //write only if the point is in the image
     HD inline
-    void clampedWrite7(int y, int x, const T& v){
-        if(inImage7(y,x))
-            atIVxxx(y,x) = v;
+    void clampedWrite(int y, int x, const T& v){
+        if(inImage(y,x))
+            (*this)(y,x) = v;
     }
 };
 
