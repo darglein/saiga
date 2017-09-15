@@ -42,12 +42,12 @@ int main(int argc, char *argv[]) {
 
             //copy the image to the gpu
             CUDA::CudaImage<uchar3> cimg(img.getImageView<uchar3>());
-            CUDA::CudaImage<uchar4> cimg4(cimg.width,cimg.height);
-            CUDA::CudaImage<float> cimggray(cimg.width,cimg.height);
-            CUDA::CudaImage<float> cimgtmp(cimg.width,cimg.height);
-            CUDA::CudaImage<float> cimgblurred(cimg.width,cimg.height);
-            CUDA::CudaImage<float> cimggrayhalf(cimg.width/2,cimg.height/2);
-            CUDA::CudaImage<float> cimggraydouble(cimg.width*2,cimg.height*2);
+            CUDA::CudaImage<uchar4> cimg4(cimg.height,cimg.width);
+            CUDA::CudaImage<float> cimggray(cimg.height,cimg.width);
+            CUDA::CudaImage<float> cimgtmp(cimg.height,cimg.width);
+            CUDA::CudaImage<float> cimgblurred(cimg.height,cimg.width);
+            CUDA::CudaImage<float> cimggrayhalf(cimg.height/2,cimg.width/2);
+            CUDA::CudaImage<float> cimggraydouble(cimg.height*2,cimg.width*2);
 
 
 			//test image copy from cpp file

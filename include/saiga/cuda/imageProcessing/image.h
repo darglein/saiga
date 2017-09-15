@@ -34,13 +34,13 @@ struct CudaImage : public ImageView<T>{
 
     CudaImage(){}
 
-    CudaImage(int w, int h , int p)
-        : ImageView<T>(w,h,p,0) {
+    CudaImage(int h, int w , int p)
+        : ImageView<T>(h,w,p,0) {
         create();
     }
 
-    CudaImage(int w, int h)
-        : ImageView<T>(w,h,0) {
+    CudaImage(int h, int w)
+        : ImageView<T>(h,w,0) {
         create();
     }
 
@@ -68,12 +68,12 @@ struct CudaImage : public ImageView<T>{
         this->data = thrust::raw_pointer_cast(v.data());
     }
 
-    inline void create(int w, int h){
-        create(w,h,w*sizeof(T));
+    inline void create(int h, int w){
+        create(h,w,w*sizeof(T));
     }
 
 
-    inline void create(int w, int h , int p){
+    inline void create(int h, int w , int p){
         this->width = w;
         this->height = h;
         this->pitchBytes = p;

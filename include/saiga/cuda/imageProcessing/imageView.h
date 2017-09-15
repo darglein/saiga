@@ -57,11 +57,11 @@ struct ImageView{
     }
 
     HD inline
-    ImageView(int w, int h , int p, void* data)
+    ImageView(int h, int w , int p, void* data)
         : width(w),height(h),pitchBytes(p),data(data) {}
 
     HD inline
-    ImageView(int w, int h, void* data)
+    ImageView(int h, int w, void* data)
         : width(w),height(h),pitchBytes(w*sizeof(T)),data(data) {}
 
     //size in bytes

@@ -23,7 +23,7 @@ namespace Saiga {
 template<typename T>
 inline
 ImageView<T> MatToImageView(cv::Mat& img){
-    auto res = ImageView<T>(img.cols,img.rows,img.step,img.data);
+    auto res = ImageView<T>(img.rows,img.cols,img.step,img.data);
     SAIGA_ASSERT(res.size() == img.step[0] * img.rows);
     return res;
 }

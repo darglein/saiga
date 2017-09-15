@@ -76,7 +76,7 @@ public:
                          && Format().getBitDepth() == 8);
         }
 #endif
-        ImageView<T> res(width,height,getBytesPerRow(),getRawData());
+        ImageView<T> res(height,width,getBytesPerRow(),getRawData());
 
         return res;
     }
