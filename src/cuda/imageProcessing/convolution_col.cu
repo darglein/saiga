@@ -93,7 +93,7 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
         //Upper halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
-            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = src(x, yStart - (HALO_SIZE - j) * BLOCK_DIM_Y);
+            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = src.atIVxxx(yStart - (HALO_SIZE - j) * BLOCK_DIM_Y,x);
     }
     else
     {
@@ -101,7 +101,7 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             //            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = brd.at_low(yStart - (HALO_SIZE - j) * BLOCK_DIM_Y, src_col, src.pitchBytes);
-            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = src(x, max(yStart - (HALO_SIZE - j) * BLOCK_DIM_Y,0));
+            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = src.atIVxxx(max(yStart - (HALO_SIZE - j) * BLOCK_DIM_Y,0),x);
     }
 
     if (blockIdx.y + 2 < gridDim.y)
@@ -109,12 +109,12 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
         //Main data
 #pragma unroll
         for (int j = 0; j < PATCH_PER_BLOCK; ++j)
-            smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = src(x, yStart + j * BLOCK_DIM_Y);
+            smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = src.atIVxxx(yStart + j * BLOCK_DIM_Y,x);
 
         //Lower halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
-            smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = src(x, yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y);
+            smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = src.atIVxxx(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y,x);
     }
     else
     {
@@ -122,13 +122,13 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
 #pragma unroll
         for (int j = 0; j < PATCH_PER_BLOCK; ++j)
             //            smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = brd.at_high(yStart + j * BLOCK_DIM_Y, src_col, src.pitchBytes);
-            smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = src(x, min(yStart + j * BLOCK_DIM_Y,src.height-1));
+            smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = src.atIVxxx(min(yStart + j * BLOCK_DIM_Y,src.height-1),x);
 
         //Lower halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             //            smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = brd.at_high(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y, src_col, src.pitchBytes);
-            smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = src(x,min(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y, src.height-1));
+            smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] = src.atIVxxx(min(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y, src.height-1),x);
     }
 
     __syncthreads();
@@ -146,7 +146,7 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
             for (int k = 0; k < KSIZE; ++k)
                 sum = sum + smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y - anchor + k][threadIdx.x] * d_Kernel[k];
 
-            dst(x,y) = sum;
+            dst.atIVxxx(y,x) = sum;
         }
     }
 }

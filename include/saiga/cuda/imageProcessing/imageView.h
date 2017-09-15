@@ -72,7 +72,7 @@ struct ImageView{
 
     //a view to a sub image
     HD inline
-    ImageView<T> subImageView(int startX, int startY, int w, int h){
+    ImageView<T> subImageView7(int startY, int startX, int h, int w){
 #ifdef ON_DEVICE
 #else
         SAIGA_ASSERT(startX >= 0 && startX < width);
@@ -80,10 +80,11 @@ struct ImageView{
         SAIGA_ASSERT(startX + w <= width);
         SAIGA_ASSERT(startY + h <= height);
 #endif
-        ImageView<T> iv(w,h,pitchBytes,&(*this)(startX,startY));
+        ImageView<T> iv(w,h,pitchBytes,&atIVxxx(startY,startX));
         return iv;
     }
 
+#if 0
     HD inline
     T& operator()(int x, int y){
 #ifdef ON_DEVICE
@@ -96,18 +97,27 @@ struct ImageView{
         auto ptr = data8 + y * pitchBytes + x * sizeof(T);
         return reinterpret_cast<T*>(ptr)[0];
     }
+#endif
+
+    HD inline
+    T& atIVxxx(int y, int x){
+        return rowPtr(y)[x];
+    }
+
 
     HD inline
     T* rowPtr(int y){
-//        uint8_t* data8 = reinterpret_cast<uint8_t*>(data);
-//        data8 += y * pitchBytes;
         auto ptr = data8 + y * pitchBytes;
         return reinterpret_cast<T*>(ptr);
     }
 
+
+
+
+
     //bilinear interpolated pixel with clamp to edge boundary
     HD inline
-    T inter(float sx, float sy){
+    T inter7(float sy, float sx){
 
         int x0 = glm::floor(sx);
         int y0 = glm::floor(sy);
@@ -138,13 +148,13 @@ struct ImageView{
     }
 
     HD inline
-    bool inImage(int x, int y){
+    bool inImage7(int y, int x){
         return x >= 0 && x < width && y >=0 && y < height;
     }
 
     //minimum distance of the pixel to all edges
     HD inline
-    int distanceFromEdge(int x, int y){
+    int distanceFromEdge7(int y, int x){
         int x0 = x;
         int x1 = width - 1 - x;
         int y0 = y;
@@ -158,7 +168,7 @@ struct ImageView{
 
     template<typename AT>
     HD inline
-    bool inImage(AT x, AT y){
+    bool inImage7(AT y, AT x){
         return x >= 0 && x <= AT(width-1) && y >=0 && y <= AT(height-1);
     }
 
@@ -173,7 +183,7 @@ struct ImageView{
     }
 
     HD inline
-    void clampToEdge(int& x, int& y){
+    void clampToEdge7(int& y, int& x){
 #ifdef ON_DEVICE
         x = min(max(0,x),width-1);
         y = min(max(0,y),height-1);
@@ -184,22 +194,22 @@ struct ImageView{
     }
 
     HD inline
-    T clampedRead(int x, int y){
-        clampToEdge(x,y);
-        return (*this)(x,y);
+    T clampedRead7(int y, int x){
+        clampToEdge7(y,x);
+        return atIVxxx(y,x);
     }
 
 
     HD inline
-    T borderRead(int x, int y, const T& borderValue){
-        return inImage(x,y) ? (*this)(x,y) : borderValue;
+    T borderRead7(int y, int x, const T& borderValue){
+        return inImage7(y,x) ? atIVxxx(y,x) : borderValue;
     }
 
     //write only if the point is in the image
     HD inline
-    void clampedWrite(int x, int y, const T& v){
-        if(inImage(x,y))
-            (*this)(x,y) = v;
+    void clampedWrite7(int y, int x, const T& v){
+        if(inImage7(y,x))
+            atIVxxx(y,x) = v;
     }
 };
 
@@ -222,8 +232,14 @@ struct ImageArrayView{
     HD inline
     ImageView<T> operator[](int i){ return at(i); }
 
+//    HD inline
+//    T& operator()(int x, int y, int z){
+//        auto ptr = imgStart.data8 + z * imgStart.size() + y * imgStart.pitchBytes + x * sizeof(T);
+//        return reinterpret_cast<T*>(ptr)[0];
+//    }
+
     HD inline
-    T& operator()(int x, int y, int z){
+    T& atIARVxxx(int z, int y, int x){
         auto ptr = imgStart.data8 + z * imgStart.size() + y * imgStart.pitchBytes + x * sizeof(T);
         return reinterpret_cast<T*>(ptr)[0];
     }

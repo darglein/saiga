@@ -63,7 +63,7 @@ void convolutionTest2(int w, int h){
     {
         for(int y = 0; y < h; ++y){
             for(int x = 0; x < w; ++x){
-                h_imgSrc(x,y) = (rand()%3) - 1;
+                h_imgSrc.atIVxxx(y,x) = (rand()%3) - 1;
             }
         }
         src = h_src;
@@ -84,11 +84,11 @@ void convolutionTest2(int w, int h){
                         float innerSum = 0;
                         for (int i=-KERNEL_RADIUS;i<=KERNEL_RADIUS;i++){
                             int nx = std::min(std::max(0,x+i),w-1);
-                            innerSum += h_imgSrc(nx,ny) * h_kernel[i+KERNEL_RADIUS];
+                            innerSum += h_imgSrc.atIVxxx(ny,nx) * h_kernel[i+KERNEL_RADIUS];
                         }
                         sum += innerSum * h_kernel[j+KERNEL_RADIUS];
                     }
-                    h_imgDst(x,y) = sum;
+                    h_imgDst.atIVxxx(y,x) = sum;
                 }
             }
         }
@@ -105,9 +105,9 @@ void convolutionTest2(int w, int h){
                     float sum = 0;
                     for (int j=-KERNEL_RADIUS;j<=KERNEL_RADIUS;j++){
                         int nx = std::min(std::max(0,x+j),w-1);
-                        sum += h_imgSrc(nx,y) * h_kernel[j+KERNEL_RADIUS];
+                        sum += h_imgSrc.atIVxxx(y,nx) * h_kernel[j+KERNEL_RADIUS];
                     }
-                    h_imgTmp(x,y) = sum;
+                    h_imgTmp.atIVxxx(y,x) = sum;
                 }
             }
 
@@ -116,9 +116,9 @@ void convolutionTest2(int w, int h){
                     float sum = 0;
                     for (int j=-KERNEL_RADIUS;j<=KERNEL_RADIUS;j++){
                         int ny = std::min(std::max(0,y+j),h-1);
-                        sum += h_imgTmp(x,ny) * h_kernel[j+KERNEL_RADIUS];
+                        sum += h_imgTmp.atIVxxx(ny,x) * h_kernel[j+KERNEL_RADIUS];
                     }
-                    h_imgDst(x,y) = sum;
+                    h_imgDst.atIVxxx(y,x) = sum;
                 }
             }
         }

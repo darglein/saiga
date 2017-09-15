@@ -27,7 +27,7 @@ static void d_fill(ImageView<float> img, int h, float value)
     //process a fixed number of elements per thread to maximise instruction level parallelism
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
         if(y < img.height)
-            img(x,y) = value;
+            img.atIVxxx(y,x) = value;
     }
 }
 
@@ -59,7 +59,7 @@ static void d_scaleDown2EveryOther(ImageView<float> src, ImageView<float> dst, i
 #pragma unroll
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
         if(y < dst.height){
-            dst(x,y) = src(x*2,y*2);
+            dst.atIVxxx(y,x) = src.atIVxxx(y*2,x*2);
         }
     }
 
@@ -105,12 +105,12 @@ static void d_scaleUp2Linear(ImageView<float> src, ImageView<float> dst, int h, 
             //use hardware bil. interpolation
             float xf = (float(x) + 0.5f) * scale_x;
             float yf = (float(y) + 0.5f) * scale_y;
-            dst(x,y) = tex2D(floatTex,xf,yf);
+            dst.atIVxxx(y,x) = tex2D(floatTex,xf,yf);
 #else
             //software bil. interpolation
             float xf = (float(x) + 0.5f) * scale_x - 0.5f;
             float yf = (float(y) + 0.5f) * scale_y - 0.5f;
-            dst(x,y) = src.inter(xf,yf);
+            dst.atIVxxx(y,x) = src.inter(yf,xf);
 #endif
 
         }

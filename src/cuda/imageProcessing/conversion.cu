@@ -22,13 +22,13 @@ static void d_convertRGBtoRGBA(ImageView<uchar3> src, ImageView<uchar4> dst, int
 #pragma unroll
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
         if(y < dst.height){
-            uchar3 v3 = src(x,y);
+            uchar3 v3 = src.atIVxxx(y,x);
             uchar4 v4;
             v4.x = v3.x;
             v4.y = v3.y;
             v4.z = v3.z;
             v4.w = alpha;
-            dst(x,y) = v4;
+            dst.atIVxxx(y,x) = v4;
         }
     }
 }
@@ -60,12 +60,12 @@ static void d_convertRGBAtoRGB(ImageView<uchar4> src, ImageView<uchar3> dst, int
 #pragma unroll
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
         if(y < dst.height){
-            uchar4 v4 = src(x,y);
+            uchar4 v4 = src.atIVxxx(y,x);
             uchar3 v3;
             v3.x = v4.x;
             v3.y = v4.y;
             v3.z = v4.z;
-            dst(x,y) = v3;
+            dst.atIVxxx(y,x) = v3;
         }
     }
 }
@@ -103,10 +103,10 @@ static void d_convertRGBAtoGrayscale(ImageView<uchar4> src, ImageView<float> dst
 #pragma unroll
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
         if(y < dst.height){
-            uchar4 u = src(x,y);
+            uchar4 u = src.atIVxxx(y,x);
             vec3 uv = vec3(u.x,u.y,u.z);
             float v =  dot(uv,conv);
-            dst(x,y) = v;
+            dst.atIVxxx(y,x) = v;
         }
     }
 }
@@ -137,13 +137,13 @@ static void d_convertBGRtoRGBA(ImageView<uchar3> src, ImageView<uchar4> dst, int
 #pragma unroll
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
         if(y < dst.height){
-            uchar3 v3 = src(x,y);
+            uchar3 v3 = src.atIVxxx(y,x);
             uchar4 v4;
             v4.x = v3.z;
             v4.y = v3.y;
             v4.z = v3.x;
             v4.w = alpha;
-            dst(x,y) = v4;
+            dst.atIVxxx(y,x) = v4;
         }
     }
 }
@@ -175,12 +175,12 @@ static void d_convertRGBAtoBGR(ImageView<uchar4> src, ImageView<uchar3> dst, int
 #pragma unroll
     for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
         if(y < dst.height){
-            uchar4 v4 = src(x,y);
+            uchar4 v4 = src.atIVxxx(y,x);
             uchar3 v3;
             v3.x = v4.z;
             v3.y = v4.y;
             v3.z = v4.x;
-            dst(x,y) = v3;
+            dst.atIVxxx(y,x) = v3;
         }
     }
 }

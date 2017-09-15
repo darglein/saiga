@@ -148,7 +148,7 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
             for (int k = 0; k < KSIZE; ++k)
                 sum = sum + smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X - anchor + k] * d_Kernel[k];
 
-            dst(x,y) = sum;
+            dst.atIVxxx(y,x) = sum;
         }
     }
 }
