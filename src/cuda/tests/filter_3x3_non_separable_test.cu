@@ -4,13 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/cuda/imageProcessing/convolution.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/time/timer.h"
-#include "saiga/time/performanceMeasure.h"
 
 using std::cout;
 using std::endl;

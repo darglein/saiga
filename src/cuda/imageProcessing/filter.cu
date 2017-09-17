@@ -4,14 +4,14 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/cuda/imageProcessing/filter.h"
-#include "saiga/cuda/imageProcessing/convolution.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/device_helper.h"
 
 namespace Saiga {
 namespace CUDA {
 
 thrust::device_vector<float>  createGaussianBlurKernel(int radius, float sigma){
-    SAIGA_ASSERT(radius <= MAX_RADIUS && radius > 0);
+    SAIGA_ASSERT(radius <= SAIGA_MAX_CONVOLUTION_RADIUS && radius > 0);
     const int ELEMENTS = radius * 2 + 1;
     thrust::host_vector<float> kernel(ELEMENTS);
     float kernelSum = 0.0f;

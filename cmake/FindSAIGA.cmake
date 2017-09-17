@@ -77,6 +77,10 @@ endif()
 
 endif()
 
-message(STATUS "Found saiga: ${SAIGA_INCLUDE_DIRS} Libs: ${SAIGA_LIBRARY}")
+if(SAIGA_FOUND)
+	message(STATUS "Found saiga: ${SAIGA_INCLUDE_DIRS} Libs: ${SAIGA_LIBRARY}")
+else()
+	message(STATUS "Did not find saiga.")
+endif()
 
 

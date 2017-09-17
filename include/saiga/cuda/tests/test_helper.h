@@ -8,6 +8,8 @@
 
 #include <saiga/config.h>
 #include <iostream>
+#include "saiga/time/performanceMeasure.h"
+#include "saiga/time/timer.h"
 
 namespace Saiga {
 namespace CUDA {

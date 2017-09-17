@@ -15,7 +15,7 @@
 #include <cuda_runtime.h>
 #include "saiga/util/assert.h"
 
-#include "thrust_helper.h"
+#include "saiga/cuda/thrust_helper.h"
 
 
 # define CHECK_CUDA_ERROR(cudaFunction) {							\

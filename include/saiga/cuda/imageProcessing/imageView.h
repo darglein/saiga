@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/cuda/common.h"
+#include "saiga/util/imath.h"
 #include "saiga/util/assert.h"
-#include "saiga/util/glm.h"
 #include <algorithm>
 
 #if defined(SAIGA_USE_CUDA)
@@ -20,7 +20,7 @@ struct uchar3
     unsigned char x, y, z;
 };
 
-struct GLM_ALIGN(4) uchar4
+struct SAIGA_ALIGN(4) uchar4
 {
     unsigned char x, y, z, w;
 };
@@ -112,15 +112,12 @@ struct ImageView{
     }
 
 
-
-
-
     //bilinear interpolated pixel with clamp to edge boundary
     HD inline
-    T inter7(float sy, float sx){
+    T inter(float sy, float sx){
 
-        int x0 = glm::floor(sx);
-        int y0 = glm::floor(sy);
+        int x0 = iFloor(sx);
+        int y0 = iFloor(sy);
 
         //interpolation weights
         float ax = sx - x0;
@@ -139,8 +136,6 @@ struct ImageView{
         int x1 = std::min(x0 + 1, width - 1);
         int y1 = std::min(y0 + 1, height - 1);
 #endif
-
-
 
         T res = ((*this)(x0,y0) * (1.0f - ax) + (*this)(x1,y0) * (ax)) * (1.0f - ay) +
                 ((*this)(x0,y1) * (1.0f - ax) + (*this)(x1,y1) * (ax)) * (ay);

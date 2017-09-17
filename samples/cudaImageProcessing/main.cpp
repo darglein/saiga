@@ -12,6 +12,7 @@
 #include "saiga/tests/test.h"
 
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/image/image.h"
 #include "saiga/image/templatedImage.h"
 

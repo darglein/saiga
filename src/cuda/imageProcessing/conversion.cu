@@ -4,7 +4,10 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/cuda/imageProcessing/conversion.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/device_helper.h"
+#include "saiga/util/glm.h"
+
 
 namespace Saiga {
 namespace CUDA {

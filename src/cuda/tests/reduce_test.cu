@@ -8,8 +8,7 @@
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/time/timer.h"
-#include "saiga/cuda/reduce.h"
+#include "saiga/cuda/reduce_global.h"
 
 namespace Saiga {
 namespace CUDA {

@@ -4,7 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/cuda/imageProcessing/scale.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/device_helper.h"
 
 namespace Saiga {
 namespace CUDA {

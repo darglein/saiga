@@ -8,12 +8,13 @@
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/time/timer.h"
+
 #include "saiga/image/templatedImage.h"
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/imageProcessing/image.h"
 #include <algorithm>
 #include "saiga/util/tostring.h"
-#include "saiga/time/performanceMeasure.h"
+
 
 namespace Saiga {
 namespace CUDA {

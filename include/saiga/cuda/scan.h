@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "saiga/cuda/thread_info.h"
-#include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/reduce.h"
-#include "saiga/cuda/device_helper.h"
+#include "saiga/cuda/thread_info.h"
+#include "saiga/cuda/shfl_helper.h"
+#include "saiga/cuda/memory.h"
 
 namespace Saiga {
 namespace CUDA {

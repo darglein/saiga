@@ -75,6 +75,15 @@
 #define SAIGA_NOEXCEPT
 #endif
 
+
+#if defined(_MSC_VER)
+#define SAIGA_ALIGN(x) __declspec(align(x))
+#elif defined(__GNUC__)
+#define SAIGA_ALIGN(x) __attribute__ ((aligned(x)))
+#endif
+
+
+
 //includes that are used for everything
 #include <string>
 #include <iostream>

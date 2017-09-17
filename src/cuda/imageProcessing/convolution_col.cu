@@ -48,12 +48,8 @@
 //
 //M*/
 
-#include "saiga/cuda/imageProcessing/convolution.h"
-#include "saiga/cuda/tests/test_helper.h"
-#include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/thread_info.h"
-#include "saiga/cuda/cudaHelper.h"
-#include "saiga/time/timer.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/device_helper.h"
 
 using std::cout;
 using std::endl;
@@ -62,7 +58,7 @@ namespace Saiga {
 namespace CUDA {
 
 
-__constant__ float d_Kernel[MAX_RADIUS*2+1];
+__constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
 
 template <int KSIZE>
@@ -166,7 +162,7 @@ static void convolveCol(ImageView<float> src, ImageView<float> dst){
 }
 
 void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
-    SAIGA_ASSERT(kernel.size() > 0 && kernel.size() <= MAX_KERNEL_SIZE);
+    SAIGA_ASSERT(kernel.size() > 0 && kernel.size() <= SAIGA_MAX_KERNEL_SIZE);
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
 
     switch (radius){

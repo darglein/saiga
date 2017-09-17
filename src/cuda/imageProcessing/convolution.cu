@@ -4,12 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/cuda/imageProcessing/convolution.h"
-#include "saiga/cuda/tests/test_helper.h"
-#include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/thread_info.h"
-#include "saiga/cuda/cudaHelper.h"
-#include "saiga/time/timer.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/device_helper.h"
 
 using std::cout;
 using std::endl;
@@ -18,7 +14,7 @@ namespace Saiga {
 namespace CUDA {
 
 
-__constant__ float d_Kernel[MAX_RADIUS*2+1];
+__constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
 
 template<typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int Y_ELEMENTS>

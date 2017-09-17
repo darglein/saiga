@@ -11,26 +11,15 @@
 #include "saiga/cuda/shfl_helper.h"
 #include "saiga/cuda/memory.h"
 
-/**
- * Simple Dot Product.
- * Tested for float and double types.
- *
- * Same performance as cublasSdot and cublasDdot
- *
- * The performance is limited by loading all elements from global memory.
- * It is not possible to go faster on current hardware.
- *
- */
-
 namespace Saiga {
 namespace CUDA{
 
 
 template<typename T, unsigned int BLOCK_SIZE>
 __device__ inline
-T dotLocalVector(array_view<T> v1, array_view<T> v2){
+T reduceLocalVector(array_view<T> in){
     T sum = T(0);
-    unsigned int N = v1.size();
+    unsigned int N = in.size();
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
 
@@ -40,22 +29,21 @@ T dotLocalVector(array_view<T> v1, array_view<T> v2){
         //this isn't faster than the 8 byte load
         using vector_type = int2;
         const unsigned int elements_per_vector = sizeof(vector_type) / sizeof(T);
+//        int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
         for(auto i = ti.thread_id; i < N / elements_per_vector; i += ti.grid_size){
-            T locals1[elements_per_vector];
-            T locals2[elements_per_vector];
-            vectorArrayCopy<T,vector_type>( v1.data() + (i*elements_per_vector) , locals1);
-            vectorArrayCopy<T,vector_type>( v2.data() + (i*elements_per_vector) , locals2);
+            T locals[elements_per_vector];
+            vectorArrayCopy<T,vector_type>( in.data() + (i*elements_per_vector) , locals);
 #pragma unroll
             for(auto i = 0 ; i < elements_per_vector; ++i)
-                sum += locals1[i] * locals2[i];
+                sum += locals[i];
         }
         //process remaining elements
         for(auto i = ti.thread_id + N/elements_per_vector * elements_per_vector; i<N; i += ti.grid_size){
-            sum += v1[i] * v2[i];
+            sum += in[i];
         }
     }else{
-        for(auto i = ti.thread_id; i < N; i += ti.grid_size){
-            sum += v1[i] * v2[i];
+        for(auto i = ti.thread_id; i < in.size(); i += ti.grid_size){
+            sum += in[i];
         }
     }
     return sum;
@@ -65,15 +53,33 @@ T dotLocalVector(array_view<T> v1, array_view<T> v2){
 
 template<typename T, unsigned int BLOCK_SIZE>
 __global__
-void dot(array_view<T> v1, array_view<T> v2, T* out) {
-
+void reduceBlockShared(array_view<T> in, T* out) {
     __shared__ T shared[BLOCK_SIZE/WARP_SIZE];
 
-
-    T sum = dotLocalVector<T,BLOCK_SIZE>(v1,v2);
-
+    T sum = reduceLocalVector<T,BLOCK_SIZE>(in);
     sum = blockReduceSum<T,BLOCK_SIZE>(sum,shared);
     if (threadIdx.x == 0)
+        atomicAdd(out, sum);
+}
+
+template<typename T, unsigned int BLOCK_SIZE>
+__global__
+void reduceBlockSharedAtomic(array_view<T> in, T* out) {
+    __shared__ T shared;
+    T sum = reduceLocalVector<T,BLOCK_SIZE>(in);
+    sum = blockReduceAtomicSum<T,BLOCK_SIZE>(sum,&shared);
+    if (threadIdx.x == 0)
+        atomicAdd(out, sum);
+}
+
+
+template<typename T, unsigned int BLOCK_SIZE>
+__global__
+void reduceAtomic(array_view<T> in, T* out) {
+    T sum = reduceLocalVector<T,BLOCK_SIZE>(in);
+    sum = warpReduceSum(sum);
+    int lane = threadIdx.x & (WARP_SIZE-1);
+    if(lane == 0)
         atomicAdd(out, sum);
 }
 
