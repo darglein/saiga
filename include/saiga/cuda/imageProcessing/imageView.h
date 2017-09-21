@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -73,31 +73,16 @@ struct ImageView{
     //a view to a sub image
     HD inline
     ImageView<T> subImageView(int startY, int startX, int h, int w){
-#ifdef ON_DEVICE
-#else
+#ifdef SAIGA_ON_HOST
         SAIGA_ASSERT(startX >= 0 && startX < width);
         SAIGA_ASSERT(startY >= 0 && startY < height);
         SAIGA_ASSERT(startX + w <= width);
         SAIGA_ASSERT(startY + h <= height);
 #endif
-        ImageView<T> iv(w,h,pitchBytes,&(*this)(startY,startX));
+        ImageView<T> iv(h,w,pitchBytes,&(*this)(startY,startX));
         return iv;
     }
 
-#if 0
-    HD inline
-    T& operator()(int x, int y){
-#ifdef ON_DEVICE
-#else
-        SAIGA_ASSERT(inImage(x,y));
-#endif
-        //        return data[y * pitch + x];
-//        uint8_t* data8 = reinterpret_cast<uint8_t*>(data);
-//        data8 += y * pitchBytes + x * sizeof(T);
-        auto ptr = data8 + y * pitchBytes + x * sizeof(T);
-        return reinterpret_cast<T*>(ptr)[0];
-    }
-#endif
 
     HD inline
     T& operator()(int y, int x){
@@ -129,7 +114,7 @@ struct ImageView{
         if ( y0>=height ) {y0=height-1;ay=0;}
 
 
-#ifdef ON_DEVICE
+#ifdef SAIGA_ON_DEVICE
         int x1 = min(x0 + 1, width - 1);
         int y1 = min(y0 + 1, height - 1);
 #else
@@ -154,7 +139,7 @@ struct ImageView{
         int x1 = width - 1 - x;
         int y0 = y;
         int y1 = height - 1 - y;
-#ifdef ON_DEVICE
+#ifdef SAIGA_ON_DEVICE
         return min(x0,min(x1,min(y0,y1)));
 #else
         return std::min(x0,std::min(x1,std::min(y0,y1)));
@@ -179,7 +164,7 @@ struct ImageView{
 
     HD inline
     void clampToEdge(int& y, int& x){
-#ifdef ON_DEVICE
+#ifdef SAIGA_ON_DEVICE
         x = min(max(0,x),width-1);
         y = min(max(0,y),height-1);
 #else

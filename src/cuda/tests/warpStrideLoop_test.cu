@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -78,11 +78,38 @@ static void batchReduce2(array_view<T> in, array_view<T> out){
     }
 }
 
+#if 0
+__global__
+static void shflTest(){
+    int tid = threadIdx.x;
+    float value = tid + 0.1f;
+    int* ivalue = reinterpret_cast<int*>(&value);
+
+    int ix = __shfl(ivalue[0],5,32);
+    int iy = __shfl_sync(ivalue[0],5,32);
+
+    float x = reinterpret_cast<float*>(&ix)[0];
+    float y = reinterpret_cast<float*>(&iy)[0];
+
+    if(tid == 0){
+        printf("shfl tmp %d %d\n",ix,iy);
+        printf("shfl final %f %f\n",x,y);
+    }
+}
+#endif
+
 
 
 template<int N>
 void warpStrideLoopTest2(){
-    CUDA_SYNC_CHECK_ERROR();
+
+#if 0
+    {
+        shflTest<<<1,32>>>();
+        CUDA_SYNC_CHECK_ERROR();
+        return;
+    }
+#endif
 
     using ReduceType = int;
 

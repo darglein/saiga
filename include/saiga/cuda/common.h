@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -19,11 +19,14 @@
 #endif
 
 
+#define SAIGA_ON_HOST
+
 #ifdef __CUDACC__
 #	define HD __host__ __device__
 #	define IS_CUDA
 #	if defined(__CUDA_ARCH__) && __CUDA_ARCH__ > 0
-#		define ON_DEVICE
+#		define SAIGA_ON_DEVICE
+#       undef SAIGA_ON_HOST
 #	endif
 #else
 #	define HD

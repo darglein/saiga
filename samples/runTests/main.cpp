@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -45,9 +45,9 @@ int main(int argc, char *argv[]) {
         CUDA::initCUDA();
         CUDA::initBLASSPARSE();
 
-        CUDA::imageProcessingTest();
+//        CUDA::imageProcessingTest();
 //        CUDA::inverseTest();
-//        CUDA::warpStrideLoopTest();
+        CUDA::warpStrideLoopTest();
 //        CUDA::convolutionTest();
 //        CUDA::convolutionTest3x3();
         return 0;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -10,6 +10,8 @@
 
 namespace Saiga {
 namespace CUDA{
+
+//#define SAIGA_CUDA_USE_SYNC_SHFL
 
 __device__ inline
 double fetch_double(uint2 p){
@@ -36,7 +38,7 @@ T shfl(T var, unsigned int srcLane, int width=WARP_SIZE) {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
     for(int i = 0 ; i < sizeof(T) / sizeof(ShuffleType) ; ++i){
-#if CUDA_VERSION >= 9000
+#ifdef SAIGA_CUDA_USE_SYNC_SHFL
         a[i] = __shfl_sync(a[i], srcLane, width);
 #else
         a[i] = __shfl(a[i], srcLane, width);
@@ -51,7 +53,7 @@ T shfl_down(T var, unsigned int srcLane, int width=WARP_SIZE) {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
     for(int i = 0 ; i < sizeof(T) / sizeof(ShuffleType) ; ++i){
-#if CUDA_VERSION >= 9000
+#ifdef SAIGA_CUDA_USE_SYNC_SHFL
         a[i] = __shfl_down_sync(a[i], srcLane, width);
 #else
         a[i] = __shfl_down(a[i], srcLane, width);
@@ -66,7 +68,7 @@ T shfl_up(T var, unsigned int srcLane, int width=WARP_SIZE) {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
     for(int i = 0 ; i < sizeof(T) / sizeof(ShuffleType) ; ++i){
-#if CUDA_VERSION >= 9000
+#ifdef SAIGA_CUDA_USE_SYNC_SHFL
         a[i] = __shfl_up_sync(a[i], srcLane, width);
 #else
         a[i] = __shfl_up(a[i], srcLane, width);
@@ -81,7 +83,7 @@ T shfl_xor(T var, unsigned int srcLane, int width=WARP_SIZE) {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
     for(int i = 0 ; i < sizeof(T) / sizeof(ShuffleType) ; ++i){
-#if CUDA_VERSION >= 9000
+#ifdef SAIGA_CUDA_USE_SYNC_SHFL
         a[i] = __shfl_xor_sync(a[i], srcLane, width);
 #else
         a[i] = __shfl_xor(a[i], srcLane, width);
