@@ -19,7 +19,7 @@ __device__ inline
 T warpInclusiveScan(T val, unsigned int lane) {
 #pragma unroll
     for (int d = 1; d < LOCAL_WARP_SIZE; d *= 2) {
-        T tmp = __shfl_up(val,d,LOCAL_WARP_SIZE);
+        T tmp = shfl_up(val,d,LOCAL_WARP_SIZE);
         if (lane >= d)
             val += tmp;
     }

@@ -33,8 +33,8 @@ struct array_view{
     HD array_view() : data_(nullptr), n(0){}
     HD array_view(T* data_, size_t n) : data_(data_), n(n){}
 
-    HD array_view(array_view<T> const&) = default;
-    HD array_view& operator=(array_view<T> const&) = default;
+    array_view(array_view<T> const&) = default;
+    array_view& operator=(array_view<T> const&) = default;
 
     __host__ array_view(thrust::device_vector<typename std::remove_const<T>::type>& dv)
         : data_(thrust::raw_pointer_cast(dv.data())),

@@ -41,3 +41,11 @@ for f in $(find ${ROOTDIR}/shader/ -name '*.glsl');
 do 
 echo $f >> $FILE; 
 done
+
+FILE="saiga.includes"
+
+if ! [ -e $FILE ] ;
+then
+	echo "${ROOTDIR}/include/" >> $FILE
+	echo "/usr/local/cuda/include/" >> $FILE
+fi
