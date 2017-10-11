@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -106,7 +106,6 @@ void ObjLoader2::calculateMissingNormals()
 void ObjLoader2::createVertexIndexList()
 {
     std::vector<bool> vertices_used(vertices.size(),false);
-
 
     outVertices.resize(vertices.size());
 
@@ -283,6 +282,7 @@ void ObjLoader2::parseF(std::string &line)
 
     faces.insert(faces.end(),nf.begin(),nf.end());
 }
+
 
 //parsing index vertex
 //examples:

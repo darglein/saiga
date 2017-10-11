@@ -26,14 +26,17 @@ option (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON)
 #in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
 if (SAIGA_DEBUG)
 	set(CMAKE_BUILD_TYPE debug)
+	message(STATUS "Build Type: debug")
 	#adds this flags on gcc: -g
 else ()
 	if(OPTION_FULL_OPTIMIZE)
-		set(CMAKE_BUILD_TYPE relwithdebinfo)
-		#adds this flags on gcc: -O2 -g -DNDEBUG
-	else()
 		set(CMAKE_BUILD_TYPE release)
+		#adds this flags on gcc: -O2 -g -DNDEBUG
+			message(STATUS "Build Type: release")
+	else()
+		set(CMAKE_BUILD_TYPE relwithdebinfo)
 		#adds this flags on gcc: -O3 -DNDEBUG
+			message(STATUS "Build Type: relwithdebinfo")
 	endif()
 endif()
 
