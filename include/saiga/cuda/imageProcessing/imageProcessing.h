@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -29,7 +29,9 @@ SAIGA_GLOBAL void fill(ImageView<float> img, float value);
 
 //==================== Image Scaling ======================
 
-SAIGA_GLOBAL void scaleDown2EveryOther(ImageView<float> src, ImageView<float> dst);
+template <typename T>
+SAIGA_GLOBAL void scaleDown2EveryOther(ImageView<T> src, ImageView<T> dst);
+
 SAIGA_GLOBAL void scaleUp2Linear(ImageView<float> src, ImageView<float> dst);
 
 //==================== Image Format Conversions ======================
@@ -49,6 +51,7 @@ SAIGA_GLOBAL void convolveSinglePassSeparateOuterLinear(ImageView<float> src, Im
 SAIGA_GLOBAL void convolveSinglePassSeparateOuterHalo(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 SAIGA_GLOBAL void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 SAIGA_GLOBAL void convolveSinglePassSeparateInner75(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparateInnerShuffle(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 
 SAIGA_GLOBAL void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
 SAIGA_GLOBAL void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);

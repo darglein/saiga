@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -41,42 +41,6 @@ void fill(ImageView<float> img, float value){
     dim3 blocks(iDivUp(w, BLOCK_W), iDivUp(h, BLOCK_H));
     dim3 threads(BLOCK_W, BLOCK_H);
     d_fill<BLOCK_W,BLOCK_H,ROWS_PER_THREAD> <<<blocks, threads>>>(img,h,value);
-}
-
-template<int BLOCK_W, int BLOCK_H, int ROWS_PER_THREAD = 1>
-__global__
-static void d_scaleDown2EveryOther(ImageView<float> src, ImageView<float> dst, int h)
-{
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-
-    int x = blockIdx.x*BLOCK_W + tx;
-    int y = blockIdx.y*BLOCK_H + ty;
-
-
-    if(x >= dst.width)
-        return;
-
-#pragma unroll
-    for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
-        if(y < dst.height){
-            dst(y,x) = src(y*2,x*2);
-        }
-    }
-
-}
-
-
-void scaleDown2EveryOther(ImageView<float> src, ImageView<float> dst){
-    SAIGA_ASSERT(src.width/2 == dst.width && src.height/2 == dst.height);
-    const int ROWS_PER_THREAD = 2;
-    const int BLOCK_W = 128;
-    const int BLOCK_H = 1;
-    int w = dst.width;
-    int h = iDivUp(dst.height,ROWS_PER_THREAD);
-    dim3 blocks(iDivUp(w, BLOCK_W), iDivUp(h, BLOCK_H));
-    dim3 threads(BLOCK_W, BLOCK_H);
-    d_scaleDown2EveryOther<BLOCK_W,BLOCK_H,ROWS_PER_THREAD> <<<blocks, threads>>>(src,dst,h);
 }
 
 

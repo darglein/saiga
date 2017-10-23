@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -377,7 +377,7 @@ void DeferredLighting::postprocessVolumetric()
 
 
 
-
+#if 0
     volumetricBlurShader2->bind();
 //    volumetricLightTexture2->bind(0);
     volumetricLightTexture2->bindImageTexture(0,GL_WRITE_ONLY);
@@ -387,7 +387,7 @@ void DeferredLighting::postprocessVolumetric()
     volumetricBlurShader2->dispatchCompute(Saiga::iDivUp(width,16),Saiga::iDivUp(height,16),1);
 //    volumetricBlurShader2->dispatchCompute(width,height,1);
     volumetricBlurShader2->unbind();
-
+#endif
 
     glMemoryBarrier( GL_ALL_BARRIER_BITS );
 

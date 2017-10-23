@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
 
 //        CUDA::imageProcessingTest();
 //        CUDA::inverseTest();
-        CUDA::warpStrideLoopTest();
-//        CUDA::convolutionTest();
+//        CUDA::warpStrideLoopTest();
+        CUDA::convolutionTest();
 //        CUDA::convolutionTest3x3();
         return 0;
         CUDA::randomTest();
