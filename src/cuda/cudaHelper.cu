@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -185,7 +185,8 @@ void initCUDA(){
     cout << "  Device name: " << deviceProp.name << endl;
     cout << "  Compute capabilities: " << deviceProp.major << "." << deviceProp.minor << endl;
     cout << "  Global Memory: " << deviceProp.totalGlobalMem << endl;
-    cout << "  Shared Memory: " << deviceProp.sharedMemPerBlock << endl;
+    cout << "  Shared Memory Per Block: " << deviceProp.sharedMemPerBlock << endl;
+    cout << "  Shared Memory Per SM: " << deviceProp.sharedMemPerMultiprocessor << endl;
     cout << "  Constant Memory: " << deviceProp.totalConstMem << endl;
     cout << "  Warp Size: " << deviceProp.warpSize << endl;
     cout << "  Max Threads per Block: " << deviceProp.maxThreadsPerBlock << endl;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -77,6 +77,9 @@ public:
 
     static vec3 xyz2linearrgb(vec3 c);
     static vec3 linearrgb2xyz(vec3 c);
+
+    static vec3 rgb2hsv(vec3 c);
+    static vec3 hsv2rgb(vec3 c);
 
 
 };

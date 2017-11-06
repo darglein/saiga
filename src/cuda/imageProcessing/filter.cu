@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -6,12 +6,14 @@
 
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/device_helper.h"
+#include "saiga/util/statistics.h"
 
 namespace Saiga {
 namespace CUDA {
 
 thrust::device_vector<float>  createGaussianBlurKernel(int radius, float sigma){
     SAIGA_ASSERT(radius <= SAIGA_MAX_CONVOLUTION_RADIUS && radius > 0);
+#if 0
     const int ELEMENTS = radius * 2 + 1;
     thrust::host_vector<float> kernel(ELEMENTS);
     float kernelSum = 0.0f;
@@ -23,6 +25,10 @@ thrust::device_vector<float>  createGaussianBlurKernel(int radius, float sigma){
     for (int j=-radius;j<=radius;j++)
         kernel[j+radius] /= kernelSum;
     return thrust::device_vector<float>(kernel);
+#else
+    std::vector<float> kernel = gaussianBlurKernel<float>(radius,sigma);
+    return thrust::device_vector<float>(kernel);
+#endif
 }
 
 

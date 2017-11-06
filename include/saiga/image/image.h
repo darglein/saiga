@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -117,7 +117,6 @@ public:
     void setSubImage(int x, int y, Image &src);
     void setSubImage(int x, int y , int w , int h , uint8_t* data);
     void getSubImage(int x, int y, int w, int h, Image &out);
-
 
 
     //swaps the red and blue color channel. Usefull for RGB->BGR conversion

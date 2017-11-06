@@ -9,6 +9,7 @@
 #include <saiga/config.h>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace Saiga {
 
@@ -63,6 +64,26 @@ std::ostream &operator<<(std::ostream &stream, const Statistics<T> &object)
               "Mean,Median = [" << object.mean << "," << object.median << "]" << std::endl <<
               "sdev,var    = [" << object.sdev << "," << object.variance << "]";
     return stream;
+}
+
+template<typename T>
+std::vector<T>  gaussianBlurKernel(int radius, T sigma)
+{
+    const int ELEMENTS = radius * 2 + 1;
+    std::vector<T> kernel(ELEMENTS);
+    T ivar2 = 1.0f / (2.0f * sigma * sigma);
+    T kernelSum(0);
+    for (int j=-radius; j<=radius; j++)
+    {
+        kernel[j+radius] = std::exp(-j*j*ivar2);
+        kernelSum += kernel[j+radius];
+    }
+    //normalize
+    for (int j=-radius;j<=radius;j++)
+    {
+        kernel[j+radius] /= kernelSum;
+    }
+    return kernel;
 }
 
 }

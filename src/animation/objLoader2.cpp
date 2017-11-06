@@ -100,7 +100,21 @@ void ObjLoader2::separateVerticesByGroup()
 
 void ObjLoader2::calculateMissingNormals()
 {
+    for(auto tri : outTriangles)
+    {
+        auto& v1 = outVertices[tri.v[0]];
+        auto& v2 = outVertices[tri.v[1]];
+        auto& v3 = outVertices[tri.v[2]];
 
+        vec3 normal = normalize(cross( vec3(v3.position-v1.position),vec3(v2.position-v1.position)));
+
+        if(v1.normal == vec4(0,0,0,0))
+            v1.normal = vec4(normal,0);
+        if(v2.normal == vec4(0,0,0,0))
+            v2.normal = vec4(normal,0);
+        if(v3.normal == vec4(0,0,0,0))
+            v3.normal = vec4(normal,0);
+    }
 }
 
 void ObjLoader2::createVertexIndexList()

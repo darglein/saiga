@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -155,6 +155,8 @@ void Image::getSubImage(int x, int y, int w, int h, Image &out){
 
 }
 
+
+
 void Image::flipRB()
 {
     SAIGA_ASSERT(format.getBitDepth()==8 || format.getBitDepth()==16);
@@ -198,7 +200,10 @@ void Image::flipY()
 
 void Image::to8bitImage()
 {
-    if(format.getBitDepth() == 8)
+    if(format.getBitDepth() != 16)
+        return;
+
+    if(format.getElementFormat() == ImageElementFormat::FloatingPoint)
         return;
 
     SAIGA_ASSERT(format.getElementFormat() == ImageElementFormat::UnsignedNormalized);

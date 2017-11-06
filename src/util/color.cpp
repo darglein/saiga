@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2017 Darius Rückert 
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -99,6 +99,26 @@ vec3 Color::linearrgb2xyz(vec3 c)
     float Y = c.x * 0.2126 + c.y * 0.7152 + c.z * 0.0722;
     float Z = c.x * 0.0193 + c.y * 0.1192 + c.z * 0.9505;
     return vec3(X,Y,Z);
+}
+
+
+vec3 Color::rgb2hsv(vec3 c)
+{
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+
+    vec4 p = glm::mix(vec4(c.b,c.g, K.w,K.z), vec4(c.g,c.b, K.x,K.y), glm::mix(1.f, 0.f, c.b < c.g));
+    vec4 q = glm::mix(vec4(p.x,p.y,p.w, c.r), vec4(c.r, p.y,p.z,p.x), glm::mix(1.f, 0.f, p.x < c.r));
+
+    float d = q.x - std::min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(glm::abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 Color::hsv2rgb(vec3 c)
+{
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = glm::abs(fract(vec3(c.x) + vec3(K)) * 6.0f - vec3(K.w));
+    return c.z * mix(vec3(K.x), clamp(p - vec3(K.x), vec3(0.0), vec3(1.0)), c.y);
 }
 
 }
