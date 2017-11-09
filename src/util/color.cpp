@@ -5,6 +5,7 @@
  */
 
 #include "saiga/util/color.h"
+#include <algorithm>
 
 namespace Saiga {
 

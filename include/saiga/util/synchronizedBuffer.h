@@ -62,6 +62,13 @@ public:
         not_full.notify_one();
         return true;
     }
+
+	//blocks until buffer is empty
+	void waitUntilEmpty()
+	{
+		std::unique_lock<std::mutex> l(lock);
+		not_full.wait(l, [this](){return this->empty(); });
+	}
 };
 
 }

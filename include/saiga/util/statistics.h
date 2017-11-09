@@ -88,7 +88,7 @@ std::vector<T>  gaussianBlurKernel(int radius, T sigma)
 }
 
 template<typename T>
-std::vector<T> applyFilter1D(const std::vector<T>& src, std::vector<T>& dst, const std::vector<T>& kernel)
+void applyFilter1D(const std::vector<T>& src, std::vector<T>& dst, const std::vector<T>& kernel)
 {
     SAIGA_ASSERT(src.size() == dst.size());
     SAIGA_ASSERT(kernel.size() % 2 == 1);
