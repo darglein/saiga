@@ -7,6 +7,7 @@
 #pragma once
 
 #include <saiga/config.h>
+#include <saiga/util/assert.h>
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -84,6 +85,26 @@ std::vector<T>  gaussianBlurKernel(int radius, T sigma)
         kernel[j+radius] /= kernelSum;
     }
     return kernel;
+}
+
+template<typename T>
+std::vector<T> applyFilter1D(const std::vector<T>& src, std::vector<T>& dst, const std::vector<T>& kernel)
+{
+    SAIGA_ASSERT(src.size() == dst.size());
+    SAIGA_ASSERT(kernel.size() % 2 == 1);
+
+    int radius = kernel.size() / 2;
+
+    for(int x = 0; x < dst.size(); ++x)
+    {
+    T sum(0);
+    for (int i=-radius;i<=radius;i++){
+        int id = i + x;
+        id = std::min<int>(src.size()-1,std::max(id,0));
+        sum += src[id] * kernel[i+radius];
+    }
+        dst[x] = sum;
+    }
 }
 
 }
