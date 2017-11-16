@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -108,6 +108,8 @@ protected:
     float imUpdateTimes[numGraphValues];
     float imRenderTimes[numGraphValues];
     bool showImguiDemo = false;
+    float maxUpdateTime = 20;
+    float maxRenderTime = 20;
 public:
     bool showRendererImgui = false;
     std::shared_ptr<ImGuiRenderer> imgui;

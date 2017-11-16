@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -68,6 +68,8 @@ void OpenGLWindow::renderImGui(bool *p_open)
     float ut = std::chrono::duration<double, std::milli>(updateTimer.getTime()).count();
     float ft = renderer->getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL);
 
+    maxUpdateTime = std::max(ut,maxUpdateTime);
+    maxRenderTime = std::max(ft,maxRenderTime);
 
     float avUt = 0, avFt = 0;
     for(int i = 0 ;i < numGraphValues; ++i){
@@ -82,10 +84,11 @@ void OpenGLWindow::renderImGui(bool *p_open)
     imCurrentIndex = (imCurrentIndex+1) % numGraphValues;
 
 
+
     ImGui::Text("Update Time: %fms Ups: %f",ut, 1000.0f / upsTimer.getTimeMS());
-    ImGui::PlotLines("Update Time", imUpdateTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avUt)).c_str(), 0,20, ImVec2(0,80));
+    ImGui::PlotLines("Update Time", imUpdateTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avUt)).c_str(), 0,maxUpdateTime, ImVec2(0,80));
     ImGui::Text("Render Time: %fms Fps: %f",ft, 1000.0f / fpsTimer.getTimeMS());
-    ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avFt)).c_str(), 0,20, ImVec2(0,80));
+    ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avFt)).c_str(), 0,maxRenderTime, ImVec2(0,80));
 
 
     ImGui::Text("Running: %d",running);

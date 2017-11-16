@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -40,8 +40,16 @@ public:
     }
 
 	//adds one element to the buffer
-    void add(const T& data){
+    void add(const T& data)
+    {
         buffer[rear] = data;
+        rear = (rear + 1) % capacity;
+    }
+
+    //adds the element by swapping
+    void addSwap(T& data)
+    {
+        swap(buffer[rear],data);
         rear = (rear + 1) % capacity;
     }
 
@@ -51,6 +59,18 @@ public:
         front = (front + 1) % capacity;
         return result;
     }
+
+    //removes one element and returns it
+    bool getSwap(T& data){
+        if(empty())
+            return false;
+        swap(buffer[front],data);
+        front = (front + 1) % capacity;
+        return true;
+    }
+
+
+
 };
 
 }
