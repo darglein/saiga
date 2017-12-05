@@ -53,6 +53,39 @@ void OpenGLWindow::close(){
     running = false;
 }
 
+void OpenGLWindow::updateUpdateGraph()
+{
+    ut = std::chrono::duration<double, std::milli>(updateTimer.getTime()).count();
+
+    maxUpdateTime = std::max(ut,maxUpdateTime);
+
+    avUt = 0;
+    for(int i = 0 ;i < numGraphValues; ++i){
+        avUt +=   imUpdateTimes[i];
+    }
+    avUt /= numGraphValues;
+
+    imUpdateTimes[imCurrentIndexUpdate] = ut;
+    imCurrentIndexUpdate = (imCurrentIndexUpdate+1) % numGraphValues;
+
+
+}
+
+void OpenGLWindow::updateRenderGraph()
+{
+    ft = renderer->getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL);
+    maxRenderTime = std::max(ft,maxRenderTime);
+
+    avFt = 0;
+    for(int i = 0 ;i < numGraphValues; ++i){
+        avFt +=   imRenderTimes[i];
+    }
+    avFt /= numGraphValues;
+    imRenderTimes[imCurrentIndexRender] = ft;
+    imCurrentIndexRender = (imCurrentIndexRender+1) % numGraphValues;
+}
+
+
 void OpenGLWindow::renderImGui(bool *p_open)
 {
     p_open = &showImgui;
@@ -65,30 +98,12 @@ void OpenGLWindow::renderImGui(bool *p_open)
 
 
 
-    float ut = std::chrono::duration<double, std::milli>(updateTimer.getTime()).count();
-    float ft = renderer->getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL);
-
-    maxUpdateTime = std::max(ut,maxUpdateTime);
-    maxRenderTime = std::max(ft,maxRenderTime);
-
-    float avUt = 0, avFt = 0;
-    for(int i = 0 ;i < numGraphValues; ++i){
-        avUt +=   imUpdateTimes[i];
-        avFt +=   imRenderTimes[i];
-    }
-    avUt /= numGraphValues;
-    avFt /= numGraphValues;
-
-    imUpdateTimes[imCurrentIndex] = ut;
-    imRenderTimes[imCurrentIndex] = ft;
-    imCurrentIndex = (imCurrentIndex+1) % numGraphValues;
-
 
 
     ImGui::Text("Update Time: %fms Ups: %f",ut, 1000.0f / upsTimer.getTimeMS());
-    ImGui::PlotLines("Update Time", imUpdateTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avUt)).c_str(), 0,maxUpdateTime, ImVec2(0,80));
+    ImGui::PlotLines("Update Time", imUpdateTimes, numGraphValues, imCurrentIndexUpdate, ("avg "+Saiga::to_string(avUt)).c_str(), 0,maxUpdateTime, ImVec2(0,80));
     ImGui::Text("Render Time: %fms Fps: %f",ft, 1000.0f / fpsTimer.getTimeMS());
-    ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndex, ("avg "+Saiga::to_string(avFt)).c_str(), 0,maxRenderTime, ImVec2(0,80));
+    ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndexRender, ("avg "+Saiga::to_string(avFt)).c_str(), 0,maxRenderTime, ImVec2(0,80));
 
 
     ImGui::Text("Running: %d",running);
@@ -353,6 +368,8 @@ void OpenGLWindow::update(float dt)
     startParallelUpdate(dt);
     updateTimer.stop();
 
+    updateUpdateGraph();
+
     numUpdates++;
 
     upsTimer.stop();
@@ -389,6 +406,7 @@ void OpenGLWindow::parallelUpdateThread(float dt)
     }
 }
 
+
 void OpenGLWindow::parallelUpdateCaller(float dt)
 {
     renderer->renderer->parallelUpdate(dt);
@@ -404,6 +422,7 @@ void OpenGLWindow::render(float dt, float interpolation)
     renderer->render_intern();
     renderCPUTimer.stop();
 
+    updateRenderGraph();
     numFrames++;
 
     swapBuffersTimer.start();

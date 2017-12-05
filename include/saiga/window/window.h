@@ -104,7 +104,10 @@ protected:
     //for imgui graph
     bool showImgui = true;
     static const int numGraphValues = 80;
-    int imCurrentIndex = 0;
+    float ut, ft;
+     float avFt = 0, avUt;
+    int imCurrentIndexUpdate = 0;
+    int imCurrentIndexRender = 0;
     float imUpdateTimes[numGraphValues];
     float imRenderTimes[numGraphValues];
     bool showImguiDemo = false;
@@ -164,6 +167,8 @@ protected:
     void endParallelUpdate();
     void parallelUpdateThread(float dt);
 
+    void updateRenderGraph();
+    void updateUpdateGraph();
 
     virtual bool initWindow() = 0;
     virtual bool initInput() = 0;
