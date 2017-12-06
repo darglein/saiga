@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -45,15 +45,36 @@ bool ShaderPartLoader::load()
     GLenum type = GL_INVALID_ENUM;
     int lineCount = 0;
 
-    for(std::string line : data){
+
+    //https://de.wikipedia.org/wiki/Byte_Order_Mark
+    //quick check for utf8-BOM
+    if(data.size() > 0)
+    {
+        std::string &line = data[0];
+        if(line.size() >= 3)
+        {
+            if(
+                    (unsigned char)line[0] == 0xEF &&
+                    (unsigned char)line[1] == 0xBB &&
+                    (unsigned char)line[2] == 0xBF)
+            {
+                line = line.substr(3);
+            }
+        }
+    }
+
+    for(std::string line : data){        
         lineCount++;
 
         bool readLine = true;
         for(int i = 0 ; i < ShaderPart::shaderTypeCount ; ++i){
             std::string key("##"+ShaderPart::shaderTypeStrings[i]);
             //this only compares the first characteres of line, so that for example addittional '\r's are ignored.
-            if(line.compare(0,key.size(),key)==0){
-                if(status==STATUS_READING){
+            if(line.compare(0,key.size(),key)==0)
+            {
+//                std::cout << "found key " << key << std::endl;
+                if(status==STATUS_READING)
+                {
                     addShader(code,type);
                     code.clear();
                 }
