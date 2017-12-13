@@ -44,6 +44,107 @@ void fill(ImageView<float> img, float value){
 }
 
 
+
+template<int BLOCK_W, int BLOCK_H, int ROWS_PER_THREAD = 1>
+__global__
+static void d_add(ImageView<float> img, int h, float value)
+{
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+
+    int x = blockIdx.x*BLOCK_W + tx;
+    int y = blockIdx.y*BLOCK_H + ty;
+
+    if(x >= img.width)
+        return;
+
+    //process a fixed number of elements per thread to maximise instruction level parallelism
+    for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
+        if(y < img.height)
+            img(y,x) += value;
+    }
+}
+
+void add(ImageView<float> img, float value){
+    const int ROWS_PER_THREAD = 4;
+    const int BLOCK_W = 128;
+    const int BLOCK_H = 1;
+    int w = img.width;
+    int h = iDivUp(img.height,ROWS_PER_THREAD);
+    dim3 blocks(iDivUp(w, BLOCK_W), iDivUp(h, BLOCK_H));
+    dim3 threads(BLOCK_W, BLOCK_H);
+    d_add<BLOCK_W,BLOCK_H,ROWS_PER_THREAD> <<<blocks, threads>>>(img,h,value);
+}
+
+
+
+
+template<int BLOCK_W, int BLOCK_H, int ROWS_PER_THREAD = 1>
+__global__
+static void d_mult(ImageView<float> img, int h, float value)
+{
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+
+    int x = blockIdx.x*BLOCK_W + tx;
+    int y = blockIdx.y*BLOCK_H + ty;
+
+    if(x >= img.width)
+        return;
+
+    //process a fixed number of elements per thread to maximise instruction level parallelism
+    for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
+        if(y < img.height)
+            img(y,x) *= value;
+    }
+}
+
+void mult(ImageView<float> img, float value){
+    const int ROWS_PER_THREAD = 4;
+    const int BLOCK_W = 128;
+    const int BLOCK_H = 1;
+    int w = img.width;
+    int h = iDivUp(img.height,ROWS_PER_THREAD);
+    dim3 blocks(iDivUp(w, BLOCK_W), iDivUp(h, BLOCK_H));
+    dim3 threads(BLOCK_W, BLOCK_H);
+    d_mult<BLOCK_W,BLOCK_H,ROWS_PER_THREAD> <<<blocks, threads>>>(img,h,value);
+}
+
+
+template<int BLOCK_W, int BLOCK_H, int ROWS_PER_THREAD = 1>
+__global__
+static void d_abs(ImageView<float> img, int h)
+{
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+
+    int x = blockIdx.x*BLOCK_W + tx;
+    int y = blockIdx.y*BLOCK_H + ty;
+
+    if(x >= img.width)
+        return;
+
+    //process a fixed number of elements per thread to maximise instruction level parallelism
+    for(int i = 0; i < ROWS_PER_THREAD; ++i, y+=h){
+        if(y < img.height)
+            img(y,x) = fabsf(img(y,x));
+    }
+}
+
+void abs(ImageView<float> img){
+    const int ROWS_PER_THREAD = 4;
+    const int BLOCK_W = 128;
+    const int BLOCK_H = 1;
+    int w = img.width;
+    int h = iDivUp(img.height,ROWS_PER_THREAD);
+    dim3 blocks(iDivUp(w, BLOCK_W), iDivUp(h, BLOCK_H));
+    dim3 threads(BLOCK_W, BLOCK_H);
+    d_abs<BLOCK_W,BLOCK_H,ROWS_PER_THREAD> <<<blocks, threads>>>(img,h);
+}
+
+
+
+
 #define USE_HARDWARE_INTER
 
 #ifdef USE_HARDWARE_INTER

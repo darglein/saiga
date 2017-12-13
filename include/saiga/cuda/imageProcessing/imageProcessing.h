@@ -26,6 +26,10 @@ SAIGA_GLOBAL void subtractMulti(ImageArrayView<float> src, ImageArrayView<float>
 
 
 SAIGA_GLOBAL void fill(ImageView<float> img, float value);
+SAIGA_GLOBAL void mult(ImageView<float> img, float value);
+SAIGA_GLOBAL void add(ImageView<float> img, float value);
+SAIGA_GLOBAL void abs(ImageView<float> img);
+
 
 //==================== Image Scaling ======================
 
@@ -44,7 +48,7 @@ SAIGA_GLOBAL void convertRGBAtoBGR(ImageView<uchar4> src, ImageView<uchar3> dst)
 
 //==================== Convolution ======================
 
-#define SAIGA_MAX_CONVOLUTION_RADIUS 10
+#define SAIGA_MAX_CONVOLUTION_RADIUS 16
 #define SAIGA_MAX_KERNEL_SIZE (SAIGA_MAX_CONVOLUTION_RADIUS*2+1)
 
 SAIGA_GLOBAL void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);

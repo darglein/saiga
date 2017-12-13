@@ -19,7 +19,7 @@ namespace CUDA {
 static void checkRes(const thrust::host_vector<float>& ref, const thrust::host_vector<float>& dst){
     for(int i = 0; i < (int)dst.size();++i){
         if(std::abs(dst[i]- ref[i]) > 1e-5){
-            cout << "error " << i << " " << dst[i] << "!=" << ref[i] << endl;
+            cout << "error i/dst/ref " << i << " " << dst[i] << "!=" << ref[i] << endl;
             SAIGA_ASSERT(0);
         }
     }
@@ -63,7 +63,7 @@ void convolutionTest2(int w, int h){
     ImageView<float> h_imgDst(h,w,thrust::raw_pointer_cast(h_dest.data()));
     ImageView<float> h_imgTmp(h,w,thrust::raw_pointer_cast(h_tmp.data()));
 
-    int its = 50;
+    int its = 1;
     float sigma = 2.0f;
 //    thrust::device_vector<float> d_kernel = createGaussianBlurKernel(KERNEL_RADIUS,sigma);
     thrust::device_vector<float> d_kernel(2*KERNEL_RADIUS+1,1.0f);
@@ -73,16 +73,21 @@ void convolutionTest2(int w, int h){
     {
         for(int y = 0; y < h; ++y){
             for(int x = 0; x < w; ++x){
-//                h_imgSrc(y,x) = (rand()%3) - 1;
-                h_imgSrc(y,x) = 1;
+                h_imgSrc(y,x) = (rand()%3) - 1;
+//                h_imgSrc(y,x) = 1;
             }
         }
         src = h_src;
     }
 
+
+    cout << "first pixels: " << h_imgSrc(0,0) << " " << h_imgSrc(0,1) << " " << h_imgSrc(1,0) << " " << h_imgSrc(1,1) << endl;
+
     Saiga::CUDA::PerformanceTestHelper pth("convolutionTest radius=" + std::to_string(KERNEL_RADIUS)
                                            + " ImageSize: " + std::to_string(w) + "x" + std::to_string(h), readWrites);
 
+    //this takes too long :D
+#if 0
     {
         float time;
         {
@@ -104,6 +109,7 @@ void convolutionTest2(int w, int h){
         pth.addMeassurement("CPU Convolve",time);
         h_ref = h_dest;
     }
+#endif
 
     {
         float time;
@@ -130,11 +136,11 @@ void convolutionTest2(int w, int h){
             }
         }
         pth.addMeassurement("CPU Convolve Separate",time);
-//        SAIGA_ASSERT(h_ref == h_dest);
-        checkRes(h_ref,h_dest);
+         h_ref = h_dest;
     }
 
 
+#if 0
     {
         thrust::device_vector<float> d_kernel = h_kernel;
         dest = src;
@@ -182,6 +188,9 @@ void convolutionTest2(int w, int h){
         pth.addMeassurement("convolveSinglePassSeparateInner75",st.median);
         checkRes(h_ref,thrust::host_vector<float>(dest));
     }
+#endif
+
+       CUDA_SYNC_CHECK_ERROR();
 
     {
         thrust::device_vector<float> d_kernel = h_kernel;
@@ -195,6 +204,8 @@ void convolutionTest2(int w, int h){
         checkRes(h_ref,thrust::host_vector<float>(dest));
 //        checkRes2(h_ref,thrust::host_vector<float>(dest));
     }
+
+          CUDA_SYNC_CHECK_ERROR();
 
 
     {
@@ -237,14 +248,24 @@ void convolutionTest()
 //    int w = 512;
 //    int h = 256;
 
-//    convolutionTest2<1>(w,h);
+
+    convolutionTest2<1>(w,h);
 //    convolutionTest2<2>(w,h);
 //    convolutionTest2<3>(w,h);
-    convolutionTest2<4>(w,h);
-//    return;
+//    convolutionTest2<4>(w,h);
 //    convolutionTest2<5>(w,h);
 //    convolutionTest2<6>(w,h);
 //    convolutionTest2<7>(w,h);
+//    convolutionTest2<8>(w,h);
+
+//    convolutionTest2<9>(w,h);
+//    convolutionTest2<10>(w,h);
+//    convolutionTest2<11>(w,h);
+//    convolutionTest2<12>(w,h);
+//    convolutionTest2<13>(w,h);
+//    convolutionTest2<14>(w,h);
+//    convolutionTest2<15>(w,h);
+//    convolutionTest2<16>(w,h);
 }
 
 }

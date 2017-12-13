@@ -497,9 +497,12 @@ void d_convolveInnerShuffle(ImageView<T> src, ImageView<T> dst)
 
 }
 
+// | ---- BLOCK_W * X_ELEMENTS * vectorSize ---- |
+// [ x x x x x x x x x x x x x x x x x x x x x x ]
+//
 
 
-template<typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int X_ELEMENTS, unsigned int Y_ELEMENTS>
+template<typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int X_ELEMENTS, unsigned int Y_ELEMENTS, typename VectorType=int2>
 __global__ static
 void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
 {
@@ -512,7 +515,7 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
     const unsigned int ty = threadIdx.y;
     //    int t = tx + ty * BLOCK_W;
 
-    using VectorType = int2;
+    static_assert( sizeof(VectorType) / sizeof(T) == X_ELEMENTS);
 
     unsigned int lane_id = threadIdx.x % 32;
 
@@ -528,205 +531,146 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
     T *kernel = d_Kernel;
 
 
-    __shared__ VectorType buffer2[TILE_H2][TILE_W - RADIUS / X_ELEMENTS * 2];
+    __shared__ VectorType buffer2[TILE_H2][TILE_W - 2 * RADIUS / X_ELEMENTS];
 
 
-    VectorType localElements[Y_ELEMENTS][6];
+    //own element + left and right radius
+    VectorType localElements[Y_ELEMENTS][1 + 2 * RADIUS / X_ELEMENTS]; //5
 
-//#pragma unroll(1)
+    //without this unroll we get a strange compile error
+#pragma unroll
     for(int i = 0; i < Y_ELEMENTS; ++i)
     {
         int rowId = y + i * TILE_H;
         rowId = min(rowId,src.height-1);
         rowId = max(0,rowId);
-
         int colId = max(0,x);
-        colId = min(colId,src.width - 2);
-
+        colId = min(colId,src.width - X_ELEMENTS);
 
 
         T* row = src.rowPtr(rowId);
         T* elem = row + colId;
 
-        VectorType& myValue = localElements[i][RADIUS / X_ELEMENTS];
 
 
+        //center of localElements
+        //the left and right of the center will be filled by shuffles
+        VectorType& myValue = localElements[i][RADIUS / X_ELEMENTS]; //[i][2]
+
+        //load own value from global memory (note: this is the only global memory read)
         myValue = reinterpret_cast<VectorType*>(elem)[0];
 
-
         //shuffle left
-        for(int j = -2; j <= -1 ; ++j)
+        for(int j = 0; j < RADIUS / X_ELEMENTS; ++j)
         {
-            localElements[i][j + 2] =  shfl(myValue,lane_id + j);
+            localElements[i][j] =  shfl(myValue,lane_id + j - RADIUS / X_ELEMENTS);
         }
 
         //shuffle right
-        for(int j = 1; j <= 2 ; ++j)
+        for(int j = 0; j < RADIUS / X_ELEMENTS; ++j)
         {
-            localElements[i][j + 2] =  shfl(myValue,lane_id + j);
+            localElements[i][j + RADIUS / X_ELEMENTS + 1] =  shfl(myValue,lane_id + j + 1);
         }
 
 
         T* localElementsT = reinterpret_cast<T*>(localElements[i]);
-        int offsetA = RADIUS;
-        int offsetB = RADIUS + 1;
-
-
-        T sum[2];
-        for(int j = 0; j < 2; ++j)
+        T sum[X_ELEMENTS];
+#pragma unroll
+        for(int j = 0; j < X_ELEMENTS; ++j)
         {
             sum[j] = 0;
+
+            if(rowId < 2 && colId < 2)
+            {
+                printf("%d %d %f \n",x,y,localElementsT[1]);
+            }
         }
 
+#pragma unroll
         for (int j=-RADIUS;j<=RADIUS;j++)
         {
-            int kernelIndex = j + RADIUS;
-            T kernelValue = kernel[kernelIndex];
-//            kernelValue = 1.0f;
-
-            T valueA =  localElementsT[offsetA + j];
-            T valueB =  localElementsT[offsetB + j];
-
-            sum[0] += valueA * kernelValue;
-            sum[1] += valueB * kernelValue;
-//            sum[0] += 1;
-//            sum[1] += 1;
+            T kernelValue = kernel[j + RADIUS];
+#pragma unroll
+            for(int k = 0; k < X_ELEMENTS; ++k)
+            {
+                sum[k] += localElementsT[RADIUS + j + k] * kernelValue;
+            }
         }
 
-//        myValue = reinterpret_cast<VectorType*>(sum)[0];
-
-//                if(x < 5 && rowId == 44)
-//                {
-//                    printf("%d %d %d %d %f %f\n",x,y,rowId,colId, sum[0], sum[1]);
-//                }
-
+        //write to shared memory if this thread is 'inner' (not in the halo)
         int lx = tx;
         int ly = ty + i * TILE_H;
-        if(lx < RADIUS / 2 || lx >= TILE_W - RADIUS / 2)
-            continue;
-
-        buffer2[ly][lx - RADIUS / 2] = reinterpret_cast<VectorType*>(sum)[0];
+        if(lx >= RADIUS / X_ELEMENTS && lx < TILE_W - RADIUS / X_ELEMENTS)
+        {
+            if(rowId < 2 && colId == 0)
+            {
+                printf("sum row %d %d %f \n",x,y,sum[0]);
+            }
+            buffer2[ly][lx - RADIUS / X_ELEMENTS] = reinterpret_cast<VectorType*>(sum)[0];
+        }
     }
 
-
+    //the only sync in this kernel
     __syncthreads();
 
-
-
-
-
+#pragma unroll
     for(int i = 0; i < Y_ELEMENTS; ++i)
     {
         int rowId = y + i * TILE_H;
         rowId = min(rowId,src.height-1);
         rowId = max(0,rowId);
-
         int colId = max(0,x);
-        colId = min(colId,src.width - 2);
+        colId = min(colId,src.width - X_ELEMENTS);
 
+
+        //continue if this thread is not a 'inner thread'
         int lx = tx;
         int ly = ty + i * TILE_H;
-
-        if(lx < RADIUS / 2 || lx >= TILE_W - RADIUS / 2)
+        if(lx < RADIUS / X_ELEMENTS || lx >= TILE_W - RADIUS / X_ELEMENTS)
             continue;
         if(ly < RADIUS || ly >= TILE_H2 - RADIUS)
             continue;
+
 
         T* row = dst.rowPtr(rowId);
         T* elem = row + colId;
 
 
-
-
-        T sum[2];
-        for(int j = 0; j < 2; ++j)
+        T sum[X_ELEMENTS];
+        for(int j = 0; j < X_ELEMENTS; ++j)
         {
             sum[j] = 0;
         }
 
+        //simple row convolution in shared memory
         for (int j=-RADIUS;j<=RADIUS;j++)
-//        for (int j=0;j<=0;j++)
         {
-            int kernelIndex = j + RADIUS;
-            T kernelValue = kernel[kernelIndex];
-
-
+            T kernelValue = kernel[j + RADIUS];
             VectorType valueV =  buffer2[ly][lx - RADIUS / X_ELEMENTS];
+            for(int k = 0; k < X_ELEMENTS; ++k)
+            {
 
-            sum[0] += reinterpret_cast<T*>(&valueV)[0] * kernelValue;
-            sum[1] += reinterpret_cast<T*>(&valueV)[1] * kernelValue;
+                auto v = reinterpret_cast<T*>(&valueV)[k];
+                sum[k] += v * kernelValue;
+
+                if(rowId == 0 && colId == 0)
+                {
+                    printf("shared col %d %d %f \n",x,y,v);
+                }
+            }
         }
 
-//        VectorType& myValue = localElements[i][RADIUS / X_ELEMENTS];
-//        reinterpret_cast<VectorType*>(elem)[0] = reinterpret_cast<VectorType*>(&myValue)[0];
+        if(rowId == 0 && colId == 0)
+        {
+            printf("sum col %d %d %f \n",x,y,sum[0]);
+        }
+
         reinterpret_cast<VectorType*>(elem)[0] = reinterpret_cast<VectorType*>(sum)[0];
     }
-
-#if 0
-    //conv row
-
-    T *kernel = d_Kernel;
-
-
-    for(int i = 0; i < Y_ELEMENTS; ++i)
-    {
-        int lx = tx;
-        int ly = ty + i * TILE_H;
-        T sum = 0;
-#pragma unroll
-        for (int j=-RADIUS;j<=RADIUS;j++)
-        {
-            int kernelIndex = j + RADIUS;
-            auto value =  shfl(localElements[i],lane_id + j);
-
-            sum += value * kernel[kernelIndex];
-        }
-
-        if(lx < RADIUS || lx >= TILE_W - RADIUS)
-            continue;
-
-        buffer2[ly][lx- RADIUS] = sum;
-        //        buffer2[lx- RADIUS][ly] = sum;
-    }
-
-
-
-    __syncthreads();
-
-    //conv col
-
-    for(int i = 0; i < Y_ELEMENTS; ++i)
-    {
-        int gx = x;
-        int gy = y + i * TILE_H;
-
-        int lx = tx;
-        int ly = ty + i * TILE_H;
-
-        if(ly < RADIUS || ly >= TILE_H2 - RADIUS)
-            continue;
-
-        if(lx < RADIUS || lx >= TILE_W - RADIUS)
-            continue;
-
-        T sum = 0;
-#if 1
-#pragma unroll
-        for (int j=-RADIUS;j<=RADIUS;j++)
-        {
-            int kernelIndex = j + RADIUS;
-            auto value = buffer2[ly + j][lx - RADIUS];
-            //            auto value = buffer2[lx - RADIUS][ly + j];
-            sum +=  value * kernel[kernelIndex];
-        }
-#endif
-        //        dst.clampedWrite(gy,gx,sum);
-    }
-#endif
-
 }
 
-template<typename T, int RADIUS, bool LOW_OCC = false>
+
+template<typename T, int RADIUS,typename VectorType = int>
 inline
 void convolveInnerShuffle(ImageView<T> src, ImageView<T> dst){
     int w = src.width;
@@ -736,24 +680,26 @@ void convolveInnerShuffle(ImageView<T> src, ImageView<T> dst){
     const int BLOCK_W = 32;
     const int BLOCK_H = 16;
 
-    const int X_ELEMENTS = 2;
+    const int X_ELEMENTS = sizeof(VectorType) / sizeof(T);
     const int Y_ELEMENTS = 4;
+
     dim3 blocks(
                 Saiga::iDivUp(w, BLOCK_W * X_ELEMENTS - 2 * RADIUS),
                 Saiga::iDivUp(h, BLOCK_H * Y_ELEMENTS - 2 * RADIUS),
                 1
                 );
-
-//    blocks.y = 4;
-
-    //    dim3 blocks(Saiga::CUDA::getBlockCount(w, BLOCK_W), Saiga::CUDA::getBlockCount(h, BLOCK_H));
     dim3 threads(BLOCK_W, BLOCK_H);
 
 
-      cudaFuncSetSharedMemConfig(d_convolveInnerShuffle2<T,RADIUS,BLOCK_W,BLOCK_H,X_ELEMENTS,Y_ELEMENTS>,cudaSharedMemBankSizeEightByte);
-//    cudaFuncSetSharedMemConfig(d_convolveInnerShuffle2<T,RADIUS,BLOCK_W,BLOCK_H,X_ELEMENTS,Y_ELEMENTS>,cudaSharedMemBankSizeFourByte);
+    if(sizeof(VectorType) >= 8)
+        cudaFuncSetSharedMemConfig(d_convolveInnerShuffle2<T,RADIUS,BLOCK_W,BLOCK_H,X_ELEMENTS,Y_ELEMENTS,VectorType>,cudaSharedMemBankSizeEightByte);\
+    else
+        cudaFuncSetSharedMemConfig(d_convolveInnerShuffle2<T,RADIUS,BLOCK_W,BLOCK_H,X_ELEMENTS,Y_ELEMENTS,VectorType>,cudaSharedMemBankSizeFourByte);
 
-    d_convolveInnerShuffle2<T,RADIUS,BLOCK_W,BLOCK_H,X_ELEMENTS,Y_ELEMENTS> <<<blocks, threads>>>(src,dst);
+    d_convolveInnerShuffle2<T,RADIUS,BLOCK_W,BLOCK_H,X_ELEMENTS,Y_ELEMENTS,VectorType> <<<blocks, threads>>>(src,dst);
+
+    //    d_convolveInnerShuffle3<T,12,BLOCK_W,BLOCK_H,4,Y_ELEMENTS,int4> <<<blocks, threads>>>(src,dst);
+    CUDA_SYNC_CHECK_ERROR();
 }
 
 void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
@@ -818,15 +764,27 @@ void convolveSinglePassSeparateInner75(ImageView<float> src, ImageView<float> ds
 void convolveSinglePassSeparateInnerShuffle(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
     switch (radius){
-    //    case 1: CUDA::convolveInnerShuffle<float,1,true>(src,dst); break;
-    //    case 2: CUDA::convolveInnerShuffle<float,2,true>(src,dst); break;
-    //    case 3: CUDA::convolveInnerShuffle<float,3,true>(src,dst); break;
-    //    case 4: CUDA::convolveInnerShuffle<float,4,true>(src,dst); break;
-    //    case 5: CUDA::convolveInnerShuffle<float,5,true>(src,dst); break;
-    //    case 6: CUDA::convolveInnerShuffle<float,6,true>(src,dst); break;
-    //    case 7: CUDA::convolveInnerShuffle<float,7,true>(src,dst); break;
-    //    case 8: CUDA::convolveInnerShuffle<float,8,true>(src,dst); break;
-    case 4: CUDA::convolveInnerShuffle<float,4,true>(src,dst); break;
+    case 0: CUDA::convolveInnerShuffle<float,0,int>(src,dst); break;
+
+    case 1: CUDA::convolveInnerShuffle<float,1,int>(src,dst); break;
+    case 2: CUDA::convolveInnerShuffle<float,2,int2>(src,dst); break;
+    case 3: CUDA::convolveInnerShuffle<float,3,int>(src,dst); break;
+    case 4: CUDA::convolveInnerShuffle<float,4,int4>(src,dst); break;
+
+    case 5: CUDA::convolveInnerShuffle<float,5,int>(src,dst); break;
+    case 6: CUDA::convolveInnerShuffle<float,6,int2>(src,dst); break;
+    case 7: CUDA::convolveInnerShuffle<float,7,int>(src,dst); break;
+    case 8: CUDA::convolveInnerShuffle<float,8,int4>(src,dst); break;
+
+    case 9: CUDA::convolveInnerShuffle<float,9,int>(src,dst); break;
+    case 10: CUDA::convolveInnerShuffle<float,10,int2>(src,dst); break;
+    case 11: CUDA::convolveInnerShuffle<float,11,int>(src,dst); break;
+    case 12: CUDA::convolveInnerShuffle<float,12,int2>(src,dst); break;
+
+    case 13: CUDA::convolveInnerShuffle<float,13,int>(src,dst); break;
+    case 14: CUDA::convolveInnerShuffle<float,14,int2>(src,dst); break;
+    case 15: CUDA::convolveInnerShuffle<float,15,int>(src,dst); break;
+    case 16: CUDA::convolveInnerShuffle<float,16,int4>(src,dst); break;
     }
 }
 
