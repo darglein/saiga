@@ -552,6 +552,8 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         T* elem = row + colId;
 
 
+        T* localElementsT = reinterpret_cast<T*>(localElements[i]);
+
 
         //center of localElements
         //the left and right of the center will be filled by shuffles
@@ -559,6 +561,22 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
 
         //load own value from global memory (note: this is the only global memory read)
         myValue = reinterpret_cast<VectorType*>(elem)[0];
+
+        if(x < 0)
+        {
+            for(int k = 0; k < X_ELEMENTS; ++k)
+            {
+                localElementsT[RADIUS+k] = localElementsT[RADIUS];
+            }
+        }
+        if(x >= src.width)
+        {
+            for(int k = 0; k < X_ELEMENTS; ++k)
+            {
+                localElementsT[RADIUS+k] = localElementsT[RADIUS+X_ELEMENTS-1];
+            }
+        }
+
 
         //shuffle left
         for(int j = 0; j < RADIUS / X_ELEMENTS; ++j)
@@ -573,16 +591,16 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         }
 
 
-        T* localElementsT = reinterpret_cast<T*>(localElements[i]);
+
         T sum[X_ELEMENTS];
 #pragma unroll
         for(int j = 0; j < X_ELEMENTS; ++j)
         {
             sum[j] = 0;
 
-            if(rowId < 2 && colId < 2)
+            if(rowId == 1 && colId == 2047)
             {
-                printf("%d %d %f \n",x,y,localElementsT[1]);
+//                printf("%d %d %f \n",x,y,localElementsT[1]);
             }
         }
 
@@ -600,11 +618,25 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         //write to shared memory if this thread is 'inner' (not in the halo)
         int lx = tx;
         int ly = ty + i * TILE_H;
-        if(lx >= RADIUS / X_ELEMENTS && lx < TILE_W - RADIUS / X_ELEMENTS)
+
+
+        //continue if this thread is not a 'inner thread'
+        if(lx < RADIUS / X_ELEMENTS || lx >= TILE_W - RADIUS / X_ELEMENTS)
+            continue;
+
+        if(x >= src.width)
+            continue;
+
+//        if(lx >= RADIUS / X_ELEMENTS && lx < TILE_W - RADIUS / X_ELEMENTS)
         {
-            if(rowId < 2 && colId == 0)
+            if(rowId <= RADIUS && colId == 508)
             {
-                printf("sum row %d %d %f \n",x,y,sum[0]);
+//                printf("sum row %d %d %f \n",x,y,sum[0]);
+                if(y == 1)
+                for(int k = 0; k < X_ELEMENTS + 2 * RADIUS; ++k)
+                {
+//                   printf("localElementsT %d %f \n",k,localElementsT[k]);
+                }
             }
             buffer2[ly][lx - RADIUS / X_ELEMENTS] = reinterpret_cast<VectorType*>(sum)[0];
         }
@@ -631,6 +663,11 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         if(ly < RADIUS || ly >= TILE_H2 - RADIUS)
             continue;
 
+        //continue if this thread is not in image
+        if(x >= src.width || y + i * TILE_H >= src.height)
+            continue;
+
+
 
         T* row = dst.rowPtr(rowId);
         T* elem = row + colId;
@@ -646,23 +683,23 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         for (int j=-RADIUS;j<=RADIUS;j++)
         {
             T kernelValue = kernel[j + RADIUS];
-            VectorType valueV =  buffer2[ly][lx - RADIUS / X_ELEMENTS];
+            VectorType valueV =  buffer2[ly+j][lx - RADIUS / X_ELEMENTS];
             for(int k = 0; k < X_ELEMENTS; ++k)
             {
 
                 auto v = reinterpret_cast<T*>(&valueV)[k];
                 sum[k] += v * kernelValue;
 
-                if(rowId == 0 && colId == 0)
+                if(rowId == 1023 && colId == 2)
                 {
-                    printf("shared col %d %d %f \n",x,y,v);
+//                    printf("shared col %d %d %f \n",ly+j,lx - RADIUS / X_ELEMENTS,v);
                 }
             }
         }
 
-        if(rowId == 0 && colId == 0)
+        if(rowId == 1023 && colId == 2)
         {
-            printf("sum col %d %d %f \n",x,y,sum[0]);
+//            printf("sum col %d %d %f \n",x,y,sum[0]);
         }
 
         reinterpret_cast<VectorType*>(elem)[0] = reinterpret_cast<VectorType*>(sum)[0];

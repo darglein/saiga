@@ -63,7 +63,7 @@ void convolutionTest2(int w, int h){
     ImageView<float> h_imgDst(h,w,thrust::raw_pointer_cast(h_dest.data()));
     ImageView<float> h_imgTmp(h,w,thrust::raw_pointer_cast(h_tmp.data()));
 
-    int its = 1;
+    int its = 50;
     float sigma = 2.0f;
 //    thrust::device_vector<float> d_kernel = createGaussianBlurKernel(KERNEL_RADIUS,sigma);
     thrust::device_vector<float> d_kernel(2*KERNEL_RADIUS+1,1.0f);
@@ -80,8 +80,23 @@ void convolutionTest2(int w, int h){
         src = h_src;
     }
 
+#if 0
+//    cout << "first pixels: " << h_imgSrc(0,0) << " " << h_imgSrc(0,1) << " " << h_imgSrc(1,0) << " " << h_imgSrc(1,1) << endl;
 
-    cout << "first pixels: " << h_imgSrc(0,0) << " " << h_imgSrc(0,1) << " " << h_imgSrc(1,0) << " " << h_imgSrc(1,1) << endl;
+
+    int fx = 508 % w;
+    int fy = 508 / w;
+    cout << "debug pixel: " << fx << " " << fy << endl;
+    for (int j=-KERNEL_RADIUS;j<=KERNEL_RADIUS;j++){
+                float sum =0;
+                            for (int i=-KERNEL_RADIUS;i<=KERNEL_RADIUS;i++){
+                                auto v = h_imgSrc.clampedRead(fy+j,fx+i);
+                                sum += v;
+                               cout << v << " ";
+                            }
+                            cout << " row sum: " << sum << endl;
+    }
+#endif
 
     Saiga::CUDA::PerformanceTestHelper pth("convolutionTest radius=" + std::to_string(KERNEL_RADIUS)
                                            + " ImageSize: " + std::to_string(w) + "x" + std::to_string(h), readWrites);
@@ -208,6 +223,7 @@ void convolutionTest2(int w, int h){
           CUDA_SYNC_CHECK_ERROR();
 
 
+#if 0
     {
         dest = src;
         tmp = src;
@@ -228,6 +244,7 @@ void convolutionTest2(int w, int h){
 
         checkRes(h_ref,thrust::host_vector<float>(dest));
     }
+#endif
 
     {
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
@@ -250,22 +267,22 @@ void convolutionTest()
 
 
     convolutionTest2<1>(w,h);
-//    convolutionTest2<2>(w,h);
-//    convolutionTest2<3>(w,h);
-//    convolutionTest2<4>(w,h);
-//    convolutionTest2<5>(w,h);
-//    convolutionTest2<6>(w,h);
-//    convolutionTest2<7>(w,h);
-//    convolutionTest2<8>(w,h);
+    convolutionTest2<2>(w,h);
+    convolutionTest2<3>(w,h);
+    convolutionTest2<4>(w,h);
+    convolutionTest2<5>(w,h);
+    convolutionTest2<6>(w,h);
+    convolutionTest2<7>(w,h);
+    convolutionTest2<8>(w,h);
 
-//    convolutionTest2<9>(w,h);
-//    convolutionTest2<10>(w,h);
-//    convolutionTest2<11>(w,h);
-//    convolutionTest2<12>(w,h);
-//    convolutionTest2<13>(w,h);
-//    convolutionTest2<14>(w,h);
-//    convolutionTest2<15>(w,h);
-//    convolutionTest2<16>(w,h);
+    convolutionTest2<9>(w,h);
+    convolutionTest2<10>(w,h);
+    convolutionTest2<11>(w,h);
+    convolutionTest2<12>(w,h);
+    convolutionTest2<13>(w,h);
+    convolutionTest2<14>(w,h);
+    convolutionTest2<15>(w,h);
+    convolutionTest2<16>(w,h);
 }
 
 }
