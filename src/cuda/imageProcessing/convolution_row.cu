@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -178,6 +178,21 @@ void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::array_view<f
     case 8: convolveRow<float,8>(src,dst); break;
     case 9: convolveRow<float,9>(src,dst); break;
     case 10: convolveRow<float,10>(src,dst); break;
+    case 11: convolveRow<float,11>(src,dst); break;
+    case 12: convolveRow<float,12>(src,dst); break;
+    case 13: convolveRow<float,13>(src,dst); break;
+    case 14: convolveRow<float,14>(src,dst); break;
+    case 15: convolveRow<float,15>(src,dst); break;
+    case 16: convolveRow<float,16>(src,dst); break;
+    case 17: convolveRow<float,17>(src,dst); break;
+    case 18: convolveRow<float,18>(src,dst); break;
+    case 19: convolveRow<float,19>(src,dst); break;
+    case 20: convolveRow<float,20>(src,dst); break;
+    case 21: convolveRow<float,21>(src,dst); break;
+    case 22: convolveRow<float,22>(src,dst); break;
+    case 23: convolveRow<float,23>(src,dst); break;
+    case 24: convolveRow<float,24>(src,dst); break;
+    default: SAIGA_ASSERT(0);
     }
 }
 

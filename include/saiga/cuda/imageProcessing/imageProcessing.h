@@ -48,7 +48,7 @@ SAIGA_GLOBAL void convertRGBAtoBGR(ImageView<uchar4> src, ImageView<uchar3> dst)
 
 //==================== Convolution ======================
 
-#define SAIGA_MAX_CONVOLUTION_RADIUS 16
+#define SAIGA_MAX_CONVOLUTION_RADIUS 24
 #define SAIGA_MAX_KERNEL_SIZE (SAIGA_MAX_CONVOLUTION_RADIUS*2+1)
 
 SAIGA_GLOBAL void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);

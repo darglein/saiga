@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -176,6 +176,21 @@ void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::array_view<f
     case 8: convolveCol<float,8>(src,dst); break;
     case 9: convolveCol<float,9>(src,dst); break;
     case 10: convolveCol<float,10>(src,dst); break;
+    case 11: convolveCol<float,11>(src,dst); break;
+    case 12: convolveCol<float,12>(src,dst); break;
+    case 13: convolveCol<float,13>(src,dst); break;
+    case 14: convolveCol<float,14>(src,dst); break;
+    case 15: convolveCol<float,15>(src,dst); break;
+    case 16: convolveCol<float,16>(src,dst); break;
+    case 17: convolveCol<float,17>(src,dst); break;
+    case 18: convolveCol<float,18>(src,dst); break;
+    case 19: convolveCol<float,19>(src,dst); break;
+    case 20: convolveCol<float,20>(src,dst); break;
+    case 21: convolveCol<float,21>(src,dst); break;
+    case 22: convolveCol<float,22>(src,dst); break;
+    case 23: convolveCol<float,23>(src,dst); break;
+    case 24: convolveCol<float,24>(src,dst); break;
+    default: SAIGA_ASSERT(0);
     }
 
 }

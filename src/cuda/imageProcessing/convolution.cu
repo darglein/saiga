@@ -503,6 +503,7 @@ void d_convolveInnerShuffle(ImageView<T> src, ImageView<T> dst)
 
 
 template<typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int X_ELEMENTS, unsigned int Y_ELEMENTS, typename VectorType=int2>
+__launch_bounds__(BLOCK_W*BLOCK_H,3)
 __global__ static
 void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
 {
@@ -531,6 +532,13 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
     T *kernel = d_Kernel;
 
 
+    //for vec4 radius 8:
+    // (16 * Y_ELEMENTS) * (32 - 4) * 16
+    // Y 3 -> 21504  100 occ
+    // Y 4 -> 28672  75 occ
+    // Y 5 -> 35840  50 occ
+    // Y 6 -> 43008  50 occ
+    // Y 8 -> 57344  failed
     __shared__ VectorType buffer2[TILE_H2][TILE_W - 2 * RADIUS / X_ELEMENTS];
 
 
@@ -822,6 +830,16 @@ void convolveSinglePassSeparateInnerShuffle(ImageView<float> src, ImageView<floa
     case 14: CUDA::convolveInnerShuffle<float,14,int2>(src,dst); break;
     case 15: CUDA::convolveInnerShuffle<float,15,int>(src,dst); break;
     case 16: CUDA::convolveInnerShuffle<float,16,int4>(src,dst); break;
+
+//    case 17: CUDA::convolveInnerShuffle<float,17,int>(src,dst); break;
+//    case 18: CUDA::convolveInnerShuffle<float,18,int2>(src,dst); break;
+//    case 19: CUDA::convolveInnerShuffle<float,19,int>(src,dst); break;
+    case 20: CUDA::convolveInnerShuffle<float,20,int4>(src,dst); break;
+
+//    case 21: CUDA::convolveInnerShuffle<float,21,int>(src,dst); break;
+//    case 22: CUDA::convolveInnerShuffle<float,22,int2>(src,dst); break;
+//    case 23: CUDA::convolveInnerShuffle<float,23,int>(src,dst); break;
+    case 24: CUDA::convolveInnerShuffle<float,24,int4>(src,dst); break;
     }
 }
 

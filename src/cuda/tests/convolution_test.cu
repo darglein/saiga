@@ -223,7 +223,7 @@ void convolutionTest2(int w, int h){
           CUDA_SYNC_CHECK_ERROR();
 
 
-#if 0
+#if 1
     {
         dest = src;
         tmp = src;
@@ -266,22 +266,22 @@ void convolutionTest()
 //    int h = 256;
 
 
-    convolutionTest2<1>(w,h);
-    convolutionTest2<2>(w,h);
-    convolutionTest2<3>(w,h);
+//    convolutionTest2<1>(w,h);
+//    convolutionTest2<2>(w,h);
+//    convolutionTest2<3>(w,h);
     convolutionTest2<4>(w,h);
-    convolutionTest2<5>(w,h);
-    convolutionTest2<6>(w,h);
-    convolutionTest2<7>(w,h);
+//    convolutionTest2<5>(w,h);
+//    convolutionTest2<6>(w,h);
+//    convolutionTest2<7>(w,h);
     convolutionTest2<8>(w,h);
 
-    convolutionTest2<9>(w,h);
-    convolutionTest2<10>(w,h);
-    convolutionTest2<11>(w,h);
+//    convolutionTest2<9>(w,h);
+//    convolutionTest2<10>(w,h);
+//    convolutionTest2<11>(w,h);
     convolutionTest2<12>(w,h);
-    convolutionTest2<13>(w,h);
-    convolutionTest2<14>(w,h);
-    convolutionTest2<15>(w,h);
+//    convolutionTest2<13>(w,h);
+//    convolutionTest2<14>(w,h);
+//    convolutionTest2<15>(w,h);
     convolutionTest2<16>(w,h);
 }
 
