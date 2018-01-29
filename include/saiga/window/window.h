@@ -54,6 +54,7 @@ struct SAIGA_GLOBAL WindowParameters{
     int height = 720;
     Mode mode =  Mode::windowed;
 
+    bool finishBeforeSwap = false; //adds a glFinish before swapBuffers
     bool hidden = false; //for offscreen rendering
     bool alwaysOnTop = false;
     bool resizeAble = true;

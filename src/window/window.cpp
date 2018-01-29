@@ -106,6 +106,10 @@ void OpenGLWindow::renderImGui(bool *p_open)
     ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndexRender, ("avg "+Saiga::to_string(avFt)).c_str(), 0,maxRenderTime, ImVec2(0,80));
 
 
+    ImGui::Text("Swap Time: %fms", swapBuffersTimer.getTimeMS());
+    ImGui::Text("Interpolate Time: %fms", interpolationTimer.getTimeMS());
+    ImGui::Text("Render CPU Time: %fms", renderCPUTimer.getTimeMS());
+
     ImGui::Text("Running: %d",running);
     ImGui::Text("numUpdates: %d",numUpdates);
     ImGui::Text("numFrames: %d",numFrames);
@@ -367,7 +371,6 @@ void OpenGLWindow::update(float dt)
     renderer->renderer->update(dt);
     startParallelUpdate(dt);
     updateTimer.stop();
-
     updateUpdateGraph();
 
     numUpdates++;
@@ -426,6 +429,7 @@ void OpenGLWindow::render(float dt, float interpolation)
     numFrames++;
 
     swapBuffersTimer.start();
+    if(windowParameters.finishBeforeSwap) glFinish();
     swapBuffers();
     swapBuffersTimer.stop();
 
