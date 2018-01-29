@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -24,6 +24,7 @@ void main() {
     texCoord = in_tex;
     normal = normalize(vec3(view*model * vec4( in_normal, 0 )));
     gl_Position = viewProj *model* vec4(in_position,1);
+    asdf
 }
 
 

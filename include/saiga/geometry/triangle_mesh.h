@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2017 Darius Rückert 
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -121,6 +121,7 @@ public:
      */
 
     void invertFace(int face);
+    void invertMesh();
 
     /*
      * Converts the index face data structur to a simple triangle list.
@@ -195,8 +196,8 @@ void TriangleMesh<vertex_t,index_t>::addQuad(index_t inds[]){
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer, GLenum usage){
-	if (faces.empty() || vertices.empty())
-		return;
+    if (faces.empty() || vertices.empty())
+        return;
     std::vector<index_t> indices(faces.size()*3);
     std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
     buffer.set(vertices,indices,usage);
@@ -206,8 +207,8 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer, GLenum usag
 template<typename vertex_t, typename index_t>
 template<typename buffer_vertex_t, typename buffer_index_t>
 void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_vertex_t,buffer_index_t> &buffer, GLenum usage){
-	if (faces.empty() || vertices.empty())
-		return;
+    if (faces.empty() || vertices.empty())
+        return;
     std::vector<index_t> indices(faces.size()*3);
     std::memcpy(&indices[0],&faces[0],faces.size()*sizeof( Face));
 
@@ -257,16 +258,33 @@ void TriangleMesh<vertex_t,index_t>::subdivideFace(int f){
 
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::invertFace(int f){
+void TriangleMesh<vertex_t,index_t>::invertFace(int f)
+{
     Face& face = faces[f];
-
     Face face2;
     face2.v1 = face.v3;
     face2.v2 = face.v2;
     face2.v3 = face.v1;
-
     face = face2;
+}
 
+template<typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t,index_t>::invertMesh()
+{
+
+    for(Face& face : faces)
+    {
+        Face face2;
+        face2.v1 = face.v3;
+        face2.v2 = face.v2;
+        face2.v3 = face.v1;
+        face = face2;
+    }
+
+    for(vertex_t &v : vertices)
+    {
+        v.normal = -v.normal;
+    }
 }
 
 template<typename vertex_t, typename index_t>
