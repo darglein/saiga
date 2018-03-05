@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -22,6 +22,23 @@ using std::endl;
  *  A combination of a gl_array_buffer and a vertex array object (vao).
  * The VertexBuffer stores raw vertex data.
  *  If your mesh is indexed use IndexedVertexBuffer instead.
+ *
+ * You can add additional buffers to the vao like this:
+ *
+ * VertexBuffer<Particle> particleBuffer;
+ * TemplatedBuffer<vec4> colorBuffer;
+ *
+ * //init both buffers with data
+ * //...
+ *
+ * //Add the color buffer, which is a simple GL_ARRAY_BUFFER, to the location 3
+ * //of the particleBuffer VAO.
+ * particleBuffer.bind();
+ * colorBuffer.bind();
+ * glEnableVertexAttribArray( 3 );
+ * glVertexAttribPointer(3,4, GL_FLOAT, GL_FALSE, sizeof(vec4), NULL );
+ * particleBuffer.unbind();
+ *
  *
  *
  */
