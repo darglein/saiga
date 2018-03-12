@@ -16,12 +16,21 @@ namespace Saiga {
 namespace CUDA {
 
 
-static void checkRes(const thrust::host_vector<float>& ref, const thrust::host_vector<float>& dst){
-    for(int i = 0; i < (int)dst.size();++i){
-        if(std::abs(dst[i]- ref[i]) > 1e-5){
-            cout << "error i/dst/ref " << i << " " << dst[i] << "!=" << ref[i] << endl;
+static void checkRes(ImageView<float> ref, ImageView<float> dst){
+    for(int y = 0; y < ref.rows; ++y){
+        for(int x = 0; x < ref.cols; ++x){
+
+
+#if 0
+            cout << dst(y,x) << " ";
+#else
+        if(std::abs(dst(y,x)- ref(y,x)) > 1e-5){
+            cout << "error (" << x << "," << y << ") " << dst(y,x) << "!=" << ref(y,x) << endl;
             SAIGA_ASSERT(0);
         }
+#endif
+    }
+//        cout << endl;
     }
 }
 
@@ -45,23 +54,27 @@ void convolutionTest2(int w, int h){
     size_t readWrites = N * 2 * sizeof(float);
 
 
-    thrust::device_vector<float> src(N,1);
-    thrust::device_vector<float> dest(N,1);
-    thrust::device_vector<float> tmp(N,1);
-
-    thrust::host_vector<float> h_src = src;
-    thrust::host_vector<float> h_dest = dest;
-    thrust::host_vector<float> h_tmp = dest;
-    thrust::host_vector<float> h_ref = dest;
-
-    ImageView<float> imgSrc(h,w,thrust::raw_pointer_cast(src.data()));
-    ImageView<float> imgDst(h,w,thrust::raw_pointer_cast(dest.data()));
-    ImageView<float> imgTmp(h,w,thrust::raw_pointer_cast(tmp.data()));
+    size_t pitch = Saiga::iAlignUp(sizeof(float)*w,1024*1024);
+    size_t size = pitch * h;
 
 
-    ImageView<float> h_imgSrc(h,w,thrust::raw_pointer_cast(h_src.data()));
-    ImageView<float> h_imgDst(h,w,thrust::raw_pointer_cast(h_dest.data()));
-    ImageView<float> h_imgTmp(h,w,thrust::raw_pointer_cast(h_tmp.data()));
+    thrust::device_vector<char> src(size,0);
+    thrust::device_vector<char> dest(size,0);
+    thrust::device_vector<char> tmp(size,0);
+
+    thrust::host_vector<char> h_src = src;
+    thrust::host_vector<char> h_dest = dest;
+    thrust::host_vector<char> h_tmp = dest;
+    thrust::host_vector<char> h_ref = dest;
+
+    ImageView<float> imgSrc(h,w,pitch,thrust::raw_pointer_cast(src.data()));
+    ImageView<float> imgDst(h,w,pitch,thrust::raw_pointer_cast(dest.data()));
+    ImageView<float> imgTmp(h,w,pitch,thrust::raw_pointer_cast(tmp.data()));
+
+
+    ImageView<float> h_imgSrc(h,w,pitch,thrust::raw_pointer_cast(h_src.data()));
+    ImageView<float> h_imgDst(h,w,pitch,thrust::raw_pointer_cast(h_dest.data()));
+    ImageView<float> h_imgTmp(h,w,pitch,thrust::raw_pointer_cast(h_tmp.data()));
 
     int its = 50;
     float sigma = 2.0f;
@@ -73,8 +86,8 @@ void convolutionTest2(int w, int h){
     {
         for(int y = 0; y < h; ++y){
             for(int x = 0; x < w; ++x){
-                h_imgSrc(y,x) = (rand()%3) - 1;
-//                h_imgSrc(y,x) = 1;
+//                h_imgSrc(y,x) = (rand()%3) - 1;
+                h_imgSrc(y,x) = 1;
             }
         }
         src = h_src;
@@ -193,6 +206,7 @@ void convolutionTest2(int w, int h){
         checkRes(h_ref,thrust::host_vector<float>(dest));
     }
 
+#endif
     {
         thrust::device_vector<float> d_kernel = h_kernel;
         dest = src;
@@ -201,9 +215,8 @@ void convolutionTest2(int w, int h){
             convolveSinglePassSeparateInner75(imgSrc,imgDst,d_kernel,KERNEL_RADIUS);
         });
         pth.addMeassurement("convolveSinglePassSeparateInner75",st.median);
-        checkRes(h_ref,thrust::host_vector<float>(dest));
+       // checkRes(h_ref,thrust::host_vector<float>(dest));
     }
-#endif
 
        CUDA_SYNC_CHECK_ERROR();
 
@@ -216,7 +229,10 @@ void convolutionTest2(int w, int h){
             convolveSinglePassSeparateInnerShuffle(imgSrc,imgDst,d_kernel,KERNEL_RADIUS);
         });
         pth.addMeassurement("convolveSinglePassSeparateInnerShuffle",st.median);
-        checkRes(h_ref,thrust::host_vector<float>(dest));
+
+        thrust::host_vector<char> d(dest);
+        ImageView<float> i(h,w,pitch,thrust::raw_pointer_cast(d.data()));
+        checkRes(h_imgDst,i);
 //        checkRes2(h_ref,thrust::host_vector<float>(dest));
     }
 
@@ -242,7 +258,7 @@ void convolutionTest2(int w, int h){
         pth.addMeassurement("GPU Convolve Separate Col",st2.median);
         pth.addMeassurement("GPU Convolve Separate Total",st1.median + st2.median);
 
-        checkRes(h_ref,thrust::host_vector<float>(dest));
+//        checkRes(h_ref,thrust::host_vector<float>(dest));
     }
 #endif
 
@@ -273,16 +289,16 @@ void convolutionTest()
 //    convolutionTest2<5>(w,h);
 //    convolutionTest2<6>(w,h);
 //    convolutionTest2<7>(w,h);
-    convolutionTest2<8>(w,h);
+//    convolutionTest2<8>(w,h);
 
 //    convolutionTest2<9>(w,h);
 //    convolutionTest2<10>(w,h);
 //    convolutionTest2<11>(w,h);
-    convolutionTest2<12>(w,h);
+//    convolutionTest2<12>(w,h);
 //    convolutionTest2<13>(w,h);
 //    convolutionTest2<14>(w,h);
 //    convolutionTest2<15>(w,h);
-    convolutionTest2<16>(w,h);
+//    convolutionTest2<16>(w,h);
 }
 
 }

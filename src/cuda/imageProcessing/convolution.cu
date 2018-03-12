@@ -553,13 +553,16 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         rowId = min(rowId,src.height-1);
         rowId = max(0,rowId);
         int colId = max(0,x);
-        colId = min(colId,src.width - X_ELEMENTS);
+
+        int xb = Saiga::iAlignUp(src.width,X_ELEMENTS) - X_ELEMENTS;
+        colId = min(colId,xb);
 
 
         T* row = src.rowPtr(rowId);
+        CUDA_ASSERT( size_t(row) % sizeof(VectorType) == 0);
         T* elem = row + colId;
-
-
+//        if(rowId == 0)
+//            printf("%d \n",colId);
         T* localElementsT = reinterpret_cast<T*>(localElements[i]);
 
 
@@ -568,6 +571,7 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         VectorType& myValue = localElements[i][RADIUS / X_ELEMENTS]; //[i][2]
 
         //load own value from global memory (note: this is the only global memory read)
+        CUDA_ASSERT( size_t(elem) % sizeof(VectorType) == 0);
         myValue = reinterpret_cast<VectorType*>(elem)[0];
 
         if(x < 0)
@@ -581,6 +585,7 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         {
             for(int k = 0; k < X_ELEMENTS; ++k)
             {
+
                 localElementsT[RADIUS+k] = localElementsT[RADIUS+X_ELEMENTS-1];
             }
         }
@@ -605,11 +610,6 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         for(int j = 0; j < X_ELEMENTS; ++j)
         {
             sum[j] = 0;
-
-            if(rowId == 1 && colId == 2047)
-            {
-//                printf("%d %d %f \n",x,y,localElementsT[1]);
-            }
         }
 
 #pragma unroll
@@ -648,7 +648,9 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
             }
             buffer2[ly][lx - RADIUS / X_ELEMENTS] = reinterpret_cast<VectorType*>(sum)[0];
         }
+//           return;
     }
+
 
     //the only sync in this kernel
     __syncthreads();
@@ -659,8 +661,12 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
         int rowId = y + i * TILE_H;
         rowId = min(rowId,src.height-1);
         rowId = max(0,rowId);
+
+
         int colId = max(0,x);
-        colId = min(colId,src.width - X_ELEMENTS);
+        int xb = Saiga::iAlignUp(src.width,X_ELEMENTS) - X_ELEMENTS;
+        colId = min(colId,xb);
+        //colId = min(colId,src.width - X_ELEMENTS);
 
 
         //continue if this thread is not a 'inner thread'
@@ -697,17 +703,7 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
 
                 auto v = reinterpret_cast<T*>(&valueV)[k];
                 sum[k] += v * kernelValue;
-
-                if(rowId == 1023 && colId == 2)
-                {
-//                    printf("shared col %d %d %f \n",ly+j,lx - RADIUS / X_ELEMENTS,v);
-                }
             }
-        }
-
-        if(rowId == 1023 && colId == 2)
-        {
-//            printf("sum col %d %d %f \n",x,y,sum[0]);
         }
 
         reinterpret_cast<VectorType*>(elem)[0] = reinterpret_cast<VectorType*>(sum)[0];
@@ -720,6 +716,7 @@ inline
 void convolveInnerShuffle(ImageView<T> src, ImageView<T> dst){
     int w = src.width;
     int h = src.height;
+    int p = src.pitchBytes;
 
 
     const int BLOCK_W = 32;
