@@ -219,7 +219,10 @@ bool    ImGui_SDL_Renderer::init(SDL_Window* window, std::string font, float fon
 
     SDL_EventHandler::addEventListener(this);
 
-    io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
+    if(font.size() > 0)
+        io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
+    else
+        io.Fonts->AddFontDefault();
 
     ImGui_ImplSdlGL3_CreateDeviceObjects();
 

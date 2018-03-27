@@ -1,7 +1,9 @@
 #!/bin/bash
+cp saiga.creator ..
+cd ..
 
 FILE="saiga.files"
-ROOTDIR=".."
+ROOTDIR="."
 rm $FILE
 
 echo "saiga.files" >> $FILE

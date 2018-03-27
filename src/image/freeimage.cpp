@@ -50,6 +50,8 @@ bool saveFIP(const std::string &path, const fipImage &img){
 }
 
 FREE_IMAGE_TYPE getFIT2(ImageFormat format){
+    if(format.getElementFormat() == ImageElementFormat::UnsignedNormalized)
+    {
     if(format.getBitDepth()==16 && format.getChannels()==3){
         return FIT_RGB16;
     }else if(format.getBitDepth()==16 && format.getChannels()==4){
@@ -58,6 +60,10 @@ FREE_IMAGE_TYPE getFIT2(ImageFormat format){
         return FIT_UINT16;
     }else if(format.getBitDepth()==32 && format.getChannels()==1){
         return FIT_UINT32;
+    }
+    }else if(format.getElementFormat() == ImageElementFormat::FloatingPoint)
+    {
+        return FIT_FLOAT;
     }
 
     return FIT_BITMAP;

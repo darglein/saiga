@@ -16,7 +16,8 @@ class SAIGA_GLOBAL ImGuiRenderer{
 public:
     bool wantsCaptureMouse = false;
 
-    virtual ~ImGuiRenderer(){}
+    virtual ~ImGuiRenderer(){
+    }
 
     void checkWindowFocus();
 

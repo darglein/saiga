@@ -1,3 +1,7 @@
 include/saiga/buildconfig.h
 build*/
 *.ptx
+saiga.creator
+saiga.creator.user
+saiga.files
+saiga.includes

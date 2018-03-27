@@ -716,7 +716,7 @@ inline
 void convolveInnerShuffle(ImageView<T> src, ImageView<T> dst){
     int w = src.width;
     int h = src.height;
-    int p = src.pitchBytes;
+//    int p = src.pitchBytes;
 
 
     const int BLOCK_W = 32;

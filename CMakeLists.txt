@@ -225,11 +225,13 @@ if(GLBINDING_FOUND)
 else()
 #use GLEW as a fallback
 #GLEW
-find_package(GLEW QUIET)
+find_package(GLEW REQUIRED)
 if(GLEW_FOUND)
 	include_directories(${GLEW_INCLUDE_DIRS} )
 	SET(LIBS ${LIBS} ${GLEW_LIBRARIES})
 	SET(SAIGA_USE_GLEW 1)
+else()
+	#message(FATAL_ERROR "No OpenGL loading library found.")
 endif()
 endif()
 

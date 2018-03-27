@@ -48,8 +48,10 @@ int main(int argc, char *argv[]) {
 //        CUDA::imageProcessingTest();
 //        CUDA::inverseTest();
 //        CUDA::warpStrideLoopTest();
-        CUDA::convolutionTest();
+//        CUDA::convolutionTest();
 //        CUDA::convolutionTest3x3();
+//        CUDA::dotTest();
+        CUDA::bandwidthTest();
         return 0;
         CUDA::randomTest();
 
@@ -57,11 +59,9 @@ int main(int argc, char *argv[]) {
 //        CUDA::occupancyTest();
 //        CUDA::randomAccessTest();
 //        CUDA::coalescedCopyTest();
-//        CUDA::dotTest();
 //        CUDA::recursionTest();
 
 
-//        CUDA::bandwidthTest();
         CUDA::scanTest();
 
         CUDA::reduceTest();

@@ -64,6 +64,7 @@ protected:
     bool ImGui_ImplSdlGL3_CreateDeviceObjects();
 public:
 	ImGui_SDL_Renderer() { memset(g_MousePressed, 0, 3 * sizeof(bool)); }
+    ~ImGui_SDL_Renderer() { shutdown(); }
     bool init(SDL_Window* window, std::string font, float fontSize = 15.0f);
 
     virtual void shutdown() override;

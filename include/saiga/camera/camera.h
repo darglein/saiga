@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -24,9 +24,9 @@ public:
     std::string name;
 
     //    mat4 model;
-	mat4 view = mat4(1);
-	mat4 proj = mat4(1);
-	mat4 viewProj = mat4(1);
+    mat4 view = mat4(1);
+    mat4 proj = mat4(1);
+    mat4 viewProj = mat4(1);
 
 
     float zNear,  zFar;
@@ -53,6 +53,8 @@ public:
     void recalculateMatrices(){viewProj = proj * view;}
     virtual void recalculatePlanes() = 0;
 
+    //linearize the depth (for rendering)
+    float linearDepth(float d);
 
 
     enum IntersectionResult{

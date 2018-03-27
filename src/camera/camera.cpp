@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -32,6 +32,13 @@ void Camera::setView(const vec3 &eye,const vec3 &center,const vec3 &up){
 void Camera::updateFromModel(){
     view = glm::inverse(model);
     recalculateMatrices();
+}
+
+float Camera::linearDepth(float d)
+{
+    float f = zFar;
+    float n = zNear;
+    return (2 * n) / (f + n - d * (f - n));
 }
 
 
@@ -225,7 +232,7 @@ void PerspectiveCamera::recalculatePlanes()
 
 
     //    vec3 fbr = farplanepos - fh * up + fw * right;
-//    vec3 fbr = farplanepos - fh * up;
+    //    vec3 fbr = farplanepos - fh * up;
     vec3 fbr = vertices[4];
     vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
     float r = glm::distance(fbr,sphereMid);
@@ -262,17 +269,17 @@ void OrthographicCamera::setProj( float _left, float _right,float _bottom,float 
 
     fh = nh;
     fw = nw;
-//    fh = (top-bottom)/2;
-//    fw = (right-left)/2;
+    //    fh = (top-bottom)/2;
+    //    fw = (right-left)/2;
     proj = glm::ortho(left,right,bottom,top,zNear,zFar);
 }
 
 void OrthographicCamera::setProj( AABB bb){
     setProj(
-                    bb.min.x ,bb.max.x,
-                    bb.min.y ,bb.max.y,
-                    bb.min.z ,bb.max.z
-                    );
+                bb.min.x ,bb.max.x,
+                bb.min.y ,bb.max.y,
+                bb.min.z ,bb.max.z
+                );
 }
 
 void OrthographicCamera::recalculatePlanes()
@@ -315,17 +322,17 @@ void OrthographicCamera::recalculatePlanes()
 #endif
 
     //side planes
-//    planes[2].set(getPosition(),vertices[1],vertices[0]); //top
-//    planes[3].set(getPosition(),vertices[2],vertices[3]); //bottom
-//    planes[4].set(getPosition(),vertices[0],vertices[2]); //left
-//    planes[5].set(getPosition(),vertices[3],vertices[1]); //right
+    //    planes[2].set(getPosition(),vertices[1],vertices[0]); //top
+    //    planes[3].set(getPosition(),vertices[2],vertices[3]); //bottom
+    //    planes[4].set(getPosition(),vertices[0],vertices[2]); //left
+    //    planes[5].set(getPosition(),vertices[3],vertices[1]); //right
     planes[2].set(vertices[0],up); //top
     planes[3].set(vertices[3],-up); //bottom
     planes[4].set(vertices[0],-rightv); //left
     planes[5].set(vertices[3],rightv); //right
 
     //    vec3 fbr = farplanepos - fh * up + fw * right;
-//    vec3 fbr = farplanepos - fh * up;
+    //    vec3 fbr = farplanepos - fh * up;
     vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
     float r = glm::distance(vertices[0],sphereMid);
 

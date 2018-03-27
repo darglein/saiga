@@ -41,6 +41,8 @@ void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, a
     int radius = kernel.size()/2;
     //inner 75 is the fastest for small kernels
     convolveSinglePassSeparateInner75(src,dst,kernel,radius);
+
+#if 0
     return;
     if(radius <= 12 && src.cols < 32 && src.rows < 32)
     {
@@ -54,6 +56,7 @@ void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, a
     {
         convolveSinglePassSeparateOuterHalo(src,dst,kernel,radius);
     }
+#endif
 }
 
 

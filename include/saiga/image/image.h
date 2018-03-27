@@ -96,8 +96,9 @@ public:
     }
 
     template<typename T>
-    T getPixel(int x, int y){
-        return *(T*)positionPtr(x,y);
+    T& getPixel(int x, int y){
+        T* pos = (T*)positionPtr(x,y);
+        return *pos;
     }
 
 

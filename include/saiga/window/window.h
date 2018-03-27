@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -69,7 +69,7 @@ struct SAIGA_GLOBAL WindowParameters{
     OpenGLParameters openglparameters;
 
     bool createImgui = true;
-    std::string imguiFont = "fonts/SourceSansPro-Regular.ttf";
+    std::string imguiFont = "";
     int imguiFontSize = 15;
 
     bool borderLess(){ return mode==Mode::borderLessWindowed || mode==Mode::borderLessFullscreen;}
@@ -106,7 +106,7 @@ protected:
     bool showImgui = true;
     static const int numGraphValues = 80;
     float ut, ft;
-     float avFt = 0, avUt;
+    float avFt = 0, avUt;
     int imCurrentIndexUpdate = 0;
     int imCurrentIndexRender = 0;
     float imUpdateTimes[numGraphValues];
@@ -144,7 +144,8 @@ public:
     //read the default framebuffer and save to file
     void screenshot(const std::string &file);
     void screenshotRender(const std::string &file);
-
+    void screenshotRenderDepth(const std::string &file);
+    void getDepthFloat(Image &out);
 
     //Basic getters and setters
 
@@ -156,6 +157,7 @@ public:
     std::string getName() const { return windowParameters.name; }
     void setCamera(Camera* c) { currentCamera = c; }
     Deferred_Renderer* getRenderer() const {  return renderer; }
+
 
 
 protected:
