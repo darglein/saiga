@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -11,7 +11,29 @@
 namespace Saiga {
 namespace CUDA {
 
-
+/**
+ *
+ * Example Ussage:
+ *
+ * //Global array of particles with size = 8 * float
+ * Saiga::array_view<Particle> particles
+ *
+ * Saiga::CUDA::ThreadInfo<0,2> ti;
+ *
+ * //Do not return with thread id because we need the threads for loading
+ * if (ti.warp_id*2 >= particles.size())
+ *       return;
+ *
+ * //Load to registers
+ * Particle particle;
+ * loadShuffleStruct<2,Particle,float4>(particles.data(),&particle,ti.lane_id,ti.warp_id,particles.size());
+ *
+ * //do something with particle
+ *
+ * //Store in global memory
+ * storeShuffleStruct<2,Particle,float4>(particles.data(),&particle,ti.lane_id,ti.warp_id,particles.size());
+ *
+ */
 
 template<int G, int SIZE, typename VectorType=int4>
 __device__ inline
@@ -113,6 +135,36 @@ void storeShuffle(VectorType* globalStart, VectorType* localStart, int lane, int
         }
 
     }
+}
+
+
+
+template<int LOCAL_WARP_SIZE, typename T, typename VectorType=int4>
+__device__ inline
+void loadShuffleStruct(T* globalStart, T* localStart, int laneId, int warpId, int count){
+    static_assert(sizeof(T) % sizeof(VectorType) == 0, "Type must be loadable by vector type.");
+    const int vectors_per_element = sizeof(T) / sizeof(VectorType);
+    loadShuffle<LOCAL_WARP_SIZE,sizeof(T),VectorType>(
+                reinterpret_cast<VectorType*>(globalStart),
+                reinterpret_cast<VectorType*>(localStart),
+                laneId,
+                warpId*LOCAL_WARP_SIZE*vectors_per_element,
+                count*vectors_per_element
+                );
+}
+
+template<int LOCAL_WARP_SIZE, typename T, typename VectorType=int4>
+__device__ inline
+void storeShuffleStruct(T* globalStart, T* localStart, int laneId, int warpId, int count){
+    static_assert(sizeof(T) % sizeof(VectorType) == 0, "Type must be loadable by vector type.");
+    const int vectors_per_element = sizeof(T) / sizeof(VectorType);
+    storeShuffle<LOCAL_WARP_SIZE,sizeof(T),VectorType>(
+                reinterpret_cast<VectorType*>(globalStart),
+                reinterpret_cast<VectorType*>(localStart),
+                laneId,
+                warpId*LOCAL_WARP_SIZE*vectors_per_element,
+                count*vectors_per_element
+                );
 }
 
 }
