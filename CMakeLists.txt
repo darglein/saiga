@@ -10,6 +10,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 set (LIBRARY_VERSION_MAJOR 1)
 set (LIBRARY_VERSION_MINOR 1)
 
+# Turn on the ability to create folders to organize projects (.vcproj)
+# It creates "CMakePredefinedTargets" folder by default and adds CMake
+# defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ############# Build Options ###############
 
@@ -303,6 +307,7 @@ else()
 	message(STATUS "No samples.")
 endif()
 
+set_target_properties (saiga PROPERTIES FOLDER lib)
 
 ############# Generate config file ###############
 

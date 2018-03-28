@@ -516,7 +516,7 @@ void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
     const unsigned int ty = threadIdx.y;
     //    int t = tx + ty * BLOCK_W;
 
-    static_assert( sizeof(VectorType) / sizeof(T) == X_ELEMENTS);
+    //static_assert( sizeof(VectorType) / sizeof(T) == X_ELEMENTS);
 
     unsigned int lane_id = threadIdx.x % 32;
 
