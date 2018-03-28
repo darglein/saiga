@@ -325,7 +325,7 @@ if (DOXYGEN_FOUND AND BUILD_DOC)
     # set input and output files
     set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/docs/Doxyfile.in)
     set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-
+	    set(DOXYGEN_MAIN ${CMAKE_SOURCE_DIR}/docs/main.md)
     # request to configure the file
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
     message("Doxygen found. Generate with 'make doc'.")
