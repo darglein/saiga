@@ -10,6 +10,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 
 #include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/imgui/imgui.h"
 
 SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 {
@@ -127,6 +128,14 @@ void SimpleWindow::renderFinal(Camera *cam)
 {
     //The final render path (after post processing).
     //Usually the GUI is rendered here.
+
+    {
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
+        ImGui::Begin("An Imgui Window :D");
+
+        ImGui::End();
+    }
 }
 
 

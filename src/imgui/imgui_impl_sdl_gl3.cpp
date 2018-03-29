@@ -32,6 +32,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
+#include "saiga/util/error.h"
 
 #ifdef SAIGA_USE_SDL
 
@@ -287,6 +288,8 @@ void ImGui_SDL_Renderer::beginFrame()
 // - in your Render function, try translating your projection matrix by (0.5f,0.5f) or (0.375f,0.375f)
 void ImGui_SDL_Renderer::renderDrawLists(ImDrawData* draw_data)
 {
+    assert_no_glerror();
+
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     ImGuiIO& io = ImGui::GetIO();
     int fb_width = (int)(io.DisplaySize.x * io.DisplayFramebufferScale.x);
@@ -359,6 +362,7 @@ void ImGui_SDL_Renderer::renderDrawLists(ImDrawData* draw_data)
                 glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
             }
             idx_buffer_offset += pcmd->ElemCount;
+
         }
     }
 
@@ -376,6 +380,8 @@ void ImGui_SDL_Renderer::renderDrawLists(ImDrawData* draw_data)
     if (static_cast<bool>(last_enable_depth_test)) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
     if (static_cast<bool>(last_enable_scissor_test)) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST);
     glViewport(last_viewport[0], last_viewport[1], (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
+
+    assert_no_glerror();
 }
 
 bool ImGui_SDL_Renderer::processEvent(const SDL_Event &event)

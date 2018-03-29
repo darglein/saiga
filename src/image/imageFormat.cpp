@@ -7,6 +7,7 @@
 #include "saiga/image/imageFormat.h"
 #include "saiga/image/templatedImage.h"
 #include "saiga/util/assert.h"
+#include "saiga/util/math.h"
 
 namespace Saiga {
 
@@ -126,7 +127,8 @@ GLenum ImageFormat::getGlInternalFormat() const
 
 
     int i = channels - 1;
-    int j = (bitDepth / 8) - 1;
+//    int j = (bitDepth / 8) - 1;
+    int j = countTrailingZero(bitDepth) - 3;
 
     GLenum internalFormat = GL_INVALID_ENUM;
 

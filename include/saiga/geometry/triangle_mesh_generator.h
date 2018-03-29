@@ -26,6 +26,7 @@ public:
      static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createCylinderMesh(float radius, float height, int sectors);
 
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const Plane &plane);
+    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createTesselatedPlane(int verticesX, int verticesY);
 
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createFullScreenQuadMesh();
     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createQuadMesh();

@@ -216,6 +216,43 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Plane &p
     return std::shared_ptr<default_mesh_t>(mesh);
 }
 
+std::shared_ptr<TriangleMesh<VertexNT, GLuint> > TriangleMeshGenerator::createTesselatedPlane(int verticesX, int verticesY)
+{
+    default_mesh_t* mesh = new default_mesh_t();
+
+    for(int i = 0; i < verticesY; ++i)
+    {
+        float alphaY = float(i) / (verticesY-1);
+        for(int j = 0; j < verticesX; ++j)
+        {
+            float alphaX = float(j) / (verticesX-1);
+            VertexNT v(
+                        vec3(glm::mix(-1.0f,1.0f,alphaX),0,glm::mix(-1.0f,1.0f,alphaY)),
+                        vec3(0,1,0),
+                        vec2(alphaX,alphaY));
+            mesh->vertices.push_back(v);
+        }
+    }
+
+    for(int i = 0; i < verticesY - 1; ++i)
+    {
+        for(int j = 0; j < verticesX - 1; ++j)
+        {
+            int indices[4] = {
+                i * verticesX + j,
+                (i+1) * verticesX + j,
+                (i+1) * verticesX + j + 1,
+                i * verticesX + j + 1,
+            };
+            mesh->faces.push_back(Face(indices[0],indices[1],indices[2]));
+            mesh->faces.push_back(Face(indices[2],indices[3],indices[0]));
+        }
+    }
+    return std::shared_ptr<default_mesh_t>(mesh);
+}
+
+
+
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone &cone, int sectors){
     default_mesh_t* mesh = new default_mesh_t();
     mesh->vertices.push_back(VertexNT(vec3(0,0,0),vec3(0,1,0),vec2(0,0)));  //top
@@ -344,5 +381,6 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createGridMesh(unsigned i
 
     return std::shared_ptr<default_mesh_t>(mesh);
 }
+
 
 }

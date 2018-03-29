@@ -32,6 +32,7 @@ public:
     ProceduralSkybox skybox;
 
     std::shared_ptr<DirectionalLight> sun;
+    std::shared_ptr<Texture> t;
 
     SimpleWindow(OpenGLWindow* window);
     ~SimpleWindow();
