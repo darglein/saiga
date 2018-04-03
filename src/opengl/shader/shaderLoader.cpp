@@ -37,6 +37,7 @@ bool ShaderLoader::reload(std::shared_ptr<Shader> shader, const std::string &nam
 {
     cout << "ShaderLoader::reload " << name << endl;
     ShaderPartLoader spl(name,sci);
+    spl.addLineDirectives = addLineDirectives;
     if(spl.load()){
        spl.reloadShader(shader);
        return true;

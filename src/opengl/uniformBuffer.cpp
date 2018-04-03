@@ -19,15 +19,6 @@ UniformBuffer::~UniformBuffer()
 
 
 
-
-void UniformBuffer::bind(GLuint bindingPoint) const
-{
-    Buffer::bind();
-    glBindBufferBase(target, bindingPoint, buffer);
-    assert_no_glerror();
-}
-
-
 void UniformBuffer::init(std::shared_ptr<Shader> shader, GLuint location)
 {
     size = shader->getUniformBlockSize(location);

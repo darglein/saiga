@@ -52,6 +52,7 @@ public:
     void updateBuffer(const void* data, unsigned int size, unsigned int offset);
     void getBuffer(void *out_data, unsigned int _size, unsigned int offset) const;
     void bind() const;
+    void bind(GLuint bindingPoint) const;
 
     /*
      * glMapBuffer and glMapNamedBuffer map the entire data store of a specified buffer object into the client's address space.
@@ -136,6 +137,13 @@ inline void Buffer::getBuffer(void *out_data, unsigned int _size, unsigned int o
 inline void Buffer::bind() const
 {
     glBindBuffer( target, buffer );
+    assert_no_glerror();
+}
+
+
+inline void Buffer::bind(GLuint bindingPoint) const
+{
+    glBindBufferBase(target, bindingPoint, buffer);
     assert_no_glerror();
 }
 

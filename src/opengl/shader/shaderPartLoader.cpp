@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -63,7 +63,7 @@ bool ShaderPartLoader::load()
         }
     }
 
-    for(std::string line : data){        
+    for(std::string line : data){
         lineCount++;
 
         bool readLine = true;
@@ -72,7 +72,7 @@ bool ShaderPartLoader::load()
             //this only compares the first characteres of line, so that for example addittional '\r's are ignored.
             if(line.compare(0,key.size(),key)==0)
             {
-//                std::cout << "found key " << key << std::endl;
+                //                std::cout << "found key " << key << std::endl;
                 if(status==STATUS_READING)
                 {
                     addShader(code,type);
@@ -133,6 +133,7 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
     //first pass:
     //1. read file line by line and save it into ret vector
     //2. add #line commands after #version and before and after #includes
+    int addedLines = 0; //count number of added "line" commands.
     while(!fileStream.eof()) {
         std::string line;
         std::getline(fileStream, line);
@@ -140,24 +141,33 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
         //remove carriage return from windows
         line.erase( std::remove(line.begin(), line.end(), '\r'), line.end() );
 
-        if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
+        if(include.size()<line.size() && line.compare(0, include.length(), include)==0)
+        {
             std::string includeFileName = getFileFromInclude(file,line);
 
-			if (addLineDirectives){
-				//add #line commands after #version and before and after #includes
-				ret.push_back("#line " + std::to_string(1) + " \"" + includeFileName + "\"");
-			}
-			ret.push_back(line);
-			if (addLineDirectives){
-				ret.push_back("#line " + std::to_string(ret.size() - 2) + " \"" + file + "\"");
-			}
-			}else if(version.size()<line.size() && line.compare(0, version.length(), version)==0){
+            if (addLineDirectives){
+                //add #line before and after #includes
+                std::string lineCommand = "#line " + std::to_string(1) + " \"" + includeFileName + "\"";
+                ret.push_back(lineCommand);
+                addedLines++;
+            }
+            ret.push_back(line);
+            if (addLineDirectives){
+                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file + "\"";
+                ret.push_back(lineCommand);
+                addedLines++;
+            }
+        }
+        else if(version.size()<line.size() && line.compare(0, version.length(), version)==0)
+        {
             //add a #line command after the #version command
             ret.push_back(line);
-			if (addLineDirectives){
-				std::string lineCommand = "#line " + std::to_string(ret.size()) + " \"" + file + "\"";
-				ret.push_back(lineCommand);
-			}
+            if (addLineDirectives)
+            {
+                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file + "\"";
+                ret.push_back(lineCommand);
+                addedLines++;
+            }
         }else{
             ret.push_back(line);
         }
@@ -197,19 +207,19 @@ void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
     shader->createGLShader();
     if(shader->compile()){
         shaders.push_back(shader);
-	}
-	else{
+    }
+    else{
         FileChecker fc;
         std::string name = fc.getFileName(this->file);
         shader->writeToFile("debug/" + name);
-	}
+    }
 
     assert_no_glerror();
 }
 
 void ShaderPartLoader::reloadShader(std::shared_ptr<Shader>  shader)
 {
-//    cout<<"ShaderPartLoader::reloadShader"<<endl;
+    //    cout<<"ShaderPartLoader::reloadShader"<<endl;
     shader->destroyProgram();
 
     shader->shaders = shaders;

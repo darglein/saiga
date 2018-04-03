@@ -62,9 +62,6 @@ public:
     UniformBuffer();
     ~UniformBuffer();
 
-
-    void bind( GLuint bindingPoint) const;
-
     /**
      * This function is obsolete and may be removed in later versions.
      *
