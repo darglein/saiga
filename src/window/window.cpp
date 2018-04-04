@@ -89,6 +89,9 @@ void OpenGLWindow::updateRenderGraph()
 
 void OpenGLWindow::renderImGui(bool *p_open)
 {
+    if(!showImgui)
+        return;
+
     p_open = &showImgui;
 
     int w = 340;

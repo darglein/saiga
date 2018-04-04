@@ -15,19 +15,68 @@ namespace Saiga {
 HD inline
 float uintToNSFloat(unsigned int x)
 {
+    //Use High Bits of x.
+    //Remove this line to use low bits.
     x = x >> (32 - 23);
-    x = (x & 0x007fffff) | 0x40000000;
+
+    //Write into the mantissa of the float.
+    x = (x & 0x007fffff);
+
+    //Set exponent to 1 so we land in the range [2,4].
+    // 2^1 * 1.Mantissa
+    x = x | 0x40000000;
     return *reinterpret_cast<float*>(&x) - 3.0f;
 }
 
+// Normalized float in the range [0,1] to unsigned int.
+HD inline
+unsigned int NSFloatToUint(float f)
+{
+    f += 3.0f;
+    unsigned int x = *reinterpret_cast<unsigned int*>(&f);
+
+    //Remove everything but the mantissa
+    x = (x & 0x007fffff);
+
+    //Use High Bits of x.
+    //Remove this line to use low bits.
+    x = x << (32 - 23);
+
+    return x;
+}
 
 // Unsigned int to normalized float in the range [0,1]
 HD inline
 float uintToNFloat(unsigned int x)
 {
+    //Use High Bits of x.
+    //Remove this line to use low bits.
     x = x >> (32 - 23);
-    x = (x & 0x007fffff) | 0x3f800000;
+
+    //Write into the mantissa of the float.
+    x = (x & 0x007fffff);
+
+    //Set exponent to 1 so we land in the range [1,2].
+    // 2^0 * 1.Mantissa
+    x = x | 0x3f800000;
     return *reinterpret_cast<float*>(&x) - 1.0f;
+}
+
+// Normalized float in the range [0,1] to unsigned int.
+HD inline
+unsigned int NFloatToUint(float f)
+{
+    f += 1.0f;
+    unsigned int x = *reinterpret_cast<unsigned int*>(&f);
+
+    //Remove everything but the mantissa
+    x = (x & 0x007fffff);
+
+    //Use High Bits of x.
+    //Remove this line to use low bits.
+    x = x << (32 - 23);
+
+    return x;
 }
 
 //source https://www.geeksforgeeks.org/count-trailing-zero-bits-using-lookup-table/

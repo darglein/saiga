@@ -112,10 +112,14 @@ void ObjMaterialLoader::parseLine(const std::string &line)
         currentMaterial->map_Ks = TextureLoader::instance()->load(rest);
         if(currentMaterial->map_Ks) currentMaterial->map_Ks->setWrap(GL_REPEAT);
     }else if(header == "map_d"){
-        currentMaterial->map_d = TextureLoader::instance()->load(rest);
+        TextureParameters tp;
+        tp.srgb = false;
+        currentMaterial->map_d = TextureLoader::instance()->load(rest,tp);
         if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
     }else if(header == "map_bump" || header == "bump"){
-        currentMaterial->map_bump = TextureLoader::instance()->load(rest);
+        TextureParameters tp;
+        tp.srgb = false;
+        currentMaterial->map_bump = TextureLoader::instance()->load(rest,tp);
         if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
     }
 }

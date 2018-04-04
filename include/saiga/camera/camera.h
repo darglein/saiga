@@ -55,6 +55,10 @@ public:
 
     //linearize the depth (for rendering)
     float linearDepth(float d);
+    float nonlinearDepth(float l);
+
+    float toViewDepth(float d);
+    float toNormalizedDepth(float d);
 
 
     enum IntersectionResult{

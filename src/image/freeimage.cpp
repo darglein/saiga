@@ -138,6 +138,8 @@ void convert(const fipImage &src, Image& dest){
         format.setBitDepth(8);
         format.setChannels(4);
     }else{
+        cout << src.getBitsPerPixel() << " " <<  format.getChannels() << endl;
+        SAIGA_ASSERT(src.getBitsPerPixel() % format.getChannels() == 0);
         format.setBitDepth(src.getBitsPerPixel()/format.getChannels());
     }
 

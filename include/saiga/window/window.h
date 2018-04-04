@@ -159,6 +159,7 @@ public:
     Deferred_Renderer* getRenderer() const {  return renderer; }
 
 
+    void setShowImgui(bool b) { showImgui = b; }
 
 protected:
     void resize(int width, int height);

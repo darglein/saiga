@@ -38,7 +38,39 @@ float Camera::linearDepth(float d)
 {
     float f = zFar;
     float n = zNear;
-    return (2 * n) / (f + n - d * (f - n));
+
+    float l = d * (f - n); //5.5
+    l = f + n - l; // 1
+
+    return (2 * n) / l;
+}
+
+float Camera::nonlinearDepth(float l)
+{
+    float f = zFar;
+    float n = zNear;
+
+    float d = (2*n) / l;
+    d = f + n - d;
+    d = d / (f-n);
+
+    return d;
+}
+
+float Camera::toViewDepth(float d)
+{
+    vec4 a(0,0,d,1);
+    a = inverse(proj) * a;
+    a /= a.w;
+    return a.z;
+}
+
+float Camera::toNormalizedDepth(float d)
+{
+    vec4 a(0,0,d,1);
+    a = proj * a;
+    a /= a.w;
+    return a.z;
 }
 
 

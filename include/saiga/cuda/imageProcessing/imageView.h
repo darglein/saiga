@@ -122,8 +122,8 @@ struct ImageView{
         int y1 = std::min(y0 + 1, height - 1);
 #endif
 
-        T res = ((*this)(x0,y0) * (1.0f - ax) + (*this)(x1,y0) * (ax)) * (1.0f - ay) +
-                ((*this)(x0,y1) * (1.0f - ax) + (*this)(x1,y1) * (ax)) * (ay);
+        T res = ((*this)(y0,x0) * (1.0f - ax) + (*this)(y1,x0) * (ax)) * (1.0f - ay) +
+                ((*this)(y0,x1) * (1.0f - ax) + (*this)(y1,x1) * (ax)) * (ay);
         return res;
     }
 
