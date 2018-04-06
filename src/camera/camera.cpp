@@ -59,7 +59,7 @@ float Camera::nonlinearDepth(float l)
 
 float Camera::toViewDepth(float d)
 {
-    vec4 a(0,0,d,1);
+    vec4 a(0,0,d*2-1,1);
     a = inverse(proj) * a;
     a /= a.w;
     return a.z;
@@ -70,7 +70,7 @@ float Camera::toNormalizedDepth(float d)
     vec4 a(0,0,d,1);
     a = proj * a;
     a /= a.w;
-    return a.z;
+    return a.z * 0.5 + 0.5;
 }
 
 

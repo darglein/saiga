@@ -15,11 +15,6 @@
 
 int main( int argc, char* args[] )
 {
-    cout << "asdf" << endl;
-    Triangle t(vec3(0),vec3(2,0,0),vec3(2,1,0));
-    cout << t << endl;
-    cout << glm::degrees(glm::atan(0.5)) << " " << glm::degrees(t.minimalAngle()) << endl;
-    return 0;
     //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
     catchSegFaults();
 

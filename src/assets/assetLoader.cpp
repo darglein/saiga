@@ -122,12 +122,9 @@ std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(std::shared_ptr<Triang
     return asset;
 }
 
-std::shared_ptr<ColoredAsset> AssetLoader2::nonTriangleMesh(std::vector<vec3> vertices, std::vector<GLuint> indices, GLenum mode, const vec4& color){
-
+std::shared_ptr<ColoredAsset> AssetLoader2::nonTriangleMesh(std::vector<vec3> vertices, std::vector<GLuint> indices, GLenum mode, const vec4& color)
+{
     std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
-
-
-
 
     for(auto v : vertices){
         asset->mesh.vertices.push_back(VertexNC(v,vec3(0,1,0),vec3(color)));
@@ -140,6 +137,82 @@ std::shared_ptr<ColoredAsset> AssetLoader2::nonTriangleMesh(std::vector<vec3> ve
     asset->buffer.set(asset->mesh.vertices,indices,GL_STATIC_DRAW);
     asset->buffer.setDrawMode(mode);
     return asset;
+}
+
+
+
+
+static void createFrustumMesh(mat4 proj, std::vector<vec3>& vertices,  std::vector<GLuint>& indices)
+{
+
+    float d = 0.5f;
+    vec4 bl(-1,-1,d,1);
+    vec4 br(1,-1,d,1);
+    vec4 tl(-1,1,d,1);
+    vec4 tr(1,1,d,1);
+
+    mat4 projInv = inverse(proj);
+    tl = projInv * tl;
+    tr = projInv * tr;
+    bl = projInv * bl;
+    br = projInv * br;
+
+    tl /= tl.w;
+    tr /= tr.w;
+    bl /= bl.w;
+    br /= br.w;
+
+
+    //    std::vector<VertexNC> vertices;
+
+    vec4 positions[] = {
+        vec4(0,0,0,1),
+        tl,tr,br,bl,
+        //        vec4(tl[0],tl[1],-1,1),
+        //        vec4(tr[0],tr[1],-1,1),
+        //        vec4(br[0],br[1],-1,1),
+        //        vec4(bl[0],bl[1],-1,1),
+
+
+        0.4f * tl + 0.6f * tr,
+        0.6f * tl + 0.4f * tr,
+        0.5f * tl + 0.5f * tr + vec4(0,(tl.y-bl.y)*0.1f,0,0)
+        //        vec4(0.6*tl[0]+0.4*tr[0],0.6*tl[1]+0.4*tr[1],-1,1),
+        //        vec4(0.5*tl[0]+0.5*tr[0],0.5*tl[1]+0.5*tr[1]-0.1,-1,1),
+
+    };
+
+    for(int i = 0 ; i < 8 ; ++i){
+//        Vertex v;
+//        v.position = positions[i];
+        vertices.push_back(vec3(positions[i]));
+    }
+
+
+    std::vector<GLuint> indices2 = {
+        0,1,
+        0,2,
+        0,3,
+        0,4,
+
+        1,2,
+        3,4,
+        1,4,
+        2,3,
+
+        5,7,
+        6,7
+    };
+    indices = indices2;
+}
+
+std::shared_ptr<ColoredAsset> AssetLoader2::frustumMesh(const mat4 &proj, const vec4 &color)
+{
+     std::vector<vec3> vertices;
+     std::vector<GLuint> indices;
+     createFrustumMesh(proj,vertices,indices);
+
+     return nonTriangleMesh(vertices,indices,GL_LINES,color);
 
 }
 
