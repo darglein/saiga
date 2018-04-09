@@ -110,8 +110,15 @@ std::shared_ptr<ColoredAsset> AssetLoader2::loadDebugArrow(float radius, float l
 std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(std::shared_ptr<TriangleMesh<VertexNT, GLuint> > mesh, const vec4 &color)
 {
 
+    return assetFromMesh(*mesh,color);
+}
+
+
+std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(TriangleMesh<VertexNT, GLuint>  &mesh, const vec4 &color)
+{
+
     auto asset = std::make_shared<ColoredAsset>();
-    asset->mesh.addMesh(*mesh);
+    asset->mesh.addMesh(mesh);
 
     for(auto& v : asset->mesh.vertices){
         v.color = color;

@@ -34,4 +34,8 @@ if (EIGEN3_FOUND)
 	set_target_properties (eigenTest PROPERTIES FOLDER samples)
 endif ()
 
+if (OPENMESH_FOUND)
+	add_subdirectory(openMeshSample)
+	set_target_properties (openMeshSample PROPERTIES FOLDER samples)
+endif ()
 

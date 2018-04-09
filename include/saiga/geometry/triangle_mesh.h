@@ -138,9 +138,17 @@ public:
     void addMesh(const TriangleMesh<mesh_vertex_t,mesh_index_t> &other);
 
 
+    /**
+     * Computes the per vertex normal by weighting each face normal by its surface area.
+     */
+    void computePerVertexNormal();
+
+
     int numIndices();
 
     AABB calculateAabb();
+
+    bool isValid();
 
 
     template<typename v, typename i>
@@ -335,6 +343,33 @@ int TriangleMesh<vertex_t,index_t>::numIndices(){
     return faces.size() * 3;
 }
 
+template<typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t,index_t>::computePerVertexNormal(){
+    for(vertex_t& v : vertices)
+    {
+        v.normal = vec4(0);
+    }
+
+    for(Face f : faces)
+    {
+        vec3 a = vec3(vertices[f.v1].position);
+        vec3 b = vec3(vertices[f.v2].position);
+        vec3 c = vec3(vertices[f.v3].position);
+        vec3 n = cross(b-a,c-a);
+        //Note: do not normalize here because the length is the surface area
+        vertices[f.v1].normal += vec4(n,0);
+        vertices[f.v2].normal += vec4(n,0);
+        vertices[f.v3].normal += vec4(n,0);
+    }
+
+
+    for(vertex_t& v : vertices)
+    {
+        v.normal = normalize(v.normal);
+    }
+}
+
+
 
 template<typename vertex_t, typename index_t>
 AABB TriangleMesh<vertex_t,index_t>::calculateAabb(){
@@ -344,6 +379,18 @@ AABB TriangleMesh<vertex_t,index_t>::calculateAabb(){
         boundingBox.growBox(vec3(v.position));
     }
     return boundingBox;
+}
+
+template<typename vertex_t, typename index_t>
+bool TriangleMesh<vertex_t,index_t>::isValid(){
+   //check if all referenced vertices exist
+    for(Face f : faces)
+    {
+        if(f.v1 < 0 || f.v1 >= vertices.size()) return false;
+        if(f.v2 < 0 || f.v2 >= vertices.size()) return false;
+        if(f.v3 < 0 || f.v3 >= vertices.size()) return false;
+    }
+    return true;
 }
 
 }

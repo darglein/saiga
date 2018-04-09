@@ -24,6 +24,7 @@
 
 //asset loading
 #cmakedefine SAIGA_USE_ASSIMP
+#cmakedefine SAIGA_USE_OPENMESH
 
 //image loading
 #cmakedefine SAIGA_USE_PNG

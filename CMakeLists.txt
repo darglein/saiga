@@ -132,6 +132,16 @@ if(PNG_FOUND)
 	message(STATUS "Found libpng: ${PNG_LIBRARIES}")
 endif()
 
+#openmesh
+find_package(OpenMesh QUIET)
+if(OPENMESH_FOUND)
+	include_directories(${OPENMESH_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${OPENMESH_LIBRARIES})
+	SET(SAIGA_USE_OPENMESH 1)
+	message(STATUS "Found OpenMesh: ${OPENMESH_LIBRARIES}")
+endif()
+
+
 #libfreeimage
 find_package(FreeImage QUIET)
 find_package(FreeImagePlus QUIET)
