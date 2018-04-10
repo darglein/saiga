@@ -33,7 +33,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     glfw_EventHandler::addKeyListener(this);
 
     //This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    AssetLoader2 assetLoader;
+    AssetLoader assetLoader;
 
     //First create the triangle mesh of a cube
     auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1),vec3(1)));

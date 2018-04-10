@@ -14,18 +14,18 @@
 
 namespace Saiga {
 
-AssetLoader2::AssetLoader2()
+AssetLoader::AssetLoader()
 {
      loadDefaultShaders();
 }
 
-AssetLoader2::~AssetLoader2()
+AssetLoader::~AssetLoader()
 {
 
 }
 
 
-void AssetLoader2::loadDefaultShaders()
+void AssetLoader::loadDefaultShaders()
 {
     basicAssetShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model.glsl");
     basicAssetForwardShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_forward.glsl");
@@ -41,7 +41,7 @@ void AssetLoader2::loadDefaultShaders()
     animatedAssetWireframeShader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones.glsl");
 }
 
-std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
+std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
 {
         auto cbImage = ImageGenerator::checkerBoard(color1,color2,16,2,2);
         std::shared_ptr<Texture> cbTexture = std::make_shared<Texture>();
@@ -57,7 +57,7 @@ std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugPlaneAsset(vec2 size, floa
         return asset;
 }
 
-std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
+std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
 {
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
     mat4 scale = glm::scale(mat4(1),vec3(size.x,1,size.y));
@@ -81,7 +81,7 @@ std::shared_ptr<TexturedAsset> AssetLoader2::loadDebugTexturedPlane(std::shared_
     return asset;
 }
 
-std::shared_ptr<ColoredAsset> AssetLoader2::loadDebugArrow(float radius, float length, vec4 color)
+std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float length, vec4 color)
 {
 //    auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
     auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius,length,12);
@@ -107,16 +107,9 @@ std::shared_ptr<ColoredAsset> AssetLoader2::loadDebugArrow(float radius, float l
     return asset;
 }
 
-std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(std::shared_ptr<TriangleMesh<VertexNT, GLuint> > mesh, const vec4 &color)
+
+std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNT, GLuint>  &mesh, const vec4 &color)
 {
-
-    return assetFromMesh(*mesh,color);
-}
-
-
-std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(TriangleMesh<VertexNT, GLuint>  &mesh, const vec4 &color)
-{
-
     auto asset = std::make_shared<ColoredAsset>();
     asset->mesh.addMesh(mesh);
 
@@ -129,7 +122,20 @@ std::shared_ptr<ColoredAsset> AssetLoader2::assetFromMesh(TriangleMesh<VertexNT,
     return asset;
 }
 
-std::shared_ptr<ColoredAsset> AssetLoader2::nonTriangleMesh(std::vector<vec3> vertices, std::vector<GLuint> indices, GLenum mode, const vec4& color)
+std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNC, GLuint> &mesh)
+{
+    auto asset = std::make_shared<ColoredAsset>();
+    asset->mesh.addMesh(mesh);
+
+    for(auto& v : asset->mesh.vertices){
+        v.data = vec4(0.5,0,0,0);
+    }
+
+    asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
+    return asset;
+}
+
+std::shared_ptr<ColoredAsset> AssetLoader::nonTriangleMesh(std::vector<vec3> vertices, std::vector<GLuint> indices, GLenum mode, const vec4& color)
 {
     std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
 
@@ -213,7 +219,7 @@ static void createFrustumMesh(mat4 proj, std::vector<vec3>& vertices,  std::vect
     indices = indices2;
 }
 
-std::shared_ptr<ColoredAsset> AssetLoader2::frustumMesh(const mat4 &proj, const vec4 &color)
+std::shared_ptr<ColoredAsset> AssetLoader::frustumMesh(const mat4 &proj, const vec4 &color)
 {
      std::vector<vec3> vertices;
      std::vector<GLuint> indices;

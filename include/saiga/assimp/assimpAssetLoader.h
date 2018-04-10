@@ -10,7 +10,7 @@
 
 namespace Saiga {
 
-class SAIGA_GLOBAL AssimpAssetLoader : public AssetLoader2{
+class SAIGA_GLOBAL AssimpAssetLoader : public AssetLoader{
 public:
 
 

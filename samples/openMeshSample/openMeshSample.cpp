@@ -14,8 +14,8 @@
 #include "saiga/imgui/imgui.h"
 #include "saiga/geometry/half_edge_mesh.h"
 
-#include <OpenMesh/Core/IO/MeshIO.hh>
-#include "OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh"
+#include "saiga/geometry/openMeshWrapper.h"
+
 #include "OpenMesh/Tools/Decimater/DecimaterT.hh"
 #include "OpenMesh/Tools/Decimater/ModQuadricT.hh"
 #include "OpenMesh/Tools/Decimater/ModProgMeshT.hh"
@@ -50,24 +50,18 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     ObjAssetLoader assetLoader;
 
 
-    auto bunnyAsset = assetLoader.loadBasicAsset("objs/bunny.obj");
+    assetLoader.loadMeshNC("objs/bunny.obj",baseMesh);
+    reducedMesh = baseMesh;
 
-    //Rendering an asset at a user defined location is done most efficiently with a 4x4 transformation matrix,
-    //that is passed to the shader as a uniform. The SimpleAssetObject does exactly this. It contains a transformation matrix
-    //and simple transformation methods for example 'translate' 'rotate'. The 'render' methods of a SimpleAssetObject will
-    //bind the correct shaders, upload the matrix to the correct uniform and call the raw 'render' of the referenced asset.
+    //    auto bunnyAsset = assetLoader.loadBasicAsset("objs/bunny.obj");
+    auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
     cube1.asset = bunnyAsset;
-
-    //An asset can be referenced by multiple SimpleAssetObject, because each SimpleAssetObject has its own transformation matrix
-    //and therefore they all can be drawn at different locations.
-    cube2.asset = bunnyAsset;
-
-    //Translate the first cube
-    cube1.translateGlobal(vec3(3,1,0));
-    //Compute the 4x4 transformation matrix. This has to be done before rendering when a 'transform method' was called.
+    cube1.translateGlobal(vec3(2,1,0));
     cube1.calculateModel();
 
-    cube2.translateGlobal(vec3(3,1,5));
+    auto bunnyAsset2 = assetLoader.assetFromMesh(reducedMesh);
+    cube2.asset = bunnyAsset2;
+    cube2.translateGlobal(vec3(-2,1,0));
     cube2.calculateModel();
 
 
@@ -96,13 +90,14 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     auto ifs = hem.toIFS();
     SAIGA_ASSERT(ifs.isValid());
 
-auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
+    auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
 
     parentWindow->getRenderer()->wireframe = true;
 
 #endif
 
 
+#if 0
     auto& ifs = bunnyAsset->mesh;
 
     using MyMesh = OpenMesh::TriMesh_ArrayKernelT<>;
@@ -128,11 +123,11 @@ auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
 
 
     typedef Decimater::DecimaterT<MyMesh>          Decimater;
-//    typedef Decimater::ModQuadricT<MyMesh> MyModQuadric;
+    //    typedef Decimater::ModQuadricT<MyMesh> MyModQuadric;
     using HModQuadric = OpenMesh::Decimater::ModQuadricT<MyMesh>::Handle;
-//    using HModQuadric = OpenMesh::Decimater::ModProgMeshT<MyMesh>::Handle;
-//    using HModQuadric = OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle;
-//    Mesh        mesh;             // a mesh object
+    //    using HModQuadric = OpenMesh::Decimater::ModProgMeshT<MyMesh>::Handle;
+    //    using HModQuadric = OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle;
+    //    Mesh        mesh;             // a mesh object
 #if 1
     Decimater   decimater(test);  // a decimater object, connected to a mesh
     HModQuadric hModQuadric;      // use a quadric module
@@ -140,7 +135,7 @@ auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
     std::cout << decimater.module(hModQuadric).name() << std::endl; // module access
 
     OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle dec;
-//    dec.initialize();
+    //    dec.initialize();
     decimater.add(dec);
     /*
      * since we need exactly one priority module (non-binary)
@@ -150,7 +145,7 @@ auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
     decimater.module(hModQuadric).unset_max_err();
 
 
-//    cout << "tolerance: " << decimater.module(hModQuadric).tolerance() << endl;
+    //    cout << "tolerance: " << decimater.module(hModQuadric).tolerance() << endl;
 
 
     decimater.initialize();
@@ -158,8 +153,8 @@ auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
     // after decimation: remove decimated elements from the mesh
     test.garbage_collection();
 
-//     dec.decimate();
-//      test.garbage_collection();
+    //     dec.decimate();
+    //      test.garbage_collection();
 #endif
 
 
@@ -179,6 +174,7 @@ auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
     }
 
     exit(0);
+#endif
 
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
 
@@ -197,6 +193,76 @@ auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
 SimpleWindow::~SimpleWindow()
 {
     //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
+}
+
+void SimpleWindow::reduce()
+{
+    using MyMesh = OpenMesh::TriMesh_ArrayKernelT<>;
+    MyMesh test;
+    triangleMeshToOpenMesh(baseMesh,test);
+
+
+    // =========================================================================================================
+
+
+    typedef Decimater::DecimaterT<MyMesh>          Decimater;
+    //    typedef Decimater::ModQuadricT<MyMesh> MyModQuadric;
+    using HModQuadric = OpenMesh::Decimater::ModQuadricT<MyMesh>::Handle;
+    //    using HModQuadric = OpenMesh::Decimater::ModProgMeshT<MyMesh>::Handle;
+    //    using HModQuadric = OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle;
+    //    Mesh        mesh;             // a mesh object
+
+    HModQuadric hModQuadric;      // use a quadric module
+
+
+
+    Decimater   decimater(test);
+    decimater.add(hModQuadric);
+
+
+    decimater.module(hModQuadric).set_max_err(quadricMaxError);
+//    decimater.module(hModQuadric).unset_max_err();
+
+
+    decimater.initialize();
+    decimater.decimate();
+
+
+    test.garbage_collection();
+
+
+    //==============================================================================================
+
+    if(writeToFile)
+    {
+        try
+        {
+            if ( !OpenMesh::IO::write_mesh(test, "output.off") )
+            {
+                std::cerr << "Cannot write mesh to file 'output.off'" << std::endl;
+
+            }
+        }
+        catch( std::exception& x )
+        {
+            std::cerr << x.what() << std::endl;
+
+        }
+    }
+
+    //==============================================================================================
+
+
+    openMeshToTriangleMesh(test,reducedMesh);
+
+
+    reducedMesh.computePerVertexNormal();
+
+
+
+    AssetLoader assetLoader;
+    auto bunnyAsset2 = assetLoader.assetFromMesh(reducedMesh);
+    cube2.asset = bunnyAsset2;
 }
 
 void SimpleWindow::update(float dt){
@@ -232,6 +298,21 @@ void SimpleWindow::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
     skybox.render(cam);
+
+
+
+
+    if(wireframe)
+    {
+        glEnable(GL_POLYGON_OFFSET_LINE);
+        glPolygonOffset(-10,-10);
+        cube1.renderWireframe(cam);
+        cube2.renderWireframe(cam);
+        glDisable(GL_POLYGON_OFFSET_LINE);
+        assert_no_glerror();
+
+    }
+
 }
 
 void SimpleWindow::renderFinal(Camera *cam)
@@ -244,6 +325,16 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
 
+        ImGui::Checkbox("wireframe",&wireframe);
+        ImGui::Checkbox("writeToFile",&writeToFile);
+
+        ImGui::InputFloat("quadricMaxError",&quadricMaxError);
+        if(ImGui::Button("bla"))
+        {
+            reduce();
+
+
+        }
         ImGui::End();
     }
 }

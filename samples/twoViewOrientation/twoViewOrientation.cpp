@@ -70,7 +70,7 @@ AdvancedWindow::AdvancedWindow(OpenGLWindow *window): Program(window),
     transformedCircle = std::make_shared<TriangleMesh<VertexNT,GLuint>>(*circle);
 
     //    auto sphereAsset = assetLoader.loadBasicAsset("objs/teapot.obj");
-    auto sphereAsset = assetLoader.assetFromMesh(transformedCircle);
+    auto sphereAsset = assetLoader.assetFromMesh(*transformedCircle);
     disc.asset = sphereAsset;
     //    sphere.translateGlobal(vec3(-2,1,0));
     //    sphere.rotateLocal(vec3(0,1,0),180);
@@ -526,7 +526,7 @@ void AdvancedWindow::projectGeometryToSurface()
         v2.position = vec4(cameraPos + dir * t,1);
     }
 
-    disc.asset = assetLoader.assetFromMesh(transformedCircle);;
+    disc.asset = assetLoader.assetFromMesh(*transformedCircle);;
 
 
     {

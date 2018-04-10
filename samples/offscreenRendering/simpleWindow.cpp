@@ -30,14 +30,14 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 
 
     //This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    AssetLoader2 assetLoader;
+    AssetLoader assetLoader;
 
     //First create the triangle mesh of a cube
     auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1),vec3(1)));
 
     //To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and provides
     //render functions.
-    auto cubeAsset = assetLoader.assetFromMesh(cubeMesh,Colors::blue);
+    auto cubeAsset = assetLoader.assetFromMesh(*cubeMesh,Colors::blue);
 
     //Rendering an asset at a user defined location is done most efficiently with a 4x4 transformation matrix,
     //that is passed to the shader as a uniform. The SimpleAssetObject does exactly this. It contains a transformation matrix
@@ -59,7 +59,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 
 
     auto sphereMesh = TriangleMeshGenerator::createMesh(Sphere(vec3(0),1),2);
-    auto sphereAsset = assetLoader.assetFromMesh(sphereMesh,Colors::green);
+    auto sphereAsset = assetLoader.assetFromMesh(*sphereMesh,Colors::green);
     sphere.asset = sphereAsset;
     sphere.translateGlobal(vec3(-2,1,0));
     sphere.calculateModel();

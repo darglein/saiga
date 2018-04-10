@@ -10,12 +10,14 @@
 
 namespace Saiga {
 
-class SAIGA_GLOBAL ObjAssetLoader : public AssetLoader2{
+class SAIGA_GLOBAL ObjAssetLoader : public AssetLoader{
 public:
 
 
     ObjAssetLoader();
     virtual ~ObjAssetLoader();
+
+    void loadMeshNC(const std::string &file, TriangleMesh<VertexNC,GLuint>& mesh, bool normalize=false);
 
     std::shared_ptr<ColoredAsset> loadBasicAsset(const std::string &file, bool normalize=false);
     std::shared_ptr<TexturedAsset> loadTexturedAsset(const std::string &file, bool normalize=false);

@@ -23,6 +23,9 @@ using namespace Saiga;
 class SimpleWindow : public Program, public SDL_KeyListener
 {
 public:
+    float quadricMaxError = 0.001;
+    bool writeToFile = false;
+    bool wireframe = true;
     SDLCamera<PerspectiveCamera> camera;
 
     SimpleAssetObject cube1, cube2;
@@ -34,8 +37,13 @@ public:
     std::shared_ptr<DirectionalLight> sun;
     std::shared_ptr<Texture> t;
 
+    TriangleMesh<VertexNC,GLuint> baseMesh;
+    TriangleMesh<VertexNC,GLuint> reducedMesh;
+
     SimpleWindow(OpenGLWindow* window);
     ~SimpleWindow();
+
+    void reduce();
 
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;

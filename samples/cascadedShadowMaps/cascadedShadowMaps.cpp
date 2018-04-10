@@ -34,7 +34,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     SDL_EventHandler::addKeyListener(this);
 
     //This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    AssetLoader2 assetLoader;
+    AssetLoader assetLoader;
 
     float height = 20;
     //First create the triangle mesh of a cube
@@ -42,7 +42,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 
     //To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and provides
     //render functions.
-    auto cubeAsset = assetLoader.assetFromMesh(cubeMesh,Colors::blue);
+    auto cubeAsset = assetLoader.assetFromMesh(*cubeMesh,Colors::blue);
 
     float s = 200;
 

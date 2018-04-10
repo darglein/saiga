@@ -21,12 +21,10 @@ ObjAssetLoader::~ObjAssetLoader()
 
 }
 
-
-std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string &file, bool normalize){
+void ObjAssetLoader::loadMeshNC(const std::string &file, TriangleMesh<VertexNC, GLuint> &mesh, bool normalize)
+{
     ObjLoader2 ol(file);
-
-    ColoredAsset* asset = new ColoredAsset();
-    TriangleMesh<VertexNC,GLuint> &tmesh = asset->mesh;
+    TriangleMesh<VertexNC,GLuint> &tmesh = mesh;
 
     for(ObjTriangle &oj : ol.outTriangles){
         tmesh.addFace(oj.v);
@@ -52,19 +50,23 @@ std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string &
             }
         }
     }
+}
 
 
-
+std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string &file, bool normalize)
+{
+    std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
+    loadMeshNC(file,asset->mesh,normalize);
     asset->create(file,basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
-
-    return  std::shared_ptr<ColoredAsset>(asset);
+    return  asset;
 }
 
 std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::string &file, bool normalize)
 {
     ObjLoader2 ol(file);
 
-    TexturedAsset* asset = new TexturedAsset();
+//    TexturedAsset* asset = new TexturedAsset();
+    std::shared_ptr<TexturedAsset> asset = std::make_shared<TexturedAsset>();
     TriangleMesh<VertexNTD,GLuint> &tmesh = asset->mesh;
 
     for(ObjTriangle &oj : ol.outTriangles){
@@ -104,7 +106,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
 
     asset->create(file,texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
 
-    return std::shared_ptr<TexturedAsset>(asset);
+    return asset;
 }
 
 }
