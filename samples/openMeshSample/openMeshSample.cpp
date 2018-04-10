@@ -20,7 +20,13 @@
 #include "OpenMesh/Tools/Decimater/ModQuadricT.hh"
 #include "OpenMesh/Tools/Decimater/ModProgMeshT.hh"
 #include "OpenMesh/Tools/Decimater/ModHausdorffT.hh"
-//#include "OpenMesh/Tools/Decimater/hmod"
+#include "OpenMesh/Tools/Decimater/ModAspectRatioT.hh"
+#include "OpenMesh/Tools/Decimater/ModEdgeLengthT.hh"
+#include "OpenMesh/Tools/Decimater/ModIndependentSetsT.hh"
+#include "OpenMesh/Tools/Decimater/ModNormalDeviationT.hh"
+#include "OpenMesh/Tools/Decimater/ModNormalFlippingT.hh"
+#include "OpenMesh/Tools/Decimater/ModRoundnessT.hh"
+
 
 
 using namespace OpenMesh;
@@ -56,12 +62,12 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     //    auto bunnyAsset = assetLoader.loadBasicAsset("objs/bunny.obj");
     auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
     cube1.asset = bunnyAsset;
-    cube1.translateGlobal(vec3(2,1,0));
+    cube1.translateGlobal(vec3(0,1,0));
     cube1.calculateModel();
 
     auto bunnyAsset2 = assetLoader.assetFromMesh(reducedMesh);
     cube2.asset = bunnyAsset2;
-    cube2.translateGlobal(vec3(-2,1,0));
+    cube2.translateGlobal(vec3(-0,1,0));
     cube2.calculateModel();
 
 
@@ -206,22 +212,61 @@ void SimpleWindow::reduce()
 
 
     typedef Decimater::DecimaterT<MyMesh>          Decimater;
-    //    typedef Decimater::ModQuadricT<MyMesh> MyModQuadric;
-    using HModQuadric = OpenMesh::Decimater::ModQuadricT<MyMesh>::Handle;
-    //    using HModQuadric = OpenMesh::Decimater::ModProgMeshT<MyMesh>::Handle;
-    //    using HModQuadric = OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle;
-    //    Mesh        mesh;             // a mesh object
-
-    HModQuadric hModQuadric;      // use a quadric module
-
-
-
     Decimater   decimater(test);
-    decimater.add(hModQuadric);
+
+    using HModQuadric = OpenMesh::Decimater::ModQuadricT<MyMesh>::Handle;
+    using HModAspect = OpenMesh::Decimater::ModAspectRatioT<MyMesh>::Handle;
 
 
-    decimater.module(hModQuadric).set_max_err(quadricMaxError);
-//    decimater.module(hModQuadric).unset_max_err();
+    HModQuadric hModQuadric,hModQuadric2;
+    HModAspect hModAspect;
+//    HModAspect hModAspect;
+
+    decimater.add(hModQuadric2);
+    decimater.module(hModQuadric2).unset_max_err();
+
+    if(useQuadric)
+    {
+        decimater.add(hModQuadric);
+        decimater.module(hModQuadric).set_max_err(quadricMaxError);
+    }
+
+    if(useAspectRatio)
+    {
+        decimater.add(hModAspect);
+        decimater.module(hModAspect).set_aspect_ratio(ratio);
+//        decimater.module(hModAspect).set_error_tolerance_factor(errorTolerance);
+    }
+
+
+    OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle haus;
+    if(useHausdorf)
+    {
+        decimater.add(haus);
+        decimater.module(haus).set_tolerance (hausError);
+    }
+
+    OpenMesh::Decimater::ModNormalDeviationT<MyMesh>::Handle nd;
+    if(useNormalDev)
+    {
+        decimater.add(nd);
+        decimater.module(nd).set_normal_deviation(normalDev);
+    }
+
+    OpenMesh::Decimater::ModNormalFlippingT<MyMesh>::Handle nf;
+    if(useNormalFlip)
+    {
+        decimater.add(nf);
+        decimater.module(nf).set_max_normal_deviation(maxNormalDev);
+    }
+
+    OpenMesh::Decimater::ModRoundnessT<MyMesh>::Handle r;
+    if(useRoundness)
+    {
+        decimater.add(r);
+        decimater.module(r).set_min_roundness(minRoundness);
+    }
+
 
 
     decimater.initialize();
@@ -235,19 +280,7 @@ void SimpleWindow::reduce()
 
     if(writeToFile)
     {
-        try
-        {
-            if ( !OpenMesh::IO::write_mesh(test, "output.off") )
-            {
-                std::cerr << "Cannot write mesh to file 'output.off'" << std::endl;
-
-            }
-        }
-        catch( std::exception& x )
-        {
-            std::cerr << x.what() << std::endl;
-
-        }
+        saveOpenMesh(test,"output.off");
     }
 
     //==============================================================================================
@@ -280,18 +313,22 @@ void SimpleWindow::interpolate(float dt, float interpolation) {
 void SimpleWindow::render(Camera *cam)
 {
     //Render all objects from the viewpoint of 'cam'
-    groundPlane.render(cam);
-    cube1.render(cam);
-    cube2.render(cam);
+    //    groundPlane.render(cam);
+    if(showReduced)
+        cube2.render(cam);
+    else
+        cube1.render(cam);
 }
 
 void SimpleWindow::renderDepth(Camera *cam)
 {
     //Render the depth of all objects from the viewpoint of 'cam'
     //This will be called automatically for shadow casting light sources to create shadow maps
-    groundPlane.renderDepth(cam);
-    cube1.renderDepth(cam);
-    cube2.renderDepth(cam);
+    //    groundPlane.renderDepth(cam);
+    if(showReduced)
+        cube2.renderDepth(cam);
+    else
+        cube1.renderDepth(cam);
 }
 
 void SimpleWindow::renderOverlay(Camera *cam)
@@ -306,8 +343,10 @@ void SimpleWindow::renderOverlay(Camera *cam)
     {
         glEnable(GL_POLYGON_OFFSET_LINE);
         glPolygonOffset(-10,-10);
-        cube1.renderWireframe(cam);
-        cube2.renderWireframe(cam);
+        if(showReduced)
+            cube2.renderWireframe(cam);
+        else
+            cube1.renderWireframe(cam);
         glDisable(GL_POLYGON_OFFSET_LINE);
         assert_no_glerror();
 
@@ -325,16 +364,76 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
 
+        if(ImGui::CollapsingHeader("Decimation"))
+        {
+
+        ImGui::Checkbox("useQuadric",&useQuadric);
+        ImGui::SameLine();
+        ImGui::InputFloat("quadricMaxError",&quadricMaxError);
+
+        ImGui::Checkbox("useAspectRatio",&useAspectRatio);
+        ImGui::SameLine();
+        ImGui::InputFloat("ratio",&ratio);
+        ImGui::InputFloat("errorTolerance",&errorTolerance);
+
+
+
+        ImGui::Checkbox("useHausdorf",&useHausdorf);
+        ImGui::SameLine();
+        ImGui::InputFloat("hausError",&hausError);
+
+        ImGui::Checkbox("useNormalDev",&useNormalDev);
+        ImGui::SameLine();
+        ImGui::InputFloat("normalDev",&normalDev);
+
+
+
+        ImGui::Checkbox("useNormalFlip",&useNormalFlip);
+        ImGui::SameLine();
+        ImGui::InputFloat("maxNormalDev",&maxNormalDev);
+
+
+        ImGui::Checkbox("useRoundness",&useRoundness);
+        ImGui::SameLine();
+        ImGui::InputFloat("minRoundness",&minRoundness);
+        }
+
+
+
+        ImGui::Separator();
+
+
+
+        ImGui::Checkbox("showReduced",&showReduced);
         ImGui::Checkbox("wireframe",&wireframe);
         ImGui::Checkbox("writeToFile",&writeToFile);
 
-        ImGui::InputFloat("quadricMaxError",&quadricMaxError);
+
+        if(ImGui::Button("bla2"))
+        {
+            OpenTriangleMesh mesh;
+            loadOpenMesh(mesh,"output2.off");
+
+            openMeshToTriangleMesh(mesh,baseMesh);
+
+            baseMesh.computePerVertexNormal();
+
+            AssetLoader assetLoader;
+            auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
+            cube1.asset = bunnyAsset;
+        }
+
         if(ImGui::Button("bla"))
         {
             reduce();
-
-
         }
+
+
+        ImGui::Separator();
+        ImGui::Text("Base Mesh: V %d F %d ",(int)baseMesh.vertices.size(),(int)baseMesh.faces.size());
+        ImGui::Text("Reduced Mesh: V %d F %d ",(int)reducedMesh.vertices.size(),(int)reducedMesh.faces.size());
+
+
         ImGui::End();
     }
 }

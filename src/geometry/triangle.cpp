@@ -54,6 +54,11 @@ float Triangle::angleAtCorner(int i)
     return glm::acos(glm::dot( normalize( left - center ), normalize( right - center ) ));
 }
 
+bool Triangle::isDegenerate()
+{
+    return !std::isfinite(angleAtCorner(0)) || !std::isfinite(angleAtCorner(1)) || !std::isfinite(angleAtCorner(2));
+}
+
 std::ostream& operator<<(std::ostream& os, const Triangle& t)
 {
     std::cout<<"Triangle: "<<t.a<<t.b<<t.c;

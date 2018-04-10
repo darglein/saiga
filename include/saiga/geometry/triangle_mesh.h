@@ -27,10 +27,16 @@ template<typename vertex_t, typename index_t>
 class TriangleMesh
 {
 public:
-    struct Face{
+    struct GLM_ALIGN(0) Face
+    {
         index_t v1,v2,v3;
         Face(){}
         Face(const index_t& v1,const index_t& v2,const index_t& v3):v1(v1),v2(v2),v3(v3){}
+        index_t& operator[](int idx)
+        {
+            //assume index_t alignment
+            return *((&v1) + idx);
+        }
     };
 
     typedef IndexedVertexBuffer<vertex_t,index_t> buffer_t;
@@ -142,6 +148,12 @@ public:
      * Computes the per vertex normal by weighting each face normal by its surface area.
      */
     void computePerVertexNormal();
+
+    /**
+     * Removes all vertices that are not referenced by a triangle.
+     * Computes the new vertex indices for each triangle.
+     */
+    void removeUnusedVertices();
 
 
     int numIndices();
@@ -369,6 +381,29 @@ void TriangleMesh<vertex_t,index_t>::computePerVertexNormal(){
     }
 }
 
+template<typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t,index_t>::removeUnusedVertices()
+{
+    std::vector<int> vmap(vertices.size(),-1);
+    auto vcopy = vertices;
+    vertices.clear();
+    for(int i = 0; i < (int)faces.size(); ++i)
+    {
+        auto& f = faces[i];
+
+        for(int i =0; i < 3; ++i)
+        {
+            auto& v = f[i];
+            if(vmap[v] == -1)
+            {
+                int count = vertices.size();
+                vmap[v] = count;
+                vertices.push_back(vcopy[v]);
+            }
+            v = vmap[v];
+        }
+    }
+}
 
 
 template<typename vertex_t, typename index_t>
@@ -383,7 +418,7 @@ AABB TriangleMesh<vertex_t,index_t>::calculateAabb(){
 
 template<typename vertex_t, typename index_t>
 bool TriangleMesh<vertex_t,index_t>::isValid(){
-   //check if all referenced vertices exist
+    //check if all referenced vertices exist
     for(Face f : faces)
     {
         if(f.v1 < 0 || f.v1 >= vertices.size()) return false;

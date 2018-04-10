@@ -11,6 +11,7 @@
 
 namespace Saiga {
 
+using OpenTriangleMesh = OpenMesh::TriMesh_ArrayKernelT<>;
 
 /**
  * Converts a Saiga::TriangleMesh to an OpenMesh triangle mesh.
@@ -60,7 +61,7 @@ void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t,index_t>& ds
 
 
     for(auto f_it = src.faces_begin(); f_it != src.faces_end(); ++f_it) {
-        auto f = src.face(*f_it);
+        //        auto f = src.face(*f_it);
 
         std::vector<GLuint> a;
         for (auto fv_it = src.cfv_iter(*f_it); fv_it.is_valid(); ++fv_it)
@@ -71,7 +72,41 @@ void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t,index_t>& ds
         SAIGA_ASSERT(a.size() == 3);
         dst.addFace(a.data());
     }
+}
 
+template<typename MeshT>
+void saveOpenMesh(const MeshT& src, const std::string& file)
+{
+    try
+    {
+        if ( !OpenMesh::IO::write_mesh(src, file) )
+        {
+            std::cerr << "Cannot write mesh to file " << file << std::endl;
+
+        }
+    }
+    catch( std::exception& x )
+    {
+        std::cerr << x.what() << std::endl;
+    }
+}
+
+
+template<typename MeshT>
+void loadOpenMesh(MeshT& src, const std::string& file)
+{
+    try
+    {
+        if ( !OpenMesh::IO::read_mesh(src, file) )
+        {
+            std::cerr << "Cannot read mesh to file " << file << std::endl;
+
+        }
+    }
+    catch( std::exception& x )
+    {
+        std::cerr << x.what() << std::endl;
+    }
 }
 
 }

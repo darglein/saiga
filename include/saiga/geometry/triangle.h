@@ -59,6 +59,11 @@ public:
      */
     float angleAtCorner(int i);
 
+    /**
+     * Check if this triangle is broken.
+     */
+    bool isDegenerate();
+
     friend SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Triangle& dt);
 };
 
