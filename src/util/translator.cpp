@@ -12,9 +12,6 @@
 
 namespace Saiga {
 
-using std::cout;
-using std::endl;
-
 Translator translator;
 
 

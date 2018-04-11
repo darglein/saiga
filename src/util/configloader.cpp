@@ -8,8 +8,6 @@
 
 namespace Saiga {
 
-using std::cout;
-using std::endl;
 
 ConfigLoader::ConfigEntry::ConfigEntry(const std::string &key, const std::string &value, const std::string &description)
     :key(key),value(value),description(description)

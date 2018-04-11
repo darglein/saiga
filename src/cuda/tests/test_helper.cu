@@ -10,8 +10,6 @@
 namespace Saiga {
 namespace CUDA{
 
-using std::cout;
-using std::endl;
 
 PerformanceTestHelper::PerformanceTestHelper(const std::string& name, size_t bytesReadWrite)
     : name(name), bytesReadWrite(bytesReadWrite){

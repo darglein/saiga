@@ -6,8 +6,6 @@
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/thread_info.h"
 
-using std::cout;
-using std::endl;
 
 #ifdef SAIGA_USE_EIGEN
 #include "saiga/eigen/eigen.h"

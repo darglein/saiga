@@ -10,10 +10,6 @@
 namespace Saiga {
 namespace CUDA {
 
-using std::cout;
-using std::endl;
-
-
 CudaScopedTimer::CudaScopedTimer(float& time) : time(time){
 
     cudaEventCreate(&start);

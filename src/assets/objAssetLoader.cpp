@@ -23,6 +23,9 @@ ObjAssetLoader::~ObjAssetLoader()
 
 void ObjAssetLoader::loadMeshNC(const std::string &file, TriangleMesh<VertexNC, GLuint> &mesh, bool normalize)
 {
+    mesh.vertices.clear();
+    mesh.faces.clear();
+
     ObjLoader2 ol(file);
     TriangleMesh<VertexNC,GLuint> &tmesh = mesh;
 

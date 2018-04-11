@@ -9,9 +9,6 @@
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/cudaHelper.h"
 
-using std::cout;
-using std::endl;
-
 namespace Saiga {
 namespace CUDA {
 

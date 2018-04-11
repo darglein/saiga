@@ -14,10 +14,6 @@
 
 namespace Saiga {
 
-using std::cerr;
-using std::cout;
-using std::endl;
-
 /*
  *  A combination of a gl_array_buffer and a vertex array object (vao).
  * The VertexBuffer stores raw vertex data.

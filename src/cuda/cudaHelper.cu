@@ -11,11 +11,6 @@
 namespace Saiga {
 namespace CUDA {
 
-using std::cout;
-using std::endl;
-
-
-
 // Beginning of GPU Architecture definitions
 inline int _ConvertSMVer2Cores(int major, int minor)
 {

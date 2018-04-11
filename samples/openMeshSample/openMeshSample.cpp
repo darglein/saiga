@@ -29,6 +29,7 @@
 
 
 
+
 using namespace OpenMesh;
 
 SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
@@ -56,7 +57,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     ObjAssetLoader assetLoader;
 
 
-    assetLoader.loadMeshNC("objs/bunny.obj",baseMesh);
+    assetLoader.loadMeshNC("objs/box.obj",baseMesh);
     reducedMesh = baseMesh;
 
     //    auto bunnyAsset = assetLoader.loadBasicAsset("objs/bunny.obj");
@@ -69,118 +70,6 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     cube2.asset = bunnyAsset2;
     cube2.translateGlobal(vec3(-0,1,0));
     cube2.calculateModel();
-
-
-#if 0
-    auto sphereMesh = TriangleMeshGenerator::createTesselatedPlane(5,5);
-    SAIGA_ASSERT(sphereMesh->isValid());
-    HalfEdgeMesh<VertexNT,GLuint> hem(*sphereMesh);
-    SAIGA_ASSERT(hem.isValid());
-
-    for(int i = 0; i< 100;++i)
-    {
-        cout << "flip "<< i << endl;
-        //        hem.flipEdge(i);
-        SAIGA_ASSERT(hem.isValid());
-    }
-    //    hem.halfEdgeCollapse(0);
-    //    hem.halfEdgeCollapse(5);
-    //    hem.halfEdgeCollapse(2);
-    //    hem.halfEdgeCollapse(10);
-    //    hem.halfEdgeCollapse(15);
-
-    //    for(int i = 0; i < 100; ++i)
-    //        hem.halfEdgeCollapse(i);
-    //    hem.removeFace(0);
-    SAIGA_ASSERT(hem.isValid());
-    auto ifs = hem.toIFS();
-    SAIGA_ASSERT(ifs.isValid());
-
-    auto sphereAsset = assetLoader.assetFromMesh(ifs,Colors::green);
-
-    parentWindow->getRenderer()->wireframe = true;
-
-#endif
-
-
-#if 0
-    auto& ifs = bunnyAsset->mesh;
-
-    using MyMesh = OpenMesh::TriMesh_ArrayKernelT<>;
-    MyMesh test;
-
-    std::vector<MyMesh::VertexHandle> handles(ifs.vertices.size());
-    for(int i = 0; i < ifs.vertices.size();++i)
-    {
-        vec3 p = ifs.vertices[i].position;
-        handles[i] = test.add_vertex(MyMesh::Point(p.x,p.y,p.z));
-    }
-
-    for(int i = 0; i < ifs.faces.size();++i)
-    {
-        auto f = ifs.faces[i];
-
-        std::vector<MyMesh::VertexHandle> face_vhandles;
-        face_vhandles.push_back(handles[f.v1]);
-        face_vhandles.push_back(handles[f.v2]);
-        face_vhandles.push_back(handles[f.v3]);
-        test.add_face(face_vhandles);
-    }
-
-
-    typedef Decimater::DecimaterT<MyMesh>          Decimater;
-    //    typedef Decimater::ModQuadricT<MyMesh> MyModQuadric;
-    using HModQuadric = OpenMesh::Decimater::ModQuadricT<MyMesh>::Handle;
-    //    using HModQuadric = OpenMesh::Decimater::ModProgMeshT<MyMesh>::Handle;
-    //    using HModQuadric = OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle;
-    //    Mesh        mesh;             // a mesh object
-#if 1
-    Decimater   decimater(test);  // a decimater object, connected to a mesh
-    HModQuadric hModQuadric;      // use a quadric module
-    decimater.add(hModQuadric); // register module at the decimater
-    std::cout << decimater.module(hModQuadric).name() << std::endl; // module access
-
-    OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle dec;
-    //    dec.initialize();
-    decimater.add(dec);
-    /*
-     * since we need exactly one priority module (non-binary)
-     * we have to call set_binary(false) for our priority module
-     * in the case of HModQuadric, unset_max_err() calls set_binary(false) internally
-     */
-    decimater.module(hModQuadric).unset_max_err();
-
-
-    //    cout << "tolerance: " << decimater.module(hModQuadric).tolerance() << endl;
-
-
-    decimater.initialize();
-    decimater.decimate(20000);
-    // after decimation: remove decimated elements from the mesh
-    test.garbage_collection();
-
-    //     dec.decimate();
-    //      test.garbage_collection();
-#endif
-
-
-    // write mesh to output.obj
-    try
-    {
-        if ( !OpenMesh::IO::write_mesh(test, "output.off") )
-        {
-            std::cerr << "Cannot write mesh to file 'output.off'" << std::endl;
-
-        }
-    }
-    catch( std::exception& x )
-    {
-        std::cerr << x.what() << std::endl;
-
-    }
-
-    exit(0);
-#endif
 
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
 
@@ -201,14 +90,54 @@ SimpleWindow::~SimpleWindow()
     //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
 }
 
+
+template <class MeshT>
+class ModNone : public OpenMesh::Decimater::ModBaseT<MeshT>
+{
+public:
+
+  // Defines the types Self, Handle, Base, Mesh, and CollapseInfo
+  // and the memberfunction name()
+  DECIMATING_MODULE( ModNone, MeshT, None );
+
+  ModNone( MeshT &_mesh )
+    : Base(_mesh, false)
+  {
+        Base::set_binary(false);
+  }
+
+
+  virtual float collapse_priority(const CollapseInfo& _ci)
+  {
+      return 0;
+  }
+
+   virtual void initialize(void)
+  {
+      Base::set_binary(false);
+
+  }
+};
+
+
 void SimpleWindow::reduce()
 {
-    using MyMesh = OpenMesh::TriMesh_ArrayKernelT<>;
-    MyMesh test;
-    triangleMeshToOpenMesh(baseMesh,test);
+#ifdef OM_DEBUG
+    cerr << "Warning OpenMesh debug is ON" << endl;
+#endif
 
+
+    using MyMesh = OpenTriangleMesh;
+    MyMesh test;
+
+    {
+        ScopedTimerPrint tim("convert mesh");
+
+        triangleMeshToOpenMesh(baseMesh,test);
+    }
 
     // =========================================================================================================
+
 
 
     typedef Decimater::DecimaterT<MyMesh>          Decimater;
@@ -220,10 +149,16 @@ void SimpleWindow::reduce()
 
     HModQuadric hModQuadric,hModQuadric2;
     HModAspect hModAspect;
-//    HModAspect hModAspect;
+    //    HModAspect hModAspect;
 
-    decimater.add(hModQuadric2);
-    decimater.module(hModQuadric2).unset_max_err();
+    ModNone<MyMesh>::Handle none;
+
+
+    decimater.add(none);
+//    decimater.module(hModQuadric2).unset_max_err();
+
+//    decimater.add(hModQuadric2);
+//    decimater.module(hModQuadric2).unset_max_err();
 
     if(useQuadric)
     {
@@ -235,7 +170,7 @@ void SimpleWindow::reduce()
     {
         decimater.add(hModAspect);
         decimater.module(hModAspect).set_aspect_ratio(ratio);
-//        decimater.module(hModAspect).set_error_tolerance_factor(errorTolerance);
+        //        decimater.module(hModAspect).set_error_tolerance_factor(errorTolerance);
     }
 
 
@@ -270,10 +205,16 @@ void SimpleWindow::reduce()
 
 
     decimater.initialize();
-    decimater.decimate();
+
+
+    {
+        ScopedTimerPrint tim("decimate");
+        decimater.decimate();
+    }
 
 
     test.garbage_collection();
+
 
 
     //==============================================================================================
@@ -286,16 +227,16 @@ void SimpleWindow::reduce()
     //==============================================================================================
 
 
-    openMeshToTriangleMesh(test,reducedMesh);
+    {
+        ScopedTimerPrint tim("convert mesh");
+        openMeshToTriangleMesh(test,reducedMesh);
 
+        reducedMesh.computePerVertexNormal();
 
-    reducedMesh.computePerVertexNormal();
-
-
-
-    AssetLoader assetLoader;
-    auto bunnyAsset2 = assetLoader.assetFromMesh(reducedMesh);
-    cube2.asset = bunnyAsset2;
+        AssetLoader assetLoader;
+        auto bunnyAsset2 = assetLoader.assetFromMesh(reducedMesh);
+        cube2.asset = bunnyAsset2;
+    }
 }
 
 void SimpleWindow::update(float dt){
@@ -364,38 +305,67 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
 
+
+        static char fileOff[256] = "output2.off";
+        ImGui::InputText("off file",fileOff,256);
+
+        if(ImGui::Button("Load .off"))
+        {
+            OpenTriangleMesh mesh;
+            loadOpenMesh(mesh,fileOff);
+
+            openMeshToTriangleMesh(mesh,baseMesh);
+
+            baseMesh.computePerVertexNormal();
+
+            AssetLoader assetLoader;
+            auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
+            cube1.asset = bunnyAsset;
+        }
+
+        static char fileObj[256] = "objs/bunny.obj";
+        ImGui::InputText("obj file",fileObj,256);
+
+        if(ImGui::Button("Load .obj"))
+        {
+            ObjAssetLoader assetLoader;
+            assetLoader.loadMeshNC(fileObj,baseMesh);
+            auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
+            cube1.asset = bunnyAsset;
+        }
+
         if(ImGui::CollapsingHeader("Decimation"))
         {
 
-        ImGui::Checkbox("useQuadric",&useQuadric);
-        ImGui::SameLine();
-        ImGui::InputFloat("quadricMaxError",&quadricMaxError);
+            ImGui::Checkbox("useQuadric",&useQuadric);
+            ImGui::SameLine();
+            ImGui::InputFloat("quadricMaxError",&quadricMaxError);
 
-        ImGui::Checkbox("useAspectRatio",&useAspectRatio);
-        ImGui::SameLine();
-        ImGui::InputFloat("ratio",&ratio);
-        ImGui::InputFloat("errorTolerance",&errorTolerance);
-
-
-
-        ImGui::Checkbox("useHausdorf",&useHausdorf);
-        ImGui::SameLine();
-        ImGui::InputFloat("hausError",&hausError);
-
-        ImGui::Checkbox("useNormalDev",&useNormalDev);
-        ImGui::SameLine();
-        ImGui::InputFloat("normalDev",&normalDev);
+            ImGui::Checkbox("useAspectRatio",&useAspectRatio);
+            ImGui::SameLine();
+            ImGui::InputFloat("ratio",&ratio);
+            ImGui::InputFloat("errorTolerance",&errorTolerance);
 
 
 
-        ImGui::Checkbox("useNormalFlip",&useNormalFlip);
-        ImGui::SameLine();
-        ImGui::InputFloat("maxNormalDev",&maxNormalDev);
+            ImGui::Checkbox("useHausdorf",&useHausdorf);
+            ImGui::SameLine();
+            ImGui::InputFloat("hausError",&hausError);
+
+            ImGui::Checkbox("useNormalDev",&useNormalDev);
+            ImGui::SameLine();
+            ImGui::InputFloat("normalDev",&normalDev);
 
 
-        ImGui::Checkbox("useRoundness",&useRoundness);
-        ImGui::SameLine();
-        ImGui::InputFloat("minRoundness",&minRoundness);
+
+            ImGui::Checkbox("useNormalFlip",&useNormalFlip);
+            ImGui::SameLine();
+            ImGui::InputFloat("maxNormalDev",&maxNormalDev);
+
+
+            ImGui::Checkbox("useRoundness",&useRoundness);
+            ImGui::SameLine();
+            ImGui::InputFloat("minRoundness",&minRoundness);
         }
 
 
@@ -409,21 +379,8 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::Checkbox("writeToFile",&writeToFile);
 
 
-        if(ImGui::Button("bla2"))
-        {
-            OpenTriangleMesh mesh;
-            loadOpenMesh(mesh,"output2.off");
 
-            openMeshToTriangleMesh(mesh,baseMesh);
-
-            baseMesh.computePerVertexNormal();
-
-            AssetLoader assetLoader;
-            auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
-            cube1.asset = bunnyAsset;
-        }
-
-        if(ImGui::Button("bla"))
+        if(ImGui::Button("Reduce"))
         {
             reduce();
         }

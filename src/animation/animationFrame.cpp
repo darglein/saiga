@@ -11,11 +11,6 @@
 
 namespace Saiga {
 
-using std::cout;
-using std::endl;
-
-
-
 AnimationNode::AnimationNode(const AnimationNode &n0, const AnimationNode &n1, float alpha)
 {
     name = n0.name;

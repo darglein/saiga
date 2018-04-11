@@ -25,9 +25,6 @@
 
 namespace Saiga {
 
-using std::cout;
-using std::endl;
-
 
 void WindowParameters::setMode(bool fullscreen, bool borderLess)
 {

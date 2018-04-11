@@ -11,10 +11,6 @@
 namespace Saiga {
 namespace CUDA {
 
-using std::cout;
-using std::endl;
-
-
 cusparseHandle_t cusparseHandle = 0;
 cublasHandle_t cublashandle = 0;
 

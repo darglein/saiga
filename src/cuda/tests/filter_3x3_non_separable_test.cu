@@ -10,9 +10,6 @@
 #include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
 
-using std::cout;
-using std::endl;
-
 namespace Saiga {
 namespace CUDA {
 

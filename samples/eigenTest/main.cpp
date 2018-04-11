@@ -11,8 +11,6 @@
 #include <random>
 
 using namespace Saiga;
-using std::cout;
-using std::endl;
 
 static void printVectorInstructions(){
 	cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION << endl;

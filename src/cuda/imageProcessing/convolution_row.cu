@@ -52,9 +52,6 @@
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/device_helper.h"
 
-using std::cout;
-using std::endl;
-
 namespace Saiga {
 namespace CUDA {
 

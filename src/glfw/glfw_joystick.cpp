@@ -12,9 +12,6 @@
 
 namespace Saiga {
 
-using std::cout;
-using std::endl;
-
 int glfw_Joystick::joystickId = -1;
 
 void glfw_Joystick::update()

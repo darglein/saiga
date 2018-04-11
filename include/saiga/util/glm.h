@@ -88,11 +88,6 @@ typedef glm::mat4 mat4;
 typedef glm::quat quat;
 #endif
 
-
-
-using std::cout;
-using std::endl;
-
 //======= Output stream operator overloads =========
 
 namespace glm {

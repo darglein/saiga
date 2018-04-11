@@ -88,3 +88,7 @@
 #include <string>
 #include <iostream>
 #include <memory>
+
+using std::cerr;
+using std::cout;
+using std::endl;

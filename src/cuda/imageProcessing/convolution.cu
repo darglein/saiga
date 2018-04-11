@@ -8,9 +8,6 @@
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/shfl_helper.h"
 
-using std::cout;
-using std::endl;
-
 namespace Saiga {
 namespace CUDA {
 
