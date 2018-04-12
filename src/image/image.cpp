@@ -17,21 +17,24 @@
 
 namespace Saiga {
 
-Image::Image(ImageFormat format, int w, int h, void* _data) : width(w), height(h), format(format){
-    pitch = width * format.bytesPerPixel();
-    pitch = iAlignUp(pitch,rowAlignment);
-    data.resize(getSize());
-    if(_data){
-        memcpy(getRawData(),_data,getSize());
-    }
+Image::Image(ImageFormat format, int w, int h, void* _data) : width(w), height(h), format(format)
+{
+//    pitch = width * format.bytesPerPixel();
+//    pitch = iAlignUp(pitch,rowAlignment);
+//    data.resize(getSize());
+//    if(_data){
+//        memcpy(getRawData(),_data,getSize());
+//    }
+    create(format,w,h,_data);
 }
 
 Image::Image(ImageFormat format, int w, int h, int p, void* _data) : width(w), height(h), format(format){
-    pitch = p;
-    data.resize(getSize());
-    if(_data){
-        memcpy(getRawData(),_data,getSize());
-    }
+//    pitch = p;
+//    data.resize(getSize());
+//    if(_data){
+//        memcpy(getRawData(),_data,getSize());
+//    }
+    create(format,w,h,p,_data);
 }
 
 
@@ -91,15 +94,30 @@ void Image::makeZero()
     std::fill(data.begin(), data.end(), 0);
 }
 
-void Image::create(byte_t* initialData){
-    pitch = width*format.bytesPerPixel();
-    int rowPadding = (rowAlignment - (pitch % rowAlignment)) % rowAlignment;
-    pitch += rowPadding;
+void Image::create(void *data)
+{
+    create(format,width,height,data);
+}
+
+void Image::create(ImageFormat format, int w, int h, void *data)
+{
+    auto pitch = w * format.bytesPerPixel();
+    pitch = iAlignUp(pitch,rowAlignment);
+
+    create(format,w,h,pitch,data);
+}
+
+void Image::create(ImageFormat _format, int w, int h, int p, void *_data)
+{
+    format = _format;
+    pitch = p;
+    width = w;
+    height = h;
 
     data.resize(getSize());
 
-    if(initialData){
-        memcpy(getRawData(),initialData,getSize());
+    if(_data){
+        memcpy(getRawData(),_data,getSize());
     }
 }
 

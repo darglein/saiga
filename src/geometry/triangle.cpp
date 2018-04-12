@@ -22,10 +22,20 @@ vec3 Triangle::center(){
 
 float Triangle::minimalAngle()
 {
-    return glm::min( glm::min(angleAtCorner(0),angleAtCorner(1)),angleAtCorner(2) );
+    return glm::acos(cosMinimalAngle());
+}
+
+float Triangle::cosMinimalAngle()
+{
+    return glm::max( glm::max(cosAngleAtCorner(0),cosAngleAtCorner(1)),cosAngleAtCorner(2) );
 }
 
 float Triangle::angleAtCorner(int i)
+{
+    return glm::acos(cosAngleAtCorner(i));
+}
+
+float Triangle::cosAngleAtCorner(int i)
 {
     vec3 center = a;
     vec3 left = b;
@@ -51,12 +61,19 @@ float Triangle::angleAtCorner(int i)
         break;
     }
 
-    return glm::acos(glm::dot( normalize( left - center ), normalize( right - center ) ));
+    return glm::dot( normalize( left - center ), normalize( right - center ) );
 }
 
 bool Triangle::isDegenerate()
 {
-    return !std::isfinite(angleAtCorner(0)) || !std::isfinite(angleAtCorner(1)) || !std::isfinite(angleAtCorner(2));
+    for(int i = 0; i < 3; ++i)
+    {
+        float a = cosAngleAtCorner(i);
+        if(a <= -1 || a >= 1)
+            return true;
+    }
+    return false;
+//    return !std::isfinite(angleAtCorner(0)) || !std::isfinite(angleAtCorner(1)) || !std::isfinite(angleAtCorner(2));
 }
 
 std::ostream& operator<<(std::ostream& os, const Triangle& t)

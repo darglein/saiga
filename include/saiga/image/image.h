@@ -106,7 +106,9 @@ public:
     void makeZero();
 
     //allocates the memory to hold this image.
-    void create(byte_t* initialData = nullptr);
+    void create(void* data = nullptr);
+    void create(ImageFormat format, int w, int h, void* data = nullptr);
+    void create(ImageFormat format, int w, int h, int p, void* data = nullptr);
 
     //resizes the image. The data is undefined.
     void resize(int w, int h);

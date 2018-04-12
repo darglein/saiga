@@ -176,12 +176,14 @@ public:
 
 
 template<typename vertex_t, typename index_t>
-TriangleMesh<vertex_t,index_t>::TriangleMesh(void){
+TriangleMesh<vertex_t,index_t>::TriangleMesh(void)
+{
     boundingBox.makeNegative();
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo){
+void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo)
+{
     for(vertex_t &v : vertices){
         v.position = trafo*v.position;
     }
@@ -189,7 +191,8 @@ void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo){
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::transformNormal(const mat4 &trafo){
+void TriangleMesh<vertex_t,index_t>::transformNormal(const mat4 &trafo)
+{
     for(vertex_t &v : vertices){
         v.normal = trafo*v.normal;
     }
@@ -198,7 +201,8 @@ void TriangleMesh<vertex_t,index_t>::transformNormal(const mat4 &trafo){
 
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::addQuad(vertex_t verts[]){
+void TriangleMesh<vertex_t,index_t>::addQuad(vertex_t verts[])
+{
     int index = vertices.size();
     for(int i=0;i<4;i++){
         addVertex(verts[i]);
@@ -209,13 +213,15 @@ void TriangleMesh<vertex_t,index_t>::addQuad(vertex_t verts[]){
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::addQuad(index_t inds[]){
+void TriangleMesh<vertex_t,index_t>::addQuad(index_t inds[])
+{
     faces.push_back(Face(inds[0],inds[1],inds[2]));
     faces.push_back(Face(inds[2],inds[3],inds[0]));
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer, GLenum usage){
+void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer, GLenum usage)
+{
     if (faces.empty() || vertices.empty())
         return;
     std::vector<index_t> indices(faces.size()*3);
@@ -226,7 +232,8 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(buffer_t &buffer, GLenum usag
 
 template<typename vertex_t, typename index_t>
 template<typename buffer_vertex_t, typename buffer_index_t>
-void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_vertex_t,buffer_index_t> &buffer, GLenum usage){
+void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_vertex_t,buffer_index_t> &buffer, GLenum usage)
+{
     if (faces.empty() || vertices.empty())
         return;
     std::vector<index_t> indices(faces.size()*3);
@@ -243,19 +250,22 @@ void TriangleMesh<vertex_t,index_t>::createBuffers(IndexedVertexBuffer<buffer_ve
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::updateVerticesInBuffer(buffer_t &buffer, int vertex_count, int vertex_offset){
+void TriangleMesh<vertex_t,index_t>::updateVerticesInBuffer(buffer_t &buffer, int vertex_count, int vertex_offset)
+{
     SAIGA_ASSERT((int)vertices.size()>=vertex_offset+vertex_count);
     buffer.VertexBuffer<vertex_t>::updateBuffer(&vertices[vertex_offset],vertex_count,vertex_offset);
 }
 
 template<typename vertex_t, typename index_t>
-std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t,index_t>& dt){
+std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t,index_t>& dt)
+{
     os<<"TriangleMesh. Faces: "<<dt.faces.size()<<" Vertices: "<<dt.vertices.size();
     return os;
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::subdivideFace(int f){
+void TriangleMesh<vertex_t,index_t>::subdivideFace(int f)
+{
 
     Face face = faces[f];
 
@@ -308,7 +318,8 @@ void TriangleMesh<vertex_t,index_t>::invertMesh()
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::toTriangleList(std::vector<Triangle> &output){
+void TriangleMesh<vertex_t,index_t>::toTriangleList(std::vector<Triangle> &output)
+{
     Triangle t;
     for(Face &f : faces){
         t.a = vec3(vertices[f.v1].position);
@@ -319,7 +330,8 @@ void TriangleMesh<vertex_t,index_t>::toTriangleList(std::vector<Triangle> &outpu
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<vertex_t,index_t> &other){
+void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<vertex_t,index_t> &other)
+{
     int oldVertexCount = this->vertices.size();
     for(vertex_t v : other.vertices){
         this->vertices.push_back(v);
@@ -335,7 +347,8 @@ void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<vertex_t,index_t
 
 template<typename vertex_t, typename index_t>
 template<typename mesh_vertex_t, typename mesh_index_t>
-void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<mesh_vertex_t,mesh_index_t> &other){
+void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<mesh_vertex_t,mesh_index_t> &other)
+{
     int oldVertexCount = this->vertices.size();
     for(vertex_t v : other.vertices){
         this->vertices.push_back(v);
@@ -356,14 +369,18 @@ int TriangleMesh<vertex_t,index_t>::numIndices(){
 }
 
 template<typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t,index_t>::computePerVertexNormal(){
-    for(vertex_t& v : vertices)
+void TriangleMesh<vertex_t,index_t>::computePerVertexNormal()
+{
+#pragma omp parallel for
+    for(int i = 0; i < (int)vertices.size(); ++i)
     {
-        v.normal = vec4(0);
+        vertices[i].normal = vec4(0);
     }
 
-    for(Face f : faces)
+#pragma omp parallel for
+    for(int i = 0; i < (int)faces.size(); ++i)
     {
+        Face& f = faces[i];
         vec3 a = vec3(vertices[f.v1].position);
         vec3 b = vec3(vertices[f.v2].position);
         vec3 c = vec3(vertices[f.v3].position);
@@ -374,10 +391,10 @@ void TriangleMesh<vertex_t,index_t>::computePerVertexNormal(){
         vertices[f.v3].normal += vec4(n,0);
     }
 
-
-    for(vertex_t& v : vertices)
+#pragma omp parallel for
+    for(int i = 0; i < (int)vertices.size(); ++i)
     {
-        v.normal = normalize(v.normal);
+        vertices[i].normal = normalize(vertices[i].normal);
     }
 }
 
@@ -407,7 +424,8 @@ void TriangleMesh<vertex_t,index_t>::removeUnusedVertices()
 
 
 template<typename vertex_t, typename index_t>
-AABB TriangleMesh<vertex_t,index_t>::calculateAabb(){
+AABB TriangleMesh<vertex_t,index_t>::calculateAabb()
+{
     boundingBox.makeNegative();
 
     for(vertex_t &v : vertices){
@@ -417,7 +435,8 @@ AABB TriangleMesh<vertex_t,index_t>::calculateAabb(){
 }
 
 template<typename vertex_t, typename index_t>
-bool TriangleMesh<vertex_t,index_t>::isValid(){
+bool TriangleMesh<vertex_t,index_t>::isValid()
+{
     //check if all referenced vertices exist
     for(Face f : faces)
     {

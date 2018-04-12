@@ -47,6 +47,7 @@ public:
      * @return
      */
     float minimalAngle();
+    float cosMinimalAngle();
 
     /**
      * Computes the inner angle at a triangle corner.
@@ -58,6 +59,7 @@ public:
      * @return
      */
     float angleAtCorner(int i);
+    float cosAngleAtCorner(int i);
 
     /**
      * Check if this triangle is broken.
