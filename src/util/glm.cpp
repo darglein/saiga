@@ -37,9 +37,12 @@ std::ostream& operator<<(std::ostream& os, const vec2& v)
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const glm::mat3& v){
-    for (int i = 0; i < 3; ++i){
-        os << v[i] << "\n";
+std::ostream& operator<<(std::ostream& os, const glm::mat3& v)
+{
+    auto vt = transpose(v);
+    for (int i = 0; i < 3; ++i)
+    {
+        os << vt[i] << endl;
     }
     return os;
 }
