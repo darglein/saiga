@@ -73,7 +73,12 @@ bool Triangle::isDegenerate()
             return true;
     }
     return false;
-//    return !std::isfinite(angleAtCorner(0)) || !std::isfinite(angleAtCorner(1)) || !std::isfinite(angleAtCorner(2));
+    //    return !std::isfinite(angleAtCorner(0)) || !std::isfinite(angleAtCorner(1)) || !std::isfinite(angleAtCorner(2));
+}
+
+vec3 Triangle::normal()
+{
+    return normalize(cross(b-a,c-a));
 }
 
 std::ostream& operator<<(std::ostream& os, const Triangle& t)

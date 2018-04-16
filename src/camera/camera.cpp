@@ -179,6 +179,39 @@ bool Camera::intersectSAT(Camera *other)
     return true;
 }
 
+void Camera::recalculatePlanesFromMatrices()
+{
+    vec3 pointsClipSpace[] =
+    {
+        vec3(-1,1,-1),
+        vec3(1,1,-1),
+        vec3(-1,-1,-1),
+        vec3(1,-1,-1),
+
+        vec3(-1,1,1),
+        vec3(1,1,1),
+        vec3(-1,-1,1),
+        vec3(1,-1,1),
+    };
+
+    mat4 m = inverse(proj * view);
+    for(int i =0; i < 8; ++i)
+    {
+        vec4 p = m * vec4(pointsClipSpace[i],1);
+        p = p / p.w;
+        vertices[i] = vec3(p);
+    }
+
+    //side planes
+    planes[0].set(vertices[0],vertices[2],vertices[1]); //near
+    planes[1].set(vertices[4],vertices[5],vertices[7 ]); //far
+
+    planes[2].set(vertices[0],vertices[1],vertices[4]); //top
+    planes[3].set(vertices[2],vertices[6],vertices[3]); //bottom
+    planes[4].set(vertices[0],vertices[4],vertices[2]); //left
+    planes[5].set(vertices[1],vertices[3],vertices[7]); //right
+}
+
 std::pair<vec3, vec3> Camera::getEdge(int i)
 {
     switch(i){
@@ -222,10 +255,7 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
 
 
     tang = (float)tan(fovy * 0.5) ;
-    nh = zNear * tang;
-    nw = nh * aspect;
-    fh = zFar  * tang;
-    fw = fh * aspect;
+
 
     proj = glm::perspective(fovy,aspect,zNear,zFar);
 }
@@ -244,6 +274,11 @@ void PerspectiveCamera::recalculatePlanes()
     //far plane
     planes[1].set(farplanepos,dir);
 
+
+    float nh = zNear * tang;
+    float nw = nh * aspect;
+    float fh = zFar  * tang;
+    float fw = fh * aspect;
 
     //calcuate 4 corners of nearplane
     vertices[0] = nearplanepos + nh * up - nw * right;
@@ -296,13 +331,11 @@ void OrthographicCamera::setProj( float _left, float _right,float _bottom,float 
     this->zNear = _near;
     this->zFar = _far;
 
-    nh = (top-bottom)/2;
-    nw = (right-left)/2;
+//    nh = (top-bottom)/2;
+//    nw = (right-left)/2;
 
-    fh = nh;
-    fw = nw;
-    //    fh = (top-bottom)/2;
-    //    fw = (right-left)/2;
+//    fh = nh;
+//    fw = nw;
     proj = glm::ortho(left,right,bottom,top,zNear,zFar);
 }
 

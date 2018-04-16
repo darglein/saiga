@@ -30,9 +30,9 @@ public:
 
 
     float zNear,  zFar;
-    float nw,nh,fw,fh; //dimensions of near and far plane
+//    float nw,nh,fw,fh; //dimensions of near and far plane
 
-    vec3 vertices[8];
+    vec3 vertices[8]; //corners of the truncated pyramid
     Plane planes[6]; //for exact frustum culling
     Sphere boundingSphere; //for fast frustum culling
 
@@ -51,7 +51,7 @@ public:
 
     void updateFromModel();
     void recalculateMatrices(){viewProj = proj * view;}
-    virtual void recalculatePlanes() = 0;
+    virtual void recalculatePlanes() {recalculatePlanesFromMatrices();}
 
     //linearize the depth (for rendering)
     float linearDepth(float d);
@@ -113,6 +113,12 @@ public:
 
     bool intersectSAT(Camera* other);
 
+
+    /**
+     * Calculates the frustum planes by backprojecting the unit cube to world space.
+     */
+
+    void recalculatePlanesFromMatrices();
 
     /**
      * Returns unique edges of the frustum.

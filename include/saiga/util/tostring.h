@@ -10,6 +10,7 @@
 
 #include <sstream>
 #include <string>
+#include <vector>
 
 /**
  * This acts as a wrapper for std::to_string for build in data types.
@@ -38,5 +39,15 @@ inline std::string to_string(const T& v)
     sstream << v;
     return sstream.str();
 }
+
+
+inline float to_float(const std::string& str)   {return std::atof(str.c_str());}
+inline double to_double(const std::string& str)   {return std::atof(str.c_str());}
+inline int to_int(const std::string& str)   {return std::atoi(str.c_str());}
+inline long int to_long(const std::string& str)   {return std::atol(str.c_str());}
+
+
+SAIGA_GLOBAL std::vector<std::string> split(const std::string &s, char delim);
+SAIGA_GLOBAL std::string leadingZeroString(int number, int characterCount);
 
 }

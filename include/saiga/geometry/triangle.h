@@ -66,6 +66,13 @@ public:
      */
     bool isDegenerate();
 
+
+    /**
+     * Computes the normal with a cross product.
+     * The positive side is with counter-clock-wise ordering.
+     */
+    vec3 normal();
+
     friend SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Triangle& dt);
 };
 
