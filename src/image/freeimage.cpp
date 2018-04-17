@@ -92,7 +92,14 @@ void convert(const Image &_src, fipImage &dest){
 #endif
 
 
-    dest.setSize(getFIT2(src.Format()),src.width,src.height,src.Format().bitsPerPixel());
+    auto res = dest.setSize(getFIT2(src.Format()),src.width,src.height,src.Format().bitsPerPixel());
+
+    if(!res)
+    {
+        cout << "Failed to set FIT size." << endl;
+        cout << "Format: " << getFIT2(src.Format()) << endl;
+    }
+
 
     auto data = dest.accessPixels();
 

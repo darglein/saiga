@@ -157,7 +157,27 @@ struct ImageView{
     void multWithScalar(AT a){
         for(int y = 0; y < height; ++y){
             for(int x = 0; x < width; ++x){
-                (*this)(x,y) *= a;
+                (*this)(y,x) *= a;
+            }
+        }
+    }
+
+    template<typename AT>
+    HD inline
+    void add(AT a){
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                (*this)(y,x) += a;
+            }
+        }
+    }
+
+    template<typename AT>
+    HD inline
+    void set(AT a){
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                (*this)(y,x) = a;
             }
         }
     }
@@ -183,6 +203,31 @@ struct ImageView{
     HD inline
     T borderRead(int y, int x, const T& borderValue){
         return inImage(y,x) ? (*this)(y,x) : borderValue;
+    }
+
+    inline
+    void findMinMax(T& minV, T& maxV)
+    {
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                auto v = (*this)(y,x);
+                minV = std::min(minV,v);
+                maxV = std::max(maxV,v);
+            }
+        }
+    }
+
+    /**
+     * Normalizes the image so that all values are in the range 0/1
+     */
+    inline
+    void normalize()
+    {
+        T minV = std::numeric_limits<T>::max();
+        T maxV = std::numeric_limits<T>::min();
+        findMinMax(minV,maxV);
+        add(-minV);
+        multWithScalar(T(1) / maxV);
     }
 
     //write only if the point is in the image

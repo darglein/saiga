@@ -218,16 +218,39 @@ void Image::flipY()
 
 void Image::to8bitImage()
 {
+    Image old = *this;
+
+    if(format.getElementFormat() == ImageElementFormat::FloatingPoint && format.getChannels() == 1)
+    {
+        cout << "to8bitImage float" << endl;
+
+        ImageView<float> f = old.getImageView<float>();
+        f.normalize();
+
+        format.setElementFormat(ImageElementFormat::UnsignedNormalized);
+        format.setBitDepth(8);
+        create();
+
+        ImageView<unsigned char> dst = this->getImageView<unsigned char>();
+
+        for(int y = 0 ; y < height; ++y){
+            for(int x = 0 ; x < width; ++x){
+                dst(y,x) = int(f(y,x) * 255.f);
+            }
+        }
+        return;
+    }
+
+
+
     if(format.getBitDepth() != 16)
         return;
 
-    if(format.getElementFormat() == ImageElementFormat::FloatingPoint)
-        return;
+
 
     SAIGA_ASSERT(format.getElementFormat() == ImageElementFormat::UnsignedNormalized);
     SAIGA_ASSERT(format.getBitDepth() == 16);
 
-    Image old = *this;
 
 
     format.setBitDepth(8);
