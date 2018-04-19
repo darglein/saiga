@@ -221,7 +221,7 @@ void SimpleWindow::reduce()
 
     if(writeToFile)
     {
-        saveOpenMesh(test,"output.off");
+//        saveOpenMesh(test,"output.off");
     }
 
     //==============================================================================================
@@ -309,9 +309,34 @@ void SimpleWindow::renderFinal(Camera *cam)
         static char fileOff[256] = "output2.off";
         ImGui::InputText("off file",fileOff,256);
 
+        if(ImGui::Button("Test saiga::halfedge"))
+        {
+            Saiga::Timer t;
+
+            t.start();
+            Saiga::HalfEdgeMesh<VertexNC,GLuint> hem(baseMesh);
+            t.stop();
+
+            cout << "to halfedge: " << t.getTimeMS() << endl;
+
+            {
+                ScopedTimerPrint tim("isValid");
+           SAIGA_ASSERT(hem.isValid());
+            }
+
+
+            {
+                ScopedTimerPrint tim("to ifs");
+            TriangleMesh<VertexNC,GLuint> m;
+            m = hem.toIFS();
+            }
+        }
+
+
         if(ImGui::Button("Load .off"))
         {
-            OpenTriangleMesh mesh;
+            OpenMesh::TriMesh_ArrayKernelT<> mesh;
+//            OpenTriangleMesh mesh;
             loadOpenMesh(mesh,fileOff);
 
             openMeshToTriangleMesh(mesh,baseMesh);
@@ -332,6 +357,7 @@ void SimpleWindow::renderFinal(Camera *cam)
             assetLoader.loadMeshNC(fileObj,baseMesh);
             auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
             cube1.asset = bunnyAsset;
+
         }
 
         if(ImGui::CollapsingHeader("Decimation"))

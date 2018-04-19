@@ -8,6 +8,7 @@
 
 #include "saiga/geometry/triangle_mesh.h"
 #include <map>
+#include <unordered_map>
 
 namespace Saiga {
 
@@ -34,6 +35,8 @@ public:
         //The vertex this half edge points to (not the start!!!)
         int vertex;
         int face;
+
+        bool boundary() { return oppositeHalfEdge == -1; }
     };
 
     struct HalfVertex
@@ -53,7 +56,8 @@ public:
 
     std::vector<HalfEdge> edgeList;
 
-    std::map< std::pair<int, int>, int > vertexEdges;
+    std::map< std::pair<int,int>, int > vertexEdges2;
+    std::unordered_map< int, int > vertexEdges;
 
     std::vector<HalfVertex> vertices;
     std::vector<HalfFace> faces;
@@ -66,6 +70,8 @@ public:
     void flipEdge(int he);
     void removeFace(int f);
 
+    void getNeighbours(int vertex, std::vector<int>& neighs);
+
     TriangleMesh<vertex_t,index_t> toIFS();
 };
 
@@ -75,6 +81,8 @@ HalfEdgeMesh<vertex_t,index_t>::HalfEdgeMesh(TriangleMesh<vertex_t, index_t>& if
     edgeList.resize(ifs.faces.size()*3);
     vertices.resize(ifs.vertices.size());
     faces.resize(ifs.faces.size());
+
+    vertexEdges.reserve(ifs.faces.size()*3);
 
     for(int i = 0; i < (int)ifs.vertices.size(); ++i)
     {
@@ -113,6 +121,10 @@ HalfEdgeMesh<vertex_t,index_t>::HalfEdgeMesh(TriangleMesh<vertex_t, index_t>& if
         e3.prevHalfEdge = heidx + 1;
 
 
+
+
+
+
         HalfFace& hf = faces[i];
         hf.halfEdge = heidx;
 
@@ -124,19 +136,58 @@ HalfEdgeMesh<vertex_t,index_t>::HalfEdgeMesh(TriangleMesh<vertex_t, index_t>& if
         hv2.halfEdge = heidx + 1;
         hv3.halfEdge = heidx + 2;
 
+#if 1
+        int mapidx;
 
-        vertexEdges[std::pair<int,int>(f.v1,f.v2)] = heidx;
+        mapidx = min(f.v1,f.v2) * vertices.size() + max(f.v1,f.v2);
+        auto e = vertexEdges.find(mapidx);
+        if(e == vertexEdges.end())
+        {
+            vertexEdges[mapidx] = heidx;
+        }else
+        {
+            e1.oppositeHalfEdge = e->second;
+            edgeList[e->second].oppositeHalfEdge = heidx;
+        }
+
+
+        mapidx = min(f.v2,f.v3) * vertices.size() + max(f.v2,f.v3);
+         e = vertexEdges.find(mapidx);
+        if(e == vertexEdges.end())
+        {
+            vertexEdges[mapidx] = heidx + 1;
+        }else
+        {
+            e2.oppositeHalfEdge = e->second;
+            edgeList[e->second].oppositeHalfEdge = heidx + 1;
+        }
+
+
+        mapidx = min(f.v3,f.v1) * vertices.size() + max(f.v3,f.v1);
+        e = vertexEdges.find(mapidx);
+        if(e == vertexEdges.end())
+        {
+            vertexEdges[mapidx] = heidx + 2;
+        }else
+        {
+            e3.oppositeHalfEdge = e->second;
+            edgeList[e->second].oppositeHalfEdge = heidx + 2;
+        }
+
+#else
+                vertexEdges[std::pair<int,int>(f.v1,f.v2)] = heidx;
         vertexEdges[std::pair<int,int>(f.v2,f.v3)] = heidx + 1;
         vertexEdges[std::pair<int,int>(f.v3,f.v1)] = heidx + 2;
+#endif
     }
 
+#if 0
 
     //create opposite links
     for(int i = 0; i < (int)ifs.faces.size(); ++i)
     {
         typename TriangleMesh<vertex_t, index_t>::Face f = ifs.faces[i];
 
-        //create 3 half edges for every face
         int heidx = i * 3;
 
 
@@ -158,6 +209,7 @@ HalfEdgeMesh<vertex_t,index_t>::HalfEdgeMesh(TriangleMesh<vertex_t, index_t>& if
             edgeList[heidx + 2].oppositeHalfEdge = e->second;
         }
     }
+#endif
 }
 
 
@@ -580,6 +632,66 @@ void HalfEdgeMesh<vertex_t,index_t>::removeFace(int f)
 
         currentHf = e.nextHalfEdge;
     }while(currentHf != startHf);
+
+}
+
+template<typename vertex_t, typename index_t>
+void HalfEdgeMesh<vertex_t,index_t>::getNeighbours(int vertex, std::vector<int>& neighs)
+{
+    // ================================================================================
+
+    //iterate over all triangles of the removed vertex
+    //update the vertices of the "incoming" edges
+    int startHf = vertices[vertex].halfEdge;
+    int currentHf = startHf;
+
+    while(true)
+    {
+        HalfEdge& current = edgeList[currentHf];
+        neighs.push_back(current.vertex);
+
+        if(current.oppositeHalfEdge == -1)
+        {
+            break;
+        }
+
+        //this he points towards the vertex
+        HalfEdge& flip = edgeList[current.oppositeHalfEdge];
+        currentHf = flip.nextHalfEdge;
+
+        if(currentHf == startHf)
+        {
+//            neighs.push_back(edgeList[currentHf].vertex);
+            return;
+        }
+    }
+
+//    if(currentHf != startHf)
+    {
+        //we need to iterate in the opposite direction
+        startHf = vertices[vertex].halfEdge;
+        currentHf = startHf;
+
+        while(true)
+        {
+            HalfEdge& current = edgeList[currentHf];
+            HalfEdge& flip = edgeList[current.prevHalfEdge];
+//            SAIGA_ASSERT(flip.vertex == removeVertex);
+//            flip.vertex = newVertex;
+
+            if(flip.oppositeHalfEdge == -1)
+                break;
+
+            currentHf = flip.oppositeHalfEdge;
+
+
+            if(currentHf == startHf)
+                break;
+
+            neighs.push_back(edgeList[currentHf].vertex);
+        }
+        //        SAIGA_ASSERT(currentHf == startHf);
+    }
 
 }
 

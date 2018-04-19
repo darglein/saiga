@@ -83,6 +83,15 @@ struct ImageView{
         return iv;
     }
 
+    //does not change the data
+    HD inline
+    ImageView<T> yFlippedImageView()
+    {
+        ImageView<T> fy = *this;
+        fy.data = rowPtr(height-1);
+        fy.pitchBytes = -pitchBytes;
+        return fy;
+    }
 
     HD inline
     T& operator()(int y, int x){

@@ -6,7 +6,7 @@
 #ifdef SAIGA_USE_OPENMESH
 
 
-//#include <OpenMesh/Core/IO/MeshIO.hh>
+#include <OpenMesh/Core/IO/MeshIO.hh>
 #include "OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh"
 #include <OpenMesh/Core/Mesh/Traits.hh>
 
@@ -87,13 +87,19 @@ void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t,index_t>& ds
         typename MeshT::Point v = src.point( *v_it );
 //        vec3 p(v[0],v[1],v[2]);
 
-        typename MeshT::Color c = src.color( *v_it );
 
 
 
         VertexNC ve;
         ve.position = vec4(v[0],v[1],v[2],1);
-        ve.color = vec4(c[0],c[1],c[2],1);
+
+        if(src.has_vertex_colors())
+        {
+            typename MeshT::Color c = src.color( *v_it );
+            ve.color = vec4(c[0],c[1],c[2],1);
+        }
+
+
         dst.vertices.push_back(ve);
     }
 
@@ -117,7 +123,7 @@ void saveOpenMesh(const MeshT& src, const std::string& file)
 {
     try
     {
-//        if ( !OpenMesh::IO::write_mesh(src, file) )
+        if ( !OpenMesh::IO::write_mesh(src, file) )
         {
             std::cerr << "Cannot write mesh to file " << file << std::endl;
 
@@ -135,7 +141,7 @@ void loadOpenMesh(MeshT& src, const std::string& file)
 {
     try
     {
-//        if ( !OpenMesh::IO::read_mesh(src, file) )
+        if ( !OpenMesh::IO::read_mesh(src, file) )
         {
             std::cerr << "Cannot read mesh to file " << file << std::endl;
 
