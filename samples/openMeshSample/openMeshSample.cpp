@@ -96,27 +96,27 @@ class ModNone : public OpenMesh::Decimater::ModBaseT<MeshT>
 {
 public:
 
-  // Defines the types Self, Handle, Base, Mesh, and CollapseInfo
-  // and the memberfunction name()
-  DECIMATING_MODULE( ModNone, MeshT, None );
+    // Defines the types Self, Handle, Base, Mesh, and CollapseInfo
+    // and the memberfunction name()
+    DECIMATING_MODULE( ModNone, MeshT, None );
 
-  ModNone( MeshT &_mesh )
-    : Base(_mesh, false)
-  {
+    ModNone( MeshT &_mesh )
+        : Base(_mesh, false)
+    {
         Base::set_binary(false);
-  }
+    }
 
 
-  virtual float collapse_priority(const CollapseInfo& _ci)
-  {
-      return 0;
-  }
+    virtual float collapse_priority(const CollapseInfo& _ci)
+    {
+        return 0;
+    }
 
-   virtual void initialize(void)
-  {
-      Base::set_binary(false);
+    virtual void initialize(void)
+    {
+        Base::set_binary(false);
 
-  }
+    }
 };
 
 
@@ -155,10 +155,10 @@ void SimpleWindow::reduce()
 
 
     decimater.add(none);
-//    decimater.module(hModQuadric2).unset_max_err();
+    //    decimater.module(hModQuadric2).unset_max_err();
 
-//    decimater.add(hModQuadric2);
-//    decimater.module(hModQuadric2).unset_max_err();
+    //    decimater.add(hModQuadric2);
+    //    decimater.module(hModQuadric2).unset_max_err();
 
     if(useQuadric)
     {
@@ -221,7 +221,7 @@ void SimpleWindow::reduce()
 
     if(writeToFile)
     {
-//        saveOpenMesh(test,"output.off");
+        //        saveOpenMesh(test,"output.off");
     }
 
     //==============================================================================================
@@ -321,14 +321,14 @@ void SimpleWindow::renderFinal(Camera *cam)
 
             {
                 ScopedTimerPrint tim("isValid");
-           SAIGA_ASSERT(hem.isValid());
+                SAIGA_ASSERT(hem.isValid());
             }
 
 
             {
                 ScopedTimerPrint tim("to ifs");
-            TriangleMesh<VertexNC,GLuint> m;
-            m = hem.toIFS();
+                TriangleMesh<VertexNC,GLuint> m;
+                hem.toIFS(m);
             }
         }
 
@@ -336,7 +336,7 @@ void SimpleWindow::renderFinal(Camera *cam)
         if(ImGui::Button("Load .off"))
         {
             OpenMesh::TriMesh_ArrayKernelT<> mesh;
-//            OpenTriangleMesh mesh;
+            //            OpenTriangleMesh mesh;
             loadOpenMesh(mesh,fileOff);
 
             openMeshToTriangleMesh(mesh,baseMesh);

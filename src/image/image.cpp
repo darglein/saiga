@@ -44,6 +44,13 @@ int Image::getBytesPerRow() const
     return pitch;
 }
 
+void Image::free()
+{
+    data.resize(0);
+    data.shrink_to_fit();
+//    data.swap( std::vector<byte_t>() );
+}
+
 Image::byte_t *Image::getRawData()
 {
     return data.data();
@@ -116,7 +123,8 @@ void Image::create(ImageFormat _format, int w, int h, int p, void *_data)
 
     data.resize(getSize());
 
-    if(_data){
+    if(_data)
+    {
         memcpy(getRawData(),_data,getSize());
     }
 }

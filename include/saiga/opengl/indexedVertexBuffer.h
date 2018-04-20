@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -21,6 +21,7 @@ public:
 
     void bind() const;
     void unbind() const;
+    void deleteGLBuffer();
 
     void bindAndDraw() const;
     void draw() const;
@@ -80,6 +81,14 @@ void IndexedVertexBuffer<vertex_t,index_t>::unbind() const{
     vbuffer_t::unbind();
     //    ibuffer_t::unbind();
 }
+
+template<class vertex_t, class index_t>
+void IndexedVertexBuffer<vertex_t,index_t>::deleteGLBuffer()
+{
+    vbuffer_t::deleteGLBuffer();
+    ibuffer_t::deleteGLBuffer();
+}
+
 
 
 template<class vertex_t, class index_t>

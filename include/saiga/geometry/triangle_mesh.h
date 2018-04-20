@@ -156,6 +156,12 @@ public:
     void removeUnusedVertices();
 
 
+    /**
+     * Computes the size in bytes for this triangle mesh.
+     */
+    size_t size();
+    void free();
+
     int numIndices();
 
     AABB calculateAabb();
@@ -167,6 +173,7 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v,i>& dt);
 
     AABB& getAabb(){return boundingBox;}
+
 public:
     std::vector<vertex_t> vertices;
     std::vector<Face> faces;
@@ -364,20 +371,36 @@ void TriangleMesh<vertex_t,index_t>::addMesh(const TriangleMesh<mesh_vertex_t,me
 
 
 template<typename vertex_t, typename index_t>
-int TriangleMesh<vertex_t,index_t>::numIndices(){
+int TriangleMesh<vertex_t,index_t>::numIndices()
+{
     return faces.size() * 3;
+}
+
+template<typename vertex_t, typename index_t>
+size_t TriangleMesh<vertex_t,index_t>::size()
+{
+    return faces.capacity() * sizeof(Face) + vertices.capacity() * sizeof(vertex_t) + sizeof(TriangleMesh<vertex_t,index_t>);
+}
+
+template<typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t,index_t>::free()
+{
+    faces.clear();
+    faces.shrink_to_fit();
+    vertices.clear();
+    vertices.shrink_to_fit();
 }
 
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::computePerVertexNormal()
 {
-#pragma omp parallel for
+//#pragma omp parallel for
     for(int i = 0; i < (int)vertices.size(); ++i)
     {
         vertices[i].normal = vec4(0);
     }
 
-#pragma omp parallel for
+//#pragma omp parallel for
     for(int i = 0; i < (int)faces.size(); ++i)
     {
         Face& f = faces[i];
@@ -391,7 +414,7 @@ void TriangleMesh<vertex_t,index_t>::computePerVertexNormal()
         vertices[f.v3].normal += vec4(n,0);
     }
 
-#pragma omp parallel for
+//#pragma omp parallel for
     for(int i = 0; i < (int)vertices.size(); ++i)
     {
         vertices[i].normal = normalize(vertices[i].normal);

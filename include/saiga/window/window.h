@@ -105,7 +105,7 @@ protected:
     //for imgui graph
     bool showImgui = true;
     static const int numGraphValues = 80;
-    float ut, ft;
+    float ut=0, ft=0;
     float avFt = 0, avUt;
     int imCurrentIndexUpdate = 0;
     int imCurrentIndexRender = 0;

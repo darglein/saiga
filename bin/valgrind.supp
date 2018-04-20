@@ -6,10 +6,24 @@
 }
 
 {
+   nvidia-query3
+   Memcheck:Cond
+   ...
+   fun:_ZN5Saiga14TimeStampQuery11isAvailableEv
+}
+
+{
    nvidia-query2
    Memcheck:Cond
    ...
    fun:_ZN5Saiga29FilteredMultiFrameOpenGLTimer9stopTimerEv
+}
+
+{
+    nvidia-query4
+   Memcheck:Cond
+   ...
+   fun:startTimer
 }
 
 {
@@ -63,4 +77,14 @@
    match-leak-kinds: reachable
    ...
    obj:*libSDL2*
+}
+
+{
+   omp_create
+   Memcheck:Leak
+   match-leak-kinds: possible
+	...
+   fun:calloc
+   ...
+   fun:GOMP_parallel
 }

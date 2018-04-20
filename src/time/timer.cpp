@@ -18,7 +18,7 @@ namespace Saiga {
 
 Timer::Timer()
 {
-
+    start();
 }
 
 void Timer::start()
