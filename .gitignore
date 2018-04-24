@@ -1,4 +1,4 @@
-include/saiga/buildconfig.h
+src/saiga/buildconfig.h
 build*/
 *.ptx
 saiga.creator
