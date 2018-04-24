@@ -5,7 +5,7 @@ project (${LIB_NAME})
 
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 set (LIBRARY_VERSION_MAJOR 1)
 set (LIBRARY_VERSION_MINOR 1)
@@ -311,9 +311,10 @@ message(STATUS "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
-add_subdirectory(src)
-add_subdirectory(include/saiga)
+add_subdirectory(src/saiga)
+#add_subdirectory(include/saiga)
 add_subdirectory(shader)
+
 if(SAIGA_BUILD_SAMPLES)
 	message(STATUS "Building samples.")
 	add_subdirectory(samples)
@@ -326,8 +327,8 @@ set_target_properties (saiga PROPERTIES FOLDER lib)
 ############# Generate config file ###############
 
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/buildconfig.h.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/buildconfig.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/buildconfig.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/buildconfig.h"
 )
 
 

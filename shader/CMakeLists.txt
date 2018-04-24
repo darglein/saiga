@@ -1,13 +1,13 @@
 
-if(UNIX)
-SET(SHADER_INSTALL_DIR share/${LIB_NAME}/shader )
-else()
-SET(SHADER_INSTALL_DIR shader )
-endif(UNIX)
+#if(UNIX)
+#SET(SHADER_INSTALL_DIR share/${LIB_NAME}/shader )
+#else()
+#SET(SHADER_INSTALL_DIR shader )
+#endif(UNIX)
 
 
 install(
 	DIRECTORY ./ 
-	DESTINATION ${SHADER_INSTALL_DIR} 
+	DESTINATION ${INSTALL_SHADER} 
 	FILES_MATCHING PATTERN "*.glsl"
 )
