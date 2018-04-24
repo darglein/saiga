@@ -49,5 +49,7 @@ inline long int to_long(const std::string& str)   {return std::atol(str.c_str())
 
 SAIGA_GLOBAL std::vector<std::string> split(const std::string &s, char delim);
 SAIGA_GLOBAL std::string leadingZeroString(int number, int characterCount);
+SAIGA_GLOBAL bool hasEnding (std::string const &fullString, std::string const &ending);
+
 
 }

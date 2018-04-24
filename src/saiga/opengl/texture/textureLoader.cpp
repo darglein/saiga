@@ -37,21 +37,16 @@ std::shared_ptr<Texture> TextureLoader::textureFromImage(Image &im, const Textur
 std::shared_ptr<Texture> TextureLoader::loadFromFile(const std::string &path, const TextureParameters &params){
 
     bool erg;
-    auto text = std::make_shared<Texture>();
 
     Image im;
     erg = loadImage(path,im);
 
     if (erg){
+        auto text = std::make_shared<Texture>();
         im.to8bitImage();
         im.Format().setSrgb(params.srgb);
         erg = text->fromImage(im);
-    }
-
-    if(erg){
         return text;
-    }else{
-//        delete text;
     }
 
     return nullptr;

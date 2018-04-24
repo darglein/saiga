@@ -226,6 +226,9 @@ void Image::flipY()
 
 void Image::to8bitImage()
 {
+    if(format.getBitDepth() == 8)
+        return;
+
     Image old = *this;
 
     if(format.getElementFormat() == ImageElementFormat::FloatingPoint && format.getChannels() == 1)
