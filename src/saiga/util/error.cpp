@@ -8,6 +8,13 @@
 
 namespace Saiga {
 
+static bool assertAtError = false;
+
+void Error::setAssertAtError(bool v)
+{
+    assertAtError = v;
+}
+
 void Error::DebugLogConst(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam){
     (void)userParam; (void)length;
 
@@ -37,6 +44,11 @@ void Error::DebugLogConst(GLenum source, GLenum type, GLuint id, GLenum severity
 
 
     std::cout<< "Message : "<<message<<std::endl;
+
+    if(assertAtError)
+    {
+        SAIGA_ASSERT(0,"GL Error");
+    }
 }
 
 void Error::DebugLog(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, GLvoid *userParam){
@@ -100,6 +112,8 @@ std::string Error::getStringForType(GLenum type) {
         return("");
     }
 }
+
+
 
 std::string Error::getStringForSeverity(GLenum severity) {
 

@@ -367,7 +367,8 @@ void ImGui_SDL_Renderer::renderDrawLists(ImDrawData* draw_data)
     }
 
     // Restore modified GL state
-    glUseProgram(last_program);
+//    glUseProgram(last_program);
+    glUseProgram(0);
     glActiveTexture(static_cast<GLenum>(last_active_texture));
     glBindTexture(GL_TEXTURE_2D, last_texture);
     glBindVertexArray(last_vertex_array);

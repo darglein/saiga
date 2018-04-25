@@ -191,6 +191,17 @@ struct ImageView{
         }
     }
 
+    template<typename OtherImageView>
+    HD inline
+    void copyTo(OtherImageView& a){
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                a(y,x) = (*this)(y,x);
+            }
+        }
+    }
+
+
     HD inline
     void clampToEdge(int& y, int& x){
 #ifdef SAIGA_ON_DEVICE
