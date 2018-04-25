@@ -112,8 +112,8 @@ protected:
     float imUpdateTimes[numGraphValues];
     float imRenderTimes[numGraphValues];
     bool showImguiDemo = false;
-    float maxUpdateTime = 20;
-    float maxRenderTime = 20;
+    float maxUpdateTime = 1;
+    float maxRenderTime = 1;
 public:
     bool showRendererImgui = false;
     std::shared_ptr<ImGuiRenderer> imgui;

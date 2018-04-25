@@ -105,6 +105,11 @@ void OpenGLWindow::renderImGui(bool *p_open)
     ImGui::PlotLines("Update Time", imUpdateTimes, numGraphValues, imCurrentIndexUpdate, ("avg "+Saiga::to_string(avUt)).c_str(), 0,maxUpdateTime, ImVec2(0,80));
     ImGui::Text("Render Time: %fms Fps: %f",ft, 1000.0f / fpsTimer.getTimeMS());
     ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndexRender, ("avg "+Saiga::to_string(avFt)).c_str(), 0,maxRenderTime, ImVec2(0,80));
+    if(ImGui::Button("Reset Max Value"))
+    {
+        maxUpdateTime = 1;
+        maxRenderTime = 1;
+    }
 
 
     ImGui::Text("Swap Time: %fms", swapBuffersTimer.getTimeMS());
