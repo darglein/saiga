@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 set(LIB_NAME saiga)
-project (${LIB_NAME})
-
+#project (${LIB_NAME})
+project (${LIB_NAME} CXX)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -44,6 +44,10 @@ else ()
 	endif()
 endif()
 
+
+############# COMPILER FLAGS ###############
+
+include(Saiga_compiler_flags)
 
 
 ############# Optional Libraries ###############
@@ -176,30 +180,67 @@ endif()
 
 ############# CUDA ###############
 
+#Check Language is an extra module so we need to include it.
+include(CheckLanguage)
+
+
 if(SAIGA_WITH_CUDA)
-	find_package(CUDA QUIET)
+	#find_package(CUDA QUIET)
+check_language(CUDA)
+	if(CMAKE_CUDA_COMPILER)
+  		enable_language(CUDA)
+	set(CUDA_FOUND TRUE)
+	else()
+		set(CUDA_FOUND FALSE)
+	endif()
+
+	
 else()
 	set(CUDA_FOUND FALSE)
-	SET(SAIGA_USE_CUDA 0)
 endif()
+
+
 if(CUDA_FOUND)
-	include_directories(${CUDA_INCLUDE_DIRS})
+	# We need this to get the actual cuda libraries, because
+	# one sample only is linked with the host compiler and therefore
+	# does not automatically link to the cuda runtime.
+	find_package(CUDA QUIET)
 	SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES} ${CUDA_cusparse_LIBRARY} ${CUDA_cublas_LIBRARY})
 	SET(LIBS ${LIBS} ${ALL_CUDA_LIBS})
-	message(STATUS "CUDA_LIBRARIES: ${CUDA_INCLUDE_DIRS} ${ALL_CUDA_LIBS}")
+	message(STATUS "CUDA_LIBRARIES: ${ALL_CUDA_LIBS}")
+	
+	#message(STATUS "CUDA_INCLUDE_DIRS: ${CUDA_INCLUDE_DIRS}")
+	message(STATUS "CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES: ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
+	
+	#message(STATUS "CUDA_LIBRARIES: ${ALL_CUDA_LIBS}")
+	
+	
+
+	#Use cuda includes for host, too.
+		include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+		#include_directories(${CUDA_INCLUDE_DIRS})
 
 	#set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
-	set(CUDA_PROPAGATE_HOST_FLAGS ON)
-	set(CUDA_SEPARABLE_COMPILATION OFF)
+	#set(CUDA_PROPAGATE_HOST_FLAGS ON)
+	#set(CUDA_SEPARABLE_COMPILATION OFF)
 
-	list( APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=compute_30 )
-	list( APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_52,code=sm_52 )
+	#list( APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_30,code=compute_30 )
+	#list( APPEND CUDA_NVCC_FLAGS -gencode=arch=compute_52,code=sm_52 )
 
-	list( APPEND CUDA_NVCC_FLAGS -use_fast_math)
+	#list( APPEND CUDA_NVCC_FLAGS -use_fast_math)
+
 
 	#disables an eigen warning
-	list( APPEND CUDA_NVCC_FLAGS --expt-relaxed-constexpr)
+	#list( APPEND CMAKE_CUDA_FLAGS --expt-relaxed-constexpr)
+	#list( APPEND CUDA_NVCC_FLAGS --expt-relaxed-constexpr)
 
+	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fPIC")
+	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_30,code=compute_30")
+	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_52,code=sm_52")
+	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexpr")
+	
+	#message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
+	
 	if(BUILD_SHARED)
 	      set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS)
 	endif()
@@ -207,15 +248,23 @@ if(CUDA_FOUND)
 	if(UNIX)
 	      set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xcompiler -fPIC)
 	endif()
+	
+	message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
+message(STATUS "CMAKE_CUDA_FLAGS_DEBUG: ${CMAKE_CUDA_FLAGS_DEBUG}")
+message(STATUS "CMAKE_CUDA_FLAGS_RELWITHDEBINFO: ${CMAKE_CUDA_FLAGS_RELWITHDEBINFO}")
+message(STATUS "CMAKE_CUDA_FLAGS_RELEASE: ${CMAKE_CUDA_FLAGS_RELEASE}")
 
 	SET(SAIGA_USE_CUDA 1)
+else()
+	SET(SAIGA_USE_CUDA 0)
+	message(STATUS "No CUDA.")
 endif()
 
 
 
 
-message(STATUS "NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
-message(STATUS "CUDA_LIBRARIES: ${CUDA_LIBRARIES}")
+#message(STATUS "NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
+#message(STATUS "CUDA_LIBRARIES: ${CUDA_LIBRARIES}")
 
 
 ############# Required LIBRARIES ###############
@@ -264,9 +313,6 @@ if(WIN32)
 	SET(LIBS ${LIBS} DbgHelp)
 endif(WIN32)
 
-############# COMPILER FLAGS ###############
-
-include(Saiga_compiler_flags)
 
 
 ############# INSTALL PATHS ###############
@@ -301,10 +347,10 @@ message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
-message(STATUS "CMAKE_MODULE_LINKER_FLAGS: ${CMAKE_MODULE_LINKER_FLAGS}")
-message(STATUS "CMAKE_SHARED_LINKER_FLAGS: ${CMAKE_SHARED_LINKER_FLAGS}")
-message(STATUS "CMAKE_STATIC_LINKER_FLAGS: ${CMAKE_STATIC_LINKER_FLAGS}")
-message(STATUS "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
+#message(STATUS "CMAKE_MODULE_LINKER_FLAGS: ${CMAKE_MODULE_LINKER_FLAGS}")
+#message(STATUS "CMAKE_SHARED_LINKER_FLAGS: ${CMAKE_SHARED_LINKER_FLAGS}")
+#message(STATUS "CMAKE_STATIC_LINKER_FLAGS: ${CMAKE_STATIC_LINKER_FLAGS}")
+#message(STATUS "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
 
 ############# SOURCE ###############
 

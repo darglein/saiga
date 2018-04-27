@@ -71,8 +71,9 @@ endif()
 
 if(CUDA_FOUND)
 	FILE(GLOB_RECURSE CUDA_SRC  cuda/*.cu)
-	cuda_compile(cuda_objs ${CUDA_SRC})
-	SET(PROG_SRC ${PROG_SRC} ${cuda_objs})
+	#cuda_compile(cuda_objs ${CUDA_SRC})
+	#	SET(PROG_SRC ${PROG_SRC} ${cuda_objs})
+SET(PROG_SRC ${CUDA_SRC} ${PROG_SRC})
 endif()
 
 
