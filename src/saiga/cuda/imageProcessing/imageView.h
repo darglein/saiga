@@ -228,11 +228,30 @@ struct ImageView{
     inline
     void findMinMax(T& minV, T& maxV)
     {
+        minV = std::numeric_limits<T>::max();
+        maxV = std::numeric_limits<T>::min();
         for(int y = 0; y < height; ++y){
             for(int x = 0; x < width; ++x){
                 auto v = (*this)(y,x);
                 minV = std::min(minV,v);
                 maxV = std::max(maxV,v);
+            }
+        }
+    }
+
+    inline
+    void findMinMaxOutlier(T& minV, T& maxV, T outlier)
+    {
+        minV = std::numeric_limits<T>::max();
+        maxV = std::numeric_limits<T>::min();
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                auto v = (*this)(y,x);
+                if(v != outlier)
+                {
+                    minV = std::min(minV,v);
+                    maxV = std::max(maxV,v);
+                }
             }
         }
     }
@@ -243,8 +262,7 @@ struct ImageView{
     inline
     void normalize()
     {
-        T minV = std::numeric_limits<T>::max();
-        T maxV = std::numeric_limits<T>::min();
+        T minV, maxV;
         findMinMax(minV,maxV);
         add(-minV);
         multWithScalar(T(1) / maxV);
@@ -277,11 +295,11 @@ struct ImageArrayView{
     HD inline
     ImageView<T> operator[](int i){ return at(i); }
 
-//    HD inline
-//    T& operator()(int x, int y, int z){
-//        auto ptr = imgStart.data8 + z * imgStart.size() + y * imgStart.pitchBytes + x * sizeof(T);
-//        return reinterpret_cast<T*>(ptr)[0];
-//    }
+    //    HD inline
+    //    T& operator()(int x, int y, int z){
+    //        auto ptr = imgStart.data8 + z * imgStart.size() + y * imgStart.pitchBytes + x * sizeof(T);
+    //        return reinterpret_cast<T*>(ptr)[0];
+    //    }
 
     HD inline
     T& atIARVxxx(int z, int y, int x){

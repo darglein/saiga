@@ -191,8 +191,12 @@ TriangleMesh<vertex_t,index_t>::TriangleMesh(void)
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo)
 {
-    for(vertex_t &v : vertices){
-        v.position = trafo*v.position;
+    for(vertex_t &v : vertices)
+    {
+        // Make sure it works for user defined w components
+        vec4 p = vec4(vec3(v.position),1);
+        p = trafo * p;
+        v.position = vec4(vec3(p),v.position.w);
     }
     boundingBox.transform(trafo);
 }
@@ -200,8 +204,11 @@ void TriangleMesh<vertex_t,index_t>::transform(const mat4 &trafo)
 template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::transformNormal(const mat4 &trafo)
 {
-    for(vertex_t &v : vertices){
-        v.normal = trafo*v.normal;
+    for(vertex_t &v : vertices)
+    {
+        vec4 p = vec4(vec3(v.normal),0);
+        p = trafo * p;
+        v.normal = vec4(vec3(p),v.normal.w);
     }
 }
 
@@ -397,7 +404,11 @@ void TriangleMesh<vertex_t,index_t>::computePerVertexNormal()
 //#pragma omp parallel for
     for(int i = 0; i < (int)vertices.size(); ++i)
     {
-        vertices[i].normal = vec4(0);
+        // Note:
+        // We keep the original w value intact, because it might be used
+        // by the application.
+        vec3 n = vec3(0);
+        vertices[i].normal = vec4(n,vertices[i].normal.w);
     }
 
 //#pragma omp parallel for
@@ -417,7 +428,8 @@ void TriangleMesh<vertex_t,index_t>::computePerVertexNormal()
 //#pragma omp parallel for
     for(int i = 0; i < (int)vertices.size(); ++i)
     {
-        vertices[i].normal = normalize(vertices[i].normal);
+        vec3 n = normalize(vec3(vertices[i].normal));
+        vertices[i].normal = vec4(n,vertices[i].normal.w);
     }
 }
 

@@ -14,6 +14,7 @@
 #include "saiga/image/png_wrapper.h"
 #include "saiga/image/imageConverter.h"
 #include "saiga/util/imath.h"
+#include "saiga/image/templatedImage.h"
 
 namespace Saiga {
 
@@ -324,6 +325,12 @@ size_t Image::getSize(){
     return height*pitch;
 }
 
+std::ostream& operator<<(std::ostream& os, const Image& f)
+{
+    os << "Image " << f.width << "x" << f.height << " " << f.Format();
+    return os;
+}
+
 
 bool loadImage(const std::string &path, Image &outImage)
 {
@@ -387,9 +394,57 @@ bool saveImage(const std::string &path, const Image &image)
     return erg;
 }
 
-std::ostream& operator<<(std::ostream& os, const Image& f){
-    os << "Image " << f.width << "x" << f.height << " " << f.Format();
-    return os;
+
+
+bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax)
+{
+    std::vector<float> cpy(img.width*img.height);
+    ImageView<float> vcpy(img.height,img.width,cpy.data());
+    img.copyTo(vcpy);
+
+    vcpy.add(-vmin);
+    vcpy.multWithScalar(float(1) / (vmax-vmin));
+
+    TemplatedImage<3,8> simg(img.width,img.height);
+    for(int i = 0; i < img.height; ++i)
+    {
+        for(int j = 0; j < img.width; ++j)
+        {
+            float f = glm::clamp(vcpy(i,j),0.0f,1.0f);
+
+//            vec3 hsv = vec3(f,1,1);
+            vec3 hsv(f* (240.0/360.0),1,1);
+            Saiga::Color c (Color::hsv2rgb(hsv));
+//            unsigned char c = Saiga::iRound(f * 255.0f);
+            simg(j,i).r = c.r;
+            simg(j,i).g = c.g;
+            simg(j,i).b = c.b;
+        }
+    }
+    return saveImage(path,simg);
+}
+
+
+bool save(const std::string& path, ImageView<float> img, float vmin, float vmax)
+{
+    std::vector<float> cpy(img.width*img.height);
+    ImageView<float> vcpy(img.height,img.width,cpy.data());
+    img.copyTo(vcpy);
+
+    vcpy.add(-vmin);
+    vcpy.multWithScalar(float(1) / (vmax-vmin));
+
+    TemplatedImage<1,8> simg(img.width,img.height);
+    for(int i = 0; i < img.height; ++i)
+    {
+        for(int j = 0; j < img.width; ++j)
+        {
+            float f = glm::clamp(vcpy(i,j),0.0f,1.0f);
+            unsigned char c = Saiga::iRound(f * 255.0f);
+            simg(j,i).r = c;
+        }
+    }
+    return saveImage(path,simg);
 }
 
 }

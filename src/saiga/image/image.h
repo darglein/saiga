@@ -146,6 +146,8 @@ public:
     int getBytesPerRow() const;
 
     void free();
+
+    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Image& f);
 };
 
 /**
@@ -164,7 +166,13 @@ SAIGA_GLOBAL bool loadImage(const std::string &path, Image& outImage);
  */
 SAIGA_GLOBAL bool saveImage(const std::string &path, const Image& image);
 
+/**
+ * Converts a floating point image to a 8-bit image and saves it.
+ * Useful for debugging.
+ */
+SAIGA_GLOBAL bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax);
+SAIGA_GLOBAL bool save(const std::string& path, ImageView<float> img, float vmin, float vmax);
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Image& f);
+
 
 }

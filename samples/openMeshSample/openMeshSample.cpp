@@ -128,20 +128,25 @@ void SimpleWindow::reduce()
 
 
     using MyMesh = OpenTriangleMesh;
-    MyMesh test;
+    MyMesh mesh;
 
     {
         ScopedTimerPrint tim("convert mesh");
 
-        triangleMeshToOpenMesh(baseMesh,test);
+        triangleMeshToOpenMesh(baseMesh,mesh);
+        copyVertexColor(baseMesh,mesh);
     }
+
+
+    mesh.request_face_normals();
+    mesh.update_face_normals();
 
     // =========================================================================================================
 
 
 
     typedef Decimater::DecimaterT<MyMesh>          Decimater;
-    Decimater   decimater(test);
+    Decimater   decimater(mesh);
 
     using HModQuadric = OpenMesh::Decimater::ModQuadricT<MyMesh>::Handle;
     using HModAspect = OpenMesh::Decimater::ModAspectRatioT<MyMesh>::Handle;
@@ -213,23 +218,15 @@ void SimpleWindow::reduce()
     }
 
 
-    test.garbage_collection();
+    mesh.garbage_collection();
 
-
-
-    //==============================================================================================
-
-    if(writeToFile)
-    {
-        //        saveOpenMesh(test,"output.off");
-    }
-
-    //==============================================================================================
 
 
     {
         ScopedTimerPrint tim("convert mesh");
-        openMeshToTriangleMesh(test,reducedMesh);
+        openMeshToTriangleMesh(mesh,reducedMesh);
+
+        copyVertexColor(mesh,reducedMesh);
 
         reducedMesh.computePerVertexNormal();
 

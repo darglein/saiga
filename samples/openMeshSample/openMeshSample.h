@@ -23,11 +23,11 @@ using namespace Saiga;
 class SimpleWindow : public Program, public SDL_KeyListener
 {
 public:
-    bool useAspectRatio = false; float ratio = 3; float errorTolerance = 1;
+    bool useAspectRatio = true; float ratio = 3; float errorTolerance = 1;
     bool useQuadric = false; float quadricMaxError = 0.001;
     bool useHausdorf = false; float hausError = 0.01;
     bool useNormalDev = false; float normalDev = 20;
-    bool useNormalFlip = false; float maxNormalDev = 8;
+    bool useNormalFlip = true; float maxNormalDev = 8;
     bool useRoundness = false; float minRoundness = 0.4;
 
     bool showReduced = false;
