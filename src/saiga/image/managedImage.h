@@ -45,6 +45,7 @@ public:
     void create(int h, int w);
     void create(int h, int w, ImageType t);
 
+    void clear();
     void free();
     /**
      * @brief makeZero
@@ -79,7 +80,8 @@ public:
     template<typename T>
     ImageView<T> getImageView()
     {
-        SAIGA_ASSERT(elementSize(type) == sizeof(T));
+//        SAIGA_ASSERT(elementSize(type) == sizeof(T));
+        SAIGA_ASSERT(ImageTypeTemplate<T>::type == type);
         ImageView<T> res(*this);
         res.data = data();
         return res;
@@ -90,10 +92,16 @@ public:
     {
         ImageBase::operator=(v);
         type = ImageTypeTemplate<T>::type;
+        pitchBytes = 0;
     }
 
     bool load(const std::string &path);
     bool save(const std::string &path);
+
+    // save in a custom saiga format
+    // this can handle all image types
+    bool loadRaw(const std::string &path);
+    bool saveRaw(const std::string &path);
 
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Image& f);
 };

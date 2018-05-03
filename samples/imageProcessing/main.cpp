@@ -52,4 +52,14 @@ int main(int argc, char *argv[]) {
         img.save("debug/blue.jpg");
     }
 #endif
+
+    {
+        //Raw format
+        TemplatedImage<ucvec3> img("textures/redie.png");
+
+        img.save("debug/raw_test.saigai");
+
+        TemplatedImage<ucvec3> img2("debug/raw_test.saigai");
+        img2.save("debug/raw_test.png");
+    }
 }

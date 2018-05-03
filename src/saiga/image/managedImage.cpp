@@ -17,6 +17,7 @@
 #include "saiga/util/tostring.h"
 #include "saiga/util/color.h"
 
+#include <fstream>
 namespace Saiga {
 
 Image::Image(int h, int w, ImageType type)
@@ -56,8 +57,14 @@ void Image::create(int h, int w, ImageType t)
 
 }
 
+void Image::clear()
+{
+    (*this) = Image();
+}
+
 void Image::free()
 {
+    pitchBytes = 0;
     vdata.clear();
     vdata.shrink_to_fit();
 }
@@ -82,13 +89,15 @@ std::ostream& operator<<(std::ostream& os, const Image& f)
 
 bool Image::load(const std::string &path)
 {
+    clear();
+
     bool erg = false;
     std::string type = fileEnding(path);
 
     if(type == "saigai")
     {
         //saiga raw image format
-        SAIGA_ASSERT(0);
+        loadRaw(path);
     }
 
 #ifdef SAIGA_USE_PNG
@@ -123,7 +132,7 @@ bool Image::save(const std::string &path)
     if(type == "saigai")
     {
         //saiga raw image format
-        SAIGA_ASSERT(0);
+        return saveRaw(path);
     }
 
 
@@ -147,6 +156,83 @@ bool Image::save(const std::string &path)
     SAIGA_ASSERT(0);
     return false;
 }
+
+#define SAIGA_BINARY_IMAGE_MAGIC_NUMBER 8574385
+
+
+bool Image::loadRaw(const std::string &path)
+{
+    clear();
+    std::fstream stream;
+
+    try
+    {
+        stream.open (path,  std::ios::in | std::ios::binary);
+    }
+    catch (const std::fstream::failure &e)
+    {
+        std::cout<< e.what() <<std::endl;
+        std::cout << "Exception opening/reading file\n";
+        return false;
+    }
+
+    int magic;
+    stream.read((char*)&magic,sizeof(int));
+    stream.read((char*)&width,sizeof(int));
+    stream.read((char*)&height,sizeof(int));
+    stream.read((char*)&type,sizeof(int));
+    pitchBytes = 0;
+
+    SAIGA_ASSERT(magic == SAIGA_BINARY_IMAGE_MAGIC_NUMBER);
+
+
+    create();
+
+    int es = elementSize(type);
+    for(int i = 0; i < height; ++i)
+    {
+        //store it compact
+        stream.read((char*)rowPtr(i),width*es);
+    }
+
+    stream.close();
+
+    return true;
+}
+
+bool Image::saveRaw(const std::string &path)
+{
+    std::fstream stream;
+
+    try
+    {
+        stream.open (path,  std::ios::out | std::ios::binary);
+    }
+    catch (const std::fstream::failure &e)
+    {
+        std::cout<< e.what() <<std::endl;
+        std::cout << "Exception opening/reading file\n";
+        return false;
+    }
+
+    int magic =8574385;
+    stream.write((char*)&magic,sizeof(int));
+    stream.write((char*)&width,sizeof(int));
+    stream.write((char*)&height,sizeof(int));
+    stream.write((char*)&type,sizeof(int));
+
+    int es = elementSize(type);
+    for(int i = 0; i < height; ++i)
+    {
+        //store it compact
+        stream.write((char*)rowPtr(i),width*es);
+    }
+    stream.flush();
+    stream.close();
+
+    return true;
+}
+
 
 
 
