@@ -42,8 +42,8 @@ bool FFMPEGEncoder::scaleFrame()
 void FFMPEGEncoder::scaleFrame(std::shared_ptr<Image> image, AVFrame *frame)
 {
 
-    uint8_t * inData[1] = { image->getRawData() }; // RGB24 have one plane
-    int inLinesize[1] = { image->getBytesPerRow() }; // RGB stride
+    uint8_t * inData[1] = { image->data8() }; // RGB24 have one plane
+    int inLinesize[1] = { image->pitchBytes }; // RGB stride
 
     //flip
     if (true) {
@@ -283,7 +283,8 @@ void FFMPEGEncoder::createBuffers()
         std::shared_ptr<Image> img = std::make_shared<Image>();
         img->width = inWidth;
         img->height = inHeight;
-        img->Format() = ImageFormat(4, 8);
+//        img->Format() = ImageFormat(4, 8);
+        SAIGA_ASSERT(0);
         img->create();
         imageStorage.add(img);
     }

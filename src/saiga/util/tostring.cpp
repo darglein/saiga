@@ -38,6 +38,20 @@ bool hasEnding (std::string const &fullString, std::string const &ending)
     }
 }
 
+std::string fileEnding(const std::string &str)
+{
+    //search last '.' from the end
+    for(auto it = str.rbegin() ; it != str.rend(); ++it){
+        if(*it == '.')
+        {
+            auto d = std::distance(it,str.rend());
+            return str.substr(d,str.size());
+//            return std::string(d,str.end());
+        }
+    }
+    return std::string();
+}
+
 
 
 }

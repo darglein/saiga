@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -14,71 +14,39 @@
 
 namespace Saiga {
 
-	void ImageConverter::convert(PNG::PngImage src, Image& dest){
-		dest.width = src.width;
-		dest.height = src.height;
+void ImageConverter::convert(PNG::PngImage &src, Image& dest)
+{
+    dest.width = src.width;
+    dest.height = src.height;
 
-		ImageFormat format;
-
-		format.setBitDepth(src.bit_depth);
-
-
-		switch (src.color_type){
-		case PNG_COLOR_TYPE_GRAY:
-			format.setChannels(1);
-			break;
-		case PNG_COLOR_TYPE_GRAY_ALPHA:
-			format.setChannels(2);
-			break;
-		case PNG_COLOR_TYPE_RGB:
-			format.setChannels(3);
-			break;
-		case PNG_COLOR_TYPE_RGB_ALPHA:
-			format.setChannels(4);
-			break;
-		default:
-			std::cout << "Image type not supported: " << src.color_type << std::endl;
-			SAIGA_ASSERT(0);
-		}
-
-		dest.Format() = format;
+    dest.type = src.saigaType();
 
 
+    dest.create();
 
-		dest.create(src.data.data());
+    for(int i =0; i < dest.rows; ++i)
+    {
+        memcpy(dest.rowPtr(i),src.rowPtr(i), std::min(dest.pitchBytes,src.bytesPerRow));
+    }
+}
 
-		//    std::cout << "Image: " << dest.Format() << std::endl;
-		//    std::cout << "sizes: " << dest.getSize() << " " << src.data.size() << std::endl;
-		SAIGA_ASSERT(dest.getSize() == src.data.size());
-	}
+void ImageConverter::convert(Image &src, PNG::PngImage &dest)
+{
 
-	void ImageConverter::convert(Image src, PNG::PngImage &dest){
-		dest.width = src.width;
-		dest.height = src.height;
-		dest.bit_depth = src.Format().getBitDepth();
+    dest.width = src.width;
+    dest.height = src.height;
 
-		switch (src.Format().getChannels()){
-		case 1:
-			dest.color_type = PNG_COLOR_TYPE_GRAY;
-			break;
-		case 2:
-			dest.color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
-			break;
-		case 3:
-			dest.color_type = PNG_COLOR_TYPE_RGB;
-			break;
-		case 4:
-			dest.color_type = PNG_COLOR_TYPE_RGB_ALPHA;
-			break;
-		default:
-			std::cout << "Image type not supported: " << src.Format().getChannels() << std::endl;
-			SAIGA_ASSERT(0);
-		}
+    dest.fromSaigaType(src.type);
 
 
-		//    dest.data = src.getRawData();
-		dest.data = src.data;
-	}
+    dest.bytesPerRow = iAlignUp(elementSize(src.type)*src.width,4);
+    dest.data.resize(dest.bytesPerRow * src.height);
+
+    for(int i =0; i < src.rows; ++i)
+    {
+        memcpy(dest.rowPtr(i),src.rowPtr(i), std::min(src.pitchBytes,dest.bytesPerRow));
+    }
+}
 
 }
 
@@ -177,7 +145,7 @@ void ImageConverter::convert(fipImage &src, Image& dest){
         SAIGA_ASSERT(0);
     }
 
-//        std::cout << "Image: " << dest.Format() << std::endl;
+    //        std::cout << "Image: " << dest.Format() << std::endl;
 
 }
 #endif

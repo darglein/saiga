@@ -46,7 +46,8 @@ Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
     for(int i=0;i<layers;++i){
         heightmap[i].width = w;
         heightmap[i].height = h;
-        heightmap[i].Format() = ImageFormat(1,bits);
+//        heightmap[i].Format() = ImageFormat(1,bits);
+        SAIGA_ASSERT(0);
 //        heightmap[i].bitDepth = bits;
 //        heightmap[i].channels = 1;
         heightmap[i].create();
@@ -55,7 +56,8 @@ Heightmap::Heightmap(int layers, int w, int h):layers(layers),w(w),h(h){
         normalmap[i].height = h;
 //        normalmap[i].bitDepth = 8;
 //        normalmap[i].channels = 3;
-        normalmap[i].Format() = ImageFormat(3,8);
+//        normalmap[i].Format() = ImageFormat(3,8);
+        SAIGA_ASSERT(0);
         normalmap[i].create();
 
         w/=2;
@@ -156,7 +158,8 @@ void Heightmap::createInitialHeightmap(){
             h = h*max_res;
             h = glm::clamp(h,0.0f,(float)max_res);
             height_res_t n = (height_res_t)h;
-            heightmap[0].setPixel(x,y,n);
+//            heightmap[0].setPixel(x,y,n);
+SAIGA_ASSERT(0);
         }
     }
 }
@@ -224,7 +227,8 @@ void Heightmap::createNormalmap(){
                 //                cout<<"Normal "<<n<<endl;
                 n = glm::clamp(n,vec3(0),vec3(255));
 
-                normalmap[layer].setPixel(x,y,(uint8_t)n.x,(uint8_t)n.y,(uint8_t)n.z);
+//                normalmap[layer].setPixel(x,y,(uint8_t)n.x,(uint8_t)n.y,(uint8_t)n.z);
+                SAIGA_ASSERT(0);
 
             }
         }
@@ -259,8 +263,9 @@ float Heightmap::getHeight(int layer, int x, int y){
     //    x = glm::clamp(x,0,(int)(img.width-1));
     //    y = glm::clamp(y,0,(int)(img.height-1));
 
-    height_res_t v = *((height_res_t*)img.positionPtr(x,y));
-    return (float)v / (float)max_res;
+//    height_res_t v = *((height_res_t*)img.positionPtr(x,y));
+//    return (float)v / (float)max_res;
+    SAIGA_ASSERT(0);
 }
 
 float Heightmap::getHeightScaled(int layer, int x, int y){
@@ -284,14 +289,15 @@ void Heightmap::createRemainingLayers(){
                 int xp = 2*x;
                 int yp = 2*y;
                 //read 4 pixel from previous and average them
-                height_resn_t v1 = *((height_res_t*)previous.positionPtr(xp,yp));
-                height_resn_t v2 = *((height_res_t*)previous.positionPtr(xp+1,yp));
-                height_resn_t v3 = *((height_res_t*)previous.positionPtr(xp,yp+1));
-                height_resn_t v4 = *((height_res_t*)previous.positionPtr(xp+1,yp+1));
+                SAIGA_ASSERT(0);
+//                height_resn_t v1 = *((height_res_t*)previous.positionPtr(xp,yp));
+//                height_resn_t v2 = *((height_res_t*)previous.positionPtr(xp+1,yp));
+//                height_resn_t v3 = *((height_res_t*)previous.positionPtr(xp,yp+1));
+//                height_resn_t v4 = *((height_res_t*)previous.positionPtr(xp+1,yp+1));
 
-                height_resn_t v = v1 + v2 + v3 + v4;
-                v = (v / 4)+(v%4);
-                next.setPixel(x,y,(height_res_t)v);
+//                height_resn_t v = v1 + v2 + v3 + v4;
+//                v = (v / 4)+(v%4);
+//                next.setPixel(x,y,(height_res_t)v);
             }
         }
     }
@@ -313,14 +319,14 @@ void Heightmap::createTextures(){
         //        heightmap[i].convertFrom(img);
 
         texheightmap[i] = std::make_shared<Texture>();
-        texheightmap[i]->fromImage(heightmap[i]);
+        texheightmap[i]->fromImage(heightmap[i],false);
         //        texheightmap[i]->setWrap(GL_CLAMP_TO_EDGE);
         texheightmap[i]->setWrap(GL_REPEAT);
         texheightmap[i]->setFiltering(GL_LINEAR);
         //        texheightmap[i]->setFiltering(GL_NEAREST);
 
         texnormalmap[i] = std::make_shared<Texture>();
-        texnormalmap[i]->fromImage(normalmap[i]);
+        texnormalmap[i]->fromImage(normalmap[i],false);
         //        texnormalmap[i]->setWrap(GL_CLAMP_TO_EDGE);
         texnormalmap[i]->setWrap(GL_REPEAT);
         texnormalmap[i]->setFiltering(GL_LINEAR);

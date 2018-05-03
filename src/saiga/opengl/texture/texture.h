@@ -20,7 +20,7 @@ public:
     virtual ~basic_Texture_2D(){}
 
     void setDefaultParameters() override;
-     bool fromImage(Image &img);
+     bool fromImage(Image &img, bool srgb);
 
 };
 
@@ -34,7 +34,7 @@ public:
     virtual ~multisampled_Texture_2D(){}
 
     void setDefaultParameters() override;
-    void uploadData(const GLubyte *data) override;
+    void uploadData(const void *data) override;
 };
 
 }

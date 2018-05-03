@@ -20,7 +20,7 @@ public:
     virtual ~Texture3D(){}
 
     void createEmptyTexture(int width, int height, int depth, GLenum color_type, GLenum internal_format, GLenum data_type);
-    void uploadSubImage(int x, int y, int z, int width, int height, int depth, GLubyte *data);
+    void uploadSubImage(int x, int y, int z, int width, int height, int depth, void *data);
 
     void setDefaultParameters() override;
 

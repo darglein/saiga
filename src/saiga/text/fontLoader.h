@@ -10,6 +10,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/image/image.h"
 #include "saiga/text/encoding.h"
+#include "saiga/image/templatedImage.h"
 
 #include <vector>
 
@@ -27,7 +28,7 @@ public:
         vec2 advance; //distance to the origin of the next character
         vec2 offset;  //offset of the bitmap position to the origin of this character
         vec2 size; //size of bitmap
-        Image* bitmap = nullptr;
+        TemplatedImage<unsigned char> bitmap;
     };
 
     std::vector<Glyph> glyphs;

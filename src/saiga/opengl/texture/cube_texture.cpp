@@ -9,7 +9,7 @@
 
 namespace Saiga {
 
-void TextureCube::uploadData(GLenum target,const  GLubyte *data ){
+void TextureCube::uploadData(GLenum target, const void *data ){
     bind(0);
     glTexImage2D(target,
                  0,  // level, 0 = base, no minimap,
@@ -26,7 +26,7 @@ void TextureCube::uploadData(GLenum target,const  GLubyte *data ){
 
 
 
-void TextureCube::uploadData(const GLubyte* data ){
+void TextureCube::uploadData(const void* data ){
     bind();
     for(int i = 0 ; i < 6 ; ++i){
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, // target
@@ -69,7 +69,8 @@ bool TextureCube::fromImage(Image &img){
     std::vector<Image> images(6);
     auto w = img.height;
     for(int i=0;i<6;i++){
-        img.getSubImage(w*i,0,w,w,images[i]);
+        SAIGA_ASSERT(0);
+//        img.getSubImage(w*i,0,w,w,images[i]);
     }
 
     return fromImage(images);
@@ -77,17 +78,17 @@ bool TextureCube::fromImage(Image &img){
 
 bool TextureCube::fromImage(std::vector<Image> &images)
 {
-    setFormat(images[0]);
+    setFormat(images[0].type);
 
     createGlTexture();
 
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_X,images[1].getRawData());
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Z,images[0].getRawData());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_X,images[3].getRawData());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,images[2].getRawData());
+    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_X,images[1].data());
+    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Z,images[0].data());
+    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_X,images[3].data());
+    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,images[2].data());
 
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Y,images[4].getRawData());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,images[5].getRawData());
+    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Y,images[4].data());
+    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,images[5].data());
 
     assert_no_glerror();
     return true;

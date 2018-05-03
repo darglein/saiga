@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/cuda/imageProcessing/imageView.h"
+#include "saiga/image/imageView.h"
 #include "saiga/image/image.h"
 
 namespace Saiga {
@@ -118,6 +118,8 @@ void convert(Image& src, CudaImage<T>& dst){
 template<typename T>
 void convert(CudaImage<T>& src, Image& dst){
     dst.setFormatFromImageView(src);
+
+//    dst.type = ImageTypeTemplate<T>::type;
     CUDA::copyImage(src,dst.getImageView<T>(),cudaMemcpyDeviceToHost);
 }
 

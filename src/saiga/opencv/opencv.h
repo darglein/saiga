@@ -7,7 +7,7 @@
 #pragma once
 
 #include "opencv2/opencv.hpp"
-#include "saiga/cuda/imageProcessing/imageView.h"
+#include "saiga/image/imageView.h"
 
 #if defined(SAIGA_USE_CUDA)
 #include <vector_types.h>

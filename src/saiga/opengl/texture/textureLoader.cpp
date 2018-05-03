@@ -21,11 +21,12 @@ bool operator==(const TextureParameters &lhs, const TextureParameters &rhs) {
 
 
 
-std::shared_ptr<Texture> TextureLoader::textureFromImage(Image &im, const TextureParameters &params) const{
+std::shared_ptr<Texture> TextureLoader::textureFromImage(Image &im, const TextureParameters &params) const
+{
     auto text = std::make_shared<Texture>();
 
-    im.Format().setSrgb(params.srgb);
-    bool erg = text->fromImage(im);
+//    im.Format().setSrgb(params.srgb);
+    bool erg = text->fromImage(im,params.srgb);
     if(erg){
         return text;
     }else{
@@ -41,11 +42,12 @@ std::shared_ptr<Texture> TextureLoader::loadFromFile(const std::string &path, co
     Image im;
     erg = loadImage(path,im);
 
-    if (erg){
+    if (erg)
+    {
         auto text = std::make_shared<Texture>();
-        im.to8bitImage();
-        im.Format().setSrgb(params.srgb);
-        erg = text->fromImage(im);
+//        im.to8bitImage();
+//        im.Format().setSrgb(params.srgb);
+        erg = text->fromImage(im,params.srgb);
         return text;
     }
 

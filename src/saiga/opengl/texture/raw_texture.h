@@ -27,7 +27,7 @@ public:
     raw_Texture& operator=(raw_Texture const&) = delete;
 
     void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
-    void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,const GLubyte* data );
+    void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type, const void* data );
     void createEmptyTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
 
     /**
@@ -41,11 +41,11 @@ public:
     virtual void setDefaultParameters() = 0;
 
 
-    bool downloadFromGl(GLubyte *data);
+    bool downloadFromGl(void *data);
 
-    virtual void uploadData(const GLubyte* data);
+    virtual void uploadData(const void* data);
 
-    void uploadSubImage(int x, int y, int width, int height,GLubyte* data );
+    void uploadSubImage(int x, int y, int width, int height, void* data );
 
 
     void bind();
@@ -72,14 +72,13 @@ public:
     GLenum getTarget(){return target;}
 
 
-
-    GLubyte* downloadFromGl();
     int bytesPerPixel();
     int bytesPerChannel();
     int colorChannels();
 
-    void setFormat(const Image &img);
-    void setFormat(const ImageFormat &format);
+//    void setFormat(const Image &img);
+    void setFormat(ImageType type, bool srgb = false);
+//    void setFormat(const ImageFormat &format);
 
     void setBorderColor(vec4 color);
 

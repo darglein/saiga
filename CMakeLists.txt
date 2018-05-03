@@ -393,7 +393,7 @@ if (DOXYGEN_FOUND AND BUILD_DOC)
 	    set(DOXYGEN_MAIN ${CMAKE_SOURCE_DIR}/docs/main.md)
     # request to configure the file
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
-    message("Doxygen found. Generate with 'make doc'.")
+    message(STATUS "Doxygen found. Generate with 'make doc'.")
 
     # note the option ALL which allows to build the docs together with the application
     add_custom_target( doc

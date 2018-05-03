@@ -22,7 +22,7 @@ void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum
     createGlTexture();
 }
 
-void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,const  GLubyte* data){
+void raw_Texture::createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type, const void *data){
     createTexture(width,height,color_type, internal_format,  data_type);
     uploadData(data);
 }
@@ -60,7 +60,7 @@ void raw_Texture::deleteGlTexture()
 }
 
 
-void raw_Texture::uploadData(const GLubyte* data ){
+void raw_Texture::uploadData(const void *data ){
     bind();
     glTexImage2D(target, // target
                  0,  // level, 0 = base, no minimap,
@@ -75,7 +75,7 @@ void raw_Texture::uploadData(const GLubyte* data ){
     unbind();
 }
 
-void raw_Texture::uploadSubImage(int x, int y, int width, int height,GLubyte* data ){
+void raw_Texture::uploadSubImage(int x, int y, int width, int height, void *data ){
     bind();
     glTexSubImage2D(target, 0, x, y, width, height, color_type, data_type, data);
     assert_no_glerror();
@@ -83,7 +83,7 @@ void raw_Texture::uploadSubImage(int x, int y, int width, int height,GLubyte* da
 }
 
 
-bool raw_Texture::downloadFromGl(GLubyte* data ){
+bool raw_Texture::downloadFromGl(void *data ){
     if(id==0){
         return false;
     }
@@ -213,12 +213,21 @@ int raw_Texture::colorChannels(){
     return channels;
 }
 
+
+
 int raw_Texture::bytesPerPixel(){
     return bytesPerChannel()*colorChannels();
 }
 
+void raw_Texture::setFormat(ImageType type, bool srgb)
+{
+//    SAIGA_ASSERT(0);
+    internal_format = getGlInternalFormat(type,srgb);
+    color_type = getGlFormat(type);
+    data_type = getGlType(type);
+}
 
-
+#if 0
 void raw_Texture::setFormat(const ImageFormat &format){
     internal_format = format.getGlInternalFormat();
     color_type = format.getGlFormat();
@@ -231,5 +240,6 @@ void raw_Texture::setFormat(const Image &image)
     width = image.width;
     height = image.height;
 }
+#endif
 
 }

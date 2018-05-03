@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/cuda/imageProcessing/image.h"
-#include "saiga/cuda/imageProcessing/imageView.h"
+#include "saiga/image/imageView.h"
 #include "saiga/cuda/array_view.h"
 
 namespace Saiga {

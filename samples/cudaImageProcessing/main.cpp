@@ -38,11 +38,11 @@ int main(int argc, char *argv[]) {
 
             //load an image from file
 //            Image img;
-            TemplatedImage<3,8,ImageElementFormat::UnsignedNormalized> img;
-            loadImage("textures/redie.png",img);
+            TemplatedImage<cvec3> img("textures/redie.png");
+//            loadImage(img);
 
             //copy the image to the gpu
-            CUDA::CudaImage<uchar3> cimg(img.getImageView<uchar3>());
+            CUDA::CudaImage<uchar3> cimg(img.getImageView());
             CUDA::CudaImage<uchar4> cimg4(cimg.height,cimg.width);
             CUDA::CudaImage<float> cimggray(cimg.height,cimg.width);
             CUDA::CudaImage<float> cimgtmp(cimg.height,cimg.width);
@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
 //            CUDA::gaussianBlur(cimggray,cimgblurred,2,4);
             CUDA::applyFilterSeparate(cimggray,cimgblurred,cimgtmp,filter,filter);
 
+#if 0
             //copy back to cpu
             TemplatedImage<4,8,ImageElementFormat::UnsignedNormalized> res4;
             TemplatedImage<1,32,ImageElementFormat::FloatingPoint> resGray;
@@ -96,6 +97,7 @@ int main(int argc, char *argv[]) {
             CUDA::convert(cimgblurred,resGray);
             resGray8 = resGray.convertImage<1,8,ImageElementFormat::UnsignedNormalized>();
             saveImage("debug/testgrayblurred.png",resGray8);
+#endif
 
         }
         CUDA::destroyCUDA();

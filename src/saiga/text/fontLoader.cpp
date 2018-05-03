@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,6 +9,7 @@
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/util/assert.h"
+#include "saiga/util/tostring.h"
 
 #include <freetype/ftstroke.h>
 
@@ -29,12 +30,6 @@ FontLoader::FontLoader(const std::string &file, const std::vector<Unicode::Unico
 
 FontLoader::~FontLoader()
 {
-    //TODO shared pointer
-    for(Glyph &g : glyphs){
-        delete g.bitmap;
-    }
-
-
 }
 
 void FontLoader::loadMonochromatic(int fontSize, int glyphPadding)
@@ -42,24 +37,29 @@ void FontLoader::loadMonochromatic(int fontSize, int glyphPadding)
     loadFace(fontSize);
 
 
-    for(Unicode::UnicodeBlock block : blocks){
-//        std::cout << "block " << block.start<< " " << block.end << std::endl;
-        for(uint32_t i = block.start; i <= block.end; i++) {
+    for(Unicode::UnicodeBlock block : blocks)
+    {
+        //        std::cout << "block " << block.start<< " " << block.end << std::endl;
+        for(uint32_t i = block.start; i <= block.end; i++)
+        {
 
             int charCode = i;
             loadAndAddGlyph(charCode,glyphPadding);
         }
     }
-//    for(int i = 32; i < 0x04FF; i++) {
-//        int charCode = i;
-//        loadAndAddGlyph(charCode,glyphPadding);
-//    }
+
+#if 0
+    for(Glyph& g : glyphs)
+    {
+        g.bitmap.save("debug/font/"+to_string(g.character)+"_2.png");
+    }
+#endif
 
 }
 
 void FontLoader::loadAndAddGlyph(int charCode, int glyphPadding)
 {
-//    std::cout << "loadAndAddGlyph "<<charCode << std::endl;
+    //    std::cout << "loadAndAddGlyph "<<charCode << std::endl;
     FT_UInt  glyph_index;
 
     /* retrieve glyph index from character code */
@@ -67,11 +67,11 @@ void FontLoader::loadAndAddGlyph(int charCode, int glyphPadding)
 
     //0 glyph index means undefined character code
     if(glyph_index == 0){
-//        std::cerr << "can't find glyph for charcode: " << std::hex << charCode << std::endl;
+        //        std::cerr << "can't find glyph for charcode: " << std::hex << charCode << std::endl;
         return;
     }
 
-//        error = FT_Load_Glyph( face, glyph_index, FT_LOAD_DEFAULT );
+    //        error = FT_Load_Glyph( face, glyph_index, FT_LOAD_DEFAULT );
     FT_Error error = FT_Load_Glyph( face, glyph_index, FT_LOAD_TARGET_MONO );
     if ( error ){
         std::cerr << "random error"<< std::endl;
@@ -83,8 +83,8 @@ void FontLoader::loadAndAddGlyph(int charCode, int glyphPadding)
 
 void FontLoader::addGlyph(int charCode, int glyphPadding)
 {
-//    if(charCode<32 || charCode>=256)
-//        return;
+    //    if(charCode<32 || charCode>=256)
+    //        return;
     FT_Error error;
     FT_Glyph glyph;
     FT_Glyph glyph_bitmap;
@@ -95,7 +95,7 @@ void FontLoader::addGlyph(int charCode, int glyphPadding)
     SAIGA_ASSERT(error==0);
     /* render the glyph to a bitmap, don't destroy original */
     glyph_bitmap = glyph;
-//    error = FT_Glyph_To_Bitmap( &glyph_bitmap, FT_RENDER_MODE_NORMAL, NULL, 0 );
+    //    error = FT_Glyph_To_Bitmap( &glyph_bitmap, FT_RENDER_MODE_NORMAL, NULL, 0 );
     SAIGA_ASSERT(error==0);
     error = FT_Glyph_To_Bitmap( &glyph_bitmap, FT_RENDER_MODE_MONO, NULL, 0 );
 
@@ -118,17 +118,14 @@ void FontLoader::addGlyph(int charCode, int glyphPadding)
 
     myGlyph.size = vec2(source->width+glyphPadding*2,source->rows+glyphPadding*2);
 
-    Image* image = new Image();
-    myGlyph.bitmap = image;
-    image->Format() = ImageFormat(1,8);
-//    image->bitDepth = 8;
-//    image->channels = 1;
-    image->width = source->width+glyphPadding*2;
-    image->height = source->rows+glyphPadding*2;
-    image->create();
-    image->makeZero();
 
-    glyphs.push_back(myGlyph);
+    myGlyph.bitmap.width = source->width+glyphPadding*2;
+    myGlyph.bitmap.height = source->rows+glyphPadding*2;
+    myGlyph.bitmap.create();
+    myGlyph.bitmap.makeZero();
+
+    SAIGA_ASSERT(myGlyph.bitmap.type == UC1);
+
 
     for(int y = 0 ; y < (int)source->rows  ; ++y){
         for(int x = 0 ; x < (int)source->width ; ++x){
@@ -138,10 +135,15 @@ void FontLoader::addGlyph(int charCode, int glyphPadding)
             c = (c>>bitIndex) & 0x1;
             if(c)
                 c = 255;
+            else
+                c = 0;
 
-            image->setPixel(x+glyphPadding ,y+glyphPadding,c);
+            myGlyph.bitmap(y+glyphPadding,x+glyphPadding) = c;
+
         }
     }
+
+    glyphs.push_back(myGlyph);
 
     FT_Done_Glyph(glyph);
     FT_Done_Glyph(glyph_bitmap);
@@ -149,9 +151,12 @@ void FontLoader::addGlyph(int charCode, int glyphPadding)
 
 void FontLoader::writeGlyphsToFiles(const std::string &prefix)
 {
-    for(Glyph& g : glyphs){
+    for(Glyph& g : glyphs)
+    {
         std::string str = prefix+std::to_string(g.character)+".png";
-        if(!TextureLoader::instance()->saveImage(str,*g.bitmap)){
+        //        if(!TextureLoader::instance()->saveImage(str,*g.bitmap))
+        if(g.bitmap.save(str))
+        {
             cout<<"could not save "<<str<<endl;
         }
 

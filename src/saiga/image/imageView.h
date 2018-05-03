@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/image/imageBase.h"
 #include "saiga/cuda/common.h"
 #include "saiga/util/imath.h"
 #include "saiga/util/assert.h"
@@ -31,25 +32,12 @@ namespace Saiga {
 
 
 template<typename T>
-struct ImageView{
-    union{
-        int width;
-        int cols;
-    };
-    union{
-        int height;
-        int rows;
-    };
-    //    int width, height;
-    //    int pitch; //important: the pitch is not in bytes!!!
-    int pitchBytes;
-
+struct SAIGA_TEMPLATE ImageView : public ImageBase
+{
     union{
         void* data;
         uint8_t* data8;
     };
-
-
 
     HD inline
     ImageView(){
@@ -58,11 +46,16 @@ struct ImageView{
 
     HD inline
     ImageView(int h, int w , int p, void* data)
-        : width(w),height(h),pitchBytes(p),data(data) {}
+        : ImageBase(h,w,p) , data(data) {}
 
     HD inline
     ImageView(int h, int w, void* data)
-        : width(w),height(h),pitchBytes(w*sizeof(T)),data(data) {}
+        : ImageBase(h,w,w*sizeof(T)), data(data) {}
+
+
+    HD inline
+    ImageView(const ImageBase& base)
+        : ImageBase(base) {}
 
     //size in bytes
     HD inline
@@ -81,6 +74,23 @@ struct ImageView{
 #endif
         ImageView<T> iv(h,w,pitchBytes,&(*this)(startY,startX));
         return iv;
+    }
+
+    /**
+     * @brief setSubImage
+     * Copies the image "img" to the region starting at [startY,startX] of this image.
+     */
+    inline
+    void setSubImage(int startY, int startX, ImageView<T> img)
+    {
+        SAIGA_ASSERT(img.width + startX <= width && img.height + startY <= height);
+
+        for(int i = 0; i < img.height; ++i){
+            for(int j =0; j < img.width; ++j)
+            {
+                (*this)(startY + i, startX + j) = img(i,j);
+            }
+        }
     }
 
     //does not change the data
@@ -134,31 +144,6 @@ struct ImageView{
         T res = ((*this)(y0,x0) * (1.0f - ax) + (*this)(y1,x0) * (ax)) * (1.0f - ay) +
                 ((*this)(y0,x1) * (1.0f - ax) + (*this)(y1,x1) * (ax)) * (ay);
         return res;
-    }
-
-    HD inline
-    bool inImage(int y, int x){
-        return x >= 0 && x < width && y >=0 && y < height;
-    }
-
-    //minimum distance of the pixel to all edges
-    HD inline
-    int distanceFromEdge(int y, int x){
-        int x0 = x;
-        int x1 = width - 1 - x;
-        int y0 = y;
-        int y1 = height - 1 - y;
-#ifdef SAIGA_ON_DEVICE
-        return min(x0,min(x1,min(y0,y1)));
-#else
-        return std::min(x0,std::min(x1,std::min(y0,y1)));
-#endif
-    }
-
-    template<typename AT>
-    HD inline
-    bool inImage(AT y, AT x){
-        return x >= 0 && x <= AT(width-1) && y >=0 && y <= AT(height-1);
     }
 
     template<typename AT>
@@ -252,6 +237,25 @@ struct ImageView{
                     minV = std::min(minV,v);
                     maxV = std::max(maxV,v);
                 }
+            }
+        }
+    }
+
+    template<typename V>
+    inline void setChannel(int c, V v)
+    {
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                (*this)(y,x)[c] = v;
+            }
+        }
+    }
+
+    inline void swapChannels(int c1, int c2)
+    {
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                std::swap((*this)(y,x)[c1],(*this)(y,x)[c2]);
             }
         }
     }

@@ -16,6 +16,7 @@
  */
 
 #include <saiga/config.h>
+#include "saiga/image/imageFormat.h"
 
 #ifdef SAIGA_USE_PNG
 
@@ -41,7 +42,7 @@ using uchar = unsigned char;
         std::vector<uchar> data;
 
         int rowAlignment = 4;
-        int bytesPerRow;
+        size_t bytesPerRow;
 
         //temp variables for libpng. Don't modify them!!!
         uchar **row_pointers;
@@ -50,6 +51,10 @@ using uchar = unsigned char;
         FILE *infile;
         FILE *outfile;
         jmp_buf jmpbuf;
+
+        void* rowPtr(int i) { return data.data() + bytesPerRow * i; }
+        ImageType saigaType() const;
+        void fromSaigaType(ImageType t);
     };
 
 

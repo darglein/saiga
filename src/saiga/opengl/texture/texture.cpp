@@ -15,13 +15,13 @@ void basic_Texture_2D::setDefaultParameters(){
     glTexParameteri(target, GL_TEXTURE_WRAP_T,static_cast<GLint>( GL_CLAMP_TO_EDGE));
 }
 
-bool basic_Texture_2D::fromImage(Image &img){
-
-
-    setFormat(img);
-
+bool basic_Texture_2D::fromImage(Image &img, bool srgb)
+{
+    setFormat(img.type,srgb);
+    width = img.width;
+    height = img.height;
     createGlTexture();
-    uploadData(img.getRawData());
+    uploadData(img.data());
     return true;
 }
 
@@ -36,7 +36,7 @@ void multisampled_Texture_2D::setDefaultParameters(){
 }
 
 
-void multisampled_Texture_2D::uploadData(const GLubyte* data ){
+void multisampled_Texture_2D::uploadData(const void *data ){
     bind();
     glTexImage2DMultisample(target,
                             samples,

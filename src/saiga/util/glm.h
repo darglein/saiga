@@ -86,6 +86,11 @@ typedef glm::vec3 vec3;
 typedef glm::vec4 vec4;
 typedef glm::mat4 mat4;
 typedef glm::quat quat;
+
+typedef glm::tvec2<char, glm::highp> cvec2;
+typedef glm::tvec3<char, glm::highp> cvec3;
+typedef glm::tvec4<char, glm::highp> cvec4;
+
 #endif
 
 //======= Output stream operator overloads =========

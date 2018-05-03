@@ -40,7 +40,7 @@ void Texture3D::setDefaultParameters(){
     glTexParameteri (target, GL_TEXTURE_WRAP_T, static_cast<GLint>(GL_CLAMP_TO_EDGE));
 }
 
-void Texture3D::uploadSubImage(int x, int y, int z, int width, int height , int depth, GLubyte* data ){
+void Texture3D::uploadSubImage(int x, int y, int z, int width, int height , int depth, void* data ){
     bind();
     glTexSubImage3D(target, 0, x, y, z,width, height,depth, color_type, data_type, data);
     assert_no_glerror();
@@ -50,7 +50,7 @@ void Texture3D::uploadSubImage(int x, int y, int z, int width, int height , int 
 
 bool Texture3D::fromImage(std::vector<Image> &images){
     depth = images.size();
-    setFormat(images[0]);
+    setFormat(images[0].type);
 
 
     createGlTexture();
@@ -62,8 +62,8 @@ bool Texture3D::fromImage(std::vector<Image> &images){
     for(int i=0;i<depth;i++){
         Image& img = images[i];
         //make sure all images have the same format
-        SAIGA_ASSERT(width == img.width && height == img.height && internal_format == img.Format().getGlInternalFormat());
-        uploadSubImage(0,0,i,width,height,1,img.getRawData());
+//        SAIGA_ASSERT(width == img.width && height == img.height && internal_format == img.Format().getGlInternalFormat());
+        uploadSubImage(0,0,i,width,height,1,img.data());
     }
 
 

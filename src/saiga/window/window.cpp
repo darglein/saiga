@@ -235,7 +235,9 @@ void OpenGLWindow::readToExistingImage(Image &out)
 
 
     //    glReadPixels(0,0,out.width,out.height,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
-    glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
+
+    SAIGA_ASSERT(0);
+//    glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
 
 
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
@@ -248,7 +250,8 @@ void OpenGLWindow::readToImage(Image& out){
 
     out.width = w;
     out.height = h;
-    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+//    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    SAIGA_ASSERT(0);
     out.create();
 
     readToExistingImage(out);
@@ -271,12 +274,13 @@ void OpenGLWindow::screenshotRender(const std::string &file)
     Image img;
     img.width = w;
     img.height = h;
-    img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+//    img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+                SAIGA_ASSERT(0);
     img.create();
 
     auto tex = getRenderer()->postProcessor.getCurrentTexture();
     tex->bind();
-    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img.getRawData());
+    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img.data());
     tex->unbind();
 
     TextureLoader::instance()->saveImage(file,img);
@@ -288,31 +292,35 @@ void OpenGLWindow::getDepthFloat(Image& out){
 
     out.width = w;
     out.height = h;
-    out.Format() = ImageFormat(1,32,ImageElementFormat::FloatingPoint);
+//    out.Format() = ImageFormat(1,32,ImageElementFormat::FloatingPoint);
+    SAIGA_ASSERT(0);
     out.create();
 
 
     Image img;
     img.width = w;
     img.height = h;
-    img.Format() = ImageFormat(4,8,ImageElementFormat::UnsignedNormalized);
+//    img.Format() = ImageFormat(4,8,ImageElementFormat::UnsignedNormalized);
+    SAIGA_ASSERT(0);
     img.create();
 
 
     auto tex = getRenderer()->gbuffer.getTextureDepth();
     tex->bind();
-    glGetTexImage(tex->getTarget(),0,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8,img.getRawData());
+    glGetTexImage(tex->getTarget(),0,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8,img.data());
     tex->unbind();
 
     for(int i = 0; i < h; ++i)
     {
         for(int j = 0; j < w; ++j)
         {
+#if 0
             unsigned int v = img.getPixel<unsigned int>(j,i);
             //override stencil bits with 0
             v = v & 0xFFFFFF00;
             float d = uintToNFloat(v);
             out.getPixel<float>(j,i) = d;
+#endif
         }
     }
 
@@ -330,16 +338,19 @@ void OpenGLWindow::screenshotRenderDepth(const std::string &file)
     Image img2;
     img2.width = w;
     img2.height = h;
-    img2.Format() = ImageFormat(1,16,ImageElementFormat::UnsignedNormalized);
+//    img2.Format() = ImageFormat(1,16,ImageElementFormat::UnsignedNormalized);
+    SAIGA_ASSERT(0);
     img2.create();
 
     for(int i = 0; i < h; ++i)
     {
         for(int j = 0; j < w; ++j)
         {
+#if 0
             float d = img.getPixel<float>(j,i);
             d = currentCamera->linearDepth(d);
             img2.getPixel<unsigned short>(j,i) = d * 0xFFFF;
+#endif
         }
     }
 

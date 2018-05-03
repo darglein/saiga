@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <fstream>
 #include "saiga/util/assert.h"
+#include "saiga/util/tostring.h"
 
 namespace Saiga {
 
@@ -30,7 +31,10 @@ TextureAtlas::~TextureAtlas()
 //    delete textureAtlas;
 }
 
-void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, int searchRange, bool bufferToFile, const std::vector<Unicode::UnicodeBlock> &blocks){
+void TextureAtlas::loadFont(const std::string &font,
+                            int fontSize, int quality, int searchRange, bool bufferToFile,
+                            const std::vector<Unicode::UnicodeBlock> &blocks)
+{
     std::string blockString;
     for(Unicode::UnicodeBlock ub : blocks){
         blockString = blockString + std::to_string(ub.start);
@@ -52,11 +56,13 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
 
     FontLoader fl(font,blocks);
     fl.loadMonochromatic(fontSize*quality,(1+quality)*searchRange);
-    //    fl.writeGlyphsToFiles("debug/fonts/");
+//        fl.writeGlyphsToFiles("debug/fonts/");
 
     Image img;
     createTextureAtlas(img,fl.glyphs,quality,quality*searchRange);
-    //    fl.writeGlyphsToFiles("debug/fonts2/");
+//        fl.writeGlyphsToFiles("debug/fonts2/");
+
+
 
     if(bufferToFile){
         writeAtlasToFiles(img);
@@ -68,7 +74,7 @@ void TextureAtlas::loadFont(const std::string &font, int fontSize, int quality, 
 
 
     textureAtlas = std::make_shared<Texture>();
-    textureAtlas->fromImage(img);
+    textureAtlas->fromImage(img,false);
     textureAtlas->generateMipmaps();
 
     initFont();
@@ -100,19 +106,25 @@ void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Gly
     convertToSDF(glyphs,downsample,searchRadius);
     calculateTextureAtlasLayout(glyphs);
 
-    outImg.Format() = ImageFormat(1,8);
+//    outImg.Format() = ImageFormat(1,8);
+//    SAIGA_ASSERT(0);
+
 //    outImg.bitDepth = 8;
 //    outImg.channels = 1;
     outImg.width = atlasWidth;
     outImg.height = atlasHeight;
+    outImg.type = UC1;
     outImg.create();
     outImg.makeZero();
 
     cout<<"AtlasWidth "<<atlasWidth<<" AtlasHeight "<<atlasHeight<<endl;
 
-    for(FontLoader::Glyph &g : glyphs) {
+    for(FontLoader::Glyph &g : glyphs)
+    {
         character_info &info = characterInfoMap[g.character];
-        outImg.setSubImage(info.atlasPos.x,info.atlasPos.y,*g.bitmap);
+//        outImg.setSubImage(info.atlasPos.x,info.atlasPos.y,*g.bitmap);
+        outImg.getImageView<unsigned char>().setSubImage(info.atlasPos.y,info.atlasPos.x,g.bitmap.getImageView());
+//        SAIGA_ASSERT(0);
     }
     numCharacters = characterInfoMap.size();
 }
@@ -159,8 +171,8 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &g
 
             characterInfoMap[g.character] = info;
 
-            currentW += g.bitmap->width+charPaddingX;
-            currentH = std::max(currentH, (int)g.bitmap->height);
+            currentW += g.bitmap.width+charPaddingX;
+            currentH = std::max(currentH, (int)g.bitmap.height);
 
 
         }
@@ -181,15 +193,31 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &g
 
 void TextureAtlas::padGlyphsToDivisor(std::vector<FontLoader::Glyph> &glyphs, int divisor)
 {
-    for(FontLoader::Glyph &g : glyphs) {
-        int w = g.bitmap->width;
-        int h = g.bitmap->height;
+    for(FontLoader::Glyph &g : glyphs)
+    {
+        int w = g.bitmap.width;
+        int h = g.bitmap.height;
 
-        //        cout<<"old "<<w<<","<<h;
+//                cout<<"old "<<w<<","<<h;
         w += (divisor - (w % divisor)) % divisor;
         h += (divisor - (h % divisor)) % divisor;
-        //        cout<<" new "<<w<<","<<h<<endl;
-        g.bitmap->resizeCopy(w,h);
+
+        SAIGA_ASSERT(w % divisor == 0);
+        SAIGA_ASSERT(h % divisor == 0);
+
+//                cout<<" new "<<w<<","<<h<<endl;
+
+                 TemplatedImage<unsigned char> paddedImage(h,w);
+                 paddedImage.makeZero();
+
+                 auto subImg = paddedImage.getImageView().subImageView(0,0,g.bitmap.height,g.bitmap.width);
+                 g.bitmap.getImageView().copyTo(subImg);
+
+                 g.bitmap = paddedImage;
+
+                 g.bitmap.save("debug/font/"+to_string(g.character)+"_3.png");
+//        g.bitmap->resizeCopy(w,h);
+//        SAIGA_ASSERT(0);
 
 
 
@@ -204,37 +232,43 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divi
 
     std::vector<glm::ivec2> samplePositions = generateSDFsamples(searchRadius);
     for(FontLoader::Glyph &g : glyphs) {
-        Image* sdfGlyph = new Image();
-        sdfGlyph->width = g.bitmap->width / divisor;
-        sdfGlyph->height = g.bitmap->height / divisor;
+//        Image* sdfGlyph = new Image();
+        TemplatedImage<unsigned char> sdfGlyph;
+        sdfGlyph.width = g.bitmap.width / divisor;
+        sdfGlyph.height = g.bitmap.height / divisor;
 //        sdfGlyph->channels = g.bitmap->channels;
 //        sdfGlyph->bitDepth = g.bitmap->bitDepth;
-        sdfGlyph->Format() = g.bitmap->Format();
-        sdfGlyph->create();
-        sdfGlyph->makeZero();
+//        sdfGlyph->Format() = g.bitmap->Format();
+//        SAIGA_ASSERT(0);
+        sdfGlyph.create();
+        sdfGlyph.makeZero();
 
         g.advance /= divisor;
         g.offset /= divisor;
         g.size /= divisor;
 
 
-        for(int y = 0 ; y < (int)sdfGlyph->height ; ++y){
-            for(int x = 0 ; x < (int)sdfGlyph->width ; ++x){
+        for(int y = 0 ; y < (int)sdfGlyph.height ; ++y){
+            for(int x = 0 ; x < (int)sdfGlyph.width ; ++x){
 
                 //center of sdftexel in original image
                 int bx = x * divisor + halfDivisor;
                 int by = y * divisor + halfDivisor;
                 float d = 12345;
-                unsigned char current = g.bitmap->getPixel<unsigned char>(bx,by);
-                for(glm::ivec2 s : samplePositions){
+#if 1
+                unsigned char current = g.bitmap(by,bx);
+                for(glm::ivec2 s : samplePositions)
+                {
                     glm::ivec2 ps = glm::ivec2(bx,by) + s;
-                    ps = glm::clamp(ps,glm::ivec2(0),glm::ivec2(g.bitmap->width-1,g.bitmap->height-1));
-                    unsigned char other = g.bitmap->getPixel<unsigned char>(ps.x,ps.y);
-                    if(current!=other){
+                    ps = glm::clamp(ps,glm::ivec2(0),glm::ivec2(g.bitmap.width-1,g.bitmap.height-1));
+                    unsigned char other = g.bitmap(ps.y,ps.x);
+                    if(current!=other)
+                    {
                         d = glm::sqrt((float)(s.x*s.x+s.y*s.y));
                         break;
                     }
                 }
+
 
                 //map to 0-1
                 d = d / (float)searchRadius;
@@ -249,12 +283,18 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divi
                 }
 
                 unsigned char out = d * 255.0f;
-                sdfGlyph->setPixel(x,y,out);
+                sdfGlyph(y,x) = out;//,y,out);
+//                SAIGA_ASSERT(0);
+#endif
+//                SAIGA_ASSERT(0);
             }
         }
 
-        delete g.bitmap;
+        g.bitmap.save("debug/font/"+to_string(g.character)+"_4.png");
+        sdfGlyph.save("debug/font/"+to_string(g.character)+"_5.png");
+//        delete g.bitmap;
         g.bitmap = sdfGlyph;
+
     }
 }
 
@@ -333,7 +373,7 @@ bool TextureAtlas::readAtlasFromFiles()
 //    TextureLoader::instance()->saveImage("asdf2.png",img);
 
     textureAtlas = std::make_shared<Texture>();
-    textureAtlas->fromImage(img);
+    textureAtlas->fromImage(img,false);
     textureAtlas->generateMipmaps();
 
 	cout << "readAtlasFromFiles: " << uniqueFontString << " numCharacters: " << numCharacters << endl;

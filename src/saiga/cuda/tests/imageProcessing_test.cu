@@ -27,16 +27,16 @@ void imageProcessingTest(){
     CUDA_SYNC_CHECK_ERROR();
 
 
-    TemplatedImage<3,8,ImageElementFormat::UnsignedNormalized> img;
+    TemplatedImage<cvec3> img("textures/landscape.jpg");
     //    loadImage("textures/redie.png",img);
-    loadImage("textures/landscape.jpg",img);
+//    loadImage("textures/landscape.jpg",img);
 
 
-    size_t readWrites = img.getSize() * 2;
+    size_t readWrites = img.size() * 2;
     CUDA::PerformanceTestHelper pth("imageProcessingTest ImageSize: " + to_string(img.width) + "x" + to_string(img.height), readWrites);
 
 
-    CUDA::CudaImage<uchar3> cimg(img.getImageView<uchar3>());
+    CUDA::CudaImage<uchar3> cimg(img.getImageView());
     CUDA::CudaImage<uchar4> cimg4(cimg.height,cimg.width);
     CUDA::CudaImage<float> cimggray(cimg.height,cimg.width);
     CUDA::CudaImage<float> cimgtmp(cimg.height,cimg.width);

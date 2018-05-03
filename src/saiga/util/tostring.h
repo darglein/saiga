@@ -51,5 +51,15 @@ SAIGA_GLOBAL std::vector<std::string> split(const std::string &s, char delim);
 SAIGA_GLOBAL std::string leadingZeroString(int number, int characterCount);
 SAIGA_GLOBAL bool hasEnding (std::string const &fullString, std::string const &ending);
 
+/**
+ * @brief fileEnding
+ * Extracts and returns the file ending of a string.
+ * Example:
+ *
+ * "bla.jpg" -> "jpg"
+ * "/usr/local/test.asdf" -> "asdf"
+ */
+SAIGA_GLOBAL std::string fileEnding (std::string const &str);
+
 
 }

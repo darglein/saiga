@@ -45,7 +45,7 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float
 {
         auto cbImage = ImageGenerator::checkerBoard(color1,color2,16,2,2);
         std::shared_ptr<Texture> cbTexture = std::make_shared<Texture>();
-        cbTexture->fromImage(*cbImage);
+        cbTexture->fromImage(*cbImage,true);
         cbTexture->setFiltering(GL_NEAREST);
         cbTexture->setWrap(GL_REPEAT);
         cbTexture->generateMipmaps();

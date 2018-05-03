@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -126,7 +126,7 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY){
      *  expand a palette into RGB
      */
     png_read_png(png_ptr, info_ptr,
-//                 PNG_TRANSFORM_STRIP_16 | //Strip 16-bit samples to 8 bits
+                 //                 PNG_TRANSFORM_STRIP_16 | //Strip 16-bit samples to 8 bits
                  PNG_TRANSFORM_PACKING | //Expand 1, 2 and 4-bit samples to bytes
                  PNG_TRANSFORM_EXPAND //Perform set_expand()
                  , NULL);
@@ -217,7 +217,7 @@ static int writepng_init(PNG::PngImage *image)
      * compression (NOT the default); and remaining compression flags should
      * be left alone */
 
-   // png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
+    // png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
     /*
     >> this is default for no filtering; Z_FILTERED is default otherwise:
     png_set_compression_strategy(png_ptr, Z_DEFAULT_STRATEGY);
@@ -491,12 +491,12 @@ void pngVersionInfo()
 }
 
 bool writePNG(PngImage *img, const std::string &path, bool invertY){
-//    std::cout<<"write png: "<<path.c_str()<<std::endl;
+    //    std::cout<<"write png: "<<path.c_str()<<std::endl;
 
     FILE *fp = fopen(path.c_str(), "wb");
     if (!fp)
     {
-		std::cout << "could not open file: " << path.c_str() << std::endl;
+        std::cout << "could not open file: " << path.c_str() << std::endl;
         return false;
     }
 
@@ -520,6 +520,81 @@ bool writePNG(PngImage *img, const std::string &path, bool invertY){
     return true;
 
 }
+
+ImageType PngImage::saigaType() const
+{
+    int channels = -1;
+    switch (color_type)
+    {
+    case PNG_COLOR_TYPE_GRAY:
+        channels = 1;
+        break;
+    case PNG_COLOR_TYPE_GRAY_ALPHA:
+        channels = 2;
+        break;
+    case PNG_COLOR_TYPE_RGB:
+        channels = 3;
+        break;
+    case PNG_COLOR_TYPE_RGB_ALPHA:
+        channels = 4;
+        break;
+    }
+    SAIGA_ASSERT(channels != -1);
+
+    ImageElementType elementType = ELEMENT_UNKNOWN;
+    switch(bit_depth)
+    {
+    case 8:
+        elementType = UCHAR;
+        break;
+    case 16:
+        elementType = SHORT;
+        break;
+    case 32:
+        elementType = INT;
+        break;
+    }
+    SAIGA_ASSERT(elementType != ELEMENT_UNKNOWN);
+
+    return getType(channels,elementType);
+}
+
+void PngImage::fromSaigaType(ImageType t)
+{
+
+    switch (channels(t)){
+    case 1:
+        color_type = PNG_COLOR_TYPE_GRAY;
+        break;
+    case 2:
+        color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
+        break;
+    case 3:
+        color_type = PNG_COLOR_TYPE_RGB;
+        break;
+    case 4:
+        color_type = PNG_COLOR_TYPE_RGB_ALPHA;
+        break;
+    default:
+        SAIGA_ASSERT(0);
+    }
+
+    switch(elementType(t))
+    {
+    case UCHAR:
+        bit_depth = 8;
+        break;
+    case SHORT:
+        bit_depth = 16;
+        break;
+    case INT:
+        bit_depth = 32;
+        break;
+    default:
+        SAIGA_ASSERT(0);
+    }
+}
+
 }
 }
 #endif

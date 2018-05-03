@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -14,6 +14,7 @@
 namespace Saiga {
 namespace FIP {
 
+
 bool load(const std::string &path, Image &img, ImageMetadata *metaData)
 {
     fipImage fimg;
@@ -23,7 +24,7 @@ bool load(const std::string &path, Image &img, ImageMetadata *metaData)
 
     if(metaData){
         getMetaData(fimg,*metaData);
-//        printAllMetaData(fimg);
+        //        printAllMetaData(fimg);
     }
 
     convert(fimg,img);
@@ -52,15 +53,15 @@ bool saveFIP(const std::string &path, const fipImage &img){
 FREE_IMAGE_TYPE getFIT2(ImageFormat format){
     if(format.getElementFormat() == ImageElementFormat::UnsignedNormalized)
     {
-    if(format.getBitDepth()==16 && format.getChannels()==3){
-        return FIT_RGB16;
-    }else if(format.getBitDepth()==16 && format.getChannels()==4){
-        return FIT_RGBA16;
-    }else if(format.getBitDepth()==16 && format.getChannels()==1){
-        return FIT_UINT16;
-    }else if(format.getBitDepth()==32 && format.getChannels()==1){
-        return FIT_UINT32;
-    }
+        if(format.getBitDepth()==16 && format.getChannels()==3){
+            return FIT_RGB16;
+        }else if(format.getBitDepth()==16 && format.getChannels()==4){
+            return FIT_RGBA16;
+        }else if(format.getBitDepth()==16 && format.getChannels()==1){
+            return FIT_UINT16;
+        }else if(format.getBitDepth()==32 && format.getChannels()==1){
+            return FIT_UINT32;
+        }
     }else if(format.getElementFormat() == ImageElementFormat::FloatingPoint)
     {
         return FIT_FLOAT;
@@ -70,124 +71,122 @@ FREE_IMAGE_TYPE getFIT2(ImageFormat format){
 }
 
 
-void convert(const Image &_src, fipImage &dest){
-    auto src = _src;
-    //    if(src.Format().getChannels() == 1 && src.Format().bitsPerPixel()==8){
+void convert(const Image &_src, fipImage &dest)
+{
 
-    ////    }else if(src.Format().getChannels() == 3 && src.Format().bitsPerPixel()==24){
-    //        }else if(src.Format().getChannels() == 3 ){
-    //        src.flipRB();
-    //    }else if(src.Format().getChannels() == 4){
-    //        src.flipRB();
-    //    }else{
-    //        std::cout<<"INVALID FORMAT: channels: " << src.Format().getChannels() << ", bitsperpixel " << src.Format().bitsPerPixel() <<std::endl;
-    //        SAIGA_ASSERT(0);
-    //    }
+    auto src = _src;
 
 #if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
-    //convert RGB -> BGR
-    if(src.Format().getChannels() == 3 || src.Format().getChannels() == 4){
-        src.flipRB();
+    if(src.type == UC3)
+    {
+        ImageView<cvec3> img = src.getImageView<cvec3>();
+        img.swapChannels(0,2);
+    }
+    if(src.type == UC4)
+    {
+        ImageView<cvec4> img = src.getImageView<cvec4>();
+        img.swapChannels(0,2);
     }
 #endif
 
 
-    auto res = dest.setSize(getFIT2(src.Format()),src.width,src.height,src.Format().bitsPerPixel());
+    int bpp = elementSize(src.type) * 8;
 
-    if(!res)
+    auto res = dest.setSize(
+                FIT_BITMAP,
+                src.width,src.height,
+                bpp
+                );
+
+    SAIGA_ASSERT(res);
+
+
+    for(int i =0; i < src.rows; ++i)
     {
-        cout << "Failed to set FIT size." << endl;
-        cout << "Format: " << getFIT2(src.Format()) << endl;
-    }
-
-
-    auto data = dest.accessPixels();
-
-
-    //    memcpy(data,src.getRawData(),src.getSize());
-
-    for(int y = 0; y < src.height; ++y){
-
-        auto srcPtr = src.positionPtr(0,y);
-        auto targetPtr = data + y * dest.getScanWidth();
-        memcpy(targetPtr,srcPtr,dest.getScanWidth());
+        memcpy(dest.getScanLine(i),src.rowPtr(i), std::min<int>(dest.getScanWidth(),src.pitchBytes));
     }
 
 }
 
 
 void convert(const fipImage &src, Image& dest){
+
     SAIGA_ASSERT(src.isValid());
     dest.width = src.getWidth();
     dest.height = src.getHeight();
 
-    ImageFormat format;
 
+    int channels = -1;
     switch(src.getColorType()){
     case FIC_MINISBLACK:
-        format.setChannels(1);
+        channels = 1;
         break;
     case FIC_RGB:
-        format.setChannels(3);
+        channels = 3;
         break;
     case FIC_RGBALPHA:
-        format.setChannels(4);
+        channels = 4;
         break;
-    default:
-        std::cout<<"warning unknown color type!"<<src.getColorType()<<std::endl;
-        break;
+    }
+    SAIGA_ASSERT(channels != -1);
+
+
+
+
+    if(src.getBitsPerPixel() == 32 && channels ==3)
+    {
+        channels = 4;
     }
 
 
-
-
-    if(src.getBitsPerPixel()==32 && format.getChannels() ==3){
-        format.setBitDepth(8);
-        format.setChannels(4);
-    }else{
-//        cout << src.getBitsPerPixel() << " " <<  format.getChannels() << endl;
-        SAIGA_ASSERT(src.getBitsPerPixel() % format.getChannels() == 0);
-        format.setBitDepth(src.getBitsPerPixel()/format.getChannels());
+    int bitDepth= src.getBitsPerPixel() / channels;
+    ImageElementType elementType = ELEMENT_UNKNOWN;
+    switch(bitDepth)
+    {
+    case 8:
+        elementType = UCHAR;
+        break;
+    case 16:
+        elementType = SHORT;
+        break;
+    case 32:
+        elementType = INT;
+        break;
     }
+    SAIGA_ASSERT(elementType != ELEMENT_UNKNOWN);
 
 
     //    cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth: " << format.getBitDepth() << endl;
 
-//    cout << format << endl;
+    //    cout << format << endl;
 
-    dest.Format() = format;
+    dest.type =  getType(channels,elementType);
     dest.create();
-    auto data = src.accessPixels();
 
-
-    //    if(format.getChannels()==1){
-    //        memcpy(dest.getRawData(),data,dest.getSize());
-    //    }else if(format.getChannels() == 3 && src.getBitsPerPixel()==24){
-    //        memcpy(dest.getRawData(),data,dest.getSize());
-    //        dest.flipRB();
-    //    }else if(format.getChannels() == 4){
-    //        memcpy(dest.getRawData(),data,dest.getSize());
-    //    }else{
-    //        std::cout<<"TODO: opengl/texture/imageCovnerter.cpp"<<std::endl;
-    //        SAIGA_ASSERT(0);
-    //    }
-
-    for(int y = 0; y < dest.height; ++y){
-
-        auto targetPtr = dest.positionPtr(0,y);
-        auto srcPtr = data + y * src.getScanWidth();
-        memcpy(targetPtr,srcPtr,dest.getBytesPerRow());
+    for(int i =0; i < dest.rows; ++i)
+    {
+        memcpy(dest.rowPtr(i),src.getScanLine(i), std::min<int>(dest.pitchBytes,src.getScanWidth()));
     }
 
 
+
 #if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
-    //convert BGR -> RGB
-    if(format.getChannels() == 3 || format.getChannels() == 4){
-        dest.flipRB();
+    if(dest.type == UC3)
+    {
+        ImageView<cvec3> img = dest.getImageView<cvec3>();
+        img.swapChannels(0,2);
+    }
+    if(dest.type == UC4)
+    {
+        ImageView<cvec4> img = dest.getImageView<cvec4>();
+        img.swapChannels(0,2);
     }
 #endif
 
 }
+
+#endif
+
 
 static double parseFraction(const void* data){
     const int* idata = reinterpret_cast<const int*>(data);
@@ -255,7 +254,7 @@ void printAllMetaData(fipImage &img)
             do {
                 std::string t = tag.getKey();
 
-                 cout << tag.getKey() << " : " << tag.toString(model) << " Type: " << tag.getType() << endl;
+                cout << tag.getKey() << " : " << tag.toString(model) << " Type: " << tag.getType() << endl;
 
 
             } while( finder.findNextMetadata(tag) );
@@ -267,5 +266,3 @@ void printAllMetaData(fipImage &img)
 
 }
 }
-
-#endif
