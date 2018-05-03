@@ -509,10 +509,10 @@ ImageType PngImage::saigaType() const
         elementType = UCHAR;
         break;
     case 16:
-        elementType = SHORT;
+        elementType = USHORT;
         break;
     case 32:
-        elementType = INT;
+        elementType = UINT;
         break;
     }
     SAIGA_ASSERT(elementType != ELEMENT_UNKNOWN);
@@ -545,10 +545,10 @@ void PngImage::fromSaigaType(ImageType t)
     case UCHAR:
         bit_depth = 8;
         break;
-    case SHORT:
+    case USHORT:
         bit_depth = 16;
         break;
-    case INT:
+    case UINT:
         bit_depth = 32;
         break;
     default:

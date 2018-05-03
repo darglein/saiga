@@ -43,11 +43,11 @@ std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, in
                 for(int j=0; j<quadSize;++j){
                     if(black)
                     {
-                        image->at<cvec3>(qx*quadSize+i,qy*quadSize+j) = cvec3(r1,g1,b1);
+                        image->at<ucvec3>(qx*quadSize+i,qy*quadSize+j) = ucvec3(r1,g1,b1);
                     }
                     else
                     {
-                        image->at<cvec3>(qx*quadSize+i,qy*quadSize+j) = cvec3(r2,g2,b2);
+                        image->at<ucvec3>(qx*quadSize+i,qy*quadSize+j) = ucvec3(r2,g2,b2);
                     }
 
 

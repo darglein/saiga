@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
 
             //load an image from file
 //            Image img;
-            TemplatedImage<cvec3> img("textures/redie.png");
+            TemplatedImage<ucvec3> img("textures/redie.png");
 //            loadImage(img);
 
             //copy the image to the gpu

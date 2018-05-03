@@ -59,12 +59,12 @@ void convert(const Image &_src, fipImage &dest)
 #if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
     if(src.type == UC3)
     {
-        ImageView<cvec3> img = src.getImageView<cvec3>();
+        ImageView<ucvec3> img = src.getImageView<ucvec3>();
         img.swapChannels(0,2);
     }
     if(src.type == UC4)
     {
-        ImageView<cvec4> img = src.getImageView<cvec4>();
+        ImageView<ucvec4> img = src.getImageView<ucvec4>();
         img.swapChannels(0,2);
     }
 #endif
@@ -127,10 +127,10 @@ void convert(const fipImage &src, Image& dest){
         elementType = UCHAR;
         break;
     case 16:
-        elementType = SHORT;
+        elementType = USHORT;
         break;
     case 32:
-        elementType = INT;
+        elementType = UINT;
         break;
     }
     SAIGA_ASSERT(elementType != ELEMENT_UNKNOWN);
@@ -153,12 +153,12 @@ void convert(const fipImage &src, Image& dest){
 #if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
     if(dest.type == UC3)
     {
-        ImageView<cvec3> img = dest.getImageView<cvec3>();
+        ImageView<ucvec3> img = dest.getImageView<ucvec3>();
         img.swapChannels(0,2);
     }
     if(dest.type == UC4)
     {
-        ImageView<cvec4> img = dest.getImageView<cvec4>();
+        ImageView<ucvec4> img = dest.getImageView<ucvec4>();
         img.swapChannels(0,2);
     }
 #endif

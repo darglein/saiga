@@ -157,7 +157,7 @@ bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vm
     vcpy.add(-vmin);
     vcpy.multWithScalar(float(1) / (vmax-vmin));
 
-    TemplatedImage<cvec3> simg(img.height,img.width);
+    TemplatedImage<ucvec3> simg(img.height,img.width);
     for(int i = 0; i < img.height; ++i)
     {
         for(int j = 0; j < img.width; ++j)

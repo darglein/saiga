@@ -91,6 +91,10 @@ typedef glm::tvec2<char, glm::highp> cvec2;
 typedef glm::tvec3<char, glm::highp> cvec3;
 typedef glm::tvec4<char, glm::highp> cvec4;
 
+typedef glm::tvec2<unsigned char, glm::highp> ucvec2;
+typedef glm::tvec3<unsigned char, glm::highp> ucvec3;
+typedef glm::tvec4<unsigned char, glm::highp> ucvec4;
+
 #endif
 
 //======= Output stream operator overloads =========

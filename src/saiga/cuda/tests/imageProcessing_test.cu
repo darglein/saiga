@@ -27,7 +27,7 @@ void imageProcessingTest(){
     CUDA_SYNC_CHECK_ERROR();
 
 
-    TemplatedImage<cvec3> img("textures/landscape.jpg");
+    TemplatedImage<ucvec3> img("textures/landscape.jpg");
     //    loadImage("textures/redie.png",img);
 //    loadImage("textures/landscape.jpg",img);
 

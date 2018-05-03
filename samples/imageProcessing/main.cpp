@@ -20,9 +20,9 @@ int main(int argc, char *argv[]) {
     {
         // Test:
         // Read, modify, write a png image.
-        TemplatedImage<cvec3> img("textures/redie.png");
+        TemplatedImage<ucvec3> img("textures/redie.png");
         SAIGA_ASSERT(img.type == UC3);
-        ImageView<cvec3> vimg = img.getImageView();
+        ImageView<ucvec3> vimg = img.getImageView();
         vimg.setChannel(0,0);
         vimg.setChannel(1,0);
 
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
         {
             for(int j = 0; j < img.width; ++j)
             {
-                imggray.at<unsigned char>(i,j) = img.at<cvec3>(i,j)[2];
+                imggray.at<unsigned char>(i,j) = img.at<ucvec3>(i,j)[2];
             }
         }
         imggray.save("debug/blue_gray.png");
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
         // Test:
         // Read, modify, write a jpg image.
         Image img("textures/redie.jpg");
-        ImageView<cvec3> vimg = img.getImageView<cvec3>();
+        ImageView<ucvec3> vimg = img.getImageView<ucvec3>();
         vimg.setChannel(0,0);
         vimg.setChannel(1,0);
         img.save("debug/blue.jpg");

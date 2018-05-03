@@ -12,6 +12,7 @@
 #include "saiga/util/assert.h"
 #include <algorithm>
 
+#if 0
 #if defined(SAIGA_USE_CUDA)
 #include <vector_types.h>
 #else
@@ -25,6 +26,7 @@ struct SAIGA_ALIGN(4) uchar4
 {
     unsigned char x, y, z, w;
 };
+#endif
 #endif
 #endif
 
