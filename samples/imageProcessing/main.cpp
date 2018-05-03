@@ -16,6 +16,7 @@ int main(int argc, char *argv[]) {
 
     catchSegFaults();
 
+
     {
         // Test:
         // Read, modify, write a png image.

@@ -6,7 +6,6 @@
 
 #pragma once
 
-
 /*
  * credits for write PNG:
  * http://www.libpng.org/pub/png/book/chapter15.html
@@ -15,23 +14,18 @@
  * http://blog.nobel-joergensen.com/2010/11/07/loading-a-png-as-texture-in-opengl-using-libpng/
  */
 
-#include <saiga/config.h>
-#include "saiga/image/imageFormat.h"
+#include "saiga/image/managedImage.h"
 
 #ifdef SAIGA_USE_PNG
 
-
-#include <png.h>
-#include <vector>
-
 namespace Saiga {
-
 namespace PNG{
+
 using uchar = unsigned char;
 
     struct SAIGA_GLOBAL PngImage{
         //image size
-        png_uint_32 width, height;
+        size_t width, height;
 
         //number of bits per color. 8 for basic rgb(a) images
         int bit_depth;
@@ -44,13 +38,6 @@ using uchar = unsigned char;
         int rowAlignment = 4;
         size_t bytesPerRow;
 
-        //temp variables for libpng. Don't modify them!!!
-        uchar **row_pointers;
-        void *png_ptr;
-        void *info_ptr;
-        FILE *infile;
-        FILE *outfile;
-        jmp_buf jmpbuf;
 
         void* rowPtr(int i) { return data.data() + bytesPerRow * i; }
         ImageType saigaType() const;
@@ -58,14 +45,15 @@ using uchar = unsigned char;
     };
 
 
-    SAIGA_GLOBAL void pngVersionInfo();
+    SAIGA_LOCAL void pngVersionInfo();
 
-    SAIGA_GLOBAL bool readPNG (PngImage *img, const std::string &path, bool invertY = true);
-    SAIGA_GLOBAL bool writePNG(PngImage *img, const std::string &path, bool invertY = true);
+    SAIGA_LOCAL bool readPNG (PngImage *img, const std::string &path, bool invertY = true);
+    SAIGA_LOCAL bool writePNG(PngImage *img, const std::string &path, bool invertY = true);
 
+    SAIGA_LOCAL void convert(PNG::PngImage& src, Image& dst);
+    SAIGA_LOCAL void convert(Image &src, PNG::PngImage &dst);
 
 }
-
 }
+
 #endif
-

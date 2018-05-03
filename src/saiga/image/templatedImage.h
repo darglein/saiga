@@ -6,18 +6,13 @@
 
 #pragma once
 
-
-#include "saiga/opengl/opengl.h"
-#include "saiga/image/imageFormat.h"
-#include "saiga/image/image.h"
-#include "saiga/image/templatedImageTypes.h"
-#include "saiga/util/color.h"
-#include <vector>
+#include "saiga/image/managedImage.h"
 
 namespace Saiga {
 
 template<typename T>
-class TemplatedImage : public Image{
+class TemplatedImage : public Image
+{
 public:
 
     using TType = ImageTypeTemplate<T>;
@@ -27,6 +22,14 @@ public:
     TemplatedImage(std::string file) {
         load(file);
         SAIGA_ASSERT(type == TType::type);
+    }
+
+    // Note: This creates a copy of img
+    TemplatedImage(ImageView<T> img)
+    {
+        setFormatFromImageView(img);
+        create();
+        img.copyTo(getImageView());
     }
 
     inline
@@ -45,6 +48,8 @@ public:
     {
         return Image::getImageView<T>();
     }
+
+    operator ImageView<T>() { return getImageView(); }
 };
 
 

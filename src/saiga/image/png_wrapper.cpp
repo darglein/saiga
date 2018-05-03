@@ -7,15 +7,27 @@
 #include "saiga/image/png_wrapper.h"
 #include "saiga/util/assert.h"
 #include <cstring> // for memcpy
+
 #ifdef SAIGA_USE_PNG
+#include <png.h>
+
 namespace Saiga {
 namespace PNG{
 
-
+struct PNGLoadStore
+{
+    //temp variables for libpng. Don't modify them!!!
+    uchar **row_pointers;
+    void *png_ptr;
+    void *info_ptr;
+    FILE *infile;
+    FILE *outfile;
+    jmp_buf jmpbuf;
+};
 
 static void writepng_error_handler(png_structp png_ptr, png_const_charp msg)
 {
-    PNG::PngImage  *image;
+    PNGLoadStore  *image;
 
     /* This function, aside from the extra step of retrieving the "error
      * pointer" (below) and the fact that it exists within the application
@@ -29,7 +41,7 @@ static void writepng_error_handler(png_structp png_ptr, png_const_charp msg)
     fprintf(stderr, "writepng libpng error: %s\n", msg);
     fflush(stderr);
 
-    image = static_cast<PNG::PngImage*>(png_get_error_ptr(png_ptr));
+    image = static_cast<PNGLoadStore*>(png_get_error_ptr(png_ptr));
     if (image == NULL) {         /* we are completely hosed now */
         fprintf(stderr,
                 "writepng severe error:  jmpbuf not recoverable; terminating.\n");
@@ -41,14 +53,17 @@ static void writepng_error_handler(png_structp png_ptr, png_const_charp msg)
 }
 
 
-bool readPNG(PngImage *img, const std::string &path, bool invertY){
+bool readPNG(PngImage *img, const std::string &path, bool invertY)
+{
+    PNGLoadStore pngls;
+
     png_structp png_ptr;
     png_infop info_ptr;
 
     unsigned int sig_read = 0;
     int  interlace_type;
 
-    if ((img->infile = fopen(path.c_str(), "rb")) == NULL)
+    if ((pngls.infile = fopen(path.c_str(), "rb")) == NULL)
         return false;
 
     /* Create and initialize the png_struct
@@ -65,8 +80,9 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY){
     png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING,
                                      NULL, NULL, NULL);
 
+
     if (png_ptr == NULL) {
-        fclose(img->infile);
+        fclose(pngls.infile);
         return false;
     }
 
@@ -74,7 +90,7 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY){
      * for image information.  REQUIRED. */
     info_ptr = png_create_info_struct(png_ptr);
     if (info_ptr == NULL) {
-        fclose(img->infile);
+        fclose(pngls.infile);
         png_destroy_read_struct(&png_ptr, NULL, NULL);
         return false;
     }
@@ -92,7 +108,7 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY){
         /* Free all of the memory associated
          * with the png_ptr and info_ptr */
         png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-        fclose(img->infile);
+        fclose(pngls.infile);
         /* If we get here, we had a
          * problem reading the file */
         return false;
@@ -100,7 +116,7 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY){
 
     /* Set up the output control if
      * you are using standard C streams */
-    png_init_io(png_ptr, img->infile);
+    png_init_io(png_ptr, pngls.infile);
 
     /* If we have already
      * read some of the signature */
@@ -127,14 +143,18 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY){
      */
     png_read_png(png_ptr, info_ptr,
                  //                 PNG_TRANSFORM_STRIP_16 | //Strip 16-bit samples to 8 bits
+                 PNG_TRANSFORM_SWAP_ENDIAN | //png byte order is big endian!
                  PNG_TRANSFORM_PACKING | //Expand 1, 2 and 4-bit samples to bytes
                  PNG_TRANSFORM_EXPAND //Perform set_expand()
                  , NULL);
 
 
 
-    png_get_IHDR(png_ptr, info_ptr, &img->width, &img->height, &img->bit_depth, &img->color_type,
+    png_uint_32 pw,ph;
+    png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &img->bit_depth, &img->color_type,
                  &interlace_type, NULL, NULL);
+    img->width = pw;
+    img->height = ph;
 
 
     unsigned int row_bytes = png_get_rowbytes(png_ptr, info_ptr);
@@ -164,7 +184,7 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY){
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 
     /* Close the file */
-    fclose(img->infile);
+    fclose(pngls.infile);
 
     /* That's it */
     return true;
@@ -174,7 +194,7 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY){
 /* returns 0 for success, 2 for libpng problem, 4 for out of memory, 11 for
  *  unexpected pnmtype; note that outfile might be stdout */
 
-static int writepng_init(PNG::PngImage *image)
+static int writepng_init(PNG::PngImage *image, PNGLoadStore* pngls)
 {
     png_structp  png_ptr;       /* note:  temporary variables! */
     png_infop  info_ptr;
@@ -199,7 +219,7 @@ static int writepng_init(PNG::PngImage *image)
      * but compatible error handlers must either use longjmp() themselves
      * (as in this program) or exit immediately, so here we go: */
 
-    if (setjmp(image->jmpbuf)) {
+    if (setjmp(pngls->jmpbuf)) {
         png_destroy_write_struct(&png_ptr, &info_ptr);
         return 2;
     }
@@ -207,7 +227,7 @@ static int writepng_init(PNG::PngImage *image)
 
     /* make sure outfile is (re)opened in BINARY mode */
 
-    png_init_io(png_ptr, image->outfile);
+    png_init_io(png_ptr, pngls->outfile);
 
 
     /* set the compression levels--in general, always want to leave filtering
@@ -323,8 +343,8 @@ static int writepng_init(PNG::PngImage *image)
 
     /* make sure we save our pointers for use in writepng_encode_image() */
 
-    image->png_ptr = png_ptr;
-    image->info_ptr = info_ptr;
+    pngls->png_ptr = png_ptr;
+    pngls->info_ptr = info_ptr;
 
 
     /* OK, that's all we need to do for now; return happy */
@@ -338,19 +358,20 @@ static int writepng_init(PNG::PngImage *image)
 
 /* returns 0 for success, 2 for libpng (longjmp) problem */
 
-static int writepng_encode_image(PNG::PngImage *image,bool invertY)
+static int writepng_encode_image(PNG::PngImage *image,  PNGLoadStore* pngls, bool invertY)
 {
-    png_structp png_ptr = (png_structp)image->png_ptr;
-    png_infop info_ptr = (png_infop)image->info_ptr;
+
+    png_structp png_ptr = (png_structp)pngls->png_ptr;
+    png_infop info_ptr = (png_infop)pngls->info_ptr;
 
 
     /* as always, setjmp() must be called in every function that calls a
      * PNG-writing libpng function */
 
-    if (setjmp(image->jmpbuf)) {
+    if (setjmp(pngls->jmpbuf)) {
         png_destroy_write_struct(&png_ptr, &info_ptr);
-        image->png_ptr = NULL;
-        image->info_ptr = NULL;
+        pngls->png_ptr = NULL;
+        pngls->info_ptr = NULL;
         return 2;
     }
 
@@ -376,25 +397,25 @@ static int writepng_encode_image(PNG::PngImage *image,bool invertY)
     image->bytesPerRow = row_bytes + rowPadding;
 
     //the row pointers point to the first byte of each row of the image
-    image->row_pointers = new uchar*[image->height];
+    pngls->row_pointers = new uchar*[image->height];
 
     if(invertY){
         for(unsigned int i=0;i<image->height;i++){
             int offset = i*image->bytesPerRow;
-            image->row_pointers[image->height-i-1] = image->data.data()+offset;
+            pngls->row_pointers[image->height-i-1] = image->data.data()+offset;
         }
     }else{
 
 
         for(unsigned int i=0;i<image->height;i++){
             int offset = i*image->bytesPerRow;
-            image->row_pointers[i] = image->data.data()+offset;
+            pngls->row_pointers[i] = image->data.data()+offset;
         }
     }
     /* and now we just write the whole image; libpng takes care of interlacing
      * for us */
 
-    png_write_image(png_ptr, image->row_pointers);
+    png_write_image(png_ptr, pngls->row_pointers);
 
 
     /* since that's it, we also close out the end of the PNG file now--if we
@@ -410,71 +431,10 @@ static int writepng_encode_image(PNG::PngImage *image,bool invertY)
 
 
 
-/* returns 0 if succeeds, 2 if libpng problem */
-
-static int writepng_encode_row(PNG::PngImage *image)  /* NON-interlaced only! */
+static void writepng_cleanup(PNG::PngImage *image,  PNGLoadStore* pngls)
 {
-    png_structp png_ptr = (png_structp)image->png_ptr;
-    png_infop info_ptr = (png_infop)image->info_ptr;
-
-
-    /* as always, setjmp() must be called in every function that calls a
-     * PNG-writing libpng function */
-
-    if (setjmp(image->jmpbuf)) {
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-        image->png_ptr = NULL;
-        image->info_ptr = NULL;
-        return 2;
-    }
-
-
-    /* image_data points at our one row of image data */
-
-    png_write_row(png_ptr, image->data.data());
-
-    return 0;
-}
-
-
-
-
-
-/* returns 0 if succeeds, 2 if libpng problem */
-
-static int writepng_encode_finish(PNG::PngImage *image)   /* NON-interlaced! */
-{
-    png_structp png_ptr = (png_structp)image->png_ptr;
-    png_infop info_ptr = (png_infop)image->info_ptr;
-
-
-    /* as always, setjmp() must be called in every function that calls a
-     * PNG-writing libpng function */
-
-    if (setjmp(image->jmpbuf)) {
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-        image->png_ptr = NULL;
-        image->info_ptr = NULL;
-        return 2;
-    }
-
-
-    /* close out PNG file; if we had any text or time info to write after
-     * the IDATs, second argument would be info_ptr: */
-
-    png_write_end(png_ptr, NULL);
-
-    return 0;
-}
-
-
-
-
-
-static void writepng_cleanup(PNG::PngImage *image)
-{
-    png_structp png_ptr = (png_structp)image->png_ptr;
-    png_infop info_ptr = (png_infop)image->info_ptr;
+    png_structp png_ptr = (png_structp)pngls->png_ptr;
+    png_infop info_ptr = (png_infop)pngls->info_ptr;
 
     if (png_ptr && info_ptr)
         png_destroy_write_struct(&png_ptr, &info_ptr);
@@ -492,6 +452,7 @@ void pngVersionInfo()
 
 bool writePNG(PngImage *img, const std::string &path, bool invertY){
     //    std::cout<<"write png: "<<path.c_str()<<std::endl;
+    PNGLoadStore pngls;
 
     FILE *fp = fopen(path.c_str(), "wb");
     if (!fp)
@@ -500,20 +461,20 @@ bool writePNG(PngImage *img, const std::string &path, bool invertY){
         return false;
     }
 
-    img->outfile = fp;
+    pngls.outfile = fp;
 
 
 
 
-    if(writepng_init(img)!=0){
+    if(writepng_init(img,&pngls)!=0){
         std::cout<<"error write png init"<<std::endl;
     }
-    if(writepng_encode_image(img,invertY)!=0){
+    if(writepng_encode_image(img,&pngls,invertY)!=0){
         std::cout<<"error write encode image"<<std::endl;
     }
 
 
-    writepng_cleanup(img);
+    writepng_cleanup(img,&pngls);
 
     fclose(fp);
 
@@ -592,6 +553,41 @@ void PngImage::fromSaigaType(ImageType t)
         break;
     default:
         SAIGA_ASSERT(0);
+    }
+}
+
+
+void convert(PNG::PngImage &src, Image& dest)
+{
+    dest.width = src.width;
+    dest.height = src.height;
+
+    dest.type = src.saigaType();
+
+
+    dest.create();
+
+    for(int i =0; i < dest.rows; ++i)
+    {
+        memcpy(dest.rowPtr(i),src.rowPtr(i), std::min(dest.pitchBytes,src.bytesPerRow));
+    }
+}
+
+void convert(Image &src, PNG::PngImage &dest)
+{
+
+    dest.width = src.width;
+    dest.height = src.height;
+
+    dest.fromSaigaType(src.type);
+
+
+    dest.bytesPerRow = iAlignUp(elementSize(src.type)*src.width,4);
+    dest.data.resize(dest.bytesPerRow * src.height);
+
+    for(int i =0; i < src.rows; ++i)
+    {
+        memcpy(dest.rowPtr(i),src.rowPtr(i), std::min(src.pitchBytes,dest.bytesPerRow));
     }
 }
 

@@ -4,18 +4,18 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/image/image.h"
+#include "saiga/image/managedImage.h"
 #include "saiga/util/assert.h"
-#include <cstring>
-#ifdef SAIGA_USE_FREEIMAGE
-#include <FreeImagePlus.h>
+
+//for the load and save function
 #include "saiga/image/freeimage.h"
-#endif
 #include "saiga/image/png_wrapper.h"
-#include "saiga/image/imageConverter.h"
+
+
 #include "saiga/util/imath.h"
 #include "saiga/image/templatedImage.h"
 #include "saiga/util/tostring.h"
+#include "saiga/util/color.h"
 
 namespace Saiga {
 
@@ -38,7 +38,28 @@ void Image::create()
     vdata.resize(size());
 
     SAIGA_ASSERT(valid());
+}
 
+void Image::create(int h, int w)
+{
+    height = h;
+    width = w;
+    create();
+}
+
+void Image::create(int h, int w, ImageType t)
+{
+    height = h;
+    width = w;
+    type = t;
+    create();
+
+}
+
+void Image::free()
+{
+    vdata.clear();
+    vdata.shrink_to_fit();
 }
 
 void Image::makeZero()
@@ -77,7 +98,7 @@ bool Image::load(const std::string &path)
         PNG::PngImage pngimg;
         erg = PNG::readPNG( &pngimg,path);
         if(erg)
-            ImageConverter::convert(pngimg,*this);
+            PNG::convert(pngimg,*this);
         return erg;
     }
 #endif
@@ -111,7 +132,7 @@ bool Image::save(const std::string &path)
     if(type == "png")
     {
         PNG::PngImage pngimg;
-        ImageConverter::convert(*this,pngimg);
+        PNG::convert(*this,pngimg);
         erg = PNG::writePNG(&pngimg,path);
         return erg;
     }
@@ -131,10 +152,8 @@ bool Image::save(const std::string &path)
 
 bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax)
 {
-    std::vector<float> cpy(img.width*img.height);
-    ImageView<float> vcpy(img.height,img.width,cpy.data());
-    img.copyTo(vcpy);
-
+    TemplatedImage<float> cpy(img);
+    auto vcpy = cpy.getImageView();
     vcpy.add(-vmin);
     vcpy.multWithScalar(float(1) / (vmax-vmin));
 
@@ -149,9 +168,9 @@ bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vm
             vec3 hsv(f* (240.0/360.0),1,1);
             Saiga::Color c (Color::hsv2rgb(hsv));
             //            unsigned char c = Saiga::iRound(f * 255.0f);
-            simg(j,i).r = c.r;
-            simg(j,i).g = c.g;
-            simg(j,i).b = c.b;
+            simg(i,j).r = c.r;
+            simg(i,j).g = c.g;
+            simg(i,j).b = c.b;
         }
     }
     return simg.save(path);
@@ -160,9 +179,8 @@ bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vm
 
 bool save(const std::string& path, ImageView<float> img, float vmin, float vmax)
 {
-    std::vector<float> cpy(img.width*img.height);
-    ImageView<float> vcpy(img.height,img.width,cpy.data());
-    img.copyTo(vcpy);
+    TemplatedImage<float> cpy(img);
+    auto vcpy = cpy.getImageView();
 
     vcpy.add(-vmin);
     vcpy.multWithScalar(float(1) / (vmax-vmin));
@@ -174,7 +192,7 @@ bool save(const std::string& path, ImageView<float> img, float vmin, float vmax)
         {
             float f = glm::clamp(vcpy(i,j),0.0f,1.0f);
             unsigned char c = Saiga::iRound(f * 255.0f);
-            simg(j,i) = c;
+            simg(i,j) = c;
         }
     }
     return simg.save(path);

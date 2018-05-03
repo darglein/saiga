@@ -329,9 +329,10 @@ std::vector<glm::ivec2> TextureAtlas::generateSDFsamples(int searchRadius)
 void TextureAtlas::writeAtlasToFiles(Image& img)
 {
     std::string str = uniqueFontString + ".png";
-    if(!TextureLoader::instance()->saveImage(str,img)){
-        cout<<"could not save "<<str<<endl;
-    }
+
+
+    img.save(str);
+
 
     std::ofstream stream (uniqueFontString,std::ofstream::binary);
     stream.write((char*)&numCharacters,sizeof(uint32_t));
@@ -365,10 +366,8 @@ bool TextureAtlas::readAtlasFromFiles()
 
 
     std::string str = uniqueFontString + ".png";
-    Image img;
-    if(!TextureLoader::instance()->loadImage(str,img)){
-        return false;
-    }
+    Image img(str);
+
 
 //    TextureLoader::instance()->saveImage("asdf2.png",img);
 

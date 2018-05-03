@@ -25,17 +25,6 @@ class SAIGA_GLOBAL TextureLoader : public Loader<std::shared_ptr<Texture>,Textur
 public:
     std::shared_ptr<Texture> loadFromFile(const std::string &name, const TextureParameters &params);
 
-    /**
-     * Loads an image from file.
-     * Uses libfreeimage if possible and libpng otherwise.
-     */
-    bool loadImage(const std::string &path, Image& outImage) const;
-
-    /**
-     * Saves an image to file.
-     * Uses libfreeimage if possible and libpng otherwise.
-     */
-    bool saveImage(const std::string &path, Image& image) const;
     std::shared_ptr<Texture> textureFromImage(Image &im, const TextureParameters &params) const;
 };
 

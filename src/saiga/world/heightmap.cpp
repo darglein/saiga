@@ -345,10 +345,10 @@ void Heightmap::saveHeightmaps(){
 
         std::string name = "heightmap"+std::to_string(i)+".png";
 
-
-        if(!TextureLoader::instance()->saveImage(name,heightmap[i])){
-            cout<<"could not save "<<name<<endl;
-        }
+    SAIGA_ASSERT(0);
+//        if(!TextureLoader::instance()->saveImage(name,heightmap[i])){
+//            cout<<"could not save "<<name<<endl;
+//        }
 
 
 
@@ -362,9 +362,9 @@ void Heightmap::saveNormalmaps(){
         std::string name = "normalmap"+std::to_string(i)+".png";
 
 
-        if(!TextureLoader::instance()->saveImage(name,normalmap[i])){
-            cout<<"could not save "<<name<<endl;
-        }
+//        if(!TextureLoader::instance()->saveImage(name,normalmap[i])){
+//            cout<<"could not save "<<name<<endl;
+//        }
     }
 
 
@@ -379,16 +379,16 @@ bool Heightmap::loadMaps(){
         std::string name = "heightmap"+std::to_string(i)+".png";
 
         cout<<"load heightmap "<<endl;
-        if (!TextureLoader::instance()->loadImage(name,heightmap[i]))
-            return false;
+//        if (!TextureLoader::instance()->loadImage(name,heightmap[i]))
+//            return false;
 
     }
 
     for(int i=0;i<layers;i++){
         std::string name = "normalmap"+std::to_string(i)+".png";
 
-        if (!TextureLoader::instance()->loadImage(name,normalmap[i]))
-            return false;
+//        if (!TextureLoader::instance()->loadImage(name,normalmap[i]))
+//            return false;
     }
     return true;
 }
@@ -399,9 +399,9 @@ void Heightmap::createHeightmapsFrom(const std::string& image){
 
 
 
-    if(!TextureLoader::instance()->loadImage(image,heightmap[0])){
+//    if(!TextureLoader::instance()->loadImage(image,heightmap[0])){
 
-    }
+//    }
 
 
     createRemainingLayers();

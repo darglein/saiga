@@ -176,9 +176,10 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         }
     }
 
-    template<typename OtherImageView>
-    HD inline
-    void copyTo(OtherImageView& a){
+    template<typename T2>
+    inline
+    void copyTo(ImageView<T2> a){
+        SAIGA_ASSERT(height == a.height && width == a.width);
         for(int y = 0; y < height; ++y){
             for(int x = 0; x < width; ++x){
                 a(y,x) = (*this)(y,x);

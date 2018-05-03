@@ -262,7 +262,8 @@ void OpenGLWindow::screenshot(const std::string &file)
 {
     Image img;
     readToImage(img);
-    TextureLoader::instance()->saveImage(file,img);
+    img.save(file);
+//    TextureLoader::instance()->saveImage(file,img);
 }
 
 void OpenGLWindow::screenshotRender(const std::string &file)
@@ -283,7 +284,8 @@ void OpenGLWindow::screenshotRender(const std::string &file)
     glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img.data());
     tex->unbind();
 
-    TextureLoader::instance()->saveImage(file,img);
+//    TextureLoader::instance()->saveImage(file,img);
+    img.save(file);
 }
 
 void OpenGLWindow::getDepthFloat(Image& out){
@@ -357,7 +359,8 @@ void OpenGLWindow::screenshotRenderDepth(const std::string &file)
 
 
 
-    TextureLoader::instance()->saveImage(file,img2);
+//    TextureLoader::instance()->saveImage(file,img2);
+    img2.save(file);
 }
 
 std::string OpenGLWindow::getTimeString()
