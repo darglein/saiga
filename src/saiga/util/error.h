@@ -9,7 +9,8 @@
 #include "saiga/util/assert.h"
 #include <saiga/opengl/opengl.h>
 
-#include <cstdlib>
+//#include <cstdlib>
+#include <vector>
 
 namespace Saiga {
 
@@ -37,17 +38,10 @@ public:
 
     static bool checkGLError();
 
-//    static void quitWhenError(const char* func);
 
 
-    // aux function to translate source to std::string
-    static std::string getStringForSource(GLenum source);
-
-    // aux function to translate severity to std::string
-    static std::string getStringForSeverity(GLenum severity);
-
-    // aux function to translate type to std::string
-    static std::string getStringForType(GLenum type);
+    // ignores all gl errors in the debug output
+    static void ignoreGLError(std::vector<GLuint>& ids);
 
     static void setAssertAtError(bool v);
 

@@ -73,7 +73,7 @@ public:
      */
 
     VertexBuffer() : TemplatedBuffer<vertex_t>(GL_ARRAY_BUFFER){}
-    ~VertexBuffer(){}
+    ~VertexBuffer(){ deleteGLBuffer(); }
 
 
     /*
@@ -214,7 +214,8 @@ template<class vertex_t>
 void VertexBuffer<vertex_t>::deleteGLBuffer(){
     //glDeleteBuffers silently ignores 0's and names that do not correspond to existing buffer objects
     TemplatedBuffer<vertex_t>::deleteGLBuffer();
-    if(gl_vao){
+    if(gl_vao)
+    {
         glDeleteVertexArrays(1, &gl_vao);
         gl_vao = 0;
         assert_no_glerror();
