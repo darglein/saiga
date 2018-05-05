@@ -8,7 +8,7 @@
 
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
-
+#include "saiga/opengl/error.h"
 #include "saiga/util/configloader.h"
 #include "saiga/util/assert.h"
 
@@ -132,24 +132,20 @@ void initSaiga()
 
     FP::resetSSECSR();
 
-    //    CUDA::bandwidthTest();
-    //    writeExtensions();
     readConfigFile();
 
-    //    ShaderLoader::instance()->addPath(SHADER_PATH);
-    //    ShaderLoader::instance()->addPath(SHADER_PATH+"/geometry");
-    //    ShaderLoader::instance()->addPath(SHADER_PATH+"/lighting");
-    //    ShaderLoader::instance()->addPath(SHADER_PATH+"/post_processing");
 
     shaderPathes.addSearchPath(SHADER_PATH);
-    //    shaderPathes.addSearchPath(SHADER_PATH+"/geometry");
-    //    shaderPathes.addSearchPath(SHADER_PATH+"/lighting");
-    //    shaderPathes.addSearchPath(SHADER_PATH+"/post_processing");
 
     TextureLoader::instance()->addPath(TEXTURE_PATH);
     TextureLoader::instance()->addPath(OBJ_PATH);
     TextureLoader::instance()->addPath(".");
 	 
+	// Disables the following notification:
+	// Buffer detailed info : Buffer object 2 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is GL_STREAM_DRAW) 
+	// will use VIDEO memory as the source for buffer object operations.
+	std::vector<GLuint> ignoreIds = { 131185 };
+	Error::ignoreGLError(ignoreIds);
 
 
     printSaigaInfo();

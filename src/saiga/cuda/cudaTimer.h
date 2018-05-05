@@ -22,7 +22,9 @@ public:
 
 
 
-class SAIGA_GLOBAL CudaScopedTimerPrint {
+class SAIGA_GLOBAL CudaScopedTimerPrint 
+{
+private:
     std::string name;
     cudaEvent_t start, stop;
 public:

@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 set(LIB_NAME saiga)
-#project (${LIB_NAME})
 project (${LIB_NAME} CXX)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
@@ -234,7 +233,7 @@ if(CUDA_FOUND)
 	#list( APPEND CMAKE_CUDA_FLAGS --expt-relaxed-constexpr)
 	#list( APPEND CUDA_NVCC_FLAGS --expt-relaxed-constexpr)
 
-	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fPIC")
+	
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_30,code=compute_30")
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_52,code=sm_52")
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexpr")
@@ -242,11 +241,12 @@ if(CUDA_FOUND)
 	#message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 	
 	if(BUILD_SHARED)
-	      set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS)
+	      #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS)
+		  SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS")
 	endif()
 
 	if(UNIX)
-	      set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -Xcompiler -fPIC)
+	      SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fPIC")
 	endif()
 	
 	message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")

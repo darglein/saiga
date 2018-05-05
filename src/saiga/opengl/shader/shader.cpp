@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/shader/shader.h"
 #include "saiga/opengl/texture/raw_texture.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include <fstream>
 #include <algorithm>
 #include "saiga/util/assert.h"

@@ -7,7 +7,6 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/cuda/common.h"
 
 namespace Saiga {
 

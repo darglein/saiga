@@ -5,7 +5,7 @@
  */
 
 #include "saiga/opengl/texture/raw_texture.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include "saiga/image/glImageFormat.h"
 
 namespace Saiga {

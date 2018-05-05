@@ -13,7 +13,7 @@
 #include "saiga/rendering/renderer.h"
 
 #include "saiga/util/tostring.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include "saiga/framework.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/util/math.h"
@@ -65,8 +65,6 @@ void OpenGLWindow::updateUpdateGraph()
 
     imUpdateTimes[imCurrentIndexUpdate] = ut;
     imCurrentIndexUpdate = (imCurrentIndexUpdate+1) % numGraphValues;
-
-
 }
 
 void OpenGLWindow::updateRenderGraph()

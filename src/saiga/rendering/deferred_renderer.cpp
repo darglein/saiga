@@ -5,7 +5,7 @@
  */
 
 #include "saiga/rendering/deferred_renderer.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 

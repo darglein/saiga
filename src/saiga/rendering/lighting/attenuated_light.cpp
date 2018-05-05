@@ -5,7 +5,7 @@
  */
 
 #include "saiga/rendering/lighting/attenuated_light.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include "saiga/util/assert.h"
 #include "saiga/imgui/imgui.h"
 

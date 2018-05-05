@@ -7,7 +7,6 @@
 #pragma once
 
 #include "saiga/image/imageBase.h"
-#include "saiga/cuda/common.h"
 #include "saiga/util/imath.h"
 #include "saiga/util/assert.h"
 #include <algorithm>

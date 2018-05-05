@@ -5,7 +5,7 @@
  */
 
 #include "saiga/opengl/texture/arrayTexture.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 
 namespace Saiga {
 

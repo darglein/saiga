@@ -5,7 +5,7 @@
  */
 
 #include "saiga/opengl/texture/texture3D.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 
 namespace Saiga {
 

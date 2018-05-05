@@ -16,7 +16,7 @@
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/util/inputcontroller.h"
 #include <chrono>
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include "saiga/framework.h"
 #include "saiga/imgui/imgui_impl_glfw_gl3.h"
 
@@ -316,7 +316,7 @@ void glfw_Window::setGLFWcursor(GLFWcursor *cursor)
 
 GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
 {
-    if(image->Format().getBitDepth() != 8 || image->Format().getChannels() != 4){
+    if(image->type != UC4){
         cout<<"glfw_Window::createGLFWcursor(Image *image): image has the wrong format."<<endl;
         cout<<"Required format: RGBA8"<<endl;
         SAIGA_ASSERT(0);
@@ -326,7 +326,7 @@ GLFWcursor* glfw_Window::createGLFWcursor(Image *image, int midX, int midY)
     GLFWimage glfwimage;
     glfwimage.width = image->width;
     glfwimage.height = image->height;
-    glfwimage.pixels = image->getRawData();
+    glfwimage.pixels = image->data8();
 
     return glfwCreateCursor(&glfwimage, midX, midY);
 }
@@ -350,7 +350,8 @@ void glfw_Window::checkEvents()
 
 void glfw_Window::setWindowIcon(Image* image){
     SAIGA_ASSERT(window);
-    if(image->Format().getBitDepth() != 8 || image->Format().getChannels() != 4){
+    if(image->type != UC4)
+	{
         cout<<"glfw_Window::setWindowIcon(Image *image): image has the wrong format."<<endl;
         cout<<"Required format: RGBA8"<<endl;
         SAIGA_ASSERT(0);
@@ -360,7 +361,7 @@ void glfw_Window::setWindowIcon(Image* image){
     GLFWimage glfwimage;
     glfwimage.width = image->width;
     glfwimage.height = image->height;
-    glfwimage.pixels = image->getRawData();
+    glfwimage.pixels = image->data8();
 
     //only works with glfw version 3.2 and up
     glfwSetWindowIcon(window,1,&glfwimage);
@@ -384,12 +385,13 @@ void glfw_Window::screenshotParallelWrite(const std::string &file){
     std::shared_ptr<Image> img = std::make_shared<Image>();
     img->width = w;
     img->height = h;
-    img->Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    //img->Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+	img->type = UC3;
     img->create();
 
     auto tex = getRenderer()->postProcessor.getCurrentTexture();
     tex->bind();
-    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img->getRawData());
+    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img->data());
     tex->unbind();
 
 
@@ -445,7 +447,8 @@ void glfw_Window::processScreenshots()
 
         if (took){
             long long start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-            TextureLoader::instance()->saveImage(parallelScreenshotPath+ std::to_string(cur) + ".bmp",*f);
+            //TextureLoader::instance()->saveImage(parallelScreenshotPath+ std::to_string(cur) + ".bmp",*f);
+			f->save(parallelScreenshotPath + std::to_string(cur) + ".bmp");
             //            f->save(().c_str());
             cout << "write " << cur  << " (" <<queueSize << ") " << (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - start)/1000 << "ms"<< endl;
 

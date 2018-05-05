@@ -6,7 +6,7 @@
 
 #include "saiga/rendering/lighting/shadowmap.h"
 #include "saiga/opengl/texture/cube_texture.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 
 namespace Saiga {
 

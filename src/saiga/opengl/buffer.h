@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/opengl.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include <vector>
 
 namespace Saiga {

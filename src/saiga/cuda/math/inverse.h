@@ -1,6 +1,6 @@
 #pragma once
 
-#include "saiga/cuda/common.h"
+#include "saiga/config.h"
 
 namespace Saiga {
 namespace CUDA {

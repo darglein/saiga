@@ -6,7 +6,6 @@
 
 #pragma once
 #include "saiga/config.h"
-#include "saiga/cuda/common.h"
 #include "saiga/cuda/array_view.h"
 #include "saiga/cuda/cudaTimer.h"
 #include "saiga/util/imath.h"

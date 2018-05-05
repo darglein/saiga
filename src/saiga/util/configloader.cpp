@@ -84,7 +84,7 @@ bool ConfigLoader::loadFile2(const std::string &_name)
 
 
             entries.emplace_back(key,value,comment);
-#ifdef SAIGA_DEBUG
+#ifdef SAIGA_DEBUG12
             std::cout << "Key " << key
                       << "  Value='" << value << "'"
                       << " Comment: " << comment << std::endl;

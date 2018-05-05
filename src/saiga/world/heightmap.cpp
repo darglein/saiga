@@ -266,6 +266,7 @@ float Heightmap::getHeight(int layer, int x, int y){
 //    height_res_t v = *((height_res_t*)img.positionPtr(x,y));
 //    return (float)v / (float)max_res;
     SAIGA_ASSERT(0);
+	return 0;
 }
 
 float Heightmap::getHeightScaled(int layer, int x, int y){

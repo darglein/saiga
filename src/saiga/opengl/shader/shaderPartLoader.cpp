@@ -7,7 +7,7 @@
 #include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/opengl/shader/shader.h"
 #include "saiga/util/fileChecker.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include <fstream>
 #include <algorithm>
 #include <regex>

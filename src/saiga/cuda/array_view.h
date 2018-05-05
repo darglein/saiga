@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/cuda/common.h"
+#include "saiga/config.h"
 
 #include <thrust/device_vector.h>
 #include <cstddef>

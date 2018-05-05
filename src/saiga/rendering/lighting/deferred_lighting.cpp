@@ -8,7 +8,7 @@
 #include "saiga/util/inputcontroller.h"
 
 #include "saiga/rendering/deferred_renderer.h"
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 
 #include "saiga/rendering/lighting/directional_light.h"
 #include "saiga/rendering/lighting/point_light.h"

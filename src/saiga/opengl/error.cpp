@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/error.h"
+#include "saiga/opengl/error.h"
 #include "saiga/util/tostring.h"
 #include <unordered_map>
 
