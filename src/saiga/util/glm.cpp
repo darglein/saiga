@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -51,7 +51,7 @@ std::ostream& operator<<(std::ostream& os, const mat4& v)
 {
     auto vt = transpose(v);
     for (int i = 0; i < 4; ++i){
-            os << vt[i] << endl;
+        os << vt[i] << endl;
     }
     return os;
 }
@@ -94,6 +94,7 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v){
 
 }
 
+namespace Saiga {
 // ===========================================================================
 
 ////TODO use glm::rotate
@@ -121,11 +122,11 @@ vec3 sampleCone(const vec3 &dir, float angle){
 
     vec3 cdir = vec3(0,0,1);
 
-//    if(dir==cdir){
-//        return v;
-//    }else if(dir==-cdir){
-//        return -v;
-//    }
+    //    if(dir==cdir){
+    //        return v;
+    //    }else if(dir==-cdir){
+    //        return -v;
+    //    }
 
 
     vec4 test = glm::rotation(cdir,dir)*vec4(v,0);
@@ -168,7 +169,8 @@ vec3 snapTo(vec3 v, float snapAngleInDegrees)
 void glmtest(){
     glm::linearRand(vec4(0),vec4(1));
     glm::diskRand(1.0f);
-   glm::sphericalRand(1.0f);
+    glm::sphericalRand(1.0f);
     glm::ballRand(1.0f);
 }
 
+}

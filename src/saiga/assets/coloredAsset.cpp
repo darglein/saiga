@@ -26,7 +26,12 @@ void TexturedAsset::render(Camera *cam, const mat4 &model)
 
 
 
-	 tshader->unbind();
+     tshader->unbind();
+}
+
+void TexturedAsset::renderForward(Camera *cam, const mat4 &model)
+{
+    render(cam,model);
 }
 
 void TexturedAsset::renderDepth(Camera *cam, const mat4 &model)

@@ -33,6 +33,7 @@ void AssetLoader::loadDefaultShaders()
     basicAssetWireframeShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_wireframe.glsl");
 
     texturedAssetShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
+    texturedAssetForwardShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
     texturedAssetDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_depth.glsl");
     texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_wireframe.glsl");
 
@@ -158,7 +159,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::nonTriangleMesh(std::vector<vec3> ver
 static void createFrustumMesh(mat4 proj, std::vector<vec3>& vertices,  std::vector<GLuint>& indices)
 {
 
-    float d = 0.5f;
+    float d = 1.0f;
     vec4 bl(-1,-1,d,1);
     vec4 br(1,-1,d,1);
     vec4 tl(-1,1,d,1);

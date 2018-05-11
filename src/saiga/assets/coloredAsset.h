@@ -25,6 +25,7 @@ public:
     std::vector<TextureGroup> groups;
 
     virtual void render(Camera *cam, const mat4 &model) override;
+    virtual void renderForward(Camera *cam, const mat4 &model) override;
     virtual void renderDepth(Camera *cam, const mat4 &model) override;
 
 };

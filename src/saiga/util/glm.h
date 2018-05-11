@@ -128,6 +128,9 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v);
 //============== Helper functions =================
 
 
+namespace Saiga {
+
+
 
 SAIGA_GLOBAL vec3 sampleCone(const vec3& dir, float angle);
 //samples cone along the z axis
@@ -181,4 +184,6 @@ SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec
     Result[1] *= s.y;
     Result[2] *= s.z;
     return Result;
+}
+
 }
