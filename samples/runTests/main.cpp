@@ -43,6 +43,10 @@ int main(int argc, char *argv[]) {
     {
         //CUDA tests
         CUDA::initCUDA();
+
+        Saiga::CUDA::testCuda();
+        Saiga::CUDA::testThrust();
+
         CUDA::initBLASSPARSE();
 
 //        CUDA::imageProcessingTest();

@@ -72,8 +72,20 @@ void convert(const Image &_src, fipImage &dest)
 
     int bpp = elementSize(src.type) * 8;
 
+
+    FREE_IMAGE_TYPE t = FIT_BITMAP;
+
+    switch(_src.type)
+    {
+        case US1:
+        t = FIT_UINT16;
+        break;
+    default:
+        break;
+    }
+
     auto res = dest.setSize(
-                FIT_BITMAP,
+                t,
                 src.width,src.height,
                 bpp
                 );

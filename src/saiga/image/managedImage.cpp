@@ -136,7 +136,7 @@ bool Image::save(const std::string &path)
     }
 
 
-#ifdef SAIGA_USE_PNG
+#ifdef SAIGA_USE_PNG1
     //use libpng for png images
     if(type == "png")
     {

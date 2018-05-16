@@ -27,7 +27,7 @@ template<typename vertex_t, typename index_t>
 class TriangleMesh
 {
 public:
-    struct GLM_ALIGN(0) Face
+    struct GLM_ALIGN(1) Face
     {
         index_t v1,v2,v3;
         Face(){}
@@ -271,13 +271,6 @@ void TriangleMesh<vertex_t,index_t>::updateVerticesInBuffer(buffer_t &buffer, in
 }
 
 template<typename vertex_t, typename index_t>
-std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t,index_t>& dt)
-{
-    os<<"TriangleMesh. Faces: "<<dt.faces.size()<<" Vertices: "<<dt.vertices.size();
-    return os;
-}
-
-template<typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t,index_t>::subdivideFace(int f)
 {
 
@@ -480,6 +473,13 @@ bool TriangleMesh<vertex_t,index_t>::isValid()
         if(f.v3 < 0 || f.v3 >= vertices.size()) return false;
     }
     return true;
+}
+
+template<typename vertex_t, typename index_t>
+std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t,index_t>& dt)
+{
+    os<<"TriangleMesh. V="<<dt.vertices.size()<<" F="<<dt.faces.size();
+    return os;
 }
 
 }

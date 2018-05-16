@@ -8,7 +8,7 @@
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
-
+#include "saiga/image/glImageFormat.h"
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/rendering/renderer.h"
 
@@ -234,8 +234,9 @@ void OpenGLWindow::readToExistingImage(Image &out)
 
     //    glReadPixels(0,0,out.width,out.height,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
 
-    SAIGA_ASSERT(0);
+//    SAIGA_ASSERT(0);
 //    glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
+    glReadPixels(0,0,out.width,out.height,getGlFormat(out.type),getGlType(out.type),out.data());
 
 
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
@@ -246,11 +247,12 @@ void OpenGLWindow::readToImage(Image& out){
     int w = renderer->windowWidth;
     int h = renderer->windowHeight;
 
-    out.width = w;
-    out.height = h;
+//    out.width = w;
+//    out.height = h;
+    out.create(h,w,UC3);
 //    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-    SAIGA_ASSERT(0);
-    out.create();
+//    SAIGA_ASSERT(0);
+//    out.create();
 
     readToExistingImage(out);
 }

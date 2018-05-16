@@ -46,6 +46,7 @@ endif()
 
 ############# COMPILER FLAGS ###############
 
+
 include(Saiga_compiler_flags)
 
 
@@ -206,6 +207,7 @@ if(CUDA_FOUND)
 	find_package(CUDA QUIET)
 	SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES} ${CUDA_cusparse_LIBRARY} ${CUDA_cublas_LIBRARY})
 	SET(LIBS ${LIBS} ${ALL_CUDA_LIBS})
+#		SET(LIBS ${LIBS} ${CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES})
 	message(STATUS "CUDA_LIBRARIES: ${ALL_CUDA_LIBS}")
 	
 	#message(STATUS "CUDA_INCLUDE_DIRS: ${CUDA_INCLUDE_DIRS}")
@@ -236,6 +238,7 @@ if(CUDA_FOUND)
 	
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_30,code=compute_30")
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_52,code=sm_52")
+	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_61,code=sm_61")
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexpr")
 	
 	#message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
@@ -245,9 +248,7 @@ if(CUDA_FOUND)
 		  SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS")
 	endif()
 
-	if(UNIX)
-	      SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fPIC")
-	endif()
+
 	
 	message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 message(STATUS "CMAKE_CUDA_FLAGS_DEBUG: ${CMAKE_CUDA_FLAGS_DEBUG}")
@@ -413,4 +414,14 @@ if (DOXYGEN_FOUND AND BUILD_DOC)
 endif()
 
 
+
+
+# Request that saiga be built with --std=c++11
+# As this is a public compile feature anything that links to saiga
+# will also build with -std=c++11
+target_compile_features(${LIB_NAME} PUBLIC cxx_std_11)
+
+
+
+set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
