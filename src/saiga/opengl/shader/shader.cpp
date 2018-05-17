@@ -392,10 +392,15 @@ void Shader::upload(int location, int count, float *v){
 
 void Shader::upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit)
 {
-    SAIGA_ASSERT(isBound());
     SAIGA_ASSERT(texture);
-	texture->bind(textureUnit);
-	Shader::upload(location, textureUnit);
+    upload(location,*texture,textureUnit);
+}
+
+void Shader::upload(int location, raw_Texture& texture, int textureUnit)
+{
+    SAIGA_ASSERT(isBound());
+    texture.bind(textureUnit);
+    Shader::upload(location, textureUnit);
     assert_no_glerror();
 }
 

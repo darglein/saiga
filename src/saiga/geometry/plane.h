@@ -38,4 +38,9 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const Plane& ca);
 };
 
+
+inline float Plane::distance(const vec3 &p) const{
+    return d + glm::dot(p,normal);
+}
+
 }

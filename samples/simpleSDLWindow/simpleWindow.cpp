@@ -12,6 +12,8 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/imgui/imgui.h"
 
+#include "saiga/assets/plyLoader.h"
+
 SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 {
     //this simplifies shader debugging
@@ -63,6 +65,21 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 
     cube2.translateGlobal(vec3(3,1,5));
     cube2.calculateModel();
+
+
+
+    PLYLoader loader("objs/surface-L2-clean.ply");
+
+    PLYLoader::save("objs/test.ply",loader.mesh);
+
+    PLYLoader loader2("objs/test.ply");
+
+
+    auto mesh = loader2.mesh;
+    cube1.asset = assetLoader.assetFromMesh(mesh);
+
+//    PlyAssetLoader pla;
+//    cube1.asset = pla.loadBasicAsset("objs/surface-L2-clean.ply");
 
 
     auto sphereMesh = TriangleMeshGenerator::createMesh(Sphere(vec3(0),1),0);

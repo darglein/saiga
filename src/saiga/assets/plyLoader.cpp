@@ -131,11 +131,31 @@ void PLYLoader::parseHeader()
 //    cout << "V " << vertexCount << " F " << faceCount << endl;
 //    cout << "Face: " << faceVertexCountType << " - " << faceVertexIndexType << endl;
 
+    offsetType.resize(6,std::pair<int,int>(0,-1));
+
     vertexSize  = 0;
     for(auto vp : vertexProperties)
     {
+        int t = sizeoftype(vp.type);
+
+
+        if(vp.name == "x")
+            offsetType[0] = std::make_pair(vertexSize,t);
+        if(vp.name == "y")
+            offsetType[1] = std::make_pair(vertexSize,t);
+        if(vp.name == "z")
+            offsetType[2] = std::make_pair(vertexSize,t);
+        if(vp.name == "red")
+            offsetType[3] = std::make_pair(vertexSize,t);
+        if(vp.name == "green")
+            offsetType[4] = std::make_pair(vertexSize,t);
+        if(vp.name == "blue")
+            offsetType[5] = std::make_pair(vertexSize,t);
+
 //        cout << "Prop: " << vp.type << " " << vp.name << endl;
         vertexSize += sizeoftype(vp.type);
+
+
     }
 
 //    cout << "vertex size: " << vertexSize << endl;
@@ -152,14 +172,27 @@ void PLYLoader::parseMeshBinary()
     {
         char* start = data.data() + dataStart + i * vertexSize;
 
-        float* x = reinterpret_cast<float*>(start);
+
+
+        float* x = reinterpret_cast<float*>(start + offsetType[0].first);
         vec3 pos(x[0],x[1],x[2]);
 
-        unsigned char* c = reinterpret_cast<unsigned char*>(start+12);
-        vec3 color(c[0],c[1],c[2]);
-        color /= 255.0f;
 
-        color = Color::srgb2linearrgb(color);
+        vec3 color(1);
+        if(offsetType[3].second == 1)
+        {
+            unsigned char* c = reinterpret_cast<unsigned char*>(start +offsetType[3].first);
+            color = vec3(c[0],c[1],c[2]);
+            color /= 255.0f;
+
+        }else  if(offsetType[3].second == 4)
+        {
+            float* c = reinterpret_cast<float*>(start +offsetType[3].first);
+            color = vec3(c[0],c[1],c[2]);
+
+        }
+
+//        color = Color::srgb2linearrgb(color);
 
         VertexNC v;
         v.position = vec4(pos,1);

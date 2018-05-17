@@ -60,6 +60,15 @@ public:
      * The OpenGL 4.2+ way of binding textures...
      *
      * If you want to read or write textures from Compute Shaders these functions have to be used instead of the normal bind(...).
+     *
+     * In Code:
+     *
+     *   tex.bindImageTexture(3,GL_WRITE_ONLY);
+     *
+     * In Shader:
+     *
+     *  layout(binding=3, rgba8) uniform image2D destTex;
+     *
      */
 
     void bindImageTexture(GLuint imageUnit, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format);
