@@ -170,7 +170,7 @@ endif()
 
 
 #eigen
-find_package(Eigen3)
+find_package(Eigen3 QUIET)
 if(EIGEN3_FOUND)
 	include_directories(${EIGEN3_INCLUDE_DIRS})
 	SET(SAIGA_USE_EIGEN 1)

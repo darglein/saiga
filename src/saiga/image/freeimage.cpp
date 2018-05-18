@@ -132,20 +132,20 @@ void convert(const fipImage &src, Image& dest){
 
 
     int bitDepth= src.getBitsPerPixel() / channels;
-    ImageElementType elementType = ELEMENT_UNKNOWN;
+    ImageElementType elementType = IET_ELEMENT_UNKNOWN;
     switch(bitDepth)
     {
     case 8:
-        elementType = UCHAR;
+        elementType = IET_UCHAR;
         break;
     case 16:
-        elementType = USHORT;
+        elementType = IET_USHORT;
         break;
     case 32:
-        elementType = UINT;
+        elementType = IET_UINT;
         break;
     }
-    SAIGA_ASSERT(elementType != ELEMENT_UNKNOWN);
+    SAIGA_ASSERT(elementType != IET_ELEMENT_UNKNOWN);
 
 
     //    cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth: " << format.getBitDepth() << endl;

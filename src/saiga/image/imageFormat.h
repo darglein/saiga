@@ -21,11 +21,11 @@ enum ImageChannel : int
 
 enum ImageElementType : int
 {
-    CHAR = 0, UCHAR,
-    SHORT, USHORT,
-    INT, UINT,
-    FLOAT, DOUBLE,
-    ELEMENT_UNKNOWN
+    IET_CHAR = 0, IET_UCHAR,
+	IET_SHORT, IET_USHORT,
+	IET_INT, IET_UINT,
+	IET_FLOAT, IET_DOUBLE,
+	IET_ELEMENT_UNKNOWN
 };
 
 
