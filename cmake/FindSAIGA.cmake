@@ -46,12 +46,12 @@ endif()
 if(NOT SAIGA_NOT_ADD_DEPS)
 
 #OPENGL
-find_package(OpenGL REQUIRED)
+find_package(OpenGL REQUIRED QUIET)
 SET(SAIGA_INCLUDE_DIRS ${SAIGA_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS})
 SET(SAIGA_LIBRARY ${SAIGA_LIBRARY} ${OPENGL_LIBRARIES})
 
 #GLM
-find_package(GLM REQUIRED)
+find_package(GLM REQUIRED QUIET)
 SET(SAIGA_INCLUDE_DIRS ${SAIGA_INCLUDE_DIRS} ${GLM_INCLUDE_DIRS})
 include_directories( ${GLM_INCLUDE_DIRS}) 
 
@@ -77,10 +77,5 @@ endif()
 
 endif()
 
-if(SAIGA_FOUND)
-	message(STATUS "Found saiga: ${SAIGA_INCLUDE_DIRS} Libs: ${SAIGA_LIBRARY}")
-else()
-	message(STATUS "Did not find saiga.")
-endif()
 
 
