@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -44,13 +44,14 @@ static unsigned int fToUint(float f){
     return i;
 }
 
+#if 0
 static float uintToF(unsigned int i){
     float f;
     //    f = *reinterpret_cast<float*>(&i);
     f = alias_cast<float>(i);
     return f;
 }
-
+#endif
 
 //https://stackoverflow.com/questions/7295861/enabling-strict-floating-point-mode-in-gcc
 //Compiling with -msse2 on an Intel/AMD processor that supports it will get you almost there.

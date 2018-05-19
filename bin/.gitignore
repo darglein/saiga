@@ -26,3 +26,4 @@ valgrind_output.txt
 Release/
 RelWithDebInfo/
 depth.png
+imageProcessing

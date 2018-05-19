@@ -119,6 +119,8 @@ void convert(const fipImage &src, Image& dest){
     case FIC_RGBALPHA:
         channels = 4;
         break;
+    default:
+        break;
     }
     SAIGA_ASSERT(channels != -1);
 

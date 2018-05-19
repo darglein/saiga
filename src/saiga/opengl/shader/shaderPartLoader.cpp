@@ -19,6 +19,8 @@ namespace Saiga {
 
 FileChecker shaderPathes;
 
+bool ShaderPartLoader::addLineDirectives = false;
+
 ShaderPartLoader::ShaderPartLoader() : ShaderPartLoader("",ShaderCodeInjections()){
 }
 

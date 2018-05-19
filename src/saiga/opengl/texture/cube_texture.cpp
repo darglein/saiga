@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -67,7 +67,7 @@ bool TextureCube::fromImage(Image &img){
 
     //split into 6 small images
     std::vector<Image> images(6);
-    auto w = img.height;
+//    auto w = img.height;
     for(int i=0;i<6;i++){
         SAIGA_ASSERT(0);
 //        img.getSubImage(w*i,0,w,w,images[i]);

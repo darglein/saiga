@@ -181,7 +181,7 @@ MARK_AS_ADVANCED(
   )
 
 if (FFMPEG_FOUND)
-     message(STATUS "Found ffmpeg: ${FFMPEG_INCLUDE_DIR} libs: ${FFMPEG_LIBRARIES}")
+     #message(STATUS "Found ffmpeg: ${FFMPEG_INCLUDE_DIR} libs: ${FFMPEG_LIBRARIES}")
 else()
     if(FFMPEG_FIND_REQUIRED)
         message(FATAL_ERROR "Could not find ffmpeg ${FFMPEG_LIBRARIES}")

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -157,7 +157,7 @@ void Heightmap::createInitialHeightmap(){
             float h = getHeight(x,y);
             h = h*max_res;
             h = glm::clamp(h,0.0f,(float)max_res);
-            height_res_t n = (height_res_t)h;
+//            height_res_t n = (height_res_t)h;
 //            heightmap[0].setPixel(x,y,n);
 SAIGA_ASSERT(0);
         }
@@ -281,14 +281,14 @@ void Heightmap::setHeight(int x, int y, float v){
 
 void Heightmap::createRemainingLayers(){
     for(int i=1;i<layers;++i){
-        Image& previous = heightmap[i-1];
+//        Image& previous = heightmap[i-1];
         Image& next = heightmap[i];
         //reduce previous to get the next
         cout<<"reduce next "<<next.width<<" "<<next.height<<endl;
         for(int x=0;x<next.width;++x){
             for(int y=0;y<next.height;++y){
-                int xp = 2*x;
-                int yp = 2*y;
+//                int xp = 2*x;
+//                int yp = 2*y;
                 //read 4 pixel from previous and average them
                 SAIGA_ASSERT(0);
 //                height_resn_t v1 = *((height_res_t*)previous.positionPtr(xp,yp));

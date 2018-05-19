@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -19,7 +19,6 @@ class SAIGA_GLOBAL ShaderLoader : public Loader<std::shared_ptr<Shader>,ShaderPa
     std::shared_ptr<Shader> loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections &params);
     template<typename shader_t> std::shared_ptr<shader_t> loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci);
 public:
-	bool addLineDirectives = false;
     virtual ~ShaderLoader(){}
     template<typename shader_t> std::shared_ptr<shader_t> load(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
     template<typename shader_t> std::shared_ptr<shader_t> getLoaded(const std::string &name, const ShaderPart::ShaderCodeInjections& sci=ShaderPart::ShaderCodeInjections());
@@ -81,7 +80,6 @@ template<typename shader_t>
 std::shared_ptr<shader_t> ShaderLoader::loadFromFile(const std::string &name, const ShaderPart::ShaderCodeInjections& sci){
 
     ShaderPartLoader spl(name,sci);
-	spl.addLineDirectives = addLineDirectives;
     if(spl.load()){
         return spl.createShader<shader_t>();
     }

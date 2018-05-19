@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -15,10 +15,6 @@
 VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     tdo(window->getWidth(),window->getHeight())
 {
-    //this simplifies shader debugging
-    ShaderLoader::instance()->addLineDirectives = true;
-
-
     //create a perspective camera
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);

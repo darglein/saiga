@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -16,9 +16,6 @@
 
 SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 {
-    //this simplifies shader debugging
-    ShaderLoader::instance()->addLineDirectives = true;
-
     //create a perspective camera
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
@@ -68,15 +65,15 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 
 
 
-    PLYLoader loader("objs/surface-L2-clean.ply");
+//    PLYLoader loader("objs/surface-L2-clean.ply");
 
-    PLYLoader::save("objs/test.ply",loader.mesh);
+//    PLYLoader::save("objs/test.ply",loader.mesh);
 
-    PLYLoader loader2("objs/test.ply");
+//    PLYLoader loader2("objs/test.ply");
 
 
-    auto mesh = loader2.mesh;
-    cube1.asset = assetLoader.assetFromMesh(mesh);
+//    auto mesh = loader2.mesh;
+//    cube1.asset = assetLoader.assetFromMesh(mesh);
 
 //    PlyAssetLoader pla;
 //    cube1.asset = pla.loadBasicAsset("objs/surface-L2-clean.ply");

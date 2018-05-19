@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -27,7 +27,7 @@ public:
 	//true if "#line <linenumber> <filename>" should be added
 	//at the beginning and around "#includes"
 	//Default: false, because ati and intel drivers do not support this
-	bool addLineDirectives = false;
+    static bool addLineDirectives;
     std::string file;
     ShaderCodeInjections injections;
 

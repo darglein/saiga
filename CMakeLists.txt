@@ -4,6 +4,7 @@ set(LIB_NAME saiga)
 project (${LIB_NAME} CXX)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
+include(helper_macros)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 set (LIBRARY_VERSION_MAJOR 1)
@@ -16,33 +17,24 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ############# Build Options ###############
 
-option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON) 
-option (SAIGA_DEBUG "alot of error checks and more console output" ON) 
-option (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON) 
-option (SAIGA_BUILD_SAMPLES "build samples" ON) 
-option (SAIGA_WITH_CUDA "use cuda if possible" ON) 
-option (SAIGA_STRICT_FP "strict ieee floating point" OFF) 
-option (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
-option (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
+message("Build Options")
 
 
-#in Multi-configuration IDEs (visual studio) setting CMAKE_BUILD_TYPE does not have a effect
-if (SAIGA_DEBUG)
-	set(CMAKE_BUILD_TYPE debug)
-	message(STATUS "Build Type: debug")
-	#adds this flags on gcc: -g
-else ()
-	if(OPTION_FULL_OPTIMIZE)
-		set(CMAKE_BUILD_TYPE release)
-		#adds this flags on gcc: -O2 -g -DNDEBUG
-			message(STATUS "Build Type: release")
-	else()
-		set(CMAKE_BUILD_TYPE relwithdebinfo)
-		#adds this flags on gcc: -O3 -DNDEBUG
-			message(STATUS "Build Type: relwithdebinfo")
-	endif()
-endif()
+#option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON) 
+OptionsHelper (SAIGA_BUILD_SHARED "Build this library as a shared library" ON) 
 
+OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" ON) 
+OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON) 
+OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON) 
+OptionsHelper (SAIGA_WITH_CUDA "use cuda if possible" ON) 
+OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF) 
+OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
+OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
+OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
+
+DefaultBuildType()
+
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 
 ############# COMPILER FLAGS ###############
 
@@ -53,129 +45,117 @@ include(Saiga_compiler_flags)
 ############# Optional Libraries ###############
 
 
-#SDL2
+message("\nSearching for installed libaries...")
+
+### SDL2 ###
 find_package(SDL2 QUIET)
 if (SDL2_FOUND)
-	include_directories(${SDL2_INCLUDE_DIR})
-	SET(LIBS ${LIBS} ${SDL2_LIBRARY})
 	SET(SAIGA_USE_SDL 1)
-endif ()
+endif()
+PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIRS}" "${SDL2_LIBRARIES}")
 
 
 #GLFW
 find_package(GLFW QUIET)
 if (GLFW_FOUND)
-	include_directories(${GLFW_INCLUDE_DIR})
-	SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
-	if(NOT( ${GLFW_VERSION_MAJOR} GREATER 2 AND ${GLFW_VERSION_MINOR} GREATER 1)  )
-	  message( FATAL_ERROR "ERROR: Need at least GLFW version 3.2. -- found GLFW version ${GLFW_VERSION_MAJOR}.${GLFW_VERSION_MINOR}.${GLFW_VERSION_REVISION}" )
-	endif()
 	SET(SAIGA_USE_GLFW 1)
 endif ()
+PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
+
 
 #EGL
 find_package(EGL QUIET)
 if(EGL_FOUND)
-	include_directories( ${EGL_INCLUDE_DIRS}) 
-	SET(LIBS ${LIBS} ${EGL_LIBRARIES})
 	SET(SAIGA_USE_EGL 1)
-endif()
-
+endif ()
+PackageHelper(EGL ${EGL_FOUND} "${EGL_INCLUDE_DIRS}" "${EGL_LIBRARIES}")
 
 #FFMPEG
-find_package(FFMPEG QUIET)
+find_package(FFMPEG REQUIRED)
 if (FFMPEG_FOUND)
-	include_directories(${FFMPEG_INCLUDE_DIR})
-	SET(LIBS ${LIBS} ${FFMPEG_LIBRARIES})
 	SET(SAIGA_USE_FFMPEG 1)
 endif ()
-
+PackageHelper(FFMPEG ${FFMPEG_FOUND} "${FFMPEG_INCLUDE_DIR}" "${FFMPEG_LIBRARIES}")
 
 #openal
 find_package(OpenAL QUIET)
 if(OPENAL_FOUND)
-	include_directories(${OPENAL_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${OPENAL_LIBRARY})
 	SET(SAIGA_USE_OPENAL 1)
 endif()
+PackageHelper(OpenAL ${OPENAL_FOUND} "${OPENAL_INCLUDE_DIR}" "${OPENAL_LIBRARY}")
 
 
 #alut
 find_package(ALUT QUIET)
 if(ALUT_FOUND)
-	include_directories(${ALUT_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${ALUT_LIBRARIES})
 	SET(SAIGA_USE_ALUT 1)
 endif()
+PackageHelper(ALUT ${ALUT_FOUND} "${ALUT_INCLUDE_DIRS}" "${ALUT_LIBRARIES}")
 
 
 #opus
 find_package(Opus QUIET)
 if(OPUS_FOUND)
-	include_directories(${OPUS_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${OPUS_LIBRARIES})
 	SET(SAIGA_USE_OPUS 1)
-	message(STATUS "Found Opus: ${OPUS_LIBRARIES}")
 endif()
+PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 #assimp
 find_package(ASSIMP QUIET)
 if(ASSIMP_FOUND)
-	include_directories(${ASSIMP_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 	SET(SAIGA_USE_ASSIMP 1)
-	message(STATUS "Found ASSIMP: ${ASSIMP_LIBRARIES}")
 endif()
+PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
 
 #png
 find_package(PNG QUIET)
 if(PNG_FOUND)
-	include_directories(${PNG_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${PNG_LIBRARIES})
 	SET(SAIGA_USE_PNG 1)
-	message(STATUS "Found libpng: ${PNG_LIBRARIES}")
 endif()
+PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
 
 #openmesh
 find_package(OpenMesh QUIET)
 if(OPENMESH_FOUND)
-	include_directories(${OPENMESH_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${OPENMESH_LIBRARIES})
 	SET(SAIGA_USE_OPENMESH 1)
-	message(STATUS "Found OpenMesh: ${OPENMESH_LIBRARIES}")
 endif()
+PackageHelper(OpenMesh ${OPENMESH_FOUND} "${OPENMESH_INCLUDE_DIRS}" "${OPENMESH_LIBRARIES}")
 
 #openmp
 find_package(OpenMP QUIET)
 if (OPENMP_FOUND)
-	include_directories(${OPENMP_INCLUDE_DIRS})
-	SET(LIBS ${LIBS} ${OPENMP_LIBRARIES})
 	set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
 
 #libfreeimage
 find_package(FreeImage QUIET)
+PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_PATH}" "${FREEIMAGE_LIBRARIES}")
 find_package(FreeImagePlus QUIET)
+PackageHelper(FreeImagePlus ${FREEIMAGEPLUS_FOUND} "${FREEIMAGEPLUS_INCLUDE_PATH}" "${FREEIMAGEPLUS_LIBRARIES}")
 
 if(FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
-	include_directories(${FREEIMAGE_INCLUDE_PATH})
-	SET(LIBS ${LIBS} ${FREEIMAGE_LIBRARIES})
-	include_directories(${FREEIMAGEPLUS_INCLUDE_PATH})
-	SET(LIBS ${LIBS} ${FREEIMAGEPLUS_LIBRARIES})
 	SET(SAIGA_USE_FREEIMAGE 1)
-	message(STATUS "Found FreeImage: ${FREEIMAGE_LIBRARIES} ${FREEIMAGEPLUS_LIBRARIES}")
 endif()
 
 
 
 #eigen
-find_package(Eigen3 QUIET)
+find_package(Eigen3 REQUIRED)
 if(EIGEN3_FOUND)
-	include_directories(${EIGEN3_INCLUDE_DIRS})
 	SET(SAIGA_USE_EIGEN 1)
-	message(STATUS "Found Eigen3: ${EIGEN3_INCLUDE_DIRS}")
 endif()
+PackageHelper(Eigen3 "${EIGEN3_FOUND}" "${EIGEN3_INCLUDE_DIRS}" "")
+
+
+#bullet
+find_package(Bullet QUIET)
+if(BULLET_FOUND)
+	SET(SAIGA_USE_BULLET 1)
+endif()
+PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARIES}")
+
 
 
 ############# CUDA ###############
@@ -186,10 +166,10 @@ include(CheckLanguage)
 
 if(SAIGA_WITH_CUDA)
 	#find_package(CUDA QUIET)
-check_language(CUDA)
+	check_language(CUDA)
 	if(CMAKE_CUDA_COMPILER)
   		enable_language(CUDA)
-	set(CUDA_FOUND TRUE)
+		set(CUDA_FOUND TRUE)
 	else()
 		set(CUDA_FOUND FALSE)
 	endif()
@@ -200,13 +180,15 @@ else()
 endif()
 
 
+
 if(CUDA_FOUND)
+	#message(STATUS "Found CUDA: ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
 	# We need this to get the actual cuda libraries, because
 	# one sample only is linked with the host compiler and therefore
 	# does not automatically link to the cuda runtime.
 	find_package(CUDA QUIET)
 	SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES} ${CUDA_cusparse_LIBRARY} ${CUDA_cublas_LIBRARY})
-	SET(LIBS ${LIBS} ${ALL_CUDA_LIBS})
+	#SET(LIBS ${LIBS} ${ALL_CUDA_LIBS})
 #		SET(LIBS ${LIBS} ${CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES})
 	message(STATUS "CUDA_LIBRARIES: ${ALL_CUDA_LIBS}")
 	
@@ -258,55 +240,43 @@ message(STATUS "CMAKE_CUDA_FLAGS_RELEASE: ${CMAKE_CUDA_FLAGS_RELEASE}")
 	SET(SAIGA_USE_CUDA 1)
 else()
 	SET(SAIGA_USE_CUDA 0)
-	message(STATUS "No CUDA.")
+	#message(STATUS "No CUDA.")
 endif()
 
+PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
 
 
-
-#message(STATUS "NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
-#message(STATUS "CUDA_LIBRARIES: ${CUDA_LIBRARIES}")
 
 
 ############# Required LIBRARIES ###############
 
 #freetype2
-find_package(Freetype REQUIRED)
-include_directories(${FREETYPE_INCLUDE_DIRS})
-SET(LIBS ${LIBS} ${FREETYPE_LIBRARIES})
-
-#if(WIN32)
-#SET(LIBS ${LIBS} freetype255)
-#endif(WIN32)
+find_package(Freetype REQUIRED QUIET)
+PackageHelper(Freetype "${FREETYPE_FOUND}" "${FREETYPE_INCLUDE_DIRS}" "${FREETYPE_LIBRARIES}")
 
 #OPENGL
 find_package(OpenGL REQUIRED)
-include_directories( ${OPENGL_INCLUDE_DIRS}) 
-SET(LIBS ${LIBS} ${OPENGL_LIBRARIES})
+PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
 
 #GLM
-find_package(GLM REQUIRED)
-include_directories( ${GLM_INCLUDE_DIRS}) 
+find_package(GLM REQUIRED QUIET)
+PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
 
 #glbinding
 find_package(glbinding QUIET)
 if(GLBINDING_FOUND)
-	include_directories(${GLBINDING_INCLUDE_DIRS} )
-	SET(LIBS ${LIBS} ${GLBINDING_LIBRARIES})
 	SET(SAIGA_USE_GLBINDING 1)
 else()
-#use GLEW as a fallback
-#GLEW
-find_package(GLEW REQUIRED)
-if(GLEW_FOUND)
-	include_directories(${GLEW_INCLUDE_DIRS} )
-	SET(LIBS ${LIBS} ${GLEW_LIBRARIES})
-	SET(SAIGA_USE_GLEW 1)
-else()
-	#message(FATAL_ERROR "No OpenGL loading library found.")
+	#use GLEW as a fallback
+	find_package(GLEW REQUIRED) 
+	if(GLEW_FOUND)
+		SET(SAIGA_USE_GLEW 1)
+	else()
+		message(FATAL_ERROR "No OpenGL loading library found.")
+	endif()
+	PackageHelper(GLEW "${GLEW_FOUND}" "${GLEW_INCLUDE_DIRS}" "${GLEW_LIBRARIES}")
 endif()
-endif()
-
+PackageHelper(glbinding "${GLBINDING_FOUND}" "${GLBINDING_INCLUDE_DIRS}" "${GLBINDING_LIBRARIES}")
 
 
 #dbghelp for crash.cpp
@@ -344,6 +314,7 @@ elseif(WIN32)
 
 endif()
 
+message("\nCompiler Flags:")
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
@@ -355,6 +326,8 @@ message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 
 ############# SOURCE ###############
 
+
+message("")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
@@ -383,11 +356,11 @@ configure_file (
 ############# Doxygen ###############
 
 # first we can indicate the documentation build as an option and set it to ON by default
-option(BUILD_DOC "Build documentation" ON)
+
 
 # check if Doxygen is installed
 find_package(Doxygen)
-if (DOXYGEN_FOUND AND BUILD_DOC)
+if (DOXYGEN_FOUND AND SAIGA_BUILD_DOC)
     # set input and output files
     set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/docs/Doxyfile.in)
     set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)

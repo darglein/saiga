@@ -43,7 +43,7 @@ public:
     }
 
     bool full() const{
-        return count()>= capacity-1;
+        return count() >= (int)capacity-1;
     }
 
     int count() const{

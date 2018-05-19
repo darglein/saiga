@@ -19,22 +19,22 @@ do
 echo $f >> $FILE; 
 done
 
-for f in $(find ${ROOTDIR}/src/ -name '*.cpp'); 
+for f in $(find ${ROOTDIR}/src/saiga/ -name '*.cpp'); 
 do 
 echo $f >> $FILE; 
 done
 
-for f in $(find ${ROOTDIR}/src/ -name '*.cu'); 
+for f in $(find ${ROOTDIR}/src/saiga/ -name '*.cu'); 
 do 
 echo $f >> $FILE; 
 done
 
-for f in $(find ${ROOTDIR}/include/saiga/ -name '*.h*'); 
+for f in $(find ${ROOTDIR}/src/saiga/ -name '*.h*'); 
 do 
 echo $f >> $FILE; 
 done
 
-for f in $(find ${ROOTDIR}/include/saiga/ -name '*.inl*'); 
+for f in $(find ${ROOTDIR}/src/saiga/ -name '*.inl*'); 
 do 
 echo $f >> $FILE; 
 done
@@ -48,6 +48,6 @@ FILE="saiga.includes"
 
 if ! [ -e $FILE ] ;
 then
-	echo "${ROOTDIR}/include/" >> $FILE
+	echo "${ROOTDIR}/src/" >> $FILE
 	echo "/usr/local/cuda/include/" >> $FILE
 fi
