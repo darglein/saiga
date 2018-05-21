@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -7,16 +7,25 @@
 #pragma once
 
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/image/imageView.h"
 #include "saiga/image/image.h"
 
 namespace Saiga {
 namespace CUDA {
 
 
+/**
+ * Does a cudamemcpy2d between these images.
+ * kind is one of the following:
+ * cudaMemcpyHostToDevice
+ * cudaMemcpyDeviceToHost
+ * cudaMemcpyDeviceToDevice
+ * cudaMemcpyHostToHost
+ */
 
 template<typename T>
-void copyImage(ImageView<T> imgSrc, ImageView<T> imgDst, enum cudaMemcpyKind kind){
+void copyImage(ImageView<T> imgSrc, ImageView<T> imgDst, enum cudaMemcpyKind kind)
+{
+    SAIGA_ASSERT(imgSrc.width == imgDst.width && imgSrc.height == imgDst.height);
     CHECK_CUDA_ERROR(cudaMemcpy2D(imgDst.data,imgDst.pitchBytes,imgSrc.data,imgSrc.pitchBytes,imgSrc.width*sizeof(T),imgSrc.height,kind));
 }
 
@@ -26,87 +35,77 @@ void copyImage(ImageView<T> imgSrc, ImageView<T> imgDst, enum cudaMemcpyKind kin
 SAIGA_GLOBAL void resizeDeviceVector(thrust::device_vector<uint8_t>& v, int size);
 SAIGA_GLOBAL void copyDeviceVector(const thrust::device_vector<uint8_t>& src, thrust::device_vector<uint8_t>& dst);
 
-//supported types:
-//float, uchar3, uchar4
+
 template<typename T>
-struct CudaImage : public ImageView<T>{
-    thrust::device_vector<uint8_t> v;
+struct CudaImage : public ImageBase
+{
+    thrust::device_vector<unsigned char> vdata;
 
     CudaImage(){}
 
-    CudaImage(int h, int w , int p)
-        : ImageView<T>(h,w,p,0) {
+    /**
+     * Creates an uninitialized device image with the given parameters.
+     */
+    CudaImage(int h, int w , int p = 0)
+        : ImageBase(h,w,p == 0 ? sizeof(T)*w : p)
+    {
         create();
     }
 
-    CudaImage(int h, int w)
-        : ImageView<T>(h,w,0) {
-        create();
-    }
 
-
-    CudaImage(ImageView<T> h_img) {
+    CudaImage(ImageView<T> h_img)
+    {
         upload(h_img);
     }
 
-    //upload a host imageview to the device
-    inline
-    void upload(ImageView<T> h_img){
-        this->ImageView<T>::operator=(h_img);
+
+
+    /**
+     * Uploads the given host-imageview.
+     * Allocates the required memory, if necessary.
+     */
+    void upload(ImageView<T> h_img)
+    {
+        this->ImageBase::operator=(h_img);
         create();
-        copyImage(h_img,*this,cudaMemcpyHostToDevice);
+        copyImage(h_img,getImageView(),cudaMemcpyHostToDevice);
     }
 
     //download a host imageview from the device
     inline
-    void download(ImageView<T> h_img){
-        copyImage(*this,h_img,cudaMemcpyDeviceToHost);
+    void download(ImageView<T> h_img)
+    {
+        copyImage(getImageView(),h_img,cudaMemcpyDeviceToHost);
     }
 
-    inline void create(){
-        resizeDeviceVector(v,this->size());
-        this->data = thrust::raw_pointer_cast(v.data());
+    /**
+     * Allocates the device memory from image parameters.
+     */
+    void create()
+    {
+        resizeDeviceVector(vdata,this->size());
     }
 
-    inline void create(int h, int w){
-        create(h,w,w*sizeof(T));
-    }
-
-
-    inline void create(int h, int w , int p){
+    void create(int h, int w , int p = 0)
+    {
         this->width = w;
         this->height = h;
-        this->pitchBytes = p;
+        this->pitchBytes = p == 0 ? sizeof(T)*w : p;
         create();
     }
 
-    //copy and swap idiom
-    //http://stackoverflow.com/questions/3279543/what-is-the-copy-and-swap-idiom
-    CudaImage(CudaImage const& other) : ImageView<T>(other){
-		copyDeviceVector(other.v, v);
-        this->data = thrust::raw_pointer_cast(v.data());
+    T* data() { return reinterpret_cast<T*>(vdata.data().get()); }
+
+
+    ImageView<T> getImageView()
+    {
+        ImageView<T> res(*this);
+        res.data = data();
+        return res;
     }
 
-    CudaImage& operator=(CudaImage other){
-        swap(*this, other);
-        return *this;
-    }
-
-    template<typename T2>
-    friend void swap(CudaImage<T2>& first, CudaImage<T2>& second);
+    operator ImageView<T>() { return getImageView(); }
 };
-
-template<typename T>
-inline
-void swap(CudaImage<T> &first, CudaImage<T> &second)
-{
-    using std::swap;
-    first.v.swap(second.v);
-    swap(first.width,second.width);
-    swap(first.height,second.height);
-    swap(first.pitchBytes,second.pitchBytes);
-    swap(first.data,second.data);
-}
 
 
 template<typename T>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -46,8 +46,8 @@ void imageProcessingTest(){
 
     CUDA::CudaImage<float> cimgmulti1v(cimg.height,cimg.width*6);
     CUDA::CudaImage<float> cimgmulti2v(cimg.height,cimg.width*5);
-    ImageArrayView<float> cimgmulti1( ImageView<float>(cimg.width,cimg.height,cimgmulti1v.data), 6 );
-    ImageArrayView<float> cimgmulti2( ImageView<float>(cimg.width,cimg.height,cimgmulti1v.data), 5 );
+    ImageArrayView<float> cimgmulti1( ImageView<float>(cimg.width,cimg.height,cimgmulti1v.data()), 6 );
+    ImageArrayView<float> cimgmulti2( ImageView<float>(cimg.width,cimg.height,cimgmulti1v.data()), 5 );
 
      int its = 50;
 
@@ -152,7 +152,7 @@ void imageProcessingTest(){
         {
             CUDA::CudaScopedTimer t(time);
             for(int i = 0; i < its; ++i)
-                CUDA::scaleDown2EveryOther(cimggray,cimggrayhalf);
+                CUDA::scaleDown2EveryOther<float>(cimggray,cimggrayhalf);
         }
         pth.addMeassurement("scaleDown2EveryOther", time/its);
     }
@@ -195,7 +195,7 @@ void imageProcessingTest(){
          pth.updateBytes(cimggray.size() * 2);
          auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
          {
-             cudaMemcpy(cimggray.data8,cimgtmp.data8,cimggray.size(),cudaMemcpyDeviceToDevice);
+             cudaMemcpy(cimggray.data(),cimgtmp.data(),cimggray.size(),cudaMemcpyDeviceToDevice);
          });
          pth.addMeassurement("cudaMemcpy", st.median);
      }

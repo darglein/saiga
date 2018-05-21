@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 
             CUDA::convertRGBtoRGBA(cimg,cimg4,255);
             CUDA::convertRGBAtoGrayscale(cimg4,cimggray);
-            CUDA::scaleDown2EveryOther(cimggray,cimggrayhalf);
+            CUDA::scaleDown2EveryOther<float>(cimggray,cimggrayhalf);
             CUDA::scaleUp2Linear(cimggray,cimggraydouble);
 
             auto filter = CUDA::createGaussianBlurKernel(4,2);
