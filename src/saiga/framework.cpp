@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -144,7 +144,10 @@ void initSaiga()
 	// Disables the following notification:
 	// Buffer detailed info : Buffer object 2 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is GL_STREAM_DRAW) 
 	// will use VIDEO memory as the source for buffer object operations.
-	std::vector<GLuint> ignoreIds = { 131185 };
+    std::vector<GLuint> ignoreIds = {
+        131185, //nvidia
+         //intel
+                                    };
 	Error::ignoreGLError(ignoreIds);
 
 
