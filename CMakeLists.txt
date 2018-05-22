@@ -51,7 +51,7 @@ find_package(SDL2 QUIET)
 if (SDL2_FOUND)
 	SET(SAIGA_USE_SDL 1)
 endif()
-PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIRS}" "${SDL2_LIBRARIES}")
+PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIRS}" "${SDL2_LIBRARY}")
 
 
 #GLFW
@@ -70,7 +70,7 @@ endif ()
 PackageHelper(EGL ${EGL_FOUND} "${EGL_INCLUDE_DIRS}" "${EGL_LIBRARIES}")
 
 #FFMPEG
-find_package(FFMPEG REQUIRED)
+find_package(FFMPEG QUIET)
 if (FFMPEG_FOUND)
 	SET(SAIGA_USE_FFMPEG 1)
 endif ()
