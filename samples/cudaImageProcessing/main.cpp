@@ -51,9 +51,9 @@ int main(int argc, char *argv[]) {
             CUDA::CudaImage<float> cimggraydouble(cimg.height*2,cimg.width*2);
 
 
+#if 0
 			//test image copy from cpp file
 			CUDA::CudaImage<uchar4> cimg5 = cimg4;
-
 
             CUDA::convertRGBtoRGBA(cimg,cimg4,255);
             CUDA::convertRGBAtoGrayscale(cimg4,cimggray);
@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
 //            CUDA::gaussianBlur(cimggray,cimgblurred,2,4);
             CUDA::applyFilterSeparate(cimggray,cimgblurred,cimgtmp,filter,filter);
 
-#if 0
+
             //copy back to cpu
             TemplatedImage<4,8,ImageElementFormat::UnsignedNormalized> res4;
             TemplatedImage<1,32,ImageElementFormat::FloatingPoint> resGray;

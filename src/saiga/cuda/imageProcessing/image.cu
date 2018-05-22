@@ -9,11 +9,11 @@
 namespace Saiga {
 namespace CUDA {
 
-void resizeDeviceVector(thrust::device_vector<uint8_t>& v, int size){
+void resizeDeviceVector(thrust::device_vector<unsigned char>& v, int size){
     v.resize(size);
 }
 
-void copyDeviceVector(const thrust::device_vector<uint8_t>& src, thrust::device_vector<uint8_t>& dst)
+void copyDeviceVector(const thrust::device_vector<unsigned char>& src, thrust::device_vector<unsigned char>& dst)
 {
 	dst = src;
 }

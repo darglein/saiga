@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include "saiga/util/assert.h"
+#include "saiga/opengl/shader/shaderPartLoader.h"
 
 namespace Saiga {
 
@@ -33,6 +34,15 @@ void initOpenGL()
     openglinitialized = true;
     std::cout << "> OpenGL initialized" << std::endl;
     printOpenGLVersion();
+
+    switch(getOpenGLVendor()){
+    case OpenGLVendor::Nvidia:
+        ShaderPartLoader::addLineDirectives = true;
+        std::cout << "Enabling #line directives for NVIDIA driver." << std::endl;
+        break;
+    default:
+        break;
+    }
 }
 
 void printOpenGLVersion() {

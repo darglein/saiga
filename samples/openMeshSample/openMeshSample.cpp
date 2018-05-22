@@ -34,9 +34,6 @@ using namespace OpenMesh;
 
 SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
 {
-    //this simplifies shader debugging
-    ShaderLoader::instance()->addLineDirectives = true;
-
     //create a perspective camera
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
