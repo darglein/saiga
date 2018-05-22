@@ -114,6 +114,28 @@ bool hasExtension(const std::string &ext){
     return false;
 }
 
+std::vector<std::string> getExtensions()
+{
+
+
+	//std::ofstream myfile;
+	//myfile.open ("opengl-extensions.txt");
+
+	std::vector<std::string> extensions;
+
+
+	int n = getExtensionCount();
+	for (GLint i = 0; i<n; i++)
+	{
+		const char* extension = (const char*)glGetStringi(GL_EXTENSIONS, i);
+		extensions.push_back(extension);
+		//myfile << extension<<endl;
+	}
+
+	return extensions;
+	//myfile.close();
+}
+
 OpenGLVendor getOpenGLVendor()
 {
     std::string ven = reinterpret_cast<const char*>(glGetString(GL_VENDOR));

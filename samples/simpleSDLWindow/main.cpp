@@ -36,6 +36,12 @@ int main( int argc, char* args[] )
     //Everything from saiga is now setup, so we can start our own program now
     SimpleWindow* simpleWindow = new SimpleWindow(window);
 
+	auto exts = getExtensions();
+	for (auto s : exts)
+	{
+		cout << s << endl;
+	}
+
     int updatesPerSecond = 60;
     int framesPerSecond = 0; //no limit
     window->startMainLoop(updatesPerSecond,framesPerSecond);

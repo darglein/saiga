@@ -7,7 +7,7 @@
 #pragma once
 
 #include <saiga/config.h>
-
+#include <vector>
 
 #ifdef SAIGA_USE_GLEW
 #include <GL/glew.h>
@@ -36,6 +36,7 @@ SAIGA_GLOBAL void printOpenGLVersion();
 
 SAIGA_GLOBAL int getExtensionCount();
 SAIGA_GLOBAL bool hasExtension(const std::string &ext);
+SAIGA_GLOBAL std::vector<std::string> getExtensions();
 
 
 enum class OpenGLVendor{

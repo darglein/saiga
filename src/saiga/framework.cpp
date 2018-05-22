@@ -107,24 +107,7 @@ static void printSaigaInfo(){
     cout << "Build Options: " << options << endl;
 }
 
-void writeExtensions(){
 
-
-    std::ofstream myfile;
-    myfile.open ("opengl-extensions.txt");
-
-
-
-    int n = getExtensionCount();
-    for (GLint i=0; i<n; i++)
-    {
-        const char* extension = (const char*) glGetStringi(GL_EXTENSIONS, i);
-
-        myfile << extension<<endl;
-    }
-
-    myfile.close();
-}
 
 void initSaiga()
 {
