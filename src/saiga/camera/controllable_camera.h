@@ -90,6 +90,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy)
     }
 
     mouseRotateAroundPoint(dx,dy,point);
+//    mouseRotateAroundPoint(dx,dy,point,vec3(0,1,0));
 }
 
 
@@ -155,7 +156,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     vec3 dir = normalize(point - this->getPosition());
 
     vec3 right = normalize(cross(dir,up));
-    up = normalize(cross(right,dir));
+//    up = normalize(cross(right,dir));
 
 //    vec4 right = this->getRightVector();
 //    vec4 up = this->getUpVector();
