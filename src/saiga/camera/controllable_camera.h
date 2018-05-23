@@ -34,11 +34,12 @@ public:
         Up = 5,
     };
 
-    const int Dragging = 0;
 
     std::vector<int> keyboardmap;
     std::vector<int> mousemap;
     glm::ivec2 lastMousePos;
+    int dragState = 0; // 0 = nothing, 1 = first button drag, 2 = second button drag
+    vec3 rotationPoint = vec3(std::numeric_limits<float>::infinity(),0,0);
 
     std::array<bool,6> keyPressed {};
 
@@ -53,6 +54,7 @@ public:
     void interpolate(float dt, float interpolation);
 
     void mouseRotate(float dx, float dy);
+    void mouseRotateAroundPoint(float dx, float dy);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up);
 
@@ -62,7 +64,8 @@ public:
 };
 
 template<class camera_t>
-void Controllable_Camera<camera_t>::mouseRotate(float dx, float dy){
+void Controllable_Camera<camera_t>::mouseRotate(float dx, float dy)
+{
     if(mouseTurnLocal)
         this->turnLocal(dx*rotationSpeed,dy*rotationSpeed);
     else
@@ -73,7 +76,27 @@ void Controllable_Camera<camera_t>::mouseRotate(float dx, float dy){
 
 
 template<class camera_t>
-void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, vec3 point){
+void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy)
+{
+    vec3 point;
+    if(rotationPoint.x == std::numeric_limits<float>::infinity())
+    {
+        vec3 dir = vec3(this->getDirection());
+        point = this->getPosition() - 10.0f * dir;
+
+    }else
+    {
+        point = rotationPoint;
+    }
+
+    mouseRotateAroundPoint(dx,dy,point);
+}
+
+
+template<class camera_t>
+void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, vec3 point)
+{
+#if 0
     vec2 relMovement(dx,dy);
     float angle = glm::length(relMovement);
     if(angle == 0)
@@ -94,12 +117,36 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 
     this->calculateModel();
     this->updateFromModel();
+#else
+       vec2 relMovement(dx,dy);
+    float angle = glm::length(relMovement);
+    if(angle == 0)
+        return;
+
+    vec4 right = this->getRightVector();
+    vec4 up = this->getUpVector();
+
+    vec3 axis = -glm::normalize(vec3(right * relMovement.y + up * relMovement.x));
+//        cout << angle << camera.position << endl;
+
+    quat qrot = glm::angleAxis(glm::radians(angle * 0.3f),axis);
+    this->rot = qrot * this->rot;
+    vec3 p = qrot * (vec3(this->position)-point);
+
+    p += point;
+    this->position = vec4(p,1);
+//        camera.rotateAroundPoint(vec3(0),vec3(1,0,0),relMovement.y);
+    this->calculateModel();
+    this->updateFromModel();
+#endif
+
 }
 
 
 
 template<class camera_t>
-void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up){
+void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up)
+{
     vec2 relMovement(dx,dy);
     float angle = glm::length(relMovement);
     if(angle == 0)
@@ -126,8 +173,11 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     this->calculateModel();
     this->updateFromModel();
 }
+
+
 template<class camera_t>
-void Controllable_Camera<camera_t>::update(float delta){
+void Controllable_Camera<camera_t>::update(float delta)
+{
     if(!input)
         return;
     int FORWARD = keyboard.getMappedKeyState(Forward,keyboardmap) - keyboard.getMappedKeyState(Backward,keyboardmap);
@@ -150,7 +200,8 @@ void Controllable_Camera<camera_t>::update(float delta){
 
 
 template<class camera_t>
-void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation){
+void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation)
+{
 	//the camera isn't actually "interpolated" 
 	//we just use the latest mouse position
 	(void)dt; (void)interpolation;
@@ -158,15 +209,25 @@ void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation){
 	if(!input)
         return;
 
+    int newDragState = mouse.getMappedKeyState(0,mousemap) ? 1 : mouse.getMappedKeyState(1,mousemap) ? 2 : 0;
+
+
 	
 
     //only do mouse handling here
     glm::ivec2 mousedelta = lastMousePos - mouse.getPosition();
     lastMousePos = mouse.getPosition();
 
-    if(mouse.getMappedKeyState(Dragging,mousemap)){
+    if(dragState == 1)
+    {
         this->mouseRotate(mousedelta.x,mousedelta.y);
+    }else if(dragState == 2)
+    {
+        this->mouseRotateAroundPoint(mousedelta.x,mousedelta.y);
     }
+
+
+    dragState = newDragState;
 
 }
 

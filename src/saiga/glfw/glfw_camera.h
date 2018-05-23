@@ -28,7 +28,8 @@ public:
             GLFW_KEY_SPACE
         };
         this->mousemap = {
-            GLFW_MOUSE_BUTTON_3
+            GLFW_MOUSE_BUTTON_3,
+            GLFW_MOUSE_BUTTON_1
         };
     }
 };

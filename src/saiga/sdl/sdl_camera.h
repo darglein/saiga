@@ -28,7 +28,8 @@ public:
             SDL_SCANCODE_SPACE
         };
         this->mousemap = {
-            SDL_BUTTON_MIDDLE
+            SDL_BUTTON_MIDDLE,
+            SDL_BUTTON_LEFT
         };
     }
 };
