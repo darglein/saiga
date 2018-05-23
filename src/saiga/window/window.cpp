@@ -129,7 +129,12 @@ void OpenGLWindow::renderImGui(bool *p_open)
     gameTime.setTimeScale(scale);
 
     ImGui::Text("Camera Position: %s" , to_string(currentCamera->getPosition()).c_str());
-    ImGui::Text("Camera Direction: %s" , to_string(-currentCamera->getDirection()).c_str());
+    ImGui::Text("Camera Direction: %s" , to_string(-vec3(currentCamera->getDirection())).c_str());
+    if(ImGui::Button("Printf camera"))
+    {
+        cout << "Camera Position " << currentCamera->getPosition() << endl;
+        cout << "Camera Direction " << vec3(-currentCamera->getDirection()) << endl;
+    }
 
     if(ImGui::Button("Reload Shaders")){
         ShaderLoader::instance()->reload();
