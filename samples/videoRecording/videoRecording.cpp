@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -80,6 +80,8 @@ void VideoRecording::update(float dt){
     if(encoder && frame++%frameSkip==0){
         //the encoder manages a buffer of a few frames
         auto img = encoder->getFrameBuffer();
+        //        std::shared_ptr<Image> img = std::make_shared<Image>(encoder->inHeight,encoder->inWidth,UC4);
+
         //read the current framebuffer to the buffer
         parentWindow->readToExistingImage(*img);
         //add an image to the video stream
@@ -90,7 +92,7 @@ void VideoRecording::update(float dt){
 
     if(rotateCamera){
         float speed = 360.0f / 10.0 * dt;
-//        float speed = 2 * glm::pi<float>();
+        //        float speed = 2 * glm::pi<float>();
         camera.mouseRotateAroundPoint(speed,0,vec3(0,5,0),vec3(0,1,0));
     }
     //    camera.rotateAroundPoint(vec3(0),vec3(0,1,0),1.0f);
@@ -214,9 +216,9 @@ void VideoRecording::renderFinal(Camera *cam)
             if(ImGui::Button("Start Recording")){
                 SAIGA_ASSERT(!encoder);
                 remainingFrames = maxTimeSeconds * 60;
-                encoder = std::make_shared<FFMPEGEncoder>();
+                encoder = std::make_shared<FFMPEGEncoder>(file,outW,outH,w,h,frameRate,bitRate,codec);
 
-                encoder->startEncoding(file,outW,outH,w,h,frameRate,bitRate,codec);
+                //                encoder->startEncoding(file,outW,outH,w,h,frameRate,bitRate,codec);
             }
         }
 
@@ -224,12 +226,18 @@ void VideoRecording::renderFinal(Camera *cam)
         if(encoder){
             if(remainingFrames <= 0 || ImGui::Button("Stop Recording")){
                 SAIGA_ASSERT(encoder);
-                encoder->finishEncoding();
+                //                encoder->finishEncoding();
                 encoder.reset();
             }
         }
 
         ImGui::Checkbox("Rotate Camera",&rotateCamera);
+
+
+        if(ImGui::Button("add lag 1s"))
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
 
         ImGui::End();
     }

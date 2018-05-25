@@ -35,7 +35,7 @@ int main( int argc, char* args[] )
     VideoRecording* simpleWindow = new VideoRecording(window);
 
     int updatesPerSecond = 60;
-    int framesPerSecond = 0; //no limit
+    int framesPerSecond = 60;
     window->startMainLoop(updatesPerSecond,framesPerSecond);
 
     delete simpleWindow;

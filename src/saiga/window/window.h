@@ -125,7 +125,30 @@ public:
 
     void setProgram(Program* program);
     bool init(const RenderingParameters &params);
+
+
+    /**
+     * @brief startMainLoop
+     * @param updatesPerSecond
+     *      Number of calls per second to the virtual function "update".
+     *      A value of 0 means: update as fast as possible (not recommended)
+     * @param framesPerSecond
+     *      Number of class per second to the render functions.
+     *      A value of 0 is unlimitted frames.
+     * @param mainLoopInfoTime
+     *      Time between mainloop debug output to the console
+     * @param maxFrameSkip
+     *      Max number of frames that are skipped if the update cannot keep up.
+     * @param _parallelUpdate
+     *      Enables parallel updates while rendering. This will call the virtual function parallelUpdate.
+     * @param _catchUp
+     *      Lets the update loop catch up in case of lags.
+     * @param _printInfoMsg
+     *      Enable/Disable the debug output
+     */
     void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false, bool _catchUp=false, bool _printInfoMsg=true);
+
+
     void close();
     void renderImGui(bool* p_open = NULL);
 

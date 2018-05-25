@@ -65,7 +65,7 @@ bool GameTime::shouldUpdate()
     if(jtl){
         if(currentDelay.count() > 0){
             if(printInfoMsg){
-                std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(currentDelay).count() << " ms" << std::endl;
+//                std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(currentDelay).count() << " ms" << std::endl;
             }
             scaledTime = nextUpdateTime;
             nextFrameTime = realTime;

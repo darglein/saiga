@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,29 +7,75 @@
 #include "saiga/ffmpeg/ffmpegEncoder.h"
 #include "saiga/util/assert.h"
 
+extern "C"{
+#include <libavutil/opt.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/common.h>
+#include <libavutil/imgutils.h>
+#include <libavutil/mathematics.h>
+#include <libavutil/samplefmt.h>
+#include <libavutil/opt.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/common.h>
+#include <libavutil/imgutils.h>
+#include <libavutil/mathematics.h>
+#include <libavutil/samplefmt.h>
+#include "libavformat/avformat.h"
+#include "libswscale/swscale.h"
+}
+
+
 namespace Saiga {
 
-FFMPEGEncoder::FFMPEGEncoder(int bufferSize) : imageStorage(bufferSize + 1), imageQueue(bufferSize), frameStorage(bufferSize + 1), frameQueue(bufferSize)
+FFMPEGEncoder::FFMPEGEncoder(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate,AVCodecID videoCodecId, int bufferSize)
+    :
+      imageStorage(bufferSize),
+      imageQueue(bufferSize),
+      frameStorage(bufferSize),
+      frameQueue(bufferSize)
 {
+    cout << "Creating FFMPEGEncoder." << endl;
     av_log_set_level(AV_LOG_DEBUG);
     avcodec_register_all();
     av_register_all();
+
+    startEncoding(filename,outWidth,outHeight,inWidth,inHeight,outFps,bitRate,videoCodecId);
+
+
 }
 
-void FFMPEGEncoder::scaleThreadFunc(){
-    while (running){
-        scaleFrame();
-    }
-    while (scaleFrame()){
+FFMPEGEncoder::~FFMPEGEncoder()
+{
+    finishEncoding();
+}
+
+void FFMPEGEncoder::scaleThreadFunc()
+{
+    while (true)
+    {
+        bool hadWork = scaleFrame();
+
+        if(!running && !hadWork)
+            break;
+
+
+        if(!hadWork)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
 
     }
+    cout << "Scale Thread done." << endl;
     finishScale = true;
 }
 
 bool FFMPEGEncoder::scaleFrame()
 {
-    std::shared_ptr<Image> image;
-    if (!imageQueue.tryGet(image)){
+    std::shared_ptr<EncoderImageType> image;
+    if (!imageQueue.tryGet(image))
+    {
         return false;
     }
     AVFrame *frame = frameStorage.get();
@@ -39,17 +85,21 @@ bool FFMPEGEncoder::scaleFrame()
     return true;
 }
 
-void FFMPEGEncoder::scaleFrame(std::shared_ptr<Image> image, AVFrame *frame)
+void FFMPEGEncoder::scaleFrame(std::shared_ptr<EncoderImageType> image, AVFrame *frame)
 {
 
     uint8_t * inData[1] = { image->data8() }; // RGB24 have one plane
-    int inLinesize[1] = { image->pitchBytes }; // RGB stride
+    int inLinesize[1] = { (int)image->pitchBytes }; // RGB stride
 
     //flip
-    if (true) {
+    if (true)
+    {
         inData[0] += inLinesize[0] * (image->height - 1);
         inLinesize[0] = -inLinesize[0];
     }
+
+    SAIGA_ASSERT(image);
+    SAIGA_ASSERT(frame);
 
     sws_scale(ctx, inData, inLinesize, 0, image->height, frame->data, frame->linesize);
     frame->pts = getNextFramePts();
@@ -59,70 +109,67 @@ int64_t FFMPEGEncoder::getNextFramePts(){
     return currentFrame++ * ticksPerFrame;
 }
 
-void FFMPEGEncoder::encodeThreadFunc(){
-    while (!finishScale){
-        encodeFrame();
+void FFMPEGEncoder::encodeThreadFunc()
+{
+    while (!finishScale)
+    {
+        bool hadWork = encodeFrame();
+        if(!hadWork)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
     }
-    while (encodeFrame()){
+    while (encodeFrame())
+    {
 
     }
+    cout << "Encode Thread done." << endl;
     finishEncode = true;
 }
 
 bool FFMPEGEncoder::encodeFrame()
 {
     AVFrame *frame;
-    if (!frameQueue.tryGet(frame)){
+    if (!frameQueue.tryGet(frame))
+    {
         return false;
     }
-    AVPacket _pkt;
-    bool hasOutput = encodeFrame(frame, _pkt);
-    if (hasOutput){
-        //        cout << "write frame " << frame->pts << " " << pkt.pts << endl;
-        writeFrame(_pkt);
-    }
+
+    encodeFrame(frame);
+
     frameStorage.add(frame);
     finishedFrames++;
     return true;
 }
 
-bool FFMPEGEncoder::encodeFrame(AVFrame *frame, AVPacket& pkt)
+bool FFMPEGEncoder::encodeFrame(AVFrame *frame)
 {
-
-    /* encode the image */
-    av_init_packet(&pkt);
-    pkt.data = NULL;    // packet data will be allocated by the encoder
-    pkt.size = 0;
-
-    //    packet.data = outbuf;
-    //    packet.size = numBytes;
-    //    packet.stream_index = m_formatCtx->streams[0]->index;
-    //    packet.flags |= AV_PKT_FLAG_KEY;
-    //    packet.pts = packet.dts = pts;
-    //    m_codecContext->coded_frame->pts = pts;
-
-    int got_output;
-    //	int ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
-    int ret = avcodec_encode_video2(m_codecContext, &pkt, frame, &got_output);
-
+    int ret = avcodec_send_frame(m_codecContext,frame);
     if (ret < 0) {
-        fprintf(stderr, "Error encoding frame\n");
+        cout << "Error encoding frame" << endl;
         exit(1);
     }
-    return got_output;
+
+    AVPacket* pkt =  av_packet_alloc();
+    while (ret >= 0) {
+        ret = avcodec_receive_packet(m_codecContext, pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+            return true;
+        else if (ret < 0) {
+            fprintf(stderr, "Error during encoding\n");
+            exit(1);
+        }
+        av_interleaved_write_frame(m_formatCtx, pkt);
+        av_packet_unref(pkt);
+    }
+
+    av_packet_free(&pkt);
+
+    return true;
 }
 
-void FFMPEGEncoder::writeFrame(AVPacket& pkt)
-{
-    //    cout << "Write frame "<<pkt.pts << "(size="<<pkt.size<<")"<<endl;
-    //	outputStream.write((const char*)pkt.data, pkt.size);
-    //fwrite(pkt.data, 1, pkt.size, f);
-    av_interleaved_write_frame(m_formatCtx, &pkt);
-    //    av_interleaved_write_frame(m_formatCtx, &packet);
-    av_free_packet(&pkt);
-}
 
-void FFMPEGEncoder::addFrame(std::shared_ptr<Image> image)
+void FFMPEGEncoder::addFrame(std::shared_ptr<EncoderImageType> image)
 {
 
     //    cout << "Add frame. Queue states: Scale="<<imageQueue.count()<<" Encode="<<frameQueue.count()<<endl;
@@ -131,52 +178,38 @@ void FFMPEGEncoder::addFrame(std::shared_ptr<Image> image)
 
 }
 
-std::shared_ptr<Image> FFMPEGEncoder::getFrameBuffer()
+std::shared_ptr<FFMPEGEncoder::EncoderImageType> FFMPEGEncoder::getFrameBuffer()
 {
     return imageStorage.get();
 }
 
 void FFMPEGEncoder::finishEncoding()
 {
+    if(!running)
+        return;
+
     std::cout << "finishEncoding()" << endl;
     running = false;
 
     scaleThread.join();
     encodeThread.join();
 
-    int got_packet_ptr = 1;
-
-    //    int ret;
-    while (got_packet_ptr)
-    {
-
-        AVPacket packet;
-        av_init_packet(&packet);
-        packet.data = NULL;    // packet data will be allocated by the encoder
-        packet.size = 0;
-
-        //        ret =
-        avcodec_encode_video2(m_codecContext, &packet, NULL, &got_packet_ptr);
-        if (got_packet_ptr)
-        {
-            av_interleaved_write_frame(m_formatCtx, &packet);
-        }
-
-        av_free_packet(&packet);
-    }
+    // Flush the encoder.
+    // This will encode all remaining frames and write them to the output.
+    encodeFrame(nullptr);
 
     av_write_trailer(m_formatCtx);
 
     avcodec_close(m_codecContext);
     sws_freeContext(ctx);
-    //    avformat_free_context(m_formatCtx);
-    avcodec_free_context(&m_codecContext);
 
-    //    av_free(m_codecContext);
+    avcodec_free_context(&m_codecContext);
 }
 
 void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate, AVCodecID videoCodecId)
 {
+    cout << "FFMPEGEncoder start encoding to file " << filename << endl;
+
     this->outWidth = outWidth;
     this->outHeight = outHeight;
     this->inWidth = inWidth;
@@ -198,13 +231,15 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
     }
 
     AVCodec *codec = avcodec_find_encoder(oformat->video_codec);
-    if(codec == NULL){
+    if(codec == NULL)
+    {
         std::cerr << "Could not find encoder. " << std::endl;
         exit(1);
     }
 
     m_codecContext = avcodec_alloc_context3(codec);
-    if(m_codecContext == NULL){
+    if(m_codecContext == NULL)
+    {
         std::cerr << "Could allocate codec context. " << std::endl;
         exit(1);
     }
@@ -229,6 +264,7 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
     {
         printf("Could not allocate stream\n");
     }
+    //    videoStream->codecpar
     videoStream->codec = m_codecContext;
     videoStream->time_base = {1,timeBase};
     if(m_formatCtx->oformat->flags & AVFMT_GLOBALHEADER)
@@ -246,7 +282,11 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
         exit(1);
     }
 
-    avformat_write_header(m_formatCtx, NULL);
+    if(avformat_write_header(m_formatCtx, NULL) < 0)
+    {
+        std::cout << "avformat_write_header error" << std::endl;
+        exit(1);
+    }
 
 
     av_dump_format(m_formatCtx, 0, filename.c_str(), 1);
@@ -279,17 +319,16 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
 
 void FFMPEGEncoder::createBuffers()
 {
-    for (int i = 0; i < imageStorage.capacity; ++i){
-        std::shared_ptr<Image> img = std::make_shared<Image>();
-        img->width = inWidth;
-        img->height = inHeight;
-//        img->Format() = ImageFormat(4, 8);
-        SAIGA_ASSERT(0);
-        img->create();
+
+    for (int i = 0; i < (int)imageStorage.capacity; ++i)
+    {
+        std::shared_ptr<EncoderImageType> img = std::make_shared<EncoderImageType>(inHeight,inWidth);
         imageStorage.add(img);
     }
 
-    for (int i = 0; i < frameStorage.capacity; ++i){
+
+    for (int i = 0; i < (int)frameStorage.capacity; ++i)
+    {
         AVFrame* frame = av_frame_alloc();
         if (!frame) {
             fprintf(stderr, "Could not allocate video frame\n");
@@ -309,9 +348,6 @@ void FFMPEGEncoder::createBuffers()
         }
         frameStorage.add(frame);
     }
-
-
-
 }
 
 }

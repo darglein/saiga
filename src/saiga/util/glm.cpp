@@ -64,7 +64,7 @@ std::ostream& operator<<(std::ostream& os, const glm::dmat4& v){
 }
 
 std::ostream& operator<<(std::ostream& os, const quat& v){
-    os<<"("<<v.x<<","<<v.y<<","<<v.z<<","<<v.w<<")";
+    os<<"("<<v.w<<","<<v.x<<","<<v.y<<","<<v.z<<")";
     return os;
 }
 

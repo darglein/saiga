@@ -132,8 +132,9 @@ void OpenGLWindow::renderImGui(bool *p_open)
     ImGui::Text("Camera Direction: %s" , to_string(-vec3(currentCamera->getDirection())).c_str());
     if(ImGui::Button("Printf camera"))
     {
-        cout << "Camera Position " << currentCamera->getPosition() << endl;
-        cout << "Camera Direction " << vec3(-currentCamera->getDirection()) << endl;
+        cout << "camera.position = vec4" << currentCamera->position << ";" << endl;
+        cout << "camera.rot = quat" << currentCamera->rot << ";" << endl;
+//        createTRSmatrix()
     }
 
     if(ImGui::Button("Reload Shaders")){
@@ -574,7 +575,7 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
     tick_t nextScreenshotTick = gameTime.getTime() + ticksPerScreenshot;
 
     if(!catchUp){
-        gameTime.maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::milliseconds(1000));
+        gameTime.maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::milliseconds(1));
     }
 
 
