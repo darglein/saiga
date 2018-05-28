@@ -26,7 +26,10 @@
 #include "saiga/rendering/lighting/directional_light.h"
 #include "saiga/ffmpeg/ffmpegEncoder.h"
 
+#include "saiga/animation/cameraAnimation.h"
+
 using namespace Saiga;
+
 
 class VideoRecording : public Program, public SDL_KeyListener
 {
@@ -49,6 +52,10 @@ public:
     int frame = 0;
     int frameSkip = 0;
     std::shared_ptr<FFMPEGEncoder> encoder;
+
+
+
+    Interpolation cameraInterpolation;
 
     VideoRecording(OpenGLWindow* window);
     ~VideoRecording();

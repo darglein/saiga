@@ -95,7 +95,12 @@ void VideoRecording::update(float dt){
         //        float speed = 2 * glm::pi<float>();
         camera.mouseRotateAroundPoint(speed,0,vec3(0,5,0),vec3(0,1,0));
     }
-    //    camera.rotateAroundPoint(vec3(0),vec3(0,1,0),1.0f);
+
+
+    if(cameraInterpolation.isRunning())
+    {
+      cameraInterpolation.update(camera);
+    }
 }
 
 void VideoRecording::interpolate(float dt, float interpolation) {
@@ -127,7 +132,12 @@ void VideoRecording::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
     skybox.render(cam);
+
+
+    cameraInterpolation.render();
 }
+
+
 
 void VideoRecording::renderFinal(Camera *cam)
 {
@@ -140,7 +150,7 @@ void VideoRecording::renderFinal(Camera *cam)
     {
         ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
-        ImGui::Begin("An Imgui Window :D");
+        ImGui::Begin("Video Encoding");
 
         int w = parentWindow->getRenderer()->width;
         int h = parentWindow->getRenderer()->height;
@@ -231,7 +241,7 @@ void VideoRecording::renderFinal(Camera *cam)
             }
         }
 
-        ImGui::Checkbox("Rotate Camera",&rotateCamera);
+
 
 
         if(ImGui::Button("add lag 1s"))
@@ -241,6 +251,10 @@ void VideoRecording::renderFinal(Camera *cam)
 
         ImGui::End();
     }
+
+
+    cameraInterpolation.renderGui(camera);
+
 
 
 
@@ -270,6 +284,5 @@ void VideoRecording::keyPressed(SDL_Keysym key)
 void VideoRecording::keyReleased(SDL_Keysym key)
 {
 }
-
 
 
