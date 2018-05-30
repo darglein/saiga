@@ -62,19 +62,17 @@ Interpolation::Keyframe Interpolation::getNormalized(double time)
     return get( (keyframes.size()-1)*time);
 }
 
-std::shared_ptr<Asset> Interpolation::createAsset()
+void Interpolation::createAsset()
 {
     if(keyframes.size() == 0)
-        return nullptr;
+        return;
 
     std::vector<vec3> vertices;
     std::vector<GLuint> indices;
 
     //    createFrustumMesh(proj,vertices,indices);
 
-    int subSamples = 5;
 
-    float scale = 0.5;
 
     for(int i = 0; i < keyframes.size()-1; ++i)
     {
@@ -90,7 +88,7 @@ std::shared_ptr<Asset> Interpolation::createAsset()
             Keyframe kf = get(time);
             vec3 p = kf.position;
 
-//            cout << "time " << time << " p " << p << endl;
+            //            cout << "time " << time << " p " << p << endl;
 
             int idx = vertices.size();
             vertices.push_back(p);
@@ -102,9 +100,9 @@ std::shared_ptr<Asset> Interpolation::createAsset()
 
 
 
-            vertices.push_back( p + scale * (kf.rot * vec3(1,0,0)) );
-            vertices.push_back( p + scale * (kf.rot * vec3(0,1,0)) );
-            vertices.push_back( p + scale * (kf.rot * vec3(0,0,1)) );
+            vertices.push_back( p + keyframeScale * (kf.rot * vec3(1,0,0)) );
+            vertices.push_back( p + keyframeScale * (kf.rot * vec3(0,1,0)) );
+            vertices.push_back( p + keyframeScale * (kf.rot * vec3(0,0,1)) );
 
             indices.push_back(idx); indices.push_back(idx+1);
             indices.push_back(idx); indices.push_back(idx+2);
@@ -117,7 +115,7 @@ std::shared_ptr<Asset> Interpolation::createAsset()
 
 
     AssetLoader al;
-    return al.nonTriangleMesh(vertices,indices,GL_LINES,vec4(1,0,0,1));
+    cameraPathAsset = al.nonTriangleMesh(vertices,indices,GL_LINES,vec4(1,0,0,1));
 }
 
 
@@ -222,54 +220,106 @@ void Interpolation::renderGui(Camera& camera)
 {
     bool changed = false;
 
+    ImGui::PushID(326426);
+
+
+
+    ImGui::InputFloat("dt",&dt);
+    ImGui::InputFloat("totalTime",&totalTime);
+    if(ImGui::Checkbox("cubicInterpolation",&cubicInterpolation))
     {
-        ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
-        ImGui::Begin("Camera");
+        changed = true;
+    }
 
 
-        ImGui::InputFloat("dt",&dt);
-        ImGui::InputFloat("totalTime",&totalTime);
-        if(ImGui::Checkbox("cubicInterpolation",&cubicInterpolation))
+    if(ImGui::Button("Add Keyframe"))
+    {
+        addKeyframe(camera.rot,camera.getPosition());
+        changed = true;
+    }
+
+    if(ImGui::Button("Remove Last Keyframe"))
+    {
+        keyframes.pop_back();
+        changed = true;
+    }
+
+    if(ImGui::Button("Clear Keyframes"))
+    {
+        keyframes.clear();
+        changed = true;
+    }
+
+    if(ImGui::Button("start camera"))
+    {
+        start(camera,totalTime,dt);
+        changed = true;
+    }
+
+
+
+    if(ImGui::Button("print keyframes"))
+    {
+        for(Keyframe& kf : keyframes)
         {
+            cout << "keyframes.push_back({ quat" << kf.rot << ", vec3" << kf.position << "});" << endl;
+        }
+        cout << "createAsset();" << endl;
+
+        keyframes.push_back({quat(1,0,0,0),vec3(0)});
+    }
+
+    if(ImGui::CollapsingHeader("render"))
+    {
+        ImGui::Checkbox("visible",&visible);
+        ImGui::InputInt("subSamples",&subSamples);
+        ImGui::InputFloat("keyframeScale",&keyframeScale);
+        if(ImGui::Button("update mesh"))
             changed = true;
-        }
+    }
 
+    if(ImGui::CollapsingHeader("modify"))
+    {
+    ImGui::InputInt("selectedKeyframe",&selectedKeyframe);
 
-        if(ImGui::Button("Add Keyframe"))
-        {
-            addKeyframe(camera.rot,camera.getPosition());
+    if(ImGui::Button("keyframe to camera"))
+    {
+        auto kf = keyframes[selectedKeyframe];
+        camera.position = vec4(kf.position,1);
+        camera.rot = kf.rot;
 
-            cameraPathAsset = createAsset();
-            changed = true;
-        }
+        camera.calculateModel();
+        camera.updateFromModel();
+    }
 
-        if(ImGui::Button("Remove Last Keyframe"))
-        {
-            keyframes.pop_back();
-            changed = true;
-        }
+    if(ImGui::Button("update keyframe"))
+    {
+        keyframes[selectedKeyframe] = {camera.rot,camera.getPosition()};
+        changed = true;
+    }
 
-        if(ImGui::Button("Clear Keyframes"))
-        {
-            keyframes.clear();
-            changed = true;
-        }
+    if(ImGui::Button("delete keyframe"))
+    {
+        keyframes.erase(keyframes.begin()+selectedKeyframe);
+        changed = true;
+    }
 
-        if(ImGui::Button("start camera"))
-        {
-            start(camera,totalTime,dt);
-            changed = true;
-        }
-
-        if(changed)
-        {
-            cameraPathAsset = createAsset();
-        }
-
-
-        ImGui::End();
+    if(ImGui::Button("insert keyframe"))
+    {
+        keyframes.insert(keyframes.begin()+selectedKeyframe,{camera.rot,camera.getPosition()});
+        changed = true;
     }
 }
+
+
+    if(changed)
+    {
+        createAsset();
+    }
+
+    ImGui::PopID();
+}
+
+
 
 }

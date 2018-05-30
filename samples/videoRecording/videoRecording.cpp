@@ -99,7 +99,7 @@ void VideoRecording::update(float dt){
 
     if(cameraInterpolation.isRunning())
     {
-      cameraInterpolation.update(camera);
+        cameraInterpolation.update(camera);
     }
 }
 
@@ -252,8 +252,25 @@ void VideoRecording::renderFinal(Camera *cam)
         ImGui::End();
     }
 
+    {
+        ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
+        ImGui::Begin("Camera");
 
-    cameraInterpolation.renderGui(camera);
+
+        if(ImGui::Button("load path"))
+        {
+            cameraInterpolation.keyframes.push_back({ {0.973249,-0.229753,0,0}, {0,5,10}});
+//            cameraInterpolation.keyframes.push_back({ quat(0.973249,-0.229753,0,0), vec3(0,5,10)});
+            cameraInterpolation.keyframes.push_back({ quat(0.950643,-0.160491,0.261851,0.0442066), vec3(8.99602,5.61079,9.23351)});
+            cameraInterpolation.keyframes.push_back({ quat(0.6868,-0.0622925,0.721211,0.0654136), vec3(13.4404,5.61079,-0.559972)});
+            cameraInterpolation.createAsset();
+        }
+
+        cameraInterpolation.renderGui(camera);
+
+        ImGui::End();
+    }
 
 
 

@@ -39,14 +39,14 @@ public:
     Keyframe get(double time);
     Keyframe getNormalized(double time);
 
-    std::shared_ptr<Asset> createAsset();
+
 
     bool cubicInterpolation = true;
     int totalTicks = 0;
     int tick = 1;
     float dt = 1/60.0;
     float totalTime = 5;
-    std::shared_ptr<Asset> cameraPathAsset;
+    int selectedKeyframe = 0;
 
 
     void start(Camera& cam, float totalTimeS, float dt);
@@ -55,6 +55,13 @@ public:
 
     void render();
     void renderGui(Camera& cam);
+
+    // Camera path mesh
+    bool visible = true;
+    int subSamples = 5;
+    float keyframeScale = 0.5;
+    std::shared_ptr<Asset> cameraPathAsset;
+    void createAsset();
 };
 
 
