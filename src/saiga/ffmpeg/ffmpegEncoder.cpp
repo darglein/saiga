@@ -29,19 +29,33 @@ extern "C"{
 
 namespace Saiga {
 
-FFMPEGEncoder::FFMPEGEncoder(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate,AVCodecID videoCodecId, int bufferSize)
+static bool ffmpegInitialized = false;
+
+FFMPEGEncoder::FFMPEGEncoder(
+        const std::string &filename,
+        int outWidth, int outHeight, int inWidth, int inHeight,
+        int outFps, int bitRate,
+        AVCodecID videoCodecId, int bufferSize)
     :
       imageStorage(bufferSize),
       imageQueue(bufferSize),
       frameStorage(bufferSize),
-      frameQueue(bufferSize)
+      frameQueue(bufferSize),
+      filename(filename),
+      outWidth(outWidth),outHeight(outHeight),inWidth(inWidth),inHeight(inHeight),
+      outFps(outFps),bitRate(bitRate),
+      videoCodecId(videoCodecId)
 {
-    cout << "Creating FFMPEGEncoder." << endl;
-    av_log_set_level(AV_LOG_DEBUG);
-    avcodec_register_all();
-    av_register_all();
+    if(!ffmpegInitialized)
+    {
+        cout << "Initializing FFMPEG... ";
+        av_log_set_level(AV_LOG_DEBUG);
+        avcodec_register_all();
+        av_register_all();
+        ffmpegInitialized = true;
+        cout << "done" << endl;
+    }
 
-    startEncoding(filename,outWidth,outHeight,inWidth,inHeight,outFps,bitRate,videoCodecId);
 
 
 }
@@ -188,7 +202,7 @@ void FFMPEGEncoder::finishEncoding()
     if(!running)
         return;
 
-    std::cout << "finishEncoding()" << endl;
+    std::cout << "finishing ffmpeg encoding..." << endl;
     running = false;
 
     scaleThread.join();
@@ -202,18 +216,24 @@ void FFMPEGEncoder::finishEncoding()
 
     avcodec_close(m_codecContext);
     sws_freeContext(ctx);
+    ctx = nullptr;
 
     avcodec_free_context(&m_codecContext);
+
+    imageStorage.clear();
+    frameStorage.clear();
+
+    std::cout << "encoding done." << endl;
 }
 
-void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate, AVCodecID videoCodecId)
+void FFMPEGEncoder::startEncoding()
 {
     cout << "FFMPEGEncoder start encoding to file " << filename << endl;
 
-    this->outWidth = outWidth;
-    this->outHeight = outHeight;
-    this->inWidth = inWidth;
-    this->inHeight = inHeight;
+    //    this->outWidth = outWidth;
+    //    this->outHeight = outHeight;
+    //    this->inWidth = inWidth;
+    //    this->inHeight = inHeight;
     int timeBase = outFps * 1000;
 
     AVOutputFormat *oformat = av_guess_format(NULL, filename.c_str(), NULL);
@@ -300,8 +320,6 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
     ticksPerFrame = videoStream->time_base.den / outFps;
 
 
-    //  av_init_packet(&pkt);
-
 
     SAIGA_ASSERT(ctx == nullptr);
     ctx = sws_getContext(inWidth, inHeight,
@@ -309,8 +327,12 @@ void FFMPEGEncoder::startEncoding(const std::string &filename, int outWidth, int
                          AV_PIX_FMT_YUV420P, 0, 0, 0, 0);
     SAIGA_ASSERT(ctx);
 
-    createBuffers();
     running = true;
+    finishScale = false;
+    finishEncode = false;
+    currentFrame = 0;
+        finishedFrames = 0;
+    createBuffers();
 
     scaleThread = std::thread(&FFMPEGEncoder::scaleThreadFunc, this);
     encodeThread = std::thread(&FFMPEGEncoder::encodeThreadFunc, this);

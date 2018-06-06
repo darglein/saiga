@@ -11,7 +11,7 @@
 namespace Saiga {
 
 
-
+#if 0
 Interpolation::Keyframe Interpolation::get(double time)
 {
 
@@ -53,71 +53,6 @@ Interpolation::Keyframe Interpolation::get(double time)
 
     }
 }
-
-
-
-Interpolation::Keyframe Interpolation::getNormalized(double time)
-{
-    time = glm::clamp(time,0.0,1.0);
-    return get( (keyframes.size()-1)*time);
-}
-
-void Interpolation::createAsset()
-{
-    if(keyframes.size() == 0)
-        return;
-
-    std::vector<vec3> vertices;
-    std::vector<GLuint> indices;
-
-    //    createFrustumMesh(proj,vertices,indices);
-
-
-
-    for(int i = 0; i < keyframes.size()-1; ++i)
-    {
-
-
-
-
-        for(int j = (i==0)? -1 : 0; j < (subSamples + 1); ++j)
-        {
-            float alpha = (j+1.0) / (subSamples+1);
-
-            float time = i + alpha;
-            Keyframe kf = get(time);
-            vec3 p = kf.position;
-
-            //            cout << "time " << time << " p " << p << endl;
-
-            int idx = vertices.size();
-            vertices.push_back(p);
-            if(j != -1)
-            {
-                indices.push_back(idx - 4);
-                indices.push_back(idx);
-            }
-
-
-
-            vertices.push_back( p + keyframeScale * (kf.rot * vec3(1,0,0)) );
-            vertices.push_back( p + keyframeScale * (kf.rot * vec3(0,1,0)) );
-            vertices.push_back( p + keyframeScale * (kf.rot * vec3(0,0,1)) );
-
-            indices.push_back(idx); indices.push_back(idx+1);
-            indices.push_back(idx); indices.push_back(idx+2);
-            indices.push_back(idx); indices.push_back(idx+3);
-        }
-
-    }
-
-
-
-
-    AssetLoader al;
-    cameraPathAsset = al.nonTriangleMesh(vertices,indices,GL_LINES,vec4(1,0,0,1));
-}
-
 
 Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::Interpolation::Keyframe &f1, const Saiga::Interpolation::Keyframe &f2, const Saiga::Interpolation::Keyframe &f3, const Saiga::Interpolation::Keyframe &f4, float alpha)
 {
@@ -173,6 +108,117 @@ Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::In
     res.rot =  glm::slerp(f1.rot,f2.rot,alpha);
     return res;
 }
+#endif
+
+
+Interpolation::Keyframe Interpolation::getNormalized(double time)
+{
+    time = glm::clamp(time,0.0,1.0);
+//    return get( (keyframes.size()-1)*time);
+
+         vec3 p = positionSpline.getPointOnCurve(time);
+         quat q = orientationSpline.getPointOnCurve(time);
+         return {q,p};
+
+}
+
+void Interpolation::createAsset()
+{
+//    if(keyframes.size() == 0)
+        if(positionSpline.controlPoints.size() <= 1)
+        return;
+
+    std::vector<vec3> vertices;
+    std::vector<GLuint> indices;
+
+
+
+#if 1
+    //create control polygon
+        for(int i = 0; i < positionSpline.controlPoints.size()-1; ++i)
+        {
+            auto p1 = positionSpline.controlPoints[i];
+            auto p2 = positionSpline.controlPoints[i+1];
+            vertices.push_back(p1);
+            vertices.push_back(p2);
+            indices.push_back(vertices.size()-2);
+            indices.push_back(vertices.size()-1);
+
+//            cout << "cp " << p1 << p2 << endl;
+        }
+        int idx = vertices.size();
+
+        int steps = (positionSpline.controlPoints.size()-1)*(subSamples+1);
+        for(int i = 0; i < steps ; ++i)
+        {
+            float alpha = float(i) / (steps-1);
+            vec3 p = positionSpline.getPointOnCurve(alpha);
+            vertices.push_back(p);
+        }
+        for(int i = 0; i < steps-1 ; ++i)
+        {
+            indices.push_back(idx + i + 0);
+            indices.push_back(idx + i + 1);
+        }
+
+
+    #else
+
+
+    //    createFrustumMesh(proj,vertices,indices);
+
+
+
+//    for(int i = 0; i < keyframes.size()-1; ++i)
+        for(int i = 0; i < curve.controlPoints.size()-1; ++i)
+    {
+
+
+
+
+        for(int j = (i==0)? -1 : 0; j < (subSamples + 1); ++j)
+        {
+            float alpha = (j+1.0) / (subSamples+1);
+
+            float time = i + alpha;
+//            Keyframe kf = get(time);
+
+            Keyframe kf;
+            kf.position = curve.getPointOnCurve(time);
+            kf.rot = glm::quat(1,0,0,0);
+            vec3 p = kf.position;
+
+            //            cout << "time " << time << " p " << p << endl;
+
+            int idx = vertices.size();
+            vertices.push_back(p);
+            if(j != -1)
+            {
+                indices.push_back(idx - 4);
+                indices.push_back(idx);
+            }
+
+
+
+            vertices.push_back( p + keyframeScale * (kf.rot * vec3(1,0,0)) );
+            vertices.push_back( p + keyframeScale * (kf.rot * vec3(0,1,0)) );
+            vertices.push_back( p + keyframeScale * (kf.rot * vec3(0,0,1)) );
+
+            indices.push_back(idx); indices.push_back(idx+1);
+            indices.push_back(idx); indices.push_back(idx+2);
+            indices.push_back(idx); indices.push_back(idx+3);
+        }
+
+    }
+
+
+#endif
+
+    AssetLoader al;
+    cameraPathAsset = al.nonTriangleMesh(vertices,indices,GL_LINES,vec4(1,0,0,1));
+}
+
+
 
 void Interpolation::start(Camera &cam, float totalTimeS, float dt)
 {
@@ -208,6 +254,28 @@ bool Interpolation::update(Camera &camera)
     return true;
 }
 
+void Interpolation::updateCurve()
+{
+    positionSpline.controlPoints.clear();
+    orientationSpline.controlPoints.clear();
+
+    for(auto& kf : keyframes)
+    {
+
+        positionSpline.addPoint(kf.position);
+        orientationSpline.addPoint(kf.rot);
+    }
+
+
+    positionSpline.normalize();
+    orientationSpline.normalize();
+
+
+
+
+    createAsset();
+}
+
 void Interpolation::render()
 {
 
@@ -223,28 +291,32 @@ void Interpolation::renderGui(Camera& camera)
     ImGui::PushID(326426);
 
 
-
     ImGui::InputFloat("dt",&dt);
     ImGui::InputFloat("totalTime",&totalTime);
-    if(ImGui::Checkbox("cubicInterpolation",&cubicInterpolation))
-    {
-        changed = true;
-    }
+//    if(ImGui::Checkbox("cubicInterpolation",&cubicInterpolation))
+//    {
+//        changed = true;
+//    }
 
 
-    if(ImGui::Button("Add Keyframe"))
+    ImGui::Text("Keyframe");
+    if(ImGui::Button("Add"))
     {
         addKeyframe(camera.rot,camera.getPosition());
         changed = true;
     }
 
-    if(ImGui::Button("Remove Last Keyframe"))
+    ImGui::SameLine();
+
+    if(ImGui::Button("Remove Last"))
     {
         keyframes.pop_back();
         changed = true;
     }
 
-    if(ImGui::Button("Clear Keyframes"))
+    ImGui::SameLine();
+
+    if(ImGui::Button("Clear"))
     {
         keyframes.clear();
         changed = true;
@@ -314,7 +386,7 @@ void Interpolation::renderGui(Camera& camera)
 
     if(changed)
     {
-        createAsset();
+        updateCurve();
     }
 
     ImGui::PopID();

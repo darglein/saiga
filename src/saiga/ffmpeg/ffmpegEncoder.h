@@ -36,7 +36,7 @@ public:
     //  .mp4    AV_CODEC_ID_H264
     //  .mpeg   AV_CODEC_ID_MPEG2VIDEO or AV_CODEC_ID_MPEG4
     //  .avi    AV_CODEC_ID_RAWVIDEO
-    FFMPEGEncoder(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate,AVCodecID videoCodecId=AV_CODEC_ID_NONE, int bufferSize = 50);
+    FFMPEGEncoder(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps = 60, int bitRate = 4000000,AVCodecID videoCodecId=AV_CODEC_ID_NONE, int bufferSize = 50);
     ~FFMPEGEncoder();
 
 
@@ -44,14 +44,21 @@ public:
     std::shared_ptr<EncoderImageType> getFrameBuffer();
 
 
-private:
-
-
-    void startEncoding(const std::string &filename, int outWidth, int outHeight, int inWidth, int inHeight, int outFps, int bitRate,AVCodecID videoCodecId=AV_CODEC_ID_NONE);
+    bool isRunning(){ return running; }
+    void startEncoding();
     void finishEncoding();
 
 
+    std::string filename;
     int outWidth, outHeight, inWidth, inHeight;
+    int outFps;
+    int bitRate;
+    AVCodecID videoCodecId;
+private:
+
+
+
+
 
     SynchronizedBuffer<std::shared_ptr<EncoderImageType>> imageStorage;
     SynchronizedBuffer<std::shared_ptr<EncoderImageType>> imageQueue;
@@ -66,8 +73,8 @@ private:
     volatile int finishedFrames = 0;
 
     volatile bool running = false;
-    volatile bool finishScale = false;
-    volatile bool finishEncode = false;
+    volatile bool finishScale;
+    volatile bool finishEncode;
     //    AVCodec *codec;
     //    AVCodecContext *c= NULL;
 

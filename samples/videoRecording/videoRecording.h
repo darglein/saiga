@@ -25,6 +25,7 @@
 
 #include "saiga/rendering/lighting/directional_light.h"
 #include "saiga/ffmpeg/ffmpegEncoder.h"
+#include "saiga/ffmpeg/videoEncoder.h"
 
 #include "saiga/animation/cameraAnimation.h"
 
@@ -53,12 +54,16 @@ public:
     int frameSkip = 0;
     std::shared_ptr<FFMPEGEncoder> encoder;
 
+    VideoEncoder enc;
+
 
 
     Interpolation cameraInterpolation;
 
     VideoRecording(OpenGLWindow* window);
     ~VideoRecording();
+
+    void testBspline();
 
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;

@@ -556,6 +556,7 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
 
 
     float updateDT = 1.0f / updatesPerSecond;
+    targetUps = updatesPerSecond;
     //    float framesDT = 1.0f / framesPerSecond;
 
     tick_t ticksPerUpdate = gameTime.base / updatesPerSecond;

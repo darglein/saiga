@@ -114,6 +114,7 @@ protected:
     bool showImguiDemo = false;
     float maxUpdateTime = 1;
     float maxRenderTime = 1;
+    int targetUps = 60;
 public:
     bool showRendererImgui = false;
     std::shared_ptr<ImGuiRenderer> imgui;
@@ -180,6 +181,7 @@ public:
     std::string getName() const { return windowParameters.name; }
     void setCamera(Camera* c) { currentCamera = c; }
     Deferred_Renderer* getRenderer() const {  return renderer; }
+    int getTargetUps() const { return targetUps; }
 
 
     void setShowImgui(bool b) { showImgui = b; }

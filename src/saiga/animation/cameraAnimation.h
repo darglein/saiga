@@ -10,6 +10,7 @@
 #include <saiga/util/glm.h>
 #include <saiga/time/time.h>
 #include "saiga/assets/assetLoader.h"
+#include "saiga/animation/bspline.h"
 
 namespace Saiga {
 
@@ -23,11 +24,11 @@ public:
         vec3 position;
     };
 
-    Keyframe interpolate(const Keyframe& f1, const Keyframe& f2, float alpha);
+//    Keyframe interpolate(const Keyframe& f1, const Keyframe& f2, float alpha);
 
-    Keyframe interpolate(
-            const Keyframe& f1, const Keyframe& f2,
-            const Keyframe& f3, const Keyframe& f4, float alpha);
+//    Keyframe interpolate(
+//            const Keyframe& f1, const Keyframe& f2,
+//            const Keyframe& f3, const Keyframe& f4, float alpha);
 
     std::vector<Keyframe> keyframes;
 
@@ -36,7 +37,7 @@ public:
         keyframes.push_back( {R,t} );
     }
 
-    Keyframe get(double time);
+//    Keyframe get(double time);
     Keyframe getNormalized(double time);
 
 
@@ -48,9 +49,17 @@ public:
     float totalTime = 5;
     int selectedKeyframe = 0;
 
+    Bspline<vec3> positionSpline;
+    Bspline<quat> orientationSpline;
+
+    Interpolation() {}
+
 
     void start(Camera& cam, float totalTimeS, float dt);
     bool update(Camera& cam);
+
+
+    void updateCurve();
     bool isRunning() { return tick <= totalTicks; }
 
     void render();
@@ -61,6 +70,7 @@ public:
     int subSamples = 5;
     float keyframeScale = 0.5;
     std::shared_ptr<Asset> cameraPathAsset;
+private:
     void createAsset();
 };
 

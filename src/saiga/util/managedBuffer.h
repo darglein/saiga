@@ -79,6 +79,15 @@ public:
         constructed[id] = true;
     }
 
+    void freeAll()
+    {
+        for(int i = 0;i < capacity; ++i)
+        {
+            if(isConstructed(i))
+                free(i);
+        }
+    }
+
 };
 
 }

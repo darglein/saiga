@@ -12,7 +12,8 @@
 
 #include "saiga/geometry/triangle_mesh_generator.h"
 
-VideoRecording::VideoRecording(OpenGLWindow *window): Program(window)
+VideoRecording::VideoRecording(OpenGLWindow *window)
+    : Program(window), enc(window)
 {
     //create a perspective camera
     float aspect = window->getAspectRatio();
@@ -63,6 +64,7 @@ VideoRecording::VideoRecording(OpenGLWindow *window): Program(window)
 
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
+    testBspline();
 
     cout<<"Program Initialized!"<<endl;
 }
@@ -72,21 +74,70 @@ VideoRecording::~VideoRecording()
     //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
 }
 
+void VideoRecording::testBspline()
+{
+    cout << "Testing Bspline..." << endl;
+
+
+    {
+        quat q1(151,621,-16,16);
+        q1 = normalize(q1);
+
+        quat q2(-25,1617,15,-781);
+        q2 = normalize(q2);
+
+        cout << "mix   " << q1 << " " << q2 << " " << normalize(mix(q1,q2,0.3f)) << endl;
+        cout << "slerp " << q1 << " " << q2 << " " << normalize(slerp(q1,q2,0.3f)) << endl;
+
+    }
+
+    {
+        cout << "Linear bspline" << endl;
+        Bspline<vec2> spline(1,{{0,0},{1,0},{1,1},{2,2}});
+        spline.normalize();
+        cout << spline << endl;
+
+        int steps = 50;
+        for(int i = 0; i < steps ; ++i)
+        {
+            float alpha = float(i) / (steps-1);
+            cout << i << " " << alpha << " " << spline.getPointOnCurve(alpha) << endl;
+        }
+    }
+
+    {
+        cout << "Cubic bspline" << endl;
+        Bspline<vec2> spline(3,{{0,0},{1,0},{1,1},{2,2}});
+        spline.normalize();
+        cout << spline << endl;
+
+        int steps = 50;
+        for(int i = 0; i < steps ; ++i)
+        {
+            float alpha = float(i) / (steps-1);
+            cout << i << " " << alpha << " " << spline.getPointOnCurve(alpha) << endl;
+        }
+    }
+
+    //    cameraInterpolation.positionSpline.addPoint({0,3,0});
+    //    cameraInterpolation.positionSpline.addPoint({1,3,0});
+    //    cameraInterpolation.positionSpline.addPoint({1,3,1});
+    //    cameraInterpolation.positionSpline.addPoint({0,3,1});
+    //    cameraInterpolation.positionSpline.normalize(true);
+
+    //    cout << cameraInterpolation.positionSpline << endl;
+    //    cameraInterpolation.createAsset();
+
+
+    //    exit(0);
+}
+
 void VideoRecording::update(float dt){
     //Update the camera position
     camera.update(dt);
     sun->fitShadowToCamera(&camera);
 
-    if(encoder && frame++%frameSkip==0){
-        //the encoder manages a buffer of a few frames
-        auto img = encoder->getFrameBuffer();
-        //        std::shared_ptr<Image> img = std::make_shared<Image>(encoder->inHeight,encoder->inWidth,UC4);
-
-        //read the current framebuffer to the buffer
-        parentWindow->readToExistingImage(*img);
-        //add an image to the video stream
-        encoder->addFrame(img);
-    }
+    enc.update();
 
     remainingFrames--;
 
@@ -142,115 +193,16 @@ void VideoRecording::renderOverlay(Camera *cam)
 void VideoRecording::renderFinal(Camera *cam)
 {
 
-    //The final render path (after post processing).
-    //Usually the GUI is rendered here.
-
-
-
     {
         ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("Video Encoding");
-
-        int w = parentWindow->getRenderer()->width;
-        int h = parentWindow->getRenderer()->height;
-
-        static int outW = w;
-        static int outH = h;
-        static int bitRate = 4000000;
-        static char file[256] = "test.mp4";
-        static int frameRateId = 0;
-        static int codecId = 0;
-        static int maxTimeSeconds = 10;
-
-        ImGui::InputInt("Output Width",&outW);
-
-        ImGui::InputInt("Output Height",&outH);
-        ImGui::InputInt("Bitrate",&bitRate);
-
-
-        static const char *fpsitems[3] = {
-            "15",
-            "30",
-            "60"
-        };
-        ImGui::Combo("Framerate",&frameRateId,fpsitems,3);
-
-        int frameRate = 30;
-        switch(frameRateId){
-        case 0:
-            frameRate = 15;
-            frameSkip = 4;
-            break;
-        case 1:
-            frameRate = 30;
-            frameSkip = 2;
-            break;
-        case 2:
-            frameRate = 60;
-            frameSkip = 1;
-            break;
-        }
-
-
-        static const char *codecitems[4] = {
-            "AV_CODEC_ID_H264",
-            "AV_CODEC_ID_MPEG2VIDEO",
-            "AV_CODEC_ID_MPEG4",
-            "AV_CODEC_ID_RAWVIDEO"
-        };
-        ImGui::Combo("Codec",&codecId,codecitems,4);
-
-        AVCodecID codec = AV_CODEC_ID_H264;
-        switch(codecId){
-        case 0:
-            codec = AV_CODEC_ID_H264;
-            break;
-        case 1:
-            codec = AV_CODEC_ID_MPEG2VIDEO;
-            break;
-        case 2:
-            codec = AV_CODEC_ID_MPEG4;
-            break;
-        case 3:
-            codec = AV_CODEC_ID_RAWVIDEO;
-            break;
-
-        }
-
-        ImGui::InputInt("Max Video Length in seconds",&maxTimeSeconds);
-
-        ImGui::InputText("Output File",file,256);
-
-        if(!encoder){
-            if(ImGui::Button("Start Recording")){
-                SAIGA_ASSERT(!encoder);
-                remainingFrames = maxTimeSeconds * 60;
-                encoder = std::make_shared<FFMPEGEncoder>(file,outW,outH,w,h,frameRate,bitRate,codec);
-
-                //                encoder->startEncoding(file,outW,outH,w,h,frameRate,bitRate,codec);
-            }
-        }
-
-
-        if(encoder){
-            if(remainingFrames <= 0 || ImGui::Button("Stop Recording")){
-                SAIGA_ASSERT(encoder);
-                //                encoder->finishEncoding();
-                encoder.reset();
-            }
-        }
-
-
-
-
-        if(ImGui::Button("add lag 1s"))
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        }
+        enc.renderGUI();
 
         ImGui::End();
     }
+
+
 
     {
         ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
@@ -261,10 +213,10 @@ void VideoRecording::renderFinal(Camera *cam)
         if(ImGui::Button("load path"))
         {
             cameraInterpolation.keyframes.push_back({ {0.973249,-0.229753,0,0}, {0,5,10}});
-//            cameraInterpolation.keyframes.push_back({ quat(0.973249,-0.229753,0,0), vec3(0,5,10)});
+            //            cameraInterpolation.keyframes.push_back({ quat(0.973249,-0.229753,0,0), vec3(0,5,10)});
             cameraInterpolation.keyframes.push_back({ quat(0.950643,-0.160491,0.261851,0.0442066), vec3(8.99602,5.61079,9.23351)});
             cameraInterpolation.keyframes.push_back({ quat(0.6868,-0.0622925,0.721211,0.0654136), vec3(13.4404,5.61079,-0.559972)});
-            cameraInterpolation.createAsset();
+            cameraInterpolation.updateCurve();
         }
 
         cameraInterpolation.renderGui(camera);

@@ -88,6 +88,13 @@ public:
         return true;
     }
 
+    void clear()
+    {
+        front = -1;
+        rear = 0;
+        this->freeAll();
+    }
+
 
 
 };
