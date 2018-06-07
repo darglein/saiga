@@ -81,7 +81,7 @@ public:
 
     void freeAll()
     {
-        for(int i = 0;i < capacity; ++i)
+        for(unsigned int i = 0;i < capacity; ++i)
         {
             if(isConstructed(i))
                 free(i);

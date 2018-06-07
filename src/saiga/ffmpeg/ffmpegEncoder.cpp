@@ -39,8 +39,8 @@ FFMPEGEncoder::FFMPEGEncoder(
     :
       imageStorage(bufferSize),
       imageQueue(bufferSize),
-      frameStorage(bufferSize),
       frameQueue(bufferSize),
+      frameStorage(bufferSize),
       filename(filename),
       outWidth(outWidth),outHeight(outHeight),inWidth(inWidth),inHeight(inHeight),
       outFps(outFps),bitRate(bitRate),

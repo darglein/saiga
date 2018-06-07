@@ -101,6 +101,7 @@ static int check_sample_fmt(AVCodec *codec, enum AVSampleFormat sample_fmt)
     return 0;
 }
 
+#if 0
 /* just pick the highest supported samplerate */
 static int select_sample_rate(AVCodec *codec)
 {
@@ -136,6 +137,7 @@ static int select_channel_layout(AVCodec *codec)
     }
     return best_ch_layout;
 }
+#endif
 
 void FFMPEGAudioEncoder::startEncoding(const std::string &filename)
 {
