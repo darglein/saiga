@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,13 +11,39 @@
 #include "saiga/cuda/random.h"
 #include "saiga/tests/test.h"
 #include "saiga/geometry/clipping.h"
-
+#include "saiga/util/commandLineArguments.h"
 using namespace Saiga;
 
 int main(int argc, char *argv[]) {
 
     catchSegFaults();
 
+    CommandLineArguments arguments;
+
+    arguments.arguments = std::vector<CommandLineArguments::CLA>{
+    {"",'f',"","lasgld",true,false},
+    {"",'r',"","lasgld",true,false},
+    {"",'g',"","lasgld",true,false},
+    {"asdf",0,"djhlgsg","lasgld",false,false},
+};
+
+
+    struct asdf
+    {
+        std::string long_name;
+        //        char short_name = 0;
+        //        std::string defaultValue = "";
+        bool flag;
+    };
+
+    asdf a = {"sdgl",true};
+
+
+    //    CommandLineArguments::CLA asdf = {std::string(""),'f',std::string(""),true,false};
+
+    arguments.parse(argc,argv);
+
+    return 0;
 
     /*
     Triangle trit;
@@ -38,7 +64,7 @@ int main(int argc, char *argv[]) {
     cout << Clipping::clipTriAABBtoBox(trit,bb) << endl;
     */
 
-//    return 0;
+    //    return 0;
 
     {
         //CUDA tests
@@ -49,29 +75,29 @@ int main(int argc, char *argv[]) {
 
         CUDA::initBLASSPARSE();
 
-//        CUDA::imageProcessingTest();
-//        CUDA::inverseTest();
-//        CUDA::warpStrideLoopTest();
-//        CUDA::convolutionTest();
-//        CUDA::convolutionTest3x3();
-//        CUDA::dotTest();
+        //        CUDA::imageProcessingTest();
+        //        CUDA::inverseTest();
+        //        CUDA::warpStrideLoopTest();
+        //        CUDA::convolutionTest();
+        //        CUDA::convolutionTest3x3();
+        //        CUDA::dotTest();
         CUDA::bandwidthTest();
         return 0;
         CUDA::randomTest();
 
-//        return 0;
-//        CUDA::occupancyTest();
-//        CUDA::randomAccessTest();
-//        CUDA::coalescedCopyTest();
-//        CUDA::recursionTest();
+        //        return 0;
+        //        CUDA::occupancyTest();
+        //        CUDA::randomAccessTest();
+        //        CUDA::coalescedCopyTest();
+        //        CUDA::recursionTest();
 
 
         CUDA::scanTest();
 
         CUDA::reduceTest();
 
-//        CUDA::testCuda();
-//        CUDA::testThrust();
+        //        CUDA::testCuda();
+        //        CUDA::testThrust();
 
         CUDA::destroyBLASSPARSE();
         CUDA::destroyCUDA();
@@ -79,6 +105,6 @@ int main(int argc, char *argv[]) {
 
 
 
-//    Tests::fpTest();
+    //    Tests::fpTest();
 
 }
