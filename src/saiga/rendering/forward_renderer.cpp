@@ -35,7 +35,8 @@ void Forward_Renderer::render_intern(Camera *cam)
     bindCamera(cam);
 
 
-
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
