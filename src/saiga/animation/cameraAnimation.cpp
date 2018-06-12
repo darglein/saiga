@@ -135,7 +135,7 @@ void Interpolation::createAsset()
 
 #if 1
     //create control polygon
-        for(int i = 0; i < positionSpline.controlPoints.size()-1; ++i)
+        for(int i = 0; i < (int)positionSpline.controlPoints.size()-1; ++i)
         {
             auto p1 = positionSpline.controlPoints[i];
             auto p2 = positionSpline.controlPoints[i+1];

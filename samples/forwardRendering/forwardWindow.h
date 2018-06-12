@@ -13,16 +13,21 @@
 #include "saiga/assets/objAssetLoader.h"
 
 #include "saiga/sdl/sdl.h"
-
 #include "saiga/rendering/lighting/directional_light.h"
 
+#include "saiga/world/pointCloud.h"
+
 using namespace Saiga;
+
+
+
 
 class Sample :  public Updating, public Rendering, public SDL_KeyListener
 {
 public:
     SDLCamera<PerspectiveCamera> camera;
 
+    PointCloud pointCloud;
     SimpleAssetObject cube1, cube2;
     SimpleAssetObject groundPlane;
     SimpleAssetObject sphere;

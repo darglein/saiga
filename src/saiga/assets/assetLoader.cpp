@@ -11,6 +11,7 @@
 
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/image/imageGenerator.h"
+#include "saiga/geometry/grid.h"
 
 namespace Saiga {
 
@@ -80,6 +81,37 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_p
     asset->create("Plane",texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader);
 
     return asset;
+}
+
+std::shared_ptr<ColoredAsset> AssetLoader::loadDebugGrid(int numX, int numY, float quadSize, Color color)
+{
+    vec2 size = vec2(numX,numY) * quadSize;
+
+    std::vector<vec3> vertices;
+    std::vector<GLuint> indices;
+
+    for(float i=-numX;i<=numX;i++)
+    {
+        vec3 p1 = vec3(quadSize*i,0,-size.y);
+        vec3 p2 = vec3(quadSize*i,0,size.y);
+        indices.push_back(vertices.size());
+        vertices.push_back(p1);
+        indices.push_back(vertices.size());
+        vertices.push_back(p2);
+    }
+
+    for(float i=-numY;i<=numY;i++)
+    {
+        vec3 p1 = vec3(-size.x,0,quadSize*i);
+        vec3 p2 = vec3(+size.x,0,quadSize*i);
+        indices.push_back(vertices.size());
+        vertices.push_back(p1);
+        indices.push_back(vertices.size());
+        vertices.push_back(p2);
+    }
+
+
+    return nonTriangleMesh(vertices,indices,GL_LINES,color);
 }
 
 std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float length, vec4 color)

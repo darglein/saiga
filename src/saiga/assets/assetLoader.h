@@ -46,6 +46,8 @@ public:
 
     std::shared_ptr<TexturedAsset> loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size);
 
+    std::shared_ptr<ColoredAsset> loadDebugGrid(int numX, int numY, float quadSize=1.0f, Color color=Colors::gray);
+
     std::shared_ptr<ColoredAsset> loadDebugArrow(float radius, float length, vec4 color=vec4(1,0,0,1));
 
     std::shared_ptr<ColoredAsset> assetFromMesh(TriangleMesh<VertexNC,GLuint>& mesh);

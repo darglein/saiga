@@ -14,6 +14,9 @@
 
 #include "saiga/assets/plyLoader.h"
 
+
+
+
 Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     : Updating(window), Rendering(renderer)
 {
@@ -86,8 +89,19 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     sphere.translateGlobal(vec3(-2,1,0));
     sphere.calculateModel();
 
-    groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
+//    groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
+    groundPlane.asset = assetLoader.loadDebugGrid(20,20,1);
 
+
+
+    for(int i = 0; i < 10000; ++i)
+    {
+        PointVertex v;
+        v.position = glm::linearRand(vec3(-10,-10,-10),vec3(10,10,10));
+        v.color = glm::linearRand(vec3(0),vec3(1));
+        pointCloud.points.push_back(v);
+    }
+    pointCloud.updateBuffer();
 
     cout<<"Program Initialized!"<<endl;
 }
@@ -128,6 +142,8 @@ void Sample::renderOverlay(Camera *cam)
     cube1.renderForward(cam);
     cube2.renderForward(cam);
     sphere.renderForward(cam);
+
+    pointCloud.render(cam);
 }
 
 void Sample::renderFinal(Camera *cam)
