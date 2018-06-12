@@ -88,14 +88,6 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
 
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
 
-    //create one directional light
-    sun = window.getRenderer()->lighting.createDirectionalLight();
-    sun->setDirection(vec3(-1,-3,-2));
-    sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(1.0);
-    sun->setAmbientIntensity(0.3f);
-    sun->createShadowMap(2048,2048);
-    sun->enableShadows();
 
     cout<<"Program Initialized!"<<endl;
 }
@@ -108,7 +100,6 @@ Sample::~Sample()
 void Sample::update(float dt){
     //Update the camera position
     camera.update(dt);
-    sun->fitShadowToCamera(&camera);
 }
 
 void Sample::interpolate(float dt, float interpolation) {
@@ -119,27 +110,24 @@ void Sample::interpolate(float dt, float interpolation) {
 
 void Sample::render(Camera *cam)
 {
-    //Render all objects from the viewpoint of 'cam'
-    groundPlane.render(cam);
-    cube1.render(cam);
-    cube2.render(cam);
-    sphere.render(cam);
+
 }
 
 void Sample::renderDepth(Camera *cam)
 {
-    //Render the depth of all objects from the viewpoint of 'cam'
-    //This will be called automatically for shadow casting light sources to create shadow maps
-    groundPlane.renderDepth(cam);
-    cube1.renderDepth(cam);
-    cube2.renderDepth(cam);
-    sphere.render(cam);
+
 }
 
 void Sample::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
     skybox.render(cam);
+
+    //Render all objects from the viewpoint of 'cam'
+    groundPlane.renderForward(cam);
+    cube1.renderForward(cam);
+    cube2.renderForward(cam);
+    sphere.renderForward(cam);
 }
 
 void Sample::renderFinal(Camera *cam)

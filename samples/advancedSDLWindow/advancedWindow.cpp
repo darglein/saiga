@@ -63,8 +63,9 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     //sun->enableShadows();
 
     //create 10 point lights in a circle
+    Deferred_Renderer& r = static_cast<Deferred_Renderer&>(parentRenderer);
     for(int i = 0 ; i < 10 ; ++i){
-        auto pl = window.getRenderer()->lighting.createPointLight();
+        auto pl = r.lighting.createPointLight();
         pl->setAttenuation(AttenuationPresets::Quadratic);
         pl->setIntensity(3);
         pl->setRadius(10);
@@ -116,7 +117,7 @@ void Sample::update(float dt){
     int  ups = (int) glm::round(1000.0/parentWindow.upsTimer.getTimeMS());
     tdo.updateEntry(1,ups);
 
-    float renderTime = parentWindow.getRenderer()->getTime(Deferred_Renderer::TOTAL);
+    float renderTime = parentWindow.getRenderer()->getTotalRenderTime();
     tdo.updateEntry(2,renderTime);
 
     float updateTime = parentWindow.updateTimer.getTimeMS();

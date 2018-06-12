@@ -57,7 +57,8 @@ Sample::Sample(Saiga::OpenGLWindow &window, Saiga::Renderer &renderer)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(s,s),1.0f,Colors::lightgray,Colors::gray);
 
     //create one directional light
-    sun = window.getRenderer()->lighting.createDirectionalLight();
+    Deferred_Renderer& r = static_cast<Deferred_Renderer&>(parentRenderer);
+    sun = r.lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-2,-2.5));
     //    sun->setDirection(vec3(0,-1,0));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
@@ -136,7 +137,7 @@ void Sample::renderFinal(Camera *cam)
             if(debugLightShader){
                 n.directionalLightShader = "lighting/light_cascaded.glsl";
             }
-            parentWindow.getRenderer()->lighting.loadShaders(n);
+//            parentWindow.getRenderer()->lighting.loadShaders(n);
         }
         ImGui::Checkbox("fitShadowToCamera",&fitShadowToCamera);
         ImGui::Checkbox("fitNearPlaneToScene",&fitNearPlaneToScene);
@@ -196,18 +197,6 @@ void Sample::renderFinal(Camera *cam)
 void Sample::keyPressed(SDL_Keysym key)
 {
     switch(key.scancode){
-    case SDL_SCANCODE_T:
-    {
-        std::vector<uint8_t> binary;
-        GLenum format;
-         parentWindow.getRenderer()->blitDepthShader->getBinary(binary,format);
-         parentWindow.getRenderer()->blitDepthShader->setBinary(binary,format);
-         cout << "binary size: " << binary.size() << endl;
-
-         std::ofstream outfile ("binary.txt",std::ofstream::binary);
-         outfile.write( (char*)binary.data(),binary.size());
-        break;
-    }
     case SDL_SCANCODE_ESCAPE:
         parentWindow.close();
         break;

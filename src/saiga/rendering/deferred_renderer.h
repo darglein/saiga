@@ -14,7 +14,7 @@
 #include "saiga/rendering/lighting/ssao.h"
 #include "saiga/smaa/SMAA.h"
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
-#include "saiga/imgui/imgui_renderer.h"
+
 
 namespace Saiga {
 
@@ -103,7 +103,7 @@ private:
 
     bool renderDDO = false;
     DeferredDebugOverlay ddo;
-    UniformBuffer cameraBuffer;
+
 
 
 public:
@@ -111,17 +111,17 @@ public:
     //for imgui
     bool showLightingImgui = false;
 
-    void bindCamera(Camera* cam);
+
 
     float getTime(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].getTimeMS();}
     float getUnsmoothedTimeMS(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].MultiFrameOpenGLTimer::getTimeMS();}
     float getTotalRenderTime() { return getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL); }
 
-    void printTimings();
+    void printTimings() override;
 
 
 
-    std::shared_ptr<ImGuiRenderer> imgui;
+
 
 
     bool wireframe = false;
@@ -132,7 +132,7 @@ public:
 
 
 
-    int windowWidth, windowHeight;
+
     int width,height;
 
 //    Camera** currentCamera;
@@ -157,7 +157,7 @@ public:
     Deferred_Renderer(OpenGLWindow& window, RenderingParameters _params = RenderingParameters());
 	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
-    void resize(int windowWidth, int windowHeight);
+    void resize(int outputWidth, int outputHeight) override;
 
 
     void render_intern(Camera *cam);

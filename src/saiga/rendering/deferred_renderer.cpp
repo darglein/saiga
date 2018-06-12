@@ -18,15 +18,14 @@
 namespace Saiga {
 
 Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _params) :
+    Renderer(window),
     ddo(window.getWidth(),window.getHeight()),
-    windowWidth(window.getWidth()), windowHeight(window.getHeight()),
     width(window.getWidth()*_params.renderScale), height(window.getHeight()*_params.renderScale),
     params(_params),lighting(gbuffer)
 {
-    window.setRenderer(this);
 
 
-    cameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
+
 
     //    setSize(windowWidth,windowHeight);
 
@@ -92,7 +91,7 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _
 
     blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/blitDepth.glsl");
 
-//    ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
+    //    ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
     ddo.setDeferredFramebuffer(&gbuffer,lighting.volumetricLightTexture2);
 
 
@@ -104,9 +103,6 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _
     defaultEffects.push_back(pps);
     postProcessor.setPostProcessingEffects(defaultEffects);
 
-
-    // ImGUI
-    imgui = window.createImGui();
 
     cout << "Deferred Renderer initialized. Render resolution: " << width << "x" << height << endl;
 
@@ -128,8 +124,8 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
         windowWidth = glm::max(windowWidth, 1);
         windowHeight = glm::max(windowHeight, 1);
     }
-    this->windowWidth = windowWidth;
-    this->windowHeight = windowHeight;
+    this->outputWidth = windowWidth;
+    this->outputHeight = windowHeight;
     this->width = windowWidth * params.renderScale;
     this->height = windowHeight * params.renderScale;
     cout << "Resizing Window to : " << windowWidth << "," << windowHeight << endl;
@@ -266,9 +262,9 @@ void Deferred_Renderer::render_intern(Camera *cam)
     glDisable(GL_BLEND);
 
     if(blitLastFramebuffer)
-        postProcessor.blitLast(windowWidth, windowHeight);
+        postProcessor.blitLast(outputWidth, outputHeight);
     else
-        postProcessor.renderLast(windowWidth, windowHeight);
+        postProcessor.renderLast(outputWidth, outputHeight);
 
     //    if (params.srgbWrites)
     //        glDisable(GL_FRAMEBUFFER_SRGB);
@@ -405,12 +401,6 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
 }
 
 
-void Deferred_Renderer::bindCamera(Camera *cam)
-{
-    CameraDataGLSL cd(cam);
-    cameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
-    cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-}
 
 void Deferred_Renderer::printTimings()
 {
@@ -437,7 +427,7 @@ void Deferred_Renderer::renderImGui(bool *p_open)
 {
     int w = 340;
     int h = 240;
-    ImGui::SetNextWindowPos(ImVec2(340, windowHeight - h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiSetCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w,h), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Deferred Renderer",p_open);
 

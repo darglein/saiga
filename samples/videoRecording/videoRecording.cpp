@@ -54,7 +54,8 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20,20),1.0f,Colors::lightgray,Colors::gray);
 
     //create one directional light
-    sun = window.getRenderer()->lighting.createDirectionalLight();
+    Deferred_Renderer& r = static_cast<Deferred_Renderer&>(parentRenderer);
+    sun = r.lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-3,-2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(0.5);

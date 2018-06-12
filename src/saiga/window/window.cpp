@@ -149,7 +149,8 @@ void OpenGLWindow::renderImGui(bool *p_open)
 
     ImGui::End();
 
-    if(showRendererImgui && renderer){
+    if(showRendererImgui && renderer)
+    {
         renderer->renderImGui(&showRendererImgui);
     }
 
@@ -235,8 +236,8 @@ void OpenGLWindow::readToExistingImage(Image &out)
 
 
 void OpenGLWindow::readToImage(Image& out){
-    int w = renderer->windowWidth;
-    int h = renderer->windowHeight;
+    int w = renderer->outputWidth;
+    int h = renderer->outputHeight;
 
     //    out.width = w;
     //    out.height = h;
@@ -259,6 +260,8 @@ void OpenGLWindow::screenshot(const std::string &file)
 
 void OpenGLWindow::screenshotRender(const std::string &file)
 {
+    SAIGA_ASSERT(0);
+#if 0
     //    cout<<"Window::screenshotRender "<<file<<endl;
     int w = renderer->width;
     int h = renderer->height;
@@ -277,11 +280,14 @@ void OpenGLWindow::screenshotRender(const std::string &file)
 
     //    TextureLoader::instance()->saveImage(file,img);
     img.save(file);
+#endif
 }
 
 void OpenGLWindow::getDepthFloat(Image& out){
-    int w = renderer->windowWidth;
-    int h = renderer->windowHeight;
+    SAIGA_ASSERT(0);
+#if 0
+    int w = renderer->outputWidth;
+    int h = renderer->outputHeight;
 
     out.width = w;
     out.height = h;
@@ -316,11 +322,14 @@ void OpenGLWindow::getDepthFloat(Image& out){
 #endif
         }
     }
+#endif
 
 }
 
 void OpenGLWindow::screenshotRenderDepth(const std::string &file)
 {
+    SAIGA_ASSERT(0);
+#if 0
     //    cout<<"Window::screenshotRender "<<file<<endl;
     int w = renderer->width;
     int h = renderer->height;
@@ -352,6 +361,7 @@ void OpenGLWindow::screenshotRenderDepth(const std::string &file)
 
     //    TextureLoader::instance()->saveImage(file,img2);
     img2.save(file);
+#endif
 }
 
 std::string OpenGLWindow::getTimeString()

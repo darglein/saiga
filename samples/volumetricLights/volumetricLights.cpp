@@ -56,7 +56,8 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
 
     ShadowQuality sq = ShadowQuality::HIGH;
 
-    sun = window.getRenderer()->lighting.createDirectionalLight();
+    Deferred_Renderer& r = static_cast<Deferred_Renderer&>(parentRenderer);
+    sun = r.lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-3,-2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(0.5);
@@ -64,7 +65,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     sun->createShadowMap(2048,2048,1,sq);
     sun->enableShadows();
 
-    pointLight = window.getRenderer()->lighting.createPointLight();
+    pointLight = r.lighting.createPointLight();
     //        pointLight->setAttenuation(AttenuationPresets::Quadratic);
     pointLight->setAttenuation(vec3(0,0,5));
     pointLight->setIntensity(2);
@@ -77,7 +78,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     pointLight->enableShadows();
     pointLight->setVolumetric(true);
 
-    spotLight = window.getRenderer()->lighting.createSpotLight();
+    spotLight = r.lighting.createSpotLight();
     spotLight->setAttenuation(vec3(0,0,5));
     spotLight->setIntensity(2);
     spotLight->setRadius(8);
@@ -87,7 +88,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     spotLight->createShadowMap(512,512,sq);
     spotLight->enableShadows();
 
-    boxLight = window.getRenderer()->lighting.createBoxLight();
+    boxLight = r.lighting.createBoxLight();
     boxLight->setIntensity(1.0);
 
     //        boxLight->setPosition(vec3(0,2,10));
@@ -100,7 +101,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     boxLight->enableShadows();
 
 
-    parentWindow.getRenderer()->lighting.renderVolumetric = true;
+    r.lighting.renderVolumetric = true;
 
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
@@ -140,7 +141,7 @@ void Sample::update(float dt){
     int  ups = (int) glm::round(1000.0/parentWindow.upsTimer.getTimeMS());
     tdo.updateEntry(1,ups);
 
-    float renderTime = parentWindow.getRenderer()->getTime(Deferred_Renderer::TOTAL);
+    float renderTime = parentWindow.getRenderer()->getTotalRenderTime();
     tdo.updateEntry(2,renderTime);
 
     float updateTime = parentWindow.updateTimer.getTimeMS();

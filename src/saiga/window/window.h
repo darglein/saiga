@@ -150,7 +150,7 @@ protected:
     float maxUpdateTime = 1;
     float maxRenderTime = 1;
     int targetUps = 60;
-    Deferred_Renderer* renderer = nullptr;
+    Renderer* renderer = nullptr;
     Updating* updating = nullptr;
 public:
 
@@ -200,11 +200,11 @@ public:
     Camera* getCamera() const { return currentCamera; }
     std::string getName() const { return windowParameters.name; }
     void setCamera(Camera* c) { currentCamera = c; }
-    Deferred_Renderer* getRenderer() const {  return renderer; }
+    Renderer* getRenderer() const {  return renderer; }
     int getTargetUps() const { return targetUps; }
 
     void setUpdateObject(Updating &u) { updating = &u; }
-    void setRenderer(Deferred_Renderer *u) { renderer = u; }
+    void setRenderer(Renderer *u) { renderer = u; }
 
     void setShowImgui(bool b) { showImgui = b; }
 

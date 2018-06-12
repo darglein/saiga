@@ -6,6 +6,7 @@
 
 
 #include "saiga/sdl/sdl.h"
+#include "saiga/rendering/forward_renderer.h"
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/crash.h"
 
@@ -18,7 +19,7 @@ int main( int argc, char* args[] )
     catchSegFaults();
 
     WindowParameters windowParameters;
-    windowParameters.name = "Simple SDL Window";
+    windowParameters.name = "Forward Rendering";
     windowParameters.mode = WindowParameters::Mode::windowed;
     windowParameters.width = 1280;
     windowParameters.height = 720;
@@ -28,7 +29,8 @@ int main( int argc, char* args[] )
     SDLWindow window(windowParameters);
 
     // 2. Create the OpenGL renderer
-    Deferred_Renderer renderer(window);
+    Forward_Renderer renderer(window);
+
 
     // 3. Create an object of our class, which is both renderable and updateable
     Sample simpleWindow(window,renderer);
