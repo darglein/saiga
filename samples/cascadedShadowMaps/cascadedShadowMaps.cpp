@@ -11,10 +11,11 @@
 
 #include "saiga/geometry/triangle_mesh_generator.h"
 
-SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
+Sample::Sample(Saiga::OpenGLWindow &window, Saiga::Renderer &renderer)
+    : Updating(window), Rendering(renderer)
 {
     //create a perspective camera
-    float aspect = window->getAspectRatio();
+    float aspect = window.getAspectRatio();
     camera.setProj(60.0f,aspect,1.0f,150.0f);
     //    camera.setView(vec3(0,5,10),vec3(0,5,0),vec3(0,1,0));
     camera.setView(vec3(0,10,-10),vec3(0,9,0),vec3(0,1,0));
@@ -24,7 +25,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     camera.movementSpeedFast = 20;
 
     //Set the camera from which view the scene is rendered
-    window->setCamera(&camera);
+    window.setCamera(&camera);
 
 
     //add this object to the keylistener, so keyPressed and keyReleased will be called
@@ -56,7 +57,7 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(s,s),1.0f,Colors::lightgray,Colors::gray);
 
     //create one directional light
-    sun = window->getRenderer()->lighting.createDirectionalLight();
+    sun = window.getRenderer()->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-2,-2.5));
     //    sun->setDirection(vec3(0,-1,0));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
@@ -69,12 +70,12 @@ SimpleWindow::SimpleWindow(OpenGLWindow *window): Program(window)
     cout<<"Program Initialized!"<<endl;
 }
 
-SimpleWindow::~SimpleWindow()
+Sample::~Sample()
 {
     //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
 }
 
-void SimpleWindow::update(float dt){
+void Sample::update(float dt){
     //Update the camera position
     camera.update(dt);
     if(fitShadowToCamera){
@@ -85,13 +86,13 @@ void SimpleWindow::update(float dt){
     }
 }
 
-void SimpleWindow::interpolate(float dt, float interpolation) {
+void Sample::interpolate(float dt, float interpolation) {
     //Update the camera rotation. This could also be done in 'update' but
     //doing it in the interpolate step will reduce latency
     camera.interpolate(dt,interpolation);
 }
 
-void SimpleWindow::render(Camera *cam)
+void Sample::render(Camera *cam)
 {
     //Render all objects from the viewpoint of 'cam'
     groundPlane.render(cam);
@@ -101,7 +102,7 @@ void SimpleWindow::render(Camera *cam)
     }
 }
 
-void SimpleWindow::renderDepth(Camera *cam)
+void Sample::renderDepth(Camera *cam)
 {
     //Render the depth of all objects from the viewpoint of 'cam'
     //This will be called automatically for shadow casting light sources to create shadow maps
@@ -112,13 +113,13 @@ void SimpleWindow::renderDepth(Camera *cam)
     }
 }
 
-void SimpleWindow::renderOverlay(Camera *cam)
+void Sample::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
     skybox.render(cam);
 }
 
-void SimpleWindow::renderFinal(Camera *cam)
+void Sample::renderFinal(Camera *cam)
 {
 
 
@@ -135,7 +136,7 @@ void SimpleWindow::renderFinal(Camera *cam)
             if(debugLightShader){
                 n.directionalLightShader = "lighting/light_cascaded.glsl";
             }
-            parentWindow->getRenderer()->lighting.loadShaders(n);
+            parentWindow.getRenderer()->lighting.loadShaders(n);
         }
         ImGui::Checkbox("fitShadowToCamera",&fitShadowToCamera);
         ImGui::Checkbox("fitNearPlaneToScene",&fitNearPlaneToScene);
@@ -150,10 +151,10 @@ void SimpleWindow::renderFinal(Camera *cam)
         static float farPlane = 150;
         static float nearPlane = 1;
         if(ImGui::InputFloat("Camera Far Plane",&farPlane))
-            camera.setProj(60.0f,parentWindow->getAspectRatio(),nearPlane,farPlane);
+            camera.setProj(60.0f,parentWindow.getAspectRatio(),nearPlane,farPlane);
 
         if(ImGui::InputFloat("Camera Near Plane",&nearPlane))
-            camera.setProj(60.0f,parentWindow->getAspectRatio(),nearPlane,farPlane);
+            camera.setProj(60.0f,parentWindow.getAspectRatio(),nearPlane,farPlane);
 
         static int numCascades = 1;
 
@@ -186,21 +187,21 @@ void SimpleWindow::renderFinal(Camera *cam)
         ImGui::End();
     }
 
-    parentWindow->renderImGui();
+    parentWindow.renderImGui();
 
 }
 
 #include <fstream>
 
-void SimpleWindow::keyPressed(SDL_Keysym key)
+void Sample::keyPressed(SDL_Keysym key)
 {
     switch(key.scancode){
     case SDL_SCANCODE_T:
     {
         std::vector<uint8_t> binary;
         GLenum format;
-         parentWindow->getRenderer()->blitDepthShader->getBinary(binary,format);
-         parentWindow->getRenderer()->blitDepthShader->setBinary(binary,format);
+         parentWindow.getRenderer()->blitDepthShader->getBinary(binary,format);
+         parentWindow.getRenderer()->blitDepthShader->setBinary(binary,format);
          cout << "binary size: " << binary.size() << endl;
 
          std::ofstream outfile ("binary.txt",std::ofstream::binary);
@@ -208,23 +209,23 @@ void SimpleWindow::keyPressed(SDL_Keysym key)
         break;
     }
     case SDL_SCANCODE_ESCAPE:
-        parentWindow->close();
+        parentWindow.close();
         break;
     case SDL_SCANCODE_BACKSPACE:
-        parentWindow->getRenderer()->printTimings();
+        parentWindow.getRenderer()->printTimings();
         break;
     case SDL_SCANCODE_R:
         ShaderLoader::instance()->reload();
         break;
     case SDL_SCANCODE_F12:
-        parentWindow->screenshot("screenshot.png");
+        parentWindow.screenshot("screenshot.png");
         break;
     default:
         break;
     }
 }
 
-void SimpleWindow::keyReleased(SDL_Keysym key)
+void Sample::keyReleased(SDL_Keysym key)
 {
 }
 

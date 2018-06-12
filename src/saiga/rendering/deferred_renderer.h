@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/rendering/renderer.h"
 #include "saiga/rendering/postProcessor.h"
 #include "saiga/rendering/lighting/deferred_lighting.h"
 #include "saiga/opengl/framebuffer.h"
@@ -13,10 +14,9 @@
 #include "saiga/rendering/lighting/ssao.h"
 #include "saiga/smaa/SMAA.h"
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
+#include "saiga/imgui/imgui_renderer.h"
 
 namespace Saiga {
-
-class Program;
 
 
 
@@ -76,7 +76,7 @@ struct SAIGA_GLOBAL RenderingParameters{
 };
 
 
-class SAIGA_GLOBAL Deferred_Renderer{
+class SAIGA_GLOBAL Deferred_Renderer : public Renderer{
 public:
     enum DeferredTimings{
 		TOTAL = 0,
@@ -104,6 +104,8 @@ private:
     bool renderDDO = false;
     DeferredDebugOverlay ddo;
     UniformBuffer cameraBuffer;
+
+
 public:
 
     //for imgui
@@ -113,12 +115,13 @@ public:
 
     float getTime(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].getTimeMS();}
     float getUnsmoothedTimeMS(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].MultiFrameOpenGLTimer::getTimeMS();}
+    float getTotalRenderTime() { return getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL); }
 
     void printTimings();
 
 
-    Program* renderer;
 
+    std::shared_ptr<ImGuiRenderer> imgui;
 
 
     bool wireframe = false;
@@ -132,7 +135,7 @@ public:
     int windowWidth, windowHeight;
     int width,height;
 
-    Camera** currentCamera;
+//    Camera** currentCamera;
 
     std::shared_ptr<SSAO> ssao;
 
@@ -151,13 +154,13 @@ public:
 
 
     DeferredLighting lighting;
-    Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters _params);
+    Deferred_Renderer(OpenGLWindow& window, RenderingParameters _params = RenderingParameters());
 	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
     void resize(int windowWidth, int windowHeight);
 
 
-    void render_intern();
+    void render_intern(Camera *cam);
     void renderGBuffer(Camera *cam);
     void renderDepthMaps(); //render the scene from the lights perspective (don't need user camera here)
     void renderLighting(Camera *cam);

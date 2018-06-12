@@ -12,7 +12,10 @@ namespace Saiga {
 
 SDLWindow::SDLWindow(WindowParameters windowParameters):OpenGLWindow(windowParameters)
 {
+    create();
 }
+
+
 
 bool SDLWindow::initWindow()
 {
@@ -102,13 +105,19 @@ bool SDLWindow::initInput(){
     SDL_StartTextInput();
     SDL_EventHandler::addResizeListener(this);
 
-    if(windowParameters.createImgui){
-        std::shared_ptr<ImGui_SDL_Renderer> sdlimgui = std::make_shared<ImGui_SDL_Renderer>();
-        sdlimgui->init(window,windowParameters.imguiFont,windowParameters.imguiFontSize);
-        imgui = sdlimgui;
-    }
 
     return true;
+}
+
+std::shared_ptr<ImGuiRenderer> SDLWindow::createImGui()
+{
+    std::shared_ptr<ImGui_SDL_Renderer> sdlimgui;
+    if(windowParameters.createImgui)
+    {
+        sdlimgui = std::make_shared<ImGui_SDL_Renderer>();
+        sdlimgui->init(window,windowParameters.imguiFont,windowParameters.imguiFontSize);
+    }
+    return sdlimgui;
 }
 
 bool SDLWindow::shouldClose()

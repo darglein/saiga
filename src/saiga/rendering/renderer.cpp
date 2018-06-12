@@ -5,13 +5,24 @@
  */
 
 #include "saiga/rendering/renderer.h"
-#include "saiga/window/window.h"
+
 
 namespace Saiga {
 
-Program::Program(OpenGLWindow *parent) : parentWindow(parent)
+Renderer::Renderer()
 {
-    parentWindow->setProgram(this);
+
 }
+
+Renderer::~Renderer()
+{
+
+}
+
+void Renderer::setRenderObject(Rendering &r)
+{
+    rendering = &r;
+}
+
 
 }

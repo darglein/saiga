@@ -12,6 +12,8 @@
 #include "saiga/sdl/sdl_eventhandler.h"
 #include <SDL2/SDL.h>
 
+#undef main
+
 namespace Saiga {
 
 
@@ -33,6 +35,8 @@ protected:
 public:
 
     SDLWindow(WindowParameters windowParameters);
+
+    virtual std::shared_ptr<ImGuiRenderer> createImGui() override;
 };
 
 }

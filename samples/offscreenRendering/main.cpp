@@ -1,48 +1,39 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
-#include "saiga/framework.h"
+
 #include "saiga/egl/offscreen_window.h"
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/crash.h"
 
-#include "simpleWindow.h"
+#include "offscreenWindow.h"
+
 
 int main( int argc, char* args[] )
 {
     //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
     catchSegFaults();
 
-    //Specify some window parameters and create a SDL window
     WindowParameters windowParameters;
     windowParameters.name = "Simple SDL Window";
-    windowParameters.vsync = false;
-    windowParameters.resizeAble = true;
     windowParameters.mode = WindowParameters::Mode::windowed;
     windowParameters.width = 1280;
     windowParameters.height = 720;
-    //make one screenshot per second and save it in the debug directory
-    windowParameters.debugScreenshotPath = "debug/";
-    windowParameters.debugScreenshotTime = 1.0f;
 
-    auto window = new OffscreenWindow(windowParameters);
+    // 1. Create an SDL window.
+    // This also creates the required OpenGL context.
+    OffscreenWindow window(windowParameters);
 
-    //Create the deferred rendering engine
-    RenderingParameters rp; //Use default rendering settings
-    window->init(rp);
+    // 2. Create the OpenGL renderer
+    Deferred_Renderer renderer(window);
 
-    //Everything from saiga is now setup, so we can start our own program now
-    SimpleWindow* simpleWindow = new SimpleWindow(window);
+    // 3. Create an object of our class, which is both renderable and updateable
+    Sample simpleWindow(window,renderer);
 
-    int updatesPerSecond = 60;
-    int framesPerSecond = 0; //no limit
-    window->startMainLoop(updatesPerSecond,framesPerSecond);
-
-    delete simpleWindow;
-    delete window;
-
+    // Everyhing is initilalized, we can run the main loop now!
+    window.startMainLoop();
     return 0;
 }

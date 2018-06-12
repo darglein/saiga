@@ -11,6 +11,7 @@
 #include "saiga/time/gameTime.h"
 #include "saiga/geometry/ray.h"
 #include "saiga/imgui/imgui_renderer.h"
+#include "saiga/rendering/renderer.h"
 
 #include <thread>
 
@@ -18,12 +19,12 @@ namespace Saiga {
 
 class Camera;
 class Deferred_Renderer;
-class Program;
 struct RenderingParameters;
 class Image;
 
 
-struct SAIGA_GLOBAL OpenGLParameters{
+struct SAIGA_GLOBAL OpenGLParameters
+{
     enum class Profile{
         ANY,
         CORE,
@@ -41,7 +42,8 @@ struct SAIGA_GLOBAL OpenGLParameters{
 
 };
 
-struct SAIGA_GLOBAL WindowParameters{
+struct SAIGA_GLOBAL WindowParameters
+{
     enum class Mode{
         windowed,
         fullscreen,
@@ -78,55 +80,9 @@ struct SAIGA_GLOBAL WindowParameters{
     void setMode(bool fullscreen, bool borderLess);
 };
 
-class SAIGA_GLOBAL OpenGLWindow{
-protected:
-    WindowParameters windowParameters;
 
-    //total number of updateticks/frames rendered so far
-    int numUpdates = 0;
-    int numFrames = 0;
-
-    //game loop running
-    bool running = false;
-
-    //basic variables for the parallel update
-    Semaphore semStartUpdate, semFinishUpdate;
-    std::thread updateThread;
-    bool parallelUpdate = false;
-
-    Deferred_Renderer* renderer = nullptr;
-    Camera* currentCamera = nullptr;
-
-    tick_t gameLoopDelay = tick_t(0);
-
-    bool gameloopDropAccumulatedUpdates = false;
-    bool printInfoMsg = true;
-
-    //for imgui graph
-    bool showImgui = true;
-    static const int numGraphValues = 80;
-    float ut=0, ft=0;
-    float avFt = 0, avUt;
-    int imCurrentIndexUpdate = 0;
-    int imCurrentIndexRender = 0;
-    float imUpdateTimes[numGraphValues];
-    float imRenderTimes[numGraphValues];
-    bool showImguiDemo = false;
-    float maxUpdateTime = 1;
-    float maxRenderTime = 1;
-    int targetUps = 60;
-public:
-    bool showRendererImgui = false;
-    std::shared_ptr<ImGuiRenderer> imgui;
-    ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
-    AverageTimer fpsTimer, upsTimer;
-public:
-    OpenGLWindow(WindowParameters windowParameters);
-    virtual ~OpenGLWindow();
-
-    void setProgram(Program* program);
-    bool init(const RenderingParameters &params);
-
+struct SAIGA_GLOBAL MainLoopParameters
+{
 
     /**
      * @brief startMainLoop
@@ -147,7 +103,71 @@ public:
      * @param _printInfoMsg
      *      Enable/Disable the debug output
      */
-    void startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime=5.0f, int maxFrameSkip = 0, bool _parallelUpdate=false, bool _catchUp=false, bool _printInfoMsg=true);
+    int updatesPerSecond = 60;
+    int framesPerSecond = 60;
+    float mainLoopInfoTime=5.0f;
+    int maxFrameSkip = 0;
+    bool _parallelUpdate=false;
+    bool catchUp=false;
+    bool _printInfoMsg=true;
+};
+
+class SAIGA_GLOBAL OpenGLWindow{
+protected:
+    WindowParameters windowParameters;
+
+    //total number of updateticks/frames rendered so far
+    int numUpdates = 0;
+    int numFrames = 0;
+
+    //game loop running
+    bool running = false;
+
+    //basic variables for the parallel update
+    Semaphore semStartUpdate, semFinishUpdate;
+    std::thread updateThread;
+    bool parallelUpdate = false;
+
+
+
+    Camera* currentCamera = nullptr;
+
+    tick_t gameLoopDelay = tick_t(0);
+
+    bool gameloopDropAccumulatedUpdates = false;
+    bool printInfoMsg = true;
+
+    //for imgui graph
+    bool showImgui = true;
+    static const int numGraphValues = 80;
+    float ut=0, ft=0;
+    float avFt = 0, avUt;
+    int imCurrentIndexUpdate = 0;
+    int imCurrentIndexRender = 0;
+    float imUpdateTimes[numGraphValues];
+    float imRenderTimes[numGraphValues];
+    bool showImguiDemo = false;
+    float maxUpdateTime = 1;
+    float maxRenderTime = 1;
+    int targetUps = 60;
+    Deferred_Renderer* renderer = nullptr;
+    Updating* updating = nullptr;
+public:
+
+    bool showRendererImgui = false;
+
+    ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
+    AverageTimer fpsTimer, upsTimer;
+public:
+    OpenGLWindow(WindowParameters windowParameters);
+    virtual ~OpenGLWindow();
+
+
+    bool create();
+    bool init(const RenderingParameters &params);
+
+
+    void startMainLoop(MainLoopParameters params = MainLoopParameters());
 
 
     void close();
@@ -183,9 +203,13 @@ public:
     Deferred_Renderer* getRenderer() const {  return renderer; }
     int getTargetUps() const { return targetUps; }
 
+    void setUpdateObject(Updating &u) { updating = &u; }
+    void setRenderer(Deferred_Renderer *u) { renderer = u; }
 
     void setShowImgui(bool b) { showImgui = b; }
 
+
+    virtual std::shared_ptr<ImGuiRenderer> createImGui() { return nullptr; }
 protected:
     void resize(int width, int height);
     void initDeferredRendering(const RenderingParameters& params);

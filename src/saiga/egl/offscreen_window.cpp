@@ -12,8 +12,10 @@
 
 namespace Saiga {
 
-OffscreenWindow::OffscreenWindow(WindowParameters windowParameters):OpenGLWindow(windowParameters)
+OffscreenWindow::OffscreenWindow(WindowParameters windowParameters)
+    :OpenGLWindow(windowParameters)
 {
+       create();
 }
 
 void OffscreenWindow::swapBuffers() {

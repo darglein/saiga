@@ -11,6 +11,7 @@
 #include "saiga/image/glImageFormat.h"
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/rendering/renderer.h"
+#include "saiga/rendering/program.h"
 
 #include "saiga/util/tostring.h"
 #include "saiga/opengl/error.h"
@@ -38,12 +39,12 @@ void WindowParameters::setMode(bool fullscreen, bool borderLess)
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters)
     :windowParameters(_windowParameters),
       updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50){
-	memset(imUpdateTimes, 0, numGraphValues * sizeof(float));
-	memset(imRenderTimes, 0, numGraphValues * sizeof(float));
+    memset(imUpdateTimes, 0, numGraphValues * sizeof(float));
+    memset(imRenderTimes, 0, numGraphValues * sizeof(float));
 }
 
 OpenGLWindow::~OpenGLWindow(){
-    delete renderer;
+//    delete renderer;
 }
 
 void OpenGLWindow::close(){
@@ -69,7 +70,9 @@ void OpenGLWindow::updateUpdateGraph()
 
 void OpenGLWindow::updateRenderGraph()
 {
-    ft = renderer->getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL);
+    //    ft = renderer->getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL);
+    if(renderer)
+        ft = renderer->getTotalRenderTime();
     maxRenderTime = std::max(ft,maxRenderTime);
 
     avFt = 0;
@@ -134,7 +137,7 @@ void OpenGLWindow::renderImGui(bool *p_open)
     {
         cout << "camera.position = vec4" << currentCamera->position << ";" << endl;
         cout << "camera.rot = quat" << currentCamera->rot << ";" << endl;
-//        createTRSmatrix()
+        //        createTRSmatrix()
     }
 
     if(ImGui::Button("Reload Shaders")){
@@ -146,7 +149,7 @@ void OpenGLWindow::renderImGui(bool *p_open)
 
     ImGui::End();
 
-    if(showRendererImgui){
+    if(showRendererImgui && renderer){
         renderer->renderImGui(&showRendererImgui);
     }
 
@@ -157,8 +160,8 @@ void OpenGLWindow::renderImGui(bool *p_open)
     }
 }
 
-
-bool OpenGLWindow::init(const RenderingParameters& params){
+bool OpenGLWindow::create()
+{
     initSaiga();
 
     //init window and opengl context
@@ -197,30 +200,12 @@ bool OpenGLWindow::init(const RenderingParameters& params){
     cout<<">> Window inputs initialized!"<<endl;
     assert_no_glerror();
 
-
-
-    initDeferredRendering(params);
-    assert_no_glerror();
     return true;
-}
-
-void OpenGLWindow::initDeferredRendering(const RenderingParameters &params)
-{
-
-    renderer = new Deferred_Renderer(getWidth(),getHeight(),params);
-
-
-    std::shared_ptr<PostProcessingShader>  pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing/post_processing.glsl"); //this shader does nothing
-    std::vector<std::shared_ptr<PostProcessingShader> > defaultEffects;
-    defaultEffects.push_back(pps);
-
-    renderer->postProcessor.setPostProcessingEffects(defaultEffects);
-
-    renderer->lighting.setRenderDebug( false);
-
-    renderer->currentCamera = &this->currentCamera;
 
 }
+
+
+
 
 void OpenGLWindow::resize(int width, int height)
 {
@@ -240,8 +225,8 @@ void OpenGLWindow::readToExistingImage(Image &out)
 
     //    glReadPixels(0,0,out.width,out.height,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
 
-//    SAIGA_ASSERT(0);
-//    glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
+    //    SAIGA_ASSERT(0);
+    //    glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
     glReadPixels(0,0,out.width,out.height,getGlFormat(out.type),getGlType(out.type),out.data());
 
 
@@ -253,12 +238,12 @@ void OpenGLWindow::readToImage(Image& out){
     int w = renderer->windowWidth;
     int h = renderer->windowHeight;
 
-//    out.width = w;
-//    out.height = h;
+    //    out.width = w;
+    //    out.height = h;
     out.create(h,w,UC3);
-//    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-//    SAIGA_ASSERT(0);
-//    out.create();
+    //    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    //    SAIGA_ASSERT(0);
+    //    out.create();
 
     readToExistingImage(out);
 }
@@ -269,7 +254,7 @@ void OpenGLWindow::screenshot(const std::string &file)
     Image img;
     readToImage(img);
     img.save(file);
-//    TextureLoader::instance()->saveImage(file,img);
+    //    TextureLoader::instance()->saveImage(file,img);
 }
 
 void OpenGLWindow::screenshotRender(const std::string &file)
@@ -281,8 +266,8 @@ void OpenGLWindow::screenshotRender(const std::string &file)
     Image img;
     img.width = w;
     img.height = h;
-//    img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-                SAIGA_ASSERT(0);
+    //    img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
+    SAIGA_ASSERT(0);
     img.create();
 
     auto tex = getRenderer()->postProcessor.getCurrentTexture();
@@ -290,7 +275,7 @@ void OpenGLWindow::screenshotRender(const std::string &file)
     glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img.data());
     tex->unbind();
 
-//    TextureLoader::instance()->saveImage(file,img);
+    //    TextureLoader::instance()->saveImage(file,img);
     img.save(file);
 }
 
@@ -300,7 +285,7 @@ void OpenGLWindow::getDepthFloat(Image& out){
 
     out.width = w;
     out.height = h;
-//    out.Format() = ImageFormat(1,32,ImageElementFormat::FloatingPoint);
+    //    out.Format() = ImageFormat(1,32,ImageElementFormat::FloatingPoint);
     SAIGA_ASSERT(0);
     out.create();
 
@@ -308,7 +293,7 @@ void OpenGLWindow::getDepthFloat(Image& out){
     Image img;
     img.width = w;
     img.height = h;
-//    img.Format() = ImageFormat(4,8,ImageElementFormat::UnsignedNormalized);
+    //    img.Format() = ImageFormat(4,8,ImageElementFormat::UnsignedNormalized);
     SAIGA_ASSERT(0);
     img.create();
 
@@ -346,7 +331,7 @@ void OpenGLWindow::screenshotRenderDepth(const std::string &file)
     Image img2;
     img2.width = w;
     img2.height = h;
-//    img2.Format() = ImageFormat(1,16,ImageElementFormat::UnsignedNormalized);
+    //    img2.Format() = ImageFormat(1,16,ImageElementFormat::UnsignedNormalized);
     SAIGA_ASSERT(0);
     img2.create();
 
@@ -365,7 +350,7 @@ void OpenGLWindow::screenshotRenderDepth(const std::string &file)
 
 
 
-//    TextureLoader::instance()->saveImage(file,img2);
+    //    TextureLoader::instance()->saveImage(file,img2);
     img2.save(file);
 }
 
@@ -387,10 +372,6 @@ std::string OpenGLWindow::getTimeString()
     return str;
 }
 
-void OpenGLWindow::setProgram(Program *program)
-{
-    renderer->renderer = program;
-}
 
 Ray OpenGLWindow::createPixelRay(const vec2 &pixel) const
 {
@@ -457,7 +438,8 @@ void OpenGLWindow::update(float dt)
 {
     updateTimer.start();
     endParallelUpdate();
-    renderer->renderer->update(dt);
+    if(updating)
+        updating->update(dt);
     startParallelUpdate(dt);
     updateTimer.stop();
     updateUpdateGraph();
@@ -501,17 +483,21 @@ void OpenGLWindow::parallelUpdateThread(float dt)
 
 void OpenGLWindow::parallelUpdateCaller(float dt)
 {
-    renderer->renderer->parallelUpdate(dt);
+    if(updating)
+        updating->parallelUpdate(dt);
 }
 
 void OpenGLWindow::render(float dt, float interpolation)
 {
     interpolationTimer.start();
-    renderer->renderer->interpolate(dt,interpolation);
+    //    renderer->renderer->interpolate(dt,interpolation);
+    if(updating)
+        updating->interpolate(dt,interpolation);
     interpolationTimer.stop();
 
     renderCPUTimer.start();
-    renderer->render_intern();
+    if(renderer)
+        renderer->render_intern(currentCamera);
     renderCPUTimer.stop();
 
     updateRenderGraph();
@@ -538,31 +524,31 @@ void OpenGLWindow::sleep(tick_t ticks)
 
 
 
-void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, float mainLoopInfoTime, int maxFrameSkip, bool _parallelUpdate, bool catchUp, bool _printInfoMsg)
+void OpenGLWindow::startMainLoop(MainLoopParameters params)
 {
-    parallelUpdate = _parallelUpdate;
-    printInfoMsg = _printInfoMsg;
+    parallelUpdate = params._parallelUpdate;
+    printInfoMsg = params._printInfoMsg;
     gameTime.printInfoMsg = printInfoMsg;
     running = true;
 
     cout << "> Starting the main loop..." << endl;
-    cout << "> updatesPerSecond=" << updatesPerSecond << " framesPerSecond=" << framesPerSecond << " maxFrameSkip=" << maxFrameSkip << endl;
+    cout << "> updatesPerSecond=" << params.updatesPerSecond << " framesPerSecond=" << params.framesPerSecond << " maxFrameSkip=" << params.maxFrameSkip << endl;
 
 
-    if(updatesPerSecond <= 0)
-        updatesPerSecond = gameTime.base.count();
-    if(framesPerSecond <= 0)
-        framesPerSecond = gameTime.base.count();
+    if(params.updatesPerSecond <= 0)
+        params.updatesPerSecond = gameTime.base.count();
+    if(params.framesPerSecond <= 0)
+        params.framesPerSecond = gameTime.base.count();
 
 
-    float updateDT = 1.0f / updatesPerSecond;
-    targetUps = updatesPerSecond;
+    float updateDT = 1.0f / params.updatesPerSecond;
+    targetUps = params.updatesPerSecond;
     //    float framesDT = 1.0f / framesPerSecond;
 
-    tick_t ticksPerUpdate = gameTime.base / updatesPerSecond;
-    tick_t ticksPerFrame = gameTime.base / framesPerSecond;
+    tick_t ticksPerUpdate = gameTime.base / params.updatesPerSecond;
+    tick_t ticksPerFrame = gameTime.base / params.framesPerSecond;
 
-    tick_t ticksPerInfo = std::chrono::duration_cast<tick_t>(gameTime.base * mainLoopInfoTime);
+    tick_t ticksPerInfo = std::chrono::duration_cast<tick_t>(gameTime.base * params.mainLoopInfoTime);
 
     tick_t ticksPerScreenshot = std::chrono::duration_cast<tick_t>(gameTime.base * 5.0f);
 
@@ -575,7 +561,7 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
     tick_t nextInfoTick = gameTime.getTime();
     tick_t nextScreenshotTick = gameTime.getTime() + ticksPerScreenshot;
 
-    if(!catchUp){
+    if(!params.catchUp){
         gameTime.maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::milliseconds(1));
     }
 
@@ -593,7 +579,7 @@ void OpenGLWindow::startMainLoop(int updatesPerSecond, int framesPerSecond, floa
         }
 
         //With this loop we are able to skip frames if the system can't keep up.
-        for(int i = 0; i <= maxFrameSkip && gameTime.shouldUpdate(); ++i){
+        for(int i = 0; i <= params.maxFrameSkip && gameTime.shouldUpdate(); ++i){
             update(updateDT);
         }
 

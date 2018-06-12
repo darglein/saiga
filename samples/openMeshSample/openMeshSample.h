@@ -20,7 +20,7 @@
 
 using namespace Saiga;
 
-class SimpleWindow : public Program, public SDL_KeyListener
+class Sample : public Updating, public Rendering, public SDL_KeyListener
 {
 public:
     bool useAspectRatio = true; float ratio = 3; float errorTolerance = 1;
@@ -47,8 +47,8 @@ public:
     TriangleMesh<VertexNC,GLuint> baseMesh;
     TriangleMesh<VertexNC,GLuint> reducedMesh;
 
-    SimpleWindow(OpenGLWindow* window);
-    ~SimpleWindow();
+    Sample(OpenGLWindow &window, Renderer &renderer);
+    ~Sample();
 
     void reduce();
 

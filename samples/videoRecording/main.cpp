@@ -1,45 +1,39 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
-#include "saiga/framework.h"
-#include "saiga/sdl/sdl_window.h"
+
+#include "saiga/sdl/sdl.h"
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/crash.h"
 
 #include "videoRecording.h"
+
 
 int main( int argc, char* args[] )
 {
     //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
     catchSegFaults();
 
-    //Specify some window parameters and create a SDL window
     WindowParameters windowParameters;
-    windowParameters.name = "Video Recording Sample";
-    windowParameters.vsync = false;
-    windowParameters.resizeAble = true;
+    windowParameters.name = "Simple SDL Window";
     windowParameters.mode = WindowParameters::Mode::windowed;
     windowParameters.width = 1280;
     windowParameters.height = 720;
 
-    auto window = new SDLWindow(windowParameters);
+    // 1. Create an SDL window.
+    // This also creates the required OpenGL context.
+    SDLWindow window(windowParameters);
 
-    //Create the deferred rendering engine
-    RenderingParameters rp; //Use default rendering settings
-    window->init(rp);
+    // 2. Create the OpenGL renderer
+    Deferred_Renderer renderer(window);
 
-    //Everything from saiga is now setup, so we can start our own program now
-    VideoRecording* simpleWindow = new VideoRecording(window);
+    // 3. Create an object of our class, which is both renderable and updateable
+    Sample simpleWindow(window,renderer);
 
-    int updatesPerSecond = 60;
-    int framesPerSecond = 60;
-    window->startMainLoop(updatesPerSecond,framesPerSecond);
-
-    delete simpleWindow;
-    delete window;
-
+    // Everyhing is initilalized, we can run the main loop now!
+    window.startMainLoop();
     return 0;
 }

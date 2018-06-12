@@ -12,15 +12,13 @@
 #include "saiga/assets/all.h"
 #include "saiga/assets/objAssetLoader.h"
 
-#include "saiga/sdl/sdl_eventhandler.h"
-#include "saiga/sdl/sdl_camera.h"
-#include "saiga/sdl/sdl_window.h"
+#include "saiga/sdl/sdl.h"
 
 #include "saiga/rendering/lighting/directional_light.h"
 
 using namespace Saiga;
 
-class SimpleWindow : public Program, public SDL_KeyListener
+class Sample :  public Updating, public Rendering, public SDL_KeyListener
 {
 public:
     SDLCamera<PerspectiveCamera> camera;
@@ -34,8 +32,7 @@ public:
     std::shared_ptr<DirectionalLight> sun;
     std::shared_ptr<Texture> t;
 
-    SimpleWindow(OpenGLWindow* window);
-    ~SimpleWindow();
+    Sample(OpenGLWindow& window, Renderer& renderer);
 
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;

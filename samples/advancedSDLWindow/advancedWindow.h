@@ -26,7 +26,7 @@
 
 using namespace Saiga;
 
-class AdvancedWindow : public Program, public SDL_KeyListener
+class Sample : public Updating, public Rendering, public SDL_KeyListener
 {
 public:
     SDLCamera<PerspectiveCamera> camera;
@@ -49,8 +49,8 @@ public:
 
     std::shared_ptr<DirectionalLight> sun;
 
-    AdvancedWindow(OpenGLWindow* window);
-    ~AdvancedWindow();
+    Sample(OpenGLWindow& window, Renderer& renderer);
+    ~Sample();
 
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;

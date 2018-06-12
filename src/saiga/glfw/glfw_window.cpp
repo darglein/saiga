@@ -26,6 +26,7 @@ namespace Saiga {
 glfw_Window::glfw_Window(WindowParameters windowParameters):
     OpenGLWindow(windowParameters)
 {
+       create();
 }
 
 glfw_Window::~glfw_Window()

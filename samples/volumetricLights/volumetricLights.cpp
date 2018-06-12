@@ -12,11 +12,12 @@
 
 #include "saiga/geometry/triangle_mesh_generator.h"
 
-VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
-    tdo(window->getWidth(),window->getHeight())
+Sample::Sample(OpenGLWindow &window, Renderer &renderer)
+    : Updating(window), Rendering(renderer),
+    tdo(window.getWidth(),window.getHeight())
 {
     //create a perspective camera
-    float aspect = window->getAspectRatio();
+    float aspect = window.getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
     camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
     camera.enableInput();
@@ -25,7 +26,7 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     camera.movementSpeedFast = 20;
 
     //Set the camera from which view the scene is rendered
-    window->setCamera(&camera);
+    window.setCamera(&camera);
 
 
     //add this object to the keylistener, so keyPressed and keyReleased will be called
@@ -55,7 +56,7 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
 
     ShadowQuality sq = ShadowQuality::HIGH;
 
-    sun = window->getRenderer()->lighting.createDirectionalLight();
+    sun = window.getRenderer()->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1,-3,-2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(0.5);
@@ -63,7 +64,7 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     sun->createShadowMap(2048,2048,1,sq);
     sun->enableShadows();
 
-    pointLight = window->getRenderer()->lighting.createPointLight();
+    pointLight = window.getRenderer()->lighting.createPointLight();
     //        pointLight->setAttenuation(AttenuationPresets::Quadratic);
     pointLight->setAttenuation(vec3(0,0,5));
     pointLight->setIntensity(2);
@@ -76,7 +77,7 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     pointLight->enableShadows();
     pointLight->setVolumetric(true);
 
-    spotLight = window->getRenderer()->lighting.createSpotLight();
+    spotLight = window.getRenderer()->lighting.createSpotLight();
     spotLight->setAttenuation(vec3(0,0,5));
     spotLight->setIntensity(2);
     spotLight->setRadius(8);
@@ -86,7 +87,7 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     spotLight->createShadowMap(512,512,sq);
     spotLight->enableShadows();
 
-    boxLight = window->getRenderer()->lighting.createBoxLight();
+    boxLight = window.getRenderer()->lighting.createBoxLight();
     boxLight->setIntensity(1.0);
 
     //        boxLight->setPosition(vec3(0,2,10));
@@ -99,7 +100,7 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     boxLight->enableShadows();
 
 
-    parentWindow->getRenderer()->lighting.renderVolumetric = true;
+    parentWindow.getRenderer()->lighting.renderVolumetric = true;
 
     textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
 
@@ -121,11 +122,11 @@ VolumetricLights::VolumetricLights(OpenGLWindow *window): Program(window),
     cout<<"Program Initialized!"<<endl;
 }
 
-VolumetricLights::~VolumetricLights()
+Sample::~Sample()
 {
 }
 
-void VolumetricLights::update(float dt){
+void Sample::update(float dt){
     //Update the camera position
     camera.update(dt);
 
@@ -133,27 +134,27 @@ void VolumetricLights::update(float dt){
     sun->fitShadowToCamera(&camera);
     //    sun->fitNearPlaneToScene(sceneBB);
 
-    int  fps = (int) glm::round(1000.0/parentWindow->fpsTimer.getTimeMS());
+    int  fps = (int) glm::round(1000.0/parentWindow.fpsTimer.getTimeMS());
     tdo.updateEntry(0,fps);
 
-    int  ups = (int) glm::round(1000.0/parentWindow->upsTimer.getTimeMS());
+    int  ups = (int) glm::round(1000.0/parentWindow.upsTimer.getTimeMS());
     tdo.updateEntry(1,ups);
 
-    float renderTime = parentWindow->getRenderer()->getTime(Deferred_Renderer::TOTAL);
+    float renderTime = parentWindow.getRenderer()->getTime(Deferred_Renderer::TOTAL);
     tdo.updateEntry(2,renderTime);
 
-    float updateTime = parentWindow->updateTimer.getTimeMS();
+    float updateTime = parentWindow.updateTimer.getTimeMS();
     tdo.updateEntry(3,updateTime);
 
 }
 
-void VolumetricLights::interpolate(float dt, float interpolation) {
+void Sample::interpolate(float dt, float interpolation) {
     //Update the camera rotation. This could also be done in 'update' but
     //doing it in the interpolate step will reduce latency
     camera.interpolate(dt,interpolation);
 }
 
-void VolumetricLights::render(Camera *cam)
+void Sample::render(Camera *cam)
 {
     //Render all objects from the viewpoint of 'cam'
     groundPlane.render(cam);
@@ -162,7 +163,7 @@ void VolumetricLights::render(Camera *cam)
     sphere.render(cam);
 }
 
-void VolumetricLights::renderDepth(Camera *cam)
+void Sample::renderDepth(Camera *cam)
 {
     //Render the depth of all objects from the viewpoint of 'cam'
     //This will be called automatically for shadow casting light sources to create shadow maps
@@ -172,19 +173,19 @@ void VolumetricLights::renderDepth(Camera *cam)
     sphere.render(cam);
 }
 
-void VolumetricLights::renderOverlay(Camera *cam)
+void Sample::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
     skybox.render(cam);
 }
 
-void VolumetricLights::renderFinal(Camera *cam)
+void Sample::renderFinal(Camera *cam)
 {
 
     //The final render path (after post processing).
     //Usually the GUI is rendered here.
 
-    parentWindow->getRenderer()->bindCamera(&tdo.layout.cam);
+    parentWindow.getRenderer()->bindCamera(&tdo.layout.cam);
     tdo.render();
 
 
@@ -204,34 +205,34 @@ void VolumetricLights::renderFinal(Camera *cam)
         ImGui::End();
     }
 
-    //parentWindow->renderImGui();
+    //parentWindow.renderImGui();
 
 
 
 }
 
 
-void VolumetricLights::keyPressed(SDL_Keysym key)
+void Sample::keyPressed(SDL_Keysym key)
 {
     switch(key.scancode){
     case SDL_SCANCODE_ESCAPE:
-        parentWindow->close();
+        parentWindow.close();
         break;
     case SDL_SCANCODE_BACKSPACE:
-        parentWindow->getRenderer()->printTimings();
+        parentWindow.getRenderer()->printTimings();
         break;
     case SDL_SCANCODE_R:
         ShaderLoader::instance()->reload();
         break;
     case SDL_SCANCODE_F12:
-        parentWindow->screenshot("screenshot.png");
+        parentWindow.screenshot("screenshot.png");
         break;
     default:
         break;
     }
 }
 
-void VolumetricLights::keyReleased(SDL_Keysym key)
+void Sample::keyReleased(SDL_Keysym key)
 {
 }
 

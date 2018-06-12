@@ -34,7 +34,7 @@ struct PhysicAssetObject : public SimpleAssetObject
     }
 };
 
-class SimpleWindow : public Program, public SDL_KeyListener
+class Sample : public Updating, public Rendering, public SDL_KeyListener
 {
 public:
     SDLCamera<PerspectiveCamera> camera;
@@ -50,8 +50,8 @@ public:
     std::shared_ptr<DirectionalLight> sun;
     std::shared_ptr<Texture> t;
 
-    SimpleWindow(OpenGLWindow* window);
-    ~SimpleWindow();
+    Sample(Saiga::OpenGLWindow &window, Saiga::Renderer &renderer);
+    ~Sample();
 
     void initBullet();
 

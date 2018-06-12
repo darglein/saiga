@@ -13,15 +13,19 @@
 #include "saiga/rendering/renderer.h"
 #include "saiga/window/window.h"
 #include "saiga/imgui/imgui.h"
+#include "saiga/rendering/program.h"
 
 namespace Saiga {
 
-Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, RenderingParameters _params) :
-    ddo(windowWidth,windowHeight),
-    windowWidth(windowWidth), windowHeight(windowHeight),
-    width(windowWidth*_params.renderScale), height(windowHeight*_params.renderScale),
+Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _params) :
+    ddo(window.getWidth(),window.getHeight()),
+    windowWidth(window.getWidth()), windowHeight(window.getHeight()),
+    width(window.getWidth()*_params.renderScale), height(window.getHeight()*_params.renderScale),
     params(_params),lighting(gbuffer)
 {
+    window.setRenderer(this);
+
+
     cameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
 
     //    setSize(windowWidth,windowHeight);
@@ -91,6 +95,19 @@ Deferred_Renderer::Deferred_Renderer(int windowWidth, int windowHeight, Renderin
 //    ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
     ddo.setDeferredFramebuffer(&gbuffer,lighting.volumetricLightTexture2);
 
+
+
+
+
+    std::shared_ptr<PostProcessingShader>  pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing/post_processing.glsl"); //this shader does nothing
+    std::vector<std::shared_ptr<PostProcessingShader> > defaultEffects;
+    defaultEffects.push_back(pps);
+    postProcessor.setPostProcessingEffects(defaultEffects);
+
+
+    // ImGUI
+    imgui = window.createImGui();
+
     cout << "Deferred Renderer initialized. Render resolution: " << width << "x" << height << endl;
 
 }
@@ -134,7 +151,14 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 
 
 
-void Deferred_Renderer::render_intern() {
+void Deferred_Renderer::render_intern(Camera *cam)
+{
+    if(!rendering)
+        return;
+
+    SAIGA_ASSERT(rendering);
+    SAIGA_ASSERT(cam);
+
 
     if (params.srgbWrites)
         glEnable(GL_FRAMEBUFFER_SRGB);
@@ -150,22 +174,22 @@ void Deferred_Renderer::render_intern() {
     //    if (params.srgbWrites)
     //        glEnable(GL_FRAMEBUFFER_SRGB); //no reason to switch it off
 
-    (*currentCamera)->recalculatePlanes();
-    bindCamera(*currentCamera);
-    renderGBuffer(*currentCamera);
+    cam->recalculatePlanes();
+    bindCamera(cam);
+    renderGBuffer(cam);
     assert_no_glerror();
 
 
-    renderSSAO(*currentCamera);
+    renderSSAO(cam);
     //    return;
 
     lighting.initRender();
-    lighting.cullLights(*currentCamera);
+    lighting.cullLights(cam);
     renderDepthMaps();
 
 
-    bindCamera(*currentCamera);
-    renderLighting(*currentCamera);
+    bindCamera(cam);
+    renderLighting(cam);
 
 
 
@@ -178,8 +202,8 @@ void Deferred_Renderer::render_intern() {
 
     startTimer(OVERLAY);
 
-    bindCamera(*currentCamera);
-    renderer->renderOverlay(*currentCamera);
+    bindCamera(cam);
+    rendering->renderOverlay(cam);
     stopTimer(OVERLAY);
 
 
@@ -227,13 +251,14 @@ void Deferred_Renderer::render_intern() {
 
     {
         //final render pass
-        if(renderer->parentWindow->imgui){
-            renderer->parentWindow->imgui->beginFrame();
+        if(imgui)
+        {
+            imgui->beginFrame();
         }
-        renderer->renderFinal(*currentCamera);
-        if(renderer->parentWindow->imgui){
-            renderer->parentWindow->renderImGui();
-            renderer->parentWindow->imgui->endFrame();
+        rendering->renderFinal(cam);
+        if(imgui)
+        {
+            imgui->endFrame();
         }
     }
     stopTimer(FINAL);
@@ -305,7 +330,7 @@ void Deferred_Renderer::renderGBuffer(Camera *cam) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(wireframeLineSize);
     }
-    renderer->render(cam);
+    rendering->render(cam);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
@@ -329,7 +354,7 @@ void Deferred_Renderer::renderDepthMaps() {
     startTimer(DEPTHMAPS);
 
 
-    lighting.renderDepthMaps(renderer);
+    lighting.renderDepthMaps(rendering);
 
 
     stopTimer(DEPTHMAPS);

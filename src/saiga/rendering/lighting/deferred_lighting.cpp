@@ -14,6 +14,7 @@
 #include "saiga/rendering/lighting/point_light.h"
 #include "saiga/rendering/lighting/spot_light.h"
 #include "saiga/rendering/lighting/box_light.h"
+#include "saiga/rendering/program.h"
 
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/texture/cube_texture.h"
@@ -185,7 +186,7 @@ void DeferredLighting::initRender()
     totalLights = directionalLights.size() + spotLights.size() + pointLights.size()  + boxLights.size();
 }
 
-void DeferredLighting::renderDepthMaps(Program *renderer){
+void DeferredLighting::renderDepthMaps(Rendering *renderer){
     // When GL_POLYGON_OFFSET_FILL, GL_POLYGON_OFFSET_LINE, or GL_POLYGON_OFFSET_POINT is enabled,
     // each fragment's depth value will be offset after it is interpolated from the depth values of the appropriate vertices.
     // The value of the offset is factor×DZ+r×units, where DZ is a measurement of the change in depth relative to the screen area of the polygon,

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -9,7 +9,7 @@
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/crash.h"
 
-#include "bulletSample.h"
+#include "forwardWindow.h"
 
 
 int main( int argc, char* args[] )

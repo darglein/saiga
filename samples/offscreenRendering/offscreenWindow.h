@@ -20,7 +20,7 @@
 
 using namespace Saiga;
 
-class SimpleWindow : public Program
+class Sample : public Updating, public Rendering
 {
 public:
     SDLCamera<PerspectiveCamera> camera;
@@ -33,8 +33,8 @@ public:
 
     std::shared_ptr<DirectionalLight> sun;
 
-    SimpleWindow(OpenGLWindow* window);
-    ~SimpleWindow();
+    Sample(OpenGLWindow& window, Renderer& renderer);
+    ~Sample();
 
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;

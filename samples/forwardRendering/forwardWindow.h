@@ -12,16 +12,16 @@
 #include "saiga/assets/all.h"
 #include "saiga/assets/objAssetLoader.h"
 
-#include "saiga/glfw/all.h"
+#include "saiga/sdl/sdl.h"
 
 #include "saiga/rendering/lighting/directional_light.h"
 
 using namespace Saiga;
 
-class Sample : public Updating, public Rendering, public glfw_KeyListener
+class Sample :  public Updating, public Rendering, public SDL_KeyListener
 {
 public:
-    Glfw_Camera<PerspectiveCamera> camera;
+    SDLCamera<PerspectiveCamera> camera;
 
     SimpleAssetObject cube1, cube2;
     SimpleAssetObject groundPlane;
@@ -30,8 +30,9 @@ public:
     ProceduralSkybox skybox;
 
     std::shared_ptr<DirectionalLight> sun;
+    std::shared_ptr<Texture> t;
 
-    Sample(OpenGLWindow* window);
+    Sample(OpenGLWindow& window, Renderer& renderer);
     ~Sample();
 
     void update(float dt) override;
@@ -41,9 +42,8 @@ public:
     void renderOverlay(Camera *cam) override;
     void renderFinal(Camera *cam) override;
 
-    virtual bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) override;
-    virtual bool character_event(GLFWwindow* window, unsigned int codepoint) override;
-
+    void keyPressed(SDL_Keysym key) override;
+    void keyReleased(SDL_Keysym key) override;
 };
 
 

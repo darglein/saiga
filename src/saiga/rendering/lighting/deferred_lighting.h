@@ -26,7 +26,7 @@ class PointLight;
 class DirectionalLight;
 class BoxLight;
 
-class Program;
+class Rendering;
 
 struct DeferredLightingShaderNames{
     std::string pointLightShader = "lighting/light_point.glsl";
@@ -97,7 +97,7 @@ public:
 
     int shadowSamples = 16; //Quadratic number (1,4,9,16,...)
 
-    bool drawDebug = true;
+    bool drawDebug = false;
 
     bool useTimers = true;
 
@@ -138,7 +138,7 @@ public:
     void initRender();
     void render(Camera *cam);
     void postprocessVolumetric();
-    void renderDepthMaps(Program *renderer );
+    void renderDepthMaps(Rendering *renderer );
     void renderDebug(Camera *cam);
 
 

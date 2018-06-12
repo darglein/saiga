@@ -32,7 +32,7 @@
 using namespace Saiga;
 
 
-class VideoRecording : public Program, public SDL_KeyListener
+class Sample : public Updating, public Rendering, public SDL_KeyListener
 {
 public:
     SDLCamera<PerspectiveCamera> camera;
@@ -60,8 +60,8 @@ public:
 
     Interpolation cameraInterpolation;
 
-    VideoRecording(OpenGLWindow* window);
-    ~VideoRecording();
+    Sample(OpenGLWindow& window, Renderer& renderer);
+    ~Sample();
 
     void testBspline();
 

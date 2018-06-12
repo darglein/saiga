@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "simpleWindow.h"
+#include "forwardWindow.h"
 
 #include "saiga/rendering/deferred_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
@@ -98,6 +98,11 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     sun->enableShadows();
 
     cout<<"Program Initialized!"<<endl;
+}
+
+Sample::~Sample()
+{
+    //We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
 }
 
 void Sample::update(float dt){
