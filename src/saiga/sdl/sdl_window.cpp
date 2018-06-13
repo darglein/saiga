@@ -15,6 +15,10 @@ SDLWindow::SDLWindow(WindowParameters windowParameters):OpenGLWindow(windowParam
     create();
 }
 
+SDLWindow::~SDLWindow()
+{
+    destroy();
+}
 
 
 bool SDLWindow::initWindow()
@@ -139,7 +143,7 @@ void SDLWindow::swapBuffers()
 
 void SDLWindow::freeContext()
 {
-
+    SDL_EventHandler::reset();
     //Disable text input
     SDL_StopTextInput();
 

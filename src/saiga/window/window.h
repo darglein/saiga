@@ -163,8 +163,9 @@ public:
     virtual ~OpenGLWindow();
 
 
-    bool create();
     bool init(const RenderingParameters &params);
+    bool create();
+    void destroy();
 
 
     void startMainLoop(MainLoopParameters params = MainLoopParameters());

@@ -104,4 +104,13 @@ void SDL_EventHandler::resizeWindow(Uint32 windowId, int width, int height)
     }
 }
 
+void SDL_EventHandler::reset()
+{
+    keyListener.clear();
+    mouseListener.clear();
+    resizeListener.clear();
+    eventListener.clear();
+    quit = false;
+}
+
 }

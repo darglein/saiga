@@ -205,6 +205,13 @@ bool OpenGLWindow::create()
 
 }
 
+void OpenGLWindow::destroy()
+{
+    terminateOpenGL();
+    cleanupSaiga();
+    freeContext();
+}
+
 
 
 

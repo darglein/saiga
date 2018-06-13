@@ -9,6 +9,7 @@ endif ()
 	
 if (SDL2_FOUND)
 	add_subdirectory(simpleSDLWindow)
+	add_subdirectory(multiWindow)
 	add_subdirectory(forwardRendering)
 	add_subdirectory(advancedSDLWindow)
 	add_subdirectory(cascadedShadowMaps)

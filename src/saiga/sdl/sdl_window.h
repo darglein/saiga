@@ -35,6 +35,7 @@ protected:
 public:
 
     SDLWindow(WindowParameters windowParameters);
+    ~SDLWindow();
 
     virtual std::shared_ptr<ImGuiRenderer> createImGui() override;
 };

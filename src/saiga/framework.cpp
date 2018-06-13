@@ -111,7 +111,10 @@ static void printSaigaInfo(){
 
 void initSaiga()
 {
-    SAIGA_ASSERT(!initialized);
+    if(initialized)
+    {
+        return;
+    }
 
     FP::resetSSECSR();
 
@@ -142,7 +145,6 @@ void initSaiga()
 
 void cleanupSaiga()
 {
-    SAIGA_ASSERT(initialized);
 
     ShaderLoader::instance()->clear();
     TextureLoader::instance()->clear();

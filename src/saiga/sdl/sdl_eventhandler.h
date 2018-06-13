@@ -40,6 +40,8 @@ public:
     static void resizeWindow(Uint32 windowId, int width, int height);
 
     static bool shouldQuit(){return quit;}
+
+    static void reset();
 };
 
 }
