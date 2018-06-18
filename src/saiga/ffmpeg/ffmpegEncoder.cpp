@@ -37,14 +37,14 @@ FFMPEGEncoder::FFMPEGEncoder(
         int outFps, int bitRate,
         AVCodecID videoCodecId, int bufferSize)
     :
-      imageStorage(bufferSize),
-      imageQueue(bufferSize),
-      frameQueue(bufferSize),
-      frameStorage(bufferSize),
       filename(filename),
       outWidth(outWidth),outHeight(outHeight),inWidth(inWidth),inHeight(inHeight),
       outFps(outFps),bitRate(bitRate),
-      videoCodecId(videoCodecId)
+      videoCodecId(videoCodecId),
+      imageStorage(bufferSize),
+      imageQueue(bufferSize),
+      frameStorage(bufferSize),
+      frameQueue(bufferSize)
 {
     if(!ffmpegInitialized)
     {

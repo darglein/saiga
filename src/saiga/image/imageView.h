@@ -109,9 +109,20 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         return rowPtr(y)[x];
     }
 
+    HD inline
+    const T& operator()(int y, int x) const{
+        return rowPtr(y)[x];
+    }
+
 
     HD inline
     T* rowPtr(int y){
+        auto ptr = data8 + y * pitchBytes;
+        return reinterpret_cast<T*>(ptr);
+    }
+
+    HD inline
+    const T* rowPtr(int y) const{
         auto ptr = data8 + y * pitchBytes;
         return reinterpret_cast<T*>(ptr);
     }
@@ -179,11 +190,24 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
     template<typename T2>
     inline
-    void copyTo(ImageView<T2> a){
+    void copyTo(ImageView<T2> a) const
+    {
         SAIGA_ASSERT(height == a.height && width == a.width);
         for(int y = 0; y < height; ++y){
             for(int x = 0; x < width; ++x){
                 a(y,x) = (*this)(y,x);
+            }
+        }
+    }
+
+    template<typename T2, typename MT>
+    inline
+    void copyTo(ImageView<T2> a, MT alpha) const
+    {
+        SAIGA_ASSERT(height == a.height && width == a.width);
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                a(y,x) = (*this)(y,x) * alpha;
             }
         }
     }
@@ -274,13 +298,36 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         multWithScalar(T(1) / maxV);
     }
 
+
+    inline
+    void flipY()
+    {
+        for(int y = 0; y < height / 2; ++y){
+            for(int x = 0; x < width; ++x){
+                std::swap((*this)(y,x),(*this)(height-y-1,x));
+            }
+        }
+    }
+
     //write only if the point is in the image
     HD inline
     void clampedWrite(int y, int x, const T& v){
         if(inImage(y,x))
             (*this)(y,x) = v;
     }
+
+
+    template<typename T2>
+    friend std::ostream& operator<<(std::ostream& os, const ImageView<T2>& iv);
 };
+
+template<typename T>
+inline
+std::ostream& operator<<(std::ostream& os, const ImageView<T>& iv)
+{
+    os << "ImageView " << iv.width << "x" << iv.height << " " << iv.pitchBytes;
+    return os;
+}
 
 //multiple images that are stored in memory consecutively
 template<typename T>

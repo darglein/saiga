@@ -67,12 +67,17 @@ float linearizeDepth(in float depth, in mat4 projMatrix) {
         return projMatrix[3][2] / (depth - projMatrix[2][2]);
 }
 
-float linearDepth(float depth, float farplane, float nearplane){
-//    float f=60.0f;
-//    float n = 1.0f;
-    return(2 * nearplane) / (farplane + nearplane - depth * (farplane - nearplane));
+float linearDepth(float depth, float farplane, float nearplane)
+{
+    return (2 * nearplane) / (farplane + nearplane - depth * (farplane - nearplane));
 }
 
+float nonlinearDepth(float linearDepth, float farplane, float nearplane)
+{
+    float A = -(farplane+nearplane) / (farplane - nearplane);
+    float B = (-2.f * farplane * nearplane) / (farplane - nearplane);
+    return 0.5f * ( -A * linearDepth + B) / linearDepth + 0.5f;
+}
 
 vec3 reconstructPosition(float d, vec2 tc){
     vec4 p = vec4(tc.x,tc.y,d,1)*2.0f - 1.0f;

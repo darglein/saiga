@@ -49,6 +49,12 @@ public:
         return Image::getImageView<T>();
     }
 
+
+    T* data()
+    {
+        return reinterpret_cast<T*>(data8());
+    }
+
     operator ImageView<T>() { return getImageView(); }
 };
 

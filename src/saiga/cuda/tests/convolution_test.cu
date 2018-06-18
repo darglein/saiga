@@ -31,17 +31,17 @@ static void checkRes(ImageView<float> ref, ImageView<float> dst){
     }
 }
 
-static void checkRes2(const thrust::host_vector<float>& ref, const thrust::host_vector<float>& dst){
-    int c = 0;
-    for(int i = 0; i < (int)dst.size();++i){
-        auto refv = 9.0f;
-        if(std::abs(dst[i] - refv) > 1e-5){
-            cout << "error " << (i/2048) << "," << (i%2048) << " " << dst[i] << "!=" << refv << endl;
-            c++;
-            SAIGA_ASSERT(c < 5);
-        }
-    }
-}
+//static void checkRes2(const thrust::host_vector<float>& ref, const thrust::host_vector<float>& dst){
+//    int c = 0;
+//    for(int i = 0; i < (int)dst.size();++i){
+//        auto refv = 9.0f;
+//        if(std::abs(dst[i] - refv) > 1e-5){
+//            cout << "error " << (i/2048) << "," << (i%2048) << " " << dst[i] << "!=" << refv << endl;
+//            c++;
+//            SAIGA_ASSERT(c < 5);
+//        }
+//    }
+//}
 
 template<int KERNEL_RADIUS>
 void convolutionTest2(int w, int h){
@@ -74,7 +74,7 @@ void convolutionTest2(int w, int h){
     ImageView<float> h_imgTmp(h,w,pitch,thrust::raw_pointer_cast(h_tmp.data()));
 
     int its = 50;
-    float sigma = 2.0f;
+//    float sigma = 2.0f;
 //    thrust::device_vector<float> d_kernel = createGaussianBlurKernel(KERNEL_RADIUS,sigma);
     thrust::device_vector<float> d_kernel(2*KERNEL_RADIUS+1,1.0f);
 
