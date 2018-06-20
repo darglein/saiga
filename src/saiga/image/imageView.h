@@ -309,6 +309,16 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         }
     }
 
+	inline
+		void flipX()
+	{
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width / 2; ++x) {
+				std::swap((*this)(y, x), (*this)(y, width - x - 1));
+			}
+		}
+	}
+
     //write only if the point is in the image
     HD inline
     void clampedWrite(int y, int x, const T& v){

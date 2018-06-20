@@ -52,7 +52,7 @@ public:
 
 
     template<typename T>
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Bspline<T>& bs);
+    friend std::ostream& operator<<(std::ostream& os, const Bspline<T>& bs);
 
 
     std::vector<P> controlPoints;
