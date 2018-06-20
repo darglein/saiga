@@ -5,3 +5,4 @@ saiga.creator
 saiga.creator.user
 saiga.files
 saiga.includes
+cmake/SAIGAConfig.cmake
