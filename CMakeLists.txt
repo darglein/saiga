@@ -254,6 +254,7 @@ if(UNIX)
 
     # default CMAKE_INSTALL_PREFIX = /usr/local/
     set(INSTALL_ROOT      "share/${LIB_NAME}")
+    set(INSTALL_SHARE     "share/${LIB_NAME}")
     set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
     set(INSTALL_BIN       "bin")
     set(INSTALL_SHARED    "lib")
@@ -265,6 +266,7 @@ elseif(WIN32)
 
     # default CMAKE_INSTALL_PREFIX = "%PROGRAMFILES%/<project>/"
     set(INSTALL_ROOT      ".")
+    set(INSTALL_SHARE     "share/${LIB_NAME}")
     set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
     set(INSTALL_BIN       "bin")
     set(INSTALL_SHARED    ".")
@@ -273,6 +275,7 @@ elseif(WIN32)
     set(INSTALL_DOC       "share/doc/${LIB_NAME}")
 
 endif()
+
 
 message("\nCompiler Flags:")
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
@@ -315,6 +318,18 @@ configure_file (
 )
 
 
+set(SAIGA_CONFIG_CMAKE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfig.cmake")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfig.cmake.in"
+  "${SAIGA_CONFIG_CMAKE_FILE}"
+  @ONLY
+  )
+
+#install config file to share/
+install(
+	FILES "${SAIGA_CONFIG_CMAKE_FILE}"
+	DESTINATION ${INSTALL_SHARE}
+)
 
 ############# Doxygen ###############
 
