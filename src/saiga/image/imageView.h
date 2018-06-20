@@ -212,6 +212,18 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         }
     }
 
+    template<typename T2>
+    inline
+    void copyToScaleDownEverySecond(ImageView<T2> a) const
+    {
+        SAIGA_ASSERT(height/2 == a.height && width/2 == a.width);
+        for(int y = 0; y < a.height; ++y){
+            for(int x = 0; x < a.width; ++x){
+                a(y,x) = (*this)(y*2,x*2);
+            }
+        }
+    }
+
 
     HD inline
     void clampToEdge(int& y, int& x){
