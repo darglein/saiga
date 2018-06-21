@@ -20,6 +20,9 @@ videoRecording
 simpleGLFWWindow
 cudaImageProcessing
 volumetricLights
+forwardRendering
+multiWindow
+openMeshSample
 *.exe
 *.dll
 valgrind_output.txt
