@@ -14,7 +14,7 @@ namespace Saiga {
 struct SAIGA_GLOBAL SaigaParameters
 {
     // share/ directory where saiga has been installed.
-    std::string shareDirectory      = "/usr/local/share/saiga";
+    std::string shaderDirectory      = SAIGA_INSTALL_PREFIX  "/share/saiga/shader";
     std::string textureDirectory    = "textures/";
 
     /**

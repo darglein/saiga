@@ -14,17 +14,27 @@
 #include "saiga/cuda/tests/test.h"
 #include "saiga/util/floatingPoint.h"
 #include "saiga/util/ini/ini.h"
+#include "saiga/util/directory.h"
 
 namespace Saiga {
 
 bool initialized = false;
+
+
+bool isShaderDirectory(const std::string &dir)
+{
+    Directory dirbase(dir);
+    Directory dirgeo(dir + "/geometry");
+    return dirbase.existsFile("colored_points.glsl") && dirgeo.existsFile("deferred_mvp_texture.glsl");
+}
+
 
 void SaigaParameters::fromConfigFile(const std::string &file)
 {
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
-    shareDirectory    = ini.GetAddString ("saiga","shareDirectory",shareDirectory.c_str());
+    shaderDirectory   = ini.GetAddString ("saiga","shareDirectory",shaderDirectory.c_str());
     textureDirectory  = ini.GetAddString ("saiga","textureDirectory",textureDirectory.c_str());
 
     if(ini.changed()) ini.SaveFile(file.c_str());
@@ -116,7 +126,38 @@ void initSaiga(const SaigaParameters& params)
     FP::resetSSECSR();
 
 
-    shaderPathes.addSearchPath(params.shareDirectory + "/shader");
+    std::vector<std::string> searchPathes =
+    {
+        // First check in the local working directory
+        "shader",
+        // Then the given paramter from the config file
+        params.shaderDirectory,
+        // And last the install prefix from cmake
+        SAIGA_INSTALL_PREFIX  "/share/saiga/shader",
+    };
+
+
+    std::string shaderDir;
+
+    for(auto str : searchPathes)
+    {
+        if(isShaderDirectory(str))
+        {
+            shaderDir = str;
+            cout << "Found the Saiga shaders at " << shaderDir << endl;
+            break;
+        }
+    }
+
+    if(shaderDir.empty())
+    {
+        cout << "Could not find the Saiga shaders." << endl;
+        cout << "Set the 'shaderDirectory' variable of 'SaigaParameters' accordingly." << endl;
+        exit(1);
+    }
+
+
+    shaderPathes.addSearchPath(shaderDir);
 
     TextureLoader::instance()->addPath(params.textureDirectory);
     TextureLoader::instance()->addPath(".");

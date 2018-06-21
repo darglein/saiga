@@ -20,7 +20,7 @@ namespace Saiga {
 class SAIGA_GLOBAL Directory {
 public:
     std::string dirname;
-    DIR *dir;
+    DIR *dir = nullptr;
     Directory(const std::string& dir);
     ~Directory();
 
@@ -42,6 +42,8 @@ public:
     void getDirectories(std::vector<std::string> &out);
     void getDirectories(std::vector<std::string> &out, const std::string &ending);
 
+
+    bool existsFile(const std::string& file);
 };
 
 }

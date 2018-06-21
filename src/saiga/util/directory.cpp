@@ -18,9 +18,10 @@ namespace Saiga {
 Directory::Directory(const std::string &dir)
 {
     dirname = dir;
-    if ((this->dir = opendir (dir.c_str())) == NULL) {
-        std::cout<<"could not open directory: "<<dir<<std::endl;
-        SAIGA_ASSERT(0);
+    if ((this->dir = opendir (dir.c_str())) == NULL)
+    {
+//        std::cout<<"could not open directory: "<<dir<<std::endl;
+//        SAIGA_ASSERT(0);
     }
 }
 
@@ -67,13 +68,13 @@ void Directory::getFiles(std::vector<std::string> &out, const std::string &endin
     auto e = std::remove_if(tmp.begin(),tmp.end(),[&](std::string& s){return !hasEnding(s,ending);});
     tmp.erase(e,tmp.end());
     out = tmp;
-//    for(auto& str : tmp)
-//    {
-//        if(hasEnding(str,ending))
-//        {
-//            out.push_back(str);
-//        }
-//    }
+    //    for(auto& str : tmp)
+    //    {
+    //        if(hasEnding(str,ending))
+    //        {
+    //            out.push_back(str);
+    //        }
+    //    }
 }
 
 
@@ -102,13 +103,20 @@ void Directory::getDirectories(std::vector<std::string> &out, const std::string 
     auto e = std::remove_if(tmp.begin(),tmp.end(),[&](std::string& s){return !hasEnding(s,ending);});
     tmp.erase(e,tmp.end());
     out = tmp;
-//    for(auto& str : tmp)
-//    {
-//        if(hasEnding(str,ending))
-//        {
-//            out.push_back(str);
-//        }
-//    }
+    //    for(auto& str : tmp)
+    //    {
+    //        if(hasEnding(str,ending))
+    //        {
+    //            out.push_back(str);
+    //        }
+    //    }
+}
+
+bool Directory::existsFile(const std::string &file)
+{
+    std::vector<std::string> all;
+    getFiles(all);
+    return std::find(all.begin(),all.end(),file) != all.end();
 }
 
 }
