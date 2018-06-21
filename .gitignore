@@ -1,8 +1,5 @@
 src/saiga/buildconfig.h
+CMakeLists.txt.user
 build*/
 *.ptx
-saiga.creator
-saiga.creator.user
-saiga.files
-saiga.includes
 cmake/SAIGAConfig.cmake
