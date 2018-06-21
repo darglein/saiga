@@ -27,14 +27,6 @@
 namespace Saiga {
 
 
-void WindowParameters::setMode(bool fullscreen, bool borderLess)
-{
-    if(fullscreen){
-        mode = (borderLess) ? Mode::borderLessFullscreen : Mode::fullscreen;
-    }else{
-        mode = (borderLess) ? Mode::borderLessWindowed : Mode::windowed;
-    }
-}
 
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters)
     :windowParameters(_windowParameters),
@@ -163,7 +155,7 @@ void OpenGLWindow::renderImGui(bool *p_open)
 
 bool OpenGLWindow::create()
 {
-    initSaiga();
+    initSaiga(windowParameters.saigaConfigFile);
 
     //init window and opengl context
     if(!initWindow()){

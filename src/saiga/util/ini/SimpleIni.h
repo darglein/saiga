@@ -2166,11 +2166,11 @@ CSimpleIniTempl<SI_CHAR,SI_STRLESS,SI_CONVERTER>::GetAddLong(
     auto v = GetValue(a_pSection,a_pKey,NULL);
     if(v == NULL)
     {
-        SetBoolValue(a_pSection,a_pKey,a_nDefault);
+        SetLongValue(a_pSection,a_pKey,a_nDefault);
         return a_nDefault;
     }else
     {
-        auto b = GetBoolValue(a_pSection,a_pKey,a_nDefault,a_pHasMultiple);
+        auto b = GetLongValue(a_pSection,a_pKey,a_nDefault,a_pHasMultiple);
         return b;
     }
 }

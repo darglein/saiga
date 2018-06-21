@@ -9,11 +9,11 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/opengl/error.h"
-#include "saiga/util/configloader.h"
 #include "saiga/util/assert.h"
 
 #include "saiga/cuda/tests/test.h"
 #include "saiga/util/floatingPoint.h"
+#include "saiga/util/ini/ini.h"
 
 namespace Saiga {
 
@@ -24,15 +24,15 @@ std::string TEXTURE_PATH;
 std::string MATERIAL_PATH;
 std::string OBJ_PATH;
 
-void readConfigFile(){
-    ConfigLoader cl;
-    cl.loadFile2("saiga-config.txt");
+void readConfigFile(const std::string& configFile)
+{
+   Saiga::SimpleIni ini;
+   ini.LoadFile(configFile.c_str());
 
-    SHADER_PATH = cl.getString("SHADER_PATH","/usr/local/share/saiga/shader");
-    TEXTURE_PATH = cl.getString("TEXTURE_PATH","textures");
+   SHADER_PATH  = ini.GetAddString ("saiga","SHADER_PATH","/usr/local/share/saiga/shader");
+   TEXTURE_PATH = ini.GetAddString ("saiga","TEXTURE_PATH","textures");
 
-    cl.writeFile();
-
+   if(ini.changed()) ini.SaveFile(configFile.c_str());
 }
 
 static void printSaigaInfo(){
@@ -109,7 +109,7 @@ static void printSaigaInfo(){
 
 
 
-void initSaiga()
+void initSaiga(const std::string& configFile)
 {
     if(initialized)
     {
@@ -118,7 +118,7 @@ void initSaiga()
 
     FP::resetSSECSR();
 
-    readConfigFile();
+    readConfigFile(configFile);
 
 
     shaderPathes.addSearchPath(SHADER_PATH);
