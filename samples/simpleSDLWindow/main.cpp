@@ -32,6 +32,8 @@ int main( int argc, char* args[] )
     Sample simpleWindow(window,renderer);
 
     // Everyhing is initilalized, we can run the main loop now!
-    window.startMainLoop();
+    MainLoopParameters mainLoopParameters;
+    mainLoopParameters.fromConfigFile("config.ini");
+    window.startMainLoop(mainLoopParameters);
     return 0;
 }

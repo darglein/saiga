@@ -12,7 +12,7 @@
 #include "saiga/geometry/ray.h"
 #include "saiga/imgui/imgui_renderer.h"
 #include "saiga/rendering/renderer.h"
-
+#include "saiga/framework.h"
 #include <thread>
 
 namespace Saiga {
@@ -35,6 +35,11 @@ struct SAIGA_GLOBAL OpenGLParameters
     int versionMajor = 3;
     int versionMinor = 2;
 
+    /**
+     *  Reads all paramters from the given config file.
+     *  Creates the file with the default values if it doesn't exist.
+     */
+    void fromConfigFile(const std::string& file);
 };
 
 struct SAIGA_GLOBAL WindowParameters
@@ -47,7 +52,6 @@ struct SAIGA_GLOBAL WindowParameters
     };
 
     std::string name = "Saiga";
-    std::string saigaConfigFile = "config.ini";
     int width = 1280;
     int height = 720;
     Mode mode =  Mode::windowed;
@@ -65,6 +69,7 @@ struct SAIGA_GLOBAL WindowParameters
     std::string debugScreenshotPath = "debug/";
 
     OpenGLParameters openglparameters;
+    SaigaParameters saigaParameters;
 
     bool createImgui = true;
     std::string imguiFont = "";
@@ -107,13 +112,19 @@ struct SAIGA_GLOBAL MainLoopParameters
      * @param _printInfoMsg
      *      Enable/Disable the debug output
      */
-    int updatesPerSecond = 60;
-    int framesPerSecond = 60;
-    float mainLoopInfoTime=5.0f;
-    int maxFrameSkip = 0;
-    bool _parallelUpdate=false;
-    bool catchUp=false;
-    bool _printInfoMsg=true;
+    int   updatesPerSecond      = 60;
+    int   framesPerSecond       = 60;
+    float mainLoopInfoTime      = 5.0f;
+    int   maxFrameSkip          = 0;
+    bool  parallelUpdate        = false;
+    bool  catchUp               = false;
+    bool  printInfoMsg          = true;
+
+    /**
+     *  Reads all paramters from the given config file.
+     *  Creates the file with the default values if it doesn't exist.
+     */
+    void fromConfigFile(const std::string& file);
 };
 
 }

@@ -155,7 +155,7 @@ void OpenGLWindow::renderImGui(bool *p_open)
 
 bool OpenGLWindow::create()
 {
-    initSaiga(windowParameters.saigaConfigFile);
+    initSaiga(windowParameters.saigaParameters);
 
     //init window and opengl context
     if(!initWindow()){
@@ -535,8 +535,8 @@ void OpenGLWindow::sleep(tick_t ticks)
 
 void OpenGLWindow::startMainLoop(MainLoopParameters params)
 {
-    parallelUpdate = params._parallelUpdate;
-    printInfoMsg = params._printInfoMsg;
+    parallelUpdate = params.parallelUpdate;
+    printInfoMsg = params.printInfoMsg;
     gameTime.printInfoMsg = printInfoMsg;
     running = true;
 

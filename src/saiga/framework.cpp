@@ -19,21 +19,18 @@ namespace Saiga {
 
 bool initialized = false;
 
-std::string SHADER_PATH;
-std::string TEXTURE_PATH;
-std::string MATERIAL_PATH;
-std::string OBJ_PATH;
-
-void readConfigFile(const std::string& configFile)
+void SaigaParameters::fromConfigFile(const std::string &file)
 {
-   Saiga::SimpleIni ini;
-   ini.LoadFile(configFile.c_str());
+    Saiga::SimpleIni ini;
+    ini.LoadFile(file.c_str());
 
-   SHADER_PATH  = ini.GetAddString ("saiga","SHADER_PATH","/usr/local/share/saiga/shader");
-   TEXTURE_PATH = ini.GetAddString ("saiga","TEXTURE_PATH","textures");
+    shareDirectory    = ini.GetAddString ("saiga","shareDirectory",shareDirectory.c_str());
+    textureDirectory  = ini.GetAddString ("saiga","textureDirectory",textureDirectory.c_str());
 
-   if(ini.changed()) ini.SaveFile(configFile.c_str());
+    if(ini.changed()) ini.SaveFile(file.c_str());
 }
+
+
 
 static void printSaigaInfo(){
     cout << "Saiga Version " << SAIGA_VERSION_MAJOR << "." <<  SAIGA_VERSION_MINOR << endl;
@@ -109,7 +106,7 @@ static void printSaigaInfo(){
 
 
 
-void initSaiga(const std::string& configFile)
+void initSaiga(const SaigaParameters& params)
 {
     if(initialized)
     {
@@ -118,13 +115,10 @@ void initSaiga(const std::string& configFile)
 
     FP::resetSSECSR();
 
-    readConfigFile(configFile);
 
+    shaderPathes.addSearchPath(params.shareDirectory + "/shader");
 
-    shaderPathes.addSearchPath(SHADER_PATH);
-
-    TextureLoader::instance()->addPath(TEXTURE_PATH);
-    TextureLoader::instance()->addPath(OBJ_PATH);
+    TextureLoader::instance()->addPath(params.textureDirectory);
     TextureLoader::instance()->addPath(".");
 	 
 	// Disables the following notification:
@@ -151,6 +145,7 @@ void cleanupSaiga()
     cout<<"========================== Saiga cleanup done! =========================="<<endl;
     initialized = false;
 }
+
 
 
 }

@@ -11,9 +11,22 @@
 namespace Saiga {
 
 
+struct SAIGA_GLOBAL SaigaParameters
+{
+    // share/ directory where saiga has been installed.
+    std::string shareDirectory      = "/usr/local/share/saiga";
+    std::string textureDirectory    = "textures/";
+
+    /**
+     *  Reads all paramters from the given config file.
+     *  Creates the file with the default values if it doesn't exist.
+     */
+    void fromConfigFile(const std::string& file);
+};
+
 SAIGA_GLOBAL extern void writeExtensions();
 
-SAIGA_GLOBAL extern void initSaiga(const std::string& configFile);
+SAIGA_GLOBAL extern void initSaiga(const SaigaParameters& params);
 SAIGA_GLOBAL extern void cleanupSaiga();
 
 }

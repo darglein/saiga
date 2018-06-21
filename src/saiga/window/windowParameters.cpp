@@ -34,12 +34,51 @@ void WindowParameters::fromConfigFile(const std::string &file)
     alwaysOnTop  = ini.GetAddBool ("window","alwaysOnTop",alwaysOnTop);
     resizeAble   = ini.GetAddBool ("window","resizeAble",resizeAble);
     vsync        = ini.GetAddBool ("window","vsync",vsync);
-//    monitorId    = ini.GetAddLong ("window","monitorId",monitorId);
+    //    monitorId    = ini.GetAddLong ("window","monitorId",monitorId);
 
 
     if(ini.changed()) ini.SaveFile(file.c_str());
 
     setMode(fullscreen,borderless);
+
+
+    openglparameters.fromConfigFile(file);
+    saigaParameters.fromConfigFile(file);
+}
+
+void OpenGLParameters::fromConfigFile(const std::string &file)
+{
+
+    bool core = true;
+
+    Saiga::SimpleIni ini;
+    ini.LoadFile(file.c_str());
+
+    debug               = ini.GetAddBool ("opengl","debug",debug);
+    forwardCompatible   = ini.GetAddBool ("opengl","forwardCompatible",forwardCompatible);
+    versionMajor        = ini.GetAddLong ("opengl","versionMajor",versionMajor);
+    versionMinor        = ini.GetAddLong ("opengl","versionMinor",versionMinor);
+    core                = ini.GetAddBool ("opengl","core",core);
+
+    if(ini.changed()) ini.SaveFile(file.c_str());
+
+    profile = core ? Profile::CORE : Profile::COMPATIBILITY;
+}
+
+void MainLoopParameters::fromConfigFile(const std::string &file)
+{
+    Saiga::SimpleIni ini;
+    ini.LoadFile(file.c_str());
+
+    updatesPerSecond      = ini.GetAddLong  ("mainloop","updatesPerSecond",updatesPerSecond);
+    framesPerSecond       = ini.GetAddLong  ("mainloop","framesPerSecond",framesPerSecond);
+    mainLoopInfoTime      = ini.GetAddDouble("mainloop","mainLoopInfoTime",mainLoopInfoTime);
+    maxFrameSkip          = ini.GetAddLong  ("mainloop","maxFrameSkip",maxFrameSkip);
+    parallelUpdate        = ini.GetAddBool  ("mainloop","parallelUpdate",parallelUpdate);
+    catchUp               = ini.GetAddBool  ("mainloop","catchUp",catchUp);
+    printInfoMsg          = ini.GetAddBool  ("mainloop","printInfoMsg",printInfoMsg);
+
+    if(ini.changed()) ini.SaveFile(file.c_str());
 }
 
 
