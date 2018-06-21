@@ -3188,6 +3188,7 @@ public:
     }
 };
 
+}
 #endif // SI_CONVERT_GENERIC
 
 
@@ -3406,149 +3407,157 @@ public:
  * SI_NoCase class instead.
  */
 #include <mbstring.h>
-template<class SI_CHAR>
-struct SI_NoCase {
-    bool operator()(const SI_CHAR * pLeft, const SI_CHAR * pRight) const {
-        if (sizeof(SI_CHAR) == sizeof(char)) {
-            return _mbsicmp((const unsigned char *)pLeft,
-                            (const unsigned char *)pRight) < 0;
-        }
-        if (sizeof(SI_CHAR) == sizeof(wchar_t)) {
-            return _wcsicmp((const wchar_t *)pLeft,
-                            (const wchar_t *)pRight) < 0;
-        }
-        return SI_GenericNoCase<SI_CHAR>()(pLeft, pRight);
-    }
-};
+
+namespace Saiga {
+
+	template<class SI_CHAR>
+	struct SI_NoCase {
+		bool operator()(const SI_CHAR * pLeft, const SI_CHAR * pRight) const {
+			if (sizeof(SI_CHAR) == sizeof(char)) {
+				return _mbsicmp((const unsigned char *)pLeft,
+					(const unsigned char *)pRight) < 0;
+			}
+			if (sizeof(SI_CHAR) == sizeof(wchar_t)) {
+				return _wcsicmp((const wchar_t *)pLeft,
+					(const wchar_t *)pRight) < 0;
+			}
+			return SI_GenericNoCase<SI_CHAR>()(pLeft, pRight);
+		}
+	};
+}
 #endif // SI_NO_MBCS
 
-/**
- * Converts MBCS and UTF-8 to a wchar_t (or equivalent) on Windows. This uses
- * only the Win32 functions and doesn't require the external Unicode UTF-8
- * conversion library. It will not work on Windows 95 without using Microsoft
- * Layer for Unicode in your application.
- */
-template<class SI_CHAR>
-class SI_ConvertW {
-    UINT m_uCodePage;
-protected:
-    SI_ConvertW() { }
-public:
-    SI_ConvertW(bool a_bStoreIsUtf8) {
-        m_uCodePage = a_bStoreIsUtf8 ? CP_UTF8 : CP_ACP;
-    }
+namespace Saiga {
+	/**
+	 * Converts MBCS and UTF-8 to a wchar_t (or equivalent) on Windows. This uses
+	 * only the Win32 functions and doesn't require the external Unicode UTF-8
+	 * conversion library. It will not work on Windows 95 without using Microsoft
+	 * Layer for Unicode in your application.
+	 */
+	template<class SI_CHAR>
+	class SI_ConvertW {
+		UINT m_uCodePage;
+	protected:
+		SI_ConvertW() { }
+	public:
+		SI_ConvertW(bool a_bStoreIsUtf8) {
+			m_uCodePage = a_bStoreIsUtf8 ? CP_UTF8 : CP_ACP;
+		}
 
-    /* copy and assignment */
-    SI_ConvertW(const SI_ConvertW & rhs) { operator=(rhs); }
-    SI_ConvertW & operator=(const SI_ConvertW & rhs) {
-        m_uCodePage = rhs.m_uCodePage;
-        return *this;
-    }
+		/* copy and assignment */
+		SI_ConvertW(const SI_ConvertW & rhs) { operator=(rhs); }
+		SI_ConvertW & operator=(const SI_ConvertW & rhs) {
+			m_uCodePage = rhs.m_uCodePage;
+			return *this;
+		}
 
-    /** Calculate the number of SI_CHAR required for converting the input
-     * from the storage format. The storage format is always UTF-8 or MBCS.
-     *
-     * @param a_pInputData  Data in storage format to be converted to SI_CHAR.
-     * @param a_uInputDataLen Length of storage format data in bytes. This
-     *                      must be the actual length of the data, including
-     *                      NULL byte if NULL terminated string is required.
-     * @return              Number of SI_CHAR required by the string when
-     *                      converted. If there are embedded NULL bytes in the
-     *                      input data, only the string up and not including
-     *                      the NULL byte will be converted.
-     * @return              -1 cast to size_t on a conversion error.
-     */
-    size_t SizeFromStore(
-            const char *    a_pInputData,
-            size_t          a_uInputDataLen)
-    {
-        SI_ASSERT(a_uInputDataLen != (size_t) -1);
+		/** Calculate the number of SI_CHAR required for converting the input
+		 * from the storage format. The storage format is always UTF-8 or MBCS.
+		 *
+		 * @param a_pInputData  Data in storage format to be converted to SI_CHAR.
+		 * @param a_uInputDataLen Length of storage format data in bytes. This
+		 *                      must be the actual length of the data, including
+		 *                      NULL byte if NULL terminated string is required.
+		 * @return              Number of SI_CHAR required by the string when
+		 *                      converted. If there are embedded NULL bytes in the
+		 *                      input data, only the string up and not including
+		 *                      the NULL byte will be converted.
+		 * @return              -1 cast to size_t on a conversion error.
+		 */
+		size_t SizeFromStore(
+			const char *    a_pInputData,
+			size_t          a_uInputDataLen)
+		{
+			SI_ASSERT(a_uInputDataLen != (size_t)-1);
 
-        int retval = MultiByteToWideChar(
-                    m_uCodePage, 0,
-                    a_pInputData, (int) a_uInputDataLen,
-                    0, 0);
-        return (size_t)(retval > 0 ? retval : -1);
-    }
+			int retval = MultiByteToWideChar(
+				m_uCodePage, 0,
+				a_pInputData, (int)a_uInputDataLen,
+				0, 0);
+			return (size_t)(retval > 0 ? retval : -1);
+		}
 
-    /** Convert the input string from the storage format to SI_CHAR.
-     * The storage format is always UTF-8 or MBCS.
-     *
-     * @param a_pInputData  Data in storage format to be converted to SI_CHAR.
-     * @param a_uInputDataLen Length of storage format data in bytes. This
-     *                      must be the actual length of the data, including
-     *                      NULL byte if NULL terminated string is required.
-     * @param a_pOutputData Pointer to the output buffer to received the
-     *                      converted data.
-     * @param a_uOutputDataSize Size of the output buffer in SI_CHAR.
-     * @return              true if all of the input data was successfully
-     *                      converted.
-     */
-    bool ConvertFromStore(
-            const char *    a_pInputData,
-            size_t          a_uInputDataLen,
-            SI_CHAR *       a_pOutputData,
-            size_t          a_uOutputDataSize)
-    {
-        int nSize = MultiByteToWideChar(
-                    m_uCodePage, 0,
-                    a_pInputData, (int) a_uInputDataLen,
-                    (wchar_t *) a_pOutputData, (int) a_uOutputDataSize);
-        return (nSize > 0);
-    }
+		/** Convert the input string from the storage format to SI_CHAR.
+		 * The storage format is always UTF-8 or MBCS.
+		 *
+		 * @param a_pInputData  Data in storage format to be converted to SI_CHAR.
+		 * @param a_uInputDataLen Length of storage format data in bytes. This
+		 *                      must be the actual length of the data, including
+		 *                      NULL byte if NULL terminated string is required.
+		 * @param a_pOutputData Pointer to the output buffer to received the
+		 *                      converted data.
+		 * @param a_uOutputDataSize Size of the output buffer in SI_CHAR.
+		 * @return              true if all of the input data was successfully
+		 *                      converted.
+		 */
+		bool ConvertFromStore(
+			const char *    a_pInputData,
+			size_t          a_uInputDataLen,
+			SI_CHAR *       a_pOutputData,
+			size_t          a_uOutputDataSize)
+		{
+			int nSize = MultiByteToWideChar(
+				m_uCodePage, 0,
+				a_pInputData, (int)a_uInputDataLen,
+				(wchar_t *)a_pOutputData, (int)a_uOutputDataSize);
+			return (nSize > 0);
+		}
 
-    /** Calculate the number of char required by the storage format of this
-     * data. The storage format is always UTF-8.
-     *
-     * @param a_pInputData  NULL terminated string to calculate the number of
-     *                      bytes required to be converted to storage format.
-     * @return              Number of bytes required by the string when
-     *                      converted to storage format. This size always
-     *                      includes space for the terminating NULL character.
-     * @return              -1 cast to size_t on a conversion error.
-     */
-    size_t SizeToStore(
-            const SI_CHAR * a_pInputData)
-    {
-        int retval = WideCharToMultiByte(
-                    m_uCodePage, 0,
-                    (const wchar_t *) a_pInputData, -1,
-                    0, 0, 0, 0);
-        return (size_t) (retval > 0 ? retval : -1);
-    }
+		/** Calculate the number of char required by the storage format of this
+		 * data. The storage format is always UTF-8.
+		 *
+		 * @param a_pInputData  NULL terminated string to calculate the number of
+		 *                      bytes required to be converted to storage format.
+		 * @return              Number of bytes required by the string when
+		 *                      converted to storage format. This size always
+		 *                      includes space for the terminating NULL character.
+		 * @return              -1 cast to size_t on a conversion error.
+		 */
+		size_t SizeToStore(
+			const SI_CHAR * a_pInputData)
+		{
+			int retval = WideCharToMultiByte(
+				m_uCodePage, 0,
+				(const wchar_t *)a_pInputData, -1,
+				0, 0, 0, 0);
+			return (size_t)(retval > 0 ? retval : -1);
+		}
 
-    /** Convert the input string to the storage format of this data.
-     * The storage format is always UTF-8 or MBCS.
-     *
-     * @param a_pInputData  NULL terminated source string to convert. All of
-     *                      the data will be converted including the
-     *                      terminating NULL character.
-     * @param a_pOutputData Pointer to the buffer to receive the converted
-     *                      string.
-     * @param a_pOutputDataSize Size of the output buffer in char.
-     * @return              true if all of the input data, including the
-     *                      terminating NULL character was successfully
-     *                      converted.
-     */
-    bool ConvertToStore(
-            const SI_CHAR * a_pInputData,
-            char *          a_pOutputData,
-            size_t          a_uOutputDataSize)
-    {
-        int retval = WideCharToMultiByte(
-                    m_uCodePage, 0,
-                    (const wchar_t *) a_pInputData, -1,
-                    a_pOutputData, (int) a_uOutputDataSize, 0, 0);
-        return retval > 0;
-    }
-};
+		/** Convert the input string to the storage format of this data.
+		 * The storage format is always UTF-8 or MBCS.
+		 *
+		 * @param a_pInputData  NULL terminated source string to convert. All of
+		 *                      the data will be converted including the
+		 *                      terminating NULL character.
+		 * @param a_pOutputData Pointer to the buffer to receive the converted
+		 *                      string.
+		 * @param a_pOutputDataSize Size of the output buffer in char.
+		 * @return              true if all of the input data, including the
+		 *                      terminating NULL character was successfully
+		 *                      converted.
+		 */
+		bool ConvertToStore(
+			const SI_CHAR * a_pInputData,
+			char *          a_pOutputData,
+			size_t          a_uOutputDataSize)
+		{
+			int retval = WideCharToMultiByte(
+				m_uCodePage, 0,
+				(const wchar_t *)a_pInputData, -1,
+				a_pOutputData, (int)a_uOutputDataSize, 0, 0);
+			return retval > 0;
+		}
+	};
 
+}
 #endif // SI_CONVERT_WIN32
 
 
 // ---------------------------------------------------------------------------
 //                                  TYPE DEFINITIONS
 // ---------------------------------------------------------------------------
+
+namespace Saiga {
 
 typedef CSimpleIniTempl<char,
 SI_NoCase<char>,SI_ConvertA<char> >                 CSimpleIniA;
