@@ -6,7 +6,6 @@
 
 #include "openMeshSample.h"
 
-#include "saiga/rendering/deferred_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/assets/objAssetLoader.h"
 

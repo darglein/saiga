@@ -6,8 +6,6 @@
 
 #include "videoRecording.h"
 
-#include "saiga/rendering/deferred_renderer.h"
-#include "saiga/rendering/lighting/directional_light.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 #include "saiga/geometry/triangle_mesh_generator.h"

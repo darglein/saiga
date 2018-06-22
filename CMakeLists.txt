@@ -27,6 +27,7 @@ OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" ON)
 OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON) 
 OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON) 
 OptionsHelper (SAIGA_WITH_CUDA "use cuda if possible" ON) 
+OptionsHelper (SAIGA_WITH_EIGEN "use eigen if possible" ON) 
 OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF) 
 OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
 OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
@@ -141,12 +142,13 @@ endif()
 
 
 #eigen
-find_package(Eigen3 QUIET)
-if(EIGEN3_FOUND)
-	SET(SAIGA_USE_EIGEN 1)
+if(SAIGA_WITH_EIGEN)
+	find_package(Eigen3 QUIET)
+	if(EIGEN3_FOUND)
+		SET(SAIGA_USE_EIGEN 1)
+	endif()
+	PackageHelper(Eigen3 "${EIGEN3_FOUND}" "${EIGEN3_INCLUDE_DIRS}" "")
 endif()
-PackageHelper(Eigen3 "${EIGEN3_FOUND}" "${EIGEN3_INCLUDE_DIRS}" "")
-
 
 #bullet
 find_package(Bullet QUIET)
@@ -185,7 +187,7 @@ if(CUDA_FOUND)
 	# We need this to get the actual cuda libraries, because
 	# one sample only is linked with the host compiler and therefore
 	# does not automatically link to the cuda runtime.
-	find_package(CUDA QUIET)
+	find_package(CUDA REQUIRED QUIET)
 	SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES} ${CUDA_cusparse_LIBRARY} ${CUDA_cublas_LIBRARY})
 
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_30,code=compute_30")

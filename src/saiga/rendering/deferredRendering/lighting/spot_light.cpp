@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/lighting/spot_light.h"
+#include "saiga/rendering/deferredRendering/lighting/spot_light.h"
 #include "saiga/imgui/imgui.h"
 
 namespace Saiga {

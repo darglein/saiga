@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/lighting/shadowmap.h"
+#include "saiga/rendering/deferredRendering/lighting/shadowmap.h"
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/opengl/error.h"
 

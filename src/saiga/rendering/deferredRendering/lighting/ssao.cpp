@@ -4,11 +4,10 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/lighting/ssao.h"
+#include "saiga/rendering/deferredRendering/lighting/ssao.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/image/imageGenerator.h"
-#include "saiga/rendering/gbuffer.h"
 #include "saiga/imgui/imgui.h"
 
 namespace Saiga {

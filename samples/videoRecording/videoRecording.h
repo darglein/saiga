@@ -16,17 +16,14 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_window.h"
 
-#include "saiga/rendering/lighting/point_light.h"
-
 #include "saiga/text/all.h"
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/rendering/overlay/textDebugOverlay.h"
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
-#include "saiga/rendering/lighting/directional_light.h"
 #include "saiga/ffmpeg/ffmpegEncoder.h"
 #include "saiga/ffmpeg/videoEncoder.h"
-
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/animation/cameraAnimation.h"
 
 using namespace Saiga;

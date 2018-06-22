@@ -15,8 +15,7 @@
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_window.h"
-
-#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 
 using namespace Saiga;
 

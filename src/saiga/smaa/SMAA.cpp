@@ -10,7 +10,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/image/imageGenerator.h"
-#include "saiga/rendering/gbuffer.h"
+#include "saiga/rendering/deferredRendering/gbuffer.h"
 #include "saiga/imgui/imgui.h"
 
 namespace Saiga {

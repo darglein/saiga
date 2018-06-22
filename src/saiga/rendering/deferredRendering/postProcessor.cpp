@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/postProcessor.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/error.h"

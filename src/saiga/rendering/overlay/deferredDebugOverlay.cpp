@@ -9,7 +9,7 @@
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/rendering/gbuffer.h"
+#include "saiga/rendering/deferredRendering/gbuffer.h"
 
 namespace Saiga {
 

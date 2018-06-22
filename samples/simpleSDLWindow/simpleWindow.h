@@ -13,8 +13,7 @@
 #include "saiga/assets/objAssetLoader.h"
 
 #include "saiga/sdl/sdl.h"
-
-#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 
 using namespace Saiga;
 

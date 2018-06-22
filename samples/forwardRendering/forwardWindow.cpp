@@ -6,7 +6,6 @@
 
 #include "forwardWindow.h"
 
-#include "saiga/rendering/deferred_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 #include "saiga/geometry/triangle_mesh_generator.h"

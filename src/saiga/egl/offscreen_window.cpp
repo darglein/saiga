@@ -5,7 +5,7 @@
  */
 
 #include "saiga/egl/offscreen_window.h"
-#include "saiga/rendering/deferred_renderer.h"
+#include "saiga/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/util/assert.h"
 
 #include <EGL/egl.h>

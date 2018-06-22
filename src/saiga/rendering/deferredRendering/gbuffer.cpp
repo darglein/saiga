@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/gbuffer.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/vertexBuffer.h"
 
 namespace Saiga {

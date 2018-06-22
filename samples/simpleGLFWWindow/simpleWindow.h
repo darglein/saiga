@@ -14,7 +14,7 @@
 
 #include "saiga/glfw/all.h"
 
-#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/rendering/deferredRendering/lighting/directional_light.h"
 
 using namespace Saiga;
 

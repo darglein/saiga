@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/framebuffer.h"
-#include "saiga/rendering/gbuffer.h"
+#include "saiga/rendering/deferredRendering/gbuffer.h"
 
 namespace Saiga {
 

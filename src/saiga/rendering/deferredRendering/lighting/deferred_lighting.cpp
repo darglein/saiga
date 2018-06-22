@@ -4,16 +4,12 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/lighting/deferred_lighting.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/util/inputcontroller.h"
 
-#include "saiga/rendering/deferred_renderer.h"
 #include "saiga/opengl/error.h"
 
-#include "saiga/rendering/lighting/directional_light.h"
-#include "saiga/rendering/lighting/point_light.h"
-#include "saiga/rendering/lighting/spot_light.h"
-#include "saiga/rendering/lighting/box_light.h"
+
 #include "saiga/rendering/program.h"
 
 #include "saiga/geometry/triangle_mesh_generator.h"

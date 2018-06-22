@@ -7,11 +7,11 @@
 #pragma once
 
 #include "saiga/rendering/renderer.h"
-#include "saiga/rendering/postProcessor.h"
-#include "saiga/rendering/lighting/deferred_lighting.h"
+#include "saiga/rendering/deferredRendering/postProcessor.h"
+#include "saiga/rendering/deferredRendering/lighting/deferred_lighting.h"
 #include "saiga/opengl/framebuffer.h"
-#include "saiga/rendering/gbuffer.h"
-#include "saiga/rendering/lighting/ssao.h"
+#include "saiga/rendering/deferredRendering/gbuffer.h"
+#include "saiga/rendering/deferredRendering/lighting/ssao.h"
 #include "saiga/smaa/SMAA.h"
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
 

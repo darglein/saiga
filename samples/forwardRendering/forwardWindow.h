@@ -13,7 +13,7 @@
 #include "saiga/assets/objAssetLoader.h"
 
 #include "saiga/sdl/sdl.h"
-#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/rendering/forwardRendering/forwardRendering.h"
 
 #include "saiga/world/pointCloud.h"
 

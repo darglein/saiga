@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/lighting/directional_light.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/geometry/clipping.h"
 #include "saiga/geometry/obb.h"
 #include "saiga/imgui/imgui.h"

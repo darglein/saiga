@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/lighting/light.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/camera/camera.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/util/tostring.h"

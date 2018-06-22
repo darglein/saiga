@@ -5,7 +5,7 @@
  */
 
 #include "saiga/sdl/sdl_window.h"
-#include "saiga/rendering/deferred_renderer.h"
+//#include "saiga/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
 namespace Saiga {

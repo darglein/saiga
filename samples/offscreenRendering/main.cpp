@@ -6,7 +6,6 @@
 
 
 #include "saiga/egl/offscreen_window.h"
-#include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/crash.h"
 
 #include "offscreenWindow.h"

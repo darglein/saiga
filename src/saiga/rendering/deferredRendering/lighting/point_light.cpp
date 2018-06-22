@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/lighting/point_light.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/error.h"
 #include "saiga/util/assert.h"
 #include "saiga/imgui/imgui.h"

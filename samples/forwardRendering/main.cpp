@@ -6,8 +6,6 @@
 
 
 #include "saiga/sdl/sdl.h"
-#include "saiga/rendering/forward_renderer.h"
-#include "saiga/rendering/deferred_renderer.h"
 #include "saiga/util/crash.h"
 
 #include "forwardWindow.h"

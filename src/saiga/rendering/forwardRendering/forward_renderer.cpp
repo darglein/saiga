@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/forward_renderer.h"
+#include "saiga/rendering/forwardRendering/forward_renderer.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/window/window.h"
 #include "saiga/camera/camera.h"

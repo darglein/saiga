@@ -5,11 +5,10 @@
  */
 
 #include "saiga/window/window.h"
-#include "saiga/rendering/deferred_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/image/glImageFormat.h"
-#include "saiga/rendering/deferred_renderer.h"
+//#include "saiga/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/rendering/renderer.h"
 #include "saiga/rendering/program.h"
 
@@ -18,6 +17,7 @@
 #include "saiga/framework.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/util/math.h"
+#include "saiga/camera/camera.h"
 
 #include <cstring>
 #include <vector>

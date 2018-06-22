@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/lighting/box_light.h"
+#include "saiga/rendering/deferredRendering/lighting/box_light.h"
 #include "saiga/imgui/imgui.h"
 
 namespace Saiga {

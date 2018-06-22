@@ -10,7 +10,7 @@
 #include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/framebuffer.h"
-#include "saiga/rendering/gbuffer.h"
+#include "saiga/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/util/quality.h"
 
