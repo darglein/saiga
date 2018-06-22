@@ -50,33 +50,13 @@ protected:
     virtual void swapBuffers() override;
     virtual void freeContext() override;
 public:
+    void destroy();
     //static glfw stuff
     static void error_callback(int error, const char* description);
     static bool initGlfw();
     static void getCurrentPrimaryMonitorResolution(int *width, int *height);
     static void getMaxResolution(int *width, int *height);
-public:
-    //TODO: remove everything from here
 
-    using OpenGLWindow::startMainLoop;
-    void startMainLoopNoRender(float ticksPerSecond);
-    void screenshotParallelWrite(const std::string &file);
-    void setVideoRecordingLimit(int limit){queueLimit = limit;}
-private:
-
-    int currentScreenshot = 0;
-    std::string parallelScreenshotPath;
-
-    std::list<std::shared_ptr<Image>> queue;
-    std::mutex lock;
-    bool ssRunning = false;
-    int queueLimit = 200;
-
-    bool waitForWriters = false;
-
-#define WRITER_COUNT 7
-    std::thread* sswriterthreads[WRITER_COUNT];
-    void processScreenshots();
 };
 
 }

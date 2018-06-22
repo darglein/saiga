@@ -8,9 +8,12 @@
 
 
 #ifdef SAIGA_USE_EIGEN
+
 #include "saiga/eigen/eigen.h"
 
+#if EIGEN_VERSION_AT_LEAST(4,3,90)
 using matrix_t = Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor>;
+
 
 namespace Saiga {
 namespace CUDA{
@@ -575,4 +578,6 @@ void inverseTest(){
 
 }
 }
+
+#endif
 #endif

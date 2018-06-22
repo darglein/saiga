@@ -10,7 +10,7 @@
 #include "saiga/glfw/glfw_eventhandler.h"
 #include <GLFW/glfw3.h>
 
-#include "saiga/rendering/deferred_renderer.h"
+#include "saiga/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/rendering/renderer.h"
 
 #include "saiga/opengl/texture/textureLoader.h"
@@ -31,27 +31,20 @@ glfw_Window::glfw_Window(WindowParameters windowParameters):
 
 glfw_Window::~glfw_Window()
 {
-    if(!window)
-        return;
-
-    if (ssRunning){
-        ssRunning = false;
-
-        for (int i = 0; i < WRITER_COUNT; ++i){
-            sswriterthreads[i]->join();
-            delete sswriterthreads[i];
-        }
-    }
-
-
-    cleanupSaiga();
-
-    glfwDestroyWindow(window);
-    glfwTerminate();
-    terminateOpenGL();
-    cout << "GLFW: Terminated." << endl;
+        destroy();
 
 }
+
+void glfw_Window::destroy()
+{
+    terminateOpenGL();
+    cleanupSaiga();
+    freeContext();
+
+
+}
+
+
 
 
 void glfw_Window::getCurrentPrimaryMonitorResolution(int *width, int *height)
@@ -246,16 +239,6 @@ bool glfw_Window::initInput(){
     glfwSetKeyCallback(window, glfw_EventHandler::key_callback);
 
     glfw_EventHandler::addResizeListener(this,0);
-
-    IC.add("quit", [this](ICPARAMS){(void)args;this->close();});
-
-
-    if(windowParameters.createImgui){
-        std::shared_ptr<ImGui_GLFW_Renderer> glfwimgui = std::make_shared<ImGui_GLFW_Renderer>();
-        glfwimgui->init(window,windowParameters.imguiFont,windowParameters.imguiFontSize);
-        imgui = glfwimgui;
-    }
-
     return true;
 }
 
@@ -263,38 +246,13 @@ bool glfw_Window::initInput(){
 
 void glfw_Window::freeContext()
 {
-
-    //Disable text input
-    //    SDL_StopTextInput();
-
+    glfwDestroyWindow(window);
     glfwTerminate();
+    terminateOpenGL();
+    cout << "GLFW: Terminated." << endl;
 }
 
 
-void glfw_Window::startMainLoopNoRender(float ticksPerSecond)
-{
-    const float dt = 1.0f/ticksPerSecond;
-    //    setTimeScale(1.0);
-
-    int simulatedTicks = 0;
-    running = true;
-    while( running && !glfwWindowShouldClose(window) ) {
-        update(dt);
-
-        renderer->renderer->interpolate(dt,0);
-
-        checkEvents();
-
-        simulatedTicks++;
-
-        //        if (simulatedTicks > 60 && ((int)(now2) % 5000) == 0){
-        //            cout << "<Gameloop> Simulated " << simulatedTicks  << "ticks (" << simulatedTicks*dt <<  "s)" << endl;
-        //            simulatedTicks = 0;
-        //        }
-
-        assert_no_glerror_end_frame();
-    }
-}
 
 
 bool glfw_Window::window_size_callback(GLFWwindow *window, int width, int height)
@@ -369,95 +327,5 @@ void glfw_Window::setWindowIcon(Image* image){
 }
 
 
-void glfw_Window::screenshotParallelWrite(const std::string &file){
-
-    if (currentScreenshot == 0){
-        cout<<"Starting " << WRITER_COUNT << " screenshot writers" <<file<<endl;
-        for (int i = 0; i < WRITER_COUNT; ++i){
-            sswriterthreads[i] = new std::thread(&glfw_Window::processScreenshots, this);
-        }
-        ssRunning = true;
-    }
-
-
-    int w = renderer->width;
-    int h = renderer->height;
-
-    std::shared_ptr<Image> img = std::make_shared<Image>();
-    img->width = w;
-    img->height = h;
-    //img->Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-	img->type = UC3;
-    img->create();
-
-    auto tex = getRenderer()->postProcessor.getCurrentTexture();
-    tex->bind();
-    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img->data());
-    tex->unbind();
-
-
-
-    if (waitForWriters){
-
-        while(true){
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            lock.lock();
-            if (queue.size() < 5){
-                lock.unlock();
-                break;
-            }
-            lock.unlock();
-        }
-
-        waitForWriters = false;
-    }
-    lock.lock();
-    parallelScreenshotPath = file;
-    queue.push_back(img);
-
-
-    if ((int)queue.size() > queueLimit){ //one frame full HD ~ 4.5Mb
-        waitForWriters = true;
-    }
-    //        cout << "queue size: " << queue.size() << endl;
-
-    lock.unlock();
-}
-
-
-void glfw_Window::processScreenshots()
-{
-
-    while(ssRunning){
-        int cur = 0;
-        bool took = false;
-        int queueSize = 0;
-        lock.lock();
-        std::shared_ptr<Image> f;
-        if (!queue.empty()){
-            f = queue.front();
-            queueSize = queue.size();
-            if (f){
-                took = true;
-                queue.pop_front();
-                cur = currentScreenshot++;
-            }
-        }
-
-        lock.unlock();
-
-        if (took){
-            long long start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-            //TextureLoader::instance()->saveImage(parallelScreenshotPath+ std::to_string(cur) + ".bmp",*f);
-			f->save(parallelScreenshotPath + std::to_string(cur) + ".bmp");
-            //            f->save(().c_str());
-            cout << "write " << cur  << " (" <<queueSize << ") " << (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - start)/1000 << "ms"<< endl;
-
-
-        } else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
-    }
-}
 
 }

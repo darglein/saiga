@@ -14,7 +14,7 @@
 
 #include "saiga/glfw/all.h"
 
-#include "saiga/rendering/deferredRendering/lighting/directional_light.h"
+#include "saiga/rendering/deferredRendering/deferredRendering.h"
 
 using namespace Saiga;
 
@@ -31,7 +31,7 @@ public:
 
     std::shared_ptr<DirectionalLight> sun;
 
-    Sample(OpenGLWindow* window);
+    Sample(OpenGLWindow& window, Renderer& renderer);
     ~Sample();
 
     void update(float dt) override;
