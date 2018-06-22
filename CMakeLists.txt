@@ -188,7 +188,19 @@ if(CUDA_FOUND)
 	# one sample only is linked with the host compiler and therefore
 	# does not automatically link to the cuda runtime.
 	find_package(CUDA REQUIRED QUIET)
-	SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES} ${CUDA_cusparse_LIBRARY} ${CUDA_cublas_LIBRARY})
+	
+	SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
+	
+	if(CUDA_cusparse_LIBRARY1)
+		SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cusparse_LIBRARY})	
+		SET(SAIGA_USE_CUSPARSE 1)
+	endif()
+	
+	if(CUDA_cublas_LIBRARY1)
+		SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cublas_LIBRARY})	
+		SET(SAIGA_USE_CUBLAS 1)
+	endif()
+	
 
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_30,code=compute_30")
 	SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_52,code=sm_52")

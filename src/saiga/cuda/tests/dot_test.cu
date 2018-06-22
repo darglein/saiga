@@ -22,7 +22,10 @@ namespace CUDA {
 
 void dotTest(){
     CUDA_SYNC_CHECK_ERROR();
+
+#ifdef SAIGA_USE_CUBLAS
     initBLASSPARSE();
+#endif
 
     {
         using elementType = float;
@@ -63,6 +66,7 @@ void dotTest(){
             SAIGA_ASSERT( sum >= ref - 0.1f && sum <= ref + 0.1f);
         }
 
+#ifdef SAIGA_USE_CUBLAS
         {
             thrust::device_vector<elementType> d_res(1,0);
             //make sure no additional memcpy is issued
@@ -84,6 +88,7 @@ void dotTest(){
             pth.addMeassurement("cublasSdot",time);
 
         }
+#endif
 
 
         {
@@ -144,6 +149,7 @@ void dotTest(){
             SAIGA_ASSERT( sum >= ref - 0.1f && sum <= ref + 0.1f);
         }
 
+#ifdef SAIGA_USE_CUBLAS
         {
             thrust::device_vector<elementType> d_res(1,0);
             //make sure no additional memcpy is issued
@@ -165,6 +171,7 @@ void dotTest(){
             pth.addMeassurement("cublasSdot",time);
 
         }
+#endif
 
 
         {

@@ -33,6 +33,8 @@
 #cmakedefine SAIGA_USE_FFMPEG
 
 #cmakedefine SAIGA_USE_CUDA
+#cmakedefine SAIGA_USE_CUSPARSE
+#cmakedefine SAIGA_USE_CUBLAS
 #cmakedefine SAIGA_USE_EIGEN
 
 //############# Build Options ###############

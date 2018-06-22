@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
         Saiga::CUDA::testCuda();
         Saiga::CUDA::testThrust();
 
-        CUDA::initBLASSPARSE();
+//        CUDA::initBLASSPARSE();
 
         //        CUDA::imageProcessingTest();
         //        CUDA::inverseTest();
@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
         //        CUDA::testCuda();
         //        CUDA::testThrust();
 
-        CUDA::destroyBLASSPARSE();
+//        CUDA::destroyBLASSPARSE();
         CUDA::destroyCUDA();
     }
 

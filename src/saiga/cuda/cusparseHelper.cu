@@ -5,11 +5,12 @@
  */
 
 #include "saiga/cuda/cusparseHelper.h"
-
 #include "saiga/util/assert.h"
 
 namespace Saiga {
 namespace CUDA {
+
+#ifdef SAIGA_USE_CUSPARSE
 
 cusparseHandle_t cusparseHandle = 0;
 cublasHandle_t cublashandle = 0;
@@ -40,6 +41,8 @@ void runBLASSPARSETests(){
     testCuBLAS();
     testCuSparse();
 }
+
+#endif
 
 }
 }

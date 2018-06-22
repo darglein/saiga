@@ -14,6 +14,7 @@
 namespace Saiga {
 namespace CUDA {
 
+#ifdef SAIGA_USE_CUSPARSE
 
 void testCuSparse(){
 
@@ -317,6 +318,8 @@ void testCuBLAS(){
 
 
 }
+
+#endif
 
 }
 }
