@@ -36,6 +36,7 @@
 #cmakedefine SAIGA_USE_CUSPARSE
 #cmakedefine SAIGA_USE_CUBLAS
 #cmakedefine SAIGA_USE_EIGEN
+#cmakedefine SAIGA_EIGEN_AND_CUDA
 
 //############# Build Options ###############
 

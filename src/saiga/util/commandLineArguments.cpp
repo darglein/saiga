@@ -43,7 +43,7 @@ void CommandLineArguments::parse(int argc, char *argv[])
 
     int currentArg = 0;
 
-    for(;currentArg < args.size(); ++currentArg)
+    for(;currentArg < (int)args.size(); ++currentArg)
     {
         auto str = args[currentArg];
 

@@ -27,7 +27,6 @@ OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" ON)
 OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON) 
 OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON) 
 OptionsHelper (SAIGA_WITH_CUDA "use cuda if possible" ON) 
-OptionsHelper (SAIGA_WITH_EIGEN "use eigen if possible" ON) 
 OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF) 
 OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
 OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
@@ -142,13 +141,17 @@ endif()
 
 
 #eigen
-if(SAIGA_WITH_EIGEN)
-	find_package(Eigen3 QUIET)
-	if(EIGEN3_FOUND)
-		SET(SAIGA_USE_EIGEN 1)
-	endif()
-	PackageHelper(Eigen3 "${EIGEN3_FOUND}" "${EIGEN3_INCLUDE_DIRS}" "")
+find_package(Eigen3 3.3.0 QUIET)
+if(EIGEN3_FOUND)
+	SET(SAIGA_USE_EIGEN 1)
+	if(${Eigen3_VERSION_MINOR} GREATER 3 OR ${Eigen3_VERSION_PATCH} GREATER 7)
+		SET(SAIGA_EIGEN_AND_CUDA 1)
+	endif() 
 endif()
+PackageHelper(Eigen3 "${EIGEN3_FOUND}" "${EIGEN3_INCLUDE_DIRS}" "")
+
+#message(STATUS Eigen version: ${Eigen3_VERSION} ${Eigen3_VERSION_MAJOR} ${Eigen3_VERSION_MINOR})
+
 
 #bullet
 find_package(Bullet QUIET)

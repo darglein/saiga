@@ -1,4 +1,4 @@
-#include "saiga/cuda/math/inverse.h"
+﻿#include "saiga/cuda/math/inverse.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/time/timer.h"
 #include "saiga/util/assert.h"
@@ -7,13 +7,11 @@
 #include "saiga/cuda/thread_info.h"
 
 
-#ifdef SAIGA_USE_EIGEN
+#if defined(SAIGA_USE_EIGEN) && defined(SAIGA_EIGEN_AND_CUDA)
 
 #include "saiga/eigen/eigen.h"
 
-#if EIGEN_VERSION_AT_LEAST(4,3,90)
 using matrix_t = Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor>;
-
 
 namespace Saiga {
 namespace CUDA{
@@ -579,5 +577,4 @@ void inverseTest(){
 }
 }
 
-#endif
 #endif
