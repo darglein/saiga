@@ -15,7 +15,7 @@ Particle::Particle()
 void Particle::createFixedBillboard(const vec3 &normal, float angle)
 {
     velocity = vec4(glm::normalize(normal),0);
-    right = vec4(glm::rotate(quat(),angle,vec3(velocity)) * glm::cross(vec3(0.236027,-0.0934642,0.967241),normal),0);
+    right = vec4(glm::rotate(IDENTITY_QUATERNION,angle,vec3(velocity)) * glm::cross(vec3(0.236027,-0.0934642,0.967241),normal),0);
 
     //    cout<<glm::normalize(vec3(3.1314,-1.24,12.8325))<<endl;
     right = glm::normalize(right);

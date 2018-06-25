@@ -10,37 +10,24 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/rendering/deferredRendering/gbuffer.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
+
 
 namespace Saiga {
 
-DeferredDebugOverlay::DeferredDebugOverlay(int width, int height):width(width),height(height),layout(width,height){
-    TriangleMesh<VertexNT, GLuint> tm;
+DeferredDebugOverlay::DeferredDebugOverlay(int width, int height)
+    :  layout(width,height)
+{
+
+    auto tm = TriangleMeshGenerator::createFullScreenQuadMesh();
+
+    float aspect = float(width)/height;
+    tm->transform(glm::scale(vec3(aspect,1,1)));
+
+    meshBB = tm->calculateAabb();
 
 
-    VertexNT verts[4];
-    //bottom left
-    verts[0] = VertexNT(vec3(-1,-1,0),
-                        vec3(0,0,1),
-                        vec2(0,0));
-    //bottom right
-    verts[1] = VertexNT(vec3(1,-1,0),
-                        vec3(0,0,1),
-                        vec2(1,0));
-    //top right
-    verts[2] = VertexNT(vec3(1,1,0),
-                        vec3(0,0,1),
-                        vec2(1,1));
-    //top left
-    verts[3] = VertexNT(vec3(-1,1,0),
-                        vec3(0,0,1),
-                        vec2(0,1));
-    tm.addQuad(verts);
-
-    tm.transform(glm::scale(mat4(),vec3(float(width)/height,1,1)));
-    meshBB = tm.calculateAabb();
-
-
-    tm.createBuffers(buffer);
+    tm->createBuffers(buffer);
 
 
     setScreenPosition(&color,0);
@@ -74,7 +61,8 @@ void DeferredDebugOverlay::setScreenPosition(GbufferTexture *gbt, int id)
     gbt->calculateModel();
 }
 
-void DeferredDebugOverlay::render(){
+void DeferredDebugOverlay::render()
+{
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     shader->bind();

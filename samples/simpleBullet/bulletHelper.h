@@ -35,7 +35,7 @@ void createConvexCollisionShape(std::vector<Triangle> &mesh, btConvexTriangleMes
 btRigidBody *createRigidBody(
         btCollisionShape *collisionShape,
         float mass = 0.0f,
-        vec3 position=vec3(0), quat rotation=quat(1,0,0,0),
+        vec3 position=vec3(0), quat rotation = IDENTITY_QUATERNION,
         float friction=1.0f
         );
 

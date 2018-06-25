@@ -22,7 +22,17 @@ class GBuffer;
 
 
 
-class SAIGA_GLOBAL DeferredDebugOverlay {
+class SAIGA_GLOBAL DeferredDebugOverlay
+{
+
+public:
+    Layout layout;
+
+    DeferredDebugOverlay(int width, int height);
+
+    void render();
+
+    void setDeferredFramebuffer(GBuffer *gbuffer, std::shared_ptr<raw_Texture> light);
 private:
     struct GbufferTexture : public Object3D{
         std::shared_ptr<raw_Texture> texture;
@@ -31,24 +41,14 @@ private:
 
     AABB meshBB;
 
-    int width,height;
 
     GbufferTexture color, normal, depth, data, light;
-
-    void setScreenPosition(GbufferTexture* gbt, int id);
-public:
-    Layout layout;
 
     std::shared_ptr<MVPTextureShader>  shader, depthShader, normalShader;
     IndexedVertexBuffer<VertexNT,GLuint> buffer;
 
-    DeferredDebugOverlay(int width, int height);
-
+    void setScreenPosition(GbufferTexture* gbt, int id);
     void loadShaders();
-    void render();
-
-    void setDeferredFramebuffer(GBuffer *gbuffer, std::shared_ptr<raw_Texture> light);
-
 
 };
 

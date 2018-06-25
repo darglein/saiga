@@ -185,7 +185,7 @@ void Interpolation::createAsset()
 
             Keyframe kf;
             kf.position = curve.getPointOnCurve(time);
-            kf.rot = glm::quat(1,0,0,0);
+            kf.rot = IDENTITY_QUATERNION;
             vec3 p = kf.position;
 
             //            cout << "time " << time << " p " << p << endl;
@@ -338,7 +338,7 @@ void Interpolation::renderGui(Camera& camera)
         }
         cout << "createAsset();" << endl;
 
-        keyframes.push_back({quat(1,0,0,0),vec3(0)});
+        keyframes.push_back({IDENTITY_QUATERNION,vec3(0)});
     }
 
     if(ImGui::CollapsingHeader("render"))

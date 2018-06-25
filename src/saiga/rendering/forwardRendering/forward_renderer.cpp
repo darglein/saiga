@@ -11,13 +11,13 @@
 
 namespace Saiga {
 
-Forward_Renderer::Forward_Renderer(OpenGLWindow &window)
-    : Renderer(window)
+Forward_Renderer::Forward_Renderer(OpenGLWindow &window, const ForwardRenderingParameters &params)
+    : Renderer(window), params(params)
 {
     timer.create();
 }
 
-void Forward_Renderer::render_intern(Camera *cam)
+void Forward_Renderer::render(Camera *cam)
 {
     if(!rendering)
         return;
@@ -30,6 +30,7 @@ void Forward_Renderer::render_intern(Camera *cam)
 
     timer.startTimer();
 
+    if(params.srgbWrites)
     glEnable(GL_FRAMEBUFFER_SRGB);
 
 
@@ -42,6 +43,7 @@ void Forward_Renderer::render_intern(Camera *cam)
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
+    glClearColor(params.clearColor.x,params.clearColor.y,params.clearColor.z,params.clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     rendering->renderOverlay(cam);
 
@@ -59,6 +61,9 @@ void Forward_Renderer::render_intern(Camera *cam)
     {
         imgui->endFrame();
     }
+
+    if(params.useGlFinish)
+        glFinish();
 
     timer.stopTimer();
 

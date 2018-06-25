@@ -12,17 +12,22 @@
 namespace Saiga {
 
 
+struct SAIGA_GLOBAL ForwardRenderingParameters : public RenderingParameters
+{
+
+
+};
 
 class SAIGA_GLOBAL Forward_Renderer : public Renderer{
 
 public:
+    ForwardRenderingParameters params;
 
-
-    Forward_Renderer(OpenGLWindow& window);
+    Forward_Renderer(OpenGLWindow& window, const ForwardRenderingParameters& params = ForwardRenderingParameters());
     virtual ~Forward_Renderer() {}
 
     virtual float getTotalRenderTime() override { return timer.getTimeMS(); }
-    virtual void render_intern(Camera *cam) override;
+    virtual void render(Camera *cam) override;
 private:
     FilteredMultiFrameOpenGLTimer timer;
 };

@@ -33,7 +33,7 @@ void Renderer::resize(int windowWidth, int windowHeight)
 {
     outputWidth = windowWidth;
     outputHeight = windowHeight;
-    cout << "resize to " << windowWidth << "x" << windowHeight << endl;
+//    cout << "resize to " << windowWidth << "x" << windowHeight << endl;
 }
 
 void Renderer::setRenderObject(Rendering &r)

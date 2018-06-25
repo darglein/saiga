@@ -20,19 +20,7 @@ namespace Saiga {
 
 
 
-struct SAIGA_GLOBAL RenderingParameters{
-    /**
-     * If srgbWrites is enabled all writes to srgb textures will cause a linear->srgb converesion.
-     * Important to note is that writes to the default framebuffer also be converted to srgb.
-     * This means if srgbWrites is enabled all shader inputs must be converted to linear rgb.
-     * For textures use the srgb flag.
-     * For vertex colors and uniforms this conversion must be done manually with Color::srgb2linearrgb()
-     *
-     * If srgbWrites is disabled the gbuffer and postprocessor are not allowed to have srgb textures.
-     *
-     * Note: If srgbWrites is enabled, you can still use a non-srgb gbuffer and post processor.
-     */
-    bool srgbWrites = true;
+struct SAIGA_GLOBAL DeferredRenderingParameters  : public RenderingParameters{
 
     /**
      * When true the depth of the gbuffer is blitted to the default framebuffer.
@@ -56,28 +44,33 @@ struct SAIGA_GLOBAL RenderingParameters{
 
     bool useGPUTimers = true; //meassure gpu times of individual passes. This can decrease the overall performance
 
-	bool useGlFinish = false; //adds a 'glfinish' at the end of the rendering. usefull for debugging.
 
     bool useSSAO = false;
 
     bool useSMAA = false;
     SMAA::Quality smaaQuality = SMAA::Quality::SMAA_PRESET_HIGH;
 
-    vec4 gbufferClearColor = vec4(0,0,0,0);
     vec4 lightingClearColor = vec4(0,0,0,0);
 
     int shadowSamples = 16;
 
+    bool offsetGeometry = false;
+    float offsetFactor = 1.0f, offsetUnits = 1.0f;
+    bool blitLastFramebuffer = true;
+
     GBufferParameters gbp;
     PostProcessorParameters ppp;
-    RenderingParameters(){}
-    RenderingParameters(bool srgbWrites,GBufferParameters gbp,PostProcessorParameters ppp):
-        srgbWrites(srgbWrites),gbp(gbp),ppp(ppp){}
 };
 
 
 class SAIGA_GLOBAL Deferred_Renderer : public Renderer{
 public:
+
+    Deferred_Renderer(OpenGLWindow& window, DeferredRenderingParameters _params = DeferredRenderingParameters());
+    Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
+    virtual ~Deferred_Renderer();
+
+
     enum DeferredTimings{
 		TOTAL = 0,
         GEOMETRYPASS,
@@ -91,25 +84,13 @@ public:
         SMAATIME,
         COUNT,
     };
-private:
-    std::vector<FilteredMultiFrameOpenGLTimer> timers;
 
-    void startTimer(DeferredTimings timer){if(params.useGPUTimers || timer==TOTAL)timers[timer].startTimer();}
-    void stopTimer(DeferredTimings timer){if(params.useGPUTimers || timer == TOTAL)timers[timer].stopTimer();}
-
-    bool blitLastFramebuffer = true;
-
-     std::shared_ptr<Texture> blackDummyTexture;
-
-    bool renderDDO = false;
-    DeferredDebugOverlay ddo;
 
 
 
 public:
 
-    //for imgui
-    bool showLightingImgui = false;
+
 
 
 
@@ -120,56 +101,62 @@ public:
     void printTimings() override;
 
 
+    int renderWidth,renderHeight;
 
-
-
-
-    bool wireframe = false;
-    float wireframeLineSize = 1;
-
-    bool offsetGeometry = false;
-    float offsetFactor = 1.0f, offsetUnits = 1.0f;
-
-
-
-
-    int width,height;
-
-//    Camera** currentCamera;
 
     std::shared_ptr<SSAO> ssao;
 
     std::shared_ptr<SMAA> smaa;
 
-    std::shared_ptr<MVPTextureShader>  blitDepthShader;
 
-    IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
 
     GBuffer gbuffer;
 
 
     PostProcessor postProcessor;
 
-    RenderingParameters params;
-
+    DeferredRenderingParameters params;
 
     DeferredLighting lighting;
-    Deferred_Renderer(OpenGLWindow& window, RenderingParameters _params = RenderingParameters());
-	Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
-    virtual ~Deferred_Renderer();
+
+
     void resize(int outputWidth, int outputHeight) override;
 
 
-    void render_intern(Camera *cam);
+    void render(Camera *cam) override;
+
+
+    void renderImGui(bool* p_open = NULL);
+
+private:
+
+
+
+    std::shared_ptr<MVPTextureShader>  blitDepthShader;
+
+    IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
+
+
+    std::vector<FilteredMultiFrameOpenGLTimer> timers;
+
+    void startTimer(DeferredTimings timer){if(params.useGPUTimers || timer==TOTAL)timers[timer].startTimer();}
+    void stopTimer(DeferredTimings timer){if(params.useGPUTimers || timer == TOTAL)timers[timer].stopTimer();}
+
+
+     std::shared_ptr<Texture> blackDummyTexture;
+
+     //for imgui
+     bool showLightingImgui = false;
+
+    bool renderDDO = false;
+    DeferredDebugOverlay ddo;
+
     void renderGBuffer(Camera *cam);
     void renderDepthMaps(); //render the scene from the lights perspective (don't need user camera here)
     void renderLighting(Camera *cam);
     void renderSSAO(Camera *cam);
 
     void writeGbufferDepthToCurrentFramebuffer();
-
-    void renderImGui(bool* p_open = NULL);
-
 };
 
 }

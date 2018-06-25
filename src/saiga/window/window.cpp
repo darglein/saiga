@@ -510,7 +510,7 @@ void OpenGLWindow::render(float dt, float interpolation)
 
     renderCPUTimer.start();
     if(renderer)
-        renderer->render_intern(currentCamera);
+        renderer->render(currentCamera);
     renderCPUTimer.stop();
 
     updateRenderGraph();

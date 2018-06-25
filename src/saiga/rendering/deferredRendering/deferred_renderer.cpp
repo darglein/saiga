@@ -17,11 +17,11 @@
 
 namespace Saiga {
 
-Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _params) :
+Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, DeferredRenderingParameters _params) :
     Renderer(window),
-    ddo(window.getWidth(),window.getHeight()),
-    width(window.getWidth()*_params.renderScale), height(window.getHeight()*_params.renderScale),
-    params(_params),lighting(gbuffer)
+    renderWidth(window.getWidth()*_params.renderScale), renderHeight(window.getHeight()*_params.renderScale),
+    params(_params),lighting(gbuffer),
+    ddo(window.getWidth(),window.getHeight())
 {
 
 
@@ -30,7 +30,7 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _
     //    setSize(windowWidth,windowHeight);
 
     if(params.useSMAA){
-        smaa = std::make_shared<SMAA>(width, height);
+        smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
         smaa->loadShader(params.smaaQuality);
     }
 
@@ -42,7 +42,7 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _
 
     }
     if(params.useSSAO){
-        ssao = std::make_shared<SSAO>(width, height);
+        ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
     //        ssao.init(windowWidth*params.renderScale, windowHeight*params.renderScale);
@@ -59,21 +59,21 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _
 
         //TODO check for mesa
         //If this is true some recording softwares record the image too dark :(
-        blitLastFramebuffer = false;
+        params.blitLastFramebuffer = false;
     }
 
 
 
-    gbuffer.init(width, height, params.gbp);
+    gbuffer.init(renderWidth, renderHeight, params.gbp);
 
-    lighting.init(width, height, params.useGPUTimers);
+    lighting.init(renderWidth, renderHeight, params.useGPUTimers);
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor = params.lightingClearColor;
     lighting.loadShaders();
 
 
 
-    postProcessor.init(width, height, &gbuffer, params.ppp, lighting.lightAccumulationTexture, params.useGPUTimers);
+    postProcessor.init(renderWidth, renderHeight, &gbuffer, params.ppp, lighting.lightAccumulationTexture, params.useGPUTimers);
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -91,7 +91,6 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _
 
     blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/blitDepth.glsl");
 
-    //    ddo.setDeferredFramebuffer(&gbuffer,ssao ? ssao->bluredTexture : blackDummyTexture);
     ddo.setDeferredFramebuffer(&gbuffer,lighting.volumetricLightTexture2);
 
 
@@ -104,7 +103,7 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, RenderingParameters _
     postProcessor.setPostProcessingEffects(defaultEffects);
 
 
-    cout << "Deferred Renderer initialized. Render resolution: " << width << "x" << height << endl;
+    cout << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight << endl;
 
 }
 
@@ -120,25 +119,25 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 
 
     if (windowWidth <= 0 || windowHeight <= 0) {
-        cout << "Warning: The window size must be greater than zero to be complete." << endl;
+        cerr << "Warning: The window size must be greater than zero." << endl;
         windowWidth = glm::max(windowWidth, 1);
         windowHeight = glm::max(windowHeight, 1);
     }
     this->outputWidth = windowWidth;
     this->outputHeight = windowHeight;
-    this->width = windowWidth * params.renderScale;
-    this->height = windowHeight * params.renderScale;
+    this->renderWidth = windowWidth * params.renderScale;
+    this->renderHeight = windowHeight * params.renderScale;
     cout << "Resizing Window to : " << windowWidth << "," << windowHeight << endl;
-    cout << "Framebuffer size: " << width << " " << height << endl;
-    postProcessor.resize(width, height);
-    gbuffer.resize(width, height);
-    lighting.resize(width, height);
+    cout << "Framebuffer size: " << renderWidth << " " << renderHeight << endl;
+    postProcessor.resize(renderWidth, renderHeight);
+    gbuffer.resize(renderWidth, renderHeight);
+    lighting.resize(renderWidth, renderHeight);
 
     if(ssao)
-        ssao->resize(width, height);
+        ssao->resize(renderWidth, renderHeight);
 
     if(smaa){
-        smaa->resize(width,height);
+        smaa->resize(renderWidth,renderHeight);
     }
 }
 
@@ -147,7 +146,7 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 
 
 
-void Deferred_Renderer::render_intern(Camera *cam)
+void Deferred_Renderer::render(Camera *cam)
 {
     if(!rendering)
         return;
@@ -238,9 +237,11 @@ void Deferred_Renderer::render_intern(Camera *cam)
 
 
     //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    //glClear(GL_COLOR_BUFFER_BIT);
+    //    glClear(GL_COLOR_BUFFER_BIT);
     startTimer(FINAL);
-    if(renderDDO){
+    glViewport(0, 0, renderWidth, renderHeight);
+    if(renderDDO)
+    {
         bindCamera(&ddo.layout.cam);
         ddo.render();
     }
@@ -261,7 +262,7 @@ void Deferred_Renderer::render_intern(Camera *cam)
 
     glDisable(GL_BLEND);
 
-    if(blitLastFramebuffer)
+    if(params.blitLastFramebuffer)
         postProcessor.blitLast(outputWidth, outputHeight);
     else
         postProcessor.renderLast(outputWidth, outputHeight);
@@ -299,8 +300,8 @@ void Deferred_Renderer::renderGBuffer(Camera *cam) {
 
 
     gbuffer.bind();
-    glViewport(0, 0, width, height);
-    glClearColor(params.gbufferClearColor.x, params.gbufferClearColor.y, params.gbufferClearColor.z, params.gbufferClearColor.w);
+    glViewport(0, 0, renderWidth, renderHeight);
+    glClearColor(params.clearColor.x, params.clearColor.y, params.clearColor.z, params.clearColor.w);
 
     if (params.maskUsedPixels) {
         glClearStencil(0xFF); //sets stencil buffer to 255
@@ -320,20 +321,20 @@ void Deferred_Renderer::renderGBuffer(Camera *cam) {
     glCullFace(GL_BACK);
 
 
-    if (offsetGeometry) {
+    if (params.offsetGeometry) {
         glEnable(GL_POLYGON_OFFSET_FILL);
-        glPolygonOffset(offsetFactor, offsetUnits);
+        glPolygonOffset(params.offsetFactor, params.offsetUnits);
     }
 
-    if (wireframe) {
+    if (params.wireframe) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glLineWidth(wireframeLineSize);
+        glLineWidth(params.wireframeLineSize);
     }
     rendering->render(cam);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
-    if (offsetGeometry) {
+    if (params.offsetGeometry) {
         glDisable(GL_POLYGON_OFFSET_FILL);
     }
 
@@ -435,8 +436,8 @@ void Deferred_Renderer::renderImGui(bool *p_open)
     ImGui::Begin("Deferred Renderer",p_open);
 
     ImGui::Checkbox("renderDDO", &renderDDO);
-    ImGui::Checkbox("wireframe", &wireframe);
-    ImGui::Checkbox("offsetGeometry", &offsetGeometry);
+    ImGui::Checkbox("wireframe", &params.wireframe);
+    ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
 
     ImGui::Text("Render Time");
     ImGui::Text("%fms - Geometry pass",getTime(GEOMETRYPASS));
@@ -453,7 +454,7 @@ void Deferred_Renderer::renderImGui(bool *p_open)
 
     if(ImGui::Checkbox("SMAA",&params.useSMAA)){
         if(params.useSMAA){
-            smaa = std::make_shared<SMAA>(width, height);
+            smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
             smaa->loadShader(params.smaaQuality);
         }else{
             smaa.reset();
@@ -466,7 +467,7 @@ void Deferred_Renderer::renderImGui(bool *p_open)
 
     if(ImGui::Checkbox("SSAO",&params.useSSAO)){
         if(params.useSSAO){
-            ssao = std::make_shared<SSAO>(width, height);
+            ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
         }else{
             ssao.reset();
         }

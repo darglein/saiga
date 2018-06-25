@@ -19,7 +19,7 @@ namespace Saiga {
 
 class Camera;
 class Deferred_Renderer;
-struct RenderingParameters;
+struct DeferredRenderingParameters;
 class Image;
 
 class SAIGA_GLOBAL OpenGLWindow{
@@ -73,7 +73,7 @@ public:
     virtual ~OpenGLWindow();
 
 
-    bool init(const RenderingParameters &params);
+    bool init(const DeferredRenderingParameters &params);
     bool create();
     void destroy();
 
@@ -123,7 +123,7 @@ public:
     virtual std::shared_ptr<ImGuiRenderer> createImGui() { return nullptr; }
 protected:
     void resize(int width, int height);
-    void initDeferredRendering(const RenderingParameters& params);
+    void initDeferredRendering(const DeferredRenderingParameters& params);
     void update(float dt);
     void render(float dt, float interpolation);
     void startParallelUpdate(float dt);

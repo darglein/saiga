@@ -20,7 +20,7 @@ public:
 
     //required for non uniform scaled rotations
     //TODO: extra class so uniform objects are faster
-    quat rot = quat(1,0,0,0);
+    quat rot = IDENTITY_QUATERNION;
     vec4 scale = vec4(1);
     vec4 position = vec4(0);
 

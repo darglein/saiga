@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -17,7 +17,7 @@ namespace Saiga {
 
 AssetLoader::AssetLoader()
 {
-     loadDefaultShaders();
+    loadDefaultShaders();
 }
 
 AssetLoader::~AssetLoader()
@@ -45,18 +45,18 @@ void AssetLoader::loadDefaultShaders()
 
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
 {
-        auto cbImage = ImageGenerator::checkerBoard(color1,color2,16,2,2);
-        std::shared_ptr<Texture> cbTexture = std::make_shared<Texture>();
-        cbTexture->fromImage(*cbImage,true);
-        cbTexture->setFiltering(GL_NEAREST);
-        cbTexture->setWrap(GL_REPEAT);
-        cbTexture->generateMipmaps();
-        std::shared_ptr<TexturedAsset> asset = loadDebugTexturedPlane(cbTexture,size);
-        for(auto &v : asset->mesh.vertices){
-            v.texture *= size / quadSize;
-        }
-        asset->mesh.createBuffers(asset->buffer);
-        return asset;
+    auto cbImage = ImageGenerator::checkerBoard(color1,color2,16,2,2);
+    std::shared_ptr<Texture> cbTexture = std::make_shared<Texture>();
+    cbTexture->fromImage(*cbImage,true);
+    cbTexture->setFiltering(GL_NEAREST);
+    cbTexture->setWrap(GL_REPEAT);
+    cbTexture->generateMipmaps();
+    std::shared_ptr<TexturedAsset> asset = loadDebugTexturedPlane(cbTexture,size);
+    for(auto &v : asset->mesh.vertices){
+        v.texture *= size / quadSize;
+    }
+    asset->mesh.createBuffers(asset->buffer);
+    return asset;
 }
 
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
@@ -116,16 +116,16 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugGrid(int numX, int numY, flo
 
 std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float length, vec4 color)
 {
-//    auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
+    //    auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
     auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius,length,12);
-    mat4 m = glm::translate(mat4(),vec3(0,length*0.5f,0));
+    mat4 m = glm::translate(vec3(0,length*0.5f,0));
     cylinderMesh->transform(m);
 
     float coneH = length * 0.3f;
     float coneR = radius * 1.3f;
     auto coneMesh = TriangleMeshGenerator::createMesh(Cone(vec3(0),vec3(0,1,0),coneR,coneH),12);
-    m = glm::translate(mat4(),vec3(0,length+coneH,0));
-        coneMesh->transform(m);
+    m = glm::translate(vec3(0,length+coneH,0));
+    coneMesh->transform(m);
 
     auto asset = std::make_shared<ColoredAsset>();
     asset->mesh.addMesh(*cylinderMesh);
@@ -175,10 +175,10 @@ std::shared_ptr<ColoredAsset> AssetLoader::nonTriangleMesh(std::vector<vec3> ver
     for(auto v : vertices){
         asset->mesh.vertices.push_back(VertexNC(v,vec3(0,1,0),vec3(color)));
     }
-//    for(auto& v : asset->mesh.vertices){
-//        v.color = color;
-//        v.data = vec4(0.5,0,0,0);
-//    }
+    //    for(auto& v : asset->mesh.vertices){
+    //        v.color = color;
+    //        v.data = vec4(0.5,0,0,0);
+    //    }
     asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     asset->buffer.set(asset->mesh.vertices,indices,GL_STATIC_DRAW);
     asset->buffer.setDrawMode(mode);
@@ -229,8 +229,8 @@ static void createFrustumMesh(mat4 proj, std::vector<vec3>& vertices,  std::vect
     };
 
     for(int i = 0 ; i < 8 ; ++i){
-//        Vertex v;
-//        v.position = positions[i];
+        //        Vertex v;
+        //        v.position = positions[i];
         vertices.push_back(vec3(positions[i]));
     }
 
@@ -254,11 +254,11 @@ static void createFrustumMesh(mat4 proj, std::vector<vec3>& vertices,  std::vect
 
 std::shared_ptr<ColoredAsset> AssetLoader::frustumMesh(const mat4 &proj, const vec4 &color)
 {
-     std::vector<vec3> vertices;
-     std::vector<GLuint> indices;
-     createFrustumMesh(proj,vertices,indices);
+    std::vector<vec3> vertices;
+    std::vector<GLuint> indices;
+    createFrustumMesh(proj,vertices,indices);
 
-     return nonTriangleMesh(vertices,indices,GL_LINES,color);
+    return nonTriangleMesh(vertices,indices,GL_LINES,color);
 
 }
 

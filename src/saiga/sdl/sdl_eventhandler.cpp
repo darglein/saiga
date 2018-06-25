@@ -98,8 +98,9 @@ void SDL_EventHandler::update(){
 
         if(e.type == SDL_WINDOWEVENT){
             SDL_WindowEvent we = e.window;
-            if(we.event == SDL_WINDOWEVENT_RESIZED){
-                cout << "Window " << we.windowID << " resized to " << we.data1 << "x" << we.data2 << endl;
+            if(we.event == SDL_WINDOWEVENT_RESIZED)
+            {
+                cout << "SDL Window (ID=" << we.windowID << ") resized to " << we.data1 << "x" << we.data2 << endl;
                 resizeWindow(we.windowID,we.data1,we.data2);
             }
         }

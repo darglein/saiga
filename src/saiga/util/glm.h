@@ -24,6 +24,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/random.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
 //#include <glm/gtx/type_aligned.hpp>
 
 using std::ostream;
@@ -86,6 +87,9 @@ typedef glm::vec3 vec3;
 typedef glm::vec4 vec4;
 typedef glm::mat4 mat4;
 typedef glm::quat quat;
+
+
+static const quat IDENTITY_QUATERNION = quat(1,0,0,0);
 
 typedef glm::tvec2<char, glm::highp> cvec2;
 typedef glm::tvec3<char, glm::highp> cvec3;
