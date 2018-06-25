@@ -310,6 +310,26 @@ message(STATUS "CMAKE_CUDA_FLAGS_DEBUG: ${CMAKE_CUDA_FLAGS_DEBUG}")
 message(STATUS "CMAKE_CUDA_FLAGS_RELWITHDEBINFO: ${CMAKE_CUDA_FLAGS_RELWITHDEBINFO}")
 message(STATUS "CMAKE_CUDA_FLAGS_RELEASE: ${CMAKE_CUDA_FLAGS_RELEASE}")
 endif()
+
+############# Generate config file ###############
+
+set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/buildconfig.h")
+INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/buildconfig.h.in"
+  "${SAIGA_BUILDCONFIG_FILE}"
+)
+
+
+set(SAIGA_CONFIG_CMAKE_FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/SAIGAConfig.cmake")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfig.cmake.in"
+  "${SAIGA_CONFIG_CMAKE_FILE}"
+  @ONLY
+  )
+
+
 ############# SOURCE ###############
 
 
@@ -330,25 +350,18 @@ endif()
 
 set_target_properties (saiga PROPERTIES FOLDER lib)
 
-############# Generate config file ###############
 
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/buildconfig.h.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/buildconfig.h"
-)
-
-
-set(SAIGA_CONFIG_CMAKE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfig.cmake")
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfig.cmake.in"
-  "${SAIGA_CONFIG_CMAKE_FILE}"
-  @ONLY
-  )
 
 #install config file to share/
 install(
 	FILES "${SAIGA_CONFIG_CMAKE_FILE}"
 	DESTINATION ${INSTALL_SHARE}
+)
+
+#install buildconfig include/
+install(
+        FILES "${SAIGA_BUILDCONFIG_FILE}"
+        DESTINATION ${INSTALL_INCLUDE}
 )
 
 ############# Doxygen ###############
