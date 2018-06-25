@@ -179,8 +179,6 @@ void convert(const fipImage &src, Image& dest){
 
 }
 
-#endif
-
 
 static double parseFraction(const void* data){
     const int* idata = reinterpret_cast<const int*>(data);
@@ -260,3 +258,6 @@ void printAllMetaData(fipImage &img)
 
 }
 }
+
+
+#endif
