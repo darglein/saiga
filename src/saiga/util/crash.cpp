@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -33,7 +33,7 @@ std::function<void()> customCrashHandler;
 
 void addCustomSegfaultHandler(std::function<void()> fnc)
 {
-	customCrashHandler = fnc;
+    customCrashHandler = fnc;
 }
 
 #if defined(__unix__)
@@ -57,7 +57,7 @@ void printCurrentStack(){
     size = backtrace(array, 50);
 
     /* overwrite sigaction with caller's address */
-//    array[1] = caller_address;
+    //    array[1] = caller_address;
 
     messages = backtrace_symbols(array, size);
 
@@ -120,62 +120,69 @@ void catchSegFaults()
 //The code requires you to link against the DbgHelp.lib library
 
 void printCurrentStack() {
-	std::string outWalk;
-	// Set up the symbol options so that we can gather information from the current
-	// executable's PDB files, as well as the Microsoft symbol servers.  We also want
-	// to undecorate the symbol names we're returned.  If you want, you can add other
-	// symbol servers or paths via a semi-colon separated list in SymInitialized.
-	::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_INCLUDE_32BIT_MODULES | SYMOPT_UNDNAME);
-	if (!::SymInitialize(::GetCurrentProcess(), "http://msdl.microsoft.com/download/symbols", TRUE)) return;
+    std::string outWalk;
+    // Set up the symbol options so that we can gather information from the current
+    // executable's PDB files, as well as the Microsoft symbol servers.  We also want
+    // to undecorate the symbol names we're returned.  If you want, you can add other
+    // symbol servers or paths via a semi-colon separated list in SymInitialized.
+    ::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_INCLUDE_32BIT_MODULES | SYMOPT_UNDNAME);
+    if (!::SymInitialize(::GetCurrentProcess(), "http://msdl.microsoft.com/download/symbols", TRUE)) return;
 
-	// Capture up to 25 stack frames from the current call stack.  We're going to
-	// skip the first stack frame returned because that's the GetStackWalk function
-	// itself, which we don't care about.
+    // Capture up to 25 stack frames from the current call stack.  We're going to
+    // skip the first stack frame returned because that's the GetStackWalk function
+    // itself, which we don't care about.
     const int numAddrs = 50;
     PVOID addrs[numAddrs] = { 0 };
     USHORT frames = CaptureStackBackTrace(0, numAddrs-1, addrs, NULL);
 
-	for (USHORT i = 0; i < frames; i++) {
-		// Allocate a buffer large enough to hold the symbol information on the stack and get 
-		// a pointer to the buffer.  We also have to set the size of the symbol structure itself
-		// and the number of bytes reserved for the name.
-		ULONG64 buffer[(sizeof(SYMBOL_INFO) + 1024 + sizeof(ULONG64) - 1) / sizeof(ULONG64)] = { 0 };
-		SYMBOL_INFO *info = (SYMBOL_INFO *)buffer;
-		info->SizeOfStruct = sizeof(SYMBOL_INFO);
-		info->MaxNameLen = 1024;
+    for (USHORT i = 0; i < frames; i++) {
+        // Allocate a buffer large enough to hold the symbol information on the stack and get
+        // a pointer to the buffer.  We also have to set the size of the symbol structure itself
+        // and the number of bytes reserved for the name.
+        ULONG64 buffer[(sizeof(SYMBOL_INFO) + 1024 + sizeof(ULONG64) - 1) / sizeof(ULONG64)] = { 0 };
+        SYMBOL_INFO *info = (SYMBOL_INFO *)buffer;
+        info->SizeOfStruct = sizeof(SYMBOL_INFO);
+        info->MaxNameLen = 1024;
 
-		// Attempt to get information about the symbol and add it to our output parameter.
-		DWORD64 displacement = 0;
-		if (::SymFromAddr(::GetCurrentProcess(), (DWORD64)addrs[i], &displacement, info)) {
-			//outWalk.append(info->Name, info->NameLen);
-			//outWalk.append("\n");
-			std::cout << "[bt]: (" << i << ") " << info->Name << std::endl;
-		}
-	}
+        // Attempt to get information about the symbol and add it to our output parameter.
+        DWORD64 displacement = 0;
+        if (::SymFromAddr(::GetCurrentProcess(), (DWORD64)addrs[i], &displacement, info)) {
+            //outWalk.append(info->Name, info->NameLen);
+            //outWalk.append("\n");
+            std::cout << "[bt]: (" << i << ") " << info->Name << std::endl;
+        }
+    }
 
-	::SymCleanup(::GetCurrentProcess());
+    ::SymCleanup(::GetCurrentProcess());
 
 }
 
 void SignalHandler(int signal)
 {
-	printCurrentStack();
+    printCurrentStack();
 
-	if (customCrashHandler)
-		customCrashHandler();
+    if (customCrashHandler)
+        customCrashHandler();
 
 
-	//make sure the program exits here, because otherwise the programm will continue after the segfault
-	SAIGA_ASSERT(0);
-	exit(EXIT_FAILURE);
+    //make sure the program exits here, because otherwise the programm will continue after the segfault
+    SAIGA_ASSERT(0);
+    exit(EXIT_FAILURE);
 }
 
 void catchSegFaults()
 {
-	typedef void(*SignalHandlerPointer)(int);
+    typedef void(*SignalHandlerPointer)(int);
 
-	SignalHandlerPointer previousHandler;
-	previousHandler = signal(SIGSEGV, SignalHandler);
+    SignalHandlerPointer previousHandler;
+    previousHandler = signal(SIGSEGV, SignalHandler);
+}
+#endif
+
+
+#if defined(__APPLE__)
+void catchSegFaults()
+{
 }
 #endif
 

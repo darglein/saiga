@@ -55,7 +55,7 @@ PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIRS}" "${SDL2_LIBRARY}")
 
 
 #GLFW
-find_package(GLFW QUIET)
+find_package(GLFW 3.2 QUIET)
 if (GLFW_FOUND)
 	SET(SAIGA_USE_GLFW 1)
 endif ()
@@ -100,7 +100,7 @@ endif()
 PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 #assimp
-find_package(ASSIMP QUIET)
+find_package(ASSIMP 4.0 QUIET)
 if(ASSIMP_FOUND)
 	SET(SAIGA_USE_ASSIMP 1)
 endif()

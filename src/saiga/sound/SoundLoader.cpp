@@ -8,11 +8,11 @@
 #include "saiga/util/assert.h"
 #include <fstream>
 
-#include <AL/al.h>
-#include <AL/alc.h>
+#include <al.h>
+#include <alc.h>
 
 #ifdef SAIGA_USE_ALUT
-#include <AL/alut.h>
+#include <alut.h>
 #endif
 
 #ifdef SAIGA_USE_OPUS

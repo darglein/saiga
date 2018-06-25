@@ -73,7 +73,7 @@ public:
     virtual ~Deferred_Renderer();
 
     void render(Camera *cam) override;
-    void renderImGui(bool* p_open = NULL);
+    void renderImGui(bool* p_open = NULL) override;
 
 
     enum DeferredTimings{
@@ -92,7 +92,7 @@ public:
 
     float getTime(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].getTimeMS();}
     float getUnsmoothedTimeMS(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].MultiFrameOpenGLTimer::getTimeMS();}
-    float getTotalRenderTime() { return getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL); }
+    float getTotalRenderTime() override { return getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL); }
 
     void printTimings() override;
     void resize(int outputWidth, int outputHeight) override;

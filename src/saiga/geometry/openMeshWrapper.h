@@ -39,7 +39,7 @@ void triangleMeshToOpenMesh(const TriangleMesh<vertex_t,index_t>& src, MeshT& ds
     std::vector<typename MeshT::VertexHandle> handles(src.vertices.size());
     for(int i = 0; i < (int)src.vertices.size();++i)
     {
-        vec3 p = src.vertices[i].position;
+        auto p = src.vertices[i].position;
         auto vit = dst.add_vertex(typename MeshT::Point(p.x,p.y,p.z));
 
 //        vec3 c = src.vertices[i].color;
@@ -70,7 +70,7 @@ void copyVertexColor(const TriangleMesh<vertex_t,index_t>& src, MeshT& dst)
 //    int i = 0;
     for(int i = 0; i < (int)src.vertices.size();++i)
     {
-        vec3 c = src.vertices[i].color;
+        auto c = src.vertices[i].color;
         dst.set_color(typename MeshT::VertexHandle(i), typename MeshT::Color(c.x,c.y,c.z));
 
 //        vertex_t& ve = dst.vertices[i];

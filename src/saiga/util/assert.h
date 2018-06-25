@@ -15,9 +15,10 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 //      throw __attribute__ ((__noreturn__));
 }
 
+
 # if defined WIN32
 #   define SAIGA_ASSERT_FUNCTION	__FUNCSIG__
-# else
+# elif defined LINUX
 #include <features.h>
 # if defined __cplusplus ? __GNUC_PREREQ (2, 6) : __GNUC_PREREQ (2, 4)
 #   define SAIGA_ASSERT_FUNCTION	__PRETTY_FUNCTION__
@@ -28,6 +29,8 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 #   define SAIGA_ASSERT_FUNCTION	((const char *) 0)
 #  endif
 # endif
+# elif defined __APPLE__
+#   define SAIGA_ASSERT_FUNCTION	__PRETTY_FUNCTION__
 # endif
 
 

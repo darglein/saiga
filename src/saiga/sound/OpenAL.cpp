@@ -7,11 +7,11 @@
 #include "saiga/sound/OpenAL.h"
 
 
-#include <AL/al.h>
-#include <AL/alc.h>
+#include <al.h>
+#include <alc.h>
 
 #ifdef SAIGA_USE_ALUT
-#include <AL/alut.h>
+#include <alut.h>
 #endif
 
 #include "saiga/util/assert.h"

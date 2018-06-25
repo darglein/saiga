@@ -145,7 +145,7 @@ bool glfw_Window::initWindow()
     }
 
     if(windowParameters.hidden)
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_VISIBLE, 0);
 
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, oparams.debug);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, oparams.forwardCompatible);
@@ -156,7 +156,7 @@ bool glfw_Window::initWindow()
     glfwWindowHint(GLFW_FLOATING,windowParameters.alwaysOnTop);
     glfwWindowHint(GLFW_RESIZABLE,windowParameters.resizeAble);
 
-    glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
+    glfwWindowHint(GLFW_DOUBLEBUFFER, 1);
     // GLFW_REFRESH_RATE, GLFW_DONT_CARE = highest
     glfwWindowHint(GLFW_REFRESH_RATE, GLFW_DONT_CARE);
 

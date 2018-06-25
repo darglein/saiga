@@ -7,8 +7,8 @@
 #include <saiga/sound/SoundSource.h>
 #include <saiga/sound/SoundManager.h>
 
-#include <AL/al.h>
-#include <AL/alc.h>
+#include <al.h>
+#include <alc.h>
 
 
 namespace Saiga {

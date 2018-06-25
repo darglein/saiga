@@ -20,14 +20,15 @@ Directory::Directory(const std::string &dir)
     dirname = dir;
     if ((this->dir = opendir (dir.c_str())) == NULL)
     {
-//        std::cout<<"could not open directory: "<<dir<<std::endl;
-//        SAIGA_ASSERT(0);
+        //        std::cout<<"could not open directory: "<<dir<<std::endl;
+        //        SAIGA_ASSERT(0);
     }
 }
 
 Directory::~Directory()
 {
-    closedir (dir);
+    if(dir)
+        closedir (dir);
 }
 
 void Directory::getFiles(std::vector<std::string> &out)
