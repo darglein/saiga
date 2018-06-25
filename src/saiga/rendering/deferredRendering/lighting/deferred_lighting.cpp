@@ -23,54 +23,32 @@
 
 namespace Saiga {
 
-DeferredLighting::DeferredLighting(GBuffer &framebuffer):gbuffer(framebuffer){
+DeferredLighting::DeferredLighting(GBuffer &framebuffer)
+    :
+      gbuffer(framebuffer)
+{
     createLightMeshes();
     shadowCameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
 }
 
-DeferredLighting::~DeferredLighting(){
+DeferredLighting::~DeferredLighting()
+{
 }
 
-void DeferredLighting::loadShaders(const DeferredLightingShaderNames &names)
+void DeferredLighting::loadShaders()
 {
-    int shadowSamplesX = glm::round( glm::sqrt( (float) shadowSamples) );
-    //    cout << "DeferredLighting shadowSamplesX=" << shadowSamplesX << endl;
+
+    const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
 
 
-    ShaderPart::ShaderCodeInjections shadowInjection;
-    shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
-                                 "#define SHADOWS",1);
-    shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
-                                 "#define SHADOW_SAMPLES_X " + std::to_string(shadowSamplesX),2);
 
-    ShaderPart::ShaderCodeInjections volumetricInjection = shadowInjection;
-    volumetricInjection.emplace_back(GL_FRAGMENT_SHADER,
-                                     "#define VOLUMETRIC",3);
 
-    spotLightShader         = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader);
-    spotLightShadowShader   = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader,shadowInjection);
-    spotLightVolumetricShader   = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader,volumetricInjection);
 
-    pointLightShader = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader);
-    pointLightShadowShader = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader,shadowInjection);
-    pointLightVolumetricShader   = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader,volumetricInjection);
 
-    boxLightShader = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader);
-    boxLightShadowShader = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader,shadowInjection);
-    boxLightVolumetricShader  = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader,volumetricInjection);
 
-    directionalLightShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader);
-    directionalLightShadowShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader,shadowInjection);
-
-    debugShader = ShaderLoader::instance()->load<MVPColorShader>(names.debugShader);
     stencilShader = ShaderLoader::instance()->load<MVPShader>(names.stencilShader);
 
-    //    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/blitDepth.glsl");
-    lightAccumulationShader = ShaderLoader::instance()->load<LightAccumulationShader>(names.lightAccumulationShader);
 
-    textureShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/light_test.glsl");
-    volumetricBlurShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/volumetricBlur.glsl");
-    volumetricBlurShader2 = ShaderLoader::instance()->load<Shader>("lighting/volumetricBlur2.glsl");
 
 }
 
@@ -128,6 +106,16 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers){
     volumetricBuffer.drawTo( {0} );
     volumetricBuffer.check();
     volumetricBuffer.unbind();
+
+
+    int shadowSamplesX = glm::round( glm::sqrt( (float) shadowSamples) );
+    shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define SHADOWS",1);
+    shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define SHADOW_SAMPLES_X " + std::to_string(shadowSamplesX),2);
+
+    volumetricInjection.emplace_back(GL_FRAGMENT_SHADER,
+                                     "#define VOLUMETRIC",3);
 }
 
 void DeferredLighting::resize(int _width, int _height)
@@ -360,6 +348,12 @@ void DeferredLighting::render(Camera* cam){
 
 void DeferredLighting::postprocessVolumetric()
 {
+    //lazy load
+    if(!volumetricBlurShader)
+    {
+        volumetricBlurShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/volumetricBlur.glsl");
+        volumetricBlurShader2 = ShaderLoader::instance()->load<Shader>("lighting/volumetricBlur2.glsl");
+    }
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
@@ -376,13 +370,13 @@ void DeferredLighting::postprocessVolumetric()
 
 #if 0
     volumetricBlurShader2->bind();
-//    volumetricLightTexture2->bind(0);
+    //    volumetricLightTexture2->bind(0);
     volumetricLightTexture2->bindImageTexture(0,GL_WRITE_ONLY);
-//    glBindImageTexture( 0, volumetricLightTexture2->getId(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16 );
-//    volumetricBlurShader2->upload(5,5);
-//    cout << width << "x" << height << endl;
+    //    glBindImageTexture( 0, volumetricLightTexture2->getId(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16 );
+    //    volumetricBlurShader2->upload(5,5);
+    //    cout << width << "x" << height << endl;
     volumetricBlurShader2->dispatchCompute(Saiga::iDivUp(width,16),Saiga::iDivUp(height,16),1);
-//    volumetricBlurShader2->dispatchCompute(width,height,1);
+    //    volumetricBlurShader2->dispatchCompute(width,height,1);
     volumetricBlurShader2->unbind();
 #endif
 
@@ -475,6 +469,9 @@ void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
 
 
 void DeferredLighting::renderDebug(Camera *cam){
+
+    if(!debugShader)
+        debugShader = ShaderLoader::instance()->load<MVPColorShader>("lighting/debugmesh.glsl");
 
     debugShader->bind();
 
@@ -594,6 +591,9 @@ void DeferredLighting::applyVolumetricLightBuffer()
     if(!renderVolumetric)
         return;
 
+    if(!textureShader)
+        textureShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/light_test.glsl");
+
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
@@ -676,25 +676,60 @@ void DeferredLighting::createLightMeshes(){
     bb->createBuffers(boxLightMesh);
 }
 
-std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight(){
+std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight()
+{
+    if(!spotLightShader)
+    {
+        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+        directionalLightShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader);
+        directionalLightShadowShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader,shadowInjection);
+    }
+
     std::shared_ptr<DirectionalLight> l =  std::make_shared<DirectionalLight>();
     directionalLights.push_back(l);
     return l;
 }
 
-std::shared_ptr<PointLight> DeferredLighting::createPointLight(){
+std::shared_ptr<PointLight> DeferredLighting::createPointLight()
+{
+    if(!spotLightShader)
+    {
+        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+        pointLightShader = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader);
+        pointLightShadowShader = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader,shadowInjection);
+        pointLightVolumetricShader   = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader,volumetricInjection);
+    }
+
     std::shared_ptr<PointLight> l =  std::make_shared<PointLight>();
     pointLights.push_back(l);
     return l;
 }
 
-std::shared_ptr<SpotLight> DeferredLighting::createSpotLight(){
+std::shared_ptr<SpotLight> DeferredLighting::createSpotLight()
+{
+    if(!spotLightShader)
+    {
+        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+        spotLightShader         = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader);
+        spotLightShadowShader   = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader,shadowInjection);
+        spotLightVolumetricShader   = ShaderLoader::instance()->load<SpotLightShader>(names.spotLightShader,volumetricInjection);
+    }
+
     std::shared_ptr<SpotLight> l =  std::make_shared<SpotLight>();
     spotLights.push_back(l);
     return l;
 }
 
-std::shared_ptr<BoxLight> DeferredLighting::createBoxLight(){
+std::shared_ptr<BoxLight> DeferredLighting::createBoxLight()
+{
+    if(!spotLightShader)
+    {
+        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+        boxLightShader = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader);
+        boxLightShadowShader = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader,shadowInjection);
+        boxLightVolumetricShader  = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader,volumetricInjection);
+    }
+
     std::shared_ptr<BoxLight> l =  std::make_shared<BoxLight>();
     boxLights.push_back(l);
     return l;

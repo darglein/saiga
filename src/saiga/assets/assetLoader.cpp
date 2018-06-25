@@ -17,7 +17,6 @@ namespace Saiga {
 
 AssetLoader::AssetLoader()
 {
-    loadDefaultShaders();
 }
 
 AssetLoader::~AssetLoader()
@@ -26,22 +25,36 @@ AssetLoader::~AssetLoader()
 }
 
 
-void AssetLoader::loadDefaultShaders()
+void AssetLoader::loadBasicShaders()
 {
+    if(basicAssetShader)
+        return;
     basicAssetShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model.glsl");
     basicAssetForwardShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_forward.glsl");
     basicAssetDepthshader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_depth.glsl");
     basicAssetWireframeShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_wireframe.glsl");
+}
 
+void AssetLoader::loadTextureShaders()
+{
+    if(texturedAssetShader)
+        return;
     texturedAssetShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
     texturedAssetForwardShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
     texturedAssetDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_depth.glsl");
     texturedAssetWireframeShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_wireframe.glsl");
 
+}
+
+void AssetLoader::loadAnimatedShaders()
+{
+    if(animatedAssetShader)
+        return;
     animatedAssetShader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones.glsl");
     animatedAssetDepthshader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones_depth.glsl");
     animatedAssetWireframeShader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones.glsl");
 }
+
 
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
 {
@@ -78,6 +91,7 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_p
     tg.indices = plainMesh->numIndices();
     tg.texture = texture;
     asset->groups.push_back(tg);
+    loadTextureShaders();
     asset->create("Plane",texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader);
 
     return asset;
@@ -136,6 +150,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float le
         v.data = vec4(0.5,0,0,0);
     }
 
+    loadBasicShaders();
     asset->create("Arrow",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
 }
@@ -151,6 +166,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNT, 
         v.data = vec4(0.5,0,0,0);
     }
 
+    loadBasicShaders();
     asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
 }
@@ -164,6 +180,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNC, 
         v.data = vec4(0.5,0,0,0);
     }
 
+    loadBasicShaders();
     asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
 }
@@ -179,6 +196,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::nonTriangleMesh(std::vector<vec3> ver
     //        v.color = color;
     //        v.data = vec4(0.5,0,0,0);
     //    }
+    loadBasicShaders();
     asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     asset->buffer.set(asset->mesh.vertices,indices,GL_STATIC_DRAW);
     asset->buffer.setDrawMode(mode);

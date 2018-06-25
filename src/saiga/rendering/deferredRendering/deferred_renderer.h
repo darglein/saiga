@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -66,13 +66,18 @@ struct SAIGA_GLOBAL DeferredRenderingParameters  : public RenderingParameters{
 class SAIGA_GLOBAL Deferred_Renderer : public Renderer{
 public:
 
+    DeferredLighting lighting;
+
     Deferred_Renderer(OpenGLWindow& window, DeferredRenderingParameters _params = DeferredRenderingParameters());
     Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
 
+    void render(Camera *cam) override;
+    void renderImGui(bool* p_open = NULL);
+
 
     enum DeferredTimings{
-		TOTAL = 0,
+        TOTAL = 0,
         GEOMETRYPASS,
         SSAOT,
         DEPTHMAPS,
@@ -85,71 +90,28 @@ public:
         COUNT,
     };
 
-
-
-
-public:
-
-
-
-
-
     float getTime(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].getTimeMS();}
     float getUnsmoothedTimeMS(DeferredTimings timer){ if (!params.useGPUTimers && timer != TOTAL) return 0; return timers[timer].MultiFrameOpenGLTimer::getTimeMS();}
     float getTotalRenderTime() { return getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL); }
 
     void printTimings() override;
-
-
-    int renderWidth,renderHeight;
-
-
-    std::shared_ptr<SSAO> ssao;
-
-    std::shared_ptr<SMAA> smaa;
-
-
-
-    GBuffer gbuffer;
-
-
-    PostProcessor postProcessor;
-
-    DeferredRenderingParameters params;
-
-    DeferredLighting lighting;
-
-
     void resize(int outputWidth, int outputHeight) override;
 
-
-    void render(Camera *cam) override;
-
-
-    void renderImGui(bool* p_open = NULL);
-
 private:
-
-
-
+    int renderWidth,renderHeight;
+    std::shared_ptr<SSAO> ssao;
+    std::shared_ptr<SMAA> smaa;
+    GBuffer gbuffer;
+    PostProcessor postProcessor;
+    DeferredRenderingParameters params;
     std::shared_ptr<MVPTextureShader>  blitDepthShader;
-
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
-
-
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
-
-    void startTimer(DeferredTimings timer){if(params.useGPUTimers || timer==TOTAL)timers[timer].startTimer();}
-    void stopTimer(DeferredTimings timer){if(params.useGPUTimers || timer == TOTAL)timers[timer].stopTimer();}
-
-
-     std::shared_ptr<Texture> blackDummyTexture;
-
-     //for imgui
-     bool showLightingImgui = false;
-
+    std::shared_ptr<Texture> blackDummyTexture;
+    bool showLightingImgui = false;
     bool renderDDO = false;
     DeferredDebugOverlay ddo;
+
 
     void renderGBuffer(Camera *cam);
     void renderDepthMaps(); //render the scene from the lights perspective (don't need user camera here)
@@ -157,6 +119,9 @@ private:
     void renderSSAO(Camera *cam);
 
     void writeGbufferDepthToCurrentFramebuffer();
+
+    void startTimer(DeferredTimings timer){if(params.useGPUTimers || timer==TOTAL)timers[timer].startTimer();}
+    void stopTimer(DeferredTimings timer){if(params.useGPUTimers || timer == TOTAL)timers[timer].stopTimer();}
 };
 
 }

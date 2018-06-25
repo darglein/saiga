@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -68,7 +68,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
 {
     ObjLoader2 ol(file);
 
-//    TexturedAsset* asset = new TexturedAsset();
+    //    TexturedAsset* asset = new TexturedAsset();
     std::shared_ptr<TexturedAsset> asset = std::make_shared<TexturedAsset>();
     TriangleMesh<VertexNTD,GLuint> &tmesh = asset->mesh;
 
@@ -106,7 +106,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
             }
         }
     }
-
+    loadTextureShaders();
     asset->create(file,texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader,normalize,false);
 
     return asset;

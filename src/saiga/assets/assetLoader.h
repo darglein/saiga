@@ -33,7 +33,12 @@ public:
     AssetLoader();
     virtual ~AssetLoader();
 
-    void loadDefaultShaders();
+    void loadBasicShaders();
+    void loadTextureShaders();
+    void loadAnimatedShaders();
+
+
+
 
     /**
      * Creates a plane with a checker board texture.

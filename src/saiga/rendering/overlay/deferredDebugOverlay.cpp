@@ -36,7 +36,6 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height)
     setScreenPosition(&data,3);
     setScreenPosition(&light,4);
 
-    loadShaders();
 }
 
 void DeferredDebugOverlay::loadShaders()
@@ -63,6 +62,11 @@ void DeferredDebugOverlay::setScreenPosition(GbufferTexture *gbt, int id)
 
 void DeferredDebugOverlay::render()
 {
+    // lazy shader loading
+    if(!shader)
+        loadShaders();
+
+
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     shader->bind();

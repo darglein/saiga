@@ -19,16 +19,11 @@ namespace Saiga {
 
 Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, DeferredRenderingParameters _params) :
     Renderer(window),
+    lighting(gbuffer),
     renderWidth(window.getWidth()*_params.renderScale), renderHeight(window.getHeight()*_params.renderScale),
-    params(_params),lighting(gbuffer),
+    params(_params),
     ddo(window.getWidth(),window.getHeight())
 {
-
-
-
-
-    //    setSize(windowWidth,windowHeight);
-
     if(params.useSMAA){
         smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
         smaa->loadShader(params.smaaQuality);
@@ -45,9 +40,7 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, DeferredRenderingPara
         ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
-    //        ssao.init(windowWidth*params.renderScale, windowHeight*params.renderScale);
-    //    else
-    //        ssao.init(2,2);
+
 
     if(params.srgbWrites){
 
@@ -66,9 +59,9 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, DeferredRenderingPara
 
     gbuffer.init(renderWidth, renderHeight, params.gbp);
 
-    lighting.init(renderWidth, renderHeight, params.useGPUTimers);
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor = params.lightingClearColor;
+    lighting.init(renderWidth, renderHeight, params.useGPUTimers);
     lighting.loadShaders();
 
 
@@ -94,14 +87,10 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, DeferredRenderingPara
     ddo.setDeferredFramebuffer(&gbuffer,lighting.volumetricLightTexture2);
 
 
-
-
-
     std::shared_ptr<PostProcessingShader>  pps = ShaderLoader::instance()->load<PostProcessingShader>("post_processing/post_processing.glsl"); //this shader does nothing
     std::vector<std::shared_ptr<PostProcessingShader> > defaultEffects;
     defaultEffects.push_back(pps);
     postProcessor.setPostProcessingEffects(defaultEffects);
-
 
     cout << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight << endl;
 
@@ -109,15 +98,12 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, DeferredRenderingPara
 
 Deferred_Renderer::~Deferred_Renderer()
 {
-
 }
 
 
 
 void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 {
-
-
     if (windowWidth <= 0 || windowHeight <= 0) {
         cerr << "Warning: The window size must be greater than zero." << endl;
         windowWidth = glm::max(windowWidth, 1);
@@ -215,12 +201,9 @@ void Deferred_Renderer::render(Camera *cam)
     postProcessor.render();
     stopTimer(POSTPROCESSING);
 
-    //    deferred_framebuffer.blitDepth(0);
 
-
-
-
-    if(params.useSMAA){
+    if(params.useSMAA)
+    {
         startTimer(SMAATIME);
         smaa->render(postProcessor.getCurrentTexture(),postProcessor.getTargetBuffer());
         postProcessor.switchBuffer();
@@ -274,18 +257,6 @@ void Deferred_Renderer::render(Camera *cam)
         glFinish();
 
     stopTimer(TOTAL);
-
-
-
-    //    std::cout<<"Time spent on the GPU: "<< getTime(TOTAL) <<std::endl;
-
-    //    printTimings();
-
-
-    //    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);   // Make sure no FBO is set as the draw framebuffer
-    //     glBindFramebuffer(GL_READ_FRAMEBUFFER, lighting.lightAccumulationBuffer.getId()); // Make sure your multisampled FBO is the read framebuffer
-    //     glDrawBuffer(GL_BACK);                       // Set the back buffer as the draw buffer
-    //     glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
     assert_no_glerror();
 

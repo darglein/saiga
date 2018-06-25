@@ -35,7 +35,6 @@ struct DeferredLightingShaderNames{
     std::string boxLightShader = "lighting/light_box.glsl";
     std::string debugShader = "lighting/debugmesh.glsl";
     std::string stencilShader = "lighting/stenciltest.glsl";
-    std::string lightAccumulationShader = "lighting/lightaccumulation.glsl";
 };
 
 
@@ -70,10 +69,8 @@ private:
     lightMesh_t directionalLightMesh;
     std::vector< std::shared_ptr<DirectionalLight> > directionalLights;
 
-
-
-    //    std::shared_ptr<MVPTextureShader>  blitDepthShader;
-    std::shared_ptr<LightAccumulationShader>  lightAccumulationShader;
+    ShaderPart::ShaderCodeInjections volumetricInjection;
+    ShaderPart::ShaderCodeInjections shadowInjection;
 
     std::shared_ptr<MVPShader> stencilShader;
     GBuffer &gbuffer;
@@ -119,7 +116,7 @@ public:
     void init(int width, int height, bool _useTimers);
     void resize(int width, int height);
 
-    void loadShaders(const DeferredLightingShaderNames& names = DeferredLightingShaderNames());
+    void loadShaders();
 
     void setRenderDebug(bool b){drawDebug = b;}
     void createLightMeshes();
