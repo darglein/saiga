@@ -13,9 +13,6 @@
 
 int main( int argc, char* args[] )
 {
-    //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
-    catchSegFaults();
-
     WindowParameters windowParameters;
     windowParameters.fromConfigFile("config.ini");
     windowParameters.name = "Simple SDL Window";

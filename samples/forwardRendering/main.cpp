@@ -17,10 +17,8 @@ int main( int argc, char* args[] )
     catchSegFaults();
 
     WindowParameters windowParameters;
+    windowParameters.fromConfigFile("config.ini");
     windowParameters.name = "Forward Rendering";
-    windowParameters.mode = WindowParameters::Mode::windowed;
-    windowParameters.width = 1280;
-    windowParameters.height = 720;
 
     // 1. Create an SDL window.
     // This also creates the required OpenGL context.
@@ -34,6 +32,8 @@ int main( int argc, char* args[] )
     Sample simpleWindow(window,renderer);
 
     // Everyhing is initilalized, we can run the main loop now!
-    window.startMainLoop();
+    MainLoopParameters mainLoopParameters;
+    mainLoopParameters.fromConfigFile("config.ini");
+    window.startMainLoop(mainLoopParameters);
     return 0;
 }

@@ -28,9 +28,8 @@ public:
     SDLCamera<PerspectiveCamera> camera;
 
     PointCloud pointCloud;
-    SimpleAssetObject cube1, cube2;
     SimpleAssetObject groundPlane;
-    SimpleAssetObject sphere;
+
 
     ProceduralSkybox skybox;
 
@@ -41,8 +40,6 @@ public:
 
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;
-    void render(Camera *cam) override;
-    void renderDepth(Camera *cam) override;
     void renderOverlay(Camera *cam) override;
     void renderFinal(Camera *cam) override;
 

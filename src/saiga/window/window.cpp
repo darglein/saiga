@@ -136,6 +136,10 @@ void OpenGLWindow::renderImGui(bool *p_open)
         ShaderLoader::instance()->reload();
     }
 
+    if(ImGui::Button("Screenshot")){
+        screenshot("screenshot.png");
+    }
+
     ImGui::Checkbox("showRendererImgui",&showRendererImgui);
     ImGui::Checkbox("showImguiDemo",&showImguiDemo);
 

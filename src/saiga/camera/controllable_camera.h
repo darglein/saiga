@@ -20,11 +20,42 @@ namespace Saiga {
 template<typename camera_t>
 class Controllable_Camera : public camera_t{
 public:
-    float movementSpeed = 5;
-    float movementSpeedFast = 10;
+    // Velocity in units/seconds
+    float movementSpeed = 10;
+    float movementSpeedFast = 40;
 
+    // Turn velocity in degree/pixel
     float rotationSpeed = 0.2f;
 
+
+
+
+    std::vector<int> keyboardmap;
+    std::vector<int> mousemap;
+    vec3 rotationPoint = vec3(std::numeric_limits<float>::infinity(),0,0);
+
+    bool mouseTurnLocal = false;
+
+
+    Controllable_Camera(){}
+    virtual ~Controllable_Camera(){}
+
+    void update(float delta);
+    void interpolate(float dt, float interpolation);
+
+    void enableInput() { input = true; }
+    void disableInput() { input = false; }
+
+    void mouseRotate(float dx, float dy);
+    void mouseRotateAroundPoint(float dx, float dy);
+    void mouseRotateAroundPoint(float dx, float dy, vec3 point);
+    void mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up);
+private:
+    glm::ivec2 lastMousePos;
+    int dragState = 0; // 0 = nothing, 1 = first button drag, 2 = second button drag
+    std::array<bool,6> keyPressed {};
+
+    bool input = true;
     enum Key{
         Forward = 0,
         Backward = 1,
@@ -35,31 +66,6 @@ public:
     };
 
 
-    std::vector<int> keyboardmap;
-    std::vector<int> mousemap;
-    glm::ivec2 lastMousePos;
-    int dragState = 0; // 0 = nothing, 1 = first button drag, 2 = second button drag
-    vec3 rotationPoint = vec3(std::numeric_limits<float>::infinity(),0,0);
-
-    std::array<bool,6> keyPressed {};
-
-    bool input = true;
-    bool mouseTurnLocal = false;
-
-
-    Controllable_Camera(){}
-    virtual ~Controllable_Camera(){}
-
-    void update(float delta);
-    void interpolate(float dt, float interpolation);
-
-    void mouseRotate(float dx, float dy);
-    void mouseRotateAroundPoint(float dx, float dy);
-    void mouseRotateAroundPoint(float dx, float dy, vec3 point);
-    void mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up);
-
-    void enableInput() { input = true; }
-    void disableInput() { input = false; }
 
 };
 

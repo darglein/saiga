@@ -20,25 +20,16 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     float aspect = window.getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
     camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
-    camera.enableInput();
-    //How fast the camera moves
-    camera.movementSpeed = 10;
-    camera.movementSpeedFast = 20;
 
     //Set the camera from which view the scene is rendered
     window.setCamera(&camera);
 
-
-    //add this object to the keylistener, so keyPressed and keyReleased will be called
-    SDL_EventHandler::addKeyListener(this);
 
     //This simple AssetLoader can create assets from meshes and generate some generic debug assets
     AssetLoader assetLoader;
 
     //First create the triangle mesh of a cube
     auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1),vec3(1)));
-
-
 
 
     //To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and provides
@@ -62,21 +53,6 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
 
     cube2.translateGlobal(vec3(3,1,5));
     cube2.calculateModel();
-
-
-
-    //    PLYLoader loader("objs/surface-L2-clean.ply");
-
-    //    PLYLoader::save("objs/test.ply",loader.mesh);
-
-    //    PLYLoader loader2("objs/test.ply");
-
-
-    //    auto mesh = loader2.mesh;
-    //    cube1.asset = assetLoader.assetFromMesh(mesh);
-
-    //    PlyAssetLoader pla;
-    //    cube1.asset = pla.loadBasicAsset("objs/surface-L2-clean.ply");
 
 
     auto sphereMesh = TriangleMeshGenerator::createMesh(Sphere(vec3(0),1),0);
@@ -159,15 +135,6 @@ void Sample::keyPressed(SDL_Keysym key)
     switch(key.scancode){
     case SDL_SCANCODE_ESCAPE:
         parentWindow.close();
-        break;
-    case SDL_SCANCODE_BACKSPACE:
-        parentWindow.getRenderer()->printTimings();
-        break;
-    case SDL_SCANCODE_R:
-        ShaderLoader::instance()->reload();
-        break;
-    case SDL_SCANCODE_F11:
-        parentWindow.screenshotRenderDepth("depth.png");
         break;
     case SDL_SCANCODE_F12:
         parentWindow.screenshot("screenshot.png");

@@ -26,10 +26,6 @@ Sample::Sample(Saiga::OpenGLWindow &window, Saiga::Renderer &renderer)
     //Set the camera from which view the scene is rendered
     window.setCamera(&camera);
 
-
-    //add this object to the keylistener, so keyPressed and keyReleased will be called
-    SDL_EventHandler::addKeyListener(this);
-
     //This simple AssetLoader can create assets from meshes and generate some generic debug assets
     AssetLoader assetLoader;
 

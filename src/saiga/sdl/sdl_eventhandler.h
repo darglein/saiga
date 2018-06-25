@@ -17,16 +17,20 @@ namespace Saiga {
 
 class SAIGA_GLOBAL SDL_EventHandler{
 private:
+    friend class SDL_KeyListener;
+    friend class SDL_MouseListener;
+    friend class SDL_ResizeListener;
+    friend class SDL_EventListener;
+
+
     static bool quit;
     static std::vector<SDL_KeyListener*> keyListener;
     static std::vector<SDL_MouseListener*> mouseListener;
     static std::vector<SDL_ResizeListener*> resizeListener;
     static std::vector<SDL_EventListener*> eventListener;
+
+    static void reset();
 public:
-    static void addKeyListener(SDL_KeyListener* kl){keyListener.push_back(kl);}
-    static void addMouseListener(SDL_MouseListener* ml){mouseListener.push_back(ml);}
-    static void addResizeListener(SDL_ResizeListener* rl){resizeListener.push_back(rl);}
-    static void addEventListener(SDL_EventListener* ml){eventListener.push_back(ml);}
     static void update();
 
 
@@ -41,7 +45,6 @@ public:
 
     static bool shouldQuit(){return quit;}
 
-    static void reset();
 };
 
 }

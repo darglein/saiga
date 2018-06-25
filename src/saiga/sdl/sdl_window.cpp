@@ -107,7 +107,6 @@ bool SDLWindow::initWindow()
 bool SDLWindow::initInput(){
     //Enable text input
     SDL_StartTextInput();
-    SDL_EventHandler::addResizeListener(this);
 
 
     return true;
@@ -143,7 +142,7 @@ void SDLWindow::swapBuffers()
 
 void SDLWindow::freeContext()
 {
-    SDL_EventHandler::reset();
+//    SDL_EventHandler::reset();
     //Disable text input
     SDL_StopTextInput();
 

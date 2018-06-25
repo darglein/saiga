@@ -1,12 +1,60 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/sdl/sdl_eventhandler.h"
+#include <algorithm>
 
 namespace Saiga {
+
+SDL_KeyListener::SDL_KeyListener()
+{
+    SDL_EventHandler::keyListener.push_back(this);
+}
+
+SDL_KeyListener::~SDL_KeyListener()
+{
+    auto& v = SDL_EventHandler::keyListener;
+    v.erase( std::remove(v.begin(),v.end(),this ),v.end());
+}
+
+SDL_MouseListener::SDL_MouseListener()
+{
+    SDL_EventHandler::mouseListener.push_back(this);
+}
+
+SDL_MouseListener::~SDL_MouseListener()
+{
+    auto& v = SDL_EventHandler::mouseListener;
+    v.erase( std::remove(v.begin(),v.end(),this ),v.end());
+}
+
+
+SDL_ResizeListener::SDL_ResizeListener()
+{
+    SDL_EventHandler::resizeListener.push_back(this);
+}
+
+SDL_ResizeListener::~SDL_ResizeListener()
+{
+    auto& v = SDL_EventHandler::resizeListener;
+    v.erase( std::remove(v.begin(),v.end(),this ),v.end());
+}
+
+
+SDL_EventListener::SDL_EventListener()
+{
+    SDL_EventHandler::eventListener.push_back(this);
+}
+
+SDL_EventListener::~SDL_EventListener()
+{
+    auto& v = SDL_EventHandler::eventListener;
+    v.erase( std::remove(v.begin(),v.end(),this ),v.end());
+}
+
 
 bool SDL_EventHandler::quit = false;
 std::vector<SDL_KeyListener*> SDL_EventHandler::keyListener;
@@ -63,7 +111,7 @@ void SDL_EventHandler::update(){
 }
 
 void SDL_EventHandler::keyPressed(const SDL_Keysym &key){
-   keyboard.setKeyState(key.scancode,1);
+    keyboard.setKeyState(key.scancode,1);
     for(SDL_KeyListener* listener : keyListener){
         listener->keyPressed(key);
     }

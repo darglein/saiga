@@ -19,16 +19,10 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     camera.setProj(60.0f,aspect,0.1f,50.0f);
     camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
     camera.enableInput();
-    //How fast the camera moves
-    camera.movementSpeed = 10;
-    camera.movementSpeedFast = 20;
 
     //Set the camera from which view the scene is rendered
     window.setCamera(&camera);
 
-
-    //add this object to the keylistener, so keyPressed and keyReleased will be called
-    SDL_EventHandler::addKeyListener(this);
 
     ObjAssetLoader assetLoader;
 

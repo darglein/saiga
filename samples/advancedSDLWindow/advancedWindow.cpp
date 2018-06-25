@@ -27,9 +27,6 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     window.setCamera(&camera);
 
 
-    //add this object to the keylistener, so keyPressed and keyReleased will be called
-    SDL_EventHandler::addKeyListener(this);
-
     ObjAssetLoader assetLoader;
 
 

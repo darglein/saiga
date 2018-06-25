@@ -26,6 +26,8 @@ void Forward_Renderer::render_intern(Camera *cam)
     SAIGA_ASSERT(cam);
 
 
+    glViewport(0,0,outputWidth,outputHeight);
+
     timer.startTimer();
 
     glEnable(GL_FRAMEBUFFER_SRGB);
