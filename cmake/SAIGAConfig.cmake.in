@@ -8,7 +8,7 @@
 
 find_path(SAIGA_INCLUDE_DIRS 
 	NAMES 
-		saiga/rendering/deferred_renderer.h
+		saiga/rendering/deferredRendering/deferred_renderer.h
 	PATHS
           	@CMAKE_INSTALL_PREFIX@/include
 )

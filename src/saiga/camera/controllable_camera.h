@@ -45,6 +45,7 @@ public:
 
     void enableInput() { input = true; }
     void disableInput() { input = false; }
+    void setInput(bool v) { input = v; }
 
     void mouseRotate(float dx, float dy);
     void mouseRotateAroundPoint(float dx, float dy);
