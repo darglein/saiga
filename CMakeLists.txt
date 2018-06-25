@@ -144,9 +144,6 @@ endif()
 find_package(Eigen3 3.3.0 QUIET)
 if(EIGEN3_FOUND)
 	SET(SAIGA_USE_EIGEN 1)
-	if(${Eigen3_VERSION_MINOR} GREATER 3 OR ${Eigen3_VERSION_PATCH} GREATER 7)
-		SET(SAIGA_EIGEN_AND_CUDA 1)
-	endif() 
 endif()
 PackageHelper(Eigen3 "${EIGEN3_FOUND}" "${EIGEN3_INCLUDE_DIRS}" "")
 
@@ -216,13 +213,17 @@ if(CUDA_FOUND)
 		  SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS")
 	endif()
 	SET(SAIGA_USE_CUDA 1)
+
+        if(EIGEN3_FOUND)
+            if(${Eigen3_VERSION} VERSION_GREATER_EQUAL "3.3.90" OR ${CUDA_VERSION} VERSION_LESS 9)
+                    SET(SAIGA_EIGEN_AND_CUDA 1)
+            endif()
+        endif()
 else()
 	SET(SAIGA_USE_CUDA 0)
 endif()
 
 PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
-
-
 
 
 ############# Required LIBRARIES ###############
@@ -261,7 +262,9 @@ if(WIN32)
 	SET(LIBS ${LIBS} DbgHelp)
 endif(WIN32)
 
-
+if(SAIGA_EIGEN_AND_CUDA)
+    message(STATUS "Enabled Eigen with CUDA.")
+endif()
 
 ############# INSTALL PATHS ###############
 

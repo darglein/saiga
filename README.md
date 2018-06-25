@@ -14,23 +14,12 @@ SAIGA is a lightweight OpenGL utility and rendering framework. It was successful
 
 ## Supported Compilers
 
- * g++ 5.4 or newer
- * Visual Studio 2013 or newer
- * clang++ 3.8 or newer
+ * g++ 7.3
+ * Visual Studio 2017
+ * clang++ 6.0
+ 
+Older version might work too, but are not officially supported.
 
-## Supported Operating Systems
-
- * Ubuntu 16 64 bit and similiar Linux distros
- * Fedora 25 64 bit or newer
-
-   Other Linux systems should work by installing one of the supported compilers and building the dependencies from source.
- * Windows Vista/7/8/10 32 and 64 bit
-
-## Supported Graphics Hardware
-
- * All NVIDIA and AMD cards supporting atleast OpenGL 3.3.
- * Intel on chip graphic processor with linux mesa drivers or similiar windows driver.
- * For the CUDA samples a NVIDIA GPU with compute capability 3 or newer is required.
 
 ## Required Dependencies
 
@@ -91,23 +80,6 @@ make
 cd saiga/bin
 ./simpleSDLWindow
 ```
-
-#### Windows
- - Download and compile the dependencies from source. (For a quick start only get glew,glm,freetype,sdl2 and png).
- - Install the dependencies or copy them to a common location with the following structure:
-```
-<your_dependencies_dir>
-<your_dependencies_dir>/include      <- Put all header files here
-<your_dependencies_dir>/lib          <- Put all .lib files here
-<your_dependencies_dir>/bin          <- Put all .dll files here
-```
-Use cmake to create the Visual Studio solution with the following cmake variable set:
-```
-DEPENDENCIES_DIR=<your_dependencies_dir>
-```
- - Compile the solution with Visual Studio. 
- - saiga.dll and all executables will be placed for example in saiga/bin/RelWithDebugInfo. 
- - When running the samples make sure the working directory is saiga/bin instead of saiga/bin/RelWithDebugInfo.
 
 ## License
 
