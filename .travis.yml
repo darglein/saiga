@@ -17,15 +17,10 @@ before_install:
 install:
   - docker exec -t ubuntu-test bash -c "apt-get update;
     apt-get install -y cmake;
-# Minimum required
     apt-get install -y libglew-dev libfreetype6-dev;
-# GL context and window libraries
     apt-get install -y libsdl2-dev libglfw3-dev libegl1-mesa-dev;
-# Image libs
     apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
-# sound
     apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
-# misc
     apt-get install -y libassimp-dev libeigen3-dev ffmpeg;
     add-apt-repository -y ppa:ubuntu-toolchain-r/test;
     apt-get update;
