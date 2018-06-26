@@ -8,7 +8,7 @@ language: cpp
 
 env:
   matrix:
-    - CC_VER: "5"
+#    - CC_VER: "5"
     - CC_VER: "6"
 
 before_install:
@@ -26,5 +26,5 @@ install:
 script:
   - docker exec -t ubuntu-test bash -c "cd /travis;
     cmake -DCMAKE_C_COMPILER=gcc-$CC_VER -DCMAKE_CXX_COMPILER=g++-$CC_VER . &&
-    make 
+    make" 
 
