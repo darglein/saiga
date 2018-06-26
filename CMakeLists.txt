@@ -7,8 +7,10 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include(helper_macros)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-set (LIBRARY_VERSION_MAJOR 1)
-set (LIBRARY_VERSION_MINOR 1)
+set (SAIGA_VERSION_MAJOR 1)
+set (SAIGA_VERSION_MINOR 2)
+set (SAIGA_VERSION_PATCH 0)
+set(SAIGA_VERSION ${SAIGA_VERSION_MAJOR}.${SAIGA_VERSION_MINOR}.${SAIGA_VERSION_PATCH})
 
 # Turn on the ability to create folders to organize projects (.vcproj)
 # It creates "CMakePredefinedTargets" folder by default and adds CMake
@@ -330,6 +332,15 @@ configure_file(
   )
 
 
+# Generate Version File
+set(SAIGA_VERSION_CMAKE_FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/SAIGAConfigVersion.cmake")
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+	${SAIGA_VERSION_CMAKE_FILE}
+	VERSION ${SAIGA_VERSION}
+	COMPATIBILITY AnyNewerVersion
+)
+
 ############# SOURCE ###############
 
 
@@ -350,11 +361,11 @@ endif()
 
 set_target_properties (saiga PROPERTIES FOLDER lib)
 
-
+############# INSTALL ###############
 
 #install config file to share/
 install(
-	FILES "${SAIGA_CONFIG_CMAKE_FILE}"
+	FILES "${SAIGA_CONFIG_CMAKE_FILE}" "${SAIGA_VERSION_CMAKE_FILE}"
 	DESTINATION ${INSTALL_SHARE}
 )
 
