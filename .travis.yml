@@ -19,6 +19,7 @@ install:
   - docker exec -t ubuntu-test bash -c "apt-get update;
     apt-get install -y software-properties-common python-software-properties;
     apt-get install -y build-essential cmake libboost-thread-dev libboost-date-time-dev;
+    apt-get install -y libglew-dev libglm-dev libfreetype6-dev libsdl2-dev libpng-dev;
     add-apt-repository -y ppa:ubuntu-toolchain-r/test;
     apt-get update;
     apt-get install -y gcc-$CC_VER g++-$CC_VER"
