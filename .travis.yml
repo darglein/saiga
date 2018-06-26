@@ -8,6 +8,8 @@ language: cpp
 
 env:
     - SAIGA_CXX=g++-6 CXX_PACKAGE=g++-6
+    - SAIGA_CXX=g++-7 CXX_PACKAGE=g++-7
+    - SAIGA_CXX=clang++-5.0 CXX_PACKAGE=clang-5.0
     - SAIGA_CXX=clang++-6.0 CXX_PACKAGE=clang-6.0
 
 before_install:
