@@ -1,22 +1,30 @@
-language: cpp
-compiler: clang
-branches:
-    only:
-        - master
-sudo: false
-dist: trusty
+sudo: required
 
-addons:
-  apt:
-    packages:
-      - cmake
-      - libglew-dev
-      - libglm-dev
-      - libfreetype6-dev
-      - libsdl2-dev
-      - libpng-dev
+services:
+  - docker
+
+# It is not really needed, other than for showing correct language tag in Travis CI build log.
+language: cpp
+
+env:
+  matrix:
+    - CC_VER: "5"
+    - CC_VER: "6"
+
+before_install:
+  - docker run -d --name ubuntu-test -v $(pwd):/travis ubuntu:latest tail -f /dev/null
+  - docker ps
+
+install:
+  - docker exec -t ubuntu-test bash -c "apt-get update;
+    apt-get install -y software-properties-common python-software-properties;
+    apt-get install -y build-essential cmake libboost-thread-dev libboost-date-time-dev;
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test;
+    apt-get update;
+    apt-get install -y gcc-$CC_VER g++-$CC_VER"
+
 script:
-    - mkdir build
-    - cd build
-    - cmake  ..
-    - cmake --build .
+  - docker exec -t ubuntu-test bash -c "cd /travis;
+    cmake -DCMAKE_C_COMPILER=gcc-$CC_VER -DCMAKE_CXX_COMPILER=g++-$CC_VER . &&
+    make 
+
