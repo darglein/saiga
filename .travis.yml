@@ -7,30 +7,29 @@ services:
 language: cpp
 
 env:
-    - CXX=g++-6 CXX_PACKAGE=g++-6
-    - CXX=clang++-6.0 CXX_PACKAGE=clang-6.0
+    - SAIGA_CXX=g++-6 CXX_PACKAGE=g++-6
+    - SAIGA_CXX=clang++-6.0 CXX_PACKAGE=clang-6.0
 
 before_install:
   - docker run -d --name ubuntu-test -v $(pwd):/travis ubuntu:latest tail -f /dev/null
   - docker ps
 
 install:
-  - docker exec -t ubuntu-test bash -c "apt-get update;
+  - docker exec -t ubuntu-test bash -c "add-apt-repository -y ppa:ubuntu-toolchain-r/test;
+    apt-get update;
+    apt-get install -y $CXX_PACKAGE"
     apt-get install -y cmake;
-    apt-get install -y libglew-dev libfreetype6-dev;
+    apt-get install -y libglew-dev libfreetype6-dev libglm-dev;
     apt-get install -y libsdl2-dev libglfw3-dev libegl1-mesa-dev;
     apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
     apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
     apt-get install -y libassimp-dev libeigen3-dev ffmpeg;
-    add-apt-repository -y ppa:ubuntu-toolchain-r/test;
-    apt-get update;
-    apt-get install -y $CXX"
 
 script:
   - docker exec -t ubuntu-test bash -c "cd /travis;
     mkdir build;
     cd build;
-    cmake -DCMAKE_CXX_COMPILER=$CXX ..;
+    cmake -DCMAKE_CXX_COMPILER=$SAIGA_CXX ..;
     cmake ..;
     make -j2;" 
 
