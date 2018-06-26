@@ -1,14 +1,12 @@
 
 find_path(GLM_INCLUDE_DIRS 
 	NAMES 
-		glm.hpp
+		glm/glm.hpp
 	PATHS
           /usr/local/include/opus
           /usr/local/include
           /usr/include/opus
           /usr/include
-	PATH_SUFFIXES
-		glm
 )
 
 if(GLM_INCLUDE_DIRS)
