@@ -7,9 +7,8 @@ services:
 language: cpp
 
 env:
-  matrix:
-#    - CC_VER: "5"
-    - CC_VER: "6"
+    - CXX=g++-6 CXX_PACKAGE=g++-6
+    - CXX=clang++-6.0 CXX_PACKAGE=clang-6.0
 
 before_install:
   - docker run -d --name ubuntu-test -v $(pwd):/travis ubuntu:latest tail -f /dev/null
@@ -30,12 +29,13 @@ install:
     apt-get install -y libassimp-dev libeigen3-dev ffmpeg;
     add-apt-repository -y ppa:ubuntu-toolchain-r/test;
     apt-get update;
-    apt-get install -y gcc-$CC_VER g++-$CC_VER"
+    apt-get install -y $CXX"
 
 script:
   - docker exec -t ubuntu-test bash -c "cd /travis;
     mkdir build;
     cd build;
-    cmake -DCMAKE_CXX_COMPILER=g++-$CC_VER ..;
-    make;" 
+    cmake -DCMAKE_CXX_COMPILER=$CXX ..;
+    cmake ..;
+    make -j2;" 
 

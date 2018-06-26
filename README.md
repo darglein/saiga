@@ -18,6 +18,8 @@ SAIGA is a lightweight OpenGL utility and rendering framework. It was successful
  * Visual Studio 2017
  * clang++ 6.0
  
+ [![Build Status](https://travis-ci.org/darglein/saiga.svg?branch=master)](https://travis-ci.org/darglein/saiga)
+ 
 Older version might work too, but are not officially supported.
 
 
