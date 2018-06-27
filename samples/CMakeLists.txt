@@ -39,3 +39,5 @@ endif ()
 
 
 add_subdirectory(imageProcessing)
+
+add_subdirectory(helloVulkan)

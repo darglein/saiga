@@ -225,6 +225,17 @@ else()
 	SET(SAIGA_USE_CUDA 0)
 endif()
 
+
+
+
+##### Vulkan #####
+
+find_package(Vulkan REQUIRED)
+PackageHelper(Vulkan "${Vulkan_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
+
+find_package(GLSLang REQUIRED)
+PackageHelper(GLSLang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
+
 PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
 
 
