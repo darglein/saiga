@@ -28,7 +28,11 @@ Draw Cube
 #include <assert.h>
 #include <string.h>
 #include <cstdlib>
+#include "saiga/config.h"
 #include "cube_data.h"
+#include "vulkan/vulkan.hpp"
+
+#include "vulkanWindow.h"
 
 /* For this sample, we'll start with GLSL so the shader function is plain */
 /* and then use the glslang GLSLtoSPV utility to convert it to SPIR-V for */
@@ -60,19 +64,28 @@ static const char *fragShaderText =
     "   outColor = color;\n"
     "}\n";
 
-int sample_main(int argc, char *argv[]) {
+#define APP_SHORT_NAME "vulkansamples_instance"
+
+int sample_main(int argc, char *argv[])
+{
+    Saiga::VulkanWindow window;
+    return 0;
+}
+
+
+int sample_main2(int argc, char *argv[]) {
     VkResult U_ASSERT_ONLY res;
     struct sample_info info = {};
     char sample_title[] = "Draw Cube";
     const bool depthPresent = true;
 
-    process_command_line_args(info, argc, argv);
+//    process_command_line_args(info, argc, argv);
     init_global_layer_properties(info);
     init_instance_extension_names(info);
     init_device_extension_names(info);
     init_instance(info, sample_title);
     init_enumerate_device(info);
-    init_window_size(info, 500, 500);
+    init_window_size(info, 800, 800);
     init_connection(info);
     init_window(info);
     init_swapchain_extension(info);
@@ -188,6 +201,7 @@ int sample_main(int argc, char *argv[]) {
     /* Make sure command buffer is finished before presenting */
     do {
         res = vkWaitForFences(info.device, 1, &drawFence, VK_TRUE, FENCE_TIMEOUT);
+
     } while (res == VK_TIMEOUT);
 
     assert(res == VK_SUCCESS);
