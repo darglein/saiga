@@ -40,4 +40,6 @@ endif ()
 
 add_subdirectory(imageProcessing)
 
-add_subdirectory(helloVulkan)
+if (${SAIGA_USE_VULKAN})
+	add_subdirectory(helloVulkan)
+endif()

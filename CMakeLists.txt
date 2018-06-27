@@ -226,18 +226,23 @@ else()
 endif()
 
 
+PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
 
 
 ##### Vulkan #####
 
 find_package(Vulkan REQUIRED)
-PackageHelper(Vulkan "${Vulkan_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
+PackageHelper(Vulkan "${VULKAN_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
 
 find_package(GLSLang REQUIRED)
 PackageHelper(GLSLang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
 
-PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
+find_package(XCB REQUIRED)
+PackageHelper(XCB "${XCB_FOUND}" "${XCB_INCLUDE_DIRS}" "${XCB_LIBRARIES}")
 
+if(${VULKAN_FOUND} AND ${GLSLANG_FOUND} AND ${XCB_FOUND})
+	SET(SAIGA_USE_VULKAN 1)
+endif()
 
 ############# Required LIBRARIES ###############
 
