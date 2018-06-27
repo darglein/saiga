@@ -35,19 +35,42 @@ private:
 
 
     vk::Instance inst;
+    std::vector<vk::PhysicalDevice> physicalDevices;
+    vk::PhysicalDevice physicalDevice;
     vk::Device device;
+
+    std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
     vk::CommandPool cmd_pool;
     vk::CommandBuffer cmd;
+    vk::SwapchainKHR swap_chain;
 
+    std::vector<vk::Image> swapChainImages;
+    std::vector<vk::ImageView> swapChainImagesViews;
+
+    vk::Format format;
     // ======= Window =======
 
     int width = 50;
     int height = 50;
 
+    vk::SurfaceKHR surface;
+
     xcb_connection_t *connection;
     xcb_screen_t* screen;
     xcb_window_t window;
     xcb_intern_atom_reply_t *atom_wm_delete_window;
+
+
+
+    int graphics_queue_family_index = -1;
+    int present_queue_family_index = -1;
+
+    void init_global_layer_properties();
+    void init_instance();
+    void init_physical_device();
+    void init_swapchain_extension();
+    void createWindow();
+    void createDevice();
 };
 
 }
