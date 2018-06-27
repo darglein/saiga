@@ -9,6 +9,7 @@
 namespace Saiga {
 
 
+
 VulkanWindow::VulkanWindow()
 {
 
@@ -30,6 +31,11 @@ VulkanWindow::VulkanWindow()
 
     createDevice();
 
+
+    init_depth_buffer();
+
+
+    init_uniform_buffer();
 
 
     {

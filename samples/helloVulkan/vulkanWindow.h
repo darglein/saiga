@@ -9,6 +9,8 @@
 
 #define VK_USE_PLATFORM_XCB_KHR
 #include "saiga/config.h"
+#include "saiga/util/glm.h"
+
 #include "vulkan/vk_sdk_platform.h"
 #include "vulkan/vulkan.hpp"
 #include "xcb/xcb.h"
@@ -37,6 +39,9 @@ private:
     vk::Instance inst;
     std::vector<vk::PhysicalDevice> physicalDevices;
     vk::PhysicalDevice physicalDevice;
+    vk::PhysicalDeviceProperties gpu_props;
+    vk::PhysicalDeviceMemoryProperties memory_properties;
+
     vk::Device device;
 
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
@@ -48,7 +53,26 @@ private:
     std::vector<vk::ImageView> swapChainImagesViews;
 
     vk::Format format;
+
+    //depth image
+    vk::Format depthFormat;
+    vk::Image depthimage;
+    vk::DeviceMemory depthmem;
+    vk::ImageView depthview;
+
+
     // ======= Window =======
+
+
+    glm::mat4 Projection;
+    glm::mat4 View;
+    glm::mat4 Model;
+    glm::mat4 Clip;
+    glm::mat4 MVP;
+    vk::Buffer uniformbuf;
+    vk::DeviceMemory uniformmem;
+    vk::DescriptorBufferInfo uniformbuffer_info;
+
 
     int width = 50;
     int height = 50;
@@ -69,8 +93,11 @@ private:
     void init_instance();
     void init_physical_device();
     void init_swapchain_extension();
+    void init_depth_buffer();
+    void init_uniform_buffer();
     void createWindow();
     void createDevice();
 };
 
 }
+

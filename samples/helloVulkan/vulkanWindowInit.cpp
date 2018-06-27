@@ -8,6 +8,21 @@
 #include "saiga/util/assert.h"
 namespace Saiga {
 
+bool memory_type_from_properties(const vk::PhysicalDeviceMemoryProperties& memory_properties, int32_t typeBits, vk::MemoryPropertyFlags requirements_mask, uint32_t *typeIndex) {
+    // Search memtypes to find first index with those properties
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+        if ((typeBits & 1) == 1) {
+            // Type is available, does it match user properties?
+            if ((memory_properties.memoryTypes[i].propertyFlags & requirements_mask) == requirements_mask) {
+                *typeIndex = i;
+                return true;
+            }
+        }
+        typeBits >>= 1;
+    }
+    // No memory types matched, return failure
+    return false;
+}
 
 
 static VkResult init_global_extension_properties(LayerPropertiesEx &layer_props) {
@@ -178,6 +193,12 @@ void VulkanWindow::init_physical_device()
         }
     }
 
+    /* This is as good a place as any to do this */
+//    vkGetPhysicalDeviceMemoryProperties(info.gpus[0], &info.memory_properties);
+//    vkGetPhysicalDeviceProperties(info.gpus[0], &info.gpu_props);
+    memory_properties = physicalDevice.getMemoryProperties();
+    gpu_props = physicalDevice.getProperties();
+
 }
 
 void VulkanWindow::init_swapchain_extension()
@@ -236,6 +257,170 @@ void VulkanWindow::init_swapchain_extension()
 
 
     }
+}
+
+void VulkanWindow::init_depth_buffer()
+{
+    vk::Result res;
+    {
+        // depth buffer
+        vk::ImageCreateInfo image_info = {};
+        const vk::Format depth_format = vk::Format::eD16Unorm;
+        vk::FormatProperties props;
+//        vkGetPhysicalDeviceFormatProperties(info.gpus[0], depth_format, &props);
+        props = physicalDevice.getFormatProperties(depth_format);
+
+        if (props.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
+            image_info.tiling = vk::ImageTiling::eLinear;
+        } else if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
+            image_info.tiling = vk::ImageTiling::eOptimal;
+        } else {
+            /* Try other depth formats? */
+            std::cout << "VK_FORMAT_D16_UNORM Unsupported.\n";
+            exit(-1);
+        }
+        image_info.imageType = vk::ImageType::e2D;
+        image_info.format = depth_format;
+        image_info.extent.width =  width;
+        image_info.extent.height = height;
+        image_info.extent.depth = 1;
+        image_info.mipLevels = 1;
+        image_info.arrayLayers = 1;
+        image_info.samples = vk::SampleCountFlagBits::e1;
+        image_info.initialLayout = vk::ImageLayout::eUndefined;
+        image_info.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+        image_info.queueFamilyIndexCount = 0;
+        image_info.pQueueFamilyIndices = NULL;
+        image_info.sharingMode = vk::SharingMode::eExclusive;
+//        image_info.flags = 0;
+
+
+
+        vk::ImageViewCreateInfo viewInfo = {};
+
+        viewInfo.image = nullptr;
+        viewInfo.viewType = vk::ImageViewType::e2D;
+        viewInfo.format = depth_format;
+        viewInfo.components.r = vk::ComponentSwizzle::eR;
+        viewInfo.components.g = vk::ComponentSwizzle::eG;
+        viewInfo.components.b = vk::ComponentSwizzle::eB;
+        viewInfo.components.a = vk::ComponentSwizzle::eA;
+        viewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        vk::MemoryRequirements mem_reqs;
+
+        depthFormat = depth_format;
+
+        /* Create image */
+//        res = vkCreateImage(info.device, &image_info, NULL, &info.depth.image);
+        res = device.createImage(&image_info,nullptr,&depthimage);
+        SAIGA_ASSERT(res == vk::Result::eSuccess);
+//        assert(res == VK_SUCCESS);
+
+
+//        vkGetImageMemoryRequirements(info.device, info.depth.image, &mem_reqs);
+        mem_reqs = device.getImageMemoryRequirements(depthimage);
+
+        vk::MemoryAllocateInfo mem_alloc = {};
+//        mem_alloc.allocationSize = 0;
+        mem_alloc.memoryTypeIndex = 0;
+        mem_alloc.allocationSize = mem_reqs.size;
+
+        bool pass =
+            memory_type_from_properties(memory_properties, mem_reqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal, &mem_alloc.memoryTypeIndex);
+        SAIGA_ASSERT(pass);
+
+
+
+        res  = device.allocateMemory(&mem_alloc,nullptr,&depthmem);
+        SAIGA_ASSERT(res == vk::Result::eSuccess);
+
+        device.bindImageMemory(depthimage,depthmem,0);
+
+
+        viewInfo.image = depthimage;
+        res = device.createImageView(&viewInfo,nullptr,&depthview);
+        SAIGA_ASSERT(res == vk::Result::eSuccess);
+    }
+
+}
+
+void VulkanWindow::init_uniform_buffer()
+{
+    vk::Result res;
+    Projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+    View = glm::lookAt(glm::vec3(-5, 3, -10),  // Camera is at (-5,3,-10), in World Space
+                            glm::vec3(0, 0, 0),     // and looks at the origin
+                            glm::vec3(0, -1, 0)     // Head is up (set to 0,-1,0 to look upside-down)
+                            );
+    Model = glm::mat4(1.0f);
+
+    // Vulkan clip space has inverted Y and half Z.
+    // clang-format off
+    Clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
+                          0.0f,-1.0f, 0.0f, 0.0f,
+                          0.0f, 0.0f, 0.5f, 0.0f,
+                          0.0f, 0.0f, 0.5f, 1.0f);
+    // clang-format on
+    MVP = Clip * Projection * View * Model;
+
+    vk::BufferCreateInfo buf_info = {};
+
+    buf_info.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+    buf_info.size = sizeof(MVP);
+    buf_info.queueFamilyIndexCount = 0;
+    buf_info.pQueueFamilyIndices = NULL;
+    buf_info.sharingMode = vk::SharingMode::eExclusive;
+//    buf_info.flags = 0;
+//    res = vkCreateBuffer(info.device, &buf_info, NULL, &info.uniform_data.buf);
+    res = device.createBuffer(&buf_info,nullptr,&uniformbuf);
+    SAIGA_ASSERT(res == vk::Result::eSuccess);
+
+    vk::MemoryRequirements mem_reqs;
+//    vkGetBufferMemoryRequirements(info.device, info.uniform_data.buf, &mem_reqs);
+    device.getBufferMemoryRequirements(uniformbuf,&mem_reqs);
+
+    vk::MemoryAllocateInfo alloc_info = {};
+    alloc_info.memoryTypeIndex = 0;
+    alloc_info.allocationSize = mem_reqs.size;
+
+    auto pass = memory_type_from_properties(memory_properties, mem_reqs.memoryTypeBits,
+                                       vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+                                       &alloc_info.memoryTypeIndex);
+
+    SAIGA_ASSERT(pass);
+
+//    res = vkAllocateMemory(info.device, &alloc_info, NULL, &(info.uniform_data.mem));
+    res  = device.allocateMemory(&alloc_info,nullptr,&uniformmem);
+    SAIGA_ASSERT(res == vk::Result::eSuccess);
+//    assert(res == VK_SUCCESS);
+
+    uint8_t *pData;
+//    res = vkMapMemory(info.device, info.uniform_data.mem, 0, mem_reqs.size, 0, (void **)&pData);
+    res = device.mapMemory(uniformmem,0,mem_reqs.size, vk::MemoryMapFlags(), (void **)&pData);
+//    assert(res == VK_SUCCESS);
+    SAIGA_ASSERT(res == vk::Result::eSuccess);
+
+
+    memcpy(pData, &MVP, sizeof(MVP));
+
+    device.unmapMemory(uniformmem);
+
+
+//    res = vkBindBufferMemory(info.device, info.uniform_data.buf, info.uniform_data.mem, 0);
+    device.bindBufferMemory(uniformbuf,uniformmem,0);
+
+
+    uniformbuffer_info.buffer = uniformbuf;
+    uniformbuffer_info.offset = 0;
+    uniformbuffer_info.range = sizeof(MVP);
+
+
+
 }
 
 void VulkanWindow::createWindow()
