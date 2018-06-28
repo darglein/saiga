@@ -13,6 +13,7 @@
 #include "depthBuffer.h"
 #include "VertexBuffer.h"
 #include "shader.h"
+#include "UniformBuffer.h"
 
 namespace Saiga {
 
@@ -50,6 +51,7 @@ private:
     Vulkan::DepthBuffer depthBuffer;
     Vulkan::VertexBuffer vertexBuffer;
     Vulkan::Shader shader;
+    Vulkan::UniformBuffer uniformBuffer;
 //    std::vector<vk::Image> swapChainImages;
 //    std::vector<vk::ImageView> swapChainImagesViews;
 
@@ -72,15 +74,6 @@ private:
     vk::PipelineCache pipelineCache;
     // ======= Window =======
 
-
-    glm::mat4 Projection;
-    glm::mat4 View;
-    glm::mat4 Model;
-    glm::mat4 Clip;
-    glm::mat4 MVP;
-    vk::Buffer uniformbuf;
-    vk::DeviceMemory uniformmem;
-    vk::DescriptorBufferInfo uniformbuffer_info;
 
 
 

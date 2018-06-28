@@ -12,6 +12,7 @@
 namespace Saiga {
 
 
+#if 0
 void VulkanWindow::init_uniform_buffer()
 {
     vk::Result res;
@@ -85,6 +86,7 @@ void VulkanWindow::init_uniform_buffer()
 
 
 }
+#endif
 
 #if 0
 

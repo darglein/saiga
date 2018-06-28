@@ -66,7 +66,9 @@ VulkanWindow::VulkanWindow()
     depthBuffer.init(*this,window.width,window.height);
 
 
-    init_uniform_buffer();
+//    init_uniform_buffer();
+    uniformBuffer.init(*this);
+
 
     // init render path
 
@@ -275,7 +277,7 @@ VulkanWindow::VulkanWindow()
         writes[0].dstSet = desc_set[0];
         writes[0].descriptorCount = 1;
         writes[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-        writes[0].pBufferInfo = &uniformbuffer_info;
+        writes[0].pBufferInfo = &uniformBuffer.uniformbuffer_info;
         writes[0].dstArrayElement = 0;
         writes[0].dstBinding = 0;
 
@@ -288,85 +290,7 @@ VulkanWindow::VulkanWindow()
 
     shader.init(*this);
 
-    // shader
-#if 0
-    {
 
-        static const char *vertShaderText =
-                "#version 400\n"
-                "#extension GL_ARB_separate_shader_objects : enable\n"
-                "#extension GL_ARB_shading_language_420pack : enable\n"
-                "layout (std140, binding = 0) uniform bufferVals {\n"
-                "    mat4 mvp;\n"
-                "} myBufferVals;\n"
-                "layout (location = 0) in vec4 pos;\n"
-                "layout (location = 1) in vec4 inColor;\n"
-                "layout (location = 0) out vec4 outColor;\n"
-                "void main() {\n"
-                "   outColor = inColor;\n"
-                "   gl_Position = myBufferVals.mvp * pos;\n"
-                "}\n";
-
-        static const char *fragShaderText =
-                "#version 400\n"
-                "#extension GL_ARB_separate_shader_objects : enable\n"
-                "#extension GL_ARB_shading_language_420pack : enable\n"
-                "layout (location = 0) in vec4 color;\n"
-                "layout (location = 0) out vec4 outColor;\n"
-                "void main() {\n"
-                "   outColor = color;\n"
-                "}\n";
-
-        std::vector<unsigned int> vtx_spv;
-        //        shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        //        shaderStages[0].pNext = NULL;
-        shaderStages[0].pSpecializationInfo = NULL;
-        //        shaderStages[0].flags = 0;
-        shaderStages[0].stage = vk::ShaderStageFlagBits::eVertex;
-        shaderStages[0].pName = "main";
-
-        glslang::InitializeProcess();
-
-        bool retVal = GLSLtoSPV(VK_SHADER_STAGE_VERTEX_BIT, vertShaderText, vtx_spv);
-        SAIGA_ASSERT(retVal);
-
-        cout << "shader loaded." << endl;
-
-        vk::ShaderModuleCreateInfo moduleCreateInfo;
-        //            moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        //            moduleCreateInfo.pNext = NULL;
-        //            moduleCreateInfo.flags = 0;
-        moduleCreateInfo.codeSize = vtx_spv.size() * sizeof(unsigned int);
-        moduleCreateInfo.pCode = vtx_spv.data();
-        res = device.createShaderModule(&moduleCreateInfo, NULL, &shaderStages[0].module);
-        //            assert(res == VK_SUCCESS);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
-
-
-        std::vector<unsigned int> frag_spv;
-        //            info.shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        //            info.shaderStages[1].pNext = NULL;
-        //            info.shaderStages[1].flags = 0;
-        shaderStages[1].pSpecializationInfo = NULL;
-        shaderStages[1].stage = vk::ShaderStageFlagBits::eFragment;
-        shaderStages[1].pName = "main";
-
-        retVal = GLSLtoSPV(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderText, frag_spv);
-        //            assert(retVal);
-        SAIGA_ASSERT(retVal);
-
-        //            moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        //            moduleCreateInfo.pNext = NULL;
-        //            moduleCreateInfo.flags = 0;
-        moduleCreateInfo.codeSize = frag_spv.size() * sizeof(unsigned int);
-        moduleCreateInfo.pCode = frag_spv.data();
-        res = device.createShaderModule(&moduleCreateInfo, NULL, &shaderStages[1].module);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
-
-        glslang::FinalizeProcess();
-    }
-
-#endif
 
     //pipeline
     {
