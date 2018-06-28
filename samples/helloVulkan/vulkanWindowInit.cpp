@@ -166,100 +166,8 @@ void VulkanWindow::init_instance()
     }
 }
 
-void VulkanWindow::init_physical_device()
-{
-    // ======================= Physical Devices =======================
 
-
-    {
-        // Print all physical devices and choose first one.
-        physicalDevices = inst.enumeratePhysicalDevices();
-        SAIGA_ASSERT(physicalDevices.size() >= 1);
-        for(vk::PhysicalDevice& d : physicalDevices)
-        {
-            vk::PhysicalDeviceProperties props = d.getProperties();
-            cout << "[Device] Id=" << props.deviceID << " "  << props.deviceName << " Type=" << (int)props.deviceType << endl;
-        }
-        physicalDevice = physicalDevices[0];
-    }
-
-    {
-
-        cout << "Creating a device from physical id " << physicalDevice.getProperties().deviceID << "." << endl;
-        queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
-        SAIGA_ASSERT(queueFamilyProperties.size() >= 1);
-        for(vk::QueueFamilyProperties& qf : queueFamilyProperties)
-        {
-            cout << "[QueueFamily] Count=" << qf.queueCount << " flags=" << (unsigned int)qf.queueFlags << endl;
-        }
-    }
-
-    /* This is as good a place as any to do this */
-//    vkGetPhysicalDeviceMemoryProperties(info.gpus[0], &info.memory_properties);
-//    vkGetPhysicalDeviceProperties(info.gpus[0], &info.gpu_props);
-    memory_properties = physicalDevice.getMemoryProperties();
-    gpu_props = physicalDevice.getProperties();
-
-}
-
-void VulkanWindow::init_swapchain_extension()
-{
-    vk::Result res;
-    {
-        // construct surface
-        vk::XcbSurfaceCreateInfoKHR createInfo = {};
-        createInfo.connection = connection;
-        createInfo.window = window;
-        //        res = vkCreateXcbSurfaceKHR(info.inst, &createInfo, NULL, &info.surface);
-
-        res = inst.createXcbSurfaceKHR( &createInfo, NULL, &surface);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
-
-        // Iterate over each queue to learn whether it supports presenting:
-        //        VkBool32 *pSupportsPresent = (VkBool32 *)malloc(queue_family_count * sizeof(VkBool32));
-
-        // search for a graphics queue
-        for (unsigned int i = 0; i < queueFamilyProperties.size(); i++) {
-
-            if (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics)
-            {
-                if(graphics_queue_family_index == -1)
-                {
-                    graphics_queue_family_index = i;
-                }
-                vk::Bool32 b = physicalDevice.getSurfaceSupportKHR(i,surface);
-                if(b)
-                {
-                    graphics_queue_family_index = i;
-                    present_queue_family_index = i;
-                    break;
-                }
-            }
-        }
-    }
-
-    SAIGA_ASSERT(graphics_queue_family_index != -1);
-    SAIGA_ASSERT(present_queue_family_index != -1);
-
-    {
-
-        std::vector<vk::SurfaceFormatKHR> surfaceFormats = physicalDevice.getSurfaceFormatsKHR(surface);
-        SAIGA_ASSERT(surfaceFormats.size() >= 1);
-        // If the format list includes just one entry of VK_FORMAT_UNDEFINED,
-        // the surface has no preferred format.  Otherwise, at least one
-        // supported format will be returned.
-        if (surfaceFormats.size() == 1 && surfaceFormats[0].format == vk::Format::eUndefined) {
-            format = vk::Format::eB8G8R8A8Unorm;
-        } else {
-            assert(surfaceFormats.size() >= 1);
-            format = surfaceFormats[0].format;
-        }
-
-
-
-    }
-}
-
+#if 0
 void VulkanWindow::init_depth_buffer()
 {
     vk::Result res;
@@ -282,8 +190,8 @@ void VulkanWindow::init_depth_buffer()
         }
         image_info.imageType = vk::ImageType::e2D;
         image_info.format = depth_format;
-        image_info.extent.width =  width;
-        image_info.extent.height = height;
+        image_info.extent.width =  window.width;
+        image_info.extent.height = window.height;
         image_info.extent.depth = 1;
         image_info.mipLevels = 1;
         image_info.arrayLayers = 1;
@@ -349,6 +257,7 @@ void VulkanWindow::init_depth_buffer()
     }
 
 }
+#endif
 
 void VulkanWindow::init_uniform_buffer()
 {
@@ -424,70 +333,7 @@ void VulkanWindow::init_uniform_buffer()
 
 }
 
-void VulkanWindow::createWindow()
-{
-
-    // ======================= XCB =======================
-    {
-        const xcb_setup_t *setup;
-        xcb_screen_iterator_t iter;
-        int scr;
-
-        connection = xcb_connect(NULL, &scr);
-        if (connection == NULL || xcb_connection_has_error(connection)) {
-            std::cout << "Unable to make an XCB connection\n";
-            exit(-1);
-        }
-
-        setup = xcb_get_setup(connection);
-        iter = xcb_setup_roots_iterator(setup);
-        while (scr-- > 0) xcb_screen_next(&iter);
-
-        screen = iter.data;
-    }
-
-    {
-        // init window
-        SAIGA_ASSERT(width > 0);
-        SAIGA_ASSERT(height > 0);
-
-        uint32_t value_mask, value_list[32];
-
-        window = xcb_generate_id(connection);
-
-        value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-        value_list[0] = screen->black_pixel;
-        value_list[1] = XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_EXPOSURE;
-
-        xcb_create_window(connection, XCB_COPY_FROM_PARENT, window, screen->root, 0, 0, width, height, 0,
-                          XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual, value_mask, value_list);
-
-        /* Magic code that will send notification when window is destroyed */
-        xcb_intern_atom_cookie_t cookie = xcb_intern_atom(connection, 1, 12, "WM_PROTOCOLS");
-        xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(connection, cookie, 0);
-
-        xcb_intern_atom_cookie_t cookie2 = xcb_intern_atom(connection, 0, 16, "WM_DELETE_WINDOW");
-        atom_wm_delete_window = xcb_intern_atom_reply(connection, cookie2, 0);
-
-        xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*reply).atom, 4, 32, 1,
-                            &(*atom_wm_delete_window).atom);
-        free(reply);
-
-        xcb_map_window(connection, window);
-
-        // Force the x/y coordinates to 100,100 results are identical in consecutive
-        // runs
-        const uint32_t coords[] = {100, 100};
-        xcb_configure_window(connection, window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, coords);
-        xcb_flush(connection);
-
-        xcb_generic_event_t *e;
-        while ((e = xcb_wait_for_event(connection))) {
-            if ((e->response_type & ~0x80) == XCB_EXPOSE) break;
-        }
-    }
-
-}
+#if 0
 
 void VulkanWindow::createDevice()
 {
@@ -531,6 +377,7 @@ void VulkanWindow::createDevice()
 
 
 }
+#endif
 
 void VulkanWindow::init_vertex_buffer()
 {
@@ -600,6 +447,7 @@ void VulkanWindow::init_vertex_buffer()
         vi_attribs[1].format = vk::Format::eR32G32B32A32Sfloat;
         vi_attribs[1].offset = 16;
 
+#if 0
         const vk::DeviceSize offsets[1] = {0};
 
         /* We cannot bind the vertex buffer until we begin a renderpass */
@@ -669,6 +517,7 @@ void VulkanWindow::init_vertex_buffer()
 
 //        vkDestroySemaphore(info.device, imageAcquiredSemaphore, NULL);
         device.destroySemaphore(imageAcquiredSemaphore,nullptr);
+#endif
     }
 }
 

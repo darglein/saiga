@@ -7,13 +7,11 @@
 
 #pragma once
 
-#define VK_USE_PLATFORM_XCB_KHR
-#include "saiga/config.h"
-#include "saiga/util/glm.h"
+#include "window.h"
+#include "swapChain.h"
+#include "vulkan.h"
+#include "depthBuffer.h"
 
-#include "vulkan/vk_sdk_platform.h"
-#include "vulkan/vulkan.hpp"
-#include "xcb/xcb.h"
 
 namespace Saiga {
 
@@ -26,7 +24,7 @@ struct LayerPropertiesEx
 };
 
 
-class SAIGA_GLOBAL VulkanWindow
+class SAIGA_GLOBAL VulkanWindow : public Vulkan::VulkanBase
 {
 public:
     VulkanWindow();
@@ -36,29 +34,26 @@ private:
     std::vector<LayerPropertiesEx> layerProperties;
 
 
-    vk::Instance inst;
-    std::vector<vk::PhysicalDevice> physicalDevices;
-    vk::PhysicalDevice physicalDevice;
-    vk::PhysicalDeviceProperties gpu_props;
-    vk::PhysicalDeviceMemoryProperties memory_properties;
+    Vulkan::Window window;
 
-    vk::Device device;
 
-    std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
+
+//    vk::Queue graphics_queue;
+//    vk::Queue present_queue;
+
     vk::CommandPool cmd_pool;
     vk::CommandBuffer cmd;
-    vk::SwapchainKHR swap_chain;
+//    vk::SwapchainKHR swap_chain;
 
-    std::vector<vk::Image> swapChainImages;
-    std::vector<vk::ImageView> swapChainImagesViews;
+    Vulkan::SwapChain* swapChain;
+    Vulkan::DepthBuffer depthBuffer;
 
-    vk::Format format;
+//    std::vector<vk::Image> swapChainImages;
+//    std::vector<vk::ImageView> swapChainImagesViews;
 
-    //depth image
-    vk::Format depthFormat;
-    vk::Image depthimage;
-    vk::DeviceMemory depthmem;
-    vk::ImageView depthview;
+//    vk::Format format;
+
+
 
     std::vector<vk::DescriptorSetLayout> desc_layout;
     vk::PipelineLayout pipeline_layout;
@@ -79,7 +74,7 @@ private:
     vk::VertexInputAttributeDescription vi_attribs[2];
 
     vk::Pipeline pipeline;
-
+    vk::PipelineCache pipelineCache;
     // ======= Window =======
 
 
@@ -93,29 +88,21 @@ private:
     vk::DescriptorBufferInfo uniformbuffer_info;
 
 
-    int width = 50;
-    int height = 50;
 
-    vk::SurfaceKHR surface;
-
-    xcb_connection_t *connection;
-    xcb_screen_t* screen;
-    xcb_window_t window;
-    xcb_intern_atom_reply_t *atom_wm_delete_window;
+//    vk::SurfaceKHR surface;
 
 
 
-    int graphics_queue_family_index = -1;
-    int present_queue_family_index = -1;
+//    int graphics_queue_family_index = -1;
+//    int present_queue_family_index = -1;
 
     void init_global_layer_properties();
     void init_instance();
-    void init_physical_device();
     void init_swapchain_extension();
-    void init_depth_buffer();
+//    void init_depth_buffer();
     void init_uniform_buffer();
-    void createWindow();
-    void createDevice();
+//    void createWindow();
+//    void createDevice();
     void init_vertex_buffer();
 };
 
