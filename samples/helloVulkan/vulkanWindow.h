@@ -12,7 +12,7 @@
 #include "vulkan.h"
 #include "depthBuffer.h"
 #include "VertexBuffer.h"
-
+#include "shader.h"
 
 namespace Saiga {
 
@@ -49,6 +49,7 @@ private:
     Vulkan::SwapChain* swapChain;
     Vulkan::DepthBuffer depthBuffer;
     Vulkan::VertexBuffer vertexBuffer;
+    Vulkan::Shader shader;
 //    std::vector<vk::Image> swapChainImages;
 //    std::vector<vk::ImageView> swapChainImagesViews;
 
@@ -62,7 +63,6 @@ private:
     std::vector<vk::DescriptorSet> desc_set;
     uint32_t current_buffer;
     vk::RenderPass render_pass;
-    vk::PipelineShaderStageCreateInfo shaderStages[2];
 
     std::vector<vk::Framebuffer> framebuffers;
 
