@@ -11,6 +11,7 @@
 #include "swapChain.h"
 #include "vulkan.h"
 #include "depthBuffer.h"
+#include "VertexBuffer.h"
 
 
 namespace Saiga {
@@ -47,7 +48,7 @@ private:
 
     Vulkan::SwapChain* swapChain;
     Vulkan::DepthBuffer depthBuffer;
-
+    Vulkan::VertexBuffer vertexBuffer;
 //    std::vector<vk::Image> swapChainImages;
 //    std::vector<vk::ImageView> swapChainImagesViews;
 
@@ -66,12 +67,6 @@ private:
     std::vector<vk::Framebuffer> framebuffers;
 
 
-    vk::Buffer vertexbuf;
-    vk::DeviceMemory vertexmem;
-    vk::DescriptorBufferInfo vertexbuffer_info;
-
-    vk::VertexInputBindingDescription vi_binding;
-    vk::VertexInputAttributeDescription vi_attribs[2];
 
     vk::Pipeline pipeline;
     vk::PipelineCache pipelineCache;
@@ -103,7 +98,7 @@ private:
     void init_uniform_buffer();
 //    void createWindow();
 //    void createDevice();
-    void init_vertex_buffer();
+//    void init_vertex_buffer();
 };
 
 }

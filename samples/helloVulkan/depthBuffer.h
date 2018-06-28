@@ -13,9 +13,7 @@
 namespace Saiga {
 namespace Vulkan {
 
-/**
- * This class capsules the platform specific code for window creation.
- */
+
 class SAIGA_GLOBAL DepthBuffer
 {
 public:

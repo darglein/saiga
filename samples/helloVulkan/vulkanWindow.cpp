@@ -346,7 +346,8 @@ VulkanWindow::VulkanWindow()
 
     // vertex buffer
 
-    init_vertex_buffer();
+//    init_vertex_buffer();
+    vertexBuffer.init(*this);
 
     // pipeline layout
 
@@ -539,9 +540,9 @@ VulkanWindow::VulkanWindow()
         //    vi.pNext = NULL;
         //    vi.flags = 0;
         vi.vertexBindingDescriptionCount = 1;
-        vi.pVertexBindingDescriptions = &vi_binding;
+        vi.pVertexBindingDescriptions = &vertexBuffer.vi_binding;
         vi.vertexAttributeDescriptionCount = 2;
-        vi.pVertexAttributeDescriptions = vi_attribs;
+        vi.pVertexAttributeDescriptions = vertexBuffer.vi_attribs;
 
         vk::PipelineInputAssemblyStateCreateInfo ia;
         //    ia.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -713,7 +714,7 @@ VulkanWindow::VulkanWindow()
                                desc_set.data(), 0, NULL);
 
         const vk::DeviceSize offsets[1] = {0};
-        cmd.bindVertexBuffers(0, 1, &vertexbuf, offsets);
+        cmd.bindVertexBuffers(0, 1, &vertexBuffer.vertexbuf, offsets);
 
 
         vk::Viewport viewport;
