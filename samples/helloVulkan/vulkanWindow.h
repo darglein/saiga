@@ -60,6 +60,25 @@ private:
     vk::DeviceMemory depthmem;
     vk::ImageView depthview;
 
+    std::vector<vk::DescriptorSetLayout> desc_layout;
+    vk::PipelineLayout pipeline_layout;
+    vk::DescriptorPool desc_pool;
+    std::vector<vk::DescriptorSet> desc_set;
+    uint32_t current_buffer;
+    vk::RenderPass render_pass;
+    vk::PipelineShaderStageCreateInfo shaderStages[2];
+
+    std::vector<vk::Framebuffer> framebuffers;
+
+
+    vk::Buffer vertexbuf;
+    vk::DeviceMemory vertexmem;
+    vk::DescriptorBufferInfo vertexbuffer_info;
+
+    vk::VertexInputBindingDescription vi_binding;
+    vk::VertexInputAttributeDescription vi_attribs[2];
+
+    vk::Pipeline pipeline;
 
     // ======= Window =======
 
@@ -97,6 +116,7 @@ private:
     void init_uniform_buffer();
     void createWindow();
     void createDevice();
+    void init_vertex_buffer();
 };
 
 }

@@ -6,6 +6,7 @@
 
 #include "vulkanWindow.h"
 #include "saiga/util/assert.h"
+#include "cube_data.h"
 namespace Saiga {
 
 bool memory_type_from_properties(const vk::PhysicalDeviceMemoryProperties& memory_properties, int32_t typeBits, vk::MemoryPropertyFlags requirements_mask, uint32_t *typeIndex) {
@@ -529,6 +530,146 @@ void VulkanWindow::createDevice()
 
 
 
+}
+
+void VulkanWindow::init_vertex_buffer()
+{
+    {
+        vk::Result res;
+
+        /*
+         * Set up a vertex buffer:
+         * - Create a buffer
+         * - Map it and write the vertex data into it
+         * - Bind it using vkCmdBindVertexBuffers
+         * - Later, at pipeline creation,
+         * -      fill in vertex input part of the pipeline with relevent data
+         */
+
+        vk::BufferCreateInfo buf_info = {};
+//        buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+//        buf_info.pNext = NULL;
+        buf_info.usage = vk::BufferUsageFlagBits::eVertexBuffer;
+        buf_info.size = sizeof(g_vb_solid_face_colors_Data);
+        buf_info.queueFamilyIndexCount = 0;
+        buf_info.pQueueFamilyIndices = NULL;
+        buf_info.sharingMode = vk::SharingMode::eExclusive;
+//        buf_info.flags = 0;
+        res = device.createBuffer(&buf_info, NULL, &vertexbuf);
+
+        vk::MemoryRequirements mem_reqs;
+        device.getBufferMemoryRequirements(vertexbuf, &mem_reqs);
+
+        vk::MemoryAllocateInfo alloc_info = {};
+//        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+//        alloc_info.pNext = NULL;
+        alloc_info.memoryTypeIndex = 0;
+
+        alloc_info.allocationSize = mem_reqs.size;
+        bool pass = memory_type_from_properties(memory_properties,mem_reqs.memoryTypeBits,
+                                           vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent,
+                                           &alloc_info.memoryTypeIndex);
+
+        SAIGA_ASSERT(pass);
+
+        res = device.allocateMemory(&alloc_info,nullptr,&vertexmem);
+
+        uint8_t *pData;
+        device.mapMemory(vertexmem, 0, mem_reqs.size, vk::MemoryMapFlags(), (void **)&pData);
+//        assert(res == VK_SUCCESS);
+        SAIGA_ASSERT(res == vk::Result::eSuccess);
+
+        memcpy(pData, g_vb_solid_face_colors_Data, sizeof(g_vb_solid_face_colors_Data));
+
+        device.unmapMemory(vertexmem);
+
+        device.bindBufferMemory(vertexbuf,vertexmem,0);
+
+        /* We won't use these here, but we will need this info when creating the
+         * pipeline */
+        vi_binding.binding = 0;
+        vi_binding.inputRate = vk::VertexInputRate::eVertex;
+        vi_binding.stride = sizeof(g_vb_solid_face_colors_Data[0]);
+
+        vi_attribs[0].binding = 0;
+        vi_attribs[0].location = 0;
+        vi_attribs[0].format = vk::Format::eR32G32B32A32Sfloat;
+        vi_attribs[0].offset = 0;
+        vi_attribs[1].binding = 0;
+        vi_attribs[1].location = 1;
+        vi_attribs[1].format = vk::Format::eR32G32B32A32Sfloat;
+        vi_attribs[1].offset = 16;
+
+        const vk::DeviceSize offsets[1] = {0};
+
+        /* We cannot bind the vertex buffer until we begin a renderpass */
+        vk::ClearValue clear_values[2];
+        clear_values[0].color.float32[0] = 0.2f;
+        clear_values[0].color.float32[1] = 0.2f;
+        clear_values[0].color.float32[2] = 0.2f;
+        clear_values[0].color.float32[3] = 0.2f;
+        clear_values[1].depthStencil.depth = 1.0f;
+        clear_values[1].depthStencil.stencil = 0;
+
+
+
+
+
+//        vk::Result res;
+
+        // A semaphore (or fence) is required in order to acquire a
+        // swapchain image to prepare it for use in a render pass.
+        // The semaphore is normally used to hold back the rendering
+        // operation until the image is actually available.
+        // But since this sample does not render, the semaphore
+        // ends up being unused.
+        vk::Semaphore imageAcquiredSemaphore;
+        vk::SemaphoreCreateInfo imageAcquiredSemaphoreCreateInfo;
+//        imageAcquiredSemaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+//        imageAcquiredSemaphoreCreateInfo.pNext = NULL;
+//        imageAcquiredSemaphoreCreateInfo.flags = 0;
+
+//        res = vkCreateSemaphore(info.device, &imageAcquiredSemaphoreCreateInfo, NULL, &imageAcquiredSemaphore);
+        res = device.createSemaphore( &imageAcquiredSemaphoreCreateInfo, NULL, &imageAcquiredSemaphore);
+//        assert(res == VK_SUCCESS);
+        SAIGA_ASSERT(res == vk::Result::eSuccess);
+
+        // Acquire the swapchain image in order to set its layout
+//        res = vkAcquireNextImageKHR(info.device, info.swap_chain, UINT64_MAX, imageAcquiredSemaphore, VK_NULL_HANDLE,
+//                                    &info.current_buffer);
+        current_buffer = device.acquireNextImageKHR(swap_chain, UINT64_MAX, imageAcquiredSemaphore, vk::Fence()).value;
+        SAIGA_ASSERT(res == vk::Result::eSuccess);
+
+
+
+        vk::RenderPassBeginInfo rp_begin = {};
+//        rp_begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+//        rp_begin.pNext = NULL;
+        rp_begin.renderPass = render_pass;
+        rp_begin.framebuffer = framebuffers[current_buffer];
+        rp_begin.renderArea.offset.x = 0;
+        rp_begin.renderArea.offset.y = 0;
+        rp_begin.renderArea.extent.width = width;
+        rp_begin.renderArea.extent.height = height;
+        rp_begin.clearValueCount = 2;
+        rp_begin.pClearValues = clear_values;
+
+//        vkCmdBeginRenderPass(info.cmd, &rp_begin, VK_SUBPASS_CONTENTS_INLINE);
+        cmd.beginRenderPass(&rp_begin, vk::SubpassContents::eInline);
+        cmd.bindVertexBuffers(0,1,&vertexbuf,offsets);
+
+//        vkCmdBindVertexBuffers(info.cmd, 0,             /* Start Binding */
+//                               1,                       /* Binding Count */
+//                               &info.vertex_buffer.buf, /* pBuffers */
+//                               offsets);                /* pOffsets */
+
+        cmd.endRenderPass();
+//        vkCmdEndRenderPass(info.cmd);
+
+
+//        vkDestroySemaphore(info.device, imageAcquiredSemaphore, NULL);
+        device.destroySemaphore(imageAcquiredSemaphore,nullptr);
+    }
 }
 
 }
