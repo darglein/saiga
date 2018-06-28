@@ -14,16 +14,10 @@ namespace Saiga {
 namespace Vulkan {
 
 
-class SAIGA_GLOBAL UniformBuffer : public Buffer
+class SAIGA_GLOBAL IndexBuffer : public Buffer
 {
 public:
 
-
-    glm::mat4 Projection;
-    glm::mat4 View;
-    glm::mat4 Model;
-    glm::mat4 Clip;
-    glm::mat4 MVP;
 
     void init(VulkanBase& base);
 };

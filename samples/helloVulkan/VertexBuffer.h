@@ -7,22 +7,23 @@
 
 #pragma once
 
+#include "Buffer.h"
 #include "vulkanBase.h"
 
 namespace Saiga {
 namespace Vulkan {
 
 
-class SAIGA_GLOBAL VertexBuffer
+class SAIGA_GLOBAL VertexBuffer : public Buffer
 {
 public:
 
-    vk::Buffer vertexbuf;
-    vk::DeviceMemory vertexmem;
-    vk::DescriptorBufferInfo vertexbuffer_info;
+//    vk::Buffer buffer;
+//    vk::DeviceMemory memory;
+//    vk::DescriptorBufferInfo info;
 
     vk::VertexInputBindingDescription vi_binding;
-    vk::VertexInputAttributeDescription vi_attribs[2];
+    std::vector<vk::VertexInputAttributeDescription> vi_attribs;
 
     void init(VulkanBase& base);
 };

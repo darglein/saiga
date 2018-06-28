@@ -12,6 +12,7 @@
 #include "vulkan.h"
 #include "depthBuffer.h"
 #include "VertexBuffer.h"
+#include "IndexBuffer.h"
 #include "shader.h"
 #include "UniformBuffer.h"
 
@@ -50,6 +51,7 @@ private:
     Vulkan::SwapChain* swapChain;
     Vulkan::DepthBuffer depthBuffer;
     Vulkan::VertexBuffer vertexBuffer;
+    Vulkan::IndexBuffer indexBuffer;
     Vulkan::Shader shader;
     Vulkan::UniformBuffer uniformBuffer;
 //    std::vector<vk::Image> swapChainImages;
