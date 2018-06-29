@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "vulkanHelper.h"
+#include "saiga/vulkan/vulkanHelper.h"
 
 
 

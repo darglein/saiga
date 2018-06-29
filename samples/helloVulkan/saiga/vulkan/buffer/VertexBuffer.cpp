@@ -5,8 +5,9 @@
  */
 
 #include "VertexBuffer.h"
-#include "vulkanHelper.h"
-#include "cube_data.h"
+#include "saiga/vulkan/vulkanHelper.h"
+
+#include "saiga/vulkan/Vertex.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -23,14 +24,21 @@ void VertexBuffer::init(VulkanBase &base)
          * -      fill in vertex input part of the pipeline with relevent data
          */
 
+        static const Saiga::Vulkan::Vertex Triangle[] =
+        {
+            { {  1.0f,  1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
+            { { -1.0f,  1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
+            { {  0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } }
+        };
 
-        createBuffer(base,sizeof(g_vb_solid_face_colors_Data),vk::BufferUsageFlagBits::eVertexBuffer);
+
+        createBuffer(base,sizeof(Triangle),vk::BufferUsageFlagBits::eVertexBuffer);
 
         allocateMemory(base);
 
 
 
-        upload(base,0,sizeof(g_vb_solid_face_colors_Data),g_vb_solid_face_colors_Data);
+        upload(base,0,sizeof(Triangle),Triangle);
 
         base.device.bindBufferMemory(buffer,memory,0);
 

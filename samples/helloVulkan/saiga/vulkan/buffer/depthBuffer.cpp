@@ -5,7 +5,7 @@
  */
 
 #include "depthBuffer.h"
-#include "vulkanHelper.h"
+#include "saiga/vulkan/vulkanHelper.h"
 
 namespace Saiga {
 namespace Vulkan {

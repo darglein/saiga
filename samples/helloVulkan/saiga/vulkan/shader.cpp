@@ -5,7 +5,7 @@
  */
 
 #include "shader.h"
-#include "vulkanHelper.h"
+#include "saiga/vulkan/vulkanHelper.h"
 
 #include "SPIRV/GlslangToSpv.h"
 

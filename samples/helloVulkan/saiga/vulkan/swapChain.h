@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include "vulkan.h"
-#include "vulkanBase.h"
+#include "saiga/vulkan/vulkan.h"
+#include "saiga/vulkan/vulkanBase.h"
 
 namespace Saiga {
 namespace Vulkan {

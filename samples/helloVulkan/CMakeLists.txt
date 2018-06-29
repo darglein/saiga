@@ -3,8 +3,8 @@ get_filename_component(PROG_NAME ${CMAKE_CURRENT_LIST_DIR} NAME)
 string(REPLACE " " "_" PROG_NAME ${PROG_NAME})
 
 # Collect source and header files
-FILE(GLOB main_SRC  *.cpp)
-FILE(GLOB main_HEADER  *.h)
+FILE(GLOB_RECURSE main_SRC  *.cpp)
+FILE(GLOB_RECURSE main_HEADER  *.h)
 SET(PROG_SRC ${main_SRC} ${main_HEADER})
 
 include_directories(.)

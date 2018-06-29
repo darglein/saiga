@@ -7,24 +7,17 @@
 
 #pragma once
 
-#include "Buffer.h"
-#include "vulkanBase.h"
+#include "saiga/vulkan/vulkanBase.h"
 
 namespace Saiga {
 namespace Vulkan {
 
 
-class SAIGA_GLOBAL UniformBuffer : public Buffer
+class SAIGA_GLOBAL Shader
 {
 public:
 
-
-    glm::mat4 Projection;
-    glm::mat4 View;
-    glm::mat4 Model;
-    glm::mat4 Clip;
-    glm::mat4 MVP;
-
+vk::PipelineShaderStageCreateInfo shaderStages[2];
     void init(VulkanBase& base);
 };
 

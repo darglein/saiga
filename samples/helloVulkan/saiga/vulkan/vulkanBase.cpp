@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "vulkanBase.h"
+#include "saiga/vulkan/vulkanBase.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -150,6 +150,7 @@ void VulkanBase::init_physical_device()
 
 void VulkanBase::createDevice()
 {
+    SAIGA_ASSERT(physicalDevice);
     // Request one graphics queue
 
     // Get index of first queue family that supports graphics
