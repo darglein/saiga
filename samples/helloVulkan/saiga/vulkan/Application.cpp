@@ -57,12 +57,15 @@ void Application::run()
     for(int i = 0; i < count; ++i)
     {
         cout << "render " << i << endl;
-        update();
-
 
         vk::CommandBufferResetFlags resetFlags;
         cmd.reset(resetFlags);
         cmd.begin( vk::CommandBufferBeginInfo() );
+
+
+
+
+        update(cmd);
 
 
         vk::Viewport viewport;

@@ -36,7 +36,7 @@ public:
 
     void run();
 
-    virtual void update() = 0;
+    virtual void update(vk::CommandBuffer& cmd) = 0;
     virtual void render(vk::CommandBuffer& cmd) = 0;
 };
 

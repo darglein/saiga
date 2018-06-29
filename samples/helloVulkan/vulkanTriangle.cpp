@@ -13,10 +13,23 @@ namespace Saiga {
 VulkanWindow::VulkanWindow()
     : Application(500,500)
 {
-    uniformBuffer.init(*this);
+    uniformBuffer.init(*this,sizeof(glm::mat4));
 
-    vertexBuffer.init(*this);
-    indexBuffer.init(*this);
+
+    std::vector<Saiga::Vulkan::Vertex> Triangle =
+    {
+        { {  1.0f,  1.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } },
+        { { -1.0f,  1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } },
+        { {  0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } }
+    };
+
+
+    vertexBuffer.init(*this,Triangle);
+
+
+    std::vector<uint32_t> indices = { 0, 1, 2 };
+
+    indexBuffer.init(*this,indices);
 
 
     // pipeline layout
@@ -276,18 +289,32 @@ VulkanWindow::~VulkanWindow()
 
 }
 
-void VulkanWindow::update()
+void VulkanWindow::update(vk::CommandBuffer &cmd)
 {
+    static int c = 0;
+    c++;
+    auto Projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+    auto View = glm::translate(glm::vec3(0.0f, 0.0f, -5.5));
+    auto Model = glm::mat4(1.0f) * glm::rotate(glm::mat4(1),c*0.01f,vec3(0,0,1));
+    MVP =  Projection * View * Model;
+//    uniformBuffer.upload(*this,0,sizeof(glm::mat4),&MVP[0][0]);
 
+    uniformBuffer.upload(cmd,0,sizeof(glm::mat4),&MVP[0][0]);
+//    cmd.updateBuffer(uniformBuffer.buffer,0,sizeof(glm::mat4),&MVP[0][0]);
 }
 
 void VulkanWindow::render(vk::CommandBuffer &cmd)
 {
+
+
+
+
     cmd.bindPipeline( vk::PipelineBindPoint::eGraphics, pipeline);
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, NUM_DESCRIPTOR_SETS,
                            desc_set.data(), 0, NULL);
-    cmd.bindVertexBuffers( 0, vertexBuffer.buffer, 0UL);
-    cmd.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
+
+    vertexBuffer.bind(cmd);
+    indexBuffer.bind(cmd);
     cmd.drawIndexed( 3, 1, 0, 0,1);
 }
 

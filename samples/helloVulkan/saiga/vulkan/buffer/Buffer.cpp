@@ -37,6 +37,12 @@ void Buffer::allocateMemory(VulkanBase &base)
     DeviceMemory::allocateMemory(base,mem_reqs);
 }
 
+void Buffer::upload(vk::CommandBuffer &cmd, size_t offset, size_t size, const void *data)
+{
+
+    cmd.updateBuffer(buffer,offset,size,data);
+}
+
 
 
 

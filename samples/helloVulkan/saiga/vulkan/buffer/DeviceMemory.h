@@ -29,6 +29,10 @@ public:
     void unmap(VulkanBase &base);
 
     void upload(VulkanBase &base, size_t offset, size_t size, const void* data);
+
+//    void upload(VulkanBase &base, size_t offset, size_t size, const void* data);
+
+
 };
 
 }

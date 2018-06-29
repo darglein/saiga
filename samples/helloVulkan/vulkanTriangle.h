@@ -16,10 +16,13 @@ namespace Saiga {
 class SAIGA_GLOBAL VulkanWindow : public Vulkan::Application
 {
 public:
+        glm::mat4 MVP;
+
+
     VulkanWindow();
     ~VulkanWindow();
 
-    virtual void update() override;
+    virtual void update(vk::CommandBuffer& cmd) override;
     virtual void render(vk::CommandBuffer& cmd) override;
 private:
 
@@ -27,8 +30,8 @@ private:
 
 
 
-    Vulkan::VertexBuffer vertexBuffer;
-    Vulkan::IndexBuffer indexBuffer;
+    Vulkan::VertexBuffer<Vulkan::Vertex> vertexBuffer;
+    Vulkan::IndexBuffer<uint32_t> indexBuffer;
     Vulkan::Shader shader;
     Vulkan::UniformBuffer uniformBuffer;
 

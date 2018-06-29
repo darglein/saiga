@@ -30,6 +30,8 @@ public:
             );
 
     void allocateMemory(VulkanBase &base);
+
+        void upload(vk::CommandBuffer& cmd, size_t offset, size_t size, const void* data);
 };
 
 }
