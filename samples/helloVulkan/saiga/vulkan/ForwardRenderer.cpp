@@ -16,7 +16,12 @@ ForwardRenderer::ForwardRenderer(VulkanBase &base, SwapChain &swapChain)
 
 ForwardRenderer::~ForwardRenderer()
 {
+    base.device.destroySemaphore(imageAcquiredSemaphore);
+    base.device.destroyFence(drawFence);
+    base.device.destroyRenderPass(render_pass);
 
+    for(auto f : framebuffers)
+        base.device.destroyFramebuffer(f);
 }
 
 void ForwardRenderer::create(int width, int height)
@@ -141,6 +146,14 @@ void ForwardRenderer::create(int width, int height)
 
     }
 
+
+    vk::SemaphoreCreateInfo imageAcquiredSemaphoreCreateInfo;
+    CHECK_VK(base.device.createSemaphore(&imageAcquiredSemaphoreCreateInfo, NULL, &imageAcquiredSemaphore));
+
+    vk::FenceCreateInfo fenceInfo;
+    CHECK_VK(base.device.createFence(&fenceInfo, NULL, &drawFence));
+
+
 }
 
 void ForwardRenderer::begin(vk::CommandBuffer &cmd)
@@ -156,12 +169,6 @@ void ForwardRenderer::begin(vk::CommandBuffer &cmd)
     clear_values[1].depthStencil.depth = 1.0f;
     clear_values[1].depthStencil.stencil = 0;
 
-    vk::SemaphoreCreateInfo imageAcquiredSemaphoreCreateInfo;
-    //        imageAcquiredSemaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    //        imageAcquiredSemaphoreCreateInfo.pNext = NULL;
-    //        imageAcquiredSemaphoreCreateInfo.flags = 0;
-
-    CHECK_VK(base.device.createSemaphore(&imageAcquiredSemaphoreCreateInfo, NULL, &imageAcquiredSemaphore));
 
 
 
@@ -187,16 +194,9 @@ void ForwardRenderer::begin(vk::CommandBuffer &cmd)
 
 void ForwardRenderer::end(vk::CommandBuffer &cmd)
 {
+
+
     const vk::CommandBuffer cmd_bufs[] = {cmd};
-    vk::FenceCreateInfo fenceInfo;
-    vk::Fence drawFence;
-    //        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    //        fenceInfo.pNext = NULL;
-    //        fenceInfo.flags = 0;
-    base.device.createFence(&fenceInfo, NULL, &drawFence);
-
-
-
     vk::PipelineStageFlags pipe_stage_flags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     vk::SubmitInfo submit_info[1] = {};
     //        submit_info[0].pNext = NULL;
@@ -210,6 +210,8 @@ void ForwardRenderer::end(vk::CommandBuffer &cmd)
     submit_info[0].pSignalSemaphores = NULL;
 
     /* Queue the command buffer for execution */
+
+    base.device.resetFences(drawFence);
 
     CHECK_VK(base.queue.submit( 1, submit_info, drawFence));
     //        res = vkQueueSubmit(info.graphics_queue,

@@ -16,8 +16,9 @@ namespace Vulkan {
 class SAIGA_GLOBAL Shader
 {
 public:
-
-vk::PipelineShaderStageCreateInfo shaderStages[2];
+    vk::Device device;
+    vk::PipelineShaderStageCreateInfo shaderStages[2];
+    ~Shader();
     void init(VulkanBase& base);
 };
 

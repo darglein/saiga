@@ -46,7 +46,7 @@ Application::Application(int width, int height)
 
 Application::~Application()
 {
-
+    device.destroyCommandPool(mainCommandPool.cmd_pool);
 }
 
 void Application::run()

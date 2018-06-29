@@ -11,20 +11,30 @@ namespace Saiga {
 namespace Vulkan {
 
 
-void DeviceMemory::allocateMemory(VulkanBase &base, const vk::MemoryRequirements &mem_reqs)
+DeviceMemory::~DeviceMemory()
 {
-//    vk::MemoryRequirements mem_reqs;
-//    base.device.getBufferMemoryRequirements(buffer, &mem_reqs);
+    SAIGA_ASSERT(device);
+    SAIGA_ASSERT(memory);
+    device.freeMemory(memory);
+}
+
+void DeviceMemory::allocateMemory(VulkanBase &base, const vk::MemoryRequirements &mem_reqs, vk::MemoryPropertyFlags flags)
+{
+    device = base.device;
+    SAIGA_ASSERT(device);
+    //    vk::MemoryRequirements mem_reqs;
+    //    base.device.getBufferMemoryRequirements(buffer, &mem_reqs);
 
     vk::MemoryAllocateInfo alloc_info = {};
-//        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-//        alloc_info.pNext = NULL;
+    //        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    //        alloc_info.pNext = NULL;
     alloc_info.memoryTypeIndex = 0;
 
     alloc_info.allocationSize = mem_reqs.size;
-    bool pass = Vulkan::memory_type_from_properties(base.memory_properties,mem_reqs.memoryTypeBits,
-                                       vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent,
-                                       &alloc_info.memoryTypeIndex);
+    bool pass = Vulkan::memory_type_from_properties(
+                base.memory_properties,mem_reqs.memoryTypeBits,
+                flags,
+                &alloc_info.memoryTypeIndex);
 
     SAIGA_ASSERT(pass);
 

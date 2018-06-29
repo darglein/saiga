@@ -172,8 +172,15 @@ bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshader, std
     return true;
 }
 
+Shader::~Shader()
+{
+    device.destroyShaderModule(shaderStages[0].module);
+    device.destroyShaderModule(shaderStages[1].module);
+}
+
 void Shader::init(VulkanBase &base)
 {
+    device = base.device;
     static const char *vertShaderText =
             "#version 400\n"
             "#extension GL_ARB_separate_shader_objects : enable\n"

@@ -266,10 +266,14 @@ VulkanWindow::VulkanWindow()
 
 VulkanWindow::~VulkanWindow()
 {
+    device.destroyPipelineCache(pipelineCache);
+    device.destroyPipeline(pipeline);
+    device.destroyPipelineLayout(pipeline_layout);
+    for(auto d : desc_layout)
+    device.destroyDescriptorSetLayout(d);
 
+    device.destroyDescriptorPool(desc_pool);
 
-    device.destroy();
-    inst.destroy();
 }
 
 void VulkanWindow::update()

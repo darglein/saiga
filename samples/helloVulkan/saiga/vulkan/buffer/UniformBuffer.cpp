@@ -31,54 +31,13 @@ void UniformBuffer::init(VulkanBase &base)
     // clang-format on
     MVP =  Projection * View * Model;
 
-    vk::BufferCreateInfo buf_info = {};
 
-//    buf_info.usage = vk::BufferUsageFlagBits::eUniformBuffer;
-//    buf_info.size = sizeof(MVP);
-//    buf_info.queueFamilyIndexCount = 0;
-//    buf_info.pQueueFamilyIndices = NULL;
-//    buf_info.sharingMode = vk::SharingMode::eExclusive;
-//    buf_info.flags = 0;
-//    res = vkCreateBuffer(info.device, &buf_info, NULL, &info.uniform_data.buf);
-//    res = base.device.createBuffer(&buf_info,nullptr,&buffer);
-//    SAIGA_ASSERT(res == vk::Result::eSuccess);
-
-    createBuffer(base,sizeof(MVP),vk::BufferUsageFlagBits::eUniformBuffer);
-
-    vk::MemoryRequirements mem_reqs;
-//    vkGetBufferMemoryRequirements(info.device, info.uniform_data.buf, &mem_reqs);
-    base.device.getBufferMemoryRequirements(buffer,&mem_reqs);
-
-    vk::MemoryAllocateInfo alloc_info = {};
-    alloc_info.memoryTypeIndex = 0;
-    alloc_info.allocationSize = mem_reqs.size;
-
-    auto pass = memory_type_from_properties(base.memory_properties, mem_reqs.memoryTypeBits,
-                                       vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-                                       &alloc_info.memoryTypeIndex);
-
-    SAIGA_ASSERT(pass);
-
-//    res = vkAllocateMemory(info.device, &alloc_info, NULL, &(info.uniform_data.mem));
-    res  = base.device.allocateMemory(&alloc_info,nullptr,&memory);
-    SAIGA_ASSERT(res == vk::Result::eSuccess);
-//    assert(res == VK_SUCCESS);
-
-    uint8_t *pData;
-//    res = vkMapMemory(info.device, info.uniform_data.mem, 0, mem_reqs.size, 0, (void **)&pData);
-    res = base.device.mapMemory(memory,0,mem_reqs.size, vk::MemoryMapFlags(), (void **)&pData);
-//    assert(res == VK_SUCCESS);
-    SAIGA_ASSERT(res == vk::Result::eSuccess);
+    createBuffer(base,sizeof(glm::mat4),vk::BufferUsageFlagBits::eUniformBuffer);
+    allocateMemory(base);
+    upload(base,0,sizeof(glm::mat4),&MVP[0][0]);
 
 
-    memcpy(pData, &MVP, sizeof(MVP));
-
-    base.device.unmapMemory(memory);
-
-
-//    res = vkBindBufferMemory(info.device, info.uniform_data.buf, info.uniform_data.mem, 0);
     base.device.bindBufferMemory(buffer,memory,0);
-
 
     info.buffer = buffer;
     info.offset = 0;

@@ -34,7 +34,6 @@ private:
 
 
     std::vector<vk::DescriptorSetLayout> desc_layout;
-    vk::PipelineLayout pipeline_layout;
     vk::DescriptorPool desc_pool;
     std::vector<vk::DescriptorSet> desc_set;
 
@@ -43,6 +42,7 @@ private:
 
 
 
+    vk::PipelineLayout pipeline_layout;
     vk::Pipeline pipeline;
     vk::PipelineCache pipelineCache;
 

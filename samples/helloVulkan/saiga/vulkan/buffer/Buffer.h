@@ -8,18 +8,19 @@
 #pragma once
 
 #include "saiga/vulkan/vulkanBase.h"
+#include "saiga/vulkan/buffer/DeviceMemory.h"
 
 namespace Saiga {
 namespace Vulkan {
 
 
-class SAIGA_GLOBAL Buffer
+class SAIGA_GLOBAL Buffer : public DeviceMemory
 {
 public:
-    size_t size;
     vk::Buffer buffer;
-    vk::DeviceMemory memory;
     vk::DescriptorBufferInfo info;
+
+    ~Buffer();
 
     void createBuffer(
             VulkanBase &base,
@@ -29,11 +30,6 @@ public:
             );
 
     void allocateMemory(VulkanBase &base);
-
-    uint8_t* map(VulkanBase &base, size_t offset, size_t size);
-    void unmap(VulkanBase &base);
-
-    void upload(VulkanBase &base, size_t offset, size_t size, const void* data);
 };
 
 }

@@ -9,16 +9,6 @@
 namespace Saiga {
 namespace Vulkan {
 
-VulkanBase::VulkanBase()
-{
-
-}
-
-VulkanBase::~VulkanBase()
-{
-
-}
-
 
 // Debug callback for validation layer messages
 VkBool32 debugMessageCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objType, uint64_t srcObject, size_t location, int32_t msgCode, const char* pLayerPrefix, const char* pMsg, void* pUserData) {
@@ -59,6 +49,28 @@ VkBool32 debugMessageCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTy
 
     return VK_FALSE;
 }
+
+
+VulkanBase::VulkanBase()
+{
+
+}
+
+VulkanBase::~VulkanBase()
+{
+    device.destroy();
+
+
+
+    auto vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(inst, "vkDestroyDebugReportCallbackEXT");
+    vkDestroyDebugReportCallbackEXT(inst,debugReportCallback,nullptr);
+
+
+    inst.destroy();
+
+}
+
+
 
 void VulkanBase::createInstance(bool enableValidation)
 {

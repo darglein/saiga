@@ -25,12 +25,13 @@ public:
     SwapChain& swapChain;
 
     int width, height;
-        uint32_t current_buffer;
+    uint32_t current_buffer;
 
     DepthBuffer depthBuffer;
 
     vk::RenderPass render_pass;
 
+    vk::Fence drawFence;
     vk::Semaphore imageAcquiredSemaphore;
     std::vector<vk::Framebuffer> framebuffers;
 

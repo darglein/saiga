@@ -10,6 +10,12 @@
 namespace Saiga {
 namespace Vulkan {
 
+DepthBuffer::~DepthBuffer()
+{
+    device.destroyImage(depthimage);
+    device.destroyImageView(depthview);
+}
+
 void DepthBuffer::init(VulkanBase &base, int width, int height)
 {
     vk::Result res;
@@ -76,21 +82,12 @@ void DepthBuffer::init(VulkanBase &base, int width, int height)
 //        vkGetImageMemoryRequirements(info.device, info.depth.image, &mem_reqs);
         mem_reqs = base.device.getImageMemoryRequirements(depthimage);
 
-        vk::MemoryAllocateInfo mem_alloc = {};
-//        mem_alloc.allocationSize = 0;
-        mem_alloc.memoryTypeIndex = 0;
-        mem_alloc.allocationSize = mem_reqs.size;
-
-        bool pass =
-            memory_type_from_properties(base.memory_properties, mem_reqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal, &mem_alloc.memoryTypeIndex);
-        SAIGA_ASSERT(pass);
 
 
+        allocateMemory(base,mem_reqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-        res  = base.device.allocateMemory(&mem_alloc,nullptr,&depthmem);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
 
-        base.device.bindImageMemory(depthimage,depthmem,0);
+        base.device.bindImageMemory(depthimage,memory,0);
 
 
         viewInfo.image = depthimage;

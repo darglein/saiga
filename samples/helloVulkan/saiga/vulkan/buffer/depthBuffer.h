@@ -9,19 +9,23 @@
 
 #include "saiga/vulkan/vulkan.h"
 #include "saiga/vulkan/vulkanBase.h"
+#include "saiga/vulkan/buffer/DeviceMemory.h"
 
 namespace Saiga {
 namespace Vulkan {
 
 
-class SAIGA_GLOBAL DepthBuffer
+class SAIGA_GLOBAL DepthBuffer : public DeviceMemory
 {
 public:
+//    vk::DeviceMemory depthmem;
+
     //depth image
     vk::Format depthFormat;
     vk::Image depthimage;
-    vk::DeviceMemory depthmem;
     vk::ImageView depthview;
+
+    ~DepthBuffer();
     void init(VulkanBase& base, int width, int height);
 };
 
