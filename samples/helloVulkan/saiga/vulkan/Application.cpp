@@ -5,12 +5,14 @@
  */
 
 #include "Application.h"
+#include <chrono>
+#include <thread>
 
 namespace Saiga {
 namespace Vulkan {
 
 Application::Application(int width, int height)
-    : forwardRenderer(*this)
+    : forwardRenderer(*this,swapChain)
 {
     window.createWindow(width,height);
 
@@ -28,17 +30,18 @@ Application::Application(int width, int height)
     auto surface = window.createSurfaceKHR(inst);
 
 
-    swapChain = new Vulkan::SwapChain(inst, physicalDevice, device);
-    swapChain->setSurface(surface);
-    swapChain->create(&window.width, &window.height);
+//    swapChain = new Vulkan::SwapChain(inst, physicalDevice, device);
+    swapChain.create(inst, physicalDevice, device);
+    swapChain.setSurface(surface);
+    swapChain.create(&window.width, &window.height);
 
 
 
-    mainCommandPool.create(*this,swapChain->queueNodeIndex,vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+    mainCommandPool.create(*this,swapChain.queueNodeIndex,vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 
     cmd = mainCommandPool.createCommandBuffer(*this);
 
-    forwardRenderer.create(*swapChain,width,height);
+    forwardRenderer.create(width,height);
 }
 
 Application::~Application()
@@ -79,7 +82,20 @@ void Application::run()
         cmd.setScissor(0, 1, &scissor);
 
 
+
+        forwardRenderer.begin(cmd);
+
         render(cmd);
+
+        cmd.endRenderPass();
+        //        res = vkEndCommandBuffer(info.cmd);
+        cmd.end();
+
+
+       forwardRenderer.end(cmd);
+
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
 
 
 

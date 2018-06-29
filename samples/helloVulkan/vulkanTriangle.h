@@ -37,7 +37,7 @@ private:
     vk::PipelineLayout pipeline_layout;
     vk::DescriptorPool desc_pool;
     std::vector<vk::DescriptorSet> desc_set;
-    uint32_t current_buffer;
+
 
 
 

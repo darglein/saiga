@@ -24,7 +24,7 @@ class SAIGA_GLOBAL Application : public VulkanBase
 public:
 
     Window window;
-    SwapChain* swapChain;
+    SwapChain swapChain;
 
     ForwardRenderer forwardRenderer;
 

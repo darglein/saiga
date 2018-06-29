@@ -21,22 +21,26 @@ namespace Vulkan {
 class SAIGA_GLOBAL ForwardRenderer
 {
 public:
-
     VulkanBase& base;
+    SwapChain& swapChain;
+
+    int width, height;
+        uint32_t current_buffer;
 
     DepthBuffer depthBuffer;
 
     vk::RenderPass render_pass;
 
+    vk::Semaphore imageAcquiredSemaphore;
     std::vector<vk::Framebuffer> framebuffers;
 
-    ForwardRenderer(VulkanBase& base);
+    ForwardRenderer(VulkanBase& base, SwapChain& swapChain);
     ~ForwardRenderer();
 
-    void create(SwapChain& swapChain, int width, int height);
+    void create(int width, int height);
 
     void begin(vk::CommandBuffer& cmd);
-    void end();
+    void end(vk::CommandBuffer &cmd);
 };
 
 }

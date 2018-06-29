@@ -6,41 +6,15 @@
 
 #include "vulkanTriangle.h"
 #include "saiga/util/assert.h"
-#include <chrono>
-#include <thread>
+
 namespace Saiga {
 
 
 VulkanWindow::VulkanWindow()
     : Application(500,500)
 {
-
-
-    // ======================= Layers =======================
-
-
-
-    vk::Result res;
-
-
-
-
-
-
-
-
-
-
     uniformBuffer.init(*this);
 
-
-
-
-
-
-    // vertex buffer
-
-    //    init_vertex_buffer();
     vertexBuffer.init(*this);
     indexBuffer.init(*this);
 
@@ -70,8 +44,8 @@ VulkanWindow::VulkanWindow()
 
         desc_layout.resize(NUM_DESCRIPTOR_SETS);
         //        res = vkCreateDescriptorSetLayout(info.device, &descriptor_layout, NULL, info.desc_layout.data());
-        res = device.createDescriptorSetLayout(&descriptor_layout,nullptr,desc_layout.data());
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
+        CHECK_VK(device.createDescriptorSetLayout(&descriptor_layout,nullptr,desc_layout.data()));
+
 
 
         /* Now use the descriptor layout to create a pipeline layout */
@@ -83,8 +57,8 @@ VulkanWindow::VulkanWindow()
         pPipelineLayoutCreateInfo.setLayoutCount = NUM_DESCRIPTOR_SETS;
         pPipelineLayoutCreateInfo.pSetLayouts = desc_layout.data();
 
-        res = device.createPipelineLayout(&pPipelineLayoutCreateInfo, NULL, &pipeline_layout);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
+        CHECK_VK(device.createPipelineLayout(&pPipelineLayoutCreateInfo, NULL, &pipeline_layout));
+
         //        assert(res == VK_SUCCESS);
     }
 
@@ -105,8 +79,8 @@ VulkanWindow::VulkanWindow()
         descriptor_pool.pPoolSizes = type_count;
 
         //        res = vkCreateDescriptorPool(info.device, &descriptor_pool, NULL, &info.desc_pool);
-        res = device.createDescriptorPool(&descriptor_pool, NULL, &desc_pool);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
+        CHECK_VK(device.createDescriptorPool(&descriptor_pool, NULL, &desc_pool));
+
 
 
         vk::DescriptorSetAllocateInfo alloc_info[1];
@@ -118,8 +92,8 @@ VulkanWindow::VulkanWindow()
 
         desc_set.resize(NUM_DESCRIPTOR_SETS);
         //           res = vkAllocateDescriptorSets(info.device, alloc_info, info.desc_set.data());
-        res = device.allocateDescriptorSets(alloc_info, desc_set.data());
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
+        CHECK_VK(device.allocateDescriptorSets(alloc_info, desc_set.data()));
+
 
 
         vk::WriteDescriptorSet writes[1];
@@ -279,11 +253,11 @@ VulkanWindow::VulkanWindow()
         pipelineCacheInfo.initialDataSize = 0;
         pipelineCacheInfo.pInitialData = NULL;
         //    pipelineCache.flags = 0;
-        res = device.createPipelineCache(&pipelineCacheInfo, NULL, &pipelineCache);
+        CHECK_VK(device.createPipelineCache(&pipelineCacheInfo, NULL, &pipelineCache));
 
 
-        res = device.createGraphicsPipelines(pipelineCache, 1, &pipeline_info, NULL, &pipeline);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
+        CHECK_VK(device.createGraphicsPipelines(pipelineCache, 1, &pipeline_info, NULL, &pipeline));
+
     }
 
 
@@ -305,120 +279,12 @@ void VulkanWindow::update()
 
 void VulkanWindow::render(vk::CommandBuffer &cmd)
 {
-
-
-    vk::ClearValue clear_values[2];
-//    float c = float(i) / count;
-    float c = 0.5f;
-    clear_values[0].color.float32[0] = c;
-    clear_values[0].color.float32[1] = c;
-    clear_values[0].color.float32[2] = c;
-    clear_values[0].color.float32[3] = c;
-    clear_values[1].depthStencil.depth = 1.0f;
-    clear_values[1].depthStencil.stencil = 0;
-
-    vk::Semaphore imageAcquiredSemaphore;
-    vk::SemaphoreCreateInfo imageAcquiredSemaphoreCreateInfo;
-    //        imageAcquiredSemaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    //        imageAcquiredSemaphoreCreateInfo.pNext = NULL;
-    //        imageAcquiredSemaphoreCreateInfo.flags = 0;
-
-    CHECK_VK(device.createSemaphore(&imageAcquiredSemaphoreCreateInfo, NULL, &imageAcquiredSemaphore));
-
-
-    // Get the index of the next available swapchain image:
-    //        current_buffer = device.acquireNextImageKHR(swap_chain, UINT64_MAX, imageAcquiredSemaphore, vk::Fence()).value;
-    swapChain->acquireNextImage(imageAcquiredSemaphore,current_buffer);
-
-
-    vk::RenderPassBeginInfo rp_begin;
-    //        rp_begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    //        rp_begin.pNext = NULL;
-    rp_begin.renderPass = forwardRenderer.render_pass;
-    rp_begin.framebuffer = forwardRenderer.framebuffers[current_buffer];
-    rp_begin.renderArea.offset.x = 0;
-    rp_begin.renderArea.offset.y = 0;
-    rp_begin.renderArea.extent.width = window.width;
-    rp_begin.renderArea.extent.height = window.height;
-    rp_begin.clearValueCount = 2;
-    rp_begin.pClearValues = clear_values;
-
-    cmd.beginRenderPass(&rp_begin, vk::SubpassContents::eInline);
-
-
-
     cmd.bindPipeline( vk::PipelineBindPoint::eGraphics, pipeline);
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, NUM_DESCRIPTOR_SETS,
                            desc_set.data(), 0, NULL);
-
-    const vk::DeviceSize offsets[1] = {0};
-    cmd.bindVertexBuffers(0, 1, &vertexBuffer.buffer, offsets);
+    cmd.bindVertexBuffers( 0, vertexBuffer.buffer, 0UL);
     cmd.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
-
-
-
-    //        init_viewports(info);
-    //        init_scissors(info);
-
-
-    //        cmd.draw( 3, 1, 0, 0);
     cmd.drawIndexed( 3, 1, 0, 0,1);
-    //        vkCmdEndRenderPass(info.cmd);
-    cmd.endRenderPass();
-    //        res = vkEndCommandBuffer(info.cmd);
-    cmd.end();
-
-
-    const vk::CommandBuffer cmd_bufs[] = {cmd};
-    vk::FenceCreateInfo fenceInfo;
-    vk::Fence drawFence;
-    //        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    //        fenceInfo.pNext = NULL;
-    //        fenceInfo.flags = 0;
-    device.createFence(&fenceInfo, NULL, &drawFence);
-
-
-
-    vk::PipelineStageFlags pipe_stage_flags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    vk::SubmitInfo submit_info[1] = {};
-    //        submit_info[0].pNext = NULL;
-    //        submit_info[0].sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info[0].waitSemaphoreCount = 1;
-    submit_info[0].pWaitSemaphores = &imageAcquiredSemaphore;
-    submit_info[0].pWaitDstStageMask = &pipe_stage_flags;
-    submit_info[0].commandBufferCount = 1;
-    submit_info[0].pCommandBuffers = cmd_bufs;
-    submit_info[0].signalSemaphoreCount = 0;
-    submit_info[0].pSignalSemaphores = NULL;
-
-    /* Queue the command buffer for execution */
-
-    CHECK_VK(queue.submit( 1, submit_info, drawFence));
-    //        res = vkQueueSubmit(info.graphics_queue,
-
-
-    vk::PresentInfoKHR present;
-    //        present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    //        present.pNext = NULL;
-    present.swapchainCount = 1;
-    present.pSwapchains = &swapChain->swapChain;
-    present.pImageIndices = &current_buffer;
-    present.pWaitSemaphores = NULL;
-    present.waitSemaphoreCount = 0;
-    present.pResults = NULL;
-
-
-    /* Make sure command buffer is finished before presenting */
-    vk::Result res;
-    do {
-        res = device.waitForFences(1, &drawFence, VK_TRUE, 1241515);
-    } while (res == vk::Result::eTimeout);
-
-
-    queue.presentKHR(&present);
-
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(16));
 }
 
 

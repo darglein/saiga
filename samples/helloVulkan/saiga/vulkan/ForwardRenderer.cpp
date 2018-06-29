@@ -9,8 +9,8 @@
 namespace Saiga {
 namespace Vulkan {
 
-ForwardRenderer::ForwardRenderer(VulkanBase &base)
-    : base(base)
+ForwardRenderer::ForwardRenderer(VulkanBase &base, SwapChain &swapChain)
+    : base(base), swapChain(swapChain)
 {
 }
 
@@ -19,8 +19,10 @@ ForwardRenderer::~ForwardRenderer()
 
 }
 
-void ForwardRenderer::create(SwapChain &swapChain, int width, int height)
+void ForwardRenderer::create(int width, int height)
 {
+    this->width = width;
+    this->height = height;
     depthBuffer.init(base,width,height);
 
     // init render path
@@ -144,11 +146,94 @@ void ForwardRenderer::create(SwapChain &swapChain, int width, int height)
 void ForwardRenderer::begin(vk::CommandBuffer &cmd)
 {
 
+    vk::ClearValue clear_values[2];
+//    float c = float(i) / count;
+    float c = 0.5f;
+    clear_values[0].color.float32[0] = c;
+    clear_values[0].color.float32[1] = c;
+    clear_values[0].color.float32[2] = c;
+    clear_values[0].color.float32[3] = c;
+    clear_values[1].depthStencil.depth = 1.0f;
+    clear_values[1].depthStencil.stencil = 0;
+
+    vk::SemaphoreCreateInfo imageAcquiredSemaphoreCreateInfo;
+    //        imageAcquiredSemaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    //        imageAcquiredSemaphoreCreateInfo.pNext = NULL;
+    //        imageAcquiredSemaphoreCreateInfo.flags = 0;
+
+    CHECK_VK(base.device.createSemaphore(&imageAcquiredSemaphoreCreateInfo, NULL, &imageAcquiredSemaphore));
+
+
+
+    // Get the index of the next available swapchain image:
+    //        current_buffer = device.acquireNextImageKHR(swap_chain, UINT64_MAX, imageAcquiredSemaphore, vk::Fence()).value;
+    swapChain.acquireNextImage(imageAcquiredSemaphore,current_buffer);
+
+
+    vk::RenderPassBeginInfo rp_begin;
+    //        rp_begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    //        rp_begin.pNext = NULL;
+    rp_begin.renderPass = render_pass;
+    rp_begin.framebuffer = framebuffers[current_buffer];
+    rp_begin.renderArea.offset.x = 0;
+    rp_begin.renderArea.offset.y = 0;
+    rp_begin.renderArea.extent.width = width;
+    rp_begin.renderArea.extent.height = height;
+    rp_begin.clearValueCount = 2;
+    rp_begin.pClearValues = clear_values;
+
+    cmd.beginRenderPass(&rp_begin, vk::SubpassContents::eInline);
 }
 
-void ForwardRenderer::end()
+void ForwardRenderer::end(vk::CommandBuffer &cmd)
 {
+    const vk::CommandBuffer cmd_bufs[] = {cmd};
+    vk::FenceCreateInfo fenceInfo;
+    vk::Fence drawFence;
+    //        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    //        fenceInfo.pNext = NULL;
+    //        fenceInfo.flags = 0;
+    base.device.createFence(&fenceInfo, NULL, &drawFence);
 
+
+
+    vk::PipelineStageFlags pipe_stage_flags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    vk::SubmitInfo submit_info[1] = {};
+    //        submit_info[0].pNext = NULL;
+    //        submit_info[0].sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info[0].waitSemaphoreCount = 1;
+    submit_info[0].pWaitSemaphores = &imageAcquiredSemaphore;
+    submit_info[0].pWaitDstStageMask = &pipe_stage_flags;
+    submit_info[0].commandBufferCount = 1;
+    submit_info[0].pCommandBuffers = cmd_bufs;
+    submit_info[0].signalSemaphoreCount = 0;
+    submit_info[0].pSignalSemaphores = NULL;
+
+    /* Queue the command buffer for execution */
+
+    CHECK_VK(base.queue.submit( 1, submit_info, drawFence));
+    //        res = vkQueueSubmit(info.graphics_queue,
+
+
+    vk::PresentInfoKHR present;
+    //        present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    //        present.pNext = NULL;
+    present.swapchainCount = 1;
+    present.pSwapchains = &swapChain.swapChain;
+    present.pImageIndices = &current_buffer;
+    present.pWaitSemaphores = NULL;
+    present.waitSemaphoreCount = 0;
+    present.pResults = NULL;
+
+
+    /* Make sure command buffer is finished before presenting */
+    vk::Result res;
+    do {
+        res = base.device.waitForFences(1, &drawFence, VK_TRUE, 1241515);
+    } while (res == vk::Result::eTimeout);
+
+
+    base.queue.presentKHR(&present);
 }
 
 

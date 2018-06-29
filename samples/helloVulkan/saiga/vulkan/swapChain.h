@@ -34,10 +34,12 @@ public:
     std::vector<SwapChainBuffer> buffers;
     uint32_t queueNodeIndex = UINT32_MAX;
 
-    SwapChain(vk::Instance instance, vk::PhysicalDevice physicalDevice, vk::Device device);
+    SwapChain();
 
     ~SwapChain();
 
+
+    void create(vk::Instance instance, vk::PhysicalDevice physicalDevice, vk::Device device);
 
     void setSurface(vk::SurfaceKHR _surface);
 

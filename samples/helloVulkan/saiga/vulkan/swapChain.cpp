@@ -9,11 +9,9 @@
 namespace Saiga {
 namespace Vulkan {
 
-SwapChain::SwapChain(vk::Instance instance, vk::PhysicalDevice physicalDevice, vk::Device device)
+SwapChain::SwapChain()
 {
-    this->instance = instance;
-    this->physicalDevice = physicalDevice;
-    this->device = device;
+
 }
 
 SwapChain::~SwapChain()
@@ -30,6 +28,13 @@ SwapChain::~SwapChain()
         device.destroySwapchainKHR(swapChain);
         instance.destroySurfaceKHR(surface);
     }
+}
+
+void SwapChain::create(vk::Instance instance, vk::PhysicalDevice physicalDevice, vk::Device device)
+{
+    this->instance = instance;
+    this->physicalDevice = physicalDevice;
+    this->device = device;
 }
 
 void SwapChain::setSurface(vk::SurfaceKHR _surface)
