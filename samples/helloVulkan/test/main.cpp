@@ -2,7 +2,7 @@
 #include "vulkanTriangle.h"
 
 
-int main(int argc, char *argv[])
+int main2(int argc, char *argv[])
 {
     Saiga::VulkanWindow window;
     window.run();

@@ -11,7 +11,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/util/assert.h"
 
-#define VK_USE_PLATFORM_XCB_KHR
+//#define VK_USE_PLATFORM_XCB_KHR
 #include "vulkan/vulkan.hpp"
 #include "xcb/xcb.h"
 

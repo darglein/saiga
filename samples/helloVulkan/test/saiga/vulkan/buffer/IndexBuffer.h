@@ -41,7 +41,7 @@ public:
         uint32_t indexBufferSize = indices.size() * sizeof(uint32_t);
         createBuffer(base,indexBufferSize,vk::BufferUsageFlagBits::eIndexBuffer);
         allocateMemory(base);
-        DeviceMemory::upload(base,0,indexBufferSize,indices.data());
+        DeviceMemory::upload(0,indexBufferSize,indices.data());
         base.device.bindBufferMemory(buffer,memory,0);
     }
 

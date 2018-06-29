@@ -5,10 +5,14 @@ string(REPLACE " " "_" PROG_NAME ${PROG_NAME})
 # Collect source and header files
 FILE(GLOB_RECURSE main_SRC  *.cpp)
 FILE(GLOB_RECURSE main_HEADER  *.h)
-SET(PROG_SRC ${main_SRC} ${main_HEADER})
+FILE(GLOB_RECURSE main_HEADER2  *.hpp)
+SET(PROG_SRC ${main_SRC} ${main_HEADER} ${main_HEADER2})
 
 include_directories(.)
-
+include_directories(test)
+include_directories(sample)
+include_directories(sample/base)
+   add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
 
 add_executable(${PROG_NAME} ${PROG_SRC} )
 target_link_libraries(${PROG_NAME} ${LIBS} ${LIB_NAME} )

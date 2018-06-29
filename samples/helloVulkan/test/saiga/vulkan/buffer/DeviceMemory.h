@@ -25,10 +25,10 @@ public:
 
     void allocateMemory(VulkanBase &base, const vk::MemoryRequirements& mem_reqs, vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent);
 
-    uint8_t* map(VulkanBase &base, size_t offset, size_t size);
-    void unmap(VulkanBase &base);
+    uint8_t* map(size_t offset, size_t size);
+    void unmap();
 
-    void upload(VulkanBase &base, size_t offset, size_t size, const void* data);
+    void upload(size_t offset, size_t size, const void* data);
 
 //    void upload(VulkanBase &base, size_t offset, size_t size, const void* data);
 

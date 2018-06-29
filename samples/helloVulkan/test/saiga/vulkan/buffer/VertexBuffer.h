@@ -30,7 +30,7 @@ public:
         allocateMemory(base);
 
 
-        DeviceMemory::upload(base,0,size,vertices.data());
+        DeviceMemory::upload(0,size,vertices.data());
         base.device.bindBufferMemory(buffer,memory,0);
         VKVertexAttribBinder<Vertex> va;
         va.getVKAttribs(vi_binding,vi_attribs);

@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "Vertex.h".
+#include "Vertex.h"
 #include "saiga/vulkan/vulkanHelper.h"
 
 namespace Saiga {

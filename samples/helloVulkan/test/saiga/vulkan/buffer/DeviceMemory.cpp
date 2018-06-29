@@ -41,25 +41,25 @@ void DeviceMemory::allocateMemory(VulkanBase &base, const vk::MemoryRequirements
     CHECK_VK(base.device.allocateMemory(&alloc_info,nullptr,&memory));
 }
 
-uint8_t *DeviceMemory::map(VulkanBase &base, size_t offset, size_t size)
+uint8_t *DeviceMemory::map(size_t offset, size_t size)
 {
     uint8_t *pData;
-    base.device.mapMemory(memory, 0, size, vk::MemoryMapFlags(), (void **)&pData);
+    device.mapMemory(memory, 0, size, vk::MemoryMapFlags(), (void **)&pData);
     return pData;
 }
 
-void DeviceMemory::unmap(VulkanBase &base)
+void DeviceMemory::unmap()
 {
-    base.device.unmapMemory(memory);
+    device.unmapMemory(memory);
 }
 
-void DeviceMemory::upload(VulkanBase &base, size_t offset, size_t size, const void *data)
+void DeviceMemory::upload(size_t offset, size_t size, const void *data)
 {
-    uint8_t *pData = map(base,offset,size) ;
+    uint8_t *pData = map(offset,size) ;
 
     memcpy(pData, data, size);
 
-    unmap(base);
+    unmap();
 }
 
 
