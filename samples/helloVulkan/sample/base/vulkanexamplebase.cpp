@@ -782,6 +782,8 @@ void VulkanExampleBase::handleEvent(SDL_Event e)
         case SDL_SCANCODE_D:
             camera.keys.right = true;
             break;
+        default:
+            break;
 
         }
     }
@@ -805,6 +807,8 @@ void VulkanExampleBase::handleEvent(SDL_Event e)
         case SDL_BUTTON_MIDDLE:
             mouseButtons.middle = true;
             break;
+        default:
+            break;
         }
     }
     if (e.type == SDL_MOUSEBUTTONUP)
@@ -820,6 +824,8 @@ void VulkanExampleBase::handleEvent(SDL_Event e)
             break;
         case SDL_BUTTON_MIDDLE:
             mouseButtons.middle = false;
+            break;
+        default:
             break;
         }
 
