@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Vulkan Example base class
 *
 * Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
@@ -381,9 +381,6 @@ public:
 	// Prepare commonly used Vulkan functions
 	virtual void prepare();
 
-	// Load a SPIR-V shader
-	VkPipelineShaderStageCreateInfo loadShader(std::string fileName, VkShaderStageFlagBits stage);
-	
 	// Start the main render loop
 	void renderLoop();
 

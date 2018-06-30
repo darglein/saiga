@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Assorted Vulkan helper functions
 *
 * Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
@@ -117,16 +117,6 @@ namespace vks
 		void exitFatal(std::string message, int32_t exitCode);
 		void exitFatal(std::string message, VkResult resultCode);
 
-		// Load a SPIR-V shader (binary) 
-#if defined(__ANDROID__)
-		VkShaderModule loadShader(AAssetManager* assetManager, const char *fileName, VkDevice device);
-#else
-		VkShaderModule loadShader(const char *fileName, VkDevice device);
-#endif
-
-		// Load a GLSL shader (text)
-		// Note: GLSL support requires vendor-specific extensions to be enabled and is not a core-feature of Vulkan
-		VkShaderModule loadShaderGLSL(const char *fileName, VkDevice device, VkShaderStageFlagBits stage);
 
 		/** @brief Checks if a file exists */
 		bool fileExists(const std::string &filename);

@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Vulkan Example base class
 *
 * Copyright (C) 2016-2017 by Sascha Willems - www.saschawillems.de
@@ -7,6 +7,7 @@
 */
 
 #include "vulkanexamplebase.h"
+#include "saiga/vulkan/ShaderLoader.h"
 
 std::vector<const char*> VulkanExampleBase::args;
 
@@ -209,29 +210,13 @@ void VulkanExampleBase::prepare()
 		// Load default shaders if not specified by example
 		if (overlayCreateInfo.shaders.size() == 0) {
 			overlayCreateInfo.shaders = {
-				loadShader(getAssetPath() + "shaders/base/uioverlay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
-				loadShader(getAssetPath() + "shaders/base/uioverlay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+//				loadShader(getAssetPath() + "shaders/base/uioverlay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
+//				loadShader(getAssetPath() + "shaders/base/uioverlay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
 			};
 		}
 		UIOverlay = new vks::UIOverlay(overlayCreateInfo);
 		updateOverlay();
 	}
-}
-
-VkPipelineShaderStageCreateInfo VulkanExampleBase::loadShader(std::string fileName, VkShaderStageFlagBits stage)
-{
-	VkPipelineShaderStageCreateInfo shaderStage = {};
-	shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	shaderStage.stage = stage;
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-	shaderStage.module = vks::tools::loadShader(androidApp->activity->assetManager, fileName.c_str(), device);
-#else
-	shaderStage.module = vks::tools::loadShader(fileName.c_str(), device);
-#endif
-	shaderStage.pName = "main"; // todo : make param
-	assert(shaderStage.module != VK_NULL_HANDLE);
-	shaderModules.push_back(shaderStage.module);
-	return shaderStage;
 }
 
 void VulkanExampleBase::renderFrame()
@@ -909,7 +894,7 @@ bool VulkanExampleBase::initVulkan()
 			break;
 		}
 		// List available GPUs
-		if (args[i] == std::string("-listgpus"))
+//		if (args[i] == std::string("-listgpus"))
 		{
 			uint32_t gpuCount = 0;
 			VK_CHECK_RESULT(vkEnumeratePhysicalDevices(instance, &gpuCount, nullptr));
