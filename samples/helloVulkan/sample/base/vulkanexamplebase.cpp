@@ -261,7 +261,7 @@ void VulkanExampleBase::renderFrame()
 		frameCounter = 0;
 	}
 	// TODO: Cap UI overlay update rates
-	updateOverlay();
+//	updateOverlay();
 }
 
 void VulkanExampleBase::renderLoop()
@@ -771,11 +771,7 @@ VulkanExampleBase::~VulkanExampleBase()
 	{
 		vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
 	}
-
-	for (auto& shaderModule : shaderModules)
-	{
-		vkDestroyShaderModule(device, shaderModule, nullptr);
-	}
+    Saiga::Vulkan::shaderLoader.destroy();
 	vkDestroyImageView(device, depthStencil.view, nullptr);
 	vkDestroyImage(device, depthStencil.image, nullptr);
 	vkFreeMemory(device, depthStencil.mem, nullptr);
@@ -941,6 +937,7 @@ bool VulkanExampleBase::initVulkan()
 	}
 	device = vulkanDevice->logicalDevice;
 
+    Saiga::Vulkan::shaderLoader.init(device);
 	// Get a graphics queue from the device
 	vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
 

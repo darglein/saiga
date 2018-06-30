@@ -30,7 +30,15 @@ std::string readTextFile(const char *fileName)
     return fileContent;
 }
 
-VkShaderModule ShaderLoader::loadShader(const char *fileName, VkDevice device)
+void ShaderLoader::destroy()
+{
+    for (auto& shaderModule : shaderModules)
+    {
+        vkDestroyShaderModule(device, shaderModule, nullptr);
+    }
+}
+
+VkShaderModule ShaderLoader::loadShader(const char *fileName)
 {
     std::ifstream is(fileName, std::ios::binary | std::ios::in | std::ios::ate);
 
@@ -63,7 +71,7 @@ VkShaderModule ShaderLoader::loadShader(const char *fileName, VkDevice device)
     }
 }
 
-VkShaderModule ShaderLoader::loadShaderGLSL(const char *fileName, VkDevice device, VkShaderStageFlagBits stage)
+VkShaderModule ShaderLoader::loadShaderGLSL(const char *fileName, VkShaderStageFlagBits stage)
 {
     std::string shaderSrc = readTextFile(fileName);
     const char *shaderCode = shaderSrc.c_str();
@@ -89,7 +97,7 @@ VkShaderModule ShaderLoader::loadShaderGLSL(const char *fileName, VkDevice devic
     return shaderModule;
 }
 
-VkPipelineShaderStageCreateInfo ShaderLoader::loadShader(VkDevice device, std::string fileName, VkShaderStageFlagBits stage)
+VkPipelineShaderStageCreateInfo ShaderLoader::loadShader(std::string fileName, VkShaderStageFlagBits stage)
 {
     VkPipelineShaderStageCreateInfo shaderStage = {};
     shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -97,7 +105,7 @@ VkPipelineShaderStageCreateInfo ShaderLoader::loadShader(VkDevice device, std::s
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
     shaderStage.module = vks::tools::loadShader(androidApp->activity->assetManager, fileName.c_str(), device);
 #else
-    shaderStage.module = Saiga::Vulkan::shaderLoader.loadShader(fileName.c_str(), device);
+    shaderStage.module = Saiga::Vulkan::shaderLoader.loadShader(fileName.c_str());
 #endif
     shaderStage.pName = "main"; // todo : make param
     assert(shaderStage.module != VK_NULL_HANDLE);

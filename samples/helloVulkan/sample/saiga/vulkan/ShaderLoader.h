@@ -16,17 +16,21 @@ namespace Vulkan {
 class ShaderLoader
 {
 public:
+    void init(VkDevice _device) { device = _device; }
+    void destroy();
+
+    VkPipelineShaderStageCreateInfo loadShader(std::string fileName, VkShaderStageFlagBits stage);
+private:
+    VkDevice device;
+    std::vector<VkShaderModule> shaderModules;
 
     // Load a SPIR-V shader (binary)
-    VkShaderModule loadShader(const char *fileName, VkDevice device);
+    VkShaderModule loadShader(const char *fileName);
 
     // Load a GLSL shader (text)
     // Note: GLSL support requires vendor-specific extensions to be enabled and is not a core-feature of Vulkan
-    VkShaderModule loadShaderGLSL(const char *fileName, VkDevice device, VkShaderStageFlagBits stage);
+    VkShaderModule loadShaderGLSL(const char *fileName, VkShaderStageFlagBits stage);
 
-    VkPipelineShaderStageCreateInfo loadShader(VkDevice device, std::string fileName, VkShaderStageFlagBits stage);
-private:
-    std::vector<VkShaderModule> shaderModules;
 };
 
 extern ShaderLoader shaderLoader;

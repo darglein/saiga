@@ -8,6 +8,8 @@
 
 #include "sample.h"
 
+UISettings uiSettings;
+
 VulkanExample::VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 {
     title = "Vulkan Example - ImGui";
@@ -15,19 +17,18 @@ VulkanExample::VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
     camera.setPosition(glm::vec3(0.0f, 1.4f, -4.8f));
     camera.setRotation(glm::vec3(4.5f, -380.0f, 0.0f));
     camera.setPerspective(45.0f, (float)width / (float)height, 0.1f, 256.0f);
+
+
 }
 
 VulkanExample::~VulkanExample()
 {
-    vkDestroyPipeline(device, pipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+
 
     models.models.destroy();
     models.background.destroy();
     models.logos.destroy();
 
-    uniformBufferVS.destroy();
 
 }
 
@@ -48,7 +49,23 @@ void VulkanExample::buildCommandBuffers()
     renderPassBeginInfo.clearValueCount = 2;
     renderPassBeginInfo.pClearValues = clearValues;
 
-    imGui->newFrame(this, (frameCounter == 0));
+    ImGui::NewFrame();
+
+
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("Example settings");
+    ImGui::Checkbox("Render models", &uiSettings.displayModels);
+    ImGui::Checkbox("Display logos", &uiSettings.displayLogos);
+    ImGui::Checkbox("Display background", &uiSettings.displayBackground);
+    ImGui::Checkbox("Animate light", &uiSettings.animateLight);
+    ImGui::SliderFloat("Light speed", &uiSettings.lightSpeed, 0.1f, 1.0f);
+    ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
+    ImGui::ShowTestWindow();
+
+    // Render to generate draw buffers
+    ImGui::Render();
 
     imGui->updateBuffers();
 
@@ -68,8 +85,9 @@ void VulkanExample::buildCommandBuffers()
         vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
 
         // Render scene
-        vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-        vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+        assetRenderer.bind(drawCmdBuffers[i]);
+        //        vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+        //        vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
         VkDeviceSize offsets[1] = { 0 };
         if (uiSettings.displayBackground) {
@@ -99,133 +117,12 @@ void VulkanExample::buildCommandBuffers()
     }
 }
 
-void VulkanExample::setupLayoutsAndDescriptors()
-{
-    // descriptor pool
-    std::vector<VkDescriptorPoolSize> poolSizes = {
-        vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2),
-        vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
-    };
-    VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 2);
-    VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
-
-    // Set layout
-    std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
-        vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
-    };
-    VkDescriptorSetLayoutCreateInfo descriptorLayout =
-            vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
-
-    // Pipeline layout
-    VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
-    VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
-
-    // Descriptor set
-    VkDescriptorSetAllocateInfo allocInfo =	vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
-    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-        vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &uniformBufferVS.descriptor),
-    };
-    vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
-}
-
-void VulkanExample::preparePipelines()
-{
-    // Rendering
-    VkPipelineInputAssemblyStateCreateInfo inputAssemblyState =
-            vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0,	VK_FALSE);
-
-    VkPipelineRasterizationStateCreateInfo rasterizationState =
-            vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-
-    VkPipelineColorBlendAttachmentState blendAttachmentState =
-            vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
-
-    VkPipelineColorBlendStateCreateInfo colorBlendState =
-            vks::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
-
-    VkPipelineDepthStencilStateCreateInfo depthStencilState =
-            vks::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
-
-    VkPipelineViewportStateCreateInfo viewportState =
-            vks::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
-
-    VkPipelineMultisampleStateCreateInfo multisampleState =
-            vks::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT);
-
-    std::vector<VkDynamicState> dynamicStateEnables = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-    VkPipelineDynamicStateCreateInfo dynamicState =
-            vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
-
-    // Load shaders
-    std::array<VkPipelineShaderStageCreateInfo,2> shaderStages;
-
-    VkGraphicsPipelineCreateInfo pipelineCreateInfo = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass);
-
-    pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
-    pipelineCreateInfo.pRasterizationState = &rasterizationState;
-    pipelineCreateInfo.pColorBlendState = &colorBlendState;
-    pipelineCreateInfo.pMultisampleState = &multisampleState;
-    pipelineCreateInfo.pViewportState = &viewportState;
-    pipelineCreateInfo.pDepthStencilState = &depthStencilState;
-    pipelineCreateInfo.pDynamicState = &dynamicState;
-    pipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
-    pipelineCreateInfo.pStages = shaderStages.data();
-
-    std::vector<VkVertexInputBindingDescription> vertexInputBindings = {
-        vks::initializers::vertexInputBindingDescription(0, vertexLayout.stride(), VK_VERTEX_INPUT_RATE_VERTEX),
-    };
-    std::vector<VkVertexInputAttributeDescription> vertexInputAttributes = {
-        vks::initializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0),					// Location 0: Position
-        vks::initializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 3),	// Location 1: Normal
-        vks::initializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 6),	// Location 2: Color
-    };
-    VkPipelineVertexInputStateCreateInfo vertexInputState = vks::initializers::pipelineVertexInputStateCreateInfo();
-    vertexInputState.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindings.size());
-    vertexInputState.pVertexBindingDescriptions = vertexInputBindings.data();
-    vertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexInputAttributes.size());
-    vertexInputState.pVertexAttributeDescriptions = vertexInputAttributes.data();
-
-    pipelineCreateInfo.pVertexInputState = &vertexInputState;
-
-    shaderStages[0] = Saiga::Vulkan::shaderLoader.loadShader(device, ASSET_PATH "shaders/imgui/scene.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shaderStages[1] = Saiga::Vulkan::shaderLoader.loadShader(device,ASSET_PATH "shaders/imgui/scene.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
-}
-
-void VulkanExample::prepareUniformBuffers()
-{
-    // Vertex shader uniform buffer block
-    VK_CHECK_RESULT(vulkanDevice->createBuffer(
-                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                        &uniformBufferVS,
-                        sizeof(uboVS),
-                        &uboVS));
-
-    updateUniformBuffers();
-}
-
 void VulkanExample::updateUniformBuffers()
 {
     // Vertex shader
-    uboVS.projection = camera.matrices.perspective;
-    uboVS.modelview = camera.matrices.view * glm::mat4(1.0f);
-
-    // Light source
-    if (uiSettings.animateLight) {
-        uiSettings.lightTimer += frameTimer * uiSettings.lightSpeed;
-        uboVS.lightPos.x = sin(glm::radians(uiSettings.lightTimer * 360.0f)) * 15.0f;
-        uboVS.lightPos.z = cos(glm::radians(uiSettings.lightTimer * 360.0f)) * 15.0f;
-    };
-
-    VK_CHECK_RESULT(uniformBufferVS.map());
-    memcpy(uniformBufferVS.mapped, &uboVS, sizeof(uboVS));
-    uniformBufferVS.unmap();
+    //    uboVS.projection = camera.matrices.perspective;
+    //    uboVS.modelview = camera.matrices.view * glm::mat4(1.0f);
+    assetRenderer.updateUniformBuffers(camera.matrices.view,camera.matrices.perspective);
 }
 
 void VulkanExample::draw()
@@ -240,9 +137,9 @@ void VulkanExample::draw()
 
 void VulkanExample::loadAssets()
 {
-    models.models.loadFromFile(ASSET_PATH "models/vulkanscenemodels.dae", vertexLayout, 1.0f, vulkanDevice, queue);
-    models.background.loadFromFile(ASSET_PATH "models/vulkanscenebackground.dae", vertexLayout, 1.0f, vulkanDevice, queue);
-    models.logos.loadFromFile(ASSET_PATH "models/vulkanscenelogos.dae", vertexLayout, 1.0f, vulkanDevice, queue);
+    models.models.loadFromFile(ASSET_PATH "models/vulkanscenemodels.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
+    models.background.loadFromFile(ASSET_PATH "models/vulkanscenebackground.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
+    models.logos.loadFromFile(ASSET_PATH "models/vulkanscenelogos.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
 }
 
 void VulkanExample::prepareImGui()
@@ -256,11 +153,11 @@ void VulkanExample::prepare()
 {
     VulkanExampleBase::prepare();
     loadAssets();
-    prepareUniformBuffers();
-    setupLayoutsAndDescriptors();
-    preparePipelines();
+    assetRenderer.prepareUniformBuffers(vulkanDevice);
+    updateUniformBuffers();
+    assetRenderer.setupLayoutsAndDescriptors(device);
+    assetRenderer.preparePipelines(device,pipelineCache,renderPass);
     prepareImGui();
-    buildCommandBuffers();
     prepared = true;
 }
 

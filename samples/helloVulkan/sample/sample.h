@@ -31,23 +31,35 @@
 #include "VulkanModel.hpp"
 #include "VulkanImgui.h"
 
+
+#include "saiga/vulkan/AssetRenderer.h"
+
 #define ENABLE_VALIDATION true
 
 // ----------------------------------------------------------------------------
 // VulkanExample
 // ----------------------------------------------------------------------------
 
+
+// Options and values to display/toggle from the UI
+struct UISettings {
+    bool displayModels = true;
+    bool displayLogos = true;
+    bool displayBackground = true;
+    bool animateLight = false;
+    float lightSpeed = 0.25f;
+    std::array<float, 50> frameTimes{};
+    float frameTimeMin = 9999.0f, frameTimeMax = 0.0f;
+    float lightTimer = 0.0f;
+} ;
+
+extern UISettings uiSettings;
+
 class VulkanExample : public VulkanExampleBase
 {
 public:
     std::shared_ptr<ImGUI> imGui;
 
-	// Vertex layout for the models
-	vks::VertexLayout vertexLayout = vks::VertexLayout({
-		vks::VERTEX_COMPONENT_POSITION,
-		vks::VERTEX_COMPONENT_NORMAL,
-		vks::VERTEX_COMPONENT_COLOR,
-	});
 
 	struct Models {
 		vks::Model models;
@@ -55,18 +67,8 @@ public:
 		vks::Model background;
 	} models;
 
-	vks::Buffer uniformBufferVS;
 
-	struct UBOVS {
-		glm::mat4 projection;
-		glm::mat4 modelview;
-		glm::vec4 lightPos;
-	} uboVS;
-
-	VkPipelineLayout pipelineLayout;
-	VkPipeline pipeline;
-	VkDescriptorSetLayout descriptorSetLayout;
-	VkDescriptorSet descriptorSet;
+    Saiga::Vulkan::AssetRenderer assetRenderer;
 
     VulkanExample();
 
@@ -74,12 +76,6 @@ public:
 	
     void buildCommandBuffers();
 
-    void setupLayoutsAndDescriptors();
-
-    void preparePipelines();
-
-	// Prepare and initialize uniform buffer containing shader uniforms
-    void prepareUniformBuffers();
 
     void updateUniformBuffers();
 
