@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Class wrapping access to the swap chain
 * 
 * A swap chain is a collection of framebuffers used for rendering and presentation to the windowing system
@@ -15,6 +15,14 @@
 #include <assert.h>
 #include <stdio.h>
 #include <vector>
+
+#ifndef VK_USE_PLATFORM_XCB_KHR
+#define VK_USE_PLATFORM_XCB_KHR
+#endif
+
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_vulkan.h"
+
 
 #include <vulkan/vulkan.h>
 #include "VulkanTools.h"
@@ -76,64 +84,12 @@ public:
 	/** @brief Queue family index of the detected graphics and presenting device queue */
 	uint32_t queueNodeIndex = UINT32_MAX;
 
-	/** @brief Creates the platform specific surface abstraction of the native platform window used for presentation */	
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-	void initSurface(void* platformHandle, void* platformWindow)
-#elif defined(VK_USE_PLATFORM_ANDROID_KHR)
-	void initSurface(ANativeWindow* window)
-#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
-	void initSurface(wl_display *display, wl_surface *window)
-#elif defined(VK_USE_PLATFORM_XCB_KHR)
-	void initSurface(xcb_connection_t* connection, xcb_window_t window)
-#elif (defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
-	void initSurface(void* view)
-#elif defined(_DIRECT2DISPLAY)
-	void initSurface(uint32_t width, uint32_t height)
-#endif
+    void initSurface(SDL_Window* sdl_window)
 	{
 		VkResult err = VK_SUCCESS;
 
-		// Create the os-specific surface
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-		VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-		surfaceCreateInfo.hinstance = (HINSTANCE)platformHandle;
-		surfaceCreateInfo.hwnd = (HWND)platformWindow;
-		err = vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
-#elif defined(VK_USE_PLATFORM_ANDROID_KHR)
-		VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo = {};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
-		surfaceCreateInfo.window = window;
-		err = vkCreateAndroidSurfaceKHR(instance, &surfaceCreateInfo, NULL, &surface);
-#elif defined(VK_USE_PLATFORM_IOS_MVK)
-		VkIOSSurfaceCreateInfoMVK surfaceCreateInfo = {};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_IOS_SURFACE_CREATE_INFO_MVK;
-		surfaceCreateInfo.pNext = NULL;
-		surfaceCreateInfo.flags = 0;
-		surfaceCreateInfo.pView = view;
-		err = vkCreateIOSSurfaceMVK(instance, &surfaceCreateInfo, nullptr, &surface);
-#elif defined(VK_USE_PLATFORM_MACOS_MVK)
-		VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo = {};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK;
-		surfaceCreateInfo.pNext = NULL;
-		surfaceCreateInfo.flags = 0;
-		surfaceCreateInfo.pView = view;
-		err = vkCreateMacOSSurfaceMVK(instance, &surfaceCreateInfo, NULL, &surface);
-#elif defined(_DIRECT2DISPLAY)
-		createDirect2DisplaySurface(width, height);
-#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
-		VkWaylandSurfaceCreateInfoKHR surfaceCreateInfo = {};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
-		surfaceCreateInfo.display = display;
-		surfaceCreateInfo.surface = window;
-		err = vkCreateWaylandSurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
-#elif defined(VK_USE_PLATFORM_XCB_KHR)
-		VkXcbSurfaceCreateInfoKHR surfaceCreateInfo = {};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-		surfaceCreateInfo.connection = connection;
-		surfaceCreateInfo.window = window;
-		err = vkCreateXcbSurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
-#endif
+        auto asdf = SDL_Vulkan_CreateSurface(sdl_window,instance,&surface);
+        SAIGA_ASSERT(asdf);
 
 		if (err != VK_SUCCESS) {
 			vks::tools::exitFatal("Could not create surface!", err);
