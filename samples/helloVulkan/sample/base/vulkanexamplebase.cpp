@@ -463,7 +463,7 @@ VulkanExampleBase::VulkanExampleBase(bool enableValidation)
 #else
 		std::cerr << "Error: Could not find asset path in " << getAssetPath() << std::endl;
 #endif
-		exit(-1);
+//		exit(-1);
 	}
 #endif
 
@@ -550,8 +550,7 @@ VulkanExampleBase::~VulkanExampleBase()
 	for (uint32_t i = 0; i < frameBuffers.size(); i++)
 	{
 		vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
-	}
-    Saiga::Vulkan::shaderLoader.destroy();
+    }
 	vkDestroyImageView(device, depthStencil.view, nullptr);
 	vkDestroyImage(device, depthStencil.image, nullptr);
 	vkFreeMemory(device, depthStencil.mem, nullptr);
@@ -697,7 +696,6 @@ bool VulkanExampleBase::initVulkan()
 	}
 	device = vulkanDevice->logicalDevice;
 
-    Saiga::Vulkan::shaderLoader.init(device);
 	// Get a graphics queue from the device
 	vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
 

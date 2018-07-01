@@ -5,23 +5,61 @@
  */
 
 #include "ShaderModule.h"
-
+#include "ShaderLoader.h"
+#include "saiga/util/file.h"
 #include "GLSL.h"
 
 namespace Saiga {
 namespace Vulkan {
 
-void ShaderModule::create(vk::Device device, vk::ShaderStageFlagBits _stage, std::vector<uint32_t> spirvCode)
+void ShaderModule::createSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const void *data, size_t size)
 {
+    SAIGA_ASSERT(size%4==0);
     stage = _stage;
-
     vk::ShaderModuleCreateInfo moduleCreateInfo{};
-//    moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    moduleCreateInfo.codeSize = spirvCode.size() * sizeof(uint32_t);
-    moduleCreateInfo.pCode = spirvCode.data();
+    moduleCreateInfo.codeSize = size;
+    moduleCreateInfo.pCode = (const uint32_t*)data;
+    CHECK_VK(device.createShaderModule(&moduleCreateInfo, nullptr, &module));
+}
 
-//    vkCreateShaderModule(device, &moduleCreateInfo, NULL, &module);
-    device.createShaderModule(&moduleCreateInfo, NULL, &module);
+void ShaderModule::createSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const std::vector<uint32_t>& data)
+{
+    createSPIRV(device,_stage,data.data(),data.size()*sizeof(uint32_t));
+}
+
+void ShaderModule::createGLSL (vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& data)
+{
+    auto spirv = GLSLtoSPIRV(data,_stage);
+    createSPIRV(device,_stage,spirv);
+}
+
+void ShaderModule::loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string &file)
+{
+    auto data = Saiga::File::loadFileBinary(file);
+    createSPIRV(device,_stage,data.data(),data.size());
+}
+
+void ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string &file)
+{
+    auto data = Saiga::File::loadFileString(file);
+    createGLSL(device,_stage,data);
+}
+
+void ShaderModule::load(vk::Device device, const std::string &file)
+{
+
+    auto ending = ShaderLoadHelper::getEnding(file);
+    SAIGA_ASSERT(std::get<0>(ending) != ShaderLoadHelper::ShaderEnding::UNKN);
+
+    if(std::get<0>(ending) == ShaderLoadHelper::ShaderEnding::SPIR)
+    {
+        ending = ShaderLoadHelper::getEnding(ShaderLoadHelper::stripEnding(file));
+        SAIGA_ASSERT(std::get<0>(ending) != ShaderLoadHelper::ShaderEnding::UNKN);
+        loadSPIRV(device,std::get<2>(ending),file);
+    }else
+    {
+        loadGLSL(device,std::get<2>(ending),file);
+    }
 }
 
 void ShaderModule::destroy(vk::Device device)
@@ -36,12 +74,10 @@ void ShaderModule::destroy(vk::Device device)
 vk::PipelineShaderStageCreateInfo ShaderModule::createPipelineInfo()
 {
     vk::PipelineShaderStageCreateInfo info;
-
     info.pSpecializationInfo = NULL;
     info.stage = stage;
     info.pName = "main";
     info.module = module;
-
     return info;
 }
 

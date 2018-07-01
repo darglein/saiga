@@ -13,14 +13,20 @@ namespace Saiga {
 namespace Vulkan {
 
 
-class SAIGA_GLOBAL VShader
+class SAIGA_GLOBAL ShaderPipeline
 {
 public:
     std::vector<ShaderModule> modules;
 
-    void destroy();
+    void addToPipeline(VkGraphicsPipelineCreateInfo& pipelineCreateInfo);
 
-    std::vector<vk::PipelineShaderStageCreateInfo> createPipelineInfo();
+    void load(vk::Device device, std::vector<std::string> shaders);
+    void loadGLSL(vk::Device device, std::vector<std::pair<std::string, vk::ShaderStageFlagBits> > shaders);
+private:
+    std::vector<vk::PipelineShaderStageCreateInfo> pipelineInfo;
+
+
+    void createPipelineInfo();
 };
 
 }

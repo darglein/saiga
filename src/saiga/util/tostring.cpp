@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -46,12 +46,23 @@ std::string fileEnding(const std::string &str)
         {
             auto d = std::distance(it,str.rend());
             return str.substr(d,str.size());
-//            return std::string(d,str.end());
         }
     }
     return std::string();
 }
 
+std::string removeFileEnding(const std::string &str)
+{
+    //search last '.' from the end
+    for(auto it = str.rbegin() ; it != str.rend(); ++it){
+        if(*it == '.')
+        {
+            auto d = std::distance(it,str.rend());
+            return str.substr(0,d);
+        }
+    }
+    return std::string();
+}
 
 
 }

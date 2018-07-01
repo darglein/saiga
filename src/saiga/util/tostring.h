@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -60,6 +60,7 @@ SAIGA_GLOBAL bool hasEnding (std::string const &fullString, std::string const &e
  * "/usr/local/test.asdf" -> "asdf"
  */
 SAIGA_GLOBAL std::string fileEnding (std::string const &str);
+SAIGA_GLOBAL std::string removeFileEnding (std::string const &str);
 
 
 }

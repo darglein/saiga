@@ -113,8 +113,6 @@ void AssetRenderer::preparePipelines(VkDevice device, VkPipelineCache pipelineCa
     VkPipelineDynamicStateCreateInfo dynamicState =
             vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 
-    // Load shaders
-    std::array<vk::PipelineShaderStageCreateInfo,2> shaderStages;
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass);
 
@@ -125,29 +123,12 @@ void AssetRenderer::preparePipelines(VkDevice device, VkPipelineCache pipelineCa
     pipelineCreateInfo.pViewportState = &viewportState;
     pipelineCreateInfo.pDepthStencilState = &depthStencilState;
     pipelineCreateInfo.pDynamicState = &dynamicState;
-    pipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
-    pipelineCreateInfo.pStages = ( const VkPipelineShaderStageCreateInfo*)shaderStages.data();
-
-    std::vector<VkVertexInputBindingDescription> vertexInputBindings = {
-        vks::initializers::vertexInputBindingDescription(0, sizeof(VertexNC), VK_VERTEX_INPUT_RATE_VERTEX),
-    };
 
     vk::VertexInputBindingDescription vi_binding;
     std::vector<vk::VertexInputAttributeDescription> vi_attribs;
 
     VKVertexAttribBinder<VertexNC> va;
     va.getVKAttribs(vi_binding,vi_attribs);
-
-//    std::vector<VkVertexInputAttributeDescription> vertexInputAttributes = {
-//        vks::initializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0),					// Location 0: Position
-//        vks::initializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 3),	// Location 1: Normal
-//        vks::initializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 6),	// Location 2: Color
-//    };
-//    VkPipelineVertexInputStateCreateInfo vertexInputState = vks::initializers::pipelineVertexInputStateCreateInfo();
-//    vertexInputState.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindings.size());
-//    vertexInputState.pVertexBindingDescriptions = vertexInputBindings.data();
-//    vertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexInputAttributes.size());
-//    vertexInputState.pVertexAttributeDescriptions = vertexInputAttributes.data();
 
     vk::PipelineVertexInputStateCreateInfo vi;
     //    vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -161,8 +142,13 @@ void AssetRenderer::preparePipelines(VkDevice device, VkPipelineCache pipelineCa
     VkPipelineVertexInputStateCreateInfo vertexInputState = vi;
     pipelineCreateInfo.pVertexInputState = &vertexInputState;
 
-    shaderStages[0] = Saiga::Vulkan::shaderLoader.loadShaderGLSL(ASSET_PATH "shaders/imgui/scene.vert", vk::ShaderStageFlagBits::eVertex);
-    shaderStages[1] = Saiga::Vulkan::shaderLoader.loadShaderGLSL(ASSET_PATH "shaders/imgui/scene.frag", vk::ShaderStageFlagBits::eFragment);
+    Saiga::Vulkan::ShaderPipeline shaderPipeline;
+    shaderPipeline.load(device,{
+                                "../shader/vulkan/scene.vert",
+                                "../shader/vulkan/scene.frag"
+                            });
+    shaderPipeline.addToPipeline(pipelineCreateInfo);
+
     VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
 }
 
@@ -185,7 +171,7 @@ void Asset::load(const std::string &file,vks::VulkanDevice *device, VkQueue copy
     Saiga::ObjLoader2 loader(file);
     loader.computeVertexColorAndData();
 
-//    Saiga::TriangleMesh<Saiga::VertexNC, uint32_t> mesh;
+    //    Saiga::TriangleMesh<Saiga::VertexNC, uint32_t> mesh;
     loader.toTriangleMesh(mesh);
 
 
@@ -203,34 +189,34 @@ void Asset::load(const std::string &file,vks::VulkanDevice *device, VkQueue copy
 
     // Vertex buffer
     VK_CHECK_RESULT(device->createBuffer(
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &vertexStaging,
-        vBufferSize,
-        mesh.vertices.data()));
+                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        &vertexStaging,
+                        vBufferSize,
+                        mesh.vertices.data()));
 
     // Index buffer
     VK_CHECK_RESULT(device->createBuffer(
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &indexStaging,
-        iBufferSize,
-        mesh.faces.data()));
+                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        &indexStaging,
+                        iBufferSize,
+                        mesh.faces.data()));
 
     // Create device local target buffers
     // Vertex buffer
     VK_CHECK_RESULT(device->createBuffer(
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        &vertices,
-        vBufferSize));
+                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        &vertices,
+                        vBufferSize));
 
     // Index buffer
     VK_CHECK_RESULT(device->createBuffer(
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        &indices,
-        iBufferSize));
+                        VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        &indices,
+                        iBufferSize));
 
     // Copy from staging buffers
     VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);

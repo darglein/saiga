@@ -12,23 +12,44 @@
 namespace Saiga {
 namespace Vulkan {
 
-
-void VShader::destroy()
+void ShaderPipeline::load(vk::Device device, std::vector<std::string> shaders)
 {
+    for(auto p : shaders)
+    {
+        ShaderModule module;
+        module.load(device,p);
+        modules.push_back(module);
+    }
+}
+
+
+void ShaderPipeline::loadGLSL(vk::Device device, std::vector<std::pair<std::string, vk::ShaderStageFlagBits> > shaders)
+{
+    for(auto p : shaders)
+    {
+        ShaderModule module;
+        module.loadGLSL(device,p.second,p.first);
+        modules.push_back(module);
+    }
+}
+
+void ShaderPipeline::addToPipeline(VkGraphicsPipelineCreateInfo &pipelineCreateInfo)
+{
+    createPipelineInfo();
+
+    pipelineCreateInfo.stageCount = pipelineInfo.size();
+    pipelineCreateInfo.pStages = ( const VkPipelineShaderStageCreateInfo*)pipelineInfo.data();
 
 }
 
-std::vector<vk::PipelineShaderStageCreateInfo> VShader::createPipelineInfo()
-{
-   std::vector<vk::PipelineShaderStageCreateInfo> info(modules.size());
 
-   for(unsigned int i = 0;  i < modules.size(); ++i)
-   {
-       info[i].pSpecializationInfo = NULL;
-       info[i].stage = modules[i].stage;
-       info[i].pName = "main";
-   }
-   return info;
+void ShaderPipeline::createPipelineInfo()
+{
+    pipelineInfo.clear();
+    for(auto& s : modules)
+    {
+        pipelineInfo.push_back(s.createPipelineInfo());
+    }
 }
 
 

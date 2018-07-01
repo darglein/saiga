@@ -233,8 +233,6 @@ void ImGUI::initResources(VkRenderPass renderPass, VkQueue copyQueue)
     VkPipelineDynamicStateCreateInfo dynamicState =
             vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 
-    std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
-
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass);
 
     pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
@@ -244,8 +242,6 @@ void ImGUI::initResources(VkRenderPass renderPass, VkQueue copyQueue)
     pipelineCreateInfo.pViewportState = &viewportState;
     pipelineCreateInfo.pDepthStencilState = &depthStencilState;
     pipelineCreateInfo.pDynamicState = &dynamicState;
-    pipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
-    pipelineCreateInfo.pStages = shaderStages.data();
 
     // Vertex bindings an attributes based on ImGui vertex definition
     std::vector<VkVertexInputBindingDescription> vertexInputBindings = {
@@ -264,8 +260,12 @@ void ImGUI::initResources(VkRenderPass renderPass, VkQueue copyQueue)
 
     pipelineCreateInfo.pVertexInputState = &vertexInputState;
 
-    shaderStages[0] =Saiga::Vulkan::shaderLoader.loadShader(ASSET_PATH "shaders/imgui/ui.vert.spv", vk::ShaderStageFlagBits::eVertex);
-    shaderStages[1] =Saiga::Vulkan::shaderLoader.loadShader(ASSET_PATH "shaders/imgui/ui.frag.spv", vk::ShaderStageFlagBits::eFragment);
+    Saiga::Vulkan::ShaderPipeline shaderPipeline;
+    shaderPipeline.load(device->logicalDevice,{
+                                "../shader/vulkan/ui.vert",
+                                "../shader/vulkan/ui.frag"
+                            });
+    shaderPipeline.addToPipeline(pipelineCreateInfo);
 
     VK_CHECK_RESULT(vkCreateGraphicsPipelines(device->logicalDevice, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
 }

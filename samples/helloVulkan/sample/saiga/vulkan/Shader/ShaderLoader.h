@@ -14,30 +14,38 @@
 
 namespace Saiga {
 namespace Vulkan {
+namespace ShaderLoadHelper{
 
-class ShaderLoader
+enum class ShaderEnding
 {
-public:
-    void init(VkDevice _device) { device = _device; }
-    void destroy();
-
-    vk::PipelineShaderStageCreateInfo loadShader(std::string fileName, vk::ShaderStageFlagBits stage);
-    vk::PipelineShaderStageCreateInfo loadShaderGLSL(std::string fileName, vk::ShaderStageFlagBits stage);
-private:
-    VkDevice device;
-    std::vector<ShaderModule> shaderModules;
-
-    // Load a SPIR-V shader (binary)
-    ShaderModule loadModule(const char *fileName, vk::ShaderStageFlagBits stage);
-
-    // Load a GLSL shader (text)
-    // Note: GLSL support requires vendor-specific extensions to be enabled and is not a core-feature of Vulkan
-    ShaderModule loadModuleGLSL(const char *fileName, vk::ShaderStageFlagBits stage);
-
+    VERT,
+    TESC,
+    TESE,
+    GEOM,
+    FRAG,
+    COMP,
+    SPIR,
+    UNKN // unknown ending
 };
 
-extern ShaderLoader shaderLoader;
+using EndingType = std::tuple<ShaderEnding,std::string,vk::ShaderStageFlagBits>;
+
+const std::array<EndingType,8> fileEndings =
+{{
+     { ShaderEnding::VERT,  "vert", vk::ShaderStageFlagBits::eVertex                  },
+     { ShaderEnding::TESC,  "tesc", vk::ShaderStageFlagBits::eTessellationControl     },
+     { ShaderEnding::TESE,  "tese", vk::ShaderStageFlagBits::eTessellationEvaluation  },
+     { ShaderEnding::GEOM,  "geom", vk::ShaderStageFlagBits::eGeometry                },
+     { ShaderEnding::FRAG,  "frag", vk::ShaderStageFlagBits::eFragment                },
+     { ShaderEnding::COMP,  "comp", vk::ShaderStageFlagBits::eCompute                 },
+     { ShaderEnding::SPIR,  "spir", vk::ShaderStageFlagBits::eAll                     },
+     { ShaderEnding::UNKN,  "", vk::ShaderStageFlagBits::eAll                         }
+ }};
 
 
+EndingType getEnding(const std::string& file);
+std::string stripEnding(const std::string& file);
+
+}
 }
 }

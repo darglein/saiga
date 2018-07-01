@@ -6,7 +6,7 @@
 
 #include "Shader.h"
 #include "saiga/vulkan/vulkanHelper.h"
-
+#include "saiga/util/file.h"
 #include "SPIRV/GlslangToSpv.h"
 
 namespace Saiga {
@@ -127,10 +127,40 @@ EShLanguage FindLanguage(const vk::ShaderStageFlagBits shader_type) {
     case vk::ShaderStageFlagBits::eCompute:
         return EShLangCompute;
 
-//    default:
-//        return EShLangVertex;
+    default:
+        SAIGA_ASSERT(0);
+        return EShLangVertex;
     }
 }
+
+struct MyIncluder : public  glslang::TShader::Includer
+{
+    std::vector<std::string> data;
+
+    virtual IncludeResult* includeSystem(const char* headerName,
+                                        const char* includerName,
+                                        size_t inclusionDepth)
+    {
+        cout << "include request " << headerName << " " << includerName << " " << inclusionDepth << endl;
+
+
+        data.push_back(File::loadFileString(headerName));
+
+        IncludeResult* result = new IncludeResult(headerName,data.back().data(),data.back().size(),nullptr);
+
+        return result;
+    }
+
+    virtual IncludeResult* includeLocal(const char* headerName,
+                                        const char* includerName,
+                                        size_t inclusionDepth)
+    {
+
+        return includeSystem(headerName,includerName,inclusionDepth);
+    }
+
+ virtual void releaseInclude(IncludeResult*) override { }
+};
 
 std::vector<uint32_t> GLSLtoSPIRV(const std::string& shaderString,
         const vk::ShaderStageFlagBits shader_type
@@ -154,7 +184,9 @@ std::vector<uint32_t> GLSLtoSPIRV(const std::string& shaderString,
     shaderStrings[0] = shaderString.c_str();
     shader.setStrings(shaderStrings, 1);
 
-    if (!shader.parse(&Resources, 100, false, messages)) {
+      MyIncluder includer;
+
+    if (!shader.parse(&Resources, 100, false, messages,includer)) {
         puts(shader.getInfoLog());
         puts(shader.getInfoDebugLog());
         return spirv;  // something didn't work
@@ -176,7 +208,8 @@ std::vector<uint32_t> GLSLtoSPIRV(const std::string& shaderString,
     glslang::GlslangToSpv(*program.getIntermediate(stage), spirv);
 
 
-        glslang::FinalizeProcess();
+
+    glslang::FinalizeProcess();
 
     return spirv;
 }
