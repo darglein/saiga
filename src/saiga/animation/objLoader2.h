@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -45,12 +45,16 @@ public:
 
     bool loadFile(const std::string &file);
 
-
+    std::vector<vec4> vertexData; //x: specular
+    std::vector<vec4> vertexColors; //only when given by the material. Otherwise: white!
     std::vector<VertexNT> outVertices;
     std::vector<ObjTriangle> outTriangles;
     std::vector<ObjTriangleGroup> triangleGroups;
     void separateVerticesByGroup();
     void calculateMissingNormals();
+    void computeVertexColorAndData();
+
+    void toTriangleMesh(TriangleMesh<VertexNC, uint32_t> &mesh);
 
 private:
     std::vector<vec3> vertices;

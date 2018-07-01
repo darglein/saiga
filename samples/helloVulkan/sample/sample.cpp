@@ -10,13 +10,17 @@
 
 UISettings uiSettings;
 
-VulkanExample::VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
+VulkanExample::VulkanExample()
+    : VulkanExampleBase(ENABLE_VALIDATION)
 {
     title = "Vulkan Example - ImGui";
     camera.type = Camera::CameraType::lookat;
     camera.setPosition(glm::vec3(0.0f, 1.4f, -4.8f));
     camera.setRotation(glm::vec3(4.5f, -380.0f, 0.0f));
     camera.setPerspective(45.0f, (float)width / (float)height, 0.1f, 256.0f);
+
+
+
 
 
 }
@@ -90,6 +94,8 @@ void VulkanExample::buildCommandBuffers()
         //        vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
         VkDeviceSize offsets[1] = { 0 };
+
+#if 0
         if (uiSettings.displayBackground) {
             vkCmdBindVertexBuffers(drawCmdBuffers[i], 0, 1, &models.background.vertices.buffer, offsets);
             vkCmdBindIndexBuffer(drawCmdBuffers[i], models.background.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -107,6 +113,11 @@ void VulkanExample::buildCommandBuffers()
             vkCmdBindIndexBuffer(drawCmdBuffers[i], models.logos.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(drawCmdBuffers[i], models.logos.indexCount, 1, 0, 0, 0);
         }
+#endif
+
+        vkCmdBindVertexBuffers(drawCmdBuffers[i], 0, 1, &teapot.vertices.buffer, offsets);
+        vkCmdBindIndexBuffer(drawCmdBuffers[i], teapot.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(drawCmdBuffers[i], teapot.indexCount, 1, 0, 0, 0);
 
         // Render imGui
         imGui->drawFrame(drawCmdBuffers[i]);
@@ -137,9 +148,14 @@ void VulkanExample::draw()
 
 void VulkanExample::loadAssets()
 {
-    models.models.loadFromFile(ASSET_PATH "models/vulkanscenemodels.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
-    models.background.loadFromFile(ASSET_PATH "models/vulkanscenebackground.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
-    models.logos.loadFromFile(ASSET_PATH "models/vulkanscenelogos.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
+//    models.models.loadFromFile(ASSET_PATH "models/vulkanscenemodels.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
+//    models.background.loadFromFile(ASSET_PATH "models/vulkanscenebackground.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
+//    models.logos.loadFromFile(ASSET_PATH "models/vulkanscenelogos.dae", Saiga::Vulkan::AssetRenderer::vertexLayout, 1.0f, vulkanDevice, queue);
+
+
+    teapot.load("objs/teapot.obj", vulkanDevice, queue);
+
+
 }
 
 void VulkanExample::prepareImGui()

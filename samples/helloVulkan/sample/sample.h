@@ -33,6 +33,8 @@
 
 
 #include "saiga/vulkan/AssetRenderer.h"
+#include "saiga/assets/objAssetLoader.h"
+
 
 #define ENABLE_VALIDATION true
 
@@ -66,6 +68,8 @@ public:
 		vks::Model logos;
 		vks::Model background;
 	} models;
+
+    Saiga::Vulkan::Asset teapot;
 
 
     Saiga::Vulkan::AssetRenderer assetRenderer;

@@ -20,7 +20,8 @@ public:
     void destroy();
 
     VkPipelineShaderStageCreateInfo loadShader(std::string fileName, VkShaderStageFlagBits stage);
-private:
+    VkPipelineShaderStageCreateInfo loadShaderGLSL(std::string fileName, VkShaderStageFlagBits stage);
+public:
     VkDevice device;
     std::vector<VkShaderModule> shaderModules;
 
@@ -29,7 +30,7 @@ private:
 
     // Load a GLSL shader (text)
     // Note: GLSL support requires vendor-specific extensions to be enabled and is not a core-feature of Vulkan
-    VkShaderModule loadShaderGLSL(const char *fileName, VkShaderStageFlagBits stage);
+    VkShaderModule loadShaderGLSL2(const char *fileName, VkShaderStageFlagBits stage);
 
 };
 

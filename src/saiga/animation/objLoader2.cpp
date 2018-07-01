@@ -119,6 +119,51 @@ void ObjLoader2::calculateMissingNormals()
     }
 }
 
+void ObjLoader2::computeVertexColorAndData()
+{
+
+    vertexColors.resize(outVertices.size(),vec4(1));
+    vertexData.resize(outVertices.size(),vec4(0));
+
+    for(ObjTriangleGroup &tg : triangleGroups)
+    {
+        for(int i = 0 ; i < tg.faces ; ++i)
+        {
+            ObjTriangle &face = outTriangles[i+tg.startFace];
+            for(int f = 0 ; f < 3 ; ++f)
+            {
+                int index = face.v[f];
+                vertexColors[index] = tg.material.color;
+                float spec =  glm::dot(tg.material.Ks,vec3(1))/3.0f;
+                vertexData[index].x = spec;
+            }
+        }
+    }
+}
+
+void ObjLoader2::toTriangleMesh(TriangleMesh<VertexNC, uint32_t> &mesh)
+{
+    SAIGA_ASSERT(vertexColors.size() == outVertices.size());
+
+    mesh.faces.reserve(outTriangles.size());
+    for(ObjTriangle &oj : outTriangles)
+    {
+        mesh.addFace(oj.v);
+    }
+
+    mesh.vertices.reserve(outTriangles.size());
+    for(unsigned int i = 0; i < outVertices.size(); ++i)
+    {
+        auto& v = outVertices[i];
+        VertexNC vn;
+        vn.position = v.position;
+        vn.normal = v.normal;
+        vn.color = vertexColors[i];
+        mesh.addVertex(vn);
+    }
+
+}
+
 void ObjLoader2::createVertexIndexList()
 {
     std::vector<bool> vertices_used(vertices.size(),false);

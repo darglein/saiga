@@ -7,7 +7,7 @@
 
 #pragma once
 
-
+#include "saiga/geometry/triangle_mesh.h"
 #include "saiga/vulkan/vulkan.h"
 #include "VulkanDevice.hpp"
 #include "VulkanBuffer.hpp"
@@ -15,10 +15,27 @@
 namespace Saiga {
 namespace Vulkan {
 
+class Asset
+{
+public:
+       Saiga::TriangleMesh<Saiga::VertexNC, uint32_t> mesh;
+
+
+    VkDevice device = nullptr;
+    vks::Buffer vertices;
+    vks::Buffer indices;
+    uint32_t indexCount = 0;
+    uint32_t vertexCount = 0;
+
+    void load(const std::string& file, vks::VulkanDevice *device, VkQueue copyQueue);
+};
+
+
+
 class AssetRenderer
 {
 public:
-    static vks::VertexLayout vertexLayout;
+//    static vks::VertexLayout vertexLayout;
     static int asdf;
     void init();
     void destroy();
