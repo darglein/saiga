@@ -9,6 +9,8 @@
 
 
 #include "saiga/vulkan/vulkan.h"
+#include "saiga/vulkan/Shader/ShaderModule.h"
+#include "saiga/vulkan/Shader/Shader.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -19,18 +21,18 @@ public:
     void init(VkDevice _device) { device = _device; }
     void destroy();
 
-    VkPipelineShaderStageCreateInfo loadShader(std::string fileName, VkShaderStageFlagBits stage);
-    VkPipelineShaderStageCreateInfo loadShaderGLSL(std::string fileName, VkShaderStageFlagBits stage);
-public:
+    vk::PipelineShaderStageCreateInfo loadShader(std::string fileName, vk::ShaderStageFlagBits stage);
+    vk::PipelineShaderStageCreateInfo loadShaderGLSL(std::string fileName, vk::ShaderStageFlagBits stage);
+private:
     VkDevice device;
-    std::vector<VkShaderModule> shaderModules;
+    std::vector<ShaderModule> shaderModules;
 
     // Load a SPIR-V shader (binary)
-    VkShaderModule loadShader(const char *fileName);
+    ShaderModule loadModule(const char *fileName, vk::ShaderStageFlagBits stage);
 
     // Load a GLSL shader (text)
     // Note: GLSL support requires vendor-specific extensions to be enabled and is not a core-feature of Vulkan
-    VkShaderModule loadShaderGLSL2(const char *fileName, VkShaderStageFlagBits stage);
+    ShaderModule loadModuleGLSL(const char *fileName, vk::ShaderStageFlagBits stage);
 
 };
 

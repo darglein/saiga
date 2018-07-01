@@ -7,7 +7,7 @@
 */
 
 #include "vulkanexamplebase.h"
-#include "saiga/vulkan/ShaderLoader.h"
+#include "saiga/vulkan/Shader/all.h"
 
 std::vector<const char*> VulkanExampleBase::args;
 

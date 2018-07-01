@@ -13,7 +13,7 @@ namespace Saiga {
 namespace Vulkan {
 
 
-void init_resources(TBuiltInResource &Resources) {
+static void init_resources(TBuiltInResource &Resources) {
     Resources.maxLights = 32;
     Resources.maxClipPlanes = 6;
     Resources.maxTextureUnits = 32;
@@ -107,7 +107,7 @@ void init_resources(TBuiltInResource &Resources) {
     Resources.limits.generalVariableIndexing = 1;
     Resources.limits.generalConstantMatrixVectorIndexing = 1;
 }
-EShLanguage FindLanguage(const VkShaderStageFlagBits shader_type) {
+static EShLanguage FindLanguage(const VkShaderStageFlagBits shader_type) {
     switch (shader_type) {
     case VK_SHADER_STAGE_VERTEX_BIT:
         return EShLangVertex;
@@ -132,7 +132,7 @@ EShLanguage FindLanguage(const VkShaderStageFlagBits shader_type) {
     }
 }
 
-bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshader, std::vector<unsigned int> &spirv)
+static bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshader, std::vector<unsigned int> &spirv)
 {
 
     EShLanguage stage = FindLanguage(shader_type);

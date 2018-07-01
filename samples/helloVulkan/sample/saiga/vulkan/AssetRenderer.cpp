@@ -5,7 +5,7 @@
  */
 
 #include "AssetRenderer.h"
-#include "saiga/vulkan/ShaderLoader.h"
+#include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
 #include "saiga/animation/objLoader2.h"
 
@@ -114,7 +114,7 @@ void AssetRenderer::preparePipelines(VkDevice device, VkPipelineCache pipelineCa
             vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 
     // Load shaders
-    std::array<VkPipelineShaderStageCreateInfo,2> shaderStages;
+    std::array<vk::PipelineShaderStageCreateInfo,2> shaderStages;
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass);
 
@@ -126,7 +126,7 @@ void AssetRenderer::preparePipelines(VkDevice device, VkPipelineCache pipelineCa
     pipelineCreateInfo.pDepthStencilState = &depthStencilState;
     pipelineCreateInfo.pDynamicState = &dynamicState;
     pipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
-    pipelineCreateInfo.pStages = shaderStages.data();
+    pipelineCreateInfo.pStages = ( const VkPipelineShaderStageCreateInfo*)shaderStages.data();
 
     std::vector<VkVertexInputBindingDescription> vertexInputBindings = {
         vks::initializers::vertexInputBindingDescription(0, sizeof(VertexNC), VK_VERTEX_INPUT_RATE_VERTEX),
@@ -161,8 +161,8 @@ void AssetRenderer::preparePipelines(VkDevice device, VkPipelineCache pipelineCa
     VkPipelineVertexInputStateCreateInfo vertexInputState = vi;
     pipelineCreateInfo.pVertexInputState = &vertexInputState;
 
-    shaderStages[0] = Saiga::Vulkan::shaderLoader.loadShaderGLSL(ASSET_PATH "shaders/imgui/scene.vert", VK_SHADER_STAGE_VERTEX_BIT);
-    shaderStages[1] = Saiga::Vulkan::shaderLoader.loadShaderGLSL(ASSET_PATH "shaders/imgui/scene.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shaderStages[0] = Saiga::Vulkan::shaderLoader.loadShaderGLSL(ASSET_PATH "shaders/imgui/scene.vert", vk::ShaderStageFlagBits::eVertex);
+    shaderStages[1] = Saiga::Vulkan::shaderLoader.loadShaderGLSL(ASSET_PATH "shaders/imgui/scene.frag", vk::ShaderStageFlagBits::eFragment);
     VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
 }
 

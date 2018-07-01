@@ -25,7 +25,7 @@
 #include "vulkanexamplebase.h"
 //#include "../external/imgui/imgui.h"
 #include "saiga/imgui/imgui.h"
-#include "saiga/vulkan/ShaderLoader.h"
+#include "saiga/vulkan/Shader/all.h"
 
 #if defined(__ANDROID__)
 #include "VulkanAndroid.h"

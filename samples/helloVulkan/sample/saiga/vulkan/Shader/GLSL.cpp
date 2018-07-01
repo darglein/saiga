@@ -4,8 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "ShaderLoader.h"
-#include <fstream>
+#include "Shader.h"
+#include "saiga/vulkan/vulkanHelper.h"
 
 #include "SPIRV/GlslangToSpv.h"
 
@@ -13,8 +13,7 @@ namespace Saiga {
 namespace Vulkan {
 
 
-
-static void init_resources(TBuiltInResource &Resources) {
+void init_resources(TBuiltInResource &Resources) {
     Resources.maxLights = 32;
     Resources.maxClipPlanes = 6;
     Resources.maxTextureUnits = 32;
@@ -108,33 +107,39 @@ static void init_resources(TBuiltInResource &Resources) {
     Resources.limits.generalVariableIndexing = 1;
     Resources.limits.generalConstantMatrixVectorIndexing = 1;
 }
-static EShLanguage FindLanguage(const VkShaderStageFlagBits shader_type) {
+EShLanguage FindLanguage(const vk::ShaderStageFlagBits shader_type) {
     switch (shader_type) {
-    case VK_SHADER_STAGE_VERTEX_BIT:
+    case vk::ShaderStageFlagBits::eVertex:
         return EShLangVertex;
 
-    case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+    case vk::ShaderStageFlagBits::eTessellationControl:
         return EShLangTessControl;
 
-    case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+    case vk::ShaderStageFlagBits::eTessellationEvaluation:
         return EShLangTessEvaluation;
 
-    case VK_SHADER_STAGE_GEOMETRY_BIT:
+    case vk::ShaderStageFlagBits::eGeometry:
         return EShLangGeometry;
 
-    case VK_SHADER_STAGE_FRAGMENT_BIT:
+    case vk::ShaderStageFlagBits::eFragment:
         return EShLangFragment;
 
-    case VK_SHADER_STAGE_COMPUTE_BIT:
+    case vk::ShaderStageFlagBits::eCompute:
         return EShLangCompute;
 
-    default:
-        return EShLangVertex;
+//    default:
+//        return EShLangVertex;
     }
 }
 
-static bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshader, std::vector<unsigned int> &spirv)
+std::vector<uint32_t> GLSLtoSPIRV(const std::string& shaderString,
+        const vk::ShaderStageFlagBits shader_type
+        )
 {
+
+    std::vector<uint32_t> spirv;
+
+    glslang::InitializeProcess();
 
     EShLanguage stage = FindLanguage(shader_type);
     glslang::TShader shader(stage);
@@ -146,13 +151,13 @@ static bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshad
     // Enable SPIR-V and Vulkan rules when parsing GLSL
     EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
 
-    shaderStrings[0] = pshader;
+    shaderStrings[0] = shaderString.c_str();
     shader.setStrings(shaderStrings, 1);
 
     if (!shader.parse(&Resources, 100, false, messages)) {
         puts(shader.getInfoLog());
         puts(shader.getInfoDebugLog());
-        return false;  // something didn't work
+        return spirv;  // something didn't work
     }
 
     program.addShader(&shader);
@@ -165,130 +170,15 @@ static bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshad
         puts(shader.getInfoLog());
         puts(shader.getInfoDebugLog());
         fflush(stdout);
-        return false;
+        return spirv;
     }
 
     glslang::GlslangToSpv(*program.getIntermediate(stage), spirv);
 
-    return true;
-}
 
-ShaderLoader shaderLoader;
+        glslang::FinalizeProcess();
 
-std::string readTextFile(const char *fileName)
-{
-    std::string fileContent;
-    std::ifstream fileStream(fileName, std::ios::in);
-    if (!fileStream.is_open()) {
-        printf("File %s not found\n", fileName);
-        return "";
-    }
-    std::string line = "";
-    while (!fileStream.eof()) {
-        getline(fileStream, line);
-        fileContent.append(line + "\n");
-    }
-    fileStream.close();
-    return fileContent;
-}
-
-void ShaderLoader::destroy()
-{
-    for (auto& shaderModule : shaderModules)
-    {
-        vkDestroyShaderModule(device, shaderModule, nullptr);
-    }
-}
-
-VkShaderModule ShaderLoader::loadShader(const char *fileName)
-{
-    std::ifstream is(fileName, std::ios::binary | std::ios::in | std::ios::ate);
-
-    if (is.is_open())
-    {
-        size_t size = is.tellg();
-        is.seekg(0, std::ios::beg);
-        char* shaderCode = new char[size];
-        is.read(shaderCode, size);
-        is.close();
-
-        assert(size > 0);
-
-        VkShaderModule shaderModule;
-        VkShaderModuleCreateInfo moduleCreateInfo{};
-        moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        moduleCreateInfo.codeSize = size;
-        moduleCreateInfo.pCode = (uint32_t*)shaderCode;
-
-        vkCreateShaderModule(device, &moduleCreateInfo, NULL, &shaderModule);
-
-        delete[] shaderCode;
-
-        return shaderModule;
-    }
-    else
-    {
-        std::cerr << "Error: Could not open shader file \"" << fileName << "\"" << std::endl;
-        return VK_NULL_HANDLE;
-    }
-}
-
-VkShaderModule ShaderLoader::loadShaderGLSL2(const char *fileName, VkShaderStageFlagBits stage)
-{
-    cout << "loadShaderGLSL2 " << fileName << endl;
-    std::string shaderSrc = readTextFile(fileName);
-    const char *shaderCode = shaderSrc.c_str();
-
-
-    std::vector<unsigned int> vtx_spv;
-
-    glslang::InitializeProcess();
-
-    bool retVal = GLSLtoSPV(stage, shaderCode, vtx_spv);
-    SAIGA_ASSERT(retVal);
-
-    VkShaderModule shaderModule;
-    VkShaderModuleCreateInfo moduleCreateInfo{};
-    moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    moduleCreateInfo.codeSize = vtx_spv.size() * sizeof(uint32_t);
-    moduleCreateInfo.pCode = (uint32_t*)vtx_spv.data();
-
-    vkCreateShaderModule(device, &moduleCreateInfo, NULL, &shaderModule);
-
-
-    return shaderModule;
-}
-
-VkPipelineShaderStageCreateInfo ShaderLoader::loadShader(std::string fileName, VkShaderStageFlagBits stage)
-{
-    VkPipelineShaderStageCreateInfo shaderStage = {};
-    shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStage.stage = stage;
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-    shaderStage.module = vks::tools::loadShader(androidApp->activity->assetManager, fileName.c_str(), device);
-#else
-    shaderStage.module = Saiga::Vulkan::shaderLoader.loadShader(fileName.c_str());
-#endif
-    shaderStage.pName = "main"; // todo : make param
-    assert(shaderStage.module != VK_NULL_HANDLE);
-    shaderModules.push_back(shaderStage.module);
-    return shaderStage;
-}
-
-VkPipelineShaderStageCreateInfo ShaderLoader::loadShaderGLSL(std::string fileName, VkShaderStageFlagBits stage)
-{
-    VkPipelineShaderStageCreateInfo shaderStage = {};
-    shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStage.stage = stage;
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-    shaderStage.module = vks::tools::loadShader(androidApp->activity->assetManager, fileName.c_str(), device);
-#else
-    shaderStage.module = Saiga::Vulkan::shaderLoader.loadShaderGLSL2(fileName.c_str(),stage);
-#endif
-    shaderStage.pName = "main"; // todo : make param
-    assert(shaderStage.module != VK_NULL_HANDLE);
-    shaderModules.push_back(shaderStage.module);
-    return shaderStage;
+    return spirv;
 }
 
 }
