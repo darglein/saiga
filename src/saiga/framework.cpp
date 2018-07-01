@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -15,6 +15,10 @@
 #include "saiga/util/floatingPoint.h"
 #include "saiga/util/ini/ini.h"
 #include "saiga/util/directory.h"
+
+#ifdef SAIGA_USE_VULKAN
+#include "saiga/vulkan/Shader/GLSL.h"
+#endif
 
 namespace Saiga {
 
@@ -159,17 +163,22 @@ void initSaiga(const SaigaParameters& params)
 
     shaderPathes.addSearchPath(shaderDir);
 
+#ifdef SAIGA_USE_VULKAN
+    Vulkan::GLSLANG::init();
+    Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir);
+#endif
+
     TextureLoader::instance()->addPath(params.textureDirectory);
     TextureLoader::instance()->addPath(".");
-	 
-	// Disables the following notification:
-	// Buffer detailed info : Buffer object 2 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is GL_STREAM_DRAW) 
-	// will use VIDEO memory as the source for buffer object operations.
+
+    // Disables the following notification:
+    // Buffer detailed info : Buffer object 2 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is GL_STREAM_DRAW)
+    // will use VIDEO memory as the source for buffer object operations.
     std::vector<GLuint> ignoreIds = {
         131185, //nvidia
-         //intel
-                                    };
-	Error::ignoreGLError(ignoreIds);
+        //intel
+    };
+    Error::ignoreGLError(ignoreIds);
 
 
     printSaigaInfo();
@@ -180,7 +189,9 @@ void initSaiga(const SaigaParameters& params)
 
 void cleanupSaiga()
 {
-
+#ifdef SAIGA_USE_VULKAN
+    Saiga::Vulkan::GLSLANG::quit();
+#endif
     ShaderLoader::instance()->clear();
     TextureLoader::instance()->clear();
     cout<<"========================== Saiga cleanup done! =========================="<<endl;

@@ -1,4 +1,4 @@
-# Create target name from directory name
+﻿# Create target name from directory name
 get_filename_component(PROG_NAME ${CMAKE_CURRENT_LIST_DIR} NAME)
 string(REPLACE " " "_" PROG_NAME ${PROG_NAME})
 
@@ -9,10 +9,7 @@ FILE(GLOB_RECURSE main_HEADER2  *.hpp)
 SET(PROG_SRC ${main_SRC} ${main_HEADER} ${main_HEADER2})
 
 include_directories(.)
-include_directories(test)
-include_directories(sample)
-include_directories(sample/base)
-   add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
+include_directories(base)
 
 add_executable(${PROG_NAME} ${PROG_SRC} )
 target_link_libraries(${PROG_NAME} ${LIBS} ${LIB_NAME} )

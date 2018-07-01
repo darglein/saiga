@@ -3,3 +3,8 @@ CMakeLists.txt.user
 build*/
 *.ptx
 cmake/SAIGAConfig.cmake
+saiga.creator
+saiga.creator.user
+saiga.files
+saiga.includes
+

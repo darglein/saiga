@@ -77,6 +77,10 @@ SET(PROG_SRC ${CUDA_SRC} ${PROG_SRC})
 endif()
 
 
+if(SAIGA_USE_VULKAN)
+	FILE(GLOB_RECURSE vulkan_SRC  vulkan/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${vulkan_SRC})
+endif()
 
 
 
