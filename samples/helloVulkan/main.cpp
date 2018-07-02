@@ -23,8 +23,9 @@ int main(const int argc, const char *argv[])
 
     renderer.thing = &example;
 
-    renderer.renderLoop();
 
+    MainLoop mainloop(renderer);
+    mainloop.startMainLoop();
 
     return 0;
 }

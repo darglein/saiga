@@ -93,26 +93,9 @@ void VulkanForwardRenderer::createPipelineCache()
     VK_CHECK_RESULT(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
 }
 
-void VulkanForwardRenderer::prepare()
-{
-    if (vulkanDevice->enableDebugMarkers) {
-        vks::debugmarker::setup(device);
-    }
-    initSwapchain();
-    createCommandPool();
-    setupSwapChain();
-    createCommandBuffers();
-    createSynchronizationPrimitives();
-    setupDepthStencil();
-    setupRenderPass();
-    createPipelineCache();
-    setupFrameBuffer();
-    cout << "VulkanForwardRenderer init done." << endl;
 
 
-}
-
-void VulkanForwardRenderer::updateIntern()
+void VulkanForwardRenderer::update(float dt)
 {
     Saiga::SDL_EventHandler::update();
 
@@ -123,9 +106,14 @@ void VulkanForwardRenderer::updateIntern()
     thing->update();
 }
 
+void VulkanForwardRenderer::swap()
+{
+
+}
 
 
-void VulkanForwardRenderer::renderIntern()
+
+void VulkanForwardRenderer::render()
 {
     imGui->beginFrame();
     thing->renderGUI();
@@ -183,24 +171,6 @@ void VulkanForwardRenderer::renderIntern()
 }
 
 
-
-void VulkanForwardRenderer::renderLoop()
-{
-
-    while (!quit)
-    {
-        updateIntern();
-        renderIntern();
-    }
-
-    // Flush device to make sure all resources can be freed
-    if (device != VK_NULL_HANDLE)
-    {
-        vkDeviceWaitIdle(device);
-    }
-}
-
-
 void VulkanForwardRenderer::prepareFrame()
 {
     // Acquire the next image from the swap chain
@@ -230,7 +200,21 @@ VulkanForwardRenderer::VulkanForwardRenderer(Saiga::Vulkan::SDLWindow& window, b
     settings.validation = enableValidation;
 
     initVulkan();
-    prepare();
+
+    if (vulkanDevice->enableDebugMarkers) {
+        vks::debugmarker::setup(device);
+    }
+    initSwapchain();
+    createCommandPool();
+    setupSwapChain();
+    createCommandBuffers();
+    createSynchronizationPrimitives();
+    setupDepthStencil();
+    setupRenderPass();
+    createPipelineCache();
+    setupFrameBuffer();
+    cout << "VulkanForwardRenderer init done." << endl;
+
 
     imGui = std::make_shared<Saiga::Vulkan::ImGuiVulkanRenderer>();
     imGui->init(window.sdl_window,(float)width, (float)height);
@@ -374,9 +358,6 @@ bool VulkanForwardRenderer::initVulkan()
 
 
 
-
-
-void VulkanForwardRenderer::buildCommandBuffers() {}
 
 void VulkanForwardRenderer::createSynchronizationPrimitives()
 {

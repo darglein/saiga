@@ -14,6 +14,7 @@
 #include "saiga/rendering/renderer.h"
 #include "saiga/window/windowParameters.h"
 #include <thread>
+#include "saiga/window/MainLoop.h"
 
 namespace Saiga {
 
@@ -123,7 +124,6 @@ public:
     virtual std::shared_ptr<ImGuiRenderer> createImGui() { return nullptr; }
 protected:
     void resize(int width, int height);
-    void initDeferredRendering(const DeferredRenderingParameters& params);
     void update(float dt);
     void render(float dt, float interpolation);
     void startParallelUpdate(float dt);

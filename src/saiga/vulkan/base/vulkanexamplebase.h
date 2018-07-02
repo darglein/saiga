@@ -36,6 +36,7 @@
 #include "saiga/vulkan/base/VulkanImgui.h"
 
 #include "saiga/vulkan/SDLWindow.h"
+#include "saiga/window/MainLoop.h"
 
 class SAIGA_GLOBAL RenderThing
 {
@@ -45,14 +46,11 @@ public:
     virtual void renderGUI() = 0;
 };
 
-class SAIGA_GLOBAL VulkanForwardRenderer
+class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::MainLoopInterface
 {
-private:
-//    virtual std::vector<const char*> getRequiredInstanceExtensions() = 0;
-//    virtual void setupWindow() = 0;
-//    virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
+
 public:
-Saiga::Vulkan::SDLWindow& window;
+    Saiga::Vulkan::SDLWindow& window;
     std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
     RenderThing* thing = nullptr;
 
@@ -168,17 +166,11 @@ public:
     // Setup the vulkan instance, enable required extensions and connect to the physical device (GPU)
     bool initVulkan();
 
-    virtual void update() {};
-    virtual void render(VkCommandBuffer cmd) {};
-    virtual void renderGUI() {};
+    void render();
+    void swap();
+    void update(float dt);
+    bool shouldClose() { return quit; }
 
-    void updateIntern();
-    void renderIntern();
-
-    // Pure virtual function to be overriden by the dervice class
-    // Called in case of an event where e.g. the framebuffer has to be rebuild and thus
-    // all command buffers that may reference this
-    virtual void buildCommandBuffers();
 
     void createSynchronizationPrimitives();
 
@@ -218,16 +210,7 @@ public:
     // Create a cache pool for rendering pipelines
     void createPipelineCache();
 
-    // Prepare commonly used Vulkan functions
-    virtual void prepare();
 
-    // Start the main render loop
-    void renderLoop();
-
-    // Render one frame of a render loop on platforms that sync rendering
-    void renderFrame();
-
-    //	void updateOverlay();
 
     // Prepare the frame for workload submission
     // - Acquires the next image from the swap chain
@@ -238,3 +221,4 @@ public:
     void submitFrame();
 
 };
+
