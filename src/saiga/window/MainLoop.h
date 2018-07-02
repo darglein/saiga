@@ -77,7 +77,7 @@ public:
 
 
     void renderImGuiInline();
-private:
+public:
 
     //total number of updateticks/frames rendered so far
     int numUpdates = 0;

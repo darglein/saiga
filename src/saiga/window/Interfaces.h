@@ -27,6 +27,7 @@ public:
     RenderingBase* rendering = nullptr;
 
 
+    virtual void printTimings(){}
     void setRenderObject(RenderingBase &r ) { rendering = &r; }
 
     virtual void renderImGui(bool* p_open = nullptr) {}

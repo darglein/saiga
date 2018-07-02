@@ -250,7 +250,7 @@ std::ostream& operator<<(std::ostream& os, const Camera& ca){
 //===================================================================================================
 
 
-void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float _zFar){
+void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float _zFar, bool vulkanTransform){
     _fovy = glm::radians(_fovy);
     this->fovy = _fovy;
     this->aspect = _aspect;
@@ -262,6 +262,15 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
 
 
     proj = glm::perspective(fovy,aspect,zNear,zFar);
+
+    if(vulkanTransform)
+    {
+        const glm::mat4 clip(1.0f,  0.0f, 0.0f, 0.0f,
+                            0.0f, -1.0f, 0.0f, 0.0f,
+                            0.0f,  0.0f, 0.5f, 0.0f,
+                            0.0f,  0.0f, 0.5f, 1.0f);
+        proj = clip * proj;
+    }
 }
 
 void PerspectiveCamera::recalculatePlanes()

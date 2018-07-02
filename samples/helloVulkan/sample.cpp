@@ -33,7 +33,8 @@ void VulkanExample::init()
     assetRenderer.preparePipelines(renderer.device,renderer.pipelineCache,renderer.renderPass);
 
 
-    teapot.load("objs/teapot.obj", renderer.vulkanDevice, renderer.queue);
+    teapot.load("objs/teapot.obj");
+    teapot.updateBuffer(renderer.vulkanDevice, renderer.queue);
 }
 
 

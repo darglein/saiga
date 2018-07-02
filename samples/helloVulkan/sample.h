@@ -26,7 +26,7 @@ public:
     virtual void renderGUI() override;
 private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
-    Saiga::Vulkan::Asset teapot;
+    Saiga::Vulkan::VulkanVertexColoredAsset teapot;
     Saiga::Vulkan::AssetRenderer assetRenderer;
 
     Saiga::Vulkan::VulkanForwardRenderer &renderer;

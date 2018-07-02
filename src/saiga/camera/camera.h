@@ -166,7 +166,7 @@ public:
     float fovy,  aspect;
     float tang;
     PerspectiveCamera(){}
-    void setProj(float fovy, float aspect, float zNear, float zFar);
+    void setProj(float fovy, float aspect, float zNear, float zFar, bool vulkanTransform = false);
     friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
 
     virtual void recalculatePlanes();

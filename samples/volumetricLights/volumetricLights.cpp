@@ -127,16 +127,16 @@ void Sample::update(float dt){
     sun->fitShadowToCamera(&camera);
     //    sun->fitNearPlaneToScene(sceneBB);
 
-    int  fps = (int) glm::round(1000.0/parentWindow.fpsTimer.getTimeMS());
+    int  fps = (int) glm::round(1000.0/parentWindow.mainLoop.fpsTimer.getTimeMS());
     tdo.updateEntry(0,fps);
 
-    int  ups = (int) glm::round(1000.0/parentWindow.upsTimer.getTimeMS());
+    int  ups = (int) glm::round(1000.0/parentWindow.mainLoop.upsTimer.getTimeMS());
     tdo.updateEntry(1,ups);
 
     float renderTime = parentWindow.getRenderer()->getTotalRenderTime();
     tdo.updateEntry(2,renderTime);
 
-    float updateTime = parentWindow.updateTimer.getTimeMS();
+    float updateTime = parentWindow.mainLoop.updateTimer.getTimeMS();
     tdo.updateEntry(3,updateTime);
 
 }

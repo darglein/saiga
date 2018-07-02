@@ -11,25 +11,10 @@
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Device.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
+#include "saiga/vulkan/VulkanAsset.h"
 
 namespace Saiga {
 namespace Vulkan {
-
-class SAIGA_GLOBAL Asset
-{
-public:
-    Saiga::TriangleMesh<Saiga::VertexNC, uint32_t> mesh;
-
-
-    VkDevice device = nullptr;
-    vks::Buffer vertices;
-    vks::Buffer indices;
-    uint32_t indexCount = 0;
-    uint32_t vertexCount = 0;
-
-    void render(VkCommandBuffer cmd);
-    void load(const std::string& file, vks::VulkanDevice *device, VkQueue copyQueue);
-};
 
 
 

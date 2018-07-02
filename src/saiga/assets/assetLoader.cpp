@@ -72,6 +72,12 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float
     return asset;
 }
 
+std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(vec2 size, float quadSize, Color color1, Color color2)
+{
+    std::shared_ptr<ColoredAsset> asset;
+    return asset;
+}
+
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
 {
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());

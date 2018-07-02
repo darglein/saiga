@@ -20,6 +20,7 @@ class SAIGA_GLOBAL WindowBase : public MainLoopInterface
 {
 public:
     bool showRendererImgui = false;
+    MainLoop mainLoop;
 
     WindowBase(WindowParameters windowParameters);
     virtual ~WindowBase();
@@ -52,12 +53,14 @@ public:
     virtual bool shouldClose() { return !running; }
     virtual void render();
     virtual void interpolate(float dt, float alpha);
+
+    void screenshot(std::string s) {}
 protected:
     void resize(int width, int height);
 
     bool running = false;
     WindowParameters windowParameters;
-    MainLoop mainLoop;
+
     Camera* currentCamera = nullptr;
     bool showImgui = true;
     RendererBase* renderer = nullptr;

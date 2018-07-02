@@ -424,7 +424,7 @@ void Sample::keyPressed(SDL_Keysym key)
         ShaderLoader::instance()->reload();
         break;
     case SDL_SCANCODE_F11:
-        parentWindow.screenshotRenderDepth("depth.png");
+//        parentWindow.screenshotRenderDepth("depth.png");
         break;
     case SDL_SCANCODE_F12:
         parentWindow.screenshot("screenshot.png");
