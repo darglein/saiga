@@ -10,24 +10,6 @@
 #include "vulkanexamplebase.h"
 #include "saiga/vulkan/Shader/all.h"
 
-std::vector<const char*> VulkanExampleBase::args;
-
-
-
-#if !(defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
-// iOS & macOS: VulkanExampleBase::getAssetPath() implemented externally to allow access to Objective-C components
-const std::string VulkanExampleBase::getAssetPath()
-{
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-    return "";
-#elif defined(VK_EXAMPLE_DATA_DIR)
-    return VK_EXAMPLE_DATA_DIR;
-#else
-    return "./../data/";
-#endif
-}
-#endif
-
 bool VulkanExampleBase::checkCommandBuffers()
 {
     for (auto& cmdBuffer : drawCmdBuffers)
@@ -203,8 +185,6 @@ void VulkanExampleBase::renderIntern()
 
 void VulkanExampleBase::renderLoop()
 {
-    destWidth = width;
-    destHeight = height;
 
     while (!quit)
     {

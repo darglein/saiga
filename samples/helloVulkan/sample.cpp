@@ -30,7 +30,7 @@ void VulkanExample::init()
     assetRenderer.setupLayoutsAndDescriptors(device);
     assetRenderer.preparePipelines(device,pipelineCache,renderPass);
 
-    prepared = true;
+
 
 
     teapot.load("objs/teapot.obj", vulkanDevice, queue);

@@ -37,22 +37,7 @@
 
 class SAIGA_GLOBAL VulkanExampleBase
 {
-private:	
-
-
-    // fps timer (one second interval)
-    float fpsTimer = 0.0f;
-    // Get window title with example name, device, et.
-    std::string getWindowTitle();
-    /** brief Indicates that the view (position, rotation) has changed and buffers containing camera matrices need to be updated */
-    bool viewUpdated = false;
-    // Destination dimensions for resizing the window
-    uint32_t destWidth;
-    uint32_t destHeight;
-    bool resizing = false;
-
-    void handleMouseMove(int32_t x, int32_t y);
-
+private:
     virtual std::vector<const char*> getRequiredInstanceExtensions() = 0;
     virtual void setupWindow() = 0;
     virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
@@ -60,10 +45,6 @@ protected:
 
     std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
 
-
-    // Frame counter to display fps
-    uint32_t frameCounter = 0;
-    uint32_t lastFPS = 0;
 
     Saiga::Vulkan::Instance instance;
     // Physical device (GPU) that Vulkan will ise
@@ -122,16 +103,9 @@ protected:
         VkSemaphore overlayComplete;
     } semaphores;
     std::vector<VkFence> waitFences;
-public: 
-    bool prepared = false;
+public:
     uint32_t width = 1280;
     uint32_t height = 720;
-
-    /** @brief Last frame time measured using a high performance timer (if available) */
-    float frameTimer = 1.0f;
-    /** @brief Returns os specific base asset path (for shaders, models, textures) */
-    const std::string getAssetPath();
-
 
 
     /** @brief Encapsulated physical and logical vulkan device */
@@ -153,16 +127,6 @@ public:
 
 
     static std::vector<const char*> args;
-
-    // Defines a frame rate independent timer value clamped from -1.0...1.0
-    // For use in animations, rotations, etc.
-    float timer = 0.0f;
-    // Multiplier for speeding up (or slowing down) the global timer
-    float timerSpeed = 0.25f;
-
-    bool paused = false;
-
-
 
     struct
     {
