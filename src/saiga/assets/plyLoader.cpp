@@ -213,10 +213,10 @@ void PLYLoader::parseMeshBinary()
         SAIGA_ASSERT(c == 3);
 
         start++;
-        GLuint* face = reinterpret_cast<GLuint*>(start);
+        uint32_t* face = reinterpret_cast<uint32_t*>(start);
         mesh.addFace(face);
 
-        start += sizeof(GLuint) * c;
+        start += sizeof(uint32_t) * c;
         //            cout << c << endl;
     }
 

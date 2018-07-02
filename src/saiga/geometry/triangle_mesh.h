@@ -8,8 +8,7 @@
 
 #include "saiga/util/glm.h"
 
-#include "saiga/opengl/vertex.h"
-//#include "saiga/opengl/indexedVertexBuffer.h"
+#include "saiga/geometry/vertex.h"
 #include "saiga/geometry/aabb.h"
 #include "saiga/geometry/triangle.h"
 

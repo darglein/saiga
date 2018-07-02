@@ -11,10 +11,10 @@
 
 namespace Saiga {
 
-class SAIGA_GLOBAL ColoredAsset : public BasicAsset<VertexNC,GLuint>{
+class SAIGA_GLOBAL ColoredAsset : public BasicAsset<VertexColoredModel>{
 };
 
-class SAIGA_GLOBAL TexturedAsset : public BasicAsset<VertexNTD,GLuint>{
+class SAIGA_GLOBAL TexturedAsset : public BasicAsset<TexturedModel>{
 public:
     class SAIGA_GLOBAL TextureGroup{
     public:

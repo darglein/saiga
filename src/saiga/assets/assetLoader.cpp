@@ -102,7 +102,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(glm::ivec2 size,
     }
 
     loadBasicShaders();
-    asset->create("Arrow",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
+    asset->create(basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
 
     return asset;
 }
@@ -127,7 +127,7 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_p
     tg.texture = texture;
     asset->groups.push_back(tg);
     loadTextureShaders();
-    asset->create("Plane",texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader);
+    asset->create(texturedAssetShader,texturedAssetForwardShader,texturedAssetDepthShader,texturedAssetWireframeShader);
 
     return asset;
 }
@@ -186,7 +186,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float le
     }
 
     loadBasicShaders();
-    asset->create("Arrow",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
+    asset->create(basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
 }
 
@@ -202,7 +202,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNT, 
     }
 
     loadBasicShaders();
-    asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
+    asset->create(basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
 }
 
@@ -216,7 +216,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNC, 
     }
 
     loadBasicShaders();
-    asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
+    asset->create(basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     return asset;
 }
 
@@ -232,7 +232,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::nonTriangleMesh(std::vector<vec3> ver
     //        v.data = vec4(0.5,0,0,0);
     //    }
     loadBasicShaders();
-    asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
+    asset->create(basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
     asset->buffer.set(asset->model.mesh.vertices,indices,GL_STATIC_DRAW);
     asset->buffer.setDrawMode(mode);
     return asset;

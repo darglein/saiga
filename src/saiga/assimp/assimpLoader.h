@@ -69,28 +69,28 @@ public:
 
 
     template<typename vertex_t>
-    void getMesh(int id, TriangleMesh<vertex_t, GLuint> &out);
+    void getMesh(int id, TriangleMesh<vertex_t, uint32_t> &out);
 
     template<typename vertex_t>
-    void getPositions(int id, TriangleMesh<vertex_t, GLuint> &out);
+    void getPositions(int id, TriangleMesh<vertex_t, uint32_t> &out);
 
     template<typename vertex_t>
-    void getNormals(int id,  TriangleMesh<vertex_t, GLuint> &out);
+    void getNormals(int id,  TriangleMesh<vertex_t, uint32_t> &out);
 
     template<typename vertex_t, typename index_t>
     void getTextureCoordinates(int id,  TriangleMesh<vertex_t, index_t> &out);
 
     template<typename vertex_t>
-    void getBones(int id,  TriangleMesh<vertex_t, GLuint> &out);
+    void getBones(int id,  TriangleMesh<vertex_t, uint32_t> &out);
 
     template<typename vertex_t>
-    void getFaces(int id, TriangleMesh<vertex_t, GLuint> &out);
+    void getFaces(int id, TriangleMesh<vertex_t, uint32_t> &out);
 
     template<typename vertex_t>
-    void getColors(int id, TriangleMesh<vertex_t, GLuint> &out);
+    void getColors(int id, TriangleMesh<vertex_t, uint32_t> &out);
 
     template<typename vertex_t>
-    void getData(int id, TriangleMesh<vertex_t, GLuint> &out);
+    void getData(int id, TriangleMesh<vertex_t, uint32_t> &out);
 
     void getAnimation(int animationId, int meshId, Animation &out);
 
@@ -177,7 +177,7 @@ ENABLED_FUNCTION3(loadBoneWeight,T& vertex, int index, float weight,has_boneWeig
 
 
 template<typename vertex_t>
-void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, GLuint> &out){
+void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, uint32_t> &out){
     const aiMesh *mesh = scene->mMeshes[id];
 
 
@@ -229,7 +229,7 @@ void AssimpLoader::getMesh(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
 
 template<typename vertex_t>
-void AssimpLoader::getPositions(int id,  TriangleMesh<vertex_t, GLuint> &out){
+void AssimpLoader::getPositions(int id,  TriangleMesh<vertex_t, uint32_t> &out){
     const aiMesh *mesh = scene->mMeshes[id];
 
     out.vertices.resize(mesh->mNumVertices);
@@ -250,7 +250,7 @@ void AssimpLoader::getPositions(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
 
 template<typename vertex_t>
-void AssimpLoader::getNormals(int id,  TriangleMesh<vertex_t, GLuint> &out){
+void AssimpLoader::getNormals(int id,  TriangleMesh<vertex_t, uint32_t> &out){
     const aiMesh *mesh = scene->mMeshes[id];
 
     out.vertices.resize(mesh->mNumVertices);
@@ -280,7 +280,7 @@ void AssimpLoader::getTextureCoordinates(int id,  TriangleMesh<vertex_t, index_t
 }
 
 template<typename vertex_t>
-void AssimpLoader::getBones(int id,  TriangleMesh<vertex_t, GLuint> &out){
+void AssimpLoader::getBones(int id,  TriangleMesh<vertex_t, uint32_t> &out){
     const aiMesh *mesh = scene->mMeshes[id];
 
     out.vertices.resize(mesh->mNumVertices);
@@ -307,7 +307,7 @@ void AssimpLoader::getBones(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
 
 template<typename vertex_t>
-void AssimpLoader::getFaces(int id,  TriangleMesh<vertex_t, GLuint> &out){
+void AssimpLoader::getFaces(int id,  TriangleMesh<vertex_t, uint32_t> &out){
     const aiMesh *mesh = scene->mMeshes[id];
 
     if(mesh->HasFaces()){
@@ -325,7 +325,7 @@ void AssimpLoader::getFaces(int id,  TriangleMesh<vertex_t, GLuint> &out){
 
 
 template<typename vertex_t>
-void AssimpLoader::getColors(int id,  TriangleMesh<vertex_t, GLuint> &out){
+void AssimpLoader::getColors(int id,  TriangleMesh<vertex_t, uint32_t> &out){
     const aiMesh *mesh = scene->mMeshes[id];
 
     out.vertices.resize(mesh->mNumVertices);
@@ -344,7 +344,7 @@ void AssimpLoader::getColors(int id,  TriangleMesh<vertex_t, GLuint> &out){
 }
 
 template<typename vertex_t>
-void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, GLuint> &out){
+void AssimpLoader::getData(int id,  TriangleMesh<vertex_t, uint32_t> &out){
     const aiMesh *mesh = scene->mMeshes[id];
 
     out.vertices.resize(mesh->mNumVertices);

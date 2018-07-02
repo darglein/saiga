@@ -15,7 +15,9 @@ template<typename vertex_t, typename index_t>
 class SAIGA_GLOBAL Model
 {
 public:
-    std::string name;
+    using VertexType = vertex_t;
+    using IndexType = index_t;
+
     AABB boundingBox;
     vec3 offset = vec3(0);
     TriangleMesh<vertex_t,index_t> mesh;

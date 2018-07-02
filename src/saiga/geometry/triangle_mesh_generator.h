@@ -15,29 +15,29 @@ namespace Saiga {
 
 class SAIGA_GLOBAL TriangleMeshGenerator
 {
-    typedef TriangleMesh<VertexNT,GLuint>::Face Face;
+    typedef TriangleMesh<VertexNT,uint32_t>::Face Face;
 
 public:
 
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const Sphere &sphere, int rings, int sectors);
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createMesh(const Sphere &sphere, int rings, int sectors);
     //TODO: uv mapping
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const Sphere &sphere, int resolution);
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createMesh(const Sphere &sphere, int resolution);
 
-     static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createCylinderMesh(float radius, float height, int sectors);
+     static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createCylinderMesh(float radius, float height, int sectors);
 
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const Plane &plane);
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createTesselatedPlane(int verticesX, int verticesY);
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createMesh(const Plane &plane);
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createTesselatedPlane(int verticesX, int verticesY);
 
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createFullScreenQuadMesh();
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createQuadMesh();
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createFullScreenQuadMesh();
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createQuadMesh();
 
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const Cone &cone, int sectors);
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createMesh(const Cone &cone, int sectors);
 
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createMesh(const AABB &box);
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createSkyboxMesh(const AABB &box);
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createMesh(const AABB &box);
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createSkyboxMesh(const AABB &box);
 
 
-    static std::shared_ptr<TriangleMesh<VertexNT,GLuint>> createGridMesh(unsigned int w, unsigned int h);
+    static std::shared_ptr<TriangleMesh<VertexNT,uint32_t>> createGridMesh(unsigned int w, unsigned int h);
 
     template<typename vertex_t, typename index_t>
     static std::shared_ptr<TriangleMesh<vertex_t,index_t>> createGridMesh2(int w, int h);
@@ -73,7 +73,7 @@ std::shared_ptr<TriangleMesh<vertex_t,index_t>>  TriangleMeshGenerator::createGr
 
     for(unsigned int y=0;y<h-1;y++){
         for(unsigned int x=0;x<w-1;x++){
-            GLuint quad[] = {y*w+x,(y+1)*w+x,(y+1)*w+x+1,y*w+x+1};
+            uint32_t quad[] = {y*w+x,(y+1)*w+x,(y+1)*w+x+1,y*w+x+1};
             mesh->addQuad(quad);
         }
     }

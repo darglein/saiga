@@ -37,7 +37,7 @@ public:
     std::string faceVertexCountType;
     std::string faceVertexIndexType;
 
-    TriangleMesh<VertexNC,GLuint> mesh;
+    TriangleMesh<VertexNC,uint32_t> mesh;
 
     int vertexCount = -1, faceCount = -1;
 

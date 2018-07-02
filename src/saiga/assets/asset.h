@@ -13,7 +13,10 @@
 #include <saiga/animation/boneVertex.h>
 #include <saiga/animation/animation.h>
 #include "saiga/assets/Model.h"
+#include "saiga/assets/VertexColoredModel.h"
+
 #include <saiga/camera/camera.h>
+
 
 namespace Saiga {
 
@@ -27,19 +30,20 @@ public:
 };
 
 
-template<typename vertex_t, typename index_t>
+template<typename ModelType>
 class SAIGA_TEMPLATE BasicAsset : public Asset{
 public:
-
+    using VertexType = typename ModelType::VertexType;
+    using IndexType  = typename ModelType::IndexType;
 
     std::shared_ptr<MVPShader> shader;
     std::shared_ptr<MVPShader> forwardShader;
     std::shared_ptr<MVPShader> depthshader;
     std::shared_ptr<MVPShader> wireframeshader;
 
-    IndexedVertexBuffer<vertex_t,index_t> buffer;
+    IndexedVertexBuffer<VertexType,IndexType> buffer;
 
-    Model<vertex_t,index_t> model;
+    ModelType model;
 
     /**
      * Use these for simple inefficient rendering.
@@ -59,7 +63,7 @@ public:
     virtual void renderRaw() override;
 
 
-    void create(std::string name,
+    void create(
                 std::shared_ptr<MVPShader> shader, std::shared_ptr<MVPShader> forwardShader, std::shared_ptr<MVPShader> depthshader, std::shared_ptr<MVPShader> wireframeshader,
                 bool normalizePosition=false, bool ZUPtoYUP=false);
 
@@ -68,8 +72,8 @@ public:
 
 };
 
-template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::render(Camera *cam, const mat4 &model)
+template<typename ModelType>
+void BasicAsset<ModelType>::render(Camera *cam, const mat4 &model)
 {
 	(void)cam;
     shader->bind();
@@ -86,8 +90,8 @@ void BasicAsset<vertex_t,index_t>::render(Camera *cam, const mat4 &model)
     shader->unbind();
 }
 
-template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::renderForward(Camera *cam, const mat4 &model)
+template<typename ModelType>
+void BasicAsset<ModelType>::renderForward(Camera *cam, const mat4 &model)
 {
 	(void)cam;
     forwardShader->bind();
@@ -104,8 +108,8 @@ void BasicAsset<vertex_t,index_t>::renderForward(Camera *cam, const mat4 &model)
     forwardShader->unbind();
 }
 
-template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::renderDepth(Camera *cam, const mat4 &model)
+template<typename ModelType>
+void BasicAsset<ModelType>::renderDepth(Camera *cam, const mat4 &model)
 {
 	(void)cam;
     depthshader->bind();
@@ -114,8 +118,8 @@ void BasicAsset<vertex_t,index_t>::renderDepth(Camera *cam, const mat4 &model)
     depthshader->unbind();
 }
 
-template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::renderWireframe(Camera *cam, const mat4 &model)
+template<typename ModelType>
+void BasicAsset<ModelType>::renderWireframe(Camera *cam, const mat4 &model)
 {
 	(void)cam;
     wireframeshader->bind();
@@ -138,18 +142,17 @@ void BasicAsset<vertex_t,index_t>::renderWireframe(Camera *cam, const mat4 &mode
     wireframeshader->unbind();
 }
 
-template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::renderRaw()
+template<typename ModelType>
+void BasicAsset<ModelType>::renderRaw()
 {
     buffer.bindAndDraw();
 }
 
-template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::create(std::string _name,
+template<typename ModelType>
+void BasicAsset<ModelType>::create(
                                           std::shared_ptr<MVPShader> _shader, std::shared_ptr<MVPShader> _forwardShader, std::shared_ptr<MVPShader> _depthshader, std::shared_ptr<MVPShader> _wireframeshader,
                                           bool normalizePosition, bool ZUPtoYUP){
 
-    this->model.name = _name;
     this->shader = _shader;
     this->forwardShader = _forwardShader;
     this->depthshader = _depthshader;

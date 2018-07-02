@@ -12,6 +12,13 @@
 
 namespace Saiga {
 
+class AnimatedModel : public Model<BoneVertexCD,uint32_t>
+{
+public:
+
+
+};
+
 /**
  *
  * Select Armature and click Rest Position.
@@ -34,7 +41,7 @@ namespace Saiga {
  *
  */
 
-class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<BoneVertexCD,GLuint>{
+class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<AnimatedModel>{
 public:
     int boneCount;
 

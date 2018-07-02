@@ -8,7 +8,7 @@
 
 namespace Saiga {
 
-typedef TriangleMesh<VertexNT,GLuint> default_mesh_t;
+typedef TriangleMesh<VertexNT,uint32_t> default_mesh_t;
 
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &sphere, int rings, int sectors){
 
@@ -154,10 +154,10 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float 
     mesh->vertices.push_back( VertexNT(vec3(0,height/2,0),vec3(0,1,0),vec2()));
     mesh->vertices.push_back( VertexNT(vec3(0,-height/2,0),vec3(0,1,0),vec2()));
 
-    for(GLuint s = 0; s < GLuint(sectors); s++) {
+    for(uint32_t s = 0; s < uint32_t(sectors); s++) {
 
-        //            GLuint f[] = {s,(s+1)%sectors,sectors + (s+1)%sectors,sectors + (s)};
-        GLuint f[] = {s,sectors + (s),sectors + (s+1)%sectors,(s+1)%sectors};
+        //            uint32_t f[] = {s,(s+1)%sectors,sectors + (s+1)%sectors,sectors + (s)};
+        uint32_t f[] = {s,sectors + (s),sectors + (s+1)%sectors,(s+1)%sectors};
         mesh->addQuad(f);
 
         {
@@ -216,7 +216,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Plane &p
     return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<TriangleMesh<VertexNT, GLuint> > TriangleMeshGenerator::createTesselatedPlane(int verticesX, int verticesY)
+std::shared_ptr<TriangleMesh<VertexNT, uint32_t> > TriangleMeshGenerator::createTesselatedPlane(int verticesX, int verticesY)
 {
     default_mesh_t* mesh = new default_mesh_t();
 
@@ -374,7 +374,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createGridMesh(unsigned i
 
     for(unsigned int y=0;y<h-1;y++){
         for(unsigned int x=0;x<w-1;x++){
-            GLuint quad[] = {y*w+x,(y+1)*w+x,(y+1)*w+x+1,y*w+x+1};
+            uint32_t quad[] = {y*w+x,(y+1)*w+x,(y+1)*w+x+1,y*w+x+1};
             mesh->addQuad(quad);
         }
     }
