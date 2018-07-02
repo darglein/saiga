@@ -158,6 +158,7 @@ void AssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
     // Vertex shader
     uboVS.projection = proj;
     uboVS.modelview = view;
+    uboVS.lightPos = vec4(0,5,0,0);
 
 
 

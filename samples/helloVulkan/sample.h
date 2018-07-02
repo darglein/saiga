@@ -16,19 +16,15 @@
 #include <array>
 #include <algorithm>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <gli/gli.hpp>
+//#define GLM_FORCE_RADIANS
+//#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+//#include <glm/glm.hpp>
+//#include <glm/gtc/matrix_transform.hpp>
+//#include <gli/gli.hpp>
 
 #include <saiga/imgui/imgui.h>
 
-#include <vulkan/vulkan.h>
 #include "vulkanexamplebase.h"
-#include "VulkanDevice.hpp"
-#include "VulkanBuffer.hpp"
-#include "VulkanModel.hpp"
 #include "VulkanImgui.h"
 
 
@@ -61,13 +57,6 @@ class VulkanExample : public VulkanExampleBase
 {
 public:
     std::shared_ptr<ImGUI> imGui;
-
-
-	struct Models {
-		vks::Model models;
-		vks::Model logos;
-		vks::Model background;
-	} models;
 
     Saiga::Vulkan::Asset teapot;
 

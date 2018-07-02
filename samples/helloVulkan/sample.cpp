@@ -18,22 +18,10 @@ VulkanExample::VulkanExample()
     camera.setPosition(glm::vec3(0.0f, 1.4f, -4.8f));
     camera.setRotation(glm::vec3(4.5f, -380.0f, 0.0f));
     camera.setPerspective(45.0f, (float)width / (float)height, 0.1f, 256.0f);
-
-
-
-
-
 }
 
 VulkanExample::~VulkanExample()
 {
-
-
-    models.models.destroy();
-    models.background.destroy();
-    models.logos.destroy();
-
-
 }
 
 void VulkanExample::buildCommandBuffers()
