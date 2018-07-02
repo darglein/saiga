@@ -24,8 +24,8 @@
 
 #include <saiga/imgui/imgui.h>
 
-#include "vulkanexamplebase.h"
-#include "VulkanImgui.h"
+#include "saiga/vulkan/SDLWindow.h"
+#include "saiga/vulkan/base/VulkanImgui.h"
 
 
 #include "saiga/vulkan/AssetRenderer.h"
@@ -53,7 +53,7 @@ struct UISettings {
 
 extern UISettings uiSettings;
 
-class VulkanExample : public VulkanExampleBase
+class VulkanExample : public Saiga::Vulkan::SDLWindow
 {
 public:
     std::shared_ptr<ImGUI> imGui;

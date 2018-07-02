@@ -10,7 +10,7 @@
 
 #include "vulkan/vulkan.h"
 #include "VulkanInitializers.hpp"
-
+#include "saiga/config.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string>
@@ -73,7 +73,7 @@ namespace vks
 		extern bool errorModeSilent;
 
 		/** @brief Returns an error code as a string */
-		std::string errorString(VkResult errorCode);
+        SAIGA_GLOBAL std::string errorString(VkResult errorCode);
 
 		/** @brief Returns the device type as a string */
 		std::string physicalDeviceTypeString(VkPhysicalDeviceType type);

@@ -32,16 +32,13 @@
 #include "VulkanDevice.hpp"
 #include "VulkanSwapChain.hpp"
 #include "camera.hpp"
-#include "benchmark.hpp"
+//#include "benchmark.hpp"
 
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_vulkan.h"
 
-class VulkanExampleBase
+class SAIGA_GLOBAL VulkanExampleBase
 {
 private:	
 
-    SDL_Window *sdl_window = nullptr;
 
 	// fps timer (one second interval)
 	float fpsTimer = 0.0f;
@@ -57,6 +54,10 @@ private:
 	// Called if the window is resized and some resources have to be recreatesd
 	void windowResize();
 	void handleMouseMove(int32_t x, int32_t y);
+
+    virtual std::vector<const char*> getRequiredInstanceExtensions() = 0;
+    virtual void setupWindow() = 0;
+    virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
 protected:
 	// Frame counter to display fps
 	uint32_t frameCounter = 0;
@@ -129,7 +130,7 @@ public:
 	/** @brief Returns os specific base asset path (for shaders, models, textures) */
 	const std::string getAssetPath();
 
-	vks::Benchmark benchmark;
+
 
 	/** @brief Encapsulated physical and logical vulkan device */
 	vks::VulkanDevice *vulkanDevice;
@@ -197,7 +198,7 @@ public:
 
 
 	// Default ctor
-	VulkanExampleBase(bool enableValidation);
+    VulkanExampleBase(bool enableValidation = true);
 
 	// dtor
 	virtual ~VulkanExampleBase();
@@ -205,7 +206,7 @@ public:
 	// Setup the vulkan instance, enable required extensions and connect to the physical device (GPU)
 	bool initVulkan();
 
-    void setupWindow();
+//    void setupWindow();
 	/**
 	* Create the application wide Vulkan instance
 	*

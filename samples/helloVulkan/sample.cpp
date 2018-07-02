@@ -11,7 +11,6 @@
 UISettings uiSettings;
 
 VulkanExample::VulkanExample()
-    : VulkanExampleBase(ENABLE_VALIDATION)
 {
     title = "Vulkan Example - ImGui";
     camera.type = Camera::CameraType::lookat;

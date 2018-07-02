@@ -80,12 +80,13 @@ public:
 	/** @brief Queue family index of the detected graphics and presenting device queue */
 	uint32_t queueNodeIndex = UINT32_MAX;
 
-    void initSurface(SDL_Window* sdl_window)
+    void initSurface(VkSurfaceKHR _surface)
 	{
+        surface = _surface;
 		VkResult err = VK_SUCCESS;
 
-        auto asdf = SDL_Vulkan_CreateSurface(sdl_window,instance,&surface);
-        SAIGA_ASSERT(asdf);
+//        auto asdf = SDL_Vulkan_CreateSurface(sdl_window,instance,&surface);
+//        SAIGA_ASSERT(asdf);
 
 		if (err != VK_SUCCESS) {
 			vks::tools::exitFatal("Could not create surface!", err);

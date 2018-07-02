@@ -26,12 +26,15 @@ VkResult VulkanExampleBase::createInstance(bool enableValidation)
 	appInfo.pEngineName = name.c_str();
 	appInfo.apiVersion = apiVersion;
 
-	std::vector<const char*> instanceExtensions = { VK_KHR_SURFACE_EXTENSION_NAME };
+    std::vector<const char*> instanceExtensions = getRequiredInstanceExtensions();
+
+    instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
 
 
 
     {
 
+#if 0
         unsigned int count = 0;
         const char **names = NULL;
         auto res = SDL_Vulkan_GetInstanceExtensions(sdl_window, &count, NULL);
@@ -55,6 +58,10 @@ VkResult VulkanExampleBase::createInstance(bool enableValidation)
         // use it for VkInstanceCreateInfo and when you're done, free it:
 
         delete[] names;
+#else
+//      auto windowExtensions = getRequiredInstanceExtensions();
+
+#endif
 
 
     }
@@ -204,8 +211,7 @@ void VulkanExampleBase::prepare()
 	setupDepthStencil();
 	setupRenderPass();
 	createPipelineCache();
-	setupFrameBuffer();
-	settings.overlay = settings.overlay && (!benchmark.active);
+    setupFrameBuffer();
 	if (settings.overlay) {
 		vks::UIOverlayCreateInfo overlayCreateInfo = {};
 		// Setup default overlay creation info
@@ -277,15 +283,6 @@ void VulkanExampleBase::renderFrame()
 
 void VulkanExampleBase::renderLoop()
 {
-	if (benchmark.active) {
-		benchmark.run([=] { render(); }, vulkanDevice->properties);
-		vkDeviceWaitIdle(device);
-		if (benchmark.filename != "") {
-			benchmark.saveResults();
-		}
-		return;
-	}
-
 	destWidth = width;
 	destHeight = height;
 
@@ -452,89 +449,7 @@ void VulkanExampleBase::submitFrame()
 
 VulkanExampleBase::VulkanExampleBase(bool enableValidation)
 {
-#if !defined(VK_USE_PLATFORM_ANDROID_KHR)
-	// Check for a valid asset path
-	struct stat info;
-	if (stat(getAssetPath().c_str(), &info) != 0)
-	{
-#if defined(_WIN32)
-		std::string msg = "Could not locate asset path in \"" + getAssetPath() + "\" !";
-		MessageBox(NULL, msg.c_str(), "Fatal error", MB_OK | MB_ICONERROR);
-#else
-		std::cerr << "Error: Could not find asset path in " << getAssetPath() << std::endl;
-#endif
-//		exit(-1);
-	}
-#endif
-
 	settings.validation = enableValidation;
-
-	char* numConvPtr;
-
-	// Parse command line arguments
-	for (size_t i = 0; i < args.size(); i++)
-	{
-		if (args[i] == std::string("-validation")) {
-			settings.validation = true;
-		}
-		if (args[i] == std::string("-vsync")) {
-			settings.vsync = true;
-		}
-		if ((args[i] == std::string("-f")) || (args[i] == std::string("--fullscreen"))) {
-			settings.fullscreen = true;
-		}
-		if ((args[i] == std::string("-w")) || (args[i] == std::string("-width"))) {
-			uint32_t w = strtol(args[i + 1], &numConvPtr, 10);
-			if (numConvPtr != args[i + 1]) { width = w; };
-		}
-		if ((args[i] == std::string("-h")) || (args[i] == std::string("-height"))) {
-			uint32_t h = strtol(args[i + 1], &numConvPtr, 10);
-			if (numConvPtr != args[i + 1]) { height = h; };
-		}
-		// Benchmark
-		if ((args[i] == std::string("-b")) || (args[i] == std::string("--benchmark"))) {
-			benchmark.active = true;
-			vks::tools::errorModeSilent = true;
-		}
-		// Warmup time (in seconds)
-		if ((args[i] == std::string("-bw")) || (args[i] == std::string("--benchwarmup"))) {
-			if (args.size() > i + 1) {
-				uint32_t num = strtol(args[i + 1], &numConvPtr, 10);
-				if (numConvPtr != args[i + 1]) {
-					benchmark.warmup = num;
-				} else {
-					std::cerr << "Warmup time for benchmark mode must be specified as a number!" << std::endl;
-				}
-			}
-		}
-		// Benchmark runtime (in seconds)
-		if ((args[i] == std::string("-br")) || (args[i] == std::string("--benchruntime"))) {
-			if (args.size() > i + 1) {
-				uint32_t num = strtol(args[i + 1], &numConvPtr, 10);
-				if (numConvPtr != args[i + 1]) {
-					benchmark.duration = num;
-				}
-				else {
-					std::cerr << "Benchmark run duration must be specified as a number!" << std::endl;
-				}
-			}
-		}
-		// Bench result save filename (overrides default)
-		if ((args[i] == std::string("-bf")) || (args[i] == std::string("--benchfilename"))) {
-			if (args.size() > i + 1) {
-				if (args[i + 1][0] == '-') {
-					std::cerr << "Filename for benchmark results must not start with a hyphen!" << std::endl;
-				} else {
-					benchmark.filename = args[i + 1];
-				}
-			}
-		}
-		// Output frame times to benchmark result file
-		if ((args[i] == std::string("-bt")) || (args[i] == std::string("--benchframetimes"))) {
-			benchmark.outputFrameTimes = true;
-		}
-	}
-
 }
 
 VulkanExampleBase::~VulkanExampleBase()
@@ -733,31 +648,7 @@ bool VulkanExampleBase::initVulkan()
 }
 
 
-// Set up a window using XCB and request event types
-void VulkanExampleBase::setupWindow()
-{
-    if (settings.fullscreen)
-    {
-//        width = destWidth = screen->width_in_pixels;
-//        height = destHeight = screen->height_in_pixels;
 
-    }
-
-    {
-        //Initialize SDL
-        if( SDL_Init( SDL_INIT_VIDEO ) < 0 ){
-            std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
-
-        }
-
-        sdl_window = SDL_CreateWindow("asdf", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_VULKAN );
-//        std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
-        SAIGA_ASSERT(sdl_window);
-        // (you should check return values for errors in all this, but whatever.)
-    }
-
-
-}
 
 void VulkanExampleBase::handleEvent(SDL_Event e)
 {
@@ -1100,7 +991,10 @@ void VulkanExampleBase::windowResized()
 void VulkanExampleBase::initSwapchain()
 {
 
-    swapChain.initSurface(sdl_window);
+//    swapChain.initSurface(sdl_window);
+    VkSurfaceKHR surface;
+    createSurface(instance,&surface);
+    swapChain.initSurface(surface);
 
 }
 

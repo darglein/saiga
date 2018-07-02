@@ -36,7 +36,7 @@
 // ----------------------------------------------------------------------------
 // ImGUI class
 // ----------------------------------------------------------------------------
-class ImGUI {
+class SAIGA_GLOBAL ImGUI {
 private:
     // Vulkan resources for rendering the UI
     VkSampler sampler;
