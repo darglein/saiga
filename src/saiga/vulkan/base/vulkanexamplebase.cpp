@@ -10,7 +10,7 @@
 #include "vulkanexamplebase.h"
 #include "saiga/vulkan/Shader/all.h"
 
-bool VulkanExampleBase::checkCommandBuffers()
+bool VulkanForwardRenderer::checkCommandBuffers()
 {
     for (auto& cmdBuffer : drawCmdBuffers)
     {
@@ -22,7 +22,7 @@ bool VulkanExampleBase::checkCommandBuffers()
     return true;
 }
 
-void VulkanExampleBase::createCommandBuffers()
+void VulkanForwardRenderer::createCommandBuffers()
 {
     // Create one command buffer for each swap chain image and reuse for rendering
     drawCmdBuffers.resize(swapChain.imageCount);
@@ -36,12 +36,12 @@ void VulkanExampleBase::createCommandBuffers()
     VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, drawCmdBuffers.data()));
 }
 
-void VulkanExampleBase::destroyCommandBuffers()
+void VulkanForwardRenderer::destroyCommandBuffers()
 {
     vkFreeCommandBuffers(device, cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
 }
 
-VkCommandBuffer VulkanExampleBase::createCommandBuffer(VkCommandBufferLevel level, bool begin)
+VkCommandBuffer VulkanForwardRenderer::createCommandBuffer(VkCommandBufferLevel level, bool begin)
 {
     VkCommandBuffer cmdBuffer;
 
@@ -63,7 +63,7 @@ VkCommandBuffer VulkanExampleBase::createCommandBuffer(VkCommandBufferLevel leve
     return cmdBuffer;
 }
 
-void VulkanExampleBase::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
+void VulkanForwardRenderer::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
 {
     if (commandBuffer == VK_NULL_HANDLE)
     {
@@ -86,14 +86,14 @@ void VulkanExampleBase::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueu
     }
 }
 
-void VulkanExampleBase::createPipelineCache()
+void VulkanForwardRenderer::createPipelineCache()
 {
     VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
     pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
     VK_CHECK_RESULT(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
 }
 
-void VulkanExampleBase::prepare()
+void VulkanForwardRenderer::prepare()
 {
     if (vulkanDevice->enableDebugMarkers) {
         vks::debugmarker::setup(device);
@@ -107,11 +107,12 @@ void VulkanExampleBase::prepare()
     setupRenderPass();
     createPipelineCache();
     setupFrameBuffer();
+    cout << "VulkanForwardRenderer init done." << endl;
 
 
 }
 
-void VulkanExampleBase::updateIntern()
+void VulkanForwardRenderer::updateIntern()
 {
     Saiga::SDL_EventHandler::update();
 
@@ -119,18 +120,18 @@ void VulkanExampleBase::updateIntern()
     {
         quit = true;
     }
-    update();
+    thing->update();
 }
 
 
 
-void VulkanExampleBase::renderIntern()
+void VulkanForwardRenderer::renderIntern()
 {
     imGui->beginFrame();
-    renderGUI();
+    thing->renderGUI();
     imGui->endFrame();
 
-    VulkanExampleBase::prepareFrame();
+    VulkanForwardRenderer::prepareFrame();
 
 
     VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
@@ -166,7 +167,7 @@ void VulkanExampleBase::renderIntern()
         vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
 
 
-        render(drawCmdBuffers[i]);
+        thing->render(drawCmdBuffers[i]);
 
         // Render imGui
         imGui->render(drawCmdBuffers[i]);
@@ -178,12 +179,12 @@ void VulkanExampleBase::renderIntern()
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
     VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-    VulkanExampleBase::submitFrame();
+    VulkanForwardRenderer::submitFrame();
 }
 
 
 
-void VulkanExampleBase::renderLoop()
+void VulkanForwardRenderer::renderLoop()
 {
 
     while (!quit)
@@ -200,7 +201,7 @@ void VulkanExampleBase::renderLoop()
 }
 
 
-void VulkanExampleBase::prepareFrame()
+void VulkanForwardRenderer::prepareFrame()
 {
     // Acquire the next image from the swap chain
     VkResult err = swapChain.acquireNextImage(semaphores.presentComplete, &currentBuffer);
@@ -214,7 +215,7 @@ void VulkanExampleBase::prepareFrame()
     }
 }
 
-void VulkanExampleBase::submitFrame()
+void VulkanForwardRenderer::submitFrame()
 {
 
 
@@ -223,12 +224,20 @@ void VulkanExampleBase::submitFrame()
     VK_CHECK_RESULT(vkQueueWaitIdle(queue));
 }
 
-VulkanExampleBase::VulkanExampleBase(bool enableValidation)
+VulkanForwardRenderer::VulkanForwardRenderer(Saiga::Vulkan::SDLWindow& window, bool enableValidation)
+    : window(window)
 {
     settings.validation = enableValidation;
+
+    initVulkan();
+    prepare();
+
+    imGui = std::make_shared<Saiga::Vulkan::ImGuiVulkanRenderer>();
+    imGui->init(window.sdl_window,(float)width, (float)height);
+    imGui->initResources(vulkanDevice,renderPass, queue);
 }
 
-VulkanExampleBase::~VulkanExampleBase()
+VulkanForwardRenderer::~VulkanForwardRenderer()
 {
     // Clean up Vulkan resources
     swapChain.cleanup();
@@ -268,11 +277,11 @@ VulkanExampleBase::~VulkanExampleBase()
 
 }
 
-bool VulkanExampleBase::initVulkan()
+bool VulkanForwardRenderer::initVulkan()
 {
     VkResult err;
 
-    std::vector<const char*> instanceExtensions = getRequiredInstanceExtensions();
+    std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
     instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
     instance.create(instanceExtensions,true);
 
@@ -367,9 +376,9 @@ bool VulkanExampleBase::initVulkan()
 
 
 
-void VulkanExampleBase::buildCommandBuffers() {}
+void VulkanForwardRenderer::buildCommandBuffers() {}
 
-void VulkanExampleBase::createSynchronizationPrimitives()
+void VulkanForwardRenderer::createSynchronizationPrimitives()
 {
     // Wait fences to sync command buffer access
     VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
@@ -379,7 +388,7 @@ void VulkanExampleBase::createSynchronizationPrimitives()
     }
 }
 
-void VulkanExampleBase::createCommandPool()
+void VulkanForwardRenderer::createCommandPool()
 {
     VkCommandPoolCreateInfo cmdPoolInfo = {};
     cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -388,7 +397,7 @@ void VulkanExampleBase::createCommandPool()
     VK_CHECK_RESULT(vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &cmdPool));
 }
 
-void VulkanExampleBase::setupDepthStencil()
+void VulkanForwardRenderer::setupDepthStencil()
 {
     VkImageCreateInfo image = {};
     image.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -435,7 +444,7 @@ void VulkanExampleBase::setupDepthStencil()
     VK_CHECK_RESULT(vkCreateImageView(device, &depthStencilView, nullptr, &depthStencil.view));
 }
 
-void VulkanExampleBase::setupFrameBuffer()
+void VulkanForwardRenderer::setupFrameBuffer()
 {
     VkImageView attachments[2];
 
@@ -461,7 +470,7 @@ void VulkanExampleBase::setupFrameBuffer()
     }
 }
 
-void VulkanExampleBase::setupRenderPass()
+void VulkanForwardRenderer::setupRenderPass()
 {
     std::array<VkAttachmentDescription, 2> attachments = {};
     // Color attachment
@@ -535,17 +544,17 @@ void VulkanExampleBase::setupRenderPass()
 
 
 
-void VulkanExampleBase::initSwapchain()
+void VulkanForwardRenderer::initSwapchain()
 {
 
     //    swapChain.initSurface(sdl_window);
     VkSurfaceKHR surface;
-    createSurface(instance,&surface);
+    window.createSurface(instance,&surface);
     swapChain.initSurface(surface);
 
 }
 
-void VulkanExampleBase::setupSwapChain()
+void VulkanForwardRenderer::setupSwapChain()
 {
     swapChain.create(&width, &height, settings.vsync);
 }

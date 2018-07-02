@@ -11,6 +11,14 @@
 namespace Saiga {
 namespace Vulkan {
 
+SDLWindow::SDLWindow(WindowParameters _windowParameters)
+    :windowParameters(_windowParameters)
+{
+    Saiga::initSaiga(windowParameters.saigaParameters);
+    width = windowParameters.width;
+    height = windowParameters.height;
+}
+
 std::vector<const char *> SDLWindow::getRequiredInstanceExtensions()
 {
     unsigned int count = 0;
@@ -24,7 +32,7 @@ std::vector<const char *> SDLWindow::getRequiredInstanceExtensions()
     // now call again with that not-NULL array you just allocated.
     res = SDL_Vulkan_GetInstanceExtensions(sdl_window, &count, names);
     cout << SDL_GetError() << endl;
-SAIGA_ASSERT(res);
+    SAIGA_ASSERT(res);
     cout << "num extensions " << count << endl;
     // Now names should have (count) strings in it:
 
@@ -41,23 +49,23 @@ SAIGA_ASSERT(res);
     return extensions;
 }
 
+
+
 void SDLWindow::setupWindow()
 {
-
+    if( SDL_Init( SDL_INIT_VIDEO ) < 0 )
     {
-        //Initialize SDL
-        if( SDL_Init( SDL_INIT_VIDEO ) < 0 ){
-            std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
-
-        }
-
-        sdl_window = SDL_CreateWindow("asdf", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_VULKAN );
-//        std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
-        SAIGA_ASSERT(sdl_window);
-        // (you should check return values for errors in all this, but whatever.)
+        std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
+        SAIGA_ASSERT(0);
     }
 
+    sdl_window = SDL_CreateWindow("asdf", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowParameters.width, windowParameters.height, SDL_WINDOW_VULKAN );
+    if(!sdl_window)
+    {
+        std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
+        SAIGA_ASSERT(0);
 
+    }
 }
 
 void SDLWindow::createSurface(VkInstance instance, VkSurfaceKHR *surface)

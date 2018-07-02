@@ -8,15 +8,15 @@
 
 #pragma once
 
-#include "saiga/vulkan/SDLWindow.h"
+#include "saiga/vulkan/base/vulkanexamplebase.h"
 #include "saiga/vulkan/AssetRenderer.h"
 #include "saiga/sdl/sdl_camera.h"
 
 
-class VulkanExample : public Saiga::Vulkan::SDLWindow
+class VulkanExample : public RenderThing
 {
 public:
-    VulkanExample();
+    VulkanExample(Saiga::Vulkan::SDLWindow& window, VulkanForwardRenderer& renderer);
     ~VulkanExample();
 
     void init();
@@ -28,6 +28,8 @@ private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
     Saiga::Vulkan::Asset teapot;
     Saiga::Vulkan::AssetRenderer assetRenderer;
+
+    VulkanForwardRenderer &renderer;
 
      bool displayModels = true;
 };

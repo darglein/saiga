@@ -35,16 +35,26 @@
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/base/VulkanImgui.h"
 
-class SAIGA_GLOBAL VulkanExampleBase
+#include "saiga/vulkan/SDLWindow.h"
+
+class SAIGA_GLOBAL RenderThing
+{
+public:
+    virtual void update() = 0;
+    virtual void render(VkCommandBuffer cmd) = 0;
+    virtual void renderGUI() = 0;
+};
+
+class SAIGA_GLOBAL VulkanForwardRenderer
 {
 private:
-    virtual std::vector<const char*> getRequiredInstanceExtensions() = 0;
-    virtual void setupWindow() = 0;
-    virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
-protected:
-
+//    virtual std::vector<const char*> getRequiredInstanceExtensions() = 0;
+//    virtual void setupWindow() = 0;
+//    virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
+public:
+Saiga::Vulkan::SDLWindow& window;
     std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
-
+    RenderThing* thing = nullptr;
 
     Saiga::Vulkan::Instance instance;
     // Physical device (GPU) that Vulkan will ise
@@ -150,17 +160,17 @@ public:
 
 
     // Default ctor
-    VulkanExampleBase(bool enableValidation = true);
+    VulkanForwardRenderer(Saiga::Vulkan::SDLWindow& window, bool enableValidation = true);
 
     // dtor
-    virtual ~VulkanExampleBase();
+    virtual ~VulkanForwardRenderer();
 
     // Setup the vulkan instance, enable required extensions and connect to the physical device (GPU)
     bool initVulkan();
 
-    virtual void update() = 0;
-    virtual void render(VkCommandBuffer cmd) = 0;
-    virtual void renderGUI() = 0;
+    virtual void update() {};
+    virtual void render(VkCommandBuffer cmd) {};
+    virtual void renderGUI() {};
 
     void updateIntern();
     void renderIntern();

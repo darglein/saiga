@@ -1,21 +1,30 @@
 ﻿#include "sample.h"
 #include "saiga/framework.h"
+#include "saiga/vulkan/base/vulkanexamplebase.h"
+
 
 int main(const int argc, const char *argv[])
 {
-    Saiga::SaigaParameters params;
-    params.fromConfigFile("config.ini");
-    Saiga::initSaiga(params);
+    using namespace  Saiga;
 
-    {
-    VulkanExample vulkanExample;
-    vulkanExample.setupWindow();
-    vulkanExample.initVulkan();
 
-    vulkanExample.init();
-    vulkanExample.renderLoop();
-    }
+    WindowParameters windowParameters;
+    windowParameters.fromConfigFile("config.ini");
+    windowParameters.name = "Forward Rendering";
 
-    Saiga::cleanupSaiga();
+
+    Vulkan::SDLWindow window(windowParameters);
+    window.setupWindow();
+
+    VulkanForwardRenderer renderer(window,true);
+
+    VulkanExample example(window,renderer);
+    example.init();
+
+    renderer.thing = &example;
+
+    renderer.renderLoop();
+
+
     return 0;
 }

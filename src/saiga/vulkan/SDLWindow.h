@@ -7,8 +7,8 @@
 
 #pragma once
 
-
-#include "saiga/vulkan/base/vulkanexamplebase.h"
+#include "saiga/window/window.h"
+#include "saiga/vulkan/svulkan.h"
 
 typedef struct SDL_Window SDL_Window;
 
@@ -16,15 +16,18 @@ typedef struct SDL_Window SDL_Window;
 namespace Saiga {
 namespace Vulkan {
 
-class SAIGA_GLOBAL SDLWindow : public VulkanExampleBase
+class SAIGA_GLOBAL SDLWindow
 {
 public:
+    int width, height;
 
     SDL_Window *sdl_window = nullptr;
+    WindowParameters windowParameters;
+    std::vector<const char*> getRequiredInstanceExtensions();
 
-    std::vector<const char*> getRequiredInstanceExtensions() override;
+    SDLWindow(WindowParameters _windowParameters);
 
-    void setupWindow() override;
+    void setupWindow();
 
     void createSurface(VkInstance instance, VkSurfaceKHR* surface);
 };

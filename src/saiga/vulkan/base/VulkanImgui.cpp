@@ -283,6 +283,9 @@ void ImGuiVulkanRenderer::updateBuffers()
     VkDeviceSize vertexBufferSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
     VkDeviceSize indexBufferSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
 
+    if(vertexBufferSize == 0 || indexBufferSize == 0)
+        return;
+
     // Update buffers only if vertex or index count has been changed compared to current buffer size
 
     // Vertex buffer
@@ -322,6 +325,9 @@ void ImGuiVulkanRenderer::updateBuffers()
 
 void ImGuiVulkanRenderer::render(VkCommandBuffer commandBuffer)
 {
+    if(!vertexBuffer.buffer)
+        return;
+
     ImGuiIO& io = ImGui::GetIO();
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);

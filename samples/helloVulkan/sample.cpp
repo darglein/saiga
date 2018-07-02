@@ -10,9 +10,10 @@
 #include <saiga/imgui/imgui.h>
 
 
-VulkanExample::VulkanExample()
+VulkanExample::VulkanExample(Saiga::Vulkan::SDLWindow &window, VulkanForwardRenderer &renderer)
+ : renderer(renderer)
 {
-    float aspect = (float)width / (float)height;
+    float aspect = (float)window.width / (float)window.height;
     camera.setProj(60.0f,aspect,0.1f,50.0f);
     camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
 }
@@ -23,20 +24,16 @@ VulkanExample::~VulkanExample()
 
 void VulkanExample::init()
 {
-    VulkanExampleBase::prepare();
 
-    assetRenderer.prepareUniformBuffers(vulkanDevice);
+    assetRenderer.prepareUniformBuffers(renderer.vulkanDevice);
 
-    assetRenderer.setupLayoutsAndDescriptors(device);
-    assetRenderer.preparePipelines(device,pipelineCache,renderPass);
-
+    assetRenderer.setupLayoutsAndDescriptors(renderer.device);
+    assetRenderer.preparePipelines(renderer.device,renderer.pipelineCache,renderer.renderPass);
 
 
+    teapot.load("objs/teapot.obj", renderer.vulkanDevice, renderer.queue);
 
-    teapot.load("objs/teapot.obj", vulkanDevice, queue);
-    imGui = std::make_shared<Saiga::Vulkan::ImGuiVulkanRenderer>();
-    imGui->init(sdl_window,(float)width, (float)height);
-    imGui->initResources(vulkanDevice,renderPass, queue);
+
 }
 
 
