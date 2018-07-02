@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "saiga/util/assert.h"
 
 #include <iostream>
 #include <chrono>
@@ -26,14 +27,11 @@
 #include "keycodes.hpp"
 #include "VulkanTools.h"
 #include "VulkanDebug.h"
-#include "VulkanUIOverlay.h"
 
 #include "VulkanInitializers.hpp"
 #include "VulkanDevice.hpp"
 #include "VulkanSwapChain.hpp"
 #include "camera.hpp"
-//#include "benchmark.hpp"
-
 
 class SAIGA_GLOBAL VulkanExampleBase
 {
@@ -50,9 +48,7 @@ private:
 	uint32_t destWidth;
 	uint32_t destHeight;
 	bool resizing = false;
-	vks::UIOverlay *UIOverlay = nullptr;
-	// Called if the window is resized and some resources have to be recreatesd
-	void windowResize();
+
 	void handleMouseMove(int32_t x, int32_t y);
 
     virtual std::vector<const char*> getRequiredInstanceExtensions() = 0;
@@ -245,8 +241,7 @@ public:
 	// Can be overriden in derived class to setup a custom render pass (e.g. for MSAA)
 	virtual void setupRenderPass();
 
-	/** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
-	virtual void getEnabledFeatures();
+
 
 	// Connect and prepare the swap chain
 	void initSwapchain();
@@ -280,7 +275,7 @@ public:
 	// Render one frame of a render loop on platforms that sync rendering
 	void renderFrame();
 
-	void updateOverlay();
+//	void updateOverlay();
 
 	// Prepare the frame for workload submission
 	// - Acquires the next image from the swap chain 
@@ -291,8 +286,8 @@ public:
 	void submitFrame();
 
 	/** @brief (Virtual) Called before the UI overlay is created, can be used to do a custom setup e.g. with different renderpass */
-	virtual void OnSetupUIOverlay(vks::UIOverlayCreateInfo &createInfo);
+//	virtual void OnSetupUIOverlay(vks::UIOverlayCreateInfo &createInfo);
 	/** @brief (Virtual) Called when the UI overlay is updating, can be used to add custom elements to the overlay */
-    virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay);
+//    virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay);
     void handleEvent(SDL_Event e);
 };
