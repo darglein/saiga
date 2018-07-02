@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "saiga/vulkan/base/vulkanexamplebase.h"
+#include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/AssetRenderer.h"
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/window/Interfaces.h"
@@ -16,7 +16,7 @@
 class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface
 {
 public:
-    VulkanExample(Saiga::Vulkan::SDLWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
+    VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample();
 
     void init();

@@ -9,55 +9,31 @@
 #pragma once
 
 #include "saiga/util/assert.h"
+#include "saiga/util/glm.h"
 
-#include <iostream>
-#include <chrono>
-#include <sys/stat.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <string>
-#include <array>
-#include <numeric>
-
-#include "vulkan/vulkan.h"
-
-#include "keycodes.hpp"
 #include "VulkanTools.h"
-#include "VulkanDebug.h"
 
 #include "VulkanInitializers.hpp"
 #include "VulkanDevice.hpp"
 #include "VulkanSwapChain.hpp"
-#include "camera.hpp"
+
 #include "saiga/vulkan/Instance.h"
-#include "saiga/vulkan/base/VulkanImgui.h"
-
-#include "saiga/vulkan/window/SDLWindow.h"
-#include "saiga/window/MainLoop.h"
-
+#include "saiga/vulkan/ImGuiVulkanRenderer.h"
+#include "saiga/vulkan/window/Window.h"
 #include "saiga/vulkan/Renderer.h"
+
+
 
 namespace Saiga {
 namespace Vulkan {
 
 
-
-class SAIGA_GLOBAL RenderThing
-{
-public:
-    virtual void update() = 0;
-    virtual void render(VkCommandBuffer cmd) = 0;
-    virtual void renderGUI() = 0;
-};
-
 class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
 {
 
 public:
-    Saiga::Vulkan::SDLWindow& window;
+    Saiga::Vulkan::VulkanWindow& window;
     std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
 //    RenderThing* thing = nullptr;
 
@@ -165,7 +141,7 @@ public:
 
 
     // Default ctor
-    VulkanForwardRenderer(Saiga::Vulkan::SDLWindow& window, bool enableValidation = true);
+    VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, bool enableValidation = true);
 
     // dtor
     virtual ~VulkanForwardRenderer();

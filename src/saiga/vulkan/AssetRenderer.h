@@ -9,16 +9,16 @@
 
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/vulkan/svulkan.h"
-#include "saiga/vulkan/base/VulkanDevice.hpp"
-#include "saiga/vulkan/base/VulkanBuffer.hpp"
-#include "saiga/vulkan/base/VulkanModel.hpp"
+#include "saiga/vulkan/VulkanDevice.hpp"
+#include "saiga/vulkan/VulkanBuffer.hpp"
+
 namespace Saiga {
 namespace Vulkan {
 
 class SAIGA_GLOBAL Asset
 {
 public:
-       Saiga::TriangleMesh<Saiga::VertexNC, uint32_t> mesh;
+    Saiga::TriangleMesh<Saiga::VertexNC, uint32_t> mesh;
 
 
     VkDevice device = nullptr;
@@ -36,8 +36,6 @@ public:
 class SAIGA_GLOBAL AssetRenderer
 {
 public:
-//    static vks::VertexLayout vertexLayout;
-    static int asdf;
     void init();
     void destroy();
 
@@ -54,17 +52,15 @@ private:
     VkPipeline pipeline;
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorSet descriptorSet;
-VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
-struct UBOVS {
-    glm::mat4 projection;
-    glm::mat4 modelview;
-    glm::vec4 lightPos;
-} uboVS;
+    struct UBOVS {
+        glm::mat4 projection;
+        glm::mat4 modelview;
+        glm::vec4 lightPos;
+    } uboVS;
 
-vks::Buffer uniformBufferVS;
-
-
+    vks::Buffer uniformBufferVS;
 };
 
 

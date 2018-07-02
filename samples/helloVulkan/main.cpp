@@ -1,7 +1,7 @@
 ﻿#include "sample.h"
 #include "saiga/framework.h"
-#include "saiga/vulkan/base/vulkanexamplebase.h"
-
+//#include "saiga/vulkan/base/vulkanexamplebase.h"
+#include "saiga/vulkan/window/SDLWindow.h"
 
 int main(const int argc, const char *argv[])
 {

@@ -6,7 +6,7 @@
 
 #include "Instance.h"
 
-#include "base/VulkanDebug.h"
+#include "VulkanDebug.h"
 
 namespace Saiga {
 namespace Vulkan {

@@ -9,6 +9,7 @@
 
 #include "saiga/window/WindowBase.h"
 #include "saiga/vulkan/svulkan.h"
+#include "saiga/vulkan/ImGuiVulkanRenderer.h"
 
 typedef struct SDL_Window SDL_Window;
 
@@ -26,6 +27,11 @@ public:
 
     void renderImGui(bool* p_open = nullptr) override;
     virtual void swap() override;
+
+    virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui() { return nullptr; }
+
+    virtual std::vector<const char*> getRequiredInstanceExtensions() = 0;
+    virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
 };
 
 

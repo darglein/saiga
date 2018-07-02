@@ -21,8 +21,11 @@ public:
     SDL_Window *sdl_window = nullptr;
     SDLWindow(WindowParameters _windowParameters);
 
-    std::vector<const char*> getRequiredInstanceExtensions();
-    void createSurface(VkInstance instance, VkSurfaceKHR* surface);
+
+    virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui() override;
+
+    std::vector<const char*> getRequiredInstanceExtensions() override;
+    void createSurface(VkInstance instance, VkSurfaceKHR* surface) override;
     virtual void update(float dt) override;
 private:
     void create();

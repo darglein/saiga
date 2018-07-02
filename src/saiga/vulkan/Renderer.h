@@ -33,11 +33,8 @@ public:
     VulkanForwardRenderingInterface(RendererBase& parent) : RenderingBase(parent) {}
     virtual ~VulkanForwardRenderingInterface(){}
 
-
     virtual void render(VkCommandBuffer cmd) {}
     virtual void renderGUI() {}
-//protected:
-//    RendererBase& parentRenderer;
 };
 
 

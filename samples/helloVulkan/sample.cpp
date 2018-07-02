@@ -10,7 +10,7 @@
 #include <saiga/imgui/imgui.h>
 
 
-VulkanExample::VulkanExample(Saiga::Vulkan::SDLWindow &window, Saiga::Vulkan::VulkanForwardRenderer &renderer)
+VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan::VulkanForwardRenderer &renderer)
  :  Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), renderer(renderer)
 {
     float aspect = window.getAspectRatio();

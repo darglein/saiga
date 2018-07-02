@@ -19,6 +19,15 @@ SDLWindow::SDLWindow(WindowParameters _windowParameters)
     create();
 }
 
+std::shared_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui()
+{
+
+    auto imGui = std::make_shared<Saiga::Vulkan::ImGuiVulkanRenderer>();
+    imGui->init(sdl_window,(float)windowParameters.width, (float)windowParameters.height);
+
+    return imGui;
+}
+
 std::vector<const char *> SDLWindow::getRequiredInstanceExtensions()
 {
     unsigned int count = 0;

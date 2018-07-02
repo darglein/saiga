@@ -6,9 +6,10 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include "saiga/sdl/sdl_eventhandler.h"
-#include "vulkanexamplebase.h"
+
+#include "VulkanForwardRenderer.h"
 #include "saiga/vulkan/Shader/all.h"
+#include "VulkanDebug.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -187,10 +188,13 @@ void VulkanForwardRenderer::submitFrame()
     VK_CHECK_RESULT(vkQueueWaitIdle(queue));
 }
 
-VulkanForwardRenderer::VulkanForwardRenderer(Saiga::Vulkan::SDLWindow& window, bool enableValidation)
+VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableValidation)
     : VulkanRenderer(window), window(window)
 {
     settings.validation = enableValidation;
+
+    width = window.getWidth();
+    height = window.getHeight();
 
     initVulkan();
 
@@ -208,9 +212,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(Saiga::Vulkan::SDLWindow& window, b
     setupFrameBuffer();
     cout << "VulkanForwardRenderer init done." << endl;
 
-
-    imGui = std::make_shared<Saiga::Vulkan::ImGuiVulkanRenderer>();
-    imGui->init(window.sdl_window,(float)width, (float)height);
+    imGui = window.createImGui();
     imGui->initResources(vulkanDevice,renderPass, queue);
 }
 

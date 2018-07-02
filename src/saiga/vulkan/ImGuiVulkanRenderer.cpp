@@ -6,7 +6,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include "VulkanImgui.h"
+#include "ImGuiVulkanRenderer.h"
 #include "SDL2/SDL.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/vulkan/Shader/Shader.h"
