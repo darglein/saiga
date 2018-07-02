@@ -24,7 +24,7 @@ public:
 
     SimpleAssetObject cube1, cube2;
     SimpleAssetObject groundPlane;
-    SimpleAssetObject sphere;
+    SimpleAssetObject teapot;
 
     ProceduralSkybox skybox;
 

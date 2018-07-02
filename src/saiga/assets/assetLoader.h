@@ -48,7 +48,7 @@ public:
      */
 
     std::shared_ptr<TexturedAsset> loadDebugPlaneAsset(vec2 size, float quadSize=1.0f, Color color1=Colors::lightgray, Color color2=Colors::gray);
-    std::shared_ptr<ColoredAsset> loadDebugPlaneAsset2(vec2 size, float quadSize=1.0f, Color color1=Colors::lightgray, Color color2=Colors::gray);
+    std::shared_ptr<ColoredAsset> loadDebugPlaneAsset2(glm::ivec2 size, float quadSize=1.0f, Color color1=Colors::lightgray, Color color2=Colors::gray);
 
     std::shared_ptr<TexturedAsset> loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size);
 

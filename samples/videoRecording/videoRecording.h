@@ -40,7 +40,6 @@ public:
 
     ProceduralSkybox skybox;
 
-    TextureAtlas textAtlas;
 
 
     std::shared_ptr<DirectionalLight> sun;

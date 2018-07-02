@@ -166,18 +166,6 @@ void Sample::keyPressed(SDL_Keysym key)
     case SDL_SCANCODE_ESCAPE:
         parentWindow.close();
         break;
-    case SDL_SCANCODE_BACKSPACE:
-        parentWindow.getRenderer()->printTimings();
-        break;
-    case SDL_SCANCODE_R:
-        ShaderLoader::instance()->reload();
-        break;
-    case SDL_SCANCODE_F11:
-//        parentWindow.screenshotRenderDepth("depth.png");
-        break;
-    case SDL_SCANCODE_F12:
-        parentWindow.screenshot("screenshot.png");
-        break;
     default:
         break;
     }

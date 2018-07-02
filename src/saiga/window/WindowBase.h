@@ -50,6 +50,8 @@ public:
     void setRenderer(RendererBase *u) { renderer = u; }
     void setShowImgui(bool b) { showImgui = b; }
 
+    float getTotalRenderTime(){ return renderer->getTotalRenderTime(); }
+
     virtual bool shouldClose() { return !running; }
     virtual void render();
     virtual void interpolate(float dt, float alpha);

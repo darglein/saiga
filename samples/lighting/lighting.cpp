@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,8 +11,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 
 Sample::Sample(OpenGLWindow &window, Renderer &renderer)
-    : Updating(window), Rendering(renderer),
-   tdo(window.getWidth(),window.getHeight())
+    : Updating(window), Rendering(renderer)
 {
     //create a perspective camera
     float aspect = window.getAspectRatio();
@@ -57,56 +56,38 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     sun->createShadowMap(2048,2048,1,sq);
     sun->enableShadows();
 
-        pointLight = r.lighting.createPointLight();
-        pointLight->setAttenuation(AttenuationPresets::Quadratic);
-        pointLight->setIntensity(2);
-        pointLight->setRadius(10);
-        pointLight->setPosition(vec3(10,3,0));
-        pointLight->setColorDiffuse(vec3(1));
-        pointLight->calculateModel();
-//        pointLight->createShadowMap(256,256,sq);
-        pointLight->createShadowMap(512,512,sq);
-        pointLight->enableShadows();
+    pointLight = r.lighting.createPointLight();
+    pointLight->setAttenuation(AttenuationPresets::Quadratic);
+    pointLight->setIntensity(2);
+    pointLight->setRadius(10);
+    pointLight->setPosition(vec3(10,3,0));
+    pointLight->setColorDiffuse(vec3(1));
+    pointLight->calculateModel();
+    //        pointLight->createShadowMap(256,256,sq);
+    pointLight->createShadowMap(512,512,sq);
+    pointLight->enableShadows();
 
-        spotLight = r.lighting.createSpotLight();
-        spotLight->setAttenuation(AttenuationPresets::Quadratic);
-        spotLight->setIntensity(2);
-        spotLight->setRadius(8);
-        spotLight->setPosition(vec3(-10,5,0));
-        spotLight->setColorDiffuse(vec3(1));
-        spotLight->calculateModel();
-        spotLight->createShadowMap(512,512,sq);
-        spotLight->enableShadows();
+    spotLight = r.lighting.createSpotLight();
+    spotLight->setAttenuation(AttenuationPresets::Quadratic);
+    spotLight->setIntensity(2);
+    spotLight->setRadius(8);
+    spotLight->setPosition(vec3(-10,5,0));
+    spotLight->setColorDiffuse(vec3(1));
+    spotLight->calculateModel();
+    spotLight->createShadowMap(512,512,sq);
+    spotLight->enableShadows();
 
-        boxLight = r.lighting.createBoxLight();
-        boxLight->setIntensity(1.0);
+    boxLight = r.lighting.createBoxLight();
+    boxLight->setIntensity(1.0);
 
-//        boxLight->setPosition(vec3(0,2,10));
-//        boxLight->rotateLocal(vec3(1,0,0),30);
-        boxLight->setView(vec3(0,2,10),vec3(0,0,13),vec3(0,1,0));
-        boxLight->setColorDiffuse(vec3(1));
-        boxLight->setScale(vec3(5,5,8));
-        boxLight->calculateModel();
-        boxLight->createShadowMap(512,512,sq);
-        boxLight->enableShadows();
-
-
-
-    textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
-
-    tdo.init(&textAtlas);
-    tdo.borderX = 0.01f;
-    tdo.borderY = 0.01f;
-    tdo.paddingY = 0.000f;
-    tdo.textSize = 0.04f;
-
-    tdo.textParameters.setColor(vec4(1),0.1f);
-    tdo.textParameters.setGlow(vec4(0,0,0,1),1.0f);
-
-    tdo.createItem("Fps: ");
-    tdo.createItem("Ups: ");
-    tdo.createItem("Render Time: ");
-    tdo.createItem("Update Time: ");
+    //        boxLight->setPosition(vec3(0,2,10));
+    //        boxLight->rotateLocal(vec3(1,0,0),30);
+    boxLight->setView(vec3(0,2,10),vec3(0,0,13),vec3(0,1,0));
+    boxLight->setColorDiffuse(vec3(1));
+    boxLight->setScale(vec3(5,5,8));
+    boxLight->calculateModel();
+    boxLight->createShadowMap(512,512,sq);
+    boxLight->enableShadows();
 
 
     cout<<"Program Initialized!"<<endl;
@@ -123,23 +104,7 @@ void Sample::update(float dt){
 
 
     sun->fitShadowToCamera(&camera);
-//    sun->fitNearPlaneToScene(sceneBB);
 
-    int  fps = (int) glm::round(1000.0/parentWindow.mainLoop.fpsTimer.getTimeMS());
-    tdo.updateEntry(0,fps);
-
-    int  ups = (int) glm::round(1000.0/parentWindow.mainLoop.upsTimer.getTimeMS());
-    tdo.updateEntry(1,ups);
-
-    float renderTime = parentWindow.getRenderer()->getTotalRenderTime();
-    tdo.updateEntry(2,renderTime);
-
-    float updateTime = parentWindow.mainLoop.updateTimer.getTimeMS();
-    tdo.updateEntry(3,updateTime);
-
-
-    //    sphere.rotateLocal(vec3(0,1,0),rotationSpeed);
-    //    sphere.calculateModel();
 }
 
 void Sample::interpolate(float dt, float interpolation) {
@@ -170,36 +135,11 @@ void Sample::renderDepth(Camera *cam)
 void Sample::renderOverlay(Camera *cam)
 {
     //The skybox is rendered after lighting and before post processing
-//    skybox.render(cam);
+    //    skybox.render(cam);
 }
 
 void Sample::renderFinal(Camera *cam)
 {
-
-    //The final render path (after post processing).
-    //Usually the GUI is rendered here.
-
-
-    parentWindow.getRenderer()->bindCamera(&tdo.layout.cam);
-    tdo.render();
-
-
-
-
-    //{
-    //    ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiSetCond_FirstUseEver);
-    //    ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiSetCond_FirstUseEver);
-    //    ImGui::Begin("An Imgui Window :D");
-
-    //    ImGui::SliderFloat("Rotation Speed",&rotationSpeed,0,10);
-
-    //    ImGui::End();
-    //}
-
-    //parentWindow.renderImGui();
-
-
-
 }
 
 
@@ -208,15 +148,6 @@ void Sample::keyPressed(SDL_Keysym key)
     switch(key.scancode){
     case SDL_SCANCODE_ESCAPE:
         parentWindow.close();
-        break;
-    case SDL_SCANCODE_BACKSPACE:
-        parentWindow.getRenderer()->printTimings();
-        break;
-    case SDL_SCANCODE_R:
-        ShaderLoader::instance()->reload();
-        break;
-    case SDL_SCANCODE_F12:
-        parentWindow.screenshot("screenshot.png");
         break;
     default:
         break;

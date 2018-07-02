@@ -135,15 +135,6 @@ bool Sample::key_event(GLFWwindow *window, int key, int scancode, int action, in
         case GLFW_KEY_ESCAPE:
             parentWindow.close();
             break;
-        case GLFW_KEY_BACKSPACE:
-            parentWindow.getRenderer()->printTimings();
-            break;
-        case GLFW_KEY_R:
-            ShaderLoader::instance()->reload();
-            break;
-        case GLFW_KEY_F12:
-            parentWindow.screenshot("screenshot.png");
-            break;
         default:
             break;
         }

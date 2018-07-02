@@ -59,18 +59,6 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
 
 
 
-    //    PLYLoader loader("objs/surface-L2-clean.ply");
-
-    //    PLYLoader::save("objs/test.ply",loader.mesh);
-
-    //    PLYLoader loader2("objs/test.ply");
-
-
-    //    auto mesh = loader2.mesh;
-    //    cube1.asset = assetLoader.assetFromMesh(mesh);
-
-    //    PlyAssetLoader pla;
-    //    cube1.asset = pla.loadBasicAsset("objs/surface-L2-clean.ply");
 
 
     auto sphereMesh = TriangleMeshGenerator::createMesh(Sphere(vec3(0),1),0);
@@ -153,18 +141,6 @@ void Sample::keyPressed(SDL_Keysym key)
     switch(key.scancode){
     case SDL_SCANCODE_ESCAPE:
         parentWindow.close();
-        break;
-    case SDL_SCANCODE_BACKSPACE:
-        parentWindow.getRenderer()->printTimings();
-        break;
-    case SDL_SCANCODE_R:
-        ShaderLoader::instance()->reload();
-        break;
-    case SDL_SCANCODE_F11:
-//        parentWindow.screenshotRenderDepth("depth.png");
-        break;
-    case SDL_SCANCODE_F12:
-        parentWindow.screenshot("screenshot.png");
         break;
     default:
         break;

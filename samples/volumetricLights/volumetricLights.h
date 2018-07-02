@@ -36,8 +36,6 @@ public:
 
     ProceduralSkybox skybox;
 
-    TextDebugOverlay tdo;
-    TextureAtlas textAtlas;
 
 
     std::shared_ptr<DirectionalLight> sun;

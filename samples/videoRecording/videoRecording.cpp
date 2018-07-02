@@ -55,8 +55,6 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     sun->enableShadows();
 
 
-    textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
-
     testBspline();
 
     cout<<"Program Initialized!"<<endl;
@@ -228,15 +226,6 @@ void Sample::keyPressed(SDL_Keysym key)
     switch(key.scancode){
     case SDL_SCANCODE_ESCAPE:
         parentWindow.close();
-        break;
-    case SDL_SCANCODE_BACKSPACE:
-        parentWindow.getRenderer()->printTimings();
-        break;
-    case SDL_SCANCODE_R:
-        ShaderLoader::instance()->reload();
-        break;
-    case SDL_SCANCODE_F12:
-        parentWindow.screenshot("screenshot.png");
         break;
     default:
         break;

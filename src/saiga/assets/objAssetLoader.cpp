@@ -60,6 +60,7 @@ std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string &
 {
     std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
     loadMeshNC(file,asset->mesh,normalize);
+    loadBasicShaders();
     asset->create(file,basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
     return  asset;
 }

@@ -11,8 +11,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 
 Sample::Sample(OpenGLWindow &window, Renderer &renderer)
-    : Updating(window), Rendering(renderer),
-    tdo(window.getWidth(),window.getHeight())
+    : Updating(window), Rendering(renderer)
 {
     //create a perspective camera
     float aspect = window.getAspectRatio();
@@ -95,22 +94,6 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
 
     r.lighting.renderVolumetric = true;
 
-    textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
-
-    tdo.init(&textAtlas);
-    tdo.borderX = 0.01f;
-    tdo.borderY = 0.01f;
-    tdo.paddingY = 0.000f;
-    tdo.textSize = 0.04f;
-
-    tdo.textParameters.setColor(vec4(1),0.1f);
-    tdo.textParameters.setGlow(vec4(0,0,0,1),1.0f);
-
-    tdo.createItem("Fps: ");
-    tdo.createItem("Ups: ");
-    tdo.createItem("Render Time: ");
-    tdo.createItem("Update Time: ");
-
 
     cout<<"Program Initialized!"<<endl;
 }
@@ -125,19 +108,7 @@ void Sample::update(float dt){
 
 
     sun->fitShadowToCamera(&camera);
-    //    sun->fitNearPlaneToScene(sceneBB);
 
-    int  fps = (int) glm::round(1000.0/parentWindow.mainLoop.fpsTimer.getTimeMS());
-    tdo.updateEntry(0,fps);
-
-    int  ups = (int) glm::round(1000.0/parentWindow.mainLoop.upsTimer.getTimeMS());
-    tdo.updateEntry(1,ups);
-
-    float renderTime = parentWindow.getRenderer()->getTotalRenderTime();
-    tdo.updateEntry(2,renderTime);
-
-    float updateTime = parentWindow.mainLoop.updateTimer.getTimeMS();
-    tdo.updateEntry(3,updateTime);
 
 }
 
@@ -178,10 +149,6 @@ void Sample::renderFinal(Camera *cam)
     //The final render path (after post processing).
     //Usually the GUI is rendered here.
 
-    parentWindow.getRenderer()->bindCamera(&tdo.layout.cam);
-    tdo.render();
-
-
 
 
     {
@@ -210,15 +177,6 @@ void Sample::keyPressed(SDL_Keysym key)
     switch(key.scancode){
     case SDL_SCANCODE_ESCAPE:
         parentWindow.close();
-        break;
-    case SDL_SCANCODE_BACKSPACE:
-        parentWindow.getRenderer()->printTimings();
-        break;
-    case SDL_SCANCODE_R:
-        ShaderLoader::instance()->reload();
-        break;
-    case SDL_SCANCODE_F12:
-        parentWindow.screenshot("screenshot.png");
         break;
     default:
         break;

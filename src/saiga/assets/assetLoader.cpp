@@ -72,9 +72,36 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float
     return asset;
 }
 
-std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(vec2 size, float quadSize, Color color1, Color color2)
+std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(glm::ivec2 size, float quadSize, Color color1, Color color2)
 {
-    std::shared_ptr<ColoredAsset> asset;
+    std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
+
+    vec4 n(0,1,0,0);
+    for(int i = -size.x; i < size.x; ++i)
+    {
+        for(int j =-size.y; j < size.y; ++j)
+        {
+            vec4 c = (j+i%2)%2 == 0 ? color1 : color2;
+            VertexNC verts[4] = {
+                {{i,0,j,1},n,c},
+                {{i,0,j+1,1},n,c},
+                {{i+1,0,j+1,1},n,c},
+                {{i+1,0,j,1},n,c},
+            };
+
+            for(int i = 0; i < 4; ++i)
+            {
+                verts[i].position.x *= quadSize;
+                verts[i].position.z *= quadSize;
+            }
+
+            asset->mesh.addQuad(verts);
+        }
+    }
+
+    loadBasicShaders();
+    asset->create("Arrow",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
+
     return asset;
 }
 
