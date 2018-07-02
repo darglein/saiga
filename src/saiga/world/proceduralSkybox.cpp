@@ -31,8 +31,8 @@ ProceduralSkybox::ProceduralSkybox(){
 
     sb->transform(glm::translate(mat4(1),vec3(0,0,1-glm::epsilon<float>())));
 
-    sb->createBuffers(mesh);
-
+//    sb->createBuffers(mesh);
+    mesh.fromMesh(*sb);
 
     shader = ShaderLoader::instance()->load<ProceduralSkyboxShader>("geometry/proceduralSkybox.glsl");
 }

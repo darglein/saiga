@@ -9,7 +9,7 @@
 #include "saiga/text/textParameters.h"
 #include "saiga/text/encoding.h"
 #include "saiga/rendering/object3d.h"
-#include "saiga/geometry/triangle_mesh.h"
+#include "saiga/opengl/indexedVertexBuffer.h"
 
 namespace Saiga {
 

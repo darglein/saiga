@@ -65,10 +65,12 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float
     cbTexture->setWrap(GL_REPEAT);
     cbTexture->generateMipmaps();
     std::shared_ptr<TexturedAsset> asset = loadDebugTexturedPlane(cbTexture,size);
-    for(auto &v : asset->mesh.vertices){
+    for(auto &v : asset->model.mesh.vertices)
+    {
         v.texture *= size / quadSize;
     }
-    asset->mesh.createBuffers(asset->buffer);
+//    asset->model.mesh.createBuffers(asset->buffer);
+    asset->buffer.fromMesh(asset->model.mesh);
     return asset;
 }
 
@@ -95,7 +97,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(glm::ivec2 size,
                 verts[i].position.z *= quadSize;
             }
 
-            asset->mesh.addQuad(verts);
+            asset->model.mesh.addQuad(verts);
         }
     }
 
@@ -113,9 +115,9 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_p
 
     auto asset = std::make_shared<TexturedAsset>();
 
-    asset->mesh.addMesh(*plainMesh);
+    asset->model.mesh.addMesh(*plainMesh);
 
-    for(auto& v : asset->mesh.vertices){
+    for(auto& v : asset->model.mesh.vertices){
         v.data = vec4(0.5,0,0,0);
     }
 
@@ -175,10 +177,10 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float le
     coneMesh->transform(m);
 
     auto asset = std::make_shared<ColoredAsset>();
-    asset->mesh.addMesh(*cylinderMesh);
-    asset->mesh.addMesh(*coneMesh);
+    asset->model.mesh.addMesh(*cylinderMesh);
+    asset->model.mesh.addMesh(*coneMesh);
 
-    for(auto& v : asset->mesh.vertices){
+    for(auto& v : asset->model.mesh.vertices){
         v.color = color;
         v.data = vec4(0.5,0,0,0);
     }
@@ -192,9 +194,9 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float le
 std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNT, GLuint>  &mesh, const vec4 &color)
 {
     auto asset = std::make_shared<ColoredAsset>();
-    asset->mesh.addMesh(mesh);
+    asset->model.mesh.addMesh(mesh);
 
-    for(auto& v : asset->mesh.vertices){
+    for(auto& v : asset->model.mesh.vertices){
         v.color = color;
         v.data = vec4(0.5,0,0,0);
     }
@@ -207,9 +209,9 @@ std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNT, 
 std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNC, GLuint> &mesh)
 {
     auto asset = std::make_shared<ColoredAsset>();
-    asset->mesh.addMesh(mesh);
+    asset->model.mesh.addMesh(mesh);
 
-    for(auto& v : asset->mesh.vertices){
+    for(auto& v : asset->model.mesh.vertices){
         v.data = vec4(0.5,0,0,0);
     }
 
@@ -223,15 +225,15 @@ std::shared_ptr<ColoredAsset> AssetLoader::nonTriangleMesh(std::vector<vec3> ver
     std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
 
     for(auto v : vertices){
-        asset->mesh.vertices.push_back(VertexNC(v,vec3(0,1,0),vec3(color)));
+        asset->model.mesh.vertices.push_back(VertexNC(v,vec3(0,1,0),vec3(color)));
     }
-    //    for(auto& v : asset->mesh.vertices){
+    //    for(auto& v : asset->model.mesh.vertices){
     //        v.color = color;
     //        v.data = vec4(0.5,0,0,0);
     //    }
     loadBasicShaders();
     asset->create("Fromsdfg",basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader);
-    asset->buffer.set(asset->mesh.vertices,indices,GL_STATIC_DRAW);
+    asset->buffer.set(asset->model.mesh.vertices,indices,GL_STATIC_DRAW);
     asset->buffer.setDrawMode(mode);
     return asset;
 }

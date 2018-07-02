@@ -28,8 +28,6 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     //This simple AssetLoader can create assets from meshes and generate some generic debug assets
     ObjAssetLoader assetLoader;
 
-
-//    sphere.asset = sphereAsset;
     teapot.asset = assetLoader.loadBasicAsset("objs/teapot.obj");
     teapot.translateGlobal(vec3(0,1,0));
     teapot.calculateModel();

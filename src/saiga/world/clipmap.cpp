@@ -108,33 +108,33 @@ void Clipmap::createMeshes()
 
     TerrainMesh tm;
 
-    auto block = tm.createMesh2();
-    block->createBuffers(Clipmap::mesh);
+//    auto block = tm.createMesh2();
+//    block->createBuffers(Clipmap::mesh);
 
-    auto fixupv = tm.createMeshFixUpV();
-    fixupv->createBuffers(Clipmap::fixupv);
+//    auto fixupv = tm.createMeshFixUpV();
+//    fixupv->createBuffers(Clipmap::fixupv);
 
-    auto fixuph = tm.createMeshFixUpH();
-    fixuph->createBuffers(Clipmap::fixuph);
+//    auto fixuph = tm.createMeshFixUpH();
+//    fixuph->createBuffers(Clipmap::fixuph);
 
-    auto trim0 = tm.createMeshTrimSW();
-    trim0->createBuffers(Clipmap::trimSW);
+//    auto trim0 = tm.createMeshTrimSW();
+//    trim0->createBuffers(Clipmap::trimSW);
 
-    auto trim1 = tm.createMeshTrimNE();
-    trim1->createBuffers(Clipmap::trimNE);
+//    auto trim1 = tm.createMeshTrimNE();
+//    trim1->createBuffers(Clipmap::trimNE);
 
 
-    auto trim2 = tm.createMeshTrimSE();
-    trim2->createBuffers(Clipmap::trimSE);
+//    auto trim2 = tm.createMeshTrimSE();
+//    trim2->createBuffers(Clipmap::trimSE);
 
-    auto trim3 = tm.createMeshTrimNW();
-    trim3->createBuffers(Clipmap::trimNW);
+//    auto trim3 = tm.createMeshTrimNW();
+//    trim3->createBuffers(Clipmap::trimNW);
 
-    auto center = tm.createMeshCenter();
-    center->createBuffers(Clipmap::center);
+//    auto center = tm.createMeshCenter();
+//    center->createBuffers(Clipmap::center);
 
-    auto degenerated = tm.createMeshDegenerated();
-    degenerated->createBuffers(Clipmap::degenerated);
+//    auto degenerated = tm.createMeshDegenerated();
+//    degenerated->createBuffers(Clipmap::degenerated);
 }
 
 void Clipmap::init(int m, vec2 off, vec2 scale, State state, Clipmap *next, Clipmap *previous)

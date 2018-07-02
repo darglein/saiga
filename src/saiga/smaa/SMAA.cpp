@@ -97,7 +97,7 @@ SMAA::SMAA(int w, int h)
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    qb->createBuffers(quadMesh);
+    quadMesh.fromMesh(*qb);
 }
 
 void SMAA::loadShader(SMAA::Quality _quality)

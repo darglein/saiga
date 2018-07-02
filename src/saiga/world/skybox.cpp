@@ -12,7 +12,8 @@ namespace Saiga {
 Skybox::Skybox(){
     AABB bb(vec3(-1),vec3(1));
     auto sb = TriangleMeshGenerator::createSkyboxMesh(bb);
-    sb->createBuffers(mesh);
+//    sb->createBuffers(mesh);
+    mesh.fromMesh(*sb);
 }
 
 void Skybox::setPosition(const vec3& p){

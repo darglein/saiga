@@ -12,7 +12,7 @@
 #include <saiga/geometry/aabb.h>
 #include <saiga/animation/boneVertex.h>
 #include <saiga/animation/animation.h>
-
+#include "saiga/assets/Model.h"
 #include <saiga/camera/camera.h>
 
 namespace Saiga {
@@ -30,17 +30,16 @@ public:
 template<typename vertex_t, typename index_t>
 class SAIGA_TEMPLATE BasicAsset : public Asset{
 public:
-    std::string name;
-    AABB boundingBox;
-    vec3 offset = vec3(0);
+
 
     std::shared_ptr<MVPShader> shader;
     std::shared_ptr<MVPShader> forwardShader;
     std::shared_ptr<MVPShader> depthshader;
     std::shared_ptr<MVPShader> wireframeshader;
 
-    TriangleMesh<vertex_t,index_t> mesh;
     IndexedVertexBuffer<vertex_t,index_t> buffer;
+
+    Model<vertex_t,index_t> model;
 
     /**
      * Use these for simple inefficient rendering.
@@ -65,18 +64,7 @@ public:
                 bool normalizePosition=false, bool ZUPtoYUP=false);
 
 
-    void normalizePosition();
 
-    void normalizeScale();
-    /**
-     * Transforms the vertices and normals that the up axis is Y when before the up axis was Z.
-     *
-     * Many 3D CAD softwares (i.e. Blender) are using a right handed coordinate system with Z pointing upwards.
-     * This frameworks uses a right haned system with Y pointing upwards.
-     */
-
-
-    void ZUPtoYUP();
 
 };
 
@@ -157,68 +145,25 @@ void BasicAsset<vertex_t,index_t>::renderRaw()
 }
 
 template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::normalizePosition()
-{
-    offset = boundingBox.getPosition();
-    mat4 t = glm::translate(mat4(1),-offset);
-    mesh.transform(t);
-    boundingBox.setPosition(vec3(0));
-}
-
-
-template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::normalizeScale()
-{
-    //TODO
-    vec3 d = boundingBox.max - boundingBox.min;
-   // int m = -1;
-    //int mi = -1;
-
-    for(int i = 0 ; i < 3 ; ++i){
-
-    }
-
-
-    mat4 t = glm::translate(mat4(1),-offset);
-    mesh.transform(t);
-    boundingBox.setPosition(vec3(0));
-}
-
-
-
-template<typename vertex_t, typename index_t>
-void BasicAsset<vertex_t,index_t>::ZUPtoYUP()
-{
-    const mat4 m(
-                1, 0, 0, 0,
-                0, 0, -1, 0,
-                0, 1, 0, 0,
-                0, 0, 0, 1
-                );
-    mesh.transform(m);
-    mesh.transformNormal(m);
-}
-
-template<typename vertex_t, typename index_t>
 void BasicAsset<vertex_t,index_t>::create(std::string _name,
                                           std::shared_ptr<MVPShader> _shader, std::shared_ptr<MVPShader> _forwardShader, std::shared_ptr<MVPShader> _depthshader, std::shared_ptr<MVPShader> _wireframeshader,
                                           bool normalizePosition, bool ZUPtoYUP){
 
-    this->name = _name;
+    this->model.name = _name;
     this->shader = _shader;
     this->forwardShader = _forwardShader;
     this->depthshader = _depthshader;
     this->wireframeshader = _wireframeshader;
-    this->boundingBox = mesh.calculateAabb();
+    this->model.boundingBox = model.mesh.calculateAabb();
 
     if(ZUPtoYUP){
-        this->ZUPtoYUP();
+        this->model.ZUPtoYUP();
     }
 
     if(normalizePosition){
-        this->normalizePosition();
+        this->model.normalizePosition();
     }
-    mesh.createBuffers(buffer);
+    buffer.fromMesh(model.mesh);
 }
 
 }

@@ -26,8 +26,7 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height)
 
     meshBB = tm->calculateAabb();
 
-
-    tm->createBuffers(buffer);
+    buffer.fromMesh(*tm);
 
 
     setScreenPosition(&color,0);

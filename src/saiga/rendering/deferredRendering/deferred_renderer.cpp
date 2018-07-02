@@ -70,7 +70,7 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow &window, DeferredRenderingPara
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    qb->createBuffers(quadMesh);
+    quadMesh.fromMesh(*qb);
 
     int numTimers = DeferredTimings::COUNT;
     if (!params.useGPUTimers)

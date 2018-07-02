@@ -59,7 +59,7 @@ void ObjAssetLoader::loadMeshNC(const std::string &file, TriangleMesh<VertexNC, 
 std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string &file, bool normalize)
 {
     std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
-    loadMeshNC(file,asset->mesh,normalize);
+    loadMeshNC(file,asset->model.mesh,normalize);
     loadBasicShaders();
     asset->create(file,basicAssetShader,basicAssetForwardShader,basicAssetDepthshader,basicAssetWireframeShader,normalize,false);
     return  asset;
@@ -71,7 +71,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
 
     //    TexturedAsset* asset = new TexturedAsset();
     std::shared_ptr<TexturedAsset> asset = std::make_shared<TexturedAsset>();
-    TriangleMesh<VertexNTD,GLuint> &tmesh = asset->mesh;
+    TriangleMesh<VertexNTD,GLuint> &tmesh = asset->model.mesh;
 
     for(ObjTriangle &oj : ol.outTriangles){
         tmesh.addFace(oj.v);

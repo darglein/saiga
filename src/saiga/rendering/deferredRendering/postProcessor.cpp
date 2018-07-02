@@ -85,7 +85,8 @@ void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorP
     createFramebuffers();
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    qb->createBuffers(quadMesh);
+    quadMesh.fromMesh(*qb);
+
 
 
     this->LightAccumulationTexture = LightAccumulationTexture;

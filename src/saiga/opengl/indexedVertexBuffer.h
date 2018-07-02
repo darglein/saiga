@@ -9,6 +9,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/vertexBuffer.h"
 #include "saiga/opengl/indexBuffer.h"
+#include "saiga/geometry/triangle_mesh.h"
 
 namespace Saiga {
 
@@ -33,6 +34,23 @@ public:
 
     void set(std::vector<vertex_t> &vertices,std::vector<index_t> &indices, GLenum usage);
     void set(vertex_t* vertices,int vertex_count,index_t* indices,int index_count, GLenum usage);
+
+    /*
+     * Creates OpenGL buffer from indices and vertices
+     * 'buffer' is now ready to draw.
+     */
+
+    void fromMesh(TriangleMesh<vertex_t,index_t> &mesh, GLenum usage=GL_STATIC_DRAW);
+
+    template<typename buffer_vertex_t, typename buffer_index_t>
+    void fromMesh(TriangleMesh<buffer_vertex_t,buffer_index_t> &mesh, GLenum usage=GL_STATIC_DRAW);
+
+    /*
+     * Updates OpenGL buffer with the data currently saved in this mesh
+     * see VertexBuffer::updateVertexBuffer for more details
+     */
+
+    void updateFromMesh(TriangleMesh<vertex_t,index_t> &buffer,int vertex_count, int vertex_offset);
 };
 
 template<class vertex_t, class index_t>
@@ -107,6 +125,45 @@ void IndexedVertexBuffer<vertex_t,index_t>::set(vertex_t *vertices, int _vertex_
     ibuffer_t::bind();
     vbuffer_t::unbind();
     ibuffer_t::unbind();
+}
+
+
+template<typename vertex_t, typename index_t>
+void IndexedVertexBuffer<vertex_t,index_t>::fromMesh(TriangleMesh<vertex_t,index_t> &mesh, GLenum usage)
+{
+    if (mesh.faces.empty() || mesh.vertices.empty())
+        return;
+    std::vector<index_t> indices(mesh.faces.size()*3);
+    std::memcpy(&indices[0],&mesh.faces[0],mesh.faces.size()*sizeof( index_t ) * 3);
+    set(mesh.vertices,indices,usage);
+    this->setDrawMode(GL_TRIANGLES);
+}
+
+template<typename buffer_vertex_t, typename buffer_index_t>
+template<typename vertex_t, typename index_t>
+void IndexedVertexBuffer<buffer_vertex_t,buffer_index_t>::fromMesh(TriangleMesh<vertex_t,index_t> &mesh, GLenum usage)
+{
+    if (mesh.faces.empty() || mesh.vertices.empty())
+        return;
+    std::vector<index_t> indices(mesh.faces.size()*3);
+    std::memcpy(&indices[0],&mesh.faces[0],mesh.faces.size()*sizeof( index_t )* 3);
+
+    //convert index_t to buffer_index_t
+    std::vector<buffer_index_t> bufferIndices(indices.begin(),indices.end());
+
+    //convert vertex_t to buffer_vertex_t
+    std::vector<buffer_vertex_t> bufferVertices(mesh.vertices.begin(),mesh.vertices.end());
+
+    set(bufferVertices,bufferIndices,usage);
+    this->setDrawMode(GL_TRIANGLES);
+}
+
+
+template<typename vertex_t, typename index_t>
+void IndexedVertexBuffer<vertex_t,index_t>::updateFromMesh(TriangleMesh<vertex_t,index_t>  &mesh, int vertex_count, int vertex_offset)
+{
+    SAIGA_ASSERT((int)mesh.vertices.size()>=vertex_offset+vertex_count);
+    VertexBuffer<vertex_t>::updateBuffer(&mesh.vertices[vertex_offset],vertex_count,vertex_offset);
 }
 
 }

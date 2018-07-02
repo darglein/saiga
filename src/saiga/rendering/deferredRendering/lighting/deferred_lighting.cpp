@@ -652,8 +652,7 @@ void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader
 void DeferredLighting::createLightMeshes(){
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    qb->createBuffers(directionalLightMesh);
-
+    directionalLightMesh.fromMesh(*qb);
 
 
     //the create mesh returns a sphere with outer radius of 1
@@ -664,16 +663,19 @@ void DeferredLighting::createLightMeshes(){
     //    cout << "point light radius " << r << endl;
     Sphere s(vec3(0),r);
     auto sb = TriangleMeshGenerator::createMesh(s,1);
-    sb->createBuffers(pointLightMesh);
+//    sb->createBuffers(pointLightMesh);
+    pointLightMesh.fromMesh(*sb);
 
 
     Cone c(vec3(0),vec3(0,1,0),1.0f,1.0f);
     auto cb = TriangleMeshGenerator::createMesh(c,10);
-    cb->createBuffers(spotLightMesh);
+//    cb->createBuffers(spotLightMesh);
+    spotLightMesh.fromMesh(*cb);
 
     AABB box(vec3(-1),vec3(1));
     auto bb = TriangleMeshGenerator::createMesh(box);
-    bb->createBuffers(boxLightMesh);
+//    bb->createBuffers(boxLightMesh);
+    boxLightMesh.fromMesh(*bb);
 }
 
 std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight()

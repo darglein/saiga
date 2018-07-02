@@ -70,7 +70,7 @@ void SSAO::init(int w, int h)
     ssao_framebuffer2.unbind();
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    qb->createBuffers(quadMesh);
+    quadMesh.fromMesh(*qb);
 
     ssaoShader  =  ShaderLoader::instance()->load<SSAOShader>("post_processing/ssao2.glsl");
     blurShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/ssao_blur.glsl");

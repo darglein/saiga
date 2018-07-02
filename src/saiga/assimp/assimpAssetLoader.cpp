@@ -34,7 +34,7 @@ std::shared_ptr<ColoredAsset> AssimpAssetLoader::loadBasicAsset(const std::strin
 
     ColoredAsset* asset = new ColoredAsset();
 
-    TriangleMesh<VertexNC,GLuint> &tmesh = asset->mesh;
+    TriangleMesh<VertexNC,GLuint> &tmesh = asset->model.mesh;
 
 
     for(int i=0;i<meshCount;++i){
@@ -69,7 +69,7 @@ std::shared_ptr<TexturedAsset> AssimpAssetLoader::loadTexturedAsset(const std::s
 
     TexturedAsset* asset = new TexturedAsset();
 
-    TriangleMesh<VertexNTD,GLuint> &tmesh = asset->mesh;
+    TriangleMesh<VertexNTD,GLuint> &tmesh = asset->model.mesh;
 
 
     for(int i=0;i<meshCount;++i){
@@ -123,7 +123,7 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
 
     AnimatedAsset* asset = new AnimatedAsset();
 
-    TriangleMesh<BoneVertexCD,GLuint> &tmesh = asset->mesh;
+    TriangleMesh<BoneVertexCD,GLuint> &tmesh = asset->model.mesh;
 
 
     al.loadBones();
@@ -140,7 +140,7 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
     }
 
 
-    for(BoneVertexCD &bv : asset->mesh.vertices){
+    for(BoneVertexCD &bv : asset->model.mesh.vertices){
         bv.normalizeWeights();
     }
 
@@ -160,7 +160,7 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
         al.getAnimation(i,0,asset->animations[i]);
     }
 
-//    for(BoneVertexCD &v : asset->mesh.vertices){
+//    for(BoneVertexCD &v : asset->model.mesh.vertices){
 //        vec3 c = v.color;
 //        c = Color::srgb2linearrgb(c);
 //        v.color = c;
@@ -177,7 +177,7 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
 //    }
 
 //    int i = 0;
-//    for(BoneVertexNC v : asset->mesh.vertices){
+//    for(BoneVertexNC v : asset->model.mesh.vertices){
 //        v.apply(boneMatrices);
 //        if(i%10==0){
 //            cout<<v.activeBones()<<" "<<v.position<<endl;
