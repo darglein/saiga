@@ -9,17 +9,8 @@
 
 namespace Saiga {
 
-Updating::Updating(OpenGLWindow &parent)
-    : parentWindow(parent)
-{
-    parent.setUpdateObject(*this);
-}
 
-Rendering::Rendering(Renderer &parent)
-    : parentRenderer(parent)
-{
-    parent.setRenderObject(*this);
-}
+
 
 
 

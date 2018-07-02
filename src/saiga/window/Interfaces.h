@@ -13,7 +13,8 @@
 namespace Saiga {
 
 class Camera;
-
+class WindowBase;
+class Rendering;
 /**
  * Base class of all render engines.
  * This includes the deferred and forward OpenGL engines
@@ -22,11 +23,13 @@ class Camera;
 class SAIGA_GLOBAL RendererBase
 {
 public:
-    int outputWidth = -1, outputHeight = -1;
-
     virtual ~RendererBase() {}
+    Rendering* rendering = nullptr;
 
-    virtual void renderImGui() {}
+
+    void setRenderObject(Rendering &r ) { rendering = &r; }
+
+    virtual void renderImGui(bool* p_open = nullptr) {}
     virtual float getTotalRenderTime() {return 0;}
 
     virtual void resize(int windowWidth, int windowHeight) {}
@@ -34,5 +37,50 @@ public:
     virtual void bindCamera(Camera* cam) = 0;
 };
 
+class SAIGA_GLOBAL Updating{
+public:
+    Updating(WindowBase& parent);
+
+    virtual ~Updating(){}
+
+    //advances the state of the program by dt. All game logic should happen here
+    virtual void update(float dt) {}
+
+    virtual void parallelUpdate(float dt) { (void)dt; }
+
+    //interpolation between two logic steps for high fps rendering.
+    //Example:
+    // Game loop: constant 60 Hz
+    // Render rate: around 120 Hz
+    //-> The game is rendered two times per update
+    //
+    //We don't want to render two times the same image, so the game state should be interpolated either into the future or from the past.
+    //Alpha is in the range [0,1] where 1 is equivalent to a timestep of dt
+    virtual void interpolate(float dt, float alpha) {}
+protected:
+    WindowBase& parentWindow;
+
+};
+
+class SAIGA_GLOBAL Rendering{
+public:
+    Rendering(RendererBase& parent);
+    virtual ~Rendering(){}
+
+    //rendering into the gbuffer
+    virtual void render(Camera *cam) {}
+
+    //render depth maps for shadow lights
+    virtual void renderDepth(Camera *cam) {}
+
+    //forward rendering path after lighting, but before post processing
+    //this could be used for transparent objects
+    virtual void renderOverlay(Camera *cam) {}
+
+    //forward rendering path after lighting and after post processing
+    virtual void renderFinal(Camera *cam) {}
+protected:
+    RendererBase& parentRenderer;
+};
 
 }

@@ -35,8 +35,15 @@
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/base/VulkanImgui.h"
 
-#include "saiga/vulkan/SDLWindow.h"
+#include "saiga/vulkan/window/SDLWindow.h"
 #include "saiga/window/MainLoop.h"
+
+#include "saiga/vulkan/Renderer.h"
+
+namespace Saiga {
+namespace Vulkan {
+
+
 
 class SAIGA_GLOBAL RenderThing
 {
@@ -46,13 +53,13 @@ public:
     virtual void renderGUI() = 0;
 };
 
-class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::MainLoopInterface
+class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
 {
 
 public:
     Saiga::Vulkan::SDLWindow& window;
     std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
-    RenderThing* thing = nullptr;
+//    RenderThing* thing = nullptr;
 
     Saiga::Vulkan::Instance instance;
     // Physical device (GPU) that Vulkan will ise
@@ -166,7 +173,7 @@ public:
     // Setup the vulkan instance, enable required extensions and connect to the physical device (GPU)
     bool initVulkan();
 
-    void render();
+    virtual void render(Camera* cam);
     void swap();
     void update(float dt);
     bool shouldClose() { return quit; }
@@ -222,3 +229,5 @@ public:
 
 };
 
+}
+}

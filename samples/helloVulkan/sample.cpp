@@ -10,12 +10,14 @@
 #include <saiga/imgui/imgui.h>
 
 
-VulkanExample::VulkanExample(Saiga::Vulkan::SDLWindow &window, VulkanForwardRenderer &renderer)
- : renderer(renderer)
+VulkanExample::VulkanExample(Saiga::Vulkan::SDLWindow &window, Saiga::Vulkan::VulkanForwardRenderer &renderer)
+ :  Updating(window), Rendering(renderer), renderer(renderer)
 {
-    float aspect = (float)window.width / (float)window.height;
+    float aspect = window.getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
     camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
+
+    window.setCamera(&camera);
 }
 
 VulkanExample::~VulkanExample()

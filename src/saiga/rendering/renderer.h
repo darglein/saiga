@@ -11,6 +11,8 @@
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/imgui/imgui_renderer.h"
 
+#include "saiga/window/Interfaces.h"
+
 namespace Saiga {
 
 
@@ -42,23 +44,20 @@ struct SAIGA_GLOBAL RenderingParameters{
 };
 
 
-class SAIGA_GLOBAL Renderer{
+class SAIGA_GLOBAL Renderer : public RendererBase{
 public:
     std::shared_ptr<ImGuiRenderer> imgui;
-    Rendering* rendering = nullptr;
+
     int outputWidth = -1, outputHeight = -1;
     UniformBuffer cameraBuffer;
 
     Renderer(OpenGLWindow &window);
     virtual ~Renderer();
 
-    virtual void renderImGui(bool* p_open = NULL) {}
-    virtual float getTotalRenderTime() {return 0;}
 
     virtual void resize(int windowWidth, int windowHeight);
-    virtual void render(Camera *cam) = 0;
 
-    void setRenderObject(Rendering &r );
+
     virtual void printTimings() {}
 
     void bindCamera(Camera* cam);

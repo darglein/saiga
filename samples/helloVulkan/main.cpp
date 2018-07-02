@@ -13,19 +13,23 @@ int main(const int argc, const char *argv[])
     windowParameters.name = "Forward Rendering";
 
 
-    Vulkan::SDLWindow window(windowParameters);
-    window.setupWindow();
+    Saiga::Vulkan::SDLWindow window(windowParameters);
 
-    VulkanForwardRenderer renderer(window,true);
+
+    Saiga::Vulkan::VulkanForwardRenderer renderer(window,true);
+
+//    std::this_thread::sleep_for(std::chrono::seconds(3));
+//    return 0;
 
     VulkanExample example(window,renderer);
     example.init();
 
-    renderer.thing = &example;
+//    renderer.thing = &example;
 
 
-    MainLoop mainloop(renderer);
-    mainloop.startMainLoop();
+    window.startMainLoop();
+//    MainLoop mainloop(renderer);
+//    mainloop.startMainLoop();
 
     return 0;
 }

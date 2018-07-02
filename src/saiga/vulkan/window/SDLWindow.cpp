@@ -7,16 +7,16 @@
 #include "SDLWindow.h"
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_vulkan.h"
+#include "saiga/sdl/sdl_eventhandler.h"
 
 namespace Saiga {
 namespace Vulkan {
 
 SDLWindow::SDLWindow(WindowParameters _windowParameters)
-    :windowParameters(_windowParameters)
+    :VulkanWindow(_windowParameters)
 {
     Saiga::initSaiga(windowParameters.saigaParameters);
-    width = windowParameters.width;
-    height = windowParameters.height;
+    create();
 }
 
 std::vector<const char *> SDLWindow::getRequiredInstanceExtensions()
@@ -51,7 +51,7 @@ std::vector<const char *> SDLWindow::getRequiredInstanceExtensions()
 
 
 
-void SDLWindow::setupWindow()
+void SDLWindow::create()
 {
     if( SDL_Init( SDL_INIT_VIDEO ) < 0 )
     {
@@ -73,6 +73,18 @@ void SDLWindow::createSurface(VkInstance instance, VkSurfaceKHR *surface)
     auto asdf = SDL_Vulkan_CreateSurface(sdl_window,instance,surface);
     SAIGA_ASSERT(asdf);
 }
+
+void SDLWindow::update(float dt)
+{
+    Saiga::SDL_EventHandler::update();
+
+    if(Saiga::SDL_EventHandler::shouldQuit())
+    {
+        close();
+    }
+}
+
+
 
 }
 }

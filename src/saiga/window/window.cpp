@@ -82,7 +82,7 @@ void OpenGLWindow::renderImGui(bool *p_open)
 
     if(showRendererImgui && renderer)
     {
-        renderer->renderImGui(&showRendererImgui);
+        renderer->renderImGui();
     }
 
 
@@ -164,17 +164,17 @@ void OpenGLWindow::readToExistingImage(Image &out)
 
 
 void OpenGLWindow::readToImage(Image& out){
-    int w = renderer->outputWidth;
-    int h = renderer->outputHeight;
+//    int w = renderer->outputWidth;
+//    int h = renderer->outputHeight;
 
     //    out.width = w;
     //    out.height = h;
-    out.create(h,w,UC3);
+//    out.create(h,w,UC3);
     //    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-    //    SAIGA_ASSERT(0);
+        SAIGA_ASSERT(0);
     //    out.create();
 
-    readToExistingImage(out);
+//    readToExistingImage(out);
 }
 
 

@@ -36,10 +36,6 @@ void Renderer::resize(int windowWidth, int windowHeight)
 //    cout << "resize to " << windowWidth << "x" << windowHeight << endl;
 }
 
-void Renderer::setRenderObject(Rendering &r)
-{
-    rendering = &r;
-}
 
 void Renderer::bindCamera(Camera *cam)
 {

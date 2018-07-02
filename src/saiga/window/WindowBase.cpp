@@ -5,24 +5,12 @@
  */
 
 #include "saiga/window/WindowBase.h"
-#include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/image/glImageFormat.h"
-//#include "saiga/rendering/deferredRendering/deferred_renderer.h"
-#include "saiga/rendering/renderer.h"
-#include "saiga/rendering/program.h"
-
-#include "saiga/util/tostring.h"
-#include "saiga/opengl/error.h"
-#include "saiga/framework.h"
 #include "saiga/imgui/imgui.h"
-#include "saiga/util/math.h"
 #include "saiga/camera/camera.h"
 
-#include <cstring>
-#include <vector>
-#include <ctime>
-#include <thread>
+#if defined(SAIGA_VULKAN_INCLUDED) || defined(SAIGA_OPENGL_INCLUDED)
+#error This module must be independent of any graphics API.
+#endif
 
 namespace Saiga {
 
@@ -37,7 +25,8 @@ WindowBase::~WindowBase(){
     //    delete renderer;
 }
 
-void WindowBase::close(){
+void WindowBase::close()
+{
     cout<<"Window: close"<<endl;
     running = false;
 }
@@ -136,6 +125,7 @@ vec2 WindowBase::projectToScreen(const vec3 &pos) const
 
 void WindowBase::interpolate(float dt, float alpha)
 {
+    SAIGA_ASSERT(updating);
     updating->interpolate(dt,alpha);
 }
 
@@ -143,6 +133,7 @@ void WindowBase::interpolate(float dt, float alpha)
 void WindowBase::render()
 {
     SAIGA_ASSERT(currentCamera);
+    SAIGA_ASSERT(renderer);
     if(renderer)
         renderer->render(currentCamera);
 

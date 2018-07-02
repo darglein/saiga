@@ -7,13 +7,11 @@
 #pragma once
 
 #include "saiga/window/WindowBase.h"
-
 #include "saiga/imgui/imgui_renderer.h"
+
 namespace Saiga {
 
 class Camera;
-class Deferred_Renderer;
-struct DeferredRenderingParameters;
 class Image;
 
 class SAIGA_GLOBAL OpenGLWindow : public WindowBase
@@ -22,14 +20,10 @@ public:
     OpenGLWindow(WindowParameters windowParameters);
     virtual ~OpenGLWindow();
 
-
     bool create();
     void destroy();
 
-
-    void renderImGui(bool* p_open = NULL);
-
-
+    void renderImGui(bool* p_open = nullptr);
 
 
     //reading the default framebuffer
@@ -49,10 +43,7 @@ public:
     virtual void swap();
     virtual void update(float dt);
 
-
 protected:
-
-
     virtual bool initWindow() = 0;
     virtual bool initInput() = 0;
     virtual bool shouldClose() { return !running; }
@@ -61,7 +52,6 @@ protected:
     virtual void freeContext() = 0;
 
     void sleep(tick_t ticks);
-
 };
 
 }

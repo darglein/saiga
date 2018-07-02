@@ -10,6 +10,10 @@
 #include "vulkanexamplebase.h"
 #include "saiga/vulkan/Shader/all.h"
 
+namespace Saiga {
+namespace Vulkan {
+
+
 bool VulkanForwardRenderer::checkCommandBuffers()
 {
     for (auto& cmdBuffer : drawCmdBuffers)
@@ -97,13 +101,7 @@ void VulkanForwardRenderer::createPipelineCache()
 
 void VulkanForwardRenderer::update(float dt)
 {
-    Saiga::SDL_EventHandler::update();
 
-    if(Saiga::SDL_EventHandler::shouldQuit())
-    {
-        quit = true;
-    }
-    thing->update();
 }
 
 void VulkanForwardRenderer::swap()
@@ -113,10 +111,12 @@ void VulkanForwardRenderer::swap()
 
 
 
-void VulkanForwardRenderer::render()
+void VulkanForwardRenderer::render(Camera *cam)
 {
+    cout << "VulkanForwardRenderer::render" << endl;
     imGui->beginFrame();
-    thing->renderGUI();
+//    thing->renderGUI();
+    rendering->renderFinal(cam);
     imGui->endFrame();
 
     VulkanForwardRenderer::prepareFrame();
@@ -155,7 +155,7 @@ void VulkanForwardRenderer::render()
         vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
 
 
-        thing->render(drawCmdBuffers[i]);
+//        thing->render(drawCmdBuffers[i]);
 
         // Render imGui
         imGui->render(drawCmdBuffers[i]);
@@ -195,7 +195,7 @@ void VulkanForwardRenderer::submitFrame()
 }
 
 VulkanForwardRenderer::VulkanForwardRenderer(Saiga::Vulkan::SDLWindow& window, bool enableValidation)
-    : window(window)
+    : VulkanRenderer(window), window(window)
 {
     settings.validation = enableValidation;
 
@@ -540,3 +540,6 @@ void VulkanForwardRenderer::setupSwapChain()
     swapChain.create(&width, &height, settings.vsync);
 }
 
+
+}
+}

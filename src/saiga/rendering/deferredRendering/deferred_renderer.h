@@ -73,7 +73,7 @@ public:
     virtual ~Deferred_Renderer();
 
     void render(Camera *cam) override;
-    void renderImGui(bool* p_open = NULL) override;
+    void renderImGui(bool* p_open = nullptr) override;
 
 
     enum DeferredTimings{

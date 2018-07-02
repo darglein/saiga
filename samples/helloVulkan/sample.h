@@ -11,12 +11,12 @@
 #include "saiga/vulkan/base/vulkanexamplebase.h"
 #include "saiga/vulkan/AssetRenderer.h"
 #include "saiga/sdl/sdl_camera.h"
+#include "saiga/window/Interfaces.h"
 
-
-class VulkanExample : public RenderThing
+class VulkanExample :  public Saiga::Updating, public Saiga::Rendering
 {
 public:
-    VulkanExample(Saiga::Vulkan::SDLWindow& window, VulkanForwardRenderer& renderer);
+    VulkanExample(Saiga::Vulkan::SDLWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample();
 
     void init();
@@ -29,7 +29,7 @@ private:
     Saiga::Vulkan::Asset teapot;
     Saiga::Vulkan::AssetRenderer assetRenderer;
 
-    VulkanForwardRenderer &renderer;
+    Saiga::Vulkan::VulkanForwardRenderer &renderer;
 
      bool displayModels = true;
 };
