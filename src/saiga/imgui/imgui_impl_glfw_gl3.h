@@ -63,13 +63,13 @@ protected:
     static GLFWwindow*  g_Window;
     static const char* ImGui_ImplGlfwGL3_GetClipboardText(void* user_data);
     static void ImGui_ImplGlfwGL3_SetClipboardText(void* user_data, const char* text);
+    virtual void renderDrawLists(ImDrawData *draw_data) override;
 public:
 
     bool init(GLFWwindow* window, std::string font, float fontSize = 15.0f);
 
     virtual void shutdown() override;
     virtual void beginFrame() override;
-    virtual void renderDrawLists(ImDrawData *draw_data) override;
 
     bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) override;
     bool character_event(GLFWwindow* window, unsigned int codepoint) override;

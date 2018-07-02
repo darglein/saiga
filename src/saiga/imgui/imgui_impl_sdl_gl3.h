@@ -62,6 +62,7 @@ protected:
     // Use if you want to reset your rendering device without losing ImGui state.
     void ImGui_ImplSdlGL3_InvalidateDeviceObjects();
     bool ImGui_ImplSdlGL3_CreateDeviceObjects();
+    virtual void renderDrawLists(ImDrawData *draw_data) override;
 public:
 	ImGui_SDL_Renderer() { memset(g_MousePressed, 0, 3 * sizeof(bool)); }
     ~ImGui_SDL_Renderer() { shutdown(); }
@@ -69,7 +70,6 @@ public:
 
     virtual void shutdown() override;
     virtual void beginFrame() override;
-    virtual void renderDrawLists(ImDrawData *draw_data) override;
 
     virtual bool processEvent(const SDL_Event& event) override;
 };

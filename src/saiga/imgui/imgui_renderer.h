@@ -24,6 +24,9 @@ public:
     virtual void shutdown() = 0;
     virtual void beginFrame() = 0;
     virtual void endFrame();
+
+    void render();
+protected:
     virtual void renderDrawLists(ImDrawData *draw_data) = 0;
 };
 

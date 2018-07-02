@@ -1,4 +1,9 @@
-﻿/*
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+/*
 * UI overlay class using ImGui
 *
 * Copyright (C) 2017 by Sascha Willems - www.saschawillems.de
@@ -8,36 +13,43 @@
 
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <vector>
-#include <sstream>
-#include <iomanip>
+#include "saiga/util/glm.h"
 
-#include <vulkan/vulkan.h>
-#include "VulkanTools.h"
-#include "VulkanDebug.h"
 #include "VulkanBuffer.hpp"
 #include "VulkanDevice.hpp"
 
-#include "vulkanexamplebase.h"
-//#include "../external/imgui/imgui.h"
-#include "saiga/imgui/imgui.h"
-#include "saiga/vulkan/Shader/all.h"
+typedef struct SDL_Window SDL_Window;
 
-#if defined(__ANDROID__)
-#include "VulkanAndroid.h"
-#endif
+namespace Saiga {
+namespace Vulkan {
+
+class SAIGA_GLOBAL ImGuiVulkanRenderer
+{
+public:
+    ~ImGuiVulkanRenderer();
+
+    // Initialize styles, keys, etc.
+    void init(SDL_Window* window, float width, float height);
+
+    // Initialize all Vulkan resources used by the ui
+    void initResources(vks::VulkanDevice *device, VkRenderPass renderPass, VkQueue copyQueue);
 
 
+    // Draw current imGui frame into a command buffer
+    void render(VkCommandBuffer commandBuffer);
 
-// ----------------------------------------------------------------------------
-// ImGUI class
-// ----------------------------------------------------------------------------
-class SAIGA_GLOBAL ImGUI {
-private:
+    void beginFrame();
+    void endFrame();
+
+protected:
+
+    // UI params are set via push constants
+    struct PushConstBlock {
+        glm::vec2 scale;
+        glm::vec2 translate;
+    } pushConstBlock;
+
+    SDL_Window* window;
     // Vulkan resources for rendering the UI
     VkSampler sampler;
     vks::Buffer vertexBuffer;
@@ -54,29 +66,13 @@ private:
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorSet descriptorSet;
     vks::VulkanDevice *device;
-public:
-    // UI params are set via push constants
-    struct PushConstBlock {
-        glm::vec2 scale;
-        glm::vec2 translate;
-    } pushConstBlock;
 
-    ImGUI(VulkanExampleBase *example);
-
-    ~ImGUI();
-
-    // Initialize styles, keys, etc.
-    void init(float width, float height);
-
-    // Initialize all Vulkan resources used by the ui
-    void initResources(VkRenderPass renderPass, VkQueue copyQueue);
-
-
-
+    double       g_Time = 0.0f;
+    bool         g_MousePressed[3];
+    float        g_MouseWheel = 0.0f;
     // Update vertex and index buffer containing the imGui elements when required
     void updateBuffers();
-
-    // Draw current imGui frame into a command buffer
-    void drawFrame(VkCommandBuffer commandBuffer);
-
 };
+
+}
+}

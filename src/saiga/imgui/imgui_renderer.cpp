@@ -18,8 +18,13 @@ void ImGuiRenderer::checkWindowFocus()
 void ImGuiRenderer::endFrame()
 {
      ImGui::Render();
-     renderDrawLists(ImGui::GetDrawData());
-     checkWindowFocus();
+
+}
+
+void ImGuiRenderer::render()
+{
+    renderDrawLists(ImGui::GetDrawData());
+    checkWindowFocus();
 }
 
 

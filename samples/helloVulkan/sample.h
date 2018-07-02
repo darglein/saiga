@@ -31,6 +31,7 @@
 #include "saiga/vulkan/AssetRenderer.h"
 #include "saiga/assets/objAssetLoader.h"
 
+#include "saiga/sdl/sdl_camera.h"
 
 #define ENABLE_VALIDATION true
 
@@ -56,7 +57,8 @@ extern UISettings uiSettings;
 class VulkanExample : public Saiga::Vulkan::SDLWindow
 {
 public:
-    std::shared_ptr<ImGUI> imGui;
+    Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
+    std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
 
     Saiga::Vulkan::Asset teapot;
 

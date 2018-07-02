@@ -7,14 +7,16 @@
 */
 
 #include "VulkanImgui.h"
+#include "SDL2/SDL.h"
+#include "saiga/imgui/imgui.h"
+#include "saiga/vulkan/Shader/Shader.h"
+
+namespace Saiga {
+namespace Vulkan {
 
 
-ImGUI::ImGUI(VulkanExampleBase *example)
-{
-    device = example->vulkanDevice;
-}
 
-ImGUI::~ImGUI()
+ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 {
     // Release all Vulkan resources required for rendering imGui
     vertexBuffer.destroy();
@@ -30,8 +32,9 @@ ImGUI::~ImGUI()
     vkDestroyDescriptorSetLayout(device->logicalDevice, descriptorSetLayout, nullptr);
 }
 
-void ImGUI::init(float width, float height)
+void ImGuiVulkanRenderer::init(SDL_Window *window, float width, float height)
 {
+    this->window = window;
     // Color scheme
     ImGuiStyle& style = ImGui::GetStyle();
     style.Colors[ImGuiCol_TitleBg] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
@@ -45,8 +48,10 @@ void ImGUI::init(float width, float height)
     io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 }
 
-void ImGUI::initResources(VkRenderPass renderPass, VkQueue copyQueue)
+void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *device, VkRenderPass renderPass, VkQueue copyQueue)
 {
+    this->device = device;
+
     ImGuiIO& io = ImGui::GetIO();
 
     // Create font texture
@@ -270,7 +275,7 @@ void ImGUI::initResources(VkRenderPass renderPass, VkQueue copyQueue)
     VK_CHECK_RESULT(vkCreateGraphicsPipelines(device->logicalDevice, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
 }
 
-void ImGUI::updateBuffers()
+void ImGuiVulkanRenderer::updateBuffers()
 {
     ImDrawData* imDrawData = ImGui::GetDrawData();
 
@@ -290,8 +295,6 @@ void ImGUI::updateBuffers()
         vertexBuffer.map();
     }
 
-    // Index buffer
-    VkDeviceSize indexSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
     if ((indexBuffer.buffer == VK_NULL_HANDLE) || (indexCount < imDrawData->TotalIdxCount)) {
         indexBuffer.unmap();
         indexBuffer.destroy();
@@ -317,7 +320,7 @@ void ImGUI::updateBuffers()
     indexBuffer.flush();
 }
 
-void ImGUI::drawFrame(VkCommandBuffer commandBuffer)
+void ImGuiVulkanRenderer::render(VkCommandBuffer commandBuffer)
 {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -358,4 +361,56 @@ void ImGUI::drawFrame(VkCommandBuffer commandBuffer)
         }
         vertexOffset += cmd_list->VtxBuffer.Size;
     }
+}
+
+void ImGuiVulkanRenderer::beginFrame()
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Setup display size (every frame to accommodate for window resizing)
+    int w, h;
+    int display_w, display_h;
+    SDL_GetWindowSize(window, &w, &h);
+    SDL_GL_GetDrawableSize(window, &display_w, &display_h);
+    io.DisplaySize = ImVec2((float)w, (float)h);
+    io.DisplayFramebufferScale = ImVec2(w > 0 ? ((float)display_w / w) : 0, h > 0 ? ((float)display_h / h) : 0);
+
+    // Setup time step
+    Uint32	time = SDL_GetTicks();
+    double current_time = time / 1000.0;
+    io.DeltaTime = g_Time > 0.0 ? (float)(current_time - g_Time) : (float)(1.0f / 60.0f);
+    g_Time = current_time;
+
+    // Setup inputs
+    // (we already got mouse wheel, keyboard keys & characters from SDL_PollEvent())
+    int mx, my;
+    Uint32 mouseMask = SDL_GetMouseState(&mx, &my);
+    if (SDL_GetWindowFlags(window) & SDL_WINDOW_MOUSE_FOCUS)
+        io.MousePos = ImVec2((float)mx, (float)my);   // Mouse position, in pixels (set to -1,-1 if no mouse / on another screen, etc.)
+    else
+        io.MousePos = ImVec2(-1, -1);
+
+    io.MouseDown[0] = g_MousePressed[0] || (mouseMask & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;		// If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release events that are shorter than 1 frame.
+    io.MouseDown[1] = g_MousePressed[1] || (mouseMask & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
+    io.MouseDown[2] = g_MousePressed[2] || (mouseMask & SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0;
+    g_MousePressed[0] = g_MousePressed[1] = g_MousePressed[2] = false;
+
+    io.MouseWheel = g_MouseWheel;
+    g_MouseWheel = 0.0f;
+
+    // Hide OS mouse cursor if ImGui is drawing it
+    SDL_ShowCursor(io.MouseDrawCursor ? 0 : 1);
+
+    // Start the frame
+    ImGui::NewFrame();
+}
+
+void ImGuiVulkanRenderer::endFrame()
+{
+      ImGui::Render();
+
+      updateBuffers();
+}
+
+}
 }

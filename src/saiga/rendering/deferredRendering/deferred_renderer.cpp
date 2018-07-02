@@ -239,6 +239,7 @@ void Deferred_Renderer::render(Camera *cam)
         if(imgui)
         {
             imgui->endFrame();
+            imgui->render();
         }
     }
     stopTimer(FINAL);

@@ -6,6 +6,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
+#include "saiga/sdl/sdl_eventhandler.h"
 #include "vulkanexamplebase.h"
 #include "saiga/vulkan/Shader/all.h"
 
@@ -274,6 +275,13 @@ void VulkanExampleBase::renderLoop()
         }
 
 
+        Saiga::SDL_EventHandler::update();
+
+        if(Saiga::SDL_EventHandler::shouldQuit())
+        {
+            quit = true;
+        }
+#if 0
         SDL_Event e;
         while( SDL_PollEvent( &e ) != 0 )
         {
@@ -284,7 +292,7 @@ void VulkanExampleBase::renderLoop()
             }
             handleEvent(e);
         }
-
+#endif
 
         render();
         frameCounter++;

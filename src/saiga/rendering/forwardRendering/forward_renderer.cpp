@@ -60,6 +60,7 @@ void Forward_Renderer::render(Camera *cam)
     if(imgui)
     {
         imgui->endFrame();
+        imgui->render();
     }
 
     if(params.useGlFinish)
