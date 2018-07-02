@@ -99,24 +99,16 @@ void VulkanForwardRenderer::createPipelineCache()
 
 
 
-void VulkanForwardRenderer::update(float dt)
-{
-
-}
-
-void VulkanForwardRenderer::swap()
-{
-
-}
-
 
 
 void VulkanForwardRenderer::render(Camera *cam)
 {
-    cout << "VulkanForwardRenderer::render" << endl;
+    VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
+    SAIGA_ASSERT(renderingInterface);
+
+//    cout << "VulkanForwardRenderer::render" << endl;
     imGui->beginFrame();
-//    thing->renderGUI();
-    rendering->renderFinal(cam);
+    renderingInterface->renderGUI();
     imGui->endFrame();
 
     VulkanForwardRenderer::prepareFrame();
@@ -157,6 +149,7 @@ void VulkanForwardRenderer::render(Camera *cam)
 
 //        thing->render(drawCmdBuffers[i]);
 
+        renderingInterface->render(drawCmdBuffers[i]);
         // Render imGui
         imGui->render(drawCmdBuffers[i]);
 

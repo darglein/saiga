@@ -82,6 +82,9 @@ void SDLWindow::update(float dt)
     {
         close();
     }
+
+    if(updating)
+        updating->update(dt);
 }
 
 

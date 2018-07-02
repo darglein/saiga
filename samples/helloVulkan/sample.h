@@ -13,7 +13,7 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/window/Interfaces.h"
 
-class VulkanExample :  public Saiga::Updating, public Saiga::Rendering
+class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface
 {
 public:
     VulkanExample(Saiga::Vulkan::SDLWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
@@ -21,9 +21,9 @@ public:
 
     void init();
 
-    virtual void update();
-    virtual void render(VkCommandBuffer cmd);
-    virtual void renderGUI();
+    virtual void update(float dt) override;
+    virtual void render(VkCommandBuffer cmd) override;
+    virtual void renderGUI() override;
 private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
     Saiga::Vulkan::Asset teapot;

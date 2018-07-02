@@ -11,7 +11,7 @@
 
 
 VulkanExample::VulkanExample(Saiga::Vulkan::SDLWindow &window, Saiga::Vulkan::VulkanForwardRenderer &renderer)
- :  Updating(window), Rendering(renderer), renderer(renderer)
+ :  Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), renderer(renderer)
 {
     float aspect = window.getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
@@ -34,17 +34,15 @@ void VulkanExample::init()
 
 
     teapot.load("objs/teapot.obj", renderer.vulkanDevice, renderer.queue);
-
-
 }
 
 
 
-void VulkanExample::update()
+void VulkanExample::update(float dt)
 {
     assetRenderer.updateUniformBuffers(camera.view,camera.proj);
-    camera.update(1.0/60);
-    camera.interpolate(1.0/60,0);
+    camera.update(dt);
+    camera.interpolate(dt,0);
 }
 
 

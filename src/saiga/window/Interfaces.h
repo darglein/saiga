@@ -14,7 +14,7 @@ namespace Saiga {
 
 class Camera;
 class WindowBase;
-class Rendering;
+class RenderingBase;
 /**
  * Base class of all render engines.
  * This includes the deferred and forward OpenGL engines
@@ -24,10 +24,10 @@ class SAIGA_GLOBAL RendererBase
 {
 public:
     virtual ~RendererBase() {}
-    Rendering* rendering = nullptr;
+    RenderingBase* rendering = nullptr;
 
 
-    void setRenderObject(Rendering &r ) { rendering = &r; }
+    void setRenderObject(RenderingBase &r ) { rendering = &r; }
 
     virtual void renderImGui(bool* p_open = nullptr) {}
     virtual float getTotalRenderTime() {return 0;}
@@ -62,9 +62,20 @@ protected:
 
 };
 
-class SAIGA_GLOBAL Rendering{
+class SAIGA_GLOBAL RenderingBase{
 public:
-    Rendering(RendererBase& parent);
+    RenderingBase(RendererBase& parent);
+    virtual ~RenderingBase(){}
+
+
+protected:
+    RendererBase& parentRenderer;
+};
+
+
+class SAIGA_GLOBAL Rendering : public RenderingBase{
+public:
+    Rendering(RendererBase& parent) : RenderingBase(parent) {}
     virtual ~Rendering(){}
 
     //rendering into the gbuffer
@@ -79,8 +90,10 @@ public:
 
     //forward rendering path after lighting and after post processing
     virtual void renderFinal(Camera *cam) {}
-protected:
-    RendererBase& parentRenderer;
+//protected:
+//    RendererBase& parentRenderer;
 };
+
+
 
 }

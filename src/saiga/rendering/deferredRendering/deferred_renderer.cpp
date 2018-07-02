@@ -140,6 +140,9 @@ void Deferred_Renderer::render(Camera *cam)
     SAIGA_ASSERT(rendering);
     SAIGA_ASSERT(cam);
 
+    Rendering* renderingInterface = dynamic_cast<Rendering*>(rendering);
+    SAIGA_ASSERT(renderingInterface);
+
 
     if (params.srgbWrites)
         glEnable(GL_FRAMEBUFFER_SRGB);
@@ -184,7 +187,7 @@ void Deferred_Renderer::render(Camera *cam)
     startTimer(OVERLAY);
 
     bindCamera(cam);
-    rendering->renderOverlay(cam);
+    renderingInterface->renderOverlay(cam);
     stopTimer(OVERLAY);
 
 
@@ -235,7 +238,7 @@ void Deferred_Renderer::render(Camera *cam)
         {
             imgui->beginFrame();
         }
-        rendering->renderFinal(cam);
+        renderingInterface->renderFinal(cam);
         if(imgui)
         {
             imgui->endFrame();
@@ -302,7 +305,8 @@ void Deferred_Renderer::renderGBuffer(Camera *cam) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(params.wireframeLineSize);
     }
-    rendering->render(cam);
+    Rendering* renderingInterface = dynamic_cast<Rendering*>(rendering);
+    renderingInterface->render(cam);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
@@ -325,8 +329,8 @@ void Deferred_Renderer::renderDepthMaps() {
 
     startTimer(DEPTHMAPS);
 
-
-    lighting.renderDepthMaps(rendering);
+Rendering* renderingInterface = dynamic_cast<Rendering*>(rendering);
+    lighting.renderDepthMaps(renderingInterface);
 
 
     stopTimer(DEPTHMAPS);

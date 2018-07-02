@@ -174,9 +174,7 @@ public:
     bool initVulkan();
 
     virtual void render(Camera* cam);
-    void swap();
-    void update(float dt);
-    bool shouldClose() { return quit; }
+
 
 
     void createSynchronizationPrimitives();

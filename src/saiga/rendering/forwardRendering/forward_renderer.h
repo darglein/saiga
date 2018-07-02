@@ -12,6 +12,22 @@
 namespace Saiga {
 
 
+class SAIGA_GLOBAL ForwardRenderingInterface : public RenderingBase
+{
+public:
+    ForwardRenderingInterface(RendererBase& parent) : RenderingBase(parent) {}
+    virtual ~ForwardRenderingInterface(){}
+
+    //forward rendering path after lighting, but before post processing
+    //this could be used for transparent objects
+    virtual void renderOverlay(Camera *cam) {}
+
+    //forward rendering path after lighting and after post processing
+    virtual void renderFinal(Camera *cam) {}
+//protected:
+//    RendererBase& parentRenderer;
+};
+
 struct SAIGA_GLOBAL ForwardRenderingParameters : public RenderingParameters
 {
 

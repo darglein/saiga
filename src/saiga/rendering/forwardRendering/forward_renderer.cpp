@@ -25,6 +25,8 @@ void Forward_Renderer::render(Camera *cam)
     SAIGA_ASSERT(rendering);
     SAIGA_ASSERT(cam);
 
+    ForwardRenderingInterface* renderingInterface = dynamic_cast<ForwardRenderingInterface*>(rendering);
+    SAIGA_ASSERT(renderingInterface);
 
     glViewport(0,0,outputWidth,outputHeight);
 
@@ -45,7 +47,7 @@ void Forward_Renderer::render(Camera *cam)
     glDepthMask(GL_TRUE);
     glClearColor(params.clearColor.x,params.clearColor.y,params.clearColor.z,params.clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    rendering->renderOverlay(cam);
+    renderingInterface->renderOverlay(cam);
 
 
     glEnable(GL_BLEND);
@@ -56,7 +58,7 @@ void Forward_Renderer::render(Camera *cam)
     {
         imgui->beginFrame();
     }
-    rendering->renderFinal(cam);
+    renderingInterface->renderFinal(cam);
     if(imgui)
     {
         imgui->endFrame();

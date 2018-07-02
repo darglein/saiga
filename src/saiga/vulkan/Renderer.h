@@ -26,5 +26,20 @@ public:
     virtual void bindCamera(Camera* cam){}
 };
 
+
+class SAIGA_GLOBAL VulkanForwardRenderingInterface : public RenderingBase
+{
+public:
+    VulkanForwardRenderingInterface(RendererBase& parent) : RenderingBase(parent) {}
+    virtual ~VulkanForwardRenderingInterface(){}
+
+
+    virtual void render(VkCommandBuffer cmd) {}
+    virtual void renderGUI() {}
+//protected:
+//    RendererBase& parentRenderer;
+};
+
+
 }
 }
