@@ -15,12 +15,6 @@ namespace Saiga {
 namespace Vulkan {
 
 
-//vks::VertexLayout AssetRenderer::vertexLayout = vks::VertexLayout({
-//       vks::VERTEX_COMPONENT_POSITION,
-//       vks::VERTEX_COMPONENT_NORMAL,
-//       vks::VERTEX_COMPONENT_COLOR,
-//   });
-
 void AssetRenderer::destroy()
 {
     vkDestroyPipeline(device, pipeline, nullptr);
@@ -165,6 +159,16 @@ void AssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
     VK_CHECK_RESULT(uniformBufferVS.map());
     memcpy(uniformBufferVS.mapped, &uboVS, sizeof(uboVS));
     uniformBufferVS.unmap();
+}
+
+void Asset::render(VkCommandBuffer cmd)
+{
+
+    VkDeviceSize offsets[1] = { 0 };
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vertices.buffer, offsets);
+    vkCmdBindIndexBuffer(cmd, indices.buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(cmd, indexCount, 1, 0, 0, 0);
+
 }
 
 void Asset::load(const std::string &file,vks::VulkanDevice *device, VkQueue copyQueue)

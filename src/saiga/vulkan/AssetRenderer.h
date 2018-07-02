@@ -27,6 +27,7 @@ public:
     uint32_t indexCount = 0;
     uint32_t vertexCount = 0;
 
+    void render(VkCommandBuffer cmd);
     void load(const std::string& file, vks::VulkanDevice *device, VkQueue copyQueue);
 };
 

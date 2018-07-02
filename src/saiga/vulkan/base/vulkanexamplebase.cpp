@@ -12,95 +12,7 @@
 
 std::vector<const char*> VulkanExampleBase::args;
 
-VkResult VulkanExampleBase::createInstance(bool enableValidation)
-{
-    this->settings.validation = enableValidation;
 
-    // Validation can also be forced via a define
-#if defined(_VALIDATION)
-    this->settings.validation = true;
-#endif	
-
-    VkApplicationInfo appInfo = {};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = name.c_str();
-    appInfo.pEngineName = name.c_str();
-    appInfo.apiVersion = apiVersion;
-
-    std::vector<const char*> instanceExtensions = getRequiredInstanceExtensions();
-
-    instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
-
-
-
-    {
-
-#if 0
-        unsigned int count = 0;
-        const char **names = NULL;
-        auto res = SDL_Vulkan_GetInstanceExtensions(sdl_window, &count, NULL);
-        cout << SDL_GetError() << endl;
-        SAIGA_ASSERT(res);
-        // now count is (probably) 2. Now you can make space:
-        names = new const char *[count];
-
-        // now call again with that not-NULL array you just allocated.
-        res = SDL_Vulkan_GetInstanceExtensions(sdl_window, &count, names);
-        cout << SDL_GetError() << endl;
-        SAIGA_ASSERT(res);
-        cout << "num extensions " << count << endl;
-        // Now names should have (count) strings in it:
-
-        for (unsigned int i = 0; i < count; i++) {
-            printf("Extension %d: %s\n", i, names[i]);
-            instanceExtensions.push_back(names[i]);
-        }
-
-        // use it for VkInstanceCreateInfo and when you're done, free it:
-
-        delete[] names;
-#else
-        //      auto windowExtensions = getRequiredInstanceExtensions();
-
-#endif
-
-
-    }
-
-    VkInstanceCreateInfo instanceCreateInfo = {};
-    instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    instanceCreateInfo.pNext = NULL;
-    instanceCreateInfo.pApplicationInfo = &appInfo;
-    if (instanceExtensions.size() > 0)
-    {
-        if (settings.validation)
-        {
-            instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-        }
-        instanceCreateInfo.enabledExtensionCount = (uint32_t)instanceExtensions.size();
-        instanceCreateInfo.ppEnabledExtensionNames = instanceExtensions.data();
-    }
-    if (settings.validation)
-    {
-        instanceCreateInfo.enabledLayerCount = vks::debug::validationLayerCount;
-        instanceCreateInfo.ppEnabledLayerNames = vks::debug::validationLayerNames;
-    }
-
-
-
-    return vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
-}
-
-std::string VulkanExampleBase::getWindowTitle()
-{
-    std::string device(deviceProperties.deviceName);
-    std::string windowTitle;
-    windowTitle = title + " - " + device;
-    if (!settings.overlay) {
-        windowTitle += " - " + std::to_string(frameCounter) + " fps";
-    }
-    return windowTitle;
-}
 
 #if !(defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
 // iOS & macOS: VulkanExampleBase::getAssetPath() implemented externally to allow access to Objective-C components
@@ -213,52 +125,81 @@ void VulkanExampleBase::prepare()
     setupRenderPass();
     createPipelineCache();
     setupFrameBuffer();
+
+
 }
 
-void VulkanExampleBase::renderFrame()
+void VulkanExampleBase::updateIntern()
 {
-    auto tStart = std::chrono::high_resolution_clock::now();
-    if (viewUpdated)
-    {
-        viewUpdated = false;
-        viewChanged();
-    }
+    Saiga::SDL_EventHandler::update();
 
-    render();
-    frameCounter++;
-    auto tEnd = std::chrono::high_resolution_clock::now();
-    auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-    frameTimer = (float)tDiff / 1000.0f;
-    camera.update(frameTimer);
-    if (camera.moving())
+    if(Saiga::SDL_EventHandler::shouldQuit())
     {
-        viewUpdated = true;
+        quit = true;
     }
-    // Convert to clamped timer value
-    if (!paused)
-    {
-        timer += timerSpeed * frameTimer;
-        if (timer > 1.0)
-        {
-            timer -= 1.0f;
-        }
-    }
-    fpsTimer += (float)tDiff;
-    if (fpsTimer > 1000.0f)
-    {
-        lastFPS = static_cast<uint32_t>((float)frameCounter * (1000.0f / fpsTimer));
-#if defined(_WIN32)
-        if (!settings.overlay)	{
-            std::string windowTitle = getWindowTitle();
-            SetWindowText(window, windowTitle.c_str());
-        }
-#endif
-        fpsTimer = 0.0f;
-        frameCounter = 0;
-    }
-    // TODO: Cap UI overlay update rates
-    //	updateOverlay();
+    update();
 }
+
+
+
+void VulkanExampleBase::renderIntern()
+{
+    imGui->beginFrame();
+    renderGUI();
+    imGui->endFrame();
+
+    VulkanExampleBase::prepareFrame();
+
+
+    VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
+
+    VkClearValue clearValues[2];
+    clearValues[0].color = { { 0.2f, 0.2f, 0.2f, 1.0f} };
+    clearValues[1].depthStencil = { 1.0f, 0 };
+
+    VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
+    renderPassBeginInfo.renderPass = renderPass;
+    renderPassBeginInfo.renderArea.offset.x = 0;
+    renderPassBeginInfo.renderArea.offset.y = 0;
+    renderPassBeginInfo.renderArea.extent.width = width;
+    renderPassBeginInfo.renderArea.extent.height = height;
+    renderPassBeginInfo.clearValueCount = 2;
+    renderPassBeginInfo.pClearValues = clearValues;
+
+
+
+    for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
+    {
+        // Set target frame buffer
+        renderPassBeginInfo.framebuffer = frameBuffers[i];
+
+        VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
+
+        vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
+        vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
+
+        VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
+        vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
+
+
+        render(drawCmdBuffers[i]);
+
+        // Render imGui
+        imGui->render(drawCmdBuffers[i]);
+
+        vkCmdEndRenderPass(drawCmdBuffers[i]);
+
+        VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
+    }
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
+    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
+    VulkanExampleBase::submitFrame();
+}
+
+
 
 void VulkanExampleBase::renderLoop()
 {
@@ -267,66 +208,13 @@ void VulkanExampleBase::renderLoop()
 
     while (!quit)
     {
-        auto tStart = std::chrono::high_resolution_clock::now();
-        if (viewUpdated)
-        {
-            viewUpdated = false;
-            viewChanged();
-        }
-
-
-        Saiga::SDL_EventHandler::update();
-
-        if(Saiga::SDL_EventHandler::shouldQuit())
-        {
-            quit = true;
-        }
-#if 0
-        SDL_Event e;
-        while( SDL_PollEvent( &e ) != 0 )
-        {
-            //User requests quit
-            if( e.type == SDL_QUIT )
-            {
-                quit = true;
-            }
-            handleEvent(e);
-        }
-#endif
-
-        render();
-        frameCounter++;
-        auto tEnd = std::chrono::high_resolution_clock::now();
-        auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-        frameTimer = tDiff / 1000.0f;
-        camera.update(frameTimer);
-        if (camera.moving())
-        {
-            viewUpdated = true;
-        }
-        // Convert to clamped timer value
-        if (!paused)
-        {
-            timer += timerSpeed * frameTimer;
-            if (timer > 1.0)
-            {
-                timer -= 1.0f;
-            }
-        }
-        fpsTimer += (float)tDiff;
-        if (fpsTimer > 1000.0f)
-        {
-            if (!settings.overlay)
-            {
-            }
-            lastFPS = (float)frameCounter * (1000.0f / fpsTimer);
-            fpsTimer = 0.0f;
-            frameCounter = 0;
-        }
+        updateIntern();
+        renderIntern();
     }
 
     // Flush device to make sure all resources can be freed
-    if (device != VK_NULL_HANDLE) {
+    if (device != VK_NULL_HANDLE)
+    {
         vkDeviceWaitIdle(device);
     }
 }
@@ -404,26 +292,11 @@ bool VulkanExampleBase::initVulkan()
 {
     VkResult err;
 
-    // Vulkan instance
-    err = createInstance(settings.validation);
-    if (err) {
-        vks::tools::exitFatal("Could not create Vulkan instance : \n" + vks::tools::errorString(err), err);
-        return false;
-    }
+    std::vector<const char*> instanceExtensions = getRequiredInstanceExtensions();
+    instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
+    instance.create(instanceExtensions,true);
 
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-    vks::android::loadVulkanFunctions(instance);
-#endif
 
-    // If requested, we enable the default validation layers for debugging
-    if (settings.validation)
-    {
-        // The report flags determine what type of messages for the layers will be displayed
-        // For validating (debugging) an appplication the error and warning bits should suffice
-        VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-        // Additional flags include performance info, loader and layer debug messages, etc.
-        vks::debug::setupDebugging(instance, debugReportFlags, VK_NULL_HANDLE);
-    }
 
     // Physical device
     uint32_t gpuCount = 0;
@@ -513,82 +386,6 @@ bool VulkanExampleBase::initVulkan()
 
 
 
-void VulkanExampleBase::handleEvent(SDL_Event e)
-{
-    if (e.type == SDL_KEYDOWN)
-    {
-        auto key = e.key.keysym;
-        switch(key.scancode){
-        case SDL_SCANCODE_ESCAPE:
-            quit = true;
-            break;
-        case SDL_SCANCODE_W:
-            camera.keys.up = true;
-            break;
-        case SDL_SCANCODE_S:
-            camera.keys.down = true;
-            break;
-        case SDL_SCANCODE_A:
-            camera.keys.left = true;
-            break;
-        case SDL_SCANCODE_D:
-            camera.keys.right = true;
-            break;
-        default:
-            break;
-
-        }
-    }
-
-    if (e.type == SDL_MOUSEMOTION)
-    {
-        handleMouseMove(e.motion.x,e.motion.y);
-    }
-
-    if (e.type == SDL_MOUSEBUTTONDOWN)
-    {
-        int key = e.button.button;
-        switch(key)
-        {
-        case SDL_BUTTON_LEFT:
-            mouseButtons.left = true;
-            break;
-        case SDL_BUTTON_RIGHT:
-            mouseButtons.right = true;
-            break;
-        case SDL_BUTTON_MIDDLE:
-            mouseButtons.middle = true;
-            break;
-        default:
-            break;
-        }
-    }
-    if (e.type == SDL_MOUSEBUTTONUP)
-    {
-        int key = e.button.button;
-        switch(key)
-        {
-        case SDL_BUTTON_LEFT:
-            mouseButtons.left = false;
-            break;
-        case SDL_BUTTON_RIGHT:
-            mouseButtons.right = false;
-            break;
-        case SDL_BUTTON_MIDDLE:
-            mouseButtons.middle = false;
-            break;
-        default:
-            break;
-        }
-
-    }
-}
-
-void VulkanExampleBase::viewChanged() {}
-
-void VulkanExampleBase::keyPressed(uint32_t) {}
-
-void VulkanExampleBase::mouseMoved(double x, double y, bool & handled) {}
 
 void VulkanExampleBase::buildCommandBuffers() {}
 
@@ -757,44 +554,6 @@ void VulkanExampleBase::setupRenderPass()
 }
 
 
-void VulkanExampleBase::handleMouseMove(int32_t x, int32_t y)
-{
-    int32_t dx = (int32_t)mousePos.x - x;
-    int32_t dy = (int32_t)mousePos.y - y;
-
-    bool handled = false;
-
-    mouseMoved((float)x, (float)y, handled);
-
-    if (handled) {
-        mousePos = glm::vec2((float)x, (float)y);
-        return;
-    }
-
-    if (mouseButtons.left) {
-        rotation.x += dy * 1.25f * rotationSpeed;
-        rotation.y -= dx * 1.25f * rotationSpeed;
-        camera.rotate(glm::vec3(dy * camera.rotationSpeed, -dx * camera.rotationSpeed, 0.0f));
-        viewUpdated = true;
-    }
-    if (mouseButtons.right) {
-        zoom += dy * .005f * zoomSpeed;
-        camera.translate(glm::vec3(-0.0f, 0.0f, dy * .005f * zoomSpeed));
-        viewUpdated = true;
-    }
-    if (mouseButtons.middle) {
-        cameraPos.x -= dx * 0.01f;
-        cameraPos.y -= dy * 0.01f;
-        camera.translate(glm::vec3(-dx * 0.01f, -dy * 0.01f, 0.0f));
-        viewUpdated = true;
-    }
-    mousePos = glm::vec2((float)x, (float)y);
-}
-
-void VulkanExampleBase::windowResized()
-{
-    // Can be overriden in derived class
-}
 
 void VulkanExampleBase::initSwapchain()
 {

@@ -11,7 +11,8 @@ int main(const int argc, const char *argv[])
     VulkanExample vulkanExample;
     vulkanExample.setupWindow();
     vulkanExample.initVulkan();
-    vulkanExample.prepare();
+
+    vulkanExample.init();
     vulkanExample.renderLoop();
     }
 
