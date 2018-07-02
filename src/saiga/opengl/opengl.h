@@ -50,3 +50,5 @@ enum class OpenGLVendor{
 SAIGA_GLOBAL OpenGLVendor getOpenGLVendor();
 
 }
+
+#define SAIGA_OPENGL_INCLUDED

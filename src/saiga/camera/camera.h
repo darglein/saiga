@@ -10,16 +10,14 @@
 #include <saiga/rendering/object3d.h>
 #include <saiga/geometry/sphere.h>
 #include <saiga/geometry/plane.h>
-#include <saiga/opengl/uniformBuffer.h>
 
 namespace Saiga {
 
 using std::string;
 
 
-
-
-class SAIGA_GLOBAL Camera : public Object3D{
+class SAIGA_GLOBAL Camera : public Object3D
+{
 public:
     std::string name;
 

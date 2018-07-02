@@ -4,32 +4,41 @@
  * See LICENSE file for more information.
  */
 
+
 #include "saiga/window/MainLoop.h"
-#include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/image/glImageFormat.h"
-//#include "saiga/rendering/deferredRendering/deferred_renderer.h"
-#include "saiga/rendering/renderer.h"
-#include "saiga/rendering/program.h"
-
-#include "saiga/util/tostring.h"
-#include "saiga/opengl/error.h"
-#include "saiga/framework.h"
 #include "saiga/imgui/imgui.h"
-#include "saiga/util/math.h"
-#include "saiga/camera/camera.h"
+#include "saiga/util/tostring.h"
+#include "saiga/util/ini/ini.h"
 
-#include <cstring>
-#include <vector>
-#include <ctime>
-#include <thread>
+#if defined(SAIGA_VULKAN_INCLUDED) || defined(SAIGA_OPENGL_INCLUDED)
+#error This module must be independent of any graphics API.
+#endif
+
 
 namespace Saiga {
 
-MainLoop::MainLoop(MainLoopInterface &renderer)
-    : renderer(renderer), updating(renderer)
+void MainLoopParameters::fromConfigFile(const std::string &file)
 {
+    Saiga::SimpleIni ini;
+    ini.LoadFile(file.c_str());
 
+    updatesPerSecond      = ini.GetAddLong  ("mainloop","updatesPerSecond",updatesPerSecond);
+    framesPerSecond       = ini.GetAddLong  ("mainloop","framesPerSecond",framesPerSecond);
+    mainLoopInfoTime      = ini.GetAddDouble("mainloop","mainLoopInfoTime",mainLoopInfoTime);
+    maxFrameSkip          = ini.GetAddLong  ("mainloop","maxFrameSkip",maxFrameSkip);
+    parallelUpdate        = ini.GetAddBool  ("mainloop","parallelUpdate",parallelUpdate);
+    catchUp               = ini.GetAddBool  ("mainloop","catchUp",catchUp);
+    printInfoMsg          = ini.GetAddBool  ("mainloop","printInfoMsg",printInfoMsg);
+
+    if(ini.changed()) ini.SaveFile(file.c_str());
+}
+
+MainLoop::MainLoop(MainLoopInterface &renderer)
+    : renderer(renderer), updating(renderer),
+      updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50)
+{
+    memset(imUpdateTimes, 0, numGraphValues * sizeof(float));
+    memset(imRenderTimes, 0, numGraphValues * sizeof(float));
 }
 
 void MainLoop::updateUpdateGraph()
@@ -229,7 +238,7 @@ void MainLoop::startMainLoop(MainLoopParameters params)
 
         //sleep until the next interesting event
         sleep(gameTime.getSleepTime());
-        assert_no_glerror_end_frame();
+//        assert_no_glerror_end_frame();
     }
     running = false;
 
@@ -243,6 +252,45 @@ void MainLoop::startMainLoop(MainLoopParameters params)
 
     auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
     cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames  << endl;
+}
+
+void MainLoop::renderImGuiInline()
+{
+
+    ImGui::Text("Update Time: %fms Ups: %f",ut, 1000.0f / upsTimer.getTimeMS());
+    ImGui::PlotLines("Update Time", imUpdateTimes, numGraphValues, imCurrentIndexUpdate, ("avg "+Saiga::to_string(avUt)).c_str(), 0,maxUpdateTime, ImVec2(0,80));
+    ImGui::Text("Render Time: %fms Fps: %f",ft, 1000.0f / fpsTimer.getTimeMS());
+    ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndexRender, ("avg "+Saiga::to_string(avFt)).c_str(), 0,maxRenderTime, ImVec2(0,80));
+    if(ImGui::Button("Reset Max Value"))
+    {
+        maxUpdateTime = 1;
+        maxRenderTime = 1;
+    }
+
+    ImGui::Text("Swap Time: %fms", swapBuffersTimer.getTimeMS());
+    ImGui::Text("Interpolate Time: %fms", interpolationTimer.getTimeMS());
+    ImGui::Text("Render CPU Time: %fms", renderCPUTimer.getTimeMS());
+
+    ImGui::Text("Running: %d",running);
+    ImGui::Text("numUpdates: %d",numUpdates);
+    ImGui::Text("numFrames: %d",numFrames);
+
+    std::chrono::duration<double, std::milli> dt = gameTime.dt;
+    ImGui::Text("Timestep: %fms",dt.count());
+
+    std::chrono::duration<double, std::milli> delay = gameLoopDelay;
+    ImGui::Text("Delay: %fms",delay.count());
+
+    float scale = gameTime.getTimeScale();
+    ImGui::SliderFloat("Time Scale",&scale,0,5);
+    gameTime.setTimeScale(scale);
+
+    //    ImGui::Checkbox("showImguiDemo",&showImguiDemo);
+    //    if(mainLoop.showImguiDemo){
+    //        ImGui::SetNextWindowPos(ImVec2(340, 0), ImGuiSetCond_FirstUseEver);
+    //        ImGui::ShowTestWindow(&showImguiDemo);
+    //    }
+
 }
 
 }

@@ -19,3 +19,5 @@
 #else
 #define CHECK_VK(_f) (_f)
 #endif
+
+#define SAIGA_VULKAN_INCLUDED

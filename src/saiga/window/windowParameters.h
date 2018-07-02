@@ -7,13 +7,8 @@
 #pragma once
 
 #include <saiga/config.h>
-#include <saiga/util/semaphore.h>
-#include "saiga/time/gameTime.h"
-#include "saiga/geometry/ray.h"
-#include "saiga/imgui/imgui_renderer.h"
-#include "saiga/rendering/renderer.h"
 #include "saiga/framework.h"
-#include <thread>
+
 
 namespace Saiga {
 
@@ -89,42 +84,5 @@ struct SAIGA_GLOBAL WindowParameters
 
 };
 
-
-struct SAIGA_GLOBAL MainLoopParameters
-{
-
-    /**
-     * @brief startMainLoop
-     * @param updatesPerSecond
-     *      Number of calls per second to the virtual function "update".
-     *      A value of 0 means: update as fast as possible (not recommended)
-     * @param framesPerSecond
-     *      Number of class per second to the render functions.
-     *      A value of 0 is unlimitted frames.
-     * @param mainLoopInfoTime
-     *      Time between mainloop debug output to the console
-     * @param maxFrameSkip
-     *      Max number of frames that are skipped if the update cannot keep up.
-     * @param _parallelUpdate
-     *      Enables parallel updates while rendering. This will call the virtual function parallelUpdate.
-     * @param _catchUp
-     *      Lets the update loop catch up in case of lags.
-     * @param _printInfoMsg
-     *      Enable/Disable the debug output
-     */
-    int   updatesPerSecond      = 60;
-    int   framesPerSecond       = 60;
-    float mainLoopInfoTime      = 5.0f;
-    int   maxFrameSkip          = 0;
-    bool  parallelUpdate        = false;
-    bool  catchUp               = false;
-    bool  printInfoMsg          = true;
-
-    /**
-     *  Reads all paramters from the given config file.
-     *  Creates the file with the default values if it doesn't exist.
-     */
-    void fromConfigFile(const std::string& file);
-};
 
 }

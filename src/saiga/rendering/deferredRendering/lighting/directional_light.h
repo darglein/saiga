@@ -8,6 +8,7 @@
 
 #include "saiga/rendering/deferredRendering/lighting/light.h"
 #include "saiga/camera/camera.h"
+#include "saiga/opengl/uniformBuffer.h"
 
 namespace Saiga {
 

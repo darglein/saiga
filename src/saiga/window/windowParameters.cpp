@@ -78,21 +78,7 @@ void OpenGLParameters::fromConfigFile(const std::string &file)
     profile = profileString == "ANY" ? Profile::ANY : profileString == "CORE" ? Profile::CORE : Profile::COMPATIBILITY;
 }
 
-void MainLoopParameters::fromConfigFile(const std::string &file)
-{
-    Saiga::SimpleIni ini;
-    ini.LoadFile(file.c_str());
 
-    updatesPerSecond      = ini.GetAddLong  ("mainloop","updatesPerSecond",updatesPerSecond);
-    framesPerSecond       = ini.GetAddLong  ("mainloop","framesPerSecond",framesPerSecond);
-    mainLoopInfoTime      = ini.GetAddDouble("mainloop","mainLoopInfoTime",mainLoopInfoTime);
-    maxFrameSkip          = ini.GetAddLong  ("mainloop","maxFrameSkip",maxFrameSkip);
-    parallelUpdate        = ini.GetAddBool  ("mainloop","parallelUpdate",parallelUpdate);
-    catchUp               = ini.GetAddBool  ("mainloop","catchUp",catchUp);
-    printInfoMsg          = ini.GetAddBool  ("mainloop","printInfoMsg",printInfoMsg);
-
-    if(ini.changed()) ini.SaveFile(file.c_str());
-}
 
 
 }

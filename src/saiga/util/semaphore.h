@@ -9,6 +9,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "saiga/config.h"
+
 namespace Saiga {
 
 	class SAIGA_GLOBAL Semaphore {
