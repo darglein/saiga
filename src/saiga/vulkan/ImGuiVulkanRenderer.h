@@ -16,7 +16,7 @@
 #include "saiga/util/glm.h"
 
 #include "VulkanBuffer.hpp"
-#include "VulkanDevice.hpp"
+#include "saiga/vulkan/Device.h"
 
 typedef struct SDL_Window SDL_Window;
 

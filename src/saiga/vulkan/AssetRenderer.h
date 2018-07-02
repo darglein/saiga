@@ -9,7 +9,7 @@
 
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/vulkan/svulkan.h"
-#include "saiga/vulkan/VulkanDevice.hpp"
+#include "saiga/vulkan/Device.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
 
 namespace Saiga {

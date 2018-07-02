@@ -18,7 +18,7 @@
 #include <gli/gli.hpp>
 
 #include "VulkanTools.h"
-#include "VulkanDevice.hpp"
+#include "saiga/vulkan/Device.h"
 #include "VulkanBuffer.hpp"
 
 #if defined(__ANDROID__)

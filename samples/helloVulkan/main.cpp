@@ -24,12 +24,8 @@ int main(const int argc, const char *argv[])
     VulkanExample example(window,renderer);
     example.init();
 
-//    renderer.thing = &example;
-
 
     window.startMainLoop();
-//    MainLoop mainloop(renderer);
-//    mainloop.startMainLoop();
 
     return 0;
 }

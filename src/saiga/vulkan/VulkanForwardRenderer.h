@@ -15,7 +15,7 @@
 #include "VulkanTools.h"
 
 #include "VulkanInitializers.hpp"
-#include "VulkanDevice.hpp"
+#include "saiga/vulkan/Device.h"
 #include "VulkanSwapChain.hpp"
 
 #include "saiga/vulkan/Instance.h"
