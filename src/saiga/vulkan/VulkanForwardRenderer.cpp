@@ -20,17 +20,6 @@ namespace Saiga {
 namespace Vulkan {
 
 
-bool VulkanForwardRenderer::checkCommandBuffers()
-{
-    for (auto& cmdBuffer : drawCmdBuffers)
-    {
-        if (cmdBuffer == VK_NULL_HANDLE)
-        {
-            return false;
-        }
-    }
-    return true;
-}
 
 void VulkanForwardRenderer::createCommandBuffers()
 {
@@ -127,6 +116,8 @@ void VulkanForwardRenderer::render(Camera *cam)
     VkResult err = swapChain.acquireNextImage(sync.presentComplete, &currentBuffer);
     VK_CHECK_RESULT(err);
 
+    submitInfo = vks::initializers::submitInfo();
+    submitInfo.pWaitDstStageMask = &submitPipelineStages;
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &sync.presentComplete;
     submitInfo.signalSemaphoreCount = 1;
@@ -188,37 +179,22 @@ void VulkanForwardRenderer::render(Camera *cam)
 }
 
 
-void VulkanForwardRenderer::prepareFrame()
-{
-
-}
-
-void VulkanForwardRenderer::submitFrame()
-{
-
-
-
-}
 
 VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableValidation)
-    : VulkanRenderer(window), window(window)
+    : VulkanRenderer(window)
 {
-    settings.validation = enableValidation;
 
-    width = window.getWidth();
-    height = window.getHeight();
+    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
 
-    initVulkan();
 
-    if (vulkanDevice->enableDebugMarkers) {
-        vks::debugmarker::setup(device);
-    }
-    initSwapchain();
+
+    depthBuffer.init(vulkanDevice,width,height);
+
+
     createCommandPool();
-    setupSwapChain();
+//    setupSwapChain();
     createCommandBuffers();
     createSynchronizationPrimitives();
-    setupDepthStencil();
     setupRenderPass();
     createPipelineCache();
     setupFrameBuffer();
@@ -230,8 +206,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
-    // Clean up Vulkan resources
-    swapChain.cleanup();
+
     if (descriptorPool != VK_NULL_HANDLE)
     {
         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
@@ -242,9 +217,6 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     {
         vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
     }
-//    vkDestroyImageView(device, depthStencil.view, nullptr);
-//    vkDestroyImage(device, depthStencil.image, nullptr);
-//    vkFreeMemory(device, depthStencil.mem, nullptr);
 
     depthBuffer.destroy();
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
@@ -255,105 +227,7 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     {
         s.destroy(device);
     }
-    //    vkDestroySemaphore(device, semaphores.presentComplete, nullptr);
-    //    vkDestroySemaphore(device, semaphores.renderComplete, nullptr);
-    //    for (auto& fence : waitFences) {
-    //        vkDestroyFence(device, fence, nullptr);
-    //    }
 
-    imGui.reset();
-
-    delete vulkanDevice;
-
-    if (settings.validation)
-    {
-        vks::debug::freeDebugCallback(instance);
-    }
-
-    vkDestroyInstance(instance, nullptr);
-
-}
-
-bool VulkanForwardRenderer::initVulkan()
-{
-    VkResult err;
-
-    std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
-    instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
-    instance.create(instanceExtensions,true);
-
-
-
-    // Physical device
-    uint32_t gpuCount = 0;
-    // Get number of available physical devices
-    VK_CHECK_RESULT(vkEnumeratePhysicalDevices(instance, &gpuCount, nullptr));
-    assert(gpuCount > 0);
-    // Enumerate devices
-    std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
-    err = vkEnumeratePhysicalDevices(instance, &gpuCount, physicalDevices.data());
-    if (err) {
-        vks::tools::exitFatal("Could not enumerate physical devices : \n" + vks::tools::errorString(err), err);
-        return false;
-    }
-
-    // GPU selection
-
-    // Select physical device to be used for the Vulkan example
-    // Defaults to the first device unless specified by command line
-    uint32_t selectedDevice = 0;
-
-
-
-    physicalDevice = physicalDevices[selectedDevice];
-
-    {
-        VkPhysicalDeviceProperties deviceProperties;
-        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-        std::cout << "Device [" << selectedDevice << "] : " << deviceProperties.deviceName << std::endl;
-        std::cout << " Type: " << vks::tools::physicalDeviceTypeString(deviceProperties.deviceType) << std::endl;
-        std::cout << " API: " << (deviceProperties.apiVersion >> 22) << "." << ((deviceProperties.apiVersion >> 12) & 0x3ff) << "." << (deviceProperties.apiVersion & 0xfff) << std::endl;
-    }
-
-    // Store properties (including limits), features and memory properties of the phyiscal device (so that examples can check against them)
-    vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-    vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
-
-
-
-    // Vulkan device creation
-    // This is handled by a separate class that gets a logical device representation
-    // and encapsulates functions related to a device
-    vulkanDevice = new vks::VulkanDevice(physicalDevice);
-    VkResult res = vulkanDevice->createLogicalDevice(enabledFeatures, enabledDeviceExtensions);
-    if (res != VK_SUCCESS) {
-        vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);
-        return false;
-    }
-    device = vulkanDevice->logicalDevice;
-
-    // Get a graphics queue from the device
-    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
-
-    // Find a suitable depth format
-//    VkBool32 validDepthFormat = vks::tools::getSupportedDepthFormat(physicalDevice, &depthFormat);
-//    assert(validDepthFormat);
-
-    swapChain.connect(instance, physicalDevice, device);
-
-    // Set up submit info structure
-    // Semaphores will stay the same during application lifetime
-    // Command buffer submission info is set by each example
-    submitInfo = vks::initializers::submitInfo();
-    submitInfo.pWaitDstStageMask = &submitPipelineStages;
-    //    submitInfo.waitSemaphoreCount = 1;
-    //    submitInfo.pWaitSemaphores = &semaphores.presentComplete;
-    //    submitInfo.signalSemaphoreCount = 1;
-    //    submitInfo.pSignalSemaphores = &semaphores.renderComplete;
-
-
-    return true;
 }
 
 
@@ -383,55 +257,7 @@ void VulkanForwardRenderer::createCommandPool()
     VK_CHECK_RESULT(vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &cmdPool));
 }
 
-void VulkanForwardRenderer::setupDepthStencil()
-{
-#if 0
-    VkImageCreateInfo image = {};
-    image.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    image.pNext = NULL;
-    image.imageType = VK_IMAGE_TYPE_2D;
-    image.format = depthFormat;
-    image.extent = { width, height, 1 };
-    image.mipLevels = 1;
-    image.arrayLayers = 1;
-    image.samples = VK_SAMPLE_COUNT_1_BIT;
-    image.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-    image.flags = 0;
 
-    VkMemoryAllocateInfo mem_alloc = {};
-    mem_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    mem_alloc.pNext = NULL;
-    mem_alloc.allocationSize = 0;
-    mem_alloc.memoryTypeIndex = 0;
-
-    VkImageViewCreateInfo depthStencilView = {};
-    depthStencilView.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    depthStencilView.pNext = NULL;
-    depthStencilView.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    depthStencilView.format = depthFormat;
-    depthStencilView.flags = 0;
-    depthStencilView.subresourceRange = {};
-    depthStencilView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    depthStencilView.subresourceRange.baseMipLevel = 0;
-    depthStencilView.subresourceRange.levelCount = 1;
-    depthStencilView.subresourceRange.baseArrayLayer = 0;
-    depthStencilView.subresourceRange.layerCount = 1;
-
-    VkMemoryRequirements memReqs;
-
-    VK_CHECK_RESULT(vkCreateImage(device, &image, nullptr, &depthStencil.image));
-    vkGetImageMemoryRequirements(device, depthStencil.image, &memReqs);
-    mem_alloc.allocationSize = memReqs.size;
-    mem_alloc.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    VK_CHECK_RESULT(vkAllocateMemory(device, &mem_alloc, nullptr, &depthStencil.mem));
-    VK_CHECK_RESULT(vkBindImageMemory(device, depthStencil.image, depthStencil.mem, 0));
-
-    depthStencilView.image = depthStencil.image;
-    VK_CHECK_RESULT(vkCreateImageView(device, &depthStencilView, nullptr, &depthStencil.view));
-#endif
-    depthBuffer.init(vulkanDevice,width,height);
-}
 
 void VulkanForwardRenderer::setupFrameBuffer()
 {
@@ -534,20 +360,8 @@ void VulkanForwardRenderer::setupRenderPass()
 
 
 
-void VulkanForwardRenderer::initSwapchain()
-{
 
-    //    swapChain.initSurface(sdl_window);
-    VkSurfaceKHR surface;
-    window.createSurface(instance,&surface);
-    swapChain.initSurface(surface);
 
-}
-
-void VulkanForwardRenderer::setupSwapChain()
-{
-    swapChain.create(&width, &height, settings.vsync);
-}
 
 
 }

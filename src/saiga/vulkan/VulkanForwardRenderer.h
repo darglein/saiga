@@ -15,11 +15,7 @@
 #include "VulkanTools.h"
 
 #include "VulkanInitializers.hpp"
-#include "saiga/vulkan/Device.h"
-#include "VulkanSwapChain.hpp"
 
-#include "saiga/vulkan/Instance.h"
-#include "saiga/vulkan/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/window/Window.h"
 #include "saiga/vulkan/Renderer.h"
 
@@ -36,31 +32,8 @@ class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
 {
 
 public:
-    Saiga::Vulkan::VulkanWindow& window;
-    std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
-//    RenderThing* thing = nullptr;
 
-    Saiga::Vulkan::Instance instance;
-    // Physical device (GPU) that Vulkan will ise
-    VkPhysicalDevice physicalDevice;
-    // Stores physical device properties (for e.g. checking device limits)
-    VkPhysicalDeviceProperties deviceProperties;
-    // Stores the features available on the selected physical device (for e.g. checking if a feature is available)
-    VkPhysicalDeviceFeatures deviceFeatures;
-    // Stores all available memory (type) properties for the physical device
-    VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-    /**
-    * Set of physical device features to be enabled for this example (must be set in the derived constructor)
-    *
-    * @note By default no phyiscal device features are enabled
-    */
-    VkPhysicalDeviceFeatures enabledFeatures{};
-    /** @brief Set of device extensions to be enabled for this example (must be set in the derived constructor) */
-    std::vector<const char*> enabledDeviceExtensions;
-    std::vector<const char*> enabledInstanceExtensions;
-    /** @brief Logical device, application's view of the physical device (GPU) */
-    // todo: getter? should always point to VulkanDevice->device
-    VkDevice device;
+
     // Handle to the device graphics queue that command buffers are submitted to
     VkQueue queue;
     // Depth buffer format (selected during Vulkan initialization)
@@ -89,66 +62,22 @@ public:
     // Pipeline cache object
     VkPipelineCache pipelineCache;
     // Wraps the swap chain to present images (framebuffers) to the windowing system
-    VulkanSwapChain swapChain;
+
     // Synchronization semaphores
 
     std::vector<FrameSync> syncObjects;
     unsigned int nextSyncObject = 0;
 
+    std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
 public:
-    uint32_t width = 1280;
-    uint32_t height = 720;
 
 
-    /** @brief Encapsulated physical and logical vulkan device */
-    vks::VulkanDevice *vulkanDevice;
-
-    /** @brief Example settings that can be changed e.g. by command line arguments */
-    struct Settings {
-        /** @brief Activates validation layers (and message output) when set to true */
-        bool validation = false;
-        /** @brief Set to true if fullscreen mode has been requested via command line */
-        bool fullscreen = false;
-        /** @brief Set to true if v-sync will be forced for the swapchain */
-        bool vsync = false;
-        /** @brief Enable UI overlay */
-        bool overlay = false;
-    } settings;
-
-    VkClearColorValue defaultClearColor = { { 0.025f, 0.025f, 0.025f, 1.0f } };
-
-
-    static std::vector<const char*> args;
-
-//    struct
-//    {
-//        VkImage image;
-//        VkDeviceMemory mem;
-//        VkImageView view;
-//    } depthStencil;
-
-    struct {
-        glm::vec2 axisLeft = glm::vec2(0.0f);
-        glm::vec2 axisRight = glm::vec2(0.0f);
-    } gamePadState;
-
-    struct {
-        bool left = false;
-        bool right = false;
-        bool middle = false;
-    } mouseButtons;
-
-    bool quit = false;
-
-
-    // Default ctor
     VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, bool enableValidation = true);
 
     // dtor
     virtual ~VulkanForwardRenderer();
 
-    // Setup the vulkan instance, enable required extensions and connect to the physical device (GPU)
-    bool initVulkan();
+
 
     virtual void render(Camera* cam);
 
@@ -158,8 +87,7 @@ public:
 
     // Creates a new (graphics) command pool object storing command buffers
     void createCommandPool();
-    // Setup default depth and stencil views
-    virtual void setupDepthStencil();
+
     // Create framebuffers for all requested swap chain images
     // Can be overriden in derived class to setup a custom framebuffer (e.g. for MSAA)
     virtual void setupFrameBuffer();
@@ -168,14 +96,6 @@ public:
     virtual void setupRenderPass();
 
 
-
-    // Connect and prepare the swap chain
-    void initSwapchain();
-    // Create swap chain images
-    void setupSwapChain();
-
-    // Check if command buffers are valid (!= VK_NULL_HANDLE)
-    bool checkCommandBuffers();
     // Create command buffers for drawing commands
     void createCommandBuffers();
     // Destroy all command buffers and set their handles to VK_NULL_HANDLE
@@ -193,14 +113,6 @@ public:
     void createPipelineCache();
 
 
-
-    // Prepare the frame for workload submission
-    // - Acquires the next image from the swap chain
-    // - Sets the default wait and signal semaphores
-    void prepareFrame();
-
-    // Submit the frames' workload
-    void submitFrame();
 
 };
 
