@@ -30,13 +30,13 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-find_package(PkgConfig)
+#find_package(PkgConfig)
 
-pkg_check_modules(PC_EGL egl)
+#pkg_check_modules(PC_EGL egl)
 
-if (PC_EGL_FOUND)
-    set(EGL_DEFINITIONS ${PC_EGL_CFLAGS_OTHER})
-endif ()
+#if (PC_EGL_FOUND)
+#    set(EGL_DEFINITIONS ${PC_EGL_CFLAGS_OTHER})
+#endif ()
 
 find_path(EGL_INCLUDE_DIRS NAMES EGL/egl.h
     HINTS ${PC_EGL_INCLUDEDIR} ${PC_EGL_INCLUDE_DIRS}

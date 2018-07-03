@@ -53,7 +53,7 @@ find_package(SDL2 QUIET)
 if (SDL2_FOUND)
 	SET(SAIGA_USE_SDL 1)
 endif()
-PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIRS}" "${SDL2_LIBRARY}")
+PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
 
 
 #GLFW
@@ -231,11 +231,11 @@ PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "
 
 ##### Vulkan #####
 
-find_package(Vulkan REQUIRED)
+find_package(Vulkan QUIET)
 PackageHelper(Vulkan "${VULKAN_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
 
-find_package(GLSLang REQUIRED)
-PackageHelper(GLSLang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
+find_package(GLslang QUIET)
+PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
 
 
 if(${VULKAN_FOUND} AND ${GLSLANG_FOUND} AND ${SDL2_FOUND})
@@ -249,7 +249,7 @@ find_package(Freetype REQUIRED QUIET)
 PackageHelper(Freetype "${FREETYPE_FOUND}" "${FREETYPE_INCLUDE_DIRS}" "${FREETYPE_LIBRARIES}")
 
 #OPENGL
-find_package(OpenGL REQUIRED)
+find_package(OpenGL REQUIRED QUIET)
 PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
 
 #GLM
@@ -262,7 +262,7 @@ if(GLBINDING_FOUND)
 	SET(SAIGA_USE_GLBINDING 1)
 else()
 	#use GLEW as a fallback
-	find_package(GLEW REQUIRED) 
+	find_package(GLEW REQUIRED QUIET) 
 	if(GLEW_FOUND)
 		SET(SAIGA_USE_GLEW 1)
 	else()
