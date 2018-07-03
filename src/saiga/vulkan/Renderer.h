@@ -58,6 +58,8 @@ public:
     VkDevice device;
 
      VulkanSwapChain swapChain;
+
+         VkPipelineCache pipelineCache;
 private:
     void initInstanceDevice();
 };

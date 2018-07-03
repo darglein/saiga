@@ -32,6 +32,11 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window)
     window.createSurface(instance,&surface);
     swapChain.initSurface(surface);
     swapChain.create(&width, &height, false);
+
+
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
+    pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    VK_CHECK_RESULT(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
 }
 
 VulkanRenderer::~VulkanRenderer()

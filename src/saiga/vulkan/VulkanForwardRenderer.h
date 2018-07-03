@@ -21,6 +21,7 @@
 
 #include "saiga/vulkan/FrameSync.h"
 #include "saiga/vulkan/buffer/DepthBuffer.h"
+#include "saiga/vulkan/buffer/Framebuffer.h"
 
 
 
@@ -52,7 +53,7 @@ public:
     // Global render pass for frame buffer writes
     VkRenderPass renderPass;
     // List of available frame buffers (same as number of swap chain images)
-    std::vector<VkFramebuffer>frameBuffers;
+    std::vector<Framebuffer>frameBuffers;
     // Active frame buffer index
     uint32_t currentBuffer = 0;
     // Descriptor set pool
@@ -60,7 +61,7 @@ public:
     // List of shader modules created (stored for cleanup)
     //	std::vector<VkShaderModule> shaderModules;
     // Pipeline cache object
-    VkPipelineCache pipelineCache;
+
     // Wraps the swap chain to present images (framebuffers) to the windowing system
 
     // Synchronization semaphores
@@ -83,14 +84,9 @@ public:
 
 
 
-    void createSynchronizationPrimitives();
-
     // Creates a new (graphics) command pool object storing command buffers
     void createCommandPool();
 
-    // Create framebuffers for all requested swap chain images
-    // Can be overriden in derived class to setup a custom framebuffer (e.g. for MSAA)
-    virtual void setupFrameBuffer();
     // Setup a default render pass
     // Can be overriden in derived class to setup a custom render pass (e.g. for MSAA)
     virtual void setupRenderPass();
@@ -105,12 +101,8 @@ public:
     // Command buffer creation
     // Creates and returns a new command buffer
     VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, bool begin);
-    // End the command buffer, submit it to the queue and free (if requested)
-    // Note : Waits for the queue to become idle
-    void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free);
 
-    // Create a cache pool for rendering pipelines
-    void createPipelineCache();
+
 
 
 

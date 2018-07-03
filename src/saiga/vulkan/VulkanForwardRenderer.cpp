@@ -62,39 +62,6 @@ VkCommandBuffer VulkanForwardRenderer::createCommandBuffer(VkCommandBufferLevel 
     return cmdBuffer;
 }
 
-void VulkanForwardRenderer::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
-{
-    if (commandBuffer == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-    VK_CHECK_RESULT(vkQueueWaitIdle(queue));
-
-    if (free)
-    {
-        vkFreeCommandBuffers(device, cmdPool, 1, &commandBuffer);
-    }
-}
-
-void VulkanForwardRenderer::createPipelineCache()
-{
-    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
-    pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-    VK_CHECK_RESULT(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
-}
-
-
-
-
 
 void VulkanForwardRenderer::render(Camera *cam)
 {
@@ -144,7 +111,7 @@ void VulkanForwardRenderer::render(Camera *cam)
     VkCommandBuffer& cmd = drawCmdBuffers[currentBuffer];
 
     // Set target frame buffer
-    renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer];
+    renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer].framebuffer;
 
     VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
 
@@ -192,12 +159,27 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
 
 
     createCommandPool();
-//    setupSwapChain();
+
+
+    syncObjects.resize(swapChain.imageCount);
+    for (auto& sync : syncObjects)
+    {
+        sync.create(device);
+    }
+
+
+
     createCommandBuffers();
-    createSynchronizationPrimitives();
     setupRenderPass();
-    createPipelineCache();
-    setupFrameBuffer();
+
+
+    frameBuffers.resize(swapChain.imageCount);
+    for (uint32_t i = 0; i < frameBuffers.size(); i++)
+    {
+        frameBuffers[i].createColorDepthStencil(width,height,swapChain.buffers[i].view,depthBuffer.depthview,renderPass,device);
+    }
+
+
     cout << "VulkanForwardRenderer init done." << endl;
 
     imGui = window.createImGui();
@@ -215,7 +197,8 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     vkDestroyRenderPass(device, renderPass, nullptr);
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
     {
-        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
+//        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
+        frameBuffers[i].destroy(device);
     }
 
     depthBuffer.destroy();
@@ -232,22 +215,6 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 
 
 
-
-void VulkanForwardRenderer::createSynchronizationPrimitives()
-{
-
-
-    int numFrames = drawCmdBuffers.size();
-
-    syncObjects.resize(numFrames);
-    for (auto& sync : syncObjects)
-    {
-        sync.create(device);
-    }
-
-
-}
-
 void VulkanForwardRenderer::createCommandPool()
 {
     VkCommandPoolCreateInfo cmdPoolInfo = {};
@@ -259,32 +226,6 @@ void VulkanForwardRenderer::createCommandPool()
 
 
 
-void VulkanForwardRenderer::setupFrameBuffer()
-{
-    VkImageView attachments[2];
-
-    // Depth/Stencil attachment is the same for all frame buffers
-//    attachments[1] = depthStencil.view;
-        attachments[1] = depthBuffer.depthview;
-
-    VkFramebufferCreateInfo frameBufferCreateInfo = {};
-    frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    frameBufferCreateInfo.pNext = NULL;
-    frameBufferCreateInfo.renderPass = renderPass;
-    frameBufferCreateInfo.attachmentCount = 2;
-    frameBufferCreateInfo.pAttachments = attachments;
-    frameBufferCreateInfo.width = width;
-    frameBufferCreateInfo.height = height;
-    frameBufferCreateInfo.layers = 1;
-
-    // Create frame buffers for every swap chain image
-    frameBuffers.resize(swapChain.imageCount);
-    for (uint32_t i = 0; i < frameBuffers.size(); i++)
-    {
-        attachments[0] = swapChain.buffers[i].view;
-        VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &frameBuffers[i]));
-    }
-}
 
 void VulkanForwardRenderer::setupRenderPass()
 {
