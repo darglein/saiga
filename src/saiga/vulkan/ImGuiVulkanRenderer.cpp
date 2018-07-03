@@ -35,6 +35,7 @@ ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 void ImGuiVulkanRenderer::init(SDL_Window *window, float width, float height)
 {
     this->window = window;
+#if 0
     // Color scheme
     ImGuiStyle& style = ImGui::GetStyle();
     style.Colors[ImGuiCol_TitleBg] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
@@ -46,6 +47,7 @@ void ImGuiVulkanRenderer::init(SDL_Window *window, float width, float height)
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(width, height);
     io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+#endif
 }
 
 void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *device, VkRenderPass renderPass, VkQueue copyQueue)
@@ -416,6 +418,48 @@ void ImGuiVulkanRenderer::endFrame()
       ImGui::Render();
 
       updateBuffers();
+}
+
+
+bool ImGuiVulkanRenderer::processEvent(const SDL_Event &event)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    switch (event.type)
+    {
+    case SDL_MOUSEWHEEL:
+    {
+        if (event.wheel.y > 0)
+            g_MouseWheel = 1;
+        if (event.wheel.y < 0)
+            g_MouseWheel = -1;
+        return true;
+    }
+    case SDL_MOUSEBUTTONDOWN:
+    {
+        if (event.button.button == SDL_BUTTON_LEFT) g_MousePressed[0] = true;
+        if (event.button.button == SDL_BUTTON_RIGHT) g_MousePressed[1] = true;
+        if (event.button.button == SDL_BUTTON_MIDDLE) g_MousePressed[2] = true;
+        return true;
+    }
+    case SDL_TEXTINPUT:
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        io.AddInputCharactersUTF8(event.text.text);
+        return true;
+    }
+    case SDL_KEYDOWN:
+    case SDL_KEYUP:
+    {
+        int key = event.key.keysym.sym & ~SDLK_SCANCODE_MASK;
+        io.KeysDown[key] = (event.type == SDL_KEYDOWN);
+        io.KeyShift = ((SDL_GetModState() & KMOD_SHIFT) != 0);
+        io.KeyCtrl = ((SDL_GetModState() & KMOD_CTRL) != 0);
+        io.KeyAlt = ((SDL_GetModState() & KMOD_ALT) != 0);
+        io.KeySuper = ((SDL_GetModState() & KMOD_GUI) != 0);
+        return true;
+    }
+    }
+    return false;
 }
 
 }

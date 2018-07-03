@@ -17,13 +17,14 @@
 
 #include "VulkanBuffer.hpp"
 #include "saiga/vulkan/Device.h"
+#include <saiga/sdl/sdl_eventhandler.h>
 
 typedef struct SDL_Window SDL_Window;
 
 namespace Saiga {
 namespace Vulkan {
 
-class SAIGA_GLOBAL ImGuiVulkanRenderer
+class SAIGA_GLOBAL ImGuiVulkanRenderer : public SDL_EventListener
 {
 public:
     ~ImGuiVulkanRenderer();
@@ -72,6 +73,7 @@ protected:
     float        g_MouseWheel = 0.0f;
     // Update vertex and index buffer containing the imGui elements when required
     void updateBuffers();
+    virtual bool processEvent(const SDL_Event& event) override;
 };
 
 }

@@ -22,7 +22,7 @@ using namespace Saiga;
 
 
 
-class Sample :  public Updating, public Rendering, public SDL_KeyListener
+class Sample :  public Updating, public ForwardRenderingInterface, public SDL_KeyListener
 {
 public:
     SDLCamera<PerspectiveCamera> camera;

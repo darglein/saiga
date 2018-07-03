@@ -11,9 +11,13 @@ layout (location = 3) in vec4 inData;
 layout (binding = 0) uniform UBO 
 {
 	mat4 projection;
-	mat4 model;
+	mat4 view;
 	vec4 lightPos;
 } ubo;
+
+layout (push_constant) uniform PushConstants {
+	mat4 model;
+} pushConstants;
 
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
@@ -29,11 +33,11 @@ void main()
 {
 	outNormal = vec3(inNormal);
 	outColor = vec3(inColor);
-	gl_Position = ubo.projection * ubo.model * vec4(inPos.xyz, 1.0);
+	gl_Position = ubo.projection * ubo.view * pushConstants.model * vec4(inPos.xyz, 1.0);
 	
-	vec4 pos = ubo.model * vec4(vec3(inPos), 1.0);
-	outNormal = mat3(ubo.model) * vec3(inNormal);
-	vec3 lPos = mat3(ubo.model) * ubo.lightPos.xyz;
-	outLightVec = lPos - pos.xyz;
+	vec4 pos = ubo.view * pushConstants.model * vec4(vec3(inPos), 1.0);
+	outNormal = mat3(ubo.view * pushConstants.model) * vec3(inNormal);
+	vec3 lPos = mat3(ubo.view) * ubo.lightPos.xyz;
+	outLightVec = lPos;//lPos;// - pos.xyz;
 	outViewVec = -pos.xyz;		
 }

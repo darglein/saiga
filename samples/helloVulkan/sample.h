@@ -26,11 +26,13 @@ public:
     virtual void renderGUI() override;
 private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
-    Saiga::Vulkan::VulkanVertexColoredAsset teapot;
+
+    Saiga::Object3D teapotTrans;
+    Saiga::Vulkan::VulkanVertexColoredAsset teapot,plane;
     Saiga::Vulkan::AssetRenderer assetRenderer;
 
     Saiga::Vulkan::VulkanForwardRenderer &renderer;
 
-     bool displayModels = true;
+    bool displayModels = true;
 };
 

@@ -20,6 +20,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     float aspect = window.getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
     camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
+    camera.rotationPoint = vec3(0);
 
     //Set the camera from which view the scene is rendered
     window.setCamera(&camera);

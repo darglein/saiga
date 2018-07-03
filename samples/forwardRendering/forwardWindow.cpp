@@ -17,7 +17,7 @@
 
 
 Sample::Sample(OpenGLWindow &window, Renderer &renderer)
-    : Updating(window), Rendering(renderer)
+    : Updating(window), ForwardRenderingInterface(renderer)
 {
     //create a perspective camera
     float aspect = window.getAspectRatio();

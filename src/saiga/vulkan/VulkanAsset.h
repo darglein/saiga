@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "saiga/assets/VertexColoredModel.h"
 #include "saiga/vulkan/Asset.h"
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Device.h"
@@ -15,7 +16,7 @@
 namespace Saiga {
 namespace Vulkan {
 
-class SAIGA_GLOBAL VulkanVertexColoredAsset : public VertexColoredAsset
+class SAIGA_GLOBAL VulkanVertexColoredAsset : public VertexColoredModel
 {
 public:
     VkDevice device = nullptr;

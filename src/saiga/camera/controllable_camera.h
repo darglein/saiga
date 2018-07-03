@@ -96,8 +96,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy)
         point = rotationPoint;
     }
 
-    mouseRotateAroundPoint(dx,dy,point);
-//    mouseRotateAroundPoint(dx,dy,point,vec3(0,1,0));
+    mouseRotateAroundPoint(-dx,-dy,point);
 }
 
 

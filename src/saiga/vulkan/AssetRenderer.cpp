@@ -30,6 +30,11 @@ void AssetRenderer::bind(VkCommandBuffer cmd)
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 }
 
+void AssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
+{
+    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model[0][0]);
+}
+
 void AssetRenderer::prepareUniformBuffers(vks::VulkanDevice *vulkanDevice)
 {
     // Vertex shader uniform buffer block
@@ -63,7 +68,10 @@ void AssetRenderer::setupLayoutsAndDescriptors(VkDevice device)
     VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
 
     // Pipeline layout
+    VkPushConstantRange pushConstantRange = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(mat4), 0);
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
+    pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pPipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
     VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 
     // Descriptor set
@@ -152,7 +160,7 @@ void AssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
     // Vertex shader
     uboVS.projection = proj;
     uboVS.modelview = view;
-    uboVS.lightPos = vec4(0,5,0,0);
+    uboVS.lightPos = vec4(5,5,5,0);
 
 
 

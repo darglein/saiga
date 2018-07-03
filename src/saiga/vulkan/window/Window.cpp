@@ -5,6 +5,9 @@
  */
 
 #include "Window.h"
+#include "saiga/imgui/imgui.h"
+#include "saiga/camera/camera.h"
+#include "saiga/util/tostring.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -24,7 +27,34 @@ VulkanWindow::~VulkanWindow()
 
 void VulkanWindow::renderImGui(bool *p_open)
 {
+    if(!showImgui)
+        return;
 
+    p_open = &showImgui;
+
+    int w = 340;
+    int h = 240;
+    ImGui::SetNextWindowPos(ImVec2(0, getHeight() - h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(w,h), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("OpenGLWindow",&showImgui);
+
+    mainLoop.renderImGuiInline();
+
+
+    ImGui::Text("Camera Position: %s" , to_string(currentCamera->getPosition()).c_str());
+    ImGui::Text("Camera Direction: %s" , to_string(-vec3(currentCamera->getDirection())).c_str());
+    if(ImGui::Button("Printf camera"))
+    {
+        cout << "camera.position = vec4" << currentCamera->position << ";" << endl;
+        cout << "camera.rot = quat" << currentCamera->rot << ";" << endl;
+        //        createTRSmatrix()
+    }
+
+
+
+    ImGui::Checkbox("showRendererImgui",&showRendererImgui);
+
+    ImGui::End();
 }
 
 void VulkanWindow::swap()

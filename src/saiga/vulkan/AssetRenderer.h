@@ -27,6 +27,8 @@ public:
 
     void bind(VkCommandBuffer cmd);
 
+    void pushModel(VkCommandBuffer cmd, mat4 model);
+
     void prepareUniformBuffers(vks::VulkanDevice* vulkanDevice);
     void preparePipelines(VkDevice device, VkPipelineCache pipelineCache, VkRenderPass renderPass);
     void setupLayoutsAndDescriptors(VkDevice device);
