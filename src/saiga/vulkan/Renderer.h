@@ -23,6 +23,9 @@ class SAIGA_GLOBAL VulkanRenderer : public RendererBase
 {
 public:
 
+    VkDevice device;
+    vks::VulkanDevice *vulkanDevice;
+    VkPipelineCache pipelineCache;
 
 
     VulkanRenderer(VulkanWindow &window);
@@ -30,7 +33,7 @@ public:
 
     virtual void render(Camera *cam) {}
     virtual void bindCamera(Camera* cam){}
-public:
+protected:
 
     /**
      * Shared Member variables common for all vulkan render engines.
@@ -42,24 +45,14 @@ public:
     uint32_t width = 1280;
     uint32_t height = 720;
 
-
-    /** @brief Encapsulated physical and logical vulkan device */
-    vks::VulkanDevice *vulkanDevice;
-
     Saiga::Vulkan::Instance instance;
-    // Physical device (GPU) that Vulkan will ise
     VkPhysicalDevice physicalDevice;
 
 
     std::vector<const char*> enabledDeviceExtensions;
     std::vector<const char*> enabledInstanceExtensions;
-    /** @brief Logical device, application's view of the physical device (GPU) */
-    // todo: getter? should always point to VulkanDevice->device
-    VkDevice device;
+    VulkanSwapChain swapChain;
 
-     VulkanSwapChain swapChain;
-
-         VkPipelineCache pipelineCache;
 private:
     void initInstanceDevice();
 };

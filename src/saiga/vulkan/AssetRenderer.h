@@ -12,37 +12,31 @@
 #include "saiga/vulkan/Device.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
-#include "saiga/vulkan/Shader/Shader.h"
+#include "saiga/vulkan/Pipeline.h"
+
 
 namespace Saiga {
 namespace Vulkan {
 
 
 
-class SAIGA_GLOBAL AssetRenderer
+class SAIGA_GLOBAL AssetRenderer : public Pipeline
 {
 public:
-    void init();
     void destroy();
 
 
-    void bind(VkCommandBuffer cmd);
 
+    void bind(vk::CommandBuffer cmd);
     void pushModel(VkCommandBuffer cmd, mat4 model);
+    void updateUniformBuffers(glm::mat4 view, glm::mat4 proj);
+
+    void init(vks::VulkanDevice* vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass);
 
     void prepareUniformBuffers(vks::VulkanDevice* vulkanDevice);
     void preparePipelines(VkDevice device, VkPipelineCache pipelineCache, VkRenderPass renderPass);
-    void setupLayoutsAndDescriptors(VkDevice device);
-    void updateUniformBuffers(glm::mat4 view, glm::mat4 proj);
+    void setupLayoutsAndDescriptors();
 private:
-    VkDevice device;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline pipeline;
-    VkDescriptorSetLayout descriptorSetLayout;
-    VkDescriptorSet descriptorSet;
-    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-    Saiga::Vulkan::ShaderPipeline shaderPipeline;
-
     struct UBOVS {
         glm::mat4 projection;
         glm::mat4 modelview;

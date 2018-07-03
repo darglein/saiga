@@ -10,6 +10,7 @@
 #include "VulkanForwardRenderer.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "VulkanDebug.h"
+#include "VulkanInitializers.hpp"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
@@ -20,130 +21,6 @@ namespace Saiga {
 namespace Vulkan {
 
 
-
-void VulkanForwardRenderer::createCommandBuffers()
-{
-    // Create one command buffer for each swap chain image and reuse for rendering
-    drawCmdBuffers.resize(swapChain.imageCount);
-
-    VkCommandBufferAllocateInfo cmdBufAllocateInfo =
-            vks::initializers::commandBufferAllocateInfo(
-                cmdPool,
-                VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                static_cast<uint32_t>(drawCmdBuffers.size()));
-
-    VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, drawCmdBuffers.data()));
-}
-
-void VulkanForwardRenderer::destroyCommandBuffers()
-{
-    vkFreeCommandBuffers(device, cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
-}
-
-VkCommandBuffer VulkanForwardRenderer::createCommandBuffer(VkCommandBufferLevel level, bool begin)
-{
-    VkCommandBuffer cmdBuffer;
-
-    VkCommandBufferAllocateInfo cmdBufAllocateInfo =
-            vks::initializers::commandBufferAllocateInfo(
-                cmdPool,
-                level,
-                1);
-
-    VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &cmdBuffer));
-
-    // If requested, also start the new command buffer
-    if (begin)
-    {
-        VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-        VK_CHECK_RESULT(vkBeginCommandBuffer(cmdBuffer, &cmdBufInfo));
-    }
-
-    return cmdBuffer;
-}
-
-
-void VulkanForwardRenderer::render(Camera *cam)
-{
-    VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
-    SAIGA_ASSERT(renderingInterface);
-
-    //    cout << "VulkanForwardRenderer::render" << endl;
-    imGui->beginFrame();
-    renderingInterface->renderGUI();
-    imGui->endFrame();
-
-
-
-    FrameSync& sync = syncObjects[nextSyncObject];
-
-    sync.wait(device);
-
-
-    VkResult err = swapChain.acquireNextImage(sync.presentComplete, &currentBuffer);
-    VK_CHECK_RESULT(err);
-
-    submitInfo = vks::initializers::submitInfo();
-    submitInfo.pWaitDstStageMask = &submitPipelineStages;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &sync.presentComplete;
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &sync.renderComplete;
-
-
-    VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-    VkClearValue clearValues[2];
-    vec4 clearColor(0.4,0.8,1.0,1.0);
-    clearValues[0].color = { { clearColor.x,clearColor.y,clearColor.z,clearColor.w} };
-    clearValues[1].depthStencil = { 1.0f, 0 };
-
-    VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-    renderPassBeginInfo.renderPass = renderPass;
-    renderPassBeginInfo.renderArea.offset.x = 0;
-    renderPassBeginInfo.renderArea.offset.y = 0;
-    renderPassBeginInfo.renderArea.extent.width = width;
-    renderPassBeginInfo.renderArea.extent.height = height;
-    renderPassBeginInfo.clearValueCount = 2;
-    renderPassBeginInfo.pClearValues = clearValues;
-
-
-    VkCommandBuffer& cmd = drawCmdBuffers[currentBuffer];
-
-    // Set target frame buffer
-    renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer].framebuffer;
-
-    VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
-
-    vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-
-    {
-        // Actual rendering
-        renderingInterface->render(cmd);
-        imGui->render(cmd);
-    }
-
-    vkCmdEndRenderPass(cmd);
-
-    VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
-
-
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmd;
-    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, sync.frameFence));
-
-    VK_CHECK_RESULT(swapChain.queuePresent(queue, currentBuffer,  sync.renderComplete));
-    VK_CHECK_RESULT(vkQueueWaitIdle(queue));
-
-    nextSyncObject = (nextSyncObject+1) % syncObjects.size();
-}
 
 
 
@@ -158,7 +35,11 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
     depthBuffer.init(vulkanDevice,width,height);
 
 
-    createCommandPool();
+    VkCommandPoolCreateInfo cmdPoolInfo = {};
+    cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    cmdPoolInfo.queueFamilyIndex = swapChain.queueNodeIndex;
+    cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    VK_CHECK_RESULT(vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &cmdPool));
 
 
     syncObjects.resize(swapChain.imageCount);
@@ -168,8 +49,14 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
     }
 
 
+    drawCmdBuffers.resize(swapChain.imageCount);
+    VkCommandBufferAllocateInfo cmdBufAllocateInfo =
+            vks::initializers::commandBufferAllocateInfo(
+                cmdPool,
+                VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                static_cast<uint32_t>(drawCmdBuffers.size()));
+    VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, drawCmdBuffers.data()));
 
-    createCommandBuffers();
     setupRenderPass();
 
 
@@ -193,7 +80,7 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     {
         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     }
-    destroyCommandBuffers();
+
     vkDestroyRenderPass(device, renderPass, nullptr);
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
     {
@@ -214,15 +101,6 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 }
 
 
-
-void VulkanForwardRenderer::createCommandPool()
-{
-    VkCommandPoolCreateInfo cmdPoolInfo = {};
-    cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    cmdPoolInfo.queueFamilyIndex = swapChain.queueNodeIndex;
-    cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    VK_CHECK_RESULT(vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &cmdPool));
-}
 
 
 
@@ -300,6 +178,91 @@ void VulkanForwardRenderer::setupRenderPass()
 }
 
 
+
+
+void VulkanForwardRenderer::render(Camera *cam)
+{
+    VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
+    SAIGA_ASSERT(renderingInterface);
+
+    //    cout << "VulkanForwardRenderer::render" << endl;
+    imGui->beginFrame();
+    renderingInterface->renderGUI();
+    imGui->endFrame();
+
+
+
+    FrameSync& sync = syncObjects[nextSyncObject];
+
+    sync.wait(device);
+
+
+    VkResult err = swapChain.acquireNextImage(sync.presentComplete, &currentBuffer);
+    VK_CHECK_RESULT(err);
+
+    VkSubmitInfo submitInfo;
+    submitInfo = vks::initializers::submitInfo();
+    VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    submitInfo.pWaitDstStageMask = &submitPipelineStages;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &sync.presentComplete;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &sync.renderComplete;
+
+
+    VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
+
+    VkClearValue clearValues[2];
+    vec4 clearColor(0.4,0.8,1.0,1.0);
+    clearValues[0].color = { { clearColor.x,clearColor.y,clearColor.z,clearColor.w} };
+    clearValues[1].depthStencil = { 1.0f, 0 };
+
+    VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
+    renderPassBeginInfo.renderPass = renderPass;
+    renderPassBeginInfo.renderArea.offset.x = 0;
+    renderPassBeginInfo.renderArea.offset.y = 0;
+    renderPassBeginInfo.renderArea.extent.width = width;
+    renderPassBeginInfo.renderArea.extent.height = height;
+    renderPassBeginInfo.clearValueCount = 2;
+    renderPassBeginInfo.pClearValues = clearValues;
+
+
+    VkCommandBuffer& cmd = drawCmdBuffers[currentBuffer];
+
+    // Set target frame buffer
+    renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer].framebuffer;
+
+    VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
+
+    vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+
+    {
+        // Actual rendering
+        renderingInterface->render(cmd);
+        imGui->render(cmd);
+    }
+
+    vkCmdEndRenderPass(cmd);
+
+    VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
+
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd;
+    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, sync.frameFence));
+
+    VK_CHECK_RESULT(swapChain.queuePresent(queue, currentBuffer,  sync.renderComplete));
+    VK_CHECK_RESULT(vkQueueWaitIdle(queue));
+
+    nextSyncObject = (nextSyncObject+1) % syncObjects.size();
+}
 
 
 

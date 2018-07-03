@@ -34,11 +34,7 @@ VulkanExample::~VulkanExample()
 
 void VulkanExample::init()
 {
-
-    assetRenderer.prepareUniformBuffers(renderer.vulkanDevice);
-
-    assetRenderer.setupLayoutsAndDescriptors(renderer.device);
-    assetRenderer.preparePipelines(renderer.device,renderer.pipelineCache,renderer.renderPass);
+    assetRenderer.init(renderer.vulkanDevice,renderer.pipelineCache,renderer.renderPass);
 
 
     teapot.loadObj("objs/teapot.obj");

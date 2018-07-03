@@ -8,12 +8,21 @@ layout (location = 1) in vec4 inNormal;
 layout (location = 2) in vec4 inColor;
 layout (location = 3) in vec4 inData;
 
-layout (binding = 0) uniform UBO 
+
+layout (binding = 5) uniform UBO 
+{
+	mat4 projection;
+	mat4 view;
+	vec4 lightPos;
+} ubo2;
+
+layout (binding = 7) uniform UBO2 
 {
 	mat4 projection;
 	mat4 view;
 	vec4 lightPos;
 } ubo;
+
 
 layout (push_constant) uniform PushConstants {
 	mat4 model;
