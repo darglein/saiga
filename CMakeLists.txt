@@ -19,7 +19,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ############# Build Options ###############
 
-message("Build Options")
+message(STATUS "\nBuild Options")
 
 
 #option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON) 
@@ -46,7 +46,7 @@ include(Saiga_compiler_flags)
 ############# Optional Libraries ###############
 
 
-message("\nSearching for installed libaries...")
+message(STATUS "\nSearching for installed libaries...")
 
 ### SDL2 ###
 find_package(SDL2 QUIET)
@@ -313,14 +313,14 @@ elseif(WIN32)
 endif()
 
 
-message("\nCompiler Flags:")
+message(STATUS "\nCompiler Flags:")
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 
 if(CUDA_FOUND)
-message("\nCUDA Compiler Flags:")
+message(STATUS "\nCUDA Compiler Flags:")
 message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 message(STATUS "CMAKE_CUDA_FLAGS_DEBUG: ${CMAKE_CUDA_FLAGS_DEBUG}")
 message(STATUS "CMAKE_CUDA_FLAGS_RELWITHDEBINFO: ${CMAKE_CUDA_FLAGS_RELWITHDEBINFO}")
@@ -358,7 +358,6 @@ write_basic_package_version_file(
 ############# SOURCE ###############
 
 
-message("")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
@@ -367,10 +366,10 @@ add_subdirectory(src/saiga)
 add_subdirectory(shader)
 
 if(SAIGA_BUILD_SAMPLES)
-	message(STATUS "Building samples.")
+	message(STATUS "\nBuilding samples.")
 	add_subdirectory(samples)
 else()
-	message(STATUS "No samples.")
+	message(STATUS "\nNo samples.")
 endif()
 
 set_target_properties (saiga PROPERTIES FOLDER lib)
