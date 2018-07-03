@@ -116,6 +116,8 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers){
 
     volumetricInjection.emplace_back(GL_FRAGMENT_SHADER,
                                      "#define VOLUMETRIC",3);
+
+    volumetricInjection.insert(volumetricInjection.end(),shadowInjection.begin(),shadowInjection.end());
 }
 
 void DeferredLighting::resize(int _width, int _height)
@@ -446,10 +448,12 @@ void DeferredLighting::setupLightPass(bool isVolumetric){
 
 
 
-void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow){
+void DeferredLighting::renderDirectionalLights(Camera *cam,bool shadow)
+{
+    if(directionalLights.empty()) return;
 
     std::shared_ptr<DirectionalLightShader>  shader = (shadow)?directionalLightShadowShader:directionalLightShader;
-
+    SAIGA_ASSERT(shader);
     shader->bind();
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vec2(width,height));
@@ -680,7 +684,7 @@ void DeferredLighting::createLightMeshes(){
 
 std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight()
 {
-    if(!spotLightShader)
+    if(!directionalLightShader)
     {
         const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
         directionalLightShader = ShaderLoader::instance()->load<DirectionalLightShader>(names.directionalLightShader);
@@ -694,7 +698,7 @@ std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight()
 
 std::shared_ptr<PointLight> DeferredLighting::createPointLight()
 {
-    if(!spotLightShader)
+    if(!pointLightShader)
     {
         const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
         pointLightShader = ShaderLoader::instance()->load<PointLightShader>(names.pointLightShader);
@@ -724,7 +728,7 @@ std::shared_ptr<SpotLight> DeferredLighting::createSpotLight()
 
 std::shared_ptr<BoxLight> DeferredLighting::createBoxLight()
 {
-    if(!spotLightShader)
+    if(!boxLightShader)
     {
         const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
         boxLightShader = ShaderLoader::instance()->load<BoxLightShader>(names.boxLightShader);

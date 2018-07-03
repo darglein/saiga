@@ -103,24 +103,21 @@ void ObjMaterialLoader::parseLine(const std::string &line)
         restStream >> currentMaterial->Ke;
     }
     else if(header == "map_Ka"){
-        currentMaterial->map_Ka = TextureLoader::instance()->load(rest);
-        if(currentMaterial->map_Ka) currentMaterial->map_Ka->setWrap(GL_REPEAT);
+        currentMaterial->map_Ka = rest;
     }else if(header == "map_Kd"){
-        currentMaterial->map_Kd = TextureLoader::instance()->load(rest);
-        if(currentMaterial->map_Kd) currentMaterial->map_Kd->setWrap(GL_REPEAT);
+        currentMaterial->map_Kd = rest;
     }else if(header == "map_Ks"){
-        currentMaterial->map_Ks = TextureLoader::instance()->load(rest);
-        if(currentMaterial->map_Ks) currentMaterial->map_Ks->setWrap(GL_REPEAT);
+        currentMaterial->map_Ks = rest;
     }else if(header == "map_d"){
-        TextureParameters tp;
-        tp.srgb = false;
-        currentMaterial->map_d = TextureLoader::instance()->load(rest,tp);
-        if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
+//        TextureParameters tp;
+//        tp.srgb = false;
+        currentMaterial->map_d = rest;
+//        if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
     }else if(header == "map_bump" || header == "bump"){
-        TextureParameters tp;
-        tp.srgb = false;
-        currentMaterial->map_bump = TextureLoader::instance()->load(rest,tp);
-        if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
+//        TextureParameters tp;
+//        tp.srgb = false;
+        currentMaterial->map_bump = rest;
+//        if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
     }
 }
 

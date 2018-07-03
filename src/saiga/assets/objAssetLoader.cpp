@@ -89,7 +89,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
         TexturedAsset::TextureGroup tg;
         tg.indices = otg.faces * 3;
         tg.startIndex = otg.startFace * 3;
-        tg.texture = otg.material.map_Kd;
+        tg.texture = TextureLoader::instance()->load(otg.material.map_Kd);
         if(tg.texture){
             tg.texture->setWrap(GL_REPEAT);
             tg.texture->generateMipmaps();
