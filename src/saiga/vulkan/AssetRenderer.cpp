@@ -9,7 +9,9 @@
 #include "saiga/vulkan/Vertex.h"
 #include "saiga/assets/model/objModelLoader.h"
 
-
+#if defined(SAIGA_OPENGL_INCLUDED)
+#error OpenGL was included somewhere.
+#endif
 
 namespace Saiga {
 namespace Vulkan {

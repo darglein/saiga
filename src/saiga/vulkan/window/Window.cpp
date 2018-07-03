@@ -9,6 +9,11 @@
 #include "saiga/camera/camera.h"
 #include "saiga/util/tostring.h"
 
+#if defined(SAIGA_OPENGL_INCLUDED)
+#error OpenGL was included somewhere.
+#endif
+
+
 namespace Saiga {
 namespace Vulkan {
 

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,38 +8,41 @@
 
 #include <saiga/config.h>
 #include <saiga/geometry/triangle_mesh.h>
-#include <saiga/opengl/texture/texture.h>
 #include "saiga/assets/model/objMaterialLoader.h"
 
 namespace Saiga {
 
 #define INVALID_VERTEX_ID -911365965
-struct SAIGA_GLOBAL IndexedVertex2{
+struct SAIGA_GLOBAL IndexedVertex2
+{
     int v=INVALID_VERTEX_ID;
     int n=INVALID_VERTEX_ID;
-            int t=INVALID_VERTEX_ID;
+    int t=INVALID_VERTEX_ID;
 };
 
 
 
-struct SAIGA_GLOBAL ObjTriangleGroup{
+struct SAIGA_GLOBAL ObjTriangleGroup
+{
     int startFace = 0;
     int faces = 0;
     ObjMaterial material;
 };
 
-struct SAIGA_GLOBAL ObjTriangle{
-    GLuint v[3];
+struct SAIGA_GLOBAL ObjTriangle
+{
+    uint32_t v[3];
 };
 
-class SAIGA_GLOBAL ObjLoader2{
+class SAIGA_GLOBAL ObjModelLoader
+{
 public:
     std::string file;
     bool verbose = false;
 
 public:
-    ObjLoader2(){}
-    ObjLoader2(const std::string &file);
+    ObjModelLoader(){}
+    ObjModelLoader(const std::string &file);
 
 
 

@@ -41,7 +41,7 @@ void VertexColoredModel::createCheckerBoard(glm::ivec2 size, float quadSize, vec
 
 void VertexColoredModel::loadObj(const std::string &file)
 {
-    Saiga::ObjLoader2 loader(file);
+    Saiga::ObjModelLoader loader(file);
     loader.computeVertexColorAndData();
     loader.toTriangleMesh(mesh);
 }

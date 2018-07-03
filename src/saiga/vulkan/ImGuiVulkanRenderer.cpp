@@ -11,6 +11,10 @@
 #include "saiga/imgui/imgui.h"
 #include "saiga/vulkan/Shader/Shader.h"
 
+#if defined(SAIGA_OPENGL_INCLUDED)
+#error OpenGL was included somewhere.
+#endif
+
 namespace Saiga {
 namespace Vulkan {
 

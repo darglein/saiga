@@ -26,7 +26,7 @@ void ObjAssetLoader::loadMeshNC(const std::string &file, TriangleMesh<VertexNC, 
     mesh.vertices.clear();
     mesh.faces.clear();
 
-    ObjLoader2 ol(file);
+    ObjModelLoader ol(file);
     TriangleMesh<VertexNC,GLuint> &tmesh = mesh;
 
     for(ObjTriangle &oj : ol.outTriangles){
@@ -67,7 +67,7 @@ std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string &
 
 std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::string &file, bool normalize)
 {
-    ObjLoader2 ol(file);
+    ObjModelLoader ol(file);
 
     //    TexturedAsset* asset = new TexturedAsset();
     std::shared_ptr<TexturedAsset> asset = std::make_shared<TexturedAsset>();

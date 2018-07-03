@@ -10,6 +10,10 @@
 #include <saiga/imgui/imgui.h>
 #include "saiga/util/color.h"
 
+#if defined(SAIGA_OPENGL_INCLUDED)
+#error OpenGL was included somewhere.
+#endif
+
 VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan::VulkanForwardRenderer &renderer)
     :  Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), renderer(renderer)
 {

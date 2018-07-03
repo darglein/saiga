@@ -6,24 +6,25 @@
 
 #include "objModelLoader.h"
 #include "saiga/util/fileChecker.h"
+#include "saiga/util/tostring.h"
 
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 
+#if defined(SAIGA_VULKAN_INCLUDED) || defined(SAIGA_OPENGL_INCLUDED)
+#error This module must be independent of any graphics API.
+#endif
+
 namespace Saiga {
 
-std::vector<std::string> split(const std::string &s, char delim);
 
-
-//======================================================================
-
-ObjLoader2::ObjLoader2(const std::string &file):file(file)
+ObjModelLoader::ObjModelLoader(const std::string &file):file(file)
 {
     loadFile(file);
 }
 
-bool ObjLoader2::loadFile(const std::string &_file){
+bool ObjModelLoader::loadFile(const std::string &_file){
 	this->file = _file;
     std::ifstream stream(file, std::ios::in);
     if(!stream.is_open())
@@ -68,7 +69,7 @@ bool ObjLoader2::loadFile(const std::string &_file){
     return true;
 }
 
-void ObjLoader2::separateVerticesByGroup()
+void ObjModelLoader::separateVerticesByGroup()
 {
     //make sure faces from different triangle groups do not reference the same vertex
     //needs to be called after createVertexIndexList()
@@ -100,7 +101,7 @@ void ObjLoader2::separateVerticesByGroup()
 
 }
 
-void ObjLoader2::calculateMissingNormals()
+void ObjModelLoader::calculateMissingNormals()
 {
     for(auto tri : outTriangles)
     {
@@ -119,7 +120,7 @@ void ObjLoader2::calculateMissingNormals()
     }
 }
 
-void ObjLoader2::computeVertexColorAndData()
+void ObjModelLoader::computeVertexColorAndData()
 {
 
     vertexColors.resize(outVertices.size(),vec4(1));
@@ -141,7 +142,7 @@ void ObjLoader2::computeVertexColorAndData()
     }
 }
 
-void ObjLoader2::toTriangleMesh(TriangleMesh<VertexNC, uint32_t> &mesh)
+void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t> &mesh)
 {
     SAIGA_ASSERT(vertexColors.size() == outVertices.size());
 
@@ -164,7 +165,7 @@ void ObjLoader2::toTriangleMesh(TriangleMesh<VertexNC, uint32_t> &mesh)
 
 }
 
-void ObjLoader2::createVertexIndexList()
+void ObjModelLoader::createVertexIndexList()
 {
     std::vector<bool> vertices_used(vertices.size(),false);
 
@@ -215,7 +216,7 @@ void ObjLoader2::createVertexIndexList()
     }
 }
 
-std::vector<std::vector<IndexedVertex2> > ObjLoader2::triangulateFace(const std::vector<IndexedVertex2> &f)
+std::vector<std::vector<IndexedVertex2> > ObjModelLoader::triangulateFace(const std::vector<IndexedVertex2> &f)
 {
     std::vector<std::vector<IndexedVertex2>> newFaces;
 
@@ -244,7 +245,7 @@ std::vector<std::vector<IndexedVertex2> > ObjLoader2::triangulateFace(const std:
     return newFaces;
 }
 
-void ObjLoader2::parseLine(const std::string &line)
+void ObjModelLoader::parseLine(const std::string &line)
 {
     std::stringstream sstream(line);
 
@@ -282,7 +283,7 @@ void ObjLoader2::parseLine(const std::string &line)
     }
 }
 
-void ObjLoader2::parseV(const std::string &line)
+void ObjModelLoader::parseV(const std::string &line)
 {
     std::stringstream sstream(line);
     vec3 v;
@@ -290,7 +291,7 @@ void ObjLoader2::parseV(const std::string &line)
     vertices.push_back(v);
 }
 
-void ObjLoader2::parseVT(const std::string &line)
+void ObjModelLoader::parseVT(const std::string &line)
 {
     std::stringstream sstream(line);
     vec2 v;
@@ -298,7 +299,7 @@ void ObjLoader2::parseVT(const std::string &line)
     texCoords.push_back(v);
 }
 
-void ObjLoader2::parseVN(const std::string &line)
+void ObjModelLoader::parseVN(const std::string &line)
 {
     std::stringstream sstream(line);
     vec3 v;
@@ -306,7 +307,7 @@ void ObjLoader2::parseVN(const std::string &line)
     normals.push_back(glm::normalize(v));
 }
 
-void ObjLoader2::parseF(std::string &line)
+void ObjModelLoader::parseF(std::string &line)
 {
 
     //    std::replace( line.begin(), line.end(), '/', ' ');
@@ -349,7 +350,7 @@ void ObjLoader2::parseF(std::string &line)
 //examples:
 //v1/vt1/vn1        12/51/1
 //v1//vn1           51//4
-IndexedVertex2 ObjLoader2::parseIV(std::string &line)
+IndexedVertex2 ObjModelLoader::parseIV(std::string &line)
 {
     IndexedVertex2 iv;
     std::vector<std::string> s = split(line, '/');
@@ -362,7 +363,7 @@ IndexedVertex2 ObjLoader2::parseIV(std::string &line)
     return iv;
 }
 
-void ObjLoader2::parseUM(const std::string &line)
+void ObjModelLoader::parseUM(const std::string &line)
 {
     //finish current group and create new one
     if(!triangleGroups.empty()){
@@ -377,7 +378,7 @@ void ObjLoader2::parseUM(const std::string &line)
 
 }
 
-void ObjLoader2::parseM(const std::string &line)
+void ObjModelLoader::parseM(const std::string &line)
 {
     FileChecker fc;
     materialLoader.loadFile(fc.getRelative(file,line));

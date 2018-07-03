@@ -16,7 +16,7 @@ namespace Vulkan {
 
 void VertexColoredAsset::load(const std::string &file)
 {
-    Saiga::ObjLoader2 loader(file);
+    Saiga::ObjModelLoader loader(file);
     loader.computeVertexColorAndData();
     loader.toTriangleMesh(mesh);
 }
