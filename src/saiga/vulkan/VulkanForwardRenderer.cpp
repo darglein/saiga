@@ -107,18 +107,32 @@ void VulkanForwardRenderer::render(Camera *cam)
     VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-//    cout << "VulkanForwardRenderer::render" << endl;
+    //    cout << "VulkanForwardRenderer::render" << endl;
     imGui->beginFrame();
     renderingInterface->renderGUI();
     imGui->endFrame();
 
-    VulkanForwardRenderer::prepareFrame();
+
+
+    FrameSync& sync = syncObjects[nextSyncObject];
+
+    sync.wait(device);
+
+
+    VkResult err = swapChain.acquireNextImage(sync.presentComplete, &currentBuffer);
+    VK_CHECK_RESULT(err);
+
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &sync.presentComplete;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &sync.renderComplete;
 
 
     VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
 
     VkClearValue clearValues[2];
-    clearValues[0].color = { { 0.2f, 0.2f, 0.2f, 1.0f} };
+    vec4 clearColor(0.4,0.8,1.0,1.0);
+    clearValues[0].color = { { clearColor.x,clearColor.y,clearColor.z,clearColor.w} };
     clearValues[1].depthStencil = { 1.0f, 0 };
 
     VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
@@ -131,61 +145,54 @@ void VulkanForwardRenderer::render(Camera *cam)
     renderPassBeginInfo.pClearValues = clearValues;
 
 
+    VkCommandBuffer& cmd = drawCmdBuffers[currentBuffer];
 
-    for (uint32_t i = 0; i < drawCmdBuffers.size(); ++i)
+    // Set target frame buffer
+    renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer];
+
+    VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
+
+    vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+
     {
-        // Set target frame buffer
-        renderPassBeginInfo.framebuffer = frameBuffers[i];
-
-        VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-
-        vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-        VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-        vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-
-        VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
-        vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-
-//        thing->render(drawCmdBuffers[i]);
-
-        renderingInterface->render(drawCmdBuffers[i]);
-        // Render imGui
-        imGui->render(drawCmdBuffers[i]);
-
-        vkCmdEndRenderPass(drawCmdBuffers[i]);
-
-        VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
+        // Actual rendering
+        renderingInterface->render(cmd);
+        imGui->render(cmd);
     }
+
+    vkCmdEndRenderPass(cmd);
+
+    VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
+
+
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-    VulkanForwardRenderer::submitFrame();
+    submitInfo.pCommandBuffers = &cmd;
+    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, sync.frameFence));
+
+    VK_CHECK_RESULT(swapChain.queuePresent(queue, currentBuffer,  sync.renderComplete));
+    VK_CHECK_RESULT(vkQueueWaitIdle(queue));
+
+    nextSyncObject = (nextSyncObject+1) % syncObjects.size();
 }
 
 
 void VulkanForwardRenderer::prepareFrame()
 {
-    // Acquire the next image from the swap chain
-    VkResult err = swapChain.acquireNextImage(semaphores.presentComplete, &currentBuffer);
-    // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
-    if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_SUBOPTIMAL_KHR)) {
-        //		windowResize();
-        SAIGA_ASSERT(0);
-    }
-    else {
-        VK_CHECK_RESULT(err);
-    }
+
 }
 
 void VulkanForwardRenderer::submitFrame()
 {
 
 
-    VK_CHECK_RESULT(swapChain.queuePresent(queue, currentBuffer,  semaphores.renderComplete));
 
-    VK_CHECK_RESULT(vkQueueWaitIdle(queue));
 }
 
 VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableValidation)
@@ -238,12 +245,15 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 
     vkDestroyCommandPool(device, cmdPool, nullptr);
 
-    vkDestroySemaphore(device, semaphores.presentComplete, nullptr);
-    vkDestroySemaphore(device, semaphores.renderComplete, nullptr);
-    vkDestroySemaphore(device, semaphores.overlayComplete, nullptr);
-    for (auto& fence : waitFences) {
-        vkDestroyFence(device, fence, nullptr);
+    for(auto& s : syncObjects)
+    {
+        s.destroy(device);
     }
+    //    vkDestroySemaphore(device, semaphores.presentComplete, nullptr);
+    //    vkDestroySemaphore(device, semaphores.renderComplete, nullptr);
+    //    for (auto& fence : waitFences) {
+    //        vkDestroyFence(device, fence, nullptr);
+    //    }
 
     delete vulkanDevice;
 
@@ -324,28 +334,15 @@ bool VulkanForwardRenderer::initVulkan()
 
     swapChain.connect(instance, physicalDevice, device);
 
-    // Create synchronization objects
-    VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
-    // Create a semaphore used to synchronize image presentation
-    // Ensures that the image is displayed before we start submitting new commands to the queu
-    VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.presentComplete));
-    // Create a semaphore used to synchronize command submission
-    // Ensures that the image is not presented until all commands have been sumbitted and executed
-    VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
-    // Create a semaphore used to synchronize command submission
-    // Ensures that the image is not presented until all commands for the UI overlay have been sumbitted and executed
-    // Will be inserted after the render complete semaphore if the UI overlay is enabled
-    VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.overlayComplete));
-
     // Set up submit info structure
     // Semaphores will stay the same during application lifetime
     // Command buffer submission info is set by each example
     submitInfo = vks::initializers::submitInfo();
     submitInfo.pWaitDstStageMask = &submitPipelineStages;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &semaphores.presentComplete;
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &semaphores.renderComplete;
+    //    submitInfo.waitSemaphoreCount = 1;
+    //    submitInfo.pWaitSemaphores = &semaphores.presentComplete;
+    //    submitInfo.signalSemaphoreCount = 1;
+    //    submitInfo.pSignalSemaphores = &semaphores.renderComplete;
 
 
     return true;
@@ -356,12 +353,17 @@ bool VulkanForwardRenderer::initVulkan()
 
 void VulkanForwardRenderer::createSynchronizationPrimitives()
 {
-    // Wait fences to sync command buffer access
-    VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-    waitFences.resize(drawCmdBuffers.size());
-    for (auto& fence : waitFences) {
-        VK_CHECK_RESULT(vkCreateFence(device, &fenceCreateInfo, nullptr, &fence));
+
+
+    int numFrames = drawCmdBuffers.size();
+
+    syncObjects.resize(numFrames);
+    for (auto& sync : syncObjects)
+    {
+        sync.create(device);
     }
+
+
 }
 
 void VulkanForwardRenderer::createCommandPool()

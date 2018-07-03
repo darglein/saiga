@@ -23,6 +23,8 @@
 #include "saiga/vulkan/window/Window.h"
 #include "saiga/vulkan/Renderer.h"
 
+#include "saiga/vulkan/FrameSync.h"
+
 
 
 namespace Saiga {
@@ -85,15 +87,10 @@ public:
     // Wraps the swap chain to present images (framebuffers) to the windowing system
     VulkanSwapChain swapChain;
     // Synchronization semaphores
-    struct {
-        // Swap chain image presentation
-        VkSemaphore presentComplete;
-        // Command buffer submission and execution
-        VkSemaphore renderComplete;
-        // UI overlay submission and execution
-        VkSemaphore overlayComplete;
-    } semaphores;
-    std::vector<VkFence> waitFences;
+
+    std::vector<FrameSync> syncObjects;
+    unsigned int nextSyncObject = 0;
+
 public:
     uint32_t width = 1280;
     uint32_t height = 720;
