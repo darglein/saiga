@@ -28,6 +28,8 @@ public:
     void render(VkCommandBuffer cmd);
 
     void updateBuffer(vks::VulkanDevice *device, VkQueue copyQueue);
+
+    void destroy();
 };
 
 }

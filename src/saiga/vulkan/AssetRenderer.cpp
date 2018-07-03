@@ -22,7 +22,9 @@ void AssetRenderer::destroy()
     vkDestroyPipeline(device, pipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    vkDestroyDescriptorPool(device,descriptorPool,nullptr);
     uniformBufferVS.destroy();
+    shaderPipeline.destroy(device);
 
 }
 
@@ -53,6 +55,7 @@ void AssetRenderer::prepareUniformBuffers(vks::VulkanDevice *vulkanDevice)
 
 void AssetRenderer::setupLayoutsAndDescriptors(VkDevice device)
 {
+    this->device = device;
     // descriptor pool
     std::vector<VkDescriptorPoolSize> poolSizes = {
         vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2),
@@ -146,7 +149,6 @@ void AssetRenderer::preparePipelines(VkDevice device, VkPipelineCache pipelineCa
     VkPipelineVertexInputStateCreateInfo vertexInputState = vi;
     pipelineCreateInfo.pVertexInputState = &vertexInputState;
 
-    Saiga::Vulkan::ShaderPipeline shaderPipeline;
     shaderPipeline.load(device,{
                                 "vulkan/scene.vert",
                                 "vulkan/scene.frag"

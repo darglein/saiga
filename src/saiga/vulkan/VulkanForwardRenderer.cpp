@@ -260,6 +260,8 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     //        vkDestroyFence(device, fence, nullptr);
     //    }
 
+    imGui.reset();
+
     delete vulkanDevice;
 
     if (settings.validation)

@@ -22,6 +22,8 @@ public:
 
     void load(vk::Device device, std::vector<std::string> shaders);
     void loadGLSL(vk::Device device, std::vector<std::pair<std::string, vk::ShaderStageFlagBits> > shaders);
+
+    void destroy(vk::Device device);
 private:
     std::vector<vk::PipelineShaderStageCreateInfo> pipelineInfo;
 

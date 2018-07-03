@@ -34,6 +34,7 @@ ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
     vkDestroyPipelineLayout(device->logicalDevice, pipelineLayout, nullptr);
     vkDestroyDescriptorPool(device->logicalDevice, descriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(device->logicalDevice, descriptorSetLayout, nullptr);
+    shaderPipeline.destroy(device->logicalDevice);
 }
 
 void ImGuiVulkanRenderer::init(SDL_Window *window, float width, float height)
@@ -271,7 +272,6 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *device, VkRenderPass 
 
     pipelineCreateInfo.pVertexInputState = &vertexInputState;
 
-    Saiga::Vulkan::ShaderPipeline shaderPipeline;
     shaderPipeline.load(device->logicalDevice,{
                                 "vulkan/ui.vert",
                                 "vulkan/ui.frag"

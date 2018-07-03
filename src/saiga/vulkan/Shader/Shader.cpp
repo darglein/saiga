@@ -32,6 +32,14 @@ void ShaderPipeline::loadGLSL(vk::Device device, std::vector<std::pair<std::stri
     }
 }
 
+void ShaderPipeline::destroy(vk::Device device)
+{
+    for(auto& s : modules)
+    {
+        s.destroy(device);
+    }
+}
+
 void ShaderPipeline::addToPipeline(VkGraphicsPipelineCreateInfo &pipelineCreateInfo)
 {
     createPipelineInfo();

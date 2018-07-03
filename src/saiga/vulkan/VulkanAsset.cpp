@@ -86,6 +86,14 @@ void VulkanVertexColoredAsset::updateBuffer(vks::VulkanDevice *device, VkQueue c
     vkFreeMemory(device->logicalDevice, indexStaging.memory, nullptr);
 }
 
+void VulkanVertexColoredAsset::destroy()
+{
+    vertices.destroy();
+    indices.destroy();
+    vertexCount = 0;
+    indexCount = 0;
+}
+
 
 
 }

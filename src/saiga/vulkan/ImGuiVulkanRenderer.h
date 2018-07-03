@@ -18,6 +18,7 @@
 #include "VulkanBuffer.hpp"
 #include "saiga/vulkan/Device.h"
 #include <saiga/sdl/sdl_eventhandler.h>
+#include "saiga/vulkan/Shader/Shader.h"
 
 typedef struct SDL_Window SDL_Window;
 
@@ -67,6 +68,8 @@ protected:
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorSet descriptorSet;
     vks::VulkanDevice *device;
+
+    Saiga::Vulkan::ShaderPipeline shaderPipeline;
 
     double       g_Time = 0.0f;
     bool         g_MousePressed[3];

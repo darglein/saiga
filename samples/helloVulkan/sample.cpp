@@ -27,6 +27,9 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan:
 
 VulkanExample::~VulkanExample()
 {
+    teapot.destroy();
+    plane.destroy();
+    assetRenderer.destroy();
 }
 
 void VulkanExample::init()

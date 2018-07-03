@@ -12,6 +12,7 @@
 #include "saiga/vulkan/Device.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
+#include "saiga/vulkan/Shader/Shader.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -40,6 +41,7 @@ private:
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorSet descriptorSet;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+    Saiga::Vulkan::ShaderPipeline shaderPipeline;
 
     struct UBOVS {
         glm::mat4 projection;

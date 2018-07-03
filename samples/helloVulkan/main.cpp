@@ -19,13 +19,9 @@ int main(const int argc, const char *argv[])
 
     Saiga::Vulkan::VulkanForwardRenderer renderer(window,true);
 
-//    std::this_thread::sleep_for(std::chrono::seconds(3));
-//    return 0;
 
     VulkanExample example(window,renderer);
     example.init();
-
-
     window.startMainLoop();
 
     return 0;
