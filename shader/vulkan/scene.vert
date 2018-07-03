@@ -9,11 +9,9 @@ layout (location = 2) in vec4 inColor;
 layout (location = 3) in vec4 inData;
 
 
-layout (binding = 5) uniform UBO 
+layout (binding = 5) uniform test 
 {
 	mat4 projection;
-	mat4 view;
-	vec4 lightPos;
 } ubo2;
 
 layout (binding = 7) uniform UBO2 
@@ -42,7 +40,7 @@ void main()
 {
 	outNormal = vec3(inNormal);
 	outColor = vec3(inColor);
-	gl_Position = ubo.projection * ubo.view * pushConstants.model * vec4(inPos.xyz, 1.0);
+	gl_Position = ubo2.projection * ubo.view * pushConstants.model * vec4(inPos.xyz, 1.0);
 	
 	vec4 pos = ubo.view * pushConstants.model * vec4(vec3(inPos), 1.0);
 	outNormal = mat3(ubo.view * pushConstants.model) * vec3(inNormal);

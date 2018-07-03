@@ -34,7 +34,7 @@ public:
     void init(vks::VulkanDevice* vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass);
 
     void prepareUniformBuffers(vks::VulkanDevice* vulkanDevice);
-    void preparePipelines(VkDevice device, VkPipelineCache pipelineCache, VkRenderPass renderPass);
+//    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
     void setupLayoutsAndDescriptors();
 private:
     struct UBOVS {
@@ -44,6 +44,8 @@ private:
     } uboVS;
 
     vks::Buffer uniformBufferVS;
+    vks::Buffer uniformBufferVS2;
+    std::vector<vk::DescriptorSet>       descriptorSet;
 };
 
 

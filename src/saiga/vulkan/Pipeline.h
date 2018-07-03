@@ -23,7 +23,7 @@ protected:
     VkPipeline pipeline;
 
     std::vector<vk::DescriptorSetLayout> descriptorSetLayout;
-    std::vector<vk::DescriptorSet>       descriptorSet;
+
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     Saiga::Vulkan::ShaderPipeline shaderPipeline;
@@ -33,7 +33,10 @@ protected:
 
     void createDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings);
 
-    void createPipelineLayout();
+    void createPipelineLayout(std::vector<vk::PushConstantRange> pushConstantRanges);
+
+    void createDescriptorPool(int maxDescriptorSets, std::vector<vk::DescriptorPoolSize> poolSizes);
+    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
 };
 
 
