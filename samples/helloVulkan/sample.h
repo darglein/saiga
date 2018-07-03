@@ -13,7 +13,7 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/window/Interfaces.h"
 
-class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface
+class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface, public Saiga::SDL_KeyListener
 {
 public:
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
@@ -34,5 +34,9 @@ private:
     Saiga::Vulkan::VulkanForwardRenderer &renderer;
 
     bool displayModels = true;
+
+
+    void keyPressed(SDL_Keysym key) override;
+    void keyReleased(SDL_Keysym key) override;
 };
 

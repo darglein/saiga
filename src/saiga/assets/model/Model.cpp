@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/assets/Model.h"
+#include "Model.h"
 
 #if defined(SAIGA_VULKAN_INCLUDED) || defined(SAIGA_OPENGL_INCLUDED)
 #error This module must be independent of any graphics API.

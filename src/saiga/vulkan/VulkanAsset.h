@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "saiga/assets/VertexColoredModel.h"
+#include "saiga/assets/model/Models.h"
 #include "saiga/vulkan/Asset.h"
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Device.h"

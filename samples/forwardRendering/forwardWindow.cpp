@@ -11,10 +11,6 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/imgui/imgui.h"
 
-#include "saiga/assets/plyLoader.h"
-
-
-
 
 Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     : Updating(window), ForwardRenderingInterface(renderer)

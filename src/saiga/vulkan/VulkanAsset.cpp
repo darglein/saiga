@@ -7,7 +7,7 @@
 #include "VulkanAsset.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
-#include "saiga/animation/objLoader2.h"
+#include "saiga/assets/model/objModelLoader.h"
 
 
 

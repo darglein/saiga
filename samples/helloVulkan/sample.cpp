@@ -77,3 +77,21 @@ void VulkanExample::renderGUI()
     ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
     ImGui::ShowTestWindow();
 }
+
+
+void VulkanExample::keyPressed(SDL_Keysym key)
+{
+    switch(key.scancode){
+    case SDL_SCANCODE_ESCAPE:
+        parentWindow.close();
+        break;
+    default:
+        break;
+    }
+}
+
+void VulkanExample::keyReleased(SDL_Keysym key)
+{
+}
+
+

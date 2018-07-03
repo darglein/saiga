@@ -9,7 +9,7 @@
 #include <saiga/config.h>
 #include <saiga/geometry/triangle_mesh.h>
 #include <saiga/opengl/texture/texture.h>
-#include <saiga/animation/objMaterialLoader.h>
+#include "saiga/assets/model/objMaterialLoader.h"
 
 namespace Saiga {
 

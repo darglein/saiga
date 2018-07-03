@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/animation/objMaterialLoader.h"
+#include "objMaterialLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include <fstream>
 #include <sstream>

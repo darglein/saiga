@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/assets/plyLoader.h"
+#include "plyModelLoader.h"
 #include "saiga/util/color.h"
 #include <algorithm>
 

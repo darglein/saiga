@@ -8,7 +8,7 @@
 
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/assets/plyLoader.h"
+#include "saiga/assets/model/plyModelLoader.h"
 
 namespace Saiga {
 

@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/animation/objLoader2.h"
+#include "objModelLoader.h"
 #include "saiga/util/fileChecker.h"
 
 #include <fstream>
