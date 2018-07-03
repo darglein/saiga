@@ -11,7 +11,7 @@
 #pragma once
 
 #include <vector>
-#include "vulkan/vulkan.h"
+#include "saiga/vulkan/svulkan.h"
 
 namespace vks
 {

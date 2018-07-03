@@ -24,6 +24,7 @@
 #include "saiga/vulkan/Renderer.h"
 
 #include "saiga/vulkan/FrameSync.h"
+#include "saiga/vulkan/buffer/DepthBuffer.h"
 
 
 
@@ -63,7 +64,10 @@ public:
     // Handle to the device graphics queue that command buffers are submitted to
     VkQueue queue;
     // Depth buffer format (selected during Vulkan initialization)
-    VkFormat depthFormat;
+//    VkFormat depthFormat;
+
+    DepthBuffer depthBuffer;
+
     // Command buffer pool
     VkCommandPool cmdPool;
     /** @brief Pipeline stages used to wait at for graphics queue submissions */
@@ -116,12 +120,12 @@ public:
 
     static std::vector<const char*> args;
 
-    struct
-    {
-        VkImage image;
-        VkDeviceMemory mem;
-        VkImageView view;
-    } depthStencil;
+//    struct
+//    {
+//        VkImage image;
+//        VkDeviceMemory mem;
+//        VkImageView view;
+//    } depthStencil;
 
     struct {
         glm::vec2 axisLeft = glm::vec2(0.0f);

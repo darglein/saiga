@@ -242,10 +242,11 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     {
         vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
     }
-    vkDestroyImageView(device, depthStencil.view, nullptr);
-    vkDestroyImage(device, depthStencil.image, nullptr);
-    vkFreeMemory(device, depthStencil.mem, nullptr);
+//    vkDestroyImageView(device, depthStencil.view, nullptr);
+//    vkDestroyImage(device, depthStencil.image, nullptr);
+//    vkFreeMemory(device, depthStencil.mem, nullptr);
 
+    depthBuffer.destroy();
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
     vkDestroyCommandPool(device, cmdPool, nullptr);
@@ -336,8 +337,8 @@ bool VulkanForwardRenderer::initVulkan()
     vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
 
     // Find a suitable depth format
-    VkBool32 validDepthFormat = vks::tools::getSupportedDepthFormat(physicalDevice, &depthFormat);
-    assert(validDepthFormat);
+//    VkBool32 validDepthFormat = vks::tools::getSupportedDepthFormat(physicalDevice, &depthFormat);
+//    assert(validDepthFormat);
 
     swapChain.connect(instance, physicalDevice, device);
 
@@ -384,6 +385,7 @@ void VulkanForwardRenderer::createCommandPool()
 
 void VulkanForwardRenderer::setupDepthStencil()
 {
+#if 0
     VkImageCreateInfo image = {};
     image.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image.pNext = NULL;
@@ -427,6 +429,8 @@ void VulkanForwardRenderer::setupDepthStencil()
 
     depthStencilView.image = depthStencil.image;
     VK_CHECK_RESULT(vkCreateImageView(device, &depthStencilView, nullptr, &depthStencil.view));
+#endif
+    depthBuffer.init(vulkanDevice,width,height);
 }
 
 void VulkanForwardRenderer::setupFrameBuffer()
@@ -434,7 +438,8 @@ void VulkanForwardRenderer::setupFrameBuffer()
     VkImageView attachments[2];
 
     // Depth/Stencil attachment is the same for all frame buffers
-    attachments[1] = depthStencil.view;
+//    attachments[1] = depthStencil.view;
+        attachments[1] = depthBuffer.depthview;
 
     VkFramebufferCreateInfo frameBufferCreateInfo = {};
     frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -468,7 +473,7 @@ void VulkanForwardRenderer::setupRenderPass()
     attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     // Depth attachment
-    attachments[1].format = depthFormat;
+    attachments[1].format = (VkFormat)depthBuffer.depthFormat;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
