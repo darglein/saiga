@@ -111,9 +111,9 @@ else ()
     else ()
         # (*)NIX
         
-        find_package(Threads REQUIRED)
+        find_package(Threads REQUIRED QUIET)
 
-        find_package(X11 REQUIRED)
+        find_package(X11 REQUIRED QUIET)
         
         if(NOT X11_Xrandr_FOUND)
             message(FATAL_ERROR "Xrandr library not found - required for GLFW")

@@ -161,7 +161,7 @@ IF(SDL2_LIBRARY_TEMP)
 ENDIF(SDL2_LIBRARY_TEMP)
 
 
-message(STATUS "Found SDL: ${SDL2_INCLUDE_DIR} SDL libraries: ${SDL2_LIBRARY}")
+#message(STATUS "Found SDL: ${SDL2_INCLUDE_DIR} SDL libraries: ${SDL2_LIBRARY}")
 
 INCLUDE(FindPackageHandleStandardArgs)
 
