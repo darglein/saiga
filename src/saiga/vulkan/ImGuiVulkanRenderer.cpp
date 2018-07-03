@@ -276,7 +276,10 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *device, VkRenderPass 
                                 "vulkan/ui.vert",
                                 "vulkan/ui.frag"
                             });
-    shaderPipeline.addToPipeline(pipelineCreateInfo);
+
+    vk::GraphicsPipelineCreateInfo pipelineCreateInfo2 = pipelineCreateInfo;
+    shaderPipeline.addToPipeline(pipelineCreateInfo2);
+    pipelineCreateInfo = pipelineCreateInfo2;
 
     VK_CHECK_RESULT(vkCreateGraphicsPipelines(device->logicalDevice, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
 }

@@ -40,12 +40,12 @@ void ShaderPipeline::destroy(vk::Device device)
     }
 }
 
-void ShaderPipeline::addToPipeline(VkGraphicsPipelineCreateInfo &pipelineCreateInfo)
+void ShaderPipeline::addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo)
 {
     createPipelineInfo();
 
     pipelineCreateInfo.stageCount = pipelineInfo.size();
-    pipelineCreateInfo.pStages = ( const VkPipelineShaderStageCreateInfo*)pipelineInfo.data();
+    pipelineCreateInfo.pStages = pipelineInfo.data();
 
 }
 

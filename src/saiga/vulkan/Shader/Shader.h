@@ -18,7 +18,7 @@ class SAIGA_GLOBAL ShaderPipeline
 public:
     std::vector<ShaderModule> modules;
 
-    void addToPipeline(VkGraphicsPipelineCreateInfo& pipelineCreateInfo);
+    void addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo);
 
     void load(vk::Device device, std::vector<std::string> shaders);
     void loadGLSL(vk::Device device, std::vector<std::pair<std::string, vk::ShaderStageFlagBits> > shaders);

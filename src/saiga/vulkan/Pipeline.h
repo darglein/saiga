@@ -19,8 +19,8 @@ class SAIGA_GLOBAL Pipeline
 public:
 protected:
     vk::Device device;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline pipeline;
+    vk::PipelineLayout pipelineLayout;
+    vk::Pipeline pipeline;
 
     std::vector<vk::DescriptorSetLayout> descriptorSetLayout;
 
@@ -36,7 +36,7 @@ protected:
     void createPipelineLayout(std::vector<vk::PushConstantRange> pushConstantRanges);
 
     void createDescriptorPool(int maxDescriptorSets, std::vector<vk::DescriptorPoolSize> poolSizes);
-    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
+    void preparePipelines(VkPipelineCache pipelineCache, vk::RenderPass renderPass);
 };
 
 

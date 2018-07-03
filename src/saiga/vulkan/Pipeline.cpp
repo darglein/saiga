@@ -25,20 +25,20 @@ void Pipeline::destroy()
 
 void Pipeline::createDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings)
 {
-//    VkDescriptorSetLayoutCreateInfo descriptorLayout =
-//            vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
+    //    VkDescriptorSetLayoutCreateInfo descriptorLayout =
+    //            vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
     vk::DescriptorSetLayoutCreateInfo descriptorLayout(vk::DescriptorSetLayoutCreateFlags(),setLayoutBindings.size(),setLayoutBindings.data());
 
     descriptorSetLayout.resize(1);
     descriptorSetLayout[0] = device.createDescriptorSetLayout(descriptorLayout);
-//    vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout[0]);
+    //    vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout[0]);
 
 }
 
 void Pipeline::createPipelineLayout(std::vector<vk::PushConstantRange> pushConstantRanges )
 {
     // Pipeline layout
-//    VkPushConstantRange pushConstantRange = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(mat4), 0);
+    //    VkPushConstantRange pushConstantRange = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(mat4), 0);
 
 
 
@@ -50,9 +50,9 @@ void Pipeline::createPipelineLayout(std::vector<vk::PushConstantRange> pushConst
                 pushConstantRanges.size(),
                 pushConstantRanges.data()
                 );// = vks::initializers::pipelineLayoutCreateInfo(descriptorSetLayout.data(), descriptorSetLayout.size());
-//    pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-//    pPipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
-//    vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+    //    pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    //    pPipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+    //    vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout);
     pipelineLayout = device.createPipelineLayout(pPipelineLayoutCreateInfo);
 
     SAIGA_ASSERT(pipelineLayout);
@@ -67,53 +67,49 @@ void Pipeline::createDescriptorPool(int maxDescriptorSets, std::vector<vk::Descr
     descriptorPool = device.createDescriptorPool(descriptorPoolInfo);
     SAIGA_ASSERT(descriptorPool);
 
-//    VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, numDescriptorSets);
+    //    VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, numDescriptorSets);
     //    VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 }
 
 
-void Pipeline::preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass)
+void Pipeline::preparePipelines(VkPipelineCache pipelineCache, vk::RenderPass renderPass)
 {
+    vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState(vk::PipelineInputAssemblyStateCreateFlags(), vk::PrimitiveTopology::eTriangleList, false);
 
-    // Rendering
-    VkPipelineInputAssemblyStateCreateInfo inputAssemblyState =
-            vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0,	VK_FALSE);
+    vk::PipelineRasterizationStateCreateInfo rasterizationState(
+                vk::PipelineRasterizationStateCreateFlags(), false , false,
+                vk::PolygonMode::eLine, vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise,
+                false, 0,0,0,1);
 
-    VkPipelineRasterizationStateCreateInfo rasterizationState =
-            vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    vk::PipelineColorBlendAttachmentState blendAttachmentState(
+                false, vk::BlendFactor::eZero, vk::BlendFactor::eZero,
+                vk::BlendOp::eAdd, vk::BlendFactor::eZero, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+                vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |vk::ColorComponentFlagBits::eA);
 
-    VkPipelineColorBlendAttachmentState blendAttachmentState =
-            vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
+    vk::PipelineColorBlendStateCreateInfo colorBlendState(
+                vk::PipelineColorBlendStateCreateFlags(),
+                false, vk::LogicOp::eClear, 1, &blendAttachmentState, { { 0, 0, 0, 0 } });
 
-    VkPipelineColorBlendStateCreateInfo colorBlendState =
-            vks::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
 
-    VkPipelineDepthStencilStateCreateInfo depthStencilState =
-            vks::initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+    vk::PipelineDepthStencilStateCreateInfo depthStencilState(vk::PipelineDepthStencilStateCreateFlags(),
+                                                              true, true, vk::CompareOp::eLessOrEqual, false, false, vk::StencilOpState(), vk::StencilOpState(), 0, 0);
 
-    VkPipelineViewportStateCreateInfo viewportState =
-            vks::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
-    VkPipelineMultisampleStateCreateInfo multisampleState =
-            vks::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT);
+    vk::PipelineViewportStateCreateInfo viewportState(vk::PipelineViewportStateCreateFlags(),
+                                                      1, nullptr, 1, nullptr);
 
-    std::vector<VkDynamicState> dynamicStateEnables = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
+    vk::PipelineMultisampleStateCreateInfo multisampleState(vk::PipelineMultisampleStateCreateFlags(), vk::SampleCountFlagBits::e1, 0, 0, nullptr, 0, 0);
+
+    std::vector<vk::DynamicState> dynamicStateEnables = {
+
+        vk::DynamicState::eViewport,
+        vk::DynamicState::eScissor
     };
-    VkPipelineDynamicStateCreateInfo dynamicState =
-            vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
+
+    vk::PipelineDynamicStateCreateInfo dynamicState(vk::PipelineDynamicStateCreateFlags(), dynamicStateEnables.size(), dynamicStateEnables.data());
 
 
-    VkGraphicsPipelineCreateInfo pipelineCreateInfo = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass);
-
-    pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
-    pipelineCreateInfo.pRasterizationState = &rasterizationState;
-    pipelineCreateInfo.pColorBlendState = &colorBlendState;
-    pipelineCreateInfo.pMultisampleState = &multisampleState;
-    pipelineCreateInfo.pViewportState = &viewportState;
-    pipelineCreateInfo.pDepthStencilState = &depthStencilState;
-    pipelineCreateInfo.pDynamicState = &dynamicState;
+    vk::PipelineTessellationStateCreateInfo tessellationState(vk::PipelineTessellationStateCreateFlags(), 0);
 
     vk::VertexInputBindingDescription vi_binding;
     std::vector<vk::VertexInputAttributeDescription> vi_attribs;
@@ -122,24 +118,40 @@ void Pipeline::preparePipelines(VkPipelineCache pipelineCache, VkRenderPass rend
     va.getVKAttribs(vi_binding,vi_attribs);
 
     vk::PipelineVertexInputStateCreateInfo vi;
-    //    vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    //    vi.pNext = NULL;
-    //    vi.flags = 0;
+
     vi.vertexBindingDescriptionCount = 1;
     vi.pVertexBindingDescriptions = &vi_binding;
     vi.vertexAttributeDescriptionCount = vi_attribs.size();
     vi.pVertexAttributeDescriptions = vi_attribs.data();
 
-    VkPipelineVertexInputStateCreateInfo vertexInputState = vi;
-    pipelineCreateInfo.pVertexInputState = &vertexInputState;
 
-    shaderPipeline.load(device,{
-                            "vulkan/scene.vert",
-                            "vulkan/scene.frag"
-                        });
+    vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
+                vk::PipelineCreateFlags(),
+                0,
+                nullptr,
+                &vi,
+                &inputAssemblyState,
+                &tessellationState,
+                &viewportState,
+                &rasterizationState,
+                &multisampleState,
+                &depthStencilState,
+                &colorBlendState,
+                &dynamicState,
+                pipelineLayout,
+                renderPass,
+                0,
+                vk::Pipeline(),
+                0
+                );
+
+
+
     shaderPipeline.addToPipeline(pipelineCreateInfo);
 
-    vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline);
+    //    vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline);
+    pipeline = device.createGraphicsPipeline(pipelineCache,pipelineCreateInfo);
+    SAIGA_ASSERT(pipeline);
 }
 
 }

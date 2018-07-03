@@ -20,7 +20,27 @@ class SAIGA_GLOBAL VKVertexAttribBinder
 {
 public:
     void getVKAttribs(vk::VertexInputBindingDescription& vi_binding, std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
+
+    vk::PipelineVertexInputStateCreateInfo createPipelineVertexInputInfo();
 };
+
+
+template<typename VertexType>
+vk::PipelineVertexInputStateCreateInfo VKVertexAttribBinder<VertexType>::createPipelineVertexInputInfo()
+{
+    vk::VertexInputBindingDescription vi_binding;
+    std::vector<vk::VertexInputAttributeDescription> vi_attribs;
+
+    getVKAttribs(vi_binding,vi_attribs);
+
+    vk::PipelineVertexInputStateCreateInfo vi;
+
+    vi.vertexBindingDescriptionCount = 1;
+    vi.pVertexBindingDescriptions = &vi_binding;
+    vi.vertexAttributeDescriptionCount = vi_attribs.size();
+    vi.pVertexAttributeDescriptions = vi_attribs.data();
+    return vi;
+}
 
 
 

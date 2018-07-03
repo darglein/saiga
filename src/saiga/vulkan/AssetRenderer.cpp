@@ -64,6 +64,12 @@ void AssetRenderer::init(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipeli
 
     prepareUniformBuffers(vulkanDevice);
     setupLayoutsAndDescriptors();
+
+    shaderPipeline.load(device,{
+                            "vulkan/scene.vert",
+                            "vulkan/scene.frag"
+                        });
+
     preparePipelines(pipelineCache,renderPass);
 }
 
