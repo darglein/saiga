@@ -73,6 +73,7 @@ void SDLWindow::create()
         SAIGA_ASSERT(0);
     }
 
+
     sdl_window = SDL_CreateWindow("asdf", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowParameters.width, windowParameters.height, SDL_WINDOW_VULKAN );
     if(!sdl_window)
     {

@@ -153,9 +153,14 @@ void freeDebugCallback(VkInstance instance)
 
 std::vector<const char *> getDebugValidationLayers()
 {
+#ifdef __APPLE__
+    // lunarg validation not supported on moltenvk
+    return {};
+#else
     return {
         "VK_LAYER_LUNARG_standard_validation"
     };
+#endif
 
 }
 

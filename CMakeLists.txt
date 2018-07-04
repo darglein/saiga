@@ -231,7 +231,7 @@ PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "
 
 ##### Vulkan #####
 
-find_package(Vulkan QUIET)
+find_package(Vulkan REQUIRED)
 PackageHelper(Vulkan "${VULKAN_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
 
 find_package(GLslang QUIET)

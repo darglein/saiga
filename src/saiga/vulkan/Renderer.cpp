@@ -54,7 +54,7 @@ void VulkanRenderer::initInstanceDevice()
     VkResult err;
 
     std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
-    instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
+    //instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
     instance.create(instanceExtensions,true);
 
 

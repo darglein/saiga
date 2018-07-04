@@ -7,6 +7,7 @@
 #include "Instance.h"
 
 #include "Debug.h"
+#include "saiga/vulkan/VulkanTools.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -54,9 +55,11 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
         instanceCreateInfo.ppEnabledLayerNames = layers.data();
     }
 
+    for(auto ex : instanceExtensions)
+        cout << ex << endl;
 
 
-    vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
+   VK_CHECK_RESULT(vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
 
 
 
