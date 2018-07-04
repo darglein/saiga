@@ -57,10 +57,10 @@ public:
     vk::PipelineColorBlendAttachmentState blendAttachmentState =
     {
         false,
-        vk::BlendFactor::eZero,
-        vk::BlendFactor::eZero,
+        vk::BlendFactor::eSrcAlpha,
+        vk::BlendFactor::eOneMinusSrcAlpha,
         vk::BlendOp::eAdd,
-        vk::BlendFactor::eZero,
+        vk::BlendFactor::eOneMinusSrcAlpha,
         vk::BlendFactor::eZero,
         vk::BlendOp::eAdd,
         vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA

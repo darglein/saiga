@@ -19,13 +19,14 @@
 #include "saiga/vulkan/Device.h"
 #include <saiga/sdl/sdl_eventhandler.h>
 #include "saiga/vulkan/Shader/Shader.h"
+#include "saiga/vulkan/Pipeline.h"
 
 typedef struct SDL_Window SDL_Window;
 
 namespace Saiga {
 namespace Vulkan {
 
-class SAIGA_GLOBAL ImGuiVulkanRenderer : public SDL_EventListener
+class SAIGA_GLOBAL ImGuiVulkanRenderer : public SDL_EventListener, public Pipeline
 {
 public:
     ~ImGuiVulkanRenderer();
@@ -34,7 +35,7 @@ public:
     void init(SDL_Window* window, float width, float height);
 
     // Initialize all Vulkan resources used by the ui
-    void initResources(vks::VulkanDevice *device, VkRenderPass renderPass, VkQueue copyQueue);
+    void initResources(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass, VkQueue copyQueue);
 
 
     // Draw current imGui frame into a command buffer
@@ -61,15 +62,11 @@ protected:
     VkDeviceMemory fontMemory = VK_NULL_HANDLE;
     VkImage fontImage = VK_NULL_HANDLE;
     VkImageView fontView = VK_NULL_HANDLE;
-    VkPipelineCache pipelineCache;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline pipeline;
-    VkDescriptorPool descriptorPool;
-    VkDescriptorSetLayout descriptorSetLayout;
-    VkDescriptorSet descriptorSet;
-    vks::VulkanDevice *device;
 
-    Saiga::Vulkan::ShaderPipeline shaderPipeline;
+    std::vector<vk::DescriptorSet>       descriptorSet;
+    vks::VulkanDevice *vulkanDevice;
+
+//    Saiga::Vulkan::ShaderPipeline shaderPipeline;
 
     double       g_Time = 0.0f;
     bool         g_MousePressed[3];

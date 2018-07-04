@@ -65,6 +65,7 @@ void ShaderModule::load(vk::Device device, const std::string &file)
     {
         loadGLSL(device,std::get<2>(ending),file);
     }
+    cout << "Loaded ShaderModule " << file << endl;
 }
 
 void ShaderModule::destroy(vk::Device device)

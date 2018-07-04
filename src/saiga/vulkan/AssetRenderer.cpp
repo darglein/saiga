@@ -67,7 +67,7 @@ void AssetRenderer::init(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipeli
 
 
     createDescriptorSetLayout({
-                                  { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
+                                  vk::DescriptorSetLayoutBinding{ 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
                               });
 
 

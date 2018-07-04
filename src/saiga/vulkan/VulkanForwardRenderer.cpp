@@ -70,7 +70,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
     cout << "VulkanForwardRenderer init done." << endl;
 
     imGui = window.createImGui();
-    imGui->initResources(vulkanDevice,renderPass, queue);
+    imGui->initResources(vulkanDevice,pipelineCache,renderPass, queue);
 }
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
