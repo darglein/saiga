@@ -25,9 +25,9 @@ class SAIGA_GLOBAL AssetRenderer : public Pipeline
 public:
     void destroy();
 
-
-
     void bind(vk::CommandBuffer cmd);
+
+
     void pushModel(VkCommandBuffer cmd, mat4 model);
     void updateUniformBuffers(glm::mat4 view, glm::mat4 proj);
 

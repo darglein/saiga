@@ -24,14 +24,10 @@ void AssetRenderer::destroy()
     uniformBufferVS.destroy();
     uniformBufferVS2.destroy();
 }
-
 void AssetRenderer::bind(vk::CommandBuffer cmd)
 {
-    //    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSet.size(), descriptorSet.data(), 0, nullptr);
-
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);
-    //    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics,pipeline);
 }
 
 void AssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
@@ -52,9 +48,6 @@ void AssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
     memcpy(uniformBufferVS.mapped, &uboVS, sizeof(uboVS));
     uniformBufferVS.unmap();
 
-    VK_CHECK_RESULT(uniformBufferVS2.map());
-    memcpy(uniformBufferVS2.mapped, &uboVS.projection, sizeof(mat4));
-    uniformBufferVS2.unmap();
 }
 
 void AssetRenderer::init(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass)
@@ -62,21 +55,8 @@ void AssetRenderer::init(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipeli
 
     this->device = vulkanDevice->logicalDevice;
 
-    prepareUniformBuffers(vulkanDevice);
-    setupLayoutsAndDescriptors();
+    uint32_t numUniformBuffers = 1;
 
-    shaderPipeline.load(device,{
-                            "vulkan/scene.vert",
-                            "vulkan/scene.frag"
-                        });
-
-    preparePipelines(pipelineCache,renderPass);
-}
-
-
-
-void AssetRenderer::prepareUniformBuffers(vks::VulkanDevice *vulkanDevice)
-{
     // Vertex shader uniform buffer block
     VK_CHECK_RESULT(vulkanDevice->createBuffer(
                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -85,21 +65,8 @@ void AssetRenderer::prepareUniformBuffers(vks::VulkanDevice *vulkanDevice)
                         sizeof(uboVS),
                         &uboVS));
 
-    VK_CHECK_RESULT(vulkanDevice->createBuffer(
-                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                        &uniformBufferVS2,
-                        sizeof(mat4),
-                        nullptr));
 
-
-}
-
-
-void AssetRenderer::setupLayoutsAndDescriptors()
-{
     createDescriptorSetLayout({
-                                  { 5,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
                                   { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
                               });
 
@@ -111,7 +78,7 @@ void AssetRenderer::setupLayoutsAndDescriptors()
 
     createDescriptorPool(
                 1,{
-                    {vk::DescriptorType::eUniformBuffer, 2}
+                    vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, numUniformBuffers}
                 });
 
 
@@ -121,14 +88,25 @@ void AssetRenderer::setupLayoutsAndDescriptors()
                 );
 
 
-    vk::DescriptorBufferInfo info = uniformBufferVS.descriptor;
-    vk::DescriptorBufferInfo info2 = uniformBufferVS2.descriptor;
-
+    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.descriptor;
     device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(descriptorSet[0],7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&info,nullptr),
-                                    vk::WriteDescriptorSet(descriptorSet[0],5,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&info2,nullptr),
+                                    vk::WriteDescriptorSet(descriptorSet[0],7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
                                 },nullptr);
+
+    // Load all shaders.
+    // Note: The shader type is deduced from the ending.
+    shaderPipeline.load(
+                device,{
+                    "vulkan/scene.vert",
+                    "vulkan/scene.frag"
+                });
+
+    // We use the default pipeline with "VertexNC" input vertices.
+    PipelineInfo info;
+    info.addVertexInfo<VertexNC>();
+    preparePipelines(info,pipelineCache,renderPass);
 }
+
 
 
 

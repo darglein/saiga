@@ -9,14 +9,13 @@
 
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Shader/Shader.h"
-
+#include "saiga/vulkan/PipelineInfo.h"
 
 namespace Saiga {
 namespace Vulkan {
 
 class SAIGA_GLOBAL Pipeline
 {
-public:
 protected:
     vk::Device device;
     vk::PipelineLayout pipelineLayout;
@@ -36,7 +35,7 @@ protected:
     void createPipelineLayout(std::vector<vk::PushConstantRange> pushConstantRanges);
 
     void createDescriptorPool(int maxDescriptorSets, std::vector<vk::DescriptorPoolSize> poolSizes);
-    void preparePipelines(VkPipelineCache pipelineCache, vk::RenderPass renderPass);
+    void preparePipelines(PipelineInfo &pipelineInfo, VkPipelineCache pipelineCache, vk::RenderPass renderPass);
 };
 
 

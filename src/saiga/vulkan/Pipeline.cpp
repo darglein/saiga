@@ -23,6 +23,9 @@ void Pipeline::destroy()
 
 }
 
+
+
+
 void Pipeline::createDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings)
 {
     //    VkDescriptorSetLayoutCreateInfo descriptorLayout =
@@ -72,84 +75,10 @@ void Pipeline::createDescriptorPool(int maxDescriptorSets, std::vector<vk::Descr
 }
 
 
-void Pipeline::preparePipelines(VkPipelineCache pipelineCache, vk::RenderPass renderPass)
-{
-    vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState(vk::PipelineInputAssemblyStateCreateFlags(), vk::PrimitiveTopology::eTriangleList, false);
-
-    vk::PipelineRasterizationStateCreateInfo rasterizationState(
-                vk::PipelineRasterizationStateCreateFlags(), false , false,
-                vk::PolygonMode::eLine, vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise,
-                false, 0,0,0,1);
-
-    vk::PipelineColorBlendAttachmentState blendAttachmentState(
-                false, vk::BlendFactor::eZero, vk::BlendFactor::eZero,
-                vk::BlendOp::eAdd, vk::BlendFactor::eZero, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
-                vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |vk::ColorComponentFlagBits::eA);
-
-    vk::PipelineColorBlendStateCreateInfo colorBlendState(
-                vk::PipelineColorBlendStateCreateFlags(),
-                false, vk::LogicOp::eClear, 1, &blendAttachmentState, { { 0, 0, 0, 0 } });
-
-
-    vk::PipelineDepthStencilStateCreateInfo depthStencilState(vk::PipelineDepthStencilStateCreateFlags(),
-                                                              true, true, vk::CompareOp::eLessOrEqual, false, false, vk::StencilOpState(), vk::StencilOpState(), 0, 0);
-
-
-    vk::PipelineViewportStateCreateInfo viewportState(vk::PipelineViewportStateCreateFlags(),
-                                                      1, nullptr, 1, nullptr);
-
-    vk::PipelineMultisampleStateCreateInfo multisampleState(vk::PipelineMultisampleStateCreateFlags(), vk::SampleCountFlagBits::e1, 0, 0, nullptr, 0, 0);
-
-    std::vector<vk::DynamicState> dynamicStateEnables = {
-
-        vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor
-    };
-
-    vk::PipelineDynamicStateCreateInfo dynamicState(vk::PipelineDynamicStateCreateFlags(), dynamicStateEnables.size(), dynamicStateEnables.data());
-
-
-    vk::PipelineTessellationStateCreateInfo tessellationState(vk::PipelineTessellationStateCreateFlags(), 0);
-
-    vk::VertexInputBindingDescription vi_binding;
-    std::vector<vk::VertexInputAttributeDescription> vi_attribs;
-
-    VKVertexAttribBinder<VertexNC> va;
-    va.getVKAttribs(vi_binding,vi_attribs);
-
-    vk::PipelineVertexInputStateCreateInfo vi;
-
-    vi.vertexBindingDescriptionCount = 1;
-    vi.pVertexBindingDescriptions = &vi_binding;
-    vi.vertexAttributeDescriptionCount = vi_attribs.size();
-    vi.pVertexAttributeDescriptions = vi_attribs.data();
-
-
-    vk::GraphicsPipelineCreateInfo pipelineCreateInfo(
-                vk::PipelineCreateFlags(),
-                0,
-                nullptr,
-                &vi,
-                &inputAssemblyState,
-                &tessellationState,
-                &viewportState,
-                &rasterizationState,
-                &multisampleState,
-                &depthStencilState,
-                &colorBlendState,
-                &dynamicState,
-                pipelineLayout,
-                renderPass,
-                0,
-                vk::Pipeline(),
-                0
-                );
-
-
-
-    shaderPipeline.addToPipeline(pipelineCreateInfo);
-
-    //    vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline);
+void Pipeline::preparePipelines(PipelineInfo& pipelineInfo, VkPipelineCache pipelineCache, vk::RenderPass renderPass)
+{ 
+    pipelineInfo.addShaders(shaderPipeline);
+    auto pipelineCreateInfo= pipelineInfo.createCreateInfo(pipelineLayout,renderPass);
     pipeline = device.createGraphicsPipeline(pipelineCache,pipelineCreateInfo);
     SAIGA_ASSERT(pipeline);
 }
