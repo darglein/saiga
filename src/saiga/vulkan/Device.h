@@ -43,9 +43,6 @@ struct VulkanDevice
     /** @brief Default command pool for the graphics queue family index */
     VkCommandPool commandPool = VK_NULL_HANDLE;
 
-    /** @brief Set to true when the debug marker extension is detected */
-    bool enableDebugMarkers = false;
-
     /** @brief Contains queue family indices */
     struct
     {

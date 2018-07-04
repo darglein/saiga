@@ -1,4 +1,4 @@
-﻿#include "sample.h"
+﻿#include "compute.h"
 #include "saiga/framework.h"
 #include "saiga/vulkan/window/SDLWindow.h"
 
@@ -6,10 +6,7 @@
 
 int main(const int argc, const char *argv[])
 {
-    using namespace  Saiga;
-
-
-    WindowParameters windowParameters;
+    Saiga::WindowParameters windowParameters;
     windowParameters.fromConfigFile("config.ini");
     windowParameters.name = "Forward Rendering";
 
@@ -20,9 +17,9 @@ int main(const int argc, const char *argv[])
     Saiga::Vulkan::VulkanForwardRenderer renderer(window,true);
 
 
-    VulkanExample example(window,renderer);
+    Compute example(window,renderer);
     example.init();
-    window.startMainLoop();
+
 
     return 0;
 }

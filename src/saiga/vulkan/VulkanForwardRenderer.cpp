@@ -9,7 +9,6 @@
 
 #include "VulkanForwardRenderer.h"
 #include "saiga/vulkan/Shader/all.h"
-#include "VulkanDebug.h"
 #include "VulkanInitializers.hpp"
 
 #if defined(SAIGA_OPENGL_INCLUDED)

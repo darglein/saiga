@@ -13,9 +13,10 @@ namespace Vulkan {
 
 void DeviceMemory::destroy()
 {
-    SAIGA_ASSERT(device);
-    SAIGA_ASSERT(memory);
-    device.freeMemory(memory);
+//    SAIGA_ASSERT(device);
+//    SAIGA_ASSERT(memory);
+    if(device && memory)
+        device.freeMemory(memory);
 }
 
 void DeviceMemory::allocateMemory(vks::VulkanDevice *vulkanDevice, const vk::MemoryRequirements &mem_reqs, vk::MemoryPropertyFlags flags)
@@ -54,16 +55,19 @@ void DeviceMemory::unmap()
     device.unmapMemory(memory);
 }
 
-void DeviceMemory::upload(size_t offset, size_t size, const void *data)
+void DeviceMemory::mappedUpload(size_t offset, size_t size, const void *data)
 {
     uint8_t *pData = map(offset,size) ;
-
     memcpy(pData, data, size);
-
     unmap();
 }
 
-
+void DeviceMemory::mappedDownload(size_t offset, size_t size, void *data)
+{
+    uint8_t *pData = map(offset,size) ;
+    memcpy(data,pData, size);
+    unmap();
+}
 
 }
 }

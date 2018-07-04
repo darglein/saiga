@@ -41,5 +41,5 @@ endif ()
 add_subdirectory(imageProcessing)
 
 if (${SAIGA_USE_VULKAN})
-	add_subdirectory(helloVulkan)
+	add_subdirectory(vulkan)
 endif()

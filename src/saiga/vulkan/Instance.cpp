@@ -6,10 +6,16 @@
 
 #include "Instance.h"
 
-#include "VulkanDebug.h"
+#include "Debug.h"
 
 namespace Saiga {
 namespace Vulkan {
+
+void Instance::destroy()
+{
+    freeDebugCallback(instance);
+    vkDestroyInstance(instance, nullptr);
+}
 
 void Instance::create(std::vector<const char*> instanceExtensions, bool enableValidation)
 {
@@ -41,10 +47,11 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
         instanceCreateInfo.enabledExtensionCount = (uint32_t)instanceExtensions.size();
         instanceCreateInfo.ppEnabledExtensionNames = instanceExtensions.data();
     }
+    auto layers = getDebugValidationLayers();
     if (enableValidation)
     {
-        instanceCreateInfo.enabledLayerCount = vks::debug::validationLayerCount;
-        instanceCreateInfo.ppEnabledLayerNames = vks::debug::validationLayerNames;
+        instanceCreateInfo.enabledLayerCount = layers.size();
+        instanceCreateInfo.ppEnabledLayerNames = layers.data();
     }
 
 
@@ -56,11 +63,8 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
     // If requested, we enable the default validation layers for debugging
     if (enableValidation)
     {
-        // The report flags determine what type of messages for the layers will be displayed
-        // For validating (debugging) an appplication the error and warning bits should suffice
-        VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-        // Additional flags include performance info, loader and layer debug messages, etc.
-        vks::debug::setupDebugging(instance, debugReportFlags, VK_NULL_HANDLE);
+        VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_DEBUG_BIT_EXT;
+        setupDebugging(instance, debugReportFlags, VK_NULL_HANDLE);
     }
 
 }

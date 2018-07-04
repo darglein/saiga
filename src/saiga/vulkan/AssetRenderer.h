@@ -12,7 +12,7 @@
 #include "saiga/vulkan/Device.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
-#include "saiga/vulkan/Pipeline.h"
+#include "saiga/vulkan/pipeline/Pipeline.h"
 
 
 namespace Saiga {

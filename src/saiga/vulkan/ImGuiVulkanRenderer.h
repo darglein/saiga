@@ -19,7 +19,7 @@
 #include "saiga/vulkan/Device.h"
 #include <saiga/sdl/sdl_eventhandler.h>
 #include "saiga/vulkan/Shader/Shader.h"
-#include "saiga/vulkan/Pipeline.h"
+#include "saiga/vulkan/pipeline/Pipeline.h"
 
 typedef struct SDL_Window SDL_Window;
 

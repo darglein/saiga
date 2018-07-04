@@ -16,10 +16,8 @@ namespace Vulkan {
 class SAIGA_GLOBAL Instance
 {
 public:
-
-
+    void destroy();
     void create(std::vector<const char *> instanceExtensions, bool enableValidation);
-
 
     operator VkInstance() const { return instance; }
 

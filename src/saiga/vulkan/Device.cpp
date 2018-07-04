@@ -208,12 +208,6 @@ VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatu
     deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     deviceCreateInfo.pEnabledFeatures = &enabledFeatures;
 
-    // Enable the debug marker extension if it is present (likely meaning a debugging tool is present)
-    if (extensionSupported(VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
-    {
-        deviceExtensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
-        enableDebugMarkers = true;
-    }
 
     if (deviceExtensions.size() > 0)
     {

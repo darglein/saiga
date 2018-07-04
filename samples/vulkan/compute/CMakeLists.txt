@@ -22,4 +22,4 @@ endif()
 set_target_properties (${PROG_NAME} PROPERTIES FOLDER samples)
 set_target_properties( ${PROG_NAME}
 	PROPERTIES
-    	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+    	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/vulkan")

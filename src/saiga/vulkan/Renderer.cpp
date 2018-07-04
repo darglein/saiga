@@ -7,7 +7,6 @@
 
 #include "Renderer.h"
 #include "saiga/vulkan/window/Window.h"
-#include "VulkanDebug.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -23,15 +22,12 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window)
 
     initInstanceDevice();
 
-//    if (false) {
-//        vks::debugmarker::setup(device);
-//    }
 
     swapChain.connect(instance, physicalDevice, device);
     VkSurfaceKHR surface;
     window.createSurface(instance,&surface);
     swapChain.initSurface(surface);
-    swapChain.create(&width, &height, false);
+    swapChain.create(&width, &height, true);
 
 
     VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
@@ -43,13 +39,12 @@ VulkanRenderer::~VulkanRenderer()
 {
     // Clean up Vulkan resources
     swapChain.cleanup();
-    vks::debug::freeDebugCallback(instance);
 
     delete vulkanDevice;
 
+    instance.destroy();
 
 
-    vkDestroyInstance(instance, nullptr);
 
 }
 
