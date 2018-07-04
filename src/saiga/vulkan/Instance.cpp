@@ -23,9 +23,9 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
 
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "test";
-    appInfo.pEngineName = "test engine";
-    appInfo.apiVersion = VK_API_VERSION_1_1;
+    appInfo.pApplicationName = "Saiga Application";
+    appInfo.pEngineName = "Saiga";
+    appInfo.apiVersion = VK_API_VERSION_1_0;
 
 //    std::vector<const char*> instanceExtensions = getRequiredInstanceExtensions();
 

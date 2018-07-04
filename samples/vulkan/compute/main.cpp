@@ -20,6 +20,9 @@ int main(const int argc, const char *argv[])
     Compute example(window,renderer);
     example.init();
 
+    Saiga::MainLoopParameters params;
+    params.framesPerSecond = 60;
+    window.startMainLoop(params);
 
     return 0;
 }
