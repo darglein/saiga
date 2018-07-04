@@ -1,0 +1,40 @@
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+/*
+* UI overlay class using ImGui
+*
+* Copyright (C) 2017 by Sascha Willems - www.saschawillems.de
+*
+* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+*/
+
+#pragma once
+
+#include "saiga/util/glm.h"
+
+#include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
+
+typedef struct SDL_Window SDL_Window;
+
+namespace Saiga {
+namespace Vulkan {
+
+class SAIGA_GLOBAL ImGuiSDLRenderer : public SDL_EventListener, public ImGuiVulkanRenderer
+{
+public:
+    ~ImGuiSDLRenderer();
+
+    // Initialize styles, keys, etc.
+    void init(SDL_Window* window, float width, float height);
+
+    void beginFrame();
+
+protected:
+    virtual bool processEvent(const SDL_Event& event) override;
+};
+
+}
+}

@@ -12,7 +12,7 @@ namespace Saiga {
 namespace Vulkan {
 
 VulkanRenderer::VulkanRenderer(VulkanWindow &window)
- : window(window)
+    : window(window)
 {
     window.setRenderer(this);
 
@@ -54,6 +54,17 @@ void VulkanRenderer::initInstanceDevice()
     VkResult err;
 
     std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
+
+
+
+    cout << "Extensions requried for window creation:" << endl;
+    for(auto s : instanceExtensions)
+    {
+        cout << s << endl;
+    }
+
+
+
     //instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
     instance.create(instanceExtensions,true);
 
@@ -96,7 +107,7 @@ void VulkanRenderer::initInstanceDevice()
     // and encapsulates functions related to a device
     vulkanDevice = new vks::VulkanDevice(physicalDevice);
 
-     VkPhysicalDeviceFeatures enabledFeatures{};
+    VkPhysicalDeviceFeatures enabledFeatures{};
     VkResult res = vulkanDevice->createLogicalDevice(enabledFeatures, enabledDeviceExtensions);
     if (res != VK_SUCCESS) {
         vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);

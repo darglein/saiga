@@ -8,7 +8,7 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_vulkan.h"
 #include "saiga/sdl/sdl_eventhandler.h"
-
+#include "saiga/vulkan/imgui/ImGuiSDLRenderer.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
 #endif
@@ -27,7 +27,7 @@ SDLWindow::SDLWindow(WindowParameters _windowParameters)
 std::shared_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui()
 {
 
-    auto imGui = std::make_shared<Saiga::Vulkan::ImGuiVulkanRenderer>();
+    auto imGui = std::make_shared<Saiga::Vulkan::ImGuiSDLRenderer>();
     imGui->init(sdl_window,(float)windowParameters.width, (float)windowParameters.height);
 
     return imGui;

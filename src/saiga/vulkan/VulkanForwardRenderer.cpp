@@ -69,7 +69,8 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
     cout << "VulkanForwardRenderer init done." << endl;
 
     imGui = window.createImGui();
-    imGui->initResources(vulkanDevice,pipelineCache,renderPass, queue);
+    if(imGui)
+        imGui->initResources(vulkanDevice,pipelineCache,renderPass, queue);
 }
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
@@ -185,9 +186,14 @@ void VulkanForwardRenderer::render(Camera *cam)
     SAIGA_ASSERT(renderingInterface);
 
     //    cout << "VulkanForwardRenderer::render" << endl;
-    imGui->beginFrame();
-    renderingInterface->renderGUI();
-    imGui->endFrame();
+    if(imGui)
+    {
+
+        imGui->beginFrame();
+        renderingInterface->renderGUI();
+        imGui->endFrame();
+
+    }
 
 
 
@@ -245,7 +251,7 @@ void VulkanForwardRenderer::render(Camera *cam)
     {
         // Actual rendering
         renderingInterface->render(cmd);
-        imGui->render(cmd);
+        if(imGui) imGui->render(cmd);
     }
 
     vkCmdEndRenderPass(cmd);

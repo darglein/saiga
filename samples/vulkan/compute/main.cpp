@@ -1,6 +1,7 @@
 ﻿#include "compute.h"
 #include "saiga/framework.h"
 #include "saiga/vulkan/window/SDLWindow.h"
+#include "saiga/vulkan/window/GLFWWindow.h"
 
 
 
@@ -11,7 +12,8 @@ int main(const int argc, const char *argv[])
     windowParameters.name = "Forward Rendering";
 
 
-    Saiga::Vulkan::SDLWindow window(windowParameters);
+//    Saiga::Vulkan::SDLWindow window(windowParameters);
+    Saiga::Vulkan::GLFWWindow window(windowParameters);
 
 
     Saiga::Vulkan::VulkanForwardRenderer renderer(window,true);

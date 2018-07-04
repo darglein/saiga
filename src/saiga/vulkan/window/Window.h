@@ -9,7 +9,7 @@
 
 #include "saiga/window/WindowBase.h"
 #include "saiga/vulkan/svulkan.h"
-#include "saiga/vulkan/ImGuiVulkanRenderer.h"
+#include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 
 typedef struct SDL_Window SDL_Window;
 

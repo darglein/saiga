@@ -15,24 +15,21 @@
 
 #include "saiga/util/glm.h"
 
-#include "VulkanBuffer.hpp"
+#include "../VulkanBuffer.hpp"
 #include "saiga/vulkan/Device.h"
 #include <saiga/sdl/sdl_eventhandler.h>
 #include "saiga/vulkan/Shader/Shader.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 
-typedef struct SDL_Window SDL_Window;
 
 namespace Saiga {
 namespace Vulkan {
 
-class SAIGA_GLOBAL ImGuiVulkanRenderer : public SDL_EventListener, public Pipeline
+class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
 {
 public:
     ~ImGuiVulkanRenderer();
 
-    // Initialize styles, keys, etc.
-    void init(SDL_Window* window, float width, float height);
 
     // Initialize all Vulkan resources used by the ui
     void initResources(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass, VkQueue copyQueue);
@@ -41,7 +38,7 @@ public:
     // Draw current imGui frame into a command buffer
     void render(VkCommandBuffer commandBuffer);
 
-    void beginFrame();
+    virtual void beginFrame() = 0;
     void endFrame();
 
 protected:
@@ -73,7 +70,6 @@ protected:
     float        g_MouseWheel = 0.0f;
     // Update vertex and index buffer containing the imGui elements when required
     void updateBuffers();
-    virtual bool processEvent(const SDL_Event& event) override;
 };
 
 }
