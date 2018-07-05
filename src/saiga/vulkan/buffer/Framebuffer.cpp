@@ -44,5 +44,34 @@ void Framebuffer::createColorDepthStencil(
 
 }
 
+void Framebuffer::createColor(
+        int width, int height,
+        vk::ImageView color,
+        vk::RenderPass renderPass, vk::Device device
+        )
+{
+    VkImageView attachments[1];
+
+    // Depth/Stencil attachment is the same for all frame buffers
+    //    attachments[1] = depthStencil.view;
+    attachments[0] = color;
+
+
+    VkFramebufferCreateInfo frameBufferCreateInfo = {};
+    frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    frameBufferCreateInfo.pNext = NULL;
+    frameBufferCreateInfo.renderPass = renderPass;
+    frameBufferCreateInfo.attachmentCount = 1;
+    frameBufferCreateInfo.pAttachments = attachments;
+    frameBufferCreateInfo.width = width;
+    frameBufferCreateInfo.height = height;
+    frameBufferCreateInfo.layers = 1;
+
+
+        VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &framebuffer));
+
+}
+
+
 }
 }

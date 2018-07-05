@@ -25,6 +25,7 @@ public:
      * This is usefull as a default framebuffer with the color attachment being the swap-chain image.
      */
     void createColorDepthStencil(int width, int height, vk::ImageView color, vk::ImageView depthStencil, vk::RenderPass renderPass, vk::Device device);
+    void createColor(int width, int height, vk::ImageView color, vk::RenderPass renderPass, vk::Device device);
 };
 
 }

@@ -372,6 +372,9 @@ private:
         cout << "Swap Chain: minImageCount: " << createInfo.minImageCount << endl;
         cout << "Swap Chain: imageUsage: " << createInfo.imageUsage << endl;
         cout << "Swap Chain: imageSharingMode: " << createInfo.imageSharingMode << endl;
+        cout << "Swap Chain: preTransform: " << createInfo.preTransform << endl;
+        cout << "Swap Chain: queueFamilyIndexCount: " << createInfo.queueFamilyIndexCount << endl;
+        cout << "Swap Chain: imageExtent: " << createInfo.imageExtent.width << "x" << createInfo.imageExtent.height << endl;
 
         if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
             throw std::runtime_error("failed to create swap chain!");

@@ -228,7 +228,7 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
         };
     }
 
-//    uint32_t queueFamilyIndices[] = {0,0};
+    uint32_t queueFamilyIndices[] = {0,0};
 
 
     VkSwapchainCreateInfoKHR createInfo = {};
@@ -260,6 +260,7 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
     if (surfCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
         createInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 
 
@@ -269,6 +270,9 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
     cout << "Swap Chain: minImageCount: " << createInfo.minImageCount << endl;
     cout << "Swap Chain: imageUsage: " << createInfo.imageUsage << endl;
     cout << "Swap Chain: imageSharingMode: " << createInfo.imageSharingMode << endl;
+    cout << "Swap Chain: preTransform: " << createInfo.preTransform << endl;
+    cout << "Swap Chain: queueFamilyIndexCount: " << createInfo.queueFamilyIndexCount << endl;
+    cout << "Swap Chain: imageExtent: " << createInfo.imageExtent.width << "x" << createInfo.imageExtent.height << endl;
 
 
 
@@ -286,8 +290,6 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
         vkDestroySwapchainKHR(device, oldSwapchain, nullptr);
     }
     VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, swapChain, &imageCount, NULL));
-
-    // Get the swap chain images
     images.resize(imageCount);
     VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, swapChain, &imageCount, images.data()));
 
@@ -300,10 +302,10 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
         colorAttachmentView.pNext = NULL;
         colorAttachmentView.format = colorFormat;
         colorAttachmentView.components = {
-            VK_COMPONENT_SWIZZLE_R,
-            VK_COMPONENT_SWIZZLE_G,
-            VK_COMPONENT_SWIZZLE_B,
-            VK_COMPONENT_SWIZZLE_A
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY
         };
         colorAttachmentView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         colorAttachmentView.subresourceRange.baseMipLevel = 0;

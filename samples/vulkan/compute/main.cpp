@@ -16,8 +16,8 @@ int main(const int argc, const char *argv[])
         windowParameters.name = "Forward Rendering";
 
 
-        //    Saiga::Vulkan::SDLWindow window(windowParameters);
-        Saiga::Vulkan::GLFWWindow window(windowParameters);
+            Saiga::Vulkan::SDLWindow window(windowParameters);
+//        Saiga::Vulkan::GLFWWindow window(windowParameters);
 
 
         Saiga::Vulkan::VulkanForwardRenderer renderer(window,true);
@@ -31,7 +31,7 @@ int main(const int argc, const char *argv[])
         window.startMainLoop(params);
     }
 
-    maingsdgdfg();
+//    maingsdgdfg();
     //        return 0;
     return 0;
 }

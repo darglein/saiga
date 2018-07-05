@@ -106,6 +106,8 @@ void GLFWWindow::update(float dt)
     glfwPollEvents();
     if(glfwWindowShouldClose(window))
         close();
+    if(updating)
+        updating->update(dt);
 }
 
 

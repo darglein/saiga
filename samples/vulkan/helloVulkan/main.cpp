@@ -32,6 +32,6 @@ int main(const int argc, const char *argv[])
         window.startMainLoop(params);
     }
 
-    maingsdgdfg();
+//    maingsdgdfg();
     return 0;
 }
