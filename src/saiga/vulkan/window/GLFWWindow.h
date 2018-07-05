@@ -22,7 +22,7 @@ public:
     GLFWwindow* window = nullptr;
 
     GLFWWindow(WindowParameters _windowParameters);
-
+    ~GLFWWindow();
 
     virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui() override;
 

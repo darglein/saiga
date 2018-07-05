@@ -16,13 +16,13 @@ void FrameSync::create(VkDevice device)
     vkCreateFence(device, &fenceCreateInfo, nullptr, &frameFence);
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
-    vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &presentComplete);
+    vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &imageVailable);
     vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &renderComplete);
 }
 
 void FrameSync::destroy(VkDevice device)
 {
-    vkDestroySemaphore(device, presentComplete, nullptr);
+    vkDestroySemaphore(device, imageVailable, nullptr);
     vkDestroySemaphore(device, renderComplete, nullptr);
     vkDestroyFence(device, frameFence, nullptr);
 }

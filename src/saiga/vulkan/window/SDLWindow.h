@@ -21,7 +21,7 @@ public:
     SDL_Window *sdl_window = nullptr;
     SDLWindow(WindowParameters _windowParameters);
 
-
+~SDLWindow();
     virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui() override;
 
     std::vector<const char*> getRequiredInstanceExtensions() override;

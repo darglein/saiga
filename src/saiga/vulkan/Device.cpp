@@ -1,5 +1,5 @@
 #include "Device.h"
-
+#include "Debug.h"
 
 namespace vks
 {
@@ -134,7 +134,7 @@ VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatu
     // Get queue family indices for the requested queue family types
     // Note that the indices may overlap depending on the implementation
 
-    const float defaultQueuePriority(0.0f);
+    const float defaultQueuePriority(1.0f);
 
     // Graphics queue
     if (requestedQueueTypes & VK_QUEUE_GRAPHICS_BIT)
@@ -153,7 +153,7 @@ VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatu
     }
 
     // Dedicated compute queue
-    if (requestedQueueTypes & VK_QUEUE_COMPUTE_BIT)
+    if (requestedQueueTypes & VK_QUEUE_COMPUTE_BIT && false)
     {
         queueFamilyIndices.compute = getQueueFamilyIndex(VK_QUEUE_COMPUTE_BIT);
         if (queueFamilyIndices.compute != queueFamilyIndices.graphics)
@@ -174,7 +174,7 @@ VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatu
     }
 
     // Dedicated transfer queue
-    if (requestedQueueTypes & VK_QUEUE_TRANSFER_BIT)
+    if (requestedQueueTypes & VK_QUEUE_TRANSFER_BIT && false)
     {
         queueFamilyIndices.transfer = getQueueFamilyIndex(VK_QUEUE_TRANSFER_BIT);
         if ((queueFamilyIndices.transfer != queueFamilyIndices.graphics) && (queueFamilyIndices.transfer != queueFamilyIndices.compute))
@@ -192,6 +192,11 @@ VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatu
     {
         // Else we use the same queue
         queueFamilyIndices.transfer = queueFamilyIndices.graphics;
+    }
+
+    for(VkDeviceQueueCreateInfo i : queueCreateInfos)
+    {
+        cout << "Create Queue " << i.queueFamilyIndex << " " << i.queueCount << endl;
     }
 
     // Create the logical device representation
@@ -214,6 +219,19 @@ VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatu
         deviceCreateInfo.enabledExtensionCount = (uint32_t)deviceExtensions.size();
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
     }
+
+    auto layers = Saiga::Vulkan::getDebugValidationLayers();
+
+    deviceCreateInfo.enabledLayerCount = layers.size();
+    deviceCreateInfo.ppEnabledLayerNames = layers.data();
+
+    cout << "Device extensions" << endl;
+    for(auto de : deviceExtensions)
+        cout << de << endl;
+
+    cout << "Device layers" << endl;
+    for(auto de : layers)
+        cout << de << endl;
 
     VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice);
 

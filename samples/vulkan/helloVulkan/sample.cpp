@@ -38,12 +38,12 @@ void VulkanExample::init()
 
 
     teapot.loadObj("objs/teapot.obj");
-    teapot.updateBuffer(renderer.vulkanDevice, renderer.queue);
+    teapot.updateBuffer(renderer.vulkanDevice, renderer.graphicsQueue);
     teapotTrans.translateGlobal(vec3(0,1,0));
     teapotTrans.calculateModel();
 
     plane.createCheckerBoard(vec2(20,20),1.0f,Saiga::Colors::firebrick,Saiga::Colors::gray);
-    plane.updateBuffer(renderer.vulkanDevice, renderer.queue);
+    plane.updateBuffer(renderer.vulkanDevice, renderer.graphicsQueue);
 }
 
 

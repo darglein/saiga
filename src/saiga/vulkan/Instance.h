@@ -19,11 +19,12 @@ public:
     void destroy();
     void create(std::vector<const char *> instanceExtensions, bool enableValidation);
 
+    operator vk::Instance() const { return instance; }
     operator VkInstance() const { return instance; }
 
 private:
     // Vulkan instance, stores all per-application states
-    VkInstance instance;
+    vk::Instance instance;
 };
 
 

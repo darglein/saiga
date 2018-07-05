@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -10,8 +10,13 @@
 
 namespace Saiga {
 
-void saiga_assert_fail (const char *__assertion, const char *__file,
-               unsigned int __line, const char *__function, const char *__message){
+void saiga_assert_fail (
+        const std::string& __assertion,
+        const char *__file,
+        unsigned int __line,
+        const char *__function,
+        const std::string& __message)
+{
 
     std::cout << "Assertion '" << __assertion << "' failed!" << std::endl;
     std::cout << "  File: " << __file << ":" << __line << std::endl;

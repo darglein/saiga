@@ -11,7 +11,7 @@
 #include "saiga/window/Interfaces.h"
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/Device.h"
-#include "saiga/vulkan/VulkanSwapChain.hpp"
+#include "saiga/vulkan/SwapChain.h"
 
 namespace Saiga {
 namespace Vulkan {

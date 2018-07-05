@@ -22,12 +22,13 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window)
 
     initInstanceDevice();
 
-
-    swapChain.connect(instance, physicalDevice, device);
     VkSurfaceKHR surface;
     window.createSurface(instance,&surface);
+
+
+    swapChain.connect(instance, physicalDevice, device);
     swapChain.initSurface(surface);
-    swapChain.create(&width, &height, true);
+    swapChain.create(&width, &height, false);
 
 
     VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
@@ -51,17 +52,16 @@ VulkanRenderer::~VulkanRenderer()
 void VulkanRenderer::initInstanceDevice()
 {
 
-    VkResult err;
 
     std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
 
 
 
-    cout << "Extensions requried for window creation:" << endl;
-    for(auto s : instanceExtensions)
-    {
-        cout << s << endl;
-    }
+//    cout << "Extensions requried for window creation:" << endl;
+//    for(auto s : instanceExtensions)
+//    {
+//        cout << s << endl;
+//    }
 
 
 
@@ -70,18 +70,26 @@ void VulkanRenderer::initInstanceDevice()
 
 
 
-    // Physical device
-    uint32_t gpuCount = 0;
-    // Get number of available physical devices
-    VK_CHECK_RESULT(vkEnumeratePhysicalDevices(instance, &gpuCount, nullptr));
-    assert(gpuCount > 0);
-    // Enumerate devices
-    std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
-    err = vkEnumeratePhysicalDevices(instance, &gpuCount, physicalDevices.data());
-    if (err) {
-        vks::tools::exitFatal("Could not enumerate physical devices : \n" + vks::tools::errorString(err), err);
-        return;
+    std::vector<vk::PhysicalDevice> physicalDevices = instance.operator vk::Instance().enumeratePhysicalDevices();
+
+    if(physicalDevices.size() == 0)
+    {
+        SAIGA_EXIT_ERROR("Could not find a vulkan capable device.");
     }
+    // Physical device
+//    uint32_t gpuCount = 0;
+    // Get number of available physical devices
+//    VK_CHECK_RESULT(vkEnumeratePhysicalDevices(instance, &gpuCount, nullptr));
+//    assert(gpuCount > 0);
+    // Enumerate devices
+//    std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
+//    err = vkEnumeratePhysicalDevices(instance, &gpuCount, physicalDevices.data());
+//    if (err) {
+//        vks::tools::exitFatal("Could not enumerate physical devices : \n" + vks::tools::errorString(err), err);
+//        return;
+//    }
+
+
 
     // GPU selection
 
@@ -108,12 +116,16 @@ void VulkanRenderer::initInstanceDevice()
     vulkanDevice = new vks::VulkanDevice(physicalDevice);
 
     VkPhysicalDeviceFeatures enabledFeatures{};
+    enabledFeatures.fillModeNonSolid = true;
+    enabledFeatures.wideLines = true;
+
     VkResult res = vulkanDevice->createLogicalDevice(enabledFeatures, enabledDeviceExtensions);
     if (res != VK_SUCCESS) {
         vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);
         return;
     }
     device = vulkanDevice->logicalDevice;
+    cout << endl;
 
 
 }

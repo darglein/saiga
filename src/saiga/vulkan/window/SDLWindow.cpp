@@ -24,6 +24,18 @@ SDLWindow::SDLWindow(WindowParameters _windowParameters)
     create();
 }
 
+SDLWindow::~SDLWindow()
+{
+        SDL_StopTextInput();
+
+        //Destroy window
+        SDL_DestroyWindow( sdl_window );
+        sdl_window = nullptr;
+
+        //Quit SDL subsystems
+        SDL_Quit();
+}
+
 std::shared_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui()
 {
 

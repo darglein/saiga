@@ -20,7 +20,7 @@ namespace Vulkan {
 class SAIGA_GLOBAL FrameSync
 {
 public:
-    VkSemaphore presentComplete;
+    VkSemaphore imageVailable;
     VkSemaphore renderComplete;
     VkFence frameFence;
 

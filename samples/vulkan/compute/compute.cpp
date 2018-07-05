@@ -46,12 +46,12 @@ void Compute::init()
 
 
     teapot.loadObj("objs/teapot.obj");
-    teapot.updateBuffer(renderer.vulkanDevice, renderer.queue);
+    teapot.updateBuffer(renderer.vulkanDevice, renderer.graphicsQueue);
     teapotTrans.translateGlobal(vec3(0,1,0));
     teapotTrans.calculateModel();
 
     plane.createCheckerBoard(vec2(20,20),1.0f,Saiga::Colors::firebrick,Saiga::Colors::gray);
-    plane.updateBuffer(renderer.vulkanDevice, renderer.queue);
+    plane.updateBuffer(renderer.vulkanDevice, renderer.graphicsQueue);
 
 
 
@@ -64,8 +64,8 @@ void Compute::init()
 
     compute.storageBuffer.mappedDownload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
-    for(int i : compute.data)
-        cout << i << endl;
+//    for(int i : compute.data)
+//        cout << i << endl;
 
 //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.compute, 0, &compute.queue);
     compute.queue = device.getQueue(vulkanDevice->queueFamilyIndices.compute,0);
@@ -148,8 +148,8 @@ void Compute::init()
 
       compute.storageBuffer.mappedDownload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
-      for(int i : compute.data)
-          cout << i << endl;
+//      for(int i : compute.data)
+//          cout << i << endl;
 }
 
 

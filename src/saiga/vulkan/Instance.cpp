@@ -55,20 +55,25 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
         instanceCreateInfo.ppEnabledLayerNames = layers.data();
     }
 
+    cout << "Instance extensions:" << endl;
     for(auto ex : instanceExtensions)
         cout << ex << endl;
 
 
-   VK_CHECK_RESULT(vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
+//   VK_CHECK_RESULT(vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
+    instance = vk::createInstance(instanceCreateInfo);
+    SAIGA_ASSERT(instance);
 
 
 
     // If requested, we enable the default validation layers for debugging
     if (enableValidation)
     {
-        VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_DEBUG_BIT_EXT;
+        VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_WARNING_BIT_EXT  | VK_DEBUG_REPORT_ERROR_BIT_EXT;
         setupDebugging(instance, debugReportFlags, VK_NULL_HANDLE);
     }
+
+    cout << "Vulkan instance created." << endl;
 
 }
 

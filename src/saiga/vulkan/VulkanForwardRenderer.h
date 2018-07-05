@@ -27,7 +27,8 @@ namespace Vulkan {
 class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
 {
 public:
-    VkQueue queue;
+    VkQueue graphicsQueue;
+    VkQueue presentQueue;
     VkRenderPass renderPass;
 
     VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, bool enableValidation = true);

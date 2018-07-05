@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -10,9 +10,14 @@
 //similar to unix assert.h implementation
 
 namespace Saiga {
-SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char *__file,
-               unsigned int __line, const char *__function, const char *__message);
-//      throw __attribute__ ((__noreturn__));
+
+SAIGA_GLOBAL extern void saiga_assert_fail (
+        const std::string& __assertion,
+        const char *__file,
+        unsigned int __line,
+        const char *__function,
+        const std::string& __message
+        );
 }
 
 
@@ -38,9 +43,9 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 #if defined(SAIGA_ASSERTS)
 
 # define SAIGA_ASSERT_MSG(expr,msg)							\
-  ((expr)								\
-   ? static_cast<void>(0)						\
-   : Saiga::saiga_assert_fail (#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION,msg))
+    ((expr)								\
+    ? static_cast<void>(0)						\
+    : Saiga::saiga_assert_fail (#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION,msg))
 
 #else
 
@@ -49,7 +54,7 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 //this is a trick so that no unused variable warnings are generated if a variable
 //is only used in an assert
 # define SAIGA_ASSERT_MSG(expr,msg)         \
-   if(false) static_cast<void>(expr); else static_cast<void>(0)
+    if(false) static_cast<void>(expr); else static_cast<void>(0)
 
 
 #endif
@@ -62,5 +67,6 @@ SAIGA_GLOBAL extern void saiga_assert_fail (const char *__assertion, const char 
 #define SAIGA_ASSERT(...) GET_SAIGA_ASSERT_MACRO(__VA_ARGS__, SAIGA_ASSERT_MSG, SAIGA_ASSERT_NOMSG, 0)(__VA_ARGS__)
 
 
-//#undef assert
-
+// Creates an assert with message and terminates the program.
+// This is always enabled and works even if asserts are disabled.
+#define SAIGA_EXIT_ERROR(msg) (Saiga::saiga_assert_fail ((msg), __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION,""))

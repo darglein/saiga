@@ -27,7 +27,8 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
     : VulkanRenderer(window)
 {
 
-    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
+    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &graphicsQueue);
+    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &presentQueue);
 
 
 
@@ -70,7 +71,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
 
     imGui = window.createImGui();
     if(imGui)
-        imGui->initResources(vulkanDevice,pipelineCache,renderPass, queue);
+        imGui->initResources(vulkanDevice,pipelineCache,renderPass, graphicsQueue);
 }
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
@@ -202,24 +203,19 @@ void VulkanForwardRenderer::render(Camera *cam)
     sync.wait(device);
 
 
-    VkResult err = swapChain.acquireNextImage(sync.presentComplete, &currentBuffer);
+    VkResult err = swapChain.acquireNextImage(sync.imageVailable, &currentBuffer);
     VK_CHECK_RESULT(err);
 
-    VkSubmitInfo submitInfo;
-    submitInfo = vks::initializers::submitInfo();
-    VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    submitInfo.pWaitDstStageMask = &submitPipelineStages;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &sync.presentComplete;
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &sync.renderComplete;
+
 
 
     VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
+    cmdBufInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
     VkClearValue clearValues[2];
     vec4 clearColor(0.4,0.8,1.0,1.0);
     clearValues[0].color = { { clearColor.x,clearColor.y,clearColor.z,clearColor.w} };
+//    clearValues[0].depthStencil = { 1.0f, 0 };
     clearValues[1].depthStencil = { 1.0f, 0 };
 
     VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
@@ -258,13 +254,21 @@ void VulkanForwardRenderer::render(Camera *cam)
 
     VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
+    VkSubmitInfo submitInfo;
+    submitInfo = vks::initializers::submitInfo();
+    VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    submitInfo.pWaitDstStageMask = &submitPipelineStages;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &sync.imageVailable;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &sync.renderComplete;
 
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
-    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, sync.frameFence));
+    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
 
-    VK_CHECK_RESULT(swapChain.queuePresent(queue, currentBuffer,  sync.renderComplete));
-    VK_CHECK_RESULT(vkQueueWaitIdle(queue));
+    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
+    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
 
     nextSyncObject = (nextSyncObject+1) % syncObjects.size();
 }

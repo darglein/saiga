@@ -15,6 +15,14 @@
 namespace Saiga {
 namespace Vulkan {
 
+static void printGLFWerror()
+{
+    const char* description;
+    glfwGetError(&description);
+    cout << "GLFW Error: " << description << endl;
+    SAIGA_ASSERT(0);
+}
+
 GLFWWindow::GLFWWindow(WindowParameters _windowParameters)
     :VulkanWindow(_windowParameters)
 {
@@ -22,13 +30,14 @@ GLFWWindow::GLFWWindow(WindowParameters _windowParameters)
     create();
 }
 
+GLFWWindow::~GLFWWindow()
+{
+    glfwDestroyWindow( window );
+    glfwTerminate();
+}
+
 std::shared_ptr<ImGuiVulkanRenderer> GLFWWindow::createImGui()
 {
-
-//    auto imGui = std::make_shared<Saiga::Vulkan::ImGuiVulkanRenderer>();
-    //    imGui->init(sdl_window,(float)windowParameters.width, (float)windowParameters.height);
-
-//    return imGui;
     return nullptr;
 }
 
@@ -52,12 +61,31 @@ std::vector<const char *> GLFWWindow::getRequiredInstanceExtensions()
 void GLFWWindow::create()
 {
 
-    glfwInit();
+    if(!glfwInit())
+    {
+        printGLFWerror();
+        return;
+    }
+
+    if( GLFW_FALSE == glfwVulkanSupported() )
+    {
+        cout << "Vulkan not supported. Compile GLFW with vulkan!" << endl;
+        SAIGA_ASSERT(0);
+        return;
+    }
+
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     window = glfwCreateWindow(windowParameters.width, windowParameters.height, "Window Title", NULL, NULL);
 
-    cout << "window created" << endl;
+    SAIGA_ASSERT(window);
+
+    int w,h;
+    glfwGetFramebufferSize( window, &w, &h );
+    SAIGA_ASSERT(w == windowParameters.width && h == windowParameters.height);
+
+    cout << "GLFW window created." << endl;
 
 
 }
@@ -68,6 +96,7 @@ void GLFWWindow::createSurface(VkInstance instance, VkSurfaceKHR *surface)
     if (err)
     {
         // Window surface creation failed
+        cout << "Could not create Window Surface!" << endl;
         SAIGA_ASSERT(0);
     }
 }
