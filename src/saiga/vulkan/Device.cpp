@@ -80,6 +80,7 @@ uint32_t VulkanDevice::getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags pr
     }
 }
 
+
 uint32_t VulkanDevice::getQueueFamilyIndex(VkQueueFlagBits queueFlags)
 {
     // Dedicated queue for compute
@@ -123,7 +124,22 @@ uint32_t VulkanDevice::getQueueFamilyIndex(VkQueueFlagBits queueFlags)
     throw std::runtime_error("Could not find a matching queue family index");
 }
 
-VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, bool useSwapChain, VkQueueFlags requestedQueueTypes)
+uint32_t VulkanDevice::getPresentQueue(VkSurfaceKHR surface)
+{
+    for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilyProperties.size()); i++)
+    {
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+
+        if (queueFamilyProperties[i].queueCount > 0 && presentSupport) {
+            return i;
+        }
+
+    }
+    throw std::runtime_error("Could not find a matching queue family index");
+}
+
+VkResult VulkanDevice::createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, bool useSwapChain, VkQueueFlags requestedQueueTypes)
 {
     // Desired queues need to be requested upon logical device creation
     // Due to differing queue family configurations of Vulkan implementations this can be a bit tricky, especially if the application
@@ -193,6 +209,16 @@ VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatu
         // Else we use the same queue
         queueFamilyIndices.transfer = queueFamilyIndices.graphics;
     }
+
+    queueFamilyIndices.present = getPresentQueue(surface);
+
+
+    cout << "Device Queues:" << endl;
+    cout << "   graphics " << queueFamilyIndices.graphics << endl;
+    cout << "   compute  " << queueFamilyIndices.compute << endl;
+    cout << "   transfer " << queueFamilyIndices.transfer << endl;
+    cout << "   present  " << queueFamilyIndices.present << endl;
+
 
     for(VkDeviceQueueCreateInfo i : queueCreateInfos)
     {

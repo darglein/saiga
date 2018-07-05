@@ -17,7 +17,10 @@ class SAIGA_GLOBAL Instance
 {
 public:
     void destroy();
+
     void create(std::vector<const char *> instanceExtensions, bool enableValidation);
+
+    vk::PhysicalDevice pickPhysicalDevice();
 
     operator vk::Instance() const { return instance; }
     operator VkInstance() const { return instance; }

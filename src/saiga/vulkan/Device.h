@@ -46,9 +46,10 @@ struct VulkanDevice
     /** @brief Contains queue family indices */
     struct
     {
-        uint32_t graphics;
+        uint32_t graphics = -1;
         uint32_t compute;
         uint32_t transfer;
+        uint32_t present;
     } queueFamilyIndices;
 
     /**  @brief Typecast to VkDevice */
@@ -91,6 +92,7 @@ struct VulkanDevice
         * @throw Throws an exception if no queue family index could be found that supports the requested flags
         */
     uint32_t getQueueFamilyIndex(VkQueueFlagBits queueFlags);
+    uint32_t getPresentQueue(VkSurfaceKHR surface);
 
     /**
         * Create the logical device based on the assigned physical device, also gets default queue family indices
@@ -101,7 +103,7 @@ struct VulkanDevice
         *
         * @return VkResult of the device creation call
         */
-    VkResult createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char*> enabledExtensions, bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+    VkResult createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char*> enabledExtensions, bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
 
     /**
         * Create a buffer on the device

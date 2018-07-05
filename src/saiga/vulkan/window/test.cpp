@@ -263,6 +263,7 @@ private:
         std::set<int> uniqueQueueFamilies = {indices.graphicsFamily, indices.presentFamily};
 
 
+
         float queuePriority = 1.0f;
         for (int queueFamily : uniqueQueueFamilies) {
             VkDeviceQueueCreateInfo queueCreateInfo = {};
@@ -272,6 +273,11 @@ private:
             queueCreateInfo.pQueuePriorities = &queuePriority;
             queueCreateInfos.push_back(queueCreateInfo);
         }
+
+
+        cout << "Device Queues:" << endl;
+        cout << "   graphics " << indices.graphicsFamily << endl;
+        cout << "   present  " << indices.presentFamily << endl;
 
         for(VkDeviceQueueCreateInfo i : queueCreateInfos)
         {

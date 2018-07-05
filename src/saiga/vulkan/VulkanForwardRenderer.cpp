@@ -28,7 +28,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
 {
 
     vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &graphicsQueue);
-    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &presentQueue);
+    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.present, 0, &presentQueue);
 
 
 

@@ -77,5 +77,26 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
 
 }
 
+vk::PhysicalDevice Instance::pickPhysicalDevice()
+{
+    std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
+    if(physicalDevices.size() == 0)
+    {
+        SAIGA_EXIT_ERROR("Could not find a vulkan capable device.");
+    }
+
+    uint32_t selectedDevice = 0;
+    auto physicalDevice = physicalDevices[selectedDevice];
+
+    {
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+        std::cout << "Device [" << selectedDevice << "] : " << deviceProperties.deviceName << std::endl;
+        std::cout << " Type: " << vks::tools::physicalDeviceTypeString(deviceProperties.deviceType) << std::endl;
+        std::cout << " API: " << (deviceProperties.apiVersion >> 22) << "." << ((deviceProperties.apiVersion >> 12) & 0x3ff) << "." << (deviceProperties.apiVersion & 0xfff) << std::endl;
+    }
+    return physicalDevice;
+}
+
 }
 }
