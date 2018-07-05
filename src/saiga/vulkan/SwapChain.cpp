@@ -176,8 +176,11 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
 
     // If v-sync is not requested, try to find a mailbox mode
     // It's the lowest latency non-tearing present mode available
-    if (!vsync)
+    if (vsync)
     {
+         swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+#if 0
         for (size_t i = 0; i < presentModeCount; i++)
         {
             if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -190,11 +193,16 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
                 swapchainPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
             }
         }
+#endif
+    }else{
+         swapchainPresentMode =  VK_PRESENT_MODE_MAILBOX_KHR;
+//         swapchainPresentMode =  VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
 
 
+
     // Determine the number of images
-    uint32_t desiredNumberOfSwapchainImages = surfCaps.minImageCount + 1;
+    uint32_t desiredNumberOfSwapchainImages = 3;//surfCaps.minImageCount + 1;
     if ((surfCaps.maxImageCount > 0) && (desiredNumberOfSwapchainImages > surfCaps.maxImageCount))
     {
         desiredNumberOfSwapchainImages = surfCaps.maxImageCount;

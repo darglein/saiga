@@ -63,7 +63,7 @@ ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 }
 
 
-void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCache pipelineCache, VkRenderPass renderPass, VkQueue copyQueue)
+void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCache pipelineCache, VkRenderPass renderPass, Queue &copyQueue, vk::CommandBuffer cmd)
 {
     this->vulkanDevice = _device;
 
@@ -122,11 +122,14 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
     stagingBuffer.unmap();
 
     // Copy buffer data to font image
-    VkCommandBuffer copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    VkCommandBuffer copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, false);
+
+
+    cmd.begin(vk::CommandBufferBeginInfo());
 
     // Prepare for transfer
     vks::tools::setImageLayout(
-                copyCmd,
+                cmd,
                 fontImage,
                 VK_IMAGE_ASPECT_COLOR_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
@@ -143,7 +146,7 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
     bufferCopyRegion.imageExtent.depth = 1;
 
     vkCmdCopyBufferToImage(
-                copyCmd,
+                cmd,
                 stagingBuffer.buffer,
                 fontImage,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -153,7 +156,7 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
 
     // Prepare for shader read
     vks::tools::setImageLayout(
-                copyCmd,
+                cmd,
                 fontImage,
                 VK_IMAGE_ASPECT_COLOR_BIT,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -161,7 +164,9 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 
-    vulkanDevice->flushCommandBuffer(copyCmd, copyQueue, true);
+    cmd.end();
+//    vulkanDevice->flushCommandBuffer(copyCmd, copyQueue, true);
+    copyQueue.submitAndWait(cmd);
 
     stagingBuffer.destroy();
 
@@ -258,6 +263,7 @@ void ImGuiVulkanRenderer::updateBuffers()
         vertexBuffer.destroy();
         VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &vertexBuffer, vertexBufferSize));
         vertexCount = imDrawData->TotalVtxCount;
+        cerr << "warning resize vertex buffer " << vertexCount << endl;
         vertexBuffer.unmap();
         vertexBuffer.map();
     }

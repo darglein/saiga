@@ -11,8 +11,8 @@
 namespace Saiga {
 namespace Vulkan {
 
-VulkanRenderer::VulkanRenderer(VulkanWindow &window)
-    : window(window)
+VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanParameters)
+    : window(window), vulkanParameters(vulkanParameters)
 {
     window.setRenderer(this);
 
@@ -20,7 +20,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window)
     height = window.getHeight();
 
     std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
-    instance.create(instanceExtensions,true);
+    instance.create(instanceExtensions,vulkanParameters.enableValidationLayer);
 
     VkSurfaceKHR surface;
     window.createSurface(instance,&surface);

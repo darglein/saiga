@@ -12,6 +12,7 @@
 #include "saiga/vulkan/AssetRenderer.h"
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/window/Interfaces.h"
+#
 
 class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface, public Saiga::SDL_KeyListener
 {
@@ -19,9 +20,10 @@ public:
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample();
 
-    void init();
+    virtual void init(Saiga::Vulkan::Queue& queue, vk::CommandBuffer cmd);
 
     virtual void update(float dt) override;
+        virtual void transfer(VkCommandBuffer cmd);
     virtual void render(VkCommandBuffer cmd) override;
     virtual void renderGUI() override;
 private:

@@ -8,6 +8,7 @@
 #pragma once
 
 #include "saiga/vulkan/svulkan.h"
+#include "Debug.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -28,6 +29,7 @@ public:
 private:
     // Vulkan instance, stores all per-application states
     vk::Instance instance;
+    Debug debug;
 };
 
 

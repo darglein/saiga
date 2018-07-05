@@ -30,6 +30,7 @@ public:
 
     void pushModel(VkCommandBuffer cmd, mat4 model);
     void updateUniformBuffers(glm::mat4 view, glm::mat4 proj);
+    void updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj);
 
     void init(vks::VulkanDevice* vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass);
 

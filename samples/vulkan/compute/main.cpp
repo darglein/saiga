@@ -19,8 +19,9 @@ int main(const int argc, const char *argv[])
             Saiga::Vulkan::SDLWindow window(windowParameters);
 //        Saiga::Vulkan::GLFWWindow window(windowParameters);
 
+        Saiga::Vulkan::VulkanParameters vulkanParams;
 
-        Saiga::Vulkan::VulkanForwardRenderer renderer(window,true);
+        Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
 
 
         Compute example(window,renderer);

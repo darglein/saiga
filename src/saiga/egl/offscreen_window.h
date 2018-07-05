@@ -35,7 +35,7 @@ protected:
     virtual bool initWindow() override;
 public:
 
-    OffscreenWindow(WindowParameters windowParameters);
+    OffscreenWindow(WindowParameters windowParameters, OpenGLParameters openglParameter = OpenGLParameters());
 };
 
 }

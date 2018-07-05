@@ -32,7 +32,7 @@ VulkanExample::~VulkanExample()
     assetRenderer.destroy();
 }
 
-void VulkanExample::init()
+void VulkanExample::init(Saiga::Vulkan::Queue& queue, vk::CommandBuffer cmd)
 {
     assetRenderer.init(renderer.vulkanDevice,renderer.pipelineCache,renderer.renderPass);
 
@@ -50,9 +50,14 @@ void VulkanExample::init()
 
 void VulkanExample::update(float dt)
 {
-    assetRenderer.updateUniformBuffers(camera.view,camera.proj);
+
     camera.update(dt);
     camera.interpolate(dt,0);
+}
+
+void VulkanExample::transfer(VkCommandBuffer cmd)
+{
+    assetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
 }
 
 
@@ -70,15 +75,16 @@ void VulkanExample::render(VkCommandBuffer cmd)
 
 void VulkanExample::renderGUI()
 {
-    parentWindow.renderImGui();
 
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Example settings");
     ImGui::Checkbox("Render models", &displayModels);
     ImGui::End();
+//    return;
 
-    ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-    ImGui::ShowTestWindow();
+    parentWindow.renderImGui();
+//    ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
+//    ImGui::ShowTestWindow();
 }
 
 

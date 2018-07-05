@@ -9,17 +9,10 @@
 */
 
 #include "Debug.h"
-#include <iostream>
 
 namespace Saiga {
 namespace Vulkan {
 
-
-PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallback = VK_NULL_HANDLE;
-PFN_vkDestroyDebugReportCallbackEXT DestroyDebugReportCallback = VK_NULL_HANDLE;
-PFN_vkDebugReportMessageEXT dbgBreakCallback = VK_NULL_HANDLE;
-
-VkDebugReportCallbackEXT msgCallback;
 
 static const std::vector<std::string> typeNames = {
     "VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT                     ",
@@ -124,8 +117,10 @@ VkBool32 messageCallback(
     return VK_TRUE;
 }
 
-void setupDebugging(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportCallbackEXT callBack)
+void Debug::init(VkInstance _instance, VkDebugReportFlagsEXT flags, VkDebugReportCallbackEXT callBack)
 {
+    instance = _instance;
+
     CreateDebugReportCallback = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
     DestroyDebugReportCallback = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT"));
     dbgBreakCallback = reinterpret_cast<PFN_vkDebugReportMessageEXT>(vkGetInstanceProcAddr(instance, "vkDebugReportMessageEXT"));
@@ -143,7 +138,7 @@ void setupDebugging(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugRep
     assert(!err);
 }
 
-void freeDebugCallback(VkInstance instance)
+void Debug::destroy()
 {
     if (msgCallback != VK_NULL_HANDLE)
     {
@@ -151,7 +146,7 @@ void freeDebugCallback(VkInstance instance)
     }
 }
 
-std::vector<const char *> getDebugValidationLayers()
+std::vector<const char *> Debug::getDebugValidationLayers()
 {
 #ifdef __APPLE__
     // lunarg validation not supported on moltenvk

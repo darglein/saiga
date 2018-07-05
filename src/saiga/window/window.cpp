@@ -24,17 +24,13 @@
 #include <ctime>
 #include <thread>
 
-#if defined(SAIGA_VULKAN_INCLUDED) || defined(SAIGA_OPENGL_INCLUDED)
-//#error This file is not allowed to use any graphics API.
-#endif
-
 
 namespace Saiga {
 
 
 
-OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters)
-    : WindowBase(_windowParameters)
+OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters, OpenGLParameters openglParameters)
+    : WindowBase(_windowParameters), openglParameters(openglParameters)
 {
 }
 

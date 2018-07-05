@@ -20,16 +20,21 @@ int main(const int argc, const char *argv[])
             Saiga::Vulkan::SDLWindow window(windowParameters);
 //        Saiga::Vulkan::GLFWWindow window(windowParameters);
 
-
-        Saiga::Vulkan::VulkanForwardRenderer renderer(window,true);
+Saiga::Vulkan::VulkanParameters vulkanParams;
+vulkanParams.enableValidationLayer = false;
+        Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
 
 
         VulkanExample example(window,renderer);
-        example.init();
+        renderer.initChildren();
+//        example.init();
 
         MainLoopParameters params;
-        params.framesPerSecond = 60;
+        params.mainLoopInfoTime = 1;
+        params.framesPerSecond = 0;
         window.startMainLoop(params);
+
+        renderer.waitIdle();
     }
 
 //    maingsdgdfg();

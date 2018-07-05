@@ -5,19 +5,26 @@
 namespace Saiga {
 namespace Vulkan {
 
-// Load debug function pointers and set debug callback
-// if callBack is NULL, default message callback will be used
-void setupDebugging(
-        VkInstance instance,
-        VkDebugReportFlagsEXT flags,
-        VkDebugReportCallbackEXT callBack
-        );
+class Debug
+{
+public:
+    void init(
+            VkInstance instance,
+            VkDebugReportFlagsEXT flags = VK_DEBUG_REPORT_WARNING_BIT_EXT  | VK_DEBUG_REPORT_ERROR_BIT_EXT,
+            VkDebugReportCallbackEXT callBack = VK_NULL_HANDLE
+            );
+    void destroy();
+    static std::vector<const char*> getDebugValidationLayers();
+private:
+    vk::Instance instance;
 
-// Clear debug callback
-void freeDebugCallback(VkInstance instance);
+    PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallback = VK_NULL_HANDLE;
+    PFN_vkDestroyDebugReportCallbackEXT DestroyDebugReportCallback = VK_NULL_HANDLE;
+    PFN_vkDebugReportMessageEXT dbgBreakCallback = VK_NULL_HANDLE;
+    VkDebugReportCallbackEXT msgCallback;
+};
 
 
-std::vector<const char*> getDebugValidationLayers();
 
 
 }

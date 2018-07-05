@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/opengl/opengl.h"
 #include "saiga/window/WindowBase.h"
 #include "saiga/imgui/imgui_renderer.h"
 
@@ -17,7 +18,7 @@ class Image;
 class SAIGA_GLOBAL OpenGLWindow : public WindowBase
 {
 public:
-    OpenGLWindow(WindowParameters windowParameters);
+    OpenGLWindow(WindowParameters windowParameters, OpenGLParameters openglParameters);
     virtual ~OpenGLWindow();
 
     bool create();
@@ -42,6 +43,8 @@ public:
 
     virtual void swap();
     virtual void update(float dt);
+
+     OpenGLParameters openglParameters;
 
 protected:
     virtual bool initWindow() = 0;

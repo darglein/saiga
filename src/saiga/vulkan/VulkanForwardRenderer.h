@@ -17,32 +17,53 @@
 #include "saiga/vulkan/FrameSync.h"
 #include "saiga/vulkan/buffer/DepthBuffer.h"
 #include "saiga/vulkan/buffer/Framebuffer.h"
-
+#include "saiga/vulkan/Queue.h"
+#include "saiga/vulkan/CommandPool.h"
 
 
 namespace Saiga {
 namespace Vulkan {
 
 
+class SAIGA_GLOBAL VulkanForwardRenderingInterface : public RenderingBase
+{
+public:
+    VulkanForwardRenderingInterface(RendererBase& parent) : RenderingBase(parent) {}
+    virtual ~VulkanForwardRenderingInterface(){}
+
+    virtual void init(Queue& queue, vk::CommandBuffer cmd) {}
+
+    virtual void transfer(VkCommandBuffer cmd) {}
+    virtual void render(VkCommandBuffer cmd) {}
+    virtual void renderGUI() {}
+};
+
+
+
+
 class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
 {
 public:
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
+    Queue graphicsQueue;
+    Queue presentQueue;
+    Queue transferQueue;
     VkRenderPass renderPass;
 
-    VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, bool enableValidation = true);
+    VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, VulkanParameters vulkanParameters);
     virtual ~VulkanForwardRenderer();
 
+    void initChildren();
     virtual void render(Camera* cam);
+
+    void waitIdle();
 protected:
 
-
+    int maxFramesInFlight = 10;
     DepthBuffer depthBuffer;
 
-    VkCommandPool cmdPool;
+//    CommandPool cmdPool;
 
-    std::vector<VkCommandBuffer> drawCmdBuffers;
+    std::vector<vk::CommandBuffer> drawCmdBuffers;
     std::vector<Framebuffer>frameBuffers;
     uint32_t currentBuffer = 0;
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;

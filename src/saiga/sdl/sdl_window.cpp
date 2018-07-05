@@ -10,7 +10,8 @@
 
 namespace Saiga {
 
-SDLWindow::SDLWindow(WindowParameters windowParameters):OpenGLWindow(windowParameters)
+SDLWindow::SDLWindow(WindowParameters windowParameters, OpenGLParameters openglParameter)
+    : OpenGLWindow(windowParameters,openglParameter)
 {
     create();
 }
@@ -41,11 +42,11 @@ bool SDLWindow::initWindow()
         windowParameters.height = current.h;
     }
 
-    OpenGLParameters& oparams = windowParameters.openglparameters;
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, oparams.versionMajor );
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, oparams.versionMinor );
+//    OpenGLParameters& oparams = windowParameters.openglparameters;
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, openglParameters.versionMajor );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, openglParameters.versionMinor );
 
-    switch (oparams.profile){
+    switch (openglParameters.profile){
     case OpenGLParameters::Profile::ANY:
         //that is the default value
         break;
@@ -57,10 +58,10 @@ bool SDLWindow::initWindow()
         break;
     }
 
-    if(oparams.debug)
+    if(openglParameters.debug)
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 
-    if(oparams.forwardCompatible)
+    if(openglParameters.forwardCompatible)
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 
 

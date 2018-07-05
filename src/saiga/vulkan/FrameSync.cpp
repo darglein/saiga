@@ -5,32 +5,37 @@
  */
 
 #include "FrameSync.h"
-#include "VulkanInitializers.hpp"
 namespace Saiga {
 namespace Vulkan {
 
-void FrameSync::create(VkDevice device)
+void FrameSync::create(vk::Device device)
 {
-    // Wait fences to sync command buffer access
-    VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-    vkCreateFence(device, &fenceCreateInfo, nullptr, &frameFence);
+    vk::FenceCreateInfo fenceCreateInfo{
+        vk::FenceCreateFlagBits::eSignaled
+    };
+    frameFence = device.createFence(fenceCreateInfo);
 
-    VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
-    vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &imageVailable);
-    vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &renderComplete);
+    vk::SemaphoreCreateInfo semaphoreCreateInfo {
+        vk::SemaphoreCreateFlags()
+    };
+    device.createSemaphore(&semaphoreCreateInfo, nullptr, &imageVailable);
+    device.createSemaphore(&semaphoreCreateInfo, nullptr, &renderComplete);
 }
 
-void FrameSync::destroy(VkDevice device)
+void FrameSync::destroy(vk::Device device)
 {
-    vkDestroySemaphore(device, imageVailable, nullptr);
-    vkDestroySemaphore(device, renderComplete, nullptr);
-    vkDestroyFence(device, frameFence, nullptr);
+//    vkDestroySemaphore(device, imageVailable, nullptr);
+//    vkDestroySemaphore(device, renderComplete, nullptr);
+//    vkDestroyFence(device, frameFence, nullptr);
+    device.destroySemaphore(imageVailable);
+    device.destroySemaphore(renderComplete);
+    device.destroyFence(frameFence);
 }
 
-void FrameSync::wait(VkDevice device)
+void FrameSync::wait(vk::Device device)
 {
-    vkWaitForFences(device, 1, &frameFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-    vkResetFences(device, 1, &frameFence);
+    device.waitForFences(frameFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    device.resetFences(frameFence);
 }
 
 }

@@ -23,8 +23,8 @@
 
 namespace Saiga {
 
-glfw_Window::glfw_Window(WindowParameters windowParameters):
-    OpenGLWindow(windowParameters)
+glfw_Window::glfw_Window(WindowParameters windowParameters, OpenGLParameters openglParameters):
+    OpenGLWindow(windowParameters,openglParameters)
 {
        create();
 }
@@ -128,11 +128,10 @@ bool glfw_Window::initWindow()
         windowParameters.height = mode->height;
     }
 
-    OpenGLParameters& oparams = windowParameters.openglparameters;
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, oparams.versionMajor);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, oparams.versionMinor);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, openglParameters.versionMajor);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, openglParameters.versionMinor);
 
-    switch (oparams.profile){
+    switch (openglParameters.profile){
     case OpenGLParameters::Profile::ANY:
         //that is the default value
         break;
@@ -147,8 +146,8 @@ bool glfw_Window::initWindow()
     if(windowParameters.hidden)
         glfwWindowHint(GLFW_VISIBLE, 0);
 
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, oparams.debug);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, oparams.forwardCompatible);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, openglParameters.debug);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, openglParameters.forwardCompatible);
 
 
 

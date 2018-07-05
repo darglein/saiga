@@ -246,7 +246,7 @@ VkResult VulkanDevice::createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDevic
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
     }
 
-    auto layers = Saiga::Vulkan::getDebugValidationLayers();
+    auto layers = Saiga::Vulkan::Debug::getDebugValidationLayers();
 
     deviceCreateInfo.enabledLayerCount = layers.size();
     deviceCreateInfo.ppEnabledLayerNames = layers.data();

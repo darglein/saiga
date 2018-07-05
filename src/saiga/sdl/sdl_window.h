@@ -34,7 +34,7 @@ protected:
     virtual bool resizeWindow(Uint32 windowId, int width, int height) override;
 public:
 
-    SDLWindow(WindowParameters windowParameters);
+    SDLWindow(WindowParameters windowParameters, OpenGLParameters openglParameter = OpenGLParameters());
     ~SDLWindow();
 
     virtual std::shared_ptr<ImGuiRenderer> createImGui() override;

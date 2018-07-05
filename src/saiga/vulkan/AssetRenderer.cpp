@@ -50,6 +50,14 @@ void AssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
 
 }
 
+void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
+{
+    uboVS.projection = proj;
+    uboVS.modelview = view;
+    uboVS.lightPos = vec4(5,5,5,0);
+      cmd.updateBuffer(uniformBufferVS.buffer,0,sizeof(uboVS),&uboVS);
+}
+
 void AssetRenderer::init(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass)
 {
 
@@ -59,7 +67,7 @@ void AssetRenderer::init(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipeli
 
     // Vertex shader uniform buffer block
     VK_CHECK_RESULT(vulkanDevice->createBuffer(
-                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         &uniformBufferVS,
                         sizeof(uboVS),

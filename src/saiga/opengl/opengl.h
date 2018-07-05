@@ -49,6 +49,30 @@ enum class OpenGLVendor{
 
 SAIGA_GLOBAL OpenGLVendor getOpenGLVendor();
 
+struct SAIGA_GLOBAL OpenGLParameters
+{
+    enum class Profile{
+        ANY,
+        CORE,
+        COMPATIBILITY
+    };
+    Profile profile = Profile::CORE;
+
+    bool debug = true;
+
+    //all functionality deprecated in the requested version of OpenGL is removed
+    bool forwardCompatible = false;
+
+    int versionMajor = 3;
+    int versionMinor = 2;
+
+    /**
+     *  Reads all paramters from the given config file.
+     *  Creates the file with the default values if it doesn't exist.
+     */
+    void fromConfigFile(const std::string& file);
+};
+
 }
 
 #define SAIGA_OPENGL_INCLUDED

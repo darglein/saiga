@@ -12,6 +12,7 @@
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/Device.h"
 #include "saiga/vulkan/SwapChain.h"
+#include "saiga/vulkan/Parameters.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -27,7 +28,7 @@ public:
     VkPipelineCache pipelineCache;
 
 
-    VulkanRenderer(VulkanWindow &window);
+    VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanParameters);
     virtual ~VulkanRenderer();
 
     virtual void render(Camera *cam) {}
@@ -51,21 +52,12 @@ protected:
     std::vector<const char*> enabledDeviceExtensions;
     std::vector<const char*> enabledInstanceExtensions;
     VulkanSwapChain swapChain;
+    VulkanParameters vulkanParameters;
 
 private:
     void initInstanceDevice();
 };
 
-
-class SAIGA_GLOBAL VulkanForwardRenderingInterface : public RenderingBase
-{
-public:
-    VulkanForwardRenderingInterface(RendererBase& parent) : RenderingBase(parent) {}
-    virtual ~VulkanForwardRenderingInterface(){}
-
-    virtual void render(VkCommandBuffer cmd) {}
-    virtual void renderGUI() {}
-};
 
 
 }

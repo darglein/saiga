@@ -20,14 +20,14 @@ namespace Vulkan {
 class SAIGA_GLOBAL FrameSync
 {
 public:
-    VkSemaphore imageVailable;
-    VkSemaphore renderComplete;
-    VkFence frameFence;
+    vk::Semaphore imageVailable;
+    vk::Semaphore renderComplete;
+    vk::Fence frameFence;
 
-    void create(VkDevice device);
-    void destroy(VkDevice device);
+    void create(vk::Device device);
+    void destroy(vk::Device device);
 
-    void wait(VkDevice device);
+    void wait(vk::Device device);
 };
 
 }

@@ -29,7 +29,7 @@ public:
 
     bool recordingVideo = false;
 
-    glfw_Window(WindowParameters windowParameters);
+    glfw_Window(WindowParameters windowParameters, OpenGLParameters openglParameters = OpenGLParameters());
     virtual ~glfw_Window();
 
 

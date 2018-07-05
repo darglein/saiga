@@ -23,24 +23,26 @@ namespace Vulkan {
 
 
 
-VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableValidation)
-    : VulkanRenderer(window)
+VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, VulkanParameters vulkanParameters)
+    : VulkanRenderer(window,vulkanParameters)
 {
 
-    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &graphicsQueue);
-    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.present, 0, &presentQueue);
-
+    //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &graphicsQueue);
+    //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.present, 0, &presentQueue);
+    graphicsQueue.create(device,vulkanDevice->queueFamilyIndices.graphics);
+    presentQueue.create(device,vulkanDevice->queueFamilyIndices.present);
+    transferQueue.create(device,vulkanDevice->queueFamilyIndices.transfer);
 
 
     depthBuffer.init(vulkanDevice,width,height);
 
 
-    VkCommandPoolCreateInfo cmdPoolInfo = {};
-    cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    cmdPoolInfo.queueFamilyIndex = swapChain.queueNodeIndex;
-    cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    VK_CHECK_RESULT(vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &cmdPool));
-
+    //    VkCommandPoolCreateInfo cmdPoolInfo = {};
+    //    cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    //    cmdPoolInfo.queueFamilyIndex = swapChain.queueNodeIndex;
+    //    cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    //    VK_CHECK_RESULT(vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &cmdPool));
+    //    cmdPool.create(device,);
 
     syncObjects.resize(swapChain.imageCount);
     for (auto& sync : syncObjects)
@@ -49,13 +51,15 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
     }
 
 
-    drawCmdBuffers.resize(swapChain.imageCount);
-    VkCommandBufferAllocateInfo cmdBufAllocateInfo =
-            vks::initializers::commandBufferAllocateInfo(
-                cmdPool,
-                VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                static_cast<uint32_t>(drawCmdBuffers.size()));
-    VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, drawCmdBuffers.data()));
+    drawCmdBuffers = graphicsQueue.commandPool.allocateCommandBuffers(swapChain.imageCount,vk::CommandBufferLevel::ePrimary);
+
+    //    drawCmdBuffers.resize(swapChain.imageCount);
+    //    VkCommandBufferAllocateInfo cmdBufAllocateInfo =
+    //            vks::initializers::commandBufferAllocateInfo(
+    //                cmdPool,
+    //                VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    //                static_cast<uint32_t>(drawCmdBuffers.size()));
+    //    VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, drawCmdBuffers.data()));
 
     setupRenderPass();
 
@@ -64,19 +68,22 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, bool enableVa
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
     {
         frameBuffers[i].createColorDepthStencil(width,height,swapChain.buffers[i].view,depthBuffer.depthview,renderPass,device);
-//        frameBuffers[i].createColor(width,height,swapChain.buffers[i].view,renderPass,device);
+        //        frameBuffers[i].createColor(width,height,swapChain.buffers[i].view,renderPass,device);
     }
 
 
     cout << "VulkanForwardRenderer init done." << endl;
 
-    imGui = window.createImGui();
-    if(imGui)
-        imGui->initResources(vulkanDevice,pipelineCache,renderPass, graphicsQueue);
+
 }
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
+    graphicsQueue.destroy();
+    presentQueue.destroy();
+    transferQueue.destroy();
+
+    waitIdle();
 
     if (descriptorPool != VK_NULL_HANDLE)
     {
@@ -86,20 +93,43 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     vkDestroyRenderPass(device, renderPass, nullptr);
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
     {
-//        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
+        //        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
         frameBuffers[i].destroy(device);
     }
 
     depthBuffer.destroy();
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
-    vkDestroyCommandPool(device, cmdPool, nullptr);
+    //    vkDestroyCommandPool(device, cmdPool, nullptr);
 
     for(auto& s : syncObjects)
     {
         s.destroy(device);
     }
 
+}
+
+void VulkanForwardRenderer::initChildren()
+{
+    imGui = window.createImGui();
+
+
+
+
+    VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
+    SAIGA_ASSERT(renderingInterface);
+
+    auto cmd = transferQueue.commandPool.allocateCommandBuffer();
+    renderingInterface->init(transferQueue,cmd);
+
+    if(imGui)
+        imGui->initResources(vulkanDevice,pipelineCache,renderPass, transferQueue,cmd);
+
+    //    cmd.reset(vk::CommandBufferResetFlags());
+
+
+
+    transferQueue.waitIdle();
 }
 
 
@@ -190,11 +220,12 @@ void VulkanForwardRenderer::render(Camera *cam)
     //    cout << "VulkanForwardRenderer::render" << endl;
     if(imGui)
     {
-
-        imGui->beginFrame();
-        renderingInterface->renderGUI();
-        imGui->endFrame();
-
+//        std::thread t([&](){
+            imGui->beginFrame();
+            renderingInterface->renderGUI();
+            imGui->endFrame();
+//        });
+//        t.join();
     }
 
 
@@ -216,7 +247,7 @@ void VulkanForwardRenderer::render(Camera *cam)
     VkClearValue clearValues[2];
     vec4 clearColor(0.4,0.8,1.0,1.0);
     clearValues[0].color = { { clearColor.x,clearColor.y,clearColor.z,clearColor.w} };
-//    clearValues[0].depthStencil = { 1.0f, 0 };
+    //    clearValues[0].depthStencil = { 1.0f, 0 };
     clearValues[1].depthStencil = { 1.0f, 0 };
 
     VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
@@ -229,12 +260,14 @@ void VulkanForwardRenderer::render(Camera *cam)
     renderPassBeginInfo.pClearValues = clearValues;
 
 
-    VkCommandBuffer& cmd = drawCmdBuffers[currentBuffer];
+    vk::CommandBuffer& cmd = drawCmdBuffers[currentBuffer];
 
     // Set target frame buffer
     renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer].framebuffer;
 
     VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
+
+    renderingInterface->transfer(cmd);
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -247,17 +280,19 @@ void VulkanForwardRenderer::render(Camera *cam)
 
     {
         // Actual rendering
-        renderingInterface->render(cmd);
+                renderingInterface->render(cmd);
         if(imGui) imGui->render(cmd);
     }
 
     vkCmdEndRenderPass(cmd);
 
+
     VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
 
-    VkSubmitInfo submitInfo;
-    submitInfo = vks::initializers::submitInfo();
-    VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    vk::PipelineStageFlags submitPipelineStages =  vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+    vk::SubmitInfo submitInfo;
+    //    submitInfo = vks::initializers::submitInfo();
     submitInfo.pWaitDstStageMask = &submitPipelineStages;
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &sync.imageVailable;
@@ -266,12 +301,21 @@ void VulkanForwardRenderer::render(Camera *cam)
 
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
-    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
+    //    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
+    graphicsQueue.queue.submit(submitInfo,sync.frameFence);
 
     VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
-    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
+    //    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
+    //    presentQueue.waitIdle();
 
     nextSyncObject = (nextSyncObject+1) % syncObjects.size();
+}
+
+void VulkanForwardRenderer::waitIdle()
+{
+    graphicsQueue.waitIdle();
+    presentQueue.waitIdle();
+    transferQueue.waitIdle();
 }
 
 

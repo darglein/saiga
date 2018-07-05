@@ -6,15 +6,14 @@
 
 #include "Instance.h"
 
-#include "Debug.h"
-#include "saiga/vulkan/VulkanTools.h"
+//#include "saiga/vulkan/VulkanTools.h"
 
 namespace Saiga {
 namespace Vulkan {
 
 void Instance::destroy()
 {
-    freeDebugCallback(instance);
+    debug.destroy();
     vkDestroyInstance(instance, nullptr);
 }
 
@@ -48,7 +47,7 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
         instanceCreateInfo.enabledExtensionCount = (uint32_t)instanceExtensions.size();
         instanceCreateInfo.ppEnabledExtensionNames = instanceExtensions.data();
     }
-    auto layers = getDebugValidationLayers();
+    auto layers = Debug::getDebugValidationLayers();
     if (enableValidation)
     {
         instanceCreateInfo.enabledLayerCount = layers.size();
@@ -69,8 +68,7 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
     // If requested, we enable the default validation layers for debugging
     if (enableValidation)
     {
-        VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_WARNING_BIT_EXT  | VK_DEBUG_REPORT_ERROR_BIT_EXT;
-        setupDebugging(instance, debugReportFlags, VK_NULL_HANDLE);
+        debug.init(instance);
     }
 
     cout << "Vulkan instance created." << endl;
@@ -92,7 +90,7 @@ vk::PhysicalDevice Instance::pickPhysicalDevice()
         VkPhysicalDeviceProperties deviceProperties;
         vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
         std::cout << "Device [" << selectedDevice << "] : " << deviceProperties.deviceName << std::endl;
-        std::cout << " Type: " << vks::tools::physicalDeviceTypeString(deviceProperties.deviceType) << std::endl;
+//        std::cout << " Type: " << vks::tools::physicalDeviceTypeString(deviceProperties.deviceType) << std::endl;
         std::cout << " API: " << (deviceProperties.apiVersion >> 22) << "." << ((deviceProperties.apiVersion >> 12) & 0x3ff) << "." << (deviceProperties.apiVersion & 0xfff) << std::endl;
     }
     return physicalDevice;

@@ -21,6 +21,8 @@
 #include "saiga/vulkan/Shader/Shader.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 
+#include "saiga/vulkan/Queue.h"
+
 
 namespace Saiga {
 namespace Vulkan {
@@ -32,7 +34,7 @@ public:
 
 
     // Initialize all Vulkan resources used by the ui
-    void initResources(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass, VkQueue copyQueue);
+    void initResources(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass, Queue& copyQueue, vk::CommandBuffer cmd);
 
 
     // Draw current imGui frame into a command buffer
