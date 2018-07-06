@@ -16,9 +16,9 @@ void Buffer::destroy()
         device.destroyBuffer(buffer);
 }
 
-void Buffer::createBuffer(vks::VulkanDevice *vulkanDevice, size_t size, vk::BufferUsageFlags usage, vk::SharingMode sharingMode)
+void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags usage, vk::SharingMode sharingMode)
 {
-    this->device = vulkanDevice->logicalDevice;
+    this->device = base.device;
     this->size = size;
     vk::BufferCreateInfo buf_info = {};
     buf_info.usage = usage;
@@ -29,12 +29,12 @@ void Buffer::createBuffer(vks::VulkanDevice *vulkanDevice, size_t size, vk::Buff
     CHECK_VK(device.createBuffer(&buf_info, NULL, &buffer));
 }
 
-void Buffer::allocateMemoryBuffer(vks::VulkanDevice *vulkanDevice, vk::MemoryPropertyFlags flags)
+void Buffer::allocateMemoryBuffer(VulkanBase &base, vk::MemoryPropertyFlags flags)
 {
     SAIGA_ASSERT(buffer);
     vk::MemoryRequirements mem_reqs;
     device.getBufferMemoryRequirements(buffer, &mem_reqs);
-    DeviceMemory::allocateMemory(vulkanDevice,mem_reqs,flags);
+    DeviceMemory::allocateMemory(base,mem_reqs,flags);
     device.bindBufferMemory(buffer,memory,0);
 }
 

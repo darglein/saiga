@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <saiga/geometry/triangle_mesh.h>
-#include <saiga/geometry/line_mesh.h>
+#include "saiga/geometry/triangle_mesh.h"
+
 
 
 namespace Saiga {
@@ -73,12 +73,6 @@ void TriangleModel<vertex_t,index_t>::ZUPtoYUP()
 }
 
 
-template<typename VertexType, typename IndexType>
-class SAIGA_GLOBAL LineModel
-{
-public:
-    LineMesh<VertexType,IndexType> mesh;
-};
 
 
 

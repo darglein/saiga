@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "AssetRenderer.h"
+#include "LineAssetRenderer.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
 #include "saiga/assets/model/objModelLoader.h"
@@ -18,24 +18,24 @@ namespace Vulkan {
 
 
 
-void AssetRenderer::destroy()
+void LineAssetRenderer::destroy()
 {
     Pipeline::destroy();
     uniformBufferVS.destroy();
     uniformBufferVS2.destroy();
 }
-void AssetRenderer::bind(vk::CommandBuffer cmd)
+void LineAssetRenderer::bind(vk::CommandBuffer cmd)
 {
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics,pipeline);
 }
 
-void AssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
+void LineAssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 {
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model[0][0]);
 }
 
-void AssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
+void LineAssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
 {
     // Vertex shader
     uboVS.projection = proj;
@@ -50,7 +50,7 @@ void AssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
 
 }
 
-void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
+void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
 {
     uboVS.projection = proj;
     uboVS.modelview = view;
@@ -58,15 +58,15 @@ void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, 
       cmd.updateBuffer(uniformBufferVS.buffer,0,sizeof(uboVS),&uboVS);
 }
 
-void AssetRenderer::init(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass)
+void LineAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass, float lineWidth)
 {
 
-    this->device = vulkanDevice->logicalDevice;
+    this->device = vulkanDevice.device;
 
     uint32_t numUniformBuffers = 1;
 
     // Vertex shader uniform buffer block
-    VK_CHECK_RESULT(vulkanDevice->createBuffer(
+    VK_CHECK_RESULT(vulkanDevice.createBuffer(
                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         &uniformBufferVS,
@@ -106,13 +106,15 @@ void AssetRenderer::init(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipeli
     shaderPipeline.load(
                 device,{
                     "vulkan/scene.vert",
-                    "vulkan/scene.frag"
+                    "vulkan/line.frag"
                 });
 
     // We use the default pipeline with "VertexNC" input vertices.
     PipelineInfo info;
-    info.addVertexInfo<VertexNC>();
-    preparePipelines(info,pipelineCache,renderPass);
+    info.inputAssemblyState.topology = vk::PrimitiveTopology::eLineList;
+    info.rasterizationState.lineWidth = lineWidth;
+    info.addVertexInfo<VertexType>();
+    preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
 }
 
 

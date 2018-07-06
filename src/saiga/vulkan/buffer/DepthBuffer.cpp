@@ -18,9 +18,9 @@ void DepthBuffer::destroy()
     DeviceMemory::destroy();
 }
 
-void DepthBuffer::init(vks::VulkanDevice *vulkanDevice, int width, int height)
+void DepthBuffer::init(VulkanBase &base, int width, int height)
 {
-    device = vulkanDevice->logicalDevice;
+    device = base.device;
     vk::Result res;
     {
         // depth buffer
@@ -29,7 +29,7 @@ void DepthBuffer::init(vks::VulkanDevice *vulkanDevice, int width, int height)
         vk::FormatProperties props;
 //        vkGetPhysicalDeviceFormatProperties(info.gpus[0], depth_format, &props);
 
-        vk::PhysicalDevice physicalDevice = vulkanDevice->physicalDevice;
+        vk::PhysicalDevice physicalDevice = base.physicalDevice;
         props = physicalDevice.getFormatProperties(depth_format);
 
         if (props.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) {
@@ -89,7 +89,7 @@ void DepthBuffer::init(vks::VulkanDevice *vulkanDevice, int width, int height)
 
 
 
-        allocateMemory(vulkanDevice,mem_reqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
+        allocateMemory(base,mem_reqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 
         device.bindImageMemory(depthimage,memory,0);

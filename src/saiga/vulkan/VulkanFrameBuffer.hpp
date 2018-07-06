@@ -12,7 +12,7 @@
 #include <iterator>
 #include <vector>
 #include "vulkan/vulkan.h"
-#include "saiga/vulkan/Device.h"
+#include "saiga/vulkan/Base.h"
 #include "VulkanTools.h"
 
 namespace vks
@@ -88,7 +88,7 @@ namespace vks
 	struct Framebuffer
 	{
 	private:
-		vks::VulkanDevice *vulkanDevice;
+		Saiga::Vulkan::VulkanBase *vulkanDevice;
 	public:
 		uint32_t width, height;
 		VkFramebuffer framebuffer;
@@ -101,7 +101,7 @@ namespace vks
 		*
 		* @param vulkanDevice Pointer to a valid VulkanDevice
 		*/
-		Framebuffer(vks::VulkanDevice *vulkanDevice)
+		Framebuffer(Saiga::Vulkan::VulkanBase *vulkanDevice)
 		{
 			assert(vulkanDevice);
 			this->vulkanDevice = vulkanDevice;
@@ -115,13 +115,13 @@ namespace vks
 			assert(vulkanDevice);
 			for (auto attachment : attachments)
 			{
-				vkDestroyImage(vulkanDevice->logicalDevice, attachment.image, nullptr);
-				vkDestroyImageView(vulkanDevice->logicalDevice, attachment.view, nullptr);
-				vkFreeMemory(vulkanDevice->logicalDevice, attachment.memory, nullptr);
+				vkDestroyImage(vulkanDevice->device, attachment.image, nullptr);
+				vkDestroyImageView(vulkanDevice->device, attachment.view, nullptr);
+				vkFreeMemory(vulkanDevice->device, attachment.memory, nullptr);
 			}
-			vkDestroySampler(vulkanDevice->logicalDevice, sampler, nullptr);
-			vkDestroyRenderPass(vulkanDevice->logicalDevice, renderPass, nullptr);
-			vkDestroyFramebuffer(vulkanDevice->logicalDevice, framebuffer, nullptr);
+			vkDestroySampler(vulkanDevice->device, sampler, nullptr);
+			vkDestroyRenderPass(vulkanDevice->device, renderPass, nullptr);
+			vkDestroyFramebuffer(vulkanDevice->device, framebuffer, nullptr);
 		}
 
 		/**
@@ -178,12 +178,12 @@ namespace vks
 			VkMemoryRequirements memReqs;
 
 			// Create image for this attachment
-			VK_CHECK_RESULT(vkCreateImage(vulkanDevice->logicalDevice, &image, nullptr, &attachment.image));
-			vkGetImageMemoryRequirements(vulkanDevice->logicalDevice, attachment.image, &memReqs);
+			VK_CHECK_RESULT(vkCreateImage(vulkanDevice->device, &image, nullptr, &attachment.image));
+			vkGetImageMemoryRequirements(vulkanDevice->device, attachment.image, &memReqs);
 			memAlloc.allocationSize = memReqs.size;
 			memAlloc.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-			VK_CHECK_RESULT(vkAllocateMemory(vulkanDevice->logicalDevice, &memAlloc, nullptr, &attachment.memory));
-			VK_CHECK_RESULT(vkBindImageMemory(vulkanDevice->logicalDevice, attachment.image, attachment.memory, 0));
+			VK_CHECK_RESULT(vkAllocateMemory(vulkanDevice->device, &memAlloc, nullptr, &attachment.memory));
+			VK_CHECK_RESULT(vkBindImageMemory(vulkanDevice->device, attachment.image, attachment.memory, 0));
 
 			attachment.subresourceRange = {};
 			attachment.subresourceRange.aspectMask = aspectMask;
@@ -197,7 +197,7 @@ namespace vks
 			//todo: workaround for depth+stencil attachments
 			imageView.subresourceRange.aspectMask = (attachment.hasDepth()) ? VK_IMAGE_ASPECT_DEPTH_BIT : aspectMask;
 			imageView.image = attachment.image;
-			VK_CHECK_RESULT(vkCreateImageView(vulkanDevice->logicalDevice, &imageView, nullptr, &attachment.view));
+			VK_CHECK_RESULT(vkCreateImageView(vulkanDevice->device, &imageView, nullptr, &attachment.view));
 
 			// Fill attachment description
 			attachment.description = {};
@@ -248,7 +248,7 @@ namespace vks
 			samplerInfo.minLod = 0.0f;
 			samplerInfo.maxLod = 1.0f;
 			samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-			return vkCreateSampler(vulkanDevice->logicalDevice, &samplerInfo, nullptr, &sampler);
+			return vkCreateSampler(vulkanDevice->device, &samplerInfo, nullptr, &sampler);
 		}
 
 		/**
@@ -331,7 +331,7 @@ namespace vks
 			renderPassInfo.pSubpasses = &subpass;
 			renderPassInfo.dependencyCount = 2;
 			renderPassInfo.pDependencies = dependencies.data();
-			VK_CHECK_RESULT(vkCreateRenderPass(vulkanDevice->logicalDevice, &renderPassInfo, nullptr, &renderPass));
+			VK_CHECK_RESULT(vkCreateRenderPass(vulkanDevice->device, &renderPassInfo, nullptr, &renderPass));
 
 			std::vector<VkImageView> attachmentViews;
 			for (auto attachment : attachments)
@@ -357,7 +357,7 @@ namespace vks
 			framebufferInfo.width = width;
 			framebufferInfo.height = height;
 			framebufferInfo.layers = maxLayers;
-			VK_CHECK_RESULT(vkCreateFramebuffer(vulkanDevice->logicalDevice, &framebufferInfo, nullptr, &framebuffer));
+			VK_CHECK_RESULT(vkCreateFramebuffer(vulkanDevice->device, &framebufferInfo, nullptr, &framebuffer));
 
 			return VK_SUCCESS;
 		}

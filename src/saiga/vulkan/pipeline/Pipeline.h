@@ -8,7 +8,7 @@
 #pragma once
 
 #include "saiga/vulkan/svulkan.h"
-#include "saiga/vulkan/Shader/Shader.h"
+#include "saiga/vulkan/Shader/ShaderPipeline.h"
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
 
 namespace Saiga {

@@ -8,7 +8,7 @@
 
 #include "ImGuiVulkanRenderer.h"
 #include "saiga/imgui/imgui.h"
-#include "saiga/vulkan/Shader/Shader.h"
+#include "saiga/vulkan/Shader/ShaderPipeline.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
@@ -24,9 +24,9 @@ void VKVertexAttribBinder<ImDrawVert>::getVKAttribs(vk::VertexInputBindingDescri
     vi_binding.inputRate = vk::VertexInputRate::eVertex;
     vi_binding.stride = sizeof(ImDrawVert);
 
-//    vks::initializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos)),	// Location 0: Position
-//    vks::initializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv)),	// Location 1: UV
-//    vks::initializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col)),	// Location 0: Color
+    //    vks::initializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos)),	// Location 0: Position
+    //    vks::initializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv)),	// Location 1: UV
+    //    vks::initializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col)),	// Location 0: Color
 
 
     attributeDescriptors.resize(3);
@@ -54,18 +54,18 @@ ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
     // Release all Vulkan resources required for rendering imGui
     vertexBuffer.destroy();
     indexBuffer.destroy();
-    vkDestroyImage(vulkanDevice->logicalDevice, fontImage, nullptr);
-    vkDestroyImageView(vulkanDevice->logicalDevice, fontView, nullptr);
-    vkFreeMemory(vulkanDevice->logicalDevice, fontMemory, nullptr);
-    vkDestroySampler(vulkanDevice->logicalDevice, sampler, nullptr);
+    vkDestroyImage(vulkanDevice->device, fontImage, nullptr);
+    vkDestroyImageView(vulkanDevice->device, fontView, nullptr);
+    vkFreeMemory(vulkanDevice->device, fontMemory, nullptr);
+    vkDestroySampler(vulkanDevice->device, sampler, nullptr);
 
     Pipeline::destroy();
 }
 
 
-void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCache pipelineCache, VkRenderPass renderPass, Queue &copyQueue, vk::CommandBuffer cmd)
+void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPass)
 {
-    this->vulkanDevice = _device;
+    this->vulkanDevice = &_base;
 
     ImGuiIO& io = ImGui::GetIO();
 
@@ -89,14 +89,14 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
     imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VK_CHECK_RESULT(vkCreateImage(vulkanDevice->logicalDevice, &imageInfo, nullptr, &fontImage));
+    VK_CHECK_RESULT(vkCreateImage(vulkanDevice->device, &imageInfo, nullptr, &fontImage));
     VkMemoryRequirements memReqs;
-    vkGetImageMemoryRequirements(vulkanDevice->logicalDevice, fontImage, &memReqs);
+    vkGetImageMemoryRequirements(vulkanDevice->device, fontImage, &memReqs);
     VkMemoryAllocateInfo memAllocInfo = vks::initializers::memoryAllocateInfo();
     memAllocInfo.allocationSize = memReqs.size;
     memAllocInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    VK_CHECK_RESULT(vkAllocateMemory(vulkanDevice->logicalDevice, &memAllocInfo, nullptr, &fontMemory));
-    VK_CHECK_RESULT(vkBindImageMemory(vulkanDevice->logicalDevice, fontImage, fontMemory, 0));
+    VK_CHECK_RESULT(vkAllocateMemory(vulkanDevice->device, &memAllocInfo, nullptr, &fontMemory));
+    VK_CHECK_RESULT(vkBindImageMemory(vulkanDevice->device, fontImage, fontMemory, 0));
 
     // Image view
     VkImageViewCreateInfo viewInfo = vks::initializers::imageViewCreateInfo();
@@ -106,7 +106,7 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;
-    VK_CHECK_RESULT(vkCreateImageView(vulkanDevice->logicalDevice, &viewInfo, nullptr, &fontView));
+    VK_CHECK_RESULT(vkCreateImageView(vulkanDevice->device, &viewInfo, nullptr, &fontView));
 
     // Staging buffers for font data upload
     vks::Buffer stagingBuffer;
@@ -122,10 +122,11 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
     stagingBuffer.unmap();
 
     // Copy buffer data to font image
-    VkCommandBuffer copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, false);
+//    vk::CommandBuffer cmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, false);
+    VkCommandBuffer cmd = vulkanDevice->createAndBeginTransferCommand();
 
 
-    cmd.begin(vk::CommandBufferBeginInfo());
+//    cmd.begin(vk::CommandBufferBeginInfo());
 
     // Prepare for transfer
     vks::tools::setImageLayout(
@@ -164,9 +165,10 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 
-    cmd.end();
-//    vulkanDevice->flushCommandBuffer(copyCmd, copyQueue, true);
-    copyQueue.submitAndWait(cmd);
+//    cmd.end();
+//        vulkanDevice->transferAndWait(cmd, true);
+    vulkanDevice->endTransferWait(cmd);
+//    copyQueue.submitAndWait(cmd);
 
     stagingBuffer.destroy();
 
@@ -179,10 +181,10 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
     samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-    VK_CHECK_RESULT(vkCreateSampler(vulkanDevice->logicalDevice, &samplerInfo, nullptr, &sampler));
+    VK_CHECK_RESULT(vkCreateSampler(vulkanDevice->device, &samplerInfo, nullptr, &sampler));
 
     {
-        device = this->vulkanDevice->logicalDevice;
+        device = this->vulkanDevice->device;
 
         uint32_t descriptorBindingPoint = 0;
 
@@ -214,12 +216,12 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                     );
 
-//        vk::DescriptorBufferInfo descriptorInfo =fontDescriptor;
+        //        vk::DescriptorBufferInfo descriptorInfo =fontDescriptor;
         device.updateDescriptorSets({
                                         vk::WriteDescriptorSet(descriptorSet[0],descriptorBindingPoint,0,1,vk::DescriptorType::eCombinedImageSampler,&fontDescriptor,nullptr,nullptr),
                                     },nullptr);
 
-//        vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
+        //        vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
 
         // Load all shaders.
         // Note: The shader type is deduced from the ending.
@@ -238,9 +240,14 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
         info.blendAttachmentState.blendEnable = true;
 
         info.addVertexInfo<ImDrawVert>();
-        preparePipelines(info,pipelineCache,renderPass);
+        preparePipelines(info,vulkanDevice->pipelineCache,renderPass);
     }
 
+    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &vertexBuffer, maxVertexCount * sizeof(ImDrawVert)));
+    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &indexBuffer, maxIndexCount * sizeof(ImDrawIdx)));
+
+    vertexBuffer.map();
+    indexBuffer.map();
     cout << "Vulkan imgui created." << endl;
 
 }
@@ -256,26 +263,8 @@ void ImGuiVulkanRenderer::updateBuffers()
     if(vertexBufferSize == 0 || indexBufferSize == 0)
         return;
 
-    // Update buffers only if vertex or index count has been changed compared to current buffer size
-
-    // Vertex buffer
-    if ((vertexBuffer.buffer == VK_NULL_HANDLE) || (vertexCount != imDrawData->TotalVtxCount)) {
-        vertexBuffer.unmap();
-        vertexBuffer.destroy();
-        VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &vertexBuffer, vertexBufferSize));
-        vertexCount = imDrawData->TotalVtxCount;
-        cerr << "warning resize vertex buffer " << vertexCount << endl;
-        vertexBuffer.unmap();
-        vertexBuffer.map();
-    }
-
-    if ((indexBuffer.buffer == VK_NULL_HANDLE) || (indexCount < imDrawData->TotalIdxCount)) {
-        indexBuffer.unmap();
-        indexBuffer.destroy();
-        VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &indexBuffer, indexBufferSize));
-        indexCount = imDrawData->TotalIdxCount;
-        indexBuffer.map();
-    }
+    vertexCount = imDrawData->TotalVtxCount;
+    indexCount = imDrawData->TotalIdxCount;
 
     // Upload data
     ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer.mapped;
@@ -301,8 +290,8 @@ void ImGuiVulkanRenderer::render(VkCommandBuffer commandBuffer)
 
     ImGuiIO& io = ImGui::GetIO();
 
-//    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-//    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    //    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+    //    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     vk::CommandBuffer cmd = commandBuffer;
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);

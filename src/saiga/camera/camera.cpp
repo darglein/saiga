@@ -265,11 +265,11 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
 
     if(vulkanTransform)
     {
-        const glm::mat4 clip(1.0f,  0.0f, 0.0f, 0.0f,
-                            0.0f, -1.0f, 0.0f, 0.0f,
-                            0.0f,  0.0f, 0.5f, 0.0f,
-                            0.0f,  0.0f, 0.5f, 1.0f);
-        proj = clip * proj;
+//        const glm::mat4 clip(1.0f,  0.0f, 0.0f, 0.0f,
+//                            0.0f, -1.0f, 0.0f, 0.0f,
+//                            0.0f,  0.0f, 0.5f, 0.0f,
+//                            0.0f,  0.0f, 0.5f, 1.0f);
+        proj = getVulkanTransform() * proj;
     }
 }
 

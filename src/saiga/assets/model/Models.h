@@ -8,3 +8,4 @@
 
 #include "saiga/assets/model/Model.h"
 #include "saiga/assets/model/ModelVertexColored.h"
+#include "saiga/assets/model/LineModelColored.h"

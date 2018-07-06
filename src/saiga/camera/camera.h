@@ -155,6 +155,14 @@ public:
         return vec3(wp);
     }
 
+    static mat4 getVulkanTransform()
+    {
+        return glm::mat4(1.0f,  0.0f, 0.0f, 0.0f,
+                              0.0f, -1.0f, 0.0f, 0.0f,
+                              0.0f,  0.0f, 0.5f, 0.0f,
+                              0.0f,  0.0f, 0.5f, 1.0f);
+    }
+
 private:
     friend std::ostream& operator<<(std::ostream& os, const Camera& ca);
 };

@@ -54,5 +54,11 @@ std::vector<vk::CommandBuffer> CommandPool::allocateCommandBuffers(uint32_t coun
     return buffers;
 }
 
+void CommandPool::freeCommandBuffer(vk::CommandBuffer cmd)
+{
+//            vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    device.freeCommandBuffers(commandPool,cmd);
+}
+
 }
 }

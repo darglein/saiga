@@ -9,7 +9,7 @@
 
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/vulkan/svulkan.h"
-#include "saiga/vulkan/Device.h"
+#include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
@@ -32,9 +32,9 @@ public:
     void updateUniformBuffers(glm::mat4 view, glm::mat4 proj);
     void updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj);
 
-    void init(vks::VulkanDevice* vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass);
+    void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
 
-    void prepareUniformBuffers(vks::VulkanDevice* vulkanDevice);
+    void prepareUniformBuffers(Saiga::Vulkan::VulkanBase* vulkanDevice);
 //    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
     void setupLayoutsAndDescriptors();
 private:

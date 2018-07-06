@@ -31,7 +31,7 @@ public:
     VulkanForwardRenderingInterface(RendererBase& parent) : RenderingBase(parent) {}
     virtual ~VulkanForwardRenderingInterface(){}
 
-    virtual void init(Queue& queue, vk::CommandBuffer cmd) {}
+    virtual void init(Saiga::Vulkan::VulkanBase& base) = 0;
     virtual void transfer(VkCommandBuffer cmd) {}
     virtual void render(VkCommandBuffer cmd) {}
     virtual void renderGUI() {}
@@ -65,7 +65,6 @@ protected:
     std::vector<vk::CommandBuffer> drawCmdBuffers;
     std::vector<Framebuffer>frameBuffers;
     uint32_t currentBuffer = 0;
-    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
 
     std::vector<FrameSync> syncObjects;

@@ -29,12 +29,12 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, VulkanParamet
 
     //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &graphicsQueue);
     //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.present, 0, &presentQueue);
-    graphicsQueue.create(device,vulkanDevice->queueFamilyIndices.graphics);
+    graphicsQueue.create(device,base.queueFamilyIndices.graphics);
     //    presentQueue.create(device,vulkanDevice->queueFamilyIndices.present);
     //    transferQueue.create(device,vulkanDevice->queueFamilyIndices.transfer);
 
 
-    depthBuffer.init(vulkanDevice,width,height);
+    depthBuffer.init(base,width,height);
 
 
     //    VkCommandPoolCreateInfo cmdPoolInfo = {};
@@ -85,10 +85,6 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 
     waitIdle();
 
-    if (descriptorPool != VK_NULL_HANDLE)
-    {
-        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    }
 
     vkDestroyRenderPass(device, renderPass, nullptr);
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
@@ -98,7 +94,6 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     }
 
     depthBuffer.destroy();
-    vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
     //    vkDestroyCommandPool(device, cmdPool, nullptr);
 
@@ -120,17 +115,16 @@ void VulkanForwardRenderer::initChildren()
     VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    auto cmd = graphicsQueue.commandPool.allocateCommandBuffer();
-    renderingInterface->init(graphicsQueue,cmd);
+    renderingInterface->init(base);
 
     if(imGui)
-        imGui->initResources(vulkanDevice,pipelineCache,renderPass, graphicsQueue,cmd);
+        imGui->initResources(base,renderPass);
 
-    cmd.reset(vk::CommandBufferResetFlags());
+//    cmd.reset(vk::CommandBufferResetFlags());
 
 
 
-    graphicsQueue.waitIdle();
+//    graphicsQueue.waitIdle();
 }
 
 

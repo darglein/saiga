@@ -26,12 +26,19 @@ namespace GLSLANG{
 
 SAIGA_GLOBAL std::vector<uint32_t> loadGLSL(
         const std::string& file,
-        const vk::ShaderStageFlagBits shader_type
+        const vk::ShaderStageFlagBits shader_type,
+        const std::string& injection = {}
         );
 
 SAIGA_GLOBAL std::vector<uint32_t> loadSPIRV(
         const std::string& file
         );
+
+SAIGA_GLOBAL void addInjectionAfterVersion(
+        std::string& shaderString,
+        const std::string& injection
+        );
+
 
 
 /**

@@ -24,7 +24,7 @@ public:
     vk::Image depthimage;
     vk::ImageView depthview;
 
-    void init(vks::VulkanDevice* vulkanDevice, int width, int height);
+    void init(Saiga::Vulkan::VulkanBase& base, int width, int height);
     void destroy();
 };
 

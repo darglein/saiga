@@ -22,13 +22,13 @@ struct SAIGA_GLOBAL PointVertex {
 
 
 
-class SAIGA_GLOBAL PointCloud : public Object3D
+class SAIGA_GLOBAL GLPointCloud : public Object3D
 {
 public:
     float pointSize = 3;
     std::vector<PointVertex> points;
 
-    PointCloud();
+    GLPointCloud();
     void render(Camera* cam);
     void updateBuffer();
 private:

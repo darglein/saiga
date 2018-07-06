@@ -27,7 +27,7 @@ class Sample :  public Updating, public ForwardRenderingInterface, public SDL_Ke
 public:
     SDLCamera<PerspectiveCamera> camera;
 
-    PointCloud pointCloud;
+    GLPointCloud pointCloud;
     SimpleAssetObject groundPlane;
 
 

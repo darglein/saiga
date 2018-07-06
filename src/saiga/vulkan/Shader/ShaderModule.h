@@ -45,10 +45,12 @@ public:
      * Load and create the shader module from a file.
      * The "load" function without a stage parameter picks the correct,
      * flag from the file ending. See "ShaderHelper" for more details.
+     *
+     * Code injections only work for GLSL shaders.
      */
-    void load     (vk::Device device, const std::string& file);
+    void load     (vk::Device device, const std::string& file, const std::string& injection = {});
     void loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file);
-    void loadGLSL (vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file);
+    void loadGLSL (vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file,  const std::string& injection = {});
 
 
 

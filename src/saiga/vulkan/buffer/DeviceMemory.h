@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "saiga/vulkan/Device.h"
+#include "saiga/vulkan/Base.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -46,7 +46,7 @@ public:
         or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT set, or VK_MEMORY_PROPERTY_HOST_CACHED_BIT set.
         */
     void allocateMemory(
-            vks::VulkanDevice* vulkanDevice,
+            Saiga::Vulkan::VulkanBase& base,
             const vk::MemoryRequirements& mem_reqs,
             vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
             );

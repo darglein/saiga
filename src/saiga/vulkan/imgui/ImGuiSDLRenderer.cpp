@@ -9,7 +9,7 @@
 #include "ImGuiSDLRenderer.h"
 #include "SDL2/SDL.h"
 #include "saiga/imgui/imgui.h"
-#include "saiga/vulkan/Shader/Shader.h"
+#include "saiga/vulkan/Shader/ShaderPipeline.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.

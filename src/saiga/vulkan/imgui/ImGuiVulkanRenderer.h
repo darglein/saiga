@@ -16,9 +16,9 @@
 #include "saiga/util/glm.h"
 
 #include "saiga/vulkan/VulkanBuffer.hpp"
-#include "saiga/vulkan/Device.h"
+#include "saiga/vulkan/Base.h"
 #include <saiga/sdl/sdl_eventhandler.h>
-#include "saiga/vulkan/Shader/Shader.h"
+#include "saiga/vulkan/Shader/ShaderPipeline.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 
 #include "saiga/vulkan/Queue.h"
@@ -34,7 +34,7 @@ public:
 
 
     // Initialize all Vulkan resources used by the ui
-    void initResources(vks::VulkanDevice *vulkanDevice, VkPipelineCache pipelineCache, VkRenderPass renderPass, Queue& copyQueue, vk::CommandBuffer cmd);
+    void initResources(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
 
 
     // Draw current imGui frame into a command buffer
@@ -58,12 +58,17 @@ protected:
     vks::Buffer indexBuffer;
     int32_t vertexCount = 0;
     int32_t indexCount = 0;
+
+    int32_t maxVertexCount = 10000;
+    int32_t maxIndexCount = 10000;
+
+
     VkDeviceMemory fontMemory = VK_NULL_HANDLE;
     VkImage fontImage = VK_NULL_HANDLE;
     VkImageView fontView = VK_NULL_HANDLE;
 
     std::vector<vk::DescriptorSet>       descriptorSet;
-    vks::VulkanDevice *vulkanDevice;
+    Saiga::Vulkan::VulkanBase *vulkanDevice;
 
 //    Saiga::Vulkan::ShaderPipeline shaderPipeline;
 

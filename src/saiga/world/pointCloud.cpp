@@ -11,13 +11,13 @@
 namespace Saiga {
 
 
-PointCloud::PointCloud()
+GLPointCloud::GLPointCloud()
 {
     shader = ShaderLoader::instance()->load<MVPShader>("colored_points.glsl");
     buffer.setDrawMode(GL_POINTS);
 }
 
-void PointCloud::render(Camera *cam)
+void GLPointCloud::render(Camera *cam)
 {
     glPointSize(pointSize);
     shader->bind();
@@ -29,7 +29,7 @@ void PointCloud::render(Camera *cam)
     shader->unbind();
 }
 
-void PointCloud::updateBuffer()
+void GLPointCloud::updateBuffer()
 {
     buffer.set(points,GL_STATIC_DRAW);
 }

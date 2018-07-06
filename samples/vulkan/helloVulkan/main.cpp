@@ -21,7 +21,7 @@ int main(const int argc, const char *argv[])
         //        Saiga::Vulkan::GLFWWindow window(windowParameters);
 
         Saiga::Vulkan::VulkanParameters vulkanParams;
-        vulkanParams.enableValidationLayer = false;
+        vulkanParams.enableValidationLayer = true;
         Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
 
 

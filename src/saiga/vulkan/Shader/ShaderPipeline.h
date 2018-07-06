@@ -21,7 +21,7 @@ public:
     void addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo);
 
     void load(vk::Device device, std::vector<std::string> shaders);
-    void loadGLSL(vk::Device device, std::vector<std::pair<std::string, vk::ShaderStageFlagBits> > shaders);
+    void loadGLSL(vk::Device device, std::vector<std::tuple<std::string, vk::ShaderStageFlagBits,std::string> > shaders);
 
     void destroy(vk::Device device);
 private:

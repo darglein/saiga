@@ -19,9 +19,9 @@ void DeviceMemory::destroy()
         device.freeMemory(memory);
 }
 
-void DeviceMemory::allocateMemory(vks::VulkanDevice *vulkanDevice, const vk::MemoryRequirements &mem_reqs, vk::MemoryPropertyFlags flags)
+void DeviceMemory::allocateMemory(VulkanBase &base, const vk::MemoryRequirements &mem_reqs, vk::MemoryPropertyFlags flags)
 {
-    device = *vulkanDevice;
+    device = base;
     SAIGA_ASSERT(device);
     //    vk::MemoryRequirements mem_reqs;
     //    base.device.getBufferMemoryRequirements(buffer, &mem_reqs);
@@ -36,7 +36,7 @@ void DeviceMemory::allocateMemory(vks::VulkanDevice *vulkanDevice, const vk::Mem
 //                vulkanDevicememory_properties,mem_reqs.memoryTypeBits,
 //                flags,
 //                &alloc_info.memoryTypeIndex);
-    alloc_info.memoryTypeIndex  = vulkanDevice->getMemoryType(mem_reqs.memoryTypeBits,(VkMemoryPropertyFlags)flags);
+    alloc_info.memoryTypeIndex  = base.getMemoryType(mem_reqs.memoryTypeBits,(VkMemoryPropertyFlags)flags);
 
 //    SAIGA_ASSERT(pass);
 

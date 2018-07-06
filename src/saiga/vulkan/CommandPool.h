@@ -56,6 +56,8 @@ public:
             vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
             );
 
+    void freeCommandBuffer(vk::CommandBuffer cmd);
+
 
     /**
      * Free the underlying Vulkan objects.

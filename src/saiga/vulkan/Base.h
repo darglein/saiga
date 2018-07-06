@@ -15,33 +15,33 @@
 #include <algorithm>
 
 #include "saiga/vulkan/svulkan.h"
+#include "saiga/vulkan/Queue.h"
+#include "saiga/vulkan/CommandPool.h"
 #include "VulkanTools.h"
 #include "VulkanBuffer.hpp"
 
-namespace vks
-{	
+namespace Saiga{
+namespace Vulkan{
 
-struct VulkanDevice
+struct VulkanBase
 {
-    /** @brief Physical device representation */
     VkPhysicalDevice physicalDevice;
-    /** @brief Logical device representation (application's view of the device) */
-    VkDevice logicalDevice;
-    /** @brief Properties of the physical device including limits that the application can check against */
+    VkDevice device;
     VkPhysicalDeviceProperties properties;
-    /** @brief Features of the physical device that an application can use to check if a feature is supported */
     VkPhysicalDeviceFeatures features;
-    /** @brief Features that have been enabled for use on the physical device */
     VkPhysicalDeviceFeatures enabledFeatures;
-    /** @brief Memory types and heaps of the physical device */
     VkPhysicalDeviceMemoryProperties memoryProperties;
-    /** @brief Queue family properties of the physical device */
     std::vector<VkQueueFamilyProperties> queueFamilyProperties;
-    /** @brief List of extensions supported by the device */
     std::vector<std::string> supportedExtensions;
+    VkPipelineCache pipelineCache;
 
-    /** @brief Default command pool for the graphics queue family index */
-    VkCommandPool commandPool = VK_NULL_HANDLE;
+    /**
+     * We store the transferQueue here so everyone can use it.
+     * The graphics queues for rendering are created from the render engines.
+     */
+    Queue transferQueue;
+
+    CommandPool commandPool;
 
     /** @brief Contains queue family indices */
     struct
@@ -53,21 +53,21 @@ struct VulkanDevice
     } queueFamilyIndices;
 
     /**  @brief Typecast to VkDevice */
-    operator VkDevice() { return logicalDevice; }
+    operator VkDevice() { return device; }
 
     /**
         * Default constructor
         *
         * @param physicalDevice Physical device that is to be used
         */
-    VulkanDevice(VkPhysicalDevice physicalDevice);
+     void bla(VkPhysicalDevice physicalDevice);
 
     /**
         * Default destructor
         *
         * @note Frees the logical device
         */
-    ~VulkanDevice();
+    void destroy();
 
     /**
         * Get the index of a memory type that has all the requested property bits set
@@ -105,6 +105,8 @@ struct VulkanDevice
         */
     VkResult createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char*> enabledExtensions, bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT| VK_QUEUE_TRANSFER_BIT);
 
+
+    void init();
     /**
         * Create a buffer on the device
         *
@@ -144,27 +146,9 @@ struct VulkanDevice
         */
     void copyBuffer(vks::Buffer *src, vks::Buffer *dst, VkQueue queue, VkBufferCopy *copyRegion = nullptr);
 
-    /**
-        * Create a command pool for allocation command buffers from
-        *
-        * @param queueFamilyIndex Family index of the queue to create the command pool for
-        * @param createFlags (Optional) Command pool creation flags (Defaults to VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
-        *
-        * @note Command buffers allocated from the created pool can only be submitted to a queue with the same family index
-        *
-        * @return A handle to the created command buffer
-        */
-    VkCommandPool createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    /**
-        * Allocate a command buffer from the command pool
-        *
-        * @param level Level of the new command buffer (primary or secondary)
-        * @param (Optional) begin If true, recording on the new command buffer will be started (vkBeginCommandBuffer) (Defaults to false)
-        *
-        * @return A handle to the allocated command buffer
-        */
-    VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, bool begin = false);
+
+    vk::CommandBuffer createAndBeginTransferCommand();
 
     /**
         * Finish command buffer recording and submit it to a queue
@@ -176,7 +160,15 @@ struct VulkanDevice
         * @note The queue that the command buffer is submitted to must be from the same family index as the pool it was allocated from
         * @note Uses a fence to ensure command buffer has finished executing
         */
-    void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true);
+    void flushCommandBuffer2(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true);
+
+    /**
+     * Submits the commandbuffer to the dedicated transfer queue and waits until it is finished.
+     *
+     */
+    void transferAndWait(VkCommandBuffer commandBuffer, bool free = true);
+
+    void endTransferWait(vk::CommandBuffer commandBuffer);
 
     /**
         * Check if an extension is supported by the (physical device)
@@ -188,4 +180,6 @@ struct VulkanDevice
     bool extensionSupported(std::string extension);
 
 };
+
+}
 }

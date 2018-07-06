@@ -167,20 +167,15 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
         *height = surfCaps.currentExtent.height;
     }
 
+    VkPresentModeKHR swapchainPresentMode ;
 
-    // Select a present mode for the swapchain
-
-    // The VK_PRESENT_MODE_FIFO_KHR mode must always be present as per spec
-    // This mode waits for the vertical blank ("v-sync")
-    VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
-
-    // If v-sync is not requested, try to find a mailbox mode
-    // It's the lowest latency non-tearing present mode available
     if (vsync)
     {
+        //this is always supported.
          swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 
-#if 0
+    }else{
+         swapchainPresentMode =  VK_PRESENT_MODE_IMMEDIATE_KHR;
         for (size_t i = 0; i < presentModeCount; i++)
         {
             if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -188,15 +183,8 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
                 swapchainPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
                 break;
             }
-            if ((swapchainPresentMode != VK_PRESENT_MODE_MAILBOX_KHR) && (presentModes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR))
-            {
-                swapchainPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-            }
         }
-#endif
-    }else{
-         swapchainPresentMode =  VK_PRESENT_MODE_MAILBOX_KHR;
-//         swapchainPresentMode =  VK_PRESENT_MODE_IMMEDIATE_KHR;
+
     }
 
 

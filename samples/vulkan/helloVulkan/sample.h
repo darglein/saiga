@@ -9,7 +9,9 @@
 #pragma once
 
 #include "saiga/vulkan/VulkanForwardRenderer.h"
-#include "saiga/vulkan/AssetRenderer.h"
+#include "saiga/vulkan/renderModules/AssetRenderer.h"
+#include "saiga/vulkan/renderModules/LineAssetRenderer.h"
+#include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/window/Interfaces.h"
 
@@ -22,7 +24,8 @@ public:
             );
     ~VulkanExample();
 
-    virtual void init(Saiga::Vulkan::Queue& queue, vk::CommandBuffer cmd);
+    virtual void init(Saiga::Vulkan::VulkanBase& base);
+
 
     virtual void update(float dt) override;
         virtual void transfer(VkCommandBuffer cmd);
@@ -31,9 +34,15 @@ public:
 private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
+
+    bool change = false;
     Saiga::Object3D teapotTrans;
     Saiga::Vulkan::VulkanVertexColoredAsset teapot,plane;
+    Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
+    Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
     Saiga::Vulkan::AssetRenderer assetRenderer;
+    Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
+    Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
 
     Saiga::Vulkan::VulkanForwardRenderer &renderer;
 

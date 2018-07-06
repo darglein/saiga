@@ -31,17 +31,19 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
     // Vulkan device creation
     // This is handled by a separate class that gets a logical device representation
     // and encapsulates functions related to a device
-    vulkanDevice = new vks::VulkanDevice(physicalDevice);
+    base.bla(physicalDevice);
 
     VkPhysicalDeviceFeatures enabledFeatures{};
     enabledFeatures.fillModeNonSolid = true;
     enabledFeatures.wideLines = true;
-    VkResult res = vulkanDevice->createLogicalDevice(surface,enabledFeatures, enabledDeviceExtensions);
+    VkResult res = base.createLogicalDevice(surface,enabledFeatures, enabledDeviceExtensions);
     if (res != VK_SUCCESS) {
         vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);
         return;
     }
-    device = vulkanDevice->logicalDevice;
+
+    base.init();
+    device = base.device;
     cout << endl;
 
 
@@ -51,9 +53,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
     swapChain.create(&width, &height, false);
 
 
-    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
-    pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-    VK_CHECK_RESULT(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -61,7 +60,8 @@ VulkanRenderer::~VulkanRenderer()
     // Clean up Vulkan resources
     swapChain.cleanup();
 
-    delete vulkanDevice;
+//    delete base;
+    base.destroy();
 
     instance.destroy();
 

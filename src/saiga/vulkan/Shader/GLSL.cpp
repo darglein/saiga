@@ -5,8 +5,8 @@
  */
 
 #include "GLSL.h"
-#include "Shader.h"
 #include "saiga/util/file.h"
+#include "saiga/util/tostring.h"
 #include "SPIRV/GlslangToSpv.h"
 
 namespace Saiga {
@@ -53,17 +53,17 @@ struct MyIncluder : public  glslang::TShader::Includer
                                          size_t inclusionDepth)
     {
         std::string base = std::string(includerName).size()>0 ? std::string(includerName) : baseFile;
-//        cout << "include request '" << headerName << "' '" << includerName << "' " << inclusionDepth << endl;
-//        cout << "base " << base << endl;
+        //        cout << "include request '" << headerName << "' '" << includerName << "' " << inclusionDepth << endl;
+        //        cout << "base " << base << endl;
 
         auto includeFileName = shaderPathes.getRelative(base,headerName);
 
         if(includeFileName == "")
         {
-//            cout << "relative include not found" << endl;
+            //            cout << "relative include not found" << endl;
             return nullptr;
         }else{
-//            cout << "found " << includeFileName << endl;
+            //            cout << "found " << includeFileName << endl;
         }
 
         data.push_back(File::loadFileString(includeFileName));
@@ -85,8 +85,8 @@ struct MyIncluder : public  glslang::TShader::Includer
 };
 
 std::vector<uint32_t> createFromString(const std::string& shaderString,
-                                  const vk::ShaderStageFlagBits shader_type
-                                  )
+                                       const vk::ShaderStageFlagBits shader_type
+                                       )
 {
     glslang::TShader shader(FindLanguage(shader_type));
 
@@ -109,22 +109,27 @@ std::vector<uint32_t> createFromString(const std::string& shaderString,
     return spirv;
 }
 
-std::vector<uint32_t> loadGLSL(const std::string &_file, const vk::ShaderStageFlagBits shader_type)
+std::vector<uint32_t> loadGLSL(const std::string &_file, const vk::ShaderStageFlagBits shader_type, const std::string& injection)
 {
     auto file = shaderPathes.getFile(_file);
 
-        auto shaderString = Saiga::File::loadFileString(file);
+    auto shaderString = Saiga::File::loadFileString(file);
 
     glslang::TShader shader(FindLanguage(shader_type));
 
-    const char *shaderStrings[1] = {shaderString.c_str()};
-    shader.setStrings(shaderStrings, 1);
 
     MyIncluder includer;
     includer.baseFile = file;
 
     // Enable SPIR-V and Vulkan rules when parsing GLSL
     EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
+
+    if(!injection.empty())
+        addInjectionAfterVersion(shaderString,injection);
+
+
+    const char *shaderStrings[1] = {shaderString.c_str()};
+    shader.setStrings(shaderStrings, 1);
 
     if (!shader.parse(&Resources, 100, false, messages,includer))
     {
@@ -147,6 +152,27 @@ std::vector<uint32_t> loadSPIRV(const std::string &file)
     std::vector<uint32_t> spirv(data.size() / 4);
     memcpy(spirv.data(),data.data(),data.size());
     return spirv;
+}
+
+void addInjectionAfterVersion(std::string &shaderString, const std::string& injections)
+{
+    //search for version line
+    size_t pos = shaderString.find("#version");
+    SAIGA_ASSERT(pos != std::string::npos);
+    //go to \n
+    bool found = false;
+    for(;pos < shaderString.size();++pos)
+    {
+        if(shaderString[pos] == '\n')
+        {
+            found = true;
+            break;
+        }
+
+    }
+    SAIGA_ASSERT(found);
+    shaderString.insert(shaderString.begin() + pos, '\n');
+    shaderString.insert(shaderString.begin() + pos + 1, injections.begin(),injections.end());
 }
 
 
@@ -255,6 +281,7 @@ void quit()
 {
     glslang::FinalizeProcess();
 }
+
 
 
 

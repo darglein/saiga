@@ -13,17 +13,15 @@ namespace Vulkan {
 
 
 
-void VulkanVertexColoredAsset::render(VkCommandBuffer cmd)
+void VulkanVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
-
     VkDeviceSize offsets[1] = { 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, &vertices.buffer, offsets);
     vkCmdBindIndexBuffer(cmd, indices.buffer, 0, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(cmd, indexCount, 1, 0, 0, 0);
-
 }
 
-void VulkanVertexColoredAsset::updateBuffer(vks::VulkanDevice *device, VkQueue copyQueue)
+void VulkanVertexColoredAsset::updateBuffer(VulkanBase &base)
 {
     vertexCount = mesh.vertices.size();
     indexCount = mesh.faces.size() * 3;
@@ -36,7 +34,7 @@ void VulkanVertexColoredAsset::updateBuffer(vks::VulkanDevice *device, VkQueue c
     vks::Buffer vertexStaging, indexStaging;
 
     // Vertex buffer
-    VK_CHECK_RESULT(device->createBuffer(
+    VK_CHECK_RESULT(base.createBuffer(
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         &vertexStaging,
@@ -44,7 +42,7 @@ void VulkanVertexColoredAsset::updateBuffer(vks::VulkanDevice *device, VkQueue c
                         mesh.vertices.data()));
 
     // Index buffer
-    VK_CHECK_RESULT(device->createBuffer(
+    VK_CHECK_RESULT(base.createBuffer(
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         &indexStaging,
@@ -53,37 +51,41 @@ void VulkanVertexColoredAsset::updateBuffer(vks::VulkanDevice *device, VkQueue c
 
     // Create device local target buffers
     // Vertex buffer
-    VK_CHECK_RESULT(device->createBuffer(
+    VK_CHECK_RESULT(base.createBuffer(
                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                         &vertices,
                         vBufferSize));
 
     // Index buffer
-    VK_CHECK_RESULT(device->createBuffer(
+    VK_CHECK_RESULT(base.createBuffer(
                         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                         &indices,
                         iBufferSize));
 
     // Copy from staging buffers
-    VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+//    vk::CommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    auto cmd = base.createAndBeginTransferCommand();
+
 
     VkBufferCopy copyRegion{};
 
     copyRegion.size = vertices.size;
-    vkCmdCopyBuffer(copyCmd, vertexStaging.buffer, vertices.buffer, 1, &copyRegion);
+    vkCmdCopyBuffer(cmd, vertexStaging.buffer, vertices.buffer, 1, &copyRegion);
 
     copyRegion.size = indices.size;
-    vkCmdCopyBuffer(copyCmd, indexStaging.buffer, indices.buffer, 1, &copyRegion);
+    vkCmdCopyBuffer(cmd, indexStaging.buffer, indices.buffer, 1, &copyRegion);
 
-    device->flushCommandBuffer(copyCmd, copyQueue);
+
+//    cmd.end();
+    base.endTransferWait(cmd);
 
     // Destroy staging resources
-    vkDestroyBuffer(device->logicalDevice, vertexStaging.buffer, nullptr);
-    vkFreeMemory(device->logicalDevice, vertexStaging.memory, nullptr);
-    vkDestroyBuffer(device->logicalDevice, indexStaging.buffer, nullptr);
-    vkFreeMemory(device->logicalDevice, indexStaging.memory, nullptr);
+    vkDestroyBuffer(base.device, vertexStaging.buffer, nullptr);
+    vkFreeMemory(base.device, vertexStaging.memory, nullptr);
+    vkDestroyBuffer(base.device, indexStaging.buffer, nullptr);
+    vkFreeMemory(base.device, indexStaging.memory, nullptr);
 }
 
 void VulkanVertexColoredAsset::destroy()
@@ -94,6 +96,131 @@ void VulkanVertexColoredAsset::destroy()
     indexCount = 0;
 }
 
+void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
+{
+    VkDeviceSize offsets[1] = { 0 };
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer.buffer, offsets);
+    vkCmdDraw(cmd, vertexCount, 1, 0, 0);
+}
+
+void VulkanLineVertexColoredAsset::updateBuffer(VulkanBase &base)
+{
+    auto vertices = mesh.toLineList();
+
+    vertexCount = vertices.size();
+
+    uint32_t vBufferSize = vertexCount * sizeof(VertexType);
+
+
+    // Use staging buffer to move vertex and index buffer to device local memory
+    // Create staging buffers
+    vks::Buffer vertexStaging;
+
+    // Vertex buffer
+    VK_CHECK_RESULT(base.createBuffer(
+                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        &vertexStaging,
+                        vBufferSize,
+                        vertices.data()));
+
+
+    // Create device local target buffers
+    // Vertex buffer
+    VK_CHECK_RESULT(base.createBuffer(
+                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        &vertexBuffer,
+                        vBufferSize));
+
+
+    // Copy from staging buffers
+    VkCommandBuffer copyCmd = base.createAndBeginTransferCommand();//createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+
+    VkBufferCopy copyRegion{};
+
+    copyRegion.size = vertexBuffer.size;
+    vkCmdCopyBuffer(copyCmd, vertexStaging.buffer, vertexBuffer.buffer, 1, &copyRegion);
+
+
+//    device->flushCommandBuffer(copyCmd, copyQueue);
+    base.endTransferWait(copyCmd);
+
+    // Destroy staging resources
+    vkDestroyBuffer(base.device, vertexStaging.buffer, nullptr);
+    vkFreeMemory(base.device, vertexStaging.memory, nullptr);
+}
+
+void VulkanLineVertexColoredAsset::destroy()
+{
+    vertexBuffer.destroy();
+    vertexCount = 0;
+}
+
+
+
+void VulkanPointCloudAsset::render(vk::CommandBuffer cmd)
+{
+    VkDeviceSize offsets[1] = { 0 };
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer.buffer, offsets);
+    vkCmdDraw(cmd, vertexCount, 1, 0, 0);
+}
+
+void VulkanPointCloudAsset::updateBuffer(VulkanBase &base)
+{
+    vertexBuffer.destroy();
+    auto vertices = mesh.points;
+
+    vertexCount = vertices.size();
+
+    uint32_t vBufferSize = vertexCount * sizeof(VertexType);
+
+
+    // Use staging buffer to move vertex and index buffer to device local memory
+    // Create staging buffers
+    vks::Buffer vertexStaging;
+
+    // Vertex buffer
+    VK_CHECK_RESULT(base.createBuffer(
+                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        &vertexStaging,
+                        vBufferSize,
+                        vertices.data()));
+
+
+    // Create device local target buffers
+    // Vertex buffer
+    VK_CHECK_RESULT(base.createBuffer(
+                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        &vertexBuffer,
+                        vBufferSize));
+
+
+    // Copy from staging buffers
+//    VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    VkCommandBuffer copyCmd = base.createAndBeginTransferCommand();
+
+    VkBufferCopy copyRegion{};
+
+    copyRegion.size = vertexBuffer.size;
+    vkCmdCopyBuffer(copyCmd, vertexStaging.buffer, vertexBuffer.buffer, 1, &copyRegion);
+
+
+//    device->flushCommandBuffer(copyCmd, copyQueue);
+    base.endTransferWait(copyCmd);
+
+    // Destroy staging resources
+    vkDestroyBuffer(base.device, vertexStaging.buffer, nullptr);
+    vkFreeMemory(base.device, vertexStaging.memory, nullptr);
+}
+
+void VulkanPointCloudAsset::destroy()
+{
+    vertexBuffer.destroy();
+    vertexCount = 0;
+}
 
 
 }

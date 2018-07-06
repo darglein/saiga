@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "Shader.h"
+#include "ShaderPipeline.h"
 
 #include "GLSL.h"
 
@@ -22,12 +22,13 @@ void ShaderPipeline::load(vk::Device device, std::vector<std::string> shaders)
 }
 
 
-void ShaderPipeline::loadGLSL(vk::Device device, std::vector<std::pair<std::string, vk::ShaderStageFlagBits> > shaders)
+void ShaderPipeline::loadGLSL(vk::Device device, std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders)
 {
     for(auto p : shaders)
     {
         ShaderModule module;
-        module.loadGLSL(device,p.second,p.first);
+//        module.loadGLSL(device,p.second,p.first);
+        module.loadGLSL(device,std::get<1>(p),std::get<0>(p),std::get<2>(p));
         modules.push_back(module);
     }
 }

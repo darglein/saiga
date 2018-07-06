@@ -22,14 +22,14 @@ public:
 
 
     void createBuffer(
-            vks::VulkanDevice* vulkanDevice,
+            Saiga::Vulkan::VulkanBase& base,
             size_t size,
             vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eUniformBuffer,
             vk::SharingMode sharingMode =  vk::SharingMode::eExclusive
             );
 
     void allocateMemoryBuffer(
-            vks::VulkanDevice *vulkanDevice,
+            Saiga::Vulkan::VulkanBase& base,
             vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
             );
 

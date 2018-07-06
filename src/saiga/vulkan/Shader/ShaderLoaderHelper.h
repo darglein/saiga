@@ -10,7 +10,7 @@
 
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Shader/ShaderModule.h"
-#include "saiga/vulkan/Shader/Shader.h"
+#include "saiga/vulkan/Shader/ShaderPipeline.h"
 
 namespace Saiga {
 namespace Vulkan {

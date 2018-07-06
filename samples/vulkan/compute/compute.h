@@ -9,7 +9,7 @@
 #pragma once
 
 #include "saiga/vulkan/VulkanForwardRenderer.h"
-#include "saiga/vulkan/AssetRenderer.h"
+#include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/window/Interfaces.h"
 
@@ -24,7 +24,7 @@ public:
     Compute(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~Compute();
 
-    void init();
+    void init(Saiga::Vulkan::VulkanBase& base);
 
     virtual void update(float dt) override;
     virtual void render(VkCommandBuffer cmd) override;
@@ -42,7 +42,7 @@ private:
 
 
 
-    vks::VulkanDevice* vulkanDevice;
+    Saiga::Vulkan::VulkanBase* vulkanDevice;
     vk::Device device;
 
     struct {					// Uniform buffer object containing particle system parameters

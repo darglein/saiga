@@ -37,28 +37,17 @@ Compute::~Compute()
     vkDestroyFence(device,compute.fence,nullptr);
 }
 
-void Compute::init()
+void Compute::init(Saiga::Vulkan::VulkanBase &base)
 {
-    vulkanDevice = renderer.vulkanDevice;
-    device = vulkanDevice->logicalDevice;
-
-    assetRenderer.init(renderer.vulkanDevice,renderer.pipelineCache,renderer.renderPass);
-
-
-    teapot.loadObj("objs/teapot.obj");
-    teapot.updateBuffer(renderer.vulkanDevice, renderer.graphicsQueue);
-    teapotTrans.translateGlobal(vec3(0,1,0));
-    teapotTrans.calculateModel();
-
-    plane.createCheckerBoard(vec2(20,20),1.0f,Saiga::Colors::firebrick,Saiga::Colors::gray);
-    plane.updateBuffer(renderer.vulkanDevice, renderer.graphicsQueue);
+    vulkanDevice = &renderer.base;
+    device = vulkanDevice->device;
 
 
 
     // create storage buffer
     compute.data.resize(10,1);
-    compute.storageBuffer.createBuffer(renderer.vulkanDevice,sizeof(int)*compute.data.size(),vk::BufferUsageFlagBits::eStorageBuffer);
-    compute.storageBuffer.allocateMemoryBuffer(renderer.vulkanDevice,vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
+    compute.storageBuffer.createBuffer(renderer.base,sizeof(int)*compute.data.size(),vk::BufferUsageFlagBits::eStorageBuffer);
+    compute.storageBuffer.allocateMemoryBuffer(renderer.base,vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
 
     compute.storageBuffer.mappedUpload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
@@ -109,7 +98,7 @@ void Compute::init()
 
     // We use the default pipeline with "VertexNC" input vertices.
     Saiga::Vulkan::ComputePipelineInfo info;
-    computePipeline.preparePipelines(info,renderer.pipelineCache);
+    computePipeline.preparePipelines(info,base.pipelineCache);
 
 
     compute.commandPool.create(device,vulkanDevice->queueFamilyIndices.compute);
@@ -156,7 +145,6 @@ void Compute::init()
 
 void Compute::update(float dt)
 {
-    assetRenderer.updateUniformBuffers(camera.view,camera.proj);
     camera.update(dt);
     camera.interpolate(dt,0);
 }
@@ -164,14 +152,7 @@ void Compute::update(float dt)
 
 void Compute::render(VkCommandBuffer cmd)
 {
-    assetRenderer.bind(cmd);
-    if(displayModels)
-    {
-        assetRenderer.pushModel(cmd,teapotTrans.model);
-        teapot.render(cmd);
-        assetRenderer.pushModel(cmd,mat4(1));
-        plane.render(cmd);
-    }
+
 }
 
 void Compute::renderGUI()

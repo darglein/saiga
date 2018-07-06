@@ -6,15 +6,18 @@
 
 #pragma once
 
-#include "saiga/assets/model/Model.h"
+#include "saiga/geometry/line_mesh.h"
 
 namespace Saiga {
 
 
-class SAIGA_GLOBAL LineModelColored : public LineModel<VertexNC,uint32_t>
+class SAIGA_GLOBAL LineModelColored
 {
 public:
-    void createGrid(int numX, int numY, float quadSize=1.0f, vec4 color = vec4(0.7));
+    LineMesh<VertexNC,uint32_t> mesh;
+
+    void createGrid(int numX, int numY, float quadSize=1.0f, vec4 color = vec4(0.5));
+    void createFrustum(const mat4& proj, float farPlaneLimit = -1, const vec4& color=vec4(0.5), bool vulkanTransform = false);
 };
 
 
