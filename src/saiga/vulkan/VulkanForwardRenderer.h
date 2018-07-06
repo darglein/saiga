@@ -32,7 +32,6 @@ public:
     virtual ~VulkanForwardRenderingInterface(){}
 
     virtual void init(Queue& queue, vk::CommandBuffer cmd) {}
-
     virtual void transfer(VkCommandBuffer cmd) {}
     virtual void render(VkCommandBuffer cmd) {}
     virtual void renderGUI() {}
@@ -45,8 +44,8 @@ class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
 {
 public:
     Queue graphicsQueue;
-    Queue presentQueue;
-    Queue transferQueue;
+//    Queue presentQueue;
+//    Queue transferQueue;
     VkRenderPass renderPass;
 
     VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, VulkanParameters vulkanParameters);

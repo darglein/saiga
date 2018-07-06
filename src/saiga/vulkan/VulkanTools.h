@@ -9,7 +9,7 @@
 #pragma once
 
 #include "saiga/vulkan/svulkan.h"
-#include "VulkanInitializers.hpp"
+#include "saiga/vulkan/VulkanInitializers.hpp"
 #include "saiga/config.h"
 #include <math.h>
 #include <stdlib.h>

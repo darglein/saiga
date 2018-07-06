@@ -11,7 +11,7 @@
 namespace Saiga {
 
 
-class SAIGA_GLOBAL VertexColoredModel : public Model<VertexNC,uint32_t>
+class SAIGA_GLOBAL VertexColoredModel : public TriangleModel<VertexNC,uint32_t>
 {
 public:
 
@@ -20,7 +20,7 @@ public:
 };
 
 
-class SAIGA_GLOBAL TexturedModel : public Model<VertexNTD,uint32_t>
+class SAIGA_GLOBAL TexturedModel : public TriangleModel<VertexNTD,uint32_t>
 {
 public:
 

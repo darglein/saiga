@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "saiga/vulkan/svulkan.h"
-#include "VulkanTools.h"
+#include "saiga/vulkan/VulkanTools.h"
 
 namespace vks
 {	

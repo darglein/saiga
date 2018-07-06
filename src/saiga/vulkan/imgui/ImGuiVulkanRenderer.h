@@ -15,7 +15,7 @@
 
 #include "saiga/util/glm.h"
 
-#include "../VulkanBuffer.hpp"
+#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/Device.h"
 #include <saiga/sdl/sdl_eventhandler.h>
 #include "saiga/vulkan/Shader/Shader.h"

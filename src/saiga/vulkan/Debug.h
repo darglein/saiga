@@ -21,7 +21,7 @@ private:
     PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallback = VK_NULL_HANDLE;
     PFN_vkDestroyDebugReportCallbackEXT DestroyDebugReportCallback = VK_NULL_HANDLE;
     PFN_vkDebugReportMessageEXT dbgBreakCallback = VK_NULL_HANDLE;
-    VkDebugReportCallbackEXT msgCallback;
+    VkDebugReportCallbackEXT msgCallback = VK_NULL_HANDLE;
 };
 
 

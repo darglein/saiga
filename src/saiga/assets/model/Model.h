@@ -7,12 +7,13 @@
 #pragma once
 
 #include <saiga/geometry/triangle_mesh.h>
+#include <saiga/geometry/line_mesh.h>
 
 
 namespace Saiga {
 
 template<typename vertex_t, typename index_t>
-class SAIGA_GLOBAL Model
+class SAIGA_GLOBAL TriangleModel
 {
 public:
     using VertexType = vertex_t;
@@ -37,7 +38,7 @@ public:
 };
 
 template<typename vertex_t, typename index_t>
-void Model<vertex_t,index_t>::normalizePosition()
+void TriangleModel<vertex_t,index_t>::normalizePosition()
 {
     offset = boundingBox.getPosition();
     mat4 t = glm::translate(mat4(1),-offset);
@@ -47,7 +48,7 @@ void Model<vertex_t,index_t>::normalizePosition()
 
 
 template<typename vertex_t, typename index_t>
-void Model<vertex_t,index_t>::normalizeScale()
+void TriangleModel<vertex_t,index_t>::normalizeScale()
 {
     //TODO
     vec3 d = boundingBox.max - boundingBox.min;
@@ -59,7 +60,7 @@ void Model<vertex_t,index_t>::normalizeScale()
 
 
 template<typename vertex_t, typename index_t>
-void Model<vertex_t,index_t>::ZUPtoYUP()
+void TriangleModel<vertex_t,index_t>::ZUPtoYUP()
 {
     const mat4 m(
                 1, 0, 0, 0,
@@ -70,6 +71,14 @@ void Model<vertex_t,index_t>::ZUPtoYUP()
     mesh.transform(m);
     mesh.transformNormal(m);
 }
+
+
+template<typename VertexType, typename IndexType>
+class SAIGA_GLOBAL LineModel
+{
+public:
+    LineMesh<VertexType,IndexType> mesh;
+};
 
 
 

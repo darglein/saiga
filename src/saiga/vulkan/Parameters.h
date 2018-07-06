@@ -19,6 +19,7 @@ struct SAIGA_GLOBAL VulkanParameters
 {
 
     bool   enableValidationLayer    = true;
+    bool enableImgui = true;
 
 
     void fromConfigFile(const std::string& file);

@@ -17,17 +17,17 @@ int main(const int argc, const char *argv[])
         windowParameters.name = "Forward Rendering";
 
 
-            Saiga::Vulkan::SDLWindow window(windowParameters);
-//        Saiga::Vulkan::GLFWWindow window(windowParameters);
+        Saiga::Vulkan::SDLWindow window(windowParameters);
+        //        Saiga::Vulkan::GLFWWindow window(windowParameters);
 
-Saiga::Vulkan::VulkanParameters vulkanParams;
-vulkanParams.enableValidationLayer = false;
+        Saiga::Vulkan::VulkanParameters vulkanParams;
+        vulkanParams.enableValidationLayer = false;
         Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
 
 
         VulkanExample example(window,renderer);
         renderer.initChildren();
-//        example.init();
+        //        example.init();
 
         MainLoopParameters params;
         params.mainLoopInfoTime = 1;
@@ -37,6 +37,6 @@ vulkanParams.enableValidationLayer = false;
         renderer.waitIdle();
     }
 
-//    maingsdgdfg();
+    //    maingsdgdfg();
     return 0;
 }

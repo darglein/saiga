@@ -30,8 +30,8 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, VulkanParamet
     //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &graphicsQueue);
     //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.present, 0, &presentQueue);
     graphicsQueue.create(device,vulkanDevice->queueFamilyIndices.graphics);
-    presentQueue.create(device,vulkanDevice->queueFamilyIndices.present);
-    transferQueue.create(device,vulkanDevice->queueFamilyIndices.transfer);
+    //    presentQueue.create(device,vulkanDevice->queueFamilyIndices.present);
+    //    transferQueue.create(device,vulkanDevice->queueFamilyIndices.transfer);
 
 
     depthBuffer.init(vulkanDevice,width,height);
@@ -80,8 +80,8 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, VulkanParamet
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
     graphicsQueue.destroy();
-    presentQueue.destroy();
-    transferQueue.destroy();
+    //    presentQueue.destroy();
+    //    transferQueue.destroy();
 
     waitIdle();
 
@@ -111,7 +111,8 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 
 void VulkanForwardRenderer::initChildren()
 {
-    imGui = window.createImGui();
+    if(vulkanParameters.enableImgui)
+        imGui = window.createImGui();
 
 
 
@@ -119,17 +120,17 @@ void VulkanForwardRenderer::initChildren()
     VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    auto cmd = transferQueue.commandPool.allocateCommandBuffer();
-    renderingInterface->init(transferQueue,cmd);
+    auto cmd = graphicsQueue.commandPool.allocateCommandBuffer();
+    renderingInterface->init(graphicsQueue,cmd);
 
     if(imGui)
-        imGui->initResources(vulkanDevice,pipelineCache,renderPass, transferQueue,cmd);
+        imGui->initResources(vulkanDevice,pipelineCache,renderPass, graphicsQueue,cmd);
 
-    //    cmd.reset(vk::CommandBufferResetFlags());
+    cmd.reset(vk::CommandBufferResetFlags());
 
 
 
-    transferQueue.waitIdle();
+    graphicsQueue.waitIdle();
 }
 
 
@@ -220,29 +221,30 @@ void VulkanForwardRenderer::render(Camera *cam)
     //    cout << "VulkanForwardRenderer::render" << endl;
     if(imGui)
     {
-//        std::thread t([&](){
-            imGui->beginFrame();
-            renderingInterface->renderGUI();
-            imGui->endFrame();
-//        });
-//        t.join();
+        //        std::thread t([&](){
+        imGui->beginFrame();
+        renderingInterface->renderGUI();
+        imGui->endFrame();
+        //        });
+        //        t.join();
     }
 
 
 
     FrameSync& sync = syncObjects[nextSyncObject];
 
-    sync.wait(device);
+        sync.wait(device);
 
 
-    VkResult err = swapChain.acquireNextImage(sync.imageVailable, &currentBuffer);
+        VkResult err = swapChain.acquireNextImage(sync.imageVailable, &currentBuffer);
+//    VkResult err = swapChain.acquireNextImage(0, &currentBuffer);
     VK_CHECK_RESULT(err);
 
 
 
 
     VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-    cmdBufInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    //    cmdBufInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
     VkClearValue clearValues[2];
     vec4 clearColor(0.4,0.8,1.0,1.0);
@@ -267,7 +269,7 @@ void VulkanForwardRenderer::render(Camera *cam)
 
     VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
 
-    renderingInterface->transfer(cmd);
+        renderingInterface->transfer(cmd);
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -280,7 +282,7 @@ void VulkanForwardRenderer::render(Camera *cam)
 
     {
         // Actual rendering
-                renderingInterface->render(cmd);
+        renderingInterface->render(cmd);
         if(imGui) imGui->render(cmd);
     }
 
@@ -302,9 +304,12 @@ void VulkanForwardRenderer::render(Camera *cam)
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
     //    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
-    graphicsQueue.queue.submit(submitInfo,sync.frameFence);
+        graphicsQueue.queue.submit(submitInfo,sync.frameFence);
+//    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
-    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
+    //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
+        VK_CHECK_RESULT(swapChain.queuePresent(graphicsQueue, currentBuffer,  sync.renderComplete));
+//    VK_CHECK_RESULT(swapChain.queuePresent(graphicsQueue, currentBuffer));
     //    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
     //    presentQueue.waitIdle();
 
@@ -314,8 +319,8 @@ void VulkanForwardRenderer::render(Camera *cam)
 void VulkanForwardRenderer::waitIdle()
 {
     graphicsQueue.waitIdle();
-    presentQueue.waitIdle();
-    transferQueue.waitIdle();
+    //    presentQueue.waitIdle();
+    //    transferQueue.waitIdle();
 }
 
 

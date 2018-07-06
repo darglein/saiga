@@ -13,6 +13,7 @@ namespace Vulkan {
 
 void Instance::destroy()
 {
+
     debug.destroy();
     vkDestroyInstance(instance, nullptr);
 }

@@ -241,6 +241,7 @@ void ImGuiVulkanRenderer::initResources(vks::VulkanDevice *_device, VkPipelineCa
         preparePipelines(info,pipelineCache,renderPass);
     }
 
+    cout << "Vulkan imgui created." << endl;
 
 }
 
