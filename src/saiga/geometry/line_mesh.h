@@ -25,6 +25,7 @@ public:
 
     std::vector<VertexType> toLineList();
 
+    void fromLineList();
 public:
     std::vector<VertexType> vertices;
     std::vector<IndexType> indices;
@@ -41,6 +42,14 @@ std::vector<VertexType> LineMesh<VertexType,IndexType>::toLineList()
         res[i] = vertices[indices[i]];
     }
     return res;
+}
+
+template<typename VertexType, typename IndexType>
+void LineMesh<VertexType,IndexType>::fromLineList()
+{
+    indices.resize(vertices.size());
+    for(IndexType i = 0; i < indices.size(); ++i)
+        indices[i] = i;
 }
 
 

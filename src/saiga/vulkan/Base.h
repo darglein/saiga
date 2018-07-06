@@ -23,7 +23,7 @@
 namespace Saiga{
 namespace Vulkan{
 
-struct VulkanBase
+struct SAIGA_GLOBAL VulkanBase
 {
     VkPhysicalDevice physicalDevice;
     VkDevice device;

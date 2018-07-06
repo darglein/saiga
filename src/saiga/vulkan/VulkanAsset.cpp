@@ -15,6 +15,7 @@ namespace Vulkan {
 
 void VulkanVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
+    if(!vertices.buffer) return;
     VkDeviceSize offsets[1] = { 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, &vertices.buffer, offsets);
     vkCmdBindIndexBuffer(cmd, indices.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -98,6 +99,7 @@ void VulkanVertexColoredAsset::destroy()
 
 void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
+    if(!vertexBuffer.buffer) return;
     VkDeviceSize offsets[1] = { 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer.buffer, offsets);
     vkCmdDraw(cmd, vertexCount, 1, 0, 0);
@@ -105,6 +107,8 @@ void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
 
 void VulkanLineVertexColoredAsset::updateBuffer(VulkanBase &base)
 {
+    vertexBuffer.destroy();
+
     auto vertices = mesh.toLineList();
 
     vertexCount = vertices.size();
@@ -161,6 +165,7 @@ void VulkanLineVertexColoredAsset::destroy()
 
 void VulkanPointCloudAsset::render(vk::CommandBuffer cmd)
 {
+    if(!vertexBuffer.buffer) return;
     VkDeviceSize offsets[1] = { 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer.buffer, offsets);
     vkCmdDraw(cmd, vertexCount, 1, 0, 0);
