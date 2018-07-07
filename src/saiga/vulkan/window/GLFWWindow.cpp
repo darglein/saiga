@@ -18,8 +18,8 @@ namespace Vulkan {
 static void printGLFWerror()
 {
     const char* description;
-    glfwGetError(&description);
-    cout << "GLFW Error: " << description << endl;
+//    glfwGetError(&description);
+//    cout << "GLFW Error: " << description << endl;
     SAIGA_ASSERT(0);
 }
 
