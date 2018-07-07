@@ -96,6 +96,7 @@ void swapTestVulkan()
         createInfo.pQueueFamilyIndices = nullptr;
         createInfo.presentMode = vk::PresentModeKHR::eImmediate;
         //        createInfo.presentMode = vk::PresentModeKHR::eMailbox;
+        createInfo.presentMode = vk::PresentModeKHR::eFifo;
         createInfo.clipped = true;
         createInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
 
@@ -229,9 +230,29 @@ void swapTestVulkan()
 
 
 
+    std::vector<vk::Semaphore> imageVailable(images.size());
+    std::vector<vk::Semaphore> renderComplete(images.size());
+    std::vector<vk::Fence> frameFence(images.size());
+    {
+        for(unsigned int i = 0; i < images.size(); ++i)
+        {
+            vk::FenceCreateInfo fenceCreateInfo{
+                vk::FenceCreateFlagBits::eSignaled
+            };
+            frameFence[i] = device.createFence(fenceCreateInfo);
+
+            vk::SemaphoreCreateInfo semaphoreCreateInfo {
+                vk::SemaphoreCreateFlags()
+            };
+            imageVailable[i] = device.createSemaphore(semaphoreCreateInfo);
+            renderComplete[i] = device.createSemaphore(semaphoreCreateInfo);
+        }
+
+    }
 
 
-    auto clear =  [&](uint32_t currentBuffer)
+
+    auto clear =  [&](uint32_t currentBuffer, int semID)
     {
         vk::CommandBuffer& cmd = commandBuffers[currentBuffer];
 
@@ -241,7 +262,9 @@ void swapTestVulkan()
         cmd.begin(cmdBeginInfo);
         {
             vk::ClearValue clearValue;
-            clearValue.color = {  std::array<float,4>{1.f,1.f,0.f,1.f }};
+
+            static int i = 0;
+            clearValue.color = {  std::array<float,4>{(i++)%1000 / 1000.0f,0.f,0.f,1.f }};
             vk::RenderPassBeginInfo renderPassBeginInfo;
             renderPassBeginInfo.renderPass = renderPass;
             renderPassBeginInfo.renderArea.extent.width = w;
@@ -266,29 +289,47 @@ void swapTestVulkan()
         submitInfo.pWaitDstStageMask = &submitPipelineStages;
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &cmd;
-        queue.submit(submitInfo,nullptr);
+
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &imageVailable[semID];
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &renderComplete[semID];
+
+        queue.submit(submitInfo,frameFence[semID]);
     };
 
     auto render = [&]()
     {
-        uint32_t currentBuffer = device.acquireNextImageKHR(swapChain,UINT64_MAX,nullptr,nullptr).value;
+        static unsigned int semID = 0;
 
-        clear(currentBuffer);
+                device.waitForFences(frameFence[semID], VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+
+        device.resetFences(frameFence[semID]);
+        uint32_t currentBuffer = device.acquireNextImageKHR(swapChain,UINT64_MAX,imageVailable[semID],nullptr).value;
+
+        clear(currentBuffer,semID);
 
 
         vk::PresentInfoKHR presentInfo;
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &swapChain;
         presentInfo.pImageIndices = &currentBuffer;
+        presentInfo.pWaitSemaphores = &renderComplete[semID];
+        presentInfo.waitSemaphoreCount = 1;
+
         queue.presentKHR(presentInfo);
+
+        semID = (semID+1) % images.size();
     };
 
     for(int i = 0; i < 100; ++i)
         render();
 
 
-	auto start = std::chrono::high_resolution_clock::now();
-	int count = 0;
+    auto start = std::chrono::high_resolution_clock::now();
+    int count = 0;
+    int time = 3;
 
     while(true)
     {
@@ -297,10 +338,10 @@ void swapTestVulkan()
         count ++;
         auto now = std::chrono::high_resolution_clock::now();
         auto duration = now - start;
-        if(duration > std::chrono::seconds(10))
+        if(duration > std::chrono::seconds(time))
             break;
     }
-    std::cout << "Rendered " << count << " frames in 10 seconds. -> " << count/10.0 << " fps." << std::endl;
+    std::cout << "Rendered " << count << " frames in " << time << " seconds. -> " << count/double(time) << " fps." << std::endl;
 
     SDL_DestroyWindow( window );
     SDL_Quit();

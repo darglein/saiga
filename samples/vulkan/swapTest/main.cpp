@@ -6,7 +6,7 @@ void swapTestVulkan();
 
 int main(const int argc, const char *argv[])
 {
-    swapTestGL();
+//    swapTestGL();
     swapTestVulkan();
     return 0;
 }
