@@ -16,7 +16,7 @@ namespace Vulkan {
 
 
 template<typename VertexType>
-class SAIGA_GLOBAL VKVertexAttribBinder
+class SAIGA_TEMPLATE VKVertexAttribBinder
 {
 public:
     void getVKAttribs(vk::VertexInputBindingDescription& vi_binding, std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);

@@ -13,7 +13,7 @@
 namespace Saiga {
 
 template<typename vertex_t, typename index_t>
-class SAIGA_GLOBAL TriangleModel
+class SAIGA_TEMPLATE TriangleModel
 {
 public:
     using VertexType = vertex_t;

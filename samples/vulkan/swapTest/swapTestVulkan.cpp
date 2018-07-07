@@ -8,8 +8,8 @@
 
 static SDL_Window* window;
 
-int w = 1280;
-int h = 720;
+uint32_t w = 1280;
+uint32_t h = 720;
 
 
 void swapTestVulkan()
@@ -229,8 +229,7 @@ void swapTestVulkan()
 
 
 
-    auto start = std::chrono::high_resolution_clock::now();
-    int count =0;
+
 
     auto clear =  [&](uint32_t currentBuffer)
     {
@@ -274,7 +273,7 @@ void swapTestVulkan()
     {
         uint32_t currentBuffer = device.acquireNextImageKHR(swapChain,UINT64_MAX,nullptr,nullptr).value;
 
-//        clear(currentBuffer);
+        clear(currentBuffer);
 
 
         vk::PresentInfoKHR presentInfo;
@@ -287,6 +286,10 @@ void swapTestVulkan()
     for(int i = 0; i < 100; ++i)
         render();
 
+
+	auto start = std::chrono::high_resolution_clock::now();
+	int count = 0;
+
     while(true)
     {
         render();
@@ -294,7 +297,7 @@ void swapTestVulkan()
         count ++;
         auto now = std::chrono::high_resolution_clock::now();
         auto duration = now - start;
-        if(duration > std::chrono::nanoseconds(10UL * 1000 * 1000 * 1000))
+        if(duration > std::chrono::seconds(10))
             break;
     }
     std::cout << "Rendered " << count << " frames in 10 seconds. -> " << count/10.0 << " fps." << std::endl;

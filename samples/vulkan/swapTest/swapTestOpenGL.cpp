@@ -40,7 +40,7 @@ void swapTestGL()
         count ++;
         auto now = std::chrono::high_resolution_clock::now();
         auto duration = now - start;
-        if(duration > std::chrono::nanoseconds(10UL * 1000 * 1000 * 1000))
+        if(duration > std::chrono::seconds(10))
             break;
     }
     std::cout << "Rendered " << count << " frames in 10 seconds. -> " << count/10.0 << " fps." << std::endl;

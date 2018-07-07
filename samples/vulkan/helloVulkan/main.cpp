@@ -3,7 +3,7 @@
 #include "saiga/vulkan/window/SDLWindow.h"
 #include "saiga/vulkan/window/GLFWWindow.h"
 
-
+#undef main
 
 extern int maingsdgdfg();
 int main(const int argc, const char *argv[])
