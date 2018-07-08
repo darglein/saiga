@@ -95,8 +95,8 @@ void swapTestVulkan()
         createInfo.queueFamilyIndexCount = 0;
         createInfo.pQueueFamilyIndices = nullptr;
         createInfo.presentMode = vk::PresentModeKHR::eImmediate;
-        //        createInfo.presentMode = vk::PresentModeKHR::eMailbox;
-        createInfo.presentMode = vk::PresentModeKHR::eFifo;
+                createInfo.presentMode = vk::PresentModeKHR::eMailbox;
+        //createInfo.presentMode = vk::PresentModeKHR::eFifo;
         createInfo.clipped = true;
         createInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
 
@@ -191,7 +191,7 @@ void swapTestVulkan()
         for (uint32_t i = 0; i < frameBuffers.size(); i++)
         {
             vk::ImageView attachments[1];
-            attachments[0] = imageViews[0];
+            attachments[0] = imageViews[i];
 
 
             vk::FramebufferCreateInfo frameBufferCreateInfo = {};
@@ -256,15 +256,17 @@ void swapTestVulkan()
     {
         vk::CommandBuffer& cmd = commandBuffers[currentBuffer];
 
+		cmd.reset({});
 
         vk::CommandBufferBeginInfo cmdBeginInfo;
-        cmdBeginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+        //cmdBeginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
         cmd.begin(cmdBeginInfo);
         {
             vk::ClearValue clearValue;
 
             static int i = 0;
-            clearValue.color = {  std::array<float,4>{(i++)%1000 / 1000.0f,0.f,0.f,1.f }};
+			float f = 1;// (float)std::abs(sin(i++*0.01));
+            clearValue.color = {  std::array<float,4>{f,0.f,0.f,1.f }};
             vk::RenderPassBeginInfo renderPassBeginInfo;
             renderPassBeginInfo.renderPass = renderPass;
             renderPassBeginInfo.renderArea.extent.width = w;
@@ -307,11 +309,11 @@ void swapTestVulkan()
 
         device.resetFences(frameFence[semID]);
         uint32_t currentBuffer = device.acquireNextImageKHR(swapChain,UINT64_MAX,imageVailable[semID],nullptr).value;
-
         clear(currentBuffer,semID);
 
 
         vk::PresentInfoKHR presentInfo;
+		
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &swapChain;
         presentInfo.pImageIndices = &currentBuffer;
@@ -319,7 +321,6 @@ void swapTestVulkan()
         presentInfo.waitSemaphoreCount = 1;
 
         queue.presentKHR(presentInfo);
-
         semID = (semID+1) % images.size();
     };
 
@@ -333,6 +334,10 @@ void swapTestVulkan()
 
     while(true)
     {
+		SDL_Event e;
+		while(SDL_PollEvent(&e))
+		{
+		}
         render();
 
         count ++;

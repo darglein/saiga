@@ -33,6 +33,7 @@ void swapTestGL()
 
     auto start = std::chrono::high_resolution_clock::now();
     int count =0;
+	float time = 3;
 
     while(true)
     {
@@ -40,10 +41,10 @@ void swapTestGL()
         count ++;
         auto now = std::chrono::high_resolution_clock::now();
         auto duration = now - start;
-        if(duration > std::chrono::seconds(10))
+        if(duration > std::chrono::seconds( (int)time))
             break;
     }
-    std::cout << "Rendered " << count << " frames in 10 seconds. -> " << count/10.0 << " fps." << std::endl;
+    std::cout << "Rendered " << count << " frames in 10 seconds. -> " << count/ time << " fps." << std::endl;
 
     SDL_DestroyWindow( window );
     SDL_Quit();
