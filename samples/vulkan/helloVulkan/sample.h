@@ -12,6 +12,7 @@
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
+#include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/window/Interfaces.h"
 
@@ -28,7 +29,7 @@ public:
 
 
     virtual void update(float dt) override;
-        virtual void transfer(VkCommandBuffer cmd);
+    virtual void transfer(VkCommandBuffer cmd);
     virtual void render(VkCommandBuffer cmd) override;
     virtual void renderGUI() override;
 private:
@@ -37,12 +38,14 @@ private:
 
     bool change = false;
     Saiga::Object3D teapotTrans;
+    Saiga::Vulkan::VulkanTexturedAsset box;
     Saiga::Vulkan::VulkanVertexColoredAsset teapot,plane;
     Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
     Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
     Saiga::Vulkan::AssetRenderer assetRenderer;
     Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
     Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
+    Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
 
     Saiga::Vulkan::VulkanForwardRenderer &renderer;
 

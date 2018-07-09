@@ -160,9 +160,32 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t> &mesh)
         vn.position = v.position;
         vn.normal = v.normal;
         vn.color = vertexColors[i];
+        vn.data = vertexData[i];
         mesh.addVertex(vn);
     }
+}
 
+void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNTD, uint32_t> &mesh)
+{
+//    SAIGA_ASSERT(texCoords.size() == outVertices.size());
+
+    mesh.faces.reserve(outTriangles.size());
+    for(ObjTriangle &oj : outTriangles)
+    {
+        mesh.addFace(oj.v);
+    }
+
+    mesh.vertices.reserve(outTriangles.size());
+    for(unsigned int i = 0; i < outVertices.size(); ++i)
+    {
+        auto& v = outVertices[i];
+        VertexNTD vn;
+        vn.position = v.position;
+        vn.normal = v.normal;
+        vn.texture = v.texture;
+        vn.data = vertexData[i];
+        mesh.addVertex(vn);
+    }
 }
 
 void ObjModelLoader::createVertexIndexList()

@@ -21,6 +21,10 @@ struct SAIGA_GLOBAL VulkanParameters
     bool   enableValidationLayer    = true;
     bool enableImgui = true;
 
+    uint32_t maxDescriptorSets = 100;
+    // for {uniformBuffer,texture}
+    std::array<uint32_t,2> descriptorCounts = { 100, 100 };
+
 
     void fromConfigFile(const std::string& file);
 };

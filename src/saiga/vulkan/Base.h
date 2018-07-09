@@ -16,7 +16,9 @@
 
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Queue.h"
+#include "saiga/vulkan/Parameters.h"
 #include "saiga/vulkan/CommandPool.h"
+#include "saiga/vulkan/DescriptorPool.h"
 #include "VulkanTools.h"
 #include "VulkanBuffer.hpp"
 
@@ -41,7 +43,15 @@ struct SAIGA_GLOBAL VulkanBase
      */
     Queue transferQueue;
 
+    // A commandpool for transfer commands that are sync-submitted. (this is not the command pool used for rendering)
     CommandPool commandPool;
+
+    // A large descriptor pool which should be used by the application
+    // The size is controlled by the vulkan parameters
+    DescriptorPool descriptorPool;
+
+
+
 
     /** @brief Contains queue family indices */
     struct
@@ -106,7 +116,7 @@ struct SAIGA_GLOBAL VulkanBase
     void createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char*> enabledExtensions, bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT| VK_QUEUE_TRANSFER_BIT);
 
 
-    void init();
+    void init( VulkanParameters params );
     /**
         * Create a buffer on the device
         *

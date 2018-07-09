@@ -160,6 +160,13 @@ public:
 
     AABB& getAabb(){return boundingBox;}
 
+    std::vector<index_t> getIndexList()
+    {
+        std::vector<index_t> indices(numIndices());
+        std::copy(&faces[0].v1,&faces[0].v1+numIndices(), indices.data());
+        return indices;
+    }
+
 public:
     std::vector<vertex_t> vertices;
     std::vector<Face> faces;

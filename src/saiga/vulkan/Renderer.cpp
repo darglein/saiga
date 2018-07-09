@@ -39,7 +39,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
     base.createLogicalDevice(surface,enabledFeatures, enabledDeviceExtensions);
 
 
-    base.init();
+    base.init(vulkanParameters);
     device = base.device;
     cout << endl;
 

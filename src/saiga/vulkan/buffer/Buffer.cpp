@@ -32,8 +32,7 @@ void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::Buff
 void Buffer::allocateMemoryBuffer(VulkanBase &base, vk::MemoryPropertyFlags flags)
 {
     SAIGA_ASSERT(buffer);
-    vk::MemoryRequirements mem_reqs;
-    device.getBufferMemoryRequirements(buffer, &mem_reqs);
+    vk::MemoryRequirements mem_reqs = device.getBufferMemoryRequirements(buffer);
     DeviceMemory::allocateMemory(base,mem_reqs,flags);
     device.bindBufferMemory(buffer,memory,0);
 }

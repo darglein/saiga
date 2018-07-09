@@ -58,6 +58,7 @@ public:
     void computeVertexColorAndData();
 
     void toTriangleMesh(TriangleMesh<VertexNC, uint32_t> &mesh);
+    void toTriangleMesh(TriangleMesh<VertexNTD, uint32_t> &mesh);
 
 private:
     std::vector<vec3> vertices;

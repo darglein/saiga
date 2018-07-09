@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -44,6 +44,32 @@ void VertexColoredModel::loadObj(const std::string &file)
     Saiga::ObjModelLoader loader(file);
     loader.computeVertexColorAndData();
     loader.toTriangleMesh(mesh);
+}
+
+void TexturedModel::loadObj(const std::string &file)
+{
+    Saiga::ObjModelLoader loader(file);
+    loader.computeVertexColorAndData();
+    loader.toTriangleMesh(mesh);
+
+    for(ObjTriangleGroup &otg : loader.triangleGroups)
+    {
+        if(otg.faces == 0)
+            continue;
+
+        TextureGroup tg;
+        tg.indices = otg.faces * 3;
+        tg.startIndex = otg.startFace * 3;
+
+
+        Material m;
+        m.diffuse = otg.material.map_Kd;
+        tg.material = m;
+
+        groups.push_back(tg);
+    }
+
+
 }
 
 

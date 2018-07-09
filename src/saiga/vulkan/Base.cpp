@@ -45,9 +45,10 @@ void VulkanBase::destroy()
 
     transferQueue.destroy();
     commandPool.destroy();
-//    if (commandPool)
+    descriptorPool.destroy();
+    //    if (commandPool)
     {
-//        vkDestroyCommandPool(device, commandPool, nullptr);
+        //        vkDestroyCommandPool(device, commandPool, nullptr);
     }
     if (device)
     {
@@ -265,7 +266,7 @@ void VulkanBase::createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatu
     for(auto de : layers)
         cout << de << endl;
 
-//    VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+    //    VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
     device = physicalDevice.createDevice(deviceCreateInfo);
 
 
@@ -275,17 +276,27 @@ void VulkanBase::createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatu
     return;
 }
 
-void VulkanBase::init()
+void VulkanBase::init(VulkanParameters params)
 {
 
     VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
     pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
     VK_CHECK_RESULT(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
 
-//    commandPool = createCommandPool(queueFamilyIndices.graphics);
+    //    commandPool = createCommandPool(queueFamilyIndices.graphics);
     commandPool.create(device,queueFamilyIndices.transfer,vk::CommandPoolCreateFlagBits::eTransient);
 
-        transferQueue.create(device,queueFamilyIndices.transfer);
+    transferQueue.create(device,queueFamilyIndices.transfer);
+
+
+    descriptorPool.create(
+                device,
+                params.maxDescriptorSets,{
+                    vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer,          params.descriptorCounts[0]},
+                    vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler,   params.descriptorCounts[1]}
+                });
+
+
 }
 
 VkResult VulkanBase::createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, VkBuffer *buffer, VkDeviceMemory *memory, void *data)
@@ -367,42 +378,29 @@ VkResult VulkanBase::createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropert
 
 void VulkanBase::copyBuffer(vks::Buffer *src, vks::Buffer *dst, VkQueue queue, VkBufferCopy *copyRegion)
 {
-//    assert(dst->size <= src->size);
-//    assert(src->buffer);
-//    VkCommandBuffer copyCmd = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-//    VkBufferCopy bufferCopy{};
-//    if (copyRegion == nullptr)
-//    {
-//        bufferCopy.size = src->size;
-//    }
-//    else
-//    {
-//        bufferCopy = *copyRegion;
-//    }
+    //    assert(dst->size <= src->size);
+    //    assert(src->buffer);
+    //    VkCommandBuffer copyCmd = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    //    VkBufferCopy bufferCopy{};
+    //    if (copyRegion == nullptr)
+    //    {
+    //        bufferCopy.size = src->size;
+    //    }
+    //    else
+    //    {
+    //        bufferCopy = *copyRegion;
+    //    }
 
-//    vkCmdCopyBuffer(copyCmd, src->buffer, dst->buffer, 1, &bufferCopy);
+    //    vkCmdCopyBuffer(copyCmd, src->buffer, dst->buffer, 1, &bufferCopy);
 
-//    flushCommandBuffer(copyCmd, queue);
+    //    flushCommandBuffer(copyCmd, queue);
 }
 
 
 vk::CommandBuffer VulkanBase::createAndBeginTransferCommand()
 {
-//    VkCommandBufferAllocateInfo cmdBufAllocateInfo = vks::initializers::commandBufferAllocateInfo(commandPool, level, 1);
-
-//    VkCommandBuffer cmdBuffer;
-//    VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &cmdBuffer));
-
-//    // If requested, also start recording for the new command buffer
-//    if (begin)
-//    {
-//        VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-//        VK_CHECK_RESULT(vkBeginCommandBuffer(cmdBuffer, &cmdBufInfo));
-//    }
-
     auto cmd = commandPool.allocateCommandBuffer();
     cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-
     return cmd;
 }
 
@@ -413,7 +411,7 @@ void VulkanBase::flushCommandBuffer2(VkCommandBuffer commandBuffer, VkQueue queu
         return;
     }
 
-//    VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+    //    VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 
     VkSubmitInfo submitInfo = vks::initializers::submitInfo();
     submitInfo.commandBufferCount = 1;
@@ -434,8 +432,8 @@ void VulkanBase::flushCommandBuffer2(VkCommandBuffer commandBuffer, VkQueue queu
     if (free)
     {
         commandPool.freeCommandBuffer(commandBuffer);
-//        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
-//        commandPool.destroy();
+        //        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+        //        commandPool.destroy();
     }
 }
 

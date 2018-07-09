@@ -65,6 +65,7 @@ ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 
 void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPass)
 {
+    this->base = &_base;
     this->vulkanDevice = &_base;
 
     ImGuiIO& io = ImGui::GetIO();
@@ -198,17 +199,9 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
                              });
 
 
-        createDescriptorPool(
-                    1,{
-                        vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 1}
-                    });
 
 
-
-        descriptorSet = device.allocateDescriptorSets(
-                    vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())
-                    );
-
+        descriptorSet = createDescriptorSet();
 
         vk::DescriptorImageInfo fontDescriptor = vks::initializers::descriptorImageInfo(
                     sampler,
@@ -218,7 +211,7 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
 
         //        vk::DescriptorBufferInfo descriptorInfo =fontDescriptor;
         device.updateDescriptorSets({
-                                        vk::WriteDescriptorSet(descriptorSet[0],descriptorBindingPoint,0,1,vk::DescriptorType::eCombinedImageSampler,&fontDescriptor,nullptr,nullptr),
+                                        vk::WriteDescriptorSet(descriptorSet,descriptorBindingPoint,0,1,vk::DescriptorType::eCombinedImageSampler,&fontDescriptor,nullptr,nullptr),
                                     },nullptr);
 
         //        vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)

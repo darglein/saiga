@@ -20,11 +20,26 @@ public:
 };
 
 
+struct SAIGA_GLOBAL Material
+{
+    std::string diffuse;
+};
+
+
 class SAIGA_GLOBAL TexturedModel : public TriangleModel<VertexNTD,uint32_t>
 {
 public:
+    class SAIGA_GLOBAL TextureGroup
+    {
+    public:
+        int startIndex;
+        int indices;
+        Material material;
+    };
+    std::vector<TextureGroup> groups;
 
 
+    void loadObj(const std::string &file);
 };
 
 

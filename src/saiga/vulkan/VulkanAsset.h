@@ -13,6 +13,8 @@
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/buffer/VertexBuffer.h"
+#include "saiga/vulkan/buffer/IndexBuffer.h"
+#include "saiga/vulkan/texture/Texture.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -20,11 +22,8 @@ namespace Vulkan {
 class SAIGA_GLOBAL VulkanVertexColoredAsset : public VertexColoredModel
 {
 public:
-    vk::Device device;
-    vks::Buffer vertices;
-    vks::Buffer indices;
-    uint32_t indexCount = 0;
-    uint32_t vertexCount = 0;
+    VertexBuffer<VertexType> vertexBuffer;
+    IndexBuffer<uint32_t> indexBuffer;
 
     void render(vk::CommandBuffer cmd);
     void updateBuffer(Saiga::Vulkan::VulkanBase& base);
@@ -55,6 +54,21 @@ public:
     void updateBuffer(Saiga::Vulkan::VulkanBase& base);
     void destroy();
 };
+
+
+class SAIGA_GLOBAL VulkanTexturedAsset : public TexturedModel
+{
+public:
+    VertexBuffer<VertexType> vertexBuffer;
+    IndexBuffer<uint32_t> indexBuffer;
+    std::vector<Texture2D> textures;
+    vk::DescriptorSet descriptor;
+
+    void render(vk::CommandBuffer cmd);
+    void updateBuffer(Saiga::Vulkan::VulkanBase& base);
+    void destroy();
+};
+
 
 
 

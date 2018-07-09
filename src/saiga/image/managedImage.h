@@ -9,6 +9,7 @@
 #include "saiga/image/imageBase.h"
 #include "saiga/image/imageView.h"
 #include "saiga/image/imageFormat.h"
+#include "saiga/util/fileChecker.h"
 #include <vector>
 
 namespace Saiga {
@@ -18,6 +19,9 @@ namespace Saiga {
 class SAIGA_GLOBAL Image : public ImageBase
 {
 public:
+    //Image search pathes
+    static FileChecker searchPathes;
+
     using byte_t = unsigned char;
 
 

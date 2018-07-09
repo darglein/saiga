@@ -27,11 +27,13 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan:
 
 VulkanExample::~VulkanExample()
 {
+    box.destroy();
     teapot.destroy();
     plane.destroy();
     assetRenderer.destroy();
     lineAssetRenderer.destroy();
     pointCloudRenderer.destroy();
+    texturedAssetRenderer.destroy();
     grid.destroy();
     frustum.destroy();
     pointCloud.destroy();
@@ -42,6 +44,12 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
     assetRenderer.init(base,renderer.renderPass);
     lineAssetRenderer.init(base,renderer.renderPass,2);
     pointCloudRenderer.init(base,renderer.renderPass,5);
+    texturedAssetRenderer.init(base,renderer.renderPass);
+
+
+    box.loadObj("objs/box.obj");
+    box.updateBuffer(renderer.base);
+    box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(box.textures[0]);
 
     teapot.loadObj("objs/teapot.obj");
     teapot.updateBuffer(renderer.base);
@@ -85,6 +93,7 @@ void VulkanExample::transfer(VkCommandBuffer cmd)
     assetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
     lineAssetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
     pointCloudRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
+    texturedAssetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
 
     if(change)
     {
@@ -127,6 +136,11 @@ void VulkanExample::render(VkCommandBuffer cmd)
 
         pointCloudRenderer.pushModel(cmd,mat4(1));
         pointCloud.render(cmd);
+
+        texturedAssetRenderer.bind(cmd);
+        texturedAssetRenderer.pushModel(cmd,mat4(1));
+        texturedAssetRenderer.bindTexture(cmd,box.descriptor);
+        box.render(cmd);
     }
 }
 

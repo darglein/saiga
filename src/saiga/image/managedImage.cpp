@@ -20,6 +20,8 @@
 #include <fstream>
 namespace Saiga {
 
+FileChecker Image::searchPathes;
+
 Image::Image(int h, int w, ImageType type)
     : ImageBase(h,w,iAlignUp(elementSize(type)*w,DEFAULT_ALIGNMENT)), type(type)
 {
@@ -87,9 +89,12 @@ std::ostream& operator<<(std::ostream& os, const Image& f)
 }
 
 
-bool Image::load(const std::string &path)
+bool Image::load(const std::string &_path)
 {
     clear();
+
+
+    auto path = searchPathes.getFile(_path);
 
     bool erg = false;
     std::string type = fileEnding(path);

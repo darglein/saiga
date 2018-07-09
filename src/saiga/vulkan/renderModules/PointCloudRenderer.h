@@ -47,7 +47,7 @@ private:
 
     vks::Buffer uniformBufferVS;
     vks::Buffer uniformBufferVS2;
-    std::vector<vk::DescriptorSet>       descriptorSet;
+    vk::DescriptorSet       descriptorSet;
 };
 
 

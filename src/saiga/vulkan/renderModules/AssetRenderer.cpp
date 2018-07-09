@@ -60,7 +60,7 @@ void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, 
 
 void AssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
 {
-
+this->base = &vulkanDevice;
     this->device = vulkanDevice.device;
 
     uint32_t numUniformBuffers = 1;
@@ -84,21 +84,14 @@ void AssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
                          });
 
 
-    createDescriptorPool(
-                1,{
-                    vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, numUniformBuffers}
-                });
 
 
 
-    descriptorSet = device.allocateDescriptorSets(
-                vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())
-                );
-
+    descriptorSet = createDescriptorSet();
 
     vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.descriptor;
     device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(descriptorSet[0],7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
+                                    vk::WriteDescriptorSet(descriptorSet,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
                                 },nullptr);
 
     // Load all shaders.

@@ -18,9 +18,13 @@ void Pipeline::destroy()
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     for(auto& l :descriptorSetLayout)
         vkDestroyDescriptorSetLayout(device, l, nullptr);
-    vkDestroyDescriptorPool(device,descriptorPool,nullptr);
     shaderPipeline.destroy(device);
 
+}
+
+vk::DescriptorSet Pipeline::createDescriptorSet()
+{
+    base->descriptorPool.allocateDescriptorSet(descriptorSetLayout[0]);
 }
 
 
@@ -59,19 +63,6 @@ void Pipeline::createPipelineLayout(std::vector<vk::PushConstantRange> pushConst
     pipelineLayout = device.createPipelineLayout(pPipelineLayoutCreateInfo);
 
     SAIGA_ASSERT(pipelineLayout);
-}
-
-void Pipeline::createDescriptorPool(int maxDescriptorSets, std::vector<vk::DescriptorPoolSize> poolSizes)
-{
-    // descriptor pool
-
-
-    vk::DescriptorPoolCreateInfo descriptorPoolInfo(vk::DescriptorPoolCreateFlags(),maxDescriptorSets,poolSizes.size(),poolSizes.data());
-    descriptorPool = device.createDescriptorPool(descriptorPoolInfo);
-    SAIGA_ASSERT(descriptorPool);
-
-    //    VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, numDescriptorSets);
-    //    VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 }
 
 

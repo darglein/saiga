@@ -36,9 +36,12 @@ public:
 
     using VKType = IndexVKType<IndexType>;
 
-    void init(VulkanBase& base,  std::vector<uint32_t> &indices)
+    int indexCount = 0;
+
+    void init(VulkanBase& base, const std::vector<uint32_t> &indices)
     {
-        uint32_t indexBufferSize = indices.size() * sizeof(uint32_t);
+        indexCount = indices.size();
+        uint32_t indexBufferSize = indexCount * sizeof(uint32_t);
         createBuffer(base,indexBufferSize,vk::BufferUsageFlagBits::eIndexBuffer);
         allocateMemoryBuffer(base);
         DeviceMemory::mappedUpload(0,size,indices.data());
@@ -47,6 +50,11 @@ public:
     void bind(vk::CommandBuffer &cmd, vk::DeviceSize offset = 0)
     {
         cmd.bindIndexBuffer(buffer, offset, VKType::value);
+    }
+
+    void draw(vk::CommandBuffer &cmd)
+    {
+        cmd.drawIndexed(indexCount,1,0,0,0);
     }
 };
 

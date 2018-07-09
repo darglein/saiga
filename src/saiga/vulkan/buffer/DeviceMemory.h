@@ -48,7 +48,7 @@ public:
     void allocateMemory(
             Saiga::Vulkan::VulkanBase& base,
             const vk::MemoryRequirements& mem_reqs,
-            vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
+            vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
             );
 
 

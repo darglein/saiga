@@ -46,11 +46,11 @@ vk::PipelineVertexInputStateCreateInfo VKVertexAttribBinder<VertexType>::createP
 
 
 template<>
-void VKVertexAttribBinder<Vertex>::getVKAttribs(vk::VertexInputBindingDescription& vi_binding, std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
-
+void VKVertexAttribBinder<VertexNC>::getVKAttribs(vk::VertexInputBindingDescription& vi_binding, std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
 
 template<>
-void VKVertexAttribBinder<VertexNC>::getVKAttribs(vk::VertexInputBindingDescription& vi_binding, std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
+void VKVertexAttribBinder<VertexNTD>::getVKAttribs(vk::VertexInputBindingDescription& vi_binding, std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
+
 
 }
 }

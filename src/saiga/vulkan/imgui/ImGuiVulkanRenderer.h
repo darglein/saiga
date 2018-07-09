@@ -67,7 +67,7 @@ protected:
     VkImage fontImage = VK_NULL_HANDLE;
     VkImageView fontView = VK_NULL_HANDLE;
 
-    std::vector<vk::DescriptorSet>       descriptorSet;
+    vk::DescriptorSet       descriptorSet;
     Saiga::Vulkan::VulkanBase *vulkanDevice;
 
 //    Saiga::Vulkan::ShaderPipeline shaderPipeline;
