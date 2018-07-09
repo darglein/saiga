@@ -22,7 +22,6 @@ void LineAssetRenderer::destroy()
 {
     Pipeline::destroy();
     uniformBufferVS.destroy();
-    uniformBufferVS2.destroy();
 }
 void LineAssetRenderer::bind(vk::CommandBuffer cmd)
 {
@@ -33,21 +32,6 @@ void LineAssetRenderer::bind(vk::CommandBuffer cmd)
 void LineAssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 {
     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model[0][0]);
-}
-
-void LineAssetRenderer::updateUniformBuffers(glm::mat4 view, glm::mat4 proj)
-{
-    // Vertex shader
-    uboVS.projection = proj;
-    uboVS.modelview = view;
-    uboVS.lightPos = vec4(5,5,5,0);
-
-
-
-    VK_CHECK_RESULT(uniformBufferVS.map());
-    memcpy(uniformBufferVS.mapped, &uboVS, sizeof(uboVS));
-    uniformBufferVS.unmap();
-
 }
 
 void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
@@ -65,13 +49,7 @@ this->base = &vulkanDevice;
 
     uint32_t numUniformBuffers = 1;
 
-    // Vertex shader uniform buffer block
-    VK_CHECK_RESULT(vulkanDevice.createBuffer(
-                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                        &uniformBufferVS,
-                        sizeof(uboVS),
-                        &uboVS));
+    uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
 
 
     createDescriptorSetLayout({
@@ -90,7 +68,7 @@ this->base = &vulkanDevice;
     descriptorSet = createDescriptorSet();
 
 
-    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.descriptor;
+    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
     device.updateDescriptorSets({
                                     vk::WriteDescriptorSet(descriptorSet,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
                                 },nullptr);
@@ -99,7 +77,7 @@ this->base = &vulkanDevice;
     // Note: The shader type is deduced from the ending.
     shaderPipeline.load(
                 device,{
-                    "vulkan/scene.vert",
+                    "vulkan/line.vert",
                     "vulkan/line.frag"
                 });
 

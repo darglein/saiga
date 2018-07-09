@@ -13,7 +13,7 @@
 #include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
-
+#include "saiga/vulkan/buffer/UniformBuffer.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -30,7 +30,6 @@ public:
 
 
     void pushModel(VkCommandBuffer cmd, mat4 model);
-    void updateUniformBuffers(glm::mat4 view, glm::mat4 proj);
     void updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj);
 
     void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass, float lineWidth);
@@ -45,8 +44,7 @@ private:
         glm::vec4 lightPos;
     } uboVS;
 
-    vks::Buffer uniformBufferVS;
-    vks::Buffer uniformBufferVS2;
+    UniformBuffer uniformBufferVS;
     vk::DescriptorSet descriptorSet;
 };
 

@@ -10,11 +10,6 @@
 namespace Saiga {
 namespace Vulkan {
 
-void UniformBuffer::init(VulkanBase &base, size_t size)
-{
-
-}
-
 
 
 

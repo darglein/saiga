@@ -40,6 +40,5 @@ out gl_PerVertex
 void main() 
 {
 	outData.color = vec3(inColor);
-	gl_Position = ubo.projection * ubo.view * pushConstants.model * vec4(inPos.xyz, 1.0);		
-	gl_PointSize = POINT_SIZE;
+	gl_Position = ubo.projection * ubo.view * pushConstants.model * vec4(inPos.xyz, 1.0);
 }

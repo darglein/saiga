@@ -113,6 +113,12 @@ std::vector<uint32_t> loadGLSL(const std::string &_file, const vk::ShaderStageFl
 {
     auto file = shaderPathes.getFile(_file);
 
+    if(file == "")
+    {
+        cout << "Could not find " << _file << endl;
+        SAIGA_ASSERT(0);
+    }
+
     auto shaderString = Saiga::File::loadFileString(file);
 
     glslang::TShader shader(FindLanguage(shader_type));
@@ -133,6 +139,7 @@ std::vector<uint32_t> loadGLSL(const std::string &_file, const vk::ShaderStageFl
 
     if (!shader.parse(&Resources, 100, false, messages,includer))
     {
+        cout << "Error in " << _file << endl;
         cout << shader.getInfoLog() << endl;
         cout << shader.getInfoDebugLog()<< endl;
         return {};  // something didn't work
