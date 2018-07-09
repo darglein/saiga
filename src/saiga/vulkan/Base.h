@@ -25,8 +25,8 @@ namespace Vulkan{
 
 struct SAIGA_GLOBAL VulkanBase
 {
-    VkPhysicalDevice physicalDevice;
-    VkDevice device;
+    vk::PhysicalDevice physicalDevice;
+    vk::Device device;
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceFeatures features;
     VkPhysicalDeviceFeatures enabledFeatures;
@@ -103,7 +103,7 @@ struct SAIGA_GLOBAL VulkanBase
         *
         * @return VkResult of the device creation call
         */
-    VkResult createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char*> enabledExtensions, bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT| VK_QUEUE_TRANSFER_BIT);
+    void createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char*> enabledExtensions, bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT| VK_QUEUE_TRANSFER_BIT);
 
 
     void init();

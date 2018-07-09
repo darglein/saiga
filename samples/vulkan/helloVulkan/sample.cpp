@@ -109,7 +109,7 @@ void VulkanExample::render(VkCommandBuffer cmd)
     {
         assetRenderer.bind(cmd);
         assetRenderer.pushModel(cmd,teapotTrans.model);
-//        teapot.render(cmd);
+        teapot.render(cmd);
         //        assetRenderer.pushModel(cmd,mat4(1));
         //        plane.render(cmd);
 

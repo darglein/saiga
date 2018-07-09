@@ -145,7 +145,7 @@ uint32_t VulkanBase::getPresentQueue(VkSurfaceKHR surface)
     throw std::runtime_error("Could not find a matching queue family index");
 }
 
-VkResult VulkanBase::createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, bool useSwapChain, VkQueueFlags requestedQueueTypes)
+void VulkanBase::createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, bool useSwapChain, VkQueueFlags requestedQueueTypes)
 {
     // Desired queues need to be requested upon logical device creation
     // Due to differing queue family configurations of Vulkan implementations this can be a bit tricky, especially if the application
@@ -265,13 +265,14 @@ VkResult VulkanBase::createLogicalDevice(VkSurfaceKHR surface, VkPhysicalDeviceF
     for(auto de : layers)
         cout << de << endl;
 
-    VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+//    VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+    device = physicalDevice.createDevice(deviceCreateInfo);
 
 
     this->enabledFeatures = enabledFeatures;
 
 
-    return result;
+    return;
 }
 
 void VulkanBase::init()

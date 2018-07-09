@@ -12,6 +12,7 @@
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
+#include "saiga/vulkan/buffer/VertexBuffer.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -35,10 +36,7 @@ class SAIGA_GLOBAL VulkanLineVertexColoredAsset : public LineModelColored
 {
 public:
     using VertexType = VertexNC;
-    vk::Device device;
-    vks::Buffer vertexBuffer;
-    uint32_t vertexCount = 0;
-
+    VertexBuffer<VertexType> vertexBuffer;
     void render(vk::CommandBuffer cmd);
     void updateBuffer(Saiga::Vulkan::VulkanBase& base);
     void destroy();
@@ -51,10 +49,7 @@ class SAIGA_GLOBAL VulkanPointCloudAsset
 public:
     using VertexType = VertexNC;
     PointCloud<VertexType> mesh;
-
-    vk::Device device;
-    vks::Buffer vertexBuffer;
-    uint32_t vertexCount = 0;
+    VertexBuffer<VertexType> vertexBuffer;
 
     void render(vk::CommandBuffer cmd);
     void updateBuffer(Saiga::Vulkan::VulkanBase& base);

@@ -36,11 +36,8 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
     VkPhysicalDeviceFeatures enabledFeatures{};
     enabledFeatures.fillModeNonSolid = true;
     enabledFeatures.wideLines = true;
-    VkResult res = base.createLogicalDevice(surface,enabledFeatures, enabledDeviceExtensions);
-    if (res != VK_SUCCESS) {
-        vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);
-        return;
-    }
+    base.createLogicalDevice(surface,enabledFeatures, enabledDeviceExtensions);
+
 
     base.init();
     device = base.device;
