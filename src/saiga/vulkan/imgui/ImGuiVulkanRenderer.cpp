@@ -24,11 +24,6 @@ void VKVertexAttribBinder<ImDrawVert>::getVKAttribs(vk::VertexInputBindingDescri
     vi_binding.inputRate = vk::VertexInputRate::eVertex;
     vi_binding.stride = sizeof(ImDrawVert);
 
-    //    vks::initializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos)),	// Location 0: Position
-    //    vks::initializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv)),	// Location 1: UV
-    //    vks::initializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col)),	// Location 0: Color
-
-
     attributeDescriptors.resize(3);
 
     attributeDescriptors[0].binding = 0;
