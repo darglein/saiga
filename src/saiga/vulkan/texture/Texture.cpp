@@ -22,15 +22,23 @@ void Texture2D::fromImage(VulkanBase& base,Image &_img)
 
 
     TemplatedImage<ucvec4> img(_img.height,_img.width);
-    auto vimg = _img.getImageView<ucvec3>();
-    for(int y = 0; y < _img.height; ++y){
-        for(int x = 0; x < _img.width; ++x){
-            img(y,x) = ucvec4(vimg(y,x),0);
+
+
+    if(_img.type == UC3)
+    {
+        auto vimg = _img.getImageView<ucvec3>();
+        for(int y = 0; y < _img.height; ++y){
+            for(int x = 0; x < _img.width; ++x){
+                img(y,x) = ucvec4(vimg(y,x),0);
+            }
         }
+    }else if(_img.type == UC4)
+    {
+        _img.getImageView<ucvec4>().copyTo(img.getImageView());
     }
 
 
-    mipLevels = 1;
+        mipLevels = 1;
     width = img.width;
     height = img.height;
 
@@ -38,7 +46,7 @@ void Texture2D::fromImage(VulkanBase& base,Image &_img)
     vk::Format format = getvkFormat(img.type);
 
 
-//    vk::FormatProperties formatProperties = base.physicalDevice.getFormatProperties(format);
+    //    vk::FormatProperties formatProperties = base.physicalDevice.getFormatProperties(format);
 
 
     StagingBuffer staging;
@@ -75,7 +83,7 @@ void Texture2D::fromImage(VulkanBase& base,Image &_img)
 
     vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
 
-       transitionImageLayout(cmd,vk::ImageLayout::eTransferDstOptimal);
+    transitionImageLayout(cmd,vk::ImageLayout::eTransferDstOptimal);
 
 
     vk::BufferImageCopy bufferCopyRegion = {};
@@ -124,7 +132,7 @@ void Texture2D::fromImage(VulkanBase& base,Image &_img)
     samplerCreateInfo.maxAnisotropy = 16;
     samplerCreateInfo.anisotropyEnable = false;
     samplerCreateInfo.borderColor = vk::BorderColor::eIntOpaqueWhite;
-//    VK_CHECK_RESULT(vkCreateSampler(device->device, &samplerCreateInfo, nullptr, &sampler));
+    //    VK_CHECK_RESULT(vkCreateSampler(device->device, &samplerCreateInfo, nullptr, &sampler));
     sampler = device.createSampler(samplerCreateInfo);
     SAIGA_ASSERT(sampler);
 

@@ -27,7 +27,7 @@ static const vk::Format ImageTypeInternalVK[] =
     vk::Format::eR32Uint,vk::Format::eR32G32Uint,vk::Format::eR32G32B32Uint,vk::Format::eR32G32B32A32Uint,
 
     vk::Format::eR32Sfloat,vk::Format::eR32G32Sfloat,vk::Format::eR32G32B32Sfloat,vk::Format::eR32G32B32A32Sfloat,
-    vk::Format::eUndefined,vk::Format::eUndefined,vk::Format::eUndefined,vk::Format::eUndefined
+    vk::Format::eR64Sfloat,vk::Format::eR64G64Sfloat,vk::Format::eR64G64B64Sfloat,vk::Format::eR64G64B64A64Sfloat
 };
 
 

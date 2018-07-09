@@ -20,6 +20,7 @@
 #include <saiga/sdl/sdl_eventhandler.h>
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/texture/Texture.h"
 
 #include "saiga/vulkan/Queue.h"
 
@@ -53,7 +54,6 @@ protected:
 
     SDL_Window* window;
     // Vulkan resources for rendering the UI
-    VkSampler sampler;
     vks::Buffer vertexBuffer;
     vks::Buffer indexBuffer;
     int32_t vertexCount = 0;
@@ -63,9 +63,11 @@ protected:
     int32_t maxIndexCount = 10000;
 
 
-    VkDeviceMemory fontMemory = VK_NULL_HANDLE;
-    VkImage fontImage = VK_NULL_HANDLE;
-    VkImageView fontView = VK_NULL_HANDLE;
+//    VkSampler sampler;
+//    VkDeviceMemory fontMemory = VK_NULL_HANDLE;
+//    VkImage fontImage = VK_NULL_HANDLE;
+//    VkImageView fontView = VK_NULL_HANDLE;
+    Texture2D fontTexture;
 
     vk::DescriptorSet       descriptorSet;
     Saiga::Vulkan::VulkanBase *vulkanDevice;
