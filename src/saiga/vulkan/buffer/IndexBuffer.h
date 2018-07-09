@@ -38,10 +38,10 @@ public:
 
     int indexCount = 0;
 
-    void init(VulkanBase& base, const std::vector<uint32_t> &indices)
+    void init(VulkanBase& base, const std::vector<IndexType> &indices)
     {
         indexCount = indices.size();
-        uint32_t indexBufferSize = indexCount * sizeof(uint32_t);
+        size_t indexBufferSize = indexCount * sizeof(IndexType);
         createBuffer(base,indexBufferSize,vk::BufferUsageFlagBits::eIndexBuffer);
         allocateMemoryBuffer(base);
         DeviceMemory::mappedUpload(0,size,indices.data());

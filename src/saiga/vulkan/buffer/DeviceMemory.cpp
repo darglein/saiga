@@ -36,7 +36,7 @@ void DeviceMemory::allocateMemory(VulkanBase &base, const vk::MemoryRequirements
 //                vulkanDevicememory_properties,mem_reqs.memoryTypeBits,
 //                flags,
 //                &alloc_info.memoryTypeIndex);
-    alloc_info.memoryTypeIndex  = base.getMemoryType(mem_reqs.memoryTypeBits,(VkMemoryPropertyFlags)flags);
+    alloc_info.memoryTypeIndex  = base.getMemoryType(mem_reqs.memoryTypeBits,flags);
 
 //    SAIGA_ASSERT(pass);
 
@@ -48,6 +48,11 @@ uint8_t *DeviceMemory::map(size_t offset, size_t size)
     uint8_t *pData;
     device.mapMemory(memory, 0, size, vk::MemoryMapFlags(), (void **)&pData);
     return pData;
+}
+
+uint8_t* DeviceMemory::mapAll()
+{
+    return map(0,size);
 }
 
 void DeviceMemory::unmap()

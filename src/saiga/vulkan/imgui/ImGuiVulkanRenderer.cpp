@@ -123,11 +123,14 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
         preparePipelines(info,vulkanDevice->pipelineCache,renderPass);
     }
 
-    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &vertexBuffer, maxVertexCount * sizeof(ImDrawVert)));
-    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &indexBuffer, maxIndexCount * sizeof(ImDrawIdx)));
+//    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &vertexBuffer, maxVertexCount * sizeof(ImDrawVert)));
+//    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &indexBuffer, maxIndexCount * sizeof(ImDrawIdx)));
 
-    vertexBuffer.map();
-    indexBuffer.map();
+    vertexBuffer.init(*base,std::vector<ImDrawVert>(maxVertexCount));
+    indexBuffer.init (*base,std::vector<ImDrawIdx>(maxIndexCount));
+
+//    vertexBuffer.map();
+//    indexBuffer.map();
     cout << "Vulkan imgui created." << endl;
 
 }
@@ -147,8 +150,10 @@ void ImGuiVulkanRenderer::updateBuffers()
     indexCount = imDrawData->TotalIdxCount;
 
     // Upload data
-    ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer.mapped;
-    ImDrawIdx* idxDst = (ImDrawIdx*)indexBuffer.mapped;
+//    ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer.mapped;
+//    ImDrawIdx* idxDst = (ImDrawIdx*)indexBuffer.mapped;
+    ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer.mapAll();
+    ImDrawIdx* idxDst = (ImDrawIdx*)indexBuffer.mapAll();
 
     for (int n = 0; n < imDrawData->CmdListsCount; n++) {
         const ImDrawList* cmd_list = imDrawData->CmdLists[n];
@@ -159,11 +164,13 @@ void ImGuiVulkanRenderer::updateBuffers()
     }
 
     // Flush to make writes visible to GPU
-    vertexBuffer.flush();
-    indexBuffer.flush();
+//    vertexBuffer.flush();
+//    indexBuffer.flush();
+    vertexBuffer.unmap();
+    indexBuffer .unmap();
 }
 
-void ImGuiVulkanRenderer::render(VkCommandBuffer commandBuffer)
+void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer)
 {
     if(!vertexBuffer.buffer)
         return;
@@ -181,8 +188,10 @@ void ImGuiVulkanRenderer::render(VkCommandBuffer commandBuffer)
 
     // Bind vertex and index buffer
     VkDeviceSize offsets[1] = { 0 };
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+//    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets);
+//    vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+    vertexBuffer.bind(commandBuffer);
+    indexBuffer.bind(commandBuffer);
 
     VkViewport viewport = vks::initializers::viewport(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y, 0.0f, 1.0f);
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);

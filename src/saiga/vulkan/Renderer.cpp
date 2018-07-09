@@ -28,10 +28,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
     physicalDevice = instance.pickPhysicalDevice();
 
 
-    // Vulkan device creation
-    // This is handled by a separate class that gets a logical device representation
-    // and encapsulates functions related to a device
-    base.bla(physicalDevice);
+    base.setPhysicalDevice(physicalDevice);
 
     VkPhysicalDeviceFeatures enabledFeatures{};
     enabledFeatures.fillModeNonSolid = true;

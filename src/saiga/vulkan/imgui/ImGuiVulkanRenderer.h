@@ -21,8 +21,11 @@
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/texture/Texture.h"
+#include "saiga/vulkan/buffer/VertexBuffer.h"
+#include "saiga/vulkan/buffer/IndexBuffer.h"
 
 #include "saiga/vulkan/Queue.h"
+#include "saiga/imgui/imgui.h"
 
 
 namespace Saiga {
@@ -39,7 +42,7 @@ public:
 
 
     // Draw current imGui frame into a command buffer
-    void render(VkCommandBuffer commandBuffer);
+    void render(vk::CommandBuffer commandBuffer);
 
     virtual void beginFrame() = 0;
     void endFrame();
@@ -54,8 +57,10 @@ protected:
 
     SDL_Window* window;
     // Vulkan resources for rendering the UI
-    vks::Buffer vertexBuffer;
-    vks::Buffer indexBuffer;
+//    vks::Buffer vertexBuffer;
+//    vks::Buffer indexBuffer;
+    VertexBuffer<ImDrawVert> vertexBuffer;
+    IndexBuffer<ImDrawIdx> indexBuffer;
     int32_t vertexCount = 0;
     int32_t indexCount = 0;
 

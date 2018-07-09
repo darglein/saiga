@@ -56,6 +56,7 @@ public:
      * These map functions only work if "eHostvisible" was set on memory allocation.
      */
     uint8_t* map(size_t offset, size_t size);
+    uint8_t* mapAll();
     void unmap();
     void mappedUpload(size_t offset, size_t size, const void* data);
     void mappedDownload(size_t offset, size_t size, void *data);
