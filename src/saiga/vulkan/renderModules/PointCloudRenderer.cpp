@@ -87,6 +87,8 @@ void PointCloudRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass,
     info.inputAssemblyState.topology = vk::PrimitiveTopology::ePointList;
     info.addVertexInfo<VertexType>();
     preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
+
+    shaderPipeline.destroy(device);
 }
 
 

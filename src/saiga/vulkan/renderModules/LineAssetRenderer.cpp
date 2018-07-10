@@ -87,6 +87,8 @@ this->base = &vulkanDevice;
     info.rasterizationState.lineWidth = lineWidth;
     info.addVertexInfo<VertexType>();
     preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
+
+    shaderPipeline.destroy(device);
 }
 
 

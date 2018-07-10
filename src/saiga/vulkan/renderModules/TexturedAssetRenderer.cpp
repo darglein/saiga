@@ -86,6 +86,8 @@ void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPa
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
     preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
+
+    shaderPipeline.destroy(device);
 }
 
 vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture &texture)

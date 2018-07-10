@@ -94,6 +94,8 @@ void AssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
     PipelineInfo info;
     info.addVertexInfo<VertexNC>();
     preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
+
+    shaderPipeline.destroy(device);
 }
 
 

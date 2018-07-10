@@ -388,6 +388,18 @@ install(
         DESTINATION ${INSTALL_INCLUDE}
 )
 
+
+############# UNINSTALL ###############
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/uninstall.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/cmake/uninstall.cmake
+    IMMEDIATE @ONLY)
+
+add_custom_target(uninstall
+    COMMAND ${CMAKE_COMMAND} -P
+${CMAKE_CURRENT_BINARY_DIR}/cmake/uninstall.cmake)
+
 ############# Doxygen ###############
 
 # first we can indicate the documentation build as an option and set it to ON by default

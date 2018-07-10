@@ -39,6 +39,8 @@ void ShaderPipeline::destroy(vk::Device device)
     {
         s.destroy(device);
     }
+    modules.clear();
+    pipelineInfo.clear();
 }
 
 void ShaderPipeline::addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo)
