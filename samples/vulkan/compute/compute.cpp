@@ -32,7 +32,7 @@ Compute::~Compute()
     assetRenderer.destroy();
     compute.storageBuffer.destroy();
     computePipeline.destroy();
-    compute.commandPool.destroy();
+    compute.queue.destroy();
 }
 
 void Compute::init(Saiga::Vulkan::VulkanBase &base)
@@ -47,7 +47,6 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
     compute.storageBuffer.mappedUpload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
 
-    compute.queue = device.getQueue(vulkanDevice->queueFamilyIndices.compute,0);
 
 
     computePipeline.init(base,1);
@@ -65,9 +64,8 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
                                 },nullptr);
 
 
-    compute.commandPool.create(device,vulkanDevice->queueFamilyIndices.compute);
-    compute.commandBuffer = compute.commandPool.allocateCommandBuffer();
-
+    compute.queue.create(device,vulkanDevice->queueFamilyIndices.compute);
+    compute.commandBuffer = compute.queue.commandPool.allocateCommandBuffer();
 
     {
         // Build the command buffer
@@ -80,8 +78,7 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
     }
 
 
-    vulkanDevice->submitAndWait(compute.commandBuffer,compute.queue);
-
+    compute.queue.submitAndWait(compute.commandBuffer);
     compute.storageBuffer.mappedDownload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
     for(int i : compute.data)

@@ -5,6 +5,7 @@
  */
 
 #include "file.h"
+#include "saiga/util/assert.h"
 
 #include <fstream>
 
@@ -44,10 +45,20 @@ std::string loadFileString(const std::string &file)
         fileContent.append(line + "\n");
     }
     fileStream.close();
+
+    if(fileContent.size() >= 3)
+    {
+        //remove utf8 bom
+        const unsigned char* data = (const unsigned char*)fileContent.data();
+        if (data[0] == 0XEF && data[1] == 0XBB && data[2] == 0XBF)
+        {
+            fileContent.erase(0,3);
+        }
+    }
+
     return fileContent;
 }
 
 
 }
-
 }

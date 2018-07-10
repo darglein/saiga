@@ -13,12 +13,13 @@
 #include "saiga/vulkan/svulkan.h"
 
 
-typedef struct _SwapChainBuffers {
+struct SAIGA_GLOBAL SwapChainBuffer
+{
 	VkImage image;
 	VkImageView view;
-} SwapChainBuffer;
+} ;
 
-class VulkanSwapChain
+class SAIGA_GLOBAL VulkanSwapChain
 {
 private: 
 	VkInstance instance;

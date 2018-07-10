@@ -18,6 +18,8 @@ namespace Vulkan {
 struct SAIGA_GLOBAL VulkanParameters
 {
 
+    vk::PhysicalDeviceFeatures physicalDeviceFeatures;
+
     bool   enableValidationLayer    = true;
     bool enableImgui = true;
 

@@ -30,10 +30,10 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
 
     base.setPhysicalDevice(physicalDevice);
 
-    VkPhysicalDeviceFeatures enabledFeatures{};
-    enabledFeatures.fillModeNonSolid = true;
-    enabledFeatures.wideLines = true;
-    base.createLogicalDevice(surface,enabledFeatures, enabledDeviceExtensions);
+
+    vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = true;
+    vulkanParameters.physicalDeviceFeatures.wideLines = true;
+    base.createLogicalDevice(surface,vulkanParameters.physicalDeviceFeatures, enabledDeviceExtensions);
 
 
     base.init(vulkanParameters);

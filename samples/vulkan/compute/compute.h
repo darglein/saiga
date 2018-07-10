@@ -49,8 +49,8 @@ private:
         std::vector<int> data;
         Saiga::Vulkan::Buffer storageBuffer;
 
-        vk::Queue queue;								// Separate queue for compute commands (queue family may differ from the one used for graphics)
-        Saiga::Vulkan::CommandPool commandPool;					// Use a separate command pool (queue family may differ from the one used for graphics)
+        Saiga::Vulkan::Queue queue;								// Separate queue for compute commands (queue family may differ from the one used for graphics)
+//        Saiga::Vulkan::CommandPool commandPool;					// Use a separate command pool (queue family may differ from the one used for graphics)
         vk::CommandBuffer commandBuffer;				// Command buffer storing the dispatch commands and barriers
     } compute;
     Saiga::Vulkan::ComputePipeline computePipeline;
