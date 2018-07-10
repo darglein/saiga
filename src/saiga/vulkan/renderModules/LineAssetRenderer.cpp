@@ -45,48 +45,27 @@ void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 vi
 void LineAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass, float lineWidth)
 {
     PipelineBase::init(vulkanDevice,1);
-
-    uint32_t numUniformBuffers = 1;
-
-    uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
-
-
-    setDescriptorSetLayout({{ 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex }});
-
-
+    addDescriptorSetLayout({{ 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex }});
     addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
-//    createPipelineLayout({
-//                             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
-//                         });
-
-
-
-
-
-    descriptorSet = createDescriptorSet();
-
-
-    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
-    device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(descriptorSet,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
-                                },nullptr);
-
-    // Load all shaders.
-    // Note: The shader type is deduced from the ending.
     shaderPipeline.load(
                 device,{
                     "vulkan/line.vert",
                     "vulkan/line.frag"
                 });
-
-    // We use the default pipeline with "VertexNC" input vertices.
     PipelineInfo info;
     info.inputAssemblyState.topology = vk::PrimitiveTopology::eLineList;
     info.rasterizationState.lineWidth = lineWidth;
     info.addVertexInfo<VertexType>();
-    preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
+    create(renderPass,info);
 
-    shaderPipeline.destroy(device);
+
+
+    uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
+    descriptorSet = createDescriptorSet();
+    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
+    device.updateDescriptorSets({
+                                    vk::WriteDescriptorSet(descriptorSet,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
+                                },nullptr);
 }
 
 

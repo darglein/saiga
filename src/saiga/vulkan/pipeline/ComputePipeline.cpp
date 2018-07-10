@@ -31,13 +31,21 @@ vk::ComputePipelineCreateInfo ComputePipelineInfo::createCreateInfo(vk::Pipeline
 
 
 
-void ComputePipeline::preparePipelines(ComputePipelineInfo &pipelineInfo, VkPipelineCache pipelineCache)
+ComputePipeline::ComputePipeline()
+    : PipelineBase(vk::PipelineBindPoint::eCompute)
+{
+
+}
+
+
+void ComputePipeline::create(ComputePipelineInfo pipelineInfo)
 { 
     createPipelineLayout();
     pipelineInfo.setShader(shader);
     auto pipelineCreateInfo= pipelineInfo.createCreateInfo(pipelineLayout);
-    pipeline = device.createComputePipeline(pipelineCache,pipelineCreateInfo);
+    pipeline = device.createComputePipeline(base->pipelineCache,pipelineCreateInfo);
     SAIGA_ASSERT(pipeline);
+    shader.destroy(device);
 }
 
 

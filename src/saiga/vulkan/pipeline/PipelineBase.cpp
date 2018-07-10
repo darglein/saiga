@@ -12,6 +12,12 @@ namespace Saiga {
 namespace Vulkan {
 
 
+PipelineBase::PipelineBase(vk::PipelineBindPoint type)
+    : type(type)
+{
+
+}
+
 void PipelineBase::init(VulkanBase &base, uint32_t numDescriptorSetLayouts)
 {
     this->base = &base;
@@ -36,10 +42,17 @@ vk::DescriptorSet PipelineBase::createDescriptorSet(uint32_t id)
     base->descriptorPool.allocateDescriptorSet(descriptorSetLayouts[id]);
 }
 
+void PipelineBase::bind(vk::CommandBuffer cmd)
+{
+    cmd.bindPipeline(type,pipeline);
+}
 
+void PipelineBase::bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets, uint32_t firstSet, vk::ArrayProxy<const uint32_t> dynamicOffsets)
+{
+    cmd.bindDescriptorSets(type,pipelineLayout,firstSet,descriptorSets,dynamicOffsets);
+}
 
-
-void PipelineBase::setDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id)
+void PipelineBase::addDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id)
 {
     SAIGA_ASSERT(isInitialized());
     SAIGA_ASSERT(id >= 0 && id < descriptorSetLayouts.size());

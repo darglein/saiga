@@ -13,14 +13,21 @@ namespace Vulkan {
 
 
 
-
-void Pipeline::preparePipelines(PipelineInfo& pipelineInfo, VkPipelineCache pipelineCache, vk::RenderPass renderPass)
+Pipeline::Pipeline()
+    : PipelineBase(vk::PipelineBindPoint::eGraphics)
 {
+
+}
+
+void Pipeline::create(vk::RenderPass renderPass, PipelineInfo pipelineInfo)
+{
+    SAIGA_ASSERT(isInitialized());
     createPipelineLayout();
     pipelineInfo.addShaders(shaderPipeline);
     auto pipelineCreateInfo= pipelineInfo.createCreateInfo(pipelineLayout,renderPass);
-    pipeline = device.createGraphicsPipeline(pipelineCache,pipelineCreateInfo);
+    pipeline = device.createGraphicsPipeline(base->pipelineCache,pipelineCreateInfo);
     SAIGA_ASSERT(pipeline);
+    shaderPipeline.destroy(device);
 }
 
 }

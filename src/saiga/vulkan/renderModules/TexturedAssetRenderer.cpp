@@ -55,38 +55,20 @@ void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat
 void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice,1);
-
     uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
-
-
-    setDescriptorSetLayout({
+    addDescriptorSetLayout({
                                { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
                                { 11,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment},
                            });
-
-
     addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
-    //    createPipelineLayout({
-    //                             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
-    //                         });
-
-
-
-
-
-    // Load all shaders.
-    // Note: The shader type is deduced from the ending.
     shaderPipeline.load(
                 device,{
                     "vulkan/texturedAsset.vert",
                     "vulkan/texturedAsset.frag"
                 });
-
-    // We use the default pipeline with "VertexNC" input vertices.
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
-    preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
-
+    create(renderPass,info);
     shaderPipeline.destroy(device);
 }
 

@@ -20,8 +20,8 @@ public:
 
     Saiga::Vulkan::ShaderPipeline shaderPipeline;
 
-
-    void preparePipelines(PipelineInfo &pipelineInfo, VkPipelineCache pipelineCache, vk::RenderPass renderPass);
+    Pipeline();
+    void create(vk::RenderPass renderPass, PipelineInfo pipelineInfo = PipelineInfo());
 };
 
 

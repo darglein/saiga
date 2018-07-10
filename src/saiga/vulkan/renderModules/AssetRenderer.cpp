@@ -47,53 +47,27 @@ void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, 
 void AssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice,1);
-
-
-
-    // Vertex shader uniform buffer block
-//    VK_CHECK_RESULT(vulkanDevice.createBuffer(
-//                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-//                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-//                        &uniformBufferVS,
-//                        sizeof(uboVS),
-//                        &uboVS));
-
-    uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
-
-
-    setDescriptorSetLayout({ { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex }});
-
-
+    addDescriptorSetLayout({ { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex }});
     addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
-//    createPipelineLayout({
-//                             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
-//                         });
-
-
-
-
-
-    descriptorSet = createDescriptorSet();
-
-    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
-    device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(descriptorSet,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
-                                },nullptr);
-
-    // Load all shaders.
-    // Note: The shader type is deduced from the ending.
     shaderPipeline.load(
                 device,{
                     "vulkan/coloredAsset.vert",
                     "vulkan/coloredAsset.frag"
                 });
-
-    // We use the default pipeline with "VertexNC" input vertices.
     PipelineInfo info;
     info.addVertexInfo<VertexNC>();
-    preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
+    create(renderPass,info);
 
-    shaderPipeline.destroy(device);
+
+
+    descriptorSet = createDescriptorSet();
+    uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
+    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
+    device.updateDescriptorSets({
+                                    vk::WriteDescriptorSet(descriptorSet,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
+                                },nullptr);
+
+
 }
 
 

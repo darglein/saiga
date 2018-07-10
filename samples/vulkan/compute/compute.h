@@ -52,9 +52,6 @@ private:
         vk::Queue queue;								// Separate queue for compute commands (queue family may differ from the one used for graphics)
         Saiga::Vulkan::CommandPool commandPool;					// Use a separate command pool (queue family may differ from the one used for graphics)
         vk::CommandBuffer commandBuffer;				// Command buffer storing the dispatch commands and barriers
-        VkFence fence;								// Synchronization fence to avoid rewriting compute CB if still in use
-
-
     } compute;
     Saiga::Vulkan::ComputePipeline computePipeline;
     vk::DescriptorSet       descriptorSet;

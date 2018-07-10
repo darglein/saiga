@@ -28,12 +28,12 @@ private:
 class SAIGA_GLOBAL ComputePipeline : public PipelineBase
 {
 public:
-
+    ComputePipeline();
 
     Saiga::Vulkan::ShaderModule shader;
 
 
-    void preparePipelines(ComputePipelineInfo &pipelineInfo, VkPipelineCache pipelineCache);
+    void create(ComputePipelineInfo pipelineInfo = ComputePipelineInfo());
 };
 
 

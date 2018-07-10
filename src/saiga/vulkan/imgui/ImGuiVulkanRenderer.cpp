@@ -87,7 +87,7 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
 
         uint32_t descriptorBindingPoint = 0;
 
-        setDescriptorSetLayout({{ descriptorBindingPoint,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment }});
+        addDescriptorSetLayout({{ descriptorBindingPoint,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment }});
 
 
         addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(PushConstBlock)} );
@@ -121,7 +121,7 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
         info.blendAttachmentState.blendEnable = true;
 
         info.addVertexInfo<ImDrawVert>();
-        preparePipelines(info,vulkanDevice->pipelineCache,renderPass);
+        create(renderPass,info);
     }
 
 //    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &vertexBuffer, maxVertexCount * sizeof(ImDrawVert)));

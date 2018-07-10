@@ -118,14 +118,12 @@ struct SAIGA_GLOBAL VulkanBase
 
     vk::CommandBuffer createAndBeginTransferCommand();
 
-
-    void flushCommandBuffer2(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true);
-
-
-    void transferAndWait(VkCommandBuffer commandBuffer, bool free = true);
+    /**
+     * Submits the command buffer to the queue and waits until it is completed with a fence.
+     */
+    void submitAndWait(vk::CommandBuffer commandBuffer, vk::Queue queue);
 
     void endTransferWait(vk::CommandBuffer commandBuffer);
-
 };
 
 }

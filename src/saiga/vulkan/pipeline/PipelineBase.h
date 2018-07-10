@@ -20,26 +20,30 @@ namespace Vulkan {
 class SAIGA_GLOBAL PipelineBase
 {
 public:
+    // ==== Initialization ====
+    PipelineBase(vk::PipelineBindPoint type);
+
+    void init(VulkanBase& base , uint32_t numDescriptorSetLayouts);
+    void destroy();
+
+    void addDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id = 0);
+    void addPushConstantRange(vk::PushConstantRange pcr);
+
+    // ==== Runtime ====
+    vk::DescriptorSet createDescriptorSet(uint32_t id = 0);
+    void bind(vk::CommandBuffer cmd);
+    void bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets, uint32_t firstSet = 0, vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr);
+
+protected:
+    VulkanBase* base = nullptr;
+    vk::Device device;
+    vk::PipelineBindPoint type;
 
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
     std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
     std::vector<vk::PushConstantRange> pushConstantRanges;
 
-    void init(VulkanBase& base , uint32_t numDescriptorSetLayouts);
-    void destroy();
-
-
-    void setDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id = 0);
-    void addPushConstantRange(vk::PushConstantRange pcr);
-
-    vk::DescriptorSet createDescriptorSet(uint32_t id = 0);
-
-
-
-protected:
-    VulkanBase* base = nullptr;
-    vk::Device device;
     bool isInitialized() { return base; }
     void createPipelineLayout();
 };

@@ -46,49 +46,29 @@ void PointCloudRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 v
 
 void PointCloudRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass, float pointSize)
 {
-    this->base = &vulkanDevice;
-    this->device = vulkanDevice.device;
 
-
-    uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
-
-
-    setDescriptorSetLayout({{ 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex }});
-
-
+    PipelineBase::init(vulkanDevice,1);
+    addDescriptorSetLayout({{ 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex }});
     addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
-
-//    createPipelineLayout({
-//                             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
-//                         });
-
-
-
-
-
-    descriptorSet = createDescriptorSet();
-
-
-    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
-    device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(descriptorSet,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
-                                },nullptr);
-
-    // Load all shaders.
-    // Note: The shader type is deduced from the ending.
     shaderPipeline.loadGLSL(
                 device,{
                     {"vulkan/point.vert",   vk::ShaderStageFlagBits::eVertex,   "#define POINT_SIZE " + std::to_string(pointSize)},
                     {"vulkan/point.frag",    vk::ShaderStageFlagBits::eFragment, ""}
                 });
-
-    // We use the default pipeline with "VertexNC" input vertices.
     PipelineInfo info;
     info.inputAssemblyState.topology = vk::PrimitiveTopology::ePointList;
     info.addVertexInfo<VertexType>();
-    preparePipelines(info,vulkanDevice.pipelineCache,renderPass);
+    create(renderPass,info);
 
-    shaderPipeline.destroy(device);
+
+
+    uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
+    descriptorSet = createDescriptorSet();
+    vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
+    device.updateDescriptorSets({
+                                    vk::WriteDescriptorSet(descriptorSet,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
+                                },nullptr);
+
 }
 
 

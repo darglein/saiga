@@ -297,48 +297,26 @@ vk::CommandBuffer VulkanBase::createAndBeginTransferCommand()
     return cmd;
 }
 
-void VulkanBase::flushCommandBuffer2(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
+
+void VulkanBase::submitAndWait(vk::CommandBuffer commandBuffer, vk::Queue queue)
 {
-    if (commandBuffer == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    //    VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
-
-    VkSubmitInfo submitInfo = vks::initializers::submitInfo();
+    vk::SubmitInfo submitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
-
-    // Create fence to ensure that the command buffer has finished executing
-    VkFenceCreateInfo fenceInfo = vks::initializers::fenceCreateInfo(VK_FLAGS_NONE);
-    VkFence fence;
-    VK_CHECK_RESULT(vkCreateFence(device, &fenceInfo, nullptr, &fence));
-
-    // Submit to the queue
-    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, fence));
-    // Wait for the fence to signal that command buffer has finished executing
-    VK_CHECK_RESULT(vkWaitForFences(device, 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT));
-
-    vkDestroyFence(device, fence, nullptr);
-
-    if (free)
-    {
-        commandPool.freeCommandBuffer(commandBuffer);
-        //        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
-        //        commandPool.destroy();
-    }
+    vk::FenceCreateInfo fenceInfo;
+    vk::Fence fence = device.createFence(fenceInfo);
+    SAIGA_ASSERT(fence);
+    queue.submit(submitInfo,fence);
+    device.waitForFences(fence,true,100000000000);
+    device.destroyFence(fence);
 }
 
-void VulkanBase::transferAndWait(VkCommandBuffer commandBuffer, bool free)
-{
-    flushCommandBuffer2(commandBuffer,transferQueue,free);
-}
 
 void VulkanBase::endTransferWait(vk::CommandBuffer commandBuffer)
 {
     commandBuffer.end();
-    transferAndWait(commandBuffer,true);
+    submitAndWait(commandBuffer,transferQueue);
+    commandPool.freeCommandBuffer(commandBuffer);
 }
 
 

@@ -33,8 +33,6 @@ Compute::~Compute()
     compute.storageBuffer.destroy();
     computePipeline.destroy();
     compute.commandPool.destroy();
-
-    vkDestroyFence(device,compute.fence,nullptr);
 }
 
 void Compute::init(Saiga::Vulkan::VulkanBase &base)
@@ -42,31 +40,20 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
     vulkanDevice = &renderer.base;
     device = vulkanDevice->device;
 
-
-
     // create storage buffer
     compute.data.resize(10,1);
     compute.storageBuffer.createBuffer(renderer.base,sizeof(int)*compute.data.size(),vk::BufferUsageFlagBits::eStorageBuffer);
     compute.storageBuffer.allocateMemoryBuffer(renderer.base,vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
-
     compute.storageBuffer.mappedUpload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
-    compute.storageBuffer.mappedDownload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
-//    for(int i : compute.data)
-//        cout << i << endl;
-
-//    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.compute, 0, &compute.queue);
     compute.queue = device.getQueue(vulkanDevice->queueFamilyIndices.compute,0);
 
 
     computePipeline.init(base,1);
-    computePipeline.setDescriptorSetLayout({{ 0,vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute }});
-
-
-//    computePipeline.createPipelineLayout({
-                                             //        vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
-//                                         });
+    computePipeline.addDescriptorSetLayout({{ 0,vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute }});
+    computePipeline.shader.load(device,"vulkan/test.comp");
+    computePipeline.create();
 
 
 
@@ -77,55 +64,28 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
                                     vk::WriteDescriptorSet(descriptorSet,0,0,1,vk::DescriptorType::eStorageBuffer,nullptr,&descriptorInfo,nullptr),
                                 },nullptr);
 
-    // Load all shaders.
-    // Note: The shader type is deduced from the ending.
-    computePipeline.shader.load(device,"vulkan/test.comp");
-
-
-
-    // We use the default pipeline with "VertexNC" input vertices.
-    Saiga::Vulkan::ComputePipelineInfo info;
-    computePipeline.preparePipelines(info,base.pipelineCache);
-
 
     compute.commandPool.create(device,vulkanDevice->queueFamilyIndices.compute);
     compute.commandBuffer = compute.commandPool.allocateCommandBuffer();
 
 
-    VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-      VK_CHECK_RESULT(vkBeginCommandBuffer(compute.commandBuffer, &cmdBufInfo));
-
-      cout << "computing..." << endl;
-
-//      vkCmdBindPipeline(compute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline.pipeline);
-//      vkCmdBindDescriptorSets(compute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline.pipelineLayout, 0, 1, &compute.descriptorSet, 0, 0);
-        vk::CommandBuffer cmd = compute.commandBuffer;
-
-      cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute,computePipeline.pipelineLayout,0,descriptorSet,nullptr);
-      cmd.bindPipeline(vk::PipelineBindPoint::eCompute,computePipeline.pipeline);
-
-      // Dispatch the compute job
-      vkCmdDispatch(compute.commandBuffer,  1, 1, 1);
-
-      vkEndCommandBuffer(compute.commandBuffer);
-
-      VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(0);
-      VK_CHECK_RESULT(vkCreateFence(device, &fenceCreateInfo, nullptr, &compute.fence));
+    {
+        // Build the command buffer
+        compute.commandBuffer.begin( vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit) );
+        computePipeline.bind(compute.commandBuffer);
+        computePipeline.bindDescriptorSets(compute.commandBuffer,descriptorSet);
+        // Dispatch 1 block
+        compute.commandBuffer.dispatch(1,1,1);
+        compute.commandBuffer.end();
+    }
 
 
-      vk::SubmitInfo computeSubmitInfo = vks::initializers::submitInfo();
-      computeSubmitInfo.commandBufferCount = 1;
-      computeSubmitInfo.pCommandBuffers = &compute.commandBuffer;
-//      VK_CHECK_RESULT( vkQueueSubmit( compute.queue, 1, &computeSubmitInfo, compute.fence ) );
-      compute.queue.submit(computeSubmitInfo,compute.fence);
-      vkWaitForFences(device, 1, &compute.fence, VK_TRUE, UINT64_MAX);
-      vkResetFences(device, 1, &compute.fence);
+    vulkanDevice->submitAndWait(compute.commandBuffer,compute.queue);
 
+    compute.storageBuffer.mappedDownload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
-      compute.storageBuffer.mappedDownload(0,sizeof(int)*compute.data.size(),compute.data.data());
-
-      for(int i : compute.data)
-          cout << i << endl;
+    for(int i : compute.data)
+        cout << i << endl;
 }
 
 
@@ -139,14 +99,11 @@ void Compute::update(float dt)
 
 void Compute::render(VkCommandBuffer cmd)
 {
-
 }
 
 void Compute::renderGUI()
 {
-
 }
-
 
 void Compute::keyPressed(SDL_Keysym key)
 {
