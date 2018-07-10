@@ -64,6 +64,8 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
     this->base = &_base;
     this->vulkanDevice = &_base;
 
+    PipelineBase::init(_base,1);
+
     ImGuiIO& io = ImGui::GetIO();
 
     // Create font texture
@@ -85,14 +87,13 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
 
         uint32_t descriptorBindingPoint = 0;
 
-        createDescriptorSetLayout({
-                                      vk::DescriptorSetLayoutBinding{ descriptorBindingPoint,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment },
-                                  });
+        setDescriptorSetLayout({{ descriptorBindingPoint,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment }});
 
 
-        createPipelineLayout({
-                                 vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(PushConstBlock))
-                             });
+        addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(PushConstBlock)} );
+//        createPipelineLayout({
+//                                 vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(PushConstBlock))
+//                             });
 
 
 

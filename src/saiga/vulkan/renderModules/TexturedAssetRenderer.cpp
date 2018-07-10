@@ -25,7 +25,7 @@ void TexturedAssetRenderer::destroy()
 }
 void TexturedAssetRenderer::bind(vk::CommandBuffer cmd)
 {
-//    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);
+    //    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics,pipeline);
 }
 
@@ -37,8 +37,8 @@ void TexturedAssetRenderer::bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet
 
 void TexturedAssetRenderer::pushModel(vk::CommandBuffer cmd, mat4 model)
 {
-//    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model[0][0]);
-//    cmd.p
+    //    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model[0][0]);
+    //    cmd.p
     cmd.pushConstants(pipelineLayout,vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4),&model);
 }
 
@@ -54,21 +54,21 @@ void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat
 
 void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
 {
-    this->base = &vulkanDevice;
-    this->device = vulkanDevice.device;
+    PipelineBase::init(vulkanDevice,1);
 
     uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
 
 
-    createDescriptorSetLayout({
-                                  vk::DescriptorSetLayoutBinding{ 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
-                                  vk::DescriptorSetLayoutBinding{ 11,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment},
-                              });
+    setDescriptorSetLayout({
+                               { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
+                               { 11,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment},
+                           });
 
 
-    createPipelineLayout({
-                             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
-                         });
+    addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
+    //    createPipelineLayout({
+    //                             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
+    //                         });
 
 
 
@@ -92,11 +92,11 @@ void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPa
 
 vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture &texture)
 {
-//    vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(
-//                vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())
-//                )[0];
+    //    vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(
+    //                vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())
+    //                )[0];
 
-//    auto set = base->descriptorPool.allocateDescriptorSet(descriptorSetLayout[0]);
+    //    auto set = base->descriptorPool.allocateDescriptorSet(descriptorSetLayout[0]);
     auto set = createDescriptorSet();
 
 

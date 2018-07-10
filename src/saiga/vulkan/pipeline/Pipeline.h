@@ -7,33 +7,19 @@
 
 #pragma once
 
-#include "saiga/vulkan/svulkan.h"
-#include "saiga/vulkan/Base.h"
+#include "saiga/vulkan/pipeline/PipelineBase.h"
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
 
 namespace Saiga {
 namespace Vulkan {
 
-class SAIGA_GLOBAL Pipeline
+class SAIGA_GLOBAL Pipeline : public PipelineBase
 {
-protected:
-    VulkanBase* base;
-    vk::Device device;
-    vk::PipelineLayout pipelineLayout;
-    vk::Pipeline pipeline;
-
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayout;
+public:
 
     Saiga::Vulkan::ShaderPipeline shaderPipeline;
 
-    void destroy();
-
-    vk::DescriptorSet createDescriptorSet();
-
-    void createDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings);
-
-    void createPipelineLayout(std::vector<vk::PushConstantRange> pushConstantRanges);
 
     void preparePipelines(PipelineInfo &pipelineInfo, VkPipelineCache pipelineCache, vk::RenderPass renderPass);
 };

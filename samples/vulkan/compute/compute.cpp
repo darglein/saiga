@@ -60,34 +60,21 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
     compute.queue = device.getQueue(vulkanDevice->queueFamilyIndices.compute,0);
 
 
-    computePipeline.device = device;
+    computePipeline.init(base,1);
+    computePipeline.setDescriptorSetLayout({{ 0,vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute }});
 
 
-    computePipeline.createDescriptorSetLayout({
-                                                  vk::DescriptorSetLayoutBinding{ 0,vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute },
-                                              });
-
-
-    computePipeline.createPipelineLayout({
+//    computePipeline.createPipelineLayout({
                                              //        vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
-                                         });
-
-
-    computePipeline.createDescriptorPool(
-                1,{
-                    vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 1}
-                });
+//                                         });
 
 
 
-    descriptorSet = device.allocateDescriptorSets(
-                vk::DescriptorSetAllocateInfo(computePipeline.descriptorPool,computePipeline.descriptorSetLayout.size(),computePipeline.descriptorSetLayout.data())
-                );
-
+    descriptorSet = computePipeline.createDescriptorSet();
 
     vk::DescriptorBufferInfo descriptorInfo = compute.storageBuffer.createInfo();
     device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(descriptorSet[0],0,0,1,vk::DescriptorType::eStorageBuffer,nullptr,&descriptorInfo,nullptr),
+                                    vk::WriteDescriptorSet(descriptorSet,0,0,1,vk::DescriptorType::eStorageBuffer,nullptr,&descriptorInfo,nullptr),
                                 },nullptr);
 
     // Load all shaders.
@@ -137,8 +124,8 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
 
       compute.storageBuffer.mappedDownload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
-//      for(int i : compute.data)
-//          cout << i << endl;
+      for(int i : compute.data)
+          cout << i << endl;
 }
 
 

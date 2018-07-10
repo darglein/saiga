@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "saiga/vulkan/svulkan.h"
+#include "saiga/vulkan/pipeline/PipelineBase.h"
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
 
 
@@ -25,28 +25,14 @@ private:
 };
 
 
-class SAIGA_GLOBAL ComputePipeline
+class SAIGA_GLOBAL ComputePipeline : public PipelineBase
 {
 public:
-    vk::Device device;
-    vk::PipelineLayout pipelineLayout;
-    vk::Pipeline pipeline;
 
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayout;
-
-
-    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
     Saiga::Vulkan::ShaderModule shader;
 
-    void destroy();
 
-
-    void createDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings);
-
-    void createPipelineLayout(std::vector<vk::PushConstantRange> pushConstantRanges);
-
-    void createDescriptorPool(int maxDescriptorSets, std::vector<vk::DescriptorPoolSize> poolSizes);
     void preparePipelines(ComputePipelineInfo &pipelineInfo, VkPipelineCache pipelineCache);
 };
 

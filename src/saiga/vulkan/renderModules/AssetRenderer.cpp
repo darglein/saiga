@@ -46,8 +46,7 @@ void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, 
 
 void AssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
 {
-    this->base = &vulkanDevice;
-    this->device = vulkanDevice.device;
+    PipelineBase::init(vulkanDevice,1);
 
 
 
@@ -62,14 +61,13 @@ void AssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
     uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
 
 
-    createDescriptorSetLayout({
-                                  vk::DescriptorSetLayoutBinding{ 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
-                              });
+    setDescriptorSetLayout({ { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex }});
 
 
-    createPipelineLayout({
-                             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
-                         });
+    addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
+//    createPipelineLayout({
+//                             vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4))
+//                         });
 
 
 

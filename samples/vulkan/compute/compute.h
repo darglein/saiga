@@ -57,7 +57,7 @@ private:
 
     } compute;
     Saiga::Vulkan::ComputePipeline computePipeline;
-    std::vector<vk::DescriptorSet>       descriptorSet;
+    vk::DescriptorSet       descriptorSet;
 
     void keyPressed(SDL_Keysym key) override;
     void keyReleased(SDL_Keysym key) override;
