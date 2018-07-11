@@ -108,6 +108,7 @@ VkBool32 messageCallback(
                  "  Message     : " << pMsg << endl << endl;
 
 
+    SAIGA_ASSERT(0);
     // The return value of this callback controls wether the Vulkan call that caused
     // the validation message will be aborted or not
     // We return VK_FALSE as we DON'T want Vulkan calls that cause a validation message

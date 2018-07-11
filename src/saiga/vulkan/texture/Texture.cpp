@@ -15,7 +15,67 @@ void Texture::destroy()
     DeviceMemory::destroy();
 }
 
-void Texture2D::fromImage(VulkanBase& base,Image &_img)
+void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
+{
+
+
+    vk::ImageMemoryBarrier barrier = {};
+    barrier.oldLayout = imageLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    //        barrier.srcAccessMask = 0; // TODO
+    //        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite; // TODO
+
+
+    vk::PipelineStageFlags sourceStage;
+    vk::PipelineStageFlags destinationStage;
+
+    if (imageLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal) {
+        barrier.srcAccessMask = {};
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+        sourceStage = vk::PipelineStageFlagBits::eHost ;
+        destinationStage = vk::PipelineStageFlagBits::eTransfer;
+    } else if (imageLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+        sourceStage = vk::PipelineStageFlagBits::eTransfer;
+        destinationStage = vk::PipelineStageFlagBits::eAllCommands;
+    } else {
+        //            throw std::invalid_argument("unsupported layout transition!");
+        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+        sourceStage = vk::PipelineStageFlagBits::eAllCommands;
+        destinationStage = vk::PipelineStageFlagBits::eAllCommands;
+    }
+
+
+
+    cmd.pipelineBarrier(sourceStage,destinationStage,vk::DependencyFlags(),0,nullptr,0,nullptr,1,&barrier);
+
+
+    imageLayout = newLayout;
+}
+
+vk::DescriptorImageInfo Texture::getDescriptorInfo()
+{
+    vk::DescriptorImageInfo descriptorInfo;
+    descriptorInfo.imageLayout = imageLayout;
+    descriptorInfo.imageView = imageView;
+    descriptorInfo.sampler = sampler;
+    return descriptorInfo;
+
+}
+
+void Texture2D::fromImage(VulkanBase& base, Image &_img, vk::ImageUsageFlags usage)
 {
     device = base.device;
     SAIGA_ASSERT(_img.type == UC3 || _img.type == UC4);
@@ -38,7 +98,7 @@ void Texture2D::fromImage(VulkanBase& base,Image &_img)
     }
 
 
-        mipLevels = 1;
+    mipLevels = 1;
     width = img.width;
     height = img.height;
 
@@ -67,7 +127,7 @@ void Texture2D::fromImage(VulkanBase& base,Image &_img)
     imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
     imageCreateInfo.initialLayout = imageLayout;
     imageCreateInfo.extent = vk::Extent3D{ width, height, 1U };
-    imageCreateInfo.usage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
+    imageCreateInfo.usage = usage | vk::ImageUsageFlagBits::eTransferDst;
     image = base.device.createImage(imageCreateInfo);
     SAIGA_ASSERT(image);
 

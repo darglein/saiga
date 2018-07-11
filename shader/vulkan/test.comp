@@ -9,6 +9,9 @@ layout(std430, binding = 0) buffer counterBuffer
    uint numbers[ ];
 };
 
+
+layout(binding = 1, rgba8) uniform image2D storageTexture;
+
 layout (local_size_x = 256) in;
 
 
@@ -22,6 +25,8 @@ void main()
 
 	numbers[index] = index;
 	 atomicAdd(numbers[0],10);
+
+    imageStore(storageTexture, ivec2(0,0), vec4(1));
 //numbers[0] += 10;
 }
 

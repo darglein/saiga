@@ -33,6 +33,7 @@ Compute::~Compute()
     compute.storageBuffer.destroy();
     computePipeline.destroy();
     compute.queue.destroy();
+    compute.storageTexture.destroy();
 }
 
 void Compute::init(Saiga::Vulkan::VulkanBase &base)
@@ -47,10 +48,23 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
     compute.storageBuffer.mappedUpload(0,sizeof(int)*compute.data.size(),compute.data.data());
 
 
+    {
+        Saiga::TemplatedImage<ucvec4> img(100,100);
+        img.getImageView().set(ucvec4(0,0,255,255));
+        compute.storageTexture.fromImage(base,img,vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage);
+        //compute.storageTexture.transitionImageLayout();
+
+        vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+        compute.storageTexture.transitionImageLayout(cmd,vk::ImageLayout::eGeneral);
+        base.endTransferWait(cmd);
+    }
 
 
     computePipeline.init(base,1);
-    computePipeline.addDescriptorSetLayout({{ 0,vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute }});
+    computePipeline.addDescriptorSetLayout({
+                                               { 0,vk::DescriptorType::eStorageBuffer,1,vk::ShaderStageFlagBits::eCompute },
+                                               { 1,vk::DescriptorType::eStorageImage,1,vk::ShaderStageFlagBits::eCompute }
+                                           });
     computePipeline.shader.load(device,"vulkan/test.comp");
     computePipeline.create();
 
@@ -59,8 +73,10 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
     descriptorSet = computePipeline.createDescriptorSet();
 
     vk::DescriptorBufferInfo descriptorInfo = compute.storageBuffer.createInfo();
+    auto iinfo = compute.storageTexture.getDescriptorInfo();
     device.updateDescriptorSets({
                                     vk::WriteDescriptorSet(descriptorSet,0,0,1,vk::DescriptorType::eStorageBuffer,nullptr,&descriptorInfo,nullptr),
+                                    vk::WriteDescriptorSet(descriptorSet,1,0,1,vk::DescriptorType::eStorageImage,&iinfo,nullptr,nullptr),
                                 },nullptr);
 
 

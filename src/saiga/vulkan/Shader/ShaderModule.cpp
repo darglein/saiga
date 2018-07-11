@@ -42,12 +42,14 @@ void ShaderModule::loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, 
 {
     auto data = GLSLANG::loadSPIRV(file);
     createSPIRV(device,_stage,data);
+    cout << "Loaded ShaderModule " << file << endl;
 }
 
 void ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string &file, const std::string &injection)
 {
     auto spirv = GLSLANG::loadGLSL(file,_stage,injection);
     createSPIRV(device,_stage,spirv);
+    cout << "Loaded ShaderModule " << file << endl;
 }
 
 void ShaderModule::load(vk::Device device, const std::string &file, const std::string &injection)
@@ -65,7 +67,6 @@ void ShaderModule::load(vk::Device device, const std::string &file, const std::s
     {
         loadGLSL(device,std::get<2>(ending),file,injection);
     }
-    cout << "Loaded ShaderModule " << file << endl;
 }
 
 void ShaderModule::destroy(vk::Device device)

@@ -15,6 +15,8 @@ class SAIGA_GLOBAL VertexColoredModel : public TriangleModel<VertexNC,uint32_t>
 {
 public:
 
+    void createFullscreenQuad();
+
     void createCheckerBoard(glm::ivec2 size, float quadSize, vec4 color1, vec4 color2);
     void loadObj(const std::string &file);
 };

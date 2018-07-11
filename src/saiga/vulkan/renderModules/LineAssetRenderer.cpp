@@ -31,7 +31,7 @@ void LineAssetRenderer::bind(vk::CommandBuffer cmd)
 
 void LineAssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 {
-    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model[0][0]);
+        pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(mat4),&model[0][0]);
 }
 
 void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)

@@ -262,6 +262,12 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
 
 
 
+    std::vector<vk::ExtensionProperties> extprops = physicalDevice.enumerateDeviceExtensionProperties();
+    for(auto e : extprops)
+    {
+        cout << e.specVersion << " " << e.extensionName << endl;
+    }
+
 
     return;
 }

@@ -26,6 +26,7 @@ public:
      */
     void createColorDepthStencil(int width, int height, vk::ImageView color, vk::ImageView depthStencil, vk::RenderPass renderPass, vk::Device device);
     void createColor(int width, int height, vk::ImageView color, vk::RenderPass renderPass, vk::Device device);
+    void create(int width, int height, vk::RenderPass renderPass, vk::Device device);
 };
 
 }

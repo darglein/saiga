@@ -33,7 +33,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
 
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = true;
     vulkanParameters.physicalDeviceFeatures.wideLines = true;
-    base.createLogicalDevice(surface,vulkanParameters.physicalDeviceFeatures, enabledDeviceExtensions);
+    base.createLogicalDevice(surface,vulkanParameters.physicalDeviceFeatures, vulkanParameters.deviceExtensions);
 
 
     base.init(vulkanParameters);

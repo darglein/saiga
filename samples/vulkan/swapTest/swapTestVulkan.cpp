@@ -266,7 +266,7 @@ void swapTestVulkan()
 
             static int i = 0;
 			float f = 1;// (float)std::abs(sin(i++*0.01));
-            clearValue.color = {  std::array<float,4>{f,0.f,0.f,1.f }};
+            clearValue.color = {  std::array<float,4>{f,0.f,0.f,1.f } };
             vk::RenderPassBeginInfo renderPassBeginInfo;
             renderPassBeginInfo.renderPass = renderPass;
             renderPassBeginInfo.renderArea.extent.width = w;

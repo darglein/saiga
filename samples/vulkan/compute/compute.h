@@ -15,6 +15,7 @@
 
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
+#include "saiga/vulkan/texture/Texture.h"
 
 #include "saiga/vulkan/CommandPool.h"
 
@@ -48,6 +49,7 @@ private:
     struct {					// Uniform buffer object containing particle system parameters
         std::vector<int> data;
         Saiga::Vulkan::Buffer storageBuffer;
+        Saiga::Vulkan::Texture2D storageTexture;
 
         Saiga::Vulkan::Queue queue;								// Separate queue for compute commands (queue family may differ from the one used for graphics)
 //        Saiga::Vulkan::CommandPool commandPool;					// Use a separate command pool (queue family may differ from the one used for graphics)

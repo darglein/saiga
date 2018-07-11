@@ -37,9 +37,7 @@ void TexturedAssetRenderer::bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet
 
 void TexturedAssetRenderer::pushModel(vk::CommandBuffer cmd, mat4 model)
 {
-    //    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model[0][0]);
-    //    cmd.p
-    cmd.pushConstants(pipelineLayout,vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4),&model);
+        pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(mat4),&model[0][0]);
 }
 
 

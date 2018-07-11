@@ -33,6 +33,7 @@ public:
     vk::DescriptorSet createDescriptorSet(uint32_t id = 0);
     void bind(vk::CommandBuffer cmd);
     void bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets, uint32_t firstSet = 0, vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr);
+    void pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void* data, size_t offset = 0);
 
 protected:
     VulkanBase* base = nullptr;

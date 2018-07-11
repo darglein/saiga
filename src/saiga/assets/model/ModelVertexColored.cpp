@@ -13,6 +13,16 @@
 
 namespace Saiga {
 
+void VertexColoredModel::createFullscreenQuad()
+{
+    mesh.vertices.push_back(VertexNC(vec3(-1,-1,0),vec3(0,0,1)));
+    mesh.vertices.push_back(VertexNC(vec3( 1,-1,0),vec3(0,0,1)));
+    mesh.vertices.push_back(VertexNC(vec3(1,1,0),  vec3(0,0,1)));
+    mesh.vertices.push_back(VertexNC(vec3(-1,1,0), vec3(0,0,1)));
+    mesh.addFace(0,2,3);
+    mesh.addFace(0,1,2);
+}
+
 void VertexColoredModel::createCheckerBoard(glm::ivec2 size, float quadSize, vec4 color1, vec4 color2)
 {
     vec4 n(0,1,0,0);

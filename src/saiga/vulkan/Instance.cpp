@@ -13,7 +13,6 @@ namespace Vulkan {
 
 void Instance::destroy()
 {
-
     debug.destroy();
     vkDestroyInstance(instance, nullptr);
 }
@@ -26,7 +25,7 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Saiga Application";
     appInfo.pEngineName = "Saiga";
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = VK_API_VERSION_1_1;
 
 //    std::vector<const char*> instanceExtensions = getRequiredInstanceExtensions();
 
@@ -63,6 +62,13 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
 //   VK_CHECK_RESULT(vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
     instance = vk::createInstance(instanceCreateInfo);
     SAIGA_ASSERT(instance);
+
+
+    auto extprops  = vk::enumerateInstanceExtensionProperties();
+    for(auto e : extprops)
+    {
+        cout << e.specVersion << " " << e.extensionName << endl;
+    }
 
 
 

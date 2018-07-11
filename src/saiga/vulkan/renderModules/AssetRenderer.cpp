@@ -32,7 +32,7 @@ void AssetRenderer::bind(vk::CommandBuffer cmd)
 
 void AssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 {
-    vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model[0][0]);
+    pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(mat4),&model[0][0]);
 }
 
 

@@ -9,6 +9,8 @@
 #include "saiga/util/tostring.h"
 #include "SPIRV/GlslangToSpv.h"
 
+#include "SPIRV/spirv.hpp"
+
 namespace Saiga {
 namespace Vulkan {
 namespace GLSLANG{
@@ -147,6 +149,14 @@ std::vector<uint32_t> loadGLSL(const std::string &_file, const vk::ShaderStageFl
 
     std::vector<uint32_t> spirv;
     glslang::GlslangToSpv(*shader.getIntermediate(), spirv);
+
+//    std::vector<uint32_t> spvinjection = {0x20011, 12 };
+//    spirv.insert(spirv.begin()+7,spvinjection.begin(),spvinjection.end());
+
+//    for(int i = 0 ;i < 20; ++i)
+//    {
+//        cout << std::hex << spirv[i] << endl;
+//    }
     return spirv;
 
 }

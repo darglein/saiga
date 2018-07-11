@@ -36,61 +36,9 @@ struct SAIGA_GLOBAL Texture : public DeviceMemory
 
     void destroy();
 
-    void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
-    {
+    void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
 
-
-        vk::ImageMemoryBarrier barrier = {};
-        barrier.oldLayout = imageLayout;
-        barrier.newLayout = newLayout;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = image;
-        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
-//        barrier.srcAccessMask = 0; // TODO
-//        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite; // TODO
-
-
-        vk::PipelineStageFlags sourceStage;
-        vk::PipelineStageFlags destinationStage;
-
-        if (imageLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal) {
-            barrier.srcAccessMask = {};
-            barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-            sourceStage = vk::PipelineStageFlagBits::eHost ;
-            destinationStage = vk::PipelineStageFlagBits::eTransfer;
-        } else if (imageLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
-            barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-            barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-            sourceStage = vk::PipelineStageFlagBits::eTransfer;
-            destinationStage = vk::PipelineStageFlagBits::eAllCommands;
-        } else {
-            throw std::invalid_argument("unsupported layout transition!");
-        }
-
-
-
-        cmd.pipelineBarrier(sourceStage,destinationStage,vk::DependencyFlags(),0,nullptr,0,nullptr,1,&barrier);
-
-
-        imageLayout = newLayout;
-    }
-
-    vk::DescriptorImageInfo getDescriptorInfo()
-    {
-        vk::DescriptorImageInfo descriptorInfo;
-        descriptorInfo.imageLayout = imageLayout;
-        descriptorInfo.imageView = imageView;
-        descriptorInfo.sampler = sampler;
-        return descriptorInfo;
-
-    }
+    vk::DescriptorImageInfo getDescriptorInfo();
 
 
 };
@@ -98,7 +46,7 @@ struct SAIGA_GLOBAL Texture : public DeviceMemory
 struct SAIGA_GLOBAL Texture2D : public Texture
 {
 
-    void fromImage(VulkanBase& base, Image &img);
+    void fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
 };
 
 }

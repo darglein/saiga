@@ -23,7 +23,7 @@ class SAIGA_GLOBAL VulkanRenderer : public RendererBase
 {
 public:
 
-    VkDevice device;
+    vk::Device device;
     Saiga::Vulkan::VulkanBase base;
 
 
@@ -46,7 +46,7 @@ protected:
     uint32_t height = 720;
 
     Saiga::Vulkan::Instance instance;
-    VkPhysicalDevice physicalDevice;
+    vk::PhysicalDevice physicalDevice;
 
 
     std::vector<const char*> enabledDeviceExtensions;

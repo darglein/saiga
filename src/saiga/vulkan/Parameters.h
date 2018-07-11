@@ -19,7 +19,7 @@ struct SAIGA_GLOBAL VulkanParameters
 {
 
     vk::PhysicalDeviceFeatures physicalDeviceFeatures;
-
+    std::vector<const char*> deviceExtensions;
     bool   enableValidationLayer    = true;
     bool enableImgui = true;
 

@@ -39,7 +39,7 @@ vk::DescriptorSet PipelineBase::createDescriptorSet(uint32_t id)
 {
     SAIGA_ASSERT(isInitialized());
     SAIGA_ASSERT(id >= 0 && id < descriptorSetLayouts.size());
-    base->descriptorPool.allocateDescriptorSet(descriptorSetLayouts[id]);
+    return base->descriptorPool.allocateDescriptorSet(descriptorSetLayouts[id]);
 }
 
 void PipelineBase::bind(vk::CommandBuffer cmd)
@@ -50,6 +50,11 @@ void PipelineBase::bind(vk::CommandBuffer cmd)
 void PipelineBase::bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets, uint32_t firstSet, vk::ArrayProxy<const uint32_t> dynamicOffsets)
 {
     cmd.bindDescriptorSets(type,pipelineLayout,firstSet,descriptorSets,dynamicOffsets);
+}
+
+void PipelineBase::pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void *data, size_t offset)
+{
+    cmd.pushConstants(pipelineLayout,stage,offset,size,data)   ;
 }
 
 void PipelineBase::addDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id)
