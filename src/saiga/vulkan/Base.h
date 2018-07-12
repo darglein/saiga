@@ -84,6 +84,8 @@ struct SAIGA_GLOBAL VulkanBase
         */
     uint32_t getMemoryType(uint32_t typeBits, vk::MemoryPropertyFlags properties, VkBool32 *memTypeFound = nullptr);
 
+    void printAvailableMemoryTypes();
+
     /**
         * Get the index of a queue family that supports the requested queue flags
         *

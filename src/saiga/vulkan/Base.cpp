@@ -1,6 +1,7 @@
 #include "Base.h"
 #include "Debug.h"
 
+#include "saiga/util/table.h"
 namespace Saiga{
 namespace Vulkan{
 
@@ -68,6 +69,48 @@ uint32_t VulkanBase::getMemoryType(uint32_t typeBits, vk::MemoryPropertyFlags pr
     else
     {
         throw std::runtime_error("Could not find a matching memory type");
+    }
+}
+
+void VulkanBase::printAvailableMemoryTypes()
+{
+    {
+        cout << endl;
+        cout << "Heaps:" << endl;
+        Table tab({10,20,20,20,20,20});
+        tab << "id" << "size" << "size (GB)" << "DeviceLocal" << "MultiInstance" <<"MultiInstanceKHR";
+        for (uint32_t i = 0; i < memoryProperties.memoryHeapCount; i++)
+        {
+            vk::MemoryHeap mt = memoryProperties.memoryHeaps[i];
+            tab << i
+                << mt.size
+                << double(mt.size) / (1000*1000*1000)
+                << (bool)(mt.flags & vk::MemoryHeapFlagBits::eDeviceLocal)
+                << (bool)(mt.flags & vk::MemoryHeapFlagBits::eMultiInstance)
+                << (bool)(mt.flags & vk::MemoryHeapFlagBits::eMultiInstanceKHR);
+
+        }
+        cout << endl;
+    }
+
+    {
+        cout << "Memory Types:" << endl;
+        Table tab({10,20,20,20,20,20,20,20});
+        tab << "id" << "heapIndex" << "DeviceLocal" << "HostCached" <<"HostCoherent" <<"HostVisible" <<"LazilyAllocated" <<"Protected";
+        for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+        {
+            vk::MemoryType mt = memoryProperties.memoryTypes[i];
+            tab << i
+                << mt.heapIndex
+                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal)
+                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eHostCached)
+                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eHostCoherent)
+                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eHostVisible)
+                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eLazilyAllocated)
+                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eProtected);
+
+        }
+        cout << endl;
     }
 }
 
@@ -139,6 +182,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
                                      bool useSwapChain,
                                      vk::QueueFlags requestedQueueTypes)
 {
+    printAvailableMemoryTypes();
     // Desired queues need to be requested upon logical device creation
     // Due to differing queue family configurations of Vulkan implementations this can be a bit tricky, especially if the application
     // requests different queue types
@@ -232,7 +276,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
     }
 
     vk::DeviceCreateInfo deviceCreateInfo = {};
-//    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    //    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());;
     deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     deviceCreateInfo.pEnabledFeatures = &enabledFeatures;

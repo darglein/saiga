@@ -67,6 +67,7 @@ protected:
     vk::Device device;
     size_t size;
     vk::DeviceMemory memory;
+
 };
 
 }

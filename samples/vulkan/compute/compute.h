@@ -16,7 +16,7 @@
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/texture/Texture.h"
-
+#include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/CommandPool.h"
 
 class Compute :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface, public Saiga::SDL_KeyListener

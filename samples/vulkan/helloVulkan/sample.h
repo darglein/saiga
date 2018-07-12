@@ -14,6 +14,7 @@
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 #include "saiga/sdl/sdl_camera.h"
+#include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/window/Interfaces.h"
 
 

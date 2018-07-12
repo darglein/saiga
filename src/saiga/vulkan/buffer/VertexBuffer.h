@@ -21,6 +21,18 @@ class SAIGA_GLOBAL VertexBuffer : public Buffer
 public:
     int vertexCount;
 
+    void init(
+            VulkanBase& base,
+            int count,
+            vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
+            )
+    {
+        vertexCount = count;
+        size_t size = sizeof(VertexType) * vertexCount;
+        createBuffer(base,size,vk::BufferUsageFlagBits::eVertexBuffer|vk::BufferUsageFlagBits::eTransferDst);
+        allocateMemoryBuffer(base,flags);
+    }
+
     void init(VulkanBase& base, const std::vector<VertexType>& vertices)
     {
         vertexCount = vertices.size();

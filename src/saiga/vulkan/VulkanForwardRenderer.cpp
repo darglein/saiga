@@ -264,6 +264,7 @@ void VulkanForwardRenderer::render(Camera *cam)
     VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
 
         renderingInterface->transfer(cmd);
+        imGui->updateBuffers(cmd);
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 

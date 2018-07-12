@@ -38,6 +38,19 @@ public:
 
     int indexCount = 0;
 
+    void init(
+            VulkanBase& base,
+            int count,
+            vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
+            )
+    {
+        indexCount = count;
+        size_t indexBufferSize = indexCount * sizeof(IndexType);
+        createBuffer(base,indexBufferSize,vk::BufferUsageFlagBits::eIndexBuffer|vk::BufferUsageFlagBits::eTransferDst);
+        allocateMemoryBuffer(base,flags);
+    }
+
+
     void init(VulkanBase& base, const std::vector<IndexType> &indices)
     {
         indexCount = indices.size();

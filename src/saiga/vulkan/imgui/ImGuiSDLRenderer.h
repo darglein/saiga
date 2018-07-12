@@ -14,7 +14,7 @@
 #pragma once
 
 #include "saiga/util/glm.h"
-
+#include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 
 typedef struct SDL_Window SDL_Window;
@@ -33,6 +33,9 @@ public:
     void beginFrame();
 
 protected:
+
+    SDL_Window* window;
+
     virtual bool processEvent(const SDL_Event& event) override;
 };
 

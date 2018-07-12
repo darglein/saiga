@@ -5,6 +5,7 @@
  */
 
 #include "Buffer.h"
+#include "saiga/util/imath.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -39,6 +40,7 @@ void Buffer::allocateMemoryBuffer(VulkanBase &base, vk::MemoryPropertyFlags flag
 
 void Buffer::upload(vk::CommandBuffer &cmd, size_t offset, size_t size, const void *data)
 {
+    size = iAlignUp(size,4);
     cmd.updateBuffer(buffer,offset,size,data);
 }
 

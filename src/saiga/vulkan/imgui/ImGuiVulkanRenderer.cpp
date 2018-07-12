@@ -8,7 +8,6 @@
 
 #include "ImGuiVulkanRenderer.h"
 #include "saiga/imgui/imgui.h"
-#include "saiga/vulkan/Shader/ShaderPipeline.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
@@ -46,15 +45,9 @@ void VKVertexAttribBinder<ImDrawVert>::getVKAttribs(vk::VertexInputBindingDescri
 
 ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 {
-    // Release all Vulkan resources required for rendering imGui
     vertexBuffer.destroy();
     indexBuffer.destroy();
     fontTexture.destroy();
-//    vkDestroyImage(vulkanDevice->device, fontImage, nullptr);
-//    vkDestroyImageView(vulkanDevice->device, fontView, nullptr);
-//    vkFreeMemory(vulkanDevice->device, fontMemory, nullptr);
-//    vkDestroySampler(vulkanDevice->device, sampler, nullptr);
-
     Pipeline::destroy();
 }
 
@@ -85,25 +78,17 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
     {
         device = this->vulkanDevice->device;
 
-        uint32_t descriptorBindingPoint = 0;
+        uint32_t textureBindingPoint = 0;
 
-        addDescriptorSetLayout({{ descriptorBindingPoint,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment }});
-
-
+        addDescriptorSetLayout({{ textureBindingPoint,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment }});
         addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(PushConstBlock)} );
-//        createPipelineLayout({
-//                                 vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,0,sizeof(PushConstBlock))
-//                             });
-
-
-
 
         descriptorSet = createDescriptorSet();
 
         vk::DescriptorImageInfo fontDescriptor = fontTexture.getDescriptorInfo();
 
         device.updateDescriptorSets({
-                                        vk::WriteDescriptorSet(descriptorSet,descriptorBindingPoint,0,1,vk::DescriptorType::eCombinedImageSampler,&fontDescriptor,nullptr,nullptr),
+                                        vk::WriteDescriptorSet(descriptorSet,textureBindingPoint,0,1,vk::DescriptorType::eCombinedImageSampler,&fontDescriptor,nullptr,nullptr),
                                     },nullptr);
 
         shaderPipeline.load(
@@ -113,62 +98,51 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
                     });
 
         PipelineInfo info;
-
         // Disable depth test and enable blending
         info.rasterizationState.cullMode = vk::CullModeFlagBits::eNone;
         info.depthStencilState.depthTestEnable = false;
         info.depthStencilState.depthWriteEnable = false;
         info.blendAttachmentState.blendEnable = true;
-
         info.addVertexInfo<ImDrawVert>();
         create(renderPass,info);
     }
 
-//    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &vertexBuffer, maxVertexCount * sizeof(ImDrawVert)));
-//    VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &indexBuffer, maxIndexCount * sizeof(ImDrawIdx)));
+    /*
+     *  We use host visible memory here because each vertex and index is read only once by the GPU.
+     *  A slightly better performance can be obtained by creating a second device only buffer and copying the
+     * data asynchron in a transfer queue. Then the data might be already present when render is called.
+     */
+    vertexBuffer.init(*base,maxVertexCount, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    indexBuffer.init (*base,maxIndexCount,  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
-    vertexBuffer.init(*base,std::vector<ImDrawVert>(maxVertexCount));
-    indexBuffer.init (*base,std::vector<ImDrawIdx>(maxIndexCount));
+    vertexData = (ImDrawVert*)vertexBuffer.mapAll();
+    indexData = (ImDrawIdx*)indexBuffer.mapAll();
 
-//    vertexBuffer.map();
-//    indexBuffer.map();
     cout << "Vulkan imgui created." << endl;
-
 }
 
-void ImGuiVulkanRenderer::updateBuffers()
+void ImGuiVulkanRenderer::updateBuffers(vk::CommandBuffer cmd)
 {
     ImDrawData* imDrawData = ImGui::GetDrawData();
-
-    // Note: Alignment is done inside buffer creation
-    VkDeviceSize vertexBufferSize = imDrawData->TotalVtxCount * sizeof(ImDrawVert);
-    VkDeviceSize indexBufferSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
-
-    if(vertexBufferSize == 0 || indexBufferSize == 0)
-        return;
+    SAIGA_ASSERT(imDrawData);
 
     vertexCount = imDrawData->TotalVtxCount;
     indexCount = imDrawData->TotalIdxCount;
 
-    // Upload data
-//    ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer.mapped;
-//    ImDrawIdx* idxDst = (ImDrawIdx*)indexBuffer.mapped;
-    ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer.mapAll();
-    ImDrawIdx* idxDst = (ImDrawIdx*)indexBuffer.mapAll();
+    if(vertexCount == 0 || indexCount == 0)
+        return;
 
-    for (int n = 0; n < imDrawData->CmdListsCount; n++) {
+    ImDrawVert* vtxDst = vertexData;
+    ImDrawIdx* idxDst = indexData  ;
+
+    for (int n = 0; n < imDrawData->CmdListsCount; n++)
+    {
         const ImDrawList* cmd_list = imDrawData->CmdLists[n];
         memcpy(vtxDst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
         memcpy(idxDst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
         vtxDst += cmd_list->VtxBuffer.Size;
         idxDst += cmd_list->IdxBuffer.Size;
     }
-
-    // Flush to make writes visible to GPU
-//    vertexBuffer.flush();
-//    indexBuffer.flush();
-    vertexBuffer.unmap();
-    indexBuffer .unmap();
 }
 
 void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer)
@@ -176,21 +150,15 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer)
     if(!vertexBuffer.buffer)
         return;
 
-    ImGuiIO& io = ImGui::GetIO();
+    if(vertexCount == 0 || indexCount == 0)
+        return;
 
-    //    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-    //    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    ImGuiIO& io = ImGui::GetIO();
 
     vk::CommandBuffer cmd = commandBuffer;
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics,pipeline);
 
-
-
-    // Bind vertex and index buffer
-    VkDeviceSize offsets[1] = { 0 };
-//    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets);
-//    vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
     vertexBuffer.bind(commandBuffer);
     indexBuffer.bind(commandBuffer);
 
@@ -200,8 +168,7 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer)
     // UI scale and translate via push constants
     pushConstBlock.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
     pushConstBlock.translate = glm::vec2(-1.0f);
-//    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstBlock), &pushConstBlock);
-        pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(PushConstBlock),&pushConstBlock);
+    pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(PushConstBlock),&pushConstBlock);
 
     // Render commands
     ImDrawData* imDrawData = ImGui::GetDrawData();
@@ -230,8 +197,6 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer)
 void ImGuiVulkanRenderer::endFrame()
 {
     ImGui::Render();
-
-    updateBuffers();
 }
 
 
