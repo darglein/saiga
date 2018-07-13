@@ -38,6 +38,27 @@ Compute::~Compute()
 
 void Compute::init(Saiga::Vulkan::VulkanBase &base)
 {
+    using namespace Saiga;
+
+    {
+        Saiga::TemplatedImage<float> od(100,100);
+        Saiga::Vulkan::Texture2D texture;
+        texture.fromImage(base,od,vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage);
+
+    }
+
+    {
+        Saiga::Vulkan::Texture2D outTexture;
+        TemplatedImage<ucvec4> img(100,100);
+        img.getImageView().set(ucvec4(0,0,255,255));
+        outTexture.fromImage(base,img,vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage);
+
+        vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+        outTexture.transitionImageLayout(cmd,vk::ImageLayout::eGeneral);
+        base.endTransferWait(cmd);
+    }
+
+
     vulkanDevice = &renderer.base;
     device = vulkanDevice->device;
 

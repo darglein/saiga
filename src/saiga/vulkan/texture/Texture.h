@@ -34,6 +34,7 @@ struct SAIGA_GLOBAL Texture : public DeviceMemory
     uint32_t layerCount;
     vk::Sampler sampler;
 
+    ~Texture() { destroy(); }
     void destroy();
 
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);

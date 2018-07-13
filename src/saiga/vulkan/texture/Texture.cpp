@@ -9,10 +9,14 @@ namespace Vulkan{
 
 void Texture::destroy()
 {
-    device.destroyImage(image);
-    device.destroyImageView(imageView);
-    device.destroySampler(sampler);
-    DeviceMemory::destroy();
+    if(image)
+    {
+        device.destroyImage(image);
+        device.destroyImageView(imageView);
+        device.destroySampler(sampler);
+        DeviceMemory::destroy();
+        image = nullptr;
+    }
 }
 
 void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
@@ -75,34 +79,34 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo()
 
 }
 
-void Texture2D::fromImage(VulkanBase& base, Image &_img, vk::ImageUsageFlags usage)
+void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usage)
 {
     device = base.device;
-    SAIGA_ASSERT(_img.type == UC3 || _img.type == UC4);
+    //    SAIGA_ASSERT(_img.type == UC3 || _img.type == UC4);
 
 
-    TemplatedImage<ucvec4> img(_img.height,_img.width);
+    //    TemplatedImage<ucvec4> img(_img.height,_img.width);
 
 
-    if(_img.type == UC3)
-    {
-        auto vimg = _img.getImageView<ucvec3>();
-        for(int y = 0; y < _img.height; ++y){
-            for(int x = 0; x < _img.width; ++x){
-                img(y,x) = ucvec4(vimg(y,x),0);
-            }
-        }
-    }else if(_img.type == UC4)
-    {
-        _img.getImageView<ucvec4>().copyTo(img.getImageView());
-    }
+    //    if(_img.type == UC3)
+    //    {
+    //        auto vimg = _img.getImageView<ucvec3>();
+    //        for(int y = 0; y < _img.height; ++y){
+    //            for(int x = 0; x < _img.width; ++x){
+    //                img(y,x) = ucvec4(vimg(y,x),0);
+    //            }
+    //        }
+    //    }else if(_img.type == UC4)
+    //    {
+    //        _img.getImageView<ucvec4>().copyTo(img.getImageView());
+    //    }
 
 
     mipLevels = 1;
     width = img.width;
     height = img.height;
 
-    cout << img.type << endl;
+    //    cout << img.type << endl;
     vk::Format format = getvkFormat(img.type);
 
 
