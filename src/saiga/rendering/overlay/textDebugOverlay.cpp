@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
 #ifdef SAIGA_USE_FREETYPE
 #include "saiga/rendering/overlay/textDebugOverlay.h"
 #include "saiga/opengl/shader/basic_shaders.h"

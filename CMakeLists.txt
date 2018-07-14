@@ -221,7 +221,7 @@ if(CUDA_FOUND)
 	SET(SAIGA_USE_CUDA 1)
 
         if(EIGEN3_FOUND)
-            if(${Eigen3_VERSION} VERSION_GREATER_EQUAL "3.3.90" OR ${CUDA_VERSION} VERSION_LESS 9)
+            if(${Eigen3_VERSION} VERSION_GREATER_EQUAL "3.3.90" AND ${CUDA_VERSION} VERSION_GREATER_EQUAL "9.2")
                     SET(SAIGA_EIGEN_AND_CUDA 1)
             endif()
         endif()
@@ -270,7 +270,7 @@ if(WIN32)
 endif(WIN32)
 
 if(SAIGA_EIGEN_AND_CUDA)
-    message(STATUS "Enabled Eigen with CUDA.")
+    message(STATUS "Enabled Eigen with CUDA -> Eigen ${Eigen3_VERSION} Cuda ${CUDA_VERSION}")
 endif()
 
 ############# INSTALL PATHS ###############

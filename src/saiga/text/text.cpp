@@ -6,7 +6,7 @@
 
 #include "saiga/text/all.h"
 #include "saiga/util/assert.h"
-#include "saiga/text/encoding.h"
+#include "saiga/util/encoding.h"
 
 namespace Saiga {
 

@@ -9,6 +9,7 @@
 
 #if defined(SAIGA_USE_EIGEN) && defined(SAIGA_EIGEN_AND_CUDA)
 
+
 #include "saiga/eigen/eigen.h"
 
 using matrix_t = Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor>;

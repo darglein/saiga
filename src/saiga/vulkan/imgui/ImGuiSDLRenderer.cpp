@@ -66,10 +66,10 @@ void ImGuiSDLRenderer::init(SDL_Window *window, float width, float height)
     io.GetClipboardTextFn = ImGui_ImplSdlGL3_GetClipboardText;
 
 #ifdef _WIN32
-    SDL_SysWMinfo wmInfo;
-    SDL_VERSION(&wmInfo.version);
-    SDL_GetWindowWMInfo(window, &wmInfo);
-    io.ImeWindowHandle = wmInfo.info.win.window;
+    //SDL_SysWMinfo wmInfo;
+    //SDL_VERSION(&wmInfo.version);
+    //SDL_GetWindowWMInfo(window, &wmInfo);
+    //io.ImeWindowHandle = wmInfo.info.win.window;
 #else
     (void)window;
 #endif
