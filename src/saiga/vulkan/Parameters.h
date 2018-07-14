@@ -25,7 +25,7 @@ struct SAIGA_GLOBAL VulkanParameters
 
     uint32_t maxDescriptorSets = 100;
     // for {uniformBuffer,texture}
-    std::array<uint32_t,2> descriptorCounts = { 100, 100 };
+    std::array<uint32_t,4> descriptorCounts = { 100, 100, 100, 100 };
 
 
     void fromConfigFile(const std::string& file);

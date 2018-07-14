@@ -1,4 +1,4 @@
-#include "Base.h"
+﻿#include "Base.h"
 #include "Debug.h"
 
 #include "saiga/util/table.h"
@@ -333,7 +333,9 @@ void VulkanBase::init(VulkanParameters params)
                 device,
                 params.maxDescriptorSets,{
                     vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer,          params.descriptorCounts[0]},
-                    vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler,   params.descriptorCounts[1]}
+                    vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler,   params.descriptorCounts[1]},
+                    vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer,   params.descriptorCounts[2]},
+                    vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage,   params.descriptorCounts[3]},
                 });
 
 
