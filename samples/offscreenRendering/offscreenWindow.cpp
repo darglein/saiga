@@ -17,10 +17,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     float aspect = window.getAspectRatio();
     camera.setProj(60.0f,aspect,0.1f,50.0f);
     camera.setView(vec3(0,5,10),vec3(0,0,0),vec3(0,1,0));
-    camera.enableInput();
-    //How fast the camera moves
-    camera.movementSpeed = 10;
-    camera.movementSpeedFast = 20;
+
 
     //Set the camera from which view the scene is rendered
     window.setCamera(&camera);
@@ -82,18 +79,11 @@ Sample::~Sample()
 }
 
 void Sample::update(float dt){
-    //Update the camera position
-    camera.update(dt);
-    sun->fitShadowToCamera(&camera);
 
-    float speed = 360.0f / 50.0 * dt;
-    camera.mouseRotateAroundPoint(speed,0,vec3(0,5,0),vec3(0,1,0));
+    sun->fitShadowToCamera(&camera);
 }
 
 void Sample::interpolate(float dt, float interpolation) {
-    //Update the camera rotation. This could also be done in 'update' but
-    //doing it in the interpolate step will reduce latency
-    camera.interpolate(dt,interpolation);
 }
 
 void Sample::render(Camera *cam)

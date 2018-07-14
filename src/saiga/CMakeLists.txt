@@ -11,7 +11,6 @@ FILE(GLOB_RECURSE imgui_SRC  imgui/*.cpp)
 FILE(GLOB_RECURSE rendering_SRC  rendering/*.cpp)
 FILE(GLOB_RECURSE smaa_SRC  smaa/*.cpp)
 FILE(GLOB_RECURSE time_SRC  time/*.cpp)
-FILE(GLOB_RECURSE text_SRC  text/*.cpp)
 FILE(GLOB_RECURSE tests_SRC  tests/*.cpp)
 FILE(GLOB_RECURSE util_SRC  util/*.cpp)
 FILE(GLOB_RECURSE window_SRC  window/*.cpp)
@@ -24,7 +23,7 @@ set(PROG_HEADER ${PROG_HEADER} ${PROG_HEADER2})
 
 FILE(GLOB_RECURSE SHADERS  ${PROJECT_SOURCE_DIR}/shader/*.glsl)
 
-SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${assets_SRC} ${camera_SRC} ${eigen_SRC} ${geometry_SRC} ${opengl_SRC} ${image_SRC} ${imgui_SRC} ${rendering_SRC} ${smaa_SRC} ${time_SRC} ${text_SRC} ${tests_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC} ${main_SRC} ${PROG_HEADER})
+SET(PROG_SRC ${PROG_SRC} ${animation_SRC} ${assets_SRC} ${camera_SRC} ${eigen_SRC} ${geometry_SRC} ${opengl_SRC} ${image_SRC} ${imgui_SRC} ${rendering_SRC} ${smaa_SRC} ${time_SRC} ${tests_SRC} ${util_SRC} ${window_SRC} ${animation_SRC} ${world_SRC} ${main_SRC} ${PROG_HEADER})
 
 #add shaders to sources so they are added to the msvc solution.
 SET(PROG_SRC ${PROG_SRC} ${SHADERS})
@@ -66,6 +65,11 @@ if(EIGEN3_FOUND)
 	SET(PROG_SRC ${PROG_SRC} ${eigen_SRC})
 endif()
 
+if(FREETYPE_FOUND)
+	FILE(GLOB_RECURSE text_SRC  text/*.cpp)
+	SET(PROG_SRC ${PROG_SRC} ${text_SRC})
+endif()
+
 if(SAIGA_BUILD_SHARED)
 	#only add to src, not to samples
 	add_definitions(-DSAIGA_DLL_EXPORTS)
@@ -77,6 +81,7 @@ if(CUDA_FOUND)
 	#	SET(PROG_SRC ${PROG_SRC} ${cuda_objs})
 SET(PROG_SRC ${CUDA_SRC} ${PROG_SRC})
 endif()
+
 
 
 if(SAIGA_USE_VULKAN)

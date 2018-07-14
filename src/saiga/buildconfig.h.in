@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -14,6 +14,7 @@
 //opengl window and context managment
 #cmakedefine SAIGA_USE_SDL
 #cmakedefine SAIGA_USE_GLFW
+#cmakedefine SAIGA_USE_FREETYPE
 
 //opengl loader
 #cmakedefine SAIGA_USE_GLBINDING

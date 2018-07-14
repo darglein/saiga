@@ -1,9 +1,10 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
+#ifdef SAIGA_USE_FREETYPE
 #include "saiga/rendering/overlay/textDebugOverlay.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/geometry/triangle_mesh.h"
@@ -14,6 +15,9 @@
 #include "saiga/text/text.h"
 
 namespace Saiga {
+
+
+
 
 TextDebugOverlay::TextDebugOverlay(int w, int h): overlay(1,1),layout(w,h){
 }
@@ -70,4 +74,6 @@ int TextDebugOverlay::createItem(const std::string &name)
     return id;
 }
 
+
 }
+#endif

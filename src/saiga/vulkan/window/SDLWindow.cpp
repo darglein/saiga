@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+
+#ifdef SAIGA_USE_SDL
 #include "SDLWindow.h"
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_vulkan.h"
@@ -118,3 +120,5 @@ void SDLWindow::update(float dt)
 
 }
 }
+
+#endif

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -16,6 +16,8 @@
 #include <vector>
 
 namespace Saiga {
+
+#ifdef SAIGA_USE_FREETYPE
 
 class TextureAtlas;
 
@@ -69,5 +71,7 @@ void TextDebugOverlay::updateEntry(int id,const T& v)
 {
         entries[id].text->updateText(to_string(v),entries[id].valueIndex);
 }
+
+#endif
 
 }

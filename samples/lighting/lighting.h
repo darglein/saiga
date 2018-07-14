@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -17,9 +17,7 @@
 #include "saiga/sdl/sdl_window.h"
 
 
-#include "saiga/text/all.h"
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
-#include "saiga/rendering/overlay/textDebugOverlay.h"
 #include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
 #include "saiga/rendering/deferredRendering/deferredRendering.h"

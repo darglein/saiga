@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/util/glm.h"
 #include "saiga/image/image.h"
-#include "saiga/text/encoding.h"
+#include "saiga/util/encoding.h"
 #include "saiga/image/templatedImage.h"
 
 #include <vector>

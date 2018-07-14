@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/text/textParameters.h"
-#include "saiga/rendering/object3d.h"
-#include "saiga/geometry/triangle_mesh.h"
+#include "saiga/config.h"
 
+#include <vector>
 #include <cstdint>
 
 namespace Saiga {

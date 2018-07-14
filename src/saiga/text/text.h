@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -7,9 +7,13 @@
 #pragma once
 
 #include "saiga/text/textParameters.h"
-#include "saiga/text/encoding.h"
+#include "saiga/util/encoding.h"
 #include "saiga/rendering/object3d.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
+
+#ifndef SAIGA_USE_FREETYPE
+#error Saiga was compiled without freetype.
+#endif
 
 namespace Saiga {
 

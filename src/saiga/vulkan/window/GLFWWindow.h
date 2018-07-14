@@ -9,6 +9,9 @@
 
 #include "saiga/vulkan/window/Window.h"
 
+#ifndef SAIGA_USE_GLFW
+#error Saiga was compiled without GLFW.
+#endif
 
 struct GLFWwindow;
 struct GLFWcursor;

@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#ifdef SAIGA_USE_GLFW
+
 #include "GLFWWindow.h"
 #include <GLFW/glfw3.h>
 
@@ -114,3 +116,5 @@ void GLFWWindow::update(float dt)
 
 }
 }
+
+#endif

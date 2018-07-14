@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -6,15 +6,13 @@
 
 #pragma once
 
+#include "saiga/window/window.h"
 #include "saiga/rendering/renderer.h"
 #include "saiga/world/proceduralSkybox.h"
 
 #include "saiga/assets/all.h"
 #include "saiga/assets/objAssetLoader.h"
 
-#include "saiga/sdl/sdl_eventhandler.h"
-#include "saiga/sdl/sdl_camera.h"
-#include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferredRendering/deferredRendering.h"
 
 using namespace Saiga;
@@ -22,7 +20,7 @@ using namespace Saiga;
 class Sample : public Updating, public Rendering
 {
 public:
-    SDLCamera<PerspectiveCamera> camera;
+    PerspectiveCamera camera;
 
     SimpleAssetObject cube1, cube2;
     SimpleAssetObject groundPlane;

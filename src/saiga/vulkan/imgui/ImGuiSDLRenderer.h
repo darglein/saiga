@@ -17,6 +17,10 @@
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 
+#ifndef SAIGA_USE_SDL
+#error Saiga was compiled without SDL2.
+#endif
+
 typedef struct SDL_Window SDL_Window;
 
 namespace Saiga {

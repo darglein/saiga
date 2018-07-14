@@ -231,22 +231,25 @@ PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "
 
 ##### Vulkan #####
 
-find_package(Vulkan REQUIRED)
+find_package(Vulkan QUIET)
 PackageHelper(Vulkan "${VULKAN_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
 
 find_package(GLslang QUIET)
 PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
 
-
-if(${VULKAN_FOUND} AND ${GLSLANG_FOUND} AND ${SDL2_FOUND})
+if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
 	SET(SAIGA_USE_VULKAN 1)
 endif()
 
 ############# Required LIBRARIES ###############
 
 #freetype2
-find_package(Freetype REQUIRED QUIET)
+find_package(Freetype QUIET)
 PackageHelper(Freetype "${FREETYPE_FOUND}" "${FREETYPE_INCLUDE_DIRS}" "${FREETYPE_LIBRARIES}")
+if(FREETYPE_FOUND)
+	SET(SAIGA_USE_FREETYPE 1)
+endif()
+
 
 #OPENGL
 find_package(OpenGL REQUIRED QUIET)

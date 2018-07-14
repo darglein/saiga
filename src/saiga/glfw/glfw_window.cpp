@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -37,7 +37,6 @@ glfw_Window::~glfw_Window()
 
 void glfw_Window::destroy()
 {
-    terminateOpenGL();
     cleanupSaiga();
     freeContext();
 
