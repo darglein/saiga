@@ -153,7 +153,7 @@ void HalfEdgeMesh<vertex_t,index_t>::fromIFS(TriangleMesh<vertex_t,index_t>& ifs
 #if 1
         uint64_t mapidx;
 
-        mapidx = min(f.v1,f.v2) * vertices.size() + max(f.v1,f.v2);
+        mapidx = std::min(f.v1,f.v2) * vertices.size() + std::max(f.v1,f.v2);
         auto e = vertexEdges.find(mapidx);
         if(e == vertexEdges.end())
         {
@@ -165,7 +165,7 @@ void HalfEdgeMesh<vertex_t,index_t>::fromIFS(TriangleMesh<vertex_t,index_t>& ifs
         }
 
 
-        mapidx = min(f.v2,f.v3) * vertices.size() + max(f.v2,f.v3);
+        mapidx = std::min(f.v2,f.v3) * vertices.size() + std::max(f.v2,f.v3);
         e = vertexEdges.find(mapidx);
         if(e == vertexEdges.end())
         {
@@ -177,7 +177,7 @@ void HalfEdgeMesh<vertex_t,index_t>::fromIFS(TriangleMesh<vertex_t,index_t>& ifs
         }
 
 
-        mapidx = min(f.v3,f.v1) * vertices.size() + max(f.v3,f.v1);
+        mapidx = std::min(f.v3,f.v1) * vertices.size() + std::max(f.v3,f.v1);
         e = vertexEdges.find(mapidx);
         if(e == vertexEdges.end())
         {
@@ -416,7 +416,7 @@ void HalfEdgeMesh<vertex_t,index_t>::halfEdgeCollapse(int he)
     // ================================================================================
 
     //iterate over all triangles of the removed vertex
-    //update the vertices of the "incoming" edges
+    //update the vertices of the "incostd::ming" edges
     int startHf = vertices[removeVertex].halfEdge;
     int currentHf = startHf;
 
@@ -664,7 +664,7 @@ void HalfEdgeMesh<vertex_t,index_t>::getNeighbours(int vertex, std::vector<int>&
     // ================================================================================
 
     //iterate over all triangles of the removed vertex
-    //update the vertices of the "incoming" edges
+    //update the vertices of the "incostd::ming" edges
     int startHf = vertices[vertex].halfEdge;
     int currentHf = startHf;
 

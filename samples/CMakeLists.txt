@@ -43,6 +43,6 @@ endif ()
 
 add_subdirectory(imageProcessing)
 
-if (SDL2_FOUND AND ${SAIGA_USE_VULKAN})
+if (SDL2_FOUND AND SAIGA_USE_VULKAN)
 	add_subdirectory(vulkan)
 endif()

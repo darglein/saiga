@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -7,6 +7,7 @@
 #include "saiga/opengl/error.h"
 #include "saiga/util/tostring.h"
 #include <unordered_map>
+
 
 namespace Saiga {
 
@@ -130,7 +131,7 @@ bool Error::checkGLError(){
 
     GLenum errCode;
     if ((errCode = glGetError()) != GL_NO_ERROR) {
-        std::cout<<"OpenGL error: "<<errCode<<std::endl;
+        std::cout<< "OpenGL error: " << errCode << std::endl;
         return true;
     }
     return false;

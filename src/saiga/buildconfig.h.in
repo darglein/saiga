@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#pragma once
+
 #define SAIGA_VERSION @SAIGA_VERSION@
 #define SAIGA_VERSION_MAJOR @SAIGA_VERSION_MAJOR@
 #define SAIGA_VERSION_MINOR @SAIGA_VERSION_MINOR@
@@ -15,10 +17,6 @@
 #cmakedefine SAIGA_USE_SDL
 #cmakedefine SAIGA_USE_GLFW
 #cmakedefine SAIGA_USE_FREETYPE
-
-//opengl loader
-#cmakedefine SAIGA_USE_GLBINDING
-#cmakedefine SAIGA_USE_GLEW
 
 //sound
 #cmakedefine SAIGA_USE_OPENAL

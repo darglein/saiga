@@ -7,6 +7,10 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include(helper_macros)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/saiga/opengl/glbinding/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include)
+
 set (SAIGA_VERSION_MAJOR 1)
 set (SAIGA_VERSION_MINOR 2)
 set (SAIGA_VERSION_PATCH 0)
@@ -258,22 +262,6 @@ PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARI
 #GLM
 find_package(GLM REQUIRED QUIET)
 PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
-
-#glbinding
-find_package(glbinding QUIET)
-if(GLBINDING_FOUND)
-	SET(SAIGA_USE_GLBINDING 1)
-else()
-	#use GLEW as a fallback
-	find_package(GLEW REQUIRED QUIET) 
-	if(GLEW_FOUND)
-		SET(SAIGA_USE_GLEW 1)
-	else()
-		message(FATAL_ERROR "No OpenGL loading library found.")
-	endif()
-	PackageHelper(GLEW "${GLEW_FOUND}" "${GLEW_INCLUDE_DIRS}" "${GLEW_LIBRARIES}")
-endif()
-PackageHelper(glbinding "${GLBINDING_FOUND}" "${GLBINDING_INCLUDE_DIRS}" "${GLBINDING_LIBRARIES}")
 
 
 #dbghelp for crash.cpp

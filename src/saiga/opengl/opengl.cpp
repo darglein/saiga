@@ -10,27 +10,25 @@
 #include "saiga/util/assert.h"
 #include "saiga/opengl/shader/shaderPartLoader.h"
 
+#include <glbinding/glbinding.h>
+#include <glbinding-aux/Meta.h>
+#include "saiga/sdl/sdl.h"
+#include "saiga/glfw/all.h"
+
+
+
 namespace Saiga {
 
 bool openglinitialized = false;
 
-void initOpenGL()
+void initOpenGL(glbinding::GetProcAddress func)
 {
     SAIGA_ASSERT(!openglinitialized);
-#ifdef SAIGA_USE_GLEW
-    //Initialize GLEW
-    glewExperimental = GL_TRUE;
-    GLenum glewError = glewInit();
-    if( glewError != GLEW_OK ){
-        std::cerr<<"Error initializing GLEW! "<< glewGetErrorString( glewError ) <<std::endl;
-        SAIGA_ASSERT(0);
-    }
-    glGetError(); //ignore first gl error after glew init
-#endif
 
-#ifdef SAIGA_USE_GLBINDING
-    glbinding::Binding::initialize();
-#endif
+
+    glbinding::initialize(func);
+
+
     openglinitialized = true;
     std::cout << "> OpenGL initialized" << std::endl;
     printOpenGLVersion();
@@ -199,4 +197,10 @@ void OpenGLParameters::fromConfigFile(const std::string &file)
 
 
 
+}
+
+std::ostream &operator<<(std::ostream &os, GLenum g)
+{
+    os << glbinding::aux::Meta::getString(g);
+    return os;
 }

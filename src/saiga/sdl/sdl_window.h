@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -30,6 +30,7 @@ protected:
     virtual void checkEvents() override;
     virtual void swapBuffers() override;
     virtual void freeContext() override;
+    virtual void loadGLFunctions() override;
 
     virtual bool resizeWindow(Uint32 windowId, int width, int height) override;
 public:

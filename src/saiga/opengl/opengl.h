@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -9,24 +9,20 @@
 #include <saiga/config.h>
 #include <vector>
 
-#ifdef SAIGA_USE_GLEW
-#include <GL/glew.h>
-typedef int MemoryBarrierMask;
-#endif
 
-#ifdef SAIGA_USE_GLBINDING
 #include <glbinding/gl/gl.h>
-#include <glbinding/Binding.h>
+#include <glbinding/ProcAddress.h>
 //make sure nobody else includes gl.h after this
 #define __gl_h_
-//todo: fix glbinding support
 using namespace gl;
 #define GLFW_INCLUDE_NONE
-#endif
+
+std::ostream& operator<<(std::ostream& os, GLenum g);
+
 
 namespace Saiga {
 
-SAIGA_GLOBAL void initOpenGL();
+SAIGA_GLOBAL void initOpenGL(glbinding::GetProcAddress func);
 SAIGA_GLOBAL void terminateOpenGL();
 SAIGA_GLOBAL bool OpenGLisInitialized();
 
@@ -37,6 +33,7 @@ SAIGA_GLOBAL void printOpenGLVersion();
 SAIGA_GLOBAL int getExtensionCount();
 SAIGA_GLOBAL bool hasExtension(const std::string &ext);
 SAIGA_GLOBAL std::vector<std::string> getExtensions();
+
 
 
 enum class OpenGLVendor{

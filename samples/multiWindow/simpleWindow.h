@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -10,9 +10,8 @@
 #include "saiga/world/proceduralSkybox.h"
 
 #include "saiga/assets/all.h"
-#include "saiga/assets/objAssetLoader.h"
 
-#include "saiga/sdl/sdl.h"
+#include "saiga/sdl/all.h"
 
 #include "saiga/rendering/deferredRendering/deferredRendering.h"
 

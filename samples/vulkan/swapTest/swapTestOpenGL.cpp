@@ -1,4 +1,4 @@
-﻿
+﻿#if 0
 #include <SDL2/SDL.h>
 #include <thread>
 #include <chrono>
@@ -49,3 +49,4 @@ void swapTestGL()
     SDL_DestroyWindow( window );
     SDL_Quit();
 }
+#endif

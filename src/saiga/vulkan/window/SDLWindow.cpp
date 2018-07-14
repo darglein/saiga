@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-
+#include "saiga/config.h"
 #ifdef SAIGA_USE_SDL
 #include "SDLWindow.h"
 #include "SDL2/SDL.h"

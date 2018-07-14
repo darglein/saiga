@@ -45,6 +45,11 @@ void glfw_Window::destroy()
 
 
 
+void glfw_Window::loadGLFunctions()
+{
+    initOpenGL(glfwGetProcAddress);
+}
+
 
 void glfw_Window::getCurrentPrimaryMonitorResolution(int *width, int *height)
 {

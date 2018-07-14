@@ -6,6 +6,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
+#include "saiga/config.h"
 #ifdef SAIGA_USE_SDL
 #include "ImGuiSDLRenderer.h"
 #include "SDL2/SDL.h"

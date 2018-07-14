@@ -17,12 +17,11 @@ namespace Saiga {
 
 
 WindowBase::WindowBase(WindowParameters _windowParameters)
-    :windowParameters(_windowParameters), mainLoop(*this)
+    : mainLoop(*this), windowParameters(_windowParameters)
 {
 }
 
 WindowBase::~WindowBase(){
-    //    delete renderer;
 }
 
 void WindowBase::close()

@@ -96,8 +96,7 @@ bool OpenGLWindow::create()
     }
 
 
-    //inits opengl (loads functions)
-    initOpenGL();
+    loadGLFunctions();
     assert_no_glerror();
 
 
@@ -107,20 +106,7 @@ bool OpenGLWindow::create()
     }
 
 
-    //this somehow doesn't work in 32 bit windows
-
-
-    //in older glew versions the last parameter of the function is void* instead of const void*
-#if defined(GLEW_VERSION_4_5) || defined(SAIGA_USE_GLBINDING)
-
-    //this somehow doesn't work on windows 32 bit and macOS
-#if defined _WIN64 || defined LINUX
     glDebugMessageCallback(Error::DebugLogConst,NULL);
-#endif
-
-#else
-    glDebugMessageCallback(Error::DebugLog,NULL);
-#endif
 
     cout<<">> Window inputs initialized!"<<endl;
     assert_no_glerror();

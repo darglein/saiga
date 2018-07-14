@@ -55,12 +55,6 @@ static void printSaigaInfo(){
 #ifdef SAIGA_USE_GLFW
     libs += "GLFW,";
 #endif
-#ifdef SAIGA_USE_GLBINDING
-    libs += "GLBINDING,";
-#endif
-#ifdef SAIGA_USE_GLEW
-    libs += "GLEW,";
-#endif
 #ifdef SAIGA_USE_OPENAL
     libs += "OPENAL,";
 #endif

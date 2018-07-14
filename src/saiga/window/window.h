@@ -44,7 +44,7 @@ public:
     virtual void swap();
     virtual void update(float dt);
 
-     OpenGLParameters openglParameters;
+    OpenGLParameters openglParameters;
 
 protected:
     virtual bool initWindow() = 0;
@@ -53,6 +53,7 @@ protected:
     virtual void checkEvents() = 0;
     virtual void swapBuffers() = 0;
     virtual void freeContext() = 0;
+    virtual void loadGLFunctions() = 0;
 
     void sleep(tick_t ticks);
 };
