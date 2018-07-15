@@ -17,10 +17,10 @@
 using namespace gl;
 #define GLFW_INCLUDE_NONE
 
-std::ostream& operator<<(std::ostream& os, GLenum g);
 
 
 namespace Saiga {
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, GLenum g);
 
 SAIGA_GLOBAL void initOpenGL(glbinding::GetProcAddress func);
 SAIGA_GLOBAL void terminateOpenGL();

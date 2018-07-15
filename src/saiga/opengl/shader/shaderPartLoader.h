@@ -68,8 +68,7 @@ std::shared_ptr<shader_t> ShaderPartLoader::createShader()
 #ifndef SAIGA_RELEASE
     std::cout<<"Loaded: "<<file<<" ( ";
     for(auto& sp : shaders){
-        //todo use glbinding ostream
-        std::cout<<(int)sp->type<<" ";
+        std::cout << sp->type << " ";
     }
     std::cout<<") Id="<< shader->program << std::endl;
 #endif

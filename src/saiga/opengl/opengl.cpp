@@ -19,6 +19,12 @@
 
 namespace Saiga {
 
+std::ostream &operator<<(std::ostream &os, GLenum g)
+{
+    os << glbinding::aux::Meta::getString(g);
+    return os;
+}
+
 bool openglinitialized = false;
 
 void initOpenGL(glbinding::GetProcAddress func)
@@ -199,8 +205,4 @@ void OpenGLParameters::fromConfigFile(const std::string &file)
 
 }
 
-std::ostream &operator<<(std::ostream &os, GLenum g)
-{
-    os << glbinding::aux::Meta::getString(g);
-    return os;
-}
+
