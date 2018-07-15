@@ -7,6 +7,7 @@
 #include "saiga/image/imageTransformations.h"
 
 namespace Saiga {
+namespace ImageTransformation {
 
 void addAlphaChannel(ImageView<ucvec3> src, ImageView<ucvec4> dst, unsigned char alpha)
 {
@@ -19,4 +20,5 @@ void addAlphaChannel(ImageView<ucvec3> src, ImageView<ucvec4> dst, unsigned char
     }
 }
 
+}
 }

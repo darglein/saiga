@@ -1,4 +1,4 @@
-#include "Texture.h"
+﻿#include "Texture.h"
 #include "vkImageFormat.h"
 
 #include "saiga/vulkan/buffer/StagingBuffer.h"
@@ -6,6 +6,12 @@
 namespace Saiga{
 namespace Vulkan{
 
+
+Texture::~Texture()
+{
+    cout << "destroy texture" << endl;
+    destroy();
+}
 
 void Texture::destroy()
 {
@@ -71,10 +77,12 @@ void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLa
 
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
 {
+    SAIGA_ASSERT(image);
     vk::DescriptorImageInfo descriptorInfo;
     descriptorInfo.imageLayout = imageLayout;
     descriptorInfo.imageView = imageView;
     descriptorInfo.sampler = sampler;
+    SAIGA_ASSERT(imageView && sampler);
     return descriptorInfo;
 
 }
@@ -113,9 +121,7 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     //    vk::FormatProperties formatProperties = base.physicalDevice.getFormatProperties(format);
 
 
-    StagingBuffer staging;
 
-    staging.init(base,img.data(),img.size());
 
 
 
@@ -159,6 +165,10 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     bufferCopyRegion.imageExtent.height = height;
     bufferCopyRegion.imageExtent.depth = 1;
     bufferCopyRegion.bufferOffset = 0;
+
+    StagingBuffer staging;
+
+    staging.init(base,img.data(),img.size());
 
     cmd.copyBufferToImage(staging.buffer,image,vk::ImageLayout::eTransferDstOptimal,bufferCopyRegion);
 

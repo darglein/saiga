@@ -61,7 +61,7 @@ class SAIGA_GLOBAL VulkanTexturedAsset : public TexturedModel
 public:
     VertexBuffer<VertexType> vertexBuffer;
     IndexBuffer<uint32_t> indexBuffer;
-    std::vector<Texture2D> textures;
+    std::vector<std::shared_ptr<Texture2D>> textures;
     vk::DescriptorSet descriptor;
 
     void render(vk::CommandBuffer cmd);

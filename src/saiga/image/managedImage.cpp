@@ -17,6 +17,8 @@
 #include "saiga/util/tostring.h"
 #include "saiga/util/color.h"
 
+#include "internal/stb_image_wrapper.h"
+
 #include <fstream>
 namespace Saiga {
 
@@ -84,7 +86,7 @@ bool Image::valid()
 
 std::ostream& operator<<(std::ostream& os, const Image& f)
 {
-    os << "Image " << f.width << "x" << f.height << " " << " pitch " << f.pitchBytes << " " << " channels/element " << channels(f.type) << "/" << elementType(f.type);// << " " << f.Format();
+    os << "Image " << f.width << "x" << f.height << " " << " pitch " << f.pitchBytes << " " << " channels/elementType " << channels(f.type) << "/" << elementType(f.type);// << " " << f.Format();
     return os;
 }
 
@@ -118,15 +120,17 @@ bool Image::load(const std::string &_path)
 #endif
 
 
-    //use libfreeimage if available, libpng otherwise
+    //use libfreeimage if available
 #ifdef SAIGA_USE_FREEIMAGE
     erg = FIP::load(path,*this,0);
     return erg;
 #endif
 
-    // No idea how to save this image
-    SAIGA_ASSERT(0);
-    return false;
+    //as a last resort use stb_image.h from the internals directory
+    erg = loadImageSTB(path,*this);
+    return erg;
+
+
 }
 
 bool Image::save(const std::string &path)

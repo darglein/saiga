@@ -7,6 +7,7 @@
 #include "VulkanAsset.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
+#include "saiga/image/imageTransformations.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -98,12 +99,23 @@ void VulkanTexturedAsset::updateBuffer(VulkanBase &base)
     //load textures
     for(auto& tg : groups)
     {
-        Saiga::Image img;
-        auto res = img.load(tg.material.diffuse);
-        SAIGA_ASSERT(res);
-        cout << img << endl;
-        Texture2D tex;
-        tex.fromImage(base,img);
+
+        auto tex = std::make_shared<Texture2D>();
+
+        Saiga::Image img(tg.material.diffuse);
+
+        if(img.type == UC3)
+        {
+            Saiga::TemplatedImage<ucvec4> img2(img.height,img.width);
+            Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(),img2.getImageView());
+            cout << img2 << endl;
+            tex->fromImage(base,img2);
+        }else{
+            tex->fromImage(base,img);
+        }
+
+
+
         textures.push_back(tex);
     }
 }
@@ -112,9 +124,7 @@ void VulkanTexturedAsset::destroy()
 {
     vertexBuffer.destroy();
     indexBuffer.destroy();
-
-    for(auto& t : textures)
-        t.destroy();
+    textures.clear();
 }
 
 

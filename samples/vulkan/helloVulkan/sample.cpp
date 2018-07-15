@@ -49,7 +49,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
     box.loadObj("objs/box.obj");
     box.updateBuffer(renderer.base);
-    box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(box.textures[0]);
+    box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
     teapot.loadObj("objs/teapot.obj");
     teapot.updateBuffer(renderer.base);

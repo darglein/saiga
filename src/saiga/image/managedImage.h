@@ -34,7 +34,7 @@ public:
     Image(){}
     Image(ImageType type) : type(type) {}
     Image(int h, int w , ImageType type);
-    Image(std::string file) { load(file); }
+    Image(std::string file) { auto res = load(file); SAIGA_ASSERT(res); }
 
     // Note: This creates a copy of img
     template<typename T>

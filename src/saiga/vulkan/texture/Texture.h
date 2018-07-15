@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Vulkan device class
 *
 * Encapsulates a physical Vulkan device and it's logical representation
@@ -34,7 +34,7 @@ struct SAIGA_GLOBAL Texture : public DeviceMemory
     uint32_t layerCount;
     vk::Sampler sampler;
 
-    ~Texture() { destroy(); }
+    ~Texture();
     void destroy();
 
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
