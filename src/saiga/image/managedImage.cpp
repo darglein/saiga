@@ -18,6 +18,7 @@
 #include "saiga/util/color.h"
 
 #include "internal/stb_image_wrapper.h"
+#include "internal/stb_image_write_wrapper.h"
 
 #include <fstream>
 namespace Saiga {
@@ -129,8 +130,6 @@ bool Image::load(const std::string &_path)
     //as a last resort use stb_image.h from the internals directory
     erg = loadImageSTB(path,*this);
     return erg;
-
-
 }
 
 bool Image::save(const std::string &path)
@@ -161,9 +160,9 @@ bool Image::save(const std::string &path)
     return erg;
 #endif
 
-    // No idea how to save this image
-    SAIGA_ASSERT(0);
-    return false;
+    //as a last resort use stb_image.h from the internals directory
+    erg = saveImageSTB(path,*this);
+    return erg;
 }
 
 #define SAIGA_BINARY_IMAGE_MAGIC_NUMBER 8574385
