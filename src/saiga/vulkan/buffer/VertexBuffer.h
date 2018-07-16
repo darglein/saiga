@@ -42,6 +42,14 @@ public:
         DeviceMemory::mappedUpload(0,size,vertices.data());
     }
 
+    void upload(vk::CommandBuffer cmd, const std::vector<VertexType>& vertices)
+    {
+        vertexCount = vertices.size();
+        size_t newSize = sizeof(VertexType) * vertexCount;
+        SAIGA_ASSERT(newSize <= size);
+        Buffer::upload(cmd,0,newSize,vertices.data());
+    }
+
     void bind(vk::CommandBuffer &cmd, vk::DeviceSize offset = 0)
     {
         cmd.bindVertexBuffers( 0, buffer, offset);
@@ -50,6 +58,11 @@ public:
     void draw(vk::CommandBuffer &cmd)
     {
         cmd.draw(vertexCount,1,0,0);
+    }
+
+    void draw(vk::CommandBuffer &cmd, int count)
+    {
+        cmd.draw(count,1,0,0);
     }
 };
 

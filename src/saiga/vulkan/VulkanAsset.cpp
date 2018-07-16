@@ -41,13 +41,26 @@ void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
     if(!vertexBuffer.buffer) return;
     vertexBuffer.bind(cmd);
-    vertexBuffer.draw(cmd);
+    vertexBuffer.draw(cmd,size);
 }
 
 void VulkanLineVertexColoredAsset::updateBuffer(VulkanBase &base)
 {
-    vertexBuffer.destroy();
-    vertexBuffer.init(base,mesh.toLineList());
+//    vertexBuffer.destroy();
+//    vertexBuffer.init(base,mesh.toLineList());
+
+    auto lines = mesh.toLineList();
+    auto newSize = lines.size();
+
+    if(newSize > (size_t)capacity)
+    {
+        capacity = mesh.numLines() * 2;
+        vertexBuffer.destroy();
+        vertexBuffer.init(base,newSize);
+    }
+
+    vertexBuffer.mappedUpload(0,lines.size()*sizeof(VertexType),lines.data());
+    size = newSize;
 }
 
 void VulkanLineVertexColoredAsset::destroy()
@@ -61,13 +74,19 @@ void VulkanPointCloudAsset::render(vk::CommandBuffer cmd)
 {
     if(!vertexBuffer.buffer) return;
     vertexBuffer.bind(cmd);
-    vertexBuffer.draw(cmd);
+    vertexBuffer.draw(cmd,size);
 }
 
 void VulkanPointCloudAsset::updateBuffer(VulkanBase &base)
 {
-    vertexBuffer.destroy();
-    vertexBuffer.init(base,mesh.points);
+    if(mesh.points.size() > (size_t)capacity)
+    {
+        capacity = mesh.points.size() * 2;
+        vertexBuffer.destroy();
+        vertexBuffer.init(base,capacity);
+    }
+    vertexBuffer.mappedUpload(0,mesh.points.size()*sizeof(VertexType),mesh.points.data());
+    size = mesh.points.size();
 }
 
 void VulkanPointCloudAsset::destroy()

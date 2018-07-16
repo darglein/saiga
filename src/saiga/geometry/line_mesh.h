@@ -26,6 +26,7 @@ public:
     std::vector<VertexType> toLineList();
 
     void fromLineList();
+    int numLines() { return indices.size() / 2; }
 public:
     std::vector<VertexType> vertices;
     std::vector<IndexType> indices;

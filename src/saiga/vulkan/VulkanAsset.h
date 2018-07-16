@@ -36,6 +36,11 @@ class SAIGA_GLOBAL VulkanLineVertexColoredAsset : public LineModelColored
 public:
     using VertexType = VertexNC;
     VertexBuffer<VertexType> vertexBuffer;
+
+    int size = 0;
+    int capacity = 0;
+
+
     void render(vk::CommandBuffer cmd);
     void updateBuffer(Saiga::Vulkan::VulkanBase& base);
     void destroy();
@@ -49,6 +54,9 @@ public:
     using VertexType = VertexNC;
     PointCloud<VertexType> mesh;
     VertexBuffer<VertexType> vertexBuffer;
+
+    int size = 0;
+    int capacity = 0;
 
     void render(vk::CommandBuffer cmd);
     void updateBuffer(Saiga::Vulkan::VulkanBase& base);
