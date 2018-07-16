@@ -13,7 +13,7 @@
 namespace Saiga {
 namespace ImageTransformation {
 
-void addAlphaChannel(ImageView<ucvec3> src, ImageView<ucvec4> dst, unsigned char alpha = 0);
+SAIGA_GLOBAL void addAlphaChannel(ImageView<ucvec3> src, ImageView<ucvec4> dst, unsigned char alpha = 0);
 
 
 }

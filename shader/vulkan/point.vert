@@ -1,7 +1,7 @@
 #version 450
 
 #ifndef POINT_SIZE
-#define POINT_SIZE 5
+#define POINT_SIZE 5.0f
 #endif
 
 #extension GL_ARB_separate_shader_objects : enable
@@ -40,6 +40,9 @@ out gl_PerVertex
 void main() 
 {
 	outData.color = vec3(inColor);
-	gl_Position = ubo.projection * ubo.view * pushConstants.model * vec4(inPos.xyz, 1.0);		
-	gl_PointSize = POINT_SIZE;
+        vec4 vp = ubo.view * pushConstants.model * vec4(inPos.xyz, 1.0);
+        gl_Position = ubo.projection * vp;
+
+        // scale pointsize with inverse distance to camera
+        gl_PointSize = 10 * float(POINT_SIZE) / length(vec3(vp));
 }
