@@ -6,6 +6,7 @@
 
 #include "saiga/time/gameTime.h"
 #include "saiga/util/glm.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

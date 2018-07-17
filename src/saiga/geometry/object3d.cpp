@@ -4,7 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/object3d.h"
+#include "object3d.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

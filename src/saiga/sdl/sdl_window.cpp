@@ -4,9 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/sdl/sdl_window.h"
-//#include "saiga/rendering/deferredRendering/deferred_renderer.h"
-#include "saiga/imgui/imgui_impl_sdl_gl3.h"
+#include "saiga/config.h"
+#ifdef SAIGA_USE_OPENGL
+
+#include "sdl_window.h"
+#include "saiga/opengl/imgui/imgui_impl_sdl_gl3.h"
 
 namespace Saiga {
 
@@ -173,3 +175,5 @@ bool SDLWindow::resizeWindow(Uint32 windowId, int width, int height)
 }
 
 }
+
+#endif

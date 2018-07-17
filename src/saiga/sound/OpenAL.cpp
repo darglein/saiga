@@ -16,6 +16,7 @@
 
 #include "saiga/util/assert.h"
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 namespace sound {
 

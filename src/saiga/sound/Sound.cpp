@@ -8,6 +8,7 @@
 #include <al.h>
 #include <alc.h>
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 namespace sound {
 

@@ -7,6 +7,7 @@
 #include "saiga/util/joystick.h"
 #include "saiga/util/assert.h"
 #include "saiga/util/glm.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

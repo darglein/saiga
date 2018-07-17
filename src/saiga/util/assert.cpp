@@ -8,6 +8,7 @@
 
 #include <csignal>
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 void saiga_assert_fail (

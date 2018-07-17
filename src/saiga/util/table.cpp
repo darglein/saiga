@@ -5,6 +5,7 @@
  */
 
 #include "saiga/util/table.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

@@ -4,8 +4,9 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
+#ifdef SAIGA_USE_OPENGL
 #include "saiga/animation/cameraAnimation.h"
-#include "saiga/assets/assetLoader.h"
 #include "saiga/imgui/imgui.h"
 
 namespace Saiga {
@@ -395,3 +396,5 @@ void Interpolation::renderGui(Camera& camera)
 
 
 }
+
+#endif

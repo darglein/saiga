@@ -11,6 +11,7 @@
 #ifdef SAIGA_USE_PNG
 #include <png.h>
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 namespace PNG{
 

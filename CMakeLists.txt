@@ -37,6 +37,7 @@ OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF)
 OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
 OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
+OptionsHelper(SAIGA_WITH_GL "With opengl" ON)
 
 DefaultBuildType()
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
@@ -258,6 +259,16 @@ if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
     SET(SAIGA_USE_VULKAN 1)
 endif()
 
+
+if(SAIGA_WITH_GL)
+    #OPENGL
+    find_package(OpenGL REQUIRED QUIET)
+    PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
+endif()
+if(OPENGL_FOUND)
+    SET(SAIGA_USE_OPENGL 1)
+endif()
+
 ############# Required LIBRARIES ###############
 
 #freetype2
@@ -268,9 +279,7 @@ if(FREETYPE_FOUND)
 endif()
 
 
-#OPENGL
-find_package(OpenGL REQUIRED QUIET)
-PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
+
 
 #GLM
 find_package(GLM REQUIRED QUIET)

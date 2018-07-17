@@ -17,7 +17,7 @@
 #include "saiga/sdl/sdl_window.h"
 
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
-#include "saiga/imgui/imgui_impl_sdl_gl3.h"
+
 
 #include "saiga/ffmpeg/ffmpegEncoder.h"
 #include "saiga/ffmpeg/videoEncoder.h"

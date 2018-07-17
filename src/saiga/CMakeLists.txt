@@ -8,44 +8,60 @@
 
 ############# Core Source Files ###############
 
+
 FILE(GLOB_RECURSE animation_SRC  animation/*.cpp)
 FILE(GLOB_RECURSE assets_SRC  assets/*.cpp)
 FILE(GLOB_RECURSE camera_SRC  camera/*.cpp)
-FILE(GLOB_RECURSE geometry_SRC  geometry/*.cpp)
 FILE(GLOB_RECURSE opengl_SRC  opengl/*.cpp)
-FILE(GLOB_RECURSE image_SRC  image/*.cpp)
 FILE(GLOB_RECURSE imgui_SRC  imgui/*.cpp)
 FILE(GLOB_RECURSE rendering_SRC  rendering/*.cpp)
 FILE(GLOB_RECURSE smaa_SRC  smaa/*.cpp)
-FILE(GLOB_RECURSE time_SRC  time/*.cpp)
 FILE(GLOB_RECURSE tests_SRC  tests/*.cpp)
-FILE(GLOB_RECURSE util_SRC  util/*.cpp)
 FILE(GLOB_RECURSE window_SRC  window/*.cpp)
 FILE(GLOB_RECURSE world_SRC  world/*.cpp)
-FILE(GLOB main_SRC  *.cpp)
 
-SET(SAIGA_SOURCE_CORE 
-    ${animation_SRC}
+
+SET(SAIGA_SOURCE_GL
     ${assets_SRC}
-    ${camera_SRC}
-    ${eigen_SRC}
-    ${geometry_SRC}
     ${opengl_SRC}
-    ${image_SRC}
-    ${imgui_SRC}
     ${rendering_SRC}
     ${smaa_SRC}
-    ${time_SRC}
-    ${tests_SRC}
-    ${util_SRC}
-    ${window_SRC}
-    ${animation_SRC}
     ${world_SRC}
-    ${main_SRC}
-    ${PROG_HEADER}
-    PARENT_SCOPE
     )
 
+FILE(GLOB_RECURSE model_SRC  model/*.cpp)
+FILE(GLOB_RECURSE image_SRC  image/*.cpp)
+FILE(GLOB_RECURSE time_SRC  time/*.cpp)
+FILE(GLOB_RECURSE geometry_SRC  geometry/*.cpp)
+FILE(GLOB_RECURSE util_SRC  util/*.cpp)
+FILE(GLOB main_SRC  *.cpp)
+
+SET(SAIGA_SOURCE_NOGL
+    ${animation_SRC}
+    ${camera_SRC}
+    ${model_SRC}
+    ${window_SRC}
+    ${image_SRC}
+    ${time_SRC}
+    ${geometry_SRC}
+    ${util_SRC}
+    ${main_SRC}
+    ${tests_SRC}
+    ${imgui_SRC}
+    )
+
+if(SAIGA_USE_OPENGL)
+    SET(SAIGA_SOURCE_CORE
+        ${SAIGA_SOURCE_GL}
+        ${SAIGA_SOURCE_NOGL}
+        PARENT_SCOPE
+        )
+else()
+    SET(SAIGA_SOURCE_CORE
+        ${SAIGA_SOURCE_NOGL}
+        PARENT_SCOPE
+        )
+endif()
 ############# Optional Source Files ###############
 
 if (SDL2_FOUND)
@@ -76,7 +92,7 @@ if(EIGEN3_FOUND)
     FILE(GLOB_RECURSE eigen_SRC  eigen/*.cpp)
 endif()
 
-if(FREETYPE_FOUND)
+if(FREETYPE_FOUND AND OPENGL_FOUND)
     FILE(GLOB_RECURSE text_SRC  text/*.cpp)
 endif()
 

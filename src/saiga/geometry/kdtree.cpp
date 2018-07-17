@@ -5,3 +5,4 @@
  */
 
 #include "saiga/geometry/kdtree.h"
+#include "internal/noGraphicsAPI.h"

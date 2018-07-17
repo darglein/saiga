@@ -7,6 +7,7 @@
 #pragma once
 #include <vector>
 #include "saiga/util/glm.h"
+#include "saiga/util/assert.h"
 
 namespace Saiga {
 

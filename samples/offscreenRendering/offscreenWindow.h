@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/window/window.h"
+#include "saiga/opengl/OpenGLWindow.h"
 #include "saiga/rendering/renderer.h"
 #include "saiga/world/proceduralSkybox.h"
 

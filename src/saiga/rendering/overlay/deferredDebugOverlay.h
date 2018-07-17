@@ -9,7 +9,7 @@
 #include "saiga/util/glm.h"
 #include "saiga/opengl/vertex.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
-#include "saiga/rendering/object3d.h"
+#include "saiga/geometry/object3d.h"
 #include "saiga/rendering/overlay/Layout.h"
 
 namespace Saiga {

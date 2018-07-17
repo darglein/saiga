@@ -5,6 +5,7 @@
  */
 
 #include "saiga/geometry/intersection.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 namespace Intersection {

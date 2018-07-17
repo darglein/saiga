@@ -6,6 +6,7 @@
 
 #include "saiga/image/imageGenerator.h"
 #include "saiga/image/templatedImage.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

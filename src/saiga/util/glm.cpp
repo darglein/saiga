@@ -5,6 +5,7 @@
  */
 
 #include "saiga/util/glm.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace glm {
 

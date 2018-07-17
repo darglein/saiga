@@ -11,7 +11,7 @@
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/rendering/object3d.h"
+#include "saiga/geometry/object3d.h"
 
 namespace Saiga {
 

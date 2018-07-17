@@ -12,6 +12,7 @@
 
 #include <random>
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 namespace Tests {
 

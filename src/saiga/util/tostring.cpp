@@ -6,6 +6,7 @@
 
 #include "saiga/util/tostring.h"
 #include "saiga/util/assert.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

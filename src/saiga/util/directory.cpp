@@ -12,6 +12,7 @@
 #include <string>
 #include <sys/stat.h>
 #include <algorithm>
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

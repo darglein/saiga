@@ -7,6 +7,7 @@
 #include "saiga/util/fileChecker.h"
 
 #include <fstream>
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

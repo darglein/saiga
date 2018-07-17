@@ -17,6 +17,7 @@
 #include <alut.h>
 #endif
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 namespace sound {
 

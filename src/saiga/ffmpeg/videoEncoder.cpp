@@ -4,10 +4,15 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
+
+#ifdef SAIGA_USE_OPENGL
+
 #include "saiga/ffmpeg/videoEncoder.h"
 #include "saiga/util/assert.h"
-#include "saiga/window/window.h"
+#include "saiga/opengl/OpenGLWindow.h"
 #include "saiga/imgui/imgui.h"
+
 
 namespace Saiga {
 
@@ -93,3 +98,5 @@ void VideoEncoder::renderGUI()
 }
 
 }
+
+#endif

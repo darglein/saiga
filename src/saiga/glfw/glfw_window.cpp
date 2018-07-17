@@ -4,6 +4,9 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
+#ifdef SAIGA_USE_OPENGL
+
 #include "saiga/glfw/glfw_window.h"
 
 #include <saiga/opengl/opengl.h>
@@ -18,7 +21,7 @@
 #include <chrono>
 #include "saiga/opengl/error.h"
 #include "saiga/framework.h"
-#include "saiga/imgui/imgui_impl_glfw_gl3.h"
+#include "saiga/opengl/imgui/imgui_impl_glfw_gl3.h"
 
 
 namespace Saiga {
@@ -332,3 +335,4 @@ void glfw_Window::setWindowIcon(Image* image){
 
 
 }
+#endif

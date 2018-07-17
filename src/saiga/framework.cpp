@@ -6,15 +6,17 @@
 
 #include "saiga/framework.h"
 
-#include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/opengl/error.h"
-#include "saiga/util/assert.h"
 
-#include "saiga/cuda/tests/test.h"
+#include "saiga/util/assert.h"
+#include "saiga/image/image.h"
+
 #include "saiga/util/floatingPoint.h"
 #include "saiga/util/ini/ini.h"
 #include "saiga/util/directory.h"
+
+#ifdef SAIGA_USE_OPENGL
+#include "saiga/opengl/opengl.h"
+#endif
 
 #ifdef SAIGA_USE_VULKAN
 #include "saiga/vulkan/Shader/GLSL.h"
@@ -154,29 +156,21 @@ void initSaiga(const SaigaParameters& params)
         exit(1);
     }
 
-
-    shaderPathes.addSearchPath(shaderDir);
+#ifdef SAIGA_USE_OPENGL
+    initSaigaGL(shaderDir,params.textureDirectory);
+#endif
 
 #ifdef SAIGA_USE_VULKAN
     Vulkan::GLSLANG::init();
     Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir);
 #endif
 
-    TextureLoader::instance()->addPath(params.textureDirectory);
-    TextureLoader::instance()->addPath(".");
+
+
 
     Image::searchPathes.addSearchPath(".");
     Image::searchPathes.addSearchPath(params.textureDirectory);
 
-
-    // Disables the following notification:
-    // Buffer detailed info : Buffer object 2 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is GL_STREAM_DRAW)
-    // will use VIDEO memory as the source for buffer object operations.
-    std::vector<GLuint> ignoreIds = {
-        131185, //nvidia
-        //intel
-    };
-    Error::ignoreGLError(ignoreIds);
 
 
     printSaigaInfo();
@@ -190,8 +184,11 @@ void cleanupSaiga()
 #ifdef SAIGA_USE_VULKAN
     Saiga::Vulkan::GLSLANG::quit();
 #endif
-    ShaderLoader::instance()->clear();
-    TextureLoader::instance()->clear();
+
+#ifdef SAIGA_USE_OPENGL
+    cleanupSaigaGL();
+#endif
+
     cout<<"========================== Saiga cleanup done! =========================="<<endl;
     initialized = false;
 }

@@ -10,6 +10,7 @@
 #include <random>
 #include <algorithm>
 #include <numeric>
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

@@ -18,7 +18,6 @@
 
 
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
-#include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
 #include "saiga/rendering/deferredRendering/deferredRendering.h"
 

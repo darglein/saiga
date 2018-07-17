@@ -5,10 +5,9 @@
  */
 
 #include "cascadedShadowMaps.h"
-
 #include "saiga/opengl/shader/shaderLoader.h"
-
 #include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/imgui/imgui.h"
 
 Sample::Sample(Saiga::OpenGLWindow &window, Saiga::Renderer &renderer)
     : Updating(window), Rendering(renderer)

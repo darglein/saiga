@@ -11,6 +11,8 @@
 #include <FreeImagePlus.h>
 #include <cstring>
 
+#include "internal/noGraphicsAPI.h"
+
 namespace Saiga {
 namespace FIP {
 

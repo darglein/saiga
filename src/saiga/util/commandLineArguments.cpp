@@ -7,6 +7,7 @@
 #include "saiga/util/commandLineArguments.h"
 #include "saiga/util/assert.h"
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 std::string CommandLineArguments::get(std::string name)

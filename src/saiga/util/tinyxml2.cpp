@@ -28,6 +28,7 @@ distribution.
 */
 
 #include "saiga/util/tinyxml2.h"
+#include "internal/noGraphicsAPI.h"
 
 #include <new>		// yes, this one new style header, is in the Android SDK.
 #if defined(ANDROID_NDK) || defined(__BORLANDC__) || defined(__QNXNTO__)

@@ -7,6 +7,11 @@
 #pragma once
 
 #include <saiga/config.h>
+
+#ifndef SAIGA_USE_OPENGL
+#error Saiga was build without opengl.
+#endif
+
 #include <vector>
 
 
@@ -33,6 +38,11 @@ SAIGA_GLOBAL void printOpenGLVersion();
 SAIGA_GLOBAL int getExtensionCount();
 SAIGA_GLOBAL bool hasExtension(const std::string &ext);
 SAIGA_GLOBAL std::vector<std::string> getExtensions();
+
+
+//called from initSaiga
+SAIGA_LOCAL void initSaigaGL(const std::string& shaderDir, const std::string& textureDir);
+SAIGA_LOCAL void cleanupSaigaGL();
 
 
 

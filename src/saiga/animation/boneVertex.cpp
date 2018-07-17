@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
+#ifdef SAIGA_USE_OPENGL
 #include "saiga/animation/boneVertex.h"
 #include "saiga/util/assert.h"
 
@@ -91,3 +93,5 @@ void VertexBuffer<BoneVertexCD>::setVertexAttributes(){
 }
 
 }
+
+#endif

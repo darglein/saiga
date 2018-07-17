@@ -7,7 +7,7 @@
 #pragma once
 
 #include <saiga/config.h>
-#include "saiga/window/window.h"
+#include "saiga/opengl/OpenGLWindow.h"
 
 namespace Saiga {
 

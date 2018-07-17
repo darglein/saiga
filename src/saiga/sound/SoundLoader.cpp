@@ -21,6 +21,7 @@
 #endif
 
 
+#include "internal/noGraphicsAPI.h"
 
 #include <cstdint>
 #include <cstring>

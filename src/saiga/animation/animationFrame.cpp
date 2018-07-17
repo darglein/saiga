@@ -8,7 +8,7 @@
 #include "saiga/animation/animation.h"
 
 #include "saiga/util/assert.h"
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 AnimationNode::AnimationNode(const AnimationNode &n0, const AnimationNode &n1, float alpha)

@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
+#ifdef SAIGA_USE_OPENGL
 #include "saiga/egl/offscreen_window.h"
 #include "saiga/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/util/assert.h"
@@ -77,3 +79,4 @@ void OffscreenWindow::loadGLFunctions()
 }
 
 }
+#endif

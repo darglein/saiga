@@ -1,10 +1,13 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/opengl/opengl.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/error.h"
+#include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/util/ini/ini.h"
 #include <algorithm>
 #include "saiga/util/assert.h"
@@ -122,22 +125,22 @@ std::vector<std::string> getExtensions()
 {
 
 
-	//std::ofstream myfile;
-	//myfile.open ("opengl-extensions.txt");
+    //std::ofstream myfile;
+    //myfile.open ("opengl-extensions.txt");
 
-	std::vector<std::string> extensions;
+    std::vector<std::string> extensions;
 
 
-	int n = getExtensionCount();
-	for (GLint i = 0; i<n; i++)
-	{
-		const char* extension = (const char*)glGetStringi(GL_EXTENSIONS, i);
-		extensions.push_back(extension);
-		//myfile << extension<<endl;
-	}
+    int n = getExtensionCount();
+    for (GLint i = 0; i<n; i++)
+    {
+        const char* extension = (const char*)glGetStringi(GL_EXTENSIONS, i);
+        extensions.push_back(extension);
+        //myfile << extension<<endl;
+    }
 
-	return extensions;
-	//myfile.close();
+    return extensions;
+    //myfile.close();
 }
 
 OpenGLVendor getOpenGLVendor()
@@ -199,6 +202,29 @@ void OpenGLParameters::fromConfigFile(const std::string &file)
 
 
     profile = profileString == "ANY" ? Profile::ANY : profileString == "CORE" ? Profile::CORE : Profile::COMPATIBILITY;
+}
+
+void initSaigaGL(const std::string& shaderDir, const std::string& textureDir)
+{
+    shaderPathes.addSearchPath(shaderDir);
+    // Disables the following notification:
+    // Buffer detailed info : Buffer object 2 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is GL_STREAM_DRAW)
+    // will use VIDEO memory as the source for buffer object operations.
+    std::vector<GLuint> ignoreIds = {
+        131185, //nvidia
+        //intel
+    };
+    Error::ignoreGLError(ignoreIds);
+
+    TextureLoader::instance()->addPath(textureDir);
+    TextureLoader::instance()->addPath(".");
+
+}
+
+void cleanupSaigaGL()
+{
+    ShaderLoader::instance()->clear();
+    TextureLoader::instance()->clear();
 }
 
 

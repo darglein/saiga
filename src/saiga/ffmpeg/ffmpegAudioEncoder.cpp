@@ -8,6 +8,8 @@
 #include "saiga/util/glm.h"
 #include "saiga/util/assert.h"
 
+#include "internal/noGraphicsAPI.h"
+
 namespace Saiga {
 
 FFMPEGAudioEncoder::FFMPEGAudioEncoder()

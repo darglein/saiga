@@ -8,7 +8,7 @@
 
 #include <saiga/config.h>
 #include <saiga/geometry/triangle_mesh.h>
-#include "saiga/assets/model/objMaterialLoader.h"
+#include "saiga/model/objMaterialLoader.h"
 
 namespace Saiga {
 

@@ -10,6 +10,7 @@
 // License see http://www.opus-codec.org/license/
 #include <fstream>
 
+#include "internal/noGraphicsAPI.h"
 
 #ifdef SAIGA_USE_OPUS
 #include "saiga/sound/OpusCodec.h"

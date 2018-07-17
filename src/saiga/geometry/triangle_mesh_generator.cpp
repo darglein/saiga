@@ -5,7 +5,7 @@
  */
 
 #include "saiga/geometry/triangle_mesh_generator.h"
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 typedef TriangleMesh<VertexNT,uint32_t> default_mesh_t;

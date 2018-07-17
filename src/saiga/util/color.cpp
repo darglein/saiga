@@ -7,6 +7,7 @@
 #include "saiga/util/color.h"
 #include <algorithm>
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 Color::Color() : r(255), g(255),b(255),a(255){

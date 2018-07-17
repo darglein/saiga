@@ -5,7 +5,7 @@
  */
 
 #include "saiga/geometry/raytracer.h"
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 Raytracer::Result Raytracer::trace(Ray &r){

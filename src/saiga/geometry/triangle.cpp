@@ -5,7 +5,7 @@
  */
 
 #include "saiga/geometry/triangle.h"
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 void Triangle::stretch(float f){

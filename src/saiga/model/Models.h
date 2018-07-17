@@ -6,6 +6,6 @@
 
 #pragma once
 
-#include "saiga/assets/model/Model.h"
-#include "saiga/assets/model/ModelVertexColored.h"
-#include "saiga/assets/model/LineModelColored.h"
+#include "saiga/model/Model.h"
+#include "saiga/model/ModelVertexColored.h"
+#include "saiga/model/LineModelColored.h"

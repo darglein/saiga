@@ -5,7 +5,7 @@
  */
 
 #include "saiga/geometry/circle.h"
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 std::ostream& operator<<(std::ostream& os, const Saiga::Circle& s)

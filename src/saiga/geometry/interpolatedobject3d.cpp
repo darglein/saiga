@@ -4,7 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/rendering/interpolatedobject3d.h"
+#include "interpolatedobject3d.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

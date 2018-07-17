@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "internal/noGraphicsAPI.h"
 
 #ifdef SAIGA_USE_OPUS
 

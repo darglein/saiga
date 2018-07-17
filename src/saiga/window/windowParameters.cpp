@@ -7,6 +7,8 @@
 #include "saiga/window/windowParameters.h"
 #include "saiga/util/ini/ini.h"
 
+#include "internal/noGraphicsAPI.h"
+
 namespace Saiga {
 
 void WindowParameters::setMode(bool fullscreen, bool borderLess)

@@ -5,6 +5,7 @@
  */
 
 #include "saiga/util/lightning.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

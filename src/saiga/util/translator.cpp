@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <algorithm>
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

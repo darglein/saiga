@@ -5,10 +5,8 @@
  */
 
 #include "saiga/geometry/vertex.h"
+#include "internal/noGraphicsAPI.h"
 
-#if defined(SAIGA_VULKAN_INCLUDED) || defined(SAIGA_OPENGL_INCLUDED)
-#error This module must be independent of any graphics API.
-#endif
 
 namespace Saiga {
 

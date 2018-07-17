@@ -638,6 +638,9 @@
 #include <stdint.h>     // intptr_t
 #endif
 
+
+#include "internal/noGraphicsAPI.h"
+
 #ifdef _MSC_VER
 #pragma warning (disable: 4127) // condition expression is constant
 #pragma warning (disable: 4505) // unreferenced local function has been removed (stb stuff)

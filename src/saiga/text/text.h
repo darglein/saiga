@@ -8,7 +8,7 @@
 
 #include "saiga/text/textParameters.h"
 #include "saiga/util/encoding.h"
-#include "saiga/rendering/object3d.h"
+#include "saiga/geometry/object3d.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 
 #ifndef SAIGA_USE_FREETYPE

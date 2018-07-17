@@ -8,9 +8,7 @@
 #include "saiga/util/color.h"
 #include <algorithm>
 
-#if defined(SAIGA_VULKAN_INCLUDED) || defined(SAIGA_OPENGL_INCLUDED)
-#error This module must be independent of any graphics API.
-#endif
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

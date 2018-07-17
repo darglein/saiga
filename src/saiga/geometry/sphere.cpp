@@ -5,7 +5,7 @@
  */
 
 #include "saiga/geometry/sphere.h"
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 int Sphere::intersectAabb(const AABB &other){

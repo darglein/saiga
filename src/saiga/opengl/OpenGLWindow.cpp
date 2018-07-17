@@ -4,11 +4,10 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/window/window.h"
+#include "OpenGLWindow.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/image/glImageFormat.h"
-//#include "saiga/rendering/deferredRendering/deferred_renderer.h"
+#include "saiga/opengl/glImageFormat.h"
 #include "saiga/rendering/renderer.h"
 #include "saiga/rendering/program.h"
 

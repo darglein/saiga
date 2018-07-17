@@ -5,7 +5,7 @@
  */
 
 #include "saiga/geometry/plane.h"
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 Plane::Plane() : point(vec3(0,0,0)),normal(vec3(1,0,0)),d(0)

@@ -6,7 +6,6 @@
 
 #include "saiga/glfw/keyboardbinds.h"
 
-#include <saiga/opengl/opengl.h>
 #include <GLFW/glfw3.h>
 
 namespace Saiga {

@@ -7,6 +7,7 @@
 #include "saiga/geometry/aabb.h"
 #include <glm/gtc/epsilon.hpp>
 #include "saiga/util/assert.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

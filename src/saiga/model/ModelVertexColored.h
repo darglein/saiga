@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/assets/model/Model.h"
+#include "saiga/model/Model.h"
 
 namespace Saiga {
 

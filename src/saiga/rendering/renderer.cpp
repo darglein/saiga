@@ -8,7 +8,7 @@
 
 #include "saiga/camera/camera.h"
 #include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/window/window.h"
+#include "saiga/opengl/OpenGLWindow.h"
 
 namespace Saiga {
 

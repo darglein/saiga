@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
+#ifdef SAIGA_USE_OPENGL
 #include "saiga/animation/boneShader.h"
 
 namespace Saiga {
@@ -60,3 +62,4 @@ void BoneShader::uploadBoneMatrices(mat4 *matrices, int count)
 }
 
 }
+#endif

@@ -27,6 +27,7 @@
 #include <ucontext.h>
 #include <unistd.h>
 #endif
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 std::function<void()> customCrashHandler;

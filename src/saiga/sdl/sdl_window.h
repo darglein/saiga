@@ -7,7 +7,7 @@
 #pragma once
 
 #include <saiga/config.h>
-#include "saiga/window/window.h"
+#include "saiga/opengl/OpenGLWindow.h"
 
 #include "saiga/sdl/sdl_eventhandler.h"
 #include <SDL2/SDL.h>

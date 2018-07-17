@@ -7,9 +7,7 @@
 #include "LineModelColored.h"
 #include "saiga/camera/camera.h"
 
-#if defined(SAIGA_VULKAN_INCLUDED) || defined(SAIGA_OPENGL_INCLUDED)
-//#error This module must be independent of any graphics API.
-#endif
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

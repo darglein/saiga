@@ -5,6 +5,7 @@
  */
 
 #include "saiga/util/observer.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

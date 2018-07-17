@@ -5,7 +5,7 @@
  */
 
 #include "saiga/geometry/ray.h"
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 Ray::Ray(const vec3 &dir , const vec3 &ori) :direction(dir), origin(ori){

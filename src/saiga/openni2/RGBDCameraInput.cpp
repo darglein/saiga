@@ -8,6 +8,7 @@
 #include "saiga/image/imageTransformations.h"
 
 #include <OpenNI.h>
+#include "internal/noGraphicsAPI.h"
 
 
 namespace Saiga {

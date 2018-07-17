@@ -7,6 +7,7 @@
 #include "saiga/util/floatingPoint.h"
 #include "xmmintrin.h"
 #include <fstream>
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 namespace FP {

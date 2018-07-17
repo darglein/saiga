@@ -6,10 +6,12 @@
 
 #include "saiga/image/imageMetaData.h"
 #include "saiga/util/glm.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 
-std::ostream& operator<<(std::ostream& os, const ImageMetadata& d){
+std::ostream& operator<<(std::ostream& os, const ImageMetadata& d)
+{
     os << "> ImageMetadata" << endl;
     os << "Size: " << d.width << "x" << d.height << endl;
     os << "DateTime: " << d.DateTime << endl;

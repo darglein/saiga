@@ -5,6 +5,7 @@
  */
 
 #include "saiga/util/inputcontroller.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

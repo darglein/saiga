@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/rendering/object3d.h"
+#include "saiga/geometry/object3d.h"
 
 namespace Saiga {
 

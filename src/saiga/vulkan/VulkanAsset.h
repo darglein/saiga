@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "saiga/assets/model/Models.h"
+#include "saiga/model/Models.h"
 #include "saiga/geometry/PointCloud.h"
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Base.h"

@@ -5,6 +5,7 @@
  */
 
 #include "saiga/geometry/obb.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 

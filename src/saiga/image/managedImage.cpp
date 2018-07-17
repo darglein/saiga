@@ -20,6 +20,9 @@
 #include "internal/stb_image_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
 
+
+#include "internal/noGraphicsAPI.h"
+
 #include <fstream>
 namespace Saiga {
 

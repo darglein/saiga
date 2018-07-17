@@ -26,6 +26,8 @@ extern "C"{
 #include "libswscale/swscale.h"
 }
 
+#include "internal/noGraphicsAPI.h"
+
 
 namespace Saiga {
 

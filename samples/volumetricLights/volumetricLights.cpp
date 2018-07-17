@@ -5,10 +5,9 @@
  */
 
 #include "volumetricLights.h"
-
 #include "saiga/opengl/shader/shaderLoader.h"
-
 #include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/imgui/imgui.h"
 
 Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     : Updating(window), Rendering(renderer)

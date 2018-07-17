@@ -5,6 +5,7 @@
  */
 
 #include "saiga/image/imageTransformations.h"
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 namespace ImageTransformation {

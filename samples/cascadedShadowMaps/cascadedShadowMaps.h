@@ -16,7 +16,6 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_window.h"
 #include "saiga/rendering/deferredRendering/deferredRendering.h"
-#include "saiga/imgui/imgui_impl_sdl_gl3.h"
 
 using namespace Saiga;
 

@@ -8,6 +8,7 @@
 #include "saiga/util/assert.h"
 
 #include <fstream>
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 namespace File {

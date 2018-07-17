@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
+#ifdef SAIGA_USE_OPENGL
 #include "saiga/assimp/assimpAssetLoader.h"
 
 #include "saiga/assimp/assimpLoader.h"
@@ -205,3 +207,4 @@ std::shared_ptr<Asset> AssimpAssetLoader::loadAsset(const std::string &file)
 }
 
 }
+#endif

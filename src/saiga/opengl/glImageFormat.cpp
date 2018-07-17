@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/image/glImageFormat.h"
+#include "glImageFormat.h"
 
 
 

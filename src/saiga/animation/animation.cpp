@@ -7,7 +7,7 @@
 #include "saiga/animation/animation.h"
 #include "saiga/util/assert.h"
 #include <algorithm>
-
+#include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
 const AnimationFrame &Animation::getKeyFrame(int frameIndex)

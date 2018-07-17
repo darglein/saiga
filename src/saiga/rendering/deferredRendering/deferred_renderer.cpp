@@ -11,7 +11,7 @@
 
 #include "saiga/camera/camera.h"
 #include "saiga/rendering/renderer.h"
-#include "saiga/window/window.h"
+#include "saiga/opengl/OpenGLWindow.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/rendering/program.h"
 
