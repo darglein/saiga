@@ -5,9 +5,12 @@
  */
 
 #include "saiga/util/floatingPoint.h"
-#include "xmmintrin.h"
 #include <fstream>
 #include "internal/noGraphicsAPI.h"
+
+
+#if defined(__i386__) || defined(__x86_64__) 
+#include "xmmintrin.h"
 
 namespace Saiga {
 namespace FP {
@@ -101,3 +104,36 @@ void printCPUInfo(){
 
 }
 }
+
+#else
+
+
+namespace Saiga {
+namespace FP {
+
+void resetSSECSR()
+{
+
+}
+
+bool checkSSECSR(){
+	return true;
+}
+
+void printCPUInfo(){
+    //TODO: Windows
+    std::string line;
+    std::ifstream myfile ("/proc/cpuinfo");
+    if (myfile.is_open())
+    {
+        while ( getline (myfile,line) )
+        {
+            std::cout << line << std::endl;
+        }
+        myfile.close();
+    }
+}
+
+}
+}
+#endif

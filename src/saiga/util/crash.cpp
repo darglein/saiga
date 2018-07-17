@@ -82,6 +82,8 @@ void crit_err_hdlr(int sig_num, siginfo_t * info, void * ucontext)
     caller_address = (void *) uc->uc_mcontext.eip; // EIP: x86 specific
 #elif defined(__x86_64__) // gcc specific
     caller_address = (void *) uc->uc_mcontext.rip; // RIP: x86_64 specific
+#elif defined(__arm__) 
+	    caller_address = (void *) uc->uc_mcontext.arm_pc; 
 #else
 #error Unsupported architecture. // TODO: Add support for other arch.
 #endif
