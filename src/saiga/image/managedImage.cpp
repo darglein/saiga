@@ -65,6 +65,12 @@ void Image::create(int h, int w, ImageType t)
 
 }
 
+void Image::create(int h, int w, int p, ImageType t)
+{
+    pitchBytes = p;
+    create(h,w,t);
+}
+
 void Image::clear()
 {
     (*this) = Image();

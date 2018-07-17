@@ -16,6 +16,8 @@ int main(const int argc, const char *argv[])
         windowParameters.fromConfigFile("config.ini");
         windowParameters.name = "Forward Rendering";
 
+        windowParameters.width = 640 * 2;
+        windowParameters.height = 480;
 
         Saiga::Vulkan::SDLWindow window(windowParameters);
         //        Saiga::Vulkan::GLFWWindow window(windowParameters);

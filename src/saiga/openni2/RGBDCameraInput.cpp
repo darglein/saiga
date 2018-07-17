@@ -13,7 +13,7 @@
 
 namespace Saiga {
 
-bool RGBDCamera::open()
+bool RGBDCameraInput::open(CameraOptions rgbo, CameraOptions deptho)
 {
 
     device = std::make_shared<openni::Device>();
@@ -92,26 +92,52 @@ bool RGBDCamera::open()
         return false;
     }
     {
+        CameraOptions co =  deptho ;
         const openni::Array<openni::VideoMode>& modes = depth->getSensorInfo().getSupportedVideoModes();
+        int found = -1;
         for(int i = 0; i < modes.getSize(); ++i)
         {
             const openni::VideoMode& mode = modes[i];
-            cout << i <<  " supported mode: " << mode.getResolutionX() << "x" << mode.getResolutionY() << " " << mode.getFps() << " " << mode.getPixelFormat() << endl;
+            //            cout << i <<  " supported mode: " << mode.getResolutionX() << "x" << mode.getResolutionY() << " " << mode.getFps() << " " << mode.getPixelFormat() << endl;
+
+            if(mode.getResolutionX() == co.w &&
+                    mode.getResolutionY() == co.h &&
+                    mode.getFps() == co.fps &&
+                    mode.getPixelFormat() == openni::PIXEL_FORMAT_DEPTH_1_MM
+                    )
+            {
+                found = i;
+                break;
+            }
         }
-        auto rc = depth->setVideoMode(modes[4]);
+        SAIGA_ASSERT(found != -1);
+        auto rc = depth->setVideoMode(modes[found]);
         SAIGA_ASSERT(rc == openni::STATUS_OK);
     }
 
 #endif
     cout << endl;
     {
+         CameraOptions co =  rgbo ;
         const openni::Array<openni::VideoMode>& modes = color->getSensorInfo().getSupportedVideoModes();
+          int found = -1;
         for(int i = 0; i < modes.getSize(); ++i)
         {
             const openni::VideoMode& mode = modes[i];
-            cout << i <<  " supported mode: " << mode.getResolutionX() << "x" << mode.getResolutionY() << " " << mode.getFps() << " " << mode.getPixelFormat() << endl;
+            //            cout << i <<  " supported mode: " << mode.getResolutionX() << "x" << mode.getResolutionY() << " " << mode.getFps() << " " << mode.getPixelFormat() << endl;
+
+            if(mode.getResolutionX() == co.w &&
+                    mode.getResolutionY() == co.h &&
+                    mode.getFps() == co.fps &&
+                    mode.getPixelFormat() == openni::PIXEL_FORMAT_RGB888
+                    )
+            {
+                found = i;
+                break;
+            }
         }
-        auto rc = color->setVideoMode(modes[9]);
+          SAIGA_ASSERT(found != -1);
+        auto rc = color->setVideoMode(modes[found]);
         SAIGA_ASSERT(rc == openni::STATUS_OK);
     }
 
@@ -138,6 +164,8 @@ bool RGBDCamera::open()
     openni::VideoMode depthVideoMode;
     openni::VideoMode colorVideoMode;
 
+    int colorW, colorH;
+    int depthW, depthH;
 
     colorW = color->getVideoMode().getResolutionX();
     colorH = color->getVideoMode().getResolutionY();
@@ -156,7 +184,7 @@ bool RGBDCamera::open()
     return true;
 }
 
-bool RGBDCamera::readFrame()
+bool RGBDCameraInput::readFrame()
 {
     openni::Status res;
 

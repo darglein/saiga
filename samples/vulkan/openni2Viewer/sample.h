@@ -17,9 +17,11 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/window/Interfaces.h"
-
+#include "saiga/util/ini/ini.h"
+#include "saiga/network/ImageTransmition.h"
 #include "saiga/openni2/RGBDCameraInput.h"
 
+using namespace boost::asio;
 
 class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface, public Saiga::SDL_KeyListener
 {
@@ -38,7 +40,9 @@ public:
     virtual void renderGUI() override;
 private:
 
-    Saiga::RGBDCamera rgbdcamera;
+
+    std::shared_ptr<Saiga::RGBDCamera> rgbdcamera;
+
 
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture2;

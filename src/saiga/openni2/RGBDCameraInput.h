@@ -8,6 +8,7 @@
 
 #include <saiga/config.h>
 #include "saiga/image/image.h"
+#include "saiga/camera/RGBDCamera.h"
 
 
 // Use shared pointer of openni objects so that we don't have to include the header here
@@ -20,18 +21,20 @@ class VideoFrameRef;
 namespace Saiga {
 
 
-class SAIGA_GLOBAL RGBDCamera
+class SAIGA_GLOBAL RGBDCameraInput : public RGBDCamera
 {
 public:
-    int colorW, colorH;
-    int depthW, depthH;
+    struct CameraOptions
+    {
+        int w = 640;
+        int h = 480;
+        int fps = 30;
+    };
 
-    TemplatedImage<ucvec4> colorImg;
-    TemplatedImage<unsigned short> depthImg;
 
-    bool open();
+    bool open(CameraOptions rgbo, CameraOptions deptho);
 
-    bool readFrame();
+    bool readFrame() override;
 private:
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;

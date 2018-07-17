@@ -108,6 +108,10 @@ if(OPENNI2_FOUND)
     FILE(GLOB_RECURSE openni2_SRC  openni2/*.cpp)
 endif()
 
+if(Boost_FOUND)
+    FILE(GLOB_RECURSE network_SRC  network/*.cpp)
+endif()
+
 
 SET(SAIGA_SOURCE_EXT
     ${SDL_SRC}
@@ -121,6 +125,7 @@ SET(SAIGA_SOURCE_EXT
     ${CUDA_SRC}
     ${vulkan_SRC}
     ${openni2_SRC}
+    ${network_SRC}
     PARENT_SCOPE
     )
 

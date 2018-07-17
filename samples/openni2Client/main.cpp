@@ -4,13 +4,17 @@
  * See LICENSE file for more information.
  */
 
-
+#include "saiga/util/assert.h"
 #include "saiga/openni2/RGBDCameraInput.h"
 
+#include "saiga/network/ImageTransmition.h"
 #include "boost/asio.hpp"
 #include "saiga/util/ini/ini.h"
 
 using namespace Saiga;
+
+using namespace boost::asio;
+
 
 
 
@@ -23,40 +27,29 @@ int main(int argc, char *argv[])
     auto port        = ini.GetAddLong ("client","port",9000);
     if(ini.changed()) ini.SaveFile(file.c_str());
 
-    using namespace boost::asio;
 
-    boost::asio::io_service io_service;
-    boost::asio::ip::udp::socket socket(io_service);
-    socket.open(boost::asio::ip::udp::v4());
-
-	cout << "trying to resolve '" << ip << "' with port " << port << endl;
-    ip::udp::resolver::query query(ip::udp::v4(),ip, std::to_string(port),ip::resolver_query_base::address_configured);
-    ip::udp::resolver resolver(io_service);
-    ip::udp::endpoint remote_endpoint = *resolver.resolve(query);
-    cout << "address: " << remote_endpoint.address().to_string() << endl;
-
-
+    ImageTransmition it(ip,port);
+    it.makeSender();
 
 
     boost::system::error_code err;
 
 
-    RGBDCamera camera;
-//    camera.open();
+    RGBDCameraInput camera;
+    RGBDCameraInput::CameraOptions co1;
+    RGBDCameraInput::CameraOptions co2;
+    co2.w = 320;
+    co2.h = 240;
+    camera.open( co1,co2);
 
     while(true)
     {
-//        camera.readFrame();
+        camera.readFrame();
 
-        cout << "send" << endl;
-        auto buf = boost::asio::buffer("Jane Doe", 8);
-        socket.send_to(buf, remote_endpoint, 0, err);
-
-
-
-//        cout << camera.depthImg(50,50) << " " << (int)camera.colorImg(50,50)[0] << endl;
+        it.sendImage(camera.colorImg);
+        it.sendImage(camera.depthImg);
+        cout << "image send" << endl;
+        //        sendImage(camera.colorImg,socket,remote_endpoint);
 
     }
-
-    socket.close();
 }
