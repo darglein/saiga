@@ -261,8 +261,7 @@ endif()
 
 
 if(SAIGA_WITH_GL)
-    #OPENGL
-    find_package(OpenGL REQUIRED QUIET)
+    find_package(OpenGL QUIET)
     PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
 endif()
 if(OPENGL_FOUND)
