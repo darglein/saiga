@@ -171,6 +171,13 @@ if(OPENNI2_FOUND)
 endif()
 PackageHelper(OpenNI2 "${OPENNI2_FOUND}" "${OPENNI2_INCLUDE_DIRS}" "${OPENNI2_LIBRARIES}")
 
+
+find_package(Boost QUIET COMPONENTS thread system)
+if(Boost_FOUND)
+    SET(SAIGA_USE_BOOST 1)
+endif()
+PackageHelper(Boost "${Boost_FOUND}" "${Boost_INCLUDE_DIRS}" "${Boost_LIBRARIES}")
+
 ############# CUDA ###############
 
 #Check Language is an extra module so we need to include it.

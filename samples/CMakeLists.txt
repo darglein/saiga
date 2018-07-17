@@ -40,9 +40,13 @@ if (EIGEN3_FOUND)
 endif ()
 
 
-
 add_subdirectory(imageProcessing)
 
 if (SDL2_FOUND AND SAIGA_USE_VULKAN)
 	add_subdirectory(vulkan)
 endif()
+
+if (OPENNI2_FOUND AND Boost_FOUND)
+	add_subdirectory(openni2Client)
+	add_subdirectory(openni2Server)
+endif ()

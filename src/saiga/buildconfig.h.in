@@ -32,6 +32,8 @@
 #cmakedefine SAIGA_USE_FREEIMAGE
 
 #cmakedefine SAIGA_USE_FFMPEG
+#cmakedefine SAIGA_USE_OPENNI2
+#cmakedefine SAIGA_USE_BOOST
 
 #cmakedefine SAIGA_USE_CUDA
 #cmakedefine SAIGA_USE_CUSPARSE
