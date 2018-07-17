@@ -29,7 +29,8 @@ int main(int argc, char *argv[])
     boost::asio::ip::udp::socket socket(io_service);
     socket.open(boost::asio::ip::udp::v4());
 
-    ip::udp::resolver::query query(ip::udp::v4(),ip, std::to_string(port));
+	cout << "trying to resolve '" << ip << "' with port " << port << endl;
+    ip::udp::resolver::query query(ip::udp::v4(),ip, std::to_string(port),ip::resolver_query_base::address_configured);
     ip::udp::resolver resolver(io_service);
     ip::udp::endpoint remote_endpoint = *resolver.resolve(query);
     cout << "address: " << remote_endpoint.address().to_string() << endl;
