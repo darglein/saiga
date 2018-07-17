@@ -12,7 +12,7 @@
 #include <saiga/geometry/aabb.h>
 #include <saiga/animation/boneVertex.h>
 #include <saiga/animation/animation.h>
-#include "saiga/assets/model/Models.h"
+#include "saiga/model/Models.h"
 
 #include <saiga/camera/camera.h>
 
