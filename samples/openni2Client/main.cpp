@@ -12,7 +12,34 @@
 
 using namespace Saiga;
 
+using namespace boost::asio;
 
+
+void sendImage(
+        TemplatedImage<ucvec4>& img,
+        ip::udp::socket& socket,
+        ip::udp::endpoint& remote_endpoint
+        )
+{
+    size_t maxSize = 1024 * 4;
+    size_t offset = 0;
+    size_t size = img.size();
+
+    while(offset < size)
+    {
+        size_t packetSize = std::min(maxSize,size-offset);
+        auto buf = boost::asio::buffer(img.data8() + offset, packetSize);
+
+    //        std::string str = "bla";
+    //        auto buf = boost::asio::buffer(str.data(), str.size());
+        auto size = socket.send_to(buf, remote_endpoint);
+        cout << "send " << size << " bytes" << endl;
+
+        offset += packetSize;
+    }
+
+
+}
 
 int main(int argc, char *argv[])
 {
@@ -23,7 +50,6 @@ int main(int argc, char *argv[])
     auto port        = ini.GetAddLong ("client","port",9000);
     if(ini.changed()) ini.SaveFile(file.c_str());
 
-    using namespace boost::asio;
 
     boost::asio::io_service io_service;
     boost::asio::ip::udp::socket socket(io_service);
@@ -41,19 +67,13 @@ int main(int argc, char *argv[])
 
 
     RGBDCamera camera;
-//    camera.open();
+    camera.open();
 
     while(true)
     {
-//        camera.readFrame();
+        camera.readFrame();
 
-        cout << "send" << endl;
-        auto buf = boost::asio::buffer("Jane Doe", 8);
-        socket.send_to(buf, remote_endpoint, 0, err);
-
-
-
-//        cout << camera.depthImg(50,50) << " " << (int)camera.colorImg(50,50)[0] << endl;
+        sendImage(camera.colorImg,socket,remote_endpoint);
 
     }
 

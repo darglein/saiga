@@ -11,6 +11,7 @@
 using namespace Saiga;
 
 
+
 int main(int argc, char *argv[]) {
     std::string file = "server.ini";
     Saiga::SimpleIni ini;
@@ -22,11 +23,11 @@ int main(int argc, char *argv[]) {
 
     using namespace boost::asio;
 
-    boost::asio::io_service io_service;
-    boost::asio::ip::udp::socket socket(io_service);
+    io_service io_service;
+    ip::udp::socket socket(io_service);
     socket.open(boost::asio::ip::udp::v4());
 
-    ip::udp::resolver::query query(ip::udp::v4(),ip, std::to_string(port));
+    ip::udp::resolver::query query(ip::udp::v4(),ip, std::to_string(port),ip::udp::resolver::query::canonical_name);
     ip::udp::resolver resolver(io_service);
     ip::udp::endpoint local_endpoint = *resolver.resolve(query);
     cout << "address: " << local_endpoint.address().to_string() << endl;
@@ -36,19 +37,22 @@ int main(int argc, char *argv[]) {
     TemplatedImage<ucvec4> colorImg(480,640);
     while(true)
     {
+        ip::udp::endpoint remote_endpoint;
 
 //        auto buf = boost::asio::buffer(colorImg.data(), colorImg.size());
-//        socket.receive_from(buf, remote_endpoint, 0, err);
+//        auto size = socket.receive_from(buf, remote_endpoint, 0);
+//        cout << "recieved " << size << " bytes." << endl;
 
-        cout << "wait" << endl;
 
 
-        std::array<char, 128> recv_buf;
 
-        ip::udp::endpoint remote_endpoint;
+
+        std::array<char, 10000> recv_buf;
+
             size_t len = socket.receive_from(boost::asio::buffer(recv_buf), remote_endpoint);
 
-            std::cout.write(recv_buf.data(), len);
+//            std::cout.write(recv_buf.data(), len);
+            std::cout << "recv " << len << endl;
 
 
 
