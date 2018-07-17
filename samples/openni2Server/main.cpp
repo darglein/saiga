@@ -20,14 +20,16 @@ int main(int argc, char *argv[]) {
     if(ini.changed()) ini.SaveFile(file.c_str());
 
 
+    using namespace boost::asio;
+
     boost::asio::io_service io_service;
     boost::asio::ip::udp::socket socket(io_service);
-    boost::asio::ip::udp::endpoint remote_endpoint;
     socket.open(boost::asio::ip::udp::v4());
-    remote_endpoint = boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(ip), port);
 
-    boost::system::error_code err;
-
+    ip::udp::resolver::query query(ip::udp::v4(),ip, "1337");
+    ip::udp::resolver resolver(io_service);
+    ip::udp::endpoint remote_endpoint = *resolver.resolve(query);
+    cout << "address: " << remote_endpoint.address().to_string() << endl;
 
     TemplatedImage<ucvec4> colorImg(480,640);
     while(true)
@@ -41,8 +43,7 @@ int main(int argc, char *argv[]) {
 
         std::array<char, 128> recv_buf;
 
-            size_t len = socket.receive_from(
-                boost::asio::buffer(recv_buf), remote_endpoint);
+            size_t len = socket.receive_from(boost::asio::buffer(recv_buf), remote_endpoint);
 
             std::cout.write(recv_buf.data(), len);
 

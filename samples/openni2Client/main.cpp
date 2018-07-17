@@ -23,11 +23,16 @@ int main(int argc, char *argv[])
     if(ini.changed()) ini.SaveFile(file.c_str());
 
 
+    using namespace boost::asio;
+
     boost::asio::io_service io_service;
     boost::asio::ip::udp::socket socket(io_service);
     socket.open(boost::asio::ip::udp::v4());
-    auto remote_endpoint = boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(ip), port);
 
+    ip::udp::resolver::query query(ip::udp::v4(),ip, "1337");
+    ip::udp::resolver resolver(io_service);
+    ip::udp::endpoint remote_endpoint = *resolver.resolve(query);
+    cout << "address: " << remote_endpoint.address().to_string() << endl;
 
 
 
@@ -36,18 +41,19 @@ int main(int argc, char *argv[])
 
 
     RGBDCamera camera;
-    camera.open();
+//    camera.open();
 
     while(true)
     {
-        camera.readFrame();
+//        camera.readFrame();
 
+        cout << "send" << endl;
         auto buf = boost::asio::buffer("Jane Doe", 8);
         socket.send_to(buf, remote_endpoint, 0, err);
 
 
 
-        cout << camera.depthImg(50,50) << " " << (int)camera.colorImg(50,50)[0] << endl;
+//        cout << camera.depthImg(50,50) << " " << (int)camera.colorImg(50,50)[0] << endl;
 
     }
 
