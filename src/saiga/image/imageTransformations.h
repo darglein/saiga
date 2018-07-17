@@ -15,6 +15,9 @@ namespace ImageTransformation {
 
 SAIGA_GLOBAL void addAlphaChannel(ImageView<ucvec3> src, ImageView<ucvec4> dst, unsigned char alpha = 0);
 
+// depth to rgb image only for visualizaion
+SAIGA_GLOBAL void depthToRGBA(ImageView<uint16_t> src, ImageView<ucvec4> dst, uint16_t minD, uint16_t maxD);
+
 
 }
 }

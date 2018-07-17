@@ -9,6 +9,7 @@
 #include "sample.h"
 #include <saiga/imgui/imgui.h>
 #include "saiga/util/color.h"
+#include "saiga/image/imageTransformations.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
@@ -41,10 +42,31 @@ VulkanExample::~VulkanExample()
 
 void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 {
+    {
+        auto tex = std::make_shared<Saiga::Vulkan::Texture2D>();
+
+        Saiga::Image img("textures/box.png");
+
+        if(img.type == Saiga::UC3)
+        {
+            Saiga::TemplatedImage<ucvec4> img2(img.height,img.width);
+            Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(),img2.getImageView());
+            cout << img2 << endl;
+            tex->fromImage(base,img2);
+        }else{
+            tex->fromImage(base,img);
+        }
+        texture = tex;
+    }
+
+
     assetRenderer.init(base,renderer.renderPass);
     lineAssetRenderer.init(base,renderer.renderPass,2);
     pointCloudRenderer.init(base,renderer.renderPass,5);
     texturedAssetRenderer.init(base,renderer.renderPass);
+    textureDisplay.init(base,renderer.renderPass);
+
+    textureDes = textureDisplay.createAndUpdateDescriptorSet(*texture);
 
 
     box.loadObj("objs/box.obj");
@@ -88,7 +110,7 @@ void VulkanExample::update(float dt)
     camera.interpolate(dt,0);
 }
 
-void VulkanExample::transfer(VkCommandBuffer cmd)
+void VulkanExample::transfer(vk::CommandBuffer cmd)
 {
     assetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
     lineAssetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
@@ -112,7 +134,7 @@ void VulkanExample::transfer(VkCommandBuffer cmd)
 }
 
 
-void VulkanExample::render(VkCommandBuffer cmd)
+void VulkanExample::render(vk::CommandBuffer cmd)
 {
     if(displayModels)
     {
@@ -142,6 +164,16 @@ void VulkanExample::render(VkCommandBuffer cmd)
         texturedAssetRenderer.bindTexture(cmd,box.descriptor);
         box.render(cmd);
     }
+
+
+
+
+            textureDisplay.bind(cmd);
+            textureDisplay.bindDescriptorSets(cmd,textureDes);
+
+            vk::Viewport vp(50,50,100,100);
+            cmd.setViewport(0,vp);
+            textureDisplay.blitMesh.render(cmd);
 }
 
 void VulkanExample::renderGUI()

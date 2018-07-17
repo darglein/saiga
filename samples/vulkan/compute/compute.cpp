@@ -131,7 +131,7 @@ void Compute::update(float dt)
 }
 
 
-void Compute::render(VkCommandBuffer cmd)
+void Compute::render(vk::CommandBuffer cmd)
 {
 }
 

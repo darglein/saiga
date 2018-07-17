@@ -29,7 +29,7 @@ public:
     void init(Saiga::Vulkan::VulkanBase& base);
 
     virtual void update(float dt) override;
-    virtual void render(VkCommandBuffer cmd) override;
+    virtual void render(vk::CommandBuffer cmd) override;
     virtual void renderGUI() override;
 private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;

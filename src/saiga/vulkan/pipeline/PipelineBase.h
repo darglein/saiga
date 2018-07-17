@@ -22,6 +22,7 @@ class SAIGA_GLOBAL PipelineBase
 public:
     // ==== Initialization ====
     PipelineBase(vk::PipelineBindPoint type);
+    ~PipelineBase() { destroy(); }
 
     void init(VulkanBase& base , uint32_t numDescriptorSetLayouts);
     void destroy();

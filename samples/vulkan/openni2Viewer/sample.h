@@ -18,6 +18,8 @@
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/window/Interfaces.h"
 
+#include "saiga/openni2/RGBDCameraInput.h"
+
 
 class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface, public Saiga::SDL_KeyListener
 {
@@ -35,29 +37,20 @@ public:
     virtual void render  (vk::CommandBuffer cmd) override;
     virtual void renderGUI() override;
 private:
-    Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
-
-    bool change = false;
-    Saiga::Object3D teapotTrans;
+    Saiga::RGBDCamera rgbdcamera;
 
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
+    std::shared_ptr<Saiga::Vulkan::Texture2D> texture2;
 
-    Saiga::Vulkan::VulkanTexturedAsset box;
-    Saiga::Vulkan::VulkanVertexColoredAsset teapot,plane;
-    Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
-    Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
-    Saiga::Vulkan::AssetRenderer assetRenderer;
-    Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
-    Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
-    Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
+
 
     vk::DescriptorSet textureDes;
+    vk::DescriptorSet textureDes2;
     Saiga::Vulkan::TextureDisplay textureDisplay;
 
     Saiga::Vulkan::VulkanForwardRenderer &renderer;
 
-    bool displayModels = true;
 
 
     void keyPressed(SDL_Keysym key) override;

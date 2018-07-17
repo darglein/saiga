@@ -32,8 +32,8 @@ public:
     virtual ~VulkanForwardRenderingInterface(){}
 
     virtual void init(Saiga::Vulkan::VulkanBase& base) = 0;
-    virtual void transfer(VkCommandBuffer cmd) {}
-    virtual void render(VkCommandBuffer cmd) {}
+    virtual void transfer(vk::CommandBuffer cmd) {}
+    virtual void render  (vk::CommandBuffer cmd) {}
     virtual void renderGUI() {}
 };
 

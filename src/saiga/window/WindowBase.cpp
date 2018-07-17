@@ -131,7 +131,7 @@ void WindowBase::interpolate(float dt, float alpha)
 
 void WindowBase::render()
 {
-    SAIGA_ASSERT(currentCamera);
+//    SAIGA_ASSERT(currentCamera);
     SAIGA_ASSERT(renderer);
     if(renderer)
         renderer->render(currentCamera);
@@ -141,7 +141,7 @@ void WindowBase::render()
 
 void WindowBase::startMainLoop(MainLoopParameters params)
 {
-    SAIGA_ASSERT(currentCamera);
+//    SAIGA_ASSERT(currentCamera);
     running = true;
     mainLoop.startMainLoop(params);
 }

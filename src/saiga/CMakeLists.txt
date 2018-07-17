@@ -25,83 +25,89 @@ FILE(GLOB_RECURSE world_SRC  world/*.cpp)
 FILE(GLOB main_SRC  *.cpp)
 
 SET(SAIGA_SOURCE_CORE 
-	${animation_SRC} 
-	${assets_SRC} 
-	${camera_SRC} 
-	${eigen_SRC} 
-	${geometry_SRC} 
-	${opengl_SRC} 
-	${image_SRC} 
-	${imgui_SRC} 
-	${rendering_SRC} 
-	${smaa_SRC} 
-	${time_SRC} 
-	${tests_SRC} 
-	${util_SRC} 
-	${window_SRC} 
-	${animation_SRC} 
-	${world_SRC} 
-	${main_SRC} 
-	${PROG_HEADER} 
-	PARENT_SCOPE
-	)
-	
+    ${animation_SRC}
+    ${assets_SRC}
+    ${camera_SRC}
+    ${eigen_SRC}
+    ${geometry_SRC}
+    ${opengl_SRC}
+    ${image_SRC}
+    ${imgui_SRC}
+    ${rendering_SRC}
+    ${smaa_SRC}
+    ${time_SRC}
+    ${tests_SRC}
+    ${util_SRC}
+    ${window_SRC}
+    ${animation_SRC}
+    ${world_SRC}
+    ${main_SRC}
+    ${PROG_HEADER}
+    PARENT_SCOPE
+    )
+
 ############# Optional Source Files ###############
 
 if (SDL2_FOUND)
-	FILE(GLOB SDL_SRC sdl/*.cpp)
+    FILE(GLOB SDL_SRC sdl/*.cpp)
 endif ()
 
 if (GLFW_FOUND)
-	FILE(GLOB GLFW_SRC glfw/*.cpp)
+    FILE(GLOB GLFW_SRC glfw/*.cpp)
 endif ()
 
 if (OPENAL_FOUND)
-	FILE(GLOB OPENAL_SRC sound/*.cpp)
+    FILE(GLOB OPENAL_SRC sound/*.cpp)
 endif ()
 
 if (FFMPEG_FOUND)
-	FILE(GLOB_RECURSE ffmpeg_SRC  ffmpeg/*.cpp)
+    FILE(GLOB_RECURSE ffmpeg_SRC  ffmpeg/*.cpp)
 endif()
 
 if (ASSIMP_FOUND)
-	FILE(GLOB_RECURSE assimp_SRC  assimp/*.cpp)
+    FILE(GLOB_RECURSE assimp_SRC  assimp/*.cpp)
 endif()
 
 if (EGL_FOUND)
-	FILE(GLOB_RECURSE egl_SRC  egl/*.cpp)
+    FILE(GLOB_RECURSE egl_SRC  egl/*.cpp)
 endif()
 
 if(EIGEN3_FOUND)
-	FILE(GLOB_RECURSE eigen_SRC  eigen/*.cpp)
+    FILE(GLOB_RECURSE eigen_SRC  eigen/*.cpp)
 endif()
 
 if(FREETYPE_FOUND)
-	FILE(GLOB_RECURSE text_SRC  text/*.cpp)
+    FILE(GLOB_RECURSE text_SRC  text/*.cpp)
 endif()
 
 if(CUDA_FOUND)
-	FILE(GLOB_RECURSE CUDA_SRC  cuda/*.cu)
+    FILE(GLOB_RECURSE CUDA_SRC  cuda/*.cu)
 endif()
 
 if(SAIGA_USE_VULKAN)
-	FILE(GLOB_RECURSE vulkan_SRC  vulkan/*.cpp)
+    FILE(GLOB_RECURSE vulkan_SRC  vulkan/*.cpp)
 endif()
 
+if(OPENNI2_FOUND)
+    FILE(GLOB_RECURSE openni2_SRC  openni2/*.cpp)
+endif()
+
+
 SET(SAIGA_SOURCE_EXT
-	 ${SDL_SRC}
-	 ${GLFW_SRC}
-	 ${OPENAL_SRC}
-	 ${ffmpeg_SRC}
-	 ${assimp_SRC}
-	 ${egl_SRC}
-	 ${eigen_SRC}
-	 ${text_SRC}
-	 ${CUDA_SRC}
-	 ${vulkan_SRC}
-	 PARENT_SCOPE
-	 )
-	 
+    ${SDL_SRC}
+    ${GLFW_SRC}
+    ${OPENAL_SRC}
+    ${ffmpeg_SRC}
+    ${assimp_SRC}
+    ${egl_SRC}
+    ${eigen_SRC}
+    ${text_SRC}
+    ${CUDA_SRC}
+    ${vulkan_SRC}
+    ${openni2_SRC}
+    PARENT_SCOPE
+    )
+
 ############# All Shader Files ###############
 
 FILE(GLOB_RECURSE SHADERS  ${PROJECT_SOURCE_DIR}/shader/*.glsl)

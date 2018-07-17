@@ -46,13 +46,16 @@ void VulkanWindow::renderImGui(bool *p_open)
     mainLoop.renderImGuiInline();
 
 
-    ImGui::Text("Camera Position: %s" , to_string(currentCamera->getPosition()).c_str());
-    ImGui::Text("Camera Direction: %s" , to_string(-vec3(currentCamera->getDirection())).c_str());
-    if(ImGui::Button("Printf camera"))
+    if(currentCamera)
     {
-        cout << "camera.position = vec4" << currentCamera->position << ";" << endl;
-        cout << "camera.rot = quat" << currentCamera->rot << ";" << endl;
-        //        createTRSmatrix()
+        ImGui::Text("Camera Position: %s" , to_string(currentCamera->getPosition()).c_str());
+        ImGui::Text("Camera Direction: %s" , to_string(-vec3(currentCamera->getDirection())).c_str());
+        if(ImGui::Button("Printf camera"))
+        {
+            cout << "camera.position = vec4" << currentCamera->position << ";" << endl;
+            cout << "camera.rot = quat" << currentCamera->rot << ";" << endl;
+            //        createTRSmatrix()
+        }
     }
 
 

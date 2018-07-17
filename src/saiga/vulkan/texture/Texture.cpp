@@ -89,25 +89,8 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo()
 
 void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usage)
 {
+    destroy();
     device = base.device;
-    //    SAIGA_ASSERT(_img.type == UC3 || _img.type == UC4);
-
-
-    //    TemplatedImage<ucvec4> img(_img.height,_img.width);
-
-
-    //    if(_img.type == UC3)
-    //    {
-    //        auto vimg = _img.getImageView<ucvec3>();
-    //        for(int y = 0; y < _img.height; ++y){
-    //            for(int x = 0; x < _img.width; ++x){
-    //                img(y,x) = ucvec4(vimg(y,x),0);
-    //            }
-    //        }
-    //    }else if(_img.type == UC4)
-    //    {
-    //        _img.getImageView<ucvec4>().copyTo(img.getImageView());
-    //    }
 
 
     mipLevels = 1;
@@ -116,10 +99,6 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
 
     //    cout << img.type << endl;
     vk::Format format = getvkFormat(img.type);
-
-
-    //    vk::FormatProperties formatProperties = base.physicalDevice.getFormatProperties(format);
-
 
 
 
@@ -211,6 +190,39 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     SAIGA_ASSERT(sampler);
 
     cout << "texture created." << endl;
+}
+
+void Texture2D::uploadImage(VulkanBase &base, Image &img)
+{
+
+    vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+
+    transitionImageLayout(cmd,vk::ImageLayout::eTransferDstOptimal);
+
+
+    vk::BufferImageCopy bufferCopyRegion = {};
+    bufferCopyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+    bufferCopyRegion.imageSubresource.mipLevel = 0;
+    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+    bufferCopyRegion.imageSubresource.layerCount = 1;
+    bufferCopyRegion.imageExtent.width = width;
+    bufferCopyRegion.imageExtent.height = height;
+    bufferCopyRegion.imageExtent.depth = 1;
+    bufferCopyRegion.bufferOffset = 0;
+
+    StagingBuffer staging;
+
+    staging.init(base,img.data(),img.size());
+
+    cmd.copyBufferToImage(staging.buffer,image,vk::ImageLayout::eTransferDstOptimal,bufferCopyRegion);
+
+    transitionImageLayout(cmd,vk::ImageLayout::eShaderReadOnlyOptimal);
+
+    base.endTransferWait(cmd);
+
+
+
+    staging.destroy();
 }
 
 

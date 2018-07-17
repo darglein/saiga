@@ -33,6 +33,7 @@ void PipelineBase::destroy()
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     for(auto& l :descriptorSetLayouts)
         vkDestroyDescriptorSetLayout(device, l, nullptr);
+    device = nullptr;
 }
 
 vk::DescriptorSet PipelineBase::createDescriptorSet(uint32_t id)

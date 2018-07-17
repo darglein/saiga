@@ -46,8 +46,9 @@ struct SAIGA_GLOBAL Texture : public DeviceMemory
 
 struct SAIGA_GLOBAL Texture2D : public Texture
 {
-
     void fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
+
+    void uploadImage(VulkanBase& base, Image &img);
 };
 
 }
