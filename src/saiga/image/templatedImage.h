@@ -17,6 +17,8 @@ public:
 
     using TType = ImageTypeTemplate<T>;
 
+    using Image::create;
+
     TemplatedImage() : Image(TType::type) {}
     TemplatedImage(int h, int w) : Image(h,w,TType::type){}
     TemplatedImage(std::string file) {
@@ -28,9 +30,12 @@ public:
     TemplatedImage(ImageView<T> img)
     {
         setFormatFromImageView(img);
-        create();
+        Image::create();
         img.copyTo(getImageView());
     }
+
+    void create(int h, int w) { Image::create(h,w,TType::type); }
+    void create(int h, int w, int p) { Image::create(h,w,p,TType::type); }
 
     inline
     T& operator()(int y, int x){

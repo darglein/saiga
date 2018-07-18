@@ -48,6 +48,7 @@ public:
     void create();
     void create(int h, int w);
     void create(int h, int w, ImageType t);
+    void create(int h, int w, int p, ImageType t);
 
     void clear();
     void free();
@@ -64,7 +65,11 @@ public:
     bool valid();
 
     void* data() { return vdata.data(); }
+    const void* data() const { return vdata.data(); }
+
     uint8_t* data8() { return vdata.data(); }
+    const uint8_t* data8() const { return vdata.data(); }
+
 
     template<typename T>
     inline
