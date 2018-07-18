@@ -15,8 +15,6 @@
 
 #include <glbinding/glbinding.h>
 #include <glbinding-aux/Meta.h>
-#include "saiga/sdl/sdl.h"
-#include "saiga/glfw/all.h"
 
 
 
