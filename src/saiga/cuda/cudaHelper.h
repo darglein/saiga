@@ -16,6 +16,9 @@
 
 #include "saiga/cuda/thrust_helper.h"
 
+#if !defined(SAIGA_USE_CUDA)
+#error Saiga was compiled without cuda.
+#endif
 
 # define CHECK_CUDA_ERROR(cudaFunction) {							\
   cudaError_t  cudaErrorCode = cudaFunction;                                                       \

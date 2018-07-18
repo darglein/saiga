@@ -13,6 +13,7 @@
 #include "saiga/network/RGBDCameraNetwork.h"
 
 
+
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
 #endif

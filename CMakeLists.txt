@@ -36,6 +36,7 @@ OptionsHelper (SAIGA_WITH_CUDA "use cuda if possible" ON)
 OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF) 
 OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
 OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
+OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
 OptionsHelper(SAIGA_WITH_GL "With opengl" ON)
 
@@ -211,14 +212,16 @@ if(CUDA_FOUND)
 
     SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
 
-    if(CUDA_cusparse_LIBRARY)
-        SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cusparse_LIBRARY})
-        SET(SAIGA_USE_CUSPARSE 1)
-    endif()
+    if(SAIGA_CUDA_BLSP)
+        if(CUDA_cusparse_LIBRARY)
+            SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cusparse_LIBRARY})
+            SET(SAIGA_USE_CUSPARSE 1)
+        endif()
 
-    if(CUDA_cublas_LIBRARY)
-        SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cublas_LIBRARY})
-        SET(SAIGA_USE_CUBLAS 1)
+        if(CUDA_cublas_LIBRARY)
+            SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cublas_LIBRARY})
+            SET(SAIGA_USE_CUBLAS 1)
+        endif()
     endif()
 
 

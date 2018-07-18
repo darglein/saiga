@@ -27,7 +27,7 @@ else ()
 endif()
 
 
-target_link_libraries(${LIB_NAME} ${LIBS})
+target_link_libraries(${LIB_NAME} ${LIBS} ${ALL_CUDA_LIBS})
 
 set_target_properties( ${LIB_NAME}
     PROPERTIES
