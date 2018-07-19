@@ -70,6 +70,8 @@ public:
 };
 
 
+
+
 class SAIGA_GLOBAL VulkanTexturedAsset : public TexturedModel
 {
 public:

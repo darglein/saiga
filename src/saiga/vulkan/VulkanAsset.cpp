@@ -80,7 +80,7 @@ void VulkanPointCloudAsset::init(VulkanBase &base, int _capacity)
 
 void VulkanPointCloudAsset::render(vk::CommandBuffer cmd, int start, int count)
 {
-    if(!vertexBuffer.buffer) return;
+    if(!vertexBuffer.buffer || count == 0) return;
     vertexBuffer.bind(cmd);
     vertexBuffer.draw(cmd,count,start);
 }
