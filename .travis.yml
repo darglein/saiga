@@ -11,7 +11,6 @@ env:
     - SAIGA_CXX=g++-7 CXX_PACKAGE=g++-7
     - SAIGA_CXX=clang++-5.0 CXX_PACKAGE=clang-5.0
     - SAIGA_CXX=clang++-6.0 CXX_PACKAGE=clang-6.0
-    - SAIGA_CXX=g++-7 CXX_PACKAGE=g++-7 NO_GL=TRUE
 
 before_install:
   - docker run -d --name ubuntu-test -v $(pwd):/travis ubuntu:latest tail -f /dev/null
@@ -23,9 +22,7 @@ install:
     apt-get install -y $CXX_PACKAGE;
     apt-get install -y cmake;
     apt-get install -y libglew-dev libfreetype6-dev libglm-dev;
-    if [ -z NO_GL ];
-    	apt-get install -y libegl1-mesa-dev;
-    fi;
+    apt-get install -y libegl1-mesa-dev;
     apt-get install -y libsdl2-dev libglfw3-dev;
     apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
     apt-get install -y libopenal-dev libopus-dev libopusfile-dev;

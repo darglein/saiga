@@ -19,11 +19,14 @@ class SAIGA_GLOBAL StagingBuffer : public Buffer
 {
 public:
 
-    void init(VulkanBase& base, const void* data, size_t size)
+
+
+    void init(VulkanBase& base, size_t size, const void* data = nullptr)
     {
         createBuffer(base,size,vk::BufferUsageFlagBits::eTransferSrc);
         allocateMemoryBuffer(base,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-        DeviceMemory::mappedUpload(0,size,data);
+        if(data)
+            DeviceMemory::mappedUpload(0,size,data);
     }
 };
 

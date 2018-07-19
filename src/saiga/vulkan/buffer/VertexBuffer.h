@@ -60,9 +60,9 @@ public:
         cmd.draw(vertexCount,1,0,0);
     }
 
-    void draw(vk::CommandBuffer &cmd, int count)
+    void draw(vk::CommandBuffer &cmd, int count, int first = 0)
     {
-        cmd.draw(count,1,0,0);
+        cmd.draw(count,1,first,0);
     }
 };
 

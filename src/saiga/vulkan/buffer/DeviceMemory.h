@@ -16,6 +16,8 @@ namespace Vulkan {
 class SAIGA_GLOBAL DeviceMemory
 {
 public:
+
+    ~DeviceMemory() { destroy(); }
     /*
     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         bit specifies that memory allocated with this type is the most efficient for device access.

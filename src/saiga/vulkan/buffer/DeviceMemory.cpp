@@ -16,7 +16,11 @@ void DeviceMemory::destroy()
 //    SAIGA_ASSERT(device);
 //    SAIGA_ASSERT(memory);
     if(device && memory)
+    {
         device.freeMemory(memory);
+        memory = nullptr;
+    }
+
 }
 
 void DeviceMemory::allocateMemory(VulkanBase &base, const vk::MemoryRequirements &mem_reqs, vk::MemoryPropertyFlags flags)

@@ -63,6 +63,8 @@ VulkanRenderer::~VulkanRenderer()
 
 }
 
+float VulkanRenderer::getTotalRenderTime() {return window.mainLoop.renderCPUTimer.getTimeMS();}
+
 void VulkanRenderer::initInstanceDevice()
 {
 

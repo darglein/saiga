@@ -19,6 +19,7 @@ class SAIGA_GLOBAL Buffer : public DeviceMemory
 public:
     vk::Buffer buffer;
 
+    ~Buffer() { destroy(); }
 
 
     void createBuffer(
@@ -40,9 +41,19 @@ public:
             const void* data
             );
 
+    void stagedUpload(
+            Saiga::Vulkan::VulkanBase& base,
+            size_t offset,
+            size_t size,
+            const void* data
+            );
+
     vk::DescriptorBufferInfo createInfo();
 
     void destroy();
+
+
+    operator vk::Buffer() const { return buffer; }
 };
 
 }

@@ -21,7 +21,6 @@ namespace Vulkan {
 void TextureDisplay::destroy()
 {
     Pipeline::destroy();
-    blitMesh.destroy();
 }
 void TextureDisplay::bind(vk::CommandBuffer cmd)
 {
@@ -62,7 +61,7 @@ void TextureDisplay::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
     shaderPipeline.destroy(device);
 
     blitMesh.createFullscreenQuad();
-    blitMesh.updateBuffer(vulkanDevice);
+    blitMesh.init(vulkanDevice);
 }
 
 vk::DescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture &texture)
