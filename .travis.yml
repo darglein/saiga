@@ -23,9 +23,9 @@ install:
     apt-get install -y $CXX_PACKAGE;
     apt-get install -y cmake;
     apt-get install -y libglew-dev libfreetype6-dev libglm-dev;
-    if [ -z NO_GL ]
+    if [ -z NO_GL ];
     	apt-get install -y libegl1-mesa-dev;
-    fi
+    fi;
     apt-get install -y libsdl2-dev libglfw3-dev;
     apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
     apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
