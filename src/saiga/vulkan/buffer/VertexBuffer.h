@@ -16,7 +16,7 @@ namespace Vulkan {
 
 
 template<typename VertexType>
-class SAIGA_GLOBAL VertexBuffer : public Buffer
+class SAIGA_TEMPLATE VertexBuffer : public Buffer
 {
 public:
     int vertexCount;

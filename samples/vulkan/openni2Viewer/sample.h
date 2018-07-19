@@ -18,10 +18,7 @@
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/window/Interfaces.h"
 #include "saiga/util/ini/ini.h"
-#include "saiga/network/ImageTransmition.h"
-#include "saiga/openni2/RGBDCameraInput.h"
-
-using namespace boost::asio;
+#include "saiga/camera/RGBDCamera.h"
 
 class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface, public Saiga::SDL_KeyListener
 {
