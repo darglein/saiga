@@ -165,8 +165,7 @@ bool RGBDCameraInput::open(CameraOptions rgbo, CameraOptions deptho)
     openni::VideoMode depthVideoMode;
     openni::VideoMode colorVideoMode;
 
-    int colorW, colorH;
-    int depthW, depthH;
+
 
     colorW = color->getVideoMode().getResolutionX();
     colorH = color->getVideoMode().getResolutionY();
@@ -175,8 +174,8 @@ bool RGBDCameraInput::open(CameraOptions rgbo, CameraOptions deptho)
     depthH = depth->getVideoMode().getResolutionY();
 
 
-    colorImg.create(colorH,colorW);
-    depthImg.create(depthH,depthW);
+//    colorImg.create(colorH,colorW);
+//    depthImg.create(depthH,depthW);
 
 
     cout << "RGBD Camera opened."  << endl;
@@ -185,7 +184,7 @@ bool RGBDCameraInput::open(CameraOptions rgbo, CameraOptions deptho)
     return true;
 }
 
-bool RGBDCameraInput::readFrame()
+bool RGBDCameraInput::readFrame(FrameData &data)
 {
     openni::Status res;
 
@@ -196,15 +195,20 @@ bool RGBDCameraInput::readFrame()
 
     if(streamIndex == 0)
     {
-        std::thread t(&RGBDCameraInput::readDepth,this);
-        readColor();
-        t.join();
+//        std::thread t(&RGBDCameraInput::readDepth,this);
+        readDepth(data.depthImg);
+        readColor(data.colorImg);
+//        t.join();
 
     }else{
-        std::thread t(&RGBDCameraInput::readColor,this);
+        readColor(data.colorImg);
+        readDepth(data.depthImg);
 
-        readDepth();
-        t.join();
+
+//        std::thread t(&RGBDCameraInput::readColor,this);
+
+//        readDepth();
+//        t.join();
     }
 
 
@@ -215,7 +219,7 @@ bool RGBDCameraInput::readFrame()
     return true;
 }
 
-bool RGBDCameraInput::readDepth()
+bool RGBDCameraInput::readDepth(ImageView<unsigned short> depthImg)
 {
     auto res = depth->readFrame(m_depthFrame.get());
     if (res != openni::STATUS_OK) return false;
@@ -235,7 +239,7 @@ bool RGBDCameraInput::readDepth()
     return true;
 }
 
-bool RGBDCameraInput::readColor()
+bool RGBDCameraInput::readColor(ImageView<ucvec4> colorImg)
 {
     auto res = color->readFrame(m_colorFrame.get());
     if (res != openni::STATUS_OK) return false;

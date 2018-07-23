@@ -200,7 +200,6 @@ bool ImageTransmition::recieveImageType(Image &img)
     SAIGA_ASSERT(checkHeader(img,h));
 
 
-    size_t imageSize = img.size();
     size_t i = 0;
     for( ; i < h.numDataPackets; ++i)
     {

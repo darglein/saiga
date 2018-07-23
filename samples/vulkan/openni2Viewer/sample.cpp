@@ -48,6 +48,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan:
     rgbdcamera = cam;
 #endif
 
+    frameData = cam->makeFrameData();
+
     cout << "init done" << endl;
     //    it =
     //    it->makeReciever();
@@ -67,15 +69,15 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
 
 
-    rgbdcamera->readFrame();
+    rgbdcamera->readFrame(*frameData);
 
     texture = std::make_shared<Saiga::Vulkan::Texture2D>();
-    texture->fromImage(renderer.base,rgbdcamera->colorImg);
+    texture->fromImage(renderer.base,frameData->colorImg);
 
 
     texture2 = std::make_shared<Saiga::Vulkan::Texture2D>();
-    Saiga::TemplatedImage<ucvec4> depthmg(rgbdcamera->depthImg.height,rgbdcamera->depthImg.width);
-    Saiga::ImageTransformation::depthToRGBA(rgbdcamera->depthImg,depthmg,0,7000);
+    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
+    Saiga::ImageTransformation::depthToRGBA(frameData->depthImg,depthmg,0,7000);
     texture2->fromImage(renderer.base,depthmg);
 
 
@@ -96,13 +98,13 @@ void VulkanExample::update(float dt)
 void VulkanExample::transfer(vk::CommandBuffer cmd)
 {
 
-    rgbdcamera->readFrame();
+    rgbdcamera->readFrame(*frameData);
 
 
-    texture->uploadImage(renderer.base,rgbdcamera->colorImg);
+    texture->uploadImage(renderer.base,frameData->colorImg);
 
-    Saiga::TemplatedImage<ucvec4> depthmg(rgbdcamera->depthImg.height,rgbdcamera->depthImg.width);
-    Saiga::ImageTransformation::depthToRGBA(rgbdcamera->depthImg,depthmg,0,7000);
+    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
+    Saiga::ImageTransformation::depthToRGBA(frameData->depthImg,depthmg,0,7000);
     texture2->uploadImage(renderer.base,depthmg);
 
 
@@ -117,7 +119,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
     {
         textureDisplay.bindDescriptorSets(cmd,textureDes);
-        vk::Viewport vp(0,0,rgbdcamera->colorImg.width,rgbdcamera->colorImg.height);
+        vk::Viewport vp(0,0,frameData->colorImg.width,frameData->colorImg.height);
         cmd.setViewport(0,vp);
         textureDisplay.blitMesh.render(cmd);
     }
@@ -125,7 +127,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
     {
         textureDisplay.bindDescriptorSets(cmd,textureDes2);
-        vk::Viewport vp(rgbdcamera->colorImg.width,0,rgbdcamera->depthImg.width,rgbdcamera->depthImg.height);
+        vk::Viewport vp(frameData->colorImg.width,0,frameData->depthImg.width,frameData->depthImg.height);
         cmd.setViewport(0,vp);
         textureDisplay.blitMesh.render(cmd);
     }
