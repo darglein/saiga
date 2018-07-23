@@ -8,7 +8,11 @@
 
 #include "saiga/config.h"
 
+
+#ifdef SAIGA_CUDA_INCLUDED
 #include <thrust/device_vector.h>
+#endif
+
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -18,7 +22,7 @@ namespace Saiga {
 //Thanks to Johannes Pieger
 
 template<typename T>
-struct array_view{
+struct SAIGA_TEMPLATE array_view{
     using value_type = T;
     using reference = value_type&;
     using const_reference = value_type const&;
@@ -36,6 +40,8 @@ struct array_view{
     array_view(array_view<T> const&) = default;
     array_view& operator=(array_view<T> const&) = default;
 
+
+#ifdef SAIGA_CUDA_INCLUDED
     __host__ array_view(thrust::device_vector<typename std::remove_const<T>::type>& dv)
         : data_(thrust::raw_pointer_cast(dv.data())),
           n(dv.size())
@@ -44,6 +50,7 @@ struct array_view{
         : data_(const_cast<T*>(thrust::raw_pointer_cast(dv.data()))),
           n(dv.size())
     {}
+#endif
 
 
     template<size_t N>
@@ -92,12 +99,15 @@ struct array_view{
         return data_+n;
     }
 
+
+#ifdef SAIGA_CUDA_INCLUDED
     thrust::device_ptr<T> tbegin() const {
         return thrust::device_pointer_cast(begin());
     }
     thrust::device_ptr<T> tend() const {
         return thrust::device_pointer_cast(end());
     }
+#endif
 
     //remove elements from the right and left
     HD array_view<T> slice(size_t left, size_t right) const {

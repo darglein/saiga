@@ -3,7 +3,6 @@
 #include "compute.h"
 #include "saiga/framework.h"
 #include "saiga/vulkan/window/SDLWindow.h"
-#include "saiga/vulkan/window/GLFWWindow.h"
 
 #undef main
 

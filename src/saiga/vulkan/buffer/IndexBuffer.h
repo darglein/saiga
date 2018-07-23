@@ -25,7 +25,7 @@ template<> struct IndexVKType<uint32_t>
 
 
 template<typename IndexType = uint32_t>
-class SAIGA_GLOBAL IndexBuffer : public Buffer
+class SAIGA_TEMPLATE IndexBuffer : public Buffer
 {
     static_assert(std::is_integral<IndexType>::value && std::is_unsigned<IndexType>::value,
                   "Only unsigned integral types allowed!");

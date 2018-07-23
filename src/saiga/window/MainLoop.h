@@ -53,7 +53,7 @@ struct SAIGA_GLOBAL MainLoopParameters
     void fromConfigFile(const std::string& file);
 };
 
-struct MainLoopInterface
+struct SAIGA_GLOBAL MainLoopInterface
 {
     virtual void render() = 0;
     virtual void swap() = 0;

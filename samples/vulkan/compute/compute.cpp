@@ -27,8 +27,6 @@ Compute::Compute(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan::VulkanForwa
 
 Compute::~Compute()
 {
-    teapot.destroy();
-    plane.destroy();
     assetRenderer.destroy();
     compute.storageBuffer.destroy();
     computePipeline.destroy();

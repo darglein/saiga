@@ -14,6 +14,34 @@ namespace Vulkan {
 
 
 
+
+void VulkanVertexColoredAsset::init(VulkanBase &base)
+{
+    auto indices = mesh.getIndexList();
+#if 0
+//    vertexBuffer.init(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+    vertexBuffer.init(base,mesh.vertices.size());
+
+    auto indices = mesh.getIndexList();
+//    indexBuffer.init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+    indexBuffer.init(base,indices.size());
+
+
+    vertexBuffer.mappedUpload(0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
+    indexBuffer.mappedUpload(0,indices.size()*sizeof(uint32_t),indices.data());
+
+//    vertexBuffer.stagedUpload(base,0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
+//    indexBuffer.stagedUpload(base,0,indices.size()*sizeof(uint32_t),indices.data());
+#else
+        vertexBuffer.init(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+        indexBuffer.init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+        vertexBuffer.stagedUpload(base,0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
+        indexBuffer.stagedUpload(base,0,indices.size()*sizeof(uint32_t),indices.data());
+#endif
+}
+
+
 void VulkanVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
     if(!vertexBuffer.buffer) return;
@@ -22,96 +50,68 @@ void VulkanVertexColoredAsset::render(vk::CommandBuffer cmd)
     indexBuffer.draw(cmd);
 }
 
-void VulkanVertexColoredAsset::updateBuffer(VulkanBase &base)
+void VulkanLineVertexColoredAsset::init(VulkanBase &base)
 {
-    vertexBuffer.destroy();
-    vertexBuffer.init(base,mesh.vertices);
+    auto lines = mesh.toLineList();
+    auto newSize = lines.size();
+    auto size = newSize*sizeof(VertexType);
+    vertexBuffer.init(base,newSize,vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-    indexBuffer.destroy();
-    indexBuffer.init(base,mesh.getIndexList());
-}
 
-void VulkanVertexColoredAsset::destroy()
-{
-    vertexBuffer.destroy();
-    indexBuffer.destroy();
+    vertexBuffer.stagedUpload(base,0,size,lines.data());
 }
 
 void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
     if(!vertexBuffer.buffer) return;
     vertexBuffer.bind(cmd);
-    vertexBuffer.draw(cmd,size);
+    vertexBuffer.draw(cmd);
 }
 
-void VulkanLineVertexColoredAsset::updateBuffer(VulkanBase &base)
+
+
+void VulkanPointCloudAsset::init(VulkanBase &base, int _capacity)
+{
+    capacity = _capacity;
+    vertexBuffer.init(base,capacity,vk::MemoryPropertyFlagBits::eDeviceLocal);
+    stagingBuffer.init(base,capacity * sizeof(VertexType));
+    pointCloud = array_view<VertexType>( (VertexType*)stagingBuffer.mapAll(),capacity);
+}
+
+void VulkanPointCloudAsset::render(vk::CommandBuffer cmd, int start, int count)
+{
+    if(!vertexBuffer.buffer || count == 0) return;
+    vertexBuffer.bind(cmd);
+    vertexBuffer.draw(cmd,count,start);
+}
+
+void VulkanPointCloudAsset::updateBuffer(vk::CommandBuffer cmd, int start, int count)
+{
+    size_t offset = start * sizeof(VertexType);
+    size_t size = count * sizeof(VertexType);
+    vk::BufferCopy bc(offset,offset,size);
+    cmd.copyBuffer(stagingBuffer,vertexBuffer,bc);
+}
+
+
+
+
+void VulkanTexturedAsset::init(VulkanBase &base)
 {
 //    vertexBuffer.destroy();
-//    vertexBuffer.init(base,mesh.toLineList());
+//    vertexBuffer.init(base,mesh.vertices);
 
-    auto lines = mesh.toLineList();
-    auto newSize = lines.size();
+//    indexBuffer.destroy();
+//    indexBuffer.init(base,mesh.getIndexList());
 
-    if(newSize > (size_t)capacity)
-    {
-        capacity = mesh.numLines() * 2;
-        vertexBuffer.destroy();
-        vertexBuffer.init(base,newSize);
-    }
+    auto indices = mesh.getIndexList();
 
-    vertexBuffer.mappedUpload(0,lines.size()*sizeof(VertexType),lines.data());
-    size = newSize;
-}
-
-void VulkanLineVertexColoredAsset::destroy()
-{
-    vertexBuffer.destroy();
-}
+    vertexBuffer.init(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+    indexBuffer.init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 
-
-void VulkanPointCloudAsset::render(vk::CommandBuffer cmd)
-{
-    if(!vertexBuffer.buffer) return;
-    vertexBuffer.bind(cmd);
-    vertexBuffer.draw(cmd,size);
-}
-
-void VulkanPointCloudAsset::updateBuffer(VulkanBase &base)
-{
-    if(mesh.points.size() > (size_t)capacity)
-    {
-        capacity = mesh.points.size() * 2;
-        vertexBuffer.destroy();
-        vertexBuffer.init(base,capacity);
-    }
-    vertexBuffer.mappedUpload(0,mesh.points.size()*sizeof(VertexType),mesh.points.data());
-    size = mesh.points.size();
-}
-
-void VulkanPointCloudAsset::destroy()
-{
-    vertexBuffer.destroy();
-}
-
-
-
-
-void VulkanTexturedAsset::render(vk::CommandBuffer cmd)
-{
-    if(!vertexBuffer.buffer) return;
-    vertexBuffer.bind(cmd);
-    indexBuffer.bind(cmd);
-    indexBuffer.draw(cmd);
-}
-
-void VulkanTexturedAsset::updateBuffer(VulkanBase &base)
-{
-    vertexBuffer.destroy();
-    vertexBuffer.init(base,mesh.vertices);
-
-    indexBuffer.destroy();
-    indexBuffer.init(base,mesh.getIndexList());
+    vertexBuffer.stagedUpload(base,0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
+    indexBuffer.stagedUpload(base,0,indices.size()*sizeof(uint32_t),indices.data());
 
     textures.clear();
 
@@ -127,7 +127,7 @@ void VulkanTexturedAsset::updateBuffer(VulkanBase &base)
         {
             Saiga::TemplatedImage<ucvec4> img2(img.height,img.width);
             Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(),img2.getImageView());
-            cout << img2 << endl;
+//            cout << img2 << endl;
             tex->fromImage(base,img2);
         }else{
             tex->fromImage(base,img);
@@ -138,12 +138,12 @@ void VulkanTexturedAsset::updateBuffer(VulkanBase &base)
         textures.push_back(tex);
     }
 }
-
-void VulkanTexturedAsset::destroy()
+void VulkanTexturedAsset::render(vk::CommandBuffer cmd)
 {
-    vertexBuffer.destroy();
-    indexBuffer.destroy();
-    textures.clear();
+    if(!vertexBuffer.buffer) return;
+    vertexBuffer.bind(cmd);
+    indexBuffer.bind(cmd);
+    indexBuffer.draw(cmd);
 }
 
 

@@ -38,7 +38,7 @@ private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
 
-    bool change = false;
+    bool change = true;
     Saiga::Object3D teapotTrans;
 
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;

@@ -5,20 +5,19 @@
  */
 
 #pragma once
+
+
 #include "saiga/config.h"
+#include "saiga/cuda/cuda.h"
 #include "saiga/cuda/array_view.h"
 #include "saiga/cuda/cudaTimer.h"
 #include "saiga/util/imath.h"
-#include <iostream>
-#include <cuda.h>
-#include <cuda_runtime.h>
+
 #include "saiga/util/assert.h"
 
 #include "saiga/cuda/thrust_helper.h"
 
-#if !defined(SAIGA_USE_CUDA)
-#error Saiga was compiled without cuda.
-#endif
+
 
 # define CHECK_CUDA_ERROR(cudaFunction) {							\
   cudaError_t  cudaErrorCode = cudaFunction;                                                       \

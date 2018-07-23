@@ -28,16 +28,10 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan:
 
 VulkanExample::~VulkanExample()
 {
-    box.destroy();
-    teapot.destroy();
-    plane.destroy();
     assetRenderer.destroy();
     lineAssetRenderer.destroy();
     pointCloudRenderer.destroy();
     texturedAssetRenderer.destroy();
-    grid.destroy();
-    frustum.destroy();
-    pointCloud.destroy();
 }
 
 void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
@@ -75,35 +69,36 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
 
     box.loadObj("objs/box.obj");
-    box.updateBuffer(renderer.base);
+    box.init(renderer.base);
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
     teapot.loadObj("objs/teapot.obj");
-    teapot.updateBuffer(renderer.base);
+    teapot.init(renderer.base);
     teapotTrans.translateGlobal(vec3(0,1,0));
     teapotTrans.calculateModel();
 
     plane.createCheckerBoard(vec2(20,20),1.0f,Saiga::Colors::firebrick,Saiga::Colors::gray);
-    plane.updateBuffer(renderer.base);
+    plane.init(renderer.base);
 
     grid.createGrid(10,10);
-    grid.updateBuffer(renderer.base);
+    grid.init(renderer.base);
 
     frustum.createFrustum(camera.proj,2,vec4(1),true);
-    frustum.updateBuffer(renderer.base);
+    frustum.init(renderer.base);
 
 
 
 
-    for(int i = 0; i < 1000; ++i)
+    pointCloud.init(base,1000* 1000);
+    for(int i = 0; i < 1000 * 1000; ++i)
     {
         Saiga::VertexNC v;
         v.position = vec4(glm::linearRand(vec3(-3),vec3(3)),1);
         v.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
-        pointCloud.mesh.points.push_back(v);
+        pointCloud.pointCloud[i] = v;
     }
-    pointCloud.updateBuffer(renderer.base);
-//    pointCloud.updateBuffer();
+    //    pointCloud.updateBuffer(renderer.base);
+    //    pointCloud.updateBuffer();
 }
 
 
@@ -113,6 +108,23 @@ void VulkanExample::update(float dt)
 
     camera.update(dt);
     camera.interpolate(dt,0);
+
+    //    if(change)
+    if(false)
+    {
+        //        renderer.waitIdle();
+        //        for(int i = 0; i < 1000; ++i)
+        for(auto& v : pointCloud.pointCloud)
+        {
+            //            Saiga::VertexNC v;
+            v.position = vec4(glm::linearRand(vec3(-3),vec3(3)),1);
+            v.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
+            //            pointCloud.mesh.points.push_back(v);
+            change = false;
+        }
+
+    }
+    change = true;
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)
@@ -122,17 +134,12 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
     pointCloudRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
     texturedAssetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
 
+
+    //upload everything every frame
     if(change)
     {
-        renderer.waitIdle();
-        for(int i = 0; i < 1000; ++i)
-        {
-            Saiga::VertexNC v;
-            v.position = vec4(glm::linearRand(vec3(-3),vec3(3)),1);
-            v.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
-            pointCloud.mesh.points.push_back(v);
-        }
-        pointCloud.updateBuffer(renderer.base);
+
+        //    pointCloud.updateBuffer(cmd,0,pointCloud.capacity);
 
         change = false;
     }
@@ -143,26 +150,40 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 {
     if(displayModels)
     {
-        assetRenderer.bind(cmd);
-        assetRenderer.pushModel(cmd,teapotTrans.model);
-        teapot.render(cmd);
         //        assetRenderer.pushModel(cmd,mat4(1));
         //        plane.render(cmd);
 
-        lineAssetRenderer.bind(cmd);
+        //        lineAssetRenderer.bind(cmd);
 
-        lineAssetRenderer.pushModel(cmd,mat4(1));
-        grid.render(cmd);
+        //        lineAssetRenderer.pushModel(cmd,mat4(1));
+//        assetRenderer.bind(cmd);
+//        assetRenderer.pushModel(cmd,teapotTrans.model);
+        for(int i = 0; i < 1000; ++i)
+        {
+//            teapot.render(cmd);
+            //        grid.render(cmd);
 
-        lineAssetRenderer.pushModel(cmd,mat4(1));
-        frustum.render(cmd);
+            //        lineAssetRenderer.pushModel(cmd,mat4(1));
+            //        frustum.render(cmd);
+        }
+//        return;
 
 
+//        pointCloudRenderer.bind(cmd);
 
-        pointCloudRenderer.bind(cmd);
+//        pointCloudRenderer.pushModel(cmd,mat4(1));
+//        pointCloud.render(cmd,0,pointCloud.capacity);
 
-        pointCloudRenderer.pushModel(cmd,mat4(1));
-        pointCloud.render(cmd);
+
+//        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(10,0,0)));
+//        pointCloud.render(cmd,0,pointCloud.capacity);
+
+
+//        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(-10,0,0)));
+//        pointCloud.render(cmd,0,pointCloud.capacity);
+        //        pointCloud.render(cmd);
+        //        pointCloud.render(cmd);
+        //        pointCloud.render(cmd);
 
         texturedAssetRenderer.bind(cmd);
         texturedAssetRenderer.pushModel(cmd,mat4(1));
@@ -173,12 +194,12 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 
 
-            textureDisplay.bind(cmd);
-            textureDisplay.bindDescriptorSets(cmd,textureDes);
+    textureDisplay.bind(cmd);
+    textureDisplay.bindDescriptorSets(cmd,textureDes);
 
-            vk::Viewport vp(50,50,100,100);
-            cmd.setViewport(0,vp);
-            textureDisplay.blitMesh.render(cmd);
+    vk::Viewport vp(50,50,100,100);
+    cmd.setViewport(0,vp);
+    textureDisplay.blitMesh.render(cmd);
 }
 
 void VulkanExample::renderGUI()

@@ -14,7 +14,10 @@
 #include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/buffer/VertexBuffer.h"
 #include "saiga/vulkan/buffer/IndexBuffer.h"
+#include "saiga/vulkan/buffer/StagingBuffer.h"
 #include "saiga/vulkan/texture/Texture.h"
+
+#include "saiga/cuda/array_view.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -25,9 +28,12 @@ public:
     VertexBuffer<VertexType> vertexBuffer;
     IndexBuffer<uint32_t> indexBuffer;
 
+
+    void init(Saiga::Vulkan::VulkanBase& base);
     void render(vk::CommandBuffer cmd);
-    void updateBuffer(Saiga::Vulkan::VulkanBase& base);
-    void destroy();
+
+//    void updateBuffer(Saiga::Vulkan::VulkanBase& base);
+
 };
 
 
@@ -37,13 +43,8 @@ public:
     using VertexType = VertexNC;
     VertexBuffer<VertexType> vertexBuffer;
 
-    int size = 0;
-    int capacity = 0;
-
-
+    void init(Saiga::Vulkan::VulkanBase& base);
     void render(vk::CommandBuffer cmd);
-    void updateBuffer(Saiga::Vulkan::VulkanBase& base);
-    void destroy();
 };
 
 
@@ -52,16 +53,23 @@ class SAIGA_GLOBAL VulkanPointCloudAsset
 {
 public:
     using VertexType = VertexNC;
-    PointCloud<VertexType> mesh;
+
+    array_view<VertexType> pointCloud;
+
     VertexBuffer<VertexType> vertexBuffer;
+    StagingBuffer stagingBuffer;
 
     int size = 0;
     int capacity = 0;
 
-    void render(vk::CommandBuffer cmd);
-    void updateBuffer(Saiga::Vulkan::VulkanBase& base);
-    void destroy();
+    // Creates the buffers with max number of points
+    void init(Saiga::Vulkan::VulkanBase& base, int capacity);
+
+    void render(vk::CommandBuffer cmd, int start, int count);
+    void updateBuffer(vk::CommandBuffer cmd, int start, int count);
 };
+
+
 
 
 class SAIGA_GLOBAL VulkanTexturedAsset : public TexturedModel
@@ -72,9 +80,10 @@ public:
     std::vector<std::shared_ptr<Texture2D>> textures;
     vk::DescriptorSet descriptor;
 
+    void init(VulkanBase &base);
     void render(vk::CommandBuffer cmd);
-    void updateBuffer(Saiga::Vulkan::VulkanBase& base);
-    void destroy();
+    // uploads the given part
+
 };
 
 

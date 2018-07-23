@@ -33,6 +33,8 @@ public:
 
     virtual void render(Camera *cam) {}
     virtual void bindCamera(Camera* cam){}
+
+        virtual float getTotalRenderTime();
 protected:
 
     /**

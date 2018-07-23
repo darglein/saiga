@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/cuda/cudaHelper.h"
+#include "saiga/cuda/cuda.h"
 
 namespace Saiga {
 namespace CUDA {

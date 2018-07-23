@@ -147,7 +147,7 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
 
     StagingBuffer staging;
 
-    staging.init(base,img.data(),img.size());
+    staging.init(base,img.size(),img.data());
 
     cmd.copyBufferToImage(staging.buffer,image,vk::ImageLayout::eTransferDstOptimal,bufferCopyRegion);
 
@@ -212,7 +212,7 @@ void Texture2D::uploadImage(VulkanBase &base, Image &img)
 
     StagingBuffer staging;
 
-    staging.init(base,img.data(),img.size());
+    staging.init(base,img.size(),img.data());
 
     cmd.copyBufferToImage(staging.buffer,image,vk::ImageLayout::eTransferDstOptimal,bufferCopyRegion);
 
