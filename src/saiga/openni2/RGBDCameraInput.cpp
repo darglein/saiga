@@ -8,6 +8,7 @@
 #include "saiga/image/imageTransformations.h"
 
 #include <OpenNI.h>
+#include <thread>
 #include "internal/noGraphicsAPI.h"
 
 
@@ -188,10 +189,35 @@ bool RGBDCameraInput::readFrame()
 {
     openni::Status res;
 
-    res = depth->readFrame(m_depthFrame.get());
-    if (res != openni::STATUS_OK) return false;
 
-    res = color->readFrame(m_colorFrame.get());
+    openni::VideoStream* streams[2] = {depth.get(),color.get()};
+    int streamIndex;
+    openni::OpenNI::waitForAnyStream(streams,2,&streamIndex);
+
+    if(streamIndex == 0)
+    {
+        std::thread t(&RGBDCameraInput::readDepth,this);
+        readColor();
+        t.join();
+
+    }else{
+        std::thread t(&RGBDCameraInput::readColor,this);
+
+        readDepth();
+        t.join();
+    }
+
+
+
+
+
+
+    return true;
+}
+
+bool RGBDCameraInput::readDepth()
+{
+    auto res = depth->readFrame(m_depthFrame.get());
     if (res != openni::STATUS_OK) return false;
 
     ImageView<uint16_t> rawDepthImg(
@@ -206,7 +232,13 @@ bool RGBDCameraInput::readFrame()
             depthImg(i,j) = rawDepthImg(i,rawDepthImg.width-j-1);
         }
     }
+    return true;
+}
 
+bool RGBDCameraInput::readColor()
+{
+    auto res = color->readFrame(m_colorFrame.get());
+    if (res != openni::STATUS_OK) return false;
 
     ImageView<ucvec3> rawImg(
                 m_colorFrame->getHeight(),

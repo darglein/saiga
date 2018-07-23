@@ -11,6 +11,9 @@
 #include "boost/asio.hpp"
 #include "saiga/util/ini/ini.h"
 
+
+#include "saiga/time/timer.h"
+
 using namespace Saiga;
 
 using namespace boost::asio;
@@ -42,14 +45,23 @@ int main(int argc, char *argv[])
     co2.h = 240;
     camera.open( co1,co2);
 
-    while(true)
+    int id = 0;
+
+    AverageTimer at;
+    for(int i =0; i < 300; ++i)
     {
+        at.start();
         camera.readFrame();
 
         it.sendImage(camera.colorImg);
         it.sendImage(camera.depthImg);
-        cout << "image send" << endl;
+        at.stop();
+
+
+        cout << id << " image send. Fps: " << 1000.0 / at.getTimeMS() << endl;
         //        sendImage(camera.colorImg,socket,remote_endpoint);
+        ++id;
 
     }
+    return 0;
 }

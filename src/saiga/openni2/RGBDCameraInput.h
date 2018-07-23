@@ -39,6 +39,9 @@ private:
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;
     std::shared_ptr<openni::VideoFrameRef> m_depthFrame,m_colorFrame;
+
+    bool readDepth();
+    bool readColor();
 };
 
 }

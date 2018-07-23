@@ -11,6 +11,7 @@
 #include "saiga/util/color.h"
 #include "saiga/image/imageTransformations.h"
 #include "saiga/network/RGBDCameraNetwork.h"
+#include "saiga/openni2/RGBDCameraInput.h"
 
 
 
@@ -34,9 +35,18 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan:
 
 
 
+#if 0
     auto cam = std::make_shared<Saiga::RGBDCameraNetwork>();
     cam->connect(ip,port);
     rgbdcamera = cam;
+#else
+    auto cam = std::make_shared<Saiga::RGBDCameraInput>();
+    Saiga::RGBDCameraInput::CameraOptions co1,co2;
+    co2.h = 240;
+    co2.w = 320;
+    cam->open(co1,co2);
+    rgbdcamera = cam;
+#endif
 
     cout << "init done" << endl;
     //    it =
