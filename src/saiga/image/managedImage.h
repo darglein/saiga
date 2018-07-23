@@ -112,6 +112,10 @@ public:
     bool loadRaw(const std::string &path);
     bool saveRaw(const std::string &path);
 
+
+    std::vector<uint8_t> compress();
+    void decompress(std::vector<uint8_t> data);
+
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Image& f);
 };
 

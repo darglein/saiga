@@ -41,7 +41,7 @@ private:
     std::shared_ptr<openni::VideoFrameRef> m_depthFrame,m_colorFrame;
 
     bool readDepth(ImageView<unsigned short> depthImg);
-    bool readColor(ImageView<ucvec4> colorImg);
+    bool readColor(ImageView<ucvec3> colorImg);
 };
 
 }

@@ -17,7 +17,7 @@
 #include "saiga/util/tostring.h"
 #include "saiga/util/color.h"
 
-#include "internal/stb_image_wrapper.h"
+#include "internal/stb_image_read_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
 
 
@@ -248,6 +248,16 @@ bool Image::saveRaw(const std::string &path)
     stream.close();
 
     return true;
+}
+
+std::vector<uint8_t> Image::compress()
+{
+    return compressImageSTB(*this);
+}
+
+void Image::decompress(std::vector<uint8_t> data)
+{
+    decompressImageSTB(*this,data);
 }
 
 

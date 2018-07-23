@@ -239,7 +239,7 @@ bool RGBDCameraInput::readDepth(ImageView<unsigned short> depthImg)
     return true;
 }
 
-bool RGBDCameraInput::readColor(ImageView<ucvec4> colorImg)
+bool RGBDCameraInput::readColor(ImageView<ucvec3> colorImg)
 {
     auto res = color->readFrame(m_colorFrame.get());
     if (res != openni::STATUS_OK) return false;
@@ -253,7 +253,8 @@ bool RGBDCameraInput::readColor(ImageView<ucvec4> colorImg)
     {
         for(int j =0; j < rawImg.width; ++j)
         {
-            colorImg(i,j) = ucvec4(rawImg(i,rawImg.width-j-1),0);
+//            colorImg(i,j) = ucvec4(rawImg(i,rawImg.width-j-1),0);
+            colorImg(i,j) = ucvec3(rawImg(i,rawImg.width-j-1));
         }
     }
 

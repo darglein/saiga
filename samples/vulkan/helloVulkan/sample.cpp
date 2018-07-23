@@ -47,6 +47,11 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
         Saiga::Image img("textures/box.png");
 
+        cout << "uncompressed size " << img.size() << endl;
+        auto data = img.compress();
+        cout << "compressed size " << data.size() << endl;
+        img.decompress(data);
+
         if(img.type == Saiga::UC3)
         {
             Saiga::TemplatedImage<ucvec4> img2(img.height,img.width);

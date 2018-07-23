@@ -24,6 +24,26 @@ bool saveImageSTB(const std::string &path, Image &img)
     }
 }
 
+std::vector<uint8_t> compressImageSTB(Image &img)
+{
+    int w = img.width;
+    int h = img.height;
+    int comp = channels(img.type);
+    int stride_in_bytes = img.pitchBytes;
+
+
+    int len;
+    unsigned char *png = stbi_write_png_to_mem((unsigned char *) img.data(), stride_in_bytes, w, h, comp, &len);
+
+    std::vector<uint8_t> data(len);
+    memcpy(data.data(),png,len);
+
+
+    STBIW_FREE(png);
+
+    return data;
+}
+
 
 
 }

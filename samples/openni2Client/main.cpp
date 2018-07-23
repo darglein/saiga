@@ -111,7 +111,6 @@ int main(int argc, char *argv[])
         }
 
 
-//          camera.readFrame(*frame);
 
           it.sendImage(frame->colorImg);
           it.sendImage(frame->depthImg);
