@@ -214,8 +214,9 @@ void initSaigaGL(const std::string& shaderDir, const std::string& textureDir)
     };
     Error::ignoreGLError(ignoreIds);
 
-    TextureLoader::instance()->addPath(textureDir);
     TextureLoader::instance()->addPath(".");
+    TextureLoader::instance()->addPath(textureDir);
+    TextureLoader::instance()->addPath(textureDir + "/include");
 
 }
 

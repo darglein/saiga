@@ -131,7 +131,7 @@ SET(SAIGA_SOURCE_EXT
 
 ############# All Shader Files ###############
 
-FILE(GLOB_RECURSE SHADERS  ${PROJECT_SOURCE_DIR}/shader/*.glsl)
+FILE(GLOB_RECURSE SHADERS  ${PROJECT_SOURCE_DIR}/shader/*)
 set(SAIGA_SHADERS ${SHADERS} PARENT_SCOPE)
 
 ############# All Header Files ###############

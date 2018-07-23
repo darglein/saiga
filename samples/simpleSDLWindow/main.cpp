@@ -5,6 +5,11 @@
  */
 
 
+
+
+#include "saiga/normal_sf.h"
+#include "saiga/hsv.h"
+
 #include "saiga/sdl/sdl.h"
 #include "saiga/util/crash.h"
 
@@ -13,6 +18,7 @@
 
 int main( int argc, char* args[] )
 {
+
     WindowParameters windowParameters;
     windowParameters.fromConfigFile("config.ini");
     windowParameters.name = "Simple SDL Window";

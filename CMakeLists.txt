@@ -6,7 +6,7 @@ project (${LIB_NAME} CXX)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include(helper_macros)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-
+include_directories(${PROJECT_SOURCE_DIR}/shader/include)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/saiga/opengl/glbinding/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include)
