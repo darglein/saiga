@@ -83,7 +83,7 @@ void Sample::initBullet()
         physics.collisionShapes.push_back(colShape);
 
 
-        for(int i =0; i < 50; ++i)
+        for(int i =0; i < 100; ++i)
         {
             btRigidBody* body = createRigidBody(colShape,1,vec3(0, 10, 0) + glm::linearRand(vec3(-5,0,-5),vec3(5,30,5)));
             physics.dynamicsWorld.addRigidBody(body);

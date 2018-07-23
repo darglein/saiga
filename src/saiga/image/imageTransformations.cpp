@@ -10,7 +10,7 @@
 namespace Saiga {
 namespace ImageTransformation {
 
-void addAlphaChannel(ImageView<ucvec3> src, ImageView<ucvec4> dst, unsigned char alpha)
+void addAlphaChannel(ImageView<const ucvec3> src, ImageView<ucvec4> dst, unsigned char alpha)
 {
     SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
     for(int i = 0; i < src.height; ++i)
@@ -22,7 +22,7 @@ void addAlphaChannel(ImageView<ucvec3> src, ImageView<ucvec4> dst, unsigned char
     }
 }
 
-void depthToRGBA(ImageView<uint16_t> src, ImageView<ucvec4> dst, uint16_t minD, uint16_t maxD)
+void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t minD, uint16_t maxD)
 {
     SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
     for(int i = 0; i < src.height; ++i)

@@ -89,9 +89,17 @@ public:
     template<typename T>
     ImageView<T> getImageView()
     {
-//        SAIGA_ASSERT(elementSize(type) == sizeof(T));
         SAIGA_ASSERT(ImageTypeTemplate<T>::type == type);
         ImageView<T> res(*this);
+        res.data = data();
+        return res;
+    }
+
+    template<typename T>
+    ImageView<const T> getConstImageView() const
+    {
+        SAIGA_ASSERT(ImageTypeTemplate<T>::type == type);
+        ImageView<const T> res(*this);
         res.data = data();
         return res;
     }
