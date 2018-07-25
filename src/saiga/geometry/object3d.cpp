@@ -30,7 +30,6 @@ void Object3D::turnLocal(float angleX, float angleY)
     rotateLocal(vec3(1,0,0),angleY);
 }
 
-
 void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angle){
     rotateLocal(axis,angle);
 
@@ -48,6 +47,21 @@ quat Object3D::getSimpleDirectionQuat(const vec3 &dir){
     rotmat[2] = vec4(-dir,0);
 
     return glm::normalize(quat(rotmat));
+}
+
+Object3D Object3D::interpolate(const Object3D &a, const Object3D &b, float alpha)
+{
+    Object3D res;
+    res.rot = normalize(glm::slerp(a.rot,b.rot,alpha));
+    res.scale = glm::mix(a.scale,b.scale,alpha);
+    res.position = glm::mix(a.position,b.position,alpha);
+    return res;
+}
+
+std::ostream& operator<<(std::ostream& os, const Object3D& o)
+{
+    std::cout << "Object3D (P/R/S): " << o.position << " " << o.rot << " " << o.scale;
+    return os;
 }
 
 }
