@@ -112,6 +112,13 @@ if(Boost_FOUND)
     FILE(GLOB_RECURSE network_SRC  network/*.cpp)
 endif()
 
+if(OpenCV_FOUND)
+    FILE(GLOB_RECURSE opencv_SRC  opencv/*.cpp)
+endif()
+
+if(GPHOTO2_FOUND)
+    FILE(GLOB_RECURSE gphoto_SRC  gphoto2/*.cpp)
+endif()
 
 SET(SAIGA_SOURCE_EXT
     ${SDL_SRC}
@@ -126,6 +133,8 @@ SET(SAIGA_SOURCE_EXT
     ${vulkan_SRC}
     ${openni2_SRC}
     ${network_SRC}
+    ${opencv_SRC}
+    ${gphoto_SRC}
     PARENT_SCOPE
     )
 

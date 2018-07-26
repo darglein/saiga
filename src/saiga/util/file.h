@@ -7,6 +7,7 @@
 #pragma once
 
 #include <saiga/config.h>
+#include <saiga/util/array_view.h>
 
 #include <vector>
 
@@ -18,5 +19,6 @@ SAIGA_GLOBAL std::vector<unsigned char> loadFileBinary(const std::string& file);
 SAIGA_GLOBAL std::string                loadFileString(const std::string& file);
 
 
+SAIGA_GLOBAL void saveFileBinary(const std::string& file, array_view<const char> data);
 }
 }

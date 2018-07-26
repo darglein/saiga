@@ -141,6 +141,19 @@ bool Image::load(const std::string &_path)
     return erg;
 }
 
+bool Image::loadFromMemory(array_view<const char> data)
+{
+    bool erg = false;
+
+#ifdef SAIGA_USE_FREEIMAGE
+    erg = FIP::loadFromMemory(data,*this);
+    return erg;
+#endif
+
+
+    return erg;
+}
+
 bool Image::save(const std::string &path)
 {
     bool erg = false;
@@ -153,7 +166,7 @@ bool Image::save(const std::string &path)
     }
 
 
-#ifdef SAIGA_USE_PNG1
+#ifdef SAIGA_USE_PNG
     //use libpng for png images
     if(type == "png")
     {

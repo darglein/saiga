@@ -47,8 +47,8 @@ using uchar = unsigned char;
 
     SAIGA_LOCAL void pngVersionInfo();
 
-    SAIGA_LOCAL bool readPNG (PngImage *img, const std::string &path, bool invertY = true);
-    SAIGA_LOCAL bool writePNG(PngImage *img, const std::string &path, bool invertY = true);
+    SAIGA_LOCAL bool readPNG (PngImage *img, const std::string &path, bool invertY = false);
+    SAIGA_LOCAL bool writePNG(PngImage *img, const std::string &path, bool invertY = false);
 
     SAIGA_LOCAL void convert(PNG::PngImage& src, Image& dst);
     SAIGA_LOCAL void convert(Image &src, PNG::PngImage &dst);

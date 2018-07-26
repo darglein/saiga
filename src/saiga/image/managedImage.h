@@ -10,11 +10,15 @@
 #include "saiga/image/imageView.h"
 #include "saiga/image/imageFormat.h"
 #include "saiga/util/fileChecker.h"
+#include "saiga/util/array_view.h"
 #include <vector>
 
 namespace Saiga {
 
 #define DEFAULT_ALIGNMENT 4
+/**
+ * Note: The first scanline is at position data[0].
+ */
 
 class SAIGA_GLOBAL Image : public ImageBase
 {
@@ -23,6 +27,7 @@ public:
     static FileChecker searchPathes;
 
     using byte_t = unsigned char;
+
 
 
     ImageType type = TYPE_UNKNOWN;
@@ -113,6 +118,8 @@ public:
     }
 
     bool load(const std::string &path);
+    bool loadFromMemory(array_view<const char> data);
+
     bool save(const std::string &path);
 
     // save in a custom saiga format

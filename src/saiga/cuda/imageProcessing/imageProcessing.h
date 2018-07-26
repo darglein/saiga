@@ -8,7 +8,7 @@
 
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/image/imageView.h"
-#include "saiga/cuda/array_view.h"
+#include "saiga/util/array_view.h"
 
 namespace Saiga {
 namespace CUDA {

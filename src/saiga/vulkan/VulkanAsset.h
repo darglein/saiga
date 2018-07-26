@@ -17,7 +17,7 @@
 #include "saiga/vulkan/buffer/StagingBuffer.h"
 #include "saiga/vulkan/texture/Texture.h"
 
-#include "saiga/cuda/array_view.h"
+#include "saiga/util/array_view.h"
 
 namespace Saiga {
 namespace Vulkan {

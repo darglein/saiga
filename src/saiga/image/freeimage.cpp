@@ -34,6 +34,18 @@ bool load(const std::string &path, Image &img, ImageMetadata *metaData)
     return true;
 }
 
+bool loadFromMemory(array_view<const char> data, Image &img)
+{
+    fipImage fimg;
+
+    fipMemoryIO fipmem( (BYTE*)data.data(),data.size());
+    if(!fimg.loadFromMemory(fipmem))
+        return false;
+    convert(fimg,img);
+    return true;
+}
+
+
 bool save(const std::string &path, const Image &img)
 {
     fipImage fimg;
@@ -95,9 +107,12 @@ void convert(const Image &_src, fipImage &dest)
     SAIGA_ASSERT(res);
 
 
+    // The FreeImage coordinate system is upside down relative to usual graphics conventions.
+    // Thus, the scanlines are stored upside down, with the first scan in memory being the bottommost scan in the image.
     for(int i =0; i < src.rows; ++i)
     {
-        memcpy(dest.getScanLine(i),src.rowPtr(i), std::min<int>(dest.getScanWidth(),src.pitchBytes));
+//        memcpy(dest.getScanLine(i),src.rowPtr(i), std::min<int>(dest.getScanWidth(),src.pitchBytes));
+        memcpy(dest.getScanLine(src.rows - i - 1),src.rowPtr(i), std::min<int>(dest.getScanWidth(),src.pitchBytes));
     }
 
 }
@@ -161,7 +176,8 @@ void convert(const fipImage &src, Image& dest){
 
     for(int i =0; i < dest.rows; ++i)
     {
-        memcpy(dest.rowPtr(i),src.getScanLine(i), std::min<int>(dest.pitchBytes,src.getScanWidth()));
+//        memcpy(dest.rowPtr(i),src.getScanLine(i), std::min<int>(dest.pitchBytes,src.getScanWidth()));
+        memcpy(dest.rowPtr(dest.rows - i - 1),src.getScanLine(i), std::min<int>(dest.pitchBytes,src.getScanWidth()));
     }
 
 
@@ -256,6 +272,7 @@ void printAllMetaData(fipImage &img)
     }
 
 }
+
 
 
 }

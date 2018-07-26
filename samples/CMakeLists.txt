@@ -29,6 +29,9 @@ if(OPENGL_FOUND)
         if (OPENMESH_FOUND)
             add_subdirectory(openMeshSample)
         endif ()
+        if (OpenCV_FOUND)
+            add_subdirectory(cameraCalibration)
+        endif ()
 
     endif ()
 
