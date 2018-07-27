@@ -10,7 +10,7 @@
 #include "saiga/image/imageView.h"
 #include "saiga/util/glm.h"
 
-#if defined(SAIGA_USE_CUDA)
+#ifdef SAIGA_CUDA_INCLUDED
 #include <vector_types.h>
 #endif
 
@@ -35,7 +35,7 @@ inline
 cv::Mat ImageViewToMat(ImageView<T> img)
 {
     int type = -1;
-#if defined(SAIGA_USE_CUDA)
+#if defined(SAIGA_CUDA_INCLUDED)
     if(typeid(T) == typeid(uchar3))type = CV_8UC3;
     if(typeid(T) == typeid(uchar4))type = CV_8UC4;
 #endif

@@ -9,7 +9,7 @@
 struct SAIGA_GLOBAL Intrinsics
 {
     int w, h;
-    cv::Mat K, dist;
+    cv::Mat1d K, dist;
 
     void writeToFile(std::string file);
     void readFromFile(std::string file);
@@ -17,7 +17,7 @@ struct SAIGA_GLOBAL Intrinsics
 
 struct SAIGA_GLOBAL StereoExtrinsics
 {
-    cv::Mat R,t,E,F;
+    cv::Mat1d R,t,E,F;
 
     void writeToFile(std::string file);
     void readFromFile(std::string file);

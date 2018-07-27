@@ -21,6 +21,7 @@ protected:
     size_t capacity = 0;
 
 
+public:
     T* getPtr(int id){
         char* ptr = buffer.data() + id * sizeof(T);
         return reinterpret_cast<T*>(ptr);
@@ -30,7 +31,6 @@ protected:
         return *getPtr(id);
     }
 
-public:
 
 
     ManagedBuffer(size_t capacity) :
