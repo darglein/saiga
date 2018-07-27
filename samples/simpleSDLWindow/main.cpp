@@ -36,7 +36,6 @@ int main( int argc, char* args[] )
     // Everyhing is initilalized, we can run the main loop now!
     MainLoopParameters mainLoopParameters;
     mainLoopParameters.fromConfigFile("config.ini");
-    mainLoopParameters.framesPerSecond = 0;
     window.startMainLoop(mainLoopParameters);
     return 0;
 }
