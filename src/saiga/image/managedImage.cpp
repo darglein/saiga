@@ -17,7 +17,7 @@
 #include "saiga/util/tostring.h"
 #include "saiga/util/color.h"
 
-#include "internal/stb_image_wrapper.h"
+#include "internal/stb_image_read_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
 
 
@@ -141,6 +141,19 @@ bool Image::load(const std::string &_path)
     return erg;
 }
 
+bool Image::loadFromMemory(array_view<const char> data)
+{
+    bool erg = false;
+
+#ifdef SAIGA_USE_FREEIMAGE
+    erg = FIP::loadFromMemory(data,*this);
+    return erg;
+#endif
+
+
+    return erg;
+}
+
 bool Image::save(const std::string &path)
 {
     bool erg = false;
@@ -153,7 +166,7 @@ bool Image::save(const std::string &path)
     }
 
 
-#ifdef SAIGA_USE_PNG1
+#ifdef SAIGA_USE_PNG
     //use libpng for png images
     if(type == "png")
     {
@@ -248,6 +261,16 @@ bool Image::saveRaw(const std::string &path)
     stream.close();
 
     return true;
+}
+
+std::vector<uint8_t> Image::compress()
+{
+    return compressImageSTB(*this);
+}
+
+void Image::decompress(std::vector<uint8_t> data)
+{
+    decompressImageSTB(*this,data);
 }
 
 

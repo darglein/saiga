@@ -60,6 +60,20 @@ std::string loadFileString(const std::string &file)
     return fileContent;
 }
 
+void saveFileBinary(const std::string &file, array_view<const char> data)
+{
+    std::vector<unsigned char> result;
+
+    std::ofstream is(file, std::ios::binary | std::ios::out);
+    if (!is.is_open()) {
+        cout << "File not found " << file << endl;
+        return;
+    }
+
+    is.write(data.data(),data.size());
+    is.close();
+}
+
 
 }
 }

@@ -4,9 +4,9 @@ add_subdirectory(saiga)
 add_subdirectory(internal)
 
 #creates 'folders' in the solution explorer of visual studio
-GroupSources2(${PROJECT_SOURCE_DIR}/src)
-GroupSources2(${PROJECT_SOURCE_DIR}/include/saiga)
-GroupSources(${PROJECT_SOURCE_DIR} shader)
+#GroupSources2(${PROJECT_SOURCE_DIR}/src)
+#GroupSources2(${PROJECT_SOURCE_DIR}/include/saiga)
+#GroupSources(${PROJECT_SOURCE_DIR} shader)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 

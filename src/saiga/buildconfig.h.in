@@ -42,6 +42,8 @@
 #cmakedefine SAIGA_USE_EIGEN
 #cmakedefine SAIGA_EIGEN_AND_CUDA
 #cmakedefine SAIGA_USE_VULKAN
+#cmakedefine SAIGA_USE_OPENCV
+#cmakedefine SAIGA_USE_GPHOTO2
 
 //############# Build Options ###############
 

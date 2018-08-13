@@ -11,6 +11,13 @@
 #include "boost/asio.hpp"
 #include "saiga/util/ini/ini.h"
 
+
+#include "saiga/time/timer.h"
+
+#include <thread>
+#include <condition_variable>
+#include <mutex>
+
 using namespace Saiga;
 
 using namespace boost::asio;
@@ -42,14 +49,82 @@ int main(int argc, char *argv[])
     co2.h = 240;
     camera.open( co1,co2);
 
-    while(true)
-    {
-        camera.readFrame();
 
-        it.sendImage(camera.colorImg);
-        it.sendImage(camera.depthImg);
-        cout << "image send" << endl;
+#if 0
+
+    auto frame = camera.makeFrameData();
+
+    int id = 0;
+
+    AverageTimer at;
+    for(int i =0; i < 300; ++i)
+    {
+        at.start();
+        camera.readFrame(*frame);
+
+        it.sendImage(frame->colorImg);
+        it.sendImage(frame->depthImg);
+        at.stop();
+
+
+        cout << id << " image send. Fps: " << 1000.0 / at.getTimeMS() << endl;
         //        sendImage(camera.colorImg,socket,remote_endpoint);
+        ++id;
 
     }
+#else
+
+    bool running = true;
+    std::mutex lock1;
+    std::condition_variable cv1;
+     std::shared_ptr<RGBDCamera::FrameData> buffer1;
+
+    std::thread pullThread(
+                [&]()
+    {
+        std::shared_ptr<RGBDCamera::FrameData> frame = camera.makeFrameData();
+
+        while(running)
+        {
+             camera.readFrame(*frame);
+            {
+                std::unique_lock<std::mutex> l(lock1);
+                buffer1 = frame;
+                cv1.notify_one();
+            }
+        }
+    });
+
+    int id = 0;
+
+    AverageTimer at;
+      for(int i =0; i < 300; ++i)
+    {
+
+
+          std::shared_ptr<RGBDCamera::FrameData> frame;
+        {
+            std::unique_lock<std::mutex> l(lock1);
+            cv1.wait(l, [&](){return buffer1;}); //wait until the buffer is valid
+            frame = buffer1;
+            buffer1.reset();
+        }
+
+
+
+          it.sendImage(frame->colorImg);
+          it.sendImage(frame->depthImg);
+          at.stop();
+          at.start();
+
+          cout << id << " image send. Fps: " << 1000.0 / at.getTimeMS() << endl;
+          //        sendImage(camera.colorImg,socket,remote_endpoint);
+          ++id;
+    }
+      running = false;
+
+    pullThread.join();
+
+#endif
+    return 0;
 }

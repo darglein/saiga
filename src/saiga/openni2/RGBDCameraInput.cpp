@@ -8,6 +8,7 @@
 #include "saiga/image/imageTransformations.h"
 
 #include <OpenNI.h>
+#include <thread>
 #include "internal/noGraphicsAPI.h"
 
 
@@ -164,8 +165,7 @@ bool RGBDCameraInput::open(CameraOptions rgbo, CameraOptions deptho)
     openni::VideoMode depthVideoMode;
     openni::VideoMode colorVideoMode;
 
-    int colorW, colorH;
-    int depthW, depthH;
+
 
     colorW = color->getVideoMode().getResolutionX();
     colorH = color->getVideoMode().getResolutionY();
@@ -174,8 +174,8 @@ bool RGBDCameraInput::open(CameraOptions rgbo, CameraOptions deptho)
     depthH = depth->getVideoMode().getResolutionY();
 
 
-    colorImg.create(colorH,colorW);
-    depthImg.create(depthH,depthW);
+//    colorImg.create(colorH,colorW);
+//    depthImg.create(depthH,depthW);
 
 
     cout << "RGBD Camera opened."  << endl;
@@ -184,14 +184,44 @@ bool RGBDCameraInput::open(CameraOptions rgbo, CameraOptions deptho)
     return true;
 }
 
-bool RGBDCameraInput::readFrame()
+bool RGBDCameraInput::readFrame(FrameData &data)
 {
     openni::Status res;
 
-    res = depth->readFrame(m_depthFrame.get());
-    if (res != openni::STATUS_OK) return false;
 
-    res = color->readFrame(m_colorFrame.get());
+    openni::VideoStream* streams[2] = {depth.get(),color.get()};
+    int streamIndex;
+    openni::OpenNI::waitForAnyStream(streams,2,&streamIndex);
+
+    if(streamIndex == 0)
+    {
+//        std::thread t(&RGBDCameraInput::readDepth,this);
+        readDepth(data.depthImg);
+        readColor(data.colorImg);
+//        t.join();
+
+    }else{
+        readColor(data.colorImg);
+        readDepth(data.depthImg);
+
+
+//        std::thread t(&RGBDCameraInput::readColor,this);
+
+//        readDepth();
+//        t.join();
+    }
+
+
+
+
+
+
+    return true;
+}
+
+bool RGBDCameraInput::readDepth(ImageView<unsigned short> depthImg)
+{
+    auto res = depth->readFrame(m_depthFrame.get());
     if (res != openni::STATUS_OK) return false;
 
     ImageView<uint16_t> rawDepthImg(
@@ -206,7 +236,13 @@ bool RGBDCameraInput::readFrame()
             depthImg(i,j) = rawDepthImg(i,rawDepthImg.width-j-1);
         }
     }
+    return true;
+}
 
+bool RGBDCameraInput::readColor(ImageView<ucvec3> colorImg)
+{
+    auto res = color->readFrame(m_colorFrame.get());
+    if (res != openni::STATUS_OK) return false;
 
     ImageView<ucvec3> rawImg(
                 m_colorFrame->getHeight(),
@@ -217,7 +253,8 @@ bool RGBDCameraInput::readFrame()
     {
         for(int j =0; j < rawImg.width; ++j)
         {
-            colorImg(i,j) = ucvec4(rawImg(i,rawImg.width-j-1),0);
+//            colorImg(i,j) = ucvec4(rawImg(i,rawImg.width-j-1),0);
+            colorImg(i,j) = ucvec3(rawImg(i,rawImg.width-j-1));
         }
     }
 

@@ -54,6 +54,12 @@ public:
         return Image::getImageView<T>();
     }
 
+    ImageView<const T> getConstImageView() const
+    {
+        return Image::getConstImageView<T>();
+    }
+
+
 
     T* data()
     {

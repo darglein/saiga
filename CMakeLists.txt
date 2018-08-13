@@ -6,7 +6,7 @@ project (${LIB_NAME} CXX)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include(helper_macros)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-
+include_directories(${PROJECT_SOURCE_DIR}/shader/include)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/saiga/opengl/glbinding/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include)
@@ -49,12 +49,25 @@ message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 include(Saiga_compiler_flags)
 
 
+
+############# Required LIBRARIES ###############
+
+#GLM
+find_package(GLM REQUIRED QUIET)
+PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
+
+
+#dbghelp for crash.cpp
+if(WIN32)
+    SET(LIBS ${LIBS} DbgHelp)
+endif(WIN32)
+
 ############# Optional Libraries ###############
 
 
 message(STATUS "\nSearching for installed libaries...")
 
-### SDL2 ###
+# SDL2
 find_package(SDL2 QUIET)
 if (SDL2_FOUND)
     SET(SAIGA_USE_SDL 1)
@@ -155,8 +168,6 @@ if(EIGEN3_FOUND)
 endif()
 PackageHelper(Eigen3 "${EIGEN3_FOUND}" "${EIGEN3_INCLUDE_DIRS}" "")
 
-#message(STATUS Eigen version: ${Eigen3_VERSION} ${Eigen3_VERSION_MAJOR} ${Eigen3_VERSION_MINOR})
-
 
 #bullet
 find_package(Bullet QUIET)
@@ -179,6 +190,50 @@ if(Boost_FOUND)
     SET(SAIGA_USE_BOOST 1)
 endif()
 PackageHelper(Boost "${Boost_FOUND}" "${Boost_INCLUDE_DIRS}" "${Boost_LIBRARIES}")
+
+
+#opencv
+find_package(OpenCV QUIET)
+if(OpenCV_FOUND)
+    SET(SAIGA_USE_OPENCV 1)
+endif()
+PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRARIES}")
+
+
+##### Vulkan #####
+find_package(Vulkan QUIET)
+PackageHelper(Vulkan "${VULKAN_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
+
+find_package(GLslang QUIET)
+PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
+
+if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
+    SET(SAIGA_USE_VULKAN 1)
+endif()
+
+
+if(SAIGA_WITH_GL)
+    find_package(OpenGL QUIET)
+    PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
+endif()
+if(OPENGL_FOUND)
+    SET(SAIGA_USE_OPENGL 1)
+endif()
+
+
+#freetype2
+find_package(Freetype QUIET)
+PackageHelper(Freetype "${FREETYPE_FOUND}" "${FREETYPE_INCLUDE_DIRS}" "${FREETYPE_LIBRARIES}")
+if(FREETYPE_FOUND)
+    SET(SAIGA_USE_FREETYPE 1)
+endif()
+
+#freetype2
+find_package(Gphoto2 QUIET)
+PackageHelper(Gphoto2 "${GPHOTO2_FOUND}" "${Gphoto2_INCLUDE_DIRS}" "${Gphoto2_LIBRARIES}")
+if(GPHOTO2_FOUND)
+    SET(SAIGA_USE_GPHOTO2 1)
+endif()
 
 ############# CUDA ###############
 
@@ -246,52 +301,9 @@ else()
     SET(SAIGA_USE_CUDA 0)
 endif()
 
-
 PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
 
 
-##### Vulkan #####
-
-find_package(Vulkan QUIET)
-PackageHelper(Vulkan "${VULKAN_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
-
-find_package(GLslang QUIET)
-PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
-
-if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
-    SET(SAIGA_USE_VULKAN 1)
-endif()
-
-
-if(SAIGA_WITH_GL)
-    find_package(OpenGL QUIET)
-    PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
-endif()
-if(OPENGL_FOUND)
-    SET(SAIGA_USE_OPENGL 1)
-endif()
-
-############# Required LIBRARIES ###############
-
-#freetype2
-find_package(Freetype QUIET)
-PackageHelper(Freetype "${FREETYPE_FOUND}" "${FREETYPE_INCLUDE_DIRS}" "${FREETYPE_LIBRARIES}")
-if(FREETYPE_FOUND)
-    SET(SAIGA_USE_FREETYPE 1)
-endif()
-
-
-
-
-#GLM
-find_package(GLM REQUIRED QUIET)
-PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
-
-
-#dbghelp for crash.cpp
-if(WIN32)
-    SET(LIBS ${LIBS} DbgHelp)
-endif(WIN32)
 
 if(SAIGA_EIGEN_AND_CUDA)
     message(STATUS "Enabled Eigen with CUDA -> Eigen ${Eigen3_VERSION} Cuda ${CUDA_VERSION}")

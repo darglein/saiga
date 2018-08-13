@@ -10,11 +10,15 @@
 #include "saiga/image/imageView.h"
 #include "saiga/image/imageFormat.h"
 #include "saiga/util/fileChecker.h"
+#include "saiga/util/array_view.h"
 #include <vector>
 
 namespace Saiga {
 
 #define DEFAULT_ALIGNMENT 4
+/**
+ * Note: The first scanline is at position data[0].
+ */
 
 class SAIGA_GLOBAL Image : public ImageBase
 {
@@ -23,6 +27,7 @@ public:
     static FileChecker searchPathes;
 
     using byte_t = unsigned char;
+
 
 
     ImageType type = TYPE_UNKNOWN;
@@ -89,9 +94,17 @@ public:
     template<typename T>
     ImageView<T> getImageView()
     {
-//        SAIGA_ASSERT(elementSize(type) == sizeof(T));
         SAIGA_ASSERT(ImageTypeTemplate<T>::type == type);
         ImageView<T> res(*this);
+        res.data = data();
+        return res;
+    }
+
+    template<typename T>
+    ImageView<const T> getConstImageView() const
+    {
+        SAIGA_ASSERT(ImageTypeTemplate<T>::type == type);
+        ImageView<const T> res(*this);
         res.data = data();
         return res;
     }
@@ -105,12 +118,18 @@ public:
     }
 
     bool load(const std::string &path);
+    bool loadFromMemory(array_view<const char> data);
+
     bool save(const std::string &path);
 
     // save in a custom saiga format
     // this can handle all image types
     bool loadRaw(const std::string &path);
     bool saveRaw(const std::string &path);
+
+
+    std::vector<uint8_t> compress();
+    void decompress(std::vector<uint8_t> data);
 
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Image& f);
 };

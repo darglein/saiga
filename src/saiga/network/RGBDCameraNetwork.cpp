@@ -25,11 +25,14 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
     while(!gotC || !gotD){
         trans->recieveImage(img);
         cout << "rec " << img << endl;
-        if(img.type == Saiga::UC4)
+        if(img.type == Saiga::UC3)
         {
             if(!gotC)
             {
-                colorImg.create(img.height,img.width,img.pitchBytes);
+//                colorImg.create(img.height,img.width,img.pitchBytes);
+                colorW = img.width;
+
+                colorH = img.height;
                 gotC = true;
             }
 
@@ -37,7 +40,10 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
 
             if(!gotD)
             {
-                depthImg.create(img.height,img.width,img.pitchBytes);
+                depthW = img.width;
+
+                depthH = img.height;
+//                depthImg.create(img.height,img.width,img.pitchBytes);
                 gotD = true;
             }
         }
@@ -45,16 +51,16 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
 }
 
 
-bool RGBDCameraNetwork::readFrame()
+bool RGBDCameraNetwork::readFrame(FrameData &data)
 {
     while(true)
     {
-        while(!trans->recieveImageType(colorImg))
+        while(!trans->recieveImageType(data.colorImg))
         {
 
         }
 
-        if(trans->recieveImageType(depthImg))
+        if(trans->recieveImageType(data.depthImg))
             return true;
     }
 

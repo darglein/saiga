@@ -62,6 +62,11 @@ public:
 
     void setModelMatrix(const mat4& model);
     void setViewMatrix(const mat4& view);
+
+    // Correct linear spherical interpolation between the two object states.
+    static Object3D interpolate(const Object3D& a, const Object3D& b, float alpha);
+
+    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Object3D& ob);
 } ;
 
 

@@ -126,7 +126,7 @@ void VulkanTexturedAsset::init(VulkanBase &base)
         if(img.type == UC3)
         {
             Saiga::TemplatedImage<ucvec4> img2(img.height,img.width);
-            Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(),img2.getImageView());
+            Saiga::ImageTransformation::addAlphaChannel(img.getConstImageView<ucvec3>(),img2.getImageView());
 //            cout << img2 << endl;
             tex->fromImage(base,img2);
         }else{

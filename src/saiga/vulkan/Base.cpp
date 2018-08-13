@@ -37,7 +37,8 @@ void VulkanBase::destroy()
     }
     if (device)
     {
-        vkDestroyDevice(device, nullptr);
+//        vkDestroyDevice(device, nullptr);
+        device.destroy();
     }
 
 

@@ -34,11 +34,14 @@ public:
 
     bool open(CameraOptions rgbo, CameraOptions deptho);
 
-    bool readFrame() override;
+    bool readFrame(FrameData& data) override;
 private:
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;
     std::shared_ptr<openni::VideoFrameRef> m_depthFrame,m_colorFrame;
+
+    bool readDepth(ImageView<unsigned short> depthImg);
+    bool readColor(ImageView<ucvec3> colorImg);
 };
 
 }

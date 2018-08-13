@@ -162,7 +162,9 @@ void initSaiga(const SaigaParameters& params)
 
 #ifdef SAIGA_USE_VULKAN
     Vulkan::GLSLANG::init();
+    Vulkan::GLSLANG::shaderPathes.addSearchPath(".");
     Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir);
+    Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir + "/include");
 #endif
 
 

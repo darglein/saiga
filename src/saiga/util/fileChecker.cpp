@@ -13,7 +13,6 @@ namespace Saiga {
 
 FileChecker::FileChecker()
 {
-    addSearchPath(".");
 }
 
 std::string FileChecker::getFile(const std::string &file)
