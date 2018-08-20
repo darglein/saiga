@@ -39,6 +39,9 @@ OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" 
 OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
 OptionsHelper(SAIGA_WITH_GL "With opengl" ON)
+OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
+
+
 
 DefaultBuildType()
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
@@ -292,10 +295,10 @@ if(CUDA_FOUND)
     endif()
     SET(SAIGA_USE_CUDA 1)
 
-    if(EIGEN3_FOUND)
-        if(${Eigen3_VERSION} VERSION_GREATER_EQUAL "3.3.90" AND ${CUDA_VERSION} VERSION_GREATER_EQUAL "9.2")
+    if(SAIGA_U_EIGEN_CUDA)
+        #if(${Eigen3_VERSION} VERSION_GREATER_EQUAL "3.3.90" AND ${CUDA_VERSION} VERSION_GREATER_EQUAL "9.2")
             SET(SAIGA_EIGEN_AND_CUDA 1)
-        endif()
+        #endif()
     endif()
 else()
     SET(SAIGA_USE_CUDA 0)

@@ -13,14 +13,17 @@ namespace Saiga {
 
 FileChecker::FileChecker()
 {
+	searchPathes.push_back(".");
 }
 
 std::string FileChecker::getFile(const std::string &file)
 {
     for(std::string &path : searchPathes){
         std::string fullName = path + "/" + file;
-        if(existsFile(fullName))
-            return fullName;
+		if (existsFile(fullName))
+		{
+			return fullName;
+		}
     }
     return "";
 }
