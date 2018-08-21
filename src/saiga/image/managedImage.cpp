@@ -156,6 +156,8 @@ bool Image::loadFromMemory(array_view<const char> data)
 
 bool Image::save(const std::string &path)
 {
+    SAIGA_ASSERT(valid());
+
     bool erg = false;
     std::string type = fileEnding(path);
 

@@ -1,0 +1,28 @@
+#pragma once
+
+#include "saiga/opencv/opencv.h"
+
+#include <opencv2/opencv.hpp>
+#include "opencv2/core/core.hpp"
+
+namespace Saiga
+{
+
+struct SAIGA_GLOBAL Intrinsics
+{
+    int w, h;
+    cv::Mat1d K, dist;
+
+    void writeToFile(std::string file);
+    void readFromFile(std::string file);
+};
+
+struct SAIGA_GLOBAL StereoExtrinsics
+{
+    cv::Mat1d R,t,E,F;
+
+    void writeToFile(std::string file);
+    void readFromFile(std::string file);
+};
+
+}

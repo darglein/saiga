@@ -27,6 +27,8 @@ public:
     GPhoto();
     ~GPhoto();
 
+    bool isOpenend() { return foundCamera; }
+
 
     bool hasNewImage(Image& img);
 private:
@@ -39,10 +41,11 @@ private:
     std::mutex mut;
     std::thread eventThread;
 
+    bool foundCamera = false;
     void *context;
     void	*camera;
 
-    bool running = true;
+    bool running = false;
 
     void eventLoop();
 

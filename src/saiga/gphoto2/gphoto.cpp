@@ -45,6 +45,7 @@ GPhoto::GPhoto()
 
     cout << "GPhoto::GPhoto" << endl;
     context = gp_context_new();
+    SAIGA_ASSERT(context);
 
     /* All the parts below are optional! */
     gp_context_set_error_func ((GPContext*)context, ctx_error_func, NULL);
@@ -53,23 +54,33 @@ GPhoto::GPhoto()
 
     gp_camera_new((Camera**)&camera);
 
-    printf("Camera init.  Takes about 10 seconds.\n");
+    SAIGA_ASSERT(camera);
+
+//    printf("Camera init.  Takes about 10 seconds.\n");
     auto retval = gp_camera_init((Camera*)camera, (GPContext*)context);
-    if (retval != GP_OK) {
-        printf("  Retval of capture_to_file: %d\n", retval);
-        exit (1);
+    if (retval != GP_OK)
+    {
+        cout << "Failed to open dslr camera." << endl;
+//        exit (1);
+        foundCamera = false;
+        return;
     }
 
 
 
+    foundCamera = true;
+    running = true;
     eventThread = std::thread(&GPhoto::eventLoop,this);
 
 }
 
 GPhoto::~GPhoto()
 {
-    running = false;
-    eventThread.join();
+    if(running)
+    {
+        running = false;
+        eventThread.join();
+    }
 
     gp_camera_free((Camera*)camera);
 

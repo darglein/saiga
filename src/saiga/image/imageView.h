@@ -356,7 +356,7 @@ template<typename T>
 inline
 std::ostream& operator<<(std::ostream& os, const ImageView<T>& iv)
 {
-    os << "ImageView " << iv.width << "x" << iv.height << " " << iv.pitchBytes;
+    os << "ImageView " << iv.width << "x" << iv.height << " " << iv.pitchBytes << " ptr: " << iv.data;
     return os;
 }
 
