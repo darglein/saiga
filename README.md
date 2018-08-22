@@ -26,9 +26,7 @@ Older version might work too, but are not officially supported.
 ## Required Dependencies
 
  * OpenGL 3.3
- * [GLEW](https://github.com/nigels-com/glew) or [glbinding](https://github.com/cginternals/glbinding)
  * [GLM](https://github.com/g-truc/glm)
- * [freetype](https://www.freetype.org/)
 
 ## Optional Dependencies
 
@@ -48,13 +46,18 @@ Video Recording
 Model Loading
  * [ASSIMP](https://github.com/assimp/assimp)
  
-Image loading
+Image/Font loading
  * [PNG](http://www.libpng.org/pub/png/libpng.html)
  * [FreeImage + FreeImagePlus](http://freeimage.sourceforge.net/)
+ * [freetype](https://www.freetype.org/)
  
 Utility
  * [Eigen](http://eigen.tuxfamily.org)
  * [CUDA](https://developer.nvidia.com/cuda-downloads)
+ 
+ Vulkan
+ * [LunarG SDK](https://www.lunarg.com/vulkan-sdk/)
+ * [GLSLANG](https://github.com/KhronosGroup/glslang)
 
 ## Building + Running the samples
 
