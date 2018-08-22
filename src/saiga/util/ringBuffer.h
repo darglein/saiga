@@ -58,6 +58,16 @@ public:
         rear = (rear + 1) % capacity;
     }
 
+    //adds one element to the buffer
+    //overrides the first element if full
+    void addOverride(const T& data)
+    {
+        if(empty()) front = rear;
+        if(full()) front = (front + 1) % capacity;
+        (*this)[rear] = data;
+        rear = (rear + 1) % capacity;
+    }
+
     //adds the element by swapping
     void addSwap(T& data)
     {
