@@ -118,7 +118,7 @@ T blockInclusiveScan(T val, T* shared, T* sharedBlockPrefix) {
 template<bool EXCLUSIVE_SCAN=true, unsigned int BLOCK_SIZE=256, unsigned int TILES_PER_BLOCK=8, typename vector_type=int4, bool CHECK_BOUNDS=true>
 __global__
 __launch_bounds__(BLOCK_SIZE)
-void tiledSinglePassScan(array_view<unsigned int> in, array_view<unsigned int> out, array_view<unsigned int> aggregate) {
+void tiledSinglePassScan(ArrayView<unsigned int> in, ArrayView<unsigned int> out, ArrayView<unsigned int> aggregate) {
 
     const unsigned int ELEMENTS_PER_VECTOR  = sizeof(vector_type) / sizeof(unsigned int);
     const unsigned int ELEMENTS_PER_TILE    = BLOCK_SIZE * ELEMENTS_PER_VECTOR;

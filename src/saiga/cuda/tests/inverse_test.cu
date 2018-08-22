@@ -21,7 +21,7 @@ namespace CUDA{
 template<typename T, int N, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__
-void invertMatrices(Saiga::array_view<T> data, Saiga::array_view<T> result){
+void invertMatrices(Saiga::ArrayView<T> data, Saiga::ArrayView<T> result){
     const int matrixElements = N * N;
 
     Saiga::CUDA::ThreadInfo<BLOCK_SIZE> ti;
@@ -47,7 +47,7 @@ void invertMatrices(Saiga::array_view<T> data, Saiga::array_view<T> result){
 template<typename T, int N, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__
-void invertMatrices2(Saiga::array_view<T> data, Saiga::array_view<T> result){
+void invertMatrices2(Saiga::ArrayView<T> data, Saiga::ArrayView<T> result){
     const int matrixElements = N * N;
     const int elementsPerWarp = matrixElements * WARP_SIZE;
 //    const int elementsPerBlock = matrixElements * BLOCK_SIZE;
@@ -99,7 +99,7 @@ void invertMatrices2(Saiga::array_view<T> data, Saiga::array_view<T> result){
 template<typename T, int N, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__
-void invertMatrices3(Saiga::array_view<T> data, Saiga::array_view<T> result){
+void invertMatrices3(Saiga::ArrayView<T> data, Saiga::ArrayView<T> result){
     const int matrixElements = N * N;
 //    const int elementsPerWarp = matrixElements * WARP_SIZE;
 //    const int elementsPerBlock = matrixElements * BLOCK_SIZE;
@@ -188,7 +188,7 @@ void test3(T* buffer){
 template<typename T, int N, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__
-void matrixCopy(Saiga::array_view<T> data, Saiga::array_view<T> result){
+void matrixCopy(Saiga::ArrayView<T> data, Saiga::ArrayView<T> result){
 //    const int padding = 1;
     const int matrixElements = N * N;
     const int elementsPerWarp = matrixElements * WARP_SIZE;

@@ -32,7 +32,7 @@ public:
 
     bool hasNewImage(Image& img);
 private:
-    array_view<const char> adata;
+    ArrayView<const char> adata;
     bool gotImage = false;
     std::string imageName;
     std::string imageDir;

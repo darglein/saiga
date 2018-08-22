@@ -157,7 +157,7 @@ void GPhoto::eventLoop()
 
                 cout << "size " << size << endl;
 
-                adata = array_view<const char>(data,size);
+                adata = ArrayView<const char>(data,size);
             }
 
         }
@@ -246,7 +246,7 @@ GPhoto::waitCaptureComplete ()
         //         close (fd);
 
 
-        array_view<const char> adata(data,size);
+        ArrayView<const char> adata(data,size);
         //        File::saveFileBinary("test.jpg",adata);
 
 

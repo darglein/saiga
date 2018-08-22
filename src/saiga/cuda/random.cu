@@ -20,7 +20,7 @@ namespace CUDA{
 
 template<int BLOCK_SIZE>
 __global__
-static void curand_setup_kernel( array_view<curandState> state, unsigned long long seed)
+static void curand_setup_kernel( ArrayView<curandState> state, unsigned long long seed)
 {
     ThreadInfo<BLOCK_SIZE> ti;
     //grid stride loop
@@ -36,7 +36,7 @@ static void curand_setup_kernel( array_view<curandState> state, unsigned long lo
 
 template<int BLOCK_SIZE, int N>
 __global__
-static void random_test( array_view<curandState> state, array_view<float> out)
+static void random_test( ArrayView<curandState> state, ArrayView<float> out)
 {
     ThreadInfo<BLOCK_SIZE> ti;
     //grid stride loop
@@ -52,7 +52,7 @@ static void random_test( array_view<curandState> state, array_view<float> out)
 }
 
 
-void initRandom(array_view<curandState> states, unsigned long long seed){
+void initRandom(ArrayView<curandState> states, unsigned long long seed){
     const        size_t THREADS_PER_BLOCK = 256;
     const        size_t NUM_BLOCKS = getBlockCount(states.size(),THREADS_PER_BLOCK);
     curand_setup_kernel<THREADS_PER_BLOCK><<< NUM_BLOCKS,THREADS_PER_BLOCK >>>(states,seed);

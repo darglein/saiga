@@ -9,6 +9,7 @@
 #include "opencv2/opencv.hpp"
 #include "saiga/image/imageView.h"
 #include "saiga/util/glm.h"
+#include "saiga/opencv/OpenCV_GLM.h"
 
 #ifdef SAIGA_CUDA_INCLUDED
 #include <vector_types.h>
@@ -47,6 +48,17 @@ cv::Mat ImageViewToMat(ImageView<T> img)
 }
 
 
+/**
+ * Computes the scaled intrinsics matrix of K.
+ * Useful for example when a downsampled version of the image is used.
+ */
+SAIGA_GLOBAL inline
+glm::mat3 scaleK(glm::mat3 K, float scale)
+{
+    K *= scale;
+    K[2][2] = 1;
+    return K;
+}
 
 
 }

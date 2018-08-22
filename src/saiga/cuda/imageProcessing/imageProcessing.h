@@ -8,7 +8,7 @@
 
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/image/imageView.h"
-#include "saiga/util/array_view.h"
+#include "saiga/util/ArrayView.h"
 
 namespace Saiga {
 namespace CUDA {
@@ -51,20 +51,20 @@ SAIGA_GLOBAL void convertRGBAtoBGR(ImageView<uchar4> src, ImageView<uchar3> dst)
 #define SAIGA_MAX_CONVOLUTION_RADIUS 24
 #define SAIGA_MAX_KERNEL_SIZE (SAIGA_MAX_CONVOLUTION_RADIUS*2+1)
 
-SAIGA_GLOBAL void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
-SAIGA_GLOBAL void convolveSinglePassSeparateOuterHalo(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
-SAIGA_GLOBAL void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
-SAIGA_GLOBAL void convolveSinglePassSeparateInner75(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
-SAIGA_GLOBAL void convolveSinglePassSeparateInnerShuffle(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparateOuterHalo(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparateInner75(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius);
+SAIGA_GLOBAL void convolveSinglePassSeparateInnerShuffle(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius);
 
-SAIGA_GLOBAL void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
-SAIGA_GLOBAL void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius);
+SAIGA_GLOBAL void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius);
+SAIGA_GLOBAL void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius);
 
 SAIGA_GLOBAL thrust::device_vector<float> createGaussianBlurKernel(int radius, float sigma);
 
 //uploads kernel and convoles images
-SAIGA_GLOBAL void applyFilterSeparate(ImageView<float> src, ImageView<float> dst, ImageView<float> tmp, array_view<float> kernelRow, array_view<float> kernelCol);
-SAIGA_GLOBAL void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, array_view<float> kernel);
+SAIGA_GLOBAL void applyFilterSeparate(ImageView<float> src, ImageView<float> dst, ImageView<float> tmp, ArrayView<float> kernelRow, ArrayView<float> kernelCol);
+SAIGA_GLOBAL void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, ArrayView<float> kernel);
 
 
 }

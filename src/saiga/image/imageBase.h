@@ -20,11 +20,15 @@ namespace Saiga {
 struct SAIGA_GLOBAL ImageBase
 {
     union{
+        int w;
         int width;
+        int c;
         int cols;
     };
     union{
+        int h;
         int height;
+        int r;
         int rows;
     };
 

@@ -19,7 +19,7 @@ namespace CUDA {
 template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void copyUnCoalesced(array_view<T> data, array_view<T> result){
+void copyUnCoalesced(ArrayView<T> data, ArrayView<T> result){
 
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
@@ -50,7 +50,7 @@ void copyUnCoalesced(array_view<T> data, array_view<T> result){
 template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void copyFullCoalesced(array_view<T> data, array_view<T> result){
+void copyFullCoalesced(ArrayView<T> data, ArrayView<T> result){
 
     const int elementsPerWarp = ElementSize * WARP_SIZE;
 
@@ -82,7 +82,7 @@ void copyFullCoalesced(array_view<T> data, array_view<T> result){
 template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void sharedMemoryUnCoalesced(array_view<T> data, array_view<T> result){
+void sharedMemoryUnCoalesced(ArrayView<T> data, ArrayView<T> result){
 
     __shared__ T buffer[BLOCK_SIZE][ElementSize + 0];
 
@@ -130,7 +130,7 @@ void sharedMemoryUnCoalesced(array_view<T> data, array_view<T> result){
 template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void sharedMemoryCoalesced(array_view<T> data, array_view<T> result){
+void sharedMemoryCoalesced(ArrayView<T> data, ArrayView<T> result){
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
 
     const int elementsPerWarp = ElementSize * WARP_SIZE;
@@ -194,7 +194,7 @@ void sharedMemoryCoalesced(array_view<T> data, array_view<T> result){
 template<typename T, int ElementSize, unsigned int BLOCK_SIZE, typename VectorType = int2>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void sharedMemoryCoalesced2(array_view<T> data, array_view<T> result){
+void sharedMemoryCoalesced2(ArrayView<T> data, ArrayView<T> result){
 
 
     const int elementSize = sizeof(T) * ElementSize;
@@ -345,7 +345,7 @@ void sharedMemoryCoalesced2(array_view<T> data, array_view<T> result){
 template<typename T, int ElementSize, unsigned int BLOCK_SIZE, typename VectorType = int4, int localWarpSize2 = -1>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void shuffleCopy(array_view<T> data, array_view<T> result){
+void shuffleCopy(ArrayView<T> data, ArrayView<T> result){
 
     const int localWarpSize = localWarpSize2 == -1 ? int(L2_CACHE_LINE_SIZE / sizeof(VectorType)) : localWarpSize2;
     const int vectorsPerElement = CUDA::getBlockCount(ElementSize*sizeof(T), sizeof(VectorType));

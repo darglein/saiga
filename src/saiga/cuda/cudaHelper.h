@@ -9,7 +9,7 @@
 
 #include "saiga/config.h"
 #include "saiga/cuda/cuda.h"
-#include "saiga/util/array_view.h"
+#include "saiga/util/ArrayView.h"
 #include "saiga/cuda/cudaTimer.h"
 #include "saiga/util/imath.h"
 

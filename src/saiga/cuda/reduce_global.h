@@ -17,7 +17,7 @@ namespace CUDA{
 
 template<typename T, unsigned int BLOCK_SIZE>
 __device__ inline
-T reduceLocalVector(array_view<T> in){
+T reduceLocalVector(ArrayView<T> in){
     T sum = T(0);
     unsigned int N = in.size();
 
@@ -53,7 +53,7 @@ T reduceLocalVector(array_view<T> in){
 
 template<typename T, unsigned int BLOCK_SIZE>
 __global__
-void reduceBlockShared(array_view<T> in, T* out) {
+void reduceBlockShared(ArrayView<T> in, T* out) {
     __shared__ T shared[BLOCK_SIZE/WARP_SIZE];
 
     T sum = reduceLocalVector<T,BLOCK_SIZE>(in);
@@ -64,7 +64,7 @@ void reduceBlockShared(array_view<T> in, T* out) {
 
 template<typename T, unsigned int BLOCK_SIZE>
 __global__
-void reduceBlockSharedAtomic(array_view<T> in, T* out) {
+void reduceBlockSharedAtomic(ArrayView<T> in, T* out) {
     __shared__ T shared;
     T sum = reduceLocalVector<T,BLOCK_SIZE>(in);
     sum = blockReduceAtomicSum<T,BLOCK_SIZE>(sum,&shared);
@@ -75,7 +75,7 @@ void reduceBlockSharedAtomic(array_view<T> in, T* out) {
 
 template<typename T, unsigned int BLOCK_SIZE>
 __global__
-void reduceAtomic(array_view<T> in, T* out) {
+void reduceAtomic(ArrayView<T> in, T* out) {
     T sum = reduceLocalVector<T,BLOCK_SIZE>(in);
     sum = warpReduceSum(sum);
     int lane = threadIdx.x & (WARP_SIZE-1);

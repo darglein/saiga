@@ -158,7 +158,7 @@ static void convolveCol(ImageView<float> src, ImageView<float> dst){
     linearColumnFilter<ksize><<<grid, block>>>(src, dst, anchor);
 }
 
-void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::array_view<float> kernel, int radius){
+void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius){
     SAIGA_ASSERT(kernel.size() > 0 && kernel.size() <= SAIGA_MAX_KERNEL_SIZE);
     CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
 

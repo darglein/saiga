@@ -16,7 +16,7 @@ namespace CUDA {
  * Example Ussage:
  *
  * //Global array of particles with size = 8 * float
- * Saiga::array_view<Particle> particles
+ * Saiga::ArrayView<Particle> particles
  *
  * Saiga::CUDA::ThreadInfo<0,2> ti;
  *

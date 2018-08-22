@@ -18,6 +18,7 @@ public:
 
     void createGrid(int numX, int numY, float quadSize=1.0f, vec4 color = vec4(0.5));
     void createFrustum(const mat4& proj, float farPlaneLimit = -1, const vec4& color=vec4(0.5), bool vulkanTransform = false);
+    void createFrustumCV(const glm::mat3 &K, float farPlaneLimit, const vec4 &color, int w, int h);
 };
 
 

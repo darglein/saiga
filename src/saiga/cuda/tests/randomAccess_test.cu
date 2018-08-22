@@ -22,7 +22,7 @@ namespace CUDA {
 template<typename T, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void randomAccessSimple(array_view<int> indices, array_view<T> data, array_view<T> result){
+void randomAccessSimple(ArrayView<int> indices, ArrayView<T> data, ArrayView<T> result){
 
     auto N = indices.size();
 
@@ -38,7 +38,7 @@ void randomAccessSimple(array_view<int> indices, array_view<T> data, array_view<
 template<typename T, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void randomAccessConstRestricted(array_view<int> indices, const T* __restrict__ data, array_view<T> result){
+void randomAccessConstRestricted(ArrayView<int> indices, const T* __restrict__ data, ArrayView<T> result){
 
     auto N = indices.size();
 
@@ -55,7 +55,7 @@ void randomAccessConstRestricted(array_view<int> indices, const T* __restrict__ 
 template<typename T, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void randomAccessLdg(array_view<int> indices, array_view<T> data, array_view<T> result){
+void randomAccessLdg(ArrayView<int> indices, ArrayView<T> data, ArrayView<T> result){
 
     auto N = indices.size();
 
@@ -71,7 +71,7 @@ void randomAccessLdg(array_view<int> indices, array_view<T> data, array_view<T> 
 template<typename T, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void randomAccess_cr_array_view(array_view<int> indices, const cr_array_view<T> data, array_view<T> result){
+void randomAccess_cr_ArrayView(ArrayView<int> indices, const cr_ArrayView<T> data, ArrayView<T> result){
 
     auto N = indices.size();
 
@@ -89,7 +89,7 @@ static texture<int,1,cudaReadModeElementType> dataTexture;
 template<typename T, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void randomAccessTexture(array_view<int> indices, array_view<T> result){
+void randomAccessTexture(ArrayView<int> indices, ArrayView<T> result){
 
     auto N = result.size();
 
@@ -220,13 +220,13 @@ void randomAccessTest2(int numIndices, int numElements){
         d_result = result;
         float time;
         {
-            cr_array_view<ElementType> d;
+            cr_ArrayView<ElementType> d;
             d.data_ = thrust::raw_pointer_cast(d_data.data());
             d.n = d_data.size();
             CUDA::CudaScopedTimer t(time);
-            randomAccess_cr_array_view<ElementType,BLOCK_SIZE> <<< CUDA::getBlockCount(numElements,BLOCK_SIZE),BLOCK_SIZE >>>(d_indices,d,d_result);
+            randomAccess_cr_ArrayView<ElementType,BLOCK_SIZE> <<< CUDA::getBlockCount(numElements,BLOCK_SIZE),BLOCK_SIZE >>>(d_indices,d,d_result);
         }
-        test.addMeassurement("randomAccess_cr_array_view",time);
+        test.addMeassurement("randomAccess_cr_ArrayView",time);
         CUDA_SYNC_CHECK_ERROR();
     }
 

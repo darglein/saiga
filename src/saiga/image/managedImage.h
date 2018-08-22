@@ -10,7 +10,7 @@
 #include "saiga/image/imageView.h"
 #include "saiga/image/imageFormat.h"
 #include "saiga/util/fileChecker.h"
-#include "saiga/util/array_view.h"
+#include "saiga/util/ArrayView.h"
 #include <vector>
 
 namespace Saiga {
@@ -118,7 +118,7 @@ public:
     }
 
     bool load(const std::string &path);
-    bool loadFromMemory(array_view<const char> data);
+    bool loadFromMemory(ArrayView<const char> data);
 
     bool save(const std::string &path);
 

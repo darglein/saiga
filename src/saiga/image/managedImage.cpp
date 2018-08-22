@@ -141,7 +141,7 @@ bool Image::load(const std::string &_path)
     return erg;
 }
 
-bool Image::loadFromMemory(array_view<const char> data)
+bool Image::loadFromMemory(ArrayView<const char> data)
 {
     bool erg = false;
 

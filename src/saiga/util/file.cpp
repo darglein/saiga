@@ -60,7 +60,7 @@ std::string loadFileString(const std::string &file)
     return fileContent;
 }
 
-void saveFileBinary(const std::string &file, array_view<const char> data)
+void saveFileBinary(const std::string &file, ArrayView<const char> data)
 {
     std::vector<unsigned char> result;
 

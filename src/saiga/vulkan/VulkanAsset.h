@@ -17,7 +17,7 @@
 #include "saiga/vulkan/buffer/StagingBuffer.h"
 #include "saiga/vulkan/texture/Texture.h"
 
-#include "saiga/util/array_view.h"
+#include "saiga/util/ArrayView.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -54,7 +54,7 @@ class SAIGA_GLOBAL VulkanPointCloudAsset
 public:
     using VertexType = VertexNC;
 
-    array_view<VertexType> pointCloud;
+    ArrayView<VertexType> pointCloud;
 
     VertexBuffer<VertexType> vertexBuffer;
     StagingBuffer stagingBuffer;

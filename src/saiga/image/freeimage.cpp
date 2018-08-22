@@ -34,7 +34,7 @@ bool load(const std::string &path, Image &img, ImageMetadata *metaData)
     return true;
 }
 
-bool loadFromMemory(array_view<const char> data, Image &img)
+bool loadFromMemory(ArrayView<const char> data, Image &img)
 {
     fipImage fimg;
 

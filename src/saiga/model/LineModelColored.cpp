@@ -119,6 +119,62 @@ void LineModelColored::createFrustum(const mat4 &proj, float farPlaneLimit, cons
 }
 
 
+void LineModelColored::createFrustumCV(const glm::mat3 &K, float farPlaneLimit, const vec4 &color, int w, int h)
+{
+    vec3 bl(0,h,1);
+    vec3 br(w,h,1);
+    vec3 tl(0,0,1);
+    vec3 tr(w,0,1);
+
+    glm::mat3 projInv = inverse(K);
+
+    tl = projInv * tl;
+    tr = projInv * tr;
+    bl = projInv * bl;
+    br = projInv * br;
+
+
+    if(farPlaneLimit > 0)
+    {
+        tl *= farPlaneLimit;
+        tr *= farPlaneLimit;
+        bl *= farPlaneLimit;
+        br *= farPlaneLimit;
+    }
+
+    vec3 positions[] = {
+        vec3(0,0,0),
+        tl,tr,br,bl,
+        0.4f * tl + 0.6f * tr,
+        0.6f * tl + 0.4f * tr,
+        0.5f * tl + 0.5f * tr + vec3(0,(tl.y-bl.y)*0.1f,0)
+    };
+
+    for(int i = 0 ; i < 8 ; ++i){
+                VertexNC v;
+                v.position = vec4(positions[i],1);
+                v.color = color;
+        mesh.vertices.push_back(v);
+    }
+
+    mesh.indices =
+     {
+        0,1,
+        0,2,
+        0,3,
+        0,4,
+
+        1,2,
+        3,4,
+        1,4,
+        2,3,
+
+        5,7,
+        6,7
+    };
+}
+
+
 }
 
 

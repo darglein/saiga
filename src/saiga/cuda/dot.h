@@ -28,7 +28,7 @@ namespace CUDA{
 
 template<typename T, unsigned int BLOCK_SIZE>
 __device__ inline
-T dotLocalVector(array_view<T> v1, array_view<T> v2){
+T dotLocalVector(ArrayView<T> v1, ArrayView<T> v2){
     T sum = T(0);
     unsigned int N = v1.size();
 
@@ -65,7 +65,7 @@ T dotLocalVector(array_view<T> v1, array_view<T> v2){
 
 template<typename T, unsigned int BLOCK_SIZE>
 __global__
-void dot(array_view<T> v1, array_view<T> v2, T* out) {
+void dot(ArrayView<T> v1, ArrayView<T> v2, T* out) {
 
     __shared__ T shared[BLOCK_SIZE/WARP_SIZE];
 

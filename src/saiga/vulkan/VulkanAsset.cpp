@@ -75,7 +75,7 @@ void VulkanPointCloudAsset::init(VulkanBase &base, int _capacity)
     capacity = _capacity;
     vertexBuffer.init(base,capacity,vk::MemoryPropertyFlagBits::eDeviceLocal);
     stagingBuffer.init(base,capacity * sizeof(VertexType));
-    pointCloud = array_view<VertexType>( (VertexType*)stagingBuffer.mapAll(),capacity);
+    pointCloud = ArrayView<VertexType>( (VertexType*)stagingBuffer.mapAll(),capacity);
 }
 
 void VulkanPointCloudAsset::render(vk::CommandBuffer cmd, int start, int count)

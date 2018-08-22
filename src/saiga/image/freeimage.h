@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/image/image.h"
 #include "saiga/image/imageMetaData.h"
-#include "saiga/util/array_view.h"
+#include "saiga/util/ArrayView.h"
 
 #ifdef SAIGA_USE_FREEIMAGE
 
@@ -20,7 +20,7 @@ namespace FIP {
 
 //loads an image with freeimage converts it to Image and reads metadata if != 0
 SAIGA_GLOBAL bool load(const std::string& path, Image& img, ImageMetadata* metaData = nullptr);
-SAIGA_GLOBAL bool loadFromMemory(array_view<const char> data, Image& img);
+SAIGA_GLOBAL bool loadFromMemory(ArrayView<const char> data, Image& img);
 
 //writes an image to file with freeimage
 SAIGA_GLOBAL bool save(const std::string& path, const Image& img);

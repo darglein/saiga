@@ -39,7 +39,7 @@ T recFib(T a){
 template<typename T, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void recurseFact(array_view<T> data){
+void recurseFact(ArrayView<T> data){
 
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
@@ -51,11 +51,11 @@ void recurseFact(array_view<T> data){
 
 
 //This produces the following warning:
-//ptxas warning : Stack size for entry function '_ZN4CUDA10recurseFibIiLj128EEEv10array_viewIT_E' cannot be statically determined
+//ptxas warning : Stack size for entry function '_ZN4CUDA10recurseFibIiLj128EEEv10ArrayViewIT_E' cannot be statically determined
 template<typename T, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE)
 __global__ static
-void recurseFib(array_view<T> data){
+void recurseFib(ArrayView<T> data){
 
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;

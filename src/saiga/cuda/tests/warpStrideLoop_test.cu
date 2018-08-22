@@ -26,7 +26,7 @@ namespace CUDA {
 
 template<typename T, unsigned int BLOCK_SIZE, unsigned int LOCAL_WARP_SIZE, int N>
 __global__
-static void batchReduce(array_view<T> in, array_view<T> out){
+static void batchReduce(ArrayView<T> in, ArrayView<T> out){
     ThreadInfo<BLOCK_SIZE,LOCAL_WARP_SIZE> ti;
 
     if(ti.warp_id >= out.size())
@@ -50,7 +50,7 @@ static void batchReduce(array_view<T> in, array_view<T> out){
 
 template<typename T, unsigned int BLOCK_SIZE, unsigned int LOCAL_WARP_SIZE, int N>
 __global__
-static void batchReduce2(array_view<T> in, array_view<T> out){
+static void batchReduce2(ArrayView<T> in, ArrayView<T> out){
     ThreadInfo<BLOCK_SIZE,LOCAL_WARP_SIZE> ti;
 
     if(ti.warp_id >= out.size())

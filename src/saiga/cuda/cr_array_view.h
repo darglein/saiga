@@ -17,7 +17,7 @@ namespace Saiga {
 
 //currently not working (maybe in later cuda releases)
 template<typename T>
-struct cr_array_view{
+struct cr_ArrayView{
 public:
     const T* __restrict__ data_;
     int n;
