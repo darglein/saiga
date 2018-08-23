@@ -26,7 +26,7 @@ Older version might work too, but are not officially supported.
 ## Required Dependencies
 
  * OpenGL 3.3
- * [GLM](https://github.com/g-truc/glm)
+ * [GLM 0.9.9-a2](https://github.com/g-truc/glm/tree/0.9.9-a2)
 
 ## Optional Dependencies
 
