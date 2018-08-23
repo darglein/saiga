@@ -17,6 +17,7 @@ int main( int argc, char* args[] )
     catchSegFaults();
 
     WindowParameters windowParameters;
+    initSample(windowParameters.saigaParameters);
     windowParameters.fromConfigFile("config.ini");
 
     // 1. Create an SDL window.

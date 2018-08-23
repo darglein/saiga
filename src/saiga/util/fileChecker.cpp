@@ -13,6 +13,7 @@ namespace Saiga {
 
 FileChecker::FileChecker()
 {
+    searchPathes.push_back("");
 	searchPathes.push_back(".");
 }
 
@@ -71,6 +72,16 @@ bool FileChecker::existsFile(const std::string &file)
 {
     std::ifstream infile(file);
     return infile.good();
+}
+
+std::ostream& operator<<(std::ostream& os, const FileChecker& fc)
+{
+    os << "File Checker - Search Pathes:" << endl;
+    for(auto s : fc.searchPathes)
+    {
+        os << "   '" << s << "'" << endl;
+    }
+    return os;
 }
 
 }

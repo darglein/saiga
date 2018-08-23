@@ -10,11 +10,12 @@
 #include "saiga/geometry/triangle_mesh.h"
 #include <fstream>
 #include "saiga/util/color.h"
+#include "saiga/model/ModelLoader.h"
 
 namespace Saiga {
 
 
-class SAIGA_GLOBAL PLYLoader
+class SAIGA_GLOBAL PLYLoader : public ModelLoader
 {
 public:
 

@@ -202,7 +202,7 @@ void OpenGLParameters::fromConfigFile(const std::string &file)
     profile = profileString == "ANY" ? Profile::ANY : profileString == "CORE" ? Profile::CORE : Profile::COMPATIBILITY;
 }
 
-void initSaigaGL(const std::string& shaderDir, const std::string& textureDir)
+void initSaigaGL(const std::string& shaderDir, const std::vector<std::string>& textureDir)
 {
     shaderPathes.addSearchPath(shaderDir);
     // Disables the following notification:
@@ -215,8 +215,10 @@ void initSaigaGL(const std::string& shaderDir, const std::string& textureDir)
     Error::ignoreGLError(ignoreIds);
 
     TextureLoader::instance()->addPath(".");
-    TextureLoader::instance()->addPath(textureDir);
-    TextureLoader::instance()->addPath(textureDir + "/include");
+    for(auto t : textureDir)
+        TextureLoader::instance()->addPath(t);
+    //    TextureLoader::instance()->addPath(textureDir);
+    //    TextureLoader::instance()->addPath(textureDir + "/include");
 
 }
 

@@ -387,12 +387,12 @@ write_basic_package_version_file(
 
 ############# SOURCE ###############
 
+set(OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 
 add_subdirectory(src)
-#add_subdirectory(include/saiga)
 add_subdirectory(shader)
 
 if(SAIGA_BUILD_SAMPLES)

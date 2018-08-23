@@ -4,17 +4,14 @@
  * See LICENSE file for more information.
  */
 
-#include "Model.h"
+#include "ModelLoader.h"
 
 #include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
 
+FileChecker modelPathes;
 
 }
-
-
-
-
 
 

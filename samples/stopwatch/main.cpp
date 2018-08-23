@@ -17,6 +17,7 @@ int main( int argc, char* args[] )
     catchSegFaults();
 
     WindowParameters windowParameters;
+    initSample(windowParameters.saigaParameters);
     windowParameters.fromConfigFile("config.ini");
 
     windowParameters.height = 150;

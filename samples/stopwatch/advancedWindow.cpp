@@ -18,7 +18,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
 
     window.setCamera(&camera);
 
-    textAtlas.loadFont("fonts/SourceSansPro-Regular.ttf",40,2,4,true);
+    textAtlas.loadFont("SourceSansPro-Regular.ttf",40,2,4,true);
 
     tdo.init(&textAtlas);
     tdo.borderX = 0.01f;

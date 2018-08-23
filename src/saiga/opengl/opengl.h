@@ -41,7 +41,7 @@ SAIGA_GLOBAL std::vector<std::string> getExtensions();
 
 
 //called from initSaiga
-SAIGA_LOCAL void initSaigaGL(const std::string& shaderDir, const std::string& textureDir);
+SAIGA_LOCAL void initSaigaGL(const std::string& shaderDir, const std::vector<std::string>& textureDir);
 SAIGA_LOCAL void cleanupSaigaGL();
 
 

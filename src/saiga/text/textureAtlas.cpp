@@ -31,10 +31,18 @@ TextureAtlas::~TextureAtlas()
 //    delete textureAtlas;
 }
 
-void TextureAtlas::loadFont(const std::string &font,
+void TextureAtlas::loadFont(const std::string &_font,
                             int fontSize, int quality, int searchRange, bool bufferToFile,
                             const std::vector<Unicode::UnicodeBlock> &blocks)
 {
+    std::string font = fontPathes.getFile(_font);
+    if(font == "")
+    {
+        cerr << "Could not open file " << _font << endl;
+        cerr << fontPathes << endl;
+        SAIGA_ASSERT(0);
+    }
+
     std::string blockString;
     for(Unicode::UnicodeBlock ub : blocks){
         blockString = blockString + std::to_string(ub.start);
@@ -215,7 +223,7 @@ void TextureAtlas::padGlyphsToDivisor(std::vector<FontLoader::Glyph> &glyphs, in
 
                  g.bitmap = paddedImage;
 
-                 g.bitmap.save("debug/font/"+to_string(g.character)+"_3.png");
+//                 g.bitmap.save("debug/font/"+to_string(g.character)+"_3.png");
 //        g.bitmap->resizeCopy(w,h);
 //        SAIGA_ASSERT(0);
 
@@ -290,8 +298,8 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divi
             }
         }
 
-        g.bitmap.save("debug/font/"+to_string(g.character)+"_4.png");
-        sdfGlyph.save("debug/font/"+to_string(g.character)+"_5.png");
+//        g.bitmap.save("debug/font/"+to_string(g.character)+"_4.png");
+//        sdfGlyph.save("debug/font/"+to_string(g.character)+"_5.png");
 //        delete g.bitmap;
         g.bitmap = sdfGlyph;
 

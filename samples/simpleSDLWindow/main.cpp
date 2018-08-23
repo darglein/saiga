@@ -16,10 +16,12 @@
 #include "simpleWindow.h"
 
 
+
 int main( int argc, char* args[] )
 {
 
     WindowParameters windowParameters;
+    initSample(windowParameters.saigaParameters);
     windowParameters.fromConfigFile("config.ini");
     windowParameters.name = "Simple SDL Window";
 

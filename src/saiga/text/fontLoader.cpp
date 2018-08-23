@@ -15,11 +15,21 @@
 
 namespace Saiga {
 
+FileChecker fontPathes;
 FT_Library FontLoader::ft = nullptr;
 
-FontLoader::FontLoader(const std::string &file, const std::vector<Unicode::UnicodeBlock> &blocks)
-    : file(file), blocks(blocks)
+FontLoader::FontLoader(const std::string &_file, const std::vector<Unicode::UnicodeBlock> &blocks)
+    : blocks(blocks)
 {
+
+    this->file = fontPathes.getFile(_file);
+    if(file == "")
+    {
+        cerr << "Could not open file " << _file << endl;
+        cerr << fontPathes << endl;
+        SAIGA_ASSERT(0);
+    }
+
     if(ft==nullptr){
         if(FT_Init_FreeType(&ft)) {
             std::cerr<< "Could not init freetype library"<<std::endl;

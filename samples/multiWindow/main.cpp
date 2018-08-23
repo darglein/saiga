@@ -18,10 +18,9 @@ int main( int argc, char* args[] )
     catchSegFaults();
 
     WindowParameters windowParameters;
+    initSample(windowParameters.saigaParameters);
+    windowParameters.fromConfigFile("config.ini");
 
-    windowParameters.mode = WindowParameters::Mode::windowed;
-    windowParameters.width = 1280;
-    windowParameters.height = 720;
 
 
     for(int i = 1;i <= 3; ++i)

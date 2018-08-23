@@ -13,8 +13,9 @@
 namespace Saiga
 {
 
-SAIGA_GLOBAL inline
-glm::mat3 CVtoGLM_mat3(cv::Mat1d mat)
+template<typename MatrixType>
+SAIGA_TEMPLATE inline
+glm::mat3 CVtoGLM_mat3(const MatrixType& mat)
 {
     glm::mat3 M;
     for(int i = 0; i < 3; ++i)
@@ -27,8 +28,9 @@ glm::mat3 CVtoGLM_mat3(cv::Mat1d mat)
     return M;
 }
 
-SAIGA_GLOBAL inline
-glm::mat4 CVtoGLM_mat4(cv::Mat1d mat)
+template<typename MatrixType>
+SAIGA_TEMPLATE inline
+glm::mat4 CVtoGLM_mat4(const MatrixType& mat)
 {
     glm::mat4 M;
     for(int i = 0; i < 4; ++i)

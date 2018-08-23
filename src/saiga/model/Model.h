@@ -73,7 +73,4 @@ void TriangleModel<vertex_t,index_t>::ZUPtoYUP()
 }
 
 
-
-
-
 }

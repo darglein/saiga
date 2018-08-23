@@ -7,6 +7,7 @@
 #pragma once
 
 #include <saiga/config.h>
+#include <vector>
 
 namespace Saiga {
 
@@ -14,8 +15,10 @@ namespace Saiga {
 struct SAIGA_GLOBAL SaigaParameters
 {
     // share/ directory where saiga has been installed.
-    std::string shaderDirectory      = SAIGA_INSTALL_PREFIX  "/share/saiga/shader";
-    std::string textureDirectory    = "textures/";
+    std::vector<std::string> shaderDirectory    =  {"shader", SAIGA_INSTALL_PREFIX  "/share/saiga/shader"};
+    std::vector<std::string> textureDirectory   = {"textures/"};
+    std::vector<std::string> modelDirectory     = {"models/"};
+    std::vector<std::string> fontDirectory      = {"fonts/"};
 
     /**
      *  Reads all paramters from the given config file.
@@ -26,6 +29,7 @@ struct SAIGA_GLOBAL SaigaParameters
 
 SAIGA_GLOBAL extern void writeExtensions();
 
+SAIGA_GLOBAL extern void initSample(SaigaParameters& saigaParameters);
 SAIGA_GLOBAL extern void initSaiga(const SaigaParameters& params);
 SAIGA_GLOBAL extern void cleanupSaiga();
 

@@ -21,6 +21,18 @@ std::vector<std::string> split(const std::string &s, char delim)
     return elems;
 }
 
+std::string concat(const std::vector<std::string> &s, char delim)
+{
+    std::string res;
+    for(unsigned int i = 0; i < s.size(); ++i)
+    {
+        if(i > 0)
+            res += delim;
+        res += s[i];
+    }
+    return res;
+}
+
 std::string leadingZeroString(int number, int characterCount)
 {
     std::string n = Saiga::to_string(number);
@@ -64,6 +76,8 @@ std::string removeFileEnding(const std::string &str)
     }
     return std::string();
 }
+
+
 
 
 }

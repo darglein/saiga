@@ -17,17 +17,28 @@
 namespace Saiga {
 
 
-ObjModelLoader::ObjModelLoader(const std::string &file):file(file)
+ObjModelLoader::ObjModelLoader(const std::string &file)
+    : file(file)
 {
     loadFile(file);
 }
 
-bool ObjModelLoader::loadFile(const std::string &_file){
-	this->file = _file;
+bool ObjModelLoader::loadFile(const std::string &_file)
+{
+
+    this->file = modelPathes.getFile(_file);
+    if(file == "")
+    {
+        cerr << "Could not open file " << _file << endl;
+        cerr << modelPathes << endl;
+        return false;
+    }
+
     std::ifstream stream(file, std::ios::in);
     if(!stream.is_open())
     {
-        cerr << "Could not open file " << _file << endl;
+//        cerr << "Could not open file " << _file << endl;
+        SAIGA_ASSERT(0);
         return false;
     }
 

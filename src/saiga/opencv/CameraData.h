@@ -21,6 +21,8 @@ struct SAIGA_GLOBAL StereoExtrinsics
 {
     cv::Mat1d R,t,E,F;
 
+    cv::Matx44f getRelativeTransform();
+
     void writeToFile(std::string file);
     void readFromFile(std::string file);
 };

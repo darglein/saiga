@@ -48,7 +48,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     ObjAssetLoader assetLoader;
 
 
-    assetLoader.loadMeshNC("objs/box.obj",baseMesh);
+    assetLoader.loadMeshNC("box.obj",baseMesh);
     reducedMesh = baseMesh;
 
     //    auto bunnyAsset = assetLoader.loadBasicAsset("objs/bunny.obj");

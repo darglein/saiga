@@ -13,8 +13,8 @@ int main(const int argc, const char *argv[])
 
     {
         Saiga::WindowParameters windowParameters;
+        Saiga::initSample(windowParameters.saigaParameters);
         windowParameters.fromConfigFile("config.ini");
-        windowParameters.name = "Forward Rendering";
 
 
             Saiga::Vulkan::SDLWindow window(windowParameters);

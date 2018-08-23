@@ -68,11 +68,11 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
     textureDes = textureDisplay.createAndUpdateDescriptorSet(*texture);
 
 
-    box.loadObj("objs/box.obj");
+    box.loadObj("box.obj");
     box.init(renderer.base);
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
-    teapot.loadObj("objs/teapot.obj");
+    teapot.loadObj("teapot.obj");
     teapot.init(renderer.base);
     teapotTrans.translateGlobal(vec3(0,1,0));
     teapotTrans.calculateModel();

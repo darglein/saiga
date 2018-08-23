@@ -13,6 +13,9 @@
 #include "saiga/util/floatingPoint.h"
 #include "saiga/util/ini/ini.h"
 #include "saiga/util/directory.h"
+#include "saiga/util/tostring.h"
+
+#include "saiga/model/ModelLoader.h"
 
 #ifdef SAIGA_USE_OPENGL
 #include "saiga/opengl/opengl.h"
@@ -22,9 +25,14 @@
 #include "saiga/vulkan/Shader/GLSL.h"
 #endif
 
+#ifdef SAIGA_USE_FREETYPE
+#include "saiga/text/fontLoader.h"
+#endif
+
 namespace Saiga {
 
 bool initialized = false;
+
 
 
 bool isShaderDirectory(const std::string &dir)
@@ -40,8 +48,16 @@ void SaigaParameters::fromConfigFile(const std::string &file)
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
-    shaderDirectory   = ini.GetAddString ("saiga","shareDirectory",shaderDirectory.c_str());
-    textureDirectory  = ini.GetAddString ("saiga","textureDirectory",textureDirectory.c_str());
+
+    std::string comment = "# Multiple search pathes must be separated by '!'.\n"
+                          "# Example:\n"
+                          "# shaderDirectory = shader!/usr/local/share/saiga/shader!somepath/asdf/shader";
+
+    char sep = '!';
+    shaderDirectory   = split(ini.GetAddString ("saiga","shaderDirectory",   concat(shaderDirectory,sep).c_str(),comment.c_str()),sep);
+    textureDirectory  = split(ini.GetAddString ("saiga","textureDirectory", concat(textureDirectory,sep).c_str()),sep);
+    modelDirectory    = split(ini.GetAddString ("saiga","modelDirectory",   concat(modelDirectory,sep).c_str()),sep);
+    fontDirectory     = split(ini.GetAddString ("saiga","fontDirectory",    concat(fontDirectory,sep).c_str()),sep);
 
     if(ini.changed()) ini.SaveFile(file.c_str());
 }
@@ -115,6 +131,13 @@ static void printSaigaInfo(){
 }
 
 
+void initSample(SaigaParameters& saigaParameters)
+{
+    saigaParameters.shaderDirectory     = {SAIGA_PROJECT_SOURCE_DIR "/shader"};
+    saigaParameters.textureDirectory    = {SAIGA_PROJECT_SOURCE_DIR "/data/textures"};
+    saigaParameters.modelDirectory      = {SAIGA_PROJECT_SOURCE_DIR "/data/models"};
+    saigaParameters.fontDirectory       = {SAIGA_PROJECT_SOURCE_DIR "/data/fonts"};
+}
 
 void initSaiga(const SaigaParameters& params)
 {
@@ -130,11 +153,14 @@ void initSaiga(const SaigaParameters& params)
     {
         // First check in the local working directory
         "shader",
-        // Then the given paramter from the config file
-        params.shaderDirectory,
-        // And last the install prefix from cmake
-        SAIGA_INSTALL_PREFIX  "/share/saiga/shader",
     };
+
+    searchPathes.insert(searchPathes.end(),params.shaderDirectory.begin(),params.shaderDirectory.end());
+    // Then the given paramter from the config file
+    //        params.shaderDirectory,
+    // And last the install prefix from cmake
+    searchPathes.push_back(SAIGA_INSTALL_PREFIX  "/share/saiga/shader");
+    //    };
 
 
     std::string shaderDir;
@@ -162,17 +188,20 @@ void initSaiga(const SaigaParameters& params)
 
 #ifdef SAIGA_USE_VULKAN
     Vulkan::GLSLANG::init();
-    Vulkan::GLSLANG::shaderPathes.addSearchPath(".");
     Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir);
     Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir + "/include");
 #endif
 
+    for(auto t : params.textureDirectory)
+        Image::searchPathes.addSearchPath(t);
 
+    for(auto t : params.modelDirectory)
+        modelPathes.addSearchPath(t);
 
-
-    Image::searchPathes.addSearchPath(".");
-    Image::searchPathes.addSearchPath(params.textureDirectory);
-
+#ifdef SAIGA_USE_FREETYPE
+    for(auto t : params.fontDirectory)
+        fontPathes.addSearchPath(t);
+#endif
 
 
     printSaigaInfo();

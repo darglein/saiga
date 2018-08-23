@@ -11,6 +11,7 @@
 #include "saiga/image/image.h"
 #include "saiga/util/encoding.h"
 #include "saiga/image/templatedImage.h"
+#include "saiga/util/fileChecker.h"
 
 #include <vector>
 
@@ -21,7 +22,8 @@ typedef struct FT_LibraryRec_  *FT_Library;
 
 namespace Saiga {
 
-class FontLoader{
+class FontLoader
+{
 public:
     struct Glyph{
         int character; //in ascii encoding
@@ -48,5 +50,7 @@ private:
     void loadAndAddGlyph(int charCode, int glyphPadding);
     void addGlyph(int charCode, int glyphPadding);
 };
+
+extern SAIGA_GLOBAL FileChecker fontPathes;
 
 }

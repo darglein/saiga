@@ -29,9 +29,9 @@ endif()
 
 target_link_libraries(${LIB_NAME} ${LIBS} ${ALL_CUDA_LIBS})
 
-set_target_properties( ${LIB_NAME}
-    PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+#set_target_properties( ${LIB_NAME}
+#    PROPERTIES
+#    RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 
 
 install(

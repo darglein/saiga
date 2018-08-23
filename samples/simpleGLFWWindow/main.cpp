@@ -16,8 +16,8 @@ int main( int argc, char* args[] )
     catchSegFaults();
 
     WindowParameters windowParameters;
+    initSample(windowParameters.saigaParameters);
     windowParameters.fromConfigFile("config.ini");
-    windowParameters.name = "Simple SDL Window";
 
     // 1. Create an SDL window.
     // This also creates the required OpenGL context.

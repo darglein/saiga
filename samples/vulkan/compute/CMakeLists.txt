@@ -16,10 +16,10 @@ target_link_libraries(${PROG_NAME} ${LIBS} ${LIB_NAME} )
 
 if(${CMAKE_VERSION} VERSION_GREATER "3.8.0") 
     #set working directory for visual studio so the project can be executed from the ide
-	set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+	set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
 endif()
 
 set_target_properties (${PROG_NAME} PROPERTIES FOLDER samples)
 set_target_properties( ${PROG_NAME}
 	PROPERTIES
-    	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/vulkan")
+        RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}/vulkan")
