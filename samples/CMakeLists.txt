@@ -1,7 +1,6 @@
 
 if(CUDA_FOUND)
-    add_subdirectory(runTests)
-    add_subdirectory(cudaImageProcessing)
+    add_subdirectory(cuda)
 endif ()
 
 if(OPENGL_FOUND)

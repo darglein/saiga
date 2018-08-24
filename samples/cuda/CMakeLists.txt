@@ -1,0 +1,3 @@
+add_subdirectory(runTests)
+add_subdirectory(cudaImageProcessing)
+add_subdirectory(helloCuda)
