@@ -1,5 +1,5 @@
 ﻿#include "sample.h"
-#include "saiga/framework.h"
+#include "saiga/framework/framework.h"
 #include "saiga/vulkan/window/SDLWindow.h"
 
 #undef main

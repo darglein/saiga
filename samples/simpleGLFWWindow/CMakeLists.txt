@@ -11,7 +11,7 @@ include_directories(.)
 
 
 add_executable(${PROG_NAME} ${PROG_SRC} )
-target_link_libraries(${PROG_NAME} ${LIBS} ${LIB_NAME} )
+target_link_libraries(${PROG_NAME} ${LIB_NAME} ${LIBS})
 
 if(${CMAKE_VERSION} VERSION_GREATER "3.8.0") 
     #set working directory for visual studio so the project can be executed from the ide

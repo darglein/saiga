@@ -6,11 +6,21 @@
 #endif(UNIX)
 
 
-install(
-	DIRECTORY ./ 
-	DESTINATION ${INSTALL_SHADER} 
-	FILES_MATCHING 
-		PATTERN "*"
-		PATTERN ".txt" EXCLUDE
+#install(
+#	DIRECTORY ./
+#	DESTINATION ${INSTALL_SHADER}
+#	FILES_MATCHING
+#		PATTERN "*"
+#		PATTERN ".txt" EXCLUDE
+#)
 
+install(
+        DIRECTORY ./
+        DESTINATION ${INSTALL_SHADER}
+        FILES_MATCHING PATTERN "*.glsl"
+        PATTERN "*.vert"
+        PATTERN "*.frag"
+        PATTERN "*.comp"
+        PATTERN "*.h"
 )
+
