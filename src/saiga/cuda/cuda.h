@@ -12,7 +12,7 @@
 #error Saiga was compiled without cuda.
 #endif
 
-#include <cuda.h>
+//#include <cuda.h>
 #include <cuda_runtime.h>
 
 #define SAIGA_CUDA_INCLUDED

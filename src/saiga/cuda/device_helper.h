@@ -12,6 +12,11 @@
 
 #if !defined(IS_CUDA)
 #error device_helper.h must only be included by nvcc
+// A few defintions to trick IDE's that do not activley support CUDA
+dim3 threadIdx;
+dim3 blockIdx;
+dim3 gridDim;
+int warpSize;
 #endif
 
 #if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600

@@ -5,7 +5,6 @@
  */
 
 #include <iostream>
-#include <cuda.h>
 #include <cuda_runtime.h>
 
 __global__ void helloCudaKernel()
@@ -20,3 +19,4 @@ int main(int argc, char *argv[])
     cudaDeviceSynchronize();
     return 0;
 }
+

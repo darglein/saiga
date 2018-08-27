@@ -1,3 +1,4 @@
 add_subdirectory(runTests)
 add_subdirectory(cudaImageProcessing)
 add_subdirectory(helloCuda)
+add_subdirectory(simpleParticle)
