@@ -17,7 +17,7 @@
 #define float3x3 mat3
 #define float2x2 mat2
 
-#define saturate(X) clamp(X, 0.f, 1.f)
+//#define saturate(X) clamp(X, 0.f, 1.f)
 #define frac(X) fract(X)
 #define atan2(Y, X) atan(Y, X)
 #define mul(A, B) ((B)*(A))

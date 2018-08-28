@@ -32,33 +32,4 @@ FUNC_DECL vec3 hsv2rgb(vec3 c)
     return c.z * mix( vec3(K.xxx), vec3(clamp(p - K.xxx, vec3(0.0f), vec3(1.0f) )), c.y);
 }
 
-
-
-/**
- * Creates a smooth HSV color transition from Blue(=0) to Red(=1).
- * The returned value is in RGB space.
- */
-FUNC_DECL vec3 colorizeBlueRed(float alpha)
-{
-    alpha = 1.f - clamp(alpha,0.f,1.f);
-    return hsv2rgb(vec3(
-                       alpha * (240.0f/360.0f),
-                       1,
-                       1
-                       ));
-}
-
-/**
- * Similar to above but from Red(=0) to Green(=1).
- */
-FUNC_DECL vec3 colorizeRedGreen(float alpha)
-{
-    alpha = clamp(alpha,0.f,1.f);
-    return hsv2rgb(vec3(
-                       alpha * (120.0f/360.0f),
-                       1,
-                       1
-                       ));
-}
-
 #endif
