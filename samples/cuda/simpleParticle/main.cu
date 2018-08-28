@@ -35,8 +35,8 @@ void particleSampleThrustSaiga()
 {
     const int N = 100;
     const int k = 3;
-    thrust::host_vector<Particle> particles(N);
-    thrust::device_vector<Particle> d_particles(N);
+    std::vector<Particle> particles(N);
+    // asdfd
 
     for(Particle& p :particles)
     {
@@ -45,15 +45,12 @@ void particleSampleThrustSaiga()
     }
 
 
-    thrust::copy(particles.begin(),particles.end(),d_particles.begin());
-
-
+    thrust::device_vector<Particle> d_particles(particles);
     for(int i = 0; i < k; ++i)
     {
         const int BLOCK_SIZE = 128;
         updateParticles<<<Saiga::CUDA::getBlockCount(N,BLOCK_SIZE),BLOCK_SIZE>>>(d_particles);
     }
-
     thrust::copy(d_particles.begin(),d_particles.end(),particles.begin());
 
 
@@ -117,6 +114,6 @@ void particleSample()
 
 int main(int argc, char *argv[])
 {
-    particleSample();
+    particleSampleThrustSaiga();
 }
 
