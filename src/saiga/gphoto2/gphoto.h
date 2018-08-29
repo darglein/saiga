@@ -9,7 +9,8 @@
 #include <saiga/config.h>
 #include "saiga/image/image.h"
 
-
+#include "saiga/util/synchronizedBuffer.h"
+#include "saiga/util/file.h"
 
 
 #include <thread>
@@ -21,7 +22,28 @@ namespace Saiga {
 class SAIGA_GLOBAL GPhoto
 {
 public:
+    struct DSLRImage
+    {
+        Image img;
+        std::vector<char> jpgImage;
+        std::vector<char> rawImage;
 
+
+        void jpgToImage(Image& img)
+        {
+            img.loadFromMemory(jpgImage);
+        }
+        void saveRaw(std::string file)
+        {
+            File::saveFileBinary(file+".cr2",rawImage.data(),rawImage.size());
+        }
+        void saveJpg(std::string file)
+        {
+            File::saveFileBinary(file+".jpg",jpgImage.data(),jpgImage.size());
+        }
+    };
+
+    bool autoConvert = true;
 
 
     GPhoto();
@@ -30,13 +52,16 @@ public:
     bool isOpenend() { return foundCamera; }
 
 
-    bool hasNewImage(Image& img);
+    std::shared_ptr<DSLRImage> waitForImage();
+    std::shared_ptr<DSLRImage> tryWaitForImage();
+
+
+//    bool hasNewImage();
+//    void getImage(Image& img);
 private:
-    ArrayView<const char> adata;
-    bool gotImage = false;
-    std::string imageName;
-    std::string imageDir;
-    std::vector<uint8_t> data;
+
+    SynchronizedBuffer<std::shared_ptr<DSLRImage>> imageBuffer;
+
 
     std::mutex mut;
     std::thread eventThread;
@@ -48,6 +73,7 @@ private:
     bool running = false;
 
     void eventLoop();
+    void clearEvents();
 
 //    void trigger();
 

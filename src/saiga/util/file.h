@@ -19,6 +19,6 @@ SAIGA_GLOBAL std::vector<unsigned char> loadFileBinary(const std::string& file);
 SAIGA_GLOBAL std::string                loadFileString(const std::string& file);
 
 
-SAIGA_GLOBAL void saveFileBinary(const std::string& file, ArrayView<const char> data);
+SAIGA_GLOBAL void saveFileBinary(const std::string& file, const void* data, size_t size);
 }
 }

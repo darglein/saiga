@@ -22,6 +22,17 @@
 #include "gphoto2/gphoto2.h"
 #include "gphoto2/gphoto2-camera.h"
 
+#define CHECK_GP(_X) \
+{\
+    auto ret = _X; \
+    if(ret != GP_OK) \
+{ \
+    cout << "Gphoto error in " << #_X << endl \
+    << "code: " << ret << endl; \
+    SAIGA_ASSERT(0); \
+    }\
+    }
+
 namespace Saiga {
 
 
@@ -40,10 +51,11 @@ ctx_status_func (GPContext *context, const char *str, void *data)
 }
 
 GPhoto::GPhoto()
+    : imageBuffer(10)
 {
 
 
-    cout << "GPhoto::GPhoto" << endl;
+    cout << "Starting GPhoto2... ";
     context = gp_context_new();
     SAIGA_ASSERT(context);
 
@@ -56,17 +68,16 @@ GPhoto::GPhoto()
 
     SAIGA_ASSERT(camera);
 
-//    printf("Camera init.  Takes about 10 seconds.\n");
+    //    printf("Camera init.  Takes about 10 seconds.\n");
     auto retval = gp_camera_init((Camera*)camera, (GPContext*)context);
     if (retval != GP_OK)
     {
-        cout << "Failed to open dslr camera." << endl;
-//        exit (1);
+        cout << "Failed! - No Camera found!" << endl;
+        //        exit (1);
         foundCamera = false;
         return;
     }
-
-
+    cout << "Ok!" << endl;
 
     foundCamera = true;
     running = true;
@@ -86,21 +97,19 @@ GPhoto::~GPhoto()
 
 }
 
-bool GPhoto::hasNewImage(Image &img)
+std::shared_ptr<GPhoto::DSLRImage> GPhoto::waitForImage()
 {
-    std::unique_lock<std::mutex> l(mut);
-
-    if(gotImage)
-    {
-
-        img.loadFromMemory(adata);
-
-        gotImage = false;
-        return true;
-    }
-
-    return false;
+    return imageBuffer.get();
 }
+
+std::shared_ptr<GPhoto::DSLRImage> GPhoto::tryWaitForImage()
+{
+    std::shared_ptr<GPhoto::DSLRImage> img;
+    imageBuffer.tryGet(img);
+            return img;
+}
+
+
 
 struct Event{
     CameraEventType	evtype;
@@ -123,10 +132,30 @@ Event getEvent(  GPContext *context,
     return event;
 }
 
+void GPhoto::clearEvents()
+{
+    while(true)
+    {
+        Event event;
+        CHECK_GP(gp_camera_wait_for_event( (Camera*)camera, 1, &event.evtype, &event.data, (GPContext*)context));
+        if(event.evtype == GP_EVENT_TIMEOUT)
+            return;
+    }
+}
+
 void GPhoto::eventLoop()
 {
+    clearEvents();
+
     CameraFile *file;
     gp_file_new(&file);
+
+    // 0: no image recieved
+    // 1: one image (either jpg or raw)
+    // 2 == 0: both images recieved
+    int state = 0;
+    std::shared_ptr<DSLRImage> tmp = std::make_shared<DSLRImage>();
+
 
     while(running)
     {
@@ -135,29 +164,45 @@ void GPhoto::eventLoop()
         if(e.evtype == GP_EVENT_FILE_ADDED)
         {
             CameraFilePath	*path = (CameraFilePath	*)e.data;
-            std::string name = path->name;
 
-            if(hasEnding(name,"jpg"))
+            std::string imageName = path->name;
+            std::string imageDir = path->folder;
+
+            cout << "GP_EVENT_FILE_ADDED: " << imageName << endl;
+
+            if(hasEnding(imageName,"jpg"))
             {
-                std::unique_lock<std::mutex> l(mut);
-                imageName = path->name;
-                imageDir = path->folder;
-                cout << imageName << " " << imageDir << endl;
-                gotImage = true;
+                CHECK_GP(gp_camera_file_get((Camera*)camera, imageDir.c_str(), imageName.c_str(),
+                                            GP_FILE_TYPE_NORMAL, file, (GPContext*)context));
+                size_t size; const char	*data;
+                CHECK_GP(gp_file_get_data_and_size (file, &data, &size));
+                tmp->jpgImage.resize(size);
+                std::copy(data,data+size,tmp->jpgImage.begin());
+                state |= 1;
+            }
 
+            if(hasEnding(imageName,"cr2"))
+            {
+                CHECK_GP(gp_camera_file_get((Camera*)camera, imageDir.c_str(), imageName.c_str(),
+                                            GP_FILE_TYPE_NORMAL, file, (GPContext*)context));
+                size_t size; const char	*data;
+                CHECK_GP(gp_file_get_data_and_size (file, &data, &size));
+                tmp->rawImage.resize(size);
+                std::copy(data,data+size,tmp->rawImage.begin());
+                state |= 2;
+            }
 
-                gp_camera_file_get((Camera*)camera, imageDir.c_str(), imageName.c_str(),
-                                   GP_FILE_TYPE_NORMAL, file, (GPContext*)context);
+            if(state == 3)
+            {
+                // Add to queue and create new image
+                if(autoConvert)
+                {
+                    tmp->jpgToImage(tmp->img);
+                }
 
-
-
-                size_t size;
-                const char	*data;
-                gp_file_get_data_and_size (file, &data, &size);
-
-                cout << "size " << size << endl;
-
-                adata = ArrayView<const char>(data,size);
+                imageBuffer.add(tmp);
+                tmp = std::make_shared<DSLRImage>();
+                state = 0;
             }
 
         }
@@ -165,6 +210,8 @@ void GPhoto::eventLoop()
 
     gp_file_free(file);
 }
+
+
 
 
 #if 0
