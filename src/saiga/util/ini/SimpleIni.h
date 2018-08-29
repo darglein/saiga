@@ -212,7 +212,7 @@
 # pragma warning (push)
 # pragma warning (disable: 4127 4503 4702 4786)
 #endif
-
+#include "saiga/config.h"
 #include <cstring>
 #include <cstdlib>
 #include <string>
@@ -3577,6 +3577,7 @@ SI_Case<wchar_t>,SI_ConvertW<wchar_t> >             CSimpleIniCaseW;
 #endif
 
 typedef CSimpleIniA SimpleIni;
+typedef SimpleIni Ini;
 
 #ifdef _UNICODE
 # define CSimpleIni      CSimpleIniW

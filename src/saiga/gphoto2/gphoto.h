@@ -32,7 +32,7 @@ class SAIGA_GLOBAL GPhoto
 public:
     struct DSLRImage
     {
-        Image img;
+        TemplatedImage<ucvec3> img;
         std::vector<char> jpgImage;
         std::vector<char> rawImage;
 
@@ -40,6 +40,7 @@ public:
         void jpgToImage(Image& img)
         {
             img.loadFromMemory(jpgImage);
+            SAIGA_ASSERT(img.type == TemplatedImage<ucvec3>::TType::type);
         }
         void saveRaw(std::string file)
         {

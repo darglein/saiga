@@ -15,7 +15,7 @@
  * Note:    The "getAdd" functions add the keys if they don't exist yet.
  *          This is usefull to auto-generate a config file if it so present.
  *
- *
+ *   // Checkout the full source at samples/ini/main.cpp
  *   std::string name;
  *   int w,h;
  *   bool b;

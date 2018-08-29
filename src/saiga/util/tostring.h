@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/util/ArrayView.h"
 
 #include <sstream>
 #include <string>
@@ -47,6 +48,14 @@ inline int to_int(const std::string& str)   {return std::atoi(str.c_str());}
 inline long int to_long(const std::string& str)   {return std::atol(str.c_str());}
 
 
+template<typename T> struct FromStringConverter{};
+template<> struct FromStringConverter<float>{ static float convert(const std::string& str) { return to_float(str); }};
+template<> struct FromStringConverter<double>{ static float convert(const std::string& str) { return to_double(str); }};
+template<> struct FromStringConverter<int>{ static float convert(const std::string& str) { return to_int(str); }};
+template<> struct FromStringConverter<long>{ static float convert(const std::string& str) { return to_long(str); }};
+
+
+
 SAIGA_GLOBAL std::vector<std::string> split(const std::string &s, char delim);
 SAIGA_GLOBAL std::string concat(const std::vector<std::string>  &s, char delim);
 
@@ -64,5 +73,33 @@ SAIGA_GLOBAL bool hasEnding (std::string const &fullString, std::string const &e
 SAIGA_GLOBAL std::string fileEnding (std::string const &str);
 SAIGA_GLOBAL std::string removeFileEnding (std::string const &str);
 
+
+template<typename ArrayType>
+SAIGA_TEMPLATE std::string array_to_string(const ArrayType& array, char sep = ' ')
+{
+    std::string res;
+    for(unsigned int i =0; i < array.size(); ++i)
+    {
+        res += to_string(array[i]);
+        if(i < array.size() - 1)
+            res += sep;
+    }
+    return res;
+}
+
+
+template<typename T>
+SAIGA_TEMPLATE std::vector<T> string_to_array(const std::string& string, char sep = ' ')
+{
+    FromStringConverter<T> converter;
+
+    auto strArray = split(string,sep);
+    std::vector<T> res;
+    for(auto& s : strArray)
+    {
+        res.push_back(converter.convert(s));
+    }
+    return res;
+}
 
 }

@@ -10,11 +10,14 @@
 
 #include "forwardWindow.h"
 
-
 int main( int argc, char* args[] )
 {
     //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
     catchSegFaults();
+
+    {
+
+    }
 
     WindowParameters windowParameters;
     initSample(windowParameters.saigaParameters);

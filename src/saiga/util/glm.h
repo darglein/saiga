@@ -190,4 +190,19 @@ SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec
     return Result;
 }
 
+/**
+ * Note:
+ * The string conversion from and to matrices convert the glm matrix
+ * to row major!!!
+ */
+SAIGA_GLOBAL std::string to_string(const glm::mat3& m);
+SAIGA_GLOBAL std::string to_string(const glm::mat4& m);
+SAIGA_GLOBAL std::string to_string(const glm::vec3& m);
+SAIGA_GLOBAL std::string to_string(const glm::vec4& m);
+
+SAIGA_GLOBAL glm::mat3 mat3FromString(const std::string& str);
+SAIGA_GLOBAL glm::mat4 mat4FromString(const std::string& str);
+SAIGA_GLOBAL glm::vec3 vec3FromString(const std::string& str);
+SAIGA_GLOBAL glm::vec4 vec4FromString(const std::string& str);
+
 }

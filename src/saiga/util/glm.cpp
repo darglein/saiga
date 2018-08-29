@@ -5,6 +5,8 @@
  */
 
 #include "saiga/util/glm.h"
+#include "saiga/util/tostring.h"
+#include "saiga/util/assert.h"
 #include "internal/noGraphicsAPI.h"
 
 namespace glm {
@@ -167,11 +169,37 @@ vec3 snapTo(vec3 v, float snapAngleInDegrees)
 }
 
 
-void glmtest(){
+void glmtestcvbtycvib(){
     glm::linearRand(vec4(0),vec4(1));
     glm::diskRand(1.0f);
     glm::sphericalRand(1.0f);
     glm::ballRand(1.0f);
 }
+
+template<typename M>
+inline std::string helpConvert(const M &m, int size)
+{
+    auto a = make_ArrayView( (float*)&m,size);
+    return array_to_string(a);
+}
+
+template<typename M>
+inline M helpConvertBack(const std::string &str, unsigned int size)
+{
+    auto array = string_to_array<float>(str);
+    SAIGA_ASSERT(array.size() == size);
+    M m;
+    std::copy(array.begin(),array.end(),(float*)&m);
+    return m;
+}
+std::string to_string(const glm::mat3 &m){ return helpConvert(transpose(m),16); }
+std::string to_string(const glm::mat4 &m){ return helpConvert(transpose(m),16); }
+std::string to_string(const glm::vec3 &m){ return helpConvert(m,3); }
+std::string to_string(const glm::vec4 &m){ return helpConvert(m,4); }
+
+glm::mat3 mat3FromString(const std::string &str) { return transpose(helpConvertBack<glm::mat3>(str,9)); }
+glm::mat4 mat4FromString(const std::string &str) { return transpose(helpConvertBack<glm::mat4>(str,16)); }
+glm::vec3 vec3FromString(const std::string &str) { return helpConvertBack<glm::vec3>(str,3); }
+glm::vec4 vec4FromString(const std::string &str) { return helpConvertBack<glm::vec4>(str,4); }
 
 }

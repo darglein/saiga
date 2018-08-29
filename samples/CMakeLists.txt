@@ -57,3 +57,5 @@ endif ()
 if (GPHOTO2_FOUND)
     add_subdirectory(dslr)
 endif ()
+
+add_subdirectory(ini)

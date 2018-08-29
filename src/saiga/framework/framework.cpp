@@ -54,7 +54,7 @@ void SaigaParameters::fromConfigFile(const std::string &file)
                           "# shaderDirectory = shader!/usr/local/share/saiga/shader!somepath/asdf/shader";
 
     char sep = '!';
-    shaderDirectory   = split(ini.GetAddString ("saiga","shaderDirectory",   concat(shaderDirectory,sep).c_str(),comment.c_str()),sep);
+    shaderDirectory   = split(ini.GetAddString ("saiga","shaderDirectory",  concat(shaderDirectory,sep).c_str(),comment.c_str()),sep);
     textureDirectory  = split(ini.GetAddString ("saiga","textureDirectory", concat(textureDirectory,sep).c_str()),sep);
     modelDirectory    = split(ini.GetAddString ("saiga","modelDirectory",   concat(modelDirectory,sep).c_str()),sep);
     fontDirectory     = split(ini.GetAddString ("saiga","fontDirectory",    concat(fontDirectory,sep).c_str()),sep);
