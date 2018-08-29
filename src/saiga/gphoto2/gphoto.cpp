@@ -102,7 +102,7 @@ std::shared_ptr<GPhoto::DSLRImage> GPhoto::waitForImage()
     return imageBuffer.get();
 }
 
-std::shared_ptr<GPhoto::DSLRImage> GPhoto::tryWaitForImage()
+std::shared_ptr<GPhoto::DSLRImage> GPhoto::tryGetImage()
 {
     std::shared_ptr<GPhoto::DSLRImage> img;
     imageBuffer.tryGet(img);

@@ -12,12 +12,20 @@
 #include "saiga/util/synchronizedBuffer.h"
 #include "saiga/util/file.h"
 
-
 #include <thread>
-#include <mutex>
 
 namespace Saiga {
 
+/**
+ * Currently only tested with Canon 5D Mark 3!
+ *
+ * Simple helper class to get the images from a DSLR camera when the trigger is pressed.
+ *
+ * This class starts a background thread that checks for events and downloads the appropriate
+ * files from the camera. The main thread can grab and process the images by calling waitForImage
+ * or tryWaitForImage. By default the jpg image is also extracted and stored in the img variable
+ * of DSLRImage.
+ */
 
 class SAIGA_GLOBAL GPhoto
 {
@@ -46,29 +54,34 @@ public:
     bool autoConvert = true;
 
 
+    /**
+     * Initializes the context and connects to a camera.
+     * You can use the function isOpenend to check for success.
+     */
     GPhoto();
     ~GPhoto();
 
     bool isOpenend() { return foundCamera; }
 
-
+    /**
+     * Blocks until a new image arrives.
+     */
     std::shared_ptr<DSLRImage> waitForImage();
-    std::shared_ptr<DSLRImage> tryWaitForImage();
 
-
-//    bool hasNewImage();
-//    void getImage(Image& img);
+    /**
+     * Tries to return the last dslr image.
+     * If none are ready a nullptr is returned.
+     */
+    std::shared_ptr<DSLRImage> tryGetImage();
 private:
 
     SynchronizedBuffer<std::shared_ptr<DSLRImage>> imageBuffer;
 
-
-    std::mutex mut;
     std::thread eventThread;
 
     bool foundCamera = false;
     void *context;
-    void	*camera;
+    void *camera;
 
     bool running = false;
 

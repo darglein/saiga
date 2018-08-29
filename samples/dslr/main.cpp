@@ -17,7 +17,7 @@ int main( int argc, char* args[] )
     TemplatedImage<ucvec3> dimg;
     while(true)
     {
-        auto img = dslr.tryWaitForImage();
+        auto img = dslr.tryGetImage();
         if(img)
         {
             img->saveJpg("dslr");
