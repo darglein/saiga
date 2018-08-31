@@ -187,6 +187,8 @@ void initCUDA(){
     cout << "  Max Threads per Block: " << deviceProp.maxThreadsPerBlock << endl;
     cout << "  Max Threads per Multi Processor: " << deviceProp.maxThreadsPerMultiProcessor << endl;
     cout << "  32-Bit Registers per Block: " << deviceProp.regsPerBlock << endl;
+    cout << "  32-Bit Registers per SM: " << deviceProp.regsPerMultiprocessor << endl;
+    cout << "  L2 cache size: " << deviceProp.l2CacheSize << endl;
     cout << "  Multi-Processors: " << deviceProp.multiProcessorCount << endl;
     cout << "  Memory Clock Rate (KHz): " << deviceProp.memoryClockRate << endl;
     cout << "  Memory Bus Width (bits): " << deviceProp.memoryBusWidth << endl;

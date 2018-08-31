@@ -9,7 +9,7 @@ namespace Vulkan{
 
 Texture::~Texture()
 {
-    cout << "destroy texture" << endl;
+//    cout << "destroy texture" << endl;
     destroy();
 }
 
@@ -189,7 +189,7 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     sampler = device.createSampler(samplerCreateInfo);
     SAIGA_ASSERT(sampler);
 
-    cout << "texture created." << endl;
+//    cout << "texture created." << endl;
 }
 
 void Texture2D::uploadImage(VulkanBase &base, Image &img)
