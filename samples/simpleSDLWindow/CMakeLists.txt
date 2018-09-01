@@ -22,3 +22,8 @@ set_target_properties (${PROG_NAME} PROPERTIES FOLDER samples)
 set_target_properties( ${PROG_NAME}
 	PROPERTIES
     	RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+    	
+install(
+    TARGETS ${PROG_NAME}
+    RUNTIME DESTINATION ${INSTALL_SAMPLES}
+    )

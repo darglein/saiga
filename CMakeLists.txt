@@ -316,22 +316,18 @@ endif()
 
 #This part is partly copied from the CMakeLists.txt of glbinding.
 #If a relative path is given it is interpreted relative to the value of the CMAKE_INSTALL_PREFIX variable.
-if(UNIX)
+#if(UNIX)
 
-    # default CMAKE_INSTALL_PREFIX = /usr/local/
-    set(INSTALL_ROOT      "share/${LIB_NAME}")
-    set(INSTALL_SHARE     "share/${LIB_NAME}")
-    set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
+    set(INSTALL_INCLUDE   "include/${LIB_NAME}")
     set(INSTALL_BIN       "bin")
     set(INSTALL_SHARED    "lib")
     set(INSTALL_LIB       "lib")
-    set(INSTALL_INCLUDE   "include/${LIB_NAME}")
-    set(INSTALL_DOC       "share/doc/${LIB_NAME}")
+    set(INSTALL_SHARE     "share/${LIB_NAME}")
+    set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
+    set(INSTALL_DOC       "share/${LIB_NAME}/doc")
+    set(INSTALL_SAMPLES   "share/${LIB_NAME}/bin")
 
-elseif(WIN32) 
-
-    # default CMAKE_INSTALL_PREFIX = "%PROGRAMFILES%/<project>/"
-    set(INSTALL_ROOT      ".")
+if(ajshgsdgasdgdsg) 
     set(INSTALL_SHARE     "share/${LIB_NAME}")
     set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
     set(INSTALL_BIN       "bin")
