@@ -6,17 +6,18 @@
 
 #include <iostream>
 #include <vector>
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include "saiga/util/glm.h"
 #include <thrust/device_vector.h>
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 
 
-struct Particle{
+struct Particle
+{
     vec3 position;
+    float radius;
     vec3 velocity;
+    float invMass;
 };
 
 
