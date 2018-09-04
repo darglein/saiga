@@ -31,12 +31,18 @@ PerformanceTestHelper::~PerformanceTestHelper(){
 void PerformanceTestHelper::addMeassurement(const std::string& name, float timeMS){
     using std::setw;
     using std::left;
-    float bandWidth = double(bytesReadWrite) / (timeMS / 1000.0) / (1000*1000*1000);
+    float bandWidth = bandwidth(timeMS);
     std::cout
             << setw(40) << left << name
             << setw(15) << left << timeMS
             << setw(15) << left << bandWidth
             << endl ;
+}
+
+float PerformanceTestHelper::bandwidth(float timeMS) const
+{
+    float bandWidth = double(bytesReadWrite) / (timeMS / 1000.0) / (1000*1000*1000);
+    return bandWidth;
 }
 
 void PerformanceTestHelper::updateBytes(size_t _bytesReadWrite){

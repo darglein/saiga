@@ -11,7 +11,7 @@
 #include "saiga/cuda/tests/test_helper.h"
 
 
-struct GLM_ALIGN(32) Particle
+struct Particle
 {
     vec3 position;
     float radius;
@@ -39,28 +39,9 @@ struct VelocityMass
     float invMass;
 };
 
-__global__ static
-void particleCopy(Saiga::ArrayView<Particle> particles1, Saiga::ArrayView<Particle> particles2)
-{
-    Saiga::CUDA::ThreadInfo<> ti;
-//    if(ti.thread_id >= particles1.size())
-//        return;
-
-    auto size4 = particles1.size() * 2;
-
-
-    for(auto tid = ti.thread_id; tid < size4; tid += ti.grid_size)
-    {
-        int4* src = reinterpret_cast<int4*>(particles1.data());
-        int4* dst = reinterpret_cast<int4*>(particles2.data());
-        dst[tid] = src[tid];
-    }
-
-}
-
 
 __global__ static
-void integrateEuler1(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
+void integrateEulerBase(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
 {
     Saiga::CUDA::ThreadInfo<> ti;
     if(ti.thread_id >= srcParticles.size()) return;
@@ -72,7 +53,7 @@ void integrateEuler1(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<P
 
 
 __global__ static
-void integrateEuler2(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
+void integrateEulerVector(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
 {
     Saiga::CUDA::ThreadInfo<> ti;
     if(ti.thread_id >= srcParticles.size())
@@ -84,21 +65,9 @@ void integrateEuler2(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<P
     Saiga::CUDA::vectorCopy(&p,dstParticles.data() + ti.thread_id);
 }
 
-__global__ static
-void integrateEuler3(Saiga::ArrayView<PositionRadius> prs, Saiga::ArrayView<VelocityMass> vms, float dt)
-{
-    Saiga::CUDA::ThreadInfo<> ti;
-    if(ti.thread_id >= prs.size())
-        return;
-    PositionRadius& pr = prs[ti.thread_id];
-    VelocityMass& vm = vms[ti.thread_id];
-
-    pr.position += vm.velocity * dt;
-    vm.velocity += vec3(0,-9.81,0) * dt;
-}
 
 __global__ static
-void integrateEuler4(
+void integrateEulerInverseVector(
         Saiga::ArrayView<PositionRadius> srcPr, Saiga::ArrayView<VelocityMass> srcVm,
         Saiga::ArrayView<PositionRadius> dstPr, Saiga::ArrayView<VelocityMass> dstVm, float dt)
 {
@@ -117,56 +86,55 @@ void integrateEuler4(
     Saiga::CUDA::vectorCopy(&vm,dstVm.data()+ti.thread_id);
 }
 
-__global__ static
-void integrateEuler5(Saiga::ArrayView<PositionRadius> prs, Saiga::ArrayView<VelocityMass> vms, float dt)
-{
-    Saiga::CUDA::ThreadInfo<> ti;
-    if(ti.thread_id >= prs.size())
-        return;
-
-    PositionRadius pr;
-    reinterpret_cast<int4*>(&pr)[0] = reinterpret_cast<int4*>(prs.data()+ti.thread_id)[0];
-    VelocityMass vm;
-    reinterpret_cast<int4*>(&vm)[0] = reinterpret_cast<int4*>(vms.data()+ti.thread_id)[0];
-
-
-    pr.position += vm.velocity * dt;
-    vm.velocity += vec3(0,-9.81,0) * dt;
-
-    reinterpret_cast<int4*>(prs.data()+ti.thread_id)[0] = reinterpret_cast<int4*>(&pr)[0];
-    reinterpret_cast<int4*>(vms.data()+ti.thread_id)[0] = reinterpret_cast<int4*>(&vm)[0];
-}
-
 template<unsigned int BLOCK_SIZE>
 __global__ static
-void integrateEuler6(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
+void integrateEulerSharedVector(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
 {
-    const unsigned int WARPS_PER_BLOCK = BLOCK_SIZE / 32;
-    __shared__ Particle tmp[WARPS_PER_BLOCK][32];
+    const unsigned int WARPS_PER_BLOCK = BLOCK_SIZE / WARP_SIZE;
+    __shared__ Particle tmp[WARPS_PER_BLOCK][WARP_SIZE];
+    static_assert(sizeof(Particle) % sizeof(int4) == 0,  "alsdkf");
+
+
 
     Saiga::CUDA::ThreadInfo<> ti;
 
-    auto start = ti.warp_id * 32;
-    auto start4 = ti.warp_id * 32 * 2;
+    const auto cycles = sizeof(Particle) / sizeof(int4);
+    const auto step = WARP_SIZE;
 
-    auto offset1 = ti.lane_id;
-    auto offset2 = ti.lane_id + 32;
+    // Start offset into particle array for this warp
+    auto warpStart = ti.warp_id * WARP_SIZE;
 
-    auto end4 = srcParticles.size() * 2;
+    // Check if complete warp is outside
+    if(warpStart >= srcParticles.size())
+        return;
 
-    if(start4 + offset1 < end4)
-        reinterpret_cast<int4*>(tmp[ti.warp_lane])[offset1] = reinterpret_cast<int4*>(srcParticles.data()+start)[offset1];
-    if(start4 + offset2 < end4)
-        reinterpret_cast<int4*>(tmp[ti.warp_lane])[offset2] = reinterpret_cast<int4*>(srcParticles.data()+start)[offset2];
+
+    auto begin = warpStart * cycles;
+    auto end = min(srcParticles.size() * cycles, begin+step*cycles);
+    CUDA_ASSERT(begin < end);
+
+    auto lbegin = 0;
+    auto lend = end - begin;
+
+    int4* srcptr = reinterpret_cast<int4*>(srcParticles.data()) + begin;
+    int4* dstptr = reinterpret_cast<int4*>(dstParticles.data()) + begin;
+    int4* lptr = reinterpret_cast<int4*>(tmp[ti.warp_lane]) + lbegin;
+
+    for(auto i = lbegin + ti.lane_id; i < lend; i += step)
+    {
+        lptr[i] = srcptr[i];
+    }
+    __syncwarp();
 
     Particle& p = tmp[ti.warp_lane][ti.lane_id];
     p.position += p.velocity * dt;
     p.velocity += vec3(0,-9.81,0) * dt;
 
-    if(start4 + offset1 < end4)
-        reinterpret_cast<int4*>(dstParticles.data()+start)[offset1]    = reinterpret_cast<int4*>(tmp[ti.warp_lane])[offset1]    ;
-    if(start4 + offset2 < end4)
-        reinterpret_cast<int4*>(dstParticles.data()+start)[offset2] = reinterpret_cast<int4*>(tmp[ti.warp_lane])[offset2] ;
+    __syncwarp();
+    for(auto i = lbegin + ti.lane_id; i < lend; i += step)
+    {
+        dstptr[i] = lptr[i];
+    }
 }
 
 //nvcc $CPPFLAGS -I ../../../src/ -I ../../../build/include/ -ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr main.cu
@@ -201,66 +169,53 @@ void particleTest()
         particles = hp;
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            integrateEuler1<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
+            integrateEulerBase<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
         });
         ref = particles2;
-        pth.addMeassurement("integrateEuler1",st.median);
+        pth.addMeassurement("integrateEulerBase",st.median);
         CUDA_SYNC_CHECK_ERROR();
     }
     {
          particles = hp;
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            integrateEuler2<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
+            integrateEulerVector<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
         });
         test = particles2;
         SAIGA_ASSERT(test == ref);
-        pth.addMeassurement("integrateEuler2",st.median);
+        pth.addMeassurement("integrateEulerVector",st.median);
         CUDA_SYNC_CHECK_ERROR();
     }
 
+
     {
+         particles = hp;
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            integrateEuler3<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(pr,vm,0.1f);
+            integrateEulerInverseVector<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(pr,vm,pr2,vm2,0.1f);
         });
-        pth.addMeassurement("integrateEuler3",st.median);
+        pth.addMeassurement("integrateEulerInverseVector",st.median);
         CUDA_SYNC_CHECK_ERROR();
     }
 
-    {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
-        {
-            integrateEuler4<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(pr,vm,pr2,vm2,0.1f);
-        });
-        pth.addMeassurement("integrateEuler4",st.median);
-    }
-
-    {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
-        {
-            integrateEuler5<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(pr,vm,0.1f);
-        });
-        pth.addMeassurement("integrateEuler5",st.median);
-    }
 
     {
           particles = hp;
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            integrateEuler6<BLOCK_SIZE><<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
+            integrateEulerSharedVector<BLOCK_SIZE><<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
         });
         test = particles2;
         SAIGA_ASSERT(test == ref);
-        pth.addMeassurement("integrateEuler6",st.median);
+        pth.addMeassurement("integrateEulerInverseVector",st.median);
     }
 
     {
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-            particleCopy<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2);
+            cudaMemcpy(particles2.data().get(),particles.data().get(),N * sizeof(Particle),cudaMemcpyDeviceToDevice);
         });
-        pth.addMeassurement("particleCopy",st.median);
+        pth.addMeassurement("cudaMemcpy",st.median);
     }
 
     CUDA_SYNC_CHECK_ERROR();
