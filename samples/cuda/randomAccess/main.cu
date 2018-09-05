@@ -179,6 +179,7 @@ void randomAccessTest2(int numIndices, int numElements)
     {
         d_result = result;
 
+//        cudaFuncSetCacheConfig(randomAccessConstRestricted<ElementType,BLOCK_SIZE,K>,cudaFuncCachePreferShared);
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
             randomAccessConstRestricted<ElementType,BLOCK_SIZE,K> <<< BLOCKS,BLOCK_SIZE >>>(d_data,d_data.data().get(),d_result);
@@ -234,6 +235,9 @@ void randomAccessTest2(int numIndices, int numElements)
 
 int main(int argc, char *argv[])
 {
+//    cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+//    cudaDeviceSetCacheConfig(cudaFuncCachePreferShared);
+
     outstrm.open("out.csv");
     outstrm << "size,simple,cr,ldg,texture" << endl;
     for(int i = 8; i < 24; ++i)
