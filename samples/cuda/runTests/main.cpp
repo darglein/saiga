@@ -73,16 +73,7 @@ int main(int argc, char *argv[]) {
         Saiga::CUDA::testCuda();
         Saiga::CUDA::testThrust();
 
-//        CUDA::initBLASSPARSE();
 
-        //        CUDA::imageProcessingTest();
-        //        CUDA::inverseTest();
-        //        CUDA::warpStrideLoopTest();
-        //        CUDA::convolutionTest();
-        //        CUDA::convolutionTest3x3();
-        //        CUDA::dotTest();
-        CUDA::bandwidthTest();
-        return 0;
         CUDA::randomTest();
 
         //        return 0;

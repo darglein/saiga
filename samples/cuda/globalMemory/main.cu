@@ -45,6 +45,7 @@ void integrateEulerBase(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayVie
 {
     Saiga::CUDA::ThreadInfo<> ti;
     if(ti.thread_id >= srcParticles.size()) return;
+
     Particle p = srcParticles[ti.thread_id];
     p.position += p.velocity * dt;
     p.velocity += vec3(0,-9.81,0) * dt;
@@ -56,9 +57,10 @@ __global__ static
 void integrateEulerVector(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
 {
     Saiga::CUDA::ThreadInfo<> ti;
-    if(ti.thread_id >= srcParticles.size())
-        return;
+    if(ti.thread_id >= srcParticles.size()) return;
+
     Particle p;
+
     Saiga::CUDA::vectorCopy(srcParticles.data() + ti.thread_id,&p);
     p.position += p.velocity * dt;
     p.velocity += vec3(0,-9.81,0) * dt;
@@ -76,6 +78,7 @@ void integrateEulerInverseVector(
 
     PositionRadius pr;
     VelocityMass vm;
+
     Saiga::CUDA::vectorCopy(srcPr.data()+ti.thread_id,&pr);
     Saiga::CUDA::vectorCopy(srcVm.data()+ti.thread_id,&vm);
 
@@ -90,10 +93,10 @@ template<unsigned int BLOCK_SIZE>
 __global__ static
 void integrateEulerSharedVector(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
 {
+    static_assert(sizeof(Particle) % sizeof(int4) == 0,  "Invalid particle size");
+
     const unsigned int WARPS_PER_BLOCK = BLOCK_SIZE / WARP_SIZE;
     __shared__ Particle tmp[WARPS_PER_BLOCK][WARP_SIZE];
-    static_assert(sizeof(Particle) % sizeof(int4) == 0,  "alsdkf");
-
 
 
     Saiga::CUDA::ThreadInfo<> ti;
