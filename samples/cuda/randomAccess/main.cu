@@ -9,6 +9,7 @@
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/tests/test_helper.h"
+#include "saiga/cuda/reduce.h"
 #include <random>
 #include <fstream>
 
@@ -46,7 +47,11 @@ void randomAccessSimple(ArrayView<T> data, ArrayView<T> result)
         auto index = r % data.size();
         sum += data[index];
     }
-    result[ti.thread_id] = sum;
+
+    // Reduce the cache impact of the output array
+    sum = Saiga::CUDA::warpReduceSum<T>(sum);
+    if(ti.lane_id == 0)
+        result[ti.warp_id] = sum;
 }
 
 template<typename T, unsigned int BLOCK_SIZE, unsigned int K>
@@ -65,7 +70,11 @@ void randomAccessConstRestricted(ArrayView<T> vdata, const T* __restrict__ data,
         auto index = r % vdata.size();
         sum += data[index];
     }
-    result[ti.thread_id] = sum;
+
+    // Reduce the cache impact of the output array
+    sum = Saiga::CUDA::warpReduceSum<T>(sum);
+    if(ti.lane_id == 0)
+        result[ti.warp_id] = sum;
 }
 
 
@@ -86,7 +95,11 @@ void randomAccessLdg(ArrayView<T> data, ArrayView<T> result)
         auto index = r % data.size();
         sum += Saiga::CUDA::ldg(data.data() + index);
     }
-    result[ti.thread_id] = sum;
+
+    // Reduce the cache impact of the output array
+    sum = Saiga::CUDA::warpReduceSum<T>(sum);
+    if(ti.lane_id == 0)
+        result[ti.warp_id] = sum;
 }
 
 
@@ -109,7 +122,11 @@ void randomAccessTexture( ArrayView<T> data, ArrayView<T> result)
         auto index = r % data.size();
         sum += tex1Dfetch(dataTexture,index);
     }
-    result[ti.thread_id] = sum;
+
+    // Reduce the cache impact of the output array
+    sum = Saiga::CUDA::warpReduceSum<T>(sum);
+    if(ti.lane_id == 0)
+        result[ti.warp_id] = sum;
 }
 
 
@@ -119,10 +136,10 @@ void randomAccessTest2(int numIndices, int numElements)
 
     const int K = 16;
 
-    outstrm << numIndices * sizeof(int) << ",";
+    outstrm << numIndices * sizeof(int) / 1024 << ",";
 
     size_t readWrites =
-            numElements * sizeof(ElementType) +
+            numElements * sizeof(ElementType) / 32 +
             numElements * sizeof(int) * K;
 
     Saiga::CUDA::PerformanceTestHelper test(
@@ -131,36 +148,16 @@ void randomAccessTest2(int numIndices, int numElements)
                 +" numElements: "  + std::to_string(numElements),
                 readWrites);
 
-    thrust::host_vector<int> indices(numElements * K);
     thrust::host_vector<ElementType> data(numIndices);
     thrust::host_vector<ElementType> result(numElements,0);
     thrust::host_vector<ElementType> ref(numElements);
 
 
-    std::random_device rd;
-        std::mt19937 mt(rd());
-        std::uniform_int_distribution<int> dist1(1, 10);
-        std::uniform_int_distribution<int> dist2(0, numIndices - 1);
 
-
-    for(int i = 0 ; i < numIndices; ++i){
-        data[i] = dist1(mt);
-    }
-
-
-
-    for(int i = 0 ; i < indices.size(); ++i){
-        indices[i] = dist2(mt);
-//        ref[i] = data[indices[i]];
-    }
-
-
-
-    thrust::device_vector<int> d_indices(indices);
     thrust::device_vector<ElementType> d_data(data);
     thrust::device_vector<ElementType> d_result(result);
 
-    int its = 5;
+    int its = 50;
 
     const int BLOCK_SIZE = 128;
     const int BLOCKS = Saiga::CUDA::getBlockCount(numElements,BLOCK_SIZE);
@@ -177,15 +174,13 @@ void randomAccessTest2(int numIndices, int numElements)
         CUDA_SYNC_CHECK_ERROR();
     }
 
-//    SAIGA_ASSERT(ref == d_result);
+    //    SAIGA_ASSERT(ref == d_result);
 
     {
         d_result = result;
 
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
-//            randomAccessSimple<ElementType,BLOCK_SIZE> <<< CUDA::getBlockCount(numElements,BLOCK_SIZE),BLOCK_SIZE >>>(d_indices,d_data,d_result);
-//            const ElementType* tmp = thrust::raw_pointer_cast(d_data.data());
             randomAccessConstRestricted<ElementType,BLOCK_SIZE,K> <<< BLOCKS,BLOCK_SIZE >>>(d_data,d_data.data().get(),d_result);
         });
         test.addMeassurement("randomAccessConstRestricted",st.median);
@@ -194,7 +189,7 @@ void randomAccessTest2(int numIndices, int numElements)
         CUDA_SYNC_CHECK_ERROR();
     }
 
-//    SAIGA_ASSERT(ref == d_result);
+    //    SAIGA_ASSERT(ref == d_result);
 
     {
         d_result = result;
@@ -209,14 +204,13 @@ void randomAccessTest2(int numIndices, int numElements)
 
         CUDA_SYNC_CHECK_ERROR();
     }
-#if 1
 
-//    SAIGA_ASSERT(ref == d_result);
+    //    SAIGA_ASSERT(ref == d_result);
 
 
 
     {
-        cudaBindTexture(0, dataTexture, thrust::raw_pointer_cast(d_data.data()), d_data.size()*sizeof(ElementType));
+        cudaBindTexture(0, dataTexture, d_data.data().get(), d_data.size()*sizeof(ElementType));
         d_result = result;
 
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
@@ -229,9 +223,7 @@ void randomAccessTest2(int numIndices, int numElements)
         cudaUnbindTexture(dataTexture);
         CUDA_SYNC_CHECK_ERROR();
     }
-#endif
 
-//    SAIGA_ASSERT(ref == d_result);
 
     outstrm << endl;
     return;
@@ -244,17 +236,12 @@ int main(int argc, char *argv[])
 {
     outstrm.open("out.csv");
     outstrm << "size,simple,cr,ldg,texture" << endl;
-    for(int i = 0; i < 24; ++i)
+    for(int i = 8; i < 24; ++i)
     {
         randomAccessTest2<int>(1 << i,       1 * 1024 * 1024);
-//        randomAccessTest2<int>(1024 * 1 * (i+1),       8 * 1024 * 1024);
+        if(i > 0)
+            randomAccessTest2<int>( (1 << i) + (1 << (i-1)),       1 * 1024 * 1024);
     }
-//    return;
-//    randomAccessTest2<int>(1 << 0,       1 * 1024 * 1024);
-//    randomAccessTest2<int>(1 << 1,       1 * 1024 * 1024);
-//    randomAccessTest2<int>(1 << 2,       1 * 1024 * 1024);
-//    randomAccessTest2<int>(1 << 3,       1 * 1024 * 1024);
-
     CUDA_SYNC_CHECK_ERROR();
     return 0;
 }

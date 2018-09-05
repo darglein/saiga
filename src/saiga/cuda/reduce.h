@@ -13,12 +13,23 @@
 namespace Saiga {
 namespace CUDA{
 
+/**
+ * Usage:
+ *
+ * float value = ...;
+ * float sum = warpReduceSum(value);
+ *
+ * if(ti.lane_id == 0)
+ *     output[ti.warp_id] = sum;
+ *
+ */
 template<typename T, unsigned int LOCAL_WARP_SIZE=32, bool RESULT_FOR_ALL_THREADS=false, typename ShuffleType = T>
 __device__ inline
-T warpReduceSum(T val) {
+T warpReduceSum(T val)
+{
 #pragma unroll
-    for (int offset = LOCAL_WARP_SIZE/2; offset > 0; offset /= 2){
-//        auto v = RESULT_FOR_ALL_THREADS ? __shfl_xor(val, offset) : __shfl_down(val, offset);
+    for (int offset = LOCAL_WARP_SIZE/2; offset > 0; offset /= 2)
+    {
         auto v = RESULT_FOR_ALL_THREADS ? shfl_xor<T,ShuffleType>(val, offset) : shfl_down<T,ShuffleType>(val, offset);
         val = val + v;
     }
@@ -29,7 +40,8 @@ template<typename T, unsigned int LOCAL_WARP_SIZE=32, bool RESULT_FOR_ALL_THREAD
 __device__ inline
 T warpReduceMax(T val) {
 #pragma unroll
-    for (int offset = LOCAL_WARP_SIZE/2; offset > 0; offset /= 2){
+    for (int offset = LOCAL_WARP_SIZE/2; offset > 0; offset /= 2)
+    {
         auto v = RESULT_FOR_ALL_THREADS ? __shfl_xor(val, offset) : __shfl_down(val, offset);
         val = max(val , v);
     }
