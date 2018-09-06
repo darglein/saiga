@@ -6,12 +6,32 @@
 
 #pragma once
 
-//#include "saiga/opengl/texture/all.h"
+#include "saiga/config.h"
+#include "saiga/time/timer.h"
+#include <vector>
 
 namespace ImGui
 {
 
-//IMGUI_API void Texture(std::shared_ptr<Saiga::raw_Texture> texture, const ImVec2& size);
+class SAIGA_GLOBAL TimeGraph
+{
+  public:
+    TimeGraph(const std::string& name, int numValues = 80);
+    void addTime(float t);
+    void renderImGui();
+private:
+    std::string name;
+    int numValues;
 
+    float lastTime = 0;
+    float maxTime = 0;
+    float average = 0;
+    int currentIndex = 0;
+    std::vector<float> updateTimes;
+
+    int r;
+
+    Saiga::Timer timer;
+};
 
 }

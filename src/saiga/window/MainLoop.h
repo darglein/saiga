@@ -11,7 +11,7 @@
 #include "saiga/config.h"
 #include "saiga/util/semaphore.h"
 #include "saiga/time/gameTime.h"
-
+#include "saiga/imgui/imgui_saiga.h"
 
 namespace Saiga {
 
@@ -97,26 +97,17 @@ public:
     bool gameloopDropAccumulatedUpdates = false;
     bool printInfoMsg = true;
 
-    //for imgui graph
     bool showImgui = true;
-    static const int numGraphValues = 80;
-    float ut=0, ft=0;
-    float avFt = 0, avUt;
-    int imCurrentIndexUpdate = 0;
-    int imCurrentIndexRender = 0;
-    float imUpdateTimes[numGraphValues];
-    float imRenderTimes[numGraphValues];
+
     bool showImguiDemo = false;
-    float maxUpdateTime = 1;
-    float maxRenderTime = 1;
     int targetUps = 60;
 
 
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
     AverageTimer fpsTimer, upsTimer;
 
-    void updateRenderGraph();
-    void updateUpdateGraph();
+    ImGui::TimeGraph updateGraph, renderGraph;
+
 
 
     void update(float dt);
@@ -128,7 +119,6 @@ public:
 
 
     void sleep(tick_t ticks);
-
 };
 
 }

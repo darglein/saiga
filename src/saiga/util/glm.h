@@ -88,8 +88,7 @@ typedef glm::vec4 vec4;
 typedef glm::mat4 mat4;
 typedef glm::quat quat;
 
-
-static const quat IDENTITY_QUATERNION = quat(1,0,0,0);
+#define IDENTITY_QUATERNION quat(1,0,0,0)
 
 typedef glm::tvec2<char, glm::highp> cvec2;
 typedef glm::tvec3<char, glm::highp> cvec3;

@@ -32,41 +32,9 @@ void MainLoopParameters::fromConfigFile(const std::string &file)
 
 MainLoop::MainLoop(MainLoopInterface &renderer)
     : renderer(renderer), updating(renderer),
-      updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50)
+      updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50),
+      updateGraph("Update",80), renderGraph("Render",80)
 {
-    memset(imUpdateTimes, 0, numGraphValues * sizeof(float));
-    memset(imRenderTimes, 0, numGraphValues * sizeof(float));
-}
-
-void MainLoop::updateUpdateGraph()
-{
-    ut = std::chrono::duration<double, std::milli>(updateTimer.getTime()).count();
-
-    maxUpdateTime = std::max(ut,maxUpdateTime);
-
-    avUt = 0;
-    for(int i = 0 ;i < numGraphValues; ++i){
-        avUt +=   imUpdateTimes[i];
-    }
-    avUt /= numGraphValues;
-
-    imUpdateTimes[imCurrentIndexUpdate] = ut;
-    imCurrentIndexUpdate = (imCurrentIndexUpdate+1) % numGraphValues;
-}
-
-void MainLoop::updateRenderGraph()
-{
-
-    ft = renderer.getTotalRenderTime();
-    maxRenderTime = std::max(ft,maxRenderTime);
-
-    avFt = 0;
-    for(int i = 0 ;i < numGraphValues; ++i){
-        avFt +=   imRenderTimes[i];
-    }
-    avFt /= numGraphValues;
-    imRenderTimes[imCurrentIndexRender] = ft;
-    imCurrentIndexRender = (imCurrentIndexRender+1) % numGraphValues;
 }
 
 
@@ -77,7 +45,7 @@ void MainLoop::update(float dt)
     updating.update(dt);
     startParallelUpdate(dt);
     updateTimer.stop();
-    updateUpdateGraph();
+    updateGraph.addTime(std::chrono::duration_cast<std::chrono::duration<double,std::milli>> (updateTimer.getTime()).count());
 
     numUpdates++;
 
@@ -85,12 +53,8 @@ void MainLoop::update(float dt)
     upsTimer.start();
 }
 
-
-
-
 void MainLoop::startParallelUpdate(float dt)
 {
-
     if(parallelUpdate){
         semStartUpdate.notify();
     }else{
@@ -124,7 +88,6 @@ void MainLoop::parallelUpdateCaller(float dt)
 void MainLoop::render(float dt, float interpolation)
 {
     interpolationTimer.start();
-    //    renderer.renderer.interpolate(dt,interpolation);
     updating.interpolate(dt,interpolation);
     interpolationTimer.stop();
 
@@ -132,12 +95,11 @@ void MainLoop::render(float dt, float interpolation)
     renderer.render();
     renderCPUTimer.stop();
 
-    updateRenderGraph();
+
+    renderGraph.addTime(renderer.getTotalRenderTime());
     numFrames++;
 
     swapBuffersTimer.start();
-    //    if(windowParameters.finishBeforeSwap) glFinish();
-    //    swapBuffers();
     renderer.swap();
     swapBuffersTimer.stop();
 
@@ -254,15 +216,8 @@ void MainLoop::startMainLoop(MainLoopParameters params)
 void MainLoop::renderImGuiInline()
 {
 
-    ImGui::Text("Update Time: %fms Ups: %f",ut, 1000.0f / upsTimer.getTimeMS());
-    ImGui::PlotLines("Update Time", imUpdateTimes, numGraphValues, imCurrentIndexUpdate, ("avg "+Saiga::to_string(avUt)).c_str(), 0,maxUpdateTime, ImVec2(0,80));
-    ImGui::Text("Render Time: %fms Fps: %f",ft, 1000.0f / fpsTimer.getTimeMS());
-    ImGui::PlotLines("Render Time", imRenderTimes, numGraphValues, imCurrentIndexRender, ("avg "+Saiga::to_string(avFt)).c_str(), 0,maxRenderTime, ImVec2(0,80));
-    if(ImGui::Button("Reset Max Value"))
-    {
-        maxUpdateTime = 1;
-        maxRenderTime = 1;
-    }
+    updateGraph.renderImGui();
+    renderGraph.renderImGui();
 
     ImGui::Text("Swap Time: %fms", swapBuffersTimer.getTimeMS());
     ImGui::Text("Interpolate Time: %fms", interpolationTimer.getTimeMS());

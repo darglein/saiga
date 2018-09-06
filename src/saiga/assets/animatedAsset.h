@@ -43,6 +43,9 @@ public:
 
 class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<AnimatedModel>{
 public:
+    using BasicAsset<AnimatedModel>::render;
+    using BasicAsset<AnimatedModel>::renderDepth;
+
     int boneCount;
 
     std::map<std::string,int> boneMap;
