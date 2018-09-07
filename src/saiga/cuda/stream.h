@@ -37,6 +37,10 @@ public:
         cudaStreamDestroy(stream);
     }
 
+    // Let the stream wait for this event
+    // this call returns immediately
+    void waitForEvent(cudaEvent_t event) { cudaStreamWaitEvent(stream,event,0); }
+
 
     operator cudaStream_t() const { return stream; }
 

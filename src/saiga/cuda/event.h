@@ -46,9 +46,6 @@ public:
     // Wait until this event is completed
     void synchronize() {  cudaEventSynchronize(event); }
 
-    // Let the stream wait for this event
-    void streamWait(cudaStream_t stream) { cudaStreamWaitEvent(stream,event,0); }
-
     // Test if the event is completed (returns immediately)
     bool isCompleted() { return cudaEventQuery(event) == cudaSuccess; }
 
