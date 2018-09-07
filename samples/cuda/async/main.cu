@@ -10,72 +10,101 @@
 #include <thrust/device_vector.h>
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
-#include <thrust/system/cuda/experimental/pinned_allocator.h>
+#include "saiga/cuda/pinned_vector.h"
+#include "saiga/cuda/stream.h"
+#include "saiga/cuda/event.h"
 
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 
+
+
 template<int K>
+class GLM_ALIGN(16) Element
+{
+    public:
+    vec4 data;
+
+    HD inline
+            void operator ()()
+    {
+        for(int k = 0; k < K * 512; ++k)
+        {
+            data = data * data + data;
+        }
+    }
+};
+
+
+template<typename T>
 __global__ static
-void randomAccessSimple(ArrayView<int> data)
+void process(ArrayView<T> data)
 {
     ThreadInfo<> ti;
     if(ti.thread_id >= data.size()) return;
 
-    for(int i = 0; i < K; ++i)
-        data[ (ti.thread_id + i) % data.size()]++;
+    T e = data[ti.thread_id];
+    e();
+    data[ti.thread_id] = e;
 }
 
-template<typename T>
-using pinnend_vector=thrust::host_vector<T, thrust::cuda::experimental::pinned_allocator<T> >;
 
-static void asyncTest()
+template<int K>
+static void uploadProcessDownloadAsync(int N, int slices)
 {
-    size_t N = 1024 * 1024 * 1;
-    size_t size = N * sizeof(int);
-    const int K = 512 * 20;
+    using T = Element<K>;
+
+    Saiga::thrust::pinned_vector<T> h_data(N);
+//        thrust::host_vector<T> h_data(N);
+    thrust::device_vector<T> d_data(N);
+    size_t size = N * sizeof(T);
 
 
-    pinnend_vector<int> h1(N,0);
-    pinnend_vector<int> h2(N,5);
 
-//    thrust::host_vector<int> h1(N,0);
-//    thrust::host_vector<int> h2(N,5);
+    SAIGA_ASSERT(N % slices == 0);
+    int sliceN = N / slices;
+    size_t slizeSize = sliceN * sizeof(T);
 
-    thrust::host_vector<int> href1(N,0+K);
-    thrust::host_vector<int> href2(N,5+K);
+    // Create a separate stream for each slice for maximum parallelism
+    std::vector<Saiga::CUDA::CudaStream> streams(slices);
 
-    thrust::device_vector<int> d1(N);
-    thrust::device_vector<int> d2(N);
+    {
+        // ArrayViews simplify slice creation
+        ArrayView<T> vd(d_data);
+        ArrayView<T> vh(h_data);
 
-    cudaStream_t s1, s2;
-       cudaStreamCreate(&s1); cudaStreamCreate(&s2);
 
-//    s1 = cudaStreamLegacy;
 
-    const int BLOCK_SIZE = 128;
-    const int BLOCKS = Saiga::CUDA::getBlockCount(N/16,BLOCK_SIZE);
+        Saiga::CUDA::CudaScopedTimerPrint tim("uploadProcessDownloadAsync " + std::to_string(slices));
 
-    cudaMemcpyAsync(d1.data().get(),h1.data(),size,cudaMemcpyHostToDevice,s1);
-    cudaMemcpyAsync(d2.data().get(),h2.data(),size,cudaMemcpyHostToDevice,s2);
+        for(int i = 0; i < slices; ++i)
+        {
+            // Pick current stream and slice
+            auto& stream = streams[i];
+            auto d_slice = vd.slice_n(i * sliceN,sliceN);
+            auto h_slice = vh.slice_n(i * sliceN,sliceN);
 
-    randomAccessSimple<K><<<BLOCKS,BLOCK_SIZE,0,s1>>>(d1);
-    randomAccessSimple<K><<<BLOCKS,BLOCK_SIZE,0,s2>>>(d2);
+            // Compute launch arguments
+            const unsigned int BLOCK_SIZE = 128;
+            const unsigned int BLOCKS = Saiga::CUDA::getBlockCount(sliceN,BLOCK_SIZE);
 
-    cudaMemcpyAsync(h1.data(),d1.data().get(),size,cudaMemcpyDeviceToHost,s1);
-    cudaMemcpyAsync(h2.data(),d2.data().get(),size,cudaMemcpyDeviceToHost,s2);
+            cudaMemcpyAsync(d_slice.data(),h_slice.data(),slizeSize,cudaMemcpyHostToDevice,stream);
 
-    CUDA_SYNC_CHECK_ERROR();
+            process<T><<<BLOCKS,BLOCK_SIZE,0,stream>>>(d_slice);
 
-//    SAIGA_ASSERT(href1 == h1);
-//    SAIGA_ASSERT(href2 == h2);
+            cudaMemcpyAsync(h_slice.data(),d_slice.data(),slizeSize,cudaMemcpyDeviceToHost,stream);
+        }
+    }
 }
-
-
 
 int main(int argc, char *argv[])
 {
-    asyncTest();
+    uploadProcessDownloadAsync  <8>(1024 * 1024,1);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,2);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,4);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,8);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,16);
+
     cout << "Done." << endl;
 }
 

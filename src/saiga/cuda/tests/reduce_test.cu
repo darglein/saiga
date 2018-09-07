@@ -63,10 +63,11 @@ void reduceTest(){
         thrust::device_vector<int> res(1);
         float time;
         const int blockSize = 256;
-        static auto numBlocks = CUDA::max_active_blocks(reduceBlockShared<int,blockSize>,blockSize,0);
+                SAIGA_ASSERT(0);
+//        static auto numBlocks = CUDA::max_active_blocks(reduceBlockShared<int,blockSize>,blockSize,0);
         {
             CUDA::CudaScopedTimer t2(time);
-            reduceBlockShared<int,blockSize> <<<numBlocks,blockSize>>>(v, thrust::raw_pointer_cast(res.data()));
+            reduceBlockShared<int,blockSize> <<<1,blockSize>>>(v, thrust::raw_pointer_cast(res.data()));
 
         }
         pth.addMeassurement("reduceBlockShared",time);
@@ -77,12 +78,13 @@ void reduceTest(){
 
     {
         const int blockSize = 256;
-        auto numBlocks = CUDA::max_active_blocks(reduceBlockSharedAtomic<int,blockSize>,blockSize,0);
+//        auto numBlocks = CUDA::max_active_blocks(reduceBlockSharedAtomic<int,blockSize>,blockSize,0);
         thrust::device_vector<int> res(1);
         float time;
         {
+            SAIGA_ASSERT(0);
             CUDA::CudaScopedTimer t2(time);
-            reduceBlockSharedAtomic<int,blockSize><<<numBlocks,blockSize>>>(v,thrust::raw_pointer_cast(res.data()));
+            reduceBlockSharedAtomic<int,blockSize><<<1,blockSize>>>(v,thrust::raw_pointer_cast(res.data()));
 
         }
         pth.addMeassurement("reduceBlockSharedAtomic",time);
@@ -93,12 +95,13 @@ void reduceTest(){
 
     {
         const int blockSize = 256;
-        auto numBlocks = CUDA::max_active_blocks(reduceAtomic<int,blockSize>,blockSize,0);
+//        auto numBlocks = CUDA::max_active_blocks(reduceAtomic<int,blockSize>,blockSize,0);
         thrust::device_vector<int> res(1);
         float time;
         {
+            SAIGA_ASSERT(0);
             CUDA::CudaScopedTimer t2(time);
-            reduceAtomic<int,blockSize><<<numBlocks,blockSize>>>(v,thrust::raw_pointer_cast(res.data()));
+            reduceAtomic<int,blockSize><<<1,blockSize>>>(v,thrust::raw_pointer_cast(res.data()));
 
         }
         pth.addMeassurement("reduceAtomic",time);

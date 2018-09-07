@@ -10,41 +10,33 @@
 namespace Saiga {
 namespace CUDA {
 
-CudaScopedTimer::CudaScopedTimer(float& time) : time(time){
-
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+CudaScopedTimer::CudaScopedTimer(float& time, cudaStream_t stream)
+    : time(time), stream(stream)
+{
+    start.record(stream);
 }
 
-CudaScopedTimer::~CudaScopedTimer(){
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
+CudaScopedTimer::~CudaScopedTimer()
+{
+    stop.record(stream);
+    stop.synchronize();
 
-    cudaEventElapsedTime(&time, start, stop);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    time = CudaEvent::elapsedTime(start,stop);
 }
 
 
-
-
-
-CudaScopedTimerPrint::CudaScopedTimerPrint(const std::string &name) : name(name){
-
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+CudaScopedTimerPrint::CudaScopedTimerPrint(const std::string &name, cudaStream_t stream)
+    : name(name), stream(stream)
+{
+      start.record(stream);
 }
 
-CudaScopedTimerPrint::~CudaScopedTimerPrint(){
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
+CudaScopedTimerPrint::~CudaScopedTimerPrint()
+{
+    stop.record(stream);
+    stop.synchronize();
 
-    float time;
-    cudaEventElapsedTime(&time, start, stop);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    auto time = CudaEvent::elapsedTime(start,stop);
 
     std::cout << name << " : " << time << "ms." << std::endl;
 }

@@ -96,9 +96,10 @@ void dotTest(){
             float time;
             {
                 const int blockSize = 256;
-                static auto numBlocks = max_active_blocks(dot<elementType,blockSize>,blockSize,0);
+                SAIGA_ASSERT(0);
+//                static auto numBlocks = max_active_blocks(dot<elementType,blockSize>,blockSize,0);
                 CUDA::CudaScopedTimer t2(time);
-                dot<elementType,blockSize> <<<numBlocks,blockSize>>>(v1,v2, thrust::raw_pointer_cast(d_res.data()));
+                dot<elementType,blockSize> <<<1,blockSize>>>(v1,v2, thrust::raw_pointer_cast(d_res.data()));
 
             }
             elementType sum = d_res[0];
@@ -179,9 +180,10 @@ void dotTest(){
             float time;
             {
                 const int blockSize = 256;
-                static auto numBlocks = max_active_blocks(dot<elementType,blockSize>,blockSize,0);
+                SAIGA_ASSERT(0);
+//                static auto numBlocks = max_active_blocks(dot<elementType,blockSize>,blockSize,0);
                 CUDA::CudaScopedTimer t2(time);
-                dot<elementType,blockSize> <<<numBlocks,blockSize>>>(v1,v2, thrust::raw_pointer_cast(d_res.data()));
+                dot<elementType,blockSize> <<<1,blockSize>>>(v1,v2, thrust::raw_pointer_cast(d_res.data()));
 
             }
             elementType sum = d_res[0];

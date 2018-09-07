@@ -7,29 +7,44 @@
 #pragma once
 
 #include "saiga/cuda/cuda.h"
+#include "saiga/cuda/event.h"
 
 namespace Saiga {
 namespace CUDA {
 
-
-class SAIGA_GLOBAL CudaScopedTimer{
-    float& time;
-    cudaEvent_t start, stop;
+/**
+ * A c++ class for meassuring CUDA command times
+ *
+ * Usage Example:
+ *
+ * {
+ *      CudaScopedTimerPrint tim("helloKernel");
+ *      helloKernel<<<1,1>>>();
+ * }
+ *
+ */
+class SAIGA_GLOBAL CudaScopedTimer
+{
 public:
-    CudaScopedTimer(float& time);
+    CudaScopedTimer(float& time, cudaStream_t stream = 0);
     ~CudaScopedTimer();
+private:
+    float& time;
+    CudaEvent start, stop;
+    cudaStream_t stream;
 };
 
 
 
 class SAIGA_GLOBAL CudaScopedTimerPrint 
 {
+public:
+    CudaScopedTimerPrint(const std::string &name, cudaStream_t stream = 0);
+    ~CudaScopedTimerPrint();
 private:
     std::string name;
-    cudaEvent_t start, stop;
-public:
-    CudaScopedTimerPrint(const std::string &name);
-    ~CudaScopedTimerPrint();
+    CudaEvent start, stop;
+    cudaStream_t stream;
 };
 
 
