@@ -389,6 +389,10 @@ static int writepng_encode_image(PNG::PngImage *image,  PNGLoadStore* pngls, boo
         break;
     }
 
+    // Libpng is big endian!!!
+    if (image->bit_depth == 16 || image->bit_depth == 32)
+        png_set_swap(png_ptr);
+
     int bytes_per_pixel = color_channels * image->bit_depth/8;
 
 

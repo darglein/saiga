@@ -12,10 +12,36 @@
 
 using namespace Saiga;
 
+void test16BitLoadStore()
+{
+    // Create a gradient image
+    int w = 512;
+    int h = 512;
+
+    TemplatedImage<unsigned short> img(h,w);
+
+    for(int i = 0; i < h; ++i)
+    {
+        for(int  j = 0; j < w; ++j)
+        {
+            img(i,j) = float(j) / w * ( (1 << 16) - 1);
+        }
+    }
+
+    img.save("test16.png");
+
+    img.load("test16.png");
+    img.save("test162.png");
+}
+
+
 int main(int argc, char *argv[]) {
 
     catchSegFaults();
 
+    test16BitLoadStore();
+
+//    return 0;
 
     {
         // Test:
