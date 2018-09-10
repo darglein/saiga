@@ -35,7 +35,6 @@ public:
 
     bool intersectTriangle(const Triangle &s, float &t, bool &back) const;
 
-    bool intersectPlane(const Plane& p, float &t) const;
 
     vec3 getAlphaPosition(float alpha) const { return origin+alpha*direction;}
 

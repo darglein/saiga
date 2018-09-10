@@ -11,10 +11,19 @@
 
 namespace Saiga {
 
+/**
+ * Implicit representation of a plane
+ *
+ * x * n - d = 0
+ *
+ * With:
+ * x: a point
+ * n: the plane normal
+ * d: the distance to the origin (projected to n)
+ */
 class SAIGA_GLOBAL Plane
 {
 public:
-    vec3 point; //a random point on the plane
     vec3 normal;
     float d; //distance from plane to origin
     Plane();
@@ -32,15 +41,18 @@ public:
     float distance(const vec3 &p) const;
     vec3 closestPointOnPlane(const vec3 &p) const;
 
-
+    vec3 getPoint() const;
 
 
     friend std::ostream& operator<<(std::ostream& os, const Plane& ca);
+
+private:
+    vec3 point; //a random point on the plane
 };
 
 
 inline float Plane::distance(const vec3 &p) const{
-    return d + glm::dot(p,normal);
+    return glm::dot(p,normal) - d;
 }
 
 }

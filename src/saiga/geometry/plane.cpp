@@ -25,14 +25,14 @@ void Plane::set(const vec3 &point,const vec3 &normal){
 
     this->point = point;
     this->normal = glm::normalize(normal);
-    d = -glm::dot(point,this->normal);
+    d = glm::dot(point,this->normal);
 }
 
 void Plane::set(const vec3 &p1, const vec3 &p2, const vec3 &p3){
     point = p1;
     normal = glm::cross(p2-p1,p3-p1);
     normal = glm::normalize(normal);
-    d = -glm::dot(point,this->normal);
+    d = glm::dot(point,this->normal);
 }
 
 
@@ -41,6 +41,12 @@ vec3 Plane::closestPointOnPlane(const vec3 &p) const
 {
     float dis = distance(p);
     return p - dis * normal;
+}
+
+vec3 Plane::getPoint() const
+{
+    return point;
+//    return normal * d;
 }
 
 

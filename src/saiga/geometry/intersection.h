@@ -35,5 +35,15 @@ SAIGA_GLOBAL bool PlanePlane(const Plane& p1, const Plane& p2, Ray& outRay);
 SAIGA_GLOBAL bool RaySphere(const vec3& rayOrigin, const vec3& rayDir, const vec3& spherePos, float sphereRadius, float &t1, float &t2);
 SAIGA_GLOBAL bool RaySphere(const Ray& ray, const Sphere &sphere, float &t1, float &t2);
 
+/**
+ * Intersection of a ray with a triangle.
+ * There are either no interesection or exactly one at 't'.
+ * 'back' is true, if the triangle was hit from behind (counter clockwise ordering)
+ */
+SAIGA_GLOBAL bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const vec3& B, const vec3& C, float& out, bool& back);
+SAIGA_GLOBAL bool RayTriangle(const Ray& r, const Triangle& tri, float& t, bool& back);
+
+
+SAIGA_GLOBAL bool RayPlane(const Ray& r, const Plane& p, float &t);
 }
 }

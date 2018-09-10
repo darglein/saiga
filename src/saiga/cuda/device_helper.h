@@ -15,6 +15,7 @@
 // A few defintions to trick IDE's that do not activley support CUDA
 dim3 threadIdx;
 dim3 blockIdx;
+dim3 blockDim;
 dim3 gridDim;
 int warpSize;
 #endif
