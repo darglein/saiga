@@ -52,6 +52,7 @@ private:
     Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
     Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
 
+
     vk::DescriptorSet textureDes;
     Saiga::Vulkan::TextureDisplay textureDisplay;
 

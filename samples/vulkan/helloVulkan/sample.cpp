@@ -39,7 +39,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
     {
         auto tex = std::make_shared<Saiga::Vulkan::Texture2D>();
 
-        Saiga::Image img("textures/box.png");
+        Saiga::Image img("box.png");
 
         cout << "uncompressed size " << img.size() << endl;
         auto data = img.compress();
