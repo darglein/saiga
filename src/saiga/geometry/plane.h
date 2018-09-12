@@ -21,12 +21,15 @@ namespace Saiga {
  * n: the plane normal
  * d: the distance to the origin (projected to n)
  */
-class SAIGA_GLOBAL Plane
+class SAIGA_GLOBAL GLM_ALIGN(16) Plane
 {
 public:
     vec3 normal;
     float d; //distance from plane to origin
-    Plane();
+    Plane() : normal(vec3(0,1,0)),d(0)
+    {
+        static_assert(sizeof(Plane) == 4 * sizeof(float), "Wrong plane size!");
+    }
     Plane(const vec3 &point,const vec3 &normal);
     Plane(const vec3 &p1, const vec3 &p2, const vec3 &p3); //construct plane from 3 points
 
@@ -38,7 +41,9 @@ public:
      */
     void set(const vec3 &p1, const vec3 &p2, const vec3 &p3);
 
-    float distance(const vec3 &p) const;
+    HD float distance(const vec3 &p) const;
+    HD float sphereOverlap(const vec3 &c, float r) const;
+
     vec3 closestPointOnPlane(const vec3 &p) const;
 
     vec3 getPoint() const;
@@ -46,13 +51,19 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const Plane& ca);
 
-private:
-    vec3 point; //a random point on the plane
 };
 
 
-inline float Plane::distance(const vec3 &p) const{
+inline HD
+float Plane::distance(const vec3 &p) const
+{
     return glm::dot(p,normal) - d;
+}
+
+inline HD
+float Plane::sphereOverlap(const vec3 &c, float r) const
+{
+    return r - (glm::dot(c,normal) - d);
 }
 
 }
