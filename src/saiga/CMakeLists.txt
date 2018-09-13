@@ -82,5 +82,5 @@ if(GPHOTO2_FOUND)
     add_subdirectory(gphoto2)
 endif()
 
-
-set(SAIGA_ALL_FILES ${SAIGA_ALL_FILES} PARENT_SCOPE)
+FILE(GLOB BASE_SRC  "*.cpp" "*.h")
+set(SAIGA_ALL_FILES ${SAIGA_ALL_FILES} ${BASE_SRC} PARENT_SCOPE)

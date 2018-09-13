@@ -92,3 +92,5 @@ using std::endl;
 
 #define L1_CACHE_LINE_SIZE 128
 #define L2_CACHE_LINE_SIZE 32
+
+#define MAX_THREADS_PER_SM 2048
