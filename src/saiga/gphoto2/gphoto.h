@@ -82,9 +82,11 @@ private:
 
     bool foundCamera = false;
     void *context;
-    void *camera;
+    void *camera = nullptr;
 
     bool running = false;
+
+    bool connectToCamera();
 
     void eventLoop();
     void clearEvents();

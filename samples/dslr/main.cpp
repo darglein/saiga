@@ -13,7 +13,6 @@ using namespace Saiga;
 int main( int argc, char* args[] )
 {
     Saiga::GPhoto dslr;
-    SAIGA_ASSERT(dslr.isOpenend());
     TemplatedImage<ucvec3> dimg;
     while(true)
     {

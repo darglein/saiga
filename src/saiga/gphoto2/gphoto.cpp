@@ -36,20 +36,6 @@
 namespace Saiga {
 
 
-static void
-ctx_error_func (GPContext *context, const char *str, void *data)
-{
-    fprintf  (stderr, "\n*** Contexterror ***              \n%s\n",str);
-    fflush   (stderr);
-}
-
-static void
-ctx_status_func (GPContext *context, const char *str, void *data)
-{
-    fprintf  (stderr, "%s\n", str);
-    fflush   (stderr);
-}
-
 GPhoto::GPhoto()
     : imageBuffer(10)
 {
@@ -60,26 +46,9 @@ GPhoto::GPhoto()
     SAIGA_ASSERT(context);
 
     /* All the parts below are optional! */
-    gp_context_set_error_func ((GPContext*)context, ctx_error_func, NULL);
-    gp_context_set_status_func ((GPContext*)context, ctx_status_func, NULL);
+    //    gp_context_set_error_func ((GPContext*)context, ctx_error_func, NULL);
+    //    gp_context_set_status_func ((GPContext*)context, ctx_status_func, NULL);
 
-
-    gp_camera_new((Camera**)&camera);
-
-    SAIGA_ASSERT(camera);
-
-    //    printf("Camera init.  Takes about 10 seconds.\n");
-    auto retval = gp_camera_init((Camera*)camera, (GPContext*)context);
-    if (retval != GP_OK)
-    {
-        cout << "Failed! - No Camera found!" << endl;
-        //        exit (1);
-        foundCamera = false;
-        return;
-    }
-    cout << "Ok!" << endl;
-
-    foundCamera = true;
     running = true;
     eventThread = std::thread(&GPhoto::eventLoop,this);
 
@@ -106,7 +75,30 @@ std::shared_ptr<GPhoto::DSLRImage> GPhoto::tryGetImage()
 {
     std::shared_ptr<GPhoto::DSLRImage> img;
     imageBuffer.tryGet(img);
-            return img;
+    return img;
+}
+
+bool GPhoto::connectToCamera()
+{
+    if(camera)
+    {
+        gp_camera_free((Camera*)camera);
+        camera = nullptr;
+    }
+
+    gp_camera_new((Camera**)&camera);
+
+    if(!camera)
+        return false;
+
+
+    auto retval = gp_camera_init((Camera*)camera, (GPContext*)context);
+    if (retval != GP_OK)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -116,28 +108,28 @@ struct Event{
     void		*data;
 };
 
-Event getEvent(  GPContext *context,
-                 Camera	*camera)
+bool getEvent(  GPContext *context,
+                Camera	*camera, Event& event)
 {
-    Event event;
     auto retval = gp_camera_wait_for_event(camera, 10, &event.evtype, &event.data, context);
 
-    if (retval != GP_OK) {
-        fprintf (stderr, "return from waitevent in trigger sample with %d\n", retval);
-        return event;
+    if (retval != GP_OK)
+    {
+        cerr << "gp_camera_wait_for_event failed with error code " << retval << endl;
+        return false;
     }
-
-
-    //      cout << "got event " << event.evtype << endl;
-    return event;
+    return true;
 }
 
 void GPhoto::clearEvents()
 {
+    if(!camera)
+        return;
+
     while(true)
     {
         Event event;
-        CHECK_GP(gp_camera_wait_for_event( (Camera*)camera, 1, &event.evtype, &event.data, (GPContext*)context));
+        CHECK_GP(gp_camera_wait_for_event( (Camera*)camera, 10, &event.evtype, &event.data, (GPContext*)context));
         if(event.evtype == GP_EVENT_TIMEOUT)
             return;
     }
@@ -145,8 +137,6 @@ void GPhoto::clearEvents()
 
 void GPhoto::eventLoop()
 {
-    clearEvents();
-
     CameraFile *file;
     gp_file_new(&file);
 
@@ -159,7 +149,30 @@ void GPhoto::eventLoop()
 
     while(running)
     {
-        auto e = getEvent((GPContext*)context,(Camera*)camera);
+
+        if(!foundCamera)
+        {
+            foundCamera = connectToCamera();
+
+            if(!foundCamera)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(30));
+                continue;
+            }
+            else
+            {
+                clearEvents();
+                cout << "Found camera!" << endl;
+            }
+        }
+        Event e;
+        auto gotEvent = getEvent((GPContext*)context,(Camera*)camera,e);
+        if(!gotEvent)
+        {
+            cout << "Camera connection lost!" << endl;
+            foundCamera = false;
+            continue;
+        }
 
         if(e.evtype == GP_EVENT_FILE_ADDED)
         {
