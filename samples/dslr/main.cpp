@@ -12,6 +12,9 @@ using namespace Saiga;
 
 int main( int argc, char* args[] )
 {
+    cout << sizeof(bool) << endl;
+    return 0;
+
     Saiga::GPhoto dslr;
     TemplatedImage<ucvec3> dimg;
     while(true)

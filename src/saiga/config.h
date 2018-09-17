@@ -60,6 +60,7 @@ using std::endl;
 
 // ============== CUDA Stuff ==============
 
+#if defined(SAIGA_USE_CUDA)
 
 //remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
 //for gcc add cppflag: -DCUDA_NDEBUG
@@ -82,7 +83,15 @@ using std::endl;
 #       undef SAIGA_ON_HOST
 #	endif
 #else
-#	define HD
+#   if !defined(HD)
+#       define HD
+#   endif
+#   if !defined(__host__)
+#       define __host__
+#   endif
+#   if !defined(__device__)
+#       define __device__
+#   endif
 #   if !defined(__launch_bounds__)
 #       define __launch_bounds__
 #   endif
@@ -94,3 +103,5 @@ using std::endl;
 #define L2_CACHE_LINE_SIZE 32
 
 #define MAX_THREADS_PER_SM 2048
+
+#endif

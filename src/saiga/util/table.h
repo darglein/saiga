@@ -12,6 +12,19 @@
 
 namespace Saiga {
 
+/**
+ * A formated table for std::out.
+ *
+ * Usage:
+ *
+ * Saiga::Table table({6,7,7});
+ *
+ * table << "Id" << "Before" << "After";
+ * for(int i = 0; i < N; ++i)
+ * {
+ *      table << i << h_data[i] << res[i];
+ * }
+ */
 class SAIGA_GLOBAL Table{
 private:
     int currentCol = 0;

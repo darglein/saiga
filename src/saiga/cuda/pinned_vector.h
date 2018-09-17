@@ -6,12 +6,20 @@
 
 #pragma once
 
-#include "saiga/cuda/thrust_helper.h"
+
+#include <thrust/host_vector.h>
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
 namespace Saiga {
 namespace thrust{
 
+/**
+ * A host vector with pinnend memory (page locked). This allows faster host-device memory transfers.
+ * The usage is identical to thrust::host_vector:
+ *
+ * Saiga::thrust::pinned_vector<T> h_data(N);
+ * thrust::device_vector<T> d_data = h_data;
+ */
 template<typename T>
 using pinned_vector=::thrust::host_vector<T, ::thrust::cuda::experimental::pinned_allocator<T> >;
 
