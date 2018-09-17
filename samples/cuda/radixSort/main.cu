@@ -16,14 +16,6 @@
 #include "thrust/scan.h"
 #include "thrust/scatter.h"
 
-
-
-
-
-
-using Saiga::ArrayView;
-
-
 template<bool one>
 struct GetBitOp
 {
@@ -33,8 +25,6 @@ struct GetBitOp
         return ((a >> k) & 1) == one;
     }
 };
-
-
 
 static void radixSortHelper(
         thrust::device_vector<int>& d,
@@ -86,22 +76,20 @@ static void radixSortTest()
     Saiga::thrust::pinned_vector<T> h_data(N), res;
     thrust::device_vector<T> d_data(N);
 
+    // Initialize with random values
     for(auto& f : h_data)
     {
         f = abs(rand());
 
     }
     d_data = h_data;
-
-    cout << "Sorting " << N << " elements..." << endl;
-
-
-
-    radixSort(d_data);
-
-
+    {
+        cout << "Sorting " << N << " elements..." << endl;
+        radixSort(d_data);
+    }
     res = d_data;
 
+    // Check result
     int prev = res[0];
     for(auto& d : res)
     {
@@ -114,12 +102,7 @@ static void radixSortTest()
 
 int main(int argc, char *argv[])
 {
-    Saiga::CUDA::initCUDA();
-
     radixSortTest();
-
-    Saiga::CUDA::destroyCUDA();
-
     cout << "Done." << endl;
 }
 
