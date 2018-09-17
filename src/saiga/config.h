@@ -60,7 +60,7 @@ using std::endl;
 
 // ============== CUDA Stuff ==============
 
-#if defined(SAIGA_USE_CUDA)
+//#if defined(SAIGA_USE_CUDA)
 
 //remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
 //for gcc add cppflag: -DCUDA_NDEBUG
@@ -104,4 +104,4 @@ using std::endl;
 
 #define MAX_THREADS_PER_SM 2048
 
-#endif
+//#endif
