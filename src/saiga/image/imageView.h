@@ -38,7 +38,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     // Get the void* and uint8_t* types with the same constness as T
     using RawDataType  = typename std::conditional<std::is_const<T>::value,const void,void>::type;
     using RawDataType8 = typename std::conditional<std::is_const<T>::value,const uint8_t,uint8_t>::type;
-
+    using NoConstType = typename std::remove_const<T>::type;
 
     union{
         RawDataType* data;
@@ -64,8 +64,12 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     ImageView(int h, int w, const void* data) : ImageBase(h,w,w*sizeof(T)), data(data) {}
 
 
-    HD inline
+    HD inline explicit
     ImageView(const ImageBase& base) : ImageBase(base) {}
+
+    // convert T to const T in constructor
+    HD inline
+    ImageView(const ImageView<NoConstType>& other) : ImageBase(other), data(other.data) {}
 
     //size in bytes
     HD inline

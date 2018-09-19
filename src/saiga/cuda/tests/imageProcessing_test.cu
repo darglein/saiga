@@ -23,11 +23,13 @@ namespace CUDA {
 //nvcc $CPPFLAGS -ptx -src-in-ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr integrate_test.cu
 
 
-void imageProcessingTest(){
+void imageProcessingTest()
+{
+#if 0
     CUDA_SYNC_CHECK_ERROR();
 
 
-    TemplatedImage<ucvec3> img("textures/landscape.jpg");
+    TemplatedImage<uchar3> img("textures/landscape.jpg");
     //    loadImage("textures/redie.png",img);
 //    loadImage("textures/landscape.jpg",img);
 
@@ -201,7 +203,7 @@ void imageProcessingTest(){
      }
 
     CUDA_SYNC_CHECK_ERROR();
-
+#endif
 }
 
 }

@@ -61,12 +61,11 @@ public:
 
 
 
-    T* data()
-    {
-        return reinterpret_cast<T*>(data8());
-    }
+    T* data() { return reinterpret_cast<T*>(data8()); }
+    const T* data() const { return reinterpret_cast<const T*>(data8()); }
 
     operator ImageView<T>() { return getImageView(); }
+    operator ImageView<const T>() const { return getConstImageView(); }
 };
 
 

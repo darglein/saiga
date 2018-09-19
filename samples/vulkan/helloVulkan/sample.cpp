@@ -45,14 +45,17 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
         auto data = img.compress();
         cout << "compressed size " << data.size() << endl;
         img.decompress(data);
+        cout << "test" << endl;
 
         if(img.type == Saiga::UC3)
         {
+            cout << "adding alplha channel" << endl;
             Saiga::TemplatedImage<ucvec4> img2(img.height,img.width);
+            cout << img << " " << img2 << endl;
             Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(),img2.getImageView());
-            cout << img2 << endl;
             tex->fromImage(base,img2);
         }else{
+            cout << img << endl;
             tex->fromImage(base,img);
         }
         texture = tex;
@@ -150,13 +153,13 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 {
     if(displayModels)
     {
-        //        assetRenderer.pushModel(cmd,mat4(1));
-        //        plane.render(cmd);
+        assetRenderer.bind(cmd);
+                assetRenderer.pushModel(cmd,mat4(1));
+                plane.render(cmd);
 
-        //        lineAssetRenderer.bind(cmd);
+//                lineAssetRenderer.bind(cmd);
 
-        //        lineAssetRenderer.pushModel(cmd,mat4(1));
-//        assetRenderer.bind(cmd);
+//                lineAssetRenderer.pushModel(cmd,mat4(1));
 //        assetRenderer.pushModel(cmd,teapotTrans.model);
         for(int i = 0; i < 1000; ++i)
         {

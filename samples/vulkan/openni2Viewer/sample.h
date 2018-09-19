@@ -40,6 +40,7 @@ private:
 
         std::shared_ptr<Saiga::RGBDCamera::FrameData> frameData;
     std::shared_ptr<Saiga::RGBDCamera> rgbdcamera;
+    Saiga::TemplatedImage<ucvec4> rgbImage;
 
 
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
