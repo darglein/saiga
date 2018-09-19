@@ -53,7 +53,8 @@ T warpReduceMax(T val) {
 
 template<typename T, unsigned int BLOCK_SIZE>
 __device__ inline
-T blockReduceSum(T val, T* shared) {
+T blockReduceSum(T val, T* shared)
+{
     int lane = threadIdx.x & (WARP_SIZE-1);
     int wid = threadIdx.x / WARP_SIZE;
 
@@ -71,23 +72,29 @@ T blockReduceSum(T val, T* shared) {
 
 template<typename T, unsigned int BLOCK_SIZE>
 __device__ inline
-T blockReduceAtomicSum(T val, T* shared) {
+T blockReduceAtomicSum(T val, T* shared)
+{
     int lane = threadIdx.x & (WARP_SIZE-1);
 
+    // Each warp reduces with registers
+    val = warpReduceSum(val);
+
+    // Init shared memory
     if(threadIdx.x == 0)
         shared[0] = T(0);
 
     __syncthreads();
 
-    val = warpReduceSum(val);
 
+    // The first thread in each warp writes to smem
     if (lane==0){
         atomicAdd(&shared[0],val);
     }
 
     __syncthreads();
 
-
+    // The first thread in this block has the result
+    // Optional: remove if so that every thread has the result
     if(threadIdx.x == 0)
         val = shared[0];
 

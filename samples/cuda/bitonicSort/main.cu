@@ -17,8 +17,22 @@
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 
-using Saiga::CUDA::bfe;
-using Saiga::CUDA::shuffleSwapCompare;
+
+inline HD
+int bfe(int i , int k)
+{
+    return (i>>k) & 1;
+}
+
+
+template<typename T, unsigned int SIZE = 32>
+inline __device__
+T shuffleSwapCompare(T x, int mask, int direction)
+{
+    auto y = Saiga::CUDA::shfl_xor(x,mask,SIZE);
+    return x < y == direction ? y : x;
+
+}
 
 
 template<typename T>
@@ -115,7 +129,6 @@ static void bitonicSortTest()
             table << i << h_data[i] << res[i];
         }
     }
-
 }
 
 int main(int argc, char *argv[])
