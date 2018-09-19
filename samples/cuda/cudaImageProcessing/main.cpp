@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
 
 //        return 1;
         {
+#if 0
 
             //load an image from file
 //            Image img;
@@ -51,7 +52,6 @@ int main(int argc, char *argv[]) {
             CUDA::CudaImage<float> cimggraydouble(cimg.height*2,cimg.width*2);
 
 
-#if 0
 			//test image copy from cpp file
 			CUDA::CudaImage<uchar4> cimg5 = cimg4;
 

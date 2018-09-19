@@ -54,7 +54,7 @@ struct CudaImage : public ImageBase
     }
 
 
-    CudaImage(ImageView<T> h_img)
+    CudaImage(const ImageView<T>& h_img)
     {
         upload(h_img);
     }
