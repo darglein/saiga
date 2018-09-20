@@ -6,9 +6,10 @@
 
 #include "saiga/util/crash.h"
 
-
+#include "saiga/image/floatTexels.h"
 #include "saiga/image/image.h"
 #include "saiga/image/templatedImage.h"
+#include "saiga/framework/framework.h"
 
 using namespace Saiga;
 
@@ -34,14 +35,42 @@ void test16BitLoadStore()
     img.save("test162.png");
 }
 
+void testScaleLinear()
+{
+    TemplatedImage<ucvec3> img("redie.png");
+    {
+        // Scale down
+        float scale = 0.33f;
+        TemplatedImage<ucvec3> img_small(img.h * scale, img.w * scale);
+        img.getImageView().copyScaleLinear(img_small.getImageView());
+        img_small.save("redie_small.png");
+    }
+
+    {
+        // Scale up
+        float scale = 2.5f;
+        TemplatedImage<ucvec3> img_small(img.h * scale, img.w * scale);
+        img.getImageView().copyScaleLinear(img_small.getImageView());
+        img_small.save("redie_big.png");
+    }
+}
+
 
 int main(int argc, char *argv[]) {
 
     catchSegFaults();
 
-    test16BitLoadStore();
 
-//    return 0;
+    SaigaParameters sp;
+    initSample(sp);
+
+    initSaiga(sp);
+
+    //    test16BitLoadStore();
+
+    testScaleLinear();
+
+    return 0;
 
     {
         // Test:

@@ -22,10 +22,10 @@ enum ImageChannel : int
 enum ImageElementType : int
 {
     IET_CHAR = 0, IET_UCHAR,
-	IET_SHORT, IET_USHORT,
-	IET_INT, IET_UINT,
-	IET_FLOAT, IET_DOUBLE,
-	IET_ELEMENT_UNKNOWN
+    IET_SHORT, IET_USHORT,
+    IET_INT, IET_UINT,
+    IET_FLOAT, IET_DOUBLE,
+    IET_ELEMENT_UNKNOWN
 };
 
 
@@ -61,23 +61,62 @@ template<typename T>
 struct SAIGA_GLOBAL ImageTypeTemplate{
 };
 
-template<> struct ImageTypeTemplate<char>{const static ImageType type = C1;};
-template<> struct ImageTypeTemplate<cvec2>{const static ImageType type = C2;};
-template<> struct ImageTypeTemplate<cvec3>{const static ImageType type = C3;};
-template<> struct ImageTypeTemplate<cvec4>{const static ImageType type = C4;};
+template<> struct ImageTypeTemplate<char>{
+    using ChannelType = char;
+    const static ImageType type = C1;
+};
+template<> struct ImageTypeTemplate<cvec2>{
+    using ChannelType = char;
+    const static ImageType type = C2;
+};
+template<> struct ImageTypeTemplate<cvec3>{
+    using ChannelType = char;
+    const static ImageType type = C3;
+};
+template<> struct ImageTypeTemplate<cvec4>{
+    using ChannelType = char;
+    const static ImageType type = C4;
+};
 
-template<> struct ImageTypeTemplate<unsigned char>{const static ImageType type = UC1;};
-template<> struct ImageTypeTemplate<ucvec2>{const static ImageType type = UC2;};
-template<> struct ImageTypeTemplate<ucvec3>{const static ImageType type = UC3;};
-template<> struct ImageTypeTemplate<ucvec4>{const static ImageType type = UC4;};
+template<> struct ImageTypeTemplate<unsigned char>{
+    using ChannelType = unsigned char;
+    const static ImageType type = UC1;
+};
+template<> struct ImageTypeTemplate<ucvec2>{
+    using ChannelType = unsigned char;
+    const static ImageType type = UC2;
+};
+template<> struct ImageTypeTemplate<ucvec3>{
+    using ChannelType = unsigned char;
+    const static ImageType type = UC3;
+};
+template<> struct ImageTypeTemplate<ucvec4>{
+    using ChannelType = unsigned char;
+    const static ImageType type = UC4;
+};
 
-template<> struct ImageTypeTemplate<short>{const static ImageType type = S1;};
-template<> struct ImageTypeTemplate<unsigned short>{const static ImageType type = US1;};
+template<> struct ImageTypeTemplate<short>{
+    using ChannelType = short;
+    const static ImageType type = S1;
+};
+template<> struct ImageTypeTemplate<unsigned short>{
+    using ChannelType = unsigned short;
+    const static ImageType type = US1;
+};
 
-template<> struct ImageTypeTemplate<int>{const static ImageType type = I1;};
-template<> struct ImageTypeTemplate<unsigned int>{const static ImageType type = UI1;};
+template<> struct ImageTypeTemplate<int>{
+    using ChannelType = int;
+    const static ImageType type = I1;
+};
+template<> struct ImageTypeTemplate<unsigned int>{
+    using ChannelType = unsigned int;
+    const static ImageType type = UI1;
+};
 
-template<> struct ImageTypeTemplate<float>{const static ImageType type = F1;};
+template<> struct ImageTypeTemplate<float>{
+    using ChannelType = float;
+    const static ImageType type = F1;
+};
 
 
 

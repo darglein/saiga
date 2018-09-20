@@ -9,6 +9,7 @@
 #include "saiga/image/imageBase.h"
 #include "saiga/util/imath.h"
 #include "saiga/util/assert.h"
+#include "saiga/image/floatTexels.h"
 #include <algorithm>
 
 #if 0
@@ -140,10 +141,17 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         return reinterpret_cast<T*>(ptr);
     }
 
+    //bilinear interpolated pixel with UV values [0,1]
+    HD inline
+    T interUV(float u, float v) const
+    {
+        return inter(v * (height - 1), u * (width - 1));
+    }
 
     //bilinear interpolated pixel with clamp to edge boundary
     HD inline
-    T inter(float sy, float sx){
+    T inter(float sy, float sx) const
+    {
 
         int x0 = iFloor(sx);
         int y0 = iFloor(sy);
@@ -166,9 +174,19 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         int y1 = std::min(y0 + 1, height - 1);
 #endif
 
-        T res = ((*this)(y0,x0) * (1.0f - ax) + (*this)(y1,x0) * (ax)) * (1.0f - ay) +
-                ((*this)(y0,x1) * (1.0f - ax) + (*this)(y1,x1) * (ax)) * (ay);
-        return res;
+        // We need to convert the texel to a floating point type for interpolation.
+        // This enables us to interpolate classic 8-bit rgb images.
+        TexelFloatConverter<T,false> ttf;
+
+        auto b00 = ttf.toFloat((*this)(y0,x0));
+        auto b01 = ttf.toFloat((*this)(y0,x1));
+        auto b10 = ttf.toFloat((*this)(y1,x0));
+        auto b11 = ttf.toFloat((*this)(y1,x1));
+
+        auto res = (b00 * (1.0f - ax) + b01 * (ax)) * (1.0f - ay) +
+                   (b10 * (1.0f - ax) + b11 * (ax)) * (ay);
+
+        return ttf.fromFloat(res);
     }
 
     template<typename AT>
@@ -233,6 +251,30 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         for(int y = 0; y < a.height; ++y){
             for(int x = 0; x < a.width; ++x){
                 a(y,x) = (*this)(y*2,x*2);
+            }
+        }
+    }
+
+
+    /**
+     * Copies this image to the target image.
+     * The target image can have a different size.
+     * The image will be scaled with bilinear interpolation.
+     */
+    template<typename T2>
+    inline
+    void copyScaleLinear(ImageView<T2> a) const
+    {
+
+        for(int y = 0; y < a.height; ++y){
+            for(int x = 0; x < a.width; ++x){
+                float u_long = (x + 0.5f) / a.width;
+                float v_long = (y + 0.5f) / a.height;
+
+                float x2 = u_long * width - 0.5f;
+                float y2 = v_long * height - 0.5f;
+
+                a(y,x) = this->inter(y2,x2);
             }
         }
     }
