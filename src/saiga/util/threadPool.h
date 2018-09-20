@@ -19,8 +19,9 @@
 //   3. This notice may not be removed or altered from any source
 //distribution.
 
-#ifndef THREAD_POOL_H
-#define THREAD_POOL_H
+#pragma once
+
+#include "saiga/config.h"
 
 #include <vector>
 #include <queue>
@@ -119,4 +120,4 @@ inline ThreadPool::~ThreadPool()
 }
 
 }
-#endif
+

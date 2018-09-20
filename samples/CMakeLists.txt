@@ -59,3 +59,4 @@ if (GPHOTO2_FOUND)
 endif ()
 
 add_subdirectory(ini)
+add_subdirectory(threadPool)
