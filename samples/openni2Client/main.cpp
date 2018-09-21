@@ -42,12 +42,12 @@ int main(int argc, char *argv[])
     boost::system::error_code err;
 
 
-    RGBDCameraInput camera;
     RGBDCameraInput::CameraOptions co1;
     RGBDCameraInput::CameraOptions co2;
     co2.w = 320;
     co2.h = 240;
-    camera.open( co1,co2);
+    RGBDCameraInput camera(co1,co2);
+
 
 
 #if 0
@@ -82,11 +82,12 @@ int main(int argc, char *argv[])
     std::thread pullThread(
                 [&]()
     {
-        std::shared_ptr<RGBDCamera::FrameData> frame = camera.makeFrameData();
+        std::shared_ptr<RGBDCamera::FrameData> frame;
 
         while(running)
         {
-             camera.readFrame(*frame);
+//             camera.readFrame(*frame);
+            frame = camera.waitForImage();
             {
                 std::unique_lock<std::mutex> l(lock1);
                 buffer1 = frame;

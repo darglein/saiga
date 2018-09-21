@@ -18,6 +18,7 @@
 
 #include "saiga/util/file.h"
 #include "saiga/util/tostring.h"
+#include "saiga/util/threadName.h"
 
 #include "gphoto2/gphoto2.h"
 #include "gphoto2/gphoto2-camera.h"
@@ -49,9 +50,7 @@ GPhoto::GPhoto()
     //    gp_context_set_error_func ((GPContext*)context, ctx_error_func, NULL);
     //    gp_context_set_status_func ((GPContext*)context, ctx_status_func, NULL);
 
-    running = true;
     eventThread = std::thread(&GPhoto::eventLoop,this);
-
 }
 
 GPhoto::~GPhoto()
@@ -137,6 +136,10 @@ void GPhoto::clearEvents()
 
 void GPhoto::eventLoop()
 {
+    setThreadName("Saiga::GPhoto");
+
+    running = true;
+
     CameraFile *file;
     gp_file_new(&file);
 
@@ -156,7 +159,7 @@ void GPhoto::eventLoop()
 
             if(!foundCamera)
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(30));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 continue;
             }
             else

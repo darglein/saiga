@@ -28,12 +28,8 @@ int main(const int argc, const char *argv[])
 
         VulkanExample example(window,renderer);
         renderer.initChildren();
-        //        example.init();
 
-        MainLoopParameters params;
-        params.mainLoopInfoTime = 1;
-        params.framesPerSecond = 0;
-        window.startMainLoop(params);
+        window.startMainLoop();
 
         renderer.waitIdle();
     }

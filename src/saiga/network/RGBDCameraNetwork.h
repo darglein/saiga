@@ -23,7 +23,10 @@ public:
 
     void connect(std::string host, uint32_t port);
 
-    bool readFrame(FrameData& data) override;
+//    bool readFrame(FrameData& data) override;
+
+    virtual std::shared_ptr<FrameData> waitForImage() override;
+    virtual std::shared_ptr<FrameData> tryGetImage() override;
 private:
     std::shared_ptr<ImageTransmition> trans;
 };

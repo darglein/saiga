@@ -29,6 +29,8 @@
 #include "saiga/text/fontLoader.h"
 #endif
 
+#include "saiga/util/threadName.h"
+
 namespace Saiga {
 
 bool initialized = false;
@@ -58,6 +60,7 @@ void SaigaParameters::fromConfigFile(const std::string &file)
     textureDirectory  = split(ini.GetAddString ("saiga","textureDirectory", concat(textureDirectory,sep).c_str()),sep);
     modelDirectory    = split(ini.GetAddString ("saiga","modelDirectory",   concat(modelDirectory,sep).c_str()),sep);
     fontDirectory     = split(ini.GetAddString ("saiga","fontDirectory",    concat(fontDirectory,sep).c_str()),sep);
+    mainThreadName = ini.GetAddString("saiga","mainThreadName",mainThreadName.c_str());
 
     if(ini.changed()) ini.SaveFile(file.c_str());
 }
@@ -203,6 +206,8 @@ void initSaiga(const SaigaParameters& params)
         fontPathes.addSearchPath(t);
 #endif
 
+
+    setThreadName(params.mainThreadName);
 
     printSaigaInfo();
     cout<<"========================== Saiga initialization done!  =========================="<<endl;

@@ -20,6 +20,8 @@ struct SAIGA_GLOBAL SaigaParameters
     std::vector<std::string> modelDirectory     = {"models/"};
     std::vector<std::string> fontDirectory      = {"fonts/"};
 
+    std::string mainThreadName = "Saiga::main";
+
     /**
      *  Reads all paramters from the given config file.
      *  Creates the file with the default values if it doesn't exist.

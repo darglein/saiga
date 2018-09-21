@@ -19,6 +19,10 @@
 //   3. This notice may not be removed or altered from any source
 //distribution.
 
+/**
+  * This file was modified by Darius Rueckert for libsaiga.
+  */
+
 #pragma once
 
 #include "saiga/config.h"
@@ -35,14 +39,22 @@
 
 namespace Saiga {
 
-class ThreadPool {
+class SAIGA_GLOBAL ThreadPool
+{
 public:
     ThreadPool(size_t);
+    ~ThreadPool();
+
     template<class F, class... Args>
     auto enqueue(F&& f, Args&&... args)
-        -> std::future<typename std::result_of<F(Args...)>::type>;
-    ~ThreadPool();
+    -> std::future<typename std::result_of<F(Args...)>::type>;
+
+    void quit();
+
+    int getWorkingThreads() { return workingThreads; }
 private:
+    // number of currently working threads
+    int workingThreads = 0;
     // need to keep track of threads so we can join them
     std::vector< std::thread > workers;
     // the task queue
@@ -54,44 +66,15 @@ private:
     bool stop;
 };
 
-// the constructor just launches some amount of workers
-inline ThreadPool::ThreadPool(size_t threads)
-    :   stop(false)
-{
-    for(size_t i = 0;i<threads;++i)
-        workers.emplace_back(
-            [this]
-            {
-                for(;;)
-                {
-                    std::function<void()> task;
-
-                    {
-                        std::unique_lock<std::mutex> lock(this->queue_mutex);
-                        this->condition.wait(lock,
-                            [this]{ return this->stop || !this->tasks.empty(); });
-                        if(this->stop && this->tasks.empty())
-                            return;
-                        task = std::move(this->tasks.front());
-                        this->tasks.pop();
-                    }
-
-                    task();
-                }
-            }
-        );
-}
-
-// add new work item to the pool
 template<class F, class... Args>
 auto ThreadPool::enqueue(F&& f, Args&&... args)
-    -> std::future<typename std::result_of<F(Args...)>::type>
+-> std::future<typename std::result_of<F(Args...)>::type>
 {
     using return_type = typename std::result_of<F(Args...)>::type;
 
     auto task = std::make_shared< std::packaged_task<return_type()> >(
-            std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-        );
+                std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+                );
 
     std::future<return_type> res = task->get_future();
     {
@@ -107,17 +90,12 @@ auto ThreadPool::enqueue(F&& f, Args&&... args)
     return res;
 }
 
-// the destructor joins all threads
-inline ThreadPool::~ThreadPool()
-{
-    {
-        std::unique_lock<std::mutex> lock(queue_mutex);
-        stop = true;
-    }
-    condition.notify_all();
-    for(std::thread &worker: workers)
-        worker.join();
-}
+/**
+ * A global thread pool that can be used from everywhere.
+ * Create it at the beginning with createTheadPool.
+ */
+extern SAIGA_GLOBAL std::shared_ptr<ThreadPool> globalThreadPool;
+extern SAIGA_GLOBAL void createGlobalThreadPool(int threads);
 
 }
 

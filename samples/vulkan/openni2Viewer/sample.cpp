@@ -13,7 +13,7 @@
 #include "saiga/network/RGBDCameraNetwork.h"
 #include "saiga/openni2/RGBDCameraInput.h"
 
-
+#include "saiga/util/threadName.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
@@ -33,15 +33,17 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan:
     cam->connect(ip,port);
     rgbdcamera = cam;
 #else
-    auto cam = std::make_shared<Saiga::RGBDCameraInput>();
     Saiga::RGBDCameraInput::CameraOptions co1,co2;
     co2.h = 240;
     co2.w = 320;
-    cam->open(co1,co2);
+
+    auto cam = std::make_shared<Saiga::RGBDCameraInput>(co1,co2);
+    //    cam->open(co1,co2);
     rgbdcamera = cam;
 #endif
 
-    frameData = cam->makeFrameData();
+
+    Saiga::setThreadName("main");
 
     cout << "init done" << endl;
 }
@@ -57,17 +59,19 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
 
 
-    rgbdcamera->readFrame(*frameData);
+    frameData = rgbdcamera->waitForImage();
 
 
     rgbImage.create(frameData->colorImg.h,frameData->colorImg.w);
+    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
     texture = std::make_shared<Saiga::Vulkan::Texture2D>();
     texture->fromImage(renderer.base,rgbImage);
 
 
     texture2 = std::make_shared<Saiga::Vulkan::Texture2D>();
-    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
+//    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
+    depthmg.create(frameData->depthImg.height,frameData->depthImg.width);
     Saiga::ImageTransformation::depthToRGBA(frameData->depthImg.getImageView(),depthmg.getImageView(),0,7000);
     texture2->fromImage(renderer.base,depthmg);
 
@@ -89,17 +93,22 @@ void VulkanExample::update(float dt)
 void VulkanExample::transfer(vk::CommandBuffer cmd)
 {
 
-    rgbdcamera->readFrame(*frameData);
+    //    rgbdcamera->readFrame(*frameData);
+    auto newFrameData = rgbdcamera->tryGetImage();
 
 
-    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
-    texture->uploadImage(renderer.base,rgbImage);
+    if(newFrameData)
+    {
+        frameData = newFrameData;
+        Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
-    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
-    Saiga::ImageTransformation::depthToRGBA(frameData->depthImg,depthmg,0,7000);
-    texture2->uploadImage(renderer.base,depthmg);
+        texture->uploadImage(renderer.base,rgbImage);
 
+
+        Saiga::ImageTransformation::depthToRGBA(frameData->depthImg,depthmg,0,7000);
+        texture2->uploadImage(renderer.base,depthmg);
+    }
 
 
 }

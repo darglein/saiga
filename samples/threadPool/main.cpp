@@ -10,31 +10,33 @@
 using namespace Saiga;
 
 
+
 int main(int argc, char *argv[])
 {
 
-    ThreadPool tp(5);
+    createGlobalThreadPool(5);
+
 
 
     cout << "start" << endl;
 
-    auto f = tp.enqueue([](){
+    auto f = globalThreadPool->enqueue([](){
         cout << "hello from other thread." << endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
     });
 
 
-    tp.enqueue([](){
+    globalThreadPool->enqueue([](){
             cout << "hello from other thread." << endl;
             std::this_thread::sleep_for(std::chrono::seconds(3));
         });
 
-    tp.enqueue([](){
+    globalThreadPool->enqueue([](){
             cout << "hello from other thread." << endl;
             std::this_thread::sleep_for(std::chrono::seconds(3));
         });
 
-    tp.enqueue([](){
+    globalThreadPool->enqueue([](){
             cout << "hello from other thread." << endl;
             std::this_thread::sleep_for(std::chrono::seconds(3));
         });

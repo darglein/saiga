@@ -8,11 +8,17 @@
 
 namespace Saiga {
 
+RGBDCamera::RGBDCamera(RGBDCamera::CameraOptions rgbo, RGBDCamera::CameraOptions deptho)
+: rgbo(rgbo), deptho(deptho)
+{
+
+}
+
 std::shared_ptr<RGBDCamera::FrameData> RGBDCamera::makeFrameData()
 {
     auto fd = std::make_shared<RGBDCamera::FrameData>();
-    fd->colorImg.create(colorH,colorW);
-    fd->depthImg.create(depthH,depthW);
+    fd->colorImg.create(rgbo.h,rgbo.w);
+    fd->depthImg.create(deptho.h,deptho.w);
     return fd;
 }
 

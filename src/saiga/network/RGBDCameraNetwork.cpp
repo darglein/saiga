@@ -30,9 +30,9 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
             if(!gotC)
             {
 //                colorImg.create(img.height,img.width,img.pitchBytes);
-                colorW = img.width;
+                rgbo.w = img.width;
 
-                colorH = img.height;
+                rgbo.h  = img.height;
                 gotC = true;
             }
 
@@ -40,9 +40,9 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
 
             if(!gotD)
             {
-                depthW = img.width;
+                deptho.w = img.width;
 
-                depthH = img.height;
+                deptho.h = img.height;
 //                depthImg.create(img.height,img.width,img.pitchBytes);
                 gotD = true;
             }
@@ -50,21 +50,29 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
     }
 }
 
-
-bool RGBDCameraNetwork::readFrame(FrameData &data)
+std::shared_ptr<RGBDCamera::FrameData> RGBDCameraNetwork::waitForImage()
 {
+    auto data = makeFrameData();
     while(true)
     {
-        while(!trans->recieveImageType(data.colorImg))
+        while(!trans->recieveImageType(data->colorImg))
         {
 
         }
 
-        if(trans->recieveImageType(data.depthImg))
-            return true;
+        if(trans->recieveImageType(data->depthImg))
+            return data;
     }
 
-    return false;
+    return nullptr;
 }
+
+std::shared_ptr<RGBDCamera::FrameData> RGBDCameraNetwork::tryGetImage()
+{
+    return nullptr;
+}
+
+
+
 
 }

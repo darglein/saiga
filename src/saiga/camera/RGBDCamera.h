@@ -26,18 +26,23 @@ public:
           std::chrono::steady_clock::time_point  captureTime;
     };
 
-    int colorW, colorH;
-    int depthW, depthH;
+    struct CameraOptions
+    {
+        int w = 640;
+        int h = 480;
+        int fps = 30;
+    };
 
 
+    CameraOptions rgbo, deptho;
 
-//    TemplatedImage<ucvec4> colorImg;
-//    TemplatedImage<unsigned short> depthImg;
+    RGBDCamera(CameraOptions rgbo, CameraOptions deptho);
 
-    virtual bool readFrame(FrameData& data) = 0;
+
+    virtual std::shared_ptr<FrameData> waitForImage() = 0;
+    virtual std::shared_ptr<FrameData> tryGetImage() = 0;
 
     std::shared_ptr<FrameData> makeFrameData();
-
 protected:
     int currentId = 0;
 
