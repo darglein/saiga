@@ -22,23 +22,14 @@ void TextureDisplay::destroy()
 {
     Pipeline::destroy();
 }
-void TextureDisplay::bind(vk::CommandBuffer cmd)
+
+void TextureDisplay::renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet texture, vec2 position, vec2 size)
 {
-    //    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics,pipeline);
+    bindDescriptorSets(cmd,texture);
+    vk::Viewport vp(position.x,position.y,size.x,size.y);
+    cmd.setViewport(0,vp);
+    blitMesh.render(cmd);
 }
-
-void TextureDisplay::bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet ds)
-{
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,ds,nullptr);
-
-}
-
-void TextureDisplay::pushModel(vk::CommandBuffer cmd, mat4 model)
-{
-        pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(mat4),&model[0][0]);
-}
-
 
 
 
@@ -57,6 +48,7 @@ void TextureDisplay::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
     info.rasterizationState.cullMode = vk::CullModeFlagBits::eNone;
+    info.blendAttachmentState.blendEnable = true;
     create(renderPass,info);
     shaderPipeline.destroy(device);
 

@@ -52,7 +52,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
             cout << "adding alplha channel" << endl;
             Saiga::TemplatedImage<ucvec4> img2(img.height,img.width);
             cout << img << " " << img2 << endl;
-            Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(),img2.getImageView());
+            Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(),img2.getImageView(),255);
             tex->fromImage(base,img2);
         }else{
             cout << img << endl;
@@ -198,11 +198,8 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 
     textureDisplay.bind(cmd);
-    textureDisplay.bindDescriptorSets(cmd,textureDes);
 
-    vk::Viewport vp(50,50,100,100);
-    cmd.setViewport(0,vp);
-    textureDisplay.blitMesh.render(cmd);
+    textureDisplay.renderTexture(cmd,textureDes,vec2(10,10),vec2(100,50));
 }
 
 void VulkanExample::renderGUI()

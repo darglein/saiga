@@ -36,7 +36,7 @@ public:
         auto objPointss = pattern.duplicate(images.size());
 
         cv::Mat rvecs,tvecs;
-        auto error = calibrateCamera(
+        auto error = cv::calibrateCamera(
                     objPointss,
                     images,
                     cv::Size(intr.w,intr.h),

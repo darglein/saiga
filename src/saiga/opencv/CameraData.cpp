@@ -16,6 +16,8 @@ void Intrinsics::writeToFile(string file)
     fs << "h" << h;
     fs << "K" << K;
     fs << "dist" << dist;
+
+    cout << "Saved Intrinsics to " << file << endl;
 }
 
 void Intrinsics::readFromFile(string file)
@@ -45,6 +47,8 @@ void StereoExtrinsics::writeToFile(string file)
     fs << "t" << t;
     fs << "F" << F;
     fs << "E" << E;
+
+    cout << "Saved StereoExtrinsics to " << file << endl;
 }
 
 void StereoExtrinsics::readFromFile(string file)

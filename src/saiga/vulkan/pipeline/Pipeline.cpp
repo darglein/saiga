@@ -19,6 +19,11 @@ Pipeline::Pipeline()
 
 }
 
+void Pipeline::bind(vk::CommandBuffer cmd)
+{
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics,pipeline);
+}
+
 void Pipeline::create(vk::RenderPass renderPass, PipelineInfo pipelineInfo)
 {
     SAIGA_ASSERT(isInitialized());

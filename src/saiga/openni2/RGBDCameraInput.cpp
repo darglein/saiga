@@ -65,6 +65,11 @@ std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::tryGetImage()
     return img;
 }
 
+bool RGBDCameraInput::isOpened()
+{
+    return foundCamera;
+}
+
 bool RGBDCameraInput::open()
 {
     resetCamera();
@@ -76,29 +81,10 @@ bool RGBDCameraInput::open()
 
 
 
-    //    openni::Array<openni::DeviceInfo> deviceInfoList;
-    //    openni::OpenNI::enumerateDevices(&deviceInfoList);
-
-
-
-    //    for(int i = 0; i < deviceInfoList.getSize(); ++i)
-    //    {
-    //        auto di = deviceInfoList[i];
-    //        cout << di.getName() << " " << di.getUri() << " " << di.getUsbProductId() << " " << di.getUsbVendorId() << " " << di.getVendor() << endl;
-    //    }
-
-
-
-    //    deviceURI = deviceInfoList[0].getUri();
-
     rc = device->open(deviceURI);
     if (rc != openni::STATUS_OK)
     {
         return false;
-
-        //        printf("SimpleViewer: Device open failed:\n%s\n", openni::OpenNI::getExtendedError());
-        //        openni::OpenNI::shutdown();
-        //        return false;
     }
 
     CHECK_NI(depth->create(*device, openni::SENSOR_DEPTH));

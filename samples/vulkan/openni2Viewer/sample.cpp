@@ -70,7 +70,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
 
     texture2 = std::make_shared<Saiga::Vulkan::Texture2D>();
-//    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
+    //    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
     depthmg.create(frameData->depthImg.height,frameData->depthImg.width);
     Saiga::ImageTransformation::depthToRGBA(frameData->depthImg.getImageView(),depthmg.getImageView(),0,7000);
     texture2->fromImage(renderer.base,depthmg);
@@ -116,23 +116,9 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
 
 void VulkanExample::render(vk::CommandBuffer cmd)
 {
-
     textureDisplay.bind(cmd);
-
-    {
-        textureDisplay.bindDescriptorSets(cmd,textureDes);
-        vk::Viewport vp(0,0,frameData->colorImg.width,frameData->colorImg.height);
-        cmd.setViewport(0,vp);
-        textureDisplay.blitMesh.render(cmd);
-    }
-
-
-    {
-        textureDisplay.bindDescriptorSets(cmd,textureDes2);
-        vk::Viewport vp(frameData->colorImg.width,0,frameData->depthImg.width,frameData->depthImg.height);
-        cmd.setViewport(0,vp);
-        textureDisplay.blitMesh.render(cmd);
-    }
+    textureDisplay.renderTexture(cmd,textureDes,vec2(0,0),vec2(frameData->colorImg.width,frameData->colorImg.height));
+    textureDisplay.renderTexture(cmd,textureDes2,vec2(frameData->colorImg.width,0),vec2(frameData->depthImg.width,frameData->depthImg.height));
 }
 
 void VulkanExample::renderGUI()

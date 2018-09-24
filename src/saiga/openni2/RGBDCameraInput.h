@@ -45,6 +45,7 @@ public:
     virtual std::shared_ptr<FrameData> tryGetImage();
 
 
+    bool isOpened();
 private:
 
     SynchronizedBuffer<std::shared_ptr<FrameData>> frameBuffer;

@@ -27,25 +27,24 @@ public:
     using VertexType = VertexNC;
 
 
-
-    Saiga::Vulkan::VulkanVertexColoredAsset blitMesh;
-
     ~TextureDisplay() { destroy(); }
     void destroy();
 
-    void bind(vk::CommandBuffer cmd);
+
+    /**
+     * Render the texture at the given pixel position and size
+     */
+    void renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet texture, vec2 position, vec2 size);
 
 
-    void bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet ds);
-
-    void pushModel(vk::CommandBuffer cmd, mat4 model);
 
     void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
 
-    void prepareUniformBuffers(Saiga::Vulkan::VulkanBase* vulkanDevice);
-    void setupLayoutsAndDescriptors();
 
     vk::DescriptorSet createAndUpdateDescriptorSet( Texture& texture );
+private:
+
+    Saiga::Vulkan::VulkanVertexColoredAsset blitMesh;
 };
 
 

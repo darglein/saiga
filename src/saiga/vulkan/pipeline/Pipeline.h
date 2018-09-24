@@ -21,6 +21,9 @@ public:
     Saiga::Vulkan::ShaderPipeline shaderPipeline;
 
     Pipeline();
+
+
+    void bind(vk::CommandBuffer cmd);
     void create(vk::RenderPass renderPass, PipelineInfo pipelineInfo = PipelineInfo());
 };
 
