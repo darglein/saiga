@@ -50,7 +50,7 @@ void warpReduceSimple(ArrayView<T> data, ArrayView<T> output)
 
 template<typename T>
 __device__ inline
-T blockReduceAtomicSum(T val, T* shared)
+T blockReduceSum(T val, T& blockSum)
 {
     int lane = threadIdx.x & (WARP_SIZE-1);
 
@@ -59,14 +59,14 @@ T blockReduceAtomicSum(T val, T* shared)
 
     // Init shared memory
     if(threadIdx.x == 0)
-        shared[0] = T(0);
+        blockSum = T(0);
 
     __syncthreads();
 
 
     // The first thread in each warp writes to smem
     if (lane==0){
-        atomicAdd(&shared[0],val);
+        atomicAdd(&blockSum,val);
     }
 
     __syncthreads();
@@ -74,7 +74,7 @@ T blockReduceAtomicSum(T val, T* shared)
     // The first thread in this block has the result
     // Optional: remove if so that every thread has the result
     if(threadIdx.x == 0)
-        val = shared[0];
+        val = blockSum;
 
     return val;
 }
@@ -91,7 +91,7 @@ void blockReduceSimple(ArrayView<T> data, ArrayView<T> output)
 
     auto v = data[ti.thread_id];
 
-    v = blockReduceAtomicSum(v,&blockSum);
+    v = blockReduceSum(v,blockSum);
 
     if(ti.local_thread_id == 0)
         output[0] = v;
@@ -110,12 +110,27 @@ void globalReduceSimple(ArrayView<T> data, ArrayView<T> output)
     // -> reduce a 0 for out-of-bounds threads
     auto v = ti.thread_id >= data.size() ? 0 : data[ti.thread_id];
 
-    v = blockReduceAtomicSum(v,&blockSum);
+    v = blockReduceSum(v,blockSum);
 
     if(ti.local_thread_id == 0)
         atomicAdd(output.data(),v);
 
 }
+
+struct Particle
+{
+    vec3 position;
+    float radius = 0;
+};
+
+struct MaxRadius
+{
+    HD Particle operator()(const Particle& p1, const Particle& p2)
+    {
+        return p1.radius < p2.radius ? p2 : p1;
+    }
+};
+
 
 static void reduceTest()
 {
@@ -160,6 +175,20 @@ static void reduceTest()
         T tres = thrust::reduce(d_data.begin(),d_data.end());
         cout << res << " " << tres << endl;
         SAIGA_ASSERT(res == tres);
+    }
+
+
+    {
+        thrust::device_vector<Particle> particles(100000);
+
+        Particle test;
+        test.radius = 12314;
+        particles[100] = test;
+
+        Particle p = thrust::reduce(particles.begin(),particles.end(),Particle(),MaxRadius());
+        cout << "Max radius = " << p.radius << endl;
+
+        SAIGA_ASSERT(test.radius == p.radius);
     }
 
 }
