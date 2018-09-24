@@ -27,6 +27,8 @@ void Intrinsics::readFromFile(string file)
        fs["h"] >> h;
        fs["K"] >> K;
        fs["dist"] >> dist;
+
+       cout << "Loaded Intrinsics from " << file << endl;
 }
 Matx44f StereoExtrinsics::getRelativeTransform()
 {
@@ -58,6 +60,8 @@ void StereoExtrinsics::readFromFile(string file)
     fs["t"] >> t;
     fs["F"] >> F;
     fs["E"] >> E;
+
+    cout << "Loaded StereoExtrinsics from " << file << endl;
 }
 
 }
