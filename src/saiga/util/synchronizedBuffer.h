@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -50,6 +50,13 @@ public:
         not_empty.notify_one();
     }
 
+    void addOverride(const T& data)
+    {
+        std::unique_lock<std::mutex> l(lock);
+        RingBuffer<T>::addOverride(data);
+        not_empty.notify_one();
+    }
+
     bool tryAdd(const T& v)
     {
         std::unique_lock<std::mutex> l(lock);
@@ -76,7 +83,7 @@ public:
     {
         std::unique_lock<std::mutex> l(lock);
         //not_empty.wait(l, [this](){return this->count() != 0; });
-		not_empty.wait(l, [this](){return !this->empty(); });
+        not_empty.wait(l, [this](){return !this->empty(); });
         T result = RingBuffer<T>::get();
         not_full.notify_one();
         return result;

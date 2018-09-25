@@ -182,7 +182,7 @@ bool RGBDCameraInput::waitFrame(FrameData &data)
     return ret;
 }
 
-bool RGBDCameraInput::readDepth(ImageView<float> depthImg)
+bool RGBDCameraInput::readDepth(DepthImageType::ViewType depthImg)
 {
     auto res = depth->readFrame(m_depthFrame.get());
     if (res != openni::STATUS_OK) return false;
@@ -206,7 +206,7 @@ bool RGBDCameraInput::readDepth(ImageView<float> depthImg)
     return true;
 }
 
-bool RGBDCameraInput::readColor(ImageView<ucvec4> colorImg)
+bool RGBDCameraInput::readColor(RGBImageType::ViewType colorImg)
 {
 
     auto res = color->readFrame(m_colorFrame.get());

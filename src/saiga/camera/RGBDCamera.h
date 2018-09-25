@@ -12,6 +12,8 @@
 
 namespace Saiga {
 
+using RGBImageType = TemplatedImage<ucvec4> ;
+using DepthImageType = TemplatedImage<float>;
 
 
 class SAIGA_GLOBAL RGBDCamera
@@ -20,8 +22,8 @@ public:
 
     struct FrameData
     {
-          TemplatedImage<ucvec4> colorImg;
-          TemplatedImage<float> depthImg;
+          RGBImageType colorImg;
+          DepthImageType depthImg;
           int frameId;
           std::chrono::steady_clock::time_point  captureTime;
     };

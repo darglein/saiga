@@ -16,7 +16,7 @@ class TemplatedImage : public Image
 public:
 
     using TType = ImageTypeTemplate<T>;
-
+    using ViewType = ImageView<T>;
     using Image::create;
 
     TemplatedImage() : Image(TType::type) {}

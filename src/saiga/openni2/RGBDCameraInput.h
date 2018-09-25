@@ -57,8 +57,8 @@ private:
     bool open();
     void resetCamera();
     bool waitFrame(FrameData& data);
-    bool readDepth(ImageView<float> depthImg);
-    bool readColor(ImageView<ucvec4> colorImg);
+    bool readDepth(DepthImageType::ViewType depthImg);
+    bool readColor(RGBImageType::ViewType colorImg);
 
     std::thread eventThread;
 

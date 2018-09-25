@@ -40,7 +40,8 @@ public:
     }
 
     bool full() const{
-        return count() == (int)capacity;
+//        return count() == (int)capacity;
+        return front == rear;
     }
 
     int count() const{
@@ -62,10 +63,16 @@ public:
     //overrides the first element if full
     void addOverride(const T& data)
     {
-        if(empty()) front = rear;
-        if(full()) front = (front + 1) % capacity;
-        (*this)[rear] = data;
-        rear = (rear + 1) % capacity;
+        if(full())
+        {
+            // Override first element and increment both pointers
+            (*this)[front] = data;
+            front = (front + 1) % capacity;
+            rear = (rear + 1) % capacity;
+        }else
+        {
+            add(data);
+        }
     }
 
     //adds the element by swapping
