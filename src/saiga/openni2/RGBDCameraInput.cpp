@@ -29,15 +29,11 @@ namespace Saiga {
 
 
 
-RGBDCameraInput::RGBDCameraInput(RGBDCameraInput::CameraOptions rgbo, RGBDCameraInput::CameraOptions deptho)
-    : RGBDCamera(rgbo,deptho),  frameBuffer(10)
+RGBDCameraInput::RGBDCameraInput(RGBDCameraInput::CameraOptions rgbo, RGBDCameraInput::CameraOptions deptho, float depthFactor)
+    : RGBDCamera(rgbo,deptho),  frameBuffer(10), depthFactor(depthFactor)
 {
-
     CHECK_NI(openni::OpenNI::initialize());
-
-
     eventThread = std::thread(&RGBDCameraInput::eventLoop,this);
-    setThreadName(eventThread,"Saiga::RGBDCameraInput");
 }
 
 RGBDCameraInput::~RGBDCameraInput()
@@ -47,10 +43,7 @@ RGBDCameraInput::~RGBDCameraInput()
     eventThread.join();
 
 //    device.reset();
-
-
 //    openni::OpenNI::shutdown();
-
 }
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::waitForImage()
@@ -189,7 +182,7 @@ bool RGBDCameraInput::waitFrame(FrameData &data)
     return ret;
 }
 
-bool RGBDCameraInput::readDepth(ImageView<unsigned short> depthImg)
+bool RGBDCameraInput::readDepth(ImageView<float> depthImg)
 {
     auto res = depth->readFrame(m_depthFrame.get());
     if (res != openni::STATUS_OK) return false;
@@ -202,17 +195,18 @@ bool RGBDCameraInput::readDepth(ImageView<unsigned short> depthImg)
                 m_depthFrame->getWidth(),
                 m_depthFrame->getStrideInBytes(),
                 (void*)m_depthFrame->getData());
+
     for(int i = 0; i < rawDepthImg.height; ++i)
     {
         for(int j =0; j < rawDepthImg.width; ++j)
         {
-            depthImg(i,j) = rawDepthImg(i,rawDepthImg.width-j-1);
+            depthImg(i,j) = rawDepthImg(i,rawDepthImg.width-j-1) * depthFactor;
         }
     }
     return true;
 }
 
-bool RGBDCameraInput::readColor(ImageView<ucvec3> colorImg)
+bool RGBDCameraInput::readColor(ImageView<ucvec4> colorImg)
 {
 
     auto res = color->readFrame(m_colorFrame.get());
@@ -231,8 +225,7 @@ bool RGBDCameraInput::readColor(ImageView<ucvec3> colorImg)
     {
         for(int j =0; j < rawImg.width; ++j)
         {
-            //            colorImg(i,j) = ucvec4(rawImg(i,rawImg.width-j-1),0);
-            colorImg(i,j) = ucvec3(rawImg(i,rawImg.width-j-1));
+            colorImg(i,j) = ucvec4(rawImg(i,rawImg.width-j-1),255);
         }
     }
 

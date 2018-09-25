@@ -63,7 +63,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
 
     rgbImage.create(frameData->colorImg.h,frameData->colorImg.w);
-    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
+//    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
     texture = std::make_shared<Saiga::Vulkan::Texture2D>();
     texture->fromImage(renderer.base,rgbImage);
@@ -101,12 +101,13 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
     if(newFrameData)
     {
         frameData = newFrameData;
-        Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
+//        Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
-        texture->uploadImage(renderer.base,rgbImage);
+        texture->uploadImage(renderer.base,frameData->colorImg);
+//        texture->uploadImage(renderer.base,rgbImage);
 
 
-        Saiga::ImageTransformation::depthToRGBA(frameData->depthImg,depthmg,0,7000);
+        Saiga::ImageTransformation::depthToRGBA(frameData->depthImg,depthmg,0,8);
         texture2->uploadImage(renderer.base,depthmg);
     }
 

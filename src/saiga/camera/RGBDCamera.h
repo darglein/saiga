@@ -20,8 +20,8 @@ public:
 
     struct FrameData
     {
-          TemplatedImage<ucvec3> colorImg;
-          TemplatedImage<unsigned short> depthImg;
+          TemplatedImage<ucvec4> colorImg;
+          TemplatedImage<float> depthImg;
           int frameId;
           std::chrono::steady_clock::time_point  captureTime;
     };

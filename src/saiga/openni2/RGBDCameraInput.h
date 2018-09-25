@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -28,7 +28,7 @@ class SAIGA_GLOBAL RGBDCameraInput : public RGBDCamera
 public:
 
 
-    RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho);
+    RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, float depthFactor = 1.0/1000.0);
     ~RGBDCameraInput();
 
 
@@ -54,17 +54,17 @@ private:
     std::shared_ptr<openni::VideoStream> depth, color;
     std::shared_ptr<openni::VideoFrameRef> m_depthFrame,m_colorFrame;
 
-        bool open();
-        void resetCamera();
+    bool open();
+    void resetCamera();
     bool waitFrame(FrameData& data);
-    bool readDepth(ImageView<unsigned short> depthImg);
-    bool readColor(ImageView<ucvec3> colorImg);
+    bool readDepth(ImageView<float> depthImg);
+    bool readColor(ImageView<ucvec4> colorImg);
 
     std::thread eventThread;
 
     bool foundCamera = false;
     bool running = false;
-
+    float depthFactor;
 
     void eventLoop();
 };
