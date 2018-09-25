@@ -52,5 +52,21 @@ void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD, 
     }
 }
 
+struct RGBATOGRAY8Trans
+{
+    unsigned char operator()(const ucvec4& v)
+    {
+        const vec3 conv(0.2126f,0.7152f,0.0722f);
+        vec3 vf(v.x,v.y,v.z);
+        float gray = dot(conv,vf);
+        return gray;
+    }
+};
+
+void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned char> dst)
+{
+    src.copyToTransform(dst,RGBATOGRAY8Trans());
+}
+
 }
 }

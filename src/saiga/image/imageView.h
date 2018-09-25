@@ -231,6 +231,18 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         }
     }
 
+    template<typename T2, typename Op>
+    inline
+    void copyToTransform(ImageView<T2> a, Op op) const
+    {
+        SAIGA_ASSERT(height == a.height && width == a.width);
+        for(int y = 0; y < height; ++y){
+            for(int x = 0; x < width; ++x){
+                a(y,x) = op((*this)(y,x));
+            }
+        }
+    }
+
     template<typename T2, typename MT>
     inline
     void copyTo(ImageView<T2> a, MT alpha) const

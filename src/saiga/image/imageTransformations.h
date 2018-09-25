@@ -19,6 +19,7 @@ SAIGA_GLOBAL void addAlphaChannel(ImageView<const ucvec3> src, ImageView<ucvec4>
 SAIGA_GLOBAL void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t minD, uint16_t maxD);
 SAIGA_GLOBAL void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD = 0, float maxD = 7);
 
+SAIGA_GLOBAL void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned char> dst);
 
 }
 }
