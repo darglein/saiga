@@ -15,6 +15,8 @@
 
 #include "thrust/scan.h"
 #include "thrust/scatter.h"
+#include "thrust/copy.h"
+#include "thrust/sort.h"
 
 template<bool one>
 struct GetBitOp
@@ -33,6 +35,7 @@ static void radixSortHelper(
         thrust::device_vector<int>& t,
         int bit)
 {
+#if 0
     // Compute predicate array for 0-bits
     thrust::transform(d.begin(),d.end(),p.begin(),GetBitOp<false>(bit));
 
@@ -44,12 +47,17 @@ static void radixSortHelper(
     thrust::scatter_if(d.begin(),d.end(),s.begin(),p.begin(),t.begin());
 
     // Total number of 0 bits
-    int count = thrust::reduce(p.begin(),p.end());
+//    int count = thrust::reduce(p.begin(),p.end());
 
     // Same with 1-bit integers, but use 'count' as the initial value in the scan
     thrust::transform(d.begin(),d.end(),p.begin(),GetBitOp<true>(bit));
     thrust::exclusive_scan(p.begin(),p.end(),s.begin(),count);
     thrust::scatter_if(d.begin(),d.end(),s.begin(),p.begin(),t.begin());
+#else
+
+    auto it = thrust::copy_if(d.begin(),d.end(),t.begin(),GetBitOp<false>(bit));
+    thrust::copy_if(d.begin(),d.end(),it,GetBitOp<true>(bit));
+#endif
 
     // The scan-scatter radix sort does not work inplace!
     thrust::copy(t.begin(),t.end(),d.begin());
@@ -73,7 +81,7 @@ static void radixSortTest()
 {
     int N = 64 * 1024 * 1024;
     using T = int;
-    Saiga::thrust::pinned_vector<T> h_data(N), res;
+    Saiga::thrust::pinned_vector<T> h_data(N), res, res2;
     thrust::device_vector<T> d_data(N);
 
     // Initialize with random values
@@ -89,13 +97,18 @@ static void radixSortTest()
     }
     res = d_data;
 
+    d_data = h_data;
+    thrust::sort(d_data.begin(),d_data.end());
+    res2 = d_data;
+
+    SAIGA_ASSERT(res == res2);
     // Check result
-    int prev = res[0];
-    for(auto& d : res)
-    {
-        SAIGA_ASSERT(d >= prev);
-        prev = d;
-    }
+//    int prev = res[0];
+//    for(auto& d : res)
+//    {
+//        SAIGA_ASSERT(d >= prev);
+//        prev = d;
+//    }
     cout << "Success! All elements are in the correct order!" << endl;
 
 }
