@@ -263,8 +263,11 @@ void RGBDCameraInput::eventLoop()
             continue;
         }
 
-        if(!frameBuffer.tryAdd(tmp))
-            cout << "buffer full" << endl;
+//        if(!frameBuffer.tryAdd(tmp))
+        frameBuffer.addOverride(tmp);
+        {
+//            cout << "buffer full" << endl;
+        }
         tmp = makeFrameData();
 
     }

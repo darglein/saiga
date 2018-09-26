@@ -27,19 +27,17 @@ public:
     PipelineStage(const std::string& name = "PipelineStage") : buffer(queueSize), name(name) {}
     ~PipelineStage()
     {
-        if(running)
-        {
-            running = false;
-            t.join();
-        }
+        stop();
     }
 
     template<typename T>
     void run(T op)
     {
         running = true;
+        // Capture 'op' by copy because it runs out of scope.
+        // Note: 'this' is still captured by reference
         t = std::thread(
-                    [&]()
+                    [&,op]()
         {
             setThreadName(name);
             OutputType tmp;
@@ -55,6 +53,16 @@ public:
                 }
             }
         });
+    }
+
+    void stop()
+    {
+        if(running)
+        {
+            running = false;
+            if(t.joinable())
+                t.join();
+        }
     }
 
     void get(OutputType& out)

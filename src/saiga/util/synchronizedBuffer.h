@@ -68,21 +68,10 @@ public:
         return true;
     }
 
-    bool tryAddSwap(T& v)
-    {
-        std::unique_lock<std::mutex> l(lock);
-        if (this->full()){
-            return false;
-        }
-        RingBuffer<T>::addSwap(v);
-        not_empty.notify_one();
-        return true;
-    }
 
     T get()
     {
         std::unique_lock<std::mutex> l(lock);
-        //not_empty.wait(l, [this](){return this->count() != 0; });
         not_empty.wait(l, [this](){return !this->empty(); });
         T result = RingBuffer<T>::get();
         not_full.notify_one();
@@ -100,16 +89,6 @@ public:
         return true;
     }
 
-    bool tryGetSwap(T& v)
-    {
-        std::unique_lock<std::mutex> l(lock);
-        if(this->empty()){
-            return false;
-        }
-        RingBuffer<T>::getSwap(v);
-        not_full.notify_one();
-        return true;
-    }
 
 
 };
