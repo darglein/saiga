@@ -164,6 +164,12 @@ public:
 
     int getVBO(){return TemplatedBuffer<vertex_t>::buffer;}
     int getVAO(){return gl_vao;}
+
+    /**
+     * Adds an external buffer to this VAO.
+     * Usefull for 'structure of arrays' vertex rendering.
+     */
+    void addExternalBuffer(Buffer& buffer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer = nullptr);
 };
 
 
@@ -271,6 +277,16 @@ void VertexBuffer<vertex_t>::drawInstanced(int instances, int offset, int length
     glDrawArraysInstanced(draw_mode,offset,length,instances);
     assert_no_glerror();
 }
+
+template<class vertex_t>
+void VertexBuffer<vertex_t>::addExternalBuffer(Buffer &buffer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer)
+{
+    bind();
+    buffer.bind();
+    glEnableVertexAttribArray( index );
+    glVertexAttribPointer(index,size, type,normalized, stride, pointer);
+}
+
 
 
 //=========================================================================

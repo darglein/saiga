@@ -12,6 +12,7 @@
 #include "saiga/image/imageTransformations.h"
 #include "saiga/network/RGBDCameraNetwork.h"
 #include "saiga/openni2/RGBDCameraInput.h"
+#include "saiga/camera/TumRGBDCamera.h"
 
 #include "saiga/util/threadName.h"
 
@@ -32,13 +33,15 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan:
     auto cam = std::make_shared<Saiga::RGBDCameraNetwork>();
     cam->connect(ip,port);
     rgbdcamera = cam;
-#else
+#elif 0
     Saiga::RGBDCameraInput::CameraOptions co1,co2;
     co2.h = 240;
     co2.w = 320;
 
     auto cam = std::make_shared<Saiga::RGBDCameraInput>(co1,co2);
-    //    cam->open(co1,co2);
+    rgbdcamera = cam;
+#else
+    auto cam = std::make_shared<Saiga::TumRGBDCamera>("/home/dari/Programming/ORB_SLAM2/datasets/rgbd_dataset_freiburg3_long_office_household");
     rgbdcamera = cam;
 #endif
 

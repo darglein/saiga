@@ -12,3 +12,4 @@
 #include "saiga/image/imageView.h"
 #include "saiga/image/managedImage.h"
 #include "saiga/image/templatedImage.h"
+#include "saiga/image/imageTransformations.h"

@@ -40,11 +40,8 @@ if(OPENGL_FOUND)
     if (EIGEN3_FOUND)
         add_subdirectory(eigenTest)
     endif ()
-
-
-    add_subdirectory(imageProcessing)
-
 endif()
+
 if (SDL2_FOUND AND SAIGA_USE_VULKAN)
     add_subdirectory(vulkan)
 endif()
@@ -60,3 +57,4 @@ endif ()
 
 add_subdirectory(ini)
 add_subdirectory(threadPool)
+add_subdirectory(image)

@@ -34,6 +34,7 @@ using uchar = unsigned char;
 
         //raw image data
         std::vector<uchar> data;
+        uchar* data2;
 
         int rowAlignment = 4;
         size_t bytesPerRow;
@@ -45,13 +46,17 @@ using uchar = unsigned char;
     };
 
 
-    SAIGA_LOCAL void pngVersionInfo();
+//    SAIGA_LOCAL void pngVersionInfo();
 
-    SAIGA_LOCAL bool readPNG (PngImage *img, const std::string &path, bool invertY = false);
-    SAIGA_LOCAL bool writePNG(PngImage *img, const std::string &path, bool invertY = false);
+//    SAIGA_LOCAL bool readPNG (PngImage *img, const std::string &path, bool invertY = false);
+//    SAIGA_LOCAL bool writePNG(PngImage *img, const std::string &path, bool invertY = false);
 
-    SAIGA_LOCAL void convert(PNG::PngImage& src, Image& dst);
-    SAIGA_LOCAL void convert(Image &src, PNG::PngImage &dst);
+//    SAIGA_LOCAL void convert(PNG::PngImage& src, Image& dst);
+//    SAIGA_LOCAL void convert(Image &src, PNG::PngImage &dst);
+
+
+    SAIGA_LOCAL bool save(Image& img, const std::string &path, bool invertY = false);
+    SAIGA_LOCAL bool load(Image& img, const std::string &path, bool invertY = false);
 
 }
 }

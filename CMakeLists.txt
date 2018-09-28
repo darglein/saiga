@@ -43,8 +43,8 @@ OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
 
 
 
-DefaultBuildType()
-message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+DefaultBuildType(RelWithDebInfo)
+
 
 ############# COMPILER FLAGS ###############
 
@@ -54,6 +54,8 @@ include(Saiga_compiler_flags)
 
 
 ############# Required LIBRARIES ###############
+
+message(STATUS "\nSearching for installed libaries...")
 
 #GLM
 find_package(GLM REQUIRED QUIET)
@@ -68,7 +70,6 @@ endif(WIN32)
 ############# Optional Libraries ###############
 
 
-message(STATUS "\nSearching for installed libaries...")
 
 # SDL2
 find_package(SDL2 QUIET)

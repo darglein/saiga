@@ -13,7 +13,7 @@ bool loadImageSTB(const std::string &path, Image &img)
     if(!data)
         return false;
 
-    ImageType it;
+    ImageType it = TYPE_UNKNOWN;
 
     switch(n)
     {
@@ -58,7 +58,7 @@ bool decompressImageSTB(Image &img, std::vector<uint8_t>& _data)
     if(!data)
         return false;
 
-    ImageType it;
+    ImageType it = TYPE_UNKNOWN;
 
     switch(n)
     {

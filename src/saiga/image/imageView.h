@@ -114,7 +114,9 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     {
         ImageView<T> fy = *this;
         fy.data = rowPtr(height-1);
-        fy.pitchBytes = -pitchBytes;
+//        fy.pitchBytes = -pitchBytes;
+//        fy.pitchBytes = 0xFFFFFFFFFFFFFFFF - pitchBytes + 1;
+        fy.pitchBytes = ~pitchBytes + 1;
         return fy;
     }
 
@@ -290,6 +292,51 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
             }
         }
     }
+
+    /**
+     * Copies this image to the target image.
+     * The target image must be a power of 2 smaller.
+     * The resulting pixels will be average.
+     *
+     * factor must be a power of 2!!!
+     */
+    template<typename T2>
+    inline
+    void copyScaleDownPow2(ImageView<T2> a, int factor) const
+    {
+        SAIGA_ASSERT(height/factor == a.height && width/factor == a.width);
+
+        using TFC = TexelFloatConverter<T,false>;
+        TFC ttf;
+
+
+        float div = 1.0f / (factor * factor);
+
+        for(int y = 0; y < a.height; ++y)
+        {
+            int gy = y * factor;
+            for(int x = 0; x < a.width; ++x)
+            {
+                int gx = x * factor;
+
+                typename TFC::FloatType sum(0);
+
+                 // Average inner patch
+                for(int i = 0; i < factor; ++i)
+                {
+                    for(int j = 0; j < factor; ++j)
+                    {
+                        T2 value = (*this)(gy + i, gx + j);
+                        sum += ttf.toFloat(value);
+                    }
+                }
+
+                sum *= div;
+                a(y,x) = ttf.fromFloat(sum);
+            }
+        }
+    }
+
 
 
     HD inline

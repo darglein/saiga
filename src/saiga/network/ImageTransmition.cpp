@@ -136,7 +136,7 @@ bool ImageTransmition::recieveImage(Image &img)
 
         //    return;
 
-        size_t imageSize = img.size();
+//        size_t imageSize = img.size();
         size_t i = 0;
         for( ; i < h.numDataPackets; ++i)
         {
@@ -194,7 +194,7 @@ bool ImageTransmition::recieveImageType(Image &img)
     }
     SAIGA_ASSERT(h.height > 0);
 
-    if(h.type != img.type)
+    if( (int)h.type != img.type)
         return false;
 
     SAIGA_ASSERT(checkHeader(img,h));

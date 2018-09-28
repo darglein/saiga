@@ -81,11 +81,12 @@ object_t Loader<object_t,param_t>::exists(const std::string &name, const param_t
 
 
 template<typename object_t, typename param_t >
-object_t Loader<object_t,param_t>::load(const std::string &name, const param_t &params){
-
+object_t Loader<object_t,param_t>::load(const std::string &name, const param_t &params)
+{
     object_t object = exists(name,params);
-    if(object){
-        std::cerr << name << " already loaded!! " << std::endl;
+    if(object)
+    {
+        //std::cerr << name << " already loaded!! " << std::endl;
         return object;
     }
 
@@ -99,7 +100,8 @@ object_t Loader<object_t,param_t>::load(const std::string &name, const param_t &
             return object;
         }
     }
-    std::cout<<"Failed to load "<<name<<"!!!"<<std::endl;
+    std::cout <<"Failed to load " << name << "!!!" << std::endl;
+    SAIGA_ASSERT(0);
 
 
     return NULL;

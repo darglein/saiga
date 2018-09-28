@@ -195,7 +195,7 @@ bool readPNG(PngImage *img, const std::string &path, bool invertY)
 /* returns 0 for success, 2 for libpng problem, 4 for out of memory, 11 for
  *  unexpected pnmtype; note that outfile might be stdout */
 
-static int writepng_init(PNG::PngImage *image, PNGLoadStore* pngls)
+static int writepng_init(Image &img, PNGLoadStore* pngls)
 {
     png_structp  png_ptr;       /* note:  temporary variables! */
     png_infop  info_ptr;
@@ -204,7 +204,7 @@ static int writepng_init(PNG::PngImage *image, PNGLoadStore* pngls)
 
     /* could also replace libpng warning-handler (final NULL), but no need: */
 
-    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, image,writepng_error_handler, NULL);
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL,writepng_error_handler, NULL);
     if (!png_ptr)
         return 4;   /* out of memory */
 
@@ -256,75 +256,42 @@ static int writepng_init(PNG::PngImage *image, PNGLoadStore* pngls)
 
     interlace_type = PNG_INTERLACE_NONE; //PNG_INTERLACE_ADAM7
 
-    png_set_IHDR(png_ptr, info_ptr, image->width, image->height,
-                 image->bit_depth, image->color_type, interlace_type,
+
+    int bit_depth = bitsPerPixel(img.type);
+    int color_type;
+
+    switch (channels(img.type)){
+    case 1:
+        color_type = PNG_COLOR_TYPE_GRAY;
+        break;
+    case 2:
+        color_type = PNG_COLOR_TYPE_GRAY_ALPHA;
+        break;
+    case 3:
+        color_type = PNG_COLOR_TYPE_RGB;
+        break;
+    case 4:
+        color_type = PNG_COLOR_TYPE_RGB_ALPHA;
+        break;
+    default:
+        SAIGA_ASSERT(0);
+    }
+
+
+    png_set_IHDR(png_ptr, info_ptr, img.width, img.height,
+                 bit_depth, color_type, interlace_type,
                  PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
-    //    if (mainprog_ptr->gamma > 0.0)
-    //        png_set_gAMA(png_ptr, info_ptr, mainprog_ptr->gamma);
+    // Higher is more compression
+    // PNG_TEXT_Z_DEFAULT_STRATEGY
+    png_set_compression_level(png_ptr, 1);
 
-    //    if (mainprog_ptr->have_bg) {   /* we know it's RGBA, not gray+alpha */
-    //        png_color_16  background;
-
-    //        background.red = mainprog_ptr->bg_red;
-    //        background.green = mainprog_ptr->bg_green;
-    //        background.blue = mainprog_ptr->bg_blue;
-    //        png_set_bKGD(png_ptr, info_ptr, &background);
-    //    }
-
-    //    if (mainprog_ptr->have_time) {
-    //        png_time  modtime;
-
-    //        png_convert_from_time_t(&modtime, mainprog_ptr->modtime);
-    //        png_set_tIME(png_ptr, info_ptr, &modtime);
-    //    }
-
-    //    if (mainprog_ptr->have_text) {
-    //        png_text  text[6];
-    //        int  num_text = 0;
-
-    //        if (mainprog_ptr->have_text & TEXT_TITLE) {
-    //            text[num_text].compression = PNG_TEXT_COMPRESSION_NONE;
-    //            text[num_text].key = "Title";
-    //            text[num_text].text = mainprog_ptr->title;
-    //            ++num_text;
-    //        }
-    //        if (mainprog_ptr->have_text & TEXT_AUTHOR) {
-    //            text[num_text].compression = PNG_TEXT_COMPRESSION_NONE;
-    //            text[num_text].key = "Author";
-    //            text[num_text].text = mainprog_ptr->author;
-    //            ++num_text;
-    //        }
-    //        if (mainprog_ptr->have_text & TEXT_DESC) {
-    //            text[num_text].compression = PNG_TEXT_COMPRESSION_NONE;
-    //            text[num_text].key = "Description";
-    //            text[num_text].text = mainprog_ptr->desc;
-    //            ++num_text;
-    //        }
-    //        if (mainprog_ptr->have_text & TEXT_COPY) {
-    //            text[num_text].compression = PNG_TEXT_COMPRESSION_NONE;
-    //            text[num_text].key = "Copyright";
-    //            text[num_text].text = mainprog_ptr->copyright;
-    //            ++num_text;
-    //        }
-    //        if (mainprog_ptr->have_text & TEXT_EMAIL) {
-    //            text[num_text].compression = PNG_TEXT_COMPRESSION_NONE;
-    //            text[num_text].key = "E-mail";
-    //            text[num_text].text = mainprog_ptr->email;
-    //            ++num_text;
-    //        }
-    //        if (mainprog_ptr->have_text & TEXT_URL) {
-    //            text[num_text].compression = PNG_TEXT_COMPRESSION_NONE;
-    //            text[num_text].key = "URL";
-    //            text[num_text].text = mainprog_ptr->url;
-    //            ++num_text;
-    //        }
-    //        png_set_text(png_ptr, info_ptr, text, num_text);
-    //    }
+    // One of the following
+    // PNG_FAST_FILTERS, PNG_FILTER_NONE, PNG_ALL_FILTERS
+    png_set_filter(png_ptr, PNG_FILTER_TYPE_BASE,PNG_FILTER_NONE);
 
 
     /* write all chunks up to (but not including) first IDAT */
-
     png_write_info(png_ptr, info_ptr);
 
 
@@ -337,8 +304,8 @@ static int writepng_init(PNG::PngImage *image, PNGLoadStore* pngls)
 
     /* set up the transformations:  for now, just pack low-bit-depth pixels
      * into bytes (one, two or four pixels per byte) */
-
     png_set_packing(png_ptr);
+
     /*  png_set_shift(png_ptr, &sig_bit);  to scale low-bit-depth values */
 
 
@@ -348,115 +315,37 @@ static int writepng_init(PNG::PngImage *image, PNGLoadStore* pngls)
     pngls->info_ptr = info_ptr;
 
 
-    /* OK, that's all we need to do for now; return happy */
-
     return 0;
 }
 
 
 
-
-
-/* returns 0 for success, 2 for libpng (longjmp) problem */
-
-static int writepng_encode_image(PNG::PngImage *image,  PNGLoadStore* pngls, bool invertY)
+static void writepng_encode_image(Image &img,  PNGLoadStore* pngls, bool invertY)
 {
-
     png_structp png_ptr = (png_structp)pngls->png_ptr;
     png_infop info_ptr = (png_infop)pngls->info_ptr;
 
-
-    /* as always, setjmp() must be called in every function that calls a
-     * PNG-writing libpng function */
-
-    if (setjmp(pngls->jmpbuf)) {
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-        pngls->png_ptr = NULL;
-        pngls->info_ptr = NULL;
-        return 2;
-    }
-
-    int color_channels = 0;
-    switch(image->color_type){
-    case PNG_COLOR_TYPE_GRAY:
-        color_channels = 1;
-        break;
-    case PNG_COLOR_TYPE_RGB:
-        color_channels = 3;
-        break;
-    case PNG_COLOR_TYPE_RGB_ALPHA:
-        color_channels = 4;
-        break;
-    }
-
     // Libpng is big endian!!!
-    if (image->bit_depth == 16 || image->bit_depth == 32)
+    int bit_depth = bitsPerPixel(img.type);
+    if (bit_depth == 16 || bit_depth == 32)
         png_set_swap(png_ptr);
 
-    int bytes_per_pixel = color_channels * image->bit_depth/8;
 
-
-    unsigned int row_bytes = bytes_per_pixel * image->width;
-    //we want to row-align the image in our output data
-    int rowPadding = (image->rowAlignment - (row_bytes % image->rowAlignment)) % image->rowAlignment;
-    image->bytesPerRow = row_bytes + rowPadding;
-
-    //the row pointers point to the first byte of each row of the image
-    pngls->row_pointers = new uchar*[image->height];
-
-    if(invertY){
-        for(unsigned int i=0;i<image->height;i++){
-            int offset = i*image->bytesPerRow;
-            pngls->row_pointers[image->height-i-1] = image->data.data()+offset;
-        }
-    }else{
-
-
-        for(unsigned int i=0;i<image->height;i++){
-            int offset = i*image->bytesPerRow;
-            pngls->row_pointers[i] = image->data.data()+offset;
-        }
+    for(unsigned int i=0; i < img.height; i++)
+    {
+        auto j = invertY ? img.height - i - 1 : i;
+        auto offset = j * img.pitchBytes;
+        png_write_row(png_ptr,img.data8()+offset);
     }
-    /* and now we just write the whole image; libpng takes care of interlacing
-     * for us */
-
-    png_write_image(png_ptr, pngls->row_pointers);
-
-
-    /* since that's it, we also close out the end of the PNG file now--if we
-     * had any text or time info to write after the IDATs, second argument
-     * would be info_ptr, but we optimize slightly by sending NULL pointer: */
 
     png_write_end(png_ptr, NULL);
 
-    return 0;
+    png_destroy_write_struct(&png_ptr, &info_ptr);
 }
 
-
-
-
-
-static void writepng_cleanup(PNG::PngImage *image,  PNGLoadStore* pngls)
+#if 0
+bool writePNG(PngImage *img, const std::string &path, bool invertY)
 {
-    png_structp png_ptr = (png_structp)pngls->png_ptr;
-    png_infop info_ptr = (png_infop)pngls->info_ptr;
-
-    if (png_ptr && info_ptr)
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-}
-
-
-
-
-
-void pngVersionInfo()
-{
-    std::cout<<"libpng version: "<<png_libpng_ver<< std::endl;
-    //std::cout<< "zlib version: "<<zlib_version<< std::endl;
-}
-
-bool writePNG(PngImage *img, const std::string &path, bool invertY){
-    //    std::cout<<"write png: "<<path.c_str()<<std::endl;
     PNGLoadStore pngls;
 
     FILE *fp = fopen(path.c_str(), "wb");
@@ -469,17 +358,13 @@ bool writePNG(PngImage *img, const std::string &path, bool invertY){
     pngls.outfile = fp;
 
 
-
-
-    if(writepng_init(img,&pngls)!=0){
+    if(writepng_init(img,&pngls)!=0)
+    {
         std::cout<<"error write png init"<<std::endl;
     }
-    if(writepng_encode_image(img,&pngls,invertY)!=0){
-        std::cout<<"error write encode image"<<std::endl;
-    }
 
+    writepng_encode_image(img,&pngls,invertY);
 
-    writepng_cleanup(img,&pngls);
 
     fclose(fp);
 
@@ -487,6 +372,7 @@ bool writePNG(PngImage *img, const std::string &path, bool invertY){
 
 }
 
+#endif
 ImageType PngImage::saigaType() const
 {
     int channels = -1;
@@ -586,14 +472,58 @@ void convert(Image &src, PNG::PngImage &dest)
 
     dest.fromSaigaType(src.type);
 
+    // The rows must be 4-aligned
+    SAIGA_ASSERT(src.pitchBytes % 4 == 0);
 
     dest.bytesPerRow = iAlignUp(elementSize(src.type)*src.width,4);
-    dest.data.resize(dest.bytesPerRow * src.height);
+    //    dest.data.resize(dest.bytesPerRow * src.height);
+
+    dest.data2 = src.data8();
 
     for(int i =0; i < src.rows; ++i)
     {
-        memcpy(dest.rowPtr(i),src.rowPtr(i), std::min(src.pitchBytes,dest.bytesPerRow));
+        //        memcpy(dest.rowPtr(i),src.rowPtr(i), std::min(src.pitchBytes,dest.bytesPerRow));
     }
+}
+
+bool save(Image &img, const std::string &path, bool invertY)
+{
+//    PNG::PngImage pngimg;
+//    PNG::convert(img,pngimg);
+//    return PNG::writePNG(&pngimg,path,invertY);
+
+    PNGLoadStore pngls;
+
+    FILE *fp = fopen(path.c_str(), "wb");
+    if (!fp)
+    {
+        std::cout << "could not open file: " << path.c_str() << std::endl;
+        return false;
+    }
+
+    pngls.outfile = fp;
+
+
+    if(writepng_init(img,&pngls)!=0)
+    {
+        std::cout<<"error write png init"<<std::endl;
+    }
+
+    writepng_encode_image(img,&pngls,invertY);
+
+
+    fclose(fp);
+
+    return true;
+}
+
+bool load(Image &img, const std::string &path, bool invertY)
+{
+    PNG::PngImage pngimg;
+    bool erg = PNG::readPNG( &pngimg,path,invertY);
+    if(erg)
+        PNG::convert(pngimg,img);
+    return erg;
 }
 
 }

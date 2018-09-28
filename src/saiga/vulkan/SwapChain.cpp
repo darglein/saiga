@@ -224,7 +224,7 @@ void VulkanSwapChain::create(uint32_t *width, uint32_t *height, bool vsync)
         };
     }
 
-    uint32_t queueFamilyIndices[] = {0,0};
+//    uint32_t queueFamilyIndices[] = {0,0};
 
 
     VkSwapchainCreateInfoKHR createInfo = {};

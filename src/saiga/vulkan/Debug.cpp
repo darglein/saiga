@@ -136,7 +136,7 @@ void Debug::init(VkInstance _instance, VkDebugReportFlagsEXT flags, VkDebugRepor
                 &dbgCreateInfo,
                 nullptr,
                 (callBack != VK_NULL_HANDLE) ? &callBack : &msgCallback);
-    assert(!err);
+    SAIGA_ASSERT(!err);
 }
 
 void Debug::destroy()

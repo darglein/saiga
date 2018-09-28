@@ -36,18 +36,20 @@ public:
     };
 
 
-    CameraOptions rgbo, deptho;
 
+    RGBDCamera(){}
     RGBDCamera(CameraOptions rgbo, CameraOptions deptho);
 
 
     virtual std::shared_ptr<FrameData> waitForImage() = 0;
-    virtual std::shared_ptr<FrameData> tryGetImage() = 0;
+    virtual std::shared_ptr<FrameData> tryGetImage() { return waitForImage(); }
+    virtual mat4 getGroundTruth(int frame) { return mat4(1); }
 
-    std::shared_ptr<FrameData> makeFrameData();
+    virtual bool isOpened() { return true; }
 protected:
+    CameraOptions rgbo, deptho;
     int currentId = 0;
-
+    std::shared_ptr<FrameData> makeFrameData();
     void setNextFrame(FrameData& data);
 };
 

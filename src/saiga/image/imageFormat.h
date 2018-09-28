@@ -140,9 +140,15 @@ inline int elementType(ImageType type)
     return int(type) / 4;
 }
 
+// Size of one pixel in bytes
 inline int elementSize(ImageType type)
 {
     return channels(type) * ImageElementTypeSize[elementType(type)];
+}
+
+inline int bitsPerPixel(ImageType type)
+{
+    return elementSize(type) * 8;
 }
 
 

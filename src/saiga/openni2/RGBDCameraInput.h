@@ -42,10 +42,10 @@ public:
      * Tries to return the last dslr image.
      * If none are ready a nullptr is returned.
      */
-    virtual std::shared_ptr<FrameData> tryGetImage();
+    virtual std::shared_ptr<FrameData> tryGetImage() override;
 
 
-    bool isOpened();
+    virtual bool isOpened() override;
 private:
 
     SynchronizedBuffer<std::shared_ptr<FrameData>> frameBuffer;

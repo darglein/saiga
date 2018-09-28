@@ -62,7 +62,13 @@ bool ObjModelLoader::loadFile(const std::string &_file)
     ObjTriangleGroup &lastGroup = triangleGroups[triangleGroups.size()-1];
     lastGroup.faces = faces.size() - lastGroup.startFace;
 
-    cout << ".obj parsing finished. " << "V " << vertices.size() << " N " << normals.size() << " T " << texCoords.size() << " F " << faces.size() << endl;
+
+    // remove groups with 0 faces
+    triangleGroups.erase(std::remove_if(triangleGroups.begin(),triangleGroups.end(),[](const ObjTriangleGroup& otg){
+        return otg.faces == 0;
+    }),triangleGroups.end());
+
+    cout << "Model Loaded. " << "V " << vertices.size() << " N " << normals.size() << " T " << texCoords.size() << " F " << faces.size() << " Material Groups " << triangleGroups.size()  << endl;
 
 
 

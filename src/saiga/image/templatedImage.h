@@ -21,9 +21,8 @@ public:
 
     TemplatedImage() : Image(TType::type) {}
     TemplatedImage(int h, int w) : Image(h,w,TType::type){}
-    TemplatedImage(std::string file) {
+    TemplatedImage(const std::string& file) {
         load(file);
-        SAIGA_ASSERT(type == TType::type);
     }
 
     // Note: This creates a copy of img
@@ -66,6 +65,14 @@ public:
 
     operator ImageView<T>() { return getImageView(); }
     operator ImageView<const T>() const { return getConstImageView(); }
+
+    // Load + type check
+    bool load(const std::string &path)
+    {
+        auto r = Image::load(path);
+        SAIGA_ASSERT(type == TType::type);
+        return r;
+    }
 };
 
 

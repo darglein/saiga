@@ -114,18 +114,14 @@ bool Image::load(const std::string &_path)
     if(type == "saigai")
     {
         //saiga raw image format
-        loadRaw(path);
+        return loadRaw(path);
     }
 
 #ifdef SAIGA_USE_PNG
     //use libpng for png images
     if(type == "png")
     {
-        PNG::PngImage pngimg;
-        erg = PNG::readPNG( &pngimg,path);
-        if(erg)
-            PNG::convert(pngimg,*this);
-        return erg;
+       return PNG::load(*this,path,false);
     }
 #endif
 
@@ -158,7 +154,6 @@ bool Image::save(const std::string &path)
 {
     SAIGA_ASSERT(valid());
 
-    bool erg = false;
     std::string type = fileEnding(path);
 
     if(type == "saigai")
@@ -172,21 +167,16 @@ bool Image::save(const std::string &path)
     //use libpng for png images
     if(type == "png")
     {
-        PNG::PngImage pngimg;
-        PNG::convert(*this,pngimg);
-        erg = PNG::writePNG(&pngimg,path);
-        return erg;
+        return PNG::save(*this,path,false);
     }
 #endif
 
 #ifdef SAIGA_USE_FREEIMAGE
-    erg = FIP::save(path,*this);
-    return erg;
+    return FIP::save(path,*this);
 #endif
 
     //as a last resort use stb_image.h from the internals directory
-    erg = saveImageSTB(path,*this);
-    return erg;
+    return saveImageSTB(path,*this);
 }
 
 #define SAIGA_BINARY_IMAGE_MAGIC_NUMBER 8574385
