@@ -6,8 +6,11 @@
 
 #include "threadName.h"
 
-
-#ifdef _WIN32
+#ifdef __APPLE__
+static void SetThreadName(uint32_t dwThreadID, const char* threadName)
+{
+}
+#elif _WIN32
 #include <windows.h>
 
 const DWORD MS_VC_EXCEPTION=0x406D1388;
@@ -55,7 +58,10 @@ namespace Saiga {
 
 void setThreadName(const std::string& name)
 {
-#ifdef _WIN32
+
+#ifdef  __APPLE__
+
+#elif _WIN32
 
     SetThreadName(GetCurrentThreadId(),name.c_str());
 #else
@@ -65,7 +71,9 @@ void setThreadName(const std::string& name)
 
 void setThreadName(std::thread& thread, const std::string& name)
 {
-#ifdef _WIN32
+#ifdef  __APPLE__
+
+#elif _WIN32
     DWORD threadId = ::GetThreadId( static_cast<HANDLE>( thread->native_handle() ) );
     SetThreadName(threadId,name.c_str());
 #else
