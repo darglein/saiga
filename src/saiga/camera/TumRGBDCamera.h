@@ -34,7 +34,7 @@ public:
         CameraData rgb;
     };
 
-    TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000);
+    TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1);
 
     /**
      * Blocks until a new image arrives.
@@ -48,6 +48,7 @@ private:
     void load(const std::string& datasetDir);
 
     double depthFactor;
+    int maxFrames;
 
     std::vector<std::shared_ptr<FrameData>> frames;
     std::vector<TumFrame> tumframes;

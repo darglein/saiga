@@ -46,6 +46,15 @@ public:
 
 
     virtual bool isOpened() override;
+
+
+    // The user can change these variables, but must call 'updateCameraSettings' to make the take effect
+    bool autoexposure = true;
+    int exposure = 33;
+
+    bool autoWhiteBalance = true;
+    int gain = 300;
+    void updateCameraSettings();
 private:
 
     SynchronizedBuffer<std::shared_ptr<FrameData>> frameBuffer;
@@ -65,6 +74,8 @@ private:
     bool foundCamera = false;
     bool running = false;
     float depthFactor;
+    bool updateS = false;
+    void updateSettingsIntern();
 
     void eventLoop();
 };

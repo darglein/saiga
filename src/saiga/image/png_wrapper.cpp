@@ -257,7 +257,7 @@ static int writepng_init(Image &img, PNGLoadStore* pngls)
     interlace_type = PNG_INTERLACE_NONE; //PNG_INTERLACE_ADAM7
 
 
-    int bit_depth = bitsPerPixel(img.type);
+    int bit_depth = bitsPerChannel(img.type);
     int color_type;
 
     switch (channels(img.type)){

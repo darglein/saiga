@@ -42,13 +42,14 @@ RGBDCameraInput::~RGBDCameraInput()
     running = false;
     eventThread.join();
 
-//    device.reset();
-//    openni::OpenNI::shutdown();
+    //    device.reset();
+    //    openni::OpenNI::shutdown();
 }
+
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::waitForImage()
 {
-     return frameBuffer.get();
+    return frameBuffer.get();
 }
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::tryGetImage()
@@ -61,6 +62,11 @@ std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::tryGetImage()
 bool RGBDCameraInput::isOpened()
 {
     return foundCamera;
+}
+
+void RGBDCameraInput::updateCameraSettings()
+{
+    updateS = true;
 }
 
 bool RGBDCameraInput::open()
@@ -232,6 +238,25 @@ bool RGBDCameraInput::readColor(RGBImageType::ViewType colorImg)
     return true;
 }
 
+void RGBDCameraInput::updateSettingsIntern()
+{
+    SAIGA_ASSERT(foundCamera);
+    auto settings = color->getCameraSettings();
+
+    CHECK_NI(settings->setAutoExposureEnabled(autoexposure));
+    CHECK_NI(settings->setAutoWhiteBalanceEnabled(autoWhiteBalance));
+
+    int current_exposure_ = settings->getExposure();
+    CHECK_NI(settings->setExposure(exposure));
+    cout << "Exposure " << current_exposure_ << " -> " << exposure << endl;
+
+    int current_gain = settings->getGain();
+    CHECK_NI(settings->setGain(gain));
+    cout << "Gain " << current_gain<< " -> " << gain << endl;
+
+    updateS = false;
+}
+
 void RGBDCameraInput::eventLoop()
 {
     running = true;
@@ -256,6 +281,9 @@ void RGBDCameraInput::eventLoop()
             }
         }
 
+        if(updateS)
+            updateSettingsIntern();
+
         if(!waitFrame(*tmp))
         {
             cout << "lost camera connection!" << endl;
@@ -263,10 +291,10 @@ void RGBDCameraInput::eventLoop()
             continue;
         }
 
-//        if(!frameBuffer.tryAdd(tmp))
+        //        if(!frameBuffer.tryAdd(tmp))
         frameBuffer.addOverride(tmp);
         {
-//            cout << "buffer full" << endl;
+            //            cout << "buffer full" << endl;
         }
         tmp = makeFrameData();
 

@@ -33,13 +33,19 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow &window, Saiga::Vulkan:
     auto cam = std::make_shared<Saiga::RGBDCameraNetwork>();
     cam->connect(ip,port);
     rgbdcamera = cam;
-#elif 0
+#elif 1
     Saiga::RGBDCameraInput::CameraOptions co1,co2;
     co2.h = 240;
     co2.w = 320;
 
     auto cam = std::make_shared<Saiga::RGBDCameraInput>(co1,co2);
     rgbdcamera = cam;
+
+    cam->autoexposure = false;
+    cam->autoWhiteBalance = false;
+    cam->exposure = 50;
+    cam->gain = 300;
+    cam->updateCameraSettings();
 #else
     auto cam = std::make_shared<Saiga::TumRGBDCamera>("/home/dari/Programming/ORB_SLAM2/datasets/rgbd_dataset_freiburg3_long_office_household");
     rgbdcamera = cam;

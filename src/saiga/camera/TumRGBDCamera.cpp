@@ -68,8 +68,8 @@ static std::vector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const std::string &datasetDir, double depthFactor)
-    : depthFactor(depthFactor)
+TumRGBDCamera::TumRGBDCamera(const std::string &datasetDir, double depthFactor, int maxFrames)
+    : depthFactor(depthFactor), maxFrames(maxFrames)
 {
     cout << "Loading TUM RGBD Dataset: " << datasetDir << endl;
     associate(datasetDir);
@@ -196,6 +196,12 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 
 void TumRGBDCamera::load(const std::string &datasetDir)
 {
+    if(maxFrames >= 0)
+    {
+        tumframes.resize(std::min( (size_t)maxFrames,tumframes.size()));
+    }
+
+
     frames.resize(tumframes.size());
 
 #pragma omp parallel for

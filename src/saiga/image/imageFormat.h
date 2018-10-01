@@ -146,10 +146,17 @@ inline int elementSize(ImageType type)
     return channels(type) * ImageElementTypeSize[elementType(type)];
 }
 
+inline int bitsPerChannel(ImageType type)
+{
+    return ImageElementTypeSize[elementType(type)] * 8;
+}
+
 inline int bitsPerPixel(ImageType type)
 {
-    return elementSize(type) * 8;
+    return bitsPerChannel(type) * channels(type);
 }
+
+
 
 
 }
