@@ -8,3 +8,7 @@ saiga.creator.user
 saiga.files
 saiga.includes
 
+
+
+cmake-build-*/
+.idea/
