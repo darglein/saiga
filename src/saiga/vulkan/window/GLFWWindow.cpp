@@ -79,7 +79,7 @@ void GLFWWindow::create()
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    window = glfwCreateWindow(windowParameters.width, windowParameters.height, "Window Title", NULL, NULL);
+    window = glfwCreateWindow(windowParameters.width, windowParameters.height, windowParameters.name.c_str(), NULL, NULL);
 
     SAIGA_ASSERT(window);
 

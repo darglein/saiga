@@ -88,7 +88,7 @@ void SDLWindow::create()
     }
 
 
-    sdl_window = SDL_CreateWindow("asdf", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowParameters.width, windowParameters.height, SDL_WINDOW_VULKAN );
+    sdl_window = SDL_CreateWindow(windowParameters.name.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowParameters.width, windowParameters.height, SDL_WINDOW_VULKAN );
     if(!sdl_window)
     {
         std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
