@@ -111,7 +111,7 @@ void VulkanTexturedAsset::init(VulkanBase &base)
 
 
     vertexBuffer.stagedUpload(base,0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
-    indexBuffer.stagedUpload(base,0,indices.size()*sizeof(uint32_t),indices.data());
+    indexBuffer.stagedUpload(base,0,indices.size()*sizeof(IndexType),indices.data());
 
     textures.clear();
 

@@ -22,11 +22,7 @@ class VulkanWindow;
 class SAIGA_GLOBAL VulkanRenderer : public RendererBase
 {
 public:
-
-    vk::Device device;
     Saiga::Vulkan::VulkanBase base;
-
-
 
     VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanParameters);
     virtual ~VulkanRenderer();
@@ -48,7 +44,6 @@ protected:
     uint32_t height = 720;
 
     Saiga::Vulkan::Instance instance;
-    vk::PhysicalDevice physicalDevice;
 
 
     std::vector<const char*> enabledDeviceExtensions;

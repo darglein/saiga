@@ -30,6 +30,7 @@ struct SAIGA_GLOBAL VulkanBase
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::PhysicalDeviceMemoryProperties memoryProperties;
+
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
 
     vk::PipelineCache pipelineCache;

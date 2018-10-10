@@ -10,7 +10,6 @@
 #include <saiga/imgui/imgui.h>
 #include "saiga/util/color.h"
 #include "saiga/image/imageTransformations.h"
-
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
 #endif
@@ -49,7 +48,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
         if(img.type == Saiga::UC3)
         {
-            cout << "adding alplha channel" << endl;
+            cout << "adding alpha channel" << endl;
             Saiga::TemplatedImage<ucvec4> img2(img.height,img.width);
             cout << img << " " << img2 << endl;
             Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(),img2.getImageView(),255);
@@ -69,7 +68,6 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
     textureDisplay.init(base,renderer.renderPass);
 
     textureDes = textureDisplay.createAndUpdateDescriptorSet(*texture);
-
 
     box.loadObj("box.obj");
     box.init(renderer.base);
@@ -108,7 +106,6 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
 void VulkanExample::update(float dt)
 {
-
     camera.update(dt);
     camera.interpolate(dt,0);
 
@@ -161,14 +158,14 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 //                lineAssetRenderer.pushModel(cmd,mat4(1));
 //        assetRenderer.pushModel(cmd,teapotTrans.model);
-        for(int i = 0; i < 1000; ++i)
-        {
-//            teapot.render(cmd);
-            //        grid.render(cmd);
-
-            //        lineAssetRenderer.pushModel(cmd,mat4(1));
-            //        frustum.render(cmd);
-        }
+//        for(int i = 0; i < 1000; ++i)
+//        {
+////            teapot.render(cmd);
+//            //        grid.render(cmd);
+//
+//            //        lineAssetRenderer.pushModel(cmd,mat4(1));
+//            //        frustum.render(cmd);
+//        }
 //        return;
 
 
@@ -199,7 +196,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
     textureDisplay.bind(cmd);
 
-    textureDisplay.renderTexture(cmd,textureDes,vec2(10,10),vec2(100,50));
+    textureDisplay.renderTexture(cmd,textureDes,vec2(10,10),vec2(150,50));
 }
 
 void VulkanExample::renderGUI()

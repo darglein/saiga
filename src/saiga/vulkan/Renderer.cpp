@@ -25,10 +25,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
     VkSurfaceKHR surface;
     window.createSurface(instance,&surface);
 
-    physicalDevice = instance.pickPhysicalDevice();
-
-
-    base.setPhysicalDevice(physicalDevice);
+    base.setPhysicalDevice(instance.pickPhysicalDevice());
 
 
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = true;
@@ -37,12 +34,11 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
 
 
     base.init(vulkanParameters);
-    device = base.device;
     cout << endl;
 
 
 
-    swapChain.connect(instance, physicalDevice, device);
+    swapChain.connect(instance, base.physicalDevice, base.device);
     swapChain.initSurface(surface);
     swapChain.create(&width, &height, false);
 

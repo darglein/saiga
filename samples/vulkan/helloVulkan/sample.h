@@ -25,19 +25,17 @@ public:
     VulkanExample(
             Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer
             );
-    ~VulkanExample();
+    ~VulkanExample() override;
 
-    virtual void init(Saiga::Vulkan::VulkanBase& base);
+    void init(Saiga::Vulkan::VulkanBase& base) override;
 
 
-    virtual void update(float dt) override;
-    virtual void transfer(vk::CommandBuffer cmd);
-    virtual void render  (vk::CommandBuffer cmd) override;
-    virtual void renderGUI() override;
+    void update(float dt) override;
+    void transfer(vk::CommandBuffer cmd) override;
+    void render  (vk::CommandBuffer cmd) override;
+    void renderGUI() override;
 private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
-
-
     bool change = true;
     Saiga::Object3D teapotTrans;
 

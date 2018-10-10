@@ -23,10 +23,10 @@ int main(const int argc, const char *argv[])
         vulkanParams.enableValidationLayer = true;
         Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
 
+        
 
         VulkanExample example(window,renderer);
         renderer.initChildren();
-        //        example.init();
 
         MainLoopParameters params;
         params.mainLoopInfoTime = 1;
@@ -36,6 +36,5 @@ int main(const int argc, const char *argv[])
         renderer.waitIdle();
     }
 
-    //    maingsdgdfg();
     return 0;
 }
