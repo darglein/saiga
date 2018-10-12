@@ -68,5 +68,24 @@ void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned char> dst)
     src.copyToTransform(dst,RGBATOGRAY8Trans());
 }
 
+
+
+struct RGBATOGRAYFTrans
+{
+    float scale;
+    RGBATOGRAYFTrans(float scale): scale(scale){}
+    float operator()(const ucvec4& v)
+    {
+        const vec3 conv(0.2126f,0.7152f,0.0722f);
+        vec3 vf(v.x,v.y,v.z);
+        float gray = dot(conv,vf);
+        return gray * scale;
+    }
+};
+void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> dst, float scale)
+{
+    src.copyToTransform(dst,RGBATOGRAYFTrans(scale));
+}
+
 }
 }

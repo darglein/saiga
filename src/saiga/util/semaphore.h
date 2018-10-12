@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -13,11 +13,14 @@
 
 namespace Saiga {
 
-	class SAIGA_GLOBAL Semaphore {
+class SAIGA_GLOBAL Semaphore {
 public:
     Semaphore (int count_ = 0)
         : count(count_) {}
 
+    /**
+     * Increase counter and notify a thread that waits on the condition variable.
+     */
     inline void notify()
     {
         std::unique_lock<std::mutex> lock(mtx);
@@ -25,6 +28,10 @@ public:
         cv.notify_one();
     }
 
+    /**
+     * Blocks until the counter is greater than 0.
+     * Decrements the counter by one.
+     */
     inline void wait()
     {
         std::unique_lock<std::mutex> lock(mtx);
@@ -35,6 +42,10 @@ public:
         count--;
     }
 
+    /**
+     * Decrements the counter if it is larger than 1.
+     * Returns immidietaly
+     */
     inline bool trywait()
     {
         std::unique_lock<std::mutex> lock(mtx);

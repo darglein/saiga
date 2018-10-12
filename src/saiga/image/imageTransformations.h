@@ -21,5 +21,8 @@ SAIGA_GLOBAL void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst,
 
 SAIGA_GLOBAL void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned char> dst);
 
+// with scale = 1 the resulting grayscale will be in the range 0..255
+SAIGA_GLOBAL void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> dst, float scale = 1.0f);
+
 }
 }

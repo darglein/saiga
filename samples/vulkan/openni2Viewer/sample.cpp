@@ -102,6 +102,9 @@ void VulkanExample::update(float dt)
 void VulkanExample::transfer(vk::CommandBuffer cmd)
 {
 
+    std::shared_ptr<Saiga::RGBDCameraInput> cam = std::dynamic_pointer_cast<Saiga::RGBDCameraInput>(rgbdcamera);
+    cam->updateCameraSettings();
+
     //    rgbdcamera->readFrame(*frameData);
     auto newFrameData = rgbdcamera->tryGetImage();
 
@@ -133,11 +136,25 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 void VulkanExample::renderGUI()
 {
-
-
     parentWindow.renderImGui();
 
 
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300,200), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("Saiga OpenNI");
+
+
+    std::shared_ptr<Saiga::RGBDCameraInput> cam = std::dynamic_pointer_cast<Saiga::RGBDCameraInput>(rgbdcamera);
+    cam->updateCameraSettings();
+
+
+    ImGui::Checkbox("autoexposure",&cam->autoexposure);
+    ImGui::Checkbox("autoWhiteBalance",&cam->autoWhiteBalance);
+
+    ImGui::InputInt("exposure",&cam->exposure);
+    ImGui::InputInt("gain",&cam->gain);
+
+    ImGui::End();
 }
 
 

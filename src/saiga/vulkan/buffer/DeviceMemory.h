@@ -64,6 +64,7 @@ public:
     void mappedDownload(size_t offset, size_t size, void *data);
 
 
+    size_t getSize() { return size; }
     void destroy();
 protected:
     vk::Device device;

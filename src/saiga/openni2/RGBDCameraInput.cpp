@@ -243,15 +243,15 @@ void RGBDCameraInput::updateSettingsIntern()
     SAIGA_ASSERT(foundCamera);
     auto settings = color->getCameraSettings();
 
-    CHECK_NI(settings->setAutoExposureEnabled(autoexposure));
-    CHECK_NI(settings->setAutoWhiteBalanceEnabled(autoWhiteBalance));
+    (settings->setAutoExposureEnabled(autoexposure));
+    (settings->setAutoWhiteBalanceEnabled(autoWhiteBalance));
 
     int current_exposure_ = settings->getExposure();
-    CHECK_NI(settings->setExposure(exposure));
+    (settings->setExposure(exposure));
     cout << "Exposure " << current_exposure_ << " -> " << exposure << endl;
 
     int current_gain = settings->getGain();
-    CHECK_NI(settings->setGain(gain));
+    (settings->setGain(gain));
     cout << "Gain " << current_gain<< " -> " << gain << endl;
 
     updateS = false;
