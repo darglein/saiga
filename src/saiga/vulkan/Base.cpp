@@ -319,6 +319,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
 
 void VulkanBase::init(VulkanParameters params)
 {
+    memory.init(physicalDevice, device);
 
     vk::PipelineCacheCreateInfo pipelineCacheCreateInfo = {};
     pipelineCache = device.createPipelineCache(pipelineCacheCreateInfo);

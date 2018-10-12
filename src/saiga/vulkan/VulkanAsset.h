@@ -29,7 +29,7 @@ public:
     IndexBuffer<uint32_t> indexBuffer;
 
 
-    void init(Saiga::Vulkan::VulkanBase& base);
+    void init(Saiga::Vulkan::VulkanBase &base, Saiga::Vulkan::Memory::VulkanMemory &memory);
     void render(vk::CommandBuffer cmd);
 
 //    void updateBuffer(Saiga::Vulkan::VulkanBase& base);
@@ -43,7 +43,7 @@ public:
     using VertexType = VertexNC;
     VertexBuffer<VertexType> vertexBuffer;
 
-    void init(Saiga::Vulkan::VulkanBase& base);
+    void init(VulkanBase &base, VulkanMemory &memory);
     void render(vk::CommandBuffer cmd);
 };
 
@@ -63,7 +63,7 @@ public:
     int capacity = 0;
 
     // Creates the buffers with max number of points
-    void init(Saiga::Vulkan::VulkanBase& base, int capacity);
+    void init(VulkanBase &base, VulkanMemory &memory, int capacity);
 
     void render(vk::CommandBuffer cmd, int start, int count);
     void updateBuffer(vk::CommandBuffer cmd, int start, int count);

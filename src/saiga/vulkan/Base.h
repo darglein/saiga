@@ -21,6 +21,7 @@
 #include "saiga/vulkan/DescriptorPool.h"
 #include "VulkanTools.h"
 #include "VulkanBuffer.hpp"
+#include "saiga/vulkan/memory/VulkanMemory.h"
 
 namespace Saiga{
 namespace Vulkan{
@@ -29,6 +30,8 @@ struct SAIGA_GLOBAL VulkanBase
 {
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
+
+    Saiga::Vulkan::Memory::VulkanMemory memory;
     vk::PhysicalDeviceMemoryProperties memoryProperties;
 
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties;

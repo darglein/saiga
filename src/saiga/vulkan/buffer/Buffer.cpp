@@ -48,19 +48,22 @@ void Buffer::upload(vk::CommandBuffer &cmd, size_t offset, size_t size, const vo
     cmd.updateBuffer(buffer,offset,size,data);
 }
 
-void Buffer::stagedUpload(VulkanBase &base, size_t offset, size_t size, const void *data)
+/**
+ * Perform a staged upload to the buffer. A StagingBuffer is created and used for this.
+ * \see Saiga::Vulkan::StagingBuffer
+ * @param base A reference to a VulkanBase
+ * @param size Size of the data
+ * @param data Pointer to the data.
+ */
+void Buffer::stagedUpload(VulkanBase &base, size_t size, const void *data)
 {
     vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
-
 
     StagingBuffer staging;
     staging.init(base,size,data);
 
-
-    vk::BufferCopy bc(offset,offset,size);
+    vk::BufferCopy bc(0,0,size);
     cmd.copyBuffer(staging,*this,bc);
-
-
 
     base.endTransferWait(cmd);
 }

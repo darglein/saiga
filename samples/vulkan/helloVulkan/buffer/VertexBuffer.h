@@ -36,7 +36,7 @@ public:
         va.getVKAttribs(vi_binding,vi_attribs);
     }
 
-    void bind(vk::CommandBuffer &cmd, vk::DeviceSize offset = 0)
+    void bind(vk::CommandBuffer &cmd)
     {
         cmd.bindVertexBuffers( 0, buffer, offset);
     }

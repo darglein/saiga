@@ -29,14 +29,11 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
 
 
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = true;
-    vulkanParameters.physicalDeviceFeatures.wideLines = true;
+//    vulkanParameters.physicalDeviceFeatures.wideLines = true;
     base.createLogicalDevice(surface,vulkanParameters.physicalDeviceFeatures, vulkanParameters.deviceExtensions);
 
 
     base.init(vulkanParameters);
-    cout << endl;
-
-
 
     swapChain.connect(instance, base.physicalDevice, base.device);
     swapChain.initSurface(surface);

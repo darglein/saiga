@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "saiga/vulkan/memory/VulkanMemory.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
@@ -17,6 +18,8 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/window/Interfaces.h"
+#include "saiga/vulkan/memory/ChunkAllocator.h"
+#include "saiga/vulkan/memory/MemoryAllocator.h"
 
 
 class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface, public Saiga::SDL_KeyListener
@@ -42,17 +45,17 @@ private:
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
 
     Saiga::Vulkan::VulkanTexturedAsset box;
-    Saiga::Vulkan::VulkanVertexColoredAsset teapot,plane;
-    Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
-    Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
-    Saiga::Vulkan::AssetRenderer assetRenderer;
-    Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
-    Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
+//    Saiga::Vulkan::VulkanVertexColoredAsset teapot,plane;
+//    Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
+//    Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
+//    Saiga::Vulkan::AssetRenderer assetRenderer;
+//    Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
+//    Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
     Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
 
-
-    vk::DescriptorSet textureDes;
-    Saiga::Vulkan::TextureDisplay textureDisplay;
+//
+//    vk::DescriptorSet textureDes;
+//    Saiga::Vulkan::TextureDisplay textureDisplay;
 
     Saiga::Vulkan::VulkanForwardRenderer &renderer;
 

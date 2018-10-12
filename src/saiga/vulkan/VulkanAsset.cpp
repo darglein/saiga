@@ -12,10 +12,7 @@
 namespace Saiga {
 namespace Vulkan {
 
-
-
-
-void VulkanVertexColoredAsset::init(VulkanBase &base)
+void VulkanVertexColoredAsset::init(Saiga::Vulkan::VulkanBase &base, Saiga::Vulkan::Memory::VulkanMemory &memory)
 {
     auto indices = mesh.getIndexList();
 #if 0
@@ -36,8 +33,8 @@ void VulkanVertexColoredAsset::init(VulkanBase &base)
         vertexBuffer.init(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
         indexBuffer.init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-        vertexBuffer.stagedUpload(base,0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
-        indexBuffer.stagedUpload(base,0,indices.size()*sizeof(uint32_t),indices.data());
+    vertexBuffer.stagedUpload(base, mesh.vertices.size() * sizeof(VertexType), mesh.vertices.data());
+    indexBuffer.stagedUpload(base, indices.size() * sizeof(uint32_t), indices.data());
 #endif
 }
 
@@ -50,15 +47,15 @@ void VulkanVertexColoredAsset::render(vk::CommandBuffer cmd)
     indexBuffer.draw(cmd);
 }
 
-void VulkanLineVertexColoredAsset::init(VulkanBase &base)
+void VulkanLineVertexColoredAsset::init(VulkanBase &base, VulkanMemory &memory)
 {
     auto lines = mesh.toLineList();
     auto newSize = lines.size();
     auto size = newSize*sizeof(VertexType);
-    vertexBuffer.init(base,newSize,vk::MemoryPropertyFlagBits::eDeviceLocal);
+    vertexBuffer.init(base, newSize,vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 
-    vertexBuffer.stagedUpload(base,0,size,lines.data());
+    vertexBuffer.stagedUpload(base, size, lines.data());
 }
 
 void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
@@ -70,7 +67,7 @@ void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
 
 
 
-void VulkanPointCloudAsset::init(VulkanBase &base, int _capacity)
+void VulkanPointCloudAsset::init(VulkanBase &base, VulkanMemory &memory, int _capacity)
 {
     capacity = _capacity;
     vertexBuffer.init(base,capacity,vk::MemoryPropertyFlagBits::eDeviceLocal);
@@ -106,12 +103,12 @@ void VulkanTexturedAsset::init(VulkanBase &base)
 
     auto indices = mesh.getIndexList();
 
-    vertexBuffer.init(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+    vertexBuffer.initNew(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
     indexBuffer.init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 
-    vertexBuffer.stagedUpload(base,0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
-    indexBuffer.stagedUpload(base,0,indices.size()*sizeof(IndexType),indices.data());
+    vertexBuffer.stagedUpload(base, mesh.vertices.size() * sizeof(VertexType), mesh.vertices.data());
+    indexBuffer.stagedUpload(base, indices.size() * sizeof(IndexType), indices.data());
 
     textures.clear();
 

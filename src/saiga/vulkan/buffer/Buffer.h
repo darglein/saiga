@@ -41,12 +41,7 @@ public:
             const void* data
             );
 
-    void stagedUpload(
-            Saiga::Vulkan::VulkanBase& base,
-            size_t offset,
-            size_t size,
-            const void* data
-            );
+    void stagedUpload(VulkanBase &base, size_t size, const void *data);
 
     vk::DescriptorBufferInfo createInfo();
 
