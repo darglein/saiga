@@ -19,12 +19,10 @@ namespace Vulkan {
 template<typename VertexType>
 class SAIGA_TEMPLATE VertexBuffer : public Buffer
 {
-private:
-    MemoryLocation m_memoryLocation;
 public:
     int vertexCount;
 
-    void initNew(
+    void init(
             VulkanBase& base,
             int count,
             vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
@@ -32,32 +30,33 @@ public:
     {
         vertexCount = count;
         size_t size = sizeof(VertexType) * vertexCount;
-        m_memoryLocation = base.memory.vertexIndexAllocator.allocate(size);
-        buffer = m_memoryLocation.buffer;
-        DeviceMemory::memory = m_memoryLocation.memory;
-    }
 
-    void init(
-            VulkanBase& base,
-            int count,
-            vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
-    )
-    {
-        vertexCount = count;
-        size_t size = sizeof(VertexType) * vertexCount;
-//        m_memoryLocation = memory.vertexIndexAllocator.allocate(base,memory.chunkAllocator, size);
+        m_memoryLocation = base.memory.getAllocator(vk::BufferUsageFlagBits::eVertexBuffer, flags).allocate(size);
 //        buffer = m_memoryLocation.buffer;
 //        DeviceMemory::memory = m_memoryLocation.memory;
-        createBuffer(base,size,vk::BufferUsageFlagBits::eVertexBuffer|vk::BufferUsageFlagBits::eTransferDst);
-        allocateMemoryBuffer(base,flags);
-        m_memoryLocation = {buffer, DeviceMemory::memory, 0};
     }
+
+//    void init(
+//            VulkanBase& base,
+//            int count,
+//            vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
+//    )
+//    {
+//        vertexCount = count;
+//        size_t size = sizeof(VertexType) * vertexCount;
+////        m_memoryLocation = memory.vertexIndexAllocator.allocate(base,memory.chunkAllocator, size);
+////        buffer = m_memoryLocation.buffer;
+////        DeviceMemory::memory = m_memoryLocation.memory;
+//        createBuffer(base,size,vk::BufferUsageFlagBits::eVertexBuffer|vk::BufferUsageFlagBits::eTransferDst);
+//        allocateMemoryBuffer(base,flags);
+//        m_memoryLocation = {buffer, DeviceMemory::memory, 0};
+//    }
 
     void upload(vk::CommandBuffer cmd, const std::vector<VertexType>& vertices)
     {
         vertexCount = vertices.size();
         size_t newSize = sizeof(VertexType) * vertexCount;
-        SAIGA_ASSERT(newSize <= size);
+        SAIGA_ASSERT(newSize <= m_memoryLocation.size);
         Buffer::upload(cmd,0,newSize,vertices.data());
     }
 

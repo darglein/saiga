@@ -115,8 +115,8 @@ void ImGuiVulkanRenderer::initResources(VulkanBase &_base, VkRenderPass renderPa
     vertexBuffer.init(*base,maxVertexCount, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     indexBuffer.init (*base,maxIndexCount,  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
-    vertexData = (ImDrawVert*)vertexBuffer.mapAll();
-    indexData = (ImDrawIdx*)indexBuffer.mapAll();
+    vertexData = (ImDrawVert*)vertexBuffer.m_memoryLocation.map(base->device);
+    indexData = (ImDrawIdx*)indexBuffer.m_memoryLocation.map(base->device);
 
     cout << "Vulkan imgui created." << endl;
 }
@@ -147,8 +147,8 @@ void ImGuiVulkanRenderer::updateBuffers(vk::CommandBuffer cmd)
 
 void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer)
 {
-    if(!vertexBuffer.buffer)
-        return;
+//    if(!vertexBuffer.buffer)
+//        return;
 
     if(vertexCount == 0 || indexCount == 0)
         return;

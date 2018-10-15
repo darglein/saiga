@@ -41,7 +41,7 @@ void VulkanVertexColoredAsset::init(Saiga::Vulkan::VulkanBase &base, Saiga::Vulk
 
 void VulkanVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
-    if(!vertexBuffer.buffer) return;
+//    if(!vertexBuffer.m_memoryLocation.buffer) return;
     vertexBuffer.bind(cmd);
     indexBuffer.bind(cmd);
     indexBuffer.draw(cmd);
@@ -60,7 +60,7 @@ void VulkanLineVertexColoredAsset::init(VulkanBase &base, VulkanMemory &memory)
 
 void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
-    if(!vertexBuffer.buffer) return;
+//    if(!vertexBuffer.buffer) return;
     vertexBuffer.bind(cmd);
     vertexBuffer.draw(cmd);
 }
@@ -72,12 +72,12 @@ void VulkanPointCloudAsset::init(VulkanBase &base, VulkanMemory &memory, int _ca
     capacity = _capacity;
     vertexBuffer.init(base,capacity,vk::MemoryPropertyFlagBits::eDeviceLocal);
     stagingBuffer.init(base,capacity * sizeof(VertexType));
-    pointCloud = ArrayView<VertexType>( (VertexType*)stagingBuffer.mapAll(),capacity);
+//    pointCloud = ArrayView<VertexType>( (VertexType*)stagingBuffer.mapAll(),capacity);
 }
 
 void VulkanPointCloudAsset::render(vk::CommandBuffer cmd, int start, int count)
 {
-    if(!vertexBuffer.buffer || count == 0) return;
+//    if(!vertexBuffer.buffer || count == 0) return;
     vertexBuffer.bind(cmd);
     vertexBuffer.draw(cmd,count,start);
 }
@@ -87,7 +87,7 @@ void VulkanPointCloudAsset::updateBuffer(vk::CommandBuffer cmd, int start, int c
     size_t offset = start * sizeof(VertexType);
     size_t size = count * sizeof(VertexType);
     vk::BufferCopy bc(offset,offset,size);
-    cmd.copyBuffer(stagingBuffer,vertexBuffer,bc);
+//    cmd.copyBuffer(stagingBuffer,vertexBuffer,bc);
 }
 
 
@@ -103,7 +103,7 @@ void VulkanTexturedAsset::init(VulkanBase &base)
 
     auto indices = mesh.getIndexList();
 
-    vertexBuffer.initNew(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+    vertexBuffer.init(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
     indexBuffer.init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 
@@ -137,7 +137,7 @@ void VulkanTexturedAsset::init(VulkanBase &base)
 }
 void VulkanTexturedAsset::render(vk::CommandBuffer cmd)
 {
-    if(!vertexBuffer.buffer) return;
+//    if(!vertexBuffer.buffer) return;
     vertexBuffer.bind(cmd);
     indexBuffer.bind(cmd);
     indexBuffer.draw(cmd);

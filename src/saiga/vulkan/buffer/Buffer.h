@@ -14,10 +14,11 @@ namespace Saiga {
 namespace Vulkan {
 
 
-class SAIGA_GLOBAL Buffer : public DeviceMemory
+class SAIGA_GLOBAL Buffer
 {
 public:
-    vk::Buffer buffer;
+    MemoryLocation m_memoryLocation;
+public:
 
     ~Buffer() { destroy(); }
 
@@ -27,11 +28,6 @@ public:
             size_t size,
             vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eUniformBuffer,
             vk::SharingMode sharingMode =  vk::SharingMode::eExclusive
-            );
-
-    void allocateMemoryBuffer(
-            Saiga::Vulkan::VulkanBase& base,
-            vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
             );
 
     void upload(
@@ -47,8 +43,7 @@ public:
 
     void destroy();
 
-
-    operator vk::Buffer() const { return buffer; }
+//    operator vk::Buffer() const { return m_memoryLocation.buffer; }
 };
 
 }

@@ -9,6 +9,7 @@
 
 #include "Buffer.h"
 #include "saiga/vulkan/Base.h"
+#include "saiga/vulkan/memory/MemoryInteraction.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -21,17 +22,18 @@ public:
     void init(VulkanBase& base, const void* data, size_t size)
     {
         createBuffer(base,size,vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst);
-        allocateMemoryBuffer(base,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-        if(data)
-            DeviceMemory::mappedUpload(0,size,data);
+//        allocateMemoryBuffer(base,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+//        if(data)
+//            DeviceMemory::mappedUpload(0,size,data);
+        m_memoryLocation.mappedUpload(base.device, data);
     }
 
     vk::DescriptorBufferInfo getDescriptorInfo()
     {
         vk::DescriptorBufferInfo descriptorInfo;
-        descriptorInfo.buffer = buffer;
-        descriptorInfo.offset = 0;
-        descriptorInfo.range = size;
+        descriptorInfo.buffer = m_memoryLocation.buffer;
+        descriptorInfo.offset = m_memoryLocation.offset;
+        descriptorInfo.range = m_memoryLocation.size;
         return descriptorInfo;
 
     }

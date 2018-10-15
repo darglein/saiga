@@ -8,6 +8,7 @@
 #include "saiga/vulkan/memory/ChunkAllocator.h"
 #include "saiga/util/imath.h"
 #include "saiga/vulkan/memory/MemoryLocation.h"
+#include "saiga/vulkan/memory/MemoryAllocatorBase.h"
 #include <limits>
 using namespace Saiga::Vulkan::Memory;
 
@@ -15,7 +16,7 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory{
 
-struct SAIGA_GLOBAL MemoryAllocator {
+struct SAIGA_GLOBAL MemoryAllocator : public MemoryAllocatorBase {
 private:
     ChunkAllocator* m_chunkAllocator;
     vk::Device m_device;
@@ -65,7 +66,7 @@ public:
     }
 
 
-    MemoryLocation allocate(vk::DeviceSize size) {
+    MemoryLocation allocate(vk::DeviceSize size) override {
         if (m_currentChunk == nullptr) {
             createNewBuffer();
         }
@@ -76,7 +77,7 @@ public:
             createNewBuffer();
         }
 
-        MemoryLocation targetLocation = {m_currentBuffer, m_currentChunk->memory, m_currentOffset};
+        MemoryLocation targetLocation = {m_currentBuffer, m_currentChunk->memory, m_currentOffset,size};
         m_currentOffset += alignedSize;
         return targetLocation;
     }

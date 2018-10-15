@@ -11,6 +11,7 @@
 #include "saiga/vulkan/Base.h"
 
 #include "saiga/vulkan/Vertex.h"
+#include "saiga/vulkan/memory/MemoryInteraction.h"
 namespace Saiga {
 namespace Vulkan {
 
@@ -19,15 +20,15 @@ class SAIGA_GLOBAL StagingBuffer : public Buffer
 {
 public:
 
-
-
     void init(VulkanBase& base, size_t size, const void* data = nullptr)
     {
         createBuffer(base,size,vk::BufferUsageFlagBits::eTransferSrc);
-        allocateMemoryBuffer(base,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
         if(data)
-            DeviceMemory::mappedUpload(0,size,data);
+            m_memoryLocation.mappedUpload(base.device,data);
     }
+
+
 };
 
 }
