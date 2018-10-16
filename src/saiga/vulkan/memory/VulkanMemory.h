@@ -4,7 +4,7 @@
 
 #pragma once
 #include <vulkan/vulkan.hpp>
-#include "MemoryAllocator.h"
+#include "ChunkMemoryAllocator.h"
 #include "ChunkAllocator.h"
 #include "SimpleMemoryAllocator.h"
 namespace Saiga {
@@ -14,7 +14,7 @@ namespace Memory {
 
 struct VulkanMemory {
     ChunkAllocator chunkAllocator;
-    MemoryAllocator vertexIndexAllocator;
+    ChunkMemoryAllocator vertexIndexAllocator;
     SimpleMemoryAllocator hostVertexIndexAllocator;
     SimpleMemoryAllocator stagingAllocator;
     SimpleMemoryAllocator uniformAllocator;

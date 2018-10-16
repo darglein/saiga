@@ -16,7 +16,7 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory{
 
-struct SAIGA_GLOBAL MemoryAllocator : public MemoryAllocatorBase {
+struct SAIGA_GLOBAL ChunkMemoryAllocator : public MemoryAllocatorBase {
 private:
     ChunkAllocator* m_chunkAllocator;
     vk::Device m_device;
