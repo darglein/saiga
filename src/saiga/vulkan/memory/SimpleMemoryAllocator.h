@@ -40,10 +40,7 @@ private:
 
 public:
     ~SimpleMemoryAllocator() {
-        for(auto& allocation : m_allocations) {
-            m_device.destroy(allocation.buffer);
-            m_device.free(allocation.memory);
-        }
+        destroy();
     }
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags  usageFlags;
@@ -78,6 +75,13 @@ public:
 
     }
 
+    void destroy() {
+        for(auto& allocation : m_allocations) {
+            m_device.destroy(allocation.buffer);
+            m_device.free(allocation.memory);
+        }
+        m_allocations.clear();
+    }
 };
 
 

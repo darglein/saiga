@@ -21,6 +21,7 @@ private:
     ChunkAllocator* m_chunkAllocator;
     vk::Device m_device;
     vk::Buffer m_currentBuffer;
+    std::vector<vk::Buffer> m_buffers;
     std::shared_ptr<MemoryChunk> m_currentChunk = nullptr;
     vk::DeviceSize m_currentOffset = 0;
 
@@ -38,6 +39,7 @@ private:
         m_currentOffset = 0;
         m_device.getBufferMemoryRequirements(m_currentBuffer);
         m_device.bindBufferMemory(m_currentBuffer, m_currentChunk->memory, 0);
+        m_buffers.push_back(m_currentBuffer);
     }
 public:
     vk::MemoryPropertyFlags flags;
@@ -80,6 +82,12 @@ public:
         MemoryLocation targetLocation = {m_currentBuffer, m_currentChunk->memory, m_currentOffset,size};
         m_currentOffset += alignedSize;
         return targetLocation;
+    }
+
+    void destroy() {
+        for (auto& buffer : m_buffers) {
+            m_device.destroy(buffer);
+        }
     }
 };
 }

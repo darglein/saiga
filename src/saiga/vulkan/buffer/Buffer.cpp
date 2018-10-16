@@ -49,10 +49,7 @@ void Buffer::stagedUpload(VulkanBase &base, size_t size, const void *data)
 
 vk::DescriptorBufferInfo Buffer::createInfo()
 {
-//    vk::DescriptorBufferInfo info(
-//                m_memo,0,size
-//                );
-//    return info;
+    return {m_memoryLocation.buffer,m_memoryLocation.offset, m_memoryLocation.size};
 }
 
 

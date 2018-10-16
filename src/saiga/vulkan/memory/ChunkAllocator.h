@@ -36,6 +36,12 @@ public:
     std::shared_ptr<MemoryChunk> allocate(vk::MemoryPropertyFlags propertyFlags,vk::DeviceSize chunkSize);
 
     void deallocate(std::shared_ptr<MemoryChunk> chunk);
+
+    void destroy() {
+        for(auto& type : m_memoryTypes) {
+            type.destroy();
+        }
+    }
 };
 
 }

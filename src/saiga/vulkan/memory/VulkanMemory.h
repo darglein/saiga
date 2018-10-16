@@ -47,14 +47,20 @@ struct VulkanMemory {
             }
             return vertexIndexAllocator;
         }
-//        if () {
-//            return vertexIndexAllocator;
-//        }
 
         throw std::runtime_error("Unknown allocator");
     }
 
 
+    void destroy() {
+        vertexIndexAllocator.destroy();
+        chunkAllocator.destroy();
+
+
+        hostVertexIndexAllocator.destroy();
+        stagingAllocator.destroy();
+        uniformAllocator.destroy();
+    }
 };
 
 

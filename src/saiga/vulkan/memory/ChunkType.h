@@ -40,6 +40,12 @@ public:
 
     void deallocate(std::shared_ptr<MemoryChunk> chunk);
 
+    void destroy() {
+        for(auto& chunk : m_chunks) {
+            m_device.free(chunk->memory);
+        }
+        m_chunks.clear();
+    }
 };
 
 
