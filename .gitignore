@@ -9,6 +9,6 @@ saiga.files
 saiga.includes
 
 
-
+.DS_Store
 cmake-build-*/
 .idea/
