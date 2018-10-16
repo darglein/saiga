@@ -5,10 +5,10 @@
 #include "ChunkAllocator.h"
 using Saiga::Vulkan::Memory::MemoryLocation;
 using Saiga::Vulkan::Memory::ChunkAllocator;
-using Saiga::Vulkan::Memory::MemoryType;
+using Saiga::Vulkan::Memory::ChunkType;
 using Saiga::Vulkan::Memory::MemoryChunk;
 
-MemoryType& ChunkAllocator::findMemoryType(vk::MemoryPropertyFlags flags) {
+ChunkType& ChunkAllocator::findMemoryType(vk::MemoryPropertyFlags flags) {
     for(auto& memType : m_memoryTypes) {
         if ((memType.propertyFlags & flags) == flags) {
             return memType;
@@ -27,7 +27,7 @@ void Saiga::Vulkan::Memory::ChunkAllocator::init(vk::PhysicalDevice _physicalDev
     for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
         auto& properties = memoryProperties.memoryTypes[i];
 
-        m_memoryTypes.push_back(std::move(MemoryType(m_device,i,properties.propertyFlags)));
+        m_memoryTypes.push_back(std::move(ChunkType(m_device,i,properties.propertyFlags)));
     }
     m_initialized = true;
 }

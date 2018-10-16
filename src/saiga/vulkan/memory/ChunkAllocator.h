@@ -6,7 +6,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include <vector>
-#include "MemoryType.h"
+#include "ChunkType.h"
 #include <map>
 #include <memory>
 #include <utility>
@@ -26,9 +26,9 @@ private:
     bool m_initialized = false;
     vk::PhysicalDevice m_physicalDevice;
     vk::Device m_device;
-    std::vector<MemoryType> m_memoryTypes;
+    std::vector<ChunkType> m_memoryTypes;
 
-    MemoryType& findMemoryType(vk::MemoryPropertyFlags flags);
+    ChunkType& findMemoryType(vk::MemoryPropertyFlags flags);
 
 public:
     void init(vk::PhysicalDevice _physicalDevice, vk::Device _device);

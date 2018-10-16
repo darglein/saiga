@@ -16,7 +16,7 @@ namespace Memory {
  * Abstraction for a single memory type as provided by vkGetPhysicalDeviceMemoryProperties().
  * Allows allocation an deallocation of memory in chunks of the size chunkSize.
  */
-class SAIGA_GLOBAL MemoryType {
+class SAIGA_GLOBAL ChunkType {
 private:
     uint32_t m_memoryTypeIndex;
     const vk::Device &m_device;
@@ -25,14 +25,14 @@ public:
 
     vk::MemoryPropertyFlags propertyFlags;
 
-    MemoryType(const MemoryType &memoryType) = delete;
+    ChunkType(const ChunkType &memoryType) = delete;
 
-    MemoryType(MemoryType&& memoryType) : m_memoryTypeIndex(memoryType.m_memoryTypeIndex),
-        m_device(memoryType.m_device), m_chunks(memoryType.m_chunks),
+    ChunkType(ChunkType&& memoryType) noexcept: m_memoryTypeIndex(memoryType.m_memoryTypeIndex),
+        m_device(memoryType.m_device), m_chunks(std::move(memoryType.m_chunks)),
         propertyFlags(memoryType.propertyFlags){}
 
 
-    MemoryType(const vk::Device &device, uint32_t memoryTypeIndex, vk::MemoryPropertyFlags flags) :
+    ChunkType(const vk::Device &device, uint32_t memoryTypeIndex, vk::MemoryPropertyFlags flags) :
             m_memoryTypeIndex(memoryTypeIndex), m_device(device), propertyFlags(flags) {
     }
 

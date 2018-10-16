@@ -23,6 +23,8 @@ private:
     vk::Device m_device;
     vk::PhysicalDevice m_physicalDevice;
 
+    std::vector<MemoryLocation> m_allocations;
+
     uint32_t findMemoryType(uint32_t typeFilter, const vk::MemoryPropertyFlags &properties) {
         vk::PhysicalDeviceMemoryProperties memProperties = m_physicalDevice.getMemoryProperties();
 
@@ -34,7 +36,15 @@ private:
 
         throw std::runtime_error("failed to find suitable memory type!");
     }
+
+
 public:
+    ~SimpleMemoryAllocator() {
+        for(auto& allocation : m_allocations) {
+            m_device.destroy(allocation.buffer);
+            m_device.free(allocation.memory);
+        }
+    }
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags  usageFlags;
     void init(vk::Device _device, vk::PhysicalDevice _physicalDevice, const vk::MemoryPropertyFlags &_flags,
@@ -60,7 +70,12 @@ public:
         auto memory = m_device.allocateMemory(info);
 
         m_device.bindBufferMemory(buffer, memory,0);
-        return {buffer, memory, 0,size};
+        auto location = MemoryLocation{buffer, memory, 0,size};
+
+        m_allocations.push_back(location);
+
+        return location;
+
     }
 
 };
