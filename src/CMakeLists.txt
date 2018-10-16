@@ -7,15 +7,9 @@ add_subdirectory(internal)
 GroupSources2(${PROJECT_SOURCE_DIR}/src/saiga)
 GroupSources2(${PROJECT_SOURCE_DIR}/src/internal)
 GroupSources(${PROJECT_SOURCE_DIR} shader)
-#GroupSources2(${PROJECT_SOURCE_DIR}/include/saiga)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET(SAIGA_ALL_FILES
-    #${SAIGA_SOURCE_CORE}
-    #${SAIGA_SOURCE_EXT}
-    #${SAIGA_HEADERS}
-    #${SAIGA_SHADERS}
     ${SAIGA_ALL_FILES}
     ${SAIGA_INTERNAL_SOURCE}
     ${SAIGA_INTERNAL_HEADERS}
@@ -31,17 +25,36 @@ endif()
 
 target_link_libraries(${LIB_NAME} ${ALL_CUDA_LIBS} ${LIBS} )
 
-#set_target_properties( ${LIB_NAME}
-#    PROPERTIES
-#    RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+
+target_include_directories(
+    ${LIB_NAME}
+    PUBLIC
+    $<INSTALL_INTERFACE:include/saiga/opengl/glbinding/include>
+    $<INSTALL_INTERFACE:include/saiga/opengl/glbinding-aux/include>
+    $<INSTALL_INTERFACE:share/saiga/shader/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
+    PRIVATE
+    # for the internal files
+    ${PROJECT_SOURCE_DIR}/src/
+    )
 
 
 install(
     TARGETS ${LIB_NAME}
+    EXPORT ${LIB_EXPORT}
     RUNTIME DESTINATION ${INSTALL_BIN}
     LIBRARY DESTINATION ${INSTALL_SHARED}
     ARCHIVE DESTINATION ${INSTALL_LIB}
     )
+
+install(
+    EXPORT ${LIB_EXPORT}
+    FILE SaigaTargets.cmake
+    DESTINATION ${INSTALL_SHARE}
+    )
+
 
 install(
     DIRECTORY ./saiga/
