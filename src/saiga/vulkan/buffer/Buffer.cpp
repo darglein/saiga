@@ -52,8 +52,5 @@ vk::DescriptorBufferInfo Buffer::createInfo()
     return {m_memoryLocation.buffer,m_memoryLocation.offset, m_memoryLocation.size};
 }
 
-
-
-
 }
 }
