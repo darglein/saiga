@@ -9,7 +9,6 @@
 
 #include "Buffer.h"
 #include "saiga/vulkan/Base.h"
-#include "saiga/vulkan/memory/MemoryInteraction.h"
 
 namespace Saiga {
 namespace Vulkan {

@@ -10,6 +10,7 @@
 #include <saiga/imgui/imgui.h>
 #include "saiga/util/color.h"
 #include "saiga/image/imageTransformations.h"
+#include <glm/gtc/matrix_transform.hpp>
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
 #endif
@@ -63,7 +64,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 
 //    assetRenderer.init(base,renderer.renderPass);
 //    lineAssetRenderer.init(base,renderer.renderPass,2);
-//    pointCloudRenderer.init(base,renderer.renderPass,5);
+    pointCloudRenderer.init(base,renderer.renderPass,5);
     texturedAssetRenderer.init(base,renderer.renderPass);
 //    textureDisplay.init(base, memory, renderer.renderPass);
 //
@@ -88,16 +89,16 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 //    frustum.init(renderer.base, memory);
 //
 //
-//    pointCloud.init(base, memory, 1000 * 1000);
-//    for(int i = 0; i < 1000 * 1000; ++i)
-//    {
-//        Saiga::VertexNC v;
-//        v.position = vec4(glm::linearRand(vec3(-3),vec3(3)),1);
-//        v.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
-//        pointCloud.pointCloud[i] = v;
-//    }
-//    //    pointCloud.updateBuffer(renderer.base);
-//    //    pointCloud.updateBuffer();
+    pointCloud.init(base, 1000 * 1000);
+    for(int i = 0; i < 1000 * 1000; ++i)
+    {
+        Saiga::VertexNC v;
+        v.position = vec4(glm::linearRand(vec3(-3),vec3(3)),1);
+        v.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
+        pointCloud.pointCloud[i] = v;
+    }
+//        pointCloud.updateBuffer(renderer.base);
+//        pointCloud.updateBuffer();
 }
 
 
@@ -107,39 +108,35 @@ void VulkanExample::update(float dt)
     camera.update(dt);
     camera.interpolate(dt,0);
 
-    //    if(change)
-//    if(false)
-//    {
-//        //        renderer.waitIdle();
-//        //        for(int i = 0; i < 1000; ++i)
-//        for(auto& v : pointCloud.pointCloud)
-//        {
-//            //            Saiga::VertexNC v;
-//            v.position = vec4(glm::linearRand(vec3(-3),vec3(3)),1);
-//            v.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
-//            //            pointCloud.mesh.points.push_back(v);
-//            change = false;
-//        }
-//
-//    }
-    change = true;
+    if(change)
+    {
+
+        renderer.waitIdle();
+        for(auto& v : pointCloud.pointCloud)
+        {
+            v.position = vec4(glm::linearRand(vec3(-3),vec3(3)),1);
+            v.color = vec4(glm::linearRand(vec3(0),vec3(1)),1);
+        }
+//        std::cout << "Update"<<std::endl;
+        uploadChanges = true;
+        change = false;
+    }
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)
 {
 //    assetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
 //    lineAssetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
-//    pointCloudRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
+    pointCloudRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
     texturedAssetRenderer.updateUniformBuffers(cmd,camera.view,camera.proj);
 
 
     //upload everything every frame
-    if(change)
+    if(uploadChanges)
     {
 
-        //    pointCloud.updateBuffer(cmd,0,pointCloud.capacity);
-
-        change = false;
+        pointCloud.updateBuffer(cmd,0,pointCloud.capacity);
+        uploadChanges = false;
     }
 }
 
@@ -167,10 +164,10 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 //        return;
 
 
-//        pointCloudRenderer.bind(cmd);
+        pointCloudRenderer.bind(cmd);
 
-//        pointCloudRenderer.pushModel(cmd,mat4(1));
-//        pointCloud.render(cmd,0,pointCloud.capacity);
+        pointCloudRenderer.pushModel(cmd,mat4(1));
+        pointCloud.render(cmd,0,pointCloud.capacity);
 
 
 //        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(10,0,0)));
@@ -184,9 +181,12 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         //        pointCloud.render(cmd);
 
         texturedAssetRenderer.bind(cmd);
+//        static float position = glm::sin()
         texturedAssetRenderer.pushModel(cmd,mat4(1));
         texturedAssetRenderer.bindTexture(cmd,box.descriptor);
         box.render(cmd);
+//        texturedAssetRenderer.pushModel(cmd, glm::translate(glm::mat4(1), glm::vec3(2,2,2)));
+//        box.render(cmd);
     }
 
 

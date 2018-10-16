@@ -21,10 +21,12 @@
 #include "saiga/vulkan/memory/ChunkAllocator.h"
 #include "saiga/vulkan/memory/MemoryAllocator.h"
 
-
+#include <vector>
 class VulkanExample :  public Saiga::Updating, public Saiga::Vulkan::VulkanForwardRenderingInterface, public Saiga::SDL_KeyListener
 {
 public:
+
+
     VulkanExample(
             Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer
             );
@@ -38,8 +40,11 @@ public:
     void render  (vk::CommandBuffer cmd) override;
     void renderGUI() override;
 private:
+
+    std::vector<glm::vec3> boxOffsets;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
-    bool change = true;
+    bool change = false;
+    bool uploadChanges = true;
     Saiga::Object3D teapotTrans;
 
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
@@ -47,10 +52,10 @@ private:
     Saiga::Vulkan::VulkanTexturedAsset box;
 //    Saiga::Vulkan::VulkanVertexColoredAsset teapot,plane;
 //    Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
-//    Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
+    Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
 //    Saiga::Vulkan::AssetRenderer assetRenderer;
 //    Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
-//    Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
+    Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
     Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
 
 //

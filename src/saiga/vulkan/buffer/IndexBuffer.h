@@ -9,7 +9,6 @@
 
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/Base.h"
-#include "saiga/vulkan/memory/MemoryInteraction.h"
 namespace Saiga {
 namespace Vulkan {
 
@@ -36,11 +35,11 @@ public:
 
     using VKType = IndexVKType<IndexType>;
 
-    int indexCount = 0;
+    uint32_t indexCount = 0;
 
     void init(
             VulkanBase& base,
-            int count,
+            uint32_t count,
             vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
             )
     {
@@ -54,12 +53,15 @@ public:
     void init(VulkanBase& base, const std::vector<IndexType> &indices,
             vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent)
     {
-        indexCount = indices.size();
+        if (indices.size() > std::numeric_limits<uint32_t>::max()) {
+            std::cerr<< "Only 32 bit of indices are supported" << std::endl;
+            return;
+        }
+        indexCount = static_cast<uint32_t>(indices.size());
         size_t indexBufferSize = indexCount * sizeof(IndexType);
         m_memoryLocation = base.memory.getAllocator(vk::BufferUsageFlagBits::eIndexBuffer,flags).allocate(indexBufferSize);
 
-        mappedUpload(base.device, m_memoryLocation, indexBufferSize, indices.data());
-//        DeviceMemory::mappedUpload(0,size,indices.data());
+        m_memoryLocation.mappedUpload(base.device, indices.data());
     }
 
     void bind(vk::CommandBuffer &cmd, vk::DeviceSize offset = 0)

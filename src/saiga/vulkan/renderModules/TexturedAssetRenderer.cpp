@@ -87,8 +87,8 @@ vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture &t
 
     vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
     device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(set,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
-                                    vk::WriteDescriptorSet(set,11,0,1,vk::DescriptorType::eCombinedImageSampler,&descriptorInfoTexture,nullptr,nullptr),
+                                    vk::WriteDescriptorSet(set,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo),
+                                    vk::WriteDescriptorSet(set,11,0,1,vk::DescriptorType::eCombinedImageSampler,&descriptorInfoTexture,nullptr),
                                 },nullptr);
     return set;
 }

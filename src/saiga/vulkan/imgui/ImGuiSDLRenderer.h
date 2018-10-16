@@ -34,7 +34,7 @@ public:
     // Initialize styles, keys, etc.
     void init(SDL_Window* window, float width, float height);
 
-    void beginFrame();
+    void beginFrame() override;
 
 protected:
 

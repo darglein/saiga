@@ -63,7 +63,7 @@ public:
     int capacity = 0;
 
     // Creates the buffers with max number of points
-    void init(VulkanBase &base, VulkanMemory &memory, int capacity);
+    void init(VulkanBase &base, int capacity);
 
     void render(vk::CommandBuffer cmd, int start, int count);
     void updateBuffer(vk::CommandBuffer cmd, int start, int count);
