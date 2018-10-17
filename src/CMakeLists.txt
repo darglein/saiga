@@ -29,15 +29,16 @@ target_link_libraries(${LIB_NAME} ${ALL_CUDA_LIBS} ${LIBS} )
 target_include_directories(
     ${LIB_NAME}
     PUBLIC
+    $<INSTALL_INTERFACE:include>
     $<INSTALL_INTERFACE:include/saiga/opengl/glbinding/include>
     $<INSTALL_INTERFACE:include/saiga/opengl/glbinding-aux/include>
     $<INSTALL_INTERFACE:share/saiga/shader/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
-    PRIVATE
+    #PRIVATE
     # for the internal files
-    ${PROJECT_SOURCE_DIR}/src/
     )
 
 

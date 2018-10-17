@@ -1,6 +1,7 @@
 ﻿#include "sample.h"
 #include "saiga/framework/framework.h"
 #include "saiga/vulkan/window/SDLWindow.h"
+#include "saiga/util/easylogging++.h"
 
 #undef main
 
@@ -9,6 +10,7 @@ int main(const int argc, const char *argv[])
 {
     using namespace  Saiga;
 
+       LOG(INFO) << "My first info log using default logger";
 
     {
         Saiga::WindowParameters windowParameters;
