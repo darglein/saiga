@@ -33,9 +33,9 @@ private:
 public:
     void init(vk::PhysicalDevice _physicalDevice, vk::Device _device);
 
-    std::shared_ptr<MemoryChunk> allocate(vk::MemoryPropertyFlags propertyFlags,vk::DeviceSize chunkSize);
+    std::shared_ptr<Chunk> allocate(vk::MemoryPropertyFlags propertyFlags,vk::DeviceSize chunkSize);
 
-    void deallocate(std::shared_ptr<MemoryChunk> chunk);
+    void deallocate(std::shared_ptr<Chunk> chunk);
 
     void destroy() {
         for(auto& type : m_memoryTypes) {

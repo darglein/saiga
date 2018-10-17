@@ -15,7 +15,6 @@ int main(const int argc, const char *argv[])
         Saiga::initSample(windowParameters.saigaParameters);
         windowParameters.fromConfigFile("config.ini");
 
-
         Saiga::Vulkan::SDLWindow window(windowParameters);
         //        Saiga::Vulkan::GLFWWindow window(windowParameters);
 

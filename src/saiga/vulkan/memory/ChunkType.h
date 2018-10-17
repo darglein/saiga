@@ -4,7 +4,7 @@
 
 #pragma once
 #include "saiga/export.h"
-#include "MemoryChunk.h"
+#include "Chunk.h"
 
 #include <vulkan/vulkan.hpp>
 #include <vector>
@@ -20,7 +20,7 @@ class SAIGA_GLOBAL ChunkType {
 private:
     uint32_t m_memoryTypeIndex;
     const vk::Device &m_device;
-    std::vector<std::shared_ptr<MemoryChunk>> m_chunks;
+    std::vector<std::shared_ptr<Chunk>> m_chunks;
 public:
 
     vk::MemoryPropertyFlags propertyFlags;
@@ -36,9 +36,9 @@ public:
             m_memoryTypeIndex(memoryTypeIndex), m_device(device), propertyFlags(flags) {
     }
 
-    std::shared_ptr<MemoryChunk> allocate(vk::DeviceSize chunkSize);
+    std::shared_ptr<Chunk> allocate(vk::DeviceSize chunkSize);
 
-    void deallocate(std::shared_ptr<MemoryChunk> chunk);
+    void deallocate(std::shared_ptr<Chunk> chunk);
 
     void destroy() {
         for(auto& chunk : m_chunks) {

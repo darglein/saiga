@@ -23,7 +23,7 @@ private:
     vk::Device m_device;
     vk::Buffer m_currentBuffer;
     std::vector<vk::Buffer> m_buffers;
-    std::shared_ptr<MemoryChunk> m_currentChunk = nullptr;
+    std::shared_ptr<Chunk> m_currentChunk = nullptr;
     vk::DeviceSize m_currentOffset = 0;
 
     vk::DeviceSize m_chunkSize;

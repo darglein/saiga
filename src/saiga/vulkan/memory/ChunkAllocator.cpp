@@ -6,7 +6,7 @@
 using Saiga::Vulkan::Memory::MemoryLocation;
 using Saiga::Vulkan::Memory::ChunkAllocator;
 using Saiga::Vulkan::Memory::ChunkType;
-using Saiga::Vulkan::Memory::MemoryChunk;
+using Saiga::Vulkan::Memory::Chunk;
 
 ChunkType& ChunkAllocator::findMemoryType(vk::MemoryPropertyFlags flags) {
     for(auto& memType : m_memoryTypes) {
@@ -32,7 +32,7 @@ void Saiga::Vulkan::Memory::ChunkAllocator::init(vk::PhysicalDevice _physicalDev
     m_initialized = true;
 }
 
-std::shared_ptr<MemoryChunk> ChunkAllocator::allocate(vk::MemoryPropertyFlags propertyFlags,vk::DeviceSize chunkSize) {
+std::shared_ptr<Chunk> ChunkAllocator::allocate(vk::MemoryPropertyFlags propertyFlags,vk::DeviceSize chunkSize) {
     if (!m_initialized) {
         throw std::runtime_error("Must be initialized before use");
     }
@@ -41,7 +41,7 @@ std::shared_ptr<MemoryChunk> ChunkAllocator::allocate(vk::MemoryPropertyFlags pr
     return memType.allocate(chunkSize);
 }
 
-void Saiga::Vulkan::Memory::ChunkAllocator::deallocate(std::shared_ptr<MemoryChunk> chunk) {
+void Saiga::Vulkan::Memory::ChunkAllocator::deallocate(std::shared_ptr<Chunk> chunk) {
     if (!m_initialized) {
         throw std::runtime_error("Must be initialized before use");
     }

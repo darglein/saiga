@@ -10,12 +10,12 @@ namespace Saiga {
 namespace Vulkan {
 namespace Memory {
 
-struct MemoryChunk {
+struct Chunk {
     vk::DeviceMemory memory;
     vk::DeviceSize size;
     vk::MemoryPropertyFlags flags;
 
-    MemoryChunk(vk::DeviceMemory mem, vk::DeviceSize memSize, vk::MemoryPropertyFlags memoryFlags) :
+    Chunk(vk::DeviceMemory mem, vk::DeviceSize memSize, vk::MemoryPropertyFlags memoryFlags) :
         memory(mem), size(memSize), flags(memoryFlags) {
     }
 };
