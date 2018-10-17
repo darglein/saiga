@@ -1,15 +1,14 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 set(LIB_NAME saiga)
+set(LIB_EXPORT saiga-export)
+
 project (${LIB_NAME} CXX)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include(helper_macros)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-include_directories(${PROJECT_SOURCE_DIR}/shader/include)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/saiga/opengl/glbinding/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include)
+
 
 set (SAIGA_VERSION_MAJOR 1)
 set (SAIGA_VERSION_MINOR 2)
@@ -304,7 +303,7 @@ if(CUDA_FOUND)
 
     if(SAIGA_U_EIGEN_CUDA)
         #if(${Eigen3_VERSION} VERSION_GREATER_EQUAL "3.3.90" AND ${CUDA_VERSION} VERSION_GREATER_EQUAL "9.2")
-            SET(SAIGA_EIGEN_AND_CUDA 1)
+        SET(SAIGA_EIGEN_AND_CUDA 1)
         #endif()
     endif()
 else()
@@ -325,14 +324,14 @@ endif()
 #If a relative path is given it is interpreted relative to the value of the CMAKE_INSTALL_PREFIX variable.
 #if(UNIX)
 
-    set(INSTALL_INCLUDE   "include/${LIB_NAME}")
-    set(INSTALL_BIN       "bin")
-    set(INSTALL_SHARED    "lib")
-    set(INSTALL_LIB       "lib")
-    set(INSTALL_SHARE     "share/${LIB_NAME}")
-    set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
-    set(INSTALL_DOC       "share/${LIB_NAME}/doc")
-    set(INSTALL_SAMPLES   "share/${LIB_NAME}/bin")
+set(INSTALL_INCLUDE   "include/${LIB_NAME}")
+set(INSTALL_BIN       "bin")
+set(INSTALL_SHARED    "lib")
+set(INSTALL_LIB       "lib")
+set(INSTALL_SHARE     "share/${LIB_NAME}")
+set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
+set(INSTALL_DOC       "share/${LIB_NAME}/doc")
+set(INSTALL_SAMPLES   "share/${LIB_NAME}/bin")
 
 if(ajshgsdgasdgdsg) 
     set(INSTALL_SHARE     "share/${LIB_NAME}")
@@ -420,6 +419,7 @@ install(
     FILES "${SAIGA_BUILDCONFIG_FILE}"
     DESTINATION ${INSTALL_INCLUDE}
     )
+
 
 
 ############# UNINSTALL ###############
