@@ -10,8 +10,6 @@ int main(const int argc, const char *argv[])
 {
     using namespace  Saiga;
 
-       LOG(INFO) << "My first info log using default logger";
-
     {
         Saiga::WindowParameters windowParameters;
         Saiga::initSample(windowParameters.saigaParameters);

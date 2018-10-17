@@ -18,6 +18,7 @@ namespace Memory{
 
 struct SAIGA_GLOBAL ChunkMemoryAllocator : public MemoryAllocatorBase {
 private:
+    std::string m_logger;
     ChunkAllocator* m_chunkAllocator;
     vk::Device m_device;
     vk::Buffer m_currentBuffer;
@@ -33,56 +34,16 @@ private:
 
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();
 
-    void createNewBuffer() {
-        m_currentChunk = m_chunkAllocator->allocate(flags, m_allocateSize);
-        m_currentBuffer = m_device.createBuffer(m_bufferCreateInfo);
-        m_currentOffset = 0;
-        m_device.getBufferMemoryRequirements(m_currentBuffer);
-        m_device.bindBufferMemory(m_currentBuffer, m_currentChunk->memory, 0);
-        m_buffers.push_back(m_currentBuffer);
-    }
+    void createNewBuffer();
 public:
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags usageFlags;
 
     void init(vk::Device _device, ChunkAllocator* chunkAllocator, const vk::MemoryPropertyFlags &_flags,
-                    const vk::BufferUsageFlags &usage, vk::DeviceSize chunkSize = 64* 1024* 1024) {
-        m_device = _device;
-        m_chunkAllocator = chunkAllocator;
-        m_chunkSize= chunkSize;
-        flags = _flags;
-        usageFlags = usage;
-        m_bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
-        m_bufferCreateInfo.usage = usage;
-        m_bufferCreateInfo.size = m_chunkSize;
-
-        auto buffer = m_device.createBuffer(m_bufferCreateInfo);
-        auto requirements = m_device.getBufferMemoryRequirements(buffer);
-        m_allocateSize = requirements.size;
-        m_alignment = requirements.alignment;
-
-        if (m_allocateSize != m_chunkSize) {
-            std::cerr << vk::to_string(usage) <<  " buffer usage: Allocation / Chunk size is different!!!: " << m_allocateSize << "/" << m_chunkSize << std::endl;
-        }
-        m_device.destroy(buffer);
-    }
+                    const vk::BufferUsageFlags &usage, vk::DeviceSize chunkSize = 64* 1024* 1024, const std::string& name = "");
 
 
-    MemoryLocation allocate(vk::DeviceSize size) override {
-        if (m_currentChunk == nullptr) {
-            createNewBuffer();
-        }
-
-        auto alignedSize = iAlignUp(size, m_alignment);
-
-        if (m_currentOffset + alignedSize > m_chunkSize) {
-            createNewBuffer();
-        }
-
-        MemoryLocation targetLocation = {m_currentBuffer, m_currentChunk->memory, m_currentOffset,size};
-        m_currentOffset += alignedSize;
-        return targetLocation;
-    }
+    MemoryLocation allocate(vk::DeviceSize size) override;
 
     void destroy() {
         for (auto& buffer : m_buffers) {

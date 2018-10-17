@@ -22,7 +22,7 @@ struct VulkanMemory {
     void init(vk::PhysicalDevice _pDevice, vk::Device _device) {
         chunkAllocator.init(_pDevice, _device);
         vertexIndexAllocator.init(_device, &chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal,
-                vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst);
+                vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,64*1024*1024,"DeviceVertexIndexAllocator");
         stagingAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                 vk::BufferUsageFlagBits::eTransferSrc);
         uniformAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
