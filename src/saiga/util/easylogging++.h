@@ -17,14 +17,20 @@
 
 /**
   * Changes for Saiga:
-  * - AUTO_INITIALIZE_EASYLOGGINGPP at the beginning
+  * - at the beginning
+  *   '''
+  *   #define ELPP_NO_LOG_TO_FILE
+  *   #define ELPP_NO_DEFAULT_LOG_FILE
+  *   #define AUTO_INITIALIZE_EASYLOGGINGPP
+  *   '''
   * - define ELPP_EXPORT SAIGA_GLOBAL
   * - Add ELPP_EXPORT to the writer class
   */
 
 #ifndef EASYLOGGINGPP_H
 #define EASYLOGGINGPP_H
-
+#define ELPP_NO_LOG_TO_FILE
+#define ELPP_NO_DEFAULT_LOG_FILE
 #define AUTO_INITIALIZE_EASYLOGGINGPP
 
 // Compilers and C++0x/C++11 Evaluation
