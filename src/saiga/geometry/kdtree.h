@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include <vector>
 #include <algorithm>
-#include <saiga/util/glm.h>
+#include "saiga/util/glm.h"
 
 namespace Saiga {
 

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 
 #ifndef SAIGA_USE_OPENGL
 #error Saiga was build without opengl.

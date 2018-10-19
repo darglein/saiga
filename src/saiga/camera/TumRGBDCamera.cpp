@@ -205,7 +205,7 @@ void TumRGBDCamera::load(const std::string &datasetDir)
     frames.resize(tumframes.size());
 
 #pragma omp parallel for
-    for(unsigned int i = 0; i < tumframes.size(); ++i)
+    for(int i = 0; i < (int)tumframes.size(); ++i)
     {
         TumFrame d = tumframes[i];
         cout << "loading " << d.rgb.img << endl;

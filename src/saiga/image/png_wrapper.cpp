@@ -331,7 +331,7 @@ static void writepng_encode_image(Image &img,  PNGLoadStore* pngls, bool invertY
         png_set_swap(png_ptr);
 
 
-    for(unsigned int i=0; i < img.height; i++)
+    for(int i=0; i < img.height; i++)
     {
         auto j = invertY ? img.height - i - 1 : i;
         auto offset = j * img.pitchBytes;

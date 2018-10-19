@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include "saiga/util/glm.h"
 #include "saiga/geometry/aabb.h"
 #include "saiga/geometry/sphere.h"
@@ -45,5 +45,9 @@ SAIGA_GLOBAL bool RayTriangle(const Ray& r, const Triangle& tri, float& t, bool&
 
 
 SAIGA_GLOBAL bool RayPlane(const Ray& r, const Plane& p, float &t);
+
+SAIGA_GLOBAL bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmin, const vec3& boxmax, float &t);
+SAIGA_GLOBAL bool RayAABB(const Ray& r, const AABB &bb, float &t);
+
 }
 }

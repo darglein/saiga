@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include "saiga/rendering/program.h"
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/imgui/imgui_renderer.h"

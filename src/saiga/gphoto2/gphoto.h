@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include "saiga/image/image.h"
 
 #include "saiga/util/synchronizedBuffer.h"

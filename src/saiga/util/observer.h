@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include <vector>
 
 namespace Saiga {
