@@ -8,6 +8,7 @@
 
 #include "saiga/config.h"
 #include "saiga/camera/RGBDCamera.h"
+#include "saiga/time/timer.h"
 namespace Saiga {
 
 
@@ -34,7 +35,7 @@ public:
         CameraData rgb;
     };
 
-    TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1);
+    TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1, int fps = 30);
 
     /**
      * Blocks until a new image arrives.
@@ -52,6 +53,13 @@ private:
 
     std::vector<std::shared_ptr<FrameData>> frames;
     std::vector<TumFrame> tumframes;
+
+    Timer timer;
+    tick_t timeStep;
+    tick_t lastFrameTime;
+    tick_t nextFrameTime;
+
+
 };
 
 }

@@ -7,7 +7,7 @@
 #include "TumRGBDCamera.h"
 #include "saiga/util/tostring.h"
 #include <fstream>
-
+#include <thread>
 namespace Saiga {
 
 
@@ -68,13 +68,19 @@ static std::vector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const std::string &datasetDir, double depthFactor, int maxFrames)
+TumRGBDCamera::TumRGBDCamera(const std::string &datasetDir, double depthFactor, int maxFrames, int fps)
     : depthFactor(depthFactor), maxFrames(maxFrames)
 {
     cout << "Loading TUM RGBD Dataset: " << datasetDir << endl;
     associate(datasetDir);
 
     load(datasetDir);
+
+    timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double,std::milli>(1000.0 / double(fps)));
+
+    timer.start();
+    lastFrameTime = timer.stop();
+    nextFrameTime = lastFrameTime + timeStep;
 }
 
 std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
@@ -83,6 +89,21 @@ std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
     {
         return nullptr;
     }
+
+
+    auto t = timer.stop();
+
+    if(t < nextFrameTime)
+    {
+        std::this_thread::sleep_for(nextFrameTime - t);
+        nextFrameTime += timeStep;
+    }else if(t < nextFrameTime + timeStep){
+        nextFrameTime += timeStep;
+    }else{
+        nextFrameTime = t + timeStep;
+    }
+
+
     auto img = frames[currentId];
     setNextFrame(*img);
     return img;
