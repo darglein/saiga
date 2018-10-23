@@ -25,6 +25,12 @@ struct SAIGA_GLOBAL MemoryLocation {
         device.unmapMemory(memory);
     }
 
+    void mappedDownload(vk::Device device, void* data) {
+        void* target = device.mapMemory(memory, offset,size);
+        std::memcpy(data, target, size);
+        device.unmapMemory(memory);
+    }
+
     void* map(vk::Device device) {
         return device.mapMemory(memory,offset, size);
     }
