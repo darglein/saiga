@@ -18,11 +18,14 @@ struct VulkanMemory {
     SimpleMemoryAllocator hostVertexIndexAllocator;
     SimpleMemoryAllocator stagingAllocator;
     SimpleMemoryAllocator uniformAllocator;
+    std::shared_ptr<FirstFitStrategy> strategy;
 
     void init(vk::PhysicalDevice _pDevice, vk::Device _device) {
+        strategy=std::make_shared<FirstFitStrategy>();
         chunkAllocator.init(_pDevice, _device);
         vertexIndexAllocator.init(_device, &chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal,
-                vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,64*1024*1024,"DeviceVertexIndexAllocator");
+                vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+                strategy, 64*1024*1024,"DeviceVertexIndexAllocator");
         stagingAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                 vk::BufferUsageFlagBits::eTransferSrc);
         uniformAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,

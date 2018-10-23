@@ -26,11 +26,13 @@ public:
     Compute(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~Compute();
 
-    void init(Saiga::Vulkan::VulkanBase& base);
+    void init(Saiga::Vulkan::VulkanBase& base) override;
 
-    virtual void update(float dt) override;
-    virtual void render(vk::CommandBuffer cmd) override;
-    virtual void renderGUI() override;
+    void update(float dt) override;
+
+    void render(vk::CommandBuffer cmd) override;
+
+    void renderGUI() override;
 private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 

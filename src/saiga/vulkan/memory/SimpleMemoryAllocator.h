@@ -55,7 +55,7 @@ public:
         m_bufferCreateInfo.size = 0;
     }
 
-    MemoryLocation allocate(vk::DeviceSize size) override {
+    MemoryLocation& allocate(vk::DeviceSize size) override {
         m_bufferCreateInfo.size = size;
         auto buffer = m_device.createBuffer(m_bufferCreateInfo);
 
@@ -67,20 +67,22 @@ public:
         auto memory = m_device.allocateMemory(info);
 
         m_device.bindBufferMemory(buffer, memory,0);
-        auto location = MemoryLocation{buffer, memory, 0,size};
 
-        m_allocations.push_back(location);
-
-        return location;
-
+        m_allocations.emplace_back(buffer, memory, 0,size);
+        return m_allocations.back();
     }
 
     void destroy() {
-        for(auto& allocation : m_allocations) {
-            m_device.destroy(allocation.buffer);
-            m_device.free(allocation.memory);
+        for(auto& location : m_allocations) {
+            location.destroy(m_device);
         }
         m_allocations.clear();
+    }
+
+    void deallocate(MemoryLocation &location) override {
+        location.destroy(m_device);
+        auto newEnd = std::remove(m_allocations.begin(), m_allocations.end(), location);
+        m_allocations.erase(newEnd);
     }
 };
 

@@ -18,31 +18,38 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory{
 
-struct SAIGA_GLOBAL MemoryRange {
-    vk::DeviceSize start;
-    vk::DeviceSize range;
-    MemoryRange(vk::DeviceSize _start, vk::DeviceSize _range) : start(_start), range(_range) { }
-};
+//struct SAIGA_GLOBAL MemoryRange {
+//    vk::DeviceSize start;
+//    vk::DeviceSize size;
+//    MemoryRange(vk::DeviceSize _start, vk::DeviceSize _size) : start(_start), size(_size) { }
+//};
 
 struct SAIGA_GLOBAL ChunkAllocation{
     std::shared_ptr<Chunk> chunk;
     vk::Buffer buffer;
-    std::list<MemoryRange> allocations;
-    std::list<MemoryRange> freeList;
+    std::list<MemoryLocation> allocations;
+    std::list<MemoryLocation> freeList;
     vk::DeviceSize maxFreeSize;
-    MemoryRange* maxFreeRange;
+    MemoryLocation* maxFreeRange;
 
     ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize size) {
         chunk = _chunk;
         buffer = _buffer;
-        freeList.emplace_back(MemoryRange{0, size});
+        freeList.emplace_back(_buffer, _chunk->memory, 0, size);
         maxFreeSize = size;
-        maxFreeRange = &(*freeList.begin());
+        maxFreeRange = &freeList.front();
     }
 };
 
+typedef std::vector<ChunkAllocation>::iterator ChunkIterator;
+typedef std::list<MemoryLocation>::iterator LocationIterator;
 struct SAIGA_GLOBAL FitStrategy {
-    virtual std::pair<ChunkAllocation*, MemoryRange*> findRange(std::vector<ChunkAllocation> const & _allocations, vk::DeviceSize size) = 0;
+    virtual std::pair<ChunkIterator, LocationIterator> findRange(std::vector<ChunkAllocation> & _allocations, vk::DeviceSize size) = 0;
+};
+
+struct SAIGA_GLOBAL FirstFitStrategy : public FitStrategy{
+    std::pair<ChunkIterator, LocationIterator>
+    findRange(std::vector<ChunkAllocation> &_allocations, vk::DeviceSize size) override;
 };
 
 
@@ -63,19 +70,21 @@ private:
     std::shared_ptr<FitStrategy> m_strategy;
 
     /**
-     * Create a new chunk. Returns a pointer to the free entry of the new chunk.
-     * @return Pointer to the free entry of the new chunk.
+     * Create a new chunk.
+     * @return Iterator to the new chunk.
      */
-    std::pair<ChunkAllocation*, MemoryRange*> createNewChunk();
+    ChunkIterator createNewChunk();
 public:
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags usageFlags;
 
     void init(vk::Device _device, ChunkAllocator* chunkAllocator, const vk::MemoryPropertyFlags &_flags,
-                    const vk::BufferUsageFlags &usage, vk::DeviceSize chunkSize = 64* 1024* 1024, const std::string& name = "");
+                    const vk::BufferUsageFlags &usage, std::shared_ptr<FitStrategy> strategy, vk::DeviceSize chunkSize = 64* 1024* 1024, const std::string& name = "");
 
 
-    MemoryLocation allocate(vk::DeviceSize size) override;
+    MemoryLocation& allocate(vk::DeviceSize size) override;
+
+    void deallocate(MemoryLocation &location) override;
 
     void destroy();
 };

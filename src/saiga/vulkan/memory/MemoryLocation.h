@@ -32,6 +32,19 @@ struct SAIGA_GLOBAL MemoryLocation {
     void unmap(vk::Device device) {
         device.unmapMemory(memory);
     }
+
+    void destroy(const vk::Device& device) {
+        device.destroy(buffer);
+        device.free(memory);
+    }
+
+    bool operator==(const MemoryLocation &rhs) const {
+        return std::tie(buffer, memory, offset, size) == std::tie(rhs.buffer, rhs.memory, rhs.offset, rhs.size);
+    }
+
+    bool operator!=(const MemoryLocation &rhs) const {
+        return !(rhs == *this);
+    }
 };
 
 }
