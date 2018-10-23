@@ -188,7 +188,7 @@ inline M helpConvertBack(const std::string &str, unsigned int size)
 {
     auto array = string_to_array<float>(str);
     SAIGA_ASSERT(array.size() == size);
-    M m;
+    M m(1);
     std::copy(array.begin(),array.end(),(float*)&m);
     return m;
 }

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <saiga/config.h>
-#include <saiga/util/glm.h>
+#include "saiga/config.h"
+#include "saiga/util/glm.h"
 #include <saiga/time/time.h>
 #include <saiga/animation/animationFrame.h>
 

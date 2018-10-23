@@ -7,7 +7,7 @@
 #pragma once
 
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include <saiga/util/keyboard.h>
 #include <saiga/util/mouse.h>
 #include <vector>

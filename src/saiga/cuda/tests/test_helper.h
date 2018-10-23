@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include <iostream>
 #include "saiga/time/performanceMeasure.h"
 #include "saiga/time/timer.h"

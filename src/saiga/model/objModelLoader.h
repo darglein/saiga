@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include <saiga/geometry/triangle_mesh.h>
 #include "saiga/model/objMaterialLoader.h"
 #include "saiga/model/ModelLoader.h"

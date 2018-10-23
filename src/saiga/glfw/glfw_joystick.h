@@ -7,7 +7,7 @@
 #pragma once
 
 #include <saiga/util/joystick.h>
-#include <saiga/config.h>
+#include "saiga/config.h"
 
 namespace Saiga {
 

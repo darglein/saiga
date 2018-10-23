@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include "saiga/geometry/ray.h"
 #include "saiga/window/Interfaces.h"
 #include "saiga/window/windowParameters.h"

@@ -9,9 +9,11 @@
 
 namespace Saiga {
 
-Grid::Grid(const vec3 &mid, const vec3 &d1, const vec3 &d2) : d1(d1),d2(d2),mid(mid)
+Grid::Grid(const vec3 &mid, const vec3 &d1, const vec3 &d2)
+    : Plane(mid,glm::cross(d1,d2)),
+      d1(d1),d2(d2),mid(mid)
 {
-    set(mid,glm::cross(d1,d2));
+
 }
 
 void Grid::addToBuffer(std::vector<VertexN> &vertices, std::vector<uint32_t> &indices, int linesX, int linesY)

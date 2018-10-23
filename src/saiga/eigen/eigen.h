@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 
 #define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
 

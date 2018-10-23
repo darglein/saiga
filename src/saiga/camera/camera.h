@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/util/glm.h>
+#include "saiga/util/glm.h"
 #include <saiga/geometry/object3d.h>
 #include <saiga/geometry/sphere.h>
 #include <saiga/geometry/plane.h>

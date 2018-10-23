@@ -153,6 +153,55 @@ bool RayPlane(const Ray &r, const Plane &p, float &t)
 
 }
 
+//source
+//http://gamedev.stackexchange.com/questions/18436/most-efficient-AABB-vs-ray-collision-algorithms
+bool RayAABB(const vec3 &origin, const vec3 &direction, const vec3 &boxmin, const vec3 &boxmax, float &t)
+{
+    using glm::min;
+    using glm::max;
+
+    vec3 dirfrac;
+    dirfrac.x = 1.0f / direction.x;
+    dirfrac.y = 1.0f / direction.y;
+    dirfrac.z = 1.0f / direction.z;
+
+    // lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
+    // r.org is origin of ray
+    float t1 = (boxmin.x - origin.x)*dirfrac.x;
+    float t2 = (boxmax.x - origin.x)*dirfrac.x;
+    float t3 = (boxmin.y - origin.y)*dirfrac.y;
+    float t4 = (boxmax.y - origin.y)*dirfrac.y;
+    float t5 = (boxmin.z - origin.z)*dirfrac.z;
+    float t6 = (boxmax.z - origin.z)*dirfrac.z;
+
+    float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
+    float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
+
+    // if tmax < 0, ray (line) is intersecting AABB, but whole AABB is behing us
+    if (tmax < 0)
+    {
+        t = tmax;
+        return false;
+    }
+
+    // if tmin > tmax, ray doesn't intersect AABB
+    if (tmin > tmax)
+    {
+        t = tmax;
+        return false;
+    }
+
+    t = tmin;
+    return true;
+}
+
+bool RayAABB(const Ray &r, const AABB &bb, float &t)
+{
+    return RayAABB(r.origin,r.direction,bb.min,bb.max,t);
+}
+
+
+
 
 }
 }

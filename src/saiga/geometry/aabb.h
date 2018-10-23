@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include <saiga/config.h>
-#include <saiga/util/glm.h>
+#include "saiga/config.h"
+#include "saiga/util/glm.h"
+#include "saiga/geometry/triangle.h"
 
 #include <vector>
-#include "saiga/geometry/triangle.h"
 
 namespace Saiga{
 

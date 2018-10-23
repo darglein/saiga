@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <saiga/config.h>
+#include "saiga/config.h"
 #include "saiga/sdl/sdl_listener.h"
 #include <saiga/util/keyboard.h>
 #include <saiga/util/mouse.h>

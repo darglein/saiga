@@ -205,13 +205,13 @@ void Camera::recalculatePlanesFromMatrices()
     }
 
     //side planes
-    planes[0].set(vertices[0],vertices[2],vertices[1]); //near
-    planes[1].set(vertices[4],vertices[5],vertices[7 ]); //far
+    planes[0] = Plane(vertices[0],vertices[2],vertices[1]); //near
+    planes[1] = Plane(vertices[4],vertices[5],vertices[7 ]); //far
 
-    planes[2].set(vertices[0],vertices[1],vertices[4]); //top
-    planes[3].set(vertices[2],vertices[6],vertices[3]); //bottom
-    planes[4].set(vertices[0],vertices[4],vertices[2]); //left
-    planes[5].set(vertices[1],vertices[3],vertices[7]); //right
+    planes[2] = Plane(vertices[0],vertices[1],vertices[4]); //top
+    planes[3] = Plane(vertices[2],vertices[6],vertices[3]); //bottom
+    planes[4] = Plane(vertices[0],vertices[4],vertices[2]); //left
+    planes[5] = Plane(vertices[1],vertices[3],vertices[7]); //right
 }
 
 std::pair<vec3, vec3> Camera::getEdge(int i)
@@ -281,9 +281,9 @@ void PerspectiveCamera::recalculatePlanes()
     vec3 farplanepos = getPosition() + dir*zFar;
 
     //near plane
-    planes[0].set(nearplanepos,-dir);
+    planes[0] = Plane(nearplanepos,-dir);
     //far plane
-    planes[1].set(farplanepos,dir);
+    planes[1] = Plane(farplanepos,dir);
 
 
     float nh = zNear * tang;
@@ -303,10 +303,10 @@ void PerspectiveCamera::recalculatePlanes()
     vertices[7] = farplanepos - fh * up + fw * right;
 
     //side planes
-    planes[2].set(getPosition(),vertices[1],vertices[0]); //top
-    planes[3].set(getPosition(),vertices[2],vertices[3]); //bottom
-    planes[4].set(getPosition(),vertices[0],vertices[2]); //left
-    planes[5].set(getPosition(),vertices[3],vertices[1]); //right
+    planes[2] = Plane(getPosition(),vertices[1],vertices[0]); //top
+    planes[3] = Plane(getPosition(),vertices[2],vertices[3]); //bottom
+    planes[4] = Plane(getPosition(),vertices[0],vertices[2]); //left
+    planes[5] = Plane(getPosition(),vertices[3],vertices[1]); //right
 
 
     //    vec3 fbr = farplanepos - fh * up + fw * right;
@@ -368,9 +368,9 @@ void OrthographicCamera::recalculatePlanes()
     vec3 farplanepos = getPosition() + dir*zFar;
 
     //near plane
-    planes[0].set(nearplanepos,-dir);
+    planes[0] = Plane(nearplanepos,-dir);
     //far plane
-    planes[1].set(farplanepos,dir);
+    planes[1] = Plane(farplanepos,dir);
 
 
 #if 0
@@ -402,10 +402,10 @@ void OrthographicCamera::recalculatePlanes()
     //    planes[3].set(getPosition(),vertices[2],vertices[3]); //bottom
     //    planes[4].set(getPosition(),vertices[0],vertices[2]); //left
     //    planes[5].set(getPosition(),vertices[3],vertices[1]); //right
-    planes[2].set(vertices[0],up); //top
-    planes[3].set(vertices[3],-up); //bottom
-    planes[4].set(vertices[0],-rightv); //left
-    planes[5].set(vertices[3],rightv); //right
+    planes[2] = Plane(vertices[0],up); //top
+    planes[3] = Plane(vertices[3],-up); //bottom
+    planes[4] = Plane(vertices[0],-rightv); //left
+    planes[5] = Plane(vertices[3],rightv); //right
 
     //    vec3 fbr = farplanepos - fh * up + fw * right;
     //    vec3 fbr = farplanepos - fh * up;

@@ -7,8 +7,8 @@
 #pragma once
 
 #include <saiga/sound/OpenAL.h>
-#include <saiga/config.h>
-#include <saiga/util/glm.h>
+#include "saiga/config.h"
+#include "saiga/util/glm.h"
 #include <saiga/sound/Sound.h>
 
 namespace Saiga {
