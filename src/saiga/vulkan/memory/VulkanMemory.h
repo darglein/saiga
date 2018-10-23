@@ -15,6 +15,7 @@ namespace Memory {
 struct VulkanMemory {
     ChunkAllocator chunkAllocator;
     ChunkMemoryAllocator vertexIndexAllocator;
+    SimpleMemoryAllocator storageAllocator;
     SimpleMemoryAllocator hostVertexIndexAllocator;
     SimpleMemoryAllocator stagingAllocator;
     SimpleMemoryAllocator uniformAllocator;
@@ -28,6 +29,8 @@ struct VulkanMemory {
                 strategy, 64*1024*1024,"DeviceVertexIndexAllocator");
         stagingAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                 vk::BufferUsageFlagBits::eTransferSrc);
+        storageAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent,
+                vk::BufferUsageFlagBits::eStorageBuffer| vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc);
         uniformAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                               vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eUniformBuffer);
         hostVertexIndexAllocator.init(_device,_pDevice,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
@@ -49,6 +52,10 @@ struct VulkanMemory {
                 return hostVertexIndexAllocator;
             }
             return vertexIndexAllocator;
+        }
+
+        if ((usage&vk::BufferUsageFlagBits::eStorageBuffer) == vk::BufferUsageFlagBits::eStorageBuffer) {
+            return storageAllocator;
         }
 
         throw std::runtime_error("Unknown allocator");
