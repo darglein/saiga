@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+
 #include <chrono>
 #include "saiga/image/image.h"
 
@@ -43,7 +44,7 @@ public:
 
     virtual std::shared_ptr<FrameData> waitForImage() = 0;
     virtual std::shared_ptr<FrameData> tryGetImage() { return waitForImage(); }
-    virtual mat4 getGroundTruth(int frame) { return mat4(1); }
+
 
     virtual bool isOpened() { return true; }
 protected:

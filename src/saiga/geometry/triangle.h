@@ -25,15 +25,6 @@ public:
     Triangle(const vec3 &a, const vec3 &b, const vec3 &c):a(a),b(b),c(c){ }
 
     /**
-     * Stretches the triangle with factor 'f' away from its center.
-     * If you apply this to a triangle soup the resulting mesh will have a
-     * small overlap at the triangle edges.
-     * @brief stretch
-     * @param f
-     */
-    void stretch(float f);
-
-    /**
      * Mean center: (a+b+c) / 3
      * @brief center
      * @return

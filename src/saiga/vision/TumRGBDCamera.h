@@ -8,7 +8,10 @@
 
 #include "saiga/config.h"
 #include "saiga/camera/RGBDCamera.h"
+#include "saiga/vision/VisionTypes.h"
 #include "saiga/time/timer.h"
+
+
 namespace Saiga {
 
 
@@ -18,8 +21,7 @@ public:
     struct GroundTruth
     {
         double timeStamp;
-        vec3 position;
-        quat rotation;
+        SE3 se3;
     };
 
     struct CameraData
@@ -36,14 +38,16 @@ public:
     };
 
     TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1, int fps = 30);
-
+    ~TumRGBDCamera();
     /**
      * Blocks until a new image arrives.
      */
     virtual std::shared_ptr<FrameData> waitForImage() override;
 
 
-    mat4 getGroundTruth(int frame);
+    SE3 getGroundTruth(int frame);
+
+    virtual bool isOpened() { return currentId < (int)frames.size(); }
 private:
     void associate(const std::string& datasetDir);
     void load(const std::string& datasetDir);

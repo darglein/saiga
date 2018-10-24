@@ -51,14 +51,19 @@ static std::vector<TumRGBDCamera::GroundTruth> readGT(std::string file)
             TumRGBDCamera::GroundTruth d;
             d.timeStamp = Saiga::to_double(elements[0]);
 
-            d.position.x = Saiga::to_float(elements[1]);
-            d.position.y = Saiga::to_float(elements[2]);
-            d.position.z = Saiga::to_float(elements[3]);
+            Vec3 t;
+            t(0) = Saiga::to_double(elements[1]);
+            t(1) = Saiga::to_double(elements[2]);
+            t(2) = Saiga::to_double(elements[3]);
 
-            d.rotation.x = Saiga::to_float(elements[4]);
-            d.rotation.y = Saiga::to_float(elements[5]);
-            d.rotation.z = Saiga::to_float(elements[6]);
-            d.rotation.w = Saiga::to_float(elements[7]);
+            Quat r;
+            r.x() = Saiga::to_float(elements[4]);
+            r.y() = Saiga::to_float(elements[5]);
+            r.z() = Saiga::to_float(elements[6]);
+            r.w() = Saiga::to_float(elements[7]);
+            r.normalize();
+
+            d.se3 = SE3(r,t);
 
             data.push_back(d);
         }
@@ -83,9 +88,15 @@ TumRGBDCamera::TumRGBDCamera(const std::string &datasetDir, double depthFactor, 
     nextFrameTime = lastFrameTime + timeStep;
 }
 
+TumRGBDCamera::~TumRGBDCamera()
+{
+    cout << "~TumRGBDCamera" << endl;
+}
+
 std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
 {
-    if(currentId == (int)frames.size())
+    if(!isOpened())
+//    if(currentId == (int)frames.size())
     {
         return nullptr;
     }
@@ -109,11 +120,11 @@ std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
     return img;
 }
 
-mat4 TumRGBDCamera::getGroundTruth(int frame)
+SE3 TumRGBDCamera::getGroundTruth(int frame)
 {
     SAIGA_ASSERT(frame >= 0 && frame < (int)tumframes.size());
     GroundTruth gt = tumframes[frame].gt;
-    return createTRSmatrix(vec4(gt.position,1),gt.rotation,vec4(1));
+    return gt.se3;
 }
 
 void TumRGBDCamera::associate(const std::string& datasetDir)

@@ -40,12 +40,6 @@ public:
     float height(){ return max.y-min.y;}
     void ensureValidity();
 
-    int intersect(const AABB &other);
-    bool intersectBool(const AABB &other);
-    bool intersectTouching(const AABB &other); //returns true if boxes are touching
-
-    bool intersectBool(const AABB &other, int side);
-    int touching(const AABB &other);
 
     vec3 getHalfExtends();
 

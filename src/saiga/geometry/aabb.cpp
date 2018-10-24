@@ -67,56 +67,6 @@ void AABB::ensureValidity()
 
 }
 
-int AABB::touching(const AABB &other){
-
-    for(int i = 0;i<3;i++){
-        //glm::equalEpsilon(1,1,1);
-        if(glm::epsilonEqual(max[i], other.min[i],0.001f) && intersectBool(other,i)) return 0x8<<i;
-        if(glm::epsilonEqual(min[i], other.max[i],0.001f) && intersectBool(other,i)) return 0x1<<i;
-    }
-    return -1;
-
-}
-
-
-bool AABB::intersectBool(const AABB &other, int side){
-    side = (side+1)%3;
-    if(min[side] >= other.max[side] || max[side] <= other.min[side] ) return false;
-    side = (side+1)%3;
-    if(min[side] >= other.max[side] || max[side] <= other.min[side] ) return false;
-
-    return true; //overlap
-}
-
-int AABB::intersect(const AABB &other){
-    if(min.x >= other.max.x || max.x <= other.min.x ) return 0;
-    if(min.y >= other.max.y || max.y <= other.min.y) return 0;
-    if(min.z >= other.max.z || max.z <= other.min.z) return 0;
-
-    if( other.min.x >= min.x && other.max.x <= max.x && //other inside this
-            other.min.y >= min.y && other.max.y <= max.y &&
-            other.min.z >= min.z && other.max.z <= max.z ) return 2; //contain
-    return 1; //overlap
-}
-
-bool AABB::intersectBool(const AABB &other){
-    if(min.x >= other.max.x || max.x <= other.min.x ) return false;
-    if(min.y >= other.max.y || max.y <= other.min.y) return false;
-    if(min.z >= other.max.z || max.z <= other.min.z) return false;
-
-    return true; //overlap
-}
-
-bool AABB::intersectTouching(const AABB &other){
-    if(min.x > other.max.x || max.x < other.min.x ) return false;
-    if(min.y > other.max.y || max.y < other.min.y) return false;
-    if(min.z > other.max.z || max.z < other.min.z) return false;
-
-    return true; //overlap
-
-}
-
-
 vec3 AABB::cornerPoint(int cornerIndex) const
 {
      SAIGA_ASSERT(0 <= cornerIndex && cornerIndex <= 7);
