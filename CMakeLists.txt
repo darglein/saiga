@@ -164,12 +164,18 @@ endif()
 
 
 
+
 #eigen
-find_package(Eigen3 3.3.0 QUIET)
+find_package(Eigen3 QUIET)
+PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
 if(EIGEN3_FOUND)
     SET(SAIGA_USE_EIGEN 1)
 endif()
-PackageHelper(Eigen3 "${EIGEN3_FOUND}" "${EIGEN3_INCLUDE_DIRS}" "")
+
+#Sophus
+find_package(Sophus QUIET)
+PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
+
 
 
 #bullet

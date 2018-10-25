@@ -12,7 +12,7 @@
 #include "saiga/image/imageTransformations.h"
 #include "saiga/network/RGBDCameraNetwork.h"
 #include "saiga/openni2/RGBDCameraInput.h"
-#include "saiga/camera/TumRGBDCamera.h"
+//#include "saiga/vision//TumRGBDCamera.h"
 
 #include "saiga/util/threadName.h"
 

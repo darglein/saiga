@@ -8,13 +8,6 @@
 #include "internal/noGraphicsAPI.h"
 namespace Saiga {
 
-void Triangle::stretch(float f){
-    vec3 cen = center();
-
-    a = (a-cen) * f + a;
-    b = (b-cen) * f + b;
-    c = (c-cen) * f + c;
-}
 
 vec3 Triangle::center(){
     return (a+b+c) * float(1.0f/3.0f);

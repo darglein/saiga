@@ -43,11 +43,17 @@ SAIGA_GLOBAL bool RaySphere(const Ray& ray, const Sphere &sphere, float &t1, flo
 SAIGA_GLOBAL bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const vec3& B, const vec3& C, float& out, bool& back);
 SAIGA_GLOBAL bool RayTriangle(const Ray& r, const Triangle& tri, float& t, bool& back);
 
-
 SAIGA_GLOBAL bool RayPlane(const Ray& r, const Plane& p, float &t);
 
 SAIGA_GLOBAL bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmin, const vec3& boxmax, float &t);
 SAIGA_GLOBAL bool RayAABB(const Ray& r, const AABB &bb, float &t);
+
+
+SAIGA_GLOBAL bool SphereSphere(const vec3& c1, float r1, const vec3& c2, float r2);
+SAIGA_GLOBAL bool SphereSphere(const Sphere& s1, const Sphere& s2);
+
+SAIGA_GLOBAL bool AABBAABB(const vec3& min1, const vec3& max1, const vec3& min2, const vec3& max2);
+SAIGA_GLOBAL bool AABBAABB(const AABB& bb1, const AABB& bb2);
 
 }
 }

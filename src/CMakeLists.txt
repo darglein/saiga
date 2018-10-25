@@ -23,7 +23,7 @@ else ()
 endif()
 
 
-target_link_libraries(${LIB_NAME} ${ALL_CUDA_LIBS} ${LIBS} )
+target_link_libraries(${LIB_NAME} ${ALL_CUDA_LIBS} ${LIBS} ${LIB_TARGETS} )
 
 
 target_include_directories(
