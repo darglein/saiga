@@ -92,7 +92,7 @@ void ChunkMemoryAllocator::destroy() {
 
 void ChunkMemoryAllocator::deallocate(MemoryLocation &location) {
 
-    CLOG(INFO, m_logger.c_str()) << "Deallocating " << location.size << "bytes";
+    CLOG(INFO, m_logger.c_str()) << "Deallocating " << location.size << " bytes";
     auto fChunk = std::find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
             [&](ChunkAllocation const & alloc){return alloc.chunk->memory == location.memory;});
 
@@ -104,10 +104,10 @@ void ChunkMemoryAllocator::deallocate(MemoryLocation &location) {
     CLOG(INFO, m_logger.c_str()) << "Found chunk/allocation [" << std::distance(m_chunkAllocations.begin(), fChunk)<<
                                  "/" << std::distance(chunkAllocs.begin(), fLoc) << "]";
 
-    LocationIterator freePrev, freeNext;
-
+    LocationIterator freePrev, freeNext, freeInsert;
+    bool foundInsert = false;
     freePrev = freeNext = chunkFree.end();
-
+    freeInsert = chunkFree.end();
     for(auto freeIt = chunkFree.begin(); freeIt != chunkFree.end(); ++freeIt) {
         if (freeIt->offset + freeIt->size == location.offset) {
             freePrev = freeIt;
@@ -116,13 +116,29 @@ void ChunkMemoryAllocator::deallocate(MemoryLocation &location) {
             freeNext = freeIt;
             break;
         }
+        if (freeIt->offset + freeIt->size < location.offset) {
+            freeInsert = freeIt;
+            foundInsert = true;
+        }
     }
+
+
+//    SAIGA_ASSERT(freeInsert != chunkFree.end(), "No point to insert in free list found");
 
     if (freePrev != chunkFree.end() && freeNext != chunkFree.end()) {
         freePrev->size += location.size + freeNext->size;
         chunkFree.erase(freeNext);
     } else if (freePrev!= chunkFree.end()) {
-        // TODO: Continue here
+        freePrev->size += location.size;
+    } else if (freeNext != chunkFree.end()) {
+        freeNext->offset = location.offset;
+        freeNext->size += location.size;
+    } else {
+        if (foundInsert) {
+            chunkFree.insert(freeInsert, location);
+        } else {
+            chunkFree.push_front(location);
+        }
     }
 
     chunkAllocs.erase(fLoc);
