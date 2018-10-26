@@ -2,14 +2,9 @@
 #include "saiga/framework/framework.h"
 #include "saiga/vulkan/window/SDLWindow.h"
 #include "saiga/util/easylogging++.h"
-
-#undef main
-
-
-
 #include <memory>
 #include <vector>
-#include "saiga/vulkan/buffer/BufferedAllocator.h"
+#include "saiga/vulkan/memory/VulkanStlAllocator.h"
 
 int main(const int argc, const char *argv[])
 {
@@ -32,10 +27,10 @@ int main(const int argc, const char *argv[])
         VulkanExample example(window,renderer);
 
 
-        BufferedAllocator<int> alloc(renderer.base.device,renderer.base.physicalDevice,vk::BufferUsageFlagBits::eUniformBuffer);
+        VulkanStlAllocator<int> alloc(renderer.base,vk::BufferUsageFlagBits::eUniformBuffer);
 
 
-        std::vector<int,BufferedAllocator<int>> test(alloc);
+        std::vector<int,VulkanStlAllocator<int>> test(alloc);
 
         for(int i =0; i<10000;++i) {
             test.push_back(i);

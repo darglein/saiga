@@ -18,12 +18,6 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory{
 
-//struct SAIGA_GLOBAL MemoryRange {
-//    vk::DeviceSize start;
-//    vk::DeviceSize size;
-//    MemoryRange(vk::DeviceSize _start, vk::DeviceSize _size) : start(_start), size(_size) { }
-//};
-
 struct SAIGA_GLOBAL ChunkAllocation{
     std::shared_ptr<Chunk> chunk;
     vk::Buffer buffer;
@@ -31,12 +25,11 @@ struct SAIGA_GLOBAL ChunkAllocation{
     std::list<MemoryLocation> freeList;
     vk::DeviceSize maxFreeSize;
     MemoryLocation* maxFreeRange;
+    void* mappedPointer;
 
-    ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize size) {
-        chunk = _chunk;
-        buffer = _buffer;
+    ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize size, void* _mappedPointer) :
+        chunk(_chunk), buffer(_buffer), freeList(), allocations(), maxFreeSize(size), mappedPointer(_mappedPointer){
         freeList.emplace_back(_buffer, _chunk->memory, 0, size);
-        maxFreeSize = size;
         maxFreeRange = &freeList.front();
     }
 };
@@ -74,19 +67,23 @@ private:
      * @return Iterator to the new chunk.
      */
     ChunkIterator createNewChunk();
+
+    MemoryLocation createMemoryLocation(ChunkIterator iter, vk::DeviceSize start, vk::DeviceSize size);
 public:
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags usageFlags;
 
     void init(vk::Device _device, ChunkAllocator* chunkAllocator, const vk::MemoryPropertyFlags &_flags,
-                    const vk::BufferUsageFlags &usage, std::shared_ptr<FitStrategy> strategy, vk::DeviceSize chunkSize = 64* 1024* 1024, const std::string& name = "");
+                    const vk::BufferUsageFlags &usage, std::shared_ptr<FitStrategy> strategy, vk::DeviceSize chunkSize = 64* 1024* 1024, const std::string& name = "",
+                    bool _mapped = false);
 
 
-    MemoryLocation& allocate(vk::DeviceSize size) override;
+    MemoryLocation allocate(vk::DeviceSize size) override;
 
     void deallocate(MemoryLocation &location) override;
 
     void destroy();
+
 };
 }
 }

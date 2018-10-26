@@ -11,6 +11,8 @@
 #include "MemoryAllocatorBase.h"
 
 #include <limits>
+#include <saiga/util/easylogging++.h>
+
 using namespace Saiga::Vulkan::Memory;
 
 namespace Saiga{
@@ -45,17 +47,18 @@ public:
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags  usageFlags;
     void init(vk::Device _device, vk::PhysicalDevice _physicalDevice, const vk::MemoryPropertyFlags &_flags,
-              const vk::BufferUsageFlags &usage) {
+              const vk::BufferUsageFlags &usage, bool _mapped = false) {
         m_device = _device;
         m_physicalDevice = _physicalDevice;
         flags = _flags;
+        mapped = _mapped;
         usageFlags = usage;
         m_bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         m_bufferCreateInfo.usage = usage;
         m_bufferCreateInfo.size = 0;
     }
 
-    MemoryLocation& allocate(vk::DeviceSize size) override {
+    MemoryLocation allocate(vk::DeviceSize size) override {
         m_bufferCreateInfo.size = size;
         auto buffer = m_device.createBuffer(m_bufferCreateInfo);
 
@@ -66,9 +69,13 @@ public:
         info.memoryTypeIndex = findMemoryType(memReqs.memoryTypeBits,flags);
         auto memory = m_device.allocateMemory(info);
 
+        void* mappedPtr = nullptr;
+        if (mapped) {
+            mappedPtr = m_device.mapMemory(memory,0, memReqs.size);
+        }
         m_device.bindBufferMemory(buffer, memory,0);
 
-        m_allocations.emplace_back(buffer, memory, 0,size);
+        m_allocations.emplace_back(buffer, memory, 0,size, mappedPtr);
         return m_allocations.back();
     }
 
@@ -80,6 +87,7 @@ public:
     }
 
     void deallocate(MemoryLocation &location) override {
+        LOG(INFO) << "Simple Allocator: Deallocating" << location.memory << std::endl;
         location.destroy(m_device);
         auto newEnd = std::remove(m_allocations.begin(), m_allocations.end(), location);
         m_allocations.erase(newEnd);

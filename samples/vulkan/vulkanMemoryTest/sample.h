@@ -45,7 +45,7 @@ private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
 
-    Saiga::Vulkan::Memory::MemoryLocation* m_location1, *m_location2, *m_location3;
+    Saiga::Vulkan::Memory::MemoryLocation m_location1, m_location2, m_location3;
 
 
     Saiga::Vulkan::VulkanForwardRenderer &renderer;

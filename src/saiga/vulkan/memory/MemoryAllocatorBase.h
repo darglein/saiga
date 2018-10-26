@@ -11,8 +11,9 @@ namespace Vulkan{
 namespace Memory{
 
 struct SAIGA_GLOBAL MemoryAllocatorBase {
-    virtual MemoryLocation& allocate(vk::DeviceSize size) = 0;
+    virtual MemoryLocation allocate(vk::DeviceSize size) = 0;
     virtual void deallocate(MemoryLocation& location) = 0;
+    bool mapped = false;
 };
 
 }

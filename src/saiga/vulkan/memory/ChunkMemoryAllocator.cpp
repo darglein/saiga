@@ -11,9 +11,11 @@
 void
 ChunkMemoryAllocator::init(vk::Device _device, ChunkAllocator *chunkAllocator, const vk::MemoryPropertyFlags &_flags,
                            const vk::BufferUsageFlags &usage,std::shared_ptr<FitStrategy> strategy,
-                           vk::DeviceSize chunkSize, const std::string& name) {
+                           vk::DeviceSize chunkSize, const std::string& name, bool _mapped) {
     m_logger = name;
     el::Loggers::getLogger(m_logger);
+
+    mapped = _mapped;
     m_device = _device;
     m_chunkAllocator = chunkAllocator;
     m_chunkSize= chunkSize;
@@ -34,18 +36,18 @@ ChunkMemoryAllocator::init(vk::Device _device, ChunkAllocator *chunkAllocator, c
     CLOG(INFO, m_logger.c_str()) << "Created new allocator, alignment " << m_alignment;
 }
 
-MemoryLocation& ChunkMemoryAllocator::allocate(vk::DeviceSize size) {
+MemoryLocation ChunkMemoryAllocator::allocate(vk::DeviceSize size) {
     SAIGA_ASSERT(size < m_chunkSize, "Can't allocate sizes bigger than chunk size");
 
     auto alignedSize = iAlignUp(size, m_alignment);
     CLOG(INFO, m_logger.c_str()) << "Requested " << size <<" (~"<< alignedSize<< ") bytes" ;
-    ChunkIterator chunk;
+    ChunkIterator chunkAlloc;
     LocationIterator freeSpace;
-    std::tie(chunk, freeSpace) = m_strategy->findRange(m_chunkAllocations, alignedSize);
+    std::tie(chunkAlloc, freeSpace) = m_strategy->findRange(m_chunkAllocations, alignedSize);
 
-    if (chunk == m_chunkAllocations.end()) {
-        chunk = createNewChunk();
-        freeSpace = chunk->freeList.begin();
+    if (chunkAlloc == m_chunkAllocations.end()) {
+        chunkAlloc = createNewChunk();
+        freeSpace = chunkAlloc->freeList.begin();
     }
 
     auto memoryStart = freeSpace->offset;
@@ -53,21 +55,26 @@ MemoryLocation& ChunkMemoryAllocator::allocate(vk::DeviceSize size) {
     freeSpace->offset += alignedSize;
     freeSpace->size -= alignedSize;
 
-    if (&*freeSpace == chunk->maxFreeRange) {
-        chunk->maxFreeSize = freeSpace->size;
+    if (&*freeSpace == chunkAlloc->maxFreeRange) {
+        chunkAlloc->maxFreeSize = freeSpace->size;
     }
 
     CLOG(INFO, m_logger.c_str()) <<
-            "Allocating in chunk/offset [" << std::distance(m_chunkAllocations.begin(), chunk) << ", " <<
+            "Allocating in chunk/offset [" << std::distance(m_chunkAllocations.begin(), chunkAlloc) << ", " <<
             memoryStart << "]";
 
 
-    MemoryLocation targetLocation {chunk->buffer, chunk->chunk->memory,memoryStart, alignedSize};
+    MemoryLocation targetLocation = createMemoryLocation(chunkAlloc, memoryStart, alignedSize);
     auto memoryEnd = memoryStart + alignedSize;
-    auto insertionPoint = std::find_if (chunk->allocations.begin(), chunk->allocations.end(),
+    auto insertionPoint = std::find_if (chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(),
             [=](MemoryLocation& loc){return loc.offset > memoryEnd;});
 
-    return *chunk->allocations.insert(insertionPoint,targetLocation);
+    return *chunkAlloc->allocations.insert(insertionPoint,targetLocation);
+}
+
+MemoryLocation ChunkMemoryAllocator::createMemoryLocation(ChunkIterator iter, vk::DeviceSize offset,
+                                                          vk::DeviceSize size) {
+    return MemoryLocation{iter->buffer, iter->chunk->memory, offset,size, iter->mappedPointer};
 }
 
 ChunkIterator ChunkMemoryAllocator::createNewChunk() {
@@ -79,7 +86,12 @@ ChunkIterator ChunkMemoryAllocator::createNewChunk() {
         CLOG(WARNING, m_logger.c_str()) << "New buffer has differing memory requirements size";
     }
     m_device.bindBufferMemory(newBuffer, newChunk->memory,0);
-    m_chunkAllocations.emplace_back(newChunk,newBuffer,m_chunkSize);
+    void* mappedPointer=nullptr;
+    if (mapped) {
+        mappedPointer = m_device.mapMemory(newChunk->memory,0, m_chunkSize);
+    }
+    m_chunkAllocations.emplace_back(newChunk,newBuffer,m_chunkSize,mappedPointer);
+
     return --m_chunkAllocations.end();
 }
 

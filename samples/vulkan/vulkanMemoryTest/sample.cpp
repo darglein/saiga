@@ -32,9 +32,9 @@ VulkanExample::~VulkanExample()
 
 void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 {
-    m_location1 = &base.memory.vertexIndexAllocator.allocate(1024);
-    m_location2 = &base.memory.vertexIndexAllocator.allocate(1024);
-    m_location3 = &base.memory.vertexIndexAllocator.allocate(1024);
+    m_location1 = base.memory.vertexIndexAllocator.allocate(1024);
+    m_location2 = base.memory.vertexIndexAllocator.allocate(1024);
+    m_location3 = base.memory.vertexIndexAllocator.allocate(1024);
 }
 
 
@@ -44,8 +44,8 @@ void VulkanExample::update(float dt)
     camera.update(dt);
     camera.interpolate(dt,0);
 
-    renderer.base.memory.vertexIndexAllocator.deallocate(*m_location3);
-    m_location3 = &renderer.base.memory.vertexIndexAllocator.allocate(1025);
+    renderer.base.memory.vertexIndexAllocator.deallocate(m_location3);
+    m_location3 = renderer.base.memory.vertexIndexAllocator.allocate(1025);
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)

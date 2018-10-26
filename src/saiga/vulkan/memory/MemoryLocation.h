@@ -4,7 +4,9 @@
 
 #pragma once
 #include <vulkan/vulkan.hpp>
-#include <saiga/export.h>
+#include "saiga/export.h"
+#include "saiga/vulkan/memory/Chunk.h"
+
 namespace Saiga{
 namespace Vulkan{
 namespace Memory{
@@ -14,10 +16,12 @@ struct SAIGA_GLOBAL MemoryLocation {
     vk::DeviceMemory memory;
     vk::DeviceSize offset;
     vk::DeviceSize size;
+    void* mappedPointer;
 
-    MemoryLocation() : buffer(nullptr), memory(nullptr), offset(0), size(0){}
-    MemoryLocation(vk::Buffer _buffer, vk::DeviceMemory _memory, vk::DeviceSize _offset, vk::DeviceSize _size = 0) :
-        buffer(_buffer), memory(_memory), offset(_offset), size(_size) { }
+    MemoryLocation() : buffer(nullptr), memory(nullptr), offset(0), size(0), mappedPointer(nullptr){}
+
+    MemoryLocation(vk::Buffer _buffer, vk::DeviceMemory _memory, vk::DeviceSize _offset, vk::DeviceSize _size = 0, void* _mappedPointer = nullptr) :
+        buffer(_buffer), memory(_memory), offset(_offset), size(_size), mappedPointer(_mappedPointer) { }
 
     void mappedUpload(vk::Device device, const void* data ){
         void* target = device.mapMemory(memory, offset,size);
@@ -45,7 +49,7 @@ struct SAIGA_GLOBAL MemoryLocation {
     }
 
     bool operator==(const MemoryLocation &rhs) const {
-        return std::tie(buffer, memory, offset, size) == std::tie(rhs.buffer, rhs.memory, rhs.offset, rhs.size);
+        return std::tie(buffer, memory, offset, size,mappedPointer) == std::tie(rhs.buffer, rhs.memory, rhs.offset, rhs.size,rhs.mappedPointer);
     }
 
     bool operator!=(const MemoryLocation &rhs) const {
