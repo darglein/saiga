@@ -255,6 +255,18 @@ bool Image::saveRaw(const std::string &path)
     return true;
 }
 
+bool Image::saveConvert(const std::string &path, float minValue, float maxValue)
+{
+    if(type == ImageType::F1)
+    {
+        Saiga::TemplatedImage<ucvec4> i(h,w);
+        Saiga::ImageTransformation::depthToRGBA(getImageView<float>(),i.getImageView(),minValue,maxValue);
+        i.save(path);
+    }
+
+    return false;
+}
+
 std::vector<uint8_t> Image::compress()
 {
     return compressImageSTB(*this);

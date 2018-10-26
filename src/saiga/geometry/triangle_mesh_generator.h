@@ -5,7 +5,7 @@
  */
 
 #pragma once
-#define _USE_MATH_DEFINES
+
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/geometry/sphere.h"
 #include "saiga/geometry/plane.h"

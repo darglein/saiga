@@ -39,6 +39,7 @@ OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
 OptionsHelper(SAIGA_WITH_GL "With opengl" ON)
 OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
+OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
 
 
 
@@ -365,7 +366,22 @@ if(CUDA_FOUND)
     message(STATUS "CMAKE_CUDA_FLAGS_RELEASE: ${CMAKE_CUDA_FLAGS_RELEASE}")
 endif()
 
+
+
 ############# Generate config file ###############
+
+if(SAIGA_NO_INSTALL)
+    set(SAIGA_SHADER_PREFIX "${PROJECT_SOURCE_DIR}/shader")
+
+    set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
+        "${SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL}"
+        @ONLY
+        )
+else()
+    set(SAIGA_SHADER_PREFIX "${CMAKE_INSTALL_PREFIX}/share/saiga/shader")
+endif()
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/buildconfig.h")
@@ -382,6 +398,8 @@ configure_file(
     "${SAIGA_CONFIG_CMAKE_FILE}"
     @ONLY
     )
+
+
 
 
 # Generate Version File

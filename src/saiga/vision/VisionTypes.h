@@ -30,6 +30,19 @@ using Mat4 = Eigen::Matrix4d;
 using Mat3 = Eigen::Matrix3d;
 
 
+struct Intrinsics4
+{
+    double fx, fy;
+    double cx, cy;
+
+
+    Eigen::Vector2d project(const Eigen::Vector3d& X)
+    {
+        auto x = X(0) / X(2);
+        auto y = X(1) / X(2);
+        return {fx * x + cx, fy * y + cy };
+    }
+};
 
 
 }
