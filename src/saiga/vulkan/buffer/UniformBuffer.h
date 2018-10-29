@@ -24,7 +24,11 @@ public:
 //        allocateMemoryBuffer(base,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 //        if(data)
 //            DeviceMemory::mappedUpload(0,size,data);
-        m_memoryLocation.mappedUpload(base.device, data);
+        if (m_memoryLocation.mappedPointer) {
+            std::memcpy(m_memoryLocation.mappedPointer, data, size);
+        } else {
+            m_memoryLocation.mappedUpload(base.device, data);
+        }
     }
 
     vk::DescriptorBufferInfo getDescriptorInfo()

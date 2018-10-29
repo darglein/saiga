@@ -18,24 +18,26 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory{
 
+
+typedef std::list<MemoryLocation>::iterator LocationIterator;
+
 struct SAIGA_GLOBAL ChunkAllocation{
     std::shared_ptr<Chunk> chunk;
     vk::Buffer buffer;
     std::list<MemoryLocation> allocations;
     std::list<MemoryLocation> freeList;
-    vk::DeviceSize maxFreeSize;
-    MemoryLocation* maxFreeRange;
+    LocationIterator maxFreeRange;
     void* mappedPointer;
 
     ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize size, void* _mappedPointer) :
-        chunk(_chunk), buffer(_buffer), freeList(), allocations(), maxFreeSize(size), mappedPointer(_mappedPointer){
+        chunk(_chunk), buffer(_buffer), freeList(), allocations(), mappedPointer(_mappedPointer){
         freeList.emplace_back(_buffer, _chunk->memory, 0, size);
-        maxFreeRange = &freeList.front();
+        maxFreeRange = freeList.begin();
     }
 };
 
 typedef std::vector<ChunkAllocation>::iterator ChunkIterator;
-typedef std::list<MemoryLocation>::iterator LocationIterator;
+
 struct SAIGA_GLOBAL FitStrategy {
     virtual std::pair<ChunkIterator, LocationIterator> findRange(std::vector<ChunkAllocation> & _allocations, vk::DeviceSize size) = 0;
 };
@@ -84,6 +86,7 @@ public:
 
     void destroy();
 
+    void findNewMax(ChunkIterator &chunkAlloc) const;
 };
 }
 }

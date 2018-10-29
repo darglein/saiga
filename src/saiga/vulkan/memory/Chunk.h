@@ -5,6 +5,7 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 #include <iostream>
+#include <saiga/util/assert.h>
 
 namespace Saiga {
 namespace Vulkan {
@@ -15,8 +16,8 @@ struct Chunk {
     vk::DeviceSize size;
     vk::MemoryPropertyFlags flags;
 
-    Chunk(vk::DeviceMemory mem, vk::DeviceSize memSize, vk::MemoryPropertyFlags memoryFlags) :
-        memory(mem), size(memSize), flags(memoryFlags) {
+    Chunk(vk::DeviceMemory _memory, vk::DeviceSize _size, vk::MemoryPropertyFlags _flags) :
+        memory(_memory), size(_size), flags(_flags) {
     }
 };
 

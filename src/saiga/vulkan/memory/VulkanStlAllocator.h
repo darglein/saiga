@@ -50,30 +50,16 @@ public:
 
     pointer allocate(size_type n, const_pointer hint = 0) {
         const auto size = n * sizeof(T) + sizeof(AllocationHeader);
-//        vk::BufferCreateInfo bci;
-//        bci.size = size;
-//        bci.sharingMode = vk::SharingMode::eExclusive;
-//        bci.usage = m_usageFlags;
-//        vk::Buffer new_buffer = m_device.createBuffer(bci);
-//        vk::MemoryRequirements mem_reqs = m_device.getBufferMemoryRequirements(new_buffer);
-//
-//        vk::MemoryAllocateInfo mai;
-//        mai.memoryTypeIndex = findMemoryType(m_physicalDevice,mem_reqs.memoryTypeBits,
-//                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-//        mai.allocationSize = mem_reqs.size;
-//
-//        vk::DeviceMemory new_mem = m_device.allocateMemory(mai);
+
+        LOG(DEBUG) << "Stl Allocating " << n * sizeof (T);
 
         auto allocation = allocator->allocate(size);
 
         SAIGA_ASSERT(allocation.mappedPointer, "Allocation is not mapped");
 
-//        auto alloc =  m_device.mapMemory(new_mem,0,size);
-
         auto headerPtr = reinterpret_cast<AllocationHeader*>(allocation.mappedPointer);
         headerPtr->memoryLocation = allocation;
 
-        LOG(INFO) << "Allocated " << allocation.memory << "@" << allocation.mappedPointer << " MemStart: " << headerPtr + 1 << std::endl;
         return reinterpret_cast<pointer>(headerPtr + 1);
     }
 
@@ -81,10 +67,8 @@ public:
         auto headerPtr = reinterpret_cast<AllocationHeader*>(p);
         auto header = *(headerPtr-1);
 
-        LOG(INFO)<< "Deallocating " << header.memoryLocation.memory << "@" << header.memoryLocation.mappedPointer << std::endl;
+        LOG(DEBUG) << "Deallocating " << n * sizeof(T);
         allocator->deallocate(header.memoryLocation);
-//        m_device.destroy(header.buffer);
-//        m_device.free(header.memory);
     }
 
     void construct(pointer p, const_reference t) { new ((void*) p) T(t); }

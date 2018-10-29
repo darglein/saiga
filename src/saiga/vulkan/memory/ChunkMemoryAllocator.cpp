@@ -8,6 +8,8 @@
 #include <string>
 #include <functional>
 #include "saiga/util/assert.h"
+#include <algorithm>
+
 void
 ChunkMemoryAllocator::init(vk::Device _device, ChunkAllocator *chunkAllocator, const vk::MemoryPropertyFlags &_flags,
                            const vk::BufferUsageFlags &usage,std::shared_ptr<FitStrategy> strategy,
@@ -55,14 +57,26 @@ MemoryLocation ChunkMemoryAllocator::allocate(vk::DeviceSize size) {
     freeSpace->offset += alignedSize;
     freeSpace->size -= alignedSize;
 
-    if (&*freeSpace == chunkAlloc->maxFreeRange) {
-        chunkAlloc->maxFreeSize = freeSpace->size;
-    }
-
     CLOG(INFO, m_logger.c_str()) <<
-            "Allocating in chunk/offset [" << std::distance(m_chunkAllocations.begin(), chunkAlloc) << ", " <<
+            "Allocating in chunk/offset [" << std::distance(m_chunkAllocations.begin(), chunkAlloc) << "/" <<
             memoryStart << "]";
 
+
+
+    bool searchNewMax = false;
+
+
+    if (chunkAlloc->maxFreeRange == freeSpace) {
+        searchNewMax = true;
+    }
+
+    if (freeSpace->size == 0) {
+        chunkAlloc->freeList.erase(freeSpace);
+    }
+
+    if (searchNewMax) {
+        findNewMax(chunkAlloc);
+    }
 
     MemoryLocation targetLocation = createMemoryLocation(chunkAlloc, memoryStart, alignedSize);
     auto memoryEnd = memoryStart + alignedSize;
@@ -70,6 +84,12 @@ MemoryLocation ChunkMemoryAllocator::allocate(vk::DeviceSize size) {
             [=](MemoryLocation& loc){return loc.offset > memoryEnd;});
 
     return *chunkAlloc->allocations.insert(insertionPoint,targetLocation);
+}
+
+void ChunkMemoryAllocator::findNewMax(ChunkIterator &chunkAlloc) const {
+    auto& freeList = chunkAlloc->freeList;
+    chunkAlloc->maxFreeRange  = max_element(freeList.begin(), freeList.end(),
+                                            [](MemoryLocation &first, MemoryLocation &second) { return first.size < second.size; });
 }
 
 MemoryLocation ChunkMemoryAllocator::createMemoryLocation(ChunkIterator iter, vk::DeviceSize offset,
@@ -104,7 +124,6 @@ void ChunkMemoryAllocator::destroy() {
 
 void ChunkMemoryAllocator::deallocate(MemoryLocation &location) {
 
-    CLOG(INFO, m_logger.c_str()) << "Deallocating " << location.size << " bytes";
     auto fChunk = std::find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
             [&](ChunkAllocation const & alloc){return alloc.chunk->memory == location.memory;});
 
@@ -113,8 +132,8 @@ void ChunkMemoryAllocator::deallocate(MemoryLocation &location) {
     auto& chunkFree = fChunk->freeList;
     auto fLoc = std::find(chunkAllocs.begin(), chunkAllocs.end(), location);
     SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
-    CLOG(INFO, m_logger.c_str()) << "Found chunk/allocation [" << std::distance(m_chunkAllocations.begin(), fChunk)<<
-                                 "/" << std::distance(chunkAllocs.begin(), fLoc) << "]";
+    CLOG(INFO, m_logger.c_str()) << "Deallocating " << location.size << " bytes in chunk/offset [" << std::distance(m_chunkAllocations.begin(), fChunk)<<
+                                 "/" << fLoc->offset << "]";
 
     LocationIterator freePrev, freeNext, freeInsert;
     bool foundInsert = false;
@@ -135,14 +154,18 @@ void ChunkMemoryAllocator::deallocate(MemoryLocation &location) {
     }
 
 
-//    SAIGA_ASSERT(freeInsert != chunkFree.end(), "No point to insert in free list found");
+    bool shouldFindNewMax = (freePrev == fChunk->maxFreeRange || freeNext == fChunk->maxFreeRange || freeInsert == fChunk->maxFreeRange) ;
+
 
     if (freePrev != chunkFree.end() && freeNext != chunkFree.end()) {
+        // Free space before and after newly freed space -> merge
         freePrev->size += location.size + freeNext->size;
         chunkFree.erase(freeNext);
     } else if (freePrev!= chunkFree.end()) {
+        // Free only before -> increase size
         freePrev->size += location.size;
     } else if (freeNext != chunkFree.end()) {
+        // Free only after newly freed -> move and increase size
         freeNext->offset = location.offset;
         freeNext->size += location.size;
     } else {
@@ -153,6 +176,10 @@ void ChunkMemoryAllocator::deallocate(MemoryLocation &location) {
         }
     }
 
+    if (shouldFindNewMax) {
+        findNewMax(fChunk);
+    }
+
     chunkAllocs.erase(fLoc);
 }
 
@@ -160,7 +187,7 @@ std::pair<ChunkIterator, LocationIterator>
 FirstFitStrategy::findRange(std::vector<ChunkAllocation> &_allocations, vk::DeviceSize size) {
 
     auto foundChunk =std::find_if(_allocations.begin(), _allocations.end(),
-            [&](ChunkAllocation& alloc){ return alloc.maxFreeSize > size;});
+            [&](ChunkAllocation& alloc){ return alloc.maxFreeRange->size > size;});
 
     if (foundChunk == _allocations.end()) {
         return std::make_pair(_allocations.end(), LocationIterator());

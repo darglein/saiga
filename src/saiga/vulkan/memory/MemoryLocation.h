@@ -4,6 +4,7 @@
 
 #pragma once
 #include <vulkan/vulkan.hpp>
+#include <saiga/util/assert.h>
 #include "saiga/export.h"
 #include "saiga/vulkan/memory/Chunk.h"
 
@@ -20,32 +21,50 @@ struct SAIGA_GLOBAL MemoryLocation {
 
     MemoryLocation() : buffer(nullptr), memory(nullptr), offset(0), size(0), mappedPointer(nullptr){}
 
-    MemoryLocation(vk::Buffer _buffer, vk::DeviceMemory _memory, vk::DeviceSize _offset, vk::DeviceSize _size = 0, void* _mappedPointer = nullptr) :
-        buffer(_buffer), memory(_memory), offset(_offset), size(_size), mappedPointer(_mappedPointer) { }
+    MemoryLocation(vk::Buffer _buffer, vk::DeviceMemory _memory, vk::DeviceSize _offset, vk::DeviceSize _size = 0, void* _basePointer = nullptr) :
+        buffer(_buffer), memory(_memory), offset(_offset), size(_size), mappedPointer(nullptr) {
+        if (_basePointer) {
+            mappedPointer = static_cast<char *>(_basePointer) + offset;
+        }
+    }
 
     void mappedUpload(vk::Device device, const void* data ){
+        SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
         void* target = device.mapMemory(memory, offset,size);
         std::memcpy(target, data, size);
         device.unmapMemory(memory);
     }
 
-    void mappedDownload(vk::Device device, void* data) {
+    void mappedDownload(vk::Device device, void* data) const {
+        SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
         void* target = device.mapMemory(memory, offset,size);
         std::memcpy(data, target, size);
         device.unmapMemory(memory);
     }
 
-    void* map(vk::Device device) {
+    void* map(vk::Device device) const {
+
+        SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
         return device.mapMemory(memory,offset, size);
     }
 
-    void unmap(vk::Device device) {
+    void unmap(vk::Device device) const {
+        SAIGA_ASSERT(mappedPointer, "Memory not mapped");
         device.unmapMemory(memory);
     }
 
     void destroy(const vk::Device& device) {
+        SAIGA_ASSERT(buffer && memory, "Already destroyed");
         device.destroy(buffer);
         device.free(memory);
+        buffer = nullptr;
+        memory = nullptr;
+        mappedPointer = nullptr;
+    }
+
+    void* getPointer() const {
+        SAIGA_ASSERT(mappedPointer, "Memory is not mapped");
+        return static_cast<char*> (mappedPointer) + offset;
     }
 
     bool operator==(const MemoryLocation &rhs) const {

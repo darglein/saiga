@@ -9,7 +9,7 @@
 int main(const int argc, const char *argv[])
 {
     using namespace Saiga;
-
+//    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Format, "%datetime %level [%fbase]: %msg");
     {
         Saiga::WindowParameters windowParameters;
         Saiga::initSample(windowParameters.saigaParameters);
@@ -22,7 +22,7 @@ int main(const int argc, const char *argv[])
         vulkanParams.enableValidationLayer = true;
         Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
 
-        
+
 
         VulkanExample example(window,renderer);
 
@@ -31,7 +31,7 @@ int main(const int argc, const char *argv[])
 
 
         std::vector<int,VulkanStlAllocator<int>> test(alloc);
-
+//        test.reserve(1000);
         for(int i =0; i<10000;++i) {
             test.push_back(i);
         }

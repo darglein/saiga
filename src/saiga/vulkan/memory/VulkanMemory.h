@@ -18,7 +18,7 @@ struct VulkanMemory {
     SimpleMemoryAllocator storageAllocator;
     SimpleMemoryAllocator hostVertexIndexAllocator;
     SimpleMemoryAllocator stagingAllocator;
-    SimpleMemoryAllocator uniformAllocator;
+    ChunkMemoryAllocator uniformAllocator;
     std::shared_ptr<FirstFitStrategy> strategy;
 
     void init(vk::PhysicalDevice _pDevice, vk::Device _device) {
@@ -31,8 +31,8 @@ struct VulkanMemory {
                 vk::BufferUsageFlagBits::eTransferSrc);
         storageAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent,
                 vk::BufferUsageFlagBits::eStorageBuffer| vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc);
-        uniformAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-                              vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eUniformBuffer,true);
+        uniformAllocator.init(_device, &chunkAllocator, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+                              vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eUniformBuffer,strategy,1024*1024, "UniformAllocator",true);
         hostVertexIndexAllocator.init(_device,_pDevice,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                                       vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst );
     }
@@ -65,8 +65,6 @@ struct VulkanMemory {
     void destroy() {
         vertexIndexAllocator.destroy();
         chunkAllocator.destroy();
-
-
         hostVertexIndexAllocator.destroy();
         stagingAllocator.destroy();
         uniformAllocator.destroy();
