@@ -24,7 +24,7 @@ ChunkMemoryAllocator::init(vk::Device _device, ChunkAllocator *chunkAllocator, c
     flags = _flags;
     usageFlags = usage;
     m_bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
-    m_bufferCreateInfo.usage = usage;
+    m_bufferCreateInfo.usage = usageFlags;
     m_bufferCreateInfo.size = m_chunkSize;
 
     auto buffer = m_device.createBuffer(m_bufferCreateInfo);

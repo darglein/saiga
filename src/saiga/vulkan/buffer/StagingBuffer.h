@@ -24,7 +24,7 @@ public:
         createBuffer(base,size,vk::BufferUsageFlagBits::eTransferSrc);
 
         if(data)
-            m_memoryLocation.mappedUpload(base.device,data);
+            m_memoryLocation.upload(base.device,data);
     }
 
 

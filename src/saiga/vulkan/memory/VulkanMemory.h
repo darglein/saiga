@@ -19,6 +19,7 @@ struct VulkanMemory {
     SimpleMemoryAllocator hostVertexIndexAllocator;
     SimpleMemoryAllocator stagingAllocator;
     ChunkMemoryAllocator uniformAllocator;
+    ChunkMemoryAllocator imageAllocator;
     std::shared_ptr<FirstFitStrategy> strategy;
 
     void init(vk::PhysicalDevice _pDevice, vk::Device _device) {
@@ -35,6 +36,7 @@ struct VulkanMemory {
                               vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eUniformBuffer,strategy,1024*1024, "UniformAllocator",true);
         hostVertexIndexAllocator.init(_device,_pDevice,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                                       vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst );
+        imageAllocator.init(_device, chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageU)
     }
 
 
@@ -59,6 +61,10 @@ struct VulkanMemory {
         }
 
         throw std::runtime_error("Unknown allocator");
+    }
+
+    MemoryAllocatorBase& getAllocator(const vk::ImageUsageFlags& imageUsageFlags, const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal) {
+        if (imageUsageFlags & vk::ImageUsageFlagBits::)
     }
 
 

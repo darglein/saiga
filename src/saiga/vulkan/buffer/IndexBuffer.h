@@ -61,7 +61,7 @@ public:
         size_t indexBufferSize = indexCount * sizeof(IndexType);
         m_memoryLocation = base.memory.getAllocator(vk::BufferUsageFlagBits::eIndexBuffer,flags).allocate(indexBufferSize);
 
-        m_memoryLocation.mappedUpload(base.device, indices.data());
+        m_memoryLocation.upload(base.device, indices.data());
     }
 
     void bind(vk::CommandBuffer &cmd, vk::DeviceSize offset = 0)

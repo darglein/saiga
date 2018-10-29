@@ -28,6 +28,7 @@ struct SAIGA_GLOBAL MemoryLocation {
         }
     }
 
+private:
     void mappedUpload(vk::Device device, const void* data ){
         SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
         void* target = device.mapMemory(memory, offset,size);
@@ -35,11 +36,28 @@ struct SAIGA_GLOBAL MemoryLocation {
         device.unmapMemory(memory);
     }
 
+
     void mappedDownload(vk::Device device, void* data) const {
         SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
         void* target = device.mapMemory(memory, offset,size);
         std::memcpy(data, target, size);
         device.unmapMemory(memory);
+    }
+public:
+    void upload(vk::Device device, const void* data) {
+        if (mappedPointer) {
+            std::memcpy(mappedPointer, data, size);
+        } else {
+            mappedUpload(device, data);
+        }
+    }
+
+    void download(vk::Device device, void* data) const {
+        if (mappedPointer) {
+            std::memcpy(data, mappedPointer, size);
+        } else {
+            mappedDownload(device, data);
+        }
     }
 
     void* map(vk::Device device) const {

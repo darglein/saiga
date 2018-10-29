@@ -103,6 +103,7 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
 
 
 
+    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
 
     imageLayout = vk::ImageLayout::eUndefined;
     // Create optimal tiled target image
@@ -116,13 +117,14 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
     imageCreateInfo.initialLayout = imageLayout;
     imageCreateInfo.extent = vk::Extent3D{ width, height, 1U };
-    imageCreateInfo.usage = usage | vk::ImageUsageFlagBits::eTransferDst;
+    imageCreateInfo.usage = finalUsageFlags;
     image = base.device.createImage(imageCreateInfo);
     SAIGA_ASSERT(image);
 
 
-    auto memReqs = device.getImageMemoryRequirements(image);
-    DeviceMemory::allocateMemory(base,memReqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
+    auto memReqs = base.device.getImageMemoryRequirements(image);
+    base.memory.getAllocator(finalUsageFlags,vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
+//    DeviceMemory::allocateMemory(base,memReqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
     device.bindImageMemory(image,memory,0);
 
 
@@ -183,7 +185,7 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     samplerCreateInfo.maxLod = 0.0f;
     // Only enable anisotropic filtering if enabled on the devicec
     samplerCreateInfo.maxAnisotropy = 16;
-    samplerCreateInfo.anisotropyEnable = false;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
     samplerCreateInfo.borderColor = vk::BorderColor::eIntOpaqueWhite;
     //    VK_CHECK_RESULT(vkCreateSampler(device->device, &samplerCreateInfo, nullptr, &sampler));
     sampler = device.createSampler(samplerCreateInfo);

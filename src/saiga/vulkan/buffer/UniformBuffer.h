@@ -21,14 +21,8 @@ public:
     void init(VulkanBase& base, const void* data, size_t size)
     {
         createBuffer(base,size,vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst);
-//        allocateMemoryBuffer(base,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-//        if(data)
-//            DeviceMemory::mappedUpload(0,size,data);
-        if (m_memoryLocation.mappedPointer) {
-            std::memcpy(m_memoryLocation.mappedPointer, data, size);
-        } else {
-            m_memoryLocation.mappedUpload(base.device, data);
-        }
+
+        m_memoryLocation.upload(base.device, data);
     }
 
     vk::DescriptorBufferInfo getDescriptorInfo()

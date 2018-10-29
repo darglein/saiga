@@ -23,8 +23,10 @@
 namespace Saiga{
 namespace Vulkan{
 
-struct SAIGA_GLOBAL Texture : public DeviceMemory
+struct SAIGA_GLOBAL Texture
 {
+
+    MemoryLocation memoryLocation;
     VulkanBase *base;
     vk::Image image;
     vk::ImageLayout imageLayout;
