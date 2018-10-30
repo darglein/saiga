@@ -11,7 +11,8 @@
 namespace Saiga {
 namespace CUDA{
 
-#if CUDA_VERSION >= 9000
+//#if CUDA_VERSION >= 9000
+#if CUDART_VERSION >= 9000
 #define SAIGA_CUDA_USE_SHFL_SYNC
 #endif
 

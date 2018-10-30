@@ -1,0 +1,62 @@
+# Locates the SAIGA library
+# This module defines:
+# SAIGA_FOUND
+# SAIGA_INCLUDE_DIRS
+# SAIGA_LIBRARIES
+# SAIGA_LIBRARY
+
+
+find_path(SAIGA_INCLUDE_DIRS 
+	NAMES 
+		saiga/rendering/deferredRendering/deferred_renderer.h
+	PATHS
+                @PROJECT_SOURCE_DIR@/src
+)
+
+set(SAIGA_GLBINDING_INCLUDE_DIRS ${SAIGA_INCLUDE_DIRS}/saiga/opengl/glbinding/include)
+set(SAIGA_CONFIG_INCLUDE_DIRS @PROJECT_BINARY_DIR@/include)
+
+find_path(SAIGA_SHADER_DIRS
+        NAMES
+                saiga/shaderConfig.h
+        PATHS
+                @PROJECT_SOURCE_DIR@/shader/include
+)
+
+
+find_library(SAIGA_LIBRARY 
+	NAMES 
+		saiga
+    	PATHS 
+                @PROJECT_BINARY_DIR@/bin
+)
+
+
+#GLM is required 
+find_path(SAIGA_GLM_INCLUDE_DIRS 
+	NAMES 
+		glm/glm.hpp
+	PATHS
+		/usr/local/include
+                /usr/include
+)
+
+
+#OpenGL is required
+find_package(OpenGL REQUIRED QUIET)
+
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(
+	saiga  
+	DEFAULT_MSG
+        SAIGA_INCLUDE_DIRS 
+        SAIGA_GLM_INCLUDE_DIRS
+        SAIGA_SHADER_DIRS
+        SAIGA_LIBRARY
+        OPENGL_LIBRARIES
+)
+
+set(SAIGA_INCLUDE_DIRS ${SAIGA_INCLUDE_DIRS} ${SAIGA_SHADER_DIRS} ${OPENGL_INCLUDE_DIRS} ${SAIGA_GLM_INCLUDE_DIRS} ${SAIGA_GLBINDING_INCLUDE_DIRS} ${SAIGA_CONFIG_INCLUDE_DIRS})
+set(SAIGA_LIBRARY ${SAIGA_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
+set(SAIGA_LIBRARIES ${SAIGA_LIBRARY})

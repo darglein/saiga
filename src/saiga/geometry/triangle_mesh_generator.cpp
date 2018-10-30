@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#define _USE_MATH_DEFINES
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "internal/noGraphicsAPI.h"
 namespace Saiga {

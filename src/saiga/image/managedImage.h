@@ -127,6 +127,13 @@ public:
     bool loadRaw(const std::string &path);
     bool saveRaw(const std::string &path);
 
+    /**
+     * Tries to convert the given image to a storable format.
+     * For example:
+     * Floating point images are converted to 8-bit grayscale images.
+     */
+    bool saveConvert(const std::string &path, float minValue=0, float maxValue=1);
+
 
     std::vector<uint8_t> compress();
     void decompress(std::vector<uint8_t> data);

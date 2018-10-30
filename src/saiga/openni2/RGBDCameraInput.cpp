@@ -38,25 +38,35 @@ RGBDCameraInput::RGBDCameraInput(RGBDCameraInput::CameraOptions rgbo, RGBDCamera
 
 RGBDCameraInput::~RGBDCameraInput()
 {
-    cout << "~RGBDCameraInput" << endl;
-    running = false;
-    eventThread.join();
-
-    //    device.reset();
-    //    openni::OpenNI::shutdown();
+    close();
 }
 
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::waitForImage()
 {
-    return frameBuffer.get();
+    return foundCamera ? frameBuffer.get() : nullptr;
 }
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::tryGetImage()
 {
+    if(!foundCamera) return nullptr;
     std::shared_ptr<FrameData> img;
     frameBuffer.tryGet(img);
     return img;
+}
+
+void RGBDCameraInput::close()
+{
+    if(running)
+    {
+        running = false;
+        eventThread.join();
+    }
+
+    //try add one nullptr frame to unblock waiting threads
+    frameBuffer.tryAdd(nullptr);
+
+    cout << "RGBDCameraInput closed." << endl;
 }
 
 bool RGBDCameraInput::isOpened()
@@ -299,6 +309,10 @@ void RGBDCameraInput::eventLoop()
         tmp = makeFrameData();
 
     }
+
+    resetCamera();
+    foundCamera = false;
+
 }
 
 
