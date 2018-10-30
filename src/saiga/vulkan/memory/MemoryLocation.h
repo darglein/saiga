@@ -28,6 +28,8 @@ struct SAIGA_GLOBAL MemoryLocation {
         }
     }
 
+    explicit operator bool(){return memory != static_cast<vk::DeviceMemory>(nullptr);}
+
 private:
     void mappedUpload(vk::Device device, const void* data ){
         SAIGA_ASSERT(!mappedPointer, "Memory already mapped");

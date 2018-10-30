@@ -47,7 +47,7 @@ ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 {
     vertexBuffer.destroy();
     indexBuffer.destroy();
-    fontTexture.destroy();
+    fontTexture.destroy(*base);
     Pipeline::destroy();
 }
 

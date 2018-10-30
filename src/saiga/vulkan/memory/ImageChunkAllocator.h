@@ -10,6 +10,14 @@ namespace Vulkan{
 namespace Memory{
 
 class ImageChunkAllocator : public BaseChunkAllocator {
+
+public:
+    ImageChunkAllocator() : BaseChunkAllocator() {
+
+    }
+    ImageChunkAllocator(const vk::Device &_device, ChunkBuilder *chunkAllocator, const vk::MemoryPropertyFlags &_flags,
+                        FitStrategy &strategy, vk::DeviceSize chunkSize, bool _mapped = false);
+
 protected:
     ChunkIterator createNewChunk() override;
 };

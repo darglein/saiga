@@ -33,7 +33,7 @@ void TextureDisplay::renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet text
 
 
 
-void TextureDisplay::init(Saiga::Vulkan::VulkanBase &vulkanDevice, VulkanMemory &memory, VkRenderPass renderPass)
+void TextureDisplay::init(Saiga::Vulkan::VulkanBase &vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice,1);
     addDescriptorSetLayout({
@@ -53,7 +53,7 @@ void TextureDisplay::init(Saiga::Vulkan::VulkanBase &vulkanDevice, VulkanMemory 
     shaderPipeline.destroy(device);
 
     blitMesh.createFullscreenQuad();
-    blitMesh.init(vulkanDevice, memory);
+    blitMesh.init(vulkanDevice);
 }
 
 vk::DescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture &texture)

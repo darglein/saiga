@@ -49,7 +49,7 @@ public:
         m_alignment = requirements.alignment;
         m_device.destroy(buffer);
 
-        LOG(INFO) << "Created new buffer allocator for Buffer "<< vk::to_string(usageFlags)<< ", MemType " << vk::to_string(flags) << ", alignment " << m_alignment;
+        LOG(INFO) << "Created new buffer allocator for "<< vk::to_string(usageFlags)<< ", MemType " << vk::to_string(flags) << ", alignment " << m_alignment;
     }
 
 

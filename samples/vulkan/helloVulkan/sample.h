@@ -57,8 +57,8 @@ private:
     Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
 
 //
-//    vk::DescriptorSet textureDes;
-//    Saiga::Vulkan::TextureDisplay textureDisplay;
+    vk::DescriptorSet textureDes;
+    Saiga::Vulkan::TextureDisplay textureDisplay;
 
     Saiga::Vulkan::VulkanForwardRenderer &renderer;
 

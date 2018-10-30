@@ -29,7 +29,7 @@ public:
     IndexBuffer<uint32_t> indexBuffer;
 
 
-    void init(Saiga::Vulkan::VulkanBase &base, Saiga::Vulkan::Memory::VulkanMemory &memory);
+    void init(Saiga::Vulkan::VulkanBase &base);
     void render(vk::CommandBuffer cmd);
 
 //    void updateBuffer(Saiga::Vulkan::VulkanBase& base);

@@ -23,9 +23,11 @@
 namespace Saiga{
 namespace Vulkan{
 
-struct SAIGA_GLOBAL Texture : public DeviceMemory
+struct SAIGA_GLOBAL Texture
 {
-    VulkanBase *base;
+
+//    VulkanBase *base;
+    MemoryLocation memoryLocation;
     vk::Image image;
     vk::ImageLayout imageLayout;
     vk::ImageView imageView;
@@ -34,8 +36,8 @@ struct SAIGA_GLOBAL Texture : public DeviceMemory
     uint32_t layerCount;
     vk::Sampler sampler;
 
-    ~Texture();
-    void destroy();
+//    ~Texture();
+    void destroy(VulkanBase& base);
 
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
 

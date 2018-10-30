@@ -38,7 +38,7 @@ public:
 
 
 
-    void init(Saiga::Vulkan::VulkanBase &vulkanDevice, VulkanMemory &memory, VkRenderPass renderPass);
+    void init(Saiga::Vulkan::VulkanBase &vulkanDevice, VkRenderPass renderPass);
 
 
     vk::DescriptorSet createAndUpdateDescriptorSet( Texture& texture );

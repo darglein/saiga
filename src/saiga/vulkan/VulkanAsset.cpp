@@ -12,7 +12,7 @@
 namespace Saiga {
 namespace Vulkan {
 
-void VulkanVertexColoredAsset::init(Saiga::Vulkan::VulkanBase &base, Saiga::Vulkan::Memory::VulkanMemory &memory)
+void VulkanVertexColoredAsset::init(Saiga::Vulkan::VulkanBase &base)
 {
     auto indices = mesh.getIndexList();
 #if 0

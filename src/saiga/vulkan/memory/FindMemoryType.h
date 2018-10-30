@@ -6,7 +6,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-uint32_t findMemoryType(vk::PhysicalDevice _pDev, uint32_t typeFilter, const vk::MemoryPropertyFlags &properties) {
+inline uint32_t findMemoryType(vk::PhysicalDevice _pDev, uint32_t typeFilter, const vk::MemoryPropertyFlags &properties) {
     vk::PhysicalDeviceMemoryProperties memProperties = _pDev.getMemoryProperties();
 
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {

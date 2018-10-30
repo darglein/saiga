@@ -7,28 +7,29 @@ namespace Saiga{
 namespace Vulkan{
 
 
-Texture::~Texture()
-{
-//    cout << "destroy texture" << endl;
-    destroy();
-}
+//Texture::~Texture()
+//{
+////    cout << "destroy texture" << endl;
+//    destroy();
+//}
 
-void Texture::destroy()
+void Texture::destroy(VulkanBase& base)
 {
     if(image)
     {
-        device.destroyImage(image);
-        device.destroyImageView(imageView);
-        device.destroySampler(sampler);
-        DeviceMemory::destroy();
+        base.device.destroyImage(image);
+        base.device.destroyImageView(imageView);
+        base.device.destroySampler(sampler);
         image = nullptr;
+    }
+
+    if (memoryLocation) {
+        base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).deallocate(memoryLocation);
     }
 }
 
 void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
 {
-
-
     vk::ImageMemoryBarrier barrier = {};
     barrier.oldLayout = imageLayout;
     barrier.newLayout = newLayout;
@@ -89,9 +90,7 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo()
 
 void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usage)
 {
-    destroy();
-    device = base.device;
-
+    destroy(base);
 
     mipLevels = 1;
     width = img.width;
@@ -122,15 +121,14 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     SAIGA_ASSERT(image);
 
 
+
+
     auto memReqs = base.device.getImageMemoryRequirements(image);
+    memoryLocation = base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
 //    base.memory.getAllocator(finalUsageFlags,vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
-    DeviceMemory::allocateMemory(base,memReqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
-    device.bindImageMemory(image,memory,0);
+//    DeviceMemory::allocateMemory(base,memReqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-
-
-
-
+    base.device.bindImageMemory(image,memoryLocation.memory, memoryLocation.offset);
 
     vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
 
@@ -167,7 +165,7 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     viewCreateInfo.format = format;
     viewCreateInfo.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
     viewCreateInfo.image = image;
-    imageView = device.createImageView(viewCreateInfo);
+    imageView = base.device.createImageView(viewCreateInfo);
     SAIGA_ASSERT(imageView);
 
     // Create a defaultsampler
@@ -188,7 +186,7 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     samplerCreateInfo.anisotropyEnable = VK_FALSE;
     samplerCreateInfo.borderColor = vk::BorderColor::eIntOpaqueWhite;
     //    VK_CHECK_RESULT(vkCreateSampler(device->device, &samplerCreateInfo, nullptr, &sampler));
-    sampler = device.createSampler(samplerCreateInfo);
+    sampler = base.device.createSampler(samplerCreateInfo);
     SAIGA_ASSERT(sampler);
 
 //    cout << "texture created." << endl;

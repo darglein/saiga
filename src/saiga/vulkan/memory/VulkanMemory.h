@@ -7,6 +7,8 @@
 #include "BufferChunkAllocator.h"
 #include "ChunkBuilder.h"
 #include "SimpleMemoryAllocator.h"
+#include "ImageChunkAllocator.h"
+#include <sstream>
 namespace Saiga {
 namespace Vulkan {
 namespace Memory {
@@ -25,8 +27,7 @@ public:
     SimpleMemoryAllocator hostVertexIndexAllocator;
     SimpleMemoryAllocator stagingAllocator;
     BufferChunkAllocator uniformAllocator;
-    BufferChunkAllocator imageAllocator;
-    BufferChunkAllocator storageImageAllocator;
+    ImageChunkAllocator imageAllocator;
     FirstFitStrategy strategy;
 
 
@@ -45,7 +46,7 @@ public:
                               vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eUniformBuffer,strategy,1024*1024,true);
         hostVertexIndexAllocator.init(_device,_pDevice,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                                       vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst );
-//        imageAllocator= ChunkBufferAllocator(_device, chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal, default_image,strategy,)
+        imageAllocator = ImageChunkAllocator(_device, &chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal, strategy, 64*1024*1024);
     }
 
 
@@ -68,15 +69,19 @@ public:
         if ((usage&vk::BufferUsageFlagBits::eStorageBuffer) == vk::BufferUsageFlagBits::eStorageBuffer) {
             return storageAllocator;
         }
-
-        throw std::runtime_error("Unknown allocator");
+        LOG(ERROR) << "No allocator for " << vk::to_string(usage) << ", " << vk::to_string(flags);
+        throw std::runtime_error("No allocator found.");
     }
 
 //
 //
-//    MemoryAllocatorBase& getAllocator(const vk::ImageUsageFlags& imageUsageFlags, const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal) {
-//        if (imageUsageFlags & vk::ImageUsageFlagBits::)
-//    }
+    BaseMemoryAllocator& getImageAllocator(const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal) {
+        if ((flags & vk::MemoryPropertyFlagBits::eDeviceLocal) == vk::MemoryPropertyFlagBits::eDeviceLocal) {
+            return imageAllocator;
+        }
+        LOG(ERROR) << "No allocator for: " << vk::to_string(flags);
+        throw std::runtime_error("No allocator found.");
+    }
 
 
     void destroy() {

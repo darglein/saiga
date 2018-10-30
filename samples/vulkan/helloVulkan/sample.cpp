@@ -66,9 +66,9 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase &base)
 //    lineAssetRenderer.init(base,renderer.renderPass,2);
     pointCloudRenderer.init(base,renderer.renderPass,5);
     texturedAssetRenderer.init(base,renderer.renderPass);
-//    textureDisplay.init(base, memory, renderer.renderPass);
+    textureDisplay.init(base, renderer.renderPass);
 //
-//    textureDes = textureDisplay.createAndUpdateDescriptorSet(*texture);
+    textureDes = textureDisplay.createAndUpdateDescriptorSet(*texture);
 
     box.loadObj("box.obj");
     box.init(renderer.base);
@@ -192,9 +192,9 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 
 
-//    textureDisplay.bind(cmd);
+    textureDisplay.bind(cmd);
 
-//    textureDisplay.renderTexture(cmd,textureDes,vec2(10,10),vec2(150,50));
+    textureDisplay.renderTexture(cmd,textureDes,vec2(10,10),vec2(150,50));
 }
 
 void VulkanExample::renderGUI()
