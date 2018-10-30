@@ -31,7 +31,7 @@ int main(const int argc, const char *argv[])
 
 
         std::vector<int,VulkanStlAllocator<int>> test(alloc);
-//        test.reserve(1000);
+        test.reserve(1000);
         for(int i =0; i<10000;++i) {
             test.push_back(i);
         }
