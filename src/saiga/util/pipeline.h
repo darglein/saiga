@@ -44,6 +44,11 @@ public:
             while(running)
             {
                 tmp = op();
+
+                // Do not add objects that convert to false.
+                if(!tmp)
+                    continue;
+
                 if(override)
                 {
                     buffer.addOverride(tmp);

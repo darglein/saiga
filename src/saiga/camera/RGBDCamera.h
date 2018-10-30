@@ -45,7 +45,9 @@ public:
     virtual std::shared_ptr<FrameData> waitForImage() = 0;
     virtual std::shared_ptr<FrameData> tryGetImage() { return waitForImage(); }
 
-
+    // Close the camera.
+    // Blocking calls to waitForImage should return a 'nullptr'
+    virtual void close() {}
     virtual bool isOpened() { return true; }
 protected:
     CameraOptions rgbo, deptho;

@@ -45,8 +45,8 @@ public:
     virtual std::shared_ptr<FrameData> tryGetImage() override;
 
 
+    virtual void close() override;
     virtual bool isOpened() override;
-
 
     // The user can change these variables, but must call 'updateCameraSettings' to make the take effect
     bool autoexposure = true;
