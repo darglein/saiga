@@ -123,8 +123,8 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
 
 
     auto memReqs = base.device.getImageMemoryRequirements(image);
-    base.memory.getAllocator(finalUsageFlags,vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
-//    DeviceMemory::allocateMemory(base,memReqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
+//    base.memory.getAllocator(finalUsageFlags,vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
+    DeviceMemory::allocateMemory(base,memReqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
     device.bindImageMemory(image,memory,0);
 
 

@@ -20,7 +20,7 @@ namespace Memory {
  * Class that allocates chunks of memory for different types.
  * Returns shared pointers to the chunks.
  */
-class SAIGA_GLOBAL ChunkAllocator {
+class SAIGA_GLOBAL ChunkBuilder {
 
 private:
     bool m_initialized = false;

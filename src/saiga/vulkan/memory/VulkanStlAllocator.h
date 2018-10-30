@@ -40,7 +40,7 @@ private:
     vk::PhysicalDevice m_physicalDevice;
     vk::BufferUsageFlags m_usageFlags;
 
-    MemoryAllocatorBase* allocator;
+    BaseMemoryAllocator* allocator;
 public:
     VulkanStlAllocator(VulkanBase& base, const vk::BufferUsageFlags &_usageFlags) :
         m_device(base.device), m_physicalDevice(base.physicalDevice), m_usageFlags(_usageFlags) {

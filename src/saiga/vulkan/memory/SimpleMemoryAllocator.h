@@ -5,10 +5,10 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 #include "saiga/export.h"
-#include "saiga/vulkan/memory/ChunkAllocator.h"
+#include "saiga/vulkan/memory/ChunkBuilder.h"
 #include "saiga/util/imath.h"
 #include "saiga/vulkan/memory/MemoryLocation.h"
-#include "MemoryAllocatorBase.h"
+#include "BaseMemoryAllocator.h"
 
 #include <limits>
 #include <saiga/util/easylogging++.h>
@@ -19,7 +19,7 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory{
 
-struct SAIGA_GLOBAL SimpleMemoryAllocator : public MemoryAllocatorBase {
+struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator {
 private:
     vk::BufferCreateInfo m_bufferCreateInfo;
     vk::Device m_device;
@@ -46,6 +46,9 @@ public:
     }
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags  usageFlags;
+
+    SimpleMemoryAllocator() : BaseMemoryAllocator(false) {}
+
     void init(vk::Device _device, vk::PhysicalDevice _physicalDevice, const vk::MemoryPropertyFlags &_flags,
               const vk::BufferUsageFlags &usage, bool _mapped = false) {
         m_device = _device;

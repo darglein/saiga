@@ -4,8 +4,8 @@
 
 #pragma once
 #include <vulkan/vulkan.hpp>
-#include "ChunkMemoryAllocator.h"
-#include "ChunkAllocator.h"
+#include "BufferChunkAllocator.h"
+#include "ChunkBuilder.h"
 #include "SimpleMemoryAllocator.h"
 namespace Saiga {
 namespace Vulkan {
@@ -13,34 +13,43 @@ namespace Memory {
 
 
 struct VulkanMemory {
-    ChunkAllocator chunkAllocator;
-    ChunkMemoryAllocator vertexIndexAllocator;
+
+private:
+    const vk::ImageUsageFlags default_image = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
+    const vk::ImageUsageFlags storage_image = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst;
+public:
+
+    ChunkBuilder chunkAllocator;
+    BufferChunkAllocator vertexIndexAllocator;
     SimpleMemoryAllocator storageAllocator;
     SimpleMemoryAllocator hostVertexIndexAllocator;
     SimpleMemoryAllocator stagingAllocator;
-    ChunkMemoryAllocator uniformAllocator;
-    ChunkMemoryAllocator imageAllocator;
-    std::shared_ptr<FirstFitStrategy> strategy;
+    BufferChunkAllocator uniformAllocator;
+    BufferChunkAllocator imageAllocator;
+    BufferChunkAllocator storageImageAllocator;
+    FirstFitStrategy strategy;
+
+
 
     void init(vk::PhysicalDevice _pDevice, vk::Device _device) {
-        strategy=std::make_shared<FirstFitStrategy>();
+        strategy = FirstFitStrategy();
         chunkAllocator.init(_pDevice, _device);
-        vertexIndexAllocator.init(_device, &chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal,
+        vertexIndexAllocator = BufferChunkAllocator(_device, &chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal,
                 vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                strategy, 64*1024*1024,"DeviceVertexIndexAllocator");
+                strategy, 64*1024*1024);
         stagingAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                 vk::BufferUsageFlagBits::eTransferSrc);
         storageAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent,
                 vk::BufferUsageFlagBits::eStorageBuffer| vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc);
-        uniformAllocator.init(_device, &chunkAllocator, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-                              vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eUniformBuffer,strategy,1024*1024, "UniformAllocator",true);
+        uniformAllocator= BufferChunkAllocator(_device, &chunkAllocator, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+                              vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eUniformBuffer,strategy,1024*1024,true);
         hostVertexIndexAllocator.init(_device,_pDevice,vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                                       vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst );
-        imageAllocator.init(_device, chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageU)
+//        imageAllocator= ChunkBufferAllocator(_device, chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal, default_image,strategy,)
     }
 
 
-    MemoryAllocatorBase& getAllocator(const vk::BufferUsageFlags &usage, const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal) {
+    BaseMemoryAllocator& getAllocator(const vk::BufferUsageFlags &usage, const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal) {
         if ((usage & vk::BufferUsageFlagBits::eTransferSrc) == vk::BufferUsageFlagBits::eTransferSrc) {
             return stagingAllocator;
         }
@@ -63,9 +72,11 @@ struct VulkanMemory {
         throw std::runtime_error("Unknown allocator");
     }
 
-    MemoryAllocatorBase& getAllocator(const vk::ImageUsageFlags& imageUsageFlags, const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal) {
-        if (imageUsageFlags & vk::ImageUsageFlagBits::)
-    }
+//
+//
+//    MemoryAllocatorBase& getAllocator(const vk::ImageUsageFlags& imageUsageFlags, const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal) {
+//        if (imageUsageFlags & vk::ImageUsageFlagBits::)
+//    }
 
 
     void destroy() {
