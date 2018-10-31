@@ -114,8 +114,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     {
         ImageView<T> fy = *this;
         fy.data = rowPtr(height-1);
-//        fy.pitchBytes = -pitchBytes;
-//        fy.pitchBytes = 0xFFFFFFFFFFFFFFFF - pitchBytes + 1;
+        //        fy.pitchBytes = -pitchBytes;
+        //        fy.pitchBytes = 0xFFFFFFFFFFFFFFFF - pitchBytes + 1;
         fy.pitchBytes = ~pitchBytes + 1;
         return fy;
     }
@@ -186,7 +186,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         auto b11 = ttf.toFloat((*this)(y1,x1));
 
         auto res = (b00 * (1.0f - ax) + b01 * (ax)) * (1.0f - ay) +
-                   (b10 * (1.0f - ax) + b11 * (ax)) * (ay);
+                (b10 * (1.0f - ax) + b11 * (ax)) * (ay);
 
         return ttf.fromFloat(res);
     }
@@ -321,7 +321,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
                 typename TFC::FloatType sum(0);
 
-                 // Average inner patch
+                // Average inner patch
                 for(int i = 0; i < factor; ++i)
                 {
                     for(int j = 0; j < factor; ++j)
@@ -334,6 +334,59 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
                 sum *= div;
                 a(y,x) = ttf.fromFloat(sum);
             }
+        }
+    }
+
+
+    /**
+     * Computes the gradient in x direction.
+     * Zentral difference is used for all pixels except the border.
+     * At the border forward/backward difference is used.
+     */
+    inline
+    void gx(ImageView<T> gradient) const
+    {
+        SAIGA_ASSERT(height == gradient.height && width == gradient.width);
+
+        for(int y = 0; y < height; ++y)
+        {
+            for(int x = 1; x < width - 1; ++x)
+            {
+                auto zentralDifference = (*this)(y,x + 1) - (*this)(y,x - 1);
+                gradient(y,x) = zentralDifference / T(2);
+            }
+            // left border (forward difference)
+            gradient(y,0) = (*this)(y,1) - (*this)(y,0);
+            // right border (backward difference)
+            gradient(y,w-1) = (*this)(y,w-1) - (*this)(y,w-2);
+        }
+    }
+
+    /**
+     * Computes the gradient in y direction.
+     * See 'gx' for more information.
+     */
+    inline
+    void gy(ImageView<T> gradient) const
+    {
+        SAIGA_ASSERT(height == gradient.height && width == gradient.width);
+
+        for(int y = 1; y < height - 1; ++y)
+        {
+            for(int x = 0; x < width; ++x)
+            {
+                auto zentralDifference = (*this)(y + 1,x) - (*this)(y-1,x);
+                gradient(y,x) = zentralDifference / T(2);
+            }
+        }
+
+
+        for(int x = 0; x < width; ++x)
+        {
+            // upper border (forward difference)
+            gradient(0,x) = (*this)(1,x) - (*this)(0,x);
+            // lower border (backward difference)
+            gradient(h-1,x) = (*this)(h-1,x) - (*this)(h-2,x);
         }
     }
 
