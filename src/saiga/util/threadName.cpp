@@ -7,6 +7,10 @@
 #include "threadName.h"
 
 #ifdef __APPLE__
+#include <pthread.h>
+#endif
+
+#ifdef __APPLE__
 static void SetThreadName(uint32_t dwThreadID, const char* threadName)
 {
 }
@@ -60,7 +64,7 @@ void setThreadName(const std::string& name)
 {
 
 #ifdef  __APPLE__
-
+    pthread_setname_np(name.c_str());
 #elif _WIN32
 
     SetThreadName(GetCurrentThreadId(),name.c_str());
@@ -72,7 +76,7 @@ void setThreadName(const std::string& name)
 void setThreadName(std::thread& thread, const std::string& name)
 {
 #ifdef  __APPLE__
-
+    pthread_setname_np(name.c_str());
 #elif _WIN32
     DWORD threadId = ::GetThreadId( static_cast<HANDLE>( thread->native_handle() ) );
     SetThreadName(threadId,name.c_str());

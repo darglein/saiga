@@ -51,10 +51,10 @@ public:
 
     void quit();
 
-    int getWorkingThreads() { return workingThreads; }
+    size_t getWorkingThreads() { return workingThreads; }
 private:
     // number of currently working threads
-    int workingThreads = 0;
+    size_t workingThreads = 0;
     // need to keep track of threads so we can join them
     std::vector< std::thread > workers;
     // the task queue
