@@ -164,10 +164,10 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 //        return;
 
 
-        pointCloudRenderer.bind(cmd);
-
-        pointCloudRenderer.pushModel(cmd,mat4(1));
-        pointCloud.render(cmd,0,pointCloud.capacity);
+//        pointCloudRenderer.bind(cmd);
+//
+//        pointCloudRenderer.pushModel(cmd,mat4(1));
+//        pointCloud.render(cmd,0,pointCloud.capacity);
 
 
 //        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(10,0,0)));

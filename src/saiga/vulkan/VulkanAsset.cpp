@@ -104,6 +104,7 @@ void VulkanTexturedAsset::init(VulkanBase &base)
 
     auto indices = mesh.getIndexList();
 
+//    std::cout << mesh.vertices.size() << std::endl;
     vertexBuffer.init(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
     indexBuffer.init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
 

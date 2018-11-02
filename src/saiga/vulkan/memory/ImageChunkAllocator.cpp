@@ -20,5 +20,9 @@ Saiga::Vulkan::Memory::ImageChunkAllocator::ImageChunkAllocator(const vk::Device
                                                                 vk::DeviceSize chunkSize,bool _mapped)
         : BaseChunkAllocator(_device, chunkAllocator, _flags, strategy, chunkSize, _mapped) {
 
-    LOG(INFO) << "Created new image allocator for " << vk::to_string(_flags);
+    LOG(INFO) << "Created new image allocator for flags " << vk::to_string(_flags);
+}
+
+void Saiga::Vulkan::Memory::ImageChunkAllocator::destroy() {
+
 }

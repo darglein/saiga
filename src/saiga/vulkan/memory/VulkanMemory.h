@@ -86,10 +86,11 @@ public:
 
     void destroy() {
         vertexIndexAllocator.destroy();
+        uniformAllocator.destroy();
+        imageAllocator.destroy();
         chunkAllocator.destroy();
         hostVertexIndexAllocator.destroy();
         stagingAllocator.destroy();
-        uniformAllocator.destroy();
     }
 };
 

@@ -18,6 +18,8 @@ public:
     ImageChunkAllocator(const vk::Device &_device, ChunkBuilder *chunkAllocator, const vk::MemoryPropertyFlags &_flags,
                         FitStrategy &strategy, vk::DeviceSize chunkSize, bool _mapped = false);
 
+    void destroy();
+
 protected:
     ChunkIterator createNewChunk() override;
 };
