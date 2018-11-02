@@ -38,9 +38,9 @@ ThreadPool::ThreadPool(size_t threads)
     for(size_t i = 0; i < threads; ++i)
     {
         workers.emplace_back(
-                    [this]
+                    [this,i]
         {
-            setThreadName("ThreadPool");
+            setThreadName("ThreadPool Thread " + std::to_string(i));
             for(;;)
             {
                 std::function<void()> task;
