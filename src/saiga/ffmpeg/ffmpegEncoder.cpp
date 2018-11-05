@@ -292,7 +292,7 @@ void FFMPEGEncoder::startEncoding()
     if(m_formatCtx->oformat->flags & AVFMT_GLOBALHEADER)
     {
 
-        #ifdef __APPLE__
+        #if  defined(__APPLE__) || __GNUC__ > 7
         m_codecContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
         #else
         m_codecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
