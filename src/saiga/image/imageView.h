@@ -296,9 +296,9 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     /**
      * Copies this image to the target image.
      * The target image must be a power of 2 smaller.
-     * The resulting pixels will be average.
+     * The resulting pixels will be averaged.
      *
-     * factor must be a power of 2!!!
+     * Factor must be a power of 2!!!
      */
     template<typename T2>
     inline

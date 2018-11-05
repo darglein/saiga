@@ -223,6 +223,7 @@ endif()
 
 
 if(SAIGA_WITH_GL)
+    set(OpenGL_GL_PREFERENCE LEGACY)
     find_package(OpenGL QUIET)
     PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
 endif()
