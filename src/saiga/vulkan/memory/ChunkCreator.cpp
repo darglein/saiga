@@ -2,13 +2,13 @@
 // Created by Peter Eichinger on 08.10.18.
 //
 
-#include "ChunkBuilder.h"
+#include "ChunkCreator.h"
 using Saiga::Vulkan::Memory::MemoryLocation;
-using Saiga::Vulkan::Memory::ChunkBuilder;
+using Saiga::Vulkan::Memory::ChunkCreator;
 using Saiga::Vulkan::Memory::ChunkType;
 using Saiga::Vulkan::Memory::Chunk;
 
-ChunkType& ChunkBuilder::findMemoryType(vk::MemoryPropertyFlags flags) {
+ChunkType& ChunkCreator::findMemoryType(vk::MemoryPropertyFlags flags) {
     for(auto& memType : m_memoryTypes) {
         if ((memType.propertyFlags & flags) == flags) {
             return memType;
@@ -18,7 +18,7 @@ ChunkType& ChunkBuilder::findMemoryType(vk::MemoryPropertyFlags flags) {
 }
 
 
-void Saiga::Vulkan::Memory::ChunkBuilder::init(vk::PhysicalDevice _physicalDevice, vk::Device _device) {
+void Saiga::Vulkan::Memory::ChunkCreator::init(vk::PhysicalDevice _physicalDevice, vk::Device _device) {
     m_physicalDevice = _physicalDevice;
     m_device = _device;
 
@@ -32,7 +32,7 @@ void Saiga::Vulkan::Memory::ChunkBuilder::init(vk::PhysicalDevice _physicalDevic
     m_initialized = true;
 }
 
-std::shared_ptr<Chunk> ChunkBuilder::allocate(vk::MemoryPropertyFlags propertyFlags,vk::DeviceSize chunkSize) {
+std::shared_ptr<Chunk> ChunkCreator::allocate(vk::MemoryPropertyFlags propertyFlags,vk::DeviceSize chunkSize) {
     if (!m_initialized) {
         throw std::runtime_error("Must be initialized before use");
     }
@@ -41,7 +41,7 @@ std::shared_ptr<Chunk> ChunkBuilder::allocate(vk::MemoryPropertyFlags propertyFl
     return memType.allocate(chunkSize);
 }
 
-void Saiga::Vulkan::Memory::ChunkBuilder::deallocate(std::shared_ptr<Chunk> chunk) {
+void Saiga::Vulkan::Memory::ChunkCreator::deallocate(std::shared_ptr<Chunk> chunk) {
     if (!m_initialized) {
         throw std::runtime_error("Must be initialized before use");
     }

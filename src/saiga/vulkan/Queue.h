@@ -9,6 +9,7 @@
 
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/CommandPool.h"
+#include <mutex>
 
 namespace Saiga {
 namespace Vulkan {
@@ -36,6 +37,7 @@ public:
 
     CommandPool createCommandPool();
 private:
+    std::mutex submitMutex;
     uint32_t queueFamilyIndex;
     uint32_t queueIndex;
     vk::Device device;

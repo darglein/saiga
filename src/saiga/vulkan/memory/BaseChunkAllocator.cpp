@@ -4,7 +4,7 @@
 
 #include "BufferChunkAllocator.h"
 #include "BaseChunkAllocator.h"
-#include "ChunkBuilder.h"
+#include "ChunkCreator.h"
 #include "saiga/util/easylogging++.h"
 
 
@@ -12,6 +12,7 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory {
 MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size) {
+    allocationMutex.lock();
     ChunkIterator chunkAlloc;
     LocationIterator freeSpace;
     tie(chunkAlloc, freeSpace) = m_strategy->findRange(m_chunkAllocations, size);
@@ -49,7 +50,11 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size) {
     auto insertionPoint = find_if (chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(),
             [=](MemoryLocation& loc){return loc.offset > memoryEnd;});
 
-    return *chunkAlloc->allocations.insert(insertionPoint,targetLocation);
+
+    auto val =  *chunkAlloc->allocations.insert(insertionPoint,targetLocation);
+    allocationMutex.unlock();
+
+    return val;
 }
 
 void BaseChunkAllocator::findNewMax(ChunkIterator &chunkAlloc) const {
@@ -64,7 +69,7 @@ MemoryLocation BaseChunkAllocator::createMemoryLocation(ChunkIterator iter, vk::
 }
 
 void BaseChunkAllocator::deallocate(MemoryLocation &location) {
-
+    allocationMutex.lock();
     LOG(INFO) << "Trying to dealocate [" << location.offset << "/" << location.size<<"]";
     auto fChunk = find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
             [&](ChunkAllocation const & alloc){return alloc.chunk->memory == location.memory;});
@@ -123,6 +128,7 @@ void BaseChunkAllocator::deallocate(MemoryLocation &location) {
     }
 
     chunkAllocs.erase(fLoc);
+    allocationMutex.unlock();
 }
 }
 }

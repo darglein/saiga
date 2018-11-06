@@ -5,7 +5,7 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 #include "saiga/export.h"
-#include "saiga/vulkan/memory/ChunkBuilder.h"
+#include "saiga/vulkan/memory/ChunkCreator.h"
 #include "saiga/util/imath.h"
 #include "saiga/vulkan/memory/MemoryLocation.h"
 #include "saiga/vulkan/memory/BaseMemoryAllocator.h"
@@ -24,7 +24,7 @@ namespace Vulkan{
 namespace Memory{
 
 
-class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator {
+class SAIGA_LOCAL BufferChunkAllocator : public BaseChunkAllocator {
 private:
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();
     vk::BufferCreateInfo m_bufferCreateInfo;
@@ -36,7 +36,7 @@ public:
     vk::BufferUsageFlags usageFlags;
 
     BufferChunkAllocator() : BaseChunkAllocator() {}
-    BufferChunkAllocator(vk::Device _device, ChunkBuilder* chunkAllocator, const vk::MemoryPropertyFlags &_flags,
+    BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, const vk::MemoryPropertyFlags &_flags,
                     const vk::BufferUsageFlags &usage, FitStrategy& strategy, vk::DeviceSize chunkSize = 64* 1024* 1024,
                     bool _mapped = false) : BaseChunkAllocator(_device, chunkAllocator, _flags, strategy, chunkSize,_mapped),
                     usageFlags(usage) {

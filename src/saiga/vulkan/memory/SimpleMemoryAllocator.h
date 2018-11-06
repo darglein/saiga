@@ -5,7 +5,7 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 #include "saiga/export.h"
-#include "saiga/vulkan/memory/ChunkBuilder.h"
+#include "saiga/vulkan/memory/ChunkCreator.h"
 #include "saiga/util/imath.h"
 #include "saiga/vulkan/memory/MemoryLocation.h"
 #include "BaseMemoryAllocator.h"

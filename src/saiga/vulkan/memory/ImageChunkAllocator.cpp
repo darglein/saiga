@@ -14,7 +14,7 @@ Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator:
 }
 
 Saiga::Vulkan::Memory::ImageChunkAllocator::ImageChunkAllocator(const vk::Device &_device,
-                                                                Saiga::Vulkan::Memory::ChunkBuilder *chunkAllocator,
+                                                                Saiga::Vulkan::Memory::ChunkCreator *chunkAllocator,
                                                                 const vk::MemoryPropertyFlags &_flags,
                                                                 Saiga::Vulkan::Memory::FitStrategy &strategy,
                                                                 vk::DeviceSize chunkSize,bool _mapped)

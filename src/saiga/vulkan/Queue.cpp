@@ -42,7 +42,7 @@ void Queue::submitAndWait(vk::CommandBuffer cmd)
     submitInfo.pCommandBuffers = &cmd;
     auto fence = device.createFence({});
     queue.submit(submitInfo,fence);
-    device.waitForFences(fence, true, std::numeric_limits<uint64_t>::max());
+    device.waitForFences(fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     device.destroyFence(fence);
 }
 
@@ -54,8 +54,9 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd) {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
     auto fence = device.createFence({});
+    submitMutex.lock();
     queue.submit(submitInfo,fence);
-
+    submitMutex.unlock();
     return fence;
 }
 

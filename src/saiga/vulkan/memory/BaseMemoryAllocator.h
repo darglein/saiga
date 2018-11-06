@@ -10,7 +10,7 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory{
 
-struct SAIGA_GLOBAL BaseMemoryAllocator {
+struct SAIGA_LOCAL BaseMemoryAllocator {
 
     explicit BaseMemoryAllocator(bool _mapped) : mapped(_mapped) {}
 
