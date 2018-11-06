@@ -10,6 +10,9 @@
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/tests/test_helper.h"
 
+//cuobjdump globalMemory --dump-sass -arch sm_61 > sass.txt
+
+//#define LECTURE
 
 struct Particle
 {
@@ -52,6 +55,8 @@ void integrateEulerBase(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayVie
     dstParticles[ti.thread_id] = p;
 }
 
+
+#ifndef LECTURE
 
 __global__ static
 void integrateEulerVector(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
@@ -140,6 +145,8 @@ void integrateEulerSharedVector(Saiga::ArrayView<Particle> srcParticles, Saiga::
     }
 }
 
+#endif
+
 //nvcc $CPPFLAGS -I ../../../src/ -I ../../../build/include/ -ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr main.cu
 
 void particleTest()
@@ -166,6 +173,7 @@ void particleTest()
 
     int its = 50;
 
+#ifndef LECTURE
     Saiga::CUDA::PerformanceTestHelper pth("Euler Integration", readWrites);
 
     {
@@ -178,8 +186,10 @@ void particleTest()
         pth.addMeassurement("integrateEulerBase",st.median);
         CUDA_SYNC_CHECK_ERROR();
     }
+
+
     {
-         particles = hp;
+        particles = hp;
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
             integrateEulerVector<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
@@ -192,7 +202,7 @@ void particleTest()
 
 
     {
-         particles = hp;
+        particles = hp;
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
             integrateEulerInverseVector<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(pr,vm,pr2,vm2,0.1f);
@@ -203,15 +213,16 @@ void particleTest()
 
 
     {
-          particles = hp;
+        particles = hp;
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
         {
             integrateEulerSharedVector<BLOCK_SIZE><<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
         });
         test = particles2;
         SAIGA_ASSERT(test == ref);
-        pth.addMeassurement("integrateEulerInverseVector",st.median);
+        pth.addMeassurement("integrateEulerSharedVector",st.median);
     }
+
 
     {
         auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
@@ -220,7 +231,7 @@ void particleTest()
         });
         pth.addMeassurement("cudaMemcpy",st.median);
     }
-
+#endif
     CUDA_SYNC_CHECK_ERROR();
 }
 
@@ -236,6 +247,7 @@ void memcpyTest()
     thrust::device_vector<int> dest(N);
 
 
+#ifndef LECTURE
     // Only a single execution
     // This might not be so accurate
     {
@@ -258,7 +270,7 @@ void memcpyTest()
         });
         pth.addMeassurement("cudaMemcpy",st.median);
     }
-
+#endif
 
 
     CUDA_SYNC_CHECK_ERROR();

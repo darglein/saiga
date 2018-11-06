@@ -22,7 +22,7 @@ template<> struct MatchingFloatType<ucvec4>{using FloatType = vec4; };
 
 
 template<typename T, typename ST = float>
-struct SAIGA_GLOBAL NormalizeScale{ const static ST scale = ST(1); };
+struct SAIGA_GLOBAL NormalizeScale{ constexpr static ST scale = ST(1); };
 
 template<typename ST> struct NormalizeScale<char,ST>{ constexpr static ST scale = ST(255); };
 template<typename ST> struct NormalizeScale<unsigned char,ST>{ constexpr static ST scale = ST(255); };

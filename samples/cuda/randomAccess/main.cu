@@ -16,6 +16,8 @@
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 
+//#define LECTURE
+
 std::ofstream outstrm;
 
 
@@ -45,7 +47,8 @@ void randomAccessSimple(ArrayView<T> data, ArrayView<T> result)
     {
         r = simpleRand(r);
         auto index = r % data.size();
-        sum += data[index];
+//        sum += data[index];
+        sum += Saiga::CUDA::ldg(data.data()+index);
     }
 
     // Reduce the cache impact of the output array
@@ -53,6 +56,9 @@ void randomAccessSimple(ArrayView<T> data, ArrayView<T> result)
     if(ti.lane_id == 0)
         result[ti.warp_id] = sum;
 }
+
+
+#ifndef LECTURE
 
 template<typename T, unsigned int BLOCK_SIZE, unsigned int K>
 __global__ static
@@ -129,6 +135,7 @@ void randomAccessTexture( ArrayView<T> data, ArrayView<T> result)
         result[ti.warp_id] = sum;
 }
 
+#endif
 
 template<typename ElementType>
 void randomAccessTest2(int numIndices, int numElements)
@@ -176,6 +183,7 @@ void randomAccessTest2(int numIndices, int numElements)
 
     //    SAIGA_ASSERT(ref == d_result);
 
+    #ifndef LECTURE
     {
         d_result = result;
 
@@ -210,6 +218,7 @@ void randomAccessTest2(int numIndices, int numElements)
 
 
 
+#endif
     {
         cudaBindTexture(0, dataTexture, d_data.data().get(), d_data.size()*sizeof(ElementType));
         d_result = result;
@@ -240,12 +249,23 @@ int main(int argc, char *argv[])
 
     outstrm.open("out.csv");
     outstrm << "size,simple,cr,ldg,texture" << endl;
-    for(int i = 8; i < 24; ++i)
+
+    #ifdef LECTURE
+    int start = 8;
+    int end = 9;
+    randomAccessTest2<int>(1 << 12,       1 * 1024 * 1024);
+#else
+    int start = 8;
+    int end = 24;
+
+
+    for(int i = start; i < end; ++i)
     {
         randomAccessTest2<int>(1 << i,       1 * 1024 * 1024);
         if(i > 0)
             randomAccessTest2<int>( (1 << i) + (1 << (i-1)),       1 * 1024 * 1024);
     }
+    #endif
     CUDA_SYNC_CHECK_ERROR();
     return 0;
 }
