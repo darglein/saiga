@@ -31,6 +31,7 @@
 #define EASYLOGGINGPP_H
 #define ELPP_NO_LOG_TO_FILE
 #define ELPP_NO_DEFAULT_LOG_FILE
+#define ELPP_THREAD_SAFE
 #define AUTO_INITIALIZE_EASYLOGGINGPP
 
 // Compilers and C++0x/C++11 Evaluation
