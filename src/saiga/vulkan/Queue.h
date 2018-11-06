@@ -25,10 +25,16 @@ public:
     void waitIdle();
     void destroy();
 
+    vk::Fence submit(vk::CommandBuffer cmd);
     void submitAndWait(vk::CommandBuffer cmd);
 
     operator vk::Queue() const { return queue; }
     operator VkQueue() const { return queue; }
+
+    uint32_t getQueueIndex() {return queueIndex;}
+    uint32_t getQueueFamilyIndex() {return queueFamilyIndex;}
+
+    CommandPool createCommandPool();
 private:
     uint32_t queueFamilyIndex;
     uint32_t queueIndex;

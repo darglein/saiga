@@ -47,5 +47,27 @@ void Queue::submitAndWait(vk::CommandBuffer cmd)
 }
 
 
+vk::Fence Queue::submit(vk::CommandBuffer cmd) {
+    SAIGA_ASSERT(cmd, "invalid command buffer provided");
+
+    vk::SubmitInfo submitInfo;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd;
+    auto fence = device.createFence({});
+    queue.submit(submitInfo,fence);
+
+    return fence;
+}
+
+CommandPool Queue::createCommandPool() {
+    CommandPool newCommandPool;
+
+    newCommandPool.create(device,queueFamilyIndex);
+
+    return newCommandPool;
+}
+
+
+
 }
 }

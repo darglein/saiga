@@ -90,6 +90,43 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo()
 
 void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usage)
 {
+   fromImage(base,img,base.transferQueue,base.commandPool,usage);
+}
+
+void Texture2D::uploadImage(VulkanBase &base, Image &img)
+{
+
+    vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+
+    transitionImageLayout(cmd,vk::ImageLayout::eTransferDstOptimal);
+
+
+    vk::BufferImageCopy bufferCopyRegion = {};
+    bufferCopyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+    bufferCopyRegion.imageSubresource.mipLevel = 0;
+    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+    bufferCopyRegion.imageSubresource.layerCount = 1;
+    bufferCopyRegion.imageExtent.width = width;
+    bufferCopyRegion.imageExtent.height = height;
+    bufferCopyRegion.imageExtent.depth = 1;
+    bufferCopyRegion.bufferOffset = 0;
+
+    StagingBuffer staging;
+
+    staging.init(base,img.size(),img.data());
+
+    cmd.copyBufferToImage(staging.m_memoryLocation.buffer,image,vk::ImageLayout::eTransferDstOptimal,bufferCopyRegion);
+
+    transitionImageLayout(cmd,vk::ImageLayout::eShaderReadOnlyOptimal);
+
+    base.endTransferWait(cmd);
+
+
+
+    staging.destroy();
+}
+
+void Texture2D::fromImage(VulkanBase &base, Image &img, Queue& queue, CommandPool& pool, vk::ImageUsageFlags usage) {
     destroy(base);
 
     mipLevels = 1;
@@ -125,12 +162,9 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
 
     auto memReqs = base.device.getImageMemoryRequirements(image);
     memoryLocation = base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
-//    base.memory.getAllocator(finalUsageFlags,vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
-//    DeviceMemory::allocateMemory(base,memReqs,vk::MemoryPropertyFlagBits::eDeviceLocal);
-
     base.device.bindImageMemory(image,memoryLocation.memory, memoryLocation.offset);
 
-    vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+    vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
     transitionImageLayout(cmd,vk::ImageLayout::eTransferDstOptimal);
 
@@ -153,8 +187,23 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
 
     transitionImageLayout(cmd,vk::ImageLayout::eShaderReadOnlyOptimal);
 
-    base.endTransferWait(cmd);
-
+//    if (commandPool) {
+//        cmd.end();
+//        vk::SubmitInfo submitInfo;
+//        submitInfo.commandBufferCount = 1;
+//        submitInfo.pCommandBuffers = &cmd;
+//        vk::FenceCreateInfo fenceInfo;
+//        vk::Fence fence = base.device.createFence(fenceInfo);
+//        SAIGA_ASSERT(fence);
+//
+//        base.transferQueue.queue.submit(submitInfo,fence);
+//        base.device.waitForFences(fence,true,100000000000);
+//        base.device.destroyFence(fence);
+//    } else {
+    cmd.end();
+    queue.submitAndWait(cmd);
+    pool.freeCommandBuffer(cmd);
+//    }
 
 
     staging.destroy();
@@ -190,39 +239,6 @@ void Texture2D::fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usag
     SAIGA_ASSERT(sampler);
 
 //    cout << "texture created." << endl;
-}
-
-void Texture2D::uploadImage(VulkanBase &base, Image &img)
-{
-
-    vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
-
-    transitionImageLayout(cmd,vk::ImageLayout::eTransferDstOptimal);
-
-
-    vk::BufferImageCopy bufferCopyRegion = {};
-    bufferCopyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-    bufferCopyRegion.imageSubresource.mipLevel = 0;
-    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
-    bufferCopyRegion.imageSubresource.layerCount = 1;
-    bufferCopyRegion.imageExtent.width = width;
-    bufferCopyRegion.imageExtent.height = height;
-    bufferCopyRegion.imageExtent.depth = 1;
-    bufferCopyRegion.bufferOffset = 0;
-
-    StagingBuffer staging;
-
-    staging.init(base,img.size(),img.data());
-
-    cmd.copyBufferToImage(staging.m_memoryLocation.buffer,image,vk::ImageLayout::eTransferDstOptimal,bufferCopyRegion);
-
-    transitionImageLayout(cmd,vk::ImageLayout::eShaderReadOnlyOptimal);
-
-    base.endTransferWait(cmd);
-
-
-
-    staging.destroy();
 }
 
 

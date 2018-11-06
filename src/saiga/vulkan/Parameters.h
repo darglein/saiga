@@ -20,15 +20,12 @@ struct SAIGA_GLOBAL VulkanParameters
 
     vk::PhysicalDeviceFeatures physicalDeviceFeatures;
     std::vector<const char*> deviceExtensions;
-    bool   enableValidationLayer    = true;
+    bool enableValidationLayer    = true;
     bool enableImgui = true;
 
-    uint32_t maxDescriptorSets = 100;
+    uint32_t maxDescriptorSets = 400;
     // for {uniformBuffer,texture}
-    std::array<uint32_t,4> descriptorCounts = { 100, 100, 100, 100 };
-
-
-    void fromConfigFile(const std::string& file);
+    std::array<uint32_t,4> descriptorCounts = { 400, 400, 400, 400 };
 };
 
 

@@ -9,11 +9,5 @@
 namespace Saiga {
 namespace Vulkan {
 
-void VulkanParameters::fromConfigFile(const std::string &file)
-{
-
-}
-
-
 }
 }

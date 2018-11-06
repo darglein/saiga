@@ -48,6 +48,12 @@ public:
             vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
             );
 
+    vk::CommandBuffer createAndBeginOneTimeBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary) {
+        auto cmd = allocateCommandBuffer(level);
+        cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+        return cmd;
+    }
+
     /**
      * Allocate an array of command buffers.
      */
@@ -58,6 +64,10 @@ public:
 
     void freeCommandBuffer(vk::CommandBuffer cmd);
 
+
+    explicit operator vk::CommandPool() { return commandPool; }
+
+    explicit operator VkCommandPool() { return commandPool; }
 
     /**
      * Free the underlying Vulkan objects.

@@ -2,6 +2,7 @@
 #include "Debug.h"
 
 #include "saiga/util/table.h"
+#include <array>
 namespace Saiga{
 namespace Vulkan{
 
@@ -184,9 +185,12 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
                                      vk::PhysicalDeviceFeatures enabledFeatures,
                                      std::vector<const char*> enabledExtensions,
                                      bool useSwapChain,
-                                     vk::QueueFlags requestedQueueTypes)
+                                     vk::QueueFlags requestedQueueTypes,
+                                     bool createSecondaryTransferQueue)
 {
+    secondaryQueueAvailable =createSecondaryTransferQueue;
     printAvailableMemoryTypes();
+    printAvailableQueueFamilies();
     // Desired queues need to be requested upon logical device creation
     // Due to differing queue family configurations of Vulkan implementations this can be a bit tricky, especially if the application
     // requests different queue types
@@ -197,17 +201,17 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
     // Note that the indices may overlap depending on the implementation
 
     const float defaultQueuePriority(1.0f);
+    std::array<float,2> additionalPrio {1.0f,1.0f};
 
     // Graphics queue
     if (requestedQueueTypes &  vk::QueueFlagBits::eGraphics )
     {
         queueFamilyIndices.graphics = getQueueFamilyIndex( vk::QueueFlagBits::eGraphics );
-        VkDeviceQueueCreateInfo queueInfo{};
-        queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueInfo.queueFamilyIndex = queueFamilyIndices.graphics;
-        queueInfo.queueCount = 1;
-        queueInfo.pQueuePriorities = &defaultQueuePriority;
-        queueCreateInfos.push_back(queueInfo);
+        vk::DeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.queueFamilyIndex = queueFamilyIndices.graphics;
+        queueCreateInfo.queueCount = createSecondaryTransferQueue?2:1;
+        queueCreateInfo.pQueuePriorities = createSecondaryTransferQueue? additionalPrio.data(): &defaultQueuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
     }
     else
     {
@@ -215,14 +219,13 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
     }
 
     // Dedicated compute queue
-    if (requestedQueueTypes &  vk::QueueFlagBits::eCompute  && false)
+    if (requestedQueueTypes &  vk::QueueFlagBits::eCompute && false)
     {
         queueFamilyIndices.compute = getQueueFamilyIndex(vk::QueueFlagBits::eCompute);
         if (queueFamilyIndices.compute != queueFamilyIndices.graphics)
         {
             // If compute family index differs, we need an additional queue create info for the compute queue
-            VkDeviceQueueCreateInfo queueInfo{};
-            queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            vk::DeviceQueueCreateInfo queueInfo{};
             queueInfo.queueFamilyIndex = queueFamilyIndices.compute;
             queueInfo.queueCount = 1;
             queueInfo.pQueuePriorities = &defaultQueuePriority;
@@ -255,6 +258,17 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
         // Else we use the same queue
         queueFamilyIndices.transfer = queueFamilyIndices.graphics;
     }
+
+//    if (createSecondaryTransferQueue) {
+//        vk::DeviceQueueCreateInfo queueCreateInfo{
+//            vk::DeviceQueueCreateFlags(),
+//            queueFamilyIndices.transfer,
+//            1,
+//            &defaultQueuePriority
+//        };
+//
+//        queueCreateInfos.emplace_back(queueCreateInfo);
+//    }
 
     queueFamilyIndices.present = getPresentQueue(surface);
 
@@ -305,7 +319,6 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
     for(auto de : layers)
         cout << de << endl;
 
-    //    VkResult result = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
     device = physicalDevice.createDevice(deviceCreateInfo);
 
 
@@ -328,11 +341,13 @@ void VulkanBase::init(VulkanParameters params)
     pipelineCache = device.createPipelineCache(pipelineCacheCreateInfo);
     SAIGA_ASSERT(pipelineCache);
 
-    //    commandPool = createCommandPool(queueFamilyIndices.graphics);
     commandPool.create(device,queueFamilyIndices.transfer,vk::CommandPoolCreateFlagBits::eTransient);
 
     transferQueue.create(device,queueFamilyIndices.transfer);
 
+    if (secondaryQueueAvailable) {
+        secondaryTransferQueue.create(device,queueFamilyIndices.transfer,1);
+    }
 
     descriptorPool.create(
                 device,
@@ -342,8 +357,6 @@ void VulkanBase::init(VulkanParameters params)
                     vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer,   params.descriptorCounts[2]},
                     vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage,   params.descriptorCounts[3]},
                 });
-
-
 }
 
 
@@ -376,7 +389,17 @@ void VulkanBase::endTransferWait(vk::CommandBuffer commandBuffer)
     commandPool.freeCommandBuffer(commandBuffer);
 }
 
-
+void VulkanBase::printAvailableQueueFamilies() {
+    auto queueFamilies = physicalDevice.getQueueFamilyProperties();
+    std::cout << std::endl;
+    std::cout << "Queue Families (flags: count)" << std::endl;
+    std::cout << "=============================" << std::endl << std::endl;
+    for(auto& queueFam : queueFamilies) {
+        std::cout << vk::to_string(queueFam.queueFlags)<< ": " << queueFam.queueCount << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << std::endl;
+}
 
 }
 }
