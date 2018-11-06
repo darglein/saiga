@@ -84,6 +84,12 @@ public:
     void render(vk::CommandBuffer cmd);
     // uploads the given part
 
+    void destroy(VulkanBase& base) {
+        for(auto& tex : textures) {
+            tex->destroy(base);
+        }
+        textures.clear();
+    }
 };
 
 }

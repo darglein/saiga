@@ -17,6 +17,7 @@ void Texture::destroy(VulkanBase& base)
 {
     if(image)
     {
+        LOG(INFO) << "Destroying image: " <<image;
         base.device.destroyImage(image);
         base.device.destroyImageView(imageView);
         base.device.destroySampler(sampler);
@@ -157,6 +158,7 @@ void Texture2D::fromImage(VulkanBase &base, Image &img, Queue& queue, CommandPoo
     SAIGA_ASSERT(image);
 
 
+    LOG(INFO) << "Creating image synched: " <<image;
 
 
     auto memReqs = base.device.getImageMemoryRequirements(image);
@@ -224,7 +226,7 @@ void Texture2D::fromImage(VulkanBase &base, Image &img, Queue& queue, CommandPoo
     SAIGA_ASSERT(sampler);
 }
 
-vk::Fence Texture2D::fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_t height, vk::Format format,
+AsyncCommand Texture2D::fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_t height, vk::Format format,
                                        Saiga::Vulkan::StagingBuffer &stagingBuffer, Queue &queue, CommandPool &pool,
                                        vk::ImageUsageFlags usage) {
     destroy(base);
@@ -254,6 +256,8 @@ vk::Fence Texture2D::fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_
     imageCreateInfo.extent = vk::Extent3D{ width, height, 1U };
     imageCreateInfo.usage = finalUsageFlags;
     image = base.device.createImage(imageCreateInfo);
+
+    LOG(INFO) << "Creating image: " <<image;
     SAIGA_ASSERT(image);
 
 
@@ -287,9 +291,10 @@ vk::Fence Texture2D::fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_
     transitionImageLayout(cmd,vk::ImageLayout::eShaderReadOnlyOptimal);
 
     cmd.end();
-    auto fence = queue.submit(cmd);
+
 //    queue.submitAndWait(cmd);
 //    pool.freeCommandBuffer(cmd);
+
 
 
     vk::ImageViewCreateInfo viewCreateInfo = {};
@@ -321,7 +326,8 @@ vk::Fence Texture2D::fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_
     sampler = base.device.createSampler(samplerCreateInfo);
     SAIGA_ASSERT(sampler);
 
-    return fence;
+    auto fence = queue.submit(cmd);
+    return AsyncCommand{cmd, fence};
 }
 
 

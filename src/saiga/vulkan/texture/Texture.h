@@ -19,7 +19,7 @@
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/buffer/DeviceMemory.h"
 #include "saiga/image/image.h"
-
+#include "saiga/vulkan/AsyncCommand.h"
 
 namespace Saiga{
 namespace Vulkan{
@@ -49,7 +49,7 @@ struct SAIGA_GLOBAL Texture
 
 struct SAIGA_GLOBAL Texture2D : public Texture
 {
-    vk::Fence fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_t height, vk::Format format,
+    AsyncCommand fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_t height, vk::Format format,
                                     Saiga::Vulkan::StagingBuffer &stagingBuffer, Queue &queue, CommandPool &pool,
                                     vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
     void fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);

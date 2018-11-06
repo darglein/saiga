@@ -5,6 +5,7 @@
  */
 
 #include "Queue.h"
+#include "saiga/util/easylogging++.h"
 
 namespace Saiga {
 namespace Vulkan {
@@ -16,7 +17,6 @@ void Queue::create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _que
     queueIndex = _queueIndex;
     queue = _device.getQueue(_queueFamilyIndex,_queueIndex);
     SAIGA_ASSERT(queue);
-
     commandPool.create(device,_queueFamilyIndex);
 }
 
@@ -28,7 +28,16 @@ void Queue::waitIdle()
 void Queue::destroy()
 {
     waitIdle();
+
+    LOG(INFO) << "Destroying queue with " << commandPools.size() << " command pools" ;
+    for(auto& pool : commandPools) {
+        LOG(INFO) << "Destroying command pool: "<<static_cast<vk::CommandPool>(pool);
+        pool.destroy();
+    }
+
     commandPool.destroy();
+
+//    device.destroy(*this);
 }
 
 void Queue::submitAndWait(vk::CommandBuffer cmd)
@@ -61,10 +70,15 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd) {
 }
 
 CommandPool Queue::createCommandPool() {
+    commandPoolCreationMutex.lock();
+
     CommandPool newCommandPool;
-
     newCommandPool.create(device,queueFamilyIndex);
-
+    LOG(INFO) << "Creating command pool: " << static_cast<vk::CommandPool>(newCommandPool);
+//    LOG(INFO) << commandPools.size();
+    commandPools.push_back(newCommandPool);
+//    LOG(INFO) << commandPools.size();
+    commandPoolCreationMutex.unlock();
     return newCommandPool;
 }
 

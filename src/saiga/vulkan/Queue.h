@@ -37,6 +37,8 @@ public:
 
     CommandPool createCommandPool();
 private:
+    std::vector<CommandPool> commandPools;
+    std::mutex commandPoolCreationMutex;
     std::mutex submitMutex;
     uint32_t queueFamilyIndex;
     uint32_t queueIndex;

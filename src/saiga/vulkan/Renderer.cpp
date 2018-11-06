@@ -28,13 +28,14 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanPara
     base.setPhysicalDevice(instance.pickPhysicalDevice());
 
 //    auto properties = base.physicalDevice.getProperties();
-//    vulkanParameters.maxDescriptorSets = properties.limits.maxdescriptor
+//    vulkanParameters.maxDescriptorSets = properties.limits.maxdescriptorset
 
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
 //    vulkanParameters.physicalDeviceFeatures.wideLines = true;
     base.createLogicalDevice(surface,vulkanParameters.physicalDeviceFeatures, vulkanParameters.deviceExtensions,true,
                              vk::QueueFlagBits::eGraphics |  vk::QueueFlagBits::eCompute |  vk::QueueFlagBits::eTransfer,
                              true);
+
 
 
     base.init(vulkanParameters);

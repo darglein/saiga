@@ -50,7 +50,8 @@ void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat
     cmd.updateBuffer(uniformBufferVS.m_memoryLocation.buffer,0,sizeof(uboVS),&uboVS);
 }
 
-void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
+void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass,
+        const std::string& vertShader, const std::string& fragShader)
 {
     PipelineBase::init(vulkanDevice,1);
     uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
@@ -61,8 +62,8 @@ void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPa
     addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
     shaderPipeline.load(
                 device,{
-                    "vulkan/texturedAsset.vert",
-                    "vulkan/texturedAsset.frag"
+                    vertShader,
+                    fragShader
                 });
     PipelineInfo info;
     info.addVertexInfo<VertexType>();

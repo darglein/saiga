@@ -29,6 +29,9 @@ void VulkanBase::destroy()
 {
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
+    if (secondaryQueueAvailable) {
+        secondaryTransferQueue.destroy();
+    }
     transferQueue.destroy();
     commandPool.destroy();
     descriptorPool.destroy();

@@ -32,6 +32,10 @@ public:
 
     explicit operator VkDescriptorPool() const { return descriptorPool; }
 
+    void freeDescriptorSet(vk::DescriptorSet set) {
+        device.freeDescriptorSets(descriptorPool, set);
+    }
+
     void destroy();
 private:
     vk::Device device;
