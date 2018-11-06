@@ -1,0 +1,62 @@
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#pragma once
+
+#define SAIGA_VERSION @SAIGA_VERSION@
+#define SAIGA_VERSION_MAJOR @SAIGA_VERSION_MAJOR@
+#define SAIGA_VERSION_MINOR @SAIGA_VERSION_MINOR@
+#define SAIGA_VERSION_PATCH @SAIGA_VERSION_PATCH@
+
+//############# Libraries found ###############
+
+//opengl window and context managment
+#cmakedefine SAIGA_USE_OPENGL
+#cmakedefine SAIGA_USE_SDL
+#cmakedefine SAIGA_USE_GLFW
+#cmakedefine SAIGA_USE_FREETYPE
+
+//sound
+#cmakedefine SAIGA_USE_OPENAL
+#cmakedefine SAIGA_USE_ALUT
+#cmakedefine SAIGA_USE_OPUS
+
+//asset loading
+#cmakedefine SAIGA_USE_ASSIMP
+#cmakedefine SAIGA_USE_OPENMESH
+
+//image loading
+#cmakedefine SAIGA_USE_PNG
+#cmakedefine SAIGA_USE_FREEIMAGE
+
+#cmakedefine SAIGA_USE_FFMPEG
+#cmakedefine SAIGA_USE_OPENNI2
+#cmakedefine SAIGA_USE_BOOST
+
+#cmakedefine SAIGA_USE_CUDA
+#cmakedefine SAIGA_USE_CUSPARSE
+#cmakedefine SAIGA_USE_CUBLAS
+#cmakedefine SAIGA_USE_EIGEN
+#cmakedefine SAIGA_EIGEN_AND_CUDA
+#cmakedefine SAIGA_USE_VULKAN
+#cmakedefine SAIGA_USE_OPENCV
+#cmakedefine SAIGA_USE_GPHOTO2
+
+//############# Build Options ###############
+
+#cmakedefine SAIGA_BUILD_SHARED
+#cmakedefine SAIGA_DEBUG
+#cmakedefine SAIGA_ASSERTS
+#cmakedefine SAIGA_BUILD_SAMPLES
+#cmakedefine SAIGA_WITH_CUDA
+#cmakedefine SAIGA_STRICT_FP
+#cmakedefine SAIGA_FULL_OPTIMIZE
+#cmakedefine SAIGA_CUDA_DEBUG
+
+
+#define SAIGA_SHADER_PREFIX "@SAIGA_SHADER_PREFIX@"
+#define SAIGA_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
+#define SAIGA_PROJECT_SOURCE_DIR "@PROJECT_SOURCE_DIR@"
