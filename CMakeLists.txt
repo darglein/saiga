@@ -385,10 +385,10 @@ else()
 endif()
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
-set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/buildconfig.h")
+set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga_buildconfig.h")
 INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
 configure_file (
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/buildconfig.h.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_buildconfig.h.in"
     "${SAIGA_BUILDCONFIG_FILE}"
     )
 
@@ -494,10 +494,10 @@ endif()
 
 
 
-# Request that saiga be built with --std=c++11
+# Request that saiga be built with --std=c++14
 # As this is a public compile feature anything that links to saiga
-# will also build with -std=c++11
-target_compile_features(${LIB_NAME} PUBLIC cxx_std_11)
+# will also build with -std=c++14
+target_compile_features(${LIB_NAME} PUBLIC cxx_std_14)
 
 
 
