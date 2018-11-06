@@ -63,7 +63,7 @@ find_package_handle_standard_args(
         SAIGA_GLM_INCLUDE_DIRS
         SAIGA_BUILD_INCLUDE_DIRS
         SAIGA_SHADER_DIRS
-        SAIGA_LIBRARY
+        SAIGA_LIBRARY_BASE
         OPENGL_LIBRARIES
 )
 
