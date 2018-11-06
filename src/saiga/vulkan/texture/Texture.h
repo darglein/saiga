@@ -13,6 +13,7 @@
 #include <exception>
 #include <assert.h>
 #include <algorithm>
+#include <saiga/vulkan/buffer/StagingBuffer.h>
 
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Base.h"
@@ -48,6 +49,9 @@ struct SAIGA_GLOBAL Texture
 
 struct SAIGA_GLOBAL Texture2D : public Texture
 {
+    vk::Fence fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_t height, vk::Format format,
+                                    Saiga::Vulkan::StagingBuffer &stagingBuffer, Queue &queue, CommandPool &pool,
+                                    vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
     void fromImage(VulkanBase& base, Image &img, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
     void fromImage(VulkanBase& base, Image &img, Queue& queue, CommandPool& pool, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
 

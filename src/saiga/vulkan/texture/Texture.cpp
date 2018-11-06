@@ -133,7 +133,6 @@ void Texture2D::fromImage(VulkanBase &base, Image &img, Queue& queue, CommandPoo
     width = img.width;
     height = img.height;
 
-    //    cout << img.type << endl;
     vk::Format format = getvkFormat(img.type);
 
 
@@ -187,23 +186,9 @@ void Texture2D::fromImage(VulkanBase &base, Image &img, Queue& queue, CommandPoo
 
     transitionImageLayout(cmd,vk::ImageLayout::eShaderReadOnlyOptimal);
 
-//    if (commandPool) {
-//        cmd.end();
-//        vk::SubmitInfo submitInfo;
-//        submitInfo.commandBufferCount = 1;
-//        submitInfo.pCommandBuffers = &cmd;
-//        vk::FenceCreateInfo fenceInfo;
-//        vk::Fence fence = base.device.createFence(fenceInfo);
-//        SAIGA_ASSERT(fence);
-//
-//        base.transferQueue.queue.submit(submitInfo,fence);
-//        base.device.waitForFences(fence,true,100000000000);
-//        base.device.destroyFence(fence);
-//    } else {
     cmd.end();
     queue.submitAndWait(cmd);
     pool.freeCommandBuffer(cmd);
-//    }
 
 
     staging.destroy();
@@ -234,11 +219,109 @@ void Texture2D::fromImage(VulkanBase &base, Image &img, Queue& queue, CommandPoo
     samplerCreateInfo.maxAnisotropy = 16;
     samplerCreateInfo.anisotropyEnable = VK_FALSE;
     samplerCreateInfo.borderColor = vk::BorderColor::eIntOpaqueWhite;
-    //    VK_CHECK_RESULT(vkCreateSampler(device->device, &samplerCreateInfo, nullptr, &sampler));
+
+    sampler = base.device.createSampler(samplerCreateInfo);
+    SAIGA_ASSERT(sampler);
+}
+
+vk::Fence Texture2D::fromStagingBuffer(VulkanBase &base, uint32_t width, uint32_t height, vk::Format format,
+                                       Saiga::Vulkan::StagingBuffer &stagingBuffer, Queue &queue, CommandPool &pool,
+                                       vk::ImageUsageFlags usage) {
+    destroy(base);
+
+    mipLevels = 1;
+//    width = img.width;
+//    height = img.height;
+
+//    vk::Format format = getvkFormat(img.type);
+
+
+
+
+    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
+
+    imageLayout = vk::ImageLayout::eUndefined;
+    // Create optimal tiled target image
+    vk::ImageCreateInfo imageCreateInfo;
+    imageCreateInfo.imageType = vk::ImageType::e2D;
+    imageCreateInfo.format = format;
+    imageCreateInfo.mipLevels = mipLevels;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+    imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+    imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+    imageCreateInfo.initialLayout = imageLayout;
+    imageCreateInfo.extent = vk::Extent3D{ width, height, 1U };
+    imageCreateInfo.usage = finalUsageFlags;
+    image = base.device.createImage(imageCreateInfo);
+    SAIGA_ASSERT(image);
+
+
+
+
+    auto memReqs = base.device.getImageMemoryRequirements(image);
+    memoryLocation = base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
+    base.device.bindImageMemory(image,memoryLocation.memory, memoryLocation.offset);
+
+    vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
+
+    transitionImageLayout(cmd,vk::ImageLayout::eTransferDstOptimal);
+
+
+    vk::BufferImageCopy bufferCopyRegion = {};
+    bufferCopyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+    bufferCopyRegion.imageSubresource.mipLevel = 0;
+    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+    bufferCopyRegion.imageSubresource.layerCount = 1;
+    bufferCopyRegion.imageExtent.width = width;
+    bufferCopyRegion.imageExtent.height = height;
+    bufferCopyRegion.imageExtent.depth = 1;
+    bufferCopyRegion.bufferOffset = 0;
+
+//    StagingBuffer staging;
+//
+//    staging.init(base,img.size(),img.data());
+
+    cmd.copyBufferToImage(stagingBuffer.m_memoryLocation.buffer,image,vk::ImageLayout::eTransferDstOptimal,bufferCopyRegion);
+
+    transitionImageLayout(cmd,vk::ImageLayout::eShaderReadOnlyOptimal);
+
+    cmd.end();
+    auto fence = queue.submit(cmd);
+//    queue.submitAndWait(cmd);
+//    pool.freeCommandBuffer(cmd);
+
+
+    vk::ImageViewCreateInfo viewCreateInfo = {};
+    viewCreateInfo.viewType = vk::ImageViewType::e2D;
+    viewCreateInfo.format = format;
+    viewCreateInfo.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
+    viewCreateInfo.image = image;
+    imageView = base.device.createImageView(viewCreateInfo);
+    SAIGA_ASSERT(imageView);
+
+    // Create a defaultsampler
+    vk::SamplerCreateInfo samplerCreateInfo = {};
+    samplerCreateInfo.magFilter =  vk::Filter::eLinear;
+    samplerCreateInfo.minFilter = vk::Filter::eLinear;
+    samplerCreateInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+    samplerCreateInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.mipLodBias = 0.0f;
+    samplerCreateInfo.compareOp = vk::CompareOp::eNever;
+    samplerCreateInfo.minLod = 0.0f;
+    // Max level-of-detail should match mip level count
+    samplerCreateInfo.maxLod = 0.0f;
+    // Only enable anisotropic filtering if enabled on the devicec
+    samplerCreateInfo.maxAnisotropy = 16;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
+    samplerCreateInfo.borderColor = vk::BorderColor::eIntOpaqueWhite;
+
     sampler = base.device.createSampler(samplerCreateInfo);
     SAIGA_ASSERT(sampler);
 
-//    cout << "texture created." << endl;
+    return fence;
 }
 
 
