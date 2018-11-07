@@ -36,13 +36,58 @@ struct Intrinsics4
     double cx, cy;
 
 
-    Eigen::Vector2d project(const Eigen::Vector3d& X)
+    Vec2 project(const Vec3& X)
     {
         auto x = X(0) / X(2);
         auto y = X(1) / X(2);
         return {fx * x + cx, fy * y + cy };
     }
+
+    Vec3 project3(const Vec3& X)
+    {
+        auto x = X(0) / X(2);
+        auto y = X(1) / X(2);
+        return {fx * x + cx, fy * y + cy, X(2) };
+    }
+
+    Vec3 unproject(const Vec2& ip, double depth)
+    {
+        Vec3 p( (ip(0)-cx) / fx,
+                (ip(1)-cy) / fy,
+                1);
+        return p * depth;
+    }
 };
+
+inline
+double translationalError(const SE3& a, const SE3& b)
+{
+    Vec3 diff = a.translation() - b.translation();
+    return diff.norm();
+}
+
+// the angle (in radian) between two rotations
+inline
+double rotationalError(const SE3& a, const SE3& b)
+{
+    Quat q1 = a.unit_quaternion();
+    Quat q2 = b.unit_quaternion();
+    return q1.angularDistance(q2);
+}
+
+// the angle (in radian) between two rotations
+inline
+SE3 slerp(const SE3& a, const SE3& b, double alpha)
+{
+    Vec3 t = (1.0 -  alpha) * a.translation() + (alpha) * b.translation();
+
+    Quat q1 = a.unit_quaternion();
+    Quat q2 = b.unit_quaternion();
+    Quat q = q1.slerp(alpha,q2);
+
+    return SE3(q,t);
+}
+
 
 
 }
