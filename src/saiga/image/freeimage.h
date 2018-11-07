@@ -28,7 +28,7 @@ SAIGA_GLOBAL bool save(const std::string& path, const Image& img);
 //helper functions if you want to actually have fipimages
 //these are used by load and save from above
 SAIGA_GLOBAL bool loadFIP(const std::string& path, fipImage& img);
-SAIGA_GLOBAL bool saveFIP(const std::string& path, const fipImage& img);
+SAIGA_GLOBAL bool saveFIP(const std::string& path, fipImage& img);// fipImage is not const to ensure compatibility with version 3.18.0 of freeimage
 
 //conersion between saiga's image and freeimage's fipimage
 //these are used by load and save from above

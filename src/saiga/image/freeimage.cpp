@@ -59,7 +59,8 @@ bool loadFIP(const std::string &path, fipImage &img){
     return ret;
 }
 
-bool saveFIP(const std::string &path, const fipImage &img){
+bool saveFIP(const std::string &path, fipImage &img){
+    // fipImage is not const to ensure compatibility with version 3.18.0 of freeimage
     auto ret = img.save(path.c_str());
     return ret;
 }
