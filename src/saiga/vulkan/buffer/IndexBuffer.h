@@ -60,6 +60,13 @@ public:
         DeviceMemory::mappedUpload(0,size,indices.data());
     }
 
+    void initDeviceLocal(VulkanBase& base, const std::vector<IndexType>& indices)
+    {
+        init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+        stagedUpload(base,0,indices.size()*sizeof(IndexType),indices.data());
+    }
+
+
     void bind(vk::CommandBuffer &cmd, vk::DeviceSize offset = 0)
     {
         cmd.bindIndexBuffer(buffer, offset, VKType::value);

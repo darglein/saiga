@@ -42,6 +42,12 @@ public:
         DeviceMemory::mappedUpload(0,size,vertices.data());
     }
 
+    void initDeviceLocal(VulkanBase& base, const std::vector<VertexType>& vertices)
+    {
+        init(base,vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+        stagedUpload(base,0,vertices.size()*sizeof(VertexType),vertices.data());
+    }
+
     void upload(vk::CommandBuffer cmd, const std::vector<VertexType>& vertices)
     {
         vertexCount = vertices.size();

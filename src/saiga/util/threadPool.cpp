@@ -31,16 +31,16 @@ namespace Saiga {
 
 
 
-ThreadPool::ThreadPool(size_t threads)
+ThreadPool::ThreadPool(size_t threads, const std::string &name)
     :   stop(false)
 {
     workingThreads = threads;
     for(size_t i = 0; i < threads; ++i)
     {
         workers.emplace_back(
-                    [this,i]
+                    [this,i,name]
         {
-            setThreadName("ThreadPool Thread " + std::to_string(i));
+            setThreadName(name + std::to_string(i));
             for(;;)
             {
                 std::function<void()> task;
@@ -87,7 +87,7 @@ std::shared_ptr<ThreadPool> globalThreadPool;
 
 void createGlobalThreadPool(int threads)
 {
-    globalThreadPool = std::make_shared<ThreadPool>(threads);
+    globalThreadPool = std::make_shared<ThreadPool>(threads, "GlobalTP");
 }
 
 

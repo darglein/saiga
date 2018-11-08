@@ -42,7 +42,7 @@ namespace Saiga {
 class SAIGA_GLOBAL ThreadPool
 {
 public:
-    ThreadPool(size_t);
+    ThreadPool(size_t threads, const std::string& name = "ThreadPool");
     ~ThreadPool();
 
     template<class F, class... Args>
