@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/image/image.h"
-
+#include "saiga/vision/VisionTypes.h"
 
 namespace Saiga {
 
@@ -49,14 +49,14 @@ public:
     DMPP(const DMPPParameters& params = DMPPParameters()) : params(params) {}
 
 
-    void operator()(ImageView<float> src, ImageView<float> dst, glm::mat3 kinv);
+    void operator()(ImageView<float> src, ImageView<float> dst, const Intrinsics4& camera);
     void renderGui();
 
 
 private:
     void scaleDown2median(ImageView<float> src, ImageView<float> dst);
-    void fillHoles(ImageView<float> vsrc, ImageView<float> vdst, glm::mat3 kinv);
-    void applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, glm::mat3 kinv);
+    void fillHoles(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4& camera);
+    void applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4& camera);
 
 
     void computeMinMax(ImageView<float> vsrc, float& dmin, float& dmax);

@@ -252,7 +252,7 @@ void TumRGBDCamera::load(const std::string &datasetDir)
     for(int i = 0; i < (int)tumframes.size(); ++i)
     {
         TumFrame d = tumframes[i];
-        cout << "loading " << d.rgb.img << endl;
+//        cout << "loading " << d.rgb.img << endl;
 
 
         Image cimg(datasetDir + "/" + d.rgb.img);
@@ -285,6 +285,8 @@ void TumRGBDCamera::load(const std::string &datasetDir)
         }
         frames[i] = f;
     }
+
+    cout << "Loaded " << tumframes.size() << " images." << endl;
 }
 
 

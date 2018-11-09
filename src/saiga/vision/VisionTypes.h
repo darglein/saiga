@@ -35,22 +35,25 @@ struct Intrinsics4
     double fx, fy;
     double cx, cy;
 
+    Intrinsics4(){}
+    Intrinsics4(double fx, double fy, double cx, double cy) :
+        fx(fx),fy(fy),cx(cx),cy(cy) {}
 
-    Vec2 project(const Vec3& X)
+    Vec2 project(const Vec3& X) const
     {
         auto x = X(0) / X(2);
         auto y = X(1) / X(2);
         return {fx * x + cx, fy * y + cy };
     }
 
-    Vec3 project3(const Vec3& X)
+    Vec3 project3(const Vec3& X) const
     {
         auto x = X(0) / X(2);
         auto y = X(1) / X(2);
         return {fx * x + cx, fy * y + cy, X(2) };
     }
 
-    Vec3 unproject(const Vec2& ip, double depth)
+    Vec3 unproject(const Vec2& ip, double depth) const
     {
         Vec3 p( (ip(0)-cx) / fx,
                 (ip(1)-cy) / fy,
@@ -58,6 +61,9 @@ struct Intrinsics4
         return p * depth;
     }
 };
+
+
+inline Vec3 infinityVec3() { return Vec3(std::numeric_limits<double>::infinity(),std::numeric_limits<double>::infinity(),std::numeric_limits<double>::infinity());}
 
 inline
 double translationalError(const SE3& a, const SE3& b)

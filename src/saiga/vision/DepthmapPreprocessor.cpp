@@ -35,7 +35,7 @@ dm_is_depthdisc (float* widths, float* depths, float dd_factor, int i1, int i2, 
 
 inline float
 pixel_footprint (std::size_t x, std::size_t y, float depth,
-                 glm::mat3 const& invproj)
+                 const Intrinsics4& camera)
 {
 #ifdef SPHERICAL_DEPTH
     vec3 ray = invproj * vec3
@@ -44,7 +44,8 @@ pixel_footprint (std::size_t x, std::size_t y, float depth,
 #else
     //    vec3 ray = invproj * vec3
     //            ((float)x + 0.5f, (float)y + 0.5f, 1.0f);
-    return invproj[0][0] * depth;
+//    return invproj[0][0] * depth;
+    return 1.0 / camera.fx * depth;
 #endif
 }
 
@@ -81,7 +82,7 @@ void DMPPParameters::renderGui()
 }
 
 
-void DMPP::operator()(ImageView<float> _src, ImageView<float> dst, glm::mat3 kinv)
+void DMPP::operator()(ImageView<float> _src, ImageView<float> dst, const Intrinsics4& camera)
 {
     static thread_local TemplatedImage<float> tmp;
     tmp.create(dst.h,dst.w);
@@ -96,14 +97,14 @@ void DMPP::operator()(ImageView<float> _src, ImageView<float> dst, glm::mat3 kin
 
     if(params.apply_filter)
     {
-        applyFilterToImage(src,dst,kinv);
+        applyFilterToImage(src,dst,camera);
     }else{
         src.copyTo(dst);
     }
 
     if(params.apply_holeFilling)
     {
-        fillHoles(dst,dst,kinv);
+        fillHoles(dst,dst,camera);
     }
 }
 
@@ -137,7 +138,7 @@ std::vector<T>  gaussianBlurKernel2D(int radius, T sigmaX, T sigmaY)
     return kernel;
 }
 
-void DMPP::applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, glm::mat3 kinv)
+void DMPP::applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4 &camera)
 {
 #ifdef FF_PRINT_TIMINGS
     ScopedTimerPrint tim("applyFilterToImage");
@@ -165,7 +166,7 @@ void DMPP::applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, glm:
                 float widths[2];
                 float depths[2];
                 depths[0] = d;
-                widths[0] = pixel_footprint(j, i,d, kinv);
+                widths[0] = pixel_footprint(j, i,d, camera);
 #endif
 
                 int size = params.filterRadius;
@@ -192,7 +193,7 @@ void DMPP::applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, glm:
                         //                        float dz = std::abs(d2 - d);
                         //                        float dz = glm::abs(d2 - d);
                         depths[1] = d2;
-                        widths[1] = pixel_footprint(j+dj, i+di,d2, kinv);
+                        widths[1] = pixel_footprint(j+dj, i+di,d2, camera);
 
 
                         if (d2 > 0 && !dm_is_depthdisc(widths, depths, params.dd_factor,0,1, glm::sqrt(du2)))
@@ -253,7 +254,7 @@ void DMPP::computeMinMax(ImageView<float> vsrc, float &dmin, float &dmax)
 
 
 
-void DMPP::fillHoles(ImageView<float> vsrc, ImageView<float> vdst, glm::mat3 kinv)
+void DMPP::fillHoles(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4 &camera)
 {
     //    cout << "fill holes " << params.holeFillIterations << endl;
     SAIGA_ASSERT(vsrc.width == vdst.width && vsrc.height == vdst.height);
@@ -330,7 +331,7 @@ void DMPP::fillHoles(ImageView<float> vsrc, ImageView<float> vdst, glm::mat3 kin
                 float widths[5];
                 float depths[5];
                 depths[0] = vsrc(i,j);
-                widths[0] = pixel_footprint(j, i,  depths[0], kinv);
+                widths[0] = pixel_footprint(j, i,  depths[0], camera);
 
                 depths[1] = vsrc.clampedRead(i+1,j);
                 depths[2] = vsrc.clampedRead(i-1,j);
@@ -338,10 +339,10 @@ void DMPP::fillHoles(ImageView<float> vsrc, ImageView<float> vdst, glm::mat3 kin
                 depths[4] = vsrc.clampedRead(i,j-1);
 
 
-                widths[1] = pixel_footprint(j, i+1,depths[1], kinv);
-                widths[2] = pixel_footprint(j, i-1,depths[2], kinv);
-                widths[3] = pixel_footprint(j+1, i,depths[3], kinv);
-                widths[4] = pixel_footprint(j-1, i,depths[4], kinv);
+                widths[1] = pixel_footprint(j, i+1,depths[1], camera);
+                widths[2] = pixel_footprint(j, i-1,depths[2], camera);
+                widths[3] = pixel_footprint(j+1, i,depths[3], camera);
+                widths[4] = pixel_footprint(j-1, i,depths[4], camera);
 
                 for(int k = 0; k < 4; ++k)
                 {
