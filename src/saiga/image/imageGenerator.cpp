@@ -75,9 +75,9 @@ std::shared_ptr<Image> ImageGenerator::randomNormalized(int width, int height)
         for(int j = 0 ; j < width ; ++j){
             cvec4 texel;
             texel.r = glm::linearRand(0,255);
-            texel.g = glm::linearRand(0,255);
-            texel.b = glm::linearRand(0,255);
-            texel.a = glm::linearRand(0,255);
+            texel.g = linearRand(0,255);
+            texel.b = linearRand(0,255);
+            texel.a = linearRand(0,255);
             (*image)(i,j) = texel;
         }
     }

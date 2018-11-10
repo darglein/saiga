@@ -6,7 +6,7 @@
 
 #include <iostream>
 #include <vector>
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include <thrust/device_vector.h>
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
@@ -42,7 +42,7 @@ void particleSampleThrustSaiga()
     for(Particle& p :particles)
     {
         p.position = vec3(0);
-        p.velocity = glm::linearRand(vec3(-1),vec3(1));
+        p.velocity = linearRand(vec3(-1),vec3(1));
     }
 
 
@@ -85,7 +85,7 @@ void particleSample()
     for(Particle& p :particles)
     {
         p.position = vec3(0);
-        p.velocity = glm::linearRand(vec3(-1),vec3(1));
+        p.velocity = linearRand(vec3(-1),vec3(1));
     }
 
     auto size = sizeof(Particle) * N;

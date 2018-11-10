@@ -292,7 +292,7 @@ bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vm
     {
         for(int j = 0; j < img.width; ++j)
         {
-            float f = glm::clamp(vcpy(i,j),0.0f,1.0f);
+            float f = clamp(vcpy(i,j),0.0f,1.0f);
 
             //            vec3 hsv = vec3(f,1,1);
             vec3 hsv(f* (240.0/360.0),1,1);
@@ -320,7 +320,7 @@ bool save(const std::string& path, ImageView<float> img, float vmin, float vmax)
     {
         for(int j = 0; j < img.width; ++j)
         {
-            float f = glm::clamp(vcpy(i,j),0.0f,1.0f);
+            float f = clamp(vcpy(i,j),0.0f,1.0f);
             unsigned char c = Saiga::iRound(f * 255.0f);
             simg(i,j) = c;
         }

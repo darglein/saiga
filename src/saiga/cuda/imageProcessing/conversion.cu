@@ -6,7 +6,7 @@
 
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/device_helper.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 
 
 namespace Saiga {

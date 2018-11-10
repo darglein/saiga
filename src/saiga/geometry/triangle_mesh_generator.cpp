@@ -19,9 +19,9 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
 
     for(int r = 0; r < rings+1; r++){
         for(int s = 0; s < sectors; s++) {
-            float y = sphere.r * glm::sin( -M_PI_2 + M_PI * r * R );
-            float x = sphere.r * glm::cos(2*M_PI * s * S) * glm::sin( M_PI * r * R );
-            float z = sphere.r * glm::sin(2*M_PI * s * S) * glm::sin( M_PI * r * R );
+            float y = sphere.r * sin( -M_PI_2 + M_PI * r * R );
+            float x = sphere.r * cos(2*M_PI * s * S) * sin( M_PI * r * R );
+            float z = sphere.r * sin(2*M_PI * s * S) * sin( M_PI * r * R );
 
             VertexNT vert;
             vert.texture = vec2(s*S,r*R);
@@ -57,7 +57,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &sphere, int resolution){
 	(void)sphere;
     default_mesh_t* mesh = new default_mesh_t();
-    float t = (1.0 + glm::sqrt(5.0)) / 2.0;
+    float t = (1.0 + sqrt(5.0)) / 2.0;
 
 
     mesh->vertices.push_back(VertexNT(vec3(-1,  t,  0),vec3(),vec2()));
@@ -76,7 +76,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
     mesh->vertices.push_back(VertexNT(vec3(-t,  0,  1),vec3(),vec2()));
 
     for(VertexNT &v : mesh->vertices){
-        v.position = vec4(glm::normalize( vec3(v.position) ),1);
+        v.position = vec4(normalize( vec3(v.position) ),1);
         v.normal = v.position;
     }
 
@@ -112,14 +112,14 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere &
         }
 
         for(VertexNT &v : mesh->vertices){
-            v.position = vec4(glm::normalize( vec3(v.position) ),1);
+            v.position = vec4(normalize( vec3(v.position) ),1);
             v.normal = v.position;
         }
     }
 
-    mat4 scale = glm::scale(mat4(1), vec3(sphere.r));
-    mat4 translate = glm::translate(mat4(1), vec3(sphere.pos));
-	mesh->transform(translate*scale);
+    mat4 S = scale(mat4(1), vec3(sphere.r));
+    mat4 T = translate(mat4(1), vec3(sphere.pos));
+    mesh->transform(T*S);
 
     return std::shared_ptr<default_mesh_t>(mesh);
 }
@@ -133,9 +133,9 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float 
     float const S = 1.f/(float)(sectors);
 
     for(int s = 0; s < sectors; s++) {
-        float x = radius * glm::cos(2*M_PI * s * S);
+        float x = radius * cos(2*M_PI * s * S);
         float y = -height/2;
-        float z = radius * glm::sin(2*M_PI * s * S) ;
+        float z = radius * sin(2*M_PI * s * S) ;
 
         VertexNT vert(vec3(x, y, z ),vec3( x,y, z));
         mesh->vertices.push_back( vert);
@@ -143,9 +143,9 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float 
     }
 
     for(int s = 0; s < sectors; s++) {
-        float x = radius * glm::cos(2*M_PI * s * S);
+        float x = radius * cos(2*M_PI * s * S);
         float y = height/2;
-        float z = radius * glm::sin(2*M_PI * s * S) ;
+        float z = radius * sin(2*M_PI * s * S) ;
 
 
         VertexNT vert(vec3(x, y, z ),vec3( x,y, z));
@@ -228,7 +228,7 @@ std::shared_ptr<TriangleMesh<VertexNT, uint32_t> > TriangleMeshGenerator::create
         {
             float alphaX = float(j) / (verticesX-1);
             VertexNT v(
-                        vec3(glm::mix(-1.0f,1.0f,alphaX),0,glm::mix(-1.0f,1.0f,alphaY)),
+                        vec3(mix(-1.0f,1.0f,alphaX),0,mix(-1.0f,1.0f,alphaY)),
                         vec3(0,1,0),
                         vec2(alphaX,alphaY));
             mesh->vertices.push_back(v);
@@ -263,9 +263,9 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone &co
     float const r = cone.radius; //radius
 
     for(int s=0;s<sectors;s++){
-        float x = r * glm::sin((float)s*R*M_PI*2.0f);
-        float y = r * glm::cos((float)s*R*M_PI*2.0f);
-        mesh->vertices.push_back(VertexNT(vec3(x,-cone.height,y),glm::normalize(vec3(x,0,y)),vec2(0,0)));
+        float x = r * sin((float)s*R*M_PI*2.0f);
+        float y = r * cos((float)s*R*M_PI*2.0f);
+        mesh->vertices.push_back(VertexNT(vec3(x,-cone.height,y),normalize(vec3(x,0,y)),vec2(0,0)));
     }
 
     for(int s=0;s<sectors;s++){

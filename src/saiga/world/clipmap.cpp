@@ -163,7 +163,7 @@ void Clipmap::update(const vec3 &p)
 
 
     vp = vp/cellWidth;
-    vec2 test = glm::floor(vp);
+    vec2 test = floor(vp);
 
     vp = test*cellWidth;
 

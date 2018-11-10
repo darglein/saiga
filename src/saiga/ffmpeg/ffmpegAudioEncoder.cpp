@@ -5,7 +5,7 @@
  */
 
 #include "saiga/ffmpeg/ffmpegAudioEncoder.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/util/assert.h"
 
 #include "internal/noGraphicsAPI.h"

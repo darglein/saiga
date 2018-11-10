@@ -18,7 +18,7 @@ void TextParameters::setOutline(const vec4 &outlineColor, float width, float smo
 void TextParameters::setGlow(const vec4 &glowColor, float width)
 {
     this->glowColor = glowColor;
-    width = glm::clamp(width,0.0f,1.0f) * 0.5f;
+    width = clamp(width,0.0f,1.0f) * 0.5f;
     glowData = vec2(0.5f-width,0.6f);
 }
 

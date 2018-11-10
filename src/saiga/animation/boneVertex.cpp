@@ -41,7 +41,7 @@ void BoneVertex::apply(const std::vector<mat4> &boneMatrices){
 
     position = boneMatrix*position;
     normal = boneMatrix*normal;
-    normal = glm::normalize(normal);
+    normal = normalize(normal);
 
 }
 

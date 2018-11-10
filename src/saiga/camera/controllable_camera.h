@@ -9,7 +9,7 @@
 
 #include <saiga/camera/camera.h>
 #include <saiga/util/mouse.h>
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 
 #include <array>
 
@@ -50,7 +50,7 @@ public:
     void mouseRotateAroundPoint(float dx, float dy, vec3 point);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up);
 private:
-    glm::ivec2 lastMousePos;
+    ivec2 lastMousePos;
     int dragState = 0; // 0 = nothing, 1 = first button drag, 2 = second button drag
     std::array<bool,6> keyPressed {};
 
@@ -103,17 +103,17 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 {
 #if 0
     vec2 relMovement(dx,dy);
-    float angle = glm::length(relMovement);
+    float angle = length(relMovement);
     if(angle == 0)
         return;
 
     vec4 right = this->getRightVector();
     vec4 up = this->getUpVector();
 
-    vec3 axis = -glm::normalize(vec3(right * relMovement.y + up * relMovement.x));
+    vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
 //        cout << angle << camera.position << endl;
 
-    quat qrot = glm::angleAxis(glm::radians(angle),axis);
+    quat qrot = angleAxis(radians(angle),axis);
     this->rot = qrot * this->rot;
     this->position = vec4(qrot * (this->getPosition()-point),1);
 
@@ -124,17 +124,17 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     this->updateFromModel();
 #else
        vec2 relMovement(dx,dy);
-    float angle = glm::length(relMovement);
+    float angle = length(relMovement);
     if(angle == 0)
         return;
 
     vec4 right = this->getRightVector();
     vec4 up = this->getUpVector();
 
-    vec3 axis = -glm::normalize(vec3(right * relMovement.y + up * relMovement.x));
+    vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
 //        cout << angle << camera.position << endl;
 
-    quat qrot = glm::angleAxis(glm::radians(angle * 0.3f),axis);
+    quat qrot = angleAxis(radians(angle * 0.3f),axis);
     this->rot = qrot * this->rot;
     vec3 p = qrot * (vec3(this->position)-point);
 
@@ -153,7 +153,7 @@ template<class camera_t>
 void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up)
 {
     vec2 relMovement(dx,dy);
-    float angle = glm::length(relMovement);
+    float angle = length(relMovement);
     if(angle == 0)
         return;
 
@@ -165,10 +165,10 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 //    vec4 right = this->getRightVector();
 //    vec4 up = this->getUpVector();
 
-    vec3 axis = -glm::normalize(vec3(right * relMovement.y + up * relMovement.x));
+    vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
 //        cout << angle << camera.position << endl;
 
-    quat qrot = glm::angleAxis(glm::radians(angle),axis);
+    quat qrot = angleAxis(radians(angle),axis);
     this->rot = qrot * this->rot;
     this->position = vec4(qrot * (this->getPosition()-point),1);
 
@@ -220,7 +220,7 @@ void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation)
 	
 
     //only do mouse handling here
-    glm::ivec2 mousedelta = lastMousePos - mouse.getPosition();
+    ivec2 mousedelta = lastMousePos - mouse.getPosition();
     lastMousePos = mouse.getPosition();
 
     if(dragState == 1)

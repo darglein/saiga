@@ -77,7 +77,7 @@ bool Sound::checkFirstSample(const void *data)
 	for (int c = 0; c < channels; ++c) {
 		float val = toFloat(getSample(0, 0, data));
 
-		ret &= glm::abs(val) <= 0.0001f;
+		ret &= abs(val) <= 0.0001f;
 
 		
 	}

@@ -90,7 +90,7 @@ void Terrain::update(const vec3 &p)
 
     //random states (LOL)
 //    for(int i=0;i<levels;++i){
-//        glm::linearRand(vec3(0),vec3(1));
+//        linearRand(vec3(0),vec3(1));
 //        clipmaps[i].state = (Clipmap::State)(rand()%4);
 //    }
 
@@ -130,7 +130,7 @@ void Terrain::renderintern(Camera *cam){
         shader->uploadTexture(heightmap.texheightmap[i]);
         shader->uploadNormalMap(heightmap.texnormalmap[0]);
 
-        int next = glm::clamp(i+1,0,layers-2);
+        int next = clamp(i+1,0,layers-2);
         shader->uploadImageUp(heightmap.texheightmap[next]);
         shader->uploadNormalMapUp(heightmap.texnormalmap[0]);
 

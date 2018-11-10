@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include <saiga/geometry/object3d.h>
 #include <saiga/geometry/sphere.h>
 #include <saiga/geometry/plane.h>
@@ -157,7 +157,7 @@ public:
 
     static mat4 getVulkanTransform()
     {
-        return glm::mat4(1.0f,  0.0f, 0.0f, 0.0f,
+        return mat4(1.0f,  0.0f, 0.0f, 0.0f,
                               0.0f, -1.0f, 0.0f, 0.0f,
                               0.0f,  0.0f, 0.5f, 0.0f,
                               0.0f,  0.0f, 0.5f, 1.0f);

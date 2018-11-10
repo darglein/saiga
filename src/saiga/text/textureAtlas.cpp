@@ -139,7 +139,7 @@ void TextureAtlas::createTextureAtlas(Image &outImg, std::vector<FontLoader::Gly
 
 void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &glyphs)
 {
-    int charsPerRow = glm::ceil(glm::sqrt((float)glyphs.size()));
+    int charsPerRow = ceil(sqrt((float)glyphs.size()));
 
     atlasHeight = charPaddingY;
     atlasWidth = 0;
@@ -169,8 +169,8 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &g
             info.offset.x = g.offset.x;
             info.offset.y = g.offset.y - info.size.y; //freetype uses an y inverted glyph coordinate system
 
-            maxCharacter.min = glm::min(maxCharacter.min,vec3(info.offset.x,info.offset.y,0));
-            maxCharacter.max = glm::max(maxCharacter.max,vec3(info.offset.x+info.size.x,info.offset.y+info.size.y,0));
+            maxCharacter.min = min(maxCharacter.min,vec3(info.offset.x,info.offset.y,0));
+            maxCharacter.max = max(maxCharacter.max,vec3(info.offset.x+info.size.x,info.offset.y+info.size.y,0));
 
 
 
@@ -238,7 +238,7 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divi
     SAIGA_ASSERT(divisor%2==1);
     int halfDivisor = (divisor / 2);
 
-    std::vector<glm::ivec2> samplePositions = generateSDFsamples(searchRadius);
+    std::vector<ivec2> samplePositions = generateSDFsamples(searchRadius);
     for(FontLoader::Glyph &g : glyphs) {
 //        Image* sdfGlyph = new Image();
         TemplatedImage<unsigned char> sdfGlyph;
@@ -265,14 +265,14 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divi
                 float d = 12345;
 #if 1
                 unsigned char current = g.bitmap(by,bx);
-                for(glm::ivec2 s : samplePositions)
+                for(ivec2 s : samplePositions)
                 {
-                    glm::ivec2 ps = glm::ivec2(bx,by) + s;
-                    ps = glm::clamp(ps,glm::ivec2(0),glm::ivec2(g.bitmap.width-1,g.bitmap.height-1));
+                    ivec2 ps = ivec2(bx,by) + s;
+                    ps = clamp(ps,ivec2(0),ivec2(g.bitmap.width-1,g.bitmap.height-1));
                     unsigned char other = g.bitmap(ps.y,ps.x);
                     if(current!=other)
                     {
-                        d = glm::sqrt((float)(s.x*s.x+s.y*s.y));
+                        d = sqrt((float)(s.x*s.x+s.y*s.y));
                         break;
                     }
                 }
@@ -280,7 +280,7 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divi
 
                 //map to 0-1
                 d = d / (float)searchRadius;
-                d = glm::clamp(d,0.0f,1.0f);
+                d = clamp(d,0.0f,1.0f);
                 d = d * 0.5f;
 
                 //set 0.5 to border and >0.5 to inside and <0.5 to outside
@@ -306,17 +306,17 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divi
     }
 }
 
-std::vector<glm::ivec2> TextureAtlas::generateSDFsamples(int searchRadius)
+std::vector<ivec2> TextureAtlas::generateSDFsamples(int searchRadius)
 {
 
-    std::vector<glm::ivec2> samplePositions;
+    std::vector<ivec2> samplePositions;
     for(int x = -searchRadius ; x <= searchRadius ; ++x){
         for(int y = -searchRadius ; y <= searchRadius ; ++y){
             if(x!=0 || y!=0)
                 samplePositions.emplace_back(x,y);
         }
     }
-    std::sort(samplePositions.begin(),samplePositions.end(),[](const glm::ivec2 &a,const glm::ivec2 &b)->bool
+    std::sort(samplePositions.begin(),samplePositions.end(),[](const ivec2 &a,const ivec2 &b)->bool
     {
         return (a.x*a.x+a.y*a.y)<(b.x*b.x+b.y*b.y);
     });
@@ -324,8 +324,8 @@ std::vector<glm::ivec2> TextureAtlas::generateSDFsamples(int searchRadius)
     //remove samples further away then searchRadius
     int samples = 0;
     for(;samples<(int)samplePositions.size();samples++){
-        glm::ivec2 a = samplePositions[samples];
-        if(glm::sqrt((float)(a.x*a.x+a.y*a.y))>searchRadius){
+        ivec2 a = samplePositions[samples];
+        if(sqrt((float)(a.x*a.x+a.y*a.y))>searchRadius){
             break;
         }
     }

@@ -11,17 +11,17 @@ namespace Saiga {
 
 void InterpolatedObject3D::interpolate(float alpha)
 {
-//    interpolatedrot = glm::mix(oldrot,rot,alpha);
+//    interpolatedrot = mix(oldrot,rot,alpha);
 
-    interpolatedrot = glm::slerp(oldrot,rot,alpha);
-    interpolatedrot = glm::normalize(interpolatedrot);
+    interpolatedrot = slerp(oldrot,rot,alpha);
+    interpolatedrot = normalize(interpolatedrot);
 
 
-    interpolatedscale = glm::mix(oldscale,scale,alpha);
-    interpolatedposition = glm::mix(oldposition,position,alpha);
+    interpolatedscale = mix(oldscale,scale,alpha);
+    interpolatedposition = mix(oldposition,position,alpha);
 
     interpolatedmodel = createTRSmatrix(interpolatedposition,interpolatedrot,interpolatedscale);
-//    interpolatedmodel = mat4_cast(interpolatedrot)*glm::scale(mat4(1),interpolatedscale);
+//    interpolatedmodel = mat4_cast(interpolatedrot)*scale(mat4(1),interpolatedscale);
 //    interpolatedmodel[3] = vec4(interpolatedposition,1);
 
 

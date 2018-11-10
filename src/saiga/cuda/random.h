@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/cuda/cudaHelper.h"
 #include <curand_kernel.h>
 
@@ -49,7 +49,7 @@ __device__ inline vec3 sampleUnitCone(float angle, curandState &state)
 __device__ inline vec3 sampleCone(const vec3 &dir, float angle, curandState &state){
     vec3 v = sampleUnitCone(angle,state);
     vec3 cdir = vec3(0,0,1);
-    vec4 r = glm::rotation(cdir,dir)*vec4(v,0);
+    vec4 r = rotation(cdir,dir)*vec4(v,0);
     return vec3(r);
 }
 

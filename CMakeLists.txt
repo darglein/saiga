@@ -40,7 +40,7 @@ OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
 OptionsHelper(SAIGA_WITH_GL "With opengl" ON)
 OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
-
+OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
 
 
 DefaultBuildType(RelWithDebInfo)

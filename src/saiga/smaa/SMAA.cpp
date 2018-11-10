@@ -55,7 +55,7 @@ void SMAANeighborhoodBlendingShader::uploadTextures(std::shared_ptr<raw_Texture>
 
 SMAA::SMAA(int w, int h)
 {
-    screenSize = glm::ivec2(w,h);
+    screenSize = ivec2(w,h);
     stencilTex = framebuffer_texture_t(new Texture());
 
 

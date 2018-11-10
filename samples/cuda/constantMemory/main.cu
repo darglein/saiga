@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/memory.h"

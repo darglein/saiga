@@ -15,17 +15,17 @@ vec3 Triangle::center(){
 
 float Triangle::minimalAngle()
 {
-    return glm::acos(cosMinimalAngle());
+    return acos(cosMinimalAngle());
 }
 
 float Triangle::cosMinimalAngle()
 {
-    return glm::max( glm::max(cosAngleAtCorner(0),cosAngleAtCorner(1)),cosAngleAtCorner(2) );
+    return max( max(cosAngleAtCorner(0),cosAngleAtCorner(1)),cosAngleAtCorner(2) );
 }
 
 float Triangle::angleAtCorner(int i)
 {
-    return glm::acos(cosAngleAtCorner(i));
+    return acos(cosAngleAtCorner(i));
 }
 
 float Triangle::cosAngleAtCorner(int i)
@@ -54,7 +54,7 @@ float Triangle::cosAngleAtCorner(int i)
         break;
     }
 
-    return glm::dot( normalize( left - center ), normalize( right - center ) );
+    return dot( normalize( left - center ), normalize( right - center ) );
 }
 
 bool Triangle::isDegenerate()

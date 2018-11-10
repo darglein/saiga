@@ -36,8 +36,8 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
     for(int i = 0; i < 10000; ++i)
     {
         PointVertex v;
-        v.position = glm::linearRand(vec3(-3),vec3(3));
-        v.color = glm::linearRand(vec3(0),vec3(1));
+        v.position = linearRand(vec3(-3),vec3(3));
+        v.color = linearRand(vec3(0),vec3(1));
         pointCloud.points.push_back(v);
     }
     pointCloud.updateBuffer();

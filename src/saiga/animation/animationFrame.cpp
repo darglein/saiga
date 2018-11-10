@@ -20,10 +20,10 @@ AnimationNode::AnimationNode(const AnimationNode &n0, const AnimationNode &n1, f
     keyFramed = n0.keyFramed;
 
     if(this->keyFramed){
-        rotation = glm::slerp(n0.rotation,n1.rotation,alpha);
-        rotation = glm::normalize(rotation);
-        scaling = glm::mix(n0.scaling,n1.scaling,alpha);
-        position = glm::mix(n0.position,n1.position,alpha);
+        rotation = slerp(n0.rotation,n1.rotation,alpha);
+        rotation = normalize(rotation);
+        scaling = mix(n0.scaling,n1.scaling,alpha);
+        position = mix(n0.position,n1.position,alpha);
     }else{
         matrix = n0.matrix;
     }

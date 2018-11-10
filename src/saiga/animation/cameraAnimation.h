@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include <saiga/time/time.h>
 #include "saiga/assets/assetLoader.h"
 #include "saiga/animation/bspline.h"

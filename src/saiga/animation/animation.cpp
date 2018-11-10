@@ -29,7 +29,7 @@ void Animation::getFrame(animationtime_t time, AnimationFrame &out){
         }
         frame++;
     }
-    int prevFrame = glm::max(0,frame - 1);
+    int prevFrame = max(0,frame - 1);
 
     AnimationFrame &k0 = keyFrames[prevFrame];
     AnimationFrame &k1 = keyFrames[frame];
@@ -46,7 +46,7 @@ void Animation::getFrame(animationtime_t time, AnimationFrame &out){
 
 void Animation::getFrameNormalized(double time, AnimationFrame &out)
 {
-    time = glm::clamp(time,0.0,1.0);
+    time = clamp(time,0.0,1.0);
     SAIGA_ASSERT(time >= 0 && time <= 1);
     getFrame( duration*time,out);
 }

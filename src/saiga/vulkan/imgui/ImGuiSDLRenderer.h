@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 

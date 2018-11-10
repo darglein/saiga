@@ -21,18 +21,18 @@ Camera::Camera()
 void Camera::setView(const mat4 &v){
     view=v;
     recalculateMatrices();
-    model = glm::inverse(view);
+    model = inverse(view);
 
     this->position = model[3];
-    this->rot = glm::quat_cast(model);
+    this->rot = quat_cast(model);
 }
 
 void Camera::setView(const vec3 &eye,const vec3 &center,const vec3 &up){
-    setView(glm::lookAt(eye,center,up));
+    setView(lookAt(eye,center,up));
 }
 
 void Camera::updateFromModel(){
-    view = glm::inverse(model);
+    view = inverse(model);
     recalculateMatrices();
 }
 
@@ -137,9 +137,9 @@ vec2 Camera::projectedIntervall(const vec3 &d)
 {
     vec2 ret(1000000,-1000000);
     for(int i = 0 ;i < 8 ; ++i){
-        float t = glm::dot(d,vertices[i]);
-        ret.x = glm::min(ret.x,t);
-        ret.y = glm::max(ret.y,t);
+        float t = dot(d,vertices[i]);
+        ret.x = min(ret.x,t);
+        ret.y = max(ret.y,t);
     }
     return ret;
 }
@@ -168,7 +168,7 @@ bool Camera::intersectSAT(Camera *other)
         auto e1 = this->getEdge(i);
         for(int j = 0 ; j < 6 ; ++j){
             auto e2 = other->getEdge(j);
-            vec3 d = glm::cross(e1.first-e1.second,e2.first-e2.second);
+            vec3 d = cross(e1.first-e1.second,e2.first-e2.second);
 
             vec2 i1 = this->projectedIntervall(d);
             vec2 i2 = other->projectedIntervall(d);
@@ -249,7 +249,7 @@ std::ostream& operator<<(std::ostream& os, const Camera& ca){
 
 
 void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float _zFar, bool vulkanTransform){
-    _fovy = glm::radians(_fovy);
+    _fovy = radians(_fovy);
     this->fovy = _fovy;
     this->aspect = _aspect;
     this->zNear = _zNear;
@@ -263,7 +263,7 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
 
     if(vulkanTransform)
     {
-//        const glm::mat4 clip(1.0f,  0.0f, 0.0f, 0.0f,
+//        const mat4 clip(1.0f,  0.0f, 0.0f, 0.0f,
 //                            0.0f, -1.0f, 0.0f, 0.0f,
 //                            0.0f,  0.0f, 0.5f, 0.0f,
 //                            0.0f,  0.0f, 0.5f, 1.0f);
@@ -313,7 +313,7 @@ void PerspectiveCamera::recalculatePlanes()
     //    vec3 fbr = farplanepos - fh * up;
     vec3 fbr = vertices[4];
     vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
-    float r = glm::distance(fbr,sphereMid);
+    float r = distance(fbr,sphereMid);
 
     boundingSphere.r = r;
     boundingSphere.pos = sphereMid;
@@ -410,7 +410,7 @@ void OrthographicCamera::recalculatePlanes()
     //    vec3 fbr = farplanepos - fh * up + fw * right;
     //    vec3 fbr = farplanepos - fh * up;
     vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
-    float r = glm::distance(vertices[0],sphereMid);
+    float r = distance(vertices[0],sphereMid);
 
     boundingSphere.r = r;
     boundingSphere.pos = sphereMid;

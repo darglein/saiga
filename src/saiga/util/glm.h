@@ -27,9 +27,6 @@
 #include <glm/gtx/transform.hpp>
 //#include <glm/gtx/type_aligned.hpp>
 
-using std::ostream;
-
-
 
 #if defined(GLM_USE_SSE)
 
@@ -56,11 +53,11 @@ struct compute_linearRand<float, aligned_highp, vecType>
 }
 }
 
-typedef glm::tvec2<float, glm::precision::aligned_highp> vec2;
-typedef glm::tvec3<float, glm::precision::aligned_highp> vec3;
-typedef glm::tvec4<float, glm::precision::aligned_highp> avec4;
-typedef glm::tmat4x4<float, glm::precision::aligned_highp> amat4;
-typedef glm::tquat<float, glm::precision::aligned_highp>  aquat;
+typedef tvec2<float, precision::aligned_highp> vec2;
+typedef tvec3<float, precision::aligned_highp> vec3;
+typedef tvec4<float, precision::aligned_highp> avec4;
+typedef tmat4x4<float, precision::aligned_highp> amat4;
+typedef tquat<float, precision::aligned_highp>  aquat;
 
 //GLM_ALIGNED_TYPEDEF(avec2, vec2, 16);
 //GLM_ALIGNED_TYPEDEF(avec3, vec3, 16);
@@ -69,34 +66,50 @@ GLM_ALIGNED_TYPEDEF(amat4, mat4, 16);
 GLM_ALIGNED_TYPEDEF(aquat, quat, 16);
 
 
-//GLM_ALIGNED_TYPEDEF(glm::vec2, vec2, 16);
-//GLM_ALIGNED_TYPEDEF(glm::vec3, vec3, 16);
-//typedef glm::vec2 vec2;
-//typedef glm::vec3 vec3;
-//typedef glm::simdVec4 vec4;
-//typedef glm::simdQuat quat;
-//typedef glm::simdMat4 mat4;
+//GLM_ALIGNED_TYPEDEF(vec2, vec2, 16);
+//GLM_ALIGNED_TYPEDEF(vec3, vec3, 16);
+//typedef vec2 vec2;
+//typedef vec3 vec3;
+//typedef simdVec4 vec4;
+//typedef simdQuat quat;
+//typedef simdMat4 mat4;
 
-//GLM_ALIGNED_TYPEDEF(glm::vec4, vec4, 16);
-//GLM_ALIGNED_TYPEDEF(glm::mat4, mat4, 16);
-//GLM_ALIGNED_TYPEDEF(glm::quat, quat, 16);
+//GLM_ALIGNED_TYPEDEF(vec4, vec4, 16);
+//GLM_ALIGNED_TYPEDEF(mat4, mat4, 16);
+//GLM_ALIGNED_TYPEDEF(quat, quat, 16);
 
 #else
-typedef glm::vec2 vec2;
-typedef glm::vec3 vec3;
-typedef glm::vec4 vec4;
-typedef glm::mat4 mat4;
-typedef glm::quat quat;
+using glm::uvec3;
+using glm::ivec2;
+
+using glm::vec2;
+using glm::vec3;
+using glm::vec4;
+
+using glm::mat3;
+using glm::mat4;
+
+using glm::quat;
+
+using glm::radians;
+using glm::min;
+using glm::max;
+using glm::clamp;
+using glm::linearRand;
+using glm::sphericalRand;
+using glm::mix;
+using glm::degrees;
+
 
 #define IDENTITY_QUATERNION quat(1,0,0,0)
 
-typedef glm::tvec2<char, glm::highp> cvec2;
-typedef glm::tvec3<char, glm::highp> cvec3;
-typedef glm::tvec4<char, glm::highp> cvec4;
+using cvec2 = glm::tvec2<char, glm::highp>;
+using cvec3 = glm::tvec3<char, glm::highp>;
+using cvec4 = glm::tvec4<char, glm::highp>;
 
-typedef glm::tvec2<unsigned char, glm::highp> ucvec2;
-typedef glm::tvec3<unsigned char, glm::highp> ucvec3;
-typedef glm::tvec4<unsigned char, glm::highp> ucvec4;
+using ucvec2 = glm::tvec2<unsigned char, glm::highp>;
+using ucvec3 = glm::tvec3<unsigned char, glm::highp>;
+using ucvec4 = glm::tvec4<unsigned char, glm::highp>;
 
 #endif
 
@@ -106,17 +119,17 @@ namespace glm {
 
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec4& v);
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dvec4& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const dvec4& v);
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec3& v);
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dvec3& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const dvec3& v);
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec2& v);
 
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::mat3& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const mat3& v);
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const mat4& v);
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const glm::dmat4& v);
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const dmat4& v);
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const quat& v);
 
@@ -145,9 +158,9 @@ SAIGA_GLOBAL vec3 snapTo(vec3 v, float snapAngleInDegrees);
 
 SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s){
     //Equivalent to:
-    //    mat4 T = glm::translate(mat4(1),vec3(t));
+    //    mat4 T = translate(mat4(1),vec3(t));
     //    mat4 R = mat4_cast(r);
-    //    mat4 S = glm::scale(mat4(1),vec3(s));
+    //    mat4 S = scale(mat4(1),vec3(s));
     //    return T * R * S;
 
     //Use optimized code here because T and S are sparse matrices and this
@@ -194,14 +207,14 @@ SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec
  * The string conversion from and to matrices convert the glm matrix
  * to row major!!!
  */
-SAIGA_GLOBAL std::string to_string(const glm::mat3& m);
-SAIGA_GLOBAL std::string to_string(const glm::mat4& m);
-SAIGA_GLOBAL std::string to_string(const glm::vec3& m);
-SAIGA_GLOBAL std::string to_string(const glm::vec4& m);
+SAIGA_GLOBAL std::string to_string(const mat3& m);
+SAIGA_GLOBAL std::string to_string(const mat4& m);
+SAIGA_GLOBAL std::string to_string(const vec3& m);
+SAIGA_GLOBAL std::string to_string(const vec4& m);
 
-SAIGA_GLOBAL glm::mat3 mat3FromString(const std::string& str);
-SAIGA_GLOBAL glm::mat4 mat4FromString(const std::string& str);
-SAIGA_GLOBAL glm::vec3 vec3FromString(const std::string& str);
-SAIGA_GLOBAL glm::vec4 vec4FromString(const std::string& str);
+SAIGA_GLOBAL mat3 mat3FromString(const std::string& str);
+SAIGA_GLOBAL mat4 mat4FromString(const std::string& str);
+SAIGA_GLOBAL vec3 vec3FromString(const std::string& str);
+SAIGA_GLOBAL vec4 vec4FromString(const std::string& str);
 
 }

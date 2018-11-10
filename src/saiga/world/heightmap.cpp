@@ -156,7 +156,7 @@ void Heightmap::createInitialHeightmap(){
 
             float h = getHeight(x,y);
             h = h*max_res;
-            h = glm::clamp(h,0.0f,(float)max_res);
+            h = clamp(h,0.0f,(float)max_res);
 //            height_res_t n = (height_res_t)h;
 //            heightmap[0].setPixel(x,y,n);
 SAIGA_ASSERT(0);
@@ -211,21 +211,21 @@ void Heightmap::createNormalmap(){
                 //                float h4 = getHeightScaled(layer,x,y+1);
 
                 //                vec2 step = vec2(1.0f,0.0f);
-                //                vec3 va = glm::normalize( vec3( 1, h2-h1,0 ));
-                //                vec3 vb = glm::normalize( vec3( 0, h4-h3,1 ));
+                //                vec3 va = normalize( vec3( 1, h2-h1,0 ));
+                //                vec3 vb = normalize( vec3( 0, h4-h3,1 ));
 
-                vec3 n = glm::cross(y2-y1,x2-x1);
+                vec3 n = cross(y2-y1,x2-x1);
 
                 std::swap(n.x,n.z);
-                //                vec3 n = glm::cross(x2-x1,y2-y1);
-                //                vec3 n = glm::cross(vb,va);
+                //                vec3 n = cross(x2-x1,y2-y1);
+                //                vec3 n = cross(vb,va);
 
-                n = glm::normalize(n);
+                n = normalize(n);
                 //                 cout<<"Normal "<<n<<endl;
                 n = 0.5f * n + vec3(0.5f); //now in range 0,1
                 n = n*255.0f; //range 0,255
                 //                cout<<"Normal "<<n<<endl;
-                n = glm::clamp(n,vec3(0),vec3(255));
+                n = clamp(n,vec3(0),vec3(255));
 
 //                normalmap[layer].setPixel(x,y,(uint8_t)n.x,(uint8_t)n.y,(uint8_t)n.z);
                 SAIGA_ASSERT(0);
@@ -236,8 +236,8 @@ void Heightmap::createNormalmap(){
 }
 
 float Heightmap::getHeight(int x, int y){
-    x = glm::clamp(x,0,(int)(w-1));
-    y = glm::clamp(y,0,(int)(h-1));
+    x = clamp(x,0,(int)(w-1));
+    y = clamp(y,0,(int)(h-1));
 
     return heights[x+y*w];
 }
@@ -260,8 +260,8 @@ float Heightmap::getHeight(int layer, int x, int y){
         y-=img.height;
 
 
-    //    x = glm::clamp(x,0,(int)(img.width-1));
-    //    y = glm::clamp(y,0,(int)(img.height-1));
+    //    x = clamp(x,0,(int)(img.width-1));
+    //    y = clamp(y,0,(int)(img.height-1));
 
 //    height_res_t v = *((height_res_t*)img.positionPtr(x,y));
 //    return (float)v / (float)max_res;
@@ -274,8 +274,8 @@ float Heightmap::getHeightScaled(int layer, int x, int y){
 }
 
 void Heightmap::setHeight(int x, int y, float v){
-    minH = glm::min(v,minH);
-    maxH = glm::max(v,maxH);
+    minH = min(v,minH);
+    maxH = max(v,maxH);
     heights[x+y*w] = v;
 }
 

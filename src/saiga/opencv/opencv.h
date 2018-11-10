@@ -8,7 +8,7 @@
 
 #include "opencv2/opencv.hpp"
 #include "saiga/image/imageView.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/opencv/OpenCV_GLM.h"
 
 #ifdef SAIGA_CUDA_INCLUDED
@@ -53,7 +53,7 @@ cv::Mat ImageViewToMat(ImageView<T> img)
  * Useful for example when a downsampled version of the image is used.
  */
 SAIGA_GLOBAL inline
-glm::mat3 scaleK(glm::mat3 K, float scale)
+mat3 scaleK(mat3 K, float scale)
 {
     K *= scale;
     K[2][2] = 1;

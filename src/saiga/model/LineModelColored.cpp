@@ -119,14 +119,14 @@ void LineModelColored::createFrustum(const mat4 &proj, float farPlaneLimit, cons
 }
 
 
-void LineModelColored::createFrustumCV(const glm::mat3 &K, float farPlaneLimit, const vec4 &color, int w, int h)
+void LineModelColored::createFrustumCV(const mat3 &K, float farPlaneLimit, const vec4 &color, int w, int h)
 {
     vec3 bl(0,h,1);
     vec3 br(w,h,1);
     vec3 tl(0,0,1);
     vec3 tr(w,0,1);
 
-    glm::mat3 projInv = inverse(K);
+    mat3 projInv = inverse(K);
 
     tl = projInv * tl;
     tr = projInv * tr;

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/geometry/aabb.h"
 #include "saiga/text/fontLoader.h"
 #include "saiga/opengl/texture/texture.h"
@@ -28,7 +28,7 @@ public:
         vec2 offset = vec2(0);  //offset of the bitmap position to the origin of this character
         vec2 size = vec2(0); //size of bitmap
 
-        glm::ivec2 atlasPos = glm::ivec2(0); //position of this character in the texture atlas
+        ivec2 atlasPos = ivec2(0); //position of this character in the texture atlas
 //        int atlasX = 0, atlasY = 0;
 
         vec2 tcMin,tcMax;
@@ -96,7 +96,7 @@ private:
     void calculateTextureAtlasLayout(std::vector<FontLoader::Glyph> &glyphs);
     void padGlyphsToDivisor(std::vector<FontLoader::Glyph> &glyphs, int divisor);
     void convertToSDF(std::vector<FontLoader::Glyph> &glyphs, int divisor, int searchRadius);
-    std::vector<glm::ivec2> generateSDFsamples(int searchRadius);
+    std::vector<ivec2> generateSDFsamples(int searchRadius);
 
     void writeAtlasToFiles(Image &img);
     bool readAtlasFromFiles();

@@ -30,7 +30,7 @@ void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam)
     shader->uploadColorDiffuse(colorDiffuse);
     shader->uploadColorSpecular(colorSpecular);
     shader->uploadModel(model);
-    shader->uploadInvProj(glm::inverse(cam->proj));
+    shader->uploadInvProj(inverse(cam->proj));
     shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
     if(this->hasShadows()){
         shader->uploadDepthTexture(shadowmap->getDepthTexture());
@@ -40,8 +40,8 @@ void BoxLight::bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera *cam)
 
 void BoxLight::setView(vec3 pos, vec3 target, vec3 up)
 {
-    //    this->setViewMatrix(glm::lookAt(pos,pos + (pos-target),up));
-    this->setViewMatrix(glm::lookAt(pos,target,up));
+    //    this->setViewMatrix(lookAt(pos,pos + (pos-target),up));
+    this->setViewMatrix(lookAt(pos,target,up));
 }
 
 void BoxLight::calculateCamera(){
@@ -50,7 +50,7 @@ void BoxLight::calculateCamera(){
     calculateModel();
     //trs matrix without scale
     //(scale is applied through projection matrix
-    mat4 T = glm::translate(mat4(1),vec3(position));
+    mat4 T = translate(mat4(1),vec3(position));
     mat4 R = mat4_cast(rot);
     mat4 m = T * R;
     shadowCamera.setView(inverse(m));

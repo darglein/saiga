@@ -37,7 +37,7 @@ GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int n
 
 
         for(unsigned int i=0;i<dataPoints.size();++i){
-            dataPoints[i].position = vec4(i/(float)dataPoints.size(),glm::linearRand(0.f,1.f),0,1);
+            dataPoints[i].position = vec4(i/(float)dataPoints.size(),linearRand(0.f,1.f),0,1);
         }
 
         graphs[k].data.resize(numDataPoints);
@@ -95,9 +95,9 @@ void GraphDebugOverlay::setScreenPosition(vec2 start, vec2 end)
     vec2 mid =( start+end) /2.f;
     mid.y = height - mid.y;
 
-    vec2 scale = glm::abs(start-end);
-    model = glm::translate( mat4(1),vec3(mid, 0)+vec3(-scale/2.f, 0));
-    model = glm::scale(model, vec3(scale,0));
+    vec2 S = abs(start-end);
+    model = translate( mat4(1),vec3(mid, 0)+vec3(-S/2.f, 0));
+    model = glm::scale(model, vec3(S,0));
 }
 
 void GraphDebugOverlay::render(float interpolation){

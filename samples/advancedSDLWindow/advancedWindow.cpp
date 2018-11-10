@@ -65,7 +65,7 @@ Sample::Sample(OpenGLWindow &window, Renderer &renderer)
         pl->setRadius(10);
         pl->setPosition(vec3(10,3,0));
         pl->rotateAroundPoint(vec3(0,3,0),vec3(0,1,0),i * 360/10);
-        pl->setColorDiffuse(glm::linearRand(vec3(0),vec3(1)));
+        pl->setColorDiffuse(linearRand(vec3(0),vec3(1)));
         pl->calculateModel();
         pl->createShadowMap(256,256);
         lights.push_back(pl);
@@ -105,10 +105,10 @@ void Sample::update(float dt){
     //sun->fitShadowToCamera(&camera);
 //    sun->fitNearPlaneToScene(sceneBB);
 
-    int  fps = (int) glm::round(1000.0/parentWindow.mainLoop.fpsTimer.getTimeMS());
+    int  fps = (int) round(1000.0/parentWindow.mainLoop.fpsTimer.getTimeMS());
     tdo.updateEntry(0,fps);
 
-    int  ups = (int) glm::round(1000.0/parentWindow.mainLoop.upsTimer.getTimeMS());
+    int  ups = (int) round(1000.0/parentWindow.mainLoop.upsTimer.getTimeMS());
     tdo.updateEntry(1,ups);
 
     float renderTime = parentWindow.getRenderer()->getTotalRenderTime();

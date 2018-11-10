@@ -106,8 +106,8 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 {
     if (windowWidth <= 0 || windowHeight <= 0) {
         cerr << "Warning: The window size must be greater than zero." << endl;
-        windowWidth = glm::max(windowWidth, 1);
-        windowHeight = glm::max(windowHeight, 1);
+        windowWidth = max(windowWidth, 1);
+        windowHeight = max(windowHeight, 1);
     }
     this->outputWidth = windowWidth;
     this->outputHeight = windowHeight;

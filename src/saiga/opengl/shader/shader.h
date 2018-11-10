@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/opengl.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/opengl/shader/shaderpart.h"
 
 #include <vector>
@@ -100,25 +100,25 @@ public:
 	 * For example:
 	 * layout(local_size_x = 32, local_size_y = 32) in;
 	 *
-	 * returns glm::uvec3(32,32,1)
+	 * returns uvec3(32,32,1)
 	 */
 
-	glm::uvec3 getComputeWorkGroupSize();
+	uvec3 getComputeWorkGroupSize();
 
 	/**
 	 * Calculates the number of groups required for the given problem size.
 	 * The number of shader executions will then be greater or equal to the problem size.
 	 */
 
-	glm::uvec3 getNumGroupsCeil(const glm::uvec3 &problem_size);
-	glm::uvec3 getNumGroupsCeil(const glm::uvec3 &problem_size, const glm::uvec3 &work_group_size);
+	uvec3 getNumGroupsCeil(const uvec3 &problem_size);
+	uvec3 getNumGroupsCeil(const uvec3 &problem_size, const uvec3 &work_group_size);
 
 	/**
 	 * Initates the compute operation.
 	 * The shader must be bound beforehand.
 	 */
 
-	void dispatchCompute(const glm::uvec3 &num_groups);
+	void dispatchCompute(const uvec3 &num_groups);
 	void dispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z);
 
 	/**

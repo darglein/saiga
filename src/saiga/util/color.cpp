@@ -34,7 +34,7 @@ Color::Color(vec3 c)
 
 Color::Color(vec4 c)
 {
-    c = glm::round(c * 255.0f);
+    c = round(c * 255.0f);
     r = c.r;
     g = c.g;
     b = c.b;
@@ -64,22 +64,22 @@ vec4 Color::toVec4() const
 
 vec3 Color::srgb2linearrgb(vec3 c)
 {
-    if ( c.x > 0.04045 ) c.x =  glm::pow( ( c.x + 0.055 ) / 1.055 , 2.4);
+    if ( c.x > 0.04045 ) c.x =  pow( ( c.x + 0.055 ) / 1.055 , 2.4);
     else                   c.x = c.x / 12.92;
-    if ( c.y > 0.04045 ) c.y = glm::pow( ( c.y + 0.055 ) / 1.055 , 2.4);
+    if ( c.y > 0.04045 ) c.y = pow( ( c.y + 0.055 ) / 1.055 , 2.4);
     else                   c.y = c.y / 12.92;
-    if ( c.z > 0.04045 ) c.z = glm::pow( ( c.z + 0.055 ) / 1.055 , 2.4);
+    if ( c.z > 0.04045 ) c.z = pow( ( c.z + 0.055 ) / 1.055 , 2.4);
     else                   c.z = c.z / 12.92;
     return c;
 }
 
 vec3 Color::linearrgb2srgb(vec3 c)
 {
-    if ( c.x > 0.0031308 ) c.x = 1.055 *  glm::pow( c.x , ( 1.0f / 2.4f ) ) - 0.055;
+    if ( c.x > 0.0031308 ) c.x = 1.055 *  pow( c.x , ( 1.0f / 2.4f ) ) - 0.055;
     else                     c.x = 12.92 * c.x;
-    if ( c.y > 0.0031308 ) c.y = 1.055 * glm::pow( c.y , ( 1.0f / 2.4f ) ) - 0.055;
+    if ( c.y > 0.0031308 ) c.y = 1.055 * pow( c.y , ( 1.0f / 2.4f ) ) - 0.055;
     else                     c.y = 12.92 * c.y;
-    if ( c.z > 0.0031308 ) c.z = 1.055 * glm::pow( c.z , ( 1.0f / 2.4f ) ) - 0.055;
+    if ( c.z > 0.0031308 ) c.z = 1.055 * pow( c.z , ( 1.0f / 2.4f ) ) - 0.055;
     else                     c.z = 12.92 * c.z;
     return c;
 }
@@ -108,18 +108,18 @@ vec3 Color::rgb2hsv(vec3 c)
 {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
 
-    vec4 p = glm::mix(vec4(c.b,c.g, K.w,K.z), vec4(c.g,c.b, K.x,K.y), glm::mix(1.f, 0.f, c.b < c.g));
-    vec4 q = glm::mix(vec4(p.x,p.y,p.w, c.r), vec4(c.r, p.y,p.z,p.x), glm::mix(1.f, 0.f, p.x < c.r));
+    vec4 p = mix(vec4(c.b,c.g, K.w,K.z), vec4(c.g,c.b, K.x,K.y), mix(1.f, 0.f, c.b < c.g));
+    vec4 q = mix(vec4(p.x,p.y,p.w, c.r), vec4(c.r, p.y,p.z,p.x), mix(1.f, 0.f, p.x < c.r));
 
     float d = q.x - std::min(q.w, q.y);
     float e = 1.0e-10;
-    return vec3(glm::abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
 }
 
 vec3 Color::hsv2rgb(vec3 c)
 {
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-    vec3 p = glm::abs(fract(vec3(c.x) + vec3(K)) * 6.0f - vec3(K.w));
+    vec3 p = abs(fract(vec3(c.x) + vec3(K)) * 6.0f - vec3(K.w));
     return c.z * mix(vec3(K.x), clamp(p - vec3(K.x), vec3(0.0), vec3(1.0)), c.y);
 }
 

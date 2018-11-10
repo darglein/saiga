@@ -64,7 +64,7 @@ void LightShader::uploadShadow(float shadow){
     Shader::upload(location_readShadowMap,shadow);
 }
 
-void LightShader::uploadShadowMapSize(glm::ivec2 s)
+void LightShader::uploadShadowMapSize(ivec2 s)
 {
     auto w = s.x;
     auto h = s.y;

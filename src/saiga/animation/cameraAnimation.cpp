@@ -18,11 +18,11 @@ Interpolation::Keyframe Interpolation::get(double time)
 
     int frame = Saiga::iCeil(time);
 
-    int prevFrame = glm::max(0,frame - 1);
+    int prevFrame = max(0,frame - 1);
 
 
 
-    float alpha = glm::fract(time);
+    float alpha = fract(time);
 
     //    cout << "Interpolation " << prevFrame << "," << frame << " " << time << " " << alpha << endl;
     if(alpha == 0)
@@ -32,10 +32,10 @@ Interpolation::Keyframe Interpolation::get(double time)
     if(cubicInterpolation)
     {
 
-        int if0 = glm::max(0,prevFrame-1);
+        int if0 = max(0,prevFrame-1);
         int if1 = prevFrame;
         int if2 = frame;
-        int if3 = glm::min((int)keyframes.size()-1,frame+1);
+        int if3 = min((int)keyframes.size()-1,frame+1);
 
 
         Keyframe& f0 = keyframes[if0];
@@ -95,18 +95,18 @@ Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::In
 
 
     res.position = 0.5f * (1.f * ps2[0] + u * ps2[1] + u2 * ps2[2] + u3 * ps2[3]);
-    //        res.position =  glm::mix(f1.position,f2.position,alpha);
+    //        res.position =  mix(f1.position,f2.position,alpha);
 
 
-    res.rot =  glm::slerp(f2.rot,f3.rot,alpha);
+    res.rot =  slerp(f2.rot,f3.rot,alpha);
     return res;
 }
 
 Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::Interpolation::Keyframe &f1, const Saiga::Interpolation::Keyframe &f2, float alpha)
 {
     Keyframe res;
-    res.position =  glm::mix(f1.position,f2.position,alpha);
-    res.rot =  glm::slerp(f1.rot,f2.rot,alpha);
+    res.position =  mix(f1.position,f2.position,alpha);
+    res.rot =  slerp(f1.rot,f2.rot,alpha);
     return res;
 }
 #endif
@@ -114,7 +114,7 @@ Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::In
 
 Interpolation::Keyframe Interpolation::getNormalized(double time)
 {
-    time = glm::clamp(time,0.0,1.0);
+    time = clamp(time,0.0,1.0);
 //    return get( (keyframes.size()-1)*time);
 
          vec3 p = positionSpline.getPointOnCurve(time);

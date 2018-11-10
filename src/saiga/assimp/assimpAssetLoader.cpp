@@ -152,7 +152,7 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
     asset->boneOffsets = al.boneOffsets;
 
     for(unsigned int i=0;i<asset->boneOffsets.size();++i){
-        asset->inverseBoneOffsets.push_back(glm::inverse(asset->boneOffsets[i]));
+        asset->inverseBoneOffsets.push_back(inverse(asset->boneOffsets[i]));
     }
 
     int animationCount = al.scene->mNumAnimations;
@@ -171,10 +171,10 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
 
 //    std::vector<mat4> boneMatrices(al.boneOffsets.size());
 //    for(int i = 0 ; i < al.boneOffsets.size() ; ++i){
-//        mat4 randomTransformation = glm::translate(mat4(1),vec3(1,i,3));
-//        randomTransformation = glm::rotate(randomTransformation,123.123f+i,vec3(-14,2,i));
-//        randomTransformation = glm::scale(randomTransformation,vec3(i,3.5f,5.1f));
-//        randomTransformation = glm::rotate(randomTransformation,123.123f*i,vec3(4,2,-5*i));
+//        mat4 randomTransformation = translate(mat4(1),vec3(1,i,3));
+//        randomTransformation = rotate(randomTransformation,123.123f+i,vec3(-14,2,i));
+//        randomTransformation = scale(randomTransformation,vec3(i,3.5f,5.1f));
+//        randomTransformation = rotate(randomTransformation,123.123f*i,vec3(4,2,-5*i));
 //        boneMatrices[i] = randomTransformation * al.boneOffsets[i];
 //    }
 

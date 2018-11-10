@@ -30,7 +30,7 @@ public:
 
 
     void pushModel(VkCommandBuffer cmd, mat4 model);
-    void updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj);
+    void updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj);
 
     void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass, float pointSize);
 
@@ -39,9 +39,9 @@ public:
     void setupLayoutsAndDescriptors();
 private:
     struct UBOVS {
-        glm::mat4 projection;
-        glm::mat4 modelview;
-        glm::vec4 lightPos;
+        mat4 projection;
+        mat4 modelview;
+        vec4 lightPos;
     } uboVS;
 
     UniformBuffer uniformBufferVS;

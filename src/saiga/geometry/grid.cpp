@@ -10,7 +10,7 @@
 namespace Saiga {
 
 Grid::Grid(const vec3 &mid, const vec3 &d1, const vec3 &d2)
-    : Plane(mid,glm::cross(d1,d2)),
+    : Plane(mid,cross(d1,d2)),
       d1(d1),d2(d2),mid(mid)
 {
 

@@ -60,13 +60,13 @@ std::string WindowBase::getTimeString()
 Ray WindowBase::createPixelRay(const vec2 &pixel) const
 {
     vec4 p = vec4(2*pixel.x/getWidth()-1.f,1.f-(2*pixel.y/getHeight()),0,1.f);
-    p = glm::inverse(WindowBase::currentCamera->proj)*p;
+    p = inverse(WindowBase::currentCamera->proj)*p;
     p /= p.w;
 
-    mat4 inverseView = glm::inverse(WindowBase::currentCamera->view);
+    mat4 inverseView = inverse(WindowBase::currentCamera->view);
     vec3 ray_world =vec3(inverseView*p);
     vec3 origin = vec3(inverseView[3]);
-    return Ray(glm::normalize(ray_world-origin),origin);
+    return Ray(normalize(ray_world-origin),origin);
 }
 
 Ray WindowBase::createPixelRay(const vec2 &pixel, const vec2& resolution, const mat4& inverseProj) const
@@ -75,19 +75,19 @@ Ray WindowBase::createPixelRay(const vec2 &pixel, const vec2& resolution, const 
     p = inverseProj*p;
     p /= p.w;
 
-    mat4 inverseView = glm::inverse(WindowBase::currentCamera->view);
+    mat4 inverseView = inverse(WindowBase::currentCamera->view);
     vec3 ray_world =vec3(inverseView*p);
     vec3 origin = vec3(inverseView[3]);
-    return Ray(glm::normalize(ray_world-origin),origin);
+    return Ray(normalize(ray_world-origin),origin);
 }
 
 vec3 WindowBase::screenToWorld(const vec2 &pixel) const
 {
     vec4 p = vec4(2*pixel.x/getWidth()-1.f,1.f-(2*pixel.y/getHeight()),0,1.f);
-    p = glm::inverse(WindowBase::currentCamera->proj)*p;
+    p = inverse(WindowBase::currentCamera->proj)*p;
     p /= p.w;
 
-    mat4 inverseView = glm::inverse(WindowBase::currentCamera->view);
+    mat4 inverseView = inverse(WindowBase::currentCamera->view);
     vec3 ray_world =vec3(inverseView*p);
     return ray_world;
 }
@@ -99,7 +99,7 @@ vec3 WindowBase::screenToWorld(const vec2 &pixel, const vec2& resolution, const 
     p = inverseProj*p;
     p /= p.w;
 
-    mat4 inverseView = glm::inverse(WindowBase::currentCamera->view);
+    mat4 inverseView = inverse(WindowBase::currentCamera->view);
     vec3 ray_world =vec3(inverseView*p);
     return ray_world;
 }

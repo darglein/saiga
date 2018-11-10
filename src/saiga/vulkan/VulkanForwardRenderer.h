@@ -9,7 +9,7 @@
 #pragma once
 
 #include "saiga/util/assert.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 
 #include "saiga/vulkan/window/Window.h"
 #include "saiga/vulkan/Renderer.h"
