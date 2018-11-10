@@ -41,7 +41,21 @@ struct GLFWwindow;
 
 namespace Saiga {
 
-class SAIGA_GLOBAL ImGui_GLFW_Renderer : public ImGuiRenderer, public glfw_KeyListener, public glfw_MouseListener{
+class SAIGA_GLOBAL ImGui_GLFW_Renderer : public ImGuiRenderer, public glfw_KeyListener, public glfw_MouseListener
+{
+public:
+
+    ImGui_GLFW_Renderer(GLFWwindow* window, std::string font, float fontSize = 15.0f);
+    ~ImGui_GLFW_Renderer();
+
+    virtual void beginFrame() override;
+
+    bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) override;
+    bool character_event(GLFWwindow* window, unsigned int codepoint) override;
+    bool cursor_position_event(GLFWwindow* window, double xpos, double ypos) override;
+    bool mouse_button_event(GLFWwindow* window, int button, int action, int mods) override;
+    bool scroll_event(GLFWwindow* window, double xoffset, double yoffset) override;
+
 protected:
     double       g_Time = 0.0f;
     bool         g_MousePressed[3] = { false, false, false };
@@ -64,18 +78,6 @@ protected:
     static const char* ImGui_ImplGlfwGL3_GetClipboardText(void* user_data);
     static void ImGui_ImplGlfwGL3_SetClipboardText(void* user_data, const char* text);
     virtual void renderDrawLists(ImDrawData *draw_data) override;
-public:
-
-    bool init(GLFWwindow* window, std::string font, float fontSize = 15.0f);
-
-    virtual void shutdown() override;
-    virtual void beginFrame() override;
-
-    bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) override;
-    bool character_event(GLFWwindow* window, unsigned int codepoint) override;
-    bool cursor_position_event(GLFWwindow* window, double xpos, double ypos) override;
-    bool mouse_button_event(GLFWwindow* window, int button, int action, int mods) override;
-    bool scroll_event(GLFWwindow* window, double xoffset, double yoffset) override;
 };
 
 }

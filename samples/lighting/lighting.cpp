@@ -140,6 +140,7 @@ void Sample::renderOverlay(Camera *cam)
 
 void Sample::renderFinal(Camera *cam)
 {
+     parentWindow.renderImGui();
 }
 
 

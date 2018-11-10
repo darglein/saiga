@@ -180,8 +180,11 @@ void    ImGui_SDL_Renderer::ImGui_ImplSdlGL3_InvalidateDeviceObjects()
     }
 }
 
-bool    ImGui_SDL_Renderer::init(SDL_Window* window, std::string font, float fontSize)
+
+
+ ImGui_SDL_Renderer::ImGui_SDL_Renderer(SDL_Window* window, std::string font, float fontSize)
 {
+     memset(g_MousePressed, 0, 3 * sizeof(bool));
     this->window = window;
     ImGuiIO& io = ImGui::GetIO();
     io.KeyMap[ImGuiKey_Tab] = SDLK_TAB;                     // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
@@ -228,14 +231,16 @@ bool    ImGui_SDL_Renderer::init(SDL_Window* window, std::string font, float fon
 
     std::cout<<"Imgui Initialized!"<<std::endl;
 
-    return true;
 }
 
-void ImGui_SDL_Renderer::shutdown()
+
+
+ImGui_SDL_Renderer::~ImGui_SDL_Renderer()
 {
-    ImGui_ImplSdlGL3_InvalidateDeviceObjects();
-    ImGui::Shutdown();
+   ImGui_ImplSdlGL3_InvalidateDeviceObjects();
 }
+
+
 
 void ImGui_SDL_Renderer::beginFrame()
 {
@@ -275,7 +280,6 @@ void ImGui_SDL_Renderer::beginFrame()
     // Hide OS mouse cursor if ImGui is drawing it
     SDL_ShowCursor(io.MouseDrawCursor ? 0 : 1);
 
-    wantsCaptureMouse = false;
     // Start the frame
     ImGui::NewFrame();
 }

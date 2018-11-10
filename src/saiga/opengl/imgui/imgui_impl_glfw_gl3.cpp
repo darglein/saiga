@@ -95,30 +95,30 @@ bool ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_CreateDeviceObjects()
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &last_vertex_array);
 
     const GLchar *vertex_shader =
-        "#version 330\n"
-        "uniform mat4 ProjMtx;\n"
-        "in vec2 Position;\n"
-        "in vec2 UV;\n"
-        "in vec4 Color;\n"
-        "out vec2 Frag_UV;\n"
-        "out vec4 Frag_Color;\n"
-        "void main()\n"
-        "{\n"
-        "	Frag_UV = UV;\n"
-        "	Frag_Color = Color;\n"
-        "	gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
-        "}\n";
+            "#version 330\n"
+            "uniform mat4 ProjMtx;\n"
+            "in vec2 Position;\n"
+            "in vec2 UV;\n"
+            "in vec4 Color;\n"
+            "out vec2 Frag_UV;\n"
+            "out vec4 Frag_Color;\n"
+            "void main()\n"
+            "{\n"
+            "	Frag_UV = UV;\n"
+            "	Frag_Color = Color;\n"
+            "	gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
+            "}\n";
 
     const GLchar* fragment_shader =
-        "#version 330\n"
-        "uniform sampler2D Texture;\n"
-        "in vec2 Frag_UV;\n"
-        "in vec4 Frag_Color;\n"
-        "out vec4 Out_Color;\n"
-        "void main()\n"
-        "{\n"
-        "	Out_Color = Frag_Color * texture( Texture, Frag_UV.st);\n"
-        "}\n";
+            "#version 330\n"
+            "uniform sampler2D Texture;\n"
+            "in vec2 Frag_UV;\n"
+            "in vec4 Frag_Color;\n"
+            "out vec4 Out_Color;\n"
+            "void main()\n"
+            "{\n"
+            "	Out_Color = Frag_Color * texture( Texture, Frag_UV.st);\n"
+            "}\n";
 
     g_ShaderHandle = glCreateProgram();
     g_VertHandle = glCreateShader(GL_VERTEX_SHADER);
@@ -189,10 +189,9 @@ void    ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_InvalidateDeviceObjects()
     }
 }
 
-bool    ImGui_GLFW_Renderer::init(GLFWwindow* window, std::string font, float fontSize)
+ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, std::string font, float fontSize)
 {
     g_Window = window;
-
     ImGuiIO& io = ImGui::GetIO();
     io.KeyMap[ImGuiKey_Tab] = GLFW_KEY_TAB;                         // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
     io.KeyMap[ImGuiKey_LeftArrow] = GLFW_KEY_LEFT;
@@ -216,26 +215,28 @@ bool    ImGui_GLFW_Renderer::init(GLFWwindow* window, std::string font, float fo
 
     io.RenderDrawListsFn = 0;       // Alternatively you can set this to NULL and call ImGui::GetDrawData() after ImGui::Render() to get the same ImDrawData pointer.
     io.SetClipboardTextFn = ImGui_ImplGlfwGL3_SetClipboardText;
-//    io.SetClipboardTextFn = [this](const char*text){this->ImGui_ImplGlfwGL3_SetClipboardText(text);};
+    //    io.SetClipboardTextFn = [this](const char*text){this->ImGui_ImplGlfwGL3_SetClipboardText(text);};
     io.GetClipboardTextFn = ImGui_ImplGlfwGL3_GetClipboardText;
 #ifdef _WIN32
     io.ImeWindowHandle = glfwGetWin32Window(g_Window);
 #endif
 
-        glfw_EventHandler::addKeyListener(this,15);
-        glfw_EventHandler::addMouseListener(this,15);
+    glfw_EventHandler::addKeyListener(this,15);
+    glfw_EventHandler::addMouseListener(this,15);
 
 
+    if(font.size() > 0)
         io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
+    else
+        io.Fonts->AddFontDefault();
+    //        io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
 
-        std::cout<<"Imgui Initialized!"<<std::endl;
-    return true;
+    std::cout<<"Imgui Initialized!"<<std::endl;
 }
 
-void ImGui_GLFW_Renderer::shutdown()
+ImGui_GLFW_Renderer::~ImGui_GLFW_Renderer()
 {
     ImGui_ImplGlfwGL3_InvalidateDeviceObjects();
-    ImGui::Shutdown();
 }
 
 void ImGui_GLFW_Renderer::beginFrame()
@@ -281,10 +282,8 @@ void ImGui_GLFW_Renderer::beginFrame()
     g_MouseWheel = 0.0f;
 
     // Hide OS mouse cursor if ImGui is drawing it
-//    glfwSetInputMode(g_Window, GLFW_CURSOR, io.MouseDrawCursor ? GLFW_CURSOR_HIDDEN : GLFW_CURSOR_NORMAL);
+    //    glfwSetInputMode(g_Window, GLFW_CURSOR, io.MouseDrawCursor ? GLFW_CURSOR_HIDDEN : GLFW_CURSOR_NORMAL);
 
-//    isFocused = false;
-    wantsCaptureMouse = false;
     // Start the frame
     ImGui::NewFrame();
 }
@@ -400,7 +399,7 @@ bool ImGui_GLFW_Renderer::key_event(GLFWwindow *window, int key, int scancode, i
     io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
     io.KeyAlt = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
-//    return wantsCaptureMouse;
+    //    return wantsCaptureMouse;
     return false;
 }
 
@@ -410,7 +409,7 @@ bool ImGui_GLFW_Renderer::character_event(GLFWwindow *window, unsigned int codep
     if (codepoint > 0 && codepoint < 0x10000)
         io.AddInputCharacter((unsigned short)codepoint);
     return false;
-//    return wantsCaptureMouse;
+    //    return wantsCaptureMouse;
 }
 
 bool ImGui_GLFW_Renderer::cursor_position_event(GLFWwindow *window, double xpos, double ypos)
@@ -423,14 +422,14 @@ bool ImGui_GLFW_Renderer::mouse_button_event(GLFWwindow *window, int button, int
     if (action == GLFW_PRESS && button >= 0 && button < 3)
         g_MousePressed[button] = true;
     return false;
-//    return wantsCaptureMouse;
+    //    return wantsCaptureMouse;
 }
 
 bool ImGui_GLFW_Renderer::scroll_event(GLFWwindow *window, double xoffset, double yoffset)
 {
     g_MouseWheel += (float)yoffset; // Use fractional mouse wheel, 1.0 unit 5 lines.
     return false;
-//    return wantsCaptureMouse;
+    //    return wantsCaptureMouse;
 }
 
 }

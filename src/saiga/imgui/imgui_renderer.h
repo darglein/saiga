@@ -14,14 +14,11 @@ namespace Saiga {
 
 class SAIGA_GLOBAL ImGuiRenderer{
 public:
-    bool wantsCaptureMouse = false;
 
-    virtual ~ImGuiRenderer(){
-    }
+    ImGuiRenderer();
+    virtual ~ImGuiRenderer();
 
-    void checkWindowFocus();
 
-    virtual void shutdown() = 0;
     virtual void beginFrame() = 0;
     virtual void endFrame();
 

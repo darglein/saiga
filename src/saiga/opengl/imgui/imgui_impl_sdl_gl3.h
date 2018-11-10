@@ -44,7 +44,16 @@ namespace Saiga {
 // https://github.com/ocornut/imgui
 
 
-class SAIGA_GLOBAL ImGui_SDL_Renderer : public ImGuiRenderer, public SDL_EventListener{
+class SAIGA_GLOBAL ImGui_SDL_Renderer : public ImGuiRenderer, public SDL_EventListener
+{
+public:
+    ImGui_SDL_Renderer(SDL_Window* window, std::string font, float fontSize = 15.0f);
+    ~ImGui_SDL_Renderer();
+
+    virtual void beginFrame() override;
+
+    virtual bool processEvent(const SDL_Event& event) override;
+
 protected:
     SDL_Window* window;
 
@@ -63,15 +72,6 @@ protected:
     void ImGui_ImplSdlGL3_InvalidateDeviceObjects();
     bool ImGui_ImplSdlGL3_CreateDeviceObjects();
     virtual void renderDrawLists(ImDrawData *draw_data) override;
-public:
-	ImGui_SDL_Renderer() { memset(g_MousePressed, 0, 3 * sizeof(bool)); }
-    ~ImGui_SDL_Renderer() { shutdown(); }
-    bool init(SDL_Window* window, std::string font, float fontSize = 15.0f);
-
-    virtual void shutdown() override;
-    virtual void beginFrame() override;
-
-    virtual bool processEvent(const SDL_Event& event) override;
 };
 
 }

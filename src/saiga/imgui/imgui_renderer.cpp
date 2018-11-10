@@ -9,11 +9,17 @@
 
 namespace Saiga {
 
-void ImGuiRenderer::checkWindowFocus()
+ImGuiRenderer::ImGuiRenderer()
 {
-//    isFocused |= ImGui::IsWindowFocused();
-    wantsCaptureMouse |= ImGui::GetIO().WantCaptureMouse;
+    ImGui::CreateContext();
 }
+
+ImGuiRenderer::~ImGuiRenderer()
+{
+    ImGui::DestroyContext();
+}
+
+
 
 void ImGuiRenderer::endFrame()
 {
@@ -24,7 +30,6 @@ void ImGuiRenderer::endFrame()
 void ImGuiRenderer::render()
 {
     renderDrawLists(ImGui::GetDrawData());
-    checkWindowFocus();
 }
 
 
