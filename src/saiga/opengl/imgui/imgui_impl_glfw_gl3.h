@@ -30,18 +30,18 @@
 // If you use this binding you'll need to call 4 functions: ImGui_ImplXXXX_Init(), ImGui_ImplXXXX_NewFrame(), ImGui::Render() and ImGui_ImplXXXX_Shutdown().
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 // https://github.com/ocornut/imgui
-#include "saiga/opengl/opengl.h"
-#include "saiga/imgui/imgui_renderer.h"
+
+
+#include "saiga/opengl/imgui/imgui_opengl.h"
 
 #ifdef SAIGA_USE_GLFW
 #include <saiga/glfw/glfw_eventhandler.h>
-#include <saiga/imgui/imgui.h>
 
 struct GLFWwindow;
 
 namespace Saiga {
 
-class SAIGA_GLOBAL ImGui_GLFW_Renderer : public ImGuiRenderer, public glfw_KeyListener, public glfw_MouseListener
+class SAIGA_GLOBAL ImGui_GLFW_Renderer : public ImGui_GL_Renderer, public glfw_KeyListener, public glfw_MouseListener
 {
 public:
 
@@ -60,24 +60,11 @@ protected:
     double       g_Time = 0.0f;
     bool         g_MousePressed[3] = { false, false, false };
     float        g_MouseWheel = 0.0f;
-    GLuint       g_FontTexture = 0;
-    int          g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;
-    int          g_AttribLocationTex = 0, g_AttribLocationProjMtx = 0;
-    int          g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
-    unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
-
-
-    bool ImGui_ImplGlfwGL3_CreateFontsTexture();
-
-    // Use if you want to reset your rendering device without losing ImGui state.
-    void ImGui_ImplGlfwGL3_InvalidateDeviceObjects();
-    bool ImGui_ImplGlfwGL3_CreateDeviceObjects();
 
     //not nice to make this window static
     static GLFWwindow*  g_Window;
     static const char* ImGui_ImplGlfwGL3_GetClipboardText(void* user_data);
     static void ImGui_ImplGlfwGL3_SetClipboardText(void* user_data, const char* text);
-    virtual void renderDrawLists(ImDrawData *draw_data) override;
 };
 
 }

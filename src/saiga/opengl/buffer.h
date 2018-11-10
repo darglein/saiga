@@ -49,6 +49,8 @@ public:
     void createGLBuffer(const void* data=nullptr,unsigned int size=0, GLenum usage=GL_STATIC_DRAW);
     void deleteGLBuffer();
 
+    void fill(const void* data, unsigned int size, GLenum usage = GL_STATIC_DRAW);
+
     void updateBuffer(const void* data, unsigned int size, unsigned int offset);
     void getBuffer(void *out_data, unsigned int _size, unsigned int offset) const;
     void bind() const;
@@ -116,6 +118,22 @@ inline void Buffer::deleteGLBuffer()
         buffer = 0;
         assert_no_glerror();
     }
+}
+
+inline void Buffer::fill(const void *data, unsigned int _size, GLenum _usage)
+{
+    size = _size;
+    usage = _usage;
+
+    if(buffer)
+    {
+        bind();
+        glBufferData(target, size, data, usage);
+    }else
+    {
+        createGLBuffer(data,size,usage);
+    }
+    assert_no_glerror();
 }
 
 inline void Buffer::updateBuffer(const void *data, unsigned int _size, unsigned int offset)

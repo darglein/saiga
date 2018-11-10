@@ -35,6 +35,10 @@ ImGui_GL_Renderer::ImGui_GL_Renderer(std::string font, float fontSize)
 
     shader = ShaderLoader::instance()->load<Shader>("imgui_gl.glsl");
 
+    std::vector<ImDrawVert> test(5);
+    std::vector<ImDrawIdx> test2(5);
+    buffer.set(test,test2,GL_DYNAMIC_DRAW);
+
     {
         // Build texture atlas
         ImGuiIO& io = ImGui::GetIO();
@@ -65,12 +69,6 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData *draw_data)
     draw_data->ScaleClipRects(io.DisplayFramebufferScale);
 
     // Backup GL state
-    GLint last_program; glGetIntegerv(GL_CURRENT_PROGRAM, &last_program);
-    GLint last_texture; glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture);
-    GLint last_active_texture; glGetIntegerv(GL_ACTIVE_TEXTURE, &last_active_texture);
-    GLint last_array_buffer; glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &last_array_buffer);
-    GLint last_element_array_buffer; glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &last_element_array_buffer);
-    GLint last_vertex_array; glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &last_vertex_array);
     GLint last_blend_src; glGetIntegerv(GL_BLEND_SRC, &last_blend_src);
     GLint last_blend_dst; glGetIntegerv(GL_BLEND_DST, &last_blend_dst);
     GLint last_blend_equation_rgb; glGetIntegerv(GL_BLEND_EQUATION_RGB, &last_blend_equation_rgb);
@@ -99,28 +97,23 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData *draw_data)
         { 0.0f,                  0.0f,                  -1.0f, 0.0f },
         {-1.0f,                  1.0f,                   0.0f, 1.0f },
     };
-    //    glUseProgram(g_ShaderHandle);
     shader->bind();
 
     glUniform1i(1, 0);
     glUniformMatrix4fv(0, 1, GL_FALSE, &ortho_projection[0][0]);
 
 
-    //    glBindVertexArray(g_VaoHandle);
+
 
     for (int n = 0; n < draw_data->CmdListsCount; n++)
     {
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
         const ImDrawIdx* idx_buffer_offset = 0;
 
+        buffer.VertexBuffer<ImDrawVert>::fill(cmd_list->VtxBuffer.Data,cmd_list->VtxBuffer.size(),GL_DYNAMIC_DRAW);
+        buffer.IndexBuffer<ImDrawIdx>::fill(cmd_list->IdxBuffer.Data,cmd_list->IdxBuffer.size(),GL_DYNAMIC_DRAW);
 
-        buffer.set(cmd_list->VtxBuffer.Data,cmd_list->VtxBuffer.size(),cmd_list->IdxBuffer.Data,cmd_list->IdxBuffer.size(),GL_STATIC_DRAW);
         buffer.bind();
-        //        glBindBuffer(GL_ARRAY_BUFFER, g_VboHandle);
-        //        glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)cmd_list->VtxBuffer.size() * sizeof(ImDrawVert), (GLvoid*)&cmd_list->VtxBuffer.front(), GL_STREAM_DRAW);
-
-        //        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_ElementsHandle);
-        //        glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx), (GLvoid*)&cmd_list->IdxBuffer.front(), GL_STREAM_DRAW);
 
         for (const ImDrawCmd* pcmd = cmd_list->CmdBuffer.begin(); pcmd != cmd_list->CmdBuffer.end(); pcmd++)
         {
@@ -139,16 +132,9 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData *draw_data)
         }
         buffer.unbind();
     }
+    shader->unbind();
 
     // Restore modified GL state
-    //    glUseProgram(last_program);
-    //    glUseProgram(0);
-    shader->unbind();
-    glActiveTexture(static_cast<GLenum>(last_active_texture));
-    glBindTexture(GL_TEXTURE_2D, last_texture);
-    glBindVertexArray(last_vertex_array);
-    glBindBuffer(GL_ARRAY_BUFFER, last_array_buffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, last_element_array_buffer);
     glBlendEquationSeparate(static_cast<GLenum>(last_blend_equation_rgb), static_cast<GLenum>(last_blend_equation_alpha));
     glBlendFunc(static_cast<GLenum>(last_blend_src), static_cast<GLenum>(last_blend_dst));
     if (static_cast<bool>(last_enable_blend)) glEnable(GL_BLEND); else glDisable(GL_BLEND);
@@ -166,3 +152,4 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData *draw_data)
 
 
 }
+
