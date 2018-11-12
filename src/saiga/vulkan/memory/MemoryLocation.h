@@ -7,7 +7,7 @@
 #include <saiga/util/assert.h>
 #include "saiga/export.h"
 #include "saiga/vulkan/memory/Chunk.h"
-
+#include "saiga/util/easylogging++.h"
 namespace Saiga{
 namespace Vulkan{
 namespace Memory{
@@ -33,7 +33,13 @@ struct SAIGA_GLOBAL MemoryLocation {
 private:
     void mappedUpload(vk::Device device, const void* data ){
         SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
-        void* target = device.mapMemory(memory, offset,size);
+        void* target;
+        vk::Result result = device.mapMemory(memory,offset,size,vk::MemoryMapFlags(),&target);
+        if (result != vk::Result::eSuccess) {
+            LOG(FATAL) << "Could not map " << memory << vk::to_string(result);
+        }
+//        void *target = result.;
+//        void* target = device.mapMemory(memory, offset,size);
         std::memcpy(target, data, size);
         device.unmapMemory(memory);
     }

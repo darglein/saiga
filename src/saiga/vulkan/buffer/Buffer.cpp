@@ -19,6 +19,9 @@ void Buffer::destroy()
 void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags usage, vk::SharingMode sharingMode)
 {
     m_memoryLocation = base.memory.getAllocator(usage).allocate(size);
+    if (size != m_memoryLocation.size) {
+        LOG(WARNING) << "Unequal sizes" << size << " " << m_memoryLocation.size;
+    }
 }
 
 void Buffer::upload(vk::CommandBuffer &cmd, size_t offset, size_t size, const void *data)
