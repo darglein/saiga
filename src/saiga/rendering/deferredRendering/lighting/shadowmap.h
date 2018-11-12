@@ -24,7 +24,7 @@ protected:
     int w,h;
     Framebuffer depthBuffer;
 public:
-    glm::ivec2 getSize(){ return glm::ivec2(w,h);}
+    ivec2 getSize(){ return ivec2(w,h);}
     void bindFramebuffer();
     void unbindFramebuffer();
 };

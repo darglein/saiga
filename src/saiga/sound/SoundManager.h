@@ -11,7 +11,7 @@
 #include <map>
 
 #include <saiga/sound/OpenAL.h>
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include <saiga/sound/SoundSource.h>
 #include <thread>
 #include <list>

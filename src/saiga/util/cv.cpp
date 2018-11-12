@@ -12,7 +12,7 @@
 namespace Saiga {
 
 
-glm::mat4 cvCameraToGLCamera(const glm::mat3& K, int viewportW, int viewportH, float znear, float zfar)
+mat4 cvCameraToGLCamera(const mat3& K, int viewportW, int viewportH, float znear, float zfar)
 {
 
     /**
@@ -23,7 +23,7 @@ glm::mat4 cvCameraToGLCamera(const glm::mat3& K, int viewportW, int viewportH, f
      * The final projection matrix maps a point to the unit cube [-1,1]^3
      */
 #if 0
-    glm::mat3 viewPortTransform(
+    mat3 viewPortTransform(
                 0.5f * viewportW,   0,                  0.5f * viewportW,
                 0,                  0.5f * viewportH,   0.5f * viewportH,
                 0,                  0,                  1
@@ -31,7 +31,7 @@ glm::mat4 cvCameraToGLCamera(const glm::mat3& K, int viewportW, int viewportH, f
     auto removeViewPortTransform = inverse(transpose(viewPortTransform));
     cout << viewPortTransform << endl << removeViewPortTransform << endl;
 #else
-    glm::mat3 removeViewPortTransform(
+    mat3 removeViewPortTransform(
                 2.0 / viewportW,   0,                 0,
                 0,                  2.0 / viewportH,  0,
                 -1,                  -1,                1
@@ -48,14 +48,14 @@ glm::mat4 cvCameraToGLCamera(const glm::mat3& K, int viewportW, int viewportH, f
     return proj;
 }
 
-glm::mat4 cvViewToGLView(const glm::mat4 &view)
+mat4 cvViewToGLView(const mat4 &view)
 {
     /**
      * In computer vision the y-axis points down and the looks in the positive z-direction.
      *
      * Both systems are right-handed.
      */
-    glm::mat4 viewTransform(
+    mat4 viewTransform(
                 1,0,0,0,
                 0,-1,0,0,
                 0,0,-1,0,

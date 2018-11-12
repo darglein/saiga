@@ -21,11 +21,11 @@ void OBB::fitToPoints(int axis, vec3 *points, int count)
     float xMin = 234235125, xMax = -34853690;
 
     vec3 dir = orientationScale[axis];
-    dir = glm::normalize(dir);
+    dir = normalize(dir);
 
     for(int i = 0 ; i < count ; ++i){
         float x = dot(dir,points[i]);
-        xMin = glm::min(xMin,x); xMax = glm::max(xMax,x);
+        xMin = min(xMin,x); xMax = max(xMax,x);
     }
 
     orientationScale[axis] = 0.5f * dir * (xMax - xMin);
@@ -36,11 +36,11 @@ void OBB::fitToPoints(int axis, vec3 *points, int count)
     center += (centerAxis - d) * dir;
 }
 
-void OBB::normalize()
+void OBB::normalize2()
 {
-    orientationScale[0] = glm::normalize( orientationScale[0] );
-    orientationScale[1] = glm::normalize( orientationScale[1] );
-    orientationScale[2] = glm::normalize( orientationScale[2] );
+    orientationScale[0] = normalize( orientationScale[0] );
+    orientationScale[1] = normalize( orientationScale[1] );
+    orientationScale[2] = normalize( orientationScale[2] );
 }
 
 }

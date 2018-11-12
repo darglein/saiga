@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/image/image.h"
 #include "saiga/util/encoding.h"
 #include "saiga/image/templatedImage.h"

@@ -270,6 +270,30 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     }
 
 
+    template<typename T2, bool LOW = true>
+    inline
+    void copyToScaleDownMedian(ImageView<T2> dst) const
+    {
+        SAIGA_ASSERT(height/2 == dst.height && width/2 == dst.width);
+        for(int i = 0; i < dst.height; ++i)
+        {
+            for(int j = 0; j < dst.width; ++j)
+            {
+                std::array<float,4> vs;
+                for(int di = 0; di < 2; ++di)
+                {
+                    for(int dj = 0; dj < 2; ++dj)
+                    {
+                        vs[di*2+dj] = (*this)(i*2+di,j*2+dj);
+                    }
+                }
+                std::sort(vs.begin(),vs.end());
+                dst(i,j) = LOW ? vs[1] : vs[2];
+            }
+        }
+    }
+
+
     /**
      * Copies this image to the target image.
      * The target image can have a different size.

@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 #include <vector>
 #include <algorithm>
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 
 namespace Saiga {
 
@@ -222,7 +222,7 @@ float KDTree<D,point_t>::distance(point_t a, point_t b)
 {
     //use the squared distance so we don't have to calculate the sqrt
     point_t tmp = a-b;
-    return glm::dot(tmp,tmp);
+    return dot(tmp,tmp);
 }
 
 template<int D, typename point_t>

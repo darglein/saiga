@@ -34,7 +34,7 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
     rotateLocal(axis,angle);
 
     translateGlobal(-point);
-    quat qrot = glm::angleAxis(glm::radians(angle),axis);
+    quat qrot = angleAxis(radians(angle),axis);
 //    position = vec3(qrot*vec4(position,1));
     position = qrot*position;
     translateGlobal(point);
@@ -42,19 +42,19 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 
 quat Object3D::getSimpleDirectionQuat(const vec3 &dir){
     mat4 rotmat(1);
-    rotmat[0] = vec4(glm::normalize(glm::cross(dir,vec3(0,1,0))),0);
+    rotmat[0] = vec4(normalize(cross(dir,vec3(0,1,0))),0);
     rotmat[1] = vec4(0,1,0,0);
     rotmat[2] = vec4(-dir,0);
 
-    return glm::normalize(quat(rotmat));
+    return normalize(quat(rotmat));
 }
 
 Object3D Object3D::interpolate(const Object3D &a, const Object3D &b, float alpha)
 {
     Object3D res;
-    res.rot = normalize(glm::slerp(a.rot,b.rot,alpha));
-    res.scale = glm::mix(a.scale,b.scale,alpha);
-    res.position = glm::mix(a.position,b.position,alpha);
+    res.rot = normalize(slerp(a.rot,b.rot,alpha));
+    res.scale = mix(a.scale,b.scale,alpha);
+    res.position = mix(a.position,b.position,alpha);
     return res;
 }
 

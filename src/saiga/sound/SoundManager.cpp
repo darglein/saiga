@@ -85,7 +85,7 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
 
     s->reset(isMusic, isMusic ? musicVolume : effectsVolume);
     s->setSound(sound);
-    oldestSource = glm::max( (oldestSource + 1) % maxSources, fixedSources );
+    oldestSource = max( (oldestSource + 1) % maxSources, fixedSources );
     assert_no_alerror();
     return s;
 }
@@ -115,7 +115,7 @@ SoundSource* SoundManager::getSoundSourceWhileStillLoading(const std::string& fi
     }
     s->reset(isMusic, isMusic ? musicVolume : effectsVolume);
     s->setSound(sound);
-    oldestSource = glm::max( (oldestSource + 1) % maxSources, fixedSources );
+    oldestSource = max( (oldestSource + 1) % maxSources, fixedSources );
     assert_no_alerror();
     return s;
 }

@@ -23,10 +23,7 @@
 
 #pragma once
 
-#include "saiga/opengl/opengl.h"
-#include "saiga/imgui/imgui.h"
-#include "saiga/imgui/imgui_renderer.h"
-
+#include "saiga/opengl/imgui/imgui_opengl.h"
 
 #ifdef SAIGA_USE_SDL
 #include <saiga/sdl/sdl_eventhandler.h>
@@ -44,34 +41,25 @@ namespace Saiga {
 // https://github.com/ocornut/imgui
 
 
-class SAIGA_GLOBAL ImGui_SDL_Renderer : public ImGuiRenderer, public SDL_EventListener{
+class SAIGA_GLOBAL ImGui_SDL_Renderer : public ImGui_GL_Renderer, public SDL_EventListener
+{
+public:
+    ImGui_SDL_Renderer(SDL_Window* window, std::string font, float fontSize = 15.0f);
+    ~ImGui_SDL_Renderer();
+
+    virtual void beginFrame() override;
+
+    virtual bool processEvent(const SDL_Event& event) override;
+
 protected:
     SDL_Window* window;
+
 
     // Data
     double       g_Time = 0.0f;
     bool         g_MousePressed[3];
     float        g_MouseWheel = 0.0f;
-    GLuint       g_FontTexture = 0;
-    int          g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;
-    int          g_AttribLocationTex = 0, g_AttribLocationProjMtx = 0;
-    int          g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
-    unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
 
-    void ImGui_ImplSdlGL3_CreateFontsTexture();
-    // Use if you want to reset your rendering device without losing ImGui state.
-    void ImGui_ImplSdlGL3_InvalidateDeviceObjects();
-    bool ImGui_ImplSdlGL3_CreateDeviceObjects();
-    virtual void renderDrawLists(ImDrawData *draw_data) override;
-public:
-	ImGui_SDL_Renderer() { memset(g_MousePressed, 0, 3 * sizeof(bool)); }
-    ~ImGui_SDL_Renderer() { shutdown(); }
-    bool init(SDL_Window* window, std::string font, float fontSize = 15.0f);
-
-    virtual void shutdown() override;
-    virtual void beginFrame() override;
-
-    virtual bool processEvent(const SDL_Event& event) override;
 };
 
 }

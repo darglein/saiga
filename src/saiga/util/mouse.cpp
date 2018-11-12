@@ -18,7 +18,7 @@ Mouse::Mouse() : Keyboard(32)
 }
 
 
-void Mouse::setPosition(const glm::ivec2 &value)
+void Mouse::setPosition(const ivec2 &value)
 {
     position = value;
 }

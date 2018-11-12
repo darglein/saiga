@@ -51,7 +51,7 @@ SSAO::SSAO(int w, int h)
 void SSAO::init(int w, int h)
 {
     screenSize = vec2(w,h);
-    ssaoSize = glm::ivec2(w/2,h/2);
+    ssaoSize = ivec2(w/2,h/2);
 
     ssao_framebuffer.create();
     ssaotex = std::make_shared<Texture>();
@@ -89,9 +89,9 @@ void SSAO::init(int w, int h)
 void SSAO::resize(int w, int h)
 {
     screenSize = vec2(w,h);
-    ssaoSize = glm::ivec2(w/2,h/2);
-    ssaoSize.x = glm::max(ssaoSize.x, 1);
-    ssaoSize.y = glm::max(ssaoSize.y, 1);
+    ssaoSize = ivec2(w/2,h/2);
+    ssaoSize.x = max(ssaoSize.x, 1);
+    ssaoSize.y = max(ssaoSize.y, 1);
 
     ssao_framebuffer.resize(ssaoSize.x,ssaoSize.y);
     ssao_framebuffer2.resize(ssaoSize.x,ssaoSize.y);
@@ -123,7 +123,7 @@ void SSAO::render(Camera *cam, GBuffer* gbuffer)
     ssaoShader->uploadFramebuffer(gbuffer);
     ssaoShader->uploadRandomImage(randomTexture);
     ssaoShader->uploadData();
-    mat4 iproj = glm::inverse(cam->proj);
+    mat4 iproj = inverse(cam->proj);
     ssaoShader->uploadInvProj(iproj);
     quadMesh.bindAndDraw();
     ssaoShader->unbind();
@@ -153,13 +153,13 @@ void SSAO::setKernelSize(int _kernelSize)
     kernelSize = _kernelSize;
     kernelOffsets.resize(kernelSize);
     for (int i = 0; i < kernelSize; ++i) {
-        vec3 sample = glm::normalize(glm::linearRand(vec3(-1,-1,0),vec3(1,1,1)));
+        vec3 sample = normalize(linearRand(vec3(-1,-1,0),vec3(1,1,1)));
         float scale = float(i) / float(kernelSize);
-        scale = glm::mix(0.1f, 1.0f, scale * scale);
+        scale = mix(0.1f, 1.0f, scale * scale);
         sample *= scale;
 
-        //        vec3 sample = glm::ballRand(1.0f);
-        //        sample.z = glm::abs(sample.z);
+        //        vec3 sample = ballRand(1.0f);
+        //        sample.z = abs(sample.z);
 
         kernelOffsets[i] = sample;
     }

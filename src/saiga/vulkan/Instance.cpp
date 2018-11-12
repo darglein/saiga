@@ -50,13 +50,15 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
     auto layers = Debug::getDebugValidationLayers();
     if (enableValidation)
     {
-        instanceCreateInfo.enabledLayerCount = layers.size();
-        instanceCreateInfo.ppEnabledLayerNames = layers.data();
+        // TODO
+//        instanceCreateInfo.enabledLayerCount = layers.size();
+//        instanceCreateInfo.ppEnabledLayerNames = layers.data();
     }
 
     cout << "Instance extensions:" << endl;
     for(auto ex : instanceExtensions)
         cout << ex << endl;
+
 
 
 //   VK_CHECK_RESULT(vkCreateInstance(&instanceCreateInfo, nullptr, &instance));

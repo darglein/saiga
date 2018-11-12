@@ -150,7 +150,7 @@ void ObjModelLoader::computeVertexColorAndData()
             {
                 int index = face.v[f];
                 vertexColors[index] = tg.material.color;
-                float spec =  glm::dot(tg.material.Ks,vec3(1))/3.0f;
+                float spec =  dot(tg.material.Ks,vec3(1))/3.0f;
                 vertexData[index].x = spec;
             }
         }
@@ -342,7 +342,7 @@ void ObjModelLoader::parseVN(const std::string &line)
     std::stringstream sstream(line);
     vec3 v;
     sstream >> v;
-    normals.push_back(glm::normalize(v));
+    normals.push_back(normalize(v));
 }
 
 void ObjModelLoader::parseF(std::string &line)

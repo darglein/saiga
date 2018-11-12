@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/opengl/vertexBuffer.h"
 
 namespace Saiga {
@@ -66,7 +66,7 @@ inline void Particle::setScale(const vec2 &_scale, const vec2 &upscale){
 }
 
 inline void Particle::setVelocity(const vec3 &v){
-    float l = glm::length(v);
+    float l = length(v);
     velocity = vec4(v/l,l);
 }
 

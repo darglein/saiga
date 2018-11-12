@@ -36,7 +36,7 @@ public:
     void uploadDepthBiasMV(const mat4 &mat);
     void uploadDepthTexture(std::shared_ptr<raw_Texture> texture);
     void uploadShadow(float shadow);
-    void uploadShadowMapSize(glm::ivec2 s);
+    void uploadShadowMapSize(ivec2 s);
     void uploadInvProj(const mat4 &mat);
 };
 

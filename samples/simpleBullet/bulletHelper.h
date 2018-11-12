@@ -45,13 +45,13 @@ void setRigidBodyState(btRigidBody* rigidBody, vec3 position, quat rotation);
 /**
  * Conversion functions: glm->bullet
  */
-inline btQuaternion toBT(const glm::quat& q){return btQuaternion(q.x,q.y,q.z,q.w);}
-inline btVector3 toBT(const glm::vec3& v){return btVector3(v.x,v.y,v.z);}
+inline btQuaternion toBT(const quat& q){return btQuaternion(q.x,q.y,q.z,q.w);}
+inline btVector3 toBT(const vec3& v){return btVector3(v.x,v.y,v.z);}
 
 /**
  * Conversion functions: bullet->glm
  */
-inline glm::quat toGLM(const btQuaternion& q){return quat(q.w(),q.x(),q.y(),q.z());}
+inline quat toGLM(const btQuaternion& q){return quat(q.w(),q.x(),q.y(),q.z());}
 inline vec3 toGLM(const btVector3& v){return vec3(v.x(),v.y(),v.z());}
 
 }

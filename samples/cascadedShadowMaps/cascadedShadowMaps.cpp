@@ -41,7 +41,7 @@ Sample::Sample(Saiga::OpenGLWindow &window, Saiga::Renderer &renderer)
     for(int i = 0 ;i < 500; ++i){
         SimpleAssetObject cube;
         cube.asset = cubeAsset;
-        cube.translateGlobal(glm::linearRand(vec3(-s,0,-s),vec3(s,0,s)));
+        cube.translateGlobal(linearRand(vec3(-s,0,-s),vec3(s,0,s)));
         cube.calculateModel();
         cubes.push_back(cube);
     }

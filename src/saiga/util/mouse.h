@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include <saiga/util/keyboard.h>
 
 #include <map>
@@ -17,17 +17,17 @@ namespace Saiga {
 
 class SAIGA_GLOBAL Mouse : public Keyboard{
 protected:
-    glm::ivec2 position;
+    ivec2 position;
 public:
     Mouse();
 
-    glm::ivec2 getPosition() { return position; }
+    ivec2 getPosition() { return position; }
     int getX() { return position.x; }
     int getY() { return position.y; }
 
 
     //should not be called by applications
-    void setPosition(const glm::ivec2 &value);
+    void setPosition(const ivec2 &value);
 };
 
 extern SAIGA_GLOBAL Mouse mouse;

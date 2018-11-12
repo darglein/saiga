@@ -21,6 +21,8 @@ public:
     void set(std::vector<T> &data, GLenum usage);
     void set(T* data, int count, GLenum usage);
 
+    void fill(const T* data, int count, GLenum usage = GL_STATIC_DRAW);
+
     void updateBuffer(T* data,int count, int offset);
 
     int getElementCount() const {return Buffer::size/sizeof(T);}
@@ -37,6 +39,12 @@ void TemplatedBuffer<T>::set(std::vector<T> &data, GLenum usage){
 template<typename T>
 void TemplatedBuffer<T>::set(T* data,int count, GLenum _usage){
     Buffer::createGLBuffer(data,count * sizeof(T),_usage);
+}
+
+template<typename T>
+void TemplatedBuffer<T>::fill(const T *data, int count, GLenum usage)
+{
+    Buffer::fill(data,count * sizeof(T),usage);
 }
 
 

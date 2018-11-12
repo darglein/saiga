@@ -6,7 +6,7 @@
 
 #pragma once
 #include <vector>
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/util/assert.h"
 
 namespace Saiga {
@@ -80,7 +80,7 @@ Bspline<P>::Bspline(int degree, std::vector<P> controlPoints)
 template <typename P>
 P Bspline<P>::getPointOnCurve(float a)
 {
-    a = glm::clamp(a,0.f,1.f);
+    a = clamp(a,0.f,1.f);
     a = a*(knots[controlPoints.size()] - knots[degree]) + knots[degree];
     return deBoor(a);
 }
@@ -108,7 +108,7 @@ P Bspline<P>::deBoor(float u)
         for (int i = k; i <= degree; ++i){
             float a = (u-knots[j-degree+i])/(knots[j+i+1-k]-knots[j-degree+i]);
             int ind = i-k+1;
-            dd[ind-1] = glm::mix(dd[ind-1],dd[ind],a);
+            dd[ind-1] = mix(dd[ind-1],dd[ind],a);
         }
 
     return dd[0];

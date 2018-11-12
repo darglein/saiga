@@ -5,7 +5,7 @@
  */
 
 #include "saiga/image/imageMetaData.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "internal/noGraphicsAPI.h"
 
 namespace Saiga {

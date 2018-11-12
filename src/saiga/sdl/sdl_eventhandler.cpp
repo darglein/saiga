@@ -126,7 +126,7 @@ void SDL_EventHandler::keyReleased(const SDL_Keysym &key){
 }
 
 void SDL_EventHandler::mouseMoved(int x, int y){
-    mouse.setPosition(glm::ivec2(x,y));
+    mouse.setPosition(ivec2(x,y));
     for(SDL_MouseListener* listener : mouseListener){
         listener->mouseMoved(x,y);
     }

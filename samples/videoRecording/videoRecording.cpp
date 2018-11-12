@@ -133,7 +133,7 @@ void Sample::update(float dt){
 
     if(rotateCamera){
         float speed = 360.0f / 10.0 * dt;
-        //        float speed = 2 * glm::pi<float>();
+        //        float speed = 2 * pi<float>();
         camera.mouseRotateAroundPoint(speed,0,vec3(0,5,0),vec3(0,1,0));
     }
 

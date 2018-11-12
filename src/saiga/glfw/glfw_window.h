@@ -58,6 +58,8 @@ public:
     static void getCurrentPrimaryMonitorResolution(int *width, int *height);
     static void getMaxResolution(int *width, int *height);
 
+     virtual std::shared_ptr<ImGuiRenderer> createImGui() override;
+
 };
 
 }

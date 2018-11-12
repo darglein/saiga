@@ -21,7 +21,7 @@ void VertexColoredModel::createFullscreenQuad()
     mesh.addFace(0,1,2);
 }
 
-void VertexColoredModel::createCheckerBoard(glm::ivec2 size, float quadSize, vec4 color1, vec4 color2)
+void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, vec4 color1, vec4 color2)
 {
     vec4 n(0,1,0,0);
     for(int i = -size.x; i < size.x; ++i)

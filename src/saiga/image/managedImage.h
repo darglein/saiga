@@ -117,6 +117,14 @@ public:
         pitchBytes = 0;
     }
 
+    template<typename T>
+    void createEmptyFromImageView(ImageView<T> v)
+    {
+        setFormatFromImageView<T>(v);
+        create();
+    }
+
+
     bool load(const std::string &path);
     bool loadFromMemory(ArrayView<const char> data);
 

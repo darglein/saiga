@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/util/ini/ini.h"
 #include "saiga/util/tostring.h"
 

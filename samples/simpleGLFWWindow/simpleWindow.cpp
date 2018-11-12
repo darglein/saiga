@@ -126,6 +126,7 @@ void Sample::renderFinal(Camera *cam)
 {
     //The final render path (after post processing).
     //Usually the GUI is rendered here.
+    parentWindow.renderImGui();
 }
 
 bool Sample::key_event(GLFWwindow *window, int key, int scancode, int action, int mods)

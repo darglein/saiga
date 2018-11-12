@@ -6,7 +6,7 @@
 
 #include <iostream>
 #include <vector>
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include <thrust/device_vector.h>
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"

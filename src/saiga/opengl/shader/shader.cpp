@@ -170,23 +170,23 @@ bool Shader::setBinary(const std::vector<uint8_t> &binary, GLenum format)
 // ===================================== Compute Shaders =====================================
 
 
-glm::uvec3 Shader::getComputeWorkGroupSize()
+uvec3 Shader::getComputeWorkGroupSize()
 {
 	GLint work_size[3];
 	glGetProgramiv(program, GL_COMPUTE_WORK_GROUP_SIZE, work_size);
     assert_no_glerror();
-	return glm::uvec3(work_size[0], work_size[1], work_size[2]);
+	return uvec3(work_size[0], work_size[1], work_size[2]);
 }
 
-glm::uvec3 Shader::getNumGroupsCeil(const glm::uvec3 &problem_size)
+uvec3 Shader::getNumGroupsCeil(const uvec3 &problem_size)
 {
 	return getNumGroupsCeil(problem_size, getComputeWorkGroupSize());
 }
 
-glm::uvec3 Shader::getNumGroupsCeil(const glm::uvec3 &problem_size, const glm::uvec3 &work_group_size)
+uvec3 Shader::getNumGroupsCeil(const uvec3 &problem_size, const uvec3 &work_group_size)
 {
-	//    glm::uvec3 ret = problem_size/work_group_size;
-	//    glm::uvec3 rest = problem_size%work_group_size;
+	//    uvec3 ret = problem_size/work_group_size;
+	//    uvec3 rest = problem_size%work_group_size;
 
 	//    ret.x += rest.x ? 1 : 0;
 	//    ret.y += rest.y ? 1 : 0;
@@ -194,10 +194,10 @@ glm::uvec3 Shader::getNumGroupsCeil(const glm::uvec3 &problem_size, const glm::u
 
 	//    return ret;
 
-	return (problem_size + work_group_size - glm::uvec3(1)) / (work_group_size);
+	return (problem_size + work_group_size - uvec3(1)) / (work_group_size);
 }
 
-void Shader::dispatchCompute(const glm::uvec3 &num_groups)
+void Shader::dispatchCompute(const uvec3 &num_groups)
 {
     SAIGA_ASSERT(isBound());
 	dispatchCompute(num_groups.x, num_groups.y, num_groups.z);

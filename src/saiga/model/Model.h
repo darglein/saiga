@@ -41,7 +41,7 @@ template<typename vertex_t, typename index_t>
 void TriangleModel<vertex_t,index_t>::normalizePosition()
 {
     offset = boundingBox.getPosition();
-    mat4 t = glm::translate(mat4(1),-offset);
+    mat4 t = translate(mat4(1),-offset);
     mesh.transform(t);
     boundingBox.setPosition(vec3(0));
 }
@@ -52,7 +52,7 @@ void TriangleModel<vertex_t,index_t>::normalizeScale()
 {
     //TODO
     vec3 d = boundingBox.max - boundingBox.min;
-    mat4 t = glm::translate(mat4(1),-offset);
+    mat4 t = translate(mat4(1),-offset);
     mesh.transform(t);
     boundingBox.setPosition(vec3(0));
 }

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 
 namespace Saiga {
 
@@ -59,6 +59,8 @@ enum ImageType : int
 
 template<typename T>
 struct SAIGA_GLOBAL ImageTypeTemplate{
+//    using ChannelType = T;
+//    const static ImageType type = TYPE_UNKNOWN;
 };
 
 template<> struct ImageTypeTemplate<char>{

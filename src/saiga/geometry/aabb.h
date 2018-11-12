@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/geometry/triangle.h"
 
 #include <vector>
@@ -37,7 +37,6 @@ public:
     void transform(const mat4 &trafo);
     void translate(const vec3 &v);
     void scale(const vec3 &s);
-    float height(){ return max.y-min.y;}
     void ensureValidity();
 
 

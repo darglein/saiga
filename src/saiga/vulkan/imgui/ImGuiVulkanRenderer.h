@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
@@ -42,8 +42,8 @@ protected:
 
     struct PushConstBlock
     {
-        glm::vec2 scale;
-        glm::vec2 translate;
+        vec2 scale;
+        vec2 translate;
     } pushConstBlock;
 
 

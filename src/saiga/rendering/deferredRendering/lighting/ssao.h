@@ -51,7 +51,7 @@ private:
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
     vec2 screenSize;
-    glm::ivec2 ssaoSize;
+    ivec2 ssaoSize;
     std::vector<vec3> kernelOffsets;
     int kernelSize = 32;
 public:

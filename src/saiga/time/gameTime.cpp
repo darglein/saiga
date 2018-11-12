@@ -5,7 +5,7 @@
  */
 
 #include "saiga/time/gameTime.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "internal/noGraphicsAPI.h"
 
 namespace Saiga {
@@ -100,7 +100,7 @@ bool GameTime::shouldRender()
 
         //        calculate the interpolation value. Useful when the framerate is higher than the update rate
         interpolation = (double)ticksSinceLastUpdate.count() / (nextUpdateTime - updatetime).count();
-        interpolation = glm::clamp(interpolation,0.0,1.0);
+        interpolation = clamp(interpolation,0.0,1.0);
 
 
         nextFrameTime += dtr;

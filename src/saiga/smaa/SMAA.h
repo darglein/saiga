@@ -88,7 +88,7 @@ private:
 
 
     IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
-    glm::ivec2 screenSize;
+    ivec2 screenSize;
 
     Quality quality = Quality::SMAA_PRESET_HIGH;
 };

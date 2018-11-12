@@ -36,21 +36,11 @@ public:
 //        DeviceMemory::memory = m_memoryLocation.memory;
     }
 
-//    void init(
-//            VulkanBase& base,
-//            int count,
-//            vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible| vk::MemoryPropertyFlagBits::eHostCoherent
-//    )
-//    {
-//        vertexCount = count;
-//        size_t size = sizeof(VertexType) * vertexCount;
-////        m_memoryLocation = memory.vertexIndexAllocator.allocate(base,memory.chunkAllocator, size);
-////        buffer = m_memoryLocation.buffer;
-////        DeviceMemory::memory = m_memoryLocation.memory;
-//        createBuffer(base,size,vk::BufferUsageFlagBits::eVertexBuffer|vk::BufferUsageFlagBits::eTransferDst);
-//        allocateMemoryBuffer(base,flags);
-//        m_memoryLocation = {buffer, DeviceMemory::memory, 0};
-//    }
+    void initDeviceLocal(VulkanBase& base, const std::vector<VertexType>& vertices)
+    {
+        init(base,vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+        stagedUpload(base,0,vertices.size()*sizeof(VertexType),vertices.data());
+    }
 
     void upload(vk::CommandBuffer cmd, const std::vector<VertexType>& vertices)
     {

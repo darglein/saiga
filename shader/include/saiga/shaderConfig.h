@@ -18,7 +18,7 @@
 #ifdef SHADER_HOST
 #define FUNC_DECL inline
 #define GLM_FORCE_SWIZZLE
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 using namespace glm;
 #else
 #define FUNC_DECL

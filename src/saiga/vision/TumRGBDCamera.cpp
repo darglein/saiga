@@ -171,6 +171,7 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 
         int igtbest;
 
+        GroundTruth bestGT;
         {
             int ismaller = cgt;
             int ibigger = cgt;
@@ -189,12 +190,23 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
             }
 
             igtbest = t - smaller < bigger - t ? ismaller : ibigger;
+
+#if 1
+            GroundTruth a = gt[ismaller];
+            GroundTruth b = gt[ibigger];
+            bestGT.timeStamp = t;
+            double alpha = (t - a.timeStamp) / (b.timeStamp - a.timeStamp);
+            bestGT.se3 = slerp(a.se3,b.se3,alpha);
+#else
+            bestGT = gt[igtbest];
+#endif
         }
 
 
         tf.rgb = r;
         tf.depth = depthData[ibest];
-        tf.gt = gt[igtbest];
+//        tf.gt = gt[igtbest];
+        tf.gt = bestGT;
 
 
 #if 0
@@ -240,7 +252,7 @@ void TumRGBDCamera::load(const std::string &datasetDir)
     for(int i = 0; i < (int)tumframes.size(); ++i)
     {
         TumFrame d = tumframes[i];
-        cout << "loading " << d.rgb.img << endl;
+//        cout << "loading " << d.rgb.img << endl;
 
 
         Image cimg(datasetDir + "/" + d.rgb.img);
@@ -273,6 +285,8 @@ void TumRGBDCamera::load(const std::string &datasetDir)
         }
         frames[i] = f;
     }
+
+    cout << "Loaded " << tumframes.size() << " images." << endl;
 }
 
 

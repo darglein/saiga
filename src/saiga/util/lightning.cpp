@@ -12,9 +12,9 @@ namespace Saiga {
 std::vector<Lightning::LineSegment> Lightning::createLightningBolt(vec3 startPoint, vec3 endPoint, int generations, float offsetAmount, float splitProbability, float splitLength, float splitIntensityDrop)
 {
 
-    vec3 direction = glm::normalize(endPoint-startPoint);
-    vec3 right = glm::normalize(glm::cross(direction,vec3(0,1,0)));
-    vec3 up = glm::normalize(glm::cross(direction,right));
+    vec3 direction = normalize(endPoint-startPoint);
+    vec3 right = normalize(cross(direction,vec3(0,1,0)));
+    vec3 up = normalize(cross(direction,right));
 
     std::vector<LineSegment> segmentList;
     segmentList.emplace_back(1.0f,startPoint,endPoint);
@@ -44,7 +44,7 @@ std::vector<Lightning::LineSegment> Lightning::createLightningBolt(vec3 startPoi
             s.end = midPoint;
             segmentList.emplace_back(i,midPoint,e);
 
-            if(glm::linearRand(0.0f,1.0f) < splitProbability){
+            if(linearRand(0.0f,1.0f) < splitProbability){
                 vec3 currentDir = midPoint - st;
                 vec3 splitEnd = currentDir * splitLength + midPoint; // lengthScale is, for best results, < 1.  0.7 is a good value.
                 segmentList.emplace_back(i*splitIntensityDrop,midPoint,splitEnd);

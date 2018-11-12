@@ -113,14 +113,14 @@ void DirectionalLight::createShadowMap(int w, int h, int _numCascades, ShadowQua
 
 
 void DirectionalLight::setDirection(const vec3 &dir){
-    direction = glm::normalize(dir);
+    direction = normalize(dir);
 
     vec3 d = -direction;
     vec3 right = normalize(cross(vec3(1,1,0),d));
     vec3 up = normalize(cross(d,right));
 
 
-    glm::mat3 m;
+    mat3 m;
     m[0] = right;
     m[1] = up;
     m[2] = d;
@@ -130,7 +130,7 @@ void DirectionalLight::setDirection(const vec3 &dir){
     this->shadowCamera.setPosition( cp );
 
 
-    this->shadowCamera.rot = glm::quat_cast( m );
+    this->shadowCamera.rot = quat_cast( m );
 
     this->shadowCamera.calculateModel();
     this->shadowCamera.updateFromModel();
@@ -168,7 +168,7 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
     this->cam.setPosition( obb.center );
 
     obb.normalize();
-    this->cam.rot = glm::quat_cast( obb.orientationScale );
+    this->cam.rot = quat_cast( obb.orientationScale );
 
     this->cam.calculateModel();
     this->cam.updateFromModel();
@@ -232,7 +232,7 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
 
 
             vec3 sphereMid = (nearplanepos+farplanepos)*0.5f;
-            float r = glm::distance(v,sphereMid);
+            float r = distance(v,sphereMid);
 
             boundingSphere.r = r;
             boundingSphere.pos = sphereMid;
@@ -253,7 +253,7 @@ void DirectionalLight::fitShadowToCamera(Camera *cam)
 
         //project the position of the actual camera to light space
         vec3 p = boundingSphere.pos;
-        glm::mat3 v = glm::mat3(this->shadowCamera.view);
+        mat3 v = mat3(this->shadowCamera.view);
         vec3 t = v * p - v * lightPos;
         t.z = -t.z;
 
@@ -363,10 +363,10 @@ void DirectionalLight::bindUniforms(DirectionalLightShader &shader, Camera *cam)
     shader.uploadColorSpecular(colorSpecular);
     shader.uploadAmbientIntensity(ambientIntensity);
 
-    vec3 viewd = -glm::normalize(vec3(cam->view*vec4(direction,0)));
+    vec3 viewd = -normalize(vec3(cam->view*vec4(direction,0)));
     shader.uploadDirection(viewd);
 
-    mat4 ip = glm::inverse(cam->proj);
+    mat4 ip = inverse(cam->proj);
     shader.uploadInvProj(ip);
 
     if(this->hasShadows()){

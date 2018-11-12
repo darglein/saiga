@@ -40,10 +40,10 @@ void SpotLight::calculateCamera(){
 
 void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *cam){
     AttenuatedLight::bindUniforms(shader,cam);
-    float cosa = glm::cos(glm::radians(angle*0.95f)); //make border smoother
+    float cosa = cos(radians(angle*0.95f)); //make border smoother
     shader->uploadAngle(cosa);
     shader->uploadShadowPlanes(this->shadowCamera.zFar,this->shadowCamera.zNear);
-    shader->uploadInvProj(glm::inverse(cam->proj));
+    shader->uploadInvProj(inverse(cam->proj));
     if(this->hasShadows()){
         shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
         shader->uploadDepthTexture(shadowmap->getDepthTexture());
@@ -54,7 +54,7 @@ void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *ca
 
 
 void SpotLight::recalculateScale(){
-    float l = glm::tan(glm::radians(angle))*cutoffRadius;
+    float l = tan(radians(angle))*cutoffRadius;
     vec3 scale(l,cutoffRadius,l);
     this->setScale(scale);
 }
@@ -79,7 +79,7 @@ void SpotLight::setAngle(float value){
 
 void SpotLight::setDirection(vec3 dir)
 {
-    rot = glm::rotation(glm::normalize(dir),vec3(0,-1,0));
+    rot = rotation(normalize(dir),vec3(0,-1,0));
 }
 
 bool SpotLight::cullLight(Camera *cam)

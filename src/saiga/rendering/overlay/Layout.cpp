@@ -23,7 +23,7 @@ void Layout::init(int _width, int _height)
     scale = vec3(aspect,1.0f,1.0f);
 
 
-//    proj = glm::ortho(0.0f,this->targetWidth,0.0f,this->targetHeight,-1.0f,1.0f);
+//    proj = ortho(0.0f,this->targetWidth,0.0f,this->targetHeight,-1.0f,1.0f);
 
     cam.setProj(0.0f,targetWidth,0.0f,targetHeight,-1.0f,1.0f);
     proj = cam.proj;
@@ -159,7 +159,7 @@ AABB Layout::transformUniform(Object3D *obj, const AABB &box, vec2 relPos, vec2 
 
     //use lower value of s.x and s.y to scale uniformly.
     //-> The result will fit in the box
-    float ds = glm::min(s.x,s.y);
+    float ds = min(s.x,s.y);
 
     obj->setScale(vec3(ds,ds,1));
     obj->scale.x *= 1.0f/aspect;

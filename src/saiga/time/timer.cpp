@@ -10,7 +10,7 @@
 #endif
 #include <algorithm>
 #include "saiga/time/timer.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/util/assert.h"
 #include "saiga/time/gameTime.h"
 #include "internal/noGraphicsAPI.h"

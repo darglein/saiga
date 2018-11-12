@@ -120,8 +120,7 @@ std::shared_ptr<ImGuiRenderer> SDLWindow::createImGui()
     std::shared_ptr<ImGui_SDL_Renderer> sdlimgui;
     if(windowParameters.createImgui)
     {
-        sdlimgui = std::make_shared<ImGui_SDL_Renderer>();
-        sdlimgui->init(window,windowParameters.imguiFont,windowParameters.imguiFontSize);
+        sdlimgui = std::make_shared<ImGui_SDL_Renderer>(window,windowParameters.imguiFont,windowParameters.imguiFontSize);
     }
     return sdlimgui;
 }

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/util/assert.h"
 
 namespace Saiga {
@@ -126,13 +126,13 @@ inline void Object3D::translateGlobal(const vec3& d){
 }
 
 inline void Object3D::rotateLocal(const vec3& axis, float angle){
-    this->rot = glm::rotate(this->rot,glm::radians(angle),axis);
+    this->rot = rotate(this->rot,radians(angle),axis);
 }
 
 inline void Object3D::rotateGlobal(vec3 axis, float angle){
-    axis = vec3((glm::inverse(rot)) * vec4(axis,0));
-    axis = glm::normalize(axis);
-    this->rot = glm::rotate(this->rot,glm::radians(angle),axis);
+    axis = vec3((inverse(rot)) * vec4(axis,0));
+    axis = normalize(axis);
+    this->rot = rotate(this->rot,radians(angle),axis);
 }
 
 inline vec3 Object3D::getScale() const{
@@ -153,14 +153,14 @@ inline void Object3D::setModelMatrix(const mat4 &_model)
     //this is the inverse of createTRSmatrix
     model = _model;
     position = model[3];
-    glm::mat3 R(model);
+    mat3 R(model);
     scale.x = length(R[0]);
     scale.y = length(R[1]);
     scale.z = length(R[2]);
     R[0] /= scale.x;
     R[1] /= scale.y;
     R[2] /= scale.z;
-    rot = glm::quat_cast(R);
+    rot = quat_cast(R);
 }
 
 inline void Object3D::setViewMatrix(const mat4 &view)

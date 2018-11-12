@@ -74,7 +74,7 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float
     return asset;
 }
 
-std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(glm::ivec2 size, float quadSize, Color color1, Color color2)
+std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(ivec2 size, float quadSize, Color color1, Color color2)
 {
     std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
 
@@ -89,8 +89,8 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(glm::ivec2 size,
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
 {
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
-    mat4 scale = glm::scale(mat4(1),vec3(size.x,1,size.y));
-    plainMesh->transform(scale);
+    mat4 S = scale(mat4(1),vec3(size.x,1,size.y));
+    plainMesh->transform(S);
 
     auto asset = std::make_shared<TexturedAsset>();
 
@@ -146,13 +146,13 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float le
 {
     //    auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
     auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius,length,12);
-    mat4 m = glm::translate(vec3(0,length*0.5f,0));
+    mat4 m = translate(vec3(0,length*0.5f,0));
     cylinderMesh->transform(m);
 
     float coneH = length * 0.3f;
     float coneR = radius * 1.3f;
     auto coneMesh = TriangleMeshGenerator::createMesh(Cone(vec3(0),vec3(0,1,0),coneR,coneH),12);
-    m = glm::translate(vec3(0,length+coneH,0));
+    m = translate(vec3(0,length+coneH,0));
     coneMesh->transform(m);
 
     auto asset = std::make_shared<ColoredAsset>();

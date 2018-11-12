@@ -76,13 +76,13 @@ bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const
     e2 = C - A;
 
     //culling
-    vec3 n = glm::cross(e1,e2);
-    back = glm::dot(direction,n)>0;
+    vec3 n = cross(e1,e2);
+    back = dot(direction,n)>0;
 
     //Begin calculating determinant - also used to calculate u parameter
-    P = glm::cross( direction, e2);
+    P = cross( direction, e2);
     //if determinant is near zero, ray lies in plane of triangle
-    det = glm::dot(e1, P);
+    det = dot(e1, P);
 
     //NOT CULLING
     if(det > -EPSILON_RAYTRIANGLE && det < EPSILON_RAYTRIANGLE) return false;
@@ -92,20 +92,20 @@ bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const
     T=origin - A;
 
     //Calculate u parameter and test bound
-    u = glm::dot(T, P) * inv_det;
+    u = dot(T, P) * inv_det;
     //The intersection lies outside of the triangle
     if(u < 0.f || u > 1.f) return false;
 
     //Prepare to test v parameter
-    Q = glm::cross( T, e1);
+    Q = cross( T, e1);
 
     //Calculate V parameter and test bound
-    v = glm::dot(direction, Q) * inv_det;
+    v = dot(direction, Q) * inv_det;
 
     //The intersection lies outside of the triangle
     if(v < 0.f || u + v  > 1.f) return false;
 
-    t = glm::dot(e2, Q) * inv_det;
+    t = dot(e2, Q) * inv_det;
 
     if(t > EPSILON_RAYTRIANGLE)
     {
@@ -139,12 +139,12 @@ bool RayPlane(const Ray &r, const Plane &p, float &t)
 
     const float EPSILON = 0.000001;
 
-    float denom = glm::dot(N, direction);
+    float denom = dot(N, direction);
 
     // Check if ray is parallel to the plane
-    if (glm::abs(denom) > EPSILON)
+    if (abs(denom) > EPSILON)
     {
-        t = glm::dot(P - origin, N) / denom;
+        t = dot(P - origin, N) / denom;
         if (t >= 0){
             return true;
         }
@@ -157,9 +157,6 @@ bool RayPlane(const Ray &r, const Plane &p, float &t)
 //http://gamedev.stackexchange.com/questions/18436/most-efficient-AABB-vs-ray-collision-algorithms
 bool RayAABB(const vec3 &origin, const vec3 &direction, const vec3 &boxmin, const vec3 &boxmax, float &t)
 {
-    using glm::min;
-    using glm::max;
-
     vec3 dirfrac;
     dirfrac.x = 1.0f / direction.x;
     dirfrac.y = 1.0f / direction.y;
@@ -203,7 +200,7 @@ bool RayAABB(const Ray &r, const AABB &bb, float &t)
 
 bool SphereSphere(const vec3 &c1, float r1, const vec3 &c2, float r2)
 {
-    return glm::distance(c1,c2) < r1+r2;
+    return distance(c1,c2) < r1+r2;
 }
 
 bool SphereSphere(const Sphere &s1, const Sphere &s2)

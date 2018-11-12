@@ -22,7 +22,7 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height)
     auto tm = TriangleMeshGenerator::createFullScreenQuadMesh();
 
     float aspect = float(width)/height;
-    tm->transform(glm::scale(vec3(aspect,1,1)));
+    tm->transform(scale(vec3(aspect,1,1)));
 
     meshBB = tm->calculateAabb();
 

@@ -27,7 +27,7 @@
 #include <float.h>
 #include <math.h>
 #include <algorithm>
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 
 #ifndef M_PI
 #define M_PI 3.14159862f
@@ -208,25 +208,25 @@ IMGUI_API bool DirectionGizmo(const char* label, ImVec3& dir);
 
 
 ////glm wrapper for the 3 functions above
-inline bool Quaternion(const char* label, glm::quat& quat){
+inline bool Quaternion(const char* label, quat& quat){
     ImQuat q(quat);
     bool ret = QuaternionGizmo(label,q);
     quat = q;
     return ret;
 }
 
-inline bool AxisAngle(const char* label, glm::vec3& axis, float& angle){
+inline bool AxisAngle(const char* label, vec3& axis, float& angle){
     ImVec3 d(axis);
     bool ret = AxisAngleGizmo(label,d,angle);
     axis = d;
     return ret;
 }
 
-inline bool Direction(const char* label, glm::vec3& dir){
+inline bool Direction(const char* label, vec3& dir){
     ImVec3 d(dir);
     bool ret = DirectionGizmo(label,d);
     dir = d;
-//    dir = glm::vec3(d.x,d.y,d.z);
+//    dir = vec3(d.x,d.y,d.z);
     return ret;
 }
 

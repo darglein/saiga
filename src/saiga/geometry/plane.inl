@@ -19,16 +19,16 @@ Plane::Plane() : normal(vec3(0,1,0)),d(0)
 inline HD
 Plane::Plane(const vec3 &point,const vec3 &normal)
 {
-    this->normal = glm::normalize(normal);
-    d = glm::dot(point,this->normal);
+    this->normal = normalize(normal);
+    d = dot(point,this->normal);
 }
 
 inline HD
 Plane::Plane(const vec3 &p1, const vec3 &p2, const vec3 &p3)
 {
-    normal = glm::cross(p2-p1,p3-p1);
-    normal = glm::normalize(normal);
-    d = glm::dot(p1,this->normal);
+    normal = cross(p2-p1,p3-p1);
+    normal = normalize(normal);
+    d = dot(p1,this->normal);
 }
 
 inline HD
@@ -48,7 +48,7 @@ vec3 Plane::getPoint() const
 inline HD
 float Plane::distance(const vec3 &p) const
 {
-    return glm::dot(p,normal) - d;
+    return dot(p,normal) - d;
 }
 
 inline HD

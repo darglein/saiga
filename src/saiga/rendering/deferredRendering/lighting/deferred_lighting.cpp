@@ -108,7 +108,7 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers){
     volumetricBuffer.unbind();
 
 
-    int shadowSamplesX = glm::round( glm::sqrt( (float) shadowSamples) );
+    int shadowSamplesX = round( sqrt( (float) shadowSamples) );
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
                                  "#define SHADOWS",1);
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER,
@@ -484,7 +484,7 @@ void DeferredLighting::renderDebug(Camera *cam){
     pointLightMesh.bind();
     //center
     for(auto &obj : pointLights){
-        mat4 sm = glm::scale(obj->model,vec3(0.05));
+        mat4 sm = scale(obj->model,vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
             //render as black if light is turned off
@@ -513,7 +513,7 @@ void DeferredLighting::renderDebug(Camera *cam){
     spotLightMesh.bind();
     //center
     for(auto &obj : spotLights){
-        mat4 sm = glm::scale(obj->model,vec3(0.05));
+        mat4 sm = scale(obj->model,vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
             //render as black if light is turned off
@@ -542,7 +542,7 @@ void DeferredLighting::renderDebug(Camera *cam){
     boxLightMesh.bind();
     //center
     for(auto &obj : boxLights){
-        mat4 sm = glm::scale(obj->model,vec3(0.05));
+        mat4 sm = scale(obj->model,vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if(!obj->isActive()||!obj->isVisible()){
             //render as black if light is turned off
@@ -663,7 +663,7 @@ void DeferredLighting::createLightMeshes(){
     //but here we want the inner radius to be 1
     //we estimate the required outer radius with apothem of regular polygons
     float n = 4.9;
-    float r = 1.0f / glm::cos(glm::pi<float>() / n);
+    float r = 1.0f / cos(glm::pi<float>() / n);
     //    cout << "point light radius " << r << endl;
     Sphere s(vec3(0),r);
     auto sb = TriangleMeshGenerator::createMesh(s,1);

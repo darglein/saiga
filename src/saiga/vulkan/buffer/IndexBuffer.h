@@ -64,6 +64,13 @@ public:
         m_memoryLocation.upload(base.device, indices.data());
     }
 
+    void initDeviceLocal(VulkanBase& base, const std::vector<IndexType>& indices)
+    {
+        init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
+        stagedUpload(base,0,indices.size()*sizeof(IndexType),indices.data());
+    }
+
+
     void bind(vk::CommandBuffer &cmd, vk::DeviceSize offset = 0)
     {
         cmd.bindIndexBuffer(m_memoryLocation.buffer, m_memoryLocation.offset, VKType::value);

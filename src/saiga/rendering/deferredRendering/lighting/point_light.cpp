@@ -55,7 +55,7 @@ void PointLight::setRadius(float value)
 void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera *cam){
     AttenuatedLight::bindUniforms(shader,cam);
     shader->uploadShadowPlanes(this->shadowCamera.zFar,this->shadowCamera.zNear);
-    shader->uploadInvProj(glm::inverse(cam->proj));
+    shader->uploadInvProj(inverse(cam->proj));
     if(this->hasShadows()){
         shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
         shader->uploadDepthTexture(shadowmap->getDepthTexture());

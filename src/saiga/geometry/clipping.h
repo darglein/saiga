@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/geometry/polygon.h"
 
 namespace Saiga {
@@ -47,7 +47,7 @@ inline PlaneSide vertexAxisAlignedPlane(vec3 p, int axis, float d, bool isMin){
 
 inline vec3 intersection(vec3 p1, vec3 p2, int axis, float d){
     const double alpha = (d - p1[axis]) / (p2[axis] - p1[axis]);
-                vec3 res = glm::mix(p1,p2,alpha);
+                vec3 res = mix(p1,p2,alpha);
                 return res;
 }
 
