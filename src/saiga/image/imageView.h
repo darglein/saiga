@@ -11,6 +11,7 @@
 #include "saiga/util/assert.h"
 #include "saiga/image/floatTexels.h"
 #include <algorithm>
+#include <array>
 
 #if 0
 #if defined(SAIGA_USE_CUDA)
