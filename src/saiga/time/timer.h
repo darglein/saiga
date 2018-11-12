@@ -8,6 +8,7 @@
 
 #include "saiga/config.h"
 #include "saiga/time/time.h"
+#include "saiga/util/assert.h"
 #include <vector>
 
 namespace Saiga {
@@ -108,5 +109,8 @@ public:
         *target = time;
     }
 };
+
+
+#define SAIGA_BLOCK_TIMER Saiga::ScopedTimerPrint func_timer(std::string(SAIGA_SHORT_FUNCTION)+ ", Line " + std::string(std::to_string(__LINE__)));
 
 }
