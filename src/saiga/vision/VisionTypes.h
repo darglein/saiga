@@ -94,6 +94,11 @@ SE3 slerp(const SE3& a, const SE3& b, double alpha)
     return SE3(q,t);
 }
 
-
+inline
+std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
+{
+    os << se3.translation().transpose() << " | " << se3.unit_quaternion().coeffs().transpose();
+    return os;
+}
 
 }
