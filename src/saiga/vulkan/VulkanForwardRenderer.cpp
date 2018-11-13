@@ -107,12 +107,10 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 void VulkanForwardRenderer::initChildren()
 {
     if(vulkanParameters.enableImgui)
-        imGui = window.createImGui();
+        imGui = window.createImGui(syncObjects.size());
 
 
-
-
-    VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
+    auto * renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
     renderingInterface->init(base);
@@ -227,7 +225,7 @@ void VulkanForwardRenderer::render(Camera *cam)
 
     FrameSync& sync = syncObjects[nextSyncObject];
 
-        sync.wait(base.device);
+    sync.wait(base.device);
 
 
         VkResult err = swapChain.acquireNextImage(sync.imageVailable, &currentBuffer);
@@ -262,9 +260,10 @@ void VulkanForwardRenderer::render(Camera *cam)
     renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer].framebuffer;
 
     VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
+    renderingInterface->transfer(cmd);
 
-        renderingInterface->transfer(cmd);
-        imGui->updateBuffers(cmd);
+
+    imGui->updateBuffers(cmd,nextSyncObject);
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -278,7 +277,7 @@ void VulkanForwardRenderer::render(Camera *cam)
     {
         // Actual rendering
         renderingInterface->render(cmd);
-        if(imGui) imGui->render(cmd);
+        if(imGui) imGui->render(cmd, nextSyncObject);
     }
 
     vkCmdEndRenderPass(cmd);

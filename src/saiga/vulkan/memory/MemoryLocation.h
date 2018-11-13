@@ -68,15 +68,16 @@ public:
         }
     }
 
-    void* map(vk::Device device) const {
-
+    void* map(vk::Device device) {
         SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
-        return device.mapMemory(memory,offset, size);
+        mappedPointer = device.mapMemory(memory,offset, size);
+        return mappedPointer;
     }
 
-    void unmap(vk::Device device) const {
+    void unmap(vk::Device device) {
         SAIGA_ASSERT(mappedPointer, "Memory not mapped");
         device.unmapMemory(memory);
+        mappedPointer = nullptr;
     }
 
     void destroy(const vk::Device& device) {

@@ -16,9 +16,10 @@ namespace Vulkan {
 
 class SAIGA_GLOBAL Buffer
 {
+private:
+    vk::BufferUsageFlags usageFlags = vk::BufferUsageFlagBits();
 public:
     MemoryLocation m_memoryLocation;
-public:
 
     ~Buffer() { destroy(); }
 
@@ -41,7 +42,23 @@ public:
 
     vk::DescriptorBufferInfo createInfo();
 
+    void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE, vk::DeviceSize offset = 0)
+    {
+        vk::MappedMemoryRange mappedRange = {};
+        mappedRange.memory = m_memoryLocation.memory;
+        mappedRange.offset = offset;
+        mappedRange.size = size;
+        base.device.flushMappedMemoryRanges(mappedRange);
+    }
+
+    [[deprecated("This does not allow memory to be cleaned up. Use destroy(VulkanBase&) instead")]]
     void destroy();
+
+    void destroy(VulkanBase& base) {
+        if (m_memoryLocation && usageFlags != vk::BufferUsageFlags()) {
+            base.memory.getAllocator(usageFlags).deallocate(m_memoryLocation);
+        }
+    }
 
 //    operator vk::Buffer() const { return m_memoryLocation.buffer; }
 };

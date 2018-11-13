@@ -13,12 +13,14 @@ namespace Vulkan {
 
 void Buffer::destroy()
 {
-
+    // TODO: Remove this method and replace with undeprecated call
 }
 
 void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags usage, vk::SharingMode sharingMode)
 {
+    //TODO: Sharing mode is not used yet
     m_memoryLocation = base.memory.getAllocator(usage).allocate(size);
+    usageFlags = usage;
     if (size != m_memoryLocation.size) {
         LOG(WARNING) << "Unequal sizes" << size << " " << m_memoryLocation.size;
     }
