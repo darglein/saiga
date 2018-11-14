@@ -14,10 +14,10 @@ namespace ICP {
 SE3 pointToPoint(const std::vector<Correspondence> &corrs, const SE3 &guess)
 {
     SE3 T = guess;
-    Eigen::Matrix<double,6,6> AtA;
-    Eigen::Matrix<double,6,1> Atb;
-    AtA.setZero();
-    Atb.setZero();
+    Eigen::Matrix<double,6,6> JtJ;
+    Eigen::Matrix<double,6,1> Jtb;
+    JtJ.setZero();
+    Jtb.setZero();
 
     for(size_t i = 0; i < corrs.size(); ++i)
     {
@@ -37,10 +37,10 @@ SE3 pointToPoint(const std::vector<Correspondence> &corrs, const SE3 &guess)
         Jrow *= corr.weight;
         res *= corr.weight;
 
-        AtA += Jrow.transpose() * Jrow;
-        Atb += Jrow.transpose() * res;
+        JtJ += Jrow.transpose() * Jrow;
+        Jtb += Jrow.transpose() * res;
     }
-    Eigen::Matrix<double,6,1> x = AtA.ldlt().solve(Atb);
+    Eigen::Matrix<double,6,1> x = JtJ.ldlt().solve(Jtb);
     T = SE3::exp(x) * T;
     return T;
 }
@@ -48,14 +48,14 @@ SE3 pointToPoint(const std::vector<Correspondence> &corrs, const SE3 &guess)
 SE3 pointToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, int innerIterations)
 {
     SE3 T = guess;
-    Eigen::Matrix<double,6,6> AtA;
-    Eigen::Matrix<double,6,1> Atb;
+    Eigen::Matrix<double,6,6> JtJ;
+    Eigen::Matrix<double,6,1> Jtb;
 
 
     for(int k = 0; k < innerIterations; ++k)
     {
-        AtA.setZero();
-        Atb.setZero();
+        JtJ.setZero();
+        Jtb.setZero();
 
         for(size_t i = 0; i < corrs.size(); ++i)
         {
@@ -73,10 +73,10 @@ SE3 pointToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, int
             row *= corr.weight;
             res *= corr.weight;
 
-            AtA += row * row.transpose();
-            Atb += row * res;
+            JtJ += row * row.transpose();
+            Jtb += row * res;
         }
-        Eigen::Matrix<double,6,1> x = AtA.ldlt().solve(Atb);
+        Eigen::Matrix<double,6,1> x = JtJ.ldlt().solve(Jtb);
         T = SE3::exp(x) * T;
     }
     return T;
@@ -96,8 +96,8 @@ SE3 planeToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, dou
 {
     SE3 T = guess;
 
-    Eigen::Matrix<double,6,6> AtA;
-    Eigen::Matrix<double,6,1> Atb;
+    Eigen::Matrix<double,6,6> JtOmegaJ;
+    Eigen::Matrix<double,6,1> JtOmegatb;
 
 
 
@@ -109,8 +109,8 @@ SE3 planeToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, dou
     {
         auto& corr = corrs[i];
 
-        Mat3 R0 = orthonormalBasis(corr.refNormal).transpose();
-        Mat3 R1 = orthonormalBasis(corr.srcNormal).transpose();
+        Mat3 R0 = onb(corr.refNormal).transpose();
+        Mat3 R1 = onb(corr.srcNormal).transpose();
 
         Mat3 C0 = covR(R0,covE);
         Mat3 C1 = covR(R1,covE);
@@ -122,8 +122,8 @@ SE3 planeToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, dou
 
     for(int k = 0; k < innerIterations; ++k)
     {
-        AtA.setZero();
-        Atb.setZero();
+        JtOmegaJ.setZero();
+        JtOmegatb.setZero();
 
         for(size_t i = 0; i < corrs.size(); ++i)
         {
@@ -147,10 +147,10 @@ SE3 planeToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, dou
             Jrow *= corr.weight;
             res *= corr.weight;
 
-            AtA += Jrow.transpose() * info * Jrow;
-            Atb += Jrow.transpose() * info.transpose() * res;
+            JtOmegaJ  += Jrow.transpose() * info * Jrow;
+            JtOmegatb += Jrow.transpose() * info.transpose() * res;
         }
-        Eigen::Matrix<double,6,1> x = AtA.ldlt().solve(Atb);
+        Eigen::Matrix<double,6,1> x = JtOmegaJ.ldlt().solve(JtOmegatb);
         T = SE3::exp(x) * T;
     }
     return T;

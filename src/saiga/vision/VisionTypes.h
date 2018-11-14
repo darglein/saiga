@@ -101,27 +101,35 @@ std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
     return os;
 }
 
+/**
+ * Construct a skew symmetric matrix from a vector.
+ * Also know as 'cross product matrix' or 'hat operator'.
+ * https://en.wikipedia.org/wiki/Hat_operator
+ */
 inline
-Mat3 skew(Vec3 const& omega)
+Mat3 skew(Vec3 const& a)
 {
-    Mat3 Omega;
+    Mat3 m;
     using Scalar = double;
-    Omega <<
-             Scalar(0), -omega(2),  omega(1),
-            omega(2), Scalar(0), -omega(0),
-            -omega(1),  omega(0), Scalar(0);
-    return Omega;
+    m <<
+         Scalar(0), -a(2),  a(1),
+            a(2), Scalar(0), -a(0),
+            -a(1),  a(0), Scalar(0);
+    return m;
 }
 
+/**
+  * Pixar Revised ONB
+  * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+  */
 inline
-Mat3 orthonormalBasis(Vec3 n)
+Mat3 onb(Vec3 n)
 {
-    Mat3 v;
-    //Pixar Revised ONB (for Ben)
-    //https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+
     double sign = n(2) > 0 ? 1.0f : -1.0f; //emulate copysign
     double a = -1.0f / (sign + n[2]);
     double b = n[0] * n[1] * a;
+    Mat3 v;
     v.col(2) = n;
     v.col(1) = Vec3(1.0f + sign * n[0] * n[0] * a, sign * b, -sign * n[0]);
     v.col(0) = Vec3(b, sign + n[1] * n[1] * a, -n[1]);

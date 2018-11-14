@@ -6,7 +6,7 @@
 
 
 #include "ICPDepthMap.h"
-
+#include "saiga/time/timer.h"
 
 namespace Saiga {
 
@@ -17,12 +17,13 @@ namespace ICP {
 
 
 std::vector<Correspondence> projectiveCorrespondences(DepthPointCloud refPc, DepthNormalMap refNormal,
-        DepthPointCloud srcPc, DepthNormalMap srcNormal,
-        SE3 T, Intrinsics4 camera,
-        double distanceThres, double cosNormalThres
-        , int searchRadius, bool useInvDepthAsWeight, bool scaleDistanceThresByDepth)
+                                                      DepthPointCloud srcPc, DepthNormalMap srcNormal,
+                                                      SE3 T, Intrinsics4 camera,
+                                                      double distanceThres, double cosNormalThres
+                                                      , int searchRadius, bool useInvDepthAsWeight, bool scaleDistanceThresByDepth)
 {
     std::vector<Correspondence> result;
+    result.reserve(srcPc.h * srcPc.w);
 
     for(int i = 0; i < srcPc.h; ++i)
     {
@@ -107,6 +108,8 @@ std::vector<Correspondence> projectiveCorrespondences(DepthPointCloud refPc, Dep
 
 SE3 alignDepthMaps(DepthMap referenceDepthMap, DepthMap sourceDepthMap, SE3 guess, Intrinsics4 camera, int iterations)
 {
+//    SAIGA_BLOCK_TIMER;
+
     Saiga::ArrayImage<Vec3> refPc(referenceDepthMap.h, referenceDepthMap.w);
     Saiga::ArrayImage<Vec3> srcPc(sourceDepthMap.h, sourceDepthMap.w);
 
@@ -122,10 +125,18 @@ SE3 alignDepthMaps(DepthMap referenceDepthMap, DepthMap sourceDepthMap, SE3 gues
 
     SE3 T = guess;
 
+    std::vector<Saiga::ICP::Correspondence> corrs;
+
     for(int k = 0; k < iterations; ++k)
     {
-        auto corrs = Saiga::ICP::projectiveCorrespondences(refPc,refNormal,srcPc,srcNormal,T,camera);
-        T = Saiga::ICP::pointToPlane(corrs,T);
+        {
+//            SAIGA_BLOCK_TIMER;
+            corrs = Saiga::ICP::projectiveCorrespondences(refPc,refNormal,srcPc,srcNormal,T,camera);
+        }
+        {
+//            SAIGA_BLOCK_TIMER;
+            T = Saiga::ICP::pointToPlane(corrs,T);
+        }
     }
     return T;
 }
