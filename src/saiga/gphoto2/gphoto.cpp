@@ -55,13 +55,18 @@ GPhoto::GPhoto()
 
 GPhoto::~GPhoto()
 {
+    cout << "~GPhoto" << endl;
     if(running)
     {
         running = false;
         eventThread.join();
     }
 
-    gp_camera_free((Camera*)camera);
+    if(camera)
+    {
+        gp_camera_free((Camera*)camera);
+        cout << "DSLR Camera closed." << endl;
+    }
 
 }
 
@@ -165,7 +170,7 @@ void GPhoto::eventLoop()
             else
             {
                 clearEvents();
-                cout << "Found camera!" << endl;
+                cout << "DSLR Camera opened." << endl;
             }
         }
         Event e;
