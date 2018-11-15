@@ -73,10 +73,34 @@ void randomMatrix(MatrixType& M)
     }
 }
 
+void eigenHeatTest()
+{
+    cout << "Starting Thermal Test: Matrix Multiplication" << endl;
+
+    using MatrixType2 = Eigen::Matrix<float,100,100,Eigen::ColMajor>;
+
+    MatrixType2 m1 = MatrixType2::Random();
+    MatrixType2 m2 = MatrixType2::Identity();
+
+    size_t limit = 100000000;
+
+#pragma omp parallel for
+    for(size_t i = 0; i < limit; ++i)
+    {
+        m2 += m1 * m2;
+    }
+
+    cout << "Done." << endl << m2 << endl;
+
+}
+
 int main(int argc, char *argv[]) {
 
     printVectorInstructions();
-    Eigen::setNbThreads(1);
+
+    eigenHeatTest();
+    return 0;
+//    Eigen::setNbThreads(1);
 
 
     catchSegFaults();

@@ -64,7 +64,7 @@ SAIGA_GLOBAL SE3 pointToPoint(const std::vector<Correspondence>& corrs, const SE
  *
  * Each correspondnce additional needs the 'refNormal' attribute.
  */
-SAIGA_GLOBAL SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE3& guess = SE3(), int innerIterations = 1);
+SAIGA_GLOBAL SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE3& ref, const SE3& src, int innerIterations = 1);
 
 
 /**

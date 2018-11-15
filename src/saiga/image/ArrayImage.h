@@ -38,6 +38,16 @@ public:
     }
 
 
+    T& operator()(int y, int x)
+    {
+        return _data[y*w + x];
+    }
+
+    const T& operator()(int y, int x) const
+    {
+        return _data[y*w + x];
+    }
+
 
     T* data() { return reinterpret_cast<T*>(_data.data()); }
     const T* data() const { return reinterpret_cast<const T*>(_data.data()); }

@@ -15,22 +15,29 @@ using namespace Depthmap;
 namespace ICP {
 
 
+DepthMapExtended::DepthMapExtended(DepthMap depth, Intrinsics4 camera, SE3 pose)
+    : depth(depth), points(depth.h,depth.w), normals(depth.h,depth.w), camera(camera), pose(pose)
+{
+    Saiga::Depthmap::toPointCloud(depth,points,camera);
+    Saiga::Depthmap::normalMap(points,normals);
+}
 
-std::vector<Correspondence> projectiveCorrespondences(DepthPointCloud refPc, DepthNormalMap refNormal,
-                                                      DepthPointCloud srcPc, DepthNormalMap srcNormal,
-                                                      SE3 T, Intrinsics4 camera,
+std::vector<Correspondence> projectiveCorrespondences(const DepthMapExtended& ref, const DepthMapExtended& src,
                                                       double distanceThres, double cosNormalThres
                                                       , int searchRadius, bool useInvDepthAsWeight, bool scaleDistanceThresByDepth)
 {
     std::vector<Correspondence> result;
-    result.reserve(srcPc.h * srcPc.w);
+    result.reserve(ref.depth.h * ref.depth.w);
 
-    for(int i = 0; i < srcPc.h; ++i)
+
+    auto T = ref.pose.inverse() * src.pose; // A <- B
+
+    for(int i = 0; i < src.depth.h; ++i)
     {
-        for(int j = 0; j < srcPc.w; ++j)
+        for(int j = 0; j < src.depth.w; ++j)
         {
-            Vec3 p0 = srcPc(i,j);
-            Vec3 n0 = srcNormal(i,j);
+            Vec3 p0 = src.points(i,j);
+            Vec3 n0 = src.normals(i,j);
 
             Vec3 p = p0;
             Vec3 n = n0;
@@ -43,7 +50,7 @@ std::vector<Correspondence> projectiveCorrespondences(DepthPointCloud refPc, Dep
             n = T.so3() * n;
 
             // project point to reference to find correspondences
-            Vec2 ip = camera.project(p);
+            Vec2 ip = ref.camera.project(p);
 
             // round to nearest integer
             ip = ip.array().round();
@@ -66,11 +73,11 @@ std::vector<Correspondence> projectiveCorrespondences(DepthPointCloud refPc, Dep
                     int x = sx + dx;
                     int y = sy + dy;
 
-                    if(!refPc.inImage(y,x))
+                    if(!ref.points.getConstImageView().inImage(y,x))
                         continue;
 
-                    Vec3 p2 = refPc(y,x);
-                    Vec3 n2 = refNormal(y,x);
+                    Vec3 p2 = ref.points(y,x);
+                    Vec3 n2 = ref.normals(y,x);
 
 
                     if(!p2.allFinite() || !n2.allFinite())
@@ -106,40 +113,22 @@ std::vector<Correspondence> projectiveCorrespondences(DepthPointCloud refPc, Dep
     return result;
 }
 
-SE3 alignDepthMaps(DepthMap referenceDepthMap, DepthMap sourceDepthMap, SE3 guess, Intrinsics4 camera, int iterations)
+SE3 alignDepthMaps(DepthMap referenceDepthMap, DepthMap sourceDepthMap, SE3 refPose, SE3 srcPose, Intrinsics4 camera, int iterations)
 {
-//    SAIGA_BLOCK_TIMER;
+    DepthMapExtended ref(referenceDepthMap,camera,refPose);
+    DepthMapExtended src(sourceDepthMap,camera,srcPose);
 
-    Saiga::ArrayImage<Vec3> refPc(referenceDepthMap.h, referenceDepthMap.w);
-    Saiga::ArrayImage<Vec3> srcPc(sourceDepthMap.h, sourceDepthMap.w);
-
-    Saiga::ArrayImage<Vec3> refNormal(referenceDepthMap.h, referenceDepthMap.w);
-    Saiga::ArrayImage<Vec3> srcNormal(sourceDepthMap.h, sourceDepthMap.w);
-
-    Saiga::Depthmap::toPointCloud(referenceDepthMap,refPc,camera);
-    Saiga::Depthmap::toPointCloud(sourceDepthMap,srcPc,camera);
-
-
-    Saiga::Depthmap::normalMap(refPc,refNormal);
-    Saiga::Depthmap::normalMap(srcPc,srcNormal);
-
-    SE3 T = guess;
 
     std::vector<Saiga::ICP::Correspondence> corrs;
 
     for(int k = 0; k < iterations; ++k)
     {
-        {
-//            SAIGA_BLOCK_TIMER;
-            corrs = Saiga::ICP::projectiveCorrespondences(refPc,refNormal,srcPc,srcNormal,T,camera);
-        }
-        {
-//            SAIGA_BLOCK_TIMER;
-            T = Saiga::ICP::pointToPlane(corrs,T);
-        }
+        corrs = Saiga::ICP::projectiveCorrespondences(ref,src);
+        src.pose = Saiga::ICP::pointToPlane(corrs,ref.pose,src.pose);
     }
-    return T;
+    return src.pose;
 }
+
 
 }
 }

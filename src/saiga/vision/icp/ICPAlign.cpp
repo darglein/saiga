@@ -6,13 +6,15 @@
 
 
 #include "ICPAlign.h"
-
+#include "saiga/util/assert.h"
 
 namespace Saiga {
 namespace ICP {
 
 SE3 pointToPoint(const std::vector<Correspondence> &corrs, const SE3 &guess)
 {
+    SAIGA_ASSERT(corrs.size() >= 6);
+
     SE3 T = guess;
     Eigen::Matrix<double,6,6> JtJ;
     Eigen::Matrix<double,6,1> Jtb;
@@ -45,9 +47,10 @@ SE3 pointToPoint(const std::vector<Correspondence> &corrs, const SE3 &guess)
     return T;
 }
 
-SE3 pointToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, int innerIterations)
+SE3 pointToPlane(const std::vector<Correspondence> &corrs, const SE3& ref, const SE3& _src, int innerIterations)
 {
-    SE3 T = guess;
+    SAIGA_ASSERT(corrs.size() >= 6);
+    auto src = _src;
     Eigen::Matrix<double,6,6> JtJ;
     Eigen::Matrix<double,6,1> Jtb;
 
@@ -61,13 +64,15 @@ SE3 pointToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, int
         {
             auto& corr = corrs[i];
 
-            Vec3 sp = T * corr.srcPoint;
+            Vec3 rp = ref * corr.refPoint;
+            Vec3 rn = ref.so3() * corr.refNormal;
+            Vec3 sp = src * corr.srcPoint;
 
             Eigen::Matrix<double,6,1> row;
-            row.head<3>() = corr.refNormal;
-            row.tail<3>() = sp.cross(corr.refNormal);
-            Vec3 di = corr.refPoint - sp;
-            double res = corr.refNormal.dot(di);
+            row.head<3>() = rn;
+            row.tail<3>() = sp.cross(rn);
+            Vec3 di = rp - sp;
+            double res = rn.dot(di);
 
             // use weight
             row *= corr.weight;
@@ -77,9 +82,9 @@ SE3 pointToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, int
             Jtb += row * res;
         }
         Eigen::Matrix<double,6,1> x = JtJ.ldlt().solve(Jtb);
-        T = SE3::exp(x) * T;
+        src = SE3::exp(x) * src;
     }
-    return T;
+    return src;
 }
 
 inline Mat3 covR(Mat3 R, double e)
@@ -94,6 +99,7 @@ inline Mat3 covR(Mat3 R, double e)
 
 SE3 planeToPlane(const std::vector<Correspondence> &corrs, const SE3 &guess, double covE, int innerIterations)
 {
+    SAIGA_ASSERT(corrs.size() >= 6);
     SE3 T = guess;
 
     Eigen::Matrix<double,6,6> JtOmegaJ;
