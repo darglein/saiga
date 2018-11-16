@@ -94,6 +94,47 @@ SE3 slerp(const SE3& a, const SE3& b, double alpha)
     return SE3(q,t);
 }
 
+inline
+std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
+{
+    os << se3.translation().transpose() << " | " << se3.unit_quaternion().coeffs().transpose();
+    return os;
+}
+
+/**
+ * Construct a skew symmetric matrix from a vector.
+ * Also know as 'cross product matrix' or 'hat operator'.
+ * https://en.wikipedia.org/wiki/Hat_operator
+ */
+inline
+Mat3 skew(Vec3 const& a)
+{
+    Mat3 m;
+    using Scalar = double;
+    m <<
+         Scalar(0), -a(2),  a(1),
+            a(2), Scalar(0), -a(0),
+            -a(1),  a(0), Scalar(0);
+    return m;
+}
+
+/**
+  * Pixar Revised ONB
+  * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+  */
+inline
+Mat3 onb(Vec3 n)
+{
+
+    double sign = n(2) > 0 ? 1.0f : -1.0f; //emulate copysign
+    double a = -1.0f / (sign + n[2]);
+    double b = n[0] * n[1] * a;
+    Mat3 v;
+    v.col(2) = n;
+    v.col(1) = Vec3(1.0f + sign * n[0] * n[0] * a, sign * b, -sign * n[0]);
+    v.col(0) = Vec3(b, sign + n[1] * n[1] * a, -n[1]);
+    return v;
+}
 
 
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -111,7 +111,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     vec4 up = this->getUpVector();
 
     vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
-//        cout << angle << camera.position << endl;
+    //        cout << angle << camera.position << endl;
 
     quat qrot = angleAxis(radians(angle),axis);
     this->rot = qrot * this->rot;
@@ -123,7 +123,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     this->calculateModel();
     this->updateFromModel();
 #else
-       vec2 relMovement(dx,dy);
+    vec2 relMovement(dx,dy);
     float angle = length(relMovement);
     if(angle == 0)
         return;
@@ -132,7 +132,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     vec4 up = this->getUpVector();
 
     vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
-//        cout << angle << camera.position << endl;
+    //        cout << angle << camera.position << endl;
 
     quat qrot = angleAxis(radians(angle * 0.3f),axis);
     this->rot = qrot * this->rot;
@@ -140,7 +140,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 
     p += point;
     this->position = vec4(p,1);
-//        camera.rotateAroundPoint(vec3(0),vec3(1,0,0),relMovement.y);
+    //        camera.rotateAroundPoint(vec3(0),vec3(1,0,0),relMovement.y);
     this->calculateModel();
     this->updateFromModel();
 #endif
@@ -160,13 +160,13 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     vec3 dir = normalize(point - this->getPosition());
 
     vec3 right = normalize(cross(dir,up));
-//    up = normalize(cross(right,dir));
+    //    up = normalize(cross(right,dir));
 
-//    vec4 right = this->getRightVector();
-//    vec4 up = this->getUpVector();
+    //    vec4 right = this->getRightVector();
+    //    vec4 up = this->getUpVector();
 
     vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
-//        cout << angle << camera.position << endl;
+    //        cout << angle << camera.position << endl;
 
     quat qrot = angleAxis(radians(angle),axis);
     this->rot = qrot * this->rot;
@@ -183,22 +183,24 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 template<class camera_t>
 void Controllable_Camera<camera_t>::update(float delta)
 {
-    if(!input)
-        return;
-    int FORWARD = keyboard.getMappedKeyState(Forward,keyboardmap) - keyboard.getMappedKeyState(Backward,keyboardmap);
-    int RIGHT = keyboard.getMappedKeyState(Right,keyboardmap) - keyboard.getMappedKeyState(Left,keyboardmap);
+    if(input)
+    {
 
-    float speed;
-    if (keyboard.getMappedKeyState(Fast,keyboardmap)){
-        speed = movementSpeedFast;
-    } else {
-        speed = movementSpeed;
+        int FORWARD = keyboard.getMappedKeyState(Forward,keyboardmap) - keyboard.getMappedKeyState(Backward,keyboardmap);
+        int RIGHT = keyboard.getMappedKeyState(Right,keyboardmap) - keyboard.getMappedKeyState(Left,keyboardmap);
+
+        float speed;
+        if (keyboard.getMappedKeyState(Fast,keyboardmap)){
+            speed = movementSpeedFast;
+        } else {
+            speed = movementSpeed;
+        }
+
+        vec3 trans = delta*speed*FORWARD*vec3(0,0,-1) + delta*speed*RIGHT*vec3(1,0,0);
+        vec3 transg =  vec3(0,1,0) * (delta*speed*keyboard.getMappedKeyState(Up,keyboardmap));
+        this->translateLocal(trans);
+        this->translateGlobal(transg);
     }
-
-    vec3 trans = delta*speed*FORWARD*vec3(0,0,-1) + delta*speed*RIGHT*vec3(1,0,0);
-    vec3 transg =  vec3(0,1,0) * (delta*speed*keyboard.getMappedKeyState(Up,keyboardmap));
-    this->translateLocal(trans);
-    this->translateGlobal(transg);
     this->calculateModel();
     this->updateFromModel();
 }
@@ -207,17 +209,17 @@ void Controllable_Camera<camera_t>::update(float delta)
 template<class camera_t>
 void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation)
 {
-	//the camera isn't actually "interpolated" 
-	//we just use the latest mouse position
-	(void)dt; (void)interpolation;
+    //the camera isn't actually "interpolated"
+    //we just use the latest mouse position
+    (void)dt; (void)interpolation;
 
-	if(!input)
+    if(!input)
         return;
 
     int newDragState = mouse.getMappedKeyState(0,mousemap) ? 1 : mouse.getMappedKeyState(1,mousemap) ? 2 : 0;
 
 
-	
+
 
     //only do mouse handling here
     ivec2 mousedelta = lastMousePos - mouse.getPosition();

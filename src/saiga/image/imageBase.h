@@ -60,19 +60,19 @@ struct SAIGA_GLOBAL ImageBase
 
 
     HD inline
-    bool inImage(int y, int x){
+    bool inImage(int y, int x) const{
         return x >= 0 && x < width && y >=0 && y < height;
     }
 
     template<typename AT>
     HD inline
-    bool inImage(AT y, AT x){
+    bool inImage(AT y, AT x) const{
         return x >= 0 && x <= AT(width-1) && y >=0 && y <= AT(height-1);
     }
 
 
     HD inline
-    void clampToEdge(int& y, int& x){
+    void clampToEdge(int& y, int& x) const{
 #ifdef SAIGA_ON_DEVICE
         x = min(max(0,x),width-1);
         y = min(max(0,y),height-1);
@@ -84,7 +84,7 @@ struct SAIGA_GLOBAL ImageBase
 
     //minimum distance of the pixel to all edges
     HD inline
-    int distanceFromEdge(int y, int x){
+    int distanceFromEdge(int y, int x) const{
         int x0 = x;
         int x1 = width - 1 - x;
         int y0 = y;
