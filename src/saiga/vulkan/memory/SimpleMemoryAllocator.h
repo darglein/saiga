@@ -12,7 +12,8 @@
 
 #include <limits>
 #include <saiga/util/easylogging++.h>
-
+#include "FindMemoryType.h"
+#include "SafeAllocator.h"
 using namespace Saiga::Vulkan::Memory;
 
 namespace Saiga{
@@ -21,24 +22,11 @@ namespace Memory{
 
 struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator {
 private:
+    std::mutex mutex;
     vk::BufferCreateInfo m_bufferCreateInfo;
     vk::Device m_device;
     vk::PhysicalDevice m_physicalDevice;
-
     std::vector<MemoryLocation> m_allocations;
-
-    uint32_t findMemoryType(uint32_t typeFilter, const vk::MemoryPropertyFlags &properties) {
-        vk::PhysicalDeviceMemoryProperties memProperties = m_physicalDevice.getMemoryProperties();
-
-        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-            if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-                return i;
-            }
-        }
-
-        throw std::runtime_error("failed to find suitable memory type!");
-    }
-
 
 public:
     ~SimpleMemoryAllocator() {
@@ -62,6 +50,7 @@ public:
     }
 
     MemoryLocation allocate(vk::DeviceSize size) override {
+        LOG(INFO) << "Simple Alloc " << vk::to_string(usageFlags) << " " << std::to_string(size);
         m_bufferCreateInfo.size = size;
         auto buffer = m_device.createBuffer(m_bufferCreateInfo);
 
@@ -69,8 +58,8 @@ public:
 
         vk::MemoryAllocateInfo info;
         info.allocationSize = memReqs.size;
-        info.memoryTypeIndex = findMemoryType(memReqs.memoryTypeBits,flags);
-        auto memory = m_device.allocateMemory(info);
+        info.memoryTypeIndex = findMemoryType(m_physicalDevice, memReqs.memoryTypeBits, flags);
+        auto memory = SafeAllocator::instance()->allocateMemory(m_device, info);
 
         void* mappedPtr = nullptr;
         if (mapped) {
@@ -78,8 +67,11 @@ public:
         }
         m_device.bindBufferMemory(buffer, memory,0);
 
+        mutex.lock();
         m_allocations.emplace_back(buffer, memory, 0,size, mappedPtr);
-        return m_allocations.back();
+        auto retVal = m_allocations.back();
+        mutex.unlock();
+        return retVal;
     }
 
     void destroy() {
