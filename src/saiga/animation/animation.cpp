@@ -1,64 +1,67 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/animation/animation.h"
-#include "saiga/util/assert.h"
 #include <algorithm>
 #include "internal/noGraphicsAPI.h"
-namespace Saiga {
-
+#include "saiga/util/assert.h"
+namespace Saiga
+{
 const AnimationFrame &Animation::getKeyFrame(int frameIndex)
 {
-    SAIGA_ASSERT(frameIndex>=0 && frameIndex<frameCount);
+    SAIGA_ASSERT(frameIndex >= 0 && frameIndex < frameCount);
     return keyFrames[frameIndex];
 }
 
-void Animation::getFrame(animationtime_t time, AnimationFrame &out){
+void Animation::getFrame(animationtime_t time, AnimationFrame &out)
+{
+    // here time is given in animation time base
+    time = std::max(std::min(time, duration), animationtime_t(0));
 
-    //here time is given in animation time base
-    time = std::max(std::min(time,duration),animationtime_t(0));
-
-    //seach for correct frame interval
+    // seach for correct frame interval
     int frame = 0;
-    for(AnimationFrame& af : keyFrames){
-        if(af.time >= time){
+    for (AnimationFrame &af : keyFrames)
+    {
+        if (af.time >= time)
+        {
             break;
         }
         frame++;
     }
-    int prevFrame = max(0,frame - 1);
+    int prevFrame = max(0, frame - 1);
 
     AnimationFrame &k0 = keyFrames[prevFrame];
     AnimationFrame &k1 = keyFrames[frame];
 
-    if(frame == prevFrame){
+    if (frame == prevFrame)
+    {
         out = k0;
         return;
     }
 
     float alpha = ((time - k0.time).count() / (k1.time - k0.time).count());
-    out = AnimationFrame(k0,k1,alpha);
-
+    out = AnimationFrame(k0, k1, alpha);
 }
 
 void Animation::getFrameNormalized(double time, AnimationFrame &out)
 {
-    time = clamp(time,0.0,1.0);
+    time = clamp(time, 0.0, 1.0);
     SAIGA_ASSERT(time >= 0 && time <= 1);
-    getFrame( duration*time,out);
+    getFrame(duration * time, out);
 }
 
 void Animation::print()
 {
-    cout << "[Animation] " + name << " Frames="<<frameCount  << " duration="<<duration.count()<<"s"<< endl;
+    cout << "[Animation] " + name << " Frames=" << frameCount << " duration=" << duration.count() << "s" << endl;
     cout << "\tKeyframes: [";
-    for(AnimationFrame& af : keyFrames){
+    for (AnimationFrame &af : keyFrames)
+    {
         cout << af.time.count() << ", ";
     }
     cout << "]" << endl;
 }
 
-}
+}  // namespace Saiga
