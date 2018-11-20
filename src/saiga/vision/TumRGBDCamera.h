@@ -7,17 +7,16 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/camera/RGBDCamera.h"
-#include "saiga/vision/VisionTypes.h"
 #include "saiga/time/timer.h"
+#include "saiga/vision/RGBDCamera.h"
+#include "saiga/vision/VisionTypes.h"
 
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 class SAIGA_GLOBAL TumRGBDCamera : public RGBDCamera
 {
-public:
+   public:
     struct GroundTruth
     {
         double timeStamp;
@@ -37,7 +36,8 @@ public:
         CameraData rgb;
     };
 
-    TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1, int fps = 30);
+    TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1, int fps = 30,
+                  const std::shared_ptr<DMPP>& dmpp = nullptr);
     ~TumRGBDCamera();
     /**
      * Blocks until a new image arrives.
@@ -47,8 +47,9 @@ public:
 
     SE3 getGroundTruth(int frame);
 
-    virtual bool isOpened() { return currentId < (int)frames.size(); }
-private:
+    virtual bool isOpened() override { return currentId < (int)frames.size(); }
+
+   private:
     void associate(const std::string& datasetDir);
     void load(const std::string& datasetDir);
 
@@ -62,8 +63,6 @@ private:
     tick_t timeStep;
     tick_t lastFrameTime;
     tick_t nextFrameTime;
-
-
 };
 
-}
+}  // namespace Saiga

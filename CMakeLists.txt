@@ -246,6 +246,8 @@ if(GPHOTO2_FOUND)
     SET(SAIGA_USE_GPHOTO2 1)
 endif()
 
+
+
 ############# CUDA ###############
 
 #Check Language is an extra module so we need to include it.
@@ -324,6 +326,12 @@ PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "
 
 if(SAIGA_EIGEN_AND_CUDA)
     message(STATUS "Enabled Eigen with CUDA -> Eigen ${Eigen3_VERSION} Cuda ${CUDA_VERSION}")
+endif()
+
+
+if(EIGEN3_FOUND AND SOPHUS_FOUND)
+    message(STATUS "Saiga vision enabled.")
+    SET(SAIGA_VISION 1)
 endif()
 
 ############# INSTALL PATHS ###############

@@ -45,6 +45,8 @@
 #cmakedefine SAIGA_USE_OPENCV
 #cmakedefine SAIGA_USE_GPHOTO2
 
+#cmakedefine SAIGA_VISION
+
 //############# Build Options ###############
 
 #cmakedefine SAIGA_BUILD_SHARED

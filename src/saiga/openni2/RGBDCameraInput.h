@@ -6,29 +6,28 @@
 
 #pragma once
 
+#include <thread>
 #include "saiga/config.h"
 #include "saiga/image/image.h"
-#include "saiga/camera/RGBDCamera.h"
 #include "saiga/util/synchronizedBuffer.h"
 
-#include <thread>
+#ifdef SAIGA_VISION
+#    include "saiga/vision/RGBDCamera.h"
 
 // Use shared pointer of openni objects so that we don't have to include the header here
-namespace openni {
+namespace openni
+{
 class Device;
 class VideoStream;
 class VideoFrameRef;
-}
+}  // namespace openni
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 class SAIGA_GLOBAL RGBDCameraInput : public RGBDCamera
 {
-public:
-
-
-    RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, float depthFactor = 1.0/1000.0);
+   public:
+    RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, float depthFactor = 1.0 / 1000.0);
     ~RGBDCameraInput();
 
 
@@ -55,13 +54,13 @@ public:
     bool autoWhiteBalance = true;
     int gain = 300;
     void updateCameraSettings();
-private:
 
+   private:
     SynchronizedBuffer<std::shared_ptr<FrameData>> frameBuffer;
 
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;
-    std::shared_ptr<openni::VideoFrameRef> m_depthFrame,m_colorFrame;
+    std::shared_ptr<openni::VideoFrameRef> m_depthFrame, m_colorFrame;
 
     bool open();
     void resetCamera();
@@ -80,4 +79,5 @@ private:
     void eventLoop();
 };
 
-}
+}  // namespace Saiga
+#endif

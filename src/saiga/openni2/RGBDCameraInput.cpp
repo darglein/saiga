@@ -5,41 +5,38 @@
  */
 
 #include "RGBDCameraInput.h"
-#include "saiga/image/imageTransformations.h"
-#include "saiga/util/threadName.h"
-
 #include <OpenNI.h>
 #include <thread>
 #include "internal/noGraphicsAPI.h"
+#include "saiga/image/imageTransformations.h"
+#include "saiga/util/threadName.h"
+
+#ifdef SAIGA_VISION
+namespace Saiga
+{
+#    define CHECK_NI(_X)                                                           \
+        {                                                                          \
+            auto ret = _X;                                                         \
+            if (ret != openni::STATUS_OK)                                          \
+            {                                                                      \
+                cout << "Openni error in " << #_X << endl                          \
+                     << "code: " << ret << endl                                    \
+                     << "message: " << openni::OpenNI::getExtendedError() << endl; \
+                SAIGA_ASSERT(0);                                                   \
+            }                                                                      \
+        }
 
 
-namespace Saiga {
 
-#define CHECK_NI(_X) \
-{\
-    auto ret = _X; \
-    if(ret != openni::STATUS_OK) \
-{ \
-    cout << "Openni error in " << #_X << endl \
-    << "code: " << ret << endl \
-    << "message: " << openni::OpenNI::getExtendedError() << endl;\
-    SAIGA_ASSERT(0); \
-}\
-}
-
-
-
-RGBDCameraInput::RGBDCameraInput(RGBDCameraInput::CameraOptions rgbo, RGBDCameraInput::CameraOptions deptho, float depthFactor)
-    : RGBDCamera(rgbo,deptho),  frameBuffer(10), depthFactor(depthFactor)
+RGBDCameraInput::RGBDCameraInput(RGBDCameraInput::CameraOptions rgbo, RGBDCameraInput::CameraOptions deptho,
+                                 float depthFactor)
+    : RGBDCamera(rgbo, deptho), frameBuffer(10), depthFactor(depthFactor)
 {
     CHECK_NI(openni::OpenNI::initialize());
-    eventThread = std::thread(&RGBDCameraInput::eventLoop,this);
+    eventThread = std::thread(&RGBDCameraInput::eventLoop, this);
 }
 
-RGBDCameraInput::~RGBDCameraInput()
-{
-    close();
-}
+RGBDCameraInput::~RGBDCameraInput() { close(); }
 
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::waitForImage()
@@ -49,7 +46,7 @@ std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::waitForImage()
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::tryGetImage()
 {
-    if(!foundCamera) return nullptr;
+    if (!foundCamera) return nullptr;
     std::shared_ptr<FrameData> img;
     frameBuffer.tryGet(img);
     return img;
@@ -57,27 +54,21 @@ std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::tryGetImage()
 
 void RGBDCameraInput::close()
 {
-    if(running)
+    if (running)
     {
         running = false;
         eventThread.join();
     }
 
-    //try add one nullptr frame to unblock waiting threads
+    // try add one nullptr frame to unblock waiting threads
     frameBuffer.tryAdd(nullptr);
 
     cout << "RGBDCameraInput closed." << endl;
 }
 
-bool RGBDCameraInput::isOpened()
-{
-    return foundCamera;
-}
+bool RGBDCameraInput::isOpened() { return foundCamera; }
 
-void RGBDCameraInput::updateCameraSettings()
-{
-    updateS = true;
-}
+void RGBDCameraInput::updateCameraSettings() { updateS = true; }
 
 bool RGBDCameraInput::open()
 {
@@ -101,18 +92,15 @@ bool RGBDCameraInput::open()
     SAIGA_ASSERT(depth->isValid() && color->isValid());
 
     {
-        CameraOptions co =  deptho ;
+        CameraOptions co = deptho;
         const openni::Array<openni::VideoMode>& modes = depth->getSensorInfo().getSupportedVideoModes();
         int found = -1;
-        for(int i = 0; i < modes.getSize(); ++i)
+        for (int i = 0; i < modes.getSize(); ++i)
         {
             const openni::VideoMode& mode = modes[i];
 
-            if(mode.getResolutionX() == co.w &&
-                    mode.getResolutionY() == co.h &&
-                    mode.getFps() == co.fps &&
-                    mode.getPixelFormat() == openni::PIXEL_FORMAT_DEPTH_1_MM
-                    )
+            if (mode.getResolutionX() == co.w && mode.getResolutionY() == co.h && mode.getFps() == co.fps &&
+                mode.getPixelFormat() == openni::PIXEL_FORMAT_DEPTH_1_MM)
             {
                 found = i;
                 break;
@@ -123,18 +111,15 @@ bool RGBDCameraInput::open()
     }
 
     {
-        CameraOptions co =  rgbo ;
+        CameraOptions co = rgbo;
         const openni::Array<openni::VideoMode>& modes = color->getSensorInfo().getSupportedVideoModes();
         int found = -1;
-        for(int i = 0; i < modes.getSize(); ++i)
+        for (int i = 0; i < modes.getSize(); ++i)
         {
             const openni::VideoMode& mode = modes[i];
 
-            if(mode.getResolutionX() == co.w &&
-                    mode.getResolutionY() == co.h &&
-                    mode.getFps() == co.fps &&
-                    mode.getPixelFormat() == openni::PIXEL_FORMAT_RGB888
-                    )
+            if (mode.getResolutionX() == co.w && mode.getResolutionY() == co.h && mode.getFps() == co.fps &&
+                mode.getPixelFormat() == openni::PIXEL_FORMAT_RGB888)
             {
                 found = i;
                 break;
@@ -149,7 +134,7 @@ bool RGBDCameraInput::open()
     CHECK_NI(depth->start());
 
 
-    cout << "RGBD Camera opened."  << endl;
+    cout << "RGBD Camera opened." << endl;
 
     return true;
 }
@@ -165,31 +150,33 @@ void RGBDCameraInput::resetCamera()
     device = std::make_shared<openni::Device>();
 }
 
-bool RGBDCameraInput::waitFrame(FrameData &data)
+bool RGBDCameraInput::waitFrame(FrameData& data)
 {
-    openni::VideoStream* streams[2] = {depth.get(),color.get()};
+    openni::VideoStream* streams[2] = {depth.get(), color.get()};
     int streamIndex;
 
-    auto wret = openni::OpenNI::waitForAnyStream(streams,2,&streamIndex,1000);
-    if(wret != openni::STATUS_OK) return false;
+    auto wret = openni::OpenNI::waitForAnyStream(streams, 2, &streamIndex, 1000);
+    if (wret != openni::STATUS_OK) return false;
 
     setNextFrame(data);
 
 
     bool ret = true;
-    if(streamIndex == 0)
+    if (streamIndex == 0)
     {
         ret &= readDepth(data.depthImg);
 
-        wret = openni::OpenNI::waitForAnyStream(streams+1,1,&streamIndex,1000);
-        if(wret != openni::STATUS_OK) return false;
+        wret = openni::OpenNI::waitForAnyStream(streams + 1, 1, &streamIndex, 1000);
+        if (wret != openni::STATUS_OK) return false;
 
         ret &= readColor(data.colorImg);
-    }else{
+    }
+    else
+    {
         ret &= readColor(data.colorImg);
 
-        wret = openni::OpenNI::waitForAnyStream(streams,1,&streamIndex,1000);
-        if(wret != openni::STATUS_OK) return false;
+        wret = openni::OpenNI::waitForAnyStream(streams, 1, &streamIndex, 1000);
+        if (wret != openni::STATUS_OK) return false;
 
         ret &= readDepth(data.depthImg);
     }
@@ -203,45 +190,42 @@ bool RGBDCameraInput::readDepth(DepthImageType::ViewType depthImg)
     auto res = depth->readFrame(m_depthFrame.get());
     if (res != openni::STATUS_OK) return false;
 
-    SAIGA_ASSERT(m_depthFrame->getWidth() == depthImg.w &&
-                 m_depthFrame->getHeight() == depthImg.h);
+    SAIGA_ASSERT(m_depthFrame->getWidth() == depthImg.w && m_depthFrame->getHeight() == depthImg.h);
 
-    ImageView<uint16_t> rawDepthImg(
-                m_depthFrame->getHeight(),
-                m_depthFrame->getWidth(),
-                m_depthFrame->getStrideInBytes(),
-                (void*)m_depthFrame->getData());
+    ImageView<uint16_t> rawDepthImg(m_depthFrame->getHeight(), m_depthFrame->getWidth(),
+                                    m_depthFrame->getStrideInBytes(), (void*)m_depthFrame->getData());
 
-    for(int i = 0; i < rawDepthImg.height; ++i)
+    for (int i = 0; i < rawDepthImg.height; ++i)
     {
-        for(int j =0; j < rawDepthImg.width; ++j)
+        for (int j = 0; j < rawDepthImg.width; ++j)
         {
-            depthImg(i,j) = rawDepthImg(i,rawDepthImg.width-j-1) * depthFactor;
+            depthImg(i, j) = rawDepthImg(i, rawDepthImg.width - j - 1) * depthFactor;
         }
     }
+
+    if (dmpp)
+    {
+        (*dmpp)(depthImg);
+    }
+
     return true;
 }
 
 bool RGBDCameraInput::readColor(RGBImageType::ViewType colorImg)
 {
-
     auto res = color->readFrame(m_colorFrame.get());
     if (res != openni::STATUS_OK) return false;
 
-    SAIGA_ASSERT(m_colorFrame->getWidth() == colorImg.w &&
-                 m_colorFrame->getHeight() == colorImg.h);
+    SAIGA_ASSERT(m_colorFrame->getWidth() == colorImg.w && m_colorFrame->getHeight() == colorImg.h);
 
-    ImageView<ucvec3> rawImg(
-                m_colorFrame->getHeight(),
-                m_colorFrame->getWidth(),
-                m_colorFrame->getStrideInBytes(),
-                (void*)m_colorFrame->getData());
+    ImageView<ucvec3> rawImg(m_colorFrame->getHeight(), m_colorFrame->getWidth(), m_colorFrame->getStrideInBytes(),
+                             (void*)m_colorFrame->getData());
 
-    for(int i = 0; i < rawImg.height; ++i)
+    for (int i = 0; i < rawImg.height; ++i)
     {
-        for(int j =0; j < rawImg.width; ++j)
+        for (int j = 0; j < rawImg.width; ++j)
         {
-            colorImg(i,j) = ucvec4(rawImg(i,rawImg.width-j-1),255);
+            colorImg(i, j) = ucvec4(rawImg(i, rawImg.width - j - 1), 255);
         }
     }
 
@@ -262,7 +246,7 @@ void RGBDCameraInput::updateSettingsIntern()
 
     int current_gain = settings->getGain();
     (settings->setGain(gain));
-    cout << "Gain " << current_gain<< " -> " << gain << endl;
+    cout << "Gain " << current_gain << " -> " << gain << endl;
 
     updateS = false;
 }
@@ -276,25 +260,22 @@ void RGBDCameraInput::eventLoop()
     std::shared_ptr<FrameData> tmp = makeFrameData();
 
 
-    while(running)
+    while (running)
     {
-
-        if(!foundCamera)
+        if (!foundCamera)
         {
-            foundCamera  = open();
+            foundCamera = open();
 
-            if(!foundCamera)
+            if (!foundCamera)
             {
-
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 continue;
             }
         }
 
-        if(updateS)
-            updateSettingsIntern();
+        if (updateS) updateSettingsIntern();
 
-        if(!waitFrame(*tmp))
+        if (!waitFrame(*tmp))
         {
             cout << "lost camera connection!" << endl;
             foundCamera = false;
@@ -307,13 +288,12 @@ void RGBDCameraInput::eventLoop()
             //            cout << "buffer full" << endl;
         }
         tmp = makeFrameData();
-
     }
 
     resetCamera();
     foundCamera = false;
-
 }
 
 
-}
+}  // namespace Saiga
+#endif

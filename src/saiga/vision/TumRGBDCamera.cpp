@@ -5,14 +5,11 @@
  */
 
 #include "TumRGBDCamera.h"
-#include "saiga/util/tostring.h"
 #include <fstream>
 #include <thread>
-namespace Saiga {
-
-
-
-
+#include "saiga/util/tostring.h"
+namespace Saiga
+{
 static std::vector<TumRGBDCamera::CameraData> readCameraData(std::string file)
 {
     std::vector<TumRGBDCamera::CameraData> data;
@@ -22,9 +19,8 @@ static std::vector<TumRGBDCamera::CameraData> readCameraData(std::string file)
         std::string line;
         while (std::getline(strm, line))
         {
-            if(line.empty() || line[0] == '#')
-                continue;
-            std::vector<std::string> elements = Saiga::split(line,' ');
+            if (line.empty() || line[0] == '#') continue;
+            std::vector<std::string> elements = Saiga::split(line, ' ');
             SAIGA_ASSERT(elements.size() == 2);
             TumRGBDCamera::CameraData d;
             d.timestamp = Saiga::to_double(elements[0]);
@@ -44,9 +40,8 @@ static std::vector<TumRGBDCamera::GroundTruth> readGT(std::string file)
         std::string line;
         while (std::getline(strm, line))
         {
-            if(line.empty() || line[0] == '#')
-                continue;
-            std::vector<std::string> elements = Saiga::split(line,' ');
+            if (line.empty() || line[0] == '#') continue;
+            std::vector<std::string> elements = Saiga::split(line, ' ');
             SAIGA_ASSERT(elements.size() == 8);
             TumRGBDCamera::GroundTruth d;
             d.timeStamp = Saiga::to_double(elements[0]);
@@ -63,7 +58,7 @@ static std::vector<TumRGBDCamera::GroundTruth> readGT(std::string file)
             r.w() = Saiga::to_float(elements[7]);
             r.normalize();
 
-            d.se3 = SE3(r,t);
+            d.se3 = SE3(r, t);
 
             data.push_back(d);
         }
@@ -73,30 +68,29 @@ static std::vector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const std::string &datasetDir, double depthFactor, int maxFrames, int fps)
+TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, double depthFactor, int maxFrames, int fps,
+                             const std::shared_ptr<DMPP>& dmpp)
     : depthFactor(depthFactor), maxFrames(maxFrames)
 {
+    this->dmpp = dmpp;
     cout << "Loading TUM RGBD Dataset: " << datasetDir << endl;
     associate(datasetDir);
 
     load(datasetDir);
 
-    timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double,std::milli>(1000.0 / double(fps)));
+    timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::milli>(1000.0 / double(fps)));
 
     timer.start();
     lastFrameTime = timer.stop();
     nextFrameTime = lastFrameTime + timeStep;
 }
 
-TumRGBDCamera::~TumRGBDCamera()
-{
-    cout << "~TumRGBDCamera" << endl;
-}
+TumRGBDCamera::~TumRGBDCamera() { cout << "~TumRGBDCamera" << endl; }
 
 std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
 {
-    if(!isOpened())
-//    if(currentId == (int)frames.size())
+    if (!isOpened())
+    //    if(currentId == (int)frames.size())
     {
         return nullptr;
     }
@@ -104,13 +98,17 @@ std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
 
     auto t = timer.stop();
 
-    if(t < nextFrameTime)
+    if (t < nextFrameTime)
     {
         std::this_thread::sleep_for(nextFrameTime - t);
         nextFrameTime += timeStep;
-    }else if(t < nextFrameTime + timeStep){
+    }
+    else if (t < nextFrameTime + timeStep)
+    {
         nextFrameTime += timeStep;
-    }else{
+    }
+    else
+    {
         nextFrameTime = t + timeStep;
     }
 
@@ -129,7 +127,6 @@ SE3 TumRGBDCamera::getGroundTruth(int frame)
 
 void TumRGBDCamera::associate(const std::string& datasetDir)
 {
-
     std::vector<CameraData> rgbData = readCameraData(datasetDir + "/rgb.txt");
     std::vector<CameraData> depthData = readCameraData(datasetDir + "/depth.txt");
     std::vector<GroundTruth> gt = readGT(datasetDir + "/groundtruth.txt");
@@ -139,7 +136,7 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
     int cgt = 0;
 
     int lastBest = -1;
-    for(auto r : rgbData)
+    for (auto r : rgbData)
     {
         TumFrame tf;
 
@@ -153,7 +150,7 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
             auto smaller = depthData[ismaller].timestamp;
             auto bigger = smaller;
 
-            while(bigger < t && cdepth + 1 < (int)depthData.size())
+            while (bigger < t && cdepth + 1 < (int)depthData.size())
             {
                 smaller = bigger;
                 ismaller = ibigger;
@@ -169,8 +166,9 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
             tf.depth = depthData[ibest];
         }
 
+#if 0
         int igtbest;
-
+#endif
         GroundTruth bestGT;
         {
             int ismaller = cgt;
@@ -179,7 +177,7 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
             auto smaller = gt[ismaller].timeStamp;
             auto bigger = smaller;
 
-            while(bigger < t && cgt + 1 < (int)gt.size())
+            while (bigger < t && cgt + 1 < (int)gt.size())
             {
                 smaller = bigger;
                 ismaller = ibigger;
@@ -189,15 +187,15 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
                 bigger = gt[ibigger].timeStamp;
             }
 
-            igtbest = t - smaller < bigger - t ? ismaller : ibigger;
 
 #if 1
             GroundTruth a = gt[ismaller];
             GroundTruth b = gt[ibigger];
             bestGT.timeStamp = t;
             double alpha = (t - a.timeStamp) / (b.timeStamp - a.timeStamp);
-            bestGT.se3 = slerp(a.se3,b.se3,alpha);
+            bestGT.se3 = slerp(a.se3, b.se3, alpha);
 #else
+            igtbest = t - smaller < bigger - t ? ismaller : ibigger;
             bestGT = gt[igtbest];
 #endif
         }
@@ -205,7 +203,7 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 
         tf.rgb = r;
         tf.depth = depthData[ibest];
-//        tf.gt = gt[igtbest];
+        //        tf.gt = gt[igtbest];
         tf.gt = bestGT;
 
 
@@ -229,60 +227,84 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 
 
 
-        if(ibest != lastBest)
+        if (ibest != lastBest)
         {
             tumframes.push_back(tf);
         }
         lastBest = ibest;
-
     }
 }
 
-void TumRGBDCamera::load(const std::string &datasetDir)
+void TumRGBDCamera::load(const std::string& datasetDir)
 {
-    if(maxFrames >= 0)
+    if (maxFrames >= 0)
     {
-        tumframes.resize(std::min( (size_t)maxFrames,tumframes.size()));
+        tumframes.resize(std::min((size_t)maxFrames, tumframes.size()));
     }
 
 
     frames.resize(tumframes.size());
 
 #pragma omp parallel for
-    for(int i = 0; i < (int)tumframes.size(); ++i)
+    for (int i = 0; i < (int)tumframes.size(); ++i)
     {
         TumFrame d = tumframes[i];
-//        cout << "loading " << d.rgb.img << endl;
+        //        cout << "loading " << d.rgb.img << endl;
 
 
         Image cimg(datasetDir + "/" + d.rgb.img);
         rgbo.h = cimg.h;
         rgbo.w = cimg.w;
 
+
         Image dimg(datasetDir + "/" + d.depth.img);
-        deptho.h = dimg.h;
-        deptho.w = dimg.w;
+
+        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
+        int targetW = downScale ? dimg.w / 2 : dimg.w;
+        int targetH = downScale ? dimg.h / 2 : dimg.h;
+
+        deptho.w = targetW;
+        deptho.h = targetH;
 
         auto f = makeFrameData();
 
 
-        if(cimg.type == UC3)
+        if (cimg.type == UC3)
         {
             // convert to rgba
-            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(),f->colorImg);
-        }else if(cimg.type == UC4)
+            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), f->colorImg);
+        }
+        else if (cimg.type == UC4)
         {
             cimg.getImageView<ucvec4>().copyTo(f->colorImg.getImageView());
-        }else{
+        }
+        else
+        {
             SAIGA_ASSERT(0);
         }
 
-        if(dimg.type == US1)
+        DepthImageType tmp;
+        tmp.create(dimg.h, dimg.w);
+
+        if (dimg.type == US1)
         {
-            dimg.getImageView<unsigned short>().copyTo(f->depthImg.getImageView(), depthFactor);
-        }else{
+            dimg.getImageView<unsigned short>().copyTo(tmp.getImageView(), depthFactor);
+        }
+        else
+        {
             SAIGA_ASSERT(0);
         }
+
+        if (dmpp)
+        {
+            (*dmpp)(tmp, f->depthImg.getImageView());
+        }
+        else
+        {
+            tmp.getImageView().copyTo(f->depthImg.getImageView());
+        }
+
+
         frames[i] = f;
     }
 
@@ -291,4 +313,4 @@ void TumRGBDCamera::load(const std::string &datasetDir)
 
 
 
-}
+}  // namespace Saiga
