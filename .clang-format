@@ -7,8 +7,10 @@ BasedOnStyle: Google
 IndentWidth: 4
 BreakBeforeBraces: Allman
 ColumnLimit: 120
+DerivePointerAlignment: false
 PointerAlignment: Left
 MaxEmptyLinesToKeep: 3
 SortIncludes: true
 IncludeBlocks: Merge
 IndentPPDirectives: AfterHash
+AlignConsecutiveAssignments: true

@@ -58,7 +58,8 @@ SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE3& ref, const
 
     for (int k = 0; k < innerIterations; ++k)
     {
-        JtJ.setZero();
+        // Make use of symmetry
+        JtJ.triangularView<Eigen::Upper>().setZero();
         Jtb.setZero();
 
         for (size_t i = 0; i < corrs.size(); ++i)
@@ -81,10 +82,13 @@ SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE3& ref, const
             row *= corr.weight;
             res *= corr.weight;
 
-            JtJ += row * row.transpose();
+            //            JtJ += row * row.transpose();
+            JtJ += (row * row.transpose()).triangularView<Eigen::Upper>();
             Jtb += row * res;
         }
-        Eigen::Matrix<double, 6, 1> x = JtJ.ldlt().solve(Jtb);
+
+        //        Eigen::Matrix<double, 6, 1> x = JtJ.ldlt().solve(Jtb);
+        Eigen::Matrix<double, 6, 1> x = JtJ.selfadjointView<Eigen::Upper>().ldlt().solve(Jtb);
         src = SE3::exp(x) * src;
     }
     return src;

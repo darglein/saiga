@@ -82,7 +82,7 @@ if(GPHOTO2_FOUND)
     add_subdirectory(gphoto2)
 endif()
 
-if(EIGEN3_FOUND AND SOPHUS_FOUND)
+if(SAIGA_VISION)
     add_subdirectory(vision)
 endif()
 

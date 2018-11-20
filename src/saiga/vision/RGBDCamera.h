@@ -6,27 +6,26 @@
 
 #pragma once
 
-#include "saiga/config.h"
-
 #include <chrono>
+#include "saiga/config.h"
 #include "saiga/image/image.h"
+#include "saiga/vision/DepthmapPreprocessor.h"
 
-namespace Saiga {
-
-using RGBImageType = TemplatedImage<ucvec4> ;
+namespace Saiga
+{
+using RGBImageType = TemplatedImage<ucvec4>;
 using DepthImageType = TemplatedImage<float>;
 
 
 class SAIGA_GLOBAL RGBDCamera
 {
-public:
-
+   public:
     struct FrameData
     {
-          RGBImageType colorImg;
-          DepthImageType depthImg;
-          int frameId;
-          std::chrono::steady_clock::time_point  captureTime;
+        RGBImageType colorImg;
+        DepthImageType depthImg;
+        int frameId;
+        std::chrono::steady_clock::time_point captureTime;
     };
 
     struct CameraOptions
@@ -38,7 +37,7 @@ public:
 
 
 
-    RGBDCamera(){}
+    RGBDCamera() {}
     RGBDCamera(CameraOptions rgbo, CameraOptions deptho);
 
 
@@ -49,11 +48,16 @@ public:
     // Blocking calls to waitForImage should return a 'nullptr'
     virtual void close() {}
     virtual bool isOpened() { return true; }
-protected:
+
+
+    void setDmpp(const std::shared_ptr<DMPP>& value);
+
+   protected:
+    std::shared_ptr<DMPP> dmpp;
     CameraOptions rgbo, deptho;
     int currentId = 0;
     std::shared_ptr<FrameData> makeFrameData();
     void setNextFrame(FrameData& data);
 };
 
-}
+}  // namespace Saiga

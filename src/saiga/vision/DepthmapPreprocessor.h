@@ -9,13 +9,12 @@
 #include "saiga/image/image.h"
 #include "saiga/vision/VisionTypes.h"
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 struct SAIGA_GLOBAL DMPPParameters
 {
     bool apply_downscale = false;
-    int downscaleFactor = 2; // 2,4,8,16,...
+    int downscaleFactor = 2;  // 2,4,8,16,...
 
     bool apply_filter = false;
     int filterRadius = 3;
@@ -44,16 +43,19 @@ struct SAIGA_GLOBAL DMPPParameters
 
 class SAIGA_GLOBAL DMPP
 {
-public:
+   public:
     DMPPParameters params;
-    DMPP(const DMPPParameters& params = DMPPParameters()) : params(params) {}
+    DMPP(const Intrinsics4& camera, const DMPPParameters& params = DMPPParameters()) : params(params), camera(camera) {}
 
 
-    void operator()(ImageView<float> src, ImageView<float> dst, const Intrinsics4& camera);
+    void operator()(ImageView<float> src, ImageView<float> dst);
+
+    // Inplace preprocessing
+    void operator()(ImageView<float> src);
     void renderGui();
 
 
-private:
+   private:
     void scaleDown2median(ImageView<float> src, ImageView<float> dst);
     void fillHoles(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4& camera);
     void applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4& camera);
@@ -62,9 +64,9 @@ private:
     void computeMinMax(ImageView<float> vsrc, float& dmin, float& dmax);
 
 
-
+    Intrinsics4 camera;
 };
 
 
 
-}
+}  // namespace Saiga
