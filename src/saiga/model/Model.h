@@ -25,6 +25,10 @@ public:
 
     void normalizePosition();
 
+    /**
+     * Normalize the scale so that no vertex lies outside of the range [-1,-1,-1]-[1,1,1].
+     * Remark: This normalizes the positon beforehand.
+     */
     void normalizeScale();
     /**
      * Transforms the vertices and normals that the up axis is Y when before the up axis was Z.
@@ -50,11 +54,11 @@ void TriangleModel<vertex_t,index_t>::normalizePosition()
 template<typename vertex_t, typename index_t>
 void TriangleModel<vertex_t,index_t>::normalizeScale()
 {
-    //TODO
-    vec3 d = boundingBox.max - boundingBox.min;
-    mat4 t = translate(mat4(1),-offset);
+    normalizePosition();
+    const auto scaling = 1 / glm::max(glm::max(boundingBox.max.x, boundingBox.max.y), boundingBox.max.z);
+    mat4 t = scale(mat4(1), glm::vec3(scaling));
+    offset *= scaling;
     mesh.transform(t);
-    boundingBox.setPosition(vec3(0));
 }
 
 
