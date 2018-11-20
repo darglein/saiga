@@ -22,7 +22,7 @@ void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::Buff
     m_memoryLocation = base.memory.getAllocator(usage).allocate(size);
     usageFlags = usage;
     if (size != m_memoryLocation.size) {
-        LOG(WARNING) << "Unequal sizes" << size << " " << m_memoryLocation.size;
+        LOG(WARNING) << "Unequal sizes " << size << " " << m_memoryLocation.size;
     }
 }
 
