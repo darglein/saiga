@@ -27,7 +27,8 @@ namespace Saiga
 class SAIGA_GLOBAL RGBDCameraInput : public RGBDCamera
 {
    public:
-    RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, float depthFactor = 1.0 / 1000.0);
+    RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, const std::shared_ptr<DMPP>& dmpp = {},
+                    float depthFactor = 1.0 / 1000.0);
     ~RGBDCameraInput();
 
 
@@ -49,10 +50,10 @@ class SAIGA_GLOBAL RGBDCameraInput : public RGBDCamera
 
     // The user can change these variables, but must call 'updateCameraSettings' to make the take effect
     bool autoexposure = true;
-    int exposure = 33;
+    int exposure      = 33;
 
     bool autoWhiteBalance = true;
-    int gain = 300;
+    int gain              = 300;
     void updateCameraSettings();
 
    private:
@@ -71,7 +72,7 @@ class SAIGA_GLOBAL RGBDCameraInput : public RGBDCamera
     std::thread eventThread;
 
     bool foundCamera = false;
-    bool running = false;
+    bool running     = false;
     float depthFactor;
     bool updateS = false;
     void updateSettingsIntern();

@@ -47,16 +47,16 @@ struct CostICPPlane
         Eigen::Map<Sophus::SE3<T> const> const src(_src);
 
         using Vec3T = Eigen::Matrix<T, 3, 1>;
-        Vec3T rp = convertVec<T>(_rp);
-        Vec3T rn = convertVec<T>(_rn);
-        Vec3T sp = convertVec<T>(_sp);
+        Vec3T rp    = convertVec<T>(_rp);
+        Vec3T rn    = convertVec<T>(_rn);
+        Vec3T sp    = convertVec<T>(_sp);
 
         rp = ref * rp;
         rn = ref.so3() * rn;
         sp = src * sp;
 
         Vec3T di = rp - sp;
-        T res = rn.dot(di);
+        T res    = rn.dot(di);
 
         _residuals[0] = res * T(weight);
 
@@ -100,7 +100,7 @@ SE3 pointToPlaneCeres(const std::vector<Correspondence>& corrs, const SE3& _ref,
 
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout = false;
-    options.max_num_iterations = innerIterations;
+    options.max_num_iterations           = innerIterations;
     ceres::Solver::Summary summaryTest;
     ceres::Solve(options, &problem, &summaryTest);
 
@@ -131,15 +131,15 @@ SE3 alignDepthMapsCeres(DepthMap referenceDepthMap, DepthMap sourceDepthMap, SE3
 void multiViewICPSimple(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses, Intrinsics4 camera,
                         int iterations, ProjectiveCorrespondencesParams params)
 {
-    SAIGA_BLOCK_TIMER;
+    //    SAIGA_BLOCK_TIMER;
     // Compute all relative to the first frame
-    auto ref = depthMaps.front();
+    auto ref  = depthMaps.front();
     auto refT = guesses.front();  // W <- A
 
 
     for (size_t i = 1; i < depthMaps.size(); ++i)
     {
-        auto src = depthMaps[i];
+        auto src  = depthMaps[i];
         auto srcT = guesses[i];  // W <- B
 
         srcT = alignDepthMaps(ref, src, refT, srcT, camera, iterations, params);

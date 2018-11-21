@@ -6,75 +6,38 @@
 
 #pragma once
 
-#include "saiga/config.h"
+#include "saiga/vision/Intrinsics4.h"
+#include "saiga/vision/VisionIncludes.h"
 
-
-
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-
-#include "sophus/se3.hpp"
-
-
-namespace Saiga {
-
-
-using SE3 = Sophus::SE3d;
-
-using Quat = Eigen::Quaterniond;
-
-using Vec3 = Eigen::Vector3d;
-using Vec2 = Eigen::Vector2d;
-
-using Mat4 = Eigen::Matrix4d;
-using Mat3 = Eigen::Matrix3d;
-
-
-struct Intrinsics4
+namespace Saiga
 {
-    double fx, fy;
-    double cx, cy;
+inline Vec3 reprojectionError(const Vec3& observed, const Vec3& p)
+{
+    return {observed(0) - p(0), observed(1) - p(1), 0};
+}
 
-    Intrinsics4(){}
-    Intrinsics4(double fx, double fy, double cx, double cy) :
-        fx(fx),fy(fy),cx(cx),cy(cy) {}
-
-    Vec2 project(const Vec3& X) const
-    {
-        auto x = X(0) / X(2);
-        auto y = X(1) / X(2);
-        return {fx * x + cx, fy * y + cy };
-    }
-
-    Vec3 project3(const Vec3& X) const
-    {
-        auto x = X(0) / X(2);
-        auto y = X(1) / X(2);
-        return {fx * x + cx, fy * y + cy, X(2) };
-    }
-
-    Vec3 unproject(const Vec2& ip, double depth) const
-    {
-        Vec3 p( (ip(0)-cx) / fx,
-                (ip(1)-cy) / fy,
-                1);
-        return p * depth;
-    }
-};
+inline Vec3 reprojectionErrorDepth(const Vec3& observed, const Vec3& p, double bf)
+{
+    double stereoPointObs = observed(0) - bf / observed(2);
+    double stereoPoint    = p(0) - bf / p(2);
+    return {observed(0) - p(0), observed(1) - p(1), stereoPointObs - stereoPoint};
+}
 
 
-inline Vec3 infinityVec3() { return Vec3(std::numeric_limits<double>::infinity(),std::numeric_limits<double>::infinity(),std::numeric_limits<double>::infinity());}
+inline Vec3 infinityVec3()
+{
+    return Vec3(std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity(),
+                std::numeric_limits<double>::infinity());
+}
 
-inline
-double translationalError(const SE3& a, const SE3& b)
+inline double translationalError(const SE3& a, const SE3& b)
 {
     Vec3 diff = a.translation() - b.translation();
     return diff.norm();
 }
 
 // the angle (in radian) between two rotations
-inline
-double rotationalError(const SE3& a, const SE3& b)
+inline double rotationalError(const SE3& a, const SE3& b)
 {
     Quat q1 = a.unit_quaternion();
     Quat q2 = b.unit_quaternion();
@@ -82,20 +45,18 @@ double rotationalError(const SE3& a, const SE3& b)
 }
 
 // the angle (in radian) between two rotations
-inline
-SE3 slerp(const SE3& a, const SE3& b, double alpha)
+inline SE3 slerp(const SE3& a, const SE3& b, double alpha)
 {
-    Vec3 t = (1.0 -  alpha) * a.translation() + (alpha) * b.translation();
+    Vec3 t = (1.0 - alpha) * a.translation() + (alpha)*b.translation();
 
     Quat q1 = a.unit_quaternion();
     Quat q2 = b.unit_quaternion();
-    Quat q = q1.slerp(alpha,q2);
+    Quat q  = q1.slerp(alpha, q2);
 
-    return SE3(q,t);
+    return SE3(q, t);
 }
 
-inline
-std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
+inline std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
 {
     os << se3.translation().transpose() << " | " << se3.unit_quaternion().coeffs().transpose();
     return os;
@@ -106,29 +67,23 @@ std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
  * Also know as 'cross product matrix' or 'hat operator'.
  * https://en.wikipedia.org/wiki/Hat_operator
  */
-inline
-Mat3 skew(Vec3 const& a)
+inline Mat3 skew(Vec3 const& a)
 {
     Mat3 m;
     using Scalar = double;
-    m <<
-         Scalar(0), -a(2),  a(1),
-            a(2), Scalar(0), -a(0),
-            -a(1),  a(0), Scalar(0);
+    m << Scalar(0), -a(2), a(1), a(2), Scalar(0), -a(0), -a(1), a(0), Scalar(0);
     return m;
 }
 
 /**
-  * Pixar Revised ONB
-  * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
-  */
-inline
-Mat3 onb(Vec3 n)
+ * Pixar Revised ONB
+ * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+ */
+inline Mat3 onb(Vec3 n)
 {
-
-    double sign = n(2) > 0 ? 1.0f : -1.0f; //emulate copysign
-    double a = -1.0f / (sign + n[2]);
-    double b = n[0] * n[1] * a;
+    double sign = n(2) > 0 ? 1.0f : -1.0f;  // emulate copysign
+    double a    = -1.0f / (sign + n[2]);
+    double b    = n[0] * n[1] * a;
     Mat3 v;
     v.col(2) = n;
     v.col(1) = Vec3(1.0f + sign * n[0] * n[0] * a, sign * b, -sign * n[0]);
@@ -137,4 +92,4 @@ Mat3 onb(Vec3 n)
 }
 
 
-}
+}  // namespace Saiga

@@ -29,9 +29,10 @@ namespace Saiga
 
 
 RGBDCameraInput::RGBDCameraInput(RGBDCameraInput::CameraOptions rgbo, RGBDCameraInput::CameraOptions deptho,
-                                 float depthFactor)
+                                 const std::shared_ptr<DMPP>& dmpp, float depthFactor)
     : RGBDCamera(rgbo, deptho), frameBuffer(10), depthFactor(depthFactor)
 {
+    this->dmpp = dmpp;
     CHECK_NI(openni::OpenNI::initialize());
     eventThread = std::thread(&RGBDCameraInput::eventLoop, this);
 }
@@ -92,9 +93,9 @@ bool RGBDCameraInput::open()
     SAIGA_ASSERT(depth->isValid() && color->isValid());
 
     {
-        CameraOptions co = deptho;
+        CameraOptions co                              = deptho;
         const openni::Array<openni::VideoMode>& modes = depth->getSensorInfo().getSupportedVideoModes();
-        int found = -1;
+        int found                                     = -1;
         for (int i = 0; i < modes.getSize(); ++i)
         {
             const openni::VideoMode& mode = modes[i];
@@ -111,9 +112,9 @@ bool RGBDCameraInput::open()
     }
 
     {
-        CameraOptions co = rgbo;
+        CameraOptions co                              = rgbo;
         const openni::Array<openni::VideoMode>& modes = color->getSensorInfo().getSupportedVideoModes();
-        int found = -1;
+        int found                                     = -1;
         for (int i = 0; i < modes.getSize(); ++i)
         {
             const openni::VideoMode& mode = modes[i];
@@ -258,6 +259,8 @@ void RGBDCameraInput::eventLoop()
     setThreadName("Saiga::NI");
 
     std::shared_ptr<FrameData> tmp = makeFrameData();
+
+    cout << "Starting OpenNI RGBD Camera..." << endl;
 
 
     while (running)
