@@ -8,73 +8,57 @@
 #include "saiga/util/imath.h"
 #include "saiga/vulkan/buffer/StagingBuffer.h"
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 void Buffer::destroy()
 {
-    DeviceMemory::destroy();
-    if(buffer)
+    // TODO: Remove this method and replace with undeprecated call
+}
+
+void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags usage,
+                          const vk::MemoryPropertyFlags& flags, vk::SharingMode sharingMode)
+{
+    // TODO: Sharing mode is not used yet
+    m_memoryLocation = base.memory.getAllocator(usage, flags).allocate(size);
+    usageFlags       = usage;
+    if (size != m_memoryLocation.size)
     {
-        device.destroyBuffer(buffer);
-        buffer = nullptr;
+        LOG(WARNING) << "Unequal sizes " << size << " " << m_memoryLocation.size;
     }
 }
 
-void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags usage, vk::SharingMode sharingMode)
+void Buffer::upload(vk::CommandBuffer& cmd, size_t offset, size_t size, const void* data)
 {
-    this->device = base.device;
-    this->size = size;
-    vk::BufferCreateInfo buf_info = {};
-    buf_info.usage = usage;
-    buf_info.size = size;
-    buf_info.queueFamilyIndexCount = 0;
-    buf_info.pQueueFamilyIndices = NULL;
-    buf_info.sharingMode = sharingMode;
-    CHECK_VK(device.createBuffer(&buf_info, NULL, &buffer));
+    size = iAlignUp(size, 4);
+    cmd.updateBuffer(m_memoryLocation.buffer, m_memoryLocation.offset, size, data);
 }
 
-void Buffer::allocateMemoryBuffer(VulkanBase &base, vk::MemoryPropertyFlags flags)
-{
-    SAIGA_ASSERT(buffer);
-    vk::MemoryRequirements mem_reqs = device.getBufferMemoryRequirements(buffer);
-    DeviceMemory::allocateMemory(base,mem_reqs,flags);
-    device.bindBufferMemory(buffer,memory,0);
-}
-
-void Buffer::upload(vk::CommandBuffer &cmd, size_t offset, size_t size, const void *data)
-{
-    size = iAlignUp(size,4);
-    cmd.updateBuffer(buffer,offset,size,data);
-}
-
-void Buffer::stagedUpload(VulkanBase &base, size_t offset, size_t size, const void *data)
+/**
+ * Perform a staged upload to the buffer. A StagingBuffer is created and used for this.
+ * \see Saiga::Vulkan::StagingBuffer
+ * @param base A reference to a VulkanBase
+ * @param size Size of the data
+ * @param data Pointer to the data.
+ */
+void Buffer::stagedUpload(VulkanBase& base, size_t size, const void* data)
 {
     vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
 
-
     StagingBuffer staging;
-    staging.init(base,size,data);
+    staging.init(base, size, data);
 
-
-    vk::BufferCopy bc(offset,offset,size);
-    cmd.copyBuffer(staging,*this,bc);
-
-
+    vk::BufferCopy bc(0, m_memoryLocation.offset, size);
+    cmd.copyBuffer(staging.m_memoryLocation.buffer, m_memoryLocation.buffer, bc);
 
     base.endTransferWait(cmd);
 }
 
 vk::DescriptorBufferInfo Buffer::createInfo()
 {
-    vk::DescriptorBufferInfo info(
-                buffer,0,size
-                );
-    return info;
+    return {m_memoryLocation.buffer, m_memoryLocation.offset, m_memoryLocation.size};
 }
 
-
-
-
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

@@ -47,10 +47,11 @@ void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat
     uboVS.projection = proj;
     uboVS.modelview = view;
     uboVS.lightPos = vec4(5,5,5,0);
-    cmd.updateBuffer(uniformBufferVS.buffer,0,sizeof(uboVS),&uboVS);
+    cmd.updateBuffer(uniformBufferVS.m_memoryLocation.buffer,0,sizeof(uboVS),&uboVS);
 }
 
-void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
+void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass,
+        const std::string& vertShader, const std::string& fragShader)
 {
     PipelineBase::init(vulkanDevice,1);
     uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
@@ -61,8 +62,8 @@ void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPa
     addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
     shaderPipeline.load(
                 device,{
-                    "vulkan/texturedAsset.vert",
-                    "vulkan/texturedAsset.frag"
+                    vertShader,
+                    fragShader
                 });
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
@@ -87,9 +88,11 @@ vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture &t
 
     vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
     device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(set,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo,nullptr),
-                                    vk::WriteDescriptorSet(set,11,0,1,vk::DescriptorType::eCombinedImageSampler,&descriptorInfoTexture,nullptr,nullptr),
+                                    vk::WriteDescriptorSet(set,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo),
+                                    vk::WriteDescriptorSet(set,11,0,1,vk::DescriptorType::eCombinedImageSampler,&descriptorInfoTexture,nullptr),
                                 },nullptr);
+
+
     return set;
 }
 

@@ -28,6 +28,13 @@ public:
     vk::DescriptorSet allocateDescriptorSet(vk::DescriptorSetLayout layout);
 
 
+    explicit operator vk::DescriptorPool() const { return descriptorPool; }
+
+    explicit operator VkDescriptorPool() const { return descriptorPool; }
+
+    void freeDescriptorSet(vk::DescriptorSet set) {
+        device.freeDescriptorSets(descriptorPool, set);
+    }
 
     void destroy();
 private:

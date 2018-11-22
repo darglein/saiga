@@ -29,7 +29,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, VulkanParamet
 
     //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &graphicsQueue);
     //    vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.present, 0, &presentQueue);
-    graphicsQueue.create(device,base.queueFamilyIndices.graphics);
+    graphicsQueue.create(base.device,base.queueFamilyIndices.graphics);
     //    presentQueue.create(device,vulkanDevice->queueFamilyIndices.present);
     //    transferQueue.create(device,vulkanDevice->queueFamilyIndices.transfer);
 
@@ -47,7 +47,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, VulkanParamet
     syncObjects.resize(swapChain.imageCount);
     for (auto& sync : syncObjects)
     {
-        sync.create(device);
+        sync.create(base.device);
     }
 
 
@@ -67,7 +67,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow &window, VulkanParamet
     frameBuffers.resize(swapChain.imageCount);
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
     {
-        frameBuffers[i].createColorDepthStencil(width,height,swapChain.buffers[i].view,depthBuffer.depthview,renderPass,device);
+        frameBuffers[i].createColorDepthStencil(width,height,swapChain.buffers[i].view,depthBuffer.depthview,renderPass,base.device);
         //        frameBuffers[i].createColor(width,height,swapChain.buffers[i].view,renderPass,device);
     }
 
@@ -86,11 +86,11 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
     waitIdle();
 
 
-    vkDestroyRenderPass(device, renderPass, nullptr);
+    vkDestroyRenderPass(base.device, renderPass, nullptr);
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
     {
         //        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
-        frameBuffers[i].destroy(device);
+        frameBuffers[i].destroy(base.device);
     }
 
     depthBuffer.destroy();
@@ -99,7 +99,7 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 
     for(auto& s : syncObjects)
     {
-        s.destroy(device);
+        s.destroy(base.device);
     }
 
 }
@@ -107,12 +107,10 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 void VulkanForwardRenderer::initChildren()
 {
     if(vulkanParameters.enableImgui)
-        imGui = window.createImGui();
+        imGui = window.createImGui(syncObjects.size());
 
 
-
-
-    VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
+    auto * renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
     renderingInterface->init(base);
@@ -201,7 +199,7 @@ void VulkanForwardRenderer::setupRenderPass()
     renderPassInfo.dependencyCount = 1;//static_cast<uint32_t>(dependencies.size());
     renderPassInfo.pDependencies = dependencies.data();
 
-    VK_CHECK_RESULT(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
+    VK_CHECK_RESULT(vkCreateRenderPass(base.device, &renderPassInfo, nullptr, &renderPass));
 }
 
 
@@ -227,7 +225,7 @@ void VulkanForwardRenderer::render(Camera *cam)
 
     FrameSync& sync = syncObjects[nextSyncObject];
 
-        sync.wait(device);
+    sync.wait(base.device);
 
 
         VkResult err = swapChain.acquireNextImage(sync.imageVailable, &currentBuffer);
@@ -262,9 +260,10 @@ void VulkanForwardRenderer::render(Camera *cam)
     renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer].framebuffer;
 
     VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
+    renderingInterface->transfer(cmd);
 
-        renderingInterface->transfer(cmd);
-        imGui->updateBuffers(cmd);
+
+    imGui->updateBuffers(cmd,nextSyncObject);
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -278,7 +277,7 @@ void VulkanForwardRenderer::render(Camera *cam)
     {
         // Actual rendering
         renderingInterface->render(cmd);
-        if(imGui) imGui->render(cmd);
+        if(imGui) imGui->render(cmd, nextSyncObject);
     }
 
     vkCmdEndRenderPass(cmd);

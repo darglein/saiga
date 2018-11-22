@@ -8,45 +8,42 @@
 #include "Renderer.h"
 #include "saiga/vulkan/window/Window.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanParameters)
+namespace Saiga
+{
+namespace Vulkan
+{
+VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters)
     : window(window), vulkanParameters(vulkanParameters)
 {
     window.setRenderer(this);
 
-    width = window.getWidth();
+    width  = window.getWidth();
     height = window.getHeight();
 
     std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
-    instance.create(instanceExtensions,vulkanParameters.enableValidationLayer);
+    instance.create(instanceExtensions, vulkanParameters.enableValidationLayer);
 
     VkSurfaceKHR surface;
-    window.createSurface(instance,&surface);
+    window.createSurface(instance, &surface);
 
-    physicalDevice = instance.pickPhysicalDevice();
+    base.setPhysicalDevice(instance.pickPhysicalDevice());
 
+    //    auto properties = base.physicalDevice.getProperties();
+    //    vulkanParameters.maxDescriptorSets = properties.limits.maxdescriptorset
 
-    base.setPhysicalDevice(physicalDevice);
+    vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
+    vulkanParameters.physicalDeviceFeatures.wideLines        = true;
+    base.createLogicalDevice(surface, vulkanParameters.physicalDeviceFeatures, vulkanParameters.deviceExtensions, true,
+                             vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer,
+                             true);
 
-
-    vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = true;
-    vulkanParameters.physicalDeviceFeatures.wideLines = true;
-    base.createLogicalDevice(surface,vulkanParameters.physicalDeviceFeatures, vulkanParameters.deviceExtensions);
 
 
     base.init(vulkanParameters);
-    device = base.device;
-    cout << endl;
 
-
-
-    swapChain.connect(instance, physicalDevice, device);
+    swapChain.connect(instance, base.physicalDevice, base.device);
     swapChain.initSurface(surface);
     swapChain.create(&width, &height, false);
-
-
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -54,25 +51,17 @@ VulkanRenderer::~VulkanRenderer()
     // Clean up Vulkan resources
     swapChain.cleanup();
 
-//    delete base;
+    //    delete base;
     base.destroy();
 
     instance.destroy();
-
-
-
 }
 
-float VulkanRenderer::getTotalRenderTime() {return window.mainLoop.renderCPUTimer.getTimeMS();}
+float VulkanRenderer::getTotalRenderTime() { return window.mainLoop.renderCPUTimer.getTimeMS(); }
 
-void VulkanRenderer::initInstanceDevice()
-{
-
-
-
-}
+void VulkanRenderer::initInstanceDevice() {}
 
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

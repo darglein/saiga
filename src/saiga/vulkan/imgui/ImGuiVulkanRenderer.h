@@ -29,15 +29,49 @@ namespace Vulkan {
 
 class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
 {
-public:
-    ~ImGuiVulkanRenderer();
-    void initResources(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
+private:
+    struct FrameData{
+        VertexBuffer<ImDrawVert> vertexBuffer;
+        IndexBuffer<ImDrawIdx> indexBuffer;
+        ImDrawVert* vertexData;
+        ImDrawIdx* indexData;
 
+        FrameData(VulkanBase& base, const uint32_t maxVertexCount, const uint32_t maxIndexCount) {
+            vertexBuffer.init(base,maxVertexCount, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+            indexBuffer.init(base,maxIndexCount,  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+            if (!vertexBuffer.m_memoryLocation.mappedPointer) {
+                vertexBuffer.m_memoryLocation.map(base.device);
+            }
+            if (!indexBuffer.m_memoryLocation.mappedPointer) {
+                indexBuffer.m_memoryLocation.map(base.device);
+            }
+
+            vertexData = (ImDrawVert *) vertexBuffer.m_memoryLocation.mappedPointer;
+            indexData = (ImDrawIdx *) indexBuffer.m_memoryLocation.mappedPointer;
+        }
+
+        void destroy(VulkanBase& base) {
+            vertexBuffer.destroy(base);
+            indexBuffer.destroy(base);
+        }
+    };
+
+    size_t frameCount;
+    std::vector<FrameData> frameData;
+public:
+    ImGuiVulkanRenderer(size_t _frameCount) : frameCount(_frameCount), frameData(){
+        ImGui::CreateContext();
+    }
+
+    virtual ~ImGuiVulkanRenderer();
+
+    void initResources(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
     virtual void beginFrame() = 0;
     void endFrame();
-    void updateBuffers(vk::CommandBuffer cmd);
-    void render(vk::CommandBuffer commandBuffer);
 
+    void updateBuffers(vk::CommandBuffer cmd, size_t frameIndex);
+    void render(vk::CommandBuffer commandBuffer, size_t frameIndex);
 protected:
 
     struct PushConstBlock
@@ -45,12 +79,6 @@ protected:
         vec2 scale;
         vec2 translate;
     } pushConstBlock;
-
-
-    VertexBuffer<ImDrawVert> vertexBuffer;
-    IndexBuffer<ImDrawIdx> indexBuffer;
-    ImDrawVert* vertexData;
-    ImDrawIdx* indexData;
 
     int32_t vertexCount = 0;
     int32_t indexCount = 0;

@@ -9,28 +9,30 @@
 
 #include "saiga/vulkan/svulkan.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 struct SAIGA_GLOBAL VulkanParameters
 {
-
     vk::PhysicalDeviceFeatures physicalDeviceFeatures;
     std::vector<const char*> deviceExtensions;
-    bool   enableValidationLayer    = true;
-    bool enableImgui = true;
+    bool enableValidationLayer = true;
+    bool enableImgui           = true;
 
-    uint32_t maxDescriptorSets = 100;
+    uint32_t maxDescriptorSets = 4096;
     // for {uniformBuffer,texture}
-    std::array<uint32_t,4> descriptorCounts = { 100, 100, 100, 100 };
+    std::array<uint32_t, 4> descriptorCounts = {1024, 1024, 1024, 1024};
 
 
+
+    /**
+     *  Reads all paramters from the given config file.
+     *  Creates the file with the default values if it doesn't exist.
+     */
     void fromConfigFile(const std::string& file);
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

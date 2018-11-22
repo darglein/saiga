@@ -29,12 +29,13 @@ namespace Vulkan {
 class SAIGA_GLOBAL ImGuiSDLRenderer : public SDL_EventListener, public ImGuiVulkanRenderer
 {
 public:
-    ~ImGuiSDLRenderer();
-
+    ImGuiSDLRenderer(size_t frameCount) : ImGuiVulkanRenderer(frameCount){}
     // Initialize styles, keys, etc.
     void init(SDL_Window* window, float width, float height);
 
-    void beginFrame();
+    void beginFrame() override;
+
+    ~ImGuiSDLRenderer() override;
 
 protected:
 

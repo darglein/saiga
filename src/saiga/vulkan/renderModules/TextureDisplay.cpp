@@ -33,7 +33,7 @@ void TextureDisplay::renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet text
 
 
 
-void TextureDisplay::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)
+void TextureDisplay::init(Saiga::Vulkan::VulkanBase &vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice,1);
     addDescriptorSetLayout({

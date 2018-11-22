@@ -10,7 +10,7 @@ layout (location = 3) in vec4 inData;
 
 
 
-layout (binding = 7) uniform UBO2 
+layout (binding = 7) uniform UBO2
 {
 	mat4 projection;
 	mat4 view;

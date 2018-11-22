@@ -11,21 +11,23 @@
 #pragma once
 
 #include <assert.h>
+#include <saiga/vulkan/buffer/StagingBuffer.h>
 #include <algorithm>
 #include <exception>
 #include "saiga/image/image.h"
+#include "saiga/vulkan/AsyncCommand.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/buffer/DeviceMemory.h"
 #include "saiga/vulkan/svulkan.h"
-
 
 namespace Saiga
 {
 namespace Vulkan
 {
-struct SAIGA_GLOBAL Texture : public DeviceMemory
+struct SAIGA_GLOBAL Texture
 {
-    VulkanBase* base;
+    //    VulkanBase *base;
+    MemoryLocation memoryLocation;
     vk::Image image;
     vk::ImageLayout imageLayout;
     vk::ImageView imageView;
@@ -34,8 +36,8 @@ struct SAIGA_GLOBAL Texture : public DeviceMemory
     uint32_t layerCount;
     vk::Sampler sampler;
 
-    ~Texture();
-    void destroy();
+    //    ~Texture();
+    void destroy(VulkanBase& base);
 
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
 
@@ -44,10 +46,15 @@ struct SAIGA_GLOBAL Texture : public DeviceMemory
 
 struct SAIGA_GLOBAL Texture2D : public Texture
 {
-    void fromImage(VulkanBase& base, const Image& img, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled,
+    AsyncCommand fromStagingBuffer(VulkanBase& base, uint32_t width, uint32_t height, vk::Format format,
+                                   Saiga::Vulkan::StagingBuffer& stagingBuffer, Queue& queue, CommandPool& pool,
+                                   vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
+    void fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled,
                    bool flipY = true);
+    void fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPool& pool,
+                   vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled, bool flipY = true);
 
-    void uploadImage(VulkanBase& base, const Image& img, bool flipY = true);
+    void uploadImage(VulkanBase& base, Image& img, bool flipY = true);
 };
 
 }  // namespace Vulkan

@@ -21,6 +21,7 @@
 #include "saiga/vulkan/DescriptorPool.h"
 #include "VulkanTools.h"
 #include "VulkanBuffer.hpp"
+#include "saiga/vulkan/memory/VulkanMemory.h"
 
 namespace Saiga{
 namespace Vulkan{
@@ -29,7 +30,10 @@ struct SAIGA_GLOBAL VulkanBase
 {
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
+
+    Saiga::Vulkan::Memory::VulkanMemory memory;
     vk::PhysicalDeviceMemoryProperties memoryProperties;
+
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
 
     vk::PipelineCache pipelineCache;
@@ -39,6 +43,9 @@ struct SAIGA_GLOBAL VulkanBase
      * The graphics queues for rendering are created from the render engines.
      */
     Queue transferQueue;
+
+    bool secondaryQueueAvailable = false;
+    Queue secondaryTransferQueue;
 
     // A commandpool for transfer commands that are sync-submitted. (this is not the command pool used for rendering)
     CommandPool commandPool;
@@ -112,11 +119,11 @@ struct SAIGA_GLOBAL VulkanBase
             vk::PhysicalDeviceFeatures enabledFeatures,
             std::vector<const char*> enabledExtensions,
             bool useSwapChain = true,
-            vk::QueueFlags requestedQueueTypes =  vk::QueueFlagBits::eGraphics |  vk::QueueFlagBits::eCompute |  vk::QueueFlagBits::eTransfer);
+            vk::QueueFlags requestedQueueTypes =  vk::QueueFlagBits::eGraphics |  vk::QueueFlagBits::eCompute |  vk::QueueFlagBits::eTransfer,
+            bool createSecondaryTransferQueue = false);
 
 
     void init( VulkanParameters params );
-
 
     vk::CommandBuffer createAndBeginTransferCommand();
 
@@ -126,6 +133,8 @@ struct SAIGA_GLOBAL VulkanBase
     void submitAndWait(vk::CommandBuffer commandBuffer, vk::Queue queue);
 
     void endTransferWait(vk::CommandBuffer commandBuffer);
+
+    void printAvailableQueueFamilies();
 };
 
 }

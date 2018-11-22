@@ -27,7 +27,7 @@ public:
     SDLWindow(WindowParameters _windowParameters);
 
 ~SDLWindow();
-    virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui() override;
+    virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) override;
 
     std::vector<const char*> getRequiredInstanceExtensions() override;
     void createSurface(VkInstance instance, VkSurfaceKHR* surface) override;

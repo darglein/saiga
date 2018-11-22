@@ -6,21 +6,26 @@ namespace Saiga
 {
 namespace Vulkan
 {
-Texture::~Texture()
-{
-    //    cout << "destroy texture" << endl;
-    destroy();
-}
+// Texture::~Texture()
+//{
+////    cout << "destroy texture" << endl;
+//    destroy();
+//}
 
-void Texture::destroy()
+void Texture::destroy(VulkanBase& base)
 {
     if (image)
     {
-        device.destroyImage(image);
-        device.destroyImageView(imageView);
-        device.destroySampler(sampler);
-        DeviceMemory::destroy();
+        LOG(INFO) << "Destroying image: " << image;
+        base.device.destroyImage(image);
+        base.device.destroyImageView(imageView);
+        base.device.destroySampler(sampler);
         image = nullptr;
+    }
+
+    if (memoryLocation)
+    {
+        base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).deallocate(memoryLocation);
     }
 }
 
@@ -89,43 +94,13 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo()
     return descriptorInfo;
 }
 
-void Texture2D::fromImage(VulkanBase& base, const Image& img, vk::ImageUsageFlags usage, bool flipY)
+void Texture2D::fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usage, bool flipY)
 {
-    destroy();
-    device = base.device;
+    fromImage(base, img, base.transferQueue, base.commandPool, usage, flipY);
+}
 
-
-    mipLevels = 1;
-    width     = img.width;
-    height    = img.height;
-
-    vk::Format format = getvkFormat(img.type);
-
-
-
-    imageLayout = vk::ImageLayout::eUndefined;
-    // Create optimal tiled target image
-    vk::ImageCreateInfo imageCreateInfo;
-    imageCreateInfo.imageType     = vk::ImageType::e2D;
-    imageCreateInfo.format        = format;
-    imageCreateInfo.mipLevels     = mipLevels;
-    imageCreateInfo.arrayLayers   = 1;
-    imageCreateInfo.samples       = vk::SampleCountFlagBits::e1;
-    imageCreateInfo.tiling        = vk::ImageTiling::eOptimal;
-    imageCreateInfo.sharingMode   = vk::SharingMode::eExclusive;
-    imageCreateInfo.initialLayout = imageLayout;
-    imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
-    imageCreateInfo.usage         = usage | vk::ImageUsageFlagBits::eTransferDst;
-    image                         = base.device.createImage(imageCreateInfo);
-    SAIGA_ASSERT(image);
-
-
-    auto memReqs = device.getImageMemoryRequirements(image);
-    DeviceMemory::allocateMemory(base, memReqs, vk::MemoryPropertyFlagBits::eDeviceLocal);
-    device.bindImageMemory(image, memory, 0);
-
-
-
+void Texture2D::uploadImage(VulkanBase& base, Image& img, bool flipY)
+{
     vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
 
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
@@ -143,7 +118,89 @@ void Texture2D::fromImage(VulkanBase& base, const Image& img, vk::ImageUsageFlag
 
     StagingBuffer staging;
 
+    if (flipY)
+    {
+        std::vector<char> data(img.pitchBytes * img.h);
+        for (int i = 0; i < img.h; ++i)
+        {
+            memcpy(&data[i * img.pitchBytes], img.rowPtr(img.h - i - 1), img.pitchBytes);
+        }
 
+        staging.init(base, data.size(), data.data());
+    }
+    else
+    {
+        staging.init(base, img.size(), img.data());
+    }
+
+
+    cmd.copyBufferToImage(staging.m_memoryLocation.buffer, image, vk::ImageLayout::eTransferDstOptimal,
+                          bufferCopyRegion);
+
+    transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+    base.endTransferWait(cmd);
+
+
+
+    staging.destroy();
+}
+
+void Texture2D::fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPool& pool, vk::ImageUsageFlags usage,
+                          bool flipY)
+{
+    destroy(base);
+
+    mipLevels = 1;
+    width     = img.width;
+    height    = img.height;
+
+    vk::Format format = getvkFormat(img.type);
+
+
+
+    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
+
+    imageLayout = vk::ImageLayout::eUndefined;
+    // Create optimal tiled target image
+    vk::ImageCreateInfo imageCreateInfo;
+    imageCreateInfo.imageType     = vk::ImageType::e2D;
+    imageCreateInfo.format        = format;
+    imageCreateInfo.mipLevels     = mipLevels;
+    imageCreateInfo.arrayLayers   = 1;
+    imageCreateInfo.samples       = vk::SampleCountFlagBits::e1;
+    imageCreateInfo.tiling        = vk::ImageTiling::eOptimal;
+    imageCreateInfo.sharingMode   = vk::SharingMode::eExclusive;
+    imageCreateInfo.initialLayout = imageLayout;
+    imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
+    imageCreateInfo.usage         = finalUsageFlags;
+    image                         = base.device.createImage(imageCreateInfo);
+    SAIGA_ASSERT(image);
+
+
+    LOG(INFO) << "Creating image synched: " << image;
+
+
+    auto memReqs   = base.device.getImageMemoryRequirements(image);
+    memoryLocation = base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
+    base.device.bindImageMemory(image, memoryLocation.memory, memoryLocation.offset);
+
+    vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
+
+    transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
+
+
+    vk::BufferImageCopy bufferCopyRegion             = {};
+    bufferCopyRegion.imageSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
+    bufferCopyRegion.imageSubresource.mipLevel       = 0;
+    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+    bufferCopyRegion.imageSubresource.layerCount     = 1;
+    bufferCopyRegion.imageExtent.width               = width;
+    bufferCopyRegion.imageExtent.height              = height;
+    bufferCopyRegion.imageExtent.depth               = 1;
+    bufferCopyRegion.bufferOffset                    = 0;
+
+    StagingBuffer staging;
 
     if (flipY)
     {
@@ -160,12 +217,15 @@ void Texture2D::fromImage(VulkanBase& base, const Image& img, vk::ImageUsageFlag
         staging.init(base, img.size(), img.data());
     }
 
-    cmd.copyBufferToImage(staging.buffer, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
+
+    cmd.copyBufferToImage(staging.m_memoryLocation.buffer, image, vk::ImageLayout::eTransferDstOptimal,
+                          bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
-    base.endTransferWait(cmd);
-
+    cmd.end();
+    queue.submitAndWait(cmd);
+    pool.freeCommandBuffer(cmd);
 
 
     staging.destroy();
@@ -176,7 +236,7 @@ void Texture2D::fromImage(VulkanBase& base, const Image& img, vk::ImageUsageFlag
     viewCreateInfo.format                  = format;
     viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
     viewCreateInfo.image                   = image;
-    imageView                              = device.createImageView(viewCreateInfo);
+    imageView                              = base.device.createImageView(viewCreateInfo);
     SAIGA_ASSERT(imageView);
 
     // Create a defaultsampler
@@ -194,18 +254,54 @@ void Texture2D::fromImage(VulkanBase& base, const Image& img, vk::ImageUsageFlag
     samplerCreateInfo.maxLod = 0.0f;
     // Only enable anisotropic filtering if enabled on the devicec
     samplerCreateInfo.maxAnisotropy    = 16;
-    samplerCreateInfo.anisotropyEnable = false;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
     samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
-    //    VK_CHECK_RESULT(vkCreateSampler(device->device, &samplerCreateInfo, nullptr, &sampler));
-    sampler = device.createSampler(samplerCreateInfo);
-    SAIGA_ASSERT(sampler);
 
-    //    cout << "texture created." << endl;
+    sampler = base.device.createSampler(samplerCreateInfo);
+    SAIGA_ASSERT(sampler);
 }
 
-void Texture2D::uploadImage(VulkanBase& base, const Image& img, bool flipY)
+AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint32_t height, vk::Format format,
+                                          Saiga::Vulkan::StagingBuffer& stagingBuffer, Queue& queue, CommandPool& pool,
+                                          vk::ImageUsageFlags usage)
 {
-    vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+    destroy(base);
+
+    mipLevels = 1;
+    //    width = img.width;
+    //    height = img.height;
+
+    //    vk::Format format = getvkFormat(img.type);
+
+
+
+    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
+
+    imageLayout = vk::ImageLayout::eUndefined;
+    // Create optimal tiled target image
+    vk::ImageCreateInfo imageCreateInfo;
+    imageCreateInfo.imageType     = vk::ImageType::e2D;
+    imageCreateInfo.format        = format;
+    imageCreateInfo.mipLevels     = mipLevels;
+    imageCreateInfo.arrayLayers   = 1;
+    imageCreateInfo.samples       = vk::SampleCountFlagBits::e1;
+    imageCreateInfo.tiling        = vk::ImageTiling::eOptimal;
+    imageCreateInfo.sharingMode   = vk::SharingMode::eExclusive;
+    imageCreateInfo.initialLayout = imageLayout;
+    imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
+    imageCreateInfo.usage         = finalUsageFlags;
+    image                         = base.device.createImage(imageCreateInfo);
+
+    LOG(INFO) << "Creating image: " << image;
+    SAIGA_ASSERT(image);
+
+
+
+    auto memReqs   = base.device.getImageMemoryRequirements(image);
+    memoryLocation = base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
+    base.device.bindImageMemory(image, memoryLocation.memory, memoryLocation.offset);
+
+    vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
 
@@ -220,33 +316,53 @@ void Texture2D::uploadImage(VulkanBase& base, const Image& img, bool flipY)
     bufferCopyRegion.imageExtent.depth               = 1;
     bufferCopyRegion.bufferOffset                    = 0;
 
-    StagingBuffer staging;
+    //    StagingBuffer staging;
+    //
+    //    staging.init(base,img.size(),img.data());
 
-    //    staging.init(base, img.size(), img.data());
-    if (flipY)
-    {
-        std::vector<char> data(img.pitchBytes * img.h);
-        for (int i = 0; i < img.h; ++i)
-        {
-            memcpy(&data[i * img.pitchBytes], img.rowPtr(img.h - i - 1), img.pitchBytes);
-        }
-
-        staging.init(base, data.size(), data.data());
-    }
-    else
-    {
-        staging.init(base, img.size(), img.data());
-    }
-
-    cmd.copyBufferToImage(staging.buffer, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
+    cmd.copyBufferToImage(stagingBuffer.m_memoryLocation.buffer, image, vk::ImageLayout::eTransferDstOptimal,
+                          bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
-    base.endTransferWait(cmd);
+    cmd.end();
+
+    //    queue.submitAndWait(cmd);
+    //    pool.freeCommandBuffer(cmd);
 
 
 
-    staging.destroy();
+    vk::ImageViewCreateInfo viewCreateInfo = {};
+    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    viewCreateInfo.format                  = format;
+    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+    viewCreateInfo.image                   = image;
+    imageView                              = base.device.createImageView(viewCreateInfo);
+    SAIGA_ASSERT(imageView);
+
+    // Create a defaultsampler
+    vk::SamplerCreateInfo samplerCreateInfo = {};
+    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
+    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.mipLodBias            = 0.0f;
+    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
+    samplerCreateInfo.minLod                = 0.0f;
+    // Max level-of-detail should match mip level count
+    samplerCreateInfo.maxLod = 0.0f;
+    // Only enable anisotropic filtering if enabled on the devicec
+    samplerCreateInfo.maxAnisotropy    = 16;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
+    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
+
+    sampler = base.device.createSampler(samplerCreateInfo);
+    SAIGA_ASSERT(sampler);
+
+    auto fence = queue.submit(cmd);
+    return AsyncCommand{cmd, fence};
 }
 
 

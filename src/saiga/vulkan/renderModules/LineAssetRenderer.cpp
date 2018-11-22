@@ -39,7 +39,7 @@ void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 vi
     uboVS.projection = proj;
     uboVS.modelview = view;
     uboVS.lightPos = vec4(5,5,5,0);
-      cmd.updateBuffer(uniformBufferVS.buffer,0,sizeof(uboVS),&uboVS);
+      cmd.updateBuffer(uniformBufferVS.m_memoryLocation.buffer,0,sizeof(uboVS),&uboVS);
 }
 
 void LineAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass, float lineWidth)

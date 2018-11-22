@@ -36,7 +36,8 @@ public:
     void pushModel(vk::CommandBuffer cmd, mat4 model);
     void updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj);
 
-    void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
+    void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass, const std::string& vertShader = "vulkan/texturedAsset.vert",
+              const std::string& fragShader = "vulkan/texturedAsset.frag");
 
     void prepareUniformBuffers(Saiga::Vulkan::VulkanBase* vulkanDevice);
     void setupLayoutsAndDescriptors();
