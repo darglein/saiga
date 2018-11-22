@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include "saiga/image/imageBase.h"
-#include "saiga/image/imageView.h"
-#include "saiga/image/imageFormat.h"
-#include "saiga/util/fileChecker.h"
-#include "saiga/util/ArrayView.h"
 #include <vector>
+#include "saiga/image/imageBase.h"
+#include "saiga/image/imageFormat.h"
+#include "saiga/image/imageView.h"
+#include "saiga/util/ArrayView.h"
+#include "saiga/util/fileChecker.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 #define DEFAULT_ALIGNMENT 4
 /**
  * Note: The first scanline is at position data[0].
@@ -22,8 +22,8 @@ namespace Saiga {
 
 class SAIGA_GLOBAL Image : public ImageBase
 {
-public:
-    //Image search pathes
+   public:
+    // Image search pathes
     static FileChecker searchPathes;
 
     using byte_t = unsigned char;
@@ -31,18 +31,22 @@ public:
 
 
     ImageType type = TYPE_UNKNOWN;
-protected:
+
+   protected:
     std::vector<byte_t> vdata;
 
-public:
-
-    Image(){}
+   public:
+    Image() {}
     Image(ImageType type) : type(type) {}
-    Image(int h, int w , ImageType type);
-    Image(std::string file) { auto res = load(file); SAIGA_ASSERT(res); }
+    Image(int h, int w, ImageType type);
+    Image(std::string file)
+    {
+        auto res = load(file);
+        SAIGA_ASSERT(res);
+    }
 
     // Note: This creates a copy of img
-    template<typename T>
+    template <typename T>
     Image(ImageView<T> img)
     {
         setFormatFromImageView(img);
@@ -76,22 +80,26 @@ public:
     const uint8_t* data8() const { return vdata.data(); }
 
 
-    template<typename T>
-    inline
-    T& at(int y, int x)
+    template <typename T>
+    inline T& at(int y, int x)
     {
         return reinterpret_cast<T*>(rowPtr(y))[x];
     }
 
-    inline
-    void* rowPtr(int y)
+    inline void* rowPtr(int y)
+    {
+        auto ptr = data8() + y * pitchBytes;
+        return ptr;
+    }
+
+    inline const void* rowPtr(int y) const
     {
         auto ptr = data8() + y * pitchBytes;
         return ptr;
     }
 
 
-    template<typename T>
+    template <typename T>
     ImageView<T> getImageView()
     {
         SAIGA_ASSERT(ImageTypeTemplate<T>::type == type);
@@ -100,7 +108,7 @@ public:
         return res;
     }
 
-    template<typename T>
+    template <typename T>
     ImageView<const T> getConstImageView() const
     {
         SAIGA_ASSERT(ImageTypeTemplate<T>::type == type);
@@ -109,15 +117,15 @@ public:
         return res;
     }
 
-    template<typename T>
+    template <typename T>
     void setFormatFromImageView(ImageView<T> v)
     {
         ImageBase::operator=(v);
-        type = ImageTypeTemplate<T>::type;
-        pitchBytes = 0;
+        type               = ImageTypeTemplate<T>::type;
+        pitchBytes         = 0;
     }
 
-    template<typename T>
+    template <typename T>
     void createEmptyFromImageView(ImageView<T> v)
     {
         setFormatFromImageView<T>(v);
@@ -125,22 +133,22 @@ public:
     }
 
 
-    bool load(const std::string &path);
+    bool load(const std::string& path);
     bool loadFromMemory(ArrayView<const char> data);
 
-    bool save(const std::string &path);
+    bool save(const std::string& path);
 
     // save in a custom saiga format
     // this can handle all image types
-    bool loadRaw(const std::string &path);
-    bool saveRaw(const std::string &path);
+    bool loadRaw(const std::string& path);
+    bool saveRaw(const std::string& path);
 
     /**
      * Tries to convert the given image to a storable format.
      * For example:
      * Floating point images are converted to 8-bit grayscale images.
      */
-    bool saveConvert(const std::string &path, float minValue=0, float maxValue=1);
+    bool saveConvert(const std::string& path, float minValue = 0, float maxValue = 1);
 
 
     std::vector<uint8_t> compress();
@@ -159,4 +167,4 @@ SAIGA_GLOBAL bool save(const std::string& path, ImageView<float> img, float vmin
 
 
 
-}
+}  // namespace Saiga
