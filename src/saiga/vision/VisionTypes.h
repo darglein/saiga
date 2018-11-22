@@ -91,5 +91,18 @@ inline Mat3 onb(Vec3 n)
     return v;
 }
 
+/**
+ * Conversion from a SE3 into an arbitrary type.
+ * For example from double->float
+ *
+ * I need this because the Sophus SE3 class doesn't provide a ".cast" operation
+ * like the Eigen types.
+ */
+template <typename Target, typename Source>
+Sophus::SE3<Target> castSE3(const Source& se3)
+{
+    return {se3.unit_quaternion().template cast<Target>(), se3.translation().template cast<Target>()};
+}
+
 
 }  // namespace Saiga

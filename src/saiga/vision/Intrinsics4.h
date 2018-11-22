@@ -76,5 +76,30 @@ struct Intrinsics4Base
 using Intrinsics4  = Intrinsics4Base<double>;
 using Intrinsics4f = Intrinsics4Base<float>;
 
+template <typename T>
+struct StereoCamera4Base : public Intrinsics4Base<T>
+{
+    /**
+     * Baseline * FocalLength_x
+     *
+     * Used to convert from depth to disparity:
+     * disparity = bf / depth
+     * depth = bf / disparity
+     */
+    T bf;
+    StereoCamera4Base() {}
+    StereoCamera4Base(T fx, T fy, T cx, T cy, T bf) : Intrinsics4Base<T>(fx, fy, cx, cy), bf(bf) {}
+    StereoCamera4Base(const Intrinsics4Base<T>& i, T bf) : Intrinsics4Base<T>(i), bf(bf) {}
+
+    template <typename G>
+    StereoCamera4Base<G> cast()
+    {
+        return {Intrinsics4Base<T>::template cast<G>(), bf};
+    }
+};
+
+using StereoCamera4  = StereoCamera4Base<double>;
+using StereoCamera4f = StereoCamera4Base<float>;
+
 
 }  // namespace Saiga

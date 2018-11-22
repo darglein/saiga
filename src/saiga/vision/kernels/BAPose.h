@@ -27,6 +27,15 @@ struct BAPoseMono
     using Vec3       = Eigen::Matrix<T, 3, 1>;
     using Vec2       = Eigen::Matrix<T, 2, 1>;
 
+    static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
+                                         const Vec2& observed, T weight)
+    {
+        Vec3 pc   = extr * wp;
+        Vec2 proj = camera.project(pc);
+        Vec2 res  = observed - proj;
+        res *= weight;
+        return res;
+    }
 
     static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
                                             const Vec2& observed, ResidualType& res, JacobiType& Jrow, T weight)
@@ -79,16 +88,14 @@ struct BAPoseStereo
     using ResidualType = Eigen::Matrix<T, ResCount, 1>;
     using JacobiType   = Eigen::Matrix<T, ResCount, VarCount>;
 
-    using CameraType = Intrinsics4Base<T>;
+    using CameraType = StereoCamera4Base<T>;
     using SE3Type    = Sophus::SE3<T>;
     using Vec3       = Eigen::Matrix<T, 3, 1>;
     using Vec2       = Eigen::Matrix<T, 2, 1>;
 
 
-
-    static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
-                                            const Vec2& observed, T observedDepth, ResidualType& res, JacobiType& Jrow,
-                                            T weight, T bf)
+    static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
+                                         const Vec2& observed, T observedDepth, T weight)
     {
         Vec3 pc   = extr * wp;
         Vec3 proj = camera.project3(pc);
@@ -96,7 +103,31 @@ struct BAPoseStereo
         Vec3 obs3;
         obs3 << observed(0), observed(1), observedDepth;
 
-        res = reprojectionErrorDepth(obs3, proj, bf);
+        //        Vec3 res = reprojectionErrorDepth(obs3, proj, camera.bf);
+        T stereoPointObs = obs3(0) - camera.bf / obs3(2);
+        T stereoPoint    = proj(0) - camera.bf / proj(2);
+        Vec3 res         = {observed(0) - proj(0), obs3(1) - proj(1), stereoPointObs - stereoPoint};
+
+
+        res *= weight;
+        return res;
+    }
+
+    static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
+                                            const Vec2& observed, T observedDepth, ResidualType& res, JacobiType& Jrow,
+                                            T weight)
+    {
+        Vec3 pc   = extr * wp;
+        Vec3 proj = camera.project3(pc);
+
+        Vec3 obs3;
+        obs3 << observed(0), observed(1), observedDepth;
+
+
+        //        res = reprojectionErrorDepth(obs3, proj, camera.bf);
+        T stereoPointObs = obs3(0) - camera.bf / obs3(2);
+        T stereoPoint    = proj(0) - camera.bf / proj(2);
+        res              = {observed(0) - proj(0), obs3(1) - proj(1), stereoPointObs - stereoPoint};
 
         auto x     = pc(0);
         auto y     = pc(1);
@@ -129,10 +160,10 @@ struct BAPoseStereo
 
         Jrow(2, 0) = Jrow(0, 0);
         Jrow(2, 1) = 0;
-        Jrow(2, 2) = Jrow(0, 2) + bf * zzinv;
+        Jrow(2, 2) = Jrow(0, 2) + camera.bf * zzinv;
 
-        Jrow(2, 3) = Jrow(0, 3) + bf * y * zzinv;
-        Jrow(2, 4) = Jrow(0, 4) - bf * x * zzinv;
+        Jrow(2, 3) = Jrow(0, 3) + camera.bf * y * zzinv;
+        Jrow(2, 4) = Jrow(0, 4) - camera.bf * x * zzinv;
         Jrow(2, 5) = Jrow(0, 5);
 
 
