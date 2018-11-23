@@ -20,6 +20,7 @@ layout(location=0) out VertexData
 void main() 
 {
     outData.tc = inPosition.xy * 0.5f + 0.5f;
+    outData.tc.y = 1.0 - outData.tc.y;
     gl_Position = vec4(inPosition.x,inPosition.y,0,1);
 
 
