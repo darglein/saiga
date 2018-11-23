@@ -8,7 +8,7 @@
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
 #include "saiga/model/objModelLoader.h"
-
+#include "saiga/util/easylogging++.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #error OpenGL was included somewhere.
 #endif
@@ -39,7 +39,7 @@ void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 vi
     uboVS.projection = proj;
     uboVS.modelview = view;
     uboVS.lightPos = vec4(5,5,5,0);
-      cmd.updateBuffer(uniformBufferVS.m_memoryLocation.buffer,0,sizeof(uboVS),&uboVS);
+      cmd.updateBuffer(uniformBufferVS.m_memoryLocation.buffer,uniformBufferVS.m_memoryLocation.offset,sizeof(uboVS),&uboVS);
 }
 
 void LineAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass, float lineWidth)
@@ -54,7 +54,13 @@ void LineAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass, 
                 });
     PipelineInfo info;
     info.inputAssemblyState.topology = vk::PrimitiveTopology::eLineList;
-    info.rasterizationState.lineWidth = lineWidth;
+    if (base->enabledFeatures.wideLines) {
+        info.rasterizationState.lineWidth = lineWidth;
+    } else {
+        if (lineWidth != 1.0f) {
+            LOG(WARNING) << "Line width " << lineWidth << " requested, wide lines is not enabled or supported";
+        }
+    }
     info.addVertexInfo<VertexType>();
     create(renderPass,info);
 
