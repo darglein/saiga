@@ -29,6 +29,7 @@ namespace Vulkan{
 struct SAIGA_GLOBAL VulkanBase
 {
     vk::PhysicalDevice physicalDevice;
+    vk::PhysicalDeviceFeatures enabledFeatures = {};
     vk::Device device;
 
     Saiga::Vulkan::Memory::VulkanMemory memory;
@@ -108,7 +109,7 @@ struct SAIGA_GLOBAL VulkanBase
     /**
         * Create the logical device based on the assigned physical device, also gets default queue family indices
         *
-        * @param enabledFeatures Can be used to enable certain features upon device creation
+        * @param requestedFeatures Can be used to enable certain features upon device creation
         * @param useSwapChain Set to false for headless rendering to omit the swapchain device extensions
         * @param requestedQueueTypes Bit flags specifying the queue types to be requested from the device
         *
@@ -116,7 +117,7 @@ struct SAIGA_GLOBAL VulkanBase
         */
     void createLogicalDevice(
             vk::SurfaceKHR surface,
-            vk::PhysicalDeviceFeatures enabledFeatures,
+            vk::PhysicalDeviceFeatures requestedFeatures,
             std::vector<const char*> enabledExtensions,
             bool useSwapChain = true,
             vk::QueueFlags requestedQueueTypes =  vk::QueueFlagBits::eGraphics |  vk::QueueFlagBits::eCompute |  vk::QueueFlagBits::eTransfer,

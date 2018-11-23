@@ -185,7 +185,7 @@ uint32_t VulkanBase::getPresentQueue(vk::SurfaceKHR surface)
 }
 
 void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
-                                     vk::PhysicalDeviceFeatures enabledFeatures,
+                                     vk::PhysicalDeviceFeatures requestedFeatures,
                                      std::vector<const char*> enabledExtensions,
                                      bool useSwapChain,
                                      vk::QueueFlags requestedQueueTypes,
@@ -296,11 +296,22 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
         deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
 
+    auto featuresToEnable = requestedFeatures;
+
+    auto availableFeatures= physicalDevice.getFeatures();
+
+    if (!availableFeatures.wideLines) {
+        featuresToEnable.wideLines = VK_FALSE;
+        LOG(ERROR) << "Wide lines requested but not available on this device";
+    }
+
+
+
     vk::DeviceCreateInfo deviceCreateInfo = {};
     //    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());;
     deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-    deviceCreateInfo.pEnabledFeatures = &enabledFeatures;
+    deviceCreateInfo.pEnabledFeatures = &featuresToEnable;
 
 
     if (deviceExtensions.size() > 0)
@@ -324,6 +335,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface,
 
     device = physicalDevice.createDevice(deviceCreateInfo);
 
+    enabledFeatures = featuresToEnable;
 
 
     std::vector<vk::ExtensionProperties> extprops = physicalDevice.enumerateDeviceExtensionProperties();
