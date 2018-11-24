@@ -44,14 +44,17 @@ class SAIGA_TEMPLATE VertexBuffer : public Buffer
         vertexCount    = vertices.size();
         size_t newSize = sizeof(VertexType) * vertexCount;
         SAIGA_ASSERT(newSize <= m_memoryLocation.size);
-        Buffer::upload(cmd, 0, newSize, vertices.data());
+        update(cmd, newSize, vertices.data(), 0);
     }
 
-    void bind(vk::CommandBuffer& cmd) { cmd.bindVertexBuffers(0, m_memoryLocation.buffer, m_memoryLocation.offset); }
 
     void draw(vk::CommandBuffer& cmd) { cmd.draw(vertexCount, 1, 0, 0); }
 
     void draw(vk::CommandBuffer& cmd, int count, int first = 0) { cmd.draw(count, 1, first, 0); }
+
+    void bind(vk::CommandBuffer& cmd, uint32_t firstBinding = 0) {
+        cmd.bindVertexBuffers(firstBinding,m_memoryLocation.buffer, m_memoryLocation.offset);
+    }
 };
 
 }  // namespace Vulkan

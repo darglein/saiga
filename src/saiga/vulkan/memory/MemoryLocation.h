@@ -18,7 +18,6 @@ namespace Memory
 {
 struct SAIGA_GLOBAL MemoryLocation
 {
-    VulkanBase* base;
     vk::Buffer buffer;
     vk::DeviceMemory memory;
     vk::DeviceSize offset;

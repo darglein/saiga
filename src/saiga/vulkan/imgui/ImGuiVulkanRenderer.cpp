@@ -199,10 +199,8 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
     {
         std::array<vk::DeviceSize, 1> offsets{0};
         auto& currentFrameData    = frameData[frameIndex];
-        auto& currentVertexMemory = currentFrameData.vertexBuffer.m_memoryLocation;
-        auto& currentIndexMemory  = currentFrameData.indexBuffer.m_memoryLocation;
-        commandBuffer.bindVertexBuffers(0, currentVertexMemory.buffer, currentVertexMemory.offset);
-        commandBuffer.bindIndexBuffer(currentIndexMemory.buffer, currentIndexMemory.offset, vk::IndexType::eUint16);
+        currentFrameData.vertexBuffer.bind(commandBuffer);
+        currentFrameData.indexBuffer.bind(commandBuffer);
         for (int32_t i = 0; i < imDrawData->CmdListsCount; i++)
         {
             const ImDrawList* cmd_list = imDrawData->CmdLists[i];

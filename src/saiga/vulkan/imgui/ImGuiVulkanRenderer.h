@@ -40,20 +40,15 @@ private:
             vertexBuffer.init(base,maxVertexCount, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
             indexBuffer.init(base,maxIndexCount,  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
-            if (!vertexBuffer.m_memoryLocation.mappedPointer) {
-                vertexBuffer.m_memoryLocation.map(base.device);
-            }
-            if (!indexBuffer.m_memoryLocation.mappedPointer) {
-                indexBuffer.m_memoryLocation.map(base.device);
-            }
+            SAIGA_ASSERT(vertexBuffer.isMapped() && indexBuffer.isMapped(), "ImGui buffers must be mapped");
 
-            vertexData = (ImDrawVert *) vertexBuffer.m_memoryLocation.mappedPointer;
-            indexData = (ImDrawIdx *) indexBuffer.m_memoryLocation.mappedPointer;
+            vertexData = (ImDrawVert *) vertexBuffer.getMappedPointer();
+            indexData = (ImDrawIdx *) indexBuffer.getMappedPointer();
         }
 
         void destroy(VulkanBase& base) {
-            vertexBuffer.destroy(base);
-            indexBuffer.destroy(base);
+            vertexBuffer.destroy();
+            indexBuffer.destroy();
         }
     };
 

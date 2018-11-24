@@ -37,7 +37,7 @@ void TexturedAssetRenderer::bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet
 
 void TexturedAssetRenderer::pushModel(vk::CommandBuffer cmd, mat4 model)
 {
-        pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(mat4),&model[0][0]);
+    pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(mat4),&model[0][0]);
 }
 
 
@@ -47,7 +47,7 @@ void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat
     uboVS.projection = proj;
     uboVS.modelview = view;
     uboVS.lightPos = vec4(5,5,5,0);
-    cmd.updateBuffer(uniformBufferVS.m_memoryLocation.buffer,uniformBufferVS.m_memoryLocation.offset,sizeof(uboVS),&uboVS);
+    uniformBufferVS.update(cmd, sizeof(UBOVS), &uboVS);
 }
 
 void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass,

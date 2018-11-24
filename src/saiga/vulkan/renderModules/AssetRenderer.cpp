@@ -41,7 +41,7 @@ void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, 
     uboVS.projection = proj;
     uboVS.modelview = view;
     uboVS.lightPos = vec4(5,5,5,0);
-    cmd.updateBuffer(uniformBufferVS.m_memoryLocation.buffer,uniformBufferVS.m_memoryLocation.offset,sizeof(uboVS),&uboVS);
+    uniformBufferVS.update(cmd, sizeof(uboVS), &uboVS);
 }
 
 void AssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass)

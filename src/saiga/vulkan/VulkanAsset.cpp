@@ -73,7 +73,7 @@ void VulkanPointCloudAsset::init(VulkanBase& base, int _capacity)
     capacity = _capacity;
     vertexBuffer.init(base, capacity, vk::MemoryPropertyFlagBits::eDeviceLocal);
     stagingBuffer.init(base, capacity * sizeof(VertexType));
-    pointCloud = ArrayView<VertexType>((VertexType*)stagingBuffer.m_memoryLocation.map(base.device), capacity);
+    pointCloud = ArrayView<VertexType>((VertexType*)stagingBuffer.getMappedPointer(), capacity);
 }
 
 void VulkanPointCloudAsset::render(vk::CommandBuffer cmd, int start, int count)
@@ -85,10 +85,7 @@ void VulkanPointCloudAsset::render(vk::CommandBuffer cmd, int start, int count)
 
 void VulkanPointCloudAsset::updateBuffer(vk::CommandBuffer cmd, int start, int count)
 {
-    size_t offset = vertexBuffer.m_memoryLocation.offset + start * sizeof(VertexType);
-    size_t size   = count * sizeof(VertexType);
-    vk::BufferCopy bc(offset, offset, size);
-    cmd.copyBuffer(stagingBuffer.m_memoryLocation.buffer, vertexBuffer.m_memoryLocation.buffer, bc);
+    stagingBuffer.copyTo(cmd,vertexBuffer,start* sizeof(VertexType), start * sizeof(VertexType), count * sizeof(VertexType));
 }
 
 

@@ -106,15 +106,8 @@ void Texture2D::uploadImage(VulkanBase& base, Image& img, bool flipY)
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
 
 
-    vk::BufferImageCopy bufferCopyRegion             = {};
-    bufferCopyRegion.imageSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
-    bufferCopyRegion.imageSubresource.mipLevel       = 0;
-    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
-    bufferCopyRegion.imageSubresource.layerCount     = 1;
-    bufferCopyRegion.imageExtent.width               = width;
-    bufferCopyRegion.imageExtent.height              = height;
-    bufferCopyRegion.imageExtent.depth               = 1;
-    bufferCopyRegion.bufferOffset                    = 0;
+
+
 
     StagingBuffer staging;
 
@@ -134,14 +127,21 @@ void Texture2D::uploadImage(VulkanBase& base, Image& img, bool flipY)
     }
 
 
-    cmd.copyBufferToImage(staging.m_memoryLocation.buffer, image, vk::ImageLayout::eTransferDstOptimal,
-                          bufferCopyRegion);
+
+    vk::BufferImageCopy bufferCopyRegion             = staging.getBufferImageCopy(0);
+    bufferCopyRegion.imageSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
+    bufferCopyRegion.imageSubresource.mipLevel       = 0;
+    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+    bufferCopyRegion.imageSubresource.layerCount     = 1;
+    bufferCopyRegion.imageExtent.width               = width;
+    bufferCopyRegion.imageExtent.height              = height;
+    bufferCopyRegion.imageExtent.depth               = 1;
+
+    staging.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
     base.endTransferWait(cmd);
-
-
 
     staging.destroy();
 }
@@ -190,15 +190,7 @@ void Texture2D::fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPoo
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
 
 
-    vk::BufferImageCopy bufferCopyRegion             = {};
-    bufferCopyRegion.imageSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
-    bufferCopyRegion.imageSubresource.mipLevel       = 0;
-    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
-    bufferCopyRegion.imageSubresource.layerCount     = 1;
-    bufferCopyRegion.imageExtent.width               = width;
-    bufferCopyRegion.imageExtent.height              = height;
-    bufferCopyRegion.imageExtent.depth               = 1;
-    bufferCopyRegion.bufferOffset                    = 0;
+
 
     StagingBuffer staging;
 
@@ -217,9 +209,16 @@ void Texture2D::fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPoo
         staging.init(base, img.size(), img.data());
     }
 
+    vk::BufferImageCopy bufferCopyRegion             = staging.getBufferImageCopy(0);
+    bufferCopyRegion.imageSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
+    bufferCopyRegion.imageSubresource.mipLevel       = 0;
+    bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+    bufferCopyRegion.imageSubresource.layerCount     = 1;
+    bufferCopyRegion.imageExtent.width               = width;
+    bufferCopyRegion.imageExtent.height              = height;
+    bufferCopyRegion.imageExtent.depth               = 1;
 
-    cmd.copyBufferToImage(staging.m_memoryLocation.buffer, image, vk::ImageLayout::eTransferDstOptimal,
-                          bufferCopyRegion);
+    staging.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -306,7 +305,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
 
 
-    vk::BufferImageCopy bufferCopyRegion             = {};
+    vk::BufferImageCopy bufferCopyRegion             = stagingBuffer.getBufferImageCopy(0);
     bufferCopyRegion.imageSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
     bufferCopyRegion.imageSubresource.mipLevel       = 0;
     bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
@@ -314,14 +313,12 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     bufferCopyRegion.imageExtent.width               = width;
     bufferCopyRegion.imageExtent.height              = height;
     bufferCopyRegion.imageExtent.depth               = 1;
-    bufferCopyRegion.bufferOffset                    = 0;
 
     //    StagingBuffer staging;
     //
     //    staging.init(base,img.size(),img.data());
 
-    cmd.copyBufferToImage(stagingBuffer.m_memoryLocation.buffer, image, vk::ImageLayout::eTransferDstOptimal,
-                          bufferCopyRegion);
+    stagingBuffer.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 

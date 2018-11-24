@@ -75,7 +75,7 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
     }
 
 
-    void bind(vk::CommandBuffer& cmd, vk::DeviceSize offset = 0)
+    void bind(vk::CommandBuffer& cmd)
     {
         cmd.bindIndexBuffer(m_memoryLocation.buffer, m_memoryLocation.offset, VKType::value);
     }

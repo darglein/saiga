@@ -85,7 +85,9 @@ public:
         LOG(INFO) << "Simple Allocator: Deallocating" << location.memory << std::endl;
         location.destroy(m_device);
         auto newEnd = std::remove(m_allocations.begin(), m_allocations.end(), location);
-        m_allocations.erase(newEnd);
+        if (newEnd != m_allocations.end()) {
+            m_allocations.erase(newEnd);
+        }
     }
 };
 
