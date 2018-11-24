@@ -76,18 +76,23 @@ public:
 
     void destroy() {
         for(auto& location : m_allocations) {
-            location.destroy(m_device);
+            if (location.buffer != static_cast<vk::Buffer>(nullptr)) {
+                location.destroy(m_device);
+            }
         }
         m_allocations.clear();
     }
 
     void deallocate(MemoryLocation &location) override {
         LOG(INFO) << "Simple Allocator: Deallocating" << location.memory << std::endl;
-        location.destroy(m_device);
-        auto newEnd = std::remove(m_allocations.begin(), m_allocations.end(), location);
-        if (newEnd != m_allocations.end()) {
-            m_allocations.erase(newEnd);
+
+        auto foundAllocation = std::find(m_allocations.begin(), m_allocations.end(), location);
+        if (foundAllocation == m_allocations.end()) {
+            LOG(ERROR) << "Allocation was not made with this allocator";
+            return;
         }
+        foundAllocation->destroy(m_device);
+        m_allocations.erase(foundAllocation);
     }
 };
 
