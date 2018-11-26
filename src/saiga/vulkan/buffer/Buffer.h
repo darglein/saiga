@@ -81,6 +81,14 @@ class SAIGA_GLOBAL Buffer
     {
         return static_cast<char*>(m_memoryLocation.mappedPointer) + m_memoryLocation.offset;
     }
+
+    void upload(void* data) {
+        m_memoryLocation.upload(base->device, data);
+    }
+
+    void download(void * data) {
+        m_memoryLocation.download(base->device, data);
+    }
 };
 
 }  // namespace Vulkan
