@@ -103,7 +103,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
         v.color                  = vec4(glm::linearRand(vec3(0), vec3(1)), 1);
         pointCloud.pointCloud[i] = v;
     }
-//        pointCloud.up(renderer.base);
+    //    pointCloud.updateBuffer(renderer.base);
     //    pointCloud.updateBuffer();
 }
 
@@ -142,7 +142,7 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
     // upload everything every frame
     if (change)
     {
-        pointCloud.updateBuffer(cmd,0,pointCloud.capacity);
+        //    pointCloud.updateBuffer(cmd,0,pointCloud.capacity);
 
         change = false;
     }
@@ -160,22 +160,22 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         //                lineAssetRenderer.bind(cmd);
 
         //                lineAssetRenderer.pushModel(cmd,mat4(1));
-//        assetRenderer.pushModel(cmd,teapotTrans.model);
-//        teapot.render(cmd);
-//        for (int i = 0; i < 1000; ++i)
-//        {
+        //        assetRenderer.pushModel(cmd,teapotTrans.model);
+        for (int i = 0; i < 1000; ++i)
+        {
+            //            teapot.render(cmd);
             //        grid.render(cmd);
 
             //        lineAssetRenderer.pushModel(cmd,mat4(1));
             //        frustum.render(cmd);
-//        }
+        }
         //        return;
 
 
-//                pointCloudRenderer.bind(cmd);
+        //        pointCloudRenderer.bind(cmd);
 
-//                pointCloudRenderer.pushModel(cmd,mat4(1));
-//                pointCloud.render(cmd,0,pointCloud.capacity);
+        //        pointCloudRenderer.pushModel(cmd,mat4(1));
+        //        pointCloud.render(cmd,0,pointCloud.capacity);
 
 
         //        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(10,0,0)));

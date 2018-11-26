@@ -24,7 +24,7 @@ class SAIGA_GLOBAL UniformBuffer : public Buffer
 
         if (data)
         {
-            m_memoryLocation.upload(base.device, data,size);
+            m_memoryLocation.upload(base.device, data);
         }
     }
 

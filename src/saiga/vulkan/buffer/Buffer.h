@@ -75,14 +75,6 @@ class SAIGA_GLOBAL Buffer
 
     void update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset = 0);
 
-    void download(void* data) {
-        m_memoryLocation.download(base->device, data);
-    }
-
-    void upload(size_t size, void* data) {
-        m_memoryLocation.upload(base->device,data, size);
-    }
-
     inline bool isMapped() const { return m_memoryLocation.mappedPointer != nullptr; }
 
     inline void* getMappedPointer() const
