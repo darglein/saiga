@@ -39,7 +39,7 @@ struct SAIGA_GLOBAL MemoryLocation
     explicit operator bool() { return buffer != static_cast<vk::Buffer>(nullptr); }
 
    private:
-    void mappedUpload(vk::Device device, const void* data)
+    void mappedUpload(vk::Device device, const void* data, size_t size)
     {
         SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
         void* target;
@@ -64,7 +64,7 @@ struct SAIGA_GLOBAL MemoryLocation
     }
 
    public:
-    void upload(vk::Device device, const void* data)
+    void upload(vk::Device device, const void* data, size_t size)
     {
         if (mappedPointer)
         {
@@ -72,7 +72,7 @@ struct SAIGA_GLOBAL MemoryLocation
         }
         else
         {
-            mappedUpload(device, data);
+            mappedUpload(device, data, size);
         }
     }
 

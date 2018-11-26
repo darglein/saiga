@@ -63,9 +63,10 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
     // create storage buffer
     compute.data.resize(10,1);
 //    compute.storageBuffer.
-    compute.storageBuffer.createBuffer(renderer.base,sizeof(int)*compute.data.size(),vk::BufferUsageFlagBits::eStorageBuffer);
+    compute.storageBuffer.createBuffer(renderer.base,sizeof(int)*compute.data.size(),vk::BufferUsageFlagBits::eStorageBuffer,
+                                       vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
 //    compute.storageBuffer.allocateMemoryBuffer(renderer.base,vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
-    compute.storageBuffer.m_memoryLocation.upload(renderer.base.device, compute.data.data());
+    compute.storageBuffer.upload(compute.data.size(), compute.data.data());
 
 
     {
@@ -115,7 +116,7 @@ void Compute::init(Saiga::Vulkan::VulkanBase &base)
 
 
     compute.queue.submitAndWait(compute.commandBuffer);
-    compute.storageBuffer.m_memoryLocation.download(base.device,compute.data.data());
+    compute.storageBuffer.download(compute.data.data());
 
     for(int i : compute.data)
         cout << i << endl;
