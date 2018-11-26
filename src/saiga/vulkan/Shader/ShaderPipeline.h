@@ -9,27 +9,31 @@
 
 #include "saiga/vulkan/Shader/ShaderModule.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL ShaderPipeline
 {
-public:
+   public:
     std::vector<ShaderModule> modules;
 
     void addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo);
 
     void load(vk::Device device, std::vector<std::string> shaders);
-    void loadGLSL(vk::Device device, std::vector<std::tuple<std::string, vk::ShaderStageFlagBits,std::string> > shaders);
+    void loadGLSL(vk::Device device,
+                  std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders);
 
     void destroy(vk::Device device);
-private:
+
+    void reload();
+
+   private:
     std::vector<vk::PipelineShaderStageCreateInfo> pipelineInfo;
 
 
     void createPipelineInfo();
 };
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

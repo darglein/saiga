@@ -215,6 +215,13 @@ void VulkanExample::renderGUI()
     }
 
 
+    if (ImGui::Button("reload shader"))
+    {
+        //        texturedAssetRenderer.shaderPipeline.reload();
+        texturedAssetRenderer.reload();
+        assetRenderer.reload();
+    }
+
 
     ImGui::End();
     //    return;

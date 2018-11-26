@@ -14,3 +14,4 @@ SortIncludes: true
 IncludeBlocks: Merge
 IndentPPDirectives: AfterHash
 AlignConsecutiveAssignments: true
+AllowShortFunctionsOnASingleLine: Inline

@@ -1,16 +1,16 @@
-﻿#include "sample.h"
-#include "saiga/framework/framework.h"
-#include "saiga/vulkan/window/SDLWindow.h"
+﻿#include "saiga/framework/framework.h"
 #include "saiga/util/easylogging++.h"
+#include "saiga/vulkan/window/SDLWindow.h"
+#include "sample.h"
 
 #undef main
 
 extern int maingsdgdfg();
-int main(const int argc, const char *argv[])
+int main(const int argc, const char* argv[])
 {
-    using namespace  Saiga;
+    using namespace Saiga;
 
-       LOG(INFO) << "My first info log using default logger";
+    LOG(INFO) << "My first info log using default logger";
 
     {
         Saiga::WindowParameters windowParameters;
@@ -23,16 +23,16 @@ int main(const int argc, const char *argv[])
 
         Saiga::Vulkan::VulkanParameters vulkanParams;
         vulkanParams.enableValidationLayer = true;
-        Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
+        Saiga::Vulkan::VulkanForwardRenderer renderer(window, vulkanParams);
 
 
-        VulkanExample example(window,renderer);
+        VulkanExample example(window, renderer);
         renderer.initChildren();
         //        example.init();
 
         MainLoopParameters params;
         params.mainLoopInfoTime = 1;
-        params.framesPerSecond = 0;
+        params.framesPerSecond  = 60;
         window.startMainLoop(params);
 
         renderer.waitIdle();

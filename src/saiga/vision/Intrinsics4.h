@@ -68,6 +68,8 @@ struct Intrinsics4Base
         return k;
     }
 
+    Mat3 matrix() { return K(); }
+
     template <typename G>
     Intrinsics4Base<G> cast()
     {

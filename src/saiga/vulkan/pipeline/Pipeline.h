@@ -7,17 +7,18 @@
 
 #pragma once
 
-#include "saiga/vulkan/pipeline/PipelineBase.h"
+#include "saiga/vulkan/FrameSync.h"
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
+#include "saiga/vulkan/pipeline/PipelineBase.h"
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL Pipeline : public PipelineBase
 {
-public:
-
+   public:
     Saiga::Vulkan::ShaderPipeline shaderPipeline;
 
     Pipeline();
@@ -25,8 +26,15 @@ public:
 
     void bind(vk::CommandBuffer cmd);
     void create(vk::RenderPass renderPass, PipelineInfo pipelineInfo = PipelineInfo());
+    void reload();
+
+   private:
+    bool fenceAdded = false;
+    vk::Event reloadFence;
+    vk::RenderPass renderPass;
+    PipelineInfo pipelineInfo;
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga
