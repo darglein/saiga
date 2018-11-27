@@ -111,7 +111,7 @@ void VulkanExample::update(float dt)
     camera.interpolate(dt, 0);
 
     //    if(change)
-    if (false)
+    if (change)
     {
         //        renderer.waitIdle();
         //        for(int i = 0; i < 1000; ++i)
@@ -121,10 +121,10 @@ void VulkanExample::update(float dt)
             v.position = vec4(glm::linearRand(vec3(-3), vec3(3)), 1);
             v.color    = vec4(glm::linearRand(vec3(0), vec3(1)), 1);
             //            pointCloud.mesh.points.push_back(v);
-            change = false;
         }
+        change = false;
+        uploadChanges = true;
     }
-    change = true;
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)
@@ -136,11 +136,11 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
 
 
     // upload everything every frame
-    if (change)
+    if (uploadChanges)
     {
         pointCloud.updateBuffer(cmd, 0, pointCloud.capacity);
 
-        change = false;
+        uploadChanges = false;
     }
 }
 
@@ -172,22 +172,14 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
         pointCloudRenderer.bind(cmd);
 
-        //                pointCloudRenderer.pushModel(cmd,mat4(1));
-        //                pointCloud.render(cmd,0,pointCloud.capacity);
-
 
         pointCloudRenderer.pushModel(cmd, glm::translate(vec3(10, 2.5f, 0)));
         pointCloud.render(cmd, 0, pointCloud.capacity);
 
 
-        //        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(-10,0,0)));
-        //        pointCloud.render(cmd,0,pointCloud.capacity);
-        //        pointCloud.render(cmd);
-        //        pointCloud.render(cmd);
-        //        pointCloud.render(cmd);
 
         texturedAssetRenderer.bind(cmd);
-        texturedAssetRenderer.pushModel(cmd, mat4(1));
+        texturedAssetRenderer.pushModel(cmd, glm::translate(glm::vec3(0,1,0)));
         texturedAssetRenderer.bindTexture(cmd, box.descriptor);
         box.render(cmd);
     }
