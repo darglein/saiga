@@ -31,7 +31,7 @@ Compute::~Compute()
     compute.storageBuffer.destroy();
     computePipeline.destroy();
     compute.queue.destroy();
-    compute.storageTexture.destroy(renderer.base);
+    compute.storageTexture.destroy();
 }
 
 void Compute::init(Saiga::Vulkan::VulkanBase& base)
@@ -111,11 +111,12 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
     {
         // Build the command buffer
         compute.commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-        computePipeline.bind(compute.commandBuffer);
-        computePipeline.bindDescriptorSets(compute.commandBuffer, descriptorSet);
-        // Dispatch 1 block
-        compute.commandBuffer.dispatch(1, 1, 1);
-        compute.commandBuffer.end();
+        if (computePipeline.bind(compute.commandBuffer)) {
+            computePipeline.bindDescriptorSets(compute.commandBuffer, descriptorSet);
+            // Dispatch 1 block
+            compute.commandBuffer.dispatch(1, 1, 1);
+            compute.commandBuffer.end();
+        }
     }
 
 

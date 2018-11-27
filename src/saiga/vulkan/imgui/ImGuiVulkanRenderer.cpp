@@ -52,7 +52,7 @@ ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
     {
         data.destroy(*base);
     }
-    fontTexture.destroy(*base);
+    fontTexture.destroy();
     Pipeline::destroy();
 }
 

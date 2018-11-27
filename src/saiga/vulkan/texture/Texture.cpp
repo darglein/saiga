@@ -12,20 +12,24 @@ namespace Vulkan
 //    destroy();
 //}
 
-void Texture::destroy(VulkanBase& base)
+void Texture::destroy()
 {
+    if (!base) {
+        LOG(WARNING) << "Image was not initialized, do nothing";
+        return;
+    }
     if (image)
     {
         LOG(INFO) << "Destroying image: " << image;
-        base.device.destroyImage(image);
-        base.device.destroyImageView(imageView);
-        base.device.destroySampler(sampler);
+        base->device.destroyImage(image);
+        base->device.destroyImageView(imageView);
+        base->device.destroySampler(sampler);
         image = nullptr;
     }
 
     if (memoryLocation)
     {
-        base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).deallocate(memoryLocation);
+        base->memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).deallocate(memoryLocation);
     }
 }
 
@@ -99,9 +103,9 @@ void Texture2D::fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usag
     fromImage(base, img, base.transferQueue, base.commandPool, usage, flipY);
 }
 
-void Texture2D::uploadImage(VulkanBase& base, Image& img, bool flipY)
+void Texture2D::uploadImage(Image &img, bool flipY)
 {
-    vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+    vk::CommandBuffer cmd = base->createAndBeginTransferCommand();
 
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
 
@@ -119,11 +123,11 @@ void Texture2D::uploadImage(VulkanBase& base, Image& img, bool flipY)
             memcpy(&data[i * img.pitchBytes], img.rowPtr(img.h - i - 1), img.pitchBytes);
         }
 
-        staging.init(base, data.size(), data.data());
+        staging.init(*base, data.size(), data.data());
     }
     else
     {
-        staging.init(base, img.size(), img.data());
+        staging.init(*base, img.size(), img.data());
     }
 
 
@@ -141,15 +145,16 @@ void Texture2D::uploadImage(VulkanBase& base, Image& img, bool flipY)
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
-    base.endTransferWait(cmd);
+    base->endTransferWait(cmd);
 
     staging.destroy();
 }
 
-void Texture2D::fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPool& pool, vk::ImageUsageFlags usage,
+void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPool& pool, vk::ImageUsageFlags usage,
                           bool flipY)
 {
-    destroy(base);
+    destroy();
+    this->base = &_base;
 
     mipLevels = 1;
     width     = img.width;
@@ -174,16 +179,16 @@ void Texture2D::fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPoo
     imageCreateInfo.initialLayout = imageLayout;
     imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
     imageCreateInfo.usage         = finalUsageFlags;
-    image                         = base.device.createImage(imageCreateInfo);
+    image                         = base->device.createImage(imageCreateInfo);
     SAIGA_ASSERT(image);
 
 
     LOG(INFO) << "Creating image synched: " << image;
 
 
-    auto memReqs   = base.device.getImageMemoryRequirements(image);
-    memoryLocation = base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
-    base.device.bindImageMemory(image, memoryLocation.memory, memoryLocation.offset);
+    auto memReqs   = base->device.getImageMemoryRequirements(image);
+    memoryLocation = base->memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
+    base->device.bindImageMemory(image, memoryLocation.memory, memoryLocation.offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
@@ -202,11 +207,11 @@ void Texture2D::fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPoo
             memcpy(&data[i * img.pitchBytes], img.rowPtr(img.h - i - 1), img.pitchBytes);
         }
 
-        staging.init(base, data.size(), data.data());
+        staging.init(*base, data.size(), data.data());
     }
     else
     {
-        staging.init(base, img.size(), img.data());
+        staging.init(*base, img.size(), img.data());
     }
 
     vk::BufferImageCopy bufferCopyRegion             = staging.getBufferImageCopy(0);
@@ -235,7 +240,7 @@ void Texture2D::fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPoo
     viewCreateInfo.format                  = format;
     viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
     viewCreateInfo.image                   = image;
-    imageView                              = base.device.createImageView(viewCreateInfo);
+    imageView                              = base->device.createImageView(viewCreateInfo);
     SAIGA_ASSERT(imageView);
 
     // Create a defaultsampler
@@ -256,7 +261,7 @@ void Texture2D::fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPoo
     samplerCreateInfo.anisotropyEnable = VK_FALSE;
     samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
 
-    sampler = base.device.createSampler(samplerCreateInfo);
+    sampler = base->device.createSampler(samplerCreateInfo);
     SAIGA_ASSERT(sampler);
 }
 
@@ -264,7 +269,8 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
                                           Saiga::Vulkan::StagingBuffer& stagingBuffer, Queue& queue, CommandPool& pool,
                                           vk::ImageUsageFlags usage)
 {
-    destroy(base);
+    destroy();
+    this->base = &base;
 
     mipLevels = 1;
     //    width = img.width;

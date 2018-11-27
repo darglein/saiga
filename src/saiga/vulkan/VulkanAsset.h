@@ -86,7 +86,7 @@ class SAIGA_GLOBAL VulkanTexturedAsset : public TexturedModel
     {
         for (auto& tex : textures)
         {
-            tex->destroy(base);
+            tex->destroy();
         }
         textures.clear();
     }

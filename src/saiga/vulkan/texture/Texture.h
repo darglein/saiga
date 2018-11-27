@@ -26,8 +26,15 @@ namespace Vulkan
 {
 struct SAIGA_GLOBAL Texture
 {
-    //    VulkanBase *base;
+   protected:
+    VulkanBase* base;
     MemoryLocation memoryLocation;
+
+   public:
+
+    virtual ~Texture() {
+        destroy();
+    }
     vk::Image image;
     vk::ImageLayout imageLayout;
     vk::ImageView imageView;
@@ -36,8 +43,7 @@ struct SAIGA_GLOBAL Texture
     uint32_t layerCount;
     vk::Sampler sampler;
 
-    //    ~Texture();
-    void destroy(VulkanBase& base);
+    void destroy();
 
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
 
@@ -46,15 +52,16 @@ struct SAIGA_GLOBAL Texture
 
 struct SAIGA_GLOBAL Texture2D : public Texture
 {
-    AsyncCommand fromStagingBuffer(VulkanBase& base, uint32_t width, uint32_t height, vk::Format format,
+    ~Texture2D() override = default;
+    AsyncCommand fromStagingBuffer(VulkanBase& _base, uint32_t width, uint32_t height, vk::Format format,
                                    Saiga::Vulkan::StagingBuffer& stagingBuffer, Queue& queue, CommandPool& pool,
                                    vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
-    void fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled,
+    void fromImage(VulkanBase& _base, Image& img, vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled,
                    bool flipY = true);
-    void fromImage(VulkanBase& base, Image& img, Queue& queue, CommandPool& pool,
+    void fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPool& pool,
                    vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled, bool flipY = true);
 
-    void uploadImage(VulkanBase& base, Image& img, bool flipY = true);
+    void uploadImage(Image &img, bool flipY);
 };
 
 }  // namespace Vulkan
