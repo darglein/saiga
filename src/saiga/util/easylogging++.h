@@ -3277,6 +3277,7 @@ class PErrorWriter : public base::Writer {
 #if ELPP_VARIADIC_TEMPLATES_SUPPORTED
 template <typename T, typename... Args>
 void Logger::log_(Level level, int vlevel, const char* s, const T& value, const Args&... args) {
+  (void)base::consts::kPerformanceLoggerId;
   base::MessageBuilder b;
   b.initialize(this);
   while (*s) {
