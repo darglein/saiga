@@ -5,6 +5,7 @@
 #include "SimpleMemoryAllocator.h"
 
 void SimpleMemoryAllocator::deallocate(MemoryLocation &location) {
+    mutex.lock();
     LOG(INFO) << "Simple Allocator: Deallocating" << location.memory << std::endl;
 
     auto foundAllocation = std::find(m_allocations.begin(), m_allocations.end(), location);
@@ -14,6 +15,7 @@ void SimpleMemoryAllocator::deallocate(MemoryLocation &location) {
     }
     foundAllocation->destroy(m_device);
     m_allocations.erase(foundAllocation);
+    mutex.unlock();
 }
 
 void SimpleMemoryAllocator::destroy() {
