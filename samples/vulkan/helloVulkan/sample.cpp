@@ -93,8 +93,6 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     frustum.createFrustum(camera.proj, 2, vec4(1), true);
     frustum.init(renderer.base);
 
-
-
     pointCloud.init(base, 1000 * 1000);
     for (int i = 0; i < 1000 * 1000; ++i)
     {
@@ -103,8 +101,6 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
         v.color                  = vec4(glm::linearRand(vec3(0), vec3(1)), 1);
         pointCloud.pointCloud[i] = v;
     }
-    //    pointCloud.updateBuffer(renderer.base);
-    //    pointCloud.updateBuffer();
 }
 
 
@@ -142,7 +138,7 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
     // upload everything every frame
     if (change)
     {
-        //    pointCloud.updateBuffer(cmd,0,pointCloud.capacity);
+        pointCloud.updateBuffer(cmd, 0, pointCloud.capacity);
 
         change = false;
     }
@@ -157,29 +153,31 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         assetRenderer.pushModel(cmd, mat4(1));
         plane.render(cmd);
 
-        //                lineAssetRenderer.bind(cmd);
+        lineAssetRenderer.bind(cmd);
+        lineAssetRenderer.pushModel(cmd, glm::translate(vec3(-5, 1.5f, 0)));
 
-        //                lineAssetRenderer.pushModel(cmd,mat4(1));
-        //        assetRenderer.pushModel(cmd,teapotTrans.model);
-        for (int i = 0; i < 1000; ++i)
-        {
-            //            teapot.render(cmd);
-            //        grid.render(cmd);
 
-            //        lineAssetRenderer.pushModel(cmd,mat4(1));
-            //        frustum.render(cmd);
-        }
+        teapot.render(cmd);
+
+        auto gridMatrix = glm::rotate(0.5f*glm::pi<float>(), glm::vec3(1,0,0));
+        gridMatrix = glm::translate(gridMatrix, vec3(0,-10,0));
+        lineAssetRenderer.pushModel(cmd, gridMatrix);
+        grid.render(cmd);
+
+        //        lineAssetRenderer.pushModel(cmd,mat4(1));
+        //        frustum.render(cmd);
+        //        }
         //        return;
 
 
-        //        pointCloudRenderer.bind(cmd);
+        pointCloudRenderer.bind(cmd);
 
-        //        pointCloudRenderer.pushModel(cmd,mat4(1));
-        //        pointCloud.render(cmd,0,pointCloud.capacity);
+        //                pointCloudRenderer.pushModel(cmd,mat4(1));
+        //                pointCloud.render(cmd,0,pointCloud.capacity);
 
 
-        //        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(10,0,0)));
-        //        pointCloud.render(cmd,0,pointCloud.capacity);
+        pointCloudRenderer.pushModel(cmd, glm::translate(vec3(10, 2.5f, 0)));
+        pointCloud.render(cmd, 0, pointCloud.capacity);
 
 
         //        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(-10,0,0)));
