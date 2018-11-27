@@ -31,8 +31,8 @@ public:
 	VkFormat colorFormat;
 	VkColorSpaceKHR colorSpace;
 	/** @brief Handle to the current swap chain, required for recreation */
-	VkSwapchainKHR swapChain = VK_NULL_HANDLE;	
-	uint32_t imageCount;
+	VkSwapchainKHR swapChain = VK_NULL_HANDLE;
+        uint32_t imageCount = 0;
 	std::vector<VkImage> images;
 	std::vector<SwapChainBuffer> buffers;
 	/** @brief Queue family index of the detected graphics and presenting device queue */

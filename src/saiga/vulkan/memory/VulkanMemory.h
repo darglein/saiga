@@ -42,14 +42,15 @@ struct VulkanMemory
         stagingAllocator.init(_device, _pDevice,
                               vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                               vk::BufferUsageFlagBits::eTransferSrc, true);
-        storageAllocator.init(_device, _pDevice,
-                              vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+        storageAllocator.init(_device, _pDevice, vk::MemoryPropertyFlagBits::eDeviceLocal,
                               vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst |
-                                  vk::BufferUsageFlagBits::eTransferSrc, true);
+                                  vk::BufferUsageFlagBits::eTransferSrc,
+                              false);
         hostVertexIndexAllocator.init(
             _device, _pDevice, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
             vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer |
-                vk::BufferUsageFlagBits::eTransferDst,true);
+                vk::BufferUsageFlagBits::eTransferDst,
+            true);
         vertexIndexAllocator = std::make_unique<BufferChunkAllocator>(
             _device, &chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal,
             vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer |
@@ -61,7 +62,7 @@ struct VulkanMemory
             vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eUniformBuffer, strategy, 1024 * 1024,
             true);
         imageAllocator = std::make_unique<ImageChunkAllocator>(
-            _device, &chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal, strategy, 64 * 1024 * 1024);
+            _device, &chunkAllocator, vk::MemoryPropertyFlagBits::eDeviceLocal, strategy, 256 * 1024 * 1024);
     }
 
 
