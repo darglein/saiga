@@ -12,35 +12,53 @@ namespace Saiga
 {
 namespace Vulkan
 {
-void ComputePipelineInfo::setShader(Saiga::Vulkan::ShaderModule& shader)
-{
-    shaderStage = shader.createPipelineInfo();
-}
-
-vk::ComputePipelineCreateInfo ComputePipelineInfo::createCreateInfo(vk::PipelineLayout pipelineLayout)
-{
-    vk::ComputePipelineCreateInfo pipelineCreateInfo(vk::PipelineCreateFlags(), shaderStage, pipelineLayout,
-                                                     vk::Pipeline(), 0);
-    return pipelineCreateInfo;
-}
-
-
-
 ComputePipeline::ComputePipeline() : PipelineBase(vk::PipelineBindPoint::eCompute) {}
 
 
-void ComputePipeline::create(ComputePipelineInfo pipelineInfo)
+void ComputePipeline::create()
 {
     createPipelineLayout();
-    pipelineInfo.setShader(shader);
-    auto pipelineCreateInfo = pipelineInfo.createCreateInfo(pipelineLayout);
-    pipeline                = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
+    vk::ComputePipelineCreateInfo pipelineCreateInfo(vk::PipelineCreateFlags(), vk::PipelineShaderStageCreateInfo(),
+                                                     pipelineLayout, vk::Pipeline(), 0);
+    shaderPipeline.addToPipeline(pipelineCreateInfo);
+    pipeline = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
     SAIGA_ASSERT(pipeline);
-    shader.destroy();
 }
 
-bool ComputePipeline::checkShader(vk::CommandBuffer cmd)
+void ComputePipeline::reload()
 {
+    shaderPipeline.reload();
+    if (!shaderPipeline.valid()) return;
+    reloadCounter = 3;
+}
+
+bool ComputePipeline::checkShader()
+{
+    if (reloadCounter > 0)
+    {
+        reloadCounter--;
+
+        if (reloadCounter == 0)
+        {
+            cout << "recreating pipeline" << endl;
+            vkDestroyPipeline(device, pipeline, nullptr);
+            pipeline = nullptr;
+
+            vk::ComputePipelineCreateInfo pipelineCreateInfo(
+                vk::PipelineCreateFlags(), vk::PipelineShaderStageCreateInfo(), pipelineLayout, vk::Pipeline(), 0);
+            shaderPipeline.addToPipeline(pipelineCreateInfo);
+
+            pipeline = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
+            SAIGA_ASSERT(pipeline);
+
+            shaderPipeline.destroy();
+            return true;
+        }
+
+        return false;
+    }
+
+
     return true;
 }
 

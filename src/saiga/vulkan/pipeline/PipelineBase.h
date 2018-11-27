@@ -55,7 +55,7 @@ class SAIGA_GLOBAL PipelineBase
     bool isInitialized() { return base; }
     void createPipelineLayout();
 
-    virtual bool checkShader(vk::CommandBuffer cmd) = 0;
+    virtual bool checkShader() = 0;
 };
 
 

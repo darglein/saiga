@@ -115,7 +115,7 @@ public:
     template<typename VertexType>
     void addVertexInfo();
 
-    void addShaders(Saiga::Vulkan::ShaderPipeline& shaders);
+    void addShaders(Saiga::Vulkan::GraphicsShaderPipeline& shaders);
 
     vk::GraphicsPipelineCreateInfo  createCreateInfo(vk::PipelineLayout pipelineLayout, vk::RenderPass renderPass);
 

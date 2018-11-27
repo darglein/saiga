@@ -46,10 +46,12 @@ class SAIGA_GLOBAL ShaderModule
      * flag from the file ending. See "ShaderHelper" for more details.
      *
      * Code injections only work for GLSL shaders.
+     *
+     * Returns true if the validation succeeds.
      */
-    void load(vk::Device device, const std::string& file, const std::string& injection = {});
-    void loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file);
-    void loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file,
+    bool load(vk::Device device, const std::string& file, const std::string& injection = {});
+    bool loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file);
+    bool loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file,
                   const std::string& injection = {});
 
 
@@ -63,8 +65,8 @@ class SAIGA_GLOBAL ShaderModule
      * Destroys the vulkan object.
      */
     void destroy();
-
     void reload();
+    bool valid();
 
    private:
     // These variables are only required for the reloading.

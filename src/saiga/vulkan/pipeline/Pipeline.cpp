@@ -23,26 +23,22 @@ void Pipeline::create(vk::RenderPass renderPass, PipelineInfo pipelineInfo)
     this->pipelineInfo = pipelineInfo;
 
     createPipelineLayout();
-    pipelineInfo.addShaders(shaderPipeline);
+    //    pipelineInfo.addShaders(shaderPipeline);
     auto pipelineCreateInfo = pipelineInfo.createCreateInfo(pipelineLayout, renderPass);
-    pipeline                = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
+    shaderPipeline.addToPipeline(pipelineCreateInfo);
+    pipeline = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
     SAIGA_ASSERT(pipeline);
-    shaderPipeline.destroy(device);
+    shaderPipeline.destroy();
 }
 
 void Pipeline::reload()
 {
-    SAIGA_ASSERT(!reloadFence);
     shaderPipeline.reload();
-    pipelineInfo.addShaders(shaderPipeline);
-
+    if (!shaderPipeline.valid()) return;
     reloadCounter = 3;
-    fenceAdded    = false;
-
-    cout << "fence created" << endl;
 }
 
-bool Pipeline::checkShader(vk::CommandBuffer cmd)
+bool Pipeline::checkShader()
 {
     if (reloadCounter > 0)
     {
@@ -55,10 +51,11 @@ bool Pipeline::checkShader(vk::CommandBuffer cmd)
             pipeline = nullptr;
 
             auto pipelineCreateInfo = pipelineInfo.createCreateInfo(pipelineLayout, renderPass);
-            pipeline                = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
+            shaderPipeline.addToPipeline(pipelineCreateInfo);
+            pipeline = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
             SAIGA_ASSERT(pipeline);
 
-            shaderPipeline.destroy(device);
+            shaderPipeline.destroy();
             return true;
         }
 

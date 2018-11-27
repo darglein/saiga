@@ -19,7 +19,7 @@ namespace Vulkan
 class SAIGA_GLOBAL Pipeline : public PipelineBase
 {
    public:
-    Saiga::Vulkan::ShaderPipeline shaderPipeline;
+    Saiga::Vulkan::GraphicsShaderPipeline shaderPipeline;
 
     Pipeline();
 
@@ -28,13 +28,11 @@ class SAIGA_GLOBAL Pipeline : public PipelineBase
     void reload();
 
    protected:
-    bool fenceAdded = false;
-    vk::Event reloadFence;
     vk::RenderPass renderPass;
     PipelineInfo pipelineInfo;
     int reloadCounter = 0;
 
-    virtual bool checkShader(vk::CommandBuffer cmd) override;
+    virtual bool checkShader() override;
 };
 
 

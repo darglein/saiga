@@ -39,7 +39,7 @@ vk::DescriptorSet PipelineBase::createDescriptorSet(uint32_t id)
 
 bool PipelineBase::bind(vk::CommandBuffer cmd)
 {
-    if (checkShader(cmd))
+    if (checkShader())
     {
         cmd.bindPipeline(type, pipeline);
         return true;

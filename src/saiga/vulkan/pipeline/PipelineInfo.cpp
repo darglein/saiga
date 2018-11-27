@@ -10,13 +10,13 @@ namespace Saiga
 {
 namespace Vulkan
 {
-void PipelineInfo::addShaders(ShaderPipeline& shaders)
+void PipelineInfo::addShaders(GraphicsShaderPipeline& shaders)
 {
-    shaderStages.clear();
-    for (auto& s : shaders.modules)
-    {
-        shaderStages.push_back(s.createPipelineInfo());
-    }
+    //    shaderStages.clear();
+    //    for (auto& s : shaders.modules)
+    //    {
+    //        shaderStages.push_back(s.createPipelineInfo());
+    //    }
 }
 
 vk::GraphicsPipelineCreateInfo PipelineInfo::createCreateInfo(vk::PipelineLayout pipelineLayout,

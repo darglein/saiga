@@ -40,23 +40,28 @@ void ShaderModule::createGLSL(vk::Device device, vk::ShaderStageFlagBits _stage,
     createSPIRV(device, _stage, spirv);
 }
 
-void ShaderModule::loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file)
+bool ShaderModule::loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file)
 {
     auto data = GLSLANG::loadSPIRV(file);
+    if (data.size() == 0) return false;
     createSPIRV(device, _stage, data);
     cout << "Loaded ShaderModule " << file << endl;
+    return true;
 }
 
-void ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file,
+bool ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file,
                             const std::string& injection)
 {
-    this->file = file;
-    auto spirv = GLSLANG::loadGLSL(file, _stage, injection);
+    this->file      = file;
+    this->injection = injection;
+    auto spirv      = GLSLANG::loadGLSL(file, _stage, injection);
+    if (spirv.size() == 0) return false;
     createSPIRV(device, _stage, spirv);
     cout << "Loaded ShaderModule " << file << endl;
+    return true;
 }
 
-void ShaderModule::load(vk::Device device, const std::string& file, const std::string& injection)
+bool ShaderModule::load(vk::Device device, const std::string& file, const std::string& injection)
 {
     auto ending = ShaderLoadHelper::getEnding(file);
     SAIGA_ASSERT(std::get<0>(ending) != ShaderLoadHelper::ShaderEnding::UNKN);
@@ -65,11 +70,11 @@ void ShaderModule::load(vk::Device device, const std::string& file, const std::s
     {
         ending = ShaderLoadHelper::getEnding(ShaderLoadHelper::stripEnding(file));
         SAIGA_ASSERT(std::get<0>(ending) != ShaderLoadHelper::ShaderEnding::UNKN);
-        loadSPIRV(device, std::get<2>(ending), file);
+        return loadSPIRV(device, std::get<2>(ending), file);
     }
     else
     {
-        loadGLSL(device, std::get<2>(ending), file, injection);
+        return loadGLSL(device, std::get<2>(ending), file, injection);
     }
 }
 
@@ -91,6 +96,11 @@ void ShaderModule::reload()
     destroy();
     cout << "reload shader module." << endl;
     loadGLSL(device, stage, file, injection);
+}
+
+bool ShaderModule::valid()
+{
+    return (bool)module;
 }
 
 vk::PipelineShaderStageCreateInfo ShaderModule::createPipelineInfo()

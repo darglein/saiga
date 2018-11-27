@@ -15,30 +15,21 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL ComputePipelineInfo
-{
-   public:
-    void setShader(Saiga::Vulkan::ShaderModule& shader);
-    vk::ComputePipelineCreateInfo createCreateInfo(vk::PipelineLayout pipelineLayout);
-
-   private:
-    vk::PipelineShaderStageCreateInfo shaderStage;
-};
-
-
 class SAIGA_GLOBAL ComputePipeline : public PipelineBase
 {
    public:
     ComputePipeline();
+    void create();
 
-    Saiga::Vulkan::ShaderModule shader;
 
+    ComputeShaderPipeline shaderPipeline;
 
-    void create(ComputePipelineInfo pipelineInfo = ComputePipelineInfo());
-
+    void reload();
 
    protected:
-    virtual bool checkShader(vk::CommandBuffer cmd) override;
+    virtual bool checkShader() override;
+
+    int reloadCounter = 0;
 };
 
 
