@@ -75,7 +75,7 @@ void Buffer::copyTo(vk::CommandBuffer cmd, Buffer &target, vk::DeviceSize srcOff
 
 void Buffer::copyTo(vk::CommandBuffer cmd, vk::Image dstImage, vk::ImageLayout dstImageLayout,
                     vk::ArrayProxy<const vk::BufferImageCopy> regions) {
-    cmd.copyBufferToImage(m_memoryLocation.buffer, dstImage, vk::ImageLayout::eTransferDstOptimal, regions);
+    cmd.copyBufferToImage(m_memoryLocation.buffer, dstImage, dstImageLayout, regions);
 }
 
 vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const { return {m_memoryLocation.offset + offset}; }
