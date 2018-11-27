@@ -39,6 +39,11 @@ void ComputePipeline::create(ComputePipelineInfo pipelineInfo)
     shader.destroy();
 }
 
+bool ComputePipeline::checkShader(vk::CommandBuffer cmd)
+{
+    return true;
+}
+
 
 
 }  // namespace Vulkan

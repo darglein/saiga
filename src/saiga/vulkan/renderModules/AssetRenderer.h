@@ -8,24 +8,23 @@
 #pragma once
 
 #include "saiga/geometry/triangle_mesh.h"
-#include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Base.h"
-#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
-#include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/buffer/UniformBuffer.h"
+#include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/svulkan.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL AssetRenderer : public Pipeline
 {
-public:
+   public:
     void destroy();
 
-    void bind(vk::CommandBuffer cmd);
+    bool bind(vk::CommandBuffer cmd);
 
 
     void pushModel(VkCommandBuffer cmd, mat4 model);
@@ -34,20 +33,22 @@ public:
     void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
 
     void prepareUniformBuffers(Saiga::Vulkan::VulkanBase* vulkanDevice);
-//    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
+    //    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
     void setupLayoutsAndDescriptors();
-private:
-    struct UBOVS {
+
+   private:
+    struct UBOVS
+    {
         mat4 projection;
         mat4 modelview;
         vec4 lightPos;
     } uboVS;
 
     UniformBuffer uniformBufferVS;
-    vk::DescriptorSet       descriptorSet;
+    vk::DescriptorSet descriptorSet;
 };
 
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

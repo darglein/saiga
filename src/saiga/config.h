@@ -39,6 +39,13 @@
 #endif
 
 
+// Unused result
+#if !defined(_MSC_VER)
+#    define SAIGA_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#    define SAIGA_WARN_UNUSED_RESULT
+#endif
+
 #if defined(_MSC_VER)
 #    define SAIGA_ALIGN(x) __declspec(align(x))
 #elif defined(__GNUC__)

@@ -24,15 +24,17 @@ class SAIGA_GLOBAL Pipeline : public PipelineBase
     Pipeline();
 
 
-    void bind(vk::CommandBuffer cmd);
     void create(vk::RenderPass renderPass, PipelineInfo pipelineInfo = PipelineInfo());
     void reload();
 
-   private:
+   protected:
     bool fenceAdded = false;
     vk::Event reloadFence;
     vk::RenderPass renderPass;
     PipelineInfo pipelineInfo;
+    int reloadCounter = 0;
+
+    virtual bool checkShader(vk::CommandBuffer cmd) override;
 };
 
 

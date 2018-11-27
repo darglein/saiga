@@ -23,5 +23,5 @@ void main()
 	float diffuse = max(dot(N, L), 0.3);
         vec3 specular = pow(max(dot(R, V), 0.0), 16.0) * vec3(0.2);
         outFragColor = vec4(diffuse * color + specular, 1.0);
-        outFragColor = vec4(0.5);
+//        outFragColor = vec4(0.5);
 }

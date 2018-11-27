@@ -153,52 +153,28 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 {
     if (displayModels)
     {
-        assetRenderer.bind(cmd);
-        assetRenderer.pushModel(cmd, mat4(1));
-        plane.render(cmd);
-
-        //                lineAssetRenderer.bind(cmd);
-
-        //                lineAssetRenderer.pushModel(cmd,mat4(1));
-        //        assetRenderer.pushModel(cmd,teapotTrans.model);
-        for (int i = 0; i < 1000; ++i)
+        if (assetRenderer.bind(cmd))
         {
-            //            teapot.render(cmd);
-            //        grid.render(cmd);
-
-            //        lineAssetRenderer.pushModel(cmd,mat4(1));
-            //        frustum.render(cmd);
+            assetRenderer.pushModel(cmd, mat4(1));
+            plane.render(cmd);
         }
-        //        return;
 
 
-        //        pointCloudRenderer.bind(cmd);
 
-        //        pointCloudRenderer.pushModel(cmd,mat4(1));
-        //        pointCloud.render(cmd,0,pointCloud.capacity);
-
-
-        //        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(10,0,0)));
-        //        pointCloud.render(cmd,0,pointCloud.capacity);
-
-
-        //        pointCloudRenderer.pushModel(cmd,glm::translate(vec3(-10,0,0)));
-        //        pointCloud.render(cmd,0,pointCloud.capacity);
-        //        pointCloud.render(cmd);
-        //        pointCloud.render(cmd);
-        //        pointCloud.render(cmd);
-
-        texturedAssetRenderer.bind(cmd);
-        texturedAssetRenderer.pushModel(cmd, mat4(1));
-        texturedAssetRenderer.bindTexture(cmd, box.descriptor);
-        box.render(cmd);
+        if (texturedAssetRenderer.bind(cmd))
+        {
+            texturedAssetRenderer.pushModel(cmd, mat4(1));
+            texturedAssetRenderer.bindTexture(cmd, box.descriptor);
+            box.render(cmd);
+        }
     }
 
 
 
-    textureDisplay.bind(cmd);
-
-    textureDisplay.renderTexture(cmd, textureDes, vec2(10, 10), vec2(100, 50));
+    if (textureDisplay.bind(cmd))
+    {
+        textureDisplay.renderTexture(cmd, textureDes, vec2(10, 10), vec2(100, 50));
+    }
 }
 
 void VulkanExample::renderGUI()

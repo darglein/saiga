@@ -5,34 +5,28 @@
  */
 
 #include "PipelineBase.h"
-#include "saiga/vulkan/VulkanInitializers.hpp"
 #include "saiga/vulkan/Vertex.h"
+#include "saiga/vulkan/VulkanInitializers.hpp"
 
-namespace Saiga {
-namespace Vulkan {
-
-
-PipelineBase::PipelineBase(vk::PipelineBindPoint type)
-    : type(type)
+namespace Saiga
 {
+namespace Vulkan
+{
+PipelineBase::PipelineBase(vk::PipelineBindPoint type) : type(type) {}
 
-}
-
-void PipelineBase::init(VulkanBase &base, uint32_t numDescriptorSetLayouts)
+void PipelineBase::init(VulkanBase& base, uint32_t numDescriptorSetLayouts)
 {
     this->base = &base;
-    device = base.device;
+    device     = base.device;
     descriptorSetLayouts.resize(numDescriptorSetLayouts);
 }
 
 void PipelineBase::destroy()
 {
-    if(!device)
-        return;
+    if (!device) return;
     vkDestroyPipeline(device, pipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-    for(auto& l :descriptorSetLayouts)
-        vkDestroyDescriptorSetLayout(device, l, nullptr);
+    for (auto& l : descriptorSetLayouts) vkDestroyDescriptorSetLayout(device, l, nullptr);
     device = nullptr;
 }
 
@@ -43,30 +37,37 @@ vk::DescriptorSet PipelineBase::createDescriptorSet(uint32_t id)
     return base->descriptorPool.allocateDescriptorSet(descriptorSetLayouts[id]);
 }
 
-void PipelineBase::bind(vk::CommandBuffer cmd)
+bool PipelineBase::bind(vk::CommandBuffer cmd)
 {
-    cmd.bindPipeline(type,pipeline);
+    if (checkShader(cmd))
+    {
+        cmd.bindPipeline(type, pipeline);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
-void PipelineBase::bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets, uint32_t firstSet, vk::ArrayProxy<const uint32_t> dynamicOffsets)
+void PipelineBase::bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets,
+                                      uint32_t firstSet, vk::ArrayProxy<const uint32_t> dynamicOffsets)
 {
-    cmd.bindDescriptorSets(type,pipelineLayout,firstSet,descriptorSets,dynamicOffsets);
+    cmd.bindDescriptorSets(type, pipelineLayout, firstSet, descriptorSets, dynamicOffsets);
 }
 
-void PipelineBase::pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void *data, size_t offset)
+void PipelineBase::pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void* data,
+                                size_t offset)
 {
-    cmd.pushConstants(pipelineLayout,stage,offset,size,data)   ;
+    cmd.pushConstants(pipelineLayout, stage, offset, size, data);
 }
 
 void PipelineBase::addDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id)
 {
     SAIGA_ASSERT(isInitialized());
     SAIGA_ASSERT(id >= 0 && id < descriptorSetLayouts.size());
-    vk::DescriptorSetLayoutCreateInfo descriptorLayout(
-                vk::DescriptorSetLayoutCreateFlags(),
-                setLayoutBindings.size(),
-                setLayoutBindings.data()
-                );
+    vk::DescriptorSetLayoutCreateInfo descriptorLayout(vk::DescriptorSetLayoutCreateFlags(), setLayoutBindings.size(),
+                                                       setLayoutBindings.data());
     auto setLayout = device.createDescriptorSetLayout(descriptorLayout);
     SAIGA_ASSERT(setLayout);
     descriptorSetLayouts[id] = setLayout;
@@ -78,22 +79,17 @@ void PipelineBase::addPushConstantRange(vk::PushConstantRange pcr)
     pushConstantRanges.push_back(pcr);
 }
 
-void PipelineBase::createPipelineLayout( )
+void PipelineBase::createPipelineLayout()
 {
     SAIGA_ASSERT(isInitialized());
-    vk::PipelineLayoutCreateInfo pPipelineLayoutCreateInfo(
-                vk::PipelineLayoutCreateFlags(),
-                descriptorSetLayouts.size(),
-                descriptorSetLayouts.data(),
-                pushConstantRanges.size(),
-                pushConstantRanges.data()
-                );
+    vk::PipelineLayoutCreateInfo pPipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), descriptorSetLayouts.size(),
+                                                           descriptorSetLayouts.data(), pushConstantRanges.size(),
+                                                           pushConstantRanges.data());
     pipelineLayout = device.createPipelineLayout(pPipelineLayoutCreateInfo);
     SAIGA_ASSERT(pipelineLayout);
 }
 
 
 
-
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

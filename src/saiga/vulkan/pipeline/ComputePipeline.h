@@ -35,6 +35,10 @@ class SAIGA_GLOBAL ComputePipeline : public PipelineBase
 
 
     void create(ComputePipelineInfo pipelineInfo = ComputePipelineInfo());
+
+
+   protected:
+    virtual bool checkShader(vk::CommandBuffer cmd) override;
 };
 
 

@@ -22,11 +22,6 @@ void TexturedAssetRenderer::destroy()
     Pipeline::destroy();
     uniformBufferVS.destroy();
 }
-void TexturedAssetRenderer::bind(vk::CommandBuffer cmd)
-{
-    //    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-}
 
 void TexturedAssetRenderer::bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet ds)
 {
