@@ -33,6 +33,7 @@ protected:
     ChunkIterator createNewChunk() override;
 
 public:
+    ~BufferChunkAllocator() override = default;
     vk::BufferUsageFlags usageFlags;
 
     BufferChunkAllocator() : BaseChunkAllocator() {}

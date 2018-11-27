@@ -12,6 +12,8 @@ namespace Memory{
 
 struct SAIGA_LOCAL BaseMemoryAllocator {
 
+    virtual ~BaseMemoryAllocator() = default;
+
     explicit BaseMemoryAllocator(bool _mapped) : mapped(_mapped) {}
 
     virtual MemoryLocation allocate(vk::DeviceSize size) = 0;

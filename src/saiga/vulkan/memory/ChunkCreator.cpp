@@ -27,7 +27,7 @@ void Saiga::Vulkan::Memory::ChunkCreator::init(vk::PhysicalDevice _physicalDevic
     for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
         auto& properties = memoryProperties.memoryTypes[i];
 
-        m_memoryTypes.push_back(std::move(ChunkType(m_device,i,properties.propertyFlags)));
+        m_memoryTypes.emplace_back(ChunkType(m_device,i,properties.propertyFlags));
     }
     m_initialized = true;
 }

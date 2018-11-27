@@ -197,7 +197,6 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
     uint32_t indexOffset   = 0;
     if (imDrawData->CmdListsCount > 0)
     {
-        std::array<vk::DeviceSize, 1> offsets{0};
         auto& currentFrameData    = frameData[frameIndex];
         currentFrameData.vertexBuffer.bind(commandBuffer);
         currentFrameData.indexBuffer.bind(commandBuffer);

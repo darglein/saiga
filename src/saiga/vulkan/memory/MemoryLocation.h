@@ -12,7 +12,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class VulkanBase;
+struct VulkanBase;
 
 namespace Memory
 {

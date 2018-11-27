@@ -28,10 +28,12 @@ public:
     }
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, const vk::MemoryPropertyFlags &_flags,
                         FitStrategy& strategy, vk::DeviceSize chunkSize = 64* 1024* 1024,
-                        bool _mapped = false) : m_device(_device), m_chunkAllocator(chunkAllocator), flags(_flags),
-                                                m_strategy(&strategy), m_chunkSize(chunkSize), BaseMemoryAllocator(_mapped), m_allocateSize(m_chunkSize){
+                        bool _mapped = false) : BaseMemoryAllocator(_mapped), m_device(_device), m_chunkAllocator(chunkAllocator), flags(_flags),
+                                                m_strategy(&strategy), m_chunkSize(chunkSize),  m_allocateSize(chunkSize){
 
     }
+
+    ~BaseChunkAllocator() override = default;
 
     MemoryLocation allocate(vk::DeviceSize size) override;
 
@@ -40,11 +42,11 @@ public:
 protected:
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
+    vk::MemoryPropertyFlags flags;
+    FitStrategy* m_strategy{};
+
     vk::DeviceSize m_chunkSize{};
     vk::DeviceSize m_allocateSize{};
-
-    FitStrategy* m_strategy{};
-    vk::MemoryPropertyFlags flags;
     std::vector<ChunkAllocation> m_chunkAllocations;
 
 

@@ -23,7 +23,7 @@ struct SAIGA_GLOBAL ChunkAllocation{
         void* mappedPointer;
 
         ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize size, void* _mappedPointer) :
-        chunk(_chunk), buffer(_buffer), freeList(), allocations(), mappedPointer(_mappedPointer){
+        chunk(_chunk), buffer(_buffer), allocations(), freeList(), maxFreeRange(), mappedPointer(_mappedPointer){
             freeList.emplace_back(_buffer, _chunk->memory, 0, size);
             maxFreeRange = freeList.begin();
         }

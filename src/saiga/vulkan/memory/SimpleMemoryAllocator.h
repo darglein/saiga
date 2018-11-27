@@ -29,7 +29,7 @@ private:
     std::vector<MemoryLocation> m_allocations;
 
 public:
-    ~SimpleMemoryAllocator() {
+    ~SimpleMemoryAllocator() override {
         destroy();
     }
     vk::MemoryPropertyFlags flags;

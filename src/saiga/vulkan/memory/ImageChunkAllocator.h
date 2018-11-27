@@ -12,6 +12,7 @@ namespace Memory{
 class SAIGA_LOCAL ImageChunkAllocator : public BaseChunkAllocator {
 
 public:
+    ~ImageChunkAllocator() override = default;
     ImageChunkAllocator() : BaseChunkAllocator() {
 
     }
