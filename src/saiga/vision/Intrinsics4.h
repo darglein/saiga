@@ -14,6 +14,7 @@ namespace Saiga
 template <typename T>
 struct Intrinsics4Base
 {
+    using Vec4 = Eigen::Matrix<T, 4, 1>;
     using Vec3 = Eigen::Matrix<T, 3, 1>;
     using Vec2 = Eigen::Matrix<T, 2, 1>;
     using Mat3 = Eigen::Matrix<T, 3, 3>;
@@ -23,6 +24,7 @@ struct Intrinsics4Base
 
     Intrinsics4Base() {}
     Intrinsics4Base(T fx, T fy, T cx, T cy) : fx(fx), fy(fy), cx(cx), cy(cy) {}
+    Intrinsics4Base(const Vec4& v) : fx(v(0)), fy(v(1)), cx(v(2)), cy(v(3)) {}
 
     Vec2 project(const Vec3& X) const
     {
@@ -66,11 +68,17 @@ struct Intrinsics4Base
         return k;
     }
 
+    Mat3 matrix() { return K(); }
+
     template <typename G>
     Intrinsics4Base<G> cast()
     {
         return {fx, fy, cx, cy};
     }
+
+    // convert to eigen vector
+    Vec4 coeffs() const { return {fx, fy, cx, cy}; }
+    void coeffs(Vec4 v) { (*this) = v; }
 };
 
 using Intrinsics4  = Intrinsics4Base<double>;

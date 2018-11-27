@@ -7,35 +7,31 @@
 
 #pragma once
 
-#include "saiga/vulkan/pipeline/PipelineBase.h"
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
+#include "saiga/vulkan/pipeline/PipelineBase.h"
 
 
-namespace Saiga {
-namespace Vulkan {
-
-class SAIGA_GLOBAL ComputePipelineInfo
+namespace Saiga
 {
-public:
-    void setShader(Saiga::Vulkan::ShaderModule& shader);
-    vk::ComputePipelineCreateInfo createCreateInfo(vk::PipelineLayout pipelineLayout);
-private:
-
-    vk::PipelineShaderStageCreateInfo shaderStage;
-};
-
-
+namespace Vulkan
+{
 class SAIGA_GLOBAL ComputePipeline : public PipelineBase
 {
-public:
+   public:
     ComputePipeline();
+    void create();
 
-    Saiga::Vulkan::ShaderModule shader;
 
+    ComputeShaderPipeline shaderPipeline;
 
-    void create(ComputePipelineInfo pipelineInfo = ComputePipelineInfo());
+    void reload();
+
+   protected:
+    virtual bool checkShader() override;
+
+    int reloadCounter = 0;
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

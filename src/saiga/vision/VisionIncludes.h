@@ -18,6 +18,7 @@ using SE3 = Sophus::SE3d;
 
 using Quat = Eigen::Quaterniond;
 
+using Vec4 = Eigen::Vector4d;
 using Vec3 = Eigen::Vector3d;
 using Vec2 = Eigen::Vector2d;
 

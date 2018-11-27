@@ -101,7 +101,8 @@ inline Mat3 onb(Vec3 n)
 template <typename Target, typename Source>
 Sophus::SE3<Target> castSE3(const Source& se3)
 {
-    return {se3.unit_quaternion().template cast<Target>(), se3.translation().template cast<Target>()};
+    return se3.template cast<Target>();
+    //    return {se3.unit_quaternion().template cast<Target>(), se3.translation().template cast<Target>()};
 }
 
 

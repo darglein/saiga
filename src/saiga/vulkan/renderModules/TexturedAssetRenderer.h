@@ -8,27 +8,25 @@
 #pragma once
 
 #include "saiga/geometry/triangle_mesh.h"
-#include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Base.h"
-#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
-#include "saiga/vulkan/pipeline/Pipeline.h"
-#include "saiga/vulkan/texture/Texture.h"
+#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/buffer/UniformBuffer.h"
+#include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/svulkan.h"
+#include "saiga/vulkan/texture/Texture.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL TexturedAssetRenderer : public Pipeline
 {
-public:
+   public:
     using VertexType = VertexNTD;
 
     void destroy();
 
-    void bind(vk::CommandBuffer cmd);
 
 
     void bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet ds);
@@ -42,9 +40,11 @@ public:
     void prepareUniformBuffers(Saiga::Vulkan::VulkanBase* vulkanDevice);
     void setupLayoutsAndDescriptors();
 
-    vk::DescriptorSet createAndUpdateDescriptorSet( Texture& texture );
-private:
-    struct UBOVS {
+    vk::DescriptorSet createAndUpdateDescriptorSet(Texture& texture);
+
+   private:
+    struct UBOVS
+    {
         mat4 projection;
         mat4 modelview;
         vec4 lightPos;
@@ -55,5 +55,5 @@ private:
 
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

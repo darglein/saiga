@@ -5,50 +5,64 @@
  */
 
 #include "ComputePipeline.h"
-#include "saiga/vulkan/VulkanInitializers.hpp"
 #include "saiga/vulkan/Vertex.h"
+#include "saiga/vulkan/VulkanInitializers.hpp"
 
-namespace Saiga {
-namespace Vulkan {
-
-void ComputePipelineInfo::setShader(Saiga::Vulkan::ShaderModule& shader)
+namespace Saiga
 {
-    shaderStage = shader.createPipelineInfo();
-}
-
-vk::ComputePipelineCreateInfo ComputePipelineInfo::createCreateInfo(vk::PipelineLayout pipelineLayout)
+namespace Vulkan
 {
-    vk::ComputePipelineCreateInfo pipelineCreateInfo(
-                vk::PipelineCreateFlags(),
-                shaderStage,
-                pipelineLayout,
-                vk::Pipeline(),
-                0
-                );
-    return pipelineCreateInfo;
-}
+ComputePipeline::ComputePipeline() : PipelineBase(vk::PipelineBindPoint::eCompute) {}
 
 
-
-
-ComputePipeline::ComputePipeline()
-    : PipelineBase(vk::PipelineBindPoint::eCompute)
+void ComputePipeline::create()
 {
-
-}
-
-
-void ComputePipeline::create(ComputePipelineInfo pipelineInfo)
-{ 
     createPipelineLayout();
-    pipelineInfo.setShader(shader);
-    auto pipelineCreateInfo= pipelineInfo.createCreateInfo(pipelineLayout);
-    pipeline = device.createComputePipeline(base->pipelineCache,pipelineCreateInfo);
+    vk::ComputePipelineCreateInfo pipelineCreateInfo(vk::PipelineCreateFlags(), vk::PipelineShaderStageCreateInfo(),
+                                                     pipelineLayout, vk::Pipeline(), 0);
+    shaderPipeline.addToPipeline(pipelineCreateInfo);
+    pipeline = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
     SAIGA_ASSERT(pipeline);
-    shader.destroy(device);
+}
+
+void ComputePipeline::reload()
+{
+    shaderPipeline.reload();
+    if (!shaderPipeline.valid()) return;
+    reloadCounter = 3;
+}
+
+bool ComputePipeline::checkShader()
+{
+    if (reloadCounter > 0)
+    {
+        reloadCounter--;
+
+        if (reloadCounter == 0)
+        {
+            cout << "recreating pipeline" << endl;
+            vkDestroyPipeline(device, pipeline, nullptr);
+            pipeline = nullptr;
+
+            vk::ComputePipelineCreateInfo pipelineCreateInfo(
+                vk::PipelineCreateFlags(), vk::PipelineShaderStageCreateInfo(), pipelineLayout, vk::Pipeline(), 0);
+            shaderPipeline.addToPipeline(pipelineCreateInfo);
+
+            pipeline = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
+            SAIGA_ASSERT(pipeline);
+
+            shaderPipeline.destroy();
+            return true;
+        }
+
+        return false;
+    }
+
+
+    return true;
 }
 
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

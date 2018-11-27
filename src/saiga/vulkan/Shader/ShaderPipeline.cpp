@@ -5,65 +5,96 @@
  */
 
 #include "ShaderPipeline.h"
-
 #include "GLSL.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-void ShaderPipeline::load(vk::Device device, std::vector<std::string> shaders)
+namespace Saiga
 {
-    for(auto p : shaders)
+namespace Vulkan
+{
+void ShaderPipelineBase::load(vk::Device device, std::vector<std::string> shaders)
+{
+    for (auto p : shaders)
     {
         ShaderModule module;
-        module.load(device,p);
+        module.load(device, p);
         modules.push_back(module);
     }
 }
 
 
-void ShaderPipeline::loadGLSL(vk::Device device, std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders)
+void ShaderPipelineBase::loadGLSL(vk::Device device,
+                                  std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders)
 {
-    for(auto p : shaders)
+    for (auto p : shaders)
     {
         ShaderModule module;
-//        module.loadGLSL(device,p.second,p.first);
-        module.loadGLSL(device,std::get<1>(p),std::get<0>(p),std::get<2>(p));
+        //        module.loadGLSL(device,p.second,p.first);
+        module.loadGLSL(device, std::get<1>(p), std::get<0>(p), std::get<2>(p));
         modules.push_back(module);
     }
 }
 
-void ShaderPipeline::destroy(vk::Device device)
+void ShaderPipelineBase::loadCompute(vk::Device device, std::string shader, std::string injection)
 {
-    for(auto& s : modules)
+    ShaderModule module;
+    module.load(device, shader, injection);
+    modules.push_back(module);
+}
+
+void ShaderPipelineBase::destroy()
+{
+    for (auto& s : modules)
     {
-        s.destroy(device);
+        s.destroy();
     }
-    modules.clear();
-    pipelineInfo.clear();
 }
 
-void ShaderPipeline::addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo)
+void ShaderPipelineBase::reload()
 {
-    createPipelineInfo();
+    for (auto& s : modules)
+    {
+        s.reload();
+    }
+}
 
-    pipelineCreateInfo.stageCount = pipelineInfo.size();
-    pipelineCreateInfo.pStages = pipelineInfo.data();
+bool ShaderPipelineBase::valid()
+{
+    if (modules.empty()) return false;
 
+    for (auto& s : modules)
+    {
+        if (!s.valid()) return false;
+    }
+    return true;
 }
 
 
-void ShaderPipeline::createPipelineInfo()
+
+void ShaderPipelineBase::createPipelineInfo()
 {
     pipelineInfo.clear();
-    for(auto& s : modules)
+    for (auto& s : modules)
     {
         pipelineInfo.push_back(s.createPipelineInfo());
     }
 }
 
+void GraphicsShaderPipeline::addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo)
+{
+    createPipelineInfo();
 
-
-
+    pipelineCreateInfo.stageCount = pipelineInfo.size();
+    pipelineCreateInfo.pStages    = pipelineInfo.data();
 }
+
+void ComputeShaderPipeline::addToPipeline(vk::ComputePipelineCreateInfo& pipelineCreateInfo)
+{
+    SAIGA_ASSERT(!modules.empty());
+    createPipelineInfo();
+    pipelineCreateInfo.stage = pipelineInfo.front();
 }
+
+
+
+}  // namespace Vulkan
+}  // namespace Saiga

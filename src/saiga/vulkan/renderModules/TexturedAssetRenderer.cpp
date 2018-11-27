@@ -5,34 +5,27 @@
  */
 
 #include "TexturedAssetRenderer.h"
+#include "saiga/model/objModelLoader.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
-#include "saiga/model/objModelLoader.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
-#error OpenGL was included somewhere.
+#    error OpenGL was included somewhere.
 #endif
 
-namespace Saiga {
-namespace Vulkan {
-
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 void TexturedAssetRenderer::destroy()
 {
     Pipeline::destroy();
     uniformBufferVS.destroy();
 }
-void TexturedAssetRenderer::bind(vk::CommandBuffer cmd)
-{
-    //    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,descriptorSet,nullptr);
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics,pipeline);
-}
 
 void TexturedAssetRenderer::bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet ds)
 {
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,pipelineLayout,0,ds,nullptr);
-
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, ds, nullptr);
 }
 
 void TexturedAssetRenderer::pushModel(vk::CommandBuffer cmd, mat4 model)
@@ -53,8 +46,8 @@ void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat
 void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass,
         const std::string& vertShader, const std::string& fragShader)
 {
-    PipelineBase::init(vulkanDevice,1);
-    uniformBufferVS.init(vulkanDevice,&uboVS,sizeof(UBOVS));
+    PipelineBase::init(vulkanDevice, 1);
+    uniformBufferVS.init(vulkanDevice, &uboVS, sizeof(UBOVS));
     addDescriptorSetLayout({
                                { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
                                { 11,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment},
@@ -67,11 +60,12 @@ void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPa
                 });
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
-    create(renderPass,info);
-    shaderPipeline.destroy(device);
+    //    auto info2 = info;
+    create(renderPass, info);
+    shaderPipeline.destroy();
 }
 
-vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture &texture)
+vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture& texture)
 {
     //    vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(
     //                vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())
@@ -98,7 +92,5 @@ vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture &t
 
 
 
-
-
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

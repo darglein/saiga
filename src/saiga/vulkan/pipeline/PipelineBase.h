@@ -7,24 +7,25 @@
 
 #pragma once
 
-#include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Base.h"
+#include "saiga/vulkan/svulkan.h"
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 /**
  * Base class for both a graphics and compute pipeline
  */
 
 class SAIGA_GLOBAL PipelineBase
 {
-public:
+   public:
     // ==== Initialization ====
     PipelineBase(vk::PipelineBindPoint type);
     ~PipelineBase() { destroy(); }
 
-    void init(VulkanBase& base , uint32_t numDescriptorSetLayouts);
+    void init(VulkanBase& base, uint32_t numDescriptorSetLayouts);
     void destroy();
 
     void addDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id = 0);
@@ -32,11 +33,16 @@ public:
 
     // ==== Runtime ====
     vk::DescriptorSet createDescriptorSet(uint32_t id = 0);
-    void bind(vk::CommandBuffer cmd);
-    void bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets, uint32_t firstSet = 0, vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr);
-    void pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void* data, size_t offset = 0);
 
-protected:
+
+    SAIGA_WARN_UNUSED_RESULT bool bind(vk::CommandBuffer cmd);
+
+    void bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets,
+                            uint32_t firstSet = 0, vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr);
+    void pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void* data,
+                      size_t offset = 0);
+
+   protected:
     VulkanBase* base = nullptr;
     vk::Device device;
     vk::PipelineBindPoint type;
@@ -48,8 +54,10 @@ protected:
 
     bool isInitialized() { return base; }
     void createPipelineLayout();
+
+    virtual bool checkShader() = 0;
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

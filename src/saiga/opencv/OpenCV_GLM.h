@@ -12,36 +12,33 @@
 
 namespace Saiga
 {
-
-template<typename MatrixType>
-SAIGA_TEMPLATE inline
-mat3 CVtoGLM_mat3(const MatrixType& mat)
+template <typename MatrixType>
+SAIGA_TEMPLATE inline mat3 CVtoGLM_mat3(const MatrixType& mat)
 {
     mat3 M;
-    for(int i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; ++i)
     {
-        for(int j = 0; j < 3; ++j)
+        for (int j = 0; j < 3; ++j)
         {
-            M[j][i] = mat(i,j);
+            M[j][i] = mat(i, j);
         }
     }
     return M;
 }
 
-template<typename MatrixType>
-SAIGA_TEMPLATE inline
-mat4 CVtoGLM_mat4(const MatrixType& mat)
+template <typename MatrixType>
+SAIGA_TEMPLATE inline mat4 CVtoGLM_mat4(const MatrixType& mat)
 {
     mat4 M;
-    for(int i = 0; i < 4; ++i)
+    for (int i = 0; i < 4; ++i)
     {
-        for(int j = 0; j < 4; ++j)
+        for (int j = 0; j < 4; ++j)
         {
-            M[j][i] = mat(i,j);
+            M[j][i] = mat(i, j);
         }
     }
     return M;
 }
 
 
-}
+}  // namespace Saiga

@@ -149,14 +149,14 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 {
     if (displayModels)
     {
-        assetRenderer.bind(cmd);
-        assetRenderer.pushModel(cmd, mat4(1));
-        plane.render(cmd);
+        if (assetRenderer.bind(cmd))
+        {
+            assetRenderer.pushModel(cmd, mat4(1));
+            plane.render(cmd);
+        }
 
         lineAssetRenderer.bind(cmd);
         lineAssetRenderer.pushModel(cmd, glm::translate(vec3(-5, 1.5f, 0)));
-
-
         teapot.render(cmd);
 
         auto gridMatrix = glm::rotate(0.5f*glm::pi<float>(), glm::vec3(1,0,0));
@@ -164,31 +164,26 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         lineAssetRenderer.pushModel(cmd, gridMatrix);
         grid.render(cmd);
 
-        //        lineAssetRenderer.pushModel(cmd,mat4(1));
-        //        frustum.render(cmd);
-        //        }
-        //        return;
 
 
         pointCloudRenderer.bind(cmd);
-
-
         pointCloudRenderer.pushModel(cmd, glm::translate(vec3(10, 2.5f, 0)));
         pointCloud.render(cmd, 0, pointCloud.capacity);
 
-
-
-        texturedAssetRenderer.bind(cmd);
-        texturedAssetRenderer.pushModel(cmd, glm::translate(glm::vec3(0,1,0)));
-        texturedAssetRenderer.bindTexture(cmd, box.descriptor);
-        box.render(cmd);
+        if (texturedAssetRenderer.bind(cmd))
+        {
+            texturedAssetRenderer.pushModel(cmd, mat4(1));
+            texturedAssetRenderer.bindTexture(cmd, box.descriptor);
+            box.render(cmd);
+        }
     }
 
 
 
-    textureDisplay.bind(cmd);
-
-    textureDisplay.renderTexture(cmd, textureDes, vec2(10, 10), vec2(100, 50));
+    if (textureDisplay.bind(cmd))
+    {
+        textureDisplay.renderTexture(cmd, textureDes, vec2(10, 10), vec2(100, 50));
+    }
 }
 
 void VulkanExample::renderGUI()
@@ -204,6 +199,13 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
+
+    if (ImGui::Button("reload shader"))
+    {
+        //        texturedAssetRenderer.shaderPipeline.reload();
+        texturedAssetRenderer.reload();
+        assetRenderer.reload();
+    }
 
 
     ImGui::End();
