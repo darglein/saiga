@@ -69,7 +69,7 @@ void Buffer::copyTo(vk::CommandBuffer cmd, Buffer &target, vk::DeviceSize srcOff
     }
     SAIGA_ASSERT(this->size() - srcOffset >= size, "Source buffer is not large enough");
     SAIGA_ASSERT(target.size() - dstOffset >= size, "Destination buffer is not large enough");
-    vk::BufferCopy bc{m_memoryLocation.offset + srcOffset, target.m_memoryLocation.offset = dstOffset, size};
+    vk::BufferCopy bc{m_memoryLocation.offset + srcOffset, target.m_memoryLocation.offset + dstOffset, size};
     cmd.copyBuffer(m_memoryLocation.buffer, target.m_memoryLocation.buffer, bc);
 }
 
