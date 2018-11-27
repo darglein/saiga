@@ -22,8 +22,7 @@ class SAIGA_TEMPLATE VertexBuffer : public Buffer
     int vertexCount;
 
     void init(VulkanBase& base, int count,
-              vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible |
-                                              vk::MemoryPropertyFlagBits::eHostCoherent)
+              vk::MemoryPropertyFlags flags)
     {
         vertexCount = count;
         size_t size = sizeof(VertexType) * vertexCount;
