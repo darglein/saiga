@@ -115,12 +115,12 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
         frameData = newFrameData;
 //        Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
-        texture->uploadImage(renderer.base,frameData->colorImg);
+        //texture->uploadImage(renderer.base,frameData->colorImg);
 //        texture->uploadImage(renderer.base,rgbImage);
 
 
         Saiga::ImageTransformation::depthToRGBA(frameData->depthImg,depthmg,0,8);
-        texture2->uploadImage(renderer.base,depthmg);
+        //texture2->uploadImage(renderer.base,depthmg);
     }
 
 

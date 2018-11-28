@@ -5,7 +5,7 @@
 namespace Saiga {
 namespace Vulkan {
 
-class Debug
+class SAIGA_GLOBAL Debug
 {
 public:
     void init(

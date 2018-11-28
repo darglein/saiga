@@ -1,4 +1,5 @@
-﻿#include "sample.h"
+﻿#include "saiga/sdl/sdl.h"
+#include "sample.h"
 #include "saiga/framework/framework.h"
 #include "saiga/vulkan/window/SDLWindow.h"
 #include "saiga/util/easylogging++.h"
