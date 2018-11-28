@@ -1,21 +1,19 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
-#ifdef _MSC_VER
-#include <windows.h>
-#endif
 
 #include "saiga/cuda/interop.h"
 #include "saiga/cuda/cudaHelper.h"
+#include <cuda_gl_interop.h>
 
 namespace Saiga {
 namespace CUDA{
 
 Interop::Interop():mapped(false){
-
+    
 }
 Interop::~Interop(){
     if(mapped)
@@ -39,7 +37,7 @@ void Interop::unregisterBuffer()
 void Interop::map(){
     // map OpenGL buffer object for writing from CUDA
     CHECK_CUDA_ERROR( cudaGraphicsMapResources(1, &graphic_resource, 0));
-
+    
     mapped = true;
 }
 
@@ -65,8 +63,8 @@ void Interop::mapImage(){
     cudaArray *array;// = (cudaArray *)device_ptr;
     CHECK_CUDA_ERROR( cudaGraphicsMapResources(1, &graphic_resource, 0));
     CHECK_CUDA_ERROR( cudaGraphicsSubResourceGetMappedArray(&array, graphic_resource, 0,0));
-
-//    std::cout<<array<<std::endl;
+    
+    //    std::cout<<array<<std::endl;
     device_ptr = array;
     mapped = true;
 }
@@ -76,7 +74,7 @@ void Interop::initImage(unsigned int gl_buffer, GLenum gl_target)
     this->gl_buffer = gl_buffer;
     this->gl_target = gl_target;
     CHECK_CUDA_ERROR( cudaGraphicsGLRegisterImage(&graphic_resource, gl_buffer,gl_target, cudaGraphicsRegisterFlagsSurfaceLoadStore));
-
+    
 }
 
 }

@@ -56,7 +56,7 @@ struct Intrinsics4Base
         cy *= s;
     }
 
-    Mat3 K()
+    Mat3 matrix()
     {
         Mat3 k;
         // clang-format off
@@ -67,8 +67,6 @@ struct Intrinsics4Base
         // clang-format on
         return k;
     }
-
-    Mat3 matrix() { return K(); }
 
     template <typename G>
     Intrinsics4Base<G> cast()

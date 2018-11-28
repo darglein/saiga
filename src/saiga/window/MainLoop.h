@@ -7,16 +7,13 @@
 #pragma once
 
 #include <thread>
-
 #include "saiga/config.h"
-#include "saiga/util/semaphore.h"
-#include "saiga/time/gameTime.h"
 #include "saiga/imgui/imgui_saiga.h"
+#include "saiga/time/gameTime.h"
+#include "saiga/util/semaphore.h"
 
-namespace Saiga {
-
-
-
+namespace Saiga
+{
 struct SAIGA_GLOBAL MainLoopParameters
 {
     /**
@@ -38,13 +35,13 @@ struct SAIGA_GLOBAL MainLoopParameters
      * @param _printInfoMsg
      *      Enable/Disable the debug output
      */
-    int   updatesPerSecond      = 60;
-    int   framesPerSecond       = 60;
-    float mainLoopInfoTime      = 5.0f;
-    int   maxFrameSkip          = 0;
-    bool  parallelUpdate        = false;
-    bool  catchUp               = false;
-    bool  printInfoMsg          = true;
+    int updatesPerSecond   = 60;
+    int framesPerSecond    = 60;
+    float mainLoopInfoTime = 60.0f;
+    int maxFrameSkip       = 0;
+    bool parallelUpdate    = false;
+    bool catchUp           = false;
+    bool printInfoMsg      = true;
 
     /**
      *  Reads all paramters from the given config file.
@@ -56,7 +53,7 @@ struct SAIGA_GLOBAL MainLoopParameters
 struct SAIGA_GLOBAL MainLoopInterface
 {
     virtual void render() = 0;
-    virtual void swap() = 0;
+    virtual void swap()   = 0;
     virtual float getTotalRenderTime() { return 0; }
     virtual bool shouldClose() { return false; }
     virtual void update(float dt) {}
@@ -68,7 +65,7 @@ struct SAIGA_GLOBAL MainLoopInterface
 
 class SAIGA_GLOBAL MainLoop
 {
-public:
+   public:
     MainLoopInterface& renderer;
     MainLoopInterface& updating;
 
@@ -77,16 +74,16 @@ public:
 
 
     void renderImGuiInline();
-public:
 
-    //total number of updateticks/frames rendered so far
+   public:
+    // total number of updateticks/frames rendered so far
     int numUpdates = 0;
-    int numFrames = 0;
+    int numFrames  = 0;
 
-    //game loop running
+    // game loop running
     bool running = false;
 
-    //basic variables for the parallel update
+    // basic variables for the parallel update
     Semaphore semStartUpdate, semFinishUpdate;
     std::thread updateThread;
     bool parallelUpdate = false;
@@ -95,12 +92,12 @@ public:
     tick_t gameLoopDelay = tick_t(0);
 
     bool gameloopDropAccumulatedUpdates = false;
-    bool printInfoMsg = true;
+    bool printInfoMsg                   = true;
 
     bool showImgui = true;
 
     bool showImguiDemo = false;
-    int targetUps = 60;
+    int targetUps      = 60;
 
 
     ExponentialTimer updateTimer, interpolationTimer, renderCPUTimer, swapBuffersTimer;
@@ -121,4 +118,4 @@ public:
     void sleep(tick_t ticks);
 };
 
-}
+}  // namespace Saiga

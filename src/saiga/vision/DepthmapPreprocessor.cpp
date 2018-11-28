@@ -71,8 +71,9 @@ void DMPPParameters::renderGui()
     ImGui::InputFloat("dd_factor", &dd_factor);
 }
 
+DMPP::DMPP(const Intrinsics4& camera, const DMPPParameters& params) : params(params), camera(camera) {}
 
-void DMPP::operator()(ImageView<float> _src, ImageView<float> dst)
+void DMPP::operator()(DepthMap _src, DepthMap dst)
 {
     static thread_local TemplatedImage<float> tmp;
     tmp.create(dst.h, dst.w);
@@ -87,7 +88,7 @@ void DMPP::operator()(ImageView<float> _src, ImageView<float> dst)
 
     if (params.apply_filter)
     {
-        applyFilterToImage(src, dst, camera);
+        applyFilterToImage(src, dst);
     }
     else
     {
@@ -96,12 +97,12 @@ void DMPP::operator()(ImageView<float> _src, ImageView<float> dst)
 
     if (params.apply_holeFilling)
     {
-        fillHoles(dst, dst, camera);
+        fillHoles(dst, dst);
     }
 }
 
 
-void DMPP::operator()(ImageView<float> src)
+void DMPP::operator()(DepthMap src)
 {
     SAIGA_ASSERT(!params.apply_downscale, "Inplace preprocessing cannot be applied with downscale!");
 
@@ -111,13 +112,13 @@ void DMPP::operator()(ImageView<float> src)
 
     if (params.apply_filter)
     {
-        applyFilterToImage(src, tmp, camera);
+        applyFilterToImage(src, tmp);
         tmp.getImageView().copyTo(src);
     }
 
     if (params.apply_holeFilling)
     {
-        fillHoles(src, src, camera);
+        fillHoles(src, src);
     }
 }
 
@@ -136,7 +137,7 @@ std::vector<T> gaussianBlurKernel2D(int radius, T sigmaX, T sigmaY)
     {
         for (int j = -radius; j <= radius; j++)
         {
-            int idx = (j + radius) + (i + radius) * (radius * 2 + 1);
+            int idx     = (j + radius) + (i + radius) * (radius * 2 + 1);
             kernel[idx] = std::exp(-j * j * ivar2X) + std::exp(-i * i * ivar2Y);
             kernelSum += kernel[idx];
         }
@@ -149,7 +150,7 @@ std::vector<T> gaussianBlurKernel2D(int radius, T sigmaX, T sigmaY)
     return kernel;
 }
 
-void DMPP::applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4& camera)
+void DMPP::applyFilterToImage(DepthMap vsrc, DepthMap vdst)
 {
 #ifdef FF_PRINT_TIMINGS
     ScopedTimerPrint tim("applyFilterToImage");
@@ -228,14 +229,14 @@ void DMPP::applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, cons
                         k++;
                     }
                 }
-                d = zsum / wsum;
+                d          = zsum / wsum;
                 vdst(i, j) = d;
             }
         }
     }
 }
 
-void DMPP::computeMinMax(ImageView<float> vsrc, float& dmin, float& dmax)
+void DMPP::computeMinMax(DepthMap vsrc, float& dmin, float& dmax)
 {
     dmin = 5345345;
     dmax = -345345435;
@@ -262,7 +263,7 @@ void DMPP::computeMinMax(ImageView<float> vsrc, float& dmin, float& dmax)
 
 
 
-void DMPP::fillHoles(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4& camera)
+void DMPP::fillHoles(DepthMap vsrc, DepthMap vdst)
 {
     //    cout << "fill holes " << params.holeFillIterations << endl;
     SAIGA_ASSERT(vsrc.width == vdst.width && vsrc.height == vdst.height);
@@ -296,7 +297,7 @@ void DMPP::fillHoles(ImageView<float> vsrc, ImageView<float> vdst, const Intrins
                     float dr = vsrc.clampedRead(i, j - 1);
 
                     float sum = 0;
-                    float w = 0;
+                    float w   = 0;
 
                     if (du > 0)
                     {
@@ -399,7 +400,7 @@ void DMPP::fillHoles(ImageView<float> vsrc, ImageView<float> vdst, const Intrins
     }
 }
 
-void DMPP::scaleDown2median(ImageView<float> src, ImageView<float> dst)
+void DMPP::scaleDown2median(DepthMap src, DepthMap dst)
 {
     SAIGA_ASSERT(src.width == 2 * dst.width && src.height == 2 * dst.height);
 

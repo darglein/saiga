@@ -53,22 +53,23 @@ void Instance::create(std::vector<const char*> instanceExtensions, bool enableVa
         instanceCreateInfo.ppEnabledLayerNames = layers.data();
     }
 
+#if 0
     cout << "Instance extensions:" << endl;
     for (auto ex : instanceExtensions) cout << ex << endl;
-
+#endif
 
 
     //   VK_CHECK_RESULT(vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
     instance = vk::createInstance(instanceCreateInfo);
     SAIGA_ASSERT(instance);
 
-
+#if 0
     auto extprops = vk::enumerateInstanceExtensionProperties();
     for (auto e : extprops)
     {
         cout << e.specVersion << " " << e.extensionName << endl;
     }
-
+#endif
 
 
     // If requested, we enable the default validation layers for debugging
@@ -92,11 +93,9 @@ vk::PhysicalDevice Instance::pickPhysicalDevice()
     auto physicalDevice     = physicalDevices[selectedDevice];
 
     {
-        VkPhysicalDeviceProperties deviceProperties;
-        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-        std::cout << "Device [" << selectedDevice << "] : " << deviceProperties.deviceName << std::endl;
-        //        std::cout << " Type: " << vks::tools::physicalDeviceTypeString(deviceProperties.deviceType) <<
-        //        std::endl;
+        vk::PhysicalDeviceProperties deviceProperties = physicalDevice.getProperties();
+
+        std::cout << "Selected Vulkan Device [" << selectedDevice << "] : " << deviceProperties.deviceName << ", ";
         std::cout << " API: " << (deviceProperties.apiVersion >> 22) << "."
                   << ((deviceProperties.apiVersion >> 12) & 0x3ff) << "." << (deviceProperties.apiVersion & 0xfff)
                   << std::endl;

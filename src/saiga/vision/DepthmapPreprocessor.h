@@ -14,16 +14,16 @@ namespace Saiga
 struct SAIGA_GLOBAL DMPPParameters
 {
     bool apply_downscale = false;
-    int downscaleFactor = 2;  // 2,4,8,16,...
+    int downscaleFactor  = 2;  // 2,4,8,16,...
 
-    bool apply_filter = false;
-    int filterRadius = 3;
-    float sigmaFactor = 50.0f;
+    bool apply_filter    = false;
+    int filterRadius     = 3;
+    float sigmaFactor    = 50.0f;
     int filterIterations = 1;
 
     bool apply_holeFilling = false;
     int holeFillIterations = 5;
-    float fillDDscale = 0.5f;
+    float fillDDscale      = 0.5f;
 
     float dd_factor = 10.0f;
 
@@ -44,26 +44,27 @@ struct SAIGA_GLOBAL DMPPParameters
 class SAIGA_GLOBAL DMPP
 {
    public:
+    using DepthMap = ImageView<float>;
+
+
     DMPPParameters params;
-    DMPP(const Intrinsics4& camera, const DMPPParameters& params = DMPPParameters()) : params(params), camera(camera) {}
+    DMPP(const Intrinsics4& camera = Intrinsics4(), const DMPPParameters& params = DMPPParameters());
 
 
-    void operator()(ImageView<float> src, ImageView<float> dst);
-
+    void operator()(DepthMap src, DepthMap dst);
     // Inplace preprocessing
-    void operator()(ImageView<float> src);
+    void operator()(DepthMap src);
+
+    void setCamera(const Intrinsics4& c) { camera = c; }
+
+    void scaleDown2median(DepthMap src, DepthMap dst);
+    void fillHoles(DepthMap vsrc, DepthMap vdst);
+    void applyFilterToImage(DepthMap vsrc, DepthMap vdst);
+    void computeMinMax(DepthMap vsrc, float& dmin, float& dmax);
+
     void renderGui();
 
-
    private:
-    void scaleDown2median(ImageView<float> src, ImageView<float> dst);
-    void fillHoles(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4& camera);
-    void applyFilterToImage(ImageView<float> vsrc, ImageView<float> vdst, const Intrinsics4& camera);
-
-
-    void computeMinMax(ImageView<float> vsrc, float& dmin, float& dmax);
-
-
     Intrinsics4 camera;
 };
 

@@ -212,14 +212,10 @@ PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRAR
 
 ##### Vulkan #####
 find_package(Vulkan QUIET)
-PackageHelper(Vulkan "${VULKAN_FOUND}" "${Vulkan_INCLUDE_DIRS}" "${Vulkan_LIBRARIES}")
+PackageHelperTarget(Vulkan::Vulkan VULKAN_FOUND)
 
 find_package(GLslang QUIET)
 PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
-
-if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
-    SET(SAIGA_USE_VULKAN 1)
-endif()
 
 
 if(SAIGA_WITH_GL)
@@ -332,6 +328,11 @@ endif()
 if(EIGEN3_FOUND AND SOPHUS_FOUND)
     message(STATUS "Saiga vision enabled.")
     SET(SAIGA_VISION 1)
+endif()
+
+if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
+    message(STATUS "Saiga vulkan enabled.")
+    SET(SAIGA_USE_VULKAN 1)
 endif()
 
 ############# INSTALL PATHS ###############
