@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-
 #include "DepthmapPreprocessor.h"
 #include "saiga/imgui/imgui.h"
+#include "saiga/util/ini/ini.h"
 
 
 namespace Saiga
@@ -42,7 +42,29 @@ inline float pixel_footprint(std::size_t x, std::size_t y, float depth, const In
 #endif
 }
 
-void DMPPParameters::fromConfigFile(const std::string& file) {}
+void DMPPParameters::fromConfigFile(const std::string& file)
+{
+    Saiga::SimpleIni ini;
+    ini.LoadFile(file.c_str());
+
+
+
+    apply_downscale   = ini.GetAddBool("dmpp", "apply_downscale", apply_downscale);
+    apply_filter      = ini.GetAddBool("dmpp", "apply_filter", apply_filter);
+    apply_holeFilling = ini.GetAddBool("dmpp", "apply_holeFilling", apply_holeFilling);
+
+    downscaleFactor    = ini.GetAddLong("dmpp", "downscaleFactor", downscaleFactor);
+    filterRadius       = ini.GetAddLong("dmpp", "filterRadius", filterRadius);
+    filterIterations   = ini.GetAddLong("dmpp", "filterIterations", filterIterations);
+    holeFillIterations = ini.GetAddLong("dmpp", "holeFillIterations", holeFillIterations);
+
+    sigmaFactor = ini.GetAddDouble("dmpp", "sigmaFactor", sigmaFactor);
+    fillDDscale = ini.GetAddDouble("dmpp", "fillDDscale", fillDDscale);
+    dd_factor   = ini.GetAddDouble("dmpp", "dd_factor", dd_factor);
+
+
+    if (ini.changed()) ini.SaveFile(file.c_str());
+}
 
 void DMPPParameters::renderGui()
 {
@@ -80,7 +102,7 @@ void DMPP::operator()(DepthMap _src, DepthMap dst)
 
     auto src = _src;
 
-    if (params.apply_downscale)
+    if (params.apply_downscale && _src.w / 2 == dst.w)
     {
         scaleDown2median(src, tmp.getImageView());
         src = tmp.getImageView();

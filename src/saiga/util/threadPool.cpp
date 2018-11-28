@@ -1,12 +1,12 @@
-//Copyright (c) 2012 Jakob Progsch, Václav Zeman
+// Copyright (c) 2012 Jakob Progsch, Václav Zeman
 
-//This software is provided 'as-is', without any express or implied
-//warranty. In no event will the authors be held liable for any damages
-//arising from the use of this software.
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
 
-//Permission is granted to anyone to use this software for any purpose,
-//including commercial applications, and to alter it and redistribute it
-//freely, subject to the following restrictions:
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
 
 //   1. The origin of this software must not be misrepresented; you must not
 //   claim that you wrote the original software. If you use this software
@@ -17,41 +17,33 @@
 //   misrepresented as being the original software.
 
 //   3. This notice may not be removed or altered from any source
-//distribution.
+// distribution.
 
 /**
-  * This file was modified by Darius Rueckert for libsaiga.
-  */
+ * This file was modified by Darius Rueckert for libsaiga.
+ */
 
 #include "threadPool.h"
 #include "saiga/util/threadName.h"
 
-namespace Saiga {
-
-
-
-
-ThreadPool::ThreadPool(size_t threads, const std::string &name)
-    :   stop(false)
+namespace Saiga
+{
+ThreadPool::ThreadPool(size_t threads, const std::string& name) : stop(false), name(name)
 {
     workingThreads = threads;
-    for(size_t i = 0; i < threads; ++i)
+    for (size_t i = 0; i < threads; ++i)
     {
-        workers.emplace_back(
-                    [this,i,name]
-        {
+        workers.emplace_back([this, i, name] {
             setThreadName(name + std::to_string(i));
-            for(;;)
+            for (;;)
             {
                 std::function<void()> task;
 
                 {
                     std::unique_lock<std::mutex> lock(this->queue_mutex);
                     workingThreads--;
-                    this->condition.wait(lock,
-                                         [this]{ return this->stop || !this->tasks.empty(); });
-                    if(this->stop && this->tasks.empty())
-                        return;
+                    this->condition.wait(lock, [this] { return this->stop || !this->tasks.empty(); });
+                    if (this->stop && this->tasks.empty()) return;
                     workingThreads++;
                     task = std::move(this->tasks.front());
                     this->tasks.pop();
@@ -59,27 +51,25 @@ ThreadPool::ThreadPool(size_t threads, const std::string &name)
 
                 task();
             }
-        }
-        );
+        });
     }
 }
 
 ThreadPool::~ThreadPool()
 {
     quit();
+    cout << "~ThreadPool " << name << endl;
 }
 
 void ThreadPool::quit()
 {
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
-        if(stop)
-            return;
+        if (stop) return;
         stop = true;
     }
     condition.notify_all();
-    for(std::thread &worker: workers)
-        worker.join();
+    for (std::thread& worker : workers) worker.join();
     workers.clear();
 }
 
@@ -92,4 +82,4 @@ void createGlobalThreadPool(int threads)
 
 
 
-}
+}  // namespace Saiga

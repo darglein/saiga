@@ -9,10 +9,10 @@
 #include "saiga/model/ModelLoader.h"
 #include "saiga/util/assert.h"
 #include "saiga/util/directory.h"
+#include "saiga/util/easylogging++.h"
 #include "saiga/util/floatingPoint.h"
 #include "saiga/util/ini/ini.h"
 #include "saiga/util/tostring.h"
-#include "saiga/util/easylogging++.h"
 
 #ifdef SAIGA_USE_OPENGL
 #    include "saiga/opengl/opengl.h"
@@ -60,7 +60,7 @@ void SaigaParameters::fromConfigFile(const std::string& file)
     modelDirectory   = split(ini.GetAddString("saiga", "modelDirectory", concat(modelDirectory, sep).c_str()), sep);
     fontDirectory    = split(ini.GetAddString("saiga", "fontDirectory", concat(fontDirectory, sep).c_str()), sep);
     mainThreadName   = ini.GetAddString("saiga", "mainThreadName", mainThreadName.c_str());
-    logging_enabled  = ini.GetAddBool("saiga", "logging", false);
+    logging_enabled  = ini.GetAddBool("saiga", "logging", logging_enabled);
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
@@ -214,7 +214,8 @@ void initSaiga(const SaigaParameters& params)
     defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput, std::to_string(params.logging_enabled));
     el::Loggers::reconfigureLogger("default", defaultConf);
 
-    if (params.logging_enabled) {
+    if (params.logging_enabled)
+    {
         cout << "Logging is enabled" << endl;
     }
 

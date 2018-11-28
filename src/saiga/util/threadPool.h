@@ -54,6 +54,7 @@ class SAIGA_GLOBAL ThreadPool
    private:
     // number of currently working threads
     size_t workingThreads = 0;
+    std::string name;
     // need to keep track of threads so we can join them
     std::vector<std::thread> workers;
     // the task queue
