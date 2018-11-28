@@ -78,7 +78,7 @@ void setThreadName(std::thread& thread, const std::string& name)
 #ifdef  __APPLE__
     pthread_setname_np(name.c_str());
 #elif _WIN32
-    DWORD threadId = ::GetThreadId( static_cast<HANDLE>( thread->native_handle() ) );
+    DWORD threadId = ::GetThreadId( static_cast<HANDLE>( thread.native_handle() ) );
     SetThreadName(threadId,name.c_str());
 #else
     auto handle = thread.native_handle();

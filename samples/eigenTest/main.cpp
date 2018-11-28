@@ -85,7 +85,7 @@ void eigenHeatTest()
     size_t limit = 100000000;
 
 #pragma omp parallel for
-    for(size_t i = 0; i < limit; ++i)
+    for(int i = 0; i < limit; ++i)
     {
         m2 += m1 * m2;
     }

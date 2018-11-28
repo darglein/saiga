@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#define _USE_MATH_DEFINES
 #include "openMeshSample.h"
 #include "OpenMesh/Tools/Decimater/DecimaterT.hh"
 #include "OpenMesh/Tools/Decimater/ModAspectRatioT.hh"
