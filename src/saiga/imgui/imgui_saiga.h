@@ -6,26 +6,27 @@
 
 #pragma once
 
+#include <vector>
 #include "saiga/config.h"
 #include "saiga/time/timer.h"
-#include <vector>
 
 namespace ImGui
 {
-
 class SAIGA_GLOBAL TimeGraph
 {
-  public:
-    TimeGraph(const std::string& name, int numValues = 80);
+   public:
+    TimeGraph(const std::string& name = "Time", int numValues = 80);
     void addTime(float t);
     void renderImGui();
-private:
+
+   private:
     std::string name;
     int numValues;
 
-    float lastTime = 0;
-    float maxTime = 0;
-    float average = 0;
+    float timeExp    = 0;
+    float lastTime   = 0;
+    float maxTime    = 0;
+    float average    = 0;
     int currentIndex = 0;
     std::vector<float> updateTimes;
 
@@ -34,4 +35,4 @@ private:
     Saiga::Timer timer;
 };
 
-}
+}  // namespace ImGui
