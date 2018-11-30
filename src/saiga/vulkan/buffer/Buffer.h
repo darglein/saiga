@@ -45,6 +45,7 @@ class SAIGA_GLOBAL Buffer
 
     void destroy();
 
+    inline vk::DeviceSize offset() const {return m_memoryLocation.offset;}
     inline vk::DeviceSize size() const { return m_memoryLocation.size; }
 
     /**
