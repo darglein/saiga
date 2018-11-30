@@ -20,7 +20,7 @@ class SAIGA_GLOBAL StagingBuffer : public Buffer
     void init(VulkanBase& base, size_t size, const void* data = nullptr)
     {
         createBuffer(base, size, vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
-                     vk::MemoryPropertyFlagBits::eHostCoherent);
+                     vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
 
         if (data) m_memoryLocation.upload(base.device, data);
     }

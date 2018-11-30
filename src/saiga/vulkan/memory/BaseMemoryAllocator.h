@@ -10,11 +10,15 @@ namespace Saiga{
 namespace Vulkan{
 namespace Memory{
 
-struct SAIGA_LOCAL BaseMemoryAllocator {
+struct SAIGA_GLOBAL BaseMemoryAllocator {
 
     virtual ~BaseMemoryAllocator() = default;
 
     explicit BaseMemoryAllocator(bool _mapped) : mapped(_mapped) {}
+
+    BaseMemoryAllocator(BaseMemoryAllocator&& other) noexcept: mapped(other.mapped)  {
+
+    }
 
     virtual MemoryLocation allocate(vk::DeviceSize size) = 0;
     virtual void deallocate(MemoryLocation& location) = 0;

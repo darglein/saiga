@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include "saiga/vulkan/buffer/DeviceMemory.h"
+//#include "saiga/vulkan/buffer/DeviceMemory.h"
+#include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/svulkan.h"
 
 namespace Saiga
@@ -18,15 +19,16 @@ class SAIGA_GLOBAL Buffer
 {
    protected:
     VulkanBase* base;
-    vk::BufferUsageFlags usageFlags = vk::BufferUsageFlagBits();
+    vk::BufferUsageFlags bufferUsage = vk::BufferUsageFlagBits();
+    vk::MemoryPropertyFlags memoryProperties = vk::MemoryPropertyFlags();
     MemoryLocation m_memoryLocation;
 
    public:
     ~Buffer() { destroy(); }
 
 
-    void createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags usage,
-                      const vk::MemoryPropertyFlags& flags, vk::SharingMode sharingMode = vk::SharingMode::eExclusive);
+    void createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags bufferUsage,
+                      const vk::MemoryPropertyFlags& memoryProperties, vk::SharingMode sharingMode = vk::SharingMode::eExclusive);
 
     /**
      * Perform a staged upload to the buffer. A StagingBuffer is created and used for this.

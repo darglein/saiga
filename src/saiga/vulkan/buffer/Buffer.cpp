@@ -14,20 +14,21 @@ namespace Vulkan
 {
 void Buffer::destroy()
 {
-    if (m_memoryLocation && usageFlags != vk::BufferUsageFlags())
+    if (m_memoryLocation && bufferUsage != vk::BufferUsageFlags())
     {
-        base->memory.getAllocator(usageFlags).deallocate(m_memoryLocation);
+        base->memory.getAllocator(this->bufferUsage, this->memoryProperties).deallocate(m_memoryLocation);
         m_memoryLocation.buffer = nullptr;
     }
 }
 
-void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags usage,
-                          const vk::MemoryPropertyFlags& flags, vk::SharingMode sharingMode)
+void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags bufferUsage,
+                          const vk::MemoryPropertyFlags& memoryProperties, vk::SharingMode sharingMode)
 {
     // TODO: Sharing mode is not used yet
     this->base = &base;
-    m_memoryLocation = base.memory.getAllocator(usage, flags).allocate(size);
-    usageFlags       = usage;
+    this->bufferUsage       = bufferUsage;
+    this->memoryProperties = memoryProperties;
+    m_memoryLocation = base.memory.getAllocator(this->bufferUsage, this->memoryProperties).allocate(size);
     if (size != m_memoryLocation.size)
     {
         LOG(WARNING) << "Unequal sizes " << size << " " << m_memoryLocation.size;

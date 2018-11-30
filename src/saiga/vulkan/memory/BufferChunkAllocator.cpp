@@ -37,9 +37,3 @@ ChunkIterator BufferChunkAllocator::createNewChunk() {
     return --m_chunkAllocations.end();
 }
 
-void BufferChunkAllocator::destroy() {
-    for(auto& alloc : m_chunkAllocations) {
-        m_device.destroy(alloc.buffer);
-    }
-}
-
