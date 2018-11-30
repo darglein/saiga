@@ -35,10 +35,26 @@ public:
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags  usageFlags;
 
-    SimpleMemoryAllocator() : BaseMemoryAllocator(false) {}
+    SimpleMemoryAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice, const vk::MemoryPropertyFlags &_flags,
+                          const vk::BufferUsageFlags &usage, bool _mapped = false) : BaseMemoryAllocator(_mapped) {
+        m_device = _device;
+        m_physicalDevice = _physicalDevice;
+        flags = _flags;
+        mapped = _mapped;
+        usageFlags = usage;
+        m_bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        m_bufferCreateInfo.usage = usage;
+        m_bufferCreateInfo.size = 0;
+    }
 
-    void init(vk::Device _device, vk::PhysicalDevice _physicalDevice, const vk::MemoryPropertyFlags &_flags,
-              const vk::BufferUsageFlags &usage, bool _mapped = false);
+    SimpleMemoryAllocator(SimpleMemoryAllocator&& other) noexcept : BaseMemoryAllocator(std::move(other)),
+        m_bufferCreateInfo(std::move(other.m_bufferCreateInfo)),
+        m_device(other.m_device),
+        m_physicalDevice(other.m_physicalDevice),
+        m_allocations(std::move(other.m_allocations)) {
+
+    }
+
 
     MemoryLocation allocate(vk::DeviceSize size) override;
 

@@ -16,6 +16,15 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device) {
     bufferAllocators.emplace(
             vertIndexType, BufferChunkAllocator(m_device, &chunkAllocator, vertIndexType.memoryFlags,
                                                 vertIndexType.usageFlags, strategy, fallback_buffer_chunk_size, false));
+
+    auto vertIndexHostType = BufferType{vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer |
+                                        vk::BufferUsageFlagBits::eTransferDst,
+                                        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
+
+    bufferAllocators.emplace(
+            vertIndexHostType,//SimpleMemoryAllocator(m_device,m_pDevice, vertIndexHostType.memoryFlags, vertIndexHostType.usageFlags,true));
+            BufferChunkAllocator(m_device, &chunkAllocator, vertIndexHostType.memoryFlags,
+                                                vertIndexHostType.usageFlags, strategy, fallback_buffer_chunk_size, true));
 }
 
 VulkanMemory::BufferIter
