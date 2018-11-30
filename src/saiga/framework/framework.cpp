@@ -200,7 +200,7 @@ void initSaiga(const SaigaParameters& params)
 
     for (auto t : params.modelDirectory) modelPathes.addSearchPath(t);
 
-#ifdef SAIGA_USE_FREETYPE
+#if defined(SAIGA_USE_FREETYPE) && defined(SAIGA_USE_OPENGL)
     for (auto t : params.fontDirectory) fontPathes.addSearchPath(t);
 #endif
 

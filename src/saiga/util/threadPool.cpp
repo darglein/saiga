@@ -28,7 +28,7 @@
 
 namespace Saiga
 {
-ThreadPool::ThreadPool(size_t threads, const std::string& name) : stop(false), name(name)
+ThreadPool::ThreadPool(size_t threads, const std::string& name) : name(name), stop(false)
 {
     workingThreads = threads;
     for (size_t i = 0; i < threads; ++i)

@@ -6,21 +6,19 @@
 #ifdef SAIGA_USE_OPENMESH
 
 
-#include <OpenMesh/Core/IO/MeshIO.hh>
-#include "OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh"
-#include <OpenMesh/Core/Mesh/Traits.hh>
+#    include <OpenMesh/Core/IO/MeshIO.hh>
+#    include <OpenMesh/Core/Mesh/Traits.hh>
+#    include "OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh"
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 struct SaigaOpenMeshTraits : public OpenMesh::DefaultTraits
 {
-    //use float color instead of byte color
+    // use float color instead of byte color
     //  typedef OpenMesh::Vec3f Color;
     typedef OpenMesh::Vec3f Color;
 
-    VertexAttributes (
-            OpenMesh::Attributes::Color);
+    VertexAttributes(OpenMesh::Attributes::Color);
 };
 
 
@@ -30,26 +28,25 @@ using OpenTriangleMesh = OpenMesh::TriMesh_ArrayKernelT<SaigaOpenMeshTraits>;
  * Converts a Saiga::TriangleMesh to an OpenMesh triangle mesh.
  * Additional addributes on the vertices are lost.
  */
-template<typename vertex_t, typename index_t, typename MeshT>
-void triangleMeshToOpenMesh(const TriangleMesh<vertex_t,index_t>& src, MeshT& dst)
+template <typename vertex_t, typename index_t, typename MeshT>
+void triangleMeshToOpenMesh(const TriangleMesh<vertex_t, index_t>& src, MeshT& dst)
 {
-
-//    dst.request_vertex_colors();
+    //    dst.request_vertex_colors();
 
     std::vector<typename MeshT::VertexHandle> handles(src.vertices.size());
-    for(int i = 0; i < (int)src.vertices.size();++i)
+    for (int i = 0; i < (int)src.vertices.size(); ++i)
     {
-        auto p = src.vertices[i].position;
-        auto vit = dst.add_vertex(typename MeshT::Point(p.x,p.y,p.z));
+        auto p   = src.vertices[i].position;
+        auto vit = dst.add_vertex(typename MeshT::Point(p.x, p.y, p.z));
 
-//        vec3 c = src.vertices[i].color;
-//        dst.set_color(vit, typename MeshT::Color(c.x,c.y,c.z));
+        //        vec3 c = src.vertices[i].color;
+        //        dst.set_color(vit, typename MeshT::Color(c.x,c.y,c.z));
 
         handles[i] = vit;
     }
 
     std::vector<typename MeshT::VertexHandle> face_vhandles(3);
-    for(int i = 0; i < (int)src.faces.size();++i)
+    for (int i = 0; i < (int)src.faces.size(); ++i)
     {
         auto f = src.faces[i];
         //        face_vhandles[0] = typename MeshT::VertexHandle(f.v1);
@@ -63,19 +60,19 @@ void triangleMeshToOpenMesh(const TriangleMesh<vertex_t,index_t>& src, MeshT& ds
     }
 }
 
-template<typename vertex_t, typename index_t, typename MeshT>
-void copyVertexColor(const TriangleMesh<vertex_t,index_t>& src, MeshT& dst)
+template <typename vertex_t, typename index_t, typename MeshT>
+void copyVertexColor(const TriangleMesh<vertex_t, index_t>& src, MeshT& dst)
 {
-        dst.request_vertex_colors();
-//    int i = 0;
-    for(int i = 0; i < (int)src.vertices.size();++i)
+    dst.request_vertex_colors();
+    //    int i = 0;
+    for (int i = 0; i < (int)src.vertices.size(); ++i)
     {
         auto c = src.vertices[i].color;
-        dst.set_color(typename MeshT::VertexHandle(i), typename MeshT::Color(c.x,c.y,c.z));
+        dst.set_color(typename MeshT::VertexHandle(i), typename MeshT::Color(c.x, c.y, c.z));
 
-//        vertex_t& ve = dst.vertices[i];
-//        typename MeshT::Color c = src.color( *v_it );
-//        ve.color = vec4(c[0],c[1],c[2],1);
+        //        vertex_t& ve = dst.vertices[i];
+        //        typename MeshT::Color c = src.color( *v_it );
+        //        ve.color = vec4(c[0],c[1],c[2],1);
     }
 }
 
@@ -83,16 +80,16 @@ void copyVertexColor(const TriangleMesh<vertex_t,index_t>& src, MeshT& dst)
  * Converts an OpenMesh triangle mesh to a Saiga::TriangleMesh
  * Additional addributes on the vertices are lost.
  */
-template<typename vertex_t, typename index_t, typename MeshT>
-void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t,index_t>& dst)
+template <typename vertex_t, typename index_t, typename MeshT>
+void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t, index_t>& dst)
 {
     dst.vertices.clear();
     dst.faces.clear();
     for (auto v_it = src.vertices_begin(); v_it != src.vertices_end(); ++v_it)
     {
-        typename MeshT::Point v = src.point( *v_it );
+        typename MeshT::Point v = src.point(*v_it);
         vertex_t ve;
-        ve.position = vec4(v[0],v[1],v[2],1);
+        ve.position = vec4(v[0], v[1], v[2], 1);
 
         //        if(src.has_vertex_colors())
         //        {
@@ -101,8 +98,8 @@ void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t,index_t>& ds
         //        }
         dst.vertices.push_back(ve);
     }
-    std::vector<GLuint> a;
-    for(auto f_it = src.faces_begin(); f_it != src.faces_end(); ++f_it)
+    std::vector<index_t> a;
+    for (auto f_it = src.faces_begin(); f_it != src.faces_end(); ++f_it)
     {
         a.clear();
         for (auto fv_it = src.cfv_iter(*f_it); fv_it.is_valid(); ++fv_it)
@@ -115,56 +112,53 @@ void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t,index_t>& ds
     }
 }
 
-template<typename vertex_t, typename index_t, typename MeshT>
-void copyVertexColor(const MeshT& src, TriangleMesh<vertex_t,index_t>& dst)
+template <typename vertex_t, typename index_t, typename MeshT>
+void copyVertexColor(const MeshT& src, TriangleMesh<vertex_t, index_t>& dst)
 {
     SAIGA_ASSERT(src.has_vertex_colors());
     int i = 0;
     for (auto v_it = src.vertices_begin(); v_it != src.vertices_end(); ++v_it, ++i)
     {
-        vertex_t& ve = dst.vertices[i];
-        typename MeshT::Color c = src.color( *v_it );
-        ve.color = vec4(c[0],c[1],c[2],1);
+        vertex_t& ve            = dst.vertices[i];
+        typename MeshT::Color c = src.color(*v_it);
+        ve.color                = vec4(c[0], c[1], c[2], 1);
     }
 }
 
-template<typename MeshT>
+template <typename MeshT>
 void saveOpenMesh(const MeshT& src, const std::string& file)
 {
     try
     {
-        if ( !OpenMesh::IO::write_mesh(src, file) )
+        if (!OpenMesh::IO::write_mesh(src, file))
         {
             std::cerr << "Cannot write mesh to file " << file << std::endl;
-
         }
     }
-    catch( std::exception& x )
+    catch (std::exception& x)
     {
         std::cerr << x.what() << std::endl;
     }
 }
 
 
-template<typename MeshT>
+template <typename MeshT>
 void loadOpenMesh(MeshT& src, const std::string& file)
 {
     try
     {
-        if ( !OpenMesh::IO::read_mesh(src, file) )
+        if (!OpenMesh::IO::read_mesh(src, file))
         {
             std::cerr << "Cannot read mesh to file " << file << std::endl;
-
         }
     }
-    catch( std::exception& x )
+    catch (std::exception& x)
     {
         std::cerr << x.what() << std::endl;
     }
 }
 
-}
-
+}  // namespace Saiga
 
 
 

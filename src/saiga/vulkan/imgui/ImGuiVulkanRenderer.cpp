@@ -132,7 +132,7 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
     //    vertexData = (ImDrawVert *) vertexBuffer.m_memoryLocation.mappedPointer;
     //    indexData = (ImDrawIdx *) indexBuffer.m_memoryLocation.mappedPointer;
 
-    for (auto i = 0; i < frameCount; ++i)
+    for (auto i = 0UL; i < frameCount; ++i)
     {
         frameData.emplace_back(*base, maxVertexCount, maxIndexCount);
     }
@@ -197,7 +197,7 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
     uint32_t indexOffset   = 0;
     if (imDrawData->CmdListsCount > 0)
     {
-        auto& currentFrameData    = frameData[frameIndex];
+        auto& currentFrameData = frameData[frameIndex];
         currentFrameData.vertexBuffer.bind(commandBuffer);
         currentFrameData.indexBuffer.bind(commandBuffer);
         for (int32_t i = 0; i < imDrawData->CmdListsCount; i++)
@@ -221,7 +221,10 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
 }
 
 
-void ImGuiVulkanRenderer::endFrame() { ImGui::Render(); }
+void ImGuiVulkanRenderer::endFrame()
+{
+    ImGui::Render();
+}
 
 
 }  // namespace Vulkan
