@@ -3,7 +3,7 @@
 //
 
 #include "VulkanMemory.h"
-
+#include <memory>
 void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device) {
     m_pDevice = _pDevice;
     m_device  = _device;
@@ -14,7 +14,7 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device) {
                                     vk::BufferUsageFlagBits::eTransferDst,
                                     vk::MemoryPropertyFlagBits::eDeviceLocal};
     bufferAllocators.emplace(
-            vertIndexType, BufferChunkAllocator(m_device, &chunkAllocator, vertIndexType.memoryFlags,
+            vertIndexType, std::make_shared<BufferChunkAllocator>(m_device, &chunkAllocator, vertIndexType.memoryFlags,
                                                 vertIndexType.usageFlags, strategy, fallback_buffer_chunk_size, false));
 
     auto vertIndexHostType = BufferType{vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer |
@@ -22,9 +22,10 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device) {
                                         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
     bufferAllocators.emplace(
-            vertIndexHostType,//SimpleMemoryAllocator(m_device,m_pDevice, vertIndexHostType.memoryFlags, vertIndexHostType.usageFlags,true));
-            BufferChunkAllocator(m_device, &chunkAllocator, vertIndexHostType.memoryFlags,
-                                                vertIndexHostType.usageFlags, strategy, fallback_buffer_chunk_size, true));
+            vertIndexHostType,
+            std::make_shared<SimpleMemoryAllocator>(m_device,m_pDevice, vertIndexHostType.memoryFlags, vertIndexHostType.usageFlags,true));
+//            std::make_shared<BufferChunkAllocator>(m_device, &chunkAllocator, vertIndexHostType.memoryFlags,
+//                                                vertIndexHostType.usageFlags, strategy, fallback_buffer_chunk_size, true));
 }
 
 VulkanMemory::BufferIter
@@ -33,7 +34,7 @@ VulkanMemory::createNewBufferAllocator(VulkanMemory::BufferMap &map, const Vulka
     auto found = find_default_size<BufferDefaultMap, BufferType>(default_buffer_chunk_sizes, type);
 
     bool mapped =(type.memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
-    auto emplaced = map.emplace(type, BufferChunkAllocator(m_device, &chunkAllocator, type.memoryFlags,
+    auto emplaced = map.emplace(type, std::make_shared<BufferChunkAllocator>(m_device, &chunkAllocator, type.memoryFlags,
                                                            type.usageFlags, strategy, found->second, mapped));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
@@ -57,7 +58,7 @@ BaseMemoryAllocator &VulkanMemory::getAllocator(const vk::BufferUsageFlags &usag
     {
         foundAllocator = createNewBufferAllocator(bufferAllocators, default_buffer_chunk_sizes, {usage, flags});
     }
-    return foundAllocator->second;
+    return *(foundAllocator->second);
 }
 
 BaseMemoryAllocator &
@@ -77,7 +78,7 @@ void VulkanMemory::destroy() {
 
     for (auto& allocator : bufferAllocators)
     {
-        allocator.second.destroy();
+        allocator.second->destroy();
     }
 
     for (auto& allocator : imageAllocators)

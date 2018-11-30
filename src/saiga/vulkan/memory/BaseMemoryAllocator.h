@@ -23,6 +23,8 @@ struct SAIGA_GLOBAL BaseMemoryAllocator {
     virtual MemoryLocation allocate(vk::DeviceSize size) = 0;
     virtual void deallocate(MemoryLocation& location) = 0;
     bool mapped = false;
+
+    virtual void destroy() {}
 };
 
 }

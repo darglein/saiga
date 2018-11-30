@@ -58,7 +58,7 @@ public:
 
     MemoryLocation allocate(vk::DeviceSize size) override;
 
-    void destroy();
+    void destroy() override;
 
     void deallocate(MemoryLocation &location) override;
 };

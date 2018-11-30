@@ -27,7 +27,7 @@ class SAIGA_GLOBAL VulkanMemory
    private:
     using BufferType       = MemoryType<vk::BufferUsageFlags>;
     using ImageType        = MemoryType<vk::ImageUsageFlags>;
-    using BufferMap        = std::unordered_map<BufferType, BufferChunkAllocator>;
+    using BufferMap        = std::unordered_map<BufferType, std::shared_ptr<BaseMemoryAllocator>>;
     using ImageMap         = std::unordered_map<ImageType, ImageChunkAllocator>;
     using BufferDefaultMap = std::unordered_map<BufferType, vk::DeviceSize>;
     using ImageDefaultMap  = std::unordered_map<ImageType, vk::DeviceSize>;

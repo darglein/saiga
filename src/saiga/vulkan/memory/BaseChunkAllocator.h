@@ -58,7 +58,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     void deallocate(MemoryLocation& location) override;
 
-    void destroy();
+    void destroy() override;
 protected:
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
