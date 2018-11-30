@@ -17,15 +17,22 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device) {
             vertIndexType, std::make_shared<BufferChunkAllocator>(m_device, &chunkAllocator, vertIndexType.memoryFlags,
                                                 vertIndexType.usageFlags, strategy, fallback_buffer_chunk_size, false));
 
-    auto vertIndexHostType = BufferType{vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer |
-                                        vk::BufferUsageFlagBits::eTransferDst,
+    auto vertIndexHostType = BufferType{vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer,
                                         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
+
+    auto stagingType = BufferType{vk::BufferUsageFlagBits::eTransferSrc,
+                                  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
     bufferAllocators.emplace(
             vertIndexHostType,
             std::make_shared<SimpleMemoryAllocator>(m_device,m_pDevice, vertIndexHostType.memoryFlags, vertIndexHostType.usageFlags,true));
 //            std::make_shared<BufferChunkAllocator>(m_device, &chunkAllocator, vertIndexHostType.memoryFlags,
 //                                                vertIndexHostType.usageFlags, strategy, fallback_buffer_chunk_size, true));
+
+    bufferAllocators.emplace(
+                stagingType,
+                std::make_shared<SimpleMemoryAllocator>(m_device,m_pDevice, stagingType.memoryFlags, stagingType.usageFlags,true)
+            );
 }
 
 VulkanMemory::BufferIter
