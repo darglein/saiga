@@ -17,16 +17,16 @@
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 
-
+//#define LECTURE
 
 template<int K>
 class GLM_ALIGN(16) Element
 {
-    public:
+   public:
     vec4 data;
 
     HD inline
-            void operator ()()
+        void operator ()()
     {
         for(int k = 0; k < K * 512; ++k)
         {
@@ -38,7 +38,7 @@ class GLM_ALIGN(16) Element
 
 template<typename T>
 __global__ static
-void process(ArrayView<T> data)
+    void process(ArrayView<T> data)
 {
     ThreadInfo<> ti;
     if(ti.thread_id >= data.size()) return;
@@ -48,9 +48,37 @@ void process(ArrayView<T> data)
     data[ti.thread_id] = e;
 }
 
+#ifdef LECTURE
 
 template<int K>
-static void uploadProcessDownloadAsync(int N, int slices)
+static void uploadProcessDownloadAsync(int N)
+{
+    using T = Element<K>;
+
+    thrust::host_vector<T> h_data(N);
+    thrust::device_vector<T> d_data(N);
+
+    {
+        Saiga::CUDA::CudaScopedTimerPrint timer("process");
+        // Compute launch arguments
+        const unsigned int BLOCK_SIZE = 128;
+        const unsigned int BLOCKS = Saiga::CUDA::getBlockCount(N,BLOCK_SIZE);
+
+        cudaMemcpy(d_data.data().get(),h_data.data(),N*sizeof(T),cudaMemcpyHostToDevice);
+        process<T><<<BLOCKS,BLOCK_SIZE,0>>>(d_data);
+        cudaMemcpy(h_data.data(),d_data.data().get(),N*sizeof(T),cudaMemcpyDeviceToHost);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    uploadProcessDownloadAsync  <8>(1024 * 1024);
+    cout << "Done." << endl;
+}
+#else
+
+template<int K>
+static void uploadProcessDownloadAsync(int N, int slices, int streamCount)
 {
     using T = Element<K>;
 
@@ -66,7 +94,7 @@ static void uploadProcessDownloadAsync(int N, int slices)
     size_t slizeSize = sliceN * sizeof(T);
 
     // Create a separate stream for each slice for maximum parallelism
-    std::vector<Saiga::CUDA::CudaStream> streams(slices);
+    std::vector<Saiga::CUDA::CudaStream> streams(streamCount);
 
     {
         // ArrayViews simplify slice creation
@@ -80,7 +108,7 @@ static void uploadProcessDownloadAsync(int N, int slices)
         for(int i = 0; i < slices; ++i)
         {
             // Pick current stream and slice
-            auto& stream = streams[i];
+            auto& stream = streams[i % streamCount];
             auto d_slice = vd.slice_n(i * sliceN,sliceN);
             auto h_slice = vh.slice_n(i * sliceN,sliceN);
 
@@ -89,9 +117,7 @@ static void uploadProcessDownloadAsync(int N, int slices)
             const unsigned int BLOCKS = Saiga::CUDA::getBlockCount(sliceN,BLOCK_SIZE);
 
             cudaMemcpyAsync(d_slice.data(),h_slice.data(),slizeSize,cudaMemcpyHostToDevice,stream);
-
             process<T><<<BLOCKS,BLOCK_SIZE,0,stream>>>(d_slice);
-
             cudaMemcpyAsync(h_slice.data(),d_slice.data(),slizeSize,cudaMemcpyDeviceToHost,stream);
         }
     }
@@ -99,12 +125,15 @@ static void uploadProcessDownloadAsync(int N, int slices)
 
 int main(int argc, char *argv[])
 {
-    uploadProcessDownloadAsync  <8>(1024 * 1024,1);
-    uploadProcessDownloadAsync  <8>(1024 * 1024,2);
-    uploadProcessDownloadAsync  <8>(1024 * 1024,4);
-    uploadProcessDownloadAsync  <8>(1024 * 1024,8);
-    uploadProcessDownloadAsync  <8>(1024 * 1024,16);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,1,1);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,2,2);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,4,4);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,8,8);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,16,16);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,64,8);
+    uploadProcessDownloadAsync  <8>(1024 * 1024,64,64);
 
     cout << "Done." << endl;
 }
 
+#endif
