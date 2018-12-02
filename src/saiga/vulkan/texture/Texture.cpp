@@ -6,16 +6,10 @@ namespace Saiga
 {
 namespace Vulkan
 {
-// Texture::~Texture()
-//{
-////    cout << "destroy texture" << endl;
-//    destroy();
-//}
-
 void Texture::destroy()
 {
-    if (!base) {
-        LOG(WARNING) << "Image was not initialized, do nothing";
+    if (!base)
+    {
         return;
     }
     if (image)
@@ -103,13 +97,11 @@ void Texture2D::fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usag
     fromImage(base, img, base.transferQueue, base.commandPool, usage, flipY);
 }
 
-void Texture2D::uploadImage(Image &img, bool flipY)
+void Texture2D::uploadImage(Image& img, bool flipY)
 {
     vk::CommandBuffer cmd = base->createAndBeginTransferCommand();
 
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
-
-
 
 
 
@@ -193,7 +185,6 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
-
 
 
 
