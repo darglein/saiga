@@ -12,10 +12,10 @@
 
 
 MemoryLocation BufferChunkAllocator::allocate(vk::DeviceSize size) {
-    SAIGA_ASSERT(size < m_chunkSize, "Can't allocate sizes bigger than chunk size");
 
     auto alignedSize = iAlignUp(size, m_alignment);
     LOG(INFO) << "Requested " << size <<" (~"<< alignedSize<< ") bytes" ;
+    SAIGA_ASSERT(alignedSize <= m_chunkSize, "Can't allocate sizes bigger than chunk size");
     return BaseChunkAllocator::allocate(alignedSize);
 }
 
