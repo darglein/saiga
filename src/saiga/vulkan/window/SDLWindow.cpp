@@ -85,8 +85,9 @@ void SDLWindow::create()
         SAIGA_ASSERT(0);
     }
 
-
-    sdl_window = SDL_CreateWindow(windowParameters.name.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+    sdl_window = SDL_CreateWindow(windowParameters.name.c_str(),
+                                  SDL_WINDOWPOS_CENTERED_DISPLAY(windowParameters.selected_display),
+                                  SDL_WINDOWPOS_CENTERED_DISPLAY(windowParameters.selected_display),
                                   windowParameters.width, windowParameters.height, SDL_WINDOW_VULKAN);
     if (!sdl_window)
     {
