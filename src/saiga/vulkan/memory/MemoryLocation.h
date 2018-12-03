@@ -160,8 +160,14 @@ struct SAIGA_GLOBAL MemoryLocation
 
     friend std::ostream& operator<<(std::ostream& os, const MemoryLocation& location)
     {
-        os << "{" << location.memory << ", " << location.buffer << ", " << location.offset << "-" << location.size
-           << "}";
+        os << "{" << location.memory << ", " << location.buffer << ", " << location.offset << "-" << location.size;
+
+        if (location.mappedPointer)
+        {
+            os << ", " << location.mappedPointer;
+        }
+
+        os << "}";
         return os;
     }
 
