@@ -106,9 +106,9 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
         PipelineInfo info;
         // Disable depth test and enable blending
         info.rasterizationState.cullMode        = vk::CullModeFlagBits::eNone;
-        info.depthStencilState.depthTestEnable  = false;
-        info.depthStencilState.depthWriteEnable = false;
-        info.blendAttachmentState.blendEnable   = true;
+        info.depthStencilState.depthTestEnable  = VK_FALSE;
+        info.depthStencilState.depthWriteEnable = VK_FALSE;
+        info.blendAttachmentState.blendEnable   = VK_TRUE;
         info.addVertexInfo<ImDrawVert>();
         create(renderPass, info);
     }
@@ -118,24 +118,12 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
      *  A slightly better performance can be obtained by creating a second device only buffer and copying the
      * data asynchron in a transfer queue. Then the data might be already present when render is called.
      */
-    //    vertexBuffer.init(*base,maxVertexCount, vk::MemoryPropertyFlagBits::eHostVisible |
-    //    vk::MemoryPropertyFlagBits::eHostCoherent); indexBuffer.init (*base,maxIndexCount,
-    //    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-    //
-    //    if (!vertexBuffer.m_memoryLocation.mappedPointer) {
-    //        vertexBuffer.m_memoryLocation.map(base->device);
-    //    }
-    //    if (!indexBuffer.m_memoryLocation.mappedPointer) {
-    //        indexBuffer.m_memoryLocation.map(base->device);
-    //    }
-    //
-    //    vertexData = (ImDrawVert *) vertexBuffer.m_memoryLocation.mappedPointer;
-    //    indexData = (ImDrawIdx *) indexBuffer.m_memoryLocation.mappedPointer;
 
     for (auto i = 0UL; i < frameCount; ++i)
     {
         frameData.emplace_back(*base, maxVertexCount, maxIndexCount);
     }
+
     cout << "Vulkan imgui created." << endl;
 }
 
@@ -168,9 +156,6 @@ void ImGuiVulkanRenderer::updateBuffers(vk::CommandBuffer cmd, size_t index)
 
 void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIndex)
 {
-    //    if(!vertexBuffer.buffer)
-    //        return;
-
     if (vertexCount == 0 || indexCount == 0) return;
 
     ImGuiIO& io = ImGui::GetIO();
@@ -195,6 +180,7 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
     ImDrawData* imDrawData = ImGui::GetDrawData();
     int32_t vertexOffset   = 0;
     uint32_t indexOffset   = 0;
+
     if (imDrawData->CmdListsCount > 0)
     {
         auto& currentFrameData = frameData[frameIndex];
