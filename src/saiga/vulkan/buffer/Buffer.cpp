@@ -88,5 +88,12 @@ void Buffer::update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSi
     cmd.updateBuffer(m_memoryLocation.buffer, m_memoryLocation.offset + offset, size, data);
 }
 
+std::ostream& operator<<(std::ostream& os, const Buffer& buffer)
+{
+    os << " bufferUsage: " << vk::to_string(buffer.bufferUsage)
+       << " memoryProperties: " << vk::to_string(buffer.memoryProperties) << " location: " << buffer.m_memoryLocation;
+    return os;
+}
+
 }  // namespace Vulkan
 }  // namespace Saiga

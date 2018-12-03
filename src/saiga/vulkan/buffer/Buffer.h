@@ -8,6 +8,7 @@
 #pragma once
 
 //#include "saiga/vulkan/buffer/DeviceMemory.h"
+#include <ostream>
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/svulkan.h"
 
@@ -92,6 +93,8 @@ class SAIGA_GLOBAL Buffer
     void download(void * data) {
         m_memoryLocation.download(base->device, data);
     }
+
+    friend std::ostream &operator<<(std::ostream &os, const Buffer &buffer);
 };
 
 }  // namespace Vulkan
