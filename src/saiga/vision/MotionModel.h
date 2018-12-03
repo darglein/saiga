@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <mutex>
 #include "saiga/imgui/imgui_saiga.h"
 #include "saiga/vision/VisionTypes.h"
 
@@ -58,7 +59,9 @@ class SAIGA_GLOBAL MotionModel
     /**
      * Adds a relative transformation between two frames.
      */
-    void addRelativeMotion(const SE3& T);
+    void addRelativeMotion(const SE3& T, size_t frameId);
+    void updateRelativeMotion(const SE3& T, size_t frameId);
+
 
     /**
      * Computes the current velocity in units/frame. You can add it to the last frame position
@@ -79,8 +82,10 @@ class SAIGA_GLOBAL MotionModel
 
    private:
     AlignedVector<SE3> data;
+    std::vector<size_t> indices;
     ImGui::Graph grapht = {"Velocity"};
     ImGui::Graph grapha = {"Angular Velocity"};
+    std::mutex mut;
 };
 
 }  // namespace Saiga

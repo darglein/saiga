@@ -53,7 +53,7 @@ void TimeGraph::addTime(float t)
 
 void TimeGraph::renderImGuiDerived()
 {
-    ImGui::Text("%s Time: %fms Hz: %f", name.c_str(), lastValue, 1000.0f / average);
+    ImGui::Text("%s Time: %fms Hz: %f", name.c_str(), lastValue, 1000.0f / hzExp);
 }
 
 
