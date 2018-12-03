@@ -4,6 +4,7 @@
 
 #pragma once
 #include <saiga/util/assert.h>
+#include <ostream>
 #include <vulkan/vulkan.hpp>
 #include "saiga/export.h"
 #include "saiga/util/easylogging++.h"
@@ -156,11 +157,12 @@ struct SAIGA_GLOBAL MemoryLocation
 
     bool operator!=(const MemoryLocation& rhs) const { return !(rhs == *this); }
 
-    std::string to_string()
+
+    friend std::ostream& operator<<(std::ostream& os, const MemoryLocation& location)
     {
-        std::stringstream ss;
-        ss << "{" << memory << ", " << buffer << ", " << offset << "-" << size << "}";
-        return ss.str();
+        os << "{" << location.memory << ", " << location.buffer << ", " << location.offset << "-" << location.size
+           << "}";
+        return os;
     }
 
    private:
