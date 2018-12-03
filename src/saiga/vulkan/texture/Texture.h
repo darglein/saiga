@@ -1,14 +1,4 @@
-﻿/*
- * Vulkan device class
- *
- * Encapsulates a physical Vulkan device and it's logical representation
- *
- * Copyright (C) 2016-2017 by Sascha Willems - www.saschawillems.de
- *
- * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
- */
-
-#pragma once
+﻿#pragma once
 
 #include <assert.h>
 #include <saiga/vulkan/buffer/StagingBuffer.h>
@@ -31,10 +21,46 @@ struct SAIGA_GLOBAL Texture
     MemoryLocation memoryLocation;
 
    public:
+    Texture() = default;
 
-    virtual ~Texture() {
-        destroy();
+    Texture(const Texture& other) = delete;
+    Texture& operator=(const Texture& other) = delete;
+    Texture(Texture&& other)
+        : base(other.base),
+          memoryLocation(std::move(other.memoryLocation)),
+          image(other.image),
+          imageLayout(other.imageLayout),
+          imageView(other.imageView),
+          width(other.width),
+          height(other.height),
+          mipLevels(other.mipLevels),
+          layerCount(other.layerCount),
+          sampler(other.sampler)
+    {
+        image     = nullptr;
+        imageView = nullptr;
+        sampler   = nullptr;
     }
+
+    Texture& operator=(Texture&& other)
+    {
+        base           = other.base;
+        memoryLocation = std::move(other.memoryLocation);
+        image          = other.image;
+        imageLayout    = other.imageLayout;
+        imageView      = other.imageView;
+        width          = other.width;
+        height         = other.height;
+        mipLevels      = other.mipLevels;
+        layerCount     = other.layerCount;
+        sampler        = other.sampler;
+        image          = nullptr;
+        imageView      = nullptr;
+        sampler        = nullptr;
+        return *this;
+    }
+
+    virtual ~Texture() { destroy(); }
     vk::Image image;
     vk::ImageLayout imageLayout;
     vk::ImageView imageView;
@@ -52,7 +78,10 @@ struct SAIGA_GLOBAL Texture
 
 struct SAIGA_GLOBAL Texture2D : public Texture
 {
-    ~Texture2D() override = default;
+    Texture2D()                  = default;
+    Texture2D(Texture2D&& other) = default;
+    Texture2D& operator=(Texture2D&& other) = default;
+    ~Texture2D() override                   = default;
     AsyncCommand fromStagingBuffer(VulkanBase& _base, uint32_t width, uint32_t height, vk::Format format,
                                    Saiga::Vulkan::StagingBuffer& stagingBuffer, Queue& queue, CommandPool& pool,
                                    vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled);
@@ -61,7 +90,7 @@ struct SAIGA_GLOBAL Texture2D : public Texture
     void fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPool& pool,
                    vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eSampled, bool flipY = true);
 
-    void uploadImage(Image &img, bool flipY);
+    void uploadImage(Image& img, bool flipY);
 };
 
 }  // namespace Vulkan

@@ -19,17 +19,39 @@ namespace Vulkan
 class SAIGA_GLOBAL Buffer
 {
    protected:
-    VulkanBase* base;
-    vk::BufferUsageFlags bufferUsage = vk::BufferUsageFlagBits();
+    VulkanBase* base                         = nullptr;
+    vk::BufferUsageFlags bufferUsage         = vk::BufferUsageFlagBits();
     vk::MemoryPropertyFlags memoryProperties = vk::MemoryPropertyFlags();
     MemoryLocation m_memoryLocation;
 
    public:
+    Buffer()                    = default;
+    Buffer(const Buffer& other) = delete;
+    Buffer& operator=(const Buffer& other) = delete;
+    Buffer(Buffer&& other)
+        : base(other.base),
+          bufferUsage(other.bufferUsage),
+          memoryProperties(other.memoryProperties),
+          m_memoryLocation(std::move(other.m_memoryLocation))
+    {
+    }
+
+    Buffer& operator=(Buffer&& other)
+    {
+        base             = other.base;
+        bufferUsage      = other.bufferUsage;
+        memoryProperties = other.memoryProperties;
+        m_memoryLocation = std::move(other.m_memoryLocation);
+        return *this;
+    }
+
+
     ~Buffer() { destroy(); }
 
 
     void createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags bufferUsage,
-                      const vk::MemoryPropertyFlags& memoryProperties, vk::SharingMode sharingMode = vk::SharingMode::eExclusive);
+                      const vk::MemoryPropertyFlags& memoryProperties,
+                      vk::SharingMode sharingMode = vk::SharingMode::eExclusive);
 
     /**
      * Perform a staged upload to the buffer. A StagingBuffer is created and used for this.
@@ -46,7 +68,7 @@ class SAIGA_GLOBAL Buffer
 
     void destroy();
 
-    inline vk::DeviceSize offset() const {return m_memoryLocation.offset;}
+    inline vk::DeviceSize offset() const { return m_memoryLocation.offset; }
     inline vk::DeviceSize size() const { return m_memoryLocation.size; }
 
     /**
@@ -86,15 +108,11 @@ class SAIGA_GLOBAL Buffer
         return static_cast<char*>(m_memoryLocation.mappedPointer) + m_memoryLocation.offset;
     }
 
-    void upload(void* data) {
-        m_memoryLocation.upload(base->device, data);
-    }
+    void upload(void* data) { m_memoryLocation.upload(base->device, data); }
 
-    void download(void * data) {
-        m_memoryLocation.download(base->device, data);
-    }
+    void download(void* data) { m_memoryLocation.download(base->device, data); }
 
-    friend std::ostream &operator<<(std::ostream &os, const Buffer &buffer);
+    friend std::ostream& operator<<(std::ostream& os, const Buffer& buffer);
 };
 
 }  // namespace Vulkan
