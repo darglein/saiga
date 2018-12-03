@@ -36,6 +36,34 @@ struct SAIGA_GLOBAL MemoryLocation
         }
     }
 
+    MemoryLocation(const MemoryLocation& other) = default;
+
+    MemoryLocation& operator=(const MemoryLocation& other) = default;
+
+    MemoryLocation(MemoryLocation&& other) noexcept
+        : buffer(other.buffer),
+          memory(other.memory),
+          offset(other.offset),
+          size(other.size),
+          mappedPointer(other.mappedPointer)
+    {
+        other.make_invalid();
+    }
+
+    MemoryLocation& operator=(MemoryLocation&& other)
+    {
+        buffer        = other.buffer;
+        memory        = other.memory;
+        offset        = other.offset;
+        size          = other.size;
+        mappedPointer = other.mappedPointer;
+
+        other.make_invalid();
+        return *this;
+    }
+
+
+
     explicit operator bool() { return buffer != static_cast<vk::Buffer>(nullptr); }
 
    private:
@@ -118,6 +146,8 @@ struct SAIGA_GLOBAL MemoryLocation
         return static_cast<char*>(mappedPointer) + offset;
     }
 
+
+
     bool operator==(const MemoryLocation& rhs) const
     {
         return std::tie(buffer, memory, offset, size, mappedPointer) ==
@@ -125,6 +155,23 @@ struct SAIGA_GLOBAL MemoryLocation
     }
 
     bool operator!=(const MemoryLocation& rhs) const { return !(rhs == *this); }
+
+    std::string to_string()
+    {
+        std::stringstream ss;
+        ss << "{" << memory << ", " << buffer << ", " << offset << "-" << size << "}";
+        return ss.str();
+    }
+
+   private:
+    inline void make_invalid()
+    {
+        this->buffer        = nullptr;
+        this->memory        = nullptr;
+        this->offset        = VK_WHOLE_SIZE;
+        this->size          = VK_WHOLE_SIZE;
+        this->mappedPointer = nullptr;
+    }
 };
 
 }  // namespace Memory
