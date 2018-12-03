@@ -36,20 +36,9 @@ private:
         ImDrawVert* vertexData;
         ImDrawIdx* indexData;
 
-        FrameData(VulkanBase& base, const uint32_t maxVertexCount, const uint32_t maxIndexCount) {
-            vertexBuffer.init(base,maxVertexCount, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-            indexBuffer.init(base,maxIndexCount,  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        FrameData(VulkanBase& base, const uint32_t maxVertexCount, const uint32_t maxIndexCount);
 
-            SAIGA_ASSERT(vertexBuffer.isMapped() && indexBuffer.isMapped(), "ImGui buffers must be mapped");
-
-            vertexData = (ImDrawVert *) vertexBuffer.getMappedPointer();
-            indexData = (ImDrawIdx *) indexBuffer.getMappedPointer();
-        }
-
-        void destroy(VulkanBase& base) {
-            vertexBuffer.destroy();
-            indexBuffer.destroy();
-        }
+        void destroy(VulkanBase& base);
     };
 
     size_t frameCount;

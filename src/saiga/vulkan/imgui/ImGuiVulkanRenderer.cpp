@@ -227,5 +227,23 @@ void ImGuiVulkanRenderer::endFrame()
 }
 
 
+ImGuiVulkanRenderer::FrameData::FrameData(VulkanBase& base, const uint32_t maxVertexCount, const uint32_t maxIndexCount)
+{
+    indexBuffer.init(base, maxIndexCount,
+                     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    vertexBuffer.init(base, maxVertexCount,
+                      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    SAIGA_ASSERT(vertexBuffer.isMapped() && indexBuffer.isMapped(), "ImGui buffers must be mapped");
+
+    vertexData = (ImDrawVert*)vertexBuffer.getMappedPointer();
+    indexData  = (ImDrawIdx*)indexBuffer.getMappedPointer();
+}
+
+void ImGuiVulkanRenderer::FrameData::destroy(VulkanBase& base)
+{
+    vertexBuffer.destroy();
+    indexBuffer.destroy();
+}
 }  // namespace Vulkan
 }  // namespace Saiga
