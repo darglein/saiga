@@ -36,6 +36,15 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
     static_assert(sizeof(IndexType) == 2 || sizeof(IndexType) == 4, "Only 2 and 4 byte index types allowed!");
 
    public:
+    IndexBuffer()                             = default;
+    IndexBuffer(const IndexBuffer& other)     = delete;
+    IndexBuffer(IndexBuffer&& other) noexcept = default;
+
+    IndexBuffer& operator=(const IndexBuffer& other) = delete;
+    IndexBuffer& operator=(IndexBuffer&& other) noexcept = default;
+
+    ~IndexBuffer() override = default;
+
     using VKType = IndexVKType<IndexType>;
 
     uint32_t indexCount = 0;
@@ -46,8 +55,9 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
     {
         indexCount             = count;
         size_t indexBufferSize = indexCount * sizeof(IndexType);
-        m_memoryLocation =
-            base.memory.getAllocator(vk::BufferUsageFlagBits::eIndexBuffer, flags).allocate(indexBufferSize);
+        createBuffer(base, indexBufferSize, vk::BufferUsageFlagBits::eIndexBuffer, flags);
+        // m_memoryLocation =
+        //    base.memory.getAllocator(vk::BufferUsageFlagBits::eIndexBuffer, flags).allocate(indexBufferSize);
     }
 
 

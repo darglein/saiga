@@ -19,15 +19,22 @@ template <typename VertexType>
 class SAIGA_TEMPLATE VertexBuffer : public Buffer
 {
    public:
+    VertexBuffer()                              = default;
+    VertexBuffer(const VertexBuffer& other)     = delete;
+    VertexBuffer(VertexBuffer&& other) noexcept = default;
+
+    VertexBuffer& operator=(const VertexBuffer& other) = delete;
+    VertexBuffer& operator=(VertexBuffer&& other) noexcept = default;
+
     int vertexCount;
 
-    void init(VulkanBase& base, int count,
-              vk::MemoryPropertyFlags flags)
+    void init(VulkanBase& base, int count, vk::MemoryPropertyFlags flags)
     {
         vertexCount = count;
         size_t size = sizeof(VertexType) * vertexCount;
 
-        m_memoryLocation = base.memory.getAllocator(vk::BufferUsageFlagBits::eVertexBuffer, flags).allocate(size);
+        createBuffer(base, size, vk::BufferUsageFlagBits::eVertexBuffer, flags);
+        // m_memoryLocation = base.memory.getAllocator(vk::BufferUsageFlagBits::eVertexBuffer, flags).allocate(size);
         //        buffer = m_memoryLocation.buffer;
         //        DeviceMemory::memory = m_memoryLocation.memory;
     }
@@ -51,8 +58,9 @@ class SAIGA_TEMPLATE VertexBuffer : public Buffer
 
     void draw(vk::CommandBuffer& cmd, int count, int first = 0) { cmd.draw(count, 1, first, 0); }
 
-    void bind(vk::CommandBuffer& cmd, uint32_t firstBinding = 0) {
-        cmd.bindVertexBuffers(firstBinding,m_memoryLocation.buffer, m_memoryLocation.offset);
+    void bind(vk::CommandBuffer& cmd, uint32_t firstBinding = 0)
+    {
+        cmd.bindVertexBuffers(firstBinding, m_memoryLocation.buffer, m_memoryLocation.offset);
     }
 };
 

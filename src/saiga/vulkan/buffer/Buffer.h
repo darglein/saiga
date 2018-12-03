@@ -28,7 +28,7 @@ class SAIGA_GLOBAL Buffer
     Buffer()                    = default;
     Buffer(const Buffer& other) = delete;
     Buffer& operator=(const Buffer& other) = delete;
-    Buffer(Buffer&& other)
+    Buffer(Buffer&& other) noexcept
         : base(other.base),
           bufferUsage(other.bufferUsage),
           memoryProperties(other.memoryProperties),
@@ -36,7 +36,7 @@ class SAIGA_GLOBAL Buffer
     {
     }
 
-    Buffer& operator=(Buffer&& other)
+    Buffer& operator=(Buffer&& other) noexcept
     {
         base             = other.base;
         bufferUsage      = other.bufferUsage;
@@ -46,7 +46,7 @@ class SAIGA_GLOBAL Buffer
     }
 
 
-    ~Buffer() { destroy(); }
+    virtual ~Buffer() { destroy(); }
 
 
     void createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags bufferUsage,
@@ -103,10 +103,7 @@ class SAIGA_GLOBAL Buffer
 
     inline bool isMapped() const { return m_memoryLocation.mappedPointer != nullptr; }
 
-    inline void* getMappedPointer() const
-    {
-        return static_cast<char*>(m_memoryLocation.mappedPointer) + m_memoryLocation.offset;
-    }
+    inline void* getMappedPointer() const { return static_cast<char*>(m_memoryLocation.mappedPointer); }
 
     void upload(void* data) { m_memoryLocation.upload(base->device, data); }
 

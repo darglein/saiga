@@ -17,6 +17,15 @@ namespace Vulkan
 class SAIGA_GLOBAL StagingBuffer : public Buffer
 {
    public:
+    StagingBuffer()                               = default;
+    StagingBuffer(const StagingBuffer& other)     = delete;
+    StagingBuffer(StagingBuffer&& other) noexcept = default;
+
+    StagingBuffer& operator=(const StagingBuffer& other) = delete;
+    StagingBuffer& operator=(StagingBuffer&& other) noexcept = default;
+
+    ~StagingBuffer() override = default;
+
     void init(VulkanBase& base, size_t size, const void* data = nullptr)
     {
         createBuffer(base, size, vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,

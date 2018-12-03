@@ -17,6 +17,13 @@ namespace Vulkan
 class SAIGA_GLOBAL UniformBuffer : public Buffer
 {
    public:
+    UniformBuffer()                               = default;
+    UniformBuffer(const UniformBuffer& other)     = delete;
+    UniformBuffer(UniformBuffer&& other) noexcept = default;
+
+    UniformBuffer& operator=(const UniformBuffer& other) = delete;
+    UniformBuffer& operator=(UniformBuffer&& other) noexcept = default;
+
     void init(VulkanBase& base, const void* data, size_t size)
     {
         createBuffer(base, size, vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
