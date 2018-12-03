@@ -56,7 +56,7 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
                                   [=](MemoryLocation& loc) { return loc.offset > memoryEnd; });
 
 
-    auto val = *chunkAlloc->allocations.insert(insertionPoint, targetLocation);
+    auto val = *chunkAlloc->allocations.emplace(insertionPoint, targetLocation);
     allocationMutex.unlock();
 
     return val;

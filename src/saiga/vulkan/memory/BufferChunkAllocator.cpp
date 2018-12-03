@@ -23,19 +23,20 @@ MemoryLocation BufferChunkAllocator::allocate(vk::DeviceSize size)
 
 ChunkIterator BufferChunkAllocator::createNewChunk()
 {
-    LOG(INFO) << "Creating new chunk: " << m_chunkAllocations.size();
     auto newChunk        = m_chunkAllocator->allocate(flags, m_allocateSize);
     auto newBuffer       = m_device.createBuffer(m_bufferCreateInfo);
     auto memRequirements = m_device.getBufferMemoryRequirements(newBuffer);
+    LOG(INFO) << "New chunk: " << m_chunkAllocations.size() << " Mem " << newChunk->memory << ", Buffer " << newBuffer;
     if (m_allocateSize != memRequirements.size)
     {
-        LOG(INFO) << "New buffer has differing memory requirements size";
+        LOG(ERROR) << "New buffer has differing memory requirements size";
     }
     m_device.bindBufferMemory(newBuffer, newChunk->memory, 0);
     void* mappedPointer = nullptr;
     if (mapped)
     {
         mappedPointer = m_device.mapMemory(newChunk->memory, 0, m_chunkSize);
+        LOG(INFO) << "Mapped pointer = " << mappedPointer;
     }
     m_chunkAllocations.emplace_back(newChunk, newBuffer, m_chunkSize, mappedPointer);
 
