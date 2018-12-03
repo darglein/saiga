@@ -7,7 +7,7 @@
 void SimpleMemoryAllocator::deallocate(MemoryLocation& location)
 {
     mutex.lock();
-    LOG(INFO) << "Simple Allocator: Deallocating" << location.memory << std::endl;
+    LOG(INFO) << "Simple deallocate " << vk::to_string(usageFlags) << " " << vk::to_string(flags) << " " << location;
 
     auto foundAllocation = std::find(m_allocations.begin(), m_allocations.end(), location);
     if (foundAllocation == m_allocations.end())
@@ -34,7 +34,6 @@ void SimpleMemoryAllocator::destroy()
 
 MemoryLocation SimpleMemoryAllocator::allocate(vk::DeviceSize size)
 {
-    LOG(INFO) << "Simple Alloc " << vk::to_string(usageFlags) << " " << std::to_string(size);
     m_bufferCreateInfo.size = size;
     auto buffer             = m_device.createBuffer(m_bufferCreateInfo);
 
@@ -56,5 +55,7 @@ MemoryLocation SimpleMemoryAllocator::allocate(vk::DeviceSize size)
     m_allocations.emplace_back(buffer, memory, 0, size, mappedPtr);
     auto retVal = m_allocations.back();
     mutex.unlock();
+
+    LOG(INFO) << "Simple allocate   " << vk::to_string(usageFlags) << " " << vk::to_string(flags) << " " << retVal;
     return retVal;
 }

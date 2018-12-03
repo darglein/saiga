@@ -288,7 +288,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     imageCreateInfo.usage         = finalUsageFlags;
     image                         = base.device.createImage(imageCreateInfo);
 
-    LOG(INFO) << "Creating image: " << image;
+    LOG(INFO) << "Creating image: " << image << " from " << stagingBuffer;
     SAIGA_ASSERT(image);
 
 

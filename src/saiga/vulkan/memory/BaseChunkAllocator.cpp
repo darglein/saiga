@@ -32,9 +32,6 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
     freeSpace->offset += size;
     freeSpace->size -= size;
 
-    LOG(INFO) << "Allocating " << vk::to_string(flags) << " in chunk/offset ["
-              << distance(m_chunkAllocations.begin(), chunkAlloc) << "/" << memoryStart << "]";
-
     bool searchNewMax = false;
 
 
@@ -81,7 +78,6 @@ MemoryLocation BaseChunkAllocator::createMemoryLocation(ChunkIterator iter, vk::
 void BaseChunkAllocator::deallocate(MemoryLocation& location)
 {
     allocationMutex.lock();
-    LOG(INFO) << "Trying to dealocate [" << location.offset << "/" << location.size << "]";
     auto fChunk = find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
                           [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location.memory; });
 
