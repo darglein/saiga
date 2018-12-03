@@ -25,14 +25,10 @@ void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::Buff
                           const vk::MemoryPropertyFlags& memoryProperties, vk::SharingMode sharingMode)
 {
     // TODO: Sharing mode is not used yet
-    this->base = &base;
-    this->bufferUsage       = bufferUsage;
+    this->base             = &base;
+    this->bufferUsage      = bufferUsage;
     this->memoryProperties = memoryProperties;
-    m_memoryLocation = base.memory.getAllocator(this->bufferUsage, this->memoryProperties).allocate(size);
-    if (size != m_memoryLocation.size)
-    {
-        LOG(WARNING) << "Unequal sizes " << size << " " << m_memoryLocation.size;
-    }
+    m_memoryLocation       = base.memory.getAllocator(this->bufferUsage, this->memoryProperties).allocate(size);
 }
 
 
@@ -54,7 +50,8 @@ vk::DescriptorBufferInfo Buffer::createInfo()
     return {m_memoryLocation.buffer, m_memoryLocation.offset, m_memoryLocation.size};
 }
 
-void Buffer::flush(VulkanBase &base, vk::DeviceSize size, vk::DeviceSize offset) {
+void Buffer::flush(VulkanBase& base, vk::DeviceSize size, vk::DeviceSize offset)
+{
     vk::MappedMemoryRange mappedRange = {};
     mappedRange.memory                = m_memoryLocation.memory;
     mappedRange.offset                = offset;
@@ -62,8 +59,9 @@ void Buffer::flush(VulkanBase &base, vk::DeviceSize size, vk::DeviceSize offset)
     base.device.flushMappedMemoryRanges(mappedRange);
 }
 
-void Buffer::copyTo(vk::CommandBuffer cmd, Buffer &target, vk::DeviceSize srcOffset, vk::DeviceSize dstOffset,
-                    vk::DeviceSize size) {
+void Buffer::copyTo(vk::CommandBuffer cmd, Buffer& target, vk::DeviceSize srcOffset, vk::DeviceSize dstOffset,
+                    vk::DeviceSize size)
+{
     if (size == VK_WHOLE_SIZE)
     {
         size = this->size() - srcOffset;
@@ -75,13 +73,18 @@ void Buffer::copyTo(vk::CommandBuffer cmd, Buffer &target, vk::DeviceSize srcOff
 }
 
 void Buffer::copyTo(vk::CommandBuffer cmd, vk::Image dstImage, vk::ImageLayout dstImageLayout,
-                    vk::ArrayProxy<const vk::BufferImageCopy> regions) {
+                    vk::ArrayProxy<const vk::BufferImageCopy> regions)
+{
     cmd.copyBufferToImage(m_memoryLocation.buffer, dstImage, dstImageLayout, regions);
 }
 
-vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const { return {m_memoryLocation.offset + offset}; }
+vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const
+{
+    return {m_memoryLocation.offset + offset};
+}
 
-void Buffer::update(vk::CommandBuffer cmd, size_t size, void *data, vk::DeviceSize offset) {
+void Buffer::update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset)
+{
     cmd.updateBuffer(m_memoryLocation.buffer, m_memoryLocation.offset + offset, size, data);
 }
 
