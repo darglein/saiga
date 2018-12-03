@@ -25,7 +25,7 @@ struct SAIGA_GLOBAL Texture
 
     Texture(const Texture& other) = delete;
     Texture& operator=(const Texture& other) = delete;
-    Texture(Texture&& other)
+    Texture(Texture&& other) noexcept
         : base(other.base),
           memoryLocation(std::move(other.memoryLocation)),
           image(other.image),
@@ -37,26 +37,26 @@ struct SAIGA_GLOBAL Texture
           layerCount(other.layerCount),
           sampler(other.sampler)
     {
-        image     = nullptr;
-        imageView = nullptr;
-        sampler   = nullptr;
+        other.image     = nullptr;
+        other.imageView = nullptr;
+        other.sampler   = nullptr;
     }
 
-    Texture& operator=(Texture&& other)
+    Texture& operator=(Texture&& other) noexcept
     {
-        base           = other.base;
-        memoryLocation = std::move(other.memoryLocation);
-        image          = other.image;
-        imageLayout    = other.imageLayout;
-        imageView      = other.imageView;
-        width          = other.width;
-        height         = other.height;
-        mipLevels      = other.mipLevels;
-        layerCount     = other.layerCount;
-        sampler        = other.sampler;
-        image          = nullptr;
-        imageView      = nullptr;
-        sampler        = nullptr;
+        base            = other.base;
+        memoryLocation  = std::move(other.memoryLocation);
+        image           = other.image;
+        imageLayout     = other.imageLayout;
+        imageView       = other.imageView;
+        width           = other.width;
+        height          = other.height;
+        mipLevels       = other.mipLevels;
+        layerCount      = other.layerCount;
+        sampler         = other.sampler;
+        other.image     = nullptr;
+        other.imageView = nullptr;
+        other.sampler   = nullptr;
         return *this;
     }
 

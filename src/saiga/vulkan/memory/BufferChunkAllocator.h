@@ -63,10 +63,18 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
     {
     }
 
-    void deallocate(MemoryLocation &location) override;
+
+    BufferChunkAllocator& operator=(BufferChunkAllocator&& other) noexcept
+    {
+        BaseChunkAllocator::operator=(std::move(other));
+        m_alignment                 = other.m_alignment;
+        m_bufferCreateInfo          = other.m_bufferCreateInfo;
+        return *this;
+    }
+
+    void deallocate(MemoryLocation& location) override;
 
     MemoryLocation allocate(vk::DeviceSize size) override;
-
 };
 }  // namespace Memory
 }  // namespace Vulkan

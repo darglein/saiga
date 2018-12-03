@@ -50,7 +50,18 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     {
     }
 
-
+    BaseChunkAllocator& operator=(BaseChunkAllocator&& other) noexcept
+    {
+        BaseMemoryAllocator::operator=(std::move(other));
+        m_device                     = other.m_device;
+        m_chunkAllocator             = other.m_chunkAllocator;
+        flags                        = other.flags;
+        m_strategy                   = other.m_strategy;
+        m_chunkSize                  = other.m_chunkSize;
+        m_allocateSize               = other.m_allocateSize;
+        m_chunkAllocations           = std::move(other.m_chunkAllocations);
+        return *this;
+    }
 
     ~BaseChunkAllocator() override = default;
 
@@ -59,7 +70,8 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     void deallocate(MemoryLocation& location) override;
 
     void destroy() override;
-protected:
+
+   protected:
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
     vk::MemoryPropertyFlags flags;
