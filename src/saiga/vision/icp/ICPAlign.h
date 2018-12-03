@@ -30,11 +30,10 @@
  *
  */
 
-namespace Saiga {
-namespace ICP {
-
-
-
+namespace Saiga
+{
+namespace ICP
+{
 struct SAIGA_GLOBAL Correspondence
 {
     Vec3 refPoint;
@@ -46,16 +45,18 @@ struct SAIGA_GLOBAL Correspondence
     // Apply this transfomration to the src point and normal
     void apply(const SE3& se3)
     {
-        srcPoint = se3 * srcPoint;
+        srcPoint  = se3 * srcPoint;
         srcNormal = se3.so3() * srcNormal;
     }
+
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 /**
  * The basic ICP algorithm which minimized the function above. Each correspondence only needs
  * the 'refPoint' and 'srcPoint'.
  */
-SAIGA_GLOBAL SE3 pointToPoint(const std::vector<Correspondence>& corrs, const SE3& guess = SE3());
+SAIGA_GLOBAL SE3 pointToPoint(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3());
 
 /**
  * Minimized the distance between the source point to the surface plane at the reference point:
@@ -64,7 +65,8 @@ SAIGA_GLOBAL SE3 pointToPoint(const std::vector<Correspondence>& corrs, const SE
  *
  * Each correspondnce additional needs the 'refNormal' attribute.
  */
-SAIGA_GLOBAL SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE3& ref, const SE3& src, int innerIterations = 1);
+SAIGA_GLOBAL SE3 pointToPlane(const AlignedVector<Correspondence>& corrs, const SE3& ref, const SE3& src,
+                              int innerIterations = 1);
 
 
 /**
@@ -81,8 +83,9 @@ SAIGA_GLOBAL SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE
  * Full Paper: Generalized-ICP, http://www.roboticsproceedings.org/rss05/p21.pdf
  * G2O Implementation: https://github.com/RainerKuemmerle/g2o/blob/master/g2o/types/icp/types_icp.h
  */
-SAIGA_GLOBAL SE3 planeToPlane(const std::vector<Correspondence>& corrs, const SE3& guess = SE3(), double covE = 0.001, int innerIterations = 5);
+SAIGA_GLOBAL SE3 planeToPlane(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3(), double covE = 0.001,
+                              int innerIterations = 5);
 
 
-}
-}
+}  // namespace ICP
+}  // namespace Saiga

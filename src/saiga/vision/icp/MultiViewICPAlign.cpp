@@ -14,7 +14,7 @@ namespace Saiga
 namespace ICP
 {
 void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& pairs,
-                       const std::vector<std::vector<Saiga::ICP::Correspondence>>& corrs, std::vector<SE3>& guesses,
+                       const std::vector<AlignedVector<Correspondence>>& corrs, std::vector<SE3>& guesses,
                        int iterations)
 {
 #ifdef WITH_CERES
@@ -24,7 +24,7 @@ void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& p
 
     for (size_t i = 0; i < corrs.size(); ++i)
     {
-        auto& p = pairs[i];
+        auto& p  = pairs[i];
         auto& cs = corrs[i];
 
         auto& se0 = guesses[p.first];
@@ -55,7 +55,7 @@ void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& p
 
 
     options.minimizer_progress_to_stdout = true;
-    options.max_num_iterations = 5;
+    options.max_num_iterations           = 5;
     ceres::Solver::Summary summaryTest;
     ceres::Solve(options, &problem, &summaryTest);
 #else
@@ -66,13 +66,13 @@ void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& p
         Eigen::MatrixXd Jtb(N * 6, 1);
         JtJ.setZero();
         Jtb.setZero();
-//        SAIGA_BLOCK_TIMER;
+        //        SAIGA_BLOCK_TIMER;
 
         size_t asdf = 0;
 
         for (size_t i = 0; i < corrs.size(); ++i)
         {
-            auto& p = pairs[i];
+            auto& p  = pairs[i];
             auto& cs = corrs[i];
 
             auto& ref = guesses[p.first];
@@ -89,7 +89,7 @@ void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& p
                 Vec3 rn = ref.so3() * corr.refNormal;
                 Vec3 sp = src * corr.srcPoint;
 
-                Vec3 di = rp - sp;
+                Vec3 di    = rp - sp;
                 double res = rn.dot(di);
 
 

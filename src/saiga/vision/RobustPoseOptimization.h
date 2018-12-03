@@ -19,6 +19,8 @@ struct ObsBase
     Vec2 ip;
     T depth  = -1;
     T weight = 1;
+
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 using Obs = ObsBase<double>;
@@ -130,7 +132,7 @@ int RobustPoseOptimization<T>::optimizePoseRobust(const std::vector<Vec3>& wps, 
 
         T chi2sum = 0;
 
-        int in = 0;
+        inliers = 0;
 
         for (size_t i = 0; i < N; ++i)
         {
@@ -163,7 +165,7 @@ int RobustPoseOptimization<T>::optimizePoseRobust(const std::vector<Vec3>& wps, 
 
             if (!os)
             {
-                in++;
+                inliers++;
                 chi2sum += chi2;
             }
             outlier[i] = os;

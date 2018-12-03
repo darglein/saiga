@@ -9,10 +9,10 @@
 #include "saiga/image/image.h"
 #include "saiga/vision/VisionTypes.h"
 
-namespace Saiga {
-namespace Depthmap{
-
-
+namespace Saiga
+{
+namespace Depthmap
+{
 /**
  *
  * Floating point depth images.
@@ -20,10 +20,10 @@ namespace Depthmap{
  * For Kinect-like depth sensors the depth is given in meters.
  *
  */
-using DepthType = float;
-using DepthMap = ImageView<DepthType>;
+using DepthType       = float;
+using DepthMap        = ImageView<DepthType>;
 using DepthPointCloud = ImageView<Vec3>;
-using DepthNormalMap = ImageView<Vec3>;
+using DepthNormalMap  = ImageView<Vec3>;
 
 
 /**
@@ -47,8 +47,8 @@ SAIGA_GLOBAL void normalMap(DepthPointCloud pc, DepthNormalMap normals);
  * Exports the point cloud in ASCII .ply format.
  * This can be viewed for example with meshlab.
  */
-SAIGA_GLOBAL void savePointCloudPLY(const std::string& file, DepthPointCloud pc, Vec3 color = Vec3(1,0,0));
+SAIGA_GLOBAL void savePointCloudPLY(const std::string& file, DepthPointCloud pc, const Vec3& color = Vec3(1, 0, 0));
 
 
-}
-}
+}  // namespace Depthmap
+}  // namespace Saiga

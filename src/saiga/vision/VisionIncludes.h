@@ -25,5 +25,9 @@ using Vec2 = Eigen::Vector2d;
 using Mat4 = Eigen::Matrix4d;
 using Mat3 = Eigen::Matrix3d;
 
+// An Aligned std::vector
+template <typename T>
+using AlignedVector = std::vector<T, Eigen::aligned_allocator<T>>;
+
 
 }  // namespace Saiga

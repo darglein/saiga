@@ -12,7 +12,7 @@ namespace Saiga
 {
 namespace ICP
 {
-SE3 pointToPoint(const std::vector<Correspondence>& corrs, const SE3& guess)
+SE3 pointToPoint(const AlignedVector<Correspondence>& corrs, const SE3& guess)
 {
     SAIGA_ASSERT(corrs.size() >= 6);
 
@@ -44,11 +44,11 @@ SE3 pointToPoint(const std::vector<Correspondence>& corrs, const SE3& guess)
         Jtb += Jrow.transpose() * res;
     }
     Eigen::Matrix<double, 6, 1> x = JtJ.ldlt().solve(Jtb);
-    T = SE3::exp(x) * T;
+    T                             = SE3::exp(x) * T;
     return T;
 }
 
-SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE3& ref, const SE3& _src, int innerIterations)
+SE3 pointToPlane(const AlignedVector<Correspondence>& corrs, const SE3& ref, const SE3& _src, int innerIterations)
 {
     SAIGA_ASSERT(corrs.size() >= 6);
     auto src = _src;
@@ -75,8 +75,8 @@ SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE3& ref, const
             // This is actually equal to:
             //      row.tail<3>() = -skew(sp).transpose() * rn;
             row.tail<3>() = sp.cross(rn);
-            Vec3 di = rp - sp;
-            double res = rn.dot(di);
+            Vec3 di       = rp - sp;
+            double res    = rn.dot(di);
 
             // use weight
             row *= corr.weight;
@@ -89,12 +89,12 @@ SE3 pointToPlane(const std::vector<Correspondence>& corrs, const SE3& ref, const
 
         //        Eigen::Matrix<double, 6, 1> x = JtJ.ldlt().solve(Jtb);
         Eigen::Matrix<double, 6, 1> x = JtJ.selfadjointView<Eigen::Upper>().ldlt().solve(Jtb);
-        src = SE3::exp(x) * src;
+        src                           = SE3::exp(x) * src;
     }
     return src;
 }
 
-inline Mat3 covR(Mat3 R, double e)
+inline Mat3 covR(const Mat3& R, double e)
 {
     Mat3 cov;
     cov << 1, 0, 0, 0, 1, 0, 0, 0, e;
@@ -102,7 +102,7 @@ inline Mat3 covR(Mat3 R, double e)
 }
 
 
-SE3 planeToPlane(const std::vector<Correspondence>& corrs, const SE3& guess, double covE, int innerIterations)
+SE3 planeToPlane(const AlignedVector<Correspondence>& corrs, const SE3& guess, double covE, int innerIterations)
 {
     SAIGA_ASSERT(corrs.size() >= 6);
     SE3 T = guess;
@@ -149,7 +149,7 @@ SE3 planeToPlane(const std::vector<Correspondence>& corrs, const SE3& guess, dou
             auto C0 = c0s[i];
             auto C1 = c1s[i];
 
-            Mat3 Rt = T.so3().matrix();
+            Mat3 Rt   = T.so3().matrix();
             Mat3 info = (C0 + Rt * C1 * Rt.transpose()).inverse();
 
             Vec3 res = corr.refPoint - sp;
@@ -162,7 +162,7 @@ SE3 planeToPlane(const std::vector<Correspondence>& corrs, const SE3& guess, dou
             JtOmegatb += Jrow.transpose() * info.transpose() * res;
         }
         Eigen::Matrix<double, 6, 1> x = JtOmegaJ.ldlt().solve(JtOmegatb);
-        T = SE3::exp(x) * T;
+        T                             = SE3::exp(x) * T;
     }
     return T;
 }
