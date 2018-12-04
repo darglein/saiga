@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,9 +9,7 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
-void glIglooInterfaceSGIX(GLenum pname, const void * params)
+void glIglooInterfaceSGIX(GLenum pname, const void* params)
 {
     return Binding::IglooInterfaceSGIX(pname, params);
 }
@@ -21,7 +19,7 @@ void glImageTransformParameterfHP(GLenum target, GLenum pname, GLfloat param)
     return Binding::ImageTransformParameterfHP(target, pname, param);
 }
 
-void glImageTransformParameterfvHP(GLenum target, GLenum pname, const GLfloat * params)
+void glImageTransformParameterfvHP(GLenum target, GLenum pname, const GLfloat* params)
 {
     return Binding::ImageTransformParameterfvHP(target, pname, params);
 }
@@ -31,7 +29,7 @@ void glImageTransformParameteriHP(GLenum target, GLenum pname, GLint param)
     return Binding::ImageTransformParameteriHP(target, pname, param);
 }
 
-void glImageTransformParameterivHP(GLenum target, GLenum pname, const GLint * params)
+void glImageTransformParameterivHP(GLenum target, GLenum pname, const GLint* params)
 {
     return Binding::ImageTransformParameterivHP(target, pname, params);
 }
@@ -41,12 +39,12 @@ void glImportMemoryFdEXT(GLuint memory, GLuint64 size, GLenum handleType, GLint 
     return Binding::ImportMemoryFdEXT(memory, size, handleType, fd);
 }
 
-void glImportMemoryWin32HandleEXT(GLuint memory, GLuint64 size, GLenum handleType, void * handle)
+void glImportMemoryWin32HandleEXT(GLuint memory, GLuint64 size, GLenum handleType, void* handle)
 {
     return Binding::ImportMemoryWin32HandleEXT(memory, size, handleType, handle);
 }
 
-void glImportMemoryWin32NameEXT(GLuint memory, GLuint64 size, GLenum handleType, const void * name)
+void glImportMemoryWin32NameEXT(GLuint memory, GLuint64 size, GLenum handleType, const void* name)
 {
     return Binding::ImportMemoryWin32NameEXT(memory, size, handleType, name);
 }
@@ -56,12 +54,12 @@ void glImportSemaphoreFdEXT(GLuint semaphore, GLenum handleType, GLint fd)
     return Binding::ImportSemaphoreFdEXT(semaphore, handleType, fd);
 }
 
-void glImportSemaphoreWin32HandleEXT(GLuint semaphore, GLenum handleType, void * handle)
+void glImportSemaphoreWin32HandleEXT(GLuint semaphore, GLenum handleType, void* handle)
 {
     return Binding::ImportSemaphoreWin32HandleEXT(semaphore, handleType, handle);
 }
 
-void glImportSemaphoreWin32NameEXT(GLuint semaphore, GLenum handleType, const void * name)
+void glImportSemaphoreWin32NameEXT(GLuint semaphore, GLenum handleType, const void* name)
 {
     return Binding::ImportSemaphoreWin32NameEXT(semaphore, handleType, name);
 }
@@ -91,17 +89,17 @@ void glIndexMaterialEXT(GLenum face, GLenum mode)
     return Binding::IndexMaterialEXT(face, mode);
 }
 
-void glIndexPointer(GLenum type, GLsizei stride, const void * pointer)
+void glIndexPointer(GLenum type, GLsizei stride, const void* pointer)
 {
     return Binding::IndexPointer(type, stride, pointer);
 }
 
-void glIndexPointerEXT(GLenum type, GLsizei stride, GLsizei count, const void * pointer)
+void glIndexPointerEXT(GLenum type, GLsizei stride, GLsizei count, const void* pointer)
 {
     return Binding::IndexPointerEXT(type, stride, count, pointer);
 }
 
-void glIndexPointerListIBM(GLenum type, GLint stride, const void ** pointer, GLint ptrstride)
+void glIndexPointerListIBM(GLenum type, GLint stride, const void** pointer, GLint ptrstride)
 {
     return Binding::IndexPointerListIBM(type, stride, pointer, ptrstride);
 }
@@ -111,7 +109,7 @@ void glIndexd(GLdouble c)
     return Binding::Indexd(c);
 }
 
-void glIndexdv(const GLdouble * c)
+void glIndexdv(const GLdouble* c)
 {
     return Binding::Indexdv(c);
 }
@@ -121,7 +119,7 @@ void glIndexf(GLfloat c)
     return Binding::Indexf(c);
 }
 
-void glIndexfv(const GLfloat * c)
+void glIndexfv(const GLfloat* c)
 {
     return Binding::Indexfv(c);
 }
@@ -131,7 +129,7 @@ void glIndexi(GLint c)
     return Binding::Indexi(c);
 }
 
-void glIndexiv(const GLint * c)
+void glIndexiv(const GLint* c)
 {
     return Binding::Indexiv(c);
 }
@@ -141,7 +139,7 @@ void glIndexs(GLshort c)
     return Binding::Indexs(c);
 }
 
-void glIndexsv(const GLshort * c)
+void glIndexsv(const GLshort* c)
 {
     return Binding::Indexsv(c);
 }
@@ -151,7 +149,7 @@ void glIndexub(GLubyte c)
     return Binding::Indexub(c);
 }
 
-void glIndexubv(const GLubyte * c)
+void glIndexubv(const GLubyte* c)
 {
     return Binding::Indexubv(c);
 }
@@ -161,7 +159,7 @@ void glIndexxOES(GLfixed component)
     return Binding::IndexxOES(component);
 }
 
-void glIndexxvOES(const GLfixed * component)
+void glIndexxvOES(const GLfixed* component)
 {
     return Binding::IndexxvOES(component);
 }
@@ -176,17 +174,17 @@ void glInsertComponentEXT(GLuint res, GLuint src, GLuint num)
     return Binding::InsertComponentEXT(res, src, num);
 }
 
-void glInsertEventMarkerEXT(GLsizei length, const GLchar * marker)
+void glInsertEventMarkerEXT(GLsizei length, const GLchar* marker)
 {
     return Binding::InsertEventMarkerEXT(length, marker);
 }
 
-void glInstrumentsBufferSGIX(GLsizei size, GLint * buffer)
+void glInstrumentsBufferSGIX(GLsizei size, GLint* buffer)
 {
     return Binding::InstrumentsBufferSGIX(size, buffer);
 }
 
-void glInterleavedArrays(GLenum format, GLsizei stride, const void * pointer)
+void glInterleavedArrays(GLenum format, GLsizei stride, const void* pointer)
 {
     return Binding::InterleavedArrays(format, stride, pointer);
 }
@@ -206,22 +204,24 @@ void glInvalidateBufferSubData(GLuint buffer, GLintptr offset, GLsizeiptr length
     return Binding::InvalidateBufferSubData(buffer, offset, length);
 }
 
-void glInvalidateFramebuffer(GLenum target, GLsizei numAttachments, const GLenum * attachments)
+void glInvalidateFramebuffer(GLenum target, GLsizei numAttachments, const GLenum* attachments)
 {
     return Binding::InvalidateFramebuffer(target, numAttachments, attachments);
 }
 
-void glInvalidateNamedFramebufferData(GLuint framebuffer, GLsizei numAttachments, const GLenum * attachments)
+void glInvalidateNamedFramebufferData(GLuint framebuffer, GLsizei numAttachments, const GLenum* attachments)
 {
     return Binding::InvalidateNamedFramebufferData(framebuffer, numAttachments, attachments);
 }
 
-void glInvalidateNamedFramebufferSubData(GLuint framebuffer, GLsizei numAttachments, const GLenum * attachments, GLint x, GLint y, GLsizei width, GLsizei height)
+void glInvalidateNamedFramebufferSubData(GLuint framebuffer, GLsizei numAttachments, const GLenum* attachments, GLint x,
+                                         GLint y, GLsizei width, GLsizei height)
 {
     return Binding::InvalidateNamedFramebufferSubData(framebuffer, numAttachments, attachments, x, y, width, height);
 }
 
-void glInvalidateSubFramebuffer(GLenum target, GLsizei numAttachments, const GLenum * attachments, GLint x, GLint y, GLsizei width, GLsizei height)
+void glInvalidateSubFramebuffer(GLenum target, GLsizei numAttachments, const GLenum* attachments, GLint x, GLint y,
+                                GLsizei width, GLsizei height)
 {
     return Binding::InvalidateSubFramebuffer(target, numAttachments, attachments, x, y, width, height);
 }
@@ -231,7 +231,8 @@ void glInvalidateTexImage(GLuint texture, GLint level)
     return Binding::InvalidateTexImage(texture, level);
 }
 
-void glInvalidateTexSubImage(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth)
+void glInvalidateTexSubImage(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width,
+                             GLsizei height, GLsizei depth)
 {
     return Binding::InvalidateTexSubImage(texture, level, xoffset, yoffset, zoffset, width, height, depth);
 }
@@ -326,7 +327,7 @@ GLboolean glIsNamedBufferResidentNV(GLuint buffer)
     return Binding::IsNamedBufferResidentNV(buffer);
 }
 
-GLboolean glIsNamedStringARB(GLint namelen, const GLchar * name)
+GLboolean glIsNamedStringARB(GLint namelen, const GLchar* name)
 {
     return Binding::IsNamedStringARB(namelen, name);
 }
@@ -473,5 +474,4 @@ GLboolean glIsVertexAttribEnabledAPPLE(GLuint index, GLenum pname)
 
 
 
-
-} // namespace gl
+}  // namespace gl

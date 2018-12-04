@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include "saiga/config.h"
+#include "saiga/util/ArrayView.h"
+
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <iomanip>
-#include "saiga/config.h"
-#include "saiga/util/ArrayView.h"
 
 /**
  * This acts as a wrapper for std::to_string for build in data types.
@@ -21,17 +22,50 @@
 
 namespace Saiga
 {
-inline std::string to_string(int v) { return std::to_string(v); }
-inline std::string to_string(long v) { return std::to_string(v); }
-inline std::string to_string(long long v) { return std::to_string(v); }
-inline std::string to_string(unsigned v) { return std::to_string(v); }
-inline std::string to_string(unsigned long v) { return std::to_string(v); }
-inline std::string to_string(unsigned long long v) { return std::to_string(v); }
-inline std::string to_string(float v) { return std::to_string(v); }
-inline std::string to_string(double v) { return std::to_string(v); }
-inline std::string to_string(long double v) { return std::to_string(v); }
-inline std::string to_string(const std::string& v) { return v; }
-inline std::string to_string(const char* v) { return std::string(v); }
+inline std::string to_string(int v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(long v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(long long v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(unsigned v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(unsigned long v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(unsigned long long v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(float v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(double v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(long double v)
+{
+    return std::to_string(v);
+}
+inline std::string to_string(const std::string& v)
+{
+    return v;
+}
+inline std::string to_string(const char* v)
+{
+    return std::string(v);
+}
 
 template <typename T>
 inline std::string to_string(const T& v)
@@ -54,10 +88,22 @@ inline std::string to_string(double v, int precision)
 
 
 
-inline float to_float(const std::string& str) { return std::atof(str.c_str()); }
-inline double to_double(const std::string& str) { return std::atof(str.c_str()); }
-inline int to_int(const std::string& str) { return std::atoi(str.c_str()); }
-inline long int to_long(const std::string& str) { return std::atol(str.c_str()); }
+inline float to_float(const std::string& str)
+{
+    return std::atof(str.c_str());
+}
+inline double to_double(const std::string& str)
+{
+    return std::atof(str.c_str());
+}
+inline int to_int(const std::string& str)
+{
+    return std::atoi(str.c_str());
+}
+inline long int to_long(const std::string& str)
+{
+    return std::atol(str.c_str());
+}
 
 
 template <typename T>

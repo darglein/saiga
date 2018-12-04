@@ -7,8 +7,10 @@
  */
 
 #include "compute.h"
-#include <saiga/imgui/imgui.h>
+
 #include "saiga/util/color.h"
+
+#include <saiga/imgui/imgui.h>
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
@@ -60,13 +62,12 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
     device       = vulkanDevice->device;
 
     // create storage buffer
-    compute.data.resize(10,1);
-//    compute.storageBuffer.
-    compute.storageBuffer.createBuffer(renderer.base,sizeof(int)*compute.data.size(),
-                                       vk::BufferUsageFlagBits::eStorageBuffer,
-                                       vk::MemoryPropertyFlagBits::eHostVisible |
-                                       vk::MemoryPropertyFlagBits::eHostCoherent );
-//    compute.storageBuffer.allocateMemoryBuffer(renderer.base,vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
+    compute.data.resize(10, 1);
+    //    compute.storageBuffer.
+    compute.storageBuffer.createBuffer(
+        renderer.base, sizeof(int) * compute.data.size(), vk::BufferUsageFlagBits::eStorageBuffer,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    //    compute.storageBuffer.allocateMemoryBuffer(renderer.base,vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
     compute.storageBuffer.upload(compute.data.data());
 
 
@@ -111,7 +112,8 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
     {
         // Build the command buffer
         compute.commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-        if (computePipeline.bind(compute.commandBuffer)) {
+        if (computePipeline.bind(compute.commandBuffer))
+        {
             computePipeline.bindDescriptorSets(compute.commandBuffer, descriptorSet);
             // Dispatch 1 block
             compute.commandBuffer.dispatch(1, 1, 1);

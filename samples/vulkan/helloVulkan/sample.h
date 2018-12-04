@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <vector>
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
@@ -19,6 +18,8 @@
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 #include "saiga/window/Interfaces.h"
+
+#include <vector>
 
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,

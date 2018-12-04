@@ -4,38 +4,36 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/openni2/RGBDCameraInput.h"
-#include "boost/asio.hpp"
-#include "saiga/util/ini/ini.h"
 #include "saiga/network/ImageTransmition.h"
+#include "saiga/openni2/RGBDCameraInput.h"
+#include "saiga/util/ini/ini.h"
+
+#include "boost/asio.hpp"
 
 using namespace Saiga;
 using namespace boost::asio;
 
 
 
-
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     std::string file = "server.ini";
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
-    auto ip         = ini.GetAddString ("server","ip","10.0.0.2");
-    auto port        = ini.GetAddLong ("server","port",9000);
-    if(ini.changed()) ini.SaveFile(file.c_str());
+    auto ip   = ini.GetAddString("server", "ip", "10.0.0.2");
+    auto port = ini.GetAddLong("server", "port", 9000);
+    if (ini.changed()) ini.SaveFile(file.c_str());
 
 
 
-
-
-    ImageTransmition it(ip,port);
+    ImageTransmition it(ip, port);
     it.makeReciever();
 
     Image colorImg;
-    while(true)
+    while (true)
     {
         ip::udp::endpoint remote_endpoint;
         it.recieveImage(colorImg);
         cout << "recieved " << colorImg << endl;
     }
-
 }

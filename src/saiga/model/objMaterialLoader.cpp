@@ -5,52 +5,56 @@
  */
 
 #include "objMaterialLoader.h"
-#include <fstream>
-#include <sstream>
-#include <algorithm>
 
 #include "internal/noGraphicsAPI.h"
 
-namespace Saiga {
+#include <algorithm>
+#include <fstream>
+#include <sstream>
 
-ObjMaterialLoader::ObjMaterialLoader(const std::string &file):file(file)
+namespace Saiga
+{
+ObjMaterialLoader::ObjMaterialLoader(const std::string& file) : file(file)
 {
     loadFile(file);
 }
 
-bool ObjMaterialLoader::loadFile(const std::string &_file){
+bool ObjMaterialLoader::loadFile(const std::string& _file)
+{
     file = _file;
     std::ifstream stream(file, std::ios::in);
-    if(!stream.is_open()) {
+    if (!stream.is_open())
+    {
         return false;
     }
 
 
-    cout<<"ObjMaterialLoader: loading file "<<file<<endl;
+    cout << "ObjMaterialLoader: loading file " << file << endl;
 
 
-    while(!stream.eof()) {
+    while (!stream.eof())
+    {
         std::string line;
         std::getline(stream, line);
-        //remove carriage return from windows
-        line.erase( std::remove(line.begin(), line.end(), '\r'), line.end() );
+        // remove carriage return from windows
+        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
         parseLine(line);
     }
     return true;
 }
 
-ObjMaterial ObjMaterialLoader::getMaterial(const std::string &name)
+ObjMaterial ObjMaterialLoader::getMaterial(const std::string& name)
 {
-    for(ObjMaterial& m : materials){
-        if(m.name == name)
-            return m;
+    for (ObjMaterial& m : materials)
+    {
+        if (m.name == name) return m;
     }
-    cout<<"Warning material '"<<name<<"' not found!"<<endl;
+    cout << "Warning material '" << name << "' not found!" << endl;
     return ObjMaterial("default");
 }
 
 
-void ObjMaterialLoader::parseLine(const std::string &line)
+void ObjMaterialLoader::parseLine(const std::string& line)
 {
     std::stringstream sstream(line);
 
@@ -58,22 +62,24 @@ void ObjMaterialLoader::parseLine(const std::string &line)
     sstream >> header;
 
     std::string rest;
-    std::getline(sstream,rest);
+    std::getline(sstream, rest);
 
-    //remove first white space
-    if(rest[0]==' ' && rest.size()>1){
+    // remove first white space
+    if (rest[0] == ' ' && rest.size() > 1)
+    {
         rest = rest.substr(1);
     }
 
     std::stringstream restStream(rest);
 
-    if(header == "newmtl"){
+    if (header == "newmtl")
+    {
         ObjMaterial m(rest);
         materials.push_back(m);
-        currentMaterial = &materials[materials.size()-1];
-
+        currentMaterial = &materials[materials.size() - 1];
     }
-    if(currentMaterial==nullptr){
+    if (currentMaterial == nullptr)
+    {
         return;
     }
 
@@ -81,45 +87,73 @@ void ObjMaterialLoader::parseLine(const std::string &line)
     //        restStream >> currentMaterial->color;
     //    }
 
-    if(header == "Ns"){
+    if (header == "Ns")
+    {
         restStream >> currentMaterial->Ns;
-    }else if(header == "Ni"){
+    }
+    else if (header == "Ni")
+    {
         restStream >> currentMaterial->Ni;
-    }else if(header == "d"){
+    }
+    else if (header == "d")
+    {
         restStream >> currentMaterial->d;
-    }else if(header == "Tr"){
+    }
+    else if (header == "Tr")
+    {
         restStream >> currentMaterial->Tr;
-    }else if(header == "Tf"){
+    }
+    else if (header == "Tf")
+    {
         restStream >> currentMaterial->Tf;
-    }else if(header == "illum"){
+    }
+    else if (header == "illum")
+    {
         restStream >> currentMaterial->illum;
-    }else if(header == "Ka"){
+    }
+    else if (header == "Ka")
+    {
         restStream >> currentMaterial->Ka;
-    }else if(header == "Kd"){
+    }
+    else if (header == "Kd")
+    {
         restStream >> currentMaterial->Kd;
         currentMaterial->color = currentMaterial->Kd;
-    }else if(header == "Ks"){
+    }
+    else if (header == "Ks")
+    {
         restStream >> currentMaterial->Ks;
-    }else if(header == "Ke"){
+    }
+    else if (header == "Ke")
+    {
         restStream >> currentMaterial->Ke;
     }
-    else if(header == "map_Ka"){
+    else if (header == "map_Ka")
+    {
         currentMaterial->map_Ka = rest;
-    }else if(header == "map_Kd"){
+    }
+    else if (header == "map_Kd")
+    {
         currentMaterial->map_Kd = rest;
-    }else if(header == "map_Ks"){
+    }
+    else if (header == "map_Ks")
+    {
         currentMaterial->map_Ks = rest;
-    }else if(header == "map_d"){
-//        TextureParameters tp;
-//        tp.srgb = false;
+    }
+    else if (header == "map_d")
+    {
+        //        TextureParameters tp;
+        //        tp.srgb = false;
         currentMaterial->map_d = rest;
-//        if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
-    }else if(header == "map_bump" || header == "bump"){
-//        TextureParameters tp;
-//        tp.srgb = false;
+        //        if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
+    }
+    else if (header == "map_bump" || header == "bump")
+    {
+        //        TextureParameters tp;
+        //        tp.srgb = false;
         currentMaterial->map_bump = rest;
-//        if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
+        //        if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
     }
 }
 
-}
+}  // namespace Saiga

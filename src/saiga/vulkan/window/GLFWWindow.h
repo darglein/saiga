@@ -10,18 +10,19 @@
 #include "saiga/vulkan/window/Window.h"
 
 #ifndef SAIGA_USE_GLFW
-#error Saiga was compiled without GLFW.
+#    error Saiga was compiled without GLFW.
 #endif
 
 struct GLFWwindow;
 struct GLFWcursor;
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL GLFWWindow : public VulkanWindow
 {
-public:
+   public:
     GLFWwindow* window = nullptr;
 
     GLFWWindow(WindowParameters _windowParameters);
@@ -32,10 +33,11 @@ public:
     std::vector<const char*> getRequiredInstanceExtensions() override;
     void createSurface(VkInstance instance, VkSurfaceKHR* surface) override;
     virtual void update(float dt) override;
-private:
+
+   private:
     void create();
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

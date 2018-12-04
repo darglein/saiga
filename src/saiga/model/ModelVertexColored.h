@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,17 +8,15 @@
 
 #include "saiga/model/Model.h"
 
-namespace Saiga {
-
-
-class SAIGA_GLOBAL VertexColoredModel : public TriangleModel<VertexNC,uint32_t>
+namespace Saiga
 {
-public:
-
+class SAIGA_GLOBAL VertexColoredModel : public TriangleModel<VertexNC, uint32_t>
+{
+   public:
     void createFullscreenQuad();
 
     void createCheckerBoard(ivec2 size, float quadSize, vec4 color1, vec4 color2);
-    void loadObj(const std::string &file);
+    void loadObj(const std::string& file);
 };
 
 
@@ -28,12 +26,12 @@ struct SAIGA_GLOBAL Material
 };
 
 
-class SAIGA_GLOBAL TexturedModel : public TriangleModel<VertexNTD,uint32_t>
+class SAIGA_GLOBAL TexturedModel : public TriangleModel<VertexNTD, uint32_t>
 {
-public:
+   public:
     class SAIGA_GLOBAL TextureGroup
     {
-    public:
+       public:
         int startIndex;
         int indices;
         Material material;
@@ -41,10 +39,9 @@ public:
     std::vector<TextureGroup> groups;
 
 
-    void loadObj(const std::string &file);
+    void loadObj(const std::string& file);
 };
 
 
 
-
-}
+}  // namespace Saiga

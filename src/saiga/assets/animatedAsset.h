@@ -1,22 +1,21 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include <saiga/assets/asset.h>
-#include <saiga/opengl/texture/texture.h>
 #include "saiga/opengl/uniformBuffer.h"
 
-namespace Saiga {
+#include <saiga/assets/asset.h>
+#include <saiga/opengl/texture/texture.h>
 
-class AnimatedModel : public TriangleModel<BoneVertexCD,uint32_t>
+namespace Saiga
 {
-public:
-
-
+class AnimatedModel : public TriangleModel<BoneVertexCD, uint32_t>
+{
+   public:
 };
 
 /**
@@ -41,15 +40,16 @@ public:
  *
  */
 
-class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<AnimatedModel>{
-public:
+class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<AnimatedModel>
+{
+   public:
     using BasicAsset<AnimatedModel>::render;
     using BasicAsset<AnimatedModel>::renderDepth;
 
     int boneCount;
 
-    std::map<std::string,int> boneMap;
-    std::map<std::string,int> nodeindexMap;
+    std::map<std::string, int> boneMap;
+    std::map<std::string, int> nodeindexMap;
 
     std::vector<mat4> boneOffsets;
     std::vector<mat4> inverseBoneOffsets;
@@ -57,8 +57,8 @@ public:
     std::vector<Animation> animations;
 
 
-    void render(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices);
-    void renderDepth(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices);
+    void render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices);
+    void renderDepth(Camera* cam, const mat4& model, UniformBuffer& boneMatrices);
 };
 
-}
+}  // namespace Saiga

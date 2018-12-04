@@ -6,19 +6,18 @@
 
 #pragma once
 
-#include "saiga/util/tostring.h"
 #include "saiga/geometry/triangle_mesh.h"
-#include <fstream>
-#include "saiga/util/color.h"
 #include "saiga/model/ModelLoader.h"
+#include "saiga/util/color.h"
+#include "saiga/util/tostring.h"
 
-namespace Saiga {
+#include <fstream>
 
-
+namespace Saiga
+{
 class SAIGA_GLOBAL PLYLoader : public ModelLoader
 {
-public:
-
+   public:
     struct VertexProperty
     {
         std::string name;
@@ -27,7 +26,7 @@ public:
 
 
 
-    std::vector<std::pair<int,int>> offsetType;
+    std::vector<std::pair<int, int>> offsetType;
 
 
     int vertexSize;
@@ -38,7 +37,7 @@ public:
     std::string faceVertexCountType;
     std::string faceVertexIndexType;
 
-    TriangleMesh<VertexNC,uint32_t> mesh;
+    TriangleMesh<VertexNC, uint32_t> mesh;
 
     int vertexCount = -1, faceCount = -1;
 
@@ -52,8 +51,8 @@ public:
     void parseMeshBinary();
 
 
-    template<typename VertexType, typename IndexType>
-    static void save(std::string file, TriangleMesh<VertexType,IndexType>& mesh)
+    template <typename VertexType, typename IndexType>
+    static void save(std::string file, TriangleMesh<VertexType, IndexType>& mesh)
     {
         cout << "Save ply " << file << endl;
         std::vector<char> data;
@@ -82,9 +81,9 @@ public:
         header.push_back("end_header");
 
 
-        for(auto str : header)
+        for (auto str : header)
         {
-            data.insert(data.end(),str.begin(),str.end());
+            data.insert(data.end(), str.begin(), str.end());
             data.push_back('\n');
         }
 
@@ -92,20 +91,20 @@ public:
 
         int vertexSize = 3 * sizeof(float) + 3 * sizeof(float);
         data.resize(data.size() + vertexSize * mesh.vertices.size());
-        char* ptr =  data.data() + dataStart;
-        for(auto v : mesh.vertices)
+        char* ptr = data.data() + dataStart;
+        for (auto v : mesh.vertices)
         {
-            float* f = (float*) ptr;
-            f[0] = v.position.x;
-            f[1] = v.position.y;
-            f[2] = v.position.z;
+            float* f = (float*)ptr;
+            f[0]     = v.position.x;
+            f[1]     = v.position.y;
+            f[2]     = v.position.z;
 
-            float* c = (float*)(f+3);
-//            c[0] = 255;
-//            c[1] = 255;
-//            c[2] = 255;
+            float* c = (float*)(f + 3);
+            //            c[0] = 255;
+            //            c[1] = 255;
+            //            c[2] = 255;
 
-//            vec3 col = Color::srgb2linearrgb(v.color);
+            //            vec3 col = Color::srgb2linearrgb(v.color);
             c[0] = v.color.x;
             c[1] = v.color.y;
             c[2] = v.color.z;
@@ -117,31 +116,28 @@ public:
 
 
         int faceStart = data.size();
-        int faceSize = 3 * sizeof(int) + 1;
+        int faceSize  = 3 * sizeof(int) + 1;
         data.resize(data.size() + faceSize * mesh.faces.size());
         ptr = data.data() + faceStart;
-        for(auto f : mesh.faces)
+        for (auto f : mesh.faces)
         {
-            ptr[0] = 3;
-            int* fptr = (int*)(ptr+1);
-            fptr[0] = f.v1;
-            fptr[1] = f.v2;
-            fptr[2] = f.v3;
+            ptr[0]    = 3;
+            int* fptr = (int*)(ptr + 1);
+            fptr[0]   = f.v1;
+            fptr[1]   = f.v2;
+            fptr[2]   = f.v3;
             ptr += faceSize;
-
         }
 
         std::ofstream stream(file, std::ios::binary);
-        if(!stream.is_open())
+        if (!stream.is_open())
         {
             cerr << "Could not open file " << file << endl;
         }
 
-        stream.write(data.data(),data.size());
+        stream.write(data.data(), data.size());
     }
-
-
 };
 
 
-}
+}  // namespace Saiga

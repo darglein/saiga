@@ -7,21 +7,22 @@
 #pragma once
 
 #include "saiga/config.h"
+
 #include <vector>
 
-namespace Saiga {
-
+namespace Saiga
+{
 class SAIGA_GLOBAL CommandLineArguments
 {
-public:
+   public:
     struct CLA
     {
-        std::string long_name ;
+        std::string long_name;
         char short_name;
         std::string value;
         std::string description;
-        bool flag ;
-        bool required ;
+        bool flag;
+        bool required;
     };
 
     std::vector<CLA> arguments;
@@ -33,8 +34,8 @@ public:
 
     std::string get(std::string name);
 
-    void parse(int argc, char *argv[]);
+    void parse(int argc, char* argv[]);
     void printHelp();
 };
 
-}
+}  // namespace Saiga

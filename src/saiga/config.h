@@ -39,7 +39,7 @@
 #endif
 
 #if defined(_WIN32) && !defined(_WIN64)
-#error 32-bit builds are not supported.
+#    error 32-bit builds are not supported.
 #endif
 
 // Unused result
@@ -70,8 +70,6 @@ using std::endl;
 
 // ============== CUDA Stuff ==============
 
-//#if defined(SAIGA_USE_CUDA)
-
 // remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
 // for gcc add cppflag: -DCUDA_NDEBUG
 #if !defined(CUDA_NDEBUG)
@@ -96,22 +94,9 @@ using std::endl;
 #    if !defined(HD)
 #        define HD
 #    endif
-#    if !defined(__host__)
-#        define __host__
-#    endif
-#    if !defined(__device__)
-#        define __device__
-#    endif
-#    if !defined(__launch_bounds__)
-#        define __launch_bounds__
-#    endif
 #endif
 
 #define WARP_SIZE 32
-
 #define L1_CACHE_LINE_SIZE 128
 #define L2_CACHE_LINE_SIZE 32
-
 #define MAX_THREADS_PER_SM 2048
-
-//#endif

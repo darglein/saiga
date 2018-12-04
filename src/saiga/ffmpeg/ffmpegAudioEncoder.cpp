@@ -1,35 +1,39 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/ffmpeg/ffmpegAudioEncoder.h"
-#include "saiga/util/math.h"
+
 #include "saiga/util/assert.h"
+#include "saiga/util/math.h"
 
 #include "internal/noGraphicsAPI.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 FFMPEGAudioEncoder::FFMPEGAudioEncoder()
 {
     avcodec_register_all();
 }
 
-void FFMPEGAudioEncoder::addFrame(){
-//    cout << "Adding audio frame." << endl;
+void FFMPEGAudioEncoder::addFrame()
+{
+    //    cout << "Adding audio frame." << endl;
     SAIGA_ASSERT(currentSamples == buffer_size);
 
-    pkt.data = NULL; // packet data will be allocated by the encoder
+    pkt.data = NULL;  // packet data will be allocated by the encoder
     pkt.size = 0;
     /* encode the samples */
     ret = avcodec_encode_audio2(c, &pkt, frame, &got_output);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         fprintf(stderr, "Error encoding audio frame\n");
         exit(1);
     }
-    if (got_output) {
+    if (got_output)
+    {
         outputStream.write((const char*)pkt.data, pkt.size);
         av_packet_unref(&pkt);
     }
@@ -37,31 +41,36 @@ void FFMPEGAudioEncoder::addFrame(){
 }
 
 
-void FFMPEGAudioEncoder::addFrame(std::vector<unsigned char> &soundSamples, int samples)
+void FFMPEGAudioEncoder::addFrame(std::vector<unsigned char>& soundSamples, int samples)
 {
-    int newSamples = samples*bytesPerSample;
+    int newSamples      = samples * bytesPerSample;
     int newSampleOffset = 0;
     int requiredSamples = frameBuffer.size() - currentSamples;
 
-    while(newSamples > requiredSamples){
-        //copy samples to buffer
-        std::copy(soundSamples.begin()+newSampleOffset,soundSamples.begin()+newSampleOffset+requiredSamples,frameBuffer.begin()+currentSamples);
+    while (newSamples > requiredSamples)
+    {
+        // copy samples to buffer
+        std::copy(soundSamples.begin() + newSampleOffset, soundSamples.begin() + newSampleOffset + requiredSamples,
+                  frameBuffer.begin() + currentSamples);
         currentSamples += requiredSamples;
 
-        //buffer is full now
+        // buffer is full now
         addFrame();
         newSampleOffset += requiredSamples;
         newSamples -= requiredSamples;
         requiredSamples = frameBuffer.size();
     }
 
-    if(newSamples<=requiredSamples){
-        //copy samples to buffer
-        std::copy(soundSamples.begin()+newSampleOffset,soundSamples.begin()+newSampleOffset+newSamples,frameBuffer.begin()+currentSamples);
+    if (newSamples <= requiredSamples)
+    {
+        // copy samples to buffer
+        std::copy(soundSamples.begin() + newSampleOffset, soundSamples.begin() + newSampleOffset + newSamples,
+                  frameBuffer.begin() + currentSamples);
         currentSamples += newSamples;
 
-        if(currentSamples == buffer_size){
-            //buffer is full write frame!
+        if (currentSamples == buffer_size)
+        {
+            // buffer is full write frame!
             addFrame();
         }
         return;
@@ -73,31 +82,34 @@ void FFMPEGAudioEncoder::addFrame(std::vector<unsigned char> &soundSamples, int 
 void FFMPEGAudioEncoder::finishEncoding()
 {
     /* get the delayed frames */
-    for (got_output = 1; got_output; i++) {
+    for (got_output = 1; got_output; i++)
+    {
         ret = avcodec_encode_audio2(c, &pkt, NULL, &got_output);
-        if (ret < 0) {
+        if (ret < 0)
+        {
             fprintf(stderr, "Error encoding frame\n");
             exit(1);
         }
-        if (got_output) {
+        if (got_output)
+        {
             outputStream.write((const char*)pkt.data, pkt.size);
             av_packet_unref(&pkt);
         }
     }
     outputStream.close();
-//    av_freep(&samples);
+    //    av_freep(&samples);
     av_frame_free(&frame);
     avcodec_close(c);
     av_free(c);
 }
 
 /* check that a given sample format is supported by the encoder */
-static int check_sample_fmt(AVCodec *codec, enum AVSampleFormat sample_fmt)
+static int check_sample_fmt(AVCodec* codec, enum AVSampleFormat sample_fmt)
 {
-    const enum AVSampleFormat *p = codec->sample_fmts;
-    while (*p != AV_SAMPLE_FMT_NONE) {
-        if (*p == sample_fmt)
-            return 1;
+    const enum AVSampleFormat* p = codec->sample_fmts;
+    while (*p != AV_SAMPLE_FMT_NONE)
+    {
+        if (*p == sample_fmt) return 1;
         p++;
     }
     return 0;
@@ -141,18 +153,19 @@ static int select_channel_layout(AVCodec *codec)
 }
 #endif
 
-void FFMPEGAudioEncoder::startEncoding(const std::string &filename)
+void FFMPEGAudioEncoder::startEncoding(const std::string& filename)
 {
-
-    cout << "Encode audio file "<< filename << endl;
+    cout << "Encode audio file " << filename << endl;
     /* find the MP2 encoder */
     codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
-    if (!codec) {
+    if (!codec)
+    {
         fprintf(stderr, "Codec not found\n");
         exit(1);
     }
     c = avcodec_alloc_context3(codec);
-    if (!c) {
+    if (!c)
+    {
         fprintf(stderr, "Could not allocate audio codec context\n");
         exit(1);
     }
@@ -160,39 +173,39 @@ void FFMPEGAudioEncoder::startEncoding(const std::string &filename)
     c->bit_rate = 64000;
     /* check that the encoder supports s16 pcm input */
     c->sample_fmt = AV_SAMPLE_FMT_S16;
-    if (!check_sample_fmt(codec, c->sample_fmt)) {
-        fprintf(stderr, "Encoder does not support sample format %s",
-                av_get_sample_fmt_name(c->sample_fmt));
+    if (!check_sample_fmt(codec, c->sample_fmt))
+    {
+        fprintf(stderr, "Encoder does not support sample format %s", av_get_sample_fmt_name(c->sample_fmt));
         exit(1);
     }
     /* select other audio parameters supported by the encoder */
-//    c->sample_rate    = select_sample_rate(codec);
-//    c->channel_layout = select_channel_layout(codec);
-//    c->channels       = av_get_channel_layout_nb_channels(c->channel_layout);
-    c->sample_rate = 44100;
+    //    c->sample_rate    = select_sample_rate(codec);
+    //    c->channel_layout = select_channel_layout(codec);
+    //    c->channels       = av_get_channel_layout_nb_channels(c->channel_layout);
+    c->sample_rate    = 44100;
     c->channel_layout = AV_CH_LAYOUT_STEREO;
-    c->channels = 2;
+    c->channels       = 2;
 
-    bytesPerSample = 2 * 2; //16 bit stereo
+    bytesPerSample = 2 * 2;  // 16 bit stereo
 
     /* open it */
-    if (avcodec_open2(c, codec, NULL) < 0) {
+    if (avcodec_open2(c, codec, NULL) < 0)
+    {
         fprintf(stderr, "Could not open codec\n");
         exit(1);
     }
 
     cout << "Audio encoding. "
-            "c->sample_rate="<<c->sample_rate<<
-            " c->channel_layout=" <<c->channel_layout<<
-            " c->channels="<<c->channels<<
-            " c->frame_size="<<c->frame_size<<
-            endl;
+            "c->sample_rate="
+         << c->sample_rate << " c->channel_layout=" << c->channel_layout << " c->channels=" << c->channels
+         << " c->frame_size=" << c->frame_size << endl;
 
-	outputStream.open(filename, std::ios::out | std::ios::binary);
+    outputStream.open(filename, std::ios::out | std::ios::binary);
 
     /* frame containing input raw audio */
     frame = av_frame_alloc();
-    if (!frame) {
+    if (!frame)
+    {
         fprintf(stderr, "Could not allocate audio frame\n");
         exit(1);
     }
@@ -204,19 +217,20 @@ void FFMPEGAudioEncoder::startEncoding(const std::string &filename)
 
     /* the codec gives us the frame size, in samples,
      * we calculate the size of the samples buffer in bytes */
-    buffer_size = av_samples_get_buffer_size(NULL, c->channels, c->frame_size,
-                                             c->sample_fmt, 0);
-    SAIGA_ASSERT(buffer_size == bytesPerSample*c->frame_size);
-    cout << "buffer size: " << buffer_size << " test " << 2*2*c->frame_size << endl;
-    if (buffer_size < 0) {
+    buffer_size = av_samples_get_buffer_size(NULL, c->channels, c->frame_size, c->sample_fmt, 0);
+    SAIGA_ASSERT(buffer_size == bytesPerSample * c->frame_size);
+    cout << "buffer size: " << buffer_size << " test " << 2 * 2 * c->frame_size << endl;
+    if (buffer_size < 0)
+    {
         fprintf(stderr, "Could not get sample buffer size\n");
         exit(1);
     }
     frameBuffer.resize(buffer_size);
     /* setup the data pointers in the AVFrame */
-    ret = avcodec_fill_audio_frame(frame, c->channels, c->sample_fmt,
-                                   (const uint8_t*)frameBuffer.data(), buffer_size, 0);
-    if (ret < 0) {
+    ret =
+        avcodec_fill_audio_frame(frame, c->channels, c->sample_fmt, (const uint8_t*)frameBuffer.data(), buffer_size, 0);
+    if (ret < 0)
+    {
         fprintf(stderr, "Could not setup audio frame\n");
         exit(1);
     }
@@ -224,4 +238,4 @@ void FFMPEGAudioEncoder::startEncoding(const std::string &filename)
     av_init_packet(&pkt);
 }
 
-}
+}  // namespace Saiga

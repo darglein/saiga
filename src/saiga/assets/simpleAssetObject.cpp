@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,30 +9,30 @@
 #include "saiga/assets/asset.h"
 #include "saiga/camera/camera.h"
 
-namespace Saiga {
-
-void SimpleAssetObject::render(Camera *cam)
+namespace Saiga
+{
+void SimpleAssetObject::render(Camera* cam)
 {
     SAIGA_ASSERT(asset);
-    asset->render(cam,model);
+    asset->render(cam, model);
 }
 
-void SimpleAssetObject::renderForward(Camera *cam)
+void SimpleAssetObject::renderForward(Camera* cam)
 {
     SAIGA_ASSERT(asset);
-    asset->renderForward(cam,model);
+    asset->renderForward(cam, model);
 }
 
-void SimpleAssetObject::renderDepth(Camera *cam)
+void SimpleAssetObject::renderDepth(Camera* cam)
 {
     SAIGA_ASSERT(asset);
-    asset->renderDepth(cam,model);
+    asset->renderDepth(cam, model);
 }
 
-void SimpleAssetObject::renderWireframe(Camera *cam)
+void SimpleAssetObject::renderWireframe(Camera* cam)
 {
     SAIGA_ASSERT(asset);
-    asset->renderWireframe(cam,model);
+    asset->renderWireframe(cam, model);
 }
 
 void SimpleAssetObject::renderRaw()
@@ -41,4 +41,4 @@ void SimpleAssetObject::renderRaw()
     asset->renderRaw();
 }
 
-}
+}  // namespace Saiga

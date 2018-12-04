@@ -20,17 +20,17 @@
 //#define saturate(X) clamp(X, 0.f, 1.f)
 #define frac(X) fract(X)
 #define atan2(Y, X) atan(Y, X)
-#define mul(A, B) ((B)*(A))
+#define mul(A, B) ((B) * (A))
 
 #define sat(X) saturate(X)
-#define pfrac(X) ((X) - floor(X))
+#define pfrac(X) ((X)-floor(X))
 #define rcp(X) (1.0f / X)
 
 #define PI uintBitsToFloat(0x40490fdc)
-#define PHI (sqrt(5.f)*0.5f + 0.5f)
+#define PHI (sqrt(5.f) * 0.5f + 0.5f)
 
-#define mad(A,B,C) (A*B+C)
-#define madfrac(A,B) mad((A), (B), -floor((A)*(B)))
+#define mad(A, B, C) (A * B + C)
+#define madfrac(A, B) mad((A), (B), -floor((A) * (B)))
 
 
 #endif

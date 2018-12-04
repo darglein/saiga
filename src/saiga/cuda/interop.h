@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <iostream>
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/opengl/opengl.h"
+
+#include <iostream>
 
 struct cudaGraphicsResource;
 

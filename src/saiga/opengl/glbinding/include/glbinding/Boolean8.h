@@ -10,14 +10,12 @@
 
 namespace glbinding
 {
-
-
 class GLBINDING_API Boolean8
 {
-public:
+   public:
     using underlying_type = unsigned char;
 
-public:
+   public:
     GLBINDING_CONSTEXPR inline Boolean8();
     GLBINDING_CONSTEXPR inline Boolean8(bool on);
     GLBINDING_CONSTEXPR inline Boolean8(char on);
@@ -31,21 +29,21 @@ public:
     GLBINDING_CONSTEXPR inline explicit operator int() const;
     GLBINDING_CONSTEXPR inline explicit operator unsigned int() const;
 
-    inline Boolean8 & operator=(const Boolean8 & other);
-    GLBINDING_CONSTEXPR inline bool operator<(const Boolean8 & other) const;
-    GLBINDING_CONSTEXPR inline bool operator>(const Boolean8 & other) const;
-    GLBINDING_CONSTEXPR inline bool operator<=(const Boolean8 & other) const;
-    GLBINDING_CONSTEXPR inline bool operator>=(const Boolean8 & other) const;
+    inline Boolean8& operator=(const Boolean8& other);
+    GLBINDING_CONSTEXPR inline bool operator<(const Boolean8& other) const;
+    GLBINDING_CONSTEXPR inline bool operator>(const Boolean8& other) const;
+    GLBINDING_CONSTEXPR inline bool operator<=(const Boolean8& other) const;
+    GLBINDING_CONSTEXPR inline bool operator>=(const Boolean8& other) const;
 
-    GLBINDING_CONSTEXPR inline bool operator==(const Boolean8 & other) const;
-    GLBINDING_CONSTEXPR inline bool operator!=(const Boolean8 & other) const;
+    GLBINDING_CONSTEXPR inline bool operator==(const Boolean8& other) const;
+    GLBINDING_CONSTEXPR inline bool operator!=(const Boolean8& other) const;
 
-public:
+   public:
     underlying_type m_value;
 };
 
 
-} // namespace gl
+}  // namespace glbinding
 
 
 #include <glbinding/Boolean8.inl>

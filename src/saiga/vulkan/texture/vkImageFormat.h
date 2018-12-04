@@ -6,16 +6,17 @@
 
 #pragma once
 
-#include "saiga/util/math.h"
 #include "saiga/image/imageFormat.h"
+#include "saiga/util/math.h"
 #include "saiga/vulkan/svulkan.h"
 
 
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 SAIGA_GLOBAL vk::Format getvkFormat(ImageType type);
 
 }
-}
+}  // namespace Saiga

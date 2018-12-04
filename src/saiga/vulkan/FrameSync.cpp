@@ -5,28 +5,25 @@
  */
 
 #include "FrameSync.h"
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 void FrameSync::create(vk::Device device)
 {
-    vk::FenceCreateInfo fenceCreateInfo{
-        vk::FenceCreateFlagBits::eSignaled
-    };
+    vk::FenceCreateInfo fenceCreateInfo{vk::FenceCreateFlagBits::eSignaled};
     frameFence = device.createFence(fenceCreateInfo);
 
-    vk::SemaphoreCreateInfo semaphoreCreateInfo {
-        vk::SemaphoreCreateFlags()
-    };
+    vk::SemaphoreCreateInfo semaphoreCreateInfo{vk::SemaphoreCreateFlags()};
     device.createSemaphore(&semaphoreCreateInfo, nullptr, &imageVailable);
     device.createSemaphore(&semaphoreCreateInfo, nullptr, &renderComplete);
 }
 
 void FrameSync::destroy(vk::Device device)
 {
-//    vkDestroySemaphore(device, imageVailable, nullptr);
-//    vkDestroySemaphore(device, renderComplete, nullptr);
-//    vkDestroyFence(device, frameFence, nullptr);
+    //    vkDestroySemaphore(device, imageVailable, nullptr);
+    //    vkDestroySemaphore(device, renderComplete, nullptr);
+    //    vkDestroyFence(device, frameFence, nullptr);
     device.destroySemaphore(imageVailable);
     device.destroySemaphore(renderComplete);
     device.destroyFence(frameFence);
@@ -38,5 +35,5 @@ void FrameSync::wait(vk::Device device)
     device.resetFences(frameFence);
 }
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

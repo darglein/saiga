@@ -8,21 +8,18 @@
 
 #include "saiga/vulkan/svulkan.h"
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 /**
  * Wrapper class for vk::DescriptorPool.
  */
 class SAIGA_GLOBAL DescriptorPool
 {
-public:
-
-    void create(vk::Device device,
-            uint32_t maxSets,
-            vk::ArrayProxy<const vk::DescriptorPoolSize> poolSizes,
-            vk::DescriptorPoolCreateFlags flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet
-            );
+   public:
+    void create(vk::Device device, uint32_t maxSets, vk::ArrayProxy<const vk::DescriptorPoolSize> poolSizes,
+                vk::DescriptorPoolCreateFlags flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 
     // Allocates a single descriptor set with the given layout
     vk::DescriptorSet allocateDescriptorSet(vk::DescriptorSetLayout layout);
@@ -32,16 +29,15 @@ public:
 
     explicit operator VkDescriptorPool() const { return descriptorPool; }
 
-    void freeDescriptorSet(vk::DescriptorSet set) {
-        device.freeDescriptorSets(descriptorPool, set);
-    }
+    void freeDescriptorSet(vk::DescriptorSet set) { device.freeDescriptorSets(descriptorPool, set); }
 
     void destroy();
-private:
+
+   private:
     vk::Device device;
     vk::DescriptorPool descriptorPool;
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

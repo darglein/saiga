@@ -4,11 +4,13 @@
 
 #pragma once
 
-#include <mutex>
+#include "saiga/vulkan/memory/BaseMemoryAllocator.h"
+
 #include "BaseMemoryAllocator.h"
 #include "ChunkCreator.h"
 #include "FitStrategy.h"
-#include "saiga/vulkan/memory/BaseMemoryAllocator.h"
+
+#include <mutex>
 
 namespace Saiga
 {

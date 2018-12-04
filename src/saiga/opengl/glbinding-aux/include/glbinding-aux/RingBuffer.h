@@ -6,32 +6,32 @@
 #include <vector>
 
 
-namespace glbinding { namespace aux
+namespace glbinding
 {
-
-
+namespace aux
+{
 template <typename T>
-class RingBuffer 
+class RingBuffer
 {
-
-public:
+   public:
     // Buffer is limited to (maxValue(sizeType)/2 - 1) entries
-    using SizeType = unsigned int;
+    using SizeType       = unsigned int;
     using TailIdentifier = unsigned int;
 
     RingBuffer(SizeType maxSize);
 
     void resize(SizeType newSize);
 
-    T nextHead(bool & available) const;
-    bool push(T && entry);
-    bool push(T & entry);
+    T nextHead(bool& available) const;
+    bool push(T&& entry);
+    bool push(T& entry);
 
     TailIdentifier addTail();
     void removeTail(TailIdentifier);
     const typename std::vector<T>::const_iterator cbegin(TailIdentifier key) const;
-    bool valid(TailIdentifier key, const typename std::vector<T>::const_iterator & it) const;
-    const typename std::vector<T>::const_iterator next(TailIdentifier key, const typename std::vector<T>::const_iterator & it);
+    bool valid(TailIdentifier key, const typename std::vector<T>::const_iterator& it) const;
+    const typename std::vector<T>::const_iterator next(TailIdentifier key,
+                                                       const typename std::vector<T>::const_iterator& it);
     SizeType size(TailIdentifier);
 
     SizeType maxSize() const;
@@ -39,13 +39,13 @@ public:
     bool isFull() const;
     bool isEmpty() const;
 
-protected:
+   protected:
     SizeType next(SizeType current) const;
     bool isFull(SizeType nextHead) const;
     SizeType lastTail() const;
     SizeType size(SizeType, SizeType) const;
 
-protected:
+   protected:
     std::vector<T> m_buffer;
     SizeType m_size;
     std::atomic<SizeType> m_head;
@@ -53,7 +53,8 @@ protected:
 };
 
 
-} } // namespace glbinding::aux
+}  // namespace aux
+}  // namespace glbinding
 
 
 #include <glbinding-aux/RingBuffer.inl>

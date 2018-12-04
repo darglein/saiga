@@ -5,6 +5,13 @@
  */
 
 #include "gphoto.h"
+
+#include "saiga/util/file.h"
+#include "saiga/util/threadName.h"
+#include "saiga/util/tostring.h"
+
+#include "gphoto2/gphoto2.h"
+
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -14,11 +21,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include "gphoto2/gphoto2-camera.h"
-#include "gphoto2/gphoto2.h"
-#include "saiga/util/file.h"
-#include "saiga/util/threadName.h"
-#include "saiga/util/tostring.h"
 
 #define CHECK_GP(_X)                                                              \
     {                                                                             \
@@ -60,7 +64,10 @@ GPhoto::~GPhoto()
     }
 }
 
-std::shared_ptr<GPhoto::DSLRImage> GPhoto::waitForImage() { return imageBuffer.get(); }
+std::shared_ptr<GPhoto::DSLRImage> GPhoto::waitForImage()
+{
+    return imageBuffer.get();
+}
 
 std::shared_ptr<GPhoto::DSLRImage> GPhoto::tryGetImage()
 {

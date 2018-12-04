@@ -3,12 +3,13 @@
 //
 
 #pragma once
-#include <saiga/util/assert.h>
-#include <ostream>
-#include <vulkan/vulkan.hpp>
 #include "saiga/export.h"
 #include "saiga/util/easylogging++.h"
 #include "saiga/vulkan/memory/Chunk.h"
+
+#include <ostream>
+#include <saiga/util/assert.h>
+#include <vulkan/vulkan.hpp>
 namespace Saiga
 {
 namespace Vulkan

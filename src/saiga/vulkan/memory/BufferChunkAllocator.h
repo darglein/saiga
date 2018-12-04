@@ -3,11 +3,6 @@
 //
 
 #pragma once
-#include <limits>
-#include <list>
-#include <utility>
-#include <vulkan/vulkan.hpp>
-#include "BaseChunkAllocator.h"
 #include "saiga/export.h"
 #include "saiga/util/easylogging++.h"
 #include "saiga/util/imath.h"
@@ -16,6 +11,13 @@
 #include "saiga/vulkan/memory/ChunkCreator.h"
 #include "saiga/vulkan/memory/FitStrategy.h"
 #include "saiga/vulkan/memory/MemoryLocation.h"
+
+#include "BaseChunkAllocator.h"
+
+#include <limits>
+#include <list>
+#include <utility>
+#include <vulkan/vulkan.hpp>
 
 using namespace Saiga::Vulkan::Memory;
 

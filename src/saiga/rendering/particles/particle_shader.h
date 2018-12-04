@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,10 +8,11 @@
 
 #include "saiga/opengl/shader/basic_shaders.h"
 
-namespace Saiga {
-
-class SAIGA_GLOBAL ParticleShader : public MVPTextureShader {
-public:
+namespace Saiga
+{
+class SAIGA_GLOBAL ParticleShader : public MVPTextureShader
+{
+   public:
     GLint location_timer, location_timestep, location_interpolation;
 
 
@@ -22,8 +23,9 @@ public:
 };
 
 
-class SAIGA_GLOBAL DeferredParticleShader : public ParticleShader {
-public:
+class SAIGA_GLOBAL DeferredParticleShader : public ParticleShader
+{
+   public:
     GLint location_texture_depth;
     GLint location_cameraParameters;
 
@@ -34,4 +36,4 @@ public:
     void uploadCameraParameters(vec2 cp);
 };
 
-}
+}  // namespace Saiga

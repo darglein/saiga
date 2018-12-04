@@ -4,19 +4,18 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/assert.h"
-#include "saiga/openni2/RGBDCameraInput.h"
-
 #include "saiga/network/ImageTransmition.h"
-#include "boost/asio.hpp"
+#include "saiga/openni2/RGBDCameraInput.h"
+#include "saiga/time/timer.h"
+#include "saiga/util/assert.h"
 #include "saiga/util/ini/ini.h"
 
+#include "boost/asio.hpp"
 
-#include "saiga/time/timer.h"
-
-#include <thread>
-#include <condition_variable>
 #include <mutex>
+#include <thread>
+
+#include <condition_variable>
 
 using namespace Saiga;
 
@@ -24,18 +23,17 @@ using namespace boost::asio;
 
 
 
-
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     std::string file = "server.ini";
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
-    auto ip         = ini.GetAddString ("client","server_ip","10.0.0.2");
-    auto port        = ini.GetAddLong ("client","port",9000);
-    if(ini.changed()) ini.SaveFile(file.c_str());
+    auto ip   = ini.GetAddString("client", "server_ip", "10.0.0.2");
+    auto port = ini.GetAddLong("client", "port", 9000);
+    if (ini.changed()) ini.SaveFile(file.c_str());
 
 
-    ImageTransmition it(ip,port);
+    ImageTransmition it(ip, port);
     it.makeSender();
 
 
@@ -46,7 +44,7 @@ int main(int argc, char *argv[])
     RGBDCameraInput::CameraOptions co2;
     co2.w = 320;
     co2.h = 240;
-    RGBDCameraInput camera(co1,co2);
+    RGBDCameraInput camera(co1, co2);
 
 
 
@@ -77,16 +75,14 @@ int main(int argc, char *argv[])
     bool running = true;
     std::mutex lock1;
     std::condition_variable cv1;
-     std::shared_ptr<RGBDCamera::FrameData> buffer1;
+    std::shared_ptr<RGBDCamera::FrameData> buffer1;
 
-    std::thread pullThread(
-                [&]()
-    {
+    std::thread pullThread([&]() {
         std::shared_ptr<RGBDCamera::FrameData> frame;
 
-        while(running)
+        while (running)
         {
-//             camera.readFrame(*frame);
+            //             camera.readFrame(*frame);
             frame = camera.waitForImage();
             {
                 std::unique_lock<std::mutex> l(lock1);
@@ -99,30 +95,28 @@ int main(int argc, char *argv[])
     int id = 0;
 
     AverageTimer at;
-      for(int i =0; i < 300; ++i)
+    for (int i = 0; i < 300; ++i)
     {
-
-
-          std::shared_ptr<RGBDCamera::FrameData> frame;
+        std::shared_ptr<RGBDCamera::FrameData> frame;
         {
             std::unique_lock<std::mutex> l(lock1);
-            cv1.wait(l, [&](){return buffer1;}); //wait until the buffer is valid
+            cv1.wait(l, [&]() { return buffer1; });  // wait until the buffer is valid
             frame = buffer1;
             buffer1.reset();
         }
 
 
 
-          it.sendImage(frame->colorImg);
-          it.sendImage(frame->depthImg);
-          at.stop();
-          at.start();
+        it.sendImage(frame->colorImg);
+        it.sendImage(frame->depthImg);
+        at.stop();
+        at.start();
 
-          cout << id << " image send. Fps: " << 1000.0 / at.getTimeMS() << endl;
-          //        sendImage(camera.colorImg,socket,remote_endpoint);
-          ++id;
+        cout << id << " image send. Fps: " << 1000.0 / at.getTimeMS() << endl;
+        //        sendImage(camera.colorImg,socket,remote_endpoint);
+        ++id;
     }
-      running = false;
+    running = false;
 
     pullThread.join();
 

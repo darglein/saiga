@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <mutex>
 #include "saiga/imgui/imgui_saiga.h"
 #include "saiga/vision/VisionTypes.h"
+
+#include <mutex>
 
 namespace Saiga
 {

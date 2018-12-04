@@ -5,6 +5,7 @@
  */
 
 #include "saiga/world/heightmap.h"
+
 #include "saiga/config.h"
 #include "saiga/opengl/texture/textureLoader.h"
 
@@ -244,7 +245,10 @@ float Heightmap::getHeight(int x, int y)
     return heights[x + y * w];
 }
 
-float Heightmap::getHeightScaled(int x, int y) { return getHeight(x, y) * heightScale; }
+float Heightmap::getHeightScaled(int x, int y)
+{
+    return getHeight(x, y) * heightScale;
+}
 
 float Heightmap::getHeight(int layer, int x, int y)
 {
@@ -266,7 +270,10 @@ float Heightmap::getHeight(int layer, int x, int y)
     return 0;
 }
 
-float Heightmap::getHeightScaled(int layer, int x, int y) { return getHeight(layer, x, y) * heightScale; }
+float Heightmap::getHeightScaled(int layer, int x, int y)
+{
+    return getHeight(layer, x, y) * heightScale;
+}
 
 void Heightmap::setHeight(int x, int y, float v)
 {

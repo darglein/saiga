@@ -1,26 +1,23 @@
 
-#include <glbinding/glbinding.h>
-
 #include <glbinding/AbstractFunction.h>
 #include <glbinding/Binding.h>
 #include <glbinding/FunctionCall.h>
+#include <glbinding/glbinding.h>
 
 
 namespace glbinding
 {
-
-
 void initialize(glbinding::GetProcAddress functionPointerResolver, bool resolveFunctions)
 {
     Binding::initialize(functionPointerResolver, resolveFunctions);
 }
 
-void registerAdditionalFunction(AbstractFunction * function)
+void registerAdditionalFunction(AbstractFunction* function)
 {
     Binding::registerAdditionalFunction(function);
 }
 
-ProcAddress resolveFunction(const char * name)
+ProcAddress resolveFunction(const char* name)
 {
     return Binding::resolveFunction(name);
 }
@@ -40,7 +37,7 @@ void setCallbackMask(CallbackMask mask)
     Binding::setCallbackMask(mask);
 }
 
-void setCallbackMaskExcept(CallbackMask mask, const std::set<std::string> & blackList)
+void setCallbackMaskExcept(CallbackMask mask, const std::set<std::string>& blackList)
 {
     Binding::setCallbackMaskExcept(mask, blackList);
 }
@@ -50,7 +47,7 @@ void addCallbackMask(CallbackMask mask)
     Binding::addCallbackMask(mask);
 }
 
-void addCallbackMaskExcept(CallbackMask mask, const std::set<std::string> & blackList)
+void addCallbackMaskExcept(CallbackMask mask, const std::set<std::string>& blackList)
 {
     Binding::addCallbackMaskExcept(mask, blackList);
 }
@@ -60,7 +57,7 @@ void removeCallbackMask(CallbackMask mask)
     Binding::removeCallbackMask(mask);
 }
 
-void removeCallbackMaskExcept(CallbackMask mask, const std::set<std::string> & blackList)
+void removeCallbackMaskExcept(CallbackMask mask, const std::set<std::string>& blackList)
 {
     Binding::removeCallbackMaskExcept(mask, blackList);
 }
@@ -105,7 +102,8 @@ void setLogCallback(FunctionLogCallback callback)
     Binding::setLogCallback(callback);
 }
 
-void initialize(ContextHandle context, glbinding::GetProcAddress functionPointerResolver, bool useContext, bool resolveFunctions)
+void initialize(ContextHandle context, glbinding::GetProcAddress functionPointerResolver, bool useContext,
+                bool resolveFunctions)
 {
     Binding::initialize(context, functionPointerResolver, useContext, resolveFunctions);
 }
@@ -131,4 +129,4 @@ void releaseContext(ContextHandle context)
 }
 
 
-} // namespace glbinding
+}  // namespace glbinding

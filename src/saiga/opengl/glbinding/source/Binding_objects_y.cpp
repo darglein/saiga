@@ -7,9 +7,4 @@ using namespace gl;
 
 namespace glbinding
 {
-
-
-
-
-
-} // namespace glbinding
+}  // namespace glbinding

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,13 +8,13 @@
 
 #include "saiga/sound/OpenAL.h"
 
-namespace Saiga {
-
-namespace sound {
-
+namespace Saiga
+{
+namespace sound
+{
 class SAIGA_GLOBAL Sound
 {
-public:
+   public:
     std::string name;
 
     unsigned int buffer = 0;
@@ -23,21 +23,20 @@ public:
     int frequency;
     int format;
 
-    Sound ();
-    virtual ~Sound ();
+    Sound();
+    virtual ~Sound();
 
     void setFormat(int _channels, int _bitsPerSample, int _frequency);
     void createBuffer(const void* data, int size);
     void deleteBuffer();
 
 
-    //check if first sample is 0. prints a warning if it's not 0.
+    // check if first sample is 0. prints a warning if it's not 0.
     bool checkFirstSample(const void* data);
 
     int32_t getSample(int sample, int channel, const void* data);
     float toFloat(int32_t sample);
-
 };
-}
+}  // namespace sound
 
-}
+}  // namespace Saiga

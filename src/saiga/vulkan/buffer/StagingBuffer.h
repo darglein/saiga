@@ -7,9 +7,10 @@
 
 #pragma once
 
-#include "Buffer.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/Vertex.h"
+
+#include "Buffer.h"
 namespace Saiga
 {
 namespace Vulkan

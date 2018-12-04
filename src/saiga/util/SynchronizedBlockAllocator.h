@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <vector>
 #include "saiga/config.h"
 #include "saiga/util/assert.h"
+
+#include <vector>
 
 namespace Saiga
 {

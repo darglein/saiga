@@ -5,6 +5,7 @@
  */
 
 #include "TextureDisplay.h"
+
 #include "saiga/model/objModelLoader.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"

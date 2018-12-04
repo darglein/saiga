@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "opencv2/opencv.hpp"
 #include "saiga/util/math.h"
+
+#include "opencv2/opencv.hpp"
 
 
 namespace Saiga

@@ -1,226 +1,229 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
-#include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/tests/test_helper.h"
-#include "saiga/cuda/thread_info.h"
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/time/timer.h"
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/shfl_helper.h"
 #include "saiga/cuda/shuffle_copy.h"
+#include "saiga/cuda/tests/test.h"
+#include "saiga/cuda/tests/test_helper.h"
+#include "saiga/cuda/thread_info.h"
+#include "saiga/time/timer.h"
 
-namespace Saiga {
-namespace CUDA {
-
-template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
-__launch_bounds__(BLOCK_SIZE)
-__global__ static
-void copyUnCoalesced(ArrayView<T> data, ArrayView<T> result){
-
-
+namespace Saiga
+{
+namespace CUDA
+{
+template <typename T, int ElementSize, unsigned int BLOCK_SIZE>
+__launch_bounds__(BLOCK_SIZE) __global__ static void copyUnCoalesced(ArrayView<T> data, ArrayView<T> result)
+{
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
-    //grid stride loop
-    for(auto id = ti.thread_id * ElementSize; id < data.size(); id += ti.grid_size * ElementSize){
-
+    // grid stride loop
+    for (auto id = ti.thread_id * ElementSize; id < data.size(); id += ti.grid_size * ElementSize)
+    {
         T l[ElementSize];
 
-        auto localStart =  ti.thread_id * ElementSize;
+        auto localStart = ti.thread_id * ElementSize;
 
 
-        for(int i = 0; i < ElementSize; ++i){
-            l[i] = data[localStart+i];
+        for (int i = 0; i < ElementSize; ++i)
+        {
+            l[i] = data[localStart + i];
         }
 
 
-        for(int i = 0; i < ElementSize; ++i){
+        for (int i = 0; i < ElementSize; ++i)
+        {
             l[i] += 42;
         }
 
-        for(int i = 0; i < ElementSize; ++i){
-            result[localStart+i] =  l[i];
+        for (int i = 0; i < ElementSize; ++i)
+        {
+            result[localStart + i] = l[i];
         }
     }
 }
 
 
-template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
-__launch_bounds__(BLOCK_SIZE)
-__global__ static
-void copyFullCoalesced(ArrayView<T> data, ArrayView<T> result){
-
+template <typename T, int ElementSize, unsigned int BLOCK_SIZE>
+__launch_bounds__(BLOCK_SIZE) __global__ static void copyFullCoalesced(ArrayView<T> data, ArrayView<T> result)
+{
     const int elementsPerWarp = ElementSize * WARP_SIZE;
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
 
-    auto N = data.size();
-    auto Nelements = N / ElementSize;
-    auto requiredWarps = CUDA::getBlockCount(Nelements,WARP_SIZE);
+    auto N             = data.size();
+    auto Nelements     = N / ElementSize;
+    auto requiredWarps = CUDA::getBlockCount(Nelements, WARP_SIZE);
 
 
-    //grid stride loop
-    for(auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps){
-
+    // grid stride loop
+    for (auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps)
+    {
         auto warpStart = wId * elementsPerWarp;
 
-        for(auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE){
+        for (auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE)
+        {
             auto globalOffset = warpStart + e;
-            if(globalOffset < N){
+            if (globalOffset < N)
+            {
                 auto d = data[globalOffset];
                 d += 42;
                 result[globalOffset] = d;
             }
         }
-
-
     }
 }
 
-template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
-__launch_bounds__(BLOCK_SIZE)
-__global__ static
-void sharedMemoryUnCoalesced(ArrayView<T> data, ArrayView<T> result){
-
+template <typename T, int ElementSize, unsigned int BLOCK_SIZE>
+__launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryUnCoalesced(ArrayView<T> data, ArrayView<T> result)
+{
     __shared__ T buffer[BLOCK_SIZE][ElementSize + 0];
 
 
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
-    //grid stride loop
-    for(auto id = ti.thread_id * ElementSize; id < data.size(); id += ti.grid_size * ElementSize){
-
+    // grid stride loop
+    for (auto id = ti.thread_id * ElementSize; id < data.size(); id += ti.grid_size * ElementSize)
+    {
         T l[ElementSize];
 
-        auto matrixId = ti.thread_id;
-        auto globalOffset = matrixId * ElementSize;
-        auto localMatrixId = ti.local_thread_id; //id in shared buffer
+        auto matrixId      = ti.thread_id;
+        auto globalOffset  = matrixId * ElementSize;
+        auto localMatrixId = ti.local_thread_id;  // id in shared buffer
 
-        //linear copy
-        for(int i = 0; i < ElementSize; ++i){
+        // linear copy
+        for (int i = 0; i < ElementSize; ++i)
+        {
             buffer[localMatrixId][i] = data[globalOffset + i];
         }
 
-        for(int i = 0; i < ElementSize; ++i){
+        for (int i = 0; i < ElementSize; ++i)
+        {
             l[i] = buffer[localMatrixId][i];
         }
 
 
-        //add something so things don't get optimized away
-        for(int i = 0; i < ElementSize; ++i){
+        // add something so things don't get optimized away
+        for (int i = 0; i < ElementSize; ++i)
+        {
             l[i] += 42;
         }
 
-        for(int i = 0; i < ElementSize; ++i){
-            buffer[localMatrixId][i] =  l[i];
+        for (int i = 0; i < ElementSize; ++i)
+        {
+            buffer[localMatrixId][i] = l[i];
         }
 
-        //linear copy
-        for(int i = 0; i < ElementSize; ++i){
-            result[globalOffset + i] = buffer[localMatrixId][i] ;
+        // linear copy
+        for (int i = 0; i < ElementSize; ++i)
+        {
+            result[globalOffset + i] = buffer[localMatrixId][i];
         }
-
-
     }
 }
 
 
-template<typename T, int ElementSize, unsigned int BLOCK_SIZE>
-__launch_bounds__(BLOCK_SIZE)
-__global__ static
-void sharedMemoryCoalesced(ArrayView<T> data, ArrayView<T> result){
+template <typename T, int ElementSize, unsigned int BLOCK_SIZE>
+__launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced(ArrayView<T> data, ArrayView<T> result)
+{
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
 
     const int elementsPerWarp = ElementSize * WARP_SIZE;
 
-    auto N = data.size();
-    auto Nelements = N / ElementSize;
-    auto requiredWarps = CUDA::getBlockCount(Nelements,WARP_SIZE);
+    auto N             = data.size();
+    auto Nelements     = N / ElementSize;
+    auto requiredWarps = CUDA::getBlockCount(Nelements, WARP_SIZE);
 
 
     //    __shared__ double buffer[elementsPerBlock];
     __shared__ T buffer[BLOCK_SIZE][ElementSize + 0];
 
-    //grid stride loop
-    for(auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps){
+    // grid stride loop
+    for (auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps)
+    {
         //    for(auto id = ti.thread_id * ElementSize; id < N; id += ti.num_warps){
         //    for(auto id = ti.thread_id; id < Nelements; id += ti.grid_size ){
 
         T l[ElementSize];
 
-        auto localMatrixId = ti.local_thread_id; //id in shared buffer
-        auto warpStart = ti.warp_id * elementsPerWarp;
+        auto localMatrixId = ti.local_thread_id;  // id in shared buffer
+        auto warpStart     = ti.warp_id * elementsPerWarp;
 
-        //strided copy
-        for(auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE){
-            auto localMatrix = ti.warp_lane * WARP_SIZE + e / ElementSize;
-            auto localOffset = e % ElementSize;
-            auto globalOffset = warpStart+e;
-            if(globalOffset < N){
+        // strided copy
+        for (auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE)
+        {
+            auto localMatrix  = ti.warp_lane * WARP_SIZE + e / ElementSize;
+            auto localOffset  = e % ElementSize;
+            auto globalOffset = warpStart + e;
+            if (globalOffset < N)
+            {
                 buffer[localMatrix][localOffset] = data[globalOffset];
             }
         }
 
-        for(int i = 0; i < ElementSize; ++i){
+        for (int i = 0; i < ElementSize; ++i)
+        {
             l[i] = buffer[localMatrixId][i];
         }
 
 
-        //add something so things don't get optimized away
-        for(int i = 0; i < ElementSize; ++i){
+        // add something so things don't get optimized away
+        for (int i = 0; i < ElementSize; ++i)
+        {
             l[i] += 42;
         }
 
-        for(int i = 0; i < ElementSize; ++i){
-            buffer[localMatrixId][i] =  l[i];
+        for (int i = 0; i < ElementSize; ++i)
+        {
+            buffer[localMatrixId][i] = l[i];
         }
 
-        //strided copy
-        for(auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE){
-            auto localMatrix = ti.warp_lane * WARP_SIZE + e / ElementSize;
-            auto localOffset = e % ElementSize;
-            auto globalOffset = warpStart+e;
-            if(globalOffset < N){
+        // strided copy
+        for (auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE)
+        {
+            auto localMatrix  = ti.warp_lane * WARP_SIZE + e / ElementSize;
+            auto localOffset  = e % ElementSize;
+            auto globalOffset = warpStart + e;
+            if (globalOffset < N)
+            {
                 result[globalOffset] = buffer[localMatrix][localOffset];
             }
         }
-
     }
 }
 
 
-template<typename T, int ElementSize, unsigned int BLOCK_SIZE, typename VectorType = int2>
-__launch_bounds__(BLOCK_SIZE)
-__global__ static
-void sharedMemoryCoalesced2(ArrayView<T> data, ArrayView<T> result){
-
-
-    const int elementSize = sizeof(T) * ElementSize;
+template <typename T, int ElementSize, unsigned int BLOCK_SIZE, typename VectorType = int2>
+__launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(ArrayView<T> data, ArrayView<T> result)
+{
+    const int elementSize           = sizeof(T) * ElementSize;
     const int fullVectorsPerElement = elementSize / sizeof(VectorType);
 
-    
+
 
 #ifdef SAIGA_HAS_CONSTEXPR
-	const int vectorsPerElement = CUDA::getBlockCount(elementSize, sizeof(VectorType));
+    const int vectorsPerElement = CUDA::getBlockCount(elementSize, sizeof(VectorType));
     static_assert(vectorsPerElement * sizeof(VectorType) == elementSize, "T cannot be loaded with VectorType");
 #else
-	const int vectorsPerElement = 1;
+    const int vectorsPerElement = 1;
 #endif
 
     //    const int vectorsPerWarp = fullVectorsPerElement * WARP_SIZE;
 
-    const int tileSizeBytes = 64;
-    const int tileSizeVectors = tileSizeBytes / sizeof(VectorType);
+    const int tileSizeBytes      = 64;
+    const int tileSizeVectors    = tileSizeBytes / sizeof(VectorType);
     const int fullVectorsPerTile = fullVectorsPerElement > tileSizeVectors ? tileSizeVectors : fullVectorsPerElement;
-    const int vectorsPerTile = vectorsPerElement > tileSizeVectors ? tileSizeVectors : vectorsPerElement;
+    const int vectorsPerTile     = vectorsPerElement > tileSizeVectors ? tileSizeVectors : vectorsPerElement;
     //    const int vectorsPerTile = N > 8 ? 8 : N;
-    const int fullTiles = fullVectorsPerElement == 0 ? fullVectorsPerElement : fullVectorsPerElement / fullVectorsPerTile;
+    const int fullTiles =
+        fullVectorsPerElement == 0 ? fullVectorsPerElement : fullVectorsPerElement / fullVectorsPerTile;
 
-    //    const int fullTiles = fullVectorsPerElement == 0 ? fullVectorsPerElement : fullVectorsPerElement / fullVectorsPerTile;
-    //    const int tiles = 2;
-    //    const int elementsPerTile = N / tiles;
+    //    const int fullTiles = fullVectorsPerElement == 0 ? fullVectorsPerElement : fullVectorsPerElement /
+    //    fullVectorsPerTile; const int tiles = 2; const int elementsPerTile = N / tiles;
     const int fullVectorsPerBlock = fullVectorsPerElement * BLOCK_SIZE;
 
     //    __shared__ double buffer[elementsPerBlock];
@@ -230,63 +233,68 @@ void sharedMemoryCoalesced2(ArrayView<T> data, ArrayView<T> result){
 
     T l[ElementSize];
 
-    auto N = data.size();
-    auto Nelements = N / ElementSize;
-    auto NVectors = N * sizeof(T) / sizeof(VectorType);
-    auto requiredWarps = CUDA::getBlockCount(Nelements,WARP_SIZE);
+    auto N             = data.size();
+    auto Nelements     = N / ElementSize;
+    auto NVectors      = N * sizeof(T) / sizeof(VectorType);
+    auto requiredWarps = CUDA::getBlockCount(Nelements, WARP_SIZE);
 
-    VectorType* global = reinterpret_cast<VectorType*>(data.data());
+    VectorType* global       = reinterpret_cast<VectorType*>(data.data());
     VectorType* globalResult = reinterpret_cast<VectorType*>(result.data());
-    VectorType* local = reinterpret_cast<VectorType*>(l);
+    VectorType* local        = reinterpret_cast<VectorType*>(l);
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
-    //grid stride loop
+    // grid stride loop
     //    for(auto id = ti.thread_id * ElementSize; id < data.size(); id += ti.grid_size * ElementSize){
-    for(auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps){
-
-
-        auto localMatrixId = ti.local_thread_id; //id in shared buffer
+    for (auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps)
+    {
+        auto localMatrixId = ti.local_thread_id;  // id in shared buffer
         //        auto warpStart = ti.warp_id * vectorsPerWarp;
         auto blockStart = ti.block_id * fullVectorsPerBlock;
 
-        auto warpOffset = ti.warp_lane * WARP_SIZE; //start matrix of this warp in block local shared memory
+        auto warpOffset = ti.warp_lane * WARP_SIZE;  // start matrix of this warp in block local shared memory
 
 #if 1
-        for(int t = 0 ; t < fullTiles ; ++t){
+        for (int t = 0; t < fullTiles; ++t)
+        {
             auto tileOffset = t * fullVectorsPerTile;
-            //strided copy
-            for(auto e = ti.lane_id; e < fullVectorsPerTile * WARP_SIZE; e += WARP_SIZE){
+            // strided copy
+            for (auto e = ti.lane_id; e < fullVectorsPerTile * WARP_SIZE; e += WARP_SIZE)
+            {
                 auto localMatrix = warpOffset + e / fullVectorsPerTile;
                 auto localOffset = e % fullVectorsPerTile;
                 auto globalIndex = blockStart + localMatrix * fullVectorsPerElement + tileOffset + localOffset;
-                if(globalIndex < NVectors){
+                if (globalIndex < NVectors)
+                {
                     buffer[localMatrix][localOffset] = global[globalIndex];
                     //                    printf("read %d %d %d \n",ti.thread_id,localMatrix,globalIndex);
                 }
             }
 
-            for(int i = 0; i < fullVectorsPerTile; ++i){
+            for (int i = 0; i < fullVectorsPerTile; ++i)
+            {
                 local[i + tileOffset] = buffer[localMatrixId][i];
             }
-
         }
 
 #else
-        //strided copy
-        for(auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE){
-            auto localMatrix = ti.warp_lane * WARP_SIZE + e / N;
-            auto localOffset = e % N;
-            buffer[localMatrix][localOffset] = data[warpStart+e];
+        // strided copy
+        for (auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE)
+        {
+            auto localMatrix                 = ti.warp_lane * WARP_SIZE + e / N;
+            auto localOffset                 = e % N;
+            buffer[localMatrix][localOffset] = data[warpStart + e];
         }
 
-        for(int i = 0; i < N; ++i){
+        for (int i = 0; i < N; ++i)
+        {
             l[i] = buffer[localMatrixId][i];
         }
 #endif
 
 
-        //add something so things don't get optimized away
-        for(int i = 0; i < ElementSize; ++i){
+        // add something so things don't get optimized away
+        for (int i = 0; i < ElementSize; ++i)
+        {
             l[i] += 42;
         }
 
@@ -320,54 +328,53 @@ void sharedMemoryCoalesced2(ArrayView<T> data, ArrayView<T> result){
         //            result[warpStart+e] = buffer[localMatrix][localOffset];
         //        }
 
-        for(int t = 0 ; t < fullTiles ; ++t){
+        for (int t = 0; t < fullTiles; ++t)
+        {
             auto tileOffset = t * fullVectorsPerTile;
 
-            for(int i = 0; i < fullVectorsPerTile; ++i){
+            for (int i = 0; i < fullVectorsPerTile; ++i)
+            {
                 buffer[localMatrixId][i] = local[i + tileOffset];
             }
-            //strided copy
-            for(auto e = ti.lane_id; e < fullVectorsPerTile * WARP_SIZE; e += WARP_SIZE){
+            // strided copy
+            for (auto e = ti.lane_id; e < fullVectorsPerTile * WARP_SIZE; e += WARP_SIZE)
+            {
                 auto localMatrix = warpOffset + e / fullVectorsPerTile;
                 auto localOffset = e % fullVectorsPerTile;
                 auto globalIndex = blockStart + localMatrix * fullVectorsPerElement + tileOffset + localOffset;
-                if(globalIndex < NVectors){
+                if (globalIndex < NVectors)
+                {
                     globalResult[globalIndex] = buffer[localMatrix][localOffset];
                     //                    printf("write %d %d %d \n",ti.thread_id,localMatrix,globalIndex);
                 }
             }
-
         }
     }
 }
 
 
-template<typename T, int ElementSize, unsigned int BLOCK_SIZE, typename VectorType = int4, int localWarpSize2 = -1>
-__launch_bounds__(BLOCK_SIZE)
-__global__ static
-void shuffleCopy(ArrayView<T> data, ArrayView<T> result){
+template <typename T, int ElementSize, unsigned int BLOCK_SIZE, typename VectorType = int4, int localWarpSize2 = -1>
+__launch_bounds__(BLOCK_SIZE) __global__ static void shuffleCopy(ArrayView<T> data, ArrayView<T> result)
+{
+    const int localWarpSize     = localWarpSize2 == -1 ? int(L2_CACHE_LINE_SIZE / sizeof(VectorType)) : localWarpSize2;
+    const int vectorsPerElement = CUDA::getBlockCount(ElementSize * sizeof(T), sizeof(VectorType));
 
-    const int localWarpSize = localWarpSize2 == -1 ? int(L2_CACHE_LINE_SIZE / sizeof(VectorType)) : localWarpSize2;
-    const int vectorsPerElement = CUDA::getBlockCount(ElementSize*sizeof(T), sizeof(VectorType));
-
-    auto N = data.size();
-    auto Nelements = N / ElementSize;
-    auto NVectors = N * sizeof(T) / sizeof(VectorType);
-    auto requiredWarps = CUDA::getBlockCount(Nelements,localWarpSize);
+    auto N             = data.size();
+    auto Nelements     = N / ElementSize;
+    auto NVectors      = N * sizeof(T) / sizeof(VectorType);
+    auto requiredWarps = CUDA::getBlockCount(Nelements, localWarpSize);
 
 
     //    const int localWarpSize = 2;
 
-    CUDA::ThreadInfo<BLOCK_SIZE,localWarpSize> ti;
+    CUDA::ThreadInfo<BLOCK_SIZE, localWarpSize> ti;
 
 
 
-
-
-    //grid stride loop
+    // grid stride loop
     //    for(auto id = ti.thread_id * ElementSize; id < data.size(); id += ti.grid_size * ElementSize){
-    for(auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps){
-
+    for (auto wId = ti.warp_id; wId < requiredWarps; wId += ti.num_warps)
+    {
         T l[ElementSize];
 
         //        auto matrixId = ti.thread_id;
@@ -379,20 +386,22 @@ void shuffleCopy(ArrayView<T> data, ArrayView<T> result){
 
         //        printf("warp %d %d %d %d \n", wId,ti.lane_id,localWarpSize,Nelements);
 
-        VectorType* global = reinterpret_cast<VectorType*>(data.data());
+        VectorType* global       = reinterpret_cast<VectorType*>(data.data());
         VectorType* globalResult = reinterpret_cast<VectorType*>(result.data());
-        VectorType* local = reinterpret_cast<VectorType*>(l);
+        VectorType* local        = reinterpret_cast<VectorType*>(l);
 
         //        loadShuffle<localWarpSize,sizeof(T)*ElementSize,VectorType>(data.data()+globalStart,local,ti.lane_id);
-        loadShuffle<localWarpSize,sizeof(T)*ElementSize,VectorType>(global,local,ti.lane_id,globalStart,NVectors);
+        loadShuffle<localWarpSize, sizeof(T) * ElementSize, VectorType>(global, local, ti.lane_id, globalStart,
+                                                                        NVectors);
 
 
-        for(int i = 0; i < ElementSize; ++i){
+        for (int i = 0; i < ElementSize; ++i)
+        {
             l[i] += 42;
         }
 
-        storeShuffle<localWarpSize,sizeof(T)*ElementSize,VectorType>(globalResult,local,ti.lane_id,globalStart,NVectors);
-
+        storeShuffle<localWarpSize, sizeof(T) * ElementSize, VectorType>(globalResult, local, ti.lane_id, globalStart,
+                                                                         NVectors);
     }
 }
 
@@ -478,30 +487,30 @@ void evenStrangerLoop(int* data, int* out, int N){
 }
 */
 
-//nvcc $CPPFLAGS -I ~/Master/libs/data/include/eigen3/ -ptx -lineinfo -src-in-ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr inverse_test.cu
-//nvcc $CPPFLAGS -I ~/Master/libs/data/include/eigen3/ -ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr inverse_test.cu
+// nvcc $CPPFLAGS -I ~/Master/libs/data/include/eigen3/ -ptx -lineinfo -src-in-ptx
+// -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr inverse_test.cu nvcc $CPPFLAGS -I
+// ~/Master/libs/data/include/eigen3/ -ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11
+// --expt-relaxed-constexpr inverse_test.cu
 
-template<typename ElementType, int ElementSize>
-void coalescedCopyTest2(int ElementCount){
-
-
+template <typename ElementType, int ElementSize>
+void coalescedCopyTest2(int ElementCount)
+{
     std::cout << "Bytes per element = " << sizeof(ElementType) * ElementSize << std::endl;
 
     size_t readWrites = ElementSize * ElementCount * sizeof(ElementType) * 2;
-    CUDA::PerformanceTestHelper test(
-                "Coalesced processing test. ElementSize: "
-                + std::to_string(ElementSize)
-                +" ElementCount: "  + std::to_string(ElementCount),
-                readWrites);
+    CUDA::PerformanceTestHelper test("Coalesced processing test. ElementSize: " + std::to_string(ElementSize) +
+                                         " ElementCount: " + std::to_string(ElementCount),
+                                     readWrites);
 
     thrust::host_vector<ElementType> data(ElementSize * ElementCount, 42);
 
     thrust::host_vector<ElementType> result(ElementSize * ElementCount + 1, -1);
     thrust::host_vector<ElementType> ref(ElementSize * ElementCount + 1, -1);
 
-    for(int i = 0 ; i < int(data.size()); ++i){
+    for (int i = 0; i < int(data.size()); ++i)
+    {
         data[i] = rand() % 10;
-        ref[i] = data[i] + 42;
+        ref[i]  = data[i] + 42;
     }
 
 
@@ -511,13 +520,14 @@ void coalescedCopyTest2(int ElementCount){
 
     {
         const int BLOCK_SIZE = 128;
-        d_result = result;
+        d_result             = result;
         float time;
         {
             CUDA::CudaScopedTimer t(time);
-            copyUnCoalesced<ElementType,ElementSize,BLOCK_SIZE> <<< CUDA::getBlockCount(ElementCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
+            copyUnCoalesced<ElementType, ElementSize, BLOCK_SIZE>
+                <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
-        test.addMeassurement("copyUnCoalesced",time);
+        test.addMeassurement("copyUnCoalesced", time);
         CUDA_SYNC_CHECK_ERROR();
     }
 
@@ -527,13 +537,14 @@ void coalescedCopyTest2(int ElementCount){
 
     {
         const int BLOCK_SIZE = 128;
-        d_result = result;
+        d_result             = result;
         float time;
         {
             CUDA::CudaScopedTimer t(time);
-            sharedMemoryUnCoalesced<ElementType,ElementSize,BLOCK_SIZE> <<< CUDA::getBlockCount(ElementCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
+            sharedMemoryUnCoalesced<ElementType, ElementSize, BLOCK_SIZE>
+                <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
-        test.addMeassurement("sharedMemoryUnCoalesced",time);
+        test.addMeassurement("sharedMemoryUnCoalesced", time);
         CUDA_SYNC_CHECK_ERROR();
     }
 
@@ -541,13 +552,14 @@ void coalescedCopyTest2(int ElementCount){
 
     {
         const int BLOCK_SIZE = 128;
-        d_result = result;
+        d_result             = result;
         float time;
         {
             CUDA::CudaScopedTimer t(time);
-            sharedMemoryCoalesced<ElementType,ElementSize,BLOCK_SIZE> <<< CUDA::getBlockCount(ElementCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
+            sharedMemoryCoalesced<ElementType, ElementSize, BLOCK_SIZE>
+                <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
-        test.addMeassurement("sharedMemoryCoalesced",time);
+        test.addMeassurement("sharedMemoryCoalesced", time);
         CUDA_SYNC_CHECK_ERROR();
     }
 
@@ -555,14 +567,16 @@ void coalescedCopyTest2(int ElementCount){
 
     {
         const int BLOCK_SIZE = 128;
-        d_result = result;
+        d_result             = result;
         float time;
         {
             CUDA::CudaScopedTimer t(time);
-            sharedMemoryCoalesced2<ElementType,ElementSize,BLOCK_SIZE> <<< CUDA::getBlockCount(ElementCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
-            //            sharedMemoryCoalesced2<ElementType,ElementSize,BLOCK_SIZE> <<< CUDA::getBlockCount(ElementCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
+            sharedMemoryCoalesced2<ElementType, ElementSize, BLOCK_SIZE>
+                <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
+            //            sharedMemoryCoalesced2<ElementType,ElementSize,BLOCK_SIZE> <<<
+            //            CUDA::getBlockCount(ElementCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
         }
-        test.addMeassurement("sharedMemoryCoalesced2",time);
+        test.addMeassurement("sharedMemoryCoalesced2", time);
         CUDA_SYNC_CHECK_ERROR();
     }
 
@@ -570,13 +584,14 @@ void coalescedCopyTest2(int ElementCount){
 
     {
         const int BLOCK_SIZE = 128;
-        d_result = result;
+        d_result             = result;
         float time;
         {
             CUDA::CudaScopedTimer t(time);
-            copyFullCoalesced<ElementType,ElementSize,BLOCK_SIZE> <<< CUDA::getBlockCount(ElementCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
+            copyFullCoalesced<ElementType, ElementSize, BLOCK_SIZE>
+                <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
-        test.addMeassurement("copyFullCoalesced (no vector)",time);
+        test.addMeassurement("copyFullCoalesced (no vector)", time);
         CUDA_SYNC_CHECK_ERROR();
     }
 
@@ -585,13 +600,14 @@ void coalescedCopyTest2(int ElementCount){
 
     {
         const int BLOCK_SIZE = 128;
-        d_result = result;
+        d_result             = result;
         float time;
         {
             CUDA::CudaScopedTimer t(time);
-            shuffleCopy<ElementType,ElementSize,BLOCK_SIZE> <<< CUDA::getBlockCount(ElementCount,BLOCK_SIZE),BLOCK_SIZE >>>(d_data,d_result);
+            shuffleCopy<ElementType, ElementSize, BLOCK_SIZE>
+                <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
-        test.addMeassurement("shuffleCopy",time);
+        test.addMeassurement("shuffleCopy", time);
         CUDA_SYNC_CHECK_ERROR();
     }
 
@@ -606,18 +622,18 @@ void coalescedCopyTest2(int ElementCount){
         float time;
         {
             CUDA::CudaScopedTimer t(time);
-            cudaMemcpy(thrust::raw_pointer_cast(d_result.data()),thrust::raw_pointer_cast(d_data.data()),d_data.size()*sizeof(ElementType),cudaMemcpyDeviceToDevice);
+            cudaMemcpy(thrust::raw_pointer_cast(d_result.data()), thrust::raw_pointer_cast(d_data.data()),
+                       d_data.size() * sizeof(ElementType), cudaMemcpyDeviceToDevice);
         }
-        test.addMeassurement("cudaMemcpy",time);
+        test.addMeassurement("cudaMemcpy", time);
         CUDA_SYNC_CHECK_ERROR();
     }
 
     return;
-
-
 }
 
-void coalescedCopyTest(){
+void coalescedCopyTest()
+{
     CUDA_SYNC_CHECK_ERROR();
     //    coalescedCopyTest2<int,4>(1);
     //    coalescedCopyTest2<int,2>(1);
@@ -626,10 +642,10 @@ void coalescedCopyTest(){
     //    coalescedCopyTest2<int,16>(5);
     //            coalescedCopyTest2<int,16>(1000 * 1000 + 1);
     //    coalescedCopyTest2<int,16>(32);
-    coalescedCopyTest2<int,32>(1000 * 1000 + 1);
-    coalescedCopyTest2<int,64>(1000 * 1000 + 1);
+    coalescedCopyTest2<int, 32>(1000 * 1000 + 1);
+    coalescedCopyTest2<int, 64>(1000 * 1000 + 1);
     CUDA_SYNC_CHECK_ERROR();
 }
 
-}
-}
+}  // namespace CUDA
+}  // namespace Saiga

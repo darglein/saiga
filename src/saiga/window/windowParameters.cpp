@@ -5,8 +5,10 @@
  */
 
 #include "saiga/window/windowParameters.h"
-#include "internal/noGraphicsAPI.h"
+
 #include "saiga/util/ini/ini.h"
+
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga
 {

@@ -2,14 +2,12 @@
 #pragma once
 
 
-#include <glbinding/nogl.h>
 #include <glbinding/gl/functions.h>
+#include <glbinding/nogl.h>
 
 
 namespace gl15
 {
-
-
 using gl::glAccum;
 using gl::glActiveTexture;
 using gl::glAlphaFunc;
@@ -121,11 +119,11 @@ using gl::glEvalPoint2;
 using gl::glFeedbackBuffer;
 using gl::glFinish;
 using gl::glFlush;
-using gl::glFogCoordPointer;
 using gl::glFogCoordd;
 using gl::glFogCoorddv;
 using gl::glFogCoordf;
 using gl::glFogCoordfv;
+using gl::glFogCoordPointer;
 using gl::glFogf;
 using gl::glFogfv;
 using gl::glFogi;
@@ -158,9 +156,9 @@ using gl::glGetPixelMapuiv;
 using gl::glGetPixelMapusv;
 using gl::glGetPointerv;
 using gl::glGetPolygonStipple;
+using gl::glGetQueryiv;
 using gl::glGetQueryObjectiv;
 using gl::glGetQueryObjectuiv;
-using gl::glGetQueryiv;
 using gl::glGetString;
 using gl::glGetTexEnvfv;
 using gl::glGetTexEnviv;
@@ -173,14 +171,14 @@ using gl::glGetTexLevelParameteriv;
 using gl::glGetTexParameterfv;
 using gl::glGetTexParameteriv;
 using gl::glHint;
-using gl::glIndexMask;
-using gl::glIndexPointer;
 using gl::glIndexd;
 using gl::glIndexdv;
 using gl::glIndexf;
 using gl::glIndexfv;
 using gl::glIndexi;
 using gl::glIndexiv;
+using gl::glIndexMask;
+using gl::glIndexPointer;
 using gl::glIndexs;
 using gl::glIndexsv;
 using gl::glIndexub;
@@ -192,14 +190,14 @@ using gl::glIsEnabled;
 using gl::glIsList;
 using gl::glIsQuery;
 using gl::glIsTexture;
-using gl::glLightModelf;
-using gl::glLightModelfv;
-using gl::glLightModeli;
-using gl::glLightModeliv;
 using gl::glLightf;
 using gl::glLightfv;
 using gl::glLighti;
 using gl::glLightiv;
+using gl::glLightModelf;
+using gl::glLightModelfv;
+using gl::glLightModeli;
+using gl::glLightModeliv;
 using gl::glLineStipple;
 using gl::glLineWidth;
 using gl::glListBase;
@@ -224,10 +222,6 @@ using gl::glMaterialfv;
 using gl::glMateriali;
 using gl::glMaterialiv;
 using gl::glMatrixMode;
-using gl::glMultMatrixd;
-using gl::glMultMatrixf;
-using gl::glMultTransposeMatrixd;
-using gl::glMultTransposeMatrixf;
 using gl::glMultiDrawArrays;
 using gl::glMultiDrawElements;
 using gl::glMultiTexCoord1d;
@@ -262,6 +256,10 @@ using gl::glMultiTexCoord4i;
 using gl::glMultiTexCoord4iv;
 using gl::glMultiTexCoord4s;
 using gl::glMultiTexCoord4sv;
+using gl::glMultMatrixd;
+using gl::glMultMatrixf;
+using gl::glMultTransposeMatrixd;
+using gl::glMultTransposeMatrixf;
 using gl::glNewList;
 using gl::glNormal3b;
 using gl::glNormal3bv;
@@ -464,4 +462,4 @@ using gl::glWindowPos3s;
 using gl::glWindowPos3sv;
 
 
-} // namespace gl15
+}  // namespace gl15

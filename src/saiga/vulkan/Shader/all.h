@@ -7,6 +7,6 @@
 
 #pragma once
 
+#include "saiga/vulkan/Shader/GLSL.h"
 #include "saiga/vulkan/Shader/ShaderModule.h"
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
-#include "saiga/vulkan/Shader/GLSL.h"

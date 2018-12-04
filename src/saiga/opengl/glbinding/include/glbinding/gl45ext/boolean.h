@@ -2,19 +2,16 @@
 #pragma once
 
 
-#include <glbinding/nogl.h>
-
 #include <glbinding/gl/boolean.h>
+#include <glbinding/nogl.h>
 
 
 namespace gl45ext
 {
-
-
 // import booleans to namespace
 
 using gl::GL_FALSE;
 using gl::GL_TRUE;
 
 
-} // namespace gl45ext
+}  // namespace gl45ext

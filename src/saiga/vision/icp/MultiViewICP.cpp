@@ -5,16 +5,18 @@
  */
 
 #include "MultiViewICP.h"
+
 #include "MultiViewICPAlign.h"
 //#define WITH_CERES
 
 #ifdef WITH_CERES
+#    include "saiga/vision/CeresKernelHelper.h"
+#    include "saiga/vision/local_parameterization_se3.h"
+
 #    include "ceres/ceres.h"
 #    include "ceres/problem.h"
 #    include "ceres/rotation.h"
 #    include "ceres/solver.h"
-#    include "saiga/vision/CeresKernelHelper.h"
-#    include "saiga/vision/local_parameterization_se3.h"
 #endif
 #include "saiga/time/timer.h"
 #include "saiga/util/assert.h"

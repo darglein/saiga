@@ -11,8 +11,8 @@
 
 
 
-namespace Saiga {
-
+namespace Saiga
+{
 class OpenGLWindow;
 
 /**
@@ -21,7 +21,7 @@ class OpenGLWindow;
  */
 class SAIGA_GLOBAL VideoEncoder
 {
-public:
+   public:
     FFMPEGEncoder encoder;
     OpenGLWindow* window;
     VideoEncoder(OpenGLWindow* window);
@@ -29,10 +29,9 @@ public:
     void update();
     void renderGUI();
 
-private:
-    int codecId = 0;
+   private:
+    int codecId    = 0;
     char file[256] = "out.mp4";
 };
 
-}
-
+}  // namespace Saiga

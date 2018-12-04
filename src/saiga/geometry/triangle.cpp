@@ -5,12 +5,13 @@
  */
 
 #include "saiga/geometry/triangle.h"
+
 #include "internal/noGraphicsAPI.h"
-namespace Saiga {
-
-
-vec3 Triangle::center(){
-    return (a+b+c) * float(1.0f/3.0f);
+namespace Saiga
+{
+vec3 Triangle::center()
+{
+    return (a + b + c) * float(1.0f / 3.0f);
 }
 
 float Triangle::minimalAngle()
@@ -20,7 +21,7 @@ float Triangle::minimalAngle()
 
 float Triangle::cosMinimalAngle()
 {
-    return max( max(cosAngleAtCorner(0),cosAngleAtCorner(1)),cosAngleAtCorner(2) );
+    return max(max(cosAngleAtCorner(0), cosAngleAtCorner(1)), cosAngleAtCorner(2));
 }
 
 float Triangle::angleAtCorner(int i)
@@ -31,53 +32,53 @@ float Triangle::angleAtCorner(int i)
 float Triangle::cosAngleAtCorner(int i)
 {
     vec3 center = a;
-    vec3 left = b;
-    vec3 right = c;
+    vec3 left   = b;
+    vec3 right  = c;
 
 
-    switch(i)
+    switch (i)
     {
-    case 0:
-        center = a;
-        left = b;
-        right = c;
-        break;
-    case 1:
-        center = b;
-        left = c;
-        right = a;
-        break;
-    case 2:
-        center = c;
-        left = a;
-        right = b;
-        break;
+        case 0:
+            center = a;
+            left   = b;
+            right  = c;
+            break;
+        case 1:
+            center = b;
+            left   = c;
+            right  = a;
+            break;
+        case 2:
+            center = c;
+            left   = a;
+            right  = b;
+            break;
     }
 
-    return dot( normalize( left - center ), normalize( right - center ) );
+    return dot(normalize(left - center), normalize(right - center));
 }
 
 bool Triangle::isDegenerate()
 {
-    for(int i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; ++i)
     {
         float a = cosAngleAtCorner(i);
-        if(a <= -1 || a >= 1)
-            return true;
+        if (a <= -1 || a >= 1) return true;
     }
     return false;
-    //    return !std::isfinite(angleAtCorner(0)) || !std::isfinite(angleAtCorner(1)) || !std::isfinite(angleAtCorner(2));
+    //    return !std::isfinite(angleAtCorner(0)) || !std::isfinite(angleAtCorner(1)) ||
+    //    !std::isfinite(angleAtCorner(2));
 }
 
 vec3 Triangle::normal()
 {
-    return normalize(cross(b-a,c-a));
+    return normalize(cross(b - a, c - a));
 }
 
 std::ostream& operator<<(std::ostream& os, const Triangle& t)
 {
-    std::cout<<"Triangle: "<<t.a<<t.b<<t.c;
+    std::cout << "Triangle: " << t.a << t.b << t.c;
     return os;
 }
 
-}
+}  // namespace Saiga

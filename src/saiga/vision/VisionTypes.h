@@ -47,7 +47,7 @@ inline double rotationalError(const SE3& a, const SE3& b)
 // Spherical interpolation
 inline SE3 slerp(const SE3& a, const SE3& b, double alpha)
 {
-    Vec3 t = (1.0 - alpha) * a.translation() + (alpha)*b.translation();
+    Vec3 t  = (1.0 - alpha) * a.translation() + (alpha)*b.translation();
     Quat q1 = a.unit_quaternion();
     Quat q2 = b.unit_quaternion();
     Quat q  = q1.slerp(alpha, q2);
@@ -57,7 +57,7 @@ inline SE3 slerp(const SE3& a, const SE3& b, double alpha)
 // scale the transformation by a scalar
 inline SE3 scale(const SE3& a, double alpha)
 {
-    return slerp(SE3(),a,alpha);
+    return slerp(SE3(), a, alpha);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)

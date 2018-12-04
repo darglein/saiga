@@ -9,6 +9,7 @@
 #include "saiga/util/assert.h"
 
 #include "internal/noGraphicsAPI.h"
+
 #include <glm/gtc/epsilon.hpp>
 
 namespace Saiga

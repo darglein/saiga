@@ -11,9 +11,9 @@
 #include "offscreenWindow.h"
 
 
-int main( int argc, char* args[] )
+int main(int argc, char* args[])
 {
-    //Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
+    // Add a signal handler for SIGSEGV and print the stack trace when a SIGSEGV is caught
     catchSegFaults();
 
     WindowParameters windowParameters;
@@ -28,7 +28,7 @@ int main( int argc, char* args[] )
     Deferred_Renderer renderer(window);
 
     // 3. Create an object of our class, which is both renderable and updateable
-    Sample simpleWindow(window,renderer);
+    Sample simpleWindow(window, renderer);
 
     // Everyhing is initilalized, we can run the main loop now!
     window.startMainLoop();

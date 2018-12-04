@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,8 +8,8 @@
 
 #include "saiga/opengl/opengl.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * Asynchronous OpenGL GPU timer.
  *
@@ -22,15 +22,16 @@ namespace Saiga {
  * Core since version 	3.3
  *
  */
-class SAIGA_GLOBAL TimerQuery{
-private:
-
+class SAIGA_GLOBAL TimerQuery
+{
+   private:
     GLuint queryBackBuffer = 0, queryFrontBuffer = 0;
 
     GLuint64 time;
 
     void swapQueries();
-public:
+
+   public:
     TimerQuery();
     ~TimerQuery();
 
@@ -46,4 +47,4 @@ public:
     GLuint64 getTimeNS();
 };
 
-}
+}  // namespace Saiga

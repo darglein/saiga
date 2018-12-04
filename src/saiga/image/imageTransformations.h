@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include "saiga/util/math.h"
 #include "saiga/image/imageView.h"
+#include "saiga/util/math.h"
 
 
-namespace Saiga {
-namespace ImageTransformation {
-
+namespace Saiga
+{
+namespace ImageTransformation
+{
 SAIGA_GLOBAL void addAlphaChannel(ImageView<const ucvec3> src, ImageView<ucvec4> dst, unsigned char alpha = 255);
 
 // depth to rgb image only for visualizaion
@@ -24,5 +25,5 @@ SAIGA_GLOBAL void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned ch
 // with scale = 1 the resulting grayscale will be in the range 0..255
 SAIGA_GLOBAL void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> dst, float scale = 1.0f);
 
-}
-}
+}  // namespace ImageTransformation
+}  // namespace Saiga

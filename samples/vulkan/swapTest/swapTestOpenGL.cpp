@@ -1,9 +1,9 @@
 ﻿#if 0
-#include <SDL2/SDL.h>
-#include <thread>
-#include <chrono>
-#include <GL/glew.h>
-#include <iostream>
+#    include <GL/glew.h>
+#    include <SDL2/SDL.h>
+#    include <chrono>
+#    include <iostream>
+#    include <thread>
 
 static SDL_Window* window;
 

@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,49 +9,49 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
-void glDebugMessageCallback(GLDEBUGPROC callback, const void * userParam)
+void glDebugMessageCallback(GLDEBUGPROC callback, const void* userParam)
 {
     return Binding::DebugMessageCallback(callback, userParam);
 }
 
-void glDebugMessageCallbackAMD(GLDEBUGPROCAMD callback, void * userParam)
+void glDebugMessageCallbackAMD(GLDEBUGPROCAMD callback, void* userParam)
 {
     return Binding::DebugMessageCallbackAMD(callback, userParam);
 }
 
-void glDebugMessageCallbackARB(GLDEBUGPROCARB callback, const void * userParam)
+void glDebugMessageCallbackARB(GLDEBUGPROCARB callback, const void* userParam)
 {
     return Binding::DebugMessageCallbackARB(callback, userParam);
 }
 
-void glDebugMessageControl(GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint * ids, GLboolean enabled)
+void glDebugMessageControl(GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint* ids,
+                           GLboolean enabled)
 {
     return Binding::DebugMessageControl(source, type, severity, count, ids, enabled);
 }
 
-void glDebugMessageControlARB(GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint * ids, GLboolean enabled)
+void glDebugMessageControlARB(GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint* ids,
+                              GLboolean enabled)
 {
     return Binding::DebugMessageControlARB(source, type, severity, count, ids, enabled);
 }
 
-void glDebugMessageEnableAMD(GLenum category, GLenum severity, GLsizei count, const GLuint * ids, GLboolean enabled)
+void glDebugMessageEnableAMD(GLenum category, GLenum severity, GLsizei count, const GLuint* ids, GLboolean enabled)
 {
     return Binding::DebugMessageEnableAMD(category, severity, count, ids, enabled);
 }
 
-void glDebugMessageInsert(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar * buf)
+void glDebugMessageInsert(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* buf)
 {
     return Binding::DebugMessageInsert(source, type, id, severity, length, buf);
 }
 
-void glDebugMessageInsertAMD(GLenum category, GLenum severity, GLuint id, GLsizei length, const GLchar * buf)
+void glDebugMessageInsertAMD(GLenum category, GLenum severity, GLuint id, GLsizei length, const GLchar* buf)
 {
     return Binding::DebugMessageInsertAMD(category, severity, id, length, buf);
 }
 
-void glDebugMessageInsertARB(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar * buf)
+void glDebugMessageInsertARB(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* buf)
 {
     return Binding::DebugMessageInsertARB(source, type, id, severity, length, buf);
 }
@@ -61,14 +61,20 @@ void glDeformSGIX(FfdMaskSGIX mask)
     return Binding::DeformSGIX(mask);
 }
 
-void glDeformationMap3dSGIX(GLenum target, GLdouble u1, GLdouble u2, GLint ustride, GLint uorder, GLdouble v1, GLdouble v2, GLint vstride, GLint vorder, GLdouble w1, GLdouble w2, GLint wstride, GLint worder, const GLdouble * points)
+void glDeformationMap3dSGIX(GLenum target, GLdouble u1, GLdouble u2, GLint ustride, GLint uorder, GLdouble v1,
+                            GLdouble v2, GLint vstride, GLint vorder, GLdouble w1, GLdouble w2, GLint wstride,
+                            GLint worder, const GLdouble* points)
 {
-    return Binding::DeformationMap3dSGIX(target, u1, u2, ustride, uorder, v1, v2, vstride, vorder, w1, w2, wstride, worder, points);
+    return Binding::DeformationMap3dSGIX(target, u1, u2, ustride, uorder, v1, v2, vstride, vorder, w1, w2, wstride,
+                                         worder, points);
 }
 
-void glDeformationMap3fSGIX(GLenum target, GLfloat u1, GLfloat u2, GLint ustride, GLint uorder, GLfloat v1, GLfloat v2, GLint vstride, GLint vorder, GLfloat w1, GLfloat w2, GLint wstride, GLint worder, const GLfloat * points)
+void glDeformationMap3fSGIX(GLenum target, GLfloat u1, GLfloat u2, GLint ustride, GLint uorder, GLfloat v1, GLfloat v2,
+                            GLint vstride, GLint vorder, GLfloat w1, GLfloat w2, GLint wstride, GLint worder,
+                            const GLfloat* points)
 {
-    return Binding::DeformationMap3fSGIX(target, u1, u2, ustride, uorder, v1, v2, vstride, vorder, w1, w2, wstride, worder, points);
+    return Binding::DeformationMap3fSGIX(target, u1, u2, ustride, uorder, v1, v2, vstride, vorder, w1, w2, wstride,
+                                         worder, points);
 }
 
 void glDeleteAsyncMarkersSGIX(GLuint marker, GLsizei range)
@@ -76,27 +82,27 @@ void glDeleteAsyncMarkersSGIX(GLuint marker, GLsizei range)
     return Binding::DeleteAsyncMarkersSGIX(marker, range);
 }
 
-void glDeleteBuffers(GLsizei n, const GLuint * buffers)
+void glDeleteBuffers(GLsizei n, const GLuint* buffers)
 {
     return Binding::DeleteBuffers(n, buffers);
 }
 
-void glDeleteBuffersARB(GLsizei n, const GLuint * buffers)
+void glDeleteBuffersARB(GLsizei n, const GLuint* buffers)
 {
     return Binding::DeleteBuffersARB(n, buffers);
 }
 
-void glDeleteCommandListsNV(GLsizei n, const GLuint * lists)
+void glDeleteCommandListsNV(GLsizei n, const GLuint* lists)
 {
     return Binding::DeleteCommandListsNV(n, lists);
 }
 
-void glDeleteFencesAPPLE(GLsizei n, const GLuint * fences)
+void glDeleteFencesAPPLE(GLsizei n, const GLuint* fences)
 {
     return Binding::DeleteFencesAPPLE(n, fences);
 }
 
-void glDeleteFencesNV(GLsizei n, const GLuint * fences)
+void glDeleteFencesNV(GLsizei n, const GLuint* fences)
 {
     return Binding::DeleteFencesNV(n, fences);
 }
@@ -106,12 +112,12 @@ void glDeleteFragmentShaderATI(GLuint id)
     return Binding::DeleteFragmentShaderATI(id);
 }
 
-void glDeleteFramebuffers(GLsizei n, const GLuint * framebuffers)
+void glDeleteFramebuffers(GLsizei n, const GLuint* framebuffers)
 {
     return Binding::DeleteFramebuffers(n, framebuffers);
 }
 
-void glDeleteFramebuffersEXT(GLsizei n, const GLuint * framebuffers)
+void glDeleteFramebuffersEXT(GLsizei n, const GLuint* framebuffers)
 {
     return Binding::DeleteFramebuffersEXT(n, framebuffers);
 }
@@ -121,17 +127,17 @@ void glDeleteLists(GLuint list, GLsizei range)
     return Binding::DeleteLists(list, range);
 }
 
-void glDeleteMemoryObjectsEXT(GLsizei n, const GLuint * memoryObjects)
+void glDeleteMemoryObjectsEXT(GLsizei n, const GLuint* memoryObjects)
 {
     return Binding::DeleteMemoryObjectsEXT(n, memoryObjects);
 }
 
-void glDeleteNamedStringARB(GLint namelen, const GLchar * name)
+void glDeleteNamedStringARB(GLint namelen, const GLchar* name)
 {
     return Binding::DeleteNamedStringARB(namelen, name);
 }
 
-void glDeleteNamesAMD(GLenum identifier, GLuint num, const GLuint * names)
+void glDeleteNamesAMD(GLenum identifier, GLuint num, const GLuint* names)
 {
     return Binding::DeleteNamesAMD(identifier, num, names);
 }
@@ -141,7 +147,7 @@ void glDeleteObjectARB(GLhandleARB obj)
     return Binding::DeleteObjectARB(obj);
 }
 
-void glDeleteOcclusionQueriesNV(GLsizei n, const GLuint * ids)
+void glDeleteOcclusionQueriesNV(GLsizei n, const GLuint* ids)
 {
     return Binding::DeleteOcclusionQueriesNV(n, ids);
 }
@@ -151,7 +157,7 @@ void glDeletePathsNV(GLuint path, GLsizei range)
     return Binding::DeletePathsNV(path, range);
 }
 
-void glDeletePerfMonitorsAMD(GLsizei n, GLuint * monitors)
+void glDeletePerfMonitorsAMD(GLsizei n, GLuint* monitors)
 {
     return Binding::DeletePerfMonitorsAMD(n, monitors);
 }
@@ -166,52 +172,52 @@ void glDeleteProgram(GLuint program)
     return Binding::DeleteProgram(program);
 }
 
-void glDeleteProgramPipelines(GLsizei n, const GLuint * pipelines)
+void glDeleteProgramPipelines(GLsizei n, const GLuint* pipelines)
 {
     return Binding::DeleteProgramPipelines(n, pipelines);
 }
 
-void glDeleteProgramsARB(GLsizei n, const GLuint * programs)
+void glDeleteProgramsARB(GLsizei n, const GLuint* programs)
 {
     return Binding::DeleteProgramsARB(n, programs);
 }
 
-void glDeleteProgramsNV(GLsizei n, const GLuint * programs)
+void glDeleteProgramsNV(GLsizei n, const GLuint* programs)
 {
     return Binding::DeleteProgramsNV(n, programs);
 }
 
-void glDeleteQueries(GLsizei n, const GLuint * ids)
+void glDeleteQueries(GLsizei n, const GLuint* ids)
 {
     return Binding::DeleteQueries(n, ids);
 }
 
-void glDeleteQueriesARB(GLsizei n, const GLuint * ids)
+void glDeleteQueriesARB(GLsizei n, const GLuint* ids)
 {
     return Binding::DeleteQueriesARB(n, ids);
 }
 
-void glDeleteQueryResourceTagNV(GLsizei n, const GLint * tagIds)
+void glDeleteQueryResourceTagNV(GLsizei n, const GLint* tagIds)
 {
     return Binding::DeleteQueryResourceTagNV(n, tagIds);
 }
 
-void glDeleteRenderbuffers(GLsizei n, const GLuint * renderbuffers)
+void glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers)
 {
     return Binding::DeleteRenderbuffers(n, renderbuffers);
 }
 
-void glDeleteRenderbuffersEXT(GLsizei n, const GLuint * renderbuffers)
+void glDeleteRenderbuffersEXT(GLsizei n, const GLuint* renderbuffers)
 {
     return Binding::DeleteRenderbuffersEXT(n, renderbuffers);
 }
 
-void glDeleteSamplers(GLsizei count, const GLuint * samplers)
+void glDeleteSamplers(GLsizei count, const GLuint* samplers)
 {
     return Binding::DeleteSamplers(count, samplers);
 }
 
-void glDeleteSemaphoresEXT(GLsizei n, const GLuint * semaphores)
+void glDeleteSemaphoresEXT(GLsizei n, const GLuint* semaphores)
 {
     return Binding::DeleteSemaphoresEXT(n, semaphores);
 }
@@ -221,7 +227,7 @@ void glDeleteShader(GLuint shader)
     return Binding::DeleteShader(shader);
 }
 
-void glDeleteStatesNV(GLsizei n, const GLuint * states)
+void glDeleteStatesNV(GLsizei n, const GLuint* states)
 {
     return Binding::DeleteStatesNV(n, states);
 }
@@ -231,32 +237,32 @@ void glDeleteSync(GLsync sync)
     return Binding::DeleteSync(sync);
 }
 
-void glDeleteTextures(GLsizei n, const GLuint * textures)
+void glDeleteTextures(GLsizei n, const GLuint* textures)
 {
     return Binding::DeleteTextures(n, textures);
 }
 
-void glDeleteTexturesEXT(GLsizei n, const GLuint * textures)
+void glDeleteTexturesEXT(GLsizei n, const GLuint* textures)
 {
     return Binding::DeleteTexturesEXT(n, textures);
 }
 
-void glDeleteTransformFeedbacks(GLsizei n, const GLuint * ids)
+void glDeleteTransformFeedbacks(GLsizei n, const GLuint* ids)
 {
     return Binding::DeleteTransformFeedbacks(n, ids);
 }
 
-void glDeleteTransformFeedbacksNV(GLsizei n, const GLuint * ids)
+void glDeleteTransformFeedbacksNV(GLsizei n, const GLuint* ids)
 {
     return Binding::DeleteTransformFeedbacksNV(n, ids);
 }
 
-void glDeleteVertexArrays(GLsizei n, const GLuint * arrays)
+void glDeleteVertexArrays(GLsizei n, const GLuint* arrays)
 {
     return Binding::DeleteVertexArrays(n, arrays);
 }
 
-void glDeleteVertexArraysAPPLE(GLsizei n, const GLuint * arrays)
+void glDeleteVertexArraysAPPLE(GLsizei n, const GLuint* arrays)
 {
     return Binding::DeleteVertexArraysAPPLE(n, arrays);
 }
@@ -291,7 +297,7 @@ void glDepthRange(GLdouble n, GLdouble f)
     return Binding::DepthRange(n, f);
 }
 
-void glDepthRangeArrayv(GLuint first, GLsizei count, const GLdouble * v)
+void glDepthRangeArrayv(GLuint first, GLsizei count, const GLdouble* v)
 {
     return Binding::DepthRangeArrayv(first, count, v);
 }
@@ -331,7 +337,7 @@ void glDetachShader(GLuint program, GLuint shader)
     return Binding::DetachShader(program, shader);
 }
 
-void glDetailTexFuncSGIS(GLenum target, GLsizei n, const GLfloat * points)
+void glDetailTexFuncSGIS(GLenum target, GLsizei n, const GLfloat* points)
 {
     return Binding::DetailTexFuncSGIS(target, n, points);
 }
@@ -406,9 +412,11 @@ void glDispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_grou
     return Binding::DispatchCompute(num_groups_x, num_groups_y, num_groups_z);
 }
 
-void glDispatchComputeGroupSizeARB(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z, GLuint group_size_x, GLuint group_size_y, GLuint group_size_z)
+void glDispatchComputeGroupSizeARB(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z, GLuint group_size_x,
+                                   GLuint group_size_y, GLuint group_size_z)
 {
-    return Binding::DispatchComputeGroupSizeARB(num_groups_x, num_groups_y, num_groups_z, group_size_x, group_size_y, group_size_z);
+    return Binding::DispatchComputeGroupSizeARB(num_groups_x, num_groups_y, num_groups_z, group_size_x, group_size_y,
+                                                group_size_z);
 }
 
 void glDispatchComputeIndirect(GLintptr indirect)
@@ -426,7 +434,7 @@ void glDrawArraysEXT(GLenum mode, GLint first, GLsizei count)
     return Binding::DrawArraysEXT(mode, first, count);
 }
 
-void glDrawArraysIndirect(GLenum mode, const void * indirect)
+void glDrawArraysIndirect(GLenum mode, const void* indirect)
 {
     return Binding::DrawArraysIndirect(mode, indirect);
 }
@@ -441,7 +449,8 @@ void glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei p
     return Binding::DrawArraysInstancedARB(mode, first, count, primcount);
 }
 
-void glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance)
+void glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei instancecount,
+                                       GLuint baseinstance)
 {
     return Binding::DrawArraysInstancedBaseInstance(mode, first, count, instancecount, baseinstance);
 }
@@ -456,37 +465,40 @@ void glDrawBuffer(GLenum buf)
     return Binding::DrawBuffer(buf);
 }
 
-void glDrawBuffers(GLsizei n, const GLenum * bufs)
+void glDrawBuffers(GLsizei n, const GLenum* bufs)
 {
     return Binding::DrawBuffers(n, bufs);
 }
 
-void glDrawBuffersARB(GLsizei n, const GLenum * bufs)
+void glDrawBuffersARB(GLsizei n, const GLenum* bufs)
 {
     return Binding::DrawBuffersARB(n, bufs);
 }
 
-void glDrawBuffersATI(GLsizei n, const GLenum * bufs)
+void glDrawBuffersATI(GLsizei n, const GLenum* bufs)
 {
     return Binding::DrawBuffersATI(n, bufs);
 }
 
-void glDrawCommandsAddressNV(GLenum primitiveMode, const GLuint64 * indirects, const GLsizei * sizes, GLuint count)
+void glDrawCommandsAddressNV(GLenum primitiveMode, const GLuint64* indirects, const GLsizei* sizes, GLuint count)
 {
     return Binding::DrawCommandsAddressNV(primitiveMode, indirects, sizes, count);
 }
 
-void glDrawCommandsNV(GLenum primitiveMode, GLuint buffer, const GLintptr * indirects, const GLsizei * sizes, GLuint count)
+void glDrawCommandsNV(GLenum primitiveMode, GLuint buffer, const GLintptr* indirects, const GLsizei* sizes,
+                      GLuint count)
 {
     return Binding::DrawCommandsNV(primitiveMode, buffer, indirects, sizes, count);
 }
 
-void glDrawCommandsStatesAddressNV(const GLuint64 * indirects, const GLsizei * sizes, const GLuint * states, const GLuint * fbos, GLuint count)
+void glDrawCommandsStatesAddressNV(const GLuint64* indirects, const GLsizei* sizes, const GLuint* states,
+                                   const GLuint* fbos, GLuint count)
 {
     return Binding::DrawCommandsStatesAddressNV(indirects, sizes, states, fbos, count);
 }
 
-void glDrawCommandsStatesNV(GLuint buffer, const GLintptr * indirects, const GLsizei * sizes, const GLuint * states, const GLuint * fbos, GLuint count)
+void glDrawCommandsStatesNV(GLuint buffer, const GLintptr* indirects, const GLsizei* sizes, const GLuint* states,
+                            const GLuint* fbos, GLuint count)
 {
     return Binding::DrawCommandsStatesNV(buffer, indirects, sizes, states, fbos, count);
 }
@@ -501,47 +513,51 @@ void glDrawElementArrayATI(GLenum mode, GLsizei count)
     return Binding::DrawElementArrayATI(mode, count);
 }
 
-void glDrawElements(GLenum mode, GLsizei count, GLenum type, const void * indices)
+void glDrawElements(GLenum mode, GLsizei count, GLenum type, const void* indices)
 {
     return Binding::DrawElements(mode, count, type, indices);
 }
 
-void glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const void * indices, GLint basevertex)
+void glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const void* indices, GLint basevertex)
 {
     return Binding::DrawElementsBaseVertex(mode, count, type, indices, basevertex);
 }
 
-void glDrawElementsIndirect(GLenum mode, GLenum type, const void * indirect)
+void glDrawElementsIndirect(GLenum mode, GLenum type, const void* indirect)
 {
     return Binding::DrawElementsIndirect(mode, type, indirect);
 }
 
-void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void * indices, GLsizei instancecount)
+void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount)
 {
     return Binding::DrawElementsInstanced(mode, count, type, indices, instancecount);
 }
 
-void glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const void * indices, GLsizei primcount)
+void glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei primcount)
 {
     return Binding::DrawElementsInstancedARB(mode, count, type, indices, primcount);
 }
 
-void glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const void * indices, GLsizei instancecount, GLuint baseinstance)
+void glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const void* indices,
+                                         GLsizei instancecount, GLuint baseinstance)
 {
     return Binding::DrawElementsInstancedBaseInstance(mode, count, type, indices, instancecount, baseinstance);
 }
 
-void glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const void * indices, GLsizei instancecount, GLint basevertex)
+void glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const void* indices,
+                                       GLsizei instancecount, GLint basevertex)
 {
     return Binding::DrawElementsInstancedBaseVertex(mode, count, type, indices, instancecount, basevertex);
 }
 
-void glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const void * indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance)
+void glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const void* indices,
+                                                   GLsizei instancecount, GLint basevertex, GLuint baseinstance)
 {
-    return Binding::DrawElementsInstancedBaseVertexBaseInstance(mode, count, type, indices, instancecount, basevertex, baseinstance);
+    return Binding::DrawElementsInstancedBaseVertexBaseInstance(mode, count, type, indices, instancecount, basevertex,
+                                                                baseinstance);
 }
 
-void glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const void * indices, GLsizei primcount)
+void glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei primcount)
 {
     return Binding::DrawElementsInstancedEXT(mode, count, type, indices, primcount);
 }
@@ -551,7 +567,7 @@ void glDrawMeshArraysSUN(GLenum mode, GLint first, GLsizei count, GLsizei width)
     return Binding::DrawMeshArraysSUN(mode, first, count, width);
 }
 
-void glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void * pixels)
+void glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)
 {
     return Binding::DrawPixels(width, height, format, type, pixels);
 }
@@ -566,22 +582,24 @@ void glDrawRangeElementArrayATI(GLenum mode, GLuint start, GLuint end, GLsizei c
     return Binding::DrawRangeElementArrayATI(mode, start, end, count);
 }
 
-void glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const void * indices)
+void glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const void* indices)
 {
     return Binding::DrawRangeElements(mode, start, end, count, type, indices);
 }
 
-void glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const void * indices, GLint basevertex)
+void glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type,
+                                   const void* indices, GLint basevertex)
 {
     return Binding::DrawRangeElementsBaseVertex(mode, start, end, count, type, indices, basevertex);
 }
 
-void glDrawRangeElementsEXT(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const void * indices)
+void glDrawRangeElementsEXT(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const void* indices)
 {
     return Binding::DrawRangeElementsEXT(mode, start, end, count, type, indices);
 }
 
-void glDrawTextureNV(GLuint texture, GLuint sampler, GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLfloat z, GLfloat s0, GLfloat t0, GLfloat s1, GLfloat t1)
+void glDrawTextureNV(GLuint texture, GLuint sampler, GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLfloat z,
+                     GLfloat s0, GLfloat t0, GLfloat s1, GLfloat t1)
 {
     return Binding::DrawTextureNV(texture, sampler, x0, y0, x1, y1, z, s0, t0, s1, t1);
 }
@@ -611,12 +629,12 @@ void glDrawTransformFeedbackStreamInstanced(GLenum mode, GLuint id, GLuint strea
     return Binding::DrawTransformFeedbackStreamInstanced(mode, id, stream, instancecount);
 }
 
-void glDrawVkImageNV(GLuint64 vkImage, GLuint sampler, GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLfloat z, GLfloat s0, GLfloat t0, GLfloat s1, GLfloat t1)
+void glDrawVkImageNV(GLuint64 vkImage, GLuint sampler, GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLfloat z,
+                     GLfloat s0, GLfloat t0, GLfloat s1, GLfloat t1)
 {
     return Binding::DrawVkImageNV(vkImage, sampler, x0, y0, x1, y1, z, s0, t0, s1, t1);
 }
 
 
 
-
-} // namespace gl
+}  // namespace gl

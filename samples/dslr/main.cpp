@@ -5,22 +5,22 @@
  */
 
 
-#include "saiga/util/crash.h"
 #include "saiga/gphoto2/gphoto.h"
+#include "saiga/util/crash.h"
 
 using namespace Saiga;
 
-int main( int argc, char* args[] )
+int main(int argc, char* args[])
 {
     cout << sizeof(bool) << endl;
     return 0;
 
     Saiga::GPhoto dslr;
     TemplatedImage<ucvec3> dimg;
-    while(true)
+    while (true)
     {
         auto img = dslr.tryGetImage();
-        if(img)
+        if (img)
         {
             img->saveJpg("dslr");
             img->saveRaw("dslr");

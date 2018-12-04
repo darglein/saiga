@@ -8,22 +8,21 @@
 #pragma once
 
 #include "saiga/geometry/triangle_mesh.h"
-#include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Base.h"
-#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
-#include "saiga/vulkan/pipeline/Pipeline.h"
-#include "saiga/vulkan/texture/Texture.h"
+#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/buffer/UniformBuffer.h"
+#include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/svulkan.h"
+#include "saiga/vulkan/texture/Texture.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL TextureDisplay : public Pipeline
 {
-public:
+   public:
     using VertexType = VertexNC;
 
 
@@ -38,16 +37,16 @@ public:
 
 
 
-    void init(Saiga::Vulkan::VulkanBase &vulkanDevice, VkRenderPass renderPass);
+    void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
 
 
-    vk::DescriptorSet createAndUpdateDescriptorSet( Texture& texture );
-private:
+    vk::DescriptorSet createAndUpdateDescriptorSet(Texture& texture);
 
+   private:
     Saiga::Vulkan::VulkanVertexColoredAsset blitMesh;
 };
 
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

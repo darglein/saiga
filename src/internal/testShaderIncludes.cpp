@@ -1,13 +1,13 @@
 ﻿
 #ifdef _WIN32
 // TODO fix for windows
-#include "saiga/shaderConfig.h"
+#    include "saiga/shaderConfig.h"
 #else
-#include "saiga/colorize.h"
-#include "saiga/hlslDefines.h"
-#include "saiga/hsv.h"
-#include "saiga/normal_sf.h"
-#include "saiga/shaderConfig.h"
+#    include "saiga/colorize.h"
+#    include "saiga/hlslDefines.h"
+#    include "saiga/hsv.h"
+#    include "saiga/normal_sf.h"
+#    include "saiga/shaderConfig.h"
 #endif
 
 

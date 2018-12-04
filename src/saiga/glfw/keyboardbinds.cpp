@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,39 +8,48 @@
 
 #include <GLFW/glfw3.h>
 
-namespace Saiga {
+namespace Saiga
+{
+KeyboardBinds::KeyboardBinds()
+{
+    glfw_EventHandler::addKeyListener(this, 20);
 
-KeyboardBinds::KeyboardBinds(){
-    glfw_EventHandler::addKeyListener(this,20);
-
-    IC.add("bind", [this](ICPARAMS){
+    IC.add("bind", [this](ICPARAMS) {
         nextCommand = args;
-        //todo check if command valid
-        *(args.os)<<"Press any key to bind the commad '"<<nextCommand.args<<"'"<<std::endl;
+        // todo check if command valid
+        *(args.os) << "Press any key to bind the commad '" << nextCommand.args << "'" << std::endl;
         this->waitingForKey = true;
     });
 }
 
-bool KeyboardBinds::key_event(GLFWwindow* window, int key, int scancode, int action, int mods){
-    (void)window;(void)scancode;(void)mods;
-    if(waitingForKey){
-        if(action!=GLFW_PRESS)
-            return true;
+bool KeyboardBinds::key_event(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    (void)window;
+    (void)scancode;
+    (void)mods;
+    if (waitingForKey)
+    {
+        if (action != GLFW_PRESS) return true;
 
         auto it = keyMap.find(key);
-        if(it!=keyMap.end()){
-            *(nextCommand.os)<<"KeyboardBinds: key already bound to '"<<(it->second)<<"'"<<std::endl;
-        }else{
-            keyMap.insert(mapElement(key,nextCommand.args));
-            *(nextCommand.os)<<"Key Bind added: ("<<key<<" "<<nextCommand.args<<")"<<std::endl;
+        if (it != keyMap.end())
+        {
+            *(nextCommand.os) << "KeyboardBinds: key already bound to '" << (it->second) << "'" << std::endl;
+        }
+        else
+        {
+            keyMap.insert(mapElement(key, nextCommand.args));
+            *(nextCommand.os) << "Key Bind added: (" << key << " " << nextCommand.args << ")" << std::endl;
         }
         waitingForKey = false;
         return true;
-    }else{
+    }
+    else
+    {
         auto it = keyMap.find(key);
-        if(it!=keyMap.end()){
-            if(action!=GLFW_PRESS)
-                return true;
+        if (it != keyMap.end())
+        {
+            if (action != GLFW_PRESS) return true;
             IC.execute(it->second);
             return true;
         }
@@ -50,9 +59,11 @@ bool KeyboardBinds::key_event(GLFWwindow* window, int key, int scancode, int act
     return false;
 }
 
-bool KeyboardBinds::character_event(GLFWwindow* window, unsigned int codepoint){
-    (void)window;(void)codepoint;
+bool KeyboardBinds::character_event(GLFWwindow* window, unsigned int codepoint)
+{
+    (void)window;
+    (void)codepoint;
     return false;
 }
 
-}
+}  // namespace Saiga

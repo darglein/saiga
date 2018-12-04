@@ -8,15 +8,16 @@
 
 #include "saiga/vulkan/svulkan.h"
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 /**
  * Wrapper class for vk::CommandPool.
  */
 class SAIGA_GLOBAL CommandPool
 {
-public:
+   public:
     /*
     VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
         specifies that command buffers allocated from the pool will be short-lived,
@@ -34,21 +35,17 @@ public:
         If the protected memory feature is not enabled, the VK_COMMAND_POOL_CREATE_PROTECTED_BIT
         bit of flags must not be set.
     */
-    void create(
-            vk::Device device,
-            uint32_t queueFamilyIndex_ = 0,
-            vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer
-            );
+    void create(vk::Device device, uint32_t queueFamilyIndex_ = 0,
+                vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 
     /**
      * Allocate a single command buffer from this pool.
      * If you want to allocate multiple command buffers at once use the function below.
      */
-    vk::CommandBuffer allocateCommandBuffer(
-            vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
-            );
+    vk::CommandBuffer allocateCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
 
-    vk::CommandBuffer createAndBeginOneTimeBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary) {
+    vk::CommandBuffer createAndBeginOneTimeBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary)
+    {
         auto cmd = allocateCommandBuffer(level);
         cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
         return cmd;
@@ -58,9 +55,7 @@ public:
      * Allocate an array of command buffers.
      */
     std::vector<vk::CommandBuffer> allocateCommandBuffers(
-            uint32_t count,
-            vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
-            );
+        uint32_t count, vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
 
     void freeCommandBuffer(vk::CommandBuffer cmd);
 
@@ -73,11 +68,12 @@ public:
      * Free the underlying Vulkan objects.
      */
     void destroy();
-private:
+
+   private:
     vk::Device device;
     vk::CommandPool commandPool;
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

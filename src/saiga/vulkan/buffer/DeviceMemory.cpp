@@ -7,23 +7,23 @@
 #include "DeviceMemory.h"
 
 
-namespace Saiga {
-namespace Vulkan {
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 void DeviceMemory::destroy()
 {
-//    SAIGA_ASSERT(device);
-//    SAIGA_ASSERT(memory);
-    if(device && memory)
+    //    SAIGA_ASSERT(device);
+    //    SAIGA_ASSERT(memory);
+    if (device && memory)
     {
         device.freeMemory(memory);
         memory = nullptr;
     }
-
 }
 
-void DeviceMemory::allocateMemory(VulkanBase &base, const vk::MemoryRequirements &mem_reqs, vk::MemoryPropertyFlags flags)
+void DeviceMemory::allocateMemory(VulkanBase& base, const vk::MemoryRequirements& mem_reqs,
+                                  vk::MemoryPropertyFlags flags)
 {
     device = base;
     SAIGA_ASSERT(device);
@@ -36,27 +36,27 @@ void DeviceMemory::allocateMemory(VulkanBase &base, const vk::MemoryRequirements
     alloc_info.memoryTypeIndex = 0;
 
     alloc_info.allocationSize = mem_reqs.size;
-//    bool pass = Vulkan::memory_type_from_properties(
-//                vulkanDevicememory_properties,mem_reqs.memoryTypeBits,
-//                flags,
-//                &alloc_info.memoryTypeIndex);
-    alloc_info.memoryTypeIndex  = base.getMemoryType(mem_reqs.memoryTypeBits,flags);
+    //    bool pass = Vulkan::memory_type_from_properties(
+    //                vulkanDevicememory_properties,mem_reqs.memoryTypeBits,
+    //                flags,
+    //                &alloc_info.memoryTypeIndex);
+    alloc_info.memoryTypeIndex = base.getMemoryType(mem_reqs.memoryTypeBits, flags);
 
-//    SAIGA_ASSERT(pass);
+    //    SAIGA_ASSERT(pass);
 
-    CHECK_VK(device.allocateMemory(&alloc_info,nullptr,&memory));
+    CHECK_VK(device.allocateMemory(&alloc_info, nullptr, &memory));
 }
 
-uint8_t *DeviceMemory::map(size_t offset, size_t size)
+uint8_t* DeviceMemory::map(size_t offset, size_t size)
 {
-    uint8_t *pData;
-    device.mapMemory(memory, 0, size, vk::MemoryMapFlags(), (void **)&pData);
+    uint8_t* pData;
+    device.mapMemory(memory, 0, size, vk::MemoryMapFlags(), (void**)&pData);
     return pData;
 }
 
 uint8_t* DeviceMemory::mapAll()
 {
-    return map(0,size);
+    return map(0, size);
 }
 
 void DeviceMemory::unmap()
@@ -64,19 +64,19 @@ void DeviceMemory::unmap()
     device.unmapMemory(memory);
 }
 
-void DeviceMemory::mappedUpload(size_t offset, size_t size, const void *data)
+void DeviceMemory::mappedUpload(size_t offset, size_t size, const void* data)
 {
-    uint8_t *pData = map(offset,size) ;
+    uint8_t* pData = map(offset, size);
     memcpy(pData, data, size);
     unmap();
 }
 
-void DeviceMemory::mappedDownload(size_t offset, size_t size, void *data)
+void DeviceMemory::mappedDownload(size_t offset, size_t size, void* data)
 {
-    uint8_t *pData = map(offset,size) ;
-    memcpy(data,pData, size);
+    uint8_t* pData = map(offset, size);
+    memcpy(data, pData, size);
     unmap();
 }
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

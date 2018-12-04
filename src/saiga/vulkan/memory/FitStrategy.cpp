@@ -3,6 +3,7 @@
 //
 
 #include "FitStrategy.h"
+
 #include <tuple>
 #include <utility>
 namespace Saiga

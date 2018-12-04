@@ -1,20 +1,18 @@
 
 #pragma once
 
-#include <iomanip>
-#include <iterator>
 #include <cassert>
 #include <cmath>
+#include <iomanip>
+#include <iterator>
 
 
-namespace glbinding { namespace aux
+namespace glbinding
 {
-
-
+namespace aux
+{
 template <typename T>
-RingBuffer<T>::RingBuffer(const unsigned int maxSize)
-:   m_size{maxSize+1}
-,   m_head{0}
+RingBuffer<T>::RingBuffer(const unsigned int maxSize) : m_size{maxSize + 1}, m_head{0}
 {
     m_buffer.resize(m_size);
 }
@@ -27,9 +25,9 @@ void RingBuffer<T>::resize(const unsigned int newSize)
 }
 
 template <typename T>
-T RingBuffer<T>::nextHead(bool & available) const
+T RingBuffer<T>::nextHead(bool& available) const
 {
-    const auto head = m_head.load(std::memory_order_relaxed);
+    const auto head     = m_head.load(std::memory_order_relaxed);
     const auto nextHead = next(head);
 
     if (isFull(nextHead))
@@ -43,9 +41,9 @@ T RingBuffer<T>::nextHead(bool & available) const
 }
 
 template <typename T>
-bool RingBuffer<T>::push(T && entry)
+bool RingBuffer<T>::push(T&& entry)
 {
-    const auto head = m_head.load(std::memory_order_relaxed);
+    const auto head     = m_head.load(std::memory_order_relaxed);
     const auto nextHead = next(head);
 
     if (isFull(nextHead))
@@ -71,9 +69,9 @@ bool RingBuffer<T>::push(T && entry)
 }
 
 template <typename T>
-bool RingBuffer<T>::push(T & entry)
+bool RingBuffer<T>::push(T& entry)
 {
-    auto head = m_head.load(std::memory_order_relaxed);
+    auto head     = m_head.load(std::memory_order_relaxed);
     auto nextHead = next(head);
 
     if (isFull(nextHead))
@@ -102,7 +100,7 @@ typename RingBuffer<T>::TailIdentifier RingBuffer<T>::addTail()
 {
     // Just use the next key instead in O(1) of reusing keys using a O(n*log(n)) algorithm.
     const auto it = m_tails.rbegin();
-    const auto i = TailIdentifier(it == m_tails.rend() ? 0 : it->first + 1);
+    const auto i  = TailIdentifier(it == m_tails.rend() ? 0 : it->first + 1);
 
     m_tails[i] = m_head.load(std::memory_order_acquire);
 
@@ -119,7 +117,7 @@ template <typename T>
 const typename std::vector<T>::const_iterator RingBuffer<T>::cbegin(TailIdentifier key) const
 {
     auto tail = m_tails.at(key).load(std::memory_order_relaxed);
-    auto i = m_buffer.cbegin();
+    auto i    = m_buffer.cbegin();
 
     std::advance(i, tail);
 
@@ -127,16 +125,17 @@ const typename std::vector<T>::const_iterator RingBuffer<T>::cbegin(TailIdentifi
 }
 
 template <typename T>
-bool RingBuffer<T>::valid(TailIdentifier /*key*/, const typename std::vector<T>::const_iterator & it) const
+bool RingBuffer<T>::valid(TailIdentifier /*key*/, const typename std::vector<T>::const_iterator& it) const
 {
-    auto pos = std::abs(std::distance(m_buffer.cbegin(), it));
+    auto pos  = std::abs(std::distance(m_buffer.cbegin(), it));
     auto head = m_head.load(std::memory_order_acquire);
 
     return (static_cast<SizeType>(pos) != head);
 }
 
 template <typename T>
-const typename std::vector<T>::const_iterator RingBuffer<T>::next(TailIdentifier key, const typename std::vector<T>::const_iterator & it)
+const typename std::vector<T>::const_iterator RingBuffer<T>::next(TailIdentifier key,
+                                                                  const typename std::vector<T>::const_iterator& it)
 {
     auto tail = m_tails[key].load(std::memory_order_acquire);
 
@@ -179,7 +178,7 @@ typename RingBuffer<T>::SizeType RingBuffer<T>::size() const
 template <typename T>
 bool RingBuffer<T>::isFull() const
 {
-    auto head = m_head.load(std::memory_order_relaxed);
+    auto head     = m_head.load(std::memory_order_relaxed);
     auto nextHead = next(head);
 
     return isFull(nextHead);
@@ -194,7 +193,7 @@ bool RingBuffer<T>::isEmpty() const
 }
 
 
-//protected
+// protected
 
 template <typename T>
 typename RingBuffer<T>::SizeType RingBuffer<T>::next(SizeType current) const
@@ -209,8 +208,7 @@ bool RingBuffer<T>::isFull(SizeType nextHead) const
     {
         auto tailPos = it->second.load(std::memory_order_acquire);
 
-        if (nextHead == tailPos)
-            return true;
+        if (nextHead == tailPos) return true;
     }
 
     return false;
@@ -225,11 +223,9 @@ typename RingBuffer<T>::SizeType RingBuffer<T>::lastTail() const
     for (auto it = m_tails.cbegin(); it != m_tails.cend(); ++it)
     {
         auto tailPos = it->second.load(std::memory_order_acquire);
-        if (tailPos <= head)
-            tailPos += m_size;
+        if (tailPos <= head) tailPos += m_size;
 
-        if (tailPos < last)
-            last = tailPos;
+        if (tailPos < last) last = tailPos;
     }
 
     return last % m_size;
@@ -249,4 +245,5 @@ typename RingBuffer<T>::SizeType RingBuffer<T>::size(SizeType head, SizeType tai
 }
 
 
-} } // namespace glbinding::aux
+}  // namespace aux
+}  // namespace glbinding

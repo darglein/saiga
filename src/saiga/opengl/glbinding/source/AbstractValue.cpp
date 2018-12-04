@@ -4,15 +4,9 @@
 
 namespace glbinding
 {
+AbstractValue::AbstractValue() {}
+
+AbstractValue::~AbstractValue() {}
 
 
-AbstractValue::AbstractValue()
-{
-}
-
-AbstractValue::~AbstractValue()
-{
-}
-
-
-} // namespace glbinding
+}  // namespace glbinding

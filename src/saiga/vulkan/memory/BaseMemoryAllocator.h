@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <saiga/util/assert.h>
 #include "MemoryLocation.h"
+
+#include <saiga/util/assert.h>
 namespace Saiga
 {
 namespace Vulkan

@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,14 +9,12 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
-void glFeedbackBuffer(GLsizei size, GLenum type, GLfloat * buffer)
+void glFeedbackBuffer(GLsizei size, GLenum type, GLfloat* buffer)
 {
     return Binding::FeedbackBuffer(size, type, buffer);
 }
 
-void glFeedbackBufferxOES(GLsizei n, GLenum type, const GLfixed * buffer)
+void glFeedbackBufferxOES(GLsizei n, GLenum type, const GLfixed* buffer)
 {
     return Binding::FeedbackBufferxOES(n, type, buffer);
 }
@@ -36,7 +34,7 @@ void glFinish()
     return Binding::Finish();
 }
 
-GLint glFinishAsyncSGIX(GLuint * markerp)
+GLint glFinishAsyncSGIX(GLuint* markerp)
 {
     return Binding::FinishAsyncSGIX(markerp);
 }
@@ -101,7 +99,7 @@ void glFlushStaticDataIBM(GLenum target)
     return Binding::FlushStaticDataIBM(target);
 }
 
-void glFlushVertexArrayRangeAPPLE(GLsizei length, void * pointer)
+void glFlushVertexArrayRangeAPPLE(GLsizei length, void* pointer)
 {
     return Binding::FlushVertexArrayRangeAPPLE(length, pointer);
 }
@@ -116,17 +114,17 @@ void glFogCoordFormatNV(GLenum type, GLsizei stride)
     return Binding::FogCoordFormatNV(type, stride);
 }
 
-void glFogCoordPointer(GLenum type, GLsizei stride, const void * pointer)
+void glFogCoordPointer(GLenum type, GLsizei stride, const void* pointer)
 {
     return Binding::FogCoordPointer(type, stride, pointer);
 }
 
-void glFogCoordPointerEXT(GLenum type, GLsizei stride, const void * pointer)
+void glFogCoordPointerEXT(GLenum type, GLsizei stride, const void* pointer)
 {
     return Binding::FogCoordPointerEXT(type, stride, pointer);
 }
 
-void glFogCoordPointerListIBM(GLenum type, GLint stride, const void ** pointer, GLint ptrstride)
+void glFogCoordPointerListIBM(GLenum type, GLint stride, const void** pointer, GLint ptrstride)
 {
     return Binding::FogCoordPointerListIBM(type, stride, pointer, ptrstride);
 }
@@ -141,12 +139,12 @@ void glFogCoorddEXT(GLdouble coord)
     return Binding::FogCoorddEXT(coord);
 }
 
-void glFogCoorddv(const GLdouble * coord)
+void glFogCoorddv(const GLdouble* coord)
 {
     return Binding::FogCoorddv(coord);
 }
 
-void glFogCoorddvEXT(const GLdouble * coord)
+void glFogCoorddvEXT(const GLdouble* coord)
 {
     return Binding::FogCoorddvEXT(coord);
 }
@@ -161,12 +159,12 @@ void glFogCoordfEXT(GLfloat coord)
     return Binding::FogCoordfEXT(coord);
 }
 
-void glFogCoordfv(const GLfloat * coord)
+void glFogCoordfv(const GLfloat* coord)
 {
     return Binding::FogCoordfv(coord);
 }
 
-void glFogCoordfvEXT(const GLfloat * coord)
+void glFogCoordfvEXT(const GLfloat* coord)
 {
     return Binding::FogCoordfvEXT(coord);
 }
@@ -176,12 +174,12 @@ void glFogCoordhNV(GLhalfNV fog)
     return Binding::FogCoordhNV(fog);
 }
 
-void glFogCoordhvNV(const GLhalfNV * fog)
+void glFogCoordhvNV(const GLhalfNV* fog)
 {
     return Binding::FogCoordhvNV(fog);
 }
 
-void glFogFuncSGIS(GLsizei n, const GLfloat * points)
+void glFogFuncSGIS(GLsizei n, const GLfloat* points)
 {
     return Binding::FogFuncSGIS(n, points);
 }
@@ -191,7 +189,7 @@ void glFogf(GLenum pname, GLfloat param)
     return Binding::Fogf(pname, param);
 }
 
-void glFogfv(GLenum pname, const GLfloat * params)
+void glFogfv(GLenum pname, const GLfloat* params)
 {
     return Binding::Fogfv(pname, params);
 }
@@ -201,7 +199,7 @@ void glFogi(GLenum pname, GLint param)
     return Binding::Fogi(pname, param);
 }
 
-void glFogiv(GLenum pname, const GLint * params)
+void glFogiv(GLenum pname, const GLint* params)
 {
     return Binding::Fogiv(pname, params);
 }
@@ -211,7 +209,7 @@ void glFogxOES(GLenum pname, GLfixed param)
     return Binding::FogxOES(pname, param);
 }
 
-void glFogxvOES(GLenum pname, const GLfixed * param)
+void glFogxvOES(GLenum pname, const GLfixed* param)
 {
     return Binding::FogxvOES(pname, param);
 }
@@ -231,7 +229,7 @@ void glFragmentLightModelfSGIX(GLenum pname, GLfloat param)
     return Binding::FragmentLightModelfSGIX(pname, param);
 }
 
-void glFragmentLightModelfvSGIX(GLenum pname, const GLfloat * params)
+void glFragmentLightModelfvSGIX(GLenum pname, const GLfloat* params)
 {
     return Binding::FragmentLightModelfvSGIX(pname, params);
 }
@@ -241,7 +239,7 @@ void glFragmentLightModeliSGIX(GLenum pname, GLint param)
     return Binding::FragmentLightModeliSGIX(pname, param);
 }
 
-void glFragmentLightModelivSGIX(GLenum pname, const GLint * params)
+void glFragmentLightModelivSGIX(GLenum pname, const GLint* params)
 {
     return Binding::FragmentLightModelivSGIX(pname, params);
 }
@@ -251,7 +249,7 @@ void glFragmentLightfSGIX(GLenum light, GLenum pname, GLfloat param)
     return Binding::FragmentLightfSGIX(light, pname, param);
 }
 
-void glFragmentLightfvSGIX(GLenum light, GLenum pname, const GLfloat * params)
+void glFragmentLightfvSGIX(GLenum light, GLenum pname, const GLfloat* params)
 {
     return Binding::FragmentLightfvSGIX(light, pname, params);
 }
@@ -261,7 +259,7 @@ void glFragmentLightiSGIX(GLenum light, GLenum pname, GLint param)
     return Binding::FragmentLightiSGIX(light, pname, param);
 }
 
-void glFragmentLightivSGIX(GLenum light, GLenum pname, const GLint * params)
+void glFragmentLightivSGIX(GLenum light, GLenum pname, const GLint* params)
 {
     return Binding::FragmentLightivSGIX(light, pname, params);
 }
@@ -271,7 +269,7 @@ void glFragmentMaterialfSGIX(GLenum face, GLenum pname, GLfloat param)
     return Binding::FragmentMaterialfSGIX(face, pname, param);
 }
 
-void glFragmentMaterialfvSGIX(GLenum face, GLenum pname, const GLfloat * params)
+void glFragmentMaterialfvSGIX(GLenum face, GLenum pname, const GLfloat* params)
 {
     return Binding::FragmentMaterialfvSGIX(face, pname, params);
 }
@@ -281,7 +279,7 @@ void glFragmentMaterialiSGIX(GLenum face, GLenum pname, GLint param)
     return Binding::FragmentMaterialiSGIX(face, pname, param);
 }
 
-void glFragmentMaterialivSGIX(GLenum face, GLenum pname, const GLint * params)
+void glFragmentMaterialivSGIX(GLenum face, GLenum pname, const GLint* params)
 {
     return Binding::FragmentMaterialivSGIX(face, pname, params);
 }
@@ -301,7 +299,7 @@ void glFramebufferDrawBufferEXT(GLuint framebuffer, GLenum mode)
     return Binding::FramebufferDrawBufferEXT(framebuffer, mode);
 }
 
-void glFramebufferDrawBuffersEXT(GLuint framebuffer, GLsizei n, const GLenum * bufs)
+void glFramebufferDrawBuffersEXT(GLuint framebuffer, GLsizei n, const GLenum* bufs)
 {
     return Binding::FramebufferDrawBuffersEXT(framebuffer, n, bufs);
 }
@@ -331,17 +329,17 @@ void glFramebufferRenderbufferEXT(GLenum target, GLenum attachment, GLenum rende
     return Binding::FramebufferRenderbufferEXT(target, attachment, renderbuffertarget, renderbuffer);
 }
 
-void glFramebufferSampleLocationsfvARB(GLenum target, GLuint start, GLsizei count, const GLfloat * v)
+void glFramebufferSampleLocationsfvARB(GLenum target, GLuint start, GLsizei count, const GLfloat* v)
 {
     return Binding::FramebufferSampleLocationsfvARB(target, start, count, v);
 }
 
-void glFramebufferSampleLocationsfvNV(GLenum target, GLuint start, GLsizei count, const GLfloat * v)
+void glFramebufferSampleLocationsfvNV(GLenum target, GLuint start, GLsizei count, const GLfloat* v)
 {
     return Binding::FramebufferSampleLocationsfvNV(target, start, count, v);
 }
 
-void glFramebufferSamplePositionsfvAMD(GLenum target, GLuint numsamples, GLuint pixelindex, const GLfloat * values)
+void glFramebufferSamplePositionsfvAMD(GLenum target, GLuint numsamples, GLuint pixelindex, const GLfloat* values)
 {
     return Binding::FramebufferSamplePositionsfvAMD(target, numsamples, pixelindex, values);
 }
@@ -371,12 +369,14 @@ void glFramebufferTexture2DEXT(GLenum target, GLenum attachment, GLenum textarge
     return Binding::FramebufferTexture2DEXT(target, attachment, textarget, texture, level);
 }
 
-void glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
+void glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level,
+                            GLint zoffset)
 {
     return Binding::FramebufferTexture3D(target, attachment, textarget, texture, level, zoffset);
 }
 
-void glFramebufferTexture3DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
+void glFramebufferTexture3DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level,
+                               GLint zoffset)
 {
     return Binding::FramebufferTexture3DEXT(target, attachment, textarget, texture, level, zoffset);
 }
@@ -416,7 +416,8 @@ void glFramebufferTextureLayerEXT(GLenum target, GLenum attachment, GLuint textu
     return Binding::FramebufferTextureLayerEXT(target, attachment, texture, level, layer);
 }
 
-void glFramebufferTextureMultiviewOVR(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint baseViewIndex, GLsizei numViews)
+void glFramebufferTextureMultiviewOVR(GLenum target, GLenum attachment, GLuint texture, GLint level,
+                                      GLint baseViewIndex, GLsizei numViews)
 {
     return Binding::FramebufferTextureMultiviewOVR(target, attachment, texture, level, baseViewIndex, numViews);
 }
@@ -448,5 +449,4 @@ void glFrustumxOES(GLfixed l, GLfixed r, GLfixed b, GLfixed t, GLfixed n, GLfixe
 
 
 
-
-} // namespace gl
+}  // namespace gl

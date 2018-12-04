@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include <SDL2/SDL.h>
 #include "saiga/config.h"
 #include "saiga/opengl/OpenGLWindow.h"
 #include "saiga/sdl/sdl_eventhandler.h"
+
+#include <SDL2/SDL.h>
 
 #undef main
 

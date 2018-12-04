@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include "saiga/config.h"
+
+#include "sophus/se3.hpp"
+
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include "saiga/config.h"
-#include "sophus/se3.hpp"
 
 
 namespace Saiga

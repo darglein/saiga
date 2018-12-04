@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include "saiga/util/assert.h"
 #include "saiga/eigen/eigen.h"
+#include "saiga/util/assert.h"
+
 #include <Eigen/QR>
 #include <Eigen/SVD>
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * Methods for computing the Nullspace of a general square singular matrix A (det(A)=0).
  *
@@ -24,26 +25,29 @@ namespace Saiga {
  */
 
 
-template<typename matrix_t, typename vector_t>
-void solveNullspaceLU(const matrix_t& A, vector_t& x){
+template <typename matrix_t, typename vector_t>
+void solveNullspaceLU(const matrix_t& A, vector_t& x)
+{
     x = A.fullPivLu().kernel();
     x.normalize();
 }
 
-template<typename matrix_t, typename vector_t>
-void solveNullspaceQR(const matrix_t& A, vector_t& x){
+template <typename matrix_t, typename vector_t>
+void solveNullspaceQR(const matrix_t& A, vector_t& x)
+{
     //    auto qr = A.transpose().householderQr();
-    auto qr = A.transpose().colPivHouseholderQr();
+    auto qr    = A.transpose().colPivHouseholderQr();
     matrix_t Q = qr.householderQ();
-    x = Q.col(A.rows() - 1);
+    x          = Q.col(A.rows() - 1);
     x.normalize();
 }
 
-template<typename matrix_t, typename vector_t>
-void solveNullspaceSVD(const matrix_t& A, vector_t& x){
-//    SAIGA_ASSERT(A.rows() == A.cols());
-    x = A.jacobiSvd(Eigen::ComputeFullV).matrixV().col( A.rows() - 1 );
+template <typename matrix_t, typename vector_t>
+void solveNullspaceSVD(const matrix_t& A, vector_t& x)
+{
+    //    SAIGA_ASSERT(A.rows() == A.cols());
+    x = A.jacobiSvd(Eigen::ComputeFullV).matrixV().col(A.rows() - 1);
     x.normalize();
 }
 
-}
+}  // namespace Saiga

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,8 +9,8 @@
 #include "saiga/config.h"
 #include "saiga/util/math.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * Simple class for a 3D triangle consiting of the 3 corner points a, b, and c.
  * @brief The Triangle class
@@ -18,11 +18,12 @@ namespace Saiga {
 
 class SAIGA_GLOBAL Triangle
 {
-public:
-    vec3 a,b,c;
-public:
-    Triangle(){}
-    Triangle(const vec3 &a, const vec3 &b, const vec3 &c):a(a),b(b),c(c){ }
+   public:
+    vec3 a, b, c;
+
+   public:
+    Triangle() {}
+    Triangle(const vec3& a, const vec3& b, const vec3& c) : a(a), b(b), c(c) {}
 
     /**
      * Mean center: (a+b+c) / 3
@@ -67,4 +68,4 @@ public:
     friend SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Triangle& dt);
 };
 
-}
+}  // namespace Saiga

@@ -22,7 +22,7 @@ struct SAIGA_GLOBAL VulkanParameters
 
     uint32_t maxDescriptorSets = 4096 * 4;
     // for {uniformBuffer,texture}
-    std::array<uint32_t, 4> descriptorCounts = {4096,4096,4096,4096};
+    std::array<uint32_t, 4> descriptorCounts = {4096, 4096, 4096, 4096};
 
 
 

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,22 +9,23 @@
 #include "saiga/config.h"
 #include "saiga/opengl/OpenGLWindow.h"
 
-namespace Saiga {
-
-typedef void *EGLDisplay;
-typedef void *EGLSurface;
+namespace Saiga
+{
+typedef void* EGLDisplay;
+typedef void* EGLSurface;
 
 /**
  * OpenGL context without an actual window with EGL
  * https://devblogs.nvidia.com/parallelforall/egl-eye-opengl-visualization-without-x-server/
  */
-class SAIGA_GLOBAL OffscreenWindow : public OpenGLWindow{
-public:
+class SAIGA_GLOBAL OffscreenWindow : public OpenGLWindow
+{
+   public:
     EGLDisplay eglDpy;
     EGLSurface eglSurf;
-protected:
 
-    //there are no inputs and events without a window
+   protected:
+    // there are no inputs and events without a window
     virtual bool initInput() override { return true; }
     virtual void checkEvents() override {}
 
@@ -34,9 +35,9 @@ protected:
 
     virtual bool initWindow() override;
     virtual void loadGLFunctions() override;
-public:
 
+   public:
     OffscreenWindow(WindowParameters windowParameters, OpenGLParameters openglParameter = OpenGLParameters());
 };
 
-}
+}  // namespace Saiga

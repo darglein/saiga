@@ -4,12 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/crash.h"
-
+#include "saiga/framework/framework.h"
 #include "saiga/image/floatTexels.h"
 #include "saiga/image/image.h"
 #include "saiga/image/templatedImage.h"
-#include "saiga/framework/framework.h"
+#include "saiga/util/crash.h"
 
 using namespace Saiga;
 
@@ -19,13 +18,13 @@ void test16BitLoadStore()
     int w = 512;
     int h = 512;
 
-    TemplatedImage<unsigned short> img(h,w);
+    TemplatedImage<unsigned short> img(h, w);
 
-    for(int i = 0; i < h; ++i)
+    for (int i = 0; i < h; ++i)
     {
-        for(int  j = 0; j < w; ++j)
+        for (int j = 0; j < w; ++j)
         {
-            img(i,j) = float(j) / w * ( (1 << 16) - 1);
+            img(i, j) = float(j) / w * ((1 << 16) - 1);
         }
     }
 
@@ -56,8 +55,8 @@ void testScaleLinear()
 }
 
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char* argv[])
+{
     catchSegFaults();
 
 
@@ -78,19 +77,19 @@ int main(int argc, char *argv[]) {
         TemplatedImage<ucvec3> img("textures/redie.png");
         SAIGA_ASSERT(img.type == UC3);
         ImageView<ucvec3> vimg = img.getImageView();
-        vimg.setChannel(0,0);
-        vimg.setChannel(1,0);
+        vimg.setChannel(0, 0);
+        vimg.setChannel(1, 0);
 
         auto img2 = img;
         img2.save("debug/blue.png");
 
         // Create a grayscale image from the blue channel
-        Image imggray(img.height,img.width,UC1);
-        for(int i = 0; i < img.height; ++i)
+        Image imggray(img.height, img.width, UC1);
+        for (int i = 0; i < img.height; ++i)
         {
-            for(int j = 0; j < img.width; ++j)
+            for (int j = 0; j < img.width; ++j)
             {
-                imggray.at<unsigned char>(i,j) = img.at<ucvec3>(i,j)[2];
+                imggray.at<unsigned char>(i, j) = img.at<ucvec3>(i, j)[2];
             }
         }
         imggray.save("debug/blue_gray.png");
@@ -102,14 +101,14 @@ int main(int argc, char *argv[]) {
         // Read, modify, write a jpg image.
         Image img("textures/redie.jpg");
         ImageView<ucvec3> vimg = img.getImageView<ucvec3>();
-        vimg.setChannel(0,0);
-        vimg.setChannel(1,0);
+        vimg.setChannel(0, 0);
+        vimg.setChannel(1, 0);
         img.save("debug/blue.jpg");
     }
 #endif
 
     {
-        //Raw format
+        // Raw format
         TemplatedImage<ucvec3> img("textures/redie.png");
 
         img.save("debug/raw_test.saigai");

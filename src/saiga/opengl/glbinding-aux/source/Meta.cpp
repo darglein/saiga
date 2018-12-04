@@ -1,51 +1,46 @@
 
-#include <glbinding-aux/Meta.h>
+#include "glrevision.h"
 
 #include <algorithm>
-
+#include <glbinding/AbstractFunction.h>
+#include <glbinding/Binding.h>
+#include <glbinding/Version.h>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/boolean.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/extension.h>
 
-#include <glbinding/AbstractFunction.h>
-#include <glbinding/Binding.h>
-#include <glbinding/Version.h>
-
-#include <glbinding-aux/ValidVersions.h>
-
-#include "glrevision.h"
 #include "Meta_Maps.h"
+#include <glbinding-aux/Meta.h>
+#include <glbinding-aux/ValidVersions.h>
 
 using namespace gl;
 
 
-namespace 
+namespace
 {
-
-
-static const auto none = std::string{};
-static const auto noneVersion = glbinding::Version(0, 0);
-static const auto noneStringSet = std::set<std::string>{};
+static const auto none           = std::string{};
+static const auto noneVersion    = glbinding::Version(0, 0);
+static const auto noneStringSet  = std::set<std::string>{};
 static const auto noneExtensions = std::set<gl::GLextension>{};
-static const auto noneVersions = std::set<glbinding::Version>{};
+static const auto noneVersions   = std::set<glbinding::Version>{};
 
 
-} // namespace
+}  // namespace
 
 
-namespace glbinding { namespace aux
+namespace glbinding
 {
-
-
+namespace aux
+{
 int Meta::glRevision()
 {
     return GL_REVISION;
 }
 
-size_t Meta::alphabeticalGroupIndex(const std::string & identifier, const std::uint8_t prefixLength)
+size_t Meta::alphabeticalGroupIndex(const std::string& identifier, const std::uint8_t prefixLength)
 {
-    auto index = static_cast<size_t>(identifier[prefixLength]); // ignore prefix ('GL_' or 'gl')
+    auto index = static_cast<size_t>(identifier[prefixLength]);  // ignore prefix ('GL_' or 'gl')
 
     // bold uppercase conversion -> non letters are discarded in next step
     if (index > 96)
@@ -67,22 +62,22 @@ std::vector<GLbitfield> Meta::bitfields()
 {
     auto bitfields = std::vector<GLbitfield>{};
 
-    for(const auto & map : Meta_BitfieldsByStringMaps)
+    for (const auto& map : Meta_BitfieldsByStringMaps)
     {
-        for (const auto & p : map)
+        for (const auto& p : map)
         {
             bitfields.push_back(p.second);
         }
     }
 
-    return bitfields;    
+    return bitfields;
 }
 
 std::vector<GLenum> Meta::enums()
 {
     auto enums = std::vector<GLenum>{};
 
-    for (const auto & p : Meta_StringsByEnum)
+    for (const auto& p : Meta_StringsByEnum)
     {
         enums.push_back(p.first);
     }
@@ -91,11 +86,11 @@ std::vector<GLenum> Meta::enums()
 }
 
 
-GLextension Meta::getExtension(const std::string & glextension)
+GLextension Meta::getExtension(const std::string& glextension)
 {
     const auto index = alphabeticalGroupIndex(glextension, 3);
-    const auto & map = Meta_ExtensionsByStringMaps[index];
-    const auto i = map.find(glextension);
+    const auto& map  = Meta_ExtensionsByStringMaps[index];
+    const auto i     = map.find(glextension);
 
     if (i != map.cend())
     {
@@ -109,9 +104,9 @@ std::set<GLextension> Meta::extensions()
 {
     auto extensions = std::set<GLextension>{};
 
-    for (const auto & m : Meta_ExtensionsByStringMaps)
+    for (const auto& m : Meta_ExtensionsByStringMaps)
     {
-        for (const auto & p : m)
+        for (const auto& p : m)
         {
             extensions.insert(p.second);
         }
@@ -121,7 +116,7 @@ std::set<GLextension> Meta::extensions()
 }
 
 
-const std::string & Meta::getString(const GLboolean & glboolean)
+const std::string& Meta::getString(const GLboolean& glboolean)
 {
     const auto i = Meta_StringsByBoolean.find(glboolean);
 
@@ -133,7 +128,7 @@ const std::string & Meta::getString(const GLboolean & glboolean)
     return none;
 }
 
-gl::GLboolean Meta::getBoolean(const std::string & glboolean)
+gl::GLboolean Meta::getBoolean(const std::string& glboolean)
 {
     const auto i = Meta_BooleansByString.find(glboolean);
 
@@ -145,7 +140,7 @@ gl::GLboolean Meta::getBoolean(const std::string & glboolean)
     return static_cast<GLboolean>(-1);
 }
 
-const std::string & Meta::getString(const GLenum glenum)
+const std::string& Meta::getString(const GLenum glenum)
 {
     const auto i = Meta_StringsByEnum.find(glenum);
 
@@ -157,7 +152,7 @@ const std::string & Meta::getString(const GLenum glenum)
     return none;
 }
 
-const std::string & Meta::getString(const GLextension glextension)
+const std::string& Meta::getString(const GLextension glextension)
 {
     const auto i = Meta_StringsByExtension.find(glextension);
 
@@ -169,11 +164,11 @@ const std::string & Meta::getString(const GLextension glextension)
     return none;
 }
 
-GLbitfield Meta::getBitfield(const std::string & glbitfield)
+GLbitfield Meta::getBitfield(const std::string& glbitfield)
 {
     const auto index = alphabeticalGroupIndex(glbitfield, 3);
-    const auto & map = Meta_BitfieldsByStringMaps[index];
-    const auto i = map.find(glbitfield);
+    const auto& map  = Meta_BitfieldsByStringMaps[index];
+    const auto i     = map.find(glbitfield);
 
     if (i != map.cend())
     {
@@ -183,11 +178,11 @@ GLbitfield Meta::getBitfield(const std::string & glbitfield)
     return static_cast<GLbitfield>(-1);
 }
 
-GLenum Meta::getEnum(const std::string & glenum)
+GLenum Meta::getEnum(const std::string& glenum)
 {
     const auto index = alphabeticalGroupIndex(glenum, 3);
-    const auto & map = Meta_EnumsByStringMaps[index];
-    const auto i = map.find(glenum);
+    const auto& map  = Meta_EnumsByStringMaps[index];
+    const auto i     = map.find(glenum);
 
     if (i != map.cend())
     {
@@ -197,21 +192,21 @@ GLenum Meta::getEnum(const std::string & glenum)
     return static_cast<GLenum>(static_cast<unsigned int>(-1));
 }
 
-const std::set<GLextension> Meta::extensions(const Version & version)
+const std::set<GLextension> Meta::extensions(const Version& version)
 {
     auto required = std::set<GLextension>{};
 
     if (version.isNull())
     {
         required = Meta::extensions();
-        for (const auto & p : Meta_ReqVersionsByExtension)
+        for (const auto& p : Meta_ReqVersionsByExtension)
         {
             required.erase(p.first);
         }
     }
     else
     {
-        for (const auto & p : Meta_ReqVersionsByExtension)
+        for (const auto& p : Meta_ReqVersionsByExtension)
         {
             if (p.second == version)
             {
@@ -222,11 +217,11 @@ const std::set<GLextension> Meta::extensions(const Version & version)
     return required;
 }
 
-const std::set<GLextension> Meta::extensions(const std::string & glfunction)
+const std::set<GLextension> Meta::extensions(const std::string& glfunction)
 {
     const auto index = alphabeticalGroupIndex(glfunction, 2);
-    const auto & map = Meta_ExtensionsByFunctionStringMaps[index];
-    const auto i = map.find(glfunction);
+    const auto& map  = Meta_ExtensionsByFunctionStringMaps[index];
+    const auto i     = map.find(glfunction);
 
     if (i != map.cend())
     {
@@ -236,14 +231,14 @@ const std::set<GLextension> Meta::extensions(const std::string & glfunction)
     return noneExtensions;
 }
 
-const std::set<Version> Meta::versions(const std::string & glfunction)
+const std::set<Version> Meta::versions(const std::string& glfunction)
 {
     std::set<Version> requiringVersions;
     for (const auto version : versions())
     {
         const auto functionSet = functions(version);
 
-        const auto it = std::find_if(functionSet.begin(), functionSet.end(), [& glfunction](AbstractFunction * function) {
+        const auto it = std::find_if(functionSet.begin(), functionSet.end(), [&glfunction](AbstractFunction* function) {
             return std::string(function->name()) == glfunction;
         });
         if (it != functionSet.end())
@@ -255,28 +250,27 @@ const std::set<Version> Meta::versions(const std::string & glfunction)
     return requiringVersions;
 }
 
-const std::set<AbstractFunction *> Meta::functions(const Version & version)
+const std::set<AbstractFunction*> Meta::functions(const Version& version)
 {
     const auto i = Meta_FunctionStringsByVersion.find(version);
 
     if (i == Meta_FunctionStringsByVersion.cend())
     {
-        return std::set<AbstractFunction *>{};
+        return std::set<AbstractFunction*>{};
     }
 
-    const auto & functionNames = i->second;
-    const auto & allFunctions = Binding::functions();
+    const auto& functionNames = i->second;
+    const auto& allFunctions  = Binding::functions();
 
-    auto requiredFunctions = std::set<AbstractFunction *>{};
+    auto requiredFunctions = std::set<AbstractFunction*>{};
 
     for (const auto function : allFunctions)
     {
-        if (functionNames.find(function->name()) != functionNames.cend())
-            requiredFunctions.insert(function);
+        if (functionNames.find(function->name()) != functionNames.cend()) requiredFunctions.insert(function);
     }
 
     const auto exts = extensions(version);
-    for (const auto & ext : exts)
+    for (const auto& ext : exts)
     {
         const auto f = functions(ext);
         requiredFunctions.insert(f.cbegin(), f.cend());
@@ -285,29 +279,28 @@ const std::set<AbstractFunction *> Meta::functions(const Version & version)
     return requiredFunctions;
 }
 
-const std::set<AbstractFunction *> Meta::functions(const GLextension extension)
+const std::set<AbstractFunction*> Meta::functions(const GLextension extension)
 {
     const auto i = Meta_FunctionStringsByExtension.find(extension);
 
     if (i == Meta_FunctionStringsByExtension.cend())
     {
-        return std::set<AbstractFunction *>{};
+        return std::set<AbstractFunction*>{};
     }
 
-    const auto & functionNames = i->second;
-    const auto & allFunctions = Binding::functions();
+    const auto& functionNames = i->second;
+    const auto& allFunctions  = Binding::functions();
 
-    auto requiredFunctions = std::set<AbstractFunction *>{};
+    auto requiredFunctions = std::set<AbstractFunction*>{};
     for (const auto function : allFunctions)
     {
-        if (functionNames.find(function->name()) != functionNames.cend())
-            requiredFunctions.insert(function);      
+        if (functionNames.find(function->name()) != functionNames.cend()) requiredFunctions.insert(function);
     }
 
     return requiredFunctions;
 }
 
-const Version & Meta::version(const GLextension extension)
+const Version& Meta::version(const GLextension extension)
 {
     const auto i = Meta_ReqVersionsByExtension.find(extension);
 
@@ -319,10 +312,11 @@ const Version & Meta::version(const GLextension extension)
     return noneVersion;
 }
 
-const std::set<Version> & Meta::versions()
+const std::set<Version>& Meta::versions()
 {
     return ValidVersions::versions();
 }
 
 
-} } // namespace glbinding::aux
+}  // namespace aux
+}  // namespace glbinding

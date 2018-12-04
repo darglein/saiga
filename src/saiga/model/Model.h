@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -10,18 +10,18 @@
 
 
 
-namespace Saiga {
-
-template<typename vertex_t, typename index_t>
+namespace Saiga
+{
+template <typename vertex_t, typename index_t>
 class SAIGA_TEMPLATE TriangleModel
 {
-public:
+   public:
     using VertexType = vertex_t;
-    using IndexType = index_t;
+    using IndexType  = index_t;
 
     AABB boundingBox;
     vec3 offset = vec3(0);
-    TriangleMesh<vertex_t,index_t> mesh;
+    TriangleMesh<vertex_t, index_t> mesh;
 
     void normalizePosition();
 
@@ -41,40 +41,35 @@ public:
     void ZUPtoYUP();
 };
 
-template<typename vertex_t, typename index_t>
-void TriangleModel<vertex_t,index_t>::normalizePosition()
+template <typename vertex_t, typename index_t>
+void TriangleModel<vertex_t, index_t>::normalizePosition()
 {
     offset = boundingBox.getPosition();
-    mat4 t = translate(mat4(1),-offset);
+    mat4 t = translate(mat4(1), -offset);
     mesh.transform(t);
     boundingBox.setPosition(vec3(0));
 }
 
 
-template<typename vertex_t, typename index_t>
-void TriangleModel<vertex_t,index_t>::normalizeScale()
+template <typename vertex_t, typename index_t>
+void TriangleModel<vertex_t, index_t>::normalizeScale()
 {
     normalizePosition();
     const auto scaling = 1 / glm::max(glm::max(boundingBox.max.x, boundingBox.max.y), boundingBox.max.z);
-    mat4 t = scale(mat4(1), glm::vec3(scaling));
+    mat4 t             = scale(mat4(1), glm::vec3(scaling));
     offset *= scaling;
     mesh.transform(t);
 }
 
 
 
-template<typename vertex_t, typename index_t>
-void TriangleModel<vertex_t,index_t>::ZUPtoYUP()
+template <typename vertex_t, typename index_t>
+void TriangleModel<vertex_t, index_t>::ZUPtoYUP()
 {
-    const mat4 m(
-                1, 0, 0, 0,
-                0, 0, -1, 0,
-                0, 1, 0, 0,
-                0, 0, 0, 1
-                );
+    const mat4 m(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
     mesh.transform(m);
     mesh.transformNormal(m);
 }
 
 
-}
+}  // namespace Saiga

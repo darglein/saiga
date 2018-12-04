@@ -5,6 +5,7 @@
  */
 
 #include "Pipeline.h"
+
 #include "saiga/vulkan/Vertex.h"
 #include "saiga/vulkan/VulkanInitializers.hpp"
 

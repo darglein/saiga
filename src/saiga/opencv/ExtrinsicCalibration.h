@@ -1,23 +1,16 @@
 #pragma once
 
-#include "CameraData.h"
 #include "CalibrationPattern.h"
+#include "CameraData.h"
 
 namespace Saiga
 {
 class SAIGA_GLOBAL StereoCalibration
 {
-public:
-
-    StereoCalibration(
-            CalibrationPattern& pattern,
-            Intrinsics intr1,
-            Intrinsics intr2
-            )
-        : pattern(pattern),
-          intr1(intr1),intr2(intr2)
+   public:
+    StereoCalibration(CalibrationPattern& pattern, Intrinsics intr1, Intrinsics intr2)
+        : pattern(pattern), intr1(intr1), intr2(intr2)
     {
-
     }
 
     void addImage(cv::Mat image1, cv::Mat image2)
@@ -25,10 +18,10 @@ public:
         auto points1 = pattern.detect(image1);
         auto points2 = pattern.detect(image2);
 
-        if(points1.size() > 0 && points2.size() > 0)
+        if (points1.size() > 0 && points2.size() > 0)
         {
-            images1.push_back( points1);
-            images2.push_back( points2);
+            images1.push_back(points1);
+            images2.push_back(points2);
             recomputeExtrinsics();
         }
     }
@@ -42,22 +35,15 @@ public:
 
 
 
-        auto error = cv::stereoCalibrate(
-                    objPointss,
-                    images1,
-                    images2,
-                    intr1.K,intr1.dist,
-                    intr2.K,intr2.dist,
-                    cv::Size(0,0),
-                    extr.R,extr.t,extr.E,extr.F,
-                    cv::CALIB_FIX_INTRINSIC
-                    );
+        auto error = cv::stereoCalibrate(objPointss, images1, images2, intr1.K, intr1.dist, intr2.K, intr2.dist,
+                                         cv::Size(0, 0), extr.R, extr.t, extr.E, extr.F, cv::CALIB_FIX_INTRINSIC);
 
         cout << "stereoCalibrate error: " << error << endl;
     }
 
     StereoExtrinsics extr;
-protected:
+
+   protected:
     CalibrationPattern& pattern;
 
     Intrinsics intr1;
@@ -67,4 +53,4 @@ protected:
     std::vector<std::vector<CalibrationPattern::ImagePointType>> images1;
     std::vector<std::vector<CalibrationPattern::ImagePointType>> images2;
 };
-}
+}  // namespace Saiga

@@ -1,20 +1,20 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include "saiga/opengl/templatedBuffer.h"
+#include "saiga/geometry/vertex.h"
 #include "saiga/opengl/instancedBuffer.h"
 #include "saiga/opengl/opengl.h"
-#include "saiga/geometry/vertex.h"
+#include "saiga/opengl/templatedBuffer.h"
 
 #include <vector>
 
-namespace Saiga {
-
+namespace Saiga
+{
 /*
  *  A combination of a gl_array_buffer and a vertex array object (vao).
  * The VertexBuffer stores raw vertex data.
@@ -40,13 +40,14 @@ namespace Saiga {
  *
  */
 
-template<class vertex_t>
-class VertexBuffer : public TemplatedBuffer<vertex_t>{
-private:
-//    int vertex_count;
-protected:
+template <class vertex_t>
+class VertexBuffer : public TemplatedBuffer<vertex_t>
+{
+   private:
+    //    int vertex_count;
+   protected:
     GLenum draw_mode;
-    GLuint  gl_vao = 0;
+    GLuint gl_vao = 0;
 
     /*
      *  Tells OpenGL how to handle the vertices.
@@ -65,16 +66,15 @@ protected:
     void setVertexAttributes();
 
 
-public:
-
+   public:
     /*
      *  Create VertexBuffer object.
      *  Does not create any OpenGL buffers.
      *  use set() to initialized buffers.
      */
 
-    VertexBuffer() : TemplatedBuffer<vertex_t>(GL_ARRAY_BUFFER){}
-    ~VertexBuffer(){ deleteGLBuffer(); }
+    VertexBuffer() : TemplatedBuffer<vertex_t>(GL_ARRAY_BUFFER) {}
+    ~VertexBuffer() { deleteGLBuffer(); }
 
 
     /*
@@ -84,7 +84,7 @@ public:
      *  A VBO and a VAO will be created and initialized.
      */
 
-    void set(std::vector<vertex_t> &vertices, GLenum usage);
+    void set(std::vector<vertex_t>& vertices, GLenum usage);
     void set(vertex_t* vertices, int vertex_count, GLenum usage);
 
     /*
@@ -96,7 +96,7 @@ public:
      *  'vertices' can be deleted after that.
      */
 
-//    void updateVertexBuffer(vertex_t* vertices,int vertex_count, int vertex_offset);
+    //    void updateVertexBuffer(vertex_t* vertices,int vertex_count, int vertex_offset);
 
     /*
      *  Deletes all OpenGL buffers.
@@ -117,8 +117,8 @@ public:
      *  While rendering the instanced buffer does not have to be bound again.
      */
 
-    template<typename data_t>
-    void addInstancedBuffer(InstancedBuffer<data_t> &buffer, int location, int divisor=1);
+    template <typename data_t>
+    void addInstancedBuffer(InstancedBuffer<data_t>& buffer, int location, int divisor = 1);
 
     /*
      *  Draws the vertex array in the specified draw mode.
@@ -162,47 +162,51 @@ public:
     void setDrawMode(GLenum draw_mode);
 
 
-    int getVBO(){return TemplatedBuffer<vertex_t>::buffer;}
-    int getVAO(){return gl_vao;}
+    int getVBO() { return TemplatedBuffer<vertex_t>::buffer; }
+    int getVAO() { return gl_vao; }
 
     /**
      * Adds an external buffer to this VAO.
      * Usefull for 'structure of arrays' vertex rendering.
      */
-    void addExternalBuffer(Buffer& buffer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer = nullptr);
+    void addExternalBuffer(Buffer& buffer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
+                           const void* pointer = nullptr);
 };
 
 
 
-
-template<class vertex_t>
-void VertexBuffer<vertex_t>::bindAndDraw() const{
+template <class vertex_t>
+void VertexBuffer<vertex_t>::bindAndDraw() const
+{
     bind();
     draw();
     unbind();
 }
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::setDrawMode(GLenum _draw_mode){
+template <class vertex_t>
+void VertexBuffer<vertex_t>::setDrawMode(GLenum _draw_mode)
+{
     this->draw_mode = _draw_mode;
 }
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::set(std::vector<vertex_t> &vertices, GLenum _usage){
-    set(&vertices[0],(int)vertices.size(),_usage);
+template <class vertex_t>
+void VertexBuffer<vertex_t>::set(std::vector<vertex_t>& vertices, GLenum _usage)
+{
+    set(&vertices[0], (int)vertices.size(), _usage);
 }
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count, GLenum _usage){
-//    this->vertex_count = _vertex_count;
+template <class vertex_t>
+void VertexBuffer<vertex_t>::set(vertex_t* vertices, int _vertex_count, GLenum _usage)
+{
+    //    this->vertex_count = _vertex_count;
 
     deleteGLBuffer();
     assert_no_glerror();
 
-    TemplatedBuffer<vertex_t>::set(vertices,_vertex_count,_usage);
-//    createGLBuffer(vertices,_vertex_count * sizeof(vertex_t),usage);
+    TemplatedBuffer<vertex_t>::set(vertices, _vertex_count, _usage);
+    //    createGLBuffer(vertices,_vertex_count * sizeof(vertex_t),usage);
 
-    //create VAO and init
+    // create VAO and init
     glGenVertexArrays(1, &gl_vao);
     glBindVertexArray(gl_vao);
     assert_no_glerror();
@@ -212,108 +216,116 @@ void VertexBuffer<vertex_t>::set(vertex_t* vertices,int _vertex_count, GLenum _u
     setVertexAttributes();
 
     glBindVertexArray(0);
-    glBindBuffer( TemplatedBuffer<vertex_t>::target, 0 );
+    glBindBuffer(TemplatedBuffer<vertex_t>::target, 0);
 
     assert_no_glerror();
 }
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::deleteGLBuffer(){
-    //glDeleteBuffers silently ignores 0's and names that do not correspond to existing buffer objects
+template <class vertex_t>
+void VertexBuffer<vertex_t>::deleteGLBuffer()
+{
+    // glDeleteBuffers silently ignores 0's and names that do not correspond to existing buffer objects
     TemplatedBuffer<vertex_t>::deleteGLBuffer();
-    if(gl_vao)
+    if (gl_vao)
     {
         glDeleteVertexArrays(1, &gl_vao);
         gl_vao = 0;
         assert_no_glerror();
     }
-
 }
 
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::bind() const{
+template <class vertex_t>
+void VertexBuffer<vertex_t>::bind() const
+{
     glBindVertexArray(gl_vao);
     assert_no_glerror();
 }
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::unbind() const{
+template <class vertex_t>
+void VertexBuffer<vertex_t>::unbind() const
+{
     glBindVertexArray(0);
     assert_no_glerror();
 }
 
-template<class vertex_t>
-template<typename data_t>
-void VertexBuffer<vertex_t>::addInstancedBuffer(InstancedBuffer<data_t> &buffer, int location, int divisor)
+template <class vertex_t>
+template <typename data_t>
+void VertexBuffer<vertex_t>::addInstancedBuffer(InstancedBuffer<data_t>& buffer, int location, int divisor)
 {
     bind();
-    buffer.setAttributes(location,divisor);
+    buffer.setAttributes(location, divisor);
     unbind();
 }
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::draw() const{
-    draw(0,TemplatedBuffer<vertex_t>::getElementCount());
+template <class vertex_t>
+void VertexBuffer<vertex_t>::draw() const
+{
+    draw(0, TemplatedBuffer<vertex_t>::getElementCount());
     assert_no_glerror();
 }
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::draw(int startVertex, int count) const{
-    glDrawArrays(draw_mode,startVertex,count);
+template <class vertex_t>
+void VertexBuffer<vertex_t>::draw(int startVertex, int count) const
+{
+    glDrawArrays(draw_mode, startVertex, count);
     assert_no_glerror();
 }
 
-template<class vertex_t>
+template <class vertex_t>
 void VertexBuffer<vertex_t>::drawInstanced(int instances) const
 {
-    drawInstanced(instances,0,TemplatedBuffer<vertex_t>::getElementCount());
+    drawInstanced(instances, 0, TemplatedBuffer<vertex_t>::getElementCount());
     assert_no_glerror();
 }
 
-template<class vertex_t>
+template <class vertex_t>
 void VertexBuffer<vertex_t>::drawInstanced(int instances, int offset, int length) const
 {
-    glDrawArraysInstanced(draw_mode,offset,length,instances);
+    glDrawArraysInstanced(draw_mode, offset, length, instances);
     assert_no_glerror();
 }
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::addExternalBuffer(Buffer &buffer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer)
+template <class vertex_t>
+void VertexBuffer<vertex_t>::addExternalBuffer(Buffer& buffer, GLuint index, GLint size, GLenum type,
+                                               GLboolean normalized, GLsizei stride, const void* pointer)
 {
     bind();
     buffer.bind();
-    glEnableVertexAttribArray( index );
-    glVertexAttribPointer(index,size, type,normalized, stride, pointer);
+    glEnableVertexAttribArray(index);
+    glVertexAttribPointer(index, size, type, normalized, stride, pointer);
 }
 
 
 
 //=========================================================================
 
-template<class vertex_t>
-void VertexBuffer<vertex_t>::setVertexAttributes(){
-    cerr<<"Warning: I don't know how to bind this Vertex Type. Please use the vertices in vertex.h or write your own bind function"<<endl;
-    cerr<<"If you want to write your own bind function use this template:"<<endl;
-    cerr<<"\ttemplate<>"<<endl;
-    cerr<<"\tvoid VertexBuffer<YOUR_VERTEX_TYPE>::bindVertices(){"<<endl;
-    cerr<<"\t\t//bind code"<<endl;
-    cerr<<"\t}"<<endl;
+template <class vertex_t>
+void VertexBuffer<vertex_t>::setVertexAttributes()
+{
+    cerr << "Warning: I don't know how to bind this Vertex Type. Please use the vertices in vertex.h or write your own "
+            "bind function"
+         << endl;
+    cerr << "If you want to write your own bind function use this template:" << endl;
+    cerr << "\ttemplate<>" << endl;
+    cerr << "\tvoid VertexBuffer<YOUR_VERTEX_TYPE>::bindVertices(){" << endl;
+    cerr << "\t\t//bind code" << endl;
+    cerr << "\t}" << endl;
     SAIGA_ASSERT(0);
 }
 
 
 
-template<>
+template <>
 SAIGA_GLOBAL void VertexBuffer<Vertex>::setVertexAttributes();
-template<>
+template <>
 SAIGA_GLOBAL void VertexBuffer<VertexN>::setVertexAttributes();
-template<>
+template <>
 SAIGA_GLOBAL void VertexBuffer<VertexNT>::setVertexAttributes();
-template<>
+template <>
 SAIGA_GLOBAL void VertexBuffer<VertexNTD>::setVertexAttributes();
-template<>
+template <>
 SAIGA_GLOBAL void VertexBuffer<VertexNC>::setVertexAttributes();
 
 
-}
+}  // namespace Saiga

@@ -5,11 +5,14 @@
  */
 
 #include "RGBDCameraInput.h"
-#include <OpenNI.h>
-#include <thread>
-#include "internal/noGraphicsAPI.h"
+
 #include "saiga/image/imageTransformations.h"
 #include "saiga/util/threadName.h"
+
+#include "internal/noGraphicsAPI.h"
+
+#include <OpenNI.h>
+#include <thread>
 
 #ifdef SAIGA_VISION
 namespace Saiga
@@ -37,7 +40,10 @@ RGBDCameraInput::RGBDCameraInput(RGBDCameraInput::CameraOptions rgbo, RGBDCamera
     eventThread = std::thread(&RGBDCameraInput::eventLoop, this);
 }
 
-RGBDCameraInput::~RGBDCameraInput() { close(); }
+RGBDCameraInput::~RGBDCameraInput()
+{
+    close();
+}
 
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCameraInput::waitForImage()
@@ -67,9 +73,15 @@ void RGBDCameraInput::close()
     cout << "RGBDCameraInput closed." << endl;
 }
 
-bool RGBDCameraInput::isOpened() { return foundCamera; }
+bool RGBDCameraInput::isOpened()
+{
+    return foundCamera;
+}
 
-void RGBDCameraInput::updateCameraSettings() { updateS = true; }
+void RGBDCameraInput::updateCameraSettings()
+{
+    updateS = true;
+}
 
 bool RGBDCameraInput::open()
 {

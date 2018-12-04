@@ -2,17 +2,17 @@
 #pragma once
 
 
-#include <ostream>
 #include <bitset>
+#include <ostream>
 #include <sstream>
 
 #include <glbinding-aux/Meta.h>
 
 
-namespace glbinding { namespace aux
+namespace glbinding
 {
-
-
+namespace aux
+{
 template <typename T>
 std::string bitfieldString(T value)
 {
@@ -23,10 +23,9 @@ std::string bitfieldString(T value)
 
     for (size_t i = 0; i < sizeof(gl::GLbitfield) * 8; ++i)
     {
-    if (!bits.test(i))
-        continue;
+        if (!bits.test(i)) continue;
 
-    if (first)
+        if (first)
         {
             first = false;
         }
@@ -35,22 +34,23 @@ std::string bitfieldString(T value)
             ss << " | ";
         }
 
-    const gl::GLbitfield bit = 1 << i;
+        const gl::GLbitfield bit = 1 << i;
 
-    const auto identifier = glbinding::aux::Meta::getString(static_cast<T>(bit));
-    if (identifier.empty())
-    {
-        ss << "1 << " << i;
-    }
-    else
-    {
-        ss << identifier;
-    }
+        const auto identifier = glbinding::aux::Meta::getString(static_cast<T>(bit));
+        if (identifier.empty())
+        {
+            ss << "1 << " << i;
+        }
+        else
+        {
+            ss << identifier;
+        }
     }
     return ss.str();
 }
 
-std::string wrapString(const char * value);
+std::string wrapString(const char* value);
 
 
-} } // namespace glbinding::aux
+}  // namespace aux
+}  // namespace glbinding

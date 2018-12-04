@@ -5,9 +5,11 @@
  */
 
 #include "TumRGBDCamera.h"
+
+#include "saiga/util/tostring.h"
+
 #include <fstream>
 #include <thread>
-#include "saiga/util/tostring.h"
 namespace Saiga
 {
 static std::vector<TumRGBDCamera::CameraData> readCameraData(std::string file)
@@ -24,7 +26,7 @@ static std::vector<TumRGBDCamera::CameraData> readCameraData(std::string file)
             SAIGA_ASSERT(elements.size() == 2);
             TumRGBDCamera::CameraData d;
             d.timestamp = Saiga::to_double(elements[0]);
-            d.img = elements[1];
+            d.img       = elements[1];
             data.push_back(d);
         }
     }
@@ -85,7 +87,10 @@ TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, double depthFactor, 
     nextFrameTime = lastFrameTime + timeStep;
 }
 
-TumRGBDCamera::~TumRGBDCamera() { cout << "~TumRGBDCamera" << endl; }
+TumRGBDCamera::~TumRGBDCamera()
+{
+    cout << "~TumRGBDCamera" << endl;
+}
 
 std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
 {
@@ -127,13 +132,13 @@ SE3 TumRGBDCamera::getGroundTruth(int frame)
 
 void TumRGBDCamera::associate(const std::string& datasetDir)
 {
-    std::vector<CameraData> rgbData = readCameraData(datasetDir + "/rgb.txt");
+    std::vector<CameraData> rgbData   = readCameraData(datasetDir + "/rgb.txt");
     std::vector<CameraData> depthData = readCameraData(datasetDir + "/depth.txt");
-    std::vector<GroundTruth> gt = readGT(datasetDir + "/groundtruth.txt");
+    std::vector<GroundTruth> gt       = readGT(datasetDir + "/groundtruth.txt");
 
     // Find for each rgb image the best depth and gt
     int cdepth = 0;
-    int cgt = 0;
+    int cgt    = 0;
 
     int lastBest = -1;
     for (auto r : rgbData)
@@ -145,24 +150,24 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 
         {
             int ismaller = cdepth;
-            int ibigger = cdepth;
+            int ibigger  = cdepth;
 
             auto smaller = depthData[ismaller].timestamp;
-            auto bigger = smaller;
+            auto bigger  = smaller;
 
             while (bigger < t && cdepth + 1 < (int)depthData.size())
             {
-                smaller = bigger;
+                smaller  = bigger;
                 ismaller = ibigger;
 
                 cdepth++;
                 ibigger = cdepth;
-                bigger = depthData[ibigger].timestamp;
+                bigger  = depthData[ibigger].timestamp;
             }
 
             ibest = t - smaller < bigger - t ? ismaller : ibigger;
 
-            tf.rgb = r;
+            tf.rgb   = r;
             tf.depth = depthData[ibest];
         }
 
@@ -172,36 +177,36 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
         GroundTruth bestGT;
         {
             int ismaller = cgt;
-            int ibigger = cgt;
+            int ibigger  = cgt;
 
             auto smaller = gt[ismaller].timeStamp;
-            auto bigger = smaller;
+            auto bigger  = smaller;
 
             while (bigger < t && cgt + 1 < (int)gt.size())
             {
-                smaller = bigger;
+                smaller  = bigger;
                 ismaller = ibigger;
 
                 cgt++;
                 ibigger = cgt;
-                bigger = gt[ibigger].timeStamp;
+                bigger  = gt[ibigger].timeStamp;
             }
 
 
 #if 1
-            GroundTruth a = gt[ismaller];
-            GroundTruth b = gt[ibigger];
+            GroundTruth a    = gt[ismaller];
+            GroundTruth b    = gt[ibigger];
             bestGT.timeStamp = t;
-            double alpha = (t - a.timeStamp) / (b.timeStamp - a.timeStamp);
-            bestGT.se3 = slerp(a.se3, b.se3, alpha);
+            double alpha     = (t - a.timeStamp) / (b.timeStamp - a.timeStamp);
+            bestGT.se3       = slerp(a.se3, b.se3, alpha);
 #else
             igtbest = t - smaller < bigger - t ? ismaller : ibigger;
-            bestGT = gt[igtbest];
+            bestGT  = gt[igtbest];
 #endif
         }
 
 
-        tf.rgb = r;
+        tf.rgb   = r;
         tf.depth = depthData[ibest];
         //        tf.gt = gt[igtbest];
         tf.gt = bestGT;
@@ -260,8 +265,8 @@ void TumRGBDCamera::load(const std::string& datasetDir)
         Image dimg(datasetDir + "/" + d.depth.img);
 
         bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
-        int targetW = downScale ? dimg.w / 2 : dimg.w;
-        int targetH = downScale ? dimg.h / 2 : dimg.h;
+        int targetW    = downScale ? dimg.w / 2 : dimg.w;
+        int targetH    = downScale ? dimg.h / 2 : dimg.h;
 
         deptho.w = targetW;
         deptho.h = targetH;

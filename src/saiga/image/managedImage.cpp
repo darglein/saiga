@@ -5,19 +5,22 @@
  */
 
 #include "saiga/image/managedImage.h"
+
 #include "saiga/util/assert.h"
 
 // for the load and save function
-#include <fstream>
-#include "internal/noGraphicsAPI.h"
-#include "internal/stb_image_read_wrapper.h"
-#include "internal/stb_image_write_wrapper.h"
 #include "saiga/image/freeimage.h"
 #include "saiga/image/png_wrapper.h"
 #include "saiga/image/templatedImage.h"
 #include "saiga/util/color.h"
 #include "saiga/util/imath.h"
 #include "saiga/util/tostring.h"
+
+#include "internal/noGraphicsAPI.h"
+#include "internal/stb_image_read_wrapper.h"
+#include "internal/stb_image_write_wrapper.h"
+
+#include <fstream>
 namespace Saiga
 {
 FileChecker Image::searchPathes;
@@ -64,7 +67,10 @@ void Image::create(int h, int w, int p, ImageType t)
     create(h, w, t);
 }
 
-void Image::clear() { (*this) = Image(); }
+void Image::clear()
+{
+    (*this) = Image();
+}
 
 void Image::free()
 {
@@ -73,7 +79,10 @@ void Image::free()
     vdata.shrink_to_fit();
 }
 
-void Image::makeZero() { std::fill(vdata.begin(), vdata.end(), 0); }
+void Image::makeZero()
+{
+    std::fill(vdata.begin(), vdata.end(), 0);
+}
 
 bool Image::valid()
 {
@@ -256,9 +265,15 @@ bool Image::saveConvert(const std::string& path, float minValue, float maxValue)
     return false;
 }
 
-std::vector<uint8_t> Image::compress() { return compressImageSTB(*this); }
+std::vector<uint8_t> Image::compress()
+{
+    return compressImageSTB(*this);
+}
 
-void Image::decompress(std::vector<uint8_t> data) { decompressImageSTB(*this, data); }
+void Image::decompress(std::vector<uint8_t> data)
+{
+    decompressImageSTB(*this, data);
+}
 
 
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,21 +7,24 @@
 #pragma once
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/texture/texture.h"
+
 #include <vector>
 
-namespace Saiga {
-
-//todo: remove
+namespace Saiga
+{
+// todo: remove
 typedef std::shared_ptr<raw_Texture> framebuffer_texture_t;
 
-class SAIGA_GLOBAL Framebuffer{
-protected:
+class SAIGA_GLOBAL Framebuffer
+{
+   protected:
     GLuint id = 0;
 
     std::vector<framebuffer_texture_t> colorBuffers;
-    framebuffer_texture_t depthBuffer = nullptr;
+    framebuffer_texture_t depthBuffer   = nullptr;
     framebuffer_texture_t stencilBuffer = nullptr;
-public:
+
+   public:
     Framebuffer();
     ~Framebuffer();
     Framebuffer(Framebuffer const&) = delete;
@@ -60,16 +63,15 @@ public:
     void blitDepth(int otherId);
     void blitColor(int otherId);
 
-    framebuffer_texture_t getTextureStencil(){return this->stencilBuffer;}
-    framebuffer_texture_t getTextureDepth(){return this->depthBuffer;}
-    framebuffer_texture_t getTextureColor(int _id){return this->colorBuffers[_id];}
-    GLuint getId(){return id;}
+    framebuffer_texture_t getTextureStencil() { return this->stencilBuffer; }
+    framebuffer_texture_t getTextureDepth() { return this->depthBuffer; }
+    framebuffer_texture_t getTextureColor(int _id) { return this->colorBuffers[_id]; }
+    GLuint getId() { return id; }
 
     /**
-    * Resizes all attached textures.
-    */
-    void resize(int width , int height);
-
+     * Resizes all attached textures.
+     */
+    void resize(int width, int height);
 };
 
-}
+}  // namespace Saiga

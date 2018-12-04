@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <vector>
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/kernels/BAPose.h"
+
+#include <vector>
 
 namespace Saiga
 {

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,8 +8,8 @@
 
 #include "saiga/opengl/query/timeStampQuery.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * Asynchronous OpenGL GPU timer.
  *
@@ -26,16 +26,17 @@ namespace Saiga {
  * Core since version 	3.3
  *
  */
-class SAIGA_GLOBAL MultiFrameOpenGLTimer{
-private:
-
+class SAIGA_GLOBAL MultiFrameOpenGLTimer
+{
+   private:
     TimeStampQuery queries[2][2];
 
-    int queryBackBuffer=0,queryFrontBuffer=1;
+    int queryBackBuffer = 0, queryFrontBuffer = 1;
     GLuint64 time = 0;
 
     void swapQueries();
-public:
+
+   public:
     MultiFrameOpenGLTimer();
     ~MultiFrameOpenGLTimer();
 
@@ -57,24 +58,27 @@ public:
  * time = alpha * newTime + (1-alpha) * oldTime;
  */
 
-class SAIGA_GLOBAL FilteredMultiFrameOpenGLTimer : public MultiFrameOpenGLTimer{
-private:
+class SAIGA_GLOBAL FilteredMultiFrameOpenGLTimer : public MultiFrameOpenGLTimer
+{
+   private:
     double currentTimeMS = 0;
-public:
+
+   public:
     double alpha = 0.05;
 
     void stopTimer();
     float getTimeMS();
     double getTimeMSd();
-
 };
 
 
-class SAIGA_GLOBAL OpenGLTimer{
-protected:
+class SAIGA_GLOBAL OpenGLTimer
+{
+   protected:
     TimeStampQuery queries[2];
     GLuint64 time;
-public:
+
+   public:
     OpenGLTimer();
 
     void start();
@@ -83,31 +87,30 @@ public:
 };
 
 
-template<typename T>
-class SAIGA_GLOBAL ScopedOpenGLTimer : public OpenGLTimer{
-public:
+template <typename T>
+class SAIGA_GLOBAL ScopedOpenGLTimer : public OpenGLTimer
+{
+   public:
     T* target;
-    ScopedOpenGLTimer(T* target) : target(target){
-        start();
-    }
+    ScopedOpenGLTimer(T* target) : target(target) { start(); }
 
-    ScopedOpenGLTimer(T& target) : target(&target){
-        start();
-    }
+    ScopedOpenGLTimer(T& target) : target(&target) { start(); }
 
-    ~ScopedOpenGLTimer(){
+    ~ScopedOpenGLTimer()
+    {
         stop();
-        T time = static_cast<T>(getTimeMS());
+        T time  = static_cast<T>(getTimeMS());
         *target = time;
     }
 };
 
-class SAIGA_GLOBAL ScopedOpenGLTimerPrint : public OpenGLTimer{
-public:
+class SAIGA_GLOBAL ScopedOpenGLTimerPrint : public OpenGLTimer
+{
+   public:
     std::string name;
-    ScopedOpenGLTimerPrint(const std::string &name);
+    ScopedOpenGLTimerPrint(const std::string& name);
     ~ScopedOpenGLTimerPrint();
 };
 
 
-}
+}  // namespace Saiga

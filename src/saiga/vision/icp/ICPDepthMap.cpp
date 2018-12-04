@@ -6,6 +6,7 @@
 
 
 #include "ICPDepthMap.h"
+
 #include "saiga/time/timer.h"
 
 namespace Saiga

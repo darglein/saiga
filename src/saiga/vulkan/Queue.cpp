@@ -5,6 +5,7 @@
  */
 
 #include "Queue.h"
+
 #include "saiga/util/easylogging++.h"
 
 namespace Saiga

@@ -6,6 +6,7 @@
 
 
 #include "Renderer.h"
+
 #include "saiga/vulkan/window/Window.h"
 
 namespace Saiga
@@ -31,7 +32,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
 
-    vulkanParameters.physicalDeviceFeatures.wideLines        = VK_TRUE;
+    vulkanParameters.physicalDeviceFeatures.wideLines = VK_TRUE;
     base.createLogicalDevice(surface, vulkanParameters.physicalDeviceFeatures, vulkanParameters.deviceExtensions, true,
                              vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer,
                              true);
@@ -56,7 +57,10 @@ VulkanRenderer::~VulkanRenderer()
     instance.destroy();
 }
 
-float VulkanRenderer::getTotalRenderTime() { return window.mainLoop.renderCPUTimer.getTimeMS(); }
+float VulkanRenderer::getTotalRenderTime()
+{
+    return window.mainLoop.renderCPUTimer.getTimeMS();
+}
 
 void VulkanRenderer::initInstanceDevice() {}
 

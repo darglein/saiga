@@ -5,6 +5,7 @@
  */
 
 #include "saiga/framework/framework.h"
+
 #include "saiga/image/image.h"
 #include "saiga/model/ModelLoader.h"
 #include "saiga/util/assert.h"

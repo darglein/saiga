@@ -8,31 +8,24 @@
 
 #include "saiga/config.h"
 #include "saiga/util/assert.h"
+
 #include <vector>
 
-namespace Saiga {
-
-template<typename T>
+namespace Saiga
+{
+template <typename T>
 class SAIGA_TEMPLATE ManagedBuffer
 {
-protected:
+   protected:
     std::vector<char> buffer;
     std::vector<char> constructed;
     size_t capacity = 0;
 
 
-public:
-    ManagedBuffer(size_t capacity) :
-        buffer(capacity*sizeof(T)),
-        constructed(capacity,0),
-        capacity(capacity)
-    {
-    }
+   public:
+    ManagedBuffer(size_t capacity) : buffer(capacity * sizeof(T)), constructed(capacity, 0), capacity(capacity) {}
 
-    ~ManagedBuffer()
-    {
-        freeAll();
-    }
+    ~ManagedBuffer() { freeAll(); }
 
 
     const T* getPtr(int id) const
@@ -41,30 +34,23 @@ public:
         return reinterpret_cast<const T*>(ptr);
     }
 
-    const T& get(int id) const
-    {
-        return *getPtr(id);
-    }
+    const T& get(int id) const { return *getPtr(id); }
 
 
 
     void resize(size_t size)
     {
-        //TODO
+        // TODO
         SAIGA_ASSERT(0);
     }
 
 
-    bool isConstructed(int id)
-    {
-        return constructed[id];
-    }
+    bool isConstructed(int id) { return constructed[id]; }
 
 
     T& operator[](int id)
     {
-        if(!isConstructed(id))
-            create(id);
+        if (!isConstructed(id)) create(id);
         return get(id);
     }
 
@@ -78,34 +64,31 @@ public:
 
     void create(int id)
     {
-        if(isConstructed(id))
+        if (isConstructed(id))
         {
             free(id);
         }
         auto ptr = getPtr(id);
-        new (ptr) T ();
+        new (ptr) T();
         constructed[id] = true;
     }
 
     void freeAll()
     {
-        for(unsigned int i = 0;i < capacity; ++i)
+        for (unsigned int i = 0; i < capacity; ++i)
         {
-            if(isConstructed(i))
-                free(i);
+            if (isConstructed(i)) free(i);
         }
     }
-private:
+
+   private:
     T* getPtr(int id)
     {
         char* ptr = buffer.data() + id * sizeof(T);
         return reinterpret_cast<T*>(ptr);
     }
 
-    T& get(int id)
-    {
-        return *getPtr(id);
-    }
+    T& get(int id) { return *getPtr(id); }
 };
 
-}
+}  // namespace Saiga

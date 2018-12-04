@@ -6,14 +6,13 @@
 
 #pragma once
 
-#include "saiga/vision/VisionIncludes.h"
 #include "saiga/util/glm.h"
+#include "saiga/vision/VisionIncludes.h"
 
 namespace Saiga
 {
-
 template <typename _Scalar>
-SAIGA_TEMPLATE inline mat3 toglm(const Eigen::Matrix<_Scalar,3,3>& mat)
+SAIGA_TEMPLATE inline mat3 toglm(const Eigen::Matrix<_Scalar, 3, 3>& mat)
 {
     mat3 M;
     for (int i = 0; i < mat.rows(); ++i)
@@ -28,7 +27,7 @@ SAIGA_TEMPLATE inline mat3 toglm(const Eigen::Matrix<_Scalar,3,3>& mat)
 }
 
 template <typename _Scalar>
-SAIGA_TEMPLATE inline mat4 toglm(const Eigen::Matrix<_Scalar,4,4>& mat)
+SAIGA_TEMPLATE inline mat4 toglm(const Eigen::Matrix<_Scalar, 4, 4>& mat)
 {
     mat4 M;
     for (int i = 0; i < mat.rows(); ++i)

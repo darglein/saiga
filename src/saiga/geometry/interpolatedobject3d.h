@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,10 +8,11 @@
 
 #include "saiga/geometry/object3d.h"
 
-namespace Saiga {
-
-class SAIGA_GLOBAL InterpolatedObject3D : public Object3D{
-public:
+namespace Saiga
+{
+class SAIGA_GLOBAL InterpolatedObject3D : public Object3D
+{
+   public:
     mat4 interpolatedmodel = mat4(1);
 
     quat oldrot, interpolatedrot;
@@ -21,7 +22,6 @@ public:
 
     void interpolate(float alpha);
     void update();
-
 };
 
-}
+}  // namespace Saiga

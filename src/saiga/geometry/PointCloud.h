@@ -6,22 +6,20 @@
 
 #pragma once
 
-#include "saiga/util/math.h"
 #include "saiga/geometry/vertex.h"
+#include "saiga/util/math.h"
 
 #include <vector>
 
-namespace Saiga {
-
-
-template<typename VertexType>
+namespace Saiga
+{
+template <typename VertexType>
 class PointCloud
 {
-public:
+   public:
     std::vector<VertexType> points;
 };
 
 
 
-
-}
+}  // namespace Saiga

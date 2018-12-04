@@ -2,14 +2,12 @@
 #pragma once
 
 
-#include <glbinding/nogl.h>
 #include <glbinding/gl/functions.h>
+#include <glbinding/nogl.h>
 
 
 namespace gl10
 {
-
-
 using gl::glAccum;
 using gl::glAlphaFunc;
 using gl::glBegin;
@@ -123,26 +121,26 @@ using gl::glGetTexLevelParameteriv;
 using gl::glGetTexParameterfv;
 using gl::glGetTexParameteriv;
 using gl::glHint;
-using gl::glIndexMask;
 using gl::glIndexd;
 using gl::glIndexdv;
 using gl::glIndexf;
 using gl::glIndexfv;
 using gl::glIndexi;
 using gl::glIndexiv;
+using gl::glIndexMask;
 using gl::glIndexs;
 using gl::glIndexsv;
 using gl::glInitNames;
 using gl::glIsEnabled;
 using gl::glIsList;
-using gl::glLightModelf;
-using gl::glLightModelfv;
-using gl::glLightModeli;
-using gl::glLightModeliv;
 using gl::glLightf;
 using gl::glLightfv;
 using gl::glLighti;
 using gl::glLightiv;
+using gl::glLightModelf;
+using gl::glLightModelfv;
+using gl::glLightModeli;
+using gl::glLightModeliv;
 using gl::glLineStipple;
 using gl::glLineWidth;
 using gl::glListBase;
@@ -318,4 +316,4 @@ using gl::glVertex4sv;
 using gl::glViewport;
 
 
-} // namespace gl10
+}  // namespace gl10

@@ -7,9 +7,10 @@
 #include "RGBDCameraNetwork.h"
 
 #ifdef SAIGA_VISION
-#    include "internal/noGraphicsAPI.h"
 #    include "saiga/image/imageTransformations.h"
 #    include "saiga/network/ImageTransmition.h"
+
+#    include "internal/noGraphicsAPI.h"
 
 
 namespace Saiga
@@ -35,7 +36,7 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
                 rgbo.w = img.width;
 
                 rgbo.h = img.height;
-                gotC = true;
+                gotC   = true;
             }
         }
         else
@@ -67,7 +68,10 @@ std::shared_ptr<RGBDCamera::FrameData> RGBDCameraNetwork::waitForImage()
     return nullptr;
 }
 
-std::shared_ptr<RGBDCamera::FrameData> RGBDCameraNetwork::tryGetImage() { return nullptr; }
+std::shared_ptr<RGBDCamera::FrameData> RGBDCameraNetwork::tryGetImage()
+{
+    return nullptr;
+}
 
 
 

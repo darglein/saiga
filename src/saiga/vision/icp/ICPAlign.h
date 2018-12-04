@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <vector>
 #include "saiga/vision/VisionTypes.h"
+
+#include <vector>
 
 /**
  * Iterative Closest Point (ICP) Algorithm for aligning two point clouds.

@@ -1,33 +1,37 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include <saiga/sound/OpenAL.h>
 #include "saiga/config.h"
 #include "saiga/util/math.h"
+
+#include <saiga/sound/OpenAL.h>
 #include <saiga/sound/Sound.h>
 
-namespace Saiga {
-namespace sound {
-
-class SAIGA_GLOBAL SoundSource{
-//    ALuint source;
-    unsigned int source = 0;
-    Sound* sound = nullptr;
-    bool music = false;
+namespace Saiga
+{
+namespace sound
+{
+class SAIGA_GLOBAL SoundSource
+{
+    //    ALuint source;
+    unsigned int source  = 0;
+    Sound* sound         = nullptr;
+    bool music           = false;
     float myMasterVolume = 1.f;
-    float volume = 1.f;
-public:
-    SoundSource( Sound* sound);
+    float volume         = 1.f;
+
+   public:
+    SoundSource(Sound* sound);
     SoundSource();
     ~SoundSource();
 
-    SoundSource(SoundSource const&):SoundSource(){}
-    SoundSource& operator=(SoundSource const&){return *this;}
+    SoundSource(SoundSource const&) : SoundSource() {}
+    SoundSource& operator=(SoundSource const&) { return *this; }
 
     void play();
     void stop();
@@ -41,7 +45,7 @@ public:
     void setPosition(const vec3& pos);
     void setVelocity(const vec3& velocity);
     bool isPlaying();
-    bool isMusic(){return music;}
+    bool isMusic() { return music; }
     void setLooping(bool looping);
     void setReferenceDistance(float v);
 
@@ -53,5 +57,5 @@ public:
     void unloadSound();
 };
 
-}
-}
+}  // namespace sound
+}  // namespace Saiga

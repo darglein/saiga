@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,15 +8,17 @@
 
 #include "saiga/config.h"
 #include "saiga/sdl/sdl_listener.h"
+
+#include <SDL2/SDL.h>
 #include <saiga/util/keyboard.h>
 #include <saiga/util/mouse.h>
-#include <SDL2/SDL.h>
 #include <vector>
- 
-namespace Saiga {
 
-class SAIGA_GLOBAL SDL_EventHandler{
-private:
+namespace Saiga
+{
+class SAIGA_GLOBAL SDL_EventHandler
+{
+   private:
     friend class SDL_KeyListener;
     friend class SDL_MouseListener;
     friend class SDL_ResizeListener;
@@ -30,12 +32,13 @@ private:
     static std::vector<SDL_EventListener*> eventListener;
 
     static void reset();
-public:
+
+   public:
     static void update();
 
 
-    static void keyPressed(const SDL_Keysym &key);
-    static void keyReleased(const SDL_Keysym &key);
+    static void keyPressed(const SDL_Keysym& key);
+    static void keyReleased(const SDL_Keysym& key);
 
     static void mouseMoved(int x, int y);
     static void mousePressed(int key, int x, int y);
@@ -43,8 +46,7 @@ public:
 
     static void resizeWindow(Uint32 windowId, int width, int height);
 
-    static bool shouldQuit(){return quit;}
-
+    static bool shouldQuit() { return quit; }
 };
 
-}
+}  // namespace Saiga

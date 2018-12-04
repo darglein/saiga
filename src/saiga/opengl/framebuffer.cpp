@@ -1,74 +1,90 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/opengl/framebuffer.h"
+
 #include "saiga/opengl/error.h"
 
-namespace Saiga {
-
-Framebuffer::Framebuffer(){
-
-}
+namespace Saiga
+{
+Framebuffer::Framebuffer() {}
 
 Framebuffer::~Framebuffer()
 {
     destroy();
 
-//    if(depthBuffer == stencilBuffer){
-//        delete depthBuffer;
-//    }else{
+    //    if(depthBuffer == stencilBuffer){
+    //        delete depthBuffer;
+    //    }else{
 
-//        delete depthBuffer;
-//        delete stencilBuffer;
-//    }
-//    for(framebuffer_texture_t t : colorBuffers){
-//        delete t;
-//    }
+    //        delete depthBuffer;
+    //        delete stencilBuffer;
+    //    }
+    //    for(framebuffer_texture_t t : colorBuffers){
+    //        delete t;
+    //    }
 }
 
-void Framebuffer::create(){
-    if(id){
-        std::cerr<<"Warning Framebuffer already created!"<<std::endl;
+void Framebuffer::create()
+{
+    if (id)
+    {
+        std::cerr << "Warning Framebuffer already created!" << std::endl;
     }
     glGenFramebuffers(1, &id);
     bind();
     //    glFramebufferParameteri(GL_DRAW_FRAMEBUFFER, GL_FRAMEBUFFER_DEFAULT_WIDTH, 1000);
     //    glFramebufferParameteri(GL_DRAW_FRAMEBUFFER, GL_FRAMEBUFFER_DEFAULT_HEIGHT, 1000);
-
 }
 
-void Framebuffer::destroy(){
-    if(!id)
-        return;
-    glDeleteFramebuffers(1,&id);
+void Framebuffer::destroy()
+{
+    if (!id) return;
+    glDeleteFramebuffers(1, &id);
     id = 0;
 }
 
 
 
-void Framebuffer::bind(){
+void Framebuffer::bind()
+{
     glBindFramebuffer(GL_FRAMEBUFFER, id);
 }
 
-void Framebuffer::unbind(){
+void Framebuffer::unbind()
+{
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Framebuffer::check(){
+void Framebuffer::check()
+{
     glBindFramebuffer(GL_FRAMEBUFFER, id);
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
         GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        switch(status)
+        switch (status)
         {
-        case GL_FRAMEBUFFER_COMPLETE:                       std::cerr << ("GL_FRAMEBUFFER_COMPLETE\n") << std::endl;                        break;
-        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:         std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n") << std::endl;          break;
-        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:          std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n") << std::endl;           break;
-        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:  std::cerr <<("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n") << std::endl;   break;
-        case GL_FRAMEBUFFER_UNSUPPORTED:                    std::cerr <<("GL_FRAMEBUFFER_UNSUPPORTED\n")<< std::endl ;                     break;
-        default:                                            std::cerr <<"Unknown issue " << (int)status << std::endl;                     break;
+            case GL_FRAMEBUFFER_COMPLETE:
+                std::cerr << ("GL_FRAMEBUFFER_COMPLETE\n") << std::endl;
+                break;
+            case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+                std::cerr << ("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n") << std::endl;
+                break;
+            case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+                std::cerr << ("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n") << std::endl;
+                break;
+            case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+                std::cerr << ("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n") << std::endl;
+                break;
+            case GL_FRAMEBUFFER_UNSUPPORTED:
+                std::cerr << ("GL_FRAMEBUFFER_UNSUPPORTED\n") << std::endl;
+                break;
+            default:
+                std::cerr << "Unknown issue " << (int)status << std::endl;
+                break;
         }
 
         std::cerr << "Framebuffer error!" << std::endl;
@@ -79,12 +95,14 @@ void Framebuffer::check(){
 void Framebuffer::drawToAll()
 {
     int count = colorBuffers.size();
-    if(count==0){
+    if (count == 0)
+    {
         drawToNone();
         return;
     }
     std::vector<GLenum> DrawBuffers(count);
-    for(int i = 0 ;i < count ; ++i){
+    for (int i = 0; i < count; ++i)
+    {
         DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
     }
     glDrawBuffers(count, &DrawBuffers[0]);
@@ -99,7 +117,8 @@ void Framebuffer::drawTo(std::vector<int> colorBufferIds)
 {
     int count = colorBufferIds.size();
     std::vector<GLenum> DrawBuffers(count);
-    for(int i = 0 ;i < count ; ++i){
+    for (int i = 0; i < count; ++i)
+    {
         DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + colorBufferIds[i];
     }
     glDrawBuffers(count, &DrawBuffers[0]);
@@ -107,56 +126,59 @@ void Framebuffer::drawTo(std::vector<int> colorBufferIds)
 
 
 
-void Framebuffer::attachTexture(framebuffer_texture_t texture){
+void Framebuffer::attachTexture(framebuffer_texture_t texture)
+{
     bind();
     int index = colorBuffers.size();
     colorBuffers.push_back(texture);
-    GLenum cid = GL_COLOR_ATTACHMENT0+index;
-    glFramebufferTexture2D(GL_FRAMEBUFFER, cid,texture->getTarget(),texture->getId(), 0);
-
+    GLenum cid = GL_COLOR_ATTACHMENT0 + index;
+    glFramebufferTexture2D(GL_FRAMEBUFFER, cid, texture->getTarget(), texture->getId(), 0);
 }
 
-void Framebuffer::attachTextureDepth(framebuffer_texture_t texture){
+void Framebuffer::attachTextureDepth(framebuffer_texture_t texture)
+{
     bind();
     depthBuffer = texture;
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_ATTACHMENT, texture->getTarget(),texture->getId(), 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->getTarget(), texture->getId(), 0);
 }
 
-void Framebuffer::attachTextureStencil(framebuffer_texture_t texture){
+void Framebuffer::attachTextureStencil(framebuffer_texture_t texture)
+{
     bind();
     stencilBuffer = texture;
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_STENCIL_ATTACHMENT, texture->getTarget(),texture->getId(), 0);
-
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, texture->getTarget(), texture->getId(), 0);
 }
 
 
-void Framebuffer::attachTextureDepthStencil(framebuffer_texture_t texture){
+void Framebuffer::attachTextureDepthStencil(framebuffer_texture_t texture)
+{
     bind();
-    depthBuffer = texture;
+    depthBuffer   = texture;
     stencilBuffer = texture;
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,  GL_DEPTH_STENCIL_ATTACHMENT, texture->getTarget(),texture->getId(), 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, texture->getTarget(), texture->getId(), 0);
 }
 
-void Framebuffer::blitDepth(int otherId){
+void Framebuffer::blitDepth(int otherId)
+{
     glBindFramebuffer(GL_READ_FRAMEBUFFER, id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, otherId);
-    glBlitFramebuffer(0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(), 0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(),GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, depthBuffer->getWidth(), depthBuffer->getHeight(), 0, 0, depthBuffer->getWidth(),
+                      depthBuffer->getHeight(), GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 }
 
-void Framebuffer::blitColor(int otherId){
+void Framebuffer::blitColor(int otherId)
+{
     glBindFramebuffer(GL_READ_FRAMEBUFFER, id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, otherId);
-    glBlitFramebuffer(0, 0, colorBuffers[0]->getWidth(), colorBuffers[0]->getHeight(), 0, 0, colorBuffers[0]->getWidth(), colorBuffers[0]->getHeight(),GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, colorBuffers[0]->getWidth(), colorBuffers[0]->getHeight(), 0, 0,
+                      colorBuffers[0]->getWidth(), colorBuffers[0]->getHeight(), GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
 
 void Framebuffer::resize(int width, int height)
 {
-    if(depthBuffer)
-        depthBuffer->resize(width,height);
-    if(stencilBuffer)
-        stencilBuffer->resize(width,height);
-    for(framebuffer_texture_t t : colorBuffers)
-        t->resize(width,height);
+    if (depthBuffer) depthBuffer->resize(width, height);
+    if (stencilBuffer) stencilBuffer->resize(width, height);
+    for (framebuffer_texture_t t : colorBuffers) t->resize(width, height);
 }
 
-}
+}  // namespace Saiga

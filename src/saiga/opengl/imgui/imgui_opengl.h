@@ -6,29 +6,28 @@
 
 #pragma once
 
-#include "saiga/opengl/opengl.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/imgui/imgui_renderer.h"
+#include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/all.h"
-#include <saiga/opengl/texture/texture.h>
+
 #include <saiga/opengl/indexedVertexBuffer.h>
+#include <saiga/opengl/texture/texture.h>
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 class SAIGA_GLOBAL ImGui_GL_Renderer : public ImGuiRenderer
 {
-public:
+   public:
     ImGui_GL_Renderer(std::string font, float fontSize = 15.0f);
     ~ImGui_GL_Renderer();
 
-protected:
-
+   protected:
     std::shared_ptr<Shader> shader;
     std::shared_ptr<Texture> texture;
-    IndexedVertexBuffer<ImDrawVert,ImDrawIdx> buffer;
+    IndexedVertexBuffer<ImDrawVert, ImDrawIdx> buffer;
 
-    virtual void renderDrawLists(ImDrawData *draw_data) override;
+    virtual void renderDrawLists(ImDrawData* draw_data) override;
 };
 
-}
+}  // namespace Saiga

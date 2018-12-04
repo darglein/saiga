@@ -4,13 +4,14 @@
  * See LICENSE file for more information.
  */
 
-#include <iostream>
-#include <vector>
-#include "saiga/util/math.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/reduce.h"
+#include "saiga/util/math.h"
+
+#include <iostream>
+#include <vector>
 
 
 
@@ -18,89 +19,79 @@ using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 
 
-template<typename T>
-__device__ inline
-T warpReduceSum(T val)
+template <typename T>
+__device__ inline T warpReduceSum(T val)
 {
 #pragma unroll
     for (int offset = 16; offset > 0; offset /= 2)
     {
         auto v = Saiga::CUDA::shfl_down(val, offset);
-        val = val + v;
+        val    = val + v;
     }
     return val;
 }
 
 
-template<typename T>
-__global__ static
-void warpReduceSimple(ArrayView<T> data, ArrayView<T> output)
+template <typename T>
+__global__ static void warpReduceSimple(ArrayView<T> data, ArrayView<T> output)
 {
     ThreadInfo<> ti;
-    if(ti.thread_id >= data.size()) return;
+    if (ti.thread_id >= data.size()) return;
 
     auto v = data[ti.thread_id];
 
     v = warpReduceSum(v);
 
-    if(ti.thread_id == 0)
-        output[0] = v;
-
+    if (ti.thread_id == 0) output[0] = v;
 }
 
-template<typename T>
-__device__ inline
-T blockReduceSum(T val, T& blockSum)
+template <typename T>
+__device__ inline T blockReduceSum(T val, T& blockSum)
 {
-    int lane = threadIdx.x & (WARP_SIZE-1);
+    int lane = threadIdx.x & (WARP_SIZE - 1);
 
     // Each warp reduces with registers
     val = warpReduceSum(val);
 
     // Init shared memory
-    if(threadIdx.x == 0)
-        blockSum = T(0);
+    if (threadIdx.x == 0) blockSum = T(0);
 
     __syncthreads();
 
 
     // The first thread in each warp writes to smem
-    if (lane==0){
-        atomicAdd(&blockSum,val);
+    if (lane == 0)
+    {
+        atomicAdd(&blockSum, val);
     }
 
     __syncthreads();
 
     // The first thread in this block has the result
     // Optional: remove if so that every thread has the result
-    if(threadIdx.x == 0)
-        val = blockSum;
+    if (threadIdx.x == 0) val = blockSum;
 
     return val;
 }
 
 
-template<typename T>
-__global__ static
-void blockReduceSimple(ArrayView<T> data, ArrayView<T> output)
+template <typename T>
+__global__ static void blockReduceSimple(ArrayView<T> data, ArrayView<T> output)
 {
     ThreadInfo<> ti;
-    if(ti.thread_id >= data.size()) return;
+    if (ti.thread_id >= data.size()) return;
 
     __shared__ T blockSum;
 
     auto v = data[ti.thread_id];
 
-    v = blockReduceSum(v,blockSum);
+    v = blockReduceSum(v, blockSum);
 
-    if(ti.local_thread_id == 0)
-        output[0] = v;
-
+    if (ti.local_thread_id == 0) output[0] = v;
 }
 
-template<typename T>
-__global__ static
-void globalReduceSimple(ArrayView<T> data, ArrayView<T> output)
+template <typename T>
+__global__ static void globalReduceSimple(ArrayView<T> data, ArrayView<T> output)
 {
     ThreadInfo<> ti;
 
@@ -110,11 +101,9 @@ void globalReduceSimple(ArrayView<T> data, ArrayView<T> output)
     // -> reduce a 0 for out-of-bounds threads
     auto v = ti.thread_id >= data.size() ? 0 : data[ti.thread_id];
 
-    v = blockReduceSum(v,blockSum);
+    v = blockReduceSum(v, blockSum);
 
-    if(ti.local_thread_id == 0)
-        atomicAdd(output.data(),v);
-
+    if (ti.local_thread_id == 0) atomicAdd(output.data(), v);
 }
 
 struct Particle
@@ -125,20 +114,17 @@ struct Particle
 
 struct MaxRadius
 {
-    HD Particle operator()(const Particle& p1, const Particle& p2)
-    {
-        return p1.radius < p2.radius ? p2 : p1;
-    }
+    HD Particle operator()(const Particle& p1, const Particle& p2) { return p1.radius < p2.radius ? p2 : p1; }
 };
 
 
 static void reduceTest()
 {
-    int N = 823674;
+    int N   = 823674;
     using T = int;
     Saiga::thrust::pinned_vector<T> h_data(N);
 
-    for(auto& f : h_data)
+    for (auto& f : h_data)
     {
         f = rand() % 10;
     }
@@ -148,31 +134,31 @@ static void reduceTest()
 
     {
         int n = 32;
-        thrust::device_vector<T>  data(n);
-        thrust::copy(d_data.begin(),d_data.begin()+n,data.begin());
-        warpReduceSimple<T><<<1,n>>>(data,output);
-        T res = output[0];
-        T tres = thrust::reduce(data.begin(),data.end());
+        thrust::device_vector<T> data(n);
+        thrust::copy(d_data.begin(), d_data.begin() + n, data.begin());
+        warpReduceSimple<T><<<1, n>>>(data, output);
+        T res  = output[0];
+        T tres = thrust::reduce(data.begin(), data.end());
         cout << res << " " << tres << endl;
         SAIGA_ASSERT(res == tres);
     }
 
     {
         int n = 256;
-        thrust::device_vector<T>  data(n);
-        thrust::copy(d_data.begin(),d_data.begin()+n,data.begin());
-        blockReduceSimple<T><<<1,n>>>(data,output);
-        T res = output[0];
-        T tres = thrust::reduce(data.begin(),data.end());
+        thrust::device_vector<T> data(n);
+        thrust::copy(d_data.begin(), d_data.begin() + n, data.begin());
+        blockReduceSimple<T><<<1, n>>>(data, output);
+        T res  = output[0];
+        T tres = thrust::reduce(data.begin(), data.end());
         cout << res << " " << tres << endl;
         SAIGA_ASSERT(res == tres);
     }
 
     {
         output[0] = 0;
-        globalReduceSimple<T><<<THREAD_BLOCK(N,128)>>>(d_data,output);
-        T res = output[0];
-        T tres = thrust::reduce(d_data.begin(),d_data.end());
+        globalReduceSimple<T><<<THREAD_BLOCK(N, 128)>>>(d_data, output);
+        T res  = output[0];
+        T tres = thrust::reduce(d_data.begin(), d_data.end());
         cout << res << " " << tres << endl;
         SAIGA_ASSERT(res == tres);
     }
@@ -182,21 +168,19 @@ static void reduceTest()
         thrust::device_vector<Particle> particles(100000);
 
         Particle test;
-        test.radius = 12314;
+        test.radius    = 12314;
         particles[100] = test;
 
-        Particle p = thrust::reduce(particles.begin(),particles.end(),Particle(),MaxRadius());
+        Particle p = thrust::reduce(particles.begin(), particles.end(), Particle(), MaxRadius());
         cout << "Max radius = " << p.radius << endl;
 
         SAIGA_ASSERT(test.radius == p.radius);
     }
-
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     reduceTest();
 
     cout << "Done." << endl;
 }
-

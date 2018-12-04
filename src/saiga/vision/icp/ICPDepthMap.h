@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <vector>
 #include "saiga/vision/Depthmap.h"
 #include "saiga/vision/icp/ICPAlign.h"
+
+#include <vector>
 
 
 namespace Saiga

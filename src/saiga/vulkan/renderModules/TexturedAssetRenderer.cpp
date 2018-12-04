@@ -5,6 +5,7 @@
  */
 
 #include "TexturedAssetRenderer.h"
+
 #include "saiga/model/objModelLoader.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
@@ -30,7 +31,7 @@ void TexturedAssetRenderer::bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet
 
 void TexturedAssetRenderer::pushModel(vk::CommandBuffer cmd, mat4 model)
 {
-    pushConstant(cmd,vk::ShaderStageFlagBits::eVertex,sizeof(mat4),&model[0][0]);
+    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), &model[0][0]);
 }
 
 
@@ -38,26 +39,22 @@ void TexturedAssetRenderer::pushModel(vk::CommandBuffer cmd, mat4 model)
 void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
 {
     uboVS.projection = proj;
-    uboVS.modelview = view;
-    uboVS.lightPos = vec4(5,5,5,0);
+    uboVS.modelview  = view;
+    uboVS.lightPos   = vec4(5, 5, 5, 0);
     uniformBufferVS.update(cmd, sizeof(UBOVS), &uboVS);
 }
 
-void TexturedAssetRenderer::init(VulkanBase &vulkanDevice, VkRenderPass renderPass,
-        const std::string& vertShader, const std::string& fragShader)
+void TexturedAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass, const std::string& vertShader,
+                                 const std::string& fragShader)
 {
     PipelineBase::init(vulkanDevice, 1);
     uniformBufferVS.init(vulkanDevice, &uboVS, sizeof(UBOVS));
     addDescriptorSetLayout({
-                               { 7,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex },
-                               { 11,vk::DescriptorType::eCombinedImageSampler,1,vk::ShaderStageFlagBits::eFragment},
-                           });
-    addPushConstantRange( {vk::ShaderStageFlagBits::eVertex,0,sizeof(mat4)} );
-    shaderPipeline.load(
-                device,{
-                    vertShader,
-                    fragShader
-                });
+        {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
+        {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment},
+    });
+    addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
+    shaderPipeline.load(device, {vertShader, fragShader});
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
     //    auto info2 = info;
@@ -81,10 +78,13 @@ vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture& t
 
 
     vk::DescriptorBufferInfo descriptorInfo = uniformBufferVS.getDescriptorInfo();
-    device.updateDescriptorSets({
-                                    vk::WriteDescriptorSet(set,7,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&descriptorInfo),
-                                    vk::WriteDescriptorSet(set,11,0,1,vk::DescriptorType::eCombinedImageSampler,&descriptorInfoTexture,nullptr),
-                                },nullptr);
+    device.updateDescriptorSets(
+        {
+            vk::WriteDescriptorSet(set, 7, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &descriptorInfo),
+            vk::WriteDescriptorSet(set, 11, 0, 1, vk::DescriptorType::eCombinedImageSampler, &descriptorInfoTexture,
+                                   nullptr),
+        },
+        nullptr);
 
 
     return set;

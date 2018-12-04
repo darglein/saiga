@@ -6,13 +6,12 @@
 
 #include "saiga/config.h"
 #ifdef SAIGA_USE_OPENGL
-#include "saiga/animation/cameraAnimation.h"
-#include "saiga/imgui/imgui.h"
+#    include "saiga/animation/cameraAnimation.h"
+#    include "saiga/imgui/imgui.h"
 
-namespace Saiga {
-
-
-#if 0
+namespace Saiga
+{
+#    if 0
 Interpolation::Keyframe Interpolation::get(double time)
 {
 
@@ -109,91 +108,85 @@ Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::In
     res.rot =  slerp(f1.rot,f2.rot,alpha);
     return res;
 }
-#endif
+#    endif
 
 
 Interpolation::Keyframe Interpolation::getNormalized(double time)
 {
-    time = clamp(time,0.0,1.0);
-//    return get( (keyframes.size()-1)*time);
+    time = clamp(time, 0.0, 1.0);
+    //    return get( (keyframes.size()-1)*time);
 
-         vec3 p = positionSpline.getPointOnCurve(time);
-         quat q = orientationSpline.getPointOnCurve(time);
-         return {q,p};
-
+    vec3 p = positionSpline.getPointOnCurve(time);
+    quat q = orientationSpline.getPointOnCurve(time);
+    return {q, p};
 }
 
 void Interpolation::createAsset()
 {
-//    if(keyframes.size() == 0)
-        if(positionSpline.controlPoints.size() <= 1)
-        return;
+    //    if(keyframes.size() == 0)
+    if (positionSpline.controlPoints.size() <= 1) return;
 
     std::vector<vec3> vertices;
     std::vector<GLuint> indices;
 
 
 
-#if 1
-    //create control polygon
-        for(int i = 0; i < (int)positionSpline.controlPoints.size()-1; ++i)
-        {
-            auto p1 = positionSpline.controlPoints[i];
-            auto p2 = positionSpline.controlPoints[i+1];
-            vertices.push_back(p1);
-            vertices.push_back(p2);
-            indices.push_back(vertices.size()-2);
-            indices.push_back(vertices.size()-1);
+#    if 1
+    // create control polygon
+    for (int i = 0; i < (int)positionSpline.controlPoints.size() - 1; ++i)
+    {
+        auto p1 = positionSpline.controlPoints[i];
+        auto p2 = positionSpline.controlPoints[i + 1];
+        vertices.push_back(p1);
+        vertices.push_back(p2);
+        indices.push_back(vertices.size() - 2);
+        indices.push_back(vertices.size() - 1);
 
-//            cout << "cp " << p1 << p2 << endl;
-        }
-        int idx = vertices.size();
+        //            cout << "cp " << p1 << p2 << endl;
+    }
+    int idx = vertices.size();
 
-        int steps = (positionSpline.controlPoints.size()-1)*(subSamples+1);
-        for(int i = 0; i < steps ; ++i)
-        {
-            float alpha = float(i) / (steps-1);
-            vec3 p = positionSpline.getPointOnCurve(alpha);
-            vertices.push_back(p);
-        }
-        for(int i = 0; i < steps-1 ; ++i)
-        {
-            indices.push_back(idx + i + 0);
-            indices.push_back(idx + i + 1);
-        }
+    int steps = (positionSpline.controlPoints.size() - 1) * (subSamples + 1);
+    for (int i = 0; i < steps; ++i)
+    {
+        float alpha = float(i) / (steps - 1);
+        vec3 p      = positionSpline.getPointOnCurve(alpha);
+        vertices.push_back(p);
+    }
+    for (int i = 0; i < steps - 1; ++i)
+    {
+        indices.push_back(idx + i + 0);
+        indices.push_back(idx + i + 1);
+    }
 
 
-    #else
+#    else
 
 
     //    createFrustumMesh(proj,vertices,indices);
 
 
 
-//    for(int i = 0; i < keyframes.size()-1; ++i)
-        for(int i = 0; i < curve.controlPoints.size()-1; ++i)
+    //    for(int i = 0; i < keyframes.size()-1; ++i)
+    for (int i = 0; i < curve.controlPoints.size() - 1; ++i)
     {
-
-
-
-
-        for(int j = (i==0)? -1 : 0; j < (subSamples + 1); ++j)
+        for (int j = (i == 0) ? -1 : 0; j < (subSamples + 1); ++j)
         {
-            float alpha = (j+1.0) / (subSamples+1);
+            float alpha = (j + 1.0) / (subSamples + 1);
 
             float time = i + alpha;
-//            Keyframe kf = get(time);
+            //            Keyframe kf = get(time);
 
             Keyframe kf;
             kf.position = curve.getPointOnCurve(time);
-            kf.rot = IDENTITY_QUATERNION;
-            vec3 p = kf.position;
+            kf.rot      = IDENTITY_QUATERNION;
+            vec3 p      = kf.position;
 
             //            cout << "time " << time << " p " << p << endl;
 
             int idx = vertices.size();
             vertices.push_back(p);
-            if(j != -1)
+            if (j != -1)
             {
                 indices.push_back(idx - 4);
                 indices.push_back(idx);
@@ -201,48 +194,47 @@ void Interpolation::createAsset()
 
 
 
-            vertices.push_back( p + keyframeScale * (kf.rot * vec3(1,0,0)) );
-            vertices.push_back( p + keyframeScale * (kf.rot * vec3(0,1,0)) );
-            vertices.push_back( p + keyframeScale * (kf.rot * vec3(0,0,1)) );
+            vertices.push_back(p + keyframeScale * (kf.rot * vec3(1, 0, 0)));
+            vertices.push_back(p + keyframeScale * (kf.rot * vec3(0, 1, 0)));
+            vertices.push_back(p + keyframeScale * (kf.rot * vec3(0, 0, 1)));
 
-            indices.push_back(idx); indices.push_back(idx+1);
-            indices.push_back(idx); indices.push_back(idx+2);
-            indices.push_back(idx); indices.push_back(idx+3);
+            indices.push_back(idx);
+            indices.push_back(idx + 1);
+            indices.push_back(idx);
+            indices.push_back(idx + 2);
+            indices.push_back(idx);
+            indices.push_back(idx + 3);
         }
-
     }
 
 
-#endif
+#    endif
 
     AssetLoader al;
-    cameraPathAsset = al.nonTriangleMesh(vertices,indices,GL_LINES,vec4(1,0,0,1));
+    cameraPathAsset = al.nonTriangleMesh(vertices, indices, GL_LINES, vec4(1, 0, 0, 1));
 }
 
 
 
-void Interpolation::start(Camera &cam, float totalTimeS, float dt)
+void Interpolation::start(Camera& cam, float totalTimeS, float dt)
 {
     totalTicks = totalTimeS / dt;
-    tick = 0;
+    tick       = 0;
 
     cout << "Starting Camera Interpolation. " << totalTimeS << "s  dt=" << dt << " TotalTicks: " << totalTicks << endl;
 
     update(cam);
-
 }
 
-bool Interpolation::update(Camera &camera)
+bool Interpolation::update(Camera& camera)
 {
-
-    if(tick > totalTicks)
-        return false;
+    if (tick > totalTicks) return false;
 
     float cameraAlpha = float(tick) / totalTicks;
-    auto kf = getNormalized(cameraAlpha);
+    auto kf           = getNormalized(cameraAlpha);
 
-    camera.position = vec4(kf.position,1);
-    camera.rot = kf.rot;
+    camera.position = vec4(kf.position, 1);
+    camera.rot      = kf.rot;
 
     camera.calculateModel();
     camera.updateFromModel();
@@ -260,9 +252,8 @@ void Interpolation::updateCurve()
     positionSpline.controlPoints.clear();
     orientationSpline.controlPoints.clear();
 
-    for(auto& kf : keyframes)
+    for (auto& kf : keyframes)
     {
-
         positionSpline.addPoint(kf.position);
         orientationSpline.addPoint(kf.rot);
     }
@@ -273,16 +264,14 @@ void Interpolation::updateCurve()
 
 
 
-
     createAsset();
 }
 
 void Interpolation::render()
 {
-
-    if(cameraPathAsset && !isRunning())
+    if (cameraPathAsset && !isRunning())
     {
-        cameraPathAsset->renderForward(nullptr,mat4(1));
+        cameraPathAsset->renderForward(nullptr, mat4(1));
     }
 }
 void Interpolation::renderGui(Camera& camera)
@@ -292,24 +281,24 @@ void Interpolation::renderGui(Camera& camera)
     ImGui::PushID(326426);
 
 
-    ImGui::InputFloat("dt",&dt);
-    ImGui::InputFloat("totalTime",&totalTime);
-//    if(ImGui::Checkbox("cubicInterpolation",&cubicInterpolation))
-//    {
-//        changed = true;
-//    }
+    ImGui::InputFloat("dt", &dt);
+    ImGui::InputFloat("totalTime", &totalTime);
+    //    if(ImGui::Checkbox("cubicInterpolation",&cubicInterpolation))
+    //    {
+    //        changed = true;
+    //    }
 
 
     ImGui::Text("Keyframe");
-    if(ImGui::Button("Add"))
+    if (ImGui::Button("Add"))
     {
-        addKeyframe(camera.rot,camera.getPosition());
+        addKeyframe(camera.rot, camera.getPosition());
         changed = true;
     }
 
     ImGui::SameLine();
 
-    if(ImGui::Button("Remove Last"))
+    if (ImGui::Button("Remove Last"))
     {
         keyframes.pop_back();
         changed = true;
@@ -317,75 +306,74 @@ void Interpolation::renderGui(Camera& camera)
 
     ImGui::SameLine();
 
-    if(ImGui::Button("Clear"))
+    if (ImGui::Button("Clear"))
     {
         keyframes.clear();
         changed = true;
     }
 
-    if(ImGui::Button("start camera"))
+    if (ImGui::Button("start camera"))
     {
-        start(camera,totalTime,dt);
+        start(camera, totalTime, dt);
         changed = true;
     }
 
 
 
-    if(ImGui::Button("print keyframes"))
+    if (ImGui::Button("print keyframes"))
     {
-        for(Keyframe& kf : keyframes)
+        for (Keyframe& kf : keyframes)
         {
             cout << "keyframes.push_back({ quat" << kf.rot << ", vec3" << kf.position << "});" << endl;
         }
         cout << "createAsset();" << endl;
 
-        keyframes.push_back({IDENTITY_QUATERNION,vec3(0)});
+        keyframes.push_back({IDENTITY_QUATERNION, vec3(0)});
     }
 
-    if(ImGui::CollapsingHeader("render"))
+    if (ImGui::CollapsingHeader("render"))
     {
-        ImGui::Checkbox("visible",&visible);
-        ImGui::InputInt("subSamples",&subSamples);
-        ImGui::InputFloat("keyframeScale",&keyframeScale);
-        if(ImGui::Button("update mesh"))
+        ImGui::Checkbox("visible", &visible);
+        ImGui::InputInt("subSamples", &subSamples);
+        ImGui::InputFloat("keyframeScale", &keyframeScale);
+        if (ImGui::Button("update mesh")) changed = true;
+    }
+
+    if (ImGui::CollapsingHeader("modify"))
+    {
+        ImGui::InputInt("selectedKeyframe", &selectedKeyframe);
+
+        if (ImGui::Button("keyframe to camera"))
+        {
+            auto kf         = keyframes[selectedKeyframe];
+            camera.position = vec4(kf.position, 1);
+            camera.rot      = kf.rot;
+
+            camera.calculateModel();
+            camera.updateFromModel();
+        }
+
+        if (ImGui::Button("update keyframe"))
+        {
+            keyframes[selectedKeyframe] = {camera.rot, camera.getPosition()};
+            changed                     = true;
+        }
+
+        if (ImGui::Button("delete keyframe"))
+        {
+            keyframes.erase(keyframes.begin() + selectedKeyframe);
             changed = true;
+        }
+
+        if (ImGui::Button("insert keyframe"))
+        {
+            keyframes.insert(keyframes.begin() + selectedKeyframe, {camera.rot, camera.getPosition()});
+            changed = true;
+        }
     }
 
-    if(ImGui::CollapsingHeader("modify"))
-    {
-    ImGui::InputInt("selectedKeyframe",&selectedKeyframe);
 
-    if(ImGui::Button("keyframe to camera"))
-    {
-        auto kf = keyframes[selectedKeyframe];
-        camera.position = vec4(kf.position,1);
-        camera.rot = kf.rot;
-
-        camera.calculateModel();
-        camera.updateFromModel();
-    }
-
-    if(ImGui::Button("update keyframe"))
-    {
-        keyframes[selectedKeyframe] = {camera.rot,camera.getPosition()};
-        changed = true;
-    }
-
-    if(ImGui::Button("delete keyframe"))
-    {
-        keyframes.erase(keyframes.begin()+selectedKeyframe);
-        changed = true;
-    }
-
-    if(ImGui::Button("insert keyframe"))
-    {
-        keyframes.insert(keyframes.begin()+selectedKeyframe,{camera.rot,camera.getPosition()});
-        changed = true;
-    }
-}
-
-
-    if(changed)
+    if (changed)
     {
         updateCurve();
     }
@@ -395,6 +383,6 @@ void Interpolation::renderGui(Camera& camera)
 
 
 
-}
+}  // namespace Saiga
 
 #endif

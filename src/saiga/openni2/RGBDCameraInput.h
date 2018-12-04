@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include <thread>
 #include "saiga/config.h"
 #include "saiga/image/image.h"
 #include "saiga/util/synchronizedBuffer.h"
+
+#include <thread>
 
 #ifdef SAIGA_VISION
 #    include "saiga/vision/RGBDCamera.h"

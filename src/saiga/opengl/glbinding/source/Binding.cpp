@@ -1,17 +1,13 @@
 
-#include <glbinding/Binding.h>
-
 #include <cassert>
-#include <iostream>
-
-#include <glbinding/State.h>
 #include <glbinding/AbstractFunction.h>
+#include <glbinding/Binding.h>
+#include <glbinding/State.h>
+#include <iostream>
 
 
 namespace glbinding
 {
-
-
 void Binding::setCallbackMask(const CallbackMask mask)
 {
     for (auto function : Binding::functions())
@@ -20,7 +16,7 @@ void Binding::setCallbackMask(const CallbackMask mask)
     }
 }
 
-void Binding::setCallbackMaskExcept(const CallbackMask mask, const std::set<std::string> & blackList)
+void Binding::setCallbackMaskExcept(const CallbackMask mask, const std::set<std::string>& blackList)
 {
     for (auto function : Binding::functions())
     {
@@ -39,7 +35,7 @@ void Binding::addCallbackMask(const CallbackMask mask)
     }
 }
 
-void Binding::addCallbackMaskExcept(const CallbackMask mask, const std::set<std::string> & blackList)
+void Binding::addCallbackMaskExcept(const CallbackMask mask, const std::set<std::string>& blackList)
 {
     for (auto function : Binding::functions())
     {
@@ -58,7 +54,7 @@ void Binding::removeCallbackMask(const CallbackMask mask)
     }
 }
 
-void Binding::removeCallbackMaskExcept(const CallbackMask mask, const std::set<std::string> & blackList)
+void Binding::removeCallbackMaskExcept(const CallbackMask mask, const std::set<std::string>& blackList)
 {
     for (auto function : Binding::functions())
     {
@@ -109,7 +105,7 @@ void Binding::setLogCallback(Binding::FunctionLogCallback callback)
     s_logCallback() = std::move(callback);
 }
 
-void Binding::unresolved(const AbstractFunction * function)
+void Binding::unresolved(const AbstractFunction* function)
 {
     if (s_unresolvedCallback())
     {
@@ -117,7 +113,7 @@ void Binding::unresolved(const AbstractFunction * function)
     }
 }
 
-void Binding::before(const FunctionCall & call)
+void Binding::before(const FunctionCall& call)
 {
     if (s_beforeCallback())
     {
@@ -125,7 +121,7 @@ void Binding::before(const FunctionCall & call)
     }
 }
 
-void Binding::after(const FunctionCall & call)
+void Binding::after(const FunctionCall& call)
 {
     if (s_afterCallback())
     {
@@ -133,7 +129,7 @@ void Binding::after(const FunctionCall & call)
     }
 }
 
-void Binding::log(FunctionCall && call)
+void Binding::log(FunctionCall&& call)
 {
     if (s_logCallback())
     {
@@ -141,7 +137,7 @@ void Binding::log(FunctionCall && call)
     }
 }
 
-const std::vector<AbstractFunction *> & Binding::additionalFunctions()
+const std::vector<AbstractFunction*>& Binding::additionalFunctions()
 {
     return s_additionalFunctions();
 }
@@ -156,13 +152,10 @@ void Binding::initialize(const glbinding::GetProcAddress functionPointerResolver
     initialize(0, functionPointerResolver, true, resolveFunctions);
 }
 
-void Binding::initialize(
-    const ContextHandle context
-,   const glbinding::GetProcAddress functionPointerResolver
-,   const bool _useContext
-,   const bool _resolveFunctions)
+void Binding::initialize(const ContextHandle context, const glbinding::GetProcAddress functionPointerResolver,
+                         const bool _useContext, const bool _resolveFunctions)
 {
-    const auto resolveWOUse = !_useContext && _resolveFunctions;
+    const auto resolveWOUse   = !_useContext && _resolveFunctions;
     const auto currentContext = resolveWOUse ? s_context() : static_cast<ContextHandle>(0);
 
     {
@@ -186,8 +179,7 @@ void Binding::initialize(
 
         provideState(pos);
 
-        if(_useContext)
-            useContext(context);
+        if (_useContext) useContext(context);
 
         if (_resolveFunctions)
         {
@@ -196,11 +188,10 @@ void Binding::initialize(
     }
 
     // restore previous context
-    if(resolveWOUse)
-        useContext(currentContext);
+    if (resolveWOUse) useContext(currentContext);
 }
 
-ProcAddress Binding::resolveFunction(const char * name)
+ProcAddress Binding::resolveFunction(const char* name)
 {
     if (s_getProcAddress() != nullptr)
     {
@@ -215,7 +206,7 @@ ProcAddress Binding::resolveFunction(const char * name)
     return nullptr;
 }
 
-void Binding::registerAdditionalFunction(AbstractFunction * function)
+void Binding::registerAdditionalFunction(AbstractFunction* function)
 {
     s_additionalFunctions().push_back(function);
 }
@@ -253,7 +244,7 @@ void Binding::useContext(const ContextHandle context)
 
     setStatePos(s_bindings()[s_context()]);
 
-    for (const auto & callback : s_contextSwitchCallbacks())
+    for (const auto& callback : s_contextSwitchCallbacks())
     {
         callback(s_context());
     }
@@ -297,7 +288,7 @@ void Binding::provideState(const int pos)
     // if a state at pos exists, it is assumed to be neglected before
     if (s_maxPos() < pos)
     {
-        for (AbstractFunction * function : Binding::functions())
+        for (AbstractFunction* function : Binding::functions())
         {
             function->resizeStates(pos + 1);
         }
@@ -313,7 +304,7 @@ void Binding::neglectState(const int p)
 
     if (p == s_maxPos())
     {
-        for (AbstractFunction * function : Binding::functions())
+        for (AbstractFunction* function : Binding::functions())
         {
             function->resizeStates(std::max(0, p - 1));
         }
@@ -322,7 +313,7 @@ void Binding::neglectState(const int p)
     }
     else
     {
-        for (AbstractFunction * function : Binding::functions())
+        for (AbstractFunction* function : Binding::functions())
         {
             function->state(p) = State();
         }
@@ -339,99 +330,99 @@ void Binding::setStatePos(const int p)
     s_pos() = p;
 }
 
-int & Binding::s_maxPos()
+int& Binding::s_maxPos()
 {
     static int maxPos = -1;
 
     return maxPos;
 }
 
-const Binding::array_t & Binding::functions()
+const Binding::array_t& Binding::functions()
 {
     return s_functions;
 }
 
-std::vector<AbstractFunction *> & Binding::s_additionalFunctions()
+std::vector<AbstractFunction*>& Binding::s_additionalFunctions()
 {
-    static std::vector<AbstractFunction *> additionalFunctions;
+    static std::vector<AbstractFunction*> additionalFunctions;
 
     return additionalFunctions;
 }
 
-std::vector<Binding::ContextSwitchCallback> & Binding::s_contextSwitchCallbacks()
+std::vector<Binding::ContextSwitchCallback>& Binding::s_contextSwitchCallbacks()
 {
     static std::vector<ContextSwitchCallback> callbacks;
 
     return callbacks;
 }
 
-Binding::SimpleFunctionCallback & Binding::s_unresolvedCallback()
+Binding::SimpleFunctionCallback& Binding::s_unresolvedCallback()
 {
     static SimpleFunctionCallback unresolvedCallback;
 
     return unresolvedCallback;
 }
 
-Binding::FunctionCallback & Binding::s_beforeCallback()
+Binding::FunctionCallback& Binding::s_beforeCallback()
 {
     static FunctionCallback beforeCallback;
 
     return beforeCallback;
 }
 
-Binding::FunctionCallback & Binding::s_afterCallback()
+Binding::FunctionCallback& Binding::s_afterCallback()
 {
     static FunctionCallback afterCallback;
 
     return afterCallback;
 }
 
-Binding::FunctionLogCallback & Binding::s_logCallback()
+Binding::FunctionLogCallback& Binding::s_logCallback()
 {
     static FunctionLogCallback logCallback;
 
     return logCallback;
 }
 
-int & Binding::s_pos()
+int& Binding::s_pos()
 {
     GLBINDING_THREAD_LOCAL int pos = 0;
-    //static int pos = 0;
+    // static int pos = 0;
 
     return pos;
 }
 
-ContextHandle & Binding::s_context()
+ContextHandle& Binding::s_context()
 {
     GLBINDING_THREAD_LOCAL ContextHandle context = 0;
-    //static ContextHandle context = 0;
+    // static ContextHandle context = 0;
 
     return context;
 }
 
-glbinding::GetProcAddress & Binding::s_getProcAddress()
+glbinding::GetProcAddress& Binding::s_getProcAddress()
 {
     GLBINDING_THREAD_LOCAL glbinding::GetProcAddress getProcAddress = nullptr;
-    //static glbinding::GetProcAddress getProcAddress = nullptr;
+    // static glbinding::GetProcAddress getProcAddress = nullptr;
 
     return getProcAddress;
 }
 
-std_boost::recursive_mutex & Binding::s_mutex()
+std_boost::recursive_mutex& Binding::s_mutex()
 {
     static std_boost::recursive_mutex mutex;
 
     return mutex;
 }
 
-std::unordered_map<ContextHandle, int> & Binding::s_bindings()
+std::unordered_map<ContextHandle, int>& Binding::s_bindings()
 {
     static std::unordered_map<ContextHandle, int> bindings;
 
     return bindings;
 }
 
-glbinding::GetProcAddress & Binding::s_firstGetProcAddress()
+glbinding::GetProcAddress& Binding::s_firstGetProcAddress()
 {
     static glbinding::GetProcAddress getProcAddress = nullptr;
 
@@ -439,4 +430,4 @@ glbinding::GetProcAddress & Binding::s_firstGetProcAddress()
 }
 
 
-} // namespace glbinding
+}  // namespace glbinding

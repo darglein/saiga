@@ -1,31 +1,30 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/assets/animatedAsset.h"
+
 #include "saiga/animation/boneShader.h"
 
-namespace Saiga {
-
-
-void AnimatedAsset::render(Camera *cam, const mat4 &model, UniformBuffer& boneMatrices)
+namespace Saiga
+{
+void AnimatedAsset::render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices)
 {
     std::shared_ptr<BoneShader> bs = std::static_pointer_cast<BoneShader>(this->shader);
 
 
     bs->bind();
     bs->uploadModel(model);
-//    boneMatrices.bind(0);
+    //    boneMatrices.bind(0);
     boneMatrices.bind(BONE_MATRICES_BINDING_POINT);
     buffer.bindAndDraw();
     bs->unbind();
 }
 
-void AnimatedAsset::renderDepth(Camera *cam, const mat4 &model, UniformBuffer &boneMatrices)
+void AnimatedAsset::renderDepth(Camera* cam, const mat4& model, UniformBuffer& boneMatrices)
 {
-
     std::shared_ptr<BoneShader> bs = std::static_pointer_cast<BoneShader>(this->depthshader);
 
     bs->bind();
@@ -35,4 +34,4 @@ void AnimatedAsset::renderDepth(Camera *cam, const mat4 &model, UniformBuffer &b
     bs->unbind();
 }
 
-}
+}  // namespace Saiga

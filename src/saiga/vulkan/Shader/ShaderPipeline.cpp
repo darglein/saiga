@@ -5,6 +5,7 @@
  */
 
 #include "ShaderPipeline.h"
+
 #include "GLSL.h"
 
 namespace Saiga

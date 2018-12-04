@@ -5,14 +5,16 @@
  */
 
 #include "saiga/text/textureAtlas.h"
-#include <algorithm>
-#include <fstream>
+
 #include "saiga/geometry/triangle_mesh.h"
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/text/fontLoader.h"
 #include "saiga/util/assert.h"
 #include "saiga/util/tostring.h"
+
+#include <algorithm>
+#include <fstream>
 
 namespace Saiga
 {
@@ -89,7 +91,10 @@ void TextureAtlas::loadFont(const std::string& _font, int fontSize, int quality,
 }
 
 
-void TextureAtlas::initFont() { invalidCharacter = getCharacterInfo('?'); }
+void TextureAtlas::initFont()
+{
+    invalidCharacter = getCharacterInfo('?');
+}
 
 
 const TextureAtlas::character_info& TextureAtlas::getCharacterInfo(int c)

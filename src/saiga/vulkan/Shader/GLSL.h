@@ -8,14 +8,15 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/vulkan/svulkan.h"
 #include "saiga/util/fileChecker.h"
+#include "saiga/vulkan/svulkan.h"
 
-namespace Saiga {
-namespace Vulkan {
-namespace GLSLANG{
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
+namespace GLSLANG
+{
 /**
  * This function parses GLSL code, checks for any syntax errors, and converts it to SPIR-V.
  *
@@ -24,20 +25,12 @@ namespace GLSLANG{
  *
  */
 
-SAIGA_GLOBAL std::vector<uint32_t> loadGLSL(
-        const std::string& file,
-        const vk::ShaderStageFlagBits shader_type,
-        const std::string& injection = {}
-        );
+SAIGA_GLOBAL std::vector<uint32_t> loadGLSL(const std::string& file, const vk::ShaderStageFlagBits shader_type,
+                                            const std::string& injection = {});
 
-SAIGA_GLOBAL std::vector<uint32_t> loadSPIRV(
-        const std::string& file
-        );
+SAIGA_GLOBAL std::vector<uint32_t> loadSPIRV(const std::string& file);
 
-SAIGA_GLOBAL void addInjectionAfterVersion(
-        std::string& shaderString,
-        const std::string& injection
-        );
+SAIGA_GLOBAL void addInjectionAfterVersion(std::string& shaderString, const std::string& injection);
 
 
 
@@ -48,10 +41,8 @@ SAIGA_GLOBAL void addInjectionAfterVersion(
  * Note: #include is not supported in this mode.
  *
  */
-SAIGA_GLOBAL std::vector<uint32_t> createFromString(
-        const std::string& shaderString,
-        const vk::ShaderStageFlagBits shader_type
-        );
+SAIGA_GLOBAL std::vector<uint32_t> createFromString(const std::string& shaderString,
+                                                    const vk::ShaderStageFlagBits shader_type);
 
 
 SAIGA_GLOBAL void init();
@@ -59,6 +50,6 @@ SAIGA_GLOBAL void quit();
 
 extern SAIGA_GLOBAL FileChecker shaderPathes;
 
-}
-}
-}
+}  // namespace GLSLANG
+}  // namespace Vulkan
+}  // namespace Saiga

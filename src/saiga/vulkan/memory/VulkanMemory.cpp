@@ -3,6 +3,7 @@
 //
 
 #include "VulkanMemory.h"
+
 #include <memory>
 void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 {

@@ -1,26 +1,28 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include "saiga/opengl/texture/texture.h"
-#include "saiga/opengl/texture/cube_texture.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
+#include "saiga/opengl/texture/cube_texture.h"
+#include "saiga/opengl/texture/texture.h"
 #include "saiga/util/perlinnoise.h"
-#include "saiga/geometry/triangle_mesh_generator.h"
 
-namespace Saiga {
+namespace Saiga
+{
+class SAIGA_GLOBAL TerrainMesh
+{
+   private:
+    typedef TriangleMesh<Vertex, GLuint> mesh_t;
 
-class SAIGA_GLOBAL TerrainMesh{
-private:
-    typedef TriangleMesh<Vertex,GLuint> mesh_t;
-public:
+   public:
     int n = 63;
-    int m = (n+1)/4;
+    int m = (n + 1) / 4;
 
 
     TerrainMesh();
@@ -45,4 +47,4 @@ public:
     std::shared_ptr<mesh_t> createGridMesh(unsigned int w, unsigned int h, vec2 d, vec2 o);
 };
 
-}
+}  // namespace Saiga

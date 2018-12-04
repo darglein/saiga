@@ -5,12 +5,12 @@
  */
 
 
+#include "saiga/framework/framework.h"
 #include "saiga/image/floatTexels.h"
 #include "saiga/image/image.h"
 #include "saiga/image/templatedImage.h"
-#include "saiga/framework/framework.h"
-#include "saiga/time/timer.h"
 #include "saiga/opencv/opencv.h"
+#include "saiga/time/timer.h"
 
 using namespace Saiga;
 
@@ -25,7 +25,7 @@ void testReadWriteImage()
     }
     {
         ScopedTimerPrint t("Opencv Save png");
-        cv::imwrite("redie3.png",cvimg);
+        cv::imwrite("redie3.png", cvimg);
     }
 
     TemplatedImage<ucvec3> img;
@@ -37,13 +37,10 @@ void testReadWriteImage()
         ScopedTimerPrint t("Saiga Save png");
         img.save("redie2.png");
     }
-
-
-
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     SaigaParameters sp;
     initSample(sp);

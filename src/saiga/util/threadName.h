@@ -11,8 +11,8 @@
 
 #include <thread>
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * Sets a thread name for debugging purposes.
  *
@@ -22,4 +22,4 @@ namespace Saiga {
 SAIGA_GLOBAL extern void setThreadName(const std::string& name);
 SAIGA_GLOBAL extern void setThreadName(std::thread& thread, const std::string& name);
 
-}
+}  // namespace Saiga

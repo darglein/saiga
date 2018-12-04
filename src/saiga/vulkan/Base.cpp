@@ -1,7 +1,9 @@
 ﻿#include "Base.h"
-#include <array>
-#include "Debug.h"
 #include "saiga/util/table.h"
+
+#include "Debug.h"
+
+#include <array>
 namespace Saiga
 {
 namespace Vulkan

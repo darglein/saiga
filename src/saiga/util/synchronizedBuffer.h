@@ -8,36 +8,36 @@
 
 #include "saiga/util/ringBuffer.h"
 
-#include <condition_variable>
 #include <mutex>
 
-namespace Saiga {
+#include <condition_variable>
 
-template<typename T>
-class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>{
-public:
+namespace Saiga
+{
+template <typename T>
+class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
+{
+   public:
     std::mutex lock;
 
     std::condition_variable not_full;
     std::condition_variable not_empty;
 
-    SynchronizedBuffer(int capacity) : RingBuffer<T>(capacity) {
-    }
+    SynchronizedBuffer(int capacity) : RingBuffer<T>(capacity) {}
 
-    ~SynchronizedBuffer(){
-    }
+    ~SynchronizedBuffer() {}
 
-    //blocks until buffer is empty
+    // blocks until buffer is empty
     void waitUntilEmpty()
     {
         std::unique_lock<std::mutex> l(lock);
-        not_full.wait(l, [this](){return this->empty(); });
+        not_full.wait(l, [this]() { return this->empty(); });
     }
 
     void waitUntilFull()
     {
         std::unique_lock<std::mutex> l(lock);
-        not_empty.wait(l, [this](){return this->full(); });
+        not_empty.wait(l, [this]() { return this->full(); });
     }
 
 
@@ -45,7 +45,7 @@ public:
     void add(const T& data)
     {
         std::unique_lock<std::mutex> l(lock);
-        not_full.wait(l, [this](){return !this->full();});
+        not_full.wait(l, [this]() { return !this->full(); });
         RingBuffer<T>::add(data);
         not_empty.notify_one();
     }
@@ -60,7 +60,8 @@ public:
     bool tryAdd(const T& v)
     {
         std::unique_lock<std::mutex> l(lock);
-        if (this->full()){
+        if (this->full())
+        {
             return false;
         }
         RingBuffer<T>::add(v);
@@ -72,7 +73,7 @@ public:
     T get()
     {
         std::unique_lock<std::mutex> l(lock);
-        not_empty.wait(l, [this](){return !this->empty(); });
+        not_empty.wait(l, [this]() { return !this->empty(); });
         T result = RingBuffer<T>::get();
         not_full.notify_one();
         return result;
@@ -81,16 +82,14 @@ public:
     bool tryGet(T& v)
     {
         std::unique_lock<std::mutex> l(lock);
-        if(this->empty()){
+        if (this->empty())
+        {
             return false;
         }
         v = RingBuffer<T>::get();
         not_full.notify_one();
         return true;
     }
-
-
-
 };
 
-}
+}  // namespace Saiga

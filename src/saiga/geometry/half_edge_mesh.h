@@ -7,20 +7,22 @@
 #pragma once
 
 #include "saiga/geometry/triangle_mesh.h"
+
 #include <map>
+
 #include <unordered_map>
 
-namespace Saiga {
-
+namespace Saiga
+{
 /*
  * Data structur for simple triangle meshes.
  * Can be turned into a IndexedVertexBuffer for drawing with OpenGL
  */
 
-template<typename vertex_t, typename index_t>
+template <typename vertex_t, typename index_t>
 class HalfEdgeMesh
 {
-public:
+   public:
     //    std::vector<vertex_t> vertices;
     //    std::vector<Face> faces;
     //    AABB boundingBox;
@@ -28,11 +30,11 @@ public:
 
     struct HalfEdge
     {
-        bool valid = true;
+        bool valid           = true;
         int oppositeHalfEdge = -1;
         int nextHalfEdge;
         int prevHalfEdge;
-        //The vertex this half edge points to (not the start!!!)
+        // The vertex this half edge points to (not the start!!!)
         int vertex;
         int face;
 
@@ -43,31 +45,31 @@ public:
     {
         bool valid = true;
         vertex_t v;
-        //one outgoing halfedge
+        // one outgoing halfedge
         int halfEdge;
     };
 
     struct HalfFace
     {
         bool valid = true;
-        //one of the "inner" half edges
+        // one of the "inner" half edges
         int halfEdge;
     };
 
     std::vector<HalfEdge> edgeList;
 
-//    std::map< std::pair<int,int>, int > vertexEdges2;
-    std::unordered_map< uint64_t, int > vertexEdges;
-//    std::map< uint64_t, int > vertexEdges;
+    //    std::map< std::pair<int,int>, int > vertexEdges2;
+    std::unordered_map<uint64_t, int> vertexEdges;
+    //    std::map< uint64_t, int > vertexEdges;
 
     std::vector<HalfVertex> vertices;
     std::vector<HalfFace> faces;
 
     HalfEdgeMesh() {}
-    HalfEdgeMesh(TriangleMesh<vertex_t,index_t>& ifs);
+    HalfEdgeMesh(TriangleMesh<vertex_t, index_t>& ifs);
 
-    void fromIFS(TriangleMesh<vertex_t,index_t>& ifs);
-    void toIFS(TriangleMesh<vertex_t,index_t>& ifs);
+    void fromIFS(TriangleMesh<vertex_t, index_t>& ifs);
+    void toIFS(TriangleMesh<vertex_t, index_t>& ifs);
 
     void clear();
 
@@ -78,45 +80,43 @@ public:
     void removeFace(int f);
 
     void getNeighbours(int vertex, std::vector<int>& neighs);
-
 };
 
-template<typename vertex_t, typename index_t>
-HalfEdgeMesh<vertex_t,index_t>::HalfEdgeMesh(TriangleMesh<vertex_t, index_t>& ifs)
+template <typename vertex_t, typename index_t>
+HalfEdgeMesh<vertex_t, index_t>::HalfEdgeMesh(TriangleMesh<vertex_t, index_t>& ifs)
 {
     fromIFS(ifs);
 }
 
-template<typename vertex_t, typename index_t>
-void HalfEdgeMesh<vertex_t,index_t>::fromIFS(TriangleMesh<vertex_t,index_t>& ifs)
+template <typename vertex_t, typename index_t>
+void HalfEdgeMesh<vertex_t, index_t>::fromIFS(TriangleMesh<vertex_t, index_t>& ifs)
 {
     clear();
 
-    edgeList.resize(ifs.faces.size()*3);
+    edgeList.resize(ifs.faces.size() * 3);
     vertices.resize(ifs.vertices.size());
     faces.resize(ifs.faces.size());
 
-    vertexEdges.reserve(ifs.faces.size()*3);
+    vertexEdges.reserve(ifs.faces.size() * 3);
 
-    for(int i = 0; i < (int)ifs.vertices.size(); ++i)
+    for (int i = 0; i < (int)ifs.vertices.size(); ++i)
     {
         vertices[i].v = ifs.vertices[i];
     }
 
 
 
-
-    for(int i = 0; i < (int)ifs.faces.size(); ++i)
+    for (int i = 0; i < (int)ifs.faces.size(); ++i)
     {
         typename TriangleMesh<vertex_t, index_t>::Face f = ifs.faces[i];
 
-        //create 3 half edges for every face
-        int heidx = i * 3;
+        // create 3 half edges for every face
+        int heidx    = i * 3;
         HalfEdge& e1 = edgeList[heidx];
-        HalfEdge& e2 = edgeList[heidx+1];
-        HalfEdge& e3 = edgeList[heidx+2];
+        HalfEdge& e2 = edgeList[heidx + 1];
+        HalfEdge& e3 = edgeList[heidx + 2];
 
-        //They all belong to the same face
+        // They all belong to the same face
         e1.face = i;
         e2.face = i;
         e3.face = i;
@@ -125,7 +125,7 @@ void HalfEdgeMesh<vertex_t,index_t>::fromIFS(TriangleMesh<vertex_t,index_t>& ifs
         e2.vertex = f.v3;
         e3.vertex = f.v1;
 
-        //make the circle pointers
+        // make the circle pointers
         e1.nextHalfEdge = heidx + 1;
         e2.nextHalfEdge = heidx + 2;
         e3.nextHalfEdge = heidx + 0;
@@ -136,11 +136,8 @@ void HalfEdgeMesh<vertex_t,index_t>::fromIFS(TriangleMesh<vertex_t,index_t>& ifs
 
 
 
-
-
-
         HalfFace& hf = faces[i];
-        hf.halfEdge = heidx;
+        hf.halfEdge  = heidx;
 
         HalfVertex& hv1 = vertices[f.v1];
         HalfVertex& hv2 = vertices[f.v2];
@@ -153,45 +150,48 @@ void HalfEdgeMesh<vertex_t,index_t>::fromIFS(TriangleMesh<vertex_t,index_t>& ifs
 #if 1
         uint64_t mapidx;
 
-        mapidx = std::min(f.v1,f.v2) * vertices.size() + std::max(f.v1,f.v2);
+        mapidx = std::min(f.v1, f.v2) * vertices.size() + std::max(f.v1, f.v2);
         auto e = vertexEdges.find(mapidx);
-        if(e == vertexEdges.end())
+        if (e == vertexEdges.end())
         {
             vertexEdges[mapidx] = heidx;
-        }else
+        }
+        else
         {
-            e1.oppositeHalfEdge = e->second;
+            e1.oppositeHalfEdge                  = e->second;
             edgeList[e->second].oppositeHalfEdge = heidx;
         }
 
 
-        mapidx = std::min(f.v2,f.v3) * vertices.size() + std::max(f.v2,f.v3);
-        e = vertexEdges.find(mapidx);
-        if(e == vertexEdges.end())
+        mapidx = std::min(f.v2, f.v3) * vertices.size() + std::max(f.v2, f.v3);
+        e      = vertexEdges.find(mapidx);
+        if (e == vertexEdges.end())
         {
             vertexEdges[mapidx] = heidx + 1;
-        }else
+        }
+        else
         {
-            e2.oppositeHalfEdge = e->second;
+            e2.oppositeHalfEdge                  = e->second;
             edgeList[e->second].oppositeHalfEdge = heidx + 1;
         }
 
 
-        mapidx = std::min(f.v3,f.v1) * vertices.size() + std::max(f.v3,f.v1);
-        e = vertexEdges.find(mapidx);
-        if(e == vertexEdges.end())
+        mapidx = std::min(f.v3, f.v1) * vertices.size() + std::max(f.v3, f.v1);
+        e      = vertexEdges.find(mapidx);
+        if (e == vertexEdges.end())
         {
             vertexEdges[mapidx] = heidx + 2;
-        }else
+        }
+        else
         {
-            e3.oppositeHalfEdge = e->second;
+            e3.oppositeHalfEdge                  = e->second;
             edgeList[e->second].oppositeHalfEdge = heidx + 2;
         }
 
 #else
-        vertexEdges[std::pair<int,int>(f.v1,f.v2)] = heidx;
-        vertexEdges[std::pair<int,int>(f.v2,f.v3)] = heidx + 1;
-        vertexEdges[std::pair<int,int>(f.v3,f.v1)] = heidx + 2;
+        vertexEdges[std::pair<int, int>(f.v1, f.v2)] = heidx;
+        vertexEdges[std::pair<int, int>(f.v2, f.v3)] = heidx + 1;
+        vertexEdges[std::pair<int, int>(f.v3, f.v1)] = heidx + 2;
 #endif
     }
 
@@ -226,30 +226,28 @@ void HalfEdgeMesh<vertex_t,index_t>::fromIFS(TriangleMesh<vertex_t,index_t>& ifs
 #endif
 }
 
-template<typename vertex_t, typename index_t>
-void HalfEdgeMesh<vertex_t,index_t>::toIFS(TriangleMesh<vertex_t, index_t>& ifs)
+template <typename vertex_t, typename index_t>
+void HalfEdgeMesh<vertex_t, index_t>::toIFS(TriangleMesh<vertex_t, index_t>& ifs)
 {
     ifs.faces.clear();
 
 
     ifs.vertices.resize(vertices.size());
     //    ifs.faces.resize(faces.size());
-    for(int i = 0; i < (int)vertices.size(); ++i)
+    for (int i = 0; i < (int)vertices.size(); ++i)
     {
-        if(vertices[i].valid)
-            ifs.vertices[i] = vertices[i].v;
+        if (vertices[i].valid) ifs.vertices[i] = vertices[i].v;
     }
 
-    for(int i = 0; i < (int)faces.size(); ++i)
+    for (int i = 0; i < (int)faces.size(); ++i)
     {
         HalfFace hf = faces[i];
-        if(!hf.valid)
-            continue;
+        if (!hf.valid) continue;
         HalfEdge e1 = edgeList[faces[i].halfEdge];
         HalfEdge e2 = edgeList[e1.nextHalfEdge];
         HalfEdge e3 = edgeList[e2.nextHalfEdge];
 
-        //make sure it's a triangle
+        // make sure it's a triangle
         SAIGA_ASSERT(e3.nextHalfEdge == faces[i].halfEdge);
 
         typename TriangleMesh<vertex_t, index_t>::Face f;
@@ -260,62 +258,58 @@ void HalfEdgeMesh<vertex_t,index_t>::toIFS(TriangleMesh<vertex_t, index_t>& ifs)
         ifs.faces.push_back(f);
         //        ifs.faces[i] = f;
     }
-
-
 }
-template<typename vertex_t, typename index_t>
-void HalfEdgeMesh<vertex_t,index_t>::clear()
+template <typename vertex_t, typename index_t>
+void HalfEdgeMesh<vertex_t, index_t>::clear()
 {
-
     edgeList.clear();
 
-//    std::map< std::pair<int,int>, int > vertexEdges2;
+    //    std::map< std::pair<int,int>, int > vertexEdges2;
     vertexEdges.clear();
 
     vertices.clear();
     faces.clear();
 }
 
-template<typename vertex_t, typename index_t>
-bool HalfEdgeMesh<vertex_t,index_t>::isValid()
+template <typename vertex_t, typename index_t>
+bool HalfEdgeMesh<vertex_t, index_t>::isValid()
 {
-    //check opposites
-    for(int i = 0; i < (int)edgeList.size(); ++i)
+    // check opposites
+    for (int i = 0; i < (int)edgeList.size(); ++i)
     {
         HalfEdge e = edgeList[i];
-        if(!e.valid)
-            continue;
+        if (!e.valid) continue;
 
-        //edge of mesh
-        if(e.oppositeHalfEdge == -1)
+        // edge of mesh
+        if (e.oppositeHalfEdge == -1)
         {
             continue;
         }
 
         HalfEdge op = edgeList[e.oppositeHalfEdge];
 
-        if(op.oppositeHalfEdge != i)
+        if (op.oppositeHalfEdge != i)
         {
-            cout << "Opposite Half Edge Broken! " << i <<"," << e.oppositeHalfEdge << " - " << op.oppositeHalfEdge  << endl;
+            cout << "Opposite Half Edge Broken! " << i << "," << e.oppositeHalfEdge << " - " << op.oppositeHalfEdge
+                 << endl;
             return false;
         }
     }
 
-    //check circles
-    for(int i = 0; i < (int)edgeList.size(); ++i)
+    // check circles
+    for (int i = 0; i < (int)edgeList.size(); ++i)
     {
         HalfEdge e = edgeList[i];
-        if(!e.valid)
-            continue;
+        if (!e.valid) continue;
 
-        if(edgeList[e.nextHalfEdge].prevHalfEdge != i)
+        if (edgeList[e.nextHalfEdge].prevHalfEdge != i)
         {
             cout << "prev broken" << endl;
             return false;
         }
 
         int f = e.face;
-        if(f == -1 || !faces[f].valid)
+        if (f == -1 || !faces[f].valid)
         {
             cout << "valid half edge with broken face" << endl;
             return false;
@@ -323,44 +317,43 @@ bool HalfEdgeMesh<vertex_t,index_t>::isValid()
 
 
         int count = 0;
-        while(e.nextHalfEdge != i)
+        while (e.nextHalfEdge != i)
         {
             e = edgeList[e.nextHalfEdge];
-            if(count++ > 1000)
+            if (count++ > 1000)
             {
                 cout << "Half edge circle broken (over 1000 nodes)!" << endl;
                 return false;
             }
 
-            if(e.valid == false)
+            if (e.valid == false)
             {
                 cout << "valid broken" << endl;
                 return false;
             }
 
-            if(e.face != f)
+            if (e.face != f)
             {
                 cout << "Not all half edges reference the same face" << endl;
                 return false;
             }
         }
 
-        if(count != 2)
+        if (count != 2)
         {
             cout << "Not a triangle mesh" << endl;
             return false;
         }
     }
 
-    //check vertice edges
-    //if they are actual outgoing edges
-    for(int i = 0; i < (int)vertices.size(); ++i)
+    // check vertice edges
+    // if they are actual outgoing edges
+    for (int i = 0; i < (int)vertices.size(); ++i)
     {
         HalfVertex v = vertices[i];
-        if(!v.valid)
-            continue;
+        if (!v.valid) continue;
 
-        if(v.halfEdge == -1)
+        if (v.halfEdge == -1)
         {
             cout << "-1 halfedge on vertex" << endl;
             return false;
@@ -368,12 +361,12 @@ bool HalfEdgeMesh<vertex_t,index_t>::isValid()
 
         HalfEdge e = edgeList[v.halfEdge];
 
-        while(e.nextHalfEdge != v.halfEdge)
+        while (e.nextHalfEdge != v.halfEdge)
         {
             e = edgeList[e.nextHalfEdge];
         }
 
-        if(e.vertex != i)
+        if (e.vertex != i)
         {
             cout << "Vertex edge is broken!" << endl;
             return false;
@@ -383,23 +376,21 @@ bool HalfEdgeMesh<vertex_t,index_t>::isValid()
     return true;
 }
 
-template<typename vertex_t, typename index_t>
-void HalfEdgeMesh<vertex_t,index_t>::halfEdgeCollapse(int he)
+template <typename vertex_t, typename index_t>
+void HalfEdgeMesh<vertex_t, index_t>::halfEdgeCollapse(int he)
 {
-    if (he == -1 || he >= edgeList.size())
-        return;
+    if (he == -1 || he >= edgeList.size()) return;
 
     HalfEdge e = edgeList[he];
 
-    if(!e.valid)
-        return;
+    if (!e.valid) return;
 
     // no border
     //    SAIGA_ASSERT(e.oppositeHalfEdge != -1);
 
 
     int removeVertex = e.vertex;
-    int newVertex = edgeList[e.prevHalfEdge].vertex;
+    int newVertex    = edgeList[e.prevHalfEdge].vertex;
 
 
     //    vertices[removeVertex].v.position += vec4(0,0.5,0,0);
@@ -411,53 +402,47 @@ void HalfEdgeMesh<vertex_t,index_t>::halfEdgeCollapse(int he)
 
 
 
-
-
     // ================================================================================
 
-    //iterate over all triangles of the removed vertex
-    //update the vertices of the "incostd::ming" edges
-    int startHf = vertices[removeVertex].halfEdge;
+    // iterate over all triangles of the removed vertex
+    // update the vertices of the "incostd::ming" edges
+    int startHf   = vertices[removeVertex].halfEdge;
     int currentHf = startHf;
 
-    while(true)
+    while (true)
     {
         HalfEdge& current = edgeList[currentHf];
 
-        if(current.oppositeHalfEdge == -1)
-            break;
+        if (current.oppositeHalfEdge == -1) break;
 
-        //this he points towards the vertex
+        // this he points towards the vertex
         HalfEdge& flip = edgeList[current.oppositeHalfEdge];
         SAIGA_ASSERT(flip.vertex == removeVertex);
         flip.vertex = newVertex;
 
         currentHf = flip.nextHalfEdge;
 
-        if(currentHf == startHf)
-            break;
+        if (currentHf == startHf) break;
     }
 
-    if(currentHf != startHf)
+    if (currentHf != startHf)
     {
-        //we need to iterate in the opposite direction
-        startHf = vertices[removeVertex].halfEdge;
+        // we need to iterate in the opposite direction
+        startHf   = vertices[removeVertex].halfEdge;
         currentHf = startHf;
 
-        while(true)
+        while (true)
         {
             HalfEdge& current = edgeList[currentHf];
-            HalfEdge& flip = edgeList[current.prevHalfEdge];
+            HalfEdge& flip    = edgeList[current.prevHalfEdge];
             SAIGA_ASSERT(flip.vertex == removeVertex);
             flip.vertex = newVertex;
 
-            if(flip.oppositeHalfEdge == -1)
-                break;
+            if (flip.oppositeHalfEdge == -1) break;
 
             currentHf = flip.oppositeHalfEdge;
 
-            if(currentHf == startHf)
-                break;
+            if (currentHf == startHf) break;
         }
         //        SAIGA_ASSERT(currentHf == startHf);
     }
@@ -466,45 +451,39 @@ void HalfEdgeMesh<vertex_t,index_t>::halfEdgeCollapse(int he)
     int w1 = -1, w2 = -1;
     // ================================================================================
 
-    //set the opposite of the edges connected to the removed triangle
+    // set the opposite of the edges connected to the removed triangle
 
-    //upper triangle
+    // upper triangle
     HalfEdge tmp = edgeList[e.nextHalfEdge];
-    int o1 = tmp.oppositeHalfEdge;
-    w1 = tmp.vertex;
-    tmp = edgeList[tmp.nextHalfEdge];
-    int o2 = tmp.oppositeHalfEdge;
+    int o1       = tmp.oppositeHalfEdge;
+    w1           = tmp.vertex;
+    tmp          = edgeList[tmp.nextHalfEdge];
+    int o2       = tmp.oppositeHalfEdge;
 
-    if(o1 != -1)
-        edgeList[o1].oppositeHalfEdge = o2;
-    if(o2 != -1)
-        edgeList[o2].oppositeHalfEdge = o1;
+    if (o1 != -1) edgeList[o1].oppositeHalfEdge = o2;
+    if (o2 != -1) edgeList[o2].oppositeHalfEdge = o1;
 
-    if(o1 != -1)
-        vertices[w1].halfEdge = o1;
+    if (o1 != -1) vertices[w1].halfEdge = o1;
 
 
 
     //    cout << "o1,o2 " << o1 << "," << o2<< endl;
 
-    //other triangle
-    if(e.oppositeHalfEdge != -1)
+    // other triangle
+    if (e.oppositeHalfEdge != -1)
     {
-        tmp = edgeList[e.oppositeHalfEdge];
-        tmp = edgeList[tmp.nextHalfEdge];
+        tmp    = edgeList[e.oppositeHalfEdge];
+        tmp    = edgeList[tmp.nextHalfEdge];
         int o3 = tmp.oppositeHalfEdge;
-        w2 = tmp.vertex;
-        tmp = edgeList[tmp.nextHalfEdge];
+        w2     = tmp.vertex;
+        tmp    = edgeList[tmp.nextHalfEdge];
         int o4 = tmp.oppositeHalfEdge;
 
-        //fix neighbours
-        if(o3 != -1)
-            edgeList[o3].oppositeHalfEdge = o4;
-        if(o4 != -1)
-            edgeList[o4].oppositeHalfEdge = o3;
+        // fix neighbours
+        if (o3 != -1) edgeList[o3].oppositeHalfEdge = o4;
+        if (o4 != -1) edgeList[o4].oppositeHalfEdge = o3;
 
-        if(o3 != -1)
-            vertices[w2].halfEdge = o3;
+        if (o3 != -1) vertices[w2].halfEdge = o3;
 
 
         //        cout << "o3,o4 " << o3 << "," << o4 << endl;
@@ -514,28 +493,28 @@ void HalfEdgeMesh<vertex_t,index_t>::halfEdgeCollapse(int he)
 
     // remove faces
 
-    startHf = he;
+    startHf   = he;
     currentHf = startHf;
     do
     {
-        //remove this half edge
+        // remove this half edge
         HalfEdge& e = edgeList[currentHf];
-        e.valid = false;
-        currentHf = e.nextHalfEdge;
-    }while(currentHf != startHf);
+        e.valid     = false;
+        currentHf   = e.nextHalfEdge;
+    } while (currentHf != startHf);
     faces[removedFace1].valid = false;
 
-    if(e.oppositeHalfEdge != -1 )
+    if (e.oppositeHalfEdge != -1)
     {
-        startHf = e.oppositeHalfEdge;
+        startHf   = e.oppositeHalfEdge;
         currentHf = startHf;
         do
         {
-            //remove this half edge
+            // remove this half edge
             HalfEdge& e = edgeList[currentHf];
-            e.valid = false;
-            currentHf = e.nextHalfEdge;
-        }while(currentHf != startHf);
+            e.valid     = false;
+            currentHf   = e.nextHalfEdge;
+        } while (currentHf != startHf);
         faces[removedFace2].valid = false;
     }
 
@@ -546,26 +525,22 @@ void HalfEdgeMesh<vertex_t,index_t>::halfEdgeCollapse(int he)
     //    if(edgeList[vertices[w1].halfEdge].face == removedFace1)
     //    {
     //    }
-
 }
 
 
-template<typename vertex_t, typename index_t>
-void HalfEdgeMesh<vertex_t,index_t>::flipEdge(int he)
+template <typename vertex_t, typename index_t>
+void HalfEdgeMesh<vertex_t, index_t>::flipEdge(int he)
 {
-    if (he == -1 || he >= edgeList.size())
-        return;
+    if (he == -1 || he >= edgeList.size()) return;
 
     HalfEdge e = edgeList[he];
 
-    if(!e.valid)
-        return;
+    if (!e.valid) return;
 
-    //border edges are not flipable
-    if(e.oppositeHalfEdge == -1)
-        return;
+    // border edges are not flipable
+    if (e.oppositeHalfEdge == -1) return;
 
-    //http://15462.courses.cs.cmu.edu/fall2015content/misc/HalfedgeEdgeOpImplementationGuide.pdf
+    // http://15462.courses.cs.cmu.edu/fall2015content/misc/HalfedgeEdgeOpImplementationGuide.pdf
 
     int h0 = he;
     int h1 = edgeList[h0].nextHalfEdge;
@@ -585,8 +560,8 @@ void HalfEdgeMesh<vertex_t,index_t>::flipEdge(int he)
     int v2 = edgeList[h1].vertex;
     int v3 = edgeList[h4].vertex;
 
-    //just a small check that these vertices are actual different
-    if(v0 == v1 || v0 == v2 || v0 == v3 || v1 == v2 || v1 == v3 || v2 == v3)
+    // just a small check that these vertices are actual different
+    if (v0 == v1 || v0 == v2 || v0 == v3 || v1 == v2 || v1 == v3 || v2 == v3)
     {
         cout << "broken mesh (non manifold). Not flipping..." << endl;
         return;
@@ -611,10 +586,10 @@ void HalfEdgeMesh<vertex_t,index_t>::flipEdge(int he)
     edgeList[h4].oppositeHalfEdge = h9;
     edgeList[h5].oppositeHalfEdge = h6;
 
-    if(h7 != -1) edgeList[h7].oppositeHalfEdge = h1;
-    if(h8 != -1) edgeList[h8].oppositeHalfEdge = h2;
-    if(h9 != -1) edgeList[h9].oppositeHalfEdge = h4;
-    if(h6 != -1) edgeList[h6].oppositeHalfEdge = h5;
+    if (h7 != -1) edgeList[h7].oppositeHalfEdge = h1;
+    if (h8 != -1) edgeList[h8].oppositeHalfEdge = h2;
+    if (h9 != -1) edgeList[h9].oppositeHalfEdge = h4;
+    if (h6 != -1) edgeList[h6].oppositeHalfEdge = h5;
 
     vertices[v0].halfEdge = h2;
     vertices[v1].halfEdge = h5;
@@ -624,65 +599,62 @@ void HalfEdgeMesh<vertex_t,index_t>::flipEdge(int he)
     cout << h0 << "," << h1 << "," << h2 << "," << h3 << "," << h4 << "," << h5 << "," << endl;
     cout << h6 << "," << h7 << "," << h8 << "," << h9 << "," << endl;
     cout << endl;
-
 }
 
 
-template<typename vertex_t, typename index_t>
-void HalfEdgeMesh<vertex_t,index_t>::removeFace(int f)
+template <typename vertex_t, typename index_t>
+void HalfEdgeMesh<vertex_t, index_t>::removeFace(int f)
 {
-    if(f == -1)
-        return;
+    if (f == -1) return;
 
     HalfFace& hf = faces[f];
-    hf.valid = false;
+    hf.valid     = false;
 
 
-    //go in circle around face
-    int startHf = hf.halfEdge;
+    // go in circle around face
+    int startHf   = hf.halfEdge;
     int currentHf = startHf;
     do
     {
-        //remove this half edge
+        // remove this half edge
         HalfEdge& e = edgeList[currentHf];
-        e.valid = false;
+        e.valid     = false;
 
-        if(e.oppositeHalfEdge != -1)
+        if (e.oppositeHalfEdge != -1)
         {
-            HalfEdge& op = edgeList[e.oppositeHalfEdge];
+            HalfEdge& op        = edgeList[e.oppositeHalfEdge];
             op.oppositeHalfEdge = -1;
         }
 
         currentHf = e.nextHalfEdge;
-    }while(currentHf != startHf);
-
+    } while (currentHf != startHf);
 }
 
-template<typename vertex_t, typename index_t>
-void HalfEdgeMesh<vertex_t,index_t>::getNeighbours(int vertex, std::vector<int>& neighs)
+template <typename vertex_t, typename index_t>
+void HalfEdgeMesh<vertex_t, index_t>::getNeighbours(int vertex, std::vector<int>& neighs)
 {
     // ================================================================================
 
-    //iterate over all triangles of the removed vertex
-    //update the vertices of the "incostd::ming" edges
-    int startHf = vertices[vertex].halfEdge;
+    // iterate over all triangles of the removed vertex
+    // update the vertices of the "incostd::ming" edges
+    int startHf   = vertices[vertex].halfEdge;
     int currentHf = startHf;
 
-    while(true)
+    while (true)
     {
         HalfEdge& current = edgeList[currentHf];
         neighs.push_back(current.vertex);
 
-        if(current.oppositeHalfEdge == -1)
+        if (current.oppositeHalfEdge == -1)
         {
             break;
         }
 
-        //this he points towards the vertex
+        // this he points towards the vertex
         HalfEdge& flip = edgeList[current.oppositeHalfEdge];
-        currentHf = flip.nextHalfEdge;
+        currentHf      = flip.nextHalfEdge;
 
-        if(currentHf == startHf)
+        if (currentHf == startHf)
         {
             //            neighs.push_back(edgeList[currentHf].vertex);
             return;
@@ -691,32 +663,28 @@ void HalfEdgeMesh<vertex_t,index_t>::getNeighbours(int vertex, std::vector<int>&
 
     //    if(currentHf != startHf)
     {
-        //we need to iterate in the opposite direction
-        startHf = vertices[vertex].halfEdge;
+        // we need to iterate in the opposite direction
+        startHf   = vertices[vertex].halfEdge;
         currentHf = startHf;
 
-        while(true)
+        while (true)
         {
             HalfEdge& current = edgeList[currentHf];
-            HalfEdge& flip = edgeList[current.prevHalfEdge];
+            HalfEdge& flip    = edgeList[current.prevHalfEdge];
             //            SAIGA_ASSERT(flip.vertex == removeVertex);
             //            flip.vertex = newVertex;
 
-            if(flip.oppositeHalfEdge == -1)
-                break;
+            if (flip.oppositeHalfEdge == -1) break;
 
             currentHf = flip.oppositeHalfEdge;
 
 
-            if(currentHf == startHf)
-                break;
+            if (currentHf == startHf) break;
 
             neighs.push_back(edgeList[currentHf].vertex);
         }
         //        SAIGA_ASSERT(currentHf == startHf);
     }
-
 }
 
-}
-
+}  // namespace Saiga

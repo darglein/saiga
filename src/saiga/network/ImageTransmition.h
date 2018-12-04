@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,37 +7,38 @@
 #pragma once
 
 #include "saiga/image/image.h"
+
 #include "boost/asio.hpp"
 
 using namespace boost::asio;
 
-namespace Saiga {
-
+namespace Saiga
+{
 class SAIGA_GLOBAL ImageTransmition
 {
-public:
-    static const uint32_t magicNumber = 0x206a25f;
+   public:
+    static const uint32_t magicNumber     = 0x206a25f;
     static const uint32_t magicNumberData = 0x2b6a25f;
 
     struct ImageHeader
     {
-          uint32_t mn = magicNumber;
-          uint32_t width;
-          uint32_t height;
-          uint32_t pitch;
-          uint32_t type;
-          uint32_t numDataPackets;
-          uint32_t imageId;
+        uint32_t mn = magicNumber;
+        uint32_t width;
+        uint32_t height;
+        uint32_t pitch;
+        uint32_t type;
+        uint32_t numDataPackets;
+        uint32_t imageId;
     };
 
     static const size_t headerSize = sizeof(ImageHeader);
 
     struct DataHeader
     {
-          uint32_t mn = magicNumberData;
-          uint32_t size;
-          uint32_t offset;
-          uint32_t imageId;
+        uint32_t mn = magicNumberData;
+        uint32_t size;
+        uint32_t offset;
+        uint32_t imageId;
     };
 
     static const size_t dataPacketSize = 1024 - sizeof(DataHeader);
@@ -69,12 +70,10 @@ public:
     bool recieveImage(Image& img);
     bool recieveImageType(Image& img);
 
-private:
+   private:
     io_service ios;
     boost::asio::ip::udp::socket socket;
     ip::udp::endpoint endpoint;
-
 };
 
-}
-
+}  // namespace Saiga

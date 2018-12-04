@@ -1,37 +1,34 @@
 
-#include <glbinding-aux/logging.h>
-
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <fstream>
 #include <sstream>
 
+#include <glbinding-aux/logging.h>
+
 #ifdef GLBINDING_USE_BOOST_THREAD
-#include <boost/chrono.hpp>
-#include <boost/thread.hpp>
+#    include <boost/chrono.hpp>
+#    include <boost/thread.hpp>
 namespace std_boost = boost;
 #else
-#include <condition_variable>
-#include <mutex>
-#include <thread>
+#    include <mutex>
+#    include <thread>
+
+#    include <condition_variable>
 namespace std_boost = std;
 #endif
 
-#include <glbinding-aux/RingBuffer.h>
-
-#include <glbinding/glbinding.h>
 #include <glbinding/AbstractFunction.h>
 #include <glbinding/CallbackMask.h>
-
-#include <glbinding-aux/types_to_string.h>
+#include <glbinding/glbinding.h>
 
 #include "logging_private.h"
+#include <glbinding-aux/RingBuffer.h>
+#include <glbinding-aux/types_to_string.h>
 
 namespace
 {
-
-
 const unsigned int LOG_BUFFER_SIZE = 5000;
 
 std::atomic<bool> g_stop{false};
@@ -43,25 +40,25 @@ using FunctionCallBuffer = glbinding::aux::RingBuffer<glbinding::aux::LogEntry>;
 FunctionCallBuffer g_buffer{LOG_BUFFER_SIZE};
 
 
-} // namespace
+}  // namespace
 
 
-namespace glbinding { namespace aux
+namespace glbinding
 {
-
-
-std::ostream & operator<<(std::ostream & stream, const glbinding::FunctionCall * call)
+namespace aux
+{
+std::ostream& operator<<(std::ostream& stream, const glbinding::FunctionCall* call)
 {
     using microseconds = std::chrono::microseconds;
     using milliseconds = std::chrono::milliseconds;
 
     const auto now_micros = std::chrono::duration_cast<microseconds>(call->timestamp.time_since_epoch());
-    const auto micros = static_cast<std::size_t>(now_micros.count() % 1000);
+    const auto micros     = static_cast<std::size_t>(now_micros.count() % 1000);
     std::ostringstream micros_os;
     micros_os << std::setfill('0') << std::setw(3) << micros;
 
     const auto now_millis = std::chrono::duration_cast<milliseconds>(now_micros);
-    const auto millis = static_cast<std::size_t>(now_millis.count() % 1000);
+    const auto millis     = static_cast<std::size_t>(now_millis.count() % 1000);
     std::ostringstream millis_os;
     millis_os << std::setfill('0') << std::setw(3) << millis;
 
@@ -75,8 +72,7 @@ std::ostream & operator<<(std::ostream & stream, const glbinding::FunctionCall *
     for (size_t i = 0; i < call->parameters.size(); ++i)
     {
         stream << call->parameters[i].get();
-        if (i < call->parameters.size() - 1)
-            stream << ", ";
+        if (i < call->parameters.size() - 1) stream << ", ";
     }
 
     stream << ")";
@@ -104,21 +100,21 @@ void start()
     start(filepath);
 }
 
-void start(const std::string & filepath)
+void start(const std::string& filepath)
 {
     glbinding::setLogCallback(glbinding::aux::log);
     glbinding::addCallbackMask(CallbackMask::Timestamp | CallbackMask::Logging);
     startWriter(filepath);
 }
 
-void startExcept(const std::set<std::string> & blackList)
+void startExcept(const std::set<std::string>& blackList)
 {
     const auto filepath = getStandardFilepath();
 
     startExcept(filepath, blackList);
 }
 
-void startExcept(const std::string & filepath, const std::set<std::string> & blackList)
+void startExcept(const std::string& filepath, const std::set<std::string>& blackList)
 {
     glbinding::addCallbackMaskExcept(CallbackMask::Timestamp | CallbackMask::Logging, blackList);
     startWriter(filepath);
@@ -132,7 +128,7 @@ void stop()
     std_boost::unique_lock<std_boost::mutex> locker(g_lockfinish);
 
     // Spurious wake-ups: http://www.codeproject.com/Articles/598695/Cplusplus-threads-locks-and-condition-variables
-    while(!g_persisted)
+    while (!g_persisted)
     {
         g_finishcheck.wait(locker);
     }
@@ -148,10 +144,10 @@ void resume()
     glbinding::addCallbackMask(CallbackMask::Timestamp | CallbackMask::Logging);
 }
 
-void log(FunctionCall * call)
+void log(FunctionCall* call)
 {
     auto available = false;
-    auto next = g_buffer.nextHead(available);
+    auto next      = g_buffer.nextHead(available);
 
     while (!available)
     {
@@ -165,16 +161,15 @@ void log(FunctionCall * call)
     g_buffer.push(call);
 }
 
-void startWriter(const std::string & filepath)
+void startWriter(const std::string& filepath)
 {
-    g_stop = false;
+    g_stop      = false;
     g_persisted = false;
 
-    std_boost::thread writer([filepath]()
-    {
+    std_boost::thread writer([filepath]() {
         const auto key = g_buffer.addTail();
         std::ofstream logfile;
-        logfile.open (filepath, std::ios::out);
+        logfile.open(filepath, std::ios::out);
 
         while (!g_stop || (g_buffer.size(key) != 0))
         {
@@ -205,7 +200,7 @@ const std::string getStandardFilepath()
     const auto now = std::chrono::system_clock::now();
 
     const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-    const auto ms = now_ms.count() % 1000;
+    const auto ms     = now_ms.count() % 1000;
 
     const auto now_c = std::chrono::system_clock::to_time_t(now);
 
@@ -238,12 +233,12 @@ const std::vector<LogEntry>::const_iterator cbegin(TailIdentifier key)
     return g_buffer.cbegin(key);
 }
 
-bool valid(TailIdentifier key, const std::vector<LogEntry>::const_iterator & it)
+bool valid(TailIdentifier key, const std::vector<LogEntry>::const_iterator& it)
 {
     return g_buffer.valid(key, it);
 }
 
-const std::vector<LogEntry>::const_iterator next(TailIdentifier key, const std::vector<LogEntry>::const_iterator & it)
+const std::vector<LogEntry>::const_iterator next(TailIdentifier key, const std::vector<LogEntry>::const_iterator& it)
 {
     return g_buffer.next(key, it);
 }
@@ -254,4 +249,5 @@ unsigned int size(TailIdentifier key)
 }
 
 
-} } // namespace glbinding::aux
+}  // namespace aux
+}  // namespace glbinding

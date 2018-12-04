@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,9 +9,10 @@
 #include "saiga/cuda/cuda.h"
 #include "saiga/cuda/event.h"
 
-namespace Saiga {
-namespace CUDA {
-
+namespace Saiga
+{
+namespace CUDA
+{
 /**
  * A c++ class for meassuring CUDA command times
  *
@@ -25,10 +26,11 @@ namespace CUDA {
  */
 class SAIGA_GLOBAL CudaScopedTimer
 {
-public:
+   public:
     CudaScopedTimer(float& time, cudaStream_t stream = 0);
     ~CudaScopedTimer();
-private:
+
+   private:
     float& time;
     CudaEvent start, stop;
     cudaStream_t stream;
@@ -36,17 +38,18 @@ private:
 
 
 
-class SAIGA_GLOBAL CudaScopedTimerPrint 
+class SAIGA_GLOBAL CudaScopedTimerPrint
 {
-public:
-    CudaScopedTimerPrint(const std::string &name, cudaStream_t stream = 0);
+   public:
+    CudaScopedTimerPrint(const std::string& name, cudaStream_t stream = 0);
     ~CudaScopedTimerPrint();
-private:
+
+   private:
     std::string name;
     CudaEvent start, stop;
     cudaStream_t stream;
 };
 
 
-}
-}
+}  // namespace CUDA
+}  // namespace Saiga

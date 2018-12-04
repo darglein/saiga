@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,9 +9,10 @@
 #include "saiga/cuda/cudaHelper.h"
 
 
-namespace Saiga {
-namespace CUDA{
-
+namespace Saiga
+{
+namespace CUDA
+{
 /**
  * A simple c++ wrapper for cuda streams
  *
@@ -23,37 +24,25 @@ namespace CUDA{
  */
 class SAIGA_GLOBAL CudaStream
 {
-public:
+   public:
     cudaStream_t stream;
 
 
-    CudaStream()
-    {
-        cudaStreamCreate(&stream);
-    }
+    CudaStream() { cudaStreamCreate(&stream); }
 
-    ~CudaStream()
-    {
-        cudaStreamDestroy(stream);
-    }
+    ~CudaStream() { cudaStreamDestroy(stream); }
 
     // Let the stream wait for this event
     // this call returns immediately
-    void waitForEvent(cudaEvent_t event) { cudaStreamWaitEvent(stream,event,0); }
+    void waitForEvent(cudaEvent_t event) { cudaStreamWaitEvent(stream, event, 0); }
 
 
     operator cudaStream_t() const { return stream; }
 
-    static cudaStream_t legacyStream()
-    {
-        return cudaStreamLegacy;
-    }
+    static cudaStream_t legacyStream() { return cudaStreamLegacy; }
 
-    static cudaStream_t perThreadStream()
-    {
-        return cudaStreamPerThread;
-    }
+    static cudaStream_t perThreadStream() { return cudaStreamPerThread; }
 };
 
-}
-}
+}  // namespace CUDA
+}  // namespace Saiga

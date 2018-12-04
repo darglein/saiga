@@ -5,65 +5,62 @@
  */
 
 #include "saiga/rendering/overlay/deferredDebugOverlay.h"
-#include "saiga/opengl/shader/basic_shaders.h"
+
 #include "saiga/geometry/triangle_mesh.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/framebuffer.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/rendering/deferredRendering/gbuffer.h"
-#include "saiga/geometry/triangle_mesh_generator.h"
 
 
-namespace Saiga {
-
-DeferredDebugOverlay::DeferredDebugOverlay(int width, int height)
-    :  layout(width,height)
+namespace Saiga
 {
-
+DeferredDebugOverlay::DeferredDebugOverlay(int width, int height) : layout(width, height)
+{
     auto tm = TriangleMeshGenerator::createFullScreenQuadMesh();
 
-    float aspect = float(width)/height;
-    tm->transform(scale(vec3(aspect,1,1)));
+    float aspect = float(width) / height;
+    tm->transform(scale(vec3(aspect, 1, 1)));
 
     meshBB = tm->calculateAabb();
 
     buffer.fromMesh(*tm);
 
 
-    setScreenPosition(&color,0);
-    setScreenPosition(&normal,1);
-    setScreenPosition(&depth,2);
-    setScreenPosition(&data,3);
-    setScreenPosition(&light,4);
-
+    setScreenPosition(&color, 0);
+    setScreenPosition(&normal, 1);
+    setScreenPosition(&depth, 2);
+    setScreenPosition(&data, 3);
+    setScreenPosition(&light, 4);
 }
 
 void DeferredDebugOverlay::loadShaders()
 {
-    shader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer.glsl");
-    depthShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_depth.glsl");
+    shader       = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer.glsl");
+    depthShader  = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_depth.glsl");
     normalShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_normal.glsl");
 }
 
-void DeferredDebugOverlay::setScreenPosition(GbufferTexture *gbt, int id)
+void DeferredDebugOverlay::setScreenPosition(GbufferTexture* gbt, int id)
 {
     float images = 5;
 
-    float s = 1.0f/images;
+    float s = 1.0f / images;
 
-    layout.transform(gbt,meshBB,vec2(1,1 - s * id),s,Layout::RIGHT,Layout::RIGHT);
+    layout.transform(gbt, meshBB, vec2(1, 1 - s * id), s, Layout::RIGHT, Layout::RIGHT);
     return;
     gbt->setScale(vec3(s));
     float dy = -s * 2.0f;
-    float y = id*dy+dy*0.5f+1.0f;
-    gbt->translateGlobal(vec3(1.0f-s,y,0));
+    float y  = id * dy + dy * 0.5f + 1.0f;
+    gbt->translateGlobal(vec3(1.0f - s, y, 0));
     gbt->calculateModel();
 }
 
 void DeferredDebugOverlay::render()
 {
     // lazy shader loading
-    if(!shader)
-        loadShaders();
+    if (!shader) loadShaders();
 
 
     glDisable(GL_DEPTH_TEST);
@@ -100,13 +97,13 @@ void DeferredDebugOverlay::render()
     depthShader->unbind();
 }
 
-void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer *gbuffer, std::shared_ptr<raw_Texture> light)
+void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer* gbuffer, std::shared_ptr<raw_Texture> light)
 {
-    color.texture = gbuffer->getTextureColor();
-    normal.texture = gbuffer->getTextureNormal();
-    depth.texture = gbuffer->getTextureDepth();
-    data.texture = gbuffer->getTextureData();
+    color.texture       = gbuffer->getTextureColor();
+    normal.texture      = gbuffer->getTextureNormal();
+    depth.texture       = gbuffer->getTextureDepth();
+    data.texture        = gbuffer->getTextureData();
     this->light.texture = light;
 }
 
-}
+}  // namespace Saiga

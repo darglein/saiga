@@ -1,38 +1,40 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include "saiga/opengl/texture/texture.h"
-#include "saiga/opengl/texture/cube_texture.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
+#include "saiga/opengl/texture/cube_texture.h"
+#include "saiga/opengl/texture/texture.h"
 #include "saiga/util/perlinnoise.h"
-#include "saiga/geometry/triangle_mesh_generator.h"
 
-namespace Saiga {
+namespace Saiga
+{
+class SAIGA_GLOBAL Heightmap
+{
+   private:
+    typedef TriangleMesh<Vertex, GLuint> mesh_t;
 
-class SAIGA_GLOBAL Heightmap{
-private:
-    typedef TriangleMesh<Vertex,GLuint> mesh_t;
-public:
+   public:
     int n = 63;
-     int m = (n+1)/4;
+    int m = (n + 1) / 4;
 
-     int layers,w,h;
+    int layers, w, h;
 
-     float* heights;
+    float* heights;
 
-     float heightScale = 20.0f;
-     float minH = 125725;
-     float maxH = -0125725;
+    float heightScale = 20.0f;
+    float minH        = 125725;
+    float maxH        = -0125725;
 
-     vec2 mapOffset = vec2(0);//vec2(50,50);
-     vec2 mapScale = vec2(10);
-     vec2 mapScaleInv = 1.0f/mapScale;
+    vec2 mapOffset   = vec2(0);  // vec2(50,50);
+    vec2 mapScale    = vec2(10);
+    vec2 mapScaleInv = 1.0f / mapScale;
 
     std::vector<Image> heightmap;
     std::vector<Image> normalmap;
@@ -50,8 +52,7 @@ public:
 
     bool loadMaps();
 
-private:
-
+   private:
     void createInitialHeightmap();
     void createRemainingLayers();
     void createNormalmap();
@@ -66,8 +67,6 @@ private:
     float getHeightScaled(int x, int y);
     float getHeightScaled(int layer, int x, int y);
     void setHeight(int x, int y, float v);
-
-
 };
 
-}
+}  // namespace Saiga

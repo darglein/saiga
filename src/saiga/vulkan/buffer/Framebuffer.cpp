@@ -7,19 +7,17 @@
 #include "Framebuffer.h"
 
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 void Framebuffer::destroy(vk::Device device)
 {
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    vkDestroyFramebuffer(device, framebuffer, nullptr);
 }
 
-void Framebuffer::createColorDepthStencil(
-        int width, int height,
-        vk::ImageView color, vk::ImageView depthStencil,
-        vk::RenderPass renderPass, vk::Device device
-        )
+void Framebuffer::createColorDepthStencil(int width, int height, vk::ImageView color, vk::ImageView depthStencil,
+                                          vk::RenderPass renderPass, vk::Device device)
 {
     VkImageView attachments[2];
 
@@ -30,25 +28,20 @@ void Framebuffer::createColorDepthStencil(
 
 
     VkFramebufferCreateInfo frameBufferCreateInfo = {};
-    frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    frameBufferCreateInfo.pNext = NULL;
-    frameBufferCreateInfo.renderPass = renderPass;
-    frameBufferCreateInfo.attachmentCount = 2;
-    frameBufferCreateInfo.pAttachments = attachments;
-    frameBufferCreateInfo.width = width;
-    frameBufferCreateInfo.height = height;
-    frameBufferCreateInfo.layers = 1;
+    frameBufferCreateInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    frameBufferCreateInfo.pNext                   = NULL;
+    frameBufferCreateInfo.renderPass              = renderPass;
+    frameBufferCreateInfo.attachmentCount         = 2;
+    frameBufferCreateInfo.pAttachments            = attachments;
+    frameBufferCreateInfo.width                   = width;
+    frameBufferCreateInfo.height                  = height;
+    frameBufferCreateInfo.layers                  = 1;
 
 
-        VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &framebuffer));
-
+    VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &framebuffer));
 }
 
-void Framebuffer::createColor(
-        int width, int height,
-        vk::ImageView color,
-        vk::RenderPass renderPass, vk::Device device
-        )
+void Framebuffer::createColor(int width, int height, vk::ImageView color, vk::RenderPass renderPass, vk::Device device)
 {
     VkImageView attachments[1];
 
@@ -58,33 +51,32 @@ void Framebuffer::createColor(
 
 
     VkFramebufferCreateInfo frameBufferCreateInfo = {};
-    frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    frameBufferCreateInfo.pNext = NULL;
-    frameBufferCreateInfo.renderPass = renderPass;
-    frameBufferCreateInfo.attachmentCount = 1;
-    frameBufferCreateInfo.pAttachments = attachments;
-    frameBufferCreateInfo.width = width;
-    frameBufferCreateInfo.height = height;
-    frameBufferCreateInfo.layers = 1;
+    frameBufferCreateInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    frameBufferCreateInfo.pNext                   = NULL;
+    frameBufferCreateInfo.renderPass              = renderPass;
+    frameBufferCreateInfo.attachmentCount         = 1;
+    frameBufferCreateInfo.pAttachments            = attachments;
+    frameBufferCreateInfo.width                   = width;
+    frameBufferCreateInfo.height                  = height;
+    frameBufferCreateInfo.layers                  = 1;
 
 
-        VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &framebuffer));
-
+    VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &framebuffer));
 }
 
 void Framebuffer::create(int width, int height, vk::RenderPass renderPass, vk::Device device)
 {
     VkFramebufferCreateInfo frameBufferCreateInfo = {};
-    frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    frameBufferCreateInfo.pNext = NULL;
-    frameBufferCreateInfo.renderPass = renderPass;
-    frameBufferCreateInfo.attachmentCount = 0;
-    frameBufferCreateInfo.width = width;
-    frameBufferCreateInfo.height = height;
-    frameBufferCreateInfo.layers = 1;
-        VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &framebuffer));
+    frameBufferCreateInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    frameBufferCreateInfo.pNext                   = NULL;
+    frameBufferCreateInfo.renderPass              = renderPass;
+    frameBufferCreateInfo.attachmentCount         = 0;
+    frameBufferCreateInfo.width                   = width;
+    frameBufferCreateInfo.height                  = height;
+    frameBufferCreateInfo.layers                  = 1;
+    VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &framebuffer));
 }
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

@@ -6,20 +6,20 @@
 
 #pragma once
 
-#include "saiga/util/math.h"
-#include "saiga/opengl/opengl.h"
 #include "saiga/image/imageFormat.h"
+#include "saiga/opengl/opengl.h"
+#include "saiga/util/math.h"
 
 /**
  * Note:
  * This is separated from the normal imageFormat to get rid of the opengl dependency
  */
 
-namespace Saiga {
-
+namespace Saiga
+{
 // TODO: Integer (not normalized) images for 8 and 16 bits.
 SAIGA_GLOBAL GLenum getGlInternalFormat(ImageType type, bool srgb = false, bool integral = false);
 SAIGA_GLOBAL GLenum getGlFormat(ImageType type);
 SAIGA_GLOBAL GLenum getGlType(ImageType type);
 
-}
+}  // namespace Saiga

@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include <vector>
 #include "saiga/image/imageBase.h"
 #include "saiga/image/imageFormat.h"
 #include "saiga/image/imageView.h"
 #include "saiga/util/ArrayView.h"
 #include "saiga/util/fileChecker.h"
+
+#include <vector>
 
 namespace Saiga
 {

@@ -3,11 +3,14 @@
 //
 
 #include "BufferChunkAllocator.h"
-#include <functional>
-#include <string>
-#include "BaseChunkAllocator.h"
+
 #include "saiga/util/assert.h"
 #include "saiga/util/easylogging++.h"
+
+#include "BaseChunkAllocator.h"
+
+#include <functional>
+#include <string>
 
 
 MemoryLocation BufferChunkAllocator::allocate(vk::DeviceSize size)

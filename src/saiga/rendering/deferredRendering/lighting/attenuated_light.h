@@ -6,38 +6,40 @@
 
 #pragma once
 
-#include "saiga/rendering/deferredRendering/lighting/light.h"
 #include "saiga/camera/camera.h"
+#include "saiga/rendering/deferredRendering/lighting/light.h"
 
-namespace Saiga {
-
-
-class SAIGA_GLOBAL AttenuatedLightShader : public LightShader{
-public:
+namespace Saiga
+{
+class SAIGA_GLOBAL AttenuatedLightShader : public LightShader
+{
+   public:
     GLint location_attenuation;
 
     virtual void checkUniforms();
-    virtual void uploadA(vec3 &attenuation, float cutoffRadius);
+    virtual void uploadA(vec3& attenuation, float cutoffRadius);
 };
 
-namespace AttenuationPresets{
-static const vec3 NONE = vec3(1,0,0); //Cutoff = 1
+namespace AttenuationPresets
+{
+static const vec3 NONE = vec3(1, 0, 0);  // Cutoff = 1
 
-static const vec3 LinearWeak = vec3(1,0.5,0); //Cutoff = 0.666667
-static const vec3 Linear = vec3(1,1,0); //Cutoff = 0.5
-static const vec3 LinearStrong = vec3(1,4,0); //Cutoff = 0.2
+static const vec3 LinearWeak   = vec3(1, 0.5, 0);  // Cutoff = 0.666667
+static const vec3 Linear       = vec3(1, 1, 0);    // Cutoff = 0.5
+static const vec3 LinearStrong = vec3(1, 4, 0);    // Cutoff = 0.2
 
 
-static const vec3 QuadraticWeak = vec3(1,0.5,0.5); //Cutoff = 0.5
-static const vec3 Quadratic = vec3(1,1,1); //Cutoff = 0.333333
-static const vec3 QuadraticStrong = vec3(1,2,4); //Cutoff = 0.142857
-}
+static const vec3 QuadraticWeak   = vec3(1, 0.5, 0.5);  // Cutoff = 0.5
+static const vec3 Quadratic       = vec3(1, 1, 1);      // Cutoff = 0.333333
+static const vec3 QuadraticStrong = vec3(1, 2, 4);      // Cutoff = 0.142857
+}  // namespace AttenuationPresets
 
 
 class SAIGA_GLOBAL AttenuatedLight : public Light
 {
     friend class DeferredLighting;
-protected:
+
+   protected:
     /**
      * Quadratic attenuation of the form:
      * I = i/(a*x*x+b*x+c)
@@ -62,17 +64,15 @@ protected:
      */
     float cutoffRadius;
 
-public:
-
-
+   public:
     AttenuatedLight();
-    virtual ~AttenuatedLight(){}
+    virtual ~AttenuatedLight() {}
     AttenuatedLight& operator=(const AttenuatedLight& light);
 
-    //evaluates the attenuation formula at a given radius
+    // evaluates the attenuation formula at a given radius
     float evaluateAttenuation(float distance);
 
-    virtual void bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera *cam);
+    virtual void bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera* cam);
 
 
     float getRadius() const;
@@ -80,7 +80,7 @@ public:
 
     vec3 getAttenuation() const;
     float getAttenuation(float r);
-    void setAttenuation(const vec3 &value);
+    void setAttenuation(const vec3& value);
 
     void createShadowMap(int resX, int resY);
 
@@ -88,8 +88,8 @@ public:
     void calculateCamera(int face);
 
 
-    bool cullLight(Camera *cam);
+    bool cullLight(Camera* cam);
     void renderImGui();
 };
 
-}
+}  // namespace Saiga

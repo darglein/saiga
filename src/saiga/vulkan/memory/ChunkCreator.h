@@ -4,25 +4,28 @@
 
 #pragma once
 
-#include <vulkan/vulkan.hpp>
-#include <vector>
 #include "ChunkType.h"
+#include "MemoryLocation.h"
+
 #include <map>
 #include <memory>
 #include <utility>
-#include "MemoryLocation.h"
+#include <vector>
+#include <vulkan/vulkan.hpp>
 
-namespace Saiga {
-namespace Vulkan {
-namespace Memory {
-
+namespace Saiga
+{
+namespace Vulkan
+{
+namespace Memory
+{
 /**
  * Class that allocates chunks of memory for different types.
  * Returns shared pointers to the chunks.
  */
-class SAIGA_LOCAL ChunkCreator {
-
-private:
+class SAIGA_LOCAL ChunkCreator
+{
+   private:
     bool m_initialized = false;
     vk::PhysicalDevice m_physicalDevice;
     vk::Device m_device;
@@ -30,20 +33,22 @@ private:
 
     ChunkType& findMemoryType(vk::MemoryPropertyFlags flags);
 
-public:
+   public:
     void init(vk::PhysicalDevice _physicalDevice, vk::Device _device);
 
-    std::shared_ptr<Chunk> allocate(vk::MemoryPropertyFlags propertyFlags,vk::DeviceSize chunkSize);
+    std::shared_ptr<Chunk> allocate(vk::MemoryPropertyFlags propertyFlags, vk::DeviceSize chunkSize);
 
     void deallocate(std::shared_ptr<Chunk> chunk);
 
-    void destroy() {
-        for(auto& type : m_memoryTypes) {
+    void destroy()
+    {
+        for (auto& type : m_memoryTypes)
+        {
             type.destroy();
         }
     }
 };
 
-}
-}
-}
+}  // namespace Memory
+}  // namespace Vulkan
+}  // namespace Saiga

@@ -5,13 +5,9 @@
  */
 
 #include "saiga/rendering/program.h"
+
 #include "saiga/opengl/OpenGLWindow.h"
 
-namespace Saiga {
-
-
-
-
-
-
+namespace Saiga
+{
 }

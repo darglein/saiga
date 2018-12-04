@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,8 +9,6 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
 void glAccum(GLenum op, GLfloat value)
 {
     return Binding::Accum(op, value);
@@ -51,7 +49,7 @@ void glActiveTextureARB(GLenum texture)
     return Binding::ActiveTextureARB(texture);
 }
 
-void glActiveVaryingNV(GLuint program, const GLchar * name)
+void glActiveVaryingNV(GLuint program, const GLchar* name)
 {
     return Binding::ActiveVaryingNV(program, name);
 }
@@ -61,14 +59,17 @@ void glAlphaFragmentOp1ATI(GLenum op, GLuint dst, GLuint dstMod, GLuint arg1, GL
     return Binding::AlphaFragmentOp1ATI(op, dst, dstMod, arg1, arg1Rep, arg1Mod);
 }
 
-void glAlphaFragmentOp2ATI(GLenum op, GLuint dst, GLuint dstMod, GLuint arg1, GLuint arg1Rep, GLuint arg1Mod, GLuint arg2, GLuint arg2Rep, GLuint arg2Mod)
+void glAlphaFragmentOp2ATI(GLenum op, GLuint dst, GLuint dstMod, GLuint arg1, GLuint arg1Rep, GLuint arg1Mod,
+                           GLuint arg2, GLuint arg2Rep, GLuint arg2Mod)
 {
     return Binding::AlphaFragmentOp2ATI(op, dst, dstMod, arg1, arg1Rep, arg1Mod, arg2, arg2Rep, arg2Mod);
 }
 
-void glAlphaFragmentOp3ATI(GLenum op, GLuint dst, GLuint dstMod, GLuint arg1, GLuint arg1Rep, GLuint arg1Mod, GLuint arg2, GLuint arg2Rep, GLuint arg2Mod, GLuint arg3, GLuint arg3Rep, GLuint arg3Mod)
+void glAlphaFragmentOp3ATI(GLenum op, GLuint dst, GLuint dstMod, GLuint arg1, GLuint arg1Rep, GLuint arg1Mod,
+                           GLuint arg2, GLuint arg2Rep, GLuint arg2Mod, GLuint arg3, GLuint arg3Rep, GLuint arg3Mod)
 {
-    return Binding::AlphaFragmentOp3ATI(op, dst, dstMod, arg1, arg1Rep, arg1Mod, arg2, arg2Rep, arg2Mod, arg3, arg3Rep, arg3Mod);
+    return Binding::AlphaFragmentOp3ATI(op, dst, dstMod, arg1, arg1Rep, arg1Mod, arg2, arg2Rep, arg2Mod, arg3, arg3Rep,
+                                        arg3Mod);
 }
 
 void glAlphaFunc(GLenum func, GLfloat ref)
@@ -96,17 +97,17 @@ void glApplyTextureEXT(GLenum mode)
     return Binding::ApplyTextureEXT(mode);
 }
 
-GLboolean glAreProgramsResidentNV(GLsizei n, const GLuint * programs, GLboolean * residences)
+GLboolean glAreProgramsResidentNV(GLsizei n, const GLuint* programs, GLboolean* residences)
 {
     return Binding::AreProgramsResidentNV(n, programs, residences);
 }
 
-GLboolean glAreTexturesResident(GLsizei n, const GLuint * textures, GLboolean * residences)
+GLboolean glAreTexturesResident(GLsizei n, const GLuint* textures, GLboolean* residences)
 {
     return Binding::AreTexturesResident(n, textures, residences);
 }
 
-GLboolean glAreTexturesResidentEXT(GLsizei n, const GLuint * textures, GLboolean * residences)
+GLboolean glAreTexturesResidentEXT(GLsizei n, const GLuint* textures, GLboolean* residences)
 {
     return Binding::AreTexturesResidentEXT(n, textures, residences);
 }
@@ -143,5 +144,4 @@ void glAttachShader(GLuint program, GLuint shader)
 
 
 
-
-} // namespace gl
+}  // namespace gl

@@ -5,9 +5,9 @@
 #undef main
 
 extern int maingsdgdfg();
-int main(const int argc, const char *argv[])
+int main(const int argc, const char* argv[])
 {
-    using namespace  Saiga;
+    using namespace Saiga;
 
 
     {
@@ -15,7 +15,7 @@ int main(const int argc, const char *argv[])
         Saiga::initSample(windowParameters.saigaParameters);
         windowParameters.fromConfigFile("config.ini");
 
-        windowParameters.width = 640 * 2;
+        windowParameters.width  = 640 * 2;
         windowParameters.height = 480;
 
         Saiga::Vulkan::SDLWindow window(windowParameters);
@@ -23,10 +23,10 @@ int main(const int argc, const char *argv[])
 
         Saiga::Vulkan::VulkanParameters vulkanParams;
         vulkanParams.enableValidationLayer = true;
-        Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
+        Saiga::Vulkan::VulkanForwardRenderer renderer(window, vulkanParams);
 
 
-        VulkanExample example(window,renderer);
+        VulkanExample example(window, renderer);
         renderer.initChildren();
 
         window.startMainLoop();

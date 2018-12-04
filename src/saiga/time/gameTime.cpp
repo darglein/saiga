@@ -5,22 +5,24 @@
  */
 
 #include "saiga/time/gameTime.h"
+
 #include "saiga/util/math.h"
+
 #include "internal/noGraphicsAPI.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 GameTime gameTime;
 
 void GameTime::init(tick_t _dt, tick_t _dtr)
 {
     maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::hours(1000));
-    dt = _dt;
-    dtr = _dtr;
+    dt               = _dt;
+    dtr              = _dtr;
 
     gameTimer.start();
 
-    realTime = gameTimer.stop();
+    realTime     = gameTimer.stop();
     lastRealTime = realTime;
 
     update();
@@ -46,8 +48,8 @@ void GameTime::jumpToLive()
 
 void GameTime::update()
 {
-    realTime = gameTimer.stop();
-    auto step = realTime - lastRealTime;
+    realTime        = gameTimer.stop();
+    auto step       = realTime - lastRealTime;
     auto scaledStep = std::chrono::duration_cast<tick_t>(step * timeScale);
     scaledTime += scaledStep;
     lastRealTime = realTime;
@@ -58,17 +60,23 @@ bool GameTime::shouldUpdate()
     update();
     auto currentDelay = scaledTime - nextUpdateTime;
 
-    if(currentDelay > maxGameLoopDelay){
+    if (currentDelay > maxGameLoopDelay)
+    {
         jtl = true;
     }
 
 
-    if(jtl){
-        if(currentDelay.count() > 0){
-            if(printInfoMsg){
-//                std::cout << "> Advancing game time to live. Adding a delay of " << std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(currentDelay).count() << " ms" << std::endl;
+    if (jtl)
+    {
+        if (currentDelay.count() > 0)
+        {
+            if (printInfoMsg)
+            {
+                //                std::cout << "> Advancing game time to live. Adding a delay of " <<
+                //                std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(currentDelay).count()
+                //                << " ms" << std::endl;
             }
-            scaledTime = nextUpdateTime;
+            scaledTime    = nextUpdateTime;
             nextFrameTime = realTime;
         }
         jtl = false;
@@ -76,13 +84,16 @@ bool GameTime::shouldUpdate()
 
 
 
-    if(currentDelay > tick_t(0)){
+    if (currentDelay > tick_t(0))
+    {
         actualUpdateTime = scaledTime;
-        updatetime = nextUpdateTime;
-        currentTime = updatetime;
+        updatetime       = nextUpdateTime;
+        currentTime      = updatetime;
         nextUpdateTime += dt;
         return true;
-    }else{
+    }
+    else
+    {
         return false;
     }
 }
@@ -90,22 +101,25 @@ bool GameTime::shouldUpdate()
 bool GameTime::shouldRender()
 {
     update();
-    if(realTime > nextFrameTime){
+    if (realTime > nextFrameTime)
+    {
         //        updatetime = nextFrameTick;
 
         tick_t ticksSinceLastUpdate = scaledTime - actualUpdateTime;
 
-        renderTime = updatetime + ticksSinceLastUpdate;
+        renderTime  = updatetime + ticksSinceLastUpdate;
         currentTime = renderTime;
 
         //        calculate the interpolation value. Useful when the framerate is higher than the update rate
         interpolation = (double)ticksSinceLastUpdate.count() / (nextUpdateTime - updatetime).count();
-        interpolation = clamp(interpolation,0.0,1.0);
+        interpolation = clamp(interpolation, 0.0, 1.0);
 
 
         nextFrameTime += dtr;
         return true;
-    }else{
+    }
+    else
+    {
         return false;
     }
 }
@@ -117,8 +131,8 @@ tick_t GameTime::getSleepTime()
     auto timeTillU = nextUpdateTime - scaledTime;
     auto timeTillR = nextFrameTime - realTime;
 
-    tick_t nextEvent = timeTillU < timeTillR? timeTillU: timeTillR;
+    tick_t nextEvent = timeTillU < timeTillR ? timeTillU : timeTillR;
     return nextEvent;
 }
 
-}
+}  // namespace Saiga

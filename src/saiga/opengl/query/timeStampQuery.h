@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,13 +8,14 @@
 
 #include "saiga/opengl/opengl.h"
 
-namespace Saiga {
-
-class SAIGA_GLOBAL TimeStampQuery{
-private:
-
+namespace Saiga
+{
+class SAIGA_GLOBAL TimeStampQuery
+{
+   private:
     GLuint id = 0;
-public:
+
+   public:
     TimeStampQuery();
     ~TimeStampQuery();
     void create();
@@ -36,4 +37,4 @@ public:
     GLuint64 waitTimestamp();
 };
 
-}
+}  // namespace Saiga

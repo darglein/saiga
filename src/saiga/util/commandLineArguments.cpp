@@ -5,23 +5,23 @@
  */
 
 #include "saiga/util/commandLineArguments.h"
+
 #include "saiga/util/assert.h"
 
 #include "internal/noGraphicsAPI.h"
-namespace Saiga {
-
+namespace Saiga
+{
 std::string CommandLineArguments::get(std::string name)
 {
-    for(auto& arg : arguments)
+    for (auto& arg : arguments)
     {
-        if(arg.long_name == name)
-            return arg.value;
+        if (arg.long_name == name) return arg.value;
     }
     SAIGA_ASSERT(0);
     return "";
 }
 
-void CommandLineArguments::parse(int argc, char *argv[])
+void CommandLineArguments::parse(int argc, char* argv[])
 {
     SAIGA_ASSERT(argc >= 1);
 
@@ -30,7 +30,7 @@ void CommandLineArguments::parse(int argc, char *argv[])
 
     exePath = argv[0];
 
-    for(int i = 1; i < argc; ++i)
+    for (int i = 1; i < argc; ++i)
     {
         args.push_back(argv[i]);
     }
@@ -39,12 +39,12 @@ void CommandLineArguments::parse(int argc, char *argv[])
     //    for(auto s : args)
     //        cout << s << endl;
 
-    std::string minus = "-";
+    std::string minus      = "-";
     std::string minusminus = "--";
 
     int currentArg = 0;
 
-    for(;currentArg < (int)args.size(); ++currentArg)
+    for (; currentArg < (int)args.size(); ++currentArg)
     {
         auto str = args[currentArg];
 
@@ -52,15 +52,16 @@ void CommandLineArguments::parse(int argc, char *argv[])
 
 
 
-        //check if it starts with "-" or "--"
-        if(!str.compare(0,minusminus.size(),minusminus))
+        // check if it starts with "-" or "--"
+        if (!str.compare(0, minusminus.size(), minusminus))
         {
             longName = true;
-
-        }else if(!str.compare(0,minus.size(),minus))
+        }
+        else if (!str.compare(0, minus.size(), minus))
         {
             longName = false;
-        }else
+        }
+        else
         {
             cout << "invalid parameter" << endl;
             SAIGA_ASSERT(0);
@@ -71,60 +72,57 @@ void CommandLineArguments::parse(int argc, char *argv[])
 
         //        cout << "substr " << subStr << endl;
 
-        //split into name and value
+        // split into name and value
         auto equalPos = subStr.find('=');
 
         bool isFlag = equalPos == std::string::npos;
 
 
-        auto name = subStr.substr(0,equalPos);
-        auto value = isFlag ? "1" : subStr.substr(equalPos+1);
+        auto name  = subStr.substr(0, equalPos);
+        auto value = isFlag ? "1" : subStr.substr(equalPos + 1);
 
-        if( (longName && "help"==name) ||
-                (!longName && 'h'==name[0]) )
+        if ((longName && "help" == name) || (!longName && 'h' == name[0]))
         {
             printHelp();
             continue;
         }
 
-        //find corresponding
-        for(auto& arg : arguments)
+        // find corresponding
+        for (auto& arg : arguments)
         {
-            if( (longName && arg.long_name==name) ||
-                    (!longName && arg.short_name==name[0]) )
+            if ((longName && arg.long_name == name) || (!longName && arg.short_name == name[0]))
             {
-                arg.value =value;
+                arg.value = value;
             }
         }
-
     }
 }
 
 void CommandLineArguments::printHelp()
 {
     cout << "CommandLineArguments Help" << endl;
-    for(auto& arg : arguments)
+    for (auto& arg : arguments)
     {
-        if(arg.long_name != "")
+        if (arg.long_name != "")
         {
             cout << "[--" << arg.long_name << "]";
         }
-        if(arg.short_name != 0)
+        if (arg.short_name != 0)
         {
             cout << "[-" << arg.short_name << "]";
         }
 
         cout << " " << arg.description;
 
-        if(arg.flag)
+        if (arg.flag)
         {
-        }else
+        }
+        else
         {
-
             cout << " default=[" << arg.value << "]";
         }
         cout << endl;
     }
 }
 
-}
+}  // namespace Saiga

@@ -5,91 +5,89 @@
  */
 
 #include "OpenGLWindow.h"
-#include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/opengl/glImageFormat.h"
-#include "saiga/rendering/renderer.h"
-#include "saiga/rendering/program.h"
 
-#include "saiga/util/tostring.h"
-#include "saiga/opengl/error.h"
+#include "saiga/camera/camera.h"
 #include "saiga/framework/framework.h"
 #include "saiga/imgui/imgui.h"
-#include "saiga/camera/camera.h"
+#include "saiga/opengl/error.h"
+#include "saiga/opengl/glImageFormat.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/texture/textureLoader.h"
+#include "saiga/rendering/program.h"
+#include "saiga/rendering/renderer.h"
+#include "saiga/util/tostring.h"
 
 #include <cstring>
-#include <vector>
 #include <ctime>
 #include <thread>
+#include <vector>
 
 
-namespace Saiga {
-
-
-
+namespace Saiga
+{
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters, OpenGLParameters openglParameters)
     : WindowBase(_windowParameters), openglParameters(openglParameters)
 {
 }
 
-OpenGLWindow::~OpenGLWindow(){
-//    delete renderer;
+OpenGLWindow::~OpenGLWindow()
+{
+    //    delete renderer;
 }
 
 
-void OpenGLWindow::renderImGui(bool *p_open)
+void OpenGLWindow::renderImGui(bool* p_open)
 {
-    if(!showImgui)
-        return;
+    if (!showImgui) return;
 
     p_open = &showImgui;
 
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(0, getHeight() - h), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w,h), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin("OpenGLWindow",&showImgui);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("OpenGLWindow", &showImgui);
 
     mainLoop.renderImGuiInline();
 
 
-    ImGui::Text("Camera Position: %s" , to_string(currentCamera->getPosition()).c_str());
-    ImGui::Text("Camera Direction: %s" , to_string(-vec3(currentCamera->getDirection())).c_str());
-    if(ImGui::Button("Printf camera"))
+    ImGui::Text("Camera Position: %s", to_string(currentCamera->getPosition()).c_str());
+    ImGui::Text("Camera Direction: %s", to_string(-vec3(currentCamera->getDirection())).c_str());
+    if (ImGui::Button("Printf camera"))
     {
         cout << "camera.position = vec4" << currentCamera->position << ";" << endl;
         cout << "camera.rot = quat" << currentCamera->rot << ";" << endl;
         //        createTRSmatrix()
     }
 
-    if(ImGui::Button("Reload Shaders")){
+    if (ImGui::Button("Reload Shaders"))
+    {
         ShaderLoader::instance()->reload();
     }
 
-    if(ImGui::Button("Screenshot")){
+    if (ImGui::Button("Screenshot"))
+    {
         screenshot("screenshot.png");
     }
 
-    ImGui::Checkbox("showRendererImgui",&showRendererImgui);
+    ImGui::Checkbox("showRendererImgui", &showRendererImgui);
 
     ImGui::End();
 
-    if(showRendererImgui && renderer)
+    if (showRendererImgui && renderer)
     {
         renderer->renderImGui();
     }
-
-
-
 }
 
 bool OpenGLWindow::create()
 {
     initSaiga(windowParameters.saigaParameters);
 
-    //init window and opengl context
-    if(!initWindow()){
-        std::cerr<<"Failed to initialize Window!"<<std::endl;
+    // init window and opengl context
+    if (!initWindow())
+    {
+        std::cerr << "Failed to initialize Window!" << std::endl;
         return false;
     }
 
@@ -98,19 +96,19 @@ bool OpenGLWindow::create()
     assert_no_glerror();
 
 
-    if(!initInput()){
-        std::cerr<<"Failed to initialize Input!"<<std::endl;
+    if (!initInput())
+    {
+        std::cerr << "Failed to initialize Input!" << std::endl;
         return false;
     }
 
 
-    glDebugMessageCallback(Error::DebugLogConst,NULL);
+    glDebugMessageCallback(Error::DebugLogConst, NULL);
 
-    cout<<">> Window inputs initialized!"<<endl;
+    cout << ">> Window inputs initialized!" << endl;
     assert_no_glerror();
 
     return true;
-
 }
 
 void OpenGLWindow::destroy()
@@ -122,13 +120,11 @@ void OpenGLWindow::destroy()
 
 
 
-
-
-void OpenGLWindow::readToExistingImage(Image &out)
+void OpenGLWindow::readToExistingImage(Image& out)
 {
-    //read data from default framebuffer and restore currently bound fb.
+    // read data from default framebuffer and restore currently bound fb.
     GLint fb;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING,&fb);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fb);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
@@ -136,29 +132,30 @@ void OpenGLWindow::readToExistingImage(Image &out)
 
     //    SAIGA_ASSERT(0);
     //    glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
-    glReadPixels(0,0,out.width,out.height,getGlFormat(out.type),getGlType(out.type),out.data());
+    glReadPixels(0, 0, out.width, out.height, getGlFormat(out.type), getGlType(out.type), out.data());
 
 
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
 }
 
 
-void OpenGLWindow::readToImage(Image& out){
-//    int w = renderer->outputWidth;
-//    int h = renderer->outputHeight;
+void OpenGLWindow::readToImage(Image& out)
+{
+    //    int w = renderer->outputWidth;
+    //    int h = renderer->outputHeight;
 
     //    out.width = w;
     //    out.height = h;
-//    out.create(h,w,UC3);
+    //    out.create(h,w,UC3);
     //    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-        SAIGA_ASSERT(0);
+    SAIGA_ASSERT(0);
     //    out.create();
 
-//    readToExistingImage(out);
+    //    readToExistingImage(out);
 }
 
 
-void OpenGLWindow::screenshot(const std::string &file)
+void OpenGLWindow::screenshot(const std::string& file)
 {
     Image img;
     readToImage(img);
@@ -166,7 +163,7 @@ void OpenGLWindow::screenshot(const std::string &file)
     //    TextureLoader::instance()->saveImage(file,img);
 }
 
-void OpenGLWindow::screenshotRender(const std::string &file)
+void OpenGLWindow::screenshotRender(const std::string& file)
 {
     SAIGA_ASSERT(0);
 #if 0
@@ -191,7 +188,8 @@ void OpenGLWindow::screenshotRender(const std::string &file)
 #endif
 }
 
-void OpenGLWindow::getDepthFloat(Image& out){
+void OpenGLWindow::getDepthFloat(Image& out)
+{
     SAIGA_ASSERT(0);
 #if 0
     int w = renderer->outputWidth;
@@ -221,20 +219,19 @@ void OpenGLWindow::getDepthFloat(Image& out){
     {
         for(int j = 0; j < w; ++j)
         {
-#if 0
+#    if 0
             unsigned int v = img.getPixel<unsigned int>(j,i);
             //override stencil bits with 0
             v = v & 0xFFFFFF00;
             float d = uintToNFloat(v);
             out.getPixel<float>(j,i) = d;
-#endif
+#    endif
         }
     }
 #endif
-
 }
 
-void OpenGLWindow::screenshotRenderDepth(const std::string &file)
+void OpenGLWindow::screenshotRenderDepth(const std::string& file)
 {
     SAIGA_ASSERT(0);
 #if 0
@@ -256,11 +253,11 @@ void OpenGLWindow::screenshotRenderDepth(const std::string &file)
     {
         for(int j = 0; j < w; ++j)
         {
-#if 0
+#    if 0
             float d = img.getPixel<float>(j,i);
             d = currentCamera->linearDepth(d);
             img2.getPixel<unsigned short>(j,i) = d * 0xFFFF;
-#endif
+#    endif
         }
     }
 
@@ -276,20 +273,17 @@ void OpenGLWindow::screenshotRenderDepth(const std::string &file)
 void OpenGLWindow::update(float dt)
 {
     checkEvents();
-    if(updating)
-        updating->update(dt);
+    if (updating) updating->update(dt);
 }
 
 
 
 void OpenGLWindow::swap()
 {
-    if(windowParameters.finishBeforeSwap) glFinish();
+    if (windowParameters.finishBeforeSwap) glFinish();
     swapBuffers();
 }
 
 
 
-
-
-}
+}  // namespace Saiga

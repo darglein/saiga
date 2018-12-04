@@ -11,31 +11,33 @@
 
 
 #ifndef SAIGA_USE_SDL
-#error Saiga was compiled without SDL2.
+#    error Saiga was compiled without SDL2.
 #endif
 
 typedef struct SDL_Window SDL_Window;
 
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL SDLWindow : public VulkanWindow
 {
-public:
-    SDL_Window *sdl_window = nullptr;
+   public:
+    SDL_Window* sdl_window = nullptr;
     SDLWindow(WindowParameters _windowParameters);
 
-~SDLWindow();
+    ~SDLWindow();
     virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) override;
 
     std::vector<const char*> getRequiredInstanceExtensions() override;
     void createSurface(VkInstance instance, VkSurfaceKHR* surface) override;
     virtual void update(float dt) override;
-private:
+
+   private:
     void create();
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

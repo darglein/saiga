@@ -1,20 +1,23 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/util/floatingPoint.h"
-#include <fstream>
+
 #include "internal/noGraphicsAPI.h"
 
+#include <fstream>
 
-#if defined(__i386__) || defined(__x86_64__) 
-#include "xmmintrin.h"
 
-namespace Saiga {
-namespace FP {
+#if defined(__i386__) || defined(__x86_64__)
+#    include "xmmintrin.h"
 
+namespace Saiga
+{
+namespace FP
+{
 enum SSECSR : unsigned int
 {
     //    Pnemonic	Bit Location	Description
@@ -36,25 +39,26 @@ enum SSECSR : unsigned int
     //    ZE	bit 2	Divide By Zero Flag
     //    DE	bit 1	Denormal Flag
     //    IE	bit 0	Invalid Operation Flag
-    FZ   = 15,
-    RZ   = 14,
-    RN   = 13,
-    PM   = 12,
-    UM   = 11,
-    OM   = 10,
-    ZM   = 9,
-    DM   = 8,
-    IM   = 7,
-    DAZ  = 6,
-    PE   = 5,
-    UE   = 4,
-    OE   = 3,
-    ZE   = 2,
-    DE   = 1,
-    IE   = 0,
+    FZ  = 15,
+    RZ  = 14,
+    RN  = 13,
+    PM  = 12,
+    UM  = 11,
+    OM  = 10,
+    ZM  = 9,
+    DM  = 8,
+    IM  = 7,
+    DAZ = 6,
+    PE  = 5,
+    UE  = 4,
+    OE  = 3,
+    ZE  = 2,
+    DE  = 1,
+    IE  = 0,
 };
 
-void resetSSECSR(){
+void resetSSECSR()
+{
     unsigned int csr = _mm_getcsr();
     csr &= ~(1 << DAZ);
     csr &= ~(1 << FZ);
@@ -64,37 +68,36 @@ void resetSSECSR(){
 }
 
 
-bool checkSSECSR(){
+bool checkSSECSR()
+{
     unsigned int csr = _mm_getcsr();
     //    for(int i = 0 ; i < 32 ; ++i){
     //        cout << i << " " << ((csr>>i)&1) << endl;
     //    }
 
-    if(((csr>>FZ)&1) != 0)
-        return false;
-    if(((csr>>DAZ)&1) != 0)
-        return false;
-    if(((csr>>RZ)&1) != 0)
-        return false;
-    if(((csr>>RN)&1) != 0)
-        return false;
+    if (((csr >> FZ) & 1) != 0) return false;
+    if (((csr >> DAZ) & 1) != 0) return false;
+    if (((csr >> RZ) & 1) != 0) return false;
+    if (((csr >> RN) & 1) != 0) return false;
     return true;
 }
 
-void breakSSECSR(){
+void breakSSECSR()
+{
     unsigned int csr = _mm_getcsr();
     csr |= (1 << DAZ);
     csr |= (1 << RZ);
     _mm_setcsr(csr);
 }
 
-void printCPUInfo(){
-    //TODO: Windows
+void printCPUInfo()
+{
+    // TODO: Windows
     std::string line;
-    std::ifstream myfile ("/proc/cpuinfo");
+    std::ifstream myfile("/proc/cpuinfo");
     if (myfile.is_open())
     {
-        while ( getline (myfile,line) )
+        while (getline(myfile, line))
         {
             std::cout << line << std::endl;
         }
@@ -102,31 +105,31 @@ void printCPUInfo(){
     }
 }
 
-}
-}
+}  // namespace FP
+}  // namespace Saiga
 
 #else
 
 
-namespace Saiga {
-namespace FP {
-
-void resetSSECSR()
+namespace Saiga
 {
+namespace FP
+{
+void resetSSECSR() {}
 
+bool checkSSECSR()
+{
+    return true;
 }
 
-bool checkSSECSR(){
-	return true;
-}
-
-void printCPUInfo(){
-    //TODO: Windows
+void printCPUInfo()
+{
+    // TODO: Windows
     std::string line;
-    std::ifstream myfile ("/proc/cpuinfo");
+    std::ifstream myfile("/proc/cpuinfo");
     if (myfile.is_open())
     {
-        while ( getline (myfile,line) )
+        while (getline(myfile, line))
         {
             std::cout << line << std::endl;
         }
@@ -134,6 +137,6 @@ void printCPUInfo(){
     }
 }
 
-}
-}
+}  // namespace FP
+}  // namespace Saiga
 #endif

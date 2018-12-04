@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,21 +9,22 @@
 // Based on src/opus_demo.c in opus-1.0.2
 // License see http://www.opus-codec.org/license/
 #include "saiga/sound/OpusCodec.h"
-#include <vector>
-#include <iomanip>
-#include <sstream>
 
 #include "internal/noGraphicsAPI.h"
 
+#include <iomanip>
+#include <sstream>
+#include <vector>
+
 #ifdef SAIGA_USE_OPUS
 
-#include "opus.h"
+#    include "opus.h"
 
-namespace Saiga {
+namespace Saiga
+{
+#    define MAX_PACKET 1500
 
-#define MAX_PACKET 1500
-
-const char* OpusErrorException::what() 
+const char* OpusErrorException::what()
 {
     return opus_strerror(code);
 }
@@ -31,52 +32,47 @@ const char* OpusErrorException::what()
 // I'd suggest reading with boost::spirit::big_dword or similar
 static uint32_t char_to_int(char ch[4])
 {
-    return static_cast<uint32_t>(static_cast<unsigned char>(ch[0])<<24) |
-           static_cast<uint32_t>(static_cast<unsigned char>(ch[1])<<16) |
-           static_cast<uint32_t>(static_cast<unsigned char>(ch[2])<< 8) |
-           static_cast<uint32_t>(static_cast<unsigned char>(ch[3])<< 0);
+    return static_cast<uint32_t>(static_cast<unsigned char>(ch[0]) << 24) |
+           static_cast<uint32_t>(static_cast<unsigned char>(ch[1]) << 16) |
+           static_cast<uint32_t>(static_cast<unsigned char>(ch[2]) << 8) |
+           static_cast<uint32_t>(static_cast<unsigned char>(ch[3]) << 0);
 }
 
 struct COpusCodec::Impl
 {
     Impl(int32_t sampling_rate = 48000, int channels = 1)
-      :
-          _channels(channels),
-          _decoder(nullptr, &opus_decoder_destroy),
-          _state(_max_frame_size, MAX_PACKET, channels)
+        : _channels(channels), _decoder(nullptr, &opus_decoder_destroy), _state(_max_frame_size, MAX_PACKET, channels)
     {
-        int err = OPUS_OK;
+        int err  = OPUS_OK;
         auto raw = opus_decoder_create(sampling_rate, _channels, &err);
-        _decoder.reset(err == OPUS_OK? raw : throw OpusErrorException(err) );
+        _decoder.reset(err == OPUS_OK ? raw : throw OpusErrorException(err));
     }
 
     std::vector<unsigned char> decode_frame(std::istream& fin)
     {
-        std::cout<<"decode frame"<<std::endl;
+        std::cout << "decode frame" << std::endl;
 
         std::vector<unsigned char> out;
         char ch[4] = {0};
 
-        if (!fin.read(ch, 4) && fin.eof())
-            return out;
+        if (!fin.read(ch, 4) && fin.eof()) return out;
 
         uint32_t len = char_to_int(ch);
-        std::cout<<(int)ch[0]<<" "<<(int)ch[1]<<" "<<(int)ch[2]<<" "<<(int)ch[3]<<" "<<std::endl;
-        std::cout<<"len "<<len<<" "<<_state.data.size()<<std::endl;
-        if(len>_state.data.size())
-            throw std::runtime_error("Invalid payload length");
+        std::cout << (int)ch[0] << " " << (int)ch[1] << " " << (int)ch[2] << " " << (int)ch[3] << " " << std::endl;
+        std::cout << "len " << len << " " << _state.data.size() << std::endl;
+        if (len > _state.data.size()) throw std::runtime_error("Invalid payload length");
 
         fin.read(ch, 4);
         const uint32_t enc_final_range = char_to_int(ch);
-        const auto data = reinterpret_cast<char*>(&_state.data.front());
+        const auto data                = reinterpret_cast<char*>(&_state.data.front());
 
         size_t read = 0ul;
-        for (auto append_position = data; fin && read<len; append_position += read)
+        for (auto append_position = data; fin && read < len; append_position += read)
         {
-            read += fin.readsome(append_position, len-read);
+            read += fin.readsome(append_position, len - read);
         }
 
-        if(read<len)
+        if (read < len)
         {
             std::ostringstream oss;
             oss << "Ran out of input, expecting " << len << " bytes got " << read << " at " << fin.tellg();
@@ -84,8 +80,8 @@ struct COpusCodec::Impl
         }
 
         int output_samples;
-        const bool lost = (len==0);
-        if(lost)
+        const bool lost = (len == 0);
+        if (lost)
         {
             opus_decoder_ctl(_decoder.get(), OPUS_GET_LAST_PACKET_DURATION(&output_samples));
         }
@@ -94,44 +90,39 @@ struct COpusCodec::Impl
             output_samples = _max_frame_size;
         }
 
-        output_samples = opus_decode(
-                _decoder.get(),
-                lost ? NULL : _state.data.data(),
-                len,
-                _state.out.data(),
-                output_samples,
-                0);
+        output_samples =
+            opus_decode(_decoder.get(), lost ? NULL : _state.data.data(), len, _state.out.data(), output_samples, 0);
 
-        if(output_samples>0)
+        if (output_samples > 0)
         {
-            for(int i=0; i<(output_samples)*_channels; i++)
+            for (int i = 0; i < (output_samples)*_channels; i++)
             {
                 short s;
-                s=_state.out[i];
-                _state.fbytes[2*i]   = s&0xFF;
-                _state.fbytes[2*i+1] = (s>>8)&0xFF;
+                s                        = _state.out[i];
+                _state.fbytes[2 * i]     = s & 0xFF;
+                _state.fbytes[2 * i + 1] = (s >> 8) & 0xFF;
             }
-//            if(!fout.write(reinterpret_cast<char*>(_state.fbytes.data()), sizeof(short)* _channels * output_samples))
-//                throw std::runtime_error("Error writing");
-            out.insert(out.end(),_state.fbytes.begin(),_state.fbytes.begin()+sizeof(short)* _channels * output_samples);
+            //            if(!fout.write(reinterpret_cast<char*>(_state.fbytes.data()), sizeof(short)* _channels *
+            //            output_samples))
+            //                throw std::runtime_error("Error writing");
+            out.insert(out.end(), _state.fbytes.begin(),
+                       _state.fbytes.begin() + sizeof(short) * _channels * output_samples);
         }
         else
         {
-            throw OpusErrorException(output_samples); // negative return is error code
+            throw OpusErrorException(output_samples);  // negative return is error code
         }
 
         uint32_t dec_final_range;
         opus_decoder_ctl(_decoder.get(), OPUS_GET_FINAL_RANGE(&dec_final_range));
 
         /* compare final range encoder rng values of encoder and decoder */
-        if(enc_final_range!=0
-                && !lost && !_state.lost_prev
-                && dec_final_range != enc_final_range)
+        if (enc_final_range != 0 && !lost && !_state.lost_prev && dec_final_range != enc_final_range)
         {
             std::ostringstream oss;
-            oss << "Error: Range coder state mismatch between encoder and decoder in frame " << _state.frameno << ": " <<
-                    "0x" << std::setw(8) << std::setfill('0') << std::hex << (unsigned long)enc_final_range <<
-                    "0x" << std::setw(8) << std::setfill('0') << std::hex << (unsigned long)dec_final_range;
+            oss << "Error: Range coder state mismatch between encoder and decoder in frame " << _state.frameno << ": "
+                << "0x" << std::setw(8) << std::setfill('0') << std::hex << (unsigned long)enc_final_range << "0x"
+                << std::setw(8) << std::setfill('0') << std::hex << (unsigned long)dec_final_range;
 
             throw std::runtime_error(oss.str());
         }
@@ -141,23 +132,25 @@ struct COpusCodec::Impl
 
         return out;
     }
-private:
+
+   private:
     const int _channels;
-    const int _max_frame_size = 960*6;
-    std::unique_ptr<OpusDecoder, void(*)(OpusDecoder*)> _decoder;
+    const int _max_frame_size = 960 * 6;
+    std::unique_ptr<OpusDecoder, void (*)(OpusDecoder*)> _decoder;
 
     struct State
     {
-        State(int max_frame_size, int max_payload_bytes, int channels) :
-            out   (max_frame_size*channels),
-            fbytes(max_frame_size*channels*sizeof(decltype(out)::value_type)),
-            data  (max_payload_bytes)
-        { }
+        State(int max_frame_size, int max_payload_bytes, int channels)
+            : out(max_frame_size * channels),
+              fbytes(max_frame_size * channels * sizeof(decltype(out)::value_type)),
+              data(max_payload_bytes)
+        {
+        }
 
-        std::vector<short>         out;
+        std::vector<short> out;
         std::vector<unsigned char> fbytes, data;
-        int32_t frameno   = 0;
-        bool    lost_prev = true;
+        int32_t frameno = 0;
+        bool lost_prev  = true;
     };
     State _state;
 };
@@ -178,5 +171,5 @@ std::vector<unsigned char> COpusCodec::decode_frame(std::istream& fin)
     return _pimpl->decode_frame(fin);
 }
 
-}
+}  // namespace Saiga
 #endif

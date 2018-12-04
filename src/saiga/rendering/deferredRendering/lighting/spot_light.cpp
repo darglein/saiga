@@ -5,47 +5,51 @@
  */
 
 #include "saiga/rendering/deferredRendering/lighting/spot_light.h"
+
 #include "saiga/imgui/imgui.h"
 
-namespace Saiga {
-
-void SpotLightShader::checkUniforms(){
+namespace Saiga
+{
+void SpotLightShader::checkUniforms()
+{
     AttenuatedLightShader::checkUniforms();
-    location_angle = getUniformLocation("angle");
+    location_angle        = getUniformLocation("angle");
     location_shadowPlanes = getUniformLocation("shadowPlanes");
 }
 
 
-void SpotLightShader::uploadAngle(float angle){
-    Shader::upload(location_angle,angle);
+void SpotLightShader::uploadAngle(float angle)
+{
+    Shader::upload(location_angle, angle);
 }
 
-void SpotLightShader::uploadShadowPlanes(float f , float n){
-    Shader::upload(location_shadowPlanes,vec2(f,n));
+void SpotLightShader::uploadShadowPlanes(float f, float n)
+{
+    Shader::upload(location_shadowPlanes, vec2(f, n));
 }
 
-SpotLight::SpotLight(){
-
-}
+SpotLight::SpotLight() {}
 
 
-void SpotLight::calculateCamera(){
+void SpotLight::calculateCamera()
+{
     vec3 dir = vec3(this->getUpVector());
     vec3 pos = vec3(getPosition());
-    vec3 up = vec3(getRightVector());
-    shadowCamera.setView(pos,pos-dir,up);
-    shadowCamera.setProj(2*angle,1,shadowNearPlane,cutoffRadius);
-
+    vec3 up  = vec3(getRightVector());
+    shadowCamera.setView(pos, pos - dir, up);
+    shadowCamera.setProj(2 * angle, 1, shadowNearPlane, cutoffRadius);
 }
 
-void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *cam){
-    AttenuatedLight::bindUniforms(shader,cam);
-    float cosa = cos(radians(angle*0.95f)); //make border smoother
+void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* cam)
+{
+    AttenuatedLight::bindUniforms(shader, cam);
+    float cosa = cos(radians(angle * 0.95f));  // make border smoother
     shader->uploadAngle(cosa);
-    shader->uploadShadowPlanes(this->shadowCamera.zFar,this->shadowCamera.zNear);
+    shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
     shader->uploadInvProj(inverse(cam->proj));
-    if(this->hasShadows()){
-        shader->uploadDepthBiasMV(viewToLightTransform(*cam,this->shadowCamera));
+    if (this->hasShadows())
+    {
+        shader->uploadDepthBiasMV(viewToLightTransform(*cam, this->shadowCamera));
         shader->uploadDepthTexture(shadowmap->getDepthTexture());
         shader->uploadShadowMapSize(shadowmap->getSize());
     }
@@ -53,9 +57,10 @@ void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera *ca
 }
 
 
-void SpotLight::recalculateScale(){
-    float l = tan(radians(angle))*cutoffRadius;
-    vec3 scale(l,cutoffRadius,l);
+void SpotLight::recalculateScale()
+{
+    float l = tan(radians(angle)) * cutoffRadius;
+    vec3 scale(l, cutoffRadius, l);
     this->setScale(scale);
 }
 
@@ -65,45 +70,50 @@ void SpotLight::setRadius(float value)
     recalculateScale();
 }
 
-void SpotLight::createShadowMap(int w, int h, ShadowQuality quality) {
+void SpotLight::createShadowMap(int w, int h, ShadowQuality quality)
+{
     //    Light::createShadowMap(resX,resY);
     //    float farplane = 50.0f;
-    shadowmap = std::make_shared<SimpleShadowmap>(w,h,quality);
-//    shadowmap->createFlat(w,h);
+    shadowmap = std::make_shared<SimpleShadowmap>(w, h, quality);
+    //    shadowmap->createFlat(w,h);
 }
 
-void SpotLight::setAngle(float value){
+void SpotLight::setAngle(float value)
+{
     this->angle = value;
     recalculateScale();
 }
 
 void SpotLight::setDirection(vec3 dir)
 {
-    rot = rotation(normalize(dir),vec3(0,-1,0));
+    rot = rotation(normalize(dir), vec3(0, -1, 0));
 }
 
-bool SpotLight::cullLight(Camera *cam)
+bool SpotLight::cullLight(Camera* cam)
 {
-    //do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
-    if(this->hasShadows())
+    // do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
+    if (this->hasShadows())
         this->culled = !this->shadowCamera.intersectSAT(cam);
     else
-        this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere)==Camera::OUTSIDE;
+        this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere) == Camera::OUTSIDE;
 
     return culled;
 }
 
-bool SpotLight::renderShadowmap(DepthFunction f, UniformBuffer &shadowCameraBuffer)
+bool SpotLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer)
 {
-    if(shouldCalculateShadowMap()){
+    if (shouldCalculateShadowMap())
+    {
         shadowmap->bindFramebuffer();
         shadowCamera.recalculatePlanes();
         CameraDataGLSL cd(&shadowCamera);
-        shadowCameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
+        shadowCameraBuffer.updateBuffer(&cd, sizeof(CameraDataGLSL), 0);
         f(&shadowCamera);
-shadowmap->unbindFramebuffer();
+        shadowmap->unbindFramebuffer();
         return true;
-    }else{
+    }
+    else
+    {
         return false;
     }
 }
@@ -111,11 +121,12 @@ shadowmap->unbindFramebuffer();
 void SpotLight::renderImGui()
 {
     AttenuatedLight::renderImGui();
-    if(ImGui::SliderFloat("Angle",&angle,0,85)){
+    if (ImGui::SliderFloat("Angle", &angle, 0, 85))
+    {
         recalculateScale();
         calculateModel();
     }
-    ImGui::InputFloat("shadowNearPlane",&shadowNearPlane);
+    ImGui::InputFloat("shadowNearPlane", &shadowNearPlane);
 }
 
-}
+}  // namespace Saiga

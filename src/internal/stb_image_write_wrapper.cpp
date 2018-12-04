@@ -1,42 +1,42 @@
 ﻿#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
 #include "stb_image_write_wrapper.h"
 
-namespace Saiga {
+#include "stb_image_write.h"
 
-
-bool saveImageSTB(const std::string &path, Image &img)
+namespace Saiga
 {
-    if(img.type == UC1 || img.type == UC2 || img.type == UC3 || img.type == UC4)
+bool saveImageSTB(const std::string& path, Image& img)
+{
+    if (img.type == UC1 || img.type == UC2 || img.type == UC3 || img.type == UC4)
     {
-
-        int w = img.width;
-        int h = img.height;
-        int comp = channels(img.type);
+        int w               = img.width;
+        int h               = img.height;
+        int comp            = channels(img.type);
         int stride_in_bytes = img.pitchBytes;
 
-        auto res = stbi_write_png(path.c_str(),w,h,comp,img.data(),stride_in_bytes);
+        auto res = stbi_write_png(path.c_str(), w, h, comp, img.data(), stride_in_bytes);
         return res != 0;
     }
-    else{
+    else
+    {
         std::cerr << "saveImageSTB: unsupported image type." << endl;
         return false;
     }
 }
 
-std::vector<uint8_t> compressImageSTB(Image &img)
+std::vector<uint8_t> compressImageSTB(Image& img)
 {
-    int w = img.width;
-    int h = img.height;
-    int comp = channels(img.type);
+    int w               = img.width;
+    int h               = img.height;
+    int comp            = channels(img.type);
     int stride_in_bytes = img.pitchBytes;
 
 
     int len;
-    unsigned char *png = stbi_write_png_to_mem((unsigned char *) img.data(), stride_in_bytes, w, h, comp, &len);
+    unsigned char* png = stbi_write_png_to_mem((unsigned char*)img.data(), stride_in_bytes, w, h, comp, &len);
 
     std::vector<uint8_t> data(len);
-    memcpy(data.data(),png,len);
+    memcpy(data.data(), png, len);
 
 
     STBIW_FREE(png);
@@ -46,4 +46,4 @@ std::vector<uint8_t> compressImageSTB(Image &img)
 
 
 
-}
+}  // namespace Saiga

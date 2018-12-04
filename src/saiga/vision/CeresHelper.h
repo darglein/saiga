@@ -10,28 +10,21 @@
 
 #include "ceres/solver.h"
 
-namespace Saiga {
-
-
-inline void makeGaussNewtonOptions(ceres::Solver::Options &options)
+namespace Saiga
 {
+inline void makeGaussNewtonOptions(ceres::Solver::Options& options)
+{
+    options.min_trust_region_radius = 1e-32;
+    options.max_trust_region_radius = 1e51;
 
-            options.min_trust_region_radius = 1e-32;
-            options.max_trust_region_radius = 1e51;
-
-            options.initial_trust_region_radius = 1e30;
-
-
-
+    options.initial_trust_region_radius = 1e30;
 
 
 
-
-
-//            options.min_trust_region_radius = 10e50;
-            options.min_lm_diagonal = 1e-50;
-            options.max_lm_diagonal = 1e-49;
+    //            options.min_trust_region_radius = 10e50;
+    options.min_lm_diagonal = 1e-50;
+    options.max_lm_diagonal = 1e-49;
 }
 
 
-}
+}  // namespace Saiga

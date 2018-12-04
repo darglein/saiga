@@ -7,9 +7,11 @@
  */
 
 #include "sample.h"
-#include <saiga/imgui/imgui.h>
+
 #include "saiga/image/imageTransformations.h"
 #include "saiga/util/color.h"
+
+#include <saiga/imgui/imgui.h>
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
@@ -122,7 +124,7 @@ void VulkanExample::update(float dt)
             v.color    = vec4(glm::linearRand(vec3(0), vec3(1)), 1);
             //            pointCloud.mesh.points.push_back(v);
         }
-        change = false;
+        change        = false;
         uploadChanges = true;
     }
 }
@@ -159,8 +161,8 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         lineAssetRenderer.pushModel(cmd, glm::translate(vec3(-5, 1.5f, 0)));
         teapot.render(cmd);
 
-        auto gridMatrix = glm::rotate(0.5f*glm::pi<float>(), glm::vec3(1,0,0));
-        gridMatrix = glm::translate(gridMatrix, vec3(0,-10,0));
+        auto gridMatrix = glm::rotate(0.5f * glm::pi<float>(), glm::vec3(1, 0, 0));
+        gridMatrix      = glm::translate(gridMatrix, vec3(0, -10, 0));
         lineAssetRenderer.pushModel(cmd, gridMatrix);
         grid.render(cmd);
 

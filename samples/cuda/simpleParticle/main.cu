@@ -4,12 +4,14 @@
  * See LICENSE file for more information.
  */
 
-#include <iostream>
-#include <vector>
-#include "saiga/util/math.h"
-#include <thrust/device_vector.h>
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
+#include "saiga/util/math.h"
+
+#include <iostream>
+#include <vector>
+
+#include <thrust/device_vector.h>
 
 
 struct Particle
@@ -22,12 +24,10 @@ struct Particle
 
 
 
-__global__ static
-void updateParticles(Saiga::ArrayView<Particle> particles)
+__global__ static void updateParticles(Saiga::ArrayView<Particle> particles)
 {
     Saiga::CUDA::ThreadInfo<> ti;
-    if(ti.thread_id >= particles.size())
-        return;
+    if (ti.thread_id >= particles.size()) return;
     Particle& p = particles[ti.thread_id];
     p.position += p.velocity;
 }
@@ -39,23 +39,23 @@ void particleSampleThrustSaiga()
     std::vector<Particle> particles(N);
     // asdfd
 
-    for(Particle& p :particles)
+    for (Particle& p : particles)
     {
         p.position = vec3(0);
-        p.velocity = linearRand(vec3(-1),vec3(1));
+        p.velocity = linearRand(vec3(-1), vec3(1));
     }
 
 
     thrust::device_vector<Particle> d_particles(particles);
-    for(int i = 0; i < k; ++i)
+    for (int i = 0; i < k; ++i)
     {
         const int BLOCK_SIZE = 128;
-        updateParticles<<<Saiga::CUDA::getBlockCount(N,BLOCK_SIZE),BLOCK_SIZE>>>(d_particles);
+        updateParticles<<<Saiga::CUDA::getBlockCount(N, BLOCK_SIZE), BLOCK_SIZE>>>(d_particles);
     }
-    thrust::copy(d_particles.begin(),d_particles.end(),particles.begin());
+    thrust::copy(d_particles.begin(), d_particles.end(), particles.begin());
 
 
-    for(Particle& p : particles)
+    for (Particle& p : particles)
     {
         cout << p.position << " " << p.velocity << endl;
     }
@@ -64,15 +64,12 @@ void particleSampleThrustSaiga()
 
 
 
-__global__ static
-void updateParticles2(Particle* particles, int N)
+__global__ static void updateParticles2(Particle* particles, int N)
 {
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if(tid >= N)
-        return;
+    if (tid >= N) return;
     Particle& p = particles[tid];
     p.position += p.velocity;
-
 }
 
 
@@ -82,29 +79,29 @@ void particleSample()
     const int k = 3;
     std::vector<Particle> particles(N);
 
-    for(Particle& p :particles)
+    for (Particle& p : particles)
     {
         p.position = vec3(0);
-        p.velocity = linearRand(vec3(-1),vec3(1));
+        p.velocity = linearRand(vec3(-1), vec3(1));
     }
 
     auto size = sizeof(Particle) * N;
     Particle* d_particles;
-    cudaMalloc(&d_particles,size);
-    cudaMemcpy(d_particles,particles.data(),size,cudaMemcpyHostToDevice);
+    cudaMalloc(&d_particles, size);
+    cudaMemcpy(d_particles, particles.data(), size, cudaMemcpyHostToDevice);
 
-    for(int i = 0; i < k; ++i)
+    for (int i = 0; i < k; ++i)
     {
         const int BLOCK_SIZE = 128;
-        int numberOfBlocks = ( N + (BLOCK_SIZE - int(1)) ) / (BLOCK_SIZE);
-        updateParticles2<<<numberOfBlocks,BLOCK_SIZE>>>(d_particles,N);
+        int numberOfBlocks   = (N + (BLOCK_SIZE - int(1))) / (BLOCK_SIZE);
+        updateParticles2<<<numberOfBlocks, BLOCK_SIZE>>>(d_particles, N);
     }
 
 
-    cudaMemcpy(particles.data(),d_particles,size,cudaMemcpyDeviceToHost);
+    cudaMemcpy(particles.data(), d_particles, size, cudaMemcpyDeviceToHost);
     cudaFree(d_particles);
 
-    for(Particle& p : particles)
+    for (Particle& p : particles)
     {
         cout << p.position << " " << p.velocity << endl;
     }
@@ -113,8 +110,7 @@ void particleSample()
 
 
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     particleSampleThrustSaiga();
 }
-

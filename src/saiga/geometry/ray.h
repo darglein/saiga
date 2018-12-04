@@ -9,22 +9,20 @@
 #include "saiga/config.h"
 #include "saiga/util/math.h"
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 class SAIGA_GLOBAL Ray
 {
-public:
+   public:
     vec3 direction;
     vec3 origin;
 
-    Ray(const vec3 &dir = vec3(0), const vec3 &ori = vec3(0))
-        : direction(dir), origin(ori) {}
+    Ray(const vec3& dir = vec3(0), const vec3& ori = vec3(0)) : direction(dir), origin(ori) {}
 
 
-    vec3 positionOnRay(float t) const { return origin+t*direction;}
+    vec3 positionOnRay(float t) const { return origin + t * direction; }
 
     SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Ray& dt);
 };
 
-}
+}  // namespace Saiga

@@ -3,6 +3,7 @@
 //
 
 #include "ImageChunkAllocator.h"
+
 #include "saiga/util/easylogging++.h"
 
 Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator::createNewChunk()

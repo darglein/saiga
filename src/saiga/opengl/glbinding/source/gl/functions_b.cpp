@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,8 +9,6 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
 void glBegin(GLenum mode)
 {
     return Binding::Begin(mode);
@@ -91,12 +89,12 @@ void glBeginVideoCaptureNV(GLuint video_capture_slot)
     return Binding::BeginVideoCaptureNV(video_capture_slot);
 }
 
-void glBindAttribLocation(GLuint program, GLuint index, const GLchar * name)
+void glBindAttribLocation(GLuint program, GLuint index, const GLchar* name)
 {
     return Binding::BindAttribLocation(program, index, name);
 }
 
-void glBindAttribLocationARB(GLhandleARB programObj, GLuint index, const GLcharARB * name)
+void glBindAttribLocationARB(GLhandleARB programObj, GLuint index, const GLcharARB* name)
 {
     return Binding::BindAttribLocationARB(programObj, index, name);
 }
@@ -151,27 +149,28 @@ void glBindBufferRangeNV(GLenum target, GLuint index, GLuint buffer, GLintptr of
     return Binding::BindBufferRangeNV(target, index, buffer, offset, size);
 }
 
-void glBindBuffersBase(GLenum target, GLuint first, GLsizei count, const GLuint * buffers)
+void glBindBuffersBase(GLenum target, GLuint first, GLsizei count, const GLuint* buffers)
 {
     return Binding::BindBuffersBase(target, first, count, buffers);
 }
 
-void glBindBuffersRange(GLenum target, GLuint first, GLsizei count, const GLuint * buffers, const GLintptr * offsets, const GLsizeiptr * sizes)
+void glBindBuffersRange(GLenum target, GLuint first, GLsizei count, const GLuint* buffers, const GLintptr* offsets,
+                        const GLsizeiptr* sizes)
 {
     return Binding::BindBuffersRange(target, first, count, buffers, offsets, sizes);
 }
 
-void glBindFragDataLocation(GLuint program, GLuint color, const GLchar * name)
+void glBindFragDataLocation(GLuint program, GLuint color, const GLchar* name)
 {
     return Binding::BindFragDataLocation(program, color, name);
 }
 
-void glBindFragDataLocationEXT(GLuint program, GLuint color, const GLchar * name)
+void glBindFragDataLocationEXT(GLuint program, GLuint color, const GLchar* name)
 {
     return Binding::BindFragDataLocationEXT(program, color, name);
 }
 
-void glBindFragDataLocationIndexed(GLuint program, GLuint colorNumber, GLuint index, const GLchar * name)
+void glBindFragDataLocationIndexed(GLuint program, GLuint colorNumber, GLuint index, const GLchar* name)
 {
     return Binding::BindFragDataLocationIndexed(program, colorNumber, index, name);
 }
@@ -191,17 +190,19 @@ void glBindFramebufferEXT(GLenum target, GLuint framebuffer)
     return Binding::BindFramebufferEXT(target, framebuffer);
 }
 
-void glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format)
+void glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access,
+                        GLenum format)
 {
     return Binding::BindImageTexture(unit, texture, level, layered, layer, access, format);
 }
 
-void glBindImageTextureEXT(GLuint index, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLint format)
+void glBindImageTextureEXT(GLuint index, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access,
+                           GLint format)
 {
     return Binding::BindImageTextureEXT(index, texture, level, layered, layer, access, format);
 }
 
-void glBindImageTextures(GLuint first, GLsizei count, const GLuint * textures)
+void glBindImageTextures(GLuint first, GLsizei count, const GLuint* textures)
 {
     return Binding::BindImageTextures(first, count, textures);
 }
@@ -256,7 +257,7 @@ void glBindSampler(GLuint unit, GLuint sampler)
     return Binding::BindSampler(unit, sampler);
 }
 
-void glBindSamplers(GLuint first, GLsizei count, const GLuint * samplers)
+void glBindSamplers(GLuint first, GLsizei count, const GLuint* samplers)
 {
     return Binding::BindSamplers(first, count, samplers);
 }
@@ -286,7 +287,7 @@ GLuint glBindTextureUnitParameterEXT(GLenum unit, GLenum value)
     return Binding::BindTextureUnitParameterEXT(unit, value);
 }
 
-void glBindTextures(GLuint first, GLsizei count, const GLuint * textures)
+void glBindTextures(GLuint first, GLsizei count, const GLuint* textures)
 {
     return Binding::BindTextures(first, count, textures);
 }
@@ -316,7 +317,8 @@ void glBindVertexBuffer(GLuint bindingindex, GLuint buffer, GLintptr offset, GLs
     return Binding::BindVertexBuffer(bindingindex, buffer, offset, stride);
 }
 
-void glBindVertexBuffers(GLuint first, GLsizei count, const GLuint * buffers, const GLintptr * offsets, const GLsizei * strides)
+void glBindVertexBuffers(GLuint first, GLsizei count, const GLuint* buffers, const GLintptr* offsets,
+                         const GLsizei* strides)
 {
     return Binding::BindVertexBuffers(first, count, buffers, offsets, strides);
 }
@@ -331,7 +333,8 @@ void glBindVideoCaptureStreamBufferNV(GLuint video_capture_slot, GLuint stream, 
     return Binding::BindVideoCaptureStreamBufferNV(video_capture_slot, stream, frame_region, offset);
 }
 
-void glBindVideoCaptureStreamTextureNV(GLuint video_capture_slot, GLuint stream, GLenum frame_region, GLenum target, GLuint texture)
+void glBindVideoCaptureStreamTextureNV(GLuint video_capture_slot, GLuint stream, GLenum frame_region, GLenum target,
+                                       GLuint texture)
 {
     return Binding::BindVideoCaptureStreamTextureNV(video_capture_slot, stream, frame_region, target, texture);
 }
@@ -341,7 +344,7 @@ void glBinormal3bEXT(GLbyte bx, GLbyte by, GLbyte bz)
     return Binding::Binormal3bEXT(bx, by, bz);
 }
 
-void glBinormal3bvEXT(const GLbyte * v)
+void glBinormal3bvEXT(const GLbyte* v)
 {
     return Binding::Binormal3bvEXT(v);
 }
@@ -351,7 +354,7 @@ void glBinormal3dEXT(GLdouble bx, GLdouble by, GLdouble bz)
     return Binding::Binormal3dEXT(bx, by, bz);
 }
 
-void glBinormal3dvEXT(const GLdouble * v)
+void glBinormal3dvEXT(const GLdouble* v)
 {
     return Binding::Binormal3dvEXT(v);
 }
@@ -361,7 +364,7 @@ void glBinormal3fEXT(GLfloat bx, GLfloat by, GLfloat bz)
     return Binding::Binormal3fEXT(bx, by, bz);
 }
 
-void glBinormal3fvEXT(const GLfloat * v)
+void glBinormal3fvEXT(const GLfloat* v)
 {
     return Binding::Binormal3fvEXT(v);
 }
@@ -371,7 +374,7 @@ void glBinormal3iEXT(GLint bx, GLint by, GLint bz)
     return Binding::Binormal3iEXT(bx, by, bz);
 }
 
-void glBinormal3ivEXT(const GLint * v)
+void glBinormal3ivEXT(const GLint* v)
 {
     return Binding::Binormal3ivEXT(v);
 }
@@ -381,22 +384,24 @@ void glBinormal3sEXT(GLshort bx, GLshort by, GLshort bz)
     return Binding::Binormal3sEXT(bx, by, bz);
 }
 
-void glBinormal3svEXT(const GLshort * v)
+void glBinormal3svEXT(const GLshort* v)
 {
     return Binding::Binormal3svEXT(v);
 }
 
-void glBinormalPointerEXT(GLenum type, GLsizei stride, const void * pointer)
+void glBinormalPointerEXT(GLenum type, GLsizei stride, const void* pointer)
 {
     return Binding::BinormalPointerEXT(type, stride, pointer);
 }
 
-void glBitmap(GLsizei width, GLsizei height, GLfloat xorig, GLfloat yorig, GLfloat xmove, GLfloat ymove, const GLubyte * bitmap)
+void glBitmap(GLsizei width, GLsizei height, GLfloat xorig, GLfloat yorig, GLfloat xmove, GLfloat ymove,
+              const GLubyte* bitmap)
 {
     return Binding::Bitmap(width, height, xorig, yorig, xmove, ymove, bitmap);
 }
 
-void glBitmapxOES(GLsizei width, GLsizei height, GLfixed xorig, GLfixed yorig, GLfixed xmove, GLfixed ymove, const GLubyte * bitmap)
+void glBitmapxOES(GLsizei width, GLsizei height, GLfixed xorig, GLfixed yorig, GLfixed xmove, GLfixed ymove,
+                  const GLubyte* bitmap)
 {
     return Binding::BitmapxOES(width, height, xorig, yorig, xmove, ymove, bitmap);
 }
@@ -531,19 +536,24 @@ void glBlendParameteriNV(GLenum pname, GLint value)
     return Binding::BlendParameteriNV(pname, value);
 }
 
-void glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, ClearBufferMask mask, GLenum filter)
+void glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1,
+                       GLint dstY1, ClearBufferMask mask, GLenum filter)
 {
     return Binding::BlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
 }
 
-void glBlitFramebufferEXT(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, ClearBufferMask mask, GLenum filter)
+void glBlitFramebufferEXT(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1,
+                          GLint dstY1, ClearBufferMask mask, GLenum filter)
 {
     return Binding::BlitFramebufferEXT(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
 }
 
-void glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, ClearBufferMask mask, GLenum filter)
+void glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1,
+                            GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, ClearBufferMask mask,
+                            GLenum filter)
 {
-    return Binding::BlitNamedFramebuffer(readFramebuffer, drawFramebuffer, srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+    return Binding::BlitNamedFramebuffer(readFramebuffer, drawFramebuffer, srcX0, srcY0, srcX1, srcY1, dstX0, dstY0,
+                                         dstX1, dstY1, mask, filter);
 }
 
 void glBufferAddressRangeNV(GLenum pname, GLuint index, GLuint64EXT address, GLsizeiptr length)
@@ -551,12 +561,12 @@ void glBufferAddressRangeNV(GLenum pname, GLuint index, GLuint64EXT address, GLs
     return Binding::BufferAddressRangeNV(pname, index, address, length);
 }
 
-void glBufferData(GLenum target, GLsizeiptr size, const void * data, GLenum usage)
+void glBufferData(GLenum target, GLsizeiptr size, const void* data, GLenum usage)
 {
     return Binding::BufferData(target, size, data, usage);
 }
 
-void glBufferDataARB(GLenum target, GLsizeiptrARB size, const void * data, GLenum usage)
+void glBufferDataARB(GLenum target, GLsizeiptrARB size, const void* data, GLenum usage)
 {
     return Binding::BufferDataARB(target, size, data, usage);
 }
@@ -571,12 +581,13 @@ void glBufferParameteriAPPLE(GLenum target, GLenum pname, GLint param)
     return Binding::BufferParameteriAPPLE(target, pname, param);
 }
 
-void glBufferStorage(GLenum target, GLsizeiptr size, const void * data, BufferStorageMask flags)
+void glBufferStorage(GLenum target, GLsizeiptr size, const void* data, BufferStorageMask flags)
 {
     return Binding::BufferStorage(target, size, data, flags);
 }
 
-void glBufferStorageExternalEXT(GLenum target, GLintptr offset, GLsizeiptr size, GLeglClientBufferEXT clientBuffer, MapBufferUsageMask flags)
+void glBufferStorageExternalEXT(GLenum target, GLintptr offset, GLsizeiptr size, GLeglClientBufferEXT clientBuffer,
+                                MapBufferUsageMask flags)
 {
     return Binding::BufferStorageExternalEXT(target, offset, size, clientBuffer, flags);
 }
@@ -586,17 +597,16 @@ void glBufferStorageMemEXT(GLenum target, GLsizeiptr size, GLuint memory, GLuint
     return Binding::BufferStorageMemEXT(target, size, memory, offset);
 }
 
-void glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void * data)
+void glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void* data)
 {
     return Binding::BufferSubData(target, offset, size, data);
 }
 
-void glBufferSubDataARB(GLenum target, GLintptrARB offset, GLsizeiptrARB size, const void * data)
+void glBufferSubDataARB(GLenum target, GLintptrARB offset, GLsizeiptrARB size, const void* data)
 {
     return Binding::BufferSubDataARB(target, offset, size, data);
 }
 
 
 
-
-} // namespace gl
+}  // namespace gl

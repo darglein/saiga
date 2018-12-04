@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,16 +8,15 @@
 
 #include "saiga/opengl/shader/shaderLoader.h"
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 GLPointCloud::GLPointCloud()
 {
     shader = ShaderLoader::instance()->load<MVPShader>("colored_points.glsl");
     buffer.setDrawMode(GL_POINTS);
 }
 
-void GLPointCloud::render(Camera *cam)
+void GLPointCloud::render(Camera* cam)
 {
     glPointSize(pointSize);
     shader->bind();
@@ -31,17 +30,18 @@ void GLPointCloud::render(Camera *cam)
 
 void GLPointCloud::updateBuffer()
 {
-    buffer.set(points,GL_STATIC_DRAW);
+    buffer.set(points, GL_STATIC_DRAW);
 }
 
 
-template<>
-void VertexBuffer<PointVertex>::setVertexAttributes(){
-    glEnableVertexAttribArray( 0 );
-    glEnableVertexAttribArray( 1 );
+template <>
+void VertexBuffer<PointVertex>::setVertexAttributes()
+{
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
 
-    glVertexAttribPointer(0,3, GL_FLOAT, GL_FALSE, sizeof(PointVertex), NULL );
-    glVertexAttribPointer(1,3, GL_FLOAT, GL_FALSE, sizeof(PointVertex), (void*) (3 * sizeof(GLfloat)) );
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PointVertex), NULL);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(PointVertex), (void*)(3 * sizeof(GLfloat)));
 }
 
-}
+}  // namespace Saiga

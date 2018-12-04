@@ -10,11 +10,11 @@
 
 struct ImDrawData;
 
-namespace Saiga {
-
-class SAIGA_GLOBAL ImGuiRenderer{
-public:
-
+namespace Saiga
+{
+class SAIGA_GLOBAL ImGuiRenderer
+{
+   public:
     ImGuiRenderer();
     virtual ~ImGuiRenderer();
 
@@ -23,8 +23,9 @@ public:
     virtual void endFrame();
 
     void render();
-protected:
-    virtual void renderDrawLists(ImDrawData *draw_data) = 0;
+
+   protected:
+    virtual void renderDrawLists(ImDrawData* draw_data) = 0;
 };
 
-}
+}  // namespace Saiga

@@ -9,9 +9,10 @@
 
 #include "saiga/vulkan/svulkan.h"
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 /**
  * Helper objects to syncronize rendering with multiple buffers in the swap chain.
  *
@@ -19,7 +20,7 @@ namespace Vulkan {
  */
 class SAIGA_GLOBAL FrameSync
 {
-public:
+   public:
     vk::Semaphore imageVailable;
     vk::Semaphore renderComplete;
     vk::Fence frameFence;
@@ -30,5 +31,5 @@ public:
     void wait(vk::Device device);
 };
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

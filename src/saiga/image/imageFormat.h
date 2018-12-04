@@ -8,9 +8,8 @@
 
 #include "saiga/util/math.h"
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 enum ImageChannel : int
 {
     CHANNEL_1 = 0,
@@ -21,102 +20,150 @@ enum ImageChannel : int
 
 enum ImageElementType : int
 {
-    IET_CHAR = 0, IET_UCHAR,
-    IET_SHORT, IET_USHORT,
-    IET_INT, IET_UINT,
-    IET_FLOAT, IET_DOUBLE,
+    IET_CHAR = 0,
+    IET_UCHAR,
+    IET_SHORT,
+    IET_USHORT,
+    IET_INT,
+    IET_UINT,
+    IET_FLOAT,
+    IET_DOUBLE,
     IET_ELEMENT_UNKNOWN
 };
 
 
-static const int ImageElementTypeSize[] =
-{
-    1,1,
-    2,2,
-    4,4,
-    4,8,
-    0
-};
+static const int ImageElementTypeSize[] = {1, 1, 2, 2, 4, 4, 4, 8, 0};
 
 
 
 enum ImageType : int
 {
-    C1 = 0, C2, C3, C4,
-    UC1, UC2, UC3, UC4,
+    C1 = 0,
+    C2,
+    C3,
+    C4,
+    UC1,
+    UC2,
+    UC3,
+    UC4,
 
-    S1, S2, S3, S4,
-    US1, US2, US3, US4,
+    S1,
+    S2,
+    S3,
+    S4,
+    US1,
+    US2,
+    US3,
+    US4,
 
-    I1, I2, I3, I4,
-    UI1, UI2, UI3, UI4,
+    I1,
+    I2,
+    I3,
+    I4,
+    UI1,
+    UI2,
+    UI3,
+    UI4,
 
-    F1, F2, F3, F4,
-    D1, D2, D3, D4,
+    F1,
+    F2,
+    F3,
+    F4,
+    D1,
+    D2,
+    D3,
+    D4,
 
     TYPE_UNKNOWN
 };
 
-template<typename T>
-struct SAIGA_GLOBAL ImageTypeTemplate{
-//    using ChannelType = T;
-//    const static ImageType type = TYPE_UNKNOWN;
+template <typename T>
+struct SAIGA_GLOBAL ImageTypeTemplate
+{
+    //    using ChannelType = T;
+    //    const static ImageType type = TYPE_UNKNOWN;
 };
 
-template<> struct ImageTypeTemplate<char>{
-    using ChannelType = char;
+template <>
+struct ImageTypeTemplate<char>
+{
+    using ChannelType           = char;
     const static ImageType type = C1;
 };
-template<> struct ImageTypeTemplate<cvec2>{
-    using ChannelType = char;
+template <>
+struct ImageTypeTemplate<cvec2>
+{
+    using ChannelType           = char;
     const static ImageType type = C2;
 };
-template<> struct ImageTypeTemplate<cvec3>{
-    using ChannelType = char;
+template <>
+struct ImageTypeTemplate<cvec3>
+{
+    using ChannelType           = char;
     const static ImageType type = C3;
 };
-template<> struct ImageTypeTemplate<cvec4>{
-    using ChannelType = char;
+template <>
+struct ImageTypeTemplate<cvec4>
+{
+    using ChannelType           = char;
     const static ImageType type = C4;
 };
 
-template<> struct ImageTypeTemplate<unsigned char>{
-    using ChannelType = unsigned char;
+template <>
+struct ImageTypeTemplate<unsigned char>
+{
+    using ChannelType           = unsigned char;
     const static ImageType type = UC1;
 };
-template<> struct ImageTypeTemplate<ucvec2>{
-    using ChannelType = unsigned char;
+template <>
+struct ImageTypeTemplate<ucvec2>
+{
+    using ChannelType           = unsigned char;
     const static ImageType type = UC2;
 };
-template<> struct ImageTypeTemplate<ucvec3>{
-    using ChannelType = unsigned char;
+template <>
+struct ImageTypeTemplate<ucvec3>
+{
+    using ChannelType           = unsigned char;
     const static ImageType type = UC3;
 };
-template<> struct ImageTypeTemplate<ucvec4>{
-    using ChannelType = unsigned char;
+template <>
+struct ImageTypeTemplate<ucvec4>
+{
+    using ChannelType           = unsigned char;
     const static ImageType type = UC4;
 };
 
-template<> struct ImageTypeTemplate<short>{
-    using ChannelType = short;
+template <>
+struct ImageTypeTemplate<short>
+{
+    using ChannelType           = short;
     const static ImageType type = S1;
 };
-template<> struct ImageTypeTemplate<unsigned short>{
-    using ChannelType = unsigned short;
+template <>
+struct ImageTypeTemplate<unsigned short>
+{
+    using ChannelType           = unsigned short;
     const static ImageType type = US1;
 };
 
-template<> struct ImageTypeTemplate<int>{
-    using ChannelType = int;
+template <>
+struct ImageTypeTemplate<int>
+{
+    using ChannelType           = int;
     const static ImageType type = I1;
 };
-template<> struct ImageTypeTemplate<unsigned int>{
-    using ChannelType = unsigned int;
+template <>
+struct ImageTypeTemplate<unsigned int>
+{
+    using ChannelType           = unsigned int;
     const static ImageType type = UI1;
 };
 
-template<> struct ImageTypeTemplate<float>{
-    using ChannelType = float;
+template <>
+struct ImageTypeTemplate<float>
+{
+    using ChannelType           = float;
     const static ImageType type = F1;
 };
 
@@ -129,7 +176,7 @@ inline ImageType getType(ImageChannel channels, ImageElementType elementType)
 
 inline ImageType getType(int channels, ImageElementType elementType)
 {
-    return ImageType(int(elementType) * 4 + int(channels-1));
+    return ImageType(int(elementType) * 4 + int(channels - 1));
 }
 
 inline int channels(ImageType type)
@@ -160,5 +207,4 @@ inline int bitsPerPixel(ImageType type)
 
 
 
-
-}
+}  // namespace Saiga

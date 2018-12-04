@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,27 +9,29 @@
 #include "saiga/config.h"
 #include "saiga/time/time.h"
 #include "saiga/util/assert.h"
+
 #include <vector>
 
-namespace Saiga {
-
+namespace Saiga
+{
 #ifdef WIN32
-#if _MSC_VER >= 1900 //VS2015 and newer
-#define HAS_HIGH_RESOLUTION_CLOCK
-#endif
+#    if _MSC_VER >= 1900  // VS2015 and newer
+#        define HAS_HIGH_RESOLUTION_CLOCK
+#    endif
 #else
-#define HAS_HIGH_RESOLUTION_CLOCK
+#    define HAS_HIGH_RESOLUTION_CLOCK
 #endif
 
-//typedef long long tick_t;
-//typedef double tick_t;
+// typedef long long tick_t;
+// typedef double tick_t;
 
-//Linux: c++ 11 chrono for time measurement
-//Windows: queryPerformanceCounter because c++ 11 chrono only since VS2015 with good precision :(
-class SAIGA_GLOBAL Timer{
-public:
+// Linux: c++ 11 chrono for time measurement
+// Windows: queryPerformanceCounter because c++ 11 chrono only since VS2015 with good precision :(
+class SAIGA_GLOBAL Timer
+{
+   public:
     Timer();
-	virtual ~Timer() {}
+    virtual ~Timer() {}
 
     void start();
     tick_t stop();
@@ -39,10 +41,11 @@ public:
 
     tick_t getTime() { return lastTime; }
     virtual tick_t getCurrentTime() { return getTime(); }
-protected:
+
+   protected:
     virtual void addMeassurment(tick_t time);
-//    double startTime;
-    
+    //    double startTime;
+
     tick_t lastTime = tick_t(0);
 
 #ifdef HAS_HIGH_RESOLUTION_CLOCK
@@ -55,62 +58,67 @@ protected:
 };
 
 
-class SAIGA_GLOBAL ExponentialTimer : public Timer{
-public:
+class SAIGA_GLOBAL ExponentialTimer : public Timer
+{
+   public:
     ExponentialTimer(double alpha = 0.9);
     virtual tick_t getCurrentTime() override { return currentTime; }
-protected:
+
+   protected:
     virtual void addMeassurment(tick_t time) override;
-    tick_t currentTime = tick_t(0); //smoothed
+    tick_t currentTime = tick_t(0);  // smoothed
     double alpha;
 };
 
 
-class SAIGA_GLOBAL AverageTimer : public Timer{
-public:
+class SAIGA_GLOBAL AverageTimer : public Timer
+{
+   public:
     AverageTimer(int number = 10);
     virtual tick_t getCurrentTime() override { return currentTime; }
 
     double getMinimumTimeMS();
     double getMaximumTimeMS();
-protected:
+
+   protected:
     virtual void addMeassurment(tick_t time) override;
     std::vector<tick_t> lastTimes;
-    tick_t minimum = tick_t(0);
-    tick_t maximum = tick_t(0);
-    tick_t currentTime = tick_t(0); //smoothed
-    int currentTimeId = 0;
+    tick_t minimum     = tick_t(0);
+    tick_t maximum     = tick_t(0);
+    tick_t currentTime = tick_t(0);  // smoothed
+    int currentTimeId  = 0;
     int number;
 };
 
-class SAIGA_GLOBAL ScopedTimerPrint : public Timer{
-public:
+class SAIGA_GLOBAL ScopedTimerPrint : public Timer
+{
+   public:
     std::string name;
-    ScopedTimerPrint(const std::string &name);
+    ScopedTimerPrint(const std::string& name);
     ~ScopedTimerPrint();
 };
 
 
-template<typename T>
-class ScopedTimer : public Timer{
-public:
+template <typename T>
+class ScopedTimer : public Timer
+{
+   public:
     T* target;
-    ScopedTimer(T* target) : target(target){
-        start();
-    }
+    ScopedTimer(T* target) : target(target) { start(); }
 
-    ScopedTimer(T& target) : target(&target){
-        start();
-    }
+    ScopedTimer(T& target) : target(&target) { start(); }
 
-    ~ScopedTimer(){
+    ~ScopedTimer()
+    {
         stop();
-        T time = static_cast<T>(getTimeMS());
+        T time  = static_cast<T>(getTimeMS());
         *target = time;
     }
 };
 
 
-#define SAIGA_BLOCK_TIMER Saiga::ScopedTimerPrint func_timer(std::string(SAIGA_SHORT_FUNCTION)+ ", Line " + std::string(std::to_string(__LINE__)));
+#define SAIGA_BLOCK_TIMER                                                              \
+    Saiga::ScopedTimerPrint func_timer(std::string(SAIGA_SHORT_FUNCTION) + ", Line " + \
+                                       std::string(std::to_string(__LINE__)));
 
-}
+}  // namespace Saiga

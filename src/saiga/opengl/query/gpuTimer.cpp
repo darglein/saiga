@@ -1,26 +1,25 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/opengl/query/gpuTimer.h"
+
 #include "saiga/util/assert.h"
 
-namespace Saiga {
-
-MultiFrameOpenGLTimer::MultiFrameOpenGLTimer()
+namespace Saiga
 {
-}
+MultiFrameOpenGLTimer::MultiFrameOpenGLTimer() {}
 
-MultiFrameOpenGLTimer::~MultiFrameOpenGLTimer()
-{
-}
+MultiFrameOpenGLTimer::~MultiFrameOpenGLTimer() {}
 
 void MultiFrameOpenGLTimer::create()
 {
-    for(int i = 0 ; i < 2 ; ++i){
-        for(int j = 0 ; j < 2 ; ++j){
+    for (int i = 0; i < 2; ++i)
+    {
+        for (int j = 0; j < 2; ++j)
+        {
             queries[i][j].create();
         }
     }
@@ -28,7 +27,7 @@ void MultiFrameOpenGLTimer::create()
 
 void MultiFrameOpenGLTimer::swapQueries()
 {
-    std::swap(queryBackBuffer,queryFrontBuffer);
+    std::swap(queryBackBuffer, queryFrontBuffer);
 }
 
 
@@ -42,19 +41,18 @@ void MultiFrameOpenGLTimer::stopTimer()
     queries[queryBackBuffer][1].record();
     time = queries[queryFrontBuffer][1].getTimestamp() - queries[queryFrontBuffer][0].getTimestamp();
 
-//    time = queries[queryFrontBuffer][1].waitTimestamp() - queries[queryFrontBuffer][0].waitTimestamp();
+    //    time = queries[queryFrontBuffer][1].waitTimestamp() - queries[queryFrontBuffer][0].waitTimestamp();
     swapQueries();
-
 }
 
 float MultiFrameOpenGLTimer::getTimeMS()
 {
-    return getTimeNS()/1000000.0f;
+    return getTimeNS() / 1000000.0f;
 }
 
 double MultiFrameOpenGLTimer::getTimeMSd()
 {
-    return getTimeNS()/1000000.0;
+    return getTimeNS() / 1000000.0;
 }
 
 GLuint64 MultiFrameOpenGLTimer::getTimeNS()
@@ -70,7 +68,7 @@ void FilteredMultiFrameOpenGLTimer::stopTimer()
 {
     MultiFrameOpenGLTimer::stopTimer();
     double newTime = MultiFrameOpenGLTimer::getTimeMSd();
-    currentTimeMS = newTime*alpha + (1.0f-alpha) * currentTimeMS;
+    currentTimeMS  = newTime * alpha + (1.0f - alpha) * currentTimeMS;
 }
 
 float FilteredMultiFrameOpenGLTimer::getTimeMS()
@@ -91,7 +89,7 @@ OpenGLTimer::OpenGLTimer()
 
 void OpenGLTimer::start()
 {
-     queries[0].record();
+    queries[0].record();
 }
 
 GLuint64 OpenGLTimer::stop()
@@ -103,10 +101,10 @@ GLuint64 OpenGLTimer::stop()
 
 float OpenGLTimer::getTimeMS()
 {
-     return time/1000000.0f;
+    return time / 1000000.0f;
 }
 
-ScopedOpenGLTimerPrint::ScopedOpenGLTimerPrint(const std::string &name) : name(name)
+ScopedOpenGLTimerPrint::ScopedOpenGLTimerPrint(const std::string& name) : name(name)
 {
     start();
 }
@@ -118,4 +116,4 @@ ScopedOpenGLTimerPrint::~ScopedOpenGLTimerPrint()
     std::cout << name << " : " << time << "ms." << std::endl;
 }
 
-}
+}  // namespace Saiga

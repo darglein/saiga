@@ -1,19 +1,20 @@
 /*
-* Vulkan examples debug wrapper
-* 
-* Appendix for VK_EXT_Debug_Report can be found at https://github.com/KhronosGroup/Vulkan-Docs/blob/1.0-VK_EXT_debug_report/doc/specs/vulkan/appendices/debug_report.txt
-*
-* Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
+ * Vulkan examples debug wrapper
+ *
+ * Appendix for VK_EXT_Debug_Report can be found at
+ * https://github.com/KhronosGroup/Vulkan-Docs/blob/1.0-VK_EXT_debug_report/doc/specs/vulkan/appendices/debug_report.txt
+ *
+ * Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
 
 #include "Debug.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 static const std::vector<std::string> typeNames = {
     "VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT                     ",
     "VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT                    ",
@@ -53,15 +54,8 @@ static const std::vector<std::string> typeNames = {
 
 
 
-VkBool32 messageCallback(
-        VkDebugReportFlagsEXT flags,
-        VkDebugReportObjectTypeEXT objType,
-        uint64_t srcObject,
-        size_t location,
-        int32_t msgCode,
-        const char* pLayerPrefix,
-        const char* pMsg,
-        void* pUserData)
+VkBool32 messageCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objType, uint64_t srcObject,
+                         size_t location, int32_t msgCode, const char* pLayerPrefix, const char* pMsg, void* pUserData)
 {
     // Select prefix depending on flags passed to the callback
     // Note that multiple flags may be set for a single validation message
@@ -94,18 +88,18 @@ VkBool32 messageCallback(
         prefix += "DEBUG";
     }
 
-    std::string typestring = (int)objType<typeNames.size() ? typeNames[objType] : std::to_string((int)objType);
+    std::string typestring = (int)objType < typeNames.size() ? typeNames[objType] : std::to_string((int)objType);
 
     // Display message to default output (console/logcat)
 
-    std::cerr <<
-                 "Vulkan " << pLayerPrefix << " callback" << endl <<
-                 "  Severity    : " << prefix << endl <<
-                 "  Code        : " << msgCode << endl <<
-                 "  Object ID   : " << srcObject << endl <<
-                 "  Object Type : " << typestring << endl <<
-                 "  Location    : " << location << endl <<
-                 "  Message     : " << pMsg << endl << endl;
+    std::cerr << "Vulkan " << pLayerPrefix << " callback" << endl
+              << "  Severity    : " << prefix << endl
+              << "  Code        : " << msgCode << endl
+              << "  Object ID   : " << srcObject << endl
+              << "  Object Type : " << typestring << endl
+              << "  Location    : " << location << endl
+              << "  Message     : " << pMsg << endl
+              << endl;
 
 
     SAIGA_ASSERT(0);
@@ -122,20 +116,20 @@ void Debug::init(VkInstance _instance, VkDebugReportFlagsEXT flags, VkDebugRepor
 {
     instance = _instance;
 
-    CreateDebugReportCallback = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
-    DestroyDebugReportCallback = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT"));
-    dbgBreakCallback = reinterpret_cast<PFN_vkDebugReportMessageEXT>(vkGetInstanceProcAddr(instance, "vkDebugReportMessageEXT"));
+    CreateDebugReportCallback = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
+        vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
+    DestroyDebugReportCallback = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
+        vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT"));
+    dbgBreakCallback =
+        reinterpret_cast<PFN_vkDebugReportMessageEXT>(vkGetInstanceProcAddr(instance, "vkDebugReportMessageEXT"));
 
     VkDebugReportCallbackCreateInfoEXT dbgCreateInfo = {};
-    dbgCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
-    dbgCreateInfo.pfnCallback = (PFN_vkDebugReportCallbackEXT)messageCallback;
-    dbgCreateInfo.flags = flags;
+    dbgCreateInfo.sType                              = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
+    dbgCreateInfo.pfnCallback                        = (PFN_vkDebugReportCallbackEXT)messageCallback;
+    dbgCreateInfo.flags                              = flags;
 
-    VkResult err = CreateDebugReportCallback(
-                instance,
-                &dbgCreateInfo,
-                nullptr,
-                (callBack != VK_NULL_HANDLE) ? &callBack : &msgCallback);
+    VkResult err = CreateDebugReportCallback(instance, &dbgCreateInfo, nullptr,
+                                             (callBack != VK_NULL_HANDLE) ? &callBack : &msgCallback);
     SAIGA_ASSERT(!err);
 }
 
@@ -147,14 +141,11 @@ void Debug::destroy()
     }
 }
 
-std::vector<const char *> Debug::getDebugValidationLayers()
+std::vector<const char*> Debug::getDebugValidationLayers()
 {
-    return {
-        "VK_LAYER_LUNARG_standard_validation"
-    };
+    return {"VK_LAYER_LUNARG_standard_validation"};
 }
 
 
-}
-}
-
+}  // namespace Vulkan
+}  // namespace Saiga

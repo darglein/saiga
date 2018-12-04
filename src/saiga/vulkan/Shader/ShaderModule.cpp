@@ -5,9 +5,11 @@
  */
 
 #include "ShaderModule.h"
+
+#include "saiga/util/file.h"
+
 #include "GLSL.h"
 #include "ShaderLoaderHelper.h"
-#include "saiga/util/file.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.

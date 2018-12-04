@@ -3,9 +3,11 @@
 //
 
 #include "BaseChunkAllocator.h"
+
+#include "saiga/util/easylogging++.h"
+
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"
-#include "saiga/util/easylogging++.h"
 
 
 namespace Saiga

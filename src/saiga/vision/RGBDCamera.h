@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <chrono>
 #include "saiga/config.h"
 #include "saiga/image/image.h"
 #include "saiga/vision/DepthmapPreprocessor.h"
 
+#include <chrono>
+
 namespace Saiga
 {
-using RGBImageType = TemplatedImage<ucvec4>;
+using RGBImageType   = TemplatedImage<ucvec4>;
 using DepthImageType = TemplatedImage<float>;
 
 
@@ -30,8 +31,8 @@ class SAIGA_GLOBAL RGBDCamera
 
     struct CameraOptions
     {
-        int w = 640;
-        int h = 480;
+        int w   = 640;
+        int h   = 480;
         int fps = 30;
     };
 

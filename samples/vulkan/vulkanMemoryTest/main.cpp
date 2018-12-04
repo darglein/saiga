@@ -1,16 +1,18 @@
 ﻿#include "saiga/sdl/sdl.h"
-#include "sample.h"
 #include "saiga/framework/framework.h"
-#include "saiga/vulkan/window/SDLWindow.h"
 #include "saiga/util/easylogging++.h"
+#include "saiga/vulkan/memory/VulkanStlAllocator.h"
+#include "saiga/vulkan/window/SDLWindow.h"
+
+#include "sample.h"
+
 #include <memory>
 #include <vector>
-#include "saiga/vulkan/memory/VulkanStlAllocator.h"
 
-int main(const int argc, const char *argv[])
+int main(const int argc, const char* argv[])
 {
     using namespace Saiga;
-//    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Format, "%datetime %level [%fbase]: %msg");
+    //    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Format, "%datetime %level [%fbase]: %msg");
     {
         Saiga::WindowParameters windowParameters;
         Saiga::initSample(windowParameters.saigaParameters);
@@ -21,23 +23,25 @@ int main(const int argc, const char *argv[])
 
         Saiga::Vulkan::VulkanParameters vulkanParams;
         vulkanParams.enableValidationLayer = true;
-        Saiga::Vulkan::VulkanForwardRenderer renderer(window,vulkanParams);
+        Saiga::Vulkan::VulkanForwardRenderer renderer(window, vulkanParams);
 
 
 
-        VulkanExample example(window,renderer);
+        VulkanExample example(window, renderer);
 
 
-        VulkanStlAllocator<int> alloc(renderer.base,vk::BufferUsageFlagBits::eUniformBuffer);
+        VulkanStlAllocator<int> alloc(renderer.base, vk::BufferUsageFlagBits::eUniformBuffer);
 
 
-        std::vector<int,VulkanStlAllocator<int>> test(alloc);
+        std::vector<int, VulkanStlAllocator<int>> test(alloc);
         test.reserve(1000);
-        for(int i =0; i<10000;++i) {
+        for (int i = 0; i < 10000; ++i)
+        {
             test.push_back(i);
         }
 
-        for(int i =0; i<10000; ++i) {
+        for (int i = 0; i < 10000; ++i)
+        {
             SAIGA_ASSERT(i == test[i]);
         }
 
@@ -46,7 +50,7 @@ int main(const int argc, const char *argv[])
 
         MainLoopParameters params;
         params.mainLoopInfoTime = 1;
-        params.framesPerSecond = 0;
+        params.framesPerSecond  = 0;
         window.startMainLoop(params);
 
         renderer.waitIdle();

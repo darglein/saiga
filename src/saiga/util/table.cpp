@@ -1,14 +1,15 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/util/table.h"
+
 #include "internal/noGraphicsAPI.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 Table::Table(std::vector<int> colWidth)
 {
     setColWidth(colWidth);
@@ -17,7 +18,7 @@ Table::Table(std::vector<int> colWidth)
 void Table::setColWidth(std::vector<int> colWidth)
 {
     this->colWidth = colWidth;
-    numCols = colWidth.size();
+    numCols        = colWidth.size();
 }
 
-}
+}  // namespace Saiga

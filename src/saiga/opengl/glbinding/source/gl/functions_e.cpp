@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,14 +9,12 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
-void glEGLImageTargetTexStorageEXT(GLenum target, GLeglImageOES image, const GLint * attrib_list)
+void glEGLImageTargetTexStorageEXT(GLenum target, GLeglImageOES image, const GLint* attrib_list)
 {
     return Binding::EGLImageTargetTexStorageEXT(target, image, attrib_list);
 }
 
-void glEGLImageTargetTextureStorageEXT(GLuint texture, GLeglImageOES image, const GLint * attrib_list)
+void glEGLImageTargetTextureStorageEXT(GLuint texture, GLeglImageOES image, const GLint* attrib_list)
 {
     return Binding::EGLImageTargetTextureStorageEXT(texture, image, attrib_list);
 }
@@ -31,32 +29,32 @@ void glEdgeFlagFormatNV(GLsizei stride)
     return Binding::EdgeFlagFormatNV(stride);
 }
 
-void glEdgeFlagPointer(GLsizei stride, const void * pointer)
+void glEdgeFlagPointer(GLsizei stride, const void* pointer)
 {
     return Binding::EdgeFlagPointer(stride, pointer);
 }
 
-void glEdgeFlagPointerEXT(GLsizei stride, GLsizei count, const GLboolean * pointer)
+void glEdgeFlagPointerEXT(GLsizei stride, GLsizei count, const GLboolean* pointer)
 {
     return Binding::EdgeFlagPointerEXT(stride, count, pointer);
 }
 
-void glEdgeFlagPointerListIBM(GLint stride, const GLboolean ** pointer, GLint ptrstride)
+void glEdgeFlagPointerListIBM(GLint stride, const GLboolean** pointer, GLint ptrstride)
 {
     return Binding::EdgeFlagPointerListIBM(stride, pointer, ptrstride);
 }
 
-void glEdgeFlagv(const GLboolean * flag)
+void glEdgeFlagv(const GLboolean* flag)
 {
     return Binding::EdgeFlagv(flag);
 }
 
-void glElementPointerAPPLE(GLenum type, const void * pointer)
+void glElementPointerAPPLE(GLenum type, const void* pointer)
 {
     return Binding::ElementPointerAPPLE(type, pointer);
 }
 
-void glElementPointerATI(GLenum type, const void * pointer)
+void glElementPointerATI(GLenum type, const void* pointer)
 {
     return Binding::ElementPointerATI(type, pointer);
 }
@@ -216,7 +214,7 @@ void glEvalCoord1d(GLdouble u)
     return Binding::EvalCoord1d(u);
 }
 
-void glEvalCoord1dv(const GLdouble * u)
+void glEvalCoord1dv(const GLdouble* u)
 {
     return Binding::EvalCoord1dv(u);
 }
@@ -226,7 +224,7 @@ void glEvalCoord1f(GLfloat u)
     return Binding::EvalCoord1f(u);
 }
 
-void glEvalCoord1fv(const GLfloat * u)
+void glEvalCoord1fv(const GLfloat* u)
 {
     return Binding::EvalCoord1fv(u);
 }
@@ -236,7 +234,7 @@ void glEvalCoord1xOES(GLfixed u)
     return Binding::EvalCoord1xOES(u);
 }
 
-void glEvalCoord1xvOES(const GLfixed * coords)
+void glEvalCoord1xvOES(const GLfixed* coords)
 {
     return Binding::EvalCoord1xvOES(coords);
 }
@@ -246,7 +244,7 @@ void glEvalCoord2d(GLdouble u, GLdouble v)
     return Binding::EvalCoord2d(u, v);
 }
 
-void glEvalCoord2dv(const GLdouble * u)
+void glEvalCoord2dv(const GLdouble* u)
 {
     return Binding::EvalCoord2dv(u);
 }
@@ -256,7 +254,7 @@ void glEvalCoord2f(GLfloat u, GLfloat v)
     return Binding::EvalCoord2f(u, v);
 }
 
-void glEvalCoord2fv(const GLfloat * u)
+void glEvalCoord2fv(const GLfloat* u)
 {
     return Binding::EvalCoord2fv(u);
 }
@@ -266,7 +264,7 @@ void glEvalCoord2xOES(GLfixed u, GLfixed v)
     return Binding::EvalCoord2xOES(u, v);
 }
 
-void glEvalCoord2xvOES(const GLfixed * coords)
+void glEvalCoord2xvOES(const GLfixed* coords)
 {
     return Binding::EvalCoord2xvOES(coords);
 }
@@ -301,7 +299,7 @@ void glEvaluateDepthValuesARB()
     return Binding::EvaluateDepthValuesARB();
 }
 
-void glExecuteProgramNV(GLenum target, GLuint id, const GLfloat * params)
+void glExecuteProgramNV(GLenum target, GLuint id, const GLfloat* params)
 {
     return Binding::ExecuteProgramNV(target, id, params);
 }
@@ -313,5 +311,4 @@ void glExtractComponentEXT(GLuint res, GLuint src, GLuint num)
 
 
 
-
-} // namespace gl
+}  // namespace gl

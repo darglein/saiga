@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -18,32 +18,34 @@
 
 #ifdef SAIGA_USE_PNG
 
-namespace Saiga {
-namespace PNG{
-
+namespace Saiga
+{
+namespace PNG
+{
 using uchar = unsigned char;
 
-    struct SAIGA_GLOBAL PngImage{
-        //image size
-        size_t width, height;
+struct SAIGA_GLOBAL PngImage
+{
+    // image size
+    size_t width, height;
 
-        //number of bits per color. 8 for basic rgb(a) images
-        int bit_depth;
-        //PNG_COLOR_TYPE_GRAY,PNG_COLOR_TYPE_GRAY_ALPHA,PNG_COLOR_TYPE_RGB, PNG_COLOR_TYPE_RGB_ALPHA
-        int color_type;
+    // number of bits per color. 8 for basic rgb(a) images
+    int bit_depth;
+    // PNG_COLOR_TYPE_GRAY,PNG_COLOR_TYPE_GRAY_ALPHA,PNG_COLOR_TYPE_RGB, PNG_COLOR_TYPE_RGB_ALPHA
+    int color_type;
 
-        //raw image data
-        std::vector<uchar> data;
-        uchar* data2;
+    // raw image data
+    std::vector<uchar> data;
+    uchar* data2;
 
-        int rowAlignment = 4;
-        size_t bytesPerRow;
+    int rowAlignment = 4;
+    size_t bytesPerRow;
 
 
-        void* rowPtr(int i) { return data.data() + bytesPerRow * i; }
-        ImageType saigaType() const;
-        void fromSaigaType(ImageType t);
-    };
+    void* rowPtr(int i) { return data.data() + bytesPerRow * i; }
+    ImageType saigaType() const;
+    void fromSaigaType(ImageType t);
+};
 
 
 //    SAIGA_LOCAL void pngVersionInfo();
@@ -55,10 +57,10 @@ using uchar = unsigned char;
 //    SAIGA_LOCAL void convert(Image &src, PNG::PngImage &dst);
 
 
-    SAIGA_LOCAL bool save(Image& img, const std::string &path, bool invertY = false);
-    SAIGA_LOCAL bool load(Image& img, const std::string &path, bool invertY = false);
+SAIGA_LOCAL bool save(Image& img, const std::string& path, bool invertY = false);
+SAIGA_LOCAL bool load(Image& img, const std::string& path, bool invertY = false);
 
-}
-}
+}  // namespace PNG
+}  // namespace Saiga
 
 #endif

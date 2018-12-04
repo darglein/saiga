@@ -25,7 +25,8 @@
 
 #pragma once
 
-#include <condition_variable>
+#include "saiga/config.h"
+
 #include <functional>
 #include <future>
 #include <memory>
@@ -34,7 +35,8 @@
 #include <stdexcept>
 #include <thread>
 #include <vector>
-#include "saiga/config.h"
+
+#include <condition_variable>
 
 namespace Saiga
 {

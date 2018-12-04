@@ -4,8 +4,8 @@
  * See LICENSE file for more information.
  */
 
-//Note: the intial source code ist taken from opencv.
-//Opencv license
+// Note: the intial source code ist taken from opencv.
+// Opencv license
 /*M///////////////////////////////////////////////////////////////////////////////////////
 //
 //  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
@@ -49,23 +49,23 @@
 //M*/
 
 
-#include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/device_helper.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
 
-namespace Saiga {
-namespace CUDA {
-
-
+namespace Saiga
+{
+namespace CUDA
+{
 __constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
 
 template <int KSIZE>
 __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, const int anchor)
 {
-    const int BLOCK_DIM_X = 32;
-    const int BLOCK_DIM_Y = 8;
+    const int BLOCK_DIM_X     = 32;
+    const int BLOCK_DIM_Y     = 8;
     const int PATCH_PER_BLOCK = 4;
-    const int HALO_SIZE = 1;
+    const int HALO_SIZE       = 1;
 
 
     using sum_t = float;
@@ -74,8 +74,7 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
 
     const int y = blockIdx.y * BLOCK_DIM_Y + threadIdx.y;
 
-    if (y >= src.height)
-        return;
+    if (y >= src.height) return;
 
 
 
@@ -85,45 +84,52 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
 
     if (blockIdx.x > 0)
     {
-        //Load left halo
+        // Load left halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             smem[threadIdx.y][threadIdx.x + j * BLOCK_DIM_X] = src_row[xStart - (HALO_SIZE - j) * BLOCK_DIM_X];
     }
     else
     {
-        //Load left halo
+        // Load left halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
-            //            smem[threadIdx.y][threadIdx.x + j * BLOCK_DIM_X] = brd.at_low(xStart - (HALO_SIZE - j) * BLOCK_DIM_X, src_row);
-            smem[threadIdx.y][threadIdx.x + j * BLOCK_DIM_X] = src_row[ max(xStart - (HALO_SIZE - j) * BLOCK_DIM_X,0)];
+            //            smem[threadIdx.y][threadIdx.x + j * BLOCK_DIM_X] = brd.at_low(xStart - (HALO_SIZE - j) *
+            //            BLOCK_DIM_X, src_row);
+            smem[threadIdx.y][threadIdx.x + j * BLOCK_DIM_X] = src_row[max(xStart - (HALO_SIZE - j) * BLOCK_DIM_X, 0)];
     }
 
     if (blockIdx.x + 2 < gridDim.x)
     {
-        //Load main data
+        // Load main data
 #pragma unroll
         for (int j = 0; j < PATCH_PER_BLOCK; ++j)
-            smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X] = src_row[xStart + j * BLOCK_DIM_X];
+            smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X] =
+                src_row[xStart + j * BLOCK_DIM_X];
 
-        //Load right halo
+            // Load right halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
-            smem[threadIdx.y][threadIdx.x + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_X + j * BLOCK_DIM_X] = src_row[xStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_X];
+            smem[threadIdx.y][threadIdx.x + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_X + j * BLOCK_DIM_X] =
+                src_row[xStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_X];
     }
     else
     {
-        //Load main data
+        // Load main data
 #pragma unroll
         for (int j = 0; j < PATCH_PER_BLOCK; ++j)
-            //            smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X] = brd.at_high(xStart + j * BLOCK_DIM_X, src_row);
-            smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X] = src_row[min(xStart + j * BLOCK_DIM_X,src.width-1)];
+            //            smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X] =
+            //            brd.at_high(xStart + j * BLOCK_DIM_X, src_row);
+            smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X] =
+                src_row[min(xStart + j * BLOCK_DIM_X, src.width - 1)];
 
-        //Load right halo
+            // Load right halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
-            //            smem[threadIdx.y][threadIdx.x + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_X + j * BLOCK_DIM_X] = brd.at_high(xStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_X, src_row);
-            smem[threadIdx.y][threadIdx.x + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_X + j * BLOCK_DIM_X] = src_row[min(xStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_X,src.width-1)];
+            //            smem[threadIdx.y][threadIdx.x + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_X + j * BLOCK_DIM_X]
+            //            = brd.at_high(xStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_X, src_row);
+            smem[threadIdx.y][threadIdx.x + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_X + j * BLOCK_DIM_X] =
+                src_row[min(xStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_X, src.width - 1)];
     }
 
     __syncthreads();
@@ -139,59 +145,113 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
 
 #pragma unroll
             for (int k = 0; k < KSIZE; ++k)
-                sum = sum + smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X - anchor + k] * d_Kernel[k];
+                sum = sum + smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X - anchor + k] *
+                                d_Kernel[k];
 
-            dst(y,x) = sum;
+            dst(y, x) = sum;
         }
     }
 }
 
-template<typename T, int RADIUS>
-static void convolveRow(ImageView<float> src, ImageView<float> dst){
-    const int BLOCK_W = 32;
-    const int  BLOCK_H = 8;
+template <typename T, int RADIUS>
+static void convolveRow(ImageView<float> src, ImageView<float> dst)
+{
+    const int BLOCK_W         = 32;
+    const int BLOCK_H         = 8;
     const int PATCH_PER_BLOCK = 4;
 
     const dim3 block(BLOCK_W, BLOCK_H);
     const dim3 grid(iDivUp(src.width, BLOCK_W * PATCH_PER_BLOCK), iDivUp(src.height, BLOCK_H));
 
-    const int ksize = RADIUS*2+1;
-    int anchor = ksize >> 1;
+    const int ksize = RADIUS * 2 + 1;
+    int anchor      = ksize >> 1;
     linearRowFilter<ksize><<<grid, block>>>(src, dst, anchor);
 }
 
-void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius){
+void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius)
+{
     SAIGA_ASSERT(kernel.size() > 0 && kernel.size() <= SAIGA_MAX_KERNEL_SIZE);
-    CHECK_CUDA_ERROR(cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size()*sizeof(float),0,cudaMemcpyDeviceToDevice));
+    CHECK_CUDA_ERROR(
+        cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
 
-    switch (radius){
-    case 1: convolveRow<float,1>(src,dst); break;
-    case 2: convolveRow<float,2>(src,dst); break;
-    case 3: convolveRow<float,3>(src,dst); break;
-    case 4: convolveRow<float,4>(src,dst); break;
-    case 5: convolveRow<float,5>(src,dst); break;
-    case 6: convolveRow<float,6>(src,dst); break;
-    case 7: convolveRow<float,7>(src,dst); break;
-    case 8: convolveRow<float,8>(src,dst); break;
-    case 9: convolveRow<float,9>(src,dst); break;
-    case 10: convolveRow<float,10>(src,dst); break;
-    case 11: convolveRow<float,11>(src,dst); break;
-    case 12: convolveRow<float,12>(src,dst); break;
-    case 13: convolveRow<float,13>(src,dst); break;
-    case 14: convolveRow<float,14>(src,dst); break;
-    case 15: convolveRow<float,15>(src,dst); break;
-    case 16: convolveRow<float,16>(src,dst); break;
-    case 17: convolveRow<float,17>(src,dst); break;
-    case 18: convolveRow<float,18>(src,dst); break;
-    case 19: convolveRow<float,19>(src,dst); break;
-    case 20: convolveRow<float,20>(src,dst); break;
-    case 21: convolveRow<float,21>(src,dst); break;
-    case 22: convolveRow<float,22>(src,dst); break;
-    case 23: convolveRow<float,23>(src,dst); break;
-    case 24: convolveRow<float,24>(src,dst); break;
-    default: SAIGA_ASSERT(0);
+    switch (radius)
+    {
+        case 1:
+            convolveRow<float, 1>(src, dst);
+            break;
+        case 2:
+            convolveRow<float, 2>(src, dst);
+            break;
+        case 3:
+            convolveRow<float, 3>(src, dst);
+            break;
+        case 4:
+            convolveRow<float, 4>(src, dst);
+            break;
+        case 5:
+            convolveRow<float, 5>(src, dst);
+            break;
+        case 6:
+            convolveRow<float, 6>(src, dst);
+            break;
+        case 7:
+            convolveRow<float, 7>(src, dst);
+            break;
+        case 8:
+            convolveRow<float, 8>(src, dst);
+            break;
+        case 9:
+            convolveRow<float, 9>(src, dst);
+            break;
+        case 10:
+            convolveRow<float, 10>(src, dst);
+            break;
+        case 11:
+            convolveRow<float, 11>(src, dst);
+            break;
+        case 12:
+            convolveRow<float, 12>(src, dst);
+            break;
+        case 13:
+            convolveRow<float, 13>(src, dst);
+            break;
+        case 14:
+            convolveRow<float, 14>(src, dst);
+            break;
+        case 15:
+            convolveRow<float, 15>(src, dst);
+            break;
+        case 16:
+            convolveRow<float, 16>(src, dst);
+            break;
+        case 17:
+            convolveRow<float, 17>(src, dst);
+            break;
+        case 18:
+            convolveRow<float, 18>(src, dst);
+            break;
+        case 19:
+            convolveRow<float, 19>(src, dst);
+            break;
+        case 20:
+            convolveRow<float, 20>(src, dst);
+            break;
+        case 21:
+            convolveRow<float, 21>(src, dst);
+            break;
+        case 22:
+            convolveRow<float, 22>(src, dst);
+            break;
+        case 23:
+            convolveRow<float, 23>(src, dst);
+            break;
+        case 24:
+            convolveRow<float, 24>(src, dst);
+            break;
+        default:
+            SAIGA_ASSERT(0);
     }
 }
 
-}
-}
+}  // namespace CUDA
+}  // namespace Saiga

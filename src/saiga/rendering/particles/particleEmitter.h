@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,13 +8,11 @@
 
 #include "saiga/rendering/particles/particleEffect.h"
 
-namespace Saiga {
-
-class SAIGA_GLOBAL ParticleEmitter : public ParticleEffect{
-
-public:
-
-
+namespace Saiga
+{
+class SAIGA_GLOBAL ParticleEmitter : public ParticleEffect
+{
+   public:
     float particlesPerTick = 0.5f;
 
     ParticleEmitter();
@@ -26,24 +24,26 @@ public:
     void setParticlesPerSecond(float c);
 
 
-private:
+   private:
     float time = 0.0f;
 };
 
 
-class SAIGA_GLOBAL SphericalParticleEmitter : public ParticleEmitter{
-public:
+class SAIGA_GLOBAL SphericalParticleEmitter : public ParticleEmitter
+{
+   public:
     SphericalParticleEmitter();
     void spawnParticles(int count, ParticleSystem& ps) override;
 };
 
 
-class SAIGA_GLOBAL ConaParticleEmitter : public ParticleEmitter{
-public:
-    vec3 coneDirection = vec3(0,1,0);
-    float coneAngle = 45.0f; //in degrees
+class SAIGA_GLOBAL ConaParticleEmitter : public ParticleEmitter
+{
+   public:
+    vec3 coneDirection = vec3(0, 1, 0);
+    float coneAngle    = 45.0f;  // in degrees
     ConaParticleEmitter();
     void spawnParticles(int count, ParticleSystem& ps) override;
 };
 
-}
+}  // namespace Saiga

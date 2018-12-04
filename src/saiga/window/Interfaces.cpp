@@ -5,23 +5,22 @@
  */
 
 #include "Interfaces.h"
+
 #include "saiga/window/WindowBase.h"
 
 #include "internal/noGraphicsAPI.h"
 
-namespace Saiga {
-
-Updating::Updating(WindowBase &parent)
-    : parentWindow(parent)
+namespace Saiga
+{
+Updating::Updating(WindowBase& parent) : parentWindow(parent)
 {
     parent.setUpdateObject(*this);
 }
 
-RenderingBase::RenderingBase(RendererBase &parent)
-    : parentRenderer(parent)
+RenderingBase::RenderingBase(RendererBase& parent) : parentRenderer(parent)
 {
     parent.setRenderObject(*this);
 }
 
 
-}
+}  // namespace Saiga

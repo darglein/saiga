@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,9 +8,10 @@
 
 #include "saiga/config.h"
 
-namespace Saiga {
-namespace CUDA {
-
+namespace Saiga
+{
+namespace CUDA
+{
 SAIGA_GLOBAL extern void occupancyTest();
 SAIGA_GLOBAL extern void coalescedCopyTest();
 SAIGA_GLOBAL extern void dotTest();
@@ -31,5 +32,5 @@ SAIGA_GLOBAL extern void testThrust();
 
 SAIGA_GLOBAL extern void inverseTest();
 
-}
-}
+}  // namespace CUDA
+}  // namespace Saiga

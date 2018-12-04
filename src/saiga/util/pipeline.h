@@ -7,52 +7,47 @@
 #pragma once
 
 #include "saiga/config.h"
-
-#include "saiga/util/threadName.h"
 #include "saiga/util/synchronizedBuffer.h"
+#include "saiga/util/threadName.h"
 
-#include <condition_variable>
 #include <mutex>
 #include <thread>
 
-namespace Saiga {
+#include <condition_variable>
 
+namespace Saiga
+{
 /**
  * Class to create Pipeline-parallel algorithms.
  */
-template<typename OutputType, int queueSize = 1, bool override = true>
+template <typename OutputType, int queueSize = 1, bool override = true>
 class SAIGA_TEMPLATE PipelineStage
 {
-public:
+   public:
     PipelineStage(const std::string& name = "PipelineStage") : buffer(queueSize), name(name) {}
-    ~PipelineStage()
-    {
-        stop();
-    }
+    ~PipelineStage() { stop(); }
 
-    template<typename T>
+    template <typename T>
     void run(T op)
     {
         running = true;
         // Capture 'op' by copy because it runs out of scope.
         // Note: 'this' is still captured by reference
-        t = std::thread(
-                    [&,op]()
-        {
+        t = std::thread([&, op]() {
             setThreadName(name);
             OutputType tmp;
-            while(running)
+            while (running)
             {
                 tmp = op();
 
                 // Do not add objects that convert to false.
-                if(!tmp)
-                    continue;
+                if (!tmp) continue;
 
-                if(override)
+                if (override)
                 {
                     buffer.addOverride(tmp);
-                }else
+                }
+                else
                 {
                     buffer.add(tmp);
                 }
@@ -62,32 +57,24 @@ public:
 
     void stop()
     {
-        if(running)
+        if (running)
         {
             running = false;
-            if(t.joinable())
-                t.join();
+            if (t.joinable()) t.join();
         }
     }
 
-    void get(OutputType& out)
-    {
-        out = buffer.get();
-    }
+    void get(OutputType& out) { out = buffer.get(); }
 
-    bool tryGet(OutputType& out)
-    {
-        return buffer.tryGet(out);
-    }
+    bool tryGet(OutputType& out) { return buffer.tryGet(out); }
 
     std::string getName() const { return name; }
 
-private:
+   private:
     volatile bool running = false;
     SynchronizedBuffer<OutputType> buffer;
     std::thread t;
     std::string name;
 };
 
-}
-
+}  // namespace Saiga

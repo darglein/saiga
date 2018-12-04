@@ -2,14 +2,12 @@
 #pragma once
 
 
-#include <glbinding/nogl.h>
 #include <glbinding/gl/functions.h>
+#include <glbinding/nogl.h>
 
 
 namespace gl11
 {
-
-
 using gl::glAccum;
 using gl::glAlphaFunc;
 using gl::glAreTexturesResident;
@@ -139,14 +137,14 @@ using gl::glGetTexLevelParameteriv;
 using gl::glGetTexParameterfv;
 using gl::glGetTexParameteriv;
 using gl::glHint;
-using gl::glIndexMask;
-using gl::glIndexPointer;
 using gl::glIndexd;
 using gl::glIndexdv;
 using gl::glIndexf;
 using gl::glIndexfv;
 using gl::glIndexi;
 using gl::glIndexiv;
+using gl::glIndexMask;
+using gl::glIndexPointer;
 using gl::glIndexs;
 using gl::glIndexsv;
 using gl::glIndexub;
@@ -156,14 +154,14 @@ using gl::glInterleavedArrays;
 using gl::glIsEnabled;
 using gl::glIsList;
 using gl::glIsTexture;
-using gl::glLightModelf;
-using gl::glLightModelfv;
-using gl::glLightModeli;
-using gl::glLightModeliv;
 using gl::glLightf;
 using gl::glLightfv;
 using gl::glLighti;
 using gl::glLightiv;
+using gl::glLightModelf;
+using gl::glLightModelfv;
+using gl::glLightModeli;
+using gl::glLightModeliv;
 using gl::glLineStipple;
 using gl::glLineWidth;
 using gl::glListBase;
@@ -348,4 +346,4 @@ using gl::glVertexPointer;
 using gl::glViewport;
 
 
-} // namespace gl11
+}  // namespace gl11

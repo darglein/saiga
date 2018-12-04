@@ -3,18 +3,21 @@
 //
 
 #pragma once
-#include <algorithm>
-#include <map>
-#include <memory>
-#include <sstream>
-#include <unordered_map>
-#include <vulkan/vulkan.hpp>
+#include "saiga/util/assert.h"
+
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"
 #include "ImageChunkAllocator.h"
 #include "MemoryType.h"
 #include "SimpleMemoryAllocator.h"
-#include "saiga/util/assert.h"
+
+#include <algorithm>
+#include <map>
+#include <memory>
+#include <sstream>
+#include <vulkan/vulkan.hpp>
+
+#include <unordered_map>
 
 namespace Saiga
 {

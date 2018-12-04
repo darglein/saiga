@@ -9,6 +9,7 @@
 
 #include "saiga/config.h"
 #include "saiga/util/assert.h"
+
 #include "vulkan/vulkan.hpp"
 
 #ifdef SAIGA_ASSERTS

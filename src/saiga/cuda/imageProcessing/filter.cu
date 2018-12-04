@@ -4,14 +4,16 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/device_helper.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/util/statistics.h"
 
-namespace Saiga {
-namespace CUDA {
-
-thrust::device_vector<float>  createGaussianBlurKernel(int radius, float sigma){
+namespace Saiga
+{
+namespace CUDA
+{
+thrust::device_vector<float> createGaussianBlurKernel(int radius, float sigma)
+{
     SAIGA_ASSERT(radius <= SAIGA_MAX_CONVOLUTION_RADIUS && radius > 0);
 #if 0
     const int ELEMENTS = radius * 2 + 1;
@@ -26,21 +28,24 @@ thrust::device_vector<float>  createGaussianBlurKernel(int radius, float sigma){
         kernel[j+radius] /= kernelSum;
     return thrust::device_vector<float>(kernel);
 #else
-    std::vector<float> kernel = gaussianBlurKernel<float>(radius,sigma);
+    std::vector<float> kernel = gaussianBlurKernel<float>(radius, sigma);
     return thrust::device_vector<float>(kernel);
 #endif
 }
 
 
-void applyFilterSeparate(ImageView<float> src, ImageView<float> dst, ImageView<float> tmp, ArrayView<float> kernelRow, ArrayView<float> kernelCol){
-    convolveRow(src,tmp,kernelRow,kernelRow.size() / 2);
-    convolveCol(tmp,dst,kernelCol,kernelCol.size() / 2);
+void applyFilterSeparate(ImageView<float> src, ImageView<float> dst, ImageView<float> tmp, ArrayView<float> kernelRow,
+                         ArrayView<float> kernelCol)
+{
+    convolveRow(src, tmp, kernelRow, kernelRow.size() / 2);
+    convolveCol(tmp, dst, kernelCol, kernelCol.size() / 2);
 }
 
-void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, ArrayView<float> kernel){
-    int radius = kernel.size()/2;
-    //inner 75 is the fastest for small kernels
-    convolveSinglePassSeparateInner75(src,dst,kernel,radius);
+void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, ArrayView<float> kernel)
+{
+    int radius = kernel.size() / 2;
+    // inner 75 is the fastest for small kernels
+    convolveSinglePassSeparateInner75(src, dst, kernel, radius);
 
 #if 0
     return;
@@ -60,7 +65,5 @@ void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, A
 }
 
 
-}
-}
-
-
+}  // namespace CUDA
+}  // namespace Saiga

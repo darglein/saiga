@@ -5,9 +5,10 @@
  */
 
 
-#include "advancedWindow.h"
 #include "saiga/sdl/sdl.h"
 #include "saiga/util/crash.h"
+
+#include "advancedWindow.h"
 
 
 int main(int argc, char* args[])

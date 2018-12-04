@@ -1,32 +1,35 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include "saiga/util/tostring.h"
-#include "saiga/util/math.h"
-#include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/geometry/object3d.h"
-#include "saiga/text/TextOverlay2D.h"
+#include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/rendering/overlay/Layout.h"
+#include "saiga/text/TextOverlay2D.h"
 #include "saiga/text/text.h"
+#include "saiga/util/math.h"
+#include "saiga/util/tostring.h"
+
 #include <vector>
 
-namespace Saiga {
-
+namespace Saiga
+{
 #ifdef SAIGA_USE_FREETYPE
 
 class TextureAtlas;
 
 class Text;
 
-class SAIGA_GLOBAL TextDebugOverlay {
-public:
-    class TDOEntry{
-    public:
+class SAIGA_GLOBAL TextDebugOverlay
+{
+   public:
+    class TDOEntry
+    {
+       public:
         Text* text;
         int valueIndex;
     };
@@ -59,19 +62,17 @@ public:
 
     int createItem(const std::string& name);
 
-    template<typename T>
-    void updateEntry(int id,const T& v);
-
-
+    template <typename T>
+    void updateEntry(int id, const T& v);
 };
 
 
-template<typename T>
-void TextDebugOverlay::updateEntry(int id,const T& v)
+template <typename T>
+void TextDebugOverlay::updateEntry(int id, const T& v)
 {
-        entries[id].text->updateText(to_string(v),entries[id].valueIndex);
+    entries[id].text->updateText(to_string(v), entries[id].valueIndex);
 }
 
 #endif
 
-}
+}  // namespace Saiga

@@ -4,36 +4,35 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/crash.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/cusparseHelper.h"
-#include "saiga/cuda/tests/test.h"
-#include "saiga/cuda/random.h"
-#include "saiga/tests/test.h"
-
-#include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/imageProcessing/image.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/random.h"
+#include "saiga/cuda/tests/test.h"
 #include "saiga/image/image.h"
 #include "saiga/image/templatedImage.h"
+#include "saiga/tests/test.h"
+#include "saiga/util/crash.h"
 
 using namespace Saiga;
 
 #if defined(SAIGA_DLL_EXPORTS)
-#error build shared still defined
+#    error build shared still defined
 #endif
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char* argv[])
+{
     catchSegFaults();
 
     {
-        //CUDA tests
+        // CUDA tests
         CUDA::initCUDA();
-                CUDA::convolutionTest();
+        CUDA::convolutionTest();
 
         CUDA::imageProcessingTest();
 
-//        return 1;
+        //        return 1;
         {
 #if 0
 
@@ -98,7 +97,6 @@ int main(int argc, char *argv[]) {
             resGray8 = resGray.convertImage<1,8,ImageElementFormat::UnsignedNormalized>();
             saveImage("debug/testgrayblurred.png",resGray8);
 #endif
-
         }
         CUDA::destroyCUDA();
     }

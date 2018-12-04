@@ -1,22 +1,23 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include "saiga/rendering/deferredRendering/lighting/light.h"
 #include "saiga/camera/camera.h"
 #include "saiga/opengl/uniformBuffer.h"
+#include "saiga/rendering/deferredRendering/lighting/light.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 #define MAX_CASCADES 5
 
 
-class SAIGA_GLOBAL DirectionalLightShader : public LightShader{
-public:
+class SAIGA_GLOBAL DirectionalLightShader : public LightShader
+{
+   public:
     GLint location_direction, location_ambientIntensity;
     GLint location_ssaoTexture;
     GLint location_depthTexures;
@@ -26,63 +27,63 @@ public:
     GLint location_cascadeInterpolateRange;
 
     virtual void checkUniforms();
-    void uploadDirection(vec3 &direction);
+    void uploadDirection(vec3& direction);
     void uploadAmbientIntensity(float i);
     void uploadSsaoTexture(std::shared_ptr<raw_Texture> texture);
 
-    void uploadDepthTextures(std::vector<std::shared_ptr<raw_Texture>> &textures);
-    void uploadViewToLightTransforms(std::vector<mat4> &transforms);
-    void uploadDepthCuts(std::vector<float> &depthCuts);
+    void uploadDepthTextures(std::vector<std::shared_ptr<raw_Texture>>& textures);
+    void uploadViewToLightTransforms(std::vector<mat4>& transforms);
+    void uploadDepthCuts(std::vector<float>& depthCuts);
     void uploadNumCascades(int n);
     void uploadCascadeInterpolateRange(float r);
     void uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures);
 };
 
-class SAIGA_GLOBAL DirectionalLight :  public Light
+class SAIGA_GLOBAL DirectionalLight : public Light
 {
     friend class DeferredLighting;
-protected:
 
+   protected:
     std::shared_ptr<CascadedShadowmap> shadowmap;
 
-    //direction of the light in world space
-    vec3 direction = vec3(0,-1,0);
+    // direction of the light in world space
+    vec3 direction = vec3(0, -1, 0);
 
-    //relative intensity to the diffuse light in ambiend regions
+    // relative intensity to the diffuse light in ambiend regions
     float ambientIntensity = 0.2f;
 
-    //number of cascades for cascaded shadow mapping
-    //1 means normal shadow mapping
+    // number of cascades for cascaded shadow mapping
+    // 1 means normal shadow mapping
     int numCascades = 1;
 
-    //bounding box of every cascade frustum
+    // bounding box of every cascade frustum
     std::vector<AABB> orthoBoxes;
 
-    //relative split planes to the camera near and far plane
-    //must be of size numCascades + 1
-    //should start with 0 and end with 1
-    //values between the first and the last indicate the split planes
+    // relative split planes to the camera near and far plane
+    // must be of size numCascades + 1
+    // should start with 0 and end with 1
+    // values between the first and the last indicate the split planes
     std::vector<float> depthCutsRelative;
 
-    //actual split planes in view space depth
-    //will be calculated from depthCutsRelative
+    // actual split planes in view space depth
+    // will be calculated from depthCutsRelative
     std::vector<float> depthCuts;
 
-    //The size in world space units how big the interpolation region between two cascades is.
-    //Larger values mean a smoother transition, but decreases performance, because more shadow samples need to be fetched.
-    //Larger values also increase the size of each shadow frustum and therefore the quality may be reduceds.
+    // The size in world space units how big the interpolation region between two cascades is.
+    // Larger values mean a smoother transition, but decreases performance, because more shadow samples need to be
+    // fetched. Larger values also increase the size of each shadow frustum and therefore the quality may be reduceds.
     float cascadeInterpolateRange = 3.0f;
 
-    //shadow camera for depth map rendering
-    //is different for every cascade and is set in bindCascade
+    // shadow camera for depth map rendering
+    // is different for every cascade and is set in bindCascade
     OrthographicCamera shadowCamera;
 
-    //Bind the uniforms for light rendering
+    // Bind the uniforms for light rendering
     void bindUniforms(DirectionalLightShader& shader, Camera* shadowCamera);
-public:
 
-    DirectionalLight(){}
-    virtual ~DirectionalLight(){}
+   public:
+    DirectionalLight() {}
+    virtual ~DirectionalLight() {}
 
     /**
      * Creates the shadow map with the given number of cascades, and initializes depthCutsRelative
@@ -96,7 +97,7 @@ public:
      * Sets the light direction in world coordinates.
      * Computes the view matrix for the shadow camera.
      */
-    void setDirection(const vec3 &dir);
+    void setDirection(const vec3& dir);
 
     /**
      * Computes the left/right, bottom/top and near/far planes of the shadow volume so that,
@@ -118,22 +119,27 @@ public:
      */
     void bindCascade(int n);
 
-    //see description for depthCutsRelative for more info
-    void setDepthCutsRelative(const std::vector<float> &value);
+    // see description for depthCutsRelative for more info
+    void setDepthCutsRelative(const std::vector<float>& value);
     std::vector<float> getDepthCutsRelative() const;
 
-    int getNumCascades() const{ return numCascades; }
+    int getNumCascades() const { return numCascades; }
 
-    float getCascadeInterpolateRange() const{return cascadeInterpolateRange;}
-    void setCascadeInterpolateRange(float value){cascadeInterpolateRange = value;}
+    float getCascadeInterpolateRange() const { return cascadeInterpolateRange; }
+    void setCascadeInterpolateRange(float value) { cascadeInterpolateRange = value; }
 
-    void setAmbientIntensity(float ai) { ambientIntensity = ai;}
-    float getAmbientIntensity(){return ambientIntensity;}
+    void setAmbientIntensity(float ai) { ambientIntensity = ai; }
+    float getAmbientIntensity() { return ambientIntensity; }
 
-    //the directional light is always visible
-	bool cullLight(Camera *cam) { (void)cam; culled = false; return culled; }
+    // the directional light is always visible
+    bool cullLight(Camera* cam)
+    {
+        (void)cam;
+        culled = false;
+        return culled;
+    }
     bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 
-}
+}  // namespace Saiga

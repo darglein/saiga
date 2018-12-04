@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,18 +11,19 @@
 
 #pragma once
 
-#include <stdexcept>
 #include <iosfwd>
-#include <vector>
 #include <memory>
+#include <stdexcept>
+#include <vector>
 
-namespace Saiga {
-
+namespace Saiga
+{
 struct OpusErrorException : public virtual std::exception
 {
     OpusErrorException(int code) : code(code) {}
     const char* what();
-private:
+
+   private:
     const int code;
 };
 
@@ -32,9 +33,10 @@ struct COpusCodec
     ~COpusCodec();
 
     std::vector<unsigned char> decode_frame(std::istream& fin);
-private:
+
+   private:
     struct Impl;
     std::unique_ptr<Impl> _pimpl;
 };
 
-}
+}  // namespace Saiga

@@ -8,9 +8,10 @@
 #pragma once
 
 //#include "saiga/vulkan/buffer/DeviceMemory.h"
-#include <ostream>
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/svulkan.h"
+
+#include <ostream>
 
 namespace Saiga
 {

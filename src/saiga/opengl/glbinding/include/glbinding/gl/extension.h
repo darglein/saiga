@@ -7,9 +7,7 @@
 
 namespace gl
 {
-
-
-enum class GLextension : int // GLextension is not a type introduced by GL API so far
+enum class GLextension : int  // GLextension is not a type introduced by GL API so far
 {
     UNKNOWN = -1,
     GL_3DFX_multisample,
@@ -603,4 +601,4 @@ enum class GLextension : int // GLextension is not a type introduced by GL API s
 };
 
 
-} // namespace gl
+}  // namespace gl

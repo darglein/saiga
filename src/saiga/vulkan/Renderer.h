@@ -8,32 +8,33 @@
 #pragma once
 
 //#include "saiga/vulkan/memory/ChunkAllocator.h"
+#include "saiga/vulkan/Base.h"
+#include "saiga/vulkan/Instance.h"
+#include "saiga/vulkan/Parameters.h"
+#include "saiga/vulkan/SwapChain.h"
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/window/Interfaces.h"
-#include "saiga/vulkan/Instance.h"
-#include "saiga/vulkan/Base.h"
-#include "saiga/vulkan/SwapChain.h"
-#include "saiga/vulkan/Parameters.h"
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class VulkanWindow;
 
 class SAIGA_GLOBAL VulkanRenderer : public RendererBase
 {
-public:
+   public:
     Saiga::Vulkan::VulkanBase base;
 
-    VulkanRenderer(VulkanWindow &window, VulkanParameters vulkanParameters);
+    VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
     virtual ~VulkanRenderer();
 
-    virtual void render(Camera *cam) {}
-    virtual void bindCamera(Camera* cam){}
+    virtual void render(Camera* cam) {}
+    virtual void bindCamera(Camera* cam) {}
 
-        virtual float getTotalRenderTime();
-protected:
+    virtual float getTotalRenderTime();
 
+   protected:
     /**
      * Shared Member variables common for all vulkan render engines.
      */
@@ -41,7 +42,7 @@ protected:
     Saiga::Vulkan::VulkanWindow& window;
 
 
-    uint32_t width = 1280;
+    uint32_t width  = 1280;
     uint32_t height = 720;
 
     Saiga::Vulkan::Instance instance;
@@ -52,11 +53,11 @@ protected:
     VulkanSwapChain swapChain;
     VulkanParameters vulkanParameters;
 
-private:
+   private:
     void initInstanceDevice();
 };
 
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

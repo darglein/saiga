@@ -5,10 +5,18 @@
  */
 
 #ifndef _USE_MATH_DEFINES
-#define _USE_MATH_DEFINES
+#    define _USE_MATH_DEFINES
 #endif
 
 #include "openMeshSample.h"
+
+#include "saiga/assets/objAssetLoader.h"
+#include "saiga/geometry/half_edge_mesh.h"
+#include "saiga/geometry/openMeshWrapper.h"
+#include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/imgui/imgui.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+
 #include "OpenMesh/Tools/Decimater/DecimaterT.hh"
 #include "OpenMesh/Tools/Decimater/ModAspectRatioT.hh"
 #include "OpenMesh/Tools/Decimater/ModEdgeLengthT.hh"
@@ -19,12 +27,6 @@
 #include "OpenMesh/Tools/Decimater/ModProgMeshT.hh"
 #include "OpenMesh/Tools/Decimater/ModQuadricT.hh"
 #include "OpenMesh/Tools/Decimater/ModRoundnessT.hh"
-#include "saiga/assets/objAssetLoader.h"
-#include "saiga/geometry/half_edge_mesh.h"
-#include "saiga/geometry/openMeshWrapper.h"
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/imgui/imgui.h"
-#include "saiga/opengl/shader/shaderLoader.h"
 
 
 

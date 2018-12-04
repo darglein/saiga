@@ -24,6 +24,7 @@
  */
 
 #include "threadPool.h"
+
 #include "saiga/util/threadName.h"
 
 namespace Saiga

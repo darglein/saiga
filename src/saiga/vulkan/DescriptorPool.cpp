@@ -6,24 +6,20 @@
 
 #include "DescriptorPool.h"
 
-namespace Saiga {
-namespace Vulkan {
-
+namespace Saiga
+{
+namespace Vulkan
+{
 void DescriptorPool::destroy()
 {
-    if(device && descriptorPool)
-        device.destroyDescriptorPool(descriptorPool);
+    if (device && descriptorPool) device.destroyDescriptorPool(descriptorPool);
 }
 
-void DescriptorPool::create(vk::Device device,
-                            uint32_t maxSets,
-                            vk::ArrayProxy<const vk::DescriptorPoolSize> poolSizes, vk::DescriptorPoolCreateFlags flags)
+void DescriptorPool::create(vk::Device device, uint32_t maxSets, vk::ArrayProxy<const vk::DescriptorPoolSize> poolSizes,
+                            vk::DescriptorPoolCreateFlags flags)
 {
     this->device = device;
-    vk::DescriptorPoolCreateInfo info(
-                flags,
-                maxSets,poolSizes.size(),poolSizes.data()
-                );
+    vk::DescriptorPoolCreateInfo info(flags, maxSets, poolSizes.size(), poolSizes.data());
 
     descriptorPool = device.createDescriptorPool(info);
     SAIGA_ASSERT(descriptorPool);
@@ -31,13 +27,11 @@ void DescriptorPool::create(vk::Device device,
 
 vk::DescriptorSet DescriptorPool::allocateDescriptorSet(vk::DescriptorSetLayout layout)
 {
-    auto set = device.allocateDescriptorSets(
-                vk::DescriptorSetAllocateInfo(descriptorPool,1,&layout)
-                )[0];
+    auto set = device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(descriptorPool, 1, &layout))[0];
     SAIGA_ASSERT(set);
     return set;
 }
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

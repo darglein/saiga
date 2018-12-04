@@ -7,15 +7,14 @@
 #include "saiga/rendering/renderer.h"
 
 #include "saiga/camera/camera.h"
-#include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/OpenGLWindow.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 
-namespace Saiga {
-
-Renderer::Renderer(OpenGLWindow &window)
-    : outputWidth(window.getWidth()), outputHeight(window.getHeight())
+namespace Saiga
 {
-    cameraBuffer.createGLBuffer(nullptr,sizeof(CameraDataGLSL),GL_DYNAMIC_DRAW);
+Renderer::Renderer(OpenGLWindow& window) : outputWidth(window.getWidth()), outputHeight(window.getHeight())
+{
+    cameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 
 
     window.setRenderer(this);
@@ -24,25 +23,22 @@ Renderer::Renderer(OpenGLWindow &window)
     imgui = window.createImGui();
 }
 
-Renderer::~Renderer()
-{
-
-}
+Renderer::~Renderer() {}
 
 void Renderer::resize(int windowWidth, int windowHeight)
 {
-    outputWidth = windowWidth;
+    outputWidth  = windowWidth;
     outputHeight = windowHeight;
-//    cout << "resize to " << windowWidth << "x" << windowHeight << endl;
+    //    cout << "resize to " << windowWidth << "x" << windowHeight << endl;
 }
 
 
-void Renderer::bindCamera(Camera *cam)
+void Renderer::bindCamera(Camera* cam)
 {
     CameraDataGLSL cd(cam);
-    cameraBuffer.updateBuffer(&cd,sizeof(CameraDataGLSL),0);
+    cameraBuffer.updateBuffer(&cd, sizeof(CameraDataGLSL), 0);
     cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
 }
 
 
-}
+}  // namespace Saiga

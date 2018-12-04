@@ -6,11 +6,12 @@
 
 #pragma once
 
-#include <thread>
 #include "saiga/config.h"
 #include "saiga/imgui/imgui_saiga.h"
 #include "saiga/time/gameTime.h"
 #include "saiga/util/semaphore.h"
+
+#include <thread>
 
 namespace Saiga
 {

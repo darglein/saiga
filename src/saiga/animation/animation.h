@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,11 +8,12 @@
 
 #include "saiga/config.h"
 #include "saiga/util/math.h"
-#include <saiga/time/time.h>
+
 #include <saiga/animation/animationFrame.h>
+#include <saiga/time/time.h>
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * Animation time:
  * The duration of an animation is the time between the first and the last keyframe.
@@ -29,18 +30,18 @@ namespace Saiga {
 
 class SAIGA_GLOBAL Animation
 {
-public:
+   public:
     std::string name;
 
     std::vector<AnimationFrame> keyFrames;
 
-    //number of keyframes
+    // number of keyframes
     int frameCount = 0;
 
-    //speed at which this animation should be played. Unused in this class.
+    // speed at which this animation should be played. Unused in this class.
     float animationSpeed = 1.0f;
 
-    //duration of animation
+    // duration of animation
     animationtime_t duration = animationtime_t(1);
 
 
@@ -59,7 +60,7 @@ public:
      * The input time will be clamped to [0,duration]
      */
 
-    void getFrame(animationtime_t time, AnimationFrame &out);
+    void getFrame(animationtime_t time, AnimationFrame& out);
 
     /**
      * Returns the interpolated frame similar to @getFrame(float time, AnimationFrame &out);
@@ -67,13 +68,12 @@ public:
      * A interpolation from 0 to 1 will always play the complete animation.
      */
 
-    void getFrameNormalized(double time, AnimationFrame &out);
+    void getFrameNormalized(double time, AnimationFrame& out);
 
     /**
      * Prints all important information of this animation to stdout
      */
     void print();
-
 };
 
-}
+}  // namespace Saiga

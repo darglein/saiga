@@ -2,14 +2,12 @@
 #pragma once
 
 
-#include <glbinding/nogl.h>
 #include <glbinding/gl/functions.h>
+#include <glbinding/nogl.h>
 
 
 namespace gl21
 {
-
-
 using gl::glAccum;
 using gl::glActiveTexture;
 using gl::glAlphaFunc;
@@ -133,11 +131,11 @@ using gl::glEvalPoint2;
 using gl::glFeedbackBuffer;
 using gl::glFinish;
 using gl::glFlush;
-using gl::glFogCoordPointer;
 using gl::glFogCoordd;
 using gl::glFogCoorddv;
 using gl::glFogCoordf;
 using gl::glFogCoordfv;
+using gl::glFogCoordPointer;
 using gl::glFogf;
 using gl::glFogfv;
 using gl::glFogi;
@@ -176,12 +174,12 @@ using gl::glGetPointerv;
 using gl::glGetPolygonStipple;
 using gl::glGetProgramInfoLog;
 using gl::glGetProgramiv;
+using gl::glGetQueryiv;
 using gl::glGetQueryObjectiv;
 using gl::glGetQueryObjectuiv;
-using gl::glGetQueryiv;
 using gl::glGetShaderInfoLog;
-using gl::glGetShaderSource;
 using gl::glGetShaderiv;
+using gl::glGetShaderSource;
 using gl::glGetString;
 using gl::glGetTexEnvfv;
 using gl::glGetTexEnviv;
@@ -193,22 +191,22 @@ using gl::glGetTexLevelParameterfv;
 using gl::glGetTexLevelParameteriv;
 using gl::glGetTexParameterfv;
 using gl::glGetTexParameteriv;
-using gl::glGetUniformLocation;
 using gl::glGetUniformfv;
 using gl::glGetUniformiv;
-using gl::glGetVertexAttribPointerv;
+using gl::glGetUniformLocation;
 using gl::glGetVertexAttribdv;
 using gl::glGetVertexAttribfv;
 using gl::glGetVertexAttribiv;
+using gl::glGetVertexAttribPointerv;
 using gl::glHint;
-using gl::glIndexMask;
-using gl::glIndexPointer;
 using gl::glIndexd;
 using gl::glIndexdv;
 using gl::glIndexf;
 using gl::glIndexfv;
 using gl::glIndexi;
 using gl::glIndexiv;
+using gl::glIndexMask;
+using gl::glIndexPointer;
 using gl::glIndexs;
 using gl::glIndexsv;
 using gl::glIndexub;
@@ -222,14 +220,14 @@ using gl::glIsProgram;
 using gl::glIsQuery;
 using gl::glIsShader;
 using gl::glIsTexture;
-using gl::glLightModelf;
-using gl::glLightModelfv;
-using gl::glLightModeli;
-using gl::glLightModeliv;
 using gl::glLightf;
 using gl::glLightfv;
 using gl::glLighti;
 using gl::glLightiv;
+using gl::glLightModelf;
+using gl::glLightModelfv;
+using gl::glLightModeli;
+using gl::glLightModeliv;
 using gl::glLineStipple;
 using gl::glLineWidth;
 using gl::glLinkProgram;
@@ -255,10 +253,6 @@ using gl::glMaterialfv;
 using gl::glMateriali;
 using gl::glMaterialiv;
 using gl::glMatrixMode;
-using gl::glMultMatrixd;
-using gl::glMultMatrixf;
-using gl::glMultTransposeMatrixd;
-using gl::glMultTransposeMatrixf;
 using gl::glMultiDrawArrays;
 using gl::glMultiDrawElements;
 using gl::glMultiTexCoord1d;
@@ -293,6 +287,10 @@ using gl::glMultiTexCoord4i;
 using gl::glMultiTexCoord4iv;
 using gl::glMultiTexCoord4s;
 using gl::glMultiTexCoord4sv;
+using gl::glMultMatrixd;
+using gl::glMultMatrixf;
+using gl::glMultTransposeMatrixd;
+using gl::glMultTransposeMatrixf;
 using gl::glNewList;
 using gl::glNormal3b;
 using gl::glNormal3bv;
@@ -524,6 +522,12 @@ using gl::glVertexAttrib3f;
 using gl::glVertexAttrib3fv;
 using gl::glVertexAttrib3s;
 using gl::glVertexAttrib3sv;
+using gl::glVertexAttrib4bv;
+using gl::glVertexAttrib4d;
+using gl::glVertexAttrib4dv;
+using gl::glVertexAttrib4f;
+using gl::glVertexAttrib4fv;
+using gl::glVertexAttrib4iv;
 using gl::glVertexAttrib4Nbv;
 using gl::glVertexAttrib4Niv;
 using gl::glVertexAttrib4Nsv;
@@ -531,12 +535,6 @@ using gl::glVertexAttrib4Nub;
 using gl::glVertexAttrib4Nubv;
 using gl::glVertexAttrib4Nuiv;
 using gl::glVertexAttrib4Nusv;
-using gl::glVertexAttrib4bv;
-using gl::glVertexAttrib4d;
-using gl::glVertexAttrib4dv;
-using gl::glVertexAttrib4f;
-using gl::glVertexAttrib4fv;
-using gl::glVertexAttrib4iv;
 using gl::glVertexAttrib4s;
 using gl::glVertexAttrib4sv;
 using gl::glVertexAttrib4ubv;
@@ -563,4 +561,4 @@ using gl::glWindowPos3s;
 using gl::glWindowPos3sv;
 
 
-} // namespace gl21
+}  // namespace gl21

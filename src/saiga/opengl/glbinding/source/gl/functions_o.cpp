@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,14 +9,12 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
-void glObjectLabel(GLenum identifier, GLuint name, GLsizei length, const GLchar * label)
+void glObjectLabel(GLenum identifier, GLuint name, GLsizei length, const GLchar* label)
 {
     return Binding::ObjectLabel(identifier, name, length, label);
 }
 
-void glObjectPtrLabel(const void * ptr, GLsizei length, const GLchar * label)
+void glObjectPtrLabel(const void* ptr, GLsizei length, const GLchar* label)
 {
     return Binding::ObjectPtrLabel(ptr, length, label);
 }
@@ -48,5 +46,4 @@ void glOrthoxOES(GLfixed l, GLfixed r, GLfixed b, GLfixed t, GLfixed n, GLfixed 
 
 
 
-
-} // namespace gl
+}  // namespace gl

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,18 +7,18 @@
 #pragma once
 
 #include "saiga/config.h"
+
 #include <vector>
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 struct SAIGA_GLOBAL SaigaParameters
 {
     // share/ directory where saiga has been installed.
-    std::vector<std::string> shaderDirectory    =  {"shader", SAIGA_SHADER_PREFIX};
-    std::vector<std::string> textureDirectory   = {"textures/"};
-    std::vector<std::string> modelDirectory     = {"models/"};
-    std::vector<std::string> fontDirectory      = {"fonts/"};
+    std::vector<std::string> shaderDirectory  = {"shader", SAIGA_SHADER_PREFIX};
+    std::vector<std::string> textureDirectory = {"textures/"};
+    std::vector<std::string> modelDirectory   = {"models/"};
+    std::vector<std::string> fontDirectory    = {"fonts/"};
 
     std::string mainThreadName = "Saiga::main";
 
@@ -36,4 +36,4 @@ SAIGA_GLOBAL extern void initSample(SaigaParameters& saigaParameters);
 SAIGA_GLOBAL extern void initSaiga(const SaigaParameters& params);
 SAIGA_GLOBAL extern void cleanupSaiga();
 
-}
+}  // namespace Saiga

@@ -4,13 +4,13 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/math.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/tests/test_helper.h"
+#include "saiga/util/math.h"
 
-//cuobjdump globalMemory --dump-sass -arch sm_61 > sass.txt
+// cuobjdump globalMemory --dump-sass -arch sm_61 > sass.txt
 
 //#define LECTURE
 
@@ -23,10 +23,8 @@ struct Particle
 
     HD bool operator==(const Particle& other) const
     {
-        return position == other.position
-                && radius == other.radius
-                && velocity == other.velocity
-                && invMass == other.invMass;
+        return position == other.position && radius == other.radius && velocity == other.velocity &&
+               invMass == other.invMass;
     }
 };
 
@@ -43,62 +41,62 @@ struct VelocityMass
 };
 
 
-__global__ static
-void integrateEulerBase(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
+__global__ static void integrateEulerBase(Saiga::ArrayView<Particle> srcParticles,
+                                          Saiga::ArrayView<Particle> dstParticles, float dt)
 {
     Saiga::CUDA::ThreadInfo<> ti;
-    if(ti.thread_id >= srcParticles.size()) return;
+    if (ti.thread_id >= srcParticles.size()) return;
 
     Particle p = srcParticles[ti.thread_id];
     p.position += p.velocity * dt;
-    p.velocity += vec3(0,-9.81,0) * dt;
+    p.velocity += vec3(0, -9.81, 0) * dt;
     dstParticles[ti.thread_id] = p;
 }
 
 
 #ifndef LECTURE
 
-__global__ static
-void integrateEulerVector(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
+__global__ static void integrateEulerVector(Saiga::ArrayView<Particle> srcParticles,
+                                            Saiga::ArrayView<Particle> dstParticles, float dt)
 {
     Saiga::CUDA::ThreadInfo<> ti;
-    if(ti.thread_id >= srcParticles.size()) return;
+    if (ti.thread_id >= srcParticles.size()) return;
 
     Particle p;
 
-    Saiga::CUDA::vectorCopy(srcParticles.data() + ti.thread_id,&p);
+    Saiga::CUDA::vectorCopy(srcParticles.data() + ti.thread_id, &p);
     p.position += p.velocity * dt;
-    p.velocity += vec3(0,-9.81,0) * dt;
-    Saiga::CUDA::vectorCopy(&p,dstParticles.data() + ti.thread_id);
+    p.velocity += vec3(0, -9.81, 0) * dt;
+    Saiga::CUDA::vectorCopy(&p, dstParticles.data() + ti.thread_id);
 }
 
 
-__global__ static
-void integrateEulerInverseVector(
-        Saiga::ArrayView<PositionRadius> srcPr, Saiga::ArrayView<VelocityMass> srcVm,
-        Saiga::ArrayView<PositionRadius> dstPr, Saiga::ArrayView<VelocityMass> dstVm, float dt)
+__global__ static void integrateEulerInverseVector(Saiga::ArrayView<PositionRadius> srcPr,
+                                                   Saiga::ArrayView<VelocityMass> srcVm,
+                                                   Saiga::ArrayView<PositionRadius> dstPr,
+                                                   Saiga::ArrayView<VelocityMass> dstVm, float dt)
 {
     Saiga::CUDA::ThreadInfo<> ti;
-    if(ti.thread_id >= srcPr.size()) return;
+    if (ti.thread_id >= srcPr.size()) return;
 
     PositionRadius pr;
     VelocityMass vm;
 
-    Saiga::CUDA::vectorCopy(srcPr.data()+ti.thread_id,&pr);
-    Saiga::CUDA::vectorCopy(srcVm.data()+ti.thread_id,&vm);
+    Saiga::CUDA::vectorCopy(srcPr.data() + ti.thread_id, &pr);
+    Saiga::CUDA::vectorCopy(srcVm.data() + ti.thread_id, &vm);
 
     pr.position += vm.velocity * dt;
-    vm.velocity += vec3(0,-9.81,0) * dt;
+    vm.velocity += vec3(0, -9.81, 0) * dt;
 
-    Saiga::CUDA::vectorCopy(&pr,dstPr.data()+ti.thread_id);
-    Saiga::CUDA::vectorCopy(&vm,dstVm.data()+ti.thread_id);
+    Saiga::CUDA::vectorCopy(&pr, dstPr.data() + ti.thread_id);
+    Saiga::CUDA::vectorCopy(&vm, dstVm.data() + ti.thread_id);
 }
 
-template<unsigned int BLOCK_SIZE>
-__global__ static
-void integrateEulerSharedVector(Saiga::ArrayView<Particle> srcParticles, Saiga::ArrayView<Particle> dstParticles, float dt)
+template <unsigned int BLOCK_SIZE>
+__global__ static void integrateEulerSharedVector(Saiga::ArrayView<Particle> srcParticles,
+                                                  Saiga::ArrayView<Particle> dstParticles, float dt)
 {
-    static_assert(sizeof(Particle) % sizeof(int4) == 0,  "Invalid particle size");
+    static_assert(sizeof(Particle) % sizeof(int4) == 0, "Invalid particle size");
 
     const unsigned int WARPS_PER_BLOCK = BLOCK_SIZE / WARP_SIZE;
     __shared__ Particle tmp[WARPS_PER_BLOCK][WARP_SIZE];
@@ -107,28 +105,27 @@ void integrateEulerSharedVector(Saiga::ArrayView<Particle> srcParticles, Saiga::
     Saiga::CUDA::ThreadInfo<> ti;
 
     const auto cycles = sizeof(Particle) / sizeof(int4);
-    const auto step = WARP_SIZE;
+    const auto step   = WARP_SIZE;
 
     // Start offset into particle array for this warp
     auto warpStart = ti.warp_id * WARP_SIZE;
 
     // Check if complete warp is outside
-    if(warpStart >= srcParticles.size())
-        return;
+    if (warpStart >= srcParticles.size()) return;
 
 
     auto begin = warpStart * cycles;
-    auto end = min(srcParticles.size() * cycles, begin+step*cycles);
+    auto end   = min(srcParticles.size() * cycles, begin + step * cycles);
     CUDA_ASSERT(begin < end);
 
     auto lbegin = 0;
-    auto lend = end - begin;
+    auto lend   = end - begin;
 
     int4* srcptr = reinterpret_cast<int4*>(srcParticles.data()) + begin;
     int4* dstptr = reinterpret_cast<int4*>(dstParticles.data()) + begin;
-    int4* lptr = reinterpret_cast<int4*>(tmp[ti.warp_lane]) + lbegin;
+    int4* lptr   = reinterpret_cast<int4*>(tmp[ti.warp_lane]) + lbegin;
 
-    for(auto i = lbegin + ti.lane_id; i < lend; i += step)
+    for (auto i = lbegin + ti.lane_id; i < lend; i += step)
     {
         lptr[i] = srcptr[i];
     }
@@ -136,10 +133,10 @@ void integrateEulerSharedVector(Saiga::ArrayView<Particle> srcParticles, Saiga::
 
     Particle& p = tmp[ti.warp_lane][ti.lane_id];
     p.position += p.velocity * dt;
-    p.velocity += vec3(0,-9.81,0) * dt;
+    p.velocity += vec3(0, -9.81, 0) * dt;
 
     __syncwarp();
-    for(auto i = lbegin + ti.lane_id; i < lend; i += step)
+    for (auto i = lbegin + ti.lane_id; i < lend; i += step)
     {
         dstptr[i] = lptr[i];
     }
@@ -147,25 +144,26 @@ void integrateEulerSharedVector(Saiga::ArrayView<Particle> srcParticles, Saiga::
 
 #endif
 
-//nvcc $CPPFLAGS -I ../../../src/ -I ../../../build/include/ -ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr main.cu
+// nvcc $CPPFLAGS -I ../../../src/ -I ../../../build/include/ -ptx -gencode=arch=compute_52,code=compute_52 -g
+// -std=c++11 --expt-relaxed-constexpr main.cu
 
 void particleTest()
 {
-    size_t N = 1 * 1000 * 1000;
-    size_t readWrites = N * 2 * sizeof(Particle);
+    size_t N                      = 1 * 1000 * 1000;
+    size_t readWrites             = N * 2 * sizeof(Particle);
     const unsigned int BLOCK_SIZE = 128;
 
     thrust::host_vector<Particle> hp(N);
-    for(size_t i = 0; i < N; ++i)
+    for (size_t i = 0; i < N; ++i)
     {
-        hp[i].position = vec3(i,i*i,i / 1242.0f);
-        hp[i].velocity = vec3(-235,-i*i,i + 3465345);
-        hp[i].radius = i*345345;
+        hp[i].position = vec3(i, i * i, i / 1242.0f);
+        hp[i].velocity = vec3(-235, -i * i, i + 3465345);
+        hp[i].radius   = i * 345345;
     }
 
 
     thrust::host_vector<Particle> ref, test;
-    thrust::device_vector<Particle> particles = hp;
+    thrust::device_vector<Particle> particles  = hp;
     thrust::device_vector<Particle> particles2 = hp;
 
     thrust::device_vector<PositionRadius> pr(N), pr2(N);
@@ -178,69 +176,61 @@ void particleTest()
 
     {
         particles = hp;
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
-        {
-            integrateEulerBase<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
-        });
+        auto st   = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+            its, [&]() { integrateEulerBase<<<THREAD_BLOCK(N, BLOCK_SIZE)>>>(particles, particles2, 0.1f); });
         ref = particles2;
-        pth.addMeassurement("integrateEulerBase",st.median);
+        pth.addMeassurement("integrateEulerBase", st.median);
         CUDA_SYNC_CHECK_ERROR();
     }
 
 
     {
         particles = hp;
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
-        {
-            integrateEulerVector<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
-        });
+        auto st   = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+            its, [&]() { integrateEulerVector<<<THREAD_BLOCK(N, BLOCK_SIZE)>>>(particles, particles2, 0.1f); });
         test = particles2;
         SAIGA_ASSERT(test == ref);
-        pth.addMeassurement("integrateEulerVector",st.median);
+        pth.addMeassurement("integrateEulerVector", st.median);
         CUDA_SYNC_CHECK_ERROR();
     }
 
 
     {
         particles = hp;
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
-        {
-            integrateEulerInverseVector<<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(pr,vm,pr2,vm2,0.1f);
-        });
-        pth.addMeassurement("integrateEulerInverseVector",st.median);
+        auto st   = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+            its, [&]() { integrateEulerInverseVector<<<THREAD_BLOCK(N, BLOCK_SIZE)>>>(pr, vm, pr2, vm2, 0.1f); });
+        pth.addMeassurement("integrateEulerInverseVector", st.median);
         CUDA_SYNC_CHECK_ERROR();
     }
 
 
     {
         particles = hp;
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
-        {
-            integrateEulerSharedVector<BLOCK_SIZE><<<THREAD_BLOCK(N,BLOCK_SIZE)>>>(particles,particles2,0.1f);
+        auto st   = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+            integrateEulerSharedVector<BLOCK_SIZE><<<THREAD_BLOCK(N, BLOCK_SIZE)>>>(particles, particles2, 0.1f);
         });
-        test = particles2;
+        test      = particles2;
         SAIGA_ASSERT(test == ref);
-        pth.addMeassurement("integrateEulerSharedVector",st.median);
+        pth.addMeassurement("integrateEulerSharedVector", st.median);
     }
 
 
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
-        {
-            cudaMemcpy(particles2.data().get(),particles.data().get(),N * sizeof(Particle),cudaMemcpyDeviceToDevice);
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+            cudaMemcpy(particles2.data().get(), particles.data().get(), N * sizeof(Particle), cudaMemcpyDeviceToDevice);
         });
-        pth.addMeassurement("cudaMemcpy",st.median);
+        pth.addMeassurement("cudaMemcpy", st.median);
     }
 #endif
     CUDA_SYNC_CHECK_ERROR();
 }
 
-//cuobjdump ./globalMemory -arch=sm_30 -sass -ptx > test.txt
+// cuobjdump ./globalMemory -arch=sm_30 -sass -ptx > test.txt
 
 
 void memcpyTest()
 {
-    size_t N = 100 * 1000 * 1000;
+    size_t N          = 100 * 1000 * 1000;
     size_t readWrites = N * 2 * sizeof(int);
 
     thrust::device_vector<int> src(N);
@@ -251,10 +241,10 @@ void memcpyTest()
     // Only a single execution
     // This might not be so accurate
     {
-        float t  = 0;
+        float t = 0;
         {
             Saiga::CUDA::CudaScopedTimer timer(t);
-            cudaMemcpy(dest.data().get(),src.data().get(),N * sizeof(int),cudaMemcpyDeviceToDevice);
+            cudaMemcpy(dest.data().get(), src.data().get(), N * sizeof(int), cudaMemcpyDeviceToDevice);
         }
         double bandwidth = readWrites / t / (1000 * 1000);
         cout << "Time: " << t << " ms,   Bandwidth: " << bandwidth << " GB/s" << endl;
@@ -264,11 +254,11 @@ void memcpyTest()
     // Test 10 times and use the median time
     int its = 50;
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]()
-        {
-            cudaMemcpy(thrust::raw_pointer_cast(dest.data()),thrust::raw_pointer_cast(src.data()),N * sizeof(int),cudaMemcpyDeviceToDevice);
+        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+            cudaMemcpy(thrust::raw_pointer_cast(dest.data()), thrust::raw_pointer_cast(src.data()), N * sizeof(int),
+                       cudaMemcpyDeviceToDevice);
         });
-        pth.addMeassurement("cudaMemcpy",st.median);
+        pth.addMeassurement("cudaMemcpy", st.median);
     }
 #endif
 
@@ -276,11 +266,9 @@ void memcpyTest()
     CUDA_SYNC_CHECK_ERROR();
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-
     memcpyTest();
     particleTest();
     return 0;
 }
-

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,15 +7,16 @@
 #pragma once
 
 
-#include "saiga/opengl/opengl.h"
 #include "saiga/opengl/buffer.h"
+#include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shader.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * A Buffer Object that is used to store uniform data for a shader program is called a Uniform Buffer Object.
- * They can be used to share uniforms between different programs, as well as quickly change between sets of uniforms for the same program object.
+ * They can be used to share uniforms between different programs, as well as quickly change between sets of uniforms for
+ * the same program object.
  *
  * Usage:
  *
@@ -57,8 +58,9 @@ namespace Saiga {
  *
  */
 
-class SAIGA_GLOBAL UniformBuffer : public Buffer{
-public:
+class SAIGA_GLOBAL UniformBuffer : public Buffer
+{
+   public:
     UniformBuffer();
     ~UniformBuffer();
 
@@ -70,16 +72,15 @@ public:
      * in multiple shaders with one init() call.
      * @param shader
      */
-    void init(std::shared_ptr<Shader>  shader, GLuint location);
+    void init(std::shared_ptr<Shader> shader, GLuint location);
 
 
     friend std::ostream& operator<<(std::ostream& os, const UniformBuffer& ub);
 
-    //returns one value, the maximum size in basic machine units of a uniform block, which must be at least 16384.
+    // returns one value, the maximum size in basic machine units of a uniform block, which must be at least 16384.
     static GLint getMaxUniformBlockSize();
-    //returns one value, the maximum number of uniform buffer binding points on the context, which must be at least 36.
+    // returns one value, the maximum number of uniform buffer binding points on the context, which must be at least 36.
     static GLint getMaxUniformBufferBindings();
-
 };
 
-}
+}  // namespace Saiga

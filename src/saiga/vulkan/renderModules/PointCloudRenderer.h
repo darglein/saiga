@@ -8,21 +8,20 @@
 #pragma once
 
 #include "saiga/geometry/triangle_mesh.h"
-#include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/Base.h"
-#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/VulkanAsset.h"
-#include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/buffer/UniformBuffer.h"
+#include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/svulkan.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL PointCloudRenderer : public Pipeline
 {
-public:
+   public:
     using VertexType = VertexNC;
     void destroy();
 
@@ -35,20 +34,22 @@ public:
     void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass, float pointSize);
 
     void prepareUniformBuffers(Saiga::Vulkan::VulkanBase* vulkanDevice);
-//    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
+    //    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
     void setupLayoutsAndDescriptors();
-private:
-    struct UBOVS {
+
+   private:
+    struct UBOVS
+    {
         mat4 projection;
         mat4 modelview;
         vec4 lightPos;
     } uboVS;
 
     UniformBuffer uniformBufferVS;
-    vk::DescriptorSet       descriptorSet;
+    vk::DescriptorSet descriptorSet;
 };
 
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

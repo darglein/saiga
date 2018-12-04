@@ -5,6 +5,7 @@
  */
 
 #include "simpleWindow.h"
+
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"

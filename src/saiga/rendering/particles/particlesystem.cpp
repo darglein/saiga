@@ -1,41 +1,42 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/rendering/particles/particlesystem.h"
-#include "saiga/opengl/texture/arrayTexture.h"
-#include "saiga/rendering/particles/particle_shader.h"
+
 #include "saiga/camera/camera.h"
 #include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/texture/arrayTexture.h"
+#include "saiga/rendering/particles/particle_shader.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 float ParticleSystem::ticksPerSecond = 60.0f;
-float ParticleSystem::secondsPerTick = 1.0f/60.0f;
+float ParticleSystem::secondsPerTick = 1.0f / 60.0f;
 
-ParticleSystem::ParticleSystem(unsigned int particleCount):particleCount(particleCount)
+ParticleSystem::ParticleSystem(unsigned int particleCount) : particleCount(particleCount)
 {
     particles.resize(particleCount);
 }
 
-void ParticleSystem::init(){
-
-
-    for(unsigned int i=0;i<particleCount;++i){
+void ParticleSystem::init()
+{
+    for (unsigned int i = 0; i < particleCount; ++i)
+    {
         Particle p;
-        p.position = vec4(sphericalRand(15.0f),1);
-        p.velocity = vec4(sphericalRand(1.0f),1);
+        p.position = vec4(sphericalRand(15.0f), 1);
+        p.velocity = vec4(sphericalRand(1.0f), 1);
         addParticle(p);
     }
 
-    particleBuffer.set(particles,GL_DYNAMIC_DRAW);
+    particleBuffer.set(particles, GL_DYNAMIC_DRAW);
     particleBuffer.setDrawMode(GL_POINTS);
 
     initialized = true;
 
-    particleShader = ShaderLoader::instance()->load<ParticleShader>("geometry/particles.glsl");
+    particleShader         = ShaderLoader::instance()->load<ParticleShader>("geometry/particles.glsl");
     deferredParticleShader = ShaderLoader::instance()->load<DeferredParticleShader>("geometry/deferred_particles.glsl");
 }
 
@@ -43,12 +44,13 @@ void ParticleSystem::reset()
 {
     if (!initialized) return;
 
-    for(unsigned int i=0;i<particleCount;++i){
+    for (unsigned int i = 0; i < particleCount; ++i)
+    {
         Particle& p = particles[i];
-        p = Particle();
+        p           = Particle();
     }
 
-    particleBuffer.updateBuffer(&particles[0],particles.size(),0);
+    particleBuffer.updateBuffer(&particles[0], particles.size(), 0);
 }
 
 void ParticleSystem::nextTick()
@@ -58,7 +60,8 @@ void ParticleSystem::nextTick()
 
 void ParticleSystem::update()
 {
-    if( uploadDataNextUpdate ){
+    if (uploadDataNextUpdate)
+    {
         updateParticleBuffer();
         uploadDataNextUpdate = false;
     }
@@ -70,10 +73,12 @@ void ParticleSystem::interpolate(float interpolation)
 }
 
 
-void ParticleSystem::render(Camera *cam){
+void ParticleSystem::render(Camera* cam)
+{
     //    cout<<tick<<" ParticleSystem::renderr()"<<endl;
 
-    if(blending){
+    if (blending)
+    {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -83,59 +88,58 @@ void ParticleSystem::render(Camera *cam){
     particleShader->uploadModel(model);
     particleShader->uploadTexture(arrayTexture);
 
-    particleShader->uploadTiming(tick,interpolation);
+    particleShader->uploadTiming(tick, interpolation);
     particleShader->uploadTimestep(secondsPerTick);
 
-//    particleBuffer.bindAndDraw();
-    //draw old particles first, so new ones are on top
+    //    particleBuffer.bindAndDraw();
+    // draw old particles first, so new ones are on top
     particleBuffer.bind();
-    particleBuffer.draw(nextParticle,particleCount-nextParticle);
-    particleBuffer.draw(0,nextParticle);
+    particleBuffer.draw(nextParticle, particleCount - nextParticle);
+    particleBuffer.draw(0, nextParticle);
     particleBuffer.unbind();
 
     particleShader->unbind();
 
-    if(blending){
+    if (blending)
+    {
         glDisable(GL_BLEND);
     }
 }
 
-void ParticleSystem::renderDeferred(Camera *cam, std::shared_ptr<raw_Texture> detphTexture)
+void ParticleSystem::renderDeferred(Camera* cam, std::shared_ptr<raw_Texture> detphTexture)
 {
-
     deferredParticleShader->bind();
 
     deferredParticleShader->uploadModel(model);
     deferredParticleShader->uploadTexture(arrayTexture);
     deferredParticleShader->uploadDepthTexture(detphTexture);
-    deferredParticleShader->uploadTiming(tick,interpolation);
+    deferredParticleShader->uploadTiming(tick, interpolation);
     deferredParticleShader->uploadTimestep(secondsPerTick);
 
-    deferredParticleShader->uploadCameraParameters(vec2(cam->zNear,cam->zFar));
-//    particleBuffer.bindAndDraw();
+    deferredParticleShader->uploadCameraParameters(vec2(cam->zNear, cam->zFar));
+    //    particleBuffer.bindAndDraw();
 
     particleBuffer.bind();
-    particleBuffer.draw(nextParticle,particleCount-nextParticle);
-    particleBuffer.draw(0,nextParticle);
+    particleBuffer.draw(nextParticle, particleCount - nextParticle);
+    particleBuffer.draw(0, nextParticle);
     particleBuffer.unbind();
 
     deferredParticleShader->unbind();
-
 }
 
 
-void ParticleSystem::addParticle(Particle &p){
-    p.start = tick+1;
+void ParticleSystem::addParticle(Particle& p)
+{
+    p.start = tick + 1;
 
 
     particles[nextParticle] = p;
-    nextParticle = (nextParticle+1)%particleCount;
+    nextParticle            = (nextParticle + 1) % particleCount;
 
     newParticles++;
-
 }
 
-//Particle &ParticleSystem::getNextParticle()
+// Particle &ParticleSystem::getNextParticle()
 //{
 //    Particle &p = particles[nextParticle];
 //    p = Particle();
@@ -146,38 +150,44 @@ void ParticleSystem::addParticle(Particle &p){
 //    return p;
 //}
 
-void ParticleSystem::updateParticleBuffer(){
+void ParticleSystem::updateParticleBuffer()
+{
     //    cout<<tick<<" ParticleSystem::updateParticleBuffer()"<<endl;
 
-    if(newParticles>particleCount){
-//        cout<<"warning: new particles spawned = "<<newParticles<<" , particle system size = "<<particleCount<<endl;
-        int size = particleCount;
+    if (newParticles > particleCount)
+    {
+        //        cout<<"warning: new particles spawned = "<<newParticles<<" , particle system size =
+        //        "<<particleCount<<endl;
+        int size   = particleCount;
         int offset = 0;
-        particleBuffer.updateBuffer(&particles[offset],size,offset);
-    }else if(nextParticle>saveParticle){
-        int size = (nextParticle-saveParticle);
+        particleBuffer.updateBuffer(&particles[offset], size, offset);
+    }
+    else if (nextParticle > saveParticle)
+    {
+        int size   = (nextParticle - saveParticle);
         int offset = saveParticle;
 
-        particleBuffer.updateBuffer(&particles[offset],size,offset);
-    }else if(nextParticle<saveParticle){
-        int size = (particleCount-saveParticle);
+        particleBuffer.updateBuffer(&particles[offset], size, offset);
+    }
+    else if (nextParticle < saveParticle)
+    {
+        int size   = (particleCount - saveParticle);
         int offset = saveParticle;
-        particleBuffer.updateBuffer(&particles[offset],size,offset);
+        particleBuffer.updateBuffer(&particles[offset], size, offset);
 
 
-        size = (nextParticle);
+        size   = (nextParticle);
         offset = 0;
-        particleBuffer.updateBuffer(&particles[0],size,offset);
+        particleBuffer.updateBuffer(&particles[0], size, offset);
     }
 
     saveParticle = nextParticle;
     newParticles = 0;
-
-
 }
 
-void ParticleSystem::flush(){
+void ParticleSystem::flush()
+{
     uploadDataNextUpdate = true;
 }
 
-}
+}  // namespace Saiga

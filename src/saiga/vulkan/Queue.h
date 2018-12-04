@@ -7,17 +7,18 @@
 
 #pragma once
 
-#include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/CommandPool.h"
+#include "saiga/vulkan/svulkan.h"
+
 #include <mutex>
 
-namespace Saiga {
-namespace Vulkan {
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL Queue
 {
-public:
+   public:
     // Create a primary commandpool for every queue.
     CommandPool commandPool;
     vk::Queue queue;
@@ -32,20 +33,20 @@ public:
     operator vk::Queue() const { return queue; }
     operator VkQueue() const { return queue; }
 
-    uint32_t getQueueIndex() {return queueIndex;}
-    uint32_t getQueueFamilyIndex() {return queueFamilyIndex;}
+    uint32_t getQueueIndex() { return queueIndex; }
+    uint32_t getQueueFamilyIndex() { return queueFamilyIndex; }
 
     CommandPool createCommandPool();
-private:
+
+   private:
     std::vector<CommandPool> commandPools;
     std::mutex commandPoolCreationMutex;
     std::mutex submitMutex;
     uint32_t queueFamilyIndex;
     uint32_t queueIndex;
     vk::Device device;
-
 };
 
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

@@ -5,15 +5,17 @@
  */
 
 #include "saiga/opengl/shader/shaderPartLoader.h"
+
+#include "saiga/opengl/error.h"
 #include "saiga/opengl/shader/shader.h"
 #include "saiga/util/fileChecker.h"
-#include "saiga/opengl/error.h"
-#include <fstream>
+
 #include <algorithm>
+#include <fstream>
 #include <regex>
 
-namespace Saiga {
-
+namespace Saiga
+{
 #define STATUS_WAITING 0
 #define STATUS_READING 1
 
@@ -21,81 +23,77 @@ FileChecker shaderPathes;
 
 bool ShaderPartLoader::addLineDirectives = false;
 
-ShaderPartLoader::ShaderPartLoader() : ShaderPartLoader("",ShaderCodeInjections()){
+ShaderPartLoader::ShaderPartLoader() : ShaderPartLoader("", ShaderCodeInjections()) {}
+
+ShaderPartLoader::ShaderPartLoader(const std::string& file, const ShaderCodeInjections& injections)
+    : file(file), injections(injections)
+{
 }
 
-ShaderPartLoader::ShaderPartLoader(const std::string &file, const ShaderCodeInjections &injections)
-    : file(file),injections(injections){
-}
-
-ShaderPartLoader::~ShaderPartLoader(){
-}
+ShaderPartLoader::~ShaderPartLoader() {}
 
 
 
 bool ShaderPartLoader::load()
 {
-
     std::vector<std::string> data;
 
-    if(!loadAndPreproccess(file,data))
-        return false;
+    if (!loadAndPreproccess(file, data)) return false;
 
 
     std::vector<std::string> code;
-    int status = STATUS_WAITING;
-    GLenum type = GL_INVALID_ENUM;
+    int status    = STATUS_WAITING;
+    GLenum type   = GL_INVALID_ENUM;
     int lineCount = 0;
 
 
-    //https://de.wikipedia.org/wiki/Byte_Order_Mark
-    //quick check for utf8-BOM
-    if(data.size() > 0)
+    // https://de.wikipedia.org/wiki/Byte_Order_Mark
+    // quick check for utf8-BOM
+    if (data.size() > 0)
     {
-        std::string &line = data[0];
-        if(line.size() >= 3)
+        std::string& line = data[0];
+        if (line.size() >= 3)
         {
-            if(
-                    (unsigned char)line[0] == 0xEF &&
-                    (unsigned char)line[1] == 0xBB &&
-                    (unsigned char)line[2] == 0xBF)
+            if ((unsigned char)line[0] == 0xEF && (unsigned char)line[1] == 0xBB && (unsigned char)line[2] == 0xBF)
             {
                 line = line.substr(3);
             }
         }
     }
 
-    for(std::string line : data){
+    for (std::string line : data)
+    {
         lineCount++;
 
         bool readLine = true;
-        for(int i = 0 ; i < ShaderPart::shaderTypeCount ; ++i){
-            std::string key("##"+ShaderPart::shaderTypeStrings[i]);
-            //this only compares the first characteres of line, so that for example addittional '\r's are ignored.
-            if(line.compare(0,key.size(),key)==0)
+        for (int i = 0; i < ShaderPart::shaderTypeCount; ++i)
+        {
+            std::string key("##" + ShaderPart::shaderTypeStrings[i]);
+            // this only compares the first characteres of line, so that for example addittional '\r's are ignored.
+            if (line.compare(0, key.size(), key) == 0)
             {
                 //                std::cout << "found key " << key << std::endl;
-                if(status==STATUS_READING)
+                if (status == STATUS_READING)
                 {
-                    addShader(code,type);
+                    addShader(code, type);
                     code.clear();
                 }
-                status = STATUS_READING;
-                type = ShaderPart::shaderTypes[i];
+                status   = STATUS_READING;
+                type     = ShaderPart::shaderTypes[i];
                 readLine = false;
                 break;
-
             }
         }
 
-        if(status == STATUS_READING && readLine){
-            code.push_back(line+'\n');
+        if (status == STATUS_READING && readLine)
+        {
+            code.push_back(line + '\n');
         }
-
     }
 
-    if(status==STATUS_READING){
-        addShader(code,type);
+    if (status == STATUS_READING)
+    {
+        addShader(code, type);
         code.clear();
     }
 
@@ -103,66 +101,59 @@ bool ShaderPartLoader::load()
     return true;
 }
 
-inline std::string getFileFromInclude(const std::string &file, std::string line){
+inline std::string getFileFromInclude(const std::string& file, std::string line)
+{
     const std::string include("#include ");
-    line = line.substr(include.size()-1);
+    line = line.substr(include.size() - 1);
 
-    auto it = std::remove(line.begin(),line.end(),'"');
-    line.erase(it,line.end());
+    auto it = std::remove(line.begin(), line.end(), '"');
+    line.erase(it, line.end());
 
-    it = std::remove(line.begin(),line.end(),' ');
-    line.erase(it,line.end());
+    it = std::remove(line.begin(), line.end(), ' ');
+    line.erase(it, line.end());
 
-    //recursivly load includes
+    // recursivly load includes
     std::string includeFileName = line;
-    includeFileName = shaderPathes.getRelative(file,includeFileName);
+    includeFileName             = shaderPathes.getRelative(file, includeFileName);
     return includeFileName;
 }
 
-bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<std::string> &ret)
+bool ShaderPartLoader::loadAndPreproccess(const std::string& file, std::vector<std::string>& ret)
 {
-
     std::ifstream fileStream(file, std::ios::in);
-    if(!fileStream.is_open()) {
+    if (!fileStream.is_open())
+    {
         return false;
     }
 
     const std::string version("#version");
     const std::string include("#include ");
 
-    //TODO: parse with regex. Requires gcc 4.9+
+    // TODO: parse with regex. Requires gcc 4.9+
 
-    //first pass:
-    //1. read file line by line and save it into ret vector
-    //2. add #line commands after #version and before and after #includes
-    int addedLines = 0; //count number of added "line" commands.
-    while(!fileStream.eof()) {
+    // first pass:
+    // 1. read file line by line and save it into ret vector
+    // 2. add #line commands after #version and before and after #includes
+    int addedLines = 0;  // count number of added "line" commands.
+    while (!fileStream.eof())
+    {
         std::string line;
         std::getline(fileStream, line);
 
-        //remove carriage return from windows
-        line.erase( std::remove(line.begin(), line.end(), '\r'), line.end() );
+        // remove carriage return from windows
+        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
 
-        if(include.size()<line.size() && line.compare(0, include.length(), include)==0)
+        if (include.size() < line.size() && line.compare(0, include.length(), include) == 0)
         {
-            std::string includeFileName = getFileFromInclude(file,line);
+            std::string includeFileName = getFileFromInclude(file, line);
 
-            if (addLineDirectives){
-                //add #line before and after #includes
+            if (addLineDirectives)
+            {
+                // add #line before and after #includes
                 std::string lineCommand = "#line " + std::to_string(1) + " \"" + includeFileName + "\"";
                 ret.push_back(lineCommand);
                 addedLines++;
             }
-            ret.push_back(line);
-            if (addLineDirectives){
-                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file + "\"";
-                ret.push_back(lineCommand);
-                addedLines++;
-            }
-        }
-        else if(version.size()<line.size() && line.compare(0, version.length(), version)==0)
-        {
-            //add a #line command after the #version command
             ret.push_back(line);
             if (addLineDirectives)
             {
@@ -170,47 +161,64 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string &file, std::vector<s
                 ret.push_back(lineCommand);
                 addedLines++;
             }
-        }else{
+        }
+        else if (version.size() < line.size() && line.compare(0, version.length(), version) == 0)
+        {
+            // add a #line command after the #version command
+            ret.push_back(line);
+            if (addLineDirectives)
+            {
+                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file + "\"";
+                ret.push_back(lineCommand);
+                addedLines++;
+            }
+        }
+        else
+        {
             ret.push_back(line);
         }
     }
 
-    //second pass:
-    //loop over vector and replace #include commands with the actual code
+    // second pass:
+    // loop over vector and replace #include commands with the actual code
 
-    for (unsigned int i = 0; i < ret.size(); ++i){
+    for (unsigned int i = 0; i < ret.size(); ++i)
+    {
         std::string line = ret[i];
-        if(include.size()<line.size() && line.compare(0, include.length(), include)==0){
-
-            std::string includeFileName = getFileFromInclude(file,line);
+        if (include.size() < line.size() && line.compare(0, include.length(), include) == 0)
+        {
+            std::string includeFileName = getFileFromInclude(file, line);
 
             std::vector<std::string> tmp;
-            if(!loadAndPreproccess(includeFileName,tmp)){
-                std::cerr<<"ShaderPartLoader: Could not open included file: "<<line <<endl;
-                std::cerr<<"Extracted filename: '"<<includeFileName<<"'"<<endl;
-                std::cerr<<"Basefile: " << file << endl;
-                std::cerr<<"Make sure it exists and the search pathes are set."<<endl;
+            if (!loadAndPreproccess(includeFileName, tmp))
+            {
+                std::cerr << "ShaderPartLoader: Could not open included file: " << line << endl;
+                std::cerr << "Extracted filename: '" << includeFileName << "'" << endl;
+                std::cerr << "Basefile: " << file << endl;
+                std::cerr << "Make sure it exists and the search pathes are set." << endl;
                 SAIGA_ASSERT(0);
             }
-            ret.erase(ret.begin()+i);
-            ret.insert(ret.begin()+i,tmp.begin(),tmp.end());
+            ret.erase(ret.begin() + i);
+            ret.insert(ret.begin() + i, tmp.begin(), tmp.end());
         }
     }
     return true;
 }
 
-void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
+void ShaderPartLoader::addShader(std::vector<std::string>& content, GLenum type)
 {
-    auto shader = std::make_shared<ShaderPart>();
+    auto shader  = std::make_shared<ShaderPart>();
     shader->code = content;
     shader->type = type;
     shader->addInjections(injections);
 
     shader->createGLShader();
-    if(shader->compile()){
+    if (shader->compile())
+    {
         shaders.push_back(shader);
     }
-    else{
+    else
+    {
         FileChecker fc;
         std::string name = fc.getFileName(this->file);
         shader->writeToFile("debug/" + name);
@@ -219,7 +227,7 @@ void ShaderPartLoader::addShader(std::vector<std::string> &content, GLenum type)
     assert_no_glerror();
 }
 
-void ShaderPartLoader::reloadShader(std::shared_ptr<Shader>  shader)
+void ShaderPartLoader::reloadShader(std::shared_ptr<Shader> shader)
 {
     //    cout<<"ShaderPartLoader::reloadShader"<<endl;
     shader->destroyProgram();
@@ -227,13 +235,14 @@ void ShaderPartLoader::reloadShader(std::shared_ptr<Shader>  shader)
     shader->shaders = shaders;
     shader->createProgram();
 
-    std::cout<<"Loaded: "<<file<<" ( ";
-    for(auto& sp : shaders){
-        std::cout<<sp->type<<" ";
+    std::cout << "Loaded: " << file << " ( ";
+    for (auto& sp : shaders)
+    {
+        std::cout << sp->type << " ";
     }
-    std::cout<<")"<<std::endl;
+    std::cout << ")" << std::endl;
 
     assert_no_glerror();
 }
 
-}
+}  // namespace Saiga

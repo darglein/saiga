@@ -10,13 +10,11 @@
 #include "saiga/config.h"
 #include "saiga/util/fileChecker.h"
 
-namespace Saiga {
-
-
+namespace Saiga
+{
 class SAIGA_GLOBAL ModelLoader
 {
-public:
-
+   public:
 };
 
 
@@ -24,4 +22,4 @@ public:
 extern SAIGA_GLOBAL FileChecker modelPathes;
 
 
-}
+}  // namespace Saiga

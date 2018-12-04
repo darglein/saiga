@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -12,10 +12,11 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/rendering/deferredRendering/postProcessor.h"
 
-namespace Saiga {
-
-class SAIGA_GLOBAL SSAOShader : public DeferredShader{
-public:
+namespace Saiga
+{
+class SAIGA_GLOBAL SSAOShader : public DeferredShader
+{
+   public:
     GLint location_invProj;
 
     GLint location_randomImage;
@@ -26,7 +27,7 @@ public:
     GLint location_radius;
     GLint location_power;
 
-    float radius = 1.0f;
+    float radius   = 1.0f;
     float exponent = 1.0f;
 
 
@@ -34,34 +35,35 @@ public:
 
 
     virtual void checkUniforms();
-    void uploadInvProj(mat4 &mat);
+    void uploadInvProj(mat4& mat);
     void uploadData();
     void uploadRandomImage(std::shared_ptr<Texture> img);
 };
 
-class SAIGA_GLOBAL SSAO{
-private:
+class SAIGA_GLOBAL SSAO
+{
+   private:
+    std::shared_ptr<MVPTextureShader> blurShader;
+    std::shared_ptr<SSAOShader> ssaoShader = nullptr;
 
-    std::shared_ptr<MVPTextureShader>  blurShader;
-    std::shared_ptr<SSAOShader>  ssaoShader = nullptr;
-
-    std::shared_ptr<Texture>  randomTexture;
+    std::shared_ptr<Texture> randomTexture;
     Framebuffer ssao_framebuffer, ssao_framebuffer2;
     std::shared_ptr<Texture> ssaotex;
 
-    IndexedVertexBuffer<VertexNT,GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
     vec2 screenSize;
     ivec2 ssaoSize;
     std::vector<vec3> kernelOffsets;
     int kernelSize = 32;
-public:
+
+   public:
     std::shared_ptr<Texture> bluredTexture;
 
     SSAO(int w, int h);
     void init(int w, int h);
     void resize(int w, int h);
     void clearSSAO();
-    void render(Camera* cam, GBuffer *gbuffer);
+    void render(Camera* cam, GBuffer* gbuffer);
 
 
     void setKernelSize(int kernelSize);
@@ -69,4 +71,4 @@ public:
     void renderImGui();
 };
 
-}
+}  // namespace Saiga

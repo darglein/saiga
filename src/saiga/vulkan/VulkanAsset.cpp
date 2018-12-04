@@ -5,6 +5,7 @@
  */
 
 #include "VulkanAsset.h"
+
 #include "saiga/image/imageTransformations.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
@@ -85,7 +86,8 @@ void VulkanPointCloudAsset::render(vk::CommandBuffer cmd, int start, int count)
 
 void VulkanPointCloudAsset::updateBuffer(vk::CommandBuffer cmd, int start, int count)
 {
-    stagingBuffer.copyTo(cmd,vertexBuffer,start* sizeof(VertexType), start * sizeof(VertexType), count * sizeof(VertexType));
+    stagingBuffer.copyTo(cmd, vertexBuffer, start * sizeof(VertexType), start * sizeof(VertexType),
+                         count * sizeof(VertexType));
 }
 
 

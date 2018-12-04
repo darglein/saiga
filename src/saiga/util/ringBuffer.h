@@ -9,8 +9,8 @@
 #include "saiga/util/managedBuffer.h"
 
 
-namespace Saiga {
-
+namespace Saiga
+{
 #if 0
 template<typename T>
 class SAIGA_TEMPLATE RingBuffer : public ManagedBuffer<T>
@@ -115,13 +115,13 @@ public:
 };
 
 #else
-template<typename T>
+template <typename T>
 class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
 {
-public:
-    //pointer to the first element. -1 means there is no element
+   public:
+    // pointer to the first element. -1 means there is no element
     int front = -1;
-    //pointer to the first free spot at the end
+    // pointer to the first free spot at the end
     // if rear==front then this buffer is full
     int rear = 0;
 
@@ -129,62 +129,58 @@ public:
 
     int capacity;
 
-    RingBuffer(int capacity)
-        : std::vector<T>(capacity), capacity(capacity)
+    RingBuffer(int capacity) : std::vector<T>(capacity), capacity(capacity) {}
+
+    ~RingBuffer() {}
+
+    bool empty() const { return front == -1; }
+
+    bool full() const
     {
-
-    }
-
-    ~RingBuffer(){
-    }
-
-    bool empty() const{
-        return front == -1;
-    }
-
-    bool full() const{
-//        return count() == (int)capacity;
+        //        return count() == (int)capacity;
         return front == rear;
     }
 
-    int count() const{
-        if(empty()) return 0;
-        return (front < rear) ? rear-front : rear + capacity - front;
+    int count() const
+    {
+        if (empty()) return 0;
+        return (front < rear) ? rear - front : rear + capacity - front;
     }
 
 
-    //adds one element to the buffer
+    // adds one element to the buffer
     void add(const T& data)
     {
         SAIGA_ASSERT(!full());
-        if(empty()) front = rear;
+        if (empty()) front = rear;
         (*this)[rear] = data;
-        rear = (rear + 1) % capacity;
+        rear          = (rear + 1) % capacity;
     }
 
-    //adds one element to the buffer
-    //overrides the first element if full
+    // adds one element to the buffer
+    // overrides the first element if full
     void addOverride(const T& data)
     {
-        if(full())
+        if (full())
         {
             // Override first element and increment both pointers
             (*this)[front] = data;
-            front = (front + 1) % capacity;
-            rear = (rear + 1) % capacity;
-        }else
+            front          = (front + 1) % capacity;
+            rear           = (rear + 1) % capacity;
+        }
+        else
         {
             add(data);
         }
     }
 
-    //removes one element and returns it
+    // removes one element and returns it
     T get()
     {
-        T result = (*this)[front];
-        (*this)[front] = T(); // override with default element
-        front = (front + 1) % capacity;
-        if(front == rear) front = -1;
+        T result       = (*this)[front];
+        (*this)[front] = T();  // override with default element
+        front          = (front + 1) % capacity;
+        if (front == rear) front = -1;
         return result;
     }
 
@@ -192,8 +188,8 @@ public:
     void clear()
     {
         front = -1;
-        rear = 0;
-        for(int i =0; i < capacity; ++i)
+        rear  = 0;
+        for (int i = 0; i < capacity; ++i)
         {
             (*this)[i] = T();
         }
@@ -201,4 +197,4 @@ public:
 };
 #endif
 
-}
+}  // namespace Saiga

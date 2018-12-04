@@ -1,15 +1,17 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/image/imageMetaData.h"
+
 #include "saiga/util/math.h"
+
 #include "internal/noGraphicsAPI.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 std::ostream& operator<<(std::ostream& os, const ImageMetadata& d)
 {
     os << "> ImageMetadata" << endl;
@@ -22,16 +24,17 @@ std::ostream& operator<<(std::ostream& os, const ImageMetadata& d)
     os << "FocalLengthMM35: " << d.FocalLengthMM35 << endl;
 
     std::string resStr;
-    switch(d.FocalPlaneResolutionUnit){
-    case ImageMetadata::NoUnit:
-        resStr = "NoUnit";
-        break;
-    case ImageMetadata::Inch:
-        resStr = "Inch";
-        break;
-    case ImageMetadata::Centimeter:
-        resStr = "Centimeter";
-        break;
+    switch (d.FocalPlaneResolutionUnit)
+    {
+        case ImageMetadata::NoUnit:
+            resStr = "NoUnit";
+            break;
+        case ImageMetadata::Inch:
+            resStr = "Inch";
+            break;
+        case ImageMetadata::Centimeter:
+            resStr = "Centimeter";
+            break;
     }
 
     os << "FocalPlaneResolutionUnit: " << resStr << endl;
@@ -40,4 +43,4 @@ std::ostream& operator<<(std::ostream& os, const ImageMetadata& d)
     return os;
 }
 
-}
+}  // namespace Saiga

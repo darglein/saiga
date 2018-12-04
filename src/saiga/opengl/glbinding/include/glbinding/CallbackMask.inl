@@ -7,8 +7,6 @@
 
 namespace glbinding
 {
-
-
 GLBINDING_CONSTEXPR CallbackMask operator~(const CallbackMask a)
 {
     using callback_mask_t = std::underlying_type<CallbackMask>::type;
@@ -56,4 +54,4 @@ CallbackMask& operator^=(CallbackMask& a, const CallbackMask b)
 }
 
 
-} // namespace glbinding
+}  // namespace glbinding

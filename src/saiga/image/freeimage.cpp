@@ -5,12 +5,14 @@
  */
 
 #include "saiga/image/freeimage.h"
+
 #include "saiga/util/assert.h"
 
 #ifdef SAIGA_USE_FREEIMAGE
+#    include "internal/noGraphicsAPI.h"
+
 #    include <FreeImagePlus.h>
 #    include <cstring>
-#    include "internal/noGraphicsAPI.h"
 
 namespace Saiga
 {

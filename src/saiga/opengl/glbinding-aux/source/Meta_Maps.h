@@ -2,28 +2,24 @@
 #pragma once
 
 
-#include <string>
-#include <map>
-#include <unordered_map>
-#include <vector>
-#include <set>
 #include <array>
-
-#include <glbinding/gl/types.h>
 #include <glbinding/gl/extension.h>
+#include <glbinding/gl/types.h>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
+#include <unordered_map>
 
 
 namespace glbinding
 {
-
-
 class Version;
 
 
 namespace aux
 {
-
-
 extern const std::array<std::unordered_map<std::string, gl::GLextension>, 27> Meta_ExtensionsByStringMaps;
 extern const std::unordered_map<gl::GLextension, Version> Meta_ReqVersionsByExtension;
 
@@ -41,16 +37,19 @@ extern const std::unordered_map<gl::ClientAttribMask, std::string> Meta_StringsB
 extern const std::unordered_map<gl::ContextFlagMask, std::string> Meta_StringsByContextFlagMask;
 extern const std::unordered_map<gl::ContextProfileMask, std::string> Meta_StringsByContextProfileMask;
 extern const std::unordered_map<gl::FfdMaskSGIX, std::string> Meta_StringsByFfdMaskSGIX;
-extern const std::unordered_map<gl::FragmentShaderColorModMaskATI, std::string> Meta_StringsByFragmentShaderColorModMaskATI;
+extern const std::unordered_map<gl::FragmentShaderColorModMaskATI, std::string>
+    Meta_StringsByFragmentShaderColorModMaskATI;
 extern const std::unordered_map<gl::FragmentShaderDestMaskATI, std::string> Meta_StringsByFragmentShaderDestMaskATI;
-extern const std::unordered_map<gl::FragmentShaderDestModMaskATI, std::string> Meta_StringsByFragmentShaderDestModMaskATI;
+extern const std::unordered_map<gl::FragmentShaderDestModMaskATI, std::string>
+    Meta_StringsByFragmentShaderDestModMaskATI;
 extern const std::unordered_map<gl::MapBufferUsageMask, std::string> Meta_StringsByMapBufferUsageMask;
 extern const std::unordered_map<gl::MemoryBarrierMask, std::string> Meta_StringsByMemoryBarrierMask;
 extern const std::unordered_map<gl::OcclusionQueryEventMaskAMD, std::string> Meta_StringsByOcclusionQueryEventMaskAMD;
 extern const std::unordered_map<gl::PathFontStyle, std::string> Meta_StringsByPathFontStyle;
 extern const std::unordered_map<gl::PathMetricMask, std::string> Meta_StringsByPathMetricMask;
 extern const std::unordered_map<gl::PathRenderingMaskNV, std::string> Meta_StringsByPathRenderingMaskNV;
-extern const std::unordered_map<gl::PerformanceQueryCapsMaskINTEL, std::string> Meta_StringsByPerformanceQueryCapsMaskINTEL;
+extern const std::unordered_map<gl::PerformanceQueryCapsMaskINTEL, std::string>
+    Meta_StringsByPerformanceQueryCapsMaskINTEL;
 extern const std::unordered_map<gl::SyncObjectMask, std::string> Meta_StringsBySyncObjectMask;
 extern const std::unordered_map<gl::TextureStorageMaskAMD, std::string> Meta_StringsByTextureStorageMaskAMD;
 extern const std::unordered_map<gl::UnusedMask, std::string> Meta_StringsByUnusedMask;
@@ -60,7 +59,9 @@ extern const std::unordered_map<gl::VertexHintsMaskPGI, std::string> Meta_String
 extern const std::array<std::unordered_map<std::string, gl::GLbitfield>, 27> Meta_BitfieldsByStringMaps;
 extern const std::unordered_map<std::string, gl::GLboolean> Meta_BooleansByString;
 extern const std::array<std::unordered_map<std::string, gl::GLenum>, 27> Meta_EnumsByStringMaps;
-extern const std::array<std::unordered_map<std::string, std::set<gl::GLextension>>, 27> Meta_ExtensionsByFunctionStringMaps;
+extern const std::array<std::unordered_map<std::string, std::set<gl::GLextension>>, 27>
+    Meta_ExtensionsByFunctionStringMaps;
 
 
-} } // namespace glbinding::aux
+}  // namespace aux
+}  // namespace glbinding

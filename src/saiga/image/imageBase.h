@@ -8,8 +8,8 @@
 
 #include "saiga/config.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * @brief The ImageBase struct
  *
@@ -19,13 +19,13 @@ namespace Saiga {
  */
 struct SAIGA_GLOBAL ImageBase
 {
-    union{
+    union {
         int w;
         int width;
         int c;
         int cols;
     };
-    union{
+    union {
         int h;
         int height;
         int r;
@@ -36,66 +36,52 @@ struct SAIGA_GLOBAL ImageBase
 
 
 
-    HD inline
-    ImageBase()
-     : ImageBase(0,0,0)
+    HD inline ImageBase() : ImageBase(0, 0, 0)
     {
-        //static_assert(sizeof(ImageBase) == 16, "ImageBase size wrong!");
+        // static_assert(sizeof(ImageBase) == 16, "ImageBase size wrong!");
     }
 
-    HD inline
-    ImageBase(int h, int w , int p)
-        : width(w),height(h),pitchBytes(p) {}
+    HD inline ImageBase(int h, int w, int p) : width(w), height(h), pitchBytes(p) {}
 
 
-    //size in bytes
-    HD inline
-    size_t size() const
+    // size in bytes
+    HD inline size_t size() const { return height * pitchBytes; }
+
+
+
+    HD inline bool inImage(int y, int x) const { return x >= 0 && x < width && y >= 0 && y < height; }
+
+    template <typename AT>
+    HD inline bool inImage(AT y, AT x) const
     {
-        return height * pitchBytes;
+        return x >= 0 && x <= AT(width - 1) && y >= 0 && y <= AT(height - 1);
     }
 
 
-
-
-
-    HD inline
-    bool inImage(int y, int x) const{
-        return x >= 0 && x < width && y >=0 && y < height;
-    }
-
-    template<typename AT>
-    HD inline
-    bool inImage(AT y, AT x) const{
-        return x >= 0 && x <= AT(width-1) && y >=0 && y <= AT(height-1);
-    }
-
-
-    HD inline
-    void clampToEdge(int& y, int& x) const{
+    HD inline void clampToEdge(int& y, int& x) const
+    {
 #ifdef SAIGA_ON_DEVICE
-        x = min(max(0,x),width-1);
-        y = min(max(0,y),height-1);
+        x = min(max(0, x), width - 1);
+        y = min(max(0, y), height - 1);
 #else
-        x = std::min(std::max(0,x),width-1);
-        y = std::min(std::max(0,y),height-1);
+        x = std::min(std::max(0, x), width - 1);
+        y = std::min(std::max(0, y), height - 1);
 #endif
     }
 
-    //minimum distance of the pixel to all edges
-    HD inline
-    int distanceFromEdge(int y, int x) const{
+    // minimum distance of the pixel to all edges
+    HD inline int distanceFromEdge(int y, int x) const
+    {
         int x0 = x;
         int x1 = width - 1 - x;
         int y0 = y;
         int y1 = height - 1 - y;
 #ifdef SAIGA_ON_DEVICE
-        return min(x0,min(x1,min(y0,y1)));
+        return min(x0, min(x1, min(y0, y1)));
 #else
-        return std::min(x0,std::min(x1,std::min(y0,y1)));
+        return std::min(x0, std::min(x1, std::min(y0, y1)));
 #endif
     }
-
 };
 
-}
+}  // namespace Saiga

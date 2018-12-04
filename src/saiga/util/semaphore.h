@@ -6,17 +6,18 @@
 
 #pragma once
 
-#include <mutex>
-#include <condition_variable>
-
 #include "saiga/config.h"
 
-namespace Saiga {
+#include <mutex>
 
-class SAIGA_GLOBAL Semaphore {
-public:
-    Semaphore (int count_ = 0)
-        : count(count_) {}
+#include <condition_variable>
+
+namespace Saiga
+{
+class SAIGA_GLOBAL Semaphore
+{
+   public:
+    Semaphore(int count_ = 0) : count(count_) {}
 
     /**
      * Increase counter and notify a thread that waits on the condition variable.
@@ -36,7 +37,8 @@ public:
     {
         std::unique_lock<std::mutex> lock(mtx);
 
-        while(count == 0){
+        while (count == 0)
+        {
             cv.wait(lock);
         }
         count--;
@@ -49,7 +51,7 @@ public:
     inline bool trywait()
     {
         std::unique_lock<std::mutex> lock(mtx);
-        if(count)
+        if (count)
         {
             --count;
             return true;
@@ -60,10 +62,10 @@ public:
         }
     }
 
-private:
+   private:
     std::mutex mtx;
     std::condition_variable cv;
     int count;
 };
 
-}
+}  // namespace Saiga

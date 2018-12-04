@@ -1,14 +1,15 @@
 ﻿#pragma once
 
-#include <assert.h>
-#include <saiga/vulkan/buffer/StagingBuffer.h>
-#include <algorithm>
-#include <exception>
 #include "saiga/image/image.h"
 #include "saiga/vulkan/AsyncCommand.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/buffer/DeviceMemory.h"
 #include "saiga/vulkan/svulkan.h"
+
+#include <algorithm>
+#include <assert.h>
+#include <exception>
+#include <saiga/vulkan/buffer/StagingBuffer.h>
 
 namespace Saiga
 {

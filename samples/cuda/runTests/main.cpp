@@ -4,28 +4,28 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/crash.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/cusparseHelper.h"
-#include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/random.h"
-#include "saiga/tests/test.h"
+#include "saiga/cuda/tests/test.h"
 #include "saiga/geometry/clipping.h"
+#include "saiga/tests/test.h"
 #include "saiga/util/commandLineArguments.h"
+#include "saiga/util/crash.h"
 using namespace Saiga;
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char* argv[])
+{
     catchSegFaults();
 
     CommandLineArguments arguments;
 
     arguments.arguments = std::vector<CommandLineArguments::CLA>{
-    {"",'f',"","lasgld",true,false},
-    {"",'r',"","lasgld",true,false},
-    {"",'g',"","lasgld",true,false},
-    {"asdf",0,"djhlgsg","lasgld",false,false},
-};
+        {"", 'f', "", "lasgld", true, false},
+        {"", 'r', "", "lasgld", true, false},
+        {"", 'g', "", "lasgld", true, false},
+        {"asdf", 0, "djhlgsg", "lasgld", false, false},
+    };
 
 
     struct asdf
@@ -36,12 +36,12 @@ int main(int argc, char *argv[]) {
         bool flag;
     };
 
-    asdf a = {"sdgl",true};
+    asdf a = {"sdgl", true};
 
 
     //    CommandLineArguments::CLA asdf = {std::string(""),'f',std::string(""),true,false};
 
-    arguments.parse(argc,argv);
+    arguments.parse(argc, argv);
 
     return 0;
 
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     //    return 0;
 
     {
-        //CUDA tests
+        // CUDA tests
         CUDA::initCUDA();
 
         Saiga::CUDA::testCuda();
@@ -90,12 +90,11 @@ int main(int argc, char *argv[]) {
         //        CUDA::testCuda();
         //        CUDA::testThrust();
 
-//        CUDA::destroyBLASSPARSE();
+        //        CUDA::destroyBLASSPARSE();
         CUDA::destroyCUDA();
     }
 
 
 
     //    Tests::fpTest();
-
 }

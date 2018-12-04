@@ -4,23 +4,24 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/cuda/cudaHelper.h"
+#include "saiga/cuda/imageProcessing/image.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/cuda/cudaHelper.h"
-
 #include "saiga/image/templatedImage.h"
-#include "saiga/cuda/imageProcessing/imageProcessing.h"
-#include "saiga/cuda/imageProcessing/image.h"
-#include <algorithm>
 #include "saiga/util/tostring.h"
 
-
-namespace Saiga {
-namespace CUDA {
+#include <algorithm>
 
 
-//nvcc $CPPFLAGS -ptx -src-in-ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr integrate_test.cu
+namespace Saiga
+{
+namespace CUDA
+{
+// nvcc $CPPFLAGS -ptx -src-in-ptx -gencode=arch=compute_52,code=compute_52 -g -std=c++11 --expt-relaxed-constexpr
+// integrate_test.cu
 
 
 void imageProcessingTest()
@@ -206,5 +207,5 @@ void imageProcessingTest()
 #endif
 }
 
-}
-}
+}  // namespace CUDA
+}  // namespace Saiga

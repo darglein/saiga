@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,9 +9,8 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
-void glWaitSemaphoreEXT(GLuint semaphore, GLuint numBufferBarriers, const GLuint * buffers, GLuint numTextureBarriers, const GLuint * textures, const GLenum * srcLayouts)
+void glWaitSemaphoreEXT(GLuint semaphore, GLuint numBufferBarriers, const GLuint* buffers, GLuint numTextureBarriers,
+                        const GLuint* textures, const GLenum* srcLayouts)
 {
     return Binding::WaitSemaphoreEXT(semaphore, numBufferBarriers, buffers, numTextureBarriers, textures, srcLayouts);
 }
@@ -26,52 +25,52 @@ void glWaitVkSemaphoreNV(GLuint64 vkSemaphore)
     return Binding::WaitVkSemaphoreNV(vkSemaphore);
 }
 
-void glWeightPathsNV(GLuint resultPath, GLsizei numPaths, const GLuint * paths, const GLfloat * weights)
+void glWeightPathsNV(GLuint resultPath, GLsizei numPaths, const GLuint* paths, const GLfloat* weights)
 {
     return Binding::WeightPathsNV(resultPath, numPaths, paths, weights);
 }
 
-void glWeightPointerARB(GLint size, GLenum type, GLsizei stride, const void * pointer)
+void glWeightPointerARB(GLint size, GLenum type, GLsizei stride, const void* pointer)
 {
     return Binding::WeightPointerARB(size, type, stride, pointer);
 }
 
-void glWeightbvARB(GLint size, const GLbyte * weights)
+void glWeightbvARB(GLint size, const GLbyte* weights)
 {
     return Binding::WeightbvARB(size, weights);
 }
 
-void glWeightdvARB(GLint size, const GLdouble * weights)
+void glWeightdvARB(GLint size, const GLdouble* weights)
 {
     return Binding::WeightdvARB(size, weights);
 }
 
-void glWeightfvARB(GLint size, const GLfloat * weights)
+void glWeightfvARB(GLint size, const GLfloat* weights)
 {
     return Binding::WeightfvARB(size, weights);
 }
 
-void glWeightivARB(GLint size, const GLint * weights)
+void glWeightivARB(GLint size, const GLint* weights)
 {
     return Binding::WeightivARB(size, weights);
 }
 
-void glWeightsvARB(GLint size, const GLshort * weights)
+void glWeightsvARB(GLint size, const GLshort* weights)
 {
     return Binding::WeightsvARB(size, weights);
 }
 
-void glWeightubvARB(GLint size, const GLubyte * weights)
+void glWeightubvARB(GLint size, const GLubyte* weights)
 {
     return Binding::WeightubvARB(size, weights);
 }
 
-void glWeightuivARB(GLint size, const GLuint * weights)
+void glWeightuivARB(GLint size, const GLuint* weights)
 {
     return Binding::WeightuivARB(size, weights);
 }
 
-void glWeightusvARB(GLint size, const GLushort * weights)
+void glWeightusvARB(GLint size, const GLushort* weights)
 {
     return Binding::WeightusvARB(size, weights);
 }
@@ -91,17 +90,17 @@ void glWindowPos2dMESA(GLdouble x, GLdouble y)
     return Binding::WindowPos2dMESA(x, y);
 }
 
-void glWindowPos2dv(const GLdouble * v)
+void glWindowPos2dv(const GLdouble* v)
 {
     return Binding::WindowPos2dv(v);
 }
 
-void glWindowPos2dvARB(const GLdouble * v)
+void glWindowPos2dvARB(const GLdouble* v)
 {
     return Binding::WindowPos2dvARB(v);
 }
 
-void glWindowPos2dvMESA(const GLdouble * v)
+void glWindowPos2dvMESA(const GLdouble* v)
 {
     return Binding::WindowPos2dvMESA(v);
 }
@@ -121,17 +120,17 @@ void glWindowPos2fMESA(GLfloat x, GLfloat y)
     return Binding::WindowPos2fMESA(x, y);
 }
 
-void glWindowPos2fv(const GLfloat * v)
+void glWindowPos2fv(const GLfloat* v)
 {
     return Binding::WindowPos2fv(v);
 }
 
-void glWindowPos2fvARB(const GLfloat * v)
+void glWindowPos2fvARB(const GLfloat* v)
 {
     return Binding::WindowPos2fvARB(v);
 }
 
-void glWindowPos2fvMESA(const GLfloat * v)
+void glWindowPos2fvMESA(const GLfloat* v)
 {
     return Binding::WindowPos2fvMESA(v);
 }
@@ -151,17 +150,17 @@ void glWindowPos2iMESA(GLint x, GLint y)
     return Binding::WindowPos2iMESA(x, y);
 }
 
-void glWindowPos2iv(const GLint * v)
+void glWindowPos2iv(const GLint* v)
 {
     return Binding::WindowPos2iv(v);
 }
 
-void glWindowPos2ivARB(const GLint * v)
+void glWindowPos2ivARB(const GLint* v)
 {
     return Binding::WindowPos2ivARB(v);
 }
 
-void glWindowPos2ivMESA(const GLint * v)
+void glWindowPos2ivMESA(const GLint* v)
 {
     return Binding::WindowPos2ivMESA(v);
 }
@@ -181,17 +180,17 @@ void glWindowPos2sMESA(GLshort x, GLshort y)
     return Binding::WindowPos2sMESA(x, y);
 }
 
-void glWindowPos2sv(const GLshort * v)
+void glWindowPos2sv(const GLshort* v)
 {
     return Binding::WindowPos2sv(v);
 }
 
-void glWindowPos2svARB(const GLshort * v)
+void glWindowPos2svARB(const GLshort* v)
 {
     return Binding::WindowPos2svARB(v);
 }
 
-void glWindowPos2svMESA(const GLshort * v)
+void glWindowPos2svMESA(const GLshort* v)
 {
     return Binding::WindowPos2svMESA(v);
 }
@@ -211,17 +210,17 @@ void glWindowPos3dMESA(GLdouble x, GLdouble y, GLdouble z)
     return Binding::WindowPos3dMESA(x, y, z);
 }
 
-void glWindowPos3dv(const GLdouble * v)
+void glWindowPos3dv(const GLdouble* v)
 {
     return Binding::WindowPos3dv(v);
 }
 
-void glWindowPos3dvARB(const GLdouble * v)
+void glWindowPos3dvARB(const GLdouble* v)
 {
     return Binding::WindowPos3dvARB(v);
 }
 
-void glWindowPos3dvMESA(const GLdouble * v)
+void glWindowPos3dvMESA(const GLdouble* v)
 {
     return Binding::WindowPos3dvMESA(v);
 }
@@ -241,17 +240,17 @@ void glWindowPos3fMESA(GLfloat x, GLfloat y, GLfloat z)
     return Binding::WindowPos3fMESA(x, y, z);
 }
 
-void glWindowPos3fv(const GLfloat * v)
+void glWindowPos3fv(const GLfloat* v)
 {
     return Binding::WindowPos3fv(v);
 }
 
-void glWindowPos3fvARB(const GLfloat * v)
+void glWindowPos3fvARB(const GLfloat* v)
 {
     return Binding::WindowPos3fvARB(v);
 }
 
-void glWindowPos3fvMESA(const GLfloat * v)
+void glWindowPos3fvMESA(const GLfloat* v)
 {
     return Binding::WindowPos3fvMESA(v);
 }
@@ -271,17 +270,17 @@ void glWindowPos3iMESA(GLint x, GLint y, GLint z)
     return Binding::WindowPos3iMESA(x, y, z);
 }
 
-void glWindowPos3iv(const GLint * v)
+void glWindowPos3iv(const GLint* v)
 {
     return Binding::WindowPos3iv(v);
 }
 
-void glWindowPos3ivARB(const GLint * v)
+void glWindowPos3ivARB(const GLint* v)
 {
     return Binding::WindowPos3ivARB(v);
 }
 
-void glWindowPos3ivMESA(const GLint * v)
+void glWindowPos3ivMESA(const GLint* v)
 {
     return Binding::WindowPos3ivMESA(v);
 }
@@ -301,17 +300,17 @@ void glWindowPos3sMESA(GLshort x, GLshort y, GLshort z)
     return Binding::WindowPos3sMESA(x, y, z);
 }
 
-void glWindowPos3sv(const GLshort * v)
+void glWindowPos3sv(const GLshort* v)
 {
     return Binding::WindowPos3sv(v);
 }
 
-void glWindowPos3svARB(const GLshort * v)
+void glWindowPos3svARB(const GLshort* v)
 {
     return Binding::WindowPos3svARB(v);
 }
 
-void glWindowPos3svMESA(const GLshort * v)
+void glWindowPos3svMESA(const GLshort* v)
 {
     return Binding::WindowPos3svMESA(v);
 }
@@ -321,7 +320,7 @@ void glWindowPos4dMESA(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
     return Binding::WindowPos4dMESA(x, y, z, w);
 }
 
-void glWindowPos4dvMESA(const GLdouble * v)
+void glWindowPos4dvMESA(const GLdouble* v)
 {
     return Binding::WindowPos4dvMESA(v);
 }
@@ -331,7 +330,7 @@ void glWindowPos4fMESA(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
     return Binding::WindowPos4fMESA(x, y, z, w);
 }
 
-void glWindowPos4fvMESA(const GLfloat * v)
+void glWindowPos4fvMESA(const GLfloat* v)
 {
     return Binding::WindowPos4fvMESA(v);
 }
@@ -341,7 +340,7 @@ void glWindowPos4iMESA(GLint x, GLint y, GLint z, GLint w)
     return Binding::WindowPos4iMESA(x, y, z, w);
 }
 
-void glWindowPos4ivMESA(const GLint * v)
+void glWindowPos4ivMESA(const GLint* v)
 {
     return Binding::WindowPos4ivMESA(v);
 }
@@ -351,12 +350,12 @@ void glWindowPos4sMESA(GLshort x, GLshort y, GLshort z, GLshort w)
     return Binding::WindowPos4sMESA(x, y, z, w);
 }
 
-void glWindowPos4svMESA(const GLshort * v)
+void glWindowPos4svMESA(const GLshort* v)
 {
     return Binding::WindowPos4svMESA(v);
 }
 
-void glWindowRectanglesEXT(GLenum mode, GLsizei count, const GLint * box)
+void glWindowRectanglesEXT(GLenum mode, GLsizei count, const GLint* box)
 {
     return Binding::WindowRectanglesEXT(mode, count, box);
 }
@@ -368,5 +367,4 @@ void glWriteMaskEXT(GLuint res, GLuint in, GLenum outX, GLenum outY, GLenum outZ
 
 
 
-
-} // namespace gl
+}  // namespace gl

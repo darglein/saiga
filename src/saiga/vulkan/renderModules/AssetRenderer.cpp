@@ -5,6 +5,7 @@
  */
 
 #include "AssetRenderer.h"
+
 #include "saiga/model/objModelLoader.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
@@ -38,8 +39,8 @@ void AssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
 {
     uboVS.projection = proj;
-    uboVS.modelview = view;
-    uboVS.lightPos = vec4(5,5,5,0);
+    uboVS.modelview  = view;
+    uboVS.lightPos   = vec4(5, 5, 5, 0);
     uniformBufferVS.update(cmd, sizeof(uboVS), &uboVS);
 }
 

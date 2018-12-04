@@ -4,11 +4,11 @@
 #include <sstream>
 
 
-namespace glbinding { namespace aux
+namespace glbinding
 {
-
-
-std::string wrapString(const char * value)
+namespace aux
+{
+std::string wrapString(const char* value)
 {
     std::stringstream ss;
     ss << "\"";
@@ -18,4 +18,5 @@ std::string wrapString(const char * value)
 }
 
 
-} } // namespace glbinding::aux
+}  // namespace aux
+}  // namespace glbinding

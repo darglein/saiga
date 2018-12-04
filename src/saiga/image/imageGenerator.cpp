@@ -5,17 +5,20 @@
  */
 
 #include "saiga/image/imageGenerator.h"
+
 #include "saiga/image/templatedImage.h"
+
 #include "internal/noGraphicsAPI.h"
 
-namespace Saiga {
-
-std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, int quadSize, int numQuadsX, int numQuadsY)
+namespace Saiga
+{
+std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, int quadSize, int numQuadsX,
+                                                    int numQuadsY)
 {
     std::shared_ptr<Image> image = std::make_shared<Image>();
     //    Image* image = new Image();
 
-    image->width = quadSize * numQuadsX;
+    image->width  = quadSize * numQuadsX;
     image->height = quadSize * numQuadsY;
 
     image->type = UC3;
@@ -26,32 +29,28 @@ std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, in
 
     image->create();
 
-    uint8_t r1=color1.x*255.0f,
-            g1=color1.y*255.0f,
-            b1=color1.z*255.0f;
+    uint8_t r1 = color1.x * 255.0f, g1 = color1.y * 255.0f, b1 = color1.z * 255.0f;
 
 
-    uint8_t r2=color2.x*255.0f,
-            g2=color2.y*255.0f,
-            b2=color2.z*255.0f;
+    uint8_t r2 = color2.x * 255.0f, g2 = color2.y * 255.0f, b2 = color2.z * 255.0f;
 
     bool black = true;
-    for(int qx = 0; qx<numQuadsX; ++qx){
-        for(int qy = 0; qy<numQuadsY; ++qy){
-
-
-            for(int i=0; i<quadSize;++i){
-                for(int j=0; j<quadSize;++j){
-                    if(black)
+    for (int qx = 0; qx < numQuadsX; ++qx)
+    {
+        for (int qy = 0; qy < numQuadsY; ++qy)
+        {
+            for (int i = 0; i < quadSize; ++i)
+            {
+                for (int j = 0; j < quadSize; ++j)
+                {
+                    if (black)
                     {
-                        image->at<ucvec3>(qx*quadSize+i,qy*quadSize+j) = ucvec3(r1,g1,b1);
+                        image->at<ucvec3>(qx * quadSize + i, qy * quadSize + j) = ucvec3(r1, g1, b1);
                     }
                     else
                     {
-                        image->at<ucvec3>(qx*quadSize+i,qy*quadSize+j) = ucvec3(r2,g2,b2);
+                        image->at<ucvec3>(qx * quadSize + i, qy * quadSize + j) = ucvec3(r2, g2, b2);
                     }
-
-
                 }
             }
 
@@ -60,28 +59,29 @@ std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, in
         black = !black;
     }
 
-//    image->save("debug/checkerboard.png");
+    //    image->save("debug/checkerboard.png");
 
 
 
     return image;
-
 }
 
 std::shared_ptr<Image> ImageGenerator::randomNormalized(int width, int height)
 {
-    TemplatedImage<cvec4>* image = new TemplatedImage<cvec4>(height,width);
-    for(int i = 0 ; i < height ; ++i){
-        for(int j = 0 ; j < width ; ++j){
+    TemplatedImage<cvec4>* image = new TemplatedImage<cvec4>(height, width);
+    for (int i = 0; i < height; ++i)
+    {
+        for (int j = 0; j < width; ++j)
+        {
             cvec4 texel;
-            texel.r = glm::linearRand(0,255);
-            texel.g = linearRand(0,255);
-            texel.b = linearRand(0,255);
-            texel.a = linearRand(0,255);
-            (*image)(i,j) = texel;
+            texel.r        = glm::linearRand(0, 255);
+            texel.g        = linearRand(0, 255);
+            texel.b        = linearRand(0, 255);
+            texel.a        = linearRand(0, 255);
+            (*image)(i, j) = texel;
         }
     }
     return std::shared_ptr<Image>(image);
 }
 
-}
+}  // namespace Saiga

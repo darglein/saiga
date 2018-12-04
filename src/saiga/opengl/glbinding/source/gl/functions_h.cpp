@@ -1,7 +1,7 @@
 
-#include "../Binding_pch.h"
-
 #include <glbinding/gl/functions.h>
+
+#include "../Binding_pch.h"
 
 
 using namespace glbinding;
@@ -9,8 +9,6 @@ using namespace glbinding;
 
 namespace gl
 {
-
-
 void glHint(GLenum target, GLenum mode)
 {
     return Binding::Hint(target, mode);
@@ -33,5 +31,4 @@ void glHistogramEXT(GLenum target, GLsizei width, GLenum internalformat, GLboole
 
 
 
-
-} // namespace gl
+}  // namespace gl

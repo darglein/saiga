@@ -1,30 +1,26 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/opengl/query/timeStampQuery.h"
 
-namespace Saiga {
-
-TimeStampQuery::TimeStampQuery()
+namespace Saiga
 {
-}
+TimeStampQuery::TimeStampQuery() {}
 
 TimeStampQuery::~TimeStampQuery()
 {
-    if(id)
-        glDeleteQueries(1, &id);
+    if (id) glDeleteQueries(1, &id);
 }
 
 void TimeStampQuery::create()
 {
-    if(!id)
-        glGenQueries(1, &id);
-    //prevent potential gl erros.
+    if (!id) glGenQueries(1, &id);
+    // prevent potential gl erros.
     record();
-	waitTimestamp();
+    waitTimestamp();
 }
 
 void TimeStampQuery::record()
@@ -35,8 +31,8 @@ void TimeStampQuery::record()
 bool TimeStampQuery::isAvailable()
 {
     GLint res = 0;
-    glGetQueryObjectiv(id,GL_QUERY_RESULT_AVAILABLE,&res);
-    return res!=0;
+    glGetQueryObjectiv(id, GL_QUERY_RESULT_AVAILABLE, &res);
+    return res != 0;
 }
 
 GLuint64 TimeStampQuery::getTimestamp()
@@ -48,10 +44,10 @@ GLuint64 TimeStampQuery::getTimestamp()
 
 GLuint64 TimeStampQuery::waitTimestamp()
 {
-    while(!isAvailable()){
-
+    while (!isAvailable())
+    {
     }
     return getTimestamp();
 }
 
-}
+}  // namespace Saiga

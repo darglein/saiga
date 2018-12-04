@@ -1,19 +1,14 @@
 #pragma once
 
-#include "CameraData.h"
 #include "CalibrationPattern.h"
+#include "CameraData.h"
 
 namespace Saiga
 {
 class SAIGA_GLOBAL IntrinsicsCalibration
 {
-public:
-
-    IntrinsicsCalibration(CalibrationPattern& pattern)
-        : pattern(pattern)
-    {
-
-    }
+   public:
+    IntrinsicsCalibration(CalibrationPattern& pattern) : pattern(pattern) {}
 
     void addImage(cv::Mat image)
     {
@@ -21,10 +16,12 @@ public:
         currentIntrinsics.h = image.rows;
 
         auto points = pattern.detect(image);
-        if(points.size() > 0)
+        if (points.size() > 0)
         {
             images.push_back(points);
-        }else{
+        }
+        else
+        {
             cout << "could not find pattern :(" << endl;
         }
         recomputeIntrinsics();
@@ -35,24 +32,18 @@ public:
         Intrinsics intr = currentIntrinsics;
         auto objPointss = pattern.duplicate(images.size());
 
-        cv::Mat rvecs,tvecs;
-        auto error = cv::calibrateCamera(
-                    objPointss,
-                    images,
-                    cv::Size(intr.w,intr.h),
-                    intr.K,
-                    intr.dist,
-                    rvecs,
-                    tvecs);
+        cv::Mat rvecs, tvecs;
+        auto error = cv::calibrateCamera(objPointss, images, cv::Size(intr.w, intr.h), intr.K, intr.dist, rvecs, tvecs);
         cout << "calibrateCamera error: " << error << endl;
 
         currentIntrinsics = intr;
     }
 
     Intrinsics currentIntrinsics;
-protected:
+
+   protected:
     CalibrationPattern& pattern;
     std::vector<std::vector<CalibrationPattern::ImagePointType>> images;
 };
 
-}
+}  // namespace Saiga

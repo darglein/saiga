@@ -5,10 +5,11 @@
  */
 
 #include "saiga/imgui/imgui_renderer.h"
+
 #include "saiga/imgui/imgui.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 ImGuiRenderer::ImGuiRenderer()
 {
     ImGui::CreateContext();
@@ -23,8 +24,7 @@ ImGuiRenderer::~ImGuiRenderer()
 
 void ImGuiRenderer::endFrame()
 {
-     ImGui::Render();
-
+    ImGui::Render();
 }
 
 void ImGuiRenderer::render()
@@ -33,4 +33,4 @@ void ImGuiRenderer::render()
 }
 
 
-}
+}  // namespace Saiga

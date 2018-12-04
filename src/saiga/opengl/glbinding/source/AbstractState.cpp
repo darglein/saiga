@@ -3,17 +3,9 @@
 
 namespace glbinding
 {
+AbstractState::AbstractState() : m_address(nullptr), m_initialized(false), m_callbackMask(CallbackMask::None) {}
 
-AbstractState::AbstractState()
-: m_address(nullptr)
-, m_initialized(false)
-, m_callbackMask(CallbackMask::None)
-{
-}
-
-AbstractState::~AbstractState()
-{
-}
+AbstractState::~AbstractState() {}
 
 ProcAddress AbstractState::address() const
 {
@@ -45,4 +37,4 @@ void AbstractState::setCallbackMask(CallbackMask mask)
     m_callbackMask = mask;
 }
 
-} // namespace glbinding
+}  // namespace glbinding

@@ -6,6 +6,7 @@
 
 
 #include "ICPAlign.h"
+
 #include "saiga/util/assert.h"
 
 namespace Saiga

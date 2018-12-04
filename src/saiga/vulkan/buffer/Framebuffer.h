@@ -9,13 +9,13 @@
 
 #include "saiga/vulkan/Base.h"
 
-namespace Saiga {
-namespace Vulkan {
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 class SAIGA_GLOBAL Framebuffer
 {
-public:
+   public:
     VkFramebuffer framebuffer;
 
     void destroy(vk::Device device);
@@ -24,10 +24,11 @@ public:
      * Creates a framebuffer with one color attachment and a depth-stencil attachment.
      * This is usefull as a default framebuffer with the color attachment being the swap-chain image.
      */
-    void createColorDepthStencil(int width, int height, vk::ImageView color, vk::ImageView depthStencil, vk::RenderPass renderPass, vk::Device device);
+    void createColorDepthStencil(int width, int height, vk::ImageView color, vk::ImageView depthStencil,
+                                 vk::RenderPass renderPass, vk::Device device);
     void createColor(int width, int height, vk::ImageView color, vk::RenderPass renderPass, vk::Device device);
     void create(int width, int height, vk::RenderPass renderPass, vk::Device device);
 };
 
-}
-}
+}  // namespace Vulkan
+}  // namespace Saiga

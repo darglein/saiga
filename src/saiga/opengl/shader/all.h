@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,5 +9,5 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/shader/shader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/shader/shaderpart.h"
 #include "saiga/opengl/shader/shaderPartLoader.h"
+#include "saiga/opengl/shader/shaderpart.h"

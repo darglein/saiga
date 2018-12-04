@@ -1,6 +1,7 @@
 ﻿#include "saiga/framework/framework.h"
 #include "saiga/util/easylogging++.h"
 #include "saiga/vulkan/window/SDLWindow.h"
+
 #include "sample.h"
 
 #undef main

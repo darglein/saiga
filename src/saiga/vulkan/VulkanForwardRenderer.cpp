@@ -8,8 +8,10 @@
 
 
 #include "VulkanForwardRenderer.h"
-#include "VulkanInitializers.hpp"
+
 #include "saiga/vulkan/Shader/all.h"
+
+#include "VulkanInitializers.hpp"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.

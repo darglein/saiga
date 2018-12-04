@@ -6,34 +6,42 @@
 
 
 #include "saiga/window/MainLoop.h"
+
 #include "saiga/imgui/imgui.h"
-#include "saiga/util/tostring.h"
 #include "saiga/util/ini/ini.h"
+#include "saiga/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
 
-namespace Saiga {
-
-void MainLoopParameters::fromConfigFile(const std::string &file)
+namespace Saiga
+{
+void MainLoopParameters::fromConfigFile(const std::string& file)
 {
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
-    updatesPerSecond      = ini.GetAddLong  ("mainloop","updatesPerSecond",updatesPerSecond);
-    framesPerSecond       = ini.GetAddLong  ("mainloop","framesPerSecond",framesPerSecond);
-    mainLoopInfoTime      = ini.GetAddDouble("mainloop","mainLoopInfoTime",mainLoopInfoTime);
-    maxFrameSkip          = ini.GetAddLong  ("mainloop","maxFrameSkip",maxFrameSkip);
-    parallelUpdate        = ini.GetAddBool  ("mainloop","parallelUpdate",parallelUpdate);
-    catchUp               = ini.GetAddBool  ("mainloop","catchUp",catchUp);
-    printInfoMsg          = ini.GetAddBool  ("mainloop","printInfoMsg",printInfoMsg);
+    updatesPerSecond = ini.GetAddLong("mainloop", "updatesPerSecond", updatesPerSecond);
+    framesPerSecond  = ini.GetAddLong("mainloop", "framesPerSecond", framesPerSecond);
+    mainLoopInfoTime = ini.GetAddDouble("mainloop", "mainLoopInfoTime", mainLoopInfoTime);
+    maxFrameSkip     = ini.GetAddLong("mainloop", "maxFrameSkip", maxFrameSkip);
+    parallelUpdate   = ini.GetAddBool("mainloop", "parallelUpdate", parallelUpdate);
+    catchUp          = ini.GetAddBool("mainloop", "catchUp", catchUp);
+    printInfoMsg     = ini.GetAddBool("mainloop", "printInfoMsg", printInfoMsg);
 
-    if(ini.changed()) ini.SaveFile(file.c_str());
+    if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
-MainLoop::MainLoop(MainLoopInterface &renderer)
-    : renderer(renderer), updating(renderer),
-      updateTimer(0.97f),interpolationTimer(0.97f),renderCPUTimer(0.97f),swapBuffersTimer(0.97f),fpsTimer(50),upsTimer(50),
-      updateGraph("Update",80), renderGraph("Render",80)
+MainLoop::MainLoop(MainLoopInterface& renderer)
+    : renderer(renderer),
+      updating(renderer),
+      updateTimer(0.97f),
+      interpolationTimer(0.97f),
+      renderCPUTimer(0.97f),
+      swapBuffersTimer(0.97f),
+      fpsTimer(50),
+      upsTimer(50),
+      updateGraph("Update", 80),
+      renderGraph("Render", 80)
 {
 }
 
@@ -45,7 +53,8 @@ void MainLoop::update(float dt)
     updating.update(dt);
     startParallelUpdate(dt);
     updateTimer.stop();
-    updateGraph.addTime(std::chrono::duration_cast<std::chrono::duration<double,std::milli>> (updateTimer.getTime()).count());
+    updateGraph.addTime(
+        std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(updateTimer.getTime()).count());
 
     numUpdates++;
 
@@ -55,24 +64,27 @@ void MainLoop::update(float dt)
 
 void MainLoop::startParallelUpdate(float dt)
 {
-    if(parallelUpdate){
+    if (parallelUpdate)
+    {
         semStartUpdate.notify();
-    }else{
+    }
+    else
+    {
         parallelUpdateCaller(dt);
     }
 }
 
 void MainLoop::endParallelUpdate()
 {
-    if(parallelUpdate)
-        semFinishUpdate.wait();
+    if (parallelUpdate) semFinishUpdate.wait();
 }
 
 void MainLoop::parallelUpdateThread(float dt)
 {
     semFinishUpdate.notify();
     semStartUpdate.wait();
-    while(running){
+    while (running)
+    {
         parallelUpdateCaller(dt);
         semFinishUpdate.notify();
         semStartUpdate.wait();
@@ -88,7 +100,7 @@ void MainLoop::parallelUpdateCaller(float dt)
 void MainLoop::render(float dt, float interpolation)
 {
     interpolationTimer.start();
-    updating.interpolate(dt,interpolation);
+    updating.interpolate(dt, interpolation);
     interpolationTimer.stop();
 
     renderCPUTimer.start();
@@ -111,38 +123,36 @@ void MainLoop::render(float dt, float interpolation)
 
 void MainLoop::sleep(tick_t ticks)
 {
-    if(ticks > tick_t(0)){
+    if (ticks > tick_t(0))
+    {
         std::this_thread::sleep_for(ticks);
     }
 }
 
 
 
-
-
 void MainLoop::startMainLoop(MainLoopParameters params)
 {
-    parallelUpdate = params.parallelUpdate;
-    printInfoMsg = params.printInfoMsg;
+    parallelUpdate        = params.parallelUpdate;
+    printInfoMsg          = params.printInfoMsg;
     gameTime.printInfoMsg = printInfoMsg;
-    running = true;
+    running               = true;
 
     cout << "> Starting the main loop..." << endl;
-    cout << "> updatesPerSecond=" << params.updatesPerSecond << " framesPerSecond=" << params.framesPerSecond << " maxFrameSkip=" << params.maxFrameSkip << endl;
+    cout << "> updatesPerSecond=" << params.updatesPerSecond << " framesPerSecond=" << params.framesPerSecond
+         << " maxFrameSkip=" << params.maxFrameSkip << endl;
 
 
-    if(params.updatesPerSecond <= 0)
-        params.updatesPerSecond = gameTime.base.count();
-    if(params.framesPerSecond <= 0)
-        params.framesPerSecond = gameTime.base.count();
+    if (params.updatesPerSecond <= 0) params.updatesPerSecond = gameTime.base.count();
+    if (params.framesPerSecond <= 0) params.framesPerSecond = gameTime.base.count();
 
 
     float updateDT = 1.0f / params.updatesPerSecond;
-    targetUps = params.updatesPerSecond;
+    targetUps      = params.updatesPerSecond;
     //    float framesDT = 1.0f / framesPerSecond;
 
     tick_t ticksPerUpdate = gameTime.base / params.updatesPerSecond;
-    tick_t ticksPerFrame = gameTime.base / params.framesPerSecond;
+    tick_t ticksPerFrame  = gameTime.base / params.framesPerSecond;
 
     tick_t ticksPerInfo = std::chrono::duration_cast<tick_t>(gameTime.base * params.mainLoopInfoTime);
 
@@ -151,40 +161,48 @@ void MainLoop::startMainLoop(MainLoopParameters params)
     //    if(windowParameters.debugScreenshotTime < 0)
     //        ticksPerScreenshot = std::chrono::duration_cast<tick_t>(std::chrono::hours(100000));
 
-    gameTime.init(ticksPerUpdate,ticksPerFrame);
+    gameTime.init(ticksPerUpdate, ticksPerFrame);
 
 
-    tick_t nextInfoTick = gameTime.getTime();
+    tick_t nextInfoTick       = gameTime.getTime();
     tick_t nextScreenshotTick = gameTime.getTime() + ticksPerScreenshot;
 
-    if(!params.catchUp){
+    if (!params.catchUp)
+    {
         gameTime.maxGameLoopDelay = std::chrono::duration_cast<tick_t>(std::chrono::milliseconds(1));
     }
 
 
-    if(parallelUpdate){
-        updateThread = std::thread(&MainLoop::parallelUpdateThread,this,updateDT);
+    if (parallelUpdate)
+    {
+        updateThread = std::thread(&MainLoop::parallelUpdateThread, this, updateDT);
     }
 
 
-    while(true)
+    while (true)
     {
-        if(updating.shouldClose()){
+        if (updating.shouldClose())
+        {
             break;
         }
 
-        //With this loop we are able to skip frames if the system can't keep up.
-        for(int i = 0; i <= params.maxFrameSkip && gameTime.shouldUpdate(); ++i){
+        // With this loop we are able to skip frames if the system can't keep up.
+        for (int i = 0; i <= params.maxFrameSkip && gameTime.shouldUpdate(); ++i)
+        {
             update(updateDT);
         }
 
-        if(gameTime.shouldRender()){
-            render(updateDT,gameTime.interpolation);
+        if (gameTime.shouldRender())
+        {
+            render(updateDT, gameTime.interpolation);
         }
 
-        if(printInfoMsg && gameTime.getTime() > nextInfoTick){
+        if (printInfoMsg && gameTime.getTime() > nextInfoTick)
+        {
             auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
-            cout << "> Time: " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames << "  UPS/FPS: " << (1000.0f/upsTimer.getTimeMS()) << "/" << (1000.0f/fpsTimer.getTimeMS()) << endl;
+            cout << "> Time: " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames
+                 << "  UPS/FPS: " << (1000.0f / upsTimer.getTimeMS()) << "/" << (1000.0f / fpsTimer.getTimeMS())
+                 << endl;
             nextInfoTick += ticksPerInfo;
         }
 
@@ -195,14 +213,15 @@ void MainLoop::startMainLoop(MainLoopParameters params)
         //            nextScreenshotTick += ticksPerScreenshot;
         //        }
 
-        //sleep until the next interesting event
+        // sleep until the next interesting event
         sleep(gameTime.getSleepTime());
-//        assert_no_glerror_end_frame();
+        //        assert_no_glerror_end_frame();
     }
     running = false;
 
-    if(parallelUpdate){
-        //cleanup the update thread
+    if (parallelUpdate)
+    {
+        // cleanup the update thread
         cout << "Finished main loop. Exiting update thread." << endl;
         endParallelUpdate();
         semStartUpdate.notify();
@@ -210,12 +229,12 @@ void MainLoop::startMainLoop(MainLoopParameters params)
     }
 
     auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
-    cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames  << endl;
+    cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/"
+         << numFrames << endl;
 }
 
 void MainLoop::renderImGuiInline()
 {
-
     updateGraph.renderImGui();
     renderGraph.renderImGui();
 
@@ -223,18 +242,18 @@ void MainLoop::renderImGuiInline()
     ImGui::Text("Interpolate Time: %fms", interpolationTimer.getTimeMS());
     ImGui::Text("Render CPU Time: %fms", renderCPUTimer.getTimeMS());
 
-    ImGui::Text("Running: %d",running);
-    ImGui::Text("numUpdates: %d",numUpdates);
-    ImGui::Text("numFrames: %d",numFrames);
+    ImGui::Text("Running: %d", running);
+    ImGui::Text("numUpdates: %d", numUpdates);
+    ImGui::Text("numFrames: %d", numFrames);
 
     std::chrono::duration<double, std::milli> dt = gameTime.dt;
-    ImGui::Text("Timestep: %fms",dt.count());
+    ImGui::Text("Timestep: %fms", dt.count());
 
     std::chrono::duration<double, std::milli> delay = gameLoopDelay;
-    ImGui::Text("Delay: %fms",delay.count());
+    ImGui::Text("Delay: %fms", delay.count());
 
     float scale = gameTime.getTimeScale();
-    ImGui::SliderFloat("Time Scale",&scale,0,5);
+    ImGui::SliderFloat("Time Scale", &scale, 0, 5);
     gameTime.setTimeScale(scale);
 
     //    ImGui::Checkbox("showImguiDemo",&showImguiDemo);
@@ -242,7 +261,6 @@ void MainLoop::renderImGuiInline()
     //        ImGui::SetNextWindowPos(ImVec2(340, 0), ImGuiSetCond_FirstUseEver);
     //        ImGui::ShowTestWindow(&showImguiDemo);
     //    }
-
 }
 
-}
+}  // namespace Saiga

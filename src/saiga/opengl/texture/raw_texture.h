@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,28 +7,30 @@
 #pragma once
 
 
-#include "saiga/opengl/opengl.h"
 #include "saiga/image/image.h"
+#include "saiga/opengl/opengl.h"
 
-namespace Saiga {
-
-class SAIGA_GLOBAL raw_Texture{
-
-protected:
+namespace Saiga
+{
+class SAIGA_GLOBAL raw_Texture
+{
+   protected:
     GLuint id = 0;
     GLenum target;
-    int width,height;
+    int width, height;
     GLenum internal_format;
-    GLenum color_type,data_type;
-public:
-    raw_Texture(GLenum target):target(target){}
+    GLenum color_type, data_type;
+
+   public:
+    raw_Texture(GLenum target) : target(target) {}
     virtual ~raw_Texture();
 
     raw_Texture(raw_Texture const&) = delete;
     raw_Texture& operator=(raw_Texture const&) = delete;
 
     void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
-    void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type, const void* data );
+    void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,
+                       const void* data);
     void createEmptyTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
 
     /**
@@ -42,11 +44,11 @@ public:
     virtual void setDefaultParameters() = 0;
 
 
-    bool downloadFromGl(void *data);
+    bool downloadFromGl(void* data);
 
     virtual void uploadData(const void* data);
 
-    void uploadSubImage(int x, int y, int width, int height, void* data );
+    void uploadSubImage(int x, int y, int width, int height, void* data);
 
 
     void bind();
@@ -59,7 +61,8 @@ public:
      *
      * The OpenGL 4.2+ way of binding textures...
      *
-     * If you want to read or write textures from Compute Shaders these functions have to be used instead of the normal bind(...).
+     * If you want to read or write textures from Compute Shaders these functions have to be used instead of the normal
+     * bind(...).
      *
      * In Code:
      *
@@ -76,19 +79,19 @@ public:
     void bindImageTexture(GLuint imageUnit, GLenum access);
 
 
-    int getWidth(){return width;}
-    int getHeight(){return height;}
-    GLuint getId(){return id;}
-    GLenum getTarget(){return target;}
+    int getWidth() { return width; }
+    int getHeight() { return height; }
+    GLuint getId() { return id; }
+    GLenum getTarget() { return target; }
 
 
     int bytesPerPixel();
     int bytesPerChannel();
     int colorChannels();
 
-//    void setFormat(const Image &img);
+    //    void setFormat(const Image &img);
     void setFormat(ImageType type, bool srgb = false);
-//    void setFormat(const ImageFormat &format);
+    //    void setFormat(const ImageFormat &format);
 
     void setBorderColor(vec4 color);
 
@@ -129,4 +132,4 @@ public:
     void generateMipmaps();
 };
 
-}
+}  // namespace Saiga

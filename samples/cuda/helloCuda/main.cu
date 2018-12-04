@@ -5,17 +5,18 @@
  */
 
 #include <iostream>
+
 #include <cuda_runtime.h>
 
 __global__ void helloCudaKernel()
 {
-    printf("Hello from thread %d on block %d!\n",threadIdx.x,blockIdx.x);
+    printf("Hello from thread %d on block %d!\n", threadIdx.x, blockIdx.x);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     std::cout << "Hello CUDA?" << std::endl;
-    helloCudaKernel<<<2,4>>>();
+    helloCudaKernel<<<2, 4>>>();
     cudaDeviceSynchronize();
     return 0;
 }

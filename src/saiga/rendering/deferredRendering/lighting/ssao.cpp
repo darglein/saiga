@@ -5,6 +5,7 @@
  */
 
 #include "saiga/rendering/deferredRendering/lighting/ssao.h"
+
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/image/imageGenerator.h"
 #include "saiga/imgui/imgui.h"
@@ -25,7 +26,10 @@ void SSAOShader::checkUniforms()
 
 
 
-void SSAOShader::uploadInvProj(mat4& mat) { Shader::upload(location_invProj, mat); }
+void SSAOShader::uploadInvProj(mat4& mat)
+{
+    Shader::upload(location_invProj, mat);
+}
 
 void SSAOShader::uploadData()
 {
@@ -36,10 +40,16 @@ void SSAOShader::uploadData()
     Shader::upload(location_power, exponent);
 }
 
-void SSAOShader::uploadRandomImage(std::shared_ptr<Texture> img) { Shader::upload(location_randomImage, img, 4); }
+void SSAOShader::uploadRandomImage(std::shared_ptr<Texture> img)
+{
+    Shader::upload(location_randomImage, img, 4);
+}
 
 
-SSAO::SSAO(int w, int h) { init(w, h); }
+SSAO::SSAO(int w, int h)
+{
+    init(w, h);
+}
 
 void SSAO::init(int w, int h)
 {

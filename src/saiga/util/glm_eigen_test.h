@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -28,7 +28,7 @@ using mat3 = Eigen::Matrix3f;
 
 SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s)
 {
-    //Equivalent to:
+    // Equivalent to:
     //    mat4 T = translate(mat4(1),vec3(t));
     //    mat4 R = mat4_cast(r);
     //    mat4 S = scale(mat4(1),vec3(s));

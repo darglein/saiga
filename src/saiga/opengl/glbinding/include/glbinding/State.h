@@ -7,15 +7,13 @@
 
 namespace glbinding
 {
-
-
 class GLBINDING_API State : public AbstractState
 {
-public:
+   public:
     State() = default;
 
-    virtual void resolve(const char * name) override;
+    virtual void resolve(const char* name) override;
 };
 
 
-} // namespace glbinding
+}  // namespace glbinding

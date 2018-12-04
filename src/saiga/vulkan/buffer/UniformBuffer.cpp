@@ -7,11 +7,9 @@
 #include "UniformBuffer.h"
 
 
-namespace Saiga {
-namespace Vulkan {
-
-
-
-
+namespace Saiga
+{
+namespace Vulkan
+{
 }
-}
+}  // namespace Saiga

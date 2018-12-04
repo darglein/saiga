@@ -1,16 +1,16 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include "saiga/util/math.h"
 #include "saiga/opengl/buffer.h"
+#include "saiga/util/math.h"
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * Generic class for an instanced buffer used for instance rendering.
  *
@@ -20,46 +20,49 @@ namespace Saiga {
  *
  * For all other types the method void setAttributes(int location, int divisor=1); must be defined.
  *
- * Remember: The attribute pointers and divisors are part of the vao state, so setAttributes does not have to be called every frame.
+ * Remember: The attribute pointers and divisors are part of the vao state, so setAttributes does not have to be called
+ * every frame.
  */
 
 
-template<typename data_t>
-class InstancedBuffer : protected Buffer{
-public:
+template <typename data_t>
+class InstancedBuffer : protected Buffer
+{
+   public:
     int elements;
 
-    InstancedBuffer():Buffer(GL_ARRAY_BUFFER){}
-    ~InstancedBuffer(){}
+    InstancedBuffer() : Buffer(GL_ARRAY_BUFFER) {}
+    ~InstancedBuffer() {}
 
-    void createGLBuffer(unsigned int elements=0);
+    void createGLBuffer(unsigned int elements = 0);
     void updateBuffer(void* data, unsigned int elements, unsigned int offset);
 
-    void setAttributes(int location, int divisor=1);
+    void setAttributes(int location, int divisor = 1);
 };
 
 
-template<typename data_t>
+template <typename data_t>
 void InstancedBuffer<data_t>::createGLBuffer(unsigned int elements)
 {
-    Buffer::createGLBuffer(nullptr,elements*sizeof(data_t),GL_DYNAMIC_DRAW);
+    Buffer::createGLBuffer(nullptr, elements * sizeof(data_t), GL_DYNAMIC_DRAW);
     this->elements = elements;
 }
 
-template<typename data_t>
-void InstancedBuffer<data_t>::updateBuffer(void *data, unsigned int elements, unsigned int offset)
+template <typename data_t>
+void InstancedBuffer<data_t>::updateBuffer(void* data, unsigned int elements, unsigned int offset)
 {
-    Buffer::updateBuffer(data,elements*sizeof(data_t),offset*sizeof(data_t));
+    Buffer::updateBuffer(data, elements * sizeof(data_t), offset * sizeof(data_t));
 }
 
 
 
-template<>
+template <>
 inline void InstancedBuffer<mat4>::setAttributes(int location, int divisor)
 {
     Buffer::bind();
 
-    for (unsigned int i = 0; i < 4 ; i++) {
+    for (unsigned int i = 0; i < 4; i++)
+    {
         glEnableVertexAttribArray(location + i);
         glVertexAttribPointer(location + i, 4, GL_FLOAT, GL_FALSE, sizeof(mat4),
                               (const GLvoid*)(sizeof(GLfloat) * i * 4));
@@ -68,4 +71,4 @@ inline void InstancedBuffer<mat4>::setAttributes(int location, int divisor)
     assert_no_glerror();
 }
 
-}
+}  // namespace Saiga

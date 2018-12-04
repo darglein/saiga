@@ -4,10 +4,9 @@
 
 namespace Saiga
 {
-
 class SAIGA_GLOBAL CalibrationPattern
 {
-public:
+   public:
     using ImagePointType = cv::Point2f;
     using WorldPointType = cv::Point3f;
 
@@ -17,7 +16,7 @@ public:
 
     std::vector<std::vector<WorldPointType>> duplicate(int n)
     {
-        return  std::vector<std::vector<WorldPointType>> (n,objPoints);
+        return std::vector<std::vector<WorldPointType>>(n, objPoints);
     }
 };
 
@@ -25,17 +24,15 @@ public:
 
 class SAIGA_GLOBAL ChessboardPattern : public CalibrationPattern
 {
-public:
-
+   public:
     ChessboardPattern(cv::Size numInnerCorners, double squareLength)
         : numInnerCorners(numInnerCorners), squareLength(squareLength)
     {
-        for( int i = 0; i < numInnerCorners.height; i++ )
+        for (int i = 0; i < numInnerCorners.height; i++)
         {
-            for( int j = 0; j < numInnerCorners.width; j++ )
+            for (int j = 0; j < numInnerCorners.width; j++)
             {
-                objPoints.push_back(WorldPointType(j*squareLength,
-                                                i*squareLength, 0));
+                objPoints.push_back(WorldPointType(j * squareLength, i * squareLength, 0));
             }
         }
     }
@@ -45,29 +42,27 @@ public:
         std::vector<ImagePointType> corners;
 
 
-        bool found = cv::findChessboardCorners( image, numInnerCorners, corners);
+        bool found = cv::findChessboardCorners(image, numInnerCorners, corners);
 
-        if(corners.size() != objPoints.size())
-            return {};
+        if (corners.size() != objPoints.size()) return {};
 
         if (found)
         {
             cv::Mat viewGray;
             cv::cvtColor(image, viewGray, CV_BGR2GRAY);
-            cv::cornerSubPix( viewGray, corners, cv::Size(11,11),
-                              cv::Size(-1,-1), cv::TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 30, 0.1 ));
+            cv::cornerSubPix(viewGray, corners, cv::Size(11, 11), cv::Size(-1, -1),
+                             cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
         }
 
-//        SAIGA_ASSERT(corners.size() == objPoints.size());
-        if(corners.size() != objPoints.size())
-            corners.clear();
+        //        SAIGA_ASSERT(corners.size() == objPoints.size());
+        if (corners.size() != objPoints.size()) corners.clear();
 
         return corners;
     }
-protected:
+
+   protected:
     cv::Size numInnerCorners;
     double squareLength;
-
 };
 
-}
+}  // namespace Saiga

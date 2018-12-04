@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert 
+ * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,14 +8,13 @@
 
 #include "saiga/config.h"
 #include "saiga/image/image.h"
-
-#include "saiga/util/synchronizedBuffer.h"
 #include "saiga/util/file.h"
+#include "saiga/util/synchronizedBuffer.h"
 
 #include <thread>
 
-namespace Saiga {
-
+namespace Saiga
+{
 /**
  * Currently only tested with Canon 5D Mark 3!
  *
@@ -29,7 +28,7 @@ namespace Saiga {
 
 class SAIGA_GLOBAL GPhoto
 {
-public:
+   public:
     struct DSLRImage
     {
         TemplatedImage<ucvec3> img;
@@ -42,14 +41,8 @@ public:
             img.loadFromMemory(jpgImage);
             SAIGA_ASSERT(img.type == TemplatedImage<ucvec3>::TType::type);
         }
-        void saveRaw(std::string file)
-        {
-            File::saveFileBinary(file+".cr2",rawImage.data(),rawImage.size());
-        }
-        void saveJpg(std::string file)
-        {
-            File::saveFileBinary(file+".jpg",jpgImage.data(),jpgImage.size());
-        }
+        void saveRaw(std::string file) { File::saveFileBinary(file + ".cr2", rawImage.data(), rawImage.size()); }
+        void saveJpg(std::string file) { File::saveFileBinary(file + ".jpg", jpgImage.data(), jpgImage.size()); }
     };
 
     bool autoConvert = true;
@@ -74,15 +67,15 @@ public:
      * If none are ready a nullptr is returned.
      */
     std::shared_ptr<DSLRImage> tryGetImage();
-private:
 
+   private:
     SynchronizedBuffer<std::shared_ptr<DSLRImage>> imageBuffer;
 
     std::thread eventThread;
 
     bool foundCamera = false;
-    void *context;
-    void *camera = nullptr;
+    void* context;
+    void* camera = nullptr;
 
     bool running = false;
 
@@ -91,12 +84,11 @@ private:
     void eventLoop();
     void clearEvents();
 
-//    void trigger();
+    //    void trigger();
 
-//    std::vector<queue_entry>waitCaptureComplete();
+    //    std::vector<queue_entry>waitCaptureComplete();
 
-//    void clearEventQueue();
-
+    //    void clearEventQueue();
 };
 
-}
+}  // namespace Saiga

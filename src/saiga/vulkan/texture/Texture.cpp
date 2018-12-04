@@ -1,5 +1,6 @@
 ﻿#include "Texture.h"
 #include "saiga/vulkan/buffer/StagingBuffer.h"
+
 #include "vkImageFormat.h"
 
 namespace Saiga

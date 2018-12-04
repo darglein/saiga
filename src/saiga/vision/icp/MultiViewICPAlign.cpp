@@ -5,6 +5,7 @@
  */
 
 #include "MultiViewICPAlign.h"
+
 #include "saiga/time/timer.h"
 #include "saiga/util/assert.h"
 

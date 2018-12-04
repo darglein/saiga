@@ -10,7 +10,10 @@ namespace Saiga
 {
 RGBDCamera::RGBDCamera(RGBDCamera::CameraOptions rgbo, RGBDCamera::CameraOptions deptho) : rgbo(rgbo), deptho(deptho) {}
 
-void RGBDCamera::setDmpp(const std::shared_ptr<DMPP>& value) { dmpp = value; }
+void RGBDCamera::setDmpp(const std::shared_ptr<DMPP>& value)
+{
+    dmpp = value;
+}
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCamera::makeFrameData()
 {
@@ -22,7 +25,7 @@ std::shared_ptr<RGBDCamera::FrameData> RGBDCamera::makeFrameData()
 
 void RGBDCamera::setNextFrame(RGBDCamera::FrameData& data)
 {
-    data.frameId = currentId++;
+    data.frameId     = currentId++;
     data.captureTime = std::chrono::steady_clock::now();
 }
 
