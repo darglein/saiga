@@ -38,8 +38,6 @@ class SAIGA_GLOBAL TumRGBDCamera : public RGBDCamera
         CameraData rgb;
 
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-        using Vector = std::vector<TumFrame, Eigen::aligned_allocator<TumFrame>>;
     };
 
     TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1, int fps = 30,
@@ -63,7 +61,7 @@ class SAIGA_GLOBAL TumRGBDCamera : public RGBDCamera
     int maxFrames;
 
     std::vector<std::shared_ptr<FrameData>> frames;
-    TumFrame::Vector tumframes;
+    AlignedVector<TumFrame> tumframes;
 
     Timer timer;
     tick_t timeStep;

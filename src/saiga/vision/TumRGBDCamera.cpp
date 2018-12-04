@@ -12,9 +12,9 @@
 #include <thread>
 namespace Saiga
 {
-static std::vector<TumRGBDCamera::CameraData> readCameraData(std::string file)
+static AlignedVector<TumRGBDCamera::CameraData> readCameraData(std::string file)
 {
-    std::vector<TumRGBDCamera::CameraData> data;
+    AlignedVector<TumRGBDCamera::CameraData> data;
     {
         std::ifstream strm(file);
         SAIGA_ASSERT(strm.is_open());
@@ -33,9 +33,9 @@ static std::vector<TumRGBDCamera::CameraData> readCameraData(std::string file)
     return data;
 }
 
-static std::vector<TumRGBDCamera::GroundTruth> readGT(std::string file)
+static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 {
-    std::vector<TumRGBDCamera::GroundTruth> data;
+    AlignedVector<TumRGBDCamera::GroundTruth> data;
     {
         std::ifstream strm(file);
         SAIGA_ASSERT(strm.is_open());
@@ -132,9 +132,9 @@ SE3 TumRGBDCamera::getGroundTruth(int frame)
 
 void TumRGBDCamera::associate(const std::string& datasetDir)
 {
-    std::vector<CameraData> rgbData   = readCameraData(datasetDir + "/rgb.txt");
-    std::vector<CameraData> depthData = readCameraData(datasetDir + "/depth.txt");
-    std::vector<GroundTruth> gt       = readGT(datasetDir + "/groundtruth.txt");
+    AlignedVector<CameraData> rgbData   = readCameraData(datasetDir + "/rgb.txt");
+    AlignedVector<CameraData> depthData = readCameraData(datasetDir + "/depth.txt");
+    AlignedVector<GroundTruth> gt       = readGT(datasetDir + "/groundtruth.txt");
 
     // Find for each rgb image the best depth and gt
     int cdepth = 0;

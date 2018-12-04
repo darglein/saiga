@@ -114,7 +114,7 @@ SE3 planeToPlane(const AlignedVector<Correspondence>& corrs, const SE3& guess, d
 
 
     // Covariance matrices for ref and src
-    std::vector<Mat3> c0s, c1s;
+    AlignedVector<Mat3> c0s, c1s;
     c0s.reserve(corrs.size());
     c1s.reserve(corrs.size());
     for (size_t i = 0; i < corrs.size(); ++i)
