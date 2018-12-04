@@ -66,7 +66,7 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
 
     BufferChunkAllocator& operator=(BufferChunkAllocator&& other) noexcept
     {
-        BaseChunkAllocator::operator=(std::move(other));
+        BaseChunkAllocator::operator=(std::move(static_cast<BaseChunkAllocator&&>(other)));
         m_alignment                 = other.m_alignment;
         m_bufferCreateInfo          = other.m_bufferCreateInfo;
         return *this;

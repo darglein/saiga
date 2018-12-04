@@ -78,8 +78,11 @@ struct SAIGA_GLOBAL Texture
 
 struct SAIGA_GLOBAL Texture2D : public Texture
 {
-    Texture2D()                  = default;
-    Texture2D(Texture2D&& other) = default;
+    Texture2D()                       = default;
+    Texture2D(const Texture2D& other) = delete;
+    Texture2D(Texture2D&& other)      = default;
+
+    Texture2D& operator=(const Texture2D& other) = delete;
     Texture2D& operator=(Texture2D&& other) = default;
     ~Texture2D() override                   = default;
     AsyncCommand fromStagingBuffer(VulkanBase& _base, uint32_t width, uint32_t height, vk::Format format,

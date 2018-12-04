@@ -49,7 +49,7 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
 
     SimpleMemoryAllocator(SimpleMemoryAllocator&& other) noexcept
         : BaseMemoryAllocator(std::move(other)),
-          m_bufferCreateInfo(other.m_bufferCreateInfo),
+          m_bufferCreateInfo(std::move(other.m_bufferCreateInfo)),
           m_device(other.m_device),
           m_physicalDevice(other.m_physicalDevice),
           m_allocations(std::move(other.m_allocations))
@@ -58,8 +58,8 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
 
     SimpleMemoryAllocator& operator=(SimpleMemoryAllocator&& other) noexcept
     {
-        BaseMemoryAllocator::operator=(std::move(other));
-        m_bufferCreateInfo           = other.m_bufferCreateInfo;
+        BaseMemoryAllocator::operator=(std::move(static_cast<BaseMemoryAllocator&&>(other)));
+        m_bufferCreateInfo           = std::move(other.m_bufferCreateInfo);
         m_device                     = other.m_device;
         m_physicalDevice             = other.m_physicalDevice;
         m_allocations                = std::move(other.m_allocations);

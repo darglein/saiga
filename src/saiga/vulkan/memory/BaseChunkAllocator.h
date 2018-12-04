@@ -52,7 +52,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     BaseChunkAllocator& operator=(BaseChunkAllocator&& other) noexcept
     {
-        BaseMemoryAllocator::operator=(std::move(other));
+        BaseMemoryAllocator::operator=(std::move(static_cast<BaseMemoryAllocator&&>(other)));
         m_device                     = other.m_device;
         m_chunkAllocator             = other.m_chunkAllocator;
         flags                        = other.flags;
