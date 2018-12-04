@@ -181,7 +181,7 @@ void multiViewICP(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<
         }
 
         // find all pairwise correspondences
-        std::vector<std::vector<Saiga::ICP::Correspondence>> corrs;
+        std::vector<AlignedVector<Correspondence>> corrs;
         for (auto p : pairs)
         {
             auto c = projectiveCorrespondences(dmes[p.first], dmes[p.second], params);

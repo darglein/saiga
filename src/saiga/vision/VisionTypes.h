@@ -44,16 +44,20 @@ inline double rotationalError(const SE3& a, const SE3& b)
     return q1.angularDistance(q2);
 }
 
-// the angle (in radian) between two rotations
+// Spherical interpolation
 inline SE3 slerp(const SE3& a, const SE3& b, double alpha)
 {
     Vec3 t = (1.0 - alpha) * a.translation() + (alpha)*b.translation();
-
     Quat q1 = a.unit_quaternion();
     Quat q2 = b.unit_quaternion();
     Quat q  = q1.slerp(alpha, q2);
-
     return SE3(q, t);
+}
+
+// scale the transformation by a scalar
+inline SE3 scale(const SE3& a, double alpha)
+{
+    return slerp(SE3(),a,alpha);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
@@ -79,7 +83,7 @@ inline Mat3 skew(Vec3 const& a)
  * Pixar Revised ONB
  * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
  */
-inline Mat3 onb(Vec3 n)
+inline Mat3 onb(const Vec3& n)
 {
     double sign = n(2) > 0 ? 1.0f : -1.0f;  // emulate copysign
     double a    = -1.0f / (sign + n[2]);

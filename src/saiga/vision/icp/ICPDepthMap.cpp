@@ -14,17 +14,17 @@ using namespace Depthmap;
 
 namespace ICP
 {
-DepthMapExtended::DepthMapExtended(DepthMap depth, Intrinsics4 camera, SE3 pose)
+DepthMapExtended::DepthMapExtended(const DepthMap& depth, const Intrinsics4& camera, const SE3& pose)
     : depth(depth), points(depth.h, depth.w), normals(depth.h, depth.w), camera(camera), pose(pose)
 {
     Saiga::Depthmap::toPointCloud(depth, points, camera);
     Saiga::Depthmap::normalMap(points, normals);
 }
 
-std::vector<Correspondence> projectiveCorrespondences(const DepthMapExtended& ref, const DepthMapExtended& src,
-                                                      ProjectiveCorrespondencesParams params)
+AlignedVector<Correspondence> projectiveCorrespondences(const DepthMapExtended& ref, const DepthMapExtended& src,
+                                                        const ProjectiveCorrespondencesParams& params)
 {
-    std::vector<Correspondence> result;
+    AlignedVector<Correspondence> result;
     result.reserve(ref.depth.h * ref.depth.w);
 
 
@@ -79,19 +79,19 @@ std::vector<Correspondence> projectiveCorrespondences(const DepthMapExtended& re
 
                     auto distance = (p2 - p).norm();
 
-                    auto depth = p2(2);
+                    auto depth    = p2(2);
                     auto invDepth = 1.0 / depth;
 
                     auto disTh = params.scaleDistanceThresByDepth ? params.distanceThres * depth : params.distanceThres;
 
                     if (distance < bestDist && distance < disTh && n.dot(n2) > params.cosNormalThres)
                     {
-                        corr.refPoint = p2;
+                        corr.refPoint  = p2;
                         corr.refNormal = n2;
-                        corr.srcPoint = p0;
+                        corr.srcPoint  = p0;
                         corr.srcNormal = n0;
-                        corr.weight = params.useInvDepthAsWeight ? invDepth * invDepth : 1;
-                        bestDist = distance;
+                        corr.weight    = params.useInvDepthAsWeight ? invDepth * invDepth : 1;
+                        bestDist       = distance;
                     }
                 }
             }
@@ -106,18 +106,18 @@ std::vector<Correspondence> projectiveCorrespondences(const DepthMapExtended& re
     return result;
 }
 
-SE3 alignDepthMaps(DepthMap referenceDepthMap, DepthMap sourceDepthMap, SE3 refPose, SE3 srcPose, Intrinsics4 camera,
-                   int iterations, ProjectiveCorrespondencesParams params)
+SE3 alignDepthMaps(DepthMap referenceDepthMap, DepthMap sourceDepthMap, const SE3& refPose, const SE3& srcPose,
+                   const Intrinsics4& camera, int iterations, ProjectiveCorrespondencesParams params)
 {
     DepthMapExtended ref(referenceDepthMap, camera, refPose);
     DepthMapExtended src(sourceDepthMap, camera, srcPose);
 
 
-    std::vector<Saiga::ICP::Correspondence> corrs;
+    AlignedVector<Correspondence> corrs;
 
     for (int k = 0; k < iterations; ++k)
     {
-        corrs = Saiga::ICP::projectiveCorrespondences(ref, src, params);
+        corrs    = Saiga::ICP::projectiveCorrespondences(ref, src, params);
         src.pose = Saiga::ICP::pointToPlane(corrs, ref.pose, src.pose);
     }
     return src.pose;

@@ -4,10 +4,13 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
 
+#ifdef SAIGA_USE_OPENGL
 #include "saiga/cuda/interop.h"
 #include "saiga/cuda/cudaHelper.h"
 #include <cuda_gl_interop.h>
+
 
 namespace Saiga {
 namespace CUDA{
@@ -79,3 +82,4 @@ void Interop::initImage(unsigned int gl_buffer, GLenum gl_target)
 
 }
 }
+#endif

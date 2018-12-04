@@ -38,6 +38,9 @@
 #    define SAIGA_NOEXCEPT
 #endif
 
+#if defined(_WIN32) && !defined(_WIN64)
+#error 32-bit builds are not supported.
+#endif
 
 // Unused result
 #if !defined(_MSC_VER)

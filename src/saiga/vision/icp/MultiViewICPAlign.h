@@ -15,8 +15,8 @@ namespace Saiga
 namespace ICP
 {
 SAIGA_GLOBAL void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& pairs,
-                                    const std::vector<std::vector<Saiga::ICP::Correspondence>>& corrs,
-                                    std::vector<SE3>& guesses, int iterations);
+                                    const std::vector<AlignedVector<Correspondence>>& corrs, std::vector<SE3>& guesses,
+                                    int iterations);
 
 
 }  // namespace ICP

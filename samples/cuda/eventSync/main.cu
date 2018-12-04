@@ -55,43 +55,40 @@ static void uploadProcessDownloadAsync(int N)
 {
 
     thrust::device_vector<int> d_data(N);
-    thrust::device_vector<int> d_data2(N);
     thrust::device_vector<int> d_data3(N);
-
-    size_t size = N * sizeof(int);
 
 
     // Compute launch arguments
     const unsigned int BLOCK_SIZE = 128;
     const unsigned int BLOCKS = Saiga::CUDA::getBlockCount(N,BLOCK_SIZE);
 
-    // Create a separate stream for each slice for maximum parallelism
     Saiga::CUDA::CudaStream stream1, stream2;
 
     {
 
+#ifdef LECTURE
         CUDA_SYNC_CHECK_ERROR();
 
         A<1024 * 2><<<BLOCKS,BLOCK_SIZE,0,stream1>>>(d_data);
-        B<1024><<<BLOCKS,BLOCK_SIZE,0,stream1>>>(d_data2);
+        B<1024><<<BLOCKS,BLOCK_SIZE,0,stream1>>>(d_data);
 
         C<1024><<<BLOCKS,BLOCK_SIZE,0,stream2>>>(d_data3);
         D<1024><<<BLOCKS,BLOCK_SIZE,0,stream2>>>(d_data);
 
         CUDA_SYNC_CHECK_ERROR();
-
+#else
         Saiga::CUDA::CudaEvent event;
 
         A<1024 * 2><<<BLOCKS,BLOCK_SIZE,0,stream1>>>(d_data);
         event.record(stream1);
-        B<1024><<<BLOCKS,BLOCK_SIZE,0,stream1>>>(d_data2);
+        B<1024><<<BLOCKS,BLOCK_SIZE,0,stream1>>>(d_data);
 
         C<1024><<<BLOCKS,BLOCK_SIZE,0,stream2>>>(d_data3);
         stream2.waitForEvent(event);
         D<1024><<<BLOCKS,BLOCK_SIZE,0,stream2>>>(d_data);
 
-
         CUDA_SYNC_CHECK_ERROR();
+#endif
     }
 }
 
