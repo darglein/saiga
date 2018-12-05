@@ -79,6 +79,19 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
         return result;
     }
 
+    // Blocks until we got an elemnt or the duration has passed.
+    // Returns T() on timeout.
+    template <typename TimeType>
+    T getTimeout(const TimeType& duration)
+    {
+        std::unique_lock<std::mutex> l(lock);
+        bool got_something = not_empty.wait_for(l, duration, [this]() { return !this->empty(); });
+        if (!got_something) return T();
+        T result = RingBuffer<T>::get();
+        not_full.notify_one();
+        return result;
+    }
+
     bool tryGet(T& v)
     {
         std::unique_lock<std::mutex> l(lock);
