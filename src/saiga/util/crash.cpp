@@ -15,7 +15,7 @@
 #    include <stdlib.h>
 #    include <tchar.h>
 #    include <windows.h>
-// .
+// dbghelp must be included after windows.h
 #    include <DbgHelp.h>
 #endif
 

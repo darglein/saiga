@@ -122,7 +122,7 @@ SE3 MotionModel::computeVelocity()
         weightSum += w;
     }
 
-    if (weightSum == 0) return SE3();
+    if (weightSum < 1e-20) return SE3();
 
     // normalize weights
     for (auto i = 0; i < s; ++i)
@@ -137,6 +137,8 @@ SE3 MotionModel::computeVelocity()
     {
         double nextWeight = weights[i];
         auto dataId       = data.size() - s + i;
+
+        if (currentWeight + nextWeight < 1e-20) continue;
 
         double slerpAlpha = nextWeight / (currentWeight + nextWeight);
 
