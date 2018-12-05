@@ -9,8 +9,9 @@
 #include "saiga/config.h"
 #include "saiga/time/timer.h"
 
+#include <glm/glm.hpp>
 #include <vector>
-
+struct ImDrawList;
 namespace ImGui
 {
 class SAIGA_GLOBAL Graph
@@ -44,6 +45,27 @@ class SAIGA_GLOBAL TimeGraph : public Graph
     virtual void renderImGuiDerived();
     float hzExp = 0;
     Saiga::Timer timer;
+};
+
+
+
+class SAIGA_GLOBAL ColoredBar
+{
+   private:
+    glm::vec2 m_size;
+    glm::vec4 m_back_color;
+    bool m_auto_size;
+
+    glm::vec2 m_lastCorner;
+    ImDrawList* m_lastDrawList;
+
+   public:
+    ColoredBar(glm::vec2 size, glm::vec4 background_color, bool auto_size = false)
+        : m_size(size), m_back_color(background_color), m_auto_size(auto_size), m_lastDrawList(nullptr)
+    {
+    }
+    void renderBackground();
+    void renderArea(float begin, float end, glm::vec4 color, float rounding = 0.0f, int rounding_corners = 0);
 };
 
 }  // namespace ImGui

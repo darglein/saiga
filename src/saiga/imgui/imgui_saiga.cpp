@@ -1,7 +1,10 @@
+#include "imgui_saiga.h"
+
 #include "saiga/imgui/imgui.h"
 #include "saiga/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
+
 
 namespace ImGui
 {
@@ -58,5 +61,30 @@ void TimeGraph::renderImGuiDerived()
 }
 
 
+void ColoredBar::renderBackground()
+{
+    m_lastCorner   = ImGui::GetCursorScreenPos();
+    m_lastDrawList = ImGui::GetWindowDrawList();
+
+    if (m_auto_size)
+    {
+        m_size.x = ImGui::GetContentRegionAvailWidth();
+    }
+
+    ImU32 color = ImColor(m_back_color);
+
+    m_lastDrawList->AddRect(m_lastCorner, m_lastCorner + m_size, color);
+    ImGui::Dummy(m_size);
+}
+
+void ColoredBar::renderArea(float begin, float end, glm::vec4 color, float rounding, int rounding_corners)
+{
+    SAIGA_ASSERT(m_lastDrawList, "renderBackground() was not called before renderArea()");
+    const ImVec2 left{m_lastCorner.x + begin * m_size.x, m_lastCorner.y};
+    const ImVec2 right{m_lastCorner.x + end * m_size.x, m_lastCorner.y + m_size.y};
+
+    m_lastDrawList->AddRectFilled(left, right, ImColor(color), rounding, rounding_corners);
+    m_lastDrawList->AddRect(left, right, ImColor(0.9f * color), rounding, rounding_corners);
+}
 
 }  // namespace ImGui
