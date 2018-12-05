@@ -31,5 +31,11 @@ SAIGA_GLOBAL bool sampleBool(double s);
  * Returns a uniform random value in the given range.
  */
 SAIGA_GLOBAL double sampleDouble(double min, double max);
+
+/**
+ * Similar to std::rand but with thread save c++11 generators
+ */
+SAIGA_GLOBAL int rand();
+
 }  // namespace Random
 }  // namespace Saiga

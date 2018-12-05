@@ -25,41 +25,52 @@ void MotionModel::Parameters::fromConfigFile(const std::string& file)
 
 MotionModel::MotionModel(const MotionModel::Parameters& params) : params(params)
 {
-    data.reserve(10000);
+    size_t N = 10000;
+    data.reserve(N);
+    indices.reserve(N);
 }
 
-void MotionModel::addRelativeMotion(const SE3& T, size_t frameId)
+void MotionModel::addRelativeMotion(const SE3& T, size_t frameId, double weight)
 {
     std::unique_lock<std::mutex> lock(mut);
     size_t id;
     id = data.size();
-    data.emplace_back(T);
+    if (id == 0)
+    {
+        averageWeight = weight;
+    }
+    else
+    {
+        double a      = 0.2;
+        averageWeight = (1 - a) * averageWeight + a * weight;
+    }
+    data.push_back({T, weight});
     if (indices.size() < frameId + 1)
     {
         indices.resize(frameId + 1, std::numeric_limits<size_t>::max());
     }
     indices[frameId] = id;
+    validVelocity    = false;
 }
 
 void MotionModel::updateRelativeMotion(const SE3& T, size_t frameId)
 {
     std::unique_lock<std::mutex> lock(mut);
     auto id = indices[frameId];
-    if (id != std::numeric_limits<size_t>::max()) data[id] = T;
+    if (id != std::numeric_limits<size_t>::max()) data[id].v = T;
+    validVelocity = false;
+}
+
+void MotionModel::addInvalidMotion(size_t frameId)
+{
+    addRelativeMotion(SE3(), frameId, averageWeight * 0.5);
 }
 
 SE3 MotionModel::getFrameVelocity()
 {
     std::unique_lock<std::mutex> lock(mut);
-    if (data.empty() || params.smoothness == 0) return SE3();
-    int s      = std::min((int)data.size(), params.smoothness);
-    SE3 result = data[data.size() - s];
-    for (auto i = data.size() - s + 1; i < data.size(); ++i)
-    {
-        result = slerp(result, data[i], params.alpha);
-    }
-    return result;
-    return scale(result, params.damping);
+    if (!validVelocity) recomputeVelocity();
+    return currentVelocity;
 }
 
 SE3 MotionModel::getRealVelocity()
@@ -83,6 +94,56 @@ void MotionModel::renderVelocityGraph()
 
     grapha.addValue(va);
     grapha.renderImGui();
+}
+
+void MotionModel::recomputeVelocity()
+{
+    currentVelocity = computeVelocity();
+    validVelocity   = true;
+}
+
+SE3 MotionModel::computeVelocity()
+{
+    if (data.empty() || params.smoothness == 0) return SE3();
+
+    // Number of values to consider
+    int s = std::min((int)data.size(), params.smoothness);
+
+
+    weights.resize(s);
+    double weightSum = 0;
+    for (auto i = 0; i < s; ++i)
+    {
+        auto dataId = data.size() - s + i;
+
+        double disToCurrent = s - (i + 1);
+        auto w              = data[dataId].weight * std::pow(params.alpha, disToCurrent);
+        weights[i]          = w;
+        weightSum += w;
+    }
+
+    if (weightSum == 0) return SE3();
+
+    // normalize weights
+    for (auto i = 0; i < s; ++i)
+    {
+        weights[i] /= weightSum;
+    }
+
+    SE3 result           = data[data.size() - s].v;
+    double currentWeight = weights[0];
+
+    for (auto i = 1; i < s; ++i)
+    {
+        double nextWeight = weights[i];
+        auto dataId       = data.size() - s + i;
+
+        double slerpAlpha = nextWeight / (currentWeight + nextWeight);
+
+        result = slerp(result, data[dataId].v, slerpAlpha);
+        currentWeight += nextWeight;
+    }
+    return scale(result, params.damping);
 }
 
 

@@ -32,5 +32,11 @@ double sampleDouble(double min, double max)
     return dis(generator());
 }
 
+int rand()
+{
+    std::uniform_int_distribution<int> dis(0, std::numeric_limits<int>::max());
+    return dis(generator());
+}
+
 }  // namespace Random
 }  // namespace Saiga
