@@ -45,6 +45,9 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
                          vk::DeviceSize chunkSize = 64 * 1024 * 1024, bool _mapped = false)
         : BaseChunkAllocator(_device, chunkAllocator, _flags, strategy, chunkSize, _mapped), usageFlags(usage)
     {
+        std::stringstream identifier_stream;
+        identifier_stream << "Buffer Chunk " << vk::to_string(usageFlags) << " " << vk::to_string(flags);
+        gui_identifier                 = identifier_stream.str();
         m_bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         m_bufferCreateInfo.usage       = usageFlags;
         m_bufferCreateInfo.size        = m_chunkSize;

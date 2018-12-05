@@ -4,6 +4,8 @@
 
 #include "VulkanMemory.h"
 
+#include "saiga/imgui/imgui.h"
+
 #include <memory>
 void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 {
@@ -99,4 +101,37 @@ void VulkanMemory::destroy()
     {
         allocator.second.destroy();
     }
+}
+
+void VulkanMemory::renderGUI()
+{
+    if (!m_showGUI)
+    {
+        return;
+    }
+
+    ImGui::ShowTestWindow();
+
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    static bool memoryStats = true;
+    if (!memoryStats)
+    {
+        return;
+    }
+    if (!ImGui::Begin("Memory Stats", &memoryStats, ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::End();
+        return;
+    }
+
+    for (auto& allocator : bufferAllocators)
+    {
+        allocator.second->renderInfoGUI();
+    }
+    for (auto& allocator : imageAllocators)
+    {
+        allocator.second.renderInfoGUI();
+    }
+
+    ImGui::End();
 }

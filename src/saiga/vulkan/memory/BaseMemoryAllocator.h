@@ -30,6 +30,8 @@ struct SAIGA_GLOBAL BaseMemoryAllocator
     bool mapped                                          = false;
 
     virtual void destroy() {}
+
+    virtual void renderInfoGUI() {};
 };
 
 }  // namespace Memory

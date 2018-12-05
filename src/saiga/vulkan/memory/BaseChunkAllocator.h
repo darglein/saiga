@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "saiga/imgui/imgui.h"
 #include "saiga/vulkan/memory/BaseMemoryAllocator.h"
 
 #include "BaseMemoryAllocator.h"
@@ -27,6 +28,20 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     MemoryLocation createMemoryLocation(ChunkIterator iter, vk::DeviceSize start, vk::DeviceSize size);
 
+   protected:
+    vk::Device m_device;
+    ChunkCreator* m_chunkAllocator{};
+    vk::MemoryPropertyFlags flags;
+
+    FitStrategy* m_strategy{};
+    vk::DeviceSize m_chunkSize{};
+    vk::DeviceSize m_allocateSize{};
+
+
+    std::vector<ChunkAllocation> m_chunkAllocations;
+
+    std::string gui_identifier;
+
    public:
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, const vk::MemoryPropertyFlags& _flags,
                        FitStrategy& strategy, vk::DeviceSize chunkSize = 64 * 1024 * 1024, bool _mapped = false)
@@ -36,7 +51,8 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
           flags(_flags),
           m_strategy(&strategy),
           m_chunkSize(chunkSize),
-          m_allocateSize(chunkSize)
+          m_allocateSize(chunkSize),
+          gui_identifier("")
     {
     }
 
@@ -48,7 +64,8 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
           m_strategy(other.m_strategy),
           m_chunkSize(other.m_chunkSize),
           m_allocateSize(other.m_allocateSize),
-          m_chunkAllocations(std::move(other.m_chunkAllocations))
+          m_chunkAllocations(std::move(other.m_chunkAllocations)),
+          gui_identifier(std::move(other.gui_identifier))
     {
     }
 
@@ -62,6 +79,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
         m_chunkSize                  = other.m_chunkSize;
         m_allocateSize               = other.m_allocateSize;
         m_chunkAllocations           = std::move(other.m_chunkAllocations);
+        gui_identifier               = std::move(other.gui_identifier);
         return *this;
     }
 
@@ -74,18 +92,15 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     void destroy() override;
 
    protected:
-    vk::Device m_device;
-    ChunkCreator* m_chunkAllocator{};
-    vk::MemoryPropertyFlags flags;
-
-    FitStrategy* m_strategy{};
-    vk::DeviceSize m_chunkSize{};
-    vk::DeviceSize m_allocateSize{};
-
-
-    std::vector<ChunkAllocation> m_chunkAllocations;
-
     virtual ChunkIterator createNewChunk() = 0;
+
+    virtual void headerInfo() {}
+
+   private:
+    std::vector<ImGui::ColoredBar> allocation_bars;
+
+   public:
+    void renderInfoGUI() override;
 };
 
 

@@ -4,11 +4,11 @@
 
 #include "BaseChunkAllocator.h"
 
+#include "saiga/imgui/imgui.h"
 #include "saiga/util/easylogging++.h"
 
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"
-
 
 namespace Saiga
 {
@@ -25,6 +25,7 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
 
     if (chunkAlloc == m_chunkAllocations.end())
     {
+        allocation_bars.push_back(ImGui::ColoredBar({0, 60}, {0.1f, 0.1f, 0.1f, 1.0f}, true));
         chunkAlloc = createNewChunk();
         freeSpace  = chunkAlloc->freeList.begin();
     }
@@ -160,6 +161,36 @@ void BaseChunkAllocator::destroy()
     for (auto& alloc : m_chunkAllocations)
     {
         m_device.destroy(alloc.buffer);
+    }
+}
+
+
+
+void BaseChunkAllocator::renderInfoGUI()
+{
+    BaseMemoryAllocator::renderInfoGUI();
+    if (ImGui::CollapsingHeader(gui_identifier.c_str()))
+    {
+        headerInfo();
+
+        SAIGA_ASSERT(allocation_bars.size() == m_chunkAllocations.size(), "Number of bars != Number of chunks");
+
+        std::array<glm::vec4, 2> colors{glm::vec4(22, 115, 143, 255) / 255.0f, glm::vec4(144, 0, 32, 255) / 255.0f};
+        // int i = 0;
+
+        for (int i = 0; i < allocation_bars.size(); ++i)
+        {
+            auto bar   = allocation_bars[i];
+            auto chunk = m_chunkAllocations[i];
+            bar.renderBackground();
+            int j = 0;
+            std::list<MemoryLocation>::const_iterator allocIter;
+            for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
+            {
+                bar.renderArea(static_cast<float>(allocIter->offset) / m_chunkSize,
+                               static_cast<float>(allocIter->offset + allocIter->size) / m_chunkSize, colors[j % 2]);
+            }
+        }
     }
 }
 }  // namespace Memory

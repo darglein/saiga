@@ -20,6 +20,9 @@ class SAIGA_GLOBAL ImageChunkAllocator : public BaseChunkAllocator
         : BaseChunkAllocator(_device, chunkAllocator, _flags, strategy, chunkSize, _mapped)
     {
         LOG(INFO) << "Created new image allocator for flags " << vk::to_string(_flags);
+        std::stringstream identifier_stream;
+        identifier_stream << "Image Chunk " << vk::to_string(flags);
+        gui_identifier = identifier_stream.str();
     }
 
     ImageChunkAllocator(const ImageChunkAllocator& other)     = delete;

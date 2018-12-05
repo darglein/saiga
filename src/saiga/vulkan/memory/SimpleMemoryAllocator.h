@@ -28,34 +28,42 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
 {
    private:
     std::mutex mutex;
-    vk::BufferCreateInfo m_bufferCreateInfo;
     vk::Device m_device;
     vk::PhysicalDevice m_physicalDevice;
     std::vector<MemoryLocation> m_allocations;
+    std::string gui_identifier;
 
    public:
     vk::MemoryPropertyFlags flags;
     vk::BufferUsageFlags usageFlags;
+
+   private:
+    vk::BufferCreateInfo m_bufferCreateInfo;
+
+   public:
     SimpleMemoryAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice, const vk::MemoryPropertyFlags& _flags,
                           const vk::BufferUsageFlags& usage, bool _mapped = false)
-        : BaseMemoryAllocator(_mapped)
+        : BaseMemoryAllocator(_mapped),
+          m_device(_device),
+          m_physicalDevice(_physicalDevice),
+          flags(_flags),
+          usageFlags(usage),
+          m_bufferCreateInfo(vk::BufferCreateFlags(), 0, usage, vk::SharingMode::eExclusive)
     {
-        m_device                       = _device;
-        m_physicalDevice               = _physicalDevice;
-        flags                          = _flags;
-        mapped                         = _mapped;
-        usageFlags                     = usage;
-        m_bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
-        m_bufferCreateInfo.usage       = usage;
-        m_bufferCreateInfo.size        = 0;
+        std::stringstream identifier_stream;
+        identifier_stream << "Simple " << vk::to_string(usageFlags) << " " << vk::to_string(flags);
+        gui_identifier = identifier_stream.str();
     }
 
     SimpleMemoryAllocator(SimpleMemoryAllocator&& other) noexcept
         : BaseMemoryAllocator(std::move(other)),
-          m_bufferCreateInfo(std::move(other.m_bufferCreateInfo)),
           m_device(other.m_device),
           m_physicalDevice(other.m_physicalDevice),
-          m_allocations(std::move(other.m_allocations))
+          m_allocations(std::move(other.m_allocations)),
+          gui_identifier(std::move(other.gui_identifier)),
+          flags(other.flags),
+          usageFlags(other.usageFlags),
+          m_bufferCreateInfo(std::move(other.m_bufferCreateInfo))
     {
     }
 
@@ -66,6 +74,9 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
         m_device                     = other.m_device;
         m_physicalDevice             = other.m_physicalDevice;
         m_allocations                = std::move(other.m_allocations);
+        gui_identifier               = std::move(other.gui_identifier);
+        flags                        = other.flags;
+        usageFlags                   = other.usageFlags;
         return *this;
     }
 
@@ -77,6 +88,8 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
     void destroy() override;
 
     void deallocate(MemoryLocation& location) override;
+
+    void renderInfoGUI() override;
 };
 
 

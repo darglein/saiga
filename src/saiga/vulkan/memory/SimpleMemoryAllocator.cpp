@@ -4,6 +4,7 @@
 
 #include "SimpleMemoryAllocator.h"
 
+#include "saiga/imgui/imgui.h"
 void SimpleMemoryAllocator::deallocate(MemoryLocation& location)
 {
     mutex.lock();
@@ -58,4 +59,11 @@ MemoryLocation SimpleMemoryAllocator::allocate(vk::DeviceSize size)
 
     LOG(INFO) << "Simple allocate   " << vk::to_string(usageFlags) << " " << vk::to_string(flags) << " " << retVal;
     return retVal;
+}
+
+void SimpleMemoryAllocator::renderInfoGUI()
+{
+    if (ImGui::CollapsingHeader(gui_identifier.c_str()))
+    {
+    }
 }
