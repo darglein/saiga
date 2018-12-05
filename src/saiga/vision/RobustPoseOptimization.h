@@ -43,7 +43,7 @@ struct SAIGA_GLOBAL RobustPoseOptimization
     T deltaChiEpsilon         = 1e-4;
     size_t iterations         = 4;
 
-    int optimizePoseRobust(const std::vector<Vec3>& wps, const std::vector<Obs>& obs, std::vector<bool>& outlier,
+    int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
                            SE3Type& guess, const CameraType& camera);
 
    private:
@@ -51,8 +51,9 @@ struct SAIGA_GLOBAL RobustPoseOptimization
 };
 
 template <typename T>
-int RobustPoseOptimization<T>::optimizePoseRobust(const std::vector<Vec3>& wps, const std::vector<Obs>& obs,
-                                                  std::vector<bool>& outlier, SE3Type& guess, const CameraType& camera)
+int RobustPoseOptimization<T>::optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs,
+                                                  AlignedVector<bool>& outlier, SE3Type& guess,
+                                                  const CameraType& camera)
 {
     size_t N    = wps.size();
     int inliers = 0;

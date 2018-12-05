@@ -22,7 +22,7 @@ class SAIGA_GLOBAL Graph
     void renderImGui();
 
    protected:
-    virtual void renderImGuiDerived() {}
+    virtual void renderImGuiDerived();
     std::string name;
     int numValues;
 

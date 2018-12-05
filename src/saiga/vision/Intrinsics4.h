@@ -33,6 +33,8 @@ struct Intrinsics4Base
         return {fx * x + cx, fy * y + cy};
     }
 
+    Vec2 operator*(const Vec3& X) const { return project(X); }
+
     // same as above, but keep the z value in the output
     Vec3 project3(const Vec3& X) const
     {

@@ -37,8 +37,9 @@ class SAIGA_GLOBAL MotionModel
         int smoothness = 3;
 
         // Exponential factor of new frames compared to old frames.
+        // FrameWeight = pow(alpha,currentFrameId - oldFrameId)
         // Range [0,1]
-        double alpha = 0.5;
+        double alpha = 0.75;
 
         // Velocity damping applied at the end
         // Range [0,1]
@@ -60,9 +61,13 @@ class SAIGA_GLOBAL MotionModel
     /**
      * Adds a relative transformation between two frames.
      */
-    void addRelativeMotion(const SE3& T, size_t frameId);
+    void addRelativeMotion(const SE3& T, size_t frameId, double weight);
     void updateRelativeMotion(const SE3& T, size_t frameId);
 
+    /**
+     * Adds an invalid motion. Use this when tracking fails to localize a frame.
+     */
+    void addInvalidMotion(size_t frameId);
 
     /**
      * Computes the current velocity in units/frame. You can add it to the last frame position
@@ -82,11 +87,25 @@ class SAIGA_GLOBAL MotionModel
     void renderVelocityGraph();
 
    private:
-    AlignedVector<SE3> data;
+    struct MotionData
+    {
+        SE3 v;
+        double weight = 1;
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    };
+    AlignedVector<MotionData> data;
+    double averageWeight = 1;
     std::vector<size_t> indices;
     ImGui::Graph grapht = {"Velocity"};
     ImGui::Graph grapha = {"Angular Velocity"};
     std::mutex mut;
+    std::vector<double> weights;
+
+    // Cache the current velocity
+    void recomputeVelocity();
+    SE3 computeVelocity();
+    bool validVelocity = false;
+    SE3 currentVelocity;
 };
 
 }  // namespace Saiga

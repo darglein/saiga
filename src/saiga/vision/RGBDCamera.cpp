@@ -17,7 +17,7 @@ void RGBDCamera::setDmpp(const std::shared_ptr<DMPP>& value)
 
 std::shared_ptr<RGBDCamera::FrameData> RGBDCamera::makeFrameData()
 {
-    auto fd = std::make_shared<RGBDCamera::FrameData>();
+    auto fd = std::make_aligned_shared<RGBDCamera::FrameData>();
     fd->colorImg.create(rgbo.h, rgbo.w);
     fd->depthImg.create(deptho.h, deptho.w);
     return fd;

@@ -1,6 +1,7 @@
 #include "imgui_saiga.h"
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/util/random.h"
 #include "saiga/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -10,7 +11,7 @@ namespace ImGui
 {
 Graph::Graph(const std::string& name, int numValues) : name(name), numValues(numValues), values(numValues, 0)
 {
-    r = rand();
+    r = Saiga::Random::rand();
 }
 
 void Graph::addValue(float t)
@@ -27,15 +28,21 @@ void Graph::renderImGui()
     ImGui::PushID(r);
 
     renderImGuiDerived();
-    ImGui::PlotLines("Time", values.data(), numValues, currentIndex, ("avg " + Saiga::to_string(average)).c_str(), 0,
+    ImGui::PlotLines("", values.data(), numValues, currentIndex, ("avg " + Saiga::to_string(average)).c_str(), 0,
                      maxValue, ImVec2(0, 80));
     ImGui::SameLine();
     if (ImGui::Button("R"))
     {
         maxValue = 0;
+        for (auto v : values) maxValue = std::max(v, maxValue);
     }
 
     ImGui::PopID();
+}
+
+void Graph::renderImGuiDerived()
+{
+    ImGui::Text("%s", name.c_str());
 }
 
 

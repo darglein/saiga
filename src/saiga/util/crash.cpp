@@ -10,12 +10,13 @@
 
 
 #if defined(_WIN32)
-#    include <DbgHelp.h>
 #    include <signal.h>
 #    include <stdio.h>
 #    include <stdlib.h>
 #    include <tchar.h>
 #    include <windows.h>
+// dbghelp must be included after windows.h
+#    include <DbgHelp.h>
 #endif
 
 
