@@ -32,7 +32,7 @@ struct PhysicAssetObject : public SimpleAssetObject
     }
 };
 
-class Sample : public Updating, public Rendering, public SDL_KeyListener
+class Sample : public Updating, public DeferredRenderingInterface, public SDL_KeyListener
 {
    public:
     SDLCamera<PerspectiveCamera> camera;

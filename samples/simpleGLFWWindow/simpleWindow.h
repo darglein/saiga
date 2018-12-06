@@ -15,7 +15,7 @@
 
 using namespace Saiga;
 
-class Sample : public Updating, public Rendering, public glfw_KeyListener
+class Sample : public Updating, public DeferredRenderingInterface, public glfw_KeyListener
 {
    public:
     Glfw_Camera<PerspectiveCamera> camera;

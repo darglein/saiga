@@ -27,7 +27,7 @@ class PointLight;
 class DirectionalLight;
 class BoxLight;
 
-class Rendering;
+class DeferredRenderingInterface;
 
 struct DeferredLightingShaderNames
 {
@@ -150,7 +150,7 @@ class SAIGA_GLOBAL DeferredLighting
     void initRender();
     void render(Camera* cam);
     void postprocessVolumetric();
-    void renderDepthMaps(Rendering* renderer);
+    void renderDepthMaps(DeferredRenderingInterface* renderer);
     void renderDebug(Camera* cam);
 
 

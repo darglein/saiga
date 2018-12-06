@@ -23,10 +23,10 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL VulkanForwardRenderingInterface : public RenderingBase
+class SAIGA_GLOBAL VulkanForwardRenderingInterface : public RenderingInterfaceBase
 {
    public:
-    VulkanForwardRenderingInterface(RendererBase& parent) : RenderingBase(parent) {}
+    VulkanForwardRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
     virtual ~VulkanForwardRenderingInterface() {}
 
     virtual void init(Saiga::Vulkan::VulkanBase& base) = 0;

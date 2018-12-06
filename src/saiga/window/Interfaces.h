@@ -14,21 +14,26 @@ namespace Saiga
 {
 class Camera;
 class WindowBase;
-class RenderingBase;
+class RenderingInterfaceBase;
 /**
  * Base class of all render engines.
  * This includes the deferred and forward OpenGL engines
  * as well as the Vulkan renderers.
+ *
+ * Each renderer needs a fitting rendering interface.
+ * For example, the deferrred renderer has the DeferredRenderingInterface.
+ * An application can now derive from DeferredRenderingInterface to use
+ * the deferred rendering engine.
  */
 class SAIGA_GLOBAL RendererBase
 {
    public:
     virtual ~RendererBase() {}
-    RenderingBase* rendering = nullptr;
+    RenderingInterfaceBase* rendering = nullptr;
 
 
     virtual void printTimings() {}
-    void setRenderObject(RenderingBase& r) { rendering = &r; }
+    void setRenderObject(RenderingInterfaceBase& r) { rendering = &r; }
 
     virtual void renderImGui(bool* p_open = nullptr) {}
     virtual float getTotalRenderTime() { return 0; }
@@ -38,6 +43,24 @@ class SAIGA_GLOBAL RendererBase
     virtual void bindCamera(Camera* cam) = 0;
 };
 
+/**
+ * Base class for all rendering interfaces.
+ */
+class SAIGA_GLOBAL RenderingInterfaceBase
+{
+   public:
+    RenderingInterfaceBase(RendererBase& parent);
+    virtual ~RenderingInterfaceBase() {}
+
+
+   protected:
+    RendererBase& parentRenderer;
+};
+
+/**
+ * Base class for applications to make them updateable.
+ * The mainloop will call the appropriate functions.
+ */
 class SAIGA_GLOBAL Updating
 {
    public:
@@ -63,41 +86,5 @@ class SAIGA_GLOBAL Updating
    protected:
     WindowBase& parentWindow;
 };
-
-class SAIGA_GLOBAL RenderingBase
-{
-   public:
-    RenderingBase(RendererBase& parent);
-    virtual ~RenderingBase() {}
-
-
-   protected:
-    RendererBase& parentRenderer;
-};
-
-
-class SAIGA_GLOBAL Rendering : public RenderingBase
-{
-   public:
-    Rendering(RendererBase& parent) : RenderingBase(parent) {}
-    virtual ~Rendering() {}
-
-    // rendering into the gbuffer
-    virtual void render(Camera* cam) {}
-
-    // render depth maps for shadow lights
-    virtual void renderDepth(Camera* cam) {}
-
-    // forward rendering path after lighting, but before post processing
-    // this could be used for transparent objects
-    virtual void renderOverlay(Camera* cam) {}
-
-    // forward rendering path after lighting and after post processing
-    virtual void renderFinal(Camera* cam) {}
-    // protected:
-    //    RendererBase& parentRenderer;
-};
-
-
 
 }  // namespace Saiga

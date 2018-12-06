@@ -11,10 +11,10 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ForwardRenderingInterface : public RenderingBase
+class SAIGA_GLOBAL ForwardRenderingInterface : public RenderingInterfaceBase
 {
    public:
-    ForwardRenderingInterface(RendererBase& parent) : RenderingBase(parent) {}
+    ForwardRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
     virtual ~ForwardRenderingInterface() {}
 
     // forward rendering path after lighting, but before post processing

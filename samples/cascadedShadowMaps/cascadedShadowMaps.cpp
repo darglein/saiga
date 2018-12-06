@@ -10,7 +10,7 @@
 #include "saiga/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
-Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer) : Updating(window), Rendering(renderer)
+Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
 {
     // create a perspective camera
     float aspect = window.getAspectRatio();

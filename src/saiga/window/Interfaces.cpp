@@ -17,7 +17,7 @@ Updating::Updating(WindowBase& parent) : parentWindow(parent)
     parent.setUpdateObject(*this);
 }
 
-RenderingBase::RenderingBase(RendererBase& parent) : parentRenderer(parent)
+RenderingInterfaceBase::RenderingInterfaceBase(RendererBase& parent) : parentRenderer(parent)
 {
     parent.setRenderObject(*this);
 }

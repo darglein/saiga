@@ -11,7 +11,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 
 Sample::Sample(OpenGLWindow& window, Renderer& renderer)
-    : Updating(window), Rendering(renderer), tdo(window.getWidth(), window.getHeight())
+    : Updating(window), DeferredRenderingInterface(renderer), tdo(window.getWidth(), window.getHeight())
 {
     // create a perspective camera
     float aspect = window.getAspectRatio();

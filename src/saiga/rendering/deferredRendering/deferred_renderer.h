@@ -60,6 +60,28 @@ struct SAIGA_GLOBAL DeferredRenderingParameters : public RenderingParameters
     PostProcessorParameters ppp;
 };
 
+class SAIGA_GLOBAL DeferredRenderingInterface : public RenderingInterfaceBase
+{
+   public:
+    DeferredRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
+    virtual ~DeferredRenderingInterface() {}
+
+    // rendering into the gbuffer
+    virtual void render(Camera* cam) {}
+
+    // render depth maps for shadow lights
+    virtual void renderDepth(Camera* cam) {}
+
+    // forward rendering path after lighting, but before post processing
+    // this could be used for transparent objects
+    virtual void renderOverlay(Camera* cam) {}
+
+    // forward rendering path after lighting and after post processing
+    virtual void renderFinal(Camera* cam) {}
+    // protected:
+    //    RendererBase& parentRenderer;
+};
+
 
 class SAIGA_GLOBAL Deferred_Renderer : public Renderer
 {

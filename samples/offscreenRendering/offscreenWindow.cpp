@@ -9,7 +9,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
-Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Rendering(renderer)
+Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
 {
     // create a perspective camera
     float aspect = window.getAspectRatio();

@@ -164,7 +164,7 @@ void DeferredLighting::initRender()
     totalLights       = directionalLights.size() + spotLights.size() + pointLights.size() + boxLights.size();
 }
 
-void DeferredLighting::renderDepthMaps(Rendering* renderer)
+void DeferredLighting::renderDepthMaps(DeferredRenderingInterface* renderer)
 {
     // When GL_POLYGON_OFFSET_FILL, GL_POLYGON_OFFSET_LINE, or GL_POLYGON_OFFSET_POINT is enabled,
     // each fragment's depth value will be offset after it is interpolated from the depth values of the appropriate

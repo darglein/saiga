@@ -48,7 +48,6 @@ void VulkanWindow::renderImGui(bool* p_open)
         {
             cout << "camera.position = vec4" << currentCamera->position << ";" << endl;
             cout << "camera.rot = quat" << currentCamera->rot << ";" << endl;
-            //        createTRSmatrix()
         }
     }
 
@@ -58,8 +57,7 @@ void VulkanWindow::renderImGui(bool* p_open)
 
     if (showRendererImgui)
     {
-        // base.memory.renderGUI();
-        renderer->renderImGui(nullptr);
+        renderer->renderImGui(&showRendererImgui);
     }
 
     ImGui::End();

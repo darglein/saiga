@@ -15,7 +15,7 @@
 
 using namespace Saiga;
 
-class Sample : public Updating, public Rendering
+class Sample : public Updating, public DeferredRenderingInterface
 {
    public:
     PerspectiveCamera camera;

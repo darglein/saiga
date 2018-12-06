@@ -66,8 +66,6 @@ void VulkanRenderer::initInstanceDevice() {}
 
 void VulkanRenderer::renderImGui(bool* p_open)
 {
-    RendererBase::renderImGui(p_open);
-
     base.memory.renderGUI();
 }
 
