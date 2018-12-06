@@ -9,6 +9,7 @@
 #include "ImGuiVulkanRenderer.h"
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/util/imath.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
@@ -122,7 +123,7 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
 
     for (auto i = 0UL; i < frameCount; ++i)
     {
-        frameData.emplace_back(*base, maxVertexCount, maxIndexCount);
+        frameData.emplace_back(*base, initialMaxVertexCount, initialMaxIndexCount);
     }
 
     cout << "Vulkan imgui created." << endl;
@@ -136,11 +137,18 @@ void ImGuiVulkanRenderer::updateBuffers(vk::CommandBuffer cmd, size_t index)
     vertexCount = imDrawData->TotalVtxCount;
     indexCount  = imDrawData->TotalIdxCount;
 
-    if (vertexCount == 0 || indexCount == 0) return;
+    if (vertexCount == 0 || indexCount == 0)
+    {
+        return;
+    }
+
 
     auto& currentFrameData = frameData[index];
-    ImDrawVert* vtxDst     = currentFrameData.vertexData;
-    ImDrawIdx* idxDst      = currentFrameData.indexData;
+
+    currentFrameData.resizeIfNecessary(*base, vertexCount, indexCount);
+
+    ImDrawVert* vtxDst = currentFrameData.vertexData;
+    ImDrawIdx* idxDst  = currentFrameData.indexData;
 
     for (int n = 0; n < imDrawData->CmdListsCount; n++)
     {
@@ -212,6 +220,7 @@ void ImGuiVulkanRenderer::endFrame()
 {
     ImGui::Render();
 }
+
 
 
 ImGuiVulkanRenderer::FrameData::FrameData(VulkanBase& base, const uint32_t maxVertexCount, const uint32_t maxIndexCount)

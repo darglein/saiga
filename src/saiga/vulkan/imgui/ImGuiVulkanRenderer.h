@@ -39,6 +39,35 @@ class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
         FrameData(VulkanBase& base, uint32_t maxVertexCount, uint32_t maxIndexCount);
 
         void destroy(VulkanBase& base);
+
+        void resizeIfNecessary(VulkanBase& base, int32_t vertexCount, int32_t indexCount)
+        {
+            if (vertexCount > vertexBuffer.vertexCount)
+            {
+                uint32_t currentCount = vertexBuffer.vertexCount;
+                while (currentCount < vertexCount)
+                {
+                    currentCount = currentCount << 1;
+                }
+                vertexBuffer.destroy();
+                vertexBuffer.init(base, currentCount,
+                                  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+                LOG(INFO) << "Resizing imgui vertex buffer: " << currentCount << " vertices";
+            }
+            if (indexCount > indexBuffer.indexCount)
+            {
+                uint32_t currentCount = indexBuffer.indexCount;
+                while (currentCount < indexCount)
+                {
+                    currentCount = currentCount << 1;
+                }
+                indexBuffer.destroy();
+                indexBuffer.init(base, currentCount,
+                                 vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+                LOG(INFO) << "Resizing imgui index buffer: " << currentCount << " vertices";
+            }
+        }
     };
 
     size_t frameCount;
@@ -66,8 +95,8 @@ class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
     int32_t vertexCount = 0;
     int32_t indexCount  = 0;
 
-    int32_t maxVertexCount = 64 * 1024;
-    int32_t maxIndexCount  = 64 * 1024;
+    int32_t initialMaxVertexCount = 64 * 1024;
+    int32_t initialMaxIndexCount  = 64 * 1024;
 
 
     Texture2D fontTexture;
