@@ -56,6 +56,12 @@ void VulkanWindow::renderImGui(bool* p_open)
 
     ImGui::Checkbox("showRendererImgui", &showRendererImgui);
 
+    if (showRendererImgui)
+    {
+        // base.memory.renderGUI();
+        renderer->renderImGui(nullptr);
+    }
+
     ImGui::End();
 }
 

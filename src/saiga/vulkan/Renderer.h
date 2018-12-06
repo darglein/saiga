@@ -34,7 +34,9 @@ class SAIGA_GLOBAL VulkanRenderer : public RendererBase
 
     virtual float getTotalRenderTime();
 
-   protected:
+    void renderImGui(bool *p_open) override;
+
+protected:
     /**
      * Shared Member variables common for all vulkan render engines.
      */

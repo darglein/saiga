@@ -182,7 +182,6 @@ void VulkanForwardRenderer::render(Camera* cam)
         //        std::thread t([&](){
         imGui->beginFrame();
         renderingInterface->renderGUI();
-        base.memory.renderGUI();
         imGui->endFrame();
         //        });
         //        t.join();
