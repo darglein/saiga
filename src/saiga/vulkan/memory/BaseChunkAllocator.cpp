@@ -181,15 +181,19 @@ void BaseChunkAllocator::renderInfoGUI()
 
         SAIGA_ASSERT(allocation_bars.size() == m_chunkAllocations.size(), "Number of bars != Number of chunks");
 
-        int numAllocs      = 0;
-        uint64_t usedSpace = 0;
+        int numAllocs           = 0;
+        uint64_t usedSpace      = 0;
+        uint64_t innerFreeSpace = 0;
+        uint64_t totalFreeSpace = 0;
         for (int i = 0; i < allocation_bars.size(); ++i)
         {
+            ImGui::Text("Chunk %d", i + 1);
+            ImGui::Indent();
             auto bar   = allocation_bars[i];
             auto chunk = m_chunkAllocations[i];
             bar.renderBackground();
             int j = 0;
-            std::list<MemoryLocation>::const_iterator allocIter;
+            std::list<MemoryLocation>::const_iterator allocIter, freeIter;
             for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
             {
                 bar.renderArea(static_cast<float>(allocIter->offset) / m_chunkSize,
@@ -197,6 +201,16 @@ void BaseChunkAllocator::renderInfoGUI()
                 usedSpace += allocIter->size;
             }
             numAllocs += j;
+            auto freeEnd = --chunk.freeList.cend();
+            for (freeIter = chunk.freeList.begin(); freeIter != freeEnd; freeIter++)
+            {
+                innerFreeSpace += freeIter->size;
+                totalFreeSpace += freeIter->size;
+            }
+
+            totalFreeSpace += chunk.freeList.back().size;
+
+            ImGui::Unindent();
         }
         ImGui::LabelText("Number of allocations", "%d", numAllocs);
         auto totalSpace = m_chunkSize * m_chunkAllocations.size();
@@ -204,6 +218,8 @@ void BaseChunkAllocator::renderInfoGUI()
 
         ImGui::LabelText("Usage", "%s / %s (%.2f%%)", sizeToString(usedSpace).c_str(), sizeToString(totalSpace).c_str(),
                          100 * static_cast<float>(usedSpace) / totalSpace);
+        ImGui::LabelText("Free Space (total / fragmented)", "%s / %s", sizeToString(totalFreeSpace).c_str(),
+                         sizeToString(innerFreeSpace).c_str());
         ImGui::Unindent();
     }
 }

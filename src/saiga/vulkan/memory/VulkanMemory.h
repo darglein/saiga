@@ -61,8 +61,6 @@ class SAIGA_GLOBAL VulkanMemory
     BufferMap bufferAllocators;
     ImageMap imageAllocators;
 
-    bool m_showGUI = true;
-
    public:
     ChunkCreator chunkAllocator;
     FirstFitStrategy strategy;
@@ -107,8 +105,6 @@ class SAIGA_GLOBAL VulkanMemory
 
 
     void destroy();
-
-    void showGUI(bool show) { m_showGUI = show; }
 
     void renderGUI();
 };

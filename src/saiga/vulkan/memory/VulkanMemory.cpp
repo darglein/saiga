@@ -105,24 +105,12 @@ void VulkanMemory::destroy()
 
 void VulkanMemory::renderGUI()
 {
-    if (!m_showGUI)
+    if (!ImGui::CollapsingHeader("Memory Stats"))
     {
         return;
     }
 
-    ImGui::ShowTestWindow();
-
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
-    static bool memoryStats = true;
-    if (!memoryStats)
-    {
-        return;
-    }
-    if (!ImGui::Begin("Memory Stats", &memoryStats, ImGuiWindowFlags_NoCollapse))
-    {
-        ImGui::End();
-        return;
-    }
+    ImGui::Indent();
 
     for (auto& allocator : bufferAllocators)
     {
@@ -133,5 +121,5 @@ void VulkanMemory::renderGUI()
         allocator.second.renderInfoGUI();
     }
 
-    ImGui::End();
+    ImGui::Unindent();
 }
