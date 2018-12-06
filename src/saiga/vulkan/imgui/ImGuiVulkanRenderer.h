@@ -53,6 +53,7 @@ class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
                 vertexBuffer.init(base, currentCount,
                                   vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
+                vertexData = static_cast<ImDrawVert*>(vertexBuffer.getMappedPointer());
                 LOG(INFO) << "Resizing imgui vertex buffer: " << currentCount << " vertices";
             }
             if (indexCount > indexBuffer.indexCount)
@@ -65,6 +66,8 @@ class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
                 indexBuffer.destroy();
                 indexBuffer.init(base, currentCount,
                                  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+                indexData = static_cast<ImDrawIdx*>(indexBuffer.getMappedPointer());
                 LOG(INFO) << "Resizing imgui index buffer: " << currentCount << " vertices";
             }
         }
