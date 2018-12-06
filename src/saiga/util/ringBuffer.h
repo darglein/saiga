@@ -158,7 +158,9 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
     }
 
     // adds one element to the buffer
-    // overrides the first element if full
+    // if full
+    //    - overrides the first element
+    //    - increment the front point
     void addOverride(const T& data)
     {
         if (full())

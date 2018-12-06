@@ -17,6 +17,7 @@ Graph::Graph(const std::string& name, int numValues) : name(name), numValues(num
 void Graph::addValue(float t)
 {
     maxValue             = std::max(t, maxValue);
+    lastValue            = t;
     values[currentIndex] = t;
     currentIndex         = (currentIndex + 1) % numValues;
     float alpha          = 0.1;
