@@ -25,7 +25,8 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
 
     if (chunkAlloc == m_chunkAllocations.end())
     {
-        allocation_bars.push_back(ImGui::ColoredBar({0, 60}, {0.1f, 0.1f, 0.1f, 1.0f}, true));
+        allocation_bars.push_back(
+            ImGui::ColoredBar({0, 60}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true));
         chunkAlloc = createNewChunk();
         freeSpace  = chunkAlloc->freeList.begin();
     }
@@ -164,6 +165,13 @@ void BaseChunkAllocator::destroy()
     }
 }
 
+using BarColor = ImGui::ColoredBar::BarColor;
+static std::array<BarColor, 2> colors{BarColor{{0.086f, 0.451f, 0.56f, 1.0f}, {0.086f, 0.451f, 0.56f, 1.0f}},
+                                      BarColor{{0.565f, 0.0f, 0.125f, 1.0f}, {0.565f, 0.0f, 0.125f, 1.0f}}};
+//{{{0.086f, 0.451f, 0.56f, 1.0f}, {0.086f, 0.451f, 0.56f, 1.0f}}},
+//{{{0.565f, 0.0f, 0.125f, 1.0f}, {0.565f, 0.0f, 0.125f, 1.0f}}}};
+//{{0.086f, 0.451f, 0.56f, 1.0f}, {glm::vec4(22, 115, 143, 511) / 511.0f}},
+//{{glm::vec4(144, 0, 32, 255) / 255.0f}, {glm::vec4(144, 0, 32, 511) / 511.0f}}};
 
 
 void BaseChunkAllocator::renderInfoGUI()
@@ -175,7 +183,6 @@ void BaseChunkAllocator::renderInfoGUI()
 
         SAIGA_ASSERT(allocation_bars.size() == m_chunkAllocations.size(), "Number of bars != Number of chunks");
 
-        std::array<glm::vec4, 2> colors{glm::vec4(22, 115, 143, 255) / 255.0f, glm::vec4(144, 0, 32, 255) / 255.0f};
         // int i = 0;
 
         for (int i = 0; i < allocation_bars.size(); ++i)

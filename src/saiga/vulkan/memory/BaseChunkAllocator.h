@@ -23,7 +23,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 {
    private:
     std::mutex allocationMutex;
-
     void findNewMax(ChunkIterator& chunkAlloc) const;
 
     MemoryLocation createMemoryLocation(ChunkIterator iter, vk::DeviceSize start, vk::DeviceSize size);
@@ -32,13 +31,12 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
     vk::MemoryPropertyFlags flags;
-
     FitStrategy* m_strategy{};
+
     vk::DeviceSize m_chunkSize{};
     vk::DeviceSize m_allocateSize{};
-
-
     std::vector<ChunkAllocation> m_chunkAllocations;
+
 
     std::string gui_identifier;
 

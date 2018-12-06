@@ -78,20 +78,28 @@ void ColoredBar::renderBackground()
         m_size.x = ImGui::GetContentRegionAvailWidth();
     }
 
-    ImU32 color = ImColor(m_back_color);
+    // ImU32 color = ImColor(m_back_color);
+    //
+    //
+    // m_lastDrawList->AddRect(m_lastCorner, m_lastCorner + m_size, color, m_rounding, m_rounding_corners);
 
-    m_lastDrawList->AddRect(m_lastCorner, m_lastCorner + m_size, color);
+    DrawOutlinedRect(m_lastCorner, m_lastCorner + m_size, m_back_color);
     ImGui::Dummy(m_size);
 }
 
-void ColoredBar::renderArea(float begin, float end, glm::vec4 color, float rounding, int rounding_corners)
+void ColoredBar::renderArea(float begin, float end, const ColoredBar::BarColor& color)
 {
     SAIGA_ASSERT(m_lastDrawList, "renderBackground() was not called before renderArea()");
     const ImVec2 left{m_lastCorner.x + begin * m_size.x, m_lastCorner.y};
     const ImVec2 right{m_lastCorner.x + end * m_size.x, m_lastCorner.y + m_size.y};
 
-    m_lastDrawList->AddRectFilled(left, right, ImColor(color), rounding, rounding_corners);
-    m_lastDrawList->AddRect(left, right, ImColor(0.9f * color), rounding, rounding_corners);
+    DrawOutlinedRect(left, right, color);
+}
+
+void ColoredBar::DrawOutlinedRect(const glm::vec2& begin, const glm::vec2& end, const ColoredBar::BarColor& color)
+{
+    m_lastDrawList->AddRectFilled(begin, end, ImColor(color.fill), m_rounding, m_rounding_corners);
+    m_lastDrawList->AddRect(begin, end, ImColor(color.outline), m_rounding, m_rounding_corners);
 }
 
 }  // namespace ImGui
