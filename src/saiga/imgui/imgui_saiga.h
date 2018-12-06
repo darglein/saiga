@@ -62,8 +62,8 @@ class SAIGA_GLOBAL ColoredBar
     glm::vec2 m_size;
     BarColor m_back_color;
     bool m_auto_size;
-    int m_rows;
-    glm::vec2 m_lastCorner;
+    uint32_t m_rows;
+    std::vector<glm::vec2> m_lastCorner;
     ImDrawList* m_lastDrawList;
     float m_rounding;
     int m_rounding_corners;
@@ -72,17 +72,18 @@ class SAIGA_GLOBAL ColoredBar
     void DrawOutlinedRect(const glm::vec2& begin, const glm::vec2& end, const BarColor& color);
 
    public:
-    ColoredBar(glm::vec2 size, BarColor background, bool auto_size = false, int rows = 1, float rounding = 0.0f,
+    ColoredBar(glm::vec2 size, BarColor background, bool auto_size = false, uint32_t rows = 1, float rounding = 0.0f,
                int rounding_corners = 0)
         : m_size(size),
           m_back_color(background),
           m_auto_size(auto_size),
           m_rows(rows),
-          m_lastCorner(0, 0),
+          m_lastCorner(rows),
           m_lastDrawList(nullptr),
           m_rounding(rounding),
           m_rounding_corners(rounding_corners)
     {
+        SAIGA_ASSERT(rows >= 1, "Must have a positive number of rows");
     }
     void renderBackground();
     void renderArea(float begin, float end, const BarColor& color);

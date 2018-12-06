@@ -5,6 +5,9 @@
 #include "SimpleMemoryAllocator.h"
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/util/tostring.h"
+
+#include <numeric>
 void SimpleMemoryAllocator::deallocate(MemoryLocation& location)
 {
     mutex.lock();
@@ -65,5 +68,13 @@ void SimpleMemoryAllocator::renderInfoGUI()
 {
     if (ImGui::CollapsingHeader(gui_identifier.c_str()))
     {
+        ImGui::Indent();
+        ImGui::LabelText("Number of allocations", "%lu", m_allocations.size());
+        const auto totalSize = std::accumulate(m_allocations.begin(), m_allocations.end(), 0UL,
+                                               [](const auto& a, const auto& b) { return a + b.size; });
+
+
+        ImGui::LabelText("Size of allocations", "%s", sizeToString(totalSize).c_str());
+        ImGui::Unindent();
     }
 }

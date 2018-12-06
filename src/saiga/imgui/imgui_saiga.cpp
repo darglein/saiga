@@ -71,7 +71,6 @@ void TimeGraph::renderImGuiDerived()
 
 void ColoredBar::renderBackground()
 {
-    m_lastCorner   = ImGui::GetCursorScreenPos();
     m_lastDrawList = ImGui::GetWindowDrawList();
 
     if (m_auto_size)
@@ -79,22 +78,38 @@ void ColoredBar::renderBackground()
         m_size.x = ImGui::GetContentRegionAvailWidth();
     }
 
-    // ImU32 color = ImColor(m_back_color);
-    //
-    //
-    // m_lastDrawList->AddRect(m_lastCorner, m_lastCorner + m_size, color, m_rounding, m_rounding_corners);
-
-    DrawOutlinedRect(m_lastCorner, m_lastCorner + m_size, m_back_color);
-    ImGui::Dummy(m_size);
+    for (uint32_t i = 0; i < m_rows; ++i)
+    {
+        m_lastCorner[i] = ImGui::GetCursorScreenPos();
+        DrawOutlinedRect(m_lastCorner[i], m_lastCorner[i] + m_size, m_back_color);
+        ImGui::Dummy(m_size);
+    }
 }
 
 void ColoredBar::renderArea(float begin, float end, const ColoredBar::BarColor& color)
 {
     SAIGA_ASSERT(m_lastDrawList, "renderBackground() was not called before renderArea()");
-    const ImVec2 left{m_lastCorner.x + begin * m_size.x, m_lastCorner.y};
-    const ImVec2 right{m_lastCorner.x + end * m_size.x, m_lastCorner.y + m_size.y};
 
-    DrawOutlinedRect(left, right, color);
+    const float factor = 1.0f / m_rows;
+
+
+    int first = static_cast<int>(glm::floor(begin / factor));
+    int last  = static_cast<int>(glm::ceil(end / factor));
+
+    for (int i = first; i < last; ++i)
+    {
+        float row_start = glm::max(i * factor, begin);
+        float row_end   = glm::min((i + 1) * factor, end);
+
+        auto& corner = m_lastCorner[i];
+
+        float start_01 = m_rows * (row_start - i * factor);
+        float end_01   = m_rows * (row_end - i * factor);
+        const ImVec2 left{corner.x + start_01 * m_size.x, corner.y};
+        const ImVec2 right{corner.x + end_01 * m_size.x, corner.y + m_size.y};
+
+        DrawOutlinedRect(left, right, color);
+    }
 }
 
 void ColoredBar::DrawOutlinedRect(const glm::vec2& begin, const glm::vec2& end, const ColoredBar::BarColor& color)
