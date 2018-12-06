@@ -10,6 +10,9 @@
 
 #include "internal/noGraphicsAPI.h"
 
+#include <array>
+#include <glm/glm.hpp>
+
 namespace Saiga
 {
 std::vector<std::string> split(const std::string& s, char delim)
@@ -85,5 +88,26 @@ std::string removeFileEnding(const std::string& str)
 }
 
 
+std::string sizeToString(size_t size, size_t base, size_t max, const char* sep, std::streamsize precision)
+{
+    const static std::array<const char*, 6> prefixes = {"B", "kB", "MB", "GB", "TB", "PB"};
+
+    double float_size = size;
+
+    int count = 0;
+
+    while (float_size > max)
+    {
+        ++count;
+        float_size /= base;
+    }
+
+    std::stringstream size_stream;
+    size_stream.setf(std::ios::fixed, std::ios::floatfield);
+    size_stream.precision(count > 0 ? precision : 0);
+    size_stream << float_size << sep << prefixes[count];
+
+    return size_stream.str();
+}
 
 }  // namespace Saiga

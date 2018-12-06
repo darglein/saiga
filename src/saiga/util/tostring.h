@@ -178,4 +178,17 @@ SAIGA_TEMPLATE std::vector<T> string_to_array(const std::string& string, char se
     return res;
 }
 
+/**
+ * Convert a byte size to a string with SI-prefix. e.g.: 512 -> "512 B" and 1536 -> "1.5 kB"
+ * @param size Size to convert
+ * @param base Base to calculate. Useful for HDD and SDD where the base is usually 1000.
+ * @param max The displayed value will be in the range [0;max].
+ * @param sep Separator between the value and the unit.
+ * @param precision Precision for the value to display, if the value is in bytes, a precision of 0 will be used instead.
+ * @return Nicely formatted SI-prefixed string.
+ */
+std::string sizeToString(size_t size, size_t base = 1024, size_t max = 1536, const char* sep = " ",
+                         std::streamsize precision = 1);
+
+
 }  // namespace Saiga
