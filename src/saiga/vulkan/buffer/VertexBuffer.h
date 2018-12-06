@@ -27,9 +27,9 @@ class SAIGA_TEMPLATE VertexBuffer : public Buffer
     VertexBuffer& operator=(const VertexBuffer& other) = delete;
     VertexBuffer& operator=(VertexBuffer&& other) noexcept = default;
 
-    int vertexCount;
+    uint32_t vertexCount;
 
-    void init(VulkanBase& base, int count, vk::MemoryPropertyFlags flags)
+    void init(VulkanBase& base, uint32_t count, vk::MemoryPropertyFlags flags)
     {
         vertexCount = count;
         size_t size = sizeof(VertexType) * vertexCount;
