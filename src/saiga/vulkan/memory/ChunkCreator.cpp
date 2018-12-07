@@ -56,3 +56,8 @@ void Saiga::Vulkan::Memory::ChunkCreator::deallocate(std::shared_ptr<Chunk> chun
     }
     findMemoryType(chunk->flags).deallocate(chunk);
 }
+
+vk::MemoryPropertyFlags Saiga::Vulkan::Memory::ChunkCreator::getEffectiveFlags(vk::MemoryPropertyFlags memoryFlags)
+{
+    return findMemoryType(memoryFlags).propertyFlags;
+}
