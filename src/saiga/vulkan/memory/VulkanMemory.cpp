@@ -34,7 +34,7 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 
 VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::BufferMap& map,
                                                                 const VulkanMemory::BufferDefaultMap& defaultSizes,
-                                                                const VulkanMemory::BufferType& type)
+                                                                const BufferType& type)
 {
     auto effectiveFlags = chunkAllocator.getEffectiveFlags(type.memoryFlags);
 
@@ -54,7 +54,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
 
 VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::ImageMap& map,
                                                               const VulkanMemory::ImageDefaultMap& defaultSizes,
-                                                              const VulkanMemory::ImageType& type)
+                                                              const ImageType& type)
 {
     auto found = find_default_size<ImageDefaultMap, ImageType>(default_image_chunk_sizes, type);
     bool mapped =

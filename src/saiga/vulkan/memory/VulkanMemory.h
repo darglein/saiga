@@ -28,8 +28,8 @@ namespace Memory
 class SAIGA_GLOBAL VulkanMemory
 {
    private:
-    using BufferType       = MemoryType<vk::BufferUsageFlags>;
-    using ImageType        = MemoryType<vk::ImageUsageFlags>;
+    // using BufferType       = MemoryType<vk::BufferUsageFlags>;
+    // using ImageType        = MemoryType<vk::ImageUsageFlags>;
     using BufferMap        = std::unordered_map<BufferType, std::shared_ptr<BaseMemoryAllocator>>;
     using ImageMap         = std::unordered_map<ImageType, ImageChunkAllocator>;
     using BufferDefaultMap = std::unordered_map<BufferType, vk::DeviceSize>;
@@ -64,8 +64,6 @@ class SAIGA_GLOBAL VulkanMemory
    public:
     ChunkCreator chunkAllocator;
     FirstFitStrategy strategy;
-
-
 
     void init(vk::PhysicalDevice _pDevice, vk::Device _device);
 

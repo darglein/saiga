@@ -40,6 +40,14 @@ struct MemoryType
     }
 };
 
+struct BufferType : public MemoryType<vk::BufferUsageFlags>
+{
+};
+
+struct ImageType : public MemoryType<vk::ImageUsageFlags>
+{
+};
+
 }  // namespace Memory
 }  // namespace Vulkan
 }  // namespace Saiga
@@ -57,5 +65,13 @@ struct hash<Saiga::Vulkan::Memory::MemoryType<T>>
         result_type const h2(std::hash<unsigned int>{}(static_cast<unsigned int>(s.memoryFlags)));
         return h1 ^ (h2 << 1);
     }
+};
+template <>
+struct hash<Saiga::Vulkan::Memory::BufferType> : public hash<Saiga::Vulkan::Memory::MemoryType<vk::BufferUsageFlags>>
+{
+};
+template <>
+struct hash<Saiga::Vulkan::Memory::ImageType> : public hash<Saiga::Vulkan::Memory::MemoryType<vk::ImageUsageFlags>>
+{
 };
 }  // namespace std
