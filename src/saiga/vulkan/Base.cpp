@@ -1,5 +1,6 @@
 ﻿#include "Base.h"
 #include "saiga/util/table.h"
+#include "saiga/util/tostring.h"
 
 #include "Debug.h"
 
@@ -390,6 +391,74 @@ void VulkanBase::printAvailableQueueFamilies()
     }
     std::cout << std::endl;
     std::cout << std::endl;
+}
+
+void VulkanBase::renderGUI()
+{
+    if (!ImGui::CollapsingHeader("Device Stats"))
+    {
+        return;
+    }
+
+    ImGui::Indent();
+    ImGui::LabelText("Device Name", "%s", physicalDevice.getProperties().deviceName);
+
+
+    ImGui::Text("Heaps");
+    auto memProps = physicalDevice.getMemoryProperties();
+
+    ImGui::Columns(3, "HEAPINFO");
+    ImGui::Text("ID");
+    ImGui::NextColumn();
+    ImGui::Text("Size");
+    ImGui::NextColumn();
+    ImGui::Text("Heap Flags");
+    ImGui::NextColumn();
+    for (int heapIdx = 0; heapIdx < memProps.memoryHeapCount; ++heapIdx)
+    {
+        ImGui::Separator();
+
+        auto& heap = memProps.memoryHeaps[heapIdx];
+
+        ImGui::Text("%d", heapIdx);
+        ImGui::NextColumn();
+        ImGui::Text("%s", sizeToString(heap.size).c_str());
+        ImGui::NextColumn();
+        ImGui::Text("%s", vk::to_string(heap.flags).c_str());
+        ImGui::NextColumn();
+    }
+
+    ImGui::Columns(1);
+
+    ImGui::Spacing();
+    ImGui::Text("Memory Types");
+
+    ImGui::Columns(3, "MEMINFO");
+
+    ImGui::Text("ID");
+    ImGui::NextColumn();
+    ImGui::Text("Heap Idx");
+    ImGui::NextColumn();
+    ImGui::TextWrapped("Property Flags");
+    ImGui::NextColumn();
+    for (int typeIdx = 0; typeIdx < memProps.memoryTypeCount; ++typeIdx)
+    {
+        ImGui::Separator();
+
+        auto& type = memProps.memoryTypes[typeIdx];
+
+        ImGui::Text("%d", typeIdx);
+        ImGui::NextColumn();
+        ImGui::Text("%u", type.heapIndex);
+        ImGui::NextColumn();
+        ImGui::TextWrapped("%s", vk::to_string(type.propertyFlags).c_str());
+        ImGui::NextColumn();
+    }
+
+    ImGui::Columns(1);
+
+
+    ImGui::Unindent();
 }
 
 }  // namespace Vulkan

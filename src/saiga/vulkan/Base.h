@@ -138,6 +138,8 @@ struct SAIGA_GLOBAL VulkanBase
     void endTransferWait(vk::CommandBuffer commandBuffer);
 
     void printAvailableQueueFamilies();
+
+    void renderGUI();
 };
 
 }  // namespace Vulkan
