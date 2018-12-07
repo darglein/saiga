@@ -28,9 +28,9 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         find_library(
             FILESYSTEM_LIBRARY
             NAMES c++fs
-            PATH_SUFFIXES
+            HINTS
             # mac clang location
-            llvm/lib
+            /usr/local/opt/llvm/lib
             )
     endif()
 
