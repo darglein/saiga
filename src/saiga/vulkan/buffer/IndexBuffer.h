@@ -49,21 +49,16 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
 
     uint32_t indexCount = 0;
 
-    void init(VulkanBase& base, uint32_t count,
-              vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible |
-                                              vk::MemoryPropertyFlagBits::eHostCoherent)
+    void init(VulkanBase& base, uint32_t count, const vk::MemoryPropertyFlags& flags)
     {
         indexCount             = count;
         size_t indexBufferSize = indexCount * sizeof(IndexType);
-        createBuffer(base, indexBufferSize, vk::BufferUsageFlagBits::eIndexBuffer, flags);
-        // m_memoryLocation =
-        //    base.memory.getAllocator(vk::BufferUsageFlagBits::eIndexBuffer, flags).allocate(indexBufferSize);
+        createBuffer(base, indexBufferSize,
+                     vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, flags);
     }
 
 
-    void init(VulkanBase& base, const std::vector<IndexType>& indices,
-              vk::MemoryPropertyFlags flags = vk::MemoryPropertyFlagBits::eHostVisible |
-                                              vk::MemoryPropertyFlagBits::eHostCoherent)
+    void init(VulkanBase& base, const std::vector<IndexType>& indices, const vk::MemoryPropertyFlags& flags)
     {
         if (indices.size() > std::numeric_limits<uint32_t>::max())
         {
@@ -73,17 +68,12 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
         indexCount             = static_cast<uint32_t>(indices.size());
         size_t indexBufferSize = indexCount * sizeof(IndexType);
         m_memoryLocation =
-            base.memory.getAllocator(vk::BufferUsageFlagBits::eIndexBuffer, flags).allocate(indexBufferSize);
+            base.memory
+                .getAllocator(vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, flags)
+                .allocate(indexBufferSize);
 
         m_memoryLocation.upload(base.device, indices.data());
     }
-
-    void initDeviceLocal(VulkanBase& base, const std::vector<IndexType>& indices)
-    {
-        init(base, indices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
-        stagedUpload(base, indices.size() * sizeof(IndexType), indices.data());
-    }
-
 
     void bind(vk::CommandBuffer& cmd)
     {

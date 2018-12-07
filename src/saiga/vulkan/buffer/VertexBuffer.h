@@ -34,7 +34,7 @@ class SAIGA_TEMPLATE VertexBuffer : public Buffer
         vertexCount = count;
         size_t size = sizeof(VertexType) * vertexCount;
 
-        createBuffer(base, size, vk::BufferUsageFlagBits::eVertexBuffer, flags);
+        createBuffer(base, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, flags);
         // m_memoryLocation = base.memory.getAllocator(vk::BufferUsageFlagBits::eVertexBuffer, flags).allocate(size);
         //        buffer = m_memoryLocation.buffer;
         //        DeviceMemory::memory = m_memoryLocation.memory;

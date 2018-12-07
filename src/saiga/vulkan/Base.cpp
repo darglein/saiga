@@ -407,6 +407,8 @@ void VulkanBase::renderGUI()
     ImGui::Text("Heaps");
     auto memProps = physicalDevice.getMemoryProperties();
 
+    ImGui::Indent();
+
     ImGui::Columns(3, "HEAPINFO");
     ImGui::Text("ID");
     ImGui::NextColumn();
@@ -429,9 +431,12 @@ void VulkanBase::renderGUI()
     }
 
     ImGui::Columns(1);
+    ImGui::Unindent();
+
 
     ImGui::Spacing();
     ImGui::Text("Memory Types");
+    ImGui::Indent();
 
     ImGui::Columns(3, "MEMINFO");
 
@@ -458,6 +463,7 @@ void VulkanBase::renderGUI()
     ImGui::Columns(1);
 
 
+    ImGui::Unindent();
     ImGui::Unindent();
 }
 

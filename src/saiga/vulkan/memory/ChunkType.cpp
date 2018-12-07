@@ -4,12 +4,16 @@
 
 #include "ChunkType.h"
 
+#include "SafeAllocator.h"
+
 using Saiga::Vulkan::Memory::Chunk;
 using Saiga::Vulkan::Memory::ChunkType;
 std::shared_ptr<Chunk> ChunkType::allocate(vk::DeviceSize chunkSize)
 {
     vk::MemoryAllocateInfo info(chunkSize, m_memoryTypeIndex);
-    auto chunk = std::make_shared<Chunk>(m_device.allocateMemory(info), chunkSize, propertyFlags);
+
+    auto chunk =
+        std::make_shared<Chunk>(SafeAllocator::instance()->allocateMemory(m_device, info), chunkSize, propertyFlags);
     m_chunks.push_back(chunk);
     return chunk;
 }

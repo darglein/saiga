@@ -17,27 +17,12 @@ namespace Vulkan
 void VulkanVertexColoredAsset::init(Saiga::Vulkan::VulkanBase& base)
 {
     auto indices = mesh.getIndexList();
-#if 0
-//    vertexBuffer.init(base,mesh.vertices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
-    vertexBuffer.init(base,mesh.vertices.size());
 
-    auto indices = mesh.getIndexList();
-//    indexBuffer.init(base,indices.size(),vk::MemoryPropertyFlagBits::eDeviceLocal);
-    indexBuffer.init(base,indices.size());
-
-
-    vertexBuffer.mappedUpload(0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
-    indexBuffer.mappedUpload(0,indices.size()*sizeof(uint32_t),indices.data());
-
-//    vertexBuffer.stagedUpload(base,0,mesh.vertices.size()*sizeof(VertexType),mesh.vertices.data());
-//    indexBuffer.stagedUpload(base,0,indices.size()*sizeof(uint32_t),indices.data());
-#else
     vertexBuffer.init(base, mesh.vertices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
     indexBuffer.init(base, indices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
 
     vertexBuffer.stagedUpload(base, mesh.vertices.size() * sizeof(VertexType), mesh.vertices.data());
     indexBuffer.stagedUpload(base, indices.size() * sizeof(uint32_t), indices.data());
-#endif
 }
 
 
