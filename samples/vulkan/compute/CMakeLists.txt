@@ -13,7 +13,7 @@ include_directories(base)
 
 add_executable(${PROG_NAME} ${PROG_SRC} )
 target_link_libraries(${PROG_NAME} ${LIBS} ${LIB_NAME} )
-
+set_property(TARGET ${PROG_NAME} PROPERTY CXX_STANDARD 17)
 if(${CMAKE_VERSION} VERSION_GREATER "3.8.0") 
     #set working directory for visual studio so the project can be executed from the ide
 	set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")

@@ -170,8 +170,10 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
     ImGuiIO& io = ImGui::GetIO();
 
     vk::CommandBuffer cmd = commandBuffer;
+
+    if (!Pipeline::bind(commandBuffer)) return;
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    //    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
     //    vertexBuffer.bind(commandBuffer);
     //    indexBuffer.bind(commandBuffer);

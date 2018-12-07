@@ -26,6 +26,8 @@ class SAIGA_GLOBAL ComputePipeline : public PipelineBase
 
     void reload();
 
+    bool autoReload = false;
+
    protected:
     virtual bool checkShader() override;
 

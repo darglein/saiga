@@ -11,6 +11,6 @@ layout(location=0) in VertexData
 layout (location = 0) out vec4 outFragColor;
 
 void main() 
-{
-	outFragColor = vec4(inData.color, 1.0);		
+{   
+        outFragColor = vec4(inData.color, 1.0);
 }

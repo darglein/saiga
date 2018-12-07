@@ -114,7 +114,7 @@ std::vector<uint32_t> createFromString(const std::string& shaderString, const vk
 std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFlagBits shader_type,
                                const std::string& injection)
 {
-    auto file = shaderPathes.getFile(_file);
+    auto file = GLSLANG::shaderPathes.getFile(_file);
 
     if (file == "")
     {

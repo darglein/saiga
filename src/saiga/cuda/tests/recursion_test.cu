@@ -58,7 +58,7 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void recurseFib(ArrayView<T> dat
     // grid stride loop
     for (auto id = ti.thread_id; id < data.size(); id += ti.grid_size)
     {
-        data[id] = recFib(id);
+//        data[id] = recFib(id);
     }
 }
 

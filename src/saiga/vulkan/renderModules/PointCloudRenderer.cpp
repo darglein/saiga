@@ -23,10 +23,11 @@ void PointCloudRenderer::destroy()
     Pipeline::destroy();
     uniformBufferVS.destroy();
 }
-void PointCloudRenderer::bind(vk::CommandBuffer cmd)
+bool PointCloudRenderer::bind(vk::CommandBuffer cmd)
 {
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    return Pipeline::bind(cmd);
+    ;
 }
 
 void PointCloudRenderer::pushModel(VkCommandBuffer cmd, mat4 model)

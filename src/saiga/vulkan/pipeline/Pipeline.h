@@ -27,6 +27,8 @@ class SAIGA_GLOBAL Pipeline : public PipelineBase
     void create(vk::RenderPass renderPass, PipelineInfo pipelineInfo = PipelineInfo());
     void reload();
 
+    bool autoReload = true;
+
    protected:
     vk::RenderPass renderPass;
     PipelineInfo pipelineInfo;

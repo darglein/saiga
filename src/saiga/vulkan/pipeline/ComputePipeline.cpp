@@ -35,13 +35,21 @@ void ComputePipeline::reload()
 
 bool ComputePipeline::checkShader()
 {
+    if (autoReload)
+    {
+        if (shaderPipeline.autoReload())
+        {
+            reloadCounter = 4;
+        }
+    }
+
+
     if (reloadCounter > 0)
     {
         reloadCounter--;
 
         if (reloadCounter == 0)
         {
-            cout << "recreating pipeline" << endl;
             vkDestroyPipeline(device, pipeline, nullptr);
             pipeline = nullptr;
 
@@ -52,7 +60,6 @@ bool ComputePipeline::checkShader()
             pipeline = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
             SAIGA_ASSERT(pipeline);
 
-            shaderPipeline.destroy();
             return true;
         }
 

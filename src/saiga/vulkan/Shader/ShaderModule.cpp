@@ -51,9 +51,21 @@ bool ShaderModule::loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, 
     return true;
 }
 
-bool ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& file,
+bool ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& _file,
                             const std::string& injection)
 {
+    auto file = GLSLANG::shaderPathes.getFile(_file);
+
+    if (file == "")
+    {
+        cout << "Could not find " << _file << endl;
+        SAIGA_ASSERT(0);
+    }
+
+#ifdef SAIGA_HAS_FILESYSTEM
+    lastWrite = std::filesystem::last_write_time(file);
+#endif
+
     this->file      = file;
     this->injection = injection;
     auto spirv      = GLSLANG::loadGLSL(file, _stage, injection);
@@ -96,13 +108,28 @@ void ShaderModule::reload()
 
     // Destroy the current module
     destroy();
-    cout << "reload shader module." << endl;
     loadGLSL(device, stage, file, injection);
 }
 
 bool ShaderModule::valid()
 {
     return (bool)module;
+}
+
+bool ShaderModule::autoReload()
+{
+    // Auto Reload only works with c++17 filesystem
+#ifdef SAIGA_HAS_FILESYSTEM
+    auto write = std::filesystem::last_write_time(file);
+
+    if (write != lastWrite)
+    {
+        cout << "File Update detected. Reloading " << file << endl;
+        reload();
+        return true;
+    }
+#endif
+    return false;
 }
 
 vk::PipelineShaderStageCreateInfo ShaderModule::createPipelineInfo()

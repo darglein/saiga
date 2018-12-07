@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include "saiga/util/FileSystem.h"
 #include "saiga/vulkan/svulkan.h"
+
 
 namespace Saiga
 {
@@ -68,11 +70,20 @@ class SAIGA_GLOBAL ShaderModule
     void reload();
     bool valid();
 
+    /**
+     * Checks if the file was changed for reloading.
+     * Returns true if it was reloaded.
+     */
+    bool autoReload();
+
    private:
     // These variables are only required for the reloading.
     vk::Device device;
     std::string file;
     std::string injection;
+#ifdef SAIGA_HAS_FILESYSTEM
+    std::filesystem::file_time_type lastWrite;
+#endif
 };
 
 }  // namespace Vulkan

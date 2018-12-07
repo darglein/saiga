@@ -20,9 +20,12 @@ FileChecker::FileChecker()
 
 std::string FileChecker::getFile(const std::string& file)
 {
+    if (file.empty()) return "";
+
     for (std::string& path : searchPathes)
     {
-        std::string fullName = path + "/" + file;
+        // Do not generate a double '/'
+        std::string fullName = file.front() == '/' ? path + file : path + "/" + file;
         if (existsFile(fullName))
         {
             return fullName;

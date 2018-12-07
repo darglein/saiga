@@ -23,10 +23,10 @@ void LineAssetRenderer::destroy()
     Pipeline::destroy();
     uniformBufferVS.destroy();
 }
-void LineAssetRenderer::bind(vk::CommandBuffer cmd)
+bool LineAssetRenderer::bind(vk::CommandBuffer cmd)
 {
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    return Pipeline::bind(cmd);
 }
 
 void LineAssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)

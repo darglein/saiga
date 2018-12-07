@@ -58,6 +58,16 @@ void ShaderPipelineBase::reload()
     }
 }
 
+bool ShaderPipelineBase::autoReload()
+{
+    bool r = false;
+    for (auto& s : modules)
+    {
+        r |= s.autoReload();
+    }
+    return r;
+}
+
 bool ShaderPipelineBase::valid()
 {
     if (modules.empty()) return false;

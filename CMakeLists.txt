@@ -421,6 +421,17 @@ write_basic_package_version_file(
     COMPATIBILITY AnyNewerVersion
     )
 
+############# C++ Standard and Filesystem stuff ###############
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Gcc needs this extra lib for linking
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.0)
+    SET(LIBS ${LIBS} stdc++fs)
+endif()
+
+
 ############# SOURCE ###############
 
 set(OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
@@ -428,6 +439,8 @@ set(OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${OUTPUT_DIR}")
+
+
 
 add_subdirectory(src)
 add_subdirectory(shader)
@@ -507,7 +520,13 @@ endif()
 # Request that saiga be built with --std=c++14
 # As this is a public compile feature anything that links to saiga
 # will also build with -std=c++14
-target_compile_features(${LIB_NAME} PUBLIC cxx_std_14)
+
+# This currently does not work with cuda
+#target_compile_features(${LIB_NAME} PUBLIC cxx_std_17)
+
+#set_property(TARGET ${LIB_NAME} PROPERTY CXX_STANDARD 17)
+#set_property(TARGET ${LIB_NAME} PROPERTY CUDA_STANDARD 14)
+
 
 
 

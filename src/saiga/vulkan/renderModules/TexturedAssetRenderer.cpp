@@ -59,7 +59,6 @@ void TexturedAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPa
     info.addVertexInfo<VertexType>();
     //    auto info2 = info;
     create(renderPass, info);
-    shaderPipeline.destroy();
 }
 
 vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture& texture)

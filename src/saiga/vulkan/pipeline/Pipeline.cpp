@@ -29,7 +29,6 @@ void Pipeline::create(vk::RenderPass renderPass, PipelineInfo pipelineInfo)
     shaderPipeline.addToPipeline(pipelineCreateInfo);
     pipeline = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
     SAIGA_ASSERT(pipeline);
-    shaderPipeline.destroy();
 }
 
 void Pipeline::reload()
@@ -41,13 +40,20 @@ void Pipeline::reload()
 
 bool Pipeline::checkShader()
 {
+    if (autoReload)
+    {
+        if (shaderPipeline.autoReload())
+        {
+            if (shaderPipeline.valid()) reloadCounter = 4;
+        }
+    }
+
     if (reloadCounter > 0)
     {
         reloadCounter--;
 
         if (reloadCounter == 0)
         {
-            cout << "recreating pipeline" << endl;
             vkDestroyPipeline(device, pipeline, nullptr);
             pipeline = nullptr;
 
@@ -56,7 +62,6 @@ bool Pipeline::checkShader()
             pipeline = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
             SAIGA_ASSERT(pipeline);
 
-            shaderPipeline.destroy();
             return true;
         }
 

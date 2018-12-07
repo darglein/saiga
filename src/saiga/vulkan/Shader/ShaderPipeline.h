@@ -28,6 +28,9 @@ class SAIGA_GLOBAL ShaderPipelineBase
     void destroy();
     void reload();
 
+    // Returns if any of the shader modules was reloaded
+    bool autoReload();
+
     /**
      * Checks if at least 1 shader module is loaded and
      * all shader modules are valid.

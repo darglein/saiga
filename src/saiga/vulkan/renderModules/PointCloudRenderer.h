@@ -25,7 +25,7 @@ class SAIGA_GLOBAL PointCloudRenderer : public Pipeline
     using VertexType = VertexNC;
     void destroy();
 
-    void bind(vk::CommandBuffer cmd);
+    bool bind(vk::CommandBuffer cmd);
 
 
     void pushModel(VkCommandBuffer cmd, mat4 model);

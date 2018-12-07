@@ -40,7 +40,7 @@ class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
 
         void destroy(VulkanBase& base);
 
-        void resizeIfNecessary(VulkanBase& base, int32_t vertexCount, int32_t indexCount)
+        void resizeIfNecessary(VulkanBase& base, uint32_t vertexCount, uint32_t indexCount)
         {
             if (vertexCount > vertexBuffer.vertexCount)
             {
