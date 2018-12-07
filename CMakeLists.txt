@@ -242,6 +242,12 @@ if(GPHOTO2_FOUND)
     SET(SAIGA_USE_GPHOTO2 1)
 endif()
 
+#c++17 filesystem
+find_package(Filesystem QUIET)
+PackageHelper(Filesystem "${FILESYSTEM_FOUND}" "" "${FILESYSTEM_LIBRARY}")
+if(FILESYSTEM_FOUND)
+    SET(SAIGA_USE_FILESYSTEM 1)
+endif()
 
 
 ############# CUDA ###############
@@ -425,13 +431,6 @@ write_basic_package_version_file(
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Gcc needs this extra lib for linking
-if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.0)
-    SET(LIBS ${LIBS} stdc++fs)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7.0)
-    SET(LIBS ${LIBS} c++fs)
-endif()
 
 
 ############# SOURCE ###############

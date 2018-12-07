@@ -81,7 +81,7 @@ class SAIGA_GLOBAL ShaderModule
     vk::Device device;
     std::string file;
     std::string injection;
-#ifdef SAIGA_HAS_FILESYSTEM
+#ifdef SAIGA_USE_FILESYSTEM
     std::filesystem::file_time_type lastWrite;
 #endif
 };

@@ -62,7 +62,7 @@ bool ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, c
         SAIGA_ASSERT(0);
     }
 
-#ifdef SAIGA_HAS_FILESYSTEM
+#ifdef SAIGA_USE_FILESYSTEM
     lastWrite = std::filesystem::last_write_time(file);
 #endif
 
@@ -119,7 +119,7 @@ bool ShaderModule::valid()
 bool ShaderModule::autoReload()
 {
     // Auto Reload only works with c++17 filesystem
-#ifdef SAIGA_HAS_FILESYSTEM
+#ifdef SAIGA_USE_FILESYSTEM
     auto write = std::filesystem::last_write_time(file);
 
     if (write != lastWrite)

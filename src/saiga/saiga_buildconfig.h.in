@@ -44,6 +44,7 @@
 #cmakedefine SAIGA_USE_VULKAN
 #cmakedefine SAIGA_USE_OPENCV
 #cmakedefine SAIGA_USE_GPHOTO2
+#cmakedefine SAIGA_USE_FILESYSTEM
 
 #cmakedefine SAIGA_VISION
 

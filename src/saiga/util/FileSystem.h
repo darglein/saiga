@@ -6,10 +6,8 @@
 
 #pragma once
 
-#if __has_include(<filesystem>)
+#include "saiga_buildconfig.h"
+
+#ifdef SAIGA_USE_FILESYSTEM
 #    include <filesystem>
-#    define SAIGA_HAS_FILESYSTEM
-#elif __has_include(<experimental/filesystem>)
-#    include <experimental/filesystem>
-#    define SAIGA_HAS_FILESYSTEM
 #endif

@@ -284,7 +284,7 @@ void FFMPEGEncoder::startEncoding()
     videoStream->time_base = {1, timeBase};
     if (m_formatCtx->oformat->flags & AVFMT_GLOBALHEADER)
     {
-#if defined(__APPLE__) || __GNUC__ > 7
+#if LIBAVUTIL_VERSION_MAJOR >= 56
         m_codecContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 #else
         m_codecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
