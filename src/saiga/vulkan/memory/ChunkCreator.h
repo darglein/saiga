@@ -36,6 +36,8 @@ class SAIGA_LOCAL ChunkCreator
    public:
     void init(vk::PhysicalDevice _physicalDevice, vk::Device _device);
 
+    vk::MemoryPropertyFlags getEffectiveFlags(vk::MemoryPropertyFlags memoryFlags);
+
     std::shared_ptr<Chunk> allocate(vk::MemoryPropertyFlags propertyFlags, vk::DeviceSize chunkSize);
 
     void deallocate(std::shared_ptr<Chunk> chunk);

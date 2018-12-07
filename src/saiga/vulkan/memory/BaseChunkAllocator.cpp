@@ -166,17 +166,21 @@ void BaseChunkAllocator::destroy()
     }
 }
 
-using BarColor = ImGui::ColoredBar::BarColor;
-static const std::array<BarColor, 2> colors{BarColor{{0.0f, 0.2f, 0.2f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}},
-                                            BarColor{{0.333f, 0.0f, 0.0f, 1.0f}, {0.667f, 0.224f, 0.224f, 1.0f}}};
 
 
 void BaseChunkAllocator::renderInfoGUI()
 {
     BaseMemoryAllocator::renderInfoGUI();
+
+    using BarColor = ImGui::ColoredBar::BarColor;
+    static const std::array<BarColor, 2> colors{BarColor{{0.0f, 0.2f, 0.2f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}},
+                                                BarColor{{0.333f, 0.0f, 0.0f, 1.0f}, {0.667f, 0.224f, 0.224f, 1.0f}}};
+
     if (ImGui::CollapsingHeader(gui_identifier.c_str()))
     {
         ImGui::Indent();
+
+        ImGui::LabelText("Effective Memory Type", "%s", vk::to_string(effectiveFlags).c_str());
         headerInfo();
 
         SAIGA_ASSERT(allocation_bars.size() == m_chunkAllocations.size(), "Number of bars != Number of chunks");
