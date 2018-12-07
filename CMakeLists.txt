@@ -25,16 +25,16 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 message(STATUS "\nBuild Options")
 
 
-#option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON) 
-OptionsHelper (SAIGA_BUILD_SHARED "Build this library as a shared library" ON) 
+#option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
+OptionsHelper (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 
-OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" ON) 
-OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON) 
-OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON) 
-OptionsHelper (SAIGA_WITH_CUDA "use cuda if possible" ON) 
-OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF) 
-OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF) 
-OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON) 
+OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" ON)
+OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON)
+OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON)
+OptionsHelper (SAIGA_WITH_CUDA "use cuda if possible" ON)
+OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF)
+OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF)
+OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON)
 OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
 OptionsHelper(SAIGA_WITH_GL "With opengl" ON)
@@ -350,7 +350,7 @@ set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
 set(INSTALL_DOC       "share/${LIB_NAME}/doc")
 set(INSTALL_SAMPLES   "share/${LIB_NAME}/bin")
 
-if(ajshgsdgasdgdsg) 
+if(ajshgsdgasdgdsg)
     set(INSTALL_SHARE     "share/${LIB_NAME}")
     set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
     set(INSTALL_BIN       "bin")
@@ -429,6 +429,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Gcc needs this extra lib for linking
 if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.0)
     SET(LIBS ${LIBS} stdc++fs)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7.0)
+    SET(LIBS ${LIBS} c++fs)
 endif()
 
 
@@ -531,4 +533,3 @@ endif()
 
 
 set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
