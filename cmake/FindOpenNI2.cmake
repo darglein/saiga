@@ -27,6 +27,7 @@ if(NOT WIN32)
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(USB_10 DEFAULT_MSG USB_10_LIBRARY USB_10_INCLUDE_DIR)
 
+	mark_as_advanced(USB_10_INCLUDE_DIR USB_10_LIBRARY)
   if(NOT USB_10_FOUND)
     message(STATUS "OpenNI 2 disabled because libusb-1.0 not found.")
     return()
@@ -87,6 +88,9 @@ find_package_handle_standard_args(OpenNI2
   FOUND_VAR OPENNI2_FOUND
   REQUIRED_VARS OPENNI2_LIBRARIES OPENNI2_INCLUDE_DIRS
 )
+
+mark_as_advanced(OPENNI2_INCLUDE_DIR)
+mark_as_advanced(OPENNI2_LIBRARY)
 
 if(OPENNI2_FOUND)
   #message(STATUS "OpenNI2 found (include: ${OPENNI2_INCLUDE_DIRS}, lib: ${OPENNI2_LIBRARIES})")
