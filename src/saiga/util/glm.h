@@ -105,6 +105,8 @@ using glm::min;
 using glm::mix;
 using glm::radians;
 using glm::sphericalRand;
+using glm::perspective;
+using glm::ortho;
 
 
 #    define IDENTITY_QUATERNION quat(1, 0, 0, 0)
@@ -159,6 +161,19 @@ inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, flo
                 a20,a21,a22,a23,
                 a30,a31,a32,a33);
 }
+
+
+inline vec3 ele_mult(vec3 a, vec3 b) { return a*b; }
+
+inline vec4 make_vec4(const vec3& v, float a) { return vec4(v,a); }
+inline vec3 make_vec3(const vec2& v, float a) { return vec3(v,a); }
+
+inline vec4 make_vec4( float a) { return vec4(a); }
+inline vec3 make_vec3( float a) { return vec3(a); }
+inline vec3 make_vec3( vec4 a) { return vec3(a); }
+inline vec2 make_vec2( float a) { return vec2(a); }
+inline vec2 make_vec2( vec3 a) { return vec2(a); }
+
 
 inline mat4 identityMat4() { return mat4(1); }
 

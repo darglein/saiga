@@ -43,6 +43,17 @@ using ucvec4 = Eigen::Matrix<unsigned char, 4,1>;
 
 #define IDENTITY_QUATERNION quat::Identity()
 
+inline vec3 ele_mult(vec3 a, vec3 b) { return a; }
+
+inline vec4 make_vec4(const vec3& v, float a) { return vec4(); }
+inline vec3 make_vec3(const vec2& v, float a) { return vec3(); }
+
+inline vec4 make_vec4( float a) { return vec4(); }
+inline vec3 make_vec3( float a) { return vec3(); }
+inline vec3 make_vec3( vec4 a) { return vec3(); }
+inline vec2 make_vec2( float a) { return vec2(); }
+inline vec2 make_vec2( vec3 a) { return vec2(); }
+
 inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20, float a21, float a22, float a23, float a30, float a31, float a32, float a33)
 {
     return mat4();
@@ -64,9 +75,9 @@ inline vec3 col(const mat3& m, int id) { return m.col(id); }
 inline vec4 col(const mat4& m, int id) { return m.col(id); }
 
 inline quat quat_cast(const mat3& m) { return quat(); }
+inline quat quat_cast(const mat4& m) { return quat(); }
+
 inline float length(const vec3& v) { return v.norm(); }
-inline mat4 inverse(const mat4& m) { return m.inverse(); }
-inline mat3 inverse(const mat3& m) { return m.inverse(); }
 
 inline quat inverse(const quat& q) { return q.inverse(); }
 
@@ -107,5 +118,13 @@ inline vec3 cross(vec3 a, vec3 b){return a.cross(b);}
 
 inline quat slerp(const quat& a, const quat& b, float alpha) { return a.slerp(alpha,b); }
 
+inline mat4 lookAt(vec3 eye, vec3 center, vec3 up) { return mat4(); }
+inline mat4 perspective(float a, float b, float c, float d) { return mat4(); }
+inline mat4 ortho(float a, float b, float c, float d, float e, float f) { return mat4(); }
+
+inline float distance(vec3 a, vec3 b) { return 0; }
+
+template<typename T>
+T inverse(const T& m) { return  m.inverse(); }
 
 }

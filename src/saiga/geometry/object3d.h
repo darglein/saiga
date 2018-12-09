@@ -15,14 +15,14 @@ namespace Saiga
 class SAIGA_GLOBAL Object3D
 {
    public:
-    mat4 model = mat4(1);
+    mat4 model = identityMat4();
 
 
     // required for non uniform scaled rotations
     // TODO: extra class so uniform objects are faster
     quat rot      = IDENTITY_QUATERNION;
-    vec4 scale    = vec4(1);
-    vec4 position = vec4(0);
+    vec4 scale    = make_vec4(1);
+    vec4 position = make_vec4(0);
 
 
     //    Object3D(){ SAIGA_ASSERT( (size_t)this%16==0); }
@@ -90,27 +90,29 @@ inline void Object3D::calculateModel()
 
 inline vec3 Object3D::getPosition() const
 {
-    return vec3(position);
+    return make_vec3(position);
 }
 
 inline vec4 Object3D::getDirection() const
 {
-    return rot * vec4(0, 0, 1, 0);
+    return make_vec4(rot * vec3(0, 0, 1),0);
 }
 
 inline vec4 Object3D::getRightVector() const
 {
-    return rot * vec4(1, 0, 0, 0);
+//    return rot * vec4(1, 0, 0, 0);
+    return make_vec4(rot * vec3(1, 0, 0),0);
 }
 
 inline vec4 Object3D::getUpVector() const
 {
-    return rot * vec4(0, 1, 0, 0);
+//    return rot * vec4(0, 1, 0, 0);
+    return make_vec4(rot * vec3(0, 1, 0),0);
 }
 
 inline void Object3D::setPosition(const vec3& cords)
 {
-    position = vec4(cords, 1);
+    position = make_vec4(cords, 1);
 }
 
 inline void Object3D::setPosition(const vec4& cords)
@@ -120,23 +122,23 @@ inline void Object3D::setPosition(const vec4& cords)
 
 inline void Object3D::translateLocal(const vec4& d)
 {
-    translateLocal(vec3(d));
+    translateLocal(make_vec3(d));
 }
 
 inline void Object3D::translateGlobal(const vec4& d)
 {
-    translateGlobal(vec3(d));
+    translateGlobal(make_vec3(d));
 }
 
 inline void Object3D::translateLocal(const vec3& d)
 {
-    vec4 d2 = rot * vec4(d, 1);
+    vec4 d2 = make_vec4(rot * d, 1);
     translateGlobal(d2);
 }
 
 inline void Object3D::translateGlobal(const vec3& d)
 {
-    position += vec4(d, 0);
+    position += make_vec4(d, 0);
 }
 
 inline void Object3D::rotateLocal(const vec3& axis, float angle)
@@ -146,24 +148,24 @@ inline void Object3D::rotateLocal(const vec3& axis, float angle)
 
 inline void Object3D::rotateGlobal(vec3 axis, float angle)
 {
-    axis      = vec3((inverse(rot)) * vec4(axis, 0));
+    axis      = (inverse(rot) * axis);
     axis      = normalize(axis);
     this->rot = rotate(this->rot, radians(angle), axis);
 }
 
 inline vec3 Object3D::getScale() const
 {
-    return vec3(scale);
+    return make_vec3(scale);
 }
 
 inline void Object3D::setScale(const vec3& s)
 {
-    scale = vec4(s, 1);
+    scale = make_vec4(s, 1);
 }
 
 inline void Object3D::multScale(const vec3& s)
 {
-    setScale(getScale() * s);
+    setScale( ele_mult(getScale(), s) );
 }
 
 inline void Object3D::setModelMatrix(const mat4& _model)

@@ -22,7 +22,7 @@ void Camera::setView(const mat4& v)
     recalculateMatrices();
     model = inverse(view);
 
-    this->position = model[3];
+    this->position = col(model,3);
     this->rot      = quat_cast(model);
 }
 
@@ -64,16 +64,16 @@ float Camera::toViewDepth(float d)
 {
     vec4 a(0, 0, d * 2 - 1, 1);
     a = inverse(proj) * a;
-    a /= a.w;
-    return a.z;
+    a /= a[3];
+    return a[2];
 }
 
 float Camera::toNormalizedDepth(float d)
 {
     vec4 a(0, 0, d, 1);
     a = proj * a;
-    a /= a.w;
-    return a.z * 0.5 + 0.5;
+    a /= a[3];
+    return a[2] * 0.5 + 0.5;
 }
 
 
@@ -153,8 +153,8 @@ vec2 Camera::projectedIntervall(const vec3& d)
     for (int i = 0; i < 8; ++i)
     {
         float t = dot(d, vertices[i]);
-        ret.x   = min(ret.x, t);
-        ret.y   = max(ret.y, t);
+        ret[0]   = min(ret[0], t);
+        ret[1]   = max(ret[1], t);
     }
     return ret;
 }
@@ -194,7 +194,7 @@ bool Camera::intersectSAT(Camera* other)
             vec2 i1 = this->projectedIntervall(d);
             vec2 i2 = other->projectedIntervall(d);
 
-            if (i1.x > i2.y || i1.y < i2.x) return false;
+            if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
         }
     }
 
@@ -209,12 +209,12 @@ void Camera::recalculatePlanesFromMatrices()
         vec3(-1, 1, 1),  vec3(1, 1, 1),  vec3(-1, -1, 1),  vec3(1, -1, 1),
     };
 
-    mat4 m = inverse(proj * view);
+    mat4 m = inverse( mat4(proj * view) );
     for (int i = 0; i < 8; ++i)
     {
-        vec4 p      = m * vec4(pointsClipSpace[i], 1);
-        p           = p / p.w;
-        vertices[i] = vec3(p);
+        vec4 p      = m * make_vec4(pointsClipSpace[i], 1);
+        p           = p / p[3];
+        vertices[i] = make_vec3(p);
     }
 
     // side planes
@@ -275,7 +275,7 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
     tang = (float)tan(fovy * 0.5);
 
 
-    proj = glm::perspective(fovy, aspect, zNear, zFar);
+    proj = perspective(fovy, aspect, zNear, zFar);
 
     if (vulkanTransform)
     {
@@ -289,9 +289,13 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
 
 void PerspectiveCamera::recalculatePlanes()
 {
-    vec3 right = vec3(model[0]);
-    vec3 up    = vec3(model[1]);
-    vec3 dir   = -vec3(model[2]);
+//    vec3 right = vec3(model[0]);
+//    vec3 up    = vec3(model[1]);
+//    vec3 dir   = -vec3(model[2]);
+
+    vec3 right = make_vec3(col(model, 0));
+    vec3 up    = make_vec3(col(model, 1));
+    vec3 dir   = make_vec3(-col(model, 2));
 
     vec3 nearplanepos = getPosition() + dir * zNear;
     vec3 farplanepos  = getPosition() + dir * zFar;
@@ -365,19 +369,29 @@ void OrthographicCamera::setProj(float _left, float _right, float _bottom, float
 
     //    fh = nh;
     //    fw = nw;
-    proj = glm::ortho(left, right, bottom, top, zNear, zFar);
+    proj = ortho(left, right, bottom, top, zNear, zFar);
 }
 
 void OrthographicCamera::setProj(AABB bb)
 {
-    setProj(bb.min.x, bb.max.x, bb.min.y, bb.max.y, bb.min.z, bb.max.z);
+//    setProj(bb.min.x, bb.max.x, bb.min.y, bb.max.y, bb.min.z, bb.max.z);
+    setProj(bb.min[0], bb.max[0], bb.min[1], bb.max[1], bb.min[2], bb.max[2]);
 }
 
 void OrthographicCamera::recalculatePlanes()
 {
-    vec3 rightv = vec3(model[0]);
-    vec3 up     = vec3(model[1]);
-    vec3 dir    = -vec3(model[2]);
+//    vec3 rightv = vec3(model[0]);
+//    vec3 up     = vec3(model[1]);
+//    vec3 dir    = -vec3(model[2]);
+
+
+//    vec3 rightv = col(model, 0);
+//    vec3 up    = col(model, 1);
+//    vec3 dir   = -col(model, 2);
+
+    vec3 rightv = make_vec3(col(model, 0));
+    vec3 up    = make_vec3(col(model, 1));
+    vec3 dir   = make_vec3(-col(model, 2));
 
     vec3 nearplanepos = getPosition() + dir * zNear;
     vec3 farplanepos  = getPosition() + dir * zFar;

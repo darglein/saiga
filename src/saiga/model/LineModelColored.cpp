@@ -146,7 +146,7 @@ void LineModelColored::createFrustumCV(const mat3& K, float farPlaneLimit, const
     for (int i = 0; i < 8; ++i)
     {
         VertexNC v;
-        v.position = vec4(positions[i], 1);
+        v.position = make_vec4(positions[i], 1);
         v.color    = color;
         mesh.vertices.push_back(v);
     }

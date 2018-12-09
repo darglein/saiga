@@ -23,9 +23,9 @@ class SAIGA_GLOBAL Camera : public Object3D
     std::string name;
 
     //    mat4 model;
-    mat4 view     = mat4(1);
-    mat4 proj     = mat4(1);
-    mat4 viewProj = mat4(1);
+    mat4 view     = identityMat4();
+    mat4 proj     = identityMat4();
+    mat4 viewProj = identityMat4();
 
 
     float zNear, zFar;
@@ -134,20 +134,20 @@ class SAIGA_GLOBAL Camera : public Object3D
 
     std::pair<vec3, vec3> getEdge(int i);
 
-    vec3 projectToViewSpace(vec3 worldPosition) { return vec3(view * vec4(worldPosition, 1)); }
+    vec3 projectToViewSpace(vec3 worldPosition) { return make_vec3(view * make_vec4(worldPosition, 1)); }
 
     vec3 projectToNDC(vec3 worldPosition)
     {
-        vec4 p = (viewProj * vec4(worldPosition, 1));
+        vec4 p = (viewProj * make_vec4(worldPosition, 1));
         p /= p[3];
-        return vec3(p);
+        return make_vec3(p);
     }
 
     vec2 projectToScreenSpace(vec3 worldPosition, int w, int h)
     {
         vec3 p  = projectToNDC(worldPosition);
-        vec2 ip = vec2(p);
-        ip      = ip * 0.5f + vec2(0.5f);
+        vec2 ip = make_vec2(p);
+        ip      = ip * 0.5f + make_vec2(0.5f);
 //        ip *= vec2(w, h);
         ip[0] *= w;
         ip[1] *= h;
@@ -159,11 +159,11 @@ class SAIGA_GLOBAL Camera : public Object3D
 //        ip /= vec2(w, h);
         ip[0] /= w;
         ip[1] /= h;
-        ip      = (ip - vec2(0.5f)) * 2.0f;
-        vec3 p  = vec3(ip, depth);
-        vec4 wp = inverse(viewProj) * vec4(p, 1);
+        ip      = (ip - make_vec2(0.5f)) * 2.0f;
+        vec3 p  = make_vec3(ip, depth);
+        vec4 wp = inverse(viewProj) * make_vec4(p, 1);
         wp /= wp[3];
-        return vec3(wp);
+        return make_vec3(wp);
     }
 
     static mat4 getVulkanTransform()

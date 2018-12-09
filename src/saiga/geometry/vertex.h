@@ -23,7 +23,7 @@ struct SAIGA_GLOBAL Vertex
     vec4 position = vec4(0);
 
     Vertex() {}
-    Vertex(const vec3& position) : position(position, 1) {}
+    Vertex(const vec3& position) : position(make_vec4(position, 1)) {}
     Vertex(const vec4& position) : position(position) {}
 
     bool operator==(const Vertex& other) const;
@@ -37,7 +37,7 @@ struct SAIGA_GLOBAL VertexN : public Vertex
     VertexN() {}
     VertexN(const vec3& position) : Vertex(position) {}
     VertexN(const vec4& position) : Vertex(position) {}
-    VertexN(const vec3& position, const vec3& normal) : Vertex(position), normal(normal, 0) {}
+    VertexN(const vec3& position, const vec3& normal) : Vertex(position), normal(make_vec4(normal, 0)) {}
     VertexN(const vec4& position, const vec4& normal) : Vertex(position), normal(normal) {}
 
     bool operator==(const VertexN& other) const;
@@ -94,7 +94,7 @@ struct SAIGA_GLOBAL VertexNC : public VertexN
     VertexNC(const vec4& position) : VertexN(position) {}
     VertexNC(const vec3& position, const vec3& normal) : VertexN(position, normal) {}
     VertexNC(const vec4& position, const vec4& normal) : VertexN(position, normal) {}
-    VertexNC(const vec3& position, const vec3& normal, const vec3& color) : VertexN(position, normal), color(color, 0)
+    VertexNC(const vec3& position, const vec3& normal, const vec3& color) : VertexN(position, normal), color(make_vec4(color, 0))
     {
     }
     VertexNC(const vec4& position, const vec4& normal, const vec4& color) : VertexN(position, normal), color(color) {}

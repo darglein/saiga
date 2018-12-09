@@ -74,7 +74,7 @@ class TriangleMesh
     int addVertex(const vertex_t& v)
     {
         vertices.push_back(v);
-        boundingBox.growBox(vec3(v.position));
+        boundingBox.growBox(make_vec3(v.position));
         return vertices.size() - 1;
     }
 
