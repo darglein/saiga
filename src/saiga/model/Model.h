@@ -55,8 +55,8 @@ template <typename vertex_t, typename index_t>
 void TriangleModel<vertex_t, index_t>::normalizeScale()
 {
     normalizePosition();
-    const auto scaling = 1 / glm::max(glm::max(boundingBox.max.x, boundingBox.max.y), boundingBox.max.z);
-    mat4 t             = scale(mat4(1), glm::vec3(scaling));
+    const auto scaling = 1 / max(max(boundingBox.max[0], boundingBox.max[1]), boundingBox.max[2]);
+    mat4 t             = scale(mat4(1), vec3(scaling));
     offset *= scaling;
     mesh.transform(t);
 }
@@ -66,7 +66,7 @@ void TriangleModel<vertex_t, index_t>::normalizeScale()
 template <typename vertex_t, typename index_t>
 void TriangleModel<vertex_t, index_t>::ZUPtoYUP()
 {
-    const mat4 m(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+    const mat4 m = make_mat4(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
     mesh.transform(m);
     mesh.transformNormal(m);
 }

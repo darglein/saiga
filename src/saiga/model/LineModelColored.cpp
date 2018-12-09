@@ -20,8 +20,8 @@ void LineModelColored::createGrid(int numX, int numY, float quadSize, vec4 color
 
     for (float i = -numX; i <= numX; i++)
     {
-        vec3 p1 = vec3(quadSize * i, 0, -size.y);
-        vec3 p2 = vec3(quadSize * i, 0, size.y);
+        vec3 p1 = vec3(quadSize * i, 0, -size[1]);
+        vec3 p2 = vec3(quadSize * i, 0, size[1]);
         mesh.indices.push_back(vertices.size());
         vertices.push_back(p1);
         mesh.indices.push_back(vertices.size());
@@ -30,8 +30,8 @@ void LineModelColored::createGrid(int numX, int numY, float quadSize, vec4 color
 
     for (float i = -numY; i <= numY; i++)
     {
-        vec3 p1 = vec3(-size.x, 0, quadSize * i);
-        vec3 p2 = vec3(+size.x, 0, quadSize * i);
+        vec3 p1 = vec3(-size[0], 0, quadSize * i);
+        vec3 p2 = vec3(+size[0], 0, quadSize * i);
         mesh.indices.push_back(vertices.size());
         vertices.push_back(p1);
         mesh.indices.push_back(vertices.size());
@@ -64,22 +64,22 @@ void LineModelColored::createFrustum(const mat4& proj, float farPlaneLimit, cons
     bl = projInv * bl;
     br = projInv * br;
 
-    tl /= tl.w;
-    tr /= tr.w;
-    bl /= bl.w;
-    br /= br.w;
+    tl /= tl[3];
+    tr /= tr[3];
+    bl /= bl[3];
+    br /= br[3];
 
     if (farPlaneLimit > 0)
     {
-        tl.w = -tl.z / farPlaneLimit;
-        tr.w = -tr.z / farPlaneLimit;
-        bl.w = -bl.z / farPlaneLimit;
-        br.w = -br.z / farPlaneLimit;
+        tl[3] = -tl[2] / farPlaneLimit;
+        tr[3] = -tr[2] / farPlaneLimit;
+        bl[3] = -bl[2] / farPlaneLimit;
+        br[3] = -br[2] / farPlaneLimit;
 
-        tl /= tl.w;
-        tr /= tr.w;
-        bl /= bl.w;
-        br /= br.w;
+        tl /= tl[3];
+        tr /= tr[3];
+        bl /= bl[3];
+        br /= br[3];
     }
 
 
@@ -92,7 +92,7 @@ void LineModelColored::createFrustum(const mat4& proj, float farPlaneLimit, cons
                         bl,
                         0.4f * tl + 0.6f * tr,
                         0.6f * tl + 0.4f * tr,
-                        0.5f * tl + 0.5f * tr + vec4(0, (tl.y - bl.y) * 0.1f, 0, 0)};
+                        0.5f * tl + 0.5f * tr + vec4(0, (tl[1] - bl[1]) * 0.1f, 0, 0)};
 
     for (int i = 0; i < 8; ++i)
     {
@@ -141,7 +141,7 @@ void LineModelColored::createFrustumCV(const mat3& K, float farPlaneLimit, const
                         bl,
                         0.4f * tl + 0.6f * tr,
                         0.6f * tl + 0.4f * tr,
-                        0.5f * tl + 0.5f * tr + vec3(0, (tl.y - bl.y) * 0.1f, 0)};
+                        0.5f * tl + 0.5f * tr + vec3(0, (tl[1] - bl[1]) * 0.1f, 0)};
 
     for (int i = 0; i < 8; ++i)
     {

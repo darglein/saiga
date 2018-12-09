@@ -139,7 +139,7 @@ class SAIGA_GLOBAL Camera : public Object3D
     vec3 projectToNDC(vec3 worldPosition)
     {
         vec4 p = (viewProj * vec4(worldPosition, 1));
-        p /= p.w;
+        p /= p[3];
         return vec3(p);
     }
 
@@ -148,23 +148,27 @@ class SAIGA_GLOBAL Camera : public Object3D
         vec3 p  = projectToNDC(worldPosition);
         vec2 ip = vec2(p);
         ip      = ip * 0.5f + vec2(0.5f);
-        ip *= vec2(w, h);
+//        ip *= vec2(w, h);
+        ip[0] *= w;
+        ip[1] *= h;
         return ip;
     }
 
     vec3 inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h)
     {
-        ip /= vec2(w, h);
+//        ip /= vec2(w, h);
+        ip[0] /= w;
+        ip[1] /= h;
         ip      = (ip - vec2(0.5f)) * 2.0f;
         vec3 p  = vec3(ip, depth);
         vec4 wp = inverse(viewProj) * vec4(p, 1);
-        wp /= wp.w;
+        wp /= wp[3];
         return vec3(wp);
     }
 
     static mat4 getVulkanTransform()
     {
-        return mat4(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.5f, 1.0f);
+        return make_mat4(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.5f, 1.0f);
     }
 
    private:

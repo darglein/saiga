@@ -11,7 +11,6 @@
 #ifdef SAIGA_FULL_EIGEN
 
 #    include "saiga/util/glm_eigen_test.h"
-
 #else
 
 #    include "saiga/util/glm.h"

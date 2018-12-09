@@ -53,6 +53,8 @@
 #    define SAIGA_ALIGN(x) __declspec(align(x))
 #elif defined(__GNUC__)
 #    define SAIGA_ALIGN(x) __attribute__((aligned(x)))
+#else
+#error Please add the correct align macro for your compiler.
 #endif
 
 

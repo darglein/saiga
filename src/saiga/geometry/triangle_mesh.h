@@ -25,7 +25,7 @@ template <typename vertex_t, typename index_t>
 class TriangleMesh
 {
    public:
-    struct GLM_ALIGN(4) Face
+    struct SAIGA_ALIGN(4) Face
     {
         index_t v1, v2, v3;
         Face() {}
