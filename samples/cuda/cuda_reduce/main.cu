@@ -13,11 +13,57 @@
 #include <iostream>
 #include <vector>
 
-
-
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 
+//#define LECTURE
+
+#ifdef LECTURE
+
+template <typename T>
+__global__ static void warpReduceSimple(ArrayView<T> data, ArrayView<T> output)
+{
+    ThreadInfo<> ti;
+    if (ti.thread_id >= data.size()) return;
+
+}
+
+static void reduceTest()
+{
+    int N   = 823674;
+    using T = int;
+    Saiga::thrust::pinned_vector<T> h_data(N);
+
+    for (auto& f : h_data)
+    {
+        f = rand() % 10;
+    }
+
+    thrust::device_vector<T> d_data = h_data;
+    thrust::device_vector<T> output(1);
+
+    {
+        int n = 32;
+
+        // Reduce only the first n elements
+        thrust::device_vector<T> data(d_data.begin(), d_data.begin() + n);
+        warpReduceSimple<T><<<1, n>>>(data, output);
+
+        // Validate output with thrust::reduce
+        T res  = output[0];
+        T tres = thrust::reduce(data.begin(), data.end());
+        cout << "warpReduceSimple=" <<  res << ", thrust::reduce=" << tres << endl;
+        SAIGA_ASSERT(res == tres);
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    reduceTest();
+    cout << "Done." << endl;
+}
+
+#else
 
 template <typename T>
 __device__ inline T warpReduceSum(T val)
@@ -134,37 +180,48 @@ static void reduceTest()
 
     {
         int n = 32;
-        thrust::device_vector<T> data(n);
-        thrust::copy(d_data.begin(), d_data.begin() + n, data.begin());
+
+        // Reduce only the first n elements
+        thrust::device_vector<T> data(d_data.begin(), d_data.begin() + n);
         warpReduceSimple<T><<<1, n>>>(data, output);
+
+        // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(data.begin(), data.end());
-        cout << res << " " << tres << endl;
+        cout << "warpReduceSimple=" <<  res << ", thrust::reduce=" << tres << endl;
         SAIGA_ASSERT(res == tres);
     }
 
     {
         int n = 256;
-        thrust::device_vector<T> data(n);
-        thrust::copy(d_data.begin(), d_data.begin() + n, data.begin());
+
+        // Reduce only the first n elements
+        thrust::device_vector<T> data(d_data.begin(), d_data.begin() + n);
         blockReduceSimple<T><<<1, n>>>(data, output);
+
+        // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(data.begin(), data.end());
-        cout << res << " " << tres << endl;
+        cout << "blockReduceSimple=" <<  res << ", thrust::reduce=" << tres << endl;
         SAIGA_ASSERT(res == tres);
     }
 
     {
+        // Reduce everything
         output[0] = 0;
         globalReduceSimple<T><<<THREAD_BLOCK(N, 128)>>>(d_data, output);
+
+        // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(d_data.begin(), d_data.end());
-        cout << res << " " << tres << endl;
+        cout << "globalReduceSimple=" <<  res << ", thrust::reduce=" << tres << endl;
         SAIGA_ASSERT(res == tres);
     }
 
 
     {
+        // thrust::reduce with a custom reduce operator
+        // Here: Finding the particle with the largest radius
         thrust::device_vector<Particle> particles(100000);
 
         Particle test;
@@ -181,6 +238,7 @@ static void reduceTest()
 int main(int argc, char* argv[])
 {
     reduceTest();
-
     cout << "Done." << endl;
 }
+
+#endif
