@@ -43,8 +43,107 @@ namespace Saiga
 template <class vertex_t>
 class VertexBuffer : public TemplatedBuffer<vertex_t>
 {
-   private:
-    //    int vertex_count;
+   public:
+    /*
+     *  Create VertexBuffer object.
+     *  Does not create any OpenGL buffers.
+     *  use set() to initialized buffers.
+     */
+    VertexBuffer() : TemplatedBuffer<vertex_t>(GL_ARRAY_BUFFER) {}
+    ~VertexBuffer() { deleteGLBuffer(); }
+
+
+    /*
+     *  Creates OpenGL buffers and uploads data.
+     *  'vertices' can be deleted after that.
+     *
+     *  A VBO and a VAO will be created and initialized.
+     */
+    void set(std::vector<vertex_t>& vertices, GLenum usage);
+    void set(vertex_t* vertices, int vertex_count, GLenum usage);
+
+    /*
+     *  Updates the existing OpenGL buffer.
+     *  Have to be called after 'set()'.
+     *
+     *  Replaces the vertex at 'vertex_offset' and the following 'vertex_count'
+     *  vertices in the current buffer by uploading them to OpenGL.
+     *  'vertices' can be deleted after that.
+     */
+
+    //    void updateVertexBuffer(vertex_t* vertices,int vertex_count, int vertex_offset);
+
+    /*
+     *  Deletes all OpenGL buffers.
+     *  Will be called by the destructor automatically
+     */
+    void deleteGLBuffer();
+
+    /*
+     *  Binds/Unbinds OpenGL buffers.
+     */
+    void bind() const;
+    void unbind() const;
+
+    /**
+     *  Adds an instanced buffer to this vertex array object.
+     *  While rendering the instanced buffer does not have to be bound again.
+     *
+     * 'location' is the shader location of the instanced uniform. With the following example shader you have to pass in
+     * '4'.
+     * Example Shader:
+     *
+     * //...
+     * layout(location = 4) in mat4 instanceModel;
+     * //...
+     * gl_Position = viewProj * instanceModel * vec4(in_position, 1);
+     */
+    template <typename data_t>
+    void addInstancedBuffer(InstancedBuffer<data_t>& buffer, int location, int divisor = 1);
+
+    /*
+     *  Draws the vertex array in the specified draw mode.
+     *  Uses consecutive vertices to form the specified primitive.
+     *  E.g. if the draw mode is GL_TRIANGLES
+     *  1.Triangle =  (Vertex 0, Vertex 1, Vertex 2)
+     *  2.Triangle =  (Vertex 3, Vertex 4, Vertex 5)
+     *  ...
+     *
+     *  If you want to use one vertex for multiple faces use IndexedVertexBuffer instead.
+     */
+    void draw(int startVertex = 0, int count = -1) const;
+
+    void drawInstanced(int instanceCount, int indexOffset = 0, int indexCount = -1) const;
+
+
+    /*
+     *  1. bind()
+     *  2. draw()
+     *  3. unbind()
+     */
+    void bindAndDraw() const;
+
+    /*
+     *  Set draw type of primitives.
+     *
+     *  Allowed values:
+     *  GL_POINTS, GL_LINE_STRIP, GL_LINE_LOOP, GL_LINES, GL_LINE_STRIP_ADJACENCY,
+     *  GL_LINES_ADJACENCY, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN, GL_TRIANGLES,
+     *  GL_TRIANGLE_STRIP_ADJACENCY, GL_TRIANGLES_ADJACENCY, GL_PATCHES
+     */
+    void setDrawMode(GLenum _draw_mode) { draw_mode = _draw_mode; }
+    GLenum getDrawMode() { return draw_mode; }
+
+    GLuint getVBO() { return TemplatedBuffer<vertex_t>::buffer; }
+    GLuint getVAO() { return gl_vao; }
+
+    /**
+     * Adds an external buffer to this VAO.
+     * Usefull for 'structure of arrays' vertex rendering.
+     */
+    void addExternalBuffer(Buffer& buffer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
+                           const void* pointer = nullptr);
+
    protected:
     GLenum draw_mode;
     GLuint gl_vao = 0;
@@ -64,113 +163,6 @@ class VertexBuffer : public TemplatedBuffer<vertex_t>
      */
 
     void setVertexAttributes();
-
-
-   public:
-    /*
-     *  Create VertexBuffer object.
-     *  Does not create any OpenGL buffers.
-     *  use set() to initialized buffers.
-     */
-
-    VertexBuffer() : TemplatedBuffer<vertex_t>(GL_ARRAY_BUFFER) {}
-    ~VertexBuffer() { deleteGLBuffer(); }
-
-
-    /*
-     *  Creates OpenGL buffers and uploads data.
-     *  'vertices' can be deleted after that.
-     *
-     *  A VBO and a VAO will be created and initialized.
-     */
-
-    void set(std::vector<vertex_t>& vertices, GLenum usage);
-    void set(vertex_t* vertices, int vertex_count, GLenum usage);
-
-    /*
-     *  Updates the existing OpenGL buffer.
-     *  Have to be called after 'set()'.
-     *
-     *  Replaces the vertex at 'vertex_offset' and the following 'vertex_count'
-     *  vertices in the current buffer by uploading them to OpenGL.
-     *  'vertices' can be deleted after that.
-     */
-
-    //    void updateVertexBuffer(vertex_t* vertices,int vertex_count, int vertex_offset);
-
-    /*
-     *  Deletes all OpenGL buffers.
-     *  Will be called by the destructor automatically
-     */
-
-    void deleteGLBuffer();
-
-    /*
-     *  Binds/Unbinds OpenGL buffers.
-     */
-
-    void bind() const;
-    void unbind() const;
-
-    /**
-     *  Adds an instanced buffer to this vertex array object.
-     *  While rendering the instanced buffer does not have to be bound again.
-     */
-
-    template <typename data_t>
-    void addInstancedBuffer(InstancedBuffer<data_t>& buffer, int location, int divisor = 1);
-
-    /*
-     *  Draws the vertex array in the specified draw mode.
-     *  Uses consecutive vertices to form the specified primitive.
-     *  E.g. if the draw mode is GL_TRIANGLES
-     *  1.Triangle =  (Vertex 0, Vertex 1, Vertex 2)
-     *  2.Triangle =  (Vertex 3, Vertex 4, Vertex 5)
-     *  ...
-     *
-     *  If you want to use one vertex for multiple faces use IndexedVertexBuffer instead.
-     */
-
-    void draw() const;
-
-    /*
-     * Like 'draw()' but only renders a part of the buffer
-     */
-    void draw(int startVertex, int count) const;
-
-    void drawInstanced(int instances) const;
-    void drawInstanced(int instances, int offset, int length) const;
-
-
-    /*
-     *  1. bind()
-     *  2. draw()
-     *  3. unbind()
-     */
-
-    void bindAndDraw() const;
-
-    /*
-     *  Set draw type of primitives.
-     *
-     *  Allowed values:
-     *  GL_POINTS, GL_LINE_STRIP, GL_LINE_LOOP, GL_LINES, GL_LINE_STRIP_ADJACENCY,
-     *  GL_LINES_ADJACENCY, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN, GL_TRIANGLES,
-     *  GL_TRIANGLE_STRIP_ADJACENCY, GL_TRIANGLES_ADJACENCY, GL_PATCHES
-     */
-
-    void setDrawMode(GLenum draw_mode);
-
-
-    int getVBO() { return TemplatedBuffer<vertex_t>::buffer; }
-    int getVAO() { return gl_vao; }
-
-    /**
-     * Adds an external buffer to this VAO.
-     * Usefull for 'structure of arrays' vertex rendering.
-     */
-    void addExternalBuffer(Buffer& buffer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
-                           const void* pointer = nullptr);
 };
 
 
@@ -181,12 +173,6 @@ void VertexBuffer<vertex_t>::bindAndDraw() const
     bind();
     draw();
     unbind();
-}
-
-template <class vertex_t>
-void VertexBuffer<vertex_t>::setDrawMode(GLenum _draw_mode)
-{
-    this->draw_mode = _draw_mode;
 }
 
 template <class vertex_t>
@@ -259,30 +245,18 @@ void VertexBuffer<vertex_t>::addInstancedBuffer(InstancedBuffer<data_t>& buffer,
 }
 
 template <class vertex_t>
-void VertexBuffer<vertex_t>::draw() const
-{
-    draw(0, TemplatedBuffer<vertex_t>::getElementCount());
-    assert_no_glerror();
-}
-
-template <class vertex_t>
 void VertexBuffer<vertex_t>::draw(int startVertex, int count) const
 {
-    glDrawArrays(draw_mode, startVertex, count);
+    glDrawArrays(draw_mode, startVertex, count < 0 ? TemplatedBuffer<vertex_t>::getElementCount() : count);
     assert_no_glerror();
 }
 
-template <class vertex_t>
-void VertexBuffer<vertex_t>::drawInstanced(int instances) const
-{
-    drawInstanced(instances, 0, TemplatedBuffer<vertex_t>::getElementCount());
-    assert_no_glerror();
-}
 
 template <class vertex_t>
-void VertexBuffer<vertex_t>::drawInstanced(int instances, int offset, int length) const
+void VertexBuffer<vertex_t>::drawInstanced(int instanceCount, int indexOffset, int indexCount) const
 {
-    glDrawArraysInstanced(draw_mode, offset, length, instances);
+    glDrawArraysInstanced(draw_mode, indexOffset,
+                          indexCount < 0 ? TemplatedBuffer<vertex_t>::getElementCount() : indexCount, instanceCount);
     assert_no_glerror();
 }
 

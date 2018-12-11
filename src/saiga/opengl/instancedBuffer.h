@@ -26,7 +26,7 @@ namespace Saiga
 
 
 template <typename data_t>
-class InstancedBuffer : protected Buffer
+class InstancedBuffer : public Buffer
 {
    public:
     int elements;
