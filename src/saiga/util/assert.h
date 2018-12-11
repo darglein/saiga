@@ -16,7 +16,7 @@ SAIGA_GLOBAL extern void saiga_assert_fail(const std::string& __assertion, const
 }
 
 
-#if defined WIN32
+#if defined _WIN32
 #    define SAIGA_ASSERT_FUNCTION __FUNCSIG__
 #    define SAIGA_SHORT_FUNCTION __FUNCSIG__
 #elif defined __unix__
@@ -36,6 +36,8 @@ SAIGA_GLOBAL extern void saiga_assert_fail(const std::string& __assertion, const
 #elif defined __APPLE__
 #    define SAIGA_ASSERT_FUNCTION __PRETTY_FUNCTION__
 #    define SAIGA_SHORT_FUNCTION __FUNCTION__
+#else
+#error Unknown compiler.
 #endif
 
 
