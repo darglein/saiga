@@ -31,7 +31,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
     vk::MemoryPropertyFlags flags;
-    vk::MemoryPropertyFlags effectiveFlags;
     FitStrategy* m_strategy{};
 
     vk::DeviceSize m_chunkSize{};
@@ -48,7 +47,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
           m_device(_device),
           m_chunkAllocator(chunkAllocator),
           flags(_flags),
-          effectiveFlags(chunkAllocator->getEffectiveFlags(_flags)),
           m_strategy(&strategy),
           m_chunkSize(chunkSize),
           m_allocateSize(chunkSize),
@@ -61,7 +59,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
           m_device(other.m_device),
           m_chunkAllocator(other.m_chunkAllocator),
           flags(other.flags),
-          effectiveFlags(other.effectiveFlags),
           m_strategy(other.m_strategy),
           m_chunkSize(other.m_chunkSize),
           m_allocateSize(other.m_allocateSize),
@@ -76,7 +73,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
         m_device                     = other.m_device;
         m_chunkAllocator             = other.m_chunkAllocator;
         flags                        = other.flags;
-        effectiveFlags               = other.effectiveFlags;
         m_strategy                   = other.m_strategy;
         m_chunkSize                  = other.m_chunkSize;
         m_allocateSize               = other.m_allocateSize;

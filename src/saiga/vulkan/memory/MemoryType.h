@@ -25,12 +25,6 @@ struct MemoryType
 
     bool operator!=(const MemoryType<T>& rhs) const { return !(rhs == *this); }
 
-    inline bool valid(const MemoryType<T>& other) const
-    {
-        return ((usageFlags & other.usageFlags) == other.usageFlags) &&
-               ((memoryFlags & other.memoryFlags) == other.memoryFlags);
-    }
-
     friend std::ostream& operator<<(std::ostream& os, const MemoryType& type)
     {
         auto usage = vk::to_string(type.usageFlags);
@@ -38,6 +32,29 @@ struct MemoryType
         os << "{ " << usage.substr(1, usage.size() - 2) << ", " << flags.substr(1, flags.size() - 2) << " }";
         return os;
     }
+
+    bool operator<(const MemoryType& rhs) const
+    {
+        if (static_cast<unsigned int>(usageFlags) < static_cast<unsigned int>(rhs.usageFlags))
+        {
+            return true;
+        }
+        return static_cast<unsigned int>(memoryFlags) < static_cast<unsigned int>(rhs.memoryFlags);
+    }
+
+    bool operator>(const MemoryType& rhs) const { return rhs < *this; }
+
+    bool operator<=(const MemoryType& rhs) const { return !(rhs < *this); }
+
+    bool operator>=(const MemoryType& rhs) const { return !(*this < rhs); }
+};
+
+struct SAIGA_GLOBAL BufferType : public MemoryType<vk::BufferUsageFlags>
+{
+};
+
+struct SAIGA_GLOBAL ImageType : public MemoryType<vk::ImageUsageFlags>
+{
 };
 
 }  // namespace Memory
@@ -47,7 +64,7 @@ struct MemoryType
 namespace std
 {
 template <typename T>
-struct hash<Saiga::Vulkan::Memory::MemoryType<T>>
+struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::MemoryType<T>>
 {
     typedef Saiga::Vulkan::Memory::MemoryType<T> argument_type;
     typedef std::size_t result_type;
@@ -57,5 +74,15 @@ struct hash<Saiga::Vulkan::Memory::MemoryType<T>>
         result_type const h2(std::hash<unsigned int>{}(static_cast<unsigned int>(s.memoryFlags)));
         return h1 ^ (h2 << 1);
     }
+};
+template <>
+struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::BufferType>
+    : public hash<Saiga::Vulkan::Memory::MemoryType<vk::BufferUsageFlags>>
+{
+};
+template <>
+struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::ImageType>
+    : public hash<Saiga::Vulkan::Memory::MemoryType<vk::ImageUsageFlags>>
+{
 };
 }  // namespace std

@@ -14,6 +14,13 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
     strategy  = FirstFitStrategy();
     chunkAllocator.init(_pDevice, _device);
 
+    auto props = _pDevice.getMemoryProperties();
+    memoryTypes.resize(props.memoryTypeCount);
+    for (int i = 0; i < props.memoryTypeCount; ++i)
+    {
+        memoryTypes[i] = props.memoryTypes[i];
+    }
+
     auto vertIndexType = BufferType{vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer |
                                         vk::BufferUsageFlagBits::eTransferDst,
                                     vk::MemoryPropertyFlagBits::eDeviceLocal};
@@ -34,9 +41,9 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 
 VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::BufferMap& map,
                                                                 const VulkanMemory::BufferDefaultMap& defaultSizes,
-                                                                const VulkanMemory::BufferType& type)
+                                                                const BufferType& type)
 {
-    auto effectiveFlags = chunkAllocator.getEffectiveFlags(type.memoryFlags);
+    auto effectiveFlags = getEffectiveFlags(type.memoryFlags);
 
     auto effectiveType = BufferType{type.usageFlags, effectiveFlags};
 
@@ -54,7 +61,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
 
 VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::ImageMap& map,
                                                               const VulkanMemory::ImageDefaultMap& defaultSizes,
-                                                              const VulkanMemory::ImageType& type)
+                                                              const ImageType& type)
 {
     auto found = find_default_size<ImageDefaultMap, ImageType>(default_image_chunk_sizes, type);
     bool mapped =
