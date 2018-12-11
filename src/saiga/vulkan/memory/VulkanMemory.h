@@ -141,7 +141,7 @@ class SAIGA_GLOBAL VulkanMemory
     void renderGUI();
 
    private:
-    inline vk::MemoryPropertyFlags getEffectiveFlags(vk::MemoryPropertyFlags flags) const
+    inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags &flags) const
     {
         for (const auto& memory : memoryTypes)
         {

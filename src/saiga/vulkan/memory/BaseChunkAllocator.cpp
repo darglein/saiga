@@ -180,7 +180,7 @@ void BaseChunkAllocator::renderInfoGUI()
     {
         ImGui::Indent();
 
-        ImGui::LabelText("Effective Memory Type", "%s", vk::to_string(effectiveFlags).c_str());
+        ImGui::LabelText("Effective Memory Type", "%s", vk::to_string(flags).c_str());
         headerInfo();
 
         SAIGA_ASSERT(allocation_bars.size() == m_chunkAllocations.size(), "Number of bars != Number of chunks");

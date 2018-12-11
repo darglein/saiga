@@ -14,6 +14,13 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
     strategy  = FirstFitStrategy();
     chunkAllocator.init(_pDevice, _device);
 
+    auto props = _pDevice.getMemoryProperties();
+    memoryTypes.resize(props.memoryTypeCount);
+    for (int i = 0; i < props.memoryTypeCount; ++i)
+    {
+        memoryTypes[i] = props.memoryTypes[i];
+    }
+
     auto vertIndexType = BufferType{vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndexBuffer |
                                         vk::BufferUsageFlagBits::eTransferDst,
                                     vk::MemoryPropertyFlagBits::eDeviceLocal};
@@ -36,7 +43,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
                                                                 const VulkanMemory::BufferDefaultMap& defaultSizes,
                                                                 const BufferType& type)
 {
-    auto effectiveFlags = chunkAllocator.getEffectiveFlags(type.memoryFlags);
+    auto effectiveFlags = getEffectiveFlags(type.memoryFlags);
 
     auto effectiveType = BufferType{type.usageFlags, effectiveFlags};
 
