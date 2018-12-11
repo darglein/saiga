@@ -32,7 +32,7 @@ void Saiga::Vulkan::Memory::ChunkCreator::init(vk::PhysicalDevice _physicalDevic
     {
         auto& properties = memoryProperties.memoryTypes[i];
 
-        m_memoryTypes.emplace_back(ChunkType(m_device, i, properties.propertyFlags));
+        m_memoryTypes.emplace_back(m_device, i, properties.propertyFlags);
     }
     m_initialized = true;
 }

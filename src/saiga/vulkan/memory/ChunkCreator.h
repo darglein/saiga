@@ -23,7 +23,7 @@ namespace Memory
  * Class that allocates chunks of memory for different types.
  * Returns shared pointers to the chunks.
  */
-class SAIGA_LOCAL ChunkCreator
+class SAIGA_GLOBAL ChunkCreator
 {
    private:
     bool m_initialized = false;
@@ -34,6 +34,15 @@ class SAIGA_LOCAL ChunkCreator
     ChunkType& findMemoryType(vk::MemoryPropertyFlags flags);
 
    public:
+
+	ChunkCreator() {}
+
+	ChunkCreator(const ChunkCreator&) = delete;
+    ChunkCreator& operator=(const ChunkCreator&) = delete;
+
+	ChunkCreator(ChunkCreator&& other) = default;
+    ChunkCreator& operator=(ChunkCreator&& other) = default;
+
     void init(vk::PhysicalDevice _physicalDevice, vk::Device _device);
 
     vk::MemoryPropertyFlags getEffectiveFlags(vk::MemoryPropertyFlags memoryFlags);
