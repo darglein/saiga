@@ -37,7 +37,8 @@ OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations
 OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON)
 OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
-OptionsHelper(SAIGA_WITH_GL "With opengl" ON)
+OptionsHelper(SAIGA_WITH_GL "With opengl (if it is found)" ON)
+OptionsHelper(SAIGA_WITH_VULKAN "With vulkan (if it is found)" ON)
 OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
 OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
@@ -211,12 +212,13 @@ PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRAR
 
 
 ##### Vulkan #####
-find_package(Vulkan QUIET)
-PackageHelperTarget(Vulkan::Vulkan VULKAN_FOUND)
+if(SAIGA_WITH_VULKAN)
+	find_package(Vulkan QUIET)
+	PackageHelperTarget(Vulkan::Vulkan VULKAN_FOUND)
 
-find_package(GLslang QUIET)
-PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
-
+	find_package(GLslang QUIET)
+	PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
+endif()
 
 if(SAIGA_WITH_GL)
     set(OpenGL_GL_PREFERENCE LEGACY)
