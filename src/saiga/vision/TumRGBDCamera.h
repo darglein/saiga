@@ -53,6 +53,8 @@ class SAIGA_GLOBAL TumRGBDCamera : public RGBDCamera
 
     virtual bool isOpened() override { return currentId < (int)frames.size(); }
 
+    size_t getFrameCount() { return frames.size(); }
+
    private:
     void associate(const std::string& datasetDir);
     void load(const std::string& datasetDir);
