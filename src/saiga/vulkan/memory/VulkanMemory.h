@@ -50,10 +50,17 @@ class SAIGA_GLOBAL VulkanMemory
 
 
     template <typename T>
-    inline bool allocator_valid(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
+    inline bool allocator_valid_exact(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
     {
         return ((allocator_type.usageFlags & type.usageFlags) == type.usageFlags) &&
                (allocator_type.memoryFlags == type.memoryFlags);
+    }
+
+    template <typename T>
+    inline bool allocator_valid_relaxed(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
+    {
+        return ((allocator_type.usageFlags & type.usageFlags) == type.usageFlags) &&
+               ((allocator_type.memoryFlags & type.memoryFlags) == type.memoryFlags);
     }
 
     template <typename T>
@@ -105,8 +112,17 @@ class SAIGA_GLOBAL VulkanMemory
         const auto begin = map.begin();
         const auto end   = map.end();
 
-        return std::find_if(begin, end,
-                            [=](typename Map::reference entry) { return allocator_valid(entry.first, memoryType); });
+        auto found = std::find_if(
+            begin, end, [=](typename Map::reference entry) { return allocator_valid_exact(entry.first, memoryType); });
+
+        if (found == end)
+        {
+            found = std::find_if(begin, end, [=](typename Map::reference entry) {
+                return allocator_valid_relaxed(entry.first, memoryType);
+            });
+        }
+
+        return found;
     }
 
    public:
