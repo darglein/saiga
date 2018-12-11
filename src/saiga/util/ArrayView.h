@@ -8,9 +8,14 @@
 
 #include "saiga/config.h"
 
-
-#ifdef SAIGA_CUDA_INCLUDED
-#    include <thrust/device_vector.h>
+// Test if saiga was compiled with CUDA and
+// the current project has CUDA in the include dir.
+// If yes, generate a constructor and additional functions for thrust device vectors.
+#ifdef SAIGA_WITH_CUDA
+#    if __has_include(<thrust/device_vector.h>)
+#        include <thrust/device_vector.h>
+#        define SAIGA_GENERATE_THRUST_CONSTRUCTOR
+#    endif
 #endif
 
 #include <cstddef>
@@ -52,7 +57,7 @@ struct SAIGA_TEMPLATE ArrayView
     ArrayView& operator=(ArrayView<T> const&) = default;
 
 
-#ifdef SAIGA_CUDA_INCLUDED
+#ifdef SAIGA_GENERATE_THRUST_CONSTRUCTOR
     __host__ ArrayView(thrust::device_vector<typename std::remove_const<T>::type>& dv)
         : data_(thrust::raw_pointer_cast(dv.data())), n(dv.size())
     {
@@ -93,7 +98,7 @@ struct SAIGA_TEMPLATE ArrayView
     HD iterator end() const SAIGA_NOEXCEPT { return data_ + n; }
 
 
-#ifdef SAIGA_CUDA_INCLUDED
+#ifdef SAIGA_GENERATE_THRUST_CONSTRUCTOR
     thrust::device_ptr<T> tbegin() const { return thrust::device_pointer_cast(begin()); }
     thrust::device_ptr<T> tend() const { return thrust::device_pointer_cast(end()); }
 #endif

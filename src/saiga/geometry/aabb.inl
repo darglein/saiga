@@ -19,15 +19,15 @@ inline AABB::~AABB() {}
 inline void AABB::transform(const mat4& trafo)
 {
     // only for scaling and translation correct !!!!
-    min = vec3(trafo * vec4(min, 1));
-    max = vec3(trafo * vec4(max, 1));
+    min = make_vec3(trafo * make_vec4(min, 1));
+    max = make_vec3(trafo * make_vec4(max, 1));
 }
 
 inline void AABB::makeNegative()
 {
     const float largeNumber = 100000000000000.0f;
-    min                     = vec3(largeNumber);
-    max                     = vec3(-largeNumber);
+    min                     = make_vec3(largeNumber);
+    max                     = make_vec3(-largeNumber);
 }
 
 inline void AABB::translate(const vec3& v)
@@ -40,8 +40,12 @@ inline void AABB::scale(const vec3& s)
 {
     vec3 pos = getPosition();
     setPosition(vec3(0));
-    min *= s;
-    max *= s;
+//    min *= s;
+//    max *= s;
+
+    min = ele_mult(min,s);
+    max = ele_mult(max,s);
+
     setPosition(pos);
 }
 

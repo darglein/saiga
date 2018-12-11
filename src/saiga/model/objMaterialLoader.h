@@ -24,10 +24,10 @@ struct SAIGA_GLOBAL ObjMaterial
     float Tr = 1;
     vec3 Tf;
     int illum;
-    vec3 Ka = vec3(0.2f);  // ambient color
-    vec4 Kd = vec4(0.8f);  // diffuse color
-    vec3 Ks = vec3(1);     // specular color
-    vec3 Ke = vec3(1);
+    vec3 Ka = make_vec3(0.2f);  // ambient color
+    vec4 Kd = make_vec4(0.8f);  // diffuse color
+    vec3 Ks = make_vec3(1);     // specular color
+    vec3 Ke = make_vec3(1);
 
     std::string map_Ka;
     std::string map_Kd;

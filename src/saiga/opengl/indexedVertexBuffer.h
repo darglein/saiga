@@ -26,12 +26,28 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
     void deleteGLBuffer();
 
     void bindAndDraw() const;
-    void draw() const;
-    void draw(unsigned int length, int offset) const;
+
+    /**
+     * @brief Draw a few indices from this buffer. See glDrawElements for more informations.
+     * @param length number of indices to draw. -1 to render the complete buffer
+     * @param offset
+     */
+    void draw(int length = -1, int offset = 0) const;
 
 
-    void drawInstanced(int instances) const;
-    void drawInstanced(int instances, int offset, int length) const;
+    /**
+     * @brief drawInstanced
+     * Draw multiple instances of this buffer. It is recommended to have an instancedBuffer bound to the VAO with
+     * VertexBuffer::addInstancedBuffer.
+     *
+     * See glDrawElementsInstancedBaseInstance for more informations.
+     *
+     * @param instanceCount Number of instances to draw
+     * @param baseInstance Start instance offset into the instanceBuffers
+     * @param indexOffset Start Vertex Index for mesh rendering
+     * @param indexCount Number of indices to render. -1 to render the complete buffer
+     */
+    void drawInstanced(int instanceCount, int baseInstance = 0, int indexOffset = 0, int indexCount = -1) const;
 
     void set(std::vector<vertex_t>& vertices, std::vector<index_t>& indices, GLenum usage);
     void set(vertex_t* vertices, int vertex_count, index_t* indices, int index_count, GLenum usage);
@@ -40,7 +56,6 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
      * Creates OpenGL buffer from indices and vertices
      * 'buffer' is now ready to draw.
      */
-
     void fromMesh(TriangleMesh<vertex_t, index_t>& mesh, GLenum usage = GL_STATIC_DRAW);
 
     template <typename buffer_vertex_t, typename buffer_index_t>
@@ -50,7 +65,6 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
      * Updates OpenGL buffer with the data currently saved in this mesh
      * see VertexBuffer::updateVertexBuffer for more details
      */
-
     void updateFromMesh(TriangleMesh<vertex_t, index_t>& buffer, int vertex_count, int vertex_offset);
 };
 
@@ -63,47 +77,36 @@ void IndexedVertexBuffer<vertex_t, index_t>::bindAndDraw() const
 }
 
 template <class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t, index_t>::draw() const
+void IndexedVertexBuffer<vertex_t, index_t>::draw(int length, int offset) const
 {
-    draw(ibuffer_t::getElementCount(), 0);
-}
-
-template <class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t, index_t>::draw(unsigned int length, int offset) const
-{
-    glDrawElements(vbuffer_t::draw_mode, length, ibuffer_t::GLType::value, (void*)(intptr_t)(offset * sizeof(index_t)));
+    glDrawElements(vbuffer_t::draw_mode, length < 0 ? ibuffer_t::getElementCount() : length, ibuffer_t::GLType::value,
+                   (void*)(intptr_t)(offset * sizeof(index_t)));
     assert_no_glerror();
 }
 
 
-template <class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t, index_t>::drawInstanced(int instances) const
-{
-    drawInstanced(instances, 0, ibuffer_t::getElementCount());
-    assert_no_glerror();
-}
 
 template <class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t, index_t>::drawInstanced(int instances, int offset, int length) const
+void IndexedVertexBuffer<vertex_t, index_t>::drawInstanced(int instanceCount, int baseInstance, int indexOffset,
+                                                           int indexCount) const
 {
-    glDrawElementsInstanced(vbuffer_t::draw_mode, length, ibuffer_t::GLType::value, (void*)(intptr_t)offset, instances);
+    glDrawElementsInstancedBaseInstance(
+        vbuffer_t::draw_mode, indexCount < 0 ? ibuffer_t::getElementCount() : indexCount, ibuffer_t::GLType::value,
+        (void*)(intptr_t)(indexOffset * sizeof(index_t)), instanceCount, baseInstance);
     assert_no_glerror();
 }
-
 
 
 template <class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t, index_t>::bind() const
 {
     vbuffer_t::bind();
-    //    ibuffer_t::bind();
 }
 
 template <class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t, index_t>::unbind() const
 {
     vbuffer_t::unbind();
-    //    ibuffer_t::unbind();
 }
 
 template <class vertex_t, class index_t>

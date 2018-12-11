@@ -49,8 +49,10 @@ FFMPEGEncoder::FFMPEGEncoder(const std::string& filename, int outWidth, int outH
     {
         cout << "Initializing FFMPEG... ";
         av_log_set_level(AV_LOG_DEBUG);
-        avcodec_register_all();
-        av_register_all();
+
+        // Can be removed after ffmpeg 4
+        // avcodec_register_all();
+        // av_register_all();
         ffmpegInitialized = true;
         cout << "done" << endl;
     }
@@ -274,6 +276,9 @@ void FFMPEGEncoder::startEncoding()
     m_formatCtx->video_codec_id = oformat->video_codec;
 
 
+    AVCodecParameters* codecpar = avcodec_parameters_alloc();
+    avcodec_parameters_from_context(codecpar, m_codecContext);
+
     AVStream* videoStream = avformat_new_stream(m_formatCtx, codec);
     if (!videoStream)
     {
@@ -281,6 +286,7 @@ void FFMPEGEncoder::startEncoding()
     }
     //    videoStream->codecpar
     videoStream->codec     = m_codecContext;
+//    videoStream->codecpar= codecpar;
     videoStream->time_base = {1, timeBase};
     if (m_formatCtx->oformat->flags & AVFMT_GLOBALHEADER)
     {

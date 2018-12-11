@@ -55,10 +55,6 @@ class IndexBuffer : public TemplatedBuffer<index_t>
     ~IndexBuffer() {}
 
     void unbind() const;
-
-    //    int getIndexCount() const {return Buffer::size/sizeof(index_t);}
-   private:
-    //    int index_count;
 };
 
 

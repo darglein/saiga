@@ -96,7 +96,7 @@ AnimationFrame::AnimationFrame(const AnimationFrame& k0, const AnimationFrame& k
 void AnimationFrame::calculateBoneMatrices(const Animation& parent)
 {
     boneMatrices.resize(parent.boneCount);
-    nodes[0].traverse(mat4(1), boneMatrices, nodes);
+    nodes[0].traverse(identityMat4(), boneMatrices, nodes);
     for (unsigned int i = 0; i < boneMatrices.size(); ++i)
     {
         boneMatrices[i] = boneMatrices[i] * parent.boneOffsets[i];

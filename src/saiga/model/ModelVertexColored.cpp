@@ -25,9 +25,9 @@ void VertexColoredModel::createFullscreenQuad()
 void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, vec4 color1, vec4 color2)
 {
     vec4 n(0, 1, 0, 0);
-    for (int i = -size.x; i < size.x; ++i)
+    for (int i = -size[0]; i < size[0]; ++i)
     {
-        for (int j = -size.y; j < size.y; ++j)
+        for (int j = -size[1]; j < size[1]; ++j)
         {
             vec4 c            = (j + i % 2) % 2 == 0 ? color1 : color2;
             VertexNC verts[4] = {
@@ -39,8 +39,8 @@ void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, vec4 col
 
             for (int i = 0; i < 4; ++i)
             {
-                verts[i].position.x *= quadSize;
-                verts[i].position.z *= quadSize;
+                verts[i].position[0] *= quadSize;
+                verts[i].position[2] *= quadSize;
             }
 
             mesh.addQuad(verts);

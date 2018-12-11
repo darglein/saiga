@@ -15,7 +15,8 @@ namespace Saiga
 {
 FFMPEGAudioEncoder::FFMPEGAudioEncoder()
 {
-    avcodec_register_all();
+    // Can be removed after ffmpeg 4
+    // avcodec_register_all();
 }
 
 void FFMPEGAudioEncoder::addFrame()
@@ -26,7 +27,12 @@ void FFMPEGAudioEncoder::addFrame()
     pkt.data = NULL;  // packet data will be allocated by the encoder
     pkt.size = 0;
     /* encode the samples */
-    ret = avcodec_encode_audio2(c, &pkt, frame, &got_output);
+//    ret = avcodec_encode_audio2(c, &pkt, frame, &got_output);
+
+    auto ret = avcodec_send_frame(c,frame);
+    avcodec_receive_packet(c,&pkt);
+    SAIGA_ASSERT(0,"check");
+
     if (ret < 0)
     {
         fprintf(stderr, "Error encoding audio frame\n");
@@ -84,7 +90,8 @@ void FFMPEGAudioEncoder::finishEncoding()
     /* get the delayed frames */
     for (got_output = 1; got_output; i++)
     {
-        ret = avcodec_encode_audio2(c, &pkt, NULL, &got_output);
+        //ret = avcodec_encode_audio2(c, &pkt, NULL, &got_output);
+        SAIGA_ASSERT(0,"check");
         if (ret < 0)
         {
             fprintf(stderr, "Error encoding frame\n");

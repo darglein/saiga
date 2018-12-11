@@ -15,8 +15,8 @@ class SAIGA_GLOBAL LineModelColored
    public:
     LineMesh<VertexNC, uint32_t> mesh;
 
-    void createGrid(int numX, int numY, float quadSize = 1.0f, vec4 color = vec4(0.5));
-    void createFrustum(const mat4& proj, float farPlaneLimit = -1, const vec4& color = vec4(0.5),
+    void createGrid(int numX, int numY, float quadSize = 1.0f, vec4 color = make_vec4(0.5));
+    void createFrustum(const mat4& proj, float farPlaneLimit = -1, const vec4& color = make_vec4(0.5),
                        bool vulkanTransform = false);
     void createFrustumCV(const mat3& K, float farPlaneLimit, const vec4& color, int w, int h);
 };

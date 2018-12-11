@@ -19,6 +19,22 @@
 #include <iostream>
 #include <vector>
 
+//#define LECTURE
+
+#ifdef LECTURE
+
+static void radixSortHelper(thrust::device_vector<int>& d,
+                            thrust::device_vector<int>& t, int bit)
+{
+}
+
+static void radixSort(thrust::device_vector<int>& data)
+{
+    int N = data.size();
+}
+
+#else
+
 template <bool one>
 struct GetBitOp
 {
@@ -31,6 +47,8 @@ static void radixSortHelper(thrust::device_vector<int>& d, thrust::device_vector
                             thrust::device_vector<int>& t, int bit)
 {
 #if 0
+    // Implementation with scan+scatter
+
     // Compute predicate array for 0-bits
     thrust::transform(d.begin(),d.end(),p.begin(),GetBitOp<false>(bit));
 
@@ -49,12 +67,12 @@ static void radixSortHelper(thrust::device_vector<int>& d, thrust::device_vector
     thrust::exclusive_scan(p.begin(),p.end(),s.begin(),count);
     thrust::scatter_if(d.begin(),d.end(),s.begin(),p.begin(),t.begin());
 #else
-
+    // Implementation with compact
     auto it = thrust::copy_if(d.begin(), d.end(), t.begin(), GetBitOp<false>(bit));
     thrust::copy_if(d.begin(), d.end(), it, GetBitOp<true>(bit));
 #endif
 
-    // The scan-scatter radix sort does not work inplace!
+    // The scan+scatter radix sort does not work inplace!
     thrust::copy(t.begin(), t.end(), d.begin());
 }
 
@@ -71,6 +89,7 @@ static void radixSort(thrust::device_vector<int>& data)
     for (int i = 0; i < 32; ++i) radixSortHelper(data, pred, scan, temp, i);
 }
 
+#endif
 static void radixSortTest()
 {
     int N   = 64 * 1024 * 1024;
@@ -95,13 +114,6 @@ static void radixSortTest()
     res2 = d_data;
 
     SAIGA_ASSERT(res == res2);
-    // Check result
-    //    int prev = res[0];
-    //    for(auto& d : res)
-    //    {
-    //        SAIGA_ASSERT(d >= prev);
-    //        prev = d;
-    //    }
     cout << "Success! All elements are in the correct order!" << endl;
 }
 
