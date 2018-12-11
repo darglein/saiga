@@ -72,7 +72,9 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
                 .getAllocator(vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, flags)
                 .allocate(indexBufferSize);
 
-        m_memoryLocation.upload(base.device, indices.data());
+
+        stagedUpload(base, indices.size() * sizeof(IndexType), indices.data());
+        //        m_memoryLocation.upload(base.device, indices.data());
     }
 
     void bind(vk::CommandBuffer& cmd)
