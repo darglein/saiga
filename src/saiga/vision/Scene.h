@@ -151,6 +151,11 @@ class SAIGA_GLOBAL Scene
     double rms();
     double rmsDense();
 
+    // add 0-mean gaussian noise to the world points
+    void addWorldPointNoise(double stddev);
+    void addImagePointNoise(double stddev);
+    void addExtrinsicNoise(double stddev);
+
     // Computes the median point from all valid world points
     Vec3 medianWorldPoint();
 
@@ -159,6 +164,9 @@ class SAIGA_GLOBAL Scene
 
     Saiga::Statistics<double> statistics();
     void removeOutliers(float factor);
+
+    // returns true if the scene was changed by a user action
+    bool imgui();
 };
 
 }  // namespace Saiga

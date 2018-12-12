@@ -38,5 +38,17 @@ int rand()
     return dis(generator());
 }
 
+int uniformInt(int low, int high)
+{
+    std::uniform_int_distribution<int> dis(low, high);
+    return dis(generator());
+}
+
+double gaussRand(double mean, double stddev)
+{
+    std::normal_distribution<double> dis(mean, stddev);
+    return dis(generator());
+}
+
 }  // namespace Random
 }  // namespace Saiga

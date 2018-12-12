@@ -11,6 +11,7 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/vision/Scene.h"
+#include "saiga/vision/SynteticScene.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/memory/VulkanMemory.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
@@ -46,6 +47,7 @@ class VulkanExample : public Saiga::Updating,
     Saiga::Object3D teapotTrans;
 
     Saiga::Scene scene;
+    Saiga::SynteticScene sscene;
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
 
     Saiga::Vulkan::VulkanTexturedAsset box;

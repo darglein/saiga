@@ -17,6 +17,7 @@
 namespace Saiga
 {
 using SE3 = Sophus::SE3d;
+using SO3 = Sophus::SO3d;
 
 using Quat = Eigen::Quaterniond;
 

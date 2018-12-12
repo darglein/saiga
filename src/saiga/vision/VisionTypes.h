@@ -96,6 +96,20 @@ inline Mat3 onb(const Vec3& n)
 }
 
 /**
+ * Simple ONB from a direction and an up vector.
+ */
+inline Mat3 onb(const Vec3& dir, const Vec3& up)
+{
+    Mat3 R;
+    R.col(2) = dir.normalized();
+    R.col(1) = up.normalized();
+    R.col(0) = R.col(1).cross(R.col(2)).normalized();
+    // make sure it works even if dir and up are not orthogonal
+    R.col(1) = R.col(2).cross(R.col(0));
+    return R;
+}
+
+/**
  * Conversion from a SE3 into an arbitrary type.
  * For example from double->float
  *

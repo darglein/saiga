@@ -24,8 +24,8 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
     optimizer.setVerbose(true);
 
     std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver;
-    //    linearSolver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
-    linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>>();
+    linearSolver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
+    //    linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>>();
 
     g2o::OptimizationAlgorithmLevenberg* solver =
         new g2o::OptimizationAlgorithmLevenberg(g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
@@ -141,15 +141,15 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
 
 
     optimizer.initializeOptimization();
-    optimizer.computeActiveErrors();
-    costInit = optimizer.activeRobustChi2();
+    //    optimizer.computeActiveErrors();
+    //    costInit = optimizer.activeRobustChi2();
 
-    cout << "starting optimization initial chi2: " << costInit << endl;
+    //    cout << "starting optimization initial chi2: " << costInit << endl;
     optimizer.optimize(its);
-    costFinal = optimizer.activeRobustChi2();
+    //    costFinal = optimizer.activeRobustChi2();
 
-    cout << "Optimize g2o stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << totalDensePoints
-         << " Error: " << costInit << "->" << costFinal << endl;
+    //    cout << "Optimize g2o stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << totalDensePoints
+    //         << " Error: " << costInit << "->" << costFinal << endl;
 
 
 
@@ -167,7 +167,7 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
     {
         auto& wp = scene.worldPoints[i];
 
-        if (wp.references.size() >= 2)
+        //        if (wp.references.size() >= 2)
         {
             g2o::VertexPoint* v_se3 = static_cast<g2o::VertexPoint*>(optimizer.vertex(i + wpStartId));
 

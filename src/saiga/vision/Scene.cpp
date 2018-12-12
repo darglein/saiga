@@ -6,7 +6,9 @@
 
 #include "Scene.h"
 
+#include "saiga/imgui/imgui.h"
 #include "saiga/util/assert.h"
+#include "saiga/vision/Random.h"
 
 #include <fstream>
 namespace Saiga
@@ -164,6 +166,7 @@ void Scene::removeOutliers(float factor)
 }
 
 
+
 double Scene::rms()
 {
     double error = 0;
@@ -259,6 +262,31 @@ double Scene::rmsDense()
     return rms;
 }
 
+void Scene::addWorldPointNoise(double stddev)
+{
+    for (auto& wp : worldPoints)
+    {
+        wp.p += Random::gaussRandMatrix<Vec3>(0, stddev);
+    }
+}
+
+void Scene::addImagePointNoise(double stddev)
+{
+    for (auto& img : images)
+    {
+        for (auto& mp : img.monoPoints) mp.point += Random::gaussRandMatrix<Vec2>(0, stddev);
+        for (auto& mp : img.stereoPoints) mp.point += Random::gaussRandMatrix<Vec2>(0, stddev);
+    }
+}
+
+void Scene::addExtrinsicNoise(double stddev)
+{
+    for (auto& e : extrinsics)
+    {
+        e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+    }
+}
+
 Vec3 Scene::medianWorldPoint()
 {
     std::vector<double> mx, my, mz;
@@ -301,6 +329,53 @@ void Scene::removeNegativeProjections()
         }
     }
     fixWorldPointReferences();
+}
+
+
+
+bool Scene::imgui()
+{
+    ImGui::PushID(3495672353);
+    bool changed = false;
+
+    if (ImGui::Button("RMS"))
+    {
+        rms();
+    }
+
+    if (ImGui::Button("Normalize"))
+    {
+        auto m = medianWorldPoint();
+        cout << "median world point " << m.transpose() << endl;
+        Saiga::SE3 T(Saiga::Quat::Identity(), -m);
+        transformScene(T);
+        changed = true;
+    }
+
+    static float sigma = 0.1;
+    ImGui::InputFloat("sigma", &sigma);
+
+
+    if (ImGui::Button("WP Noise"))
+    {
+        addWorldPointNoise(sigma);
+        changed = true;
+    }
+
+    if (ImGui::Button("IP Noise"))
+    {
+        addImagePointNoise(sigma);
+        changed = true;
+    }
+
+    if (ImGui::Button("Extr Noise"))
+    {
+        addExtrinsicNoise(0.1);
+        changed = true;
+    }
+
+    ImGui::PopID();
+    return changed;
 }
 
 }  // namespace Saiga

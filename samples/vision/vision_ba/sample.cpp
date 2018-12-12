@@ -32,7 +32,6 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     //    Saiga::BALDataset bald("problem-49-7776-pre.txt");
     //    Saiga::BALDataset bald("problem-1723-156502-pre.txt");
     Saiga::BALDataset bald("problem-257-65132-pre.txt");
-
     scene = bald.makeScene();
     scene.removeNegativeProjections();
     cout << scene.rms() << endl;
@@ -53,7 +52,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     grid.init(renderer.base);
 
     //    frustum.createFrustum(camera.proj, 2, vec4(1), true);
-    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.04, vec4(0, 1, 1, 1), false);
+    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(0, 1, 0, 1), false);
     frustum.init(renderer.base);
 
     pointCloud.init(base, 1000 * 1000);
@@ -126,6 +125,16 @@ void VulkanExample::renderGUI()
     ImGui::Begin("Vision BA Sample");
 
 
+    if (ImGui::CollapsingHeader("Load Scene"))
+    {
+        sscene.imgui();
+        if (ImGui::Button("Syntetic - circleSphere"))
+        {
+            scene  = sscene.circleSphere();
+            change = true;
+        }
+    }
+
 
     if (ImGui::Button("Bundle Adjust"))
     {
@@ -134,19 +143,7 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
-    if (ImGui::Button("RMS"))
-    {
-        scene.rms();
-    }
-
-    if (ImGui::Button("Normalize"))
-    {
-        auto m = scene.medianWorldPoint();
-        cout << "median world point " << m.transpose() << endl;
-        Saiga::SE3 T(Saiga::Quat::Identity(), -m);
-        scene.transformScene(T);
-        change = true;
-    }
+    change |= scene.imgui();
 
 
 

@@ -33,6 +33,21 @@ SAIGA_GLOBAL bool sampleBool(double s);
 SAIGA_GLOBAL double sampleDouble(double min, double max);
 
 /**
+ * Uniform integer in this range.
+ * Note:
+ * The high-bound is inclusive!!!
+ */
+SAIGA_GLOBAL int uniformInt(int low, int high);
+
+
+/**
+ * A normal-distributed random value
+ */
+SAIGA_GLOBAL double gaussRand(double mean = 0, double stddev = 1);
+
+
+
+/**
  * Similar to std::rand but with thread save c++11 generators
  */
 SAIGA_GLOBAL int rand();
