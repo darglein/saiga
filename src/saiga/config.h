@@ -42,19 +42,16 @@
 #    error 32-bit builds are not supported.
 #endif
 
-// Unused result
-#if !defined(_MSC_VER)
-#    define SAIGA_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#    define SAIGA_WARN_UNUSED_RESULT
-#endif
+// Unused result. We require c++17 so we can use this
+#define SAIGA_WARN_UNUSED_RESULT [[nodiscard]]
+
 
 #if defined(_MSC_VER)
 #    define SAIGA_ALIGN(x) __declspec(align(x))
 #elif defined(__GNUC__)
 #    define SAIGA_ALIGN(x) __attribute__((aligned(x)))
 #else
-#error Please add the correct align macro for your compiler.
+#    error Please add the correct align macro for your compiler.
 #endif
 
 

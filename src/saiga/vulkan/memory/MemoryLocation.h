@@ -64,9 +64,7 @@ struct SAIGA_GLOBAL MemoryLocation
         return *this;
     }
 
-
-
-    explicit operator bool() { return buffer != static_cast<vk::Buffer>(nullptr); }
+    explicit operator bool() { return buffer; }
 
    private:
     void mappedUpload(vk::Device device, const void* data)

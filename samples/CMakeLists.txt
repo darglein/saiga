@@ -55,6 +55,10 @@ if (GPHOTO2_FOUND)
     add_subdirectory(dslr)
 endif ()
 
+if(SAIGA_VISION)
+    add_subdirectory(vision)
+endif()
+
 add_subdirectory(ini)
 add_subdirectory(threadPool)
 add_subdirectory(image)

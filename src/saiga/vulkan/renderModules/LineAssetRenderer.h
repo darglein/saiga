@@ -23,9 +23,10 @@ class SAIGA_GLOBAL LineAssetRenderer : public Pipeline
 {
    public:
     using VertexType = VertexNC;
+    ~LineAssetRenderer() { destroy(); }
     void destroy();
 
-    bool bind(vk::CommandBuffer cmd);
+    SAIGA_WARN_UNUSED_RESULT bool bind(vk::CommandBuffer cmd);
 
 
     void pushModel(VkCommandBuffer cmd, mat4 model);

@@ -22,6 +22,7 @@ namespace Vulkan
 class SAIGA_GLOBAL AssetRenderer : public Pipeline
 {
    public:
+    ~AssetRenderer() { destroy(); }
     void destroy();
 
     bool bind(vk::CommandBuffer cmd);

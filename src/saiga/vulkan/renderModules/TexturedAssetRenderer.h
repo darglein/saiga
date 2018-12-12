@@ -25,6 +25,7 @@ class SAIGA_GLOBAL TexturedAssetRenderer : public Pipeline
    public:
     using VertexType = VertexNTD;
 
+    ~TexturedAssetRenderer() { destroy(); }
     void destroy();
 
 

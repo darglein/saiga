@@ -64,8 +64,8 @@ class SAIGA_GLOBAL VulkanPointCloudAsset
     // Creates the buffers with max number of points
     void init(VulkanBase& base, int capacity);
 
-    void render(vk::CommandBuffer cmd, int start, int count);
-    void updateBuffer(vk::CommandBuffer cmd, int start, int count);
+    void render(vk::CommandBuffer cmd, int start = 0, int count = -1);
+    void updateBuffer(vk::CommandBuffer cmd, int start = 0, int count = -1);
 };
 
 

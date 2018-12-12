@@ -47,7 +47,6 @@ void VulkanLineVertexColoredAsset::init(VulkanBase& base)
 
 void VulkanLineVertexColoredAsset::render(vk::CommandBuffer cmd)
 {
-    //    if(!vertexBuffer.buffer) return;
     vertexBuffer.bind(cmd);
     vertexBuffer.draw(cmd);
 }
@@ -64,15 +63,14 @@ void VulkanPointCloudAsset::init(VulkanBase& base, int _capacity)
 
 void VulkanPointCloudAsset::render(vk::CommandBuffer cmd, int start, int count)
 {
-    //    if(!vertexBuffer.buffer || count == 0) return;
     vertexBuffer.bind(cmd);
-    vertexBuffer.draw(cmd, count, start);
+    vertexBuffer.draw(cmd, count < 0 ? size : count, start);
 }
 
 void VulkanPointCloudAsset::updateBuffer(vk::CommandBuffer cmd, int start, int count)
 {
     stagingBuffer.copyTo(cmd, vertexBuffer, start * sizeof(VertexType), start * sizeof(VertexType),
-                         count * sizeof(VertexType));
+                         (count < 0 ? size : count) * sizeof(VertexType));
 }
 
 
