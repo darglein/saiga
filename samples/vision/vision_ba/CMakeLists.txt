@@ -22,4 +22,4 @@ endif()
 set_target_properties (${PROG_NAME} PROPERTIES FOLDER samples)
 set_target_properties( ${PROG_NAME}
 	PROPERTIES
-    	RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}/vulkan")
+        RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}/vision")

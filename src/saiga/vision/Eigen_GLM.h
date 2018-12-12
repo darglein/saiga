@@ -42,5 +42,16 @@ SAIGA_TEMPLATE inline mat4 toglm(const Eigen::Matrix<_Scalar, 4, 4>& mat)
 }
 
 
+template <typename _Scalar>
+SAIGA_TEMPLATE inline vec3 toglm(const Eigen::Matrix<_Scalar, 3, 1>& v)
+{
+    vec3 r;
+    for (int i = 0; i < v.rows(); ++i)
+    {
+        r[i] = v[i];
+    }
+    return r;
+}
+
 
 }  // namespace Saiga

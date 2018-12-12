@@ -178,6 +178,10 @@ endif()
 find_package(Sophus QUIET)
 PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
+find_package(g2o QUIET)
+PackageHelperTarget(g2o::core G2O_FOUND)
+PackageHelperTarget(g2o::solver_cholmod G2O_FOUND)
+#PackageHelperTarget(g2o::types_sba G2O_FOUND)
 
 
 #bullet
