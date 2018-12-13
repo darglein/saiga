@@ -16,11 +16,11 @@ namespace Kernel
 template <typename T>
 struct BAPoseMono
 {
-    static constexpr int ResCount = 2;
-    static constexpr int VarCount = 6;
+    static constexpr int ResCount     = 2;
+    static constexpr int VarCountPose = 6;
 
     using ResidualType = Eigen::Matrix<T, ResCount, 1>;
-    using JacobiType   = Eigen::Matrix<T, ResCount, VarCount>;
+    using JacobiType   = Eigen::Matrix<T, ResCount, VarCountPose>;
 
     using CameraType = Intrinsics4Base<T>;
     using SE3Type    = Sophus::SE3<T>;
@@ -82,11 +82,11 @@ struct BAPoseMono
 template <typename T>
 struct BAPoseStereo
 {
-    static constexpr int ResCount = 3;
-    static constexpr int VarCount = 6;
+    static constexpr int ResCount     = 3;
+    static constexpr int VarCountPose = 6;
 
     using ResidualType = Eigen::Matrix<T, ResCount, 1>;
-    using JacobiType   = Eigen::Matrix<T, ResCount, VarCount>;
+    using JacobiType   = Eigen::Matrix<T, ResCount, VarCountPose>;
 
     using CameraType = StereoCamera4Base<T>;
     using SE3Type    = Sophus::SE3<T>;

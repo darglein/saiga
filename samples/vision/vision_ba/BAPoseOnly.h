@@ -7,7 +7,8 @@ namespace Saiga
 class BAPoseOnly
 {
    public:
-    void optimize(Scene& scene, int its);
+    void poseOnlyDense(Scene& scene, int its);
+    void posePointDense(Scene& scene, int its);
 };
 
 

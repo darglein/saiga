@@ -33,7 +33,10 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 
     //    Saiga::BALDataset bald("problem-49-7776-pre.txt");
     //    Saiga::BALDataset bald("problem-1723-156502-pre.txt");
-    scene = sscene.circleSphere();
+
+    sscene.numCameras     = 20;
+    sscene.numWorldPoints = 1000;
+    scene                 = sscene.circleSphere();
 }
 
 VulkanExample::~VulkanExample() {}
@@ -142,17 +145,27 @@ void VulkanExample::renderGUI()
         cout << scene.rms() << endl;
     }
 
+    static int its = 1;
+    ImGui::SliderInt("its", &its, 0, 10);
+
     if (ImGui::Button("Bundle Adjust G2O"))
     {
         Saiga::g2oBA2 ba;
-        ba.optimize(scene, 10);
+        ba.optimize(scene, its);
         change = true;
     }
 
-    if (ImGui::Button("Bundle Adjust my"))
+    if (ImGui::Button("poseOnlyDense"))
     {
         Saiga::BAPoseOnly ba;
-        ba.optimize(scene, 1);
+        ba.poseOnlyDense(scene, its);
+        change = true;
+    }
+
+    if (ImGui::Button("posePointDense"))
+    {
+        Saiga::BAPoseOnly ba;
+        ba.posePointDense(scene, its);
         change = true;
     }
 
