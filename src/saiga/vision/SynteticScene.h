@@ -32,8 +32,8 @@ class SAIGA_GLOBAL SynteticScene
     // 40k image point references -> 300-400 points per image
     // 125 key frames
     // 9000 world points
-    int numWorldPoints = 9000;
-    int numCameras     = 125;
+    int numWorldPoints = 10;
+    int numCameras     = 2;
     int numImagePoints = 350;
 };
 }  // namespace Saiga

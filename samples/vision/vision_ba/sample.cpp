@@ -34,9 +34,9 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     //    Saiga::BALDataset bald("problem-49-7776-pre.txt");
     //    Saiga::BALDataset bald("problem-1723-156502-pre.txt");
 
-    sscene.numCameras     = 20;
-    sscene.numWorldPoints = 1000;
-    scene                 = sscene.circleSphere();
+    //    sscene.numCameras     = 20;
+    //    sscene.numWorldPoints = 1000;
+    scene = sscene.circleSphere();
 }
 
 VulkanExample::~VulkanExample() {}
@@ -54,7 +54,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     grid.init(renderer.base);
 
     //    frustum.createFrustum(camera.proj, 2, vec4(1), true);
-    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(0, 1, 0, 1), false);
+    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 0, 0, 1), false);
     frustum.init(renderer.base);
 
     pointCloud.init(base, 1000 * 1000);
@@ -89,6 +89,7 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
         pointCloud.size = i;
         change          = false;
         pointCloud.updateBuffer(cmd);
+        rms = scene.rms();
     }
 }
 
@@ -126,6 +127,7 @@ void VulkanExample::renderGUI()
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Vision BA Sample");
 
+    ImGui::Text("RMS: %f", rms);
 
     if (ImGui::CollapsingHeader("Load Scene"))
     {
@@ -142,7 +144,7 @@ void VulkanExample::renderGUI()
         Saiga::BALDataset bald("problem-257-65132-pre.txt");
         scene = bald.makeScene();
         scene.removeNegativeProjections();
-        cout << scene.rms() << endl;
+        change = true;
     }
 
     static int its = 1;
@@ -162,10 +164,24 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
+    if (ImGui::Button("poseOnlySparse"))
+    {
+        Saiga::BAPoseOnly ba;
+        ba.poseOnlySparse(scene, its);
+        change = true;
+    }
+
     if (ImGui::Button("posePointDense"))
     {
         Saiga::BAPoseOnly ba;
         ba.posePointDense(scene, its);
+        change = true;
+    }
+
+    if (ImGui::Button("posePointSparse"))
+    {
+        Saiga::BAPoseOnly ba;
+        ba.posePointSparse(scene, its);
         change = true;
     }
 

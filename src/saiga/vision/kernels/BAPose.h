@@ -19,8 +19,10 @@ struct BAPoseMono
     static constexpr int ResCount     = 2;
     static constexpr int VarCountPose = 6;
 
-    using ResidualType = Eigen::Matrix<T, ResCount, 1>;
-    using JacobiType   = Eigen::Matrix<T, ResCount, VarCountPose>;
+    using ResidualType     = Eigen::Matrix<T, ResCount, 1>;
+    using PoseJacobiType   = Eigen::Matrix<T, ResCount, VarCountPose>;
+    using PoseDiaBlockType = Eigen::Matrix<T, VarCountPose, VarCountPose>;
+
 
     using CameraType = Intrinsics4Base<T>;
     using SE3Type    = Sophus::SE3<T>;
@@ -38,7 +40,7 @@ struct BAPoseMono
     }
 
     static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
-                                            const Vec2& observed, ResidualType& res, JacobiType& Jrow, T weight)
+                                            const Vec2& observed, ResidualType& res, PoseJacobiType& Jrow, T weight)
     {
         Vec3 pc   = extr * wp;
         Vec2 proj = camera.project(pc);

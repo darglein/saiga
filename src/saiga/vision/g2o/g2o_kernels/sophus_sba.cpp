@@ -59,6 +59,9 @@ void EdgeSE3PointProject::linearizeOplus()
     number_t x   = xyz_trans[0];
     number_t y   = xyz_trans[1];
     number_t z   = xyz_trans[2];
+    auto zz      = z * z;
+    auto zinv    = 1 / z;
+    auto zzinv   = 1 / zz;
     number_t z_2 = z * z;
 
     Matrix3 R = T.so3().matrix();
@@ -66,40 +69,38 @@ void EdgeSE3PointProject::linearizeOplus()
     auto& fx = intr.fx;
     auto& fy = intr.fy;
 
-    _jacobianOplusXi(0, 0) = -fx * R(0, 0) / z + fx * x * R(2, 0) / z_2;
-    _jacobianOplusXi(0, 1) = -fx * R(0, 1) / z + fx * x * R(2, 1) / z_2;
-    _jacobianOplusXi(0, 2) = -fx * R(0, 2) / z + fx * x * R(2, 2) / z_2;
+    _jacobianOplusXi(0, 0) = R(0, 0) * zinv - x * R(2, 0) * zzinv;
+    _jacobianOplusXi(0, 1) = R(0, 1) * zinv - x * R(2, 1) * zzinv;
+    _jacobianOplusXi(0, 2) = R(0, 2) * zinv - x * R(2, 2) * zzinv;
 
-    _jacobianOplusXi(1, 0) = -fy * R(1, 0) / z + fy * y * R(2, 0) / z_2;
-    _jacobianOplusXi(1, 1) = -fy * R(1, 1) / z + fy * y * R(2, 1) / z_2;
-    _jacobianOplusXi(1, 2) = -fy * R(1, 2) / z + fy * y * R(2, 2) / z_2;
+    _jacobianOplusXi(1, 0) = R(1, 0) * zinv - y * R(2, 0) * zzinv;
+    _jacobianOplusXi(1, 1) = R(1, 1) * zinv - y * R(2, 1) * zzinv;
+    _jacobianOplusXi(1, 2) = R(1, 2) * zinv - y * R(2, 2) * zzinv;
 
-    _jacobianOplusXi.row(0) *= weight;
-    _jacobianOplusXi.row(1) *= weight;
+    _jacobianOplusXi.row(0) *= -weight * fx;
+    _jacobianOplusXi.row(1) *= -weight * fy;
 
     // Jacobian for the SE3 2x6
 
     // Translation
-    _jacobianOplusXj(0, 0) = -1. / z * fx;
+    _jacobianOplusXj(0, 0) = zinv;
     _jacobianOplusXj(0, 1) = 0;
-    _jacobianOplusXj(0, 2) = x / z_2 * fx;
-
+    _jacobianOplusXj(0, 2) = -x * zzinv;
     _jacobianOplusXj(1, 0) = 0;
-    _jacobianOplusXj(1, 1) = -1. / z * fy;
-    _jacobianOplusXj(1, 2) = y / z_2 * fy;
+    _jacobianOplusXj(1, 1) = zinv;
+    _jacobianOplusXj(1, 2) = -y * zzinv;
 
 
     // Rotation
-    _jacobianOplusXj(0, 3) = x * y / z_2 * fx;
-    _jacobianOplusXj(0, 4) = -(1 + (x * x / z_2)) * fx;
-    _jacobianOplusXj(0, 5) = y / z * fx;
+    _jacobianOplusXj(0, 3) = -y * x * zzinv;
+    _jacobianOplusXj(0, 4) = (1 + (x * x) * zzinv);
+    _jacobianOplusXj(0, 5) = -y * zinv;
+    _jacobianOplusXj(1, 3) = (-1 - (y * y) * zzinv);
+    _jacobianOplusXj(1, 4) = x * y * zzinv;
+    _jacobianOplusXj(1, 5) = x * zinv;
 
-    _jacobianOplusXj(1, 3) = (1 + y * y / z_2) * fy;
-    _jacobianOplusXj(1, 4) = -x * y / z_2 * fy;
-    _jacobianOplusXj(1, 5) = -x / z * fy;
-
-    _jacobianOplusXj.row(0) *= weight;
-    _jacobianOplusXj.row(1) *= weight;
+    _jacobianOplusXj.row(0) *= -weight * fx;
+    _jacobianOplusXj.row(1) *= -weight * fy;
 }
 
 

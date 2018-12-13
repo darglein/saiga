@@ -44,6 +44,7 @@ class VulkanExample : public Saiga::Updating,
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
     bool change        = false;
     bool uploadChanges = true;
+    float rms          = 0;
     Saiga::Object3D teapotTrans;
 
     Saiga::Scene scene;

@@ -44,19 +44,25 @@ Scene SynteticScene::circleSphere(int numWorldPoints, int numCameras, int numIma
         si.intr = 0;
         si.extr = i;
 
-
+#if 0
         for (int j = 0; j < numImagePoints; ++j)
         {
             MonoImagePoint mip;
-
             mip.wp = Random::uniformInt(0, numWorldPoints - 1);
-
-            // project to image
             auto p    = extr.se3 * scene.worldPoints[mip.wp].p;
             mip.point = intr.project(p);
-
             si.monoPoints.push_back(mip);
         }
+#else
+        for (int j = 0; j < numWorldPoints; ++j)
+        {
+            MonoImagePoint mip;
+            mip.wp    = j;
+            auto p    = extr.se3 * scene.worldPoints[mip.wp].p;
+            mip.point = intr.project(p);
+            si.monoPoints.push_back(mip);
+        }
+#endif
 
         scene.images.push_back(si);
     }

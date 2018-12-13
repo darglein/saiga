@@ -6,6 +6,7 @@
 #include "g2o/core/solver.h"
 
 #include "g2o/core/block_solver.h"
+#include "g2o/core/optimization_algorithm_gauss_newton.h"
 #include "g2o/core/optimization_algorithm_levenberg.h"
 #include "g2o/core/robust_kernel_impl.h"
 #include "g2o/core/sparse_optimizer.h"
@@ -24,12 +25,18 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
     optimizer.setVerbose(true);
 
     std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver;
-    linearSolver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
-    //    linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>>();
+    //    linearSolver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
+    linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>>();
+
 
     g2o::OptimizationAlgorithmLevenberg* solver =
         new g2o::OptimizationAlgorithmLevenberg(g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
     solver->setUserLambdaInit(1.0);
+
+    //    g2o::OptimizationAlgorithmGaussNewton* solver =
+    //        new
+    //        g2o::OptimizationAlgorithmGaussNewton(g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
+
     optimizer.setAlgorithm(solver);
 
 

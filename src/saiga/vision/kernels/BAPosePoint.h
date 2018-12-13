@@ -23,6 +23,10 @@ struct BAPosePointMono
     using PoseJacobiType  = Eigen::Matrix<T, ResCount, VarCountPose>;
     using PointJacobiType = Eigen::Matrix<T, ResCount, VarCountPoint>;
 
+    using PoseDiaBlockType        = Eigen::Matrix<T, VarCountPose, VarCountPose>;
+    using PointDiaBlockType       = Eigen::Matrix<T, VarCountPoint, VarCountPoint>;
+    using PosePointUpperBlockType = Eigen::Matrix<T, VarCountPose, VarCountPoint>;  // assuming first poses then points
+
     using CameraType = Intrinsics4Base<T>;
     using SE3Type    = Sophus::SE3<T>;
     using Vec3       = Eigen::Matrix<T, 3, 1>;
@@ -83,13 +87,13 @@ struct BAPosePointMono
 
         auto R = extr.so3().matrix();
 
-        JrowPoint(0, 0) = -R(0, 0) * zinv + x * R(2, 0) * zzinv;
-        JrowPoint(0, 1) = -R(0, 1) * zinv + x * R(2, 1) * zzinv;
-        JrowPoint(0, 2) = -R(0, 2) * zinv + x * R(2, 2) * zzinv;
+        JrowPoint(0, 0) = R(0, 0) * zinv - x * R(2, 0) * zzinv;
+        JrowPoint(0, 1) = R(0, 1) * zinv - x * R(2, 1) * zzinv;
+        JrowPoint(0, 2) = R(0, 2) * zinv - x * R(2, 2) * zzinv;
 
-        JrowPoint(1, 0) = -R(1, 0) * zinv + y * R(2, 0) * zzinv;
-        JrowPoint(1, 1) = -R(1, 1) * zinv + y * R(2, 1) * zzinv;
-        JrowPoint(1, 2) = -R(1, 2) * zinv + y * R(2, 2) * zzinv;
+        JrowPoint(1, 0) = R(1, 0) * zinv - y * R(2, 0) * zzinv;
+        JrowPoint(1, 1) = R(1, 1) * zinv - y * R(2, 1) * zzinv;
+        JrowPoint(1, 2) = R(1, 2) * zinv - y * R(2, 2) * zzinv;
 
         JrowPoint.row(0) *= camera.fx * weight;
         JrowPoint.row(1) *= camera.fy * weight;
