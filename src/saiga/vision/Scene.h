@@ -65,6 +65,8 @@ struct SAIGA_GLOBAL MonoImagePoint
     // === computed by reprojection
     double repDepth = 0;
     Eigen::Vector2d repPoint;
+
+    explicit operator bool() const { return wp != -1; }
 };
 
 struct SAIGA_GLOBAL StereoImagePoint

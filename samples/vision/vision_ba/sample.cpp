@@ -15,6 +15,8 @@
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
 #include "saiga/vision/g2o/g2oBA2.h"
+
+#include "BAPoseOnly.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
@@ -31,10 +33,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 
     //    Saiga::BALDataset bald("problem-49-7776-pre.txt");
     //    Saiga::BALDataset bald("problem-1723-156502-pre.txt");
-    Saiga::BALDataset bald("problem-257-65132-pre.txt");
-    scene = bald.makeScene();
-    scene.removeNegativeProjections();
-    cout << scene.rms() << endl;
+    scene = sscene.circleSphere();
 }
 
 VulkanExample::~VulkanExample() {}
@@ -135,11 +134,25 @@ void VulkanExample::renderGUI()
         }
     }
 
+    if (ImGui::Button("load BAL"))
+    {
+        Saiga::BALDataset bald("problem-257-65132-pre.txt");
+        scene = bald.makeScene();
+        scene.removeNegativeProjections();
+        cout << scene.rms() << endl;
+    }
 
-    if (ImGui::Button("Bundle Adjust"))
+    if (ImGui::Button("Bundle Adjust G2O"))
     {
         Saiga::g2oBA2 ba;
         ba.optimize(scene, 10);
+        change = true;
+    }
+
+    if (ImGui::Button("Bundle Adjust my"))
+    {
+        Saiga::BAPoseOnly ba;
+        ba.optimize(scene, 1);
         change = true;
     }
 
