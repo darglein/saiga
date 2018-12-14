@@ -8,6 +8,7 @@
 
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/kernels/BAPose.h"
+#include "saiga/vision/kernels/Robust.h"
 
 #include <vector>
 
@@ -101,7 +102,7 @@ int RobustPoseOptimization<T>::optimizePoseRobust(const AlignedVector<Vec3>& wps
                 }
                 else
                 {
-                    Eigen::Matrix<T, 2, 6> Jrow;
+                    typename Saiga::Kernel::BAPoseMono<T>::PoseJacobiType Jrow;
                     Vec2 res;
                     Saiga::Kernel::BAPoseMono<T>::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, Jrow,
                                                                               o.weight);
