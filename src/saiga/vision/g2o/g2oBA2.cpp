@@ -20,7 +20,7 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
 {
     //    Saiga::ScopedTimerPrint tim("optimize g2o");
 
-    SAIGA_BLOCK_TIMER;
+    SAIGA_BLOCK_TIMER();
     g2o::SparseOptimizer optimizer;
     optimizer.setVerbose(true);
 
@@ -67,8 +67,8 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
     }
 
 
-    int stereoEdges = 0;
-    int monoEdges   = 0;
+    //    int stereoEdges = 0;
+    int monoEdges = 0;
 
     for (SceneImage& im : scene.images)
     {
@@ -141,8 +141,8 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
             }
         }
     }
-    double costInit = 0, costFinal = 0;
-    int totalDensePoints = 0;
+    //    double costInit = 0, costFinal = 0;
+    //    int totalDensePoints = 0;
 
     cout << "g2o problem created." << endl;
 

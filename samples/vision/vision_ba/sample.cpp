@@ -147,7 +147,7 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
-    static int its = 1;
+    static int its = 10;
     ImGui::SliderInt("its", &its, 0, 10);
 
     if (ImGui::Button("Bundle Adjust G2O"))
@@ -157,12 +157,6 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
-    if (ImGui::Button("poseOnlyDense"))
-    {
-        Saiga::BAPoseOnly ba;
-        ba.poseOnlyDense(scene, its);
-        change = true;
-    }
 
     if (ImGui::Button("poseOnlySparse"))
     {

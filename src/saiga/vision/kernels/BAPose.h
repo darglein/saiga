@@ -7,7 +7,6 @@
 #pragma once
 
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/kernels/Robust.h"
 
 namespace Saiga
 {
@@ -19,9 +18,10 @@ struct BAPoseMono
     static constexpr int ResCount     = 2;
     static constexpr int VarCountPose = 6;
 
-    using ResidualType     = Eigen::Matrix<T, ResCount, 1>;
-    using PoseJacobiType   = Eigen::Matrix<T, ResCount, VarCountPose>;
-    using PoseDiaBlockType = Eigen::Matrix<T, VarCountPose, VarCountPose>;
+    using ResidualType      = Eigen::Matrix<T, ResCount, 1>;
+    using ResidualBlockType = Eigen::Matrix<T, VarCountPose, 1>;
+    using PoseJacobiType    = Eigen::Matrix<T, ResCount, VarCountPose, Eigen::RowMajor>;
+    using PoseDiaBlockType  = Eigen::Matrix<T, VarCountPose, VarCountPose, Eigen::RowMajor>;
 
 
     using CameraType = Intrinsics4Base<T>;
@@ -29,8 +29,8 @@ struct BAPoseMono
     using Vec3       = Eigen::Matrix<T, 3, 1>;
     using Vec2       = Eigen::Matrix<T, 2, 1>;
 
-    static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
-                                         const Vec2& observed, T weight)
+    static inline ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
+                                                const Vec2& observed, T weight)
     {
         Vec3 pc   = extr * wp;
         Vec2 proj = camera.project(pc);
@@ -39,12 +39,14 @@ struct BAPoseMono
         return res;
     }
 
-    static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
-                                            const Vec2& observed, ResidualType& res, PoseJacobiType& Jrow, T weight)
+    static inline void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
+                                                   const Vec2& observed, ResidualType& res, PoseJacobiType& Jrow,
+                                                   T weight)
     {
         Vec3 pc   = extr * wp;
         Vec2 proj = camera.project(pc);
         res       = observed - proj;
+        res *= weight;
 
         auto x     = pc(0);
         auto y     = pc(1);
@@ -53,30 +55,25 @@ struct BAPoseMono
         auto zinv  = 1 / z;
         auto zzinv = 1 / zz;
 
-        // Translation
+        // Tx
         Jrow(0, 0) = zinv;
         Jrow(0, 1) = 0;
         Jrow(0, 2) = -x * zzinv;
-        Jrow(1, 0) = 0;
-        Jrow(1, 1) = zinv;
-        Jrow(1, 2) = -y * zzinv;
-
-
-        // Rotation
+        // Rx
         Jrow(0, 3) = -y * x * zzinv;
         Jrow(0, 4) = (1 + (x * x) * zzinv);
         Jrow(0, 5) = -y * zinv;
+        Jrow.row(0) *= camera.fx * weight;
+
+        // Ty
+        Jrow(1, 0) = 0;
+        Jrow(1, 1) = zinv;
+        Jrow(1, 2) = -y * zzinv;
+        // Ry
         Jrow(1, 3) = (-1 - (y * y) * zzinv);
         Jrow(1, 4) = x * y * zzinv;
         Jrow(1, 5) = x * zinv;
-
-        Jrow.row(0) *= camera.fx;
-        Jrow.row(1) *= camera.fy;
-
-
-        // use weight
-        Jrow *= weight;
-        res *= weight;
+        Jrow.row(1) *= camera.fy * weight;
     }
 };
 

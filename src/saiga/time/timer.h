@@ -117,8 +117,8 @@ class ScopedTimer : public Timer
 };
 
 
-#define SAIGA_BLOCK_TIMER                                                              \
+#define SAIGA_BLOCK_TIMER(_msg)                                                        \
     Saiga::ScopedTimerPrint func_timer(std::string(SAIGA_SHORT_FUNCTION) + ", Line " + \
-                                       std::string(std::to_string(__LINE__)));
+                                       std::string(std::to_string(__LINE__)))
 
 }  // namespace Saiga
