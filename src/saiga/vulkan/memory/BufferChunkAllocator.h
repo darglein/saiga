@@ -80,6 +80,9 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
     void deallocate(MemoryLocation& location) override;
 
     MemoryLocation allocate(vk::DeviceSize size) override;
+
+protected:
+    void headerInfo() override;
 };
 }  // namespace Memory
 }  // namespace Vulkan

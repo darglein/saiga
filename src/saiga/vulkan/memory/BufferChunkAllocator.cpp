@@ -53,3 +53,9 @@ void BufferChunkAllocator::deallocate(MemoryLocation& location)
               << ":" << location;
     BaseChunkAllocator::deallocate(location);
 }
+
+void BufferChunkAllocator::headerInfo()
+{
+    ImGui::LabelText("Buffer Usage", "%s", vk::to_string(usageFlags).c_str());
+    ImGui::LabelText("Memory Type", "%s", vk::to_string(flags).c_str());
+}

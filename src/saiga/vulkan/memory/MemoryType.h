@@ -63,6 +63,43 @@ struct SAIGA_GLOBAL ImageType : public MemoryType<vk::ImageUsageFlags>
 
 namespace std
 {
+template <>
+struct SAIGA_GLOBAL hash<vk::MemoryPropertyFlags>
+{
+    typedef vk::MemoryPropertyFlags argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(argument_type const& s) const noexcept
+    {
+        result_type const h1(std::hash<unsigned int>{}(static_cast<unsigned int>(s)));
+        return h1;
+    }
+};
+
+template <>
+struct SAIGA_GLOBAL hash<vk::BufferUsageFlags>
+{
+    typedef vk::BufferUsageFlags argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(argument_type const& s) const noexcept
+    {
+        result_type const h1(std::hash<unsigned int>{}(static_cast<unsigned int>(s)));
+        return h1;
+    }
+};
+
+
+template <>
+struct SAIGA_GLOBAL hash<vk::ImageUsageFlags>
+{
+    typedef vk::ImageUsageFlags argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(argument_type const& s) const noexcept
+    {
+        result_type const h1(std::hash<unsigned int>{}(static_cast<unsigned int>(s)));
+        return h1;
+    }
+};
+
 template <typename T>
 struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::MemoryType<T>>
 {
@@ -85,4 +122,5 @@ struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::ImageType>
     : public hash<Saiga::Vulkan::Memory::MemoryType<vk::ImageUsageFlags>>
 {
 };
+
 }  // namespace std

@@ -35,6 +35,8 @@ class SAIGA_GLOBAL ImageChunkAllocator : public BaseChunkAllocator
 
    protected:
     ChunkIterator createNewChunk() override;
+
+    void headerInfo() override;
 };
 
 }  // namespace Memory

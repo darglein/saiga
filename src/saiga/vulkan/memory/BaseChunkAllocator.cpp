@@ -26,8 +26,6 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
 
     if (chunkAlloc == m_chunkAllocations.end())
     {
-        allocation_bars.push_back(
-            ImGui::ColoredBar({0, 60}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 4));
         chunkAlloc = createNewChunk();
         freeSpace  = chunkAlloc->freeList.begin();
     }
@@ -168,22 +166,23 @@ void BaseChunkAllocator::destroy()
 
 
 
-void BaseChunkAllocator::renderInfoGUI()
+void BaseChunkAllocator::showDetailStats()
 {
-    BaseMemoryAllocator::renderInfoGUI();
-
     using BarColor = ImGui::ColoredBar::BarColor;
     static const std::array<BarColor, 2> colors{BarColor{{0.0f, 0.2f, 0.2f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}},
                                                 BarColor{{0.333f, 0.0f, 0.0f, 1.0f}, {0.667f, 0.224f, 0.224f, 1.0f}}};
+
+    static std::vector<ImGui::ColoredBar> allocation_bars;
 
     if (ImGui::CollapsingHeader(gui_identifier.c_str()))
     {
         ImGui::Indent();
 
-        ImGui::LabelText("Effective Memory Type", "%s", vk::to_string(flags).c_str());
         headerInfo();
 
-        SAIGA_ASSERT(allocation_bars.size() == m_chunkAllocations.size(), "Number of bars != Number of chunks");
+        allocation_bars.resize(
+            m_chunkAllocations.size(),
+            ImGui::ColoredBar({0, 60}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 4));
 
         int numAllocs           = 0;
         uint64_t usedSpace      = 0;
@@ -206,7 +205,7 @@ void BaseChunkAllocator::renderInfoGUI()
             }
             numAllocs += j;
             auto freeEnd = --chunk.freeList.cend();
-            for (freeIter = chunk.freeList.begin(); freeIter != freeEnd; freeIter++)
+            for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
             {
                 innerFreeSpace += freeIter->size;
                 totalFreeSpace += freeIter->size;
@@ -227,6 +226,36 @@ void BaseChunkAllocator::renderInfoGUI()
         ImGui::Unindent();
     }
 }
+
+MemoryStats BaseChunkAllocator::collectMemoryStats()
+{
+    int numAllocs                = 0;
+    uint64_t usedSpace           = 0;
+    uint64_t fragmentedFreeSpace = 0;
+    uint64_t totalFreeSpace      = 0;
+    for (int i = 0; i < m_chunkAllocations.size(); ++i)
+    {
+        auto chunk = m_chunkAllocations[i];
+        int j      = 0;
+        std::list<MemoryLocation>::const_iterator allocIter, freeIter;
+        for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
+        {
+            usedSpace += allocIter->size;
+        }
+        numAllocs += j;
+        auto freeEnd = --chunk.freeList.cend();
+        for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
+        {
+            fragmentedFreeSpace += freeIter->size;
+            totalFreeSpace += freeIter->size;
+        }
+
+        totalFreeSpace += chunk.freeList.back().size;
+    }
+    auto totalSpace = m_chunkSize * m_chunkAllocations.size();
+
+    return MemoryStats{totalSpace, usedSpace, fragmentedFreeSpace};
+};
 }  // namespace Memory
 }  // namespace Vulkan
 }  // namespace Saiga

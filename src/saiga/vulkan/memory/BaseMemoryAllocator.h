@@ -13,6 +13,28 @@ namespace Vulkan
 {
 namespace Memory
 {
+struct MemoryStats
+{
+    vk::DeviceSize allocated;
+    vk::DeviceSize used;
+    vk::DeviceSize fragmented;
+
+    MemoryStats() : allocated(0), used(0), fragmented(0) {}
+
+    MemoryStats(vk::DeviceSize _allocated, vk::DeviceSize _used, vk::DeviceSize _fragmented)
+        : allocated(_allocated), used(_used), fragmented(_fragmented)
+    {
+    }
+
+    MemoryStats& operator+=(const MemoryStats& rhs)
+    {
+        allocated += rhs.allocated;
+        used += rhs.used;
+        fragmented += rhs.fragmented;
+        return *this;
+    }
+};
+
 struct SAIGA_GLOBAL BaseMemoryAllocator
 {
     explicit BaseMemoryAllocator(bool _mapped) : mapped(_mapped) {}
@@ -31,7 +53,9 @@ struct SAIGA_GLOBAL BaseMemoryAllocator
 
     virtual void destroy() {}
 
-    virtual void renderInfoGUI() {};
+    virtual MemoryStats collectMemoryStats() { return MemoryStats(); };
+
+    virtual void showDetailStats(){};
 };
 
 }  // namespace Memory

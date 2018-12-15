@@ -64,7 +64,7 @@ MemoryLocation SimpleMemoryAllocator::allocate(vk::DeviceSize size)
     return retVal;
 }
 
-void SimpleMemoryAllocator::renderInfoGUI()
+void SimpleMemoryAllocator::showDetailStats()
 {
     if (ImGui::CollapsingHeader(gui_identifier.c_str()))
     {
@@ -77,4 +77,12 @@ void SimpleMemoryAllocator::renderInfoGUI()
 
         ImGui::Unindent();
     }
+}
+
+MemoryStats SimpleMemoryAllocator::collectMemoryStats()
+{
+    const auto totalSize = std::accumulate(m_allocations.begin(), m_allocations.end(), 0UL,
+                                           [](const auto& a, const auto& b) { return a + b.size; });
+
+    return MemoryStats{totalSize, totalSize, 0};
 }

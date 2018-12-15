@@ -89,7 +89,9 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
 
     void deallocate(MemoryLocation& location) override;
 
-    void renderInfoGUI() override;
+    void showDetailStats() override;
+
+    MemoryStats collectMemoryStats() override;
 };
 
 

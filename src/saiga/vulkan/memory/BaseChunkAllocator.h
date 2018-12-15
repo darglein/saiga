@@ -40,6 +40,10 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     std::string gui_identifier;
 
+    virtual ChunkIterator createNewChunk() = 0;
+
+    virtual void headerInfo() {}
+
    public:
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, const vk::MemoryPropertyFlags& _flags,
                        FitStrategy& strategy, vk::DeviceSize chunkSize = 64 * 1024 * 1024, bool _mapped = false)
@@ -89,16 +93,9 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     void destroy() override;
 
-   protected:
-    virtual ChunkIterator createNewChunk() = 0;
+    MemoryStats collectMemoryStats() override;
 
-    virtual void headerInfo() {}
-
-   private:
-    std::vector<ImGui::ColoredBar> allocation_bars;
-
-   public:
-    void renderInfoGUI() override;
+    void showDetailStats() override;
 };
 
 

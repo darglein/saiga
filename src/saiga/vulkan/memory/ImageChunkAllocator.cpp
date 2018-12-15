@@ -15,3 +15,8 @@ Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator:
 
     return --m_chunkAllocations.end();
 }
+
+void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
+{
+    ImGui::LabelText("Memory Type", "%s", vk::to_string(flags).c_str());
+}
