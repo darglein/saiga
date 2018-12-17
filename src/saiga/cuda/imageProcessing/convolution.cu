@@ -13,7 +13,8 @@ namespace Saiga
 {
 namespace CUDA
 {
-__constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
+//todo maybe change
+static __constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
 
 template <typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int Y_ELEMENTS>

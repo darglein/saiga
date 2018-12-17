@@ -4,15 +4,6 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/config.h"
-#include "saiga/util/ArrayView.h"
-
-int main()
-{
-	cout << "hello world" << endl;
-	return 0;
-}
-#if 0
 
 #include <thrust/device_vector.h>
 
@@ -148,5 +139,4 @@ int main(int argc, char* argv[])
     cout << "Done." << endl;
 }
 
-#endif
 #endif

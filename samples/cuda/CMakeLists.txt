@@ -12,3 +12,7 @@ add_subdirectory(cuda_segfault)
 add_subdirectory(cuda_bitonicSort)
 add_subdirectory(cuda_radixSort)
 add_subdirectory(cuda_reduce)
+
+if(SAIGA_CUDA_RDC)
+	add_subdirectory(cuda_dynamicParallelism)
+endif()
