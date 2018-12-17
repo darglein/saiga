@@ -11,7 +11,7 @@
 // Test if saiga was compiled with CUDA and
 // the current project has CUDA in the include dir.
 // If yes, generate a constructor and additional functions for thrust device vectors.
-#ifdef SAIGA_WITH_CUDA
+#ifdef SAIGA_USE_CUDA
 #    if __has_include(<thrust/device_vector.h>)
 #        include <thrust/device_vector.h>
 #        define SAIGA_GENERATE_THRUST_CONSTRUCTOR
@@ -47,7 +47,6 @@ struct SAIGA_TEMPLATE ArrayView
     using iterator        = pointer;
     using const_iterator  = const_pointer;
     using size_type       = size_t;
-    //    using size_type = uint32_t;
     using difference_type = ptrdiff_t;
 
     HD ArrayView() : data_(nullptr), n(0) {}

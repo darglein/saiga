@@ -1,0 +1,44 @@
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#pragma once
+
+//############# Libraries found ###############
+
+//opengl window and context managment
+#cmakedefine SAIGA_USE_OPENGL
+#cmakedefine SAIGA_USE_SDL
+#cmakedefine SAIGA_USE_GLFW
+#cmakedefine SAIGA_USE_FREETYPE
+
+//sound
+#cmakedefine SAIGA_USE_OPENAL
+#cmakedefine SAIGA_USE_ALUT
+#cmakedefine SAIGA_USE_OPUS
+
+//asset loading
+#cmakedefine SAIGA_USE_ASSIMP
+#cmakedefine SAIGA_USE_OPENMESH
+
+//image loading
+#cmakedefine SAIGA_USE_PNG
+#cmakedefine SAIGA_USE_FREEIMAGE
+
+#cmakedefine SAIGA_USE_FFMPEG
+#cmakedefine SAIGA_USE_OPENNI2
+#cmakedefine SAIGA_USE_BOOST
+
+#cmakedefine SAIGA_USE_CUDA
+#cmakedefine SAIGA_USE_CUSPARSE
+#cmakedefine SAIGA_USE_CUBLAS
+#cmakedefine SAIGA_USE_EIGEN
+#cmakedefine SAIGA_EIGEN_AND_CUDA
+#cmakedefine SAIGA_USE_VULKAN
+#cmakedefine SAIGA_USE_OPENCV
+#cmakedefine SAIGA_USE_GPHOTO2
+#cmakedefine SAIGA_USE_FILESYSTEM
+
+#cmakedefine SAIGA_VISION

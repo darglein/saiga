@@ -8,10 +8,10 @@
 ##GL_VERTEX_SHADER
 
 #version 330
-    layout(location = 0) in vec3 in_position;
-layout(location = 1) in vec3 in_normal;
-layout(location = 2) in vec3 in_color;
-layout(location = 3) in vec3 in_data;
+    layout(location = 0) in vec4 in_position;
+layout(location = 1) in vec4 in_normal;
+layout(location = 2) in vec4 in_color;
+layout(location = 3) in vec4 in_data;
 
 // instancing
 layout(location = 4) in mat4 instanceModel;
@@ -25,10 +25,10 @@ out vec3 data;
 
 void main()
 {
-    color       = in_color;
-    data        = in_data;
-    normal      = normalize(vec3(view * instanceModel * vec4(in_normal, 0)));
-    gl_Position = viewProj * instanceModel * vec4(in_position, 1);
+    color       = in_color.xyz;
+    data        = in_data.xyz;
+    normal      = normalize(vec3(view * instanceModel * vec4(in_normal.xyz, 0)));
+    gl_Position = viewProj * instanceModel * vec4(in_position.xyz, 1);
 }
 
 

@@ -407,12 +407,16 @@ endif()
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga_buildconfig.h")
+set(SAIGA_MODULES_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga_modules.h")
 INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
 configure_file (
     "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_buildconfig.h.in"
     "${SAIGA_BUILDCONFIG_FILE}"
     )
-
+configure_file (
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_modules.h.in"
+    "${SAIGA_MODULES_FILE}"
+    )
 
 set(SAIGA_CONFIG_CMAKE_FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/SAIGAConfig.cmake")
 configure_file(

@@ -65,6 +65,8 @@ class SAIGA_GLOBAL Buffer
      */
     void* mapBuffer(GLenum access = GL_READ_WRITE);
     void unmapBuffer();
+
+    GLuint getBufferObject() { return buffer; }
 };
 
 inline Buffer::Buffer(GLenum _target) : target(_target) {}
