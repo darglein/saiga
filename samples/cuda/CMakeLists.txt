@@ -15,4 +15,5 @@ add_subdirectory(reduce)
 
 if(SAIGA_CUDA_RDC)
         add_subdirectory(dynamicParallelism)
+        add_subdirectory(iterativeSync)
 endif()
