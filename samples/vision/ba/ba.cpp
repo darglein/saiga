@@ -6,7 +6,7 @@
  * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
  */
 
-#include "sample.h"
+#include "ba.h"
 
 #include "saiga/image/imageTransformations.h"
 #include "saiga/imgui/imgui.h"
@@ -22,21 +22,15 @@
 #endif
 
 VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
-    : Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), renderer(renderer)
+    : VulkanSDLExampleBase(window, renderer)
 {
-    float aspect = window.getAspectRatio();
-    camera.setProj(60.0f, aspect, 0.1f, 50.0f, true);
-    camera.setView(vec3(0, 1, 3), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.rotationPoint = vec3(0);
-
-    window.setCamera(&camera);
-
     //    Saiga::BALDataset bald("problem-49-7776-pre.txt");
     //    Saiga::BALDataset bald("problem-1723-156502-pre.txt");
 
-    //    sscene.numCameras     = 20;
-    //    sscene.numWorldPoints = 1000;
-    scene = sscene.circleSphere();
+    sscene.numCameras     = 1;
+    sscene.numWorldPoints = 3;
+    scene                 = sscene.circleSphere();
+    scene.addWorldPointNoise(0.01);
 }
 
 VulkanExample::~VulkanExample() {}
@@ -66,8 +60,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
 void VulkanExample::update(float dt)
 {
-    camera.update(dt);
-    camera.interpolate(dt, 0);
+    VulkanSDLExampleBase::update(dt);
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)
@@ -147,7 +140,7 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
-    static int its = 10;
+    static int its = 1;
     ImGui::SliderInt("its", &its, 0, 10);
 
     if (ImGui::Button("Bundle Adjust G2O"))
@@ -172,6 +165,20 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
+    if (ImGui::Button("posePointDenseBlock"))
+    {
+        Saiga::BAPoseOnly ba;
+        ba.posePointDenseBlock(scene, its);
+        change = true;
+    }
+
+    if (ImGui::Button("sba paper"))
+    {
+        Saiga::BAPoseOnly ba;
+        ba.sbaPaper(scene, its);
+        change = true;
+    }
+
     if (ImGui::Button("posePointSparse"))
     {
         Saiga::BAPoseOnly ba;
@@ -184,21 +191,5 @@ void VulkanExample::renderGUI()
 
 
     ImGui::End();
-
-    parentWindow.renderImGui();
+    Saiga::VulkanSDLExampleBase::renderGUI();
 }
-
-
-void VulkanExample::keyPressed(SDL_Keysym key)
-{
-    switch (key.scancode)
-    {
-        case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
-            break;
-        default:
-            break;
-    }
-}
-
-void VulkanExample::keyReleased(SDL_Keysym key) {}
