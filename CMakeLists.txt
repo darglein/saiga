@@ -36,6 +36,8 @@ OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF)
 OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF)
 OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON)
 OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
+OptionsHelper (SAIGA_CUDA_RDC "cuda relocateable device code" OFF)
+OptionsHelper (SAIGA_CUDA_COMP "Add CUDA compile flags that make the code compatible with older GPUs but takes longer to compile" OFF)
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
 OptionsHelper(SAIGA_WITH_GL "With opengl (if it is found)" ON)
 OptionsHelper(SAIGA_WITH_VULKAN "With vulkan (if it is found)" ON)
@@ -217,11 +219,11 @@ PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRAR
 
 ##### Vulkan #####
 if(SAIGA_WITH_VULKAN)
-	find_package(Vulkan QUIET)
-	PackageHelperTarget(Vulkan::Vulkan VULKAN_FOUND)
+    find_package(Vulkan QUIET)
+    PackageHelperTarget(Vulkan::Vulkan VULKAN_FOUND)
 
-	find_package(GLslang QUIET)
-	PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
+    find_package(GLslang QUIET)
+    PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
 endif()
 
 if(SAIGA_WITH_GL)
@@ -301,14 +303,22 @@ if(CUDA_FOUND)
     endif()
 
 
-    #SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_30,sm_52,sm_61")
-    #SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_52")
-    #SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_61")
-
-    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_30,code=sm_30")
-    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_30,code=compute_30")
+    if(SAIGA_CUDA_COMP)
+        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_30,code=sm_30")
+        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_30,code=compute_30")
+    endif()
     SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_52,code=sm_52")
     SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_61,code=sm_61")
+
+    if(SAIGA_CUDA_RDC)
+        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --relocatable-device-code=true") # for dynamic parallelism
+    else()
+
+        if(SAIGA_CUDA_COMP AND SAIGA_CUDA_RDC)
+            message(FATAL_ERROR "Invalid combination.")
+        endif()
+
+    endif()
 
     SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexpr")
     #ignore warning "__device__ on defaulted function..."
@@ -407,12 +417,16 @@ endif()
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga_buildconfig.h")
+set(SAIGA_MODULES_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga_modules.h")
 INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
 configure_file (
     "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_buildconfig.h.in"
     "${SAIGA_BUILDCONFIG_FILE}"
     )
-
+configure_file (
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_modules.h.in"
+    "${SAIGA_MODULES_FILE}"
+    )
 
 set(SAIGA_CONFIG_CMAKE_FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/SAIGAConfig.cmake")
 configure_file(
@@ -453,8 +467,9 @@ add_subdirectory(src)
 add_subdirectory(shader)
 
 if(SAIGA_BUILD_SAMPLES)
-    message(STATUS "\nBuilding samples.")
+    message(STATUS " ")
     add_subdirectory(samples)
+    message(STATUS " ")
 else()
     message(STATUS "\nNo samples.")
 endif()

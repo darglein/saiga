@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga_buildconfig.h"
+#include "saiga_modules.h"
 
 #ifdef SAIGA_USE_FILESYSTEM
 #    include <filesystem>

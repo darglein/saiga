@@ -7,7 +7,6 @@
 #define GLBINDING_API SAIGA_GLOBAL
 #define GLBINDING_NO_EXPORT SAIGA_LOCAL
 
-
 #ifndef GLBINDING_DEPRECATED
 #    define GLBINDING_DEPRECATED __attribute__((__deprecated__))
 #endif

@@ -1,4 +1,4 @@
-add_subdirectory(vulkan_compute)
-add_subdirectory(vulkan_helloWorld)
-add_subdirectory(vulkan_memoryTest)
-add_subdirectory(vulkan_swapTest)
+add_subdirectory(compute)
+add_subdirectory(helloWorld)
+add_subdirectory(memoryTest)
+add_subdirectory(swapTest)
