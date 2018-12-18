@@ -132,11 +132,17 @@ struct SAIGA_GLOBAL MemoryLocation
 
     void destroy(const vk::Device& device)
     {
-        SAIGA_ASSERT(buffer && memory, "Already destroyed");
-        device.destroy(buffer);
-        device.free(memory);
-        buffer        = nullptr;
-        memory        = nullptr;
+        SAIGA_ASSERT(memory, "Already destroyed");
+        if (buffer)
+        {
+            device.destroy(buffer);
+            buffer = nullptr;
+        }
+        if (memory)
+        {
+            device.free(memory);
+            memory = nullptr;
+        }
         mappedPointer = nullptr;
     }
 
