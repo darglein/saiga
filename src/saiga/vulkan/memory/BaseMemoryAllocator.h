@@ -37,8 +37,8 @@ struct MemoryStats
 
 struct SAIGA_GLOBAL BaseMemoryAllocator
 {
-    explicit BaseMemoryAllocator(bool _mapped, vk::DeviceSize _maxAllocationSize = VK_WHOLE_SIZE)
-        : mapped(_mapped), maxAllocationSize(_maxAllocationSize)
+    explicit BaseMemoryAllocator(vk::DeviceSize _maxAllocationSize = VK_WHOLE_SIZE)
+        : maxAllocationSize(_maxAllocationSize)
     {
     }
 
@@ -52,7 +52,6 @@ struct SAIGA_GLOBAL BaseMemoryAllocator
 
     virtual MemoryLocation allocate(vk::DeviceSize size) = 0;
     virtual void deallocate(MemoryLocation& location)    = 0;
-    bool mapped                                          = false;
     vk::DeviceSize maxAllocationSize                     = VK_WHOLE_SIZE;
 
     virtual void destroy() {}

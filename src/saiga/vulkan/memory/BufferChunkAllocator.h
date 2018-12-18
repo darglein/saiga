@@ -1,3 +1,5 @@
+#include <utility>
+
 //
 // Created by Peter Eichinger on 10.10.18.
 //
@@ -6,19 +8,19 @@
 #include "saiga/export.h"
 #include "saiga/util/easylogging++.h"
 #include "saiga/util/imath.h"
-#include "saiga/vulkan/memory/BaseMemoryAllocator.h"
-#include "saiga/vulkan/memory/ChunkAllocation.h"
-#include "saiga/vulkan/memory/ChunkCreator.h"
-#include "saiga/vulkan/memory/FitStrategy.h"
-#include "saiga/vulkan/memory/MemoryLocation.h"
 
 #include "BaseChunkAllocator.h"
+#include "BaseMemoryAllocator.h"
+#include "ChunkAllocation.h"
+#include "ChunkCreator.h"
+#include "FitStrategy.h"
+#include "MemoryLocation.h"
+#include "MemoryType.h"
 
 #include <limits>
 #include <list>
 #include <utility>
 #include <vulkan/vulkan.hpp>
-
 using namespace Saiga::Vulkan::Memory;
 
 namespace Saiga
@@ -37,19 +39,18 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
     ChunkIterator createNewChunk() override;
 
    public:
+    BufferType type;
     ~BufferChunkAllocator() override = default;
-    vk::BufferUsageFlags usageFlags;
 
-    BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, const vk::MemoryPropertyFlags& _flags,
-                         const vk::BufferUsageFlags& usage, FitStrategy& strategy,
-                         vk::DeviceSize chunkSize = 64 * 1024 * 1024, bool _mapped = false)
-        : BaseChunkAllocator(_device, chunkAllocator, _flags, strategy, chunkSize, _mapped), usageFlags(usage)
+    BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type, FitStrategy& strategy,
+                         vk::DeviceSize chunkSize = 64 * 1024 * 1024)
+        : BaseChunkAllocator(_device, chunkAllocator, strategy, chunkSize), type(std::move(_type))
     {
         std::stringstream identifier_stream;
-        identifier_stream << "Buffer Chunk " << vk::to_string(usageFlags) << " " << vk::to_string(flags);
+        identifier_stream << "Buffer Chunk " << type;
         gui_identifier                 = identifier_stream.str();
         m_bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
-        m_bufferCreateInfo.usage       = usageFlags;
+        m_bufferCreateInfo.usage       = type.usageFlags;
         m_bufferCreateInfo.size        = m_chunkSize;
         auto buffer                    = m_device.createBuffer(m_bufferCreateInfo);
         auto requirements              = m_device.getBufferMemoryRequirements(buffer);
@@ -57,8 +58,7 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
         m_alignment                    = requirements.alignment;
         m_device.destroy(buffer);
 
-        LOG(INFO) << "Created new buffer allocator for " << vk::to_string(usageFlags) << ", MemType "
-                  << vk::to_string(flags) << ", alignment " << m_alignment;
+        LOG(INFO) << "Created new buffer allocator  " << type << ", alignment " << m_alignment;
     }
 
     BufferChunkAllocator(BufferChunkAllocator&& other) noexcept
@@ -81,7 +81,7 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
 
     MemoryLocation allocate(vk::DeviceSize size) override;
 
-protected:
+   protected:
     void headerInfo() override;
 };
 }  // namespace Memory

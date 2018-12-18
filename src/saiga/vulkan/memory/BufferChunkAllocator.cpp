@@ -20,14 +20,13 @@ MemoryLocation BufferChunkAllocator::allocate(vk::DeviceSize size)
     // LOG(INFO) << "Requested " << size << " (~" << alignedSize << ") bytes";
     SAIGA_ASSERT(alignedSize <= m_chunkSize, "Can't allocate sizes bigger than chunk size");
     auto location = BaseChunkAllocator::allocate(alignedSize);
-    LOG(INFO) << "Allocate buffer " << vk::to_string(this->usageFlags) << " " << vk::to_string(this->flags) << ":"
-              << location;
+    LOG(INFO) << "Allocate buffer " << type << ":" << location;
     return location;
 }
 
 ChunkIterator BufferChunkAllocator::createNewChunk()
 {
-    auto newChunk        = m_chunkAllocator->allocate(flags, m_allocateSize);
+    auto newChunk        = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
     auto newBuffer       = m_device.createBuffer(m_bufferCreateInfo);
     auto memRequirements = m_device.getBufferMemoryRequirements(newBuffer);
     LOG(INFO) << "New chunk: " << m_chunkAllocations.size() << " Mem " << newChunk->memory << ", Buffer " << newBuffer;
@@ -37,7 +36,7 @@ ChunkIterator BufferChunkAllocator::createNewChunk()
     }
     m_device.bindBufferMemory(newBuffer, newChunk->memory, 0);
     void* mappedPointer = nullptr;
-    if (mapped)
+    if (type.is_mappable())
     {
         mappedPointer = m_device.mapMemory(newChunk->memory, 0, m_chunkSize);
         LOG(INFO) << "Mapped pointer = " << mappedPointer;
@@ -49,13 +48,12 @@ ChunkIterator BufferChunkAllocator::createNewChunk()
 
 void BufferChunkAllocator::deallocate(MemoryLocation& location)
 {
-    LOG(INFO) << "Trying to deallocate buffer " << vk::to_string(this->usageFlags) << " " << vk::to_string(this->flags)
-              << ":" << location;
+    LOG(INFO) << "Trying to deallocate buffer " << type << ":" << location;
     BaseChunkAllocator::deallocate(location);
 }
 
 void BufferChunkAllocator::headerInfo()
 {
-    ImGui::LabelText("Buffer Usage", "%s", vk::to_string(usageFlags).c_str());
-    ImGui::LabelText("Memory Type", "%s", vk::to_string(flags).c_str());
+    ImGui::LabelText("Buffer Usage", "%s", vk::to_string(type.usageFlags).c_str());
+    ImGui::LabelText("Memory Type", "%s", vk::to_string(type.memoryFlags).c_str());
 }

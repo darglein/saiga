@@ -35,7 +35,7 @@ class FallbackAllocator : public BaseMemoryAllocator
 
    public:
     FallbackAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice)
-        : BaseMemoryAllocator(false), m_device(_device), m_physicalDevice(_physicalDevice)
+        : BaseMemoryAllocator(), m_device(_device), m_physicalDevice(_physicalDevice)
     {
         std::stringstream identifier_stream;
         identifier_stream << "Fallback allocator";

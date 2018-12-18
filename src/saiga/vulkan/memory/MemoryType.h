@@ -29,13 +29,21 @@ struct MemoryType
     {
         auto usage = vk::to_string(type.usageFlags);
         auto flags = vk::to_string(type.memoryFlags);
-        os << "{ " << usage.substr(1, usage.size() - 2) << ", " << flags.substr(1, flags.size() - 2) << " }";
+        os << "{ " << usage.substr(1, usage.size() - 2) << "; " << flags.substr(1, flags.size() - 2) << " }";
         return os;
     }
 
     inline bool is_mappable() const
     {
         return (memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
+    }
+
+
+    std::string to_string()
+    {
+        std::stringstream ss;
+        operator<<(ss, *this);
+        return ss.str();
     }
 
     bool operator<(const MemoryType& rhs) const
