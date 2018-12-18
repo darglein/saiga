@@ -2,7 +2,7 @@
 #include "saiga/util/easylogging++.h"
 #include "saiga/vulkan/window/SDLWindow.h"
 
-#include "sample.h"
+#include "ba.h"
 
 int main(const int argc, const char* argv[])
 {
