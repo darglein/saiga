@@ -17,7 +17,7 @@ void Buffer::destroy()
 {
     if (m_memoryLocation && bufferUsage != vk::BufferUsageFlags())
     {
-        base->memory.getAllocator(this->bufferUsage, this->memoryProperties).deallocate(m_memoryLocation);
+        base->memory.deallocateBuffer({bufferUsage, memoryProperties}, m_memoryLocation);
         m_memoryLocation.buffer = nullptr;
     }
 }
@@ -29,7 +29,7 @@ void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::Buff
     this->base             = &base;
     this->bufferUsage      = bufferUsage;
     this->memoryProperties = memoryProperties;
-    m_memoryLocation       = base.memory.getAllocator(this->bufferUsage, this->memoryProperties).allocate(size);
+    m_memoryLocation       = base.memory.allocate({this->bufferUsage, this->memoryProperties}, size);
 }
 
 

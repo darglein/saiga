@@ -28,7 +28,7 @@ namespace Memory
 class SAIGA_GLOBAL VulkanMemory
 {
    private:
-    using BufferMap        = std::map<BufferType, std::shared_ptr<BaseMemoryAllocator>>;
+    using BufferMap        = std::map<BufferType, std::unique_ptr<BaseMemoryAllocator>>;
     using ImageMap         = std::map<ImageType, ImageChunkAllocator>;
     using BufferDefaultMap = std::map<BufferType, vk::DeviceSize>;
     using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
@@ -130,19 +130,23 @@ class SAIGA_GLOBAL VulkanMemory
    public:
     void init(vk::PhysicalDevice _pDevice, vk::Device _device);
 
-    BaseMemoryAllocator& getAllocator(const vk::BufferUsageFlags& usage,
-                                      const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-    BaseMemoryAllocator& getImageAllocator(
-        const vk::MemoryPropertyFlags& flags = vk::MemoryPropertyFlagBits::eDeviceLocal,
-        const vk::ImageUsageFlags& usage     = vk::ImageUsageFlagBits::eSampled);
-
-
     void destroy();
 
     void renderGUI();
 
+    MemoryLocation allocate(const BufferType& type, vk::DeviceSize size);
+
+    MemoryLocation allocate(const ImageType& type, const vk::Image& image);
+
+    void deallocateBuffer(const BufferType& type, MemoryLocation& location);
+
+    void deallocateImage(const ImageType& type, MemoryLocation& location);
+
    private:
+    BaseMemoryAllocator& getAllocator(const BufferType& type);
+
+    BaseMemoryAllocator& getImageAllocator(const ImageType& type);
+
     inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const
     {
         for (const auto& memory : memoryTypes)

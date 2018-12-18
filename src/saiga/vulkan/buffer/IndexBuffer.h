@@ -67,11 +67,9 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
         }
         indexCount             = static_cast<uint32_t>(indices.size());
         size_t indexBufferSize = indexCount * sizeof(IndexType);
-        m_memoryLocation =
-            base.memory
-                .getAllocator(vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, flags)
-                .allocate(indexBufferSize);
 
+        createBuffer(base, indexBufferSize,
+                     vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, flags);
 
         stagedUpload(base, indices.size() * sizeof(IndexType), indices.data());
         //        m_memoryLocation.upload(base.device, indices.data());
