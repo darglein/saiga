@@ -16,7 +16,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <saiga/util/easylogging++.h>
-using namespace Saiga::Vulkan::Memory;
+
 
 namespace Saiga
 {

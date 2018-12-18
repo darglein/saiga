@@ -13,7 +13,7 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
     m_pDevice = _pDevice;
     m_device  = _device;
     strategy  = FirstFitStrategy();
-    chunkAllocator.init(_pDevice, _device);
+    chunkCreator.init(_pDevice, _device);
 
     auto props = _pDevice.getMemoryProperties();
     memoryTypes.resize(props.memoryTypeCount);
@@ -40,6 +40,8 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
     bufferAllocators.emplace(
         BufferType{stagingType.usageFlags, effectiveFlags},
         std::make_shared<SimpleMemoryAllocator>(m_device, m_pDevice, effectiveFlags, stagingType.usageFlags, true));
+
+    fallbackAllocator = std::make_unique<FallbackAllocator>(_device, _pDevice);
 }
 
 VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::BufferMap& map,
@@ -56,7 +58,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     bool mapped = (effectiveType.memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) ==
                   vk::MemoryPropertyFlagBits::eHostVisible;
     auto emplaced = map.emplace(effectiveType, std::make_shared<BufferChunkAllocator>(
-                                                   m_device, &chunkAllocator, effectiveType.memoryFlags,
+                                                   m_device, &chunkCreator, effectiveType.memoryFlags,
                                                    effectiveType.usageFlags, strategy, found->second, mapped));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
@@ -71,7 +73,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
         (type.memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
 
     auto emplaced = map.emplace(
-        type, ImageChunkAllocator(m_device, &chunkAllocator, type.memoryFlags, strategy, found->second, mapped));
+        type, ImageChunkAllocator(m_device, &chunkCreator, type.memoryFlags, strategy, found->second, mapped));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -101,7 +103,7 @@ BaseMemoryAllocator& VulkanMemory::getImageAllocator(const vk::MemoryPropertyFla
 
 void VulkanMemory::destroy()
 {
-    chunkAllocator.destroy();
+    chunkCreator.destroy();
 
     for (auto& allocator : bufferAllocators)
     {

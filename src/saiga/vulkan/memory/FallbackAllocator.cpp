@@ -1,8 +1,8 @@
 //
-// Created by Peter Eichinger on 24.11.18.
+// Created by Peter Eichinger on 2018-12-18.
 //
 
-#include "SimpleMemoryAllocator.h"
+#include "FallbackAllocator.h"
 
 #include "saiga/imgui/imgui.h"
 #include "saiga/util/tostring.h"
@@ -11,10 +11,10 @@
 
 using namespace Saiga::Vulkan::Memory;
 
-void SimpleMemoryAllocator::deallocate(MemoryLocation& location)
+void FallbackAllocator::deallocate(MemoryLocation& location)
 {
     mutex.lock();
-    LOG(INFO) << "Simple deallocate " << vk::to_string(usageFlags) << " " << vk::to_string(flags) << " " << location;
+    LOG(INFO) << "Fallback deallocate: " << location;
 
     auto foundAllocation = std::find(m_allocations.begin(), m_allocations.end(), location);
     if (foundAllocation == m_allocations.end())
@@ -27,32 +27,29 @@ void SimpleMemoryAllocator::deallocate(MemoryLocation& location)
     mutex.unlock();
 }
 
-void SimpleMemoryAllocator::destroy()
+void FallbackAllocator::destroy()
 {
     for (auto& location : m_allocations)
     {
-        if (location.buffer != static_cast<vk::Buffer>(nullptr))
-        {
-            location.destroy(m_device);
-        }
+        location.destroy(m_device);
     }
     m_allocations.clear();
 }
 
-MemoryLocation SimpleMemoryAllocator::allocate(vk::DeviceSize size)
+MemoryLocation FallbackAllocator::allocate(vk::DeviceSize size, BufferType type)
 {
-    m_bufferCreateInfo.size = size;
-    auto buffer             = m_device.createBuffer(m_bufferCreateInfo);
+    vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(), size, type.usageFlags};
+    auto buffer = m_device.createBuffer(bufferCreateInfo);
 
     auto memReqs = m_device.getBufferMemoryRequirements(buffer);
 
     vk::MemoryAllocateInfo info;
     info.allocationSize  = memReqs.size;
-    info.memoryTypeIndex = findMemoryType(m_physicalDevice, memReqs.memoryTypeBits, flags);
+    info.memoryTypeIndex = findMemoryType(m_physicalDevice, memReqs.memoryTypeBits, type.memoryFlags);
     auto memory          = SafeAllocator::instance()->allocateMemory(m_device, info);
 
     void* mappedPtr = nullptr;
-    if (mapped)
+    if (type.is_mappable())
     {
         mappedPtr = m_device.mapMemory(memory, 0, memReqs.size);
     }
@@ -63,11 +60,29 @@ MemoryLocation SimpleMemoryAllocator::allocate(vk::DeviceSize size)
     auto retVal = m_allocations.back();
     mutex.unlock();
 
-    LOG(INFO) << "Simple allocate   " << vk::to_string(usageFlags) << " " << vk::to_string(flags) << " " << retVal;
+    LOG(INFO) << "Fallback allocation: " << type << "->" << retVal;
     return retVal;
 }
 
-void SimpleMemoryAllocator::showDetailStats()
+MemoryLocation FallbackAllocator::allocate(ImageType type, const vk::Image& image)
+{
+    auto memReqs = m_device.getImageMemoryRequirements(image);
+
+    vk::MemoryAllocateInfo info;
+    info.allocationSize  = memReqs.size;
+    info.memoryTypeIndex = findMemoryType(m_physicalDevice, memReqs.memoryTypeBits, type.memoryFlags);
+    auto memory          = SafeAllocator::instance()->allocateMemory(m_device, info);
+
+    mutex.lock();
+    m_allocations.emplace_back(vk::Buffer(), memory, 0, memReqs.size, nullptr);
+    auto retVal = m_allocations.back();
+    mutex.unlock();
+
+    LOG(INFO) << "Fallback image allocation: " << type << "->" << retVal;
+    return retVal;
+}
+
+void FallbackAllocator::showDetailStats()
 {
     if (ImGui::CollapsingHeader(gui_identifier.c_str()))
     {
@@ -82,7 +97,7 @@ void SimpleMemoryAllocator::showDetailStats()
     }
 }
 
-MemoryStats SimpleMemoryAllocator::collectMemoryStats()
+MemoryStats FallbackAllocator::collectMemoryStats()
 {
     const auto totalSize = std::accumulate(m_allocations.begin(), m_allocations.end(), 0UL,
                                            [](const auto& a, const auto& b) { return a + b.size; });

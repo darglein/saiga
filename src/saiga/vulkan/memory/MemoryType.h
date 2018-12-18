@@ -33,6 +33,11 @@ struct MemoryType
         return os;
     }
 
+    inline bool is_mappable() const
+    {
+        return (memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
+    }
+
     bool operator<(const MemoryType& rhs) const
     {
         if (static_cast<unsigned int>(usageFlags) < static_cast<unsigned int>(rhs.usageFlags))

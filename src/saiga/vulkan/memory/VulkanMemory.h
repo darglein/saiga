@@ -7,6 +7,7 @@
 
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"
+#include "FallbackAllocator.h"
 #include "ImageChunkAllocator.h"
 #include "MemoryType.h"
 #include "SimpleMemoryAllocator.h"
@@ -18,7 +19,6 @@
 #include <vulkan/vulkan.hpp>
 
 #include <unordered_map>
-
 namespace Saiga
 {
 namespace Vulkan
@@ -83,8 +83,10 @@ class SAIGA_GLOBAL VulkanMemory
 
     BufferMap bufferAllocators;
     ImageMap imageAllocators;
+    std::unique_ptr<FallbackAllocator> fallbackAllocator;
+    ChunkCreator chunkCreator;
 
-    ChunkCreator chunkAllocator;
+
     FirstFitStrategy strategy;
 
 
@@ -141,7 +143,7 @@ class SAIGA_GLOBAL VulkanMemory
     void renderGUI();
 
    private:
-    inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags &flags) const
+    inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const
     {
         for (const auto& memory : memoryTypes)
         {
