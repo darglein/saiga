@@ -36,10 +36,10 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
     auto stagingType = BufferType{vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
                                   vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
-    auto effectiveFlags = getEffectiveFlags(stagingType.memoryFlags);
-    bufferAllocators.emplace(
-        BufferType{stagingType.usageFlags, effectiveFlags},
-        std::make_unique<SimpleMemoryAllocator>(m_device, m_pDevice, effectiveFlags, stagingType.usageFlags, true));
+    auto effectiveFlags   = getEffectiveFlags(stagingType.memoryFlags);
+    auto effectiveStaging = BufferType{stagingType.usageFlags, effectiveFlags};
+    bufferAllocators.emplace(effectiveStaging,
+                             std::make_unique<SimpleMemoryAllocator>(m_device, m_pDevice, effectiveStaging));
 
     fallbackAllocator = std::make_unique<FallbackAllocator>(_device, _pDevice);
 }
@@ -55,11 +55,8 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     auto found = find_default_size<BufferDefaultMap, BufferType>(default_buffer_chunk_sizes, effectiveType);
 
 
-    bool mapped = (effectiveType.memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) ==
-                  vk::MemoryPropertyFlagBits::eHostVisible;
     auto emplaced = map.emplace(effectiveType, std::make_unique<BufferChunkAllocator>(
-                                                   m_device, &chunkCreator, effectiveType.memoryFlags,
-                                                   effectiveType.usageFlags, strategy, found->second, mapped));
+                                                   m_device, &chunkCreator, effectiveType, strategy, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -68,12 +65,14 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
                                                               const VulkanMemory::ImageDefaultMap& defaultSizes,
                                                               const ImageType& type)
 {
-    auto found = find_default_size<ImageDefaultMap, ImageType>(default_image_chunk_sizes, type);
-    bool mapped =
-        (type.memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
+    auto effectiveFlags = getEffectiveFlags(type.memoryFlags);
 
-    auto emplaced = map.emplace(
-        type, ImageChunkAllocator(m_device, &chunkCreator, type.memoryFlags, strategy, found->second, mapped));
+    auto effectiveType = ImageType{type.usageFlags, effectiveFlags};
+
+    auto found = find_default_size<ImageDefaultMap, ImageType>(default_image_chunk_sizes, type);
+
+    auto emplaced = map.emplace(effectiveType, std::make_unique<ImageChunkAllocator>(
+                                                   m_device, &chunkCreator, effectiveType, strategy, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -97,7 +96,7 @@ BaseMemoryAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
         foundAllocator = createNewImageAllocator(imageAllocators, default_image_chunk_sizes, type);
     }
 
-    return foundAllocator->second;
+    return *(foundAllocator->second);
 }
 
 void VulkanMemory::destroy()
@@ -111,7 +110,7 @@ void VulkanMemory::destroy()
 
     for (auto& allocator : imageAllocators)
     {
-        allocator.second.destroy();
+        allocator.second->destroy();
     }
 }
 
@@ -144,7 +143,7 @@ void VulkanMemory::renderGUI()
         {
             memoryTypeStats[allocator.first.memoryFlags] = MemoryStats();
         }
-        memoryTypeStats[allocator.first.memoryFlags] += allocator.second.collectMemoryStats();
+        memoryTypeStats[allocator.first.memoryFlags] += allocator.second->collectMemoryStats();
     }
 
     static std::vector<ImGui::ColoredBar> bars;
@@ -186,7 +185,7 @@ void VulkanMemory::renderGUI()
     }
     for (auto& allocator : imageAllocators)
     {
-        allocator.second.showDetailStats();
+        allocator.second->showDetailStats();
     }
 
     ImGui::Unindent();

@@ -29,7 +29,7 @@ class SAIGA_GLOBAL VulkanMemory
 {
    private:
     using BufferMap        = std::map<BufferType, std::unique_ptr<BaseMemoryAllocator>>;
-    using ImageMap         = std::map<ImageType, ImageChunkAllocator>;
+    using ImageMap         = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
     using BufferDefaultMap = std::map<BufferType, vk::DeviceSize>;
     using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
     using BufferIter       = BufferMap::iterator;
