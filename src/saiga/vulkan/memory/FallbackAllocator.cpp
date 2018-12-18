@@ -36,7 +36,7 @@ void FallbackAllocator::destroy()
     m_allocations.clear();
 }
 
-MemoryLocation FallbackAllocator::allocate(vk::DeviceSize size, BufferType type)
+MemoryLocation FallbackAllocator::allocate(const BufferType& type, vk::DeviceSize size)
 {
     vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(), size, type.usageFlags};
     auto buffer = m_device.createBuffer(bufferCreateInfo);
@@ -64,7 +64,7 @@ MemoryLocation FallbackAllocator::allocate(vk::DeviceSize size, BufferType type)
     return retVal;
 }
 
-MemoryLocation FallbackAllocator::allocate(ImageType type, const vk::Image& image)
+MemoryLocation FallbackAllocator::allocate(const ImageType& type, const vk::Image& image)
 {
     auto memReqs = m_device.getImageMemoryRequirements(image);
 
@@ -103,4 +103,10 @@ MemoryStats FallbackAllocator::collectMemoryStats()
                                            [](const auto& a, const auto& b) { return a + b.size; });
 
     return MemoryStats{totalSize, totalSize, 0};
+}
+
+MemoryLocation FallbackAllocator::allocate(vk::DeviceSize size)
+{
+    SAIGA_ASSERT(false, "Fallback allocator must specify a buffer/image type for allocations");
+    return MemoryLocation();
 }

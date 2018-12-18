@@ -142,11 +142,11 @@ class SAIGA_GLOBAL VulkanMemory
 
     void deallocateImage(const ImageType& type, MemoryLocation& location);
 
-   private:
     BaseMemoryAllocator& getAllocator(const BufferType& type);
 
     BaseMemoryAllocator& getImageAllocator(const ImageType& type);
 
+   private:
     inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const
     {
         for (const auto& memory : memoryTypes)

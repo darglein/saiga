@@ -194,21 +194,50 @@ void VulkanMemory::renderGUI()
 
 MemoryLocation VulkanMemory::allocate(const BufferType& type, vk::DeviceSize size)
 {
-    return getAllocator(type).allocate(size);
+    auto& allocator = getAllocator(type);
+
+    if (size > allocator.maxAllocationSize)
+    {
+        return fallbackAllocator->allocate(type, size);
+    }
+    return allocator.allocate(size);
 }
 
 MemoryLocation VulkanMemory::allocate(const ImageType& type, const vk::Image& image)
 {
     auto image_mem_reqs = m_device.getImageMemoryRequirements(image);
-    return getImageAllocator(type).allocate(image_mem_reqs.size);
+
+    auto& allocator = getImageAllocator(type);
+
+    if (image_mem_reqs.size > allocator.maxAllocationSize)
+    {
+        return fallbackAllocator->allocate(type, image);
+    }
+    return allocator.allocate(image_mem_reqs.size);
 }
 
 void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation& location)
 {
-    getAllocator(type).deallocate(location);
+    auto& allocator = getAllocator(type);
+    if (location.size > allocator.maxAllocationSize)
+    {
+        fallbackAllocator->deallocate(location);
+    }
+    else
+    {
+        allocator.deallocate(location);
+    }
 }
 
 void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation& location)
 {
-    getImageAllocator(type).deallocate(location);
+    auto& allocator = getImageAllocator(type);
+    if (location.size > allocator.maxAllocationSize)
+    {
+        fallbackAllocator->deallocate(location);
+    }
+    else
+    {
+        allocator.deallocate(location);
+    }
 }
