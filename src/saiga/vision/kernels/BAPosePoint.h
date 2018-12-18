@@ -23,9 +23,13 @@ struct BAPosePointMono
     using PoseJacobiType  = Eigen::Matrix<T, ResCount, VarCountPose>;
     using PointJacobiType = Eigen::Matrix<T, ResCount, VarCountPoint>;
 
+    using PoseResidualType  = Eigen::Matrix<T, VarCountPose, 1>;   // Jpose^T * residual
+    using PointResidualType = Eigen::Matrix<T, VarCountPoint, 1>;  // Jpoint^T * residual
+
     using PoseDiaBlockType        = Eigen::Matrix<T, VarCountPose, VarCountPose>;
     using PointDiaBlockType       = Eigen::Matrix<T, VarCountPoint, VarCountPoint>;
     using PosePointUpperBlockType = Eigen::Matrix<T, VarCountPose, VarCountPoint>;  // assuming first poses then points
+    using PointPoseUpperBlockType = Eigen::Matrix<T, VarCountPoint, VarCountPose>;  // first points then poses
 
     using CameraType = Intrinsics4Base<T>;
     using SE3Type    = Sophus::SE3<T>;
@@ -54,6 +58,8 @@ struct BAPosePointMono
         auto zz    = z * z;
         auto zinv  = 1 / z;
         auto zzinv = 1 / zz;
+
+        //        weight *= 1 / camera.fx;
 
         // =================== Residual ================
         Vec2 proj = camera.project(pc);
