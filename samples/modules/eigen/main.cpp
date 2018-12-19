@@ -8,6 +8,7 @@
 #include "saiga/eigen/lse.h"
 #include "saiga/time/performanceMeasure.h"
 #include "saiga/util/crash.h"
+#include "saiga/util/random.h"
 
 #include "Eigen/Sparse"
 
@@ -169,43 +170,109 @@ void matrixOfMatrix()
 
 void sparseTest()
 {
+    // Solution of the following block-structured linear system
+    //
+    // | U   W |   | da |   | ea |
+    // | Wt  V | * | db | = | eb |
+    //
+    // , where
+    // U and V are diagonal matrices, and W is sparse.
+    // V is assumed to be much larger then U.
+    // If U is larger the schur complement should be computed in the other direction.
+
+    // ======================== Parameters ========================
+
+    // size of U
     int n = 5;
+    // size of V
     int m = 10;
+    // maximum number of non-zero elements per row in W
+    int maxElementsPerRow = 2;
 
-    Eigen::DiagonalMatrix<double, -1> U(5);
+    // ======================== Initialize ========================
+
+    // Diagonal matrices U and V
+    // All elements are positive!
+    Eigen::DiagonalMatrix<double, -1> U(n);
     Eigen::DiagonalMatrix<double, -1> V(m);
-    Eigen::DiagonalMatrix<double, -1> Vinv(m);
+    U.diagonal().setRandom();
+    V.diagonal().setRandom();
 
 
-    U.setIdentity();
-    V.setIdentity();
-    V.diagonal() *= 2.0;
-
-    for (int i = 0; i < m; ++i)
-    {
-        Vinv.diagonal()(i) = 1.0 / V.diagonal()(i);
-    }
-
-    cout << "U " << endl << U.toDenseMatrix() << endl;
-    cout << "V " << endl << V.toDenseMatrix() << endl;
-    cout << "Vinv " << endl << Vinv.toDenseMatrix() << endl;
+    // Right hand side of the linear system
+    Eigen::Matrix<double, -1, 1> ea(n);
+    Eigen::Matrix<double, -1, 1> eb(m);
+    ea.setRandom();
+    eb.setRandom();
 
     Eigen::SparseMatrix<double, Eigen::RowMajor> W(n, m);
-    W.reserve(7);
-    W.insert(0, 0) = 1;
-    W.insert(0, 2) = 4;
-    W.insert(1, 7) = 5;
-    W.insert(3, 3) = 2;
-    W.insert(3, 4) = 2;
-    W.insert(4, 0) = 3;
-
+    W.reserve(n * maxElementsPerRow);
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = 0; j < maxElementsPerRow; ++j)
+        {
+            W.insert(i, Random::uniformInt(0, m - 1)) = Random::sampleDouble(-5, 5);
+        }
+    }
     cout << "W" << endl << W << endl;
 
-    Eigen::SparseMatrix<double> Y(n, m);
+    // ========================================================================================================
+
+    {
+        // Schur complement solution
+
+        Eigen::DiagonalMatrix<double, -1> Vinv(m);
+        for (int i = 0; i < m; ++i)
+        {
+            Vinv.diagonal()(i) = 1.0 / V.diagonal()(i);
+        }
+        cout << "U " << endl << U.toDenseMatrix() << endl;
+        cout << "V " << endl << V.toDenseMatrix() << endl;
+        cout << "Vinv " << endl << Vinv.toDenseMatrix() << endl;
 
 
 
-    Y = W * Vinv;
+        Eigen::SparseMatrix<double, Eigen::RowMajor> Y(n, m);
+        Y = W * Vinv;
+        cout << "Y" << endl << Y << endl;
+
+        Eigen::Matrix<double, -1, -1> S(n, n);
+        S            = -Y * W.transpose();
+        S.diagonal() = U.diagonal() + S.diagonal();
+
+        cout << "S" << endl << S << endl;
+
+        Eigen::Matrix<double, -1, 1> ej(n);
+        ej = ea - Y * eb;
+        cout << "ej" << endl << ej.transpose() << endl;
+
+        Eigen::Matrix<double, -1, 1> deltaA(n);
+        deltaA = S.lu().solve(ej);
+
+        Eigen::Matrix<double, -1, 1> q = eb - W.transpose() * deltaA;
+        Eigen::Matrix<double, -1, 1> deltaB(m);
+        deltaB = Vinv * q;
+        cout << "delta schur" << endl << deltaA.transpose() << " " << deltaB.transpose() << endl;
+        //        cout << "deltaB" << endl << deltaB.transpose() << endl;
+    }
+
+    {
+        // "dense solution"
+        Eigen::Matrix<double, -1, -1> A(n + m, n + m);
+        A.block(0, 0, n, n) = U.toDenseMatrix();
+        A.block(n, n, m, m) = V.toDenseMatrix();
+        A.block(0, n, n, m) = W.toDense();
+        A.block(n, 0, m, n) = W.toDense().transpose();
+
+        Eigen::Matrix<double, -1, 1> e(n + m);
+        e.segment(0, n) = ea;
+        e.segment(n, m) = eb;
+
+        Eigen::Matrix<double, -1, 1> delta;
+        delta = A.lu().solve(e);
+
+        cout << "delta dense" << endl << delta.transpose() << endl;
+    }
 }
 
 int main(int argc, char* argv[])
