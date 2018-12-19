@@ -6,6 +6,8 @@
 
 #include "saiga/util/random.h"
 
+#include "saiga/util/assert.h"
+
 #include <chrono>
 #include <random>
 
@@ -49,6 +51,29 @@ double gaussRand(double mean, double stddev)
     std::normal_distribution<double> dis(mean, stddev);
     return dis(generator());
 }
+
+
+
+std::vector<int> uniqueIndices(int sampleCount, int indexSize)
+{
+    SAIGA_ASSERT(sampleCount <= indexSize);
+
+    std::vector<bool> used(indexSize, false);
+    std::vector<int> data(sampleCount);
+
+    for (int j = 0; j < sampleCount;)
+    {
+        int s = uniformInt(0, indexSize - 1);
+        if (!used[s])
+        {
+            data[j] = s;
+            used[s] = true;
+            j++;
+        }
+    }
+    return data;
+}
+
 
 }  // namespace Random
 }  // namespace Saiga

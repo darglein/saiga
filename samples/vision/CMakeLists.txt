@@ -1,3 +1,5 @@
+    add_subdirectory(ba_schur)
+        add_subdirectory(block_matrices)
 
 if (SDL2_FOUND AND SAIGA_USE_VULKAN)
     add_subdirectory(ba)

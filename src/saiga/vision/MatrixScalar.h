@@ -13,15 +13,17 @@ namespace Saiga
 template <typename MatrixType>
 struct MatrixScalar
 {
-    using Scalar = typename MatrixType::Scalar;
+    using Scalar     = typename MatrixType::Scalar;
+    using ScalarType = MatrixScalar<MatrixType>;
+
     MatrixType data;
 
     MatrixScalar() = default;
-    MatrixScalar(Scalar v)
-    {
-        SAIGA_ASSERT(v == 0);
-        data.setZero();
-    }
+
+    // This constructor may seem a bit strange, but assigning anything different from a zero to a matrix is not well
+    // defined. We also can't remove this constructor because some eigen functions use Scalar(0). Therefore we need
+    // a constructor from a single (actual) scalar value.
+    MatrixScalar(Scalar v) { data.setZero(); }
 
     MatrixScalar(const MatrixType& v) : data(v) {}
     MatrixScalar& operator=(const MatrixType& v)
@@ -30,19 +32,26 @@ struct MatrixScalar
         return *this;
     }
 
-    explicit operator MatrixType() const { return data; }
+    ScalarType operator+(const ScalarType& other) const { return {data + other.data}; }
+    ScalarType operator*(const ScalarType& other) const { return {data * other.data}; }
+    ScalarType operator-(const ScalarType& other) const { return {data - other.data}; }
 
-    MatrixScalar operator+(const MatrixScalar& other) const { return {data + other.data}; }
+    void operator+=(const ScalarType& other) { data += other.data; }
+    void operator-=(const ScalarType& other) { data -= other.data; }
 
-    void operator+=(const MatrixScalar& other) { data += other.data; }
+    // scalar product
+    ScalarType operator*(const Scalar& other) const { return {data * other}; }
+    void operator*=(const Scalar& other) { data *= other; }
 
-    template <typename T>
-    void operator+=(const T& other)
+
+    // general matrix product
+    template <typename _Scalar, int n, int m>
+    auto operator*(const MatrixScalar<Eigen::Matrix<_Scalar, n, m>>& other) const
     {
-        data += other;
+        using ReturnType = Eigen::Matrix<_Scalar, MatrixType::RowsAtCompileTime, m>;
+        return MatrixScalar<ReturnType>(data * other.data);
     }
 
-    MatrixScalar operator*(const MatrixScalar& other) const { return {data * other.data}; }
 
     MatrixType& get() { return data; }
     const MatrixType& get() const { return data; }
@@ -63,6 +72,7 @@ auto blockVectorToVector(const Eigen::Matrix<MatrixScalar<MatrixType>, -1, 1>& m
     }
     return dense;
 }
+
 
 
 /**
@@ -103,6 +113,27 @@ auto blockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, -1, -1>& 
         {
             dense.block(i * MatrixType::RowsAtCompileTime, j * MatrixType::ColsAtCompileTime,
                         MatrixType::RowsAtCompileTime, MatrixType::ColsAtCompileTime) = m(i, j).get();
+        }
+    }
+    return dense;
+}
+
+
+template <typename MatrixType, int n, int m>
+auto fixedBlockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, n, m>& M)
+{
+    static_assert(MatrixType::RowsAtCompileTime > 0 && MatrixType::ColsAtCompileTime > 0,
+                  "The inner size must be fixed.");
+
+    Eigen::Matrix<typename MatrixType::Scalar, n * MatrixType::RowsAtCompileTime, m * MatrixType::ColsAtCompileTime>
+        dense;
+
+    for (int i = 0; i < M.rows(); ++i)
+    {
+        for (int j = 0; j < M.cols(); ++j)
+        {
+            dense.block(i * MatrixType::RowsAtCompileTime, j * MatrixType::ColsAtCompileTime,
+                        MatrixType::RowsAtCompileTime, MatrixType::ColsAtCompileTime) = M(i, j).get();
         }
     }
     return dense;
