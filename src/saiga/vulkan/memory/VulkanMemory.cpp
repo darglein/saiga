@@ -120,6 +120,9 @@ void VulkanMemory::renderGUI()
     {
         return;
     }
+
+    ImGui::Indent();
+
     static std::unordered_map<vk::MemoryPropertyFlags, MemoryStats> memoryTypeStats;
 
 
@@ -157,7 +160,6 @@ void VulkanMemory::renderGUI()
         // ImGui::SameLine(150.0f);
         auto& bar = bars[index];
 
-        ImGui::Indent();
         bar.renderBackground();
         bar.renderArea(0.0f, static_cast<float>(memStat.second.used) / memStat.second.allocated,
                        ImGui::ColoredBar::BarColor{{0.0f, 0.2f, 0.2f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}});
@@ -165,13 +167,16 @@ void VulkanMemory::renderGUI()
         ImGui::Text("%s / %s (%s fragmented free)", sizeToString(memStat.second.used).c_str(),
                     sizeToString(memStat.second.allocated).c_str(), sizeToString(memStat.second.fragmented).c_str());
 
-        ImGui::Unindent();
         index++;
     }
+
+
+    ImGui::Unindent();
 
     ImGui::Spacing();
 
 
+    ImGui::Indent();
     if (!ImGui::CollapsingHeader("Detailed Memory Stats"))
     {
         return;
@@ -188,6 +193,7 @@ void VulkanMemory::renderGUI()
         allocator.second->showDetailStats();
     }
 
+    ImGui::Unindent();
     ImGui::Unindent();
 }
 

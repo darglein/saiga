@@ -462,6 +462,35 @@ void VulkanBase::renderGUI()
 
     ImGui::Columns(1);
 
+    ImGui::Spacing();
+
+    ImGui::Text("Queues");
+
+    auto queueFamilyProps = physicalDevice.getQueueFamilyProperties();
+
+    ImGui::Columns(3, "QUEUEINFO");
+
+    ImGui::Text("ID");
+    ImGui::NextColumn();
+    ImGui::Text("Type");
+    ImGui::NextColumn();
+    ImGui::Text("Count");
+    ImGui::NextColumn();
+
+    size_t index = 0;
+    for (auto& prop : queueFamilyProps)
+    {
+        ImGui::Separator();
+        ImGui::Text("%lu", index);
+        ImGui::NextColumn();
+        ImGui::Text("%s", vk::to_string(prop.queueFlags).c_str());
+        ImGui::NextColumn();
+        ImGui::Text("%u", prop.queueCount);
+        ImGui::NextColumn();
+        ++index;
+    }
+    ImGui::Columns(1);
+    ImGui::Spacing();
 
     ImGui::Unindent();
     ImGui::Unindent();
