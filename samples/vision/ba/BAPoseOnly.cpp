@@ -4,6 +4,7 @@
 #include "saiga/vision/BlockDiagonalMatrix.h"
 #include "saiga/vision/BlockSparseMatrix.h"
 #include "saiga/vision/BlockVector.h"
+#include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 
@@ -379,18 +380,25 @@ void BAPoseOnly::sbaPaper(Scene& scene, int its)
 
 
 
-    auto n = numCameras;
-    auto m = numPoints;
+    int n = numCameras;
+    int m = numPoints;
 
 
 
-    BlockVector<KernelType::PoseResidualType> ea(n);
-    BlockDiagonalMatrix<KernelType::PoseDiaBlockType> U(n);
+    //    BlockVector<KernelType::PoseResidualType> ea(n);
+    Eigen::Matrix<MatrixScalar<KernelType::PoseResidualType>, -1, 1> ea(n);
+    //    BlockDiagonalMatrix<KernelType::PoseDiaBlockType> U(n);
+    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PoseDiaBlockType>, -1> U(n);
 
-    BlockVector<KernelType::PointResidualType> eb(m);
-    BlockDiagonalMatrix<KernelType::PointDiaBlockType> V(m);
+    //    BlockVector<KernelType::PointResidualType> eb(m);
+    Eigen::Matrix<MatrixScalar<KernelType::PointResidualType>, -1, 1> eb(m);
+    //    BlockDiagonalMatrix<KernelType::PointDiaBlockType> V(m);
+    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PointDiaBlockType>, -1> V(m);
+    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PointDiaBlockType>, -1> Vinv(m);
+
 
     BlockSparseMatrix<KernelType::PosePointUpperBlockType> W(n, m);
+    Eigen::SparseMatrix<MatrixScalar<KernelType::PosePointUpperBlockType>> W2(n, m);
 
 
 
@@ -425,37 +433,58 @@ void BAPoseOnly::sbaPaper(Scene& scene, int its)
                                                         JrowPoint);
 
 
-                U(i) = (JrowPose.transpose() * JrowPose);
-                V(j) = (JrowPoint.transpose() * JrowPoint);
+                U.diagonal()(i) = (JrowPose.transpose() * JrowPose);
+                V.diagonal()(j) = (JrowPoint.transpose() * JrowPoint);
 
 
                 W.setBlock(i, j, JrowPose.transpose() * JrowPoint);
+                W2.insert(i, j) = JrowPose.transpose() * JrowPoint;
 
 
-                ea(i) += JrowPose.transpose() * res;
+                ea(i) += (JrowPose.transpose() * res);
                 eb(j) += JrowPoint.transpose() * res;
             }
         }
 
         double lambda = 1;
-        U.addToDiagonal(lambda * Eigen::VectorXd::Ones(n * 6));
-        V.addToDiagonal(lambda * Eigen::VectorXd::Ones(m * 3));
 
+        for (int i = 0; i < n; ++i)
+        {
+            U.diagonal()(i).get() += KernelType::PoseDiaBlockType::Identity() * lambda;
+        }
+        for (int i = 0; i < m; ++i)
+        {
+            V.diagonal()(i).get() += KernelType::PointDiaBlockType::Identity() * lambda;
+        }
+
+
+        // compute V^-1
+        for (int i = 0; i < m; ++i)
+        {
+            Vinv.diagonal()(i).get() = Vinv.diagonal()(i).get().inverse();
+        }
 
 
         n *= 6;
         m *= 3;
+
+        // convert sparse to dense matrix
+        Eigen::Matrix<MatrixScalar<KernelType::PosePointUpperBlockType>, -1, -1> Wdense = W2;
+
+        //        cout << blockMatrixToMatrix(Wdense) << endl;
+        //        cout << W.dense() << endl;
+
         Eigen::MatrixXd JtJ(m + n, m + n);
-        JtJ.block(0, 0, n, n) = U.dense();
-        JtJ.block(n, n, m, m) = V.dense();
-        JtJ.block(0, n, n, m) = W.dense();
-        JtJ.block(n, 0, m, n) = W.dense().transpose();
+        JtJ.block(0, 0, n, n) = blockDiagonalToMatrix(U);
+        JtJ.block(n, n, m, m) = blockDiagonalToMatrix(V);
+        JtJ.block(0, n, n, m) = blockMatrixToMatrix(Wdense);
+        JtJ.block(n, 0, m, n) = blockMatrixToMatrix(Wdense).transpose();
 
         //        cout << JtJ << endl << endl;
 
         Eigen::VectorXd Jtb(m + n);
-        Jtb.segment(0, n) = ea.dense();
-        Jtb.segment(n, m) = eb.dense();
+        Jtb.segment(0, n) = blockVectorToVector(ea);
+        Jtb.segment(n, m) = blockVectorToVector(eb);
 
 
         Eigen::VectorXd x1, x2;
