@@ -24,7 +24,7 @@ namespace Vulkan
 {
 namespace Memory
 {
-class FallbackAllocator
+class FallbackAllocator : public BaseMemoryAllocator
 {
    private:
     std::mutex mutex;
@@ -35,7 +35,7 @@ class FallbackAllocator
 
    public:
     FallbackAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice)
-        : m_device(_device), m_physicalDevice(_physicalDevice)
+        : BaseMemoryAllocator(), m_device(_device), m_physicalDevice(_physicalDevice)
     {
         std::stringstream identifier_stream;
         identifier_stream << "Fallback allocator";
@@ -43,7 +43,8 @@ class FallbackAllocator
     }
 
     FallbackAllocator(FallbackAllocator&& other) noexcept
-        : m_device(other.m_device),
+        : BaseMemoryAllocator(std::move(other)),
+          m_device(other.m_device),
           m_physicalDevice(other.m_physicalDevice),
           m_allocations(std::move(other.m_allocations)),
           gui_identifier(std::move(other.gui_identifier))
@@ -52,26 +53,28 @@ class FallbackAllocator
 
     FallbackAllocator& operator=(FallbackAllocator&& other) noexcept
     {
-        m_device         = other.m_device;
-        m_physicalDevice = other.m_physicalDevice;
-        m_allocations    = std::move(other.m_allocations);
-        gui_identifier   = std::move(other.gui_identifier);
+        BaseMemoryAllocator::operator=(std::move(static_cast<BaseMemoryAllocator&&>(other)));
+        m_device                     = other.m_device;
+        m_physicalDevice             = other.m_physicalDevice;
+        m_allocations                = std::move(other.m_allocations);
+        gui_identifier               = std::move(other.gui_identifier);
         return *this;
     }
 
-    ~FallbackAllocator() { destroy(); }
+    ~FallbackAllocator() override { destroy(); }
 
+    MemoryLocation allocate(vk::DeviceSize size) override;
 
-    MemoryLocation allocate(vk::DeviceSize size, BufferType type);
-    MemoryLocation allocate(ImageType type, const vk::Image& image);
+    MemoryLocation allocate(const BufferType& type, vk::DeviceSize size);
+    MemoryLocation allocate(const ImageType& type, const vk::Image& image);
 
-    void destroy();
+    void destroy() override;
 
-    void deallocate(MemoryLocation& location);
+    void deallocate(MemoryLocation& location) override;
 
-    void showDetailStats();
+    void showDetailStats() override;
 
-    MemoryStats collectMemoryStats();
+    MemoryStats collectMemoryStats() override;
 };
 
 }  // namespace Memory

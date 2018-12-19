@@ -4,7 +4,7 @@
 
 #pragma once
 #include "BaseChunkAllocator.h"
-
+#include "MemoryType.h"
 namespace Saiga
 {
 namespace Vulkan
@@ -14,19 +14,19 @@ namespace Memory
 class SAIGA_GLOBAL ImageChunkAllocator : public BaseChunkAllocator
 {
    public:
-    ImageChunkAllocator(const vk::Device& _device, Saiga::Vulkan::Memory::ChunkCreator* chunkAllocator,
-                        const vk::MemoryPropertyFlags& _flags, Saiga::Vulkan::Memory::FitStrategy& strategy,
-                        vk::DeviceSize chunkSize, bool _mapped)
-        : BaseChunkAllocator(_device, chunkAllocator, _flags, strategy, chunkSize, _mapped)
+    ImageType type;
+    ImageChunkAllocator(const vk::Device& _device, Saiga::Vulkan::Memory::ChunkCreator* chunkAllocator, ImageType _type,
+                        Saiga::Vulkan::Memory::FitStrategy& strategy, vk::DeviceSize chunkSize)
+        : BaseChunkAllocator(_device, chunkAllocator, strategy, chunkSize), type(std::move(_type))
     {
-        LOG(INFO) << "Created new image allocator for flags " << vk::to_string(_flags);
+        LOG(INFO) << "Created new image allocator for flags " << type;
         std::stringstream identifier_stream;
-        identifier_stream << "Image Chunk " << vk::to_string(flags);
+        identifier_stream << "Image Chunk " << type;
         gui_identifier = identifier_stream.str();
     }
 
-    ImageChunkAllocator(const ImageChunkAllocator& other)     = delete;
-    ImageChunkAllocator(ImageChunkAllocator&& other) noexcept = default;
+    ImageChunkAllocator(const ImageChunkAllocator& other) = delete;
+    ImageChunkAllocator(ImageChunkAllocator&& other)      = default;
 
     ImageChunkAllocator& operator=(const ImageChunkAllocator& other) = delete;
     ImageChunkAllocator& operator=(ImageChunkAllocator&& other) = default;

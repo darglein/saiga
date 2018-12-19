@@ -24,7 +24,7 @@ void Texture::destroy()
 
     if (memoryLocation)
     {
-        base->memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).deallocate(memoryLocation);
+        base->memory.deallocateImage(type, memoryLocation);
     }
 }
 
@@ -147,6 +147,7 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
                           bool flipY)
 {
     destroy();
+
     this->base = &_base;
 
     mipLevels = 1;
@@ -158,6 +159,8 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
 
 
     auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
+
+    type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
     imageLayout = vk::ImageLayout::eUndefined;
     // Create optimal tiled target image
@@ -179,8 +182,8 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     LOG(INFO) << "Creating image synched: " << image;
 
 
-    auto memReqs   = base->device.getImageMemoryRequirements(image);
-    memoryLocation = base->memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
+
+    memoryLocation = base->memory.allocate(type, image);
     base->device.bindImageMemory(image, memoryLocation.memory, memoryLocation.offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
@@ -274,6 +277,8 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
 
     auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
 
+    type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
+
     imageLayout = vk::ImageLayout::eUndefined;
     // Create optimal tiled target image
     vk::ImageCreateInfo imageCreateInfo;
@@ -292,10 +297,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     LOG(INFO) << "Creating image: " << image << " from " << stagingBuffer;
     SAIGA_ASSERT(image);
 
-
-
-    auto memReqs   = base.device.getImageMemoryRequirements(image);
-    memoryLocation = base.memory.getImageAllocator(vk::MemoryPropertyFlagBits::eDeviceLocal).allocate(memReqs.size);
+    memoryLocation = base.memory.allocate(type, image);
     base.device.bindImageMemory(image, memoryLocation.memory, memoryLocation.offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();

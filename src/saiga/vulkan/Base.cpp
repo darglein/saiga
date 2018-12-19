@@ -410,13 +410,16 @@ void VulkanBase::renderGUI()
     ImGui::Indent();
 
     ImGui::Columns(3, "HEAPINFO");
+    ImGui::SetColumnWidth(0, ImGui::GetFontSize() * 3);
+    ImGui::SetColumnWidth(1, ImGui::GetFontSize() * 6);
+
     ImGui::Text("ID");
     ImGui::NextColumn();
     ImGui::Text("Size");
     ImGui::NextColumn();
     ImGui::Text("Heap Flags");
     ImGui::NextColumn();
-    for (int heapIdx = 0; heapIdx < memProps.memoryHeapCount; ++heapIdx)
+    for (uint32_t heapIdx = 0U; heapIdx < memProps.memoryHeapCount; ++heapIdx)
     {
         ImGui::Separator();
 
@@ -426,7 +429,7 @@ void VulkanBase::renderGUI()
         ImGui::NextColumn();
         ImGui::Text("%s", sizeToString(heap.size).c_str());
         ImGui::NextColumn();
-        ImGui::Text("%s", vk::to_string(heap.flags).c_str());
+        ImGui::TextWrapped("%s", vk::to_string(heap.flags).c_str());
         ImGui::NextColumn();
     }
 
@@ -439,6 +442,9 @@ void VulkanBase::renderGUI()
     ImGui::Indent();
 
     ImGui::Columns(3, "MEMINFO");
+    ImGui::SetColumnWidth(0, ImGui::GetFontSize() * 3);
+    ImGui::SetColumnWidth(1, ImGui::GetFontSize() * 6);
+
 
     ImGui::Text("ID");
     ImGui::NextColumn();
@@ -459,9 +465,42 @@ void VulkanBase::renderGUI()
         ImGui::TextWrapped("%s", vk::to_string(type.propertyFlags).c_str());
         ImGui::NextColumn();
     }
+    ImGui::Unindent();
 
     ImGui::Columns(1);
 
+    ImGui::Spacing();
+
+    ImGui::Text("Queues");
+    ImGui::Indent();
+
+    auto queueFamilyProps = physicalDevice.getQueueFamilyProperties();
+
+    ImGui::Columns(3, "QUEUEINFO");
+    ImGui::SetColumnWidth(0, ImGui::GetFontSize() * 3);
+    ImGui::SetColumnWidth(1, ImGui::GetFontSize() * 6);
+
+    ImGui::Text("ID");
+    ImGui::NextColumn();
+    ImGui::Text("Count");
+    ImGui::NextColumn();
+    ImGui::Text("Type");
+    ImGui::NextColumn();
+
+    size_t index = 0;
+    for (auto& prop : queueFamilyProps)
+    {
+        ImGui::Separator();
+        ImGui::Text("%lu", index);
+        ImGui::NextColumn();
+        ImGui::Text("%u", prop.queueCount);
+        ImGui::NextColumn();
+        ImGui::TextWrapped("%s", vk::to_string(prop.queueFlags).c_str());
+        ImGui::NextColumn();
+        ++index;
+    }
+    ImGui::Columns(1);
+    ImGui::Spacing();
 
     ImGui::Unindent();
     ImGui::Unindent();

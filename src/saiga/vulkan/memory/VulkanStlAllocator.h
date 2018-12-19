@@ -50,8 +50,7 @@ struct VulkanStlAllocator
         : m_device(base.device), m_physicalDevice(base.physicalDevice), m_usageFlags(_usageFlags)
     {
         allocator = &base.memory.getAllocator(
-            _usageFlags, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-        SAIGA_ASSERT(allocator->mapped, "Only mapped allocators are allowed to be used");
+            {_usageFlags, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent});
     }
 
     pointer allocate(size_type n, const_pointer hint = 0)

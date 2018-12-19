@@ -30,7 +30,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
    protected:
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
-    vk::MemoryPropertyFlags flags;
     FitStrategy* m_strategy{};
 
     vk::DeviceSize m_chunkSize{};
@@ -45,12 +44,11 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     virtual void headerInfo() {}
 
    public:
-    BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, const vk::MemoryPropertyFlags& _flags,
-                       FitStrategy& strategy, vk::DeviceSize chunkSize = 64 * 1024 * 1024, bool _mapped = false)
-        : BaseMemoryAllocator(_mapped),
+    BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy& strategy,
+                       vk::DeviceSize chunkSize = 64 * 1024 * 1024)
+        : BaseMemoryAllocator(chunkSize),
           m_device(_device),
           m_chunkAllocator(chunkAllocator),
-          flags(_flags),
           m_strategy(&strategy),
           m_chunkSize(chunkSize),
           m_allocateSize(chunkSize),
@@ -62,7 +60,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
         : BaseMemoryAllocator(std::move(other)),
           m_device(other.m_device),
           m_chunkAllocator(other.m_chunkAllocator),
-          flags(other.flags),
           m_strategy(other.m_strategy),
           m_chunkSize(other.m_chunkSize),
           m_allocateSize(other.m_allocateSize),
@@ -76,7 +73,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
         BaseMemoryAllocator::operator=(std::move(static_cast<BaseMemoryAllocator&&>(other)));
         m_device                     = other.m_device;
         m_chunkAllocator             = other.m_chunkAllocator;
-        flags                        = other.flags;
         m_strategy                   = other.m_strategy;
         m_chunkSize                  = other.m_chunkSize;
         m_allocateSize               = other.m_allocateSize;

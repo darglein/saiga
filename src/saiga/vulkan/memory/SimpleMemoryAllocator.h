@@ -10,6 +10,7 @@
 
 #include "BaseMemoryAllocator.h"
 #include "FindMemoryType.h"
+#include "MemoryType.h"
 #include "SafeAllocator.h"
 
 #include <limits>
@@ -34,24 +35,21 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
     std::string gui_identifier;
 
    public:
-    vk::MemoryPropertyFlags flags;
-    vk::BufferUsageFlags usageFlags;
+    BufferType type;
 
    private:
     vk::BufferCreateInfo m_bufferCreateInfo;
 
    public:
-    SimpleMemoryAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice, const vk::MemoryPropertyFlags& _flags,
-                          const vk::BufferUsageFlags& usage, bool _mapped = false)
-        : BaseMemoryAllocator(_mapped),
+    SimpleMemoryAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice, BufferType _type)
+        : BaseMemoryAllocator(),
           m_device(_device),
           m_physicalDevice(_physicalDevice),
-          flags(_flags),
-          usageFlags(usage),
-          m_bufferCreateInfo(vk::BufferCreateFlags(), 0, usage, vk::SharingMode::eExclusive)
+          type(_type),
+          m_bufferCreateInfo(vk::BufferCreateFlags(), 0, _type.usageFlags, vk::SharingMode::eExclusive)
     {
         std::stringstream identifier_stream;
-        identifier_stream << "Simple " << vk::to_string(usageFlags) << " " << vk::to_string(flags);
+        identifier_stream << "Simple " << type;
         gui_identifier = identifier_stream.str();
     }
 
@@ -61,8 +59,7 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
           m_physicalDevice(other.m_physicalDevice),
           m_allocations(std::move(other.m_allocations)),
           gui_identifier(std::move(other.gui_identifier)),
-          flags(other.flags),
-          usageFlags(other.usageFlags),
+          type(other.type),
           m_bufferCreateInfo(std::move(other.m_bufferCreateInfo))
     {
     }
@@ -75,8 +72,7 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
         m_physicalDevice             = other.m_physicalDevice;
         m_allocations                = std::move(other.m_allocations);
         gui_identifier               = std::move(other.gui_identifier);
-        flags                        = other.flags;
-        usageFlags                   = other.usageFlags;
+        type                         = other.type;
         return *this;
     }
 

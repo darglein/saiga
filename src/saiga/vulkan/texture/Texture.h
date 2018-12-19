@@ -4,13 +4,13 @@
 #include "saiga/vulkan/AsyncCommand.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/buffer/DeviceMemory.h"
+#include "saiga/vulkan/buffer/StagingBuffer.h"
+#include "saiga/vulkan/memory/MemoryType.h"
 #include "saiga/vulkan/svulkan.h"
 
 #include <algorithm>
 #include <assert.h>
 #include <exception>
-#include <saiga/vulkan/buffer/StagingBuffer.h>
-
 namespace Saiga
 {
 namespace Vulkan
@@ -20,6 +20,7 @@ struct SAIGA_GLOBAL Texture
    protected:
     VulkanBase* base;
     MemoryLocation memoryLocation;
+    Saiga::Vulkan::Memory::ImageType type;
 
    public:
     Texture() = default;
@@ -29,6 +30,7 @@ struct SAIGA_GLOBAL Texture
     Texture(Texture&& other) noexcept
         : base(other.base),
           memoryLocation(std::move(other.memoryLocation)),
+          type(std::move(other.type)),
           image(other.image),
           imageLayout(other.imageLayout),
           imageView(other.imageView),
@@ -47,6 +49,7 @@ struct SAIGA_GLOBAL Texture
     {
         base            = other.base;
         memoryLocation  = std::move(other.memoryLocation);
+        type            = other.type;
         image           = other.image;
         imageLayout     = other.imageLayout;
         imageView       = other.imageView;

@@ -14,7 +14,7 @@ using namespace Saiga::Vulkan::Memory;
 void SimpleMemoryAllocator::deallocate(MemoryLocation& location)
 {
     mutex.lock();
-    LOG(INFO) << "Simple deallocate " << vk::to_string(usageFlags) << " " << vk::to_string(flags) << " " << location;
+    LOG(INFO) << "Simple deallocate " << type << ":" << location;
 
     auto foundAllocation = std::find(m_allocations.begin(), m_allocations.end(), location);
     if (foundAllocation == m_allocations.end())
@@ -48,11 +48,11 @@ MemoryLocation SimpleMemoryAllocator::allocate(vk::DeviceSize size)
 
     vk::MemoryAllocateInfo info;
     info.allocationSize  = memReqs.size;
-    info.memoryTypeIndex = findMemoryType(m_physicalDevice, memReqs.memoryTypeBits, flags);
+    info.memoryTypeIndex = findMemoryType(m_physicalDevice, memReqs.memoryTypeBits, type.memoryFlags);
     auto memory          = SafeAllocator::instance()->allocateMemory(m_device, info);
 
     void* mappedPtr = nullptr;
-    if (mapped)
+    if (type.is_mappable())
     {
         mappedPtr = m_device.mapMemory(memory, 0, memReqs.size);
     }
@@ -63,7 +63,7 @@ MemoryLocation SimpleMemoryAllocator::allocate(vk::DeviceSize size)
     auto retVal = m_allocations.back();
     mutex.unlock();
 
-    LOG(INFO) << "Simple allocate   " << vk::to_string(usageFlags) << " " << vk::to_string(flags) << " " << retVal;
+    LOG(INFO) << "Simple allocate   " << type << " " << retVal;
     return retVal;
 }
 

@@ -9,7 +9,7 @@
 
 Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator::createNewChunk()
 {
-    auto newChunk = m_chunkAllocator->allocate(flags, m_allocateSize);
+    auto newChunk = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
 
     m_chunkAllocations.emplace_back(newChunk, vk::Buffer(), m_chunkSize, nullptr);
 
@@ -18,5 +18,5 @@ Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator:
 
 void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
 {
-    ImGui::LabelText("Memory Type", "%s", vk::to_string(flags).c_str());
+    ImGui::LabelText("Memory Type", "%s", type.to_string().c_str());
 }
