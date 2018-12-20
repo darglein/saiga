@@ -13,6 +13,7 @@ namespace Saiga
 template <typename MatrixType>
 struct MatrixScalar
 {
+    using M          = MatrixType;
     using Scalar     = typename MatrixType::Scalar;
     using ScalarType = MatrixScalar<MatrixType>;
 
@@ -32,12 +33,22 @@ struct MatrixScalar
         return *this;
     }
 
+
+    ScalarType operator-() const { return {-data}; }
     ScalarType operator+(const ScalarType& other) const { return {data + other.data}; }
     ScalarType operator*(const ScalarType& other) const { return {data * other.data}; }
-    ScalarType operator-(const ScalarType& other) const { return {data - other.data}; }
+    //    ScalarType operator-(const ScalarType& other) const
+    //    {
+    //        cout << "-2" << endl;
+    //        return {data - other.data};
+    //    }
 
     void operator+=(const ScalarType& other) { data += other.data; }
-    void operator-=(const ScalarType& other) { data -= other.data; }
+    void operator-=(const ScalarType& other)
+    {
+        SAIGA_ASSERT(0);
+        data -= other.data;
+    }
 
     // scalar product
     ScalarType operator*(const Scalar& other) const { return {data * other}; }
@@ -51,6 +62,7 @@ struct MatrixScalar
         using ReturnType = Eigen::Matrix<_Scalar, MatrixType::RowsAtCompileTime, m>;
         return MatrixScalar<ReturnType>(data * other.data);
     }
+
 
 
     MatrixType& get() { return data; }

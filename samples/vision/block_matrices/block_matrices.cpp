@@ -57,33 +57,6 @@ struct Eigen::ScalarBinaryOpTraits<MatrixScalar<Block>, MatrixScalar<Vector>, Bi
     typedef MatrixScalar<Vector> ReturnType;
 };
 
-
-template <typename SparseLhsType, typename DenseRhsType, typename DenseResType>
-struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, DenseResType, MatrixScalar<Vector>,
-                                                       Eigen::ColMajor, true>
-{
-    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
-    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
-    typedef typename internal::remove_all<DenseResType>::type Res;
-    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
-    using AlphaType = MatrixScalar<Vector>;
-    using LeftType  = MatrixScalar<::Block>;
-    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const AlphaType& alpha)
-    {
-        evaluator<Lhs> lhsEval(lhs);
-        for (Index c = 0; c < rhs.cols(); ++c)
-        {
-            for (Index j = 0; j < lhs.outerSize(); ++j)
-            {
-                for (LhsInnerIterator it(lhsEval, j); it; ++it)
-                {
-                    res.coeffRef(it.index(), c) += (it.value() * rhs.coeff(j, c));
-                }
-            }
-        }
-    }
-};
-
 void testMatrixVectorOperations()
 {
     using CompleteMatrix = Eigen::Matrix<double, 4, 4>;
@@ -112,8 +85,47 @@ void testMatrixVectorOperations()
     res2   = bm * bx;
     result = fixedBlockMatrixToMatrix(res2);
     cout << "Result Block Matrix" << endl << result << endl;
+}
 
 
+
+template <typename SparseLhsType, typename DenseRhsType, typename DenseResType>
+struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, DenseResType, MatrixScalar<Vector>,
+                                                       Eigen::ColMajor, true>
+{
+    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
+    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
+    typedef typename internal::remove_all<DenseResType>::type Res;
+    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
+    using AlphaType = MatrixScalar<Vector>;
+    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const AlphaType& alpha)
+    {
+        evaluator<Lhs> lhsEval(lhs);
+        for (Index c = 0; c < rhs.cols(); ++c)
+        {
+            for (Index j = 0; j < lhs.outerSize(); ++j)
+            {
+                for (LhsInnerIterator it(lhsEval, j); it; ++it)
+                {
+                    res.coeffRef(it.index(), c) += (it.value() * rhs.coeff(j, c));
+                }
+            }
+        }
+    }
+};
+
+
+void sparseMatrixVector()
+{
+    using CompleteMatrix = Eigen::Matrix<double, 4, 4>;
+    using CompleteVector = Eigen::Matrix<double, 4, 1>;
+
+    CompleteMatrix m = CompleteMatrix::Random();
+    CompleteVector x = CompleteVector::Random();
+    CompleteVector result;
+
+    Eigen::Matrix<MatrixScalar<Block>, 2, 2> bm;
+    Eigen::Matrix<MatrixScalar<Vector>, 2, 1> bx, res2;
 
     // test with a sparse block matrix
     Eigen::SparseMatrix<MatrixScalar<Block>> sbm(2, 2);
@@ -123,6 +135,79 @@ void testMatrixVectorOperations()
         {
             sbm.insert(i, j) = m.block(i * 2, j * 2, 2, 2);
         }
+        bx(i) = x.segment(i * 2, 2);
+    }
+
+    res2   = sbm * bx;
+    result = fixedBlockMatrixToMatrix(res2);
+    cout << "Result Sparse Block Matrix" << endl << result << endl;
+}
+
+using RectBlock = Eigen::Matrix<double, 3, 2>;
+
+// a 3x2 matrix times a 2x1 vector is a 3x1 vector
+using RectResult = Eigen::Matrix<double, 3, 1>;
+
+
+template <typename BinaryOp>
+struct Eigen::ScalarBinaryOpTraits<MatrixScalar<RectBlock>, MatrixScalar<Vector>, BinaryOp>
+{
+    typedef MatrixScalar<RectResult> ReturnType;
+};
+
+
+template <typename SparseLhsType, typename DenseRhsType, typename DenseResType>
+struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, DenseResType,
+                                                       MatrixScalar<RectResult>, Eigen::ColMajor, true>
+{
+    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
+    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
+    typedef typename internal::remove_all<DenseResType>::type Res;
+    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
+    using AlphaType = MatrixScalar<RectResult>;
+    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const AlphaType& alpha)
+    {
+        evaluator<Lhs> lhsEval(lhs);
+        for (Index c = 0; c < rhs.cols(); ++c)
+        {
+            for (Index j = 0; j < lhs.outerSize(); ++j)
+            {
+                for (LhsInnerIterator it(lhsEval, j); it; ++it)
+                {
+                    res.coeffRef(it.index(), c) += (it.value() * rhs.coeff(j, c));
+                }
+            }
+        }
+    }
+};
+
+
+void sparseRectangularMatrixVector()
+{
+    cout << "testing sparse matrix times vector with rectangular inner blocks" << endl;
+    using CompleteMatrix       = Eigen::Matrix<double, 6, 4>;
+    using CompleteVector       = Eigen::Matrix<double, 4, 1>;
+    using ResultCompleteVector = Eigen::Matrix<double, 6, 1>;
+
+    CompleteMatrix m = CompleteMatrix::Random();
+    CompleteVector x = CompleteVector::Random();
+    ResultCompleteVector result;
+
+    cout << "reference: " << endl << m * x << endl;
+
+    Eigen::Matrix<MatrixScalar<RectBlock>, 2, 2> bm;
+    Eigen::Matrix<MatrixScalar<Vector>, 2, 1> bx;
+    Eigen::Matrix<MatrixScalar<RectResult>, 2, 1> res2;
+
+    // test with a sparse block matrix
+    Eigen::SparseMatrix<MatrixScalar<RectBlock>> sbm(2, 2);
+    for (int i = 0; i < 2; ++i)
+    {
+        for (int j = 0; j < 2; ++j)
+        {
+            sbm.insert(i, j) = m.block(i * 3, j * 2, 3, 2);
+        }
+        bx(i) = x.segment(i * 2, 2);
     }
 
     res2   = sbm * bx;
@@ -134,5 +219,8 @@ int main(int argc, char* argv[])
 {
     testMatrixMatrixOperations();
     testMatrixVectorOperations();
+    sparseMatrixVector();
+    sparseRectangularMatrixVector();
+
     return 0;
 }

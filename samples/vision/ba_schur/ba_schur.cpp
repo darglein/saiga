@@ -79,11 +79,11 @@ void simpleSchurTest()
     // ======================== Parameters ========================
 
     // size of U
-    int n = 12 * 6;
+    int n = 6 * 50;
     // size of V
-    int m = 900 * 3;
+    int m = 3 * 1000;
     // maximum number of non-zero elements per row in W
-    int maxElementsPerRow = 35 * 3;
+    int maxElementsPerRow = 300;
 
     using Vector = Eigen::Matrix<double, -1, 1>;
     using Matrix = Eigen::Matrix<double, -1, -1>;
@@ -188,12 +188,14 @@ void simpleSchurTest()
         Eigen::SparseMatrix<double, Eigen::RowMajor> Y(n, m);
         Y = W * Vinv;
 
+
         // Step 3
         // Compute the Schur complement S
         // Not sure how good the sparse matrix mult is of eigen
         // maybe own implementation because the structure is well known before hand
         Eigen::SparseMatrix<double> S(n, n);
-        S            = -Y * W.transpose();
+        S = -Y * W.transpose();
+        //        cout << "S" << endl << S.toDense() << endl;
         S.diagonal() = U.diagonal() + S.diagonal();
 
         // Step 4
@@ -225,7 +227,178 @@ void simpleSchurTest()
     cout << endl;
 }
 
-#define PRINT_MATRIX
+//#define PRINT_MATRIX
+
+
+// ======================== Types ========================
+
+// Block size
+const int asize = 6;
+const int bsize = 3;
+
+using T = double;
+
+// block types
+using ADiag  = Eigen::Matrix<T, asize, asize>;
+using BDiag  = Eigen::Matrix<T, bsize, bsize>;
+using WElem  = Eigen::Matrix<T, asize, bsize>;
+using WTElem = Eigen::Matrix<T, bsize, asize>;
+using ARes   = Eigen::Matrix<T, asize, 1>;
+using BRes   = Eigen::Matrix<T, bsize, 1>;
+
+// Block structured diagonal matrices
+using UType = Eigen::DiagonalMatrix<MatrixScalar<ADiag>, -1>;
+using VType = Eigen::DiagonalMatrix<MatrixScalar<BDiag>, -1>;
+
+// Block structured vectors
+using DAType = Eigen::Matrix<MatrixScalar<ARes>, -1, 1>;
+using DBType = Eigen::Matrix<MatrixScalar<BRes>, -1, 1>;
+
+// Block structured sparse matrix
+using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>>;
+using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>>;
+using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>>;
+
+
+// ======================== Eigen Magic ========================
+
+template <typename BinaryOp>
+struct Eigen::ScalarBinaryOpTraits<MatrixScalar<WElem>, MatrixScalar<WTElem>, BinaryOp>
+{
+    typedef MatrixScalar<ADiag> ReturnType;
+};
+
+template <typename BinaryOp>
+struct Eigen::ScalarBinaryOpTraits<MatrixScalar<WElem>, MatrixScalar<BDiag>, BinaryOp>
+{
+    typedef MatrixScalar<WElem> ReturnType;
+};
+
+
+
+template <typename BinaryOp>
+struct Eigen::ScalarBinaryOpTraits<MatrixScalar<WElem>, MatrixScalar<BRes>, BinaryOp>
+{
+    typedef MatrixScalar<ARes> ReturnType;
+};
+
+
+template <typename SparseLhsType, typename DenseRhsType, typename DenseResType>
+struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, DenseResType, MatrixScalar<ARes>,
+                                                       Eigen::ColMajor, true>
+{
+    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
+    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
+    typedef typename internal::remove_all<DenseResType>::type Res;
+    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
+    using AlphaType = MatrixScalar<ARes>;
+    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const AlphaType& alpha)
+    {
+        evaluator<Lhs> lhsEval(lhs);
+        for (Index c = 0; c < rhs.cols(); ++c)
+        {
+            for (Index j = 0; j < lhs.outerSize(); ++j)
+            {
+                for (LhsInnerIterator it(lhsEval, j); it; ++it)
+                {
+                    res.coeffRef(it.index(), c) += (it.value() * rhs.coeff(j, c));
+                }
+            }
+        }
+    }
+};
+
+template <typename BinaryOp>
+struct Eigen::ScalarBinaryOpTraits<MatrixScalar<WTElem>, MatrixScalar<ARes>, BinaryOp>
+{
+    typedef MatrixScalar<BRes> ReturnType;
+};
+
+template <typename SparseLhsType, typename DenseRhsType, typename DenseResType>
+struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, DenseResType, MatrixScalar<BRes>,
+                                                       Eigen::ColMajor, true>
+{
+    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
+    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
+    typedef typename internal::remove_all<DenseResType>::type Res;
+    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
+    using AlphaType = MatrixScalar<BRes>;
+    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const AlphaType& alpha)
+    {
+        evaluator<Lhs> lhsEval(lhs);
+        for (Index c = 0; c < rhs.cols(); ++c)
+        {
+            for (Index j = 0; j < lhs.outerSize(); ++j)
+            {
+                for (LhsInnerIterator it(lhsEval, j); it; ++it)
+                {
+                    res.coeffRef(it.index(), c) += (it.value() * rhs.coeff(j, c));
+                }
+            }
+        }
+    }
+};
+
+template <typename S, typename DiagType>
+S multSparseDiag(const S& M, const DiagType& D)
+{
+    SAIGA_ASSERT(M.cols() == D.rows());
+
+    S result = M;
+
+    for (int k = 0; k < result.outerSize(); ++k)
+    {
+        for (typename S::InnerIterator it(result, k); it; ++it)
+        {
+            it.valueRef() = it.value() * D.diagonal()(it.col());
+        }
+    }
+
+    return result;
+}
+
+template <typename Diag, typename Vec>
+Vec multDiagVector(const Diag& D, const Vec& v)
+{
+    SAIGA_ASSERT(D.cols() == v.rows());
+
+    Vec result = v;
+
+    for (int k = 0; k < D.rows(); ++k)
+    {
+        result(k) = D.diagonal()(k) * v(k);
+    }
+
+    return result;
+}
+
+
+template <typename MatrixType, int options>
+std::vector<Eigen::Triplet<typename MatrixType::Scalar>> sparseBlockToTriplets(
+    const Eigen::SparseMatrix<MatrixScalar<MatrixType>, options>& M)
+{
+    std::vector<Eigen::Triplet<typename MatrixType::Scalar>> v;
+    v.reserve(M.nonZeros() * MatrixType::ColsAtCompileTime * MatrixType::RowsAtCompileTime);
+
+    for (int i = 0; i < M.outerSize(); i++)
+    {
+        for (typename Eigen::SparseMatrix<MatrixScalar<MatrixType>, options>::InnerIterator it(M, i); it; ++it)
+        {
+            int x = it.col() * MatrixType::ColsAtCompileTime;
+            int y = it.row() * MatrixType::RowsAtCompileTime;
+
+            for (int r = 0; r < MatrixType::RowsAtCompileTime; ++r)
+            {
+                for (int c = 0; c < MatrixType::ColsAtCompileTime; ++c)
+                {
+                    v.emplace_back(r + y, c + x, it.value().get()(r, c));
+                }
+            }
+        }
+    }
+    return v;
+}
+
 
 void baBlockSchurTest()
 {
@@ -241,45 +414,23 @@ void baBlockSchurTest()
 
     // ======================== Parameters ========================
 
-    // Block size
-    const int asize = 6;
-    const int bsize = 3;
+
 
     // size of U
-    int n = 2;
+    int n = 100;
     // size of V
-    int m = 3;
+    int m = 9000;
 
     // maximum number of non-zero elements per row in W
-    int maxElementsPerRow = 2;
+    int maxElementsPerRow = 300;
 
-    // ======================== Types ========================
-
-    using T = double;
-
-    // block types
-    using ADiag = Eigen::Matrix<T, asize, asize>;
-    using BDiag = Eigen::Matrix<T, bsize, bsize>;
-    using WElem = Eigen::Matrix<T, asize, bsize>;
-    using ARes  = Eigen::Matrix<T, asize, 1>;
-    using BRes  = Eigen::Matrix<T, bsize, 1>;
-
-    // Block structured diagonal matrices
-    using UType = Eigen::DiagonalMatrix<MatrixScalar<ADiag>, -1>;
-    using VType = Eigen::DiagonalMatrix<MatrixScalar<BDiag>, -1>;
-
-    // Block structured vectors
-    using DAType = Eigen::Matrix<MatrixScalar<ARes>, -1, 1>;
-    using DBType = Eigen::Matrix<MatrixScalar<BRes>, -1, 1>;
-
-    // Block structured sparse matrix
-    using WType = Eigen::SparseMatrix<MatrixScalar<WElem>>;
 
     // ======================== Variables ========================
 
     UType U(n);
     VType V(m);
     WType W(n, m);
+    WTType WT(m, n);
 
     DAType da(n);
     DBType db(m);
@@ -289,6 +440,8 @@ void baBlockSchurTest()
 
 
     // ======================== Initialize U,V,W,ea,eb ========================
+
+    Random::setSeed(239672031257UL);
 
     // Init U,V with random symmetric square matrices, but add a large value to the diagonal to ensure positive
     // definiteness and low condition number This is similar to the LM update
@@ -314,14 +467,26 @@ void baBlockSchurTest()
 
     // Init W with randoms blocks
     W.reserve(n * maxElementsPerRow);
+    WT.reserve(n * maxElementsPerRow);
+
+    std::vector<Eigen::Triplet<WElem>> ws1;
+    std::vector<Eigen::Triplet<WTElem>> ws2;
+
     for (int i = 0; i < n; ++i)
     {
         auto v = Random::uniqueIndices(maxElementsPerRow, m);
         for (auto j : v)
         {
-            W.insert(i, j) = WElem::Random();
+            WElem m = WElem::Random();
+            ws1.emplace_back(i, j, m);
+            ws2.emplace_back(j, i, m.transpose());
+            //            W.insert(i, j)  = m;
+            //            WT.insert(j, i) = m.transpose();
         }
     }
+
+    W.setFromTriplets(ws1.begin(), ws1.end());
+    WT.setFromTriplets(ws2.begin(), ws2.end());
 
 #ifdef PRINT_MATRIX
     // debug print W
@@ -334,9 +499,10 @@ void baBlockSchurTest()
     for (int i = 0; i < m; ++i) eb(i) = BRes::Random();
 
 
-#if 1
+#if 0
     // ======================== Dense Simple Solution (only for checking the correctness) ========================
     {
+        SAIGA_BLOCK_TIMER();
         n *= asize;
         m *= bsize;
 
@@ -358,8 +524,119 @@ void baBlockSchurTest()
         double error = (M * x - b).norm();
         cout << x.transpose() << endl;
         cout << "Dense error " << error << endl;
+
+        n /= asize;
+        m /= bsize;
     }
 #endif
+
+
+    // tmp variables
+    VType Vinv(m);
+    WType Y(n, m);
+    SType S(n, n);
+    DAType ej(n);
+
+    {
+        SAIGA_BLOCK_TIMER();
+        // Schur complement solution
+
+        // Step 1
+        // Invert V
+        for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
+        //        cout << "Vinv" << endl << blockMatrixToMatrix(Vinv.toDenseMatrix()) << endl;
+    }
+
+    {
+        SAIGA_BLOCK_TIMER();
+        // Step 2
+        // Compute Y
+        Y = multSparseDiag(W, Vinv);
+        //        cout << "Yref" << endl
+        //             << (blockMatrixToMatrix(W.toDense()) * blockMatrixToMatrix(Vinv.toDenseMatrix())) << endl;
+        //        cout << "Y" << endl << blockMatrixToMatrix(Y.toDense()) << endl;
+    }
+    {
+        SAIGA_BLOCK_TIMER();
+        // Step 3
+        // Compute the Schur complement S
+        // Not sure how good the sparse matrix mult is of eigen
+        // maybe own implementation because the structure is well known before hand
+        S = -(Y * WT).eval();
+        //        S = W * WT;
+        S.diagonal() = U.diagonal() + S.diagonal();
+
+        //        cout << "Sref" << endl
+        //             << (blockMatrixToMatrix(U.toDenseMatrix()) - blockMatrixToMatrix(W.toDense()) *
+        //                                                              blockMatrixToMatrix(Vinv.toDenseMatrix()) *
+        //                                                              blockMatrixToMatrix(WT.toDense()))
+        //                    .eval()
+        //             << endl;
+        //        cout << "S" << endl << blockMatrixToMatrix(S.toDense()) << endl;
+    }
+    {
+        SAIGA_BLOCK_TIMER();
+        // Step 4
+        // Compute the right hand side of the schur system ej
+        // S * da = ej
+        ej = ea + -(Y * eb);  // todo fix -
+                              //        cout << "ejref" << endl
+        //             << (blockVectorToVector(ea) - blockMatrixToMatrix(Y.toDense()) * blockVectorToVector(eb)) <<
+        //             endl;
+
+        //        cout << "ej" << endl << blockVectorToVector(ej) << endl;
+    }
+
+
+    Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
+    {
+        SAIGA_BLOCK_TIMER();
+        // Step 5
+        // Solve the schur system for da
+
+        auto triplets = sparseBlockToTriplets(S);
+
+        ssparse.setFromTriplets(triplets.begin(), triplets.end());
+    }
+    {
+        SAIGA_BLOCK_TIMER();
+        //        cout << "ssparse" << endl << ssparse.toDense() << endl;
+
+        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+        //        Eigen::SimplicialLDLT<SType> solver;
+        solver.compute(ssparse);
+        Eigen::Matrix<double, -1, 1> deltaA = solver.solve(blockVectorToVector(ej));
+
+        //        cout << "deltaA" << endl << deltaA << endl;
+
+        // copy back into da
+        for (int i = 0; i < n; ++i)
+        {
+            da(i) = deltaA.segment(i * asize, asize);
+        }
+    }
+    DBType q;
+    {
+        SAIGA_BLOCK_TIMER();
+        // Step 6
+        // Substitute the solultion deltaA into the original system and
+        // bring it to the right hand side
+        q = eb + -WT * da;
+        //        cout << "qref" << endl
+        //             << (blockVectorToVector(eb) - blockMatrixToMatrix(WT.toDense()) * blockVectorToVector(da)) <<
+        //             endl;
+
+        //        cout << "q" << endl << blockVectorToVector(q) << endl;
+    }
+    {
+        SAIGA_BLOCK_TIMER();
+        // Step 7
+        // Solve the remaining partial system with the precomputed inverse of V
+        db = multDiagVector(Vinv, q);
+
+        //        cout << "da" << endl << blockVectorToVector(da).transpose() << endl;
+        //        cout << "db" << endl << blockVectorToVector(db).transpose() << endl;
+    }
 }
 
 int main(int argc, char* argv[])
