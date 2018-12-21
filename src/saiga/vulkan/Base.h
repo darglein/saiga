@@ -41,32 +41,29 @@ struct SAIGA_GLOBAL VulkanBase
 
     vk::PipelineCache pipelineCache;
 
+    std::pair<uint32_t, uint32_t> main_queue_info, transfer_info, compute_info;
+
     /**
-     * We store the transferQueue here so everyone can use it.
-     * The graphics queues for rendering are created from the render engines.
+     * The main queue must be able to do Graphics and Compute (and Transfer).
+     */
+    Queue mainQueue;
+
+    /**
+     * This queue is a dedicated transfer queue. Depending on the GPU the queue may have other capabilities.
+     * If the GPU provides dedicated transfer queues (without graphics and compute capabilities) one of them will be
+     * used.
      */
     Queue transferQueue;
 
-    bool secondaryQueueAvailable = false;
-    Queue secondaryTransferQueue;
-
-    // A commandpool for transfer commands that are sync-submitted. (this is not the command pool used for rendering)
-    CommandPool commandPool;
+    /**
+     * A dedicated compute queue. Depending on the GPU the queue may have other capabilities.
+     * If the GPU provides dedicated Compute queues (without graphics capabilities) one of them will be used.
+     */
+    Queue computeQueue;
 
     // A large descriptor pool which should be used by the application
     // The size is controlled by the vulkan parameters
     DescriptorPool descriptorPool;
-
-
-
-    /** @brief Contains queue family indices */
-    struct
-    {
-        uint32_t graphics = -1;
-        uint32_t compute;
-        uint32_t transfer;
-        uint32_t present;
-    } queueFamilyIndices;
 
     operator vk::Device() { return device; }
 
@@ -94,20 +91,6 @@ struct SAIGA_GLOBAL VulkanBase
      * properties
      */
     uint32_t getMemoryType(uint32_t typeBits, vk::MemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
-
-    void printAvailableMemoryTypes();
-
-    /**
-     * Get the index of a queue family that supports the requested queue flags
-     *
-     * @param queueFlags Queue flags to find a queue family index for
-     *
-     * @return Index of the queue family index that matches the flags
-     *
-     * @throw Throws an exception if no queue family index could be found that supports the requested flags
-     */
-    uint32_t getQueueFamilyIndex(vk::QueueFlags queueFlags);
-    uint32_t getPresentQueue(vk::SurfaceKHR surface);
 
     /**
      * Create the logical device based on the assigned physical device, also gets default queue family indices
@@ -137,9 +120,11 @@ struct SAIGA_GLOBAL VulkanBase
 
     void endTransferWait(vk::CommandBuffer commandBuffer);
 
-    void printAvailableQueueFamilies();
-
     void renderGUI();
+
+    bool findQueueFamily(vk::QueueFlags flags, uint32_t& family);
+
+    bool findDedicatedQueueFamily(vk::QueueFlags flags, uint32_t& family);
 };
 
 }  // namespace Vulkan

@@ -12,14 +12,15 @@ namespace Saiga
 {
 namespace Vulkan
 {
-void Queue::create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _queueIndex)
+void Queue::create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _queueIndex,
+                   vk::CommandPoolCreateFlags commandPoolCreateFlags)
 {
     device           = _device;
     queueFamilyIndex = _queueFamilyIndex;
     queueIndex       = _queueIndex;
     queue            = _device.getQueue(_queueFamilyIndex, _queueIndex);
     SAIGA_ASSERT(queue);
-    commandPool.create(device, _queueFamilyIndex);
+    commandPool.create(device, _queueFamilyIndex, commandPoolCreateFlags);
 }
 
 void Queue::waitIdle()
@@ -76,16 +77,14 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd)
     return fence;
 }
 
-CommandPool Queue::createCommandPool()
+CommandPool Queue::createCommandPool(vk::CommandPoolCreateFlags commandPoolCreateFlags)
 {
     commandPoolCreationMutex.lock();
 
     CommandPool newCommandPool;
-    newCommandPool.create(device, queueFamilyIndex);
+    newCommandPool.create(device, queueFamilyIndex, commandPoolCreateFlags);
     LOG(INFO) << "Creating command pool: " << static_cast<vk::CommandPool>(newCommandPool);
-    //    LOG(INFO) << commandPools.size();
     commandPools.push_back(newCommandPool);
-    //    LOG(INFO) << commandPools.size();
     commandPoolCreationMutex.unlock();
     return newCommandPool;
 }

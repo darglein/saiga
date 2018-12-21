@@ -25,12 +25,10 @@ void VulkanBase::destroy()
 {
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
-    if (secondaryQueueAvailable)
-    {
-        secondaryTransferQueue.destroy();
-    }
+
+    mainQueue.destroy();
+    computeQueue.destroy();
     transferQueue.destroy();
-    commandPool.destroy();
     descriptorPool.destroy();
 
     memory.destroy();
@@ -70,193 +68,57 @@ uint32_t VulkanBase::getMemoryType(uint32_t typeBits, vk::MemoryPropertyFlags pr
     }
 }
 
-void VulkanBase::printAvailableMemoryTypes()
-{
-    {
-        cout << endl;
-        cout << "Heaps:" << endl;
-        Table tab({10, 20, 20, 20, 20, 20});
-        tab << "id"
-            << "size"
-            << "size (GB)"
-            << "DeviceLocal"
-            << "MultiInstance"
-            << "MultiInstanceKHR";
-        for (uint32_t i = 0; i < memoryProperties.memoryHeapCount; i++)
-        {
-            vk::MemoryHeap mt = memoryProperties.memoryHeaps[i];
-            tab << i << mt.size << double(mt.size) / (1000 * 1000 * 1000)
-                << (bool)(mt.flags & vk::MemoryHeapFlagBits::eDeviceLocal)
-                << (bool)(mt.flags & vk::MemoryHeapFlagBits::eMultiInstance)
-                << (bool)(mt.flags & vk::MemoryHeapFlagBits::eMultiInstanceKHR);
-        }
-        cout << endl;
-    }
-
-    {
-        cout << "Memory Types:" << endl;
-        Table tab({10, 20, 20, 20, 20, 20, 20, 20});
-        tab << "id"
-            << "heapIndex"
-            << "DeviceLocal"
-            << "HostCached"
-            << "HostCoherent"
-            << "HostVisible"
-            << "LazilyAllocated"
-            << "Protected";
-        for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
-        {
-            vk::MemoryType mt = memoryProperties.memoryTypes[i];
-            tab << i << mt.heapIndex << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal)
-                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eHostCached)
-                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eHostCoherent)
-                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eHostVisible)
-                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eLazilyAllocated)
-                << (bool)(mt.propertyFlags & vk::MemoryPropertyFlagBits::eProtected);
-        }
-        cout << endl;
-    }
-}
-
-
-uint32_t VulkanBase::getQueueFamilyIndex(vk::QueueFlags queueFlags)
-{
-    return 0;
-#if 0
-    // Dedicated queue for compute
-    // Try to find a queue family index that supports compute but not graphics
-    if (queueFlags & vk::QueueFlagBits::eCompute)
-    {
-        for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilyProperties.size()); i++)
-        {
-            if ((queueFamilyProperties[i].queueFlags & queueFlags) && ((queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics) == 0))
-            {
-                return i;
-                break;
-            }
-        }
-    }
-
-    // Dedicated queue for transfer
-    // Try to find a queue family index that supports transfer but not graphics and compute
-    if (queueFlags & vk::QueueFlagBits::eTransfer)
-    {
-        for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilyProperties.size()); i++)
-        {
-            if ((queueFamilyProperties[i].queueFlags & queueFlags) && ((queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics) == 0) && ((queueFamilyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) == 0))
-            {
-                return i;
-                break;
-            }
-        }
-    }
-
-    // For other queue types or if no separate compute queue is present, return the first one to support the requested flags
-    for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilyProperties.size()); i++)
-    {
-        if (queueFamilyProperties[i].queueFlags & queueFlags)
-        {
-            return i;
-            break;
-        }
-    }
-#endif
-
-    throw std::runtime_error("Could not find a matching queue family index");
-}
-
-uint32_t VulkanBase::getPresentQueue(vk::SurfaceKHR surface)
-{
-    for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilyProperties.size()); i++)
-    {
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
-
-        if (queueFamilyProperties[i].queueCount > 0 && presentSupport)
-        {
-            return i;
-        }
-    }
-    throw std::runtime_error("Could not find a matching queue family index");
-}
 
 void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceFeatures requestedFeatures,
                                      std::vector<const char*> enabledExtensions, bool useSwapChain,
                                      vk::QueueFlags requestedQueueTypes, bool createSecondaryTransferQueue)
 {
-    secondaryQueueAvailable = createSecondaryTransferQueue;
-    //    printAvailableMemoryTypes();
-    //    printAvailableQueueFamilies();
+    // createDedicatedTransferQueue = createSecondaryTransferQueue;
+
+    std::vector<uint32_t> queueCounts(queueFamilyProperties.size(), 0);
+
+    uint32_t main_idx, transfer_idx, compute_idx;
+    bool found_main = findQueueFamily(vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eGraphics,
+                                      main_idx);  // A queue with compute or graphics can always be used for transfer
+    SAIGA_ASSERT(found_main, "A main queue with compute and graphics capabilities is required");
+
+    if (!findDedicatedQueueFamily(vk::QueueFlagBits::eCompute, compute_idx))
+    {
+        findQueueFamily(vk::QueueFlagBits::eCompute, compute_idx);
+    }
+
+    if (!findDedicatedQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx))
+    {
+        findQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx);
+    }
+
+    main_queue_info = std::make_pair(main_idx, queueCounts[main_idx]);
+    queueCounts[main_idx]++;
+    compute_info = std::make_pair(compute_idx, queueCounts[compute_idx]);
+    queueCounts[compute_idx]++;
+    transfer_info = std::make_pair(transfer_idx, queueCounts[transfer_idx]);
+    queueCounts[transfer_idx]++;
+
+
+    auto maxCount = std::max_element(queueCounts.begin(), queueCounts.end());
+    std::vector<float> prios(*maxCount, 1.0f);
+
 
     // Desired queues need to be requested upon logical device creation
-    // Due to differing queue family configurations of Vulkan implementations this can be a bit tricky, especially if
-    // the application requests different queue types
+    // Due to differing queue family configurations of Vulkan implementations this can be a bit tricky, especially
+    // if the application requests different queue types
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos{};
 
-    // Get queue family indices for the requested queue family types
-    // Note that the indices may overlap depending on the implementation
-    const float defaultQueuePriority(1.0f);
-    std::array<float, 2> additionalPrio{1.0f, 1.0f};
 
-    // Graphics queue
-    if (requestedQueueTypes & vk::QueueFlagBits::eGraphics)
+    for (uint32_t i = 0; i < queueCounts.size(); ++i)
     {
-        queueFamilyIndices.graphics = getQueueFamilyIndex(vk::QueueFlagBits::eGraphics);
-        vk::DeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.queueFamilyIndex = queueFamilyIndices.graphics;
-        queueCreateInfo.queueCount       = createSecondaryTransferQueue ? 2 : 1;
-        queueCreateInfo.pQueuePriorities = createSecondaryTransferQueue ? additionalPrio.data() : &defaultQueuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
-    }
-    else
-    {
-        queueFamilyIndices.graphics = VK_NULL_HANDLE;
-    }
-
-    // Dedicated compute queue
-    if (requestedQueueTypes & vk::QueueFlagBits::eCompute && false)
-    {
-        queueFamilyIndices.compute = getQueueFamilyIndex(vk::QueueFlagBits::eCompute);
-        if (queueFamilyIndices.compute != queueFamilyIndices.graphics)
+        auto queueCount = queueCounts[i];
+        if (queueCount > 0)
         {
-            // If compute family index differs, we need an additional queue create info for the compute queue
-            vk::DeviceQueueCreateInfo queueInfo{};
-            queueInfo.queueFamilyIndex = queueFamilyIndices.compute;
-            queueInfo.queueCount       = 1;
-            queueInfo.pQueuePriorities = &defaultQueuePriority;
-            queueCreateInfos.push_back(queueInfo);
+            // vk::DeviceQueueCreateInfo qci{};
+            queueCreateInfos.emplace_back(vk::DeviceQueueCreateFlags(), i, queueCount, prios.data());
         }
     }
-    else
-    {
-        // Else we use the same queue
-        queueFamilyIndices.compute = queueFamilyIndices.graphics;
-    }
-
-    // Dedicated transfer queue
-    if (requestedQueueTypes & vk::QueueFlagBits::eTransfer && false)
-    {
-        queueFamilyIndices.transfer = getQueueFamilyIndex(vk::QueueFlagBits::eTransfer);
-        if ((queueFamilyIndices.transfer != queueFamilyIndices.graphics) &&
-            (queueFamilyIndices.transfer != queueFamilyIndices.compute))
-        {
-            // If compute family index differs, we need an additional queue create info for the compute queue
-            VkDeviceQueueCreateInfo queueInfo{};
-            queueInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueInfo.queueFamilyIndex = queueFamilyIndices.transfer;
-            queueInfo.queueCount       = 1;
-            queueInfo.pQueuePriorities = &defaultQueuePriority;
-            queueCreateInfos.push_back(queueInfo);
-        }
-    }
-    else
-    {
-        // Else we use the same queue
-        queueFamilyIndices.transfer = queueFamilyIndices.graphics;
-    }
-
-    queueFamilyIndices.present = getPresentQueue(surface);
-
 
     // Create the logical device representation
     std::vector<const char*> deviceExtensions(enabledExtensions);
@@ -282,7 +144,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceF
     vk::DeviceCreateInfo deviceCreateInfo = {};
     //    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-    ;
+
     deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     deviceCreateInfo.pEnabledFeatures  = &featuresToEnable;
 
@@ -330,14 +192,12 @@ void VulkanBase::init(VulkanParameters params)
     pipelineCache                                       = device.createPipelineCache(pipelineCacheCreateInfo);
     SAIGA_ASSERT(pipelineCache);
 
-    commandPool.create(device, queueFamilyIndices.transfer, vk::CommandPoolCreateFlagBits::eTransient);
 
-    transferQueue.create(device, queueFamilyIndices.transfer);
+    mainQueue.create(device, main_queue_info.first, main_queue_info.second, vk::CommandPoolCreateFlagBits::eTransient);
 
-    if (secondaryQueueAvailable)
-    {
-        secondaryTransferQueue.create(device, queueFamilyIndices.transfer, 1);
-    }
+    computeQueue.create(device, compute_info.first, compute_info.second);
+
+    transferQueue.create(device, transfer_info.first, transfer_info.second);
 
     descriptorPool.create(
         device, params.maxDescriptorSets,
@@ -352,7 +212,7 @@ void VulkanBase::init(VulkanParameters params)
 
 vk::CommandBuffer VulkanBase::createAndBeginTransferCommand()
 {
-    auto cmd = commandPool.allocateCommandBuffer();
+    auto cmd = mainQueue.commandPool.allocateCommandBuffer();
     cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
     return cmd;
 }
@@ -375,135 +235,43 @@ void VulkanBase::submitAndWait(vk::CommandBuffer commandBuffer, vk::Queue queue)
 void VulkanBase::endTransferWait(vk::CommandBuffer commandBuffer)
 {
     commandBuffer.end();
-    submitAndWait(commandBuffer, transferQueue);
-    commandPool.freeCommandBuffer(commandBuffer);
+    submitAndWait(commandBuffer, mainQueue);
+    mainQueue.commandPool.freeCommandBuffer(commandBuffer);
 }
 
-void VulkanBase::printAvailableQueueFamilies()
+
+bool VulkanBase::findQueueFamily(vk::QueueFlags flags, uint32_t& family)
 {
-    auto queueFamilies = physicalDevice.getQueueFamilyProperties();
-    std::cout << std::endl;
-    std::cout << "Queue Families (flags: count)" << std::endl;
-    std::cout << "=============================" << std::endl << std::endl;
-    for (auto& queueFam : queueFamilies)
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
     {
-        std::cout << vk::to_string(queueFam.queueFlags) << ": " << queueFam.queueCount << std::endl;
+        auto& prop = queueFamilyProperties[i];
+
+        if ((prop.queueFlags & flags) == flags)
+        {
+            family = i;
+            return true;
+        }
     }
-    std::cout << std::endl;
-    std::cout << std::endl;
+
+    return false;
 }
 
-void VulkanBase::renderGUI()
+;
+
+bool VulkanBase::findDedicatedQueueFamily(vk::QueueFlags flags, uint32_t& family)
 {
-    if (!ImGui::CollapsingHeader("Device Stats"))
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
     {
-        return;
+        auto& prop = queueFamilyProperties[i];
+
+        if (prop.queueFlags == flags)
+        {
+            family = i;
+            return true;
+        }
     }
 
-    ImGui::Indent();
-    ImGui::LabelText("Device Name", "%s", physicalDevice.getProperties().deviceName);
-
-
-    ImGui::Text("Heaps");
-    auto memProps = physicalDevice.getMemoryProperties();
-
-    ImGui::Indent();
-
-    ImGui::Columns(3, "HEAPINFO");
-    ImGui::SetColumnWidth(0, ImGui::GetFontSize() * 3);
-    ImGui::SetColumnWidth(1, ImGui::GetFontSize() * 6);
-
-    ImGui::Text("ID");
-    ImGui::NextColumn();
-    ImGui::Text("Size");
-    ImGui::NextColumn();
-    ImGui::Text("Heap Flags");
-    ImGui::NextColumn();
-    for (uint32_t heapIdx = 0U; heapIdx < memProps.memoryHeapCount; ++heapIdx)
-    {
-        ImGui::Separator();
-
-        auto& heap = memProps.memoryHeaps[heapIdx];
-
-        ImGui::Text("%d", heapIdx);
-        ImGui::NextColumn();
-        ImGui::Text("%s", sizeToString(heap.size).c_str());
-        ImGui::NextColumn();
-        ImGui::TextWrapped("%s", vk::to_string(heap.flags).c_str());
-        ImGui::NextColumn();
-    }
-
-    ImGui::Columns(1);
-    ImGui::Unindent();
-
-
-    ImGui::Spacing();
-    ImGui::Text("Memory Types");
-    ImGui::Indent();
-
-    ImGui::Columns(3, "MEMINFO");
-    ImGui::SetColumnWidth(0, ImGui::GetFontSize() * 3);
-    ImGui::SetColumnWidth(1, ImGui::GetFontSize() * 6);
-
-
-    ImGui::Text("ID");
-    ImGui::NextColumn();
-    ImGui::Text("Heap Idx");
-    ImGui::NextColumn();
-    ImGui::TextWrapped("Property Flags");
-    ImGui::NextColumn();
-    for (int typeIdx = 0; typeIdx < memProps.memoryTypeCount; ++typeIdx)
-    {
-        ImGui::Separator();
-
-        auto& type = memProps.memoryTypes[typeIdx];
-
-        ImGui::Text("%d", typeIdx);
-        ImGui::NextColumn();
-        ImGui::Text("%u", type.heapIndex);
-        ImGui::NextColumn();
-        ImGui::TextWrapped("%s", vk::to_string(type.propertyFlags).c_str());
-        ImGui::NextColumn();
-    }
-    ImGui::Unindent();
-
-    ImGui::Columns(1);
-
-    ImGui::Spacing();
-
-    ImGui::Text("Queues");
-    ImGui::Indent();
-
-    auto queueFamilyProps = physicalDevice.getQueueFamilyProperties();
-
-    ImGui::Columns(3, "QUEUEINFO");
-    ImGui::SetColumnWidth(0, ImGui::GetFontSize() * 3);
-    ImGui::SetColumnWidth(1, ImGui::GetFontSize() * 6);
-
-    ImGui::Text("ID");
-    ImGui::NextColumn();
-    ImGui::Text("Count");
-    ImGui::NextColumn();
-    ImGui::Text("Type");
-    ImGui::NextColumn();
-
-    size_t index = 0;
-    for (auto& prop : queueFamilyProps)
-    {
-        ImGui::Separator();
-        ImGui::Text("%lu", index);
-        ImGui::NextColumn();
-        ImGui::Text("%u", prop.queueCount);
-        ImGui::NextColumn();
-        ImGui::TextWrapped("%s", vk::to_string(prop.queueFlags).c_str());
-        ImGui::NextColumn();
-        ++index;
-    }
-    ImGui::Columns(1);
-    ImGui::Spacing();
-
-    ImGui::Unindent();
-    ImGui::Unindent();
+    return false;
 }
 
 }  // namespace Vulkan
