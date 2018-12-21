@@ -29,4 +29,15 @@ if(G2O_FOUND)
         )
 endif()
 
+if(CERES_FOUND)
+    FILE(GLOB_RECURSE ${MODULE_NAME}_CERES_SRC  "ceres/*.cpp" )
+    FILE(GLOB_RECURSE ${MODULE_NAME}_CERES_HEADER  "ceres/*.h")
+    set(MODULE_ALL_FILES
+        ${MODULE_ALL_FILES}
+        ${${MODULE_NAME}_CERES_SRC}
+        ${${MODULE_NAME}_CERES_HEADER}
+        )
+endif()
+
+
 set(SAIGA_ALL_FILES ${SAIGA_ALL_FILES} ${MODULE_ALL_FILES} PARENT_SCOPE)

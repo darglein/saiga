@@ -59,4 +59,8 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
 
 
     bool displayModels = true;
+
+
+    std::vector<std::string> datasets;
+    void findBALDatasets();
 };

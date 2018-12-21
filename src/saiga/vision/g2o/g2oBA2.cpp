@@ -126,7 +126,8 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
                 e->information() = Eigen::Matrix2d::Identity();
 
                 e->intr   = camera;
-                e->weight = o.weight;
+                double w  = o.weight * scene.scale();
+                e->weight = w;
 
 
                 if (huberMono > 0)

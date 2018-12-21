@@ -67,17 +67,18 @@ void Directory::getFiles(std::vector<std::string>& out, const std::string& endin
 {
     std::vector<std::string> tmp;
     getFiles(tmp);
-
     auto e = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasEnding(s, ending); });
     tmp.erase(e, tmp.end());
     out = tmp;
-    //    for(auto& str : tmp)
-    //    {
-    //        if(hasEnding(str,ending))
-    //        {
-    //            out.push_back(str);
-    //        }
-    //    }
+}
+
+void Directory::getFilesPrefix(std::vector<std::string>& out, const std::string& prefix)
+{
+    std::vector<std::string> tmp;
+    getFiles(tmp);
+    auto e = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasPrefix(s, prefix); });
+    tmp.erase(e, tmp.end());
+    out = tmp;
 }
 
 

@@ -6,12 +6,12 @@
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
+#include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
 
-#include "BlockRecursiveBATemplates.h"
 #include "Eigen/Sparse"
 
 using namespace Saiga;
@@ -199,12 +199,12 @@ void baBlockSchurTest()
 
 
     // size of U
-    int n = 100;
+    int n = 2;
     // size of V
-    int m = 9000;
+    int m = 3;
 
     // maximum number of non-zero elements per row in W
-    int maxElementsPerRow = 300;
+    int maxElementsPerRow = 3;
 
 
     // ======================== Variables ========================
@@ -279,7 +279,7 @@ void baBlockSchurTest()
     for (int i = 0; i < m; ++i) eb(i) = BRes::Random();
 
 
-#if 0
+#if 1
     // ======================== Dense Simple Solution (only for checking the correctness) ========================
     {
         SAIGA_BLOCK_TIMER();
@@ -413,6 +413,18 @@ void baBlockSchurTest()
         // Step 7
         // Solve the remaining partial system with the precomputed inverse of V
         db = multDiagVector(Vinv, q);
+
+
+#if 1
+        // compute residual of linear system
+        auto xa                           = blockVectorToVector(da);
+        auto xb                           = blockVectorToVector(db);
+        Eigen::Matrix<double, -1, 1> res1 = blockMatrixToMatrix(U.toDenseMatrix()) * xa +
+                                            blockMatrixToMatrix(W.toDense()) * xb - blockVectorToVector(ea);
+        Eigen::Matrix<double, -1, 1> res2 = blockMatrixToMatrix(WT.toDense()) * xa +
+                                            blockMatrixToMatrix(V.toDenseMatrix()) * xb - blockVectorToVector(eb);
+        cout << "Error: " << res1.norm() << " " << res2.norm() << endl;
+#endif
 
         //        cout << "da" << endl << blockVectorToVector(da).transpose() << endl;
         //        cout << "db" << endl << blockVectorToVector(db).transpose() << endl;

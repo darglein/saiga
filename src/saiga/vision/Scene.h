@@ -34,11 +34,12 @@ struct SAIGA_GLOBAL WorldPoint
     bool valid = false;
 
     // Pair < ImageID, ImagePointID >
-    std::vector<std::pair<int, int> > references;
+    std::vector<std::pair<int, int> > monoreferences;
+    std::vector<std::pair<int, int> > stereoreferences;
 
     bool isReferencedByFrame(int i)
     {
-        for (auto p : references)
+        for (auto p : monoreferences)
             if (p.first == i) return true;
         return false;
     }
@@ -46,10 +47,10 @@ struct SAIGA_GLOBAL WorldPoint
     void removeReference(int img, int id)
     {
         SAIGA_ASSERT(isReferencedByFrame(img));
-        references.erase(std::find(references.begin(), references.end(), std::make_pair(img, id)));
+        monoreferences.erase(std::find(monoreferences.begin(), monoreferences.end(), std::make_pair(img, id)));
     }
 
-    bool isValid() { return valid && !references.empty(); }
+    bool isValid() { return valid && !monoreferences.empty(); }
 };
 
 struct SAIGA_GLOBAL MonoImagePoint
@@ -124,6 +125,11 @@ struct SAIGA_GLOBAL SceneImage
 
     Saiga::TemplatedImage<float> depth;
     Saiga::TemplatedImage<float> gDx, gDy;
+
+    int validPoints = 0;
+
+
+    bool valid() { return validPoints > 0; }
 };
 
 
@@ -135,6 +141,9 @@ class SAIGA_GLOBAL Scene
     std::vector<Intrinsics4> intrinsics;
     std::vector<Extrinsics> extrinsics;
     std::vector<WorldPoint> worldPoints;
+
+    // to scale towards [-1,1] range for floating point precision
+    double globalScale = 1;
 
     double bf;
 
@@ -153,6 +162,8 @@ class SAIGA_GLOBAL Scene
     double rms();
     double rmsDense();
 
+    double scale() { return globalScale; }
+
     // add 0-mean gaussian noise to the world points
     void addWorldPointNoise(double stddev);
     void addImagePointNoise(double stddev);
@@ -166,6 +177,11 @@ class SAIGA_GLOBAL Scene
 
     Saiga::Statistics<double> statistics();
     void removeOutliers(float factor);
+
+    // removes all worldpoints/imagepoints/images, which do not have any reference
+    void compress();
+
+    std::vector<int> validImages();
 
     // returns true if the scene was changed by a user action
     bool imgui();

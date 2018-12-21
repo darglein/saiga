@@ -1,10 +1,15 @@
 ﻿#include "BAPoseOnly.h"
 
 #include "saiga/time/timer.h"
+#include "saiga/util/random.h"
 #include "saiga/vision/BlockDiagonalMatrix.h"
+#include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/BlockSparseMatrix.h"
 #include "saiga/vision/BlockVector.h"
+#include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/MatrixScalar.h"
+#include "saiga/vision/SparseHelper.h"
+#include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 
@@ -375,9 +380,14 @@ void BAPoseOnly::sbaPaper(Scene& scene, int its)
     KernelType::ResidualType res;
 
     SAIGA_BLOCK_TIMER();
-    auto numCameras = scene.extrinsics.size();
+
+
+
+    auto imageIds   = scene.validImages();
+    auto numCameras = imageIds.size();
     auto numPoints  = scene.worldPoints.size();
 
+    cout << "ba with " << numCameras << " cameras and " << numPoints << " points" << endl;
 
 
     int n = numCameras;
@@ -385,20 +395,18 @@ void BAPoseOnly::sbaPaper(Scene& scene, int its)
 
 
 
-    //    BlockVector<KernelType::PoseResidualType> ea(n);
-    Eigen::Matrix<MatrixScalar<KernelType::PoseResidualType>, -1, 1> ea(n);
-    //    BlockDiagonalMatrix<KernelType::PoseDiaBlockType> U(n);
-    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PoseDiaBlockType>, -1> U(n);
+    // ======================== Variables ========================
 
-    //    BlockVector<KernelType::PointResidualType> eb(m);
-    Eigen::Matrix<MatrixScalar<KernelType::PointResidualType>, -1, 1> eb(m);
-    //    BlockDiagonalMatrix<KernelType::PointDiaBlockType> V(m);
-    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PointDiaBlockType>, -1> V(m);
-    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PointDiaBlockType>, -1> Vinv(m);
+    UType U(n);
+    VType V(m);
+    WType W(n, m);
+    WTType WT(m, n);
 
+    DAType da(n);
+    DBType db(m);
 
-    BlockSparseMatrix<KernelType::PosePointUpperBlockType> W(n, m);
-    Eigen::SparseMatrix<MatrixScalar<KernelType::PosePointUpperBlockType>> W2(n, m);
+    DAType ea(n);
+    DBType eb(m);
 
 
 
@@ -409,44 +417,61 @@ void BAPoseOnly::sbaPaper(Scene& scene, int its)
         ea.setZero();
         V.setZero();
 
-        for (auto& img : scene.images)
+        std::vector<Eigen::Triplet<WElem>> ws1;
+        std::vector<Eigen::Triplet<WTElem>> ws2;
+
+        //        for (auto& img : scene.images)
+        for (auto imgid : imageIds)
         {
-            auto extr   = scene.extrinsics[img.extr].se3;
-            auto camera = scene.intrinsics[img.intr];
+            auto& img    = scene.images[imgid];
+            auto& extr   = scene.extrinsics[img.extr].se3;
+            auto& camera = scene.intrinsics[img.intr];
 
             for (auto& ip : img.monoPoints)
             {
                 if (!ip)
                 {
-                    SAIGA_ASSERT(0);
+                    cout << imgid << " " << ip.wp << " " << ip.point.transpose() << endl;
+                    //                                        SAIGA_ASSERT(0);
                     continue;
                 }
 
                 auto wp = scene.worldPoints[ip.wp].p;
 
 
-                int i = img.extr;
-                int j = ip.wp;
+                int i    = img.extr;
+                int j    = ip.wp;
+                double w = ip.weight * scene.scale();
 
 
-                KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, ip.weight, res, JrowPose,
-                                                        JrowPoint);
+
+                KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
 
 
-                U.diagonal()(i) = (JrowPose.transpose() * JrowPose);
-                V.diagonal()(j) = (JrowPoint.transpose() * JrowPoint);
+                U.diagonal()(i).get() += (JrowPose.transpose() * JrowPose);
+                V.diagonal()(j).get() += (JrowPoint.transpose() * JrowPoint);
 
 
-                W.setBlock(i, j, JrowPose.transpose() * JrowPoint);
-                W2.insert(i, j) = JrowPose.transpose() * JrowPoint;
+                WElem m = JrowPose.transpose() * JrowPoint;
+                ws1.emplace_back(i, j, m);
+                ws2.emplace_back(j, i, m.transpose());
+
+                //                W.setBlock(i, j, JrowPose.transpose() * JrowPoint);
+                //                W2.insert(i, j) = JrowPose.transpose() * JrowPoint;
 
 
-                ea(i) += (JrowPose.transpose() * res);
-                eb(j) += JrowPoint.transpose() * res;
+                ea(i).get() += (JrowPose.transpose() * res);
+                eb(j).get() += JrowPoint.transpose() * res;
             }
         }
 
-        double lambda = 1;
+        W.setFromTriplets(ws1.begin(), ws1.end());
+        WT.setFromTriplets(ws2.begin(), ws2.end());
+
+
+        //        double lambda = 1.0 / (scene.intrinsics.front().fx * scene.intrinsics.front().fx);
+        double lambda = 1.0 / (scene.scale() * scene.scale());
+        //        lambda        = 1;
 
         for (int i = 0; i < n; ++i)
         {
@@ -458,44 +483,174 @@ void BAPoseOnly::sbaPaper(Scene& scene, int its)
         }
 
 
-        // compute V^-1
-        for (int i = 0; i < m; ++i)
+        // tmp variables
+        VType Vinv(m);
+        WType Y(n, m);
+        SType S(n, n);
+        DAType ej(n);
+
+
+
         {
-            Vinv.diagonal()(i).get() = Vinv.diagonal()(i).get().inverse();
+            SAIGA_BLOCK_TIMER();
+            // Schur complement solution
+
+            // Step 1
+            // Invert V
+            for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
+        }
+
+        {
+            SAIGA_BLOCK_TIMER();
+            // Step 2
+            // Compute Y
+            Y = multSparseDiag(W, Vinv);
+        }
+
+        {
+            SAIGA_BLOCK_TIMER();
+            // Step 3
+            // Compute the Schur complement S
+            // Not sure how good the sparse matrix mult is of eigen
+            // maybe own implementation because the structure is well known before hand
+            S = -(Y * WT).eval();
+
+            //            cout << "S" << endl << blockMatrixToMatrix(S.toDense()) << endl;
+            //            cout << "U" << endl << blockMatrixToMatrix(U.toDenseMatrix()) << endl;
+
+            //        S = W * WT;
+            S.diagonal() = U.diagonal() + S.diagonal();
+
+            //        cout << "Sref" << endl
+            //             << (blockMatrixToMatrix(U.toDenseMatrix()) - blockMatrixToMatrix(W.toDense()) *
+            //                                                              blockMatrixToMatrix(Vinv.toDenseMatrix()) *
+            //                                                              blockMatrixToMatrix(WT.toDense()))
+            //                    .eval()
+            //             << endl;
+            //        cout << "S" << endl << blockMatrixToMatrix(S.toDense()) << endl;
+        }
+        {
+            SAIGA_BLOCK_TIMER();
+            // Step 4
+            // Compute the right hand side of the schur system ej
+            // S * da = ej
+            ej = ea + -(Y * eb);  // todo fix -
+                                  //        cout << "ejref" << endl
+            //             << (blockVectorToVector(ea) - blockMatrixToMatrix(Y.toDense()) * blockVectorToVector(eb)) <<
+            //             endl;
+
+            //        cout << "ej" << endl << blockVectorToVector(ej) << endl;
         }
 
 
-        n *= 6;
-        m *= 3;
+        Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
+        {
+            SAIGA_BLOCK_TIMER();
+            // Step 5
+            // Solve the schur system for da
 
-        // convert sparse to dense matrix
-        Eigen::Matrix<MatrixScalar<KernelType::PosePointUpperBlockType>, -1, -1> Wdense = W2;
+            auto triplets = sparseBlockToTriplets(S);
 
-        //        cout << blockMatrixToMatrix(Wdense) << endl;
-        //        cout << W.dense() << endl;
+            ssparse.setFromTriplets(triplets.begin(), triplets.end());
+        }
+        {
+            SAIGA_BLOCK_TIMER();
+            //        cout << "ssparse" << endl << ssparse.toDense() << endl;
 
-        Eigen::MatrixXd JtJ(m + n, m + n);
-        JtJ.block(0, 0, n, n) = blockDiagonalToMatrix(U);
-        JtJ.block(n, n, m, m) = blockDiagonalToMatrix(V);
-        JtJ.block(0, n, n, m) = blockMatrixToMatrix(Wdense);
-        JtJ.block(n, 0, m, n) = blockMatrixToMatrix(Wdense).transpose();
+            Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+            //        Eigen::SimplicialLDLT<SType> solver;
+            solver.compute(ssparse);
+            Eigen::Matrix<double, -1, 1> deltaA = solver.solve(blockVectorToVector(ej));
 
-        //        cout << JtJ << endl << endl;
+            //        cout << "deltaA" << endl << deltaA << endl;
 
-        Eigen::VectorXd Jtb(m + n);
-        Jtb.segment(0, n) = blockVectorToVector(ea);
-        Jtb.segment(n, m) = blockVectorToVector(eb);
+            // copy back into da
+            for (int i = 0; i < n; ++i)
+            {
+                da(i) = deltaA.segment(i * asize, asize);
+            }
+        }
+        DBType q;
+        {
+            SAIGA_BLOCK_TIMER();
+            // Step 6
+            // Substitute the solultion deltaA into the original system and
+            // bring it to the right hand side
+            q = eb + -WT * da;
+            //        cout << "qref" << endl
+            //             << (blockVectorToVector(eb) - blockMatrixToMatrix(WT.toDense()) * blockVectorToVector(da)) <<
+            //             endl;
+
+            //        cout << "q" << endl << blockVectorToVector(q) << endl;
+        }
+        {
+            SAIGA_BLOCK_TIMER();
+            // Step 7
+            // Solve the remaining partial system with the precomputed inverse of V
+            db = multDiagVector(Vinv, q);
+
+#if 0
+            // compute residual of linear system
+            auto xa                           = blockVectorToVector(da);
+            auto xb                           = blockVectorToVector(db);
+            Eigen::Matrix<double, -1, 1> res1 = blockMatrixToMatrix(U.toDenseMatrix()) * xa +
+                                                blockMatrixToMatrix(W.toDense()) * xb - blockVectorToVector(ea);
+            Eigen::Matrix<double, -1, 1> res2 = blockMatrixToMatrix(WT.toDense()) * xa +
+                                                blockMatrixToMatrix(V.toDenseMatrix()) * xb - blockVectorToVector(eb);
+            cout << "Error: " << res1.norm() << " " << res2.norm() << endl;
+#endif
+            //        cout << "da" << endl << blockVectorToVector(da).transpose() << endl;
+            //        cout << "db" << endl << blockVectorToVector(db).transpose() << endl;
+        }
 
 
         Eigen::VectorXd x1, x2;
-        Eigen::VectorXd x = JtJ.ldlt().solve(Jtb);
-        x1                = x.segment(0, n);
-        x2                = x.segment(n, m);
+        x1 = blockVectorToVector(da);
+        x2 = blockVectorToVector(db);
 
-        for (size_t i = 0; i < numCameras; ++i)
+#if 0
+        // ======================== Dense Simple Solution (only for checking the correctness) ========================
         {
+            SAIGA_BLOCK_TIMER();
+            n *= asize;
+            m *= bsize;
+
+            // Build the complete system matrix
+            Eigen::MatrixXd M(m + n, m + n);
+            M.block(0, 0, n, n) = blockDiagonalToMatrix(U);
+            M.block(n, n, m, m) = blockDiagonalToMatrix(V);
+            M.block(0, n, n, m) = blockMatrixToMatrix(W.toDense());
+            M.block(n, 0, m, n) = blockMatrixToMatrix(W.toDense()).transpose();
+
+            // stack right hand side
+            Eigen::VectorXd b(m + n);
+            b.segment(0, n) = blockVectorToVector(ea);
+            b.segment(n, m) = blockVectorToVector(eb);
+
+            // compute solution
+            Eigen::VectorXd x = M.ldlt().solve(b);
+
+            double error = (M * x - b).norm();
+            cout << x.transpose() << endl;
+            cout << "Dense error " << error << endl;
+
+            x1 = x.segment(0, n);
+            x2 = x.segment(n, m);
+
+            n /= asize;
+            m /= bsize;
+        }
+#endif
+
+#if 1
+
+
+        for (size_t i = 0; i < imageIds.size(); ++i)
+        //        for(int i )
+        {
+            auto id                 = imageIds[i];
             Sophus::SE3d::Tangent t = x1.segment(i * 6, 6);
-            auto& se3               = scene.extrinsics[i].se3;
+            auto& se3               = scene.extrinsics[id].se3;
             se3                     = Sophus::SE3d::exp(t) * se3;
         }
 
@@ -505,6 +660,7 @@ void BAPoseOnly::sbaPaper(Scene& scene, int its)
             auto& p = scene.worldPoints[i].p;
             p += t;
         }
+#endif
     }
 }
 
@@ -551,9 +707,9 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
             {
                 if (!ip) continue;
 
-                auto wp     = scene.worldPoints[ip.wp].p;
-                auto extr   = scene.extrinsics[img.extr].se3;
-                auto camera = scene.intrinsics[img.intr];
+                auto& wp     = scene.worldPoints[ip.wp].p;
+                auto& extr   = scene.extrinsics[img.extr].se3;
+                auto& camera = scene.intrinsics[img.intr];
 
                 auto poseStart  = img.extr * 6;
                 auto pointStart = numCameras * 6 + ip.wp * 3;
@@ -641,7 +797,8 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         //        strm << mat << endl;
         //        strm.close();
         {
-            double lambda = 1;
+            //            double lambda = 1;
+            double lambda = 1.0 / scene.intrinsics.front().fx;
             // lm diagonal
             for (int i = 0; i < numUnknowns; ++i)
             {

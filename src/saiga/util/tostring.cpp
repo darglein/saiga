@@ -59,6 +59,18 @@ bool hasEnding(std::string const& fullString, std::string const& ending)
     }
 }
 
+bool hasPrefix(const std::string& fullString, const std::string& prefix)
+{
+    if (fullString.length() >= prefix.length())
+    {
+        return (0 == fullString.compare(0, prefix.length(), prefix));
+    }
+    else
+    {
+        return false;
+    }
+}
+
 std::string fileEnding(const std::string& str)
 {
     // search last '.' from the end
@@ -109,5 +121,7 @@ std::string sizeToString(size_t size, size_t base, size_t max, const char* sep, 
 
     return size_stream.str();
 }
+
+
 
 }  // namespace Saiga

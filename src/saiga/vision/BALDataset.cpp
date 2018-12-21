@@ -15,7 +15,11 @@ BALDataset::BALDataset(const std::string& file)
 {
     cout << "> Loading BALDataset " << file << endl;
     std::ifstream in(file);
-    SAIGA_ASSERT(in.is_open());
+
+    if (!in.is_open())
+    {
+        SAIGA_EXIT_ERROR("Unable to find file: " + file);
+    }
 
     int num_cameras, num_points, num_observations;
 
@@ -93,6 +97,7 @@ double BALDataset::rms()
 Scene BALDataset::makeScene()
 {
     Scene scene;
+    std::vector<double> fs;
     for (BALCamera& c : cameras)
     {
         int id = scene.images.size();
@@ -103,6 +108,7 @@ Scene BALDataset::makeScene()
         scene.images.push_back(si);
         scene.intrinsics.push_back(c.intr());
         scene.extrinsics.push_back(c.extr());
+        fs.push_back(c.f);
     }
 
     for (BALObservation& o : observations)
@@ -116,6 +122,11 @@ Scene BALDataset::makeScene()
     {
         scene.worldPoints.push_back(p.wp());
     }
+
+
+    // the datasets already have an reasonable scale
+    scene.globalScale = 1;
+
 
     scene.fixWorldPointReferences();
     SAIGA_ASSERT(scene.valid());

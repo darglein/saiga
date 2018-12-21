@@ -59,8 +59,6 @@ struct BAPosePointMono
         auto zinv  = 1 / z;
         auto zzinv = 1 / zz;
 
-        //        weight *= 1 / camera.fx;
-
         // =================== Residual ================
         Vec2 proj = camera.project(pc);
         res       = observed - proj;
