@@ -31,11 +31,10 @@ namespace Vulkan
 struct SAIGA_GLOBAL VulkanBase
 {
     vk::PhysicalDevice physicalDevice;
-    vk::PhysicalDeviceFeatures enabledFeatures = {};
     vk::Device device;
+    vk::PhysicalDeviceFeatures enabledFeatures = {};
 
     Saiga::Vulkan::Memory::VulkanMemory memory;
-    vk::PhysicalDeviceMemoryProperties memoryProperties;
 
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
 
@@ -78,21 +77,6 @@ struct SAIGA_GLOBAL VulkanBase
     void destroy();
 
     /**
-     * Get the index of a memory type that has all the requested property bits set
-     *
-     * @param typeBits Bitmask with bits set for each memory type supported by the resource to request for (from
-     * VkMemoryRequirements)
-     * @param properties Bitmask of properties for the memory type to request
-     * @param (Optional) memTypeFound Pointer to a bool that is set to true if a matching memory type has been found
-     *
-     * @return Index of the requested memory type
-     *
-     * @throw Throws an exception if memTypeFound is null and no memory type could be found that supports the requested
-     * properties
-     */
-    uint32_t getMemoryType(uint32_t typeBits, vk::MemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
-
-    /**
      * Create the logical device based on the assigned physical device, also gets default queue family indices
      *
      * @param requestedFeatures Can be used to enable certain features upon device creation
@@ -101,24 +85,11 @@ struct SAIGA_GLOBAL VulkanBase
      *
      * @return VkResult of the device creation call
      */
-    void createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceFeatures requestedFeatures,
-                             std::vector<const char*> enabledExtensions, bool useSwapChain = true,
-                             vk::QueueFlags requestedQueueTypes = vk::QueueFlagBits::eGraphics |
-                                                                  vk::QueueFlagBits::eCompute |
-                                                                  vk::QueueFlagBits::eTransfer,
-                             bool createSecondaryTransferQueue = false);
+    void createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& parameters, bool useSwapChain = true);
 
 
-    void init(VulkanParameters params);
-
-    vk::CommandBuffer createAndBeginTransferCommand();
-
-    /**
-     * Submits the command buffer to the queue and waits until it is completed with a fence.
-     */
-    void submitAndWait(vk::CommandBuffer commandBuffer, vk::Queue queue);
-
-    void endTransferWait(vk::CommandBuffer commandBuffer);
+    [[deprecated("The functionality of this function was moved to createLogicalDevice(...)")]] void init(
+        VulkanParameters params);
 
     void renderGUI();
 

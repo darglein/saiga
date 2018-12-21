@@ -14,9 +14,6 @@ void VulkanBase::setPhysicalDevice(vk::PhysicalDevice physicalDevice)
     assert(physicalDevice);
     this->physicalDevice = physicalDevice;
 
-    // Memory properties are used regularly for creating all kinds of buffers
-    memoryProperties = physicalDevice.getMemoryProperties();
-
     // Queue family properties, used for setting up requested queues upon device creation
     queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 }
@@ -39,42 +36,9 @@ void VulkanBase::destroy()
     }
 }
 
-uint32_t VulkanBase::getMemoryType(uint32_t typeBits, vk::MemoryPropertyFlags properties, VkBool32* memTypeFound)
+
+void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& parameters, bool useSwapChain)
 {
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
-    {
-        if ((typeBits & 1) == 1)
-        {
-            if ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
-            {
-                if (memTypeFound)
-                {
-                    *memTypeFound = true;
-                }
-                return i;
-            }
-        }
-        typeBits >>= 1;
-    }
-
-    if (memTypeFound)
-    {
-        *memTypeFound = false;
-        return 0;
-    }
-    else
-    {
-        throw std::runtime_error("Could not find a matching memory type");
-    }
-}
-
-
-void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceFeatures requestedFeatures,
-                                     std::vector<const char*> enabledExtensions, bool useSwapChain,
-                                     vk::QueueFlags requestedQueueTypes, bool createSecondaryTransferQueue)
-{
-    // createDedicatedTransferQueue = createSecondaryTransferQueue;
-
     std::vector<uint32_t> queueCounts(queueFamilyProperties.size(), 0);
 
     uint32_t main_idx, transfer_idx, compute_idx;
@@ -121,7 +85,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceF
     }
 
     // Create the logical device representation
-    std::vector<const char*> deviceExtensions(enabledExtensions);
+    std::vector<const char*> deviceExtensions(parameters.deviceExtensions);
     if (useSwapChain)
     {
         // If the device will be used for presenting to a display via a swapchain we need to request the swapchain
@@ -129,7 +93,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceF
         deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
 
-    auto featuresToEnable = requestedFeatures;
+    auto featuresToEnable = parameters.physicalDeviceFeatures;
 
     auto availableFeatures = physicalDevice.getFeatures();
 
@@ -149,7 +113,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceF
     deviceCreateInfo.pEnabledFeatures  = &featuresToEnable;
 
 
-    if (deviceExtensions.size() > 0)
+    if (!deviceExtensions.empty())
     {
         deviceCreateInfo.enabledExtensionCount   = (uint32_t)deviceExtensions.size();
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
@@ -180,12 +144,6 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceF
     }
 #endif
 
-
-    return;
-}
-
-void VulkanBase::init(VulkanParameters params)
-{
     memory.init(physicalDevice, device);
 
     vk::PipelineCacheCreateInfo pipelineCacheCreateInfo = {};
@@ -200,44 +158,16 @@ void VulkanBase::init(VulkanParameters params)
     transferQueue.create(device, transfer_info.first, transfer_info.second);
 
     descriptorPool.create(
-        device, params.maxDescriptorSets,
+        device, parameters.maxDescriptorSets,
         {
-            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, params.descriptorCounts[0]},
-            vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, params.descriptorCounts[1]},
-            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, params.descriptorCounts[2]},
-            vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, params.descriptorCounts[3]},
+            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, parameters.descriptorCounts[0]},
+            vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, parameters.descriptorCounts[1]},
+            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, parameters.descriptorCounts[2]},
+            vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, parameters.descriptorCounts[3]},
         });
 }
 
-
-vk::CommandBuffer VulkanBase::createAndBeginTransferCommand()
-{
-    auto cmd = mainQueue.commandPool.allocateCommandBuffer();
-    cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-    return cmd;
-}
-
-
-void VulkanBase::submitAndWait(vk::CommandBuffer commandBuffer, vk::Queue queue)
-{
-    vk::SubmitInfo submitInfo;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers    = &commandBuffer;
-    vk::FenceCreateInfo fenceInfo;
-    vk::Fence fence = device.createFence(fenceInfo);
-    SAIGA_ASSERT(fence);
-    queue.submit(submitInfo, fence);
-    device.waitForFences(fence, true, 100000000000);
-    device.destroyFence(fence);
-}
-
-
-void VulkanBase::endTransferWait(vk::CommandBuffer commandBuffer)
-{
-    commandBuffer.end();
-    submitAndWait(commandBuffer, mainQueue);
-    mainQueue.commandPool.freeCommandBuffer(commandBuffer);
-}
+void VulkanBase::init(VulkanParameters params) {}
 
 
 bool VulkanBase::findQueueFamily(vk::QueueFlags flags, uint32_t& family)
