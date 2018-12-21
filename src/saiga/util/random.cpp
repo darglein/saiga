@@ -21,6 +21,12 @@ inline std::mt19937& generator()
     return gen;
 }
 
+
+void setSeed(uint64_t seed)
+{
+    generator().seed(seed);
+}
+
 bool sampleBool(double s)
 {
     // we need this because the line below is 'inclusive'
@@ -73,6 +79,7 @@ std::vector<int> uniqueIndices(int sampleCount, int indexSize)
     }
     return data;
 }
+
 
 
 }  // namespace Random
