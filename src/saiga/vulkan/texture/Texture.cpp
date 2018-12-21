@@ -95,7 +95,7 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo()
 
 void Texture2D::fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usage, bool flipY)
 {
-    fromImage(base, img, base.transferQueue, base.commandPool, usage, flipY);
+    fromImage(base, img, base.mainQueue, base.mainQueue.commandPool, usage, flipY);
 }
 
 void Texture2D::uploadImage(Image& img, bool flipY)

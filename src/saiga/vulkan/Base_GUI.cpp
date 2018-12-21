@@ -86,7 +86,7 @@ void VulkanBase::renderGUI()
 
     ImGui::Spacing();
 
-    ImGui::Text("Queues");
+    ImGui::Text("Available Queues");
     ImGui::Indent();
 
     auto queueFamilyProps = physicalDevice.getQueueFamilyProperties();
@@ -118,5 +118,19 @@ void VulkanBase::renderGUI()
     ImGui::Spacing();
 
     ImGui::Unindent();
+
+
+    ImGui::Spacing();
+
+    ImGui::Indent();
+
+    ImGui::Text("Used queues");
+
+    ImGui::Text("Main: %d, %d", main_queue_info.first, main_queue_info.second);
+    ImGui::Text("Transfer: %d, %d", transfer_info.first, transfer_info.second);
+    ImGui::Text("Compute: %d, %d", compute_info.first, compute_info.second);
+
+    ImGui::Unindent();
+
     ImGui::Unindent();
 }
