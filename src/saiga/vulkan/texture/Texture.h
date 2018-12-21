@@ -3,7 +3,6 @@
 #include "saiga/image/image.h"
 #include "saiga/vulkan/AsyncCommand.h"
 #include "saiga/vulkan/Base.h"
-#include "saiga/vulkan/buffer/DeviceMemory.h"
 #include "saiga/vulkan/buffer/StagingBuffer.h"
 #include "saiga/vulkan/memory/MemoryType.h"
 #include "saiga/vulkan/svulkan.h"

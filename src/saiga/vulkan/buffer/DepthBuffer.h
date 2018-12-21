@@ -7,16 +7,21 @@
 
 #pragma once
 
-#include "saiga/vulkan/buffer/DeviceMemory.h"
 #include "saiga/vulkan/svulkan.h"
+
+#include "Buffer.h"
 
 namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL DepthBuffer : public DeviceMemory
+class SAIGA_GLOBAL DepthBuffer
 {
+   private:
+    VulkanBase* base;
+
    public:
+    MemoryLocation location;
     //    vk::DeviceMemory depthmem;
 
     // depth image

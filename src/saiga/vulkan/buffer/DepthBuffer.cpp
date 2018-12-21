@@ -13,15 +13,13 @@ namespace Vulkan
 {
 void DepthBuffer::destroy()
 {
-    device.destroyImage(depthimage);
-    device.destroyImageView(depthview);
-
-    DeviceMemory::destroy();
+    base->device.destroyImage(depthimage);
+    base->device.destroyImageView(depthview);
 }
 
 void DepthBuffer::init(VulkanBase& base, int width, int height)
 {
-    device = base.device;
+    this->base = &base;
     vk::Result res;
     {
         // depth buffer
@@ -85,24 +83,26 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
 
         /* Create image */
         //        res = vkCreateImage(info.device, &image_info, NULL, &info.depth.image);
-        res = device.createImage(&image_info, nullptr, &depthimage);
+        res = base.device.createImage(&image_info, nullptr, &depthimage);
         SAIGA_ASSERT(res == vk::Result::eSuccess);
         //        assert(res == VK_SUCCESS);
 
 
         //        vkGetImageMemoryRequirements(info.device, info.depth.image, &mem_reqs);
-        mem_reqs = device.getImageMemoryRequirements(depthimage);
+        mem_reqs = base.device.getImageMemoryRequirements(depthimage);
+
+        location = base.memory.allocate(
+            {vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal}, depthimage);
 
 
+        // allocateMemory(base, mem_reqs, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-        allocateMemory(base, mem_reqs, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-
-        device.bindImageMemory(depthimage, memory, 0);
+        base.device.bindImageMemory(depthimage, location.memory, location.size);
 
 
         viewInfo.image = depthimage;
-        res            = device.createImageView(&viewInfo, nullptr, &depthview);
+        res            = base.device.createImageView(&viewInfo, nullptr, &depthview);
         SAIGA_ASSERT(res == vk::Result::eSuccess);
     }
 }
