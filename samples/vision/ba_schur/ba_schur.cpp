@@ -6,62 +6,15 @@
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
+#include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/MatrixScalar.h"
+#include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
 
+#include "BlockRecursiveBATemplates.h"
 #include "Eigen/Sparse"
 
-
 using namespace Saiga;
-
-static void printVectorInstructions()
-{
-    cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION
-         << endl;
-
-    std::cout << "defined EIGEN Macros:" << std::endl;
-
-#ifdef EIGEN_NO_DEBUG
-    std::cout << "EIGEN_NO_DEBUG" << std::endl;
-#else
-    std::cout << "EIGEN_DEBUG" << std::endl;
-#endif
-
-#ifdef EIGEN_VECTORIZE_FMA
-    std::cout << "EIGEN_VECTORIZE_FMA" << std::endl;
-#endif
-#ifdef EIGEN_VECTORIZE_SSE3
-    std::cout << "EIGEN_VECTORIZE_SSE3" << std::endl;
-#endif
-#ifdef EIGEN_VECTORIZE_SSSE3
-    std::cout << "EIGEN_VECTORIZE_SSSE3" << std::endl;
-#endif
-#ifdef EIGEN_VECTORIZE_SSE4_1
-    std::cout << "EIGEN_VECTORIZE_SSE4_1" << std::endl;
-#endif
-#ifdef EIGEN_VECTORIZE_SSE4_2
-    std::cout << "EIGEN_VECTORIZE_SSE4_2" << std::endl;
-#endif
-#ifdef EIGEN_VECTORIZE_AVX
-    std::cout << "EIGEN_VECTORIZE_AVX" << std::endl;
-#endif
-#ifdef EIGEN_VECTORIZE_AVX2
-    std::cout << "EIGEN_VECTORIZE_AVX2" << std::endl;
-#endif
-
-    std::cout << std::endl;
-}
-
-
-template <typename T, int options>
-std::vector<Eigen::Triplet<T>> to_triplets(const Eigen::SparseMatrix<T, options>& M)
-{
-    std::vector<Eigen::Triplet<T>> v;
-    for (int i = 0; i < M.outerSize(); i++)
-        for (typename Eigen::SparseMatrix<T, options>::InnerIterator it(M, i); it; ++it)
-            v.emplace_back(it.row(), it.col(), it.value());
-    return v;
-}
 
 
 void simpleSchurTest()
@@ -227,177 +180,6 @@ void simpleSchurTest()
     cout << endl;
 }
 
-//#define PRINT_MATRIX
-
-
-// ======================== Types ========================
-
-// Block size
-const int asize = 6;
-const int bsize = 3;
-
-using T = double;
-
-// block types
-using ADiag  = Eigen::Matrix<T, asize, asize>;
-using BDiag  = Eigen::Matrix<T, bsize, bsize>;
-using WElem  = Eigen::Matrix<T, asize, bsize>;
-using WTElem = Eigen::Matrix<T, bsize, asize>;
-using ARes   = Eigen::Matrix<T, asize, 1>;
-using BRes   = Eigen::Matrix<T, bsize, 1>;
-
-// Block structured diagonal matrices
-using UType = Eigen::DiagonalMatrix<MatrixScalar<ADiag>, -1>;
-using VType = Eigen::DiagonalMatrix<MatrixScalar<BDiag>, -1>;
-
-// Block structured vectors
-using DAType = Eigen::Matrix<MatrixScalar<ARes>, -1, 1>;
-using DBType = Eigen::Matrix<MatrixScalar<BRes>, -1, 1>;
-
-// Block structured sparse matrix
-using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>>;
-using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>>;
-using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>>;
-
-
-// ======================== Eigen Magic ========================
-
-template <typename BinaryOp>
-struct Eigen::ScalarBinaryOpTraits<MatrixScalar<WElem>, MatrixScalar<WTElem>, BinaryOp>
-{
-    typedef MatrixScalar<ADiag> ReturnType;
-};
-
-template <typename BinaryOp>
-struct Eigen::ScalarBinaryOpTraits<MatrixScalar<WElem>, MatrixScalar<BDiag>, BinaryOp>
-{
-    typedef MatrixScalar<WElem> ReturnType;
-};
-
-
-
-template <typename BinaryOp>
-struct Eigen::ScalarBinaryOpTraits<MatrixScalar<WElem>, MatrixScalar<BRes>, BinaryOp>
-{
-    typedef MatrixScalar<ARes> ReturnType;
-};
-
-
-template <typename SparseLhsType, typename DenseRhsType, typename DenseResType>
-struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, DenseResType, MatrixScalar<ARes>,
-                                                       Eigen::ColMajor, true>
-{
-    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
-    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
-    typedef typename internal::remove_all<DenseResType>::type Res;
-    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
-    using AlphaType = MatrixScalar<ARes>;
-    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const AlphaType& alpha)
-    {
-        evaluator<Lhs> lhsEval(lhs);
-        for (Index c = 0; c < rhs.cols(); ++c)
-        {
-            for (Index j = 0; j < lhs.outerSize(); ++j)
-            {
-                for (LhsInnerIterator it(lhsEval, j); it; ++it)
-                {
-                    res.coeffRef(it.index(), c) += (it.value() * rhs.coeff(j, c));
-                }
-            }
-        }
-    }
-};
-
-template <typename BinaryOp>
-struct Eigen::ScalarBinaryOpTraits<MatrixScalar<WTElem>, MatrixScalar<ARes>, BinaryOp>
-{
-    typedef MatrixScalar<BRes> ReturnType;
-};
-
-template <typename SparseLhsType, typename DenseRhsType, typename DenseResType>
-struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, DenseResType, MatrixScalar<BRes>,
-                                                       Eigen::ColMajor, true>
-{
-    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
-    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
-    typedef typename internal::remove_all<DenseResType>::type Res;
-    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
-    using AlphaType = MatrixScalar<BRes>;
-    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const AlphaType& alpha)
-    {
-        evaluator<Lhs> lhsEval(lhs);
-        for (Index c = 0; c < rhs.cols(); ++c)
-        {
-            for (Index j = 0; j < lhs.outerSize(); ++j)
-            {
-                for (LhsInnerIterator it(lhsEval, j); it; ++it)
-                {
-                    res.coeffRef(it.index(), c) += (it.value() * rhs.coeff(j, c));
-                }
-            }
-        }
-    }
-};
-
-template <typename S, typename DiagType>
-S multSparseDiag(const S& M, const DiagType& D)
-{
-    SAIGA_ASSERT(M.cols() == D.rows());
-
-    S result = M;
-
-    for (int k = 0; k < result.outerSize(); ++k)
-    {
-        for (typename S::InnerIterator it(result, k); it; ++it)
-        {
-            it.valueRef() = it.value() * D.diagonal()(it.col());
-        }
-    }
-
-    return result;
-}
-
-template <typename Diag, typename Vec>
-Vec multDiagVector(const Diag& D, const Vec& v)
-{
-    SAIGA_ASSERT(D.cols() == v.rows());
-
-    Vec result = v;
-
-    for (int k = 0; k < D.rows(); ++k)
-    {
-        result(k) = D.diagonal()(k) * v(k);
-    }
-
-    return result;
-}
-
-
-template <typename MatrixType, int options>
-std::vector<Eigen::Triplet<typename MatrixType::Scalar>> sparseBlockToTriplets(
-    const Eigen::SparseMatrix<MatrixScalar<MatrixType>, options>& M)
-{
-    std::vector<Eigen::Triplet<typename MatrixType::Scalar>> v;
-    v.reserve(M.nonZeros() * MatrixType::ColsAtCompileTime * MatrixType::RowsAtCompileTime);
-
-    for (int i = 0; i < M.outerSize(); i++)
-    {
-        for (typename Eigen::SparseMatrix<MatrixScalar<MatrixType>, options>::InnerIterator it(M, i); it; ++it)
-        {
-            int x = it.col() * MatrixType::ColsAtCompileTime;
-            int y = it.row() * MatrixType::RowsAtCompileTime;
-
-            for (int r = 0; r < MatrixType::RowsAtCompileTime; ++r)
-            {
-                for (int c = 0; c < MatrixType::ColsAtCompileTime; ++c)
-                {
-                    v.emplace_back(r + y, c + x, it.value().get()(r, c));
-                }
-            }
-        }
-    }
-    return v;
-}
 
 
 void baBlockSchurTest()
@@ -480,8 +262,6 @@ void baBlockSchurTest()
             WElem m = WElem::Random();
             ws1.emplace_back(i, j, m);
             ws2.emplace_back(j, i, m.transpose());
-            //            W.insert(i, j)  = m;
-            //            WT.insert(j, i) = m.transpose();
         }
     }
 
@@ -641,7 +421,8 @@ void baBlockSchurTest()
 
 int main(int argc, char* argv[])
 {
-    printVectorInstructions();
+    Saiga::EigenHelper::checkEigenCompabitilty<2765>();
+
 
     simpleSchurTest();
     baBlockSchurTest();

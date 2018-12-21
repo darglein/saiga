@@ -151,4 +151,5 @@ auto fixedBlockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, n, m
     return dense;
 }
 
+
 }  // namespace Saiga
