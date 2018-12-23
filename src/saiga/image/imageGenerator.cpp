@@ -29,10 +29,10 @@ std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, in
 
     image->create();
 
-    uint8_t r1 = color1.x * 255.0f, g1 = color1.y * 255.0f, b1 = color1.z * 255.0f;
+    uint8_t r1 = color1[0] * 255.0f, g1 = color1[1] * 255.0f, b1 = color1[2] * 255.0f;
 
 
-    uint8_t r2 = color2.x * 255.0f, g2 = color2.y * 255.0f, b2 = color2.z * 255.0f;
+    uint8_t r2 = color2[0] * 255.0f, g2 = color2[1] * 255.0f, b2 = color2[2] * 255.0f;
 
     bool black = true;
     for (int qx = 0; qx < numQuadsX; ++qx)
@@ -74,10 +74,10 @@ std::shared_ptr<Image> ImageGenerator::randomNormalized(int width, int height)
         for (int j = 0; j < width; ++j)
         {
             cvec4 texel;
-            texel.r        = glm::linearRand(0, 255);
-            texel.g        = linearRand(0, 255);
-            texel.b        = linearRand(0, 255);
-            texel.a        = linearRand(0, 255);
+            texel[0]        = linearRand(0, 255);
+            texel[1]        = linearRand(0, 255);
+            texel[2]        = linearRand(0, 255);
+            texel[3]        = linearRand(0, 255);
             (*image)(i, j) = texel;
         }
     }

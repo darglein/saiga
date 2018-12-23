@@ -34,8 +34,8 @@ int AABB::maxDimension()
 
 #define MIN(X, Y) ((X < Y) ? X : Y)
 #define MAX(X, Y) ((X > Y) ? X : Y)
-#define MINV(V1, V2) vec3(MIN(V1.x, V2.x), MIN(V1.y, V2.y), MIN(V1.z, V2.z))
-#define MAXV(V1, V2) vec3(MAX(V1.x, V2.x), MAX(V1.y, V2.y), MAX(V1.z, V2.z))
+#define MINV(V1, V2) vec3(MIN(V1[0], V2[0]), MIN(V1[1], V2[1]), MIN(V1[2], V2[2]))
+#define MAXV(V1, V2) vec3(MAX(V1[0], V2[0]), MAX(V1[1], V2[1]), MAX(V1[2], V2[2]))
 void AABB::growBox(const vec3& v)
 {
     min = MINV(min, v);

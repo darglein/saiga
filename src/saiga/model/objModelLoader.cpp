@@ -126,11 +126,11 @@ void ObjModelLoader::calculateMissingNormals()
         auto& v2 = outVertices[tri.v[1]];
         auto& v3 = outVertices[tri.v[2]];
 
-        vec3 normal = normalize(cross(vec3(v3.position - v1.position), vec3(v2.position - v1.position)));
+        vec3 normal = normalize(cross(make_vec3(v3.position - v1.position), make_vec3(v2.position - v1.position)));
 
-        if (v1.normal == vec4(0, 0, 0, 0)) v1.normal = vec4(normal, 0);
-        if (v2.normal == vec4(0, 0, 0, 0)) v2.normal = vec4(normal, 0);
-        if (v3.normal == vec4(0, 0, 0, 0)) v3.normal = vec4(normal, 0);
+        if (v1.normal == vec4(0, 0, 0, 0)) v1.normal = make_vec4(normal, 0);
+        if (v2.normal == vec4(0, 0, 0, 0)) v2.normal = make_vec4(normal, 0);
+        if (v3.normal == vec4(0, 0, 0, 0)) v3.normal = make_vec4(normal, 0);
     }
 }
 
@@ -149,7 +149,7 @@ void ObjModelLoader::computeVertexColorAndData()
                 int index           = face.v[f];
                 vertexColors[index] = tg.material.color;
                 float spec          = dot(tg.material.Ks, vec3(1)) / 3.0f;
-                vertexData[index].x = spec;
+                vertexData[index][0] = spec;
             }
         }
     }
@@ -221,12 +221,12 @@ void ObjModelLoader::createVertexIndexList()
             if (vert >= 0)
             {
                 SAIGA_ASSERT(vert < (int)vertices.size());
-                verte.position = vec4(vertices[vert], 1);
+                verte.position = make_vec4(vertices[vert], 1);
             }
             if (norm >= 0)
             {
                 SAIGA_ASSERT(norm < (int)normals.size());
-                verte.normal = vec4(normals[norm], 0);
+                verte.normal = make_vec4(normals[norm], 0);
             }
             if (tex >= 0)
             {

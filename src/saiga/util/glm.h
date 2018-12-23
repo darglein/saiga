@@ -173,12 +173,16 @@ inline vec3 make_vec3( float a) { return vec3(a); }
 inline vec3 make_vec3( vec4 a) { return vec3(a); }
 inline vec2 make_vec2( float a) { return vec2(a); }
 inline vec2 make_vec2( vec3 a) { return vec2(a); }
-
-
+inline vec4 quat_to_vec4(quat q) { return vec4(q.w,q.x,q.y,q.z); }
+inline quat make_quat(float w, float x, float y, float z) { return quat(w,x,y,z); }
 inline mat4 identityMat4() { return mat4(1); }
+inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a) { return ucvec4(v,a); }
+inline vec4 make_vec4(float x, float y, float z, float w) { return vec4(x,y,z,w); }
 
-inline vec3 col(const mat3& m, int id) { return m[id]; }
-inline vec4 col(const mat4& m, int id) { return m[id]; }
+inline vec3& col(mat3& m, int id) { return m[id]; }
+inline vec4& col(mat4& m, int id) { return m[id]; }
+
+inline float distance(vec3 a, vec3 b) { return glm::distance(a,b); }
 
 SAIGA_GLOBAL vec3 sampleCone(const vec3& dir, float angle);
 // samples cone along the z axis

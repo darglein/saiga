@@ -372,29 +372,29 @@ void TriangleMesh<vertex_t, index_t>::computePerVertexNormal()
         // Note:
         // We keep the original w value intact, because it might be used
         // by the application.
-        vec3 n             = vec3(0);
-        vertices[i].normal = vec4(n, vertices[i].normal.w);
+        vec3 n             = make_vec3(0);
+        vertices[i].normal = make_vec4(n, vertices[i].normal[3]);
     }
 
     //#pragma omp parallel for
     for (int i = 0; i < (int)faces.size(); ++i)
     {
         Face& f = faces[i];
-        vec3 a  = vec3(vertices[f.v1].position);
-        vec3 b  = vec3(vertices[f.v2].position);
-        vec3 c  = vec3(vertices[f.v3].position);
+        vec3 a  = make_vec3(vertices[f.v1].position);
+        vec3 b  = make_vec3(vertices[f.v2].position);
+        vec3 c  = make_vec3(vertices[f.v3].position);
         vec3 n  = cross(b - a, c - a);
         // Note: do not normalize here because the length is the surface area
-        vertices[f.v1].normal += vec4(n, 0);
-        vertices[f.v2].normal += vec4(n, 0);
-        vertices[f.v3].normal += vec4(n, 0);
+        vertices[f.v1].normal += make_vec4(n, 0);
+        vertices[f.v2].normal += make_vec4(n, 0);
+        vertices[f.v3].normal += make_vec4(n, 0);
     }
 
     //#pragma omp parallel for
     for (int i = 0; i < (int)vertices.size(); ++i)
     {
-        vec3 n             = normalize(vec3(vertices[i].normal));
-        vertices[i].normal = vec4(n, vertices[i].normal.w);
+        vec3 n             = normalize(make_vec3(vertices[i].normal));
+        vertices[i].normal = make_vec4(n, vertices[i].normal[3]);
     }
 }
 

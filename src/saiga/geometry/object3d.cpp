@@ -38,7 +38,7 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 {
     rotateLocal(axis, angle);
 
-    translateGlobal(-point);
+    translateGlobal( (-point));
     quat qrot = angleAxis(radians(angle), axis);
     //    position = vec3(qrot*vec4(position,1));
     position = qrot * position;
@@ -48,9 +48,9 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 quat Object3D::getSimpleDirectionQuat(const vec3& dir)
 {
     mat4 rotmat(1);
-    rotmat[0] = vec4(normalize(cross(dir, vec3(0, 1, 0))), 0);
-    rotmat[1] = vec4(0, 1, 0, 0);
-    rotmat[2] = vec4(-dir, 0);
+    rotmat[0] = make_vec4(normalize(cross(dir, vec3(0, 1, 0))), 0);
+    rotmat[1] = make_vec4(0, 1, 0, 0);
+    rotmat[2] = make_vec4(-dir, 0);
 
     return normalize(quat(rotmat));
 }

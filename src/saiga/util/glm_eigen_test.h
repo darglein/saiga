@@ -13,9 +13,6 @@
 
 
 
-namespace Saiga {
-
-
 
 using quat = Eigen::Quaternionf;
 
@@ -40,6 +37,10 @@ using ucvec2 = Eigen::Matrix<unsigned char, 2,1>;
 using ucvec3 = Eigen::Matrix<unsigned char, 3,1>;
 using ucvec4 = Eigen::Matrix<unsigned char, 4,1>;
 
+namespace Saiga {
+
+
+
 
 #define IDENTITY_QUATERNION quat::Identity()
 
@@ -53,6 +54,14 @@ inline vec3 make_vec3( float a) { return vec3(); }
 inline vec3 make_vec3( vec4 a) { return vec3(); }
 inline vec2 make_vec2( float a) { return vec2(); }
 inline vec2 make_vec2( vec3 a) { return vec2(); }
+
+inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a) { return ucvec4(); }
+
+inline quat make_quat(float x, float y, float z, float w) { return quat(x,y,z,w); }
+
+inline quat angleAxis(float angle, vec3 axis) { return quat(); }
+
+inline vec4 quat_to_vec4(quat q) { return q.coeffs(); }
 
 inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20, float a21, float a22, float a23, float a30, float a31, float a32, float a33)
 {
@@ -125,6 +134,17 @@ inline mat4 ortho(float a, float b, float c, float d, float e, float f) { return
 inline float distance(vec3 a, vec3 b) { return 0; }
 
 template<typename T>
-T inverse(const T& m) { return  m.inverse(); }
+auto inverse(const T& m) { return  m.inverse().eval(); }
+
+
+
+
+inline std::istream& operator>>(std::istream& is, vec2& v) {return is;}
+inline std::istream& operator>>(std::istream& is, vec3& v) {return is;}
+inline std::istream& operator>>(std::istream& is, vec4& v){return is;}
+
+inline float linearRand(float low, float high) { return 0;}
 
 }
+
+

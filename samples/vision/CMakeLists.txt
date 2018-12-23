@@ -7,3 +7,8 @@ if (SDL2_FOUND AND SAIGA_USE_VULKAN)
         add_subdirectory(openni2Viewer)
     endif()
 endif()
+
+if (OPENNI2_FOUND AND Boost_FOUND)
+    add_subdirectory(openni2Client)
+    add_subdirectory(openni2Server)
+endif ()

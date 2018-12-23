@@ -159,20 +159,23 @@ void VulkanExample::render(vk::CommandBuffer cmd)
             plane.render(cmd);
         }
 
-        lineAssetRenderer.bind(cmd);
-        lineAssetRenderer.pushModel(cmd, glm::translate(vec3(-5, 1.5f, 0)));
-        teapot.render(cmd);
+        if(lineAssetRenderer.bind(cmd))
+        {
+            lineAssetRenderer.pushModel(cmd, glm::translate(vec3(-5, 1.5f, 0)));
+            teapot.render(cmd);
 
-        auto gridMatrix = glm::rotate(0.5f * glm::pi<float>(), glm::vec3(1, 0, 0));
-        gridMatrix      = glm::translate(gridMatrix, vec3(0, -10, 0));
-        lineAssetRenderer.pushModel(cmd, gridMatrix);
-        grid.render(cmd);
+            auto gridMatrix = glm::rotate(0.5f * glm::pi<float>(), glm::vec3(1, 0, 0));
+            gridMatrix      = glm::translate(gridMatrix, vec3(0, -10, 0));
+            lineAssetRenderer.pushModel(cmd, gridMatrix);
+            grid.render(cmd);
+        }
 
 
-
-        pointCloudRenderer.bind(cmd);
-        pointCloudRenderer.pushModel(cmd, glm::translate(vec3(10, 2.5f, 0)));
-        pointCloud.render(cmd, 0, pointCloud.capacity);
+        if(pointCloudRenderer.bind(cmd))
+        {
+            pointCloudRenderer.pushModel(cmd, glm::translate(vec3(10, 2.5f, 0)));
+            pointCloud.render(cmd, 0, pointCloud.capacity);
+        }
 
         if (texturedAssetRenderer.bind(cmd))
         {
@@ -225,11 +228,11 @@ void VulkanExample::keyPressed(SDL_Keysym key)
 {
     switch (key.scancode)
     {
-        case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
-            break;
-        default:
-            break;
+    case SDL_SCANCODE_ESCAPE:
+        parentWindow.close();
+        break;
+    default:
+        break;
     }
 }
 
