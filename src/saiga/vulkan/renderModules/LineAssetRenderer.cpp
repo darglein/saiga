@@ -34,7 +34,7 @@ void LineAssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
     pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), &model[0][0]);
 }
 
-void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
+void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj)
 {
     uboVS.projection = proj;
     uboVS.modelview  = view;

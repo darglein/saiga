@@ -18,7 +18,7 @@ bool PlanePlane(const Plane& p1, const Plane& p2, Ray& outRay)
     // https://stackoverflow.com/questions/6408670/line-of-intersection-between-two-planes
     vec3 p3_normal = cross(p1.normal, p2.normal);
     auto det       = dot(p3_normal, p3_normal);
-    if (det < glm::epsilon<float>()) return false;
+    if (det < epsilon<float>()) return false;
     auto outPoint = ((cross(p3_normal, p2.normal) * p1.d) + (cross(p1.normal, p3_normal) * p2.d)) / det;
     auto outDir   = p3_normal;
     outRay        = Ray(outDir, outPoint);

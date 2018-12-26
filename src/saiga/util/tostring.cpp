@@ -11,7 +11,6 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <array>
-#include <glm/glm.hpp>
 
 namespace Saiga
 {

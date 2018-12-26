@@ -84,7 +84,7 @@ void glfw_EventHandler::window_size_callback(GLFWwindow* window, int width, int 
 
 void glfw_EventHandler::cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    mouse.setPosition(glm::ivec2(xpos, ypos));
+    mouse.setPosition(ivec2(xpos, ypos));
 
     // forward event to all listeners
     for (auto& ml : mouseListener)

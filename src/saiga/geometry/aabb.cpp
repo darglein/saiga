@@ -10,7 +10,7 @@
 
 #include "internal/noGraphicsAPI.h"
 
-#include <glm/gtc/epsilon.hpp>
+
 
 namespace Saiga
 {
@@ -55,21 +55,21 @@ void AABB::ensureValidity()
     float tmp;
     if (min[0] > max.x)
     {
-        tmp   = min.x;
+        tmp    = min.x;
         min[0] = max.x;
         max[0] = tmp;
     }
 
     if (min[1] > max.y)
     {
-        tmp   = min.y;
+        tmp    = min.y;
         min[1] = max.y;
         max[1] = tmp;
     }
 
     if (min[2] > max.z)
     {
-        tmp   = min.z;
+        tmp    = min.z;
         min[2] = max.z;
         max[2] = tmp;
     }

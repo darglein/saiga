@@ -39,7 +39,7 @@ class VulkanExample : public Saiga::Updating,
     void renderGUI() override;
 
    private:
-    std::vector<glm::vec3> boxOffsets;
+    std::vector<vec3> boxOffsets;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
 

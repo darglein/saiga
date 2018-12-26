@@ -93,13 +93,13 @@ void ColoredBar::renderArea(float begin, float end, const ColoredBar::BarColor& 
     const float factor = 1.0f / m_rows;
 
 
-    int first = static_cast<int>(glm::floor(begin / factor));
-    int last  = static_cast<int>(glm::ceil(end / factor));
+    int first = static_cast<int>(floor(begin / factor));
+    int last  = static_cast<int>(ceil(end / factor));
 
     for (int i = first; i < last; ++i)
     {
-        float row_start = glm::max(i * factor, begin);
-        float row_end   = glm::min((i + 1) * factor, end);
+        float row_start = max(i * factor, begin);
+        float row_end   = min((i + 1) * factor, end);
 
         auto& corner = m_lastCorner[i];
 
@@ -112,7 +112,7 @@ void ColoredBar::renderArea(float begin, float end, const ColoredBar::BarColor& 
     }
 }
 
-void ColoredBar::DrawOutlinedRect(const glm::vec2& begin, const glm::vec2& end, const ColoredBar::BarColor& color)
+void ColoredBar::DrawOutlinedRect(const vec2& begin, const vec2& end, const ColoredBar::BarColor& color)
 {
     m_lastDrawList->AddRectFilled(begin, end, ImColor(color.fill), m_rounding, m_rounding_corners);
     m_lastDrawList->AddRect(begin, end, ImColor(color.outline), m_rounding, m_rounding_corners);

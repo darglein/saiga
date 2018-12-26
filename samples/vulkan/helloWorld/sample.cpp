@@ -99,8 +99,8 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     for (int i = 0; i < 1000 * 1000; ++i)
     {
         Saiga::VertexNC v;
-        v.position               = vec4(glm::linearRand(vec3(-3), vec3(3)), 1);
-        v.color                  = vec4(glm::linearRand(vec3(0), vec3(1)), 1);
+        v.position               = vec4(linearRand(vec3(-3), vec3(3)), 1);
+        v.color                  = vec4(linearRand(vec3(0), vec3(1)), 1);
         pointCloud.pointCloud[i] = v;
     }
 }
@@ -120,8 +120,8 @@ void VulkanExample::update(float dt)
         for (auto& v : pointCloud.pointCloud)
         {
             //            Saiga::VertexNC v;
-            v.position = vec4(glm::linearRand(vec3(-3), vec3(3)), 1);
-            v.color    = vec4(glm::linearRand(vec3(0), vec3(1)), 1);
+            v.position = vec4(linearRand(vec3(-3), vec3(3)), 1);
+            v.color    = vec4(linearRand(vec3(0), vec3(1)), 1);
             //            pointCloud.mesh.points.push_back(v);
         }
         change        = false;
@@ -161,11 +161,11 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
         if(lineAssetRenderer.bind(cmd))
         {
-            lineAssetRenderer.pushModel(cmd, glm::translate(vec3(-5, 1.5f, 0)));
+            lineAssetRenderer.pushModel(cmd, translate(vec3(-5, 1.5f, 0)));
             teapot.render(cmd);
 
-            auto gridMatrix = glm::rotate(0.5f * glm::pi<float>(), glm::vec3(1, 0, 0));
-            gridMatrix      = glm::translate(gridMatrix, vec3(0, -10, 0));
+            auto gridMatrix = rotate(0.5f * pi<float>(), vec3(1, 0, 0));
+            gridMatrix      = translate(gridMatrix, vec3(0, -10, 0));
             lineAssetRenderer.pushModel(cmd, gridMatrix);
             grid.render(cmd);
         }
@@ -173,7 +173,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
         if(pointCloudRenderer.bind(cmd))
         {
-            pointCloudRenderer.pushModel(cmd, glm::translate(vec3(10, 2.5f, 0)));
+            pointCloudRenderer.pushModel(cmd, translate(vec3(10, 2.5f, 0)));
             pointCloud.render(cmd, 0, pointCloud.capacity);
         }
 

@@ -35,7 +35,7 @@ void AssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 }
 
 
-void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
+void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj)
 {
     uboVS.projection = proj;
     uboVS.modelview  = view;

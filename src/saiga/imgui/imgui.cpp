@@ -908,7 +908,7 @@ CODE
 
  Q: How can I use my own math types instead of ImVec2/ImVec4?
  A: You can edit imconfig.h and setup the IM_VEC2_CLASS_EXTRA/IM_VEC4_CLASS_EXTRA macros to add implicit type
- conversions. This way you'll be able to use your own types everywhere, e.g. passsing glm::vec2 to ImGui functions
+ conversions. This way you'll be able to use your own types everywhere, e.g. passsing vec2 to ImGui functions
  instead of ImVec2.
 
  Q: How can I load a different font than the default?

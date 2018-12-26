@@ -36,7 +36,7 @@ void TexturedAssetRenderer::pushModel(vk::CommandBuffer cmd, mat4 model)
 
 
 
-void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
+void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj)
 {
     uboVS.projection = proj;
     uboVS.modelview  = view;

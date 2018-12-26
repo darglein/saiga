@@ -15,7 +15,7 @@ namespace Saiga
 GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int numDataPoints)
     : width(width), height(height), graphs(numGraphs)
 {
-    proj = glm::ortho(0.0f, (float)width, 0.0f, (float)height, 1.0f, -1.0f);
+    proj = ortho(0.0f, (float)width, 0.0f, (float)height, 1.0f, -1.0f);
 
     // border
     std::vector<Vertex> vertices;

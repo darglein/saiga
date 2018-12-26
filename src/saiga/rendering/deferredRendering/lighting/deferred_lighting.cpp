@@ -687,7 +687,7 @@ void DeferredLighting::createLightMeshes()
     // but here we want the inner radius to be 1
     // we estimate the required outer radius with apothem of regular polygons
     float n = 4.9;
-    float r = 1.0f / cos(glm::pi<float>() / n);
+    float r = 1.0f / cos(pi<float>() / n);
     //    cout << "point light radius " << r << endl;
     Sphere s(vec3(0), r);
     auto sb = TriangleMeshGenerator::createMesh(s, 1);

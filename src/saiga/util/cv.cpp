@@ -6,7 +6,6 @@
 
 #include "saiga/util/cv.h"
 
-//#include <glm/ext.hpp>
 #include "internal/noGraphicsAPI.h"
 
 namespace Saiga

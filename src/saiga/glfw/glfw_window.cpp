@@ -129,7 +129,7 @@ bool glfw_Window::initWindow()
 
     int monitorCount;
     GLFWmonitor** monitors     = glfwGetMonitors(&monitorCount);
-    windowParameters.monitorId = glm::clamp(windowParameters.monitorId, 0, monitorCount - 1);
+    windowParameters.monitorId = clamp(windowParameters.monitorId, 0, monitorCount - 1);
 
     GLFWmonitor* monitor    = monitors[windowParameters.monitorId];
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);

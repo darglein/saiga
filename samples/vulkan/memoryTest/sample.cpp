@@ -9,11 +9,9 @@
 #include "sample.h"
 
 #include "saiga/image/imageTransformations.h"
+#include "saiga/imgui/imgui.h"
 #include "saiga/util/color.h"
 
-#include <saiga/imgui/imgui.h>
-
-#include <glm/gtc/matrix_transform.hpp>
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif

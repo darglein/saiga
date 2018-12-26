@@ -104,8 +104,8 @@ std::shared_ptr<TriangleMesh<vertex_t, index_t>> TriangleMeshGenerator::createCi
 
     for (int s = 0; s < segments; s++)
     {
-        float x = r * sin((float)s * R * glm::two_pi<float>());
-        float y = r * cos((float)s * R * glm::two_pi<float>());
+        float x = r * sin((float)s * R * two_pi<float>());
+        float y = r * cos((float)s * R * two_pi<float>());
         //        v.position = vec3(x,0,y);
         //        v.normal = vec3(0,1,0);
         //        mesh->vertices.push_back(v);

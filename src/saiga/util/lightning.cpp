@@ -34,7 +34,7 @@ std::vector<Lightning::LineSegment> Lightning::createLightningBolt(vec3 startPoi
             //            cout<<"seg "<<seg<<" "<<s.start<<" "<<s.end<<endl;
             vec3 midPoint = (s.start + s.end) * 0.5f;
             // Offset the midpoint by a random amount along the normal.
-            vec2 offset = glm::diskRand(1.0f);
+            vec2 offset = diskRand(1.0f);
             midPoint += (right * offset[0] + up * offset.y) * offsetAmount;
 
 
