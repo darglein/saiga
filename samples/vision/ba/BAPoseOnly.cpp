@@ -513,7 +513,9 @@ void BAPoseOnly::sbaPaper(Scene& scene, int its)
             // Compute the Schur complement S
             // Not sure how good the sparse matrix mult is of eigen
             // maybe own implementation because the structure is well known before hand
-            S = -(Y * WT).eval();
+
+            // TODO: this line doesn't seem to compile with every eigen version
+//            S = -(Y * WT).eval();
 
             //            cout << "S" << endl << blockMatrixToMatrix(S.toDense()) << endl;
             //            cout << "U" << endl << blockMatrixToMatrix(U.toDenseMatrix()) << endl;

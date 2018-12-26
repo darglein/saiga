@@ -32,9 +32,9 @@ template <>
 vec3 InputController::Operation::Arguments::next()
 {
     vec3 ret;
-    ret.x = next(std::stof);
-    ret.y = next(std::stof);
-    ret.z = next(std::stof);
+    ret[0] = next(std::stof);
+    ret[1] = next(std::stof);
+    ret[2] = next(std::stof);
     return ret;
 }
 

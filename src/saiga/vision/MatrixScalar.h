@@ -36,6 +36,7 @@ struct MatrixScalar
 
     ScalarType operator-() const { return {-data}; }
     ScalarType operator+(const ScalarType& other) const { return {data + other.data}; }
+    ScalarType operator-(const ScalarType& other) const { return {data - other.data}; }
     ScalarType operator*(const ScalarType& other) const { return {data * other.data}; }
     //    ScalarType operator-(const ScalarType& other) const
     //    {

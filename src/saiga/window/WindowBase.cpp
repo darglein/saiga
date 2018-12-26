@@ -50,7 +50,7 @@ std::string WindowBase::getTimeString()
 
 Ray WindowBase::createPixelRay(const vec2& pixel) const
 {
-    vec4 p = vec4(2 * pixel.x / getWidth() - 1.f, 1.f - (2 * pixel.y / getHeight()), 0, 1.f);
+    vec4 p = vec4(2 * pixel[0] / getWidth() - 1.f, 1.f - (2 * pixel[1] / getHeight()), 0, 1.f);
     p      = inverse(WindowBase::currentCamera->proj) * p;
     p /= p.w;
 
@@ -62,7 +62,7 @@ Ray WindowBase::createPixelRay(const vec2& pixel) const
 
 Ray WindowBase::createPixelRay(const vec2& pixel, const vec2& resolution, const mat4& inverseProj) const
 {
-    vec4 p = vec4(2 * pixel.x / resolution.x - 1.f, 1.f - (2 * pixel.y / resolution.y), 0, 1.f);
+    vec4 p = vec4(2 * pixel[0] / resolution[0] - 1.f, 1.f - (2 * pixel[1] / resolution.y), 0, 1.f);
     p      = inverseProj * p;
     p /= p.w;
 
@@ -74,7 +74,7 @@ Ray WindowBase::createPixelRay(const vec2& pixel, const vec2& resolution, const 
 
 vec3 WindowBase::screenToWorld(const vec2& pixel) const
 {
-    vec4 p = vec4(2 * pixel.x / getWidth() - 1.f, 1.f - (2 * pixel.y / getHeight()), 0, 1.f);
+    vec4 p = vec4(2 * pixel[0] / getWidth() - 1.f, 1.f - (2 * pixel[1] / getHeight()), 0, 1.f);
     p      = inverse(WindowBase::currentCamera->proj) * p;
     p /= p.w;
 
@@ -86,7 +86,7 @@ vec3 WindowBase::screenToWorld(const vec2& pixel) const
 
 vec3 WindowBase::screenToWorld(const vec2& pixel, const vec2& resolution, const mat4& inverseProj) const
 {
-    vec4 p = vec4(2 * pixel.x / resolution.x - 1.f, 1.f - (2 * pixel.y / resolution.y), 0, 1.f);
+    vec4 p = vec4(2 * pixel[0] / resolution[0] - 1.f, 1.f - (2 * pixel[1] / resolution.y), 0, 1.f);
     p      = inverseProj * p;
     p /= p.w;
 
@@ -103,8 +103,8 @@ vec2 WindowBase::projectToScreen(const vec3& pos) const
     r /= r.w;
 
     vec2 pixel;
-    pixel.x = (r.x + 1.f) * getWidth() * 0.5f;
-    pixel.y = -(r.y - 1.f) * getHeight() * 0.5f;
+    pixel[0] = (r[0] + 1.f) * getWidth() * 0.5f;
+    pixel[1] = -(r[1] - 1.f) * getHeight() * 0.5f;
 
     return pixel;
 }

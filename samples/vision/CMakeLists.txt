@@ -1,8 +1,10 @@
-    add_subdirectory(ba_schur)
-        add_subdirectory(block_matrices)
+add_subdirectory(ba_schur)
+add_subdirectory(block_matrices)
 
 if (SDL2_FOUND AND SAIGA_USE_VULKAN)
-    add_subdirectory(ba)
+    if(G2O_FOUND)
+        add_subdirectory(ba)
+    endif()
     if(OPENNI2_FOUND)
         add_subdirectory(openni2Viewer)
     endif()

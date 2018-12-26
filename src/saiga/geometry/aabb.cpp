@@ -53,25 +53,25 @@ void AABB::growBox(const AABB& v)
 void AABB::ensureValidity()
 {
     float tmp;
-    if (min.x > max.x)
+    if (min[0] > max.x)
     {
         tmp   = min.x;
-        min.x = max.x;
-        max.x = tmp;
+        min[0] = max.x;
+        max[0] = tmp;
     }
 
-    if (min.y > max.y)
+    if (min[1] > max.y)
     {
         tmp   = min.y;
-        min.y = max.y;
-        max.y = tmp;
+        min[1] = max.y;
+        max[1] = tmp;
     }
 
-    if (min.z > max.z)
+    if (min[2] > max.z)
     {
         tmp   = min.z;
-        min.z = max.z;
-        max.z = tmp;
+        min[2] = max.z;
+        max[2] = tmp;
     }
 }
 
@@ -102,9 +102,9 @@ vec3 AABB::cornerPoint(int cornerIndex) const
 
 bool AABB::contains(const vec3& p)
 {
-    if (min.x > p.x || max.x < p.x) return false;
-    if (min.y > p.y || max.y < p.y) return false;
-    if (min.z > p.z || max.z < p.z) return false;
+    if (min[0] > p[0] || max[0] < p.x) return false;
+    if (min[1] > p[1] || max[1] < p.y) return false;
+    if (min[2] > p[2] || max[2] < p.z) return false;
 
     return true;  // overlap
 }

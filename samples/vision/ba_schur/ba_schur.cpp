@@ -16,7 +16,6 @@
 
 using namespace Saiga;
 
-
 void simpleSchurTest()
 {
     // Solution of the following block-structured linear system
@@ -27,7 +26,8 @@ void simpleSchurTest()
     // , where
     // U and V are diagonal matrices, and W is sparse.
     // V is assumed to be much larger then U.
-    // If U is larger the schur complement should be computed in the other direction.
+    // If U is larger the schur complement should be computed in the other
+    // direction.
 
     // ======================== Parameters ========================
 
@@ -49,8 +49,6 @@ void simpleSchurTest()
     Eigen::DiagonalMatrix<double, -1> V(m);
     for (int i = 0; i < n; ++i) U.diagonal()(i) = Random::sampleDouble(0.1, 10);
     for (int i = 0; i < m; ++i) V.diagonal()(i) = Random::sampleDouble(0.1, 10);
-
-
 
     // Right hand side of the linear system
     Vector ea(n);
@@ -124,8 +122,6 @@ void simpleSchurTest()
         cout << "sparse " << (A * delta - e).norm() << endl;
     }
 
-
-
     {
         SAIGA_BLOCK_TIMER();
 
@@ -140,7 +136,6 @@ void simpleSchurTest()
         // Compute Y
         Eigen::SparseMatrix<double, Eigen::RowMajor> Y(n, m);
         Y = W * Vinv;
-
 
         // Step 3
         // Compute the Schur complement S
@@ -180,8 +175,6 @@ void simpleSchurTest()
     cout << endl;
 }
 
-
-
 void baBlockSchurTest()
 {
     // Solution of the following block-structured linear system
@@ -192,11 +185,10 @@ void baBlockSchurTest()
     // , where
     // U and V are block diagonal matrices, and W is sparse.
     // V is assumed to be much larger then U.
-    // If U is larger the schur complement should be computed in the other direction.
+    // If U is larger the schur complement should be computed in the other
+    // direction.
 
     // ======================== Parameters ========================
-
-
 
     // size of U
     int n = 2;
@@ -205,7 +197,6 @@ void baBlockSchurTest()
 
     // maximum number of non-zero elements per row in W
     int maxElementsPerRow = 3;
-
 
     // ======================== Variables ========================
 
@@ -220,13 +211,13 @@ void baBlockSchurTest()
     DAType ea(n);
     DBType eb(m);
 
-
     // ======================== Initialize U,V,W,ea,eb ========================
 
     Random::setSeed(239672031257UL);
 
-    // Init U,V with random symmetric square matrices, but add a large value to the diagonal to ensure positive
-    // definiteness and low condition number This is similar to the LM update
+    // Init U,V with random symmetric square matrices, but add a large value to
+    // the diagonal to ensure positive definiteness and low condition number This
+    // is similar to the LM update
 
     double largeValue = 3;
     for (int i = 0; i < n; ++i)
@@ -245,7 +236,6 @@ void baBlockSchurTest()
     cout << "U" << endl << blockDiagonalToMatrix(U) << endl;
     cout << "V" << endl << blockDiagonalToMatrix(V) << endl;
 #endif
-
 
     // Init W with randoms blocks
     W.reserve(n * maxElementsPerRow);
@@ -278,9 +268,9 @@ void baBlockSchurTest()
     for (int i = 0; i < n; ++i) ea(i) = ARes::Random();
     for (int i = 0; i < m; ++i) eb(i) = BRes::Random();
 
-
 #if 1
-    // ======================== Dense Simple Solution (only for checking the correctness) ========================
+    // ======================== Dense Simple Solution (only for checking the
+    // correctness) ========================
     {
         SAIGA_BLOCK_TIMER();
         n *= asize;
@@ -310,7 +300,6 @@ void baBlockSchurTest()
     }
 #endif
 
-
     // tmp variables
     VType Vinv(m);
     WType Y(n, m);
@@ -324,7 +313,8 @@ void baBlockSchurTest()
         // Step 1
         // Invert V
         for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
-        //        cout << "Vinv" << endl << blockMatrixToMatrix(Vinv.toDenseMatrix()) << endl;
+        //        cout << "Vinv" << endl <<
+        //        blockMatrixToMatrix(Vinv.toDenseMatrix()) << endl;
     }
 
     {
@@ -333,7 +323,8 @@ void baBlockSchurTest()
         // Compute Y
         Y = multSparseDiag(W, Vinv);
         //        cout << "Yref" << endl
-        //             << (blockMatrixToMatrix(W.toDense()) * blockMatrixToMatrix(Vinv.toDenseMatrix())) << endl;
+        //             << (blockMatrixToMatrix(W.toDense()) *
+        //             blockMatrixToMatrix(Vinv.toDenseMatrix())) << endl;
         //        cout << "Y" << endl << blockMatrixToMatrix(Y.toDense()) << endl;
     }
     {
@@ -342,13 +333,17 @@ void baBlockSchurTest()
         // Compute the Schur complement S
         // Not sure how good the sparse matrix mult is of eigen
         // maybe own implementation because the structure is well known before hand
-        S = -(Y * WT).eval();
+
+        // TODO: this line doesn't seem to compile with every eigen version
+        //        S = -(Y * WT).eval();
         //        S = W * WT;
         S.diagonal() = U.diagonal() + S.diagonal();
 
         //        cout << "Sref" << endl
-        //             << (blockMatrixToMatrix(U.toDenseMatrix()) - blockMatrixToMatrix(W.toDense()) *
-        //                                                              blockMatrixToMatrix(Vinv.toDenseMatrix()) *
+        //             << (blockMatrixToMatrix(U.toDenseMatrix()) -
+        //             blockMatrixToMatrix(W.toDense()) *
+        //                                                              blockMatrixToMatrix(Vinv.toDenseMatrix())
+        //                                                              *
         //                                                              blockMatrixToMatrix(WT.toDense()))
         //                    .eval()
         //             << endl;
@@ -361,12 +356,12 @@ void baBlockSchurTest()
         // S * da = ej
         ej = ea + -(Y * eb);  // todo fix -
                               //        cout << "ejref" << endl
-        //             << (blockVectorToVector(ea) - blockMatrixToMatrix(Y.toDense()) * blockVectorToVector(eb)) <<
-        //             endl;
+                              //             << (blockVectorToVector(ea) -
+                              //             blockMatrixToMatrix(Y.toDense()) * blockVectorToVector(eb))
+                              //             << endl;
 
         //        cout << "ej" << endl << blockVectorToVector(ej) << endl;
     }
-
 
     Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
     {
@@ -403,8 +398,9 @@ void baBlockSchurTest()
         // bring it to the right hand side
         q = eb + -WT * da;
         //        cout << "qref" << endl
-        //             << (blockVectorToVector(eb) - blockMatrixToMatrix(WT.toDense()) * blockVectorToVector(da)) <<
-        //             endl;
+        //             << (blockVectorToVector(eb) -
+        //             blockMatrixToMatrix(WT.toDense()) * blockVectorToVector(da))
+        //             << endl;
 
         //        cout << "q" << endl << blockVectorToVector(q) << endl;
     }
@@ -413,7 +409,6 @@ void baBlockSchurTest()
         // Step 7
         // Solve the remaining partial system with the precomputed inverse of V
         db = multDiagVector(Vinv, q);
-
 
 #if 1
         // compute residual of linear system
@@ -426,15 +421,15 @@ void baBlockSchurTest()
         cout << "Error: " << res1.norm() << " " << res2.norm() << endl;
 #endif
 
-        //        cout << "da" << endl << blockVectorToVector(da).transpose() << endl;
-        //        cout << "db" << endl << blockVectorToVector(db).transpose() << endl;
+        //        cout << "da" << endl << blockVectorToVector(da).transpose() <<
+        //        endl; cout << "db" << endl << blockVectorToVector(db).transpose()
+        //        << endl;
     }
 }
 
 int main(int argc, char* argv[])
 {
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
-
 
     simpleSchurTest();
     baBlockSchurTest();

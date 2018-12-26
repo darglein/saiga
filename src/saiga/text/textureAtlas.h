@@ -64,7 +64,7 @@ class SAIGA_GLOBAL TextureAtlas
     /**
      * Returns the distance between the bottom of one line to the bottom of the next line.
      */
-    float getLineSpacing() { return (maxCharacter.max - maxCharacter.min).y + additionalLineSpacing; }
+    float getLineSpacing() { return (maxCharacter.max - maxCharacter.min)[1] + additionalLineSpacing; }
 
 
     // these values are added to the default line and character spacings.
