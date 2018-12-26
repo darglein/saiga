@@ -167,7 +167,10 @@ inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, flo
 {
     return mat4(a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33);
 }
-
+inline mat3 make_mat3(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20)
+{
+    return mat3(a00, a01, a02, a03, a10, a11, a12, a13, a20);
+}
 
 inline vec3 ele_mult(vec3 a, vec3 b)
 {
@@ -211,6 +214,10 @@ inline quat make_quat(float w, float x, float y, float z)
 {
     return quat(w, x, y, z);
 }
+inline quat make_quat(mat4 m)
+{
+    return quat(m);
+}
 inline mat4 identityMat4()
 {
     return mat4(1);
@@ -236,6 +243,11 @@ inline vec4& col(mat4& m, int id)
 inline float distance(vec3 a, vec3 b)
 {
     return glm::distance(a, b);
+}
+
+inline mat4 zeroMat4()
+{
+    return mat4(0);
 }
 
 SAIGA_GLOBAL vec3 sampleCone(const vec3& dir, float angle);

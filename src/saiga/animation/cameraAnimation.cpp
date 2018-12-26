@@ -233,7 +233,7 @@ bool Interpolation::update(Camera& camera)
     float cameraAlpha = float(tick) / totalTicks;
     auto kf           = getNormalized(cameraAlpha);
 
-    camera.position = vec4(kf.position, 1);
+    camera.position = make_vec4(kf.position, 1);
     camera.rot      = kf.rot;
 
     camera.calculateModel();
@@ -271,7 +271,7 @@ void Interpolation::render()
 {
     if (cameraPathAsset && !isRunning())
     {
-        cameraPathAsset->renderForward(nullptr, mat4(1));
+        cameraPathAsset->renderForward(nullptr, identityMat4());
     }
 }
 void Interpolation::renderGui(Camera& camera)
@@ -346,7 +346,7 @@ void Interpolation::renderGui(Camera& camera)
         if (ImGui::Button("keyframe to camera"))
         {
             auto kf         = keyframes[selectedKeyframe];
-            camera.position = vec4(kf.position, 1);
+            camera.position = make_vec4(kf.position, 1);
             camera.rot      = kf.rot;
 
             camera.calculateModel();

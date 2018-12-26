@@ -53,24 +53,24 @@ void AABB::growBox(const AABB& v)
 void AABB::ensureValidity()
 {
     float tmp;
-    if (min[0] > max.x)
+    if (min[0] > max[0])
     {
-        tmp    = min.x;
-        min[0] = max.x;
+        tmp    = min[0];
+        min[0] = max[0];
         max[0] = tmp;
     }
 
-    if (min[1] > max.y)
+    if (min[1] > max[1])
     {
-        tmp    = min.y;
-        min[1] = max.y;
+        tmp    = min[1];
+        min[1] = max[1];
         max[1] = tmp;
     }
 
-    if (min[2] > max.z)
+    if (min[2] > max[2])
     {
-        tmp    = min.z;
-        min[2] = max.z;
+        tmp    = min[2];
+        min[2] = max[2];
         max[2] = tmp;
     }
 }
@@ -82,29 +82,29 @@ vec3 AABB::cornerPoint(int cornerIndex) const
     {
         default:
         case 0:
-            return vec3(min.x, min.y, min.z);
+            return vec3(min[0], min[1], min[2]);
         case 1:
-            return vec3(min.x, min.y, max.z);
+            return vec3(min[0], min[1], max[2]);
         case 2:
-            return vec3(min.x, max.y, max.z);
+            return vec3(min[0], max[1], max[2]);
         case 3:
-            return vec3(min.x, max.y, min.z);
+            return vec3(min[0], max[1], min[2]);
         case 4:
-            return vec3(max.x, min.y, min.z);
+            return vec3(max[0], min[1], min[2]);
         case 5:
-            return vec3(max.x, min.y, max.z);
+            return vec3(max[0], min[1], max[2]);
         case 6:
-            return vec3(max.x, max.y, max.z);
+            return vec3(max[0], max[1], max[2]);
         case 7:
-            return vec3(max.x, max.y, min.z);
+            return vec3(max[0], max[1], min[2]);
     }
 }
 
 bool AABB::contains(const vec3& p)
 {
-    if (min[0] > p[0] || max[0] < p.x) return false;
-    if (min[1] > p[1] || max[1] < p.y) return false;
-    if (min[2] > p[2] || max[2] < p.z) return false;
+    if (min[0] > p[0] || max[0] < p[0]) return false;
+    if (min[1] > p[1] || max[1] < p[1]) return false;
+    if (min[2] > p[2] || max[2] < p[2]) return false;
 
     return true;  // overlap
 }
@@ -113,31 +113,31 @@ std::vector<Triangle> AABB::toTriangles()
 {
     std::vector<Triangle> res = {
         // bottom
-        Triangle(vec3(min.x, min.y, min.z), vec3(max.x, min.y, min.z), vec3(max.x, min.y, max.z)),
-        Triangle(vec3(min.x, min.y, min.z), vec3(max.x, min.y, max.z), vec3(min.x, min.y, max.z)),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(max[0], min[1], min[2]), vec3(max[0], min[1], max[2])),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(max[0], min[1], max[2]), vec3(min[0], min[1], max[2])),
 
         // top
-        Triangle(vec3(min.x, max.y, min.z), vec3(max.x, max.y, min.z), vec3(max.x, max.y, max.z)),
-        Triangle(vec3(min.x, max.y, min.z), vec3(max.x, max.y, max.z), vec3(min.x, max.y, max.z)),
+        Triangle(vec3(min[0], max[1], min[2]), vec3(max[0], max[1], min[2]), vec3(max[0], max[1], max[2])),
+        Triangle(vec3(min[0], max[1], min[2]), vec3(max[0], max[1], max[2]), vec3(min[0], max[1], max[2])),
 
 
         // left
-        Triangle(vec3(min.x, min.y, min.z), vec3(min.x, min.y, max.z), vec3(min.x, max.y, max.z)),
-        Triangle(vec3(min.x, min.y, min.z), vec3(min.x, max.y, max.z), vec3(min.x, max.y, min.z)),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(min[0], min[1], max[2]), vec3(min[0], max[1], max[2])),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(min[0], max[1], max[2]), vec3(min[0], max[1], min[2])),
 
         // right
-        Triangle(vec3(max.x, min.y, min.z), vec3(max.x, min.y, max.z), vec3(max.x, max.y, max.z)),
-        Triangle(vec3(max.x, min.y, min.z), vec3(max.x, max.y, max.z), vec3(max.x, max.y, min.z)),
+        Triangle(vec3(max[0], min[1], min[2]), vec3(max[0], min[1], max[2]), vec3(max[0], max[1], max[2])),
+        Triangle(vec3(max[0], min[1], min[2]), vec3(max[0], max[1], max[2]), vec3(max[0], max[1], min[2])),
 
 
         // back
-        Triangle(vec3(min.x, min.y, min.z), vec3(min.x, max.y, min.z), vec3(max.x, max.y, min.z)),
-        Triangle(vec3(min.x, min.y, min.z), vec3(max.x, max.y, min.z), vec3(max.x, min.y, min.z)),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(min[0], max[1], min[2]), vec3(max[0], max[1], min[2])),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(max[0], max[1], min[2]), vec3(max[0], min[1], min[2])),
 
 
         // front
-        Triangle(vec3(min.x, min.y, max.z), vec3(min.x, max.y, max.z), vec3(max.x, max.y, max.z)),
-        Triangle(vec3(min.x, min.y, max.z), vec3(max.x, max.y, max.z), vec3(max.x, min.y, max.z))};
+        Triangle(vec3(min[0], min[1], max[2]), vec3(min[0], max[1], max[2]), vec3(max[0], max[1], max[2])),
+        Triangle(vec3(min[0], min[1], max[2]), vec3(max[0], max[1], max[2]), vec3(max[0], min[1], max[2]))};
 
     return res;
 }
@@ -145,7 +145,6 @@ std::vector<Triangle> AABB::toTriangles()
 
 std::ostream& operator<<(std::ostream& os, const AABB& bb)
 {
-    sampleCone(bb.min, 5);
     std::cout << "AABB: " << bb.min << " " << bb.max;
     return os;
 }

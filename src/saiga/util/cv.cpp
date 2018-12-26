@@ -28,16 +28,16 @@ mat4 cvCameraToGLCamera(const mat3& K, int viewportW, int viewportH, float znear
     auto removeViewPortTransform = inverse(transpose(viewPortTransform));
     cout << viewPortTransform << endl << removeViewPortTransform << endl;
 #else
-    mat3 removeViewPortTransform(2.0 / viewportW, 0, 0, 0, 2.0 / viewportH, 0, -1, -1, 1);
+    mat3 removeViewPortTransform = make_mat3(2.0 / viewportW, 0, 0, 0, 2.0 / viewportH, 0, -1, -1, 1);
 #endif
     auto test = removeViewPortTransform * K;
 
     mat4 proj(test);
-    proj[2][3] = -1;
-    proj[3][3] = 0;
+    col(proj, 2)[3] = -1;
+    col(proj, 3)[3] = 0;
 
-    proj[2][2] = -(zfar + znear) / (zfar - znear);
-    proj[3][2] = -2.0f * zfar * znear / (zfar - znear);
+    col(proj, 2)[2] = -(zfar + znear) / (zfar - znear);
+    col(proj, 3)[2] = -2.0f * zfar * znear / (zfar - znear);
     return proj;
 }
 
@@ -48,7 +48,7 @@ mat4 cvViewToGLView(const mat4& view)
      *
      * Both systems are right-handed.
      */
-    mat4 viewTransform(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
+    mat4 viewTransform = make_mat4(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
     return viewTransform * view;
 }
 
@@ -58,8 +58,8 @@ vec2 cvApplyDistortion(vec2 point, float k1, float k2, float k3, float p1, float
      * The OpenCV distortion model applied to a point in normalized image coordinates.
      */
     using T = float;
-    T x     = point.x;
-    T y     = point.y;
+    T x     = point[0];
+    T y     = point[1];
     T x2 = x * x, y2 = y * y;
     T r2 = x2 + y2, _2xy = T(2) * x * y;
     T radial      = (T(1) + ((k3 * r2 + k2) * r2 + k1) * r2);
