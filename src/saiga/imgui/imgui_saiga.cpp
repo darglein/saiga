@@ -1,4 +1,4 @@
-#include "imgui_saiga.h"
+﻿#include "imgui_saiga.h"
 
 #include "saiga/imgui/imgui.h"
 #include "saiga/util/random.h"
@@ -75,7 +75,7 @@ void ColoredBar::renderBackground()
 
     if (m_auto_size)
     {
-        m_size.x = ImGui::GetContentRegionAvailWidth();
+        m_size[0] = ImGui::GetContentRegionAvailWidth();
     }
 
     for (uint32_t i = 0; i < m_rows; ++i)
@@ -98,15 +98,15 @@ void ColoredBar::renderArea(float begin, float end, const ColoredBar::BarColor& 
 
     for (int i = first; i < last; ++i)
     {
-        float row_start = max(i * factor, begin);
-        float row_end   = min((i + 1) * factor, end);
+        float row_start = std::max(i * factor, begin);
+        float row_end   = std::min((i + 1) * factor, end);
 
         auto& corner = m_lastCorner[i];
 
         float start_01 = m_rows * (row_start - i * factor);
         float end_01   = m_rows * (row_end - i * factor);
-        const ImVec2 left{corner.x + start_01 * m_size.x, corner.y};
-        const ImVec2 right{corner.x + end_01 * m_size.x, corner.y + m_size.y};
+        const ImVec2 left{corner[0] + start_01 * m_size[0], corner[1]};
+        const ImVec2 right{corner[0] + end_01 * m_size[0], corner[1] + m_size[1]};
 
         DrawOutlinedRect(left, right, color);
     }

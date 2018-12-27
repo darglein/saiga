@@ -196,9 +196,9 @@ void TriangleMesh<vertex_t, index_t>::transform(const mat4& trafo)
     for (vertex_t& v : vertices)
     {
         // Make sure it works for user defined w components
-        vec4 p     = vec4(vec3(v.position), 1);
+        vec4 p     = make_vec4(make_vec3(v.position), 1);
         p          = trafo * p;
-        v.position = vec4(vec3(p), v.position.w);
+        v.position = make_vec4(make_vec3(p), v.position[3]);
     }
     boundingBox.transform(trafo);
 }
@@ -246,9 +246,9 @@ void TriangleMesh<vertex_t, index_t>::subdivideFace(int f)
 #define _TM_POS(xs) (vertices[face.xs].position)
     // create 3 new vertices in the middle of the edges
 
-    int v1 = addVertex(vertex_t((_TM_POS(v1) + _TM_POS(v2)) / 2.0f));
-    int v2 = addVertex(vertex_t((_TM_POS(v1) + _TM_POS(v3)) / 2.0f));
-    int v3 = addVertex(vertex_t((_TM_POS(v2) + _TM_POS(v3)) / 2.0f));
+    int v1 = addVertex(vertex_t(vec4((_TM_POS(v1) + _TM_POS(v2)) / 2.0f)));
+    int v2 = addVertex(vertex_t(vec4((_TM_POS(v1) + _TM_POS(v3)) / 2.0f)));
+    int v3 = addVertex(vertex_t(vec4((_TM_POS(v2) + _TM_POS(v3)) / 2.0f)));
 
 
     faces.push_back(Face(face.v2, v3, v1));

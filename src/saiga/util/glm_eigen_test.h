@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -131,6 +131,18 @@ inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, flo
 {
     return mat4();
 }
+
+inline mat4 make_mat4(mat3 m)
+{
+    return mat4();
+}
+
+
+inline mat4 make_mat4(quat q)
+{
+    return mat4();
+}
+
 
 inline mat3 make_mat3(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20)
 {
@@ -310,8 +322,27 @@ inline float linearRand(float low, float high)
     return 0;
 }
 
+
+inline vec2 diskRand(float radius)
+{
+    return vec2();
+}
+
 template <typename T>
 T epsilon()
+{
+    return T(0);
+}
+
+
+template <typename T>
+T pi()
+{
+    return T(0);
+}
+
+template <typename T>
+T two_pi()
 {
     return T(0);
 }

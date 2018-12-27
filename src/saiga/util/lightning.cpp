@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -14,7 +14,7 @@ std::vector<Lightning::LineSegment> Lightning::createLightningBolt(vec3 startPoi
                                                                    float offsetAmount, float splitProbability,
                                                                    float splitLength, float splitIntensityDrop)
 {
-    vec3 direction = normalize(endPoint - startPoint);
+    vec3 direction = normalize(vec3(endPoint - startPoint));
     vec3 right     = normalize(cross(direction, vec3(0, 1, 0)));
     vec3 up        = normalize(cross(direction, right));
 
@@ -35,7 +35,7 @@ std::vector<Lightning::LineSegment> Lightning::createLightningBolt(vec3 startPoi
             vec3 midPoint = (s.start + s.end) * 0.5f;
             // Offset the midpoint by a random amount along the normal.
             vec2 offset = diskRand(1.0f);
-            midPoint += (right * offset[0] + up * offset.y) * offsetAmount;
+            midPoint += (right * offset[0] + up * offset[1]) * offsetAmount;
 
 
 

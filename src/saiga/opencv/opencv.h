@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -53,7 +53,7 @@ inline cv::Mat ImageViewToMat(ImageView<T> img)
 SAIGA_GLOBAL inline mat3 scaleK(mat3 K, float scale)
 {
     K *= scale;
-    K[2][2] = 1;
+    col(K,2)[2] = 1;
     return K;
 }
 

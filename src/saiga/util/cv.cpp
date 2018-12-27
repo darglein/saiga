@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -32,7 +32,7 @@ mat4 cvCameraToGLCamera(const mat3& K, int viewportW, int viewportH, float znear
 #endif
     auto test = removeViewPortTransform * K;
 
-    mat4 proj(test);
+    mat4 proj = make_mat4(test);
     col(proj, 2)[3] = -1;
     col(proj, 3)[3] = 0;
 

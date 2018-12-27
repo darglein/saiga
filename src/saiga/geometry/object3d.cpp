@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -41,7 +41,7 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
     translateGlobal(vec3(-point));
     quat qrot = angleAxis(radians(angle), axis);
     //    position = vec3(qrot*vec4(position,1));
-    position = qrot * position;
+    position = make_vec4(qrot * make_vec3(position),1);
     translateGlobal(point);
 }
 

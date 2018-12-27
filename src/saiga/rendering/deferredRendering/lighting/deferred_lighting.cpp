@@ -15,7 +15,6 @@
 #include "saiga/rendering/program.h"
 #include "saiga/rendering/renderer.h"
 #include "saiga/util/imath.h"
-#include "saiga/util/inputcontroller.h"
 #include "saiga/util/tostring.h"
 
 namespace Saiga

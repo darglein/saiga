@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -24,8 +24,8 @@ class SAIGA_GLOBAL Mouse : public Keyboard
     Mouse();
 
     ivec2 getPosition() { return position; }
-    int getX() { return position.x; }
-    int getY() { return position.y; }
+    int getX() { return position[0]; }
+    int getY() { return position[1]; }
 
 
     // should not be called by applications

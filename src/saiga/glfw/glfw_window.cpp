@@ -16,7 +16,6 @@
 #    include "saiga/opengl/texture/textureLoader.h"
 #    include "saiga/rendering/deferredRendering/deferred_renderer.h"
 #    include "saiga/rendering/renderer.h"
-#    include "saiga/util/inputcontroller.h"
 
 #    include <GLFW/glfw3.h>
 #    include <chrono>

@@ -22,7 +22,7 @@ void InterpolatedObject3D::interpolate(float alpha)
     interpolatedposition = mix(oldposition, position, alpha);
 
     interpolatedmodel = createTRSmatrix(interpolatedposition, interpolatedrot, interpolatedscale);
-    //    interpolatedmodel = mat4_cast(interpolatedrot)*scale(mat4(1),interpolatedscale);
+    //    interpolatedmodel = mat4_cast(interpolatedrot)*scale(identityMat4(),interpolatedscale);
     //    interpolatedmodel[3] = vec4(interpolatedposition,1);
 }
 
