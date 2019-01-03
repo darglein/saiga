@@ -56,13 +56,29 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
         findQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx);
     }
 
-    main_queue_info = std::make_pair(main_idx, queueCounts[main_idx]);
+    main_queue_info = std::make_pair(main_idx, queueCounts[main_idx] % queueFamilyProperties[main_idx].queueCount);
     queueCounts[main_idx]++;
-    compute_info = std::make_pair(compute_idx, queueCounts[compute_idx]);
+    compute_info =
+        std::make_pair(compute_idx, queueCounts[compute_idx] % queueFamilyProperties[compute_idx].queueCount);
+
+
     queueCounts[compute_idx]++;
-    transfer_info = std::make_pair(transfer_idx, queueCounts[transfer_idx]);
+
+    transfer_info =
+        std::make_pair(transfer_idx, queueCounts[transfer_idx] % queueFamilyProperties[transfer_idx].queueCount);
     queueCounts[transfer_idx]++;
 
+    if (main_queue_info == compute_info) {
+        LOG(WARNING) << "Main queue and compute queue are the same";
+    }
+
+    if (main_queue_info == transfer_info) {
+        LOG(WARNING) << "Main queue and transfer queue are the same";
+    }
+
+    queueCounts[main_idx]     = std::min(queueCounts[main_idx], queueFamilyProperties[main_idx].queueCount);
+    queueCounts[compute_idx]  = std::min(queueCounts[compute_idx], queueFamilyProperties[compute_idx].queueCount);
+    queueCounts[transfer_idx] = std::min(queueCounts[transfer_idx], queueFamilyProperties[transfer_idx].queueCount);
 
     auto maxCount = std::max_element(queueCounts.begin(), queueCounts.end());
     std::vector<float> prios(*maxCount, 1.0f);
@@ -79,7 +95,6 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
         auto queueCount = queueCounts[i];
         if (queueCount > 0)
         {
-            // vk::DeviceQueueCreateInfo qci{};
             queueCreateInfos.emplace_back(vk::DeviceQueueCreateFlags(), i, queueCount, prios.data());
         }
     }
