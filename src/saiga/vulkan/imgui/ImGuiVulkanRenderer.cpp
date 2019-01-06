@@ -184,7 +184,7 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
 
     // UI scale and translate via push constants
     pushConstBlock.scale     = vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
-    pushConstBlock.translate = vec2(-1.0f);
+    pushConstBlock.translate = make_vec2(-1.0f);
     pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(PushConstBlock), &pushConstBlock);
 
     // Render commands

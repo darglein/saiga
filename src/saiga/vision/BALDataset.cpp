@@ -30,7 +30,7 @@ BALDataset::BALDataset(const std::string& file)
     for (int i = 0; i < num_observations; ++i)
     {
         BALObservation o;
-        in >> o.camera_index >> o.point_index >> o.point.x() >> o.point.y();
+        in >> o.camera_index >> o.point_index >> o.point[0] >> o.point[1];
         observations.push_back(o);
     }
 

@@ -160,8 +160,7 @@ SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v);
 //============== Helper functions =================
 
 
-namespace Saiga
-{
+
 inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20,
                       float a21, float a22, float a23, float a30, float a31, float a32, float a33)
 {
@@ -169,11 +168,14 @@ inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, flo
 }
 
 inline mat4 make_mat4(mat3 m)
-    {
-        return mat4(m);
-    }
+{
+    return mat4(m);
+}
 
-inline mat4 make_mat4(quat q) { return mat4(q); }
+inline mat4 make_mat4(quat q)
+{
+    return mat4(q);
+}
 
 
 inline mat3 make_mat3(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20)
@@ -184,6 +186,26 @@ inline mat3 make_mat3(float a00, float a01, float a02, float a03, float a10, flo
 inline vec3 ele_mult(vec3 a, vec3 b)
 {
     return a * b;
+}
+
+
+inline vec3 ele_div(vec3 a, vec3 b)
+{
+    return a / b;
+}
+
+inline vec2 ele_mult(vec2 a, vec2 b)
+{
+    return a * b;
+}
+
+inline vec4 ele_mult(vec4 a, vec4 b)
+{
+    return a * b;
+}
+inline const float* data(const mat4& m)
+{
+    return &m[0][0];
 }
 
 inline vec4 make_vec4(const vec3& v, float a)
@@ -258,13 +280,13 @@ inline mat4 zeroMat4()
 {
     return mat4(0);
 }
-
+namespace Saiga
+{
 SAIGA_GLOBAL vec3 sampleCone(const vec3& dir, float angle);
 // samples cone along the z axis
 SAIGA_GLOBAL vec3 sampleUnitCone(float angle);
 
 SAIGA_GLOBAL vec3 snapTo(vec3 v, float snapAngleInDegrees);
-
 
 
 SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s)

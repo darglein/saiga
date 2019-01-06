@@ -26,7 +26,7 @@ void TextureDisplay::destroy()
 void TextureDisplay::renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet texture, vec2 position, vec2 size)
 {
     bindDescriptorSets(cmd, texture);
-    vk::Viewport vp(position.x, position.y, size.x, size.y);
+    vk::Viewport vp(position[0], position[1], size[0], size[1]);
     cmd.setViewport(0, vp);
     blitMesh.render(cmd);
 }

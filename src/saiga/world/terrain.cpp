@@ -118,7 +118,7 @@ void Terrain::renderintern(Camera* cam)
     shader->uploadZScale(heightmap.heightScale);
 
     vec4 TexSizeScale =
-        vec4(heightmap.mapOffset.x, heightmap.mapOffset.y, heightmap.mapScaleInv.x, heightmap.mapScaleInv.y);
+        vec4(heightmap.mapOffset[0], heightmap.mapOffset[1], heightmap.mapScaleInv[0], heightmap.mapScaleInv[1]);
     shader->uploadTexSizeScale(TexSizeScale);
 
 
@@ -132,7 +132,7 @@ void Terrain::renderintern(Camera* cam)
     shader->uploadTexture2(texture2);
 
     shader->uploadVP(clipmaps[0].vp);
-    render(Clipmap::center, vec4(1), vec4(baseScale.x * 2, baseScale.y * 2, 0, 0), vec4(1, 1, 0, 0));
+    render(Clipmap::center, vec4(1), vec4(baseScale[0] * 2, baseScale[1] * 2, 0, 0), vec4(1, 1, 0, 0));
 
 
 

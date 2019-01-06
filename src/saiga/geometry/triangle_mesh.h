@@ -208,9 +208,9 @@ void TriangleMesh<vertex_t, index_t>::transformNormal(const mat4& trafo)
 {
     for (vertex_t& v : vertices)
     {
-        vec4 p   = vec4(vec3(v.normal), 0);
+        vec4 p   = make_vec4(make_vec3(v.normal), 0);
         p        = trafo * p;
-        v.normal = vec4(vec3(p), v.normal.w);
+        v.normal = make_vec4(make_vec3(p), v.normal[3]);
     }
 }
 
@@ -430,7 +430,7 @@ AABB TriangleMesh<vertex_t, index_t>::calculateAabb()
 
     for (vertex_t& v : vertices)
     {
-        boundingBox.growBox(vec3(v.position));
+        boundingBox.growBox(make_vec3(v.position));
     }
     return boundingBox;
 }

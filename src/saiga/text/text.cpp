@@ -29,7 +29,7 @@ void Text::calculateNormalizationMatrix()
     normalizationMatrix = mat4(1);
     if (normalize)
     {
-        //        float height = boundingBox.max.y - boundingBox.min.y;
+        //        float height = boundingBox.max[1] - boundingBox.min[1];
         float height = 1.0f;
 
         vec3 offset               = boundingBox.getPosition();
@@ -84,13 +84,13 @@ void Text::updateText(const std::string& l, int startIndex)
 
         const TextureAtlas::character_info& info = textureAtlas->getCharacterInfo(oldStartCharacter);
 
-        startOffset.x = this->mesh.vertices[lastCharPos * 4].position.x;
-        startOffset.y = this->mesh.vertices[lastCharPos * 4].position.y;
+        startOffset[0] = this->mesh.vertices[lastCharPos * 4].position[0];
+        startOffset[1] = this->mesh.vertices[lastCharPos * 4].position[1];
 
         // calculate start position of next character
         startOffset -= info.offset;
         startOffset += info.advance;
-        startOffset.x += textureAtlas->additionalCharacterSpacing;
+        startOffset[0] += textureAtlas->additionalCharacterSpacing;
     }
 
     // delete everything from startindex to end
@@ -197,32 +197,32 @@ void Text::addTextToMesh(const utf32string& text, vec2 offset)
 
         if (c == '\n')
         {
-            position.x = startPos.x;
-            position.y -= textureAtlas->getLineSpacing();
+            position[0] = startPos[0];
+            position[1] -= textureAtlas->getLineSpacing();
             lines++;
             // emit a degenerated quad
             // TODO: maybe remove this and count 'actual' characters
         }
 
 
-        vec3 bufferPosition = vec3(position.x + info.offset.x, position.y + info.offset.y, 0);
+        vec3 bufferPosition = vec3(position[0] + info.offset[0], position[1] + info.offset[1], 0);
 
-        //        cout << "bufferPosition '"<<(char)c<<"' " << bufferPosition << " " << info.offset.y << endl;
+        //        cout << "bufferPosition '"<<(char)c<<"' " << bufferPosition << " " << info.offset[1] << endl;
 
         // bottom left
-        verts[0] = VertexNT(bufferPosition, vec3(0, 0, 1), vec2(info.tcMin.x, info.tcMax.y));
+        verts[0] = VertexNT(bufferPosition, vec3(0, 0, 1), vec2(info.tcMin[0], info.tcMax[1]));
         // bottom right
-        verts[1] = VertexNT(bufferPosition + vec3(info.size.x, 0, 0), vec3(0, 0, 1), vec2(info.tcMax.x, info.tcMax.y));
+        verts[1] = VertexNT(bufferPosition + vec3(info.size[0], 0, 0), vec3(0, 0, 1), vec2(info.tcMax[0], info.tcMax[1]));
         // top right
-        verts[2] = VertexNT(bufferPosition + vec3(info.size.x, info.size.y, 0), vec3(0, 0, 1),
-                            vec2(info.tcMax.x, info.tcMin.y));
+        verts[2] = VertexNT(bufferPosition + vec3(info.size[0], info.size[1], 0), vec3(0, 0, 1),
+                            vec2(info.tcMax[0], info.tcMin[1]));
         // top left
-        verts[3] = VertexNT(bufferPosition + vec3(0, info.size.y, 0), vec3(0, 0, 1), vec2(info.tcMin.x, info.tcMin.y));
+        verts[3] = VertexNT(bufferPosition + vec3(0, info.size[1], 0), vec3(0, 0, 1), vec2(info.tcMin[0], info.tcMin[1]));
 
         mesh.addQuad(verts);
 
         position += info.advance;
-        position.x += textureAtlas->additionalCharacterSpacing;
+        position[0] += textureAtlas->additionalCharacterSpacing;
     }
 }
 

@@ -127,11 +127,11 @@ void DirectionalLight::setDirection(const vec3& dir)
 
 
     mat3 m;
-    m[0] = right;
-    m[1] = up;
-    m[2] = d;
+    col(m, 0) = right;
+    col(m, 1) = up;
+    col(m, 2) = d;
 
-    vec3 cp = vec3(0);
+    vec3 cp = make_vec3(0);
 
     this->shadowCamera.setPosition(cp);
 
@@ -160,9 +160,9 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
 
     vec3 increase(0,0,5.0);
 
-    float xDiff = 2.0f * length(obb.orientationScale[0]) + increase.x;
-    float yDiff = 2.0f * length(obb.orientationScale[1]) + increase.y;
-    float zDiff = 2.0f * length(obb.orientationScale[2]) + increase.z;
+    float xDiff = 2.0f * length(obb.orientationScale[0]) + increase[0];
+    float yDiff = 2.0f * length(obb.orientationScale[1]) + increase[1];
+    float zDiff = 2.0f * length(obb.orientationScale[2]) + increase[2];
 
     shadowNearPlane = 0;
     this->cam.setProj(
@@ -207,9 +207,9 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
             // compute bounding sphere for cascade
 
             //        vec3 d = -vec3(cam->model[2]);
-            vec3 right = vec3(cam->model[0]);
-            vec3 up    = vec3(cam->model[1]);
-            vec3 dir   = -vec3(cam->model[2]);
+            vec3 right = make_vec3(col(cam->model, 0));
+            vec3 up    = make_vec3(col(cam->model, 1));
+            vec3 dir   = -make_vec3(col(cam->model, 2));
 
 
             float zNear = depthCuts[c] - cascadeInterpolateRange;
@@ -252,16 +252,16 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
         vec3 smsize = vec3(shadowmap->getSize(), 128468);
 
         vec3 texelSize;
-        //    texelSize.x = 2.0f * r / shadowmap.w;
-        //    texelSize.y = 2.0f * r / shadowmap.h;
-        //    texelSize.z = 0.0001f;
+        //    texelSize[0] = 2.0f * r / shadowmap.w;
+        //    texelSize[1] = 2.0f * r / shadowmap.h;
+        //    texelSize[2] = 0.0001f;
         texelSize = 2.0f * r / smsize;
 
         // project the position of the actual camera to light space
         vec3 p = boundingSphere.pos;
         mat3 v = mat3(this->shadowCamera.view);
         vec3 t = v * p - v * lightPos;
-        t.z    = -t.z;
+        t[2]   = -t[2];
 
 
 
@@ -271,22 +271,23 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
 #    if 1
         {
             // move camera in texel size increments
-            orthoBox.min /= texelSize;
+            orthoBox.min = ele_div(orthoBox.min, texelSize);
             orthoBox.min = floor(orthoBox.min);
-            orthoBox.min *= texelSize;
+            orthoBox.min = ele_mult(orthoBox.min, texelSize);
 
-            orthoBox.max /= texelSize;
+            //            orthoBox.max /= texelSize;
+            orthoBox.max = ele_div(orthoBox.max, texelSize);
             orthoBox.max = floor(orthoBox.max);
-            orthoBox.max *= texelSize;
+            orthoBox.max = ele_mult(orthoBox.max, texelSize);
         }
 #    endif
     }
 
     //    this->cam.setProj(orthoBox);
     //    this->cam.setProj(
-    //                orthoMin.x ,orthoMax.x,
-    //                orthoMin.y ,orthoMax.y,
-    //                orthoMin.z ,orthoMax.z
+    //                orthoMin[0] ,orthoMax[0],
+    //                orthoMin[1] ,orthoMax[1],
+    //                orthoMin[2] ,orthoMax[2]
     //                );
 
 
@@ -304,8 +305,8 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
 
 void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
 {
-    //    vec3 orthoMin(cam.left,cam.bottom,cam.zNear);
-    //    vec3 orthoMax(cam.right,cam.top,cam.zFar);
+    //    vec3 orthoMin(cam.left,cam.bottom,cam[2]Near);
+    //    vec3 orthoMax(cam.right,cam.top,cam[2]Far);
 
 
     for (auto& orthoBox : orthoBoxes)
@@ -321,7 +322,7 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
         {
             for (auto& v : p)
             {
-                v = vec3(this->shadowCamera.view * vec4(v, 1));
+                v = make_vec3(this->shadowCamera.view * make_vec4(v, 1));
             }
         }
 
@@ -329,11 +330,11 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
         // clip triangles of scene AABB to the 4 side planes of the frustum
         for (auto& p : trisp)
         {
-            p = Clipping::clipPolygonAxisAlignedPlane(p, 0, orthoBox.min.x, true);
-            p = Clipping::clipPolygonAxisAlignedPlane(p, 0, orthoBox.max.x, false);
+            p = Clipping::clipPolygonAxisAlignedPlane(p, 0, orthoBox.min[0], true);
+            p = Clipping::clipPolygonAxisAlignedPlane(p, 0, orthoBox.max[0], false);
 
-            p = Clipping::clipPolygonAxisAlignedPlane(p, 1, orthoBox.min.y, true);
-            p = Clipping::clipPolygonAxisAlignedPlane(p, 1, orthoBox.max.y, false);
+            p = Clipping::clipPolygonAxisAlignedPlane(p, 1, orthoBox.min[1], true);
+            p = Clipping::clipPolygonAxisAlignedPlane(p, 1, orthoBox.max[1], false);
         }
 
         float maxZ = -12057135;
@@ -343,8 +344,8 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
         {
             for (auto& v : p)
             {
-                minZ = std::min(minZ, v.z);
-                maxZ = std::max(maxZ, v.z);
+                minZ = std::min(minZ, v[2]);
+                maxZ = std::max(maxZ, v[2]);
             }
         }
 
@@ -353,18 +354,18 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
         maxZ = -maxZ;
 
         //    cout << "min max Z " << minZ << " " << maxZ << endl;
-        //    cout << "ortho min max Z " << orthoMin.z << " " << orthoMax.z << endl;
+        //    cout << "ortho min max Z " << orthoMin[2] << " " << orthoMax[2] << endl;
 
 
-        orthoBox.min.z = minZ;
-        orthoBox.max.z = maxZ;
+        orthoBox.min[2] = minZ;
+        orthoBox.max[2] = maxZ;
     }
 
     //    this->cam.setProj(orthoBox);
     //    this->cam.setProj(
-    //                orthoMin.x ,orthoMax.x,
-    //                orthoMin.y ,orthoMax.y,
-    //                orthoMin.z ,orthoMax.z
+    //                orthoMin[0] ,orthoMax[0],
+    //                orthoMin[1] ,orthoMax[1],
+    //                orthoMin[2] ,orthoMax[2]
     //                );
 }
 
@@ -374,7 +375,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader& shader, Camera* cam)
     shader.uploadColorSpecular(colorSpecular);
     shader.uploadAmbientIntensity(ambientIntensity);
 
-    vec3 viewd = -normalize(vec3(cam->view * vec4(direction, 0)));
+    vec3 viewd = -normalize(make_vec3(cam->view * make_vec4(direction, 0)));
     shader.uploadDirection(viewd);
 
     mat4 ip = inverse(cam->proj);
@@ -382,7 +383,8 @@ void DirectionalLight::bindUniforms(DirectionalLightShader& shader, Camera* cam)
 
     if (this->hasShadows())
     {
-        const mat4 biasMatrix(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
+        const mat4 biasMatrix =
+            make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
         std::vector<mat4> viewToLight(numCascades);
 
         for (int i = 0; i < numCascades; ++i)

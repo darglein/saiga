@@ -16,17 +16,51 @@ template <typename T>
 struct SAIGA_TEMPLATE MatchingFloatType
 {
     using FloatType = T;
+    static inline FloatType convert(const T& t) { return FloatType(t); }
+    static inline T convertBack(const FloatType& t) { return T(t); }
 };
 
 template <>
 struct MatchingFloatType<ucvec3>
 {
     using FloatType = vec3;
+    static inline FloatType convert(const ucvec3& t)
+    {
+#ifdef SAIGA_FULL_EIGEN
+        return t.cast<float>();
+#else
+        return FloatType(t);
+#endif
+    }
+    static inline ucvec3 convertBack(const FloatType& t)
+    {
+#ifdef SAIGA_FULL_EIGEN
+        return t.cast<unsigned char>();
+#else
+        return FloatType(t);
+#endif
+    }
 };
 template <>
 struct MatchingFloatType<ucvec4>
 {
     using FloatType = vec4;
+    static inline FloatType convert(const ucvec4& t)
+    {
+#ifdef SAIGA_FULL_EIGEN
+        return t.cast<float>();
+#else
+        return FloatType(t);
+#endif
+    }
+    static inline ucvec4 convertBack(const FloatType& t)
+    {
+#ifdef SAIGA_FULL_EIGEN
+        return t.cast<unsigned char>();
+#else
+        return FloatType(t);
+#endif
+    }
 };
 
 
@@ -56,15 +90,21 @@ struct SAIGA_TEMPLATE TexelFloatConverter
     using ITT       = ImageTypeTemplate<T>;
     using TexelType = T;
     using NS        = NormalizeScale<typename ITT::ChannelType>;
+    using Converter = MatchingFloatType<T>;
     using FloatType = typename MatchingFloatType<T>::FloatType;
 
 
-    FloatType toFloat(TexelType t) { return normalize ? FloatType(t) / NS::scale : FloatType(t); }
+    FloatType toFloat(TexelType t)
+    {
+        auto f = Converter::convert(t);
+        return normalize ? f * (1.0f / NS::scale) : f;
+    }
 
     TexelType fromFloat(FloatType f)
     {
-        //        return TexelType(f);
-        return normalize ? TexelType(f * NS::scale) : TexelType(f);
+        auto t = Converter::convertBack(f);
+        if (normalize) t *= NS::scale;
+        return t;
     }
 };
 

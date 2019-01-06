@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/util/assert.h"
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -36,73 +37,123 @@ using ucvec2 = Eigen::Matrix<unsigned char, 2, 1>;
 using ucvec3 = Eigen::Matrix<unsigned char, 3, 1>;
 using ucvec4 = Eigen::Matrix<unsigned char, 4, 1>;
 
-namespace Saiga
-{
+
 #define IDENTITY_QUATERNION quat::Identity()
 
-inline vec3 ele_mult(vec3 a, vec3 b)
+inline vec2 ele_mult(vec2 a, vec2 b)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return a;
 }
 
+inline vec3 ele_mult(vec3 a, vec3 b)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return a;
+}
+
+inline vec4 ele_mult(vec4 a, vec4 b)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return a;
+}
+
+inline vec3 ele_div(vec3 a, vec3 b)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return a;
+}
+
+// inline float round(float a)
+//{
+//    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+//    return a;
+//}
+
 inline vec4 round(vec4 a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return a;
+}
+
+inline vec3 floor(vec3 a)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return a;
+}
+
+inline vec3 operator/(float a, vec3 b)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return b;
 }
 
 inline vec3 fract(vec3 a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return a;
 }
-inline float abs(float a)
-{
-    return a;
-}
+// inline float abs(float a)
+//{
+//    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+//    return a;
+//}
 inline vec3 abs(vec3 a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return a;
 }
 inline vec3 clamp(vec3 a, vec3 b, vec3 c)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return a;
 }
 inline vec4 make_vec4(float x, float y, float z, float w)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec4();
 }
 
 inline vec4 make_vec4(const vec3& v, float a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec4();
 }
 inline vec3 make_vec3(const vec2& v, float a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec3();
 }
 
 inline vec4 make_vec4(float a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec4();
 }
 inline vec3 make_vec3(float a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec3();
 }
 inline vec3 make_vec3(vec4 a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec3();
 }
 inline vec2 make_vec2(float a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec2();
 }
 inline vec2 make_vec2(vec3 a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec2();
 }
 
 inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return ucvec4();
 }
 
@@ -113,39 +164,46 @@ inline quat make_quat(float x, float y, float z, float w)
 
 inline quat make_quat(const mat4& m)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return IDENTITY_QUATERNION;
 }
 
 inline quat angleAxis(float angle, vec3 axis)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return quat();
 }
 
 inline vec4 quat_to_vec4(quat q)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return q.coeffs();
 }
 
 inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20,
                       float a21, float a22, float a23, float a30, float a31, float a32, float a33)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return mat4();
 }
 
 inline mat4 make_mat4(mat3 m)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return mat4();
 }
 
 
 inline mat4 make_mat4(quat q)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return mat4();
 }
 
 
 inline mat3 make_mat3(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return mat3();
 }
 
@@ -199,16 +257,22 @@ inline vec3 col(const mat3& m, int id)
 inline auto col(mat4& m, int id)
 {
     return m.col(id);
-    //    return m.block(0, 0, 4, 1);
 }
 
 inline quat quat_cast(const mat3& m)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return quat();
 }
 inline quat quat_cast(const mat4& m)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return quat();
+}
+
+inline float length(const vec2& v)
+{
+    return v.norm();
 }
 
 inline float length(const vec3& v)
@@ -221,16 +285,31 @@ inline quat inverse(const quat& q)
     return q.inverse();
 }
 
+
+inline mat4 rotate(float angle, vec3 axis)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return mat4();
+}
+
 inline quat rotate(const quat& q, float angle, vec3 axis)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return q;
 }
 inline mat4 translate(const mat4& m, vec3 t)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return m;
+}
+inline mat4 translate(vec3 t)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return mat4();
 }
 inline mat4 scale(const mat4& m, vec3 t)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return m;
 }
 
@@ -242,7 +321,7 @@ SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec
     //    mat4 S = scale(mat4(1),vec3(s));
     //    return T * R * S;
 
-
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return mat4::Identity();
 }
 
@@ -275,19 +354,23 @@ inline quat slerp(const quat& a, const quat& b, float alpha)
 
 inline mat4 lookAt(vec3 eye, vec3 center, vec3 up)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return mat4();
 }
 inline mat4 perspective(float a, float b, float c, float d)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return mat4();
 }
 inline mat4 ortho(float a, float b, float c, float d, float e, float f)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return mat4();
 }
 
 inline float distance(vec3 a, vec3 b)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return 0;
 }
 
@@ -298,39 +381,30 @@ auto inverse(const T& m)
 }
 
 
-
-inline std::ostream& operator<<(std::ostream& os, const quat& v)
-{
-    return os;
-}
-
-inline std::istream& operator>>(std::istream& is, vec2& v)
-{
-    return is;
-}
-inline std::istream& operator>>(std::istream& is, vec3& v)
-{
-    return is;
-}
-inline std::istream& operator>>(std::istream& is, vec4& v)
-{
-    return is;
-}
-
 inline float linearRand(float low, float high)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return 0;
+}
+
+
+inline vec3 linearRand(vec3 low, vec3 high)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return low;
 }
 
 
 inline vec2 diskRand(float radius)
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return vec2();
 }
 
 template <typename T>
 T epsilon()
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return T(0);
 }
 
@@ -338,13 +412,101 @@ T epsilon()
 template <typename T>
 T pi()
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return T(0);
 }
 
 template <typename T>
 T two_pi()
 {
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
     return T(0);
+}
+
+inline quat rotation(vec3 a, vec3 b)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return quat();
+}
+
+
+template <typename _Scalar, int _Rows, int _Cols>
+_Scalar* data(Eigen::Matrix<_Scalar, _Rows, _Cols>& M)
+{
+    return M.data();
+}
+
+template <typename _Scalar, int _Rows, int _Cols>
+const _Scalar* data(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M)
+{
+    return M.data();
+}
+
+
+namespace Saiga
+{
+inline std::ostream& operator<<(std::ostream& os, const quat& v)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return os;
+}
+
+inline std::istream& operator>>(std::istream& is, vec2& v)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return is;
+}
+inline std::istream& operator>>(std::istream& is, vec3& v)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return is;
+}
+inline std::istream& operator>>(std::istream& is, vec4& v)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return is;
+}
+
+inline std::string to_string(const mat3& m)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return "";
+}
+inline std::string to_string(const mat4& m)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return "";
+}
+inline std::string to_string(const vec3& m)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return "";
+}
+inline std::string to_string(const vec4& m)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return "";
+}
+
+inline mat3 mat3FromString(const std::string& str)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return mat3();
+}
+inline mat4 mat4FromString(const std::string& str)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return mat4();
+}
+inline vec3 vec3FromString(const std::string& str)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return vec3();
+}
+inline vec4 vec4FromString(const std::string& str)
+{
+    SAIGA_EXIT_ERROR("Use of an unimplemented function!");
+    return vec4();
 }
 
 }  // namespace Saiga

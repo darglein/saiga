@@ -155,7 +155,7 @@ void fpTest(float x)
         cout << "Integration test: "
              << ((fToUint(pos[0]) == refx) && (fToUint(pos[1]) == refy) && (fToUint(pos[2]) == refz) ? "Success" : "Fail")
              << endl;
-        //        cout << hex << fToUint(pos.x) << " " << fToUint(pos.y)<< " " << fToUint(pos.z)  << endl;
+        //        cout << hex << fToUint(pos[0]) << " " << fToUint(pos[1])<< " " << fToUint(pos[2])  << endl;
     }
 
 
