@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
     //    sparseMatrixVector();
     //    sparseRectangularMatrixVector();
 
-    //    testBlockCholesky();
+    testBlockCholesky();
     testSparseBlockCholesky();
     return 0;
 }

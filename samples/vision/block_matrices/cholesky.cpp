@@ -13,6 +13,7 @@
 #include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 
 using Block  = Eigen::Matrix<double, 2, 2>;
@@ -109,61 +110,6 @@ Eigen::Matrix<_Scalar, _Rows, 1> solveLDLT(const Eigen::Matrix<_Scalar, _Rows, _
 }
 
 
-template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
-Eigen::Matrix<_Scalar2, _Rows, 1> forwardSubstituteDiagOne(const Eigen::Matrix<_Scalar, _Rows, _Cols>& A,
-                                                           const Eigen::Matrix<_Scalar2, _Rows, 1>& b)
-{
-    // solve Ax=b
-    // with A triangular block matrix where diagonal elements are 1.
-    Eigen::Matrix<_Scalar2, _Rows, 1> x;
-    for (int i = 0; i < _Rows; ++i)
-    {
-        _Scalar2 sum = AdditiveNeutral<_Scalar2>::get();
-        for (int j = 0; j < i; ++j)
-        {
-            sum += A(i, j) * x(j);
-        }
-        x(i) = b(i) - sum;
-    }
-
-#if 1
-    // Test if (Ax-b)==0
-    double test =
-        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
-    cout << "error forwardSubstituteDiagOne: " << test << endl;
-#endif
-    return x;
-}
-
-
-template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
-Eigen::Matrix<_Scalar2, _Rows, 1> backwardSubstituteDiagOneTranspose(const Eigen::Matrix<_Scalar, _Rows, _Cols>& A,
-                                                                     const Eigen::Matrix<_Scalar2, _Rows, 1>& b)
-{
-    // solve Ax=b
-    // with A triangular block matrix where diagonal elements are 1.
-    Eigen::Matrix<_Scalar2, _Rows, 1> x;
-    for (int i = _Rows - 1; i >= 0; --i)
-    {
-        _Scalar2 sum = AdditiveNeutral<_Scalar2>::get();
-        for (int j = i + 1; j < _Rows; ++j)
-        {
-            sum += A(j, i).transpose() * x(j);
-        }
-        x(i) = b(i) - sum;
-    }
-
-    cout << fixedBlockMatrixToMatrix(x) << endl << endl;
-#if 1
-    // Test if (Ax-b)==0
-    double test = (fixedBlockMatrixToMatrix(A).transpose() * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b))
-                      .squaredNorm();
-    cout << "error backwardSubstituteDiagOneTranspose: " << test << endl;
-#endif
-    return x;
-}
-
-
 
 template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
 Eigen::Matrix<_Scalar2, _Rows, 1> solveLDLT2(const Eigen::Matrix<_Scalar, _Rows, _Cols>& A,
@@ -201,7 +147,7 @@ Eigen::Matrix<_Scalar2, _Rows, 1> solveLDLT2(const Eigen::Matrix<_Scalar, _Rows,
         Dinv.diagonal()(i) = D.diagonal()(i).get().inverse();
     }
 
-    z = forwardSubstituteDiagOne(L, b);
+    z = forwardSubstituteDiagOne2(L, b);
     y = multDiagVector(Dinv, z);
     x = backwardSubstituteDiagOneTranspose(L, y);
 

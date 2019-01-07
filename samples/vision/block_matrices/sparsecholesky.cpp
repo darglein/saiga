@@ -11,6 +11,7 @@
 #include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 
@@ -25,17 +26,18 @@ using namespace Saiga;
 
 namespace Saiga
 {
-template <typename _Scalar, int _Rows>
-Eigen::Matrix<_Scalar, _Rows, 1> solveSparseLDLT(const Eigen::SparseMatrix<_Scalar, Eigen::RowMajor>& A,
-                                                 const Eigen::Matrix<_Scalar, _Rows, 1>& b)
+template <typename _Scalar, typename _Scalar2>
+Eigen::Matrix<_Scalar2, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<_Scalar, Eigen::RowMajor>& A,
+                                               const Eigen::Matrix<_Scalar2, -1, 1>& b)
 {
+    auto _Rows = A.rows();
+
     //    Eigen::Matrix<_Scalar, _Rows, _Cols> L;
     Eigen::SparseMatrix<_Scalar, Eigen::RowMajor> L(A.rows(), A.cols());
-    Eigen::DiagonalMatrix<_Scalar, _Rows> D;
-    Eigen::DiagonalMatrix<_Scalar, _Rows> Dinv;
-    Eigen::Matrix<_Scalar, _Rows, 1> x, y, z;
+    Eigen::DiagonalMatrix<_Scalar, -1> D(_Rows);
+    Eigen::DiagonalMatrix<_Scalar, -1> Dinv(_Rows);
+    Eigen::Matrix<_Scalar2, -1, 1> x(_Rows), y(_Rows), z(_Rows);
 
-    //    auto cols = A.cols();
 
     for (int i = 0; i < A.outerSize(); ++i)
     {
@@ -58,6 +60,7 @@ Eigen::Matrix<_Scalar, _Rows, 1> solveSparseLDLT(const Eigen::SparseMatrix<_Scal
             {
                 if (Li.col() == Lj.col())
                 {
+                    // TODO transpose
                     sum += Li.value() * D.diagonal()(Li.col()) * Lj.value();
                     ++Li;
                     ++Lj;
@@ -92,38 +95,13 @@ Eigen::Matrix<_Scalar, _Rows, 1> solveSparseLDLT(const Eigen::SparseMatrix<_Scal
     }
 
 
-#if 0
-    // compute L
-    for (int i = 0; i < _Rows; i++)
-    {
-        // compute Dj
-        _Scalar sumd = AdditiveNeutral<_Scalar>::get();
-
-        for (int j = 0; j < i; ++j)
-        {
-            // compute all l's for this row
-
-            _Scalar sum = AdditiveNeutral<_Scalar>::get();
-            for (int k = 0; k < j; ++k)
-            {
-                sum += L(i, k) * L(j, k) * D.diagonal()(k);
-            }
-            L(i, j) = Dinv.diagonal()(j) * (A(i, j) - sum);
-            L(j, i) = AdditiveNeutral<_Scalar>::get();
-            sumd += L(i, j) * L(i, j) * D.diagonal()(j);
-        }
-        L(i, i)            = MultiplicativeNeutral<_Scalar>::get();
-        D.diagonal()(i)    = A(i, i) - sumd;
-        Dinv.diagonal()(i) = InverseSymmetric<_Scalar>::get(D.diagonal()(i));
-    }
-#endif
-
-    //    cout << L << endl << endl;
 
     // forward / backward substituion
-    z = L.template triangularView<Eigen::Lower>().solve(b);
-    y = Dinv * z;
-    x = L.transpose().template triangularView<Eigen::Upper>().solve(y);
+    //    z = L.template triangularView<Eigen::Lower>().solve(b);
+    z = forwardSubstituteDiagOne2(L, b);
+    y = multDiagVector(Dinv, z);
+    x = backwardSubstituteDiagOneTranspose2(L, y);
+    //    x = L.transpose().template triangularView<Eigen::Upper>().solve(y);
 
     return x;
 }
@@ -133,19 +111,23 @@ void testSparseBlockCholesky()
 {
     cout << "testSparseBlockCholesky" << endl;
     using CompleteMatrix = Eigen::SparseMatrix<double, Eigen::RowMajor>;
-    using CompleteVector = Eigen::Matrix<double, 4, 1>;
+    using CompleteVector = Eigen::Matrix<double, -1, 1>;
 
 
 
-    CompleteMatrix A(4, 4);
-    CompleteVector x;
-    CompleteVector b;
+    CompleteMatrix A(6, 6);
+    CompleteVector x(6);
+    CompleteVector b(6);
+    b = CompleteVector::Random(6);
 
+    Eigen::SparseMatrix<MatrixScalar<Block>, Eigen::RowMajor> bA(3, 3);
+    Eigen::Matrix<MatrixScalar<Vector>, -1, 1> bx(3), bb(3);
 
-    CompleteVector t = CompleteVector::Random();
-    auto Adense      = (t * t.transpose()).eval();
-    Adense(1, 0)     = 0;
-    Adense(0, 1)     = 0;
+    CompleteVector t         = CompleteVector::Random(6);
+    auto Adense              = (t * t.transpose()).eval();
+    Adense.block(2, 0, 2, 2) = Block::Zero();
+    Adense.block(0, 2, 2, 2) = Block::Zero();
+    Adense.diagonal() += CompleteVector::Ones(6);
 
     for (auto i = 0; i < Adense.rows(); ++i)
     {
@@ -154,8 +136,23 @@ void testSparseBlockCholesky()
             if (Adense(i, j) != 0) A.insert(i, j) = Adense(i, j);
         }
     }
-    b = CompleteVector::Random();
-    A.diagonal() += CompleteVector::Ones();
+
+    for (auto i = 0; i < bA.rows(); ++i)
+    {
+        for (auto j = 0; j < bA.cols(); ++j)
+        {
+            if ((i == 1 && j == 0) || (i == 0 && j == 1)) continue;
+            bA.insert(i, j) = Adense.block(i * 2, j * 2, 2, 2);
+        }
+        bb(i) = b.segment(i * 2, 2);
+    }
+#if 1
+    //        cout << Adense << endl << endl;
+    cout << A.toDense() << endl << endl;
+    cout << blockMatrixToMatrix(bA.toDense()) << endl << endl;
+    cout << b << endl << endl;
+    cout << blockVectorToVector(bb) << endl << endl;
+#endif
 
 
     cout << "non zeros: " << A.nonZeros() << endl;
@@ -171,6 +168,13 @@ void testSparseBlockCholesky()
 
     {
         x = solveSparseLDLT(A, b);
+        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl;
+    }
+
+    {
+        bx = solveSparseLDLT(bA, bb);
+        x  = blockVectorToVector(bx);
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
