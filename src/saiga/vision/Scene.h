@@ -169,6 +169,8 @@ class SAIGA_GLOBAL Scene
     void addImagePointNoise(double stddev);
     void addExtrinsicNoise(double stddev);
 
+    void sortByWorldPointId();
+
     // Computes the median point from all valid world points
     Vec3 medianWorldPoint();
 

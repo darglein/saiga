@@ -33,6 +33,8 @@ struct MatrixScalar
         return *this;
     }
 
+    ScalarType transpose() const { return {data.transpose()}; }
+
 
     ScalarType operator-() const { return {-data}; }
     ScalarType operator+(const ScalarType& other) const { return {data + other.data}; }
@@ -45,11 +47,7 @@ struct MatrixScalar
     //    }
 
     void operator+=(const ScalarType& other) { data += other.data; }
-    void operator-=(const ScalarType& other)
-    {
-        SAIGA_ASSERT(0);
-        data -= other.data;
-    }
+    void operator-=(const ScalarType& other) { data -= other.data; }
 
     // scalar product
     ScalarType operator*(const Scalar& other) const { return {data * other}; }
@@ -151,6 +149,7 @@ auto fixedBlockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, n, m
     }
     return dense;
 }
+
 
 
 }  // namespace Saiga

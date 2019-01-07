@@ -345,6 +345,17 @@ void Scene::addExtrinsicNoise(double stddev)
     }
 }
 
+void Scene::sortByWorldPointId()
+{
+    for (auto& img : images)
+    {
+        std::sort(img.monoPoints.begin(), img.monoPoints.end(),
+                  [](const MonoImagePoint& i1, const MonoImagePoint& i2) { return i1.wp < i2.wp; });
+    }
+    fixWorldPointReferences();
+    SAIGA_ASSERT(valid());
+}
+
 Vec3 Scene::medianWorldPoint()
 {
     std::vector<double> mx, my, mz;
@@ -417,7 +428,7 @@ bool Scene::imgui()
         changed = true;
     }
 
-    static float sigma = 0.1;
+    static float sigma = 0.01;
     ImGui::InputFloat("sigma", &sigma);
 
 

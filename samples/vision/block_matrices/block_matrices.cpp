@@ -10,6 +10,7 @@
 #include "saiga/vision/VisionIncludes.h"
 
 #include "Eigen/Sparse"
+#include "cholesky.h"
 
 using namespace Saiga;
 
@@ -217,10 +218,12 @@ void sparseRectangularMatrixVector()
 
 int main(int argc, char* argv[])
 {
-    testMatrixMatrixOperations();
-    testMatrixVectorOperations();
-    sparseMatrixVector();
-    sparseRectangularMatrixVector();
+    //    testMatrixMatrixOperations();
+    //    testMatrixVectorOperations();
+    //    sparseMatrixVector();
+    //    sparseRectangularMatrixVector();
 
+    //    testBlockCholesky();
+    testSparseBlockCholesky();
     return 0;
 }

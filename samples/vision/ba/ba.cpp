@@ -19,6 +19,7 @@
 #include "saiga/vision/g2o/g2oBA2.h"
 
 #include "BAPoseOnly.h"
+#include "BARecursive.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
@@ -144,6 +145,7 @@ void VulkanExample::renderGUI()
         Saiga::BALDataset bald(datasets[currentItem]);
         scene = bald.makeScene();
         scene.compress();
+        scene.sortByWorldPointId();
         change = true;
     }
 
@@ -195,10 +197,10 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
-    if (ImGui::Button("sba paper"))
+    if (ImGui::Button("sba recursive"))
     {
-        Saiga::BAPoseOnly ba;
-        ba.sbaPaper(scene, its);
+        Saiga::BARec ba;
+        ba.solve(scene, its);
         change = true;
     }
 
