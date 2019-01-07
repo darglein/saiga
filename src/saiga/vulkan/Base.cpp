@@ -23,9 +23,16 @@ void VulkanBase::destroy()
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
 
+    if (compute_queue)
+    {
+        compute_queue->destroy();
+    }
+    if (transfer_queue)
+    {
+        transfer_queue->destroy();
+    }
     mainQueue.destroy();
-    computeQueue.destroy();
-    transferQueue.destroy();
+
     descriptorPool.destroy();
 
     memory.destroy();
@@ -68,11 +75,13 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
         std::make_pair(transfer_idx, queueCounts[transfer_idx] % queueFamilyProperties[transfer_idx].queueCount);
     queueCounts[transfer_idx]++;
 
-    if (main_queue_info == compute_info) {
+    if (main_queue_info == compute_info)
+    {
         LOG(WARNING) << "Main queue and compute queue are the same";
     }
 
-    if (main_queue_info == transfer_info) {
+    if (main_queue_info == transfer_info)
+    {
         LOG(WARNING) << "Main queue and transfer queue are the same";
     }
 
@@ -168,10 +177,28 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
 
     mainQueue.create(device, main_queue_info.first, main_queue_info.second, vk::CommandPoolCreateFlagBits::eTransient);
 
-    computeQueue.create(device, compute_info.first, compute_info.second);
+    if (main_queue_info != compute_info)
+    {
+        compute_queue = std::make_unique<Saiga::Vulkan::Queue>();
+        compute_queue->create(device, compute_info.first, compute_info.second);
+        computeQueue = compute_queue.get();
+    }
+    else
+    {
+        computeQueue = &mainQueue;
+    }
 
-    transferQueue.create(device, transfer_info.first, transfer_info.second);
+    if (main_queue_info != compute_info)
+    {
+        transfer_queue = std::make_unique<Saiga::Vulkan::Queue>();
 
+        transfer_queue->create(device, transfer_info.first, transfer_info.second);
+        transferQueue = transfer_queue.get();
+    }
+    else
+    {
+        transferQueue = &mainQueue;
+    }
     descriptorPool.create(
         device, parameters.maxDescriptorSets,
         {
