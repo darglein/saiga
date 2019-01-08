@@ -29,6 +29,8 @@ class SAIGA_GLOBAL Queue
     void destroy();
 
     vk::Fence submit(vk::CommandBuffer cmd);
+
+    void submit(vk::SubmitInfo submitInfo, vk::Fence fence);
     void submitAndWait(vk::CommandBuffer cmd);
 
     operator vk::Queue() const { return queue; }

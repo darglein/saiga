@@ -89,6 +89,12 @@ CommandPool Queue::createCommandPool(vk::CommandPoolCreateFlags commandPoolCreat
     return newCommandPool;
 }
 
+void Queue::submit(vk::SubmitInfo submitInfo, vk::Fence fence)
+{
+    submitMutex.lock();
+    queue.submit(submitInfo, fence);
+    submitMutex.unlock();
+}
 
 
 }  // namespace Vulkan
