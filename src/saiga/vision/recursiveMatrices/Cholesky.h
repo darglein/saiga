@@ -65,9 +65,10 @@ void DenseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
                 sum += L(i, k) * D.diagonal()(k) * transpose(L(j, k));
             }
 
-            L(i, j) = (A(i, j) - sum) * Dinv.diagonal()(j);
-            //            L(j, i) = AdditiveNeutral<MatrixScalar>::get();
-            sumd += L(i, j) * D.diagonal()(j) * transpose(L(i, j));
+            sum     = A(i, j) - sum;
+            sum     = sum * Dinv.diagonal()(j);
+            L(i, j) = sum;
+            sumd += sum * D.diagonal()(j) * transpose(sum);
         }
         //        L(i, i)            = MultiplicativeNeutral<MatrixScalar>::get();
         D.diagonal()(i)    = A(i, i) - sumd;

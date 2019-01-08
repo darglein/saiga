@@ -79,6 +79,18 @@ struct ExpandImpl
     //    static_assert(false, "No viable spezialization found!");
 };
 
+template <>
+struct ExpandImpl<double>
+{
+    using Scalar = double;
+    static ExpansionType<Scalar> get(const double& m)
+    {
+        ExpansionType<Scalar> A(1, 1);
+        A(0, 0) = m;
+        return A;
+    }
+};
+
 template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
 struct ExpandImpl<Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {

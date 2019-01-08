@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/util/assert.h"
+#include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
@@ -33,10 +34,9 @@ VectorType forwardSubstituteDiagOne2(const MatrixType& A, const VectorType& b)
         x(i) = b(i) - sum;
     }
 
-#if 0
+#if 1
     // Test if (Ax-b)==0
-    double test =
-        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
+    double test = (expand(A.toDense()) * expand(x) - expand(b)).squaredNorm();
     cout << "error forwardSubstituteDiagOne: " << test << endl;
 #endif
     return x;
@@ -72,14 +72,13 @@ VectorType backwardSubstituteDiagOneTranspose2(const MatrixType& A, const Vector
         }
     }
 
-#if 0
+#if 1
     // Test if (Ax-b)==0
-    double test = ((A.toDense()).transpose() * (x) - (b)).squaredNorm();
-    cout << A.transpose() << endl << endl;
-    cout << x << endl << endl;
-    cout << b << endl << endl;
-    //    double test =
-    //        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
+    double test = (expand(A.toDense()).transpose() * expand(x) - expand(b)).squaredNorm();
+    //    cout << A.transpose() << endl << endl;
+    //    cout << x << endl << endl;
+    //    cout << b << endl << endl;
+
     cout << "error backwardSubstituteDiagOneTranspose2: " << test << endl;
 #endif
     return x;

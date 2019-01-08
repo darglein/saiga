@@ -9,5 +9,7 @@
 namespace Saiga
 {
 void testBlockCholesky();
+void perfTestDenseCholesky();
 void testSparseBlockCholesky();
+void perfTestSparseCholesky();
 }  // namespace Saiga

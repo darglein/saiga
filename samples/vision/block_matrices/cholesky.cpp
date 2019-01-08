@@ -184,7 +184,7 @@ void testBlockCholesky()
     using CompleteMatrix = Eigen::Matrix<double, 4, 4>;
     using CompleteVector = Eigen::Matrix<double, 4, 1>;
 
-
+    return;
 
     CompleteMatrix A;
     CompleteVector x;
@@ -271,6 +271,80 @@ void testBlockCholesky()
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
+}
+
+void perfTestDenseCholesky()
+{
+    cout << "perfTestDenseCholesky" << endl;
+
+    const int bn = 4;
+    const int bm = 4;
+
+    int n = 300;
+    int m = 300;
+
+    using Block  = Eigen::Matrix<double, bn, bm, Eigen::RowMajor>;
+    using Vector = Eigen::Matrix<double, bn, 1>;
+
+
+    using CompleteMatrix = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
+    using CompleteVector = Eigen::Matrix<double, -1, 1>;
+
+
+
+    CompleteMatrix A(n * bn, m * bm);
+    CompleteVector x(n * bn);
+    CompleteVector b(n * bn);
+
+
+    CompleteVector t = CompleteVector::Random(n * bn);
+    A                = t * t.transpose();
+    b                = CompleteVector::Random(n * bn);
+    A.diagonal() += CompleteVector::Ones(n * bn);
+
+    Eigen::Matrix<MatrixScalar<Block>, -1, -1> bA(n, m);
+    Eigen::Matrix<MatrixScalar<Vector>, -1, 1> bx(n), bb(n);
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = 0; j < m; ++j)
+        {
+            bA(i, j) = A.block(i * bn, j * bm, bn, bm);
+        }
+        bb(i) = b.segment(i * bn, bn);
+    }
+
+    // Solve Ax = b
+    // 1. with eigen
+    // 2. with my impl
+    // 3. with my recursive impl
+
+    Eigen::LDLT<CompleteMatrix, Eigen::Upper> ldlt;
+    {
+        SAIGA_BLOCK_TIMER();
+        ldlt.compute(A);
+        //        x = A.ldlt().solve(b);
+    }
+    x = ldlt.solve(b);
+    cout << "Eigen error: " << (A * x - b).squaredNorm() << endl;
+
+
+    DenseLDLT<decltype(A), decltype(b)> ldlt2;
+    {
+        SAIGA_BLOCK_TIMER();
+        ldlt2.compute(A);
+    }
+    x = ldlt2.solve(b);
+    cout << "My error: " << (A * x - b).squaredNorm() << endl;
+
+
+    DenseLDLT<decltype(bA), decltype(bb)> ldlt3;
+    {
+        SAIGA_BLOCK_TIMER();
+        ldlt3.compute(bA);
+    }
+    bx = ldlt3.solve(bb);
+    x  = expand(bx);
+    cout << "My recursive error: " << (A * x - b).squaredNorm() << endl;
 }
 
 }  // namespace Saiga

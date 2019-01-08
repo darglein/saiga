@@ -6,12 +6,17 @@
 
 
 
+#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
+
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
 #include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/MatrixScalar.h"
+#include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/recursiveMatrices/Cholesky.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
+#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs_Sparse.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
@@ -27,36 +32,39 @@ using namespace Saiga;
 
 namespace Saiga
 {
-template <typename _Scalar, typename _Scalar2>
-Eigen::Matrix<_Scalar2, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<_Scalar, Eigen::RowMajor>& A,
-                                               const Eigen::Matrix<_Scalar2, -1, 1>& b)
+template <typename MatrixScalar, typename VectorType>
+Eigen::Matrix<VectorType, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>& A,
+                                                 const Eigen::Matrix<VectorType, -1, 1>& b)
 {
     auto _Rows = A.rows();
 
+
+
     //    Eigen::Matrix<_Scalar, _Rows, _Cols> L;
-    Eigen::SparseMatrix<_Scalar, Eigen::RowMajor> L(A.rows(), A.cols());
-    Eigen::DiagonalMatrix<_Scalar, -1> D(_Rows);
-    Eigen::DiagonalMatrix<_Scalar, -1> Dinv(_Rows);
-    Eigen::Matrix<_Scalar2, -1, 1> x(_Rows), y(_Rows), z(_Rows);
+    Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor> L(A.rows(), A.cols());
+    Eigen::DiagonalMatrix<MatrixScalar, -1> D(_Rows);
+    Eigen::DiagonalMatrix<MatrixScalar, -1> Dinv(_Rows);
+    Eigen::Matrix<VectorType, -1, 1> x(_Rows), y(_Rows), z(_Rows);
 
 
-    for (int i = 0; i < A.outerSize(); ++i)
+    for (int i = 0; i < A.rows(); ++i)
     {
         // compute Dj
-        _Scalar sumd = AdditiveNeutral<_Scalar>::get();
+        MatrixScalar sumd = AdditiveNeutral<MatrixScalar>::get();
 
-        typename Eigen::SparseMatrix<_Scalar, Eigen::RowMajor>::InnerIterator it(A, i);
+        typename Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>::InnerIterator it(A, i);
 
 
         for (int j = 0; j < i; ++j)
 
         {
-            _Scalar sum = AdditiveNeutral<_Scalar>::get();
+            SAIGA_ASSERT(it.col() >= j);
+            MatrixScalar sum = AdditiveNeutral<MatrixScalar>::get();
 
             // dot product in L of row i with row j
             // but only until column j
-            typename Eigen::SparseMatrix<_Scalar, Eigen::RowMajor>::InnerIterator Li(L, i);
-            typename Eigen::SparseMatrix<_Scalar, Eigen::RowMajor>::InnerIterator Lj(L, j);
+            typename Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>::InnerIterator Li(L, i);
+            typename Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>::InnerIterator Lj(L, j);
             while (Li && Lj && Li.col() < j && Lj.col() < j)
             {
                 if (Li.col() == Lj.col())
@@ -76,19 +84,23 @@ Eigen::Matrix<_Scalar2, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<_Scalar
             }
 
 
+
             if (it.col() == j)
             {
                 sum = it.value() - sum;
                 ++it;
             }
-            sum = sum * Dinv.diagonal()(j);
+            else
+            {
+                sum = -sum;
+            }
 
+            sum            = sum * Dinv.diagonal()(j);
             L.insert(i, j) = sum;
-
             sumd += sum * D.diagonal()(j) * transpose(sum);
         }
-        SAIGA_ASSERT(it.col() == i);
-        L.insert(i, i)     = MultiplicativeNeutral<_Scalar>::get();
+        L.insert(i, i) = MultiplicativeNeutral<MatrixScalar>::get();
+        SAIGA_ASSERT(it && it.col() == i);
         D.diagonal()(i)    = it.value() - sumd;
         Dinv.diagonal()(i) = inverseCholesky(D.diagonal()(i));
     }
@@ -144,7 +156,6 @@ void testSparseBlockCholesky()
         }
         bb(i) = b.segment(i * 2, 2);
     }
-    return;
 #if 0
     //        cout << Adense << endl << endl;
     cout << A.toDense() << endl << endl;
@@ -166,25 +177,199 @@ void testSparseBlockCholesky()
     }
 
     {
-        //        x = solveSparseLDLT(A, b);
+        x = solveSparseLDLT(A, b);
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
 
     {
-        //        bx = solveSparseLDLT(bA, bb);
-        x = blockVectorToVector(bx);
+        bx = solveSparseLDLT(bA, bb);
+        x  = expand(bx);
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
 
     {
+        SparseLDLT<decltype(bA), decltype(bb)> ldlt;
+        ldlt.compute(bA);
+        bx = ldlt.solve(bb);
+
+        x = expand(bx);
+        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl;
+
         //        solveLDLT2(bA, bb);
 
         //        x = fixedBlockMatrixToMatrix(bx);
         //        cout << "x " << x.transpose() << endl;
         //        cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
+}
+
+
+void perfTestSparseCholesky()
+{
+    cout << "perfTestSparseCholesky" << endl;
+
+    Saiga::Random::setSeed(34534);
+    const int bn = 2;
+    const int bm = 2;
+
+    int n = 400;
+    int m = 400;
+
+    int numNonZeroBlocks = n * m * 0.01;
+
+    using Block  = Eigen::Matrix<double, bn, bm, Eigen::RowMajor>;
+    using Vector = Eigen::Matrix<double, bn, 1>;
+
+
+    using CompleteMatrix = Eigen::SparseMatrix<double, Eigen::RowMajor>;
+    using CompleteVector = Eigen::Matrix<double, -1, 1>;
+
+
+
+    CompleteMatrix A(n * bn, m * bm);
+    CompleteVector x(n * bn);
+    CompleteVector b(n * bn);
+    b = CompleteVector::Random(n * bn);
+
+    Eigen::SparseMatrix<MatrixScalar<Block>, Eigen::RowMajor> bA(n, m);
+    Eigen::Matrix<MatrixScalar<Vector>, -1, 1> bx(n), bb(n);
+
+
+    std::vector<Eigen::Triplet<double>> data;
+    std::vector<Eigen::Triplet<Block>> bdata;
+
+    // generate diagonal blocks
+    for (int i = 0; i < n; ++i)
+    {
+        Vector t = Vector::Random() * 5;
+        Block b  = t * t.transpose();
+        b.diagonal() += Vector::Ones() * 100;
+        auto v = to_triplets(b);
+        addOffsetToTriplets(v, i * bn, i * bn);
+        data.insert(data.end(), v.begin(), v.end());
+        bdata.emplace_back(i, i, b);
+    }
+
+
+    // generate the rest
+
+    for (int k = 0; k < numNonZeroBlocks; ++k)
+    {
+        auto i = Random::uniformInt(0, n - 1);
+        auto j = Random::uniformInt(0, m - 1);
+        if (i == j) continue;
+
+        //        Block b = Block::Random() * 2 - Block::Ones();
+        Vector t = Vector::Random();
+        Block b  = t * t.transpose();
+
+        auto v = to_triplets(b);
+        addOffsetToTriplets(v, i * bn, j * bm);
+        data.insert(data.end(), v.begin(), v.end());
+        bdata.emplace_back(i, j, b);
+
+        b.transposeInPlace();
+        v = to_triplets(b);
+        addOffsetToTriplets(v, j * bn, i * bm);
+        data.insert(data.end(), v.begin(), v.end());
+        bdata.emplace_back(j, i, b);
+    }
+
+
+    A.setFromTriplets(data.begin(), data.end());
+    bA.setFromTriplets(bdata.begin(), bdata.end());
+
+    //    cout << A.toDense() << endl << endl;
+    //    cout << expand(bA.toDense()) << endl << endl;
+
+    for (auto i = 0; i < bA.rows(); ++i)
+    {
+        bb(i) = b.segment(i * 2, 2);
+    }
+
+
+    //    cout << b.transpose() << endl << endl;
+    //    cout << expand(bb).transpose() << endl << endl;
+
+
+    cout << "non zeros: " << A.nonZeros() << endl << endl;
+
+    {
+        SAIGA_BLOCK_TIMER();
+        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+        solver.compute(A);
+        x = solver.solve(b);
+    }
+    //    cout << x.transpose() << endl;
+    cout << "Eigen error: " << (A * x - b).squaredNorm() << endl << endl;
+
+#if 1
+    {
+        SAIGA_BLOCK_TIMER();
+        Eigen::Matrix<double, -1, -1> adense = A.toDense();
+
+        DenseLDLT<decltype(adense), decltype(b)> ldlt;
+        ldlt.compute(adense);
+        x = ldlt.solve(b);
+    }
+    cout << "my dense error: " << (A * x - b).squaredNorm() << endl << endl;
+
+
+    {
+        Eigen::Matrix<double, -1, -1> adense = A.toDense();
+        Eigen::Matrix<MatrixScalar<Block>, -1, -1> bA(n, m);
+        Eigen::Matrix<MatrixScalar<Vector>, -1, 1> bx(n), bb(n);
+        for (int i = 0; i < n; ++i)
+        {
+            for (int j = 0; j < m; ++j)
+            {
+                bA(i, j) = adense.block(i * bn, j * bm, bn, bm);
+            }
+            bb(i) = b.segment(i * bn, bn);
+        }
+
+        SAIGA_BLOCK_TIMER();
+        DenseLDLT<decltype(bA), decltype(bb)> ldlt3;
+        ldlt3.compute(bA);
+        bx = ldlt3.solve(bb);
+    }
+    x = expand(bx);
+    cout << "my block dense error: " << (A * x - b).squaredNorm() << endl << endl;
+#endif
+
+
+    {
+        SAIGA_BLOCK_TIMER();
+        x = solveSparseLDLT(A, b);
+        //        cout << "x " << x.transpose() << endl;
+    }
+    cout << "my error: " << (A * x - b).squaredNorm() << endl << endl;
+
+
+
+#if 0
+    {
+        SAIGA_BLOCK_TIMER();
+        bx = solveSparseLDLT(bA, bb);
+        x  = expand(bx);
+//        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl << endl;
+    }
+#endif
+
+
+    {
+        SAIGA_BLOCK_TIMER();
+        SparseLDLT<decltype(bA), decltype(bb)> ldlt;
+        ldlt.compute(bA);
+        bx = ldlt.solve(bb);
+    }
+    x = expand(bx);
+    //    cout << x.transpose() << endl;
+    cout << "My recursive error: " << (A * x - b).squaredNorm() << endl << endl;
 }
 
 }  // namespace Saiga
