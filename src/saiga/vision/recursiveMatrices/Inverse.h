@@ -11,30 +11,35 @@
 
 namespace Saiga
 {
-/**
- * Multiplicative neutral element e
- *
- * A * e = A
- */
 template <typename T>
-struct InverseSymmetric
+struct InverseImpl
 {
+    static T get(const T& m)
+    {
+        static_assert(T::RowsAtCompileTime == T::ColsAtCompileTime,
+                      "The Symmetric Inverse is only defined for square matrices!");
+        return m.inverse();
+    }
 };
 
 template <>
-struct InverseSymmetric<double>
+struct InverseImpl<double>
 {
     static double get(double d) { return 1.0 / d; }
 };
 
 template <typename G>
-struct InverseSymmetric<MatrixScalar<G>>
+struct InverseImpl<MatrixScalar<G>>
 {
-    static MatrixScalar<G> get(const MatrixScalar<G>& m)
-    {
-        static_assert(G::RowsAtCompileTime == G::ColsAtCompileTime,
-                      "The Symmetric Inverse is only defined for square matrices!");
-        return MatrixScalar<G>(m.get().inverse());
-    }
+    static MatrixScalar<G> get(const MatrixScalar<G>& m) { return MatrixScalar<G>(InverseImpl<G>::get(m.get())); }
 };
+
+template <typename T>
+auto inverse(const T& v)
+{
+    return InverseImpl<T>::get(v);
+}
+
+
+
 }  // namespace Saiga

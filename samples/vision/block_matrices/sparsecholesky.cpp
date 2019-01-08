@@ -14,6 +14,7 @@
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
+#include "saiga/vision/recursiveMatrices/Transpose.h"
 
 #include "cholesky.h"
 
@@ -60,8 +61,7 @@ Eigen::Matrix<_Scalar2, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<_Scalar
             {
                 if (Li.col() == Lj.col())
                 {
-                    // TODO transpose
-                    sum += Li.value() * D.diagonal()(Li.col()) * Lj.value();
+                    sum += Li.value() * D.diagonal()(Li.col()) * transpose(Lj.value());
                     ++Li;
                     ++Lj;
                 }
@@ -85,13 +85,12 @@ Eigen::Matrix<_Scalar2, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<_Scalar
 
             L.insert(i, j) = sum;
 
-            sumd += sum * D.diagonal()(j) * sum;
+            sumd += sum * D.diagonal()(j) * transpose(sum);
         }
         SAIGA_ASSERT(it.col() == i);
-        L.insert(i, i)  = MultiplicativeNeutral<_Scalar>::get();
-        D.diagonal()(i) = it.value() - sumd;
-        //        Dinv.diagonal()(i) = D.diagonal()(i).get().inverse();
-        Dinv.diagonal()(i) = InverseSymmetric<_Scalar>::get(D.diagonal()(i));
+        L.insert(i, i)     = MultiplicativeNeutral<_Scalar>::get();
+        D.diagonal()(i)    = it.value() - sumd;
+        Dinv.diagonal()(i) = inverseCholesky(D.diagonal()(i));
     }
 
 
@@ -112,7 +111,6 @@ void testSparseBlockCholesky()
     cout << "testSparseBlockCholesky" << endl;
     using CompleteMatrix = Eigen::SparseMatrix<double, Eigen::RowMajor>;
     using CompleteVector = Eigen::Matrix<double, -1, 1>;
-
 
 
     CompleteMatrix A(6, 6);
@@ -146,7 +144,8 @@ void testSparseBlockCholesky()
         }
         bb(i) = b.segment(i * 2, 2);
     }
-#if 1
+    return;
+#if 0
     //        cout << Adense << endl << endl;
     cout << A.toDense() << endl << endl;
     cout << blockMatrixToMatrix(bA.toDense()) << endl << endl;
@@ -167,14 +166,14 @@ void testSparseBlockCholesky()
     }
 
     {
-        x = solveSparseLDLT(A, b);
+        //        x = solveSparseLDLT(A, b);
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
 
     {
-        bx = solveSparseLDLT(bA, bb);
-        x  = blockVectorToVector(bx);
+        //        bx = solveSparseLDLT(bA, bb);
+        x = blockVectorToVector(bx);
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }

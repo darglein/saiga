@@ -17,6 +17,8 @@ struct MatrixScalar
     using Scalar     = typename MatrixType::Scalar;
     using ScalarType = MatrixScalar<MatrixType>;
 
+    using TransposeBase = typename MatrixType::TransposeReturnType::NestedExpression;
+
     MatrixType data;
 
     MatrixScalar() = default;
@@ -33,7 +35,7 @@ struct MatrixScalar
         return *this;
     }
 
-    ScalarType transpose() const { return {data.transpose()}; }
+    MatrixScalar<TransposeBase> transpose() const { return {data.transpose()}; }
 
 
     ScalarType operator-() const { return {-data}; }

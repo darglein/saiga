@@ -19,6 +19,12 @@ namespace Saiga
 template <typename T>
 struct MultiplicativeNeutral
 {
+    static T get()
+    {
+        static_assert(T::RowsAtCompileTime == T::ColsAtCompileTime,
+                      "The Multiplicative Neutral Element is only defined for square matrices!");
+        return T::Identity();
+    }
 };
 
 template <>
@@ -30,13 +36,8 @@ struct MultiplicativeNeutral<double>
 template <typename G>
 struct MultiplicativeNeutral<MatrixScalar<G>>
 {
-    static MatrixScalar<G> get()
-    {
-        static_assert(G::RowsAtCompileTime == G::ColsAtCompileTime,
-                      "The Multiplicative Neutral Element is only defined for square matrices!");
-        return MatrixScalar<G>(G::Identity());
-    }
-};
+    static MatrixScalar<G> get() { return MatrixScalar<G>(MultiplicativeNeutral<G>::get()); }
+};  // namespace Saiga
 
 /**
  * Additive neutral element e
