@@ -72,8 +72,8 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd)
     vk::SubmitInfo submitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
-    auto fence                    = device.createFence({});
     submitMutex.lock();
+    auto fence                    = device.createFence({});
     queue.submit(submitInfo, fence);
     submitMutex.unlock();
     return fence;
