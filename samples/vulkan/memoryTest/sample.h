@@ -21,11 +21,16 @@
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 #include "saiga/window/Interfaces.h"
 
+#include <random>
 #include <vector>
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener
 {
+    std::vector<MemoryLocation> allocations;
+    std::vector<MemoryLocation> num_allocations;
+    std::mt19937 mersenne_twister;
+
    public:
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample() override;
@@ -39,11 +44,8 @@ class VulkanExample : public Saiga::Updating,
     void renderGUI() override;
 
    private:
-    std::vector<glm::vec3> boxOffsets;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
-
-    Saiga::Vulkan::Memory::MemoryLocation m_location1, m_location2, m_location3;
 
 
     Saiga::Vulkan::VulkanForwardRenderer& renderer;
