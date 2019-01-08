@@ -25,6 +25,7 @@ void Texture::destroy()
     if (memoryLocation)
     {
         base->memory.deallocateImage(type, memoryLocation);
+        memoryLocation.make_invalid();
     }
 }
 

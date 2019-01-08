@@ -64,7 +64,7 @@ struct SAIGA_GLOBAL MemoryLocation
         return *this;
     }
 
-    explicit operator bool() { return buffer; }
+    explicit operator bool() { return memory; }
 
    private:
     void mappedUpload(vk::Device device, const void* data)
@@ -176,7 +176,7 @@ struct SAIGA_GLOBAL MemoryLocation
         return os;
     }
 
-   private:
+   public:
     inline void make_invalid()
     {
         this->buffer        = nullptr;

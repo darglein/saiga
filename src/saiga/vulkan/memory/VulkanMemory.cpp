@@ -232,6 +232,7 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation& loca
     {
         allocator.deallocate(location);
     }
+
 }
 
 void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation& location)
