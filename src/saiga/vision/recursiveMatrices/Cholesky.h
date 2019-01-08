@@ -7,7 +7,9 @@
 #pragma once
 
 #include "saiga/util/assert.h"
+#include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/MatrixScalar.h"
+#include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
@@ -64,12 +66,12 @@ void DenseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
             }
 
             L(i, j) = (A(i, j) - sum) * Dinv.diagonal()(j);
-            L(j, i) = AdditiveNeutral<MatrixScalar>::get();
+            //            L(j, i) = AdditiveNeutral<MatrixScalar>::get();
             sumd += L(i, j) * D.diagonal()(j) * transpose(L(i, j));
         }
-        L(i, i)            = MultiplicativeNeutral<MatrixScalar>::get();
+        //        L(i, i)            = MultiplicativeNeutral<MatrixScalar>::get();
         D.diagonal()(i)    = A(i, i) - sumd;
-        Dinv.diagonal()(i) = inverse(D.diagonal()(i));
+        Dinv.diagonal()(i) = inverseCholesky(D.diagonal()(i));
     }
 }
 
@@ -93,11 +95,11 @@ MatrixType DenseLDLT<MatrixType, VectorType>::solve(const MatrixType& b)
 {
     SAIGA_ASSERT(L.rows() == b.rows());
     MatrixType x, y;
-    x.resize(b.rows());
-    y.resize(b.rows());
+    x.resize(L.rows(), L.cols());
+    y.resize(L.rows(), L.cols());
 
-    x = forwardSubstituteDiagOne(L, b);
-    y = multDiagVector(Dinv, x);
+    x = forwardSubstituteDiagOne<MatrixType>(L, b);
+    y = multDiagVectorMulti(Dinv, x);
     x = backwardSubstituteDiagOneTranspose(L, y);
 
     return x;
@@ -107,16 +109,7 @@ MatrixType DenseLDLT<MatrixType, VectorType>::solve(const MatrixType& b)
 template <typename MatrixType, typename VectorType>
 MatrixType DenseLDLT<MatrixType, VectorType>::invert()
 {
-    cout << "compute invert " << typeid(MatrixType).name() << endl;
-    cout << "compute invert " << typeid(VectorType).name() << endl;
-    cout << endl;
-    MatrixType res, id;
-    //    res.resize(L.rows(), L.cols());
-    id.resize(L.rows(), L.cols());
-
-    id = MultiplicativeNeutral<MatrixType>::get();
-
-
+    MatrixType id = MultiplicativeNeutral<MatrixType>::get(L.rows(), L.cols());
     return solve(id);
 }
 
@@ -127,10 +120,8 @@ struct InverseCholeskyImpl
 {
     static T get(const T& m)
     {
-        cout << "invert " << typeid(T).name() << " " << m.rows() << " " << m.cols() << endl;
         static_assert(T::RowsAtCompileTime == T::ColsAtCompileTime,
                       "The Symmetric Inverse is only defined for square matrices!");
-        //        return m.ldlt().solve(T::Identity());
         using Scalar     = typename T::Scalar;
         using VectorType = Eigen::Matrix<Scalar, T::RowsAtCompileTime, 1>;
         DenseLDLT<T, VectorType> ldlt;
@@ -150,7 +141,6 @@ struct InverseCholeskyImpl<MatrixScalar<G>>
 {
     static MatrixScalar<G> get(const MatrixScalar<G>& m)
     {
-        cout << "invert scalar" << endl;
         return MatrixScalar<G>(InverseCholeskyImpl<G>::get(m.get()));
     }
 };

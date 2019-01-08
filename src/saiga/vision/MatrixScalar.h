@@ -70,6 +70,26 @@ struct MatrixScalar
     const MatrixType& get() const { return data; }
 };
 
+template <typename T>
+struct RemoveMatrixScalarImpl
+{
+    static T& get(T& A) { return A; }
+    static const T& get(const T& A) { return A; }
+};
+
+template <typename G>
+struct RemoveMatrixScalarImpl<MatrixScalar<G>>
+{
+    static G& get(MatrixScalar<G>& A) { return A.get(); }
+    static const G& get(const MatrixScalar<G>& A) { return A.get(); }
+};
+
+template <typename T>
+auto removeMatrixScalar(const T& A)
+{
+    return RemoveMatrixScalarImpl<T>::get(A);
+}
+
 /**
  * Convert a block vector (a vector of vectors) to a 1-dimensional vector.
  * The inner vector must be of constant size.

@@ -21,7 +21,7 @@ VectorType forwardSubstituteDiagOne(const MatrixType& A, const VectorType& b)
     // solve Ax=b
     // with A triangular block matrix where diagonal elements are 1.
     VectorType x;
-    x.resize(b.rows());
+    x.resize(b.rows(), b.cols());
 
     for (int i = 0; i < A.rows(); ++i)
     {
@@ -43,25 +43,29 @@ VectorType forwardSubstituteDiagOne(const MatrixType& A, const VectorType& b)
 }
 
 
-template <typename MatrixType, typename VectorType>
-VectorType forwardSubstituteDiagOne2(const MatrixType& A, const VectorType& b)
+// template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
+template <typename MatrixType>
+MatrixType forwardSubstituteDiagOne(const MatrixType& A, const MatrixType& b)
 {
-    static_assert((MatrixType::Options & Eigen::RowMajorBit) == true, "The matrix must be row-major!");
-    using Scalar = typename VectorType::Scalar;
     // solve Ax=b
     // with A triangular block matrix where diagonal elements are 1.
-    VectorType x;  //(b.rows());
-    x.resize(b.rows());
-    for (int i = 0; i < A.outerSize(); ++i)
-    {
-        Scalar sum = AdditiveNeutral<Scalar>::get();
+    MatrixType x;
+    x.resize(b.rows(), b.cols());
 
-        for (typename MatrixType::InnerIterator it(A, i); it; ++it)
+
+    using RowType = Eigen::Matrix<typename MatrixType::Scalar, 1, MatrixType::ColsAtCompileTime>;
+    RowType row;
+    row.resize(b.cols());
+
+
+    for (int i = 0; i < A.rows(); ++i)
+    {
+        row = AdditiveNeutral<RowType>::get();
+        for (int j = 0; j < i; ++j)
         {
-            if (it.col() >= i) break;
-            sum += it.value() * x(it.col());
+            row += A(i, j) * x.row(j);
         }
-        x(i) = b(i) - sum;
+        x.row(i) = b.row(i) - row;
     }
 
 #if 0
@@ -82,7 +86,7 @@ VectorType backwardSubstituteDiagOneTranspose(const MatrixType& A, const VectorT
     // solve Ax=b
     // with A triangular block matrix where diagonal elements are 1.
     VectorType x;
-    x.resize(b.rows());
+    x.resize(b.rows(), b.cols());
 
     for (int i = A.rows() - 1; i >= 0; --i)
     {
@@ -105,46 +109,40 @@ VectorType backwardSubstituteDiagOneTranspose(const MatrixType& A, const VectorT
 }
 
 
-// Works both for sparse and dense matrices
-template <typename MatrixType, typename VectorType>
-VectorType backwardSubstituteDiagOneTranspose2(const MatrixType& A, const VectorType& b)
+// template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
+template <typename MatrixType>
+MatrixType backwardSubstituteDiagOneTranspose(const MatrixType& A, const MatrixType& b)
 {
-    static_assert((MatrixType::Options & Eigen::RowMajorBit) == true, "The matrix must be row-major!");
-    using Scalar = typename VectorType::Scalar;
     // solve Ax=b
     // with A triangular block matrix where diagonal elements are 1.
-    VectorType x(b.rows());
-    x.setZero();
+    MatrixType x;
+    x.resize(b.rows(), b.cols());
 
-    for (int i = A.outerSize() - 1; i >= 0; --i)
+
+    using RowType = Eigen::Matrix<typename MatrixType::Scalar, 1, MatrixType::ColsAtCompileTime>;
+    RowType row;
+    row.resize(b.cols());
+
+    for (int i = A.rows() - 1; i >= 0; --i)
     {
-        Scalar value = b(i) - x(i);
-        typename MatrixType::ReverseInnerIterator it(A, i);
-
-        SAIGA_ASSERT(it.col() == i);
-        //        SAIGA_ASSERT(it.value() == 1);
-        x(i) = value;
-        --it;
-
-        // subtract the current x from all x(j) with j < i
-        for (; it; --it)
+        row = AdditiveNeutral<RowType>::get();
+        for (int j = i + 1; j < A.rows(); ++j)
         {
-            x(it.col()) += transpose(it.value()) * value;
+            row += transpose(A(j, i)) * x.row(j);
         }
+        x.row(i) = b.row(i) - row;
     }
 
 #if 0
+    cout << fixedBlockMatrixToMatrix(x) << endl << endl;
     // Test if (Ax-b)==0
-    double test = ((A.toDense()).transpose() * (x) - (b)).squaredNorm();
-    cout << A.transpose() << endl << endl;
-    cout << x << endl << endl;
-    cout << b << endl << endl;
-    //    double test =
-    //        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
-    cout << "error backwardSubstituteDiagOneTranspose2: " << test << endl;
+    double test = (fixedBlockMatrixToMatrix(A).transpose() * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b))
+                      .squaredNorm();
+    cout << "error backwardSubstituteDiagOneTranspose: " << test << endl;
 #endif
     return x;
 }
+
 
 
 }  // namespace Saiga

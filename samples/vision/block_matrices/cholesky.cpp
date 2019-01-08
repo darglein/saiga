@@ -14,6 +14,7 @@
 #include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
+#include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
@@ -117,7 +118,7 @@ VectorType solveLDLT2(const MatrixType& A, const VectorType& b)
 {
     SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
     using MatrixScalar = typename MatrixType::Scalar;
-    using VectorScalar = typename VectorType::Scalar;
+    //    using VectorScalar = typename VectorType::Scalar;
 
     MatrixType L;
     L.resize(A.rows(), A.cols());
@@ -248,15 +249,25 @@ void testBlockCholesky()
         ldlt.compute(bA);
         bx = ldlt.solve(bb);
 
+        //        cout << "test" << endl;
 
-        //        decltype(A) inv = inverseCholesky(A);
-        //        cout << (inv) << endl << endl;
-        //        cout << fixedBlockMatrixToMatrix(bA).inverse() << endl << endl;
+
+        //        Eigen::Matrix<double, -1, -1> B(5, 5);
+        //        cout << expand(MultiplicativeNeutral<Eigen::Matrix<MatrixScalar<Block>, -1, -1>>::get(4, 4)) << endl;
+
+
+        //        return;
+
+        //        cout << expand(A) << endl;
+        //        cout << expand(bA) << endl;
+        //        auto inv = inverseCholesky(bA);
+        //        cout << expand(inv) << endl << endl;
+        //        cout << expand(bA).inverse() << endl << endl;
 
         //        return;
         //        bx = solveLDLT2(bA, bb);
 
-        x = fixedBlockMatrixToMatrix(bx);
+        x = expand(bx);
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
