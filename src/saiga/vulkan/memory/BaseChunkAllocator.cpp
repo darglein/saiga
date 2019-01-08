@@ -80,7 +80,7 @@ MemoryLocation BaseChunkAllocator::createMemoryLocation(ChunkIterator iter, vk::
 
 void BaseChunkAllocator::deallocate(MemoryLocation& location)
 {
-    allocationMutex.lock();
+    std::scoped_lock alloc_lockd(allocationMutex);
     auto fChunk = find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
                           [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location.memory; });
 
@@ -154,7 +154,6 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
     }
 
     chunkAllocs.erase(fLoc);
-    allocationMutex.unlock();
 }
 void BaseChunkAllocator::destroy()
 {
