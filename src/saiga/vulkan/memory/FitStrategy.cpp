@@ -15,8 +15,9 @@ namespace Memory
 std::pair<ChunkIterator, LocationIterator> FirstFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
                                                                        vk::DeviceSize size)
 {
-    auto foundChunk = std::find_if(_allocations.begin(), _allocations.end(),
-                                   [&](ChunkAllocation& alloc) { return alloc.maxFreeRange->size > size; });
+    auto foundChunk = std::find_if(_allocations.begin(), _allocations.end(), [&](ChunkAllocation& alloc) {
+        return alloc.maxFreeRange != alloc.freeList.end() && (alloc.maxFreeRange->size >= size);
+    });
 
     if (foundChunk == _allocations.end())
     {

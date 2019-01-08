@@ -35,23 +35,12 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
     freeSpace->offset += size;
     freeSpace->size -= size;
 
-    bool searchNewMax = false;
-
-
-    if (chunkAlloc->maxFreeRange == freeSpace)
-    {
-        searchNewMax = true;
-    }
-
     if (freeSpace->size == 0)
     {
         chunkAlloc->freeList.erase(freeSpace);
     }
 
-    if (searchNewMax)
-    {
-        findNewMax(chunkAlloc);
-    }
+    findNewMax(chunkAlloc);
 
     MemoryLocation targetLocation = createMemoryLocation(chunkAlloc, memoryStart, size);
     auto memoryEnd                = memoryStart + size;
@@ -80,7 +69,7 @@ MemoryLocation BaseChunkAllocator::createMemoryLocation(ChunkIterator iter, vk::
 
 void BaseChunkAllocator::deallocate(MemoryLocation& location)
 {
-    std::scoped_lock alloc_lockd(allocationMutex);
+    std::scoped_lock alloc_lock(allocationMutex);
     auto fChunk = find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
                           [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location.memory; });
 
@@ -107,16 +96,13 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
             freeNext = freeIt;
             break;
         }
-        if (freeIt->offset + freeIt->size < location.offset)
+        if ((freeIt->offset + freeIt->size) < location.offset)
         {
             freeInsert  = freeIt;
             foundInsert = true;
         }
     }
 
-
-    bool shouldFindNewMax =
-        (freePrev == fChunk->maxFreeRange || freeNext == fChunk->maxFreeRange || freeInsert == fChunk->maxFreeRange);
 
 
     if (freePrev != chunkFree.end() && freeNext != chunkFree.end())
@@ -140,7 +126,7 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
     {
         if (foundInsert)
         {
-            chunkFree.insert(freeInsert, location);
+            chunkFree.insert(std::next(freeInsert), location);
         }
         else
         {
@@ -148,10 +134,7 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
         }
     }
 
-    if (shouldFindNewMax)
-    {
-        findNewMax(fChunk);
-    }
+    findNewMax(fChunk);
 
     chunkAllocs.erase(fLoc);
 }
