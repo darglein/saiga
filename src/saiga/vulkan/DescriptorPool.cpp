@@ -27,9 +27,17 @@ void DescriptorPool::create(vk::Device device, uint32_t maxSets, vk::ArrayProxy<
 
 vk::DescriptorSet DescriptorPool::allocateDescriptorSet(vk::DescriptorSetLayout layout)
 {
+    std::scoped_lock lock(pool_mutex);
     auto set = device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(descriptorPool, 1, &layout))[0];
     SAIGA_ASSERT(set);
+
     return set;
+}
+
+void DescriptorPool::freeDescriptorSet(vk::DescriptorSet set)
+{
+    std::scoped_lock lock(pool_mutex);
+    device.freeDescriptorSets(descriptorPool, set);
 }
 
 
