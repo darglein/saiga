@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -22,7 +22,7 @@ void Object3D::turn(float angleX, float angleY)
     rotateGlobal(vec3(0, 1, 0), angleX);
     mat4 modeltmp = model;
     rotateLocal(vec3(1, 0, 0), angleY);
-    if (model[1][1] < 0)
+    if (col(model, 1)[1] < 0)
     {
         model = modeltmp;
     }
@@ -38,21 +38,21 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 {
     rotateLocal(axis, angle);
 
-    translateGlobal(-point);
+    translateGlobal(vec3(-point));
     quat qrot = angleAxis(radians(angle), axis);
     //    position = vec3(qrot*vec4(position,1));
-    position = qrot * position;
+    position = make_vec4(qrot * make_vec3(position),1);
     translateGlobal(point);
 }
 
 quat Object3D::getSimpleDirectionQuat(const vec3& dir)
 {
-    mat4 rotmat(1);
-    rotmat[0] = vec4(normalize(cross(dir, vec3(0, 1, 0))), 0);
-    rotmat[1] = vec4(0, 1, 0, 0);
-    rotmat[2] = vec4(-dir, 0);
+    mat4 rotmat    = identityMat4();
+    col(rotmat, 0) = make_vec4(normalize(cross(dir, vec3(0, 1, 0))), 0);
+    col(rotmat, 1) = make_vec4(0, 1, 0, 0);
+    col(rotmat, 2) = make_vec4(-dir, 0);
 
-    return normalize(quat(rotmat));
+    return normalize(make_quat(rotmat));
 }
 
 Object3D Object3D::interpolate(const Object3D& a, const Object3D& b, float alpha)

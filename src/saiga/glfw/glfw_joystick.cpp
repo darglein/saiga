@@ -37,7 +37,7 @@ void glfw_Joystick::update()
 
     for (int i = 0; i < aC; ++i)
     {
-        float state = glm::clamp(axes[i], -1.0f, 1.0f);
+        float state = clamp(axes[i], -1.0f, 1.0f);
         joystick.setAxisState(i, state);
         int changed = joystick.setVirtualAxisKeyState(i, state);
         if (changed != -1)

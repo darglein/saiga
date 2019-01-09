@@ -15,7 +15,7 @@ namespace Saiga
 GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int numDataPoints)
     : width(width), height(height), graphs(numGraphs)
 {
-    proj = glm::ortho(0.0f, (float)width, 0.0f, (float)height, 1.0f, -1.0f);
+    proj = ortho(0.0f, (float)width, 0.0f, (float)height, 1.0f, -1.0f);
 
     // border
     std::vector<Vertex> vertices;
@@ -87,9 +87,9 @@ void GraphDebugOverlay::update()
 
         for (int i = 0; i < (int)dataPoints.size(); ++i)
         {
-            dataPoints[i].position.x = i / (float)dataPoints.size();
+            dataPoints[i].position[0] = i / (float)dataPoints.size();
             // scale to [0,1]
-            dataPoints[i].position.y = (g.data[i] - min) / (max - min);
+            dataPoints[i].position[1] = (g.data[i] - min) / (max - min);
         }
 
         g.buffer.updateBuffer(&dataPoints[0], dataPoints.size(), 0);
@@ -99,11 +99,11 @@ void GraphDebugOverlay::update()
 void GraphDebugOverlay::setScreenPosition(vec2 start, vec2 end)
 {
     vec2 mid = (start + end) / 2.f;
-    mid.y    = height - mid.y;
+    mid[1]   = height - mid[1];
 
     vec2 S = abs(start - end);
     model  = translate(mat4(1), vec3(mid, 0) + vec3(-S / 2.f, 0));
-    model  = glm::scale(model, vec3(S, 0));
+    model  = ::scale(model, make_vec3(S, 0));
 }
 
 void GraphDebugOverlay::render(float interpolation)

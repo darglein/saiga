@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -21,7 +21,7 @@ SAIGA_TEMPLATE inline mat3 CVtoGLM_mat3(const MatrixType& mat)
     {
         for (int j = 0; j < 3; ++j)
         {
-            M[j][i] = mat(i, j);
+            col(M,j)[i] = mat(i, j);
         }
     }
     return M;
@@ -35,7 +35,7 @@ SAIGA_TEMPLATE inline mat4 CVtoGLM_mat4(const MatrixType& mat)
     {
         for (int j = 0; j < 4; ++j)
         {
-            M[j][i] = mat(i, j);
+            col(M,j)[i] = mat(i, j);
         }
     }
     return M;

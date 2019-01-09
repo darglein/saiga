@@ -1,10 +1,15 @@
 ﻿#include "BAPoseOnly.h"
 
 #include "saiga/time/timer.h"
+#include "saiga/util/random.h"
 #include "saiga/vision/BlockDiagonalMatrix.h"
+#include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/BlockSparseMatrix.h"
 #include "saiga/vision/BlockVector.h"
+#include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/MatrixScalar.h"
+#include "saiga/vision/SparseHelper.h"
+#include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 
@@ -365,149 +370,6 @@ void BAPoseOnly::posePointDenseBlock(Scene& scene, int its)
     }
 }
 
-
-void BAPoseOnly::sbaPaper(Scene& scene, int its)
-{
-    using T          = double;
-    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
-    KernelType::PoseJacobiType JrowPose;
-    KernelType::PointJacobiType JrowPoint;
-    KernelType::ResidualType res;
-
-    SAIGA_BLOCK_TIMER();
-    auto numCameras = scene.extrinsics.size();
-    auto numPoints  = scene.worldPoints.size();
-
-
-
-    int n = numCameras;
-    int m = numPoints;
-
-
-
-    //    BlockVector<KernelType::PoseResidualType> ea(n);
-    Eigen::Matrix<MatrixScalar<KernelType::PoseResidualType>, -1, 1> ea(n);
-    //    BlockDiagonalMatrix<KernelType::PoseDiaBlockType> U(n);
-    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PoseDiaBlockType>, -1> U(n);
-
-    //    BlockVector<KernelType::PointResidualType> eb(m);
-    Eigen::Matrix<MatrixScalar<KernelType::PointResidualType>, -1, 1> eb(m);
-    //    BlockDiagonalMatrix<KernelType::PointDiaBlockType> V(m);
-    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PointDiaBlockType>, -1> V(m);
-    Eigen::DiagonalMatrix<MatrixScalar<KernelType::PointDiaBlockType>, -1> Vinv(m);
-
-
-    BlockSparseMatrix<KernelType::PosePointUpperBlockType> W(n, m);
-    Eigen::SparseMatrix<MatrixScalar<KernelType::PosePointUpperBlockType>> W2(n, m);
-
-
-
-    for (int k = 0; k < its; ++k)
-    {
-        eb.setZero();
-        U.setZero();
-        ea.setZero();
-        V.setZero();
-
-        for (auto& img : scene.images)
-        {
-            auto extr   = scene.extrinsics[img.extr].se3;
-            auto camera = scene.intrinsics[img.intr];
-
-            for (auto& ip : img.monoPoints)
-            {
-                if (!ip)
-                {
-                    SAIGA_ASSERT(0);
-                    continue;
-                }
-
-                auto wp = scene.worldPoints[ip.wp].p;
-
-
-                int i = img.extr;
-                int j = ip.wp;
-
-
-                KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, ip.weight, res, JrowPose,
-                                                        JrowPoint);
-
-
-                U.diagonal()(i) = (JrowPose.transpose() * JrowPose);
-                V.diagonal()(j) = (JrowPoint.transpose() * JrowPoint);
-
-
-                W.setBlock(i, j, JrowPose.transpose() * JrowPoint);
-                W2.insert(i, j) = JrowPose.transpose() * JrowPoint;
-
-
-                ea(i) += (JrowPose.transpose() * res);
-                eb(j) += JrowPoint.transpose() * res;
-            }
-        }
-
-        double lambda = 1;
-
-        for (int i = 0; i < n; ++i)
-        {
-            U.diagonal()(i).get() += KernelType::PoseDiaBlockType::Identity() * lambda;
-        }
-        for (int i = 0; i < m; ++i)
-        {
-            V.diagonal()(i).get() += KernelType::PointDiaBlockType::Identity() * lambda;
-        }
-
-
-        // compute V^-1
-        for (int i = 0; i < m; ++i)
-        {
-            Vinv.diagonal()(i).get() = Vinv.diagonal()(i).get().inverse();
-        }
-
-
-        n *= 6;
-        m *= 3;
-
-        // convert sparse to dense matrix
-        Eigen::Matrix<MatrixScalar<KernelType::PosePointUpperBlockType>, -1, -1> Wdense = W2;
-
-        //        cout << blockMatrixToMatrix(Wdense) << endl;
-        //        cout << W.dense() << endl;
-
-        Eigen::MatrixXd JtJ(m + n, m + n);
-        JtJ.block(0, 0, n, n) = blockDiagonalToMatrix(U);
-        JtJ.block(n, n, m, m) = blockDiagonalToMatrix(V);
-        JtJ.block(0, n, n, m) = blockMatrixToMatrix(Wdense);
-        JtJ.block(n, 0, m, n) = blockMatrixToMatrix(Wdense).transpose();
-
-        //        cout << JtJ << endl << endl;
-
-        Eigen::VectorXd Jtb(m + n);
-        Jtb.segment(0, n) = blockVectorToVector(ea);
-        Jtb.segment(n, m) = blockVectorToVector(eb);
-
-
-        Eigen::VectorXd x1, x2;
-        Eigen::VectorXd x = JtJ.ldlt().solve(Jtb);
-        x1                = x.segment(0, n);
-        x2                = x.segment(n, m);
-
-        for (size_t i = 0; i < numCameras; ++i)
-        {
-            Sophus::SE3d::Tangent t = x1.segment(i * 6, 6);
-            auto& se3               = scene.extrinsics[i].se3;
-            se3                     = Sophus::SE3d::exp(t) * se3;
-        }
-
-        for (size_t i = 0; i < numPoints; ++i)
-        {
-            Vec3 t  = x2.segment(i * 3, 3);
-            auto& p = scene.worldPoints[i].p;
-            p += t;
-        }
-    }
-}
-
 void BAPoseOnly::posePointSparse(Scene& scene, int its)
 {
     using T          = double;
@@ -551,9 +413,9 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
             {
                 if (!ip) continue;
 
-                auto wp     = scene.worldPoints[ip.wp].p;
-                auto extr   = scene.extrinsics[img.extr].se3;
-                auto camera = scene.intrinsics[img.intr];
+                auto& wp     = scene.worldPoints[ip.wp].p;
+                auto& extr   = scene.extrinsics[img.extr].se3;
+                auto& camera = scene.intrinsics[img.intr];
 
                 auto poseStart  = img.extr * 6;
                 auto pointStart = numCameras * 6 + ip.wp * 3;
@@ -641,7 +503,8 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         //        strm << mat << endl;
         //        strm.close();
         {
-            double lambda = 1;
+            //            double lambda = 1;
+            double lambda = 1.0 / scene.intrinsics.front().fx;
             // lm diagonal
             for (int i = 0; i < numUnknowns; ++i)
             {

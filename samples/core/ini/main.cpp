@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -8,7 +8,7 @@
 #include "saiga/util/math.h"
 #include "saiga/util/tostring.h"
 
-
+using namespace Saiga;
 
 int main(int argc, char* args[])
 {
@@ -24,8 +24,8 @@ int main(int argc, char* args[])
     std::string name;
     int w, h;
     bool b;
-    mat4 m(3);
-    m[1][0] = 1;  // row 0 and col 1
+    mat4 m       = identityMat4();
+    col(m, 1)[0] = 1;  // row 0 and col 1
 
     name = ini.GetAddString("window", "name", "Test Window");
     w    = ini.GetAddLong("window", "width", 1280);

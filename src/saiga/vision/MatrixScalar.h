@@ -17,6 +17,8 @@ struct MatrixScalar
     using Scalar     = typename MatrixType::Scalar;
     using ScalarType = MatrixScalar<MatrixType>;
 
+    using TransposeBase = typename MatrixType::TransposeReturnType::NestedExpression;
+
     MatrixType data;
 
     MatrixScalar() = default;
@@ -33,9 +35,12 @@ struct MatrixScalar
         return *this;
     }
 
+    MatrixScalar<TransposeBase> transpose() const { return {data.transpose()}; }
+
 
     ScalarType operator-() const { return {-data}; }
     ScalarType operator+(const ScalarType& other) const { return {data + other.data}; }
+    ScalarType operator-(const ScalarType& other) const { return {data - other.data}; }
     ScalarType operator*(const ScalarType& other) const { return {data * other.data}; }
     //    ScalarType operator-(const ScalarType& other) const
     //    {
@@ -44,11 +49,7 @@ struct MatrixScalar
     //    }
 
     void operator+=(const ScalarType& other) { data += other.data; }
-    void operator-=(const ScalarType& other)
-    {
-        SAIGA_ASSERT(0);
-        data -= other.data;
-    }
+    void operator-=(const ScalarType& other) { data -= other.data; }
 
     // scalar product
     ScalarType operator*(const Scalar& other) const { return {data * other}; }
@@ -68,6 +69,26 @@ struct MatrixScalar
     MatrixType& get() { return data; }
     const MatrixType& get() const { return data; }
 };
+
+template <typename T>
+struct RemoveMatrixScalarImpl
+{
+    static T& get(T& A) { return A; }
+    static const T& get(const T& A) { return A; }
+};
+
+template <typename G>
+struct RemoveMatrixScalarImpl<MatrixScalar<G>>
+{
+    static G& get(MatrixScalar<G>& A) { return A.get(); }
+    static const G& get(const MatrixScalar<G>& A) { return A.get(); }
+};
+
+template <typename T>
+auto removeMatrixScalar(const T& A)
+{
+    return RemoveMatrixScalarImpl<T>::get(A);
+}
 
 /**
  * Convert a block vector (a vector of vectors) to a 1-dimensional vector.
@@ -150,6 +171,7 @@ auto fixedBlockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, n, m
     }
     return dense;
 }
+
 
 
 }  // namespace Saiga

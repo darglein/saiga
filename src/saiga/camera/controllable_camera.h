@@ -83,9 +83,9 @@ template <class camera_t>
 void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy)
 {
     vec3 point;
-    if (rotationPoint.x == std::numeric_limits<float>::infinity())
+    if (rotationPoint[0] == std::numeric_limits<float>::infinity())
     {
-        vec3 dir = vec3(this->getDirection());
+        vec3 dir = make_vec3(this->getDirection());
         point    = this->getPosition() - 10.0f * dir;
     }
     else
@@ -109,7 +109,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     vec4 right = this->getRightVector();
     vec4 up = this->getUpVector();
 
-    vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
+    vec3 axis = -normalize(vec3(right * relMovement[1] + up * relMovement[0]));
     //        cout << angle << camera.position << endl;
 
     quat qrot = angleAxis(radians(angle),axis);
@@ -129,16 +129,16 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     vec4 right = this->getRightVector();
     vec4 up    = this->getUpVector();
 
-    vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
+    vec3 axis = -normalize(make_vec3(right * relMovement[1] + up * relMovement[0]));
     //        cout << angle << camera.position << endl;
 
     quat qrot = angleAxis(radians(angle * 0.3f), axis);
     this->rot = qrot * this->rot;
-    vec3 p    = qrot * (vec3(this->position) - point);
+    vec3 p    = qrot * (make_vec3(this->position) - point);
 
     p += point;
-    this->position = vec4(p, 1);
-    //        camera.rotateAroundPoint(vec3(0),vec3(1,0,0),relMovement.y);
+    this->position = make_vec4(p, 1);
+    //        camera.rotateAroundPoint(vec3(0),vec3(1,0,0),relMovement[1]);
     this->calculateModel();
     this->updateFromModel();
 #endif
@@ -161,7 +161,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     //    vec4 right = this->getRightVector();
     //    vec4 up = this->getUpVector();
 
-    vec3 axis = -normalize(vec3(right * relMovement.y + up * relMovement.x));
+    vec3 axis = -normalize(vec3(right * relMovement[1] + up * relMovement[0]));
     //        cout << angle << camera.position << endl;
 
     quat qrot      = angleAxis(radians(angle), axis);
@@ -225,11 +225,11 @@ void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation)
 
     if (dragState == 1)
     {
-        this->mouseRotate(mousedelta.x, mousedelta.y);
+        this->mouseRotate(mousedelta[0], mousedelta[1]);
     }
     else if (dragState == 2)
     {
-        this->mouseRotateAroundPoint(mousedelta.x, mousedelta.y);
+        this->mouseRotateAroundPoint(mousedelta[0], mousedelta[1]);
     }
 
 

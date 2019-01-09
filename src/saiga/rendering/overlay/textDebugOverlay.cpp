@@ -58,9 +58,9 @@ int TextDebugOverlay::createItem(const std::string& name)
     int y = id;
 
     vec2 relPos(0);
-    relPos.x = borderX;
-    //    relPos.x = 0.5;
-    relPos.y = 1.0f - ((y) * (paddingY + textSize) + borderY);
+    relPos[0] = borderX;
+    //    relPos[0] = 0.5;
+    relPos[1] = 1.0f - ((y) * (paddingY + textSize) + borderY);
 
     layout.transform(entry.text, bb, relPos, textSize, Layout::LEFT, Layout::RIGHT);
 

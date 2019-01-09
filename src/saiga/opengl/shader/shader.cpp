@@ -199,19 +199,20 @@ uvec3 Shader::getNumGroupsCeil(const uvec3& problem_size, const uvec3& work_grou
     //    uvec3 ret = problem_size/work_group_size;
     //    uvec3 rest = problem_size%work_group_size;
 
-    //    ret.x += rest.x ? 1 : 0;
-    //    ret.y += rest.y ? 1 : 0;
-    //    ret.z += rest.z ? 1 : 0;
+    //    ret[0] += rest[0] ? 1 : 0;
+    //    ret[1] += rest[1] ? 1 : 0;
+    //    ret[2] += rest[2] ? 1 : 0;
 
     //    return ret;
 
-    return (problem_size + work_group_size - uvec3(1)) / (work_group_size);
+    SAIGA_EXIT_ERROR("sldg");
+    return problem_size;  //(problem_size + work_group_size - uvec3(1)) / (work_group_size);
 }
 
 void Shader::dispatchCompute(const uvec3& num_groups)
 {
     SAIGA_ASSERT(isBound());
-    dispatchCompute(num_groups.x, num_groups.y, num_groups.z);
+    dispatchCompute(num_groups[0], num_groups[1], num_groups[2]);
     assert_no_glerror();
 }
 
@@ -334,7 +335,7 @@ std::vector<GLint> Shader::getUniformBlockOffset(std::vector<GLint> indices)
 void Shader::upload(int location, const mat4& m)
 {
     SAIGA_ASSERT(isBound());
-    glUniformMatrix4fv(location, 1, GL_FALSE, (GLfloat*)&m[0]);
+    glUniformMatrix4fv(location, 1, GL_FALSE, data(m));
     assert_no_glerror();
 }
 

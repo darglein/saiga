@@ -295,9 +295,9 @@ bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vm
             vec3 hsv(f * (240.0 / 360.0), 1, 1);
             Saiga::Color c(Color::hsv2rgb(hsv));
             //            unsigned char c = Saiga::iRound(f * 255.0f);
-            simg(i, j).r = c.r;
-            simg(i, j).g = c.g;
-            simg(i, j).b = c.b;
+            simg(i, j)[0] = c.r;
+            simg(i, j)[1] = c.g;
+            simg(i, j)[2] = c.b;
         }
     }
     return simg.save(path);

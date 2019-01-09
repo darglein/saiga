@@ -57,7 +57,7 @@ class SAIGA_GLOBAL raw_Texture
 
     /**
      * Directly maps to glBindImageTexture.
-     * See here https://www.opengl.org/sdk/docs/man/html/glBindImageTexture.xhtml
+     * See here https://www.opengl.org/sdk/docs/man/html/glBindImageTexture[0]html
      *
      * The OpenGL 4.2+ way of binding textures...
      *

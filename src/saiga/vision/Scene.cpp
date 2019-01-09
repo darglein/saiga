@@ -61,20 +61,23 @@ void Scene::fixWorldPointReferences()
 {
     for (WorldPoint& wp : worldPoints)
     {
-        wp.references.clear();
+        wp.monoreferences.clear();
+        wp.stereoreferences.clear();
     }
 
 
     int iid = 0;
     for (SceneImage& i : images)
     {
-        int ipid = 0;
+        int ipid      = 0;
+        i.validPoints = 0;
         for (auto& ip : i.monoPoints)
         {
             if (ip.wp >= 0)
             {
                 WorldPoint& wp = worldPoints[ip.wp];
-                wp.references.emplace_back(iid, ipid);
+                wp.monoreferences.emplace_back(iid, ipid);
+                i.validPoints++;
             }
             ipid++;
         }
@@ -83,7 +86,8 @@ void Scene::fixWorldPointReferences()
             if (ip.wp >= 0)
             {
                 WorldPoint& wp = worldPoints[ip.wp];
-                wp.references.emplace_back(iid, ipid);
+                wp.stereoreferences.emplace_back(iid, ipid);
+                i.validPoints++;
             }
             ipid++;
         }
@@ -165,6 +169,60 @@ void Scene::removeOutliers(float factor)
     fixWorldPointReferences();
 }
 
+void Scene::compress()
+{
+    fixWorldPointReferences();
+
+
+    std::vector<WorldPoint> newWorldPoints;
+
+    for (auto& wp : worldPoints)
+    {
+        if (wp.isValid())
+        {
+            int newid = newWorldPoints.size();
+            newWorldPoints.push_back(wp);
+
+            // update new world point id for every reference
+            for (auto& p : wp.monoreferences)
+            {
+                MonoImagePoint& ip = images[p.first].monoPoints[p.second];
+                ip.wp              = newid;
+            }
+        }
+        else
+        {
+            cout << "removed wp" << endl;
+        }
+    }
+    worldPoints = newWorldPoints;
+    SAIGA_ASSERT(valid());
+
+    // count ips for each image
+
+    int i = 0;
+    for (auto& img : images)
+    {
+        img.validPoints = 0;
+        for (auto& ip : img.monoPoints)
+        {
+            if (ip) img.validPoints++;
+        }
+        if (img.validPoints == 0) cout << "invalid camera " << i << endl;
+        i++;
+    }
+}
+
+std::vector<int> Scene::validImages()
+{
+    std::vector<int> res;
+    for (int i = 0; i < images.size(); ++i)
+    {
+        if (images[i].valid()) res.push_back(i);
+    }
+    return res;
+}
+
 
 
 double Scene::rms()
@@ -194,8 +252,8 @@ double Scene::rms()
 
     auto error2 = error / (monoEdges + stereoEdges);
     error2      = sqrt(error2);
-    cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
-         << " chi2: " << error << endl;
+    //    cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
+    //         << " chi2: " << error << endl;
     return error2;
 }
 
@@ -287,6 +345,17 @@ void Scene::addExtrinsicNoise(double stddev)
     }
 }
 
+void Scene::sortByWorldPointId()
+{
+    for (auto& img : images)
+    {
+        std::sort(img.monoPoints.begin(), img.monoPoints.end(),
+                  [](const MonoImagePoint& i1, const MonoImagePoint& i2) { return i1.wp < i2.wp; });
+    }
+    fixWorldPointReferences();
+    SAIGA_ASSERT(valid());
+}
+
 Vec3 Scene::medianWorldPoint()
 {
     std::vector<double> mx, my, mz;
@@ -310,6 +379,7 @@ Vec3 Scene::medianWorldPoint()
 
 void Scene::removeNegativeProjections()
 {
+    int removedObs = 0;
     for (SceneImage& im : images)
     {
         for (auto& o : im.monoPoints)
@@ -319,16 +389,22 @@ void Scene::removeNegativeProjections()
             if (p(2) <= 0)
             {
                 o.wp = -1;
+                removedObs++;
             }
         }
         for (auto& o : im.stereoPoints)
         {
             if (o.wp < 0) continue;
             auto p = extrinsics[im.extr].se3 * worldPoints[o.wp].p;
-            if (p(2) <= 0) o.wp = -1;
+            if (p(2) <= 0)
+            {
+                o.wp = -1;
+                removedObs++;
+            }
         }
     }
     fixWorldPointReferences();
+    cout << "removed " << removedObs << " negative projections" << endl;
 }
 
 
@@ -352,7 +428,7 @@ bool Scene::imgui()
         changed = true;
     }
 
-    static float sigma = 0.1;
+    static float sigma = 0.01;
     ImGui::InputFloat("sigma", &sigma);
 
 

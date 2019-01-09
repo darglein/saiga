@@ -274,7 +274,7 @@ void Deferred_Renderer::renderGBuffer(Camera* cam)
 
     gbuffer.bind();
     glViewport(0, 0, renderWidth, renderHeight);
-    glClearColor(params.clearColor.x, params.clearColor.y, params.clearColor.z, params.clearColor.w);
+    glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
 
     if (params.maskUsedPixels)
     {

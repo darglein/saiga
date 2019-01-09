@@ -17,7 +17,6 @@ class BAPoseOnly
     void posePointDense(Scene& scene, int its);
     void posePointSparse(Scene& scene, int its);
     void posePointDenseBlock(Scene& scene, int its);
-    void sbaPaper(Scene& scene, int its);
 };
 
 

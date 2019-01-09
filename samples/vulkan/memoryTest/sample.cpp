@@ -9,6 +9,7 @@
 #include "sample.h"
 
 #include "saiga/image/imageTransformations.h"
+#include "saiga/imgui/imgui.h"
 #include "saiga/util/color.h"
 
 #include <algorithm>

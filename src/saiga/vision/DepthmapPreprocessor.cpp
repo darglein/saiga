@@ -224,12 +224,12 @@ void DMPP::applyFilterToImage(DepthMap vsrc, DepthMap vdst)
                         vec2 offset(di, dj);
                         float du2 = dot(offset, offset);
                         //                        float dz = std::abs(d2 - d);
-                        //                        float dz = glm::abs(d2 - d);
+                        //                        float dz = abs(d2 - d);
                         depths[1] = d2;
                         widths[1] = pixel_footprint(j + dj, i + di, d2, camera);
 
 
-                        if (d2 > 0 && !dm_is_depthdisc(widths, depths, params.dd_factor, 0, 1, glm::sqrt(du2)))
+                        if (d2 > 0 && !dm_is_depthdisc(widths, depths, params.dd_factor, 0, 1, sqrt(du2)))
                         {
                             w = kernelI(di + params.filterRadius, dj + params.filterRadius);
                         }

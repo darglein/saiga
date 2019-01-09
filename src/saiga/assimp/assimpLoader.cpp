@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -326,9 +326,9 @@ void AssimpLoader::transformnode(aiMatrix4x4* result, aiNode* node)
 
 mat4 AssimpLoader::composematrix(vec3 position, quat rotation, vec3 scaling)
 {
-    mat4 t = translate(mat4(1), position);
-    mat4 r = mat4_cast(rotation);
-    mat4 s = scale(mat4(1), scaling);
+    mat4 t = translate(identityMat4(), position);
+    mat4 r = make_mat4(rotation);
+    mat4 s = scale(identityMat4(), scaling);
 
 
 
@@ -381,7 +381,7 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat)
     {
         for (int j = 0; j < 4; ++j)
         {
-            ret[i][j] = mat[j][i];
+            col(ret,i)[j] = mat[j][i];
         }
     }
     return ret;

@@ -11,7 +11,6 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <array>
-#include <glm/glm.hpp>
 
 namespace Saiga
 {
@@ -52,6 +51,18 @@ bool hasEnding(std::string const& fullString, std::string const& ending)
     if (fullString.length() >= ending.length())
     {
         return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool hasPrefix(const std::string& fullString, const std::string& prefix)
+{
+    if (fullString.length() >= prefix.length())
+    {
+        return (0 == fullString.compare(0, prefix.length(), prefix));
     }
     else
     {
@@ -109,5 +120,7 @@ std::string sizeToString(size_t size, size_t base, size_t max, const char* sep, 
 
     return size_stream.str();
 }
+
+
 
 }  // namespace Saiga

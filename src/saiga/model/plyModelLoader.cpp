@@ -186,8 +186,8 @@ void PLYLoader::parseMeshBinary()
         //        color = Color::srgb2linearrgb(color);
 
         VertexNC v;
-        v.position = vec4(pos, 1);
-        v.color    = vec4(color, 1);
+        v.position = make_vec4(pos, 1);
+        v.color    = make_vec4(color, 1);
         mesh.addVertex(v);
         //            float x = reinterpret_cast<float*>(start)[0];
         //            float x = reinterpret_cast<float*>(start)[0];

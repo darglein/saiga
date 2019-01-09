@@ -112,9 +112,9 @@ void SMAA::loadShader(SMAA::Quality _quality)
     quality = _quality;
     // example:
     //#define SMAA_RT_METRICS float4(1.0 / 1280.0, 1.0 / 720.0, 1280.0, 720.0)
-    vec4 rtMetrics(1.0f / screenSize.x, 1.0f / screenSize.y, screenSize.x, screenSize.y);
-    std::string rtMetricsStr = "#define SMAA_RT_METRICS float4(" + std::to_string(rtMetrics.x) + "," +
-                               std::to_string(rtMetrics.y) + "," + std::to_string(rtMetrics.z) + "," +
+    vec4 rtMetrics(1.0f / screenSize[0], 1.0f / screenSize[1], screenSize[0], screenSize[1]);
+    std::string rtMetricsStr = "#define SMAA_RT_METRICS float4(" + std::to_string(rtMetrics[0]) + "," +
+                               std::to_string(rtMetrics[1]) + "," + std::to_string(rtMetrics[2]) + "," +
                                std::to_string(rtMetrics.w) + ")";
 
     std::string qualityStr;
@@ -165,7 +165,7 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer& output)
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
-    glViewport(0, 0, screenSize.x, screenSize.y);
+    glViewport(0, 0, screenSize[0], screenSize[1]);
 
     // write 1 to stencil if the pixel is not discarded
     glStencilFunc(GL_ALWAYS, 0x1, ~0);

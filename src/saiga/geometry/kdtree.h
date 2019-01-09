@@ -15,7 +15,7 @@
 namespace Saiga
 {
 // D : Dimension. for example D=3 for 3 dimensional points
-// point_t : should be a glm vector type. for example vec2 or vec3
+// point_t : should be a vector type. for example vec2 or vec3
 template <int D, typename point_t>
 class SAIGA_TEMPLATE KDTree
 {

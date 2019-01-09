@@ -31,11 +31,11 @@ bool AssetRenderer::bind(vk::CommandBuffer cmd)
 
 void AssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 {
-    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), &model[0][0]);
+    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), data(model));
 }
 
 
-void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, glm::mat4 view, glm::mat4 proj)
+void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj)
 {
     uboVS.projection = proj;
     uboVS.modelview  = view;

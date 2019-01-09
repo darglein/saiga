@@ -19,7 +19,7 @@ void addAlphaChannel(ImageView<const ucvec3> src, ImageView<ucvec4> dst, unsigne
     {
         for (int j = 0; j < src.width; ++j)
         {
-            dst(i, j) = ucvec4(src(i, j), alpha);
+            dst(i, j) = make_ucvec4(src(i, j), alpha);
         }
     }
 }
@@ -34,7 +34,7 @@ void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t 
             float d = src(i, j);
             d       = (d - minD) / maxD;
 
-            dst(i, j) = ucvec4(ucvec3(d * 255), 255);
+            dst(i, j) = ucvec4(d * 255,d*255,d*255, 255);
         }
     }
 }
@@ -49,7 +49,7 @@ void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD, 
             float d = src(i, j);
             d       = (d - minD) / maxD;
 
-            dst(i, j) = ucvec4(ucvec3(d * 255), 255);
+              dst(i, j) = ucvec4(d * 255,d*255,d*255, 255);
         }
     }
 }
@@ -59,7 +59,7 @@ struct RGBATOGRAY8Trans
     unsigned char operator()(const ucvec4& v)
     {
         const vec3 conv(0.2126f, 0.7152f, 0.0722f);
-        vec3 vf(v.x, v.y, v.z);
+        vec3 vf(v[0], v[1],v[2]);
         float gray = dot(conv, vf);
         return gray;
     }
@@ -79,7 +79,7 @@ struct RGBATOGRAYFTrans
     float operator()(const ucvec4& v)
     {
         const vec3 conv(0.2126f, 0.7152f, 0.0722f);
-        vec3 vf(v.x, v.y, v.z);
+        vec3 vf(v[0], v[1],v[2]);
         float gray = dot(conv, vf);
         return gray * scale;
     }

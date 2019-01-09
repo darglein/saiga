@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -55,7 +55,7 @@ float Triangle::cosAngleAtCorner(int i)
             break;
     }
 
-    return dot(normalize(left - center), normalize(right - center));
+    return dot(normalize( vec3(left - center) ), normalize(vec3(right - center)));
 }
 
 bool Triangle::isDegenerate()
