@@ -12,7 +12,7 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 {
     m_pDevice = _pDevice;
     m_device  = _device;
-    strategy  = FirstFitStrategy();
+    strategy  = std::make_unique<FirstFitStrategy>();
     chunkCreator.init(_pDevice, _device);
 
     auto props = _pDevice.getMemoryProperties();
@@ -56,7 +56,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
 
 
     auto emplaced = map.emplace(effectiveType, std::make_unique<BufferChunkAllocator>(
-                                                   m_device, &chunkCreator, effectiveType, strategy, found->second));
+                                                   m_device, &chunkCreator, effectiveType, *strategy, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -72,7 +72,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
     auto found = find_default_size<ImageDefaultMap, ImageType>(default_image_chunk_sizes, type);
 
     auto emplaced = map.emplace(effectiveType, std::make_unique<ImageChunkAllocator>(
-                                                   m_device, &chunkCreator, effectiveType, strategy, found->second));
+                                                   m_device, &chunkCreator, effectiveType, *strategy, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -232,7 +232,6 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation& loca
     {
         allocator.deallocate(location);
     }
-
 }
 
 void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation& location)

@@ -87,7 +87,7 @@ class SAIGA_GLOBAL VulkanMemory
     ChunkCreator chunkCreator;
 
 
-    FirstFitStrategy strategy;
+    std::unique_ptr<FitStrategy> strategy;
 
 
     template <typename DefaultSizeMap, typename MemoryType>
