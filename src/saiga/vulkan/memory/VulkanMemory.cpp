@@ -17,7 +17,7 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 
     auto props = _pDevice.getMemoryProperties();
     memoryTypes.resize(props.memoryTypeCount);
-    for (int i = 0; i < props.memoryTypeCount; ++i)
+    for (auto i = 0U; i < props.memoryTypeCount; ++i)
     {
         memoryTypes[i] = props.memoryTypes[i];
     }
@@ -87,7 +87,7 @@ BaseMemoryAllocator& VulkanMemory::getAllocator(const BufferType& type)
     return *(foundAllocator->second);
 }
 
-BaseMemoryAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
+ImageChunkAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
 {
     auto foundAllocator = findAllocator<ImageMap, vk::ImageUsageFlags>(imageAllocators, type);
 
@@ -218,7 +218,7 @@ MemoryLocation VulkanMemory::allocate(const ImageType& type, const vk::Image& im
     {
         return fallbackAllocator->allocate(type, image);
     }
-    return allocator.allocate(image_mem_reqs.size);
+    return allocator.allocate(image_mem_reqs.size, image);
 }
 
 void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation& location)

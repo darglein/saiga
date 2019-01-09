@@ -170,7 +170,7 @@ void BaseChunkAllocator::showDetailStats()
         uint64_t usedSpace      = 0;
         uint64_t innerFreeSpace = 0;
         uint64_t totalFreeSpace = 0;
-        for (int i = 0; i < allocation_bars.size(); ++i)
+        for (auto i = 0U; i < allocation_bars.size(); ++i)
         {
             ImGui::Text("Chunk %d", i + 1);
             ImGui::Indent();

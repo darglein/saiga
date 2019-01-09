@@ -67,7 +67,7 @@ void VulkanBase::renderGUI()
     ImGui::NextColumn();
     ImGui::TextWrapped("Property Flags");
     ImGui::NextColumn();
-    for (int typeIdx = 0; typeIdx < memProps.memoryTypeCount; ++typeIdx)
+    for (auto typeIdx = 0U; typeIdx < memProps.memoryTypeCount; ++typeIdx)
     {
         ImGui::Separator();
 
