@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/util/assert.h"
+#include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
@@ -35,9 +36,9 @@ VectorType forwardSubstituteDiagOne(const MatrixType& A, const VectorType& b)
 
 #if 0
     // Test if (Ax-b)==0
-    double test =
-        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
+    double test = (expand(A).template triangularView<Eigen::Lower>() * expand(x) - expand(b)).squaredNorm();
     cout << "error forwardSubstituteDiagOne: " << test << endl;
+    SAIGA_ASSERT(test < 1e-10);
 #endif
     return x;
 }
@@ -45,7 +46,7 @@ VectorType forwardSubstituteDiagOne(const MatrixType& A, const VectorType& b)
 
 // template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
 template <typename MatrixType>
-MatrixType forwardSubstituteDiagOne(const MatrixType& A, const MatrixType& b)
+MatrixType forwardSubstituteDiagOneMulti(const MatrixType& A, const MatrixType& b)
 {
     // solve Ax=b
     // with A triangular block matrix where diagonal elements are 1.
@@ -70,9 +71,9 @@ MatrixType forwardSubstituteDiagOne(const MatrixType& A, const MatrixType& b)
 
 #if 0
     // Test if (Ax-b)==0
-    double test =
-        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
-    cout << "error forwardSubstituteDiagOne: " << test << endl;
+    double test = (expand(A).template triangularView<Eigen::Lower>() * expand(x) - expand(b)).squaredNorm();
+    cout << "error forwardSubstituteDiagOneMulti: " << test << endl;
+    SAIGA_ASSERT(test < 1e-10);
 #endif
     return x;
 }
@@ -99,11 +100,10 @@ VectorType backwardSubstituteDiagOneTranspose(const MatrixType& A, const VectorT
     }
 
 #if 0
-    cout << fixedBlockMatrixToMatrix(x) << endl << endl;
     // Test if (Ax-b)==0
-    double test = (fixedBlockMatrixToMatrix(A).transpose() * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b))
-                      .squaredNorm();
+    double test = (expand(A).transpose().template triangularView<Eigen::Upper>() * expand(x) - expand(b)).squaredNorm();
     cout << "error backwardSubstituteDiagOneTranspose: " << test << endl;
+    SAIGA_ASSERT(test < 1e-10);
 #endif
     return x;
 }
@@ -111,7 +111,7 @@ VectorType backwardSubstituteDiagOneTranspose(const MatrixType& A, const VectorT
 
 // template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
 template <typename MatrixType>
-MatrixType backwardSubstituteDiagOneTranspose(const MatrixType& A, const MatrixType& b)
+MatrixType backwardSubstituteDiagOneTransposeMulti(const MatrixType& A, const MatrixType& b)
 {
     // solve Ax=b
     // with A triangular block matrix where diagonal elements are 1.

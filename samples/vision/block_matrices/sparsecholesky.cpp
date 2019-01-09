@@ -212,13 +212,13 @@ void perfTestSparseCholesky()
     cout << "perfTestSparseCholesky" << endl;
 
     Saiga::Random::setSeed(34534);
-    const int bn = 2;
-    const int bm = 2;
+    const int bn = 3;
+    const int bm = 3;
 
-    int n = 400;
-    int m = 400;
+    int n = 500;
+    int m = 500;
 
-    int numNonZeroBlocks = n * m * 0.01;
+    int numNonZeroBlocks = 20;
 
     using Block  = Eigen::Matrix<double, bn, bm, Eigen::RowMajor>;
     using Vector = Eigen::Matrix<double, bn, 1>;
@@ -241,6 +241,8 @@ void perfTestSparseCholesky()
     std::vector<Eigen::Triplet<double>> data;
     std::vector<Eigen::Triplet<Block>> bdata;
 
+
+
     // generate diagonal blocks
     for (int i = 0; i < n; ++i)
     {
@@ -255,45 +257,61 @@ void perfTestSparseCholesky()
 
 
     // generate the rest
-
-    for (int k = 0; k < numNonZeroBlocks; ++k)
+    for (int q = 0; q < n; ++q)
     {
-        auto i = Random::uniformInt(0, n - 1);
-        auto j = Random::uniformInt(0, m - 1);
-        if (i == j) continue;
+        auto ind = Random::uniqueIndices(numNonZeroBlocks, m);
 
-        //        Block b = Block::Random() * 2 - Block::Ones();
-        Vector t = Vector::Random();
-        Block b  = t * t.transpose();
+        for (auto j : ind)
+        {
+            auto i = q;
+            if (i < j) continue;
 
-        auto v = to_triplets(b);
-        addOffsetToTriplets(v, i * bn, j * bm);
-        data.insert(data.end(), v.begin(), v.end());
-        bdata.emplace_back(i, j, b);
+            Block b = Block::Random();
+            //            Vector t = Vector::Random();
+            //            Vector t = Vector::Ones();
+            //            Block b = t * t.transpose();
 
-        b.transposeInPlace();
-        v = to_triplets(b);
-        addOffsetToTriplets(v, j * bn, i * bm);
-        data.insert(data.end(), v.begin(), v.end());
-        bdata.emplace_back(j, i, b);
+            auto v = to_triplets(b);
+            addOffsetToTriplets(v, i * bn, j * bm);
+            data.insert(data.end(), v.begin(), v.end());
+            bdata.emplace_back(i, j, b);
+
+            b.transposeInPlace();
+            v = to_triplets(b);
+            addOffsetToTriplets(v, j * bn, i * bm);
+            data.insert(data.end(), v.begin(), v.end());
+            bdata.emplace_back(j, i, b);
+        }
+    }
+
+    for (auto i = 0; i < bA.rows(); ++i)
+    {
+        bb(i) = b.segment(i * bn, bn);
     }
 
 
     A.setFromTriplets(data.begin(), data.end());
     bA.setFromTriplets(bdata.begin(), bdata.end());
 
+    // sanity checks
+    cout << "convertion checks" << endl;
+    cout << (expand(bA) - A.toDense()).norm() << endl;
+    cout << (expand(bb) - b).norm() << endl;
+
+    SAIGA_ASSERT((expand(bA) - A.toDense()).norm() == 0);
+    SAIGA_ASSERT((expand(bb) - b).norm() == 0);
+
+
+
     //    cout << A.toDense() << endl << endl;
     //    cout << expand(bA.toDense()) << endl << endl;
 
-    for (auto i = 0; i < bA.rows(); ++i)
-    {
-        bb(i) = b.segment(i * 2, 2);
-    }
 
 
     //    cout << b.transpose() << endl << endl;
     //    cout << expand(bb).transpose() << endl << endl;
 
+#if 0
 
     cout << "non zeros: " << A.nonZeros() << endl << endl;
 
@@ -306,51 +324,56 @@ void perfTestSparseCholesky()
     //    cout << x.transpose() << endl;
     cout << "Eigen error: " << (A * x - b).squaredNorm() << endl << endl;
 
-#if 1
     {
         SAIGA_BLOCK_TIMER();
         Eigen::Matrix<double, -1, -1> adense = A.toDense();
 
         DenseLDLT<decltype(adense), decltype(b)> ldlt;
         ldlt.compute(adense);
+        cout << expand(ldlt.L) << endl << endl;
         x = ldlt.solve(b);
     }
     cout << "my dense error: " << (A * x - b).squaredNorm() << endl << endl;
-
+#endif
 
     {
         Eigen::Matrix<double, -1, -1> adense = A.toDense();
         Eigen::Matrix<MatrixScalar<Block>, -1, -1> bA(n, m);
-        Eigen::Matrix<MatrixScalar<Vector>, -1, 1> bx(n), bb(n);
         for (int i = 0; i < n; ++i)
         {
             for (int j = 0; j < m; ++j)
             {
                 bA(i, j) = adense.block(i * bn, j * bm, bn, bm);
             }
-            bb(i) = b.segment(i * bn, bn);
+            //            bb(i) = b.segment(i * bn, bn);
         }
+
+        // sanity checks
+        cout << "convertion checks" << endl;
+        cout << (expand(bA) - A.toDense()).norm() << endl;
+        cout << (expand(bb) - b).norm() << endl;
 
         SAIGA_BLOCK_TIMER();
         DenseLDLT<decltype(bA), decltype(bb)> ldlt3;
         ldlt3.compute(bA);
         bx = ldlt3.solve(bb);
+        x  = expand(bx);
     }
-    x = expand(bx);
-    cout << "my block dense error: " << (A * x - b).squaredNorm() << endl << endl;
-#endif
+    //    cout << "x: " << expand(x).transpose() << endl;
+    cout << "my recursive dense error: " << (A * x - b).squaredNorm() << endl << endl;
 
+
+#if 0
 
     {
         SAIGA_BLOCK_TIMER();
         x = solveSparseLDLT(A, b);
         //        cout << "x " << x.transpose() << endl;
     }
-    cout << "my error: " << (A * x - b).squaredNorm() << endl << endl;
+    cout << "my sparse error: " << (A * x - b).squaredNorm() << endl << endl;
 
 
 
-#if 0
     {
         SAIGA_BLOCK_TIMER();
         bx = solveSparseLDLT(bA, bb);
@@ -368,8 +391,8 @@ void perfTestSparseCholesky()
         bx = ldlt.solve(bb);
     }
     x = expand(bx);
-    //    cout << x.transpose() << endl;
-    cout << "My recursive error: " << (A * x - b).squaredNorm() << endl << endl;
+    //    cout << "x: " << expand(x).transpose() << endl;
+    cout << "My recursive sparse error: " << (A * x - b).squaredNorm() << endl << endl;
 }
 
 }  // namespace Saiga

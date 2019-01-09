@@ -97,6 +97,18 @@ void SparseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
         D.diagonal()(i)    = it.value() - sumd;
         Dinv.diagonal()(i) = inverseCholesky(D.diagonal()(i));
     }
+
+#if 0
+    // compute the product LDLT and compare it to the original matrix
+    double factorizationError = (expand(L).template triangularView<Eigen::Lower>() * expand(D) *
+                                     expand(L).template triangularView<Eigen::Lower>().transpose() -
+                                 expand(A))
+                                    .norm();
+    cout << "sparse LDLT factorizationError " << factorizationError << endl;
+    SAIGA_ASSERT(factorizationError < 1e-10);
+#endif
+    //    cout << expand(Dinv) << endl << endl;
+    //    cout << expand(L) << endl << endl;
 }
 
 template <typename MatrixType, typename VectorType>

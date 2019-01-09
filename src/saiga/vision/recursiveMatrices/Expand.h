@@ -9,6 +9,7 @@
 #include "saiga/util/assert.h"
 #include "saiga/vision/MatrixScalar.h"
 
+#include "Eigen/Sparse"
 namespace Saiga
 {
 struct MatrixDimensions
@@ -136,6 +137,29 @@ struct ExpandImpl<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxC
 };
 
 
+template <typename _Scalar, int _Options>
+struct ExpandImpl<Eigen::SparseMatrix<_Scalar, _Options>>
+{
+    using ChildExpansion = ExpandImpl<ExpansionType<_Scalar>>;
+    using BaseScalar     = typename ChildExpansion::BaseScalar;
+
+    static auto get(const Eigen::SparseMatrix<_Scalar, _Options>& m) { return ChildExpansion::get(m.toDense()); }
+};
+
+
+template <typename _Scalar, int SizeAtCompileTime, int MaxSizeAtCompileTime>
+struct ExpandImpl<Eigen::DiagonalMatrix<_Scalar, SizeAtCompileTime, MaxSizeAtCompileTime>>
+{
+    using ChildExpansion = ExpandImpl<ExpansionType<_Scalar>>;
+    using BaseScalar     = typename ChildExpansion::BaseScalar;
+
+    static auto get(const Eigen::DiagonalMatrix<_Scalar, SizeAtCompileTime, MaxSizeAtCompileTime>& m)
+    {
+        return ChildExpansion::get(m.toDenseMatrix());
+    }
+};
+
+
 
 template <typename G>
 struct ExpandImpl<MatrixScalar<G>>
@@ -143,7 +167,7 @@ struct ExpandImpl<MatrixScalar<G>>
     using ChildExpansion = ExpandImpl<G>;
     using BaseScalar     = typename ChildExpansion::BaseScalar;
 
-    static auto get(const MatrixScalar<G>& m) { return ExpandImpl<G>::get(m.get()); }
+    static auto get(const MatrixScalar<G>& m) { return ChildExpansion::get(m.get()); }
 };
 
 

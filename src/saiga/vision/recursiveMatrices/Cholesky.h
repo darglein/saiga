@@ -68,12 +68,26 @@ void DenseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
             sum     = A(i, j) - sum;
             sum     = sum * Dinv.diagonal()(j);
             L(i, j) = sum;
+            L(j, i) = sum;
             sumd += sum * D.diagonal()(j) * transpose(sum);
         }
-        //        L(i, i)            = MultiplicativeNeutral<MatrixScalar>::get();
+        L(i, i)            = MultiplicativeNeutral<MatrixScalar>::get();
         D.diagonal()(i)    = A(i, i) - sumd;
         Dinv.diagonal()(i) = inverseCholesky(D.diagonal()(i));
     }
+
+
+#if 0
+    // compute the product LDLT and compare it to the original matrix
+    double factorizationError = (expand(L).template triangularView<Eigen::Lower>() * expand(D) *
+                                     expand(L).template triangularView<Eigen::Lower>().transpose() -
+                                 expand(A))
+                                    .norm();
+    cout << "dense LDLT factorizationError " << factorizationError << endl;
+    SAIGA_ASSERT(factorizationError < 1e-10);
+#endif
+    //    cout << expand(Dinv) << endl << endl;
+    //    cout << expand(L) << endl << endl;
 }
 
 template <typename MatrixType, typename VectorType>
@@ -99,9 +113,9 @@ MatrixType DenseLDLT<MatrixType, VectorType>::solve(const MatrixType& b)
     x.resize(L.rows(), L.cols());
     y.resize(L.rows(), L.cols());
 
-    x = forwardSubstituteDiagOne<MatrixType>(L, b);
+    x = forwardSubstituteDiagOneMulti<MatrixType>(L, b);
     y = multDiagVectorMulti(Dinv, x);
-    x = backwardSubstituteDiagOneTranspose(L, y);
+    x = backwardSubstituteDiagOneTransposeMulti(L, y);
 
     return x;
 }
