@@ -212,13 +212,13 @@ void perfTestSparseCholesky()
     cout << "perfTestSparseCholesky" << endl;
 
     Saiga::Random::setSeed(34534);
-    const int bn = 3;
-    const int bm = 3;
+    const int bn = 4;
+    const int bm = 4;
 
     int n = 500;
     int m = 500;
 
-    int numNonZeroBlocks = 20;
+    int numNonZeroBlocks = 3;
 
     using Block  = Eigen::Matrix<double, bn, bm, Eigen::RowMajor>;
     using Vector = Eigen::Matrix<double, bn, 1>;
@@ -294,10 +294,6 @@ void perfTestSparseCholesky()
     bA.setFromTriplets(bdata.begin(), bdata.end());
 
     // sanity checks
-    cout << "convertion checks" << endl;
-    cout << (expand(bA) - A.toDense()).norm() << endl;
-    cout << (expand(bb) - b).norm() << endl;
-
     SAIGA_ASSERT((expand(bA) - A.toDense()).norm() == 0);
     SAIGA_ASSERT((expand(bb) - b).norm() == 0);
 
@@ -311,18 +307,21 @@ void perfTestSparseCholesky()
     //    cout << b.transpose() << endl << endl;
     //    cout << expand(bb).transpose() << endl << endl;
 
-#if 0
 
-    cout << "non zeros: " << A.nonZeros() << endl << endl;
+    cout << "non zeros: " << A.nonZeros() << " fillrate " << ((double)A.nonZeros() / (A.cols() * A.rows())) * 100 << "%"
+         << endl
+         << endl;
 
     {
-        SAIGA_BLOCK_TIMER();
         Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
-        solver.compute(A);
+        {
+            SAIGA_BLOCK_TIMER();
+            solver.compute(A);
+        }
         x = solver.solve(b);
+        cout << "Eigen error: " << (A * x - b).squaredNorm() << endl << endl;
     }
-    //    cout << x.transpose() << endl;
-    cout << "Eigen error: " << (A * x - b).squaredNorm() << endl << endl;
+#if 0
 
     {
         SAIGA_BLOCK_TIMER();
@@ -334,8 +333,8 @@ void perfTestSparseCholesky()
         x = ldlt.solve(b);
     }
     cout << "my dense error: " << (A * x - b).squaredNorm() << endl << endl;
-#endif
 
+#endif
     {
         Eigen::Matrix<double, -1, -1> adense = A.toDense();
         Eigen::Matrix<MatrixScalar<Block>, -1, -1> bA(n, m);
@@ -349,18 +348,18 @@ void perfTestSparseCholesky()
         }
 
         // sanity checks
-        cout << "convertion checks" << endl;
-        cout << (expand(bA) - A.toDense()).norm() << endl;
-        cout << (expand(bb) - b).norm() << endl;
+        SAIGA_ASSERT((expand(bA) - A.toDense()).norm() == 0);
+        SAIGA_ASSERT((expand(bb) - b).norm() == 0);
 
-        SAIGA_BLOCK_TIMER();
         DenseLDLT<decltype(bA), decltype(bb)> ldlt3;
-        ldlt3.compute(bA);
+        {
+            SAIGA_BLOCK_TIMER();
+            ldlt3.compute(bA);
+        }
         bx = ldlt3.solve(bb);
         x  = expand(bx);
+        cout << "my recursive dense error: " << (A * x - b).squaredNorm() << endl << endl;
     }
-    //    cout << "x: " << expand(x).transpose() << endl;
-    cout << "my recursive dense error: " << (A * x - b).squaredNorm() << endl << endl;
 
 
 #if 0
@@ -383,16 +382,26 @@ void perfTestSparseCholesky()
     }
 #endif
 
+    {
+        SparseLDLT<decltype(A), decltype(b)> ldlt;
+        {
+            SAIGA_BLOCK_TIMER();
+            ldlt.compute(A);
+        }
+        x = ldlt.solve(b);
+        cout << "My sparse error: " << (A * x - b).squaredNorm() << endl << endl;
+    }
 
     {
-        SAIGA_BLOCK_TIMER();
         SparseLDLT<decltype(bA), decltype(bb)> ldlt;
-        ldlt.compute(bA);
+        {
+            SAIGA_BLOCK_TIMER();
+            ldlt.compute(bA);
+        }
         bx = ldlt.solve(bb);
+        x  = expand(bx);
+        cout << "My recursive sparse error: " << (A * x - b).squaredNorm() << endl << endl;
     }
-    x = expand(bx);
-    //    cout << "x: " << expand(x).transpose() << endl;
-    cout << "My recursive sparse error: " << (A * x - b).squaredNorm() << endl << endl;
 }
 
 }  // namespace Saiga
