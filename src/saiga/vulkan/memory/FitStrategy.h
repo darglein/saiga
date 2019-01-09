@@ -26,6 +26,18 @@ struct SAIGA_GLOBAL FirstFitStrategy : public FitStrategy
                                                          vk::DeviceSize size) override;
 };
 
+struct SAIGA_GLOBAL BestFitStrategy : public FitStrategy
+{
+    std::pair<ChunkIterator, LocationIterator> findRange(std::vector<ChunkAllocation>& _allocations,
+                                                         vk::DeviceSize size) override;
+};
+
+struct SAIGA_GLOBAL WorstFitStrategy : public FitStrategy
+{
+    std::pair<ChunkIterator, LocationIterator>
+    findRange(std::vector<ChunkAllocation> &_allocations, vk::DeviceSize size) override;
+};
+
 }  // namespace Memory
 }  // namespace Vulkan
 }  // namespace Saiga

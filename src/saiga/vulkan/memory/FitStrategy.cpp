@@ -34,6 +34,58 @@ std::pair<ChunkIterator, LocationIterator> FirstFitStrategy::findRange(std::vect
     return std::make_pair(foundChunk, foundRange);
 }
 
+template <typename CompareFunc>
+std::pair<ChunkIterator, LocationIterator> findFitPairForBestWorst(std::vector<ChunkAllocation>& _allocations,
+                                                                   vk::DeviceSize size, CompareFunc func)
+{
+    bool found = false;
+    ChunkIterator foundChunk;
+    LocationIterator foundFreeSpace;
+
+    for (auto chunkIt = _allocations.begin(); chunkIt != _allocations.end(); ++chunkIt)
+    {
+        for (auto freeIt = chunkIt->freeList.begin(); freeIt != chunkIt->freeList.end(); ++freeIt)
+        {
+            if (!found)
+            {
+                found          = true;
+                foundChunk     = chunkIt;
+                foundFreeSpace = freeIt;
+                continue;
+            }
+
+            auto free_size = freeIt->size;
+            if (free_size < size)
+            {
+                continue;
+            }
+            if (free_size == size)
+            {
+                return make_pair(chunkIt, freeIt);
+            }
+            if (free_size < foundFreeSpace->size)
+            {
+                foundFreeSpace = freeIt;
+                foundChunk     = chunkIt;
+            }
+        }
+    }
+
+    return make_pair(foundChunk, foundFreeSpace);
+}
+
+std::pair<ChunkIterator, LocationIterator> BestFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
+                                                                      vk::DeviceSize size)
+{
+    return findFitPairForBestWorst(_allocations, size, std::less());
+}
+
+std::pair<ChunkIterator, LocationIterator> WorstFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
+                                                                       vk::DeviceSize size)
+{
+    return findFitPairForBestWorst(_allocations, size, std::greater());
+}
+
 }  // namespace Memory
 }  // namespace Vulkan
 }  // namespace Saiga
