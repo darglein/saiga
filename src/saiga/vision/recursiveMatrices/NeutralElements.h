@@ -30,6 +30,13 @@ struct AdditiveNeutral<double>
     static double get(int rows, int cols) { return 0.0; }
 };
 
+template <>
+struct AdditiveNeutral<float>
+{
+    static float get() { return 0.0f; }
+    static float get(int rows, int cols) { return 0.0f; }
+};
+
 template <typename G>
 struct AdditiveNeutral<MatrixScalar<G>>
 {
@@ -55,6 +62,12 @@ template <>
 struct MultiplicativeNeutral<double>
 {
     static double get() { return 1.0; }
+};
+
+template <>
+struct MultiplicativeNeutral<float>
+{
+    static float get() { return 1.0; }
 };
 
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>

@@ -12,4 +12,5 @@ void testBlockCholesky();
 void perfTestDenseCholesky();
 void testSparseBlockCholesky();
 void perfTestSparseCholesky();
+void testCG();
 }  // namespace Saiga

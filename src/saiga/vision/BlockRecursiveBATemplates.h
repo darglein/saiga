@@ -40,7 +40,7 @@ using DBType = Eigen::Matrix<MatrixScalar<BRes>, -1, 1>;
 // Block structured sparse matrix
 using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>>;
 using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>>;
-using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>>;
+using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor>;
 
 
 

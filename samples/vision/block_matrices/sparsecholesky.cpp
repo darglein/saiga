@@ -29,7 +29,6 @@ using Vector = Eigen::Matrix<double, 2, 1>;
 using namespace Saiga;
 
 
-
 namespace Saiga
 {
 template <typename MatrixScalar, typename VectorType>
@@ -242,6 +241,9 @@ void perfTestSparseCholesky()
     std::vector<Eigen::Triplet<Block>> bdata;
 
 
+    Eigen::DiagonalMatrix<MatrixScalar<Block>, -1> diag(n), invdiag(n);
+    Eigen::Matrix<double, -1, -1> invdiag2;
+
 
     // generate diagonal blocks
     for (int i = 0; i < n; ++i)
@@ -253,7 +255,12 @@ void perfTestSparseCholesky()
         addOffsetToTriplets(v, i * bn, i * bn);
         data.insert(data.end(), v.begin(), v.end());
         bdata.emplace_back(i, i, b);
+
+        diag.diagonal()(i)    = b;
+        invdiag.diagonal()(i) = b.inverse();
     }
+
+    invdiag2 = expand(invdiag);
 
 
     // generate the rest
@@ -313,7 +320,7 @@ void perfTestSparseCholesky()
          << endl;
 
     {
-        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::Lower> solver;
         {
             SAIGA_BLOCK_TIMER();
             solver.compute(A);
@@ -321,6 +328,8 @@ void perfTestSparseCholesky()
         x = solver.solve(b);
         cout << "Eigen error: " << (A * x - b).squaredNorm() << endl << endl;
     }
+
+
 #if 0
 
     {
@@ -360,6 +369,7 @@ void perfTestSparseCholesky()
         x  = expand(bx);
         cout << "my recursive dense error: " << (A * x - b).squaredNorm() << endl << endl;
     }
+
 
 
 #if 0

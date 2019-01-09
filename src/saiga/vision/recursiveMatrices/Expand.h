@@ -34,13 +34,29 @@ struct EvaluateMatrixDimensions<double>
     static MatrixDimensions get() { return {1, 1}; }
 };
 
-
+template <>
+struct EvaluateMatrixDimensions<float>
+{
+    static MatrixDimensions get() { return {1, 1}; }
+};
 
 template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
 struct EvaluateMatrixDimensions<Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
     using ChildExpansion = EvaluateMatrixDimensions<double>;
     using MatrixType     = Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+
+    static MatrixDimensions get(const MatrixType& m)
+    {
+        return MatrixDimensions{(int)m.rows(), (int)m.cols()} * ChildExpansion::get();
+    }
+};
+
+template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
+struct EvaluateMatrixDimensions<Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+{
+    using ChildExpansion = EvaluateMatrixDimensions<float>;
+    using MatrixType     = Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
 
     static MatrixDimensions get(const MatrixType& m)
     {
@@ -84,7 +100,19 @@ template <>
 struct ExpandImpl<double>
 {
     using Scalar = double;
-    static ExpansionType<Scalar> get(const double& m)
+    static ExpansionType<Scalar> get(const Scalar& m)
+    {
+        ExpansionType<Scalar> A(1, 1);
+        A(0, 0) = m;
+        return A;
+    }
+};
+
+template <>
+struct ExpandImpl<float>
+{
+    using Scalar = float;
+    static ExpansionType<Scalar> get(const Scalar& m)
     {
         ExpansionType<Scalar> A(1, 1);
         A(0, 0) = m;
@@ -97,6 +125,15 @@ struct ExpandImpl<Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCo
 {
     using Scalar     = double;
     using BaseScalar = double;
+    using MatrixType = Eigen::Matrix<Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    static ExpansionType<Scalar> get(const MatrixType& m) { return ExpansionType<Scalar>(m); }
+};
+
+template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
+struct ExpandImpl<Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+{
+    using Scalar     = float;
+    using BaseScalar = float;
     using MatrixType = Eigen::Matrix<Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
     static ExpansionType<Scalar> get(const MatrixType& m) { return ExpansionType<Scalar>(m); }
 };

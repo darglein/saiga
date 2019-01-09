@@ -5,6 +5,7 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
@@ -211,35 +212,46 @@ void BARec::solve(Scene& scene, int its)
         }
 
 
-        Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
         {
-            SAIGA_BLOCK_TIMER();
-            // Step 5
-            // Solve the schur system for da
-            // ~ 5.04%
-
-            auto triplets = sparseBlockToTriplets(S);
-
-            ssparse.setFromTriplets(triplets.begin(), triplets.end());
-        }
-        {
-            SAIGA_BLOCK_TIMER();
-
-            //~61%
-
-            Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
-            //        Eigen::SimplicialLDLT<SType> solver;
-            solver.compute(ssparse);
-            Eigen::Matrix<double, -1, 1> deltaA = solver.solve(blockVectorToVector(ej));
-
-            //        cout << "deltaA" << endl << deltaA << endl;
-
-            // copy back into da
-            for (int i = 0; i < n; ++i)
+            Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
             {
-                da(i) = deltaA.segment(i * asize, asize);
+                SAIGA_BLOCK_TIMER();
+                // Step 5
+                // Solve the schur system for da
+                // ~ 5.04%
+
+                auto triplets = sparseBlockToTriplets(S);
+
+                ssparse.setFromTriplets(triplets.begin(), triplets.end());
+            }
+            {
+                SAIGA_BLOCK_TIMER();
+
+                //~61%
+
+                Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+                //        Eigen::SimplicialLDLT<SType> solver;
+                solver.compute(ssparse);
+                Eigen::Matrix<double, -1, 1> deltaA = solver.solve(blockVectorToVector(ej));
+
+                //        cout << "deltaA" << endl << deltaA << endl;
+
+                // copy back into da
+                for (int i = 0; i < n; ++i)
+                {
+                    da(i) = deltaA.segment(i * asize, asize);
+                }
             }
         }
+
+        {
+            // currently around of a factor 3 slower then the eigen ldlt
+            SAIGA_BLOCK_TIMER();
+            SparseLDLT<decltype(S), decltype(ej)> ldlt;
+            ldlt.compute(S);
+            da = ldlt.solve(ej);
+        }
+
         DBType q;
         {
             SAIGA_BLOCK_TIMER();

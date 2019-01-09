@@ -151,6 +151,13 @@ struct InverseCholeskyImpl<double>
     static double get(double d) { return 1.0 / d; }
 };
 
+
+template <>
+struct InverseCholeskyImpl<float>
+{
+    static float get(float d) { return 1.0 / d; }
+};
+
 template <typename G>
 struct InverseCholeskyImpl<MatrixScalar<G>>
 {

@@ -23,6 +23,12 @@ struct Transpose<double>
     static double get(double d) { return d; }
 };
 
+template <>
+struct Transpose<float>
+{
+    static float get(float d) { return d; }
+};
+
 template <typename G>
 struct Transpose<MatrixScalar<G>>
 {
