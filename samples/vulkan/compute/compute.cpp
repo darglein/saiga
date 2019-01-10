@@ -109,7 +109,7 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
 
 
     // compute.queue.create(device, vulkanDevice->queueFamilyIndices.compute);
-    compute.commandBuffer = base.computeQueue.commandPool.allocateCommandBuffer();
+    compute.commandBuffer = base.computeQueue->commandPool.allocateCommandBuffer();
 
     {
         // Build the command buffer
@@ -124,7 +124,7 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
     }
 
 
-    base.computeQueue.submitAndWait(compute.commandBuffer);
+    base.computeQueue->submitAndWait(compute.commandBuffer);
     compute.storageBuffer.download(compute.data.data());
 
     for (int i : compute.data) cout << i << endl;

@@ -30,6 +30,10 @@ namespace Vulkan
 {
 struct SAIGA_GLOBAL VulkanBase
 {
+private:
+    std::unique_ptr<Queue> compute_queue;
+    std::unique_ptr<Queue> transfer_queue;
+public:
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::PhysicalDeviceFeatures enabledFeatures = {};
@@ -48,17 +52,18 @@ struct SAIGA_GLOBAL VulkanBase
     Queue mainQueue;
 
     /**
-     * This queue is a dedicated transfer queue. Depending on the GPU the queue may have other capabilities.
-     * If the GPU provides dedicated transfer queues (without graphics and compute capabilities) one of them will be
-     * used.
+     * This queue is a dedicated transfer queue. If the GPU does not provide enough queues this will point to the same
+     * queue as mainQueue. Depending on the GPU the queue may have other capabilities. If the GPU provides dedicated
+     * transfer queues (without graphics and compute capabilities) one of them will be used.
      */
-    Queue transferQueue;
+    Queue* transferQueue;
 
     /**
-     * A dedicated compute queue. Depending on the GPU the queue may have other capabilities.
+     * A dedicated compute queue. If the GPU does not provide enough queues this will point to the same
+     * queue as mainQueue. Depending on the GPU the queue may have other capabilities.
      * If the GPU provides dedicated Compute queues (without graphics capabilities) one of them will be used.
      */
-    Queue computeQueue;
+    Queue* computeQueue;
 
     // A large descriptor pool which should be used by the application
     // The size is controlled by the vulkan parameters

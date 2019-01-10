@@ -33,17 +33,17 @@ int main(const int argc, const char* argv[])
         VulkanStlAllocator<int> alloc(renderer.base, vk::BufferUsageFlagBits::eUniformBuffer);
 
 
-        std::vector<int, VulkanStlAllocator<int>> test(alloc);
-        test.reserve(1000);
-        for (int i = 0; i < 10000; ++i)
-        {
-            test.push_back(i);
-        }
-
-        for (int i = 0; i < 10000; ++i)
-        {
-            SAIGA_ASSERT(i == test[i]);
-        }
+        // std::vector<int, VulkanStlAllocator<int>> test(alloc);
+        // test.reserve(1000);
+        // for (int i = 0; i < 10000; ++i)
+        //{
+        //    test.push_back(i);
+        //}
+        //
+        // for (int i = 0; i < 10000; ++i)
+        //{
+        //    SAIGA_ASSERT(i == test[i]);
+        //}
 
 
         renderer.initChildren();

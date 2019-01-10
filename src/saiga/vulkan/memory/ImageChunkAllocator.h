@@ -33,10 +33,12 @@ class SAIGA_GLOBAL ImageChunkAllocator : public BaseChunkAllocator
 
     ~ImageChunkAllocator() override = default;
 
+    MemoryLocation allocate(vk::DeviceSize size, const vk::Image &image);
    protected:
     ChunkIterator createNewChunk() override;
 
     void headerInfo() override;
+
 };
 
 }  // namespace Memory

@@ -18,7 +18,7 @@ void Buffer::destroy()
     if (m_memoryLocation && bufferUsage != vk::BufferUsageFlags())
     {
         base->memory.deallocateBuffer({bufferUsage, memoryProperties}, m_memoryLocation);
-        m_memoryLocation.buffer = nullptr;
+        m_memoryLocation.make_invalid();
     }
 }
 

@@ -87,7 +87,7 @@ class SAIGA_GLOBAL VulkanMemory
     ChunkCreator chunkCreator;
 
 
-    FirstFitStrategy strategy;
+    std::unique_ptr<FitStrategy> strategy;
 
 
     template <typename DefaultSizeMap, typename MemoryType>
@@ -144,7 +144,7 @@ class SAIGA_GLOBAL VulkanMemory
 
     BaseMemoryAllocator& getAllocator(const BufferType& type);
 
-    BaseMemoryAllocator& getImageAllocator(const ImageType& type);
+    ImageChunkAllocator& getImageAllocator(const ImageType& type);
 
    private:
     inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const

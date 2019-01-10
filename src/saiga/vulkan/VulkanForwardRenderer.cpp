@@ -263,7 +263,7 @@ void VulkanForwardRenderer::render(Camera* cam)
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
     //    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
-    base.mainQueue.queue.submit(submitInfo, sync.frameFence);
+    base.mainQueue.submit(submitInfo, sync.frameFence);
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));

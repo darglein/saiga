@@ -25,7 +25,9 @@ void Queue::create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _que
 
 void Queue::waitIdle()
 {
+    submitMutex.lock();
     queue.waitIdle();
+    submitMutex.unlock();
 }
 
 void Queue::destroy()
@@ -70,8 +72,8 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd)
     vk::SubmitInfo submitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
-    auto fence                    = device.createFence({});
     submitMutex.lock();
+    auto fence                    = device.createFence({});
     queue.submit(submitInfo, fence);
     submitMutex.unlock();
     return fence;
@@ -89,6 +91,12 @@ CommandPool Queue::createCommandPool(vk::CommandPoolCreateFlags commandPoolCreat
     return newCommandPool;
 }
 
+void Queue::submit(vk::SubmitInfo submitInfo, vk::Fence fence)
+{
+    submitMutex.lock();
+    queue.submit(submitInfo, fence);
+    submitMutex.unlock();
+}
 
 
 }  // namespace Vulkan

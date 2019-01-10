@@ -12,12 +12,12 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 {
     m_pDevice = _pDevice;
     m_device  = _device;
-    strategy  = FirstFitStrategy();
+    strategy  = std::make_unique<FirstFitStrategy>();
     chunkCreator.init(_pDevice, _device);
 
     auto props = _pDevice.getMemoryProperties();
     memoryTypes.resize(props.memoryTypeCount);
-    for (int i = 0; i < props.memoryTypeCount; ++i)
+    for (auto i = 0U; i < props.memoryTypeCount; ++i)
     {
         memoryTypes[i] = props.memoryTypes[i];
     }
@@ -56,7 +56,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
 
 
     auto emplaced = map.emplace(effectiveType, std::make_unique<BufferChunkAllocator>(
-                                                   m_device, &chunkCreator, effectiveType, strategy, found->second));
+                                                   m_device, &chunkCreator, effectiveType, *strategy, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -72,7 +72,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
     auto found = find_default_size<ImageDefaultMap, ImageType>(default_image_chunk_sizes, type);
 
     auto emplaced = map.emplace(effectiveType, std::make_unique<ImageChunkAllocator>(
-                                                   m_device, &chunkCreator, effectiveType, strategy, found->second));
+                                                   m_device, &chunkCreator, effectiveType, *strategy, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -87,7 +87,7 @@ BaseMemoryAllocator& VulkanMemory::getAllocator(const BufferType& type)
     return *(foundAllocator->second);
 }
 
-BaseMemoryAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
+ImageChunkAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
 {
     auto foundAllocator = findAllocator<ImageMap, vk::ImageUsageFlags>(imageAllocators, type);
 
@@ -218,7 +218,7 @@ MemoryLocation VulkanMemory::allocate(const ImageType& type, const vk::Image& im
     {
         return fallbackAllocator->allocate(type, image);
     }
-    return allocator.allocate(image_mem_reqs.size);
+    return allocator.allocate(image_mem_reqs.size, image);
 }
 
 void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation& location)
