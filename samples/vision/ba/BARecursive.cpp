@@ -12,7 +12,7 @@
 
 #include <fstream>
 
-
+#define NO_CG_SPEZIALIZATIONS
 #define NO_CG_TYPES
 using Scalar = double;
 const int bn = 6;
@@ -169,8 +169,6 @@ void BARec::solve(Scene& scene, int its)
     {
         computeUVW(scene);
 
-
-
         {
             SAIGA_BLOCK_TIMER();
             // Schur complement solution
@@ -186,8 +184,6 @@ void BARec::solve(Scene& scene, int its)
             // Compute Y ~7.74%
             Y = multSparseDiag(W, Vinv);
         }
-
-
 
         {
             SAIGA_BLOCK_TIMER();
@@ -301,12 +297,12 @@ void BARec::solve(Scene& scene, int its)
         }
 
 
-        Eigen::VectorXd x1, x2;
-        x1 = blockVectorToVector(da);
-        x2 = blockVectorToVector(db);
 
 #if 0
         // ======================== Dense Simple Solution (only for checking the correctness) ========================
+        Eigen::VectorXd x1, x2;
+        x1 = blockVectorToVector(da);
+        x2 = blockVectorToVector(db);
         {
             SAIGA_BLOCK_TIMER();
             n *= asize;
@@ -339,25 +335,20 @@ void BARec::solve(Scene& scene, int its)
         }
 #endif
 
-#if 1
-
-
         for (size_t i = 0; i < imageIds.size(); ++i)
-        //        for(int i )
         {
             auto id                 = imageIds[i];
-            Sophus::SE3d::Tangent t = x1.segment(i * 6, 6);
+            Sophus::SE3d::Tangent t = da(i).get();
             auto& se3               = scene.extrinsics[id].se3;
             se3                     = Sophus::SE3d::exp(t) * se3;
         }
 
-        for (size_t i = 0; i < m; ++i)
+        for (int i = 0; i < m; ++i)
         {
-            Vec3 t  = x2.segment(i * 3, 3);
+            Vec3 t  = db(i).get();
             auto& p = scene.worldPoints[i].p;
             p += t;
         }
-#endif
     }
 }
 
