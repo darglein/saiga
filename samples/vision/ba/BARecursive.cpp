@@ -12,6 +12,17 @@
 
 #include <fstream>
 
+
+#define NO_CG_TYPES
+using Scalar = double;
+const int bn = 6;
+const int bm = 6;
+using Block  = Eigen::Matrix<Scalar, bn, bm>;
+using Vector = Eigen::Matrix<Scalar, bn, 1>;
+
+#include "saiga/vision/recursiveMatrices/CG.h"
+
+
 namespace Saiga
 {
 void BARec::initStructure(Scene& scene)
@@ -70,6 +81,9 @@ void BARec::computeUVW(Scene& scene)
 
     W.reserve(225911);
     WT.reserve(225911);
+
+    W.setZero();
+    WT.setZero();
 
     //        for (auto& img : scene.images)
     for (auto imgid : imageIds)
@@ -173,6 +187,8 @@ void BARec::solve(Scene& scene, int its)
             Y = multSparseDiag(W, Vinv);
         }
 
+
+
         {
             SAIGA_BLOCK_TIMER();
             // Step 3
@@ -181,21 +197,8 @@ void BARec::solve(Scene& scene, int its)
             // maybe own implementation because the structure is well known before hand
             // ~ 22.3 %
             // TODO: this line doesn't seem to compile with every eigen version
-            S = -(Y * WT).eval();
-
-            //            cout << "S" << endl << blockMatrixToMatrix(S.toDense()) << endl;
-            //            cout << "U" << endl << blockMatrixToMatrix(U.toDenseMatrix()) << endl;
-
-            //        S = W * WT;
+            S            = -(Y * WT).eval();
             S.diagonal() = U.diagonal() + S.diagonal();
-
-            //        cout << "Sref" << endl
-            //             << (blockMatrixToMatrix(U.toDenseMatrix()) - blockMatrixToMatrix(W.toDense()) *
-            //                                                              blockMatrixToMatrix(Vinv.toDenseMatrix())
-            //                                                              * blockMatrixToMatrix(WT.toDense()))
-            //                    .eval()
-            //             << endl;
-            //        cout << "S" << endl << blockMatrixToMatrix(S.toDense()) << endl;
         }
         {
             SAIGA_BLOCK_TIMER();
@@ -203,15 +206,10 @@ void BARec::solve(Scene& scene, int its)
             // Compute the right hand side of the schur system ej
             // S * da = ej
             // ~ 0.7%
-            ej = ea + -(Y * eb);  // todo fix -
-                                  //        cout << "ejref" << endl
-            //             << (blockVectorToVector(ea) - blockMatrixToMatrix(Y.toDense()) * blockVectorToVector(eb))
-            //             << endl;
-
-            //        cout << "ej" << endl << blockVectorToVector(ej) << endl;
+            ej = ea + -(Y * eb);
         }
 
-
+#if 0
         {
             Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
             {
@@ -250,6 +248,21 @@ void BARec::solve(Scene& scene, int its)
             SparseLDLT<decltype(S), decltype(ej)> ldlt;
             ldlt.compute(S);
             da = ldlt.solve(ej);
+        }
+#endif
+
+        {
+            // this CG solver is super fast :)
+            SAIGA_BLOCK_TIMER();
+            da.setZero();
+            RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
+            Eigen::Index iters = 50;
+            Scalar tol         = 1e-50;
+
+            P.compute(S);
+            conjugate_gradient2(S, ej, da, P, iters, tol);
+
+            cout << "error " << tol << " iterations " << iters << endl;
         }
 
         DBType q;

@@ -302,7 +302,7 @@ void baBlockSchurTest()
 
     // tmp variables
     VType Vinv(m);
-    WType Y(n, m);
+    WType Y;  //(n, m);
     SType S(n, n);
     DAType ej(n);
 
@@ -321,11 +321,7 @@ void baBlockSchurTest()
         SAIGA_BLOCK_TIMER();
         // Step 2
         // Compute Y
-        Y = multSparseDiag(W, Vinv);
-        //        cout << "Yref" << endl
-        //             << (blockMatrixToMatrix(W.toDense()) *
-        //             blockMatrixToMatrix(Vinv.toDenseMatrix())) << endl;
-        //        cout << "Y" << endl << blockMatrixToMatrix(Y.toDense()) << endl;
+        Y = multSparseDiag<WType, VType>(W, Vinv);
     }
     {
         SAIGA_BLOCK_TIMER();
@@ -335,7 +331,7 @@ void baBlockSchurTest()
         // maybe own implementation because the structure is well known before hand
 
         // TODO: this line doesn't seem to compile with every eigen version
-        //        S = -(Y * WT).eval();
+        S = -(Y * WT).eval();
         //        S = W * WT;
         S.diagonal() = U.diagonal() + S.diagonal();
 

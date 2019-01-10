@@ -8,6 +8,7 @@
 
 #include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/recursiveMatrices/Expand.h"
 
 #include "Eigen/Sparse"
 
@@ -130,18 +131,38 @@ struct internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, Den
 }  // namespace Eigen
 
 
+// Computes R = M * D  with
+// M : Sparse Matrix in either row or column major format
+// D : Diagonal (dense) matrix
+// R : Result same format and sparsity pattern as M
 template <typename S, typename DiagType>
 S multSparseDiag(const S& M, const DiagType& D)
 {
     SAIGA_ASSERT(M.cols() == D.rows());
 
-    S result = M;
+    S result(M.rows(), M.cols());
+    result.reserve(M.nonZeros());
+    result.markAsRValue();
 
-    for (int k = 0; k < result.outerSize(); ++k)
+    // Copy the structure
+    for (int k = 0; k < M.outerSize() + 1; ++k)
     {
-        for (typename S::InnerIterator it(result, k); it; ++it)
+        result.outerIndexPtr()[k] = M.outerIndexPtr()[k];
+    }
+    for (int k = 0; k < M.nonZeros(); ++k)
+    {
+        result.innerIndexPtr()[k] = M.innerIndexPtr()[k];
+    }
+
+    // Copmpute result
+    for (int k = 0; k < M.outerSize(); ++k)
+    {
+        typename S::InnerIterator itM(M, k);
+        typename S::InnerIterator itRes(result, k);
+
+        for (; itM; ++itM, ++itRes)
         {
-            it.valueRef() = it.value() * D.diagonal()(it.col());
+            itRes.valueRef() = itM.value() * D.diagonal()(itM.col());
         }
     }
 

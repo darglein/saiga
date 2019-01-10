@@ -12,6 +12,8 @@
 #include "saiga/vision/recursiveMatrices/Dot.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
+#include "saiga/vision/recursiveMatrices/Norm.h"
+#include "saiga/vision/recursiveMatrices/ScalarMult.h"
 
 #ifndef NO_CG_SPEZIALIZATIONS
 
