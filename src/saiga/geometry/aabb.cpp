@@ -10,7 +10,7 @@
 
 #include "internal/noGraphicsAPI.h"
 
-#include <glm/gtc/epsilon.hpp>
+
 
 namespace Saiga
 {
@@ -34,8 +34,8 @@ int AABB::maxDimension()
 
 #define MIN(X, Y) ((X < Y) ? X : Y)
 #define MAX(X, Y) ((X > Y) ? X : Y)
-#define MINV(V1, V2) vec3(MIN(V1.x, V2.x), MIN(V1.y, V2.y), MIN(V1.z, V2.z))
-#define MAXV(V1, V2) vec3(MAX(V1.x, V2.x), MAX(V1.y, V2.y), MAX(V1.z, V2.z))
+#define MINV(V1, V2) vec3(MIN(V1[0], V2[0]), MIN(V1[1], V2[1]), MIN(V1[2], V2[2]))
+#define MAXV(V1, V2) vec3(MAX(V1[0], V2[0]), MAX(V1[1], V2[1]), MAX(V1[2], V2[2]))
 void AABB::growBox(const vec3& v)
 {
     min = MINV(min, v);
@@ -53,25 +53,25 @@ void AABB::growBox(const AABB& v)
 void AABB::ensureValidity()
 {
     float tmp;
-    if (min.x > max.x)
+    if (min[0] > max[0])
     {
-        tmp   = min.x;
-        min.x = max.x;
-        max.x = tmp;
+        tmp    = min[0];
+        min[0] = max[0];
+        max[0] = tmp;
     }
 
-    if (min.y > max.y)
+    if (min[1] > max[1])
     {
-        tmp   = min.y;
-        min.y = max.y;
-        max.y = tmp;
+        tmp    = min[1];
+        min[1] = max[1];
+        max[1] = tmp;
     }
 
-    if (min.z > max.z)
+    if (min[2] > max[2])
     {
-        tmp   = min.z;
-        min.z = max.z;
-        max.z = tmp;
+        tmp    = min[2];
+        min[2] = max[2];
+        max[2] = tmp;
     }
 }
 
@@ -82,29 +82,29 @@ vec3 AABB::cornerPoint(int cornerIndex) const
     {
         default:
         case 0:
-            return vec3(min.x, min.y, min.z);
+            return vec3(min[0], min[1], min[2]);
         case 1:
-            return vec3(min.x, min.y, max.z);
+            return vec3(min[0], min[1], max[2]);
         case 2:
-            return vec3(min.x, max.y, max.z);
+            return vec3(min[0], max[1], max[2]);
         case 3:
-            return vec3(min.x, max.y, min.z);
+            return vec3(min[0], max[1], min[2]);
         case 4:
-            return vec3(max.x, min.y, min.z);
+            return vec3(max[0], min[1], min[2]);
         case 5:
-            return vec3(max.x, min.y, max.z);
+            return vec3(max[0], min[1], max[2]);
         case 6:
-            return vec3(max.x, max.y, max.z);
+            return vec3(max[0], max[1], max[2]);
         case 7:
-            return vec3(max.x, max.y, min.z);
+            return vec3(max[0], max[1], min[2]);
     }
 }
 
 bool AABB::contains(const vec3& p)
 {
-    if (min.x > p.x || max.x < p.x) return false;
-    if (min.y > p.y || max.y < p.y) return false;
-    if (min.z > p.z || max.z < p.z) return false;
+    if (min[0] > p[0] || max[0] < p[0]) return false;
+    if (min[1] > p[1] || max[1] < p[1]) return false;
+    if (min[2] > p[2] || max[2] < p[2]) return false;
 
     return true;  // overlap
 }
@@ -113,31 +113,31 @@ std::vector<Triangle> AABB::toTriangles()
 {
     std::vector<Triangle> res = {
         // bottom
-        Triangle(vec3(min.x, min.y, min.z), vec3(max.x, min.y, min.z), vec3(max.x, min.y, max.z)),
-        Triangle(vec3(min.x, min.y, min.z), vec3(max.x, min.y, max.z), vec3(min.x, min.y, max.z)),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(max[0], min[1], min[2]), vec3(max[0], min[1], max[2])),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(max[0], min[1], max[2]), vec3(min[0], min[1], max[2])),
 
         // top
-        Triangle(vec3(min.x, max.y, min.z), vec3(max.x, max.y, min.z), vec3(max.x, max.y, max.z)),
-        Triangle(vec3(min.x, max.y, min.z), vec3(max.x, max.y, max.z), vec3(min.x, max.y, max.z)),
+        Triangle(vec3(min[0], max[1], min[2]), vec3(max[0], max[1], min[2]), vec3(max[0], max[1], max[2])),
+        Triangle(vec3(min[0], max[1], min[2]), vec3(max[0], max[1], max[2]), vec3(min[0], max[1], max[2])),
 
 
         // left
-        Triangle(vec3(min.x, min.y, min.z), vec3(min.x, min.y, max.z), vec3(min.x, max.y, max.z)),
-        Triangle(vec3(min.x, min.y, min.z), vec3(min.x, max.y, max.z), vec3(min.x, max.y, min.z)),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(min[0], min[1], max[2]), vec3(min[0], max[1], max[2])),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(min[0], max[1], max[2]), vec3(min[0], max[1], min[2])),
 
         // right
-        Triangle(vec3(max.x, min.y, min.z), vec3(max.x, min.y, max.z), vec3(max.x, max.y, max.z)),
-        Triangle(vec3(max.x, min.y, min.z), vec3(max.x, max.y, max.z), vec3(max.x, max.y, min.z)),
+        Triangle(vec3(max[0], min[1], min[2]), vec3(max[0], min[1], max[2]), vec3(max[0], max[1], max[2])),
+        Triangle(vec3(max[0], min[1], min[2]), vec3(max[0], max[1], max[2]), vec3(max[0], max[1], min[2])),
 
 
         // back
-        Triangle(vec3(min.x, min.y, min.z), vec3(min.x, max.y, min.z), vec3(max.x, max.y, min.z)),
-        Triangle(vec3(min.x, min.y, min.z), vec3(max.x, max.y, min.z), vec3(max.x, min.y, min.z)),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(min[0], max[1], min[2]), vec3(max[0], max[1], min[2])),
+        Triangle(vec3(min[0], min[1], min[2]), vec3(max[0], max[1], min[2]), vec3(max[0], min[1], min[2])),
 
 
         // front
-        Triangle(vec3(min.x, min.y, max.z), vec3(min.x, max.y, max.z), vec3(max.x, max.y, max.z)),
-        Triangle(vec3(min.x, min.y, max.z), vec3(max.x, max.y, max.z), vec3(max.x, min.y, max.z))};
+        Triangle(vec3(min[0], min[1], max[2]), vec3(min[0], max[1], max[2]), vec3(max[0], max[1], max[2])),
+        Triangle(vec3(min[0], min[1], max[2]), vec3(max[0], max[1], max[2]), vec3(max[0], min[1], max[2]))};
 
     return res;
 }
@@ -145,7 +145,6 @@ std::vector<Triangle> AABB::toTriangles()
 
 std::ostream& operator<<(std::ostream& os, const AABB& bb)
 {
-    sampleCone(bb.min, 5);
     std::cout << "AABB: " << bb.min << " " << bb.max;
     return os;
 }

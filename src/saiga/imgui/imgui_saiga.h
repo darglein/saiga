@@ -8,9 +8,10 @@
 
 #include "saiga/config.h"
 #include "saiga/time/timer.h"
+#include "saiga/util/math.h"
 
-#include <glm/glm.hpp>
 #include <vector>
+
 struct ImDrawList;
 namespace ImGui
 {
@@ -18,6 +19,7 @@ class SAIGA_GLOBAL Graph
 {
    public:
     Graph(const std::string& name = "Graph", int numValues = 80);
+    virtual ~Graph() {}
     void addValue(float t);
     void renderImGui();
 
@@ -54,25 +56,25 @@ class SAIGA_GLOBAL ColoredBar
    public:
     struct BarColor
     {
-        glm::vec4 fill;
-        glm::vec4 outline;
+        vec4 fill;
+        vec4 outline;
     };
 
    private:
-    glm::vec2 m_size;
+    vec2 m_size;
     BarColor m_back_color;
     bool m_auto_size;
     uint32_t m_rows;
-    std::vector<glm::vec2> m_lastCorner;
+    std::vector<vec2> m_lastCorner;
     ImDrawList* m_lastDrawList;
     float m_rounding;
     int m_rounding_corners;
 
    private:
-    void DrawOutlinedRect(const glm::vec2& begin, const glm::vec2& end, const BarColor& color);
+    void DrawOutlinedRect(const vec2& begin, const vec2& end, const BarColor& color);
 
    public:
-    ColoredBar(glm::vec2 size, BarColor background, bool auto_size = false, uint32_t rows = 1, float rounding = 0.0f,
+    ColoredBar(vec2 size, BarColor background, bool auto_size = false, uint32_t rows = 1, float rounding = 0.0f,
                int rounding_corners = 0)
         : m_size(size),
           m_back_color(background),

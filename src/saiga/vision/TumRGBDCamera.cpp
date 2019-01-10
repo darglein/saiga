@@ -219,7 +219,7 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
             double diffbest = 2135388888787;
             for(int i = 0; i <depthData.size(); ++i)
             {
-                double diff = glm::abs(t - depthData[i].timestamp);
+                double diff = abs(t - depthData[i].timestamp);
                 if(diff < diffbest)
                 {
                     ibest2 = i;

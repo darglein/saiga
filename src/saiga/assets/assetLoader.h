@@ -44,7 +44,7 @@ class SAIGA_GLOBAL AssetLoader
     /**
      * Creates a plane with a checker board texture.
      * The plane lays in the x-z plane with a normal pointing to positve y.
-     * size.x and size.y are the dimensions of the plane.
+     * size[0] and size[1] are the dimensions of the plane.
      * quadSize is the size of one individual quad of the checkerboard.
      */
 

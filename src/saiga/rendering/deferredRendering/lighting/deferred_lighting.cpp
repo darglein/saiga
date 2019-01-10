@@ -15,7 +15,6 @@
 #include "saiga/rendering/program.h"
 #include "saiga/rendering/renderer.h"
 #include "saiga/util/imath.h"
-#include "saiga/util/inputcontroller.h"
 #include "saiga/util/tostring.h"
 
 namespace Saiga
@@ -236,7 +235,7 @@ void DeferredLighting::render(Camera* cam)
         lightAccumulationBuffer.drawTo({0});
 
     //    glClearColor(0,0,0,0);
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+    glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT);
 
     //    blitGbufferDepthToAccumulationBuffer();
@@ -496,7 +495,7 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : pointLights)
     {
-        mat4 sm    = scale(obj->model, vec3(0.05));
+        mat4 sm    = scale(obj->model, make_vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {
@@ -528,12 +527,12 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : spotLights)
     {
-        mat4 sm    = scale(obj->model, vec3(0.05));
+        mat4 sm    = scale(obj->model, make_vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {
             // render as black if light is turned off
-            color = vec4(0);
+            color = make_vec4(0);
         }
         debugShader->uploadModel(sm);
         debugShader->uploadColor(color);
@@ -628,7 +627,7 @@ void DeferredLighting::applyVolumetricLightBuffer()
 
     textureShader->bind();
 
-    textureShader->uploadModel(mat4(1));
+    textureShader->uploadModel(identityMat4());
     textureShader->uploadTexture(volumetricLightTexture2);
     directionalLightMesh.bindAndDraw();
     textureShader->unbind();
@@ -687,7 +686,7 @@ void DeferredLighting::createLightMeshes()
     // but here we want the inner radius to be 1
     // we estimate the required outer radius with apothem of regular polygons
     float n = 4.9;
-    float r = 1.0f / cos(glm::pi<float>() / n);
+    float r = 1.0f / cos(pi<float>() / n);
     //    cout << "point light radius " << r << endl;
     Sphere s(vec3(0), r);
     auto sb = TriangleMeshGenerator::createMesh(s, 1);

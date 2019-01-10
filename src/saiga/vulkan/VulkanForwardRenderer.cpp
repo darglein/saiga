@@ -204,7 +204,7 @@ void VulkanForwardRenderer::render(Camera* cam)
 
     VkClearValue clearValues[2];
     vec4 clearColor(0.4, 0.8, 1.0, 1.0);
-    clearValues[0].color = {{clearColor.x, clearColor.y, clearColor.z, clearColor.w}};
+    clearValues[0].color = {{clearColor[0], clearColor[1], clearColor[2], clearColor[3]}};
     //    clearValues[0].depthStencil = { 1.0f, 0 };
     clearValues[1].depthStencil = {1.0f, 0};
 

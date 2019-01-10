@@ -36,6 +36,10 @@ class SAIGA_GLOBAL Directory
      */
     void getFiles(std::vector<std::string>& out, const std::string& ending);
 
+    /**
+     * Like above, but only if the file starts with "prefix"
+     */
+    void getFilesPrefix(std::vector<std::string>& out, const std::string& prefix);
 
     /**
      * Gets all directories in this directory.

@@ -101,7 +101,7 @@ void fpTest(float x)
         // sin test
         const int N    = 9;
         float input[N] = {
-            0.1f, 0.2f, 0.3f, 1.0f, 2.0f, 3.0f, glm::pi<float>(), glm::pi<float>() / 2.0f, glm::pi<float>() / 4.0f};
+            0.1f, 0.2f, 0.3f, 1.0f, 2.0f, 3.0f, pi<float>(), pi<float>() / 2.0f, pi<float>() / 4.0f};
         float output[N];
         for (int i = 0; i < N; ++i)
         {
@@ -153,9 +153,9 @@ void fpTest(float x)
         unsigned int refy = 0x452d9a30;
         unsigned int refz = 0x45d900b7;
         cout << "Integration test: "
-             << ((fToUint(pos.x) == refx) && (fToUint(pos.y) == refy) && (fToUint(pos.z) == refz) ? "Success" : "Fail")
+             << ((fToUint(pos[0]) == refx) && (fToUint(pos[1]) == refy) && (fToUint(pos[2]) == refz) ? "Success" : "Fail")
              << endl;
-        //        cout << hex << fToUint(pos.x) << " " << fToUint(pos.y)<< " " << fToUint(pos.z)  << endl;
+        //        cout << hex << fToUint(pos[0]) << " " << fToUint(pos[1])<< " " << fToUint(pos[2])  << endl;
     }
 
 

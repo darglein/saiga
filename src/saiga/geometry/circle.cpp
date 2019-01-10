@@ -17,13 +17,13 @@ std::ostream& operator<<(std::ostream& os, const Saiga::Circle& s)
 
 float Circle::distance(const vec3& p) const
 {
-    return glm::distance(p, closestPointOnCircle(p));
+    return ::distance(p, closestPointOnCircle(p));
 }
 
 vec3 Circle::closestPointOnCircle(const vec3& p) const
 {
     vec3 pp = getPlane().closestPointOnPlane(p);
-    vec3 d  = normalize(pp - pos);
+    vec3 d  = normalize(vec3(pp - pos));
     return pos + d * r;
 }
 

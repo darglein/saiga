@@ -196,9 +196,9 @@ void TriangleMesh<vertex_t, index_t>::transform(const mat4& trafo)
     for (vertex_t& v : vertices)
     {
         // Make sure it works for user defined w components
-        vec4 p     = vec4(vec3(v.position), 1);
+        vec4 p     = make_vec4(make_vec3(v.position), 1);
         p          = trafo * p;
-        v.position = vec4(vec3(p), v.position.w);
+        v.position = make_vec4(make_vec3(p), v.position[3]);
     }
     boundingBox.transform(trafo);
 }
@@ -208,9 +208,9 @@ void TriangleMesh<vertex_t, index_t>::transformNormal(const mat4& trafo)
 {
     for (vertex_t& v : vertices)
     {
-        vec4 p   = vec4(vec3(v.normal), 0);
+        vec4 p   = make_vec4(make_vec3(v.normal), 0);
         p        = trafo * p;
-        v.normal = vec4(vec3(p), v.normal.w);
+        v.normal = make_vec4(make_vec3(p), v.normal[3]);
     }
 }
 
@@ -246,9 +246,9 @@ void TriangleMesh<vertex_t, index_t>::subdivideFace(int f)
 #define _TM_POS(xs) (vertices[face.xs].position)
     // create 3 new vertices in the middle of the edges
 
-    int v1 = addVertex(vertex_t((_TM_POS(v1) + _TM_POS(v2)) / 2.0f));
-    int v2 = addVertex(vertex_t((_TM_POS(v1) + _TM_POS(v3)) / 2.0f));
-    int v3 = addVertex(vertex_t((_TM_POS(v2) + _TM_POS(v3)) / 2.0f));
+    int v1 = addVertex(vertex_t(vec4((_TM_POS(v1) + _TM_POS(v2)) / 2.0f)));
+    int v2 = addVertex(vertex_t(vec4((_TM_POS(v1) + _TM_POS(v3)) / 2.0f)));
+    int v3 = addVertex(vertex_t(vec4((_TM_POS(v2) + _TM_POS(v3)) / 2.0f)));
 
 
     faces.push_back(Face(face.v2, v3, v1));
@@ -372,29 +372,29 @@ void TriangleMesh<vertex_t, index_t>::computePerVertexNormal()
         // Note:
         // We keep the original w value intact, because it might be used
         // by the application.
-        vec3 n             = vec3(0);
-        vertices[i].normal = vec4(n, vertices[i].normal.w);
+        vec3 n             = make_vec3(0);
+        vertices[i].normal = make_vec4(n, vertices[i].normal[3]);
     }
 
     //#pragma omp parallel for
     for (int i = 0; i < (int)faces.size(); ++i)
     {
         Face& f = faces[i];
-        vec3 a  = vec3(vertices[f.v1].position);
-        vec3 b  = vec3(vertices[f.v2].position);
-        vec3 c  = vec3(vertices[f.v3].position);
+        vec3 a  = make_vec3(vertices[f.v1].position);
+        vec3 b  = make_vec3(vertices[f.v2].position);
+        vec3 c  = make_vec3(vertices[f.v3].position);
         vec3 n  = cross(b - a, c - a);
         // Note: do not normalize here because the length is the surface area
-        vertices[f.v1].normal += vec4(n, 0);
-        vertices[f.v2].normal += vec4(n, 0);
-        vertices[f.v3].normal += vec4(n, 0);
+        vertices[f.v1].normal += make_vec4(n, 0);
+        vertices[f.v2].normal += make_vec4(n, 0);
+        vertices[f.v3].normal += make_vec4(n, 0);
     }
 
     //#pragma omp parallel for
     for (int i = 0; i < (int)vertices.size(); ++i)
     {
-        vec3 n             = normalize(vec3(vertices[i].normal));
-        vertices[i].normal = vec4(n, vertices[i].normal.w);
+        vec3 n             = normalize(make_vec3(vertices[i].normal));
+        vertices[i].normal = make_vec4(n, vertices[i].normal[3]);
     }
 }
 
@@ -430,7 +430,7 @@ AABB TriangleMesh<vertex_t, index_t>::calculateAabb()
 
     for (vertex_t& v : vertices)
     {
-        boundingBox.growBox(vec3(v.position));
+        boundingBox.growBox(make_vec3(v.position));
     }
     return boundingBox;
 }

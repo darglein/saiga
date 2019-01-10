@@ -12,11 +12,14 @@
 #include "saiga/imgui/imgui.h"
 #include "saiga/util/color.h"
 #include "saiga/util/cv.h"
+#include "saiga/util/directory.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
+#include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 
 #include "BAPoseOnly.h"
+#include "BARecursive.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
@@ -31,6 +34,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     sscene.numWorldPoints = 3;
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
+
+    findBALDatasets();
 }
 
 VulkanExample::~VulkanExample() {}
@@ -118,27 +123,40 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 void VulkanExample::renderGUI()
 {
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin("Vision BA Sample");
+    ImGui::Begin("Scene Loading");
 
-    ImGui::Text("RMS: %f", rms);
 
-    if (ImGui::CollapsingHeader("Load Scene"))
+    sscene.imgui();
+    if (ImGui::Button("Syntetic - circleSphere"))
     {
-        sscene.imgui();
-        if (ImGui::Button("Syntetic - circleSphere"))
-        {
-            scene  = sscene.circleSphere();
-            change = true;
-        }
-    }
-
-    if (ImGui::Button("load BAL"))
-    {
-        Saiga::BALDataset bald("problem-257-65132-pre.txt");
-        scene = bald.makeScene();
-        scene.removeNegativeProjections();
+        scene  = sscene.circleSphere();
         change = true;
     }
+
+    ImGui::Separator();
+
+
+    std::vector<const char*> strings;
+    for (auto& d : datasets) strings.push_back(d.data());
+    static int currentItem = 0;
+    ImGui::Combo("dataset", &currentItem, strings.data(), strings.size());
+    if (ImGui::Button("load BAL"))
+    {
+        Saiga::BALDataset bald(datasets[currentItem]);
+        scene = bald.makeScene();
+        scene.compress();
+        scene.sortByWorldPointId();
+        change = true;
+    }
+
+    ImGui::End();
+
+
+
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("Vision BA Sample");
+
+
 
     static int its = 1;
     ImGui::SliderInt("its", &its, 0, 10);
@@ -146,6 +164,13 @@ void VulkanExample::renderGUI()
     if (ImGui::Button("Bundle Adjust G2O"))
     {
         Saiga::g2oBA2 ba;
+        ba.optimize(scene, its);
+        change = true;
+    }
+
+    if (ImGui::Button("Bundle Adjust ceres"))
+    {
+        Saiga::CeresBA ba;
         ba.optimize(scene, its);
         change = true;
     }
@@ -172,10 +197,10 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
-    if (ImGui::Button("sba paper"))
+    if (ImGui::Button("sba recursive"))
     {
-        Saiga::BAPoseOnly ba;
-        ba.sbaPaper(scene, its);
+        Saiga::BARec ba;
+        ba.solve(scene, its);
         change = true;
     }
 
@@ -186,10 +211,21 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
+
+    ImGui::End();
+
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::Begin("Scene");
+    ImGui::Text("RMS: %f", rms);
     change |= scene.imgui();
-
-
 
     ImGui::End();
     Saiga::VulkanSDLExampleBase::renderGUI();
+}
+
+void VulkanExample::findBALDatasets()
+{
+    Saiga::Directory dir(".");
+    dir.getFilesPrefix(datasets, "problem-");
+    cout << "Found " << datasets.size() << " BAL datasets" << endl;
 }

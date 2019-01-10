@@ -37,23 +37,23 @@ AABB Layout::transform(Object3D* obj, const AABB& box, vec2 relPos, float relSiz
     // scale to correct size
     if (scaleX)
     {
-        float ds = relSize / s.y;
+        float ds = relSize / s[1];
         s        = vec3(ds);
-        s.x *= 1.0f / aspect;
+        s[0] *= 1.0f / aspect;
     }
     else
     {
-        float ds = relSize / s.x;
+        float ds = relSize / s[0];
         s        = vec3(ds);
-        s.y *= 1.0f / aspect;
+        s[1] *= 1.0f / aspect;
     }
     obj->setScale(s);
 
 
     // alignment
-    vec3 center = box.getPosition() * obj->getScale();
-    vec3 bbmin  = box.min * obj->getScale();
-    vec3 bbmax  = box.max * obj->getScale();
+    vec3 center = ele_mult(box.getPosition(), obj->getScale());
+    vec3 bbmin  = ele_mult(box.min, obj->getScale());
+    vec3 bbmax  = ele_mult(box.max, obj->getScale());
 
 
     vec3 alignmentOffset(0);
@@ -61,38 +61,38 @@ AABB Layout::transform(Object3D* obj, const AABB& box, vec2 relPos, float relSiz
     switch (alignmentX)
     {
         case LEFT:
-            alignmentOffset.x += bbmin.x;
+            alignmentOffset[0] += bbmin[0];
             break;
         case RIGHT:
-            alignmentOffset.x += bbmax.x;
+            alignmentOffset[0] += bbmax[0];
             break;
         case CENTER:
-            alignmentOffset.x += center.x;
+            alignmentOffset[0] += center[0];
             break;
     }
 
     switch (alignmentY)
     {
         case LEFT:
-            alignmentOffset.y += bbmin.y;
+            alignmentOffset[1] += bbmin[1];
             break;
         case RIGHT:
-            alignmentOffset.y += bbmax.y;
+            alignmentOffset[1] += bbmax[1];
             break;
         case CENTER:
-            alignmentOffset.y += center.y;
+            alignmentOffset[1] += center[1];
             break;
     }
 
 
-    obj->setPosition(vec3(relPos, 0) - alignmentOffset);
+    obj->setPosition(vec3(make_vec3(relPos, 0) - alignmentOffset));
     //    cout << "obj position " << relPos << " " << alignmentOffset << " " << obj->position << endl;
 
-    AABB resultBB = AABB(box.min * s, box.max * s);
+    AABB resultBB = AABB(ele_mult(box.min, s), ele_mult(box.max, s));
     resultBB.setPosition(obj->getPosition() + center);
 
     obj->multScale(scale);
-    obj->position *= vec4(scale, 1);
+    obj->position *= make_vec4(scale, 1);
 
     obj->calculateModel();
 
@@ -104,7 +104,7 @@ AABB Layout::transformNonUniform(Object3D* obj, const AABB& box, vec2 relPos, ve
                                  Layout::Alignment alignmentX, Layout::Alignment alignmentY)
 {
     vec3 s = box.max - box.min;
-    s      = vec3(relSize.x, relSize.y, 1.0f) / vec3(s.x, s.y, 1.0f);
+    s      = ele_div(vec3(relSize[0], relSize[1], 1.0f), vec3(s[0], s[1], 1.0f));
     obj->setScale(s);
 
 
@@ -118,37 +118,37 @@ AABB Layout::transformNonUniform(Object3D* obj, const AABB& box, vec2 relPos, ve
     switch (alignmentX)
     {
         case LEFT:
-            alignmentOffset.x += bbmin.x;
+            alignmentOffset[0] += bbmin[0];
             break;
         case RIGHT:
-            alignmentOffset.x += bbmax.x;
+            alignmentOffset[0] += bbmax[0];
             break;
         case CENTER:
-            alignmentOffset.x += center.x;
+            alignmentOffset[0] += center[0];
             break;
     }
 
     switch (alignmentY)
     {
         case LEFT:
-            alignmentOffset.y += bbmin.y;
+            alignmentOffset[1] += bbmin[1];
             break;
         case RIGHT:
-            alignmentOffset.y += bbmax.y;
+            alignmentOffset[1] += bbmax[1];
             break;
         case CENTER:
-            alignmentOffset.y += center.y;
+            alignmentOffset[1] += center[1];
             break;
     }
 
 
-    obj->setPosition(vec3(relPos, 0) - alignmentOffset);
+    obj->setPosition(vec3(make_vec3(relPos, 0) - alignmentOffset));
 
     AABB resultBB = AABB(box.min * s, box.max * s);
     resultBB.setPosition(obj->getPosition() + center);
 
     obj->multScale(scale);
-    obj->position *= vec4(scale, 1);
+    obj->position = ele_mult(obj->position, make_vec4(scale, 1));
     obj->calculateModel();
 
     return resultBB;
@@ -157,22 +157,22 @@ AABB Layout::transformNonUniform(Object3D* obj, const AABB& box, vec2 relPos, ve
 AABB Layout::transformUniform(Object3D* obj, const AABB& box, vec2 relPos, vec2 relSize, Layout::Alignment alignmentX,
                               Layout::Alignment alignmentY)
 {
-    relSize.x *= aspect;
+    relSize[0] *= aspect;
     vec3 s = box.max - box.min;
 
 
-    //    s.x *= aspect;
-    s = vec3(relSize.x, relSize.y, 1.0f) / vec3(s.x, s.y, 1.0f);
+    //    s[0] *= aspect;
+    s = ele_div(vec3(relSize[0], relSize[1], 1.0f), vec3(s[0], s[1], 1.0f));
 
     //    cout << "s: " << s << endl;
     //    cout << "test: " << (s * (box.max-box.min)) << " " << relSize << endl;
 
-    // use lower value of s.x and s.y to scale uniformly.
+    // use lower value of s[0] and s[1] to scale uniformly.
     //-> The result will fit in the box
-    float ds = min(s.x, s.y);
+    float ds = min(s[0], s[1]);
 
     obj->setScale(vec3(ds, ds, 1));
-    obj->scale.x *= 1.0f / aspect;
+    obj->scale[0] *= 1.0f / aspect;
 
     s = obj->getScale();
 
@@ -186,31 +186,31 @@ AABB Layout::transformUniform(Object3D* obj, const AABB& box, vec2 relPos, vec2 
     switch (alignmentX)
     {
         case LEFT:
-            alignmentOffset.x += bbmin.x;
+            alignmentOffset[0] += bbmin[0];
             break;
         case RIGHT:
-            alignmentOffset.x += bbmax.x;
+            alignmentOffset[0] += bbmax[0];
             break;
         case CENTER:
-            alignmentOffset.x += center.x;
+            alignmentOffset[0] += center[0];
             break;
     }
 
     switch (alignmentY)
     {
         case LEFT:
-            alignmentOffset.y += bbmin.y;
+            alignmentOffset[1] += bbmin[1];
             break;
         case RIGHT:
-            alignmentOffset.y += bbmax.y;
+            alignmentOffset[1] += bbmax[1];
             break;
         case CENTER:
-            alignmentOffset.y += center.y;
+            alignmentOffset[1] += center[1];
             break;
     }
 
 
-    obj->setPosition(vec3(relPos, 0) - alignmentOffset);
+    obj->setPosition(vec3(make_vec3(relPos, 0) - alignmentOffset));
 
     AABB resultBB = AABB(box.min * s, box.max * s);
     resultBB.setPosition(obj->getPosition() + center);
@@ -224,12 +224,12 @@ AABB Layout::transformUniform(Object3D* obj, const AABB& box, vec2 relPos, vec2 
 
 vec2 Layout::transformToLocal(vec2 p)
 {
-    return vec2(p.x / width * targetWidth, p.y / height * targetHeight);
+    return vec2(p[0] / width * targetWidth, p[1] / height * targetHeight);
 }
 
 vec2 Layout::transformToLocalNormalized(vec2 p)
 {
-    return vec2(p.x / width, p.y / height);
+    return vec2(p[0] / width, p[1] / height);
 }
 
 }  // namespace Saiga

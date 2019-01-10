@@ -22,7 +22,8 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
 
     SAIGA_BLOCK_TIMER();
     g2o::SparseOptimizer optimizer;
-    optimizer.setVerbose(true);
+    optimizer.setVerbose(false);
+    optimizer.setComputeBatchStatistics(true);
 
     std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver;
     //    linearSolver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
@@ -126,7 +127,8 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
                 e->information() = Eigen::Matrix2d::Identity();
 
                 e->intr   = camera;
-                e->weight = o.weight;
+                double w  = o.weight * scene.scale();
+                e->weight = w;
 
 
                 if (huberMono > 0)
@@ -153,6 +155,24 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
 
     //    cout << "starting optimization initial chi2: " << costInit << endl;
     optimizer.optimize(its);
+
+    auto stats = optimizer.batchStatistics();
+    ;
+    for (auto s : stats)
+    {
+        cout << " levenbergIterations " << s.levenbergIterations << endl
+             << " timeResiduals " << s.timeResiduals << endl
+             << " timeLinearize " << s.timeLinearize << endl
+             << " timeQuadraticForm " << s.timeQuadraticForm << endl
+             << " timeSchurComplement " << s.timeSchurComplement << endl
+             << " timeLinearSolution " << s.timeLinearSolution << endl
+             << " timeLinearSolver " << s.timeLinearSolver << endl
+             << " timeUpdate " << s.timeUpdate << endl
+             << " timeIteration " << s.timeIteration << endl
+             << " timeMarginals " << s.timeMarginals << endl;
+    }
+
+
     //    costFinal = optimizer.activeRobustChi2();
 
     //    cout << "Optimize g2o stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << totalDensePoints

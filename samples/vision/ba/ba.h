@@ -35,7 +35,7 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
     void renderGUI() override;
 
    private:
-    std::vector<glm::vec3> boxOffsets;
+    std::vector<vec3> boxOffsets;
     bool change        = false;
     bool uploadChanges = true;
     float rms          = 0;
@@ -59,4 +59,8 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
 
 
     bool displayModels = true;
+
+
+    std::vector<std::string> datasets;
+    void findBALDatasets();
 };

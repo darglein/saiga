@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#pragma once
 
 #include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/VisionIncludes.h"
@@ -39,7 +40,7 @@ using DBType = Eigen::Matrix<MatrixScalar<BRes>, -1, 1>;
 // Block structured sparse matrix
 using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>>;
 using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>>;
-using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>>;
+using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor>;
 
 
 
@@ -152,11 +153,31 @@ Vec multDiagVector(const Diag& D, const Vec& v)
 {
     SAIGA_ASSERT(D.cols() == v.rows());
 
-    Vec result = v;
+    Vec result;
+    result.resize(v.rows(), v.cols());
+    //    Vec result = v;
 
     for (int k = 0; k < D.rows(); ++k)
     {
         result(k) = D.diagonal()(k) * v(k);
+    }
+
+    return result;
+}
+
+
+template <typename Diag, typename Vec>
+Vec multDiagVectorMulti(const Diag& D, const Vec& v)
+{
+    SAIGA_ASSERT(D.cols() == v.rows());
+
+    Vec result;
+    result.resize(v.rows(), v.cols());
+    //    Vec result = v;
+
+    for (int k = 0; k < D.rows(); ++k)
+    {
+        result.row(k) = D.diagonal()(k) * v.row(k);
     }
 
     return result;

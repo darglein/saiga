@@ -22,7 +22,7 @@ void Camera::setView(const mat4& v)
     recalculateMatrices();
     model = inverse(view);
 
-    this->position = col(model,3);
+    this->position = col(model, 3);
     this->rot      = quat_cast(model);
 }
 
@@ -153,8 +153,8 @@ vec2 Camera::projectedIntervall(const vec3& d)
     for (int i = 0; i < 8; ++i)
     {
         float t = dot(d, vertices[i]);
-        ret[0]   = min(ret[0], t);
-        ret[1]   = max(ret[1], t);
+        ret[0]  = min(ret[0], t);
+        ret[1]  = max(ret[1], t);
     }
     return ret;
 }
@@ -209,7 +209,7 @@ void Camera::recalculatePlanesFromMatrices()
         vec3(-1, 1, 1),  vec3(1, 1, 1),  vec3(-1, -1, 1),  vec3(1, -1, 1),
     };
 
-    mat4 m = inverse( mat4(proj * view) );
+    mat4 m = inverse(mat4(proj * view));
     for (int i = 0; i < 8; ++i)
     {
         vec4 p      = m * make_vec4(pointsClipSpace[i], 1);
@@ -289,9 +289,9 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
 
 void PerspectiveCamera::recalculatePlanes()
 {
-//    vec3 right = vec3(model[0]);
-//    vec3 up    = vec3(model[1]);
-//    vec3 dir   = -vec3(model[2]);
+    //    vec3 right = vec3(model[0]);
+    //    vec3 up    = vec3(model[1]);
+    //    vec3 dir   = -vec3(model[2]);
 
     vec3 right = make_vec3(col(model, 0));
     vec3 up    = make_vec3(col(model, 1));
@@ -374,24 +374,24 @@ void OrthographicCamera::setProj(float _left, float _right, float _bottom, float
 
 void OrthographicCamera::setProj(AABB bb)
 {
-//    setProj(bb.min.x, bb.max.x, bb.min.y, bb.max.y, bb.min.z, bb.max.z);
+    //    setProj(bb.min[0], bb.max[0], bb.min[1], bb.max[1], bb.min[2], bb.max[2]);
     setProj(bb.min[0], bb.max[0], bb.min[1], bb.max[1], bb.min[2], bb.max[2]);
 }
 
 void OrthographicCamera::recalculatePlanes()
 {
-//    vec3 rightv = vec3(model[0]);
-//    vec3 up     = vec3(model[1]);
-//    vec3 dir    = -vec3(model[2]);
+    //    vec3 rightv = vec3(model[0]);
+    //    vec3 up     = vec3(model[1]);
+    //    vec3 dir    = -vec3(model[2]);
 
 
-//    vec3 rightv = col(model, 0);
-//    vec3 up    = col(model, 1);
-//    vec3 dir   = -col(model, 2);
+    //    vec3 rightv = col(model, 0);
+    //    vec3 up    = col(model, 1);
+    //    vec3 dir   = -col(model, 2);
 
     vec3 rightv = make_vec3(col(model, 0));
-    vec3 up    = make_vec3(col(model, 1));
-    vec3 dir   = make_vec3(-col(model, 2));
+    vec3 up     = make_vec3(col(model, 1));
+    vec3 dir    = make_vec3(-col(model, 2));
 
     vec3 nearplanepos = getPosition() + dir * zNear;
     vec3 farplanepos  = getPosition() + dir * zFar;

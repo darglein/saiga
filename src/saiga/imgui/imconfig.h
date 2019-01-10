@@ -64,39 +64,40 @@
 #define IM_VEC2_CLASS_EXTRA \
     ImVec2(const vec2& f)   \
     {                       \
-        x = f.x;            \
-        y = f.y;            \
+        x = f[0];           \
+        y = f[1];           \
     }                       \
     operator vec2() const { return vec2(x, y); }
 
 #define IM_VEC3_CLASS_EXTRA \
     ImVec3(const vec3& f)   \
     {                       \
-        x = f.x;            \
-        y = f.y;            \
-        z = f.z;            \
+        x = f[0];           \
+        y = f[1];           \
+        z = f[2];           \
     }                       \
     operator vec3() const { return vec3(x, y, z); }
 
 #define IM_VEC4_CLASS_EXTRA \
     ImVec4(const vec4& f)   \
     {                       \
-        x = f.x;            \
-        y = f.y;            \
-        z = f.z;            \
-        w = f.w;            \
+        x = f[0];           \
+        y = f[1];           \
+        z = f[2];           \
+        w = f[3];           \
     }                       \
     operator vec4() const { return vec4(x, y, z, w); }
 
-#define IM_QUAT_CLASS_EXTRA \
-    ImQuat(const quat& f)   \
-    {                       \
-        x = f.x;            \
-        y = f.y;            \
-        z = f.z;            \
-        w = f.w;            \
-    }                       \
-    operator quat() const { return quat(w, x, y, z); }
+#define IM_QUAT_CLASS_EXTRA       \
+    ImQuat(const quat& f)         \
+    {                             \
+        auto v = quat_to_vec4(f); \
+        x      = v[0];            \
+        y      = v[1];            \
+        z      = v[2];            \
+        w      = v[3];            \
+    }                             \
+    operator quat() const { return make_quat(w, x, y, z); }
 //---- Use 32-bit vertex indices (default is 16-bit) to allow meshes with more than 64K vertices. Render function needs
 // to support it. #define ImDrawIdx unsigned int
 

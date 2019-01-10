@@ -18,7 +18,7 @@ bool PlanePlane(const Plane& p1, const Plane& p2, Ray& outRay)
     // https://stackoverflow.com/questions/6408670/line-of-intersection-between-two-planes
     vec3 p3_normal = cross(p1.normal, p2.normal);
     auto det       = dot(p3_normal, p3_normal);
-    if (det < glm::epsilon<float>()) return false;
+    if (det < epsilon<float>()) return false;
     auto outPoint = ((cross(p3_normal, p2.normal) * p1.d) + (cross(p1.normal, p3_normal) * p2.d)) / det;
     auto outDir   = p3_normal;
     outRay        = Ray(outDir, outPoint);
@@ -163,18 +163,18 @@ bool RayPlane(const Ray& r, const Plane& p, float& t)
 bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmin, const vec3& boxmax, float& t)
 {
     vec3 dirfrac;
-    dirfrac.x = 1.0f / direction.x;
-    dirfrac.y = 1.0f / direction.y;
-    dirfrac.z = 1.0f / direction.z;
+    dirfrac[0] = 1.0f / direction[0];
+    dirfrac[1] = 1.0f / direction[1];
+    dirfrac[2] = 1.0f / direction[2];
 
     // lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
     // r.org is origin of ray
-    float t1 = (boxmin.x - origin.x) * dirfrac.x;
-    float t2 = (boxmax.x - origin.x) * dirfrac.x;
-    float t3 = (boxmin.y - origin.y) * dirfrac.y;
-    float t4 = (boxmax.y - origin.y) * dirfrac.y;
-    float t5 = (boxmin.z - origin.z) * dirfrac.z;
-    float t6 = (boxmax.z - origin.z) * dirfrac.z;
+    float t1 = (boxmin[0] - origin[0]) * dirfrac[0];
+    float t2 = (boxmax[0] - origin[0]) * dirfrac[0];
+    float t3 = (boxmin[1] - origin[1]) * dirfrac[1];
+    float t4 = (boxmax[1] - origin[1]) * dirfrac[1];
+    float t5 = (boxmin[2] - origin[2]) * dirfrac[2];
+    float t6 = (boxmax[2] - origin[2]) * dirfrac[2];
 
     float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
     float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
@@ -215,9 +215,9 @@ bool SphereSphere(const Sphere& s1, const Sphere& s2)
 
 bool AABBAABB(const vec3& min1, const vec3& max1, const vec3& min2, const vec3& max2)
 {
-    if (min1.x >= max2.x || max1.x <= min2.x) return false;
-    if (min1.y >= max2.y || max1.y <= min2.y) return false;
-    if (min1.z >= max2.z || max1.z <= min2.z) return false;
+    if (min1[0] >= max2[0] || max1[0] <= min2[0]) return false;
+    if (min1[1] >= max2[1] || max1[1] <= min2[1]) return false;
+    if (min1[2] >= max2[2] || max1[2] <= min2[2]) return false;
     return true;
 }
 

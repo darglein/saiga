@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -88,7 +88,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere& 
 
     for (VertexNT& v : mesh->vertices)
     {
-        v.position = vec4(normalize(vec3(v.position)), 1);
+        v.position = make_vec4(normalize(make_vec3(v.position)), 1);
         v.normal   = v.position;
     }
 
@@ -127,13 +127,13 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere& 
 
         for (VertexNT& v : mesh->vertices)
         {
-            v.position = vec4(normalize(vec3(v.position)), 1);
+            v.position = make_vec4(normalize(make_vec3(v.position)), 1);
             v.normal   = v.position;
         }
     }
 
-    mat4 S = scale(mat4(1), vec3(sphere.r));
-    mat4 T = translate(mat4(1), vec3(sphere.pos));
+    mat4 S = scale(identityMat4(), make_vec3(sphere.r));
+    mat4 T = translate(identityMat4(), sphere.pos);
     mesh->transform(T * S);
 
     return std::shared_ptr<default_mesh_t>(mesh);

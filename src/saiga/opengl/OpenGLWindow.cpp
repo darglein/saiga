@@ -52,7 +52,7 @@ void OpenGLWindow::renderImGui(bool* p_open)
 
 
     ImGui::Text("Camera Position: %s", to_string(currentCamera->getPosition()).c_str());
-    ImGui::Text("Camera Direction: %s", to_string(-vec3(currentCamera->getDirection())).c_str());
+    ImGui::Text("Camera Direction: %s", to_string(-make_vec3(currentCamera->getDirection())).c_str());
     if (ImGui::Button("Printf camera"))
     {
         cout << "camera.position = vec4" << currentCamera->position << ";" << endl;

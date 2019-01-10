@@ -16,7 +16,6 @@
 #    include "saiga/opengl/texture/textureLoader.h"
 #    include "saiga/rendering/deferredRendering/deferred_renderer.h"
 #    include "saiga/rendering/renderer.h"
-#    include "saiga/util/inputcontroller.h"
 
 #    include <GLFW/glfw3.h>
 #    include <chrono>
@@ -129,7 +128,7 @@ bool glfw_Window::initWindow()
 
     int monitorCount;
     GLFWmonitor** monitors     = glfwGetMonitors(&monitorCount);
-    windowParameters.monitorId = glm::clamp(windowParameters.monitorId, 0, monitorCount - 1);
+    windowParameters.monitorId = clamp(windowParameters.monitorId, 0, monitorCount - 1);
 
     GLFWmonitor* monitor    = monitors[windowParameters.monitorId];
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);

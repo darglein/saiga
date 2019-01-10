@@ -135,8 +135,8 @@ void TextureAtlas::createTextureAtlas(Image& outImg, std::vector<FontLoader::Gly
     for (FontLoader::Glyph& g : glyphs)
     {
         character_info& info = characterInfoMap[g.character];
-        //        outImg.setSubImage(info.atlasPos.x,info.atlasPos.y,*g.bitmap);
-        outImg.getImageView<unsigned char>().setSubImage(info.atlasPos.y, info.atlasPos.x, g.bitmap.getImageView());
+        //        outImg.setSubImage(info.atlasPos[0],info.atlasPos[1],*g.bitmap);
+        outImg.getImageView<unsigned char>().setSubImage(info.atlasPos[1], info.atlasPos[0], g.bitmap.getImageView());
         //        SAIGA_ASSERT(0);
     }
     numCharacters = characterInfoMap.size();
@@ -166,22 +166,22 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& g
             character_info info;
 
             info.character = g.character;
-            info.advance.x = g.advance.x;
-            info.advance.y = g.advance.y;
+            info.advance[0] = g.advance[0];
+            info.advance[1] = g.advance[1];
 
-            info.size.x = g.size.x;
-            info.size.y = g.size.y;
+            info.size[0] = g.size[0];
+            info.size[1] = g.size[1];
 
-            info.offset.x = g.offset.x;
-            info.offset.y = g.offset.y - info.size.y;  // freetype uses an y inverted glyph coordinate system
+            info.offset[0] = g.offset[0];
+            info.offset[1] = g.offset[1] - info.size[1];  // freetype uses an y inverted glyph coordinate system
 
-            maxCharacter.min = min(maxCharacter.min, vec3(info.offset.x, info.offset.y, 0));
-            maxCharacter.max = max(maxCharacter.max, vec3(info.offset.x + info.size.x, info.offset.y + info.size.y, 0));
+            maxCharacter.min = min(maxCharacter.min, vec3(info.offset[0], info.offset[1], 0));
+            maxCharacter.max = max(maxCharacter.max, vec3(info.offset[0] + info.size[0], info.offset[1] + info.size[1], 0));
 
 
 
-            info.atlasPos.x = currentW;
-            info.atlasPos.y = atlasHeight;
+            info.atlasPos[0] = currentW;
+            info.atlasPos[1] = atlasHeight;
 
             characterInfoMap[g.character] = info;
 
@@ -196,11 +196,11 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& g
     for (FontLoader::Glyph& g : glyphs)
     {
         character_info& info = characterInfoMap[g.character];
-        float tx             = (float)info.atlasPos.x / (float)atlasWidth;
-        float ty             = (float)info.atlasPos.y / (float)atlasHeight;
+        float tx             = (float)info.atlasPos[0] / (float)atlasWidth;
+        float ty             = (float)info.atlasPos[1] / (float)atlasHeight;
 
         info.tcMin = vec2(tx, ty);
-        info.tcMax = vec2(tx + (float)info.size.x / (float)atlasWidth, ty + (float)info.size.y / (float)atlasHeight);
+        info.tcMax = vec2(tx + (float)info.size[0] / (float)atlasWidth, ty + (float)info.size[1] / (float)atlasHeight);
     }
 }
 
@@ -272,10 +272,10 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph>& glyphs, int divi
                 {
                     ivec2 ps            = ivec2(bx, by) + s;
                     ps                  = clamp(ps, ivec2(0), ivec2(g.bitmap.width - 1, g.bitmap.height - 1));
-                    unsigned char other = g.bitmap(ps.y, ps.x);
+                    unsigned char other = g.bitmap(ps[1], ps[0]);
                     if (current != other)
                     {
-                        d = sqrt((float)(s.x * s.x + s.y * s.y));
+                        d = sqrt((float)(s[0] * s[0] + s[1] * s[1]));
                         break;
                     }
                 }
@@ -322,14 +322,14 @@ std::vector<ivec2> TextureAtlas::generateSDFsamples(int searchRadius)
         }
     }
     std::sort(samplePositions.begin(), samplePositions.end(),
-              [](const ivec2& a, const ivec2& b) -> bool { return (a.x * a.x + a.y * a.y) < (b.x * b.x + b.y * b.y); });
+              [](const ivec2& a, const ivec2& b) -> bool { return (a[0] * a[0] + a[1] * a[1]) < (b[0] * b[0] + b[1] * b[1]); });
 
     // remove samples further away then searchRadius
     int samples = 0;
     for (; samples < (int)samplePositions.size(); samples++)
     {
         ivec2 a = samplePositions[samples];
-        if (sqrt((float)(a.x * a.x + a.y * a.y)) > searchRadius)
+        if (sqrt((float)(a[0] * a[0] + a[1] * a[1])) > searchRadius)
         {
             break;
         }

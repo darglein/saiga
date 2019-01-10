@@ -138,6 +138,7 @@ SAIGA_GLOBAL std::string concat(const std::vector<std::string>& s, char delim);
 
 SAIGA_GLOBAL std::string leadingZeroString(int number, int characterCount);
 SAIGA_GLOBAL bool hasEnding(std::string const& fullString, std::string const& ending);
+SAIGA_GLOBAL bool hasPrefix(std::string const& fullString, std::string const& prefix);
 
 /**
  * @brief fileEnding

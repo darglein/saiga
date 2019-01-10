@@ -58,7 +58,7 @@ void SSAO::init(int w, int h)
 
     ssao_framebuffer.create();
     ssaotex = std::make_shared<Texture>();
-    ssaotex->createEmptyTexture(ssaoSize.x, ssaoSize.y, GL_RED, GL_R8, GL_UNSIGNED_BYTE);
+    ssaotex->createEmptyTexture(ssaoSize[0], ssaoSize[1], GL_RED, GL_R8, GL_UNSIGNED_BYTE);
     ssao_framebuffer.attachTexture(ssaotex);
     ssao_framebuffer.drawToAll();
     ssao_framebuffer.check();
@@ -66,7 +66,7 @@ void SSAO::init(int w, int h)
 
     ssao_framebuffer2.create();
     bluredTexture = std::make_shared<Texture>();
-    bluredTexture->createEmptyTexture(ssaoSize.x, ssaoSize.y, GL_RED, GL_R8, GL_UNSIGNED_BYTE);
+    bluredTexture->createEmptyTexture(ssaoSize[0], ssaoSize[1], GL_RED, GL_R8, GL_UNSIGNED_BYTE);
     ssao_framebuffer2.attachTexture(bluredTexture);
     ssao_framebuffer2.drawToAll();
     ssao_framebuffer2.check();
@@ -91,13 +91,13 @@ void SSAO::init(int w, int h)
 
 void SSAO::resize(int w, int h)
 {
-    screenSize = vec2(w, h);
-    ssaoSize   = ivec2(w / 2, h / 2);
-    ssaoSize.x = max(ssaoSize.x, 1);
-    ssaoSize.y = max(ssaoSize.y, 1);
+    screenSize  = vec2(w, h);
+    ssaoSize    = ivec2(w / 2, h / 2);
+    ssaoSize[0] = max(ssaoSize[0], 1);
+    ssaoSize[1] = max(ssaoSize[1], 1);
 
-    ssao_framebuffer.resize(ssaoSize.x, ssaoSize.y);
-    ssao_framebuffer2.resize(ssaoSize.x, ssaoSize.y);
+    ssao_framebuffer.resize(ssaoSize[0], ssaoSize[1]);
+    ssao_framebuffer2.resize(ssaoSize[0], ssaoSize[1]);
     clearSSAO();
 }
 
@@ -114,7 +114,7 @@ void SSAO::clearSSAO()
 
 void SSAO::render(Camera* cam, GBuffer* gbuffer)
 {
-    glViewport(0, 0, ssaoSize.x, ssaoSize.y);
+    glViewport(0, 0, ssaoSize[0], ssaoSize[1]);
     ssao_framebuffer.bind();
 
 
@@ -145,7 +145,7 @@ void SSAO::render(Camera* cam, GBuffer* gbuffer)
     ssao_framebuffer2.unbind();
 
 
-    glViewport(0, 0, screenSize.x, screenSize.y);
+    glViewport(0, 0, screenSize[0], screenSize[1]);
 }
 
 
@@ -161,7 +161,7 @@ void SSAO::setKernelSize(int _kernelSize)
         sample *= scale;
 
         //        vec3 sample = ballRand(1.0f);
-        //        sample.z = abs(sample.z);
+        //        sample[2] = abs(sample[2]);
 
         kernelOffsets[i] = sample;
     }

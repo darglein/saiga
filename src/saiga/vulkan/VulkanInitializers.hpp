@@ -188,8 +188,8 @@ namespace vks
 			VkRect2D rect2D {};
 			rect2D.extent.width = width;
 			rect2D.extent.height = height;
-			rect2D.offset.x = offsetX;
-			rect2D.offset.y = offsetY;
+            rect2D.offset.x = offsetX;
+            rect2D.offset.y = offsetY;
 			return rect2D;
 		}
 
@@ -524,7 +524,7 @@ namespace vks
 			pipelineCreateInfo.renderPass = renderPass;
 			pipelineCreateInfo.flags = flags;
 			pipelineCreateInfo.basePipelineIndex = -1;
-            pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+            pipelineCreateInfo.basePipelineHandle = nullptr;
 			return pipelineCreateInfo;
 		}
 

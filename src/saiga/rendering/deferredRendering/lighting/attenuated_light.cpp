@@ -21,7 +21,7 @@ void AttenuatedLightShader::checkUniforms()
 
 void AttenuatedLightShader::uploadA(vec3& attenuation, float cutoffRadius)
 {
-    Shader::upload(location_attenuation, vec4(attenuation, cutoffRadius));
+    Shader::upload(location_attenuation, make_vec4(attenuation, cutoffRadius));
 }
 
 AttenuatedLight::AttenuatedLight() {}
@@ -41,7 +41,7 @@ float AttenuatedLight::evaluateAttenuation(float distance)
     // normalize the distance, so the attenuation is independent of the radius
     float x = distance / cutoffRadius;
 
-    return 1.0f / (attenuation.x + attenuation.y * x + attenuation.z * x * x);
+    return 1.0f / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x);
 }
 
 vec3 AttenuatedLight::getAttenuation() const
@@ -52,7 +52,7 @@ vec3 AttenuatedLight::getAttenuation() const
 float AttenuatedLight::getAttenuation(float r)
 {
     float x = r / cutoffRadius;
-    return 1.0 / (attenuation.x + attenuation.y * x + attenuation.z * x * x);
+    return 1.0 / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x);
 }
 
 void AttenuatedLight::setAttenuation(const vec3& value)
@@ -70,7 +70,7 @@ float AttenuatedLight::getRadius() const
 void AttenuatedLight::setRadius(float value)
 {
     cutoffRadius = value;
-    this->setScale(vec3(cutoffRadius));
+    this->setScale(make_vec3(cutoffRadius));
 }
 
 void AttenuatedLight::bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera* cam)

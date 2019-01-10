@@ -55,7 +55,7 @@ bool Sphere::intersectAabb2(const AABB& other)
 
 bool Sphere::contains(vec3 p)
 {
-    return length(p - pos) < r;
+    return length(vec3(p - pos)) < r;
 }
 
 bool Sphere::intersect(const Sphere& other)

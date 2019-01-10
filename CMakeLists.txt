@@ -185,6 +185,10 @@ PackageHelperTarget(g2o::core G2O_FOUND)
 PackageHelperTarget(g2o::solver_cholmod G2O_FOUND)
 #PackageHelperTarget(g2o::types_sba G2O_FOUND)
 
+#ceres
+find_package(Ceres QUIET)
+PackageHelperTarget(ceres CERES_FOUND)
+
 
 #bullet
 find_package(Bullet QUIET)

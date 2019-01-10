@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/util/assert.h"
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
 #include "saiga/vision/VisionIncludes.h"
 namespace Saiga
 {
