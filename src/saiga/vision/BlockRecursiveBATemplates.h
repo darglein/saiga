@@ -40,8 +40,8 @@ using DAType = Eigen::Matrix<MatrixScalar<ARes>, -1, 1>;
 using DBType = Eigen::Matrix<MatrixScalar<BRes>, -1, 1>;
 
 // Block structured sparse matrix
-using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>, Eigen::RowMajor>;
-using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>, Eigen::RowMajor>;
+using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>, Eigen::ColMajor>;
+using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>, Eigen::ColMajor>;
 using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor>;
 
 

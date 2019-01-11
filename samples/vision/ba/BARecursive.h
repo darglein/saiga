@@ -17,6 +17,8 @@ class BARec
 
    private:
     int n, m;
+    int observations;
+    int schurEdges;
     UType U;
     VType V;
     WType W;
@@ -33,6 +35,9 @@ class BARec
     WType Y;
     SType S;
     DAType ej;
+
+
+    std::vector<std::vector<int>> schurStructure;
 
     void initStructure(Scene& scene);
     void computeUVW(Scene& scene);

@@ -32,8 +32,6 @@ void BARec::initStructure(Scene& scene)
     auto numCameras = imageIds.size();
     auto numPoints  = scene.worldPoints.size();
 
-    cout << "ba with " << numCameras << " cameras and " << numPoints << " points" << endl;
-
     n = numCameras;
     m = numPoints;
 
@@ -56,7 +54,58 @@ void BARec::initStructure(Scene& scene)
     Y.resize(n, m);
     S.resize(n, n);
     ej.resize(n);
+
+    schurStructure.resize(n, std::vector<int>(n, -1));
+
+
+    observations = 0;
+    for (auto imgid : imageIds)
+    {
+        auto& img = scene.images[imgid];
+        for (auto& ip : img.monoPoints)
+        {
+            if (!ip)
+            {
+                continue;
+            }
+            observations++;
+        }
+    }
+
+    for (auto& wp : scene.worldPoints)
+    {
+        for (auto& ref : wp.monoreferences)
+        {
+            for (auto& ref2 : wp.monoreferences)
+            {
+                schurStructure[ref.first][ref2.first] = ref2.first;
+                schurStructure[ref2.first][ref.first] = ref.first;
+            }
+        }
+    }
+
+    // compact it
+    schurEdges = 0;
+    for (auto& v : schurStructure)
+    {
+        v.erase(std::remove(v.begin(), v.end(), -1), v.end());
+        schurEdges += v.size();
+    }
+
+#if 1
+    cout << "." << endl;
+    cout << "Structure Analyzed." << endl;
+    cout << "Cameras: " << numCameras << endl;
+    cout << "Points: " << numPoints << endl;
+    cout << "Observations: " << observations << endl;
+    cout << "Schur Edges: " << schurEdges << endl;
+    cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
+    cout << "Sparsity: " << double(schurEdges * 6 * 6) / double(n * n * 6 * 6) * 100 << "%" << endl;
+    cout << "." << endl;
+#endif
 }
+
+
 
 void BARec::computeUVW(Scene& scene)
 {
@@ -78,6 +127,8 @@ void BARec::computeUVW(Scene& scene)
 
     std::vector<Eigen::Triplet<WElem>> ws1;
     std::vector<Eigen::Triplet<WTElem>> ws2;
+    ws1.reserve(225911);
+    ws2.reserve(225911);
 
     W.reserve(225911);
     WT.reserve(225911);
@@ -124,7 +175,10 @@ void BARec::computeUVW(Scene& scene)
             //                W.setBlock(i, j, JrowPose.transpose() * JrowPoint);
             //            W.insert(i, j) = m;
             //            cout << "insert " << j << " " << i << endl;
-            WT.insert(j, i) = m.transpose();
+            if (W.IsRowMajor)
+            {
+                //                WT.insert(j, i) = m.transpose();
+            }
 
 
             ea(i).get() += (JrowPose.transpose() * res);
