@@ -28,8 +28,8 @@
 
 #define NO_CG_TYPES
 using Scalar = float;
-const int bn = 4;
-const int bm = 4;
+const int bn = 2;
+const int bm = 2;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
@@ -46,10 +46,10 @@ void testCG()
     Saiga::Random::setSeed(34534);
 
 
-    int n = 10000;
-    int m = 10000;
+    int n = 10;
+    int m = 10;
 
-    int numNonZeroBlocks = 200;
+    int numNonZeroBlocks = 1;
 
 
 
@@ -122,6 +122,8 @@ void testCG()
 
     A.setFromTriplets(data.begin(), data.end());
     bA.setFromTriplets(bdata.begin(), bdata.end());
+
+
 
     cout << "matrix constructed" << endl;
 

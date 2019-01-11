@@ -12,16 +12,17 @@
 #include "saiga/vision/recursiveMatrices/Dot.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
+#include "saiga/vision/recursiveMatrices/Norm.h"
+#include "saiga/vision/recursiveMatrices/ScalarMult.h"
 
-#ifndef NO_CG_SPEZIALIZATIONS
 
-#    ifndef NO_CG_TYPES
+#ifndef NO_CG_TYPES
 using Scalar = float;
 const int bn = 4;
 const int bm = 4;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
-#    endif
+#endif
 
 template <typename BinaryOp>
 struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, BinaryOp>
@@ -30,6 +31,7 @@ struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<Block>, Saiga::MatrixScal
 };
 
 
+#ifndef NO_CG_SPEZIALIZATIONS
 template <typename SparseLhsType, typename DenseRhsType>
 struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType,
                                                        Eigen::Matrix<Saiga::MatrixScalar<Vector>, -1, 1>,
