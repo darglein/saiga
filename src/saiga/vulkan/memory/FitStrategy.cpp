@@ -77,13 +77,13 @@ std::pair<ChunkIterator, LocationIterator> findFitPairForBestWorst(std::vector<C
 std::pair<ChunkIterator, LocationIterator> BestFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
                                                                       vk::DeviceSize size)
 {
-    return findFitPairForBestWorst(_allocations, size, std::less());
+    return findFitPairForBestWorst(_allocations, size, std::less<void>());
 }
 
 std::pair<ChunkIterator, LocationIterator> WorstFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
                                                                        vk::DeviceSize size)
 {
-    return findFitPairForBestWorst(_allocations, size, std::greater());
+    return findFitPairForBestWorst(_allocations, size, std::greater<void>());
 }
 
 }  // namespace Memory

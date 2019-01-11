@@ -1,4 +1,5 @@
 ﻿#include "Base.h"
+
 #include "saiga/util/table.h"
 #include "saiga/util/tostring.h"
 
@@ -175,7 +176,8 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
     SAIGA_ASSERT(pipelineCache);
 
 
-    mainQueue.create(device, main_queue_info.first, main_queue_info.second, vk::CommandPoolCreateFlagBits::eTransient);
+    mainQueue.create(device, main_queue_info.first, main_queue_info.second,
+                     vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 
     if (main_queue_info != compute_info)
     {
