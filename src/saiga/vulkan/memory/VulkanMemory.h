@@ -85,8 +85,6 @@ class SAIGA_GLOBAL VulkanMemory
     ImageMap imageAllocators;
     std::unique_ptr<FallbackAllocator> fallbackAllocator;
     ChunkCreator chunkCreator;
-
-
     std::unique_ptr<FitStrategy> strategy;
 
 
@@ -127,6 +125,19 @@ class SAIGA_GLOBAL VulkanMemory
         return found;
     }
 
+    inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const
+    {
+        for (const auto& memory : memoryTypes)
+        {
+            if ((memory.propertyFlags & flags) == flags)
+            {
+                return memory.propertyFlags;
+            }
+        }
+        SAIGA_ASSERT(false, "No valid memory found");
+        return vk::MemoryPropertyFlags();
+    }
+
    public:
     void init(vk::PhysicalDevice _pDevice, vk::Device _device);
 
@@ -145,20 +156,6 @@ class SAIGA_GLOBAL VulkanMemory
     BaseMemoryAllocator& getAllocator(const BufferType& type);
 
     ImageChunkAllocator& getImageAllocator(const ImageType& type);
-
-   private:
-    inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const
-    {
-        for (const auto& memory : memoryTypes)
-        {
-            if ((memory.propertyFlags & flags) == flags)
-            {
-                return memory.propertyFlags;
-            }
-        }
-        SAIGA_ASSERT(false, "No valid memory found");
-        return vk::MemoryPropertyFlags();
-    }
 };
 
 
