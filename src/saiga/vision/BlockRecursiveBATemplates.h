@@ -40,9 +40,9 @@ using DAType = Eigen::Matrix<MatrixScalar<ARes>, -1, 1>;
 using DBType = Eigen::Matrix<MatrixScalar<BRes>, -1, 1>;
 
 // Block structured sparse matrix
-using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>, Eigen::ColMajor>;
-using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>, Eigen::ColMajor>;
-using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor>;
+using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>, Eigen::RowMajor>;
+using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>, Eigen::RowMajor>;
+using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::ColMajor>;
 
 
 
@@ -214,8 +214,8 @@ namespace Eigen
 namespace internal
 {
 template <typename Lhs, typename Rhs, typename ResultType>
-static void aconservative_sparse_sparse_product_impl(const Lhs& lhs, const Rhs& rhs, ResultType& res,
-                                                     bool sortedInsertion = false)
+static void testconservative_sparse_sparse_product_impl(const Lhs& lhs, const Rhs& rhs, ResultType& res,
+                                                        bool sortedInsertion = false)
 {
     typedef typename remove_all<Lhs>::type::Scalar LhsScalar;
     typedef typename remove_all<Rhs>::type::Scalar RhsScalar;
@@ -260,64 +260,34 @@ static void aconservative_sparse_sparse_product_impl(const Lhs& lhs, const Rhs& 
                 LhsScalar x = lhsIt.value();
                 if (!mask[i])
                 {
-                    mask[i]      = true;
-                    values[i]    = y * x;
+                    mask[i]   = true;
+                    values[i] = y * x;
+                    //                    values[i]    = x * transpose(y);
+                    //                    Saiga::removeMatrixScalar(values[i]) = Saiga::removeMatrixScalar(x *
+                    //                    transpose(y));
                     indices[nnz] = i;
                     ++nnz;
                 }
                 else
                     values[i] += y * x;
+                //                    Saiga::removeMatrixScalar(values[i]) += Saiga::removeMatrixScalar(x *
+                //                    transpose(y));
             }
         }
-        if (!sortedInsertion)
         {
             // unordered insertion
             for (Index k = 0; k < nnz; ++k)
             {
                 Index i                                   = indices[k];
                 res.insertBackByOuterInnerUnordered(j, i) = values[i];
-                mask[i]                                   = false;
-            }
-        }
-        else
-        {
-            // alternative ordered insertion code:
-            const Index t200 = rows / 11;  // 11 == (log2(200)*1.39)
-            const Index t    = (rows * 100) / 139;
-
-            // FIXME reserve nnz non zeros
-            // FIXME implement faster sorting algorithms for very small nnz
-            // if the result is sparse enough => use a quick sort
-            // otherwise => loop through the entire vector
-            // In order to avoid to perform an expensive log2 when the
-            // result is clearly very sparse we use a linear bound up to 200.
-            if ((nnz < 200 && nnz < t200) || nnz * numext::log2(int(nnz)) < t)
-            {
-                if (nnz > 1) std::sort(indices, indices + nnz);
-                for (Index k = 0; k < nnz; ++k)
-                {
-                    Index i                          = indices[k];
-                    res.insertBackByOuterInner(j, i) = values[i];
-                    mask[i]                          = false;
-                }
-            }
-            else
-            {
-                // dense path
-                for (Index i = 0; i < rows; ++i)
-                {
-                    if (mask[i])
-                    {
-                        mask[i]                          = false;
-                        res.insertBackByOuterInner(j, i) = values[i];
-                    }
-                }
+                //                res.insertBackByOuterInner(j, i) = values[i];
+                mask[i] = false;
             }
         }
     }
     res.finalize();
 }
-
+#if 1
 template <typename Rhs, typename ResultType>
 struct conservative_sparse_sparse_product_selector<Saiga::WType, Rhs, ResultType, RowMajor, RowMajor, ColMajor>
 {
@@ -326,12 +296,42 @@ struct conservative_sparse_sparse_product_selector<Saiga::WType, Rhs, ResultType
     {
         typedef SparseMatrix<typename ResultType::Scalar, RowMajor, typename ResultType::StorageIndex> RowMajorMatrix;
         RowMajorMatrix resRow(lhs.rows(), rhs.cols());
-        internal::aconservative_sparse_sparse_product_impl<Rhs, Lhs, RowMajorMatrix>(rhs, lhs, resRow);
+        internal::testconservative_sparse_sparse_product_impl<Rhs, Lhs, RowMajorMatrix>(rhs, lhs, resRow);
+        res = resRow;
+    }
+};
+#endif
+
+
+template <typename Rhs, typename ResultType>
+struct conservative_sparse_sparse_product_selector<Saiga::WType, Rhs, ResultType, RowMajor, ColMajor, ColMajor>
+{
+    using Lhs = Saiga::WType;
+    static void run(const Lhs& lhs, const Rhs& rhs, ResultType& res)
+    {
+        typedef SparseMatrix<typename Rhs::Scalar, RowMajor, typename ResultType::StorageIndex> RowMajorRhs;
+        typedef SparseMatrix<typename ResultType::Scalar, RowMajor, typename ResultType::StorageIndex> RowMajorRes;
+        RowMajorRhs rhsRow = rhs;
+        RowMajorRes resRow(lhs.rows(), rhs.cols());
+        internal::testconservative_sparse_sparse_product_impl<RowMajorRhs, Lhs, RowMajorRes>(rhsRow, lhs, resRow);
         res = resRow;
     }
 };
 
-
+template <typename Rhs, typename ResultType>
+struct conservative_sparse_sparse_product_selector<Saiga::WType, Rhs, ResultType, RowMajor, ColMajor, RowMajor>
+{
+    using Lhs = Saiga::WType;
+    static void run(const Lhs& lhs, const Rhs& rhs, ResultType& res)
+    {
+        typedef SparseMatrix<typename Lhs::Scalar, ColMajor, typename ResultType::StorageIndex> ColMajorLhs;
+        typedef SparseMatrix<typename ResultType::Scalar, ColMajor, typename ResultType::StorageIndex> ColMajorRes;
+        ColMajorLhs lhsCol = lhs;
+        ColMajorRes resCol(lhs.rows(), rhs.cols());
+        internal::conservative_sparse_sparse_product_impl<ColMajorLhs, Rhs, ColMajorRes>(lhsCol, rhs, resCol);
+        res = resCol;
+    }
+};
 
 template <typename SparseLhsType, typename DenseRhsType>
 struct sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, Saiga::DBType, typename Saiga::DBType::Scalar,

@@ -57,18 +57,30 @@ struct MatrixScalar
 
 
     // general matrix product
-    template <typename _Scalar, int n, int m>
-    auto operator*(const MatrixScalar<Eigen::Matrix<_Scalar, n, m>>& other) const
+    template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
+    auto operator*(const MatrixScalar<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>& other) const
     {
-        using ReturnType = Eigen::Matrix<_Scalar, MatrixType::RowsAtCompileTime, m>;
+        using ReturnType = Eigen::Matrix<_Scalar, MatrixType::RowsAtCompileTime, _Cols, _Options>;
         return MatrixScalar<ReturnType>(data * other.data);
     }
 
 
+    //    template <typename T>
+    //    auto operator*(const T& other) const
+    //    {
+    //        auto res = (data * other.data).evaluate();
+    //        return MatrixScalar<decltype(res)>(res);
+    //    }
 
     MatrixType& get() { return data; }
     const MatrixType& get() const { return data; }
 };
+
+template <typename T>
+auto makeMatrixScalar(const T& v)
+{
+    return MatrixScalar<T>(v);
+}
 
 template <typename T>
 struct RemoveMatrixScalarImpl

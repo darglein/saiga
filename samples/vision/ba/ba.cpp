@@ -56,7 +56,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 0, 0, 1), false);
     frustum.init(renderer.base);
 
-    pointCloud.init(base, 1000 * 1000);
+    pointCloud.init(base, 1000 * 1000 * 10);
 
     change = true;
 }
@@ -227,5 +227,6 @@ void VulkanExample::findBALDatasets()
 {
     Saiga::Directory dir(".");
     dir.getFilesPrefix(datasets, "problem-");
+    std::sort(datasets.begin(), datasets.end());
     cout << "Found " << datasets.size() << " BAL datasets" << endl;
 }

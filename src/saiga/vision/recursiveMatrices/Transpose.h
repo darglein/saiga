@@ -33,7 +33,7 @@ template <typename G>
 struct Transpose<MatrixScalar<G>>
 {
     //    static auto get(const MatrixScalar<G>& m) { return m.transpose(); }
-    static auto get(const MatrixScalar<G>& m) { return MatrixScalar<G>(Transpose<G>::get(m.get())); }
+    static auto get(const MatrixScalar<G>& m) { return makeMatrixScalar(Transpose<G>::get(m.get())); }
 };
 
 

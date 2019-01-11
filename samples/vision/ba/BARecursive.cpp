@@ -100,7 +100,7 @@ void BARec::initStructure(Scene& scene)
     cout << "Observations: " << observations << endl;
     cout << "Schur Edges: " << schurEdges << endl;
     cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
-    cout << "Sparsity: " << double(schurEdges * 6 * 6) / double(n * n * 6 * 6) * 100 << "%" << endl;
+    cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
     cout << "." << endl;
 #endif
 }
@@ -127,72 +127,74 @@ void BARec::computeUVW(Scene& scene)
 
     std::vector<Eigen::Triplet<WElem>> ws1;
     std::vector<Eigen::Triplet<WTElem>> ws2;
-    ws1.reserve(225911);
-    ws2.reserve(225911);
+    ws1.reserve(observations);
+    ws2.reserve(observations);
 
-    W.reserve(225911);
-    WT.reserve(225911);
+    W.reserve(observations);
+    WT.reserve(observations);
 
     W.setZero();
     WT.setZero();
 
-    //        for (auto& img : scene.images)
-    for (auto imgid : imageIds)
     {
-        auto& img    = scene.images[imgid];
-        auto& extr   = scene.extrinsics[img.extr].se3;
-        auto& camera = scene.intrinsics[img.intr];
-
-        for (auto& ip : img.monoPoints)
+        SAIGA_BLOCK_TIMER();
+        for (auto imgid : imageIds)
         {
-            if (!ip)
+            auto& img    = scene.images[imgid];
+            auto& extr   = scene.extrinsics[img.extr].se3;
+            auto& camera = scene.intrinsics[img.intr];
+
+            for (auto& ip : img.monoPoints)
             {
-                cout << imgid << " " << ip.wp << " " << ip.point.transpose() << endl;
-                //                                        SAIGA_ASSERT(0);
-                continue;
+                if (!ip)
+                {
+                    cout << imgid << " " << ip.wp << " " << ip.point.transpose() << endl;
+                    //                                        SAIGA_ASSERT(0);
+                    continue;
+                }
+
+                auto wp = scene.worldPoints[ip.wp].p;
+
+
+                int i    = img.extr;
+                int j    = ip.wp;
+                double w = ip.weight * scene.scale();
+
+
+
+                KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
+
+
+                U.diagonal()(i).get() += (JrowPose.transpose() * JrowPose);
+                V.diagonal()(j).get() += (JrowPoint.transpose() * JrowPoint);
+
+
+                WElem m = JrowPose.transpose() * JrowPoint;
+                ws1.emplace_back(i, j, m);
+                ws2.emplace_back(j, i, m.transpose());
+
+                //                W.setBlock(i, j, JrowPose.transpose() * JrowPoint);
+                //            W.insert(i, j) = m;
+                //            cout << "insert " << j << " " << i << endl;
+                if (W.IsRowMajor)
+                {
+                    //                WT.insert(j, i) = m.transpose();
+                }
+
+
+                ea(i).get() += (JrowPose.transpose() * res);
+                eb(j).get() += JrowPoint.transpose() * res;
             }
-
-            auto wp = scene.worldPoints[ip.wp].p;
-
-
-            int i    = img.extr;
-            int j    = ip.wp;
-            double w = ip.weight * scene.scale();
-
-
-
-            KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
-
-
-            U.diagonal()(i).get() += (JrowPose.transpose() * JrowPose);
-            V.diagonal()(j).get() += (JrowPoint.transpose() * JrowPoint);
-
-
-            WElem m = JrowPose.transpose() * JrowPoint;
-            ws1.emplace_back(i, j, m);
-            ws2.emplace_back(j, i, m.transpose());
-
-            //                W.setBlock(i, j, JrowPose.transpose() * JrowPoint);
-            //            W.insert(i, j) = m;
-            //            cout << "insert " << j << " " << i << endl;
-            if (W.IsRowMajor)
-            {
-                //                WT.insert(j, i) = m.transpose();
-            }
-
-
-            ea(i).get() += (JrowPose.transpose() * res);
-            eb(j).get() += JrowPoint.transpose() * res;
         }
     }
 
     {
+        SAIGA_BLOCK_TIMER();
         W.setFromTriplets(ws1.begin(), ws1.end());
         WT.setFromTriplets(ws2.begin(), ws2.end());
     }
 
 
-    //        double lambda = 1.0 / (scene.intrinsics.front().fx * scene.intrinsics.front().fx);
     double lambda = 1.0 / (scene.scale() * scene.scale());
     //        lambda        = 1;
 
@@ -239,6 +241,7 @@ void BARec::solve(Scene& scene, int its)
             Y = multSparseDiag(W, Vinv);
         }
 
+
         {
             SAIGA_BLOCK_TIMER();
             // Step 3
@@ -247,8 +250,13 @@ void BARec::solve(Scene& scene, int its)
             // maybe own implementation because the structure is well known before hand
             // ~ 22.3 %
             // TODO: this line doesn't seem to compile with every eigen version
-            S            = -(Y * WT).eval();
+            S.resize(W.rows(), W.rows());
+            S.reserve(schurEdges);
+            S            = Y * WT;
+            S            = -S;
             S.diagonal() = U.diagonal() + S.diagonal();
+
+            cout << "S non zeros " << S.nonZeros() << endl;
         }
         {
             SAIGA_BLOCK_TIMER();
@@ -292,6 +300,7 @@ void BARec::solve(Scene& scene, int its)
             }
         }
 
+#    if 0
         {
             // currently around of a factor 3 slower then the eigen ldlt
             SAIGA_BLOCK_TIMER();
@@ -299,7 +308,9 @@ void BARec::solve(Scene& scene, int its)
             ldlt.compute(S);
             da = ldlt.solve(ej);
         }
-#endif
+#    endif
+
+#else
 
         {
             // this CG solver is super fast :)
@@ -314,6 +325,7 @@ void BARec::solve(Scene& scene, int its)
 
             cout << "error " << tol << " iterations " << iters << endl;
         }
+#endif
 
         DBType q;
         {
