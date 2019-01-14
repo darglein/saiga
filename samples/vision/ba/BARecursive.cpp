@@ -1,16 +1,20 @@
 ﻿#include "BARecursive.h"
 
+#include "saiga/imgui/imgui.h"
 #include "saiga/time/timer.h"
+#include "saiga/util/Algorithm.h"
 #include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
+#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
 
 #include <fstream>
+#include <numeric>
 
 #define NO_CG_SPEZIALIZATIONS
 #define NO_CG_TYPES
@@ -45,7 +49,7 @@ void BARec::initStructure(Scene& scene)
 
     ea.resize(n);
     eb.resize(m);
-
+    q.resize(m);
 
     // ==
 
@@ -53,25 +57,40 @@ void BARec::initStructure(Scene& scene)
     Vinv.resize(m);
     Y.resize(n, m);
     S.resize(n, n);
+    Sdiag.resize(n);
     ej.resize(n);
 
-    schurStructure.resize(n, std::vector<int>(n, -1));
 
 
+    cameraPointCounts.resize(n, 0);
+    cameraPointCountsScan.resize(n);
+    pointCameraCounts.resize(m, 0);
+    pointCameraCountsScan.resize(m);
     observations = 0;
     for (auto imgid : imageIds)
     {
         auto& img = scene.images[imgid];
+        int i     = imgid;
         for (auto& ip : img.monoPoints)
         {
             if (!ip)
             {
                 continue;
             }
+            int j = ip.wp;
+            cameraPointCounts[i]++;
+            pointCameraCounts[j]++;
             observations++;
         }
     }
 
+    exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
+    exclusive_scan(pointCameraCounts.begin(), pointCameraCounts.end(), pointCameraCountsScan.begin(), 0);
+
+
+
+#if 0
+    schurStructure.resize(n, std::vector<int>(n, -1));
     for (auto& wp : scene.worldPoints)
     {
         for (auto& ref : wp.monoreferences)
@@ -91,18 +110,31 @@ void BARec::initStructure(Scene& scene)
         v.erase(std::remove(v.begin(), v.end(), -1), v.end());
         schurEdges += v.size();
     }
+#endif
 
-#if 1
     cout << "." << endl;
     cout << "Structure Analyzed." << endl;
     cout << "Cameras: " << numCameras << endl;
     cout << "Points: " << numPoints << endl;
     cout << "Observations: " << observations << endl;
+#if 0
     cout << "Schur Edges: " << schurEdges << endl;
     cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
     cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
-    cout << "." << endl;
 #endif
+
+#if 1
+    // extended analysis
+    double averageCams   = 0;
+    double averagePoints = 0;
+    for (auto i : cameraPointCounts) averagePoints += i;
+    averagePoints /= cameraPointCounts.size();
+    for (auto i : pointCameraCounts) averageCams += i;
+    averageCams /= pointCameraCounts.size();
+    cout << "Average Points per Camera: " << averagePoints << endl;
+    cout << "Average Cameras per Point: " << averageCams << endl;
+#endif
+    cout << "." << endl;
 }
 
 
@@ -126,15 +158,20 @@ void BARec::computeUVW(Scene& scene)
     V.setZero();
 
     std::vector<Eigen::Triplet<WElem>> ws1;
-    std::vector<Eigen::Triplet<WTElem>> ws2;
     ws1.reserve(observations);
-    ws2.reserve(observations);
-
     W.reserve(observations);
-    WT.reserve(observations);
-
     W.setZero();
-    WT.setZero();
+
+
+    bool useWT = computeWT || explizitSchur || (!iterativeSolver);
+    std::vector<Eigen::Triplet<WTElem>> ws2;
+    if (useWT)
+    {
+        ws2.reserve(observations);
+        WT.reserve(observations);
+        WT.setZero();
+    }
+
 
     {
         SAIGA_BLOCK_TIMER();
@@ -143,6 +180,14 @@ void BARec::computeUVW(Scene& scene)
             auto& img    = scene.images[imgid];
             auto& extr   = scene.extrinsics[img.extr].se3;
             auto& camera = scene.intrinsics[img.intr];
+            int i        = img.extr;
+
+            SAIGA_ASSERT(i == imgid);
+
+            if (W.IsRowMajor)
+            {
+                W.startVec(i);
+            }
 
             for (auto& ip : img.monoPoints)
             {
@@ -156,7 +201,6 @@ void BARec::computeUVW(Scene& scene)
                 auto wp = scene.worldPoints[ip.wp].p;
 
 
-                int i    = img.extr;
                 int j    = ip.wp;
                 double w = ip.weight * scene.scale();
 
@@ -171,14 +215,20 @@ void BARec::computeUVW(Scene& scene)
 
                 WElem m = JrowPose.transpose() * JrowPoint;
                 ws1.emplace_back(i, j, m);
-                ws2.emplace_back(j, i, m.transpose());
 
-                //                W.setBlock(i, j, JrowPose.transpose() * JrowPoint);
-                //            W.insert(i, j) = m;
-                //            cout << "insert " << j << " " << i << endl;
+                if (useWT)
+                {
+                    ws2.emplace_back(j, i, m.transpose());
+                }
+
+
                 if (W.IsRowMajor)
                 {
-                    //                WT.insert(j, i) = m.transpose();
+                    W.insertBackByOuterInner(i, j) = m;
+                }
+                else
+                {
+                    SAIGA_ASSERT(0);
                 }
 
 
@@ -186,13 +236,18 @@ void BARec::computeUVW(Scene& scene)
                 eb(j).get() += JrowPoint.transpose() * res;
             }
         }
+        W.finalize();
     }
 
     {
         SAIGA_BLOCK_TIMER();
-        W.setFromTriplets(ws1.begin(), ws1.end());
-        WT.setFromTriplets(ws2.begin(), ws2.end());
+        //        W.setFromTriplets(ws1.begin(), ws1.end());
+        if (useWT)
+        {
+            WT.setFromTriplets(ws2.begin(), ws2.end());
+        }
     }
+
 
 
     double lambda = 1.0 / (scene.scale() * scene.scale());
@@ -207,6 +262,7 @@ void BARec::computeUVW(Scene& scene)
         V.diagonal()(i).get() += KernelType::PointDiaBlockType::Identity() * lambda;
     }
 }
+
 
 
 void BARec::solve(Scene& scene, int its)
@@ -224,6 +280,13 @@ void BARec::solve(Scene& scene, int its)
     for (int k = 0; k < its; ++k)
     {
         computeUVW(scene);
+
+
+#if 0
+        cout << expand(W) << endl << endl;
+        cout << expand(U.toDenseMatrix()) << endl << endl;
+        cout << expand(V.toDenseMatrix()) << endl << endl;
+#endif
 
         {
             SAIGA_BLOCK_TIMER();
@@ -250,13 +313,23 @@ void BARec::solve(Scene& scene, int its)
             // maybe own implementation because the structure is well known before hand
             // ~ 22.3 %
             // TODO: this line doesn't seem to compile with every eigen version
-            S.resize(W.rows(), W.rows());
-            S.reserve(schurEdges);
-            S            = Y * WT;
-            S            = -S;
-            S.diagonal() = U.diagonal() + S.diagonal();
-
-            cout << "S non zeros " << S.nonZeros() << endl;
+            //            S.resize(W.rows(), W.rows());
+            //            S.reserve(schurEdges);
+            //            S            = Y * WT;
+            //            S            = -S;
+            //            S.diagonal() = U.diagonal() + S.diagonal();
+            //            cout << "S non zeros " << S.nonZeros() << endl;
+            if (explizitSchur || !iterativeSolver)
+            {
+                S            = Y * WT;
+                S            = -S;
+                S.diagonal() = U.diagonal() + S.diagonal();
+            }
+            else
+            {
+                diagInnerProductTransposed(Y, W, Sdiag);
+                Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
+            }
         }
         {
             SAIGA_BLOCK_TIMER();
@@ -266,8 +339,17 @@ void BARec::solve(Scene& scene, int its)
             // ~ 0.7%
             ej = ea + -(Y * eb);
         }
-
 #if 0
+        {
+            // currently around of a factor 3 slower then the eigen ldlt
+            SAIGA_BLOCK_TIMER();
+            SparseLDLT<decltype(S), decltype(ej)> ldlt;
+            ldlt.compute(S);
+            da = ldlt.solve(ej);
+        }
+#endif
+
+        if (!iterativeSolver)
         {
             Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
             {
@@ -299,19 +381,7 @@ void BARec::solve(Scene& scene, int its)
                 }
             }
         }
-
-#    if 0
-        {
-            // currently around of a factor 3 slower then the eigen ldlt
-            SAIGA_BLOCK_TIMER();
-            SparseLDLT<decltype(S), decltype(ej)> ldlt;
-            ldlt.compute(S);
-            da = ldlt.solve(ej);
-        }
-#    endif
-
-#else
-
+        else
         {
             // this CG solver is super fast :)
             SAIGA_BLOCK_TIMER();
@@ -320,21 +390,61 @@ void BARec::solve(Scene& scene, int its)
             Eigen::Index iters = 50;
             Scalar tol         = 1e-50;
 
-            P.compute(S);
-            conjugate_gradient2(S, ej, da, P, iters, tol);
-
+            if (explizitSchur)
+            {
+                P.compute(S);
+                DAType tmp(n);
+                recursive_conjugate_gradient(
+                    [&](const DAType& v) {
+                        tmp = S * v;
+                        return tmp;
+                    },
+                    ej, da, P, iters, tol);
+            }
+            else
+            {
+                P.compute(Sdiag);
+                DBType q(m);
+                DAType tmp(n);
+                recursive_conjugate_gradient(
+                    [&](const DAType& v) {
+                        // x = U * p - Y * WT * p
+                        if (computeWT)
+                        {
+                            tmp = Y * (WT * v);
+                        }
+                        else
+                        {
+                            multSparseRowTransposedVector(W, v, q);
+                            tmp = Y * q;
+                        }
+                        tmp = (U.diagonal().array() * v.array()) - tmp.array();
+                        return tmp;
+                    },
+                    ej, da, P, iters, tol);
+            }
             cout << "error " << tol << " iterations " << iters << endl;
         }
-#endif
 
-        DBType q;
+
+
         {
             SAIGA_BLOCK_TIMER();
             // Step 6
             // Substitute the solultion deltaA into the original system and
             // bring it to the right hand side
             // ~1.6%
-            q = eb + -WT * da;
+
+            if (computeWT)
+            {
+                q = WT * da;
+            }
+            else
+            {
+                multSparseRowTransposedVector(W, da, q);
+            }
+            q = eb - q;
+            //            q = eb + -WT * da;
             //        cout << "qref" << endl
             //             << (blockVectorToVector(eb) - blockMatrixToMatrix(WT.toDense()) *
             //             blockVectorToVector(da)) << endl;
@@ -419,5 +529,12 @@ void BARec::solve(Scene& scene, int its)
 }
 
 
+
+void BARec::imgui()
+{
+    ImGui::Checkbox("iterativeSolver", &iterativeSolver);
+    ImGui::Checkbox("explizitSchur", &explizitSchur);
+    ImGui::Checkbox("computeWT", &computeWT);
+}
 
 }  // namespace Saiga

@@ -208,6 +208,10 @@ void baBlockSchurTest()
     // size of V
     int m = 4;
 
+
+    bool explizitSchur = true;
+    bool computeWT     = true;
+
     // maximum number of non-zero elements per row in W
     int maxElementsPerRow = 2;
 
@@ -269,7 +273,12 @@ void baBlockSchurTest()
     }
 
     W.setFromTriplets(ws1.begin(), ws1.end());
-    WT.setFromTriplets(ws2.begin(), ws2.end());
+
+    if (computeWT)
+    {
+        WT.setFromTriplets(ws2.begin(), ws2.end());
+    }
+
 
 #ifdef PRINT_MATRIX
     // debug print W
@@ -328,8 +337,6 @@ void baBlockSchurTest()
         // Step 1
         // Invert V
         for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
-        //        cout << "Vinv" << endl <<
-        //        blockMatrixToMatrix(Vinv.toDenseMatrix()) << endl;
     }
 
     {
@@ -345,33 +352,17 @@ void baBlockSchurTest()
         // maybe own implementation because the structure is well known before hand
 
         // TODO: this line doesn't seem to compile with every eigen version
-
-        //        S.resize(W.rows(), W.rows());
-        //        S.reserve(schurEdges);
-        //        S            = -S;
-        //        S.diagonal() = U.diagonal() + S.diagonal();
-
-
+        if (explizitSchur)
         {
-            //            SAIGA_BLOCK_TIMER();
-            //            S = (Y * WT).eval();
-            S = Y * WT;
-
-            diagInnerProductTransposed(Y, W, Sdiag);
+            S            = Y * WT;
+            S            = -S;
+            S.diagonal() = U.diagonal() + S.diagonal();
         }
-        S = -S;
-        //        S = W * WT;
-        S.diagonal() = U.diagonal() + S.diagonal();
-
-        //        cout << "Sref" << endl
-        //             << (blockMatrixToMatrix(U.toDenseMatrix()) -
-        //             blockMatrixToMatrix(W.toDense()) *
-        //                                                              blockMatrixToMatrix(Vinv.toDenseMatrix())
-        //                                                              *
-        //                                                              blockMatrixToMatrix(WT.toDense()))
-        //                    .eval()
-        //             << endl;
-        //        cout << "S" << endl << blockMatrixToMatrix(S.toDense()) << endl;
+        else
+        {
+            diagInnerProductTransposed(Y, W, Sdiag);
+            Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
+        }
     }
     {
         //        SAIGA_BLOCK_TIMER();
@@ -425,31 +416,63 @@ void baBlockSchurTest()
         Eigen::Index iters = 50;
         Scalar tol         = 1e-50;
 
-        P.compute(Sdiag);
-        //        conjugate_gradient2(S, ej, da, P, iters, tol);
-        conjugate_gradient_implicit_schur(WT, Y, U, S, ej, da, P, iters, tol);
-
+        if (explizitSchur)
+        {
+            P.compute(S);
+            DAType tmp(n);
+            recursive_conjugate_gradient(
+                [&](const DAType& v) {
+                    tmp = S * v;
+                    return tmp;
+                },
+                ej, da, P, iters, tol);
+        }
+        else
+        {
+            P.compute(Sdiag);
+            DBType q(m);
+            DAType tmp(n);
+            recursive_conjugate_gradient(
+                [&](const DAType& v) {
+                    // x = U * p - Y * WT * p
+                    if (computeWT)
+                    {
+                        tmp = Y * (WT * v);
+                    }
+                    else
+                    {
+                        multSparseRowTransposedVector(W, v, q);
+                        tmp = Y * q;
+                    }
+                    tmp = (U.diagonal().array() * v.array()) - tmp.array();
+                    return tmp;
+                },
+                ej, da, P, iters, tol);
+        }
         cout << "error " << tol << " iterations " << iters << endl;
     }
 #endif
-    DBType q;
+    DBType q(m);
     {
         //        SAIGA_BLOCK_TIMER();
         // Step 6
         // Substitute the solultion deltaA into the original system and
         // bring it to the right hand side
-        q = eb + -WT * da;
-        //        cout << "qref" << endl
-        //             << (blockVectorToVector(eb) -
-        //             blockMatrixToMatrix(WT.toDense()) * blockVectorToVector(da))
-        //             << endl;
-
-        //        cout << "q" << endl << blockVectorToVector(q) << endl;
+        //        q = eb + -WT * da;
+        if (computeWT)
+        {
+            q = WT * da;
+        }
+        else
+        {
+            multSparseRowTransposedVector(W, da, q);
+        }
+        q = eb - q;
     }
     {
         //        SAIGA_BLOCK_TIMER();
         // Step 7
-        // S    olve the remaining partial system with the precomputed inverse of V
+        // Solve the remaining partial system with the precomputed inverse of V
         db = multDiagVector(Vinv, q);
     }
 
@@ -459,7 +482,8 @@ void baBlockSchurTest()
         auto xa                           = expand(da);
         auto xb                           = expand(db);
         Eigen::Matrix<double, -1, 1> res1 = expand(U.toDenseMatrix()) * xa + expand(W.toDense()) * xb - expand(ea);
-        Eigen::Matrix<double, -1, 1> res2 = expand(WT.toDense()) * xa + expand(V.toDenseMatrix()) * xb - expand(eb);
+        Eigen::Matrix<double, -1, 1> res2 =
+            expand(W.toDense()).transpose() * xa + expand(V.toDenseMatrix()) * xb - expand(eb);
         cout << "Error: " << sqrt(res1.squaredNorm() + res2.squaredNorm()) << endl;
     }
 #endif

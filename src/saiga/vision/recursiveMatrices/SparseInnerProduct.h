@@ -37,6 +37,28 @@ void diagInnerProductTransposed(const LHS& lhs, const RHS& rhsTransposed, DiagTy
     }
 }
 
+// Compute res = lhs^T * rhs
+// lhs is a sparse matrix in row major storage order!
+template <typename LHS, typename RHS, typename RES>
+void multSparseRowTransposedVector(const LHS& lhsTransposed, const RHS& rhs, RES& res)
+{
+    SAIGA_ASSERT(lhsTransposed.IsRowMajor);
+    SAIGA_ASSERT(lhsTransposed.rows() == rhs.rows());
+
+    setZero(res);
+    for (int i = 0; i < lhsTransposed.outerSize(); ++i)
+    {
+        auto value = rhs(i).get();
+
+        typename LHS::InnerIterator lhsit(lhsTransposed, i);
+
+        for (; lhsit; ++lhsit)
+        {
+            res(lhsit.index()).get() += lhsit.value().get().transpose() * value;
+        }
+    }
+}
+
 
 
 }  // namespace Saiga

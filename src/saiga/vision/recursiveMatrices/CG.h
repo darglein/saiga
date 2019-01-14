@@ -164,9 +164,36 @@ class RecursiveDiagonalPreconditioner
     bool m_isInitialized;
 };
 
-template <typename MatrixType, typename Rhs, typename Dest, typename Preconditioner, typename SuperScalar>
-EIGEN_DONT_INLINE void conjugate_gradient2(const MatrixType& mat, const Rhs& rhs, Dest& x,
-                                           const Preconditioner& precond, Eigen::Index& iters, SuperScalar& tol_error)
+/**
+ * A conjugate gradient solver, which works for recursives matrices.
+ * Solve:
+ *          A * x = b   for x
+ *
+ * The matrix A is given as function (for example a lambda function).
+ * This way we can implement an implicit cg solver, which does not construct the full matrix A.
+ *
+ * Example call:
+ *
+ * // Build preconditioner
+ * RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
+ * Eigen::Index iters = 50;
+ * Scalar tol         = 1e-50;
+ * P.compute(S);
+ *
+ * // Solve with explicit matrix S
+ * DAType tmp(n);
+ * recursive_conjugate_gradient(
+ *     [&](const DAType& v) {
+ *         tmp = S * v;
+ *         return tmp;
+ *     },
+ *     ej, da, P, iters, tol);
+ *
+ */
+template <typename MultFunction, typename Rhs, typename Dest, typename Preconditioner, typename SuperScalar>
+EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, const Rhs& rhs, Dest& x,
+                                                    const Preconditioner& precond, Eigen::Index& iters,
+                                                    SuperScalar& tol_error)
 {
     using namespace Eigen;
 
@@ -179,84 +206,15 @@ EIGEN_DONT_INLINE void conjugate_gradient2(const MatrixType& mat, const Rhs& rhs
     RealScalar tol = tol_error;
     Index maxIters = iters;
 
-    Index n = mat.cols();
+    Index n = rhs.rows();
 
-    VectorType residual = rhs - mat * x;  // initial residual
-
-    RealScalar rhsNorm2 = squaredNorm(rhs);  //.squaredNorm();
-    if (rhsNorm2 == 0)
-    {
-        x.setZero();
-        iters     = 0;
-        tol_error = 0;
-        return;
-    }
-    RealScalar threshold     = tol * tol * rhsNorm2;
-    RealScalar residualNorm2 = squaredNorm(residual);
-    if (residualNorm2 < threshold)
-    {
-        iters     = 0;
-        tol_error = sqrt(residualNorm2 / rhsNorm2);
-        return;
-    }
-
-    VectorType p(n);
-    p = precond.solve(residual);  // initial search direction
 
     VectorType z(n), tmp(n);
-    //    RealScalar absNew = (residual.dot(p));  // the square of the absolute value of r scaled by invM
-    RealScalar absNew = dot(residual, p);
-    Index i           = 0;
-    while (i < maxIters)
-    {
-        //        tmp.noalias() = mat * p;  // the bottleneck of the algorithm
-
-        tmp          = mat * p;
-        Scalar alpha = absNew / dot(p, tmp);  // the amount we travel on dir
-                                              //        x += (p * alpha).eval();              // update solution
-        x += scalarMult(p, alpha);
-        //        residual -= (alpha * tmp).eval();  // update residual
-        residual -= scalarMult(tmp, alpha);  // update residual
-
-        residualNorm2 = squaredNorm(residual);
-        if (residualNorm2 < threshold) break;
-
-        z = precond.solve(residual);  // approximately solve for "A z = residual"
-
-        RealScalar absOld = absNew;
-        absNew            = dot(residual, z);  // update the absolute value of r
-        RealScalar beta = absNew / absOld;  // calculate the Gram-Schmidt value used to create the new search direction
-        p               = z + scalarMult(p, beta);  // update search direction
-        i++;
-    }
-    tol_error = sqrt(residualNorm2 / rhsNorm2);
-    iters     = i;
-}
 
 
-template <typename WType2, typename YType2, typename UType2, typename MatrixType, typename Rhs, typename Dest,
-          typename Preconditioner, typename SuperScalar>
-EIGEN_DONT_INLINE void conjugate_gradient_implicit_schur(const WType2& WT, const YType2& Y, const UType2& U,
-                                                         const MatrixType& mat, const Rhs& rhs, Dest& x,
-                                                         const Preconditioner& precond, Eigen::Index& iters,
-                                                         SuperScalar& tol_error)
-{
-    using namespace Eigen;
+    VectorType residual = rhs - applyA(x);
 
-    using std::abs;
-    using std::sqrt;
-    typedef SuperScalar RealScalar;
-    typedef SuperScalar Scalar;
-    typedef Rhs VectorType;
-
-    RealScalar tol = tol_error;
-    Index maxIters = iters;
-
-    Index n = mat.cols();
-
-    VectorType residual = rhs - mat * x;  // initial residual
-
-    RealScalar rhsNorm2 = squaredNorm(rhs);  //.squaredNorm();
+    RealScalar rhsNorm2 = squaredNorm(rhs);
     if (rhsNorm2 == 0)
     {
         x.setZero();
@@ -276,34 +234,18 @@ EIGEN_DONT_INLINE void conjugate_gradient_implicit_schur(const WType2& WT, const
     VectorType p(n);
     p = precond.solve(residual);  // initial search direction
 
-    VectorType z(n), tmp(n), up(n), ywtp(n);
-    //    RealScalar absNew = (residual.dot(p));  // the square of the absolute value of r scaled by invM
+    // the square of the absolute value of r scaled by invM
     RealScalar absNew = dot(residual, p);
     Index i           = 0;
     while (i < maxIters)
     {
-        //        tmp.noalias() = mat * p;  // the bottleneck of the algorithm
-
-        // S = U - Y * WT
-
-
-        // x = S * p;
-        // x = U * p - Y * WT * p
-
-#if 0
-        tmp = mat * p;
-#else
-        // Elementwise mult
-        up   = U.diagonal().array() * p.array();
-        ywtp = Y * (WT * p);
-        tmp  = up - ywtp;
-#endif
-
-        Scalar alpha = absNew / dot(p, tmp);  // the amount we travel on dir
-                                              //        x += (p * alpha).eval();              // update solution
+        tmp = applyA(p);
+        // the amount we travel on dir
+        Scalar alpha = absNew / dot(p, tmp);
+        // update solution
         x += scalarMult(p, alpha);
-        //        residual -= (alpha * tmp).eval();  // update residual
-        residual -= scalarMult(tmp, alpha);  // update residual
+        // update residual
+        residual -= scalarMult(tmp, alpha);
 
         residualNorm2 = squaredNorm(residual);
         if (residualNorm2 < threshold) break;

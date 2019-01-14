@@ -197,10 +197,10 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
+    barec.imgui();
     if (ImGui::Button("sba recursive"))
     {
-        Saiga::BARec ba;
-        ba.solve(scene, its);
+        barec.solve(scene, its);
         change = true;
     }
 

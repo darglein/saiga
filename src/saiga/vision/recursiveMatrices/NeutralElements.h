@@ -21,6 +21,7 @@ struct AdditiveNeutral
 {
     static T get() { return T::Zero(); }
     static T get(int rows, int cols) { return T::Zero(rows, cols); }
+    static void setZero(T& d) { d.setZero(); }
 };
 
 template <>
@@ -28,6 +29,7 @@ struct AdditiveNeutral<double>
 {
     static double get() { return 0.0; }
     static double get(int rows, int cols) { return 0.0; }
+    static void setZero(double& d) { d = 0; }
 };
 
 template <>
@@ -35,6 +37,7 @@ struct AdditiveNeutral<float>
 {
     static float get() { return 0.0f; }
     static float get(int rows, int cols) { return 0.0f; }
+    static void setZero(float& d) { d = 0.f; }
 };
 
 template <typename G>
@@ -42,12 +45,13 @@ struct AdditiveNeutral<MatrixScalar<G>>
 {
     static MatrixScalar<G> get() { return MatrixScalar<G>(AdditiveNeutral<G>::get()); }
     static MatrixScalar<G> get(int rows, int cols) { return MatrixScalar<G>(AdditiveNeutral<G>::get(rows, cols)); }
+    static void setZero(MatrixScalar<G>& d) { AdditiveNeutral<G>::setZero(d.get()); }
 };
 
 template <typename T>
 void setZero(T& v)
 {
-    v = AdditiveNeutral<T>::get();
+    AdditiveNeutral<T>::setZero(v);
 }
 
 

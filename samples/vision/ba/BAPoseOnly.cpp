@@ -439,6 +439,7 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         }
 
 
+
         typedef Eigen::Triplet<T> Trip;
         std::vector<Trip> tripletList;
 
@@ -513,6 +514,12 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
             }
         }
         cout << "insert done" << endl;
+
+
+#if 0
+        cout << mat.toDense() << endl;
+#endif
+
 
         Eigen::VectorXd x;
 

@@ -18,6 +18,7 @@
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 #include "saiga/vulkan/window/SDLSample.h"
 
+#include "BARecursive.h"
 
 
 class VulkanExample : public Saiga::VulkanSDLExampleBase
@@ -60,6 +61,7 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
 
     bool displayModels = true;
 
+    Saiga::BARec barec;
 
     std::vector<std::string> datasets;
     void findBALDatasets();
