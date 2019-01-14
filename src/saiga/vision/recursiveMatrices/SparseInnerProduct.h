@@ -14,14 +14,29 @@
 
 namespace Saiga
 {
-template <typename LHS, typename RHS>
-auto multSparseInner(const LHS& lhs, const RHS& rhs)
+template <typename LHS, typename RHS, typename DiagType>
+void diagInnerProductTransposed(const LHS& lhs, const RHS& rhsTransposed, DiagType& res)
 {
-    // TODO: build
-    //    cout << expand(lhs) << endl << endl;
-    auto res = (lhs * rhs).eval();
-    //    cout << expand(res) << endl << endl;
-    return res;
+    SAIGA_ASSERT(lhs.IsRowMajor && rhsTransposed.IsRowMajor);
+    SAIGA_ASSERT(lhs.rows() == rhsTransposed.rows());
+    SAIGA_ASSERT(lhs.cols() == rhsTransposed.cols());
+    SAIGA_ASSERT(res.rows() == lhs.rows());
+
+    for (int i = 0; i < lhs.rows(); ++i)
+    {
+        typename DiagType::Scalar value;
+        setZero(value);
+        typename LHS::InnerIterator lhsit(lhs, i);
+        typename RHS::InnerIterator rhsit(rhsTransposed, i);
+
+        for (; lhsit; ++lhsit, ++rhsit)
+        {
+            value.get() += lhsit.value().get() * transpose(rhsit.value().get());
+        }
+        res.diagonal()(i) = value;
+    }
 }
+
+
 
 }  // namespace Saiga

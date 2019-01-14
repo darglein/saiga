@@ -15,6 +15,17 @@
 
 #include "Eigen/Sparse"
 
+#define NO_CG_SPEZIALIZATIONS
+#define NO_CG_TYPES
+using Scalar = double;
+const int bn = Saiga::asize;
+const int bm = Saiga::asize;
+using Block  = Eigen::Matrix<Scalar, bn, bm>;
+using Vector = Eigen::Matrix<Scalar, bn, 1>;
+
+#include "saiga/vision/recursiveMatrices/CG.h"
+
+
 using namespace Saiga;
 
 void simpleSchurTest()
@@ -308,6 +319,8 @@ void baBlockSchurTest()
     SType S(n, n);
     DAType ej(n);
 
+    Eigen::DiagonalMatrix<MatrixScalar<Block>, -1> Sdiag(n);
+
     {
         //        SAIGA_BLOCK_TIMER();
         // Schur complement solution
@@ -333,10 +346,18 @@ void baBlockSchurTest()
 
         // TODO: this line doesn't seem to compile with every eigen version
 
+        //        S.resize(W.rows(), W.rows());
+        //        S.reserve(schurEdges);
+        //        S            = -S;
+        //        S.diagonal() = U.diagonal() + S.diagonal();
+
+
         {
-            SAIGA_BLOCK_TIMER();
+            //            SAIGA_BLOCK_TIMER();
             //            S = (Y * WT).eval();
-            S = multSparseInner(Y, WT);
+            S = Y * WT;
+
+            diagInnerProductTransposed(Y, W, Sdiag);
         }
         S = -S;
         //        S = W * WT;
@@ -366,6 +387,7 @@ void baBlockSchurTest()
         //        cout << "ej" << endl << blockVectorToVector(ej) << endl;
     }
 
+#if 0
     Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
     {
         //        SAIGA_BLOCK_TIMER();
@@ -393,6 +415,23 @@ void baBlockSchurTest()
             da(i) = deltaA.segment(i * asize, asize);
         }
     }
+
+#else
+    {
+        // this CG solver is super fast :)
+        //        SAIGA_BLOCK_TIMER();
+        da.setZero();
+        RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
+        Eigen::Index iters = 50;
+        Scalar tol         = 1e-50;
+
+        P.compute(Sdiag);
+        //        conjugate_gradient2(S, ej, da, P, iters, tol);
+        conjugate_gradient_implicit_schur(WT, Y, U, S, ej, da, P, iters, tol);
+
+        cout << "error " << tol << " iterations " << iters << endl;
+    }
+#endif
     DBType q;
     {
         //        SAIGA_BLOCK_TIMER();
@@ -410,7 +449,7 @@ void baBlockSchurTest()
     {
         //        SAIGA_BLOCK_TIMER();
         // Step 7
-        // Solve the remaining partial system with the precomputed inverse of V
+        // S    olve the remaining partial system with the precomputed inverse of V
         db = multDiagVector(Vinv, q);
     }
 

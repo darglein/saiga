@@ -44,6 +44,12 @@ struct AdditiveNeutral<MatrixScalar<G>>
     static MatrixScalar<G> get(int rows, int cols) { return MatrixScalar<G>(AdditiveNeutral<G>::get(rows, cols)); }
 };
 
+template <typename T>
+void setZero(T& v)
+{
+    v = AdditiveNeutral<T>::get();
+}
+
 
 /// =================================================================================================
 
