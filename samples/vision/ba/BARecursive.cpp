@@ -41,8 +41,6 @@ void BARec::initStructure(Scene& scene)
 
     U.resize(n);
     V.resize(m);
-    W.resize(n, m);
-    WT.resize(m, n);
 
     da.resize(n);
     db.resize(m);
@@ -62,8 +60,10 @@ void BARec::initStructure(Scene& scene)
 
 
 
+    cameraPointCounts.clear();
     cameraPointCounts.resize(n, 0);
     cameraPointCountsScan.resize(n);
+    pointCameraCounts.clear();
     pointCameraCounts.resize(m, 0);
     pointCameraCountsScan.resize(m);
     observations = 0;
@@ -84,8 +84,31 @@ void BARec::initStructure(Scene& scene)
         }
     }
 
-    exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
-    exclusive_scan(pointCameraCounts.begin(), pointCameraCounts.end(), pointCameraCountsScan.begin(), 0);
+    auto test1 = exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
+    auto test2 = exclusive_scan(pointCameraCounts.begin(), pointCameraCounts.end(), pointCameraCountsScan.begin(), 0);
+
+    SAIGA_ASSERT(test1 == observations && test2 == observations);
+
+    // preset the outer matrix structure
+    W.resize(n, m);
+    WT.resize(m, n);
+    W.setZero();
+    WT.setZero();
+    W.reserve(observations);
+    WT.reserve(observations);
+
+    for (int k = 0; k < W.outerSize(); ++k)
+    {
+        W.outerIndexPtr()[k] = cameraPointCountsScan[k];
+    }
+    W.outerIndexPtr()[W.outerSize()] = observations;
+
+
+    for (int k = 0; k < WT.outerSize(); ++k)
+    {
+        WT.outerIndexPtr()[k] = pointCameraCountsScan[k];
+    }
+    WT.outerIndexPtr()[WT.outerSize()] = observations;
 
 
 
@@ -157,24 +180,16 @@ void BARec::computeUVW(Scene& scene)
     ea.setZero();
     V.setZero();
 
-    std::vector<Eigen::Triplet<WElem>> ws1;
-    ws1.reserve(observations);
-    W.reserve(observations);
-    W.setZero();
-
 
     bool useWT = computeWT || explizitSchur || (!iterativeSolver);
-    std::vector<Eigen::Triplet<WTElem>> ws2;
-    if (useWT)
-    {
-        ws2.reserve(observations);
-        WT.reserve(observations);
-        WT.setZero();
-    }
+
+
+    std::vector<int> tmpPointCameraCounts(m, 0);
 
 
     {
         SAIGA_BLOCK_TIMER();
+        int k = 0;
         for (auto imgid : imageIds)
         {
             auto& img    = scene.images[imgid];
@@ -184,10 +199,6 @@ void BARec::computeUVW(Scene& scene)
 
             SAIGA_ASSERT(i == imgid);
 
-            if (W.IsRowMajor)
-            {
-                W.startVec(i);
-            }
 
             for (auto& ip : img.monoPoints)
             {
@@ -214,17 +225,22 @@ void BARec::computeUVW(Scene& scene)
 
 
                 WElem m = JrowPose.transpose() * JrowPoint;
-                ws1.emplace_back(i, j, m);
 
                 if (useWT)
                 {
-                    ws2.emplace_back(j, i, m.transpose());
+                    int x                      = tmpPointCameraCounts[j];
+                    int offset                 = WT.outerIndexPtr()[j] + x;
+                    WT.innerIndexPtr()[offset] = i;
+                    WT.valuePtr()[offset]      = m.transpose();
+
+                    tmpPointCameraCounts[j]++;
                 }
 
 
                 if (W.IsRowMajor)
                 {
-                    W.insertBackByOuterInner(i, j) = m;
+                    W.innerIndexPtr()[k] = j;
+                    W.valuePtr()[k]      = m;
                 }
                 else
                 {
@@ -234,24 +250,14 @@ void BARec::computeUVW(Scene& scene)
 
                 ea(i).get() += (JrowPose.transpose() * res);
                 eb(j).get() += JrowPoint.transpose() * res;
+
+                ++k;
             }
         }
-        W.finalize();
     }
-
-    {
-        SAIGA_BLOCK_TIMER();
-        //        W.setFromTriplets(ws1.begin(), ws1.end());
-        if (useWT)
-        {
-            WT.setFromTriplets(ws2.begin(), ws2.end());
-        }
-    }
-
 
 
     double lambda = 1.0 / (scene.scale() * scene.scale());
-    //        lambda        = 1;
 
     for (int i = 0; i < n; ++i)
     {
@@ -284,8 +290,9 @@ void BARec::solve(Scene& scene, int its)
 
 #if 0
         cout << expand(W) << endl << endl;
-        cout << expand(U.toDenseMatrix()) << endl << endl;
-        cout << expand(V.toDenseMatrix()) << endl << endl;
+        cout << expand(WT) << endl << endl;
+//        cout << expand(U.toDenseMatrix()) << endl << endl;
+//        cout << expand(V.toDenseMatrix()) << endl << endl;
 #endif
 
         {
