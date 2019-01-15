@@ -339,7 +339,7 @@ void BARec::solve(Scene& scene, int its)
             }
         }
         {
-            SAIGA_BLOCK_TIMER();
+            //            SAIGA_BLOCK_TIMER();
             // Step 4
             // Compute the right hand side of the schur system ej
             // S * da = ej
@@ -391,10 +391,10 @@ void BARec::solve(Scene& scene, int its)
         else
         {
             // this CG solver is super fast :)
-            SAIGA_BLOCK_TIMER();
+            SAIGA_BLOCK_TIMER("CG");
             da.setZero();
             RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
-            Eigen::Index iters = 50;
+            Eigen::Index iters = maxIterations;
             Scalar tol         = 1e-50;
 
             if (explizitSchur)
@@ -436,7 +436,7 @@ void BARec::solve(Scene& scene, int its)
 
 
         {
-            SAIGA_BLOCK_TIMER();
+            //            SAIGA_BLOCK_TIMER();
             // Step 6
             // Substitute the solultion deltaA into the original system and
             // bring it to the right hand side
@@ -459,7 +459,7 @@ void BARec::solve(Scene& scene, int its)
             //        cout << "q" << endl << blockVectorToVector(q) << endl;
         }
         {
-            SAIGA_BLOCK_TIMER();
+            //            SAIGA_BLOCK_TIMER();
             // Step 7
             // Solve the remaining partial system with the precomputed inverse of V
             /// ~0.2%
@@ -542,6 +542,7 @@ void BARec::imgui()
     ImGui::Checkbox("iterativeSolver", &iterativeSolver);
     ImGui::Checkbox("explizitSchur", &explizitSchur);
     ImGui::Checkbox("computeWT", &computeWT);
+    ImGui::InputInt("maxIterations", &maxIterations);
 }
 
 }  // namespace Saiga

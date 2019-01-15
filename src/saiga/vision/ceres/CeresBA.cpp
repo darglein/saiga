@@ -54,8 +54,16 @@ void CeresBA::optimize(Scene& scene, int its)
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout = true;
     options.max_num_iterations           = its;
+
+    options.linear_solver_type           = ceres::LinearSolverType::CGNR;
+    options.max_linear_solver_iterations = 20;
+    options.min_linear_solver_iterations = 20;
     ceres::Solver::Summary summaryTest;
-    ceres::Solve(options, &problem, &summaryTest);
+
+    {
+        SAIGA_BLOCK_TIMER("Solve");
+        ceres::Solve(options, &problem, &summaryTest);
+    }
 
     //    double costFinal = 0;
     //    problem.Evaluate(defaultEvalOptions, &costFinal, nullptr, nullptr, nullptr);

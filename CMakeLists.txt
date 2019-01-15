@@ -187,6 +187,9 @@ PackageHelperTarget(g2o::solver_cholmod G2O_FOUND)
 
 #ceres
 find_package(Ceres QUIET)
+if(CERES_FOUND)
+    SET(SAIGA_USE_CERES 1)
+endif()
 PackageHelperTarget(ceres CERES_FOUND)
 
 

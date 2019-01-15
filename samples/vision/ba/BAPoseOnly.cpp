@@ -505,7 +505,8 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         //        strm.close();
         {
             //            double lambda = 1;
-            double lambda = 1.0 / scene.intrinsics.front().fx;
+            //            double lambda = 1.0 / scene.intrinsics.front().fx;
+            double lambda = 1.0 / (scene.scale() * scene.scale());
             // lm diagonal
             for (int i = 0; i < numUnknowns; ++i)
             {
@@ -516,7 +517,7 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         cout << "insert done" << endl;
 
 
-#if 0
+#if 1
         cout << mat.toDense() << endl;
 #endif
 
@@ -541,13 +542,13 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         }
 
 
+#if 0
         for (size_t i = 0; i < numCameras; ++i)
         {
             Sophus::SE3d::Tangent t = x.segment(i * 6, 6);
             auto& se3               = scene.extrinsics[i].se3;
             se3                     = Sophus::SE3d::exp(t) * se3;
         }
-#if 1
         for (size_t i = 0; i < numPoints; ++i)
         {
             Vec3 t  = x.segment(numCameras * 6 + i * 3, 3);

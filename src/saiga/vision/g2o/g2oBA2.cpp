@@ -149,15 +149,17 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
     cout << "g2o problem created." << endl;
 
 
-    optimizer.initializeOptimization();
-    //    optimizer.computeActiveErrors();
-    //    costInit = optimizer.activeRobustChi2();
+    {
+        SAIGA_BLOCK_TIMER("Solve");
+        optimizer.initializeOptimization();
+        //    optimizer.computeActiveErrors();
+        //    costInit = optimizer.activeRobustChi2();
 
-    //    cout << "starting optimization initial chi2: " << costInit << endl;
-    optimizer.optimize(its);
+        //    cout << "starting optimization initial chi2: " << costInit << endl;
+        optimizer.optimize(its);
+    }
 
     auto stats = optimizer.batchStatistics();
-    ;
     for (auto s : stats)
     {
         cout << " levenbergIterations " << s.levenbergIterations << endl

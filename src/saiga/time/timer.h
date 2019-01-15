@@ -116,9 +116,18 @@ class ScopedTimer : public Timer
     }
 };
 
+#define SAIGA_BLOCK_TIMER_NOMSG()                                                  \
+    Saiga::ScopedTimerPrint __func_timer(std::string(SAIGA_SHORT_FUNCTION) + ":" + \
+                                         std::string(std::to_string(__LINE__)))
 
-#define SAIGA_BLOCK_TIMER(_msg)                                                        \
-    Saiga::ScopedTimerPrint func_timer(std::string(SAIGA_SHORT_FUNCTION) + ", Line " + \
-                                       std::string(std::to_string(__LINE__)))
+#define SAIGA_BLOCK_TIMER_MSG(_msg)                                                                          \
+    Saiga::ScopedTimerPrint __func_timer(std::string(_msg) + " " + std::string(SAIGA_SHORT_FUNCTION) + ":" + \
+                                         std::string(std::to_string(__LINE__)))
+
+#define GET_SAIGA_BLOCK_TIMER_MACRO(_0, _1, NAME, ...) NAME
+#define SAIGA_BLOCK_TIMER(...) \
+    GET_SAIGA_BLOCK_TIMER_MACRO(_0, ##__VA_ARGS__, SAIGA_BLOCK_TIMER_MSG, SAIGA_BLOCK_TIMER_NOMSG)(__VA_ARGS__)
+
+
 
 }  // namespace Saiga

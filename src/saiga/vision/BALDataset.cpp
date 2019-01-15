@@ -11,6 +11,13 @@
 #include "saiga/util/tostring.h"
 
 #include <fstream>
+
+#ifdef SAIGA_USE_CERES
+#    include "saiga/vision/ceres/CeresBAL.h"
+
+#    include "ceres/ceres.h"
+#endif
+
 namespace Saiga
 {
 BALDataset::BALDataset(const std::string& file)
@@ -100,8 +107,6 @@ BALDataset::BALDataset(const std::string& file)
 
 void BALDataset::undistortAll()
 {
-//    for (BALObservation& o : observations)
-//    {
 #pragma omp parallel for
     for (int i = 0; i < observations.size(); ++i)
     {
@@ -109,6 +114,37 @@ void BALDataset::undistortAll()
         BALCamera c       = cameras[o.camera_index];
         o.point           = c.undistort(o.point);
     }
+
+
+#ifdef SAIGA_USE_CERES1
+    {
+        cout << "Creating the ceres undistortion problem..." << endl;
+        ceres::Problem problem;
+        std::vector<Vec2> undistortedPoints(observations.size());
+        for (int i = 0; i < observations.size(); ++i)
+        {
+            BALObservation& o = observations[i];
+            BALCamera& c      = cameras[o.camera_index];
+
+            auto& up           = undistortedPoints[i];
+            up                 = o.point;
+            auto cost_function = CostBALDistortion::create(o.point, c.k1, c.k2);
+            problem.AddResidualBlock(cost_function, nullptr, up.data());
+        }
+        ceres::Solver::Options options;
+        options.minimizer_progress_to_stdout = true;
+        options.max_num_iterations           = 15;
+        options.num_threads                  = 8;
+        ceres::Solver::Summary summaryTest;
+        ceres::Solve(options, &problem, &summaryTest);
+        for (int i = 0; i < observations.size(); ++i)
+        {
+            BALObservation& o = observations[i];
+            auto& up          = undistortedPoints[i];
+            o.point           = up;
+        }
+    }
+#endif
 
     for (BALCamera& c : cameras)
     {

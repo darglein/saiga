@@ -51,8 +51,9 @@ class BARec
 
 
     bool iterativeSolver = true;
-    bool explizitSchur   = true;
-    bool computeWT       = false;
+    bool explizitSchur   = false;
+    bool computeWT       = true;
+    int maxIterations    = 20;
     void initStructure(Scene& scene);
     void computeUVW(Scene& scene);
 };
