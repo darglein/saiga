@@ -56,13 +56,13 @@ void EdgeSE3PointProject::linearizeOplus()
     Vector3 xyz       = vi->estimate();
     Vector3 xyz_trans = T * (xyz);
 
-    number_t x   = xyz_trans[0];
-    number_t y   = xyz_trans[1];
-    number_t z   = xyz_trans[2];
-    auto zz      = z * z;
-    auto zinv    = 1 / z;
-    auto zzinv   = 1 / zz;
-    number_t z_2 = z * z;
+    number_t x = xyz_trans[0];
+    number_t y = xyz_trans[1];
+    number_t z = xyz_trans[2];
+    auto zz    = z * z;
+    auto zinv  = 1 / z;
+    auto zzinv = 1 / zz;
+    //    number_t z_2 = z * z;
 
     Matrix3 R = T.so3().matrix();
 

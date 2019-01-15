@@ -32,6 +32,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 
     sscene.numCameras     = 1;
     sscene.numWorldPoints = 3;
+    sscene.numImagePoints = 2;
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
 

@@ -108,7 +108,7 @@ BALDataset::BALDataset(const std::string& file)
 void BALDataset::undistortAll()
 {
 #pragma omp parallel for
-    for (int i = 0; i < observations.size(); ++i)
+    for (int i = 0; i < (int)observations.size(); ++i)
     {
         BALObservation& o = observations[i];
         BALCamera c       = cameras[o.camera_index];
@@ -159,7 +159,7 @@ double BALDataset::rms()
     double error = 0;
 //    for (BALObservation& o : observations)
 #pragma omp parallel for
-    for (int i = 0; i < observations.size(); ++i)
+    for (int i = 0; i < (int)observations.size(); ++i)
     {
         BALObservation& o = observations[i];
         BALCamera c       = cameras[o.camera_index];

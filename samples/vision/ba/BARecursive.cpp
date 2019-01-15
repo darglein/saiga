@@ -18,9 +18,9 @@
 
 #define NO_CG_SPEZIALIZATIONS
 #define NO_CG_TYPES
-using Scalar = double;
-const int bn = 6;
-const int bm = 6;
+using Scalar = Saiga::BlockBAScalar;
+const int bn = Saiga::blockSizeCamera;
+const int bm = Saiga::blockSizeCamera;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
@@ -166,7 +166,7 @@ void BARec::computeUVW(Scene& scene)
 {
     SAIGA_BLOCK_TIMER();
 
-    using T          = double;
+    using T          = BlockBAScalar;
     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
     KernelType::PoseJacobiType JrowPose;
     KernelType::PointJacobiType JrowPoint;
@@ -188,7 +188,6 @@ void BARec::computeUVW(Scene& scene)
 
 
     {
-        SAIGA_BLOCK_TIMER();
         int k = 0;
         for (auto imgid : imageIds)
         {
@@ -212,19 +211,30 @@ void BARec::computeUVW(Scene& scene)
                 auto wp = scene.worldPoints[ip.wp].p;
 
 
-                int j    = ip.wp;
-                double w = ip.weight * scene.scale();
+                int j           = ip.wp;
+                BlockBAScalar w = ip.weight * scene.scale();
 
 
-
+#ifdef RECURSIVE_BA_FLOAT
+                KernelType::evaluateResidualAndJacobian(camera.cast<float>(), extr.cast<float>(), wp.cast<float>(),
+                                                        ip.point.cast<float>(), w, res, JrowPose, JrowPoint);
+#else
                 KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
+#endif
 
-
+                WElem m;
+#ifdef RECURSIVE_BA_VECTORIZE
+                // Only add meaningfull values to top left. The rest will just be 0
+                m.block(0, 0, 6, 3) = JrowPose.transpose() * JrowPoint;
+                U.diagonal()(i).get().block(0, 0, 6, 6) += (JrowPose.transpose() * JrowPose);
+                V.diagonal()(j).get().block(0, 0, 3, 3) += (JrowPoint.transpose() * JrowPoint);
+#else
+                m = JrowPose.transpose() * JrowPoint;
                 U.diagonal()(i).get() += (JrowPose.transpose() * JrowPose);
                 V.diagonal()(j).get() += (JrowPoint.transpose() * JrowPoint);
+#endif
 
 
-                WElem m = JrowPose.transpose() * JrowPoint;
 
                 if (useWT)
                 {
@@ -247,9 +257,13 @@ void BARec::computeUVW(Scene& scene)
                     SAIGA_ASSERT(0);
                 }
 
-
+#ifdef RECURSIVE_BA_VECTORIZE
+                ea(i).get().segment(0, 6) += (JrowPose.transpose() * res);
+                eb(j).get().segment(0, 3) += JrowPoint.transpose() * res;
+#else
                 ea(i).get() += (JrowPose.transpose() * res);
                 eb(j).get() += JrowPoint.transpose() * res;
+#endif
 
                 ++k;
             }
@@ -261,11 +275,11 @@ void BARec::computeUVW(Scene& scene)
 
     for (int i = 0; i < n; ++i)
     {
-        U.diagonal()(i).get() += KernelType::PoseDiaBlockType::Identity() * lambda;
+        U.diagonal()(i).get() += ADiag::Identity() * lambda;
     }
     for (int i = 0; i < m; ++i)
     {
-        V.diagonal()(i).get() += KernelType::PointDiaBlockType::Identity() * lambda;
+        V.diagonal()(i).get() += BDiag::Identity() * lambda;
     }
 }
 
@@ -291,41 +305,29 @@ void BARec::solve(Scene& scene, int its)
 #if 0
         cout << expand(W) << endl << endl;
         cout << expand(WT) << endl << endl;
-//        cout << expand(U.toDenseMatrix()) << endl << endl;
-//        cout << expand(V.toDenseMatrix()) << endl << endl;
+        cout << expand(U.toDenseMatrix()) << endl << endl;
+        cout << expand(V.toDenseMatrix()) << endl << endl;
 #endif
 
         {
-            SAIGA_BLOCK_TIMER();
             // Schur complement solution
 
             // Step 1 ~ 0.5%
             // Invert V
             for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
-        }
 
-        {
-            SAIGA_BLOCK_TIMER();
             // Step 2
             // Compute Y ~7.74%
             Y = multSparseDiag(W, Vinv);
         }
 
-
         {
-            SAIGA_BLOCK_TIMER();
+            SAIGA_BLOCK_TIMER("Schur");
             // Step 3
             // Compute the Schur complement S
             // Not sure how good the sparse matrix mult is of eigen
             // maybe own implementation because the structure is well known before hand
             // ~ 22.3 %
-            // TODO: this line doesn't seem to compile with every eigen version
-            //            S.resize(W.rows(), W.rows());
-            //            S.reserve(schurEdges);
-            //            S            = Y * WT;
-            //            S            = -S;
-            //            S.diagonal() = U.diagonal() + S.diagonal();
-            //            cout << "S non zeros " << S.nonZeros() << endl;
             if (explizitSchur || !iterativeSolver)
             {
                 S            = Y * WT;
@@ -337,30 +339,29 @@ void BARec::solve(Scene& scene, int its)
                 diagInnerProductTransposed(Y, W, Sdiag);
                 Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
             }
-        }
-        {
-            //            SAIGA_BLOCK_TIMER();
+
             // Step 4
             // Compute the right hand side of the schur system ej
             // S * da = ej
-            // ~ 0.7%
             ej = ea + -(Y * eb);
         }
-#if 0
-        {
-            // currently around of a factor 3 slower then the eigen ldlt
-            SAIGA_BLOCK_TIMER();
-            SparseLDLT<decltype(S), decltype(ej)> ldlt;
-            ldlt.compute(S);
-            da = ldlt.solve(ej);
-        }
-#endif
+
 
         if (!iterativeSolver)
         {
-            Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
+            SAIGA_BLOCK_TIMER("LDLT");
+#if 0
             {
+                // currently around of a factor 3 slower then the eigen ldlt
                 SAIGA_BLOCK_TIMER();
+                SparseLDLT<decltype(S), decltype(ej)> ldlt;
+                ldlt.compute(S);
+                da = ldlt.solve(ej);
+            }
+
+#else
+            Eigen::SparseMatrix<BlockBAScalar> ssparse(n * blockSizeCamera, n * blockSizeCamera);
+            {
                 // Step 5
                 // Solve the schur system for da
                 // ~ 5.04%
@@ -370,23 +371,22 @@ void BARec::solve(Scene& scene, int its)
                 ssparse.setFromTriplets(triplets.begin(), triplets.end());
             }
             {
-                SAIGA_BLOCK_TIMER();
-
                 //~61%
 
-                Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+                Eigen::SimplicialLDLT<Eigen::SparseMatrix<BlockBAScalar>> solver;
                 //        Eigen::SimplicialLDLT<SType> solver;
                 solver.compute(ssparse);
-                Eigen::Matrix<double, -1, 1> deltaA = solver.solve(blockVectorToVector(ej));
+                Eigen::Matrix<BlockBAScalar, -1, 1> deltaA = solver.solve(blockVectorToVector(ej));
 
                 //        cout << "deltaA" << endl << deltaA << endl;
 
                 // copy back into da
                 for (int i = 0; i < n; ++i)
                 {
-                    da(i) = deltaA.segment(i * asize, asize);
+                    da(i) = deltaA.segment(i * blockSizeCamera, blockSizeCamera);
                 }
             }
+#endif
         }
         else
         {
@@ -457,29 +457,12 @@ void BARec::solve(Scene& scene, int its)
             //             blockVectorToVector(da)) << endl;
 
             //        cout << "q" << endl << blockVectorToVector(q) << endl;
-        }
-        {
-            //            SAIGA_BLOCK_TIMER();
+
             // Step 7
             // Solve the remaining partial system with the precomputed inverse of V
             /// ~0.2%
             db = multDiagVector(Vinv, q);
-
-#if 0
-            // compute residual of linear system
-            auto xa                           = blockVectorToVector(da);
-            auto xb                           = blockVectorToVector(db);
-            Eigen::Matrix<double, -1, 1> res1 = blockMatrixToMatrix(U.toDenseMatrix()) * xa +
-                                                blockMatrixToMatrix(W.toDense()) * xb - blockVectorToVector(ea);
-            Eigen::Matrix<double, -1, 1> res2 = blockMatrixToMatrix(WT.toDense()) * xa +
-                                                blockMatrixToMatrix(V.toDenseMatrix()) * xb - blockVectorToVector(eb);
-            cout << "Error: " << res1.norm() << " " << res2.norm() << endl;
-#endif
-            //        cout << "da" << endl << blockVectorToVector(da).transpose() << endl;
-            //        cout << "db" << endl << blockVectorToVector(db).transpose() << endl;
         }
-
-
 
 #if 0
         // ======================== Dense Simple Solution (only for checking the correctness) ========================
@@ -520,17 +503,27 @@ void BARec::solve(Scene& scene, int its)
 
         for (size_t i = 0; i < imageIds.size(); ++i)
         {
-            auto id                 = imageIds[i];
-            Sophus::SE3d::Tangent t = da(i).get();
-            auto& se3               = scene.extrinsics[id].se3;
-            se3                     = Sophus::SE3d::exp(t) * se3;
+            auto id = imageIds[i];
+            Sophus::SE3<BlockBAScalar>::Tangent t;
+#ifdef RECURSIVE_BA_VECTORIZE
+            t = da(i).get().segment(0, 6);
+#else
+            t = da(i).get();
+#endif
+            auto& se3 = scene.extrinsics[id].se3;
+            se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
         }
 
         for (int i = 0; i < m; ++i)
         {
-            Vec3 t  = db(i).get();
+            Eigen::Matrix<BlockBAScalar, 3, 1> t;
+#ifdef RECURSIVE_BA_VECTORIZE
+            t = db(i).get().segment(0, 3);
+#else
+            t = db(i).get();
+#endif
             auto& p = scene.worldPoints[i].p;
-            p += t;
+            p += t.cast<double>();
         }
     }
 }

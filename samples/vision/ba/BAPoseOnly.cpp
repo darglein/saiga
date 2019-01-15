@@ -517,7 +517,7 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         cout << "insert done" << endl;
 
 
-#if 1
+#if 0
         cout << mat.toDense() << endl;
 #endif
 

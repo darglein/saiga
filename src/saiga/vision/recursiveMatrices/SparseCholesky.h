@@ -65,7 +65,10 @@ void SparseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
             {
                 if (Li.col() == Lj.col())
                 {
-                    sum += Li.value() * D.diagonal()(Li.col()) * transpose(Lj.value());
+                    //                    sum += Li.value() * D.diagonal()(Li.col()) * transpose(Lj.value());
+                    removeMatrixScalar(sum) += removeMatrixScalar(Li.value()) *
+                                               removeMatrixScalar(D.diagonal()(Li.col())) *
+                                               removeMatrixScalar(transpose(Lj.value()));
                     ++Li;
                     ++Lj;
                 }
@@ -90,7 +93,8 @@ void SparseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
 
             sum            = sum * Dinv.diagonal()(j);
             L.insert(i, j) = sum;
-            sumd += sum * D.diagonal()(j) * transpose(sum);
+            removeMatrixScalar(sumd) +=
+                removeMatrixScalar(sum) * removeMatrixScalar(D.diagonal()(j)) * removeMatrixScalar(transpose(sum));
         }
         SAIGA_ASSERT(it.col() == i);
         L.insert(i, i)     = MultiplicativeNeutral<MatrixScalar>::get();

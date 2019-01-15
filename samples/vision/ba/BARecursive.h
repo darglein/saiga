@@ -1,7 +1,10 @@
 ﻿#pragma once
 
-#include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/Scene.h"
+
+#define RECURSIVE_BA_VECTORIZE
+#define RECURSIVE_BA_FLOAT
+#include "saiga/vision/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
 class BARec

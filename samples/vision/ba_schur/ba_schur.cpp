@@ -18,8 +18,8 @@
 #define NO_CG_SPEZIALIZATIONS
 #define NO_CG_TYPES
 using Scalar = double;
-const int bn = Saiga::asize;
-const int bm = Saiga::asize;
+const int bn = Saiga::blockSizeCamera;
+const int bm = Saiga::blockSizeCamera;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
@@ -295,8 +295,8 @@ void baBlockSchurTest()
     // correctness) ========================
     {
         //        SAIGA_BLOCK_TIMER();
-        n *= asize;
-        m *= bsize;
+        n *= blockSizeCamera;
+        m *= blockSizePoint;
 
         // Build the complete system matrix
         Eigen::MatrixXd M(m + n, m + n);
@@ -317,8 +317,8 @@ void baBlockSchurTest()
         //        cout << x.transpose() << endl;
         cout << "Dense error " << error << endl;
 
-        n /= asize;
-        m /= bsize;
+        n /= blockSizeCamera;
+        m /= blockSizePoint;
     }
 #endif
 

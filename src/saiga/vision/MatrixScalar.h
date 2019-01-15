@@ -97,7 +97,13 @@ struct RemoveMatrixScalarImpl<MatrixScalar<G>>
 };
 
 template <typename T>
-auto removeMatrixScalar(const T& A)
+auto& removeMatrixScalar(T& A)
+{
+    return RemoveMatrixScalarImpl<T>::get(A);
+}
+
+template <typename T>
+auto& removeMatrixScalar(const T& A)
 {
     return RemoveMatrixScalarImpl<T>::get(A);
 }

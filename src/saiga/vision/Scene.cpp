@@ -216,7 +216,7 @@ void Scene::compress()
 std::vector<int> Scene::validImages()
 {
     std::vector<int> res;
-    for (int i = 0; i < images.size(); ++i)
+    for (int i = 0; i < (int)images.size(); ++i)
     {
         if (images[i].valid()) res.push_back(i);
     }

@@ -45,10 +45,12 @@ Scene SynteticScene::circleSphere(int numWorldPoints, int numCameras, int numIma
         si.extr = i;
 
 #if 1
+        auto refs = Random::uniqueIndices(numImagePoints, numWorldPoints);
+        std::sort(refs.begin(), refs.end());
         for (int j = 0; j < numImagePoints; ++j)
         {
             MonoImagePoint mip;
-            mip.wp    = Random::uniformInt(0, numWorldPoints - 1);
+            mip.wp    = refs[j];
             auto p    = extr.se3 * scene.worldPoints[mip.wp].p;
             mip.point = intr.project(p);
             si.monoPoints.push_back(mip);
