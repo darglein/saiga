@@ -146,9 +146,9 @@ void ObjModelLoader::computeVertexColorAndData()
             ObjTriangle& face = outTriangles[i + tg.startFace];
             for (int f = 0; f < 3; ++f)
             {
-                int index           = face.v[f];
-                vertexColors[index] = tg.material.color;
-                float spec          = dot(tg.material.Ks, vec3(1)) / 3.0f;
+                int index            = face.v[f];
+                vertexColors[index]  = tg.material.color;
+                float spec           = dot(tg.material.Ks, vec3(1)) / 3.0f;
                 vertexData[index][0] = spec;
             }
         }
@@ -157,8 +157,12 @@ void ObjModelLoader::computeVertexColorAndData()
 
 void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh)
 {
-    SAIGA_ASSERT(vertexColors.size() == outVertices.size());
+    if (vertexColors.empty())
+    {
+        computeVertexColorAndData();
+    }
 
+    SAIGA_ASSERT(vertexColors.size() == outVertices.size());
     mesh.faces.reserve(outTriangles.size());
     for (ObjTriangle& oj : outTriangles)
     {
