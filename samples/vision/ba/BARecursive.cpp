@@ -225,6 +225,9 @@ void BARec::computeUVW(Scene& scene)
                 WElem m;
 #ifdef RECURSIVE_BA_VECTORIZE
                 // Only add meaningfull values to top left. The rest will just be 0
+
+                // We need this set zero, because otherwise the actual camera paramerters are influenced
+                m.setZero();
                 m.block(0, 0, 6, 3) = JrowPose.transpose() * JrowPoint;
                 U.diagonal()(i).get().block(0, 0, 6, 6) += (JrowPose.transpose() * JrowPose);
                 V.diagonal()(j).get().block(0, 0, 3, 3) += (JrowPoint.transpose() * JrowPoint);
