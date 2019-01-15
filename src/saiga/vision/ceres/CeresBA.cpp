@@ -26,26 +26,38 @@ void CeresBA::optimize(Scene& scene, int its)
     ceres::Problem problem;
 
 
+    Sophus::test::LocalParameterizationSE3* camera_parameterization = new Sophus::test::LocalParameterizationSE3;
+    for (size_t i = 0; i < scene.extrinsics.size(); ++i)
+    {
+        problem.AddParameterBlock(scene.extrinsics[i].se3.data(), 7, camera_parameterization);
+        //        problem.SetParameterization(scene.extrinsics[i].se3.data(), camera_parameterization);
+    }
+
     for (auto& img : scene.images)
     {
+        auto& extr   = scene.extrinsics[img.extr].se3;
+        auto& camera = scene.intrinsics[img.intr];
+
         for (auto& ip : img.monoPoints)
         {
             if (!ip) continue;
-            auto& wp     = scene.worldPoints[ip.wp].p;
-            auto& extr   = scene.extrinsics[img.extr].se3;
-            auto& camera = scene.intrinsics[img.intr];
-            double w     = ip.weight * scene.scale();
-
+            auto& wp           = scene.worldPoints[ip.wp].p;
+            double w           = ip.weight * scene.scale();
             auto cost_function = CostBAMono::create(camera, ip.point, w);
+            problem.AddResidualBlock(cost_function, nullptr, extr.data(), wp.data());
+        }
+
+        for (auto& ip : img.stereoPoints)
+        {
+            if (!ip) continue;
+            auto& wp           = scene.worldPoints[ip.wp].p;
+            double w           = ip.weight * scene.scale();
+            auto stereoPoint   = ip.point(0) - scene.bf / ip.depth;
+            auto cost_function = CostBAStereo<>::create(camera, ip.point, stereoPoint, scene.bf, Vec2(w, w));
             problem.AddResidualBlock(cost_function, nullptr, extr.data(), wp.data());
         }
     }
 
-    Sophus::test::LocalParameterizationSE3* camera_parameterization = new Sophus::test::LocalParameterizationSE3;
-    for (size_t i = 0; i < scene.extrinsics.size(); ++i)
-    {
-        problem.SetParameterization(scene.extrinsics[i].se3.data(), camera_parameterization);
-    }
 
     //    double costInit = 0;
     //    ceres::Problem::EvaluateOptions defaultEvalOptions;

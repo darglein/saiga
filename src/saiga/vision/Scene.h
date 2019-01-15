@@ -50,7 +50,10 @@ struct SAIGA_GLOBAL WorldPoint
         monoreferences.erase(std::find(monoreferences.begin(), monoreferences.end(), std::make_pair(img, id)));
     }
 
-    bool isValid() { return valid && !monoreferences.empty(); }
+    // the valid flag is set and this point is referenced by at least one image
+    bool isValid() const { return valid && (!monoreferences.empty() || !stereoreferences.empty()); }
+
+    explicit operator bool() const { return isValid(); }
 };
 
 struct SAIGA_GLOBAL MonoImagePoint
@@ -84,6 +87,8 @@ struct SAIGA_GLOBAL StereoImagePoint
     // === computed by reprojection
     double repDepth = 0;
     Eigen::Vector2d repPoint;
+
+    explicit operator bool() const { return wp != -1; }
 };
 
 struct SAIGA_GLOBAL DenseConstraint
@@ -157,7 +162,8 @@ class SAIGA_GLOBAL Scene
 
     void fixWorldPointReferences();
 
-    bool valid();
+    bool valid() const;
+    explicit operator bool() const { return valid(); }
 
     double rms();
     double rmsDense();

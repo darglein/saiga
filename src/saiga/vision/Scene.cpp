@@ -17,6 +17,10 @@ Eigen::Vector3d Scene::residual(const SceneImage& img, const StereoImagePoint& i
 {
     WorldPoint& wp = worldPoints[ip.wp];
 
+    SAIGA_ASSERT(ip);
+    SAIGA_ASSERT(wp);
+    SAIGA_ASSERT(ip.depth > 0);
+
     // project to screen
     auto p = extrinsics[img.extr].se3 * wp.p;
     auto z = p(2);
@@ -33,6 +37,9 @@ Eigen::Vector3d Scene::residual(const SceneImage& img, const StereoImagePoint& i
 Eigen::Vector2d Scene::residual(const SceneImage& img, const MonoImagePoint& ip)
 {
     WorldPoint& wp = worldPoints[ip.wp];
+
+    SAIGA_ASSERT(ip);
+    SAIGA_ASSERT(wp);
 
     // project to screen
     auto p  = extrinsics[img.extr].se3 * wp.p;
@@ -63,6 +70,7 @@ void Scene::fixWorldPointReferences()
     {
         wp.monoreferences.clear();
         wp.stereoreferences.clear();
+        wp.valid = false;
     }
 
 
@@ -77,6 +85,7 @@ void Scene::fixWorldPointReferences()
             {
                 WorldPoint& wp = worldPoints[ip.wp];
                 wp.monoreferences.emplace_back(iid, ipid);
+                wp.valid = true;
                 i.validPoints++;
             }
             ipid++;
@@ -87,6 +96,7 @@ void Scene::fixWorldPointReferences()
             {
                 WorldPoint& wp = worldPoints[ip.wp];
                 wp.stereoreferences.emplace_back(iid, ipid);
+                wp.valid = true;
                 i.validPoints++;
             }
             ipid++;
@@ -95,9 +105,9 @@ void Scene::fixWorldPointReferences()
     }
 }
 
-bool Scene::valid()
+bool Scene::valid() const
 {
-    for (SceneImage& i : images)
+    for (const SceneImage& i : images)
     {
         if (i.extr < 0 || i.intr < 0) return false;
 
@@ -234,26 +244,30 @@ double Scene::rms()
 
     for (SceneImage& im : images)
     {
+        double sqerror;
         for (auto& o : im.monoPoints)
         {
             if (o.wp < 0) continue;
-            double sqerror = residual(im, o).squaredNorm();
-            error += sqerror;
+            sqerror = residual(im, o).squaredNorm();
+            //            cout << "mono sqerror: " << sqerror << endl;
             monoEdges++;
+            error += sqerror;
         }
         for (auto& o : im.stereoPoints)
         {
             if (o.wp < 0) continue;
-            double sqerror = residual(im, o).squaredNorm();
-            error += sqerror;
+            sqerror = residual(im, o).squaredNorm();
+
+            //            cout << "stereo sqerror: " << sqerror << endl;
             stereoEdges++;
+            error += sqerror;
         }
     }
 
     auto error2 = error / (monoEdges + stereoEdges);
     error2      = sqrt(error2);
-    //    cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
-    //         << " chi2: " << error << endl;
+    cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
+         << " chi2: " << error << endl;
     return error2;
 }
 
