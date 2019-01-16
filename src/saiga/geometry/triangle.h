@@ -30,7 +30,7 @@ class SAIGA_GLOBAL Triangle
      * @brief center
      * @return
      */
-    vec3 center();
+    vec3 center() const;
 
     /**
      * Computes and returns the minial angle of the corners.

@@ -33,7 +33,7 @@ class SAIGA_GLOBAL Base
 
 
 
-class SAIGA_GLOBAL BruteForce : Base
+class SAIGA_GLOBAL BruteForce : public Base
 {
    public:
     BruteForce(const std::vector<Triangle>& triangles);
@@ -59,23 +59,57 @@ struct BVHNode
     uint32_t _right;
 };
 
-class SAIGA_GLOBAL BVH : Base
+class SAIGA_GLOBAL BVH : public Base
 {
    public:
+    struct SortTriangleByAxis
+    {
+        SortTriangleByAxis(int a) : axis(a) {}
+        bool operator()(const Triangle& A, const Triangle& B)
+        {
+            auto a = A.center();
+            auto b = B.center();
+            return a[axis] < b[axis];
+        }
+        int axis;
+    };
+
     BVH(const std::vector<Triangle>& triangles);
     virtual ~BVH() {}
+
+    virtual void construct() = 0;
+
 
     virtual RayTriangleIntersection getClosest(const Ray& ray) override;
     virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) override;
 
-   private:
+   protected:
     std::vector<Triangle> triangles;
     std::vector<BVHNode> nodes;
 
+    AABB computeBox(int start, int end);
+    void sortByAxis(int start, int end, int axis);
+
     // Recursive traversal
     void getClosest(int node, const Ray& ray, RayTriangleIntersection& result);
+    void getAll(int node, const Ray& ray, std::vector<RayTriangleIntersection>& result);
 };
 
+class SAIGA_GLOBAL ObjectMedianBVH : public BVH
+{
+   public:
+    ObjectMedianBVH(const std::vector<Triangle>& triangles, int leafTriangles = 5)
+        : BVH(triangles), leafTriangles(leafTriangles)
+    {
+        construct();
+    }
+    virtual ~ObjectMedianBVH() {}
+
+   protected:
+    int leafTriangles;
+    void construct() override;
+    int construct(int start, int end);
+};
 
 }  // namespace AccelerationStructure
 }  // namespace Saiga

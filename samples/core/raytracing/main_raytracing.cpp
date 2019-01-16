@@ -11,6 +11,7 @@
 #include "saiga/geometry/ray.h"
 #include "saiga/image/image.h"
 #include "saiga/model/objModelLoader.h"
+#include "saiga/time/timer.h"
 
 using namespace Saiga;
 
@@ -36,27 +37,30 @@ int main(int argc, char* args[])
     mesh.toTriangleList(triangles);
 
 
-    AccelerationStructure::BVH bf(triangles);
+    AccelerationStructure::ObjectMedianBVH bf(triangles);
 
     cout << "Num triangles = " << triangles.size() << endl;
 
 
     TemplatedImage<ucvec3> img(w, h);
 
-#pragma omp parallel for
-    for (int i = 0; i < h; ++i)
     {
-        for (int j = 0; j < w; ++j)
+        SAIGA_BLOCK_TIMER();
+#pragma omp parallel for
+        for (int i = 0; i < h; ++i)
         {
-            img(i, j) = ucvec3(255, 0, 0);
-
-            vec3 dir = camera.inverseprojectToWorldSpace(vec2(j, i), 1, w, h);
-            Ray ray(normalize(dir), camera.getPosition());
-
-            auto inter = bf.getClosest(ray);
-            if (inter && !inter.backFace)
+            for (int j = 0; j < w; ++j)
             {
-                img(i, j) = ucvec3(0, 255, 0);
+                img(i, j) = ucvec3(255, 0, 0);
+
+                vec3 dir = camera.inverseprojectToWorldSpace(vec2(j, i), 1, w, h);
+                Ray ray(normalize(dir), camera.getPosition());
+
+                auto inter = bf.getClosest(ray);
+                if (inter && !inter.backFace)
+                {
+                    img(i, j) = ucvec3(0, 255, 0);
+                }
             }
         }
     }
