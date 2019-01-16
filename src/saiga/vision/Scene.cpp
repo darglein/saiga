@@ -266,8 +266,8 @@ double Scene::rms()
 
     auto error2 = error / (monoEdges + stereoEdges);
     error2      = sqrt(error2);
-    cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
-         << " chi2: " << error << endl;
+    //    cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
+    //         << " chi2: " << error << endl;
     return error2;
 }
 

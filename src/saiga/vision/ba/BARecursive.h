@@ -1,22 +1,16 @@
 ﻿#pragma once
 
-#include "saiga/vision/Scene.h"
-
-#define RECURSIVE_BA_VECTORIZE
-#define RECURSIVE_BA_FLOAT
+#include "BABase.h"
+//#define RECURSIVE_BA_VECTORIZE
+//#define RECURSIVE_BA_FLOAT
 #include "saiga/vision/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
-class BARec
+class SAIGA_GLOBAL BARec : public BABase
 {
    public:
-    /**
-     * Optimize the camera extrinics of all cameras.
-     * The world points are kept constant.
-     *
-     *
-     */
-    void solve(Scene& scene, int its);
+    BARec() : BABase("Recursive BA") {}
+    virtual void solve(Scene& scene, const BAOptions& options) override;
 
     void imgui();
 
@@ -52,13 +46,18 @@ class BARec
     DAType ej;
 
 
-
+    std::vector<int> imageIds;
+    BAOptions options;
     bool iterativeSolver = true;
     bool explizitSchur   = false;
     bool computeWT       = true;
     int maxIterations    = 20;
     void initStructure(Scene& scene);
     void computeUVW(Scene& scene);
+    void computeSchur();
+    void solveSchur();
+    void finalizeSchur();
+    void updateScene(Scene& scene);
 };
 
 

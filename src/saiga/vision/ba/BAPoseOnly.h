@@ -1,10 +1,11 @@
 ﻿#pragma once
 
-#include "saiga/vision/Scene.h"
+
+#include "BABase.h"
 
 namespace Saiga
 {
-class BAPoseOnly
+class SAIGA_GLOBAL BAPoseOnly : public BABase
 {
    public:
     /**
@@ -13,10 +14,13 @@ class BAPoseOnly
      *
      *
      */
+    BAPoseOnly() : BABase("Simple Sparse BA") {}
     void poseOnlySparse(Scene& scene, int its);
     void posePointDense(Scene& scene, int its);
     void posePointSparse(Scene& scene, int its);
-    void posePointDenseBlock(Scene& scene, int its);
+
+
+    virtual void solve(Scene& scene, const BAOptions& options) override;
 };
 
 

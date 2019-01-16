@@ -15,11 +15,10 @@
 #include "saiga/util/directory.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
+#include "saiga/vision/ba/BAPoseOnly.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 
-#include "BAPoseOnly.h"
-#include "BARecursive.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
@@ -165,14 +164,14 @@ void VulkanExample::renderGUI()
     if (ImGui::Button("Bundle Adjust G2O"))
     {
         Saiga::g2oBA2 ba;
-        ba.optimize(scene, its);
+        ba.solve(scene, baoptions);
         change = true;
     }
 
     if (ImGui::Button("Bundle Adjust ceres"))
     {
         Saiga::CeresBA ba;
-        ba.optimize(scene, its);
+        ba.solve(scene, baoptions);
         change = true;
     }
 
@@ -198,17 +197,18 @@ void VulkanExample::renderGUI()
         change = true;
     }
 
-    barec.imgui();
+    //    barec.imgui();
+    baoptions.imgui();
     if (ImGui::Button("sba recursive"))
     {
-        barec.solve(scene, its);
+        barec.solve(scene, baoptions);
         change = true;
     }
 
     if (ImGui::Button("posePointSparse"))
     {
         Saiga::BAPoseOnly ba;
-        ba.posePointSparse(scene, its);
+        ba.solve(scene, baoptions);
         change = true;
     }
 

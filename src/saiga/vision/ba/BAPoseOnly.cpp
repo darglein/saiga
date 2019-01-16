@@ -2,10 +2,7 @@
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
-#include "saiga/vision/BlockDiagonalMatrix.h"
 #include "saiga/vision/BlockRecursiveBATemplates.h"
-#include "saiga/vision/BlockSparseMatrix.h"
-#include "saiga/vision/BlockVector.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/SparseHelper.h"
@@ -77,9 +74,9 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
     KernelType::ResidualType res;
 
     SAIGA_BLOCK_TIMER();
-    auto numCameras  = scene.extrinsics.size();
-    auto numPoints   = scene.worldPoints.size();
-    auto numUnknowns = numCameras * 6 + numPoints * 3;
+    int numCameras   = scene.extrinsics.size();
+    int numPoints    = scene.worldPoints.size();
+    int numUnknowns  = numCameras * 6 + numPoints * 3;
     using MatrixType = Eigen::MatrixXd;
     MatrixType JtJ(numUnknowns, numUnknowns);
     Eigen::VectorXd Jtb(numUnknowns);
@@ -171,14 +168,14 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
         cout << x2.transpose() << endl;
         return;
 
-        for (size_t i = 0; i < numPoints; ++i)
+        for (int i = 0; i < numPoints; ++i)
         {
             Vec3 t  = x1.segment(i * 3, 3);
             auto& p = scene.worldPoints[i].p;
             p += t;
         }
 
-        for (size_t i = 0; i < numCameras; ++i)
+        for (int i = 0; i < numCameras; ++i)
         {
             Sophus::SE3d::Tangent t = x2.segment(i * 6, 6);
             auto& se3               = scene.extrinsics[i].se3;
@@ -188,189 +185,7 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
 }
 
 
-void BAPoseOnly::posePointDenseBlock(Scene& scene, int its)
-{
-    // test schur
-
-    if (0)
-    {
-        Eigen::Matrix4d M = Eigen::Matrix4d::Random();
-        Eigen::Vector4d b = Eigen::Vector4d::Random();
-        Eigen::Vector4d x = M.lu().solve(b);
-        cout << "x " << x.transpose() << endl;
-
-        using Mat2 = Eigen::Matrix2d;
-        using Vec2 = Eigen::Vector2d;
-
-        Mat2 A = M.block(0, 0, 2, 2);
-        Mat2 B = M.block(0, 2, 2, 2);
-        Mat2 C = M.block(2, 0, 2, 2);
-        Mat2 D = M.block(2, 2, 2, 2);
-
-        Vec2 b1 = b.segment(0, 2);
-        Vec2 b2 = b.segment(2, 2);
-
-
-        Mat2 L  = C * A.inverse() * B - D;
-        Vec2 r  = C * A.inverse() * b1 - b2;
-        auto x2 = L.lu().solve(r);
-        Vec2 r2 = b1 - B * x2;
-        auto x1 = A.lu().solve(r2);
-
-        x.segment(0, 2) = x1;
-        x.segment(2, 2) = x2;
-
-        cout << "x " << x.transpose() << endl;
-
-
-        //        cout << M << endl << endl;
-
-
-        exit(0);
-    }
-    posePointDense(scene, 1);
-    cout << endl;
-
-    using T          = double;
-    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
-    KernelType::PoseJacobiType JrowPose;
-    KernelType::PointJacobiType JrowPoint;
-    KernelType::ResidualType res;
-
-    SAIGA_BLOCK_TIMER();
-    auto numCameras  = scene.extrinsics.size();
-    auto numPoints   = scene.worldPoints.size();
-    auto numUnknowns = numCameras * 6 + numPoints * 3;
-    using MatrixType = Eigen::MatrixXd;
-
-
-    auto n = numPoints * 3;
-    auto m = numCameras * 6;
-
-    MatrixType A(n, n);
-    MatrixType B(n, m);
-    MatrixType D(m, m);
-
-    Eigen::VectorXd b1(n);
-    Eigen::VectorXd b2(m);
-
-    BlockDiagonalMatrix<KernelType::PointDiaBlockType> Ad(numPoints);
-    BlockDiagonalMatrix<KernelType::PoseDiaBlockType> Dd(numCameras);
-
-    for (int k = 0; k < its; ++k)
-    {
-        A.setZero();
-        B.setZero();
-        D.setZero();
-        b1.setZero();
-        b2.setZero();
-
-        Ad.setZero();
-        Dd.setZero();
-
-        for (auto& img : scene.images)
-        {
-            auto extr   = scene.extrinsics[img.extr].se3;
-            auto camera = scene.intrinsics[img.intr];
-
-            for (auto& ip : img.monoPoints)
-            {
-                if (!ip)
-                {
-                    SAIGA_ASSERT(0);
-                    continue;
-                }
-
-                auto wp = scene.worldPoints[ip.wp].p;
-
-                auto pointStart = ip.wp * 3;
-                auto poseStart  = img.extr * 6;
-
-
-                KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, ip.weight, res, JrowPose,
-                                                        JrowPoint);
-
-                //                A.block(pointStart, pointStart, 3, 3) += (JrowPoint.transpose() * JrowPoint);
-                //                D.block(poseStart, poseStart, 6, 6) += (JrowPose.transpose() * JrowPose);
-
-
-                Ad(ip.wp)    = (JrowPoint.transpose() * JrowPoint);
-                Dd(img.extr) = (JrowPose.transpose() * JrowPose);
-
-                B.block(pointStart, poseStart, 3, 6) = JrowPoint.transpose() * JrowPose;
-
-                b1.segment(pointStart, 3) += JrowPoint.transpose() * res;
-                b2.segment(poseStart, 6) += JrowPose.transpose() * res;
-            }
-        }
-
-        double lambda = 1;
-        Ad.addToDiagonal(lambda * Eigen::VectorXd::Ones(n));
-        Dd.addToDiagonal(lambda * Eigen::VectorXd::Ones(m));
-
-        A = Ad.dense();
-        D = Dd.dense();
-
-
-        Eigen::VectorXd x1(n);
-        Eigen::VectorXd x2(m);
-        x1.setZero();
-        x2.setZero();
-#if 1
-        // Schur complement solution
-
-        auto C = B.transpose();
-
-        Eigen::MatrixXd L  = C * Ad.inverse() * B - D;
-        Eigen::VectorXd r  = C * Ad.inverse() * b1 - b2;
-        x2                 = L.ldlt().solve(r);
-        Eigen::VectorXd r2 = b1 - B * x2;
-        x1                 = A.ldlt().solve(r2);
-
-        //        cout << x1.transpose() << endl;
-        //        cout << x2.transpose() << endl;
-
-#else
-        Eigen::MatrixXd JtJ(n + m, n + m);
-        JtJ.block(0, 0, n, n) = A;
-        JtJ.block(n, n, m, m) = D;
-        JtJ.block(0, n, n, m) = B;
-        JtJ.block(n, 0, m, n) = B.transpose();
-
-        //        cout << JtJ << endl << endl;
-
-        Eigen::VectorXd Jtb(n + m);
-        Jtb.segment(0, n) = b1;
-        Jtb.segment(n, m) = b2;
-
-
-        Eigen::VectorXd x = JtJ.ldlt().solve(Jtb);
-        x1 = x.segment(0, n);
-        x2 = x.segment(n, m);
-
-
-#endif
-        //        cout << x1.transpose() << endl;
-        //        cout << x2.transpose() << endl;
-
-
-        for (size_t i = 0; i < numPoints; ++i)
-        {
-            Vec3 t  = x1.segment(i * 3, 3);
-            auto& p = scene.worldPoints[i].p;
-            p += t;
-        }
-
-        for (size_t i = 0; i < numCameras; ++i)
-        {
-            Sophus::SE3d::Tangent t = x2.segment(i * 6, 6);
-            auto& se3               = scene.extrinsics[i].se3;
-            se3                     = Sophus::SE3d::exp(t) * se3;
-        }
-    }
-}
-
-void BAPoseOnly::posePointSparse(Scene& scene, int its)
+void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
 {
     using T          = double;
     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
@@ -390,16 +205,16 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
     }
 
     SAIGA_BLOCK_TIMER();
-    auto numCameras  = scene.extrinsics.size();
-    auto numPoints   = scene.worldPoints.size();
-    auto numUnknowns = numCameras * 6 + numPoints * 3;
+    int numCameras  = scene.extrinsics.size();
+    int numPoints   = scene.worldPoints.size();
+    int numUnknowns = numCameras * 6 + numPoints * 3;
 
     std::vector<KernelType::PoseDiaBlockType> diagPoseBlocks(numCameras);
     std::vector<KernelType::PointDiaBlockType> diagPointBlocks(numPoints);
     std::vector<KernelType::PosePointUpperBlockType> posePointBlocks(N);
     Eigen::VectorXd Jtb(numUnknowns);
 
-    for (int k = 0; k < its; ++k)
+    for (int k = 0; k < options.maxIterations; ++k)
     {
         Jtb.setZero();
         for (auto& b : diagPoseBlocks) b.setZero();
@@ -446,7 +261,7 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         Eigen::SparseMatrix<T> mat(numUnknowns, numUnknowns);  // default is column major
         //        mat.reserve(Eigen::VectorXi::Constant(numUnknowns, 6));
 
-        for (size_t i = 0; i < numCameras; ++i)
+        for (int i = 0; i < numCameras; ++i)
         {
             auto starti = i * 6;
             auto startj = i * 6;
@@ -459,7 +274,7 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
                 }
             }
         }
-        for (size_t i = 0; i < numPoints; ++i)
+        for (int i = 0; i < numPoints; ++i)
         {
             auto starti = numCameras * 6 + i * 3;
             auto startj = numCameras * 6 + i * 3;
@@ -514,7 +329,7 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
                 mat.coeffRef(i, i) += lambda;  // * JtJ(i, i);
             }
         }
-        cout << "insert done" << endl;
+
 
 
 #if 0
@@ -525,31 +340,34 @@ void BAPoseOnly::posePointSparse(Scene& scene, int its)
         Eigen::VectorXd x;
 
         {
-            SAIGA_BLOCK_TIMER();
+            //            SAIGA_BLOCK_TIMER();
             //        using SolverType = Eigen::SimplicialLDLT<Eigen::SparseMatrix<T>, Eigen::Upper>;
             //            using SolverType = Eigen::SimplicialLDLT<Eigen::SparseMatrix<T>, Eigen::Upper>;
-            using SolverType = Eigen::SimplicialLDLT<Eigen::SparseMatrix<T>, Eigen::Lower>;
+            //            using SolverType =
             //            using SolverType = Eigen::ConjugateGradient<Eigen::SparseMatrix<T>, Eigen::Upper>;
 
-            SolverType solver;
-            x = solver.compute(mat).solve(Jtb);
-
-            if (solver.info() != Eigen::Success)
+            //            if (options.solverType == BAOptions::SolverType::Direct)
             {
-                cout << "decomposition failed" << endl;
-                return;
+                Eigen::SimplicialLDLT<Eigen::SparseMatrix<T>, Eigen::Lower> solver;
+                x = solver.compute(mat).solve(Jtb);
             }
+            //            else if (options.solverType == BAOptions::SolverType::Iterative)
+            //            {
+            //                Eigen::ConjugateGradient<Eigen::SparseMatrix<T>, Eigen::Upper> solver;
+            //                x = solver.compute(mat).solve(Jtb);
+            //            }
+            //            SolverType solver;
         }
 
 
-#if 0
-        for (size_t i = 0; i < numCameras; ++i)
+#if 1
+        for (int i = 0; i < numCameras; ++i)
         {
             Sophus::SE3d::Tangent t = x.segment(i * 6, 6);
             auto& se3               = scene.extrinsics[i].se3;
             se3                     = Sophus::SE3d::exp(t) * se3;
         }
-        for (size_t i = 0; i < numPoints; ++i)
+        for (int i = 0; i < numPoints; ++i)
         {
             Vec3 t  = x.segment(numCameras * 6 + i * 3, 3);
             auto& p = scene.worldPoints[i].p;

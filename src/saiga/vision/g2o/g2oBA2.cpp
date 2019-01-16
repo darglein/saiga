@@ -1,4 +1,10 @@
-﻿#include "g2oBA2.h"
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#include "g2oBA2.h"
 
 #include "saiga/time/timer.h"
 #include "saiga/util/assert.h"
@@ -12,22 +18,39 @@
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
+#include "g2o/solvers/pcg/linear_solver_pcg.h"
 #include "g2o_kernels/sophus_sba.h"
 
 namespace Saiga
 {
-void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStereo)
+void g2oBA2::solve(Scene& scene, const BAOptions& options)
 {
-    //    Saiga::ScopedTimerPrint tim("optimize g2o");
-
-    SAIGA_BLOCK_TIMER();
+    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
     g2o::SparseOptimizer optimizer;
-    optimizer.setVerbose(false);
-    optimizer.setComputeBatchStatistics(true);
+    optimizer.setVerbose(options.debugOutput);
+    optimizer.setComputeBatchStatistics(options.debugOutput);
 
     std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver;
     //    linearSolver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
-    linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>>();
+
+
+
+    switch (options.solverType)
+    {
+        case BAOptions::SolverType::Direct:
+            linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>>();
+            break;
+        case BAOptions::SolverType::Iterative:
+        {
+            auto ls = g2o::make_unique<g2o::LinearSolverPCG<g2o::BlockSolver_6_3::PoseMatrixType>>();
+            ls->setMaxIterations(options.maxIterativeIterations);
+            ls->setTolerance(options.iterativeTolerance);
+            linearSolver = std::move(ls);
+        }
+
+        break;
+    }
+
 
 
     g2o::OptimizationAlgorithmLevenberg* solver =
@@ -68,47 +91,69 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
     }
 
 
-    //    int stereoEdges = 0;
-    int monoEdges = 0;
+    int stereoEdges = 0;
+    int monoEdges   = 0;
 
-    for (SceneImage& im : scene.images)
+    for (SceneImage& img : scene.images)
     {
-        auto& camera     = scene.intrinsics[im.intr];
-        auto vertex_extr = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(extrStartId + im.extr));
+        auto& camera     = scene.intrinsics[img.intr];
+        auto vertex_extr = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(extrStartId + img.extr));
         SAIGA_ASSERT(vertex_extr);
 
 
-        for (auto& o : im.monoPoints)
+        for (auto& ip : img.monoPoints)
         {
-            if (o.wp == -1) continue;
-            auto vertex_wp = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(wpStartId + o.wp));
+            if (!ip) continue;
+            double w = ip.weight * scene.scale();
+
+            auto vertex_wp = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(wpStartId + ip.wp));
             SAIGA_ASSERT(vertex_wp);
 
-#if 0
-            if (o.depth > 0)
-            {
-                auto stereoPoint = o.point(0) - scene.bf / o.depth;
+            //                continue;
+            g2o::EdgeSE3PointProject* e = new g2o::EdgeSE3PointProject();
+            e->setVertex(0, vertex_wp);
+            e->setVertex(1, vertex_extr);
+            e->setMeasurement(ip.point);
+            e->information() = Eigen::Matrix2d::Identity();
+            e->intr          = camera;
+            e->weight        = w;
 
-                Saiga::Vec3 obs(o.point(0), o.point(1), stereoPoint);
+            if (options.huberMono > 0)
+            {
+                g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+                rk->setDelta(options.huberMono);
+                e->setRobustKernel(rk);
+            }
+            optimizer.addEdge(e);
+            monoEdges++;
+        }
+        for (auto& ip : img.stereoPoints)
+        {
+            if (!ip) continue;
+            double w = ip.weight * scene.scale();
+
+            auto vertex_wp = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(wpStartId + ip.wp));
+            SAIGA_ASSERT(vertex_wp);
+            SAIGA_ASSERT(ip.depth > 0);
+
+            {
+                auto stereoPoint = ip.point(0) - scene.bf / ip.depth;
+
+                Saiga::Vec3 obs(ip.point(0), ip.point(1), stereoPoint);
 
                 g2o::EdgeSE3PointProjectDepth* e = new g2o::EdgeSE3PointProjectDepth();
                 e->setVertex(0, vertex_wp);
                 e->setVertex(1, vertex_extr);
                 e->setMeasurement(obs);
                 e->information() = Eigen::Matrix3d::Identity();
+                e->bf            = scene.bf;
+                e->intr          = camera;
+                e->weights       = Vec2(w, w);
 
-
-                e->bf   = bf;
-                e->intr = camera;
-
-                Vec2 weights(1, 1);
-                weights *= o.weight;
-                e->weights = weights;
-
-                if (huberStereo > 0)
+                if (options.huberStereo > 0)
                 {
                     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
-                    rk->setDelta(huberStereo);
+                    rk->setDelta(options.huberStereo);
                     e->setRobustKernel(rk);
                 }
 
@@ -116,49 +161,25 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
 
                 stereoEdges++;
             }
-            else
-#endif
-            {
-                //                continue;
-                g2o::EdgeSE3PointProject* e = new g2o::EdgeSE3PointProject();
-                e->setVertex(0, vertex_wp);
-                e->setVertex(1, vertex_extr);
-                e->setMeasurement(o.point);
-                e->information() = Eigen::Matrix2d::Identity();
-
-                e->intr   = camera;
-                double w  = o.weight * scene.scale();
-                e->weight = w;
-
-
-                if (huberMono > 0)
-                {
-                    g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
-                    rk->setDelta(huberMono);
-                    e->setRobustKernel(rk);
-                }
-
-                optimizer.addEdge(e);
-                monoEdges++;
-            }
         }
     }
     //    double costInit = 0, costFinal = 0;
     //    int totalDensePoints = 0;
 
-    cout << "g2o problem created." << endl;
+    if (options.debugOutput) cout << "g2o problem created. Mono/Stereo " << monoEdges << "/" << stereoEdges << endl;
 
 
     {
-        SAIGA_BLOCK_TIMER("Solve");
+        SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
         optimizer.initializeOptimization();
         //    optimizer.computeActiveErrors();
         //    costInit = optimizer.activeRobustChi2();
 
         //    cout << "starting optimization initial chi2: " << costInit << endl;
-        optimizer.optimize(its);
+        optimizer.optimize(options.maxIterations);
     }
 
+#if 0
     auto stats = optimizer.batchStatistics();
     for (auto s : stats)
     {
@@ -173,6 +194,7 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
              << " timeIteration " << s.timeIteration << endl
              << " timeMarginals " << s.timeMarginals << endl;
     }
+#endif
 
 
     //    costFinal = optimizer.activeRobustChi2();
@@ -203,5 +225,5 @@ void g2oBA2::optimize(Scene& scene, int its, double huberMono, double huberStere
             wp.p = v_se3->estimate();
         }
     }
-}
+}  // namespace Saiga
 }  // namespace Saiga

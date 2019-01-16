@@ -20,9 +20,9 @@
 
 namespace Saiga
 {
-void CeresBA::optimize(Scene& scene, int its)
+void CeresBA::solve(Scene& scene, const BAOptions& options)
 {
-    SAIGA_BLOCK_TIMER();
+    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
     ceres::Problem problem;
 
 
@@ -30,7 +30,6 @@ void CeresBA::optimize(Scene& scene, int its)
     for (size_t i = 0; i < scene.extrinsics.size(); ++i)
     {
         problem.AddParameterBlock(scene.extrinsics[i].se3.data(), 7, camera_parameterization);
-        //        problem.SetParameterization(scene.extrinsics[i].se3.data(), camera_parameterization);
     }
 
     for (auto& img : scene.images)
@@ -44,9 +43,10 @@ void CeresBA::optimize(Scene& scene, int its)
             auto& wp           = scene.worldPoints[ip.wp].p;
             double w           = ip.weight * scene.scale();
             auto cost_function = CostBAMono::create(camera, ip.point, w);
-            problem.AddResidualBlock(cost_function, nullptr, extr.data(), wp.data());
+            ceres::LossFunction* lossFunction =
+                options.huberMono > 0 ? new ceres::HuberLoss(options.huberMono) : nullptr;
+            problem.AddResidualBlock(cost_function, lossFunction, extr.data(), wp.data());
         }
-
         for (auto& ip : img.stereoPoints)
         {
             if (!ip) continue;
@@ -54,7 +54,9 @@ void CeresBA::optimize(Scene& scene, int its)
             double w           = ip.weight * scene.scale();
             auto stereoPoint   = ip.point(0) - scene.bf / ip.depth;
             auto cost_function = CostBAStereo<>::create(camera, ip.point, stereoPoint, scene.bf, Vec2(w, w));
-            problem.AddResidualBlock(cost_function, nullptr, extr.data(), wp.data());
+            ceres::LossFunction* lossFunction =
+                options.huberStereo > 0 ? new ceres::HuberLoss(options.huberStereo) : nullptr;
+            problem.AddResidualBlock(cost_function, lossFunction, extr.data(), wp.data());
         }
     }
 
@@ -63,18 +65,31 @@ void CeresBA::optimize(Scene& scene, int its)
     //    ceres::Problem::EvaluateOptions defaultEvalOptions;
     //    problem.Evaluate(defaultEvalOptions, &costInit, nullptr, nullptr, nullptr);
 
-    ceres::Solver::Options options;
-    options.minimizer_progress_to_stdout = true;
-    options.max_num_iterations           = its;
+    ceres::Solver::Options ceres_options;
+    ceres_options.minimizer_progress_to_stdout = options.debugOutput;
+    ceres_options.max_num_iterations           = options.maxIterations;
+    ceres_options.max_linear_solver_iterations = options.maxIterativeIterations;
+    ceres_options.min_linear_solver_iterations = options.maxIterativeIterations;
+    ceres_options.min_relative_decrease        = 1e-50;
+    ceres_options.function_tolerance           = 1e-50;
 
-    options.linear_solver_type           = ceres::LinearSolverType::CGNR;
-    options.max_linear_solver_iterations = 20;
-    options.min_linear_solver_iterations = 20;
+
+
+    switch (options.solverType)
+    {
+        case BAOptions::SolverType::Direct:
+            ceres_options.linear_solver_type = ceres::LinearSolverType::SPARSE_SCHUR;
+            break;
+        case BAOptions::SolverType::Iterative:
+            ceres_options.linear_solver_type = ceres::LinearSolverType::ITERATIVE_SCHUR;
+            break;
+    }
+
     ceres::Solver::Summary summaryTest;
 
     {
-        SAIGA_BLOCK_TIMER("Solve");
-        ceres::Solve(options, &problem, &summaryTest);
+        SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+        ceres::Solve(ceres_options, &problem, &summaryTest);
     }
 
     //    double costFinal = 0;
