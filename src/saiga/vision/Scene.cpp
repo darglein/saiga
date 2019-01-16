@@ -13,7 +13,7 @@
 #include <fstream>
 namespace Saiga
 {
-Eigen::Vector3d Scene::residual(const SceneImage& img, const StereoImagePoint& ip)
+Eigen::Vector3d Scene::residual3(const SceneImage& img, const StereoImagePoint& ip)
 {
     WorldPoint& wp = worldPoints[ip.wp];
 
@@ -34,7 +34,7 @@ Eigen::Vector3d Scene::residual(const SceneImage& img, const StereoImagePoint& i
     return res;
 }
 
-Eigen::Vector2d Scene::residual(const SceneImage& img, const MonoImagePoint& ip)
+Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& ip)
 {
     WorldPoint& wp = worldPoints[ip.wp];
 
@@ -48,6 +48,28 @@ Eigen::Vector2d Scene::residual(const SceneImage& img, const MonoImagePoint& ip)
     Eigen::Vector2d res;
     res.head<2>() = (ip.point - p2) * img.imageWeight;
     return res;
+}
+
+double Scene::residualNorm2(const SceneImage& img, const StereoImagePoint& ip)
+{
+    if (ip.depth > 0)
+        return residual3(img, ip).squaredNorm();
+    else
+        return residual2(img, ip).squaredNorm();
+}
+
+double Scene::depth(const SceneImage& img, const StereoImagePoint& ip)
+{
+    WorldPoint& wp = worldPoints[ip.wp];
+
+    SAIGA_ASSERT(ip);
+    SAIGA_ASSERT(wp);
+
+    // project to screen
+    auto p = extrinsics[img.extr].se3 * wp.p;
+    auto z = p(2);
+
+    return z;
 }
 
 void Scene::transformScene(const Saiga::SE3& transform)
@@ -68,7 +90,6 @@ void Scene::fixWorldPointReferences()
 {
     for (WorldPoint& wp : worldPoints)
     {
-        wp.monoreferences.clear();
         wp.stereoreferences.clear();
         wp.valid = false;
     }
@@ -79,17 +100,7 @@ void Scene::fixWorldPointReferences()
     {
         int ipid      = 0;
         i.validPoints = 0;
-        for (auto& ip : i.monoPoints)
-        {
-            if (ip.wp >= 0)
-            {
-                WorldPoint& wp = worldPoints[ip.wp];
-                wp.monoreferences.emplace_back(iid, ipid);
-                wp.valid = true;
-                i.validPoints++;
-            }
-            ipid++;
-        }
+
         for (auto& ip : i.stereoPoints)
         {
             if (ip.wp >= 0)
@@ -107,22 +118,26 @@ void Scene::fixWorldPointReferences()
 
 bool Scene::valid() const
 {
+    int imgid = 0;
     for (const SceneImage& i : images)
     {
         if (i.extr < 0 || i.intr < 0) return false;
 
         if (i.extr >= (int)extrinsics.size() || i.intr >= (int)intrinsics.size()) return false;
 
-        for (auto& ip : i.monoPoints)
-        {
-            if (ip.wp < 0) continue;
-            if (ip.wp >= (int)worldPoints.size()) return false;
-        }
         for (auto& ip : i.stereoPoints)
         {
-            if (ip.wp < 0) continue;
+            if (!ip) continue;
             if (ip.wp >= (int)worldPoints.size()) return false;
+            auto& wp = worldPoints[ip.wp];
+            if (!wp.isReferencedByStereoFrame(imgid)) return false;
         }
+        imgid++;
+    }
+
+    for (auto& wp : worldPoints)
+    {
+        if (!wp.uniqueReferences()) return false;
     }
     return true;
 }
@@ -132,15 +147,10 @@ Saiga::Statistics<double> Scene::statistics()
     std::vector<double> stats;
     for (SceneImage& im : images)
     {
-        for (auto& o : im.monoPoints)
-        {
-            if (o.wp < 0) continue;
-            stats.push_back(residual(im, o).norm());
-        }
         for (auto& o : im.stereoPoints)
         {
-            if (o.wp < 0) continue;
-            stats.push_back(residual(im, o).norm());
+            if (!o.wp) continue;
+            stats.push_back(std::sqrt(residualNorm2(im, o)));
         }
     }
 
@@ -151,7 +161,7 @@ Saiga::Statistics<double> Scene::statistics()
 
 void Scene::removeOutliers(float factor)
 {
-    SAIGA_ASSERT(0);
+    SAIGA_ASSERT(valid());
     auto sr = statistics();
 
     auto threshold = std::max(sr.median * factor, 1.0);
@@ -159,15 +169,10 @@ void Scene::removeOutliers(float factor)
     int pointsRemoved = 0;
     for (SceneImage& im : images)
     {
-        //        auto e = extrinsics[im.extr];
-        //        auto i = intrinsics[im.intr];
         for (auto& o : im.stereoPoints)
         {
-            if (o.wp < 0) continue;
-
-            Eigen::Vector3d res = residual(im, o);
-            double r            = res.norm();
-
+            if (!o.wp) continue;
+            double r = std::sqrt(residualNorm2(im, o));
             if (r > threshold)
             {
                 o.wp = -1;
@@ -175,8 +180,49 @@ void Scene::removeOutliers(float factor)
             }
         }
     }
-    //    cout << "removed " << pointsRemoved << " points." << endl;
+    cout << "Removed " << pointsRemoved << " observations." << endl;
     fixWorldPointReferences();
+}
+
+void Scene::removeWorldPoint(int id)
+{
+    SAIGA_ASSERT(id >= 0 && id < (int)worldPoints.size());
+
+    WorldPoint& wp = worldPoints[id];
+    if (!wp) return;
+
+
+    // Remove all references
+    for (auto& ref : wp.stereoreferences)
+    {
+        auto& ip = images[ref.first].stereoPoints[ref.second];
+        ip.wp    = -1;
+    }
+
+    wp.valid = false;
+    wp.stereoreferences.clear();
+    SAIGA_ASSERT(!wp);
+}
+
+void Scene::removeCamera(int id)
+{
+    SAIGA_ASSERT(id >= 0 && id < (int)images.size());
+
+    auto& im = images[id];
+
+    int iip = 0;
+    for (auto& ip : im.stereoPoints)
+    {
+        if (!ip) continue;
+        auto& wp = worldPoints[ip.wp];
+        wp.removeStereoReference(id, iip);
+        ip.wp = -1;
+        ++iip;
+    }
+
+    im.validPoints = 0;
+    SAIGA_ASSERT(!im);
+    SAIGA_ASSERT(valid());
 }
 
 void Scene::compress()
@@ -194,10 +240,10 @@ void Scene::compress()
             newWorldPoints.push_back(wp);
 
             // update new world point id for every reference
-            for (auto& p : wp.monoreferences)
+            for (auto& p : wp.stereoreferences)
             {
-                MonoImagePoint& ip = images[p.first].monoPoints[p.second];
-                ip.wp              = newid;
+                auto& ip = images[p.first].stereoPoints[p.second];
+                ip.wp    = newid;
             }
         }
         else
@@ -214,7 +260,7 @@ void Scene::compress()
     for (auto& img : images)
     {
         img.validPoints = 0;
-        for (auto& ip : img.monoPoints)
+        for (auto& ip : img.stereoPoints)
         {
             if (ip) img.validPoints++;
         }
@@ -228,7 +274,7 @@ std::vector<int> Scene::validImages()
     std::vector<int> res;
     for (int i = 0; i < (int)images.size(); ++i)
     {
-        if (images[i].valid()) res.push_back(i);
+        if (images[i]) res.push_back(i);
     }
     return res;
 }
@@ -245,18 +291,11 @@ double Scene::rms()
     for (SceneImage& im : images)
     {
         double sqerror;
-        for (auto& o : im.monoPoints)
-        {
-            if (o.wp < 0) continue;
-            sqerror = residual(im, o).squaredNorm();
-            //            cout << "mono sqerror: " << sqerror << endl;
-            monoEdges++;
-            error += sqerror;
-        }
+
         for (auto& o : im.stereoPoints)
         {
-            if (o.wp < 0) continue;
-            sqerror = residual(im, o).squaredNorm();
+            if (!o) continue;
+            sqerror = residualNorm2(im, o);
 
             //            cout << "stereo sqerror: " << sqerror << endl;
             stereoEdges++;
@@ -346,7 +385,6 @@ void Scene::addImagePointNoise(double stddev)
 {
     for (auto& img : images)
     {
-        for (auto& mp : img.monoPoints) mp.point += Random::gaussRandMatrix<Vec2>(0, stddev);
         for (auto& mp : img.stereoPoints) mp.point += Random::gaussRandMatrix<Vec2>(0, stddev);
     }
 }
@@ -363,8 +401,8 @@ void Scene::sortByWorldPointId()
 {
     for (auto& img : images)
     {
-        std::sort(img.monoPoints.begin(), img.monoPoints.end(),
-                  [](const MonoImagePoint& i1, const MonoImagePoint& i2) { return i1.wp < i2.wp; });
+        std::sort(img.stereoPoints.begin(), img.stereoPoints.end(),
+                  [](const StereoImagePoint& i1, const StereoImagePoint& i2) { return i1.wp < i2.wp; });
     }
     fixWorldPointReferences();
     SAIGA_ASSERT(valid());
@@ -396,16 +434,6 @@ void Scene::removeNegativeProjections()
     int removedObs = 0;
     for (SceneImage& im : images)
     {
-        for (auto& o : im.monoPoints)
-        {
-            if (o.wp < 0) continue;
-            auto p = extrinsics[im.extr].se3 * worldPoints[o.wp].p;
-            if (p(2) <= 0)
-            {
-                o.wp = -1;
-                removedObs++;
-            }
-        }
         for (auto& o : im.stereoPoints)
         {
             if (o.wp < 0) continue;

@@ -198,7 +198,7 @@ Scene BALDataset::makeScene()
     {
         SAIGA_ASSERT(o.camera_index >= 0 && o.camera_index < (int)scene.images.size());
         SceneImage& i = scene.images[o.camera_index];
-        i.monoPoints.push_back(o.ip());
+        i.stereoPoints.push_back(o.ip());
     }
 
     for (BALPoint& p : points)

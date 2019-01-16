@@ -46,7 +46,11 @@ class SAIGA_GLOBAL BARec : public BABase
     DAType ej;
 
 
-    std::vector<int> imageIds;
+    //    std::vector<int> imageIds;
+    std::vector<int> validImages;
+    std::vector<int> validPoints;
+    std::vector<int> pointToValidMap;
+
     BAOptions options;
     bool iterativeSolver = true;
     bool explizitSchur   = false;

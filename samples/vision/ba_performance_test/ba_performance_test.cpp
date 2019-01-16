@@ -25,17 +25,35 @@ void buildScene(Scene& scene)
 
 void buildSceneBAL(Scene& scene)
 {
-    //    Saiga::BALDataset bald("problem-00021-11315-pre.txt");
+    Saiga::BALDataset bald("problem-00021-11315-pre.txt");
     //    Saiga::BALDataset bald("problem-00257-65132-pre.txt");
-    Saiga::BALDataset bald("problem-01778-993923-pre.txt");
+    //    Saiga::BALDataset bald("problem-01778-993923-pre.txt");
     scene = bald.makeScene();
-    scene.compress();
-    scene.sortByWorldPointId();
+    //    scene.removeOutliers(2);
+
+
+
+    SAIGA_ASSERT(scene);
+
+    scene.bf = 1000;
+    for (auto& ip : scene.images.front().stereoPoints)
+    {
+        ip.depth = scene.depth(scene.images.front(), ip) + std::abs(Random::gaussRand(0, 10));
+    }
+
+    scene.worldPoints.resize(scene.worldPoints.size() * 50);
+    //    for (int i = 0; i < (int)scene.images.size() / 2; ++i) scene.removeCamera(i);
+    //    for (int i = 0; i < scene.worldPoints.size() / 2; ++i) scene.removeWorldPoint(i);
+    //        {
+    //    }
+    SAIGA_ASSERT(scene);
+    //    scene.compress();
+    //    scene.sortByWorldPointId();
     cout << endl;
 }
 
 
-int main(int argc, char* argv[])
+int main(int, char**)
 {
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
     Saiga::Random::setSeed(93865023985);
@@ -53,7 +71,7 @@ int main(int argc, char* argv[])
     std::vector<std::shared_ptr<BABase>> solvers;
 
     solvers.push_back(std::make_shared<BARec>());
-    //    solvers.push_back(std::make_shared<BAPoseOnly>());
+    solvers.push_back(std::make_shared<BAPoseOnly>());
     solvers.push_back(std::make_shared<CeresBA>());
     solvers.push_back(std::make_shared<g2oBA2>());
 

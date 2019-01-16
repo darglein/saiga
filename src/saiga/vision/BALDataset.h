@@ -39,9 +39,9 @@ class SAIGA_GLOBAL BALDataset
         int point_index;
         Eigen::Vector2d point;
 
-        MonoImagePoint ip()
+        StereoImagePoint ip()
         {
-            MonoImagePoint ip;
+            StereoImagePoint ip;
             ip.point = point;
             // BAL has the y axis pointing downwards
             ip.point(1) *= -1;

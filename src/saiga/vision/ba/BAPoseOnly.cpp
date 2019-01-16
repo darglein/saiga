@@ -44,7 +44,7 @@ void BAPoseOnly::poseOnlySparse(Scene& scene, int its)
             auto extr   = scene.extrinsics[img.extr].se3;
             auto camera = scene.intrinsics[img.intr];
 
-            for (auto& ip : img.monoPoints)
+            for (auto& ip : img.stereoPoints)
             {
                 if (!ip) continue;
                 auto wp = scene.worldPoints[ip.wp].p;
@@ -93,7 +93,7 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
             auto extr   = scene.extrinsics[img.extr].se3;
             auto camera = scene.intrinsics[img.intr];
 
-            for (auto& ip : img.monoPoints)
+            for (auto& ip : img.stereoPoints)
             {
                 if (!ip)
                 {
@@ -189,7 +189,6 @@ void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
 {
     using T          = double;
     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
-
     KernelType::PoseJacobiType JrowPose;
     KernelType::PointJacobiType JrowPoint;
     KernelType::ResidualType res;
@@ -198,7 +197,7 @@ void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
     int N = 0;
     for (auto& img : scene.images)
     {
-        for (auto& ip : img.monoPoints)
+        for (auto& ip : img.stereoPoints)
         {
             if (ip) N++;
         }
@@ -224,31 +223,55 @@ void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
         int n = 0;
         for (auto& img : scene.images)
         {
-            for (auto& ip : img.monoPoints)
+            auto& extr   = scene.extrinsics[img.extr].se3;
+            auto& camera = scene.intrinsics[img.intr];
+            StereoCamera4 scam(camera, scene.bf);
+
+            for (auto& ip : img.stereoPoints)
             {
                 if (!ip) continue;
 
-                auto& wp     = scene.worldPoints[ip.wp].p;
-                auto& extr   = scene.extrinsics[img.extr].se3;
-                auto& camera = scene.intrinsics[img.intr];
+                auto& wp = scene.worldPoints[ip.wp].p;
 
                 auto poseStart  = img.extr * 6;
                 auto pointStart = numCameras * 6 + ip.wp * 3;
 
+                auto& targetPosePose   = diagPoseBlocks[img.extr];
+                auto& targetPointPoint = diagPointBlocks[ip.wp];
+                auto& targetPosePoint  = posePointBlocks[n];
+                auto targetPoseRes     = Jtb.segment<6>(poseStart);
+                auto targetPointRes    = Jtb.segment<3>(pointStart);
 
-                KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, ip.weight, res, JrowPose,
-                                                        JrowPoint);
+                if (ip.depth > 0)
+                {
+                    using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
+                    KernelType::PoseJacobiType JrowPose;
+                    KernelType::PointJacobiType JrowPoint;
+                    KernelType::ResidualType res;
 
-                diagPoseBlocks[img.extr] +=
-                    (JrowPose.transpose() * JrowPose);  //.template triangularView<Eigen::Upper>();
-                diagPointBlocks[ip.wp] +=
-                    (JrowPoint.transpose() * JrowPoint);  //.template triangularView<Eigen::Upper>();
+                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, ip.weight, res,
+                                                            JrowPose, JrowPoint);
+                    targetPosePose += JrowPose.transpose() * JrowPose;
+                    targetPointPoint += JrowPoint.transpose() * JrowPoint;
+                    targetPosePoint = JrowPose.transpose() * JrowPoint;
+                    targetPoseRes += JrowPose.transpose() * res;
+                    targetPointRes += JrowPoint.transpose() * res;
+                }
+                else
+                {
+                    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
+                    KernelType::PoseJacobiType JrowPose;
+                    KernelType::PointJacobiType JrowPoint;
+                    KernelType::ResidualType res;
 
-                posePointBlocks[n] = JrowPose.transpose() * JrowPoint;
-
-                Jtb.segment(poseStart, 6) += JrowPose.transpose() * res;
-                Jtb.segment(pointStart, 3) += JrowPoint.transpose() * res;
-
+                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, ip.weight, res, JrowPose,
+                                                            JrowPoint);
+                    targetPosePose += JrowPose.transpose() * JrowPose;
+                    targetPointPoint += JrowPoint.transpose() * JrowPoint;
+                    targetPosePoint = JrowPose.transpose() * JrowPoint;
+                    targetPoseRes += JrowPose.transpose() * res;
+                    targetPointRes += JrowPoint.transpose() * res;
+                }
                 n++;
             }
         }
@@ -292,7 +315,7 @@ void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
         n = 0;
         for (auto& img : scene.images)
         {
-            for (auto& ip : img.monoPoints)
+            for (auto& ip : img.stereoPoints)
             {
                 if (!ip) continue;
 

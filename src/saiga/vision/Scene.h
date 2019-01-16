@@ -34,43 +34,46 @@ struct SAIGA_GLOBAL WorldPoint
     bool valid = false;
 
     // Pair < ImageID, ImagePointID >
-    std::vector<std::pair<int, int> > monoreferences;
     std::vector<std::pair<int, int> > stereoreferences;
 
-    bool isReferencedByFrame(int i)
+
+    bool uniqueReferences() const
     {
-        for (auto p : monoreferences)
+        // check if all references are unique
+        auto cpy = stereoreferences;
+        std::sort(cpy.begin(), cpy.end());
+        auto it = std::unique(cpy.begin(), cpy.end());
+        return it == cpy.end();
+    }
+
+    bool isReferencedByStereoFrame(int i) const
+    {
+        for (auto p : stereoreferences)
             if (p.first == i) return true;
         return false;
     }
 
-    void removeReference(int img, int id)
+
+
+    void removeStereoReference(int img, int ip)
     {
-        SAIGA_ASSERT(isReferencedByFrame(img));
-        monoreferences.erase(std::find(monoreferences.begin(), monoreferences.end(), std::make_pair(img, id)));
+        SAIGA_ASSERT(isReferencedByStereoFrame(img));
+        for (auto& p : stereoreferences)
+        {
+            if (p.first == img && p.second == ip)
+            {
+                p = stereoreferences.back();
+                break;
+            }
+        }
+        stereoreferences.resize(stereoreferences.size() - 1);
+        //        SAIGA_ASSERT(!isReferencedByStereoFrame(img));
     }
 
     // the valid flag is set and this point is referenced by at least one image
-    bool isValid() const { return valid && (!monoreferences.empty() || !stereoreferences.empty()); }
+    bool isValid() const { return valid && (!stereoreferences.empty()); }
 
     explicit operator bool() const { return isValid(); }
-};
-
-struct SAIGA_GLOBAL MonoImagePoint
-{
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    int wp = -1;
-
-    Eigen::Vector2d point;
-    float weight = 1;
-
-
-    // === computed by reprojection
-    double repDepth = 0;
-    Eigen::Vector2d repPoint;
-
-    explicit operator bool() const { return wp != -1; }
 };
 
 struct SAIGA_GLOBAL StereoImagePoint
@@ -116,10 +119,8 @@ struct SAIGA_GLOBAL DenseConstraint
 struct SAIGA_GLOBAL SceneImage
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
     int intr = -1;
     int extr = -1;
-    std::vector<MonoImagePoint> monoPoints;
     std::vector<StereoImagePoint> stereoPoints;
     std::vector<DenseConstraint> densePoints;
     float imageWeight = 1;
@@ -134,7 +135,8 @@ struct SAIGA_GLOBAL SceneImage
     int validPoints = 0;
 
 
-    bool valid() { return validPoints > 0; }
+    explicit operator bool() const { return valid(); }
+    bool valid() const { return validPoints > 0; }
 };
 
 
@@ -150,12 +152,14 @@ class SAIGA_GLOBAL Scene
     // to scale towards [-1,1] range for floating point precision
     double globalScale = 1;
 
-    double bf;
+    double bf = 1;
 
     std::vector<SceneImage> images;
 
-    Vec3 residual(const SceneImage& img, const StereoImagePoint& ip);
-    Vec2 residual(const SceneImage& img, const MonoImagePoint& ip);
+    double residualNorm2(const SceneImage& img, const StereoImagePoint& ip);
+    Vec3 residual3(const SceneImage& img, const StereoImagePoint& ip);
+    Vec2 residual2(const SceneImage& img, const StereoImagePoint& ip);
+    double depth(const SceneImage& img, const StereoImagePoint& ip);
 
     // Apply a rigid transformation to the complete scene
     void transformScene(const SE3& transform);
@@ -185,6 +189,9 @@ class SAIGA_GLOBAL Scene
 
     Saiga::Statistics<double> statistics();
     void removeOutliers(float factor);
+    // removes all references to this worldpoint
+    void removeWorldPoint(int id);
+    void removeCamera(int id);
 
     // removes all worldpoints/imagepoints/images, which do not have any reference
     void compress();

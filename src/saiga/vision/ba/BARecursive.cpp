@@ -32,12 +32,34 @@ namespace Saiga
 void BARec::initStructure(Scene& scene)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-    auto imageIds   = scene.validImages();
-    auto numCameras = imageIds.size();
-    auto numPoints  = scene.worldPoints.size();
+    //    imageIds        = scene.validImages();
+    //    auto numCameras = imageIds.size();
+    //    auto numPoints  = scene.worldPoints.size();
 
-    n = numCameras;
-    m = numPoints;
+
+    // Check how many valid and cameras exist and construct the compact index sets
+    validImages.reserve(scene.images.size());
+    validPoints.reserve(scene.worldPoints.size());
+    pointToValidMap.resize(scene.worldPoints.size());
+
+    for (int i = 0; i < (int)scene.images.size(); ++i)
+    {
+        auto& img = scene.images[i];
+        if (!img) continue;
+        validImages.push_back(i);
+    }
+
+    for (int i = 0; i < (int)scene.worldPoints.size(); ++i)
+    {
+        auto& wp = scene.worldPoints[i];
+        if (!wp) continue;
+        int validId        = validPoints.size();
+        pointToValidMap[i] = validId;
+        validPoints.push_back(i);
+    }
+
+    n = validImages.size();
+    m = validPoints.size();
 
     U.resize(n);
     V.resize(m);
@@ -67,17 +89,16 @@ void BARec::initStructure(Scene& scene)
     pointCameraCounts.resize(m, 0);
     pointCameraCountsScan.resize(m);
     observations = 0;
-    for (auto imgid : imageIds)
+    for (int i = 0; i < (int)validImages.size(); ++i)
     {
-        auto& img = scene.images[imgid];
-        int i     = imgid;
-        for (auto& ip : img.monoPoints)
+        auto& img = scene.images[validImages[i]];
+        for (auto& ip : img.stereoPoints)
         {
             if (!ip)
             {
                 continue;
             }
-            int j = ip.wp;
+            int j = pointToValidMap[ip.wp];
             cameraPointCounts[i]++;
             pointCameraCounts[j]++;
             observations++;
@@ -139,8 +160,8 @@ void BARec::initStructure(Scene& scene)
     {
         cout << "." << endl;
         cout << "Structure Analyzed." << endl;
-        cout << "Cameras: " << numCameras << endl;
-        cout << "Points: " << numPoints << endl;
+        cout << "Cameras: " << n << endl;
+        cout << "Points: " << m << endl;
         cout << "Observations: " << observations << endl;
 #if 0
     cout << "Schur Edges: " << schurEdges << endl;
@@ -176,13 +197,13 @@ void BARec::computeUVW(Scene& scene)
     KernelType::ResidualType res;
 
 
-    auto imageIds = scene.validImages();
 
     eb.setZero();
     U.setZero();
     ea.setZero();
     V.setZero();
 
+    SAIGA_ASSERT(W.IsRowMajor && WT.IsRowMajor);
 
     bool useWT = computeWT || explizitSchur || (!iterativeSolver);
 
@@ -190,86 +211,72 @@ void BARec::computeUVW(Scene& scene)
     std::vector<int> tmpPointCameraCounts(m, 0);
 
 
+
     {
         int k = 0;
-        for (auto imgid : imageIds)
+        for (int i = 0; i < validImages.size(); ++i)
         {
+            int imgid    = validImages[i];
             auto& img    = scene.images[imgid];
             auto& extr   = scene.extrinsics[img.extr].se3;
             auto& camera = scene.intrinsics[img.intr];
-            int i        = img.extr;
+            StereoCamera4 scam(camera, scene.bf);
 
-            SAIGA_ASSERT(i == imgid);
-
-
-            for (auto& ip : img.monoPoints)
+            for (auto& ip : img.stereoPoints)
             {
-                if (!ip)
+                if (!ip) continue;
+                auto& wp        = scene.worldPoints[ip.wp].p;
+                BlockBAScalar w = ip.weight * scene.scale();
+                int j           = pointToValidMap[ip.wp];
+
+                WElem targetPosePoint;
+                auto& targetPosePose   = U.diagonal()(i).get();
+                auto& targetPointPoint = V.diagonal()(j).get();
+                auto& targetPoseRes    = ea(i).get();
+                auto& targetPointRes   = eb(j).get();
+
+                if (ip.depth > 0)
                 {
-                    cout << imgid << " " << ip.wp << " " << ip.point.transpose() << endl;
-                    //                                        SAIGA_ASSERT(0);
-                    continue;
+                    using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
+                    KernelType::PoseJacobiType JrowPose;
+                    KernelType::PointJacobiType JrowPoint;
+                    KernelType::ResidualType res;
+
+                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, ip.weight, res,
+                                                            JrowPose, JrowPoint);
+                    targetPosePose += JrowPose.transpose() * JrowPose;
+                    targetPointPoint += JrowPoint.transpose() * JrowPoint;
+                    targetPosePoint = JrowPose.transpose() * JrowPoint;
+                    targetPoseRes += JrowPose.transpose() * res;
+                    targetPointRes += JrowPoint.transpose() * res;
+                }
+                else
+                {
+                    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
+                    KernelType::PoseJacobiType JrowPose;
+                    KernelType::PointJacobiType JrowPoint;
+                    KernelType::ResidualType res;
+
+                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, ip.weight, res, JrowPose,
+                                                            JrowPoint);
+                    targetPosePose += JrowPose.transpose() * JrowPose;
+                    targetPointPoint += JrowPoint.transpose() * JrowPoint;
+                    targetPosePoint = JrowPose.transpose() * JrowPoint;
+                    targetPoseRes += JrowPose.transpose() * res;
+                    targetPointRes += JrowPoint.transpose() * res;
                 }
 
-                auto wp = scene.worldPoints[ip.wp].p;
-
-
-                int j           = ip.wp;
-                BlockBAScalar w = ip.weight * scene.scale();
-
-
-#ifdef RECURSIVE_BA_FLOAT
-                KernelType::evaluateResidualAndJacobian(camera.cast<float>(), extr.cast<float>(), wp.cast<float>(),
-                                                        ip.point.cast<float>(), w, res, JrowPose, JrowPoint);
-#else
-                KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
-#endif
-
-                WElem m;
-#ifdef RECURSIVE_BA_VECTORIZE
-                // Only add meaningfull values to top left. The rest will just be 0
-
-                // We need this set zero, because otherwise the actual camera paramerters are influenced
-                m.setZero();
-                m.block(0, 0, 6, 3) = JrowPose.transpose() * JrowPoint;
-                U.diagonal()(i).get().block(0, 0, 6, 6) += (JrowPose.transpose() * JrowPose);
-                V.diagonal()(j).get().block(0, 0, 3, 3) += (JrowPoint.transpose() * JrowPoint);
-#else
-                m = JrowPose.transpose() * JrowPoint;
-                U.diagonal()(i).get() += (JrowPose.transpose() * JrowPose);
-                V.diagonal()(j).get() += (JrowPoint.transpose() * JrowPoint);
-#endif
-
-
-
+                // Insert into W and WT
                 if (useWT)
                 {
                     int x                      = tmpPointCameraCounts[j];
                     int offset                 = WT.outerIndexPtr()[j] + x;
                     WT.innerIndexPtr()[offset] = i;
-                    WT.valuePtr()[offset]      = m.transpose();
-
+                    WT.valuePtr()[offset]      = targetPosePoint.transpose();
                     tmpPointCameraCounts[j]++;
                 }
-
-
-                if (W.IsRowMajor)
-                {
-                    W.innerIndexPtr()[k] = j;
-                    W.valuePtr()[k]      = m;
-                }
-                else
-                {
-                    SAIGA_ASSERT(0);
-                }
-
-#ifdef RECURSIVE_BA_VECTORIZE
-                ea(i).get().segment(0, 6) += (JrowPose.transpose() * res);
-                eb(j).get().segment(0, 3) += JrowPoint.transpose() * res;
-#else
-                ea(i).get() += (JrowPose.transpose() * res);
-                eb(j).get() += JrowPoint.transpose() * res;
-#endif
+                W.innerIndexPtr()[k] = j;
+                W.valuePtr()[k]      = targetPosePoint;
 
                 ++k;
             }
@@ -455,20 +462,20 @@ void BARec::finalizeSchur()
 void BARec::updateScene(Scene& scene)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-    for (size_t i = 0; i < imageIds.size(); ++i)
+    for (size_t i = 0; i < validImages.size(); ++i)
     {
-        auto id = imageIds[i];
         Sophus::SE3<BlockBAScalar>::Tangent t;
 #ifdef RECURSIVE_BA_VECTORIZE
         t = da(i).get().segment(0, 6);
 #else
         t = da(i).get();
 #endif
+        auto id   = validImages[i];
         auto& se3 = scene.extrinsics[id].se3;
         se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
     }
 
-    for (int i = 0; i < m; ++i)
+    for (size_t i = 0; i < validPoints.size(); ++i)
     {
         Eigen::Matrix<BlockBAScalar, 3, 1> t;
 #ifdef RECURSIVE_BA_VECTORIZE
@@ -476,7 +483,8 @@ void BARec::updateScene(Scene& scene)
 #else
         t = db(i).get();
 #endif
-        auto& p = scene.worldPoints[i].p;
+        auto id = validPoints[i];
+        auto& p = scene.worldPoints[id].p;
         p += t.cast<double>();
     }
 }
@@ -493,7 +501,6 @@ void BARec::solve(Scene& scene, const BAOptions& options)
 
     // ======================== Variables ========================
 
-    imageIds = scene.validImages();
 
     for (int k = 0; k < options.maxIterations; ++k)
     {

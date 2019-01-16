@@ -13,13 +13,20 @@ namespace Saiga
 void BAOptions::imgui()
 {
     ImGui::InputInt("maxIterations", &maxIterations);
-    ImGui::InputInt("maxIterativeIterations", &maxIterativeIterations);
-    ImGui::InputDouble("iterativeTolerance", &iterativeTolerance);
-
     int currentItem             = (int)solverType;
-    static const char* items[3] = {"Brute Force", "Sort and Sweep", "Linked Cell"};
-    ImGui::Combo("CollideAlgorithm", &currentItem, items, 3);
+    static const char* items[2] = {"Iterative", "Direct"};
+    ImGui::Combo("SolverType", &currentItem, items, 2);
     solverType = (SolverType)currentItem;
+
+    if (solverType == SolverType::Iterative)
+    {
+        ImGui::InputInt("maxIterativeIterations", &maxIterativeIterations);
+        ImGui::InputDouble("iterativeTolerance", &iterativeTolerance);
+    }
+
+    ImGui::InputFloat("huberMono", &huberMono);
+    ImGui::InputFloat("huberStereo", &huberStereo);
+    ImGui::Checkbox("debugOutput", &debugOutput);
 }
 
 

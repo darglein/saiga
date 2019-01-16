@@ -49,11 +49,11 @@ Scene SynteticScene::circleSphere(int numWorldPoints, int numCameras, int numIma
         std::sort(refs.begin(), refs.end());
         for (int j = 0; j < numImagePoints; ++j)
         {
-            MonoImagePoint mip;
+            StereoImagePoint mip;
             mip.wp    = refs[j];
             auto p    = extr.se3 * scene.worldPoints[mip.wp].p;
             mip.point = intr.project(p);
-            si.monoPoints.push_back(mip);
+            si.stereoPoints.push_back(mip);
         }
 #else
         for (int j = 0; j < numWorldPoints; ++j)

@@ -37,26 +37,28 @@ void CeresBA::solve(Scene& scene, const BAOptions& options)
         auto& extr   = scene.extrinsics[img.extr].se3;
         auto& camera = scene.intrinsics[img.intr];
 
-        for (auto& ip : img.monoPoints)
-        {
-            if (!ip) continue;
-            auto& wp           = scene.worldPoints[ip.wp].p;
-            double w           = ip.weight * scene.scale();
-            auto cost_function = CostBAMono::create(camera, ip.point, w);
-            ceres::LossFunction* lossFunction =
-                options.huberMono > 0 ? new ceres::HuberLoss(options.huberMono) : nullptr;
-            problem.AddResidualBlock(cost_function, lossFunction, extr.data(), wp.data());
-        }
         for (auto& ip : img.stereoPoints)
         {
             if (!ip) continue;
-            auto& wp           = scene.worldPoints[ip.wp].p;
-            double w           = ip.weight * scene.scale();
-            auto stereoPoint   = ip.point(0) - scene.bf / ip.depth;
-            auto cost_function = CostBAStereo<>::create(camera, ip.point, stereoPoint, scene.bf, Vec2(w, w));
-            ceres::LossFunction* lossFunction =
-                options.huberStereo > 0 ? new ceres::HuberLoss(options.huberStereo) : nullptr;
-            problem.AddResidualBlock(cost_function, lossFunction, extr.data(), wp.data());
+            auto& wp = scene.worldPoints[ip.wp].p;
+            double w = ip.weight * scene.scale();
+
+
+            if (ip.depth > 0)
+            {
+                auto stereoPoint   = ip.point(0) - scene.bf / ip.depth;
+                auto cost_function = CostBAStereo<>::create(camera, ip.point, stereoPoint, scene.bf, Vec2(w, w));
+                ceres::LossFunction* lossFunction =
+                    options.huberStereo > 0 ? new ceres::HuberLoss(options.huberStereo) : nullptr;
+                problem.AddResidualBlock(cost_function, lossFunction, extr.data(), wp.data());
+            }
+            else
+            {
+                auto cost_function = CostBAMono::create(camera, ip.point, w);
+                ceres::LossFunction* lossFunction =
+                    options.huberMono > 0 ? new ceres::HuberLoss(options.huberMono) : nullptr;
+                problem.AddResidualBlock(cost_function, lossFunction, extr.data(), wp.data());
+            }
         }
     }
 

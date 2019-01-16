@@ -30,6 +30,7 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
     optimizer.setVerbose(options.debugOutput);
     optimizer.setComputeBatchStatistics(options.debugOutput);
 
+
     std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver;
     //    linearSolver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
 
@@ -56,86 +57,77 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
     g2o::OptimizationAlgorithmLevenberg* solver =
         new g2o::OptimizationAlgorithmLevenberg(g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
     solver->setUserLambdaInit(1.0);
-
-    //    g2o::OptimizationAlgorithmGaussNewton* solver =
-    //        new
-    //        g2o::OptimizationAlgorithmGaussNewton(g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
-
     optimizer.setAlgorithm(solver);
 
 
+    std::vector<int> validImages;
+    validImages.reserve(scene.images.size());
 
     int extrStartId = 0;
-    for (size_t i = 0; i < scene.extrinsics.size(); ++i)
+    for (int i = 0; i < (int)scene.images.size(); ++i)
     {
+        auto& img = scene.images[i];
+        if (!img) continue;
+
+        int validId = validImages.size();
+
         g2o::VertexSE3* v_se3 = new g2o::VertexSE3();
-        v_se3->setId(i);
-        auto e = scene.extrinsics[i];
+        v_se3->setId(validId);
+        auto e = scene.extrinsics[img.extr];
         v_se3->setEstimate((e.se3));
         v_se3->setFixed(e.constant);
         optimizer.addVertex(v_se3);
+        validImages.push_back(i);
     }
 
 
-    int wpStartId = scene.extrinsics.size();
+    std::vector<int> validPoints;
+    validPoints.reserve(scene.worldPoints.size());
+
+    std::vector<int> pointToValidMap(scene.worldPoints.size());
+
+    int wpStartId = validImages.size();
 
     int point_id = wpStartId;
-    for (auto wp : scene.worldPoints)
+    for (int i = 0; i < (int)scene.worldPoints.size(); ++i)
     {
+        auto& wp = scene.worldPoints[i];
+        if (!wp) continue;
+        int validId           = validPoints.size();
         g2o::VertexPoint* v_p = new g2o::VertexPoint();
         v_p->setId(point_id);
         v_p->setMarginalized(true);
         v_p->setEstimate(wp.p);
         optimizer.addVertex(v_p);
         point_id++;
+        pointToValidMap[i] = validId;
+        validPoints.push_back(i);
     }
 
 
     int stereoEdges = 0;
     int monoEdges   = 0;
 
+    int currentImage = 0;
     for (SceneImage& img : scene.images)
     {
+        if (!img) continue;
         auto& camera     = scene.intrinsics[img.intr];
-        auto vertex_extr = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(extrStartId + img.extr));
+        int camvertexid  = currentImage + extrStartId;
+        auto vertex_extr = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(camvertexid));
         SAIGA_ASSERT(vertex_extr);
 
 
-        for (auto& ip : img.monoPoints)
-        {
-            if (!ip) continue;
-            double w = ip.weight * scene.scale();
-
-            auto vertex_wp = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(wpStartId + ip.wp));
-            SAIGA_ASSERT(vertex_wp);
-
-            //                continue;
-            g2o::EdgeSE3PointProject* e = new g2o::EdgeSE3PointProject();
-            e->setVertex(0, vertex_wp);
-            e->setVertex(1, vertex_extr);
-            e->setMeasurement(ip.point);
-            e->information() = Eigen::Matrix2d::Identity();
-            e->intr          = camera;
-            e->weight        = w;
-
-            if (options.huberMono > 0)
-            {
-                g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
-                rk->setDelta(options.huberMono);
-                e->setRobustKernel(rk);
-            }
-            optimizer.addEdge(e);
-            monoEdges++;
-        }
         for (auto& ip : img.stereoPoints)
         {
             if (!ip) continue;
             double w = ip.weight * scene.scale();
 
-            auto vertex_wp = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(wpStartId + ip.wp));
+            int wpvertexid = pointToValidMap[ip.wp] + wpStartId;
+            auto vertex_wp = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(wpvertexid));
             SAIGA_ASSERT(vertex_wp);
-            SAIGA_ASSERT(ip.depth > 0);
 
+            if (ip.depth > 0)
             {
                 auto stereoPoint = ip.point(0) - scene.bf / ip.depth;
 
@@ -161,21 +153,34 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
 
                 stereoEdges++;
             }
+            else
+            {
+                g2o::EdgeSE3PointProject* e = new g2o::EdgeSE3PointProject();
+                e->setVertex(0, vertex_wp);
+                e->setVertex(1, vertex_extr);
+                e->setMeasurement(ip.point);
+                e->information() = Eigen::Matrix2d::Identity();
+                e->intr          = camera;
+                e->weight        = w;
+
+                if (options.huberMono > 0)
+                {
+                    g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+                    rk->setDelta(options.huberMono);
+                    e->setRobustKernel(rk);
+                }
+                optimizer.addEdge(e);
+                monoEdges++;
+            }
         }
+        currentImage++;
     }
-    //    double costInit = 0, costFinal = 0;
-    //    int totalDensePoints = 0;
 
     if (options.debugOutput) cout << "g2o problem created. Mono/Stereo " << monoEdges << "/" << stereoEdges << endl;
-
 
     {
         SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
         optimizer.initializeOptimization();
-        //    optimizer.computeActiveErrors();
-        //    costInit = optimizer.activeRobustChi2();
-
-        //    cout << "starting optimization initial chi2: " << costInit << endl;
         optimizer.optimize(options.maxIterations);
     }
 
@@ -194,36 +199,30 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
              << " timeIteration " << s.timeIteration << endl
              << " timeMarginals " << s.timeMarginals << endl;
     }
-#endif
-
 
     //    costFinal = optimizer.activeRobustChi2();
 
     //    cout << "Optimize g2o stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << totalDensePoints
     //         << " Error: " << costInit << "->" << costFinal << endl;
 
+#endif
 
 
-    for (size_t i = 0; i < scene.extrinsics.size(); ++i)
+    for (size_t i = 0; i < validImages.size(); ++i)
     {
-        g2o::VertexSE3* v_se3 = static_cast<g2o::VertexSE3*>(optimizer.vertex(i));
-        auto& e               = scene.extrinsics[i];
+        int vertex            = i + extrStartId;
+        g2o::VertexSE3* v_se3 = static_cast<g2o::VertexSE3*>(optimizer.vertex(vertex));
+        auto& e               = scene.extrinsics[validImages[i]];
         auto se3              = v_se3->estimate();
         e.se3                 = (se3);
     }
 
-
-
-    for (size_t i = 0; i < scene.worldPoints.size(); ++i)
+    for (size_t i = 0; i < validPoints.size(); ++i)
     {
-        auto& wp = scene.worldPoints[i];
-
-        //        if (wp.references.size() >= 2)
-        {
-            g2o::VertexPoint* v_se3 = static_cast<g2o::VertexPoint*>(optimizer.vertex(i + wpStartId));
-
-            wp.p = v_se3->estimate();
-        }
+        auto& wp                = scene.worldPoints[validPoints[i]];
+        int vertex              = i + wpStartId;
+        g2o::VertexPoint* v_se3 = static_cast<g2o::VertexPoint*>(optimizer.vertex(vertex));
+        wp.p                    = v_se3->estimate();
     }
 }  // namespace Saiga
 }  // namespace Saiga
