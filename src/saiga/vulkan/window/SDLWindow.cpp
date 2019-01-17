@@ -87,10 +87,21 @@ void SDLWindow::create()
         SAIGA_ASSERT(0);
     }
 
+    Uint32 window_flags = SDL_WINDOW_VULKAN;
+
+    if (windowParameters.fullscreen())
+    {
+        window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    }
+
+    if (windowParameters.borderLess())
+    {
+        window_flags |= SDL_WINDOW_BORDERLESS;
+    }
     sdl_window = SDL_CreateWindow(windowParameters.name.c_str(),
                                   SDL_WINDOWPOS_CENTERED_DISPLAY(windowParameters.selected_display),
                                   SDL_WINDOWPOS_CENTERED_DISPLAY(windowParameters.selected_display),
-                                  windowParameters.width, windowParameters.height, SDL_WINDOW_VULKAN);
+                                  windowParameters.width, windowParameters.height, window_flags);
     if (!sdl_window)
     {
         std::cout << "SDL could not initialize! SDL Error: " << SDL_GetError() << std::endl;
