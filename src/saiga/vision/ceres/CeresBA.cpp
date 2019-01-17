@@ -76,7 +76,6 @@ void CeresBA::solve(Scene& scene, const BAOptions& options)
     ceres_options.function_tolerance           = 1e-50;
 
 
-
     switch (options.solverType)
     {
         case BAOptions::SolverType::Direct:

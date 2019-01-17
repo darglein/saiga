@@ -65,21 +65,23 @@ int main(int, char**)
     Saiga::Random::setSeed(93865023985);
 
     Scene scene;
-    scene.load("test.scene");
-    //        buildScene(scene);
+    scene.load("slam.scene");
+    //    buildScene(scene);
     //    buildSceneBAL(scene);
+
 
     BAOptions baoptions;
     baoptions.debugOutput            = false;
     baoptions.maxIterations          = 3;
     baoptions.maxIterativeIterations = 10;
-    baoptions.solverType             = BAOptions::SolverType::Iterative;
+    baoptions.iterativeTolerance     = 1e-50;
+    baoptions.solverType             = BAOptions::SolverType::Direct;
 
     std::vector<std::shared_ptr<BABase>> solvers;
 
     solvers.push_back(std::make_shared<BARec>());
-    solvers.push_back(std::make_shared<BAPoseOnly>());
-    solvers.push_back(std::make_shared<CeresBA>());
+    //    solvers.push_back(std::make_shared<BAPoseOnly>());
+    //    solvers.push_back(std::make_shared<CeresBA>());
     solvers.push_back(std::make_shared<g2oBA2>());
 
     for (auto& s : solvers)

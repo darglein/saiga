@@ -3,6 +3,7 @@
 #include "BABase.h"
 //#define RECURSIVE_BA_VECTORIZE
 //#define RECURSIVE_BA_FLOAT
+#define RECURSIVE_BA_USE_TIMERS false
 #include "saiga/vision/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
@@ -11,8 +12,6 @@ class SAIGA_GLOBAL BARec : public BABase
    public:
     BARec() : BABase("Recursive BA") {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
-
-    void imgui();
 
    private:
     // ==== Structure information ====
@@ -52,16 +51,18 @@ class SAIGA_GLOBAL BARec : public BABase
     std::vector<int> pointToValidMap;
 
     BAOptions options;
-    bool iterativeSolver = true;
-    bool explizitSchur   = false;
-    bool computeWT       = true;
-    int maxIterations    = 20;
+
+    int maxIterations = 20;
+    double chi2;
     void initStructure(Scene& scene);
     void computeUVW(Scene& scene);
     void computeSchur();
     void solveSchur();
     void finalizeSchur();
     void updateScene(Scene& scene);
+
+    bool explizitSchur = false;
+    bool computeWT     = true;
 };
 
 

@@ -121,7 +121,7 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
         for (auto& ip : img.stereoPoints)
         {
             if (!ip) continue;
-            double w = ip.weight * scene.scale();
+            double w = ip.weight * img.imageWeight * scene.scale();
 
             int wpvertexid = pointToValidMap[ip.wp] + wpStartId;
             auto vertex_wp = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(wpvertexid));
@@ -181,7 +181,19 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
     {
         SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
         optimizer.initializeOptimization();
-        optimizer.optimize(options.maxIterations);
+
+        if (options.debugOutput)
+        {
+            optimizer.computeActiveErrors();
+            double chi2b = optimizer.chi2();
+            optimizer.optimize(options.maxIterations);
+            double chi2a = optimizer.chi2();
+            cout << "g2o::optimize " << chi2b << " -> " << chi2a << endl;
+        }
+        else
+        {
+            optimizer.optimize(options.maxIterations);
+        }
     }
 
 #if 0
