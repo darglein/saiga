@@ -15,7 +15,7 @@
 namespace Saiga
 {
 template <typename LHS, typename RHS, typename DiagType>
-void diagInnerProductTransposed(const LHS& lhs, const RHS& rhsTransposed, DiagType& res)
+EIGEN_ALWAYS_INLINE void diagInnerProductTransposed(const LHS& lhs, const RHS& rhsTransposed, DiagType& res)
 {
     SAIGA_ASSERT(lhs.IsRowMajor && rhsTransposed.IsRowMajor);
     SAIGA_ASSERT(lhs.rows() == rhsTransposed.rows());
@@ -40,7 +40,7 @@ void diagInnerProductTransposed(const LHS& lhs, const RHS& rhsTransposed, DiagTy
 // Compute res = lhs^T * rhs
 // lhs is a sparse matrix in row major storage order!
 template <typename LHS, typename RHS, typename RES>
-void multSparseRowTransposedVector(const LHS& lhsTransposed, const RHS& rhs, RES& res)
+EIGEN_ALWAYS_INLINE void multSparseRowTransposedVector(const LHS& lhsTransposed, const RHS& rhs, RES& res)
 {
     SAIGA_ASSERT(lhsTransposed.IsRowMajor);
     SAIGA_ASSERT(lhsTransposed.rows() == rhs.rows());

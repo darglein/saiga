@@ -145,7 +145,7 @@ struct internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType, Den
 // D : Diagonal (dense) matrix
 // R : Result same format and sparsity pattern as M
 template <typename S, typename DiagType>
-S multSparseDiag(const S& M, const DiagType& D)
+EIGEN_ALWAYS_INLINE S multSparseDiag(const S& M, const DiagType& D)
 {
     SAIGA_ASSERT(M.cols() == D.rows());
 
@@ -179,7 +179,7 @@ S multSparseDiag(const S& M, const DiagType& D)
 }
 
 template <typename Diag, typename Vec>
-Vec multDiagVector(const Diag& D, const Vec& v)
+EIGEN_ALWAYS_INLINE Vec multDiagVector(const Diag& D, const Vec& v)
 {
     SAIGA_ASSERT(D.cols() == v.rows());
 
@@ -197,7 +197,7 @@ Vec multDiagVector(const Diag& D, const Vec& v)
 
 
 template <typename Diag, typename Vec>
-Vec multDiagVectorMulti(const Diag& D, const Vec& v)
+EIGEN_ALWAYS_INLINE Vec multDiagVectorMulti(const Diag& D, const Vec& v)
 {
     SAIGA_ASSERT(D.cols() == v.rows());
 

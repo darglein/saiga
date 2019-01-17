@@ -17,10 +17,10 @@ using namespace Saiga;
 void buildScene(Scene& scene)
 {
     SynteticScene sscene;
-    sscene.numCameras     = 3;
-    sscene.numImagePoints = 2;
-    sscene.numWorldPoints = 5;
-    scene                 = sscene.circleSphere();
+    //    sscene.numCameras     = 4;
+    //    sscene.numImagePoints = 2;
+    //    sscene.numWorldPoints = 8;
+    scene = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
     scene.addImagePointNoise(1.0);
     scene.addExtrinsicNoise(0.01);
@@ -28,9 +28,9 @@ void buildScene(Scene& scene)
 
 void buildSceneBAL(Scene& scene)
 {
-    Saiga::BALDataset bald("problem-00021-11315-pre.txt");
+    //    Saiga::BALDataset bald("problem-00021-11315-pre.txt");
     //    Saiga::BALDataset bald("problem-00257-65132-pre.txt");
-    //    Saiga::BALDataset bald("problem-01778-993923-pre.txt");
+    Saiga::BALDataset bald("problem-01778-993923-pre.txt");
     scene = bald.makeScene();
 
 
@@ -65,24 +65,25 @@ int main(int, char**)
     Saiga::Random::setSeed(93865023985);
 
     Scene scene;
-    scene.load("slam.scene");
+    //    scene.load("slam.scene");
     //    buildScene(scene);
-    //    buildSceneBAL(scene);
+    buildSceneBAL(scene);
 
 
     BAOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 3;
-    baoptions.maxIterativeIterations = 10;
-    baoptions.iterativeTolerance     = 1e-50;
-    baoptions.solverType             = BAOptions::SolverType::Direct;
+    baoptions.maxIterations          = 1;
+    baoptions.maxIterativeIterations = 50;
+    baoptions.iterativeTolerance     = 0;
+    //    baoptions.solverType             = BAOptions::SolverType::Direct;
+    baoptions.solverType = BAOptions::SolverType::Iterative;
 
     std::vector<std::shared_ptr<BABase>> solvers;
 
     solvers.push_back(std::make_shared<BARec>());
-    //    solvers.push_back(std::make_shared<BAPoseOnly>());
-    //    solvers.push_back(std::make_shared<CeresBA>());
+    solvers.push_back(std::make_shared<BAPoseOnly>());
     solvers.push_back(std::make_shared<g2oBA2>());
+    solvers.push_back(std::make_shared<CeresBA>());
 
     for (auto& s : solvers)
     {

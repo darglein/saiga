@@ -34,6 +34,8 @@ void BARec::initStructure(Scene& scene)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
 
+    // currently the scene must be in a valid state
+    SAIGA_ASSERT(scene);
 
     if (options.solverType == BAOptions::SolverType::Direct)
     {
@@ -42,7 +44,7 @@ void BARec::initStructure(Scene& scene)
     }
     else
     {
-        explizitSchur = false;
+        explizitSchur = true;
         computeWT     = true;
     }
 
@@ -74,6 +76,9 @@ void BARec::initStructure(Scene& scene)
 
     n = validImages.size();
     m = validPoints.size();
+
+
+    SAIGA_ASSERT(n > 0 && m > 0);
 
     U.resize(n);
     V.resize(m);
@@ -107,10 +112,8 @@ void BARec::initStructure(Scene& scene)
         auto& img = scene.images[validImages[i]];
         for (auto& ip : img.stereoPoints)
         {
-            if (!ip)
-            {
-                continue;
-            }
+            if (!ip) continue;
+
             int j = pointToValidMap[ip.wp];
             cameraPointCounts[i]++;
             pointCameraCounts[j]++;
@@ -582,13 +585,14 @@ void BARec::solve(Scene& scene, const BAOptions& options)
             cout << "chi2 = " << chi2 << endl;
         }
 
+        SAIGA_BLOCK_TIMER();
         computeSchur();
 
 #if 0
         cout << expand(W) << endl << endl;
-        cout << expand(WT) << endl << endl;
         cout << expand(U.toDenseMatrix()) << endl << endl;
         cout << expand(V.toDenseMatrix()) << endl << endl;
+        return;
 #endif
 
         solveSchur();

@@ -36,8 +36,8 @@ struct BAPosePointMono
     using Vec3       = Eigen::Matrix<T, 3, 1>;
     using Vec2       = Eigen::Matrix<T, 2, 1>;
 
-    static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
-                                         const Vec2& observed, T weight)
+    EIGEN_ALWAYS_INLINE static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr,
+                                                             const Vec3& wp, const Vec2& observed, T weight)
     {
         Vec3 pc   = extr * wp;
         Vec2 proj = camera.project(pc);
@@ -46,9 +46,10 @@ struct BAPosePointMono
         return res;
     }
 
-    static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
-                                            const Vec2& observed, T weight, ResidualType& res, PoseJacobiType& JrowPose,
-                                            PointJacobiType& JrowPoint)
+    EIGEN_ALWAYS_INLINE static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr,
+                                                                const Vec3& wp, const Vec2& observed, T weight,
+                                                                ResidualType& res, PoseJacobiType& JrowPose,
+                                                                PointJacobiType& JrowPoint)
     {
         Vec3 pc = extr * wp;
 
@@ -131,8 +132,9 @@ struct BAPosePointStereo
     using Vec2       = Eigen::Matrix<T, 2, 1>;
 
 
-    static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
-                                         const Vec2& observed, T observedDepth, T weight)
+    EIGEN_ALWAYS_INLINE static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr,
+                                                             const Vec3& wp, const Vec2& observed, T observedDepth,
+                                                             T weight)
     {
         Vec3 pc   = extr * wp;
         Vec3 proj = camera.project3(pc);
@@ -150,9 +152,10 @@ struct BAPosePointStereo
         return res;
     }
 
-    static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const Vec3& wp,
-                                            const Vec2& observed, T observedDepth, T weight, ResidualType& res,
-                                            PoseJacobiType& JrowPose, PointJacobiType& JrowPoint)
+    EIGEN_ALWAYS_INLINE static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr,
+                                                                const Vec3& wp, const Vec2& observed, T observedDepth,
+                                                                T weight, ResidualType& res, PoseJacobiType& JrowPose,
+                                                                PointJacobiType& JrowPoint)
     {
         Vec3 pc   = extr * wp;
         Vec2 proj = camera.project(pc);

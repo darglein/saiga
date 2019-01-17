@@ -18,6 +18,7 @@ class SAIGA_GLOBAL BAPoseOnly : public BABase
     void poseOnlySparse(Scene& scene, int its);
     void posePointDense(Scene& scene, int its);
     void posePointSparse(Scene& scene, int its);
+    void posePointSparseSchur(Scene& scene, const BAOptions& options);
 
 
     virtual void solve(Scene& scene, const BAOptions& options) override;
