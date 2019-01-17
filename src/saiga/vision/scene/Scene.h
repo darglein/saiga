@@ -198,8 +198,13 @@ class SAIGA_GLOBAL Scene
 
     std::vector<int> validImages();
 
+    // ================================= IO =================================
+    // -> defined in Scene_io.cpp
+
     // returns true if the scene was changed by a user action
     bool imgui();
+    void save(const std::string& file);
+    void load(const std::string& file);
 };
 
 }  // namespace Saiga

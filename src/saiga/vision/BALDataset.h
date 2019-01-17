@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/vision/Scene.h"
+#include "saiga/vision/scene/Scene.h"
 #include "saiga/vision/VisionTypes.h"
 
 

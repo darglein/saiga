@@ -7,17 +7,20 @@
 #include "saiga/util/random.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
-#include "saiga/vision/SynteticScene.h"
 #include "saiga/vision/ba/BAPoseOnly.h"
 #include "saiga/vision/ba/BARecursive.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
+#include "saiga/vision/scene/SynteticScene.h"
 using namespace Saiga;
 
 void buildScene(Scene& scene)
 {
     SynteticScene sscene;
-    scene = sscene.circleSphere();
+    sscene.numCameras     = 3;
+    sscene.numImagePoints = 2;
+    sscene.numWorldPoints = 5;
+    scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
     scene.addImagePointNoise(1.0);
     scene.addExtrinsicNoise(0.01);
@@ -29,12 +32,14 @@ void buildSceneBAL(Scene& scene)
     //    Saiga::BALDataset bald("problem-00257-65132-pre.txt");
     //    Saiga::BALDataset bald("problem-01778-993923-pre.txt");
     scene = bald.makeScene();
-    //    scene.removeOutliers(2);
 
+
+    //    scene.removeOutliers(2);
 
 
     SAIGA_ASSERT(scene);
 
+#if 0
     scene.bf = 1000;
     for (auto& ip : scene.images.front().stereoPoints)
     {
@@ -42,6 +47,7 @@ void buildSceneBAL(Scene& scene)
     }
 
     scene.worldPoints.resize(scene.worldPoints.size() * 50);
+#endif
     //    for (int i = 0; i < (int)scene.images.size() / 2; ++i) scene.removeCamera(i);
     //    for (int i = 0; i < scene.worldPoints.size() / 2; ++i) scene.removeWorldPoint(i);
     //        {
@@ -59,8 +65,9 @@ int main(int, char**)
     Saiga::Random::setSeed(93865023985);
 
     Scene scene;
-    //    buildScene(scene);
-    buildSceneBAL(scene);
+    scene.load("test.scene");
+    //        buildScene(scene);
+    //    buildSceneBAL(scene);
 
     BAOptions baoptions;
     baoptions.debugOutput            = false;

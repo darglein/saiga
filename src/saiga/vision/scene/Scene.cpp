@@ -451,49 +451,4 @@ void Scene::removeNegativeProjections()
 
 
 
-bool Scene::imgui()
-{
-    ImGui::PushID(3495672353);
-    bool changed = false;
-
-    if (ImGui::Button("RMS"))
-    {
-        rms();
-    }
-
-    if (ImGui::Button("Normalize"))
-    {
-        auto m = medianWorldPoint();
-        cout << "median world point " << m.transpose() << endl;
-        Saiga::SE3 T(Saiga::Quat::Identity(), -m);
-        transformScene(T);
-        changed = true;
-    }
-
-    static float sigma = 0.01;
-    ImGui::InputFloat("sigma", &sigma);
-
-
-    if (ImGui::Button("WP Noise"))
-    {
-        addWorldPointNoise(sigma);
-        changed = true;
-    }
-
-    if (ImGui::Button("IP Noise"))
-    {
-        addImagePointNoise(sigma);
-        changed = true;
-    }
-
-    if (ImGui::Button("Extr Noise"))
-    {
-        addExtrinsicNoise(0.1);
-        changed = true;
-    }
-
-    ImGui::PopID();
-    return changed;
-}
-
 }  // namespace Saiga

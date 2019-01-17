@@ -7,6 +7,7 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
@@ -242,8 +243,15 @@ void BARec::computeUVW(Scene& scene)
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, ip.weight, res,
-                                                            JrowPose, JrowPoint);
+                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, w, res, JrowPose,
+                                                            JrowPoint);
+                    if (options.huberStereo > 0)
+                    {
+                        auto rw = Kernel::huberWeight<T>(options.huberStereo, res.squaredNorm());
+                        JrowPose *= rw;
+                        JrowPoint *= rw;
+                        res *= rw;
+                    }
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
@@ -257,14 +265,22 @@ void BARec::computeUVW(Scene& scene)
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, ip.weight, res, JrowPose,
-                                                            JrowPoint);
+                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
+                    if (options.huberMono > 0)
+                    {
+                        auto rw = Kernel::huberWeight<T>(options.huberMono, res.squaredNorm());
+                        JrowPose *= rw;
+                        JrowPoint *= rw;
+                        res *= rw;
+                    }
+
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
                     targetPoseRes += JrowPose.transpose() * res;
                     targetPointRes += JrowPoint.transpose() * res;
                 }
+
 
                 // Insert into W and WT
                 if (useWT)
@@ -339,7 +355,7 @@ void BARec::computeSchur()
 void BARec::solveSchur()
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-    if (!iterativeSolver)
+    if (options.solverType == BAOptions::SolverType::Direct)
     {
 //            SAIGA_BLOCK_TIMER("LDLT");
 #if 0

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/Scene.h"
+#include "saiga/vision/scene/Scene.h"
 
 namespace Saiga
 {

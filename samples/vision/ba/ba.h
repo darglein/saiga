@@ -9,7 +9,7 @@
 #pragma once
 
 
-#include "saiga/vision/Scene.h"
+#include "saiga/vision/scene/Scene.h"
 #include "saiga/vision/SynteticScene.h"
 #include "saiga/vision/ba/BARecursive.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
