@@ -78,7 +78,8 @@ void Scene::save(const std::string& file)
     strm << "# wp depth px py weight" << endl;
     strm << "# WorldPoints" << endl;
     strm << "# x y z" << endl;
-    strm << intrinsics.size() << " " << extrinsics.size() << " " << images.size() << " " << worldPoints.size() << endl;
+    strm << intrinsics.size() << " " << extrinsics.size() << " " << images.size() << " " << worldPoints.size() << " "
+         << bf << " " << globalScale << endl;
     for (auto& i : intrinsics)
     {
         strm << i.coeffs().transpose() << endl;
@@ -144,7 +145,7 @@ void Scene::load(const std::string& file)
 
     consumeComment();
     int num_intrinsics, num_extrinsics, num_images, num_worldPoints;
-    strm >> num_intrinsics >> num_extrinsics >> num_images >> num_worldPoints;
+    strm >> num_intrinsics >> num_extrinsics >> num_images >> num_worldPoints >> bf >> globalScale;
     intrinsics.resize(num_intrinsics);
     extrinsics.resize(num_extrinsics);
     images.resize(num_images);

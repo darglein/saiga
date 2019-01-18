@@ -20,7 +20,7 @@
 namespace Saiga
 {
 template <typename MatrixType, typename VectorType>
-struct SparseLDLT
+struct SparseRecursiveLDLT
 {
     using MatrixScalar = typename MatrixType::Scalar;
     using VectorScalar = typename VectorType::Scalar;
@@ -36,7 +36,7 @@ struct SparseLDLT
 };
 
 template <typename MatrixType, typename VectorType>
-void SparseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
+void SparseRecursiveLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
 {
     SAIGA_ASSERT(A.rows() == A.cols());
     L.resize(A.rows(), A.cols());
@@ -116,7 +116,7 @@ void SparseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
 }
 
 template <typename MatrixType, typename VectorType>
-VectorType SparseLDLT<MatrixType, VectorType>::solve(const VectorType& b)
+VectorType SparseRecursiveLDLT<MatrixType, VectorType>::solve(const VectorType& b)
 {
     SAIGA_ASSERT(L.rows() == b.rows());
     VectorType x, y;

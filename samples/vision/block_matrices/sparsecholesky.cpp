@@ -189,7 +189,7 @@ void testSparseBlockCholesky()
     }
 
     {
-        SparseLDLT<decltype(bA), decltype(bb)> ldlt;
+        SparseRecursiveLDLT<decltype(bA), decltype(bb)> ldlt;
         ldlt.compute(bA);
         bx = ldlt.solve(bb);
 
@@ -393,7 +393,7 @@ void perfTestSparseCholesky()
 #endif
 
     {
-        SparseLDLT<decltype(A), decltype(b)> ldlt;
+        SparseRecursiveLDLT<decltype(A), decltype(b)> ldlt;
         {
             SAIGA_BLOCK_TIMER();
             ldlt.compute(A);
@@ -403,7 +403,7 @@ void perfTestSparseCholesky()
     }
 
     {
-        SparseLDLT<decltype(bA), decltype(bb)> ldlt;
+        SparseRecursiveLDLT<decltype(bA), decltype(bb)> ldlt;
         {
             SAIGA_BLOCK_TIMER();
             ldlt.compute(bA);

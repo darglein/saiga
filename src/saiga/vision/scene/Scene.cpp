@@ -28,9 +28,17 @@ Eigen::Vector3d Scene::residual3(const SceneImage& img, const StereoImagePoint& 
 
     auto p2 = intrinsics[img.intr].project(p);
 
+    auto w = ip.weight * img.imageWeight * scale();
+
     Eigen::Vector3d res;
-    res.head<2>() = (ip.point - p2) * img.imageWeight;
-    res(2)        = (1.0 / ip.depth - 1.0 / z) * bf * img.imageWeight;
+    res.head<2>() = (ip.point - p2);
+    //    res(2)        = (1.0 / ip.depth - 1.0 / z) * bf;
+
+    auto disparity      = p2(0) - bf / z;
+    auto stereoPointObs = ip.point(0) - bf / ip.depth;
+    res(2)              = stereoPointObs - disparity;
+
+    res *= w;
     return res;
 }
 
@@ -45,8 +53,10 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
     auto p  = extrinsics[img.extr].se3 * wp.p;
     auto p2 = intrinsics[img.intr].project(p);
 
+    auto w = ip.weight * img.imageWeight * scale();
     Eigen::Vector2d res;
-    res.head<2>() = (ip.point - p2) * img.imageWeight;
+    res.head<2>() = (ip.point - p2);
+    res *= w;
     return res;
 }
 
@@ -297,8 +307,10 @@ double Scene::rms()
             if (!o) continue;
             sqerror = residualNorm2(im, o);
 
-            //            cout << "stereo sqerror: " << sqerror << endl;
-            stereoEdges++;
+            if (o.depth > 0)
+                stereoEdges++;
+            else
+                monoEdges++;
             error += sqerror;
         }
     }
