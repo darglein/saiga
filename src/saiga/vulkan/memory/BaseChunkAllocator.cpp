@@ -19,7 +19,7 @@ namespace Memory
 {
 MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
 {
-    allocationMutex.lock();
+    std::scoped_lock alloc_lock(allocationMutex);
     ChunkIterator chunkAlloc;
     LocationIterator freeSpace;
     tie(chunkAlloc, freeSpace) = m_strategy->findRange(m_chunkAllocations, size);
@@ -49,7 +49,7 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
 
 
     auto val = *chunkAlloc->allocations.emplace(insertionPoint, targetLocation);
-    allocationMutex.unlock();
+    chunkAlloc->allocated += size;
 
     return val;
 }
@@ -137,6 +137,8 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
     findNewMax(fChunk);
 
     chunkAllocs.erase(fLoc);
+
+    fChunk->allocated -= location.size;
 }
 void BaseChunkAllocator::destroy()
 {

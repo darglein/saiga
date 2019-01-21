@@ -25,12 +25,26 @@ struct SAIGA_GLOBAL ChunkAllocation
     LocationIterator maxFreeRange;
     void* mappedPointer;
 
-    ChunkAllocation(const std::shared_ptr<Chunk>& _chunk, vk::Buffer _buffer, vk::DeviceSize size, void* _mappedPointer)
-        : chunk(_chunk), buffer(_buffer), allocations(), freeList(), maxFreeRange(), mappedPointer(_mappedPointer)
+    vk::DeviceSize allocated;
+    vk::DeviceSize size;
+
+    ChunkAllocation(const std::shared_ptr<Chunk>& _chunk, vk::Buffer _buffer, vk::DeviceSize _size,
+                    void* _mappedPointer)
+        : chunk(_chunk),
+          buffer(_buffer),
+          allocations(),
+          freeList(),
+          maxFreeRange(),
+          mappedPointer(_mappedPointer),
+          allocated(0),
+          size(_size)
     {
         freeList.emplace_back(_buffer, _chunk->memory, 0, size);
         maxFreeRange = freeList.begin();
     }
+
+   public:
+    inline vk::DeviceSize getFree() const { return size - allocated; }
 };
 
 typedef std::vector<ChunkAllocation>::iterator ChunkIterator;
