@@ -23,7 +23,11 @@ Vec6 PoseGraph::residual6(const PoseEdge& edge)
 {
     auto& _from = poses[edge.from];
     auto& _to   = poses[edge.to];
+#ifdef LSD_REL
     auto error_ = _from.inverse() * _to * edge.meassurement.inverse();
+#else
+    auto error_ = edge.meassurement.inverse() * _to * _from.inverse();
+#endif
     return error_.log() * edge.weight;
 }
 
@@ -45,7 +49,8 @@ void PoseGraph::save(const std::string& file)
     cout << "chi2 " << chi2() << endl;
     std::ofstream strm(file);
     SAIGA_ASSERT(strm.is_open());
-
+    strm.precision(20);
+    strm << std::scientific;
 
     strm << poses.size() << " " << edges.size() << endl;
     for (auto& e : poses)
@@ -105,8 +110,9 @@ void PoseGraph::load(const std::string& file)
         Sophus::Vector<double, SE3::num_parameters> v;
         strm >> e.from >> e.to >> e.weight >> v;
         v2 = v;
+
+        e.setRel(poses[e.from], poses[e.to]);
     }
-    cout << "chi2 " << chi2() << endl;
 }
 
 }  // namespace Saiga

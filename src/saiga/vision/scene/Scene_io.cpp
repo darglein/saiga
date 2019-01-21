@@ -65,6 +65,9 @@ void Scene::save(const std::string& file)
     cout << "Saving scene to " << file << "." << endl;
     std::ofstream strm(file);
     SAIGA_ASSERT(strm.is_open());
+    strm.precision(20);
+    strm << std::scientific;
+
 
     strm << "# Saiga Scene file." << endl;
     strm << "#" << endl;

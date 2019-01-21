@@ -10,6 +10,7 @@
 #include "saiga/image/image.h"
 #include "saiga/util/statistics.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/pgo/PGOConfig.h"
 
 #include <vector>
 
@@ -25,7 +26,14 @@ struct SAIGA_GLOBAL PoseEdge
     SE3 meassurement;
 
     // Computes the relative pose as it is defined here
-    void setRel(const SE3& from, const SE3& to) { meassurement = from.inverse() * to; }
+    void setRel(const SE3& from, const SE3& to)
+    {
+#ifdef LSD_REL
+        meassurement = from.inverse() * to;
+#else
+        meassurement = to * from.inverse();
+#endif
+    }
 };
 
 struct SAIGA_GLOBAL PoseGraph

@@ -13,6 +13,7 @@
 
 #include "saiga/util/assert.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/pgo/PGOBase.h"
 
 #include "g2o/core/base_binary_edge.h"
 #include "g2o/core/base_unary_edge.h"
@@ -53,15 +54,30 @@ class SAIGA_GLOBAL EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3, Ver
     {
         const VertexSim3* _from = static_cast<const VertexSim3*>(_vertices[0]);
         const VertexSim3* _to   = static_cast<const VertexSim3*>(_vertices[1]);
-        SE3 error_              = _from->estimate().inverse() * _to->estimate() * _inverseMeasurement;
-        _error                  = error_.log();
+#ifdef LSD_REL
+        SE3 error_ = _from->estimate().inverse() * _to->estimate() * _inverseMeasurement;
+#else
+        SE3 error_ = _inverseMeasurement * _to->estimate() * _from->estimate().inverse();
+//        SE3 error_ = _to->estimate() * _from->estimate().inverse() * _inverseMeasurement;
+#endif
+        _error = error_.log();
     }
 
     void linearizeOplus()
     {
         const VertexSim3* _from = static_cast<const VertexSim3*>(_vertices[0]);
-        _jacobianOplusXj        = _from->estimate().inverse().Adj();
-        _jacobianOplusXi        = -_jacobianOplusXj;
+        const VertexSim3* _to   = static_cast<const VertexSim3*>(_vertices[1]);
+#ifdef LSD_REL
+        _jacobianOplusXj = _from->estimate().inverse().Adj();
+        //        _jacobianOplusXj = _from->estimate().Adj();
+        _jacobianOplusXi = -_jacobianOplusXj;
+#else
+        _jacobianOplusXj = _to->estimate().Adj();
+        _jacobianOplusXi = -_jacobianOplusXj;
+        //        _jacobianOplusXj = _from->estimate().Adj();
+        //        _jacobianOplusXi = -_jacobianOplusXj;
+
+#endif
     }
 
 
@@ -75,7 +91,11 @@ class SAIGA_GLOBAL EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3, Ver
     {
         const VertexSim3* from = static_cast<const VertexSim3*>(_vertices[0]);
         const VertexSim3* to   = static_cast<const VertexSim3*>(_vertices[1]);
-        SE3 delta              = from->estimate().inverse() * to->estimate();
+#ifdef LSD_REL
+        SE3 delta = from->estimate().inverse() * to->estimate();
+#else
+        SE3 delta = to->estimate() * from->estimate().inverse();
+#endif
         setMeasurement(delta);
         return true;
     }

@@ -24,7 +24,7 @@
 
 namespace Saiga
 {
-void g2oPoseGraph::solve(PoseGraph& scene)
+void g2oPGO::solve(PoseGraph& scene, const PGOOptions& options)
 {
     cout << "g2oPoseGraph::solve" << endl;
 
@@ -76,7 +76,7 @@ void g2oPoseGraph::solve(PoseGraph& scene)
     optimizer.initializeOptimization();
     optimizer.computeActiveErrors();
     double chi2b = optimizer.chi2();
-    optimizer.optimize(5);
+    optimizer.optimize(10);
     double chi2a = optimizer.chi2();
     cout << "g2o::optimize " << chi2b << " -> " << chi2a << endl;
 }

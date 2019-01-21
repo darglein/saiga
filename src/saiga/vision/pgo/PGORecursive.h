@@ -4,17 +4,28 @@
  * See LICENSE file for more information.
  */
 
+
 #pragma once
 
 #include "saiga/vision/pgo/PGOBase.h"
 
+#include "RecursivePGOTemplates.h"
+
 namespace Saiga
 {
-class SAIGA_GLOBAL g2oPGO : public PGOBase
+class SAIGA_GLOBAL PGORec : public PGOBase
 {
    public:
-    g2oPGO() : PGOBase("g2oPGO") {}
+    PGORec() : PGOBase("recursive PGO") {}
     virtual void solve(PoseGraph& scene, const PGOOptions& options) override;
+
+   private:
+    int n;
+    PSType S;
+    PBType b;
+
+    void initStructure(PoseGraph& scene);
+    void compute(PoseGraph& scene);
 };
 
 }  // namespace Saiga

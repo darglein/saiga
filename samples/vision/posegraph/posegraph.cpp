@@ -9,6 +9,7 @@
 #include "saiga/util/random.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
+#include "saiga/vision/pgo/PGORecursive.h"
 using namespace Saiga;
 
 int main(int, char**)
@@ -20,11 +21,33 @@ int main(int, char**)
     PoseGraph pg;
     pg.load("test.posegraph");
     pg.addNoise(0.1);
-    cout << "chi2 " << pg.chi2() << endl;
+    cout << endl;
 
 
-    g2oPoseGraph opg;
-    opg.solve(pg);
+    PGOOptions baoptions;
+    baoptions.debugOutput            = true;
+    baoptions.maxIterations          = 5;
+    baoptions.maxIterativeIterations = 50;
+    baoptions.iterativeTolerance     = 0;
+    //    baoptions.solverType             = BAOptions::SolverType::Direct;
+    baoptions.solverType = PGOOptions::SolverType::Iterative;
+
+    std::vector<std::shared_ptr<PGOBase>> solvers;
+
+    solvers.push_back(std::make_shared<PGORec>());
+    //    solvers.push_back(std::make_shared<g2oPGO>());
+
+    for (auto& s : solvers)
+    {
+        cout << "[Solver] " << s->name << endl;
+        auto cpy       = pg;
+        auto rmsbefore = cpy.chi2();
+        {
+            SAIGA_BLOCK_TIMER(s->name);
+            s->solve(cpy, baoptions);
+        }
+        cout << "Error " << rmsbefore << " -> " << cpy.chi2() << endl << endl;
+    }
 
     return 0;
 }
