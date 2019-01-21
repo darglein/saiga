@@ -13,6 +13,7 @@
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
+#include "sophus/sim3.hpp"
 
 #include <fstream>
 #include <numeric>
@@ -560,6 +561,8 @@ void BARec::updateScene(Scene& scene)
         auto& p = scene.worldPoints[id].p;
         p += t.cast<double>();
     }
+    Sophus::Sim3d a;
+    a.Adj();
 }
 
 

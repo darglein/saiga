@@ -1,4 +1,5 @@
 add_subdirectory(ba_schur)
+add_subdirectory(posegraph)
 add_subdirectory(ba_performance_test)
 add_subdirectory(block_matrices)
 

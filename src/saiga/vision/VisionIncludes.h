@@ -21,9 +21,11 @@ using SO3 = Sophus::SO3d;
 
 using Quat = Eigen::Quaterniond;
 
-using Vec4 = Eigen::Vector4d;
-using Vec3 = Eigen::Vector3d;
-using Vec2 = Eigen::Vector2d;
+using Vec7 = Eigen::Matrix<double, 7, 1>;
+using Vec6 = Eigen::Matrix<double, 6, 1>;
+using Vec4 = Eigen::Matrix<double, 4, 1>;
+using Vec3 = Eigen::Matrix<double, 3, 1>;
+using Vec2 = Eigen::Matrix<double, 2, 1>;
 
 using Mat4 = Eigen::Matrix4d;
 using Mat3 = Eigen::Matrix3d;

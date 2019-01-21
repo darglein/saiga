@@ -103,20 +103,6 @@ void Scene::save(const std::string& file)
     }
 }
 
-
-template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>& m)
-{
-    for (int i = 0; i < m.rows(); ++i)
-    {
-        for (int j = 0; j < m.cols(); ++j)
-        {
-            is >> m(i, j);
-        }
-    }
-    return is;
-}
-
 void Scene::load(const std::string& file)
 {
     cout << "Loading scene from " << file << "." << endl;
@@ -161,8 +147,7 @@ void Scene::load(const std::string& file)
         Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.se3.data());
         Sophus::Vector<double, SE3::num_parameters> v;
         strm >> e.constant >> v;
-        v2             = v;
-        e.se3.params() = v;
+        v2 = v;
     }
 
     for (auto& img : images)
