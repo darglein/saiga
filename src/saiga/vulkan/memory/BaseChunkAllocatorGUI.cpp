@@ -1,0 +1,108 @@
+//
+// Created by Peter Eichinger on 2019-01-21.
+//
+
+#include "saiga/imgui/imgui.h"
+#include "saiga/util/easylogging++.h"
+#include "saiga/util/tostring.h"
+
+#include "BaseChunkAllocator.h"
+namespace Saiga
+{
+namespace Vulkan
+{
+namespace Memory
+{
+void BaseChunkAllocator::showDetailStats()
+{
+    using BarColor = ImGui::ColoredBar::BarColor;
+    static const std::array<BarColor, 2> colors{BarColor{{0.0f, 0.2f, 0.2f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}},
+                                                BarColor{{0.333f, 0.0f, 0.0f, 1.0f}, {0.667f, 0.224f, 0.224f, 1.0f}}};
+
+    static std::vector<ImGui::ColoredBar> allocation_bars;
+
+    if (ImGui::CollapsingHeader(gui_identifier.c_str()))
+    {
+        ImGui::Indent();
+
+        headerInfo();
+
+        allocation_bars.resize(
+            m_chunkAllocations.size(),
+            ImGui::ColoredBar({0, 60}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 4));
+
+        int numAllocs           = 0;
+        uint64_t usedSpace      = 0;
+        uint64_t innerFreeSpace = 0;
+        uint64_t totalFreeSpace = 0;
+        for (auto i = 0U; i < allocation_bars.size(); ++i)
+        {
+            ImGui::Text("Chunk %d", i + 1);
+            ImGui::Indent();
+            auto bar   = allocation_bars[i];
+            auto chunk = m_chunkAllocations[i];
+            bar.renderBackground();
+            int j = 0;
+            std::list<MemoryLocation>::const_iterator allocIter, freeIter;
+            for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
+            {
+                bar.renderArea(static_cast<float>(allocIter->offset) / m_chunkSize,
+                               static_cast<float>(allocIter->offset + allocIter->size) / m_chunkSize, colors[j % 2]);
+                usedSpace += allocIter->size;
+            }
+            numAllocs += j;
+            auto freeEnd = --chunk.freeList.cend();
+            for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
+            {
+                innerFreeSpace += freeIter->size;
+                totalFreeSpace += freeIter->size;
+            }
+
+            totalFreeSpace += chunk.freeList.back().size;
+
+            ImGui::Unindent();
+        }
+        ImGui::LabelText("Number of allocations", "%d", numAllocs);
+        auto totalSpace = m_chunkSize * m_chunkAllocations.size();
+
+
+        ImGui::LabelText("Usage", "%s / %s (%.2f%%)", sizeToString(usedSpace).c_str(), sizeToString(totalSpace).c_str(),
+                         100 * static_cast<float>(usedSpace) / totalSpace);
+        ImGui::LabelText("Free Space (total / fragmented)", "%s / %s", sizeToString(totalFreeSpace).c_str(),
+                         sizeToString(innerFreeSpace).c_str());
+        ImGui::Unindent();
+    }
+}
+
+MemoryStats BaseChunkAllocator::collectMemoryStats()
+{
+    int numAllocs                = 0;
+    uint64_t usedSpace           = 0;
+    uint64_t fragmentedFreeSpace = 0;
+    uint64_t totalFreeSpace      = 0;
+    for (int i = 0; i < m_chunkAllocations.size(); ++i)
+    {
+        auto chunk = m_chunkAllocations[i];
+        int j      = 0;
+        std::list<MemoryLocation>::const_iterator allocIter, freeIter;
+        for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
+        {
+            usedSpace += allocIter->size;
+        }
+        numAllocs += j;
+        auto freeEnd = --chunk.freeList.cend();
+        for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
+        {
+            fragmentedFreeSpace += freeIter->size;
+            totalFreeSpace += freeIter->size;
+        }
+
+        totalFreeSpace += chunk.freeList.back().size;
+    }
+    auto totalSpace = m_chunkSize * m_chunkAllocations.size();
+
+    return MemoryStats{totalSpace, usedSpace, fragmentedFreeSpace};
+}
+}  // namespace Memory
+}  // namespace Vulkan
+}  // namespace Saiga
