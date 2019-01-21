@@ -231,6 +231,8 @@ void VulkanExample::keyPressed(SDL_Keysym key)
         case SDL_SCANCODE_ESCAPE:
             parentWindow.close();
             break;
+        case SDL_SCANCODE_P:
+            defragmenter.pause();
         default:
             break;
     }

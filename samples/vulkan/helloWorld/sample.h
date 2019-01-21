@@ -11,6 +11,7 @@
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
+#include "saiga/vulkan/memory/Defragmenter.h"
 #include "saiga/vulkan/memory/VulkanMemory.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
@@ -20,7 +21,6 @@
 #include "saiga/window/Interfaces.h"
 
 #include <vector>
-
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener
@@ -66,4 +66,5 @@ class VulkanExample : public Saiga::Updating,
 
     void keyPressed(SDL_Keysym key) override;
     void keyReleased(SDL_Keysym key) override;
+    Defragmenter defragmenter;
 };
