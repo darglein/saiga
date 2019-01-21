@@ -37,10 +37,11 @@ void BaseChunkAllocator::showDetailStats()
         uint64_t totalFreeSpace = 0;
         for (auto i = 0U; i < allocation_bars.size(); ++i)
         {
-            ImGui::Text("Chunk %d", i + 1);
+            auto& bar   = allocation_bars[i];
+            auto& chunk = m_chunkAllocations[i];
+            ImGui::Text("Chunk %d (%s, %s)", i + 1, sizeToString(chunk.allocated).c_str(),
+                        sizeToString(chunk.getFree()).c_str());
             ImGui::Indent();
-            auto bar   = allocation_bars[i];
-            auto chunk = m_chunkAllocations[i];
             bar.renderBackground();
             int j = 0;
             std::list<MemoryLocation>::const_iterator allocIter, freeIter;
