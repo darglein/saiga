@@ -21,7 +21,7 @@ std::pair<ChunkIterator, LocationIterator> FirstFitStrategy::findRange(std::vect
 
     if (foundChunk == _allocations.end())
     {
-        return std::make_pair(_allocations.end(), LocationIterator());
+        return std::make_pair(ChunkIterator(), LocationIterator());
     }
 
     auto& chunk = *foundChunk;
