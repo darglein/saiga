@@ -63,7 +63,7 @@ std::pair<ChunkIterator, LocationIterator> findFitPairForBestWorst(std::vector<C
             {
                 return make_pair(chunkIt, freeIt);
             }
-            if (free_size < foundFreeSpace->size)
+            if (CompareFunc()(free_size, foundFreeSpace->size))
             {
                 foundFreeSpace = freeIt;
                 foundChunk     = chunkIt;
@@ -77,13 +77,13 @@ std::pair<ChunkIterator, LocationIterator> findFitPairForBestWorst(std::vector<C
 std::pair<ChunkIterator, LocationIterator> BestFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
                                                                       vk::DeviceSize size)
 {
-    return findFitPairForBestWorst(_allocations, size, std::less<void>());
+    return findFitPairForBestWorst(_allocations, size, std::less<vk::DeviceSize>());
 }
 
 std::pair<ChunkIterator, LocationIterator> WorstFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
                                                                        vk::DeviceSize size)
 {
-    return findFitPairForBestWorst(_allocations, size, std::greater<void>());
+    return findFitPairForBestWorst(_allocations, size, std::greater<vk::DeviceSize>());
 }
 
 }  // namespace Memory
