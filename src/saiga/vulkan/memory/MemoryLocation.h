@@ -52,7 +52,7 @@ struct SAIGA_GLOBAL MemoryLocation
         other.make_invalid();
     }
 
-    MemoryLocation& operator=(MemoryLocation&& other)
+    MemoryLocation& operator=(MemoryLocation&& other) noexcept
     {
         buffer        = other.buffer;
         memory        = other.memory;
@@ -67,90 +67,21 @@ struct SAIGA_GLOBAL MemoryLocation
     explicit operator bool() { return memory; }
 
    private:
-    void mappedUpload(vk::Device device, const void* data)
-    {
-        SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
-        void* target;
-        vk::Result result = device.mapMemory(memory, offset, size, vk::MemoryMapFlags(), &target);
-        if (result != vk::Result::eSuccess)
-        {
-            LOG(FATAL) << "Could not map " << memory << vk::to_string(result);
-        }
-        //        void *target = result.;
-        //        void* target = device.mapMemory(memory, offset,size);
-        std::memcpy(target, data, size);
-        device.unmapMemory(memory);
-    }
+    void mappedUpload(vk::Device device, const void* data);
 
 
-    void mappedDownload(vk::Device device, void* data) const
-    {
-        SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
-        void* target = device.mapMemory(memory, offset, size);
-        std::memcpy(data, target, size);
-        device.unmapMemory(memory);
-    }
+    void mappedDownload(vk::Device device, void* data) const;
 
    public:
-    void upload(vk::Device device, const void* data)
-    {
-        if (mappedPointer)
-        {
-            std::memcpy(mappedPointer, data, size);
-        }
-        else
-        {
-            mappedUpload(device, data);
-        }
-    }
+    void upload(vk::Device device, const void* data);
 
-    void download(vk::Device device, void* data) const
-    {
-        if (mappedPointer)
-        {
-            std::memcpy(data, mappedPointer, size);
-        }
-        else
-        {
-            mappedDownload(device, data);
-        }
-    }
+    void download(vk::Device device, void* data) const;
 
-    void* map(vk::Device device)
-    {
-        SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
-        mappedPointer = device.mapMemory(memory, offset, size);
-        return mappedPointer;
-    }
+    void* map(vk::Device device);
 
-    void unmap(vk::Device device)
-    {
-        SAIGA_ASSERT(mappedPointer, "Memory not mapped");
-        device.unmapMemory(memory);
-        mappedPointer = nullptr;
-    }
+    void destroy(const vk::Device& device);
 
-    void destroy(const vk::Device& device)
-    {
-        SAIGA_ASSERT(memory, "Already destroyed");
-        if (buffer)
-        {
-            device.destroy(buffer);
-            buffer = nullptr;
-        }
-        if (memory)
-        {
-            device.free(memory);
-            memory = nullptr;
-        }
-        mappedPointer = nullptr;
-    }
-
-    void* getPointer() const
-    {
-        SAIGA_ASSERT(mappedPointer, "Memory is not mapped");
-        return static_cast<char*>(mappedPointer) + offset;
-    }
+    void* getPointer() const;
 
 
 
@@ -177,14 +108,7 @@ struct SAIGA_GLOBAL MemoryLocation
     }
 
    public:
-    inline void make_invalid()
-    {
-        this->buffer        = nullptr;
-        this->memory        = nullptr;
-        this->offset        = VK_WHOLE_SIZE;
-        this->size          = VK_WHOLE_SIZE;
-        this->mappedPointer = nullptr;
-    }
+    void make_invalid();
 };
 
 }  // namespace Memory
