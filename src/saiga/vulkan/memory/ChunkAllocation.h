@@ -14,15 +14,16 @@ namespace Vulkan
 {
 namespace Memory
 {
-typedef std::list<MemoryLocation>::iterator LocationIterator;
+typedef std::vector<MemoryLocation> ChunkList;
+typedef ChunkList::iterator LocationIterator;
 
 struct SAIGA_GLOBAL ChunkAllocation
 {
     std::shared_ptr<Chunk> chunk;
     vk::Buffer buffer;
-    std::list<MemoryLocation> allocations;
-    std::list<MemoryLocation> freeList;
-    LocationIterator maxFreeRange;
+    ChunkList allocations;
+    ChunkList freeList;
+    MemoryLocation maxFreeRange;
     void* mappedPointer;
 
     vk::DeviceSize allocated;
@@ -40,10 +41,12 @@ struct SAIGA_GLOBAL ChunkAllocation
           size(_size)
     {
         freeList.emplace_back(_buffer, _chunk->memory, 0, size);
-        maxFreeRange = freeList.begin();
+        maxFreeRange = freeList.front();
     }
 
    public:
+    bool operator<(const ChunkAllocation& rhs) const { return allocated > rhs.allocated; }
+
     inline vk::DeviceSize getFree() const { return size - allocated; }
 };
 

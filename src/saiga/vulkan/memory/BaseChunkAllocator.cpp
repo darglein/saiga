@@ -51,15 +51,25 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
     auto val = *chunkAlloc->allocations.emplace(insertionPoint, targetLocation);
     chunkAlloc->allocated += size;
 
+    std::sort(m_chunkAllocations.begin(), m_chunkAllocations.end());
+
     return val;
 }
 
 void BaseChunkAllocator::findNewMax(ChunkIterator& chunkAlloc) const
 {
     auto& freeList = chunkAlloc->freeList;
+
+    if (chunkAlloc->freeList.empty())
+    {
+        chunkAlloc->maxFreeRange = MemoryLocation();
+        return;
+    }
+
+
     chunkAlloc->maxFreeRange =
-        max_element(freeList.begin(), freeList.end(),
-                    [](MemoryLocation& first, MemoryLocation& second) { return first.size < second.size; });
+        *max_element(freeList.begin(), freeList.end(),
+                     [](MemoryLocation& first, MemoryLocation& second) { return first.size < second.size; });
 }
 
 MemoryLocation BaseChunkAllocator::createMemoryLocation(ChunkIterator iter, vk::DeviceSize offset, vk::DeviceSize size)
@@ -124,14 +134,17 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
     }
     else
     {
+        LocationIterator insertionPoint;
         if (foundInsert)
         {
-            chunkFree.insert(std::next(freeInsert), location);
+            insertionPoint = std::next(freeInsert);
         }
         else
         {
-            chunkFree.push_front(location);
+            insertionPoint = chunkFree.begin();
         }
+
+        chunkFree.insert(insertionPoint, location);
     }
 
     findNewMax(fChunk);
@@ -139,6 +152,8 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
     chunkAllocs.erase(fLoc);
 
     fChunk->allocated -= location.size;
+
+    std::sort(m_chunkAllocations.begin(), m_chunkAllocations.end());
 }
 void BaseChunkAllocator::destroy()
 {

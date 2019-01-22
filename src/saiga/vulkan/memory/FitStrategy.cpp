@@ -16,12 +16,12 @@ std::pair<ChunkIterator, LocationIterator> FirstFitStrategy::findRange(std::vect
                                                                        vk::DeviceSize size)
 {
     auto foundChunk = std::find_if(_allocations.begin(), _allocations.end(), [&](ChunkAllocation& alloc) {
-        return alloc.maxFreeRange != alloc.freeList.end() && (alloc.maxFreeRange->size >= size);
+        return alloc.maxFreeRange && (alloc.maxFreeRange.size >= size);
     });
 
     if (foundChunk == _allocations.end())
     {
-        return std::make_pair(ChunkIterator(), LocationIterator());
+        return std::make_pair(_allocations.end(), LocationIterator());
     }
 
     auto& chunk = *foundChunk;
