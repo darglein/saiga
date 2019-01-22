@@ -5,7 +5,9 @@
  */
 #include "saiga/vision/scene/PoseGraph.h"
 
+#include "saiga/framework/framework.h"
 #include "saiga/time/timer.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/random.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
@@ -14,13 +16,17 @@ using namespace Saiga;
 
 int main(int, char**)
 {
+    Saiga::SaigaParameters saigaParameters;
+    Saiga::initSample(saigaParameters);
+    Saiga::initSaiga(saigaParameters);
+
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
     Saiga::Random::setSeed(93865023985);
 
 
     PoseGraph pg;
-    //    pg.load("testlst.posegraph");
-    pg.load("test.posegraph");
+    //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
+    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
     pg.addNoise(0.1);
     cout << endl;
 

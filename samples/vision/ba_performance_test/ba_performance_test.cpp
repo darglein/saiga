@@ -3,7 +3,9 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
+#include "saiga/framework/framework.h"
 #include "saiga/time/timer.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/random.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
@@ -28,9 +30,10 @@ void buildScene(Scene& scene)
 
 void buildSceneBAL(Scene& scene)
 {
-    //    Saiga::BALDataset bald("problem-00021-11315-pre.txt");
-    //    Saiga::BALDataset bald("problem-00257-65132-pre.txt");
-    Saiga::BALDataset bald("problem-01778-993923-pre.txt");
+    //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00021-11315-pre.txt"));
+    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00257-65132-pre.txt"));
+    //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-01778-993923-pre.txt"));
+
     scene = bald.makeScene();
 
 
@@ -53,21 +56,24 @@ void buildSceneBAL(Scene& scene)
     //        {
     //    }
     SAIGA_ASSERT(scene);
-    //    scene.compress();
-    //    scene.sortByWorldPointId();
     cout << endl;
 }
 
 
 int main(int, char**)
 {
+    Saiga::SaigaParameters saigaParameters;
+    Saiga::initSample(saigaParameters);
+    Saiga::initSaiga(saigaParameters);
+
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
     Saiga::Random::setSeed(93865023985);
 
     Scene scene;
-    //    scene.load("slam.scene");
+    //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
+    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
     //    buildScene(scene);
-    buildSceneBAL(scene);
+    //    buildSceneBAL(scene);
 
 
     BAOptions baoptions;
