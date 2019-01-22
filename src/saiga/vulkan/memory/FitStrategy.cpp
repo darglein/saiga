@@ -36,7 +36,7 @@ std::pair<ChunkIterator, LocationIterator> FirstFitStrategy::findRange(std::vect
 
 template <typename CompareFunc>
 std::pair<ChunkIterator, LocationIterator> findFitPairForBestWorst(std::vector<ChunkAllocation>& _allocations,
-                                                                   vk::DeviceSize size, CompareFunc func)
+                                                                   vk::DeviceSize size)
 {
     bool found = false;
     ChunkIterator foundChunk;
@@ -77,13 +77,13 @@ std::pair<ChunkIterator, LocationIterator> findFitPairForBestWorst(std::vector<C
 std::pair<ChunkIterator, LocationIterator> BestFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
                                                                       vk::DeviceSize size)
 {
-    return findFitPairForBestWorst(_allocations, size, std::less<vk::DeviceSize>());
+    return findFitPairForBestWorst<std::less<vk::DeviceSize>>(_allocations, size);
 }
 
 std::pair<ChunkIterator, LocationIterator> WorstFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
                                                                        vk::DeviceSize size)
 {
-    return findFitPairForBestWorst(_allocations, size, std::greater<vk::DeviceSize>());
+    return findFitPairForBestWorst<std::greater<vk::DeviceSize>>(_allocations, size);
 }
 
 }  // namespace Memory
