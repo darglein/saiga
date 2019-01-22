@@ -113,6 +113,7 @@ void PoseGraph::load(const std::string& file)
 
         e.setRel(poses[e.from], poses[e.to]);
     }
+    std::sort(edges.begin(), edges.end());
 }
 
 }  // namespace Saiga

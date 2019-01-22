@@ -26,21 +26,39 @@ namespace Saiga
 {
 void g2oPGO::solve(PoseGraph& scene, const PGOOptions& options)
 {
-    cout << "g2oPoseGraph::solve" << endl;
-
-    using BlockSolver           = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1> >;
-    using LinearSolver          = g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>;
+    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+    using BlockSolver           = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
     using OptimizationAlgorithm = g2o::OptimizationAlgorithmLevenberg;
+    using LinearSolver          = std::unique_ptr<BlockSolver::LinearSolverType>;
+
+    LinearSolver linearSolver;
+    switch (options.solverType)
+    {
+        case PGOOptions::SolverType::Direct:
+        {
+            auto ls = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
+            ls->setBlockOrdering(false);
+            linearSolver = std::move(ls);
+            break;
+        }
+        case PGOOptions::SolverType::Iterative:
+        {
+            auto ls = g2o::make_unique<g2o::LinearSolverPCG<BlockSolver::PoseMatrixType>>();
+            ls->setMaxIterations(options.maxIterativeIterations);
+            ls->setTolerance(options.iterativeTolerance);
+            linearSolver = std::move(ls);
+            break;
+        }
+    }
 
 
-    auto linearSolver = std::make_unique<LinearSolver>();
-    linearSolver->setBlockOrdering(false);
 
     OptimizationAlgorithm* solver = new OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
-    solver->setUserLambdaInit(1.0);
+    solver->setUserLambdaInit(1e-4);
 
     g2o::SparseOptimizer optimizer;
-    optimizer.setVerbose(true);
+    optimizer.setVerbose(options.debugOutput);
+    optimizer.setComputeBatchStatistics(options.debugOutput);
     optimizer.setAlgorithm(solver);
 
     // Add all pose vertices
@@ -73,12 +91,31 @@ void g2oPGO::solve(PoseGraph& scene, const PGOOptions& options)
     }
 
 
-    optimizer.initializeOptimization();
-    optimizer.computeActiveErrors();
-    double chi2b = optimizer.chi2();
-    optimizer.optimize(10);
-    double chi2a = optimizer.chi2();
-    cout << "g2o::optimize " << chi2b << " -> " << chi2a << endl;
+    {
+        SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+        optimizer.initializeOptimization();
+
+        if (options.debugOutput)
+        {
+            optimizer.computeActiveErrors();
+            double chi2b = optimizer.chi2();
+            optimizer.optimize(options.maxIterations);
+            double chi2a = optimizer.chi2();
+            cout << "g2o::optimize " << chi2b << " -> " << chi2a << endl;
+        }
+        else
+        {
+            optimizer.optimize(options.maxIterations);
+        }
+    }
+
+
+    for (size_t i = 0; i < scene.poses.size(); ++i)
+    {
+        VertexSim3* v_se3 = static_cast<VertexSim3*>(optimizer.vertex(i));
+        auto& e           = scene.poses[i];
+        e                 = v_se3->estimate();
+    }
 }
 
 }  // namespace Saiga

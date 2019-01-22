@@ -34,6 +34,8 @@ struct SAIGA_GLOBAL PoseEdge
         meassurement = to * from.inverse();
 #endif
     }
+
+    bool operator<(const PoseEdge& other) { return std::tie(from, to) < std::tie(other.from, other.to); }
 };
 
 struct SAIGA_GLOBAL PoseGraph

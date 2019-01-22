@@ -28,10 +28,11 @@ using BlockBAScalar = double;
 #endif
 
 
-using PGOBlock  = Eigen::Matrix<BlockBAScalar, pgoBlockSizeCamera, pgoBlockSizeCamera>;
-using PGOVector = Eigen::Matrix<BlockBAScalar, pgoBlockSizeCamera, 1>;
-// using SType    = Eigen::SparseMatrix<MatrixScalar<PGOBlock>, Eigen::RowMajor>;
-using PSType = Eigen::Matrix<MatrixScalar<PGOBlock>, -1, -1, Eigen::RowMajor>;
+using PGOBlock   = Eigen::Matrix<BlockBAScalar, pgoBlockSizeCamera, pgoBlockSizeCamera>;
+using PGOVector  = Eigen::Matrix<BlockBAScalar, pgoBlockSizeCamera, 1>;
+using PSType     = Eigen::SparseMatrix<MatrixScalar<PGOBlock>, Eigen::RowMajor>;
+using PSDiagType = Eigen::DiagonalMatrix<MatrixScalar<PGOBlock>, -1>;
+// using PSType = Eigen::Matrix<MatrixScalar<PGOBlock>, -1, -1, Eigen::RowMajor>;
 using PBType = Eigen::Matrix<MatrixScalar<PGOVector>, -1, 1>;
 
 

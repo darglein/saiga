@@ -13,7 +13,7 @@
 
 #include "saiga/util/assert.h"
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/pgo/PGOBase.h"
+#include "saiga/vision/pgo/PGOConfig.h"
 
 #include "g2o/core/base_binary_edge.h"
 #include "g2o/core/base_unary_edge.h"
@@ -58,7 +58,7 @@ class SAIGA_GLOBAL EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3, Ver
         SE3 error_ = _from->estimate().inverse() * _to->estimate() * _inverseMeasurement;
 #else
         SE3 error_ = _inverseMeasurement * _to->estimate() * _from->estimate().inverse();
-//        SE3 error_ = _to->estimate() * _from->estimate().inverse() * _inverseMeasurement;
+//        SE3 error_       = _to->estimate() * _from->estimate().inverse() * _inverseMeasurement;
 #endif
         _error = error_.log();
     }
@@ -69,13 +69,11 @@ class SAIGA_GLOBAL EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3, Ver
         const VertexSim3* _to   = static_cast<const VertexSim3*>(_vertices[1]);
 #ifdef LSD_REL
         _jacobianOplusXj = _from->estimate().inverse().Adj();
-        //        _jacobianOplusXj = _from->estimate().Adj();
         _jacobianOplusXi = -_jacobianOplusXj;
 #else
-        _jacobianOplusXj = _to->estimate().Adj();
+        SE3 error        = _inverseMeasurement * _to->estimate() * _from->estimate().inverse();
+        _jacobianOplusXj = error.Adj();
         _jacobianOplusXi = -_jacobianOplusXj;
-        //        _jacobianOplusXj = _from->estimate().Adj();
-        //        _jacobianOplusXi = -_jacobianOplusXj;
 
 #endif
     }
@@ -94,7 +92,7 @@ class SAIGA_GLOBAL EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3, Ver
 #ifdef LSD_REL
         SE3 delta = from->estimate().inverse() * to->estimate();
 #else
-        SE3 delta = to->estimate() * from->estimate().inverse();
+        SE3 delta        = to->estimate() * from->estimate().inverse();
 #endif
         setMeasurement(delta);
         return true;

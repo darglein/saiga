@@ -18,8 +18,9 @@ inline _Tp exclusive_scan(_InputIterator1 __first1, _InputIterator1 __last1, _In
 {
     for (; __first1 != __last1; ++__first1, (void)++__output)
     {
+        auto tmp  = *__first1;  // make sure it works inplace
         *__output = __init;
-        __init    = __init + *__first1;
+        __init    = __init + tmp;
     }
     return __init;
 }

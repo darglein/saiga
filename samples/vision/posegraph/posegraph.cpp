@@ -19,23 +19,24 @@ int main(int, char**)
 
 
     PoseGraph pg;
+    //    pg.load("testlst.posegraph");
     pg.load("test.posegraph");
     pg.addNoise(0.1);
     cout << endl;
 
 
     PGOOptions baoptions;
-    baoptions.debugOutput            = true;
-    baoptions.maxIterations          = 5;
-    baoptions.maxIterativeIterations = 50;
-    baoptions.iterativeTolerance     = 0;
-    //    baoptions.solverType             = BAOptions::SolverType::Direct;
+    baoptions.debugOutput            = false;
+    baoptions.maxIterations          = 10;
+    baoptions.maxIterativeIterations = 20;
+    baoptions.iterativeTolerance     = 1e-10;
+    //    baoptions.solverType             = PGOOptions::SolverType::Direct;
     baoptions.solverType = PGOOptions::SolverType::Iterative;
 
     std::vector<std::shared_ptr<PGOBase>> solvers;
 
     solvers.push_back(std::make_shared<PGORec>());
-    //    solvers.push_back(std::make_shared<g2oPGO>());
+    solvers.push_back(std::make_shared<g2oPGO>());
 
     for (auto& s : solvers)
     {

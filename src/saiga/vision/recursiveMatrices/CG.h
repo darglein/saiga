@@ -239,6 +239,7 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
     Index i           = 0;
     while (i < maxIters)
     {
+        //        cout << "CG Residual " << i << ": " << residualNorm2 << endl;
         tmp = applyA(p);
         // the amount we travel on dir
         Scalar alpha = absNew / dot(p, tmp);

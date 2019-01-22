@@ -22,10 +22,17 @@ class SAIGA_GLOBAL PGORec : public PGOBase
    private:
     int n;
     PSType S;
+    PSDiagType Sdiag;
     PBType b;
+    PBType x;
 
+    double chi2;
+
+    std::vector<std::pair<int, int>> edgeOffsets;
+    PGOOptions options;
     void initStructure(PoseGraph& scene);
     void compute(PoseGraph& scene);
+    void solveL(PoseGraph& scene);
 };
 
 }  // namespace Saiga
