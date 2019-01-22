@@ -86,7 +86,9 @@ void ColoredBar::renderBackground()
     }
 }
 
-void ColoredBar::renderArea(float begin, float end, const ColoredBar::BarColor& color)
+
+
+void ColoredBar::renderArea(float begin, float end, const ColoredBar::BarColor& color, bool outline)
 {
     SAIGA_ASSERT(m_lastDrawList, "renderBackground() was not called before renderArea()");
 
@@ -108,7 +110,14 @@ void ColoredBar::renderArea(float begin, float end, const ColoredBar::BarColor& 
         const ImVec2 left{corner[0] + start_01 * m_size[0], corner[1]};
         const ImVec2 right{corner[0] + end_01 * m_size[0], corner[1] + m_size[1]};
 
-        DrawOutlinedRect(left, right, color);
+        if (outline)
+        {
+            DrawOutlinedRect(left, right, color);
+        }
+        else
+        {
+            DrawRect(left, right, color);
+        }
     }
 }
 
@@ -117,5 +126,11 @@ void ColoredBar::DrawOutlinedRect(const vec2& begin, const vec2& end, const Colo
     m_lastDrawList->AddRectFilled(begin, end, ImColor(color.fill), m_rounding, m_rounding_corners);
     m_lastDrawList->AddRect(begin, end, ImColor(color.outline), m_rounding, m_rounding_corners);
 }
+
+void ColoredBar::DrawRect(const vec2& begin, const vec2& end, const ColoredBar::BarColor& color)
+{
+    m_lastDrawList->AddRectFilled(begin, end, ImColor(color.fill), m_rounding, m_rounding_corners);
+}
+
 
 }  // namespace ImGui
