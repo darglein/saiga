@@ -71,16 +71,22 @@ int main(int, char**)
 
     Scene scene;
     //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
-    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
+    //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
+    scene.load(SearchPathes::data("vision/slam.scene"));
     //    buildScene(scene);
     //    buildSceneBAL(scene);
 
+    cout << scene << endl;
 
     BAOptions baoptions;
-    baoptions.debugOutput            = true;
-    baoptions.maxIterations          = 1;
-    baoptions.maxIterativeIterations = 50;
-    baoptions.iterativeTolerance     = 0;
+    baoptions.debugOutput            = false;
+    baoptions.maxIterations          = 10;
+    baoptions.maxIterativeIterations = 10;
+    baoptions.iterativeTolerance     = 1e-50;
+
+    //    baoptions.huberMono   = 5.99;
+    //    baoptions.huberStereo = 7.815;
+
     //    baoptions.solverType             = BAOptions::SolverType::Direct;
     baoptions.solverType = BAOptions::SolverType::Iterative;
 

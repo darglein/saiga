@@ -152,6 +152,7 @@ bool Scene::valid() const
     return true;
 }
 
+
 Saiga::Statistics<double> Scene::statistics()
 {
     std::vector<double> stats;
@@ -289,6 +290,42 @@ std::vector<int> Scene::validImages()
     return res;
 }
 
+std::vector<int> Scene::validPoints()
+{
+    std::vector<int> res;
+    for (int i = 0; i < (int)worldPoints.size(); ++i)
+    {
+        if (worldPoints[i]) res.push_back(i);
+    }
+    return res;
+}
+
+double Scene::chi2()
+{
+    double error = 0;
+
+    int stereoEdges = 0;
+    int monoEdges   = 0;
+
+    for (SceneImage& im : images)
+    {
+        double sqerror;
+
+        for (auto& o : im.stereoPoints)
+        {
+            if (!o) continue;
+            sqerror = residualNorm2(im, o);
+
+            if (o.depth > 0)
+                stereoEdges++;
+            else
+                monoEdges++;
+            error += sqerror;
+        }
+    }
+
+    return error;
+}
 
 
 double Scene::rms()

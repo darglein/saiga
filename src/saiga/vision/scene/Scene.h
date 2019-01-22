@@ -169,6 +169,7 @@ class SAIGA_GLOBAL Scene
     bool valid() const;
     explicit operator bool() const { return valid(); }
 
+    double chi2();
     double rms();
     double rmsDense();
 
@@ -197,6 +198,7 @@ class SAIGA_GLOBAL Scene
     void compress();
 
     std::vector<int> validImages();
+    std::vector<int> validPoints();
 
     // ================================= IO =================================
     // -> defined in Scene_io.cpp
@@ -206,5 +208,7 @@ class SAIGA_GLOBAL Scene
     void save(const std::string& file);
     void load(const std::string& file);
 };
+
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, Scene& scene);
 
 }  // namespace Saiga

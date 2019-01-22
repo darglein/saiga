@@ -281,6 +281,7 @@ void BARec::computeUVW(Scene& scene)
             int imgid    = validImages[i];
             auto& img    = scene.images[imgid];
             auto& extr   = scene.extrinsics[img.extr].se3;
+            auto& extr2  = scene.extrinsics[img.extr];
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
 
@@ -306,6 +307,8 @@ void BARec::computeUVW(Scene& scene)
 
                     KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, w, res, JrowPose,
                                                             JrowPoint);
+                    if (extr2.constant) JrowPose.setZero();
+
                     auto c = res.squaredNorm();
                     chi2 += c;
                     if (options.huberStereo > 0)
@@ -329,6 +332,7 @@ void BARec::computeUVW(Scene& scene)
                     KernelType::ResidualType res;
 
                     KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
+                    if (extr2.constant) JrowPose.setZero();
                     auto c = res.squaredNorm();
                     chi2 += c;
                     if (options.huberMono > 0)
@@ -588,9 +592,9 @@ void BARec::updateScene(Scene& scene)
 #else
         t = da(i).get();
 #endif
-        auto id   = validImages[i];
-        auto& se3 = scene.extrinsics[id].se3;
-        se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
+        auto id    = validImages[i];
+        auto& extr = scene.extrinsics[id];
+        if (!extr.constant) extr.se3 = Sophus::SE3d::exp(t.cast<double>()) * extr.se3;
     }
 
     for (size_t i = 0; i < validPoints.size(); ++i)
@@ -632,7 +636,6 @@ void BARec::solve(Scene& scene, const BAOptions& options)
             cout << "chi2 = " << chi2 << endl;
         }
 
-        SAIGA_BLOCK_TIMER();
         computeSchur();
 
 #if 0

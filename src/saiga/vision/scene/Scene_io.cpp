@@ -173,4 +173,34 @@ void Scene::load(const std::string& file)
     SAIGA_ASSERT(valid());
 }
 
+
+std::ostream& operator<<(std::ostream& strm, Scene& scene)
+{
+    strm << "[Scene]" << endl;
+    strm << " Images: " << scene.validImages().size() << "/" << scene.images.size() << endl;
+    strm << " Points: " << scene.validPoints().size() << "/" << scene.worldPoints.size() << endl;
+
+    int stereoEdges = 0;
+    int monoEdges   = 0;
+    for (SceneImage& im : scene.images)
+    {
+        for (auto& o : im.stereoPoints)
+        {
+            if (!o) continue;
+
+            if (o.depth > 0)
+                stereoEdges++;
+            else
+                monoEdges++;
+        }
+    }
+    strm << " MonoEdges: " << monoEdges << endl;
+    strm << " StereoEdges: " << stereoEdges << endl;
+    strm << " TotalEdges: " << monoEdges + stereoEdges << endl;
+    strm << " Rms: " << scene.rms() << endl;
+    strm << " Chi2: " << scene.chi2() << endl;
+
+    return strm;
+}
+
 }  // namespace Saiga
