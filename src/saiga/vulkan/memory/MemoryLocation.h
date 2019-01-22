@@ -26,10 +26,13 @@ struct SAIGA_GLOBAL MemoryLocation
     vk::DeviceSize size;
     void* mappedPointer;
 
-    MemoryLocation() : buffer(nullptr), memory(nullptr), offset(0), size(0), mappedPointer(nullptr) {}
+    explicit MemoryLocation(vk::DeviceSize _size)
+        : buffer(nullptr), memory(nullptr), offset(0), size(_size), mappedPointer(nullptr)
+    {
+    }
 
-    MemoryLocation(vk::Buffer _buffer, vk::DeviceMemory _memory, vk::DeviceSize _offset, vk::DeviceSize _size = 0,
-                   void* _basePointer = nullptr)
+    explicit MemoryLocation(vk::Buffer _buffer = nullptr, vk::DeviceMemory _memory = nullptr,
+                            vk::DeviceSize _offset = 0, vk::DeviceSize _size = 0, void* _basePointer = nullptr)
         : buffer(_buffer), memory(_memory), offset(_offset), size(_size), mappedPointer(nullptr)
     {
         if (_basePointer)
