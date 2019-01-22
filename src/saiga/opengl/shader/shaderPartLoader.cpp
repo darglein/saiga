@@ -19,7 +19,6 @@ namespace Saiga
 #define STATUS_WAITING 0
 #define STATUS_READING 1
 
-FileChecker shaderPathes;
 
 bool ShaderPartLoader::addLineDirectives = false;
 
@@ -114,7 +113,7 @@ inline std::string getFileFromInclude(const std::string& file, std::string line)
 
     // recursivly load includes
     std::string includeFileName = line;
-    includeFileName             = shaderPathes.getRelative(file, includeFileName);
+    includeFileName             = SearchPathes::shader.getRelative(file, includeFileName);
     return includeFileName;
 }
 

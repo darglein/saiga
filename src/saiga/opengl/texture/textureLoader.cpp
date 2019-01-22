@@ -16,34 +16,39 @@ bool operator==(const TextureParameters& lhs, const TextureParameters& rhs)
 }
 
 
-
-std::shared_ptr<Texture> TextureLoader::textureFromImage(Image& im, const TextureParameters& params) const
+std::shared_ptr<Texture> TextureLoader::load(const std::string& name, const TextureParameters& params)
 {
-    auto text = std::make_shared<Texture>();
-    bool erg  = text->fromImage(im, params.srgb, true);
-    if (erg)
+    std::string fullName = SearchPathes::image(name);
+    if (fullName.empty())
     {
-        return text;
-    }
-    return nullptr;
-}
-
-std::shared_ptr<Texture> TextureLoader::loadFromFile(const std::string& path, const TextureParameters& params)
-{
-    bool erg;
-
-    Image im;
-    erg = im.load(path);
-
-    if (erg)
-    {
-        auto text = std::make_shared<Texture>();
-        erg       = text->fromImage(im, params.srgb, true);
-        return text;
+        cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set." << endl;
+        cerr << SearchPathes::image << endl;
+        SAIGA_ASSERT(0);
     }
 
-    return nullptr;
-}
+    std::shared_ptr<Texture> object;
+    auto inCache = cache.get(fullName, object, params);
 
+    if (inCache)
+    {
+    }
+    else
+    {
+        bool erg;
+        Image im;
+        erg = im.load(fullName);
+
+
+        if (erg)
+        {
+            object = std::make_shared<Texture>();
+            erg    = object->fromImage(im, params.srgb, true);
+        }
+
+        cache.put(fullName, object, params);
+    }
+    SAIGA_ASSERT(object);
+    return object;
+}
 
 }  // namespace Saiga

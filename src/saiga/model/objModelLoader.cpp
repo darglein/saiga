@@ -24,11 +24,11 @@ ObjModelLoader::ObjModelLoader(const std::string& file) : file(file)
 
 bool ObjModelLoader::loadFile(const std::string& _file)
 {
-    this->file = modelPathes.getFile(_file);
+    this->file = SearchPathes::model(_file);
     if (file == "")
     {
         cerr << "Could not open file " << _file << endl;
-        cerr << modelPathes << endl;
+        cerr << SearchPathes::model << endl;
         return false;
     }
 

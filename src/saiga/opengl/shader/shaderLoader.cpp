@@ -8,28 +8,17 @@
 
 namespace Saiga
 {
-std::shared_ptr<Shader> ShaderLoader::loadFromFile(const std::string& name,
-                                                   const ShaderPart::ShaderCodeInjections& params)
-{
-    (void)params;
-    cout << "fail ShaderLoader::loadFromFile " << name << endl;
-
-    SAIGA_ASSERT(0);
-
-    return nullptr;
-}
-
 void ShaderLoader::reload()
 {
-    cout << "ShaderLoader::reload " << objects.size() << endl;
-    for (auto& object : objects)
+    cout << "ShaderLoader::reload " << cache.objects.size() << endl;
+    for (auto& object : cache.objects)
     {
         auto name   = std::get<0>(object);
         auto sci    = std::get<1>(object);
         auto shader = std::get<2>(object);
 
 
-        std::string fullName = shaderPathes.getFile(name);
+        std::string fullName = SearchPathes::shader(name);
         auto ret             = reload(shader, fullName, sci);
         SAIGA_ASSERT(ret);
     }

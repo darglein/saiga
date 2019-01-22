@@ -78,6 +78,11 @@ void FileChecker::addSearchPath(const std::string& path)
     searchPathes.push_back(path);
 }
 
+void FileChecker::addSearchPath(const std::vector<std::string>& paths)
+{
+    for (auto& s : paths) addSearchPath(s);
+}
+
 bool FileChecker::existsFile(const std::string& file)
 {
     std::ifstream infile(file);
@@ -94,4 +99,12 @@ std::ostream& operator<<(std::ostream& os, const FileChecker& fc)
     return os;
 }
 
+namespace SearchPathes
+{
+FileChecker shader;
+FileChecker image;
+FileChecker model;
+FileChecker font;
+FileChecker data;
+}  // namespace SearchPathes
 }  // namespace Saiga

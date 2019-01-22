@@ -217,7 +217,7 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
 
 void initSaigaGL(const std::string& shaderDir, const std::vector<std::string>& textureDir)
 {
-    shaderPathes.addSearchPath(shaderDir);
+    //    shaderPathes.addSearchPath(shaderDir);
     // Disables the following notification:
     // Buffer detailed info : Buffer object 2 (bound to GL_ELEMENT_ARRAY_BUFFER_ARB, usage hint is GL_STREAM_DRAW)
     // will use VIDEO memory as the source for buffer object operations.
@@ -227,16 +227,16 @@ void initSaigaGL(const std::string& shaderDir, const std::vector<std::string>& t
     };
     Error::ignoreGLError(ignoreIds);
 
-    TextureLoader::instance()->addPath(".");
-    for (auto t : textureDir) TextureLoader::instance()->addPath(t);
+    //    TextureLoader::instance()->addPath(".");
+    //    for (auto t : textureDir) TextureLoader::instance()->addPath(t);
     //    TextureLoader::instance()->addPath(textureDir);
     //    TextureLoader::instance()->addPath(textureDir + "/include");
 }
 
 void cleanupSaigaGL()
 {
-    ShaderLoader::instance()->clear();
-    TextureLoader::instance()->clear();
+    //    ShaderLoader::instance()->clear();
+    //    TextureLoader::instance()->clear();
 }
 
 
