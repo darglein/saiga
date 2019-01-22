@@ -16,8 +16,8 @@ namespace Memory
 void BaseChunkAllocator::showDetailStats()
 {
     using BarColor = ImGui::ColoredBar::BarColor;
-    static const std::array<BarColor, 2> colors{BarColor{{0.0f, 0.2f, 0.2f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}},
-                                                BarColor{{0.333f, 0.0f, 0.0f, 1.0f}, {0.667f, 0.224f, 0.224f, 1.0f}}};
+    static const std::array<BarColor, 1> alloc_colors{
+        BarColor{{0.592f, 0.886f, 0.f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}}};
 
     static std::vector<ImGui::ColoredBar> allocation_bars;
 
@@ -29,7 +29,7 @@ void BaseChunkAllocator::showDetailStats()
 
         allocation_bars.resize(
             m_chunkAllocations.size(),
-            ImGui::ColoredBar({0, 60}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 4));
+            ImGui::ColoredBar({0, 40}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 1));
 
         int numAllocs           = 0;
         uint64_t usedSpace      = 0;
@@ -44,23 +44,27 @@ void BaseChunkAllocator::showDetailStats()
             ImGui::Indent();
             bar.renderBackground();
             int j = 0;
-            std::list<MemoryLocation>::const_iterator allocIter, freeIter;
+            ChunkList::const_iterator allocIter, freeIter;
             for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
             {
                 bar.renderArea(static_cast<float>(allocIter->offset) / m_chunkSize,
-                               static_cast<float>(allocIter->offset + allocIter->size) / m_chunkSize, colors[j % 2]);
+                               static_cast<float>(allocIter->offset + allocIter->size) / m_chunkSize,
+                               alloc_colors[j % alloc_colors.size()], false);
                 usedSpace += allocIter->size;
             }
             numAllocs += j;
-            auto freeEnd = --chunk.freeList.cend();
-            for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
+
+            if (!chunk.freeList.empty())
             {
-                innerFreeSpace += freeIter->size;
-                totalFreeSpace += freeIter->size;
+                auto freeEnd = --chunk.freeList.cend();
+                for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
+                {
+                    innerFreeSpace += freeIter->size;
+                    totalFreeSpace += freeIter->size;
+                }
+
+                totalFreeSpace += chunk.freeList.back().size;
             }
-
-            totalFreeSpace += chunk.freeList.back().size;
-
             ImGui::Unindent();
         }
         ImGui::LabelText("Number of allocations", "%d", numAllocs);
@@ -85,20 +89,25 @@ MemoryStats BaseChunkAllocator::collectMemoryStats()
     {
         auto chunk = m_chunkAllocations[i];
         int j      = 0;
-        std::list<MemoryLocation>::const_iterator allocIter, freeIter;
+        ChunkList::const_iterator allocIter, freeIter;
         for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
         {
             usedSpace += allocIter->size;
         }
         numAllocs += j;
-        auto freeEnd = --chunk.freeList.cend();
-        for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
-        {
-            fragmentedFreeSpace += freeIter->size;
-            totalFreeSpace += freeIter->size;
-        }
 
-        totalFreeSpace += chunk.freeList.back().size;
+        if (!chunk.freeList.empty())
+        {
+            auto freeEnd = --chunk.freeList.cend();
+
+            for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
+            {
+                fragmentedFreeSpace += freeIter->size;
+                totalFreeSpace += freeIter->size;
+            }
+
+            totalFreeSpace += chunk.freeList.back().size;
+        }
     }
     auto totalSpace = m_chunkSize * m_chunkAllocations.size();
 
