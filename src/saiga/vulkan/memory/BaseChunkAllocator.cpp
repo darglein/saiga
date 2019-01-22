@@ -45,10 +45,8 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
     auto memoryEnd                = memoryStart + size;
 
     auto insertionPoint =
-        std::lower_bound(chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(), targetLocation,
-                         [](const MemoryLocation& element, const MemoryLocation& value) {
-                             return element.offset < value.offset + value.size;
-                         });
+        std::lower_bound(chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(), memoryEnd,
+                         [](const MemoryLocation& element, vk::DeviceSize value) { return element.offset < value; });
 
     auto val = *chunkAlloc->allocations.emplace(insertionPoint, targetLocation);
     chunkAlloc->allocated += size;
