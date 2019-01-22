@@ -9,6 +9,7 @@
 
 #include "BaseMemoryAllocator.h"
 #include "ChunkCreator.h"
+#include "Defragmenter.h"
 #include "FitStrategy.h"
 
 #include <mutex>

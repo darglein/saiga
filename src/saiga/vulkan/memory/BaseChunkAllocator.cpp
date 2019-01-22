@@ -10,7 +10,6 @@
 
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"
-
 namespace Saiga
 {
 namespace Vulkan
