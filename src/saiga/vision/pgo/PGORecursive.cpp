@@ -3,6 +3,7 @@
 #include "saiga/imgui/imgui.h"
 #include "saiga/time/timer.h"
 #include "saiga/util/Algorithm.h"
+#include "saiga/vision/HistogramImage.h"
 #include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/PGO.h"
@@ -75,7 +76,24 @@ void PGORec::initStructure(PoseGraph& scene)
         S.innerIndexPtr()[offseti] = j;
         S.innerIndexPtr()[offsetj] = i;
 
+
         edgeOffsets.emplace_back(offseti, offsetj);
+    }
+
+    // Create a sparsity histogram
+    if (options.debugOutput)
+    {
+        HistogramImage img(n, n, 1024, 1024);
+        for (auto& e : scene.edges)
+        {
+            int i = e.from;
+            int j = e.to;
+            img.add(i, j, 1);
+            img.add(j, i, 1);
+            img.add(i, i, 1);
+            img.add(j, j, 1);
+        }
+        img.writeBinary("vision_pgo_sparsity.png");
     }
 }
 

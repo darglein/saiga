@@ -31,8 +31,8 @@ void buildScene(Scene& scene)
 void buildSceneBAL(Scene& scene)
 {
     //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00021-11315-pre.txt"));
-    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00257-65132-pre.txt"));
-    //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-01778-993923-pre.txt"));
+    //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00257-65132-pre.txt"));
+    Saiga::BALDataset bald(SearchPathes::data("vision/problem-01778-993923-pre.txt"));
 
     scene = bald.makeScene();
 
@@ -77,7 +77,7 @@ int main(int, char**)
 
 
     BAOptions baoptions;
-    baoptions.debugOutput            = false;
+    baoptions.debugOutput            = true;
     baoptions.maxIterations          = 1;
     baoptions.maxIterativeIterations = 50;
     baoptions.iterativeTolerance     = 0;

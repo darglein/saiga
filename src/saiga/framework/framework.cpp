@@ -233,7 +233,7 @@ void initSaiga(const SaigaParameters& params)
     }
 
     printSaigaInfo();
-    cout << "========================== Saiga initialization done!  ==========================" << endl;
+    cout << "========================== Saiga initialization done!  ==========================" << endl << endl;
     initialized = true;
 }
 

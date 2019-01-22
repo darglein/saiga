@@ -10,6 +10,7 @@
 #include "saiga/imgui/imgui.h"
 #include "saiga/time/timer.h"
 #include "saiga/util/Algorithm.h"
+#include "saiga/vision/HistogramImage.h"
 #include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
@@ -157,28 +158,64 @@ void BARec::initStructure(Scene& scene)
 
 
 
-#if 0
-    schurStructure.resize(n, std::vector<int>(n, -1));
-    for (auto& wp : scene.worldPoints)
+    // Create sparsity histogram of the schur complement
+    if (options.debugOutput)
     {
-        for (auto& ref : wp.monoreferences)
+        HistogramImage img(n, n, 512, 512);
+        schurStructure.resize(n, std::vector<int>(n, -1));
+        for (auto& wp : scene.worldPoints)
         {
-            for (auto& ref2 : wp.monoreferences)
+            for (auto& ref : wp.stereoreferences)
             {
-                schurStructure[ref.first][ref2.first] = ref2.first;
-                schurStructure[ref2.first][ref.first] = ref.first;
+                for (auto& ref2 : wp.stereoreferences)
+                {
+                    int i1 = validImages[ref.first];
+                    int i2 = validImages[ref2.first];
+
+                    schurStructure[i1][ref2.first] = ref2.first;
+                    schurStructure[i2][ref.first]  = ref.first;
+                    img.add(i1, ref2.first, 1);
+                    img.add(i2, ref.first, 1);
+                }
             }
         }
+
+        // compact it
+        schurEdges = 0;
+        for (auto& v : schurStructure)
+        {
+            v.erase(std::remove(v.begin(), v.end(), -1), v.end());
+            schurEdges += v.size();
+        }
+        img.writeBinary("vision_ba_schur_sparsity.png");
     }
 
-    // compact it
-    schurEdges = 0;
-    for (auto& v : schurStructure)
+
+    // Create a sparsity histogram of the complete matrix
+    if (options.debugOutput)
     {
-        v.erase(std::remove(v.begin(), v.end(), -1), v.end());
-        schurEdges += v.size();
+        HistogramImage img(n + m, n + m, 512, 512);
+        for (int i = 0; i < n + m; ++i)
+        {
+            img.add(i, i, 1);
+        }
+
+        for (int i = 0; i < (int)validImages.size(); ++i)
+        {
+            auto& img2 = scene.images[validImages[i]];
+            for (auto& ip : img2.stereoPoints)
+            {
+                if (!ip) continue;
+
+                int j   = pointToValidMap[ip.wp];
+                int iid = validImages[i];
+                img.add(iid, j + n, 1);
+                img.add(j + n, iid, 1);
+            }
+        }
+        img.writeBinary("vision_ba_complete_sparsity.png");
     }
-#endif
+
 
     if (options.debugOutput)
     {
@@ -187,10 +224,10 @@ void BARec::initStructure(Scene& scene)
         cout << "Cameras: " << n << endl;
         cout << "Points: " << m << endl;
         cout << "Observations: " << observations << endl;
-#if 0
-    cout << "Schur Edges: " << schurEdges << endl;
-    cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
-    cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
+#if 1
+        cout << "Schur Edges: " << schurEdges << endl;
+        cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
+        cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
 #endif
 
 #if 1
