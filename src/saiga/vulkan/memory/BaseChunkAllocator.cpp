@@ -54,8 +54,6 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
     auto val = *chunkAlloc->allocations.emplace(insertionPoint, targetLocation);
     chunkAlloc->allocated += size;
 
-    std::sort(m_chunkAllocations.begin(), m_chunkAllocations.end());
-
     return val;
 }
 
@@ -155,8 +153,6 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
     chunkAllocs.erase(fLoc);
 
     fChunk->allocated -= location.size;
-
-    std::sort(m_chunkAllocations.begin(), m_chunkAllocations.end());
 }
 void BaseChunkAllocator::destroy()
 {
