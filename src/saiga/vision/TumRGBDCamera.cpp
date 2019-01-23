@@ -6,6 +6,7 @@
 
 #include "TumRGBDCamera.h"
 
+#include "saiga/util/file.h"
 #include "saiga/util/tostring.h"
 
 #include <fstream>
@@ -76,7 +77,8 @@ TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, double depthFactor, 
 {
     this->dmpp = dmpp;
     cout << "Loading TUM RGBD Dataset: " << datasetDir << endl;
-    associate(datasetDir);
+    //    associate(datasetDir);
+    associateFromFile(datasetDir + "/associations.txt");
 
     load(datasetDir);
 
@@ -129,6 +131,7 @@ SE3 TumRGBDCamera::getGroundTruth(int frame)
     GroundTruth gt = tumframes[frame].gt;
     return gt.se3;
 }
+
 
 void TumRGBDCamera::associate(const std::string& datasetDir)
 {
@@ -194,11 +197,14 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 
 
 #if 1
-            GroundTruth a    = gt[ismaller];
-            GroundTruth b    = gt[ibigger];
+            GroundTruth a = gt[ismaller];
+            GroundTruth b = gt[ibigger];
+            SAIGA_ASSERT(a.timeStamp >= 0 && b.timeStamp >= 0);
             bestGT.timeStamp = t;
             double alpha     = (t - a.timeStamp) / (b.timeStamp - a.timeStamp);
-            bestGT.se3       = slerp(a.se3, b.se3, alpha);
+            if (a.timeStamp == b.timeStamp) alpha = 0;
+            bestGT.se3 = slerp(a.se3, b.se3, alpha);
+
 #else
             igtbest = t - smaller < bigger - t ? ismaller : ibigger;
             bestGT  = gt[igtbest];
@@ -237,6 +243,23 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
             tumframes.push_back(tf);
         }
         lastBest = ibest;
+    }
+}
+
+void TumRGBDCamera::associateFromFile(const std::string& datasetDir)
+{
+    auto lines = File::loadFileStringArray(datasetDir);
+
+    for (auto& l : lines)
+    {
+        TumFrame tf;
+        auto v = split(l, ' ');
+        SAIGA_ASSERT(v.size() == 4);
+        tf.rgb.timestamp   = to_double(v[0]);
+        tf.rgb.img         = v[1];
+        tf.depth.timestamp = to_double(v[2]);
+        tf.depth.img       = v[3];
+        tumframes.push_back(tf);
     }
 }
 

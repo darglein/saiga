@@ -26,8 +26,9 @@ int main(int, char**)
 
     PoseGraph pg;
     //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
-    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
-    pg.addNoise(0.1);
+    //    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
+    pg.load(SearchPathes::data("vision/loop.posegraph"));
+    //    pg.addNoise(0.1);
     cout << endl;
 
 

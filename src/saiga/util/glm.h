@@ -207,6 +207,10 @@ inline const float* data(const mat4& m)
 {
     return &m[0][0];
 }
+inline const float* data(const vec4& m)
+{
+    return &m[0];
+}
 
 inline vec4 make_vec4(const vec3& v, float a)
 {

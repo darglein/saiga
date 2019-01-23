@@ -125,8 +125,8 @@ void PGORec::compute(PoseGraph& scene)
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(scene.poses[i], scene.poses[j], e.meassurement.inverse(), res,
-                                                    Jrowi, Jrowj);
+            KernelType::evaluateResidualAndJacobian(scene.poses[i].se3, scene.poses[j].se3, e.meassurement.inverse(),
+                                                    res, Jrowi, Jrowj);
 
             target_ij = Jrowi.transpose() * Jrowj;
             target_ji = target_ij.transpose();
@@ -199,7 +199,7 @@ void PGORec::solveL(PoseGraph& scene)
     {
         Sophus::SE3<BlockBAScalar>::Tangent t;
         t         = x(i).get();
-        auto& se3 = scene.poses[i];
+        auto& se3 = scene.poses[i].se3;
         se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
     }
 }

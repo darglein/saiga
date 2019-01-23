@@ -6,6 +6,7 @@
 
 #include "PoseGraph.h"
 
+#include "saiga/imgui/imgui.h"
 #include "saiga/vision/Random.h"
 
 #include <fstream>
@@ -15,14 +16,14 @@ void PoseGraph::addNoise(double stddev)
 {
     for (auto& e : poses)
     {
-        e.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+        e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
     }
 }
 
 Vec6 PoseGraph::residual6(const PoseEdge& edge)
 {
-    auto& _from = poses[edge.from];
-    auto& _to   = poses[edge.to];
+    auto& _from = poses[edge.from].se3;
+    auto& _to   = poses[edge.to].se3;
 #ifdef LSD_REL
     auto error_ = _from.inverse() * _to * edge.meassurement.inverse();
 #else
@@ -55,7 +56,7 @@ void PoseGraph::save(const std::string& file)
     strm << poses.size() << " " << edges.size() << endl;
     for (auto& e : poses)
     {
-        strm << e.params().transpose() << endl;
+        strm << e.constant << " " << e.se3.params().transpose() << endl;
     }
     for (auto& e : edges)
     {
@@ -98,9 +99,9 @@ void PoseGraph::load(const std::string& file)
 
     for (auto& e : poses)
     {
-        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.data());
+        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.se3.data());
         Sophus::Vector<double, SE3::num_parameters> v;
-        strm >> v;
+        strm >> e.constant >> v;
         v2 = v;
     }
 
@@ -111,9 +112,46 @@ void PoseGraph::load(const std::string& file)
         strm >> e.from >> e.to >> e.weight >> v;
         v2 = v;
 
-        e.setRel(poses[e.from], poses[e.to]);
+        //        e.setRel(poses[e.from].se3, poses[e.to].se3);
     }
     std::sort(edges.begin(), edges.end());
+}
+
+void PoseGraph::imgui()
+{
+    ImGui::PushID(2836759);
+    bool changed = false;
+
+    if (ImGui::Button("RMS"))
+    {
+        rms();
+    }
+
+
+    static float sigma = 0.01;
+    ImGui::InputFloat("sigma", &sigma);
+
+
+
+    if (ImGui::Button("Add Noise"))
+    {
+        addNoise(sigma);
+        changed = true;
+    }
+
+    ImGui::PopID();
+}
+
+std::ostream& operator<<(std::ostream& strm, PoseGraph& pg)
+{
+    strm << "[PoseGraph]" << endl;
+    strm << " Poses: " << pg.poses.size() << endl;
+    strm << " Edges: " << pg.edges.size() << endl;
+    strm << " Rms: " << pg.rms() << endl;
+    strm << " Chi2: " << pg.chi2() << endl;
+    double density = double((pg.edges.size() * 2) + pg.poses.size()) / double(pg.poses.size() * pg.poses.size());
+    strm << " Density: " << density * 100 << "%" << endl;
+    return strm;
 }
 
 }  // namespace Saiga

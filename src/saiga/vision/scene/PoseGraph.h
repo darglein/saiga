@@ -38,11 +38,19 @@ struct SAIGA_GLOBAL PoseEdge
     bool operator<(const PoseEdge& other) { return std::tie(from, to) < std::tie(other.from, other.to); }
 };
 
+struct SAIGA_GLOBAL PoseVertex
+{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    SE3 se3;
+    bool constant = false;
+};
+
 struct SAIGA_GLOBAL PoseGraph
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    AlignedVector<SE3> poses;
+    AlignedVector<PoseVertex> poses;
     AlignedVector<PoseEdge> edges;
 
     void addNoise(double stddev);
@@ -53,7 +61,10 @@ struct SAIGA_GLOBAL PoseGraph
     double rms() { return sqrt(chi2() / edges.size()); }
     void save(const std::string& file);
     void load(const std::string& file);
+
+    void imgui();
 };
 
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, PoseGraph& pg);
 
 }  // namespace Saiga

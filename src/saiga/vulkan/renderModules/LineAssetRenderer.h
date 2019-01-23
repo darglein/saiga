@@ -29,7 +29,8 @@ class SAIGA_GLOBAL LineAssetRenderer : public Pipeline
     SAIGA_WARN_UNUSED_RESULT bool bind(vk::CommandBuffer cmd);
 
 
-    void pushModel(VkCommandBuffer cmd, mat4 model);
+    void pushModel(VkCommandBuffer cmd, mat4 model, vec4 color = vec4(1));
+
     void updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj);
 
     void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass, float lineWidth);
@@ -45,6 +46,12 @@ class SAIGA_GLOBAL LineAssetRenderer : public Pipeline
         mat4 modelview;
         vec4 lightPos;
     } uboVS;
+
+    struct PC
+    {
+        mat4 model;
+        vec4 color;
+    } pc;
 
     UniformBuffer uniformBufferVS;
     vk::DescriptorSet descriptorSet;
