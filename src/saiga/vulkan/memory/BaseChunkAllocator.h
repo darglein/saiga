@@ -9,10 +9,11 @@
 
 #include "BaseMemoryAllocator.h"
 #include "ChunkCreator.h"
-#include "Defragmenter.h"
+#include "Defragger.h"
 #include "FitStrategy.h"
 
 #include <mutex>
+
 
 namespace Saiga
 {
@@ -24,6 +25,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 {
    private:
     std::mutex allocationMutex;
+    std::unique_ptr<Defragger> defragger;
     void findNewMax(ChunkIterator& chunkAlloc) const;
 
     MemoryLocation createMemoryLocation(ChunkIterator iter, vk::DeviceSize start, vk::DeviceSize size);
@@ -48,6 +50,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy& strategy,
                        vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : BaseMemoryAllocator(chunkSize),
+          defragger(std::make_unique<Defragger>(&m_chunkAllocations)),
           m_device(_device),
           m_chunkAllocator(chunkAllocator),
           m_strategy(&strategy),
@@ -55,6 +58,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
           m_allocateSize(chunkSize),
           gui_identifier("")
     {
+        defragger->start();
     }
 
     BaseChunkAllocator(BaseChunkAllocator&& other) noexcept
