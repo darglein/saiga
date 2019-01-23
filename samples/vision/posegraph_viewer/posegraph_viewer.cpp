@@ -28,9 +28,9 @@
 VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
     : VulkanSDLExampleBase(window, renderer)
 {
-    scene.load(Saiga::SearchPathes::data("vision/loop.posegraph"));
-    //    scene.load(Saiga::SearchPathes::data("vision/slam_30_431.posegraph"));
-    scene.poses[0].constant = true;
+    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".posegraph");
+    std::sort(datasets.begin(), datasets.end());
+    cout << "Found " << datasets.size() << " posegraph datasets" << endl;
 }
 
 VulkanExample::~VulkanExample() {}
@@ -66,6 +66,9 @@ void VulkanExample::update(float dt)
 
     if (change)
     {
+        chi2 = scene.chi2();
+        rms  = scene.rms();
+
         lines.clear();
         for (auto& e : scene.edges)
         {
@@ -125,8 +128,10 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 void VulkanExample::renderGUI()
 {
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin("Vision BA Sample");
+    ImGui::Begin("Pose Graph Viewer");
 
+    ImGui::Text("Rms: %f", rms);
+    ImGui::Text("chi2: %f", chi2);
 
     scene.imgui();
 
@@ -136,12 +141,26 @@ void VulkanExample::renderGUI()
 
     ImGui::Separator();
 
-    if (ImGui::Button("reload"))
+
+    std::vector<const char*> strings;
+    for (auto& d : datasets) strings.push_back(d.data());
+    static int currentItem = 0;
+    ImGui::Combo("Dataset", &currentItem, strings.data(), strings.size());
+    if (ImGui::Button("Load Dataset"))
     {
-        scene.load(Saiga::SearchPathes::data("vision/loop.posegraph"));
+        scene.load(Saiga::SearchPathes::data(datasets[currentItem]));
+        scene.poses[0].constant = true;
+        change                  = true;
     }
 
-    if (ImGui::Button("Bundle Adjust G2O"))
+
+
+    //    if (ImGui::Button("Reload"))
+    //    {
+    //        scene.load(Saiga::SearchPathes::data("vision/loop.posegraph"));
+    //    }
+
+    if (ImGui::Button("Solve PGO with G2O"))
     {
         Saiga::g2oPGO ba;
         ba.solve(scene, baoptions);
@@ -149,7 +168,7 @@ void VulkanExample::renderGUI()
     }
 
     //    barec.imgui();
-    if (ImGui::Button("sba recursive"))
+    if (ImGui::Button("Solve with Eigen Recursive Matrices"))
     {
         Saiga::PGORec barec;
         barec.solve(scene, baoptions);

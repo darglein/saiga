@@ -96,6 +96,18 @@ void Scene::transformScene(const Saiga::SE3& transform)
     }
 }
 
+void Scene::rescale(double s)
+{
+    for (WorldPoint& wp : worldPoints)
+    {
+        wp.p = s * wp.p;
+    }
+    for (Extrinsics& e : extrinsics)
+    {
+        e.se3.translation() = s * e.se3.translation();
+    }
+}
+
 void Scene::fixWorldPointReferences()
 {
     for (WorldPoint& wp : worldPoints)
@@ -165,6 +177,21 @@ Saiga::Statistics<double> Scene::statistics()
         }
     }
 
+    Saiga::Statistics<double> sr(stats);
+    return sr;
+}
+
+Saiga::Statistics<double> Scene::depthStatistics()
+{
+    std::vector<double> stats;
+    for (SceneImage& im : images)
+    {
+        for (auto& o : im.stereoPoints)
+        {
+            if (!o.wp) continue;
+            stats.push_back((depth(im, o)));
+        }
+    }
     Saiga::Statistics<double> sr(stats);
     return sr;
 }

@@ -37,6 +37,7 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
     bool change        = false;
     bool uploadChanges = true;
     float rms          = 0;
+    float chi2         = 0;
     Saiga::Object3D teapotTrans;
 
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;

@@ -13,7 +13,7 @@ namespace Saiga
 {
 struct SAIGA_GLOBAL PGOOptions
 {
-    int maxIterations = 10;
+    int maxIterations = 20;
 
     enum class SolverType : int
     {

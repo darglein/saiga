@@ -42,6 +42,11 @@ class SAIGA_GLOBAL FileChecker
      */
     std::string getFileName(const std::string& file);
 
+    /**
+     * Like above, but only if the file ends on "ending"
+     */
+    void getFiles(std::vector<std::string>& out, const std::string& predir, const std::string& ending);
+
     void addSearchPath(const std::string& path);
     void addSearchPath(const std::vector<std::string>& paths);
 

@@ -13,6 +13,7 @@
 #include "saiga/util/color.h"
 #include "saiga/util/cv.h"
 #include "saiga/util/directory.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
 #include "saiga/vision/ba/BAPoseOnly.h"
@@ -163,6 +164,7 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("Bundle Adjust G2O"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::g2oBA2 ba;
         ba.solve(scene, baoptions);
         change = true;
@@ -170,6 +172,7 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("Bundle Adjust ceres"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::CeresBA ba;
         ba.solve(scene, baoptions);
         change = true;
@@ -178,6 +181,7 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("poseOnlySparse"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::BAPoseOnly ba;
         ba.poseOnlySparse(scene, its);
         change = true;
@@ -185,28 +189,25 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("posePointDense"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::BAPoseOnly ba;
         ba.posePointDense(scene, its);
         change = true;
     }
 
-    if (ImGui::Button("posePointDenseBlock"))
-    {
-        Saiga::BAPoseOnly ba;
-        ba.posePointDenseBlock(scene, its);
-        change = true;
-    }
 
-    //    barec.imgui();
     baoptions.imgui();
     if (ImGui::Button("sba recursive"))
     {
+        SAIGA_BLOCK_TIMER();
+        //        Saiga::BARec barec;
         barec.solve(scene, baoptions);
         change = true;
     }
 
     if (ImGui::Button("posePointSparse"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::BAPoseOnly ba;
         ba.solve(scene, baoptions);
         change = true;
@@ -226,8 +227,10 @@ void VulkanExample::renderGUI()
 
 void VulkanExample::findBALDatasets()
 {
-    Saiga::Directory dir(".");
-    dir.getFilesPrefix(datasets, "problem-");
+    //    Saiga::Directory dir(".");
+    //    dir.getFilesPrefix(datasets, "problem-");
+
+    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".txt");
     std::sort(datasets.begin(), datasets.end());
     cout << "Found " << datasets.size() << " BAL datasets" << endl;
 }

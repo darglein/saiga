@@ -163,6 +163,7 @@ class SAIGA_GLOBAL Scene
 
     // Apply a rigid transformation to the complete scene
     void transformScene(const SE3& transform);
+    void rescale(double s = 1);
 
     void fixWorldPointReferences();
 
@@ -189,6 +190,7 @@ class SAIGA_GLOBAL Scene
     void removeNegativeProjections();
 
     Saiga::Statistics<double> statistics();
+    Saiga::Statistics<double> depthStatistics();
     void removeOutliers(float factor);
     // removes all references to this worldpoint
     void removeWorldPoint(int id);

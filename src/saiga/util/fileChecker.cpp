@@ -6,6 +6,8 @@
 
 #include "saiga/util/fileChecker.h"
 
+#include "saiga/util/directory.h"
+
 #include "internal/noGraphicsAPI.h"
 
 #include <fstream>
@@ -72,6 +74,24 @@ std::string FileChecker::getFileName(const std::string& file)
         }
     }
     return "";
+}
+
+void FileChecker::getFiles(std::vector<std::string>& out, const std::string& predir, const std::string& ending)
+{
+    for (std::string& path : searchPathes)
+    {
+        std::string dir = path + "/" + predir;
+        cout << dir << endl;
+        Directory d(dir);
+
+        std::vector<std::string> tmp;
+        d.getFiles(tmp, ending);
+        for (auto& s : tmp)
+        {
+            s = dir + "/" + s;
+        }
+        out.insert(out.end(), tmp.begin(), tmp.end());
+    }
 }
 void FileChecker::addSearchPath(const std::string& path)
 {

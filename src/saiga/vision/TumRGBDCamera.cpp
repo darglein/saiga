@@ -249,18 +249,21 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 void TumRGBDCamera::associateFromFile(const std::string& datasetDir)
 {
     auto lines = File::loadFileStringArray(datasetDir);
+    SAIGA_ASSERT(lines.size() > 1);
 
     for (auto& l : lines)
     {
         TumFrame tf;
         auto v = split(l, ' ');
-        SAIGA_ASSERT(v.size() == 4);
+        if (v.size() != 4) continue;
+        //        SAIGA_ASSERT(v.size() == 4);
         tf.rgb.timestamp   = to_double(v[0]);
         tf.rgb.img         = v[1];
         tf.depth.timestamp = to_double(v[2]);
         tf.depth.img       = v[3];
         tumframes.push_back(tf);
     }
+    SAIGA_ASSERT(tumframes.size() > 1);
 }
 
 void TumRGBDCamera::load(const std::string& datasetDir)

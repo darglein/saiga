@@ -203,9 +203,10 @@ void VulkanForwardRenderer::render(Camera* cam)
     //    cmdBufInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
     VkClearValue clearValues[2];
-    vec4 clearColor(0.4, 0.8, 1.0, 1.0);
-    clearValues[0].color = {{clearColor[0], clearColor[1], clearColor[2], clearColor[3]}};
-    //    clearValues[0].depthStencil = { 1.0f, 0 };
+
+    // This is blender's default viewport background color :)
+    vec4 clearColor             = vec4(57, 57, 57, 255) / 255.0f;
+    clearValues[0].color        = {{clearColor[0], clearColor[1], clearColor[2], clearColor[3]}};
     clearValues[1].depthStencil = {1.0f, 0};
 
     VkRenderPassBeginInfo renderPassBeginInfo    = vks::initializers::renderPassBeginInfo();

@@ -128,6 +128,9 @@ void PGORec::compute(PoseGraph& scene)
             KernelType::evaluateResidualAndJacobian(scene.poses[i].se3, scene.poses[j].se3, e.meassurement.inverse(),
                                                     res, Jrowi, Jrowj);
 
+            if (scene.poses[i].constant) Jrowi.setZero();
+            if (scene.poses[j].constant) Jrowj.setZero();
+
             target_ij = Jrowi.transpose() * Jrowj;
             target_ji = target_ij.transpose();
             target_ii += Jrowi.transpose() * Jrowi;
@@ -148,6 +151,25 @@ void PGORec::compute(PoseGraph& scene)
 
     if (options.debugOutput) cout << "chi2 " << chi2 << endl;
 }
+
+#if 0
+static void solvePGO()
+{
+    using namespace Eigen;
+    using Block = Matrix<double, 6, 6>;
+    using Vec   = Matrix<double, 6, 1>;
+
+    SparseMatrix<Block> JtJ;
+    Matrix<Vec, -1> Jtb, x;
+
+    computeJacobian(JtJ, Jtb);
+
+    DiagonalPreconditioner<Block> P;
+    P.compute(JtJ);
+
+    Eigen::internal::conjugate_gradient(JtJ, Jtb, x, P, 10, 1e-4);
+}
+#endif
 
 void PGORec::solveL(PoseGraph& scene)
 {

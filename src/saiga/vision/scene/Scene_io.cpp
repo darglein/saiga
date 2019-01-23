@@ -20,7 +20,7 @@ bool Scene::imgui()
 
     if (ImGui::Button("RMS"))
     {
-        rms();
+        cout << "rms/chi2: " << rms() << " / " << chi2() << endl;
     }
 
     if (ImGui::Button("Normalize"))
@@ -29,6 +29,33 @@ bool Scene::imgui()
         cout << "median world point " << m.transpose() << endl;
         Saiga::SE3 T(Saiga::Quat::Identity(), -m);
         transformScene(T);
+        changed = true;
+    }
+
+
+    static float scalefactor = 1;
+    ImGui::InputFloat("scale factor", &scalefactor);
+    if (ImGui::Button("rescale"))
+    {
+        rescale(scalefactor);
+        changed = true;
+    }
+
+    if (ImGui::Button("Normalize Scale"))
+    {
+        auto d = depthStatistics();
+
+        double target = sqrt(2);
+        rescale(target / d.median);
+        changed = true;
+    }
+
+    if (ImGui::Button("Normalize Position"))
+    {
+        auto m = medianWorldPoint();
+        SE3 trans;
+        trans.translation() = -m;
+        transformScene(trans);
         changed = true;
     }
 
