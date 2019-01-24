@@ -49,6 +49,7 @@ void WindowParameters::fromConfigFile(const std::string& file)
     setMode(fullscreen, borderless);
 
     saigaParameters.fromConfigFile(file);
+    imguiParameters.fromConfigFile(file);
 }
 
 

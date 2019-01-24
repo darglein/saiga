@@ -31,11 +31,13 @@ void buildScene(Scene& scene)
 void buildSceneBAL(Scene& scene)
 {
     //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00021-11315-pre.txt"));
-    //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00257-65132-pre.txt"));
-    Saiga::BALDataset bald(SearchPathes::data("vision/problem-01778-993923-pre.txt"));
+    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00257-65132-pre.txt"));
+    //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-01778-993923-pre.txt"));
 
     scene = bald.makeScene();
 
+    scene.addImagePointNoise(1.0);
+    scene.addExtrinsicNoise(0.01);
 
     //    scene.removeOutliers(2);
 
@@ -72,18 +74,19 @@ int main(int, char**)
     Scene scene;
     //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
-    scene.load(SearchPathes::data("vision/slam.scene"));
+    //    scene.load(SearchPathes::data("vision/slam.scene"));
     //    buildScene(scene);
-    //    buildSceneBAL(scene);
+    buildSceneBAL(scene);
 
     cout << scene << endl;
 
     BAOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 10;
-    baoptions.maxIterativeIterations = 10;
+    baoptions.maxIterations          = 5;
+    baoptions.maxIterativeIterations = 20;
     baoptions.iterativeTolerance     = 1e-50;
 
+    cout << baoptions << endl;
     //    baoptions.huberMono   = 5.99;
     //    baoptions.huberStereo = 7.815;
 

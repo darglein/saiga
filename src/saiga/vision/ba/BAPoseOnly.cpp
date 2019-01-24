@@ -349,7 +349,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
         Eigen::SparseMatrix<double, Eigen::RowMajor> Y(n, m);
         Vector ej(n);
         Vector tmp(n);
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         {
             // Step 2
             // Compute Y

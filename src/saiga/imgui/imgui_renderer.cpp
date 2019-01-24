@@ -10,9 +10,10 @@
 
 namespace Saiga
 {
-ImGuiRenderer::ImGuiRenderer()
+ImGuiRenderer::ImGuiRenderer(const ImGuiParameters& params)
 {
     ImGui::CreateContext();
+    Saiga::initImGui(params);
 }
 
 ImGuiRenderer::~ImGuiRenderer()
@@ -27,10 +28,10 @@ void ImGuiRenderer::endFrame()
     ImGui::Render();
 }
 
-void ImGuiRenderer::render()
-{
-    renderDrawLists(ImGui::GetDrawData());
-}
+// void ImGuiRenderer::render()
+//{
+//    renderDrawLists(ImGui::GetDrawData());
+//}
 
 
 }  // namespace Saiga

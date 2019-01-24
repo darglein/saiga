@@ -45,7 +45,7 @@ namespace Saiga
 class SAIGA_GLOBAL ImGui_GLFW_Renderer : public ImGui_GL_Renderer, public glfw_KeyListener, public glfw_MouseListener
 {
    public:
-    ImGui_GLFW_Renderer(GLFWwindow* window, std::string font, float fontSize = 15.0f);
+    ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParameters& params);
     ~ImGui_GLFW_Renderer();
 
     virtual void beginFrame() override;

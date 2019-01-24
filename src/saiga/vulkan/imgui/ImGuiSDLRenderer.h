@@ -30,7 +30,7 @@ namespace Vulkan
 class SAIGA_GLOBAL ImGuiSDLRenderer : public SDL_EventListener, public ImGuiVulkanRenderer
 {
    public:
-    ImGuiSDLRenderer(size_t frameCount) : ImGuiVulkanRenderer(frameCount) {}
+    ImGuiSDLRenderer(size_t frameCount, const ImGuiParameters& params) : ImGuiVulkanRenderer(frameCount, params) {}
     // Initialize styles, keys, etc.
     void init(SDL_Window* window, float width, float height);
 

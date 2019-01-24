@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/imgui/imgui_renderer.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/rendering/program.h"
 #include "saiga/window/Interfaces.h"
@@ -44,7 +44,7 @@ struct SAIGA_GLOBAL RenderingParameters
 class SAIGA_GLOBAL Renderer : public RendererBase
 {
    public:
-    std::shared_ptr<ImGuiRenderer> imgui;
+    std::shared_ptr<ImGui_GL_Renderer> imgui;
 
     int outputWidth = -1, outputHeight = -1;
     UniformBuffer cameraBuffer;

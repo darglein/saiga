@@ -23,14 +23,9 @@ void VertexBuffer<ImDrawVert>::setVertexAttributes()
     glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (void*)(sizeof(float) * 4));
 }
 
-ImGui_GL_Renderer::ImGui_GL_Renderer(std::string font, float fontSize)
+ImGui_GL_Renderer::ImGui_GL_Renderer(const ImGuiParameters& params) : ImGuiRenderer(params)
 {
     ImGuiIO& io = ImGui::GetIO();
-    if (font.size() > 0)
-        io.Fonts->AddFontFromFileTTF(font.c_str(), fontSize);
-    else
-        io.Fonts->AddFontDefault();
-
 
     shader = ShaderLoader::instance()->load<Shader>("imgui_gl.glsl");
 
@@ -53,6 +48,12 @@ ImGui_GL_Renderer::ImGui_GL_Renderer(std::string font, float fontSize)
 }
 
 ImGui_GL_Renderer::~ImGui_GL_Renderer() {}
+
+void ImGui_GL_Renderer::render()
+{
+    renderDrawLists(ImGui::GetDrawData());
+}
+
 
 void ImGui_GL_Renderer::renderDrawLists(ImDrawData* draw_data)
 {

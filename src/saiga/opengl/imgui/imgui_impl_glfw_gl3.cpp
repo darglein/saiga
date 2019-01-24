@@ -61,8 +61,7 @@ void ImGui_GLFW_Renderer::ImGui_ImplGlfwGL3_SetClipboardText(void* user_data, co
 }
 
 
-ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, std::string font, float fontSize)
-    : ImGui_GL_Renderer(font, fontSize)
+ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParameters& params) : ImGui_GL_Renderer(params)
 {
     g_Window    = window;
     ImGuiIO& io = ImGui::GetIO();

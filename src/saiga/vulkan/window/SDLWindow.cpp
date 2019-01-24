@@ -42,10 +42,13 @@ SDLWindow::~SDLWindow()
 
 std::shared_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui(size_t frameCount)
 {
-    auto imGui = std::make_shared<Saiga::Vulkan::ImGuiSDLRenderer>(frameCount);
-    imGui->init(sdl_window, (float)windowParameters.width, (float)windowParameters.height);
-
-    return imGui;
+    if (windowParameters.imguiParameters.enable)
+    {
+        auto imGui = std::make_shared<Saiga::Vulkan::ImGuiSDLRenderer>(frameCount, windowParameters.imguiParameters);
+        imGui->init(sdl_window, (float)windowParameters.width, (float)windowParameters.height);
+        return imGui;
+    }
+    return {};
 }
 
 std::vector<const char*> SDLWindow::getRequiredInstanceExtensions()

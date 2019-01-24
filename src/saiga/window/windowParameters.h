@@ -8,7 +8,7 @@
 
 #include "saiga/config.h"
 #include "saiga/framework/framework.h"
-
+#include "saiga/imgui/imgui_saiga.h"
 
 namespace Saiga
 {
@@ -40,11 +40,10 @@ struct SAIGA_GLOBAL WindowParameters
     float debugScreenshotTime       = -1.0f;
     std::string debugScreenshotPath = "debug/";
 
+    ImGuiParameters imguiParameters;
     SaigaParameters saigaParameters;
 
-    bool createImgui      = true;
-    std::string imguiFont = "";
-    int imguiFontSize     = 15;
+
 
     bool borderLess() { return mode == Mode::borderLessWindowed || mode == Mode::borderLessFullscreen; }
     bool fullscreen() { return mode == Mode::fullscreen || mode == Mode::borderLessFullscreen; }

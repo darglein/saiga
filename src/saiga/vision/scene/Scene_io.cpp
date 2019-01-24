@@ -204,8 +204,12 @@ void Scene::load(const std::string& file)
 std::ostream& operator<<(std::ostream& strm, Scene& scene)
 {
     strm << "[Scene]" << endl;
-    strm << " Images: " << scene.validImages().size() << "/" << scene.images.size() << endl;
-    strm << " Points: " << scene.validPoints().size() << "/" << scene.worldPoints.size() << endl;
+
+    int n = scene.validImages().size();
+    int m = scene.validPoints().size();
+
+    strm << " Images: " << n << "/" << scene.images.size() << endl;
+    strm << " Points: " << m << "/" << scene.worldPoints.size() << endl;
 
     int stereoEdges = 0;
     int monoEdges   = 0;
@@ -226,6 +230,9 @@ std::ostream& operator<<(std::ostream& strm, Scene& scene)
     strm << " TotalEdges: " << monoEdges + stereoEdges << endl;
     strm << " Rms: " << scene.rms() << endl;
     strm << " Chi2: " << scene.chi2() << endl;
+
+    double density = double(monoEdges + stereoEdges) / double(n * m);
+    strm << " W Density: " << density * 100 << "%" << endl;
 
     return strm;
 }

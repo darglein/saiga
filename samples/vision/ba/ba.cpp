@@ -45,7 +45,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 {
     assetRenderer.init(base, renderer.renderPass);
     lineAssetRenderer.init(base, renderer.renderPass, 2);
-    pointCloudRenderer.init(base, renderer.renderPass, 2);
+    pointCloudRenderer.init(base, renderer.renderPass, 1);
     textureDisplay.init(base, renderer.renderPass);
 
 
@@ -54,7 +54,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     grid.init(renderer.base);
 
     //    frustum.createFrustum(camera.proj, 2, vec4(1), true);
-    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 0, 0, 1), false);
+    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
     frustum.init(renderer.base);
 
     pointCloud.init(base, 1000 * 1000 * 10);
