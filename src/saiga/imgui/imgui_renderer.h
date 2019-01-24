@@ -16,7 +16,7 @@ namespace Saiga
 class SAIGA_GLOBAL ImGuiRenderer
 {
    public:
-    ImGuiRenderer(const ImGuiParameters& params);
+    ImGuiRenderer(ImGuiParameters params, bool linearRGB);
     virtual ~ImGuiRenderer();
 
 

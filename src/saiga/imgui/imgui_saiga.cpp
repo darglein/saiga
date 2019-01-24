@@ -1,6 +1,7 @@
 ﻿#include "imgui_saiga.h"
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/util/color.h"
 #include "saiga/util/fileChecker.h"
 #include "saiga/util/ini/ini.h"
 #include "saiga/util/random.h"
@@ -177,6 +178,16 @@ void initImGui(const ImGuiParameters& params)
         }
     }
 
+
+    if (params.linearRGB)
+    {
+        color_text              = Color::srgb2linearrgb(color_text);
+        color_background_low    = Color::srgb2linearrgb(color_background_low);
+        color_background_medium = Color::srgb2linearrgb(color_background_medium);
+        color_background_high   = Color::srgb2linearrgb(color_background_high);
+        color_highlight_low     = Color::srgb2linearrgb(color_highlight_low);
+        color_highlight_high    = Color::srgb2linearrgb(color_highlight_high);
+    }
 
 #define COL_ALPHA(_col, _alpha) ImVec4(_col.x, _col.y, _col.z, _alpha);
 

@@ -10,9 +10,11 @@
 
 namespace Saiga
 {
-ImGuiRenderer::ImGuiRenderer(const ImGuiParameters& params)
+ImGuiRenderer::ImGuiRenderer(ImGuiParameters params, bool linearRGB)
 {
     ImGui::CreateContext();
+
+    params.linearRGB = linearRGB;
     Saiga::initImGui(params);
 }
 

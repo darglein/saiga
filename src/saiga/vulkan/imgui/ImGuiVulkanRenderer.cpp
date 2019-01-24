@@ -49,7 +49,7 @@ void VKVertexAttribBinder<ImDrawVert>::getVKAttribs(
 
 
 ImGuiVulkanRenderer::ImGuiVulkanRenderer(size_t _frameCount, const ImGuiParameters& params)
-    : ImGuiRenderer(params), frameCount(_frameCount), frameData()
+    : ImGuiRenderer(params, false), frameCount(_frameCount), frameData()
 {
 }
 

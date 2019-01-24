@@ -111,6 +111,7 @@ struct ImGuiParameters
     int fontSize         = 18;
     float fontBrightness = 2;
     ImGuiTheme theme     = ImGuiTheme::SAIGA;
+    bool linearRGB       = false;
 
     /**
      *  Reads all paramters from the given config file.

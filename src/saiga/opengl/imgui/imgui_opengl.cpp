@@ -23,10 +23,8 @@ void VertexBuffer<ImDrawVert>::setVertexAttributes()
     glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (void*)(sizeof(float) * 4));
 }
 
-ImGui_GL_Renderer::ImGui_GL_Renderer(const ImGuiParameters& params) : ImGuiRenderer(params)
+ImGui_GL_Renderer::ImGui_GL_Renderer(const ImGuiParameters& params) : ImGuiRenderer(params, true)
 {
-    ImGuiIO& io = ImGui::GetIO();
-
     shader = ShaderLoader::instance()->load<Shader>("imgui_gl.glsl");
 
     std::vector<ImDrawVert> test(5);
