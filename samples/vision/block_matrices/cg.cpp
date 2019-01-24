@@ -186,7 +186,8 @@ void testCG()
         {
             SAIGA_BLOCK_TIMER();
             P.compute(bA);
-            conjugate_gradient2(bA, bb, bx, P, iters, tol);
+            recursive_conjugate_gradient([&](const Eigen::Matrix<MatrixScalar<Vector>, -1, 1>& v) { return bA * v; },
+                                         bb, bx, P, iters, tol);
         }
         x = expand(bx);
         cout << "error " << tol << " iterations " << iters << endl;

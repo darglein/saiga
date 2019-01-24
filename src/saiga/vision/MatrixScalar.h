@@ -49,7 +49,13 @@ struct MatrixScalar
     //        return {data - other.data};
     //    }
 
-    EIGEN_ALWAYS_INLINE void operator+=(const ScalarType& other) { data += other.data; }
+    template <typename G>
+    EIGEN_ALWAYS_INLINE void operator+=(const MatrixScalar<G>& other)
+    {
+        data += other.data;
+    }
+
+
     EIGEN_ALWAYS_INLINE void operator-=(const ScalarType& other) { data -= other.data; }
 
     // scalar product
@@ -59,7 +65,8 @@ struct MatrixScalar
 
     // general matrix product
     template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-    EIGEN_ALWAYS_INLINE auto operator*(const MatrixScalar<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>& other) const
+    EIGEN_ALWAYS_INLINE auto operator*(
+        const MatrixScalar<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>& other) const
     {
         using ReturnType = Eigen::Matrix<_Scalar, MatrixType::RowsAtCompileTime, _Cols, _Options>;
         return MatrixScalar<ReturnType>(data * other.data);

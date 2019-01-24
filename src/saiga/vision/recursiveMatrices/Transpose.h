@@ -14,7 +14,7 @@ namespace Saiga
 template <typename T>
 struct Transpose
 {
-    static auto get(const T& m) { return m.transpose().eval(); }
+    static auto get(const T& m) { return (m.transpose().eval()); }
 };
 
 template <>
