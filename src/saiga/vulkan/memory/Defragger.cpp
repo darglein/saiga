@@ -39,11 +39,26 @@ void Defragger::worker_func()
             return;
         }
         std::unique_lock<std::mutex> running_lock(running_mutex);
+
+        if (allocations->empty())
+        {
+            continue;
+        }
+        auto chunk_iter = allocations->rbegin();
+        auto alloc_iter = chunk_iter->allocations.rbegin();
         while (running)
         {
+            if (alloc_iter == chunk_iter->allocations.rend())
+            {
+                ++chunk_iter;
+            }
+            if (chunk_iter == allocations->rend())
+            {
+                chunk_iter = allocations->rbegin();
+            }
             {
                 using namespace std::chrono_literals;
-                std::this_thread::sleep_for(50ms);
+                // std::this_thread::sleep_for(50ms);
             }
         }
     }

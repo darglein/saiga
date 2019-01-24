@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <set>
 #include <thread>
 #include <vector>
 
@@ -25,9 +26,21 @@ namespace Memory
 class Defragger
 {
    private:
+    struct DefragOperation
+    {
+        MemoryLocation source;
+        MemoryLocation target;
+        float weight;
+
+
+        bool operator<(const DefragOperation& second) const { return this->weight > second.weight; }
+    };
+
    private:
     bool enabled;
     std::vector<ChunkAllocation>* allocations;
+    std::set<DefragOperation> defrag_operations;
+
     std::atomic_bool running, quit;
 
     std::mutex start_mutex, running_mutex;
@@ -38,7 +51,12 @@ class Defragger
 
    public:
     Defragger(std::vector<ChunkAllocation>* _allocations)
-        : enabled(true), allocations(_allocations), running(false), quit(false), worker(&Defragger::worker_func, this)
+        : enabled(true),
+          defrag_operations(),
+          allocations(_allocations),
+          running(false),
+          quit(false),
+          worker(&Defragger::worker_func, this)
     {
     }
 

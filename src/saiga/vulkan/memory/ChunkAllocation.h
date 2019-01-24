@@ -51,6 +51,7 @@ struct SAIGA_GLOBAL ChunkAllocation
 };
 
 typedef std::vector<ChunkAllocation>::iterator ChunkIterator;
+typedef std::vector<ChunkAllocation>::reverse_iterator RevChunkIterator;
 
 }  // namespace Memory
 }  // namespace Vulkan
