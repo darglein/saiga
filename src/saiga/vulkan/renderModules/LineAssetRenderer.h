@@ -29,7 +29,7 @@ class SAIGA_GLOBAL LineAssetRenderer : public Pipeline
     SAIGA_WARN_UNUSED_RESULT bool bind(vk::CommandBuffer cmd);
 
 
-    void pushModel(VkCommandBuffer cmd, mat4 model, vec4 color = vec4(1));
+    void pushModel(VkCommandBuffer cmd, mat4 model, vec4 color = make_vec4(1));
 
     void updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj);
 

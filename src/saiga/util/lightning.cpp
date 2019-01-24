@@ -6,6 +6,8 @@
 
 #include "saiga/util/lightning.h"
 
+#include "saiga/util/random.h"
+
 #include "internal/noGraphicsAPI.h"
 
 namespace Saiga

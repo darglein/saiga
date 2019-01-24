@@ -10,6 +10,7 @@
 
 #include "saiga/image/imageTransformations.h"
 #include "saiga/util/color.h"
+#include "saiga/util/random.h"
 
 #include <saiga/imgui/imgui.h>
 
@@ -23,7 +24,12 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     float aspect = window.getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 50.0f, true);
     camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.rotationPoint = vec3(0);
+    camera.rotationPoint = make_vec3(0);
+
+
+    //    cout << camera.view << endl;
+    //    cout << camera.proj << endl;
+    //    exit(0);
 
     window.setCamera(&camera);
 }
@@ -92,7 +98,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     grid.createGrid(10, 10);
     grid.init(renderer.base);
 
-    frustum.createFrustum(camera.proj, 2, vec4(1), true);
+    frustum.createFrustum(camera.proj, 2, make_vec4(1), true);
     frustum.init(renderer.base);
 
     pointCloud.init(base, 1000 * 1000);

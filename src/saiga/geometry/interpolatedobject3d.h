@@ -16,8 +16,8 @@ class SAIGA_GLOBAL InterpolatedObject3D : public Object3D
     mat4 interpolatedmodel = identityMat4();
 
     quat oldrot, interpolatedrot;
-    vec4 oldscale = vec4(1), interpolatedscale = vec4(1);
-    vec4 oldposition = vec4(0), interpolatedposition = vec4(0);
+    vec4 oldscale = make_vec4(1), interpolatedscale = make_vec4(1);
+    vec4 oldposition = make_vec4(0), interpolatedposition = make_vec4(0);
 
 
     void interpolate(float alpha);

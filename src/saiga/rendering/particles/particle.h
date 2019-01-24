@@ -24,8 +24,8 @@ class SAIGA_GLOBAL Particle
     vec4 position = vec4(0, 0, 0, 1);
 
 
-    vec4 velocity = vec4(0);  // normalized velocity x,y,z in worldspace. w is the scale factor
-    vec4 force    = vec4(0);  // force on the particle. for example gravity
+    vec4 velocity = make_vec4(0);  // normalized velocity x,y,z in worldspace. w is the scale factor
+    vec4 force    = make_vec4(0);  // force on the particle. for example gravity
 
    private:
     vec4 right = vec4(1, 0, 0, 0);  // right vector when orientation is BILLBARD or FIXED

@@ -101,7 +101,7 @@ class SAIGA_GLOBAL DeferredLighting
     }
 
    public:
-    vec4 clearColor = vec4(0);
+    vec4 clearColor = make_vec4(0);
     int totalLights;
     int visibleLights;
     int renderedDepthmaps;

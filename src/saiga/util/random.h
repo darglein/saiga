@@ -66,5 +66,40 @@ SAIGA_GLOBAL int rand();
  */
 SAIGA_GLOBAL std::vector<int> uniqueIndices(int sampleCount, int indexSize);
 
+
 }  // namespace Random
 }  // namespace Saiga
+
+
+
+inline float linearRand(float low, float high)
+{
+    return Saiga::Random::sampleDouble(low, high);
+}
+
+inline vec2 linearRand(vec2 low, vec2 high)
+{
+    return vec2(Saiga::Random::sampleDouble(low[0], high[0]), Saiga::Random::sampleDouble(low[1], high[1]));
+}
+
+
+inline vec3 linearRand(vec3 low, vec3 high)
+{
+    return vec3(Saiga::Random::sampleDouble(low[0], high[0]), Saiga::Random::sampleDouble(low[1], high[1]),
+                Saiga::Random::sampleDouble(low[2], high[2]));
+}
+
+
+inline vec2 diskRand(float Radius)
+{
+    vec2 Result(0, 0);
+    float LenRadius = 0;
+
+    do
+    {
+        Result    = linearRand(make_vec2(-Radius), make_vec2(Radius));
+        LenRadius = length(Result);
+    } while (LenRadius > Radius);
+
+    return Result;
+}
