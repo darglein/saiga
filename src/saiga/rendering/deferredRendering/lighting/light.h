@@ -81,8 +81,8 @@ class SAIGA_GLOBAL Light : public Object3D
     bool volumetric  = false;
 
    public:
-    vec4 colorDiffuse  = vec4(1);
-    vec4 colorSpecular = vec4(1);
+    vec4 colorDiffuse  = make_vec4(1);
+    vec4 colorSpecular = make_vec4(1);
     // density of the participating media
     float volumetricDensity = 0.02f;
 

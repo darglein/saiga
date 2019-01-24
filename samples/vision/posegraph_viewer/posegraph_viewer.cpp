@@ -49,7 +49,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     lineAsset.init(base, 100000);
     lineAsset.size = 0;
 
-    //    frustum.createFrustum(camera.proj, 2, vec4(1), true);
+
     frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 1, 1, 1), false);
     frustum.init(renderer.base);
 

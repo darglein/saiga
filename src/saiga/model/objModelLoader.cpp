@@ -136,8 +136,8 @@ void ObjModelLoader::calculateMissingNormals()
 
 void ObjModelLoader::computeVertexColorAndData()
 {
-    vertexColors.resize(outVertices.size(), vec4(1));
-    vertexData.resize(outVertices.size(), vec4(0));
+    vertexColors.resize(outVertices.size(), make_vec4(1));
+    vertexData.resize(outVertices.size(), make_vec4(0));
 
     for (ObjTriangleGroup& tg : triangleGroups)
     {
@@ -148,7 +148,7 @@ void ObjModelLoader::computeVertexColorAndData()
             {
                 int index            = face.v[f];
                 vertexColors[index]  = tg.material.color;
-                float spec           = dot(tg.material.Ks, vec3(1)) / 3.0f;
+                float spec           = dot(tg.material.Ks, make_vec3(1)) / 3.0f;
                 vertexData[index][0] = spec;
             }
         }

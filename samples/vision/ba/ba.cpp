@@ -53,7 +53,6 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     grid.createGrid(10, 10);
     grid.init(renderer.base);
 
-    //    frustum.createFrustum(camera.proj, 2, vec4(1), true);
     frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
     frustum.init(renderer.base);
 
