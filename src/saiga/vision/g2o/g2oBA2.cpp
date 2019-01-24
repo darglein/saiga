@@ -16,7 +16,7 @@
 #include "g2o/core/optimization_algorithm_levenberg.h"
 #include "g2o/core/robust_kernel_impl.h"
 #include "g2o/core/sparse_optimizer.h"
-#include "g2o/solvers/cholmod/linear_solver_cholmod.h"
+//#include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
 #include "g2o/solvers/pcg/linear_solver_pcg.h"
 #include "g2o_kernels/sophus_sba.h"

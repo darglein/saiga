@@ -133,8 +133,9 @@ void BARec::initStructure(Scene& scene)
         }
     }
 
-    auto test1 = exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
-    auto test2 = exclusive_scan(pointCameraCounts.begin(), pointCameraCounts.end(), pointCameraCountsScan.begin(), 0);
+    auto test1 = Saiga::exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
+    auto test2 =
+        Saiga::exclusive_scan(pointCameraCounts.begin(), pointCameraCounts.end(), pointCameraCountsScan.begin(), 0);
 
     SAIGA_ASSERT(test1 == observations && test2 == observations);
 
