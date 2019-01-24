@@ -164,11 +164,11 @@ void initImGui(const ImGuiParameters& params)
             style.WindowRounding    = 0;
             style.FrameRounding     = 0;
             color_text              = vec3(0.0, 1.0, 0.0);
-            color_background_low    = vec3(0.2);
-            color_background_medium = vec3(0.3);
-            color_background_high   = vec3(0.4);
-            color_highlight_low     = vec3(0.5);
-            color_highlight_high    = vec3(0.6);
+            color_background_low    = make_vec3(0.2);
+            color_background_medium = make_vec3(0.3);
+            color_background_high   = make_vec3(0.4);
+            color_highlight_low     = make_vec3(0.5);
+            color_highlight_high    = make_vec3(0.6);
             break;
         }
         default:
@@ -189,7 +189,7 @@ void initImGui(const ImGuiParameters& params)
         color_highlight_high    = Color::srgb2linearrgb(color_highlight_high);
     }
 
-#define COL_ALPHA(_col, _alpha) ImVec4(_col.x, _col.y, _col.z, _alpha);
+#define COL_ALPHA(_col, _alpha) ImVec4(_col[0], _col[1], _col[2], _alpha);
 
     colors[ImGuiCol_Text]          = COL_ALPHA(color_text, 1.00f);
     colors[ImGuiCol_TextDisabled]  = COL_ALPHA(color_text, 0.58f);

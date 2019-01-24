@@ -107,7 +107,7 @@ void PGORec::compute(PoseGraph& scene)
     Sdiag.setZero();
 
     chi2 = 0;
-    for (int k = 0; k < scene.edges.size(); ++k)
+    for (size_t k = 0; k < scene.edges.size(); ++k)
     {
         auto& e       = scene.edges[k];
         auto& offsets = edgeOffsets[k];

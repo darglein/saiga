@@ -62,7 +62,7 @@ struct SAIGA_GLOBAL PoseGraph
     void save(const std::string& file);
     void load(const std::string& file);
 
-    void imgui();
+    bool imgui();
 };
 
 SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, PoseGraph& pg);

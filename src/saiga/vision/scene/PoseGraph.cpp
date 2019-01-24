@@ -117,7 +117,7 @@ void PoseGraph::load(const std::string& file)
     std::sort(edges.begin(), edges.end());
 }
 
-void PoseGraph::imgui()
+bool PoseGraph::imgui()
 {
     ImGui::PushID(2836759);
     bool changed = false;
@@ -140,6 +140,7 @@ void PoseGraph::imgui()
     }
 
     ImGui::PopID();
+    return changed;
 }
 
 std::ostream& operator<<(std::ostream& strm, PoseGraph& pg)
