@@ -54,6 +54,7 @@ if(SAIGA_FULL_OPTIMIZE)
 	endif()
 	if(MSVC)
 		#todo check if avx is present
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Oi /GL /fp:fast /Gy /arch:AVX2")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy /arch:AVX2")
+		add_definitions(-D__FMA__)
 	endif()
 endif()

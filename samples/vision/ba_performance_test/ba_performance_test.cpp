@@ -37,8 +37,8 @@ void buildSceneBAL(Scene& scene)
     scene = bald.makeScene();
 
 
-    scene.addImagePointNoise(1.0);
-    scene.addExtrinsicNoise(0.01);
+    scene.addImagePointNoise(0.1);
+    scene.addExtrinsicNoise(0.001);
 
     //    scene.removeOutliers(2);
 

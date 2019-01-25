@@ -52,7 +52,7 @@ BALDataset::BALDataset(const std::string& file)
 
 		if (i == 0)
         {
-                    cout << o.camera_index << " " << o.point_index << " " << o.point.transpose() << endl;
+           //         cout << o.camera_index << " " << o.point_index << " " << o.point.transpose() << endl;
             }
     }
 
@@ -89,7 +89,7 @@ BALDataset::BALDataset(const std::string& file)
 
 		if (i == 0)
         {
-                    cout << c.se3 << " " << c.f << " " << c.k1 << " " << c.k2 << endl;       
+          //          cout << c.se3 << " " << c.f << " " << c.k1 << " " << c.k2 << endl;       
         }
     }
     start += num_cameras * 9;
@@ -111,7 +111,7 @@ BALDataset::BALDataset(const std::string& file)
 
 			if (i == 0)
         {
-            cout << p.point.transpose() << endl;
+          //  cout << p.point.transpose() << endl;
         }
     }
 
