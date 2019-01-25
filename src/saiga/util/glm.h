@@ -177,6 +177,11 @@ inline mat4 make_mat4(quat q)
     return mat4(q);
 }
 
+inline mat3 make_mat3(mat4 m)
+{
+    return mat3(m);
+}
+
 
 inline mat3 make_mat3(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20)
 {

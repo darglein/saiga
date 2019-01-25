@@ -184,6 +184,7 @@ void Heightmap::normalizeHeightMap()
 
 void Heightmap::createNormalmap()
 {
+#if 0
     for (int layer = 0; layer < 1; ++layer)
     {
         for (int x = 0; x < normalmap[layer].width; ++x)
@@ -193,7 +194,7 @@ void Heightmap::createNormalmap()
                 vec3 norm(1.0f / w, 1, 1.0f / h);
                 //                vec3 scale = vec3(8*mapScaleInv[0],1,8*mapScaleInv[1]) * norm;
                 //                 vec3 scale = vec3(200,1,200) * norm;
-                vec3 scale = vec3(mapScale[0], 1, mapScale[1]) * norm * vec3(1, 1, 1);
+                vec3 scale = ele_mult(vec3(mapScale[0], 1, mapScale[1]) , norm);
                 //                vec3 scale = vec3(mapScaleInv[0],1,mapScaleInv[1]);
 
 
@@ -235,6 +236,7 @@ void Heightmap::createNormalmap()
             }
         }
     }
+#endif
 }
 
 float Heightmap::getHeight(int x, int y)

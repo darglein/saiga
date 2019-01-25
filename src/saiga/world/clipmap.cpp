@@ -164,6 +164,7 @@ void Clipmap::init(int m, vec2 off, vec2 scale, State state, Clipmap* next, Clip
 
 void Clipmap::update(const vec3& p)
 {
+#if 0
     // round to a multiple of cellwidth
 
 
@@ -176,6 +177,7 @@ void Clipmap::update(const vec3& p)
     vec2 test = floor(vp);
 
     vp = test * cellWidth;
+#endif
 }
 
 
@@ -351,10 +353,10 @@ void Clipmap::renderBlocks()
     {
         vec4 c  = vec4(1, 0, 0, 0);
         vec4 s  = offset + vec4(0, 0, blockOffset[i][0] * scale[0] + blockOffset[i][1] * cellWidth[0],
-                               blockOffset[i][2] * scale[1] + blockOffset[i].w * cellWidth[1]);
+                               blockOffset[i][2] * scale[1] + blockOffset[i][3] * cellWidth[1]);
         vec4 fo = vec4(blockSizeRel[0], blockSizeRel[1],
                        blockOffset[i][0] * blockSizeRel[0] + blockOffset[i][1] * cellSizeRel[0],
-                       blockOffset[i][2] * blockSizeRel[1] + blockOffset[i].w * cellSizeRel[1]);
+                       blockOffset[i][2] * blockSizeRel[1] + blockOffset[i][3] * cellSizeRel[1]);
 
         render(Clipmap::mesh, c, s, fo);
     }

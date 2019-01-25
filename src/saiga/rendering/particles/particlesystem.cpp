@@ -10,6 +10,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/arrayTexture.h"
 #include "saiga/rendering/particles/particle_shader.h"
+#include "saiga/util/random.h"
 
 namespace Saiga
 {

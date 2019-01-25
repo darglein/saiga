@@ -64,9 +64,11 @@ void Terrain::createMesh()
 
 void Terrain::setDistance(float d)
 {
+#if 0
     model[0][0] = d;
     model[1][1] = 1;
     model[2][2] = d;
+#endif
 }
 
 

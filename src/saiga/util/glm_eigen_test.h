@@ -58,6 +58,17 @@ inline T ele_div(const T& a, const T& b)
 //    return a;
 //}
 
+inline vec3 min(const vec3& a, const vec3& b)
+{
+    return a.array().min(b.array());
+}
+
+inline vec3 max(const vec3& a, const vec3& b)
+{
+    return a.array().max(b.array());
+}
+
+
 inline vec4 round(const vec4& a)
 {
     return a.array().round();
@@ -131,6 +142,12 @@ inline vec2 make_vec2(const vec3& a)
 {
     return vec2(a(0), a(1));
 }
+
+inline vec2 make_vec2(const ivec2& a)
+{
+    return a.cast<float>();
+}
+
 
 inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a)
 {

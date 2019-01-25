@@ -50,7 +50,7 @@ void DeferredDebugOverlay::setScreenPosition(GbufferTexture* gbt, int id)
 
     layout.transform(gbt, meshBB, vec2(1, 1 - s * id), s, Layout::RIGHT, Layout::RIGHT);
     return;
-    gbt->setScale(vec3(s));
+    gbt->setScale(make_vec3(s));
     float dy = -s * 2.0f;
     float y  = id * dy + dy * 0.5f + 1.0f;
     gbt->translateGlobal(vec3(1.0f - s, y, 0));
