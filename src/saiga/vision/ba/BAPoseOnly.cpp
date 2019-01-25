@@ -2,14 +2,13 @@
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
-#include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
-#include "saiga/vision/MatrixScalar.h"
-#include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 #include "saiga/vision/recursiveMatrices/CG.h"
+#include "saiga/vision/recursiveMatrices/SparseHelper.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"

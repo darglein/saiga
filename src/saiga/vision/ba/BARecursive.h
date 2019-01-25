@@ -11,7 +11,7 @@
 //#define RECURSIVE_BA_VECTORIZE
 //#define RECURSIVE_BA_FLOAT
 #define RECURSIVE_BA_USE_TIMERS false
-#include "saiga/vision/BlockRecursiveBATemplates.h"
+#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
 class SAIGA_GLOBAL BARec : public BABase

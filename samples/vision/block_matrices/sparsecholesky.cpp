@@ -10,15 +10,15 @@
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
-#include "saiga/vision/BlockRecursiveBATemplates.h"
-#include "saiga/vision/MatrixScalar.h"
-#include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs_Sparse.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
+#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
+#include "saiga/vision/recursiveMatrices/SparseHelper.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
 #include "cholesky.h"

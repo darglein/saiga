@@ -11,12 +11,12 @@
 #include "saiga/time/timer.h"
 #include "saiga/util/Algorithm.h"
 #include "saiga/vision/HistogramImage.h"
-#include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 #include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
+#include "saiga/vision/recursiveMatrices/SparseHelper.h"
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
 #include "Eigen/Sparse"
@@ -133,7 +133,8 @@ void BARec::initStructure(Scene& scene)
         }
     }
 
-    auto test1 = Saiga::exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
+    auto test1 =
+        Saiga::exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
     auto test2 =
         Saiga::exclusive_scan(pointCameraCounts.begin(), pointCameraCounts.end(), pointCameraCountsScan.begin(), 0);
 

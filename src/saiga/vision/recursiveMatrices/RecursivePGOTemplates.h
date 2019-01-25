@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/recursiveMatrices/Expand.h"
+#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
 #include "Eigen/Sparse"

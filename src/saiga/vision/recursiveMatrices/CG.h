@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/util/assert.h"
-#include "saiga/vision/MatrixScalar.h"
+#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
 #include "saiga/vision/recursiveMatrices/Dot.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"

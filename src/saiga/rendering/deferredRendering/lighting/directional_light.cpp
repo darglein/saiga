@@ -249,7 +249,7 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
         float r = boundingSphere.r;
         r       = ceil(r);
 
-        vec3 smsize = make_vec3(vec2(shadowmap->getSize()), 128468);
+        vec3 smsize = make_vec3(make_vec2(shadowmap->getSize()), 128468);
 
         vec3 texelSize;
         //    texelSize[0] = 2.0f * r / shadowmap.w;
