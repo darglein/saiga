@@ -39,8 +39,6 @@ BALDataset::BALDataset(const std::string& file)
     points.resize(num_points);
 
 
-	cout.precision(10);
-    cout << std::scientific;
 
     int start = 1;
 #pragma omp parallel for
@@ -177,7 +175,7 @@ double BALDataset::rms()
 {
     double error = 0;
 //    for (BALObservation& o : observations)
-#pragma omp parallel for
+#pragma omp parallel for reduction(+:error)
     for (int i = 0; i < (int)observations.size(); ++i)
     {
         BALObservation& o = observations[i];
@@ -188,7 +186,6 @@ double BALDataset::rms()
 
         auto sqerror = (projPoint - o.point).squaredNorm();
 
-#pragma omp critical
         error += sqerror;
     }
     error /= observations.size();
