@@ -69,9 +69,11 @@ Heightmap::Heightmap(int layers, int w, int h) : layers(layers), w(w), h(h)
 
 void Heightmap::setScale(vec2 mapScale, vec2 mapOffset)
 {
+#if 0
     this->mapOffset   = mapOffset;
     this->mapScale    = mapScale;
     this->mapScaleInv = 1.0f / mapScale;
+#endif
 }
 
 void Heightmap::createInitialHeightmap()

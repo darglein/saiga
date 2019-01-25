@@ -44,7 +44,7 @@ void TextOverlay3D::TextContainer::interpolate(float interpolationInSeconds, con
         text->scale = vec4(targetScale);
     }
 
-    text->position = startPosition + vec4(vec3(timeAlive * velocity), 0);
+    text->position = startPosition + make_vec4(vec3(timeAlive * velocity), 0);
 
     text->params.setAlpha(getFade(interpolationInSeconds));
 

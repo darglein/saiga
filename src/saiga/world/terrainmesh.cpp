@@ -22,21 +22,21 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMesh()
 
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMesh2()
 {
-    return createGridMesh(m, m, vec2(1.0f / (m - 1)), make_vec2(0.5));
+    return createGridMesh(m, m, make_vec2(1.0f / (m - 1)), make_vec2(0.5));
 }
 
 
 
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshFixUpV()
 {
-    return createGridMesh(3, m, vec2(1.0f / (m - 1)), make_vec2(0.5));
+    return createGridMesh(3, m, make_vec2(1.0f / (m - 1)), make_vec2(0.5));
 }
 
 
 
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshFixUpH()
 {
-    return createGridMesh(m, 3, vec2(1.0f / (m - 1)), make_vec2(0.5));
+    return createGridMesh(m, 3, make_vec2(1.0f / (m - 1)), make_vec2(0.5));
 }
 
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSW()
@@ -45,8 +45,8 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSW()
 
     unsigned int w = 2 * m + 1;
     unsigned int h = 2;
-    vec2 d         = vec2(1.0f / (m - 1));
-    vec2 o         = vec2(0.5);
+    vec2 d         = make_vec2(1.0f / (m - 1));
+    vec2 o         = make_vec2(0.5);
 
     float dw = d[0];
     float dh = d[1];
@@ -130,6 +130,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNE()
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated()
 {
     mesh_t* mesh = new mesh_t();
+#if 0
 
     int w    = (n + 1) / 2;
     float dx = 2.0f / (m - 1);
@@ -178,6 +179,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated()
 
 
 
+#endif
     return std::shared_ptr<TerrainMesh::mesh_t>(mesh);
 }
 

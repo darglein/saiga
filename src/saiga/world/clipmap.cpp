@@ -183,6 +183,7 @@ void Clipmap::update(const vec3& p)
 
 void Clipmap::calculatePosition(vec2 pos)
 {
+#if 0
     vec2 noff(0);
     vec2 relPos(0);
 
@@ -226,6 +227,7 @@ void Clipmap::calculatePosition(vec2 pos)
     pos += noff;
 
     if (next) next->calculatePosition(pos);
+#endif
 }
 
 

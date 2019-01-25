@@ -101,8 +101,15 @@ inline vec3 abs(const vec3& a)
 inline vec3 clamp(const vec3& x, const vec3& minVal, const vec3& maxVal)
 {
     vec3 tmp = x.array().max(minVal.array());
-    return tmp.array().max(minVal.array());
+    return tmp.array().min(maxVal.array());
 }
+
+inline ivec2 clamp(const ivec2& x, const ivec2& minVal, const ivec2& maxVal)
+{
+    ivec2 tmp = x.array().max(minVal.array());
+    return tmp.array().min(maxVal.array());
+}
+
 inline vec4 make_vec4(float x, float y, float z, float w)
 {
     return vec4(x, y, z, w);
@@ -143,9 +150,22 @@ inline vec2 make_vec2(const vec3& a)
     return vec2(a(0), a(1));
 }
 
+inline vec2 make_vec2(float a, float b)
+{
+    return vec2(a, b);
+}
+
 inline vec2 make_vec2(const ivec2& a)
 {
     return a.cast<float>();
+}
+
+inline ivec2 make_ivec2(int a, int b)
+{
+    ivec2 v;
+    v(0) = a;
+    v(1) = b;
+    return v;
 }
 
 

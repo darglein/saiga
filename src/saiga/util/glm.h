@@ -248,6 +248,21 @@ inline vec2 make_vec2(float a)
 {
     return vec2(a);
 }
+inline vec2 make_vec2(float a, float b)
+{
+    return vec2(a, b);
+}
+
+inline vec2 make_vec2(const ivec2& a)
+{
+    return vec2(a);
+}
+inline ivec2 make_ivec2(int a, int b)
+{
+    return ivec2(a, b);
+}
+
+
 inline vec2 make_vec2(vec3 a)
 {
     return vec2(a);

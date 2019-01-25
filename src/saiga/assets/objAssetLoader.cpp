@@ -48,7 +48,7 @@ void ObjAssetLoader::loadMeshNC(const std::string& file, TriangleMesh<VertexNC, 
             {
                 int index                     = face.v[f];
                 tmesh.vertices[index].color   = tg.material.color;
-                float spec                    = dot(tg.material.Ks, vec3(1)) / 3.0f;
+                float spec                    = dot(tg.material.Ks, make_vec3(1)) / 3.0f;
                 tmesh.vertices[index].data[0] = spec;
             }
         }

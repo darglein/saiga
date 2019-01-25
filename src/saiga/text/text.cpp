@@ -26,17 +26,17 @@ Text::Text(TextureAtlas* textureAtlas, const std::string& label, bool normalize)
 void Text::calculateNormalizationMatrix()
 {
     boundingBox         = mesh.calculateAabb();
-    normalizationMatrix = mat4(1);
+    normalizationMatrix = identityMat4();
     if (normalize)
     {
         //        float height = boundingBox.max[1] - boundingBox.min[1];
         float height = 1.0f;
 
-        vec3 offset               = boundingBox.getPosition();
-        normalizationMatrix[3]    = vec4(-offset * 1.0f / height, 1);
-        normalizationMatrix[0][0] = 1.0f / height;
-        normalizationMatrix[1][1] = 1.0f / height;
-        normalizationMatrix[2][2] = 1.0f / height;
+        vec3 offset                    = boundingBox.getPosition();
+        col(normalizationMatrix, 0)[0] = 1.0f / height;
+        col(normalizationMatrix, 1)[1] = 1.0f / height;
+        col(normalizationMatrix, 2)[2] = 1.0f / height;
+        col(normalizationMatrix, 3)    = make_vec4(-offset * 1.0f / height, 1);
         boundingBox.transform(normalizationMatrix);
     }
     else
@@ -212,12 +212,14 @@ void Text::addTextToMesh(const utf32string& text, vec2 offset)
         // bottom left
         verts[0] = VertexNT(bufferPosition, vec3(0, 0, 1), vec2(info.tcMin[0], info.tcMax[1]));
         // bottom right
-        verts[1] = VertexNT(bufferPosition + vec3(info.size[0], 0, 0), vec3(0, 0, 1), vec2(info.tcMax[0], info.tcMax[1]));
+        verts[1] =
+            VertexNT(bufferPosition + vec3(info.size[0], 0, 0), vec3(0, 0, 1), vec2(info.tcMax[0], info.tcMax[1]));
         // top right
         verts[2] = VertexNT(bufferPosition + vec3(info.size[0], info.size[1], 0), vec3(0, 0, 1),
                             vec2(info.tcMax[0], info.tcMin[1]));
         // top left
-        verts[3] = VertexNT(bufferPosition + vec3(0, info.size[1], 0), vec3(0, 0, 1), vec2(info.tcMin[0], info.tcMin[1]));
+        verts[3] =
+            VertexNT(bufferPosition + vec3(0, info.size[1], 0), vec3(0, 0, 1), vec2(info.tcMin[0], info.tcMin[1]));
 
         mesh.addQuad(verts);
 
