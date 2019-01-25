@@ -37,7 +37,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     vk::DeviceSize m_chunkSize{};
     vk::DeviceSize m_allocateSize{};
-    std::vector<ChunkAllocation> m_chunkAllocations;
+    ChunkContainer m_chunkAllocations;
 
 
     std::string gui_identifier;

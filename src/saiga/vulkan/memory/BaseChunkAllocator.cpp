@@ -24,7 +24,8 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
         std::scoped_lock alloc_lock(allocationMutex);
         ChunkIterator chunkAlloc;
         LocationIterator freeSpace;
-        std::tie(chunkAlloc, freeSpace) = m_strategy->findRange(m_chunkAllocations, size);
+        std::tie(chunkAlloc, freeSpace) =
+            m_strategy->findRange(m_chunkAllocations.begin(), m_chunkAllocations.end(), size);
 
         if (chunkAlloc == m_chunkAllocations.end())
         {

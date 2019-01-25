@@ -50,8 +50,10 @@ struct SAIGA_GLOBAL ChunkAllocation
     inline vk::DeviceSize getFree() const { return size - allocated; }
 };
 
-typedef std::vector<ChunkAllocation>::iterator ChunkIterator;
-typedef std::vector<ChunkAllocation>::reverse_iterator RevChunkIterator;
+
+typedef std::vector<ChunkAllocation> ChunkContainer;
+typedef ChunkContainer::iterator ChunkIterator;
+typedef ChunkContainer::reverse_iterator RevChunkIterator;
 
 }  // namespace Memory
 }  // namespace Vulkan
