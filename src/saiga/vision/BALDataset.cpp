@@ -47,6 +47,11 @@ BALDataset::BALDataset(const std::string& file)
         BALObservation o;
         in >> o.camera_index >> o.point_index >> o.point[0] >> o.point[1];
         observations[i] = (o);
+
+		if (i == 0)
+        {
+                    cout << o.camera_index << " " << o.point_index << " " << o.point.transpose() << endl;
+            }
     }
 
     start += num_observations;
