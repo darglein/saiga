@@ -271,6 +271,11 @@ inline vec3 mix(const vec3& a, const vec3& b, float alpha)
     return (1 - alpha) * a + alpha * b;
 }
 
+inline vec2 mix(const vec2& a, const vec2& b, float alpha)
+{
+    return (1 - alpha) * a + alpha * b;
+}
+
 inline float mix(const float& a, const float& b, float alpha)
 {
     return (1 - alpha) * a + alpha * b;

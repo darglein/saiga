@@ -50,7 +50,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     lineAsset.size = 0;
 
 
-    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 1, 1, 1), false);
+    frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 1, 1, 1), false);
     frustum.init(renderer.base);
 
     pointCloud.init(base, 1000 * 1000 * 10);
@@ -102,7 +102,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 {
     if (lineAssetRenderer.bind(cmd))
     {
-        lineAssetRenderer.pushModel(cmd, mat4(1));
+        lineAssetRenderer.pushModel(cmd, identityMat4());
         grid.render(cmd);
 
         for (auto& i : scene.poses)
@@ -119,7 +119,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
         if (lines.size() > 0)
         {
-            lineAssetRenderer.pushModel(cmd, mat4(1));
+            lineAssetRenderer.pushModel(cmd, identityMat4());
             lineAsset.render(cmd, 0, lineAsset.size);
         }
     }

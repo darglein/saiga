@@ -14,6 +14,7 @@
 #include "saiga/util/cv.h"
 #include "saiga/util/directory.h"
 #include "saiga/util/fileChecker.h"
+#include "saiga/util/random.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
 #include "saiga/vision/ba/BAPoseOnly.h"
@@ -53,7 +54,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     grid.createGrid(10, 10);
     grid.init(renderer.base);
 
-    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
+    frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
     frustum.init(renderer.base);
 
     pointCloud.init(base, 1000 * 1000 * 10);
@@ -80,8 +81,8 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
         for (auto& wp : scene.worldPoints)
         {
             Saiga::VertexNC v;
-            v.position                 = vec4(Saiga::toglm(wp.p), 1);
-            v.color                    = vec4(glm::linearRand(vec3(1), vec3(1)), 1);
+            v.position                 = make_vec4(Saiga::toglm(wp.p), 1);
+            v.color                    = make_vec4(linearRand(make_vec3(1), make_vec3(1)), 1);
             pointCloud.pointCloud[i++] = v;
         }
         pointCloud.size = i;
@@ -96,7 +97,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 {
     if (lineAssetRenderer.bind(cmd))
     {
-        lineAssetRenderer.pushModel(cmd, mat4(1));
+        lineAssetRenderer.pushModel(cmd, identityMat4());
         grid.render(cmd);
 
         for (auto& i : scene.images)
@@ -115,7 +116,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
     if (pointCloudRenderer.bind(cmd))
     {
-        pointCloudRenderer.pushModel(cmd, mat4(1));
+        pointCloudRenderer.pushModel(cmd, identityMat4());
         pointCloud.render(cmd);
     }
 }

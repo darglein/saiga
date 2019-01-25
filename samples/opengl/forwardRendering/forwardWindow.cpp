@@ -9,6 +9,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/util/random.h"
 
 
 Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), ForwardRenderingInterface(renderer)
@@ -34,8 +35,8 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), For
     for (int i = 0; i < 10000; ++i)
     {
         PointVertex v;
-        v.position = linearRand(vec3(-3), vec3(3));
-        v.color    = linearRand(vec3(0), vec3(1));
+        v.position = linearRand(make_vec3(-3), make_vec3(3));
+        v.color    = linearRand(make_vec3(0), make_vec3(1));
         pointCloud.points.push_back(v);
     }
     pointCloud.updateBuffer();

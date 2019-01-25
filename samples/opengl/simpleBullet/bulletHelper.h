@@ -33,7 +33,7 @@ void createConvexCollisionShape(std::vector<Triangle>& mesh, btConvexTriangleMes
  * Creates a rigidbody with the collission shape and the given parameters.
  *
  */
-btRigidBody* createRigidBody(btCollisionShape* collisionShape, float mass = 0.0f, vec3 position = vec3(0),
+btRigidBody* createRigidBody(btCollisionShape* collisionShape, float mass = 0.0f, vec3 position = make_vec3(0),
                              quat rotation = IDENTITY_QUATERNION, float friction = 1.0f);
 
 void setRigidBodyState(btRigidBody* rigidBody, vec3 position, quat rotation);
@@ -44,11 +44,12 @@ void setRigidBodyState(btRigidBody* rigidBody, vec3 position, quat rotation);
  */
 inline btQuaternion toBT(const quat& q)
 {
-    return btQuaternion(q.x, q.y, q.z, q.w);
+    vec4 v = quat_to_vec4(q);
+    return btQuaternion(v[0], v[1], v[2], v[3]);
 }
 inline btVector3 toBT(const vec3& v)
 {
-    return btVector3(v.x, v.y, v.z);
+    return btVector3(v[0], v[1], v[2]);
 }
 
 /**
