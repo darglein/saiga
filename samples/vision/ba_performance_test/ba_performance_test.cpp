@@ -16,7 +16,9 @@
 #include "saiga/vision/scene/SynteticScene.h"
 using namespace Saiga;
 
-void buildScene(Scene& scene)
+
+    void
+    buildScene(Scene& scene)
 {
     SynteticScene sscene;
     //    sscene.numCameras     = 4;
@@ -30,8 +32,8 @@ void buildScene(Scene& scene)
 
 void buildSceneBAL(Scene& scene)
 {
-      //  Saiga::BALDataset bald(SearchPathes::data("vision/problem-00021-11315-pre.txt"));
-   Saiga::BALDataset bald(SearchPathes::data("vision/problem-00257-65132-pre.txt"));
+    //  Saiga::BALDataset bald(SearchPathes::data("vision/problem-00021-11315-pre.txt"));
+    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00257-65132-pre.txt"));
     //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-01778-993923-pre.txt"));
 
     scene = bald.makeScene();
