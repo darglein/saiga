@@ -78,6 +78,11 @@ inline vec3 fract(const vec3& a)
     return a.array() - a.array().floor();
 }
 
+inline vec2 abs(const vec2& a)
+{
+    return a.array().abs();
+}
+
 inline vec3 abs(const vec3& a)
 {
     return a.array().abs();
@@ -99,6 +104,11 @@ inline vec4 make_vec4(const vec3& v, float a)
 inline vec3 make_vec3(const vec2& v, float a)
 {
     return vec3(v(0), v(1), a);
+}
+
+inline vec4 make_vec4(const vec2& v, const vec2& v2)
+{
+    return vec4(v(0), v(1), v2(0), v2(1));
 }
 
 inline vec4 make_vec4(float a)
@@ -269,10 +279,16 @@ inline quat inverse(const quat& q)
 }
 
 
+
 inline mat4 rotate(float angle, const vec3& axis)
 {
     Eigen::AngleAxisf aa(angle, axis);
     return make_mat4(aa.matrix());
+}
+
+inline mat4 rotate(const mat4& m, float angle, const vec3& axis)
+{
+    return m * rotate(angle, axis);
 }
 
 inline quat rotate(const quat& q, float angle, const vec3& axis)

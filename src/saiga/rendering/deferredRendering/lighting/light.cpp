@@ -48,7 +48,7 @@ void LightShader::uploadColorSpecular(vec4& color)
 
 void LightShader::uploadColorSpecular(vec3& color, float intensity)
 {
-    vec4 c = vec4(color, intensity);
+    vec4 c = make_vec4(color, intensity);
     Shader::upload(location_lightColorSpecular, c);
 }
 

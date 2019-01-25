@@ -365,7 +365,7 @@ void DeferredLighting::postprocessVolumetric()
 
     volumetricBuffer.bind();
     volumetricBlurShader->bind();
-    volumetricBlurShader->uploadModel(mat4(1));
+    volumetricBlurShader->uploadModel(identityMat4());
     volumetricBlurShader->uploadTexture(volumetricLightTexture);
     directionalLightMesh.bindAndDraw();
     volumetricBlurShader->unbind();
@@ -559,7 +559,7 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : boxLights)
     {
-        mat4 sm    = scale(obj->model, vec3(0.05));
+        mat4 sm    = scale(obj->model, make_vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {

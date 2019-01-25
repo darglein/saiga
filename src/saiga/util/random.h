@@ -71,6 +71,18 @@ SAIGA_GLOBAL std::vector<int> uniqueIndices(int sampleCount, int indexSize);
 }  // namespace Saiga
 
 
+inline vec3 sphericalRand(float r)
+{
+    SAIGA_ASSERT(0);
+    return vec3(0, 0, 0);
+}
+
+
+inline vec3 sampleCone(vec3 low, float f)
+{
+    SAIGA_ASSERT(0);
+    return vec3(0, 0, 0);
+}
 
 inline float linearRand(float low, float high)
 {

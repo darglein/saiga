@@ -38,13 +38,13 @@ AABB Layout::transform(Object3D* obj, const AABB& box, vec2 relPos, float relSiz
     if (scaleX)
     {
         float ds = relSize / s[1];
-        s        = vec3(ds);
+        s        = make_vec3(ds);
         s[0] *= 1.0f / aspect;
     }
     else
     {
         float ds = relSize / s[0];
-        s        = vec3(ds);
+        s        = make_vec3(ds);
         s[1] *= 1.0f / aspect;
     }
     obj->setScale(s);
@@ -92,7 +92,7 @@ AABB Layout::transform(Object3D* obj, const AABB& box, vec2 relPos, float relSiz
     resultBB.setPosition(obj->getPosition() + center);
 
     obj->multScale(scale);
-    obj->position *= make_vec4(scale, 1);
+    obj->position = ele_mult(obj->position, make_vec4(scale, 1));
 
     obj->calculateModel();
 
@@ -109,9 +109,9 @@ AABB Layout::transformNonUniform(Object3D* obj, const AABB& box, vec2 relPos, ve
 
 
     // alignment
-    vec3 center = box.getPosition() * obj->getScale();
-    vec3 bbmin  = box.min * obj->getScale();
-    vec3 bbmax  = box.max * obj->getScale();
+    vec3 center = ele_mult(box.getPosition(), obj->getScale());
+    vec3 bbmin  = ele_mult(box.min, obj->getScale());
+    vec3 bbmax  = ele_mult(box.max, obj->getScale());
 
     vec3 alignmentOffset(0);
 
@@ -144,7 +144,7 @@ AABB Layout::transformNonUniform(Object3D* obj, const AABB& box, vec2 relPos, ve
 
     obj->setPosition(vec3(make_vec3(relPos, 0) - alignmentOffset));
 
-    AABB resultBB = AABB(box.min * s, box.max * s);
+    AABB resultBB = AABB(ele_mult(box.min, s), ele_mult(box.max, s));
     resultBB.setPosition(obj->getPosition() + center);
 
     obj->multScale(scale);
@@ -177,9 +177,9 @@ AABB Layout::transformUniform(Object3D* obj, const AABB& box, vec2 relPos, vec2 
     s = obj->getScale();
 
     // alignment
-    vec3 center = box.getPosition() * obj->getScale();
-    vec3 bbmin  = box.min * obj->getScale();
-    vec3 bbmax  = box.max * obj->getScale();
+    vec3 center = ele_mult(box.getPosition(), obj->getScale());
+    vec3 bbmin  = ele_mult(box.min, obj->getScale());
+    vec3 bbmax  = ele_mult(box.max, obj->getScale());
 
     vec3 alignmentOffset(0);
 
@@ -212,11 +212,11 @@ AABB Layout::transformUniform(Object3D* obj, const AABB& box, vec2 relPos, vec2 
 
     obj->setPosition(vec3(make_vec3(relPos, 0) - alignmentOffset));
 
-    AABB resultBB = AABB(box.min * s, box.max * s);
+    AABB resultBB = AABB(ele_mult(box.min, s), ele_mult(box.max, s));
     resultBB.setPosition(obj->getPosition() + center);
 
     obj->multScale(scale);
-    obj->position *= vec4(scale, 1);
+    obj->position = ele_mult(obj->position, make_vec4(scale, 1));
     obj->calculateModel();
 
     return resultBB;

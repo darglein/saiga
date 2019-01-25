@@ -66,13 +66,13 @@ inline void Particle::setScale(float radius, float upscale)
 
 inline void Particle::setScale(const vec2& _scale, const vec2& upscale)
 {
-    this->scale = vec4(_scale, upscale);
+    this->scale = make_vec4(_scale, upscale);
 }
 
 inline void Particle::setVelocity(const vec3& v)
 {
     float l  = length(v);
-    velocity = vec4(v / l, l);
+    velocity = make_vec4(v / l, l);
 }
 
 

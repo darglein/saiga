@@ -225,6 +225,12 @@ inline vec4 make_vec4(float a)
 {
     return vec4(a);
 }
+
+inline vec4 make_vec4(const vec2& v, const vec2& v2)
+{
+    return vec4(v, v2);
+}
+
 inline vec3 make_vec3(float a)
 {
     return vec3(a);
