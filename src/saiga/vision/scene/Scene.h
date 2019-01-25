@@ -121,8 +121,8 @@ struct SAIGA_GLOBAL SceneImage
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     int intr = -1;
     int extr = -1;
-    std::vector<StereoImagePoint> stereoPoints;
-    std::vector<DenseConstraint> densePoints;
+    AlignedVector<StereoImagePoint> stereoPoints;
+    AlignedVector<DenseConstraint> densePoints;
     float imageWeight = 1;
 
     float imageScale = 1;
@@ -145,16 +145,16 @@ class SAIGA_GLOBAL Scene
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    std::vector<Intrinsics4> intrinsics;
-    std::vector<Extrinsics> extrinsics;
-    std::vector<WorldPoint> worldPoints;
+    AlignedVector<Intrinsics4> intrinsics;
+    AlignedVector<Extrinsics> extrinsics;
+    AlignedVector<WorldPoint> worldPoints;
+    AlignedVector<SceneImage> images;
 
     // to scale towards [-1,1] range for floating point precision
     double globalScale = 1;
 
     double bf = 1;
 
-    std::vector<SceneImage> images;
 
     double residualNorm2(const SceneImage& img, const StereoImagePoint& ip);
     Vec3 residual3(const SceneImage& img, const StereoImagePoint& ip);
