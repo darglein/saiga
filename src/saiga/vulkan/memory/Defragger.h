@@ -7,6 +7,7 @@
 #include "saiga/util/easylogging++.h"
 
 #include "ChunkAllocation.h"
+#include "FitStrategy.h"
 #include "MemoryLocation.h"
 
 #include <atomic>
@@ -38,7 +39,8 @@ class Defragger
 
    private:
     bool enabled;
-    std::vector<ChunkAllocation>* allocations;
+    std::vector<ChunkAllocation>* chunks;
+    FitStrategy* strategy;
     std::set<DefragOperation> defrag_operations;
 
     std::atomic_bool running, quit;
@@ -50,10 +52,11 @@ class Defragger
     void worker_func();
 
    public:
-    Defragger(std::vector<ChunkAllocation>* _allocations)
+    Defragger(std::vector<ChunkAllocation>* _chunks, FitStrategy* _strategy)
         : enabled(true),
+          chunks(_chunks),
+          strategy(_strategy),
           defrag_operations(),
-          allocations(_allocations),
           running(false),
           quit(false),
           worker(&Defragger::worker_func, this)
@@ -63,15 +66,23 @@ class Defragger
     Defragger(const Defragger& other) = delete;
     Defragger& operator=(const Defragger& other) = delete;
 
-    ~Defragger()
+    virtual ~Defragger()
     {
-        quit    = true;
-        running = false;
+        exit();
+        // quit    = true;
+        // running = false;
+        //
+        ////{
+        ////    std::lock_guard<std::mutex> lock(start_mutex);
+        ////}
+        //// start_condition.notify_one();
+        // worker.join();
+    }
 
-        //{
-        //    std::lock_guard<std::mutex> lock(start_mutex);
-        //}
-        // start_condition.notify_one();
+    void exit()
+    {
+        stop();
+        quit = true;
         worker.join();
     }
 

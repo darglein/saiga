@@ -50,7 +50,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy& strategy,
                        vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : BaseMemoryAllocator(chunkSize),
-          defragger(std::make_unique<Defragger>(&m_chunkAllocations)),
+          defragger(std::make_unique<Defragger>(&m_chunkAllocations, &strategy)),
           m_device(_device),
           m_chunkAllocator(chunkAllocator),
           m_strategy(&strategy),
