@@ -38,6 +38,10 @@ BALDataset::BALDataset(const std::string& file)
     observations.resize(num_observations);
     points.resize(num_points);
 
+
+	cout.precision(10);
+    cout << std::scientific;
+
     int start = 1;
 #pragma omp parallel for
     for (int i = 0; i < num_observations; ++i)
@@ -84,6 +88,11 @@ BALDataset::BALDataset(const std::string& file)
         Eigen::AngleAxis<double> a(angle, axis);
         c.se3      = SE3((Quat)a, t);
         cameras[i] = (c);
+
+		if (i == 0)
+        {
+                    cout << c.se3 << " " << c.f << " " << c.k1 << " " << c.k2 << endl;       
+        }
     }
     start += num_cameras * 9;
 
@@ -101,6 +110,11 @@ BALDataset::BALDataset(const std::string& file)
 
 
         points[i] = (p);
+
+			if (i == 0)
+        {
+            cout << p.point.transpose() << endl;
+        }
     }
 
     cout << "> Done. num_cameras " << num_cameras << " num_points " << num_points << " num_observations "
