@@ -28,7 +28,7 @@ namespace Memory
 class SAIGA_GLOBAL VulkanMemory
 {
    private:
-    using BufferMap        = std::map<BufferType, std::unique_ptr<BaseMemoryAllocator>>;
+    using BufferMap        = std::map<BufferType, std::unique_ptr<BufferChunkAllocator>>;
     using ImageMap         = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
     using BufferDefaultMap = std::map<BufferType, vk::DeviceSize>;
     using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
@@ -153,7 +153,7 @@ class SAIGA_GLOBAL VulkanMemory
 
     void deallocateImage(const ImageType& type, MemoryLocation& location);
 
-    BaseMemoryAllocator& getAllocator(const BufferType& type);
+    BufferChunkAllocator& getAllocator(const BufferType& type);
 
     ImageChunkAllocator& getImageAllocator(const ImageType& type);
 };

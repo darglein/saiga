@@ -16,6 +16,7 @@ namespace Memory
 {
 typedef std::vector<MemoryLocation> ChunkList;
 typedef ChunkList::iterator LocationIterator;
+typedef ChunkList::const_iterator ConstLocationIterator;
 
 struct SAIGA_GLOBAL ChunkAllocation
 {
@@ -53,7 +54,9 @@ struct SAIGA_GLOBAL ChunkAllocation
 
 typedef std::vector<ChunkAllocation> ChunkContainer;
 typedef ChunkContainer::iterator ChunkIterator;
+typedef ChunkContainer::const_iterator ConstChunkIterator;
 typedef ChunkContainer::reverse_iterator RevChunkIterator;
+typedef ChunkContainer::const_reverse_iterator ConstRevChunkIterator;
 
 }  // namespace Memory
 }  // namespace Vulkan

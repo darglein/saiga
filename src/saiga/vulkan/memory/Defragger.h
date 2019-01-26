@@ -26,6 +26,15 @@ namespace Memory
 {
 class Defragger
 {
+   public:
+    struct OperationPenalties
+    {
+        float target_small_hole     = 100.0f;
+        float source_create_hole    = 200.0f;
+        float source_not_last_alloc = 100.0f;
+        float source_not_last_chunk = 400.0f;
+    };
+
    private:
     struct DefragOperation
     {
@@ -37,7 +46,6 @@ class Defragger
         bool operator<(const DefragOperation& second) const { return this->weight > second.weight; }
     };
 
-   private:
     bool enabled;
     std::vector<ChunkAllocation>* chunks;
     FitStrategy* strategy;
@@ -45,15 +53,27 @@ class Defragger
 
     std::atomic_bool running, quit;
 
-    std::mutex start_mutex, running_mutex;
+    std::mutex start_mutex, running_mutex, invalidate_mutex;
     std::condition_variable start_condition;
     std::thread worker;
 
     void worker_func();
 
+    std::set<vk::DeviceMemory> invalidate_set;
+
+
+    // Defrag thread functions
+    float getOperationWeight(ConstChunkIterator target_chunk, ConstLocationIterator target_location,
+                             ConstChunkIterator source_chunk, ConstLocationIterator source_location) const;
+
+    void apply_invalidations();
+
+    void perform_defragmentation();
+    // end defrag thread functions
    public:
+    OperationPenalties penalties;
     Defragger(std::vector<ChunkAllocation>* _chunks, FitStrategy* _strategy)
-        : enabled(true),
+        : enabled(false),
           chunks(_chunks),
           strategy(_strategy),
           defrag_operations(),
@@ -66,28 +86,26 @@ class Defragger
     Defragger(const Defragger& other) = delete;
     Defragger& operator=(const Defragger& other) = delete;
 
-    virtual ~Defragger()
-    {
-        exit();
-        // quit    = true;
-        // running = false;
-        //
-        ////{
-        ////    std::lock_guard<std::mutex> lock(start_mutex);
-        ////}
-        //// start_condition.notify_one();
-        // worker.join();
-    }
+    virtual ~Defragger() { exit(); }
 
     void exit()
     {
-        stop();
-        quit = true;
+        running = false;
+        std::unique_lock<std::mutex> lock(running_mutex);
+
+        {
+            std::lock_guard<std::mutex> lock(start_mutex);
+            running = false;
+            quit    = true;
+        }
+        start_condition.notify_one();
         worker.join();
     }
 
     void start();
     void stop();
+
+    void setEnabled(bool enable) { enabled = enable; }
 
     void invalidate(vk::DeviceMemory memory);
 };

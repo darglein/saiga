@@ -38,8 +38,9 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 
     auto effectiveFlags   = getEffectiveFlags(stagingType.memoryFlags);
     auto effectiveStaging = BufferType{stagingType.usageFlags, effectiveFlags};
-    bufferAllocators.emplace(effectiveStaging,
-                             std::make_unique<SimpleMemoryAllocator>(m_device, m_pDevice, effectiveStaging));
+    // bufferAllocators.emplace(effectiveStaging,
+    //                         std::make_unique<SimpleMemoryAllocator>(m_device, m_pDevice, effectiveStaging));
+    getAllocator(effectiveStaging);
 
     fallbackAllocator = std::make_unique<FallbackAllocator>(_device, _pDevice);
 }
@@ -77,7 +78,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
     return emplaced.first;
 }
 
-BaseMemoryAllocator& VulkanMemory::getAllocator(const BufferType& type)
+BufferChunkAllocator& VulkanMemory::getAllocator(const BufferType& type)
 {
     auto foundAllocator = findAllocator<BufferMap, vk::BufferUsageFlags>(bufferAllocators, type);
     if (foundAllocator == bufferAllocators.end())

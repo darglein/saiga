@@ -74,7 +74,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
 
     static const BufferType buffer_type{vk::BufferUsageFlagBits::eVertexBuffer,
                                         vk::MemoryPropertyFlagBits::eDeviceLocal};
-
+    static bool enable_defragger = false;
 
 
     int single_unassign = -1;
@@ -150,7 +150,12 @@ void VulkanExample::keyPressed(SDL_Keysym key)
                 renderer.base.memory.deallocateBuffer(buffer_type, loc);
             }
             break;
+        case SDL_SCANCODE_F:
 
+            enable_defragger = !enable_defragger;
+
+            renderer.base.memory.getAllocator(buffer_type).enable_defragger(enable_defragger);
+            break;
         case SDL_SCANCODE_ESCAPE:
             parentWindow.close();
             break;

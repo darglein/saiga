@@ -97,6 +97,8 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     MemoryStats collectMemoryStats() override;
 
     void showDetailStats() override;
+
+    void enable_defragger(bool enable) { defragger->setEnabled(enable); }
 };
 
 
