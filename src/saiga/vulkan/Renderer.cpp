@@ -33,13 +33,9 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
 
     vulkanParameters.physicalDeviceFeatures.wideLines = VK_TRUE;
-    base.createLogicalDevice(surface, vulkanParameters.physicalDeviceFeatures, vulkanParameters.deviceExtensions, true,
-                             vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer,
-                             true);
+    base.createLogicalDevice(surface, vulkanParameters, true);
 
 
-
-    base.init(vulkanParameters);
 
     swapChain.connect(instance, base.physicalDevice, base.device);
     swapChain.initSurface(surface);

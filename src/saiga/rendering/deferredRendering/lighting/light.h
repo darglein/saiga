@@ -81,8 +81,8 @@ class SAIGA_GLOBAL Light : public Object3D
     bool volumetric  = false;
 
    public:
-    vec4 colorDiffuse  = vec4(1);
-    vec4 colorSpecular = vec4(1);
+    vec4 colorDiffuse  = make_vec4(1);
+    vec4 colorSpecular = make_vec4(1);
     // density of the participating media
     float volumetricDensity = 0.02f;
 
@@ -97,16 +97,16 @@ class SAIGA_GLOBAL Light : public Object3D
     Light(const vec4& color) { setColorDiffuse(color); }
     virtual ~Light() {}
 
-    void setColorDiffuse(const vec3& color) { this->colorDiffuse = vec4(color, this->colorDiffuse.w); }
+    void setColorDiffuse(const vec3& color) { this->colorDiffuse = make_vec4(color, this->colorDiffuse[3]); }
     void setColorDiffuse(const vec4& color) { this->colorDiffuse = color; }
-    void setColorSpecular(const vec3& color) { this->colorSpecular = vec4(color, this->colorSpecular.w); }
+    void setColorSpecular(const vec3& color) { this->colorSpecular = make_vec4(color, this->colorSpecular[3]); }
     void setColorSpecular(const vec4& color) { this->colorSpecular = color; }
-    void setIntensity(float f) { this->colorDiffuse.w = f; }
-    void addIntensity(float f) { this->colorDiffuse.w += f; }
+    void setIntensity(float f) { this->colorDiffuse[3] = f; }
+    void addIntensity(float f) { this->colorDiffuse[3] += f; }
 
-    vec3 getColorSpecular() const { return vec3(colorSpecular); }
-    vec3 getColorDiffuse() const { return vec3(colorDiffuse); }
-    float getIntensity() const { return colorDiffuse.w; }
+    vec3 getColorSpecular() const { return make_vec3(colorSpecular); }
+    vec3 getColorDiffuse() const { return make_vec3(colorDiffuse); }
+    float getIntensity() const { return colorDiffuse[3]; }
 
     void setActive(bool _active) { this->active = _active; }
     bool isActive() const { return active; }

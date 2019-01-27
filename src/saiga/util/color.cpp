@@ -119,7 +119,7 @@ vec3 Color::rgb2hsv(vec3 c)
 vec3 Color::hsv2rgb(vec3 c)
 {
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-    vec3 p = abs(fract(make_vec3(c[0]) + make_vec3(K)) * 6.0f - make_vec3(K[3]));
+    vec3 p = abs(vec3(fract(make_vec3(c[0]) + make_vec3(K)) * 6.0f - make_vec3(K[3])));
     return c[2] * mix(make_vec3(K[0]), clamp(p - make_vec3(K[0]), make_vec3(0.0), make_vec3(1.0)), c[1]);
 }
 

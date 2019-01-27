@@ -45,7 +45,7 @@ namespace Saiga
 class SAIGA_GLOBAL ImGui_SDL_Renderer : public ImGui_GL_Renderer, public SDL_EventListener
 {
    public:
-    ImGui_SDL_Renderer(SDL_Window* window, std::string font, float fontSize = 15.0f);
+    ImGui_SDL_Renderer(SDL_Window* window, const ImGuiParameters& params);
     ~ImGui_SDL_Renderer();
 
     virtual void beginFrame() override;

@@ -44,7 +44,7 @@ void Forward_Renderer::render(Camera* cam)
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
-    glClearColor(params.clearColor.x, params.clearColor.y, params.clearColor.z, params.clearColor.w);
+    glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     renderingInterface->renderOverlay(cam);
 

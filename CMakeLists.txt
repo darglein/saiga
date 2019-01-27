@@ -182,11 +182,14 @@ PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
 find_package(g2o QUIET)
 PackageHelperTarget(g2o::core G2O_FOUND)
-PackageHelperTarget(g2o::solver_cholmod G2O_FOUND)
+#PackageHelperTarget(g2o::solver_cholmod G2O_FOUND)
 #PackageHelperTarget(g2o::types_sba G2O_FOUND)
 
 #ceres
 find_package(Ceres QUIET)
+if(CERES_FOUND)
+    SET(SAIGA_USE_CERES 1)
+endif()
 PackageHelperTarget(ceres CERES_FOUND)
 
 
@@ -228,16 +231,27 @@ if(SAIGA_WITH_VULKAN)
 
     find_package(GLslang QUIET)
     PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
+    if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
+        message(STATUS "Saiga vulkan enabled.")
+        SET(SAIGA_USE_VULKAN 1)
+    endif()
+else()
+    UNSET(SAIGA_USE_VULKAN)
 endif()
+
+
 
 if(SAIGA_WITH_GL)
     set(OpenGL_GL_PREFERENCE LEGACY)
     find_package(OpenGL QUIET)
     PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
+    if(OPENGL_FOUND)
+        SET(SAIGA_USE_OPENGL 1)
+    endif()
+else()
+    UNSET(SAIGA_USE_OPENGL)
 endif()
-if(OPENGL_FOUND)
-    SET(SAIGA_USE_OPENGL 1)
-endif()
+
 
 
 #freetype2
@@ -356,10 +370,6 @@ if(EIGEN3_FOUND AND SOPHUS_FOUND)
     SET(SAIGA_VISION 1)
 endif()
 
-if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
-    message(STATUS "Saiga vulkan enabled.")
-    SET(SAIGA_USE_VULKAN 1)
-endif()
 
 ############# INSTALL PATHS ###############
 

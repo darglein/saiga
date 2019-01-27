@@ -33,9 +33,9 @@ SpotLight::SpotLight() {}
 
 void SpotLight::calculateCamera()
 {
-    vec3 dir = vec3(this->getUpVector());
+    vec3 dir = make_vec3(this->getUpVector());
     vec3 pos = vec3(getPosition());
-    vec3 up  = vec3(getRightVector());
+    vec3 up  = make_vec3(getRightVector());
     shadowCamera.setView(pos, pos - dir, up);
     shadowCamera.setProj(2 * angle, 1, shadowNearPlane, cutoffRadius);
 }

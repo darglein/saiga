@@ -46,10 +46,10 @@ void ObjAssetLoader::loadMeshNC(const std::string& file, TriangleMesh<VertexNC, 
             ObjTriangle& face = ol.outTriangles[i + tg.startFace];
             for (int f = 0; f < 3; ++f)
             {
-                int index                    = face.v[f];
-                tmesh.vertices[index].color  = tg.material.color;
-                float spec                   = dot(tg.material.Ks, vec3(1)) / 3.0f;
-                tmesh.vertices[index].data.x = spec;
+                int index                     = face.v[f];
+                tmesh.vertices[index].color   = tg.material.color;
+                float spec                    = dot(tg.material.Ks, vec3(1)) / 3.0f;
+                tmesh.vertices[index].data[0] = spec;
             }
         }
     }
@@ -109,9 +109,9 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
             ObjTriangle& face = ol.outTriangles[i + tg.startFace];
             for (int f = 0; f < 3; ++f)
             {
-                int index                    = face.v[f];
-                float spec                   = dot(tg.material.Ks, vec3(1)) / 3.0f;
-                tmesh.vertices[index].data.x = spec;
+                int index                     = face.v[f];
+                float spec                    = dot(tg.material.Ks, vec3(1)) / 3.0f;
+                tmesh.vertices[index].data[0] = spec;
             }
         }
     }

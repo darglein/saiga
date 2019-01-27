@@ -238,7 +238,7 @@ bool RGBDCameraInput::readColor(RGBImageType::ViewType colorImg)
     {
         for (int j = 0; j < rawImg.width; ++j)
         {
-            colorImg(i, j) = ucvec4(rawImg(i, rawImg.width - j - 1), 255);
+            colorImg(i, j) = make_ucvec4(rawImg(i, rawImg.width - j - 1), 255);
         }
     }
 

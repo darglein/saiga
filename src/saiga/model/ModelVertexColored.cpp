@@ -31,10 +31,10 @@ void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, vec4 col
         {
             vec4 c            = (j + i % 2) % 2 == 0 ? color1 : color2;
             VertexNC verts[4] = {
-                {{i, 0.f, j, 1.f}, n, c},
-                {{i, 0.f, j + 1.f, 1.f}, n, c},
-                {{i + 1.f, 0.f, j + 1.f, 1.f}, n, c},
-                {{i + 1.f, 0.f, j, 1.f}, n, c},
+                {{(float)i, 0.f, (float)j, 1.f}, n, c},
+                {{(float)i, 0.f, j + 1.f, 1.f}, n, c},
+                {{(float)i + 1.f, 0.f, j + 1.f, 1.f}, n, c},
+                {{(float)i + 1.f, 0.f, (float)j, 1.f}, n, c},
             };
 
             for (int i = 0; i < 4; ++i)

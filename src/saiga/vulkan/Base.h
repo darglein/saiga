@@ -30,43 +30,44 @@ namespace Vulkan
 {
 struct SAIGA_GLOBAL VulkanBase
 {
+private:
+    std::unique_ptr<Queue> compute_queue;
+    std::unique_ptr<Queue> transfer_queue;
+public:
     vk::PhysicalDevice physicalDevice;
-    vk::PhysicalDeviceFeatures enabledFeatures = {};
     vk::Device device;
+    vk::PhysicalDeviceFeatures enabledFeatures = {};
 
     Saiga::Vulkan::Memory::VulkanMemory memory;
-    vk::PhysicalDeviceMemoryProperties memoryProperties;
 
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
 
     vk::PipelineCache pipelineCache;
 
+    std::pair<uint32_t, uint32_t> main_queue_info, transfer_info, compute_info;
+
     /**
-     * We store the transferQueue here so everyone can use it.
-     * The graphics queues for rendering are created from the render engines.
+     * The main queue must be able to do Graphics and Compute (and Transfer).
      */
-    Queue transferQueue;
+    Queue mainQueue;
 
-    bool secondaryQueueAvailable = false;
-    Queue secondaryTransferQueue;
+    /**
+     * This queue is a dedicated transfer queue. If the GPU does not provide enough queues this will point to the same
+     * queue as mainQueue. Depending on the GPU the queue may have other capabilities. If the GPU provides dedicated
+     * transfer queues (without graphics and compute capabilities) one of them will be used.
+     */
+    Queue* transferQueue;
 
-    // A commandpool for transfer commands that are sync-submitted. (this is not the command pool used for rendering)
-    CommandPool commandPool;
+    /**
+     * A dedicated compute queue. If the GPU does not provide enough queues this will point to the same
+     * queue as mainQueue. Depending on the GPU the queue may have other capabilities.
+     * If the GPU provides dedicated Compute queues (without graphics capabilities) one of them will be used.
+     */
+    Queue* computeQueue;
 
     // A large descriptor pool which should be used by the application
     // The size is controlled by the vulkan parameters
     DescriptorPool descriptorPool;
-
-
-
-    /** @brief Contains queue family indices */
-    struct
-    {
-        uint32_t graphics = -1;
-        uint32_t compute;
-        uint32_t transfer;
-        uint32_t present;
-    } queueFamilyIndices;
 
     operator vk::Device() { return device; }
 
@@ -81,35 +82,6 @@ struct SAIGA_GLOBAL VulkanBase
     void destroy();
 
     /**
-     * Get the index of a memory type that has all the requested property bits set
-     *
-     * @param typeBits Bitmask with bits set for each memory type supported by the resource to request for (from
-     * VkMemoryRequirements)
-     * @param properties Bitmask of properties for the memory type to request
-     * @param (Optional) memTypeFound Pointer to a bool that is set to true if a matching memory type has been found
-     *
-     * @return Index of the requested memory type
-     *
-     * @throw Throws an exception if memTypeFound is null and no memory type could be found that supports the requested
-     * properties
-     */
-    uint32_t getMemoryType(uint32_t typeBits, vk::MemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
-
-    void printAvailableMemoryTypes();
-
-    /**
-     * Get the index of a queue family that supports the requested queue flags
-     *
-     * @param queueFlags Queue flags to find a queue family index for
-     *
-     * @return Index of the queue family index that matches the flags
-     *
-     * @throw Throws an exception if no queue family index could be found that supports the requested flags
-     */
-    uint32_t getQueueFamilyIndex(vk::QueueFlags queueFlags);
-    uint32_t getPresentQueue(vk::SurfaceKHR surface);
-
-    /**
      * Create the logical device based on the assigned physical device, also gets default queue family indices
      *
      * @param requestedFeatures Can be used to enable certain features upon device creation
@@ -118,28 +90,17 @@ struct SAIGA_GLOBAL VulkanBase
      *
      * @return VkResult of the device creation call
      */
-    void createLogicalDevice(vk::SurfaceKHR surface, vk::PhysicalDeviceFeatures requestedFeatures,
-                             std::vector<const char*> enabledExtensions, bool useSwapChain = true,
-                             vk::QueueFlags requestedQueueTypes = vk::QueueFlagBits::eGraphics |
-                                                                  vk::QueueFlagBits::eCompute |
-                                                                  vk::QueueFlagBits::eTransfer,
-                             bool createSecondaryTransferQueue = false);
+    void createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& parameters, bool useSwapChain = true);
 
 
-    void init(VulkanParameters params);
-
-    vk::CommandBuffer createAndBeginTransferCommand();
-
-    /**
-     * Submits the command buffer to the queue and waits until it is completed with a fence.
-     */
-    void submitAndWait(vk::CommandBuffer commandBuffer, vk::Queue queue);
-
-    void endTransferWait(vk::CommandBuffer commandBuffer);
-
-    void printAvailableQueueFamilies();
+    [[deprecated("The functionality of this function was moved to createLogicalDevice(...)")]] void init(
+        VulkanParameters params);
 
     void renderGUI();
+
+    bool findQueueFamily(vk::QueueFlags flags, uint32_t& family);
+
+    bool findDedicatedQueueFamily(vk::QueueFlags flags, uint32_t& family);
 };
 
 }  // namespace Vulkan

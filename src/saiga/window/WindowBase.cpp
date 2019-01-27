@@ -23,7 +23,6 @@ void WindowBase::close()
 }
 
 
-
 void WindowBase::resize(int width, int height)
 {
     this->windowParameters.width  = width;
@@ -131,5 +130,7 @@ void WindowBase::startMainLoop(MainLoopParameters params)
     running = true;
     mainLoop.startMainLoop(params);
 }
+
+
 
 }  // namespace Saiga

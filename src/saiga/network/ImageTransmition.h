@@ -41,7 +41,7 @@ class SAIGA_GLOBAL ImageTransmition
         uint32_t imageId;
     };
 
-    static const size_t dataPacketSize = 1024 - sizeof(DataHeader);
+    static constexpr size_t dataPacketSize = 1024 - sizeof(DataHeader);
 
     std::array<char, 10000> buffer;
 

@@ -38,8 +38,7 @@ ImGuiSDLRenderer::~ImGuiSDLRenderer() {}
 void ImGuiSDLRenderer::init(SDL_Window* window, float width, float height)
 {
     this->window = window;
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO& io  = ImGui::GetIO();
     io.KeyMap[ImGuiKey_Tab] =
         SDLK_TAB;  // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
     io.KeyMap[ImGuiKey_LeftArrow]  = SDL_SCANCODE_LEFT;
@@ -75,8 +74,6 @@ void ImGuiSDLRenderer::init(SDL_Window* window, float width, float height)
 #    else
     (void)window;
 #    endif
-
-    io.Fonts->AddFontDefault();
 }
 
 void ImGuiSDLRenderer::beginFrame()

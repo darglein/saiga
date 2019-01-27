@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/texture/texture.h"
-#include "saiga/util/loader.h"
+#include "saiga/util/ObjectCache.h"
 #include "saiga/util/singleton.h"
 
 namespace Saiga
@@ -20,15 +20,14 @@ struct SAIGA_GLOBAL TextureParameters
 SAIGA_GLOBAL bool operator==(const TextureParameters& lhs, const TextureParameters& rhs);
 
 
-class SAIGA_GLOBAL TextureLoader : public Loader<std::shared_ptr<Texture>, TextureParameters>,
-                                   public Singleton<TextureLoader>
+class SAIGA_GLOBAL TextureLoader : public Singleton<TextureLoader>
 {
     friend class Singleton<TextureLoader>;
 
-   public:
-    std::shared_ptr<Texture> loadFromFile(const std::string& name, const TextureParameters& params);
+    ObjectCache<std::string, std::shared_ptr<Texture>, TextureParameters> cache;
 
-    std::shared_ptr<Texture> textureFromImage(Image& im, const TextureParameters& params) const;
+   public:
+    std::shared_ptr<Texture> load(const std::string& name, const TextureParameters& params = TextureParameters());
 };
 
 }  // namespace Saiga

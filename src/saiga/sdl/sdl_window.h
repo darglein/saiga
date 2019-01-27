@@ -38,7 +38,7 @@ class SAIGA_GLOBAL SDLWindow : public OpenGLWindow, public SDL_ResizeListener
     SDLWindow(WindowParameters windowParameters, OpenGLParameters openglParameter);
     ~SDLWindow();
 
-    virtual std::shared_ptr<ImGuiRenderer> createImGui() override;
+    virtual std::shared_ptr<ImGui_GL_Renderer> createImGui() override;
 };
 
 }  // namespace Saiga

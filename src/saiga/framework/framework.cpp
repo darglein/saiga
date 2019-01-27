@@ -11,6 +11,7 @@
 #include "saiga/util/assert.h"
 #include "saiga/util/directory.h"
 #include "saiga/util/easylogging++.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/floatingPoint.h"
 #include "saiga/util/ini/ini.h"
 #include "saiga/util/tostring.h"
@@ -60,6 +61,7 @@ void SaigaParameters::fromConfigFile(const std::string& file)
     textureDirectory = split(ini.GetAddString("saiga", "textureDirectory", concat(textureDirectory, sep).c_str()), sep);
     modelDirectory   = split(ini.GetAddString("saiga", "modelDirectory", concat(modelDirectory, sep).c_str()), sep);
     fontDirectory    = split(ini.GetAddString("saiga", "fontDirectory", concat(fontDirectory, sep).c_str()), sep);
+    dataDirectory    = split(ini.GetAddString("saiga", "dataDirectory", concat(dataDirectory, sep).c_str()), sep);
     mainThreadName   = ini.GetAddString("saiga", "mainThreadName", mainThreadName.c_str());
     logging_enabled  = ini.GetAddBool("saiga", "logging", logging_enabled);
     if (ini.changed()) ini.SaveFile(file.c_str());
@@ -141,6 +143,7 @@ void initSample(SaigaParameters& saigaParameters)
     saigaParameters.textureDirectory = {SAIGA_PROJECT_SOURCE_DIR "/data/textures"};
     saigaParameters.modelDirectory   = {SAIGA_PROJECT_SOURCE_DIR "/data/models"};
     saigaParameters.fontDirectory    = {SAIGA_PROJECT_SOURCE_DIR "/data/fonts"};
+    saigaParameters.dataDirectory    = {SAIGA_PROJECT_SOURCE_DIR "/data"};
     saigaParameters.logging_enabled  = false;
 }
 
@@ -187,22 +190,31 @@ void initSaiga(const SaigaParameters& params)
         exit(1);
     }
 
+    SearchPathes::shader.addSearchPath(shaderDir);
+    SearchPathes::shader.addSearchPath(shaderDir + "/include");
+    SearchPathes::shader.addSearchPath(params.shaderDirectory);
+
+    SearchPathes::image.addSearchPath(params.textureDirectory);
+    SearchPathes::data.addSearchPath(params.dataDirectory);
+    SearchPathes::font.addSearchPath(params.fontDirectory);
+    SearchPathes::model.addSearchPath(params.modelDirectory);
+
 #ifdef SAIGA_USE_OPENGL
     initSaigaGL(shaderDir, params.textureDirectory);
 #endif
 
 #ifdef SAIGA_USE_VULKAN
     Vulkan::GLSLANG::init();
-    Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir);
-    Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir + "/include");
+//    Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir);
+//    Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir + "/include");
 #endif
 
-    for (auto t : params.textureDirectory) Image::searchPathes.addSearchPath(t);
+    //    for (auto t : params.textureDirectory) Image::searchPathes.addSearchPath(t);
 
-    for (auto t : params.modelDirectory) modelPathes.addSearchPath(t);
+    //    for (auto t : params.modelDirectory) modelPathes.addSearchPath(t);
 
 #if defined(SAIGA_USE_FREETYPE) && defined(SAIGA_USE_OPENGL)
-    for (auto t : params.fontDirectory) fontPathes.addSearchPath(t);
+//    for (auto t : params.fontDirectory) fontPathes.addSearchPath(t);
 #endif
 
 
@@ -221,7 +233,7 @@ void initSaiga(const SaigaParameters& params)
     }
 
     printSaigaInfo();
-    cout << "========================== Saiga initialization done!  ==========================" << endl;
+    cout << "========================== Saiga initialization done!  ==========================" << endl << endl;
     initialized = true;
 }
 

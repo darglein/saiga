@@ -58,7 +58,8 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float
     std::shared_ptr<TexturedAsset> asset = loadDebugTexturedPlane(cbTexture, size);
     for (auto& v : asset->model.mesh.vertices)
     {
-        v.texture *= size / quadSize;
+        //        v.texture *= size / quadSize;
+        v.texture = ele_mult(v.texture, vec2(size * (1.0 / quadSize)));
     }
     //    asset->model.mesh.createBuffers(asset->buffer);
     asset->buffer.fromMesh(asset->model.mesh);
@@ -80,7 +81,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(ivec2 size, floa
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
 {
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
-    mat4 S         = scale(mat4(1), vec3(size.x, 1, size.y));
+    mat4 S         = scale(identityMat4(), vec3(size[0], 1, size[1]));
     plainMesh->transform(S);
 
     auto asset = std::make_shared<TexturedAsset>();
@@ -113,8 +114,8 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugGrid(int numX, int numY, flo
 
     for (float i = -numX; i <= numX; i++)
     {
-        vec3 p1 = vec3(quadSize * i, 0, -size.y);
-        vec3 p2 = vec3(quadSize * i, 0, size.y);
+        vec3 p1 = vec3(quadSize * i, 0, -size[1]);
+        vec3 p2 = vec3(quadSize * i, 0, size[1]);
         indices.push_back(vertices.size());
         vertices.push_back(p1);
         indices.push_back(vertices.size());
@@ -123,8 +124,8 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugGrid(int numX, int numY, flo
 
     for (float i = -numY; i <= numY; i++)
     {
-        vec3 p1 = vec3(-size.x, 0, quadSize * i);
-        vec3 p2 = vec3(+size.x, 0, quadSize * i);
+        vec3 p1 = vec3(-size[0], 0, quadSize * i);
+        vec3 p2 = vec3(+size[0], 0, quadSize * i);
         indices.push_back(vertices.size());
         vertices.push_back(p1);
         indices.push_back(vertices.size());
@@ -202,7 +203,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::nonTriangleMesh(std::vector<vec3> ver
 
     for (auto v : vertices)
     {
-        asset->model.mesh.vertices.push_back(VertexNC(v, vec3(0, 1, 0), vec3(color)));
+        asset->model.mesh.vertices.push_back(VertexNC(v, vec3(0, 1, 0), make_vec3(color)));
     }
     //    for(auto& v : asset->model.mesh.vertices){
     //        v.color = color;
@@ -231,10 +232,10 @@ static void createFrustumMesh(mat4 proj, std::vector<vec3>& vertices, std::vecto
     bl           = projInv * bl;
     br           = projInv * br;
 
-    tl /= tl.w;
-    tr /= tr.w;
-    bl /= bl.w;
-    br /= br.w;
+    tl /= tl[3];
+    tr /= tr[3];
+    bl /= bl[3];
+    br /= br[3];
 
 
     //    std::vector<VertexNC> vertices;
@@ -247,7 +248,7 @@ static void createFrustumMesh(mat4 proj, std::vector<vec3>& vertices, std::vecto
         //        vec4(bl[0],bl[1],-1,1),
 
 
-        0.4f * tl + 0.6f * tr, 0.6f * tl + 0.4f * tr, 0.5f * tl + 0.5f * tr + vec4(0, (tl.y - bl.y) * 0.1f, 0, 0)
+        0.4f * tl + 0.6f * tr, 0.6f * tl + 0.4f * tr, 0.5f * tl + 0.5f * tr + vec4(0, (tl[1] - bl[1]) * 0.1f, 0, 0)
         //        vec4(0.6*tl[0]+0.4*tr[0],0.6*tl[1]+0.4*tr[1],-1,1),
         //        vec4(0.5*tl[0]+0.5*tr[0],0.5*tl[1]+0.5*tr[1]-0.1,-1,1),
 
@@ -257,7 +258,7 @@ static void createFrustumMesh(mat4 proj, std::vector<vec3>& vertices, std::vecto
     {
         //        Vertex v;
         //        v.position = positions[i];
-        vertices.push_back(vec3(positions[i]));
+        vertices.push_back(make_vec3(positions[i]));
     }
 
 
@@ -274,7 +275,6 @@ std::shared_ptr<ColoredAsset> AssetLoader::frustumMesh(const mat4& proj, const v
     std::vector<vec3> vertices;
     std::vector<GLuint> indices;
     createFrustumMesh(proj, vertices, indices);
-
     return nonTriangleMesh(vertices, indices, GL_LINES, color);
 }
 

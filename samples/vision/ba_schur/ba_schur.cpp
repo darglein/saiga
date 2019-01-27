@@ -11,8 +11,20 @@
 #include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
 #include "Eigen/Sparse"
+
+#define NO_CG_SPEZIALIZATIONS
+#define NO_CG_TYPES
+using Scalar = double;
+const int bn = Saiga::blockSizeCamera;
+const int bm = Saiga::blockSizeCamera;
+using Block  = Eigen::Matrix<Scalar, bn, bm>;
+using Vector = Eigen::Matrix<Scalar, bn, 1>;
+
+#include "saiga/vision/recursiveMatrices/CG.h"
+
 
 using namespace Saiga;
 
@@ -177,6 +189,7 @@ void simpleSchurTest()
 
 void baBlockSchurTest()
 {
+    cout << "baBlockSchurTest" << endl;
     // Solution of the following block-structured linear system
     //
     // | U   W |   | da |   | ea |
@@ -191,12 +204,16 @@ void baBlockSchurTest()
     // ======================== Parameters ========================
 
     // size of U
-    int n = 2;
+    int n = 3;
     // size of V
-    int m = 3;
+    int m = 4;
+
+
+    bool explizitSchur = true;
+    bool computeWT     = true;
 
     // maximum number of non-zero elements per row in W
-    int maxElementsPerRow = 3;
+    int maxElementsPerRow = 2;
 
     // ======================== Variables ========================
 
@@ -256,7 +273,12 @@ void baBlockSchurTest()
     }
 
     W.setFromTriplets(ws1.begin(), ws1.end());
-    WT.setFromTriplets(ws2.begin(), ws2.end());
+
+    if (computeWT)
+    {
+        WT.setFromTriplets(ws2.begin(), ws2.end());
+    }
+
 
 #ifdef PRINT_MATRIX
     // debug print W
@@ -272,9 +294,9 @@ void baBlockSchurTest()
     // ======================== Dense Simple Solution (only for checking the
     // correctness) ========================
     {
-        SAIGA_BLOCK_TIMER();
-        n *= asize;
-        m *= bsize;
+        //        SAIGA_BLOCK_TIMER();
+        n *= blockSizeCamera;
+        m *= blockSizePoint;
 
         // Build the complete system matrix
         Eigen::MatrixXd M(m + n, m + n);
@@ -292,65 +314,58 @@ void baBlockSchurTest()
         Eigen::VectorXd x = M.ldlt().solve(b);
 
         double error = (M * x - b).norm();
-        cout << x.transpose() << endl;
+        //        cout << x.transpose() << endl;
         cout << "Dense error " << error << endl;
 
-        n /= asize;
-        m /= bsize;
+        n /= blockSizeCamera;
+        m /= blockSizePoint;
     }
 #endif
 
     // tmp variables
     VType Vinv(m);
-    WType Y(n, m);
+    WType Y;  //(n, m);
     SType S(n, n);
     DAType ej(n);
 
+    Eigen::DiagonalMatrix<MatrixScalar<Block>, -1> Sdiag(n);
+
     {
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         // Schur complement solution
 
         // Step 1
         // Invert V
         for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
-        //        cout << "Vinv" << endl <<
-        //        blockMatrixToMatrix(Vinv.toDenseMatrix()) << endl;
     }
 
     {
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         // Step 2
         // Compute Y
         Y = multSparseDiag(W, Vinv);
-        //        cout << "Yref" << endl
-        //             << (blockMatrixToMatrix(W.toDense()) *
-        //             blockMatrixToMatrix(Vinv.toDenseMatrix())) << endl;
-        //        cout << "Y" << endl << blockMatrixToMatrix(Y.toDense()) << endl;
     }
     {
-        SAIGA_BLOCK_TIMER();
         // Step 3
         // Compute the Schur complement S
         // Not sure how good the sparse matrix mult is of eigen
         // maybe own implementation because the structure is well known before hand
 
         // TODO: this line doesn't seem to compile with every eigen version
-        //        S = -(Y * WT).eval();
-        //        S = W * WT;
-        S.diagonal() = U.diagonal() + S.diagonal();
-
-        //        cout << "Sref" << endl
-        //             << (blockMatrixToMatrix(U.toDenseMatrix()) -
-        //             blockMatrixToMatrix(W.toDense()) *
-        //                                                              blockMatrixToMatrix(Vinv.toDenseMatrix())
-        //                                                              *
-        //                                                              blockMatrixToMatrix(WT.toDense()))
-        //                    .eval()
-        //             << endl;
-        //        cout << "S" << endl << blockMatrixToMatrix(S.toDense()) << endl;
+        if (explizitSchur)
+        {
+            S            = Y * WT;
+            S            = -S;
+            S.diagonal() = U.diagonal() + S.diagonal();
+        }
+        else
+        {
+            diagInnerProductTransposed(Y, W, Sdiag);
+            Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
+        }
     }
     {
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         // Step 4
         // Compute the right hand side of the schur system ej
         // S * da = ej
@@ -363,9 +378,10 @@ void baBlockSchurTest()
         //        cout << "ej" << endl << blockVectorToVector(ej) << endl;
     }
 
+#if 0
     Eigen::SparseMatrix<double> ssparse(n * asize, n * asize);
     {
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         // Step 5
         // Solve the schur system for da
 
@@ -374,7 +390,7 @@ void baBlockSchurTest()
         ssparse.setFromTriplets(triplets.begin(), triplets.end());
     }
     {
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         //        cout << "ssparse" << endl << ssparse.toDense() << endl;
 
         Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
@@ -390,48 +406,94 @@ void baBlockSchurTest()
             da(i) = deltaA.segment(i * asize, asize);
         }
     }
-    DBType q;
+
+#else
     {
-        SAIGA_BLOCK_TIMER();
+        // this CG solver is super fast :)
+        //        SAIGA_BLOCK_TIMER();
+        da.setZero();
+        RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
+        Eigen::Index iters = 50;
+        Scalar tol         = 1e-50;
+
+        if (explizitSchur)
+        {
+            P.compute(S);
+            DAType tmp(n);
+            recursive_conjugate_gradient(
+                [&](const DAType& v) {
+                    tmp = S * v;
+                    return tmp;
+                },
+                ej, da, P, iters, tol);
+        }
+        else
+        {
+            P.compute(Sdiag);
+            DBType q(m);
+            DAType tmp(n);
+            recursive_conjugate_gradient(
+                [&](const DAType& v) {
+                    // x = U * p - Y * WT * p
+                    if (computeWT)
+                    {
+                        tmp = Y * (WT * v);
+                    }
+                    else
+                    {
+                        multSparseRowTransposedVector(W, v, q);
+                        tmp = Y * q;
+                    }
+                    tmp = (U.diagonal().array() * v.array()) - tmp.array();
+                    return tmp;
+                },
+                ej, da, P, iters, tol);
+        }
+        cout << "error " << tol << " iterations " << iters << endl;
+    }
+#endif
+    DBType q(m);
+    {
+        //        SAIGA_BLOCK_TIMER();
         // Step 6
         // Substitute the solultion deltaA into the original system and
         // bring it to the right hand side
-        q = eb + -WT * da;
-        //        cout << "qref" << endl
-        //             << (blockVectorToVector(eb) -
-        //             blockMatrixToMatrix(WT.toDense()) * blockVectorToVector(da))
-        //             << endl;
-
-        //        cout << "q" << endl << blockVectorToVector(q) << endl;
+        //        q = eb + -WT * da;
+        if (computeWT)
+        {
+            q = WT * da;
+        }
+        else
+        {
+            multSparseRowTransposedVector(W, da, q);
+        }
+        q = eb - q;
     }
     {
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         // Step 7
         // Solve the remaining partial system with the precomputed inverse of V
         db = multDiagVector(Vinv, q);
+    }
 
 #if 1
+    {
         // compute residual of linear system
-        auto xa                           = blockVectorToVector(da);
-        auto xb                           = blockVectorToVector(db);
-        Eigen::Matrix<double, -1, 1> res1 = blockMatrixToMatrix(U.toDenseMatrix()) * xa +
-                                            blockMatrixToMatrix(W.toDense()) * xb - blockVectorToVector(ea);
-        Eigen::Matrix<double, -1, 1> res2 = blockMatrixToMatrix(WT.toDense()) * xa +
-                                            blockMatrixToMatrix(V.toDenseMatrix()) * xb - blockVectorToVector(eb);
-        cout << "Error: " << res1.norm() << " " << res2.norm() << endl;
-#endif
-
-        //        cout << "da" << endl << blockVectorToVector(da).transpose() <<
-        //        endl; cout << "db" << endl << blockVectorToVector(db).transpose()
-        //        << endl;
+        auto xa                           = expand(da);
+        auto xb                           = expand(db);
+        Eigen::Matrix<double, -1, 1> res1 = expand(U.toDenseMatrix()) * xa + expand(W.toDense()) * xb - expand(ea);
+        Eigen::Matrix<double, -1, 1> res2 =
+            expand(W.toDense()).transpose() * xa + expand(V.toDenseMatrix()) * xb - expand(eb);
+        cout << "Error: " << sqrt(res1.squaredNorm() + res2.squaredNorm()) << endl;
     }
+#endif
 }
 
 int main(int argc, char* argv[])
 {
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
 
-    simpleSchurTest();
+    //    simpleSchurTest();
     baBlockSchurTest();
     return 0;
 }

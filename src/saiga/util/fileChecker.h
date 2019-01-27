@@ -19,6 +19,8 @@ class SAIGA_GLOBAL FileChecker
 
     // searches for 'file' at all search pathes and returns the full name
     std::string getFile(const std::string& file);
+    std::string operator()(const std::string& file) { return getFile(file); }
+
 
 
     // returns the full file name of 'file' that is relative addressed to 'basefile'
@@ -40,7 +42,13 @@ class SAIGA_GLOBAL FileChecker
      */
     std::string getFileName(const std::string& file);
 
+    /**
+     * Like above, but only if the file ends on "ending"
+     */
+    void getFiles(std::vector<std::string>& out, const std::string& predir, const std::string& ending);
+
     void addSearchPath(const std::string& path);
+    void addSearchPath(const std::vector<std::string>& paths);
 
     bool existsFile(const std::string& file);
 
@@ -53,5 +61,20 @@ class SAIGA_GLOBAL FileChecker
     // the empty path is added by default.
     std::vector<std::string> searchPathes;
 };
+
+
+namespace SearchPathes
+{
+/**
+ * Global search pathes used by different saiga modules.
+ * These are set in framework.cpp.
+ * Additional search pathes can be set in the config.ini
+ */
+extern SAIGA_GLOBAL FileChecker shader;
+extern SAIGA_GLOBAL FileChecker image;
+extern SAIGA_GLOBAL FileChecker model;
+extern SAIGA_GLOBAL FileChecker font;
+extern SAIGA_GLOBAL FileChecker data;
+}  // namespace SearchPathes
 
 }  // namespace Saiga

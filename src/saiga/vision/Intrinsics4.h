@@ -73,7 +73,7 @@ struct Intrinsics4Base
     template <typename G>
     Intrinsics4Base<G> cast()
     {
-        return {fx, fy, cx, cy};
+        return {(G)fx, (G)fy, (G)cx, (G)cy};
     }
 
     // convert to eigen vector

@@ -10,22 +10,22 @@
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/text/textureAtlas.h"
 #include "saiga/util/assert.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/tostring.h"
 
 #include <freetype/ftstroke.h>
 
 namespace Saiga
 {
-FileChecker fontPathes;
 FT_Library FontLoader::ft = nullptr;
 
 FontLoader::FontLoader(const std::string& _file, const std::vector<Unicode::UnicodeBlock>& blocks) : blocks(blocks)
 {
-    this->file = fontPathes.getFile(_file);
+    this->file = SearchPathes::font(_file);
     if (file == "")
     {
         cerr << "Could not open file " << _file << endl;
-        cerr << fontPathes << endl;
+        cerr << SearchPathes::font << endl;
         SAIGA_ASSERT(0);
     }
 
@@ -120,8 +120,8 @@ void FontLoader::addGlyph(int charCode, int glyphPadding)
 
     Glyph myGlyph;
 
-    myGlyph.advance.x = (g2->advance.x + 0x8000) >> 16;
-    myGlyph.advance.y = (g2->advance.y + 0x8000) >> 16;
+    myGlyph.advance[0] = (g2->advance.x + 0x8000) >> 16;
+    myGlyph.advance[1] = (g2->advance.y + 0x8000) >> 16;
 
     myGlyph.offset    = vec2(bitmap->left, bitmap->top);
     myGlyph.character = charCode;

@@ -17,58 +17,104 @@ struct MatrixScalar
     using Scalar     = typename MatrixType::Scalar;
     using ScalarType = MatrixScalar<MatrixType>;
 
+    using TransposeBase = typename MatrixType::TransposeReturnType::NestedExpression;
+
     MatrixType data;
 
-    MatrixScalar() = default;
+
+    EIGEN_ALWAYS_INLINE MatrixScalar() = default;
 
     // This constructor may seem a bit strange, but assigning anything different from a zero to a matrix is not well
     // defined. We also can't remove this constructor because some eigen functions use Scalar(0). Therefore we need
     // a constructor from a single (actual) scalar value.
-    MatrixScalar(Scalar v) { data.setZero(); }
+    EIGEN_ALWAYS_INLINE MatrixScalar(Scalar v) { data.setZero(); }
 
-    MatrixScalar(const MatrixType& v) : data(v) {}
-    MatrixScalar& operator=(const MatrixType& v)
+    EIGEN_ALWAYS_INLINE MatrixScalar(const MatrixType& v) : data(v) {}
+    EIGEN_ALWAYS_INLINE MatrixScalar& operator=(const MatrixType& v)
     {
         data = v;
         return *this;
     }
 
+    EIGEN_ALWAYS_INLINE MatrixScalar<TransposeBase> transpose() const { return {data.transpose()}; }
 
-    ScalarType operator-() const { return {-data}; }
-    ScalarType operator+(const ScalarType& other) const { return {data + other.data}; }
-    ScalarType operator-(const ScalarType& other) const { return {data - other.data}; }
-    ScalarType operator*(const ScalarType& other) const { return {data * other.data}; }
+
+    EIGEN_ALWAYS_INLINE ScalarType operator-() const { return {-data}; }
+    EIGEN_ALWAYS_INLINE ScalarType operator+(const ScalarType& other) const { return {data + other.data}; }
+    EIGEN_ALWAYS_INLINE ScalarType operator-(const ScalarType& other) const { return {data - other.data}; }
+    EIGEN_ALWAYS_INLINE ScalarType operator*(const ScalarType& other) const { return {data * other.data}; }
     //    ScalarType operator-(const ScalarType& other) const
     //    {
     //        cout << "-2" << endl;
     //        return {data - other.data};
     //    }
 
-    void operator+=(const ScalarType& other) { data += other.data; }
-    void operator-=(const ScalarType& other)
+    template <typename G>
+    EIGEN_ALWAYS_INLINE void operator+=(const MatrixScalar<G>& other)
     {
-        SAIGA_ASSERT(0);
-        data -= other.data;
+        data += other.data;
     }
 
+
+    EIGEN_ALWAYS_INLINE void operator-=(const ScalarType& other) { data -= other.data; }
+
     // scalar product
-    ScalarType operator*(const Scalar& other) const { return {data * other}; }
-    void operator*=(const Scalar& other) { data *= other; }
+    EIGEN_ALWAYS_INLINE ScalarType operator*(const Scalar& other) const { return {data * other}; }
+    EIGEN_ALWAYS_INLINE void operator*=(const Scalar& other) { data *= other; }
 
 
     // general matrix product
-    template <typename _Scalar, int n, int m>
-    auto operator*(const MatrixScalar<Eigen::Matrix<_Scalar, n, m>>& other) const
+    template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
+    EIGEN_ALWAYS_INLINE auto operator*(
+        const MatrixScalar<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>& other) const
     {
-        using ReturnType = Eigen::Matrix<_Scalar, MatrixType::RowsAtCompileTime, m>;
+        using ReturnType = Eigen::Matrix<_Scalar, MatrixType::RowsAtCompileTime, _Cols, _Options>;
         return MatrixScalar<ReturnType>(data * other.data);
     }
 
 
+    //    template <typename T>
+    //    auto operator*(const T& other) const
+    //    {
+    //        auto res = (data * other.data).evaluate();
+    //        return MatrixScalar<decltype(res)>(res);
+    //    }
 
-    MatrixType& get() { return data; }
-    const MatrixType& get() const { return data; }
+    EIGEN_ALWAYS_INLINE MatrixType& get() { return data; }
+    EIGEN_ALWAYS_INLINE const MatrixType& get() const { return data; }
 };
+
+template <typename T>
+EIGEN_ALWAYS_INLINE auto makeMatrixScalar(const T& v)
+{
+    return MatrixScalar<T>(v);
+}
+
+template <typename T>
+struct RemoveMatrixScalarImpl
+{
+    EIGEN_ALWAYS_INLINE static T& get(T& A) { return A; }
+    EIGEN_ALWAYS_INLINE static const T& get(const T& A) { return A; }
+};
+
+template <typename G>
+struct RemoveMatrixScalarImpl<MatrixScalar<G>>
+{
+    EIGEN_ALWAYS_INLINE static G& get(MatrixScalar<G>& A) { return A.get(); }
+    EIGEN_ALWAYS_INLINE static const G& get(const MatrixScalar<G>& A) { return A.get(); }
+};
+
+template <typename T>
+EIGEN_ALWAYS_INLINE auto& removeMatrixScalar(T& A)
+{
+    return RemoveMatrixScalarImpl<T>::get(A);
+}
+
+template <typename T>
+EIGEN_ALWAYS_INLINE auto& removeMatrixScalar(const T& A)
+{
+    return RemoveMatrixScalarImpl<T>::get(A);
+}
 
 /**
  * Convert a block vector (a vector of vectors) to a 1-dimensional vector.
@@ -151,6 +197,7 @@ auto fixedBlockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, n, m
     }
     return dense;
 }
+
 
 
 }  // namespace Saiga

@@ -9,15 +9,15 @@
 #pragma once
 
 
-#include "saiga/vision/Scene.h"
-#include "saiga/vision/SynteticScene.h"
+#include "saiga/vision/ba/BARecursive.h"
+#include "saiga/vision/scene/Scene.h"
+#include "saiga/vision/scene/SynteticScene.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 #include "saiga/vulkan/window/SDLSample.h"
-
 
 
 class VulkanExample : public Saiga::VulkanSDLExampleBase
@@ -60,6 +60,8 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
 
     bool displayModels = true;
 
+    Saiga::BAOptions baoptions;
+    Saiga::BARec barec;
 
     std::vector<std::string> datasets;
     void findBALDatasets();

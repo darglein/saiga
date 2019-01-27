@@ -40,9 +40,11 @@ class SAIGA_GLOBAL VulkanForwardRenderingInterface : public RenderingInterfaceBa
 class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
 {
    public:
-    Queue graphicsQueue;
+    // Queue graphicsQueue;
     //    Queue presentQueue;
     //    Queue transferQueue;
+
+    CommandPool renderCommandPool;
     VkRenderPass renderPass;
 
     VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, VulkanParameters vulkanParameters);

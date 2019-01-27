@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/vision/Scene.h"
+#include "saiga/vision/scene/Scene.h"
 #include "saiga/vision/VisionTypes.h"
 
 
@@ -21,10 +21,10 @@ namespace Saiga
  * BAL Camera Model:
  *
  * P  =  R * X + t       (conversion from world to camera coordinates)
- * p  = -P / P.z         (perspective division)
+ * p  = -P / P[2]         (perspective division)
  * p' =  f * r(p) * p    (conversion to pixel coordinates)
  *
- * where P.z is the third (z) coordinate of P. In the last equation, r(p) is a function that computes a scaling factor
+ * where P[2] is the third (z) coordinate of P. In the last equation, r(p) is a function that computes a scaling factor
  * to undo the radial distortion:
  *
  * r(p) = 1.0 + k1 * ||p||^2 + k2 * ||p||^4.
@@ -39,9 +39,9 @@ class SAIGA_GLOBAL BALDataset
         int point_index;
         Eigen::Vector2d point;
 
-        MonoImagePoint ip()
+        StereoImagePoint ip()
         {
-            MonoImagePoint ip;
+            StereoImagePoint ip;
             ip.point = point;
             // BAL has the y axis pointing downwards
             ip.point(1) *= -1;

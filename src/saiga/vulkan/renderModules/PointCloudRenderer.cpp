@@ -31,7 +31,7 @@ bool PointCloudRenderer::bind(vk::CommandBuffer cmd)
 
 void PointCloudRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 {
-    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), &model[0][0]);
+    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), data(model));
 }
 
 

@@ -13,7 +13,7 @@ namespace Saiga
 {
 namespace PixelTransformation
 {
-constexpr vec3 grayTransform()
+inline vec3 grayTransform()
 {
     return {0.2126f, 0.7152f, 0.0722f};
 }
@@ -21,7 +21,7 @@ constexpr vec3 grayTransform()
 
 inline float toGray(const ucvec3& v, float scale = 1)
 {
-    vec3 vf(v.x, v.y, v.z);
+    vec3 vf(v[0], v[1], v[2]);
     float gray = dot(grayTransform(), vf);
     return gray * scale;
 }

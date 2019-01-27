@@ -17,8 +17,8 @@ namespace Saiga
 class SAIGA_GLOBAL AABB
 {
    public:
-    vec3 min = vec3(0);
-    vec3 max = vec3(0);
+    vec3 min = make_vec3(0);
+    vec3 max = make_vec3(0);
 
    public:
     AABB();

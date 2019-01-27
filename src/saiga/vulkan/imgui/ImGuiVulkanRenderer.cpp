@@ -9,6 +9,7 @@
 #include "ImGuiVulkanRenderer.h"
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/imath.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
@@ -47,9 +48,13 @@ void VKVertexAttribBinder<ImDrawVert>::getVKAttribs(
 }
 
 
+ImGuiVulkanRenderer::ImGuiVulkanRenderer(size_t _frameCount, const ImGuiParameters& params)
+    : ImGuiRenderer(params, false), frameCount(_frameCount), frameData()
+{
+}
+
 ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 {
-    ImGui::DestroyContext();
     for (auto& data : frameData)
     {
         data.destroy(*base);
@@ -69,10 +74,14 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
 
     ImGuiIO& io = ImGui::GetIO();
 
+
+
     // Create font texture
     unsigned char* fontData;
     int texWidth, texHeight;
     io.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
+
+
 
     ImageView<ucvec4> v(texHeight, texWidth, fontData);
 
@@ -184,7 +193,7 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
 
     // UI scale and translate via push constants
     pushConstBlock.scale     = vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
-    pushConstBlock.translate = vec2(-1.0f);
+    pushConstBlock.translate = make_vec2(-1.0f);
     pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(PushConstBlock), &pushConstBlock);
 
     // Render commands

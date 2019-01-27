@@ -19,15 +19,17 @@ namespace Saiga
 class SAIGA_GLOBAL ImGui_GL_Renderer : public ImGuiRenderer
 {
    public:
-    ImGui_GL_Renderer(std::string font, float fontSize = 15.0f);
-    ~ImGui_GL_Renderer();
+    ImGui_GL_Renderer(const ImGuiParameters& params);
+    virtual ~ImGui_GL_Renderer();
+
+    void render();
 
    protected:
     std::shared_ptr<Shader> shader;
     std::shared_ptr<Texture> texture;
     IndexedVertexBuffer<ImDrawVert, ImDrawIdx> buffer;
 
-    virtual void renderDrawLists(ImDrawData* draw_data) override;
+    virtual void renderDrawLists(ImDrawData* draw_data);
 };
 
 }  // namespace Saiga

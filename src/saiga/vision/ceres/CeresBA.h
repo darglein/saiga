@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include "saiga/vision/Scene.h"
+#include "saiga/vision/ba/BABase.h"
 
 namespace Saiga
 {
-class SAIGA_GLOBAL CeresBA
+class SAIGA_GLOBAL CeresBA : public BABase
 {
    public:
-    void optimize(Scene& scene, int its);
+    CeresBA() : BABase("Ceres BA") {}
+    virtual void solve(Scene& scene, const BAOptions& options) override;
 };
 
 }  // namespace Saiga

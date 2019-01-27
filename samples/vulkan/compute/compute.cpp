@@ -32,7 +32,7 @@ Compute::~Compute()
     assetRenderer.destroy();
     compute.storageBuffer.destroy();
     computePipeline.destroy();
-    compute.queue.destroy();
+    // compute.queue.destroy();
     compute.storageTexture.destroy();
 }
 
@@ -52,9 +52,10 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
         img.getImageView().set(ucvec4(0, 0, 255, 255));
         outTexture.fromImage(base, img, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage);
 
-        vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+        vk::CommandBuffer cmd = base.mainQueue.commandPool.createAndBeginOneTimeBuffer();
         outTexture.transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
-        base.endTransferWait(cmd);
+        cmd.end();
+        base.mainQueue.submitAndWait(cmd);
     }
 
 
@@ -78,9 +79,10 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
                                          vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage);
         // compute.storageTexture.transitionImageLayout();
 
-        vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+        vk::CommandBuffer cmd = base.mainQueue.commandPool.createAndBeginOneTimeBuffer();
         compute.storageTexture.transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
-        base.endTransferWait(cmd);
+        cmd.end();
+        base.mainQueue.submitAndWait(cmd);
     }
 
 
@@ -106,8 +108,8 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
         nullptr);
 
 
-    compute.queue.create(device, vulkanDevice->queueFamilyIndices.compute);
-    compute.commandBuffer = compute.queue.commandPool.allocateCommandBuffer();
+    // compute.queue.create(device, vulkanDevice->queueFamilyIndices.compute);
+    compute.commandBuffer = base.computeQueue->commandPool.allocateCommandBuffer();
 
     {
         // Build the command buffer
@@ -122,7 +124,7 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
     }
 
 
-    compute.queue.submitAndWait(compute.commandBuffer);
+    base.computeQueue->submitAndWait(compute.commandBuffer);
     compute.storageBuffer.download(compute.data.data());
 
     for (int i : compute.data) cout << i << endl;

@@ -67,9 +67,12 @@ bool RaySphere(const Ray& ray, const Sphere& sphere, float& t1, float& t2)
 }
 
 
-bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const vec3& B, const vec3& C, float& out,
-                 bool& back)
+RayTriangleIntersection RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const vec3& B,
+                                    const vec3& C)
 {
+    RayTriangleIntersection inter;
+
+
     const float EPSILON_RAYTRIANGLE = 0.000001f;
     vec3 e1, e2;  // Edge1, Edge2
     vec3 P, Q, T;
@@ -81,8 +84,8 @@ bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const
     e2 = C - A;
 
     // culling
-    vec3 n = cross(e1, e2);
-    back   = dot(direction, n) > 0;
+    vec3 n         = cross(e1, e2);
+    inter.backFace = dot(direction, n) > 0;
 
     // Begin calculating determinant - also used to calculate u parameter
     P = cross(direction, e2);
@@ -90,7 +93,7 @@ bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const
     det = dot(e1, P);
 
     // NOT CULLING
-    if (det > -EPSILON_RAYTRIANGLE && det < EPSILON_RAYTRIANGLE) return false;
+    if (det > -EPSILON_RAYTRIANGLE && det < EPSILON_RAYTRIANGLE) return inter;
     inv_det = 1.f / det;
 
     // calculate distance from V1 to ray origin
@@ -99,7 +102,7 @@ bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const
     // Calculate u parameter and test bound
     u = dot(T, P) * inv_det;
     // The intersection lies outside of the triangle
-    if (u < 0.f || u > 1.f) return false;
+    if (u < 0.f || u > 1.f) return inter;
 
     // Prepare to test v parameter
     Q = cross(T, e1);
@@ -108,21 +111,22 @@ bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const
     v = dot(direction, Q) * inv_det;
 
     // The intersection lies outside of the triangle
-    if (v < 0.f || u + v > 1.f) return false;
+    if (v < 0.f || u + v > 1.f) return inter;
 
     t = dot(e2, Q) * inv_det;
 
     if (t > EPSILON_RAYTRIANGLE)
     {
-        out = t;
-        return true;
+        inter.valid = true;
+        inter.t     = t;
+        return inter;
     }
 
-    return false;
+    return inter;
 }
 
 
-bool RayTriangle(const Ray& r, const Triangle& tri, float& out, bool& back)
+RayTriangleIntersection RayTriangle(const Ray& r, const Triangle& tri)
 {
     const vec3& direction = r.direction;
     const vec3& origin    = r.origin;
@@ -130,7 +134,7 @@ bool RayTriangle(const Ray& r, const Triangle& tri, float& out, bool& back)
     const vec3& A = tri.a;
     const vec3& B = tri.b;
     const vec3& C = tri.c;
-    return RayTriangle(direction, origin, A, B, C, out, back);
+    return RayTriangle(direction, origin, A, B, C);
 }
 
 bool RayPlane(const Ray& r, const Plane& p, float& t)

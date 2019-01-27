@@ -21,13 +21,16 @@ class SAIGA_GLOBAL Queue
    public:
     // Create a primary commandpool for every queue.
     CommandPool commandPool;
-    vk::Queue queue;
+    vk::Queue queue = nullptr;
 
-    void create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _queueIndex = 0);
+    void create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _queueIndex = 0,
+                vk::CommandPoolCreateFlags commandPoolCreateFlags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
     void waitIdle();
     void destroy();
 
     vk::Fence submit(vk::CommandBuffer cmd);
+
+    void submit(vk::SubmitInfo submitInfo, vk::Fence fence);
     void submitAndWait(vk::CommandBuffer cmd);
 
     operator vk::Queue() const { return queue; }
@@ -36,7 +39,11 @@ class SAIGA_GLOBAL Queue
     uint32_t getQueueIndex() { return queueIndex; }
     uint32_t getQueueFamilyIndex() { return queueFamilyIndex; }
 
-    CommandPool createCommandPool();
+    CommandPool createCommandPool(
+        vk::CommandPoolCreateFlags commandPoolCreateFlags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+
+
+    inline bool is_valid() { return queue; }
 
    private:
     std::vector<CommandPool> commandPools;

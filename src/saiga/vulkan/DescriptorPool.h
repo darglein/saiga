@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/vulkan/svulkan.h"
-
+#include <mutex>
 namespace Saiga
 {
 namespace Vulkan
@@ -29,11 +29,12 @@ class SAIGA_GLOBAL DescriptorPool
 
     explicit operator VkDescriptorPool() const { return descriptorPool; }
 
-    void freeDescriptorSet(vk::DescriptorSet set) { device.freeDescriptorSets(descriptorPool, set); }
+    void freeDescriptorSet(vk::DescriptorSet set);
 
     void destroy();
 
    private:
+    std::mutex pool_mutex;
     vk::Device device;
     vk::DescriptorPool descriptorPool;
 };

@@ -13,7 +13,7 @@ using namespace Saiga::Vulkan::Memory;
 
 void SimpleMemoryAllocator::deallocate(MemoryLocation& location)
 {
-    mutex.lock();
+    std::scoped_lock lock(mutex);
     LOG(INFO) << "Simple deallocate " << type << ":" << location;
 
     auto foundAllocation = std::find(m_allocations.begin(), m_allocations.end(), location);
@@ -24,7 +24,6 @@ void SimpleMemoryAllocator::deallocate(MemoryLocation& location)
     }
     foundAllocation->destroy(m_device);
     m_allocations.erase(foundAllocation);
-    mutex.unlock();
 }
 
 void SimpleMemoryAllocator::destroy()

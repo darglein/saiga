@@ -37,7 +37,7 @@ void LightShader::uploadColorDiffuse(vec4& color)
 
 void LightShader::uploadColorDiffuse(vec3& color, float intensity)
 {
-    vec4 c = vec4(color, intensity);
+    vec4 c = make_vec4(color, intensity);
     Shader::upload(location_lightColorDiffuse, c);
 }
 
@@ -48,7 +48,7 @@ void LightShader::uploadColorSpecular(vec4& color)
 
 void LightShader::uploadColorSpecular(vec3& color, float intensity)
 {
-    vec4 c = vec4(color, intensity);
+    vec4 c = make_vec4(color, intensity);
     Shader::upload(location_lightColorSpecular, c);
 }
 
@@ -75,8 +75,8 @@ void LightShader::uploadShadow(float shadow)
 
 void LightShader::uploadShadowMapSize(ivec2 s)
 {
-    auto w = s.x;
-    auto h = s.y;
+    auto w = s[0];
+    auto h = s[1];
     Shader::upload(location_shadowMapSize, vec4(w, h, 1.0f / w, 1.0f / h));
 }
 
@@ -97,7 +97,7 @@ void Light::bindUniformsStencil(MVPShader& shader)
 mat4 Light::viewToLightTransform(const Camera& camera, const Camera& shadowCamera)
 {
     // glm like glsl is column major!
-    const mat4 biasMatrix(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
+    const mat4 biasMatrix = make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
     // We could also use inverse(camera.view) but using the model matrix is faster
     return biasMatrix * shadowCamera.proj * shadowCamera.view * camera.model;
 }
@@ -107,8 +107,8 @@ void Light::renderImGui()
     ImGui::Checkbox("active", &active);
     ImGui::Checkbox("castShadows", &castShadows);
     ImGui::Checkbox("volumetric", &volumetric);
-    ImGui::InputFloat("intensity", &colorDiffuse.w, 0.1, 1);
-    ImGui::InputFloat("specular intensity", &colorSpecular.w, 0.1, 1);
+    ImGui::InputFloat("intensity", &colorDiffuse[3], 0.1, 1);
+    ImGui::InputFloat("specular intensity", &colorSpecular[3], 0.1, 1);
     ImGui::SliderFloat("volumetricDensity", &volumetricDensity, 0.0f, 0.5f);
     // todo: check srgb
     ImGui::ColorEdit3("colorDiffuse", &colorDiffuse[0]);

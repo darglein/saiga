@@ -123,15 +123,13 @@ bool SDLWindow::initInput()
     return true;
 }
 
-std::shared_ptr<ImGuiRenderer> SDLWindow::createImGui()
+std::shared_ptr<ImGui_GL_Renderer> SDLWindow::createImGui()
 {
-    std::shared_ptr<ImGui_SDL_Renderer> sdlimgui;
-    if (windowParameters.createImgui)
+    if (windowParameters.imguiParameters.enable)
     {
-        sdlimgui =
-            std::make_shared<ImGui_SDL_Renderer>(window, windowParameters.imguiFont, windowParameters.imguiFontSize);
+        return std::make_shared<ImGui_SDL_Renderer>(window, windowParameters.imguiParameters);
     }
-    return sdlimgui;
+    return {};
 }
 
 bool SDLWindow::shouldClose()

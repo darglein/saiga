@@ -10,7 +10,6 @@
 #include "saiga/image/image.h"
 #include "saiga/image/templatedImage.h"
 #include "saiga/util/encoding.h"
-#include "saiga/util/fileChecker.h"
 #include "saiga/util/math.h"
 
 #include <vector>
@@ -52,6 +51,5 @@ class FontLoader
     void addGlyph(int charCode, int glyphPadding);
 };
 
-extern SAIGA_GLOBAL FileChecker fontPathes;
 
 }  // namespace Saiga

@@ -42,9 +42,21 @@ SAIGA_GLOBAL bool RaySphere(const Ray& ray, const Sphere& sphere, float& t1, flo
  * There are either no interesection or exactly one at 't'.
  * 'back' is true, if the triangle was hit from behind (counter clockwise ordering)
  */
-SAIGA_GLOBAL bool RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const vec3& B, const vec3& C,
-                              float& out, bool& back);
-SAIGA_GLOBAL bool RayTriangle(const Ray& r, const Triangle& tri, float& t, bool& back);
+struct RayTriangleIntersection
+{
+    bool valid = false;
+    float t    = std::numeric_limits<float>().infinity();  // position on ray
+    bool backFace;
+    int triangleIndex;  // usefull for raytracers
+
+    bool operator<(const RayTriangleIntersection& other) { return t < other.t; }
+    explicit operator bool() const { return valid; }
+};
+SAIGA_GLOBAL RayTriangleIntersection RayTriangle(const vec3& direction, const vec3& origin, const vec3& A,
+                                                 const vec3& B, const vec3& C);
+SAIGA_GLOBAL RayTriangleIntersection RayTriangle(const Ray& r, const Triangle& tri);
+
+
 
 SAIGA_GLOBAL bool RayPlane(const Ray& r, const Plane& p, float& t);
 

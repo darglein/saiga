@@ -191,10 +191,10 @@ void Heightmap::createNormalmap()
             for (int y = 0; y < normalmap[layer].height; ++y)
             {
                 vec3 norm(1.0f / w, 1, 1.0f / h);
-                //                vec3 scale = vec3(8*mapScaleInv.x,1,8*mapScaleInv.y) * norm;
+                //                vec3 scale = vec3(8*mapScaleInv[0],1,8*mapScaleInv[1]) * norm;
                 //                 vec3 scale = vec3(200,1,200) * norm;
-                vec3 scale = vec3(mapScale.x, 1, mapScale.y) * norm * vec3(1, 1, 1);
-                //                vec3 scale = vec3(mapScaleInv.x,1,mapScaleInv.y);
+                vec3 scale = vec3(mapScale[0], 1, mapScale[1]) * norm * vec3(1, 1, 1);
+                //                vec3 scale = vec3(mapScaleInv[0],1,mapScaleInv[1]);
 
 
                 //                vec3 x1 = vec3(x+1,getHeightScaled(layer,x+1,y),y) * scale;
@@ -219,7 +219,7 @@ void Heightmap::createNormalmap()
 
                 vec3 n = cross(y2 - y1, x2 - x1);
 
-                std::swap(n.x, n.z);
+                std::swap(n[0], n[2]);
                 //                vec3 n = cross(x2-x1,y2-y1);
                 //                vec3 n = cross(vb,va);
 
@@ -230,7 +230,7 @@ void Heightmap::createNormalmap()
                 //                cout<<"Normal "<<n<<endl;
                 n = clamp(n, vec3(0), vec3(255));
 
-                //                normalmap[layer].setPixel(x,y,(uint8_t)n.x,(uint8_t)n.y,(uint8_t)n.z);
+                //                normalmap[layer].setPixel(x,y,(uint8_t)n[0],(uint8_t)n[1],(uint8_t)n[2]);
                 SAIGA_ASSERT(0);
             }
         }

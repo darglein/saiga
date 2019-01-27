@@ -25,7 +25,7 @@ namespace Vulkan
 VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParameters vulkanParameters)
     : VulkanRenderer(window, vulkanParameters)
 {
-    graphicsQueue.create(base.device, base.queueFamilyIndices.graphics);
+    // graphicsQueue.create(base.device, base.queueFamilyIndices.graphics);
     depthBuffer.init(base, width, height);
 
 
@@ -35,8 +35,9 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
         sync.create(base.device);
     }
 
-    drawCmdBuffers =
-        graphicsQueue.commandPool.allocateCommandBuffers(swapChain.imageCount, vk::CommandBufferLevel::ePrimary);
+    renderCommandPool = base.mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+
+    drawCmdBuffers = renderCommandPool.allocateCommandBuffers(swapChain.imageCount, vk::CommandBufferLevel::ePrimary);
 
 
     setupRenderPass();
@@ -52,7 +53,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
-    graphicsQueue.destroy();
+    // graphicsQueue.destroy();
     //    presentQueue.destroy();
     //    transferQueue.destroy();
 
@@ -202,9 +203,10 @@ void VulkanForwardRenderer::render(Camera* cam)
     //    cmdBufInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
     VkClearValue clearValues[2];
-    vec4 clearColor(0.4, 0.8, 1.0, 1.0);
-    clearValues[0].color = {{clearColor.x, clearColor.y, clearColor.z, clearColor.w}};
-    //    clearValues[0].depthStencil = { 1.0f, 0 };
+
+    // This is blender's default viewport background color :)
+    vec4 clearColor             = vec4(57, 57, 57, 255) / 255.0f;
+    clearValues[0].color        = {{clearColor[0], clearColor[1], clearColor[2], clearColor[3]}};
     clearValues[1].depthStencil = {1.0f, 0};
 
     VkRenderPassBeginInfo renderPassBeginInfo    = vks::initializers::renderPassBeginInfo();
@@ -222,7 +224,8 @@ void VulkanForwardRenderer::render(Camera* cam)
     // Set target frame buffer
     renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer].framebuffer;
 
-    VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
+    cmd.begin(cmdBufInfo);
+    // VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
     renderingInterface->transfer(cmd);
 
 
@@ -261,11 +264,11 @@ void VulkanForwardRenderer::render(Camera* cam)
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
     //    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
-    graphicsQueue.queue.submit(submitInfo, sync.frameFence);
+    base.mainQueue.submit(submitInfo, sync.frameFence);
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
-    VK_CHECK_RESULT(swapChain.queuePresent(graphicsQueue, currentBuffer, sync.renderComplete));
+    VK_CHECK_RESULT(swapChain.queuePresent(base.mainQueue, currentBuffer, sync.renderComplete));
     //    VK_CHECK_RESULT(swapChain.queuePresent(graphicsQueue, currentBuffer));
     //    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
     //    presentQueue.waitIdle();
@@ -275,7 +278,7 @@ void VulkanForwardRenderer::render(Camera* cam)
 
 void VulkanForwardRenderer::waitIdle()
 {
-    graphicsQueue.waitIdle();
+    base.mainQueue.waitIdle();
     //    presentQueue.waitIdle();
     //    transferQueue.waitIdle();
 }

@@ -7,6 +7,7 @@
 #include "saiga/image/imageGenerator.h"
 
 #include "saiga/image/templatedImage.h"
+#include "saiga/util/random.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -74,10 +75,10 @@ std::shared_ptr<Image> ImageGenerator::randomNormalized(int width, int height)
         for (int j = 0; j < width; ++j)
         {
             cvec4 texel;
-            texel[0]        = linearRand(0, 255);
-            texel[1]        = linearRand(0, 255);
-            texel[2]        = linearRand(0, 255);
-            texel[3]        = linearRand(0, 255);
+            texel[0]       = linearRand(0, 255);
+            texel[1]       = linearRand(0, 255);
+            texel[2]       = linearRand(0, 255);
+            texel[3]       = linearRand(0, 255);
             (*image)(i, j) = texel;
         }
     }

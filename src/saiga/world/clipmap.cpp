@@ -167,12 +167,12 @@ void Clipmap::update(const vec3& p)
     // round to a multiple of cellwidth
 
 
-    vp = vec2(p.x, p.z);
-    //    vp.x = 33.5f;
-    //    vp.y = 13.1f;
+    vp = vec2(p[0], p[2]);
+    //    vp[0] = 33.5f;
+    //    vp[1] = 13.1f;
 
 
-    vp        = vp / cellWidth;
+    vp        = ele_div(vp, cellWidth);
     vec2 test = floor(vp);
 
     vp = test * cellWidth;
@@ -198,8 +198,8 @@ void Clipmap::calculatePosition(vec2 pos)
         }
     }
 
-    relPos.x = (noff.x == 0) ? 0 : 1;
-    relPos.y = (noff.y == 0) ? 0 : 1;
+    relPos[0] = (noff[0] == 0) ? 0 : 1;
+    relPos[1] = (noff[1] == 0) ? 0 : 1;
 
 
 
@@ -217,9 +217,9 @@ void Clipmap::calculatePosition(vec2 pos)
     pos += d;
     off = pos;
 
-    //    offset = vec4(scale.x,scale.y,-scale.x*1.5f-cellWidth.x,-scale.y*1.5f-cellWidth.y);
-    offset = vec4(scale.x, scale.y, -scale.x * 1.5f, -scale.y * 1.5f);
-    offset -= vec4(0, 0, off.x, off.y);
+    //    offset = vec4(scale[0],scale[1],-scale[0]*1.5f-cellWidth[0],-scale[1]*1.5f-cellWidth[1]);
+    offset = vec4(scale[0], scale[1], -scale[0] * 1.5f, -scale[1] * 1.5f);
+    offset -= vec4(0, 0, off[0], off[1]);
 
     pos += noff;
 
@@ -249,19 +249,20 @@ void Clipmap::renderRing()
 
 void Clipmap::renderDeg()
 {
-    // blockOffset.xz: x offset scaled by 'scale'
-    // blockOffset.yw: y offset scaled by 'cellWidth'
+    // blockOffset[0]z: x offset scaled by 'scale'
+    // blockOffset[1]w: y offset scaled by 'cellWidth'
     static const vec4 blockOffset[] = {vec4(0, 0, 0, 0), vec4(2, 2, 2, 2)};
 
-    vec2 blockSizeRel = vec2(offset.x / ringSize.x, offset.y / ringSize.y);
-    vec2 cellSizeRel  = vec2(cellWidth.x / ringSize.x, cellWidth.y / ringSize.y);
+    vec2 blockSizeRel = vec2(offset[0] / ringSize[0], offset[1] / ringSize[1]);
+    vec2 cellSizeRel  = vec2(cellWidth[0] / ringSize[0], cellWidth[1] / ringSize[1]);
 
-    int i   = 0;
-    vec4 c  = vec4(0, 1, 0, 0);
-    vec4 s  = offset + vec4(0, 0, blockOffset[i].x * scale.x + blockOffset[i].y * cellWidth.x,
-                           blockOffset[i].z * scale.y + blockOffset[i].w * cellWidth.y);
-    vec4 fo = vec4(blockSizeRel.x, blockSizeRel.y, blockOffset[i].x * blockSizeRel.x + blockOffset[i].y * cellSizeRel.x,
-                   blockOffset[i].z * blockSizeRel.y + blockOffset[i].w * cellSizeRel.y);
+    int i  = 0;
+    vec4 c = vec4(0, 1, 0, 0);
+    vec4 s = offset + vec4(0, 0, blockOffset[i][0] * scale[0] + blockOffset[i][1] * cellWidth[0],
+                           blockOffset[i][2] * scale[1] + blockOffset[i][3] * cellWidth[1]);
+    vec4 fo =
+        vec4(blockSizeRel[0], blockSizeRel[1], blockOffset[i][0] * blockSizeRel[0] + blockOffset[i][1] * cellSizeRel[0],
+             blockOffset[i][2] * blockSizeRel[1] + blockOffset[i][3] * cellSizeRel[1]);
 
 
 
@@ -270,21 +271,21 @@ void Clipmap::renderDeg()
 
 void Clipmap::renderTrim()
 {
-    // blockOffset.xz: x offset scaled by 'scale'
-    // blockOffset.yw: y offset scaled by 'cellWidth'
+    // blockOffset[0]z: x offset scaled by 'scale'
+    // blockOffset[1]w: y offset scaled by 'cellWidth'
     static const vec4 blockOffset[] = {vec4(1, 0, 1, 0), vec4(1, 0, 2, 2), vec4(2, 2, 1, 0), vec4(2, 2, 2, 2)};
 
-    vec2 blockSizeRel = vec2(offset.x / ringSize.x, offset.y / ringSize.y);
-    vec2 cellSizeRel  = vec2(cellWidth.x / ringSize.x, cellWidth.y / ringSize.y);
+    vec2 blockSizeRel = vec2(offset[0] / ringSize[0], offset[1] / ringSize[1]);
+    vec2 cellSizeRel  = vec2(cellWidth[0] / ringSize[0], cellWidth[1] / ringSize[1]);
 
 
 
     vec4 c  = vec4(1, 0, 1, 0);
-    vec4 s  = offset + vec4(0, 0, blockOffset[state].x * scale.x + blockOffset[state].y * cellWidth.x,
-                           blockOffset[state].z * scale.y + blockOffset[state].w * cellWidth.y);
-    vec4 fo = vec4(blockSizeRel.x, blockSizeRel.y,
-                   blockOffset[state].x * blockSizeRel.x + blockOffset[state].y * cellSizeRel.x,
-                   blockOffset[state].z * blockSizeRel.y + blockOffset[state].w * cellSizeRel.y);
+    vec4 s  = offset + vec4(0, 0, blockOffset[state][0] * scale[0] + blockOffset[state][1] * cellWidth[0],
+                           blockOffset[state][2] * scale[1] + blockOffset[state][3] * cellWidth[1]);
+    vec4 fo = vec4(blockSizeRel[0], blockSizeRel[1],
+                   blockOffset[state][0] * blockSizeRel[0] + blockOffset[state][1] * cellSizeRel[0],
+                   blockOffset[state][2] * blockSizeRel[1] + blockOffset[state][3] * cellSizeRel[1]);
 
     switch (state)
     {
@@ -305,21 +306,21 @@ void Clipmap::renderTrim()
 
 void Clipmap::renderFixUps()
 {
-    // blockOffset.xz: x offset scaled by 'scale'
-    // blockOffset.yw: y offset scaled by 'cellWidth'
+    // blockOffset[0]z: x offset scaled by 'scale'
+    // blockOffset[1]w: y offset scaled by 'cellWidth'
     static const vec4 blockOffset[] = {vec4(2, 0, 0, 0), vec4(2, 0, 3, 2), vec4(0, 0, 2, 0), vec4(3, 2, 2, 0)};
 
-    vec2 blockSizeRel = vec2(offset.x / ringSize.x, offset.y / ringSize.y);
-    vec2 cellSizeRel  = vec2(cellWidth.x / ringSize.x, cellWidth.y / ringSize.y);
+    vec2 blockSizeRel = vec2(offset[0] / ringSize[0], offset[1] / ringSize[1]);
+    vec2 cellSizeRel  = vec2(cellWidth[0] / ringSize[0], cellWidth[1] / ringSize[1]);
 
     for (int i = 0; i < 4; i++)
     {
-        vec4 c = vec4(0, 0, 1, 0);
-        vec4 s = offset + vec4(0, 0, blockOffset[i].x * scale.x + blockOffset[i].y * cellWidth.x,
-                               blockOffset[i].z * scale.y + blockOffset[i].w * cellWidth.y);
-        vec4 fo =
-            vec4(blockSizeRel.x, blockSizeRel.y, blockOffset[i].x * blockSizeRel.x + blockOffset[i].y * cellSizeRel.x,
-                 blockOffset[i].z * blockSizeRel.y + blockOffset[i].w * cellSizeRel.y);
+        vec4 c  = vec4(0, 0, 1, 0);
+        vec4 s  = offset + vec4(0, 0, blockOffset[i][0] * scale[0] + blockOffset[i][1] * cellWidth[0],
+                               blockOffset[i][2] * scale[1] + blockOffset[i][3] * cellWidth[1]);
+        vec4 fo = vec4(blockSizeRel[0], blockSizeRel[1],
+                       blockOffset[i][0] * blockSizeRel[0] + blockOffset[i][1] * cellSizeRel[0],
+                       blockOffset[i][2] * blockSizeRel[1] + blockOffset[i][3] * cellSizeRel[1]);
 
         if (i >= 2)
             render(Clipmap::fixuph, c, s, fo);
@@ -331,8 +332,8 @@ void Clipmap::renderFixUps()
 
 void Clipmap::renderBlocks()
 {
-    // blockOffset.xz: x offset scaled by 'scale'
-    // blockOffset.yw: y offset scaled by 'cellWidth'
+    // blockOffset[0]z: x offset scaled by 'scale'
+    // blockOffset[1]w: y offset scaled by 'cellWidth'
     static const vec4 blockOffset[] = {
         vec4(0, 0, 0, 0),                                      // topleft
         vec4(1, 0, 0, 0), vec4(2, 2, 0, 0), vec4(3, 2, 0, 0),  // topright
@@ -343,17 +344,17 @@ void Clipmap::renderBlocks()
         vec4(1, 0, 3, 2), vec4(2, 2, 3, 2), vec4(3, 2, 3, 2)  // bottomright
     };
 
-    vec2 blockSizeRel = vec2(offset.x / ringSize.x, offset.y / ringSize.y);
-    vec2 cellSizeRel  = vec2(cellWidth.x / ringSize.x, cellWidth.y / ringSize.y);
+    vec2 blockSizeRel = vec2(offset[0] / ringSize[0], offset[1] / ringSize[1]);
+    vec2 cellSizeRel  = vec2(cellWidth[0] / ringSize[0], cellWidth[1] / ringSize[1]);
 
     for (int i = 0; i < 12; i++)
     {
-        vec4 c = vec4(1, 0, 0, 0);
-        vec4 s = offset + vec4(0, 0, blockOffset[i].x * scale.x + blockOffset[i].y * cellWidth.x,
-                               blockOffset[i].z * scale.y + blockOffset[i].w * cellWidth.y);
-        vec4 fo =
-            vec4(blockSizeRel.x, blockSizeRel.y, blockOffset[i].x * blockSizeRel.x + blockOffset[i].y * cellSizeRel.x,
-                 blockOffset[i].z * blockSizeRel.y + blockOffset[i].w * cellSizeRel.y);
+        vec4 c  = vec4(1, 0, 0, 0);
+        vec4 s  = offset + vec4(0, 0, blockOffset[i][0] * scale[0] + blockOffset[i][1] * cellWidth[0],
+                               blockOffset[i][2] * scale[1] + blockOffset[i].w * cellWidth[1]);
+        vec4 fo = vec4(blockSizeRel[0], blockSizeRel[1],
+                       blockOffset[i][0] * blockSizeRel[0] + blockOffset[i][1] * cellSizeRel[0],
+                       blockOffset[i][2] * blockSizeRel[1] + blockOffset[i].w * cellSizeRel[1]);
 
         render(Clipmap::mesh, c, s, fo);
     }

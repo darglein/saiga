@@ -95,19 +95,19 @@ inline vec3 Object3D::getPosition() const
 
 inline vec4 Object3D::getDirection() const
 {
-    return make_vec4(rot * vec3(0, 0, 1),0);
+    return make_vec4(rot * vec3(0, 0, 1), 0);
 }
 
 inline vec4 Object3D::getRightVector() const
 {
-//    return rot * vec4(1, 0, 0, 0);
-    return make_vec4(rot * vec3(1, 0, 0),0);
+    //    return rot * vec4(1, 0, 0, 0);
+    return make_vec4(rot * vec3(1, 0, 0), 0);
 }
 
 inline vec4 Object3D::getUpVector() const
 {
-//    return rot * vec4(0, 1, 0, 0);
-    return make_vec4(rot * vec3(0, 1, 0),0);
+    //    return rot * vec4(0, 1, 0, 0);
+    return make_vec4(rot * vec3(0, 1, 0), 0);
 }
 
 inline void Object3D::setPosition(const vec3& cords)
@@ -165,7 +165,7 @@ inline void Object3D::setScale(const vec3& s)
 
 inline void Object3D::multScale(const vec3& s)
 {
-    setScale( ele_mult(getScale(), s) );
+    setScale(ele_mult(getScale(), s));
 }
 
 inline void Object3D::setModelMatrix(const mat4& _model)
@@ -175,14 +175,14 @@ inline void Object3D::setModelMatrix(const mat4& _model)
 #else
     // this is the inverse of createTRSmatrix
     model    = _model;
-    position = col(model,3);
+    position = col(model, 3);
     mat3 R(model);
-    scale[0] = length( col(R,0) );
-    scale[1] = length( col(R,1));
-    scale[2] = length(col(R,2));
-    R[0] /= scale.x;
-    R[1] /= scale.y;
-    R[2] /= scale.z;
+    scale[0] = length(col(R, 0));
+    scale[1] = length(col(R, 1));
+    scale[2] = length(col(R, 2));
+    R[0] /= scale[0];
+    R[1] /= scale[1];
+    R[2] /= scale[2];
     rot = quat_cast(R);
 #endif
 }

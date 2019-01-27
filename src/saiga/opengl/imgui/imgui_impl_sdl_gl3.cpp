@@ -56,8 +56,7 @@ static void ImGui_ImplSdlGL3_SetClipboardText(void* user_data, const char* text)
 
 
 
-ImGui_SDL_Renderer::ImGui_SDL_Renderer(SDL_Window* window, std::string font, float fontSize)
-    : ImGui_GL_Renderer(font, fontSize)
+ImGui_SDL_Renderer::ImGui_SDL_Renderer(SDL_Window* window, const ImGuiParameters& params) : ImGui_GL_Renderer(params)
 {
     memset(g_MousePressed, 0, 3 * sizeof(bool));
     this->window = window;

@@ -18,7 +18,7 @@ void Buffer::destroy()
     if (m_memoryLocation && bufferUsage != vk::BufferUsageFlags())
     {
         base->memory.deallocateBuffer({bufferUsage, memoryProperties}, m_memoryLocation);
-        m_memoryLocation.buffer = nullptr;
+        m_memoryLocation.make_invalid();
     }
 }
 
@@ -35,15 +35,15 @@ void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::Buff
 
 void Buffer::stagedUpload(VulkanBase& base, size_t size, const void* data)
 {
-    vk::CommandBuffer cmd = base.createAndBeginTransferCommand();
+    vk::CommandBuffer cmd = base.mainQueue.commandPool.createAndBeginOneTimeBuffer();
 
     StagingBuffer staging;
     staging.init(base, size, data);
 
     vk::BufferCopy bc(0, m_memoryLocation.offset, size);
     cmd.copyBuffer(staging.m_memoryLocation.buffer, m_memoryLocation.buffer, bc);
-
-    base.endTransferWait(cmd);
+    cmd.end();
+    base.mainQueue.submitAndWait(cmd);
 }
 
 vk::DescriptorBufferInfo Buffer::createInfo()

@@ -25,6 +25,7 @@ void Texture::destroy()
     if (memoryLocation)
     {
         base->memory.deallocateImage(type, memoryLocation);
+        memoryLocation.make_invalid();
     }
 }
 
@@ -95,16 +96,14 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo()
 
 void Texture2D::fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usage, bool flipY)
 {
-    fromImage(base, img, base.transferQueue, base.commandPool, usage, flipY);
+    fromImage(base, img, base.mainQueue, base.mainQueue.commandPool, usage, flipY);
 }
 
 void Texture2D::uploadImage(Image& img, bool flipY)
 {
-    vk::CommandBuffer cmd = base->createAndBeginTransferCommand();
+    vk::CommandBuffer cmd = base->mainQueue.commandPool.createAndBeginOneTimeBuffer();
 
     transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
-
-
 
     StagingBuffer staging;
 
@@ -138,7 +137,8 @@ void Texture2D::uploadImage(Image& img, bool flipY)
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
-    base->endTransferWait(cmd);
+    cmd.end();
+    base->mainQueue.submitAndWait(cmd);
 
     staging.destroy();
 }

@@ -10,6 +10,7 @@
 
 #include "saiga/image/imageTransformations.h"
 #include "saiga/util/color.h"
+#include "saiga/util/random.h"
 
 #include <saiga/imgui/imgui.h>
 
@@ -23,7 +24,12 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     float aspect = window.getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 50.0f, true);
     camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.rotationPoint = vec3(0);
+    camera.rotationPoint = make_vec3(0);
+
+
+    //    cout << camera.view << endl;
+    //    cout << camera.proj << endl;
+    //    exit(0);
 
     window.setCamera(&camera);
 }
@@ -86,21 +92,21 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     teapotTrans.translateGlobal(vec3(0, 1, 0));
     teapotTrans.calculateModel();
 
-    plane.createCheckerBoard(vec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray);
+    plane.createCheckerBoard(ivec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray);
     plane.init(renderer.base);
 
     grid.createGrid(10, 10);
     grid.init(renderer.base);
 
-    frustum.createFrustum(camera.proj, 2, vec4(1), true);
+    frustum.createFrustum(camera.proj, 2, make_vec4(1), true);
     frustum.init(renderer.base);
 
     pointCloud.init(base, 1000 * 1000);
     for (int i = 0; i < 1000 * 1000; ++i)
     {
         Saiga::VertexNC v;
-        v.position               = vec4(linearRand(vec3(-3), vec3(3)), 1);
-        v.color                  = vec4(linearRand(vec3(0), vec3(1)), 1);
+        v.position               = make_vec4(linearRand(make_vec3(-3), make_vec3(3)), 1);
+        v.color                  = make_vec4(linearRand(make_vec3(0), make_vec3(1)), 1);
         pointCloud.pointCloud[i] = v;
     }
 }
@@ -120,8 +126,8 @@ void VulkanExample::update(float dt)
         for (auto& v : pointCloud.pointCloud)
         {
             //            Saiga::VertexNC v;
-            v.position = vec4(linearRand(vec3(-3), vec3(3)), 1);
-            v.color    = vec4(linearRand(vec3(0), vec3(1)), 1);
+            v.position = make_vec4(linearRand(vec3(-3), vec3(3)), 1);
+            v.color    = make_vec4(linearRand(vec3(0), vec3(1)), 1);
             //            pointCloud.mesh.points.push_back(v);
         }
         change        = false;
@@ -155,11 +161,11 @@ void VulkanExample::render(vk::CommandBuffer cmd)
     {
         if (assetRenderer.bind(cmd))
         {
-            assetRenderer.pushModel(cmd, mat4(1));
+            assetRenderer.pushModel(cmd, identityMat4());
             plane.render(cmd);
         }
 
-        if(lineAssetRenderer.bind(cmd))
+        if (lineAssetRenderer.bind(cmd))
         {
             lineAssetRenderer.pushModel(cmd, translate(vec3(-5, 1.5f, 0)));
             teapot.render(cmd);
@@ -171,7 +177,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         }
 
 
-        if(pointCloudRenderer.bind(cmd))
+        if (pointCloudRenderer.bind(cmd))
         {
             pointCloudRenderer.pushModel(cmd, translate(vec3(10, 2.5f, 0)));
             pointCloud.render(cmd, 0, pointCloud.capacity);
@@ -179,7 +185,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
         if (texturedAssetRenderer.bind(cmd))
         {
-            texturedAssetRenderer.pushModel(cmd, mat4(1));
+            texturedAssetRenderer.pushModel(cmd, identityMat4());
             texturedAssetRenderer.bindTexture(cmd, box.descriptor);
             box.render(cmd);
         }
@@ -228,11 +234,11 @@ void VulkanExample::keyPressed(SDL_Keysym key)
 {
     switch (key.scancode)
     {
-    case SDL_SCANCODE_ESCAPE:
-        parentWindow.close();
-        break;
-    default:
-        break;
+        case SDL_SCANCODE_ESCAPE:
+            parentWindow.close();
+            break;
+        default:
+            break;
     }
 }
 

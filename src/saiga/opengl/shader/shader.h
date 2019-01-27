@@ -125,7 +125,7 @@ class SAIGA_GLOBAL Shader
 
     /**
      * Directly maps to glMemoryBarrier.
-     * See here https://www.opengl.org/sdk/docs/man/html/glMemoryBarrier.xhtml
+     * See here https://www.opengl.org/sdk/docs/man/html/glMemoryBarrier[0]html
      *
      * The 2 most common barries have their own function, see below.
      */

@@ -55,7 +55,7 @@ SimpleShadowmap::SimpleShadowmap(int w, int h, ShadowQuality quality)
     //    depth->setWrap(GL_CLAMP_TO_EDGE);
     depth->setWrap(GL_CLAMP_TO_BORDER);
     //    depth->setBorderColor(vec4(1.0f));
-    depth->setBorderColor(vec4(0.0f));  // no light on the outside
+    depth->setBorderColor(make_vec4(0.0f));  // no light on the outside
     depth->setFiltering(GL_LINEAR);
 
     // this requires the texture sampler in the shader to be sampler2DShadow
@@ -186,7 +186,7 @@ CascadedShadowmap::CascadedShadowmap(int w, int h, int numCascades, ShadowQualit
             break;
     }
     depthTexture->setWrap(GL_CLAMP_TO_BORDER);
-    depthTexture->setBorderColor(vec4(1.0f));
+    depthTexture->setBorderColor(make_vec4(1.0f));
     depthTexture->setFiltering(GL_LINEAR);
 
     // this requires the texture sampler in the shader to be sampler2DShadow

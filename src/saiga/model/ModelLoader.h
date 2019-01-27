@@ -8,7 +8,7 @@
 
 
 #include "saiga/config.h"
-#include "saiga/util/fileChecker.h"
+
 
 namespace Saiga
 {
@@ -17,9 +17,6 @@ class SAIGA_GLOBAL ModelLoader
    public:
 };
 
-
-
-extern SAIGA_GLOBAL FileChecker modelPathes;
 
 
 }  // namespace Saiga

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/imgui/imgui_renderer.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/window/WindowBase.h"
 
@@ -39,7 +39,7 @@ class SAIGA_GLOBAL OpenGLWindow : public WindowBase
 
 
 
-    virtual std::shared_ptr<ImGuiRenderer> createImGui() { return nullptr; }
+    virtual std::shared_ptr<ImGui_GL_Renderer> createImGui() { return nullptr; }
 
     virtual void swap();
     virtual void update(float dt);

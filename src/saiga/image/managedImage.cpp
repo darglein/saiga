@@ -13,6 +13,7 @@
 #include "saiga/image/png_wrapper.h"
 #include "saiga/image/templatedImage.h"
 #include "saiga/util/color.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/imath.h"
 #include "saiga/util/tostring.h"
 
@@ -23,8 +24,6 @@
 #include <fstream>
 namespace Saiga
 {
-FileChecker Image::searchPathes;
-
 Image::Image(int h, int w, ImageType type)
     : ImageBase(h, w, iAlignUp(elementSize(type) * w, DEFAULT_ALIGNMENT)), type(type)
 {
@@ -103,8 +102,7 @@ bool Image::load(const std::string& _path)
 {
     clear();
 
-
-    auto path = searchPathes.getFile(_path);
+    auto path = SearchPathes::image(_path);
 
     bool erg         = false;
     std::string type = fileEnding(path);

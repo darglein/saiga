@@ -48,14 +48,14 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSW()
     vec2 d         = vec2(1.0f / (m - 1));
     vec2 o         = vec2(0.5);
 
-    float dw = d.x;
-    float dh = d.y;
+    float dw = d[0];
+    float dh = d[1];
     for (unsigned int y = 0; y < h; y++)
     {
         for (unsigned int x = 0; x < w; x++)
         {
-            float fx = (float)x * dw - o.x;
-            float fy = (float)y * dh - o.y;
+            float fx = (float)x * dw - o[0];
+            float fy = (float)y * dh - o[1];
             Vertex v(vec3(fx, 0.0f, fy));
             mesh->addVertex(v);
         }
@@ -76,14 +76,14 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSW()
     w = 2;
     h = 2 * m;
 
-    dw = d.x;
-    dh = d.y;
+    dw = d[0];
+    dh = d[1];
     for (unsigned int y = 0; y < h; y++)
     {
         for (unsigned int x = 0; x < w; x++)
         {
-            float fx = (float)x * dw - o.x;
-            float fy = (float)(y + 1) * dh - o.y;
+            float fx = (float)x * dw - o[0];
+            float fy = (float)(y + 1) * dh - o[1];
             Vertex v(vec3(fx, 0.0f, fy));
             mesh->addVertex(v);
         }
@@ -106,14 +106,14 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSW()
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSE()
 {
     auto mesh = createMeshTrimSW();
-    mesh->transform(rotate(mat4(1), radians(90.0f), vec3(0, 1, 0)));
+    mesh->transform(rotate(identityMat4(), radians(90.0f), vec3(0, 1, 0)));
     return mesh;
 }
 
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNW()
 {
     auto mesh = createMeshTrimSW();
-    mesh->transform(rotate(mat4(1), radians(-90.0f), vec3(0, 1, 0)));
+    mesh->transform(rotate(identityMat4(), radians(-90.0f), vec3(0, 1, 0)));
     return mesh;
 }
 
@@ -121,7 +121,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNW()
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNE()
 {
     auto mesh = createMeshTrimSW();
-    mesh->transform(rotate(mat4(1), radians(180.0f), vec3(0, 1, 0)));
+    mesh->transform(rotate(identityMat4(), radians(180.0f), vec3(0, 1, 0)));
     return mesh;
 }
 
@@ -147,15 +147,15 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated()
 
         for (int x = 0; x < w; x++)
         {
-            float fx = (float)x * d[i].x - o[i].x;
-            float fy = (float)x * d[i].y - o[i].y;
+            float fx = (float)x * d[i][0] - o[i][0];
+            float fy = (float)x * d[i][1] - o[i][1];
             Vertex v(vec3(fx, 0.0f, fy));
             mesh->addVertex(v);
             if (x < w - 1)
             {
                 // add vertex between
-                fx = fx + 0.5f * d[i].x;
-                fy = fy + 0.5f * d[i].y;
+                fx = fx + 0.5f * d[i][0];
+                fy = fy + 0.5f * d[i][1];
                 Vertex v(vec3(fx, 0.0f, fy));
                 mesh->addVertex(v);
             }
@@ -186,7 +186,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshDegenerated()
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshCenter()
 {
     int m = this->m * 2;
-    return createGridMesh(m, m, vec2(1.0 / (m - 2)), vec2(0.5));
+    return createGridMesh(m, m, make_vec2(1.0 / (m - 2)), make_vec2(0.5));
 }
 
 
@@ -196,14 +196,14 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createGridMesh(unsigned int w,
 
     // creating uniform grid with w*h vertices
     // the resulting mesh will fill the quad (-1,0,-1) - (1,0,1)
-    float dw = d.x;
-    float dh = d.y;
+    float dw = d[0];
+    float dh = d[1];
     for (unsigned int y = 0; y < h; y++)
     {
         for (unsigned int x = 0; x < w; x++)
         {
-            float fx = (float)x * dw - o.x;
-            float fy = (float)y * dh - o.y;
+            float fx = (float)x * dw - o[0];
+            float fy = (float)y * dh - o[1];
             Vertex v(vec3(fx, 0.0f, fy));
             mesh->addVertex(v);
         }

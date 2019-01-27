@@ -9,7 +9,7 @@
 #include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
-vec3 Triangle::center()
+vec3 Triangle::center() const
 {
     return (a + b + c) * float(1.0f / 3.0f);
 }

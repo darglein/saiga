@@ -13,12 +13,13 @@
 #include "saiga/util/color.h"
 #include "saiga/util/cv.h"
 #include "saiga/util/directory.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
+#include "saiga/vision/ba/BAPoseOnly.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 
-#include "BAPoseOnly.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
@@ -31,6 +32,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 
     sscene.numCameras     = 1;
     sscene.numWorldPoints = 3;
+    sscene.numImagePoints = 2;
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
 
@@ -43,7 +45,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 {
     assetRenderer.init(base, renderer.renderPass);
     lineAssetRenderer.init(base, renderer.renderPass, 2);
-    pointCloudRenderer.init(base, renderer.renderPass, 2);
+    pointCloudRenderer.init(base, renderer.renderPass, 1);
     textureDisplay.init(base, renderer.renderPass);
 
 
@@ -51,11 +53,10 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     grid.createGrid(10, 10);
     grid.init(renderer.base);
 
-    //    frustum.createFrustum(camera.proj, 2, vec4(1), true);
-    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 0, 0, 1), false);
+    frustum.createFrustum(glm::perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
     frustum.init(renderer.base);
 
-    pointCloud.init(base, 1000 * 1000);
+    pointCloud.init(base, 1000 * 1000 * 10);
 
     change = true;
 }
@@ -144,6 +145,7 @@ void VulkanExample::renderGUI()
         Saiga::BALDataset bald(datasets[currentItem]);
         scene = bald.makeScene();
         scene.compress();
+        scene.sortByWorldPointId();
         change = true;
     }
 
@@ -161,21 +163,24 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("Bundle Adjust G2O"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::g2oBA2 ba;
-        ba.optimize(scene, its);
+        ba.solve(scene, baoptions);
         change = true;
     }
 
     if (ImGui::Button("Bundle Adjust ceres"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::CeresBA ba;
-        ba.optimize(scene, its);
+        ba.solve(scene, baoptions);
         change = true;
     }
 
 
     if (ImGui::Button("poseOnlySparse"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::BAPoseOnly ba;
         ba.poseOnlySparse(scene, its);
         change = true;
@@ -183,29 +188,27 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("posePointDense"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::BAPoseOnly ba;
         ba.posePointDense(scene, its);
         change = true;
     }
 
-    if (ImGui::Button("posePointDenseBlock"))
-    {
-        Saiga::BAPoseOnly ba;
-        ba.posePointDenseBlock(scene, its);
-        change = true;
-    }
 
-    if (ImGui::Button("sba paper"))
+    baoptions.imgui();
+    if (ImGui::Button("sba recursive"))
     {
-        Saiga::BAPoseOnly ba;
-        ba.sbaPaper(scene, its);
+        SAIGA_BLOCK_TIMER();
+        //        Saiga::BARec barec;
+        barec.solve(scene, baoptions);
         change = true;
     }
 
     if (ImGui::Button("posePointSparse"))
     {
+        SAIGA_BLOCK_TIMER();
         Saiga::BAPoseOnly ba;
-        ba.posePointSparse(scene, its);
+        ba.solve(scene, baoptions);
         change = true;
     }
 
@@ -223,7 +226,10 @@ void VulkanExample::renderGUI()
 
 void VulkanExample::findBALDatasets()
 {
-    Saiga::Directory dir(".");
-    dir.getFilesPrefix(datasets, "problem-");
+    //    Saiga::Directory dir(".");
+    //    dir.getFilesPrefix(datasets, "problem-");
+
+    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".txt");
+    std::sort(datasets.begin(), datasets.end());
     cout << "Found " << datasets.size() << " BAL datasets" << endl;
 }

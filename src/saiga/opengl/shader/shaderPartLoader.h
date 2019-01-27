@@ -8,7 +8,6 @@
 
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderpart.h"
-#include "saiga/util/fileChecker.h"
 #include "saiga/util/math.h"
 
 #include <vector>
@@ -80,6 +79,6 @@ std::shared_ptr<shader_t> ShaderPartLoader::createShader()
     return shader;
 }
 
-extern SAIGA_GLOBAL FileChecker shaderPathes;
+
 
 }  // namespace Saiga
