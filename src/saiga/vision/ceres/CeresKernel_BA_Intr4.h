@@ -14,13 +14,14 @@ namespace Saiga
 {
 struct CostBAMono
 {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     // Helper function to simplify the "add residual" part for creating ceres problems
     using CostType = CostBAMono;
     // Note: The first number is the number of residuals
     //       The following number sthe size of the residual blocks (without local parametrization)
     using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 2, 7, 3>;
     template <typename... Types>
-    static CostFunctionType* create(Types... args)
+    static CostFunctionType* create(const Types&... args)
     {
         return new CostFunctionType(new CostType(args...));
     }
@@ -46,7 +47,7 @@ struct CostBAMono
         return true;
     }
 
-    CostBAMono(Intrinsics4 intr, Eigen::Vector2d observed, double weight = 1)
+    CostBAMono(const Intrinsics4& intr, const Eigen::Vector2d& observed, double weight = 1)
         : intr(intr), observed(observed), weight(weight)
     {
     }
@@ -60,13 +61,15 @@ struct CostBAMono
 template <bool INV_DEPTH_DIFF = false>
 struct CostBAStereo
 {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
     // Helper function to simplify the "add residual" part for creating ceres problems
     using CostType = CostBAStereo;
     // Note: The first number is the number of residuals
     //       The following number sthe size of the residual blocks (without local parametrization)
     using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 3, 7, 3>;
     template <typename... Types>
-    static CostFunctionType* create(Types... args)
+    static CostFunctionType* create(const Types&... args)
     {
         return new CostFunctionType(new CostType(args...));
     }
@@ -112,7 +115,8 @@ struct CostBAStereo
         return true;
     }
 
-    CostBAStereo(Intrinsics4 intr, Eigen::Vector2d observed, double stereoPoint, double bf, Vec2 weights)
+    CostBAStereo(const Intrinsics4& intr, const Eigen::Vector2d& observed, double stereoPoint, double bf,
+                 const Vec2& weights)
         : intr(intr), observed(observed), stereoPoint(stereoPoint), bf(bf), weights(weights)
     {
     }

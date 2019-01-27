@@ -58,6 +58,17 @@ inline T ele_div(const T& a, const T& b)
 //    return a;
 //}
 
+inline vec3 min(const vec3& a, const vec3& b)
+{
+    return a.array().min(b.array());
+}
+
+inline vec3 max(const vec3& a, const vec3& b)
+{
+    return a.array().max(b.array());
+}
+
+
 inline vec4 round(const vec4& a)
 {
     return a.array().round();
@@ -90,8 +101,15 @@ inline vec3 abs(const vec3& a)
 inline vec3 clamp(const vec3& x, const vec3& minVal, const vec3& maxVal)
 {
     vec3 tmp = x.array().max(minVal.array());
-    return tmp.array().max(minVal.array());
+    return tmp.array().min(maxVal.array());
 }
+
+inline ivec2 clamp(const ivec2& x, const ivec2& minVal, const ivec2& maxVal)
+{
+    ivec2 tmp = x.array().max(minVal.array());
+    return tmp.array().min(maxVal.array());
+}
+
 inline vec4 make_vec4(float x, float y, float z, float w)
 {
     return vec4(x, y, z, w);
@@ -131,6 +149,25 @@ inline vec2 make_vec2(const vec3& a)
 {
     return vec2(a(0), a(1));
 }
+
+inline vec2 make_vec2(float a, float b)
+{
+    return vec2(a, b);
+}
+
+inline vec2 make_vec2(const ivec2& a)
+{
+    return a.cast<float>();
+}
+
+inline ivec2 make_ivec2(int a, int b)
+{
+    ivec2 v;
+    v(0) = a;
+    v(1) = b;
+    return v;
+}
+
 
 inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a)
 {
@@ -230,6 +267,11 @@ inline vec4 mix(const vec4& a, const vec4& b, float alpha)
 }
 
 inline vec3 mix(const vec3& a, const vec3& b, float alpha)
+{
+    return (1 - alpha) * a + alpha * b;
+}
+
+inline vec2 mix(const vec2& a, const vec2& b, float alpha)
 {
     return (1 - alpha) * a + alpha * b;
 }

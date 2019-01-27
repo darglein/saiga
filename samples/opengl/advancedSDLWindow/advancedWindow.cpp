@@ -9,6 +9,7 @@
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/util/random.h"
 
 Sample::Sample(OpenGLWindow& window, Renderer& renderer)
     : Updating(window), DeferredRenderingInterface(renderer), tdo(window.getWidth(), window.getHeight())
@@ -45,7 +46,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer)
     sphere.rotateLocal(vec3(0, 1, 0), 180);
     sphere.calculateModel();
 
-    groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
+    groundPlane.asset = assetLoader.loadDebugPlaneAsset(make_vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
 
     // create one directional light
     // sun = window.getRenderer()->lighting.createDirectionalLight();
@@ -66,7 +67,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer)
         pl->setRadius(10);
         pl->setPosition(vec3(10, 3, 0));
         pl->rotateAroundPoint(vec3(0, 3, 0), vec3(0, 1, 0), i * 360 / 10);
-        pl->setColorDiffuse(linearRand(vec3(0), vec3(1)));
+        pl->setColorDiffuse(linearRand(make_vec3(0), make_vec3(1)));
         pl->calculateModel();
         pl->createShadowMap(256, 256);
         lights.push_back(pl);
@@ -81,7 +82,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer)
     tdo.paddingY = 0.000f;
     tdo.textSize = 0.04f;
 
-    tdo.textParameters.setColor(vec4(1), 0.1f);
+    tdo.textParameters.setColor(make_vec4(1), 0.1f);
     tdo.textParameters.setGlow(vec4(0, 0, 0, 1), 1.0f);
 
     tdo.createItem("Fps: ");

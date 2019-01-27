@@ -268,7 +268,7 @@ void Scene::compress()
     fixWorldPointReferences();
 
 
-    std::vector<WorldPoint> newWorldPoints;
+    AlignedVector<WorldPoint> newWorldPoints;
 
     for (auto& wp : worldPoints)
     {

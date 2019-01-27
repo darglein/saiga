@@ -7,12 +7,12 @@
 #pragma once
 
 #include "saiga/util/assert.h"
-#include "saiga/vision/BlockRecursiveBATemplates.h"
-#include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
+#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
+#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
 namespace Saiga

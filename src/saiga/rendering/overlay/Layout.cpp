@@ -56,7 +56,7 @@ AABB Layout::transform(Object3D* obj, const AABB& box, vec2 relPos, float relSiz
     vec3 bbmax  = ele_mult(box.max, obj->getScale());
 
 
-    vec3 alignmentOffset(0);
+    vec3 alignmentOffset = make_vec3(0);
 
     switch (alignmentX)
     {

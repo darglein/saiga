@@ -115,7 +115,7 @@ void SMAA::loadShader(SMAA::Quality _quality)
     vec4 rtMetrics(1.0f / screenSize[0], 1.0f / screenSize[1], screenSize[0], screenSize[1]);
     std::string rtMetricsStr = "#define SMAA_RT_METRICS float4(" + std::to_string(rtMetrics[0]) + "," +
                                std::to_string(rtMetrics[1]) + "," + std::to_string(rtMetrics[2]) + "," +
-                               std::to_string(rtMetrics.w) + ")";
+                               std::to_string(rtMetrics[3]) + ")";
 
     std::string qualityStr;
     switch (quality)
@@ -153,7 +153,7 @@ void SMAA::loadShader(SMAA::Quality _quality)
 
 void SMAA::resize(int w, int h)
 {
-    screenSize = vec2(w, h);
+    screenSize = make_ivec2((float)w, (float)h);
     edgesFb.resize(w, h);
     blendFb.resize(w, h);
     shaderLoaded = false;

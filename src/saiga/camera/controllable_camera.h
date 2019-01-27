@@ -153,7 +153,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     float angle = length(relMovement);
     if (angle == 0) return;
 
-    vec3 dir = normalize(point - this->getPosition());
+    vec3 dir = normalize(vec3(point - this->getPosition()));
 
     vec3 right = normalize(cross(dir, up));
     //    up = normalize(cross(right,dir));
@@ -166,10 +166,10 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 
     quat qrot      = angleAxis(radians(angle), axis);
     this->rot      = qrot * this->rot;
-    this->position = vec4(qrot * (this->getPosition() - point), 1);
+    this->position = make_vec4(qrot * (this->getPosition() - point), 1);
 
 
-    this->position = vec4(point + this->getPosition(), 1);
+    this->position = make_vec4(point + this->getPosition(), 1);
 
     this->calculateModel();
     this->updateFromModel();

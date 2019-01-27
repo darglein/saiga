@@ -29,7 +29,7 @@ ProceduralSkybox::ProceduralSkybox()
 {
     auto sb = TriangleMeshGenerator::createFullScreenQuadMesh();
 
-    sb->transform(translate(mat4(1), vec3(0, 0, 1 - epsilon<float>())));
+    sb->transform(translate(identityMat4(), vec3(0, 0, 1 - epsilon<float>())));
 
     //    sb->createBuffers(mesh);
     mesh.fromMesh(*sb);

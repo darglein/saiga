@@ -296,9 +296,9 @@ void TriangleMesh<vertex_t, index_t>::toTriangleList(std::vector<Triangle>& outp
     Triangle t;
     for (Face& f : faces)
     {
-        t.a = vec3(vertices[f.v1].position);
-        t.b = vec3(vertices[f.v2].position);
-        t.c = vec3(vertices[f.v3].position);
+        t.a = make_vec3(vertices[f.v1].position);
+        t.b = make_vec3(vertices[f.v2].position);
+        t.c = make_vec3(vertices[f.v3].position);
         output.push_back(t);
     }
 }

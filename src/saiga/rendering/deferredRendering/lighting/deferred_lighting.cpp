@@ -688,18 +688,18 @@ void DeferredLighting::createLightMeshes()
     float n = 4.9;
     float r = 1.0f / cos(pi<float>() / n);
     //    cout << "point light radius " << r << endl;
-    Sphere s(vec3(0), r);
+    Sphere s(make_vec3(0), r);
     auto sb = TriangleMeshGenerator::createMesh(s, 1);
     //    sb->createBuffers(pointLightMesh);
     pointLightMesh.fromMesh(*sb);
 
 
-    Cone c(vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
+    Cone c(make_vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
     auto cb = TriangleMeshGenerator::createMesh(c, 10);
     //    cb->createBuffers(spotLightMesh);
     spotLightMesh.fromMesh(*cb);
 
-    AABB box(vec3(-1), vec3(1));
+    AABB box(make_vec3(-1), make_vec3(1));
     auto bb = TriangleMeshGenerator::createMesh(box);
     //    bb->createBuffers(boxLightMesh);
     boxLightMesh.fromMesh(*bb);

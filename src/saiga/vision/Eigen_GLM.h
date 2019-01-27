@@ -6,11 +6,45 @@
 
 #pragma once
 
-#include "saiga/util/glm.h"
+#include "saiga/util/math.h"
+
+#ifdef SAIGA_FULL_EIGEN
+
+#else
+
+#    include "saiga/util/glm.h"
+
+#endif
+
+
 #include "saiga/vision/VisionIncludes.h"
 
 namespace Saiga
 {
+#ifdef SAIGA_FULL_EIGEN
+/**
+ * Don't do anything because the mat3/4 types are already eigen
+ */
+template <typename _Scalar>
+SAIGA_TEMPLATE inline mat3 toglm(const Eigen::Matrix<_Scalar, 3, 3>& mat)
+{
+    return mat.template cast<float>();
+}
+
+template <typename _Scalar>
+SAIGA_TEMPLATE inline mat4 toglm(const Eigen::Matrix<_Scalar, 4, 4>& mat)
+{
+    return mat.template cast<float>();
+}
+
+
+template <typename _Scalar>
+SAIGA_TEMPLATE inline vec3 toglm(const Eigen::Matrix<_Scalar, 3, 1>& v)
+{
+    return v.template cast<float>();
+}
+
+#else
 template <typename _Scalar>
 SAIGA_TEMPLATE inline mat3 toglm(const Eigen::Matrix<_Scalar, 3, 3>& mat)
 {
@@ -52,6 +86,6 @@ SAIGA_TEMPLATE inline vec3 toglm(const Eigen::Matrix<_Scalar, 3, 1>& v)
     }
     return r;
 }
-
+#endif
 
 }  // namespace Saiga
