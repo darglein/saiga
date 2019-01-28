@@ -41,7 +41,6 @@ class SAIGA_GLOBAL Buffer
     {
         if (this != &other)
         {
-            base->memory.move_buffer_pointer(this, other);
             base             = other.base;
             bufferUsage      = other.bufferUsage;
             memoryProperties = other.memoryProperties;

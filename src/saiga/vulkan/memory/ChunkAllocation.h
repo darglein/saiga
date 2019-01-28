@@ -1,3 +1,5 @@
+#include <utility>
+
 //
 // Created by Peter Eichinger on 30.10.18.
 //
@@ -7,6 +9,8 @@
 #include "saiga/vulkan/memory/MemoryLocation.h"
 
 #include <list>
+#include <optional>
+#include <ostream>
 
 namespace Saiga
 {
@@ -14,25 +18,42 @@ namespace Vulkan
 {
 namespace Memory
 {
-typedef std::vector<MemoryLocation> ChunkList;
-typedef ChunkList::iterator LocationIterator;
-typedef ChunkList::const_iterator ConstLocationIterator;
+struct FreeListEntry
+{
+    vk::DeviceSize offset;
+    vk::DeviceSize size;
+    FreeListEntry() : offset(VK_WHOLE_SIZE), size(0) {}
+    FreeListEntry(vk::DeviceSize _offset, vk::DeviceSize _size) : offset(_offset), size(_size) {}
+
+    friend std::ostream& operator<<(std::ostream& os, const FreeListEntry& entry)
+    {
+        os << "offset: " << entry.offset << " size: " << entry.size;
+        return os;
+    }
+};
+
+using FreeList          = std::vector<FreeListEntry>;
+using FreeIterator      = FreeList::iterator;
+using ConstFreeIterator = FreeList::const_iterator;
+
+using AllocatedList           = std::vector<MemoryLocation>;
+using AllocationIterator      = AllocatedList::iterator;
+using ConstAllocationIterator = AllocatedList::const_iterator;
 
 struct SAIGA_GLOBAL ChunkAllocation
 {
     std::shared_ptr<Chunk> chunk;
     vk::Buffer buffer;
-    ChunkList allocations;
-    ChunkList freeList;
-    MemoryLocation maxFreeRange;
+    AllocatedList allocations;
+    FreeList freeList;
+    std::optional<FreeListEntry> maxFreeRange;
     void* mappedPointer;
 
     vk::DeviceSize allocated;
     vk::DeviceSize size;
 
-    ChunkAllocation(const std::shared_ptr<Chunk>& _chunk, vk::Buffer _buffer, vk::DeviceSize _size,
-                    void* _mappedPointer)
-        : chunk(_chunk),
+    ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize _size, void* _mappedPointer)
+        : chunk(std::move(_chunk)),
           buffer(_buffer),
           allocations(),
           freeList(),
@@ -41,13 +62,11 @@ struct SAIGA_GLOBAL ChunkAllocation
           allocated(0),
           size(_size)
     {
-        freeList.emplace_back(_buffer, _chunk->memory, 0, size);
+        freeList.emplace_back(0, size);
         maxFreeRange = freeList.front();
     }
 
    public:
-    bool operator<(const ChunkAllocation& rhs) const { return allocated > rhs.allocated; }
-
     inline vk::DeviceSize getFree() const { return size - allocated; }
 };
 

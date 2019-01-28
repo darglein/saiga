@@ -39,7 +39,8 @@ class Defragger
     struct DefragOperation
     {
         MemoryLocation source;
-        MemoryLocation target;
+        vk::DeviceMemory targetMemory;
+        FreeListEntry target;
         float weight;
 
 
@@ -63,8 +64,8 @@ class Defragger
 
 
     // Defrag thread functions
-    float get_operation_penalty(ConstChunkIterator target_chunk, ConstLocationIterator target_location,
-                                ConstChunkIterator source_chunk, ConstLocationIterator source_location) const;
+    float get_operation_penalty(ConstChunkIterator target_chunk, ConstFreeIterator target_location,
+                                ConstChunkIterator source_chunk, ConstAllocationIterator source_location) const;
 
     void apply_invalidations();
 

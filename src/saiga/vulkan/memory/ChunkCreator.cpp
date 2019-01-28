@@ -54,6 +54,7 @@ void Saiga::Vulkan::Memory::ChunkCreator::deallocate(std::shared_ptr<Chunk> chun
     {
         throw std::runtime_error("Must be initialized before use");
     }
+
     findMemoryType(chunk->flags).deallocate(chunk);
 }
 

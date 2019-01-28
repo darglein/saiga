@@ -44,7 +44,8 @@ void BaseChunkAllocator::showDetailStats()
             ImGui::Indent();
             bar.renderBackground();
             int j = 0;
-            ChunkList::const_iterator allocIter, freeIter;
+            ConstAllocationIterator allocIter;
+            ConstFreeIterator freeIter;
             for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
             {
                 bar.renderArea(static_cast<float>(allocIter->offset) / m_chunkSize,
@@ -89,7 +90,8 @@ MemoryStats BaseChunkAllocator::collectMemoryStats()
     {
         auto chunk = m_chunkAllocations[i];
         int j      = 0;
-        ChunkList::const_iterator allocIter, freeIter;
+        ConstAllocationIterator allocIter;
+        ConstFreeIterator freeIter;
         for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
         {
             usedSpace += allocIter->size;

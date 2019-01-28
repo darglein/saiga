@@ -89,7 +89,7 @@ void Defragger::perform_defragmentation()
             auto weight            = get_operation_penalty(new_place.first, target_iter, end, (alloc_iter + 1).base());
             LOG(INFO) << "Defrag " << source << "->" << target << " :: " << weight;
 
-            defrag_operations.insert(DefragOperation{source, target, weight});
+            defrag_operations.insert(DefragOperation{source, new_place.first->chunk->memory, target, weight});
         }
         alloc_iter++;
     }
@@ -101,8 +101,8 @@ void Defragger::invalidate(vk::DeviceMemory memory)
     invalidate_set.insert(memory);
 }
 
-float Defragger::get_operation_penalty(ConstChunkIterator target_chunk, ConstLocationIterator target_location,
-                                       ConstChunkIterator source_chunk, ConstLocationIterator source_location) const
+float Defragger::get_operation_penalty(ConstChunkIterator target_chunk, ConstFreeIterator target_location,
+                                       ConstChunkIterator source_chunk, ConstAllocationIterator source_location) const
 {
     float weight = 0;
     // if the move creates a hole that is smaller than the memory chunk itself -> add weight
@@ -149,7 +149,7 @@ void Defragger::apply_invalidations()
 
         while (ops_iter != defrag_operations.end())
         {
-            auto target_mem = ops_iter->target.memory;
+            auto target_mem = ops_iter->targetMemory;
             if (invalidate_set.find(target_mem) != invalidate_set.end())
             {
                 ops_iter = defrag_operations.erase(ops_iter);
