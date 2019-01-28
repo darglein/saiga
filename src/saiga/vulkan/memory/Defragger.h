@@ -63,8 +63,8 @@ class Defragger
 
 
     // Defrag thread functions
-    float getOperationWeight(ConstChunkIterator target_chunk, ConstLocationIterator target_location,
-                             ConstChunkIterator source_chunk, ConstLocationIterator source_location) const;
+    float get_operation_penalty(ConstChunkIterator target_chunk, ConstLocationIterator target_location,
+                                ConstChunkIterator source_chunk, ConstLocationIterator source_location) const;
 
     void apply_invalidations();
 

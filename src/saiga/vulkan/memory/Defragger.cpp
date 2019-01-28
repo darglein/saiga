@@ -78,7 +78,7 @@ void Defragger::perform_defragmentation()
         const auto& source = *alloc_iter;
 
         auto begin = chunks->begin();
-        auto end   = (chunk_iter + 1).base();
+        auto end   = (chunk_iter + 1).base();  // Conversion from reverse to normal iterator moves one back
         //
         auto new_place = strategy->findRange(begin, end, source.size);
 
@@ -86,7 +86,7 @@ void Defragger::perform_defragmentation()
         {
             const auto target_iter = new_place.second;
             const auto& target     = *target_iter;
-            auto weight            = getOperationWeight(new_place.first, target_iter, end, (alloc_iter + 1).base());
+            auto weight            = get_operation_penalty(new_place.first, target_iter, end, (alloc_iter + 1).base());
             LOG(INFO) << "Defrag " << source << "->" << target << " :: " << weight;
 
             defrag_operations.insert(DefragOperation{source, target, weight});
@@ -101,19 +101,19 @@ void Defragger::invalidate(vk::DeviceMemory memory)
     invalidate_set.insert(memory);
 }
 
-float Defragger::getOperationWeight(ConstChunkIterator target_chunk, ConstLocationIterator target_location,
-                                    ConstChunkIterator source_chunk, ConstLocationIterator source_location) const
+float Defragger::get_operation_penalty(ConstChunkIterator target_chunk, ConstLocationIterator target_location,
+                                       ConstChunkIterator source_chunk, ConstLocationIterator source_location) const
 {
     float weight = 0;
     // if the move creates a hole that is smaller than the memory chunk itself -> add weight
     if (target_location->size != source_location->size &&
         (target_location->size - source_location->size < source_location->size))
     {
-        weight += penalties.target_small_hole * (source_location->size / target_location->size);
+        weight +=
+            penalties.target_small_hole * (1 - (static_cast<float>(source_location->size) / target_location->size));
     }
 
-    // If move creates a whole -> add weight
-
+    // If move creates a hole at source -> add weight
     auto next = std::next(source_location);
     if (source_location != source_chunk->allocations.cbegin() && next != source_chunk->allocations.cend())
     {

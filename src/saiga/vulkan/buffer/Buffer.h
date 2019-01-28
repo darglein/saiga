@@ -39,10 +39,14 @@ class SAIGA_GLOBAL Buffer
 
     Buffer& operator=(Buffer&& other) noexcept
     {
-        base             = other.base;
-        bufferUsage      = other.bufferUsage;
-        memoryProperties = other.memoryProperties;
-        m_memoryLocation = std::move(other.m_memoryLocation);
+        if (this != &other)
+        {
+            base->memory.move_buffer_pointer(this, other);
+            base             = other.base;
+            bufferUsage      = other.bufferUsage;
+            memoryProperties = other.memoryProperties;
+            m_memoryLocation = std::move(other.m_memoryLocation);
+        }
         return *this;
     }
 

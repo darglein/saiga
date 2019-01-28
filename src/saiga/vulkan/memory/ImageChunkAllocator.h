@@ -11,7 +11,7 @@ namespace Vulkan
 {
 namespace Memory
 {
-class SAIGA_GLOBAL ImageChunkAllocator : public BaseChunkAllocator
+class SAIGA_GLOBAL ImageChunkAllocator final : public BaseChunkAllocator
 {
    public:
     ImageType type;
@@ -34,6 +34,8 @@ class SAIGA_GLOBAL ImageChunkAllocator : public BaseChunkAllocator
     ~ImageChunkAllocator() override = default;
 
     MemoryLocation allocate(vk::DeviceSize size, const vk::Image& image);
+
+    void enable_defragger(bool enable) override;
 
    protected:
     ChunkIterator createNewChunk() override;

@@ -29,7 +29,7 @@ namespace Vulkan
 {
 namespace Memory
 {
-class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
+class SAIGA_GLOBAL BufferChunkAllocator final : public BaseChunkAllocator
 {
    private:
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();

@@ -21,9 +21,18 @@ void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
     ImGui::LabelText("Memory Type", "%s", type.to_string().c_str());
 }
 
-Saiga::Vulkan::Memory::MemoryLocation Saiga::Vulkan::Memory::ImageChunkAllocator::allocate(vk::DeviceSize size, const vk::Image &image)
+Saiga::Vulkan::Memory::MemoryLocation Saiga::Vulkan::Memory::ImageChunkAllocator::allocate(vk::DeviceSize size,
+                                                                                           const vk::Image& image)
 {
     auto image_mem_reqs = m_device.getImageMemoryRequirements(image);
-    auto aligned_size = Saiga::iAlignUp(size,image_mem_reqs.alignment);
+    auto aligned_size   = Saiga::iAlignUp(size, image_mem_reqs.alignment);
     return BaseChunkAllocator::allocate(aligned_size);
+}
+
+void Saiga::Vulkan::Memory::ImageChunkAllocator::enable_defragger(bool enable)
+{
+    if (enable)
+    {
+        SAIGA_ASSERT(false, "Image allocator does not support defragmentation for now");
+    }
 }
