@@ -201,6 +201,15 @@ endif()
 PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARIES}")
 
 
+#mkl
+find_package(MKL QUIET)
+if(MKL_FOUND)
+    SET(SAIGA_USE_MKL 1)
+endif()
+PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
+message(STATUS "mkl libs: " "${MKL_LIBRARIES}")
+
+
 #openni2
 find_package(OpenNI2 QUIET)
 if(OPENNI2_FOUND)

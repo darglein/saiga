@@ -33,6 +33,7 @@
 
 #cmakedefine SAIGA_USE_CUDA
 #cmakedefine SAIGA_USE_CUSPARSE
+#cmakedefine SAIGA_USE_MKL
 #cmakedefine SAIGA_USE_CUBLAS
 #cmakedefine SAIGA_USE_EIGEN
 #cmakedefine SAIGA_EIGEN_AND_CUDA

@@ -3,6 +3,10 @@ add_subdirectory(posegraph)
 add_subdirectory(ba_performance_test)
 add_subdirectory(block_matrices)
 
+if(SAIGA_USE_MKL)
+add_subdirectory(mkl_test)
+endif()
+
 if (SDL2_FOUND AND SAIGA_USE_VULKAN)
     if(G2O_FOUND)
         add_subdirectory(ba)
