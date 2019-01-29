@@ -106,6 +106,7 @@ using glm::ortho;
 using glm::perspective;
 using glm::radians;
 using glm::scale;
+using glm::smoothstep;
 
 // random
 using glm::diskRand;
@@ -283,6 +284,10 @@ inline mat4 identityMat4()
 {
     return mat4(1);
 }
+inline mat3 identityMat3()
+{
+    return mat3(1);
+}
 inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a)
 {
     return ucvec4(v, a);
@@ -292,11 +297,20 @@ inline vec4 make_vec4(float x, float y, float z, float w)
     return vec4(x, y, z, w);
 }
 
+inline const vec3& col(const mat3& m, int id)
+{
+    return m[id];
+}
+
 inline vec3& col(mat3& m, int id)
 {
     return m[id];
 }
 inline vec4& col(mat4& m, int id)
+{
+    return m[id];
+}
+inline const vec4& col(const mat4& m, int id)
 {
     return m[id];
 }
