@@ -14,13 +14,13 @@
 #include <sstream>
 #include <string>
 
-MemoryLocation BufferChunkAllocator::allocate(vk::DeviceSize size)
+MemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
 {
     auto alignedSize = iAlignUp(size, m_alignment);
     // LOG(INFO) << "Requested " << size << " (~" << alignedSize << ") bytes";
     SAIGA_ASSERT(alignedSize <= m_chunkSize, "Can't allocate sizes bigger than chunk size");
     auto location = BaseChunkAllocator::allocate(alignedSize);
-    LOG(INFO) << "Allocate buffer " << type << ":" << location;
+    LOG(INFO) << "Allocate buffer " << type << ":" << *location;
     return location;
 }
 
@@ -46,9 +46,9 @@ ChunkIterator BufferChunkAllocator::createNewChunk()
     return --m_chunkAllocations.end();
 }
 
-void BufferChunkAllocator::deallocate(MemoryLocation& location)
+void BufferChunkAllocator::deallocate(MemoryLocation* location)
 {
-    LOG(INFO) << "Trying to deallocate buffer " << type << ":" << location;
+    LOG(INFO) << "Trying to deallocate buffer " << type << ":" << *location;
     BaseChunkAllocator::deallocate(location);
 }
 

@@ -50,9 +50,9 @@ struct SAIGA_GLOBAL BaseMemoryAllocator
 
     virtual ~BaseMemoryAllocator() = default;
 
-    virtual MemoryLocation allocate(vk::DeviceSize size) = 0;
-    virtual void deallocate(MemoryLocation& location)    = 0;
-    vk::DeviceSize maxAllocationSize                     = VK_WHOLE_SIZE;
+    virtual MemoryLocation* allocate(vk::DeviceSize size) = 0;
+    virtual void deallocate(MemoryLocation* location)     = 0;
+    vk::DeviceSize maxAllocationSize                      = VK_WHOLE_SIZE;
 
     virtual void destroy() {}
 

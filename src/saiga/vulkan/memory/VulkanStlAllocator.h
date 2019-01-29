@@ -36,7 +36,7 @@ struct VulkanStlAllocator
    private:
     struct AllocationHeader
     {
-        MemoryLocation memoryLocation;
+        MemoryLocation* memoryLocation;
     };
 
     vk::Device m_device;
@@ -61,10 +61,10 @@ struct VulkanStlAllocator
 
         auto allocation = allocator->allocate(size);
 
-        SAIGA_ASSERT(allocation.mappedPointer, "Allocation is not mapped");
+        SAIGA_ASSERT(allocation->mappedPointer, "Allocation is not mapped");
 
-        auto headerPtr            = reinterpret_cast<AllocationHeader*>(allocation.mappedPointer);
-        headerPtr->memoryLocation = allocation;
+        auto headerPtr           = reinterpret_cast<AllocationHeader*>(allocation->mappedPointer);
+        headerPtr.memoryLocation = allocation;
 
         return reinterpret_cast<pointer>(headerPtr + 1);
     }

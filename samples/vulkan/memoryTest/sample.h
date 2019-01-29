@@ -27,8 +27,8 @@ class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener
 {
-    std::vector<MemoryLocation> allocations;
-    std::vector<MemoryLocation> num_allocations;
+    std::vector<MemoryLocation*> allocations;
+    std::vector<MemoryLocation*> num_allocations;
     std::mt19937 mersenne_twister;
 
    public:

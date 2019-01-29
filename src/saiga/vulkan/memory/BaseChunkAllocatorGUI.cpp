@@ -48,10 +48,10 @@ void BaseChunkAllocator::showDetailStats()
             ConstFreeIterator freeIter;
             for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
             {
-                bar.renderArea(static_cast<float>(allocIter->offset) / m_chunkSize,
-                               static_cast<float>(allocIter->offset + allocIter->size) / m_chunkSize,
+                bar.renderArea(static_cast<float>((*allocIter)->offset) / m_chunkSize,
+                               static_cast<float>((*allocIter)->offset + (*allocIter)->size) / m_chunkSize,
                                alloc_colors[j % alloc_colors.size()], false);
-                usedSpace += allocIter->size;
+                usedSpace += (*allocIter)->size;
             }
             numAllocs += j;
 
@@ -86,15 +86,14 @@ MemoryStats BaseChunkAllocator::collectMemoryStats()
     uint64_t usedSpace           = 0;
     uint64_t fragmentedFreeSpace = 0;
     uint64_t totalFreeSpace      = 0;
-    for (int i = 0; i < m_chunkAllocations.size(); ++i)
+    for (auto& chunk : m_chunkAllocations)
     {
-        auto chunk = m_chunkAllocations[i];
-        int j      = 0;
+        int j = 0;
         ConstAllocationIterator allocIter;
         ConstFreeIterator freeIter;
         for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
         {
-            usedSpace += allocIter->size;
+            usedSpace += (*allocIter)->size;
         }
         numAllocs += j;
 
@@ -112,9 +111,9 @@ MemoryStats BaseChunkAllocator::collectMemoryStats()
         }
     }
     auto totalSpace = m_chunkSize * m_chunkAllocations.size();
-
+    //
     return MemoryStats{totalSpace, usedSpace, fragmentedFreeSpace};
-}
+}  // namespace Memory
 }  // namespace Memory
 }  // namespace Vulkan
 }  // namespace Saiga

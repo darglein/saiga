@@ -23,7 +23,7 @@ class SAIGA_GLOBAL Buffer
     VulkanBase* base                         = nullptr;
     vk::BufferUsageFlags bufferUsage         = vk::BufferUsageFlagBits();
     vk::MemoryPropertyFlags memoryProperties = vk::MemoryPropertyFlags();
-    MemoryLocation m_memoryLocation;
+    MemoryLocation* m_memoryLocation         = nullptr;
 
    public:
     Buffer()                    = default;
@@ -33,24 +33,30 @@ class SAIGA_GLOBAL Buffer
         : base(other.base),
           bufferUsage(other.bufferUsage),
           memoryProperties(other.memoryProperties),
-          m_memoryLocation(std::move(other.m_memoryLocation))
+          m_memoryLocation(other.m_memoryLocation)
     {
+        other.m_memoryLocation = nullptr;
     }
 
     Buffer& operator=(Buffer&& other) noexcept
     {
         if (this != &other)
         {
-            base             = other.base;
-            bufferUsage      = other.bufferUsage;
-            memoryProperties = other.memoryProperties;
-            m_memoryLocation = std::move(other.m_memoryLocation);
+            base                   = other.base;
+            bufferUsage            = other.bufferUsage;
+            memoryProperties       = other.memoryProperties;
+            m_memoryLocation       = other.m_memoryLocation;
+            other.m_memoryLocation = nullptr;
         }
         return *this;
     }
 
 
-    virtual ~Buffer() { destroy(); }
+    virtual ~Buffer()
+    {
+        LOG(INFO) << "Destructor called";
+        destroy();
+    }
 
 
     void createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags bufferUsage,
@@ -72,8 +78,8 @@ class SAIGA_GLOBAL Buffer
 
     void destroy();
 
-    inline vk::DeviceSize offset() const { return m_memoryLocation.offset; }
-    inline vk::DeviceSize size() const { return m_memoryLocation.size; }
+    inline vk::DeviceSize offset() const { return m_memoryLocation->offset; }
+    inline vk::DeviceSize size() const { return m_memoryLocation->size; }
 
     /**
      * Copy this buffer to another with vk::CommandBuffer::copyBuffer
@@ -105,13 +111,13 @@ class SAIGA_GLOBAL Buffer
 
     void update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset = 0);
 
-    inline bool isMapped() const { return m_memoryLocation.mappedPointer != nullptr; }
+    inline bool isMapped() const { return m_memoryLocation->mappedPointer != nullptr; }
 
-    inline void* getMappedPointer() const { return static_cast<char*>(m_memoryLocation.mappedPointer); }
+    inline void* getMappedPointer() const { return static_cast<char*>(m_memoryLocation->mappedPointer); }
 
-    void upload(void* data) { m_memoryLocation.upload(base->device, data); }
+    void upload(void* data) { m_memoryLocation->upload(base->device, data); }
 
-    void download(void* data) { m_memoryLocation.download(base->device, data); }
+    void download(void* data) { m_memoryLocation->download(base->device, data); }
 
     friend std::ostream& operator<<(std::ostream& os, const Buffer& buffer);
 };

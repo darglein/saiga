@@ -115,12 +115,7 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
         create(renderPass, info);
     }
 
-    /*
-     *  We use host visible memory here because each vertex and index is read only once by the GPU.
-     *  A slightly better performance can be obtained by creating a second device only buffer and copying the
-     * data asynchron in a transfer queue. Then the data might be already present when render is called.
-     */
-
+    frameData.reserve(frameCount);
     for (auto i = 0UL; i < frameCount; ++i)
     {
         frameData.emplace_back(*base, initialMaxVertexCount, initialMaxIndexCount);
@@ -159,8 +154,8 @@ void ImGuiVulkanRenderer::updateBuffers(vk::CommandBuffer cmd, size_t index)
         idxDst += cmd_list->IdxBuffer.Size;
     }
     // Flush to make writes visible to GPU
-    currentFrameData.vertexBuffer.flush(*base);
-    currentFrameData.indexBuffer.flush(*base);
+    // currentFrameData.vertexBuffer.flush(*base);
+    // currentFrameData.indexBuffer.flush(*base);
 }
 
 void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIndex)

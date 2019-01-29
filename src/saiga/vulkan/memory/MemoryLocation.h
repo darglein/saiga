@@ -70,6 +70,14 @@ struct SAIGA_GLOBAL MemoryLocation
     explicit operator bool() { return memory; }
 
    private:
+    inline void make_invalid()
+    {
+        this->buffer        = nullptr;
+        this->memory        = nullptr;
+        this->offset        = VK_WHOLE_SIZE;
+        this->size          = VK_WHOLE_SIZE;
+        this->mappedPointer = nullptr;
+    }
     void mappedUpload(vk::Device device, const void* data);
 
 
@@ -109,9 +117,6 @@ struct SAIGA_GLOBAL MemoryLocation
         os << "}";
         return os;
     }
-
-   public:
-    void make_invalid();
 };
 
 }  // namespace Memory

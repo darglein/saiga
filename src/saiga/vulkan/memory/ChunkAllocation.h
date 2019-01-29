@@ -9,9 +9,9 @@
 #include "saiga/vulkan/memory/MemoryLocation.h"
 
 #include <list>
+#include <memory>
 #include <optional>
 #include <ostream>
-
 namespace Saiga
 {
 namespace Vulkan
@@ -36,7 +36,7 @@ using FreeList          = std::vector<FreeListEntry>;
 using FreeIterator      = FreeList::iterator;
 using ConstFreeIterator = FreeList::const_iterator;
 
-using AllocatedList           = std::vector<MemoryLocation>;
+using AllocatedList           = std::vector<std::unique_ptr<MemoryLocation>>;
 using AllocationIterator      = AllocatedList::iterator;
 using ConstAllocationIterator = AllocatedList::const_iterator;
 

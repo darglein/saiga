@@ -62,6 +62,12 @@ void Defragger::perform_defragmentation()
     auto alloc_iter = chunk_iter->allocations.rbegin();
     while (running)
     {
+        if (chunk_iter->allocations.empty())
+        {
+            chunk_iter++;
+            alloc_iter = chunk_iter->allocations.rbegin();
+            continue;
+        }
         if (alloc_iter == chunk_iter->allocations.rend())
         {
             ++chunk_iter;
@@ -80,7 +86,7 @@ void Defragger::perform_defragmentation()
         auto begin = chunks->begin();
         auto end   = (chunk_iter + 1).base();  // Conversion from reverse to normal iterator moves one back
         //
-        auto new_place = strategy->findRange(begin, end, source.size);
+        auto new_place = strategy->findRange(begin, end, source->size);
 
         if (new_place.first != end)
         {
@@ -89,7 +95,7 @@ void Defragger::perform_defragmentation()
             auto weight            = get_operation_penalty(new_place.first, target_iter, end, (alloc_iter + 1).base());
             LOG(INFO) << "Defrag " << source << "->" << target << " :: " << weight;
 
-            defrag_operations.insert(DefragOperation{source, new_place.first->chunk->memory, target, weight});
+            defrag_operations.insert(DefragOperation{source.get(), new_place.first->chunk->memory, target, weight});
         }
         alloc_iter++;
     }
@@ -104,23 +110,23 @@ void Defragger::invalidate(vk::DeviceMemory memory)
 float Defragger::get_operation_penalty(ConstChunkIterator target_chunk, ConstFreeIterator target_location,
                                        ConstChunkIterator source_chunk, ConstAllocationIterator source_location) const
 {
-    float weight = 0;
+    auto& source_ptr = *source_location;
+    float weight     = 0;
     // if the move creates a hole that is smaller than the memory chunk itself -> add weight
-    if (target_location->size != source_location->size &&
-        (target_location->size - source_location->size < source_location->size))
+    if (target_location->size != source_ptr->size && (target_location->size - source_ptr->size < source_ptr->size))
     {
-        weight +=
-            penalties.target_small_hole * (1 - (static_cast<float>(source_location->size) / target_location->size));
+        weight += penalties.target_small_hole * (1 - (static_cast<float>(source_ptr->size) / target_location->size));
     }
 
     // If move creates a hole at source -> add weight
     auto next = std::next(source_location);
     if (source_location != source_chunk->allocations.cbegin() && next != source_chunk->allocations.cend())
     {
-        auto prev = std::prev(source_location);
+        auto& next_ptr = *next;
+        auto& prev     = *std::prev(source_location);
 
-        if (source_location->offset == prev->offset + prev->size &&
-            source_location->offset + source_location->size == next->offset)
+        if (source_ptr->offset == prev->offset + prev->size &&
+            source_ptr->offset + source_ptr->size == next_ptr->offset)
         {
             weight += penalties.source_create_hole;
         }

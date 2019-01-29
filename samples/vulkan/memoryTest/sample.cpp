@@ -38,7 +38,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     // m_location1 = base.memory.vertexIndexAllocator.allocate(1024);
     // m_location2 = base.memory.vertexIndexAllocator.allocate(1024);
     // m_location3 = base.memory.vertexIndexAllocator.allocate(1024);
-    num_allocations.resize(10, MemoryLocation());
+    num_allocations.resize(10, nullptr);
 }
 
 
@@ -115,7 +115,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
         case SDL_SCANCODE_J:
             for (int i = 0; i < num_allocations.size(); ++i)
             {
-                if (num_allocations[i].memory)
+                if (num_allocations[i]->memory)
                 {
                     renderer.base.memory.deallocateBuffer(buffer_type, num_allocations[i]);
                 }
@@ -145,7 +145,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             {
                 auto index = mersenne_twister() % allocations.size();
 
-                MemoryLocation loc = allocations[index];
+                MemoryLocation* loc = allocations[index];
                 allocations.erase(allocations.begin() + index);
                 renderer.base.memory.deallocateBuffer(buffer_type, loc);
             }
@@ -166,12 +166,13 @@ void VulkanExample::keyPressed(SDL_Keysym key)
     if (single_unassign > 0)
     {
         auto index = single_unassign - 1;
-        if (num_allocations[index].memory)
+        if (num_allocations[index] && num_allocations[index]->memory)
         {
-            MemoryLocation& loc = num_allocations[index];
+            MemoryLocation* loc = num_allocations[index];
             // allocations.erase(allocations.begin() + index);
             renderer.base.memory.deallocateBuffer(buffer_type, loc);
-            loc.memory = nullptr;
+            loc->memory            = nullptr;
+            num_allocations[index] = nullptr;
         }
         else
         {

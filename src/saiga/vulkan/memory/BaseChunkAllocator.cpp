@@ -16,9 +16,9 @@ namespace Vulkan
 {
 namespace Memory
 {
-MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
+MemoryLocation* BaseChunkAllocator::allocate(vk::DeviceSize size)
 {
-    MemoryLocation val;
+    MemoryLocation* val;
     {
         defragger->stop();
         std::scoped_lock alloc_lock(allocationMutex);
@@ -45,14 +45,19 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
 
         findNewMax(chunkAlloc);
 
-        MemoryLocation targetLocation = createMemoryLocation(chunkAlloc, memoryStart, size);
-        auto memoryEnd                = memoryStart + size;
 
-        auto insertionPoint = std::lower_bound(
-            chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(), memoryEnd,
-            [](const MemoryLocation& element, vk::DeviceSize value) { return element.offset < value; });
+        // MemoryLocation{iter->buffer, iter->chunk->memory, offset, size, iter->mappedPointer};
 
-        val = *chunkAlloc->allocations.emplace(insertionPoint, targetLocation);
+
+        auto targetLocation = std::make_unique<MemoryLocation>(chunkAlloc->buffer, chunkAlloc->chunk->memory,
+                                                               memoryStart, size, chunkAlloc->mappedPointer);
+        auto memoryEnd      = memoryStart + size;
+
+        auto insertionPoint =
+            std::lower_bound(chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(), memoryEnd,
+                             [](const auto& element, vk::DeviceSize value) { return element->offset < value; });
+
+        val = chunkAlloc->allocations.insert(insertionPoint, std::move(targetLocation))->get();
         chunkAlloc->allocated += size;
         defragger->invalidate(chunkAlloc->chunk->memory);
         defragger->start();
@@ -75,12 +80,8 @@ void BaseChunkAllocator::findNewMax(ChunkIterator& chunkAlloc) const
                                             [](auto& first, auto& second) { return first.size < second.size; });
 }
 
-MemoryLocation BaseChunkAllocator::createMemoryLocation(ChunkIterator iter, vk::DeviceSize offset, vk::DeviceSize size)
-{
-    return MemoryLocation{iter->buffer, iter->chunk->memory, offset, size, iter->mappedPointer};
-}
 
-void BaseChunkAllocator::deallocate(MemoryLocation& location)
+void BaseChunkAllocator::deallocate(MemoryLocation* location)
 {
     {
         std::scoped_lock alloc_lock(allocationMutex);
@@ -88,17 +89,17 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
 
         auto fChunk =
             std::find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
-                         [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location.memory; });
+                         [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location->memory; });
 
         SAIGA_ASSERT(fChunk != m_chunkAllocations.end(), "Allocation was not done with this allocator!");
         auto& chunkAllocs = fChunk->allocations;
         auto& chunkFree   = fChunk->freeList;
-        auto fLoc         = std::lower_bound(
-            chunkAllocs.begin(), chunkAllocs.end(), location,
-            [](const MemoryLocation& element, const MemoryLocation& value) { return element.offset < value.offset; });
+        auto fLoc =
+            std::lower_bound(chunkAllocs.begin(), chunkAllocs.end(), location,
+                             [](const auto& element, const auto& value) { return element->offset < value->offset; });
         SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
-        LOG(INFO) << "Deallocating " << location.size << " bytes in chunk/offset ["
-                  << distance(m_chunkAllocations.begin(), fChunk) << "/" << fLoc->offset << "]";
+        LOG(INFO) << "Deallocating " << location->size << " bytes in chunk/offset ["
+                  << distance(m_chunkAllocations.begin(), fChunk) << "/" << (*fLoc)->offset << "]";
 
         FreeIterator freePrev, freeNext, freeInsert;
         bool foundInsert = false;
@@ -106,16 +107,16 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
         freeInsert          = chunkFree.end();
         for (auto freeIt = chunkFree.begin(); freeIt != chunkFree.end(); ++freeIt)
         {
-            if (freeIt->offset + freeIt->size == location.offset)
+            if (freeIt->offset + freeIt->size == location->offset)
             {
                 freePrev = freeIt;
             }
-            if (freeIt->offset == location.offset + location.size)
+            if (freeIt->offset == location->offset + location->size)
             {
                 freeNext = freeIt;
                 break;
             }
-            if ((freeIt->offset + freeIt->size) < location.offset)
+            if ((freeIt->offset + freeIt->size) < location->offset)
             {
                 freeInsert  = freeIt;
                 foundInsert = true;
@@ -125,19 +126,19 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
         if (freePrev != chunkFree.end() && freeNext != chunkFree.end())
         {
             // Free space before and after newly freed space -> merge
-            freePrev->size += location.size + freeNext->size;
+            freePrev->size += location->size + freeNext->size;
             chunkFree.erase(freeNext);
         }
         else if (freePrev != chunkFree.end())
         {
             // Free only before -> increase size
-            freePrev->size += location.size;
+            freePrev->size += location->size;
         }
         else if (freeNext != chunkFree.end())
         {
             // Free only after newly freed -> move and increase size
-            freeNext->offset = location.offset;
-            freeNext->size += location.size;
+            freeNext->offset = location->offset;
+            freeNext->size += location->size;
         }
         else
         {
@@ -151,18 +152,19 @@ void BaseChunkAllocator::deallocate(MemoryLocation& location)
                 insertionPoint = chunkFree.begin();
             }
 
-            chunkFree.insert(insertionPoint, FreeListEntry{location.offset, location.size});
+            chunkFree.insert(insertionPoint, FreeListEntry{location->offset, location->size});
         }
 
         findNewMax(fChunk);
 
         chunkAllocs.erase(fLoc);
 
-        fChunk->allocated -= location.size;
+        fChunk->allocated -= location->size;
         defragger->invalidate(fChunk->chunk->memory);
 
         if (m_chunkAllocations.size() >= 2)
         {
+            // Free memory if second to last and last chunk are empty
             auto last           = m_chunkAllocations.end() - 1;
             auto second_to_last = last - 1;
             if (last->allocations.empty() && second_to_last->allocations.empty())

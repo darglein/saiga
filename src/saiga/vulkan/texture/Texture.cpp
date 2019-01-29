@@ -25,7 +25,7 @@ void Texture::destroy()
     if (memoryLocation)
     {
         base->memory.deallocateImage(type, memoryLocation);
-        memoryLocation.make_invalid();
+        memoryLocation = nullptr;
     }
 }
 
@@ -184,7 +184,7 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
 
 
     memoryLocation = base->memory.allocate(type, image);
-    base->device.bindImageMemory(image, memoryLocation.memory, memoryLocation.offset);
+    base->device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
@@ -298,7 +298,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     SAIGA_ASSERT(image);
 
     memoryLocation = base.memory.allocate(type, image);
-    base.device.bindImageMemory(image, memoryLocation.memory, memoryLocation.offset);
+    base.device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 

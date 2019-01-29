@@ -31,7 +31,7 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
     std::mutex mutex;
     vk::Device m_device;
     vk::PhysicalDevice m_physicalDevice;
-    std::vector<MemoryLocation> m_allocations;
+    std::vector<std::unique_ptr<MemoryLocation>> m_allocations;
     std::string gui_identifier;
 
    public:
@@ -79,11 +79,11 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
     ~SimpleMemoryAllocator() override { destroy(); }
 
 
-    MemoryLocation allocate(vk::DeviceSize size) override;
+    MemoryLocation* allocate(vk::DeviceSize size) override;
 
     void destroy() override;
 
-    void deallocate(MemoryLocation& location) override;
+    void deallocate(MemoryLocation* location) override;
 
     void showDetailStats() override;
 

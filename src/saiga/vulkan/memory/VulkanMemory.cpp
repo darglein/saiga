@@ -116,7 +116,7 @@ void VulkanMemory::destroy()
 }
 
 
-MemoryLocation VulkanMemory::allocate(const BufferType& type, vk::DeviceSize size)
+MemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceSize size)
 {
     auto& allocator = getAllocator(type);
 
@@ -127,7 +127,7 @@ MemoryLocation VulkanMemory::allocate(const BufferType& type, vk::DeviceSize siz
     return allocator.allocate(size);
 }
 
-MemoryLocation VulkanMemory::allocate(const ImageType& type, const vk::Image& image)
+MemoryLocation* VulkanMemory::allocate(const ImageType& type, const vk::Image& image)
 {
     auto image_mem_reqs = m_device.getImageMemoryRequirements(image);
 
@@ -140,10 +140,10 @@ MemoryLocation VulkanMemory::allocate(const ImageType& type, const vk::Image& im
     return allocator.allocate(image_mem_reqs.size, image);
 }
 
-void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation& location)
+void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation* location)
 {
     auto& allocator = getAllocator(type);
-    if (location.size > allocator.maxAllocationSize)
+    if (location->size > allocator.maxAllocationSize)
     {
         fallbackAllocator->deallocate(location);
     }
@@ -153,10 +153,10 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation& loca
     }
 }
 
-void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation& location)
+void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation* location)
 {
     auto& allocator = getImageAllocator(type);
-    if (location.size > allocator.maxAllocationSize)
+    if (location->size > allocator.maxAllocationSize)
     {
         fallbackAllocator->deallocate(location);
     }

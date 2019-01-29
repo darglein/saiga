@@ -145,13 +145,13 @@ class SAIGA_GLOBAL VulkanMemory
 
     void renderGUI();
 
-    MemoryLocation allocate(const BufferType& type, vk::DeviceSize size);
+    MemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
 
-    MemoryLocation allocate(const ImageType& type, const vk::Image& image);
+    MemoryLocation* allocate(const ImageType& type, const vk::Image& image);
 
-    void deallocateBuffer(const BufferType& type, MemoryLocation& location);
+    void deallocateBuffer(const BufferType& type, MemoryLocation* location);
 
-    void deallocateImage(const ImageType& type, MemoryLocation& location);
+    void deallocateImage(const ImageType& type, MemoryLocation* location);
 
     BufferChunkAllocator& getAllocator(const BufferType& type);
 

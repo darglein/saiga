@@ -28,8 +28,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     std::unique_ptr<Defragger> defragger;
     void findNewMax(ChunkIterator& chunkAlloc) const;
 
-    MemoryLocation createMemoryLocation(ChunkIterator iter, vk::DeviceSize start, vk::DeviceSize size);
-
    protected:
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
@@ -88,9 +86,9 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     ~BaseChunkAllocator() override = default;
 
-    MemoryLocation allocate(vk::DeviceSize size) override;
+    MemoryLocation* allocate(vk::DeviceSize size) override;
 
-    void deallocate(MemoryLocation& location) override;
+    void deallocate(MemoryLocation* location) override;
 
     void destroy() override;
 

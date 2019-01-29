@@ -228,7 +228,7 @@ void VulkanForwardRenderer::render(Camera* cam)
     renderingInterface->transfer(cmd);
 
 
-    imGui->updateBuffers(cmd, nextSyncObject);
+    if (imGui) imGui->updateBuffers(cmd, nextSyncObject);
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 

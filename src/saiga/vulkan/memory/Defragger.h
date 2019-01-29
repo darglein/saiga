@@ -38,7 +38,7 @@ class Defragger
    private:
     struct DefragOperation
     {
-        MemoryLocation source;
+        MemoryLocation* source;
         vk::DeviceMemory targetMemory;
         FreeListEntry target;
         float weight;

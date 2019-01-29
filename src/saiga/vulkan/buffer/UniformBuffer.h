@@ -32,16 +32,16 @@ class SAIGA_GLOBAL UniformBuffer : public Buffer
 
         if (data)
         {
-            m_memoryLocation.upload(base.device, data);
+            m_memoryLocation->upload(base.device, data);
         }
     }
 
     vk::DescriptorBufferInfo getDescriptorInfo()
     {
         vk::DescriptorBufferInfo descriptorInfo;
-        descriptorInfo.buffer = m_memoryLocation.buffer;
-        descriptorInfo.offset = m_memoryLocation.offset;
-        descriptorInfo.range  = m_memoryLocation.size;
+        descriptorInfo.buffer = m_memoryLocation->buffer;
+        descriptorInfo.offset = m_memoryLocation->offset;
+        descriptorInfo.range  = m_memoryLocation->size;
         return descriptorInfo;
     }
 };
