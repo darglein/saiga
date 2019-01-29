@@ -11,30 +11,31 @@
 #include "saiga/time/timer.h"
 #include "saiga/util/Algorithm.h"
 #include "saiga/vision/HistogramImage.h"
-#include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 #include "saiga/vision/kernels/Robust.h"
+#include "saiga/vision/recursiveMatrices/CG.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
-#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
-#include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
-#include "sophus/sim3.hpp"
 
 #include <fstream>
 #include <numeric>
 
-#define NO_CG_SPEZIALIZATIONS
-#define NO_CG_TYPES
+
 using Scalar = Saiga::BlockBAScalar;
 const int bn = Saiga::blockSizeCamera;
 const int bm = Saiga::blockSizeCamera;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
-#include "saiga/vision/recursiveMatrices/CG.h"
+// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
+
+
+
+// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DAType);
+
 
 
 namespace Saiga
@@ -577,9 +578,9 @@ void BARec::solveSchur()
         // this CG solver is super fast :)
         //            SAIGA_BLOCK_TIMER("CG");
         da.setZero();
-        RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
+        RecursiveDiagonalPreconditioner<MatrixScalar<ADiag>> P;
         Eigen::Index iters = options.maxIterativeIterations;
-        Scalar tol         = options.iterativeTolerance;
+        BlockBAScalar tol  = options.iterativeTolerance;
 
         if (explizitSchur)
         {
@@ -679,8 +680,8 @@ void BARec::updateScene(Scene& scene)
         auto& p = scene.worldPoints[id].p;
         p += t.cast<double>();
     }
-    Sophus::Sim3d a;
-    a.Adj();
+    //    Sophus::Sim3d a;
+    //    a.Adj();
 }
 
 

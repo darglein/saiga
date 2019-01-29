@@ -7,11 +7,7 @@
 #pragma once
 
 
-#include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/recursiveMatrices/Expand.h"
-#include "saiga/vision/recursiveMatrices/Transpose.h"
-
-#include "Eigen/Sparse"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 
 namespace Saiga
 {
@@ -55,6 +51,9 @@ using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor>;
 
 
 }  // namespace Saiga
+
+SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::ADiag>, Saiga::MatrixScalar<Saiga::ARes>,
+                       Saiga::MatrixScalar<Saiga::ARes>);
 
 namespace Eigen
 {

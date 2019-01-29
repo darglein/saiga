@@ -7,66 +7,9 @@
 #pragma once
 
 #include "saiga/util/assert.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/Dot.h"
-#include "saiga/vision/recursiveMatrices/Inverse.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-#include "saiga/vision/recursiveMatrices/Norm.h"
-#include "saiga/vision/recursiveMatrices/ScalarMult.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 
-
-#ifndef NO_CG_TYPES
-using Scalar = float;
-const int bn = 4;
-const int bm = 4;
-using Block  = Eigen::Matrix<Scalar, bn, bm>;
-using Vector = Eigen::Matrix<Scalar, bn, 1>;
-#endif
-
-template <typename BinaryOp>
-struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, BinaryOp>
-{
-    typedef Saiga::MatrixScalar<Vector> ReturnType;
-};
-
-
-#ifndef NO_CG_SPEZIALIZATIONS
-template <typename SparseLhsType, typename DenseRhsType>
-struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType,
-                                                       Eigen::Matrix<Saiga::MatrixScalar<Vector>, -1, 1>,
-                                                       Saiga::MatrixScalar<Vector>, Eigen::RowMajor, true>
-{
-    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
-    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
-    using DenseResType = DenseRhsType;
-    typedef typename internal::remove_all<DenseResType>::type Res;
-    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
-    typedef evaluator<Lhs> LhsEval;
-    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const typename Res::Scalar&)
-    {
-        LhsEval lhsEval(lhs);
-
-        Index n = lhs.outerSize();
-
-
-        for (Index c = 0; c < rhs.cols(); ++c)
-        {
-            {
-                for (Index i = 0; i < n; ++i) processRow(lhsEval, rhs, res, i, c);
-            }
-        }
-    }
-
-    static void processRow(const LhsEval& lhsEval, const DenseRhsType& rhs, DenseResType& res, Index i, Index col)
-    {
-        typename Res::Scalar tmp(0);
-        for (LhsInnerIterator it(lhsEval, i); it; ++it) tmp += it.value() * rhs.coeff(it.index(), col);
-        res.coeffRef(i, col) += tmp;
-    }
-};
-
-#endif
 
 namespace Saiga
 {

@@ -7,33 +7,25 @@
 #define EIGEN_DONT_PARALLELIZE
 
 
+#include "saiga/vision/recursiveMatrices/CG.h"
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
-#include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
-#include "saiga/vision/recursiveMatrices/Dot.h"
-#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
-#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs_Sparse.h"
-#include "saiga/vision/recursiveMatrices/Inverse.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-#include "saiga/vision/recursiveMatrices/Norm.h"
-#include "saiga/vision/recursiveMatrices/ScalarMult.h"
-#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
-#include "saiga/vision/recursiveMatrices/Transpose.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 
 #include "cholesky.h"
 
-#define NO_CG_TYPES
 using Scalar = float;
 const int bn = 2;
 const int bm = 2;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
-#include "saiga/vision/recursiveMatrices/CG.h"
+using BlockVector = Eigen::Matrix<Saiga::MatrixScalar<Vector>, -1, 1>;
+
+SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
+SAIGA_RM_CREATE_SMV_ROW_MAJOR(BlockVector);
+
 
 
 namespace Saiga

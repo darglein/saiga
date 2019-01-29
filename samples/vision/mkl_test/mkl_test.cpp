@@ -9,9 +9,9 @@
 #include "saiga/time/performanceMeasure.h"
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 
-#include "Eigen/Sparse"
+
 #if !defined(SAIGA_USE_MKL) || !defined(SAIGA_USE_EIGEN)
 #    error Saiga was compiled without the required libs for this example.
 #endif
@@ -50,7 +50,6 @@ using BlockVector = Eigen::Matrix<MatrixScalar<Vector>, -1, 1>;
 using BlockMatrix = Eigen::SparseMatrix<MatrixScalar<Block>, Eigen::RowMajor>;
 
 SAIGA_RM_CREATE_RETURN(MatrixScalar<Block>, MatrixScalar<Vector>, MatrixScalar<Vector>);
-SAIGA_RM_CREATE_SMV_COL_MAJOR(MatrixScalar<Vector>);
 SAIGA_RM_CREATE_SMV_ROW_MAJOR(BlockVector);
 
 inline void multMKL(const sparse_matrix_t A, struct matrix_descr descr, const double* x, double* y)

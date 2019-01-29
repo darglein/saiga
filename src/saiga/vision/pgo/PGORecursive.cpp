@@ -9,6 +9,7 @@
 #include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 #include "saiga/vision/recursiveMatrices/LM.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
 #include "saiga/vision/recursiveMatrices/SparseHelper.h"
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
@@ -29,6 +30,8 @@ const int bn = Saiga::pgoBlockSizeCamera;
 const int bm = Saiga::pgoBlockSizeCamera;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
+
+// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
 
 #include "saiga/vision/recursiveMatrices/CG.h"
 
