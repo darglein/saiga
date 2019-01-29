@@ -18,11 +18,7 @@
 
 #include <condition_variable>
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 class Defragger
 {
@@ -111,6 +107,4 @@ class Defragger
     void invalidate(vk::DeviceMemory memory);
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

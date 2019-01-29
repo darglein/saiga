@@ -5,9 +5,8 @@
 #include "ChunkType.h"
 
 #include "SafeAllocator.h"
-
-using Saiga::Vulkan::Memory::Chunk;
-using Saiga::Vulkan::Memory::ChunkType;
+namespace Saiga::Vulkan::Memory
+{
 std::shared_ptr<Chunk> ChunkType::allocate(vk::DeviceSize chunkSize)
 {
     vk::MemoryAllocateInfo info(chunkSize, m_memoryTypeIndex);
@@ -23,3 +22,4 @@ void ChunkType::deallocate(std::shared_ptr<Chunk> chunk)
     m_device.free(chunk->memory);
     m_chunks.erase(std::remove(m_chunks.begin(), m_chunks.end(), chunk), m_chunks.end());
 }
+}  // namespace Saiga::Vulkan::Memory

@@ -19,11 +19,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <unordered_map>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 class SAIGA_GLOBAL VulkanMemory
 {
@@ -158,7 +154,4 @@ class SAIGA_GLOBAL VulkanMemory
     ImageChunkAllocator& getImageAllocator(const ImageType& type);
 };
 
-
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

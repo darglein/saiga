@@ -14,6 +14,8 @@
 #include <sstream>
 #include <string>
 
+namespace Saiga::Vulkan::Memory
+{
 MemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
 {
     auto alignedSize = iAlignUp(size, m_alignment);
@@ -57,3 +59,4 @@ void BufferChunkAllocator::headerInfo()
     ImGui::LabelText("Buffer Usage", "%s", vk::to_string(type.usageFlags).c_str());
     ImGui::LabelText("Memory Type", "%s", vk::to_string(type.memoryFlags).c_str());
 }
+}  // namespace Saiga::Vulkan::Memory

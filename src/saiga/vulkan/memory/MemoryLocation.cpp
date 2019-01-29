@@ -15,8 +15,6 @@ void MemoryLocation::mappedUpload(vk::Device device, const void* data)
     {
         LOG(FATAL) << "Could not map " << memory << vk::to_string(result);
     }
-    //        void *target = result.;
-    //        void* target = device.mapMemory(memory, offset,size);
     std::memcpy(target, data, size);
     device.unmapMemory(memory);
 }

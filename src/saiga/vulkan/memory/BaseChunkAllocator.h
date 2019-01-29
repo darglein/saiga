@@ -15,11 +15,7 @@
 #include <mutex>
 
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 {
@@ -100,6 +96,4 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 };
 
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

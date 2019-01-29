@@ -23,7 +23,7 @@ class SAIGA_GLOBAL Buffer
     VulkanBase* base                         = nullptr;
     vk::BufferUsageFlags bufferUsage         = vk::BufferUsageFlagBits();
     vk::MemoryPropertyFlags memoryProperties = vk::MemoryPropertyFlags();
-    MemoryLocation* m_memoryLocation         = nullptr;
+    Memory::MemoryLocation* m_memoryLocation = nullptr;
 
    public:
     Buffer()                    = default;

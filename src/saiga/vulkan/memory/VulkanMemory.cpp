@@ -8,6 +8,8 @@
 #include "saiga/util/tostring.h"
 
 #include <memory>
+namespace Saiga::Vulkan::Memory
+{
 void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
 {
     m_pDevice = _pDevice;
@@ -165,3 +167,4 @@ void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation* locati
         allocator.deallocate(location);
     }
 }
+}  // namespace Saiga::Vulkan::Memory

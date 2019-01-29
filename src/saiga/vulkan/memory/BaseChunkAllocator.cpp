@@ -10,11 +10,7 @@
 
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 MemoryLocation* BaseChunkAllocator::allocate(vk::DeviceSize size)
 {
@@ -186,6 +182,4 @@ void BaseChunkAllocator::destroy()
     }
 }
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

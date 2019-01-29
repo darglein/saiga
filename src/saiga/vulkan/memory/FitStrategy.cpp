@@ -6,17 +6,14 @@
 
 #include <tuple>
 #include <utility>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 std::pair<ChunkIterator, FreeIterator> FirstFitStrategy::findRange(ChunkIterator begin, ChunkIterator end,
                                                                    vk::DeviceSize size)
 {
-    auto foundChunk = std::find_if(
-        begin, end, [&](ChunkAllocation& alloc) { return alloc.maxFreeRange.value_or(FreeListEntry{0,0}).size >= size; });
+    auto foundChunk = std::find_if(begin, end, [&](ChunkAllocation& alloc) {
+        return alloc.maxFreeRange.value_or(FreeListEntry{0, 0}).size >= size;
+    });
 
     if (foundChunk == end)
     {
@@ -88,6 +85,4 @@ std::pair<ChunkIterator, FreeIterator> WorstFitStrategy::findRange(ChunkIterator
     return findFitPairForBestWorst<std::greater<vk::DeviceSize>>(begin, end, size);
 }
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

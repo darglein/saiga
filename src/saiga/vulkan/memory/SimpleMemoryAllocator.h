@@ -19,11 +19,7 @@
 #include <saiga/util/easylogging++.h>
 
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
 {
@@ -91,6 +87,4 @@ struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
 };
 
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

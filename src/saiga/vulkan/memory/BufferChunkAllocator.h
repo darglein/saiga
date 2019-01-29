@@ -21,13 +21,8 @@
 #include <list>
 #include <utility>
 #include <vulkan/vulkan.hpp>
-using namespace Saiga::Vulkan::Memory;
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 class SAIGA_GLOBAL BufferChunkAllocator final : public BaseChunkAllocator
 {
@@ -84,6 +79,4 @@ class SAIGA_GLOBAL BufferChunkAllocator final : public BaseChunkAllocator
    protected:
     void headerInfo() override;
 };
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

@@ -7,11 +7,7 @@
 #include "saiga/util/tostring.h"
 
 #include "BaseChunkAllocator.h"
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 void BaseChunkAllocator::showDetailStats()
 {
@@ -113,7 +109,5 @@ MemoryStats BaseChunkAllocator::collectMemoryStats()
     auto totalSpace = m_chunkSize * m_chunkAllocations.size();
     //
     return MemoryStats{totalSpace, usedSpace, fragmentedFreeSpace};
-}  // namespace Memory
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}
+}  // namespace Saiga::Vulkan::Memory

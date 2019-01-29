@@ -23,6 +23,7 @@
 
 #include <random>
 #include <vector>
+using Saiga::Vulkan::Memory::MemoryLocation;
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener

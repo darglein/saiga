@@ -7,6 +7,9 @@
 #include "saiga/util/tostring.h"
 
 #include "VulkanMemory.h"
+
+namespace Saiga::Vulkan::Memory
+{
 void VulkanMemory::renderGUI()
 {
     if (!ImGui::CollapsingHeader("Memory Stats"))
@@ -89,3 +92,4 @@ void VulkanMemory::renderGUI()
     ImGui::Unindent();
     ImGui::Unindent();
 }
+}  // namespace Saiga::Vulkan::Memory

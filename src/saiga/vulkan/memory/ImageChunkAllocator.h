@@ -5,11 +5,7 @@
 #pragma once
 #include "BaseChunkAllocator.h"
 #include "MemoryType.h"
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 class SAIGA_GLOBAL ImageChunkAllocator final : public BaseChunkAllocator
 {
@@ -46,6 +42,4 @@ class SAIGA_GLOBAL ImageChunkAllocator final : public BaseChunkAllocator
     using BaseChunkAllocator::allocate;
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

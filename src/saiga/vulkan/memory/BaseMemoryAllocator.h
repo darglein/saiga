@@ -7,11 +7,7 @@
 #include "MemoryLocation.h"
 
 #include <saiga/util/assert.h>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 struct MemoryStats
 {
@@ -61,6 +57,4 @@ struct SAIGA_GLOBAL BaseMemoryAllocator
     virtual void showDetailStats(){};
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

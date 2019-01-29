@@ -18,11 +18,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <saiga/util/easylogging++.h>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 class FallbackAllocator : public BaseMemoryAllocator
 {
@@ -77,6 +73,4 @@ class FallbackAllocator : public BaseMemoryAllocator
     MemoryStats collectMemoryStats() override;
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

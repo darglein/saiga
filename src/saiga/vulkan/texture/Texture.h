@@ -18,8 +18,8 @@ struct SAIGA_GLOBAL Texture
 {
    protected:
     VulkanBase* base;
-    MemoryLocation* memoryLocation;
-    Saiga::Vulkan::Memory::ImageType type;
+    Memory::MemoryLocation* memoryLocation;
+    Memory::ImageType type;
 
    public:
     Texture() = default;

@@ -6,8 +6,10 @@
 
 #include <saiga/util/threadName.h>
 
-using namespace Saiga::Vulkan::Memory;
+namespace Saiga::Vulkan::Memory
+{
 static std::atomic_int counter = 0;
+
 void Defragger::start()
 {
     if (!enabled)
@@ -30,7 +32,6 @@ void Defragger::stop()
     running = false;
     std::unique_lock<std::mutex> lock(running_mutex);
 }
-
 
 
 void Defragger::worker_func()
@@ -168,3 +169,4 @@ void Defragger::apply_invalidations()
         invalidate_set.clear();
     }
 }
+}  // namespace Saiga::Vulkan::Memory

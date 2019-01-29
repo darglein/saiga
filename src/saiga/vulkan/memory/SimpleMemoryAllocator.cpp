@@ -9,8 +9,8 @@
 
 #include <numeric>
 
-using namespace Saiga::Vulkan::Memory;
-
+namespace Saiga::Vulkan::Memory
+{
 void SimpleMemoryAllocator::deallocate(MemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
@@ -89,3 +89,4 @@ MemoryStats SimpleMemoryAllocator::collectMemoryStats()
 
     return MemoryStats{totalSize, totalSize, 0};
 }
+}  // namespace Saiga::Vulkan::Memory

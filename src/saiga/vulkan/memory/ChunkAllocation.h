@@ -12,11 +12,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 struct FreeListEntry
 {
@@ -77,6 +73,4 @@ typedef ChunkContainer::const_iterator ConstChunkIterator;
 typedef ChunkContainer::reverse_iterator RevChunkIterator;
 typedef ChunkContainer::const_reverse_iterator ConstRevChunkIterator;
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

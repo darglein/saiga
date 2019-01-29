@@ -10,11 +10,9 @@
 #include <ostream>
 #include <saiga/util/assert.h>
 #include <vulkan/vulkan.hpp>
-namespace Saiga
+namespace Saiga::Vulkan
 {
-namespace Vulkan
-{
-struct VulkanBase;
+// struct VulkanBase;
 
 namespace Memory
 {
@@ -120,5 +118,4 @@ struct SAIGA_GLOBAL MemoryLocation
 };
 
 }  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan

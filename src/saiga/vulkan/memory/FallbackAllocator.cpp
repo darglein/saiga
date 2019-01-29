@@ -9,8 +9,8 @@
 
 #include <numeric>
 
-using namespace Saiga::Vulkan::Memory;
-
+namespace Saiga::Vulkan::Memory
+{
 void FallbackAllocator::deallocate(MemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
@@ -111,3 +111,4 @@ MemoryLocation* FallbackAllocator::allocate(vk::DeviceSize size)
     SAIGA_ASSERT(false, "Fallback allocator must specify a buffer/image type for allocations");
     return nullptr;
 }
+}  // namespace Saiga::Vulkan::Memory

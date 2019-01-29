@@ -72,8 +72,8 @@ void VulkanExample::keyPressed(SDL_Keysym key)
     static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 2UL);
     static std::array<vk::DeviceSize, 3> sizes{256 * 256, 512 * 512, 1024 * 1024};
 
-    static const BufferType buffer_type{vk::BufferUsageFlagBits::eVertexBuffer,
-                                        vk::MemoryPropertyFlagBits::eDeviceLocal};
+    static const Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eVertexBuffer,
+                                                               vk::MemoryPropertyFlagBits::eDeviceLocal};
     static bool enable_defragger = false;
 
 

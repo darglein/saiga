@@ -3,11 +3,9 @@
 //
 
 #include "ChunkCreator.h"
-using Saiga::Vulkan::Memory::Chunk;
-using Saiga::Vulkan::Memory::ChunkCreator;
-using Saiga::Vulkan::Memory::ChunkType;
-using Saiga::Vulkan::Memory::MemoryLocation;
 
+namespace Saiga::Vulkan::Memory
+{
 ChunkType& ChunkCreator::findMemoryType(vk::MemoryPropertyFlags flags)
 {
     for (auto& memType : m_memoryTypes)
@@ -62,3 +60,4 @@ vk::MemoryPropertyFlags Saiga::Vulkan::Memory::ChunkCreator::getEffectiveFlags(v
 {
     return findMemoryType(memoryFlags).propertyFlags;
 }
+}  // namespace Saiga::Vulkan::Memory

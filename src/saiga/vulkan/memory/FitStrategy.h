@@ -8,11 +8,7 @@
 #include "ChunkAllocation.h"
 
 #include <tuple>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 struct SAIGA_LOCAL FitStrategy
 {
@@ -40,6 +36,4 @@ struct SAIGA_LOCAL WorstFitStrategy final : public FitStrategy
                                                      vk::DeviceSize size) override;
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory
