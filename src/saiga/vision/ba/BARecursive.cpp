@@ -418,74 +418,11 @@ void BARec::computeUVW(Scene& scene)
             value       = value + lambda * value;
             value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
         }
-        //        diag += BDiag::Identity() * lambda;
     }
 #endif
 }
 
 
-#if 0
-static void solveBA()
-{
-    using namespace Eigen;
-    using BlockU = Matrix<double, 6, 6>;
-    using BlockV = Matrix<double, 3, 3>;
-    using BlockW = Matrix<double, 6, 3>;
-    using VecU   = Matrix<double, 6, 1>;
-    using VecV   = Matrix<double, 3, 1>;
-
-    DiagonalMatrix<BlockU, -1> U;
-    DiagonalMatrix<BlockV, -1> V;
-    SparseMatrix<BlockW> W;
-
-    Matrix<VecU, -1, 1> ea, xa;
-    Matrix<VecV, -1, 1> eb, xb;
-
-    computeJacobian(U, v, W, ea, eb);
-
-    // Compute schur complement
-    SparseMatrix<BlockU> S;
-    auto Y = V.inverse() * W.transpose();
-    S      = U - W * Y;
-    Matrix<VecU, -1, 1> es;
-    es = ea + Y * eb;
-
-    // Solve Sxa=es
-    DiagonalPreconditioner<Block> P;
-    P.compute(S);
-    Eigen::internal::conjugate_gradient(S, es, xb, P, 10, 1e-4);
-
-    // Solve for xb
-    xb = V.invese() * (eb - W.transpose() * xa);
-}
-
-template <typename... T>
-struct SymmetricMixedScalarMatrix
-{
-};
-
-template <typename... T>
-struct MixedScalarVector
-{
-};
-
-static void solveBA2()
-{
-    using namespace Eigen;
-    using BlockU = Matrix<double, 6, 6>;
-    using BlockV = Matrix<double, 3, 3>;
-    using BlockW = Matrix<double, 6, 3>;
-    using VecU   = Matrix<double, 6, 1>;
-    using VecV   = Matrix<double, 3, 1>;
-
-    SymmetricMixedScalarMatrix<2, 2, DiagonalMatrix<BlockU, -1>, DiagonalMatrix<BlockV, -1>, SparseMatrix<BlockW>> A;
-    MixedScalarVector<Matrix<VecU, -1, 1>, Matrix<VecV, -1, 1>> b, x;
-
-    computeJacobian(A, b);
-    solve(A, x, b);
-}
-
-#endif
 
 void BARec::computeSchur()
 {

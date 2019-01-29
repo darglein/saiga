@@ -4,36 +4,14 @@
 #include "saiga/time/timer.h"
 #include "saiga/util/Algorithm.h"
 #include "saiga/vision/HistogramImage.h"
-#include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
-#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
+#include "saiga/vision/recursiveMatrices/CG.h"
 #include "saiga/vision/recursiveMatrices/LM.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
-#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
-
-#include "Eigen/Sparse"
-#include "Eigen/SparseCholesky"
-#include "sophus/sim3.hpp"
 
 #include <fstream>
 #include <numeric>
 
-
-
-#define NO_CG_SPEZIALIZATIONS
-#define NO_CG_TYPES
-using Scalar = Saiga::BlockBAScalar;
-const int bn = Saiga::pgoBlockSizeCamera;
-const int bm = Saiga::pgoBlockSizeCamera;
-using Block  = Eigen::Matrix<Scalar, bn, bm>;
-using Vector = Eigen::Matrix<Scalar, bn, 1>;
-
-// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
-
-#include "saiga/vision/recursiveMatrices/CG.h"
 
 
 namespace Saiga
@@ -104,7 +82,7 @@ void PGORec::initStructure(PoseGraph& scene)
 void PGORec::compute(PoseGraph& scene)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-    using T          = BlockBAScalar;
+    using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<T>;
 
     b.setZero();
@@ -156,24 +134,6 @@ void PGORec::compute(PoseGraph& scene)
     if (options.debugOutput) cout << "chi2 " << chi2 << endl;
 }
 
-#if 0
-static void solvePGO()
-{
-    using namespace Eigen;
-    using Block = Matrix<double, 6, 6>;
-    using Vec   = Matrix<double, 6, 1>;
-
-    SparseMatrix<Block> JtJ;
-    Matrix<Vec, -1> Jtb, x;
-
-    computeJacobian(JtJ, Jtb);
-
-    DiagonalPreconditioner<Block> P;
-    P.compute(JtJ);
-
-    Eigen::internal::conjugate_gradient(JtJ, Jtb, x, P, 10, 1e-4);
-}
-#endif
 
 void PGORec::solveL(PoseGraph& scene)
 {
@@ -200,7 +160,7 @@ void PGORec::solveL(PoseGraph& scene)
         x.setZero();
         RecursiveDiagonalPreconditioner<MatrixScalar<PGOBlock>> P;
         Eigen::Index iters = options.maxIterativeIterations;
-        Scalar tol         = options.iterativeTolerance;
+        BlockPGOScalar tol = options.iterativeTolerance;
 
 
         P.compute(Sdiag);
@@ -223,7 +183,7 @@ void PGORec::solveL(PoseGraph& scene)
 
     for (size_t i = 0; i < scene.poses.size(); ++i)
     {
-        Sophus::SE3<BlockBAScalar>::Tangent t;
+        Sophus::SE3<BlockPGOScalar>::Tangent t;
         t         = x(i).get();
         auto& se3 = scene.poses[i].se3;
         se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
