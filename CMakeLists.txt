@@ -180,10 +180,10 @@ endif()
 find_package(Sophus QUIET)
 PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
+#g2o
 find_package(g2o QUIET)
 PackageHelperTarget(g2o::core G2O_FOUND)
-#PackageHelperTarget(g2o::solver_cholmod G2O_FOUND)
-#PackageHelperTarget(g2o::types_sba G2O_FOUND)
+
 
 #ceres
 find_package(Ceres QUIET)
@@ -201,13 +201,20 @@ endif()
 PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARIES}")
 
 
+
+find_package(BLAS QUIET)
+PackageHelper(BLAS "${BLAS_FOUND}" "" "${BLAS_LIBRARIES}")
+
+find_package(LAPACK QUIET)
+PackageHelper(LAPACK "${LAPACK_FOUND}" "" "${LAPACK_LIBRARIES}")
+
 #mkl
 find_package(MKL QUIET)
-if(MKL_FOUND)
+if(MKL_FOUND AND BLAS_FOUND AND LAPACK_FOUND)
     SET(SAIGA_USE_MKL 1)
 endif()
 PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
-message(STATUS "mkl libs: " "${MKL_LIBRARIES}")
+
 
 
 #openni2
