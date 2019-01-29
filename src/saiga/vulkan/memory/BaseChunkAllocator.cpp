@@ -153,11 +153,11 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
 
         findNewMax(fChunk);
 
+        defragger->invalidate(fLoc->get());
         chunkAllocs.erase(fLoc);
 
         fChunk->allocated -= location->size;
         defragger->invalidate(fChunk->chunk->memory);
-
         if (m_chunkAllocations.size() >= 2)
         {
             // Free memory if second to last and last chunk are empty

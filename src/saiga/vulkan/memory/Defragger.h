@@ -5,6 +5,7 @@
 #pragma once
 
 #include "saiga/util/easylogging++.h"
+#include "saiga/vulkan/Queue.h"
 
 #include "ChunkAllocation.h"
 #include "FitStrategy.h"
@@ -46,6 +47,7 @@ class Defragger
     bool enabled;
     std::vector<ChunkAllocation>* chunks;
     FitStrategy* strategy;
+    Queue* queue;
     std::set<DefragOperation> defrag_operations;
 
     std::atomic_bool running, quit;
@@ -58,21 +60,21 @@ class Defragger
 
     std::set<vk::DeviceMemory> invalidate_set;
 
-
     // Defrag thread functions
     float get_operation_penalty(ConstChunkIterator target_chunk, ConstFreeIterator target_location,
                                 ConstChunkIterator source_chunk, ConstAllocationIterator source_location) const;
 
     void apply_invalidations();
 
-    void perform_defragmentation();
+    void run();
     // end defrag thread functions
    public:
     OperationPenalties penalties;
-    Defragger(std::vector<ChunkAllocation>* _chunks, FitStrategy* _strategy)
+    Defragger(std::vector<ChunkAllocation>* _chunks, FitStrategy* _strategy, Queue* _queue)
         : enabled(false),
           chunks(_chunks),
           strategy(_strategy),
+          queue(_queue),
           defrag_operations(),
           running(false),
           quit(false),
@@ -105,6 +107,10 @@ class Defragger
     void setEnabled(bool enable) { enabled = enable; }
 
     void invalidate(vk::DeviceMemory memory);
+    void invalidate(MemoryLocation* location);
+
+    void find_defrag_ops();
+    void perform_defrag();
 };
 
 }  // namespace Saiga::Vulkan::Memory

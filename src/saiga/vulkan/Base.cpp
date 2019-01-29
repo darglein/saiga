@@ -169,7 +169,6 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
     }
 #endif
 
-    memory.init(physicalDevice, device);
 
     vk::PipelineCacheCreateInfo pipelineCacheCreateInfo = {};
     pipelineCache                                       = device.createPipelineCache(pipelineCacheCreateInfo);
@@ -209,6 +208,9 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, parameters.descriptorCounts[2]},
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, parameters.descriptorCounts[3]},
         });
+
+
+    memory.init(physicalDevice, device, transferQueue);
 }
 
 void VulkanBase::init(VulkanParameters params) {}

@@ -38,8 +38,8 @@ class SAIGA_GLOBAL BufferChunkAllocator final : public BaseChunkAllocator
     ~BufferChunkAllocator() override = default;
 
     BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type, FitStrategy& strategy,
-                         vk::DeviceSize chunkSize = 64 * 1024 * 1024)
-        : BaseChunkAllocator(_device, chunkAllocator, strategy, chunkSize), type(std::move(_type))
+                         Queue* _queue, vk::DeviceSize chunkSize = 64 * 1024 * 1024)
+        : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         std::stringstream identifier_stream;
         identifier_stream << "Buffer Chunk " << type;

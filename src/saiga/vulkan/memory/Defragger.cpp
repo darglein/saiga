@@ -53,11 +53,19 @@ void Defragger::worker_func()
 
         apply_invalidations();
 
-        perform_defragmentation();
+        run();
+
+        running = false;
     }
 }
 
-void Defragger::perform_defragmentation()
+void Defragger::run()
+{
+    find_defrag_ops();
+    perform_defrag();
+}
+
+void Defragger::find_defrag_ops()
 {
     auto chunk_iter = chunks->rbegin();
     auto alloc_iter = chunk_iter->allocations.rbegin();
@@ -102,11 +110,17 @@ void Defragger::perform_defragmentation()
     }
 }
 
-void Defragger::invalidate(vk::DeviceMemory memory)
+void Defragger::perform_defrag()
 {
-    std::unique_lock<std::mutex> invalidate_lock(invalidate_mutex);
-    invalidate_set.insert(memory);
+    while (running && !defrag_operations.empty())
+    {
+        auto op = defrag_operations.begin();
+
+
+    }
 }
+
+
 
 float Defragger::get_operation_penalty(ConstChunkIterator target_chunk, ConstFreeIterator target_location,
                                        ConstChunkIterator source_chunk, ConstAllocationIterator source_location) const
@@ -167,6 +181,27 @@ void Defragger::apply_invalidations()
             }
         }
         invalidate_set.clear();
+    }
+}
+
+void Defragger::invalidate(vk::DeviceMemory memory)
+{
+    std::unique_lock<std::mutex> invalidate_lock(invalidate_mutex);
+    invalidate_set.insert(memory);
+}
+
+void Defragger::invalidate(MemoryLocation* location)
+{
+    for (auto op_iter = defrag_operations.begin(); op_iter != defrag_operations.end();)
+    {
+        if (op_iter->source == location)
+        {
+            op_iter = defrag_operations.erase(op_iter);
+        }
+        else
+        {
+            ++op_iter;
+        }
     }
 }
 }  // namespace Saiga::Vulkan::Memory

@@ -33,6 +33,7 @@ class SAIGA_GLOBAL VulkanMemory
 
     vk::PhysicalDevice m_pDevice;
     vk::Device m_device;
+    Queue* m_queue;
 
 
     std::vector<vk::MemoryType> memoryTypes;
@@ -135,7 +136,7 @@ class SAIGA_GLOBAL VulkanMemory
     }
 
    public:
-    void init(vk::PhysicalDevice _pDevice, vk::Device _device);
+    void init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue);
 
     void destroy();
 

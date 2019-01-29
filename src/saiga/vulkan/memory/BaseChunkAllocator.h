@@ -5,6 +5,7 @@
 #pragma once
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/vulkan/Queue.h"
 #include "saiga/vulkan/memory/BaseMemoryAllocator.h"
 
 #include "BaseMemoryAllocator.h"
@@ -28,11 +29,11 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
     FitStrategy* m_strategy{};
+    Queue* queue;
 
     vk::DeviceSize m_chunkSize{};
     vk::DeviceSize m_allocateSize{};
     ChunkContainer m_chunkAllocations;
-
 
     std::string gui_identifier;
 
@@ -41,13 +42,14 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     virtual void headerInfo() {}
 
    public:
-    BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy& strategy,
+    BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy& strategy, Queue* _queue,
                        vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : BaseMemoryAllocator(chunkSize),
-          defragger(std::make_unique<Defragger>(&m_chunkAllocations, &strategy)),
+          defragger(std::make_unique<Defragger>(&m_chunkAllocations, &strategy, _queue)),
           m_device(_device),
           m_chunkAllocator(chunkAllocator),
           m_strategy(&strategy),
+          queue(_queue),
           m_chunkSize(chunkSize),
           m_allocateSize(chunkSize),
           gui_identifier("")
@@ -60,6 +62,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
           m_device(other.m_device),
           m_chunkAllocator(other.m_chunkAllocator),
           m_strategy(other.m_strategy),
+          queue(other.queue),
           m_chunkSize(other.m_chunkSize),
           m_allocateSize(other.m_allocateSize),
           m_chunkAllocations(std::move(other.m_chunkAllocations)),
@@ -73,6 +76,7 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
         m_device                     = other.m_device;
         m_chunkAllocator             = other.m_chunkAllocator;
         m_strategy                   = other.m_strategy;
+        queue                        = other.queue;
         m_chunkSize                  = other.m_chunkSize;
         m_allocateSize               = other.m_allocateSize;
         m_chunkAllocations           = std::move(other.m_chunkAllocations);

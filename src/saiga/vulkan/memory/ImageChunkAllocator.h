@@ -11,9 +11,9 @@ class SAIGA_GLOBAL ImageChunkAllocator final : public BaseChunkAllocator
 {
    public:
     ImageType type;
-    ImageChunkAllocator(const vk::Device& _device, Saiga::Vulkan::Memory::ChunkCreator* chunkAllocator, ImageType _type,
-                        Saiga::Vulkan::Memory::FitStrategy& strategy, vk::DeviceSize chunkSize)
-        : BaseChunkAllocator(_device, chunkAllocator, strategy, chunkSize), type(std::move(_type))
+    ImageChunkAllocator(const vk::Device& _device, ChunkCreator* chunkAllocator, ImageType _type, FitStrategy& strategy,
+                        Queue* _queue, vk::DeviceSize chunkSize)
+        : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         LOG(INFO) << "Created new image allocator for flags " << type;
         std::stringstream identifier_stream;

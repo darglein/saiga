@@ -30,10 +30,12 @@ namespace Vulkan
 {
 struct SAIGA_GLOBAL VulkanBase
 {
-private:
+   private:
+    // TODO: Rename to backing fields for dedicated queues
     std::unique_ptr<Queue> compute_queue;
     std::unique_ptr<Queue> transfer_queue;
-public:
+
+   public:
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::PhysicalDeviceFeatures enabledFeatures = {};

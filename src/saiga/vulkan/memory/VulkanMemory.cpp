@@ -10,10 +10,11 @@
 #include <memory>
 namespace Saiga::Vulkan::Memory
 {
-void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)
+void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue)
 {
     m_pDevice = _pDevice;
     m_device  = _device;
+    m_queue   = queue;
     strategy  = std::make_unique<FirstFitStrategy>();
     chunkCreator.init(_pDevice, _device);
 
@@ -58,8 +59,9 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     auto found = find_default_size<BufferDefaultMap, BufferType>(default_buffer_chunk_sizes, effectiveType);
 
 
-    auto emplaced = map.emplace(effectiveType, std::make_unique<BufferChunkAllocator>(
-                                                   m_device, &chunkCreator, effectiveType, *strategy, found->second));
+    auto emplaced =
+        map.emplace(effectiveType, std::make_unique<BufferChunkAllocator>(m_device, &chunkCreator, effectiveType,
+                                                                          *strategy, m_queue, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -74,8 +76,9 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
 
     auto found = find_default_size<ImageDefaultMap, ImageType>(default_image_chunk_sizes, type);
 
-    auto emplaced = map.emplace(effectiveType, std::make_unique<ImageChunkAllocator>(
-                                                   m_device, &chunkCreator, effectiveType, *strategy, found->second));
+    auto emplaced =
+        map.emplace(effectiveType, std::make_unique<ImageChunkAllocator>(m_device, &chunkCreator, effectiveType,
+                                                                         *strategy, m_queue, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
