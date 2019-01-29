@@ -25,9 +25,13 @@ namespace Saiga::Vulkan::Memory
 class SAIGA_GLOBAL VulkanMemory
 {
    private:
-    using BufferMap          = std::map<BufferType, std::unique_ptr<BufferChunkAllocator>>;
-    using ImageMap           = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
-    using BufferDefraggerMap = std::map<BufferType, std::unique_ptr<Defragger>>;
+    struct BufferAllocator
+    {
+        std::unique_ptr<BufferChunkAllocator> allocator;
+        std::unique_ptr<Defragger> defragger;
+    };
+    using BufferMap = std::map<BufferType, BufferAllocator>;
+    using ImageMap  = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
 
     using BufferDefaultMap = std::map<BufferType, vk::DeviceSize>;
     using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
@@ -83,7 +87,6 @@ class SAIGA_GLOBAL VulkanMemory
 
     BufferMap bufferAllocators;
     ImageMap imageAllocators;
-    BufferDefraggerMap bufferDefraggers;
 
     std::unique_ptr<FallbackAllocator> fallbackAllocator;
     ChunkCreator chunkCreator;
@@ -107,8 +110,6 @@ class SAIGA_GLOBAL VulkanMemory
     BufferIter createNewBufferAllocator(BufferMap& map, const BufferDefaultMap& defaultSizes, const BufferType& type);
 
     ImageIter createNewImageAllocator(ImageMap& map, const ImageDefaultMap& defaultSizes, const ImageType& type);
-
-    void createBufferDefragger(const BufferType& type, BufferChunkAllocator* allocator);
 
     template <typename Map, typename UsageType>
     inline typename Map::iterator findAllocator(Map& map, const MemoryType<UsageType>& memoryType)
@@ -143,7 +144,7 @@ class SAIGA_GLOBAL VulkanMemory
     }
 
 
-    BufferChunkAllocator& getAllocator(const BufferType& type);
+    BufferAllocator& getAllocator(const BufferType& type);
 
     ImageChunkAllocator& getImageAllocator(const ImageType& type);
 
@@ -161,6 +162,8 @@ class SAIGA_GLOBAL VulkanMemory
     void deallocateBuffer(const BufferType& type, MemoryLocation* location);
 
     void deallocateImage(const ImageType& type, MemoryLocation* location);
+
+    void enable_defragmentation(const BufferType& type, bool enable);
 };
 
 }  // namespace Saiga::Vulkan::Memory

@@ -34,7 +34,7 @@ void VulkanMemory::renderGUI()
         {
             memoryTypeStats[allocator.first.memoryFlags] = MemoryStats();
         }
-        memoryTypeStats[allocator.first.memoryFlags] += allocator.second->collectMemoryStats();
+        memoryTypeStats[allocator.first.memoryFlags] += allocator.second.allocator->collectMemoryStats();
     }
     for (auto& allocator : imageAllocators)
     {
@@ -82,7 +82,7 @@ void VulkanMemory::renderGUI()
 
     for (auto& allocator : bufferAllocators)
     {
-        allocator.second->showDetailStats();
+        allocator.second.allocator->showDetailStats();
     }
     for (auto& allocator : imageAllocators)
     {
