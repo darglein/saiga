@@ -52,11 +52,7 @@ class SAIGA_GLOBAL Buffer
     }
 
 
-    virtual ~Buffer()
-    {
-        LOG(INFO) << "Destructor called";
-        destroy();
-    }
+    virtual ~Buffer() { destroy(); }
 
 
     void createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags bufferUsage,
