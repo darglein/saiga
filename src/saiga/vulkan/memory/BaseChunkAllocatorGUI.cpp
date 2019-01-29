@@ -24,7 +24,7 @@ void BaseChunkAllocator::showDetailStats()
         headerInfo();
 
         allocation_bars.resize(
-            m_chunkAllocations.size(),
+            chunks.size(),
             ImGui::ColoredBar({0, 40}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 1));
 
         int numAllocs           = 0;
@@ -34,7 +34,7 @@ void BaseChunkAllocator::showDetailStats()
         for (auto i = 0U; i < allocation_bars.size(); ++i)
         {
             auto& bar   = allocation_bars[i];
-            auto& chunk = m_chunkAllocations[i];
+            auto& chunk = chunks[i];
             ImGui::Text("Chunk %d (%s, %s)", i + 1, sizeToString(chunk.allocated).c_str(),
                         sizeToString(chunk.getFree()).c_str());
             ImGui::Indent();
@@ -65,7 +65,7 @@ void BaseChunkAllocator::showDetailStats()
             ImGui::Unindent();
         }
         ImGui::LabelText("Number of allocations", "%d", numAllocs);
-        auto totalSpace = m_chunkSize * m_chunkAllocations.size();
+        auto totalSpace = m_chunkSize * chunks.size();
 
 
         ImGui::LabelText("Usage", "%s / %s (%.2f%%)", sizeToString(usedSpace).c_str(), sizeToString(totalSpace).c_str(),
@@ -82,7 +82,7 @@ MemoryStats BaseChunkAllocator::collectMemoryStats()
     uint64_t usedSpace           = 0;
     uint64_t fragmentedFreeSpace = 0;
     uint64_t totalFreeSpace      = 0;
-    for (auto& chunk : m_chunkAllocations)
+    for (auto& chunk : chunks)
     {
         int j = 0;
         ConstAllocationIterator allocIter;
@@ -106,7 +106,7 @@ MemoryStats BaseChunkAllocator::collectMemoryStats()
             totalFreeSpace += chunk.freeList.back().size;
         }
     }
-    auto totalSpace = m_chunkSize * m_chunkAllocations.size();
+    auto totalSpace = m_chunkSize * chunks.size();
     //
     return MemoryStats{totalSpace, usedSpace, fragmentedFreeSpace};
 }

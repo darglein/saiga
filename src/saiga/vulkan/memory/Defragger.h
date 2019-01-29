@@ -7,6 +7,7 @@
 #include "saiga/util/easylogging++.h"
 #include "saiga/vulkan/Queue.h"
 
+#include "BufferChunkAllocator.h"
 #include "ChunkAllocation.h"
 #include "FitStrategy.h"
 #include "MemoryLocation.h"
@@ -45,9 +46,7 @@ class Defragger
     };
 
     bool enabled;
-    std::vector<ChunkAllocation>* chunks;
-    FitStrategy* strategy;
-    Queue* queue;
+    BufferChunkAllocator* allocator;
     std::set<DefragOperation> defrag_operations;
 
     std::atomic_bool running, quit;
@@ -70,11 +69,9 @@ class Defragger
     // end defrag thread functions
    public:
     OperationPenalties penalties;
-    Defragger(std::vector<ChunkAllocation>* _chunks, FitStrategy* _strategy, Queue* _queue)
+    Defragger(BufferChunkAllocator* _allocator)
         : enabled(false),
-          chunks(_chunks),
-          strategy(_strategy),
-          queue(_queue),
+          allocator(_allocator),
           defrag_operations(),
           running(false),
           quit(false),

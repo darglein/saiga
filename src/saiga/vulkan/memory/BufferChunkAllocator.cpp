@@ -31,7 +31,7 @@ ChunkIterator BufferChunkAllocator::createNewChunk()
     auto newChunk        = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
     auto newBuffer       = m_device.createBuffer(m_bufferCreateInfo);
     auto memRequirements = m_device.getBufferMemoryRequirements(newBuffer);
-    LOG(INFO) << "New chunk: " << m_chunkAllocations.size() << " Mem " << newChunk->memory << ", Buffer " << newBuffer;
+    LOG(INFO) << "New chunk: " << chunks.size() << " Mem " << newChunk->memory << ", Buffer " << newBuffer;
     if (m_allocateSize != memRequirements.size)
     {
         LOG(ERROR) << "New buffer has differing memory requirements size";
@@ -43,9 +43,9 @@ ChunkIterator BufferChunkAllocator::createNewChunk()
         mappedPointer = m_device.mapMemory(newChunk->memory, 0, m_chunkSize);
         LOG(INFO) << "Mapped pointer = " << mappedPointer;
     }
-    m_chunkAllocations.emplace_back(newChunk, newBuffer, m_chunkSize, mappedPointer);
+    chunks.emplace_back(newChunk, newBuffer, m_chunkSize, mappedPointer);
 
-    return --m_chunkAllocations.end();
+    return --chunks.end();
 }
 
 void BufferChunkAllocator::deallocate(MemoryLocation* location)

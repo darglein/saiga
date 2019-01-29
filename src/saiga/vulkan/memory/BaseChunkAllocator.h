@@ -10,7 +10,6 @@
 
 #include "BaseMemoryAllocator.h"
 #include "ChunkCreator.h"
-#include "Defragger.h"
 #include "FitStrategy.h"
 
 #include <mutex>
@@ -22,19 +21,21 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 {
    private:
     std::mutex allocationMutex;
-    std::unique_ptr<Defragger> defragger;
     void findNewMax(ChunkIterator& chunkAlloc) const;
 
    protected:
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
-    FitStrategy* m_strategy{};
+
+   public:
+    FitStrategy* strategy{};
     Queue* queue;
 
     vk::DeviceSize m_chunkSize{};
     vk::DeviceSize m_allocateSize{};
-    ChunkContainer m_chunkAllocations;
+    ChunkContainer chunks;
 
+   protected:
     std::string gui_identifier;
 
     virtual ChunkIterator createNewChunk() = 0;
@@ -45,27 +46,25 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy& strategy, Queue* _queue,
                        vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : BaseMemoryAllocator(chunkSize),
-          defragger(std::make_unique<Defragger>(&m_chunkAllocations, &strategy, _queue)),
           m_device(_device),
           m_chunkAllocator(chunkAllocator),
-          m_strategy(&strategy),
+          strategy(&strategy),
           queue(_queue),
           m_chunkSize(chunkSize),
           m_allocateSize(chunkSize),
           gui_identifier("")
     {
-        defragger->start();
     }
 
     BaseChunkAllocator(BaseChunkAllocator&& other) noexcept
         : BaseMemoryAllocator(std::move(other)),
           m_device(other.m_device),
           m_chunkAllocator(other.m_chunkAllocator),
-          m_strategy(other.m_strategy),
+          strategy(other.strategy),
           queue(other.queue),
           m_chunkSize(other.m_chunkSize),
           m_allocateSize(other.m_allocateSize),
-          m_chunkAllocations(std::move(other.m_chunkAllocations)),
+          chunks(std::move(other.chunks)),
           gui_identifier(std::move(other.gui_identifier))
     {
     }
@@ -75,11 +74,11 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
         BaseMemoryAllocator::operator=(std::move(static_cast<BaseMemoryAllocator&&>(other)));
         m_device                     = other.m_device;
         m_chunkAllocator             = other.m_chunkAllocator;
-        m_strategy                   = other.m_strategy;
+        strategy                     = other.strategy;
         queue                        = other.queue;
         m_chunkSize                  = other.m_chunkSize;
         m_allocateSize               = other.m_allocateSize;
-        m_chunkAllocations           = std::move(other.m_chunkAllocations);
+        chunks                       = std::move(other.chunks);
         gui_identifier               = std::move(other.gui_identifier);
         return *this;
     }
@@ -95,8 +94,6 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     MemoryStats collectMemoryStats() override;
 
     void showDetailStats() override;
-
-    virtual void enable_defragger(bool enable) { defragger->setEnabled(enable); }
 };
 
 

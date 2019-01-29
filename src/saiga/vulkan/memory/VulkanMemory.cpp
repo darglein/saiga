@@ -41,8 +41,6 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* 
 
     auto effectiveFlags   = getEffectiveFlags(stagingType.memoryFlags);
     auto effectiveStaging = BufferType{stagingType.usageFlags, effectiveFlags};
-    // bufferAllocators.emplace(effectiveStaging,
-    //                         std::make_unique<SimpleMemoryAllocator>(m_device, m_pDevice, effectiveStaging));
     getAllocator(effectiveStaging);
 
     fallbackAllocator = std::make_unique<FallbackAllocator>(_device, _pDevice);
@@ -89,8 +87,17 @@ BufferChunkAllocator& VulkanMemory::getAllocator(const BufferType& type)
     if (foundAllocator == bufferAllocators.end())
     {
         foundAllocator = createNewBufferAllocator(bufferAllocators, default_buffer_chunk_sizes, type);
+
+        BufferChunkAllocator* newAllocator = foundAllocator->second.get();
+        createBufferDefragger(type, newAllocator);
     }
     return *(foundAllocator->second);
+}
+
+
+void VulkanMemory::createBufferDefragger(const BufferType& type, BufferChunkAllocator* allocator)
+{
+    bufferDefraggers.emplace(type, std::make_unique<Defragger>(allocator));
 }
 
 ImageChunkAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
@@ -170,4 +177,5 @@ void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation* locati
         allocator.deallocate(location);
     }
 }
+
 }  // namespace Saiga::Vulkan::Memory

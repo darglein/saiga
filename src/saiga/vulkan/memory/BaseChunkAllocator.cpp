@@ -16,14 +16,14 @@ MemoryLocation* BaseChunkAllocator::allocate(vk::DeviceSize size)
 {
     MemoryLocation* val;
     {
-        defragger->stop();
+        // defragger->stop();
         std::scoped_lock alloc_lock(allocationMutex);
         ChunkIterator chunkAlloc;
         FreeIterator freeSpace;
         std::tie(chunkAlloc, freeSpace) =
-            m_strategy->findRange(m_chunkAllocations.begin(), m_chunkAllocations.end(), size);
+            strategy->findRange(chunks.begin(), chunks.end(), size);
 
-        if (chunkAlloc == m_chunkAllocations.end())
+        if (chunkAlloc == chunks.end())
         {
             chunkAlloc = createNewChunk();
             freeSpace  = chunkAlloc->freeList.begin();
@@ -55,8 +55,8 @@ MemoryLocation* BaseChunkAllocator::allocate(vk::DeviceSize size)
 
         val = chunkAlloc->allocations.insert(insertionPoint, std::move(targetLocation))->get();
         chunkAlloc->allocated += size;
-        defragger->invalidate(chunkAlloc->chunk->memory);
-        defragger->start();
+        // defragger->invalidate(chunkAlloc->chunk->memory);
+        // defragger->start();
     }
     return val;
 }
@@ -81,13 +81,12 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
 {
     {
         std::scoped_lock alloc_lock(allocationMutex);
-        defragger->stop();
 
         auto fChunk =
-            std::find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
+            std::find_if(chunks.begin(), chunks.end(),
                          [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location->memory; });
 
-        SAIGA_ASSERT(fChunk != m_chunkAllocations.end(), "Allocation was not done with this allocator!");
+        SAIGA_ASSERT(fChunk != chunks.end(), "Allocation was not done with this allocator!");
         auto& chunkAllocs = fChunk->allocations;
         auto& chunkFree   = fChunk->freeList;
         auto fLoc =
@@ -95,7 +94,7 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
                              [](const auto& element, const auto& value) { return element->offset < value->offset; });
         SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
         LOG(INFO) << "Deallocating " << location->size << " bytes in chunk/offset ["
-                  << distance(m_chunkAllocations.begin(), fChunk) << "/" << (*fLoc)->offset << "]";
+                  << distance(chunks.begin(), fChunk) << "/" << (*fLoc)->offset << "]";
 
         FreeIterator freePrev, freeNext, freeInsert;
         bool foundInsert = false;
@@ -153,30 +152,30 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
 
         findNewMax(fChunk);
 
-        defragger->invalidate(fLoc->get());
+        // defragger->invalidate(fLoc->get());
         chunkAllocs.erase(fLoc);
 
         fChunk->allocated -= location->size;
-        defragger->invalidate(fChunk->chunk->memory);
-        if (m_chunkAllocations.size() >= 2)
+        // defragger->invalidate(fChunk->chunk->memory);
+        if (chunks.size() >= 2)
         {
             // Free memory if second to last and last chunk are empty
-            auto last           = m_chunkAllocations.end() - 1;
+            auto last           = chunks.end() - 1;
             auto second_to_last = last - 1;
             if (last->allocations.empty() && second_to_last->allocations.empty())
             {
                 m_device.destroy(last->buffer);
                 m_chunkAllocator->deallocate(last->chunk);
-                m_chunkAllocations.erase(last);
+                chunks.erase(last);
             }
         }
 
-        defragger->start();
+        // defragger->start();
     }
 }
 void BaseChunkAllocator::destroy()
 {
-    for (auto& alloc : m_chunkAllocations)
+    for (auto& alloc : chunks)
     {
         m_device.destroy(alloc.buffer);
     }

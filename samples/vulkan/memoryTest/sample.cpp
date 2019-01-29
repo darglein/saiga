@@ -152,9 +152,9 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             break;
         case SDL_SCANCODE_F:
 
-            enable_defragger = !enable_defragger;
+            // enable_defragger = !enable_defragger;
 
-            renderer.base.memory.getAllocator(buffer_type).enable_defragger(enable_defragger);
+            // renderer.base.memory.getAllocator(buffer_type).enable_defragger(enable_defragger);
             break;
         case SDL_SCANCODE_ESCAPE:
             parentWindow.close();

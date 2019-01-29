@@ -14,9 +14,9 @@ Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator:
 {
     auto newChunk = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
 
-    m_chunkAllocations.emplace_back(newChunk, vk::Buffer(), m_chunkSize, nullptr);
+    chunks.emplace_back(newChunk, vk::Buffer(), m_chunkSize, nullptr);
 
-    return --m_chunkAllocations.end();
+    return --chunks.end();
 }
 
 void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
@@ -32,11 +32,4 @@ Saiga::Vulkan::Memory::MemoryLocation* Saiga::Vulkan::Memory::ImageChunkAllocato
     return BaseChunkAllocator::allocate(aligned_size);
 }
 
-void Saiga::Vulkan::Memory::ImageChunkAllocator::enable_defragger(bool enable)
-{
-    if (enable)
-    {
-        SAIGA_ASSERT(false, "Image allocator does not support defragmentation for now");
-    }
-}
 }  // namespace Saiga::Vulkan::Memory

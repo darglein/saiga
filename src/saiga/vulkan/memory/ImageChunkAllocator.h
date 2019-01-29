@@ -31,8 +31,6 @@ class SAIGA_GLOBAL ImageChunkAllocator final : public BaseChunkAllocator
 
     MemoryLocation* allocate(vk::DeviceSize size, const vk::Image& image);
 
-    void enable_defragger(bool enable) override;
-
    protected:
     ChunkIterator createNewChunk() override;
 

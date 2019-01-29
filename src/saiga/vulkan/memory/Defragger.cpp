@@ -46,7 +46,7 @@ void Defragger::worker_func()
             return;
         }
         std::unique_lock<std::mutex> running_lock(running_mutex);
-        if (chunks->empty())
+        if (allocator->chunks.empty())
         {
             continue;
         }
@@ -67,7 +67,7 @@ void Defragger::run()
 
 void Defragger::find_defrag_ops()
 {
-    auto chunk_iter = chunks->rbegin();
+    auto chunk_iter = allocator->chunks.rbegin();
     auto alloc_iter = chunk_iter->allocations.rbegin();
     while (running)
     {
@@ -84,7 +84,7 @@ void Defragger::find_defrag_ops()
             continue;
         }
 
-        if (chunk_iter == chunks->rend())
+        if (chunk_iter == allocator->chunks.rend())
         {
             running = false;
             break;
@@ -92,10 +92,10 @@ void Defragger::find_defrag_ops()
 
         const auto& source = *alloc_iter;
 
-        auto begin = chunks->begin();
+        auto begin = allocator->chunks.begin();
         auto end   = (chunk_iter + 1).base();  // Conversion from reverse to normal iterator moves one back
         //
-        auto new_place = strategy->findRange(begin, end, source->size);
+        auto new_place = allocator->strategy->findRange(begin, end, source->size);
 
         if (new_place.first != end)
         {
@@ -116,7 +116,7 @@ void Defragger::perform_defrag()
     {
         auto op = defrag_operations.begin();
 
-
+        auto defrag_cmd = allocator->queue->commandPool.allocateCommandBuffer();
     }
 }
 
@@ -153,7 +153,7 @@ float Defragger::get_operation_penalty(ConstChunkIterator target_chunk, ConstFre
         weight += penalties.source_not_last_alloc;
     }
 
-    if (std::next(source_chunk) != chunks->cend())
+    if (std::next(source_chunk) != allocator->chunks.cend())
     {
         weight += penalties.source_not_last_chunk;
     }
