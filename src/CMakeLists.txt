@@ -23,6 +23,9 @@ else ()
 endif()
 
 
+
+#message(STATUS "libs: ${LIBS}")
+
 target_link_libraries(${LIB_NAME} ${ALL_CUDA_LIBS} ${LIBS} ${LIB_TARGETS} )
 
 

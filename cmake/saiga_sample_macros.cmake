@@ -21,7 +21,9 @@ macro(saiga_make_sample)
     include_directories(.)
 
     add_executable(${PROG_NAME} ${PROG_SRC} )
-    target_link_libraries(${PROG_NAME} ${LIBS} ${LIB_NAME} )
+
+    # We only need to link the saiga target
+    target_link_libraries(${PROG_NAME} ${LIB_NAME} )
 
     #set working directory for visual studio so the project can be executed from the ide
     set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
