@@ -89,6 +89,8 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     void deallocate(MemoryLocation* location) override;
 
+    bool memory_is_free(vk::DeviceMemory memory, FreeListEntry entry);
+
     void destroy() override;
 
     MemoryStats collectMemoryStats() override;

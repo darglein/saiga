@@ -20,8 +20,7 @@ MemoryLocation* BaseChunkAllocator::allocate(vk::DeviceSize size)
         std::scoped_lock alloc_lock(allocationMutex);
         ChunkIterator chunkAlloc;
         FreeIterator freeSpace;
-        std::tie(chunkAlloc, freeSpace) =
-            strategy->findRange(chunks.begin(), chunks.end(), size);
+        std::tie(chunkAlloc, freeSpace) = strategy->findRange(chunks.begin(), chunks.end(), size);
 
         if (chunkAlloc == chunks.end())
         {
@@ -82,9 +81,9 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
     {
         std::scoped_lock alloc_lock(allocationMutex);
 
-        auto fChunk =
-            std::find_if(chunks.begin(), chunks.end(),
-                         [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location->memory; });
+        auto fChunk = std::find_if(chunks.begin(), chunks.end(), [&](ChunkAllocation const& alloc) {
+            return alloc.chunk->memory == location->memory;
+        });
 
         SAIGA_ASSERT(fChunk != chunks.end(), "Allocation was not done with this allocator!");
         auto& chunkAllocs = fChunk->allocations;
@@ -93,8 +92,8 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
             std::lower_bound(chunkAllocs.begin(), chunkAllocs.end(), location,
                              [](const auto& element, const auto& value) { return element->offset < value->offset; });
         SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
-        LOG(INFO) << "Deallocating " << location->size << " bytes in chunk/offset ["
-                  << distance(chunks.begin(), fChunk) << "/" << (*fLoc)->offset << "]";
+        LOG(INFO) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
+                  << "/" << (*fLoc)->offset << "]";
 
         FreeIterator freePrev, freeNext, freeInsert;
         bool foundInsert = false;
@@ -179,6 +178,34 @@ void BaseChunkAllocator::destroy()
     {
         m_device.destroy(alloc.buffer);
     }
+}
+
+bool BaseChunkAllocator::memory_is_free(vk::DeviceMemory memory, FreeListEntry free_mem)
+{
+    auto chunk = std::find_if(chunks.begin(), chunks.end(),
+                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory = memory; });
+
+    SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
+
+    if (chunk->freeList.empty())
+    {
+        return false;
+    }
+    auto found =
+        std::lower_bound(chunk->freeList.begin(), chunk->freeList.end(), free_mem,
+                         [](const auto& free_entry, const auto& value) { return free_entry.offset < value.offset; });
+
+    if (found->offset > free_mem.offset)
+    {
+        return false;
+    }
+
+    if (found->offset + found->size < free_mem.offset + free_mem.size)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 }  // namespace Saiga::Vulkan::Memory
