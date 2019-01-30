@@ -52,15 +52,30 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
 {
     auto effectiveFlags = getEffectiveFlags(type.memoryFlags);
 
+
+
     auto effectiveType = BufferType{type.usageFlags, effectiveFlags};
+
+    bool allow_defragger =
+        (effectiveType.usageFlags & vk::BufferUsageFlagBits::eUniformBuffer) != vk::BufferUsageFlagBits::eUniformBuffer;
+
+    if (allow_defragger)
+    {
+        effectiveType.usageFlags |= vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc;
+    }
 
     auto found = find_default_size<BufferDefaultMap, BufferType>(default_buffer_chunk_sizes, effectiveType);
 
 
     auto chunk_alloc = std::make_unique<BufferChunkAllocator>(m_device, &chunkCreator, effectiveType, *strategy,
                                                               m_queue, found->second);
-    auto defragger   = std::make_unique<Defragger>(chunk_alloc.get());
-    auto new_alloc   = map.emplace(effectiveType, BufferAllocator{std::move(chunk_alloc), std::move(defragger)});
+
+    std::unique_ptr<Defragger> defragger;
+    if (allow_defragger)
+    {
+        defragger = std::make_unique<Defragger>(chunk_alloc.get());
+    }
+    auto new_alloc = map.emplace(effectiveType, BufferAllocator{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(new_alloc.second, "Allocator was already present.");
 
 
@@ -195,5 +210,16 @@ void VulkanMemory::enable_defragmentation(const BufferType& type, bool enable)
 {
     getAllocator(type).defragger->setEnabled(enable);
 }
+
+void VulkanMemory::start_defrag(const BufferType& type)
+{
+    getAllocator(type).defragger->start();
+}
+
+void VulkanMemory::stop_defrag(const BufferType& type)
+{
+    getAllocator(type).defragger->stop();
+}
+
 
 }  // namespace Saiga::Vulkan::Memory

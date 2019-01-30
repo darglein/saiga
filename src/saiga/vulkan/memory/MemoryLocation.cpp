@@ -80,4 +80,12 @@ void* MemoryLocation::getPointer() const
     return static_cast<char*>(mappedPointer) + offset;
 }
 
+void MemoryLocation::copy_to(vk::CommandBuffer cmd, MemoryLocation* target) const
+{
+    SAIGA_ASSERT(target->size == this->size, "Different size copies are not supported");
+    vk::BufferCopy bc{this->offset, target->offset, target->size};
+
+    cmd.copyBuffer(this->buffer, target->buffer, bc);
+}
+
 }  // namespace Saiga::Vulkan::Memory

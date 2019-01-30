@@ -32,6 +32,11 @@ class VulkanExample : public Saiga::Updating,
     std::vector<MemoryLocation*> num_allocations;
     std::mt19937 mersenne_twister;
 
+    std::array<vk::DeviceSize, 4> sizes{256 * 256, 512 * 512, 1024 * 1024, 16 * 1024 * 1024};
+
+    Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eVertexBuffer,
+                                                  vk::MemoryPropertyFlagBits::eDeviceLocal};
+
    public:
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample() override;

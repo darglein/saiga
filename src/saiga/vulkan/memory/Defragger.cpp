@@ -30,7 +30,9 @@ void Defragger::start()
 void Defragger::stop()
 {
     running = false;
-    std::unique_lock<std::mutex> lock(running_mutex);
+    {
+        std::unique_lock<std::mutex> lock(running_mutex);
+    }
 }
 
 
@@ -86,25 +88,23 @@ void Defragger::find_defrag_ops()
 
         if (chunk_iter == allocator->chunks.rend())
         {
-            running = false;
             break;
         }
 
-        const auto& source = *alloc_iter;
+        auto& source = **alloc_iter;
 
         auto begin = allocator->chunks.begin();
         auto end   = (chunk_iter + 1).base();  // Conversion from reverse to normal iterator moves one back
         //
-        auto new_place = allocator->strategy->findRange(begin, end, source->size);
+        auto new_place = allocator->strategy->findRange(begin, end, source.size);
 
         if (new_place.first != end)
         {
             const auto target_iter = new_place.second;
             const auto& target     = *target_iter;
             auto weight            = get_operation_penalty(new_place.first, target_iter, end, (alloc_iter + 1).base());
-            LOG(INFO) << "Defrag " << source << "->" << target << " :: " << weight;
 
-            defrag_operations.insert(DefragOperation{source.get(), new_place.first->chunk->memory, target, weight});
+            defrag_operations.insert(DefragOperation{&source, new_place.first->chunk->memory, target, weight});
         }
         alloc_iter++;
     }
@@ -112,11 +112,29 @@ void Defragger::find_defrag_ops()
 
 void Defragger::perform_defrag()
 {
-    while (running && !defrag_operations.empty())
     {
-        auto op = defrag_operations.begin();
+        using namespace std::chrono_literals;
+    }
+    for (auto op = defrag_operations.begin(); running && op != defrag_operations.end(); ++op)
+    {
+        if (allocator->memory_is_free(op->targetMemory, op->target))
+        {
+            LOG(INFO) << "DEFRAG" << *(op->source) << "->" << op->targetMemory << "," << op->target.offset << " "
+                      << op->target.size;
 
-        auto defrag_cmd = allocator->queue->commandPool.allocateCommandBuffer();
+            MemoryLocation* reserve_space = allocator->reserve_space(op->targetMemory, op->target, op->source->size);
+            auto defrag_cmd               = allocator->queue->commandPool.createAndBeginOneTimeBuffer();
+
+            op->source->copy_to(defrag_cmd, reserve_space);
+
+            defrag_cmd.end();
+
+            allocator->queue->submitAndWait(defrag_cmd);
+
+            //allocator->deallocate(op->source);
+
+            allocator->move_allocation(reserve_space, op->source);
+        }
     }
 }
 

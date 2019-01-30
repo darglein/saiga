@@ -164,6 +164,10 @@ class SAIGA_GLOBAL VulkanMemory
     void deallocateImage(const ImageType& type, MemoryLocation* location);
 
     void enable_defragmentation(const BufferType& type, bool enable);
+
+    void start_defrag(const BufferType& type);
+
+    void stop_defrag(const BufferType& type);
 };
 
 }  // namespace Saiga::Vulkan::Memory

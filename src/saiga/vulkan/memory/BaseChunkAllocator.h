@@ -87,6 +87,8 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 
     MemoryLocation* allocate(vk::DeviceSize size) override;
 
+    MemoryLocation* reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
+
     void deallocate(MemoryLocation* location) override;
 
     bool memory_is_free(vk::DeviceMemory memory, FreeListEntry entry);
@@ -96,6 +98,12 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     MemoryStats collectMemoryStats() override;
 
     void showDetailStats() override;
+
+    MemoryLocation* allocate_in_free_space(vk::DeviceSize size, ChunkIterator& chunkAlloc, FreeIterator& freeSpace);
+
+    std::pair<ChunkIterator, AllocationIterator> find_allocation(MemoryLocation* location);
+
+    void move_allocation(MemoryLocation* target, MemoryLocation* source);
 };
 
 

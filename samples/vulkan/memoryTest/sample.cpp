@@ -69,11 +69,7 @@ void VulkanExample::renderGUI()
 
 void VulkanExample::keyPressed(SDL_Keysym key)
 {
-    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 2UL);
-    static std::array<vk::DeviceSize, 3> sizes{256 * 256, 512 * 512, 1024 * 1024};
-
-    static const Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eVertexBuffer,
-                                                               vk::MemoryPropertyFlagBits::eDeviceLocal};
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL);
     static bool enable_defragger = false;
 
 
@@ -129,7 +125,8 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             break;
 
         case SDL_SCANCODE_A:
-
+            renderer.base.memory.enable_defragmentation(buffer_type, false);
+            renderer.base.memory.stop_defrag(buffer_type);
             num_allocs = alloc_dist(mersenne_twister);
 
             for (int i = 0; i < num_allocs; ++i)
@@ -137,18 +134,25 @@ void VulkanExample::keyPressed(SDL_Keysym key)
                 auto size = sizes[size_dist(mersenne_twister)];
                 allocations.push_back(renderer.base.memory.allocate(buffer_type, size));
             }
+            renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
+            renderer.base.memory.start_defrag(buffer_type);
             break;
         case SDL_SCANCODE_D:
+            renderer.base.memory.enable_defragmentation(buffer_type, false);
+            renderer.base.memory.stop_defrag(buffer_type);
+
             num_allocs = std::min(alloc_dist(mersenne_twister), allocations.size());
 
             for (int i = 0; i < num_allocs; ++i)
             {
                 auto index = mersenne_twister() % allocations.size();
 
-                MemoryLocation* loc = allocations[index];
+                renderer.base.memory.deallocateBuffer(buffer_type, allocations[index]);
                 allocations.erase(allocations.begin() + index);
-                renderer.base.memory.deallocateBuffer(buffer_type, loc);
             }
+            renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
+            renderer.base.memory.start_defrag(buffer_type);
+
             break;
         case SDL_SCANCODE_F:
             enable_defragger = !enable_defragger;
@@ -170,12 +174,11 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             MemoryLocation* loc = num_allocations[index];
             // allocations.erase(allocations.begin() + index);
             renderer.base.memory.deallocateBuffer(buffer_type, loc);
-            loc->memory            = nullptr;
             num_allocations[index] = nullptr;
         }
         else
         {
-            num_allocations[index] = renderer.base.memory.allocate(buffer_type, sizes[1]);
+            num_allocations[index] = renderer.base.memory.allocate(buffer_type, sizes[3]);
         }
     }
 }

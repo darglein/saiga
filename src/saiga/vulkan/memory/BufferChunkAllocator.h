@@ -76,6 +76,8 @@ class SAIGA_GLOBAL BufferChunkAllocator final : public BaseChunkAllocator
 
     MemoryLocation* allocate(vk::DeviceSize size) override;
 
+    using BaseChunkAllocator::allocate;
+
    protected:
     void headerInfo() override;
 };

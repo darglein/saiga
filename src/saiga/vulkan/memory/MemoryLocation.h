@@ -82,6 +82,8 @@ struct SAIGA_GLOBAL MemoryLocation
     void mappedDownload(vk::Device device, void* data) const;
 
    public:
+    void copy_to(vk::CommandBuffer cmd, MemoryLocation* target) const;
+
     void upload(vk::Device device, const void* data);
 
     void download(vk::Device device, void* data) const;
@@ -105,7 +107,7 @@ struct SAIGA_GLOBAL MemoryLocation
 
     friend std::ostream& operator<<(std::ostream& os, const MemoryLocation& location)
     {
-        os << "{" << location.memory << ", " << location.buffer << ", " << location.offset << "-" << location.size;
+        os << "{" << location.memory << ", " << location.buffer << ", " << location.offset << " " << location.size;
 
         if (location.mappedPointer)
         {

@@ -21,6 +21,14 @@ struct FreeListEntry
     FreeListEntry() : offset(VK_WHOLE_SIZE), size(0) {}
     FreeListEntry(vk::DeviceSize _offset, vk::DeviceSize _size) : offset(_offset), size(_size) {}
 
+    bool operator==(const FreeListEntry &rhs) const {
+        return std::tie(offset, size) == std::tie(rhs.offset, rhs.size);
+    }
+
+    bool operator!=(const FreeListEntry &rhs) const {
+        return !(rhs == *this);
+    }
+
     friend std::ostream& operator<<(std::ostream& os, const FreeListEntry& entry)
     {
         os << "offset: " << entry.offset << " size: " << entry.size;
