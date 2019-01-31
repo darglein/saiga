@@ -6,8 +6,8 @@
 
 #include "saiga/opengl/rendering/forwardRendering/forward_renderer.h"
 
-#include "saiga/camera/camera.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/camera/camera.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 
 namespace Saiga

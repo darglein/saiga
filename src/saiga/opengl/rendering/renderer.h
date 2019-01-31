@@ -7,10 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/window/Interfaces.h"
 #include "saiga/opengl/imgui/imgui_opengl.h"
-#include "saiga/opengl/uniformBuffer.h"
 #include "saiga/opengl/rendering/program.h"
-#include "saiga/window/Interfaces.h"
+#include "saiga/opengl/uniformBuffer.h"
 
 namespace Saiga
 {

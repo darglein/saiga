@@ -4,10 +4,10 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/camera/camera.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/camera/camera.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/tostring.h"
 
 namespace Saiga
 {

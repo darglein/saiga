@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include "saiga/geometry/object3d.h"
+#include "saiga/core/geometry/object3d.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/rendering/overlay/Layout.h"
 #include "saiga/opengl/text/TextOverlay2D.h"
 #include "saiga/opengl/text/text.h"
-#include "saiga/util/math.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/math.h"
+#include "saiga/core/util/tostring.h"
 
 #include <vector>
 

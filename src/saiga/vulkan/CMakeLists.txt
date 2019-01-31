@@ -1,10 +1,45 @@
-# The module name is the directory name with "saiga_" as prefix
-get_filename_component(MODULE_NAME ${CMAKE_CURRENT_LIST_DIR} NAME)
-set(MODULE_NAME saiga_${MODULE_NAME})
+#set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Collect all files in this directory
-FILE(GLOB_RECURSE ${MODULE_NAME}_SRC  "*.cpp" "*.cu" "*.cc")
-FILE(GLOB_RECURSE ${MODULE_NAME}_HEADER  "*.h" "*.hpp" "*.inl")
-set(MODULE_ALL_FILES ${${MODULE_NAME}_SRC} ${${MODULE_NAME}_HEADER})
+set(MODULE_NAME "saiga_vulkan")
 
-set(SAIGA_ALL_FILES ${SAIGA_ALL_FILES} ${MODULE_ALL_FILES} PARENT_SCOPE)
+
+FILE(GLOB_RECURSE VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
+FILE(GLOB_RECURSE VULKAN_HEADER  "*.h" "*.hpp" "*.inl" "Vulkan")
+
+
+# the internal files are added to core
+SET(SAIGA_ALL_FILES
+    ${VULKAN_SRC}
+    ${VULKAN_HEADER}
+    )
+
+
+if(SAIGA_BUILD_SHARED)
+    add_definitions(-DSAIGA_DLL_EXPORTS)
+    add_library(${MODULE_NAME} SHARED ${SAIGA_ALL_FILES})
+else ()
+    add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
+endif()
+
+target_link_libraries(${MODULE_NAME}  saiga_core )
+target_link_libraries(${MODULE_NAME} ${ALL_CUDA_LIBS}  )
+target_link_libraries(${MODULE_NAME}  ${LIBS} )
+target_link_libraries(${MODULE_NAME} ${LIB_TARGETS} )
+
+target_include_directories(
+    ${MODULE_NAME}
+    PUBLIC
+    $<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:include/saiga/opengl/glbinding/include>
+    $<INSTALL_INTERFACE:include/saiga/opengl/glbinding-aux/include>
+    $<INSTALL_INTERFACE:share/saiga/shader/include>
+    #"$<INSTALL_INTERFACE:${PACKAGE_INCLUDES}>"
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
+    "$<BUILD_INTERFACE:${PACKAGE_INCLUDES}>"
+    #PRIVATE
+    # for the internal files
+    #${PROJECT_SOURCE_DIR}/src/
+    )

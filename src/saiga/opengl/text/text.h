@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "saiga/geometry/object3d.h"
+#include "saiga/core/geometry/object3d.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/text/textParameters.h"
-#include "saiga/util/encoding.h"
+#include "saiga/core/util/encoding.h"
 
 #ifndef SAIGA_USE_FREETYPE
 #    error Saiga was compiled without freetype.

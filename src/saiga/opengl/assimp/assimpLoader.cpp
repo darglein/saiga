@@ -7,7 +7,7 @@
 #include "assimpLoader.h"
 
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
-#    include "saiga/util/assert.h"
+#    include "saiga/core/util/assert.h"
 
 namespace Saiga
 {

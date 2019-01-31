@@ -1,7 +1,8 @@
 ﻿#include "Base.h"
 
-#include "saiga/util/table.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/table.h"
+#include "saiga/core/util/tostring.h"
+#include "saiga/vulkan/Shader/GLSL.h"
 
 #include "Debug.h"
 
@@ -10,6 +11,11 @@ namespace Saiga
 {
 namespace Vulkan
 {
+VulkanBase::VulkanBase()
+{
+    Vulkan::GLSLANG::init();
+}
+
 void VulkanBase::setPhysicalDevice(vk::PhysicalDevice physicalDevice)
 {
     assert(physicalDevice);

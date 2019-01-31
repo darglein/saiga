@@ -10,8 +10,8 @@
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/image/templatedImage.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/image/templatedImage.h"
+#include "saiga/core/util/tostring.h"
 
 #include <algorithm>
 

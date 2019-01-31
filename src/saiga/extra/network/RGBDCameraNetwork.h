@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/image/image.h"
+#include "saiga/core/image/image.h"
 
 #ifdef SAIGA_VISION
 

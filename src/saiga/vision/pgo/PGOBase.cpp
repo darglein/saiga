@@ -6,7 +6,7 @@
 
 #include "PGOBase.h"
 
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/imgui/imgui.h"
 
 namespace Saiga
 {

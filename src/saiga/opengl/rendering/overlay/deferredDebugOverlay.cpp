@@ -6,8 +6,8 @@
 
 #include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 
-#include "saiga/geometry/triangle_mesh.h"
-#include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/core/geometry/triangle_mesh.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/shader/shaderLoader.h"

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/framebuffer.h"
-#include "saiga/util/quality.h"
+#include "saiga/core/util/quality.h"
 
 namespace Saiga
 {

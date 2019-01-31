@@ -8,7 +8,7 @@
 
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/shader/shader.h"
-#include "saiga/util/fileChecker.h"
+#include "saiga/core/util/fileChecker.h"
 
 #include <algorithm>
 #include <fstream>

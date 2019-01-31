@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/text/TextOverlay3D.h"
 
-#include "saiga/camera/camera.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/text/text.h"
 #include "saiga/opengl/text/textShader.h"

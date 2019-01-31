@@ -6,9 +6,9 @@
 
 #include "saiga/opengl/smaa/SMAA.h"
 
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/image/imageGenerator.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/image/imageGenerator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/smaa/AreaTex.h"

@@ -7,7 +7,7 @@
 
 #include "simpleAssetObject.h"
 
-#include "saiga/camera/camera.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/opengl/assets/asset.h"
 
 namespace Saiga

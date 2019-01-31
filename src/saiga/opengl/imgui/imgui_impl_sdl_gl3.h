@@ -26,7 +26,7 @@
 #include "saiga/opengl/imgui/imgui_opengl.h"
 
 #ifdef SAIGA_USE_SDL
-#    include <saiga/sdl/sdl_eventhandler.h>
+#    include <saiga/core/sdl/sdl_eventhandler.h>
 struct SDL_Window;
 typedef union SDL_Event SDL_Event;
 

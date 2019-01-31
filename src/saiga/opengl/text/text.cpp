@@ -5,8 +5,8 @@
  */
 
 #include "saiga/opengl/text/all.h"
-#include "saiga/util/assert.h"
-#include "saiga/util/encoding.h"
+#include "saiga/core/util/assert.h"
+#include "saiga/core/util/encoding.h"
 
 namespace Saiga
 {

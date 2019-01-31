@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/rendering/renderer.h"
 
-#include "saiga/camera/camera.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 

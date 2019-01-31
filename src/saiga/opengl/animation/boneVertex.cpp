@@ -7,7 +7,7 @@
 #include "saiga/config.h"
 #ifdef SAIGA_USE_OPENGL
 #    include "saiga/opengl/animation/boneVertex.h"
-#    include "saiga/util/assert.h"
+#    include "saiga/core/util/assert.h"
 
 namespace Saiga
 {

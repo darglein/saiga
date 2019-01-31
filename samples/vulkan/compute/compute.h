@@ -8,15 +8,15 @@
 
 #pragma once
 
-#include "saiga/sdl/sdl_camera.h"
-#include "saiga/sdl/sdl_eventhandler.h"
+#include "saiga/core/sdl/sdl_camera.h"
+#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/texture/Texture.h"
-#include "saiga/window/Interfaces.h"
+#include "saiga/core/window/Interfaces.h"
 
 
 class Compute : public Saiga::Updating,

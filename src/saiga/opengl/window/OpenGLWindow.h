@@ -8,7 +8,7 @@
 
 #include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/opengl.h"
-#include "saiga/window/WindowBase.h"
+#include "saiga/core/window/WindowBase.h"
 
 namespace Saiga
 {

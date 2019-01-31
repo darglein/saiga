@@ -6,7 +6,7 @@
 
 #include "objAssetLoader.h"
 
-#include "saiga/model/objModelLoader.h"
+#include "saiga/core/model/objModelLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 

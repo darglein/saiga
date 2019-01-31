@@ -6,7 +6,7 @@
 
 #include "VulkanAsset.h"
 
-#include "saiga/image/imageTransformations.h"
+#include "saiga/core/image/imageTransformations.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
 

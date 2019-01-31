@@ -1,6 +1,6 @@
 #pragma once
 
-#include "saiga/opencv/opencv.h"
+#include "saiga/extra/opencv/opencv.h"
 
 #include "opencv2/core/core.hpp"
 

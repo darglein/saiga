@@ -8,7 +8,7 @@
 
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/texture/arrayTexture.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 namespace Saiga
 {

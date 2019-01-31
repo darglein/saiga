@@ -6,8 +6,8 @@
 
 #include "LineAssetRenderer.h"
 
-#include "saiga/model/objModelLoader.h"
-#include "saiga/util/easylogging++.h"
+#include "saiga/core/model/objModelLoader.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
 #if defined(SAIGA_OPENGL_INCLUDED)

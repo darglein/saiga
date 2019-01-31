@@ -8,10 +8,10 @@
 
 #pragma once
 
-#include "saiga/sdl/sdl_camera.h"
-#include "saiga/sdl/sdl_eventhandler.h"
+#include "saiga/core/sdl/sdl_camera.h"
+#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
-#include "saiga/window/Interfaces.h"
+#include "saiga/core/window/Interfaces.h"
 
 namespace Saiga
 {

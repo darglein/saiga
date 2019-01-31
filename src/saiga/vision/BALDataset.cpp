@@ -6,9 +6,9 @@
 
 #include "BALDataset.h"
 
-#include "saiga/util/assert.h"
-#include "saiga/util/file.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/assert.h"
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/tostring.h"
 
 #include <fstream>
 

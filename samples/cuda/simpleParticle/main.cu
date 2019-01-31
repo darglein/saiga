@@ -6,7 +6,7 @@
 
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 #include <iostream>
 #include <vector>

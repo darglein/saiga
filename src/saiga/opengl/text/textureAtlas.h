@@ -7,10 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/geometry/aabb.h"
+#include "saiga/core/geometry/aabb.h"
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/text/fontLoader.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 #include <map>
 

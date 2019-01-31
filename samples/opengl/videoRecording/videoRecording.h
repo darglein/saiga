@@ -16,8 +16,8 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/window/sdl_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
-#include "saiga/sdl/sdl_camera.h"
-#include "saiga/sdl/sdl_eventhandler.h"
+#include "saiga/core/sdl/sdl_camera.h"
+#include "saiga/core/sdl/sdl_eventhandler.h"
 
 using namespace Saiga;
 

@@ -32,7 +32,7 @@
 
 #include "imgui_impl_sdl_gl3.h"
 
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/opengl.h"
 

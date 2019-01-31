@@ -6,7 +6,7 @@
 
 #include "plyAssetLoader.h"
 
-#include "saiga/model/plyModelLoader.h"
+#include "saiga/core/model/plyModelLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 

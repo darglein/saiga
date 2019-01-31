@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "saiga/camera/camera.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/config.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 #include <vector>
 

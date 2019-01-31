@@ -9,8 +9,8 @@
 
 #if defined(SAIGA_USE_FFMPEG)
 
-#    include "saiga/util/assert.h"
-#    include "saiga/util/math.h"
+#    include "saiga/core/util/assert.h"
+#    include "saiga/core/util/math.h"
 
 #    include "internal/noGraphicsAPI.h"
 

@@ -188,8 +188,8 @@ SAIGA_TEMPLATE std::vector<T> string_to_array(const std::string& string, char se
  * @param precision Precision for the value to display, if the value is in bytes, a precision of 0 will be used instead.
  * @return Nicely formatted SI-prefixed string.
  */
-std::string sizeToString(size_t size, size_t base = 1024, size_t max = 1536, const char* sep = " ",
-                         std::streamsize precision = 1);
+SAIGA_GLOBAL std::string sizeToString(size_t size, size_t base = 1024, size_t max = 1536, const char* sep = " ",
+                                      std::streamsize precision = 1);
 
 
 }  // namespace Saiga

@@ -9,8 +9,8 @@
 
 #include "saiga/vision/recursiveMatrices/CG.h"
 
-#include "saiga/time/timer.h"
-#include "saiga/util/random.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/random.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 
 #include "cholesky.h"

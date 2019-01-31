@@ -7,9 +7,9 @@
 
 #include "BARecursive.h"
 
-#include "saiga/imgui/imgui.h"
-#include "saiga/time/timer.h"
-#include "saiga/util/Algorithm.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/Algorithm.h"
 #include "saiga/vision/HistogramImage.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"

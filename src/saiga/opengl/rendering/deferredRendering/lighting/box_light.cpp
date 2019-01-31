@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/rendering/deferredRendering/lighting/box_light.h"
 
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/imgui/imgui.h"
 
 namespace Saiga
 {

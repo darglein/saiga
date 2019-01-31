@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "saiga/image/imageView.h"
-#include "saiga/opencv/OpenCV_GLM.h"
-#include "saiga/util/math.h"
+#include "saiga/core/image/imageView.h"
+#include "saiga/extra/opencv/OpenCV_GLM.h"
+#include "saiga/core/util/math.h"
 
 #include "opencv2/opencv.hpp"
 

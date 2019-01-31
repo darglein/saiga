@@ -8,12 +8,12 @@
 #pragma once
 
 //#include "saiga/vulkan/memory/ChunkAllocator.h"
+#include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/Parameters.h"
 #include "saiga/vulkan/SwapChain.h"
 #include "saiga/vulkan/svulkan.h"
-#include "saiga/window/Interfaces.h"
 
 namespace Saiga
 {

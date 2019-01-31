@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "saiga/geometry/object3d.h"
+#include "saiga/core/geometry/object3d.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/vertex.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 #include <vector>
 

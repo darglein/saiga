@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/vertexBuffer.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 namespace Saiga
 {

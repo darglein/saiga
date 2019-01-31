@@ -4,11 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/eigen/eigen.h"
-#include "saiga/eigen/lse.h"
-#include "saiga/time/performanceMeasure.h"
-#include "saiga/util/crash.h"
-#include "saiga/util/random.h"
+#include "saiga/core/time/performanceMeasure.h"
+#include "saiga/core/util/crash.h"
+#include "saiga/core/util/random.h"
+#include "saiga/extra/eigen/eigen.h"
+#include "saiga/extra/eigen/lse.h"
 
 #include "Eigen/Sparse"
 

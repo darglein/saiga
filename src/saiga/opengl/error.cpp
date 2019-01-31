@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/error.h"
 
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/tostring.h"
 
 #include <unordered_map>
 

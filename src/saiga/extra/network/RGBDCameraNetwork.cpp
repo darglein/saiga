@@ -7,7 +7,7 @@
 #include "RGBDCameraNetwork.h"
 
 #ifdef SAIGA_VISION
-#    include "saiga/image/imageTransformations.h"
+#    include "saiga/core/image/imageTransformations.h"
 
 #    include "internal/noGraphicsAPI.h"
 

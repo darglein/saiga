@@ -8,8 +8,8 @@
 
 #include "saiga/config.h"
 #include "saiga/opengl/animation/animationFrame.h"
-#include "saiga/time/time.h"
-#include "saiga/util/math.h"
+#include "saiga/core/time/time.h"
+#include "saiga/core/util/math.h"
 
 namespace Saiga
 {

@@ -4,8 +4,8 @@
 
 #include "VulkanMemory.h"
 
-#include "saiga/imgui/imgui.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/tostring.h"
 
 #include <memory>
 void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device)

@@ -14,7 +14,7 @@
 #include "saiga/opengl/world/proceduralSkybox.h"
 
 // a
-#include "saiga/glfw/all.h"
+#include "saiga/core/glfw/all.h"
 using namespace Saiga;
 
 class Sample : public Updating, public DeferredRenderingInterface, public glfw_KeyListener

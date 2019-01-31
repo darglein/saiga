@@ -6,8 +6,8 @@
 
 #include "RGBDCameraInput.h"
 
-#include "saiga/image/imageTransformations.h"
-#include "saiga/util/threadName.h"
+#include "saiga/core/image/imageTransformations.h"
+#include "saiga/core/util/threadName.h"
 
 #include "internal/noGraphicsAPI.h"
 

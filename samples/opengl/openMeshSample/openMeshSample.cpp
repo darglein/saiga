@@ -11,10 +11,10 @@
 #include "openMeshSample.h"
 
 #include "saiga/opengl/assets/objAssetLoader.h"
-#include "saiga/geometry/half_edge_mesh.h"
-#include "saiga/geometry/openMeshWrapper.h"
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/geometry/half_edge_mesh.h"
+#include "saiga/core/geometry/openMeshWrapper.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 #include "OpenMesh/Tools/Decimater/DecimaterT.hh"

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/animation/boneShader.h"
-#include "saiga/util/color.h"
+#include "saiga/core/util/color.h"
 
 #include "animatedAsset.h"
 #include "coloredAsset.h"

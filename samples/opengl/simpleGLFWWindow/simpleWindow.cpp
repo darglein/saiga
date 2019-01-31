@@ -6,7 +6,7 @@
 
 #include "simpleWindow.h"
 
-#include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
 

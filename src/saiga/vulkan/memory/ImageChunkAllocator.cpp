@@ -4,9 +4,9 @@
 
 #include "ImageChunkAllocator.h"
 
-#include "saiga/imgui/imgui.h"
-#include "saiga/util/easylogging++.h"
-#include "saiga/util/imath.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/easylogging++.h"
+#include "saiga/core/util/imath.h"
 Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator::createNewChunk()
 {
     auto newChunk = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);

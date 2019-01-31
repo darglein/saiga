@@ -1,6 +1,6 @@
-﻿#include "saiga/sdl/sdl.h"
-#include "saiga/framework/framework.h"
-#include "saiga/util/easylogging++.h"
+﻿#include "saiga/core/sdl/sdl.h"
+#include "saiga/core/framework/framework.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/vulkan/memory/VulkanStlAllocator.h"
 #include "saiga/vulkan/window/SDLWindow.h"
 

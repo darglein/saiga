@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/image/image.h"
+#include "saiga/core/image/image.h"
 
 #include "boost/asio.hpp"
 

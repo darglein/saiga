@@ -6,8 +6,8 @@
 
 #include "TumRGBDCamera.h"
 
-#include "saiga/util/file.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/tostring.h"
 
 #include <fstream>
 #include <thread>

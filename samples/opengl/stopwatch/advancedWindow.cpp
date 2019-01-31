@@ -6,8 +6,8 @@
 
 #include "advancedWindow.h"
 
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 Sample::Sample(OpenGLWindow& window, Renderer& renderer)

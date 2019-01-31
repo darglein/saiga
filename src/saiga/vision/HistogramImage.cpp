@@ -7,7 +7,7 @@
 
 #include "HistogramImage.h"
 
-#include "saiga/util/imath.h"
+#include "saiga/core/util/imath.h"
 
 namespace Saiga
 {

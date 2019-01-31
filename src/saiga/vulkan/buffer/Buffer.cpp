@@ -6,7 +6,7 @@
 
 #include "Buffer.h"
 
-#include "saiga/util/imath.h"
+#include "saiga/core/util/imath.h"
 #include "saiga/vulkan/buffer/StagingBuffer.h"
 
 namespace Saiga

@@ -10,7 +10,7 @@
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/time/timer.h"
+#include "saiga/core/time/timer.h"
 
 #include <algorithm>
 

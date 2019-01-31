@@ -1,6 +1,6 @@
 #set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-set(MODULE_NAME "saiga_vision")
+set(MODULE_NAME "saiga_extra")
 
 
 FILE(GLOB_RECURSE VULKAN_SRC  "*.cpp" "*.cu" "*.cc")

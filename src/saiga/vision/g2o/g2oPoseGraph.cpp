@@ -6,8 +6,8 @@
 
 #include "g2oPoseGraph.h"
 
-#include "saiga/time/timer.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/assert.h"
 
 #include "g2o/core/solver.h"
 

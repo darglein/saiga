@@ -6,9 +6,9 @@
 
 #include "gphoto.h"
 
-#include "saiga/util/file.h"
-#include "saiga/util/threadName.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/threadName.h"
+#include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
 

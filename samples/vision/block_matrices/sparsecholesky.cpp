@@ -8,8 +8,8 @@
 
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
 
-#include "saiga/time/timer.h"
-#include "saiga/util/random.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"

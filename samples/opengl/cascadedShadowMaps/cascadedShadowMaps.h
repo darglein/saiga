@@ -10,8 +10,8 @@
 #include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
-#include "saiga/sdl/sdl_camera.h"
-#include "saiga/sdl/sdl_eventhandler.h"
+#include "saiga/core/sdl/sdl_camera.h"
+#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/opengl/window/sdl_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 

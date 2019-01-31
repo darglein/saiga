@@ -7,10 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/image/image.h"
-#include "saiga/image/templatedImage.h"
-#include "saiga/util/encoding.h"
-#include "saiga/util/math.h"
+#include "saiga/core/image/image.h"
+#include "saiga/core/image/templatedImage.h"
+#include "saiga/core/util/encoding.h"
+#include "saiga/core/util/math.h"
 
 #include <vector>
 

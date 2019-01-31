@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include "saiga/geometry/object3d.h"
+#include "saiga/core/geometry/object3d.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/lighting/shadowmap.h"
-#include "saiga/util/color.h"
+#include "saiga/core/util/color.h"
 
 #include <functional>
 

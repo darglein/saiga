@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "saiga/camera/camera.h"
-#include "saiga/geometry/aabb.h"
-#include "saiga/geometry/object3d.h"
+#include "saiga/core/camera/camera.h"
+#include "saiga/core/geometry/aabb.h"
+#include "saiga/core/geometry/object3d.h"
 
 namespace Saiga
 {

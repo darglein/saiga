@@ -5,9 +5,9 @@
  */
 
 
-#include "saiga/sdl/sdl.h"
-#include "saiga/util/crash.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/sdl/sdl.h"
+#include "saiga/core/util/crash.h"
+#include "saiga/core/util/tostring.h"
 
 #include "simpleWindow.h"
 

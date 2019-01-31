@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/camera/camera.h"
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/camera/camera.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/program.h"

@@ -6,7 +6,7 @@
 
 #include "saiga/config.h"
 #ifdef SAIGA_USE_OPENGL
-#    include "saiga/imgui/imgui.h"
+#    include "saiga/core/imgui/imgui.h"
 #    include "saiga/opengl/animation/cameraAnimation.h"
 
 namespace Saiga

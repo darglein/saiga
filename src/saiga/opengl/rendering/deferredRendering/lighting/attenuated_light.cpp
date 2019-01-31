@@ -6,9 +6,9 @@
 
 #include "saiga/opengl/rendering/deferredRendering/lighting/attenuated_light.h"
 
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/error.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 namespace Saiga
 {

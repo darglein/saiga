@@ -8,7 +8,7 @@
 
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/texture/raw_texture.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 #include <algorithm>
 #include <fstream>

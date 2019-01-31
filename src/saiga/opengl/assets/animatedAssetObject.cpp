@@ -6,7 +6,7 @@
 
 #include "animatedAssetObject.h"
 
-#include "saiga/camera/camera.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/opengl/animation/boneShader.h"
 #include "saiga/opengl/assets/asset.h"
 

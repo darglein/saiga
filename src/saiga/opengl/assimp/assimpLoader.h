@@ -15,7 +15,7 @@
 #include <map>
 #include <saiga/opengl/animation/animation.h>
 
-#include <saiga/geometry/triangle_mesh.h>
+#include <saiga/core/geometry/triangle_mesh.h>
 #include <type_traits>
 
 namespace Saiga

@@ -6,8 +6,8 @@
 
 #include "ShaderModule.h"
 
-#include "saiga/util/file.h"
-#include "saiga/util/fileChecker.h"
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/fileChecker.h"
 
 #include "GLSL.h"
 #include "ShaderLoaderHelper.h"

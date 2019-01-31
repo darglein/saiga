@@ -12,7 +12,7 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/vertex.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
-#include "saiga/util/quality.h"
+#include "saiga/core/util/quality.h"
 
 namespace Saiga
 {

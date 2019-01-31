@@ -6,9 +6,9 @@
 
 #include "GLSL.h"
 
-#include "saiga/util/file.h"
-#include "saiga/util/fileChecker.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/fileChecker.h"
+#include "saiga/core/util/tostring.h"
 
 #include "SPIRV/GlslangToSpv.h"
 #include "SPIRV/spirv.hpp"

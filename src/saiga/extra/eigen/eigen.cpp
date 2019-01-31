@@ -4,6 +4,6 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/eigen/eigen.h"
+#include "saiga/extra/eigen/eigen.h"
 
 #include "internal/noGraphicsAPI.h"

@@ -35,7 +35,7 @@
 #    include "saiga/opengl/opengl.h"
 
 #    include <GLFW/glfw3.h>
-#    include <saiga/imgui/imgui.h>
+#    include <saiga/core/imgui/imgui.h>
 
 
 #    ifdef _WIN32

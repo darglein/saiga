@@ -4,6 +4,11 @@
 # SAIGA_ALL_FILES
 
 add_subdirectory(core)
+add_subdirectory(vulkan)
+add_subdirectory(opengl)
+add_subdirectory(extra)
+add_subdirectory(cuda)
+add_subdirectory(vision)
 
 return()
 

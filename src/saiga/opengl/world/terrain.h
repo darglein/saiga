@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/camera/camera.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/texture/cube_texture.h"

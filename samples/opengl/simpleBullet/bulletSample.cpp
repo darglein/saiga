@@ -6,10 +6,10 @@
 
 #include "bulletSample.h"
 
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/util/random.h"
+#include "saiga/core/util/random.h"
 
 
 Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)

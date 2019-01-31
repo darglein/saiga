@@ -6,7 +6,7 @@
 
 #include "ShaderLoaderHelper.h"
 
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/tostring.h"
 
 namespace Saiga
 {

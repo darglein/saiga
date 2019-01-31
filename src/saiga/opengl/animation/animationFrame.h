@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/time/time.h"
-#include "saiga/util/math.h"
+#include "saiga/core/time/time.h"
+#include "saiga/core/util/math.h"
 
 #include <map>
 #include <vector>

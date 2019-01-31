@@ -6,6 +6,6 @@
 
 #pragma once
 
-#include "saiga/glfw/glfw_camera.h"
-#include "saiga/glfw/glfw_eventhandler.h"
-#include "saiga/glfw/glfw_joystick.h"
+#include "saiga/core/glfw/glfw_camera.h"
+#include "saiga/core/glfw/glfw_eventhandler.h"
+#include "saiga/core/glfw/glfw_joystick.h"

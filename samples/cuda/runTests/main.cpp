@@ -4,14 +4,14 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/geometry/clipping.h"
+#include "saiga/core/tests/test.h"
+#include "saiga/core/util/commandLineArguments.h"
+#include "saiga/core/util/crash.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/cusparseHelper.h"
 #include "saiga/cuda/random.h"
 #include "saiga/cuda/tests/test.h"
-#include "saiga/geometry/clipping.h"
-#include "saiga/tests/test.h"
-#include "saiga/util/commandLineArguments.h"
-#include "saiga/util/crash.h"
 using namespace Saiga;
 
 int main(int argc, char* argv[])

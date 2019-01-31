@@ -4,8 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/imgui/imgui.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/vision/Random.h"
 
 #include "Scene.h"

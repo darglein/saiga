@@ -4,16 +4,16 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/image/image.h"
+#include "saiga/core/image/templatedImage.h"
+#include "saiga/core/tests/test.h"
+#include "saiga/core/util/crash.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/cusparseHelper.h"
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
 #include "saiga/cuda/random.h"
 #include "saiga/cuda/tests/test.h"
-#include "saiga/image/image.h"
-#include "saiga/image/templatedImage.h"
-#include "saiga/tests/test.h"
-#include "saiga/util/crash.h"
 
 using namespace Saiga;
 

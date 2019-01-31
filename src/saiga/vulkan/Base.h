@@ -30,10 +30,11 @@ namespace Vulkan
 {
 struct SAIGA_GLOBAL VulkanBase
 {
-private:
+   private:
     std::unique_ptr<Queue> compute_queue;
     std::unique_ptr<Queue> transfer_queue;
-public:
+
+   public:
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::PhysicalDeviceFeatures enabledFeatures = {};
@@ -69,6 +70,7 @@ public:
     // The size is controlled by the vulkan parameters
     DescriptorPool descriptorPool;
 
+    VulkanBase();
     operator vk::Device() { return device; }
 
 

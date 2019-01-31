@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/geometry/object3d.h"
+#include "saiga/core/geometry/object3d.h"
 #include "saiga/opengl/vertexBuffer.h"
 #include "saiga/opengl/rendering/particles/particle.h"
 

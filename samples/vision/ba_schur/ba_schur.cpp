@@ -4,8 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/time/timer.h"
-#include "saiga/util/random.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/random.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"

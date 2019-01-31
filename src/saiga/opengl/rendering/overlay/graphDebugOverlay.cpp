@@ -6,10 +6,10 @@
 
 #include "saiga/opengl/rendering/overlay/graphDebugOverlay.h"
 
-#include "saiga/geometry/triangle_mesh.h"
+#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/util/random.h"
+#include "saiga/core/util/random.h"
 
 namespace Saiga
 {

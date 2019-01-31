@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/query/gpuTimer.h"
 
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 namespace Saiga
 {

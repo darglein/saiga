@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/clipping.h"
-#include "saiga/geometry/obb.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/geometry/clipping.h"
+#include "saiga/core/geometry/obb.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 
 namespace Saiga

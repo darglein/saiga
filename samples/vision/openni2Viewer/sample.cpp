@@ -8,12 +8,12 @@
 
 #include "sample.h"
 
-#include "saiga/image/imageTransformations.h"
-#include "saiga/imgui/imgui.h"
-#include "saiga/network/RGBDCameraNetwork.h"
-#include "saiga/openni2/RGBDCameraInput.h"
-#include "saiga/util/color.h"
-#include "saiga/util/threadName.h"
+#include "saiga/core/image/imageTransformations.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/extra/network/RGBDCameraNetwork.h"
+#include "saiga/extra/openni2/RGBDCameraInput.h"
+#include "saiga/core/util/color.h"
+#include "saiga/core/util/threadName.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.

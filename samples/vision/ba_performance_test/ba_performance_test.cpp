@@ -3,10 +3,10 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-#include "saiga/framework/framework.h"
-#include "saiga/time/timer.h"
-#include "saiga/util/fileChecker.h"
-#include "saiga/util/random.h"
+#include "saiga/core/framework/framework.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/fileChecker.h"
+#include "saiga/core/util/random.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/ba/BAPoseOnly.h"

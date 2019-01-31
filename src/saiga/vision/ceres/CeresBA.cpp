@@ -6,7 +6,7 @@
 
 #include "CeresBA.h"
 
-#include "saiga/time/timer.h"
+#include "saiga/core/time/timer.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"

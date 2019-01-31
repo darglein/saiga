@@ -6,7 +6,7 @@
 
 #include "MotionModel.h"
 
-#include "saiga/util/ini/ini.h"
+#include "saiga/core/util/ini/ini.h"
 
 namespace Saiga
 {

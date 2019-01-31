@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include "saiga/geometry/triangle_mesh_generator.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/opengl/texture/texture.h"
-#include "saiga/util/perlinnoise.h"
+#include "saiga/core/util/perlinnoise.h"
 
 namespace Saiga
 {

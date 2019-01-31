@@ -3,14 +3,14 @@
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/time/timer.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/assert.h"
 
 
 #if defined(SAIGA_USE_EIGEN) && defined(SAIGA_EIGEN_AND_CUDA)
 
 
-#    include "saiga/eigen/eigen.h"
+#    include "saiga/extra/eigen/eigen.h"
 
 using matrix_t = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 

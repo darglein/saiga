@@ -6,7 +6,7 @@
 
 #include "saiga/config.h"
 #ifdef SAIGA_USE_SDL
-#    include "saiga/sdl/sdl_eventhandler.h"
+#    include "saiga/core/sdl/sdl_eventhandler.h"
 #    include "saiga/vulkan/imgui/ImGuiSDLRenderer.h"
 
 #    include "SDL2/SDL.h"

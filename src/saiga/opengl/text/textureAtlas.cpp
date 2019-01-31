@@ -6,13 +6,13 @@
 
 #include "saiga/opengl/text/textureAtlas.h"
 
-#include "saiga/geometry/triangle_mesh.h"
+#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/opengl/texture/texture.h"
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/opengl/text/fontLoader.h"
-#include "saiga/util/assert.h"
-#include "saiga/util/fileChecker.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/assert.h"
+#include "saiga/core/util/fileChecker.h"
+#include "saiga/core/util/tostring.h"
 
 #include <algorithm>
 #include <fstream>

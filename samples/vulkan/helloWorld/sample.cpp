@@ -8,11 +8,11 @@
 
 #include "sample.h"
 
-#include "saiga/image/imageTransformations.h"
-#include "saiga/util/color.h"
-#include "saiga/util/random.h"
+#include "saiga/core/image/imageTransformations.h"
+#include "saiga/core/util/color.h"
+#include "saiga/core/util/random.h"
 
-#include <saiga/imgui/imgui.h>
+#include <saiga/core/imgui/imgui.h>
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.

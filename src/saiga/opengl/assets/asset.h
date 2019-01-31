@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "saiga/camera/camera.h"
-#include "saiga/geometry/aabb.h"
-#include "saiga/geometry/triangle_mesh.h"
-#include "saiga/model/Models.h"
+#include "saiga/core/camera/camera.h"
+#include "saiga/core/geometry/aabb.h"
+#include "saiga/core/geometry/triangle_mesh.h"
+#include "saiga/core/model/Models.h"
 #include "saiga/opengl/animation/animation.h"
 #include "saiga/opengl/animation/boneVertex.h"
 #include "saiga/opengl/indexedVertexBuffer.h"

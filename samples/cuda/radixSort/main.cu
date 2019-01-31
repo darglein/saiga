@@ -8,8 +8,8 @@
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/pinned_vector.h"
-#include "saiga/util/math.h"
-#include "saiga/util/table.h"
+#include "saiga/core/util/math.h"
+#include "saiga/core/util/table.h"
 
 #include "thrust/copy.h"
 #include "thrust/scan.h"

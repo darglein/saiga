@@ -7,8 +7,8 @@
 #include "saiga/config.h"
 #ifdef SAIGA_USE_OPENGL
 
-#    include "saiga/framework/framework.h"
-#    include "saiga/glfw/glfw_eventhandler.h"
+#    include "saiga/core/framework/framework.h"
+#    include "saiga/core/glfw/glfw_eventhandler.h"
 #    include "saiga/opengl/error.h"
 #    include "saiga/opengl/imgui/imgui_impl_glfw_gl3.h"
 #    include "saiga/opengl/opengl.h"

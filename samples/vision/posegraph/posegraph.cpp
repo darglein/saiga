@@ -5,10 +5,10 @@
  */
 #include "saiga/vision/scene/PoseGraph.h"
 
-#include "saiga/framework/framework.h"
-#include "saiga/time/timer.h"
-#include "saiga/util/fileChecker.h"
-#include "saiga/util/random.h"
+#include "saiga/core/framework/framework.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/fileChecker.h"
+#include "saiga/core/util/random.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
 #include "saiga/vision/pgo/PGORecursive.h"

@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "saiga/sdl/sdl_camera.h"
-#include "saiga/sdl/sdl_eventhandler.h"
+#include "saiga/core/sdl/sdl_camera.h"
+#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/memory/BufferChunkAllocator.h"
 #include "saiga/vulkan/memory/ChunkCreator.h"
@@ -19,7 +19,7 @@
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
-#include "saiga/window/Interfaces.h"
+#include "saiga/core/window/Interfaces.h"
 
 #include <random>
 #include <vector>

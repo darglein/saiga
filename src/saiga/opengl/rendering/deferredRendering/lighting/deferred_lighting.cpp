@@ -6,16 +6,16 @@
 
 #include "deferred_lighting.h"
 
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/cube_texture.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
-#include "saiga/util/imath.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/imath.h"
+#include "saiga/core/util/tostring.h"
 
 namespace Saiga
 {

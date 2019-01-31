@@ -6,7 +6,7 @@
 
 #include "Random.h"
 
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 namespace Saiga
 {

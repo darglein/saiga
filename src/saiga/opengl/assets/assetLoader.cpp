@@ -6,9 +6,9 @@
 
 #include "assetLoader.h"
 
-#include "saiga/geometry/grid.h"
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/image/imageGenerator.h"
+#include "saiga/core/geometry/grid.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/image/imageGenerator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
 

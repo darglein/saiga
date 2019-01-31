@@ -6,7 +6,7 @@
 #include "saiga/config.h"
 
 #if defined(SAIGA_USE_FFMPEG)
-#    include "saiga/util/assert.h"
+#    include "saiga/core/util/assert.h"
 
 #    include "ffmpegEncoder.h"
 

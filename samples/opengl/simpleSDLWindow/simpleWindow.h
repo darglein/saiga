@@ -12,7 +12,7 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/window/sdl_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
-#include "saiga/sdl/all.h"
+#include "saiga/core/sdl/all.h"
 using namespace Saiga;
 
 class Sample : public Updating, public DeferredRenderingInterface, public SDL_KeyListener

@@ -4,11 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/network/ImageTransmition.h"
-#include "saiga/openni2/RGBDCameraInput.h"
-#include "saiga/time/timer.h"
-#include "saiga/util/assert.h"
-#include "saiga/util/ini/ini.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/assert.h"
+#include "saiga/core/util/ini/ini.h"
+#include "saiga/extra/network/ImageTransmition.h"
+#include "saiga/extra/openni2/RGBDCameraInput.h"
 
 #include "boost/asio.hpp"
 

@@ -7,9 +7,9 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/image/image.h"
-#include "saiga/time/timer.h"
-#include "saiga/util/synchronizedBuffer.h"
+#include "saiga/core/image/image.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/synchronizedBuffer.h"
 
 #include <fstream>
 #include <thread>

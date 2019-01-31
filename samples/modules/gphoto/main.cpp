@@ -5,8 +5,8 @@
  */
 
 
-#include "saiga/gphoto2/gphoto.h"
-#include "saiga/util/crash.h"
+#include "saiga/core/util/crash.h"
+#include "saiga/extra/gphoto2/gphoto.h"
 
 using namespace Saiga;
 

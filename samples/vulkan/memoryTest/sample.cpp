@@ -8,12 +8,12 @@
 
 #include "sample.h"
 
-#include "saiga/image/imageTransformations.h"
-#include "saiga/imgui/imgui.h"
-#include "saiga/util/color.h"
+#include "saiga/core/image/imageTransformations.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/color.h"
 
 #include <algorithm>
-#include <saiga/imgui/imgui.h>
+#include <saiga/core/imgui/imgui.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 #if defined(SAIGA_OPENGL_INCLUDED)

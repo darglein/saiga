@@ -10,8 +10,8 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/util/assert.h"
-#include "saiga/util/ini/ini.h"
+#include "saiga/core/util/assert.h"
+#include "saiga/core/util/ini/ini.h"
 
 #include <algorithm>
 #include <glbinding/glbinding.h>

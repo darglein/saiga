@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 namespace Saiga
 {

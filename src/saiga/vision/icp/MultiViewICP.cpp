@@ -18,8 +18,8 @@
 #    include "ceres/rotation.h"
 #    include "ceres/solver.h"
 #endif
-#include "saiga/time/timer.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/assert.h"
 
 namespace Saiga
 {

@@ -6,8 +6,8 @@
 
 #include "Scene.h"
 
-#include "saiga/imgui/imgui.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/vision/Random.h"
 
 #include <fstream>

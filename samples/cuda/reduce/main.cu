@@ -8,7 +8,7 @@
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/reduce.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 #include <iostream>
 #include <vector>

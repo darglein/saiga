@@ -8,7 +8,7 @@
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/tests/test_helper.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 
 //#define LECTURE

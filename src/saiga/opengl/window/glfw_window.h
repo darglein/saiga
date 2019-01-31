@@ -8,8 +8,8 @@
 
 
 #include "saiga/config.h"
-#include "saiga/glfw/glfw_eventhandler.h"
-#include "saiga/glfw/glfw_joystick.h"
+#include "saiga/core/glfw/glfw_eventhandler.h"
+#include "saiga/core/glfw/glfw_joystick.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 
 #include <array>

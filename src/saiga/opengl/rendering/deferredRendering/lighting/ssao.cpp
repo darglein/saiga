@@ -6,11 +6,11 @@
 
 #include "saiga/opengl/rendering/deferredRendering/lighting/ssao.h"
 
-#include "saiga/geometry/triangle_mesh_generator.h"
-#include "saiga/image/imageGenerator.h"
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/image/imageGenerator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/util/random.h"
+#include "saiga/core/util/random.h"
 
 namespace Saiga
 {

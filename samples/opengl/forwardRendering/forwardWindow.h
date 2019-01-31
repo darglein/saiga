@@ -13,7 +13,7 @@
 #include "saiga/opengl/window/sdl_window.h"
 #include "saiga/opengl/world/pointCloud.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
-#include "saiga/sdl/all.h"
+#include "saiga/core/sdl/all.h"
 
 using namespace Saiga;
 

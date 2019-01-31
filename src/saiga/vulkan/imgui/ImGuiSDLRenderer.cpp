@@ -8,7 +8,7 @@
 
 #include "saiga/config.h"
 #ifdef SAIGA_USE_SDL
-#    include "saiga/imgui/imgui.h"
+#    include "saiga/core/imgui/imgui.h"
 #    include "saiga/vulkan/Shader/ShaderPipeline.h"
 
 #    include "ImGuiSDLRenderer.h"

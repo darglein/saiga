@@ -6,11 +6,11 @@
 
 #include "saiga/opengl/rendering/particles/particlesystem.h"
 
-#include "saiga/camera/camera.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/arrayTexture.h"
 #include "saiga/opengl/rendering/particles/particle_shader.h"
-#include "saiga/util/random.h"
+#include "saiga/core/util/random.h"
 
 namespace Saiga
 {

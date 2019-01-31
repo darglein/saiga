@@ -8,9 +8,9 @@
 
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_FFMPEG)
 
-#    include "saiga/imgui/imgui.h"
+#    include "saiga/core/imgui/imgui.h"
 #    include "saiga/opengl/window/OpenGLWindow.h"
-#    include "saiga/util/assert.h"
+#    include "saiga/core/util/assert.h"
 
 #    include "videoEncoder.h"
 

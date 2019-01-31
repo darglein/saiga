@@ -36,7 +36,7 @@
 #include "saiga/opengl/imgui/imgui_opengl.h"
 
 #ifdef SAIGA_USE_GLFW
-#    include <saiga/glfw/glfw_eventhandler.h>
+#    include "saiga/core/glfw/glfw_eventhandler.h"
 
 struct GLFWwindow;
 
