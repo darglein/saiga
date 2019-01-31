@@ -3,14 +3,29 @@
 set(MODULE_NAME "saiga_extra")
 
 
-FILE(GLOB_RECURSE VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
-FILE(GLOB_RECURSE VULKAN_HEADER  "*.h" "*.hpp" "*.inl")
+if(EIGEN3_FOUND)
+    add_subdirectory(eigen)
+endif()
 
+if(OPENNI2_FOUND)
+    add_subdirectory(openni2)
+endif()
+
+if(Boost_FOUND)
+    add_subdirectory(network)
+endif()
+
+if(OpenCV_FOUND)
+    add_subdirectory(opencv)
+endif()
+
+if(GPHOTO2_FOUND)
+    add_subdirectory(gphoto2)
+endif()
 
 # the internal files are added to core
 SET(SAIGA_ALL_FILES
-    ${VULKAN_SRC}
-    ${VULKAN_HEADER}
+    ${SAIGA_ALL_FILES}
     )
 
 

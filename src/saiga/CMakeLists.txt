@@ -4,11 +4,22 @@
 # SAIGA_ALL_FILES
 
 add_subdirectory(core)
+if(SAIGA_USE_VULKAN)
 add_subdirectory(vulkan)
+endif()
+if(SAIGA_USE_OPENGL)
 add_subdirectory(opengl)
+endif()
+
 add_subdirectory(extra)
+
+if(CUDA_FOUND)
 add_subdirectory(cuda)
-add_subdirectory(vision)
+endif()
+
+if(SAIGA_VISION)
+    add_subdirectory(vision)
+endif()
 
 return()
 

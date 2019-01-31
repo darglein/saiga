@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+
 #include "saiga/core/util/fileChecker.h"
 
 #include "saiga/core/util/directory.h"

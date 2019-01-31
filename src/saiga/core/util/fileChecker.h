@@ -70,11 +70,11 @@ namespace SearchPathes
  * These are set in framework.cpp.
  * Additional search pathes can be set in the config.ini
  */
-extern SAIGA_GLOBAL FileChecker shader;
-extern SAIGA_GLOBAL FileChecker image;
-extern SAIGA_GLOBAL FileChecker model;
-extern SAIGA_GLOBAL FileChecker font;
-extern SAIGA_GLOBAL FileChecker data;
+	SAIGA_GLOBAL extern  FileChecker shader;
+	SAIGA_GLOBAL extern  FileChecker image;
+	SAIGA_GLOBAL extern  FileChecker model;
+	SAIGA_GLOBAL extern  FileChecker font;
+	SAIGA_GLOBAL extern  FileChecker data;
 }  // namespace SearchPathes
 
 }  // namespace Saiga

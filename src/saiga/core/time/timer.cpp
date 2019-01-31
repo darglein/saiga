@@ -4,17 +4,19 @@
  * See LICENSE file for more information.
  */
 
+#include "timer.h"
 
 #ifdef WIN32
 #    include <windows.h>
 #endif
+
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/math.h"
 
 #include "internal/noGraphicsAPI.h"
 
 #include "gameTime.h"
-#include "timer.h"
+
 
 #include <algorithm>
 
