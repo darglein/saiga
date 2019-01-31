@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/random.h"
+#include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
 
 namespace Saiga

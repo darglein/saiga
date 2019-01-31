@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/imgui/imgui_saiga.h"
+#include "saiga/core/imgui/imgui_saiga.h"
 #include "saiga/vision/VisionTypes.h"
 
 #include <mutex>

@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "saiga/image/image.h"
+#include "saiga/core/image/image.h"
 #include "saiga/vulkan/AsyncCommand.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/buffer/StagingBuffer.h"

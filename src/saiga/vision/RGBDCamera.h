@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/image/image.h"
+#include "saiga/core/image/image.h"
 #include "saiga/vision/DepthmapPreprocessor.h"
 
 #include <chrono>

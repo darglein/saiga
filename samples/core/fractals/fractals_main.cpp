@@ -5,10 +5,7 @@
  */
 
 #include "saiga/colorize.h"
-#include "saiga/framework/framework.h"
-#include "saiga/image/image.h"
-#include "saiga/time/timer.h"
-#include "saiga/util/color.h"
+#include "saiga/core/Core"
 
 #include <complex>
 

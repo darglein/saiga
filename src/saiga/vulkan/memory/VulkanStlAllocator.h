@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "saiga/util/easylogging++.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/memory/FindMemoryType.h"
 

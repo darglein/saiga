@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/geometry/triangle_mesh.h"
+#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/opengl/indexBuffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/vertexBuffer.h"

@@ -8,10 +8,10 @@
 
 #include "saiga/opengl/shader/shader.h"
 #include "saiga/opengl/shader/shaderPartLoader.h"
-#include "saiga/util/ObjectCache.h"
-#include "saiga/util/assert.h"
-#include "saiga/util/fileChecker.h"
-#include "saiga/util/singleton.h"
+#include "saiga/core/util/ObjectCache.h"
+#include "saiga/core/util/assert.h"
+#include "saiga/core/util/fileChecker.h"
+#include "saiga/core/util/singleton.h"
 
 namespace Saiga
 {

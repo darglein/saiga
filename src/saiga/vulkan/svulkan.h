@@ -8,7 +8,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 #include "vulkan/vulkan.hpp"
 

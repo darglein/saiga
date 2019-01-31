@@ -4,11 +4,11 @@
 
 #pragma once
 #include "saiga/export.h"
-#include "saiga/util/easylogging++.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/vulkan/memory/Chunk.h"
 
 #include <ostream>
-#include <saiga/util/assert.h>
+#include <saiga/core/util/assert.h>
 #include <vulkan/vulkan.hpp>
 namespace Saiga
 {

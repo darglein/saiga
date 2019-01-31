@@ -7,7 +7,7 @@
 #pragma once
 
 
-#include "saiga/geometry/triangle.h"
+#include "saiga/core/geometry/triangle.h"
 
 #include "btBulletDynamicsCommon.h"
 

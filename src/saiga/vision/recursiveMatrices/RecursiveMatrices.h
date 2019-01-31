@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/recursiveMatrices/Dot.h"

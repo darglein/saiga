@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"

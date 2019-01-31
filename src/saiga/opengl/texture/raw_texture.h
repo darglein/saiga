@@ -7,7 +7,7 @@
 #pragma once
 
 
-#include "saiga/image/image.h"
+#include "saiga/core/image/image.h"
 #include "saiga/opengl/opengl.h"
 
 namespace Saiga

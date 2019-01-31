@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/opengl/texture/texture.h"
-#include "saiga/util/ObjectCache.h"
-#include "saiga/util/singleton.h"
+#include "saiga/core/util/ObjectCache.h"
+#include "saiga/core/util/singleton.h"
 
 namespace Saiga
 {

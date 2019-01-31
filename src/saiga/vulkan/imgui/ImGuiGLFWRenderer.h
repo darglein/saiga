@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 typedef struct SDL_Window SDL_Window;
 

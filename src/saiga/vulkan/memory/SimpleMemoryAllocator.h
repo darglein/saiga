@@ -4,7 +4,7 @@
 
 #pragma once
 #include "saiga/export.h"
-#include "saiga/util/imath.h"
+#include "saiga/core/util/imath.h"
 #include "saiga/vulkan/memory/ChunkCreator.h"
 #include "saiga/vulkan/memory/MemoryLocation.h"
 
@@ -16,7 +16,7 @@
 #include <limits>
 #include <vulkan/vulkan.hpp>
 
-#include <saiga/util/easylogging++.h>
+#include <saiga/core/util/easylogging++.h>
 
 
 namespace Saiga

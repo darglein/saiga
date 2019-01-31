@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/image/image.h"
+#include "saiga/core/image/image.h"
 
 namespace Saiga
 {

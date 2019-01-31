@@ -4,8 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/pipeline.h"
-#include "saiga/util/threadPool.h"
+#include "saiga/core/Core"
 
 #include <chrono>
 

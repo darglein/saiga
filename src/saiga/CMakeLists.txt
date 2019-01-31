@@ -3,6 +3,9 @@
 #
 # SAIGA_ALL_FILES
 
+add_subdirectory(core)
+
+return()
 
 #add_subdirectory(animation)
 add_subdirectory(camera)

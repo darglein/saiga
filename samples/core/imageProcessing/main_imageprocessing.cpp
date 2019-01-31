@@ -4,11 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/framework/framework.h"
-#include "saiga/image/floatTexels.h"
-#include "saiga/image/image.h"
-#include "saiga/image/templatedImage.h"
-#include "saiga/util/crash.h"
+#include "saiga/core/Core"
 
 using namespace Saiga;
 

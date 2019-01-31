@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/util/assert.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/util/assert.h"
+#include "saiga/core/util/tostring.h"
 #include "saiga/vision/VisionTypes.h"
 
 namespace Saiga

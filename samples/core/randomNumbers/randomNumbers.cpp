@@ -4,14 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/image/image.h"
-#include "saiga/util/random.h"
-#include "saiga/util/math.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/Core"
 
 using namespace Saiga;
 
-template<typename T, typename S>
+template <typename T, typename S>
 void drawLineBresenham(ImageView<T> img, vec2 start, vec2 end, S color)
 {
     // Source
@@ -21,33 +18,42 @@ void drawLineBresenham(ImageView<T> img, vec2 start, vec2 end, S color)
     int x1 = round(end[0]);
     int y1 = round(end[1]);
 
-    int dx = abs(x1-x0), sx = x0<x1 ? 1 : -1;
-    int dy = abs(y1-y0), sy = y0<y1 ? 1 : -1;
-    int err = (dx>dy ? dx : -dy)/2, e2;
+    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int dy = abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int err = (dx > dy ? dx : -dy) / 2, e2;
 
-    for(;;){
-        img.clampedWrite(y0,x0,color);
-        if (x0==x1 && y0==y1) break;
+    for (;;)
+    {
+        img.clampedWrite(y0, x0, color);
+        if (x0 == x1 && y0 == y1) break;
         e2 = err;
-        if (e2 >-dx) { err -= dy; x0 += sx; }
-        if (e2 < dy) { err += dx; y0 += sy; }
+        if (e2 > -dx)
+        {
+            err -= dy;
+            x0 += sx;
+        }
+        if (e2 < dy)
+        {
+            err += dx;
+            y0 += sy;
+        }
     }
 }
 
 
 
-template<typename T, typename S>
+template <typename T, typename S>
 void drawCircle(ImageView<T> img, vec2 position, float radius, S color)
 {
-    for(int dy = -radius; dy <= radius;++dy)
+    for (int dy = -radius; dy <= radius; ++dy)
     {
-        for(int dx = -radius; dx <= radius;++dx)
+        for (int dx = -radius; dx <= radius; ++dx)
         {
-            float distance = length(vec2(dx,dy));
-            if(distance > radius) continue;
+            float distance = length(vec2(dx, dy));
+            if (distance > radius) continue;
             int px = position[0] + dx;
             int py = position[1] + dy;
-            img.clampedWrite(py,px,color);
+            img.clampedWrite(py, px, color);
         }
     }
 }
@@ -61,13 +67,12 @@ float halton(int index, int base)
     float r = 0;
     while (index > 0)
     {
-        f = f / base;
-        r = r + f * (index % base);
+        f     = f / base;
+        r     = r + f * (index % base);
         index = index / base;
     }
     return r;
 }
-
 
 
 
@@ -84,24 +89,23 @@ int main(int argc, char* args[])
 
     int iw = 512;
     int ih = 512;
-    TemplatedImage<unsigned char> img(iw,ih);
+    TemplatedImage<unsigned char> img(iw, ih);
 
 
-    auto set = [&](vec2 p)
-    {
+    auto set = [&](vec2 p) {
         // assuming p is in [0,1]
-        p = p * vec2(iw,ih);
-//        p = vec2(iw,ih) - p;
-        drawCircle(img.getImageView(),p,4,255);
+        p = p * vec2(iw, ih);
+        //        p = vec2(iw,ih) - p;
+        drawCircle(img.getImageView(), p, 4, 255);
     };
 
 
     {
         // Random sampling
         img.getImageView().set(128);
-        for(int i = 0; i < 100; ++i)
+        for (int i = 0; i < 100; ++i)
         {
-            set(vec2(Random::sampleDouble(0,1),Random::sampleDouble(0,1)));
+            set(vec2(Random::sampleDouble(0, 1), Random::sampleDouble(0, 1)));
         }
         img.save("random_random.png");
     }
@@ -110,10 +114,10 @@ int main(int argc, char* args[])
     {
         // Halton sequence
         img.getImageView().set(128);
-        for(int i = 0; i < 17   ; ++i)
+        for (int i = 0; i < 17; ++i)
         {
-            cout << vec2(halton(i,2),halton(i,3))*1.6f << endl;
-            set(vec2(halton(i,2),halton(i,3)));
+            cout << vec2(halton(i, 2), halton(i, 3)) * 1.6f << endl;
+            set(vec2(halton(i, 2), halton(i, 3)));
         }
         img.save("random_halton.png");
     }
@@ -123,9 +127,9 @@ int main(int argc, char* args[])
         img.getImageView().set(128);
         float a1 = glm::fract(sqrt(2));
         float a2 = glm::fract(sqrt(11));
-        for(int i = 0; i < 100; ++i)
+        for (int i = 0; i < 100; ++i)
         {
-            set(vec2(additiveRecurrence(i,a1),additiveRecurrence(i,a2)));
+            set(vec2(additiveRecurrence(i, a1), additiveRecurrence(i, a2)));
         }
         img.save("random_ar.png");
     }

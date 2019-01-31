@@ -93,6 +93,8 @@ if (GLFW_FOUND)
 endif ()
 PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
 
+#message(STATUS ${GLFW_LIBRARIES})
+
 
 #EGL
 find_package(EGL QUIET)
@@ -511,7 +513,7 @@ else()
     message(STATUS "\nNo samples.")
 endif()
 
-set_target_properties (saiga PROPERTIES FOLDER lib)
+#set_target_properties (saiga PROPERTIES FOLDER lib)
 
 ############# INSTALL ###############
 
@@ -589,5 +591,5 @@ endif()
 
 
 
-set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 

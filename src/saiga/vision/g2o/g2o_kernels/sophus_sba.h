@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/vision/VisionTypes.h"
 
 #include "g2o/core/base_binary_edge.h"

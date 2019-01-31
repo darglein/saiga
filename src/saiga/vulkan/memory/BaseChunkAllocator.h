@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "saiga/imgui/imgui.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/vulkan/memory/BaseMemoryAllocator.h"
 
 #include "BaseMemoryAllocator.h"

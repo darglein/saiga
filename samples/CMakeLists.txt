@@ -1,4 +1,8 @@
 
+add_subdirectory(core)
+
+return()
+
 if(CUDA_FOUND)
     add_subdirectory(cuda)
 endif ()
@@ -18,6 +22,6 @@ if(SAIGA_VISION)
     add_subdirectory(vision)
 endif()
 
-add_subdirectory(core)
+
 add_subdirectory(modules)
 

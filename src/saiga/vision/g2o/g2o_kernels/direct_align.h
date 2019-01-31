@@ -27,7 +27,7 @@
 #pragma once
 
 
-#include "saiga/image/image.h"
+#include "saiga/core/image/image.h"
 
 #include "sophus_sba.h"
 

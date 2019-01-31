@@ -4,9 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/ini/ini.h"
-#include "saiga/util/math.h"
-#include "saiga/util/tostring.h"
+#include "saiga/core/Core"
 
 using namespace Saiga;
 

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 

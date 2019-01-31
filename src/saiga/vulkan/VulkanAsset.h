@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "saiga/geometry/PointCloud.h"
-#include "saiga/model/Models.h"
-#include "saiga/util/ArrayView.h"
+#include "saiga/core/geometry/PointCloud.h"
+#include "saiga/core/model/Models.h"
+#include "saiga/core/util/ArrayView.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
 #include "saiga/vulkan/buffer/IndexBuffer.h"

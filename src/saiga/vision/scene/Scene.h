@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/image/image.h"
-#include "saiga/util/statistics.h"
+#include "saiga/core/image/image.h"
+#include "saiga/core/util/statistics.h"
 #include "saiga/vision/VisionTypes.h"
 
 #include <vector>

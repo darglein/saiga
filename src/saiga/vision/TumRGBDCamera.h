@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/time/timer.h"
+#include "saiga/core/time/timer.h"
 #include "saiga/vision/RGBDCamera.h"
 #include "saiga/vision/VisionTypes.h"
 

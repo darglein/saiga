@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 #include <curand_kernel.h>
 

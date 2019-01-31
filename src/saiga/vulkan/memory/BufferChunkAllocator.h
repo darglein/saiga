@@ -6,8 +6,8 @@
 
 #pragma once
 #include "saiga/export.h"
-#include "saiga/util/easylogging++.h"
-#include "saiga/util/imath.h"
+#include "saiga/core/util/easylogging++.h"
+#include "saiga/core/util/imath.h"
 
 #include "BaseChunkAllocator.h"
 #include "BaseMemoryAllocator.h"

@@ -4,14 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/camera/camera.h"
-#include "saiga/framework/framework.h"
-#include "saiga/geometry/AccelerationStructure.h"
-#include "saiga/geometry/intersection.h"
-#include "saiga/geometry/ray.h"
-#include "saiga/image/image.h"
-#include "saiga/model/objModelLoader.h"
-#include "saiga/time/timer.h"
+#include "saiga/core/Core"
 
 using namespace Saiga;
 

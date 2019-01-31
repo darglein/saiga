@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "saiga/util/singleton.h"
+#include "saiga/core/util/singleton.h"
 
 #include <mutex>
 #include <vulkan/vulkan.hpp>

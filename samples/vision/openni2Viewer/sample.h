@@ -10,7 +10,7 @@
 
 #include "saiga/sdl/sdl_camera.h"
 #include "saiga/sdl/sdl_eventhandler.h"
-#include "saiga/util/ini/ini.h"
+#include "saiga/core/util/ini/ini.h"
 #include "saiga/vision/RGBDCamera.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"

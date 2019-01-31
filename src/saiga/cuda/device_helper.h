@@ -8,7 +8,7 @@
 
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 #if !defined(IS_CUDA)
 #    error device_helper.h must only be included by nvcc

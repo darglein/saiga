@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include "saiga/util/math.h"
+#include "saiga/core/util/math.h"
 
 #ifdef SAIGA_FULL_EIGEN
 
 #else
 
-#    include "saiga/util/glm.h"
+#    include "saiga/core/util/glm.h"
 
 #endif
 

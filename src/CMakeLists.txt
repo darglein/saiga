@@ -1,7 +1,10 @@
 
 
-add_subdirectory(saiga)
 add_subdirectory(internal)
+add_subdirectory(saiga)
+
+return()
+
 
 #creates 'folders' in the solution explorer of visual studio
 GroupSources2(${PROJECT_SOURCE_DIR}/src/saiga)

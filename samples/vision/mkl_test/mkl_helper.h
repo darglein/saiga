@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 #include "mkl/mkl.h"

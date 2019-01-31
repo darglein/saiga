@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 
-#include "saiga/camera/camera.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/vertex.h"
 #include "saiga/opengl/vertexBuffer.h"

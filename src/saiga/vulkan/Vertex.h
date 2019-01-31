@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "saiga/geometry/vertex.h"
+#include "saiga/core/geometry/vertex.h"
 #include "saiga/vulkan/svulkan.h"
 
 namespace Saiga

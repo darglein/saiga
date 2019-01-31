@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/image/managedImage.h"
+#include "saiga/core/image/managedImage.h"
 
 
 namespace Saiga

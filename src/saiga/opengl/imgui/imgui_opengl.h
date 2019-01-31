@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/imgui/imgui.h"
-#include "saiga/imgui/imgui_renderer.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/imgui/imgui_renderer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/all.h"
 

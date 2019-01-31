@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 #include <saiga/opengl/opengl.h>
 

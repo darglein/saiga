@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/image/imageFormat.h"
-#include "saiga/util/math.h"
+#include "saiga/core/image/imageFormat.h"
+#include "saiga/core/util/math.h"
 #include "saiga/vulkan/svulkan.h"
 
 

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "saiga/export.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 #include "vulkan/vulkan.hpp"
 

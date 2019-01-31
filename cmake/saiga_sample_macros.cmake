@@ -1,4 +1,4 @@
-macro(saiga_make_sample)
+macro(saiga_make_sample _modules)
 
     # PREFIX: The directory name of the
     get_filename_component(PARENT_DIR ${CMAKE_CURRENT_LIST_DIR} DIRECTORY)
@@ -23,7 +23,8 @@ macro(saiga_make_sample)
     add_executable(${PROG_NAME} ${PROG_SRC} )
 
     # We only need to link the saiga target
-    target_link_libraries(${PROG_NAME} ${LIB_NAME} )
+    target_link_libraries(${PROG_NAME} ${_modules} )
+    #target_link_libraries(${PROG_NAME} saiga_core )
 
     #set working directory for visual studio so the project can be executed from the ide
     set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")

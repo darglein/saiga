@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/indexedVertexBuffer.h"
-#include "saiga/util/assert.h"
+#include "saiga/core/util/assert.h"
 
 namespace Saiga
 {

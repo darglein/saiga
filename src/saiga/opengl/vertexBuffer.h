@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/geometry/vertex.h"
+#include "saiga/core/geometry/vertex.h"
 #include "saiga/opengl/instancedBuffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/templatedBuffer.h"

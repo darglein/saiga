@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "saiga/geometry/triangle_mesh.h"
+#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/VulkanAsset.h"
 #include "saiga/vulkan/VulkanBuffer.hpp"
