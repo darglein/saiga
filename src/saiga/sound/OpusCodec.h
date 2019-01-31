@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "saiga/config.h"
+
 #include <iosfwd>
 #include <memory>
 #include <stdexcept>
