@@ -180,6 +180,8 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
     // the square of the absolute value of r scaled by invM
     RealScalar absNew = dot(residual, p);
     Index i           = 0;
+
+    cout << "absnew " << absNew << endl;
     while (i < maxIters)
     {
         //        cout << "CG Residual " << i << ": " << residualNorm2 << endl;

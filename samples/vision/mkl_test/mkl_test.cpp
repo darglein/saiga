@@ -7,8 +7,10 @@
 #include "saiga/time/performanceMeasure.h"
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
+#include "saiga/vision/recursiveMatrices/CG.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 
+#include "mkl_cg.h"
 #include "mkl_helper.h"
 
 
@@ -28,14 +30,14 @@ const int vec_mult = true;
 
 
 using T              = double;
-const int block_size = 8;
+const int block_size = 2;
 
 // Matrix dimension (in blocks)
-const int n = 200;
-const int m = 200;
+const int n = 4;
+const int m = 4;
 
 // Non Zero Block per row
-const int nnzr = 30;
+const int nnzr = 2;
 
 const int its = 50;
 
@@ -81,12 +83,11 @@ class MKL_Test
                 A.insertBackByOuterInner(i, j) = Block::Random();
             }
             x(i) = Vector::Random();
+            y(i) = Vector::Random();
         }
         A.finalize();
         B = A;
 
-        x.setZero();
-        y.setZero();
 
         // ============= Create the MKL Data structures =============
         for (int k = 0; k < A.outerSize(); ++k)
@@ -212,6 +213,65 @@ class MKL_Test
         cout << "MKL Speedup: " << (ts_eigen / ts_mkl - 1) * 100 << "%" << endl;
     }
 
+    void sparseCG()
+    {
+        // ============= Benchmark =============
+
+        cout << "Running Sparse CG Benchmark..." << endl;
+
+        double flop;
+
+        Statistics<float> stat_eigen, stat_mkl;
+
+        //    stat_eigen = measureObject(its, [&]() { y = A * x; });
+
+
+        // Note: Matrix Vector Mult is exactly #nonzeros FMA instructions
+        flop = double(nnzr) * n * block_size * block_size;
+        //        stat_eigen = measureObject(its, [&]() { y = A * x; });
+        //        stat_mkl   = measureObject(its, [&]() { multMKL(mkl_A, mkl_A_desc, ex_x.data(), ex_y.data()); });
+
+        Eigen::Index iters = 1;
+        T tol              = 1e-50;
+
+        int its  = 1;
+        stat_mkl = measureObject(its, [&]() {
+            ex_x.setZero();
+            //            x.setZero();
+            //            Eigen::IdentityPreconditioner P;
+
+            mklcg(mkl_A, mkl_A_desc, ex_x.data(), ex_y.data(), tol, iters, n, block_size);
+
+            //            recursive_conjugate_gradient([&](const BlockVector& v) { return A * v; }, y, x, P, iters,
+            //            tol);
+        });
+
+
+        stat_eigen = measureObject(its, [&]() {
+            x.setZero();
+            Eigen::IdentityPreconditioner P;
+
+
+            recursive_conjugate_gradient([&](const BlockVector& v) { return A * v; }, y, x, P, iters, tol);
+        });
+#if 0
+        // More precise timing stats
+        cout << stat_eigen << endl;
+        cout << stat_mkl << endl;
+        cout << endl;
+#endif
+        // time in seconds
+        double ts_eigen = stat_eigen.median / 1000.0;
+        double ts_mkl   = stat_mkl.median / 1000.0;
+
+        cout << "Done." << endl;
+
+        cout << "Time Eigen : " << ts_eigen << " " << flop / (ts_eigen * 1000 * 1000 * 1000) << " GFlop/s" << endl;
+        cout << "Time MKL   : " << ts_mkl << " " << flop / (ts_mkl * 1000 * 1000 * 1000) << " GFlop/s" << endl;
+        cout << "MKL Speedup: " << (ts_eigen / ts_mkl - 1) * 100 << "%" << endl;
+    }
+
+
    private:
     // Eigen data structures
     BlockVector x;
@@ -235,7 +295,8 @@ int main(int argc, char* argv[])
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
 
     Saiga::MKL_Test t;
-    if (vec_mult) t.sparseMatrixVector();
-    if (mat_mult) t.sparseMatrixMatrix();
+    t.sparseCG();
+    //    if (vec_mult) t.sparseMatrixVector();
+    //    if (mat_mult) t.sparseMatrixMatrix();
     return 0;
 }

@@ -156,7 +156,7 @@ void MainLoop::startMainLoop(MainLoopParameters params)
 
     tick_t ticksPerInfo = std::chrono::duration_cast<tick_t>(gameTime.base * params.mainLoopInfoTime);
 
-    tick_t ticksPerScreenshot = std::chrono::duration_cast<tick_t>(gameTime.base * 5.0f);
+    //    tick_t ticksPerScreenshot = std::chrono::duration_cast<tick_t>(gameTime.base * 5.0f);
 
     //    if(windowParameters.debugScreenshotTime < 0)
     //        ticksPerScreenshot = std::chrono::duration_cast<tick_t>(std::chrono::hours(100000));
@@ -164,8 +164,8 @@ void MainLoop::startMainLoop(MainLoopParameters params)
     gameTime.init(ticksPerUpdate, ticksPerFrame);
 
 
-    tick_t nextInfoTick       = gameTime.getTime();
-    tick_t nextScreenshotTick = gameTime.getTime() + ticksPerScreenshot;
+    tick_t nextInfoTick = gameTime.getTime();
+    //    tick_t nextScreenshotTick = gameTime.getTime() + ticksPerScreenshot;
 
     if (!params.catchUp)
     {

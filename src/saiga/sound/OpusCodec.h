@@ -21,7 +21,7 @@ namespace Saiga
 struct OpusErrorException : public virtual std::exception
 {
     OpusErrorException(int code) : code(code) {}
-    const char* what();
+    virtual const char* what() const noexcept override;
 
    private:
     const int code;

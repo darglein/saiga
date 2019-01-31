@@ -23,6 +23,7 @@ namespace Saiga
 class SAIGA_GLOBAL Asset
 {
    public:
+    virtual ~Asset() {}
     virtual void render(Camera* cam, const mat4& model)          = 0;
     virtual void renderForward(Camera* cam, const mat4& model)   = 0;
     virtual void renderDepth(Camera* cam, const mat4& model)     = 0;
@@ -52,6 +53,7 @@ class SAIGA_TEMPLATE BasicAsset : public Asset
      * Every call binds and unbinds the shader and uploads the camera matrices again.
      */
 
+    virtual ~BasicAsset() {}
     virtual void render(Camera* cam, const mat4& model) override;
     virtual void renderForward(Camera* cam, const mat4& model) override;
     virtual void renderDepth(Camera* cam, const mat4& model) override;

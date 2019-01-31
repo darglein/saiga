@@ -33,12 +33,12 @@ namespace Saiga
 class SAIGA_GLOBAL FFMPEGAudioEncoder
 {
    private:
-    float t, tincr;
+    //    float t, tincr;
     AVCodec* codec;
     AVCodecContext* c = NULL;
     AVFrame* frame;
     AVPacket pkt;
-    int i, j, k, ret, got_output;
+    int i, ret, got_output;
     int buffer_size;
     int bytesPerSample;
     //    uint16_t *samples;

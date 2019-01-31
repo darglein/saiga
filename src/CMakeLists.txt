@@ -22,6 +22,11 @@ else ()
     add_library(${LIB_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
 
+if(SAIGA_PCH)
+    set_target_properties(${LIB_NAME} PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "PrecompiledHeader.h")
+    set_target_properties(${LIB_NAME} PROPERTIES COTIRE_ADD_UNITY_BUILD false)
+    cotire(${LIB_NAME})
+endif()
 
 
 #message(STATUS "libs: ${LIBS}")

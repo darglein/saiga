@@ -44,6 +44,7 @@ OptionsHelper(SAIGA_WITH_VULKAN "With vulkan (if it is found)" ON)
 OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
 OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
+OptionsHelper(SAIGA_PCH "Generate a precompiled header" OFF)
 
 
 DefaultBuildType(RelWithDebInfo)
@@ -55,6 +56,9 @@ DefaultBuildType(RelWithDebInfo)
 include(Saiga_compiler_flags)
 
 
+if(SAIGA_PCH)
+    include(cotire)
+endif()
 
 ############# Required LIBRARIES ###############
 
@@ -586,3 +590,4 @@ endif()
 
 
 set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+

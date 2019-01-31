@@ -41,7 +41,7 @@ class SAIGA_GLOBAL SoundManager
    private:
     SoundSource* quietSoundSource;
     std::vector<SoundSource> sources;
-    int sourceIndex = 0;
+    //    int sourceIndex = 0;
 
     std::map<std::string, Sound*> soundMap;
 
