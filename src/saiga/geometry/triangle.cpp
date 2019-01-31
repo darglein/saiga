@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/triangle.h"
+#include "triangle.h"
 
 #include "internal/noGraphicsAPI.h"
 namespace Saiga
@@ -55,7 +55,7 @@ float Triangle::cosAngleAtCorner(int i)
             break;
     }
 
-    return dot(normalize( vec3(left - center) ), normalize(vec3(right - center)));
+    return dot(normalize(vec3(left - center)), normalize(vec3(right - center)));
 }
 
 bool Triangle::isDegenerate()

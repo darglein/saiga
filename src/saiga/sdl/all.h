@@ -11,4 +11,3 @@
 #include "sdl_camera.h"
 #include "sdl_eventhandler.h"
 #include "sdl_listener.h"
-#include "sdl_window.h"

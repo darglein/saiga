@@ -9,12 +9,13 @@
 
 #include "saiga/util/math.h"
 
+#include "OpenAL.h"
+#include "SoundSource.h"
+
 #include <atomic>
 #include <list>
 #include <map>
 #include <mutex>
-#include <saiga/sound/OpenAL.h>
-#include <saiga/sound/SoundSource.h>
 #include <thread>
 #include <vector>
 

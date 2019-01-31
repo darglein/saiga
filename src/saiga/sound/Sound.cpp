@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/sound/Sound.h"
+#include "Sound.h"
 
 #include "internal/noGraphicsAPI.h"
 

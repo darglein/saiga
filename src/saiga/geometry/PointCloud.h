@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "saiga/geometry/vertex.h"
 #include "saiga/util/math.h"
+
+#include "vertex.h"
 
 #include <vector>
 

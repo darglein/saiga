@@ -7,12 +7,13 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/geometry/aabb.h"
-#include "saiga/geometry/plane.h"
-#include "saiga/geometry/ray.h"
-#include "saiga/geometry/sphere.h"
-#include "saiga/geometry/triangle.h"
 #include "saiga/util/math.h"
+
+#include "aabb.h"
+#include "plane.h"
+#include "ray.h"
+#include "sphere.h"
+#include "triangle.h"
 
 // TODO:
 // move intersection methods from other classes to this file

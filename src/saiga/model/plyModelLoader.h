@@ -7,9 +7,10 @@
 #pragma once
 
 #include "saiga/geometry/triangle_mesh.h"
-#include "saiga/model/ModelLoader.h"
 #include "saiga/util/color.h"
 #include "saiga/util/tostring.h"
+
+#include "ModelLoader.h"
 
 #include <fstream>
 

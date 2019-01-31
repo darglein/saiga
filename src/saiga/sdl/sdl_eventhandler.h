@@ -7,12 +7,13 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/sdl/sdl_listener.h"
+#include "saiga/util/keyboard.h"
+#include "saiga/util/mouse.h"
 
 #include <SDL2/SDL.h>
-#include <saiga/util/keyboard.h>
-#include <saiga/util/mouse.h>
 #include <vector>
+
+#include "sdl_listener.h"
 
 namespace Saiga
 {

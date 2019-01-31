@@ -10,7 +10,7 @@
 
 #include "openMeshSample.h"
 
-#include "saiga/assets/objAssetLoader.h"
+#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/geometry/half_edge_mesh.h"
 #include "saiga/geometry/openMeshWrapper.h"
 #include "saiga/geometry/triangle_mesh_generator.h"

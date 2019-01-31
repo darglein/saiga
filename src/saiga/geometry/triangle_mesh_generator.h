@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include "saiga/geometry/cone.h"
-#include "saiga/geometry/plane.h"
-#include "saiga/geometry/sphere.h"
-#include "saiga/geometry/triangle_mesh.h"
+#include "cone.h"
+#include "plane.h"
+#include "sphere.h"
+
+#include "triangle_mesh.h"
 
 namespace Saiga
 {

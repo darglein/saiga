@@ -31,7 +31,7 @@
    EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "saiga/util/exif/TinyEXIF.h"
+#include "TinyEXIF.h"
 
 #include "saiga/util/tinyxml2.h"
 

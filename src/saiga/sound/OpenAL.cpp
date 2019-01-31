@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/sound/OpenAL.h"
+#include "OpenAL.h"
 
 #include <al.h>
 #include <alc.h>

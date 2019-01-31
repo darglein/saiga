@@ -7,8 +7,9 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/geometry/triangle.h"
 #include "saiga/util/math.h"
+
+#include "triangle.h"
 
 #include <vector>
 

@@ -7,9 +7,8 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/geometry/triangle_mesh.h"
 
-#include <saiga/geometry/triangle_mesh.h>
-//#include <saiga/opengl/texture/texture.h>
 
 namespace Saiga
 {

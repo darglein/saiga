@@ -7,10 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/model/ModelLoader.h"
-#include "saiga/model/objMaterialLoader.h"
+#include "saiga/geometry/triangle_mesh.h"
 
-#include <saiga/geometry/triangle_mesh.h>
+#include "ModelLoader.h"
+#include "objMaterialLoader.h"
 
 namespace Saiga
 {

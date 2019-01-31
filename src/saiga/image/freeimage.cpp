@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/image/freeimage.h"
+#include "freeimage.h"
 
 #include "saiga/util/assert.h"
 

@@ -9,8 +9,8 @@
 #include "saiga/config.h"
 #include "saiga/util/math.h"
 
-#include <saiga/sound/OpenAL.h>
-#include <saiga/sound/Sound.h>
+#include "OpenAL.h"
+#include "Sound.h"
 
 namespace Saiga
 {

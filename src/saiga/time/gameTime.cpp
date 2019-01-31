@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/time/gameTime.h"
+#include "gameTime.h"
 
 #include "saiga/util/math.h"
 

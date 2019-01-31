@@ -4,12 +4,13 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/image/imageGenerator.h"
+#include "imageGenerator.h"
 
-#include "saiga/image/templatedImage.h"
 #include "saiga/util/random.h"
 
 #include "internal/noGraphicsAPI.h"
+
+#include "templatedImage.h"
 
 namespace Saiga
 {

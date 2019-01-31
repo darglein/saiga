@@ -8,7 +8,7 @@
 
 #include "saiga/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/rendering/deferredRendering/deferred_renderer.h"
+#include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
 
 Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
 {

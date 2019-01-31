@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/intersection.h"
+#include "intersection.h"
 
 #include "internal/noGraphicsAPI.h"
 

@@ -4,7 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/sdl/sdl_eventhandler.h"
+#include "sdl_eventhandler.h"
+
+#include "internal/noGraphicsAPI.h"
 
 #include <algorithm>
 

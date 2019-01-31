@@ -4,12 +4,14 @@
  * See LICENSE file for more information.
  */
 
+#include "SoundSource.h"
+
 #include "internal/noGraphicsAPI.h"
+
+#include "SoundManager.h"
 
 #include <al.h>
 #include <alc.h>
-#include <saiga/sound/SoundManager.h>
-#include <saiga/sound/SoundSource.h>
 
 namespace Saiga
 {

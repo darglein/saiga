@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "saiga/image/image.h"
 #include "saiga/util/math.h"
+
+#include "image.h"
 
 namespace Saiga
 {

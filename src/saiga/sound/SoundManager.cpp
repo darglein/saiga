@@ -4,10 +4,10 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/sound/SoundManager.h"
+#include "SoundManager.h"
 
-#include "saiga/sound/SoundLoader.h"
-#include "saiga/sound/SoundSource.h"
+#include "SoundLoader.h"
+#include "SoundSource.h"
 
 #include <al.h>
 #include <alc.h>

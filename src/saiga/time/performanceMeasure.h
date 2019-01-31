@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "saiga/time/timer.h"
 #include "saiga/util/statistics.h"
+
+#include "timer.h"
 
 namespace Saiga
 {

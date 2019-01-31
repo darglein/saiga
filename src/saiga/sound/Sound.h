@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/sound/OpenAL.h"
+#include "OpenAL.h"
 
 namespace Saiga
 {

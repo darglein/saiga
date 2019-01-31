@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/circle.h"
+#include "circle.h"
 
 #include "internal/noGraphicsAPI.h"
 namespace Saiga

@@ -5,7 +5,7 @@
  */
 
 
-#include "saiga/egl/offscreen_window.h"
+#include "saiga/opengl/egl/offscreen_window.h"
 #include "saiga/util/crash.h"
 
 #include "offscreenWindow.h"

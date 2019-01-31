@@ -8,9 +8,10 @@
 
 #ifdef SAIGA_VISION
 #    include "saiga/image/imageTransformations.h"
-#    include "saiga/network/ImageTransmition.h"
 
 #    include "internal/noGraphicsAPI.h"
+
+#    include "ImageTransmition.h"
 
 
 namespace Saiga

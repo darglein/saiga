@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include "saiga/assets/all.h"
-#include "saiga/assets/objAssetLoader.h"
-#include "saiga/rendering/forwardRendering/forwardRendering.h"
-#include "saiga/rendering/renderer.h"
+#include "saiga/opengl/assets/all.h"
+#include "saiga/opengl/assets/objAssetLoader.h"
+#include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
+#include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/window/sdl_window.h"
+#include "saiga/opengl/world/pointCloud.h"
+#include "saiga/opengl/world/proceduralSkybox.h"
 #include "saiga/sdl/all.h"
-#include "saiga/world/pointCloud.h"
-#include "saiga/world/proceduralSkybox.h"
 
 using namespace Saiga;
 

@@ -7,8 +7,9 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/image/imageFormat.h"
 #include "saiga/util/math.h"
+
+#include "imageFormat.h"
 
 namespace Saiga
 {

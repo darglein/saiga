@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include "saiga/image/floatTexels.h"
-#include "saiga/image/imageBase.h"
 #include "saiga/util/assert.h"
 #include "saiga/util/imath.h"
+
+#include "floatTexels.h"
+#include "imageBase.h"
 
 #include <algorithm>
 #include <array>

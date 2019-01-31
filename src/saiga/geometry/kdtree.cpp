@@ -4,6 +4,6 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/kdtree.h"
+#include "kdtree.h"
 
 #include "internal/noGraphicsAPI.h"

@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/window/windowParameters.h"
+#include "windowParameters.h"
 
 #include "saiga/util/ini/ini.h"
 

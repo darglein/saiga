@@ -8,10 +8,11 @@
 
 
 #include "saiga/util/math.h"
+#include "saiga/util/mouse.h"
+
+#include "camera.h"
 
 #include <array>
-#include <saiga/camera/camera.h>
-#include <saiga/util/mouse.h>
 
 namespace Saiga
 {

@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/image/imageMetaData.h"
+#include "imageMetaData.h"
 
 #include "saiga/util/math.h"
 

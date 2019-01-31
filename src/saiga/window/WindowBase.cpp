@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/window/WindowBase.h"
+#include "WindowBase.h"
 
 #include "saiga/camera/camera.h"
 #include "saiga/imgui/imgui.h"

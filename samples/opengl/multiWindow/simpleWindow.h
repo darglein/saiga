@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include "saiga/assets/all.h"
-#include "saiga/rendering/deferredRendering/deferredRendering.h"
-#include "saiga/rendering/renderer.h"
+#include "saiga/opengl/assets/all.h"
+#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/window/sdl_window.h"
+#include "saiga/opengl/world/proceduralSkybox.h"
 #include "saiga/sdl/all.h"
-#include "saiga/world/proceduralSkybox.h"
-
 using namespace Saiga;
 
 class Sample : public Updating, public DeferredRenderingInterface, public SDL_KeyListener

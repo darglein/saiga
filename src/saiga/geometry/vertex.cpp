@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/vertex.h"
+#include "vertex.h"
 
 #include "internal/noGraphicsAPI.h"
 

@@ -10,8 +10,9 @@
 #include "saiga/config.h"
 #include "saiga/util/math.h"
 
-#include <saiga/geometry/aabb.h>
-#include <saiga/geometry/triangle.h>
+#include "aabb.h"
+#include "triangle.h"
+
 #include <vector>
 
 namespace Saiga

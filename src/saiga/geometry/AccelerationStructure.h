@@ -7,11 +7,12 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/geometry/aabb.h"
-#include "saiga/geometry/intersection.h"
-#include "saiga/geometry/ray.h"
-#include "saiga/geometry/triangle.h"
 #include "saiga/util/math.h"
+
+#include "aabb.h"
+#include "intersection.h"
+#include "ray.h"
+#include "triangle.h"
 
 
 namespace Saiga

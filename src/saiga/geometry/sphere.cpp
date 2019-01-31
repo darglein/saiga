@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/sphere.h"
+#include "sphere.h"
 
 #include "internal/noGraphicsAPI.h"
 namespace Saiga

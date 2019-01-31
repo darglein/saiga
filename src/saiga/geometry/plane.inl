@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/geometry/plane.h"
+#include "plane.h"
 
 namespace Saiga
 {

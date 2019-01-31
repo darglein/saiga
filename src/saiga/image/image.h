@@ -7,10 +7,11 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/image/ArrayImage.h"
-#include "saiga/image/imageBase.h"
-#include "saiga/image/imageFormat.h"
-#include "saiga/image/imageTransformations.h"
-#include "saiga/image/imageView.h"
-#include "saiga/image/managedImage.h"
-#include "saiga/image/templatedImage.h"
+
+#include "ArrayImage.h"
+#include "imageBase.h"
+#include "imageFormat.h"
+#include "imageTransformations.h"
+#include "imageView.h"
+#include "managedImage.h"
+#include "templatedImage.h"

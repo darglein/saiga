@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/util/math.h"
 
-#include <saiga/sound/Sound.h>
+#include "Sound.h"
 
 namespace Saiga
 {

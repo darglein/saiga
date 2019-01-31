@@ -7,9 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/geometry/plane.h"
-#include "saiga/geometry/vertex.h"
 #include "saiga/util/math.h"
+
+#include "plane.h"
+#include "vertex.h"
 
 #include <vector>
 

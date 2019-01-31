@@ -6,6 +6,8 @@
 
 #include "saiga/camera/camera.h"
 
+#include "saiga/camera/controllable_camera.h"
+
 #include "internal/noGraphicsAPI.h"
 
 namespace Saiga

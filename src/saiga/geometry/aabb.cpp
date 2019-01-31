@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/aabb.h"
+#include "aabb.h"
 
 #include "saiga/util/assert.h"
 

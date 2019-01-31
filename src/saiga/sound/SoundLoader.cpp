@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/sound/SoundLoader.h"
+#include "SoundLoader.h"
 
 #include "saiga/util/assert.h"
 
@@ -17,8 +17,7 @@
 #endif
 
 #ifdef SAIGA_USE_OPUS
-#    include "saiga/sound/OpusCodec.h"
-
+#    include "OpusCodec.h"
 #    include "opusfile.h"
 #endif
 

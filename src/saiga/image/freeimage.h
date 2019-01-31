@@ -7,9 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/image/image.h"
-#include "saiga/image/imageMetaData.h"
 #include "saiga/util/ArrayView.h"
+
+#include "image.h"
+#include "imageMetaData.h"
 
 #ifdef SAIGA_USE_FREEIMAGE
 

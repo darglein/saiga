@@ -7,8 +7,9 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/geometry/polygon.h"
 #include "saiga/util/math.h"
+
+#include "polygon.h"
 
 namespace Saiga
 {

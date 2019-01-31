@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2017 Darius RÃ¼ckert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include "saiga/geometry/aabb.h"
+#include "aabb.h"
 
 namespace Saiga
 {
@@ -40,11 +40,11 @@ inline void AABB::scale(const vec3& s)
 {
     vec3 pos = getPosition();
     setPosition(vec3(0));
-//    min *= s;
-//    max *= s;
+    //    min *= s;
+    //    max *= s;
 
-    min = ele_mult(min,s);
-    max = ele_mult(max,s);
+    min = ele_mult(min, s);
+    max = ele_mult(max, s);
 
     setPosition(pos);
 }

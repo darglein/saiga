@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/plane.h"
+#include "plane.h"
 
 #include "internal/noGraphicsAPI.h"
 namespace Saiga

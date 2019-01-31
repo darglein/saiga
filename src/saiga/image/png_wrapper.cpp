@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/image/png_wrapper.h"
+#include "png_wrapper.h"
 
 #include "saiga/util/assert.h"
 

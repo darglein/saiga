@@ -8,10 +8,10 @@
 
 
 #include "saiga/config.h"
+#include "saiga/util/keyboard.h"
+#include "saiga/util/mouse.h"
 
 #include <algorithm>
-#include <saiga/util/keyboard.h>
-#include <saiga/util/mouse.h>
 #include <vector>
 
 struct GLFWwindow;

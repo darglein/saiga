@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "saiga/image/imageView.h"
 #include "saiga/util/math.h"
+
+#include "imageView.h"
 
 
 namespace Saiga

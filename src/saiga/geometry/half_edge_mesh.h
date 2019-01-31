@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/geometry/triangle_mesh.h"
-
 #include <map>
 
+#include "triangle_mesh.h"
 #include <unordered_map>
 
 namespace Saiga

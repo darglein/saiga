@@ -10,6 +10,8 @@
 #include "saiga/util/threadName.h"
 #include "saiga/util/tostring.h"
 
+#include "internal/noGraphicsAPI.h"
+
 #include "gphoto2/gphoto2.h"
 
 #include <fcntl.h>

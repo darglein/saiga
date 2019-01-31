@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/framework/framework.h"
+#include "framework.h"
 
 #include "saiga/image/image.h"
 #include "saiga/model/ModelLoader.h"
@@ -22,10 +22,6 @@
 
 #ifdef SAIGA_USE_VULKAN
 #    include "saiga/vulkan/Shader/GLSL.h"
-#endif
-
-#ifdef SAIGA_USE_FREETYPE
-#    include "saiga/text/fontLoader.h"
 #endif
 
 #include "saiga/util/threadName.h"
@@ -205,16 +201,6 @@ void initSaiga(const SaigaParameters& params)
 
 #ifdef SAIGA_USE_VULKAN
     Vulkan::GLSLANG::init();
-//    Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir);
-//    Vulkan::GLSLANG::shaderPathes.addSearchPath(shaderDir + "/include");
-#endif
-
-    //    for (auto t : params.textureDirectory) Image::searchPathes.addSearchPath(t);
-
-    //    for (auto t : params.modelDirectory) modelPathes.addSearchPath(t);
-
-#if defined(SAIGA_USE_FREETYPE) && defined(SAIGA_USE_OPENGL)
-//    for (auto t : params.fontDirectory) fontPathes.addSearchPath(t);
 #endif
 
 

@@ -4,11 +4,13 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/glfw/glfw_eventhandler.h"
+#include "glfw_eventhandler.h"
 
-#include "saiga/glfw/glfw_joystick.h"
+#include "internal/noGraphicsAPI.h"
 
 #include <GLFW/glfw3.h>
+
+#include "glfw_joystick.h"
 
 namespace Saiga
 {

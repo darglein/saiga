@@ -8,7 +8,7 @@
 #    define _USE_MATH_DEFINES
 #endif
 
-#include "saiga/geometry/triangle_mesh_generator.h"
+#include "triangle_mesh_generator.h"
 
 #include "internal/noGraphicsAPI.h"
 namespace Saiga

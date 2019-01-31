@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/ray.h"
+#include "ray.h"
 
 #include "internal/noGraphicsAPI.h"
 namespace Saiga

@@ -6,9 +6,9 @@
 
 #include "Interfaces.h"
 
-#include "saiga/window/WindowBase.h"
-
 #include "internal/noGraphicsAPI.h"
+
+#include "WindowBase.h"
 
 namespace Saiga
 {

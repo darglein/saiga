@@ -6,13 +6,15 @@
 
 #pragma once
 
-#include "saiga/assets/all.h"
-#include "saiga/assets/objAssetLoader.h"
-#include "saiga/glfw/all.h"
-#include "saiga/rendering/deferredRendering/deferredRendering.h"
-#include "saiga/rendering/renderer.h"
-#include "saiga/world/proceduralSkybox.h"
+#include "saiga/opengl/assets/all.h"
+#include "saiga/opengl/assets/objAssetLoader.h"
+#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/window/glfw_window.h"
+#include "saiga/opengl/world/proceduralSkybox.h"
 
+// a
+#include "saiga/glfw/all.h"
 using namespace Saiga;
 
 class Sample : public Updating, public DeferredRenderingInterface, public glfw_KeyListener

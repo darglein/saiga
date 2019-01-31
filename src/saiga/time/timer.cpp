@@ -8,12 +8,13 @@
 #ifdef WIN32
 #    include <windows.h>
 #endif
-#include "saiga/time/gameTime.h"
-#include "saiga/time/timer.h"
 #include "saiga/util/assert.h"
 #include "saiga/util/math.h"
 
 #include "internal/noGraphicsAPI.h"
+
+#include "gameTime.h"
+#include "timer.h"
 
 #include <algorithm>
 

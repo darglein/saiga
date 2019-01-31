@@ -7,8 +7,9 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/geometry/aabb.h"
 #include "saiga/util/math.h"
+
+#include "aabb.h"
 
 namespace Saiga
 {

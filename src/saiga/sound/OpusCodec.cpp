@@ -9,7 +9,7 @@
 // Based on src/opus_demo.c in opus-1.0.2
 // License see http://www.opus-codec.org/license/
 
-#include "saiga/sound/OpusCodec.h"
+#include "OpusCodec.h"
 
 #include "internal/noGraphicsAPI.h"
 

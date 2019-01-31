@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/geometry/grid.h"
+#include "grid.h"
 
 #include "internal/noGraphicsAPI.h"
 

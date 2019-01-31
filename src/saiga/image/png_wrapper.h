@@ -14,7 +14,7 @@
  * http://blog.nobel-joergensen.com/2010/11/07/loading-a-png-as-texture-in-opengl-using-libpng/
  */
 
-#include "saiga/image/managedImage.h"
+#include "managedImage.h"
 
 #ifdef SAIGA_USE_PNG
 

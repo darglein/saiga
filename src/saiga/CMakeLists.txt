@@ -4,7 +4,7 @@
 # SAIGA_ALL_FILES
 
 
-add_subdirectory(animation)
+#add_subdirectory(animation)
 add_subdirectory(camera)
 add_subdirectory(framework)
 add_subdirectory(model)
@@ -18,11 +18,7 @@ add_subdirectory(imgui)
 
 
 if(SAIGA_USE_OPENGL)
-    add_subdirectory(assets)
     add_subdirectory(opengl)
-    add_subdirectory(rendering)
-    add_subdirectory(smaa)
-    add_subdirectory(world)
 endif()
 
 
@@ -38,25 +34,11 @@ if (OPENAL_FOUND)
     add_subdirectory(sound)
 endif ()
 
-if (FFMPEG_FOUND)
-    add_subdirectory(ffmpeg)
-endif()
-
-if (ASSIMP_FOUND)
-    add_subdirectory(assimp)
-endif()
-
-if (EGL_FOUND)
-    add_subdirectory(egl)
-endif()
-
 if(EIGEN3_FOUND)
     add_subdirectory(eigen)
 endif()
 
-if(FREETYPE_FOUND AND SAIGA_USE_OPENGL)
-    add_subdirectory(text)
-endif()
+
 
 if(CUDA_FOUND)
     add_subdirectory(cuda)

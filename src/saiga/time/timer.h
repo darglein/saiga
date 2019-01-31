@@ -7,8 +7,9 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/time/time.h"
 #include "saiga/util/assert.h"
+
+#include "time.h"
 
 #include <vector>
 

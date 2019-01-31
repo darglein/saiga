@@ -6,11 +6,12 @@
 
 #pragma once
 
-#include "saiga/geometry/aabb.h"
-#include "saiga/geometry/triangle.h"
-#include "saiga/geometry/vertex.h"
 #include "saiga/util/assert.h"
 #include "saiga/util/math.h"
+
+#include "aabb.h"
+#include "triangle.h"
+#include "vertex.h"
 
 
 namespace Saiga

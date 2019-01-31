@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "saiga/eigen/eigen.h"
 #include "saiga/util/assert.h"
+
+#include "eigen.h"
 
 #include <Eigen/QR>
 #include <Eigen/SVD>
