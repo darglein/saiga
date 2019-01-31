@@ -44,7 +44,7 @@ class Compute : public Saiga::Updating,
 
     Saiga::Vulkan::VulkanForwardRenderer& renderer;
 
-    bool displayModels = true;
+    //    bool displayModels = true;
 
 
 

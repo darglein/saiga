@@ -21,7 +21,7 @@ HistogramImage::HistogramImage(int inputW, int inputH, int outputW, int outputH)
 void HistogramImage::add(int y, int x, int value)
 {
     int ox = iRound(x * ((double)outputW / (double)inputW));
-    int oy = iRound(y * ((double)outputW / (double)inputW));
+    int oy = iRound(y * ((double)outputH / (double)inputH));
 
     if (img.getImageView().inImage(oy, ox))
     {

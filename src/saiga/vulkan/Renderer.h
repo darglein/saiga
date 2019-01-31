@@ -29,14 +29,14 @@ class SAIGA_GLOBAL VulkanRenderer : public RendererBase
     VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
     virtual ~VulkanRenderer();
 
-    virtual void render(Camera* cam) {}
-    virtual void bindCamera(Camera* cam) {}
+    virtual void render(Camera*) override {}
+    virtual void bindCamera(Camera*) override {}
 
-    virtual float getTotalRenderTime();
+    virtual float getTotalRenderTime() override;
 
-    void renderImGui(bool *p_open) override;
+    void renderImGui(bool* p_open) override;
 
-protected:
+   protected:
     /**
      * Shared Member variables common for all vulkan render engines.
      */

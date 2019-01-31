@@ -42,7 +42,7 @@ class SAIGA_GLOBAL PointLight : public AttenuatedLight
 
 
 
-    virtual void bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* shadowCamera);
+    void bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* shadowCamera);
 
 
     float getRadius() const;

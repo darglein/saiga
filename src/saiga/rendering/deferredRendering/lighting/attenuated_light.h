@@ -72,7 +72,7 @@ class SAIGA_GLOBAL AttenuatedLight : public Light
     // evaluates the attenuation formula at a given radius
     float evaluateAttenuation(float distance);
 
-    virtual void bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera* cam);
+    void bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera* cam);
 
 
     float getRadius() const;

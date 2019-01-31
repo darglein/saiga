@@ -28,11 +28,11 @@ class VulkanExample : public Saiga::Updating,
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample();
 
-    virtual void init(Saiga::Vulkan::VulkanBase& base);
+    virtual void init(Saiga::Vulkan::VulkanBase& base) override;
 
 
     virtual void update(float dt) override;
-    virtual void transfer(vk::CommandBuffer cmd);
+    virtual void transfer(vk::CommandBuffer cmd) override;
     virtual void render(vk::CommandBuffer cmd) override;
     virtual void renderGUI() override;
 

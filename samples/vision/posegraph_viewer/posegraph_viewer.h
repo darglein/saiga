@@ -34,10 +34,10 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
 
    private:
     std::vector<vec3> boxOffsets;
-    bool change        = false;
-    bool uploadChanges = true;
-    float rms          = 0;
-    float chi2         = 0;
+    bool change = false;
+    //    bool uploadChanges = true;
+    float rms  = 0;
+    float chi2 = 0;
     Saiga::Object3D teapotTrans;
 
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
@@ -55,7 +55,7 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
     Saiga::Vulkan::TextureDisplay textureDisplay;
 
 
-    bool displayModels = true;
+    //    bool displayModels = true;
 
     Saiga::PoseGraph scene;
     Saiga::PGOOptions baoptions;

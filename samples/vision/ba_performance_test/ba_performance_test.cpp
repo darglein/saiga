@@ -14,17 +14,21 @@
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 #include "saiga/vision/scene/SynteticScene.h"
+
+#ifdef SAIGA_USE_MKL
+#    include "saiga/vision/ba/MKLBA.h"
+#endif
+
 using namespace Saiga;
 
 
-    void
-    buildScene(Scene& scene)
+void buildScene(Scene& scene)
 {
     SynteticScene sscene;
-    //    sscene.numCameras     = 4;
-    //    sscene.numImagePoints = 2;
-    //    sscene.numWorldPoints = 8;
-    scene = sscene.circleSphere();
+    sscene.numCameras     = 4;
+    sscene.numImagePoints = 2;
+    sscene.numWorldPoints = 8;
+    scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
     scene.addImagePointNoise(1.0);
     scene.addExtrinsicNoise(0.01);
@@ -78,8 +82,8 @@ int main(int, char**)
     //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
     //    scene.load(SearchPathes::data("vision/slam.scene"));
-    //    buildScene(scene);
-    buildSceneBAL(scene);
+    buildScene(scene);
+    //    buildSceneBAL(scene);
 
     cout << scene << endl;
 
@@ -99,10 +103,13 @@ int main(int, char**)
     std::vector<std::shared_ptr<BABase>> solvers;
 
     solvers.push_back(std::make_shared<BARec>());
-    solvers.push_back(std::make_shared<BAPoseOnly>());
-    solvers.push_back(std::make_shared<g2oBA2>());
-    solvers.push_back(std::make_shared<CeresBA>());
+    //    solvers.push_back(std::make_shared<BAPoseOnly>());
+    //    solvers.push_back(std::make_shared<g2oBA2>());
+    //    solvers.push_back(std::make_shared<CeresBA>());
 
+#ifdef SAIGA_USE_MKL
+    solvers.push_back(std::make_shared<MKLBA>());
+#endif
     for (auto& s : solvers)
     {
         cout << "[Solver] " << s->name << endl;

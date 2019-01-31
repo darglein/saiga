@@ -5,23 +5,25 @@
  */
 
 
-#include "BARecursive.h"
+#include "MKLBA.h"
 
-#include "saiga/imgui/imgui.h"
-#include "saiga/time/timer.h"
-#include "saiga/util/Algorithm.h"
-#include "saiga/vision/HistogramImage.h"
-#include "saiga/vision/kernels/BAPose.h"
-#include "saiga/vision/kernels/BAPosePoint.h"
-#include "saiga/vision/kernels/Robust.h"
-#include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
-#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
+#ifdef SAIGA_USE_MKL
 
-#include "Eigen/SparseCholesky"
+#    include "saiga/imgui/imgui.h"
+#    include "saiga/time/timer.h"
+#    include "saiga/util/Algorithm.h"
+#    include "saiga/vision/HistogramImage.h"
+#    include "saiga/vision/kernels/BAPose.h"
+#    include "saiga/vision/kernels/BAPosePoint.h"
+#    include "saiga/vision/kernels/Robust.h"
+#    include "saiga/vision/recursiveMatrices/CG.h"
+#    include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
+#    include "saiga/vision/recursiveMatrices/SparseCholesky.h"
 
-#include <fstream>
-#include <numeric>
+#    include "Eigen/SparseCholesky"
+
+#    include <fstream>
+#    include <numeric>
 
 
 using Scalar = Saiga::BlockBAScalar;
@@ -40,7 +42,7 @@ using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
 namespace Saiga
 {
-void BARec::initStructure(Scene& scene)
+void MKLBA::initStructure(Scene& scene)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
 
@@ -231,13 +233,13 @@ void BARec::initStructure(Scene& scene)
         cout << "Cameras: " << n << endl;
         cout << "Points: " << m << endl;
         cout << "Observations: " << observations << endl;
-#if 1
+#    if 1
         cout << "Schur Edges: " << schurEdges << endl;
         cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
         cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
-#endif
+#    endif
 
-#if 1
+#    if 1
         // extended analysis
         double averageCams   = 0;
         double averagePoints = 0;
@@ -247,14 +249,14 @@ void BARec::initStructure(Scene& scene)
         averageCams /= pointCameraCounts.size();
         cout << "Average Points per Camera: " << averagePoints << endl;
         cout << "Average Cameras per Point: " << averageCams << endl;
-#endif
+#    endif
         cout << "." << endl;
     }
 }
 
 
 
-void BARec::computeUVW(Scene& scene)
+void MKLBA::computeUVW(Scene& scene)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
 
@@ -379,7 +381,7 @@ void BARec::computeUVW(Scene& scene)
     double lambda = 1 / (scene.scale() * scene.scale());
 
 
-#if 0
+#    if 0
     lambda = 1;
     // g2o simple lambda
     for (int i = 0; i < n; ++i)
@@ -390,7 +392,7 @@ void BARec::computeUVW(Scene& scene)
     {
         V.diagonal()(i).get() += BDiag::Identity() * lambda;
     }
-#else
+#    else
     // lm lambda
 
     lambda = 1.0 / 1.00e+04;
@@ -419,12 +421,12 @@ void BARec::computeUVW(Scene& scene)
             value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
         }
     }
-#endif
+#    endif
 }
 
 
 
-void BARec::computeSchur()
+void MKLBA::computeSchur()
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
     {
@@ -453,6 +455,7 @@ void BARec::computeSchur()
         }
         else
         {
+            // Compute the diagonal of S for preconditioning
             diagInnerProductTransposed(Y, W, Sdiag);
             Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
         }
@@ -464,13 +467,13 @@ void BARec::computeSchur()
     }
 }
 
-void BARec::solveSchur()
+void MKLBA::solveSchur()
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
     if (options.solverType == BAOptions::SolverType::Direct)
     {
 //            SAIGA_BLOCK_TIMER("LDLT");
-#if 0
+#    if 0
         {
             // currently around of a factor 3 slower then the eigen ldlt
             SAIGA_BLOCK_TIMER();
@@ -479,7 +482,7 @@ void BARec::solveSchur()
             da = ldlt.solve(ej);
         }
 
-#else
+#    else
         Eigen::SparseMatrix<BlockBAScalar> ssparse(n * blockSizeCamera, n * blockSizeCamera);
         {
             // Step 5
@@ -508,7 +511,7 @@ void BARec::solveSchur()
                 da(i) = deltaA.segment<blockSizeCamera>(i * blockSizeCamera);
             }
         }
-#endif
+#    endif
     }
     else
     {
@@ -521,6 +524,7 @@ void BARec::solveSchur()
 
         if (explizitSchur)
         {
+            cout << "explizit" << endl;
             P.compute(S);
             DAType tmp(n);
             recursive_conjugate_gradient(
@@ -556,7 +560,7 @@ void BARec::solveSchur()
     }
 }
 
-void BARec::finalizeSchur()
+void MKLBA::finalizeSchur()
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
     {
@@ -589,17 +593,17 @@ void BARec::finalizeSchur()
     }
 }
 
-void BARec::updateScene(Scene& scene)
+void MKLBA::updateScene(Scene& scene)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
     for (size_t i = 0; i < validImages.size(); ++i)
     {
         Sophus::SE3<BlockBAScalar>::Tangent t;
-#ifdef RECURSIVE_BA_VECTORIZE
+#    ifdef RECURSIVE_BA_VECTORIZE
         t = da(i).get().segment(0, 6);
-#else
+#    else
         t = da(i).get();
-#endif
+#    endif
         auto id    = validImages[i];
         auto& extr = scene.extrinsics[id];
         if (!extr.constant) extr.se3 = Sophus::SE3d::exp(t.cast<double>()) * extr.se3;
@@ -608,11 +612,11 @@ void BARec::updateScene(Scene& scene)
     for (size_t i = 0; i < validPoints.size(); ++i)
     {
         Eigen::Matrix<BlockBAScalar, 3, 1> t;
-#ifdef RECURSIVE_BA_VECTORIZE
+#    ifdef RECURSIVE_BA_VECTORIZE
         t = db(i).get().segment(0, 3);
-#else
+#    else
         t = db(i).get();
-#endif
+#    endif
         auto id = validPoints[i];
         auto& p = scene.worldPoints[id].p;
         p += t.cast<double>();
@@ -623,7 +627,7 @@ void BARec::updateScene(Scene& scene)
 
 
 
-void BARec::solve(Scene& scene, const BAOptions& options)
+void MKLBA::solve(Scene& scene, const BAOptions& options)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
     this->options = options;
@@ -646,12 +650,12 @@ void BARec::solve(Scene& scene, const BAOptions& options)
 
         computeSchur();
 
-#if 0
+#    if 0
         cout << expand(W) << endl << endl;
         cout << expand(U.toDenseMatrix()) << endl << endl;
         cout << expand(V.toDenseMatrix()) << endl << endl;
         return;
-#endif
+#    endif
 
         solveSchur();
         finalizeSchur();
@@ -665,3 +669,4 @@ void BARec::solve(Scene& scene, const BAOptions& options)
 
 
 }  // namespace Saiga
+#endif

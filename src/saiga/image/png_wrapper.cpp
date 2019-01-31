@@ -266,8 +266,8 @@ static int writepng_init(Image& img, PNGLoadStore* pngls)
     interlace_type = PNG_INTERLACE_NONE;  // PNG_INTERLACE_ADAM7
 
 
-    int bit_depth = bitsPerChannel(img.type);
-    int color_type;
+    int bit_depth  = bitsPerChannel(img.type);
+    int color_type = 0;
 
     switch (channels(img.type))
     {
@@ -436,6 +436,7 @@ void PngImage::fromSaigaType(ImageType t)
             color_type = PNG_COLOR_TYPE_RGB_ALPHA;
             break;
         default:
+            color_type = PNG_COLOR_TYPE_RGB;
             SAIGA_ASSERT(0);
     }
 
@@ -451,6 +452,7 @@ void PngImage::fromSaigaType(ImageType t)
             bit_depth = 32;
             break;
         default:
+            bit_depth = 0;
             SAIGA_ASSERT(0);
     }
 }

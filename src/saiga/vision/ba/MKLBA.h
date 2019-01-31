@@ -7,18 +7,21 @@
 
 #pragma once
 
-#include "BABase.h"
+#include "saiga/vision/ba/BABase.h"
+
+#ifdef SAIGA_USE_MKL
+
 //#define RECURSIVE_BA_VECTORIZE
 //#define RECURSIVE_BA_FLOAT
-#define RECURSIVE_BA_USE_TIMERS false
-#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
+#    define RECURSIVE_BA_USE_TIMERS false
+#    include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
-class SAIGA_GLOBAL BARec : public BABase
+class SAIGA_GLOBAL MKLBA : public BABase
 {
    public:
-    BARec() : BABase("Recursive BA") {}
-    virtual ~BARec() {}
+    MKLBA() : BABase("MKL BA") {}
+    virtual ~MKLBA() {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
 
    private:
@@ -60,6 +63,7 @@ class SAIGA_GLOBAL BARec : public BABase
 
     BAOptions options;
 
+    //    int maxIterations = 20;
     double chi2;
     void initStructure(Scene& scene);
     void computeUVW(Scene& scene);
@@ -74,3 +78,5 @@ class SAIGA_GLOBAL BARec : public BABase
 
 
 }  // namespace Saiga
+
+#endif

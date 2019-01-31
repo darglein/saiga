@@ -16,6 +16,7 @@ class SAIGA_GLOBAL PGORec : public PGOBase
 {
    public:
     PGORec() : PGOBase("recursive PGO") {}
+    virtual ~PGORec() {}
     virtual void solve(PoseGraph& scene, const PGOOptions& options) override;
 
    private:

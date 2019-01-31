@@ -14,6 +14,7 @@ class SAIGA_GLOBAL g2oPGO : public PGOBase
 {
    public:
     g2oPGO() : PGOBase("g2oPGO") {}
+    virtual ~g2oPGO() {}
     virtual void solve(PoseGraph& scene, const PGOOptions& options) override;
 };
 

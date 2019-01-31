@@ -44,6 +44,7 @@ OptionsHelper(SAIGA_WITH_VULKAN "With vulkan (if it is found)" ON)
 OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
 OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
+OptionsHelper(SAIGA_PCH "Generate a precompiled header" OFF)
 
 
 DefaultBuildType(RelWithDebInfo)
@@ -55,6 +56,9 @@ DefaultBuildType(RelWithDebInfo)
 include(Saiga_compiler_flags)
 
 
+if(SAIGA_PCH)
+    include(cotire)
+endif()
 
 ############# Required LIBRARIES ###############
 
@@ -180,10 +184,10 @@ endif()
 find_package(Sophus QUIET)
 PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
+#g2o
 find_package(g2o QUIET)
 PackageHelperTarget(g2o::core G2O_FOUND)
-#PackageHelperTarget(g2o::solver_cholmod G2O_FOUND)
-#PackageHelperTarget(g2o::types_sba G2O_FOUND)
+
 
 #ceres
 find_package(Ceres QUIET)
@@ -199,6 +203,25 @@ if(BULLET_FOUND)
     SET(SAIGA_USE_BULLET 1)
 endif()
 PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARIES}")
+
+
+# Currently only mkl is supported
+set(BLA_VENDOR Intel10_64lp_seq)
+find_package(BLAS QUIET)
+PackageHelper(BLAS "${BLAS_FOUND}" "" "${BLAS_LIBRARIES}")
+message(STATUS "BLAS Library: ${BLAS_LIBRARIES}")
+
+find_package(LAPACK QUIET)
+PackageHelper(LAPACK "${LAPACK_FOUND}" "" "${LAPACK_LIBRARIES}")
+message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
+
+#mkl
+find_package(MKL QUIET)
+if(MKL_FOUND AND BLAS_FOUND AND LAPACK_FOUND)
+    SET(SAIGA_USE_MKL 1)
+endif()
+PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
+
 
 
 #openni2
@@ -567,3 +590,4 @@ endif()
 
 
 set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+

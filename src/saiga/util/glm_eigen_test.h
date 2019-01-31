@@ -187,6 +187,11 @@ inline float radians(float a)
     return a / 180.0 * M_PI;
 }
 
+inline mat3 identityMat3()
+{
+    return mat3::Identity();
+}
+
 inline mat4 identityMat4()
 {
     return mat4::Identity();
@@ -292,6 +297,11 @@ inline vec3 col(const mat3& m, int id)
     return m.col(id);
 }
 inline auto col(mat4& m, int id)
+{
+    return m.col(id);
+}
+
+inline auto col(const mat4& m, int id)
 {
     return m.col(id);
 }
@@ -458,6 +468,11 @@ auto inverse(const T& m)
     return m.inverse().eval();
 }
 
+template <typename T>
+auto transpose(const T& m)
+{
+    return m.transpose().eval();
+}
 
 
 template <typename T>
