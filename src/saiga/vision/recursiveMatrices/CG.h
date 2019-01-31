@@ -102,6 +102,8 @@ class RecursiveDiagonalPreconditioner
 
     Eigen::ComputationInfo info() { return Eigen::Success; }
 
+    const auto& getDiagElement(int i) const { return m_invdiag(i); }
+
    protected:
     Vector m_invdiag;
     bool m_isInitialized;
@@ -138,24 +140,37 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
                                                     const Preconditioner& precond, Eigen::Index& iters,
                                                     SuperScalar& tol_error)
 {
+    // Typedefs
     using namespace Eigen;
-
     using std::abs;
     using std::sqrt;
     typedef SuperScalar RealScalar;
     typedef SuperScalar Scalar;
     typedef Rhs VectorType;
 
+    // Temp Vector variables
+    Index n = rhs.rows();
+
+#if 0
+    // Create them locally
+    VectorType z(n);
+    VectorType p(n);
+#else
+    // Use static variables so a repeated call with the same size doesn't allocate memory
+    static thread_local VectorType z;
+    static thread_local VectorType p;
+    static thread_local VectorType residual;
+    z.resize(n);
+    p.resize(n);
+    residual.resize(n);
+#endif
+
+
+
     RealScalar tol = tol_error;
     Index maxIters = iters;
 
-    Index n = rhs.rows();
-
-
-    VectorType z(n), tmp(n);
-
-
-    VectorType residual = rhs - applyA(x);
+    residual = rhs - applyA(x);
 
     RealScalar rhsNorm2 = squaredNorm(rhs);
     if (rhsNorm2 == 0)
@@ -174,34 +189,37 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
         return;
     }
 
-    VectorType p(n);
     p = precond.solve(residual);  // initial search direction
 
     // the square of the absolute value of r scaled by invM
     RealScalar absNew = dot(residual, p);
     Index i           = 0;
 
-    cout << "absnew " << absNew << endl;
     while (i < maxIters)
     {
         //        cout << "CG Residual " << i << ": " << residualNorm2 << endl;
-        tmp = applyA(p);
+        z = applyA(p);
         // the amount we travel on dir
-        Scalar alpha = absNew / dot(p, tmp);
+        Scalar alpha = absNew / dot(p, z);
         // update solution
         x += scalarMult(p, alpha);
         // update residual
-        residual -= scalarMult(tmp, alpha);
+        residual -= scalarMult(z, alpha);
 
         residualNorm2 = squaredNorm(residual);
+        //        cout << i << " " << residualNorm2 << endl;
         if (residualNorm2 < threshold) break;
 
         z = precond.solve(residual);  // approximately solve for "A z = residual"
+                                      //        cout << expand(p).transpose() << endl;
 
         RealScalar absOld = absNew;
         absNew            = dot(residual, z);  // update the absolute value of r
         RealScalar beta = absNew / absOld;  // calculate the Gram-Schmidt value used to create the new search direction
-        p               = z + scalarMult(p, beta);  // update search direction
+                                            //        cout << "absnew " << absNew << " beta " << beta << endl;
+        p = z + scalarMult(p, beta);        // update search direction
+
+
         i++;
     }
     tol_error = sqrt(residualNorm2 / rhsNorm2);

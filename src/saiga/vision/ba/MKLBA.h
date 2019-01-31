@@ -21,6 +21,7 @@ class SAIGA_GLOBAL MKLBA : public BABase
 {
    public:
     MKLBA() : BABase("MKL BA") {}
+    virtual ~MKLBA() {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
 
    private:

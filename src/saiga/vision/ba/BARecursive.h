@@ -18,6 +18,7 @@ class SAIGA_GLOBAL BARec : public BABase
 {
    public:
     BARec() : BABase("Recursive BA") {}
+    virtual ~BARec() {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
 
    private:

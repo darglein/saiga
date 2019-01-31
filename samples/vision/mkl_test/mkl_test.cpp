@@ -23,23 +23,25 @@
 
 // Type of benchmark
 
-// Matrix-Matrix mult
 const int mat_mult = false;
-// Matrix-Vecor mult
 const int vec_mult = true;
 
 
 using T              = double;
-const int block_size = 2;
+const int block_size = 8;
 
 // Matrix dimension (in blocks)
-const int n = 4;
-const int m = 4;
+const int n = 4000;
+const int m = 4000;
 
 // Non Zero Block per row
-const int nnzr = 2;
+const int nnzr = 50;
 
-const int its = 50;
+const int smv_its = 1000;
+const int smm_its = 5;
+const int scg_its = 500;
+
+const int cg_inner_its = 5;
 
 
 // ===================================================================================================
@@ -71,6 +73,11 @@ class MKL_Test
         y.resize(n);
 
         // ============= Create the Eigen Recursive Data structures =============
+
+
+        Saiga::Random::setSeed(357609435);
+#if 0
+        // fast creation for non symmetric matrix
         A.reserve(n * nnzr);
         for (int i = 0; i < n; ++i)
         {
@@ -86,34 +93,52 @@ class MKL_Test
             y(i) = Vector::Random();
         }
         A.finalize();
-        B = A;
+#else
+        // create a symmetric matrix
+        std::vector<Eigen::Triplet<Block>> trips;
+        trips.reserve(nnzr * n * 2);
 
-
-        // ============= Create the MKL Data structures =============
-        for (int k = 0; k < A.outerSize(); ++k)
+        for (int i = 0; i < n; ++i)
         {
-            row_start.push_back(A.outerIndexPtr()[k]);
-            row_end.push_back(A.outerIndexPtr()[k + 1]);
-            for (BlockMatrix::InnerIterator it(A, k); it; ++it)
-            {
-                col_index.push_back(it.index());
+            auto indices = Random::uniqueIndices(nnzr, m);
+            std::sort(indices.begin(), indices.end());
 
-                for (auto i = 0; i < block_size; ++i)
+            for (auto j : indices)
+            {
+                if (i != j)
                 {
-                    for (auto j = 0; j < block_size; ++j)
-                    {
-                        auto block = it.valueRef();
-                        values.push_back(block.get()(i, j));
-                    }
+                    Block b = Block::Random();
+                    trips.emplace_back(i, j, b);
+                    trips.emplace_back(j, i, b.transpose());
                 }
             }
+
+            // Make sure we have a symmetric diagonal block
+            Vector dv = Vector::Random();
+            Block D   = dv * dv.transpose();
+
+            // Make sure the matrix is positiv
+            D.diagonal() += Vector::Ones() * 5;
+            trips.emplace_back(i, i, D);
+
+            x(i) = Vector::Random();
+            y(i) = Vector::Random();
         }
+        A.setFromTriplets(trips.begin(), trips.end());
+        A.makeCompressed();
+
+//        cout << expand(A) << endl;
+#endif
+        B = A;
+
+        createBlockMKLFromEigen(A, &mkl_A, row_start, row_end, col_index, values, n, m, block_size);
+
+
         ex_x = expand(x);
         ex_y = expand(y);
 
         auto ret =
-            createMKL(&mkl_A, row_start.data(), row_end.data(), col_index.data(), values.data(), n, m, block_size);
-        ret = createMKL(&mkl_B, row_start.data(), row_end.data(), col_index.data(), values.data(), n, m, block_size);
+            createMKL(&mkl_B, row_start.data(), row_end.data(), col_index.data(), values.data(), n, m, block_size);
 
         mkl_A_desc.type = SPARSE_MATRIX_TYPE_GENERAL;
         mkl_B_desc      = mkl_A_desc;
@@ -130,14 +155,15 @@ class MKL_Test
         cout << "Non Zero blocks per row: " << nnzr << endl;
         cout << "Non Zero BLocks: " << nnzr * n << endl;
         cout << "Non Zeros: " << nnzr * n * block_size * block_size << endl;
-        cout << "Test Iterations: " << its << endl;
         cout << "." << endl;
+        cout << endl;
     }
     void sparseMatrixVector()
     {
         // ============= Benchmark =============
 
-        cout << "Running Sparse Matrix-Vector Benchmark..." << endl;
+        cout << "Running Block Sparse Matrix-Vector Benchmark..." << endl;
+        cout << "Number of Runs: " << smv_its << endl;
 
         double flop;
 
@@ -148,8 +174,8 @@ class MKL_Test
 
         // Note: Matrix Vector Mult is exactly #nonzeros FMA instructions
         flop       = double(nnzr) * n * block_size * block_size;
-        stat_eigen = measureObject(its, [&]() { y = A * x; });
-        stat_mkl   = measureObject(its, [&]() { multMKL(mkl_A, mkl_A_desc, ex_x.data(), ex_y.data()); });
+        stat_eigen = measureObject(smv_its, [&]() { y = A * x; });
+        stat_mkl   = measureObject(smv_its, [&]() { multMKL(mkl_A, mkl_A_desc, ex_x.data(), ex_y.data()); });
 
 
 #if 0
@@ -163,15 +189,18 @@ class MKL_Test
         double ts_mkl   = stat_mkl.median / 1000.0;
 
         cout << "Done." << endl;
-
-        cout << "Time Eigen : " << ts_eigen << " " << flop / (ts_eigen * 1000 * 1000 * 1000) << " GFlop/s" << endl;
-        cout << "Time MKL   : " << ts_mkl << " " << flop / (ts_mkl * 1000 * 1000 * 1000) << " GFlop/s" << endl;
+        cout << "Median Time Eigen : " << ts_eigen << " -> " << flop / (ts_eigen * 1000 * 1000 * 1000) << " GFlop/s"
+             << endl;
+        cout << "Median Time MKL   : " << ts_mkl << " -> " << flop / (ts_mkl * 1000 * 1000 * 1000) << " GFlop/s"
+             << endl;
         cout << "MKL Speedup: " << (ts_eigen / ts_mkl - 1) * 100 << "%" << endl;
+        cout << endl;
     }
 
     void sparseMatrixMatrix()
     {
-        cout << "Running Sparse Matrix-Matrix Benchmark..." << endl;
+        cout << "Running Block Sparse Matrix-Matrix Benchmark..." << endl;
+        cout << "Number of Runs: " << smm_its << endl;
         // ============= Benchmark =============
         double flop;
         Statistics<float> stat_eigen, stat_mkl;
@@ -179,8 +208,8 @@ class MKL_Test
 
         // Note: No idea how many flops there are (it depends on the random initialization of the matrix)
         flop       = double(nnzr) * n * n * block_size * block_size;
-        stat_eigen = measureObject(its, [&]() { C = A * B; });
-        stat_mkl   = measureObject(its, [&]() { multMKLMM(mkl_A, mkl_B, &mkl_C); });
+        stat_eigen = measureObject(smm_its, [&]() { C = A * B; });
+        stat_mkl   = measureObject(smm_its, [&]() { multMKLMM(mkl_A, mkl_B, &mkl_C); });
 
 
 #if 0
@@ -207,52 +236,73 @@ class MKL_Test
         double ts_mkl   = stat_mkl.median / 1000.0;
 
         cout << "Done." << endl;
-
-        cout << "Time Eigen : " << ts_eigen << " " << flop / (ts_eigen * 1000 * 1000 * 1000) << " GFlop/s" << endl;
-        cout << "Time MKL   : " << ts_mkl << " " << flop / (ts_mkl * 1000 * 1000 * 1000) << " GFlop/s" << endl;
+        cout << "Median Time Eigen : " << ts_eigen << " -> " << flop / (ts_eigen * 1000 * 1000 * 1000) << " GFlop/s"
+             << endl;
+        cout << "Median Time MKL   : " << ts_mkl << " -> " << flop / (ts_mkl * 1000 * 1000 * 1000) << " GFlop/s"
+             << endl;
         cout << "MKL Speedup: " << (ts_eigen / ts_mkl - 1) * 100 << "%" << endl;
+        cout << endl;
     }
 
     void sparseCG()
     {
         // ============= Benchmark =============
 
-        cout << "Running Sparse CG Benchmark..." << endl;
+        T tol = 1e-50;
 
-        double flop;
+        cout << "Running Block Sparse CG Benchmark..." << endl;
+        cout << "Number of Runs: " << scg_its << endl;
+        cout << "Number of inner CG iterations: " << cg_inner_its << endl;
+
 
         Statistics<float> stat_eigen, stat_mkl;
 
-        //    stat_eigen = measureObject(its, [&]() { y = A * x; });
+
+        // Main Matrix-Vector > 95%
+        double flop_MV = double(nnzr) * n * block_size * block_size * (cg_inner_its + 1);
+        // Precond-Vector ~2%
+        double flop_PV = double(n) * block_size * block_size * (cg_inner_its + 1);
+        // 7 Vector opterations ~2% (vector additions / dotproducts / scalar-vector product)
+        double flop_V = double(n) * block_size * (cg_inner_its + 1) * 7;
 
 
-        // Note: Matrix Vector Mult is exactly #nonzeros FMA instructions
-        flop = double(nnzr) * n * block_size * block_size;
-        //        stat_eigen = measureObject(its, [&]() { y = A * x; });
-        //        stat_mkl   = measureObject(its, [&]() { multMKL(mkl_A, mkl_A_desc, ex_x.data(), ex_y.data()); });
+        double flop = flop_MV + flop_PV + flop_V;
 
-        Eigen::Index iters = 1;
-        T tol              = 1e-50;
+        //         Eigen::IdentityPreconditioner P;
+        RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
+        P.compute(A);
 
-        int its  = 1;
-        stat_mkl = measureObject(its, [&]() {
-            ex_x.setZero();
-            //            x.setZero();
-            //            Eigen::IdentityPreconditioner P;
+        BlockMatrix Pm(n, m);
+        for (int i = 0; i < n; ++i)
+        {
+            Pm.insert(i, i) = P.getDiagElement(i);
+        }
+        Pm.makeCompressed();
 
-            mklcg(mkl_A, mkl_A_desc, ex_x.data(), ex_y.data(), tol, iters, n, block_size);
 
-            //            recursive_conjugate_gradient([&](const BlockVector& v) { return A * v; }, y, x, P, iters,
-            //            tol);
+        // create the mkl preconditioner
+        std::vector<T> pvalues;
+        std::vector<MKL_INT> pcol_index;
+        std::vector<MKL_INT> prow_start;
+        std::vector<MKL_INT> prow_end;
+        sparse_matrix_t mkl_P;
+        createBlockMKLFromEigen(Pm, &mkl_P, prow_start, prow_end, pcol_index, pvalues, n, m, block_size);
+        matrix_descr mkl_P_desc;
+        mkl_P_desc.type = SPARSE_MATRIX_TYPE_BLOCK_DIAGONAL;
+        mkl_P_desc.diag = SPARSE_DIAG_NON_UNIT;
+
+        stat_eigen = measureObject(scg_its, [&]() {
+            Eigen::Index iters = cg_inner_its;
+            tol                = 1e-50;
+            x.setZero();
+            recursive_conjugate_gradient([&](const BlockVector& v) { return A * v; }, y, x, P, iters, tol);
         });
 
-
-        stat_eigen = measureObject(its, [&]() {
-            x.setZero();
-            Eigen::IdentityPreconditioner P;
-
-
-            recursive_conjugate_gradient([&](const BlockVector& v) { return A * v; }, y, x, P, iters, tol);
+        stat_mkl = measureObject(scg_its, [&]() {
+            auto iters = cg_inner_its;
+            tol        = 1e-50;
+            ex_x.setZero();
+            mklcg(mkl_A, mkl_A_desc, mkl_P, mkl_P_desc, ex_x.data(), ex_y.data(), tol, iters, n, block_size);
         });
 #if 0
         // More precise timing stats
@@ -265,10 +315,12 @@ class MKL_Test
         double ts_mkl   = stat_mkl.median / 1000.0;
 
         cout << "Done." << endl;
-
-        cout << "Time Eigen : " << ts_eigen << " " << flop / (ts_eigen * 1000 * 1000 * 1000) << " GFlop/s" << endl;
-        cout << "Time MKL   : " << ts_mkl << " " << flop / (ts_mkl * 1000 * 1000 * 1000) << " GFlop/s" << endl;
+        cout << "Median Time Eigen : " << ts_eigen << " -> " << flop / (ts_eigen * 1000 * 1000 * 1000) << " GFlop/s"
+             << endl;
+        cout << "Median Time MKL   : " << ts_mkl << " -> " << flop / (ts_mkl * 1000 * 1000 * 1000) << " GFlop/s"
+             << endl;
         cout << "MKL Speedup: " << (ts_eigen / ts_mkl - 1) * 100 << "%" << endl;
+        cout << endl;
     }
 
 
@@ -295,8 +347,8 @@ int main(int argc, char* argv[])
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
 
     Saiga::MKL_Test t;
+    if (vec_mult) t.sparseMatrixVector();
+    if (mat_mult) t.sparseMatrixMatrix();
     t.sparseCG();
-    //    if (vec_mult) t.sparseMatrixVector();
-    //    if (mat_mult) t.sparseMatrixMatrix();
     return 0;
 }
