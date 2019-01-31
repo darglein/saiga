@@ -223,8 +223,6 @@ void BaseChunkAllocator::move_allocation(MemoryLocation* target, MemoryLocation*
     const auto size = source->size;
 
     MemoryLocation source_copy = *source;
-    MemoryLocation target_copy = *target;
-
 
     ChunkIterator target_chunk, source_chunk;
     AllocationIterator target_alloc, source_alloc;

@@ -187,7 +187,6 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation* loca
 
     allocator.defragger->invalidate(location->memory);
     allocator.defragger->invalidate(location);
-
     allocator.allocator->deallocate(location);
 
     allocator.defragger->start();

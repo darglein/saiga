@@ -47,7 +47,7 @@ class Defragger
 
     bool enabled;
     BufferChunkAllocator* allocator;
-    std::set<DefragOperation> defrag_operations;
+    std::multiset<DefragOperation> defrag_operations;
 
     std::atomic_bool running, quit;
 

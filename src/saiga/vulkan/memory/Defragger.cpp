@@ -69,44 +69,29 @@ void Defragger::run()
 
 void Defragger::find_defrag_ops()
 {
-    auto chunk_iter = allocator->chunks.rbegin();
-    auto alloc_iter = chunk_iter->allocations.rbegin();
-    while (running)
+    auto& chunks = allocator->chunks;
+
+    for (auto chunk_iter = chunks.rbegin(); running && chunk_iter != chunks.rend(); ++chunk_iter)
     {
-        if (chunk_iter->allocations.empty())
+        auto& allocs = chunk_iter->allocations;
+        for (auto alloc_iter = allocs.rbegin(); running && alloc_iter != allocs.rend(); ++alloc_iter)
         {
-            chunk_iter++;
-            alloc_iter = chunk_iter->allocations.rbegin();
-            continue;
+            auto& source = **alloc_iter;
+
+            auto begin = chunks.begin();
+            auto end   = (chunk_iter + 1).base();  // Conversion from reverse to normal iterator moves one back
+            //
+            auto new_place = allocator->strategy->findRange(begin, end, source.size);
+
+            if (new_place.first != end)
+            {
+                const auto target_iter = new_place.second;
+                const auto& target     = *target_iter;
+                auto weight = get_operation_penalty(new_place.first, target_iter, end, (alloc_iter + 1).base());
+
+                defrag_operations.insert(DefragOperation{&source, new_place.first->chunk->memory, target, weight});
+            }
         }
-        if (alloc_iter == chunk_iter->allocations.rend())
-        {
-            ++chunk_iter;
-            alloc_iter = chunk_iter->allocations.rbegin();
-            continue;
-        }
-
-        if (chunk_iter == allocator->chunks.rend())
-        {
-            break;
-        }
-
-        auto& source = **alloc_iter;
-
-        auto begin = allocator->chunks.begin();
-        auto end   = (chunk_iter + 1).base();  // Conversion from reverse to normal iterator moves one back
-        //
-        auto new_place = allocator->strategy->findRange(begin, end, source.size);
-
-        if (new_place.first != end)
-        {
-            const auto target_iter = new_place.second;
-            const auto& target     = *target_iter;
-            auto weight            = get_operation_penalty(new_place.first, target_iter, end, (alloc_iter + 1).base());
-
-            defrag_operations.insert(DefragOperation{&source, new_place.first->chunk->memory, target, weight});
-        }
-        alloc_iter++;
     }
 }
 
@@ -131,7 +116,7 @@ void Defragger::perform_defrag()
 
             allocator->queue->submitAndWait(defrag_cmd);
 
-            //allocator->deallocate(op->source);
+            allocator->queue->commandPool.freeCommandBuffer(defrag_cmd);
 
             allocator->move_allocation(reserve_space, op->source);
         }
