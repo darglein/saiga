@@ -30,13 +30,15 @@ class VulkanExample : public Saiga::Updating,
 {
     std::vector<MemoryLocation*> allocations;
     std::vector<MemoryLocation*> num_allocations;
-    std::mt19937 mersenne_twister;
+    std::mt19937 mersenne_twister, auto_mersenne;
 
     std::array<vk::DeviceSize, 4> sizes{256 * 256, 512 * 512, 1024 * 1024, 16 * 1024 * 1024};
 
     Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eVertexBuffer,
                                                   vk::MemoryPropertyFlagBits::eDeviceLocal};
 
+    bool enable_auto_index = false;
+    int auto_allocs = 0;
    public:
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample() override;
@@ -61,4 +63,6 @@ class VulkanExample : public Saiga::Updating,
 
     void keyPressed(SDL_Keysym key) override;
     void keyReleased(SDL_Keysym key) override;
+
+    void alloc_index(int index);
 };

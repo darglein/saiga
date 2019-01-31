@@ -29,6 +29,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     camera.rotationPoint = vec3(0);
 
     window.setCamera(&camera);
+
+    auto_mersenne = std::mt19937();
 }
 
 VulkanExample::~VulkanExample() {}
@@ -48,6 +50,15 @@ void VulkanExample::update(float dt)
     camera.update(dt);
     camera.interpolate(dt, 0);
 
+
+    if (enable_auto_index)
+    {
+        static std::uniform_int_distribution<> alloc_dist(0, 9);
+
+        // std::cout << alloc_dist(auto_mersenne) << std::endl;
+        alloc_index(alloc_dist(auto_mersenne));
+        auto_allocs++;
+    }
     //    renderer.base.memory.vertexIndexAllocator.deallocate(m_location3);
     //    m_location3 = renderer.base.memory.vertexIndexAllocator.allocate(1025);
 }
@@ -61,6 +72,9 @@ void VulkanExample::renderGUI()
 {
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Example settings");
+
+    ImGui::Checkbox("Auto allocate indexed", &enable_auto_index);
+    ImGui::Text("%d", auto_allocs);
     ImGui::End();
 
     parentWindow.renderImGui();
@@ -169,17 +183,22 @@ void VulkanExample::keyPressed(SDL_Keysym key)
     if (single_unassign > 0)
     {
         auto index = single_unassign - 1;
-        if (num_allocations[index] && num_allocations[index]->memory)
-        {
-            MemoryLocation* loc = num_allocations[index];
-            // allocations.erase(allocations.begin() + index);
-            renderer.base.memory.deallocateBuffer(buffer_type, loc);
-            num_allocations[index] = nullptr;
-        }
-        else
-        {
-            num_allocations[index] = renderer.base.memory.allocate(buffer_type, sizes[3]);
-        }
+        alloc_index(index);
+    }
+}
+
+void VulkanExample::alloc_index(int index)
+{
+    if (num_allocations[index] && num_allocations[index]->memory)
+    {
+        MemoryLocation* loc = num_allocations[index];
+        // allocations.erase(allocations.begin() + index);
+        renderer.base.memory.deallocateBuffer(buffer_type, loc);
+        num_allocations[index] = nullptr;
+    }
+    else
+    {
+        num_allocations[index] = renderer.base.memory.allocate(buffer_type, sizes[3]);
     }
 }
 
