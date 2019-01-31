@@ -54,14 +54,15 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
                                       main_idx);  // A queue with compute or graphics can always be used for transfer
     SAIGA_ASSERT(found_main, "A main queue with compute and graphics capabilities is required");
 
+    int offset = 0;
     if (!findDedicatedQueueFamily(vk::QueueFlagBits::eCompute, compute_idx))
     {
-        findQueueFamily(vk::QueueFlagBits::eCompute, compute_idx);
+        findQueueFamily(vk::QueueFlagBits::eCompute, compute_idx, ++offset);
     }
 
     if (!findDedicatedQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx))
     {
-        findQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx);
+        findQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx, ++offset);
     }
 
 
@@ -219,15 +220,16 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
 void VulkanBase::init(VulkanParameters params) {}
 
 
-bool VulkanBase::findQueueFamily(vk::QueueFlags flags, uint32_t& family)
+bool VulkanBase::findQueueFamily(vk::QueueFlags flags, uint32_t& family, uint32_t offset)
 {
     for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
     {
-        auto& prop = queueFamilyProperties[i];
+        auto offset_index = (i + offset) % queueFamilyProperties.size();
+        auto& prop        = queueFamilyProperties[offset_index];
 
         if ((prop.queueFlags & flags) == flags)
         {
-            family = i;
+            family = offset_index;
             return true;
         }
     }

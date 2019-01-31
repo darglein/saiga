@@ -102,7 +102,7 @@ struct SAIGA_GLOBAL VulkanBase
 
     void renderGUI();
 
-    bool findQueueFamily(vk::QueueFlags flags, uint32_t& family);
+    bool findQueueFamily(vk::QueueFlags flags, uint32_t& family, uint32_t offset = 0);
 
     bool findDedicatedQueueFamily(vk::QueueFlags flags, uint32_t& family);
 };
