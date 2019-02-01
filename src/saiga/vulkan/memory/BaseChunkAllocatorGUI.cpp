@@ -24,8 +24,7 @@ void BaseChunkAllocator::showDetailStats()
         headerInfo();
 
         allocation_bars.resize(
-            chunks.size(),
-            ImGui::ColoredBar({0, 40}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 1));
+            chunks.size(), ImGui::ColoredBar({0, 40}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 1));
 
         int numAllocs           = 0;
         uint64_t usedSpace      = 0;
@@ -35,8 +34,12 @@ void BaseChunkAllocator::showDetailStats()
         {
             auto& bar   = allocation_bars[i];
             auto& chunk = chunks[i];
-            ImGui::Text("Chunk %d (%s, %s)", i + 1, sizeToString(chunk.allocated).c_str(),
-                        sizeToString(chunk.getFree()).c_str());
+
+            std::stringstream ss;
+            ss << "Mem " << std::hex << chunk.chunk->memory << " Buffer " << chunk.buffer;
+
+            ImGui::Text("Chunk %d (%s, %s) %s", i + 1, sizeToString(chunk.getFree()).c_str(),
+                        sizeToString(chunk.allocated).c_str(), ss.str().c_str());
             ImGui::Indent();
             bar.renderBackground();
             int j = 0;
@@ -72,6 +75,8 @@ void BaseChunkAllocator::showDetailStats()
                          100 * static_cast<float>(usedSpace) / totalSpace);
         ImGui::LabelText("Free Space (total / fragmented)", "%s / %s", sizeToString(totalFreeSpace).c_str(),
                          sizeToString(innerFreeSpace).c_str());
+
+
         ImGui::Unindent();
     }
 }
