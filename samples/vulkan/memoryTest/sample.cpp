@@ -73,6 +73,13 @@ void VulkanExample::renderGUI()
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Example settings");
 
+    bool old_enable = enable_defragger;
+    ImGui::Checkbox("Defragger enabled", &old_enable);
+    if (old_enable != enable_defragger)
+    {
+        enable_defragger = old_enable;
+        renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
+    }
     ImGui::Checkbox("Auto allocate indexed", &enable_auto_index);
     ImGui::Text("%d", auto_allocs);
     ImGui::End();
@@ -84,7 +91,7 @@ void VulkanExample::renderGUI()
 void VulkanExample::keyPressed(SDL_Keysym key)
 {
     static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL);
-    static bool enable_defragger = false;
+
 
 
     int single_unassign = -1;

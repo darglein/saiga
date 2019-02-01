@@ -38,7 +38,9 @@ class VulkanExample : public Saiga::Updating,
                                                   vk::MemoryPropertyFlagBits::eDeviceLocal};
 
     bool enable_auto_index = false;
-    int auto_allocs = 0;
+    bool enable_defragger  = false;
+    int auto_allocs        = 0;
+
    public:
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample() override;
