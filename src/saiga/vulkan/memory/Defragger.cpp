@@ -12,14 +12,11 @@ static std::atomic_int counter = 0;
 
 void Defragger::start()
 {
-    if (!enabled)
+    if (!enabled || running)
     {
         return;
     }
-    if (running)
-    {
-        return;
-    }
+    defrag_operations.clear();
     {
         std::lock_guard<std::mutex> lock(start_mutex);
         running = true;
@@ -29,6 +26,10 @@ void Defragger::start()
 
 void Defragger::stop()
 {
+    if (!running)
+    {
+        return;
+    }
     running = false;
     {
         std::unique_lock<std::mutex> lock(running_mutex);
@@ -47,6 +48,7 @@ void Defragger::worker_func()
         {
             return;
         }
+        std::cout << "Defragger start" << std::endl;
         std::unique_lock<std::mutex> running_lock(running_mutex);
         if (allocator->chunks.empty())
         {
@@ -79,7 +81,7 @@ void Defragger::find_defrag_ops()
             auto& source = **alloc_iter;
 
             auto begin = chunks.begin();
-            auto end   = (chunk_iter + 1).base();  // Conversion from reverse to normal iterator moves one back
+            auto end   = (chunk_iter).base();  // Conversion from reverse to normal iterator moves one back
             //
             auto new_place = allocator->strategy->findRange(begin, end, source.size);
 
@@ -87,9 +89,17 @@ void Defragger::find_defrag_ops()
             {
                 const auto target_iter = new_place.second;
                 const auto& target     = *target_iter;
-                auto weight = get_operation_penalty(new_place.first, target_iter, end, (alloc_iter + 1).base());
 
-                defrag_operations.insert(DefragOperation{&source, new_place.first->chunk->memory, target, weight});
+                auto current_chunk = (chunk_iter + 1).base();
+
+
+                if (current_chunk != new_place.first || target.offset < (**alloc_iter).offset)
+                {
+                    auto weight =
+                        get_operation_penalty(new_place.first, target_iter, current_chunk, (alloc_iter + 1).base());
+
+                    defrag_operations.insert(DefragOperation{&source, new_place.first->chunk->memory, target, weight});
+                }
             }
         }
     }
@@ -130,6 +140,14 @@ float Defragger::get_operation_penalty(ConstChunkIterator target_chunk, ConstFre
 {
     auto& source_ptr = *source_location;
     float weight     = 0;
+
+
+    if (target_chunk == source_chunk)
+    {
+        // move inside a chunk should be done after moving to others
+        weight += penalties.same_chunk;
+    }
+
     // if the move creates a hole that is smaller than the memory chunk itself -> add weight
     if (target_location->size != source_ptr->size && (target_location->size - source_ptr->size < source_ptr->size))
     {

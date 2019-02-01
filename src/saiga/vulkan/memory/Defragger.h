@@ -31,6 +31,7 @@ class Defragger
         float source_create_hole    = 200.0f;
         float source_not_last_alloc = 100.0f;
         float source_not_last_chunk = 400.0f;
+        float same_chunk            = 500.0f;
     };
 
    private:
@@ -42,12 +43,13 @@ class Defragger
         float weight;
 
 
-        bool operator<(const DefragOperation& second) const { return this->weight > second.weight; }
+        bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
     };
 
     bool enabled;
     BufferChunkAllocator* allocator;
     std::multiset<DefragOperation> defrag_operations;
+
 
     std::atomic_bool running, quit;
 
