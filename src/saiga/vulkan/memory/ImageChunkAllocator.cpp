@@ -21,7 +21,9 @@ Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator:
 
 void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
 {
-    ImGui::LabelText("Memory Type", "%s", type.to_string().c_str());
+    std::stringstream ss;
+    ss << type;
+    ImGui::LabelText("Memory Type", "%s", ss.str().c_str());
 }
 
 Saiga::Vulkan::Memory::MemoryLocation* Saiga::Vulkan::Memory::ImageChunkAllocator::allocate(vk::DeviceSize size,

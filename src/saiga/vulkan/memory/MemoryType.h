@@ -34,14 +34,6 @@ struct MemoryType
         return (memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
     }
 
-
-    std::string to_string()
-    {
-        std::stringstream ss;
-        operator<<(ss, *this);
-        return ss.str();
-    }
-
     bool operator<(const MemoryType& rhs) const
     {
         if (static_cast<unsigned int>(usageFlags) < static_cast<unsigned int>(rhs.usageFlags))
