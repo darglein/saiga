@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 10
+
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
@@ -28,7 +30,7 @@ const int vec_mult = true;
 
 
 using T              = double;
-const int block_size = 6;
+const int block_size = 8;
 
 // Matrix dimension (in blocks)
 const int n = 4000;

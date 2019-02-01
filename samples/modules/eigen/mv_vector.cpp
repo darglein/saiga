@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+//#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 10
+
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/util/crash.h"
 #include "saiga/core/util/random.h"
@@ -29,13 +31,21 @@ void testMatrixVector2()
     using Mat      = Eigen::Matrix<T, size, size>;
     using Vec      = Eigen::Matrix<T, size, 1>;
 
+
+    int a = EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD;
+
     Mat A;
     Vec y, x;
 
 
-    asm("# Start y=A*x");
-    y = A * x;
-    asm("# End y=A*x");
+
+    //    Eigen::internal::product_type
+    //    Eigen::internal::general_matrix_vector_product
+    // asm("# Start y=A*x");
+    y = (A * x).eval();
+    // asm("# End y=A*x");
+
+    cout << y << endl;
 }
 
 void testMatrixVector()
