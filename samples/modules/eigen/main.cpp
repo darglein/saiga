@@ -100,11 +100,16 @@ void eigenHeatTest()
     cout << "Done." << endl << m2 << endl;
 }
 
+void testMatrixVector();
 
 int main(int argc, char* argv[])
 {
     printVectorInstructions();
 
+
+    testMatrixVector();
+
+    return 0;
 
     eigenHeatTest();
     return 0;

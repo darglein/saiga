@@ -8,7 +8,7 @@
 
 find_path(SAIGA_INCLUDE_DIRS 
 	NAMES 
-		saiga/rendering/deferredRendering/deferred_renderer.h
+                saiga/core/Core
 	PATHS
                 @PROJECT_SOURCE_DIR@/src
 )
@@ -32,13 +32,32 @@ find_path(SAIGA_SHADER_DIRS
 )
 
 
-find_library(SAIGA_LIBRARY_BASE
-	NAMES 
-		saiga
-    	PATHS 
-                @PROJECT_BINARY_DIR@/bin
-)
 
+find_library(SAIGA_CORE_LIBRARY   NAMES saiga_core   PATHS @PROJECT_BINARY_DIR@/bin)
+find_library(SAIGA_OPENGL_LIBRARY NAMES saiga_opengl PATHS @PROJECT_BINARY_DIR@/bin)
+find_library(SAIGA_VULKAN_LIBRARY NAMES saiga_vulkan PATHS @PROJECT_BINARY_DIR@/bin)
+find_library(SAIGA_VISION_LIBRARY NAMES saiga_vision PATHS @PROJECT_BINARY_DIR@/bin)
+find_library(SAIGA_EXTRA_LIBRARY  NAMES saiga_extra  PATHS @PROJECT_BINARY_DIR@/bin)
+
+if(SAIGA_CORE_LIBRARY)
+    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_CORE_LIBRARY})
+endif()
+
+if(SAIGA_OPENGL_LIBRARY)
+    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_OPENGL_LIBRARY})
+endif()
+
+if(SAIGA_VULKAN_LIBRARY)
+    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_VULKAN_LIBRARY})
+endif()
+
+if(SAIGA_VISION_LIBRARY)
+    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_VISION_LIBRARY})
+endif()
+
+if(SAIGA_EXTRA_LIBRARY)
+    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_EXTRA_LIBRARY})
+endif()
 
 #GLM is required 
 find_path(SAIGA_GLM_INCLUDE_DIRS 
@@ -63,34 +82,55 @@ find_package_handle_standard_args(
         SAIGA_GLM_INCLUDE_DIRS
         SAIGA_BUILD_INCLUDE_DIRS
         SAIGA_SHADER_DIRS
-        SAIGA_LIBRARY_BASE
+        SAIGA_LIBRARIES_BASE
         OPENGL_LIBRARIES
 )
 
 
 
 set(SAIGA_INCLUDE_DIRS ${SAIGA_INCLUDE_DIRS} ${SAIGA_SHADER_DIRS} ${OPENGL_INCLUDE_DIRS} ${SAIGA_GLM_INCLUDE_DIRS} ${SAIGA_GLBINDING_INCLUDE_DIRS} ${SAIGA_BUILD_INCLUDE_DIRS})
-set(SAIGA_LIBRARY ${SAIGA_LIBRARY_BASE} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
+set(SAIGA_LIBRARY ${SAIGA_LIBRARIES_BASE} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
 set(SAIGA_LIBRARIES ${SAIGA_LIBRARY})
 
 
 
 # Create imported target saiga
-add_library(saiga SHARED IMPORTED)
 
-message(STATUS "${SAIGA_LIBRARIES}")
-message(STATUS "${SAIGA_INCLUDE_DIRS}")
 
-set_target_properties(saiga PROPERTIES
+#message(STATUS "${SAIGA_LIBRARIES}")
+#message(STATUS "${SAIGA_INCLUDE_DIRS}")
+
+
+macro(saiga_make_target _target _target_lib _libraries _soname)
+
+
+add_library(${_target} SHARED IMPORTED)
+
+#message(STATUS ${_target})
+#message(STATUS ${_target_lib})
+#message(STATUS ${_libraries})
+#message(STATUS ${_soname})
+set_target_properties(${_target} PROPERTIES
   INTERFACE_COMPILE_FEATURES "cxx_std_14"
   INTERFACE_INCLUDE_DIRECTORIES "${SAIGA_INCLUDE_DIRS}"
-  INTERFACE_LINK_LIBRARIES "${SAIGA_LIBRARIES}"
+  INTERFACE_LINK_LIBRARIES "${${_libraries}}"
 )
 
 
 # Import target "saiga" for configuration "RelWithDebInfo"
-set_property(TARGET saiga APPEND PROPERTY IMPORTED_CONFIGURATIONS RELWITHDEBINFO)
-set_target_properties(saiga PROPERTIES
-  IMPORTED_LOCATION_RELWITHDEBINFO "${SAIGA_LIBRARY_BASE}"
-  IMPORTED_SONAME_RELWITHDEBINFO "libsaiga.so"
+set_property(TARGET ${_target} APPEND PROPERTY IMPORTED_CONFIGURATIONS RELWITHDEBINFO)
+set_target_properties(${_target} PROPERTIES
+  IMPORTED_LOCATION_RELWITHDEBINFO "${_target_lib}"
+  IMPORTED_SONAME_RELWITHDEBINFO "${_soname}"
   )
+
+endmacro()
+
+
+saiga_make_target(saiga_core   "${SAIGA_CORE_LIBRARY}"   SAIGA_LIBRARIES "saiga_core.so")
+saiga_make_target(saiga_vision "${SAIGA_VISION_LIBRARY}" SAIGA_LIBRARIES "saiga_vision.so")
+saiga_make_target(saiga_vulkan "${SAIGA_VULKAN_LIBRARY}" SAIGA_LIBRARIES "saiga_vulkan.so")
+saiga_make_target(saiga_extra  "${SAIGA_EXTRA_LIBRARY}"  SAIGA_LIBRARIES "saiga_extra.so")
+saiga_make_target(saiga_opengl "${SAIGA_OPENGL_LIBRARY}" SAIGA_LIBRARIES "saiga_opengl.so")
+
+

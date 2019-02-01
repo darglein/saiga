@@ -174,6 +174,10 @@ void initSaiga(const SaigaParameters& params)
     {
         cout << "Could not find the Saiga shaders." << endl;
         cout << "Set the 'shaderDirectory' variable of 'SaigaParameters' accordingly." << endl;
+        for (auto s : searchPathes)
+        {
+            cout << "     " << s << endl;
+        }
         exit(1);
     }
 

@@ -65,3 +65,29 @@ target_include_directories(
     # for the internal files
     #${PROJECT_SOURCE_DIR}/src/
     )
+
+
+
+install(
+    TARGETS ${MODULE_NAME}
+    EXPORT ${LIB_EXPORT}
+    RUNTIME DESTINATION ${INSTALL_BIN}
+    LIBRARY DESTINATION ${INSTALL_SHARED}
+    ARCHIVE DESTINATION ${INSTALL_LIB}
+    )
+
+install(
+    EXPORT ${LIB_EXPORT}
+    FILE SaigaTargets.cmake
+    DESTINATION ${INSTALL_SHARE}
+    )
+
+
+install(
+    DIRECTORY ./saiga/
+    DESTINATION ${INSTALL_INCLUDE}/core
+    FILES_MATCHING PATTERN "*.h"
+    PATTERN "*.inl"
+    PATTERN "*.hpp"
+    )
+
