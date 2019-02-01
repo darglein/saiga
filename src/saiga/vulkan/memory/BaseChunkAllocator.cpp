@@ -178,7 +178,7 @@ void BaseChunkAllocator::destroy()
 bool BaseChunkAllocator::memory_is_free(vk::DeviceMemory memory, FreeListEntry free_mem)
 {
     auto chunk = std::find_if(chunks.begin(), chunks.end(),
-                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory = memory; });
+                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
 
     SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
 
@@ -207,7 +207,7 @@ MemoryLocation* BaseChunkAllocator::reserve_space(vk::DeviceMemory memory, FreeL
                                                   vk::DeviceSize size)
 {
     auto chunk = std::find_if(chunks.begin(), chunks.end(),
-                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory = memory; });
+                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
 
     SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
 
@@ -254,9 +254,9 @@ std::pair<ChunkIterator, AllocationIterator> BaseChunkAllocator::find_allocation
     auto fChunk = std::find_if(chunks.begin(), chunks.end(),
                                [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location->memory; });
 
-    auto& chunkAllocs = fChunk->allocations;
-
     SAIGA_ASSERT(fChunk != chunks.end(), "Allocation was not done with this allocator!");
+
+    auto& chunkAllocs = fChunk->allocations;
     auto fLoc =
         std::lower_bound(chunkAllocs.begin(), chunkAllocs.end(), location,
                          [](const auto& element, const auto& value) { return element->offset < value->offset; });
