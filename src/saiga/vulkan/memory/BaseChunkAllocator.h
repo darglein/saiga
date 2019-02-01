@@ -104,6 +104,8 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     std::pair<ChunkIterator, AllocationIterator> find_allocation(MemoryLocation* location);
 
     void move_allocation(MemoryLocation* target, MemoryLocation* source);
+
+    void add_to_free_list(const ChunkIterator& chunk, const MemoryLocation& location) const;
 };
 
 

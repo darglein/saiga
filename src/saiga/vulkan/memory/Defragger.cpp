@@ -48,7 +48,6 @@ void Defragger::worker_func()
         {
             return;
         }
-        std::cout << "Defragger start" << std::endl;
         std::unique_lock<std::mutex> running_lock(running_mutex);
         if (allocator->chunks.empty())
         {

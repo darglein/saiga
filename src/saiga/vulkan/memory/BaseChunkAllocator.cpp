@@ -91,63 +91,11 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
     auto& chunkAllocs = fChunk->allocations;
 
     SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
-    auto& chunkFree = fChunk->freeList;
+
     LOG(INFO) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
               << "/" << (*fLoc)->offset << "]";
 
-    FreeIterator freePrev, freeNext, freeInsert;
-    bool foundInsert = false;
-    freePrev = freeNext = chunkFree.end();
-    freeInsert          = chunkFree.end();
-    for (auto freeIt = chunkFree.begin(); freeIt != chunkFree.end(); ++freeIt)
-    {
-        if (freeIt->offset + freeIt->size == location->offset)
-        {
-            freePrev = freeIt;
-        }
-        if (freeIt->offset == location->offset + location->size)
-        {
-            freeNext = freeIt;
-            break;
-        }
-        if ((freeIt->offset + freeIt->size) < location->offset)
-        {
-            freeInsert  = freeIt;
-            foundInsert = true;
-        }
-    }
-
-    if (freePrev != chunkFree.end() && freeNext != chunkFree.end())
-    {
-        // Free space before and after newly freed space -> merge
-        freePrev->size += location->size + freeNext->size;
-        chunkFree.erase(freeNext);
-    }
-    else if (freePrev != chunkFree.end())
-    {
-        // Free only before -> increase size
-        freePrev->size += location->size;
-    }
-    else if (freeNext != chunkFree.end())
-    {
-        // Free only after newly freed -> move and increase size
-        freeNext->offset = location->offset;
-        freeNext->size += location->size;
-    }
-    else
-    {
-        FreeIterator insertionPoint;
-        if (foundInsert)
-        {
-            insertionPoint = std::next(freeInsert);
-        }
-        else
-        {
-            insertionPoint = chunkFree.begin();
-        }
-
-        chunkFree.insert(insertionPoint, FreeListEntry{location->offset, location->size});
-    }
+    add_to_free_list(fChunk, *(fLoc->get()));
 
     findNewMax(fChunk);
 
@@ -237,16 +185,42 @@ void BaseChunkAllocator::move_allocation(MemoryLocation* target, MemoryLocation*
 
     std::move(source_alloc, std::next(source_alloc), target_alloc);
 
-    //**target_alloc = source_copy;
     source_chunk->allocations.erase(source_alloc);
 
-    auto found =
-        std::lower_bound(source_chunk->freeList.begin(), source_chunk->freeList.end(), source_copy,
-                         [](const auto& free_entry, const auto& value) { return free_entry.offset < value.offset; });
+    add_to_free_list(source_chunk, source_copy);
 
-    source_chunk->freeList.insert(found, FreeListEntry{source_copy.offset, source_copy.size});
 
     findNewMax(source_chunk);
+}
+
+void BaseChunkAllocator::add_to_free_list(const ChunkIterator& chunk, const MemoryLocation& location) const
+{
+    auto& freeList = chunk->freeList;
+    auto found = lower_bound(freeList.begin(), freeList.end(), location, [](const auto& free_entry, const auto& value) {
+        return free_entry.offset < value.offset;
+    });
+
+
+    auto free = chunk->freeList.end();
+
+    auto previous = prev(found);
+    if (found != freeList.begin() && previous->end() == location.offset)
+    {
+        previous->size += location.size;
+        free = previous;
+    }
+    else
+    {
+        free  = freeList.insert(found, FreeListEntry{location.offset, location.size});
+        found = next(free);
+    }
+
+
+    if (found != freeList.end() && free->end() == found->offset)
+    {
+        free->size += found->size;
+        freeList.erase(found);
+    }
 }
 
 std::pair<ChunkIterator, AllocationIterator> BaseChunkAllocator::find_allocation(MemoryLocation* location)
