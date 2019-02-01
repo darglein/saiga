@@ -87,6 +87,7 @@ class SAIGA_GLOBAL Deferred_Renderer : public Renderer
 {
    public:
     DeferredLighting lighting;
+    PostProcessor postProcessor;
 
     Deferred_Renderer(OpenGLWindow& window, DeferredRenderingParameters _params = DeferredRenderingParameters());
     Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
@@ -131,7 +132,7 @@ class SAIGA_GLOBAL Deferred_Renderer : public Renderer
     std::shared_ptr<SSAO> ssao;
     std::shared_ptr<SMAA> smaa;
     GBuffer gbuffer;
-    PostProcessor postProcessor;
+
     DeferredRenderingParameters params;
     std::shared_ptr<MVPTextureShader> blitDepthShader;
     IndexedVertexBuffer<VertexNT, GLushort> quadMesh;

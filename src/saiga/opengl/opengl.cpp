@@ -6,12 +6,12 @@
 
 #include "saiga/opengl/opengl.h"
 
+#include "saiga/core/util/assert.h"
+#include "saiga/core/util/ini/ini.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/opengl/texture/textureLoader.h"
-#include "saiga/core/util/assert.h"
-#include "saiga/core/util/ini/ini.h"
 
 #include <algorithm>
 #include <glbinding/glbinding.h>
@@ -215,7 +215,7 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
     profile = profileString == "ANY" ? Profile::ANY : profileString == "CORE" ? Profile::CORE : Profile::COMPATIBILITY;
 }
 
-void initSaigaGL(const std::string& shaderDir, const std::vector<std::string>& textureDir)
+void initSaigaGL()
 {
     //    shaderPathes.addSearchPath(shaderDir);
     // Disables the following notification:
@@ -226,11 +226,6 @@ void initSaigaGL(const std::string& shaderDir, const std::vector<std::string>& t
         // intel
     };
     Error::ignoreGLError(ignoreIds);
-
-    //    TextureLoader::instance()->addPath(".");
-    //    for (auto t : textureDir) TextureLoader::instance()->addPath(t);
-    //    TextureLoader::instance()->addPath(textureDir);
-    //    TextureLoader::instance()->addPath(textureDir + "/include");
 }
 
 void cleanupSaigaGL()

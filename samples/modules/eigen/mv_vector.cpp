@@ -15,26 +15,34 @@
 using namespace Saiga;
 
 
-// objdump -d -M intel -S test.o
+// View Assembly code
+// 1. Go to the directory of the .o file.
+//        cd saiga/build/samples/modules/eigen/CMakeFiles/modules_eigen.dir
+// 2. Dumb assembly to file
+//        objdump -d -M intel -S mv_vector.cpp.o > vector_asm.txt
 
-void testMatrixVector()
+
+void testMatrixVector2()
 {
-    cout << "testMatrixVector" << endl;
-
-
     const int size = 8;
     using T        = double;
     using Mat      = Eigen::Matrix<T, size, size>;
     using Vec      = Eigen::Matrix<T, size, 1>;
 
-    Mat A = Mat::Random();
+    Mat A;
     Vec y, x;
 
-    x = Vec::Random();
 
     asm("# Start y=A*x");
     y = A * x;
     asm("# End y=A*x");
+}
+
+void testMatrixVector()
+{
+    cout << "testMatrixVector" << endl;
+
+    testMatrixVector2();
 
     cout << "testMatrixVector done." << endl;
 }

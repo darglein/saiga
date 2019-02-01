@@ -39,8 +39,8 @@ SAIGA_GLOBAL bool hasExtension(const std::string& ext);
 SAIGA_GLOBAL std::vector<std::string> getExtensions();
 
 
-// called from initSaiga
-SAIGA_LOCAL void initSaigaGL(const std::string& shaderDir, const std::vector<std::string>& textureDir);
+// called from OpenGLWindow::OpenGLWindow()
+SAIGA_LOCAL void initSaigaGL();
 SAIGA_LOCAL void cleanupSaigaGL();
 
 

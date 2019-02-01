@@ -9,13 +9,13 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/glImageFormat.h"
-#include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
-#include "saiga/core/util/tostring.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/texture/textureLoader.h"
 
 #include <cstring>
 #include <ctime>
@@ -28,6 +28,7 @@ namespace Saiga
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters, OpenGLParameters openglParameters)
     : WindowBase(_windowParameters), openglParameters(openglParameters)
 {
+    initSaigaGL();
 }
 
 OpenGLWindow::~OpenGLWindow()
