@@ -6,12 +6,15 @@
 
 #pragma once
 
-#include "saiga/config.h"
-#include "saiga/core/image/image.h"
 
-#ifdef SAIGA_VISION
+#if 0
 
-#    include "saiga/vision/RGBDCamera.h"
+#    include "saiga/config.h"
+#    include "saiga/core/image/image.h"
+
+#    ifdef SAIGA_VISION
+
+#        include "saiga/vision/RGBDCamera.h"
 
 
 
@@ -34,5 +37,7 @@ class SAIGA_GLOBAL RGBDCameraNetwork : public RGBDCamera
 };
 
 }  // namespace Saiga
+
+#    endif
 
 #endif

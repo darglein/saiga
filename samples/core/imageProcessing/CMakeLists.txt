@@ -1,2 +1,3 @@
 include(saiga_sample_macros)
-saiga_make_sample(saiga_core)
+list(APPEND required_modules "saiga_core")
+saiga_make_sample(required_modules)

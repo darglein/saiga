@@ -8,7 +8,7 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/extra/network/ImageTransmition.h"
-#include "saiga/extra/openni2/RGBDCameraInput.h"
+#include "saiga/vision/openni2/RGBDCameraInput.h"
 
 #include "boost/asio.hpp"
 

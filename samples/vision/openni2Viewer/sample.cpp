@@ -11,7 +11,7 @@
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/extra/network/RGBDCameraNetwork.h"
-#include "saiga/extra/openni2/RGBDCameraInput.h"
+#include "saiga/vision/openni2/RGBDCameraInput.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/threadName.h"
 

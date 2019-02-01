@@ -1,2 +1,3 @@
 include(saiga_sample_macros)
-saiga_make_sample(saiga_cuda)
+list(APPEND required_modules "saiga_cuda")
+saiga_make_sample(required_modules)

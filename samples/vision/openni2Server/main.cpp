@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/extra/network/ImageTransmition.h"
-#include "saiga/extra/openni2/RGBDCameraInput.h"
 #include "saiga/core/util/ini/ini.h"
+#include "saiga/extra/network/ImageTransmition.h"
+#include "saiga/vision/openni2/RGBDCameraInput.h"
 
 #include "boost/asio.hpp"
 

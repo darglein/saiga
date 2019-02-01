@@ -6,12 +6,14 @@
 
 #include "RGBDCameraNetwork.h"
 
-#ifdef SAIGA_VISION
-#    include "saiga/core/image/imageTransformations.h"
+#if 0
 
-#    include "internal/noGraphicsAPI.h"
+#    ifdef SAIGA_VISION
+#        include "saiga/core/image/imageTransformations.h"
 
-#    include "ImageTransmition.h"
+#        include "internal/noGraphicsAPI.h"
+
+#        include "ImageTransmition.h"
 
 
 namespace Saiga
@@ -77,4 +79,7 @@ std::shared_ptr<RGBDCamera::FrameData> RGBDCameraNetwork::tryGetImage()
 
 
 }  // namespace Saiga
+#    endif
+
+
 #endif

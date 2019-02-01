@@ -23,7 +23,9 @@ macro(saiga_make_sample _modules)
     add_executable(${PROG_NAME} ${PROG_SRC} )
 
     # We only need to link the saiga target
-    target_link_libraries(${PROG_NAME} ${_modules} )
+    #message(STATUS "${${_modules}}")
+    target_link_libraries(${PROG_NAME} ${${_modules}})
+    #target_link_libraries(${PROG_NAME} saiga_vision saiga_vulkan saiga_opengl)
     #target_link_libraries(${PROG_NAME} saiga_core )
 
     #set working directory for visual studio so the project can be executed from the ide

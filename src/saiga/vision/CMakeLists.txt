@@ -3,15 +3,36 @@
 set(MODULE_NAME "saiga_vision")
 
 
-FILE(GLOB_RECURSE VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
-FILE(GLOB_RECURSE VULKAN_HEADER  "*.h" "*.hpp" "*.inl")
+add_subdirectory(ba)
+add_subdirectory(icp)
+add_subdirectory(kernels)
+add_subdirectory(pgo)
+add_subdirectory(recursiveMatrices)
+add_subdirectory(scene)
 
 
-# the internal files are added to core
+
+if(OPENNI2_FOUND)
+    add_subdirectory(openni2)
+endif()
+
+if(G2O_FOUND)
+    add_subdirectory(g2o)
+endif()
+
+if(CERES_FOUND)
+    add_subdirectory(ceres)
+endif()
+
+FILE(GLOB VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
+FILE(GLOB VULKAN_HEADER  "*.h" "*.hpp" "*.inl")
+
 SET(SAIGA_ALL_FILES
+    ${SAIGA_ALL_FILES}
     ${VULKAN_SRC}
     ${VULKAN_HEADER}
     )
+
 
 
 if(SAIGA_BUILD_SHARED)

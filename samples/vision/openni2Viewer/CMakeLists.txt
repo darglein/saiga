@@ -1,2 +1,3 @@
 include(saiga_sample_macros)
-saiga_make_sample("saiga_vision saiga_vulkan")
+list(APPEND required_modules "saiga_vision" "saiga_vulkan" "saiga_extra")
+saiga_make_sample(required_modules)

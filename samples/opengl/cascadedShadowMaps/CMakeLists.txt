@@ -1,2 +1,3 @@
 include(saiga_sample_macros)
-saiga_make_sample(saiga_opengl)
+list(APPEND required_modules "saiga_opengl")
+saiga_make_sample(required_modules)

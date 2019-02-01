@@ -7,10 +7,6 @@ if(EIGEN3_FOUND)
     add_subdirectory(eigen)
 endif()
 
-if(OPENNI2_FOUND)
-    add_subdirectory(openni2)
-endif()
-
 if(Boost_FOUND)
     add_subdirectory(network)
 endif()
