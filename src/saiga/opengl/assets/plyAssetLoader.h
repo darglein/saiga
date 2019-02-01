@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL PlyAssetLoader : public AssetLoader
+class SAIGA_OPENGL_API PlyAssetLoader : public AssetLoader
 {
    public:
     void loadMeshNC(const std::string& file, TriangleMesh<VertexNC, GLuint>& mesh, bool normalize = false);

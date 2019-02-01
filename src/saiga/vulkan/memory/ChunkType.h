@@ -19,7 +19,7 @@ namespace Memory
  * Abstraction for a single memory type as provided by vkGetPhysicalDeviceMemoryProperties().
  * Allows allocation an deallocation of memory in chunks of the size chunkSize.
  */
-class SAIGA_GLOBAL ChunkType
+class SAIGA_VULKAN_API ChunkType
 {
    private:
     uint32_t m_memoryTypeIndex;

@@ -19,7 +19,7 @@ namespace Saiga
  * Basically copy+paste from here: https://stackoverflow.com/questions/10121560/stdthread-naming-your-thread
  * Slight modifications on the interface.
  */
-SAIGA_GLOBAL extern void setThreadName(const std::string& name);
-SAIGA_GLOBAL extern void setThreadName(std::thread& thread, const std::string& name);
+SAIGA_CORE_API extern void setThreadName(const std::string& name);
+SAIGA_CORE_API extern void setThreadName(std::thread& thread, const std::string& name);
 
 }  // namespace Saiga

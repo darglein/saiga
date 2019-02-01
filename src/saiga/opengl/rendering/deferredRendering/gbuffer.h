@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL GBufferParameters
+struct SAIGA_OPENGL_API GBufferParameters
 {
     bool srgb             = false;  // colors stored in srgb. saves memory bandwith but adds conversion operations.
     Quality colorQuality  = Quality::MEDIUM;
@@ -20,7 +20,7 @@ struct SAIGA_GLOBAL GBufferParameters
     Quality depthQuality  = Quality::HIGH;
 };
 
-class SAIGA_GLOBAL GBuffer : public Framebuffer
+class SAIGA_OPENGL_API GBuffer : public Framebuffer
 {
    protected:
     GBufferParameters params;

@@ -22,7 +22,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL VulkanVertexColoredAsset : public VertexColoredModel
+class SAIGA_VULKAN_API VulkanVertexColoredAsset : public VertexColoredModel
 {
    public:
     VertexBuffer<VertexType> vertexBuffer;
@@ -36,7 +36,7 @@ class SAIGA_GLOBAL VulkanVertexColoredAsset : public VertexColoredModel
 };
 
 
-class SAIGA_GLOBAL VulkanLineVertexColoredAsset : public LineModelColored
+class SAIGA_VULKAN_API VulkanLineVertexColoredAsset : public LineModelColored
 {
    public:
     using VertexType = VertexNC;
@@ -48,7 +48,7 @@ class SAIGA_GLOBAL VulkanLineVertexColoredAsset : public LineModelColored
 
 
 
-class SAIGA_GLOBAL VulkanPointCloudAsset
+class SAIGA_VULKAN_API VulkanPointCloudAsset
 {
    public:
     using VertexType = VertexNC;
@@ -70,7 +70,7 @@ class SAIGA_GLOBAL VulkanPointCloudAsset
 
 
 
-class SAIGA_GLOBAL VulkanTexturedAsset : public TexturedModel
+class SAIGA_VULKAN_API VulkanTexturedAsset : public TexturedModel
 {
    public:
     VertexBuffer<VertexType> vertexBuffer;

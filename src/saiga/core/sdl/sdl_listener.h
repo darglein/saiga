@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Listener
+class SAIGA_CORE_API Listener
 {
    public:
     virtual ~Listener() {}
@@ -20,7 +20,7 @@ class SAIGA_GLOBAL Listener
     bool listenerEnabled = true;
 };
 
-class SAIGA_GLOBAL SDL_KeyListener : public Listener
+class SAIGA_CORE_API SDL_KeyListener : public Listener
 {
    public:
     SDL_KeyListener();
@@ -30,7 +30,7 @@ class SAIGA_GLOBAL SDL_KeyListener : public Listener
     virtual void keyReleased(SDL_Keysym key) = 0;
 };
 
-class SAIGA_GLOBAL SDL_MouseListener : public Listener
+class SAIGA_CORE_API SDL_MouseListener : public Listener
 {
    public:
     SDL_MouseListener();
@@ -40,7 +40,7 @@ class SAIGA_GLOBAL SDL_MouseListener : public Listener
     virtual void mouseReleased(int key, int x, int y) = 0;
 };
 
-class SAIGA_GLOBAL SDL_ResizeListener : public Listener
+class SAIGA_CORE_API SDL_ResizeListener : public Listener
 {
    public:
     SDL_ResizeListener();
@@ -48,7 +48,7 @@ class SAIGA_GLOBAL SDL_ResizeListener : public Listener
     virtual bool resizeWindow(Uint32 windowId, int width, int height) = 0;
 };
 
-class SAIGA_GLOBAL SDL_EventListener : public Listener
+class SAIGA_CORE_API SDL_EventListener : public Listener
 {
    public:
     SDL_EventListener();

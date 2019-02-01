@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ForwardRenderingInterface : public RenderingInterfaceBase
+class SAIGA_OPENGL_API ForwardRenderingInterface : public RenderingInterfaceBase
 {
    public:
     ForwardRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
@@ -27,11 +27,11 @@ class SAIGA_GLOBAL ForwardRenderingInterface : public RenderingInterfaceBase
     //    RendererBase& parentRenderer;
 };
 
-struct SAIGA_GLOBAL ForwardRenderingParameters : public RenderingParameters
+struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
 {
 };
 
-class SAIGA_GLOBAL Forward_Renderer : public Renderer
+class SAIGA_OPENGL_API Forward_Renderer : public Renderer
 {
    public:
     ForwardRenderingParameters params;

@@ -25,7 +25,7 @@ namespace Saiga
  * The most common application is storing the Vertex-Data of a model (see VertexBuffer).
  */
 
-class SAIGA_GLOBAL Buffer
+class SAIGA_OPENGL_API Buffer
 {
    public:
     GLuint buffer = 0;        // opengl id
@@ -183,7 +183,7 @@ inline void Buffer::unmapBuffer()
 }
 
 
-class SAIGA_GLOBAL ShaderStorageBuffer : public Buffer
+class SAIGA_OPENGL_API ShaderStorageBuffer : public Buffer
 {
    public:
     ShaderStorageBuffer() : Buffer(GL_SHADER_STORAGE_BUFFER) {}

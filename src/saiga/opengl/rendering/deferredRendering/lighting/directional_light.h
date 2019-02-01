@@ -15,7 +15,7 @@ namespace Saiga
 #define MAX_CASCADES 5
 
 
-class SAIGA_GLOBAL DirectionalLightShader : public LightShader
+class SAIGA_OPENGL_API DirectionalLightShader : public LightShader
 {
    public:
     GLint location_direction, location_ambientIntensity;
@@ -39,7 +39,7 @@ class SAIGA_GLOBAL DirectionalLightShader : public LightShader
     void uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures);
 };
 
-class SAIGA_GLOBAL DirectionalLight : public Light
+class SAIGA_OPENGL_API DirectionalLight : public Light
 {
     friend class DeferredLighting;
 

@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL Instance
+class SAIGA_VULKAN_API Instance
 {
    public:
     void destroy();

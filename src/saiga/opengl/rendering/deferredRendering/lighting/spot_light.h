@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL SpotLightShader : public AttenuatedLightShader
+class SAIGA_OPENGL_API SpotLightShader : public AttenuatedLightShader
 {
    public:
     GLint location_angle;
@@ -22,7 +22,7 @@ class SAIGA_GLOBAL SpotLightShader : public AttenuatedLightShader
 
 
 
-class SAIGA_GLOBAL SpotLight : public AttenuatedLight
+class SAIGA_OPENGL_API SpotLight : public AttenuatedLight
 {
     friend class DeferredLighting;
 

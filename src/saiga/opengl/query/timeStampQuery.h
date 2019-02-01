@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL TimeStampQuery
+class SAIGA_OPENGL_API TimeStampQuery
 {
    private:
     GLuint id = 0;

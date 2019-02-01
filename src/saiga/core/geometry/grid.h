@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Grid : public Plane
+class SAIGA_CORE_API Grid : public Plane
 {
    public:
     vec3 d1, d2, mid;

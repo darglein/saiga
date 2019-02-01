@@ -13,7 +13,7 @@ struct ImDrawData;
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ImGuiRenderer
+class SAIGA_CORE_API ImGuiRenderer
 {
    public:
     ImGuiRenderer(ImGuiParameters params, bool linearRGB);

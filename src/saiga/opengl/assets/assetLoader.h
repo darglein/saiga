@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL AssetLoader
+class SAIGA_OPENGL_API AssetLoader
 {
    public:
     std::shared_ptr<MVPShader> basicAssetShader;

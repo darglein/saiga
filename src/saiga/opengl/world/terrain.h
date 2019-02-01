@@ -17,7 +17,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Terrain
+class SAIGA_OPENGL_API Terrain
 {
    public:
     int layers;

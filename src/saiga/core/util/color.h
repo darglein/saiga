@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Color
+class SAIGA_CORE_API Color
 {
    public:
     uint8_t r, g, b, a;

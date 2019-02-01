@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL TriangleMeshGenerator
+class SAIGA_CORE_API TriangleMeshGenerator
 {
     typedef TriangleMesh<VertexNT, uint32_t>::Face Face;
 

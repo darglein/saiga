@@ -11,16 +11,16 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ColoredAsset : public BasicAsset<VertexColoredModel>
+class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<VertexColoredModel>
 {
    public:
     virtual ~ColoredAsset() {}
 };
 
-class SAIGA_GLOBAL TexturedAsset : public BasicAsset<TexturedModel>
+class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel>
 {
    public:
-    class SAIGA_GLOBAL TextureGroup
+    class SAIGA_OPENGL_API TextureGroup
     {
        public:
         int startIndex;

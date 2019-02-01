@@ -34,7 +34,7 @@ namespace Saiga
 
 
 
-class SAIGA_GLOBAL Error
+class SAIGA_OPENGL_API Error
 {
    public:
     static bool checkGLError();

@@ -43,7 +43,7 @@ namespace easyexif
 //
 // Class responsible for storing and parsing EXIF information from a JPEG blob
 //
-class SAIGA_GLOBAL EXIFInfo
+class SAIGA_CORE_API EXIFInfo
 {
    public:
     // Parsing function for an entire JPEG image buffer.

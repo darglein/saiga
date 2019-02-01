@@ -43,8 +43,8 @@ const std::array<EndingType, 8> fileEndings = {
      {ShaderEnding::UNKN, "", vk::ShaderStageFlagBits::eAll}}};
 
 
-SAIGA_GLOBAL EndingType getEnding(const std::string& file);
-SAIGA_GLOBAL std::string stripEnding(const std::string& file);
+SAIGA_VULKAN_API EndingType getEnding(const std::string& file);
+SAIGA_VULKAN_API std::string stripEnding(const std::string& file);
 
 }  // namespace ShaderLoadHelper
 }  // namespace Vulkan

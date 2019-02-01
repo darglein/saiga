@@ -24,7 +24,7 @@ namespace Saiga
  * The output should be used with an orthogonal camera, with the bounds (0,0,0) (1,1,1)
  */
 
-class SAIGA_GLOBAL Layout
+class SAIGA_OPENGL_API Layout
 {
    public:
     enum Alignment

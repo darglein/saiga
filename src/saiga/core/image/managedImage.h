@@ -20,7 +20,7 @@ namespace Saiga
  * Note: The first scanline is at position data[0].
  */
 
-class SAIGA_GLOBAL Image : public ImageBase
+class SAIGA_CORE_API Image : public ImageBase
 {
    public:
     using byte_t   = unsigned char;
@@ -148,7 +148,7 @@ class SAIGA_GLOBAL Image : public ImageBase
     std::vector<uint8_t> compress();
     void decompress(std::vector<uint8_t> data);
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Image& f);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Image& f);
 };
 
 
@@ -156,8 +156,8 @@ class SAIGA_GLOBAL Image : public ImageBase
  * Converts a floating point image to a 8-bit image and saves it.
  * Useful for debugging.
  */
-SAIGA_GLOBAL bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax);
-SAIGA_GLOBAL bool save(const std::string& path, ImageView<float> img, float vmin, float vmax);
+SAIGA_CORE_API bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax);
+SAIGA_CORE_API bool save(const std::string& path, ImageView<float> img, float vmin, float vmax);
 
 
 

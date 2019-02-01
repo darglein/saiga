@@ -14,7 +14,7 @@ namespace Saiga
 {
 #define BONE_MATRICES_BINDING_POINT 1
 
-class SAIGA_GLOBAL BoneShader : public MVPShader
+class SAIGA_OPENGL_API BoneShader : public MVPShader
 {
    public:
     GLint location_boneMatrices;

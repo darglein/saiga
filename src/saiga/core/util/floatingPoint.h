@@ -21,16 +21,16 @@ namespace FP
 
 // resets the control register to the default rounding modes
 // is called once in initSaiga
-SAIGA_GLOBAL extern void resetSSECSR();
+SAIGA_CORE_API extern void resetSSECSR();
 
 // returns true if the flags of the control register still matches the default values
-SAIGA_GLOBAL extern bool checkSSECSR();
+SAIGA_CORE_API extern bool checkSSECSR();
 
 // set a different floating point rounding mode
 // use this only for tests
-SAIGA_GLOBAL extern void breakSSECSR();
+SAIGA_CORE_API extern void breakSSECSR();
 
 
-SAIGA_GLOBAL extern void printCPUInfo();
+SAIGA_CORE_API extern void printCPUInfo();
 }  // namespace FP
 }  // namespace Saiga

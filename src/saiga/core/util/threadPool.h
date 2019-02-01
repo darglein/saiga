@@ -40,7 +40,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ThreadPool
+class SAIGA_CORE_API ThreadPool
 {
    public:
     ThreadPool(size_t threads, const std::string& name = "ThreadPool");
@@ -105,7 +105,7 @@ auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename std::res
  * A global thread pool that can be used from everywhere.
  * Create it at the beginning with createGlobalThreadPool.
  */
-extern SAIGA_GLOBAL std::shared_ptr<ThreadPool> globalThreadPool;
-extern SAIGA_GLOBAL void createGlobalThreadPool(int threads);
+extern SAIGA_CORE_API std::shared_ptr<ThreadPool> globalThreadPool;
+extern SAIGA_CORE_API void createGlobalThreadPool(int threads);
 
 }  // namespace Saiga

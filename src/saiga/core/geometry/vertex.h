@@ -18,7 +18,7 @@ namespace Saiga
  * Vertex v2 = v;
  */
 
-struct SAIGA_GLOBAL Vertex
+struct SAIGA_CORE_API Vertex
 {
     vec4 position = make_vec4(0);
 
@@ -30,7 +30,7 @@ struct SAIGA_GLOBAL Vertex
     friend std::ostream& operator<<(std::ostream& os, const Vertex& vert);
 };
 
-struct SAIGA_GLOBAL VertexN : public Vertex
+struct SAIGA_CORE_API VertexN : public Vertex
 {
     vec4 normal = make_vec4(0);
 
@@ -45,7 +45,7 @@ struct SAIGA_GLOBAL VertexN : public Vertex
 };
 
 
-struct SAIGA_GLOBAL VertexNT : public VertexN
+struct SAIGA_CORE_API VertexNT : public VertexN
 {
     vec2 texture = make_vec2(0);
     vec2 padding;
@@ -67,7 +67,7 @@ struct SAIGA_GLOBAL VertexNT : public VertexN
     friend std::ostream& operator<<(std::ostream& os, const VertexNT& vert);
 };
 
-struct SAIGA_GLOBAL VertexNTD : public VertexNT
+struct SAIGA_CORE_API VertexNTD : public VertexNT
 {
     vec4 data = make_vec4(0);
 
@@ -84,7 +84,7 @@ struct SAIGA_GLOBAL VertexNTD : public VertexNT
 };
 
 
-struct SAIGA_GLOBAL VertexNC : public VertexN
+struct SAIGA_CORE_API VertexNC : public VertexN
 {
     vec4 color = make_vec4(0);
     vec4 data  = make_vec4(0);

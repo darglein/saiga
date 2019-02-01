@@ -6,7 +6,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL Debug
+class SAIGA_VULKAN_API Debug
 {
    public:
     void init(VkInstance instance,

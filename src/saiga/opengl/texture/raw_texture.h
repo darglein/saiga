@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL raw_Texture
+class SAIGA_OPENGL_API raw_Texture
 {
    protected:
     GLuint id = 0;

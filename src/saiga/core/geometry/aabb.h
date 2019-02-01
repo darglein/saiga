@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL AABB
+class SAIGA_CORE_API AABB
 {
    public:
     vec3 min = make_vec3(0);
@@ -57,7 +57,7 @@ class SAIGA_GLOBAL AABB
     std::vector<Triangle> toTriangles();
 
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const AABB& dt);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const AABB& dt);
 };
 
 

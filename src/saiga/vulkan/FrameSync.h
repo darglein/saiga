@@ -18,7 +18,7 @@ namespace Vulkan
  *
  *
  */
-class SAIGA_GLOBAL FrameSync
+class SAIGA_VULKAN_API FrameSync
 {
    public:
     vk::Semaphore imageVailable;

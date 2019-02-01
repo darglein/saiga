@@ -19,7 +19,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL LineAssetRenderer : public Pipeline
+class SAIGA_VULKAN_API LineAssetRenderer : public Pipeline
 {
    public:
     using VertexType = VertexNC;

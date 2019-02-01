@@ -36,7 +36,7 @@ namespace Saiga
  *
  */
 
-class SAIGA_GLOBAL SMAABlendingWeightCalculationShader : public Shader
+class SAIGA_OPENGL_API SMAABlendingWeightCalculationShader : public Shader
 {
    public:
     GLint location_edgeTex, location_areaTex, location_searchTex;
@@ -45,7 +45,7 @@ class SAIGA_GLOBAL SMAABlendingWeightCalculationShader : public Shader
                                 std::shared_ptr<raw_Texture> searchTex);
 };
 
-class SAIGA_GLOBAL SMAANeighborhoodBlendingShader : public Shader
+class SAIGA_OPENGL_API SMAANeighborhoodBlendingShader : public Shader
 {
    public:
     GLint location_colorTex, location_blendTex;

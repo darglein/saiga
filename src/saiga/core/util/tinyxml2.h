@@ -64,7 +64,7 @@ distribution.
 #    pragma warning(disable : 4251)
 #endif
 
-#define TINYXML2_LIB SAIGA_GLOBAL
+#define TINYXML2_LIB SAIGA_CORE_API
 
 #if defined(DEBUG)
 #    if defined(_MSC_VER)

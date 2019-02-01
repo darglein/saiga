@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ShaderLoader : public Singleton<ShaderLoader>
+class SAIGA_OPENGL_API ShaderLoader : public Singleton<ShaderLoader>
 {
     friend class Singleton<ShaderLoader>;
 

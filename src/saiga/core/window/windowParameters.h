@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL WindowParameters
+struct SAIGA_CORE_API WindowParameters
 {
     enum class Mode
     {

@@ -30,7 +30,7 @@ extern "C"
 
 namespace Saiga
 {
-class SAIGA_GLOBAL FFMPEGAudioEncoder
+class SAIGA_OPENGL_API FFMPEGAudioEncoder
 {
    private:
     //    float t, tincr;

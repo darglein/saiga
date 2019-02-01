@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL PointVertex
+struct SAIGA_OPENGL_API PointVertex
 {
     vec3 position;
     vec3 color;
@@ -23,7 +23,7 @@ struct SAIGA_GLOBAL PointVertex
 
 
 
-class SAIGA_GLOBAL GLPointCloud : public Object3D
+class SAIGA_OPENGL_API GLPointCloud : public Object3D
 {
    public:
     float pointSize = 3;
@@ -40,6 +40,6 @@ class SAIGA_GLOBAL GLPointCloud : public Object3D
 
 
 template <>
-SAIGA_GLOBAL void VertexBuffer<PointVertex>::setVertexAttributes();
+SAIGA_OPENGL_API void VertexBuffer<PointVertex>::setVertexAttributes();
 
 }  // namespace Saiga

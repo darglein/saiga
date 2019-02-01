@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL ImageMetadata
+struct SAIGA_CORE_API ImageMetadata
 {
     int width  = 0;
     int height = 0;
@@ -32,7 +32,7 @@ struct SAIGA_GLOBAL ImageMetadata
     double FocalPlaneXResolution            = 0;
     double FocalPlaneYResolution            = 0;
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const ImageMetadata& d);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const ImageMetadata& d);
 };
 
 }  // namespace Saiga

@@ -24,19 +24,19 @@ using namespace gl;
 
 namespace Saiga
 {
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, GLenum g);
+SAIGA_OPENGL_API std::ostream& operator<<(std::ostream& os, GLenum g);
 
-SAIGA_GLOBAL void initOpenGL(glbinding::GetProcAddress func);
-SAIGA_GLOBAL void terminateOpenGL();
-SAIGA_GLOBAL bool OpenGLisInitialized();
+SAIGA_OPENGL_API void initOpenGL(glbinding::GetProcAddress func);
+SAIGA_OPENGL_API void terminateOpenGL();
+SAIGA_OPENGL_API bool OpenGLisInitialized();
 
-SAIGA_GLOBAL int getVersionMajor();
-SAIGA_GLOBAL int getVersionMinor();
-SAIGA_GLOBAL void printOpenGLVersion();
+SAIGA_OPENGL_API int getVersionMajor();
+SAIGA_OPENGL_API int getVersionMinor();
+SAIGA_OPENGL_API void printOpenGLVersion();
 
-SAIGA_GLOBAL int getExtensionCount();
-SAIGA_GLOBAL bool hasExtension(const std::string& ext);
-SAIGA_GLOBAL std::vector<std::string> getExtensions();
+SAIGA_OPENGL_API int getExtensionCount();
+SAIGA_OPENGL_API bool hasExtension(const std::string& ext);
+SAIGA_OPENGL_API std::vector<std::string> getExtensions();
 
 
 // called from OpenGLWindow::OpenGLWindow()
@@ -54,9 +54,9 @@ enum class OpenGLVendor
     Unknown
 };
 
-SAIGA_GLOBAL OpenGLVendor getOpenGLVendor();
+SAIGA_OPENGL_API OpenGLVendor getOpenGLVendor();
 
-struct SAIGA_GLOBAL OpenGLParameters
+struct SAIGA_OPENGL_API OpenGLParameters
 {
     enum class Profile
     {

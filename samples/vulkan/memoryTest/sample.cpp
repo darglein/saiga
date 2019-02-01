@@ -12,6 +12,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/color.h"
 
+
 #include <algorithm>
 #include <saiga/core/imgui/imgui.h>
 
@@ -139,7 +140,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             }
             break;
         case SDL_SCANCODE_D:
-            num_allocs = std::min(alloc_dist(mersenne_twister), allocations.size());
+            num_allocs = std::min<size_t>(alloc_dist(mersenne_twister), allocations.size());
 
             for (int i = 0; i < num_allocs; ++i)
             {

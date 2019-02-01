@@ -20,7 +20,7 @@ enum class ShadowQuality
 };
 
 
-class SAIGA_GLOBAL ShadowmapBase
+class SAIGA_OPENGL_API ShadowmapBase
 {
    protected:
     int w, h;
@@ -36,7 +36,7 @@ class SAIGA_GLOBAL ShadowmapBase
  * Simple shadow map with one 2D depth texture.
  * Used by box- and spotlight
  */
-class SAIGA_GLOBAL SimpleShadowmap : public ShadowmapBase
+class SAIGA_OPENGL_API SimpleShadowmap : public ShadowmapBase
 {
     std::shared_ptr<raw_Texture> depthTexture;
 
@@ -50,7 +50,7 @@ class SAIGA_GLOBAL SimpleShadowmap : public ShadowmapBase
  * Cube shadow map with one cube depth texture.
  * Used by point light
  */
-class SAIGA_GLOBAL CubeShadowmap : public ShadowmapBase
+class SAIGA_OPENGL_API CubeShadowmap : public ShadowmapBase
 {
     std::shared_ptr<raw_Texture> depthTexture;
 
@@ -65,7 +65,7 @@ class SAIGA_GLOBAL CubeShadowmap : public ShadowmapBase
  * Cascaded shadow map with numCascades depth textures.
  * Used by directional light
  */
-class SAIGA_GLOBAL CascadedShadowmap : public ShadowmapBase
+class SAIGA_OPENGL_API CascadedShadowmap : public ShadowmapBase
 {
     //    std::vector<std::shared_ptr<raw_Texture>> depthTextures;
     std::shared_ptr<ArrayTexture2D> depthTexture;

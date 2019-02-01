@@ -19,7 +19,7 @@ class OpenGLWindow;
  * A wrapper class for the ffmpeg encoder.
  * This includes a GUI and convenience functions for easy integration into the saiga main loop.
  */
-class SAIGA_GLOBAL VideoEncoder
+class SAIGA_OPENGL_API VideoEncoder
 {
    public:
     FFMPEGEncoder encoder;

@@ -58,7 +58,7 @@ namespace Saiga
  *
  */
 
-class SAIGA_GLOBAL UniformBuffer : public Buffer
+class SAIGA_OPENGL_API UniformBuffer : public Buffer
 {
    public:
     UniformBuffer();

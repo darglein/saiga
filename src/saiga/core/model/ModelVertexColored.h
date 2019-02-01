@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL VertexColoredModel : public TriangleModel<VertexNC, uint32_t>
+class SAIGA_CORE_API VertexColoredModel : public TriangleModel<VertexNC, uint32_t>
 {
    public:
     void createFullscreenQuad();
@@ -20,16 +20,16 @@ class SAIGA_GLOBAL VertexColoredModel : public TriangleModel<VertexNC, uint32_t>
 };
 
 
-struct SAIGA_GLOBAL Material
+struct SAIGA_CORE_API Material
 {
     std::string diffuse;
 };
 
 
-class SAIGA_GLOBAL TexturedModel : public TriangleModel<VertexNTD, uint32_t>
+class SAIGA_CORE_API TexturedModel : public TriangleModel<VertexNTD, uint32_t>
 {
    public:
-    class SAIGA_GLOBAL TextureGroup
+    class SAIGA_CORE_API TextureGroup
     {
        public:
         int startIndex;

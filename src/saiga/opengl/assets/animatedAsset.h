@@ -39,7 +39,7 @@ class AnimatedModel : public TriangleModel<BoneVertexCD, uint32_t>
  *
  */
 
-class SAIGA_GLOBAL AnimatedAsset : public BasicAsset<AnimatedModel>
+class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<AnimatedModel>
 {
    public:
     using BasicAsset<AnimatedModel>::render;

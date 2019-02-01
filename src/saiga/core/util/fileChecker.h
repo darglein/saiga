@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL FileChecker
+class SAIGA_CORE_API FileChecker
 {
    public:
     FileChecker();
@@ -53,7 +53,7 @@ class SAIGA_GLOBAL FileChecker
     bool existsFile(const std::string& file);
 
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const FileChecker& fc);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const FileChecker& fc);
 
    private:
     // all file search functions search at these pathes.
@@ -70,11 +70,11 @@ namespace SearchPathes
  * These are set in framework.cpp.
  * Additional search pathes can be set in the config.ini
  */
-	SAIGA_GLOBAL extern  FileChecker shader;
-	SAIGA_GLOBAL extern  FileChecker image;
-	SAIGA_GLOBAL extern  FileChecker model;
-	SAIGA_GLOBAL extern  FileChecker font;
-	SAIGA_GLOBAL extern  FileChecker data;
+	SAIGA_CORE_API extern  FileChecker shader;
+	SAIGA_CORE_API extern  FileChecker image;
+	SAIGA_CORE_API extern  FileChecker model;
+	SAIGA_CORE_API extern  FileChecker font;
+	SAIGA_CORE_API extern  FileChecker data;
 }  // namespace SearchPathes
 
 }  // namespace Saiga

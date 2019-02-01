@@ -18,7 +18,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL DeferredRenderingParameters : public RenderingParameters
+struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
 {
     /**
      * When true the depth of the gbuffer is blitted to the default framebuffer.
@@ -60,7 +60,7 @@ struct SAIGA_GLOBAL DeferredRenderingParameters : public RenderingParameters
     PostProcessorParameters ppp;
 };
 
-class SAIGA_GLOBAL DeferredRenderingInterface : public RenderingInterfaceBase
+class SAIGA_OPENGL_API DeferredRenderingInterface : public RenderingInterfaceBase
 {
    public:
     DeferredRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
@@ -83,7 +83,7 @@ class SAIGA_GLOBAL DeferredRenderingInterface : public RenderingInterfaceBase
 };
 
 
-class SAIGA_GLOBAL Deferred_Renderer : public Renderer
+class SAIGA_OPENGL_API Deferred_Renderer : public Renderer
 {
    public:
     DeferredLighting lighting;

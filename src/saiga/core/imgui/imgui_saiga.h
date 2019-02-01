@@ -15,7 +15,7 @@
 struct ImDrawList;
 namespace ImGui
 {
-class SAIGA_GLOBAL Graph
+class SAIGA_CORE_API Graph
 {
    public:
     Graph(const std::string& name = "Graph", int numValues = 80);
@@ -37,7 +37,7 @@ class SAIGA_GLOBAL Graph
 };
 
 
-class SAIGA_GLOBAL TimeGraph : public Graph
+class SAIGA_CORE_API TimeGraph : public Graph
 {
    public:
     TimeGraph(const std::string& name = "Time", int numValues = 80);
@@ -51,7 +51,7 @@ class SAIGA_GLOBAL TimeGraph : public Graph
 
 
 
-class SAIGA_GLOBAL ColoredBar
+class SAIGA_CORE_API ColoredBar
 {
    public:
     struct BarColor
@@ -122,5 +122,5 @@ struct ImGuiParameters
 
 
 
-SAIGA_GLOBAL void initImGui(const ImGuiParameters& params);
+SAIGA_CORE_API void initImGui(const ImGuiParameters& params);
 }  // namespace Saiga

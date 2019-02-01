@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL SDLWindow : public OpenGLWindow, public SDL_ResizeListener
+class SAIGA_OPENGL_API SDLWindow : public OpenGLWindow, public SDL_ResizeListener
 {
    public:
     SDL_Window* window = nullptr;

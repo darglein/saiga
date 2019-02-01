@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL PLYLoader : public ModelLoader
+class SAIGA_CORE_API PLYLoader : public ModelLoader
 {
    public:
     struct VertexProperty

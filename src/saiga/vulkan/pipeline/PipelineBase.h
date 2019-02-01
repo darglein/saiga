@@ -18,7 +18,7 @@ namespace Vulkan
  * Base class for both a graphics and compute pipeline
  */
 
-class SAIGA_GLOBAL PipelineBase
+class SAIGA_VULKAN_API PipelineBase
 {
    public:
     // ==== Initialization ====

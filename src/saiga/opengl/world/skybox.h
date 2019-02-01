@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Skybox
+class SAIGA_OPENGL_API Skybox
 {
    public:
     IndexedVertexBuffer<VertexNT, GLuint> mesh;

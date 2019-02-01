@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL AttenuatedLightShader : public LightShader
+class SAIGA_OPENGL_API AttenuatedLightShader : public LightShader
 {
    public:
     GLint location_attenuation;
@@ -35,7 +35,7 @@ static const vec3 QuadraticStrong = vec3(1, 2, 4);      // Cutoff = 0.142857
 }  // namespace AttenuationPresets
 
 
-class SAIGA_GLOBAL AttenuatedLight : public Light
+class SAIGA_OPENGL_API AttenuatedLight : public Light
 {
     friend class DeferredLighting;
 

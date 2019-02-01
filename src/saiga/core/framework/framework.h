@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL SaigaParameters
+struct SAIGA_CORE_API SaigaParameters
 {
     // share/ directory where saiga has been installed.
     std::vector<std::string> shaderDirectory  = {"shader/", SAIGA_SHADER_PREFIX};
@@ -32,10 +32,10 @@ struct SAIGA_GLOBAL SaigaParameters
     void fromConfigFile(const std::string& file);
 };
 
-SAIGA_GLOBAL extern void writeExtensions();
+SAIGA_CORE_API extern void writeExtensions();
 
-SAIGA_GLOBAL extern void initSample(SaigaParameters& saigaParameters);
-SAIGA_GLOBAL extern void initSaiga(const SaigaParameters& params);
-SAIGA_GLOBAL extern void cleanupSaiga();
+SAIGA_CORE_API extern void initSample(SaigaParameters& saigaParameters);
+SAIGA_CORE_API extern void initSaiga(const SaigaParameters& params);
+SAIGA_CORE_API extern void cleanupSaiga();
 
 }  // namespace Saiga

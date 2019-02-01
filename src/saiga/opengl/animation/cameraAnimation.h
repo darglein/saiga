@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Interpolation
+class SAIGA_OPENGL_API Interpolation
 {
    public:
     struct Keyframe

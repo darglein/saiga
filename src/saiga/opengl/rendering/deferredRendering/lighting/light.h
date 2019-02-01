@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL LightShader : public DeferredShader
+class SAIGA_OPENGL_API LightShader : public DeferredShader
 {
    public:
     GLint location_lightColorDiffuse, location_lightColorSpecular;  // rgba, rgb=color, a=intensity [0,1]
@@ -72,7 +72,7 @@ static const vec3 ClearBlueSky   = Color::srgb2linearrgb(Color(64, 156, 255));
 
 using DepthFunction = std::function<void(Camera*)>;
 
-class SAIGA_GLOBAL Light : public Object3D
+class SAIGA_OPENGL_API Light : public Object3D
 {
    protected:
     bool visible = true, active = true, selected = false, culled = false;

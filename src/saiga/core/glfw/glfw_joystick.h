@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL glfw_Joystick
+struct SAIGA_CORE_API glfw_Joystick
 {
    private:
     static int joystickId;

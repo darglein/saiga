@@ -17,7 +17,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Directory
+class SAIGA_CORE_API Directory
 {
    public:
     std::string dirname;

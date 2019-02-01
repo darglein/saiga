@@ -13,7 +13,10 @@
 #include "geometry/Geometry"
 #include "image/image.h"
 #include "model/Model"
-#include "sound/Sound"
 #include "time/Time"
 #include "util/Util"
 #include "window/Window"
+
+#ifdef SAIGA_USE_OPENAL
+#include "sound/Sound"
+#endif

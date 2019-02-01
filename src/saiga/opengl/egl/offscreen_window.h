@@ -18,7 +18,7 @@ typedef void* EGLSurface;
  * OpenGL context without an actual window with EGL
  * https://devblogs.nvidia.com/parallelforall/egl-eye-opengl-visualization-without-x-server/
  */
-class SAIGA_GLOBAL OffscreenWindow : public OpenGLWindow
+class SAIGA_OPENGL_API OffscreenWindow : public OpenGLWindow
 {
    public:
     EGLDisplay eglDpy;

@@ -18,7 +18,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Asset
+class SAIGA_OPENGL_API Asset
 {
    public:
     virtual ~Asset() {}

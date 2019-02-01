@@ -25,7 +25,7 @@ namespace Vulkan
 {
 namespace Memory
 {
-struct SAIGA_GLOBAL SimpleMemoryAllocator : public BaseMemoryAllocator
+struct SAIGA_VULKAN_API SimpleMemoryAllocator : public BaseMemoryAllocator
 {
    private:
     std::mutex mutex;

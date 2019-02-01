@@ -18,7 +18,7 @@ struct VulkanBase;
 
 namespace Memory
 {
-struct SAIGA_GLOBAL MemoryLocation
+struct SAIGA_VULKAN_API MemoryLocation
 {
     vk::Buffer buffer;
     vk::DeviceMemory memory;

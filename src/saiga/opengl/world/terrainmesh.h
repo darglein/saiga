@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL TerrainMesh
+class SAIGA_OPENGL_API TerrainMesh
 {
    private:
     typedef TriangleMesh<Vertex, GLuint> mesh_t;

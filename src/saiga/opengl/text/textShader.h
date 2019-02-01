@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL TextShader : public MVPShader
+class SAIGA_OPENGL_API TextShader : public MVPShader
 {
    public:
     GLint location_texture;
@@ -25,7 +25,7 @@ class SAIGA_GLOBAL TextShader : public MVPShader
     void uploadTextureAtlas(std::shared_ptr<Texture> texture);
 };
 
-class SAIGA_GLOBAL TextShaderFade : public TextShader
+class SAIGA_OPENGL_API TextShaderFade : public TextShader
 {
    public:
     GLint location_fade;

@@ -40,7 +40,7 @@ struct DeferredLightingShaderNames
 };
 
 
-class SAIGA_GLOBAL DeferredLighting
+class SAIGA_OPENGL_API DeferredLighting
 {
     friend class LightingController;
 

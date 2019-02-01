@@ -18,14 +18,14 @@ struct GLFWwindow;
 
 namespace Saiga
 {
-class SAIGA_GLOBAL glfw_JoystickListener
+class SAIGA_CORE_API glfw_JoystickListener
 {
    public:
     virtual ~glfw_JoystickListener() {}
     virtual bool joystick_event(int button, bool pressed) = 0;
 };
 
-class SAIGA_GLOBAL glfw_KeyListener
+class SAIGA_CORE_API glfw_KeyListener
 {
    public:
     virtual ~glfw_KeyListener() {}
@@ -33,7 +33,7 @@ class SAIGA_GLOBAL glfw_KeyListener
     virtual bool character_event(GLFWwindow* window, unsigned int codepoint)                = 0;
 };
 
-class SAIGA_GLOBAL glfw_MouseListener
+class SAIGA_CORE_API glfw_MouseListener
 {
    public:
     virtual ~glfw_MouseListener() {}
@@ -42,14 +42,14 @@ class SAIGA_GLOBAL glfw_MouseListener
     virtual bool scroll_event(GLFWwindow* window, double xoffset, double yoffset)         = 0;
 };
 
-class SAIGA_GLOBAL glfw_ResizeListener
+class SAIGA_CORE_API glfw_ResizeListener
 {
    public:
     virtual ~glfw_ResizeListener() {}
     virtual bool window_size_callback(GLFWwindow* window, int width, int height) = 0;
 };
 
-class SAIGA_GLOBAL glfw_EventHandler
+class SAIGA_CORE_API glfw_EventHandler
 {
    private:
     template <typename T>

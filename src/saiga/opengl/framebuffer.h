@@ -15,7 +15,7 @@ namespace Saiga
 // todo: remove
 typedef std::shared_ptr<raw_Texture> framebuffer_texture_t;
 
-class SAIGA_GLOBAL Framebuffer
+class SAIGA_OPENGL_API Framebuffer
 {
    protected:
     GLuint id = 0;

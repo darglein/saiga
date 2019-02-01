@@ -20,7 +20,7 @@ namespace Saiga
 
 #define MAX_BONES_PER_VERTEX 4
 
-struct SAIGA_GLOBAL BoneVertex
+struct SAIGA_OPENGL_API BoneVertex
 {
    public:
     int32_t boneIndices[MAX_BONES_PER_VERTEX];
@@ -46,13 +46,13 @@ struct SAIGA_GLOBAL BoneVertex
 };
 
 
-struct SAIGA_GLOBAL BoneVertexT : public BoneVertex
+struct SAIGA_OPENGL_API BoneVertexT : public BoneVertex
 {
    public:
     vec2 texture;
 };
 
-struct SAIGA_GLOBAL BoneVertexCD : public BoneVertex
+struct SAIGA_OPENGL_API BoneVertexCD : public BoneVertex
 {
    public:
     vec4 color;
@@ -61,6 +61,6 @@ struct SAIGA_GLOBAL BoneVertexCD : public BoneVertex
 
 
 template <>
-SAIGA_GLOBAL void VertexBuffer<BoneVertexCD>::setVertexAttributes();
+SAIGA_OPENGL_API void VertexBuffer<BoneVertexCD>::setVertexAttributes();
 
 }  // namespace Saiga

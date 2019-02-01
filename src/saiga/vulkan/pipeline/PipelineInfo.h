@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL PipelineInfo
+class SAIGA_VULKAN_API PipelineInfo
 {
    public:
     vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState = {vk::PipelineInputAssemblyStateCreateFlags(),

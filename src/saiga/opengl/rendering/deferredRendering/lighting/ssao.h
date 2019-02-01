@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL SSAOShader : public DeferredShader
+class SAIGA_OPENGL_API SSAOShader : public DeferredShader
 {
    public:
     GLint location_invProj;
@@ -40,7 +40,7 @@ class SAIGA_GLOBAL SSAOShader : public DeferredShader
     void uploadRandomImage(std::shared_ptr<Texture> img);
 };
 
-class SAIGA_GLOBAL SSAO
+class SAIGA_OPENGL_API SSAO
 {
    private:
     std::shared_ptr<MVPTextureShader> blurShader;

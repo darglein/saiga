@@ -16,7 +16,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-SAIGA_GLOBAL vk::Format getvkFormat(ImageType type);
+SAIGA_VULKAN_API vk::Format getvkFormat(ImageType type);
 
 }
 }  // namespace Saiga

@@ -10,13 +10,13 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL BoxLightShader : public LightShader
+class SAIGA_OPENGL_API BoxLightShader : public LightShader
 {
    public:
     virtual void checkUniforms();
 };
 
-class SAIGA_GLOBAL BoxLight : public Light
+class SAIGA_OPENGL_API BoxLight : public Light
 {
     friend class DeferredLighting;
 

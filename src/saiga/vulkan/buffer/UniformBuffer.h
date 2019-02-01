@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL UniformBuffer : public Buffer
+class SAIGA_VULKAN_API UniformBuffer : public Buffer
 {
    public:
     UniformBuffer()                               = default;

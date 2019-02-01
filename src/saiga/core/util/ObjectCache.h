@@ -15,11 +15,11 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL NoParams
+struct SAIGA_CORE_API NoParams
 {
 };
 
-SAIGA_GLOBAL inline bool operator==(const NoParams&, const NoParams&)
+SAIGA_CORE_API inline bool operator==(const NoParams&, const NoParams&)
 {
     return true;
 }

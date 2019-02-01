@@ -27,7 +27,7 @@ namespace Saiga
  */
 
 
-class SAIGA_GLOBAL Animation
+class SAIGA_OPENGL_API Animation
 {
    public:
     std::string name;

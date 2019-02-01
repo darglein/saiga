@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL CommandLineArguments
+class SAIGA_CORE_API CommandLineArguments
 {
    public:
     struct CLA

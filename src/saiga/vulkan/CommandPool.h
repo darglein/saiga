@@ -15,7 +15,7 @@ namespace Vulkan
 /**
  * Wrapper class for vk::CommandPool.
  */
-class SAIGA_GLOBAL CommandPool
+class SAIGA_VULKAN_API CommandPool
 {
    public:
     /*

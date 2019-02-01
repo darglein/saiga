@@ -17,7 +17,7 @@ namespace Saiga
 {
 class Camera;
 
-class SAIGA_GLOBAL WindowBase : public MainLoopInterface
+class SAIGA_CORE_API WindowBase : public MainLoopInterface
 {
    public:
     bool showRendererImgui = false;

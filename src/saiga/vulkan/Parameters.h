@@ -13,7 +13,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-struct SAIGA_GLOBAL VulkanParameters
+struct SAIGA_VULKAN_API VulkanParameters
 {
     vk::PhysicalDeviceFeatures physicalDeviceFeatures;
     std::vector<const char*> deviceExtensions;

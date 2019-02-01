@@ -135,27 +135,27 @@ using ucvec4 = glm::tvec4<unsigned char, glm::highp>;
 
 namespace glm
 {
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec4& v);
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const dvec4& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const vec4& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const dvec4& v);
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec3& v);
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const dvec3& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const vec3& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const dvec3& v);
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const vec2& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const vec2& v);
 
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const mat3& v);
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const mat4& v);
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const dmat4& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const mat3& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const mat4& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const dmat4& v);
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const quat& v);
+SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const quat& v);
 
 //======= Input stream operator overloads =========
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec2& v);
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec3& v);
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec4& v);
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v);
+SAIGA_CORE_API std::istream& operator>>(std::istream& is, vec2& v);
+SAIGA_CORE_API std::istream& operator>>(std::istream& is, vec3& v);
+SAIGA_CORE_API std::istream& operator>>(std::istream& is, vec4& v);
+SAIGA_CORE_API std::istream& operator>>(std::istream& is, quat& v);
 
 }  // namespace glm
 //============== Helper functions =================
@@ -326,14 +326,14 @@ inline mat4 zeroMat4()
 }
 namespace Saiga
 {
-SAIGA_GLOBAL vec3 sampleCone(const vec3& dir, float angle);
+SAIGA_CORE_API vec3 sampleCone(const vec3& dir, float angle);
 // samples cone along the z axis
-SAIGA_GLOBAL vec3 sampleUnitCone(float angle);
+SAIGA_CORE_API vec3 sampleUnitCone(float angle);
 
-SAIGA_GLOBAL vec3 snapTo(vec3 v, float snapAngleInDegrees);
+SAIGA_CORE_API vec3 snapTo(vec3 v, float snapAngleInDegrees);
 
 
-SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s)
+SAIGA_CORE_API inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s)
 {
     // Equivalent to:
     //    mat4 T = translate(mat4(1),vec3(t));
@@ -371,14 +371,14 @@ SAIGA_GLOBAL inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec
  * The string conversion from and to matrices convert the glm matrix
  * to row major!!!
  */
-SAIGA_GLOBAL std::string to_string(const mat3& m);
-SAIGA_GLOBAL std::string to_string(const mat4& m);
-SAIGA_GLOBAL std::string to_string(const vec3& m);
-SAIGA_GLOBAL std::string to_string(const vec4& m);
+SAIGA_CORE_API std::string to_string(const mat3& m);
+SAIGA_CORE_API std::string to_string(const mat4& m);
+SAIGA_CORE_API std::string to_string(const vec3& m);
+SAIGA_CORE_API std::string to_string(const vec4& m);
 
-SAIGA_GLOBAL mat3 mat3FromString(const std::string& str);
-SAIGA_GLOBAL mat4 mat4FromString(const std::string& str);
-SAIGA_GLOBAL vec3 vec3FromString(const std::string& str);
-SAIGA_GLOBAL vec4 vec4FromString(const std::string& str);
+SAIGA_CORE_API mat3 mat3FromString(const std::string& str);
+SAIGA_CORE_API mat4 mat4FromString(const std::string& str);
+SAIGA_CORE_API vec3 vec3FromString(const std::string& str);
+SAIGA_CORE_API vec4 vec4FromString(const std::string& str);
 
 }  // namespace Saiga

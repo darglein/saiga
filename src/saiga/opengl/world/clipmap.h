@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL TerrainShader : public MVPTextureShader
+class SAIGA_OPENGL_API TerrainShader : public MVPTextureShader
 {
    public:
     GLint location_ScaleFactor, location_FineBlockOrig, location_color, location_TexSizeScale;  // vec4

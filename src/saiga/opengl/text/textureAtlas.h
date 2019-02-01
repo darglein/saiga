@@ -20,7 +20,7 @@ namespace Saiga
 // Paper: Distance Transforms of Sampled Functions
 // https://cs.brown.edu/~pff/papers/dt-final.pdf
 
-class SAIGA_GLOBAL TextureAtlas
+class SAIGA_OPENGL_API TextureAtlas
 {
    public:
     struct character_info

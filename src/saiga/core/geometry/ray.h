@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Ray
+class SAIGA_CORE_API Ray
 {
    public:
     vec3 direction;
@@ -22,7 +22,7 @@ class SAIGA_GLOBAL Ray
 
     vec3 positionOnRay(float t) const { return origin + t * direction; }
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Ray& dt);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Ray& dt);
 };
 
 }  // namespace Saiga

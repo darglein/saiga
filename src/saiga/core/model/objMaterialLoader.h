@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL ObjMaterial
+struct SAIGA_CORE_API ObjMaterial
 {
     std::string name;
     vec4 color = vec4(0, 1, 0, 0);
@@ -38,7 +38,7 @@ struct SAIGA_GLOBAL ObjMaterial
 };
 
 
-class SAIGA_GLOBAL ObjMaterialLoader
+class SAIGA_CORE_API ObjMaterialLoader
 {
    public:
     std::string file;

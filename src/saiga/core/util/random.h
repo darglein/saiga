@@ -27,44 +27,44 @@ namespace Random
  * Take care, that the random generator is thread local.
  * Therefore every thread has to call this method.
  */
-SAIGA_GLOBAL void setSeed(uint64_t seed);
+SAIGA_CORE_API void setSeed(uint64_t seed);
 
 /**
  * Returns true with a probability of 's'.
  * s must be in the range [0,1].
  */
-SAIGA_GLOBAL bool sampleBool(double s);
+SAIGA_CORE_API bool sampleBool(double s);
 
 /**
  * Returns a uniform random value in the given range.
  */
-SAIGA_GLOBAL double sampleDouble(double min, double max);
+SAIGA_CORE_API double sampleDouble(double min, double max);
 
 /**
  * Uniform integer in this range.
  * Note:
  * The high-bound is inclusive!!!
  */
-SAIGA_GLOBAL int uniformInt(int low, int high);
+SAIGA_CORE_API int uniformInt(int low, int high);
 
 
 /**
  * A normal-distributed random value
  */
-SAIGA_GLOBAL double gaussRand(double mean = 0, double stddev = 1);
+SAIGA_CORE_API double gaussRand(double mean = 0, double stddev = 1);
 
 
 
 /**
  * Similar to std::rand but with thread save c++11 generators
  */
-SAIGA_GLOBAL int rand();
+SAIGA_CORE_API int rand();
 
 /**
  * Returns 'sampleCount' unique integers between 0 and indexSize-1
  * The returned indices are NOT sorted!
  */
-SAIGA_GLOBAL std::vector<int> uniqueIndices(int sampleCount, int indexSize);
+SAIGA_CORE_API std::vector<int> uniqueIndices(int sampleCount, int indexSize);
 
 
 }  // namespace Random

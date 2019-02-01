@@ -17,7 +17,7 @@ namespace Saiga
 using std::string;
 
 
-class SAIGA_GLOBAL Camera : public Object3D
+class SAIGA_CORE_API Camera : public Object3D
 {
    public:
     std::string name;
@@ -178,7 +178,7 @@ class SAIGA_GLOBAL Camera : public Object3D
 
 //========================= PerspectiveCamera =========================
 
-class SAIGA_GLOBAL PerspectiveCamera : public Camera
+class SAIGA_CORE_API PerspectiveCamera : public Camera
 {
    public:
     float fovy, aspect;
@@ -192,7 +192,7 @@ class SAIGA_GLOBAL PerspectiveCamera : public Camera
 
 //========================= OrthographicCamera =========================
 
-class SAIGA_GLOBAL OrthographicCamera : public Camera
+class SAIGA_CORE_API OrthographicCamera : public Camera
 {
    public:
     float left, right, bottom, top;

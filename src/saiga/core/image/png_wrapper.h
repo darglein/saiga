@@ -24,7 +24,7 @@ namespace PNG
 {
 using uchar = unsigned char;
 
-struct SAIGA_GLOBAL PngImage
+struct SAIGA_CORE_API PngImage
 {
     // image size
     size_t width, height;

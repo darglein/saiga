@@ -19,7 +19,7 @@ namespace Vulkan
 {
 namespace Memory
 {
-class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
+class SAIGA_VULKAN_API BaseChunkAllocator : public BaseMemoryAllocator
 {
    private:
     std::mutex allocationMutex;

@@ -8,6 +8,8 @@
 
 #include "saiga/config.h"
 
+#if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
+
 #include <assimp/Importer.hpp>  // C++ importer interface
 #include <assimp/cimport.h>
 #include <assimp/postprocess.h>  // Post processing flags
@@ -34,7 +36,7 @@ namespace Saiga
 
 
 
-class SAIGA_GLOBAL AssimpLoader
+class SAIGA_OPENGL_API AssimpLoader
 {
    public:
     std::string file;
@@ -411,3 +413,5 @@ void AssimpLoader::getData(int id, TriangleMesh<vertex_t, uint32_t>& out)
 }
 
 }  // namespace Saiga
+
+#endif

@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ProceduralSkyboxShader : public MVPShader
+class SAIGA_OPENGL_API ProceduralSkyboxShader : public MVPShader
 {
    public:
     GLint location_params;
@@ -25,7 +25,7 @@ class SAIGA_GLOBAL ProceduralSkyboxShader : public MVPShader
     virtual void uploadParams(float horizonHeight, float distance);
 };
 
-class SAIGA_GLOBAL ProceduralSkybox
+class SAIGA_OPENGL_API ProceduralSkybox
 {
    public:
     float horizonHeight = 0;

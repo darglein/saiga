@@ -20,10 +20,10 @@ namespace Saiga
  * http://drilian.com/2009/02/25/lightning-bolts/
  */
 
-class SAIGA_GLOBAL Lightning
+class SAIGA_CORE_API Lightning
 {
    public:
-    struct SAIGA_GLOBAL LineSegment
+    struct SAIGA_CORE_API LineSegment
     {
         float intensity;
         vec3 start, end;

@@ -19,7 +19,7 @@ namespace Saiga
  * The base class for the saiga vulkan samples.
  * Includes basic input handling and a controllable camera.
  */
-class SAIGA_GLOBAL VulkanSDLExampleBase : public Updating,
+class SAIGA_VULKAN_API VulkanSDLExampleBase : public Updating,
                                           public Vulkan::VulkanForwardRenderingInterface,
                                           public SDL_KeyListener
 {

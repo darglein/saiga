@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL basic_Texture_2D : public raw_Texture
+class SAIGA_OPENGL_API basic_Texture_2D : public raw_Texture
 {
    public:
     basic_Texture_2D() : raw_Texture(GL_TEXTURE_2D) {}
@@ -23,7 +23,7 @@ class SAIGA_GLOBAL basic_Texture_2D : public raw_Texture
 
 typedef basic_Texture_2D Texture;
 
-class SAIGA_GLOBAL multisampled_Texture_2D : public raw_Texture
+class SAIGA_OPENGL_API multisampled_Texture_2D : public raw_Texture
 {
    public:
     int samples = 4;

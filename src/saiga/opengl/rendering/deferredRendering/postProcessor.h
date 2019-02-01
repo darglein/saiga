@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL PostProcessingShader : public Shader
+class SAIGA_OPENGL_API PostProcessingShader : public Shader
 {
    public:
     GLint location_texture, location_screenSize;
@@ -33,7 +33,7 @@ class SAIGA_GLOBAL PostProcessingShader : public Shader
     virtual void uploadAdditionalUniforms() {}
 };
 
-class SAIGA_GLOBAL BrightnessShader : public PostProcessingShader
+class SAIGA_OPENGL_API BrightnessShader : public PostProcessingShader
 {
    public:
     GLint location_brightness;
@@ -46,7 +46,7 @@ class SAIGA_GLOBAL BrightnessShader : public PostProcessingShader
 };
 
 
-class SAIGA_GLOBAL LightAccumulationShader : public DeferredShader
+class SAIGA_OPENGL_API LightAccumulationShader : public DeferredShader
 {
    public:
     GLint location_lightAccumulationtexture;
@@ -56,13 +56,13 @@ class SAIGA_GLOBAL LightAccumulationShader : public DeferredShader
 };
 
 
-struct SAIGA_GLOBAL PostProcessorParameters
+struct SAIGA_OPENGL_API PostProcessorParameters
 {
     bool srgb       = false;  // colors stored in srgb.
     Quality quality = Quality::LOW;
 };
 
-class SAIGA_GLOBAL PostProcessor
+class SAIGA_OPENGL_API PostProcessor
 {
    private:
     PostProcessorParameters params;

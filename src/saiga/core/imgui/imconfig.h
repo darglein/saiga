@@ -23,7 +23,7 @@
 #define IM_ASSERT(_EXPR) SAIGA_ASSERT(_EXPR)
 
 //---- Define attributes of all API symbols declarations, e.g. for DLL under Windows.
-#define IMGUI_API SAIGA_GLOBAL
+#define IMGUI_API SAIGA_CORE_API
 
 //---- Don't define obsolete functions/enums names. Consider enabling from time to time after updating to avoid using
 // soon-to-be obsolete function/names. #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS

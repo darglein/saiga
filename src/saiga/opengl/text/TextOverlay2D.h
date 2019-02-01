@@ -17,7 +17,7 @@ namespace Saiga
 class TextShader;
 class Text;
 
-class SAIGA_GLOBAL TextOverlay2D
+class SAIGA_OPENGL_API TextOverlay2D
 {
    public:
     mat4 proj;

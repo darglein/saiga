@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL GameTime
+class SAIGA_CORE_API GameTime
 {
    private:
     Timer gameTimer;
@@ -81,6 +81,6 @@ class SAIGA_GLOBAL GameTime
 };
 
 // use a global variable here so every object can access it easily
-SAIGA_GLOBAL extern GameTime gameTime;
+SAIGA_CORE_API extern GameTime gameTime;
 
 }  // namespace Saiga

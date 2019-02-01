@@ -17,7 +17,7 @@ namespace Saiga
 {
 class MVPColorShader;
 
-class SAIGA_GLOBAL GraphDebugOverlay : public Object3D
+class SAIGA_OPENGL_API GraphDebugOverlay : public Object3D
 {
     struct Graph
     {

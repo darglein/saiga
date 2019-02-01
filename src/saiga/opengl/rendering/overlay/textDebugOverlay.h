@@ -24,7 +24,7 @@ class TextureAtlas;
 
 class Text;
 
-class SAIGA_GLOBAL TextDebugOverlay
+class SAIGA_OPENGL_API TextDebugOverlay
 {
    public:
     class TDOEntry

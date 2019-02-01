@@ -13,7 +13,7 @@ namespace Saiga
 class ParticleSystem;
 
 
-class SAIGA_GLOBAL ParticleEffect : public Object3D
+class SAIGA_OPENGL_API ParticleEffect : public Object3D
 {
    public:
     float velocity = 1.0f;

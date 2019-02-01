@@ -11,7 +11,7 @@ namespace Vulkan
 {
 namespace Memory
 {
-class SAIGA_GLOBAL ImageChunkAllocator : public BaseChunkAllocator
+class SAIGA_VULKAN_API ImageChunkAllocator : public BaseChunkAllocator
 {
    public:
     ImageType type;

@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Joystick2 : public Keyboard
+class SAIGA_CORE_API Joystick2 : public Keyboard
 {
    private:
     int axisCount          = 0;
@@ -48,6 +48,6 @@ class SAIGA_GLOBAL Joystick2 : public Keyboard
 
 
 
-extern SAIGA_GLOBAL Joystick2 joystick;
+extern SAIGA_CORE_API Joystick2 joystick;
 
 }  // namespace Saiga

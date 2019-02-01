@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL MainLoopParameters
+struct SAIGA_CORE_API MainLoopParameters
 {
     /**
      * @brief startMainLoop
@@ -51,7 +51,7 @@ struct SAIGA_GLOBAL MainLoopParameters
     void fromConfigFile(const std::string& file);
 };
 
-struct SAIGA_GLOBAL MainLoopInterface
+struct SAIGA_CORE_API MainLoopInterface
 {
     virtual void render() = 0;
     virtual void swap()   = 0;
@@ -64,7 +64,7 @@ struct SAIGA_GLOBAL MainLoopInterface
 
 
 
-class SAIGA_GLOBAL MainLoop
+class SAIGA_CORE_API MainLoop
 {
    public:
     MainLoopInterface& renderer;

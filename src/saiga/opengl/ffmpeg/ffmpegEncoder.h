@@ -27,7 +27,7 @@ extern "C"
 
 namespace Saiga
 {
-class SAIGA_GLOBAL FFMPEGEncoder
+class SAIGA_OPENGL_API FFMPEGEncoder
 {
    public:
     using EncoderImageType = TemplatedImage<ucvec4>;

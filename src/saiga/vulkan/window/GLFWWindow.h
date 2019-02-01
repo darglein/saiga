@@ -20,7 +20,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL GLFWWindow : public VulkanWindow
+class SAIGA_VULKAN_API GLFWWindow : public VulkanWindow
 {
    public:
     GLFWwindow* window = nullptr;

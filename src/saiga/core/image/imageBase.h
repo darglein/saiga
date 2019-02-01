@@ -17,7 +17,7 @@ namespace Saiga
  * It only captures the key concept of an image, which is a two dimensional array
  * with a 'pitch' offset between rows.
  */
-struct SAIGA_GLOBAL ImageBase
+struct SAIGA_CORE_API ImageBase
 {
     union {
         int w;

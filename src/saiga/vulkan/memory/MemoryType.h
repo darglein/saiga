@@ -62,11 +62,11 @@ struct MemoryType
     bool operator>=(const MemoryType& rhs) const { return !(*this < rhs); }
 };
 
-struct SAIGA_GLOBAL BufferType : public MemoryType<vk::BufferUsageFlags>
+struct SAIGA_VULKAN_API BufferType : public MemoryType<vk::BufferUsageFlags>
 {
 };
 
-struct SAIGA_GLOBAL ImageType : public MemoryType<vk::ImageUsageFlags>
+struct SAIGA_VULKAN_API ImageType : public MemoryType<vk::ImageUsageFlags>
 {
 };
 
@@ -77,7 +77,7 @@ struct SAIGA_GLOBAL ImageType : public MemoryType<vk::ImageUsageFlags>
 namespace std
 {
 template <>
-struct SAIGA_GLOBAL hash<vk::MemoryPropertyFlags>
+struct SAIGA_VULKAN_API hash<vk::MemoryPropertyFlags>
 {
     typedef vk::MemoryPropertyFlags argument_type;
     typedef std::size_t result_type;
@@ -89,7 +89,7 @@ struct SAIGA_GLOBAL hash<vk::MemoryPropertyFlags>
 };
 
 template <>
-struct SAIGA_GLOBAL hash<vk::BufferUsageFlags>
+struct SAIGA_VULKAN_API hash<vk::BufferUsageFlags>
 {
     typedef vk::BufferUsageFlags argument_type;
     typedef std::size_t result_type;
@@ -102,7 +102,7 @@ struct SAIGA_GLOBAL hash<vk::BufferUsageFlags>
 
 
 template <>
-struct SAIGA_GLOBAL hash<vk::ImageUsageFlags>
+struct SAIGA_VULKAN_API hash<vk::ImageUsageFlags>
 {
     typedef vk::ImageUsageFlags argument_type;
     typedef std::size_t result_type;
@@ -114,7 +114,7 @@ struct SAIGA_GLOBAL hash<vk::ImageUsageFlags>
 };
 
 template <typename T>
-struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::MemoryType<T>>
+struct SAIGA_VULKAN_API hash<Saiga::Vulkan::Memory::MemoryType<T>>
 {
     typedef Saiga::Vulkan::Memory::MemoryType<T> argument_type;
     typedef std::size_t result_type;
@@ -126,12 +126,12 @@ struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::MemoryType<T>>
     }
 };
 template <>
-struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::BufferType>
+struct SAIGA_VULKAN_API hash<Saiga::Vulkan::Memory::BufferType>
     : public hash<Saiga::Vulkan::Memory::MemoryType<vk::BufferUsageFlags>>
 {
 };
 template <>
-struct SAIGA_GLOBAL hash<Saiga::Vulkan::Memory::ImageType>
+struct SAIGA_VULKAN_API hash<Saiga::Vulkan::Memory::ImageType>
     : public hash<Saiga::Vulkan::Memory::MemoryType<vk::ImageUsageFlags>>
 {
 };

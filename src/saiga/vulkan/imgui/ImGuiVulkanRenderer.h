@@ -27,7 +27,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline, public ImGuiRenderer
+class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRenderer
 {
    private:
     struct FrameData

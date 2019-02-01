@@ -16,7 +16,7 @@ class GBuffer;
 
 #define CAMERA_DATA_BINDING_POINT 0
 
-class SAIGA_GLOBAL MVPShader : public Shader
+class SAIGA_OPENGL_API MVPShader : public Shader
 {
    public:
     GLint location_model;
@@ -29,7 +29,7 @@ class SAIGA_GLOBAL MVPShader : public Shader
     void uploadUserData(float f) { upload(location_userData, f); }
 };
 
-class SAIGA_GLOBAL MVPColorShader : public MVPShader
+class SAIGA_OPENGL_API MVPColorShader : public MVPShader
 {
    public:
     GLint location_color;
@@ -38,7 +38,7 @@ class SAIGA_GLOBAL MVPColorShader : public MVPShader
     virtual void uploadColor(const vec4& color);
 };
 
-class SAIGA_GLOBAL MVPTextureShader : public MVPShader
+class SAIGA_OPENGL_API MVPTextureShader : public MVPShader
 {
    public:
     GLint location_texture;
@@ -48,7 +48,7 @@ class SAIGA_GLOBAL MVPTextureShader : public MVPShader
 };
 
 
-class SAIGA_GLOBAL FBShader : public MVPShader
+class SAIGA_OPENGL_API FBShader : public MVPShader
 {
    public:
     GLint location_texture;
@@ -57,7 +57,7 @@ class SAIGA_GLOBAL FBShader : public MVPShader
     virtual void uploadFramebuffer(Framebuffer* fb);
 };
 
-class SAIGA_GLOBAL DeferredShader : public MVPShader
+class SAIGA_OPENGL_API DeferredShader : public MVPShader
 {
    public:
     GLint location_screen_size;

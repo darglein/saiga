@@ -14,7 +14,7 @@ namespace Saiga
 class Asset;
 class Camera;
 
-class SAIGA_GLOBAL SimpleAssetObject : public Object3D
+class SAIGA_OPENGL_API SimpleAssetObject : public Object3D
 {
    public:
     std::shared_ptr<Asset> asset;

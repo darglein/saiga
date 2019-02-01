@@ -19,7 +19,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL PointCloudRenderer : public Pipeline
+class SAIGA_VULKAN_API PointCloudRenderer : public Pipeline
 {
    public:
     using VertexType = VertexNC;

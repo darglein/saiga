@@ -13,7 +13,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL Framebuffer
+class SAIGA_VULKAN_API Framebuffer
 {
    public:
     VkFramebuffer framebuffer;

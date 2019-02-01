@@ -16,7 +16,7 @@ namespace Saiga
  * @brief The Triangle class
  */
 
-class SAIGA_GLOBAL Triangle
+class SAIGA_CORE_API Triangle
 {
    public:
     vec3 a, b, c;
@@ -65,7 +65,7 @@ class SAIGA_GLOBAL Triangle
      */
     vec3 normal();
 
-    friend SAIGA_GLOBAL std::ostream& operator<<(std::ostream& os, const Triangle& dt);
+    friend SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const Triangle& dt);
 };
 
 }  // namespace Saiga

@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ParticleShader : public MVPTextureShader
+class SAIGA_OPENGL_API ParticleShader : public MVPTextureShader
 {
    public:
     GLint location_timer, location_timestep, location_interpolation;
@@ -23,7 +23,7 @@ class SAIGA_GLOBAL ParticleShader : public MVPTextureShader
 };
 
 
-class SAIGA_GLOBAL DeferredParticleShader : public ParticleShader
+class SAIGA_OPENGL_API DeferredParticleShader : public ParticleShader
 {
    public:
     GLint location_texture_depth;

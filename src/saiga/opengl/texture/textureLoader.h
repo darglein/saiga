@@ -12,15 +12,15 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL TextureParameters
+struct SAIGA_OPENGL_API TextureParameters
 {
     bool srgb = true;
 };
 
-SAIGA_GLOBAL bool operator==(const TextureParameters& lhs, const TextureParameters& rhs);
+SAIGA_OPENGL_API bool operator==(const TextureParameters& lhs, const TextureParameters& rhs);
 
 
-class SAIGA_GLOBAL TextureLoader : public Singleton<TextureLoader>
+class SAIGA_OPENGL_API TextureLoader : public Singleton<TextureLoader>
 {
     friend class Singleton<TextureLoader>;
 

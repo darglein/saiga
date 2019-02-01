@@ -82,25 +82,25 @@ std::ostream& operator<<(std::ostream& os, const quat& v)
 // ===========================================================================
 
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec2& v)
+SAIGA_CORE_API std::istream& operator>>(std::istream& is, vec2& v)
 {
     is >> v.x >> v.y;
     return is;
 }
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec3& v)
+SAIGA_CORE_API std::istream& operator>>(std::istream& is, vec3& v)
 {
     is >> v.x >> v.y >> v.z;
     return is;
 }
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, vec4& v)
+SAIGA_CORE_API std::istream& operator>>(std::istream& is, vec4& v)
 {
     is >> v.x >> v.y >> v.z >> v.w;
     return is;
 }
 
-SAIGA_GLOBAL std::istream& operator>>(std::istream& is, quat& v)
+SAIGA_CORE_API std::istream& operator>>(std::istream& is, quat& v)
 {
     is >> v.x >> v.y >> v.z >> v.w;
     return is;

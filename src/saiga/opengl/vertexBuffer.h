@@ -291,15 +291,15 @@ void VertexBuffer<vertex_t>::setVertexAttributes()
 
 
 template <>
-SAIGA_GLOBAL void VertexBuffer<Vertex>::setVertexAttributes();
+SAIGA_OPENGL_API void VertexBuffer<Vertex>::setVertexAttributes();
 template <>
-SAIGA_GLOBAL void VertexBuffer<VertexN>::setVertexAttributes();
+SAIGA_OPENGL_API void VertexBuffer<VertexN>::setVertexAttributes();
 template <>
-SAIGA_GLOBAL void VertexBuffer<VertexNT>::setVertexAttributes();
+SAIGA_OPENGL_API void VertexBuffer<VertexNT>::setVertexAttributes();
 template <>
-SAIGA_GLOBAL void VertexBuffer<VertexNTD>::setVertexAttributes();
+SAIGA_OPENGL_API void VertexBuffer<VertexNTD>::setVertexAttributes();
 template <>
-SAIGA_GLOBAL void VertexBuffer<VertexNC>::setVertexAttributes();
+SAIGA_OPENGL_API void VertexBuffer<VertexNC>::setVertexAttributes();
 
 
 }  // namespace Saiga

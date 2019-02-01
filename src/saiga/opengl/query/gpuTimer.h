@@ -26,7 +26,7 @@ namespace Saiga
  * Core since version 	3.3
  *
  */
-class SAIGA_GLOBAL MultiFrameOpenGLTimer
+class SAIGA_OPENGL_API MultiFrameOpenGLTimer
 {
    private:
     TimeStampQuery queries[2][2];
@@ -58,7 +58,7 @@ class SAIGA_GLOBAL MultiFrameOpenGLTimer
  * time = alpha * newTime + (1-alpha) * oldTime;
  */
 
-class SAIGA_GLOBAL FilteredMultiFrameOpenGLTimer : public MultiFrameOpenGLTimer
+class SAIGA_OPENGL_API FilteredMultiFrameOpenGLTimer : public MultiFrameOpenGLTimer
 {
    private:
     double currentTimeMS = 0;
@@ -72,7 +72,7 @@ class SAIGA_GLOBAL FilteredMultiFrameOpenGLTimer : public MultiFrameOpenGLTimer
 };
 
 
-class SAIGA_GLOBAL OpenGLTimer
+class SAIGA_OPENGL_API OpenGLTimer
 {
    protected:
     TimeStampQuery queries[2];
@@ -88,7 +88,7 @@ class SAIGA_GLOBAL OpenGLTimer
 
 
 template <typename T>
-class SAIGA_GLOBAL ScopedOpenGLTimer : public OpenGLTimer
+class SAIGA_OPENGL_API ScopedOpenGLTimer : public OpenGLTimer
 {
    public:
     T* target;
@@ -104,7 +104,7 @@ class SAIGA_GLOBAL ScopedOpenGLTimer : public OpenGLTimer
     }
 };
 
-class SAIGA_GLOBAL ScopedOpenGLTimerPrint : public OpenGLTimer
+class SAIGA_OPENGL_API ScopedOpenGLTimerPrint : public OpenGLTimer
 {
    public:
     std::string name;

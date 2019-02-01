@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL StagingBuffer : public Buffer
+class SAIGA_VULKAN_API StagingBuffer : public Buffer
 {
    public:
     StagingBuffer()                               = default;

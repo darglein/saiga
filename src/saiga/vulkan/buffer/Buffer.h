@@ -17,7 +17,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL Buffer
+class SAIGA_VULKAN_API Buffer
 {
    protected:
     VulkanBase* base                         = nullptr;

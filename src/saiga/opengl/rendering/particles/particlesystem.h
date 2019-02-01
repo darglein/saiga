@@ -18,7 +18,7 @@ class ParticleShader;
 class DeferredParticleShader;
 class ArrayTexture2D;
 
-class SAIGA_GLOBAL ParticleSystem : public Object3D
+class SAIGA_OPENGL_API ParticleSystem : public Object3D
 {
    public:
     std::shared_ptr<ArrayTexture2D> arrayTexture;

@@ -16,7 +16,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL Queue
+class SAIGA_VULKAN_API Queue
 {
    public:
     // Create a primary commandpool for every queue.

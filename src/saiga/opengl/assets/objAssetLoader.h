@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ObjAssetLoader : public AssetLoader
+class SAIGA_OPENGL_API ObjAssetLoader : public AssetLoader
 {
    public:
     ObjAssetLoader();

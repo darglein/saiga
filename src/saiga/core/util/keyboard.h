@@ -13,7 +13,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Keyboard
+class SAIGA_CORE_API Keyboard
 {
    protected:
     // We are using vectors here for faster access.
@@ -37,6 +37,6 @@ class SAIGA_GLOBAL Keyboard
     void printKeyState();
 };
 
-extern SAIGA_GLOBAL Keyboard keyboard;
+extern SAIGA_CORE_API Keyboard keyboard;
 
 }  // namespace Saiga

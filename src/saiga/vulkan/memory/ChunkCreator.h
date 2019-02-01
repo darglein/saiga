@@ -23,7 +23,7 @@ namespace Memory
  * Class that allocates chunks of memory for different types.
  * Returns shared pointers to the chunks.
  */
-class SAIGA_GLOBAL ChunkCreator
+class SAIGA_VULKAN_API ChunkCreator
 {
    private:
     bool m_initialized = false;

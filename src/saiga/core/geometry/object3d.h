@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Object3D
+class SAIGA_CORE_API Object3D
 {
    public:
     mat4 model = identityMat4();
@@ -68,7 +68,7 @@ class SAIGA_GLOBAL Object3D
     // Correct linear spherical interpolation between the two object states.
     static Object3D interpolate(const Object3D& a, const Object3D& b, float alpha);
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Object3D& ob);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Object3D& ob);
 };
 
 

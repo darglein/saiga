@@ -8,11 +8,11 @@
 
 #include "saiga/config.h"
 
+
+
 namespace Saiga
 {
-namespace Tests
-{
-SAIGA_CORE_API void fpTest(float x = 1.0f);
+	
+	SAIGA_EXTRA_API extern void initExtra();
 
-}
 }  // namespace Saiga

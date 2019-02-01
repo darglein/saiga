@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL PointLightShader : public AttenuatedLightShader
+class SAIGA_OPENGL_API PointLightShader : public AttenuatedLightShader
 {
    public:
     GLint location_shadowPlanes;
@@ -23,7 +23,7 @@ class SAIGA_GLOBAL PointLightShader : public AttenuatedLightShader
 
 
 
-class SAIGA_GLOBAL PointLight : public AttenuatedLight
+class SAIGA_OPENGL_API PointLight : public AttenuatedLight
 {
     friend class DeferredLighting;
 

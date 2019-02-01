@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Heightmap
+class SAIGA_OPENGL_API Heightmap
 {
    private:
     typedef TriangleMesh<Vertex, GLuint> mesh_t;

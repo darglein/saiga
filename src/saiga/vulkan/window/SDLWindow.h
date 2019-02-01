@@ -21,7 +21,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL SDLWindow : public VulkanWindow
+class SAIGA_VULKAN_API SDLWindow : public VulkanWindow
 {
    public:
     SDL_Window* sdl_window = nullptr;

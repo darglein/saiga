@@ -13,7 +13,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL ShaderPipelineBase
+class SAIGA_VULKAN_API ShaderPipelineBase
 {
    public:
     ~ShaderPipelineBase() { destroy(); }
@@ -45,13 +45,13 @@ class SAIGA_GLOBAL ShaderPipelineBase
     void createPipelineInfo();
 };
 
-class SAIGA_GLOBAL GraphicsShaderPipeline : public ShaderPipelineBase
+class SAIGA_VULKAN_API GraphicsShaderPipeline : public ShaderPipelineBase
 {
    public:
     void addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo);
 };
 
-class SAIGA_GLOBAL ComputeShaderPipeline : public ShaderPipelineBase
+class SAIGA_VULKAN_API ComputeShaderPipeline : public ShaderPipelineBase
 {
    public:
     void addToPipeline(vk::ComputePipelineCreateInfo& pipelineCreateInfo);

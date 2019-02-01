@@ -17,11 +17,12 @@
 #    define SAIGA_HELPER_DLL_EXPORT __declspec(dllexport)
 #    define SAIGA_HELPER_DLL_LOCAL
 #else
-#    if __GNUC__ >= 4
+#    if __GNUC__ >= 4 // Note: Clang also defines GNUC
 #        define SAIGA_HELPER_DLL_IMPORT __attribute__((visibility("default")))
 #        define SAIGA_HELPER_DLL_EXPORT __attribute__((visibility("default")))
 #        define SAIGA_HELPER_DLL_LOCAL __attribute__((visibility("hidden")))
 #    else
+#error Unknown import/export defines.
 #        define SAIGA_HELPER_DLL_IMPORT
 #        define SAIGA_HELPER_DLL_EXPORT
 #        define SAIGA_HELPER_DLL_LOCAL
@@ -33,16 +34,45 @@
 // SAIGA_LOCAL is used for non-api symbols.
 
 #ifdef SAIGA_BUILD_SHARED     // defined if SAIGA is compiled as a DLL
-#    ifdef SAIGA_DLL_EXPORTS  // defined if we are building the SAIGA DLL (instead of using it)
-#        define SAIGA_GLOBAL SAIGA_HELPER_DLL_EXPORT
+
+#    ifdef saiga_core_EXPORTS  
+#        define SAIGA_CORE_API SAIGA_HELPER_DLL_EXPORT
 #    else
-#        define SAIGA_GLOBAL SAIGA_HELPER_DLL_IMPORT
-#    endif  // SAIGA_DLL_EXPORTS
+#        define SAIGA_CORE_API SAIGA_HELPER_DLL_IMPORT
+#    endif
+
+#    ifdef saiga_opengl_EXPORTS  
+#        define SAIGA_OPENGL_API SAIGA_HELPER_DLL_EXPORT
+#    else
+#        define SAIGA_OPENGL_API SAIGA_HELPER_DLL_IMPORT
+#    endif
+
+#    ifdef saiga_vulkan_EXPORTS  
+#        define SAIGA_VULKAN_API SAIGA_HELPER_DLL_EXPORT
+#    else
+#        define SAIGA_VULKAN_API SAIGA_HELPER_DLL_IMPORT
+#    endif
+
+#    ifdef saiga_extra_EXPORTS  
+#        define SAIGA_EXTRA_API SAIGA_HELPER_DLL_EXPORT
+#    else
+#        define SAIGA_EXTRA_API SAIGA_HELPER_DLL_IMPORT
+#    endif
+
+#    ifdef saiga_vision_EXPORTS  
+#        define SAIGA_VISION_API SAIGA_HELPER_DLL_EXPORT
+#    else
+#        define SAIGA_VISION_API SAIGA_HELPER_DLL_IMPORT
+#    endif
+
 #    define SAIGA_LOCAL SAIGA_HELPER_DLL_LOCAL
 #else  // SAIGA_DLL is not defined: this means SAIGA is a static lib.
 #    define SAIGA_GLOBAL
 #    define SAIGA_LOCAL
 #endif  // SAIGA_BUILD_SHARED
+
+
+
 
 // don't use any specifiers on templates
 #define SAIGA_TEMPLATE

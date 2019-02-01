@@ -17,7 +17,7 @@ namespace Saiga
 {
 class Shader;
 
-class SAIGA_GLOBAL ShaderPartLoader
+class SAIGA_OPENGL_API ShaderPartLoader
 {
    public:
     typedef std::vector<ShaderCodeInjection> ShaderCodeInjections;

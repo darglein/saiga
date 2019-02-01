@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Cone
+class SAIGA_CORE_API Cone
 {
    public:
     vec3 position;

@@ -24,7 +24,7 @@ namespace Saiga
 {
 class Image;
 
-class SAIGA_GLOBAL glfw_Window : public OpenGLWindow, public glfw_ResizeListener
+class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeListener
 {
    public:
     GLFWwindow* window = nullptr;

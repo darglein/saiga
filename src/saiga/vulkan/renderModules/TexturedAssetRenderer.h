@@ -20,7 +20,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL TexturedAssetRenderer : public Pipeline
+class SAIGA_VULKAN_API TexturedAssetRenderer : public Pipeline
 {
    public:
     using VertexType = VertexNTD;

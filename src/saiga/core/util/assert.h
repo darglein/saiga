@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-SAIGA_GLOBAL extern void saiga_assert_fail(const std::string& __assertion, const char* __file, unsigned int __line,
+SAIGA_CORE_API extern void saiga_assert_fail(const std::string& __assertion, const char* __file, unsigned int __line,
                                            const char* __function, const std::string& __message);
 }
 

@@ -15,7 +15,7 @@ namespace Saiga
 class Camera;
 class Image;
 
-class SAIGA_GLOBAL OpenGLWindow : public WindowBase
+class SAIGA_OPENGL_API OpenGLWindow : public WindowBase
 {
    public:
     OpenGLWindow(WindowParameters windowParameters, OpenGLParameters openglParameters);

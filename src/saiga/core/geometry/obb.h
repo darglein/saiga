@@ -14,7 +14,7 @@ namespace Saiga
 /**
  * Oriented Bounding Box
  */
-class SAIGA_GLOBAL OBB
+class SAIGA_CORE_API OBB
 {
    public:
     // center point

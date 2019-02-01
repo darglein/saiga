@@ -36,11 +36,11 @@ typedef mat4 mat4_t;
 // typedef simdVec4 vec4_t;
 // typedef simdMat4 mat4_t;
 
-SAIGA_GLOBAL vec4_t globalA;
-SAIGA_GLOBAL vec4_t globalB;
+SAIGA_CORE_API vec4_t globalA;
+SAIGA_CORE_API vec4_t globalB;
 
 
-SAIGA_GLOBAL vec4_t add2(vec4_t a, vec4_t b)
+SAIGA_CORE_API vec4_t add2(vec4_t a, vec4_t b)
 {
     //    aligned_vec4 A(a);
     //    aligned_vec4 B(b);
@@ -51,7 +51,7 @@ SAIGA_GLOBAL vec4_t add2(vec4_t a, vec4_t b)
 }
 
 
-SAIGA_GLOBAL vec4_t addGlobal()
+SAIGA_CORE_API vec4_t addGlobal()
 {
     // asm("#vec4 add start");
     auto ret = globalA + globalB;
@@ -59,7 +59,7 @@ SAIGA_GLOBAL vec4_t addGlobal()
     return ret;
 }
 
-SAIGA_GLOBAL mat4_t mult(mat4_t a, mat4_t b)
+SAIGA_CORE_API mat4_t mult(mat4_t a, mat4_t b)
 {
     mat4_t ret;
     // asm("#mat4 mult start");

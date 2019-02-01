@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ParticleEmitter : public ParticleEffect
+class SAIGA_OPENGL_API ParticleEmitter : public ParticleEffect
 {
    public:
     float particlesPerTick = 0.5f;
@@ -29,7 +29,7 @@ class SAIGA_GLOBAL ParticleEmitter : public ParticleEffect
 };
 
 
-class SAIGA_GLOBAL SphericalParticleEmitter : public ParticleEmitter
+class SAIGA_OPENGL_API SphericalParticleEmitter : public ParticleEmitter
 {
    public:
     SphericalParticleEmitter();
@@ -37,7 +37,7 @@ class SAIGA_GLOBAL SphericalParticleEmitter : public ParticleEmitter
 };
 
 
-class SAIGA_GLOBAL ConaParticleEmitter : public ParticleEmitter
+class SAIGA_OPENGL_API ConaParticleEmitter : public ParticleEmitter
 {
    public:
     vec3 coneDirection = vec3(0, 1, 0);

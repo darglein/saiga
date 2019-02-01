@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Subject
+class SAIGA_CORE_API Subject
 {
     std::vector<class Observer*> views;
 
@@ -22,7 +22,7 @@ class SAIGA_GLOBAL Subject
     void notify();
 };
 
-class SAIGA_GLOBAL Observer
+class SAIGA_CORE_API Observer
 {
     Subject* model;
 

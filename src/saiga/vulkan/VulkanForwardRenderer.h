@@ -23,7 +23,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL VulkanForwardRenderingInterface : public RenderingInterfaceBase
+class SAIGA_VULKAN_API VulkanForwardRenderingInterface : public RenderingInterfaceBase
 {
    public:
     VulkanForwardRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
@@ -37,7 +37,7 @@ class SAIGA_GLOBAL VulkanForwardRenderingInterface : public RenderingInterfaceBa
 
 
 
-class SAIGA_GLOBAL VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
+class SAIGA_VULKAN_API VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
 {
    public:
     // Queue graphicsQueue;

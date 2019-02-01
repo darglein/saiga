@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Mouse : public Keyboard
+class SAIGA_CORE_API Mouse : public Keyboard
 {
    protected:
     ivec2 position;
@@ -32,6 +32,6 @@ class SAIGA_GLOBAL Mouse : public Keyboard
     void setPosition(const ivec2& value);
 };
 
-extern SAIGA_GLOBAL Mouse mouse;
+extern SAIGA_CORE_API Mouse mouse;
 
 }  // namespace Saiga

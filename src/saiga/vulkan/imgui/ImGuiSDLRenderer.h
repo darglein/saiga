@@ -27,7 +27,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL ImGuiSDLRenderer : public SDL_EventListener, public ImGuiVulkanRenderer
+class SAIGA_VULKAN_API ImGuiSDLRenderer : public SDL_EventListener, public ImGuiVulkanRenderer
 {
    public:
     ImGuiSDLRenderer(size_t frameCount, const ImGuiParameters& params) : ImGuiVulkanRenderer(frameCount, params) {}

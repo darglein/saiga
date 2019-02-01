@@ -22,7 +22,7 @@ namespace Saiga
  * Core since version 	3.3
  *
  */
-class SAIGA_GLOBAL TimerQuery
+class SAIGA_OPENGL_API TimerQuery
 {
    private:
     GLuint queryBackBuffer = 0, queryFrontBuffer = 0;

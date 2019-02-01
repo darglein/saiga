@@ -16,7 +16,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL Pipeline : public PipelineBase
+class SAIGA_VULKAN_API Pipeline : public PipelineBase
 {
    public:
     Saiga::Vulkan::GraphicsShaderPipeline shaderPipeline;

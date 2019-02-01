@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ImGui_GL_Renderer : public ImGuiRenderer
+class SAIGA_OPENGL_API ImGui_GL_Renderer : public ImGuiRenderer
 {
    public:
     ImGui_GL_Renderer(const ImGuiParameters& params);

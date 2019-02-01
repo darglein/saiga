@@ -15,7 +15,7 @@
 namespace Saiga
 {
 #define INVALID_VERTEX_ID -911365965
-struct SAIGA_GLOBAL IndexedVertex2
+struct SAIGA_CORE_API IndexedVertex2
 {
     int v = INVALID_VERTEX_ID;
     int n = INVALID_VERTEX_ID;
@@ -24,19 +24,19 @@ struct SAIGA_GLOBAL IndexedVertex2
 
 
 
-struct SAIGA_GLOBAL ObjTriangleGroup
+struct SAIGA_CORE_API ObjTriangleGroup
 {
     int startFace = 0;
     int faces     = 0;
     ObjMaterial material;
 };
 
-struct SAIGA_GLOBAL ObjTriangle
+struct SAIGA_CORE_API ObjTriangle
 {
     uint32_t v[3];
 };
 
-class SAIGA_GLOBAL ObjModelLoader : public ModelLoader
+class SAIGA_CORE_API ObjModelLoader : public ModelLoader
 {
    public:
     std::string file;

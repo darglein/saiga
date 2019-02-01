@@ -17,7 +17,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL SDL_EventHandler
+class SAIGA_CORE_API SDL_EventHandler
 {
    private:
     friend class SDL_KeyListener;

@@ -18,7 +18,7 @@ namespace Vulkan
  * @tparam Obj Type of object
  */
 template <typename Obj>
-class SAIGA_GLOBAL ObjectBuffer : public Buffer
+class SAIGA_VULKAN_API ObjectBuffer : public Buffer
 {
     using pointer         = Obj*;
     using const_pointer   = const Obj*;
@@ -61,7 +61,7 @@ class SAIGA_GLOBAL ObjectBuffer : public Buffer
  * A spezialization of the above, because this is the most common use-case.
  */
 template <typename Obj>
-class SAIGA_GLOBAL CoherentUniformObject : public ObjectBuffer<Obj>
+class SAIGA_VULKAN_API CoherentUniformObject : public ObjectBuffer<Obj>
 {
    public:
     void init(VulkanBase& base) { ObjectBuffer<Obj>::init(base, vk::BufferUsageFlagBits::eUniformBuffer); }

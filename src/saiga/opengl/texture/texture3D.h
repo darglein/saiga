@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Texture3D : public raw_Texture
+class SAIGA_OPENGL_API Texture3D : public raw_Texture
 {
    public:
     int depth;

@@ -18,7 +18,7 @@ class Text;
 class Camera;
 class TextShaderFade;
 
-class SAIGA_GLOBAL TextOverlay3D
+class SAIGA_OPENGL_API TextOverlay3D
 {
    public:
     struct TextContainer

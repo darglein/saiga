@@ -22,7 +22,7 @@ class GBuffer;
 
 
 
-class SAIGA_GLOBAL DeferredDebugOverlay
+class SAIGA_OPENGL_API DeferredDebugOverlay
 {
    public:
     Layout layout;

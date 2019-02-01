@@ -4,7 +4,7 @@
 
 // Modified the orignal file here to use the saiga export macros
 #include "saiga/export.h"
-#define GLBINDING_API SAIGA_GLOBAL
+#define GLBINDING_API SAIGA_OPENGL_API
 #define GLBINDING_NO_EXPORT SAIGA_LOCAL
 
 #ifndef GLBINDING_DEPRECATED

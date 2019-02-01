@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL ShaderModule
+class SAIGA_VULKAN_API ShaderModule
 {
    public:
     /**

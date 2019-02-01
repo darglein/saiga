@@ -26,7 +26,7 @@ namespace Saiga
  *      table << i << h_data[i] << res[i];
  * }
  */
-class SAIGA_GLOBAL Table
+class SAIGA_CORE_API Table
 {
    private:
     int currentCol = 0;

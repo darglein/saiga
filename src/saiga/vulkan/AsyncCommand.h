@@ -9,7 +9,7 @@
 
 #include "vulkan/vulkan.hpp"
 
-struct SAIGA_GLOBAL AsyncCommand
+struct SAIGA_VULKAN_API AsyncCommand
 {
     vk::CommandBuffer cmd;
     vk::Fence fence;

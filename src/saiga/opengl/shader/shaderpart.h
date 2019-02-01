@@ -18,7 +18,7 @@ namespace Saiga
  * The code injections are added to the top of the shader.
  * This can for exapmple be used to add different #define.
  */
-class SAIGA_GLOBAL ShaderCodeInjection
+class SAIGA_OPENGL_API ShaderCodeInjection
 {
    public:
     // shader type, must be one of the supported types
@@ -30,7 +30,7 @@ class SAIGA_GLOBAL ShaderCodeInjection
     ShaderCodeInjection(GLenum type, const std::string& code, int line) : type(type), code(code), line(line) {}
 };
 
-SAIGA_GLOBAL inline bool operator==(const ShaderCodeInjection& lhs, const ShaderCodeInjection& rhs)
+SAIGA_OPENGL_API inline bool operator==(const ShaderCodeInjection& lhs, const ShaderCodeInjection& rhs)
 {
     return lhs.type == rhs.type && lhs.code == rhs.code && lhs.line == rhs.line;
 }
@@ -40,7 +40,7 @@ SAIGA_GLOBAL inline bool operator==(const ShaderCodeInjection& lhs, const Shader
  * Shader class represents a program.
  */
 
-class SAIGA_GLOBAL ShaderPart
+class SAIGA_OPENGL_API ShaderPart
 {
    public:
     typedef std::vector<ShaderCodeInjection> ShaderCodeInjections;

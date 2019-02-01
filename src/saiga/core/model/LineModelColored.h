@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL LineModelColored
+class SAIGA_CORE_API LineModelColored
 {
    public:
     LineMesh<VertexNC, uint32_t> mesh;

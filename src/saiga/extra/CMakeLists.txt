@@ -19,9 +19,14 @@ if(GPHOTO2_FOUND)
     add_subdirectory(gphoto2)
 endif()
 
+FILE(GLOB VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
+FILE(GLOB VULKAN_HEADER  "*.h" "*.hpp" "*.inl")
+
 # the internal files are added to core
 SET(SAIGA_ALL_FILES
     ${SAIGA_ALL_FILES}
+    ${VULKAN_SRC}
+    ${VULKAN_HEADER}
     )
 
 

@@ -133,12 +133,12 @@ struct FromStringConverter<long>
 
 
 
-SAIGA_GLOBAL std::vector<std::string> split(const std::string& s, char delim);
-SAIGA_GLOBAL std::string concat(const std::vector<std::string>& s, char delim);
+SAIGA_CORE_API std::vector<std::string> split(const std::string& s, char delim);
+SAIGA_CORE_API std::string concat(const std::vector<std::string>& s, char delim);
 
-SAIGA_GLOBAL std::string leadingZeroString(int number, int characterCount);
-SAIGA_GLOBAL bool hasEnding(std::string const& fullString, std::string const& ending);
-SAIGA_GLOBAL bool hasPrefix(std::string const& fullString, std::string const& prefix);
+SAIGA_CORE_API std::string leadingZeroString(int number, int characterCount);
+SAIGA_CORE_API bool hasEnding(std::string const& fullString, std::string const& ending);
+SAIGA_CORE_API bool hasPrefix(std::string const& fullString, std::string const& prefix);
 
 /**
  * @brief fileEnding
@@ -148,8 +148,8 @@ SAIGA_GLOBAL bool hasPrefix(std::string const& fullString, std::string const& pr
  * "bla.jpg" -> "jpg"
  * "/usr/local/test.asdf" -> "asdf"
  */
-SAIGA_GLOBAL std::string fileEnding(std::string const& str);
-SAIGA_GLOBAL std::string removeFileEnding(std::string const& str);
+SAIGA_CORE_API std::string fileEnding(std::string const& str);
+SAIGA_CORE_API std::string removeFileEnding(std::string const& str);
 
 
 template <typename ArrayType>
@@ -188,7 +188,7 @@ SAIGA_TEMPLATE std::vector<T> string_to_array(const std::string& string, char se
  * @param precision Precision for the value to display, if the value is in bytes, a precision of 0 will be used instead.
  * @return Nicely formatted SI-prefixed string.
  */
-SAIGA_GLOBAL std::string sizeToString(size_t size, size_t base = 1024, size_t max = 1536, const char* sep = " ",
+SAIGA_CORE_API std::string sizeToString(size_t size, size_t base = 1024, size_t max = 1536, const char* sep = " ",
                                       std::streamsize precision = 1);
 
 

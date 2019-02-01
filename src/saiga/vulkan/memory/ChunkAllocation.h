@@ -16,7 +16,7 @@ namespace Memory
 {
 typedef std::list<MemoryLocation>::iterator LocationIterator;
 
-struct SAIGA_GLOBAL ChunkAllocation
+struct SAIGA_VULKAN_API ChunkAllocation
 {
     std::shared_ptr<Chunk> chunk;
     vk::Buffer buffer;

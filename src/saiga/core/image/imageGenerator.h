@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ImageGenerator
+class SAIGA_CORE_API ImageGenerator
 {
    public:
     std::shared_ptr<int> p;

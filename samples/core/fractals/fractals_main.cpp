@@ -4,7 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/colorize.h"
+#include "saiga/config.h"
+
+//#include "saiga/colorize.h"
 #include "saiga/core/Core"
 
 #include <complex>
@@ -71,8 +73,11 @@ int main(int argc, char* args[])
                     iteration = iteration + 1;
                 }
                 float alpha = iteration;
+
+#ifndef WIN32
                 vec3 color  = colorizeMagma(alpha / 500) * 255.f;
                 img(i, j)   = ucvec3(color[0], color[1], color[2]);
+#endif
             }
         }
     }

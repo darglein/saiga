@@ -15,7 +15,7 @@ namespace Vulkan
 /**
  * Wrapper class for vk::DescriptorPool.
  */
-class SAIGA_GLOBAL DescriptorPool
+class SAIGA_VULKAN_API DescriptorPool
 {
    public:
     void create(vk::Device device, uint32_t maxSets, vk::ArrayProxy<const vk::DescriptorPoolSize> poolSizes,

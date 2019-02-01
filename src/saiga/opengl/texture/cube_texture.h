@@ -21,7 +21,7 @@ namespace Saiga
  *
  * -> Swap Y before creating a cube texture from a image
  */
-class SAIGA_GLOBAL TextureCube : public raw_Texture
+class SAIGA_OPENGL_API TextureCube : public raw_Texture
 {
    public:
     TextureCube() : raw_Texture(GL_TEXTURE_CUBE_MAP) {}

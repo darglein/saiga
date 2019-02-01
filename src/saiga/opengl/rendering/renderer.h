@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL RenderingParameters
+struct SAIGA_OPENGL_API RenderingParameters
 {
     /**
      * If srgbWrites is enabled all writes to srgb textures will cause a linear->srgb converesion.
@@ -41,7 +41,7 @@ struct SAIGA_GLOBAL RenderingParameters
 };
 
 
-class SAIGA_GLOBAL Renderer : public RendererBase
+class SAIGA_OPENGL_API Renderer : public RendererBase
 {
    public:
     std::shared_ptr<ImGui_GL_Renderer> imgui;

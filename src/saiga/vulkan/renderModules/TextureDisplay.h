@@ -20,7 +20,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL TextureDisplay : public Pipeline
+class SAIGA_VULKAN_API TextureDisplay : public Pipeline
 {
    public:
     using VertexType = VertexNC;

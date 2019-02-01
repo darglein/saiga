@@ -28,7 +28,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-struct SAIGA_GLOBAL VulkanBase
+struct SAIGA_VULKAN_API VulkanBase
 {
    private:
     std::unique_ptr<Queue> compute_queue;

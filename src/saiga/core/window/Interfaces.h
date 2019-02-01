@@ -25,7 +25,7 @@ class RenderingInterfaceBase;
  * An application can now derive from DeferredRenderingInterface to use
  * the deferred rendering engine.
  */
-class SAIGA_GLOBAL RendererBase
+class SAIGA_CORE_API RendererBase
 {
    public:
     virtual ~RendererBase() {}
@@ -46,7 +46,7 @@ class SAIGA_GLOBAL RendererBase
 /**
  * Base class for all rendering interfaces.
  */
-class SAIGA_GLOBAL RenderingInterfaceBase
+class SAIGA_CORE_API RenderingInterfaceBase
 {
    public:
     RenderingInterfaceBase(RendererBase& parent);
@@ -61,7 +61,7 @@ class SAIGA_GLOBAL RenderingInterfaceBase
  * Base class for applications to make them updateable.
  * The mainloop will call the appropriate functions.
  */
-class SAIGA_GLOBAL Updating
+class SAIGA_CORE_API Updating
 {
    public:
     Updating(WindowBase& parent);

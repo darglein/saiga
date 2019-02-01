@@ -21,7 +21,7 @@ namespace Vulkan
 {
 class VulkanWindow;
 
-class SAIGA_GLOBAL VulkanRenderer : public RendererBase
+class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 {
    public:
     Saiga::Vulkan::VulkanBase base;

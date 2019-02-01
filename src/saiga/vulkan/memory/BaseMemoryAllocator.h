@@ -35,7 +35,7 @@ struct MemoryStats
     }
 };
 
-struct SAIGA_GLOBAL BaseMemoryAllocator
+struct SAIGA_VULKAN_API BaseMemoryAllocator
 {
     explicit BaseMemoryAllocator(vk::DeviceSize _maxAllocationSize = VK_WHOLE_SIZE)
         : maxAllocationSize(_maxAllocationSize)

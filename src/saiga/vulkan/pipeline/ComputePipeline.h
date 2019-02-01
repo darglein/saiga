@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL ComputePipeline : public PipelineBase
+class SAIGA_VULKAN_API ComputePipeline : public PipelineBase
 {
    public:
     ComputePipeline();

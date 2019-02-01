@@ -25,7 +25,7 @@ namespace Vulkan
 {
 namespace Memory
 {
-class SAIGA_GLOBAL VulkanMemory
+class SAIGA_VULKAN_API VulkanMemory
 {
    private:
     using BufferMap        = std::map<BufferType, std::unique_ptr<BaseMemoryAllocator>>;

@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ModelLoader
+class SAIGA_CORE_API ModelLoader
 {
    public:
 };

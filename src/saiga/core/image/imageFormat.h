@@ -78,7 +78,7 @@ enum ImageType : int
 };
 
 template <typename T>
-struct SAIGA_GLOBAL ImageTypeTemplate
+struct SAIGA_CORE_API ImageTypeTemplate
 {
     //    using ChannelType = T;
     //    const static ImageType type = TYPE_UNKNOWN;

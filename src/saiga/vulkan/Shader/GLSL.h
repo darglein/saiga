@@ -24,12 +24,12 @@ namespace GLSLANG
  *
  */
 
-SAIGA_GLOBAL std::vector<uint32_t> loadGLSL(const std::string& file, const vk::ShaderStageFlagBits shader_type,
+SAIGA_VULKAN_API std::vector<uint32_t> loadGLSL(const std::string& file, const vk::ShaderStageFlagBits shader_type,
                                             const std::string& injection = {});
 
-SAIGA_GLOBAL std::vector<uint32_t> loadSPIRV(const std::string& file);
+SAIGA_VULKAN_API std::vector<uint32_t> loadSPIRV(const std::string& file);
 
-SAIGA_GLOBAL void addInjectionAfterVersion(std::string& shaderString, const std::string& injection);
+SAIGA_VULKAN_API void addInjectionAfterVersion(std::string& shaderString, const std::string& injection);
 
 
 
@@ -40,12 +40,12 @@ SAIGA_GLOBAL void addInjectionAfterVersion(std::string& shaderString, const std:
  * Note: #include is not supported in this mode.
  *
  */
-SAIGA_GLOBAL std::vector<uint32_t> createFromString(const std::string& shaderString,
+SAIGA_VULKAN_API std::vector<uint32_t> createFromString(const std::string& shaderString,
                                                     const vk::ShaderStageFlagBits shader_type);
 
 
-SAIGA_GLOBAL void init();
-SAIGA_GLOBAL void quit();
+SAIGA_VULKAN_API void init();
+SAIGA_VULKAN_API void quit();
 
 
 }  // namespace GLSLANG

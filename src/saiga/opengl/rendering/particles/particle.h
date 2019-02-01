@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Particle
+class SAIGA_OPENGL_API Particle
 {
    public:
     enum Orientation

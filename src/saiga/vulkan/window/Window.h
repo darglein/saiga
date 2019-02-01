@@ -19,7 +19,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL VulkanWindow : public WindowBase
+class SAIGA_VULKAN_API VulkanWindow : public WindowBase
 {
    public:
     VulkanWindow(WindowParameters windowParameters);

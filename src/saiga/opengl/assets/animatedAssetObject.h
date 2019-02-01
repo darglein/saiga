@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL AnimatedAssetObject : public Object3D
+class SAIGA_OPENGL_API AnimatedAssetObject : public Object3D
 {
    private:
     animationtime_t animationTotalTime    = animationtime_t(0);

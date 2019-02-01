@@ -28,7 +28,7 @@ namespace Saiga
 
 // Linux: c++ 11 chrono for time measurement
 // Windows: queryPerformanceCounter because c++ 11 chrono only since VS2015 with good precision :(
-class SAIGA_GLOBAL Timer
+class SAIGA_CORE_API Timer
 {
    public:
     Timer();
@@ -59,7 +59,7 @@ class SAIGA_GLOBAL Timer
 };
 
 
-class SAIGA_GLOBAL ExponentialTimer : public Timer
+class SAIGA_CORE_API ExponentialTimer : public Timer
 {
    public:
     ExponentialTimer(double alpha = 0.9);
@@ -72,7 +72,7 @@ class SAIGA_GLOBAL ExponentialTimer : public Timer
 };
 
 
-class SAIGA_GLOBAL AverageTimer : public Timer
+class SAIGA_CORE_API AverageTimer : public Timer
 {
    public:
     AverageTimer(int number = 10);
@@ -91,7 +91,7 @@ class SAIGA_GLOBAL AverageTimer : public Timer
     int number;
 };
 
-class SAIGA_GLOBAL ScopedTimerPrint : public Timer
+class SAIGA_CORE_API ScopedTimerPrint : public Timer
 {
    public:
     std::string name;

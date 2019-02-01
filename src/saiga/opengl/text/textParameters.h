@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL TextParameters
+struct SAIGA_OPENGL_API TextParameters
 {
     vec4 color        = vec4(1, 1, 1, 1);
     vec4 outlineColor = vec4(0, 0, 0, 0);

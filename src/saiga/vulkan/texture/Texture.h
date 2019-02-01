@@ -14,7 +14,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-struct SAIGA_GLOBAL Texture
+struct SAIGA_VULKAN_API Texture
 {
    protected:
     VulkanBase* base;
@@ -79,7 +79,7 @@ struct SAIGA_GLOBAL Texture
     vk::DescriptorImageInfo getDescriptorInfo();
 };
 
-struct SAIGA_GLOBAL Texture2D : public Texture
+struct SAIGA_VULKAN_API Texture2D : public Texture
 {
     Texture2D()                       = default;
     Texture2D(const Texture2D& other) = delete;

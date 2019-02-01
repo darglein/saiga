@@ -21,7 +21,7 @@ class raw_Texture;
  * A shader object represents a 'program' in OpenGL terminology.
  */
 
-class SAIGA_GLOBAL Shader
+class SAIGA_OPENGL_API Shader
 {
    private:
     /**

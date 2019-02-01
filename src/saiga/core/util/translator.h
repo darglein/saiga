@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Translator
+class SAIGA_CORE_API Translator
 {
    private:
     std::string translationFile;
@@ -49,11 +49,11 @@ class SAIGA_GLOBAL Translator
 };
 
 
-SAIGA_GLOBAL extern Translator translator;
+SAIGA_CORE_API extern Translator translator;
 
 namespace translation
 {
-SAIGA_GLOBAL inline std::string tr(const std::string& key, const std::string& note = "")
+SAIGA_CORE_API inline std::string tr(const std::string& key, const std::string& note = "")
 {
     return translator.translate(key, note);
 }
@@ -64,7 +64,7 @@ SAIGA_GLOBAL inline std::string tr(const std::string& key, const std::string& no
 //    static translation::trstring tstr("Hello world!");
 //    cout << tstr.str << endl;
 //}
-struct SAIGA_GLOBAL trstring
+struct SAIGA_CORE_API trstring
 {
     std::string str;
     trstring(const std::string& key, const std::string& note = "") { str = tr(key, note); }

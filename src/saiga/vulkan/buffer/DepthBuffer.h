@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL DepthBuffer
+class SAIGA_VULKAN_API DepthBuffer
 {
    private:
     VulkanBase* base;

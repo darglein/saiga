@@ -23,7 +23,7 @@ using Intersection::RayTriangleIntersection;
 /**
  * Base class for triangle acceleration structures.
  */
-class SAIGA_GLOBAL Base
+class SAIGA_CORE_API Base
 {
    public:
     virtual ~Base() {}
@@ -34,7 +34,7 @@ class SAIGA_GLOBAL Base
 
 
 
-class SAIGA_GLOBAL BruteForce : public Base
+class SAIGA_CORE_API BruteForce : public Base
 {
    public:
     BruteForce(const std::vector<Triangle>& triangles);
@@ -60,7 +60,7 @@ struct BVHNode
     uint32_t _right;
 };
 
-class SAIGA_GLOBAL BVH : public Base
+class SAIGA_CORE_API BVH : public Base
 {
    public:
     struct SortTriangleByAxis
@@ -96,7 +96,7 @@ class SAIGA_GLOBAL BVH : public Base
     void getAll(int node, const Ray& ray, std::vector<RayTriangleIntersection>& result);
 };
 
-class SAIGA_GLOBAL ObjectMedianBVH : public BVH
+class SAIGA_CORE_API ObjectMedianBVH : public BVH
 {
    public:
     ObjectMedianBVH(const std::vector<Triangle>& triangles, int leafTriangles = 5)

@@ -45,17 +45,17 @@ vk::PipelineVertexInputStateCreateInfo VKVertexAttribBinder<VertexType>::createP
 
 
 template <>
-SAIGA_GLOBAL void VKVertexAttribBinder<VertexNC>::getVKAttribs(
+SAIGA_VULKAN_API void VKVertexAttribBinder<VertexNC>::getVKAttribs(
     vk::VertexInputBindingDescription& vi_binding,
     std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
 
 template <>
-SAIGA_GLOBAL void VKVertexAttribBinder<VertexNT>::getVKAttribs(
+SAIGA_VULKAN_API void VKVertexAttribBinder<VertexNT>::getVKAttribs(
     vk::VertexInputBindingDescription& vi_binding,
     std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
 
 template <>
-SAIGA_GLOBAL void VKVertexAttribBinder<VertexNTD>::getVKAttribs(
+SAIGA_VULKAN_API void VKVertexAttribBinder<VertexNTD>::getVKAttribs(
     vk::VertexInputBindingDescription& vi_binding,
     std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
 

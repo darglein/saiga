@@ -13,7 +13,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL Sphere
+class SAIGA_CORE_API Sphere
 {
    public:
     vec3 pos;
@@ -38,7 +38,7 @@ class SAIGA_GLOBAL Sphere
     //    TriangleMesh* createMesh(int rings, int sectors);
     //    void addToBuffer(std::vector<VertexNT> &vertices, std::vector<GLuint> &indices, int rings, int sectors);
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Sphere& dt);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Sphere& dt);
 };
 
 }  // namespace Saiga

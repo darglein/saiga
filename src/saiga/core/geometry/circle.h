@@ -16,7 +16,7 @@ namespace Saiga
 /**
  * 3D Circle
  */
-class SAIGA_GLOBAL Circle
+class SAIGA_CORE_API Circle
 {
    public:
     vec3 pos;
@@ -33,7 +33,7 @@ class SAIGA_GLOBAL Circle
     vec3 closestPointOnCircle(const vec3& p) const;
 
 
-    SAIGA_GLOBAL friend std::ostream& operator<<(std::ostream& os, const Circle& dt);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Circle& dt);
 };
 
 }  // namespace Saiga

@@ -18,10 +18,10 @@ namespace Saiga
  * and a assertion is triggered. If a custom SegfaultHandler is set this function
  * is called after printing the stack trace.
  */
-SAIGA_GLOBAL extern void catchSegFaults();
+SAIGA_CORE_API extern void catchSegFaults();
 
-SAIGA_GLOBAL extern void addCustomSegfaultHandler(std::function<void()> fnc);
+SAIGA_CORE_API extern void addCustomSegfaultHandler(std::function<void()> fnc);
 
-SAIGA_GLOBAL extern void printCurrentStack();
+SAIGA_CORE_API extern void printCurrentStack();
 
 }  // namespace Saiga

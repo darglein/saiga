@@ -23,7 +23,7 @@
  *   #define ELPP_NO_DEFAULT_LOG_FILE
  *   #define AUTO_INITIALIZE_EASYLOGGINGPP
  *   '''
- * - define ELPP_EXPORT SAIGA_GLOBAL
+ * - define ELPP_EXPORT SAIGA_CORE_API
  * - Add ELPP_EXPORT to the writer class
  */
 
@@ -266,7 +266,7 @@
 
 #include "saiga/export.h"
 
-#define ELPP_EXPORT SAIGA_GLOBAL
+#define ELPP_EXPORT SAIGA_CORE_API
 
 //#if defined(ELPP_AS_DLL) && ELPP_COMPILER_MSVC
 //#  if defined(ELPP_EXPORT_SYMBOLS)

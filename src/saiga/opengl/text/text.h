@@ -20,7 +20,7 @@ namespace Saiga
 class TextShader;
 class TextureAtlas;
 
-class SAIGA_GLOBAL Text : public Object3D
+class SAIGA_OPENGL_API Text : public Object3D
 {
    public:
     mat4 normalizationMatrix;
