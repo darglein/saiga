@@ -26,7 +26,7 @@ namespace Saiga
  * of DSLRImage.
  */
 
-class SAIGA_GLOBAL GPhoto
+class SAIGA_EXTRA_API GPhoto
 {
    public:
     struct DSLRImage

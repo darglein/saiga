@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL PGORec : public PGOBase
+class SAIGA_VISION_API PGORec : public PGOBase
 {
    public:
     PGORec() : PGOBase("recursive PGO") {}

@@ -5,7 +5,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL StereoCalibration
+class SAIGA_EXTRA_API StereoCalibration
 {
    public:
     StereoCalibration(CalibrationPattern& pattern, Intrinsics intr1, Intrinsics intr2)

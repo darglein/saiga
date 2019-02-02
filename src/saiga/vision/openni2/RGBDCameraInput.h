@@ -25,7 +25,7 @@ class VideoFrameRef;
 
 namespace Saiga
 {
-class SAIGA_GLOBAL RGBDCameraInput : public RGBDCamera
+class SAIGA_VISION_API RGBDCameraInput : public RGBDCamera
 {
    public:
     RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, const std::shared_ptr<DMPP>& dmpp = {},

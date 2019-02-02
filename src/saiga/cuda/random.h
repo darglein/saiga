@@ -56,8 +56,8 @@ __device__ inline vec3 sampleCone(const vec3& dir, float angle, curandState& sta
     return vec3(r);
 }
 
-SAIGA_GLOBAL extern void initRandom(ArrayView<curandState> states, unsigned long long seed);
-SAIGA_GLOBAL extern void randomTest();
+SAIGA_CUDA_API extern void initRandom(ArrayView<curandState> states, unsigned long long seed);
+SAIGA_CUDA_API extern void randomTest();
 
 }  // namespace CUDA
 }  // namespace Saiga

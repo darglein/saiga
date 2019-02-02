@@ -17,7 +17,7 @@ namespace Saiga
 {
 namespace CUDA
 {
-class SAIGA_GLOBAL Interop
+class SAIGA_CUDA_API Interop
 {
    private:
     unsigned int gl_buffer;

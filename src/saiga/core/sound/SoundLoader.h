@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -47,7 +47,7 @@ struct SAIGA_LOCAL WAVE_Data
 };
 
 
-class SAIGA_GLOBAL SoundLoader
+class SAIGA_CORE_API SoundLoader
 {
    public:
     // loads with alut if possible

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -12,7 +12,7 @@ namespace Saiga
 {
 namespace sound
 {
-class SAIGA_GLOBAL Sound
+class SAIGA_CORE_API Sound
 {
    public:
     std::string name;

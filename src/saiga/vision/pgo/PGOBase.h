@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL PGOOptions
+struct SAIGA_VISION_API PGOOptions
 {
     int maxIterations = 20;
 
@@ -35,7 +35,7 @@ struct SAIGA_GLOBAL PGOOptions
  *
  * Base class and interface for all BA implementations.
  */
-class SAIGA_GLOBAL PGOBase
+class SAIGA_VISION_API PGOBase
 {
    public:
     PGOBase(const std::string& name) : name(name) {}

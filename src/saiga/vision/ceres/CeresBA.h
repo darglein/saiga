@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL CeresBA : public BABase
+class SAIGA_VISION_API CeresBA : public BABase
 {
    public:
     CeresBA() : BABase("Ceres BA") {}

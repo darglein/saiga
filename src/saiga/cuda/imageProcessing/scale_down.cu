@@ -50,9 +50,9 @@ void scaleDown2EveryOther(ImageView<T> src, ImageView<T> dst)
 }
 
 // create code for common types
-template SAIGA_GLOBAL void scaleDown2EveryOther<float>(ImageView<float> src, ImageView<float> dst);
-template SAIGA_GLOBAL void scaleDown2EveryOther<uchar3>(ImageView<uchar3> src, ImageView<uchar3> dst);
-template SAIGA_GLOBAL void scaleDown2EveryOther<uchar4>(ImageView<uchar4> src, ImageView<uchar4> dst);
+template SAIGA_CUDA_API void scaleDown2EveryOther<float>(ImageView<float> src, ImageView<float> dst);
+template SAIGA_CUDA_API void scaleDown2EveryOther<uchar3>(ImageView<uchar3> src, ImageView<uchar3> dst);
+template SAIGA_CUDA_API void scaleDown2EveryOther<uchar4>(ImageView<uchar4> src, ImageView<uchar4> dst);
 
 }  // namespace CUDA
 }  // namespace Saiga

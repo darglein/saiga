@@ -18,7 +18,7 @@ using RGBImageType   = TemplatedImage<ucvec4>;
 using DepthImageType = TemplatedImage<float>;
 
 
-class SAIGA_GLOBAL RGBDCamera
+class SAIGA_VISION_API RGBDCamera
 {
    public:
     struct FrameData

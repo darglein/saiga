@@ -24,7 +24,7 @@ namespace CUDA
  * }
  *
  */
-class SAIGA_GLOBAL CudaScopedTimer
+class SAIGA_CUDA_API CudaScopedTimer
 {
    public:
     CudaScopedTimer(float& time, cudaStream_t stream = 0);
@@ -38,7 +38,7 @@ class SAIGA_GLOBAL CudaScopedTimer
 
 
 
-class SAIGA_GLOBAL CudaScopedTimerPrint
+class SAIGA_CUDA_API CudaScopedTimerPrint
 {
    public:
     CudaScopedTimerPrint(const std::string& name, cudaStream_t stream = 0);

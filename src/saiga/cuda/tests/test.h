@@ -12,25 +12,25 @@ namespace Saiga
 {
 namespace CUDA
 {
-SAIGA_GLOBAL extern void occupancyTest();
-SAIGA_GLOBAL extern void coalescedCopyTest();
-SAIGA_GLOBAL extern void dotTest();
-SAIGA_GLOBAL extern void recursionTest();
+SAIGA_CUDA_API extern void occupancyTest();
+SAIGA_CUDA_API extern void coalescedCopyTest();
+SAIGA_CUDA_API extern void dotTest();
+SAIGA_CUDA_API extern void recursionTest();
 
-SAIGA_GLOBAL extern void scanTest();
+SAIGA_CUDA_API extern void scanTest();
 
-SAIGA_GLOBAL extern void reduceTest();
-SAIGA_GLOBAL extern void warpStrideLoopTest();
+SAIGA_CUDA_API extern void reduceTest();
+SAIGA_CUDA_API extern void warpStrideLoopTest();
 
-SAIGA_GLOBAL extern void convolutionTest();
-SAIGA_GLOBAL extern void convolutionTest3x3();
+SAIGA_CUDA_API extern void convolutionTest();
+SAIGA_CUDA_API extern void convolutionTest3x3();
 
-SAIGA_GLOBAL extern void imageProcessingTest();
+SAIGA_CUDA_API extern void imageProcessingTest();
 
-SAIGA_GLOBAL extern void testCuda();
-SAIGA_GLOBAL extern void testThrust();
+SAIGA_CUDA_API extern void testCuda();
+SAIGA_CUDA_API extern void testThrust();
 
-SAIGA_GLOBAL extern void inverseTest();
+SAIGA_CUDA_API extern void inverseTest();
 
 }  // namespace CUDA
 }  // namespace Saiga

@@ -68,7 +68,7 @@ struct EigenCompileFlags
  * The eigen compile flags saiga was compiled with.
  * This should mach the applications flags to ensure compabitility
  */
-SAIGA_GLOBAL EigenCompileFlags getSaigaEigenCompileFlags();
+SAIGA_VISION_API EigenCompileFlags getSaigaEigenCompileFlags();
 
 
 template <int n>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -23,13 +23,13 @@ namespace Saiga
 
 namespace sound
 {
-SAIGA_GLOBAL extern void initOpenAL();
-SAIGA_GLOBAL extern void quitOpenAL();
+SAIGA_CORE_API extern void initOpenAL();
+SAIGA_CORE_API extern void quitOpenAL();
 
 
-SAIGA_GLOBAL bool checkSoundError();
+SAIGA_CORE_API bool checkSoundError();
 
-SAIGA_GLOBAL extern std::string getALCErrorString(int err);
+SAIGA_CORE_API extern std::string getALCErrorString(int err);
 
 
 

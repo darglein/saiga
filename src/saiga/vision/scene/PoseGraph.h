@@ -17,7 +17,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL PoseEdge
+struct SAIGA_VISION_API PoseEdge
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -38,7 +38,7 @@ struct SAIGA_GLOBAL PoseEdge
     bool operator<(const PoseEdge& other) { return std::tie(from, to) < std::tie(other.from, other.to); }
 };
 
-struct SAIGA_GLOBAL PoseVertex
+struct SAIGA_VISION_API PoseVertex
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -46,7 +46,7 @@ struct SAIGA_GLOBAL PoseVertex
     bool constant = false;
 };
 
-struct SAIGA_GLOBAL PoseGraph
+struct SAIGA_VISION_API PoseGraph
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -65,6 +65,6 @@ struct SAIGA_GLOBAL PoseGraph
     bool imgui();
 };
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, PoseGraph& pg);
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, PoseGraph& pg);
 
 }  // namespace Saiga

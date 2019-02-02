@@ -5,7 +5,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL IntrinsicsCalibration
+class SAIGA_EXTRA_API IntrinsicsCalibration
 {
    public:
     IntrinsicsCalibration(CalibrationPattern& pattern) : pattern(pattern) {}

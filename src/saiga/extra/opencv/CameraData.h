@@ -8,7 +8,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL Intrinsics
+struct SAIGA_EXTRA_API Intrinsics
 {
     int w, h;
     cv::Mat1d K, dist;
@@ -17,7 +17,7 @@ struct SAIGA_GLOBAL Intrinsics
     void readFromFile(std::string file);
 };
 
-struct SAIGA_GLOBAL StereoExtrinsics
+struct SAIGA_EXTRA_API StereoExtrinsics
 {
     cv::Mat1d R, t, E, F;
 

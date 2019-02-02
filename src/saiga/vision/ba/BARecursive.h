@@ -14,7 +14,7 @@
 #include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
-class SAIGA_GLOBAL BARec : public BABase
+class SAIGA_VISION_API BARec : public BABase
 {
    public:
     BARec() : BABase("Recursive BA") {}

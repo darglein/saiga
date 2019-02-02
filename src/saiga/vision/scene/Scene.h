@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL Extrinsics
+struct SAIGA_VISION_API Extrinsics
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -26,7 +26,7 @@ struct SAIGA_GLOBAL Extrinsics
     Eigen::Vector3d apply(const Eigen::Vector3d& X) { return se3 * X; }
 };
 
-struct SAIGA_GLOBAL WorldPoint
+struct SAIGA_VISION_API WorldPoint
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -76,7 +76,7 @@ struct SAIGA_GLOBAL WorldPoint
     explicit operator bool() const { return isValid(); }
 };
 
-struct SAIGA_GLOBAL StereoImagePoint
+struct SAIGA_VISION_API StereoImagePoint
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -94,7 +94,7 @@ struct SAIGA_GLOBAL StereoImagePoint
     explicit operator bool() const { return wp != -1; }
 };
 
-struct SAIGA_GLOBAL DenseConstraint
+struct SAIGA_VISION_API DenseConstraint
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -116,7 +116,7 @@ struct SAIGA_GLOBAL DenseConstraint
     Eigen::Vector3d referenceWorldPoint;
 };
 
-struct SAIGA_GLOBAL SceneImage
+struct SAIGA_VISION_API SceneImage
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     int intr = -1;
@@ -140,7 +140,7 @@ struct SAIGA_GLOBAL SceneImage
 };
 
 
-class SAIGA_GLOBAL Scene
+class SAIGA_VISION_API Scene
 {
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -211,6 +211,6 @@ class SAIGA_GLOBAL Scene
     void load(const std::string& file);
 };
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, Scene& scene);
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, Scene& scene);
 
 }  // namespace Saiga

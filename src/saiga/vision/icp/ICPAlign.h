@@ -35,7 +35,7 @@ namespace Saiga
 {
 namespace ICP
 {
-struct SAIGA_GLOBAL Correspondence
+struct SAIGA_VISION_API Correspondence
 {
     Vec3 refPoint;
     Vec3 refNormal;
@@ -57,7 +57,7 @@ struct SAIGA_GLOBAL Correspondence
  * The basic ICP algorithm which minimized the function above. Each correspondence only needs
  * the 'refPoint' and 'srcPoint'.
  */
-SAIGA_GLOBAL SE3 pointToPoint(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3());
+SAIGA_VISION_API SE3 pointToPoint(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3());
 
 /**
  * Minimized the distance between the source point to the surface plane at the reference point:
@@ -66,7 +66,7 @@ SAIGA_GLOBAL SE3 pointToPoint(const AlignedVector<Correspondence>& corrs, const 
  *
  * Each correspondnce additional needs the 'refNormal' attribute.
  */
-SAIGA_GLOBAL SE3 pointToPlane(const AlignedVector<Correspondence>& corrs, const SE3& ref, const SE3& src,
+SAIGA_VISION_API SE3 pointToPlane(const AlignedVector<Correspondence>& corrs, const SE3& ref, const SE3& src,
                               int innerIterations = 1);
 
 
@@ -84,7 +84,7 @@ SAIGA_GLOBAL SE3 pointToPlane(const AlignedVector<Correspondence>& corrs, const 
  * Full Paper: Generalized-ICP, http://www.roboticsproceedings.org/rss05/p21.pdf
  * G2O Implementation: https://github.com/RainerKuemmerle/g2o/blob/master/g2o/types/icp/types_icp.h
  */
-SAIGA_GLOBAL SE3 planeToPlane(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3(), double covE = 0.001,
+SAIGA_VISION_API SE3 planeToPlane(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3(), double covE = 0.001,
                               int innerIterations = 5);
 
 

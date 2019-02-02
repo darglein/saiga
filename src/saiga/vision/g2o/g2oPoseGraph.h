@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL g2oPGO : public PGOBase
+class SAIGA_VISION_API g2oPGO : public PGOBase
 {
    public:
     g2oPGO() : PGOBase("g2oPGO") {}

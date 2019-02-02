@@ -4,7 +4,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL CalibrationPattern
+class SAIGA_EXTRA_API CalibrationPattern
 {
    public:
     using ImagePointType = cv::Point2f;
@@ -22,7 +22,7 @@ class SAIGA_GLOBAL CalibrationPattern
 
 
 
-class SAIGA_GLOBAL ChessboardPattern : public CalibrationPattern
+class SAIGA_EXTRA_API ChessboardPattern : public CalibrationPattern
 {
    public:
     ChessboardPattern(cv::Size numInnerCorners, double squareLength)

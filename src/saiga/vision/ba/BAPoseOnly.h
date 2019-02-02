@@ -5,7 +5,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL BAPoseOnly : public BABase
+class SAIGA_VISION_API BAPoseOnly : public BABase
 {
    public:
     /**

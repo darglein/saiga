@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -37,7 +37,7 @@ class Sound;
  * some quiet samples. Fix 1: Add silence on the start of the sound. Fix 2: Rewrite this class to not reuse sound
  * sources but generate new ones, but care for performance!
  */
-class SAIGA_GLOBAL SoundManager
+class SAIGA_CORE_API SoundManager
 {
    private:
     SoundSource* quietSoundSource;

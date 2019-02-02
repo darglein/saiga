@@ -22,7 +22,7 @@ namespace CUDA
  * cudaMemcpyAsync(d_slice.data(),h_slice.data(),slizeSize,cudaMemcpyHostToDevice,stream);
  *
  */
-class SAIGA_GLOBAL CudaStream
+class SAIGA_CUDA_API CudaStream
 {
    public:
     cudaStream_t stream;

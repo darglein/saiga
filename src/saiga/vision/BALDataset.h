@@ -30,7 +30,7 @@ namespace Saiga
  * r(p) = 1.0 + k1 * ||p||^2 + k2 * ||p||^4.
  *
  */
-class SAIGA_GLOBAL BALDataset
+class SAIGA_VISION_API BALDataset
 {
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

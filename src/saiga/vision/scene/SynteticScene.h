@@ -14,7 +14,7 @@ namespace Saiga
  * This module generates syntetic Scenes for testing purposes.
  * Checkout the vision/vision_ba sample to see the generated scenes
  */
-class SAIGA_GLOBAL SynteticScene
+class SAIGA_VISION_API SynteticScene
 {
    public:
     /**

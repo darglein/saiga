@@ -30,7 +30,7 @@ using DepthNormalMap  = ImageView<Vec3>;
  * Projects the depth points to camera space.
  * For invalid depth value the point will be at infinity.
  */
-SAIGA_GLOBAL void toPointCloud(DepthMap dm, DepthPointCloud pc, const Intrinsics4& camera);
+SAIGA_VISION_API void toPointCloud(DepthMap dm, DepthPointCloud pc, const Intrinsics4& camera);
 
 
 /**
@@ -40,14 +40,14 @@ SAIGA_GLOBAL void toPointCloud(DepthMap dm, DepthPointCloud pc, const Intrinsics
  *
  * All invalid normals will be infinity.
  */
-SAIGA_GLOBAL void normalMap(DepthPointCloud pc, DepthNormalMap normals);
+SAIGA_VISION_API void normalMap(DepthPointCloud pc, DepthNormalMap normals);
 
 
 /**
  * Exports the point cloud in ASCII .ply format.
  * This can be viewed for example with meshlab.
  */
-SAIGA_GLOBAL void savePointCloudPLY(const std::string& file, DepthPointCloud pc, const Vec3& color = Vec3(1, 0, 0));
+SAIGA_VISION_API void savePointCloudPLY(const std::string& file, DepthPointCloud pc, const Vec3& color = Vec3(1, 0, 0));
 
 
 }  // namespace Depthmap

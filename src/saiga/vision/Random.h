@@ -14,9 +14,9 @@ namespace Saiga
 {
 namespace Random
 {
-SAIGA_GLOBAL Vec3 linearRand(Vec3 low, Vec3 high);
+SAIGA_VISION_API Vec3 linearRand(Vec3 low, Vec3 high);
 
-SAIGA_GLOBAL Vec3 ballRand(double radius);
+SAIGA_VISION_API Vec3 ballRand(double radius);
 
 
 

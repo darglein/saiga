@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL BAOptions
+struct SAIGA_VISION_API BAOptions
 {
     int maxIterations = 10;
 
@@ -33,7 +33,7 @@ struct SAIGA_GLOBAL BAOptions
     void imgui();
 };
 
-SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, BAOptions& op);
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, BAOptions& op);
 
 
 /**
@@ -41,7 +41,7 @@ SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, BAOptions& op);
  *
  * Base class and interface for all BA implementations.
  */
-class SAIGA_GLOBAL BABase
+class SAIGA_VISION_API BABase
 {
    public:
     BABase(const std::string& name) : name(name) {}

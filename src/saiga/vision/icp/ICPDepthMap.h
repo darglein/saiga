@@ -16,7 +16,7 @@ namespace Saiga
 {
 namespace ICP
 {
-struct SAIGA_GLOBAL DepthMapExtended
+struct SAIGA_VISION_API DepthMapExtended
 {
     Depthmap::DepthMap depth;
     Saiga::ArrayImage<Vec3> points;
@@ -44,7 +44,7 @@ struct ProjectiveCorrespondencesParams
 /**
  * Search for point-to-point correspondences between two point clouds from depth images.
  */
-SAIGA_GLOBAL AlignedVector<Correspondence> projectiveCorrespondences(const DepthMapExtended& ref,
+SAIGA_VISION_API AlignedVector<Correspondence> projectiveCorrespondences(const DepthMapExtended& ref,
                                                                      const DepthMapExtended& src,
                                                                      const ProjectiveCorrespondencesParams& params);
 
@@ -56,7 +56,7 @@ SAIGA_GLOBAL AlignedVector<Correspondence> projectiveCorrespondences(const Depth
  *  - finds projective correspondences (function above) with default params
  *  - finds the rigid transformation between the point clouds with point-to-plane metric (see ICP align)
  */
-SAIGA_GLOBAL SE3 alignDepthMaps(Depthmap::DepthMap referenceDepthMap, Depthmap::DepthMap sourceDepthMap,
+SAIGA_VISION_API SE3 alignDepthMaps(Depthmap::DepthMap referenceDepthMap, Depthmap::DepthMap sourceDepthMap,
                                 const SE3& refPose, const SE3& srcPose, const Intrinsics4& camera, int iterations,
                                 ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
 

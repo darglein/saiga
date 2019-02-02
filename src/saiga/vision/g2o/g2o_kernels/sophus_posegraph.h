@@ -21,7 +21,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL VertexSim3 : public g2o::BaseVertex<6, SE3>
+class SAIGA_VISION_API VertexSim3 : public g2o::BaseVertex<6, SE3>
 {
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
@@ -41,7 +41,7 @@ class SAIGA_GLOBAL VertexSim3 : public g2o::BaseVertex<6, SE3>
 /**
  * \brief 7D edge between two Vertex7
  */
-class SAIGA_GLOBAL EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3, VertexSim3>
+class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3, VertexSim3>
 {
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

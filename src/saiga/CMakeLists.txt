@@ -1,94 +1,31 @@
-# This file collects all source and header files
-# The following variables are defined with "PARENT_SCOPE"
-#
-# SAIGA_ALL_FILES
+﻿message(" ")
 
-add_subdirectory(core)
+if(SAIGA_MODULE_CORE)
+    add_subdirectory(core)
+    message(STATUS "Module enabled:     core")
+endif()
 
-if(SAIGA_USE_VULKAN)
+if(SAIGA_MODULE_VULKAN AND SAIGA_USE_VULKAN)
+    message(STATUS "Module enabled:     vulkan")
     add_subdirectory(vulkan)
 endif()
 
-if(SAIGA_USE_OPENGL)
+if(SAIGA_MODULE_OPENGL AND SAIGA_USE_OPENGL)
+    message(STATUS "Module enabled:     opengl")
     add_subdirectory(opengl)
 endif()
 
-add_subdirectory(extra)
+if(SAIGA_MODULE_EXTRA)
+    message(STATUS "Module enabled:     extra")
+    add_subdirectory(extra)
+endif()
 
-if(CUDA_FOUND)
+if(SAIGA_MODULE_CUDA AND SAIGA_USE_CUDA)
+    message(STATUS "Module enabled:     cuda")
     add_subdirectory(cuda)
 endif()
 
-if(SAIGA_VISION)
+if(SAIGA_MODULE_VISION AND SAIGA_VISION)
+    message(STATUS "Module enabled:     vision")
     add_subdirectory(vision)
 endif()
-
-return()
-
-#add_subdirectory(animation)
-add_subdirectory(camera)
-add_subdirectory(framework)
-add_subdirectory(model)
-add_subdirectory(window)
-add_subdirectory(image)
-add_subdirectory(time)
-add_subdirectory(geometry)
-add_subdirectory(util)
-add_subdirectory(tests)
-add_subdirectory(imgui)
-
-
-if(SAIGA_USE_OPENGL)
-    add_subdirectory(opengl)
-endif()
-
-
-if (SDL2_FOUND)
-    add_subdirectory(sdl)
-endif ()
-
-if (GLFW_FOUND)
-    add_subdirectory(glfw)
-endif ()
-
-if (OPENAL_FOUND)
-    add_subdirectory(sound)
-endif ()
-
-if(EIGEN3_FOUND)
-    add_subdirectory(eigen)
-endif()
-
-
-
-if(CUDA_FOUND)
-    add_subdirectory(cuda)
-endif()
-
-if(SAIGA_USE_VULKAN)
-    add_subdirectory(vulkan)
-endif()
-
-if(OPENNI2_FOUND)
-    add_subdirectory(openni2)
-endif()
-
-if(Boost_FOUND)
-    add_subdirectory(network)
-endif()
-
-if(OpenCV_FOUND)
-    add_subdirectory(opencv)
-endif()
-
-if(GPHOTO2_FOUND)
-    add_subdirectory(gphoto2)
-endif()
-
-if(SAIGA_VISION)
-    add_subdirectory(vision)
-endif()
-
-
-FILE(GLOB BASE_SRC  "*.cpp" "*.h")
-set(SAIGA_ALL_FILES ${SAIGA_ALL_FILES} ${BASE_SRC} PARENT_SCOPE)

@@ -48,8 +48,8 @@ HD SAIGA_CONSTEXPR T1 getBlockCount(T1 problemSize, T2 threadCount)
 }
 
 
-SAIGA_GLOBAL extern void initCUDA();
-SAIGA_GLOBAL extern void destroyCUDA();
+SAIGA_CUDA_API extern void initCUDA();
+SAIGA_CUDA_API extern void destroyCUDA();
 
 }  // namespace CUDA
 }  // namespace Saiga

@@ -16,7 +16,7 @@ namespace Saiga
 {
 namespace CUDA
 {
-class SAIGA_GLOBAL PerformanceTestHelper
+class SAIGA_CUDA_API PerformanceTestHelper
 {
     std::string name;
     size_t bytesReadWrite;

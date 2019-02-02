@@ -22,7 +22,7 @@ namespace Saiga
 {
 class ImageTransmition;
 
-class SAIGA_GLOBAL RGBDCameraNetwork : public RGBDCamera
+class SAIGA_EXTRA_API RGBDCameraNetwork : public RGBDCamera
 {
    public:
     void connect(std::string host, uint32_t port);

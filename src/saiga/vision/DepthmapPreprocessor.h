@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-struct SAIGA_GLOBAL DMPPParameters
+struct SAIGA_VISION_API DMPPParameters
 {
     bool apply_downscale = false;
     int downscaleFactor  = 2;  // 2,4,8,16,...
@@ -41,7 +41,7 @@ struct SAIGA_GLOBAL DMPPParameters
 
 
 
-class SAIGA_GLOBAL DMPP
+class SAIGA_VISION_API DMPP
 {
    public:
     using DepthMap = ImageView<float>;

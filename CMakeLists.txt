@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+﻿cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 set(LIB_NAME saiga)
 set(LIB_EXPORT saiga-export)
@@ -45,6 +45,14 @@ OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
 OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
 OptionsHelper(SAIGA_PCH "Generate a precompiled header" OFF)
+
+
+OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
+OptionsHelper(SAIGA_MODULE_OPENGL "Build the opengl module, if possible." ON)
+OptionsHelper(SAIGA_MODULE_VULKAN "Build the vulkan module, if possible." ON)
+OptionsHelper(SAIGA_MODULE_EXTRA  "Build the extra module, if possible." ON)
+OptionsHelper(SAIGA_MODULE_VISION "Build the vision module, if possible." ON)
+OptionsHelper(SAIGA_MODULE_CUDA   "Build the cuda module, if possible." ON)
 
 
 DefaultBuildType(RelWithDebInfo)
@@ -250,7 +258,7 @@ PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRAR
 
 
 ##### Vulkan #####
-if(SAIGA_WITH_VULKAN)
+if(SAIGA_MODULE_OPENGL)
     find_package(Vulkan QUIET)
     PackageHelperTarget(Vulkan::Vulkan VULKAN_FOUND)
 
@@ -266,7 +274,7 @@ endif()
 
 
 
-if(SAIGA_WITH_GL)
+if(SAIGA_MODULE_OPENGL)
     set(OpenGL_GL_PREFERENCE LEGACY)
     find_package(OpenGL QUIET)
     PackageHelper(OpenGL "${OPENGL_FOUND}" "${OPENGL_INCLUDE_DIR}" "${OPENGL_LIBRARIES}")
@@ -307,8 +315,7 @@ endif()
 include(CheckLanguage)
 
 
-if(SAIGA_WITH_CUDA)
-    #find_package(CUDA QUIET)
+if(SAIGA_MODULE_CUDA)
     check_language(CUDA)
     if(CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
@@ -316,8 +323,6 @@ if(SAIGA_WITH_CUDA)
     else()
         set(CUDA_FOUND FALSE)
     endif()
-
-
 else()
     set(CUDA_FOUND FALSE)
 endif()

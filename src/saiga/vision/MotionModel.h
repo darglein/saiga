@@ -28,10 +28,10 @@ namespace Saiga
  * lastFrame = currentFrame
  *
  */
-class SAIGA_GLOBAL MotionModel
+class SAIGA_VISION_API MotionModel
 {
    public:
-    struct SAIGA_GLOBAL Parameters
+    struct SAIGA_VISION_API Parameters
     {
         // Number of previous frame that are included
         int smoothness = 3;

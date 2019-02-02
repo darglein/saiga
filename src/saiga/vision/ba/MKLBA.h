@@ -17,7 +17,7 @@
 #    include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
-class SAIGA_GLOBAL MKLBA : public BABase
+class SAIGA_VISION_API MKLBA : public BABase
 {
    public:
     MKLBA() : BABase("MKL BA") {}

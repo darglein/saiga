@@ -33,8 +33,8 @@ void copyImage(ImageView<T> imgSrc, ImageView<T> imgDst, enum cudaMemcpyKind kin
 
 
 // with these two functions we are able to use CudaImage from cpp files.
-SAIGA_GLOBAL void resizeDeviceVector(thrust::device_vector<unsigned char>& v, int size);
-SAIGA_GLOBAL void copyDeviceVector(const thrust::device_vector<unsigned char>& src,
+SAIGA_CUDA_API void resizeDeviceVector(thrust::device_vector<unsigned char>& v, int size);
+SAIGA_CUDA_API void copyDeviceVector(const thrust::device_vector<unsigned char>& src,
                                    thrust::device_vector<unsigned char>& dst);
 
 

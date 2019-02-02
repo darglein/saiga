@@ -14,7 +14,7 @@ using namespace boost::asio;
 
 namespace Saiga
 {
-class SAIGA_GLOBAL ImageTransmition
+class SAIGA_EXTRA_API ImageTransmition
 {
    public:
     static const uint32_t magicNumber     = 0x206a25f;

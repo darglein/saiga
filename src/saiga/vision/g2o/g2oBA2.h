@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL g2oBA2 : public BABase
+class SAIGA_VISION_API g2oBA2 : public BABase
 {
    public:
     g2oBA2() : BABase("g2o BA") {}

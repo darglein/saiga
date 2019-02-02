@@ -28,7 +28,7 @@ struct ObsBase
 using Obs = ObsBase<double>;
 
 template <typename T>
-struct SAIGA_GLOBAL RobustPoseOptimization
+struct SAIGA_VISION_API RobustPoseOptimization
 {
     using CameraType = StereoCamera4Base<T>;
     using SE3Type    = Sophus::SE3<T>;

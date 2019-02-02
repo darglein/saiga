@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace ICP
 {
-SAIGA_GLOBAL void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& pairs,
+SAIGA_VISION_API void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& pairs,
                                     const std::vector<AlignedVector<Correspondence>>& corrs, std::vector<SE3>& guesses,
                                     int iterations);
 

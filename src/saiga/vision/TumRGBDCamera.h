@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_GLOBAL TumRGBDCamera : public RGBDCamera
+class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
 {
    public:
     struct GroundTruth

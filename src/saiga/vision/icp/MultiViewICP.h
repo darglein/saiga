@@ -19,7 +19,7 @@ namespace ICP
  * Computes all pairwise point correspondences and solves the global system with all residuals.
  * Point-to-Plane metric is used.
  */
-SAIGA_GLOBAL void multiViewICP(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses,
+SAIGA_VISION_API void multiViewICP(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses,
                                Intrinsics4 camera, int iterations,
                                ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
 
@@ -27,7 +27,7 @@ SAIGA_GLOBAL void multiViewICP(const std::vector<Depthmap::DepthMap>& depthMaps,
 /**
  * Aligns all depthmaps relative to the first one.
  */
-SAIGA_GLOBAL void multiViewICPSimple(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses,
+SAIGA_VISION_API void multiViewICPSimple(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses,
                                      Intrinsics4 camera, int iterations,
                                      ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
 
