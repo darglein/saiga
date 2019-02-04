@@ -365,7 +365,7 @@ void DeferredLighting::postprocessVolumetric()
 
     volumetricBuffer.bind();
     volumetricBlurShader->bind();
-    volumetricBlurShader->uploadModel(mat4(1));
+    volumetricBlurShader->uploadModel(identityMat4());
     volumetricBlurShader->uploadTexture(volumetricLightTexture);
     directionalLightMesh.bindAndDraw();
     volumetricBlurShader->unbind();
@@ -559,7 +559,7 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : boxLights)
     {
-        mat4 sm    = scale(obj->model, vec3(0.05));
+        mat4 sm    = scale(obj->model, make_vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {
@@ -688,18 +688,18 @@ void DeferredLighting::createLightMeshes()
     float n = 4.9;
     float r = 1.0f / cos(pi<float>() / n);
     //    cout << "point light radius " << r << endl;
-    Sphere s(vec3(0), r);
+    Sphere s(make_vec3(0), r);
     auto sb = TriangleMeshGenerator::createMesh(s, 1);
     //    sb->createBuffers(pointLightMesh);
     pointLightMesh.fromMesh(*sb);
 
 
-    Cone c(vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
+    Cone c(make_vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
     auto cb = TriangleMeshGenerator::createMesh(c, 10);
     //    cb->createBuffers(spotLightMesh);
     spotLightMesh.fromMesh(*cb);
 
-    AABB box(vec3(-1), vec3(1));
+    AABB box(make_vec3(-1), make_vec3(1));
     auto bb = TriangleMeshGenerator::createMesh(box);
     //    bb->createBuffers(boxLightMesh);
     boxLightMesh.fromMesh(*bb);

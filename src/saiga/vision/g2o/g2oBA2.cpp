@@ -16,7 +16,7 @@
 #include "g2o/core/optimization_algorithm_levenberg.h"
 #include "g2o/core/robust_kernel_impl.h"
 #include "g2o/core/sparse_optimizer.h"
-#include "g2o/solvers/cholmod/linear_solver_cholmod.h"
+//#include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
 #include "g2o/solvers/pcg/linear_solver_pcg.h"
 #include "g2o_kernels/sophus_sba.h"
@@ -26,37 +26,35 @@ namespace Saiga
 void g2oBA2::solve(Scene& scene, const BAOptions& options)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-    g2o::SparseOptimizer optimizer;
-    optimizer.setVerbose(options.debugOutput);
-    optimizer.setComputeBatchStatistics(options.debugOutput);
+    using BlockSolver           = g2o::BlockSolver_6_3;
+    using OptimizationAlgorithm = g2o::OptimizationAlgorithmLevenberg;
+    using LinearSolver          = std::unique_ptr<BlockSolver::LinearSolverType>;
 
-
-    std::unique_ptr<g2o::BlockSolver_6_3::LinearSolverType> linearSolver;
-    //    linearSolver = g2o::make_unique<g2o::LinearSolverCholmod<g2o::BlockSolver_6_3::PoseMatrixType>>();
-
-
-
+    LinearSolver linearSolver;
     switch (options.solverType)
     {
         case BAOptions::SolverType::Direct:
-            linearSolver = g2o::make_unique<g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>>();
+        {
+            auto ls      = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
+            linearSolver = std::move(ls);
             break;
+        }
         case BAOptions::SolverType::Iterative:
         {
-            auto ls = g2o::make_unique<g2o::LinearSolverPCG<g2o::BlockSolver_6_3::PoseMatrixType>>();
+            auto ls = g2o::make_unique<g2o::LinearSolverPCG<BlockSolver::PoseMatrixType>>();
             ls->setMaxIterations(options.maxIterativeIterations);
             ls->setTolerance(options.iterativeTolerance);
             linearSolver = std::move(ls);
+            break;
         }
-
-        break;
     }
 
-
-
-    g2o::OptimizationAlgorithmLevenberg* solver =
-        new g2o::OptimizationAlgorithmLevenberg(g2o::make_unique<g2o::BlockSolver_6_3>(std::move(linearSolver)));
+    OptimizationAlgorithm* solver = new OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
     solver->setUserLambdaInit(1.0);
+
+    g2o::SparseOptimizer optimizer;
+    optimizer.setVerbose(options.debugOutput);
+    optimizer.setComputeBatchStatistics(options.debugOutput);
     optimizer.setAlgorithm(solver);
 
 

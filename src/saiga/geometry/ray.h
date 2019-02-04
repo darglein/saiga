@@ -17,7 +17,7 @@ class SAIGA_GLOBAL Ray
     vec3 direction;
     vec3 origin;
 
-    Ray(const vec3& dir = vec3(0), const vec3& ori = vec3(0)) : direction(dir), origin(ori) {}
+    Ray(const vec3& dir = make_vec3(0), const vec3& ori = make_vec3(0)) : direction(dir), origin(ori) {}
 
 
     vec3 positionOnRay(float t) const { return origin + t * direction; }

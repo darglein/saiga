@@ -6,11 +6,12 @@
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
-#include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
-#include "saiga/vision/MatrixScalar.h"
-#include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
+#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/SparseHelper.h"
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
 #include "Eigen/Sparse"
@@ -22,6 +23,8 @@ const int bn = Saiga::blockSizeCamera;
 const int bm = Saiga::blockSizeCamera;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
+
+// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
 
 #include "saiga/vision/recursiveMatrices/CG.h"
 

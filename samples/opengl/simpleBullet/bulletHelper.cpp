@@ -17,8 +17,7 @@ void createCollisionShape(std::vector<Triangle>& mesh, btBvhTriangleMeshShape*& 
 
     for (Triangle& t : mesh)
     {
-        outMesh->addTriangle(btVector3(t.a.x, t.a.y, t.a.z), btVector3(t.b.x, t.b.y, t.b.z),
-                             btVector3(t.c.x, t.c.y, t.c.z));
+        outMesh->addTriangle(toBT(t.a), toBT(t.b), toBT(t.c));
     }
 
     // collision shape
@@ -35,8 +34,7 @@ void createConvexCollisionShape(std::vector<Triangle>& mesh, btConvexTriangleMes
 
     for (Triangle& t : mesh)
     {
-        outMesh->addTriangle(btVector3(t.a.x, t.a.y, t.a.z), btVector3(t.b.x, t.b.y, t.b.z),
-                             btVector3(t.c.x, t.c.y, t.c.z));
+        outMesh->addTriangle(toBT(t.a), toBT(t.b), toBT(t.c));
     }
 
     // collision shape

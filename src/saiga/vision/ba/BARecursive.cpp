@@ -1,31 +1,41 @@
-﻿#include "BARecursive.h"
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+
+#include "BARecursive.h"
 
 #include "saiga/imgui/imgui.h"
 #include "saiga/time/timer.h"
 #include "saiga/util/Algorithm.h"
-#include "saiga/vision/SparseHelper.h"
-#include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/HistogramImage.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 #include "saiga/vision/kernels/Robust.h"
+#include "saiga/vision/recursiveMatrices/CG.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
-#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
-#include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
 
 #include <fstream>
 #include <numeric>
 
-#define NO_CG_SPEZIALIZATIONS
-#define NO_CG_TYPES
+
 using Scalar = Saiga::BlockBAScalar;
 const int bn = Saiga::blockSizeCamera;
 const int bm = Saiga::blockSizeCamera;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
-#include "saiga/vision/recursiveMatrices/CG.h"
+// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
+
+
+
+// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DAType);
+
 
 
 namespace Saiga
@@ -54,6 +64,9 @@ void BARec::initStructure(Scene& scene)
 
 
     // Check how many valid and cameras exist and construct the compact index sets
+    validPoints.clear();
+    validImages.clear();
+    pointToValidMap.clear();
     validImages.reserve(scene.images.size());
     validPoints.reserve(scene.worldPoints.size());
     pointToValidMap.resize(scene.worldPoints.size());
@@ -121,8 +134,10 @@ void BARec::initStructure(Scene& scene)
         }
     }
 
-    auto test1 = exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
-    auto test2 = exclusive_scan(pointCameraCounts.begin(), pointCameraCounts.end(), pointCameraCountsScan.begin(), 0);
+    auto test1 =
+        Saiga::exclusive_scan(cameraPointCounts.begin(), cameraPointCounts.end(), cameraPointCountsScan.begin(), 0);
+    auto test2 =
+        Saiga::exclusive_scan(pointCameraCounts.begin(), pointCameraCounts.end(), pointCameraCountsScan.begin(), 0);
 
     SAIGA_ASSERT(test1 == observations && test2 == observations);
 
@@ -149,28 +164,65 @@ void BARec::initStructure(Scene& scene)
 
 
 
-#if 0
-    schurStructure.resize(n, std::vector<int>(n, -1));
-    for (auto& wp : scene.worldPoints)
+    // Create sparsity histogram of the schur complement
+    if (options.debugOutput)
     {
-        for (auto& ref : wp.monoreferences)
+        HistogramImage img(n, n, 512, 512);
+        schurStructure.clear();
+        schurStructure.resize(n, std::vector<int>(n, -1));
+        for (auto& wp : scene.worldPoints)
         {
-            for (auto& ref2 : wp.monoreferences)
+            for (auto& ref : wp.stereoreferences)
             {
-                schurStructure[ref.first][ref2.first] = ref2.first;
-                schurStructure[ref2.first][ref.first] = ref.first;
+                for (auto& ref2 : wp.stereoreferences)
+                {
+                    int i1 = validImages[ref.first];
+                    int i2 = validImages[ref2.first];
+
+                    schurStructure[i1][ref2.first] = ref2.first;
+                    schurStructure[i2][ref.first]  = ref.first;
+                    img.add(i1, ref2.first, 1);
+                    img.add(i2, ref.first, 1);
+                }
             }
         }
+
+        // compact it
+        schurEdges = 0;
+        for (auto& v : schurStructure)
+        {
+            v.erase(std::remove(v.begin(), v.end(), -1), v.end());
+            schurEdges += v.size();
+        }
+        img.writeBinary("vision_ba_schur_sparsity.png");
     }
 
-    // compact it
-    schurEdges = 0;
-    for (auto& v : schurStructure)
+
+    // Create a sparsity histogram of the complete matrix
+    if (options.debugOutput)
     {
-        v.erase(std::remove(v.begin(), v.end(), -1), v.end());
-        schurEdges += v.size();
+        HistogramImage img(n + m, n + m, 512, 512);
+        for (int i = 0; i < n + m; ++i)
+        {
+            img.add(i, i, 1);
+        }
+
+        for (int i = 0; i < (int)validImages.size(); ++i)
+        {
+            auto& img2 = scene.images[validImages[i]];
+            for (auto& ip : img2.stereoPoints)
+            {
+                if (!ip) continue;
+
+                int j   = pointToValidMap[ip.wp];
+                int iid = validImages[i];
+                img.add(iid, j + n, 1);
+                img.add(j + n, iid, 1);
+            }
+        }
+        img.writeBinary("vision_ba_complete_sparsity.png");
     }
-#endif
+
 
     if (options.debugOutput)
     {
@@ -179,10 +231,10 @@ void BARec::initStructure(Scene& scene)
         cout << "Cameras: " << n << endl;
         cout << "Points: " << m << endl;
         cout << "Observations: " << observations << endl;
-#if 0
-    cout << "Schur Edges: " << schurEdges << endl;
-    cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
-    cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
+#if 1
+        cout << "Schur Edges: " << schurEdges << endl;
+        cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
+        cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
 #endif
 
 #if 1
@@ -236,6 +288,7 @@ void BARec::computeUVW(Scene& scene)
             int imgid    = validImages[i];
             auto& img    = scene.images[imgid];
             auto& extr   = scene.extrinsics[img.extr].se3;
+            auto& extr2  = scene.extrinsics[img.extr];
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
 
@@ -261,6 +314,8 @@ void BARec::computeUVW(Scene& scene)
 
                     KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, w, res, JrowPose,
                                                             JrowPoint);
+                    if (extr2.constant) JrowPose.setZero();
+
                     auto c = res.squaredNorm();
                     chi2 += c;
                     if (options.huberStereo > 0)
@@ -284,6 +339,7 @@ void BARec::computeUVW(Scene& scene)
                     KernelType::ResidualType res;
 
                     KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
+                    if (extr2.constant) JrowPose.setZero();
                     auto c = res.squaredNorm();
                     chi2 += c;
                     if (options.huberMono > 0)
@@ -362,10 +418,11 @@ void BARec::computeUVW(Scene& scene)
             value       = value + lambda * value;
             value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
         }
-        //        diag += BDiag::Identity() * lambda;
     }
 #endif
 }
+
+
 
 void BARec::computeSchur()
 {
@@ -458,9 +515,9 @@ void BARec::solveSchur()
         // this CG solver is super fast :)
         //            SAIGA_BLOCK_TIMER("CG");
         da.setZero();
-        RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
+        RecursiveDiagonalPreconditioner<MatrixScalar<ADiag>> P;
         Eigen::Index iters = options.maxIterativeIterations;
-        Scalar tol         = options.iterativeTolerance;
+        BlockBAScalar tol  = options.iterativeTolerance;
 
         if (explizitSchur)
         {
@@ -543,9 +600,9 @@ void BARec::updateScene(Scene& scene)
 #else
         t = da(i).get();
 #endif
-        auto id   = validImages[i];
-        auto& se3 = scene.extrinsics[id].se3;
-        se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
+        auto id    = validImages[i];
+        auto& extr = scene.extrinsics[id];
+        if (!extr.constant) extr.se3 = Sophus::SE3d::exp(t.cast<double>()) * extr.se3;
     }
 
     for (size_t i = 0; i < validPoints.size(); ++i)
@@ -560,6 +617,8 @@ void BARec::updateScene(Scene& scene)
         auto& p = scene.worldPoints[id].p;
         p += t.cast<double>();
     }
+    //    Sophus::Sim3d a;
+    //    a.Adj();
 }
 
 
@@ -585,7 +644,6 @@ void BARec::solve(Scene& scene, const BAOptions& options)
             cout << "chi2 = " << chi2 << endl;
         }
 
-        SAIGA_BLOCK_TIMER();
         computeSchur();
 
 #if 0

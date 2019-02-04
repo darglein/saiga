@@ -54,7 +54,7 @@ if(EIGEN3_FOUND)
     add_subdirectory(eigen)
 endif()
 
-if(FREETYPE_FOUND AND OPENGL_FOUND)
+if(FREETYPE_FOUND AND SAIGA_USE_OPENGL)
     add_subdirectory(text)
 endif()
 

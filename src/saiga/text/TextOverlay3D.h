@@ -28,14 +28,14 @@ class SAIGA_GLOBAL TextOverlay3D
         float duration      = 0.f;
         float maxDuration   = 0.0f;
         bool orientToCamera = true;
-        vec3 velocity       = vec3(0);
+        vec3 velocity       = make_vec3(0);
         bool fade           = false;
-        vec4 startPosition  = vec4(0);
+        vec4 startPosition  = make_vec4(0);
 
         float timeToUpscale = 1.0f;
-        vec4 targetScale    = vec4(1.f);
-        vec4 startScale     = vec4(1.f);
-        vec4 upscale        = vec4(0);
+        vec4 targetScale    = make_vec4(1.f);
+        vec4 startScale     = make_vec4(1.f);
+        vec4 upscale        = make_vec4(0);
 
         TextContainer() {}
         TextContainer(std::shared_ptr<Text> text, float duration, bool orientToCamera)

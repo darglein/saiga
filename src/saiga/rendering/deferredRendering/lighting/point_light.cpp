@@ -48,7 +48,7 @@ float PointLight::getRadius() const
 void PointLight::setRadius(float value)
 {
     cutoffRadius = value;
-    this->setScale(vec3(cutoffRadius));
+    this->setScale(make_vec3(cutoffRadius));
 }
 
 void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* cam)

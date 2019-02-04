@@ -29,6 +29,22 @@ void BAOptions::imgui()
     ImGui::Checkbox("debugOutput", &debugOutput);
 }
 
+std::ostream& operator<<(std::ostream& strm, BAOptions& op)
+{
+    strm << "[BA Solver Options]" << endl;
+    strm << " Iterations: " << op.maxIterations << endl;
 
+    if (op.solverType == BAOptions::SolverType::Iterative)
+    {
+        strm << " solverType: CG Schur" << endl;
+        strm << " maxIterativeIterations: " << op.maxIterativeIterations << endl;
+    }
+    else
+    {
+        strm << " solverType: LDLT Schur" << endl;
+    }
+    strm << " iterativeTolerance: " << op.iterativeTolerance << endl;
+    return strm;
+}
 
 }  // namespace Saiga

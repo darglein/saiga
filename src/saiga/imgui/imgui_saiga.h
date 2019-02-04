@@ -91,4 +91,36 @@ class SAIGA_GLOBAL ColoredBar
     void renderArea(float begin, float end, const BarColor& color);
 };
 
+
+
 }  // namespace ImGui
+
+namespace Saiga
+{
+enum class ImGuiTheme : int
+{
+    SAIGA = 0,
+    IMGUI,  // imgui default theme
+};
+
+struct ImGuiParameters
+{
+    // imgui parameters
+    bool enable          = true;
+    std::string font     = "SourceSansPro-Regular.ttf";
+    int fontSize         = 18;
+    float fontBrightness = 2;
+    ImGuiTheme theme     = ImGuiTheme::SAIGA;
+    bool linearRGB       = false;
+
+    /**
+     *  Reads all paramters from the given config file.
+     *  Creates the file with the default values if it doesn't exist.
+     */
+    void fromConfigFile(const std::string& file);
+};
+
+
+
+SAIGA_GLOBAL void initImGui(const ImGuiParameters& params);
+}  // namespace Saiga

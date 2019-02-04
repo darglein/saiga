@@ -7,6 +7,7 @@
 #include "ShaderModule.h"
 
 #include "saiga/util/file.h"
+#include "saiga/util/fileChecker.h"
 
 #include "GLSL.h"
 #include "ShaderLoaderHelper.h"
@@ -54,8 +55,7 @@ bool ShaderModule::loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, 
 bool ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, const std::string& _file,
                             const std::string& injection)
 {
-    auto file = GLSLANG::shaderPathes.getFile(_file);
-
+    auto file = SearchPathes::shader(_file);
     if (file == "")
     {
         cout << "Could not find " << _file << endl;

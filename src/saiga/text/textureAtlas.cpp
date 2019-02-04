@@ -11,6 +11,7 @@
 #include "saiga/opengl/texture/textureLoader.h"
 #include "saiga/text/fontLoader.h"
 #include "saiga/util/assert.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/tostring.h"
 
 #include <algorithm>
@@ -34,11 +35,11 @@ TextureAtlas::~TextureAtlas()
 void TextureAtlas::loadFont(const std::string& _font, int fontSize, int quality, int searchRange, bool bufferToFile,
                             const std::vector<Unicode::UnicodeBlock>& blocks)
 {
-    std::string font = fontPathes.getFile(_font);
+    std::string font = SearchPathes::font(_font);
     if (font == "")
     {
         cerr << "Could not open file " << _font << endl;
-        cerr << fontPathes << endl;
+        cerr << SearchPathes::font << endl;
         SAIGA_ASSERT(0);
     }
 
@@ -165,7 +166,7 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& g
 
             character_info info;
 
-            info.character = g.character;
+            info.character  = g.character;
             info.advance[0] = g.advance[0];
             info.advance[1] = g.advance[1];
 
@@ -176,7 +177,8 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& g
             info.offset[1] = g.offset[1] - info.size[1];  // freetype uses an y inverted glyph coordinate system
 
             maxCharacter.min = min(maxCharacter.min, vec3(info.offset[0], info.offset[1], 0));
-            maxCharacter.max = max(maxCharacter.max, vec3(info.offset[0] + info.size[0], info.offset[1] + info.size[1], 0));
+            maxCharacter.max =
+                max(maxCharacter.max, vec3(info.offset[0] + info.size[0], info.offset[1] + info.size[1], 0));
 
 
 
@@ -321,8 +323,9 @@ std::vector<ivec2> TextureAtlas::generateSDFsamples(int searchRadius)
             if (x != 0 || y != 0) samplePositions.emplace_back(x, y);
         }
     }
-    std::sort(samplePositions.begin(), samplePositions.end(),
-              [](const ivec2& a, const ivec2& b) -> bool { return (a[0] * a[0] + a[1] * a[1]) < (b[0] * b[0] + b[1] * b[1]); });
+    std::sort(samplePositions.begin(), samplePositions.end(), [](const ivec2& a, const ivec2& b) -> bool {
+        return (a[0] * a[0] + a[1] * a[1]) < (b[0] * b[0] + b[1] * b[1]);
+    });
 
     // remove samples further away then searchRadius
     int samples = 0;

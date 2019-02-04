@@ -328,7 +328,7 @@ void Interpolation::renderGui(Camera& camera)
         }
         cout << "createAsset();" << endl;
 
-        keyframes.push_back({IDENTITY_QUATERNION, vec3(0)});
+        keyframes.push_back({IDENTITY_QUATERNION, make_vec3(0)});
     }
 
     if (ImGui::CollapsingHeader("render"))

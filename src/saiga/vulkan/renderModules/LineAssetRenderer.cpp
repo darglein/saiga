@@ -29,10 +29,13 @@ bool LineAssetRenderer::bind(vk::CommandBuffer cmd)
     return Pipeline::bind(cmd);
 }
 
-void LineAssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
+void LineAssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model, vec4 color)
 {
-    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), data(model));
+    pc.model = model;
+    pc.color = color;
+    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(PC), &pc);
 }
+
 
 void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj)
 {
@@ -47,7 +50,7 @@ void LineAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass, 
 {
     PipelineBase::init(vulkanDevice, 1);
     addDescriptorSetLayout({{7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}});
-    addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
+    addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(PC)});
     shaderPipeline.load(device, {"vulkan/line.vert", "vulkan/line.frag"});
     PipelineInfo info;
     info.inputAssemblyState.topology = vk::PrimitiveTopology::eLineList;

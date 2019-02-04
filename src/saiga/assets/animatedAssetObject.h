@@ -15,7 +15,6 @@ namespace Saiga
 class SAIGA_GLOBAL AnimatedAssetObject : public Object3D
 {
    private:
-    float test                            = 0;
     animationtime_t animationTotalTime    = animationtime_t(0);
     animationtime_t animationTimeAtUpdate = animationtime_t(0);
     animationtime_t animationTimeAtRender = animationtime_t(0);

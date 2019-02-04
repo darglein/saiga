@@ -14,6 +14,7 @@
 #pragma once
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/imgui/imgui_renderer.h"
 #include "saiga/util/math.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/buffer/IndexBuffer.h"
@@ -26,7 +27,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
+class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline, public ImGuiRenderer
 {
    private:
     struct FrameData
@@ -77,9 +78,9 @@ class SAIGA_GLOBAL ImGuiVulkanRenderer : public Pipeline
     std::vector<FrameData> frameData;
 
    public:
-    ImGuiVulkanRenderer(size_t _frameCount) : frameCount(_frameCount), frameData() { ImGui::CreateContext(); }
-
+    ImGuiVulkanRenderer(size_t _frameCount, const ImGuiParameters& params);
     virtual ~ImGuiVulkanRenderer();
+
 
     void initResources(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
     virtual void beginFrame() = 0;

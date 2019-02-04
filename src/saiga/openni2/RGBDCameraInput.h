@@ -30,7 +30,7 @@ class SAIGA_GLOBAL RGBDCameraInput : public RGBDCamera
    public:
     RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, const std::shared_ptr<DMPP>& dmpp = {},
                     float depthFactor = 1.0 / 1000.0);
-    ~RGBDCameraInput();
+    virtual ~RGBDCameraInput();
 
 
 

@@ -13,6 +13,8 @@ namespace Saiga
 {
 class SAIGA_GLOBAL ColoredAsset : public BasicAsset<VertexColoredModel>
 {
+   public:
+    virtual ~ColoredAsset() {}
 };
 
 class SAIGA_GLOBAL TexturedAsset : public BasicAsset<TexturedModel>
@@ -27,6 +29,7 @@ class SAIGA_GLOBAL TexturedAsset : public BasicAsset<TexturedModel>
     };
     std::vector<TextureGroup> groups;
 
+    virtual ~TexturedAsset() {}
     virtual void render(Camera* cam, const mat4& model) override;
     virtual void renderForward(Camera* cam, const mat4& model) override;
     virtual void renderDepth(Camera* cam, const mat4& model) override;

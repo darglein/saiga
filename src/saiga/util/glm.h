@@ -106,6 +106,7 @@ using glm::ortho;
 using glm::perspective;
 using glm::radians;
 using glm::scale;
+using glm::smoothstep;
 
 // random
 using glm::diskRand;
@@ -177,6 +178,11 @@ inline mat4 make_mat4(quat q)
     return mat4(q);
 }
 
+inline mat3 make_mat3(mat4 m)
+{
+    return mat3(m);
+}
+
 
 inline mat3 make_mat3(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20)
 {
@@ -207,6 +213,10 @@ inline const float* data(const mat4& m)
 {
     return &m[0][0];
 }
+inline const float* data(const vec4& m)
+{
+    return &m[0];
+}
 
 inline vec4 make_vec4(const vec3& v, float a)
 {
@@ -221,6 +231,12 @@ inline vec4 make_vec4(float a)
 {
     return vec4(a);
 }
+
+inline vec4 make_vec4(const vec2& v, const vec2& v2)
+{
+    return vec4(v, v2);
+}
+
 inline vec3 make_vec3(float a)
 {
     return vec3(a);
@@ -233,6 +249,21 @@ inline vec2 make_vec2(float a)
 {
     return vec2(a);
 }
+inline vec2 make_vec2(float a, float b)
+{
+    return vec2(a, b);
+}
+
+inline vec2 make_vec2(const ivec2& a)
+{
+    return vec2(a);
+}
+inline ivec2 make_ivec2(int a, int b)
+{
+    return ivec2(a, b);
+}
+
+
 inline vec2 make_vec2(vec3 a)
 {
     return vec2(a);
@@ -253,6 +284,10 @@ inline mat4 identityMat4()
 {
     return mat4(1);
 }
+inline mat3 identityMat3()
+{
+    return mat3(1);
+}
 inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a)
 {
     return ucvec4(v, a);
@@ -262,11 +297,20 @@ inline vec4 make_vec4(float x, float y, float z, float w)
     return vec4(x, y, z, w);
 }
 
+inline const vec3& col(const mat3& m, int id)
+{
+    return m[id];
+}
+
 inline vec3& col(mat3& m, int id)
 {
     return m[id];
 }
 inline vec4& col(mat4& m, int id)
+{
+    return m[id];
+}
+inline const vec4& col(const mat4& m, int id)
 {
     return m[id];
 }

@@ -2,14 +2,13 @@
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
-#include "saiga/vision/BlockRecursiveBATemplates.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
-#include "saiga/vision/MatrixScalar.h"
-#include "saiga/vision/SparseHelper.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 #include "saiga/vision/recursiveMatrices/CG.h"
+#include "saiga/vision/recursiveMatrices/SparseHelper.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
@@ -349,7 +348,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
         Eigen::SparseMatrix<double, Eigen::RowMajor> Y(n, m);
         Vector ej(n);
         Vector tmp(n);
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         {
             // Step 2
             // Compute Y
@@ -382,7 +381,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
             {
                 RecursiveDiagonalPreconditioner<double> P;
                 Eigen::Index iters = options.maxIterativeIterations;
-                Scalar tol         = options.iterativeTolerance;
+                double tol         = options.iterativeTolerance;
 
                 if (true)
                 {

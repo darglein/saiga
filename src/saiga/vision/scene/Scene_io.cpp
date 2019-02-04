@@ -15,12 +15,12 @@ namespace Saiga
 {
 bool Scene::imgui()
 {
-    ImGui::PushID(3495672353);
+    ImGui::PushID(473441235);
     bool changed = false;
 
     if (ImGui::Button("RMS"))
     {
-        rms();
+        cout << "rms/chi2: " << rms() << " / " << chi2() << endl;
     }
 
     if (ImGui::Button("Normalize"))
@@ -29,6 +29,33 @@ bool Scene::imgui()
         cout << "median world point " << m.transpose() << endl;
         Saiga::SE3 T(Saiga::Quat::Identity(), -m);
         transformScene(T);
+        changed = true;
+    }
+
+
+    static float scalefactor = 1;
+    ImGui::InputFloat("scale factor", &scalefactor);
+    if (ImGui::Button("rescale"))
+    {
+        rescale(scalefactor);
+        changed = true;
+    }
+
+    if (ImGui::Button("Normalize Scale"))
+    {
+        auto d = depthStatistics();
+
+        double target = sqrt(2);
+        rescale(target / d.median);
+        changed = true;
+    }
+
+    if (ImGui::Button("Normalize Position"))
+    {
+        auto m = medianWorldPoint();
+        SE3 trans;
+        trans.translation() = -m;
+        transformScene(trans);
         changed = true;
     }
 
@@ -65,6 +92,9 @@ void Scene::save(const std::string& file)
     cout << "Saving scene to " << file << "." << endl;
     std::ofstream strm(file);
     SAIGA_ASSERT(strm.is_open());
+    strm.precision(20);
+    strm << std::scientific;
+
 
     strm << "# Saiga Scene file." << endl;
     strm << "#" << endl;
@@ -101,20 +131,6 @@ void Scene::save(const std::string& file)
     {
         strm << wp.p.transpose() << endl;
     }
-}
-
-
-template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>& m)
-{
-    for (int i = 0; i < m.rows(); ++i)
-    {
-        for (int j = 0; j < m.cols(); ++j)
-        {
-            is >> m(i, j);
-        }
-    }
-    return is;
 }
 
 void Scene::load(const std::string& file)
@@ -161,8 +177,7 @@ void Scene::load(const std::string& file)
         Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.se3.data());
         Sophus::Vector<double, SE3::num_parameters> v;
         strm >> e.constant >> v;
-        v2             = v;
-        e.se3.params() = v;
+        v2 = v;
     }
 
     for (auto& img : images)
@@ -183,6 +198,43 @@ void Scene::load(const std::string& file)
 
     fixWorldPointReferences();
     SAIGA_ASSERT(valid());
+}
+
+
+std::ostream& operator<<(std::ostream& strm, Scene& scene)
+{
+    strm << "[Scene]" << endl;
+
+    int n = scene.validImages().size();
+    int m = scene.validPoints().size();
+
+    strm << " Images: " << n << "/" << scene.images.size() << endl;
+    strm << " Points: " << m << "/" << scene.worldPoints.size() << endl;
+
+    int stereoEdges = 0;
+    int monoEdges   = 0;
+    for (SceneImage& im : scene.images)
+    {
+        for (auto& o : im.stereoPoints)
+        {
+            if (!o) continue;
+
+            if (o.depth > 0)
+                stereoEdges++;
+            else
+                monoEdges++;
+        }
+    }
+    strm << " MonoEdges: " << monoEdges << endl;
+    strm << " StereoEdges: " << stereoEdges << endl;
+    strm << " TotalEdges: " << monoEdges + stereoEdges << endl;
+    strm << " Rms: " << scene.rms() << endl;
+    strm << " Chi2: " << scene.chi2() << endl;
+
+    double density = double(monoEdges + stereoEdges) / double(n * m);
+    strm << " W Density: " << density * 100 << "%" << endl;
+
+    return strm;
 }
 
 }  // namespace Saiga

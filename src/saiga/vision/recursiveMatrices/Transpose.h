@@ -7,14 +7,14 @@
 #pragma once
 
 #include "saiga/util/assert.h"
-#include "saiga/vision/MatrixScalar.h"
+#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
 namespace Saiga
 {
 template <typename T>
 struct Transpose
 {
-    static auto get(const T& m) { return m.transpose().eval(); }
+    static auto get(const T& m) { return (m.transpose().eval()); }
 };
 
 template <>

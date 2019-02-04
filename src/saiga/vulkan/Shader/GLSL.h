@@ -8,7 +8,6 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/util/fileChecker.h"
 #include "saiga/vulkan/svulkan.h"
 
 namespace Saiga
@@ -48,7 +47,6 @@ SAIGA_GLOBAL std::vector<uint32_t> createFromString(const std::string& shaderStr
 SAIGA_GLOBAL void init();
 SAIGA_GLOBAL void quit();
 
-extern SAIGA_GLOBAL FileChecker shaderPathes;
 
 }  // namespace GLSLANG
 }  // namespace Vulkan

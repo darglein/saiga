@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/vision/scene/Scene.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/scene/Scene.h"
 
 
 
@@ -33,8 +33,10 @@ namespace Saiga
 class SAIGA_GLOBAL BALDataset
 {
    public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     struct BALObservation
     {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         int camera_index;
         int point_index;
         Eigen::Vector2d point;
@@ -51,6 +53,7 @@ class SAIGA_GLOBAL BALDataset
     };
     struct BALCamera
     {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         SE3 se3;
         double f;
         double k1, k2;
@@ -102,6 +105,7 @@ class SAIGA_GLOBAL BALDataset
     };
     struct BALPoint
     {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Vec3 point;
 
         WorldPoint wp()
@@ -120,9 +124,9 @@ class SAIGA_GLOBAL BALDataset
     Scene makeScene();
 
    private:
-    std::vector<BALObservation> observations;
-    std::vector<BALCamera> cameras;
-    std::vector<BALPoint> points;
+    AlignedVector<BALObservation> observations;
+    AlignedVector<BALCamera> cameras;
+    AlignedVector<BALPoint> points;
 };
 
 }  // namespace Saiga

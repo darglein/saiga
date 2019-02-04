@@ -32,9 +32,10 @@ class SAIGA_GLOBAL Heightmap
     float minH        = 125725;
     float maxH        = -0125725;
 
-    vec2 mapOffset   = vec2(0);  // vec2(50,50);
-    vec2 mapScale    = vec2(10);
-    vec2 mapScaleInv = 1.0f / mapScale;
+    vec2 mapOffset = make_vec2(0);  // vec2(50,50);
+    vec2 mapScale  = make_vec2(10);
+    //    vec2 mapScaleInv = make_vec2(1.0f / mapScale);
+    vec2 mapScaleInv = mapScale;
 
     std::vector<Image> heightmap;
     std::vector<Image> normalmap;
@@ -44,7 +45,7 @@ class SAIGA_GLOBAL Heightmap
 
 
     Heightmap(int layers, int w, int h);
-    void setScale(vec2 mapScale, vec2 mapOffset = vec2(0));
+    void setScale(vec2 mapScale, vec2 mapOffset = make_vec2(0));
 
     void createTextures();
     void createHeightmaps();

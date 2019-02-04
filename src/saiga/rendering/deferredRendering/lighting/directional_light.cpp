@@ -249,7 +249,7 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
         float r = boundingSphere.r;
         r       = ceil(r);
 
-        vec3 smsize = vec3(shadowmap->getSize(), 128468);
+        vec3 smsize = make_vec3(make_vec2(shadowmap->getSize()), 128468);
 
         vec3 texelSize;
         //    texelSize[0] = 2.0f * r / shadowmap.w;
@@ -259,14 +259,14 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
 
         // project the position of the actual camera to light space
         vec3 p = boundingSphere.pos;
-        mat3 v = mat3(this->shadowCamera.view);
+        mat3 v = make_mat3(this->shadowCamera.view);
         vec3 t = v * p - v * lightPos;
         t[2]   = -t[2];
 
 
 
-        orthoBox.min = t - vec3(r);
-        orthoBox.max = t + vec3(r);
+        orthoBox.min = t - make_vec3(r);
+        orthoBox.max = t + make_vec3(r);
 
 #    if 1
         {

@@ -9,9 +9,9 @@
 #pragma once
 
 
-#include "saiga/vision/scene/Scene.h"
-#include "saiga/vision/SynteticScene.h"
 #include "saiga/vision/ba/BARecursive.h"
+#include "saiga/vision/scene/Scene.h"
+#include "saiga/vision/scene/SynteticScene.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"

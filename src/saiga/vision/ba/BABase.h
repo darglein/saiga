@@ -33,6 +33,9 @@ struct SAIGA_GLOBAL BAOptions
     void imgui();
 };
 
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, BAOptions& op);
+
+
 /**
  * @brief The BABase class
  *

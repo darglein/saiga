@@ -4,8 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/util/assert.h"
 #include "saiga/util/glm.h"
+
+#include "saiga/util/assert.h"
 #include "saiga/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"

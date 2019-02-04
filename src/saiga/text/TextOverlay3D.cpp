@@ -44,7 +44,7 @@ void TextOverlay3D::TextContainer::interpolate(float interpolationInSeconds, con
         text->scale = vec4(targetScale);
     }
 
-    text->position = startPosition + vec4(vec3(timeAlive * velocity), 0);
+    text->position = startPosition + make_vec4(vec3(timeAlive * velocity), 0);
 
     text->params.setAlpha(getFade(interpolationInSeconds));
 
@@ -98,8 +98,8 @@ void TextOverlay3D::renderText(Camera* cam, float interpolationInSeconds)
     textShader->bind();
 
 
-    mat4 v = cam->model;
-    v[3]   = vec4(0, 0, 0, 1);
+    mat4 v    = cam->model;
+    col(v, 3) = vec4(0, 0, 0, 1);
 
 
     for (TextContainer& p : texts)

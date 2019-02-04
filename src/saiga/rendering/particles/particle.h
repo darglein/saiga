@@ -24,8 +24,8 @@ class SAIGA_GLOBAL Particle
     vec4 position = vec4(0, 0, 0, 1);
 
 
-    vec4 velocity = vec4(0);  // normalized velocity x,y,z in worldspace. w is the scale factor
-    vec4 force    = vec4(0);  // force on the particle. for example gravity
+    vec4 velocity = make_vec4(0);  // normalized velocity x,y,z in worldspace. w is the scale factor
+    vec4 force    = make_vec4(0);  // force on the particle. for example gravity
 
    private:
     vec4 right = vec4(1, 0, 0, 0);  // right vector when orientation is BILLBARD or FIXED
@@ -66,13 +66,13 @@ inline void Particle::setScale(float radius, float upscale)
 
 inline void Particle::setScale(const vec2& _scale, const vec2& upscale)
 {
-    this->scale = vec4(_scale, upscale);
+    this->scale = make_vec4(_scale, upscale);
 }
 
 inline void Particle::setVelocity(const vec3& v)
 {
     float l  = length(v);
-    velocity = vec4(v / l, l);
+    velocity = make_vec4(v / l, l);
 }
 
 

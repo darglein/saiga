@@ -6,7 +6,7 @@
 
 #include "saiga/time/timer.h"
 #include "saiga/util/random.h"
-#include "saiga/vision/MatrixScalar.h"
+#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 #include "saiga/vision/VisionIncludes.h"
 
 #include "Eigen/Sparse"

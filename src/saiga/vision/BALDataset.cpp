@@ -38,6 +38,8 @@ BALDataset::BALDataset(const std::string& file)
     observations.resize(num_observations);
     points.resize(num_points);
 
+
+
     int start = 1;
 #pragma omp parallel for
     for (int i = 0; i < num_observations; ++i)
@@ -47,6 +49,11 @@ BALDataset::BALDataset(const std::string& file)
         BALObservation o;
         in >> o.camera_index >> o.point_index >> o.point[0] >> o.point[1];
         observations[i] = (o);
+
+		if (i == 0)
+        {
+           //         cout << o.camera_index << " " << o.point_index << " " << o.point.transpose() << endl;
+            }
     }
 
     start += num_observations;
@@ -79,6 +86,11 @@ BALDataset::BALDataset(const std::string& file)
         Eigen::AngleAxis<double> a(angle, axis);
         c.se3      = SE3((Quat)a, t);
         cameras[i] = (c);
+
+		if (i == 0)
+        {
+          //          cout << c.se3 << " " << c.f << " " << c.k1 << " " << c.k2 << endl;       
+        }
     }
     start += num_cameras * 9;
 
@@ -96,6 +108,11 @@ BALDataset::BALDataset(const std::string& file)
 
 
         points[i] = (p);
+
+			if (i == 0)
+        {
+          //  cout << p.point.transpose() << endl;
+        }
     }
 
     cout << "> Done. num_cameras " << num_cameras << " num_points " << num_points << " num_observations "
@@ -158,7 +175,7 @@ double BALDataset::rms()
 {
     double error = 0;
 //    for (BALObservation& o : observations)
-#pragma omp parallel for
+#pragma omp parallel for reduction(+:error)
     for (int i = 0; i < (int)observations.size(); ++i)
     {
         BALObservation& o = observations[i];
@@ -169,7 +186,6 @@ double BALDataset::rms()
 
         auto sqerror = (projPoint - o.point).squaredNorm();
 
-#pragma omp critical
         error += sqerror;
     }
     error /= observations.size();

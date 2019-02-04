@@ -1,16 +1,24 @@
-﻿#pragma once
+﻿/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+
+#pragma once
 
 #include "BABase.h"
 //#define RECURSIVE_BA_VECTORIZE
 //#define RECURSIVE_BA_FLOAT
 #define RECURSIVE_BA_USE_TIMERS false
-#include "saiga/vision/BlockRecursiveBATemplates.h"
+#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
 class SAIGA_GLOBAL BARec : public BABase
 {
    public:
     BARec() : BABase("Recursive BA") {}
+    virtual ~BARec() {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
 
    private:
@@ -52,7 +60,6 @@ class SAIGA_GLOBAL BARec : public BABase
 
     BAOptions options;
 
-    int maxIterations = 20;
     double chi2;
     void initStructure(Scene& scene);
     void computeUVW(Scene& scene);

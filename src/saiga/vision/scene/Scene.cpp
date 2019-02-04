@@ -96,6 +96,18 @@ void Scene::transformScene(const Saiga::SE3& transform)
     }
 }
 
+void Scene::rescale(double s)
+{
+    for (WorldPoint& wp : worldPoints)
+    {
+        wp.p = s * wp.p;
+    }
+    for (Extrinsics& e : extrinsics)
+    {
+        e.se3.translation() = s * e.se3.translation();
+    }
+}
+
 void Scene::fixWorldPointReferences()
 {
     for (WorldPoint& wp : worldPoints)
@@ -152,6 +164,7 @@ bool Scene::valid() const
     return true;
 }
 
+
 Saiga::Statistics<double> Scene::statistics()
 {
     std::vector<double> stats;
@@ -164,6 +177,21 @@ Saiga::Statistics<double> Scene::statistics()
         }
     }
 
+    Saiga::Statistics<double> sr(stats);
+    return sr;
+}
+
+Saiga::Statistics<double> Scene::depthStatistics()
+{
+    std::vector<double> stats;
+    for (SceneImage& im : images)
+    {
+        for (auto& o : im.stereoPoints)
+        {
+            if (!o.wp) continue;
+            stats.push_back((depth(im, o)));
+        }
+    }
     Saiga::Statistics<double> sr(stats);
     return sr;
 }
@@ -240,7 +268,7 @@ void Scene::compress()
     fixWorldPointReferences();
 
 
-    std::vector<WorldPoint> newWorldPoints;
+    AlignedVector<WorldPoint> newWorldPoints;
 
     for (auto& wp : worldPoints)
     {
@@ -289,6 +317,42 @@ std::vector<int> Scene::validImages()
     return res;
 }
 
+std::vector<int> Scene::validPoints()
+{
+    std::vector<int> res;
+    for (int i = 0; i < (int)worldPoints.size(); ++i)
+    {
+        if (worldPoints[i]) res.push_back(i);
+    }
+    return res;
+}
+
+double Scene::chi2()
+{
+    double error = 0;
+
+    int stereoEdges = 0;
+    int monoEdges   = 0;
+
+    for (SceneImage& im : images)
+    {
+        double sqerror;
+
+        for (auto& o : im.stereoPoints)
+        {
+            if (!o) continue;
+            sqerror = residualNorm2(im, o);
+
+            if (o.depth > 0)
+                stereoEdges++;
+            else
+                monoEdges++;
+            error += sqerror;
+        }
+    }
+
+    return error;
+}
 
 
 double Scene::rms()

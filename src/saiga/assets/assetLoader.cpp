@@ -59,7 +59,7 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float
     for (auto& v : asset->model.mesh.vertices)
     {
         //        v.texture *= size / quadSize;
-        v.texture = ele_mult(v.texture, size / quadSize);
+        v.texture = ele_mult(v.texture, vec2(size * (1.0f / quadSize)));
     }
     //    asset->model.mesh.createBuffers(asset->buffer);
     asset->buffer.fromMesh(asset->model.mesh);

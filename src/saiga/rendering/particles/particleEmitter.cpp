@@ -7,6 +7,7 @@
 #include "saiga/rendering/particles/particleEmitter.h"
 
 #include "saiga/rendering/particles/particlesystem.h"
+#include "saiga/util/random.h"
 
 namespace Saiga
 {
@@ -50,8 +51,8 @@ void SphericalParticleEmitter::spawnParticles(int count, ParticleSystem& ps)
     for (int i = 0; i < count; ++i)
     {
         Particle p;
-        p.position = vec4(this->getPosition(), 1);
-        p.velocity = vec4(sphericalRand(1.0f), velocity);
+        p.position = make_vec4(this->getPosition(), 1);
+        p.velocity = make_vec4(sphericalRand(1.0f), velocity);
         p.lifetime = lifetime;
         p.fadetime = 0;
         p.image    = rand() % 4;
@@ -70,8 +71,8 @@ void ConaParticleEmitter::spawnParticles(int count, ParticleSystem& ps)
     for (int i = 0; i < count; ++i)
     {
         Particle p;
-        p.position    = vec4(this->getPosition(), 1);
-        p.velocity    = vec4(sampleCone(coneDirection, radians(coneAngle)), velocity);
+        p.position    = make_vec4(this->getPosition(), 1);
+        p.velocity    = make_vec4(sampleCone(coneDirection, radians(coneAngle)), velocity);
         p.lifetime    = lifetime;
         p.image       = 4;
         p.force       = vec4(0, -1, 0, 0);

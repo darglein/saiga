@@ -1,6 +1,9 @@
 ﻿#include "imgui_saiga.h"
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/util/color.h"
+#include "saiga/util/fileChecker.h"
+#include "saiga/util/ini/ini.h"
 #include "saiga/util/random.h"
 #include "saiga/util/tostring.h"
 
@@ -118,4 +121,144 @@ void ColoredBar::DrawOutlinedRect(const vec2& begin, const vec2& end, const Colo
     m_lastDrawList->AddRect(begin, end, ImColor(color.outline), m_rounding, m_rounding_corners);
 }
 
+
+
 }  // namespace ImGui
+
+namespace Saiga
+{
+void initImGui(const ImGuiParameters& params)
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    auto fontFile = SearchPathes::font(params.font);
+    if (!fontFile.empty())
+    {
+        ImFontConfig conf;
+        conf.RasterizerMultiply = params.fontBrightness;
+        io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
+    }
+    else
+    {
+        // use default integrated imgui font
+        io.Fonts->AddFontDefault();
+    }
+
+
+    vec3 color_text;
+    vec3 color_background_low;
+    vec3 color_background_medium;
+    vec3 color_background_high;
+    vec3 color_highlight_low;
+    vec3 color_highlight_high;
+
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors    = ImGui::GetStyle().Colors;
+
+    switch (params.theme)
+    {
+        case ImGuiTheme::SAIGA:
+        {
+            style.Alpha             = 1;
+            style.WindowRounding    = 0;
+            style.FrameRounding     = 0;
+            color_text              = vec3(0.0, 1.0, 0.0);
+            color_background_low    = make_vec3(0.2);
+            color_background_medium = make_vec3(0.3);
+            color_background_high   = make_vec3(0.4);
+            color_highlight_low     = make_vec3(0.5);
+            color_highlight_high    = make_vec3(0.6);
+            break;
+        }
+        default:
+        {
+            // Use default imgui theme
+            return;
+        }
+    }
+
+
+    if (params.linearRGB)
+    {
+        color_text              = Color::srgb2linearrgb(color_text);
+        color_background_low    = Color::srgb2linearrgb(color_background_low);
+        color_background_medium = Color::srgb2linearrgb(color_background_medium);
+        color_background_high   = Color::srgb2linearrgb(color_background_high);
+        color_highlight_low     = Color::srgb2linearrgb(color_highlight_low);
+        color_highlight_high    = Color::srgb2linearrgb(color_highlight_high);
+    }
+
+#define COL_ALPHA(_col, _alpha) ImVec4(_col[0], _col[1], _col[2], _alpha);
+
+    colors[ImGuiCol_Text]          = COL_ALPHA(color_text, 1.00f);
+    colors[ImGuiCol_TextDisabled]  = COL_ALPHA(color_text, 0.58f);
+    colors[ImGuiCol_WindowBg]      = COL_ALPHA(color_background_low, 0.95f);
+    colors[ImGuiCol_ChildWindowBg] = COL_ALPHA(color_background_low, 0.58f);
+    colors[ImGuiCol_Border]        = COL_ALPHA(color_highlight_high, 0.00f);
+    colors[ImGuiCol_BorderShadow]  = COL_ALPHA(color_background_low, 0.00f);
+
+    // Background of checkbox, radio button, plot, slider, text input
+    colors[ImGuiCol_FrameBg]        = COL_ALPHA(color_background_high, 1.00f);
+    colors[ImGuiCol_FrameBgHovered] = COL_ALPHA(color_highlight_low, 0.78f);
+    colors[ImGuiCol_FrameBgActive]  = COL_ALPHA(color_highlight_high, 1.00f);
+
+    // title bar
+    colors[ImGuiCol_TitleBg]          = COL_ALPHA(color_background_high, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed] = COL_ALPHA(color_highlight_low, 0.75f);
+    colors[ImGuiCol_TitleBgActive]    = COL_ALPHA(color_highlight_low, 1.00f);
+    colors[ImGuiCol_MenuBarBg]        = COL_ALPHA(color_background_low, 0.47f);
+
+    colors[ImGuiCol_ScrollbarBg]          = COL_ALPHA(color_background_medium, 1.00f);
+    colors[ImGuiCol_ScrollbarGrab]        = COL_ALPHA(color_background_high, 0.8);
+    colors[ImGuiCol_ScrollbarGrabHovered] = COL_ALPHA(color_highlight_low, 0.8);
+    colors[ImGuiCol_ScrollbarGrabActive]  = COL_ALPHA(color_highlight_high, 1.00f);
+
+    colors[ImGuiCol_CheckMark]        = COL_ALPHA(color_highlight_high, 0.80f);
+    colors[ImGuiCol_SliderGrab]       = COL_ALPHA(color_background_low, 0.50f);
+    colors[ImGuiCol_SliderGrabActive] = COL_ALPHA(color_background_low, 1.00f);
+    colors[ImGuiCol_Button]           = COL_ALPHA(color_background_high, 0.50f);
+    colors[ImGuiCol_ButtonHovered]    = COL_ALPHA(color_highlight_low, 0.86f);
+    colors[ImGuiCol_ButtonActive]     = COL_ALPHA(color_highlight_high, 1.00f);
+
+    colors[ImGuiCol_Header]        = COL_ALPHA(color_background_high, 0.76f);
+    colors[ImGuiCol_HeaderHovered] = COL_ALPHA(color_highlight_low, 0.86f);
+    colors[ImGuiCol_HeaderActive]  = COL_ALPHA(color_highlight_high, 1.00f);
+
+    colors[ImGuiCol_Column]        = COL_ALPHA(color_background_high, 0.8);
+    colors[ImGuiCol_ColumnHovered] = COL_ALPHA(color_highlight_low, 0.8);
+    colors[ImGuiCol_ColumnActive]  = COL_ALPHA(color_highlight_high, 1.00f);
+
+    colors[ImGuiCol_ResizeGrip]        = COL_ALPHA(color_background_medium, 0.5f);
+    colors[ImGuiCol_ResizeGripHovered] = COL_ALPHA(color_background_medium, 1);
+    colors[ImGuiCol_ResizeGripActive]  = COL_ALPHA(color_background_high, 1.00f);
+
+    colors[ImGuiCol_PlotLines]            = COL_ALPHA(color_text, 0.63f);
+    colors[ImGuiCol_PlotLinesHovered]     = COL_ALPHA(color_text, 1.00f);
+    colors[ImGuiCol_PlotHistogram]        = COL_ALPHA(color_text, 0.63f);
+    colors[ImGuiCol_PlotHistogramHovered] = COL_ALPHA(color_text, 1.00f);
+
+    colors[ImGuiCol_TextSelectedBg]       = COL_ALPHA(color_background_low, 0.43f);
+    colors[ImGuiCol_PopupBg]              = COL_ALPHA(color_background_low, 0.92f);
+    colors[ImGuiCol_ModalWindowDarkening] = COL_ALPHA(color_background_low, 0.73f);
+}
+
+void ImGuiParameters::fromConfigFile(const std::string& file)
+{
+    Saiga::SimpleIni ini;
+    ini.LoadFile(file.c_str());
+
+    enable         = ini.GetAddBool("imgui", "enable", enable);
+    font           = ini.GetAddString("imgui", "font", font.c_str());
+    fontSize       = ini.GetAddLong("imgui", "fontSize", fontSize);
+    fontBrightness = ini.GetAddDouble("imgui", "fontBrightness", fontBrightness);
+
+    std::string comment =
+        "# Available Themes: \n"
+        "# 0-Saiga, 1-ImGuiDefault";
+    theme = (ImGuiTheme)ini.GetAddLong("imgui", "theme", (int)theme, comment.c_str());
+
+    if (ini.changed()) ini.SaveFile(file.c_str());
+}
+
+}  // namespace Saiga

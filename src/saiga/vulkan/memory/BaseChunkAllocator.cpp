@@ -215,7 +215,7 @@ MemoryStats BaseChunkAllocator::collectMemoryStats()
     uint64_t usedSpace           = 0;
     uint64_t fragmentedFreeSpace = 0;
     uint64_t totalFreeSpace      = 0;
-    for (int i = 0; i < m_chunkAllocations.size(); ++i)
+    for (size_t i = 0; i < m_chunkAllocations.size(); ++i)
     {
         auto chunk = m_chunkAllocations[i];
         int j      = 0;

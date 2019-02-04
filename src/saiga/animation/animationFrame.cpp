@@ -36,9 +36,9 @@ AnimationNode::AnimationNode(const AnimationNode& n0, const AnimationNode& n1, f
 
 void AnimationNode::reset()
 {
-    position = vec4(0);
+    position = make_vec4(0);
     rotation = IDENTITY_QUATERNION;
-    scaling  = vec4(1);
+    scaling  = make_vec4(1);
 }
 
 

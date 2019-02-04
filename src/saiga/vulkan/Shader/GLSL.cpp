@@ -7,6 +7,7 @@
 #include "GLSL.h"
 
 #include "saiga/util/file.h"
+#include "saiga/util/fileChecker.h"
 #include "saiga/util/tostring.h"
 
 #include "SPIRV/GlslangToSpv.h"
@@ -19,7 +20,7 @@ namespace Vulkan
 namespace GLSLANG
 {
 static TBuiltInResource Resources;
-FileChecker shaderPathes;
+
 
 static EShLanguage FindLanguage(const vk::ShaderStageFlagBits shader_type)
 {
@@ -55,13 +56,19 @@ struct MyIncluder : public glslang::TShader::Includer
     std::vector<std::string> data;
     std::string baseFile;
 
-    virtual IncludeResult* includeSystem(const char* headerName, const char* includerName, size_t inclusionDepth)
+    virtual IncludeResult* includeSystem(const char* headerName, const char* includerName,
+                                         size_t inclusionDepth) override
     {
+        // be save from endless loops
+        if (inclusionDepth > 100)
+        {
+            return nullptr;
+        }
         std::string base = std::string(includerName).size() > 0 ? std::string(includerName) : baseFile;
         //        cout << "include request '" << headerName << "' '" << includerName << "' " << inclusionDepth << endl;
         //        cout << "base " << base << endl;
 
-        auto includeFileName = shaderPathes.getRelative(base, headerName);
+        auto includeFileName = SearchPathes::shader.getRelative(base, headerName);
 
         if (includeFileName == "")
         {
@@ -80,7 +87,8 @@ struct MyIncluder : public glslang::TShader::Includer
         return result;
     }
 
-    virtual IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t inclusionDepth)
+    virtual IncludeResult* includeLocal(const char* headerName, const char* includerName,
+                                        size_t inclusionDepth) override
     {
         return includeSystem(headerName, includerName, inclusionDepth);
     }
@@ -114,7 +122,7 @@ std::vector<uint32_t> createFromString(const std::string& shaderString, const vk
 std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFlagBits shader_type,
                                const std::string& injection)
 {
-    auto file = GLSLANG::shaderPathes.getFile(_file);
+    auto file = SearchPathes::shader(_file);
 
     if (file == "")
     {
@@ -162,7 +170,7 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
 
 std::vector<uint32_t> loadSPIRV(const std::string& file)
 {
-    auto file2 = shaderPathes.getFile(file);
+    auto file2 = SearchPathes::shader(file);
     auto data  = Saiga::File::loadFileBinary(file2);
     SAIGA_ASSERT(data.size() % 4 == 0);
     std::vector<uint32_t> spirv(data.size() / 4);

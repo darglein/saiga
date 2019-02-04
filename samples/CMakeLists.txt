@@ -3,7 +3,7 @@ if(CUDA_FOUND)
     add_subdirectory(cuda)
 endif ()
 
-if(OPENGL_FOUND)
+if(SAIGA_USE_OPENGL)
     add_subdirectory(opengl)
 endif()
 

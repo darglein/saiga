@@ -121,8 +121,8 @@ struct SAIGA_GLOBAL SceneImage
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     int intr = -1;
     int extr = -1;
-    std::vector<StereoImagePoint> stereoPoints;
-    std::vector<DenseConstraint> densePoints;
+    AlignedVector<StereoImagePoint> stereoPoints;
+    AlignedVector<DenseConstraint> densePoints;
     float imageWeight = 1;
 
     float imageScale = 1;
@@ -145,16 +145,16 @@ class SAIGA_GLOBAL Scene
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    std::vector<Intrinsics4> intrinsics;
-    std::vector<Extrinsics> extrinsics;
-    std::vector<WorldPoint> worldPoints;
+    AlignedVector<Intrinsics4> intrinsics;
+    AlignedVector<Extrinsics> extrinsics;
+    AlignedVector<WorldPoint> worldPoints;
+    AlignedVector<SceneImage> images;
 
     // to scale towards [-1,1] range for floating point precision
     double globalScale = 1;
 
     double bf = 1;
 
-    std::vector<SceneImage> images;
 
     double residualNorm2(const SceneImage& img, const StereoImagePoint& ip);
     Vec3 residual3(const SceneImage& img, const StereoImagePoint& ip);
@@ -163,12 +163,14 @@ class SAIGA_GLOBAL Scene
 
     // Apply a rigid transformation to the complete scene
     void transformScene(const SE3& transform);
+    void rescale(double s = 1);
 
     void fixWorldPointReferences();
 
     bool valid() const;
     explicit operator bool() const { return valid(); }
 
+    double chi2();
     double rms();
     double rmsDense();
 
@@ -188,6 +190,7 @@ class SAIGA_GLOBAL Scene
     void removeNegativeProjections();
 
     Saiga::Statistics<double> statistics();
+    Saiga::Statistics<double> depthStatistics();
     void removeOutliers(float factor);
     // removes all references to this worldpoint
     void removeWorldPoint(int id);
@@ -197,6 +200,7 @@ class SAIGA_GLOBAL Scene
     void compress();
 
     std::vector<int> validImages();
+    std::vector<int> validPoints();
 
     // ================================= IO =================================
     // -> defined in Scene_io.cpp
@@ -206,5 +210,7 @@ class SAIGA_GLOBAL Scene
     void save(const std::string& file);
     void load(const std::string& file);
 };
+
+SAIGA_GLOBAL std::ostream& operator<<(std::ostream& strm, Scene& scene);
 
 }  // namespace Saiga

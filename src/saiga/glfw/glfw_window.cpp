@@ -74,15 +74,13 @@ void glfw_Window::getMaxResolution(int* width, int* height)
     *height = mode[count - 1].height;
 }
 
-std::shared_ptr<ImGuiRenderer> glfw_Window::createImGui()
+std::shared_ptr<ImGui_GL_Renderer> glfw_Window::createImGui()
 {
-    std::shared_ptr<ImGui_GLFW_Renderer> imgui;
-    if (windowParameters.createImgui)
+    if (windowParameters.imguiParameters.enable)
     {
-        imgui =
-            std::make_shared<ImGui_GLFW_Renderer>(window, windowParameters.imguiFont, windowParameters.imguiFontSize);
+        return std::make_shared<ImGui_GLFW_Renderer>(window, windowParameters.imguiParameters);
     }
-    return imgui;
+    return {};
 }
 
 void glfw_Window::setCursorPosition(int x, int y)

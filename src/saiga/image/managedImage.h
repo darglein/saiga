@@ -10,7 +10,6 @@
 #include "saiga/image/imageFormat.h"
 #include "saiga/image/imageView.h"
 #include "saiga/util/ArrayView.h"
-#include "saiga/util/fileChecker.h"
 
 #include <vector>
 
@@ -24,13 +23,7 @@ namespace Saiga
 class SAIGA_GLOBAL Image : public ImageBase
 {
    public:
-    // Image search pathes
-    static FileChecker searchPathes;
-
-    using byte_t = unsigned char;
-
-
-
+    using byte_t   = unsigned char;
     ImageType type = TYPE_UNKNOWN;
 
    protected:

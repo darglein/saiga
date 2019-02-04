@@ -8,6 +8,7 @@
 //
 // Based on src/opus_demo.c in opus-1.0.2
 // License see http://www.opus-codec.org/license/
+
 #include "saiga/sound/OpusCodec.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -24,7 +25,7 @@ namespace Saiga
 {
 #    define MAX_PACKET 1500
 
-const char* OpusErrorException::what()
+const char* OpusErrorException::what() const noexcept
 {
     return opus_strerror(code);
 }

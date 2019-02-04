@@ -19,6 +19,7 @@ template <typename T>
 class Statistics
 {
    public:
+    Statistics() {}
     Statistics(const std::vector<T>& data);
 
     int numValues;

@@ -19,7 +19,7 @@ class SAIGA_GLOBAL TumRGBDCamera : public RGBDCamera
    public:
     struct GroundTruth
     {
-        double timeStamp;
+        double timeStamp = -1;
         SE3 se3;
 
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -27,7 +27,7 @@ class SAIGA_GLOBAL TumRGBDCamera : public RGBDCamera
 
     struct CameraData
     {
-        double timestamp;
+        double timestamp = -1;
         std::string img;
     };
 
@@ -57,6 +57,7 @@ class SAIGA_GLOBAL TumRGBDCamera : public RGBDCamera
 
    private:
     void associate(const std::string& datasetDir);
+    void associateFromFile(const std::string& datasetDir);
     void load(const std::string& datasetDir);
 
     double depthFactor;

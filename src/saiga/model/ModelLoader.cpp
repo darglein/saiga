@@ -10,6 +10,4 @@
 
 namespace Saiga
 {
-FileChecker modelPathes;
-
 }

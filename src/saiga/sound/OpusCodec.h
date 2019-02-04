@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "saiga/config.h"
+
 #include <iosfwd>
 #include <memory>
 #include <stdexcept>
@@ -21,7 +23,7 @@ namespace Saiga
 struct OpusErrorException : public virtual std::exception
 {
     OpusErrorException(int code) : code(code) {}
-    const char* what();
+    virtual const char* what() const noexcept override;
 
    private:
     const int code;

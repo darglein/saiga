@@ -7,66 +7,9 @@
 #pragma once
 
 #include "saiga/util/assert.h"
-#include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/Dot.h"
-#include "saiga/vision/recursiveMatrices/Inverse.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-#include "saiga/vision/recursiveMatrices/Norm.h"
-#include "saiga/vision/recursiveMatrices/ScalarMult.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
 
-
-#ifndef NO_CG_TYPES
-using Scalar = float;
-const int bn = 4;
-const int bm = 4;
-using Block  = Eigen::Matrix<Scalar, bn, bm>;
-using Vector = Eigen::Matrix<Scalar, bn, 1>;
-#endif
-
-template <typename BinaryOp>
-struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, BinaryOp>
-{
-    typedef Saiga::MatrixScalar<Vector> ReturnType;
-};
-
-
-#ifndef NO_CG_SPEZIALIZATIONS
-template <typename SparseLhsType, typename DenseRhsType>
-struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsType,
-                                                       Eigen::Matrix<Saiga::MatrixScalar<Vector>, -1, 1>,
-                                                       Saiga::MatrixScalar<Vector>, Eigen::RowMajor, true>
-{
-    typedef typename internal::remove_all<SparseLhsType>::type Lhs;
-    typedef typename internal::remove_all<DenseRhsType>::type Rhs;
-    using DenseResType = DenseRhsType;
-    typedef typename internal::remove_all<DenseResType>::type Res;
-    typedef typename evaluator<Lhs>::InnerIterator LhsInnerIterator;
-    typedef evaluator<Lhs> LhsEval;
-    static void run(const SparseLhsType& lhs, const DenseRhsType& rhs, DenseResType& res, const typename Res::Scalar&)
-    {
-        LhsEval lhsEval(lhs);
-
-        Index n = lhs.outerSize();
-
-
-        for (Index c = 0; c < rhs.cols(); ++c)
-        {
-            {
-                for (Index i = 0; i < n; ++i) processRow(lhsEval, rhs, res, i, c);
-            }
-        }
-    }
-
-    static void processRow(const LhsEval& lhsEval, const DenseRhsType& rhs, DenseResType& res, Index i, Index col)
-    {
-        typename Res::Scalar tmp(0);
-        for (LhsInnerIterator it(lhsEval, i); it; ++it) tmp += it.value() * rhs.coeff(it.index(), col);
-        res.coeffRef(i, col) += tmp;
-    }
-};
-
-#endif
 
 namespace Saiga
 {
@@ -159,6 +102,8 @@ class RecursiveDiagonalPreconditioner
 
     Eigen::ComputationInfo info() { return Eigen::Success; }
 
+    const auto& getDiagElement(int i) const { return m_invdiag(i); }
+
    protected:
     Vector m_invdiag;
     bool m_isInitialized;
@@ -195,24 +140,37 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
                                                     const Preconditioner& precond, Eigen::Index& iters,
                                                     SuperScalar& tol_error)
 {
+    // Typedefs
     using namespace Eigen;
-
     using std::abs;
     using std::sqrt;
     typedef SuperScalar RealScalar;
     typedef SuperScalar Scalar;
     typedef Rhs VectorType;
 
+    // Temp Vector variables
+    Index n = rhs.rows();
+
+#if 0
+    // Create them locally
+    VectorType z(n);
+    VectorType p(n);
+#else
+    // Use static variables so a repeated call with the same size doesn't allocate memory
+    static thread_local VectorType z;
+    static thread_local VectorType p;
+    static thread_local VectorType residual;
+    z.resize(n);
+    p.resize(n);
+    residual.resize(n);
+#endif
+
+
+
     RealScalar tol = tol_error;
     Index maxIters = iters;
 
-    Index n = rhs.rows();
-
-
-    VectorType z(n), tmp(n);
-
-
-    VectorType residual = rhs - applyA(x);
+    residual = rhs - applyA(x);
 
     RealScalar rhsNorm2 = squaredNorm(rhs);
     if (rhsNorm2 == 0)
@@ -231,31 +189,37 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
         return;
     }
 
-    VectorType p(n);
     p = precond.solve(residual);  // initial search direction
 
     // the square of the absolute value of r scaled by invM
     RealScalar absNew = dot(residual, p);
     Index i           = 0;
+
     while (i < maxIters)
     {
-        tmp = applyA(p);
+        //        cout << "CG Residual " << i << ": " << residualNorm2 << endl;
+        z = applyA(p);
         // the amount we travel on dir
-        Scalar alpha = absNew / dot(p, tmp);
+        Scalar alpha = absNew / dot(p, z);
         // update solution
         x += scalarMult(p, alpha);
         // update residual
-        residual -= scalarMult(tmp, alpha);
+        residual -= scalarMult(z, alpha);
 
         residualNorm2 = squaredNorm(residual);
+        //        cout << i << " " << residualNorm2 << endl;
         if (residualNorm2 < threshold) break;
 
         z = precond.solve(residual);  // approximately solve for "A z = residual"
+                                      //        cout << expand(p).transpose() << endl;
 
         RealScalar absOld = absNew;
         absNew            = dot(residual, z);  // update the absolute value of r
         RealScalar beta = absNew / absOld;  // calculate the Gram-Schmidt value used to create the new search direction
-        p               = z + scalarMult(p, beta);  // update search direction
+                                            //        cout << "absnew " << absNew << " beta " << beta << endl;
+        p = z + scalarMult(p, beta);        // update search direction
+
+
         i++;
     }
     tol_error = sqrt(residualNorm2 / rhsNorm2);

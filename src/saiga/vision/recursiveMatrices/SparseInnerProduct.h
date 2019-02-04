@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/util/assert.h"
-#include "saiga/vision/MatrixScalar.h"
 #include "saiga/vision/recursiveMatrices/Expand.h"
+#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
 
 
@@ -62,3 +62,78 @@ EIGEN_ALWAYS_INLINE void multSparseRowTransposedVector(const LHS& lhsTransposed,
 
 
 }  // namespace Saiga
+
+
+
+// Computes R = M * D  with
+// M : Sparse Matrix in either row or column major format
+// D : Diagonal (dense) matrix
+// R : Result same format and sparsity pattern as M
+template <typename S, typename DiagType>
+EIGEN_ALWAYS_INLINE S multSparseDiag(const S& M, const DiagType& D)
+{
+    SAIGA_ASSERT(M.cols() == D.rows());
+
+    S result(M.rows(), M.cols());
+    result.reserve(M.nonZeros());
+    result.markAsRValue();
+
+    // Copy the structure
+    for (int k = 0; k < M.outerSize() + 1; ++k)
+    {
+        result.outerIndexPtr()[k] = M.outerIndexPtr()[k];
+    }
+    for (int k = 0; k < M.nonZeros(); ++k)
+    {
+        result.innerIndexPtr()[k] = M.innerIndexPtr()[k];
+    }
+
+    // Copmpute result
+    for (int k = 0; k < M.outerSize(); ++k)
+    {
+        typename S::InnerIterator itM(M, k);
+        typename S::InnerIterator itRes(result, k);
+
+        for (; itM; ++itM, ++itRes)
+        {
+            itRes.valueRef() = itM.value() * D.diagonal()(itM.col());
+        }
+    }
+
+    return result;
+}
+
+template <typename Diag, typename Vec>
+EIGEN_ALWAYS_INLINE Vec multDiagVector(const Diag& D, const Vec& v)
+{
+    SAIGA_ASSERT(D.cols() == v.rows());
+
+    Vec result;
+    result.resize(v.rows(), v.cols());
+    //    Vec result = v;
+
+    for (int k = 0; k < D.rows(); ++k)
+    {
+        result(k) = D.diagonal()(k) * v(k);
+    }
+
+    return result;
+}
+
+
+template <typename Diag, typename Vec>
+EIGEN_ALWAYS_INLINE Vec multDiagVectorMulti(const Diag& D, const Vec& v)
+{
+    SAIGA_ASSERT(D.cols() == v.rows());
+
+    Vec result;
+    result.resize(v.rows(), v.cols());
+    //    Vec result = v;
+
+    for (int k = 0; k < D.rows(); ++k)
+    {
+        result.row(k) = D.diagonal()(k) * v.row(k);
+    }
+
+    return result;
+}
