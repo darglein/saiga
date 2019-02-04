@@ -104,15 +104,39 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
     fChunk->allocated -= location->size;
     if (chunks.size() >= 2)
     {
-        // Free memory if second to last and last chunk are empty
-        auto last           = chunks.end() - 1;
-        auto second_to_last = last - 1;
-        if (last->allocations.empty() && second_to_last->allocations.empty())
+        auto last = chunks.end() - 1;
+        auto stol = chunks.end() - 2;
+
+        while (last->allocations.empty() && stol->allocations.empty())
         {
             m_device.destroy(last->buffer);
             m_chunkAllocator->deallocate(last->chunk);
-            chunks.erase(last);
+
+            last--;
+            stol--;
         }
+
+        chunks.erase(last + 1, chunks.end());
+        // if (to_delete_begin != chunks.end())
+        //{
+        //    for (auto erase = to_delete_begin; erase != chunks.end(); ++erase)
+        //    {
+        //
+        //    }
+        //
+        //    chunks.erase(to_delete_begin, chunks.end());
+        //}
+
+
+        // Free memory if second to last and last chunk are empty
+        // auto last           = chunks.end() - 1;
+        // auto second_to_last = last - 1;
+        // if (last->allocations.empty() && second_to_last->allocations.empty())
+        //{
+        //    m_device.destroy(last->buffer);
+        //    m_chunkAllocator->deallocate(last->chunk);
+        //    chunks.erase(last);
+        //}
     }
 }
 void BaseChunkAllocator::destroy()
