@@ -22,14 +22,16 @@
 #include "saiga/window/Interfaces.h"
 
 #include <random>
+#include <utility>
 #include <vector>
+
 using Saiga::Vulkan::Memory::MemoryLocation;
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener
 {
-    std::vector<MemoryLocation*> allocations;
-    std::vector<MemoryLocation*> num_allocations;
+    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations;
+    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations;
     std::mt19937 mersenne_twister, auto_mersenne;
 
     std::array<vk::DeviceSize, 4> sizes{256 * 256, 512 * 512, 1024 * 1024, 16 * 1024 * 1024};
@@ -67,4 +69,7 @@ class VulkanExample : public Saiga::Updating,
     void keyReleased(SDL_Keysym key) override;
 
     void alloc_index(int index);
+
+    std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> allocate(Saiga::Vulkan::Memory::BufferType type,
+                                                                         unsigned long long int size);
 };
