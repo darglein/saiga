@@ -149,6 +149,7 @@ void BaseChunkAllocator::destroy()
 
 bool BaseChunkAllocator::memory_is_free(vk::DeviceMemory memory, FreeListEntry free_mem)
 {
+    std::scoped_lock lock(allocationMutex);
     auto chunk = std::find_if(chunks.begin(), chunks.end(),
                               [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
 
@@ -178,6 +179,7 @@ bool BaseChunkAllocator::memory_is_free(vk::DeviceMemory memory, FreeListEntry f
 MemoryLocation* BaseChunkAllocator::reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry,
                                                   vk::DeviceSize size)
 {
+    std::scoped_lock lock(allocationMutex);
     auto chunk = std::find_if(chunks.begin(), chunks.end(),
                               [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
 
@@ -192,6 +194,7 @@ MemoryLocation* BaseChunkAllocator::reserve_space(vk::DeviceMemory memory, FreeL
 
 void BaseChunkAllocator::move_allocation(MemoryLocation* target, MemoryLocation* source)
 {
+    std::scoped_lock lock(allocationMutex);
     const auto size = source->size;
 
     MemoryLocation source_copy = *source;
@@ -224,8 +227,7 @@ void BaseChunkAllocator::add_to_free_list(const ChunkIterator& chunk, const Memo
         return free_entry.offset < value.offset;
     });
 
-
-    auto free = chunk->freeList.end();
+    FreeIterator free;
 
     auto previous = prev(found);
     if (found != freeList.begin() && previous->end() == location.offset)

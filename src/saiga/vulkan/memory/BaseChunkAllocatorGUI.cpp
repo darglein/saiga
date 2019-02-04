@@ -19,6 +19,7 @@ void BaseChunkAllocator::showDetailStats()
 
     if (ImGui::CollapsingHeader(gui_identifier.c_str()))
     {
+        std::scoped_lock lock(allocationMutex);
         ImGui::Indent();
 
         headerInfo();
@@ -83,6 +84,7 @@ void BaseChunkAllocator::showDetailStats()
 
 MemoryStats BaseChunkAllocator::collectMemoryStats()
 {
+    std::scoped_lock lock(allocationMutex);
     int numAllocs                = 0;
     uint64_t usedSpace           = 0;
     uint64_t fragmentedFreeSpace = 0;

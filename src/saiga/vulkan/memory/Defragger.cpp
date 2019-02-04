@@ -212,6 +212,7 @@ void Defragger::invalidate(vk::DeviceMemory memory)
 
 void Defragger::invalidate(MemoryLocation* location)
 {
+    std::unique_lock<std::mutex> invalidate_lock(invalidate_mutex);
     for (auto op_iter = defrag_operations.begin(); op_iter != defrag_operations.end();)
     {
         if (op_iter->source == location)
