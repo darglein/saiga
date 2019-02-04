@@ -441,6 +441,7 @@ void MKLBA::computeSchur()
         Y = multSparseDiag(W, Vinv);
     }
 
+
     {
         // Step 3
         // Compute the Schur complement S

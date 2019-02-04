@@ -30,7 +30,7 @@ using PSDiagType = Eigen::DiagonalMatrix<MatrixScalar<PGOBlock>, -1>;
 using PBType     = Eigen::Matrix<MatrixScalar<PGOVector>, -1, 1>;
 }  // namespace Saiga
 
-SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::PGOBlock>, Saiga::MatrixScalar<Saiga::PGOVector>,
-                       Saiga::MatrixScalar<Saiga::PGOVector>);
+// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::PGOBlock>, Saiga::MatrixScalar<Saiga::PGOVector>,
+//                       Saiga::MatrixScalar<Saiga::PGOVector>);
 
-SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::PBType);
+// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::PBType);

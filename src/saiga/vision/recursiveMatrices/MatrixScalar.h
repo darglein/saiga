@@ -116,6 +116,8 @@ EIGEN_ALWAYS_INLINE auto& removeMatrixScalar(const T& A)
     return RemoveMatrixScalarImpl<T>::get(A);
 }
 
+
+
 /**
  * Convert a block vector (a vector of vectors) to a 1-dimensional vector.
  * The inner vector must be of constant size.
@@ -201,3 +203,29 @@ auto fixedBlockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, n, m
 
 
 }  // namespace Saiga
+
+
+template <typename T, typename BinaryOp>
+struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<T>, Saiga::MatrixScalar<T>, BinaryOp>
+{
+    typedef Saiga::MatrixScalar<T> ReturnType;
+};
+
+
+template <typename LHS, typename RHS, typename BinaryOp>
+struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<LHS>, Saiga::MatrixScalar<RHS>, BinaryOp>
+{
+    enum
+    {
+        n = LHS::RowsAtCompileTime,
+        m = RHS::ColsAtCompileTime,
+        // Use Storage options of RHS type (might not be the best)
+        options = RHS::Options
+    };
+
+    using ScalarType =
+        typename Eigen::ScalarBinaryOpTraits<typename LHS::Scalar, typename RHS::Scalar, BinaryOp>::ReturnType;
+    using MatrixType = Eigen::Matrix<ScalarType, n, m, options>;
+
+    typedef Saiga::MatrixScalar<MatrixType> ReturnType;
+};

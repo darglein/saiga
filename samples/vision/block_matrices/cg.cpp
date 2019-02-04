@@ -23,8 +23,8 @@ using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
 using BlockVector = Eigen::Matrix<Saiga::MatrixScalar<Vector>, -1, 1>;
 
-SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
-SAIGA_RM_CREATE_SMV_ROW_MAJOR(BlockVector);
+// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
+// SAIGA_RM_CREATE_SMV_ROW_MAJOR(BlockVector);
 
 
 

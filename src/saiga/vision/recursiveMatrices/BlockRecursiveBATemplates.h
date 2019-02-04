@@ -52,6 +52,9 @@ using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor>;
 
 }  // namespace Saiga
 
+
+
+#if 0
 // A * a = a
 SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::ADiag>, Saiga::MatrixScalar<Saiga::ARes>,
                        Saiga::MatrixScalar<Saiga::ARes>);
@@ -71,12 +74,13 @@ SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::WElem>, Saiga::MatrixScalar<Sa
 // WT * a = b
 SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::WTElem>, Saiga::MatrixScalar<Saiga::ARes>,
                        Saiga::MatrixScalar<Saiga::BRes>);
+#endif
 
 // A * a
-SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DAType);
+// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DAType);
 // B * b
-SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DBType);
+// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DBType);
 // S = Y * WT
-SAIGA_RM_CREATE_SMM_YX_RRC(Saiga::WType);
-SAIGA_RM_CREATE_SMM_YX_RCC(Saiga::WType);
-SAIGA_RM_CREATE_SMM_YX_RCR(Saiga::WType);
+// SAIGA_RM_CREATE_SMM_YX_RRC(Saiga::WType);
+// SAIGA_RM_CREATE_SMM_YX_RCC(Saiga::WType);
+// SAIGA_RM_CREATE_SMM_YX_RCR(Saiga::WType);

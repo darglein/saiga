@@ -103,9 +103,7 @@ const int cg_inner_its = 5;
 
 
 // ===================================================================================================
-// Types and spezializations
-
-
+// Block Types
 using namespace Saiga;
 using Block  = Eigen::Matrix<T, block_size, block_size, Eigen::RowMajor>;
 using Vector = Eigen::Matrix<T, block_size, 1>;
@@ -113,18 +111,7 @@ using Vector = Eigen::Matrix<T, block_size, 1>;
 using BlockVector = Eigen::Matrix<MatrixScalar<Vector>, -1, 1>;
 using BlockMatrix = Eigen::SparseMatrix<MatrixScalar<Block>, Eigen::RowMajor>;
 
-SAIGA_RM_CREATE_RETURN(MatrixScalar<Block>, MatrixScalar<Vector>, MatrixScalar<Vector>);
-SAIGA_RM_CREATE_SMV_ROW_MAJOR(BlockVector);
 
-
-using Block1       = Eigen::Matrix<T, 2, 4, Eigen::RowMajor>;
-using Block2       = Eigen::Matrix<T, 4, 2, Eigen::RowMajor>;
-using Block3       = Eigen::Matrix<T, 2, 2, Eigen::RowMajor>;
-using BlockMatrix1 = Eigen::SparseMatrix<MatrixScalar<Block1>, Eigen::RowMajor>;
-using BlockMatrix2 = Eigen::SparseMatrix<MatrixScalar<Block2>, Eigen::RowMajor>;
-using BlockMatrix3 = Eigen::SparseMatrix<MatrixScalar<Block3>, Eigen::RowMajor>;
-SAIGA_RM_CREATE_RETURN(MatrixScalar<Block1>, MatrixScalar<Block2>, MatrixScalar<Block3>);
-// SAIGA_RM_CREATE_SMM_YX_RRR_NO_SORT(BlockMatrix1);
 
 namespace Saiga
 {

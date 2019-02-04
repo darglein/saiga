@@ -82,8 +82,8 @@ int main(int, char**)
     //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
     //    scene.load(SearchPathes::data("vision/slam.scene"));
-    buildScene(scene);
-    //    buildSceneBAL(scene);
+    //    buildScene(scene);
+    buildSceneBAL(scene);
 
     cout << scene << endl;
 
@@ -104,11 +104,11 @@ int main(int, char**)
 
     solvers.push_back(std::make_shared<BARec>());
     //    solvers.push_back(std::make_shared<BAPoseOnly>());
-    //    solvers.push_back(std::make_shared<g2oBA2>());
-    //    solvers.push_back(std::make_shared<CeresBA>());
+    solvers.push_back(std::make_shared<g2oBA2>());
+    solvers.push_back(std::make_shared<CeresBA>());
 
 #ifdef SAIGA_USE_MKL
-    solvers.push_back(std::make_shared<MKLBA>());
+//    solvers.push_back(std::make_shared<MKLBA>());
 #endif
     for (auto& s : solvers)
     {
