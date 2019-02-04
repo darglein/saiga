@@ -150,12 +150,17 @@ MemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceSize si
 
 
 
-    allocator.defragger->stop();
-
+    if (allocator.defragger)
+    {
+        allocator.defragger->stop();
+    }
     auto memoryLocation = allocator.allocator->allocate(size);
 
-    allocator.defragger->invalidate(memoryLocation->memory);
-    allocator.defragger->start();
+    if (allocator.defragger)
+    {
+        allocator.defragger->invalidate(memoryLocation->memory);
+        allocator.defragger->start();
+    }
 
     return memoryLocation;
 }
@@ -183,13 +188,19 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation* loca
         return;
     }
 
-    allocator.defragger->stop();
+    if (allocator.defragger)
+    {
+        allocator.defragger->stop();
+        allocator.defragger->invalidate(location->memory);
+        allocator.defragger->invalidate(location);
+    }
 
-    allocator.defragger->invalidate(location->memory);
-    allocator.defragger->invalidate(location);
     allocator.allocator->deallocate(location);
 
-    allocator.defragger->start();
+    if (allocator.defragger)
+    {
+        allocator.defragger->start();
+    }
 }
 
 void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation* location)
