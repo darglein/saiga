@@ -52,6 +52,8 @@ class SAIGA_GLOBAL Buffer
     }
 
 
+    inline vk::DeviceSize size() { return m_memoryLocation ? m_memoryLocation->size : 0; }
+
     virtual ~Buffer() { destroy(); }
 
 
@@ -66,11 +68,12 @@ class SAIGA_GLOBAL Buffer
      * @param size Size of the data
      * @param data Pointer to the data.
      */
-    void stagedUpload(VulkanBase& base, size_t size, const void* data);
+    void stagedUpload(VulkanBase& base, size_t size, const void* data);  // TODO: Remove base parameter
 
     vk::DescriptorBufferInfo createInfo();
 
-    void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE, vk::DeviceSize offset = 0);
+    void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE,
+               vk::DeviceSize offset = 0);  // TODO: Remove base parameter
 
     void destroy();
 
