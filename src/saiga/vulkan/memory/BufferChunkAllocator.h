@@ -21,15 +21,10 @@
 #include <list>
 #include <utility>
 #include <vulkan/vulkan.hpp>
-using namespace Saiga::Vulkan::Memory;
 
-namespace Saiga
+namespace Saiga::Vulkan::Memory
 {
-namespace Vulkan
-{
-namespace Memory
-{
-class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
+class SAIGA_GLOBAL BufferChunkAllocator final : public BaseChunkAllocator
 {
    private:
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();
@@ -43,8 +38,8 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
     ~BufferChunkAllocator() override = default;
 
     BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type, FitStrategy& strategy,
-                         vk::DeviceSize chunkSize = 64 * 1024 * 1024)
-        : BaseChunkAllocator(_device, chunkAllocator, strategy, chunkSize), type(std::move(_type))
+                         Queue* _queue, vk::DeviceSize chunkSize = 64 * 1024 * 1024)
+        : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         std::stringstream identifier_stream;
         identifier_stream << "Buffer Chunk " << type;
@@ -77,13 +72,13 @@ class SAIGA_GLOBAL BufferChunkAllocator : public BaseChunkAllocator
         return *this;
     }
 
-    void deallocate(MemoryLocation& location) override;
+    void deallocate(MemoryLocation* location) override;
 
-    MemoryLocation allocate(vk::DeviceSize size) override;
+    MemoryLocation* allocate(vk::DeviceSize size) override;
+
+    using BaseChunkAllocator::allocate;
 
    protected:
     void headerInfo() override;
 };
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

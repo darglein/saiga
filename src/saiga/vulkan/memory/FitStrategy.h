@@ -8,38 +8,32 @@
 #include "ChunkAllocation.h"
 
 #include <tuple>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 struct SAIGA_LOCAL FitStrategy
 {
     virtual ~FitStrategy() = default;
 
-    virtual std::pair<ChunkIterator, LocationIterator> findRange(std::vector<ChunkAllocation>& _allocations,
-                                                                 vk::DeviceSize size) = 0;
+    virtual std::pair<ChunkIterator, FreeIterator> findRange(ChunkIterator begin, ChunkIterator end,
+                                                             vk::DeviceSize size) = 0;
 };
 
-struct SAIGA_LOCAL FirstFitStrategy : public FitStrategy
+struct SAIGA_LOCAL FirstFitStrategy final : public FitStrategy
 {
-    std::pair<ChunkIterator, LocationIterator> findRange(std::vector<ChunkAllocation>& _allocations,
-                                                         vk::DeviceSize size) override;
+    std::pair<ChunkIterator, FreeIterator> findRange(ChunkIterator begin, ChunkIterator end,
+                                                     vk::DeviceSize size) override;
 };
 
-struct SAIGA_LOCAL BestFitStrategy : public FitStrategy
+struct SAIGA_LOCAL BestFitStrategy final : public FitStrategy
 {
-    std::pair<ChunkIterator, LocationIterator> findRange(std::vector<ChunkAllocation>& _allocations,
-                                                         vk::DeviceSize size) override;
+    std::pair<ChunkIterator, FreeIterator> findRange(ChunkIterator begin, ChunkIterator end,
+                                                     vk::DeviceSize size) override;
 };
 
-struct SAIGA_LOCAL WorstFitStrategy : public FitStrategy
+struct SAIGA_LOCAL WorstFitStrategy final : public FitStrategy
 {
-    std::pair<ChunkIterator, LocationIterator> findRange(std::vector<ChunkAllocation>& _allocations,
-                                                         vk::DeviceSize size) override;
+    std::pair<ChunkIterator, FreeIterator> findRange(ChunkIterator begin, ChunkIterator end,
+                                                     vk::DeviceSize size) override;
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

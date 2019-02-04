@@ -134,7 +134,7 @@ void VulkanExample::update(float dt)
         uploadChanges = true;
     }
 
-    camera.setInput(!ImGui::GetIO().WantCaptureKeyboard && !ImGui::GetIO().WantCaptureMouse);
+    //camera.setInput(!ImGui::GetIO().WantCaptureKeyboard && !ImGui::GetIO().WantCaptureMouse);
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)

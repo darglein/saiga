@@ -98,7 +98,7 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
         // allocateMemory(base, mem_reqs, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 
-        base.device.bindImageMemory(depthimage, location.memory, location.size);
+        base.device.bindImageMemory(depthimage, location->memory, location->size);
 
 
         viewInfo.image = depthimage;

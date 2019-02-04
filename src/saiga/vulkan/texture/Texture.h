@@ -18,8 +18,8 @@ struct SAIGA_GLOBAL Texture
 {
    protected:
     VulkanBase* base;
-    MemoryLocation memoryLocation;
-    Saiga::Vulkan::Memory::ImageType type;
+    Memory::MemoryLocation* memoryLocation;
+    Memory::ImageType type;
 
    public:
     Texture() = default;
@@ -28,7 +28,7 @@ struct SAIGA_GLOBAL Texture
     Texture& operator=(const Texture& other) = delete;
     Texture(Texture&& other) noexcept
         : base(other.base),
-          memoryLocation(std::move(other.memoryLocation)),
+          memoryLocation(other.memoryLocation),
           type(std::move(other.type)),
           image(other.image),
           imageLayout(other.imageLayout),
@@ -39,27 +39,29 @@ struct SAIGA_GLOBAL Texture
           layerCount(other.layerCount),
           sampler(other.sampler)
     {
-        other.image     = nullptr;
-        other.imageView = nullptr;
-        other.sampler   = nullptr;
+        other.image          = nullptr;
+        other.imageView      = nullptr;
+        other.sampler        = nullptr;
+        other.memoryLocation = nullptr;
     }
 
     Texture& operator=(Texture&& other) noexcept
     {
-        base            = other.base;
-        memoryLocation  = std::move(other.memoryLocation);
-        type            = other.type;
-        image           = other.image;
-        imageLayout     = other.imageLayout;
-        imageView       = other.imageView;
-        width           = other.width;
-        height          = other.height;
-        mipLevels       = other.mipLevels;
-        layerCount      = other.layerCount;
-        sampler         = other.sampler;
-        other.image     = nullptr;
-        other.imageView = nullptr;
-        other.sampler   = nullptr;
+        base                 = other.base;
+        memoryLocation       = std::move(other.memoryLocation);
+        type                 = other.type;
+        image                = other.image;
+        imageLayout          = other.imageLayout;
+        imageView            = other.imageView;
+        width                = other.width;
+        height               = other.height;
+        mipLevels            = other.mipLevels;
+        layerCount           = other.layerCount;
+        sampler              = other.sampler;
+        other.image          = nullptr;
+        other.imageView      = nullptr;
+        other.sampler        = nullptr;
+        other.memoryLocation = nullptr;
         return *this;
     }
 

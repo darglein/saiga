@@ -5,6 +5,7 @@
 #pragma once
 
 #include "saiga/imgui/imgui.h"
+#include "saiga/vulkan/Queue.h"
 #include "saiga/vulkan/memory/BaseMemoryAllocator.h"
 
 #include "BaseMemoryAllocator.h"
@@ -13,11 +14,8 @@
 
 #include <mutex>
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+
+namespace Saiga::Vulkan::Memory
 {
 class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
 {
@@ -25,18 +23,19 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     std::mutex allocationMutex;
     void findNewMax(ChunkIterator& chunkAlloc) const;
 
-    MemoryLocation createMemoryLocation(ChunkIterator iter, vk::DeviceSize start, vk::DeviceSize size);
-
    protected:
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
-    FitStrategy* m_strategy{};
+
+   public:
+    FitStrategy* strategy{};
+    Queue* queue;
 
     vk::DeviceSize m_chunkSize{};
     vk::DeviceSize m_allocateSize{};
-    std::vector<ChunkAllocation> m_chunkAllocations;
+    ChunkContainer chunks;
 
-
+   protected:
     std::string gui_identifier;
 
     virtual ChunkIterator createNewChunk() = 0;
@@ -44,12 +43,13 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
     virtual void headerInfo() {}
 
    public:
-    BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy& strategy,
+    BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy& strategy, Queue* _queue,
                        vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : BaseMemoryAllocator(chunkSize),
           m_device(_device),
           m_chunkAllocator(chunkAllocator),
-          m_strategy(&strategy),
+          strategy(&strategy),
+          queue(_queue),
           m_chunkSize(chunkSize),
           m_allocateSize(chunkSize),
           gui_identifier("")
@@ -60,10 +60,11 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
         : BaseMemoryAllocator(std::move(other)),
           m_device(other.m_device),
           m_chunkAllocator(other.m_chunkAllocator),
-          m_strategy(other.m_strategy),
+          strategy(other.strategy),
+          queue(other.queue),
           m_chunkSize(other.m_chunkSize),
           m_allocateSize(other.m_allocateSize),
-          m_chunkAllocations(std::move(other.m_chunkAllocations)),
+          chunks(std::move(other.chunks)),
           gui_identifier(std::move(other.gui_identifier))
     {
     }
@@ -73,28 +74,39 @@ class SAIGA_GLOBAL BaseChunkAllocator : public BaseMemoryAllocator
         BaseMemoryAllocator::operator=(std::move(static_cast<BaseMemoryAllocator&&>(other)));
         m_device                     = other.m_device;
         m_chunkAllocator             = other.m_chunkAllocator;
-        m_strategy                   = other.m_strategy;
+        strategy                     = other.strategy;
+        queue                        = other.queue;
         m_chunkSize                  = other.m_chunkSize;
         m_allocateSize               = other.m_allocateSize;
-        m_chunkAllocations           = std::move(other.m_chunkAllocations);
+        chunks                       = std::move(other.chunks);
         gui_identifier               = std::move(other.gui_identifier);
         return *this;
     }
 
     ~BaseChunkAllocator() override = default;
 
-    MemoryLocation allocate(vk::DeviceSize size) override;
+    MemoryLocation* allocate(vk::DeviceSize size) override;
 
-    void deallocate(MemoryLocation& location) override;
+    MemoryLocation* reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
+
+    void deallocate(MemoryLocation* location) override;
+
+    bool memory_is_free(vk::DeviceMemory memory, FreeListEntry entry);
 
     void destroy() override;
 
     MemoryStats collectMemoryStats() override;
 
     void showDetailStats() override;
+
+    MemoryLocation* allocate_in_free_space(vk::DeviceSize size, ChunkIterator& chunkAlloc, FreeIterator& freeSpace);
+
+    std::pair<ChunkIterator, AllocationIterator> find_allocation(MemoryLocation* location);
+
+    void move_allocation(MemoryLocation* target, MemoryLocation* source);
+
+    void add_to_free_list(const ChunkIterator& chunk, const MemoryLocation& location) const;
 };
 
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

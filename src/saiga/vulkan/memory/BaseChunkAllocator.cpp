@@ -10,21 +10,25 @@
 
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"
-
-namespace Saiga
+namespace Saiga::Vulkan::Memory
 {
-namespace Vulkan
+MemoryLocation* BaseChunkAllocator::allocate(vk::DeviceSize size)
 {
-namespace Memory
-{
-MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
-{
-    allocationMutex.lock();
+    std::scoped_lock alloc_lock(allocationMutex);
     ChunkIterator chunkAlloc;
-    LocationIterator freeSpace;
-    tie(chunkAlloc, freeSpace) = m_strategy->findRange(m_chunkAllocations, size);
+    FreeIterator freeSpace;
+    std::tie(chunkAlloc, freeSpace) = strategy->findRange(chunks.begin(), chunks.end(), size);
 
-    if (chunkAlloc == m_chunkAllocations.end())
+    MemoryLocation* val = allocate_in_free_space(size, chunkAlloc, freeSpace);
+
+    return val;
+}
+
+MemoryLocation* BaseChunkAllocator::allocate_in_free_space(vk::DeviceSize size, ChunkIterator& chunkAlloc,
+                                                           FreeIterator& freeSpace)
+{
+    MemoryLocation* val;
+    if (chunkAlloc == chunks.end())
     {
         chunkAlloc = createNewChunk();
         freeSpace  = chunkAlloc->freeList.begin();
@@ -42,202 +46,204 @@ MemoryLocation BaseChunkAllocator::allocate(vk::DeviceSize size)
 
     findNewMax(chunkAlloc);
 
-    MemoryLocation targetLocation = createMemoryLocation(chunkAlloc, memoryStart, size);
-    auto memoryEnd                = memoryStart + size;
-    auto insertionPoint           = find_if(chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(),
-                                  [=](MemoryLocation& loc) { return loc.offset > memoryEnd; });
+
+    // MemoryLocation{iter->buffer, iter->chunk->memory, offset, size, iter->mappedPointer};
 
 
-    auto val = *chunkAlloc->allocations.emplace(insertionPoint, targetLocation);
-    allocationMutex.unlock();
+    auto targetLocation = std::__1::make_unique<MemoryLocation>(chunkAlloc->buffer, chunkAlloc->chunk->memory,
+                                                                memoryStart, size, chunkAlloc->mappedPointer);
+    auto memoryEnd      = memoryStart + size;
 
+    auto insertionPoint =
+        lower_bound(chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(), memoryEnd,
+                    [](const auto& element, vk::DeviceSize value) { return element->offset < value; });
+
+    val = chunkAlloc->allocations.insert(insertionPoint, move(targetLocation))->get();
+    chunkAlloc->allocated += size;
     return val;
 }
 
 void BaseChunkAllocator::findNewMax(ChunkIterator& chunkAlloc) const
 {
     auto& freeList = chunkAlloc->freeList;
-    chunkAlloc->maxFreeRange =
-        max_element(freeList.begin(), freeList.end(),
-                    [](MemoryLocation& first, MemoryLocation& second) { return first.size < second.size; });
+
+    if (chunkAlloc->freeList.empty())
+    {
+        chunkAlloc->maxFreeRange = std::nullopt;
+        return;
+    }
+
+
+    chunkAlloc->maxFreeRange = *max_element(freeList.begin(), freeList.end(),
+                                            [](auto& first, auto& second) { return first.size < second.size; });
 }
 
-MemoryLocation BaseChunkAllocator::createMemoryLocation(ChunkIterator iter, vk::DeviceSize offset, vk::DeviceSize size)
-{
-    return MemoryLocation{iter->buffer, iter->chunk->memory, offset, size, iter->mappedPointer};
-}
 
-void BaseChunkAllocator::deallocate(MemoryLocation& location)
+void BaseChunkAllocator::deallocate(MemoryLocation* location)
 {
     std::scoped_lock alloc_lock(allocationMutex);
-    auto fChunk = find_if(m_chunkAllocations.begin(), m_chunkAllocations.end(),
-                          [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location.memory; });
 
-    SAIGA_ASSERT(fChunk != m_chunkAllocations.end(), "Allocation was not done with this allocator!");
+    ChunkIterator fChunk;
+    AllocationIterator fLoc;
+
+    std::tie(fChunk, fLoc) = find_allocation(location);
+
     auto& chunkAllocs = fChunk->allocations;
-    auto& chunkFree   = fChunk->freeList;
-    auto fLoc         = find(chunkAllocs.begin(), chunkAllocs.end(), location);
+
     SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
-    LOG(INFO) << "Deallocating " << location.size << " bytes in chunk/offset ["
-              << distance(m_chunkAllocations.begin(), fChunk) << "/" << fLoc->offset << "]";
 
-    LocationIterator freePrev, freeNext, freeInsert;
-    bool foundInsert = false;
-    freePrev = freeNext = chunkFree.end();
-    freeInsert          = chunkFree.end();
-    for (auto freeIt = chunkFree.begin(); freeIt != chunkFree.end(); ++freeIt)
-    {
-        if (freeIt->offset + freeIt->size == location.offset)
-        {
-            freePrev = freeIt;
-        }
-        if (freeIt->offset == location.offset + location.size)
-        {
-            freeNext = freeIt;
-            break;
-        }
-        if ((freeIt->offset + freeIt->size) < location.offset)
-        {
-            freeInsert  = freeIt;
-            foundInsert = true;
-        }
-    }
+    LOG(INFO) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
+              << "/" << (*fLoc)->offset << "]";
 
-
-
-    if (freePrev != chunkFree.end() && freeNext != chunkFree.end())
-    {
-        // Free space before and after newly freed space -> merge
-        freePrev->size += location.size + freeNext->size;
-        chunkFree.erase(freeNext);
-    }
-    else if (freePrev != chunkFree.end())
-    {
-        // Free only before -> increase size
-        freePrev->size += location.size;
-    }
-    else if (freeNext != chunkFree.end())
-    {
-        // Free only after newly freed -> move and increase size
-        freeNext->offset = location.offset;
-        freeNext->size += location.size;
-    }
-    else
-    {
-        if (foundInsert)
-        {
-            chunkFree.insert(std::next(freeInsert), location);
-        }
-        else
-        {
-            chunkFree.push_front(location);
-        }
-    }
+    add_to_free_list(fChunk, *(fLoc->get()));
 
     findNewMax(fChunk);
 
     chunkAllocs.erase(fLoc);
+
+    fChunk->allocated -= location->size;
+    while (chunks.size() >= 2)
+    {
+        auto last = chunks.end() - 1;
+        auto stol = chunks.end() - 2;
+
+        if (!last->allocations.empty() || !stol->allocations.empty())
+        {
+            break;
+        }
+
+        m_device.destroy(last->buffer);
+        m_chunkAllocator->deallocate(last->chunk);
+
+        last--;
+        stol--;
+
+        chunks.erase(last + 1, chunks.end());
+    }
 }
 void BaseChunkAllocator::destroy()
 {
-    for (auto& alloc : m_chunkAllocations)
+    for (auto& alloc : chunks)
     {
         m_device.destroy(alloc.buffer);
     }
 }
 
-
-
-void BaseChunkAllocator::showDetailStats()
+bool BaseChunkAllocator::memory_is_free(vk::DeviceMemory memory, FreeListEntry free_mem)
 {
-    using BarColor = ImGui::ColoredBar::BarColor;
-    static const std::array<BarColor, 2> colors{BarColor{{0.0f, 0.2f, 0.2f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}},
-                                                BarColor{{0.333f, 0.0f, 0.0f, 1.0f}, {0.667f, 0.224f, 0.224f, 1.0f}}};
+    std::scoped_lock lock(allocationMutex);
+    auto chunk = std::find_if(chunks.begin(), chunks.end(),
+                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
 
-    static std::vector<ImGui::ColoredBar> allocation_bars;
+    SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
 
-    if (ImGui::CollapsingHeader(gui_identifier.c_str()))
+    if (chunk->freeList.empty())
     {
-        ImGui::Indent();
+        return false;
+    }
+    auto found =
+        std::lower_bound(chunk->freeList.begin(), chunk->freeList.end(), free_mem,
+                         [](const auto& free_entry, const auto& value) { return free_entry.offset < value.offset; });
 
-        headerInfo();
+    // if (found->offset > free_mem.offset)
+    //{
+    //    return false;
+    //}
+    //
+    // if (found->offset + found->size < free_mem.offset + free_mem.size)
+    //{
+    //    return false;
+    //}
 
-        allocation_bars.resize(
-            m_chunkAllocations.size(),
-            ImGui::ColoredBar({0, 60}, {{0.1f, 0.1f, 0.1f, 1.0f}, {0.4f, 0.4f, 0.4f, 1.0f}}, true, 4));
+    return found->offset == free_mem.offset && found->size == free_mem.size;
+}
 
-        int numAllocs           = 0;
-        uint64_t usedSpace      = 0;
-        uint64_t innerFreeSpace = 0;
-        uint64_t totalFreeSpace = 0;
-        for (auto i = 0U; i < allocation_bars.size(); ++i)
-        {
-            ImGui::Text("Chunk %d", i + 1);
-            ImGui::Indent();
-            auto bar   = allocation_bars[i];
-            auto chunk = m_chunkAllocations[i];
-            bar.renderBackground();
-            int j = 0;
-            std::list<MemoryLocation>::const_iterator allocIter, freeIter;
-            for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
-            {
-                bar.renderArea(static_cast<float>(allocIter->offset) / m_chunkSize,
-                               static_cast<float>(allocIter->offset + allocIter->size) / m_chunkSize, colors[j % 2]);
-                usedSpace += allocIter->size;
-            }
-            numAllocs += j;
-            auto freeEnd = --chunk.freeList.cend();
-            for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
-            {
-                innerFreeSpace += freeIter->size;
-                totalFreeSpace += freeIter->size;
-            }
+MemoryLocation* BaseChunkAllocator::reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry,
+                                                  vk::DeviceSize size)
+{
+    std::scoped_lock lock(allocationMutex);
+    auto chunk = std::find_if(chunks.begin(), chunks.end(),
+                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
 
-            totalFreeSpace += chunk.freeList.back().size;
+    SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
 
-            ImGui::Unindent();
-        }
-        ImGui::LabelText("Number of allocations", "%d", numAllocs);
-        auto totalSpace = m_chunkSize * m_chunkAllocations.size();
+    auto free = std::find(chunk->freeList.begin(), chunk->freeList.end(), freeListEntry);
+
+    SAIGA_ASSERT(free != chunk->freeList.end(), "Free space not found");
+
+    return allocate_in_free_space(size, chunk, free);
+}
+
+void BaseChunkAllocator::move_allocation(MemoryLocation* target, MemoryLocation* source)
+{
+    std::scoped_lock lock(allocationMutex);
+    const auto size = source->size;
+
+    MemoryLocation source_copy = *source;
+
+    ChunkIterator target_chunk, source_chunk;
+    AllocationIterator target_alloc, source_alloc;
+
+    std::tie(target_chunk, target_alloc) = find_allocation(target);
+    std::tie(source_chunk, source_alloc) = find_allocation(source);
+
+    *source = *target;  // copy values from target to source;
+
+    // target_chunk->allocated -= size;
+    source_chunk->allocated -= size;
+
+    std::move(source_alloc, std::next(source_alloc), target_alloc);
+
+    source_chunk->allocations.erase(source_alloc);
+
+    add_to_free_list(source_chunk, source_copy);
 
 
-        ImGui::LabelText("Usage", "%s / %s (%.2f%%)", sizeToString(usedSpace).c_str(), sizeToString(totalSpace).c_str(),
-                         100 * static_cast<float>(usedSpace) / totalSpace);
-        ImGui::LabelText("Free Space (total / fragmented)", "%s / %s", sizeToString(totalFreeSpace).c_str(),
-                         sizeToString(innerFreeSpace).c_str());
-        ImGui::Unindent();
+    findNewMax(source_chunk);
+}
+
+void BaseChunkAllocator::add_to_free_list(const ChunkIterator& chunk, const MemoryLocation& location) const
+{
+    auto& freeList = chunk->freeList;
+    auto found = lower_bound(freeList.begin(), freeList.end(), location, [](const auto& free_entry, const auto& value) {
+        return free_entry.offset < value.offset;
+    });
+
+    FreeIterator free;
+
+    auto previous = prev(found);
+    if (found != freeList.begin() && previous->end() == location.offset)
+    {
+        previous->size += location.size;
+        free = previous;
+    }
+    else
+    {
+        free  = freeList.insert(found, FreeListEntry{location.offset, location.size});
+        found = next(free);
+    }
+
+
+    if (found != freeList.end() && free->end() == found->offset)
+    {
+        free->size += found->size;
+        freeList.erase(found);
     }
 }
 
-MemoryStats BaseChunkAllocator::collectMemoryStats()
+std::pair<ChunkIterator, AllocationIterator> BaseChunkAllocator::find_allocation(MemoryLocation* location)
 {
-    int numAllocs                = 0;
-    uint64_t usedSpace           = 0;
-    uint64_t fragmentedFreeSpace = 0;
-    uint64_t totalFreeSpace      = 0;
-    for (size_t i = 0; i < m_chunkAllocations.size(); ++i)
-    {
-        auto chunk = m_chunkAllocations[i];
-        int j      = 0;
-        std::list<MemoryLocation>::const_iterator allocIter, freeIter;
-        for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
-        {
-            usedSpace += allocIter->size;
-        }
-        numAllocs += j;
-        auto freeEnd = --chunk.freeList.cend();
-        for (freeIter = chunk.freeList.cbegin(); freeIter != freeEnd; freeIter++)
-        {
-            fragmentedFreeSpace += freeIter->size;
-            totalFreeSpace += freeIter->size;
-        }
+    auto fChunk = std::find_if(chunks.begin(), chunks.end(),
+                               [&](ChunkAllocation const& alloc) { return alloc.chunk->memory == location->memory; });
 
-        totalFreeSpace += chunk.freeList.back().size;
-    }
-    auto totalSpace = m_chunkSize * m_chunkAllocations.size();
+    SAIGA_ASSERT(fChunk != chunks.end(), "Allocation was not done with this allocator!");
 
-    return MemoryStats{totalSpace, usedSpace, fragmentedFreeSpace};
-};
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+    auto& chunkAllocs = fChunk->allocations;
+    auto fLoc =
+        std::lower_bound(chunkAllocs.begin(), chunkAllocs.end(), location,
+                         [](const auto& element, const auto& value) { return element->offset < value->offset; });
+
+    return std::make_pair(fChunk, fLoc);
+}
+
+}  // namespace Saiga::Vulkan::Memory

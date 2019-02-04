@@ -50,7 +50,7 @@ class SAIGA_TEMPLATE VertexBuffer : public Buffer
     {
         vertexCount    = vertices.size();
         size_t newSize = sizeof(VertexType) * vertexCount;
-        SAIGA_ASSERT(newSize <= m_memoryLocation.size);
+        SAIGA_ASSERT(newSize <= m_memoryLocation->size);
         update(cmd, newSize, vertices.data(), 0);
     }
 
@@ -62,7 +62,7 @@ class SAIGA_TEMPLATE VertexBuffer : public Buffer
     void bind(vk::CommandBuffer& cmd, uint32_t firstBinding = 0)
     {
         SAIGA_ASSERT(m_memoryLocation);
-        cmd.bindVertexBuffers(firstBinding, m_memoryLocation.buffer, m_memoryLocation.offset);
+        cmd.bindVertexBuffers(firstBinding, m_memoryLocation->buffer, m_memoryLocation->offset);
     }
 };
 

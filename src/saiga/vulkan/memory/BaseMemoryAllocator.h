@@ -7,11 +7,7 @@
 #include "MemoryLocation.h"
 
 #include <saiga/util/assert.h>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 struct MemoryStats
 {
@@ -35,7 +31,7 @@ struct MemoryStats
     }
 };
 
-struct SAIGA_GLOBAL BaseMemoryAllocator
+struct BaseMemoryAllocator
 {
     explicit BaseMemoryAllocator(vk::DeviceSize _maxAllocationSize = VK_WHOLE_SIZE)
         : maxAllocationSize(_maxAllocationSize)
@@ -50,9 +46,9 @@ struct SAIGA_GLOBAL BaseMemoryAllocator
 
     virtual ~BaseMemoryAllocator() = default;
 
-    virtual MemoryLocation allocate(vk::DeviceSize size) = 0;
-    virtual void deallocate(MemoryLocation& location)    = 0;
-    vk::DeviceSize maxAllocationSize                     = VK_WHOLE_SIZE;
+    virtual MemoryLocation* allocate(vk::DeviceSize size) = 0;
+    virtual void deallocate(MemoryLocation* location)     = 0;
+    vk::DeviceSize maxAllocationSize                      = VK_WHOLE_SIZE;
 
     virtual void destroy() {}
 
@@ -61,6 +57,4 @@ struct SAIGA_GLOBAL BaseMemoryAllocator
     virtual void showDetailStats(){};
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

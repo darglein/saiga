@@ -18,11 +18,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <saiga/util/easylogging++.h>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 class FallbackAllocator : public BaseMemoryAllocator
 {
@@ -30,7 +26,7 @@ class FallbackAllocator : public BaseMemoryAllocator
     std::mutex mutex;
     vk::Device m_device;
     vk::PhysicalDevice m_physicalDevice;
-    std::vector<MemoryLocation> m_allocations;
+    std::vector<std::unique_ptr<MemoryLocation>> m_allocations;
     std::string gui_identifier;
 
    public:
@@ -63,20 +59,18 @@ class FallbackAllocator : public BaseMemoryAllocator
 
     ~FallbackAllocator() override { destroy(); }
 
-    MemoryLocation allocate(vk::DeviceSize size) override;
+    MemoryLocation* allocate(vk::DeviceSize size) override;
 
-    MemoryLocation allocate(const BufferType& type, vk::DeviceSize size);
-    MemoryLocation allocate(const ImageType& type, const vk::Image& image);
+    MemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
+    MemoryLocation* allocate(const ImageType& type, const vk::Image& image);
 
     void destroy() override;
 
-    void deallocate(MemoryLocation& location) override;
+    void deallocate(MemoryLocation* location) override;
 
     void showDetailStats() override;
 
     MemoryStats collectMemoryStats() override;
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory
