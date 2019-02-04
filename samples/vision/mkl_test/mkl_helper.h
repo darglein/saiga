@@ -20,7 +20,7 @@ inline void multMKL(const sparse_matrix_t A, struct matrix_descr descr, const do
 
 inline void multMKL(const sparse_matrix_t A, struct matrix_descr descr, const float* x, float* y)
 {
-    auto ret = mkl_sparse_s_mv(SPARSE_OPERATION_NON_TRANSPOSE, 1, A, descr, x, 0, y);
+    auto ret = mkl_sparse_s_mv(SPARSE_OPERATION_NON_TRANSPOSE, 1, A, descr, x, 1, y);
     SAIGA_ASSERT(ret == SPARSE_STATUS_SUCCESS);
 }
 
