@@ -7,7 +7,6 @@
 #define EIGEN_DONT_PARALLELIZE
 
 
-#include "saiga/vision/recursiveMatrices/CG.h"
 
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
