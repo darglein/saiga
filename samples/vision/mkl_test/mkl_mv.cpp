@@ -17,8 +17,10 @@ struct LauncherLoop
 {
     void operator()()
     {
-        Saiga::MKL_Test<T, START, factor> t;
-        t.sparseMatrixVector(5);
+        {
+            Saiga::MKL_Test<T, START, factor> t;
+            t.sparseMatrixVector(500);
+        }
         LauncherLoop<START + 1, END, T, factor> l;
         l();
     }
@@ -33,6 +35,6 @@ struct LauncherLoop<END, END, T, factor>
 
 void bench_mv()
 {
-    LauncherLoop<2, 4, double, 16> l;
+    LauncherLoop<2, 64 + 1, double, 64> l;
     l();
 }

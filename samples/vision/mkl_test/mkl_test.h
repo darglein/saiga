@@ -111,6 +111,12 @@ class MKL_Test
 
    public:
     MKL_Test();
+    ~MKL_Test()
+    {
+        mkl_sparse_destroy(mkl_A);
+        mkl_sparse_destroy(mkl_B);
+    }
+
     void sparseMatrixVector(int smv_its);
     void sparseMatrixMatrix(int smm_its);
     void sparseCG(int scg_its, int cg_inner_its);
