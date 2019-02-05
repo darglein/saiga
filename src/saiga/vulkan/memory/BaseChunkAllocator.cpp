@@ -189,6 +189,7 @@ void BaseChunkAllocator::move_allocation(MemoryLocation* target, MemoryLocation*
 
     *source = *target;  // copy values from target to source;
 
+    source->mark_dynamic();
     // target_chunk->allocated -= size;
     source_chunk->allocated -= size;
 

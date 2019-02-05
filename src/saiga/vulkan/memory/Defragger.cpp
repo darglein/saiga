@@ -79,6 +79,10 @@ void Defragger::find_defrag_ops()
         {
             auto& source = **alloc_iter;
 
+            if (source.is_static())
+            {
+                continue;
+            }
             auto begin = chunks.begin();
             auto end   = (chunk_iter).base();  // Conversion from reverse to normal iterator moves one back
             //

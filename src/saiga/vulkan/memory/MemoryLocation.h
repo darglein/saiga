@@ -3,35 +3,36 @@
 //
 
 #pragma once
-#include "saiga/export.h"
 #include "saiga/core/util/easylogging++.h"
+#include "saiga/export.h"
 #include "saiga/vulkan/memory/Chunk.h"
 
 #include <ostream>
 #include <saiga/core/util/assert.h>
 #include <vulkan/vulkan.hpp>
-namespace Saiga::Vulkan
-{
-// struct VulkanBase;
-
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 struct SAIGA_VULKAN_API MemoryLocation
 {
+   public:
     vk::Buffer buffer;
     vk::DeviceMemory memory;
     vk::DeviceSize offset;
     vk::DeviceSize size;
     void* mappedPointer;
 
+   private:
+    bool static_mem;
+
+   public:
     explicit MemoryLocation(vk::DeviceSize _size)
-        : buffer(nullptr), memory(nullptr), offset(0), size(_size), mappedPointer(nullptr)
+        : buffer(nullptr), memory(nullptr), offset(0), size(_size), mappedPointer(nullptr), static_mem(true)
     {
     }
 
     explicit MemoryLocation(vk::Buffer _buffer = nullptr, vk::DeviceMemory _memory = nullptr,
                             vk::DeviceSize _offset = 0, vk::DeviceSize _size = 0, void* _basePointer = nullptr)
-        : buffer(_buffer), memory(_memory), offset(_offset), size(_size), mappedPointer(nullptr)
+        : buffer(_buffer), memory(_memory), offset(_offset), size(_size), mappedPointer(nullptr), static_mem(true)
     {
         if (_basePointer)
         {
@@ -48,20 +49,25 @@ struct SAIGA_VULKAN_API MemoryLocation
           memory(other.memory),
           offset(other.offset),
           size(other.size),
-          mappedPointer(other.mappedPointer)
+          mappedPointer(other.mappedPointer),
+          static_mem(other.static_mem)
     {
         other.make_invalid();
     }
 
     MemoryLocation& operator=(MemoryLocation&& other) noexcept
     {
-        buffer        = other.buffer;
-        memory        = other.memory;
-        offset        = other.offset;
-        size          = other.size;
-        mappedPointer = other.mappedPointer;
+        if (this != &other)
+        {
+            buffer        = other.buffer;
+            memory        = other.memory;
+            offset        = other.offset;
+            size          = other.size;
+            mappedPointer = other.mappedPointer;
+            static_mem    = other.static_mem;
 
-        other.make_invalid();
+            other.make_invalid();
+        }
         return *this;
     }
 
@@ -82,6 +88,11 @@ struct SAIGA_VULKAN_API MemoryLocation
     void mappedDownload(vk::Device device, void* data) const;
 
    public:
+    inline bool is_dynamic() { return !is_static(); }
+    inline bool is_static() { return static_mem; }
+
+    inline void mark_dynamic() { static_mem = false; }
+
     void copy_to(vk::CommandBuffer cmd, MemoryLocation* target) const;
 
     void upload(vk::Device device, const void* data);
@@ -119,5 +130,4 @@ struct SAIGA_VULKAN_API MemoryLocation
     }
 };
 
-}  // namespace Memory
-}  // namespace Saiga::Vulkan
+}  // namespace Saiga::Vulkan::Memory
