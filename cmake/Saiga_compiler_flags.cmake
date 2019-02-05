@@ -1,5 +1,6 @@
 ############# Check which compiler is used ############
 
+set(SAIGA_CXX_WCLANG 0)
 set(SAIGA_CXX_CLANG 0)
 set(SAIGA_CXX_GNU 0)
 set(SAIGA_CXX_INTEL 0)
@@ -7,8 +8,13 @@ set(SAIGA_CXX_MSVC 0)
 
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	if(WIN32)
+    set(SAIGA_CXX_WCLANG 1)
+    message(STATUS "Detected Compiler:   Windows Clang")
+	else()
     set(SAIGA_CXX_CLANG 1)
     message(STATUS "Detected Compiler:   Clang")
+	endif()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     set(SAIGA_CXX_GNU 1)
     message(STATUS "Detected Compiler:   GNU")
@@ -57,7 +63,7 @@ if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 endif()
 
-if(SAIGA_CXX_MSVC)
+if(SAIGA_CXX_MSVC OR SAIGA_CXX_WCLANG)
     #multiprocessor compilation for visual studio
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
     add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
