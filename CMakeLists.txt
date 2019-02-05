@@ -259,7 +259,7 @@ PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRAR
 
 
 ##### Vulkan #####
-if(SAIGA_MODULE_OPENGL)
+if(SAIGA_MODULE_VULKAN)
     find_package(Vulkan QUIET)
     PackageHelperTarget(Vulkan::Vulkan VULKAN_FOUND)
 
