@@ -6,28 +6,24 @@
 
 #include <tuple>
 #include <utility>
-namespace Saiga
+namespace Saiga::Vulkan::Memory
 {
-namespace Vulkan
+std::pair<ChunkIterator, FreeIterator> FirstFitStrategy::findRange(ChunkIterator begin, ChunkIterator end,
+                                                                   vk::DeviceSize size)
 {
-namespace Memory
-{
-std::pair<ChunkIterator, LocationIterator> FirstFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
-                                                                       vk::DeviceSize size)
-{
-    auto foundChunk = std::find_if(_allocations.begin(), _allocations.end(), [&](ChunkAllocation& alloc) {
-        return alloc.maxFreeRange != alloc.freeList.end() && (alloc.maxFreeRange->size >= size);
+    auto foundChunk = std::find_if(begin, end, [&](ChunkAllocation& alloc) {
+        return alloc.maxFreeRange.value_or(FreeListEntry{0, 0}).size >= size;
     });
 
-    if (foundChunk == _allocations.end())
+    if (foundChunk == end)
     {
-        return std::make_pair(_allocations.end(), LocationIterator());
+        return std::make_pair(end, FreeIterator());
     }
 
     auto& chunk = *foundChunk;
 
     auto foundRange = std::find_if(chunk.freeList.begin(), chunk.freeList.end(),
-                                   [&](MemoryLocation& loc) { return loc.size >= size; });
+                                   [&](const FreeListEntry& loc) { return loc.size >= size; });
 
     SAIGA_ASSERT(foundRange != chunk.freeList.end(), "free size is invalid.");
 
@@ -35,14 +31,16 @@ std::pair<ChunkIterator, LocationIterator> FirstFitStrategy::findRange(std::vect
 }
 
 template <typename CompareFunc>
-std::pair<ChunkIterator, LocationIterator> findFitPairForBestWorst(std::vector<ChunkAllocation>& _allocations,
-                                                                   vk::DeviceSize size, CompareFunc func)
+std::pair<ChunkIterator, FreeIterator> findFitPairForBestWorst(ChunkIterator begin, ChunkIterator end,
+                                                               vk::DeviceSize size)
 {
     bool found = false;
     ChunkIterator foundChunk;
-    LocationIterator foundFreeSpace;
+    FreeIterator foundFreeSpace;
 
-    for (auto chunkIt = _allocations.begin(); chunkIt != _allocations.end(); ++chunkIt)
+    auto chunkIt = begin;
+
+    while (chunkIt != end)
     {
         for (auto freeIt = chunkIt->freeList.begin(); freeIt != chunkIt->freeList.end(); ++freeIt)
         {
@@ -69,23 +67,22 @@ std::pair<ChunkIterator, LocationIterator> findFitPairForBestWorst(std::vector<C
                 foundChunk     = chunkIt;
             }
         }
+        chunkIt++;
     }
 
     return make_pair(foundChunk, foundFreeSpace);
 }
 
-std::pair<ChunkIterator, LocationIterator> BestFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
-                                                                      vk::DeviceSize size)
+std::pair<ChunkIterator, FreeIterator> BestFitStrategy::findRange(ChunkIterator begin, ChunkIterator end,
+                                                                  vk::DeviceSize size)
 {
-    return findFitPairForBestWorst(_allocations, size, std::less<vk::DeviceSize>());
+    return findFitPairForBestWorst<std::less<vk::DeviceSize>>(begin, end, size);
 }
 
-std::pair<ChunkIterator, LocationIterator> WorstFitStrategy::findRange(std::vector<ChunkAllocation>& _allocations,
-                                                                       vk::DeviceSize size)
+std::pair<ChunkIterator, FreeIterator> WorstFitStrategy::findRange(ChunkIterator begin, ChunkIterator end,
+                                                                   vk::DeviceSize size)
 {
-    return findFitPairForBestWorst(_allocations, size, std::greater<vk::DeviceSize>());
+    return findFitPairForBestWorst<std::greater<vk::DeviceSize>>(begin, end, size);
 }
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

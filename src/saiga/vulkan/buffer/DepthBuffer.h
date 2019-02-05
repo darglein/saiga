@@ -21,7 +21,7 @@ class SAIGA_VULKAN_API DepthBuffer
     VulkanBase* base;
 
    public:
-    MemoryLocation location;
+    Memory::MemoryLocation* location;
     //    vk::DeviceMemory depthmem;
 
     // depth image

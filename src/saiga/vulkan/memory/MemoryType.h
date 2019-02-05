@@ -6,11 +6,7 @@
 
 #include <ostream>
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 template <typename T>
 struct MemoryType
@@ -38,14 +34,6 @@ struct MemoryType
         return (memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
     }
 
-
-    std::string to_string()
-    {
-        std::stringstream ss;
-        operator<<(ss, *this);
-        return ss.str();
-    }
-
     bool operator<(const MemoryType& rhs) const
     {
         if (static_cast<unsigned int>(usageFlags) < static_cast<unsigned int>(rhs.usageFlags))
@@ -70,9 +58,7 @@ struct SAIGA_VULKAN_API ImageType : public MemoryType<vk::ImageUsageFlags>
 {
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory
 
 namespace std
 {

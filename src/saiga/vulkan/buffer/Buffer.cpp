@@ -18,7 +18,7 @@ void Buffer::destroy()
     if (m_memoryLocation && bufferUsage != vk::BufferUsageFlags())
     {
         base->memory.deallocateBuffer({bufferUsage, memoryProperties}, m_memoryLocation);
-        m_memoryLocation.make_invalid();
+        m_memoryLocation = nullptr;
     }
 }
 
@@ -40,21 +40,21 @@ void Buffer::stagedUpload(VulkanBase& base, size_t size, const void* data)
     StagingBuffer staging;
     staging.init(base, size, data);
 
-    vk::BufferCopy bc(0, m_memoryLocation.offset, size);
-    cmd.copyBuffer(staging.m_memoryLocation.buffer, m_memoryLocation.buffer, bc);
+    vk::BufferCopy bc(0, m_memoryLocation->offset, size);
+    cmd.copyBuffer(staging.m_memoryLocation->buffer, m_memoryLocation->buffer, bc);
     cmd.end();
     base.mainQueue.submitAndWait(cmd);
 }
 
 vk::DescriptorBufferInfo Buffer::createInfo()
 {
-    return {m_memoryLocation.buffer, m_memoryLocation.offset, m_memoryLocation.size};
+    return {m_memoryLocation->buffer, m_memoryLocation->offset, m_memoryLocation->size};
 }
 
 void Buffer::flush(VulkanBase& base, vk::DeviceSize size, vk::DeviceSize offset)
 {
     vk::MappedMemoryRange mappedRange = {};
-    mappedRange.memory                = m_memoryLocation.memory;
+    mappedRange.memory                = m_memoryLocation->memory;
     mappedRange.offset                = offset;
     mappedRange.size                  = size;
     base.device.flushMappedMemoryRanges(mappedRange);
@@ -69,24 +69,24 @@ void Buffer::copyTo(vk::CommandBuffer cmd, Buffer& target, vk::DeviceSize srcOff
     }
     SAIGA_ASSERT(this->size() - srcOffset >= size, "Source buffer is not large enough");
     SAIGA_ASSERT(target.size() - dstOffset >= size, "Destination buffer is not large enough");
-    vk::BufferCopy bc{m_memoryLocation.offset + srcOffset, target.m_memoryLocation.offset + dstOffset, size};
-    cmd.copyBuffer(m_memoryLocation.buffer, target.m_memoryLocation.buffer, bc);
+    vk::BufferCopy bc{m_memoryLocation->offset + srcOffset, target.m_memoryLocation->offset + dstOffset, size};
+    cmd.copyBuffer(m_memoryLocation->buffer, target.m_memoryLocation->buffer, bc);
 }
 
 void Buffer::copyTo(vk::CommandBuffer cmd, vk::Image dstImage, vk::ImageLayout dstImageLayout,
                     vk::ArrayProxy<const vk::BufferImageCopy> regions)
 {
-    cmd.copyBufferToImage(m_memoryLocation.buffer, dstImage, dstImageLayout, regions);
+    cmd.copyBufferToImage(m_memoryLocation->buffer, dstImage, dstImageLayout, regions);
 }
 
 vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const
 {
-    return {m_memoryLocation.offset + offset};
+    return {m_memoryLocation->offset + offset};
 }
 
 void Buffer::update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset)
 {
-    cmd.updateBuffer(m_memoryLocation.buffer, m_memoryLocation.offset + offset, size, data);
+    cmd.updateBuffer(m_memoryLocation->buffer, m_memoryLocation->offset + offset, size, data);
 }
 
 std::ostream& operator<<(std::ostream& os, const Buffer& buffer)

@@ -31,8 +31,9 @@ namespace Vulkan
 struct SAIGA_VULKAN_API VulkanBase
 {
    private:
-    std::unique_ptr<Queue> compute_queue;
-    std::unique_ptr<Queue> transfer_queue;
+    // TODO: Rename to backing fields for dedicated queues
+    std::unique_ptr<Queue> dedicated_compute_queue;
+    std::unique_ptr<Queue> dedicated_transfer_queue;
 
    public:
     vk::PhysicalDevice physicalDevice;
@@ -44,8 +45,6 @@ struct SAIGA_VULKAN_API VulkanBase
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties;
 
     vk::PipelineCache pipelineCache;
-
-    std::pair<uint32_t, uint32_t> main_queue_info, transfer_info, compute_info;
 
     /**
      * The main queue must be able to do Graphics and Compute (and Transfer).
@@ -59,12 +58,16 @@ struct SAIGA_VULKAN_API VulkanBase
      */
     Queue* transferQueue;
 
+    inline bool has_dedicated_transfer() { return dedicated_transfer_queue != nullptr; }
+
     /**
      * A dedicated compute queue. If the GPU does not provide enough queues this will point to the same
      * queue as mainQueue. Depending on the GPU the queue may have other capabilities.
      * If the GPU provides dedicated Compute queues (without graphics capabilities) one of them will be used.
      */
     Queue* computeQueue;
+    inline bool has_dedicated_compute() { return dedicated_compute_queue != nullptr; }
+
 
     // A large descriptor pool which should be used by the application
     // The size is controlled by the vulkan parameters
@@ -100,7 +103,7 @@ struct SAIGA_VULKAN_API VulkanBase
 
     void renderGUI();
 
-    bool findQueueFamily(vk::QueueFlags flags, uint32_t& family);
+    bool findQueueFamily(vk::QueueFlags flags, uint32_t& family, uint32_t offset = 0);
 
     bool findDedicatedQueueFamily(vk::QueueFlags flags, uint32_t& family);
 };

@@ -20,7 +20,6 @@
 #include "saiga/core/window/Interfaces.h"
 
 #include <vector>
-
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener

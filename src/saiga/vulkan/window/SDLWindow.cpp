@@ -54,8 +54,8 @@ std::shared_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui(size_t frameCount)
 std::vector<const char*> SDLWindow::getRequiredInstanceExtensions()
 {
     unsigned int count = 0;
-    const char** names = NULL;
-    auto res           = SDL_Vulkan_GetInstanceExtensions(sdl_window, &count, NULL);
+    const char** names = nullptr;
+    auto res           = SDL_Vulkan_GetInstanceExtensions(sdl_window, &count, nullptr);
     cout << SDL_GetError() << endl;
     SAIGA_ASSERT(res);
     // now count is (probably) 2. Now you can make space:
@@ -114,8 +114,8 @@ void SDLWindow::create()
 
 void SDLWindow::createSurface(VkInstance instance, VkSurfaceKHR* surface)
 {
-    auto asdf = SDL_Vulkan_CreateSurface(sdl_window, instance, surface);
-    SAIGA_ASSERT(asdf);
+    auto create_surface_success = SDL_Vulkan_CreateSurface(sdl_window, instance, surface);
+    SAIGA_ASSERT(create_surface_success);
 }
 
 void SDLWindow::update(float dt)

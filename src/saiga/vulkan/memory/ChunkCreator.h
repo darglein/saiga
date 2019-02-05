@@ -13,11 +13,7 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 /**
  * Class that allocates chunks of memory for different types.
@@ -34,13 +30,12 @@ class SAIGA_VULKAN_API ChunkCreator
     ChunkType& findMemoryType(vk::MemoryPropertyFlags flags);
 
    public:
+    ChunkCreator() {}
 
-	ChunkCreator() {}
-
-	ChunkCreator(const ChunkCreator&) = delete;
+    ChunkCreator(const ChunkCreator&) = delete;
     ChunkCreator& operator=(const ChunkCreator&) = delete;
 
-	ChunkCreator(ChunkCreator&& other) = default;
+    ChunkCreator(ChunkCreator&& other) = default;
     ChunkCreator& operator=(ChunkCreator&& other) = default;
 
     void init(vk::PhysicalDevice _physicalDevice, vk::Device _device);
@@ -60,6 +55,4 @@ class SAIGA_VULKAN_API ChunkCreator
     }
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

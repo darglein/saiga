@@ -126,9 +126,9 @@ void VulkanBase::renderGUI()
 
     ImGui::Text("Used queues");
 
-    ImGui::Text("Main: %d, %d", main_queue_info.first, main_queue_info.second);
-    ImGui::Text("Transfer: %d, %d", transfer_info.first, transfer_info.second);
-    ImGui::Text("Compute: %d, %d", compute_info.first, compute_info.second);
+    ImGui::Text("Main: %d, %d", mainQueue.getQueueFamilyIndex(), mainQueue.getQueueIndex());
+    ImGui::Text("Transfer: %d, %d", transferQueue->getQueueFamilyIndex(), transferQueue->getQueueIndex());
+    ImGui::Text("Compute: %d, %d", computeQueue->getQueueFamilyIndex(), computeQueue->getQueueIndex());
 
     ImGui::Unindent();
 

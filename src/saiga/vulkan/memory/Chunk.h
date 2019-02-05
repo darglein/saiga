@@ -7,11 +7,7 @@
 #include <saiga/core/util/assert.h>
 #include <vulkan/vulkan.hpp>
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 struct Chunk
 {
@@ -25,6 +21,4 @@ struct Chunk
     }
 };
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

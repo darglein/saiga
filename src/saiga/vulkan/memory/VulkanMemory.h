@@ -7,6 +7,7 @@
 
 #include "BufferChunkAllocator.h"
 #include "ChunkCreator.h"
+#include "Defragger.h"
 #include "FallbackAllocator.h"
 #include "ImageChunkAllocator.h"
 #include "MemoryType.h"
@@ -19,17 +20,19 @@
 #include <vulkan/vulkan.hpp>
 
 #include <unordered_map>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 class SAIGA_VULKAN_API VulkanMemory
 {
    private:
-    using BufferMap        = std::map<BufferType, std::unique_ptr<BaseMemoryAllocator>>;
-    using ImageMap         = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
+    struct BufferAllocator
+    {
+        std::unique_ptr<BufferChunkAllocator> allocator;
+        std::unique_ptr<Defragger> defragger;
+    };
+    using BufferMap = std::map<BufferType, BufferAllocator>;
+    using ImageMap  = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
+
     using BufferDefaultMap = std::map<BufferType, vk::DeviceSize>;
     using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
     using BufferIter       = BufferMap::iterator;
@@ -37,6 +40,7 @@ class SAIGA_VULKAN_API VulkanMemory
 
     vk::PhysicalDevice m_pDevice;
     vk::Device m_device;
+    Queue* m_queue;
 
 
     std::vector<vk::MemoryType> memoryTypes;
@@ -83,6 +87,7 @@ class SAIGA_VULKAN_API VulkanMemory
 
     BufferMap bufferAllocators;
     ImageMap imageAllocators;
+
     std::unique_ptr<FallbackAllocator> fallbackAllocator;
     ChunkCreator chunkCreator;
     std::unique_ptr<FitStrategy> strategy;
@@ -138,27 +143,31 @@ class SAIGA_VULKAN_API VulkanMemory
         return vk::MemoryPropertyFlags();
     }
 
+
+    BufferAllocator& getAllocator(const BufferType& type);
+
+    ImageChunkAllocator& getImageAllocator(const ImageType& type);
+
    public:
-    void init(vk::PhysicalDevice _pDevice, vk::Device _device);
+    void init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue);
 
     void destroy();
 
     void renderGUI();
 
-    MemoryLocation allocate(const BufferType& type, vk::DeviceSize size);
+    MemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
 
-    MemoryLocation allocate(const ImageType& type, const vk::Image& image);
+    MemoryLocation* allocate(const ImageType& type, const vk::Image& image);
 
-    void deallocateBuffer(const BufferType& type, MemoryLocation& location);
+    void deallocateBuffer(const BufferType& type, MemoryLocation* location);
 
-    void deallocateImage(const ImageType& type, MemoryLocation& location);
+    void deallocateImage(const ImageType& type, MemoryLocation* location);
 
-    BaseMemoryAllocator& getAllocator(const BufferType& type);
+    void enable_defragmentation(const BufferType& type, bool enable);
 
-    ImageChunkAllocator& getImageAllocator(const ImageType& type);
+    void start_defrag(const BufferType& type);
+
+    void stop_defrag(const BufferType& type);
 };
 
-
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

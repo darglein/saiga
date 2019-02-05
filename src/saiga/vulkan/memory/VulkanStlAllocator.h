@@ -12,11 +12,7 @@
 #include <vulkan/vulkan.hpp>
 
 
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 /**
  * Allocator that uses host visible and host coherent vulkan memory.
@@ -36,21 +32,18 @@ struct VulkanStlAllocator
    private:
     struct AllocationHeader
     {
-        MemoryLocation memoryLocation;
+        MemoryLocation* memoryLocation;
     };
 
-    vk::Device m_device;
-    vk::PhysicalDevice m_physicalDevice;
-    vk::BufferUsageFlags m_usageFlags;
 
-    BaseMemoryAllocator* allocator;
+    BufferType type;
+    VulkanBase* base;
 
    public:
-    VulkanStlAllocator(VulkanBase& base, const vk::BufferUsageFlags& _usageFlags)
-        : m_device(base.device), m_physicalDevice(base.physicalDevice), m_usageFlags(_usageFlags)
+    VulkanStlAllocator(VulkanBase& _base, const vk::BufferUsageFlags& _usageFlags)
+        : type({_usageFlags, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent}),
+          base(&_base)
     {
-        allocator = &base.memory.getAllocator(
-            {_usageFlags, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent});
     }
 
     pointer allocate(size_type n, const_pointer hint = 0)
@@ -59,12 +52,12 @@ struct VulkanStlAllocator
 
         LOG(DEBUG) << "Stl Allocating " << n * sizeof(T);
 
-        auto allocation = allocator->allocate(size);
+        auto allocation = base->memory.allocate(type, size);
 
-        SAIGA_ASSERT(allocation.mappedPointer, "Allocation is not mapped");
+        SAIGA_ASSERT(allocation->mappedPointer, "Allocation is not mapped");
 
-        auto headerPtr            = reinterpret_cast<AllocationHeader*>(allocation.mappedPointer);
-        headerPtr->memoryLocation = allocation;
+        auto headerPtr           = reinterpret_cast<AllocationHeader*>(allocation->mappedPointer);
+        headerPtr.memoryLocation = allocation;
 
         return reinterpret_cast<pointer>(headerPtr + 1);
     }
@@ -75,7 +68,7 @@ struct VulkanStlAllocator
         auto header    = *(headerPtr - 1);
 
         LOG(DEBUG) << "Deallocating " << n * sizeof(T);
-        allocator->deallocate(header.memoryLocation);
+        base->memory.deallocateBuffer(type, header.memoryLocation);
     }
 
     void construct(pointer p, const_reference t) { new ((void*)p) T(t); }
@@ -84,6 +77,4 @@ struct VulkanStlAllocator
 };
 
 
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory

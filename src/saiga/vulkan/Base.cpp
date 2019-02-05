@@ -30,13 +30,13 @@ void VulkanBase::destroy()
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
 
-    if (compute_queue)
+    if (dedicated_compute_queue)
     {
-        compute_queue->destroy();
+        dedicated_compute_queue->destroy();
     }
-    if (transfer_queue)
+    if (dedicated_transfer_queue)
     {
-        transfer_queue->destroy();
+        dedicated_transfer_queue->destroy();
     }
     mainQueue.destroy();
 
@@ -60,15 +60,19 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
                                       main_idx);  // A queue with compute or graphics can always be used for transfer
     SAIGA_ASSERT(found_main, "A main queue with compute and graphics capabilities is required");
 
+    int offset = 0;
     if (!findDedicatedQueueFamily(vk::QueueFlagBits::eCompute, compute_idx))
     {
-        findQueueFamily(vk::QueueFlagBits::eCompute, compute_idx);
+        findQueueFamily(vk::QueueFlagBits::eCompute, compute_idx, ++offset);
     }
 
     if (!findDedicatedQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx))
     {
-        findQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx);
+        findQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx, ++offset);
     }
+
+
+    std::pair<uint32_t, uint32_t> main_queue_info, transfer_info, compute_info;
 
     main_queue_info = std::make_pair(main_idx, queueCounts[main_idx] % queueFamilyProperties[main_idx].queueCount);
     queueCounts[main_idx]++;
@@ -175,7 +179,6 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
     }
 #endif
 
-    memory.init(physicalDevice, device);
 
     vk::PipelineCacheCreateInfo pipelineCacheCreateInfo = {};
     pipelineCache                                       = device.createPipelineCache(pipelineCacheCreateInfo);
@@ -187,9 +190,9 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
 
     if (main_queue_info != compute_info)
     {
-        compute_queue = std::make_unique<Saiga::Vulkan::Queue>();
-        compute_queue->create(device, compute_info.first, compute_info.second);
-        computeQueue = compute_queue.get();
+        dedicated_compute_queue = std::make_unique<Saiga::Vulkan::Queue>();
+        dedicated_compute_queue->create(device, compute_info.first, compute_info.second);
+        computeQueue = dedicated_compute_queue.get();
     }
     else
     {
@@ -198,10 +201,10 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
 
     if (main_queue_info != compute_info)
     {
-        transfer_queue = std::make_unique<Saiga::Vulkan::Queue>();
+        dedicated_transfer_queue = std::make_unique<Saiga::Vulkan::Queue>();
 
-        transfer_queue->create(device, transfer_info.first, transfer_info.second);
-        transferQueue = transfer_queue.get();
+        dedicated_transfer_queue->create(device, transfer_info.first, transfer_info.second);
+        transferQueue = dedicated_transfer_queue.get();
     }
     else
     {
@@ -215,20 +218,24 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, parameters.descriptorCounts[2]},
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, parameters.descriptorCounts[3]},
         });
+
+
+    memory.init(physicalDevice, device, transferQueue);
 }
 
 void VulkanBase::init(VulkanParameters params) {}
 
 
-bool VulkanBase::findQueueFamily(vk::QueueFlags flags, uint32_t& family)
+bool VulkanBase::findQueueFamily(vk::QueueFlags flags, uint32_t& family, uint32_t offset)
 {
     for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
     {
-        auto& prop = queueFamilyProperties[i];
+        auto offset_index = (i + offset) % queueFamilyProperties.size();
+        auto& prop        = queueFamilyProperties[offset_index];
 
         if ((prop.queueFlags & flags) == flags)
         {
-            family = i;
+            family = offset_index;
             return true;
         }
     }

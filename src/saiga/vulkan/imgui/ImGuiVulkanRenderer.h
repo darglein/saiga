@@ -39,6 +39,12 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
 
         FrameData(VulkanBase& base, uint32_t maxVertexCount, uint32_t maxIndexCount);
 
+        FrameData(const FrameData& other) = delete;
+        FrameData(FrameData&& other)      = default;
+
+        FrameData& operator=(const FrameData& other) = delete;
+        FrameData& operator=(FrameData&& other) = default;
+
         void destroy(VulkanBase& base);
 
         void resizeIfNecessary(VulkanBase& base, uint32_t vertexCount, uint32_t indexCount)
@@ -99,8 +105,8 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
     int32_t vertexCount = 0;
     int32_t indexCount  = 0;
 
-    int32_t initialMaxVertexCount = 64 * 1024;
-    int32_t initialMaxIndexCount  = 64 * 1024;
+    uint32_t initialMaxVertexCount = 64 * 1024;
+    uint32_t initialMaxIndexCount  = 64 * 1024;
 
 
     Texture2D fontTexture;

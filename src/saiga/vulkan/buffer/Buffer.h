@@ -23,7 +23,7 @@ class SAIGA_VULKAN_API Buffer
     VulkanBase* base                         = nullptr;
     vk::BufferUsageFlags bufferUsage         = vk::BufferUsageFlagBits();
     vk::MemoryPropertyFlags memoryProperties = vk::MemoryPropertyFlags();
-    MemoryLocation m_memoryLocation;
+    Memory::MemoryLocation* m_memoryLocation = nullptr;
 
    public:
     Buffer()                    = default;
@@ -33,19 +33,26 @@ class SAIGA_VULKAN_API Buffer
         : base(other.base),
           bufferUsage(other.bufferUsage),
           memoryProperties(other.memoryProperties),
-          m_memoryLocation(std::move(other.m_memoryLocation))
+          m_memoryLocation(other.m_memoryLocation)
     {
+        other.m_memoryLocation = nullptr;
     }
 
     Buffer& operator=(Buffer&& other) noexcept
     {
-        base             = other.base;
-        bufferUsage      = other.bufferUsage;
-        memoryProperties = other.memoryProperties;
-        m_memoryLocation = std::move(other.m_memoryLocation);
+        if (this != &other)
+        {
+            base                   = other.base;
+            bufferUsage            = other.bufferUsage;
+            memoryProperties       = other.memoryProperties;
+            m_memoryLocation       = other.m_memoryLocation;
+            other.m_memoryLocation = nullptr;
+        }
         return *this;
     }
 
+
+    inline vk::DeviceSize size() { return m_memoryLocation ? m_memoryLocation->size : 0; }
 
     virtual ~Buffer() { destroy(); }
 
@@ -61,16 +68,17 @@ class SAIGA_VULKAN_API Buffer
      * @param size Size of the data
      * @param data Pointer to the data.
      */
-    void stagedUpload(VulkanBase& base, size_t size, const void* data);
+    void stagedUpload(VulkanBase& base, size_t size, const void* data);  // TODO: Remove base parameter
 
     vk::DescriptorBufferInfo createInfo();
 
-    void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE, vk::DeviceSize offset = 0);
+    void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE,
+               vk::DeviceSize offset = 0);  // TODO: Remove base parameter
 
     void destroy();
 
-    inline vk::DeviceSize offset() const { return m_memoryLocation.offset; }
-    inline vk::DeviceSize size() const { return m_memoryLocation.size; }
+    inline vk::DeviceSize offset() const { return m_memoryLocation->offset; }
+    inline vk::DeviceSize size() const { return m_memoryLocation->size; }
 
     /**
      * Copy this buffer to another with vk::CommandBuffer::copyBuffer
@@ -102,13 +110,13 @@ class SAIGA_VULKAN_API Buffer
 
     void update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset = 0);
 
-    inline bool isMapped() const { return m_memoryLocation.mappedPointer != nullptr; }
+    inline bool isMapped() const { return m_memoryLocation->mappedPointer != nullptr; }
 
-    inline void* getMappedPointer() const { return static_cast<char*>(m_memoryLocation.mappedPointer); }
+    inline void* getMappedPointer() const { return static_cast<char*>(m_memoryLocation->mappedPointer); }
 
-    void upload(void* data) { m_memoryLocation.upload(base->device, data); }
+    void upload(void* data) { m_memoryLocation->upload(base->device, data); }
 
-    void download(void* data) { m_memoryLocation.download(base->device, data); }
+    void download(void* data) { m_memoryLocation->download(base->device, data); }
 
     friend std::ostream& operator<<(std::ostream& os, const Buffer& buffer);
 };

@@ -9,11 +9,7 @@
 
 #include <vector>
 #include <vulkan/vulkan.hpp>
-namespace Saiga
-{
-namespace Vulkan
-{
-namespace Memory
+namespace Saiga::Vulkan::Memory
 {
 /**
  * Abstraction for a single memory type as provided by vkGetPhysicalDeviceMemoryProperties().
@@ -58,8 +54,4 @@ class SAIGA_VULKAN_API ChunkType
         m_chunks.clear();
     }
 };
-
-
-}  // namespace Memory
-}  // namespace Vulkan
-}  // namespace Saiga
+}  // namespace Saiga::Vulkan::Memory
