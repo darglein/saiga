@@ -14,6 +14,7 @@ class SAIGA_VISION_API CeresBA : public BABase
 {
    public:
     CeresBA() : BABase("Ceres BA") {}
+    virtual ~CeresBA() {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
 };
 
