@@ -17,7 +17,7 @@ namespace Saiga
 class SAIGA_VISION_API BARec : public BABase
 {
    public:
-    BARec() : BABase("Recursive BA") {}
+    BARec() : BABase("Recursive BA"), U(A.u), V(A.v), W(A.w), WT(A.wt), da(x.u), db(x.v), ea(b.u), eb(b.v) {}
     virtual ~BARec() {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
 
@@ -33,24 +33,24 @@ class SAIGA_VISION_API BARec : public BABase
     // Number of observing cameras for each world point+ the corresponding exclusive scan and sum
     std::vector<int> pointCameraCounts, pointCameraCountsScan;
 
-    // ==== Main (recursive) Variables ====
-    UType U;
-    VType V;
-    WType W;
-    WTType WT;
+    // Main (recursive) Variables for the system Ax=b
+    SymmetricMixedMatrix22<UType, VType, WType, WTType> A;
+    MixedVector2<DAType, DBType> x, b;
 
-    DAType da;
-    DBType db;
-    DAType ea;
-    DBType eb;
+    MixedRecursiveSolver<SymmetricMixedMatrix22<UType, VType, WType, WTType>, MixedVector2<DAType, DBType>,
+                         MixedVector2<DAType, DBType>>
+        solver;
 
-    // ==== Solver tmps ====
-    DBType q;
-    VType Vinv;
-    WType Y;
-    SType S;
-    Eigen::DiagonalMatrix<MatrixScalar<ADiag>, -1> Sdiag;
-    DAType ej;
+    // These are only reference into the global matrix A
+    UType& U;
+    VType& V;
+    WType& W;
+    WTType& WT;
+
+    DAType& da;
+    DBType& db;
+    DAType& ea;
+    DBType& eb;
 
 
     //    std::vector<int> imageIds;
@@ -63,9 +63,6 @@ class SAIGA_VISION_API BARec : public BABase
     double chi2;
     void initStructure(Scene& scene);
     void computeUVW(Scene& scene);
-    void computeSchur();
-    void solveSchur();
-    void finalizeSchur();
     void updateScene(Scene& scene);
 
     bool explizitSchur = false;

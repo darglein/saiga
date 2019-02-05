@@ -93,12 +93,12 @@ int main(int, char**)
     baoptions.maxIterativeIterations = 20;
     baoptions.iterativeTolerance     = 1e-50;
 
-    cout << baoptions << endl;
     //    baoptions.huberMono   = 5.99;
     //    baoptions.huberStereo = 7.815;
 
-    //    baoptions.solverType             = BAOptions::SolverType::Direct;
+    //    baoptions.solverType = BAOptions::SolverType::Direct;
     baoptions.solverType = BAOptions::SolverType::Iterative;
+    cout << baoptions << endl;
 
     std::vector<std::shared_ptr<BABase>> solvers;
 

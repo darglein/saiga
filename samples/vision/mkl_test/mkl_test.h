@@ -4,14 +4,16 @@
  * See LICENSE file for more information.
  */
 
+#pragma once
 
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
-#include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 #include "mkl/mkl.h"
+
+#include <fstream>
 
 #include "mkl_cg.h"
 #include "mkl_helper.h"
@@ -23,29 +25,7 @@
 // ===================================================================================================
 // Performance test parameters for Block Sparse Matrix operations
 
-// Type of benchmark
 
-const int mat_mult = true;
-const int vec_mult = false;
-const int cg_mult  = false;
-
-
-using T              = double;
-const int block_size = 8;
-
-// Matrix dimension (in blocks)
-// divide by block size so the total number of nonzeros stays (roughly) the same by varying block_size
-const int n = 1024 * 16 / block_size;
-const int m = 1024 * 16 / block_size;
-
-// Non Zero Block per row
-const int nnzr = 512 / block_size;
-
-const int smv_its = 100;
-const int smm_its = 5;
-const int scg_its = 100;
-
-const int cg_inner_its = 5;
 
 // ===================================================================================================
 // Output for block sizes 6 and 8 on Xeon E5620 compiled with clang
@@ -105,23 +85,35 @@ const int cg_inner_its = 5;
 // ===================================================================================================
 // Block Types
 using namespace Saiga;
-using Block  = Eigen::Matrix<T, block_size, block_size, Eigen::RowMajor>;
-using Vector = Eigen::Matrix<T, block_size, 1>;
-
-using BlockVector = Eigen::Matrix<MatrixScalar<Vector>, -1, 1>;
-using BlockMatrix = Eigen::SparseMatrix<MatrixScalar<Block>, Eigen::RowMajor>;
 
 
 
 namespace Saiga
 {
+template <typename T, int block_size, int factor>
 class MKL_Test
 {
+    // Matrix dimension (in blocks)
+    // divide by block size so the total number of nonzeros stays (roughly) the same by varying block_size
+    const int n = 1024 * factor / block_size;
+    const int m = 1024 * factor / block_size;
+
+    // Non Zero Block per row
+    const int nnzr = 32 * factor / block_size;
+
+
+
+    using Block  = Eigen::Matrix<T, block_size, block_size, Eigen::RowMajor>;
+    using Vector = Eigen::Matrix<T, block_size, 1>;
+
+    using BlockVector = Eigen::Matrix<MatrixScalar<Vector>, -1, 1>;
+    using BlockMatrix = Eigen::SparseMatrix<MatrixScalar<Block>, Eigen::RowMajor>;
+
    public:
     MKL_Test();
-    void sparseMatrixVector();
-    void sparseMatrixMatrix();
-    void sparseCG();
+    void sparseMatrixVector(int smv_its);
+    void sparseMatrixMatrix(int smm_its);
+    void sparseCG(int scg_its, int cg_inner_its);
 
    private:
     // Eigen data structures
@@ -140,3 +132,8 @@ class MKL_Test
     matrix_descr mkl_A_desc, mkl_B_desc;
 };
 }  // namespace Saiga
+
+#include "mkl_benchmark_cg.hpp"
+#include "mkl_benchmark_mm.hpp"
+#include "mkl_benchmark_mv.hpp"
+#include "mkl_test.hpp"

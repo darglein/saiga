@@ -4,14 +4,17 @@
  * See LICENSE file for more information.
  */
 
-#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 16
+#pragma once
 
 #include "mkl_test.h"
 
 namespace Saiga
 {
-void MKL_Test::sparseMatrixMatrix()
+template <typename T, int block_size, int factor>
+inline void MKL_Test<T, block_size, factor>::sparseMatrixMatrix(int smm_its)
 {
+    std::ofstream strm("eigen_mkl_mm.csv", std::ostream::app);
+
     cout << "Running Block Sparse Matrix-Matrix Benchmark..." << endl;
     cout << "Number of Runs: " << smm_its << endl;
     // ============= Benchmark =============
@@ -177,12 +180,17 @@ void MKL_Test::sparseMatrixMatrix()
     double ts_eigen = stat_eigen.median / 1000.0;
     double ts_mkl   = stat_mkl.median / 1000.0;
 
+    double gflop_eigen = flop / (ts_eigen * 1000 * 1000 * 1000);
+    double gflop_mkl   = flop / (ts_mkl * 1000 * 1000 * 1000);
+
     cout << "Done." << endl;
-    cout << "Median Time Eigen : " << ts_eigen << " -> " << flop / (ts_eigen * 1000 * 1000 * 1000) << " GFlop/s"
-         << endl;
-    cout << "Median Time MKL   : " << ts_mkl << " -> " << flop / (ts_mkl * 1000 * 1000 * 1000) << " GFlop/s" << endl;
-    cout << "MKL Speedup: " << (ts_eigen / ts_mkl - 1) * 100 << "%" << endl;
+    cout << "Median Time Eigen : " << ts_eigen << " -> " << gflop_eigen << " GFlop/s" << endl;
+    cout << "Median Time MKL   : " << ts_mkl << " -> " << gflop_mkl << " GFlop/s" << endl;
+    cout << "Eigen Speedup: " << (ts_mkl / ts_eigen) * 100 << "%" << endl;
     cout << endl;
+
+    strm << block_size << "," << n << "," << nnzr << "," << typeid(T).name() << "," << ts_eigen << "," << gflop_eigen
+         << "," << ts_mkl << "," << gflop_mkl << "," << (ts_mkl / ts_eigen) << ",1" << endl;
 }
 
 }  // namespace Saiga

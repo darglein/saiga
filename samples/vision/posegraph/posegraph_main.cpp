@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-#include "saiga/vision/scene/PoseGraph.h"
-
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/fileChecker.h"
@@ -12,6 +10,7 @@
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
 #include "saiga/vision/pgo/PGORecursive.h"
+#include "saiga/vision/scene/PoseGraph.h"
 using namespace Saiga;
 
 int main(int, char**)
@@ -25,10 +24,10 @@ int main(int, char**)
 
 
     PoseGraph pg;
-    //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
+    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
     //    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
-    pg.load(SearchPathes::data("vision/loop.posegraph"));
-    //    pg.addNoise(0.1);
+    //    pg.load(SearchPathes::data("vision/loop.posegraph"));
+    pg.addNoise(0.1);
     cout << endl;
 
 

@@ -81,17 +81,6 @@ void BARec::initStructure(Scene& scene)
 
     ea.resize(n);
     eb.resize(m);
-    q.resize(m);
-
-    // ==
-
-    // tmp variables
-    Vinv.resize(m);
-    Y.resize(n, m);
-    Sdiag.resize(n);
-    ej.resize(n);
-    S.resize(n, n);
-
 
     cameraPointCounts.clear();
     cameraPointCounts.resize(n, 0);
@@ -355,219 +344,11 @@ void BARec::computeUVW(Scene& scene)
         }
     }
 
-
-    double lambda = 1 / (scene.scale() * scene.scale());
-
-
-#if 0
-    lambda = 1;
-    // g2o simple lambda
-    for (int i = 0; i < n; ++i)
-    {
-        U.diagonal()(i).get() += ADiag::Identity() * lambda;
-    }
-    for (int i = 0; i < m; ++i)
-    {
-        V.diagonal()(i).get() += BDiag::Identity() * lambda;
-    }
-#else
-    // lm lambda
-
-    lambda = 1.0 / 1.00e+04;
-    // value from ceres
-    double min_lm_diagonal = 1e-6;
-    double max_lm_diagonal = 1e32;
-
-    for (int i = 0; i < n; ++i)
-    {
-        auto& diag = U.diagonal()(i).get();
-
-        for (int k = 0; k < diag.RowsAtCompileTime; ++k)
-        {
-            auto& value = diag.diagonal()(k);
-            value       = value + lambda * value;
-            value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
-        }
-    }
-    for (int i = 0; i < m; ++i)
-    {
-        auto& diag = V.diagonal()(i).get();
-        for (int k = 0; k < diag.RowsAtCompileTime; ++k)
-        {
-            auto& value = diag.diagonal()(k);
-            value       = value + lambda * value;
-            value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
-        }
-    }
-#endif
+    double lambda = 1.0 / 1.00e+04;
+    applyLMDiagonal(U, lambda);
+    applyLMDiagonal(V, lambda);
 }
 
-
-
-void BARec::computeSchur()
-{
-    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
-    {
-        // Schur complement solution
-
-        // Step 1 ~ 0.5%
-        // Invert V
-        for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
-
-        // Step 2
-        // Compute Y ~7.74%
-        Y = multSparseDiag(W, Vinv);
-    }
-
-    {
-        // Step 3
-        // Compute the Schur complement S
-        // Not sure how good the sparse matrix mult is of eigen
-        // maybe own implementation because the structure is well known before hand
-        // ~ 22.3 %
-        if (explizitSchur)
-        {
-            S            = Y * WT;
-            S            = -S;
-            S.diagonal() = U.diagonal() + S.diagonal();
-        }
-        else
-        {
-            diagInnerProductTransposed(Y, W, Sdiag);
-            Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
-        }
-
-        // Step 4
-        // Compute the right hand side of the schur system ej
-        // S * da = ej
-        ej = ea + -(Y * eb);
-    }
-}
-
-void BARec::solveSchur()
-{
-    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
-    if (options.solverType == BAOptions::SolverType::Direct)
-    {
-//            SAIGA_BLOCK_TIMER("LDLT");
-#if 0
-        {
-            // currently around of a factor 3 slower then the eigen ldlt
-            SAIGA_BLOCK_TIMER();
-            SparseRecursiveLDLT<decltype(S), decltype(ej)> ldlt;
-            ldlt.compute(S);
-            da = ldlt.solve(ej);
-        }
-
-#else
-        Eigen::SparseMatrix<BlockBAScalar> ssparse(n * blockSizeCamera, n * blockSizeCamera);
-        {
-            // Step 5
-            // Solve the schur system for da
-            // ~ 5.04%
-
-            auto triplets = sparseBlockToTriplets(S);
-
-            ssparse.setFromTriplets(triplets.begin(), triplets.end());
-        }
-        {
-            //~61%
-
-            Eigen::SimplicialLDLT<Eigen::SparseMatrix<BlockBAScalar>> solver;
-            //        Eigen::SimplicialLDLT<SType> solver;
-            solver.compute(ssparse);
-
-            auto b                                     = expand(ej);
-            Eigen::Matrix<BlockBAScalar, -1, 1> deltaA = solver.solve(b);
-
-            //        cout << "deltaA" << endl << deltaA << endl;
-
-            // copy back into da
-            for (int i = 0; i < n; ++i)
-            {
-                da(i) = deltaA.segment<blockSizeCamera>(i * blockSizeCamera);
-            }
-        }
-#endif
-    }
-    else
-    {
-        // this CG solver is super fast :)
-        //            SAIGA_BLOCK_TIMER("CG");
-        da.setZero();
-        RecursiveDiagonalPreconditioner<MatrixScalar<ADiag>> P;
-        Eigen::Index iters = options.maxIterativeIterations;
-        BlockBAScalar tol  = options.iterativeTolerance;
-
-        if (explizitSchur)
-        {
-            P.compute(S);
-            DAType tmp(n);
-            recursive_conjugate_gradient(
-                [&](const DAType& v) {
-                    tmp = S * v;
-                    return tmp;
-                },
-                ej, da, P, iters, tol);
-        }
-        else
-        {
-            P.compute(Sdiag);
-            DBType q(m);
-            DAType tmp(n);
-            recursive_conjugate_gradient(
-                [&](const DAType& v) {
-                    // x = U * p - Y * WT * p
-                    if (computeWT)
-                    {
-                        tmp = Y * (WT * v);
-                    }
-                    else
-                    {
-                        multSparseRowTransposedVector(W, v, q);
-                        tmp = Y * q;
-                    }
-                    tmp = (U.diagonal().array() * v.array()) - tmp.array();
-                    return tmp;
-                },
-                ej, da, P, iters, tol);
-        }
-        if (options.debugOutput) cout << "error " << tol << " iterations " << iters << endl;
-    }
-}
-
-void BARec::finalizeSchur()
-{
-    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
-    {
-        //            SAIGA_BLOCK_TIMER();
-        // Step 6
-        // Substitute the solultion deltaA into the original system and
-        // bring it to the right hand side
-        // ~1.6%
-
-        if (computeWT)
-        {
-            q = WT * da;
-        }
-        else
-        {
-            multSparseRowTransposedVector(W, da, q);
-        }
-        q = eb - q;
-        //            q = eb + -WT * da;
-        //        cout << "qref" << endl
-        //             << (blockVectorToVector(eb) - blockMatrixToMatrix(WT.toDense()) *
-        //             blockVectorToVector(da)) << endl;
-
-        //        cout << "q" << endl << blockVectorToVector(q) << endl;
-
-        // Step 7
-        // Solve the remaining partial system with the precomputed inverse of V
-        /// ~0.2%
-        db = multDiagVector(Vinv, q);
-    }
-}
 
 void BARec::updateScene(Scene& scene)
 {
@@ -597,8 +378,6 @@ void BARec::updateScene(Scene& scene)
         auto& p = scene.worldPoints[id].p;
         p += t.cast<double>();
     }
-    //    Sophus::Sim3d a;
-    //    a.Adj();
 }
 
 
@@ -609,34 +388,18 @@ void BARec::solve(Scene& scene, const BAOptions& options)
     this->options = options;
     initStructure(scene);
 
-
-
     // ======================== Variables ========================
-
-
     for (int k = 0; k < options.maxIterations; ++k)
     {
         computeUVW(scene);
 
+        LinearSolverOptions loptions;
+        loptions.maxIterativeIterations = options.maxIterativeIterations;
+        loptions.iterativeTolerance     = options.iterativeTolerance;
 
-        if (options.debugOutput)
-        {
-            cout << "chi2 = " << chi2 << endl;
-        }
-
-        computeSchur();
-
-#if 0
-        cout << expand(W) << endl << endl;
-        cout << expand(U.toDenseMatrix()) << endl << endl;
-        cout << expand(V.toDenseMatrix()) << endl << endl;
-        return;
-#endif
-
-        solveSchur();
-        finalizeSchur();
-
-
+        //        loptions.solverType         = LinearSolverOptions::SolverType::Direct;
+        loptions.buildExplizitSchur = explizitSchur;
+        solver.solve(A, x, b, loptions);
 
         updateScene(scene);
     }
