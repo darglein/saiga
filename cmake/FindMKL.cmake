@@ -36,7 +36,10 @@ find_library(MKL_LIBRARIES_SEQUENTIAL
 
 set(MKL_LIBRARIES ${MKL_LIBRARIES_CORE} ${MKL_LIBRARIES_LP64} ${MKL_LIBRARIES_SEQUENTIAL})
 
-
+if(UNIX)
+	set(MKL_LIBRARIES ${MKL_LIBRARIES} pthread m)
+	set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-Wl,--no-as-needed")
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(MKL DEFAULT_MSG MKL_INCLUDE_DIR MKL_LIBRARIES)

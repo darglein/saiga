@@ -217,14 +217,14 @@ PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARI
 
 
 # Currently only mkl is supported
-set(BLA_VENDOR Intel10_64lp_seq)
-find_package(BLAS QUIET)
-PackageHelper(BLAS "${BLAS_FOUND}" "" "${BLAS_LIBRARIES}")
-message(STATUS "BLAS Library: ${BLAS_LIBRARIES}")
+#set(BLA_VENDOR Intel10_64lp_seq)
+#find_package(BLAS QUIET)
+#PackageHelper(BLAS "${BLAS_FOUND}" "" "${BLAS_LIBRARIES}")
+#message(STATUS "BLAS Library: ${BLAS_LIBRARIES}")
 
-find_package(LAPACK QUIET)
-PackageHelper(LAPACK "${LAPACK_FOUND}" "" "${LAPACK_LIBRARIES}")
-message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
+#find_package(LAPACK QUIET)
+#PackageHelper(LAPACK "${LAPACK_FOUND}" "" "${LAPACK_LIBRARIES}")
+#message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
 
 #mkl
 find_package(MKL QUIET)
