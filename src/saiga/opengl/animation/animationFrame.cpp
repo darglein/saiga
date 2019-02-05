@@ -6,10 +6,9 @@
 
 #include "animationFrame.h"
 
-#include "saiga/opengl/animation/animation.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/opengl/animation/animation.h"
 
-#include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
 AnimationNode::AnimationNode(const AnimationNode& n0, const AnimationNode& n1, float alpha)

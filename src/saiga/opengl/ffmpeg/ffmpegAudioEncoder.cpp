@@ -12,8 +12,6 @@
 #    include "saiga/core/util/assert.h"
 #    include "saiga/core/util/math.h"
 
-#    include "internal/noGraphicsAPI.h"
-
 #    include "ffmpegAudioEncoder.h"
 
 namespace Saiga

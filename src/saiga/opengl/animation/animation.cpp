@@ -8,8 +8,6 @@
 
 #include "saiga/core/util/assert.h"
 
-#include "internal/noGraphicsAPI.h"
-
 #include <algorithm>
 namespace Saiga
 {

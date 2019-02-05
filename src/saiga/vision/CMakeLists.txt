@@ -64,3 +64,10 @@ target_include_directories(
     # for the internal files
     #${PROJECT_SOURCE_DIR}/src/
     )
+
+##### Precompiled Headers #####
+if(SAIGA_PCH)
+    set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "${PROJECT_SOURCE_DIR}/src/internal/pch_vision.h")
+    set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_ADD_UNITY_BUILD false)
+    cotire(${MODULE_NAME})
+endif()

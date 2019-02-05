@@ -25,7 +25,6 @@ extern "C"
 #    include <libavutil/channel_layout.h>
 }
 
-#    include "internal/noGraphicsAPI.h"
 
 
 namespace Saiga

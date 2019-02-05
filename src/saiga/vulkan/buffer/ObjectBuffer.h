@@ -46,8 +46,8 @@ class SAIGA_VULKAN_API ObjectBuffer : public Buffer
         Buffer::destroy();
     }
 
-    pointer get() { return static_cast<pointer>(m_memoryLocation.mappedPointer); }
-    const_pointer get() const { return static_cast<const_pointer>(m_memoryLocation.mappedPointer); }
+    pointer get() { return static_cast<pointer>(m_memoryLocation->mappedPointer); }
+    const_pointer get() const { return static_cast<const_pointer>(m_memoryLocation->mappedPointer); }
 
     pointer operator->() { return get(); }
     reference operator*() { return *get(); }

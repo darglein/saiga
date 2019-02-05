@@ -7,3 +7,4 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/opengl/opengl.h"

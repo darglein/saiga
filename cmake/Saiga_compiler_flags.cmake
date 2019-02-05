@@ -19,6 +19,12 @@ endif()
 
 ######### basic #########
 
+if(SAIGA_LIBSTDCPP AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++")
+    set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -stdlib=libstdc++")
+    SET(LIBS ${LIBS} "-lstdc++")
+endif()
+
 if(UNIX)
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 endif(UNIX)
