@@ -1,40 +1,34 @@
 
 
-
-if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+set(MKLLIB "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.2.190/windows/mkl")
 
     find_path(MKL_INCLUDE_DIR
-        mkl/mkl.h
+        mkl.h
         PATHS
             /usr/local
+			${MKLLIB}/include
     )
-
-find_library(MKL_LIBRARIES
+	
+find_library(MKL_LIBRARIES_CORE
   mkl_core
   PATHS
-  $ENV{MKLLIB}
-  /opt/intel/mkl/*/lib/em64t
-  /opt/intel/Compiler/*/*/mkl/lib/em64t
-  ${LIB_INSTALL_DIR}
+  ${MKLLIB}/lib/intel64
 )
 
-find_library(MKL_GUIDE
-  guide
+find_library(MKL_LIBRARIES_LP64
+  mkl_intel_lp64
   PATHS
-  $ENV{MKLLIB}
-  /opt/intel/mkl/*/lib/em64t
-  /opt/intel/Compiler/*/*/mkl/lib/em64t
-  /opt/intel/Compiler/*/*/lib/intel64
-  ${LIB_INSTALL_DIR}
+  ${MKLLIB}/lib/intel64
 )
 
-if(MKL_LIBRARIES AND MKL_GUIDE)
-  set(MKL_LIBRARIES ${MKL_LIBRARIES} mkl_intel_lp64 mkl_sequential ${MKL_GUIDE} pthread)
-endif()
+find_library(MKL_LIBRARIES_SEQUENTIAL
+  mkl_sequential
+  PATHS
+  ${MKLLIB}/lib/intel64
+)
 
-set(MKL_LIBRARIES ${MKL_LIBRARIES} mkl_intel_lp64 mkl_sequential)
+set(MKL_LIBRARIES ${MKL_LIBRARIES_CORE} ${MKL_LIBRARIES_LP64} ${MKL_LIBRARIES_SEQUENTIAL})
 
-endif()
 
 
 include(FindPackageHandleStandardArgs)

@@ -91,7 +91,7 @@ inline void MKL_Test<T, block_size, factor>::sparseCG(int scg_its, int cg_inner_
     cout << "Done." << endl;
     cout << "Median Time Eigen : " << ts_eigen << " -> " << gflop_eigen << " GFlop/s" << endl;
     cout << "Median Time MKL   : " << ts_mkl << " -> " << gflop_mkl << " GFlop/s" << endl;
-    cout << "Eigen Speedup: " << (ts_mkl / ts_eigen) * 100 << "%" << endl;
+    cout << "Eigen Speedup: " << (ts_mkl / ts_eigen) << endl;
     cout << endl;
 
 

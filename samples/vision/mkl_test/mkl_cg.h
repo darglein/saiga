@@ -7,7 +7,7 @@
 #include "saiga/config.h"
 #include "saiga/core/util/assert.h"
 
-#include "mkl/mkl.h"
+#include "mkl.h"
 
 #include <math.h>
 #include <vector>

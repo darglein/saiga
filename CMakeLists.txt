@@ -228,7 +228,7 @@ message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
 
 #mkl
 find_package(MKL QUIET)
-if(MKL_FOUND AND BLAS_FOUND AND LAPACK_FOUND)
+if(MKL_FOUND )
     SET(SAIGA_USE_MKL 1)
 endif()
 PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")

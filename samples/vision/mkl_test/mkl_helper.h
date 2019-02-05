@@ -7,7 +7,7 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
-#include "mkl/mkl.h"
+#include "mkl.h"
 
 /**
  * Only a few simple wrappers for mkl calls
