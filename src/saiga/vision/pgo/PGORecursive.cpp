@@ -6,8 +6,6 @@
 #include "saiga/vision/HistogramImage.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
-#include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/LM.h"
 
 #include <fstream>
 #include <numeric>

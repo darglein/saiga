@@ -7,7 +7,7 @@
 #pragma once
 
 
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 namespace Saiga
 {
@@ -51,36 +51,3 @@ using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor>;
 
 
 }  // namespace Saiga
-
-
-
-#if 0
-// A * a = a
-SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::ADiag>, Saiga::MatrixScalar<Saiga::ARes>,
-                       Saiga::MatrixScalar<Saiga::ARes>);
-
-// W * WT = A
-SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::WElem>, Saiga::MatrixScalar<Saiga::WTElem>,
-                       Saiga::MatrixScalar<Saiga::ADiag>);
-
-// W * B = W
-SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::WElem>, Saiga::MatrixScalar<Saiga::BDiag>,
-                       Saiga::MatrixScalar<Saiga::WElem>);
-
-// W * b = a
-SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::WElem>, Saiga::MatrixScalar<Saiga::BRes>,
-                       Saiga::MatrixScalar<Saiga::ARes>);
-
-// WT * a = b
-SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::WTElem>, Saiga::MatrixScalar<Saiga::ARes>,
-                       Saiga::MatrixScalar<Saiga::BRes>);
-#endif
-
-// A * a
-// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DAType);
-// B * b
-// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DBType);
-// S = Y * WT
-// SAIGA_RM_CREATE_SMM_YX_RRC(Saiga::WType);
-// SAIGA_RM_CREATE_SMM_YX_RCC(Saiga::WType);
-// SAIGA_RM_CREATE_SMM_YX_RCR(Saiga::WType);

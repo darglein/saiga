@@ -16,6 +16,9 @@
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
+#include "Eigen/SparseCholesky"
+
+
 namespace Saiga
 {
 template <typename MatrixType, typename VectorType>

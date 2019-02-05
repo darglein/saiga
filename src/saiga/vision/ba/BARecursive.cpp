@@ -14,29 +14,9 @@
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 #include "saiga/vision/kernels/Robust.h"
-#include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
-#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
-
-#include "Eigen/SparseCholesky"
 
 #include <fstream>
 #include <numeric>
-
-
-using Scalar = Saiga::BlockBAScalar;
-const int bn = Saiga::blockSizeCamera;
-const int bm = Saiga::blockSizeCamera;
-using Block  = Eigen::Matrix<Scalar, bn, bm>;
-using Vector = Eigen::Matrix<Scalar, bn, 1>;
-
-// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
-
-
-
-// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::DAType);
-
-
 
 namespace Saiga
 {

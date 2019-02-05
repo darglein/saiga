@@ -16,11 +16,7 @@
 #    include "saiga/vision/kernels/BAPose.h"
 #    include "saiga/vision/kernels/BAPosePoint.h"
 #    include "saiga/vision/kernels/Robust.h"
-#    include "saiga/vision/recursiveMatrices/CG.h"
-#    include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
-#    include "saiga/vision/recursiveMatrices/SparseCholesky.h"
-
-#    include "Eigen/SparseCholesky"
+#    include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 #    include <fstream>
 #    include <numeric>

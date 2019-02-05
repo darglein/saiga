@@ -7,8 +7,7 @@
 #pragma once
 
 #include "saiga/core/util/assert.h"
-#include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 
 namespace Saiga
