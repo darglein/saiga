@@ -34,8 +34,21 @@ class SAIGA_VISION_API BARec : public BABase
     std::vector<int> pointCameraCounts, pointCameraCountsScan;
 
     // Main (recursive) Variables for the system Ax=b
-    SymmetricMixedMatrix22<UType, VType, WType, WTType> A;
-    MixedVector2<DAType, DBType> x, b;
+    //    SymmetricMixedMatrix22<UType, VType, WType, WTType> A;
+
+    SymmetricMixedMatrix22<
+        Eigen::DiagonalMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera>>, -1>,
+        Eigen::DiagonalMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint>>, -1>,
+        Eigen::SparseMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint>>,
+                            Eigen::RowMajor>,
+        Eigen::SparseMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizeCamera>>,
+                            Eigen::RowMajor>>
+        A;
+
+    //    MixedVector2<DAType, DBType> x, b;
+    MixedVector2<Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>>, -1, 1>,
+                 Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>>, -1, 1>>
+        x, b;
 
     MixedRecursiveSolver<SymmetricMixedMatrix22<UType, VType, WType, WTType>, MixedVector2<DAType, DBType>,
                          MixedVector2<DAType, DBType>>

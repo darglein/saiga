@@ -5,8 +5,8 @@
  */
 
 // for matrix-vector
-#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 1
-
+#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
+//#define SAIGA_GENEREAL_MV
 
 #include "mkl_test.h"
 
@@ -35,6 +35,6 @@ struct LauncherLoop<END, END, T, factor>
 
 void bench_mv()
 {
-    LauncherLoop<8, 8 + 1, double, 2> l;
+    LauncherLoop<63, 63 + 1, double, 16> l;
     l();
 }

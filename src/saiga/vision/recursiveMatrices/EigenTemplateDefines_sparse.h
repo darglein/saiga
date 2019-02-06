@@ -10,6 +10,7 @@
 #include "saiga/vision/recursiveMatrices/SparseHelper.h"
 
 
+
 namespace Eigen
 {
 namespace internal
@@ -117,9 +118,36 @@ struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, Eigen::Mat
     static void processRow(const LhsEval& lhsEval, const DenseRhsType& rhs, DenseResType& res,
                            const typename Res::Scalar&, Index i, Index col)
     {
-        typename Res::Scalar tmp(0);
-        for (LhsInnerIterator it(lhsEval, i); it; ++it) res.coeffRef(i, col) += it.value() * rhs.coeff(it.index(), col);
-        res.coeffRef(i, col) += tmp;
+#ifndef SAIGA_GENEREAL_MV
+        for (LhsInnerIterator it(lhsEval, i); it; ++it)
+        {
+            auto& vlhs = it.value().get();
+            auto& vrhs = rhs.coeff(it.index(), col).get();
+            res.coeffRef(i, col).get() += vlhs * vrhs;
+        }
+#else
+        using SuperScalar = typename Res::Scalar::Scalar;
+        typedef const_blas_data_mapper<SuperScalar, Index, RowMajor> LhsMapper;
+        typedef const_blas_data_mapper<SuperScalar, Index, ColMajor> RhsMapper;
+        general_matrix_vector_product<Index, SuperScalar, LhsMapper, RowMajor, false, double, RhsMapper, false, 0> prod;
+
+        for (LhsInnerIterator it(lhsEval, i); it; ++it)
+        {
+            auto vlhs = it.value().get();
+            auto vrhs = rhs.coeff(it.index(), col).get();
+            //            res.coeffRef(i, col) += vlhs * vrhs;
+
+
+            typename Res::Scalar::M tmp2;
+            tmp2.setZero();
+            prod.run(vlhs.rows(), vlhs.cols(), LhsMapper(vlhs.data(), vlhs.outerStride()), RhsMapper(vrhs.data(), 1),
+                     tmp2.data(), tmp2.col(0).innerStride(), 1);
+
+            res.coeffRef(i, col).get() += tmp2;
+
+            //            res.coeffRef(i, col) += it.value() * rhs.coeff(it.index(), col);
+        }
+#endif
     }
 };
 

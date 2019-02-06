@@ -32,6 +32,9 @@ struct LauncherLoop<END, END, T, factor>
     void operator()() {}
 };
 
+#ifdef EIGEN_GPU_COMPILE_PHASE
+#    error something went wrong
+#endif
 
 void bench_mm()
 {

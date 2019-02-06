@@ -25,26 +25,21 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixVector(int smv_its)
     //    stat_eigen = measureObject(its, [&]() { y = A * x; });
 
 #if 0
-        // Test if the result is correct
-        y.setZero();
-        y = A * x;
-        cout << expand(x).norm() << " " << expand(y).norm() << endl;
+    // Test if the result is correct
+    y.setZero();
+    y = A * x;
+    cout << expand(x).norm() << " " << expand(y).norm() << endl;
 
+    ex_y.setZero();
+    mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, 1, mkl_A, mkl_A_desc, ex_x.data(), 0, ex_y.data());
+    cout << expand(ex_x).norm() << " " << expand(ex_y).norm() << endl;
 
-        ex_y.setZero();
-        BLAS_dusmv(blas_no_trans, 1, nist_A, ex_x.data(), 1, ex_y.data(), 1);
-        cout << expand(ex_x).norm() << " " << expand(ex_y).norm() << endl;
+    exit(0);
+    y.resize(x.rows());
 
-        ex_y.setZero();
-        mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, 1, mkl_A, mkl_A_desc, ex_x.data(), 0, ex_y.data());
-        cout << expand(ex_x).norm() << " " << expand(ex_y).norm() << endl;
-
-        exit(0);
+    y = (A * x).eval();
 #endif
 
-        y.resize(x.rows());
-
-         y = (A * x).eval();
 
     // Note: Matrix Vector Mult is exactly #nonzeros FMA instructions
     flop       = double(nnzr) * n * block_size * block_size;
@@ -72,7 +67,7 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixVector(int smv_its)
     cout << "Done." << endl;
     cout << "Median Time Eigen : " << ts_eigen << " -> " << gflop_eigen << " GFlop/s" << endl;
     cout << "Median Time MKL   : " << ts_mkl << " -> " << gflop_mkl << " GFlop/s" << endl;
-    cout << "Eigen Speedup: " << (ts_mkl / ts_eigen)  << endl;
+    cout << "Eigen Speedup: " << (ts_mkl / ts_eigen) << endl;
     cout << endl;
 
 
