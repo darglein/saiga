@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
     const int cg_mult  = true;
 
     if (vec_mult) bench_mv();
-    if (mat_mult) bench_mm();
-    if (cg_mult) bench_cg();
+    //    if (mat_mult) bench_mm();
+    //    if (cg_mult) bench_cg();
     return 0;
 }
