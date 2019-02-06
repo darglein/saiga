@@ -6,7 +6,7 @@
 
 
 // for matrix-vector
-#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
+#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 1
 
 
 
@@ -36,6 +36,6 @@ struct LauncherLoop<END, END, T, factor>
 
 void bench_cg()
 {
-    LauncherLoop<2, 64 + 1, double, 32> l;
+    LauncherLoop<2, 2 + 1, double, 32> l;
     l();
 }

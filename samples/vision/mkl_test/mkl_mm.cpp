@@ -6,7 +6,7 @@
 
 
 // for matrix-matrix
-#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 16
+#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 1
 
 
 #include "mkl_test.h"
@@ -35,6 +35,6 @@ struct LauncherLoop<END, END, T, factor>
 
 void bench_mm()
 {
-    LauncherLoop<2, 64 + 1, double, 8> l;
+    LauncherLoop<2, 2 + 1, double, 8> l;
     l();
 }

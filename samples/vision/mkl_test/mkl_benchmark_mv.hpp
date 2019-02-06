@@ -42,9 +42,13 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixVector(int smv_its)
         exit(0);
 #endif
 
+        y.resize(x.rows());
+
+         y = (A * x).eval();
+
     // Note: Matrix Vector Mult is exactly #nonzeros FMA instructions
     flop       = double(nnzr) * n * block_size * block_size;
-    stat_eigen = measureObject(smv_its, [&]() { y += A * x; });
+    stat_eigen = measureObject(smv_its, [&]() { y = A * x; });
     //        stat_mkl   = measureObject(smv_its, [&]() { multMKL(mkl_A, mkl_A_desc, ex_x.data(), ex_y.data()); });
     stat_mkl = measureObject(smv_its, [&]() {
         mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, 1, mkl_A, mkl_A_desc, ex_x.data(), 1, ex_y.data());

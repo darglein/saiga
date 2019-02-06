@@ -4,12 +4,6 @@
  * See LICENSE file for more information.
  */
 
-// for matrix-vector
-//#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
-
-// for matrix-matrix
-#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 16
-
 #include "mkl_test.h"
 
 void bench_mm();
