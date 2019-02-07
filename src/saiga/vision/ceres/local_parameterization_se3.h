@@ -43,6 +43,47 @@ class LocalParameterizationSE3 : public ceres::LocalParameterization
 
     virtual int LocalSize() const { return SE3d::DoF; }
 };
+
+class LocalParameterizationSE32 : public ceres::LocalParameterization
+{
+   public:
+    virtual ~LocalParameterizationSE32() {}
+
+    // SE3 plus operation for Ceres
+    //
+    //  T * exp(x)
+    //
+    virtual bool Plus(double const* T_raw, double const* delta_raw, double* T_plus_delta_raw) const
+    {
+        Eigen::Map<SE3d const> const T(T_raw);
+        Eigen::Map<Vector6d const> const delta(delta_raw);
+        Eigen::Map<SE3d> T_plus_delta(T_plus_delta_raw);
+        T_plus_delta = T * SE3d::exp(delta);
+        return true;
+    }
+
+    // Jacobian of SE3 plus operation for Ceres
+    //
+    // Dx T * exp(x)  with  x=0
+    //
+    virtual bool ComputeJacobian(double const* T_raw, double* jacobian_raw) const
+    {
+        Eigen::Map<Eigen::Matrix<double, 7, 6, Eigen::RowMajor>> jacobian_r(jacobian_raw);
+
+        jacobian_r.setZero();
+        jacobian_r.block<6, 6>(0, 0).setIdentity();
+
+
+        //        std::cout << jacobian_r << std::endl;
+        //        jacobian = T.Dx_this_mul_exp_x_at_0();
+        return true;
+    }
+
+    virtual int GlobalSize() const { return SE3d::num_parameters; }
+
+    virtual int LocalSize() const { return SE3d::DoF; }
+};
+
 }  // namespace test
 }  // namespace Sophus
 

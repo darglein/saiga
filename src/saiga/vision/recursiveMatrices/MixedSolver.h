@@ -31,7 +31,7 @@ struct LinearSolverOptions
  * A solver for linear systems of equations. Ax=b
  * This class is spezialized for different structures of A.
  */
-template <typename AType, typename XType, typename BType>
+template <typename AType, typename XType>
 struct MixedRecursiveSolver
 {
 };
@@ -53,8 +53,7 @@ struct MixedRecursiveSolver
  */
 template <typename UBlock, typename VBlock, typename WType, typename WTType, typename XType>
 class MixedRecursiveSolver<
-    SymmetricMixedMatrix22<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>, WType, WTType>, XType,
-    XType>
+    SymmetricMixedMatrix22<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>, WType, WTType>, XType>
 {
    public:
     using AType =
@@ -85,7 +84,7 @@ class MixedRecursiveSolver<
         patternAnalyzed = true;
     }
 
-    void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions)
+    void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
     {
         // Some references for easier access
         const AUType& U   = A.u;

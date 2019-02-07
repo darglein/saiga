@@ -24,7 +24,7 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixVector(int smv_its)
 
     //    stat_eigen = measureObject(its, [&]() { y = A * x; });
 
-#if 0
+#if 1
     // Test if the result is correct
     y.setZero();
     y = A * x;

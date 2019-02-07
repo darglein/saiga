@@ -33,6 +33,18 @@ struct SymmetricMixedMatrix22
     WTType wt;
 };
 
+template <typename U, typename V, typename W>
+struct SymmetricMixedMatrix2
+{
+    using UType = U;
+    using VType = V;
+    using WType = W;
+
+    UType u;
+    VType v;
+    WType w;
+};
+
 
 /**
  * A simple 2x1 vector with two different types.

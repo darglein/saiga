@@ -8,5 +8,6 @@
 
 #include "saiga/config.h"
 
+#include "performanceMeasure.h"
 #include "time.h"
 #include "timer.h"

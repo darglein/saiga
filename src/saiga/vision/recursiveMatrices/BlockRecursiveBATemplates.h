@@ -28,10 +28,10 @@ using BlockBAScalar       = double;
 #endif
 
 // block types
-using ADiag  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera>;
-using BDiag  = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint>;
-using WElem  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint>;
-using WTElem = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizeCamera>;
+using ADiag  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera, Eigen::RowMajor>;
+using BDiag  = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint, Eigen::RowMajor>;
+using WElem  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint, Eigen::RowMajor>;
+using WTElem = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizeCamera, Eigen::RowMajor>;
 using ARes   = Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>;
 using BRes   = Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>;
 

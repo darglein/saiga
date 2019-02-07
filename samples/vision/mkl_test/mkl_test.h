@@ -9,14 +9,13 @@
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
+#include "saiga/vision/mkl/mkl_cg.h"
+#include "saiga/vision/mkl/mkl_helper.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 #include "mkl.h"
 
 #include <fstream>
-
-#include "mkl_cg.h"
-#include "mkl_helper.h"
 
 #if !defined(SAIGA_USE_MKL) || !defined(SAIGA_USE_EIGEN)
 #    error Saiga was compiled without the required libs for this example.
@@ -128,10 +127,6 @@ class MKL_Test
     BlockMatrix A, B, C;
 
     // MKL data structures
-    std::vector<T> values;
-    std::vector<MKL_INT> col_index;
-    std::vector<MKL_INT> row_start;
-    std::vector<MKL_INT> row_end;
     Eigen::Matrix<T, -1, 1> ex_x;
     Eigen::Matrix<T, -1, 1> ex_y;
     sparse_matrix_t mkl_A, mkl_B, mkl_C;

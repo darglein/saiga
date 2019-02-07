@@ -81,14 +81,16 @@ inline MKL_Test<T, block_size, factor>::MKL_Test()
 
     {
         // mkl matrix
-        createBlockMKLFromEigen(A, &mkl_A, row_start, row_end, col_index, values, n, m, block_size);
+        createBlockMKLFromEigen(A, &mkl_A, &mkl_A_desc, block_size);
+        createBlockMKLFromEigen(B, &mkl_B, &mkl_B_desc, block_size);
         ex_x = expand(x);
         ex_y = expand(y);
-        auto ret =
-            createMKL(&mkl_B, row_start.data(), row_end.data(), col_index.data(), values.data(), n, m, block_size);
-        mkl_A_desc.type = SPARSE_MATRIX_TYPE_GENERAL;
-        mkl_B_desc      = mkl_A_desc;
-        SAIGA_ASSERT(ret == SPARSE_STATUS_SUCCESS);
+        //        auto ret =
+        //            createMKL(&mkl_B, row_start.data(), row_end.data(), col_index.data(), values.data(), n, m,
+        //            block_size);
+        //        mkl_A_desc.type = SPARSE_MATRIX_TYPE_GENERAL;
+        //        mkl_B_desc      = mkl_A_desc;
+        //        SAIGA_ASSERT(ret == SPARSE_STATUS_SUCCESS);
         mkl_set_num_threads_local(1);
         mkl_set_num_threads(1);
     }

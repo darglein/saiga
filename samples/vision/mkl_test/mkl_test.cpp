@@ -6,6 +6,8 @@
 
 #include "mkl_test.h"
 
+
+
 void bench_mm();
 void bench_mv();
 void bench_cg();

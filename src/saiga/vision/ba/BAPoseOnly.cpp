@@ -73,6 +73,21 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
     KernelType::PointJacobiType JrowPoint;
     KernelType::ResidualType res;
 
+
+    int numObservations = 0;
+    for (auto& img : scene.images)
+    {
+        for (auto& ip : img.stereoPoints)
+        {
+            if (!ip)
+            {
+                SAIGA_ASSERT(0);
+                continue;
+            }
+            numObservations++;
+        }
+    }
+
     SAIGA_BLOCK_TIMER();
     int numCameras   = scene.extrinsics.size();
     int numPoints    = scene.worldPoints.size();
@@ -80,14 +95,16 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
     using MatrixType = Eigen::MatrixXd;
     MatrixType JtJ(numUnknowns, numUnknowns);
     Eigen::VectorXd Jtb(numUnknowns);
-
+    MatrixType J(numObservations * 2, numUnknowns);
 
 
     for (int k = 0; k < its; ++k)
     {
         JtJ.setZero();
         Jtb.setZero();
+        J.setZero();
 
+        int obs = 0;
         for (auto& img : scene.images)
         {
             auto extr   = scene.extrinsics[img.extr].se3;
@@ -123,8 +140,8 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
                 Jtb.segment(poseStart, 6) += JrowPose.transpose() * res;
                 Jtb.segment(pointStart, 3) += JrowPoint.transpose() * res;
 #else
-                auto pointStart = ip.wp * 3;
-                auto poseStart  = numPoints * 3 + img.extr * 6;
+                auto poseStart  = img.extr * 6;
+                auto pointStart = numCameras * 6 + ip.wp * 3;
                 JtJ.block(pointStart, pointStart, 3, 3) += (JrowPoint.transpose() * JrowPoint);
                 JtJ.block(poseStart, poseStart, 6, 6) += (JrowPose.transpose() * JrowPose);
 
@@ -134,9 +151,15 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
 
                 Jtb.segment(pointStart, 3) += JrowPoint.transpose() * res;
                 Jtb.segment(poseStart, 6) += JrowPose.transpose() * res;
+
+                J.block<2, 6>(obs * 2, poseStart)  = JrowPose;
+                J.block<2, 3>(obs * 2, pointStart) = JrowPoint;
+                obs++;
 #endif
             }
         }
+
+        cout << "J" << endl << J << endl << endl;
 
         //        cout << JtJ << endl << endl;
 
@@ -146,7 +169,7 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
         //        strm.close();
 
 
-        if (0)
+        if (1)
         {
             double lambda = 1;
             // lm diagonal
@@ -161,12 +184,10 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
         Eigen::VectorXd x = JtJ.ldlt().solve(Jtb);
 
 
-        Eigen::VectorXd x1 = x.segment(0, numPoints * 3);
-        Eigen::VectorXd x2 = x.segment(numPoints * 3, numCameras * 6);
+        Eigen::VectorXd x2 = x.segment(0, numCameras * 6);
+        Eigen::VectorXd x1 = x.segment(numCameras * 6, numPoints * 3);
 
-        cout << x1.transpose() << endl;
-        cout << x2.transpose() << endl;
-        return;
+
 
         for (int i = 0; i < numPoints; ++i)
         {

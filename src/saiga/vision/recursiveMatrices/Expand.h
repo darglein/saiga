@@ -214,4 +214,34 @@ auto expand(const T& v)
     return ExpandImpl<T>::get(v);
 }
 
+
+// =======================================================================================================
+
+
+template <typename T>
+struct ScalarType
+{
+    using Type = typename ScalarType<typename T::Scalar>::Type;
+};
+
+template <>
+struct ScalarType<double>
+{
+    using Type = double;
+};
+
+template <>
+struct ScalarType<float>
+{
+    using Type = float;
+};
+
+
+template <typename G>
+struct ScalarType<MatrixScalar<G>>
+{
+    using Type = typename ScalarType<G>::Type;
+};
+
+
 }  // namespace Saiga

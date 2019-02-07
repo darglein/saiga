@@ -51,13 +51,11 @@ inline void MKL_Test<T, block_size, factor>::sparseCG(int scg_its, int cg_inner_
 
 
     // create the mkl preconditioner
-    std::vector<T> pvalues;
-    std::vector<MKL_INT> pcol_index;
-    std::vector<MKL_INT> prow_start;
-    std::vector<MKL_INT> prow_end;
     sparse_matrix_t mkl_P;
-    createBlockMKLFromEigen(Pm, &mkl_P, prow_start, prow_end, pcol_index, pvalues, n, m, block_size);
+    //    createBlockMKLFromEigen2(Pm, &mkl_P, prow_start, prow_end, pcol_index, pvalues, n, m, block_size);
+
     matrix_descr mkl_P_desc;
+    createBlockMKLFromEigen(Pm, &mkl_P, &mkl_P_desc, block_size);
     mkl_P_desc.type = SPARSE_MATRIX_TYPE_BLOCK_DIAGONAL;
     mkl_P_desc.diag = SPARSE_DIAG_NON_UNIT;
 
@@ -74,6 +72,8 @@ inline void MKL_Test<T, block_size, factor>::sparseCG(int scg_its, int cg_inner_
         ex_x.setZero();
         mklcg(mkl_A, mkl_A_desc, mkl_P, mkl_P_desc, ex_x.data(), ex_y.data(), tol, iters, n, block_size);
     });
+
+    mkl_sparse_destroy(mkl_P);
 #if 0
         // More precise timing stats
         cout << stat_eigen << endl;

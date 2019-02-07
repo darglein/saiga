@@ -7,19 +7,18 @@
 
 #include "MKLBA.h"
 
-#ifdef SAIGA_USE_MKL
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/time/timer.h"
+#include "saiga/core/util/Algorithm.h"
+#include "saiga/vision/HistogramImage.h"
+#include "saiga/vision/kernels/BAPose.h"
+#include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/kernels/Robust.h"
+#include "saiga/vision/mkl/mkl_cg.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
-#    include "saiga/core/imgui/imgui.h"
-#    include "saiga/core/time/timer.h"
-#    include "saiga/core/util/Algorithm.h"
-#    include "saiga/vision/HistogramImage.h"
-#    include "saiga/vision/kernels/BAPose.h"
-#    include "saiga/vision/kernels/BAPosePoint.h"
-#    include "saiga/vision/kernels/Robust.h"
-#    include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-
-#    include <fstream>
-#    include <numeric>
+#include <fstream>
+#include <numeric>
 
 
 using Scalar = Saiga::BlockBAScalar;
@@ -229,13 +228,13 @@ void MKLBA::initStructure(Scene& scene)
         cout << "Cameras: " << n << endl;
         cout << "Points: " << m << endl;
         cout << "Observations: " << observations << endl;
-#    if 1
+#if 1
         cout << "Schur Edges: " << schurEdges << endl;
         cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
         cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
-#    endif
+#endif
 
-#    if 1
+#if 1
         // extended analysis
         double averageCams   = 0;
         double averagePoints = 0;
@@ -245,7 +244,7 @@ void MKLBA::initStructure(Scene& scene)
         averageCams /= pointCameraCounts.size();
         cout << "Average Points per Camera: " << averagePoints << endl;
         cout << "Average Cameras per Point: " << averageCams << endl;
-#    endif
+#endif
         cout << "." << endl;
     }
 }
@@ -373,53 +372,10 @@ void MKLBA::computeUVW(Scene& scene)
         }
     }
 
-
-    double lambda = 1 / (scene.scale() * scene.scale());
-
-
-#    if 0
-    lambda = 1;
-    // g2o simple lambda
-    for (int i = 0; i < n; ++i)
-    {
-        U.diagonal()(i).get() += ADiag::Identity() * lambda;
-    }
-    for (int i = 0; i < m; ++i)
-    {
-        V.diagonal()(i).get() += BDiag::Identity() * lambda;
-    }
-#    else
-    // lm lambda
-
-    lambda = 1.0 / 1.00e+04;
-    // value from ceres
-    double min_lm_diagonal = 1e-6;
-    double max_lm_diagonal = 1e32;
-
-    for (int i = 0; i < n; ++i)
-    {
-        auto& diag = U.diagonal()(i).get();
-
-        for (int k = 0; k < diag.RowsAtCompileTime; ++k)
-        {
-            auto& value = diag.diagonal()(k);
-            value       = value + lambda * value;
-            value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
-        }
-    }
-    for (int i = 0; i < m; ++i)
-    {
-        auto& diag = V.diagonal()(i).get();
-        for (int k = 0; k < diag.RowsAtCompileTime; ++k)
-        {
-            auto& value = diag.diagonal()(k);
-            value       = value + lambda * value;
-            value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
-        }
-    }
-#    endif
+    double lambda = 1.0 / 1.00e+04;
+    applyLMDiagonal(U, lambda);
+    applyLMDiagonal(V, lambda);
 }
-
 
 
 void MKLBA::computeSchur()
@@ -434,6 +390,8 @@ void MKLBA::computeSchur()
 
         // Step 2
         // Compute Y ~7.74%
+
+        // Y = W * V^-1
         Y = multSparseDiag(W, Vinv);
     }
 
@@ -444,18 +402,12 @@ void MKLBA::computeSchur()
         // Not sure how good the sparse matrix mult is of eigen
         // maybe own implementation because the structure is well known before hand
         // ~ 22.3 %
-        if (explizitSchur)
         {
             S            = Y * WT;
             S            = -S;
             S.diagonal() = U.diagonal() + S.diagonal();
         }
-        else
-        {
-            // Compute the diagonal of S for preconditioning
-            diagInnerProductTransposed(Y, W, Sdiag);
-            Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
-        }
+
 
         // Step 4
         // Compute the right hand side of the schur system ej
@@ -467,93 +419,66 @@ void MKLBA::computeSchur()
 void MKLBA::solveSchur()
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
-    if (options.solverType == BAOptions::SolverType::Direct)
-    {
-//            SAIGA_BLOCK_TIMER("LDLT");
-#    if 0
-        {
-            // currently around of a factor 3 slower then the eigen ldlt
-            SAIGA_BLOCK_TIMER();
-            SparseRecursiveLDLT<decltype(S), decltype(ej)> ldlt;
-            ldlt.compute(S);
-            da = ldlt.solve(ej);
-        }
-
-#    else
-        Eigen::SparseMatrix<BlockBAScalar> ssparse(n * blockSizeCamera, n * blockSizeCamera);
-        {
-            // Step 5
-            // Solve the schur system for da
-            // ~ 5.04%
-
-            auto triplets = sparseBlockToTriplets(S);
-
-            ssparse.setFromTriplets(triplets.begin(), triplets.end());
-        }
-        {
-            //~61%
-
-            Eigen::SimplicialLDLT<Eigen::SparseMatrix<BlockBAScalar>> solver;
-            //        Eigen::SimplicialLDLT<SType> solver;
-            solver.compute(ssparse);
-
-            auto b                                     = expand(ej);
-            Eigen::Matrix<BlockBAScalar, -1, 1> deltaA = solver.solve(b);
-
-            //        cout << "deltaA" << endl << deltaA << endl;
-
-            // copy back into da
-            for (int i = 0; i < n; ++i)
-            {
-                da(i) = deltaA.segment<blockSizeCamera>(i * blockSizeCamera);
-            }
-        }
-#    endif
-    }
-    else
     {
         // this CG solver is super fast :)
         //            SAIGA_BLOCK_TIMER("CG");
         da.setZero();
         RecursiveDiagonalPreconditioner<MatrixScalar<ADiag>> P;
-        Eigen::Index iters = options.maxIterativeIterations;
-        BlockBAScalar tol  = options.iterativeTolerance;
+        P.compute(S);
 
-        if (explizitSchur)
+
+
+        // Create a mkl preconditioner
+        Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor> Pm(P.rows(), P.cols());
+        Pm.reserve(P.rows());
+        for (int i = 0; i < P.rows(); ++i)
         {
-            cout << "explizit" << endl;
-            P.compute(S);
-            DAType tmp(n);
-            recursive_conjugate_gradient(
-                [&](const DAType& v) {
-                    tmp = S * v;
-                    return tmp;
-                },
-                ej, da, P, iters, tol);
+            Pm.insert(i, i) = P.getDiagElement(i);
         }
-        else
+        Pm.makeCompressed();
+        sparse_matrix_t mkl_P;
+        matrix_descr mkl_P_desc;
+        createBlockMKLFromEigen(Pm, &mkl_P, &mkl_P_desc, blockSizeCamera);
+        //        mkl_P_desc.type = SPARSE_MATRIX_TYPE_GENERAL;
+        mkl_P_desc.type = SPARSE_MATRIX_TYPE_BLOCK_DIAGONAL;
+        mkl_P_desc.diag = SPARSE_DIAG_NON_UNIT;
+
+
+        sparse_matrix_t mkl_A;
+        matrix_descr mkl_A_desc;
+        createBlockMKLFromEigen(S, &mkl_A, &mkl_A_desc, blockSizeCamera);
+
+
+        //        cout << expand(Pm) << endl;
         {
-            P.compute(Sdiag);
-            DBType q(m);
-            DAType tmp(n);
-            recursive_conjugate_gradient(
-                [&](const DAType& v) {
-                    // x = U * p - Y * WT * p
-                    if (computeWT)
-                    {
-                        tmp = Y * (WT * v);
-                    }
-                    else
-                    {
-                        multSparseRowTransposedVector(W, v, q);
-                        tmp = Y * q;
-                    }
-                    tmp = (U.diagonal().array() * v.array()) - tmp.array();
-                    return tmp;
-                },
-                ej, da, P, iters, tol);
+            Eigen::Index iters = options.maxIterativeIterations;
+            BlockBAScalar tol  = options.iterativeTolerance;
+
+            da.setZero();
+            mklcg(mkl_A, mkl_A_desc, mkl_P, mkl_P_desc, (double*)da.data(), (double*)ej.data(), tol, iters, n,
+                  blockSizeCamera);
         }
-        if (options.debugOutput) cout << "error " << tol << " iterations " << iters << endl;
+
+        mkl_sparse_destroy(mkl_A);
+        mkl_sparse_destroy(mkl_P);
+
+        //        cout << endl;
+
+        //        {
+        //            Eigen::Index iters = options.maxIterativeIterations;
+        //            BlockBAScalar tol  = options.iterativeTolerance;
+
+        //            DAType tmp(n);
+        //            da.setZero();
+        //            recursive_conjugate_gradient(
+        //                [&](const DAType& v) {
+        //                    tmp = S * v;
+        //                    return tmp;
+        //                },
+        //                ej, da, P, iters, tol);
+        //        }
+
+        //        if (options.debugOutput) cout << "error " << tol << " iterations " << iters << endl;
     }
 }
 
@@ -567,14 +492,9 @@ void MKLBA::finalizeSchur()
         // bring it to the right hand side
         // ~1.6%
 
-        if (computeWT)
-        {
-            q = WT * da;
-        }
-        else
-        {
-            multSparseRowTransposedVector(W, da, q);
-        }
+
+        multSparseRowTransposedVector(W, da, q);
+
         q = eb - q;
         //            q = eb + -WT * da;
         //        cout << "qref" << endl
@@ -596,11 +516,11 @@ void MKLBA::updateScene(Scene& scene)
     for (size_t i = 0; i < validImages.size(); ++i)
     {
         Sophus::SE3<BlockBAScalar>::Tangent t;
-#    ifdef RECURSIVE_BA_VECTORIZE
+#ifdef RECURSIVE_BA_VECTORIZE
         t = da(i).get().segment(0, 6);
-#    else
+#else
         t = da(i).get();
-#    endif
+#endif
         auto id    = validImages[i];
         auto& extr = scene.extrinsics[id];
         if (!extr.constant) extr.se3 = Sophus::SE3d::exp(t.cast<double>()) * extr.se3;
@@ -609,11 +529,11 @@ void MKLBA::updateScene(Scene& scene)
     for (size_t i = 0; i < validPoints.size(); ++i)
     {
         Eigen::Matrix<BlockBAScalar, 3, 1> t;
-#    ifdef RECURSIVE_BA_VECTORIZE
+#ifdef RECURSIVE_BA_VECTORIZE
         t = db(i).get().segment(0, 3);
-#    else
+#else
         t = db(i).get();
-#    endif
+#endif
         auto id = validPoints[i];
         auto& p = scene.worldPoints[id].p;
         p += t.cast<double>();
@@ -647,12 +567,12 @@ void MKLBA::solve(Scene& scene, const BAOptions& options)
 
         computeSchur();
 
-#    if 0
+#if 0
         cout << expand(W) << endl << endl;
         cout << expand(U.toDenseMatrix()) << endl << endl;
         cout << expand(V.toDenseMatrix()) << endl << endl;
         return;
-#    endif
+#endif
 
         solveSchur();
         finalizeSchur();
@@ -666,4 +586,3 @@ void MKLBA::solve(Scene& scene, const BAOptions& options)
 
 
 }  // namespace Saiga
-#endif

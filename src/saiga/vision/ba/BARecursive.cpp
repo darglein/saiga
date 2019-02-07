@@ -406,5 +406,44 @@ void BARec::solve(Scene& scene, const BAOptions& options)
 }
 
 
+#if 1
+
+template <typename T, typename G>
+inline auto computeDerivatives(T t, G g)
+{
+}
+
+template <typename T>
+inline auto initializeSparseStructure(T t)
+{
+}
+
+
+static void compactSolve()
+{
+    using namespace Eigen;
+
+    using BAMatrix = SymmetricMixedMatrix22<DiagonalMatrix<MatrixScalar<Matrix<double, 6, 6>>, -1>,
+                                            DiagonalMatrix<MatrixScalar<Matrix<double, 3, 3>>, -1>,
+                                            SparseMatrix<MatrixScalar<Matrix<double, 6, 3>>, RowMajor>,
+                                            SparseMatrix<MatrixScalar<Matrix<double, 3, 6>>, RowMajor>>;
+
+    using BAVector = MixedVector2<Matrix<MatrixScalar<Matrix<double, 6, 1>>, -1, 1>,
+                                  Matrix<MatrixScalar<Matrix<double, 3, 1>>, -1, 1>>;
+
+    BAMatrix A;
+    BAVector x, b;
+    MixedRecursiveSolver<BAMatrix, BAVector> solver;
+
+    initializeSparseStructure(A);
+    for (int k = 0; k < 10; ++k)
+    {
+        computeDerivatives(A, b);
+        solver.solve(A, x, b);
+    }
+}
+
+#endif
+
 
 }  // namespace Saiga

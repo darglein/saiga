@@ -12,16 +12,27 @@
 #include <math.h>
 #include <vector>
 
+
+//#define MKL_CG_DEBUG_OUTPUT
 /**
  * Only a few simple wrappers for mkl calls
  */
-inline void mklcg(const sparse_matrix_t A, struct matrix_descr descr, const sparse_matrix_t P,
+inline void mklcg(const sparse_matrix_t A, struct matrix_descr adescr, const sparse_matrix_t P,
                   struct matrix_descr pdescr, double* x, double* rhs, double tol_error, int iters, int n2,
                   int block_size)
 {
     using T = double;
 
     int n = n2 * block_size;
+
+#ifdef MKL_CG_DEBUG_OUTPUT
+    cout << "Starting mkl CG" << endl;
+    cout << "Iterations: " << iters << endl;
+    cout << "Tolerance: " << tol_error << endl;
+    cout << "Block Size: " << block_size << endl;
+    cout << "N: " << n2 << endl;
+    cout << "Total N: " << n << endl;
+#endif
 
 #if 0
     // Create them locally
@@ -47,7 +58,7 @@ inline void mklcg(const sparse_matrix_t A, struct matrix_descr descr, const spar
     int maxIters = iters;
 
     // residual = rhs - A * x;
-    mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, -1, A, descr, x, 0, residual);
+    mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, -1, A, adescr, x, 0, residual);
     vdAdd(n, rhs, residual, residual);
 
 
@@ -66,7 +77,9 @@ inline void mklcg(const sparse_matrix_t A, struct matrix_descr descr, const spar
     //    double residualNorm2 = cblas_dnrm2(n, residual, 1);
     //    residualNorm2        = residualNorm2 * residualNorm2;
     double residualNorm2 = cblas_ddot(n, residual, 1, residual, 1);
-
+#ifdef MKL_CG_DEBUG_OUTPUT
+    cout << "Initial residual: " << residualNorm2 << endl;
+#endif
     if (residualNorm2 < threshold)
     {
         iters     = 0;
@@ -82,11 +95,17 @@ inline void mklcg(const sparse_matrix_t A, struct matrix_descr descr, const spar
 
 
     double absNew = cblas_ddot(n, residual, 1, p, 1);
-    int i         = 0;
+#ifdef MKL_CG_DEBUG_OUTPUT
+    cout << "dot(r,p): " << absNew << endl;
+#endif
+
+    int i = 0;
     while (i < maxIters)
     {
-        // tmp = A * p (main bottleneck of CG)
-        mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, -1, A, descr, p, 0, z);
+        // z = A * p (main bottleneck of CG)
+        mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, 1, A, adescr, p, 0, z);
+
+
 
         double dptmp = cblas_ddot(n, p, 1, z, 1);
         double alpha = absNew / dptmp;
@@ -100,7 +119,9 @@ inline void mklcg(const sparse_matrix_t A, struct matrix_descr descr, const spar
         //        residualNorm2 = cblas_dnrm2(n, residual, 1);
         //        residualNorm2 = residualNorm2 * residualNorm2;
         residualNorm2 = cblas_ddot(n, residual, 1, residual, 1);
-        //        cout << i << " " << residualNorm2 << endl;
+#ifdef MKL_CG_DEBUG_OUTPUT
+        cout << "Iteration: " << i << " Residual: " << residualNorm2 << " Alpha: " << alpha << endl;
+#endif
         if (residualNorm2 < threshold) break;
 
         // z = Precond * residual
