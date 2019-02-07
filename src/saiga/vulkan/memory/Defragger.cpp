@@ -123,7 +123,9 @@ void Defragger::perform_defrag()
             MemoryLocation* reserve_space = allocator->reserve_space(op->targetMemory, op->target, op->source->size);
             auto defrag_cmd               = allocator->queue->commandPool.createAndBeginOneTimeBuffer();
 
-            op->source->copy_to(defrag_cmd, reserve_space);
+
+            copy_buffer(defrag_cmd, reserve_space, op->source);
+            // op->source->copy_to(defrag_cmd, reserve_space);
 
             defrag_cmd.end();
 

@@ -31,9 +31,9 @@ void SimpleMemoryAllocator::destroy()
 {
     for (auto& location : m_allocations)
     {
-        if (location->buffer != static_cast<vk::Buffer>(nullptr))
+        if (location->data)
         {
-            location->destroy(m_device);
+            location->data.destroy(m_device);
         }
     }
     m_allocations.clear();
