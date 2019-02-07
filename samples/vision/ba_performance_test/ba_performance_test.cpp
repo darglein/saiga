@@ -44,6 +44,7 @@ void buildSceneBAL(Scene& scene, const std::string& path)
 
     scene = bald.makeScene();
 
+    Saiga::Random::setSeed(926703466);
 
     scene.addImagePointNoise(0.1);
     scene.addExtrinsicNoise(0.001);
@@ -76,20 +77,28 @@ void buildSceneBAL(Scene& scene, const std::string& path)
 void test_to_file()
 {
     cout << "Running long performance test to file..." << endl;
-    std::vector<std::string> files = {"vision/problem-00257-65132-pre.txt"};
+#if 1
+    std::vector<std::string> files = {"vision/problem-00021-11315-pre.txt", "vision/problem-1490-935273-pre.txt",
+                                      "vision/problem-1723-156502-pre.txt", "vision/problem-1778-993923-pre.txt",
+                                      "vision/problem-201-54427-pre.txt",   "vision/problem-237-154414-pre.txt",
+                                      "vision/problem-257-65132-pre.txt",   "vision/problem-356-226730-pre.txt",
+                                      "vision/problem-885-97473-pre.txt",   "vision/problem-961-187103-pre.txt"};
+#else
+    std::vector<std::string> files = {"vision/problem-1723-156502-pre.txt"};
+#endif
 
     BAOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 5;
-    baoptions.maxIterativeIterations = 20;
+    baoptions.maxIterations          = 1;
+    baoptions.maxIterativeIterations = 1;
     baoptions.iterativeTolerance     = 1e-50;
     baoptions.solverType             = BAOptions::SolverType::Iterative;
     cout << baoptions << endl;
 
 
-    int its = 9;
+    int its = 10;
     std::ofstream strm("ba_perf.csv");
-    strm << "file,solver,time" << endl;
+    strm << "file,solver,time,rms" << endl;
 
     for (auto file : files)
     {
@@ -103,14 +112,16 @@ void test_to_file()
 
         for (auto& s : solvers)
         {
-            auto stat = Saiga::measureObject(its, [&]() {
+            double rmsAfter = 0;
+            auto stat       = Saiga::measureObject(its, [&]() {
                 Scene cpy = scene;
                 s->solve(cpy, baoptions);
+                rmsAfter = cpy.rms();
             });
 
             auto t = stat.median;
             cout << s->name << ": " << t << "ms" << endl;
-            strm << file << "," << s->name << "," << t << endl;
+            strm << file << "," << s->name << "," << t << "," << rmsAfter << endl;
         }
     }
 }
@@ -129,7 +140,7 @@ int main(int, char**)
     //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
     //    scene.load(SearchPathes::data("vision/slam.scene"));
-    buildScene(scene);
+    //    buildScene(scene);
 
 
 
@@ -137,13 +148,15 @@ int main(int, char**)
     //    return 0;
 
     //    buildSceneBAL(scene, "vision/problem-00257-65132-pre.txt");
+    buildSceneBAL(scene, "vision/problem-356-226730-pre.txt");
+
 
     cout << scene << endl;
 
     BAOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 5;
-    baoptions.maxIterativeIterations = 20;
+    baoptions.maxIterations          = 1;
+    baoptions.maxIterativeIterations = 50;
     baoptions.iterativeTolerance     = 1e-50;
 
     //    baoptions.huberMono   = 5.99;
@@ -155,12 +168,12 @@ int main(int, char**)
 
     std::vector<std::shared_ptr<BABase>> solvers;
 
-    //    solvers.push_back(std::make_shared<BARec>());
+    solvers.push_back(std::make_shared<BARec>());
     //    solvers.push_back(std::make_shared<BAPoseOnly>());
     //    solvers.push_back(std::make_shared<g2oBA2>());
     solvers.push_back(std::make_shared<CeresBA>());
 
-#if 1
+#if 0
     {
         Scene cpy      = scene;
         auto rmsbefore = cpy.rms();

@@ -170,13 +170,13 @@ class CostBAStereoAnalytic : public ceres::SizedCostFunction<2, 7, 3>
             {
                 Eigen::Map<Eigen::Matrix<T, 2, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
                 jpose2.setZero();
-                jpose2.block<2, 6>(0, 0) = -jpose;
+                jpose2.block<2, 6>(0, 0) = jpose;
                 //                std::cout << jpose2 << std::endl;
             }
             if (_jacobians[1])
             {
                 Eigen::Map<Eigen::Matrix<T, 2, 3, Eigen::RowMajor>> jpoint2(_jacobians[1]);
-                jpoint2 = -jpoint;
+                jpoint2 = jpoint;
                 //                std::cout << jpoint2 << std::endl;
             }
         }

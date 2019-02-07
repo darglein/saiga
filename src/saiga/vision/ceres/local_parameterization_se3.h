@@ -23,7 +23,8 @@ class LocalParameterizationSE3 : public ceres::LocalParameterization
         Eigen::Map<SE3d const> const T(T_raw);
         Eigen::Map<Vector6d const> const delta(delta_raw);
         Eigen::Map<SE3d> T_plus_delta(T_plus_delta_raw);
-        T_plus_delta = T * SE3d::exp(delta);
+        //        T_plus_delta = T * SE3d::exp(delta);
+        T_plus_delta = SE3d::exp(delta) * T;
         return true;
     }
 
@@ -58,7 +59,8 @@ class LocalParameterizationSE32 : public ceres::LocalParameterization
         Eigen::Map<SE3d const> const T(T_raw);
         Eigen::Map<Vector6d const> const delta(delta_raw);
         Eigen::Map<SE3d> T_plus_delta(T_plus_delta_raw);
-        T_plus_delta = T * SE3d::exp(delta);
+        //        T_plus_delta = T * SE3d::exp(delta);
+        T_plus_delta = SE3d::exp(delta) * T;
         return true;
     }
 

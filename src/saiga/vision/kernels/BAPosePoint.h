@@ -84,8 +84,8 @@ struct BAPosePointMono
         JrowPose(1, 4) = x * y * zzinv;
         JrowPose(1, 5) = x * zinv;
 
-        JrowPose.row(0) *= camera.fx * weight;
-        JrowPose.row(1) *= camera.fy * weight;
+        JrowPose.row(0) *= -camera.fx * weight;
+        JrowPose.row(1) *= -camera.fy * weight;
 
 
         // =================== Point ================
@@ -100,8 +100,8 @@ struct BAPosePointMono
         JrowPoint(1, 1) = R(1, 1) * zinv - y * R(2, 1) * zzinv;
         JrowPoint(1, 2) = R(1, 2) * zinv - y * R(2, 2) * zzinv;
 
-        JrowPoint.row(0) *= camera.fx * weight;
-        JrowPoint.row(1) *= camera.fy * weight;
+        JrowPoint.row(0) *= -camera.fx * weight;
+        JrowPoint.row(1) *= -camera.fy * weight;
     }
 };
 
@@ -215,9 +215,9 @@ struct BAPosePointStereo
         JrowPose(2, 4) = JrowPose(0, 4) - camera.bf * x * zzinv;
         JrowPose(2, 5) = JrowPose(0, 5);
 
-        JrowPose.row(0) *= weight;
-        JrowPose.row(1) *= weight;
-        JrowPose.row(2) *= weight;
+        JrowPose.row(0) *= -weight;
+        JrowPose.row(1) *= -weight;
+        JrowPose.row(2) *= -weight;
 
 
         // =================== Point ================
@@ -239,9 +239,9 @@ struct BAPosePointStereo
         JrowPoint(2, 1) = JrowPoint(0, 1) + camera.bf * R(2, 1) * zzinv;
         JrowPoint(2, 2) = JrowPoint(0, 2) + camera.bf * R(2, 2) * zzinv;
 
-        JrowPoint.row(0) *= weight;
-        JrowPoint.row(1) *= weight;
-        JrowPoint.row(2) *= weight;
+        JrowPoint.row(0) *= -weight;
+        JrowPoint.row(1) *= -weight;
+        JrowPoint.row(2) *= -weight;
     }
 };
 

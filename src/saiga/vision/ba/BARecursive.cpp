@@ -34,7 +34,7 @@ void BARec::initStructure(Scene& scene)
     }
     else
     {
-        explizitSchur = true;
+        explizitSchur = false;
         computeWT     = true;
     }
 
@@ -297,8 +297,8 @@ void BARec::computeUVW(Scene& scene)
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
-                    targetPoseRes += JrowPose.transpose() * res;
-                    targetPointRes += JrowPoint.transpose() * res;
+                    targetPoseRes -= JrowPose.transpose() * res;
+                    targetPointRes -= JrowPoint.transpose() * res;
                 }
                 else
                 {
@@ -322,8 +322,8 @@ void BARec::computeUVW(Scene& scene)
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
-                    targetPoseRes += JrowPose.transpose() * res;
-                    targetPointRes += JrowPoint.transpose() * res;
+                    targetPoseRes -= JrowPose.transpose() * res;
+                    targetPointRes -= JrowPoint.transpose() * res;
                 }
 
 

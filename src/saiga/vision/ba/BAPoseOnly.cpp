@@ -149,8 +149,8 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
                 JtJ.block(poseStart, pointStart, 6, 3) = JrowPose.transpose() * JrowPoint;
                 JtJ.block(pointStart, poseStart, 3, 6) = JrowPoint.transpose() * JrowPose;
 
-                Jtb.segment(pointStart, 3) += JrowPoint.transpose() * res;
-                Jtb.segment(poseStart, 6) += JrowPose.transpose() * res;
+                Jtb.segment(pointStart, 3) -= JrowPoint.transpose() * res;
+                Jtb.segment(poseStart, 6) -= JrowPose.transpose() * res;
 
                 J.block<2, 6>(obs * 2, poseStart)  = JrowPose;
                 J.block<2, 3>(obs * 2, pointStart) = JrowPoint;
@@ -159,7 +159,7 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
             }
         }
 
-        cout << "J" << endl << J << endl << endl;
+        //        cout << "J" << endl << J << endl << endl;
 
         //        cout << JtJ << endl << endl;
 
@@ -294,8 +294,8 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
-                    targetPoseRes += JrowPose.transpose() * res;
-                    targetPointRes += JrowPoint.transpose() * res;
+                    targetPoseRes -= JrowPose.transpose() * res;
+                    targetPointRes -= JrowPoint.transpose() * res;
                 }
                 else
                 {
@@ -309,8 +309,8 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
-                    targetPoseRes += JrowPose.transpose() * res;
-                    targetPointRes += JrowPoint.transpose() * res;
+                    targetPoseRes -= JrowPose.transpose() * res;
+                    targetPointRes -= JrowPoint.transpose() * res;
                 }
 
                 for (int r = 0; r < 6; ++r)
