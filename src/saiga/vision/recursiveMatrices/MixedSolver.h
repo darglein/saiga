@@ -51,25 +51,27 @@ struct MixedRecursiveSolver
  *
  * This solver computes the schur complement on U and solves the reduced system with CG.
  */
-template <typename UBlock, typename VBlock, typename WType, typename WTType, typename XType>
-class MixedRecursiveSolver<
-    SymmetricMixedMatrix22<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>, WType, WTType>, XType>
+template <typename UBlock, typename VBlock, typename WBlock, typename XType>
+class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>,
+                                                 Eigen::SparseMatrix<WBlock, Eigen::RowMajor>>,
+                           XType>
 {
    public:
-    using AType =
-        SymmetricMixedMatrix22<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>, WType, WTType>;
+    using AType = SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>,
+                                        Eigen::SparseMatrix<WBlock, Eigen::RowMajor>>;
 
-    using AUType  = typename AType::UType;
-    using AVType  = typename AType::VType;
-    using AWType  = typename AType::WType;
-    using AWTType = typename AType::WTType;
+    using AUType = typename AType::UType;
+    using AVType = typename AType::VType;
+    using AWType = typename AType::WType;
+
+    using AWTType = typename TransposeType<AWType>::Type;
 
     using XUType = typename XType::UType;
     using XVType = typename XType::VType;
 
     using SType = Eigen::SparseMatrix<UBlock, Eigen::RowMajor>;
 
-    void analyzePattern(AType& A)
+    void analyzePattern(const AType& A, const LinearSolverOptions& solverOptions)
     {
         n = A.u.rows();
         m = A.v.rows();
@@ -81,22 +83,37 @@ class MixedRecursiveSolver<
         q.resize(m);
         S.resize(n, n);
 
+
+        // TODO: add heurisitc here
+        explizitSchur = true;
+        // TODO: use heuristic when to compute WT
+        hasWT = true;
+        if (hasWT)
+        {
+            transposeStructureOnly(A.w, WT);
+        }
+
         patternAnalyzed = true;
     }
 
     void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
     {
         // Some references for easier access
-        const AUType& U   = A.u;
-        const AVType& V   = A.v;
-        const AWType& W   = A.w;
-        const AWTType& WT = A.wt;
-        XUType& da        = x.u;
-        XVType& db        = x.v;
-        const XUType& ea  = b.u;
-        const XVType& eb  = b.v;
+        const AUType& U  = A.u;
+        const AVType& V  = A.v;
+        const AWType& W  = A.w;
+        XUType& da       = x.u;
+        XVType& db       = x.v;
+        const XUType& ea = b.u;
+        const XVType& eb = b.v;
 
-        if (!patternAnalyzed) analyzePattern(A);
+
+        if (!patternAnalyzed) analyzePattern(A, solverOptions);
+
+        if (hasWT)
+        {
+            transposeValueOnly(A.w, WT);
+        }
 
 
 
@@ -207,13 +224,16 @@ class MixedRecursiveSolver<
     // ==== Solver tmps ====
     XVType q;
     AVType Vinv;
-    WType Y;
+    AWType Y;
     SType S;
     Eigen::DiagonalMatrix<UBlock, -1> Sdiag;
     XUType ej;
 
+    AWTType WT;
+
     bool patternAnalyzed = false;
     bool hasWT           = true;
+    bool explizitSchur   = true;
 };
 
 

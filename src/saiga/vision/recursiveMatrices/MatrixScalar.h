@@ -8,6 +8,9 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/VisionIncludes.h"
+
+#include "Eigen/Sparse"
+
 namespace Saiga
 {
 template <typename MatrixType>

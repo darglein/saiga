@@ -22,6 +22,7 @@
 #include "saiga/vision/recursiveMatrices/Norm.h"
 #include "saiga/vision/recursiveMatrices/ScalarMult.h"
 #include "saiga/vision/recursiveMatrices/SparseHelper.h"
+#include "saiga/vision/recursiveMatrices/SparseTranspose.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
 // High Level Functions

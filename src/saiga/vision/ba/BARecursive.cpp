@@ -112,24 +112,14 @@ void BARec::initStructure(Scene& scene)
 
     // preset the outer matrix structure
     W.resize(n, m);
-    WT.resize(m, n);
     W.setZero();
-    WT.setZero();
     W.reserve(observations);
-    WT.reserve(observations);
 
     for (int k = 0; k < W.outerSize(); ++k)
     {
         W.outerIndexPtr()[k] = cameraPointCountsScan[k];
     }
     W.outerIndexPtr()[W.outerSize()] = observations;
-
-
-    for (int k = 0; k < WT.outerSize(); ++k)
-    {
-        WT.outerIndexPtr()[k] = pointCameraCountsScan[k];
-    }
-    WT.outerIndexPtr()[WT.outerSize()] = observations;
 
 
 
@@ -240,13 +230,7 @@ void BARec::computeUVW(Scene& scene)
     ea.setZero();
     V.setZero();
 
-    SAIGA_ASSERT(W.IsRowMajor && WT.IsRowMajor);
-
-    bool useWT = computeWT;
-
-
-    std::vector<int> tmpPointCameraCounts(m, 0);
-
+    SAIGA_ASSERT(W.IsRowMajor);
 
 
     {
@@ -326,16 +310,6 @@ void BARec::computeUVW(Scene& scene)
                     targetPointRes -= JrowPoint.transpose() * res;
                 }
 
-
-                // Insert into W and WT
-                if (useWT)
-                {
-                    int x                      = tmpPointCameraCounts[j];
-                    int offset                 = WT.outerIndexPtr()[j] + x;
-                    WT.innerIndexPtr()[offset] = i;
-                    WT.valuePtr()[offset]      = targetPosePoint.transpose();
-                    tmpPointCameraCounts[j]++;
-                }
                 W.innerIndexPtr()[k] = j;
                 W.valuePtr()[k]      = targetPosePoint;
 
@@ -406,7 +380,7 @@ void BARec::solve(Scene& scene, const BAOptions& options)
 }
 
 
-#if 1
+#if 0
 
 template <typename T, typename G>
 inline auto computeDerivatives(T t, G g)
@@ -415,6 +389,10 @@ inline auto computeDerivatives(T t, G g)
 
 template <typename T>
 inline auto initializeSparseStructure(T t)
+{
+}
+template <typename T, typename G, typename H>
+inline auto solve(T t, G g, H h)
 {
 }
 
@@ -441,6 +419,33 @@ static void compactSolve()
         computeDerivatives(A, b);
         solver.solve(A, x, b);
     }
+}
+
+
+static void compactSolve2()
+{
+    using namespace Eigen;
+
+    // clang-format off
+
+    using BAMatrix = SymmetricMixedMatrix2<
+                        DiagonalMatrix<Matrix<double, 6, 6>, -1>,
+                        DiagonalMatrix<Matrix<double, 3, 3>, -1>,
+                        SparseMatrix<Matrix<double, 6, 3>, RowMajor>>;
+    using BAVector = MixedVector2<
+                        Matrix<Matrix<double, 6, 1>, -1, 1>,
+                        Matrix<Matrix<double, 3, 1>, -1, 1>>;
+    BAMatrix A;
+    BAVector x, b;
+
+    for (int k = 0; k < 10; ++k)
+    {
+        computeDerivatives(A, b);
+        solve(A, x, b);
+    }
+
+
+    // clang-format on
 }
 
 #endif

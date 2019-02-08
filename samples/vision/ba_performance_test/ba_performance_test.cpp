@@ -137,10 +137,10 @@ int main(int, char**)
     Saiga::Random::setSeed(93865023985);
 
     Scene scene;
-    //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
+    //        scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
     //    scene.load(SearchPathes::data("vision/slam.scene"));
-    //    buildScene(scene);
+    buildScene(scene);
 
 
 
@@ -148,7 +148,7 @@ int main(int, char**)
     //    return 0;
 
     //    buildSceneBAL(scene, "vision/problem-00257-65132-pre.txt");
-    buildSceneBAL(scene, "vision/problem-356-226730-pre.txt");
+    //    buildSceneBAL(scene, "vision/problem-356-226730-pre.txt");
 
 
     cout << scene << endl;

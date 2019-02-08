@@ -17,7 +17,7 @@ namespace Saiga
 class SAIGA_VISION_API BARec : public BABase
 {
    public:
-    BARec() : BABase("Recursive BA"), U(A.u), V(A.v), W(A.w), WT(A.wt), da(x.u), db(x.v), ea(b.u), eb(b.v) {}
+    BARec() : BABase("Recursive BA"), U(A.u), V(A.v), W(A.w), da(x.u), db(x.v), ea(b.u), eb(b.v) {}
     virtual ~BARec() {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
 
@@ -34,7 +34,7 @@ class SAIGA_VISION_API BARec : public BABase
     std::vector<int> pointCameraCounts, pointCameraCountsScan;
 
     // Main (recursive) Variables for the system Ax=b
-    SymmetricMixedMatrix22<UType, VType, WType, WTType> A;
+    SymmetricMixedMatrix2<UType, VType, WType> A;
 
     //    SymmetricMixedMatrix22<
     //        Eigen::DiagonalMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera>>, -1>,
@@ -50,13 +50,12 @@ class SAIGA_VISION_API BARec : public BABase
                  Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>>, -1, 1>>
         x, b;
 
-    MixedRecursiveSolver<SymmetricMixedMatrix22<UType, VType, WType, WTType>, MixedVector2<DAType, DBType>> solver;
+    MixedRecursiveSolver<SymmetricMixedMatrix2<UType, VType, WType>, MixedVector2<DAType, DBType>> solver;
 
     // These are only reference into the global matrix A
     UType& U;
     VType& V;
     WType& W;
-    WTType& WT;
 
     DAType& da;
     DBType& db;
