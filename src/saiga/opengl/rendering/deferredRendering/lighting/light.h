@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -18,7 +18,7 @@ namespace Saiga
 {
 class SAIGA_OPENGL_API LightShader : public DeferredShader
 {
-   public:
+public:
     GLint location_lightColorDiffuse, location_lightColorSpecular;  // rgba, rgb=color, a=intensity [0,1]
     GLint location_depthBiasMV, location_depthTex, location_readShadowMap;
     GLint location_shadowMapSize;  // vec4(w,h,1/w,1/h)
@@ -74,13 +74,7 @@ using DepthFunction = std::function<void(Camera*)>;
 
 class SAIGA_OPENGL_API Light : public Object3D
 {
-   protected:
-    bool visible = true, active = true, selected = false, culled = false;
-    // shadow map
-    bool castShadows = false;
-    bool volumetric  = false;
-
-   public:
+public:
     vec4 colorDiffuse  = make_vec4(1);
     vec4 colorSpecular = make_vec4(1);
     // density of the participating media
@@ -95,7 +89,7 @@ class SAIGA_OPENGL_API Light : public Object3D
         setIntensity(intensity);
     }
     Light(const vec4& color) { setColorDiffuse(color); }
-    virtual ~Light() {}
+    ~Light() {}
 
     void setColorDiffuse(const vec3& color) { this->colorDiffuse = make_vec4(color, this->colorDiffuse[3]); }
     void setColorDiffuse(const vec4& color) { this->colorDiffuse = color; }
@@ -136,6 +130,13 @@ class SAIGA_OPENGL_API Light : public Object3D
     static mat4 viewToLightTransform(const Camera& camera, const Camera& shadowCamera);
 
     void renderImGui();
+
+protected:
+    bool visible = true, active = true, selected = false, culled = false;
+    // shadow map
+    bool castShadows = false;
+    bool volumetric  = false;
+
 };
 
 }  // namespace Saiga

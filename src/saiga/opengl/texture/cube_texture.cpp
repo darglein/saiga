@@ -87,7 +87,13 @@ bool TextureCube::fromImage(Image& img)
 
 bool TextureCube::fromImage(std::vector<Image>& images)
 {
-    setFormat(images[0].type);
+    SAIGA_ASSERT(images.size() == 6);
+
+    auto& refImage = images.front();
+
+    setFormat(refImage.type);
+    width = refImage.width;
+    height = refImage.height;
 
     createGlTexture();
 

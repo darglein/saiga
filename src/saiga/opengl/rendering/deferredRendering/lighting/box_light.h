@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -26,7 +26,7 @@ class SAIGA_OPENGL_API BoxLight : public Light
    public:
     OrthographicCamera shadowCamera;
     BoxLight();
-    virtual ~BoxLight() {}
+    ~BoxLight() {}
 
     void bindUniforms(std::shared_ptr<BoxLightShader> shader, Camera* cam);
 
