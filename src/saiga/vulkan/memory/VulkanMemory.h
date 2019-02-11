@@ -25,6 +25,39 @@ namespace Saiga::Vulkan::Memory
 class SAIGA_VULKAN_API VulkanMemory
 {
    private:
+    template <bool usage_exact, bool memory_exact, typename T>
+    struct allocator_find_functor
+    {
+        T type;
+        explicit allocator_find_functor(T _type) : type(_type) {}
+        template <typename MapIter>
+        inline bool operator()(const MapIter& iter) const
+        {
+            bool usage_valid;
+            if (usage_exact)
+            {
+                usage_valid = iter.first.usageFlags == type.usageFlags;
+            }
+            else
+            {
+                usage_valid = (iter.first.usageFlags & type.usageFlags) == type.usageFlags;
+            }
+
+            bool memory_valid;
+
+            if (memory_exact)
+            {
+                memory_valid = iter.first.memoryFlags == type.memoryFlags;
+            }
+            else
+            {
+                memory_valid = ((iter.first.memoryFlags & type.memoryFlags) == type.memoryFlags);
+            }
+
+            return usage_valid && memory_valid;
+        }
+    };
+
     struct BufferAllocator
     {
         std::unique_ptr<BufferChunkAllocator> allocator;
@@ -53,28 +86,6 @@ class SAIGA_VULKAN_API VulkanMemory
     const vk::DeviceSize fallback_image_chunk_size  = 256 * 1024 * 1024;
 
 
-    template <typename T>
-    inline bool allocator_valid_exact(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
-    {
-        return ((allocator_type.usageFlags & type.usageFlags) == type.usageFlags) &&
-               (allocator_type.memoryFlags == type.memoryFlags);
-    }
-
-    template <typename T>
-    inline bool allocator_valid_relaxed(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
-    {
-        return ((allocator_type.usageFlags & type.usageFlags) == type.usageFlags) &&
-               ((allocator_type.memoryFlags & type.memoryFlags) == type.memoryFlags);
-    }
-
-    template <typename T>
-    inline bool default_valid(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
-    {
-        return ((allocator_type.usageFlags & type.usageFlags) == type.usageFlags) &&
-               ((allocator_type.memoryFlags & type.memoryFlags) == type.memoryFlags);
-    }
-
-
     BufferDefaultMap default_buffer_chunk_sizes{
         {BufferType{vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
                     all_mem_properties},
@@ -99,9 +110,8 @@ class SAIGA_VULKAN_API VulkanMemory
     {
         const auto sizes_begin = defaultSizes.cbegin();
         const auto sizes_end   = defaultSizes.cend();
-        auto found = std::find_if(sizes_begin, sizes_end, [&](typename DefaultSizeMap::const_reference entry) {
-            return (default_valid(entry.first, type));
-        });
+
+        auto found = std::find_if(sizes_begin, sizes_end, allocator_find_functor<false, false, MemoryType>(type));
 
         SAIGA_ASSERT(found != defaultSizes.cend(), "No default size found. At least a fallback size must be added.");
         return found;
@@ -117,18 +127,27 @@ class SAIGA_VULKAN_API VulkanMemory
         const auto begin = map.begin();
         const auto end   = map.end();
 
-        auto found = std::find_if(
-            begin, end, [=](typename Map::reference entry) { return allocator_valid_exact(entry.first, memoryType); });
+        auto found = std::find_if(begin, end, allocator_find_functor<false, true, MemoryType<UsageType>>(memoryType));
 
         if (found == end)
         {
-            found = std::find_if(begin, end, [=](typename Map::reference entry) {
-                return allocator_valid_relaxed(entry.first, memoryType);
-            });
+            found = std::find_if(begin, end, allocator_find_functor<false, false, MemoryType<UsageType>>(memoryType));
         }
 
         return found;
     }
+
+    template <typename Map, typename UsageType>
+    inline typename Map::iterator find_allocator_exact(Map& map, const MemoryType<UsageType>& memoryType)
+    {
+        const auto begin = map.begin();
+        const auto end   = map.end();
+
+        auto found = std::find_if(begin, end, allocator_find_functor<true, true, MemoryType<UsageType>>(memoryType));
+
+        return found;
+    }
+
 
     inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const
     {
@@ -146,7 +165,11 @@ class SAIGA_VULKAN_API VulkanMemory
 
     BufferAllocator& getAllocator(const BufferType& type);
 
+    BufferAllocator& get_allocator_exact(const BufferType& type);
+
     ImageChunkAllocator& getImageAllocator(const ImageType& type);
+
+    ImageChunkAllocator& get_image_allocator_exact(const ImageType& type);
 
    public:
     void init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue);

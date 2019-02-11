@@ -33,17 +33,24 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* 
                        vk::BufferUsageFlagBits::eTransferDst,
                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
-    getAllocator(vertIndexType);
-    getAllocator(vertIndexHostType);
+    get_allocator_exact(vertIndexType);
+    get_allocator_exact(vertIndexHostType);
 
     auto stagingType = BufferType{vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
                                   vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
     auto effectiveFlags   = getEffectiveFlags(stagingType.memoryFlags);
     auto effectiveStaging = BufferType{stagingType.usageFlags, effectiveFlags};
-    getAllocator(effectiveStaging);
+    get_allocator_exact(effectiveStaging);
 
     fallbackAllocator = std::make_unique<FallbackAllocator>(_device, _pDevice);
+
+    for (auto& allocator : bufferAllocators)
+    {
+        std::cout << allocator.first << std::endl;
+    }
+
+    std::cout << std::endl;
 }
 
 VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::BufferMap& map,
@@ -114,6 +121,29 @@ VulkanMemory::BufferAllocator& VulkanMemory::getAllocator(const BufferType& type
 ImageChunkAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
 {
     auto foundAllocator = findAllocator<ImageMap, vk::ImageUsageFlags>(imageAllocators, type);
+
+    if (foundAllocator == imageAllocators.end())
+    {
+        foundAllocator = createNewImageAllocator(imageAllocators, default_image_chunk_sizes, type);
+    }
+
+    return *(foundAllocator->second);
+}
+
+VulkanMemory::BufferAllocator& VulkanMemory::get_allocator_exact(const BufferType& type)
+{
+    auto foundAllocator = find_allocator_exact<BufferMap, vk::BufferUsageFlags>(bufferAllocators, type);
+    if (foundAllocator == bufferAllocators.end())
+    {
+        foundAllocator = createNewBufferAllocator(bufferAllocators, default_buffer_chunk_sizes, type);
+    }
+    return foundAllocator->second;
+}
+
+
+ImageChunkAllocator& VulkanMemory::get_image_allocator_exact(const ImageType& type)
+{
+    auto foundAllocator = find_allocator_exact<ImageMap, vk::ImageUsageFlags>(imageAllocators, type);
 
     if (foundAllocator == imageAllocators.end())
     {
