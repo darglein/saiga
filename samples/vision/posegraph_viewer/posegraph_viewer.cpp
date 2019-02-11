@@ -57,7 +57,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     //    frustum.init(renderer.base);
 
     lineAsset.init(base, 100000);
-    lineAsset.size = 0;
+    lineAsset.size = 10;
 
     frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 1, 1, 1), false);
     frustum.init(renderer.base);

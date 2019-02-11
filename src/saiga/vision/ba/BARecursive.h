@@ -17,7 +17,7 @@ namespace Saiga
 class SAIGA_VISION_API BARec : public BABase
 {
    public:
-    BARec() : BABase("Recursive BA"), U(A.u), V(A.v), W(A.w), da(x.u), db(x.v), ea(b.u), eb(b.v) {}
+    BARec() : BABase("Recursive BA"), U(A.u), V(A.v), W(A.w) {}
     virtual ~BARec() {}
     virtual void solve(Scene& scene, const BAOptions& options) override;
 
@@ -48,7 +48,7 @@ class SAIGA_VISION_API BARec : public BABase
     //    MixedVector2<DAType, DBType> x, b;
     MixedVector2<Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>>, -1, 1>,
                  Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>>, -1, 1>>
-        x, b;
+        delta_x, b;
 
     MixedRecursiveSolver<SymmetricMixedMatrix2<UType, VType, WType>, MixedVector2<DAType, DBType>> solver;
 
@@ -57,10 +57,13 @@ class SAIGA_VISION_API BARec : public BABase
     VType& V;
     WType& W;
 
-    DAType& da;
-    DBType& db;
-    DAType& ea;
-    DBType& eb;
+    AlignedVector<SE3> x_u, oldx_u;
+    AlignedVector<Vec3> x_v, oldx_v;
+
+    //    DAType& da;
+    //    DBType& db;
+    //    DAType& ea;
+    //    DBType& eb;
 
 
     //    std::vector<int> imageIds;
@@ -71,8 +74,12 @@ class SAIGA_VISION_API BARec : public BABase
     BAOptions options;
 
     double chi2;
+    double lambda = 1.0 / 1.00e+04;
+
+    void plus();
+
     void initStructure(Scene& scene);
-    void computeUVW(Scene& scene);
+    bool computeUVW(Scene& scene);
     void updateScene(Scene& scene);
 
     bool explizitSchur = false;

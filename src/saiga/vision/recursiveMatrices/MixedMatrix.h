@@ -60,6 +60,18 @@ struct MixedVector2
 
     UType u;
     VType v;
+
+    void resize(int n, int m)
+    {
+        u.resize(n);
+        v.resize(m);
+    }
+
+    void setZero()
+    {
+        u.setZero();
+        v.setZero();
+    }
 };
 
 }  // namespace Saiga

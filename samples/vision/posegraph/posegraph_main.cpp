@@ -44,7 +44,7 @@ int main(int, char**)
 
     PGOOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 3;
+    baoptions.maxIterations          = 6;
     baoptions.maxIterativeIterations = 10;
     baoptions.iterativeTolerance     = 1e-50;
     //    baoptions.solverType             = PGOOptions::SolverType::Direct;

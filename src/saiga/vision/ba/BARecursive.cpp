@@ -76,11 +76,27 @@ void BARec::initStructure(Scene& scene)
     U.resize(n);
     V.resize(m);
 
-    da.resize(n);
-    db.resize(m);
+    delta_x.resize(n, m);
+    b.resize(n, m);
 
-    ea.resize(n);
-    eb.resize(m);
+    x_u.resize(n);
+    oldx_u.resize(n);
+    x_v.resize(m);
+    oldx_v.resize(m);
+
+
+    // Make a copy of the initial parameters
+    for (int i = 0; i < (int)validImages.size(); ++i)
+    {
+        auto& img = scene.images[validImages[i]];
+        x_u[i]    = scene.extrinsics[img.extr].se3;
+    }
+
+    for (int i = 0; i < (int)validPoints.size(); ++i)
+    {
+        auto& wp = scene.worldPoints[validPoints[i]];
+        x_v[i]   = wp.p;
+    }
 
     cameraPointCounts.clear();
     cameraPointCounts.resize(n, 0);
@@ -213,7 +229,7 @@ void BARec::initStructure(Scene& scene)
 
 
 
-void BARec::computeUVW(Scene& scene)
+bool BARec::computeUVW(Scene& scene)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
 
@@ -225,22 +241,22 @@ void BARec::computeUVW(Scene& scene)
 
 
 
-    eb.setZero();
+    b.setZero();
     U.setZero();
-    ea.setZero();
     V.setZero();
 
     SAIGA_ASSERT(W.IsRowMajor);
 
 
+    double newChi2 = 0;
     {
-        chi2  = 0;
         int k = 0;
         for (int i = 0; i < (int)validImages.size(); ++i)
         {
-            int imgid    = validImages[i];
-            auto& img    = scene.images[imgid];
-            auto& extr   = scene.extrinsics[img.extr].se3;
+            int imgid = validImages[i];
+            auto& img = scene.images[imgid];
+            //            auto& extr   = scene.extrinsics[img.extr].se3;
+            auto& extr   = x_u[i];
             auto& extr2  = scene.extrinsics[img.extr];
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
@@ -248,15 +264,16 @@ void BARec::computeUVW(Scene& scene)
             for (auto& ip : img.stereoPoints)
             {
                 if (!ip) continue;
-                auto& wp        = scene.worldPoints[ip.wp].p;
                 BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();
                 int j           = pointToValidMap[ip.wp];
+                //                auto& wp        = scene.worldPoints[ip.wp].p;
+                auto& wp = x_v[j];
 
                 WElem targetPosePoint;
                 auto& targetPosePose   = U.diagonal()(i).get();
                 auto& targetPointPoint = V.diagonal()(j).get();
-                auto& targetPoseRes    = ea(i).get();
-                auto& targetPointRes   = eb(j).get();
+                auto& targetPoseRes    = b.u(i).get();
+                auto& targetPointRes   = b.v(j).get();
 
                 if (ip.depth > 0)
                 {
@@ -270,7 +287,7 @@ void BARec::computeUVW(Scene& scene)
                     if (extr2.constant) JrowPose.setZero();
 
                     auto c = res.squaredNorm();
-                    chi2 += c;
+                    newChi2 += c;
                     if (options.huberStereo > 0)
                     {
                         auto rw = Kernel::huberWeight<T>(options.huberStereo, c);
@@ -294,7 +311,7 @@ void BARec::computeUVW(Scene& scene)
                     KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
                     auto c = res.squaredNorm();
-                    chi2 += c;
+                    newChi2 += c;
                     if (options.huberMono > 0)
                     {
                         auto rw = Kernel::huberWeight<T>(options.huberMono, c);
@@ -318,9 +335,27 @@ void BARec::computeUVW(Scene& scene)
         }
     }
 
-    double lambda = 1.0 / 1.00e+04;
+    if (newChi2 > chi2)
+    {
+        // it failed somehow
+        // -> revert last step + increase lambda
+        lambda *= 3.0;
+        x_u  = oldx_u;
+        x_v  = oldx_v;
+        chi2 = 1e100;
+
+        cerr << "Warning lm step failed!" << endl;
+        return false;
+    }
+    else
+    {
+        // ok!
+        chi2 = newChi2;
+        lambda /= 2.0;
+    }
     applyLMDiagonal(U, lambda);
     applyLMDiagonal(V, lambda);
+    return true;
 }
 
 
@@ -333,11 +368,12 @@ void BARec::updateScene(Scene& scene)
 #ifdef RECURSIVE_BA_VECTORIZE
         t = da(i).get().segment(0, 6);
 #else
-        t = da(i).get();
+        t = delta_x.u(i).get();
 #endif
         auto id    = validImages[i];
         auto& extr = scene.extrinsics[id];
-        if (!extr.constant) extr.se3 = Sophus::SE3d::exp(t.cast<double>()) * extr.se3;
+        //        if (!extr.constant) extr.se3 = Sophus::SE3d::exp(t.cast<double>()) * extr.se3;
+        if (!extr.constant) extr.se3 = x_u[i];
     }
 
     for (size_t i = 0; i < validPoints.size(); ++i)
@@ -346,11 +382,12 @@ void BARec::updateScene(Scene& scene)
 #ifdef RECURSIVE_BA_VECTORIZE
         t = db(i).get().segment(0, 3);
 #else
-        t = db(i).get();
+        t = delta_x.v(i).get();
 #endif
         auto id = validPoints[i];
         auto& p = scene.worldPoints[id].p;
-        p += t.cast<double>();
+        //        p += t.cast<double>();
+        p = x_v[i];
     }
 }
 
@@ -362,10 +399,13 @@ void BARec::solve(Scene& scene, const BAOptions& options)
     this->options = options;
     initStructure(scene);
 
+    // Set a pretty high error, so the first iteratioin doesn't fail
+    chi2 = 1e100;
     // ======================== Variables ========================
     for (int k = 0; k < options.maxIterations; ++k)
     {
-        computeUVW(scene);
+        if (!computeUVW(scene)) computeUVW(scene);
+
 
         LinearSolverOptions loptions;
         loptions.maxIterativeIterations = options.maxIterativeIterations;
@@ -373,9 +413,34 @@ void BARec::solve(Scene& scene, const BAOptions& options)
 
         //        loptions.solverType         = LinearSolverOptions::SolverType::Direct;
         loptions.buildExplizitSchur = explizitSchur;
-        solver.solve(A, x, b, loptions);
+        solver.solve(A, delta_x, b, loptions);
+
+        plus();
 
         updateScene(scene);
+    }
+
+    // revert last step
+    double finalChi2 = scene.chi2();
+    if (finalChi2 > chi2)
+    {
+        x_u = oldx_u;
+        x_v = oldx_v;
+        updateScene(scene);
+    }
+}
+
+void BARec::plus()
+{
+    for (int i = 0; i < n; ++i)
+    {
+        auto t = delta_x.u(i).get();
+        x_u[i] = SE3::exp(t) * x_u[i];
+    }
+    for (int i = 0; i < m; ++i)
+    {
+        auto t = delta_x.v(i).get();
+        x_v[i] += t;
     }
 }
 
