@@ -40,8 +40,8 @@ void Buffer::stagedUpload(VulkanBase& base, size_t size, const void* data)
     StagingBuffer staging;
     staging.init(base, size, data);
 
-    vk::BufferCopy bc(0, m_memoryLocation->offset, size);
-    cmd.copyBuffer(staging.m_memoryLocation->buffer, m_memoryLocation->buffer, bc);
+    staging.m_memoryLocation->copy_to(cmd, m_memoryLocation);
+
     cmd.end();
     base.mainQueue.submitAndWait(cmd);
 }
