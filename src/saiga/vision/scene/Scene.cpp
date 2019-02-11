@@ -108,6 +108,20 @@ void Scene::rescale(double s)
     }
 }
 
+void Scene::normalize()
+{
+    auto d        = depthStatistics();
+    double target = sqrt(2) / d.median;
+    rescale(target);
+
+    auto m = medianWorldPoint();
+    SE3 trans;
+    trans.translation() = -m;
+    transformScene(trans);
+
+    cout << "Scene normalized. Scale: " << target << " Translate: " << -m.transpose() << endl;
+}
+
 void Scene::fixWorldPointReferences()
 {
     for (WorldPoint& wp : worldPoints)

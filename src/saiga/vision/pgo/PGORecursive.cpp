@@ -115,8 +115,8 @@ void PGORec::compute(PoseGraph& scene)
             target_ji = target_ij.transpose();
             target_ii += Jrowi.transpose() * Jrowi;
             target_jj += Jrowj.transpose() * Jrowj;
-            target_ir += Jrowi.transpose() * res;
-            target_jr += Jrowj.transpose() * res;
+            target_ir -= Jrowi.transpose() * res;
+            target_jr -= Jrowj.transpose() * res;
 
             S.valuePtr()[offsets.first]  = target_ij;
             S.valuePtr()[offsets.second] = target_ji;

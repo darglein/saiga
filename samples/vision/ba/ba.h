@@ -64,5 +64,4 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
     Saiga::BARec barec;
 
     std::vector<std::string> datasets;
-    void findBALDatasets();
 };

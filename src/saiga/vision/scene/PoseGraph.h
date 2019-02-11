@@ -11,6 +11,7 @@
 #include "saiga/core/util/statistics.h"
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/pgo/PGOConfig.h"
+#include "saiga/vision/scene/Scene.h"
 
 #include <vector>
 
@@ -21,7 +22,7 @@ struct SAIGA_VISION_API PoseEdge
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    int from, to;
+    int from = -1, to = -1;
     double weight = 1;
     SE3 meassurement;
 
@@ -36,6 +37,7 @@ struct SAIGA_VISION_API PoseEdge
     }
 
     bool operator<(const PoseEdge& other) { return std::tie(from, to) < std::tie(other.from, other.to); }
+    explicit operator bool() const { return from >= 0 && to >= 0; }
 };
 
 struct SAIGA_VISION_API PoseVertex
@@ -52,6 +54,10 @@ struct SAIGA_VISION_API PoseGraph
 
     AlignedVector<PoseVertex> poses;
     AlignedVector<PoseEdge> edges;
+
+    PoseGraph() {}
+    PoseGraph(const std::string& file) { load(file); }
+    PoseGraph(const Scene& scene);
 
     void addNoise(double stddev);
 

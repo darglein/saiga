@@ -50,10 +50,10 @@ BALDataset::BALDataset(const std::string& file)
         in >> o.camera_index >> o.point_index >> o.point[0] >> o.point[1];
         observations[i] = (o);
 
-		if (i == 0)
+        if (i == 0)
         {
-           //         cout << o.camera_index << " " << o.point_index << " " << o.point.transpose() << endl;
-            }
+            //         cout << o.camera_index << " " << o.point_index << " " << o.point.transpose() << endl;
+        }
     }
 
     start += num_observations;
@@ -87,9 +87,9 @@ BALDataset::BALDataset(const std::string& file)
         c.se3      = SE3((Quat)a, t);
         cameras[i] = (c);
 
-		if (i == 0)
+        if (i == 0)
         {
-          //          cout << c.se3 << " " << c.f << " " << c.k1 << " " << c.k2 << endl;       
+            //          cout << c.se3 << " " << c.f << " " << c.k1 << " " << c.k2 << endl;
         }
     }
     start += num_cameras * 9;
@@ -109,9 +109,9 @@ BALDataset::BALDataset(const std::string& file)
 
         points[i] = (p);
 
-			if (i == 0)
+        if (i == 0)
         {
-          //  cout << p.point.transpose() << endl;
+            //  cout << p.point.transpose() << endl;
         }
     }
 
@@ -175,7 +175,7 @@ double BALDataset::rms()
 {
     double error = 0;
 //    for (BALObservation& o : observations)
-#pragma omp parallel for reduction(+:error)
+#pragma omp parallel for reduction(+ : error)
     for (int i = 0; i < (int)observations.size(); ++i)
     {
         BALObservation& o = observations[i];
@@ -228,6 +228,7 @@ Scene BALDataset::makeScene()
 
 
     scene.fixWorldPointReferences();
+    scene.normalize();
     SAIGA_ASSERT(scene.valid());
 
     cout << "Created a Saiga::Scene from BAL dataset." << endl;

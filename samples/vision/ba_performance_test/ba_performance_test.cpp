@@ -38,11 +38,11 @@ void buildScene(Scene& scene)
 void buildSceneBAL(Scene& scene, const std::string& path)
 {
     Saiga::BALDataset bald(SearchPathes::data(path));
+    scene = bald.makeScene();
     //  Saiga::BALDataset bald(SearchPathes::data("vision/problem-00021-11315-pre.txt"));
     //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-00257-65132-pre.txt"));
     //    Saiga::BALDataset bald(SearchPathes::data("vision/problem-01778-993923-pre.txt"));
 
-    scene = bald.makeScene();
 
     Saiga::Random::setSeed(926703466);
 
@@ -170,7 +170,7 @@ int main(int, char**)
 
     solvers.push_back(std::make_shared<BARec>());
     //    solvers.push_back(std::make_shared<BAPoseOnly>());
-    //    solvers.push_back(std::make_shared<g2oBA2>());
+    solvers.push_back(std::make_shared<g2oBA2>());
     solvers.push_back(std::make_shared<CeresBA>());
 
 #if 0

@@ -3,11 +3,14 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
+
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/random.h"
+#include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
+#include "saiga/vision/ceres/CeresPGO.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
 #include "saiga/vision/pgo/PGORecursive.h"
 #include "saiga/vision/scene/PoseGraph.h"
@@ -23,19 +26,27 @@ int main(int, char**)
     Saiga::Random::setSeed(93865023985);
 
 
-    PoseGraph pg;
-    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
+    //    std::string path = "vision/problem-00257-65132-pre.txt";
+    std::string path = "vision/problem-00356-226730-pre.txt";
+    //    std::string path = "vision/problem-00257-65132-pre.txt";
+    //    std::string path = "vision/problem-00257-65132-pre.txt";
+
+    Saiga::BALDataset bald(SearchPathes::data(path));
+    Scene scene = bald.makeScene();
+
+    PoseGraph pg(scene);
+    //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
     //    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
     //    pg.load(SearchPathes::data("vision/loop.posegraph"));
-    pg.addNoise(0.1);
+    pg.addNoise(0.05);
     cout << endl;
 
 
     PGOOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 10;
-    baoptions.maxIterativeIterations = 20;
-    baoptions.iterativeTolerance     = 1e-10;
+    baoptions.maxIterations          = 3;
+    baoptions.maxIterativeIterations = 10;
+    baoptions.iterativeTolerance     = 1e-50;
     //    baoptions.solverType             = PGOOptions::SolverType::Direct;
     baoptions.solverType = PGOOptions::SolverType::Iterative;
 
@@ -43,6 +54,7 @@ int main(int, char**)
 
     solvers.push_back(std::make_shared<PGORec>());
     solvers.push_back(std::make_shared<g2oPGO>());
+    solvers.push_back(std::make_shared<CeresPGO>());
 
     for (auto& s : solvers)
     {

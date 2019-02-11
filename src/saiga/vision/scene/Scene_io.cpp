@@ -41,22 +41,9 @@ bool Scene::imgui()
         changed = true;
     }
 
-    if (ImGui::Button("Normalize Scale"))
+    if (ImGui::Button("Normalize"))
     {
-        auto d = depthStatistics();
-
-        double target = sqrt(2);
-        rescale(target / d.median);
-        changed = true;
-    }
-
-    if (ImGui::Button("Normalize Position"))
-    {
-        auto m = medianWorldPoint();
-        SE3 trans;
-        trans.translation() = -m;
-        transformScene(trans);
-        changed = true;
+        normalize();
     }
 
     static float sigma = 0.01;

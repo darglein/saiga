@@ -29,24 +29,15 @@ struct PGO
     static inline void evaluateResidual(const SE3Type& from, const SE3Type& to, const SE3Type& inverseMeasurement,
                                         ResidualType& res)
     {
-#ifdef LSD_REL
         SE3Type res2 = from.inverse() * to * inverseMeasurement;
-#else
-        SE3Type res2 = to * from.inverse() * inverseMeasurement;
-#endif
-        res = res2.log();
+        res          = res2.log();
     }
 
     static inline void evaluateJacobian(const SE3Type& from, const SE3Type& to, const SE3Type& inverseMeasurement,
                                         PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo)
     {
-#ifdef LSD_REL
-        JrowFrom = from.inverse().Adj();
+        JrowFrom = -from.inverse().Adj();
         JrowTo   = -JrowFrom;
-#else
-        JrowFrom     = to.Adj();
-        JrowTo       = -JrowFrom;
-#endif
     }
 
     static inline void evaluateResidualAndJacobian(const SE3Type& from, const SE3Type& to,
@@ -55,12 +46,6 @@ struct PGO
     {
         evaluateResidual(from, to, inverseMeasurement, res);
         evaluateJacobian(from, to, inverseMeasurement, JrowFrom, JrowTo);
-
-        //        JrowFrom = to.Adj();
-        //        JrowTo   = -JrowFrom;
-
-        //        JrowFrom = from.inverse().Adj();
-        //        JrowTo   = -JrowFrom;
     }
 };
 

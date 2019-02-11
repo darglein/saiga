@@ -60,5 +60,5 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
     Saiga::PoseGraph scene;
     Saiga::PGOOptions baoptions;
 
-    std::vector<std::string> datasets;
+    std::vector<std::string> datasets, baldatasets;
 };

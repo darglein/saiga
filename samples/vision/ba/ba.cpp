@@ -37,7 +37,9 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
 
-    findBALDatasets();
+    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".txt");
+    std::sort(datasets.begin(), datasets.end());
+    cout << "Found " << datasets.size() << " BAL datasets" << endl;
 }
 
 VulkanExample::~VulkanExample() {}
@@ -223,14 +225,4 @@ void VulkanExample::renderGUI()
 
     ImGui::End();
     Saiga::VulkanSDLExampleBase::renderGUI();
-}
-
-void VulkanExample::findBALDatasets()
-{
-    //    Saiga::Directory dir(".");
-    //    dir.getFilesPrefix(datasets, "problem-");
-
-    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".txt");
-    std::sort(datasets.begin(), datasets.end());
-    cout << "Found " << datasets.size() << " BAL datasets" << endl;
 }

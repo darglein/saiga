@@ -165,6 +165,9 @@ class SAIGA_VISION_API Scene
     void transformScene(const SE3& transform);
     void rescale(double s = 1);
 
+    // Move median to (0,0,0) and set average depth to sqrt(2)
+    void normalize();
+
     void fixWorldPointReferences();
 
     bool valid() const;
