@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -41,23 +41,13 @@ class SAIGA_OPENGL_API DirectionalLightShader : public LightShader
 
 class SAIGA_OPENGL_API DirectionalLight : public Light
 {
-    friend class DeferredLighting;
-
    protected:
     std::shared_ptr<CascadedShadowmap> shadowmap;
 
-    // direction of the light in world space
-    vec3 direction = vec3(0, -1, 0);
-
-    // relative intensity to the diffuse light in ambiend regions
-    float ambientIntensity = 0.2f;
-
-    // number of cascades for cascaded shadow mapping
-    // 1 means normal shadow mapping
-    int numCascades = 1;
-
     // bounding box of every cascade frustum
     std::vector<AABB> orthoBoxes;
+
+
 
     // relative split planes to the camera near and far plane
     // must be of size numCascades + 1
@@ -69,21 +59,29 @@ class SAIGA_OPENGL_API DirectionalLight : public Light
     // will be calculated from depthCutsRelative
     std::vector<float> depthCuts;
 
+    // shadow camera for depth map rendering
+    // is different for every cascade and is set in bindCascade
+    OrthographicCamera shadowCamera;
+
     // The size in world space units how big the interpolation region between two cascades is.
     // Larger values mean a smoother transition, but decreases performance, because more shadow samples need to be
     // fetched. Larger values also increase the size of each shadow frustum and therefore the quality may be reduceds.
     float cascadeInterpolateRange = 3.0f;
 
-    // shadow camera for depth map rendering
-    // is different for every cascade and is set in bindCascade
-    OrthographicCamera shadowCamera;
 
-    // Bind the uniforms for light rendering
-    void bindUniforms(DirectionalLightShader& shader, Camera* shadowCamera);
+    // direction of the light in world space
+    vec3 direction = vec3(0, -1, 0);
+
+    // relative intensity to the diffuse light in ambiend regions
+    float ambientIntensity = 0.2f;
+
+    // number of cascades for cascaded shadow mapping
+    // 1 means normal shadow mapping
+    int numCascades = 1;
 
    public:
     DirectionalLight() {}
-    virtual ~DirectionalLight() {}
+    ~DirectionalLight() {}
 
     /**
      * Creates the shadow map with the given number of cascades, and initializes depthCutsRelative
@@ -119,6 +117,9 @@ class SAIGA_OPENGL_API DirectionalLight : public Light
      */
     void bindCascade(int n);
 
+    // Bind the uniforms for light rendering
+    void bindUniforms(DirectionalLightShader& shader, Camera* shadowCamera);
+
     // see description for depthCutsRelative for more info
     void setDepthCutsRelative(const std::vector<float>& value);
     std::vector<float> getDepthCutsRelative() const;
@@ -132,9 +133,8 @@ class SAIGA_OPENGL_API DirectionalLight : public Light
     float getAmbientIntensity() { return ambientIntensity; }
 
     // the directional light is always visible
-    bool cullLight(Camera* cam)
+    bool cullLight(Camera*)
     {
-        (void)cam;
         culled = false;
         return culled;
     }

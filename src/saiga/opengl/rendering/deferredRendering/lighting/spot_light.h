@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -39,7 +39,7 @@ class SAIGA_OPENGL_API SpotLight : public AttenuatedLight
      */
 
     SpotLight();
-    virtual ~SpotLight() {}
+    virtual ~SpotLight() override {}
     void bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* shadowCamera);
 
 
