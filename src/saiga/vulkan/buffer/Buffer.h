@@ -114,9 +114,28 @@ class SAIGA_VULKAN_API Buffer
 
     inline void* getMappedPointer() const { return static_cast<char*>(m_memoryLocation->mappedPointer); }
 
+    /**
+     * Upload new data to the buffer. Only copies size() number of bytes.
+     * @param data Data to upload.
+     */
     void upload(void* data) { m_memoryLocation->upload(base->device, data); }
 
+    /**
+     * Downloads the buffer into the data vector. It must provide enough memory to store size() bytes.
+     * @param data Void-pointer to copy into.
+     */
     void download(void* data) { m_memoryLocation->download(base->device, data); }
+
+
+    inline void mark_dynamic()
+    {
+        if (m_memoryLocation)
+        {
+            m_memoryLocation->mark_dynamic();
+        }
+    }
+
+    explicit operator bool() { return m_memoryLocation; }
 
     friend std::ostream& operator<<(std::ostream& os, const Buffer& buffer);
 };

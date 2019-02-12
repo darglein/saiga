@@ -218,5 +218,7 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::alloc
 
     buffer->stagedUpload(renderer.base, size, mem.data());
 
+    buffer->mark_dynamic();
+
     return std::make_pair(buffer, start);
 }

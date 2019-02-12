@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "saiga/export.h"
 #include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/svulkan.h"
 

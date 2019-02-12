@@ -12,8 +12,8 @@ namespace Saiga::Vulkan::Memory
 void BaseChunkAllocator::showDetailStats()
 {
     using BarColor = ImGui::ColoredBar::BarColor;
-    static const std::array<BarColor, 1> alloc_colors{
-        BarColor{{0.592f, 0.886f, 0.f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}}};
+    static const BarColor alloc_color_static{{1.00f, 0.447f, 0.133f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}};
+    static const BarColor alloc_color_dynamic{{1.00f, 0.812f, 0.133f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}};
 
     static std::vector<ImGui::ColoredBar> allocation_bars;
 
@@ -48,9 +48,10 @@ void BaseChunkAllocator::showDetailStats()
             ConstFreeIterator freeIter;
             for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
             {
+                auto& color = (*allocIter)->is_static() ? alloc_color_static : alloc_color_dynamic;
                 bar.renderArea(static_cast<float>((*allocIter)->offset) / m_chunkSize,
-                               static_cast<float>((*allocIter)->offset + (*allocIter)->size) / m_chunkSize,
-                               alloc_colors[j % alloc_colors.size()], false);
+                               static_cast<float>((*allocIter)->offset + (*allocIter)->size) / m_chunkSize, color,
+                               false);
                 usedSpace += (*allocIter)->size;
             }
             numAllocs += j;
