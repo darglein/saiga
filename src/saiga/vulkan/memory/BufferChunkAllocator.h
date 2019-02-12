@@ -24,21 +24,24 @@
 
 namespace Saiga::Vulkan::Memory
 {
-class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator
+class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<MemoryLocation>
 {
+    // typedef std::vector<ChunkAllocation<MemoryLocation>>::iterator ChunkIterator;
+
    private:
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();
     vk::BufferCreateInfo m_bufferCreateInfo;
 
    protected:
-    ChunkIterator createNewChunk() override;
+    ChunkIterator<MemoryLocation> createNewChunk() override;
 
    public:
     BufferType type;
     ~BufferChunkAllocator() override = default;
 
-    BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type, FitStrategy& strategy,
-                         Queue* _queue, vk::DeviceSize chunkSize = 64 * 1024 * 1024)
+    BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type,
+                         FitStrategy<MemoryLocation>& strategy, Queue* _queue,
+                         vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         std::stringstream identifier_stream;

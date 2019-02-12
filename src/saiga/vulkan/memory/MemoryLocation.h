@@ -204,23 +204,93 @@ struct SAIGA_VULKAN_API BufferData
     }
 
 
-    operator bool() { return buffer; }
+    operator bool() const { return buffer; }
 
-    operator vk::Buffer() { return buffer; }
+    operator vk::Buffer() const { return buffer; }
 
-    operator vk::ArrayProxy<const vk::Buffer>() { return vk::ArrayProxy<const vk::Buffer>(buffer); }
+    operator vk::ArrayProxy<const vk::Buffer>() const { return vk::ArrayProxy<const vk::Buffer>(buffer); }
+
+    bool operator==(const BufferData& other) const { return buffer == other.buffer; }
 
     friend std::ostream& operator<<(std::ostream& os, const BufferData& bufferData)
     {
-        os << bufferData.buffer;
+        std::stringstream ss;
+        ss << std::hex << bufferData.buffer;
+        os << ss.str();
+        return os;
+    }
+};
+
+struct SAIGA_VULKAN_API ImageData
+{
+    vk::Image image;
+    vk::ImageCreateInfo image_create_info;
+    vk::ImageView view;
+    vk::ImageViewCreateInfo view_create_info;
+    vk::Sampler sampler;
+    vk::SamplerCreateInfo sampler_create_info;
+
+    ImageData(vk::ImageCreateInfo const& _image_create_info, vk::ImageViewCreateInfo const& _view_create_info,
+              vk::SamplerCreateInfo const& _sampler_create_info)
+        : image(nullptr),
+          image_create_info(_image_create_info),
+          view(nullptr),
+          view_create_info(_view_create_info),
+          sampler(nullptr),
+          sampler_create_info(_sampler_create_info)
+    {
+    }
+
+    ImageData(nullptr_t)
+        : image(nullptr),
+          image_create_info(),
+          view(nullptr),
+          view_create_info(),
+          sampler(nullptr),
+          sampler_create_info()
+    {
+    }
+
+    explicit operator bool() const { return image; }
+
+    void copy_create_info_from(ImageData const& other)
+    {
+        set_info(other.image_create_info, other.view_create_info, other.sampler_create_info);
+    }
+
+    void set_info(vk::ImageCreateInfo const& _image_create_info, vk::ImageViewCreateInfo const& _view_create_info,
+                  vk::SamplerCreateInfo const& _sampler_create_info)
+    {
+        image_create_info   = _image_create_info;
+        view_create_info    = _view_create_info;
+        sampler_create_info = _sampler_create_info;
+    }
+
+    void create(vk::Device device)
+    {
+        image                  = device.createImage(image_create_info);
+        view_create_info.image = image;
+        view                   = device.createImageView(view_create_info);
+        sampler                = device.createSampler(sampler_create_info);
+    }
+
+    void destroy(vk::Device device) {
+
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const ImageData& data)
+    {
+        std::stringstream ss;
+        ss << std::hex << data.image << ", " << data.view << ", " << data.sampler;
+        os << ss.str();
         return os;
     }
 };
 
 
 
-using MemoryLocation = BaseMemoryLocation<BufferData>;
-
+using MemoryLocation      = BaseMemoryLocation<BufferData>;
+using ImageMemoryLocation = BaseMemoryLocation<ImageData>;
 
 inline void copy_buffer(vk::CommandBuffer cmd, MemoryLocation* target, MemoryLocation* source)
 {
@@ -229,8 +299,5 @@ inline void copy_buffer(vk::CommandBuffer cmd, MemoryLocation* target, MemoryLoc
 
     cmd.copyBuffer(static_cast<vk::Buffer>(source->data), static_cast<vk::Buffer>(target->data), bc);
 }
-// class MemoryLocation : public BaseMemoryLocation<vk::Buffer>
-//{
-//};
 
 }  // namespace Saiga::Vulkan::Memory

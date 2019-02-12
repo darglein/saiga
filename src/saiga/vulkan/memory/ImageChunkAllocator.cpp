@@ -10,7 +10,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator::createNewChunk()
+ChunkIterator<MemoryLocation> Saiga::Vulkan::Memory::ImageChunkAllocator::createNewChunk()
 {
     auto newChunk = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
 

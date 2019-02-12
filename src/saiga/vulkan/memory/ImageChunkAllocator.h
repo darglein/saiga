@@ -7,12 +7,12 @@
 #include "MemoryType.h"
 namespace Saiga::Vulkan::Memory
 {
-class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator
+class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<MemoryLocation>
 {
    public:
     ImageType type;
-    ImageChunkAllocator(const vk::Device& _device, ChunkCreator* chunkAllocator, ImageType _type, FitStrategy& strategy,
-                        Queue* _queue, vk::DeviceSize chunkSize)
+    ImageChunkAllocator(const vk::Device& _device, ChunkCreator* chunkAllocator, ImageType _type,
+                        FitStrategy<MemoryLocation>& strategy, Queue* _queue, vk::DeviceSize chunkSize)
         : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         LOG(INFO) << "Created new image allocator for flags " << type;
@@ -32,7 +32,7 @@ class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator
     MemoryLocation* allocate(vk::DeviceSize size, const vk::Image& image);
 
    protected:
-    ChunkIterator createNewChunk() override;
+    ChunkIterator<MemoryLocation> createNewChunk() override;
 
     void headerInfo() override;
 

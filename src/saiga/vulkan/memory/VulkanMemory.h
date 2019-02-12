@@ -68,7 +68,7 @@ class SAIGA_VULKAN_API VulkanMemory
     struct BufferAllocator
     {
         std::unique_ptr<BufferChunkAllocator> allocator;
-        std::unique_ptr<Defragger> defragger;
+        std::unique_ptr<Defragger<MemoryLocation>> defragger;
     };
     using BufferMap  = std::map<BufferType, BufferAllocator>;
     using ImageMap   = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
@@ -101,7 +101,7 @@ class SAIGA_VULKAN_API VulkanMemory
 
     std::unique_ptr<FallbackAllocator> fallbackAllocator;
     ChunkCreator chunkCreator;
-    std::unique_ptr<FitStrategy> strategy;
+    std::unique_ptr<FitStrategy<MemoryLocation>> strategy;
 
 
     template <typename DefaultSizeMap, typename MemoryType>

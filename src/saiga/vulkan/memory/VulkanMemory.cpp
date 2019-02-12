@@ -15,7 +15,7 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* 
     m_pDevice = _pDevice;
     m_device  = _device;
     m_queue   = queue;
-    strategy  = std::make_unique<FirstFitStrategy>();
+    strategy  = std::make_unique<FirstFitStrategy<MemoryLocation>>();
     chunkCreator.init(_pDevice, _device);
 
     auto props = _pDevice.getMemoryProperties();
@@ -77,10 +77,10 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     auto chunk_alloc = std::make_unique<BufferChunkAllocator>(m_device, &chunkCreator, effectiveType, *strategy,
                                                               m_queue, found->second);
 
-    std::unique_ptr<Defragger> defragger;
+    std::unique_ptr<Defragger<MemoryLocation>> defragger;
     if (allow_defragger)
     {
-        defragger = std::make_unique<Defragger>(chunk_alloc.get());
+        defragger = std::make_unique<Defragger<MemoryLocation>>(chunk_alloc.get());
     }
     auto new_alloc = map.emplace(effectiveType, BufferAllocator{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(new_alloc.second, "Allocator was already present.");

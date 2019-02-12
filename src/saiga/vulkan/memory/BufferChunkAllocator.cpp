@@ -26,7 +26,7 @@ MemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
     return location;
 }
 
-ChunkIterator BufferChunkAllocator::createNewChunk()
+ChunkIterator<MemoryLocation> BufferChunkAllocator::createNewChunk()
 {
     auto newChunk        = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
     auto newBuffer       = m_device.createBuffer(m_bufferCreateInfo);
