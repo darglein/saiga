@@ -44,6 +44,14 @@ class SAIGA_VULKAN_API BaseChunkAllocator
 
     virtual void headerInfo() {}
 
+
+    virtual T* base_allocate(vk::DeviceSize size);
+
+    virtual void base_deallocate(T* location);
+
+    virtual std::unique_ptr<T> create_location(ChunkIterator<T>& chunk_alloc, vk::DeviceSize start,
+                                               vk::DeviceSize size) = 0;
+
    public:
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy<T>& strategy, Queue* _queue,
                        vk::DeviceSize chunkSize = 64 * 1024 * 1024)
@@ -84,11 +92,8 @@ class SAIGA_VULKAN_API BaseChunkAllocator
 
     virtual ~BaseChunkAllocator() = default;
 
-    virtual T* allocate(vk::DeviceSize size);
-
     T* reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
 
-    virtual void deallocate(T* location);
 
     bool memory_is_free(vk::DeviceMemory memory, FreeListEntry entry);
 
@@ -105,13 +110,10 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     void move_allocation(T* target, T* source);
 
     void add_to_free_list(const ChunkIterator<T>& chunk, const T& location) const;
-
-    virtual std::unique_ptr<T> create_location(ChunkIterator<T>& chunk_alloc, vk::DeviceSize start,
-                                               vk::DeviceSize size) = 0;
 };
 
 template <typename T>
-T* BaseChunkAllocator<T>::allocate(vk::DeviceSize size)
+T* BaseChunkAllocator<T>::base_allocate(vk::DeviceSize size)
 {
     std::scoped_lock alloc_lock(allocationMutex);
     ChunkIterator<T> chunkAlloc;
@@ -177,7 +179,7 @@ void BaseChunkAllocator<T>::findNewMax(ChunkIterator<T>& chunkAlloc) const
 
 
 template <typename T>
-void BaseChunkAllocator<T>::deallocate(T* location)
+void BaseChunkAllocator<T>::base_deallocate(T* location)
 {
     std::scoped_lock alloc_lock(allocationMutex);
 

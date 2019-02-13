@@ -9,6 +9,14 @@ namespace Saiga::Vulkan::Memory
 {
 class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<ImageMemoryLocation>
 {
+   protected:
+    ChunkIterator<ImageMemoryLocation> createNewChunk() override;
+
+    void headerInfo() override;
+
+    std::unique_ptr<ImageMemoryLocation> create_location(ChunkIterator<ImageMemoryLocation>& chunk_alloc,
+                                                         vk::DeviceSize start, vk::DeviceSize size) override;
+
    public:
     ImageType type;
     ImageChunkAllocator(const vk::Device& _device, ChunkCreator* chunkAllocator, ImageType _type,
@@ -31,19 +39,7 @@ class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<Ima
 
     ImageMemoryLocation* allocate(ImageData& image);
 
-    void deallocate(ImageMemoryLocation* location) override;
-
-   protected:
-    ChunkIterator<ImageMemoryLocation> createNewChunk() override;
-
-    void headerInfo() override;
-
-   public:
-    std::unique_ptr<ImageMemoryLocation> create_location(ChunkIterator<ImageMemoryLocation>& chunk_alloc,
-                                                         vk::DeviceSize start, vk::DeviceSize size) override;
-
-   private:
-    using BaseChunkAllocator::allocate;
+    void deallocate(ImageMemoryLocation* location);
 };
 
 }  // namespace Saiga::Vulkan::Memory

@@ -10,7 +10,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-ChunkIterator<ImageMemoryLocation> Saiga::Vulkan::Memory::ImageChunkAllocator::createNewChunk()
+ChunkIterator<ImageMemoryLocation> ImageChunkAllocator::createNewChunk()
 {
     auto newChunk = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
 
@@ -26,11 +26,11 @@ void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
     ImGui::LabelText("Memory Type", "%s", ss.str().c_str());
 }
 
-Saiga::Vulkan::Memory::ImageMemoryLocation* Saiga::Vulkan::Memory::ImageChunkAllocator::allocate(ImageData& image_data)
+ImageMemoryLocation* ImageChunkAllocator::allocate(ImageData& image_data)
 {
     image_data.create_image(m_device);
     auto aligned_size = Saiga::iAlignUp(image_data.image_requirements.size, image_data.image_requirements.alignment);
-    auto location     = BaseChunkAllocator::allocate(aligned_size);
+    auto location     = BaseChunkAllocator::base_allocate(aligned_size);
 
     location->data = std::move(image_data);
 
@@ -53,7 +53,7 @@ void ImageChunkAllocator::deallocate(ImageMemoryLocation* location)
 {
     location->destroy_data(m_device);
 
-    BaseChunkAllocator::deallocate(location);
+    BaseChunkAllocator::base_deallocate(location);
 }
 
 }  // namespace Saiga::Vulkan::Memory

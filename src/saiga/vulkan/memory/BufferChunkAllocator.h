@@ -33,6 +33,11 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Bu
    protected:
     ChunkIterator<BufferMemoryLocation> createNewChunk() override;
 
+    void headerInfo() override;
+
+    std::unique_ptr<BufferMemoryLocation> create_location(ChunkIterator<BufferMemoryLocation>& chunk_alloc,
+                                                          vk::DeviceSize start, vk::DeviceSize size) override;
+
    public:
     BufferType type;
     ~BufferChunkAllocator() override = default;
@@ -73,17 +78,8 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Bu
         return *this;
     }
 
-    void deallocate(BufferMemoryLocation* location) override;
+    void deallocate(BufferMemoryLocation* location);
 
-    BufferMemoryLocation* allocate(vk::DeviceSize size) override;
-
-    using BaseChunkAllocator::allocate;
-
-   protected:
-    void headerInfo() override;
-
-   public:
-    std::unique_ptr<BufferMemoryLocation> create_location(ChunkIterator<BufferMemoryLocation>& chunk_alloc,
-                                                          vk::DeviceSize start, vk::DeviceSize size) override;
+    BufferMemoryLocation* allocate(vk::DeviceSize size);
 };
 }  // namespace Saiga::Vulkan::Memory

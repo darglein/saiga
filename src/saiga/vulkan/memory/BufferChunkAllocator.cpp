@@ -21,7 +21,7 @@ BufferMemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
     auto alignedSize = iAlignUp(size, m_alignment);
     // LOG(INFO) << "Requested " << size << " (~" << alignedSize << ") bytes";
     SAIGA_ASSERT(alignedSize <= m_chunkSize, "Can't allocate sizes bigger than chunk size");
-    auto location = BaseChunkAllocator::allocate(alignedSize);
+    auto location = BaseChunkAllocator::base_allocate(alignedSize);
     LOG(INFO) << "Allocate buffer " << type << ":" << *location;
     return location;
 }
@@ -51,7 +51,7 @@ ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
 void BufferChunkAllocator::deallocate(BufferMemoryLocation* location)
 {
     LOG(INFO) << "Trying to deallocate buffer " << type << ":" << *location;
-    BaseChunkAllocator::deallocate(location);
+    BaseChunkAllocator::base_deallocate(location);
 }
 
 void BufferChunkAllocator::headerInfo()
