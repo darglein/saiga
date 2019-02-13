@@ -15,7 +15,7 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* 
     m_pDevice      = _pDevice;
     m_device       = _device;
     m_queue        = queue;
-    strategy       = std::make_unique<FirstFitStrategy<MemoryLocation>>();
+    strategy       = std::make_unique<FirstFitStrategy<BufferMemoryLocation>>();
     image_strategy = std::make_unique<FirstFitStrategy<ImageMemoryLocation>>();
 
     chunkCreator.init(_pDevice, _device);
@@ -72,10 +72,10 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     auto chunk_alloc = std::make_unique<BufferChunkAllocator>(m_device, &chunkCreator, effectiveType, *strategy,
                                                               m_queue, found->second);
 
-    std::unique_ptr<Defragger<MemoryLocation>> defragger;
+    std::unique_ptr<Defragger<BufferMemoryLocation>> defragger;
     if (allow_defragger)
     {
-        defragger = std::make_unique<Defragger<MemoryLocation>>(chunk_alloc.get());
+        defragger = std::make_unique<Defragger<BufferMemoryLocation>>(chunk_alloc.get());
     }
     auto new_alloc = map.emplace(effectiveType, BufferAllocator{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(new_alloc.second, "Allocator was already present.");
@@ -164,7 +164,7 @@ void VulkanMemory::destroy()
 }
 
 
-MemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceSize size)
+BufferMemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceSize size)
 {
     auto& allocator = getAllocator(type);
 
@@ -204,7 +204,7 @@ ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& im
     return location;
 }
 
-void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation* location)
+void VulkanMemory::deallocateBuffer(const BufferType& type, BufferMemoryLocation* location)
 {
     auto& allocator = getAllocator(type);
     if (location->size > allocator.allocator->m_chunkSize)

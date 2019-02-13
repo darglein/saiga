@@ -186,7 +186,7 @@ void VulkanExample::alloc_index(int index)
     if (num_allocations[index].first)
     {
         // num_allocations[index].first->destroy();
-        // MemoryLocation* loc = num_allocations[index].first;
+        // BufferMemoryLocation* loc = num_allocations[index].first;
         // allocations.erase(allocations.begin() + index);
         // renderer.base.memory.deallocateBuffer(buffer_type, loc);
         num_allocations[index] = std::make_pair(nullptr, 0);

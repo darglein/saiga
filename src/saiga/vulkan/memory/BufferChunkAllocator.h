@@ -24,21 +24,21 @@
 
 namespace Saiga::Vulkan::Memory
 {
-class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<MemoryLocation>
+class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<BufferMemoryLocation>
 {
    private:
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();
     vk::BufferCreateInfo m_bufferCreateInfo;
 
    protected:
-    ChunkIterator<MemoryLocation> createNewChunk() override;
+    ChunkIterator<BufferMemoryLocation> createNewChunk() override;
 
    public:
     BufferType type;
     ~BufferChunkAllocator() override = default;
 
     BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type,
-                         FitStrategy<MemoryLocation>& strategy, Queue* _queue,
+                         FitStrategy<BufferMemoryLocation>& strategy, Queue* _queue,
                          vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
@@ -73,9 +73,9 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Me
         return *this;
     }
 
-    void deallocate(MemoryLocation* location) override;
+    void deallocate(BufferMemoryLocation* location) override;
 
-    MemoryLocation* allocate(vk::DeviceSize size) override;
+    BufferMemoryLocation* allocate(vk::DeviceSize size) override;
 
     using BaseChunkAllocator::allocate;
 
@@ -83,7 +83,7 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Me
     void headerInfo() override;
 
    public:
-    std::unique_ptr<MemoryLocation> create_location(ChunkIterator<MemoryLocation>& chunk_alloc, vk::DeviceSize start,
-                                                    vk::DeviceSize size) override;
+    std::unique_ptr<BufferMemoryLocation> create_location(ChunkIterator<BufferMemoryLocation>& chunk_alloc,
+                                                          vk::DeviceSize start, vk::DeviceSize size) override;
 };
 }  // namespace Saiga::Vulkan::Memory

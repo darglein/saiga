@@ -302,10 +302,10 @@ struct SAIGA_VULKAN_API ImageData
 
 
 
-using MemoryLocation      = BaseMemoryLocation<BufferData>;
-using ImageMemoryLocation = BaseMemoryLocation<ImageData>;
+using BufferMemoryLocation = BaseMemoryLocation<BufferData>;
+using ImageMemoryLocation  = BaseMemoryLocation<ImageData>;
 
-inline void copy_buffer(vk::CommandBuffer cmd, MemoryLocation* target, MemoryLocation* source)
+inline void copy_buffer(vk::CommandBuffer cmd, BufferMemoryLocation* target, BufferMemoryLocation* source)
 {
     SAIGA_ASSERT(target->size == source->size, "Different size copies are not supported");
     vk::BufferCopy bc{source->offset, target->offset, target->size};

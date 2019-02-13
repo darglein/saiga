@@ -32,7 +32,7 @@ struct VulkanStlAllocator
    private:
     struct AllocationHeader
     {
-        MemoryLocation* memoryLocation;
+        BufferMemoryLocation* memoryLocation;
     };
 
 

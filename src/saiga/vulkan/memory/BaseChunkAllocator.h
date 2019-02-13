@@ -272,7 +272,7 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
     std::scoped_lock lock(allocationMutex);
     const auto size = source->size;
 
-    MemoryLocation source_copy = *source;
+    BufferMemoryLocation source_copy = *source;
 
     ChunkIterator<T> target_chunk, source_chunk;
     AllocationIterator<T> target_alloc, source_alloc;

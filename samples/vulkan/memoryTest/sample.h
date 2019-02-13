@@ -10,6 +10,7 @@
 
 #include "saiga/core/sdl/sdl_camera.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
+#include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/memory/BufferChunkAllocator.h"
 #include "saiga/vulkan/memory/ChunkCreator.h"
@@ -19,13 +20,12 @@
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
-#include "saiga/core/window/Interfaces.h"
 
 #include <random>
 #include <utility>
 #include <vector>
 
-using Saiga::Vulkan::Memory::MemoryLocation;
+using Saiga::Vulkan::Memory::BufferMemoryLocation;
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener

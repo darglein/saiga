@@ -27,7 +27,7 @@ class FallbackAllocator
     std::mutex mutex;
     vk::Device m_device;
     vk::PhysicalDevice m_physicalDevice;
-    std::vector<std::unique_ptr<MemoryLocation>> m_allocations;
+    std::vector<std::unique_ptr<BufferMemoryLocation>> m_allocations;
     std::vector<std::unique_ptr<ImageMemoryLocation>> m_image_allocations;
     std::string gui_identifier;
 
@@ -62,12 +62,12 @@ class FallbackAllocator
     ~FallbackAllocator() { destroy(); }
 
 
-    MemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
+    BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
     ImageMemoryLocation* allocate(const ImageType& type, ImageData& image_data);
 
     void destroy();
 
-    void deallocate(MemoryLocation* location);
+    void deallocate(BufferMemoryLocation* location);
     void deallocate(ImageMemoryLocation* location);
 
     void showDetailStats();

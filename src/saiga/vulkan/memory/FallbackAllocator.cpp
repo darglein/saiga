@@ -11,7 +11,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-void FallbackAllocator::deallocate(MemoryLocation* location)
+void FallbackAllocator::deallocate(BufferMemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
     LOG(INFO) << "Fallback deallocate: " << location;
@@ -59,7 +59,7 @@ void FallbackAllocator::destroy()
     m_image_allocations.clear();
 }
 
-MemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::DeviceSize size)
+BufferMemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::DeviceSize size)
 {
     vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(), size, type.usageFlags};
     auto buffer = m_device.createBuffer(bufferCreateInfo);
@@ -78,10 +78,10 @@ MemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::DeviceSi
     }
     m_device.bindBufferMemory(buffer, memory, 0);
 
-    MemoryLocation* retVal;
+    BufferMemoryLocation* retVal;
     {
         std::scoped_lock lock(mutex);
-        m_allocations.emplace_back(std::make_unique<MemoryLocation>(buffer, memory, 0, size, mappedPtr));
+        m_allocations.emplace_back(std::make_unique<BufferMemoryLocation>(buffer, memory, 0, size, mappedPtr));
         retVal = m_allocations.back().get();
     }
     LOG(INFO) << "Fallback allocation: " << type << "->" << retVal;

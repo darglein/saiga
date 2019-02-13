@@ -20,10 +20,10 @@ namespace Vulkan
 class SAIGA_VULKAN_API Buffer
 {
    protected:
-    VulkanBase* base                         = nullptr;
-    vk::BufferUsageFlags bufferUsage         = vk::BufferUsageFlagBits();
-    vk::MemoryPropertyFlags memoryProperties = vk::MemoryPropertyFlags();
-    Memory::MemoryLocation* m_memoryLocation = nullptr;
+    VulkanBase* base                               = nullptr;
+    vk::BufferUsageFlags bufferUsage               = vk::BufferUsageFlagBits();
+    vk::MemoryPropertyFlags memoryProperties       = vk::MemoryPropertyFlags();
+    Memory::BufferMemoryLocation* m_memoryLocation = nullptr;
 
    public:
     Buffer()                    = default;

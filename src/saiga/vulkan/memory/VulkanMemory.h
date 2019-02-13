@@ -67,7 +67,7 @@ class SAIGA_VULKAN_API VulkanMemory
     struct BufferAllocator
     {
         std::unique_ptr<BufferChunkAllocator> allocator;
-        std::unique_ptr<Defragger<MemoryLocation>> defragger;
+        std::unique_ptr<Defragger<BufferMemoryLocation>> defragger;
     };
     using BufferMap  = std::map<BufferType, BufferAllocator>;
     using ImageMap   = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
@@ -100,7 +100,7 @@ class SAIGA_VULKAN_API VulkanMemory
 
     std::unique_ptr<FallbackAllocator> fallbackAllocator;
     ChunkCreator chunkCreator;
-    std::unique_ptr<FitStrategy<MemoryLocation>> strategy;
+    std::unique_ptr<FitStrategy<BufferMemoryLocation>> strategy;
     std::unique_ptr<FitStrategy<ImageMemoryLocation>> image_strategy;
 
 
@@ -178,12 +178,12 @@ class SAIGA_VULKAN_API VulkanMemory
 
     void renderGUI();
 
-    MemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
+    BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
 
     // Continue here: change from image to ImageData
     ImageMemoryLocation* allocate(const ImageType& type, ImageData& image);
 
-    void deallocateBuffer(const BufferType& type, MemoryLocation* location);
+    void deallocateBuffer(const BufferType& type, BufferMemoryLocation* location);
 
     void deallocateImage(const ImageType& type, ImageMemoryLocation* location);
 

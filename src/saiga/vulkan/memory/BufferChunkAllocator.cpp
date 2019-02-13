@@ -16,7 +16,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-MemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
+BufferMemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
 {
     auto alignedSize = iAlignUp(size, m_alignment);
     // LOG(INFO) << "Requested " << size << " (~" << alignedSize << ") bytes";
@@ -26,7 +26,7 @@ MemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
     return location;
 }
 
-ChunkIterator<MemoryLocation> BufferChunkAllocator::createNewChunk()
+ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
 {
     auto newChunk        = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
     auto newBuffer       = m_device.createBuffer(m_bufferCreateInfo);
@@ -48,7 +48,7 @@ ChunkIterator<MemoryLocation> BufferChunkAllocator::createNewChunk()
     return --chunks.end();
 }
 
-void BufferChunkAllocator::deallocate(MemoryLocation* location)
+void BufferChunkAllocator::deallocate(BufferMemoryLocation* location)
 {
     LOG(INFO) << "Trying to deallocate buffer " << type << ":" << *location;
     BaseChunkAllocator::deallocate(location);
@@ -60,11 +60,11 @@ void BufferChunkAllocator::headerInfo()
     ImGui::LabelText("Memory Type", "%s", vk::to_string(type.memoryFlags).c_str());
 }
 
-std::unique_ptr<MemoryLocation> BufferChunkAllocator::create_location(
+std::unique_ptr<BufferMemoryLocation> BufferChunkAllocator::create_location(
     ChunkIterator<Saiga::Vulkan::Memory::BaseMemoryLocation<Saiga::Vulkan::Memory::BufferData>>& chunk_alloc,
     vk::DeviceSize start, vk::DeviceSize size)
 {
-    return std::make_unique<MemoryLocation>(chunk_alloc->buffer, chunk_alloc->chunk->memory, start, size,
-                                            chunk_alloc->mappedPointer);
+    return std::make_unique<BufferMemoryLocation>(chunk_alloc->buffer, chunk_alloc->chunk->memory, start, size,
+                                                  chunk_alloc->mappedPointer);
 }
 }  // namespace Saiga::Vulkan::Memory
