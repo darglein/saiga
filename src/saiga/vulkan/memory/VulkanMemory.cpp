@@ -72,12 +72,12 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     auto chunk_alloc = std::make_unique<BufferChunkAllocator>(m_device, &chunkCreator, effectiveType, *strategy,
                                                               m_queue, found->second);
 
-    std::unique_ptr<Defragger<BufferMemoryLocation>> defragger;
+    std::unique_ptr<BufferDefragger> defragger;
     if (allow_defragger)
     {
-        defragger = std::make_unique<Defragger<BufferMemoryLocation>>(chunk_alloc.get());
+        defragger = std::make_unique<BufferDefragger>(m_device, chunk_alloc.get());
     }
-    auto new_alloc = map.emplace(effectiveType, BufferAllocator{std::move(chunk_alloc), std::move(defragger)});
+    auto new_alloc = map.emplace(effectiveType, BufferContainer{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(new_alloc.second, "Allocator was already present.");
 
 
@@ -94,14 +94,29 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
 
     auto found = find_default_size<ImageDefaultMap, ImageType>(default_image_chunk_sizes, type);
 
-    auto emplaced =
-        map.emplace(effectiveType, std::make_unique<ImageChunkAllocator>(m_device, &chunkCreator, effectiveType,
-                                                                         *image_strategy, m_queue, found->second));
+
+    bool allow_defragger = (effectiveType.usageFlags & vk::ImageUsageFlagBits::eDepthStencilAttachment) !=
+                           vk::ImageUsageFlagBits::eDepthStencilAttachment;
+
+    if (allow_defragger)
+    {
+        effectiveType.usageFlags |= vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
+    }
+
+    std::unique_ptr<ImageDefragger> defragger;
+
+    auto chunk_alloc = std::make_unique<ImageChunkAllocator>(m_device, &chunkCreator, effectiveType, *image_strategy,
+                                                             m_queue, found->second);
+    if (allow_defragger)
+    {
+        defragger = std::make_unique<ImageDefragger>(m_device, chunk_alloc.get());
+    }
+    auto emplaced = map.emplace(effectiveType, ImageContainer{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
 
-VulkanMemory::BufferAllocator& VulkanMemory::getAllocator(const BufferType& type)
+VulkanMemory::BufferContainer& VulkanMemory::getAllocator(const BufferType& type)
 {
     auto foundAllocator = findAllocator<BufferMap, vk::BufferUsageFlags>(bufferAllocators, type);
     if (foundAllocator == bufferAllocators.end())
@@ -122,10 +137,10 @@ ImageChunkAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
         foundAllocator = createNewImageAllocator(imageAllocators, default_image_chunk_sizes, type);
     }
 
-    return *(foundAllocator->second);
+    return *(foundAllocator->second.allocator);
 }
 
-VulkanMemory::BufferAllocator& VulkanMemory::get_allocator_exact(const BufferType& type)
+VulkanMemory::BufferContainer& VulkanMemory::get_allocator_exact(const BufferType& type)
 {
     auto foundAllocator = find_allocator_exact<BufferMap, vk::BufferUsageFlags>(bufferAllocators, type);
     if (foundAllocator == bufferAllocators.end())
@@ -145,7 +160,7 @@ ImageChunkAllocator& VulkanMemory::get_image_allocator_exact(const ImageType& ty
         foundAllocator = createNewImageAllocator(imageAllocators, default_image_chunk_sizes, type);
     }
 
-    return *(foundAllocator->second);
+    return *(foundAllocator->second.allocator);
 }
 
 void VulkanMemory::destroy()
@@ -159,7 +174,7 @@ void VulkanMemory::destroy()
 
     for (auto& allocator : imageAllocators)
     {
-        allocator.second->destroy();
+        allocator.second.allocator->destroy();
     }
 }
 

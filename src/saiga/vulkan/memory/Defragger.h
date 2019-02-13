@@ -47,8 +47,9 @@ class Defragger
         bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
     };
 
+    vk::Device device;
     bool enabled;
-    BufferChunkAllocator* allocator;
+    BaseChunkAllocator<T>* allocator;
     std::multiset<DefragOperation> defrag_operations;
 
 
@@ -72,8 +73,9 @@ class Defragger
     // end defrag thread functions
    public:
     OperationPenalties penalties;
-    Defragger(BufferChunkAllocator* _allocator)
-        : enabled(false),
+    Defragger(vk::Device _device, BaseChunkAllocator<T>* _allocator)
+        : device(_device),
+          enabled(false),
           allocator(_allocator),
           defrag_operations(),
           running(false),
@@ -111,6 +113,8 @@ class Defragger
 
     void find_defrag_ops();
     void perform_defrag();
+
+    void execute_defrag_operation(const DefragOperation& op);
 };
 
 
@@ -121,7 +125,7 @@ void Defragger<T>::start()
     {
         return;
     }
-    defrag_operations.clear();
+    // defrag_operations.clear();
     {
         std::lock_guard<std::mutex> lock(start_mutex);
         running = true;
@@ -223,28 +227,16 @@ void Defragger<T>::perform_defrag()
     {
         using namespace std::chrono_literals;
     }
-    for (auto op = defrag_operations.begin(); running && op != defrag_operations.end(); ++op)
+
+    auto op = defrag_operations.begin();
+    while (running && op != defrag_operations.end())
     {
         if (allocator->memory_is_free(op->targetMemory, op->target))
         {
-            LOG(INFO) << "DEFRAG" << *(op->source) << "->" << op->targetMemory << "," << op->target.offset << " "
-                      << op->target.size;
-
-            T* reserve_space = allocator->reserve_space(op->targetMemory, op->target, op->source->size);
-            auto defrag_cmd  = allocator->queue->commandPool.createAndBeginOneTimeBuffer();
-
-
-            copy_buffer(defrag_cmd, reserve_space, op->source);
-            // op->source->copy_to(defrag_cmd, reserve_space);
-
-            defrag_cmd.end();
-
-            allocator->queue->submitAndWait(defrag_cmd);
-
-            allocator->queue->commandPool.freeCommandBuffer(defrag_cmd);
-
-            allocator->move_allocation(reserve_space, op->source);
+            execute_defrag_operation(*op);
         }
+
+        op = defrag_operations.erase(op);
     }
 }
 
@@ -345,5 +337,15 @@ void Defragger<T>::invalidate(T* location)
         }
     }
 }
+
+
+using BufferDefragger = Defragger<BufferMemoryLocation>;
+using ImageDefragger  = Defragger<ImageMemoryLocation>;
+
+template <>
+void BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOperation& op);
+
+template <>
+void ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperation& op);
 
 }  // namespace Saiga::Vulkan::Memory

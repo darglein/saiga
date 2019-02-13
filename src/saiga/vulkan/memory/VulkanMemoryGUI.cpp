@@ -42,7 +42,7 @@ void VulkanMemory::renderGUI()
         {
             memoryTypeStats[allocator.first.memoryFlags] = MemoryStats();
         }
-        memoryTypeStats[allocator.first.memoryFlags] += allocator.second->collectMemoryStats();
+        memoryTypeStats[allocator.first.memoryFlags] += allocator.second.allocator->collectMemoryStats();
     }
 
     static std::vector<ImGui::ColoredBar> bars;
@@ -86,7 +86,7 @@ void VulkanMemory::renderGUI()
     }
     for (auto& allocator : imageAllocators)
     {
-        allocator.second->showDetailStats();
+        allocator.second.allocator->showDetailStats();
     }
 
     ImGui::Unindent();

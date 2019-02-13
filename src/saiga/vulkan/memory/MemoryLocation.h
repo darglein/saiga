@@ -230,14 +230,17 @@ struct SAIGA_VULKAN_API BufferData
 
 struct SAIGA_VULKAN_API ImageData
 {
+    vk::ImageLayout layout;
     vk::Image image;
     vk::ImageCreateInfo image_create_info;
     vk::ImageView view;
     vk::ImageViewCreateInfo view_create_info;
     vk::MemoryRequirements image_requirements;
 
-    ImageData(vk::ImageCreateInfo _image_create_info, vk::ImageViewCreateInfo _view_create_info)
-        : image(nullptr),
+    ImageData(vk::ImageCreateInfo _image_create_info, vk::ImageViewCreateInfo _view_create_info,
+              vk::ImageLayout _layout)
+        : layout(_layout),
+          image(nullptr),
           image_create_info(std::move(_image_create_info)),
           view(nullptr),
           view_create_info(std::move(_view_create_info)),
@@ -245,7 +248,13 @@ struct SAIGA_VULKAN_API ImageData
     {
     }
 
-    ImageData(nullptr_t) : image(nullptr), image_create_info(), view(nullptr), view_create_info(), image_requirements()
+    ImageData(nullptr_t)
+        : layout(vk::ImageLayout::eUndefined),
+          image(nullptr),
+          image_create_info(),
+          view(nullptr),
+          view_create_info(),
+          image_requirements()
     {
     }
 
@@ -287,14 +296,15 @@ struct SAIGA_VULKAN_API ImageData
             device.destroy(image);
         }
 
-        view  = nullptr;
-        image = nullptr;
+        view   = nullptr;
+        image  = nullptr;
+        layout = vk::ImageLayout::eUndefined;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const ImageData& data)
     {
         std::stringstream ss;
-        ss << std::hex << data.image << ", " << data.view;
+        ss << std::hex << vk::to_string(data.layout) << " " << data.image << ", " << data.view;
         os << ss.str();
         return os;
     }
@@ -319,4 +329,27 @@ inline void bind_image_data(vk::Device device, ImageMemoryLocation* location, Im
     location->data = data;
 }
 
+inline void copy_image(vk::CommandBuffer cmd, ImageMemoryLocation* target, ImageMemoryLocation* source)
+{
+    SAIGA_ASSERT(target->size == source->size, "Different size copies are not supported");
+    const auto& src_data = source->data;
+    const auto& dst_data = target->data;
+    SAIGA_ASSERT(src_data.image_create_info.mipLevels == dst_data.image_create_info.mipLevels,
+                 "Source and Target must have same number of mip levels.");
+    SAIGA_ASSERT(src_data.image_create_info.extent == dst_data.image_create_info.extent,
+                 "Images must have the same extent");
+    SAIGA_ASSERT(src_data.layout == dst_data.layout, "Layouts must be the same");
+
+    static const vk::ImageAspectFlags copy_aspects =
+        vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+
+    for (uint32_t mip = 0; mip < src_data.image_create_info.mipLevels; ++mip)
+    {
+        vk::ImageSubresourceLayers layers{copy_aspects, mip, 0, src_data.image_create_info.arrayLayers};
+        vk::ImageCopy ic{layers, vk::Offset3D{0, 0, 0}, layers, vk::Offset3D{0, 0, 0},
+                         src_data.image_create_info.extent};
+
+        cmd.copyImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ic);
+    }
+}
 }  // namespace Saiga::Vulkan::Memory

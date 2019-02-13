@@ -30,7 +30,6 @@ struct SAIGA_VULKAN_API Texture
         : base(other.base),
           memoryLocation(other.memoryLocation),
           type(std::move(other.type)),
-          imageLayout(other.imageLayout),
           width(other.width),
           height(other.height),
           mipLevels(other.mipLevels),
@@ -46,7 +45,6 @@ struct SAIGA_VULKAN_API Texture
         base                 = other.base;
         memoryLocation       = std::move(other.memoryLocation);
         type                 = other.type;
-        imageLayout          = other.imageLayout;
         width                = other.width;
         height               = other.height;
         mipLevels            = other.mipLevels;
@@ -58,7 +56,6 @@ struct SAIGA_VULKAN_API Texture
     }
 
     virtual ~Texture() { destroy(); }
-    vk::ImageLayout imageLayout;
     uint32_t width, height;
     uint32_t mipLevels;
     uint32_t layerCount;

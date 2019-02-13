@@ -64,13 +64,19 @@ class SAIGA_VULKAN_API VulkanMemory
         }
     };
 
-    struct BufferAllocator
+    struct BufferContainer
     {
         std::unique_ptr<BufferChunkAllocator> allocator;
-        std::unique_ptr<Defragger<BufferMemoryLocation>> defragger;
+        std::unique_ptr<BufferDefragger> defragger;
     };
-    using BufferMap  = std::map<BufferType, BufferAllocator>;
-    using ImageMap   = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
+
+    struct ImageContainer
+    {
+        std::unique_ptr<ImageChunkAllocator> allocator;
+        std::unique_ptr<ImageDefragger> defragger;
+    };
+    using BufferMap  = std::map<BufferType, BufferContainer>;
+    using ImageMap   = std::map<ImageType, ImageContainer>;
     using BufferIter = BufferMap::iterator;
     using ImageIter  = ImageMap::iterator;
 
@@ -163,9 +169,9 @@ class SAIGA_VULKAN_API VulkanMemory
     }
 
 
-    BufferAllocator& getAllocator(const BufferType& type);
+    BufferContainer& getAllocator(const BufferType& type);
 
-    BufferAllocator& get_allocator_exact(const BufferType& type);
+    BufferContainer& get_allocator_exact(const BufferType& type);
 
     ImageChunkAllocator& getImageAllocator(const ImageType& type);
 

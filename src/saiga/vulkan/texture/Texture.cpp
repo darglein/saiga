@@ -29,6 +29,7 @@ void Texture::destroy()
 
 void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
 {
+    auto imageLayout                        = memoryLocation->data.layout;
     vk::ImageMemoryBarrier barrier          = {};
     barrier.oldLayout                       = imageLayout;
     barrier.newLayout                       = newLayout;
@@ -78,14 +79,15 @@ void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLa
     cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
 
 
-    imageLayout = newLayout;
+    // imageLayout = newLayout;
+    memoryLocation->data.layout = newLayout;
 }
 
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
 {
     SAIGA_ASSERT(memoryLocation->data && sampler);
     vk::DescriptorImageInfo descriptorInfo;
-    descriptorInfo.imageLayout = imageLayout;
+    descriptorInfo.imageLayout = memoryLocation->data.layout;
     descriptorInfo.imageView   = memoryLocation->data.view;
     descriptorInfo.sampler     = sampler;
     return descriptorInfo;
@@ -159,7 +161,6 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
 
     type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
-    imageLayout = vk::ImageLayout::eUndefined;
     // Create optimal tiled target image
     vk::ImageCreateInfo imageCreateInfo;
     imageCreateInfo.imageType     = vk::ImageType::e2D;
@@ -169,7 +170,7 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     imageCreateInfo.samples       = vk::SampleCountFlagBits::e1;
     imageCreateInfo.tiling        = vk::ImageTiling::eOptimal;
     imageCreateInfo.sharingMode   = vk::SharingMode::eExclusive;
-    imageCreateInfo.initialLayout = imageLayout;
+    imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
     imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
     imageCreateInfo.usage         = finalUsageFlags;
 
@@ -179,7 +180,7 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     viewCreateInfo.format                  = format;
     viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
 
-    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo);
+    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo, vk::ImageLayout::eUndefined);
     // image                         = base->device.createImage(imageCreateInfo);
     // SAIGA_ASSERT(image);
 
@@ -287,7 +288,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
 
     type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
-    imageLayout = vk::ImageLayout::eUndefined;
+    // imageLayout = vk::ImageLayout::eUndefined;
     // Create optimal tiled target image
     vk::ImageCreateInfo imageCreateInfo;
     imageCreateInfo.imageType     = vk::ImageType::e2D;
@@ -297,7 +298,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     imageCreateInfo.samples       = vk::SampleCountFlagBits::e1;
     imageCreateInfo.tiling        = vk::ImageTiling::eOptimal;
     imageCreateInfo.sharingMode   = vk::SharingMode::eExclusive;
-    imageCreateInfo.initialLayout = imageLayout;
+    imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
     imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
     imageCreateInfo.usage         = finalUsageFlags;
     // image                         = base.device.createImage(imageCreateInfo);
@@ -311,7 +312,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     // imageView                              = base.device.createImageView(viewCreateInfo);
 
 
-    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo);
+    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo, vk::ImageLayout::eUndefined);
 
     memoryLocation = base.memory.allocate(type, img_data);
     // base.device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);

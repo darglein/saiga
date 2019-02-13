@@ -88,7 +88,7 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
 
         depthFormat = depth_format;
 
-        Memory::ImageData img_data(image_info, viewInfo);
+        Memory::ImageData img_data(image_info, viewInfo, vk::ImageLayout::eUndefined);
 
         /* Create image */
         //        res = vkCreateImage(info.device, &image_info, NULL, &info.depth.image);
