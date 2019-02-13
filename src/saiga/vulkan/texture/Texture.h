@@ -18,7 +18,7 @@ struct SAIGA_VULKAN_API Texture
 {
    protected:
     VulkanBase* base;
-    Memory::MemoryLocation* memoryLocation;
+    Memory::ImageMemoryLocation* memoryLocation;
     Memory::ImageType type;
 
    public:
@@ -30,17 +30,13 @@ struct SAIGA_VULKAN_API Texture
         : base(other.base),
           memoryLocation(other.memoryLocation),
           type(std::move(other.type)),
-          image(other.image),
           imageLayout(other.imageLayout),
-          imageView(other.imageView),
           width(other.width),
           height(other.height),
           mipLevels(other.mipLevels),
           layerCount(other.layerCount),
           sampler(other.sampler)
     {
-        other.image          = nullptr;
-        other.imageView      = nullptr;
         other.sampler        = nullptr;
         other.memoryLocation = nullptr;
     }
@@ -50,25 +46,19 @@ struct SAIGA_VULKAN_API Texture
         base                 = other.base;
         memoryLocation       = std::move(other.memoryLocation);
         type                 = other.type;
-        image                = other.image;
         imageLayout          = other.imageLayout;
-        imageView            = other.imageView;
         width                = other.width;
         height               = other.height;
         mipLevels            = other.mipLevels;
         layerCount           = other.layerCount;
         sampler              = other.sampler;
-        other.image          = nullptr;
-        other.imageView      = nullptr;
         other.sampler        = nullptr;
         other.memoryLocation = nullptr;
         return *this;
     }
 
     virtual ~Texture() { destroy(); }
-    vk::Image image;
     vk::ImageLayout imageLayout;
-    vk::ImageView imageView;
     uint32_t width, height;
     uint32_t mipLevels;
     uint32_t layerCount;

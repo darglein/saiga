@@ -26,8 +26,6 @@ namespace Saiga::Vulkan::Memory
 {
 class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<MemoryLocation>
 {
-    // typedef std::vector<ChunkAllocation<MemoryLocation>>::iterator ChunkIterator;
-
    private:
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();
     vk::BufferCreateInfo m_bufferCreateInfo;
@@ -83,5 +81,9 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Me
 
    protected:
     void headerInfo() override;
+
+   public:
+    std::unique_ptr<MemoryLocation> create_location(ChunkIterator<MemoryLocation>& chunk_alloc, vk::DeviceSize start,
+                                                    vk::DeviceSize size) override;
 };
 }  // namespace Saiga::Vulkan::Memory

@@ -18,16 +18,15 @@ namespace Vulkan
 class SAIGA_VULKAN_API DepthBuffer
 {
    private:
+    static const Memory::ImageType depth_type;
     VulkanBase* base;
 
    public:
-    Memory::MemoryLocation* location;
+    Memory::ImageMemoryLocation* location;
     //    vk::DeviceMemory depthmem;
 
     // depth image
     vk::Format depthFormat;
-    vk::Image depthimage;
-    vk::ImageView depthview;
 
     void init(Saiga::Vulkan::VulkanBase& base, int width, int height);
     void destroy();

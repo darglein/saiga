@@ -45,8 +45,8 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
     frameBuffers.resize(swapChain.imageCount);
     for (uint32_t i = 0; i < frameBuffers.size(); i++)
     {
-        frameBuffers[i].createColorDepthStencil(width, height, swapChain.buffers[i].view, depthBuffer.depthview,
-                                                renderPass, base.device);
+        frameBuffers[i].createColorDepthStencil(width, height, swapChain.buffers[i].view,
+                                                depthBuffer.location->data.view, renderPass, base.device);
     }
     cout << "VulkanForwardRenderer init done." << endl;
 }

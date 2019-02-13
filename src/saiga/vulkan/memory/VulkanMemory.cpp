@@ -12,10 +12,12 @@ namespace Saiga::Vulkan::Memory
 {
 void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue)
 {
-    m_pDevice = _pDevice;
-    m_device  = _device;
-    m_queue   = queue;
-    strategy  = std::make_unique<FirstFitStrategy<MemoryLocation>>();
+    m_pDevice      = _pDevice;
+    m_device       = _device;
+    m_queue        = queue;
+    strategy       = std::make_unique<FirstFitStrategy<MemoryLocation>>();
+    image_strategy = std::make_unique<FirstFitStrategy<ImageMemoryLocation>>();
+
     chunkCreator.init(_pDevice, _device);
 
     auto props = _pDevice.getMemoryProperties();
@@ -44,13 +46,6 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* 
     get_allocator_exact(effectiveStaging);
 
     fallbackAllocator = std::make_unique<FallbackAllocator>(_device, _pDevice);
-
-    for (auto& allocator : bufferAllocators)
-    {
-        std::cout << allocator.first << std::endl;
-    }
-
-    std::cout << std::endl;
 }
 
 VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::BufferMap& map,
@@ -101,7 +96,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
 
     auto emplaced =
         map.emplace(effectiveType, std::make_unique<ImageChunkAllocator>(m_device, &chunkCreator, effectiveType,
-                                                                         *strategy, m_queue, found->second));
+                                                                         *image_strategy, m_queue, found->second));
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
     return emplaced.first;
 }
@@ -173,12 +168,10 @@ MemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceSize si
 {
     auto& allocator = getAllocator(type);
 
-    if (size > allocator.allocator->maxAllocationSize)
+    if (size > allocator.allocator->m_chunkSize)
     {
         return fallbackAllocator->allocate(type, size);
     }
-
-
 
     if (allocator.defragger)
     {
@@ -195,23 +188,26 @@ MemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceSize si
     return memoryLocation;
 }
 
-MemoryLocation* VulkanMemory::allocate(const ImageType& type, const vk::Image& image)
+ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& image_data)
 {
-    auto image_mem_reqs = m_device.getImageMemoryRequirements(image);
-
     auto& allocator = getImageAllocator(type);
 
-    if (image_mem_reqs.size > allocator.maxAllocationSize)
+    ImageMemoryLocation* location = nullptr;
+    if (image_data.image_requirements.size > allocator.m_chunkSize)
     {
-        return fallbackAllocator->allocate(type, image);
+        location = fallbackAllocator->allocate(type, image_data);
     }
-    return allocator.allocate(image_mem_reqs.size, image);
+    else
+    {
+        location = allocator.allocate(image_data);
+    }
+    return location;
 }
 
 void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation* location)
 {
     auto& allocator = getAllocator(type);
-    if (location->size > allocator.allocator->maxAllocationSize)
+    if (location->size > allocator.allocator->m_chunkSize)
     {
         fallbackAllocator->deallocate(location);
 
@@ -233,10 +229,10 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, MemoryLocation* loca
     }
 }
 
-void VulkanMemory::deallocateImage(const ImageType& type, MemoryLocation* location)
+void VulkanMemory::deallocateImage(const ImageType& type, ImageMemoryLocation* location)
 {
     auto& allocator = getImageAllocator(type);
-    if (location->size > allocator.maxAllocationSize)
+    if (location->size > allocator.m_chunkSize)
     {
         fallbackAllocator->deallocate(location);
     }

@@ -59,4 +59,12 @@ void BufferChunkAllocator::headerInfo()
     ImGui::LabelText("Buffer Usage", "%s", vk::to_string(type.usageFlags).c_str());
     ImGui::LabelText("Memory Type", "%s", vk::to_string(type.memoryFlags).c_str());
 }
+
+std::unique_ptr<MemoryLocation> BufferChunkAllocator::create_location(
+    ChunkIterator<Saiga::Vulkan::Memory::BaseMemoryLocation<Saiga::Vulkan::Memory::BufferData>>& chunk_alloc,
+    vk::DeviceSize start, vk::DeviceSize size)
+{
+    return std::make_unique<MemoryLocation>(chunk_alloc->buffer, chunk_alloc->chunk->memory, start, size,
+                                            chunk_alloc->mappedPointer);
+}
 }  // namespace Saiga::Vulkan::Memory

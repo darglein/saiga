@@ -13,19 +13,17 @@ void Texture::destroy()
     {
         return;
     }
-    if (image)
-    {
-        LOG(INFO) << "Destroying image: " << image;
-        base->device.destroyImage(image);
-        base->device.destroyImageView(imageView);
-        base->device.destroySampler(sampler);
-        image = nullptr;
-    }
+
 
     if (memoryLocation)
     {
         base->memory.deallocateImage(type, memoryLocation);
         memoryLocation = nullptr;
+    }
+    if (sampler)
+    {
+        base->device.destroy(sampler);
+        sampler = nullptr;
     }
 }
 
@@ -36,7 +34,7 @@ void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLa
     barrier.newLayout                       = newLayout;
     barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                           = image;
+    barrier.image                           = memoryLocation->data.image;
     barrier.subresourceRange.aspectMask     = vk::ImageAspectFlagBits::eColor;
     barrier.subresourceRange.baseMipLevel   = 0;
     barrier.subresourceRange.levelCount     = 1;
@@ -85,12 +83,11 @@ void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLa
 
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
 {
-    SAIGA_ASSERT(image);
+    SAIGA_ASSERT(memoryLocation->data && sampler);
     vk::DescriptorImageInfo descriptorInfo;
     descriptorInfo.imageLayout = imageLayout;
-    descriptorInfo.imageView   = imageView;
+    descriptorInfo.imageView   = memoryLocation->data.view;
     descriptorInfo.sampler     = sampler;
-    SAIGA_ASSERT(imageView && sampler);
     return descriptorInfo;
 }
 
@@ -133,7 +130,7 @@ void Texture2D::uploadImage(Image& img, bool flipY)
     bufferCopyRegion.imageExtent.height              = height;
     bufferCopyRegion.imageExtent.depth               = 1;
 
-    staging.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
+    staging.copyTo(cmd, memoryLocation->data.image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -175,16 +172,27 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     imageCreateInfo.initialLayout = imageLayout;
     imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
     imageCreateInfo.usage         = finalUsageFlags;
-    image                         = base->device.createImage(imageCreateInfo);
-    SAIGA_ASSERT(image);
 
 
-    LOG(INFO) << "Creating image synched: " << image;
+    vk::ImageViewCreateInfo viewCreateInfo = {};
+    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    viewCreateInfo.format                  = format;
+    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+
+    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo);
+    // image                         = base->device.createImage(imageCreateInfo);
+    // SAIGA_ASSERT(image);
 
 
+    // LOG(INFO) << "Creating image synched: " << image;
 
-    memoryLocation = base->memory.allocate(type, image);
-    base->device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
+    memoryLocation = base->memory.allocate(type, img_data);
+
+    // memoryLocation->data = std::move(img_data);
+
+    // memoryLocation->data.create(base->device);
+
+    // base->device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
@@ -218,7 +226,7 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     bufferCopyRegion.imageExtent.height              = height;
     bufferCopyRegion.imageExtent.depth               = 1;
 
-    staging.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
+    staging.copyTo(cmd, memoryLocation->data.image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -230,13 +238,13 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     staging.destroy();
 
 
-    vk::ImageViewCreateInfo viewCreateInfo = {};
-    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
-    viewCreateInfo.format                  = format;
-    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
-    viewCreateInfo.image                   = image;
-    imageView                              = base->device.createImageView(viewCreateInfo);
-    SAIGA_ASSERT(imageView);
+    // vk::ImageViewCreateInfo viewCreateInfo = {};
+    // viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    // viewCreateInfo.format                  = format;
+    // viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+    // viewCreateInfo.image                   = image;
+    // imageView                              = base->device.createImageView(viewCreateInfo);
+    // SAIGA_ASSERT(imageView);
 
     // Create a defaultsampler
     vk::SamplerCreateInfo samplerCreateInfo = {};
@@ -292,13 +300,21 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     imageCreateInfo.initialLayout = imageLayout;
     imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
     imageCreateInfo.usage         = finalUsageFlags;
-    image                         = base.device.createImage(imageCreateInfo);
+    // image                         = base.device.createImage(imageCreateInfo);
 
-    LOG(INFO) << "Creating image: " << image << " from " << stagingBuffer;
-    SAIGA_ASSERT(image);
 
-    memoryLocation = base.memory.allocate(type, image);
-    base.device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
+
+    vk::ImageViewCreateInfo viewCreateInfo = {};
+    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    viewCreateInfo.format                  = format;
+    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+    // imageView                              = base.device.createImageView(viewCreateInfo);
+
+
+    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo);
+
+    memoryLocation = base.memory.allocate(type, img_data);
+    // base.device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
@@ -318,7 +334,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     //
     //    staging.init(base,img.size(),img.data());
 
-    stagingBuffer.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
+    stagingBuffer.copyTo(cmd, memoryLocation->data.image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -329,13 +345,12 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
 
 
 
-    vk::ImageViewCreateInfo viewCreateInfo = {};
-    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
-    viewCreateInfo.format                  = format;
-    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
-    viewCreateInfo.image                   = image;
-    imageView                              = base.device.createImageView(viewCreateInfo);
-    SAIGA_ASSERT(imageView);
+    // vk::ImageViewCreateInfo viewCreateInfo = {};
+    // viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    // viewCreateInfo.format                  = format;
+    // viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+    // viewCreateInfo.image                   = image;
+    // imageView                              = base.device.createImageView(viewCreateInfo);
 
     // Create a defaultsampler
     vk::SamplerCreateInfo samplerCreateInfo = {};

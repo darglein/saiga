@@ -7,12 +7,12 @@
 #include "MemoryType.h"
 namespace Saiga::Vulkan::Memory
 {
-class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<MemoryLocation>
+class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<ImageMemoryLocation>
 {
    public:
     ImageType type;
     ImageChunkAllocator(const vk::Device& _device, ChunkCreator* chunkAllocator, ImageType _type,
-                        FitStrategy<MemoryLocation>& strategy, Queue* _queue, vk::DeviceSize chunkSize)
+                        FitStrategy<ImageMemoryLocation>& strategy, Queue* _queue, vk::DeviceSize chunkSize)
         : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         LOG(INFO) << "Created new image allocator for flags " << type;
@@ -29,12 +29,18 @@ class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<Mem
 
     ~ImageChunkAllocator() override = default;
 
-    MemoryLocation* allocate(vk::DeviceSize size, const vk::Image& image);
+    ImageMemoryLocation* allocate(ImageData& image);
+
+    void deallocate(ImageMemoryLocation* location) override;
 
    protected:
-    ChunkIterator<MemoryLocation> createNewChunk() override;
+    ChunkIterator<ImageMemoryLocation> createNewChunk() override;
 
     void headerInfo() override;
+
+   public:
+    std::unique_ptr<ImageMemoryLocation> create_location(ChunkIterator<ImageMemoryLocation>& chunk_alloc,
+                                                         vk::DeviceSize start, vk::DeviceSize size) override;
 
    private:
     using BaseChunkAllocator::allocate;

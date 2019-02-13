@@ -19,7 +19,7 @@
 namespace Saiga::Vulkan::Memory
 {
 template <typename T>
-class SAIGA_VULKAN_API BaseChunkAllocator : public BaseMemoryAllocator
+class SAIGA_VULKAN_API BaseChunkAllocator
 {
    private:
     std::mutex allocationMutex;
@@ -47,8 +47,7 @@ class SAIGA_VULKAN_API BaseChunkAllocator : public BaseMemoryAllocator
    public:
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy<T>& strategy, Queue* _queue,
                        vk::DeviceSize chunkSize = 64 * 1024 * 1024)
-        : BaseMemoryAllocator(chunkSize),
-          m_device(_device),
+        : m_device(_device),
           m_chunkAllocator(chunkAllocator),
           strategy(&strategy),
           queue(_queue),
@@ -59,8 +58,7 @@ class SAIGA_VULKAN_API BaseChunkAllocator : public BaseMemoryAllocator
     }
 
     BaseChunkAllocator(BaseChunkAllocator&& other) noexcept
-        : BaseMemoryAllocator(std::move(other)),
-          m_device(other.m_device),
+        : m_device(other.m_device),
           m_chunkAllocator(other.m_chunkAllocator),
           strategy(other.strategy),
           queue(other.queue),
@@ -73,33 +71,32 @@ class SAIGA_VULKAN_API BaseChunkAllocator : public BaseMemoryAllocator
 
     BaseChunkAllocator& operator=(BaseChunkAllocator&& other) noexcept
     {
-        BaseMemoryAllocator::operator=(std::move(static_cast<BaseMemoryAllocator&&>(other)));
-        m_device                     = other.m_device;
-        m_chunkAllocator             = other.m_chunkAllocator;
-        strategy                     = other.strategy;
-        queue                        = other.queue;
-        m_chunkSize                  = other.m_chunkSize;
-        m_allocateSize               = other.m_allocateSize;
-        chunks                       = std::move(other.chunks);
-        gui_identifier               = std::move(other.gui_identifier);
+        m_device         = other.m_device;
+        m_chunkAllocator = other.m_chunkAllocator;
+        strategy         = other.strategy;
+        queue            = other.queue;
+        m_chunkSize      = other.m_chunkSize;
+        m_allocateSize   = other.m_allocateSize;
+        chunks           = std::move(other.chunks);
+        gui_identifier   = std::move(other.gui_identifier);
         return *this;
     }
 
-    ~BaseChunkAllocator() override = default;
+    virtual ~BaseChunkAllocator() = default;
 
-    T* allocate(vk::DeviceSize size) override;
+    virtual T* allocate(vk::DeviceSize size);
 
     T* reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
 
-    void deallocate(T* location) override;
+    virtual void deallocate(T* location);
 
     bool memory_is_free(vk::DeviceMemory memory, FreeListEntry entry);
 
-    void destroy() override;
+    void destroy();
 
-    MemoryStats collectMemoryStats() override;
+    MemoryStats collectMemoryStats();
 
-    void showDetailStats() override;
+    void showDetailStats();
 
     T* allocate_in_free_space(vk::DeviceSize size, ChunkIterator<T>& chunkAlloc, FreeIterator<T>& freeSpace);
 
@@ -107,7 +104,10 @@ class SAIGA_VULKAN_API BaseChunkAllocator : public BaseMemoryAllocator
 
     void move_allocation(T* target, T* source);
 
-    void add_to_free_list(const ChunkIterator<T>& chunk, const MemoryLocation& location) const;
+    void add_to_free_list(const ChunkIterator<T>& chunk, const T& location) const;
+
+    virtual std::unique_ptr<T> create_location(ChunkIterator<T>& chunk_alloc, vk::DeviceSize start,
+                                               vk::DeviceSize size) = 0;
 };
 
 template <typename T>
@@ -147,8 +147,7 @@ T* BaseChunkAllocator<T>::allocate_in_free_space(vk::DeviceSize size, ChunkItera
     findNewMax(chunkAlloc);
 
 
-    auto targetLocation = std::make_unique<MemoryLocation>(chunkAlloc->buffer, chunkAlloc->chunk->memory, memoryStart,
-                                                           size, chunkAlloc->mappedPointer);
+    auto targetLocation = create_location(chunkAlloc, memoryStart, size);
     auto memoryEnd      = memoryStart + size;
 
     auto insertionPoint =
@@ -298,7 +297,7 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
 }
 
 template <typename T>
-void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const MemoryLocation& location) const
+void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const T& location) const
 {
     auto& freeList = chunk->freeList;
     auto found = lower_bound(freeList.begin(), freeList.end(), location, [](const auto& free_entry, const auto& value) {

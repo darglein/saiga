@@ -1,3 +1,5 @@
+#include <utility>
+
 //
 // Created by Peter Eichinger on 08.10.18.
 //
@@ -142,14 +144,19 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         return mappedPointer;
     }
 
-    void destroy(const vk::Device& device)
+    inline void destroy_data(const vk::Device& device)
     {
-        SAIGA_ASSERT(memory, "Already destroyed");
         if (data)
         {
             data.destroy(device);
             data = nullptr;
         }
+    }
+
+    void destroy(const vk::Device& device)
+    {
+        SAIGA_ASSERT(memory, "Already destroyed");
+        destroy_data(device);
         if (memory)
         {
             device.free(memory);
@@ -227,61 +234,67 @@ struct SAIGA_VULKAN_API ImageData
     vk::ImageCreateInfo image_create_info;
     vk::ImageView view;
     vk::ImageViewCreateInfo view_create_info;
-    vk::Sampler sampler;
-    vk::SamplerCreateInfo sampler_create_info;
+    vk::MemoryRequirements image_requirements;
 
-    ImageData(vk::ImageCreateInfo const& _image_create_info, vk::ImageViewCreateInfo const& _view_create_info,
-              vk::SamplerCreateInfo const& _sampler_create_info)
+    ImageData(vk::ImageCreateInfo _image_create_info, vk::ImageViewCreateInfo _view_create_info)
         : image(nullptr),
-          image_create_info(_image_create_info),
+          image_create_info(std::move(_image_create_info)),
           view(nullptr),
-          view_create_info(_view_create_info),
-          sampler(nullptr),
-          sampler_create_info(_sampler_create_info)
+          view_create_info(std::move(_view_create_info)),
+          image_requirements()
     {
     }
 
-    ImageData(nullptr_t)
-        : image(nullptr),
-          image_create_info(),
-          view(nullptr),
-          view_create_info(),
-          sampler(nullptr),
-          sampler_create_info()
+    ImageData(nullptr_t) : image(nullptr), image_create_info(), view(nullptr), view_create_info(), image_requirements()
     {
     }
+
+    ImageData(const ImageData& other) = default;
+    ImageData(ImageData&& other)      = default;
+
+    ImageData& operator=(const ImageData& other) = default;
+    ImageData& operator=(ImageData&& other) = default;
 
     explicit operator bool() const { return image; }
 
-    void copy_create_info_from(ImageData const& other)
+    void copy_create_info_from(ImageData const& other) { set_info(other.image_create_info, other.view_create_info); }
+
+    void set_info(vk::ImageCreateInfo const& _image_create_info, vk::ImageViewCreateInfo const& _view_create_info)
     {
-        set_info(other.image_create_info, other.view_create_info, other.sampler_create_info);
+        image_create_info = _image_create_info;
+        view_create_info  = _view_create_info;
     }
 
-    void set_info(vk::ImageCreateInfo const& _image_create_info, vk::ImageViewCreateInfo const& _view_create_info,
-                  vk::SamplerCreateInfo const& _sampler_create_info)
-    {
-        image_create_info   = _image_create_info;
-        view_create_info    = _view_create_info;
-        sampler_create_info = _sampler_create_info;
-    }
 
-    void create(vk::Device device)
+    void create_image(vk::Device device)
     {
         image                  = device.createImage(image_create_info);
+        image_requirements     = device.getImageMemoryRequirements(image);
         view_create_info.image = image;
-        view                   = device.createImageView(view_create_info);
-        sampler                = device.createSampler(sampler_create_info);
     }
 
-    void destroy(vk::Device device) {
+    void create_view(vk::Device device) { view = device.createImageView(view_create_info); }
 
+    void destroy(vk::Device device)
+    {
+        if (view)
+        {
+            device.destroy(view);
+        }
+
+        if (image)
+        {
+            device.destroy(image);
+        }
+
+        view  = nullptr;
+        image = nullptr;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const ImageData& data)
     {
         std::stringstream ss;
-        ss << std::hex << data.image << ", " << data.view << ", " << data.sampler;
+        ss << std::hex << data.image << ", " << data.view;
         os << ss.str();
         return os;
     }
@@ -298,6 +311,12 @@ inline void copy_buffer(vk::CommandBuffer cmd, MemoryLocation* target, MemoryLoc
     vk::BufferCopy bc{source->offset, target->offset, target->size};
 
     cmd.copyBuffer(static_cast<vk::Buffer>(source->data), static_cast<vk::Buffer>(target->data), bc);
+}
+
+inline void bind_image_data(vk::Device device, ImageMemoryLocation* location, ImageData& data)
+{
+    device.bindImageMemory(data.image, location->memory, location->offset);
+    location->data = data;
 }
 
 }  // namespace Saiga::Vulkan::Memory

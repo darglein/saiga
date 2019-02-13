@@ -11,7 +11,6 @@
 #include "FallbackAllocator.h"
 #include "ImageChunkAllocator.h"
 #include "MemoryType.h"
-#include "SimpleMemoryAllocator.h"
 
 #include <algorithm>
 #include <map>
@@ -102,6 +101,7 @@ class SAIGA_VULKAN_API VulkanMemory
     std::unique_ptr<FallbackAllocator> fallbackAllocator;
     ChunkCreator chunkCreator;
     std::unique_ptr<FitStrategy<MemoryLocation>> strategy;
+    std::unique_ptr<FitStrategy<ImageMemoryLocation>> image_strategy;
 
 
     template <typename DefaultSizeMap, typename MemoryType>
@@ -180,11 +180,12 @@ class SAIGA_VULKAN_API VulkanMemory
 
     MemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
 
-    MemoryLocation* allocate(const ImageType& type, const vk::Image& image);
+    // Continue here: change from image to ImageData
+    ImageMemoryLocation* allocate(const ImageType& type, ImageData& image);
 
     void deallocateBuffer(const BufferType& type, MemoryLocation* location);
 
-    void deallocateImage(const ImageType& type, MemoryLocation* location);
+    void deallocateImage(const ImageType& type, ImageMemoryLocation* location);
 
     void enable_defragmentation(const BufferType& type, bool enable);
 
