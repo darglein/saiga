@@ -88,9 +88,9 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
             pointCloud.pointCloud[i++] = v;
         }
         pointCloud.size = i;
-        change          = false;
         pointCloud.updateBuffer(cmd);
-        rms = scene.rms();
+        rms    = scene.rms();
+        change = false;
     }
 }
 

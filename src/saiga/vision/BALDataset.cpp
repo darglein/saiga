@@ -80,6 +80,7 @@ BALDataset::BALDataset(const std::string& file)
         c.k2 = Saiga::to_double(data[start + i * 9 + 8]);
 
 
+
         //        in >> r(0) >> r(1) >> r(2) >> t(0) >> t(1) >> t(2) >> c.f >> c.k1 >> c.k2;
         auto angle           = r.norm();
         Eigen::Vector3d axis = angle > 0.00001 ? r / angle : Eigen::Vector3d(0, 1, 0);

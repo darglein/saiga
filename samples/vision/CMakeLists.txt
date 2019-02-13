@@ -1,5 +1,6 @@
 add_subdirectory(ba_schur)
 add_subdirectory(block_matrices)
+add_subdirectory(sparse_ldlt)
 
 
 if(G2O_FOUND)

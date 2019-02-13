@@ -56,8 +56,8 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     //    frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
     //    frustum.init(renderer.base);
 
-    lineAsset.init(base, 100000);
-    lineAsset.size = 10;
+    lineAsset.init(base, 10 * 1000 * 1000);
+    lineAsset.size = 0;
 
     frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 1, 1, 1), false);
     frustum.init(renderer.base);
@@ -73,8 +73,14 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 void VulkanExample::update(float dt)
 {
     VulkanSDLExampleBase::update(dt);
+}
 
-    if (false && change)
+void VulkanExample::transfer(vk::CommandBuffer cmd)
+{
+    assetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
+    lineAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
+
+    if (change)
     {
         chi2 = scene.chi2();
         rms  = scene.rms();
@@ -91,19 +97,16 @@ void VulkanExample::update(float dt)
             lines.emplace_back(vec3(p1(0), p1(1), p1(2)), vec3(0), vec3(0, 1, 0));
             lines.emplace_back(vec3(p2(0), p2(1), p2(2)), vec3(0), vec3(0, 1, 0));
         }
-    }
-}
 
-void VulkanExample::transfer(vk::CommandBuffer cmd)
-{
-    assetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
-    lineAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
+        if (lines.size() > 0)
+        {
+            cout << "num lines: " << lines.size() << endl;
+            lineAsset.size = lines.size();
+            std::copy(lines.begin(), lines.end(), lineAsset.pointCloud.begin());
+            lineAsset.updateBuffer(cmd, 0, lineAsset.size);
+        }
 
-    if (false && lines.size() > 0)
-    {
-        lineAsset.size = lines.size();
-        std::copy(lines.begin(), lines.end(), lineAsset.pointCloud.begin());
-        //        lineAsset.updateBuffer(cmd, 0, lineAsset.size);
+        change = false;
     }
 }
 
@@ -114,20 +117,6 @@ void VulkanExample::render(vk::CommandBuffer cmd)
     {
         lineAssetRenderer.pushModel(cmd, identityMat4());
         grid.render(cmd);
-
-        lineAssetRenderer.pushModel(cmd, identityMat4());
-        frustum.render(cmd);
-    }
-
-    return;
-
-    if (lineAssetRenderer.bind(cmd))
-    {
-        lineAssetRenderer.pushModel(cmd, identityMat4());
-        grid.render(cmd);
-
-        lineAssetRenderer.pushModel(cmd, identityMat4());
-        frustum.render(cmd);
 
         for (auto& i : scene.poses)
         {
@@ -145,7 +134,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         if (lines.size() > 0)
         {
             lineAssetRenderer.pushModel(cmd, identityMat4());
-            //            lineAsset.render(cmd, 0, lineAsset.size);
+            lineAsset.render(cmd, 0, lineAsset.size);
         }
     }
 }
