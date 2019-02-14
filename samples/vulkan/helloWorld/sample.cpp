@@ -12,8 +12,6 @@
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/random.h"
 
-#include "../memoryTest/sample.h"
-
 #include <saiga/core/imgui/imgui.h>
 
 #if defined(SAIGA_OPENGL_INCLUDED)

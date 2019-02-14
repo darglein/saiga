@@ -8,7 +8,6 @@
 
 namespace Saiga::Vulkan::Memory
 {
-template <>
 void BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOperation& op)
 {
     LOG(INFO) << "DEFRAG" << *(op.source) << "->" << op.targetMemory << "," << op.target.offset << " "
@@ -29,7 +28,6 @@ void BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOper
     allocator->move_allocation(reserve_space, op.source);
 }
 
-template <>
 void ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperation& op)
 {
     LOG(INFO) << "IMAGE DEFRAG" << *(op.source) << "->" << op.targetMemory << "," << op.target.offset << " "

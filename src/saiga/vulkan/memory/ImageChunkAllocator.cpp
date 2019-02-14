@@ -37,6 +37,7 @@ ImageMemoryLocation* ImageChunkAllocator::allocate(ImageData& image_data)
     bind_image_data(m_device, location, image_data);
 
     location->data.create_view(m_device);
+    location->data.create_sampler(m_device);
     // m_device.bindImageMemory(location->data.image, location->memory, location->offset);
 
     return location;

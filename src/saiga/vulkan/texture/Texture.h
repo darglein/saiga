@@ -33,25 +33,24 @@ struct SAIGA_VULKAN_API Texture
           width(other.width),
           height(other.height),
           mipLevels(other.mipLevels),
-          layerCount(other.layerCount),
-          sampler(other.sampler)
+          layerCount(other.layerCount)
     {
-        other.sampler        = nullptr;
         other.memoryLocation = nullptr;
     }
 
     Texture& operator=(Texture&& other) noexcept
     {
-        base                 = other.base;
-        memoryLocation       = std::move(other.memoryLocation);
-        type                 = other.type;
-        width                = other.width;
-        height               = other.height;
-        mipLevels            = other.mipLevels;
-        layerCount           = other.layerCount;
-        sampler              = other.sampler;
-        other.sampler        = nullptr;
-        other.memoryLocation = nullptr;
+        if (this != &other)
+        {
+            base                 = other.base;
+            memoryLocation       = std::move(other.memoryLocation);
+            type                 = other.type;
+            width                = other.width;
+            height               = other.height;
+            mipLevels            = other.mipLevels;
+            layerCount           = other.layerCount;
+            other.memoryLocation = nullptr;
+        }
         return *this;
     }
 
@@ -59,7 +58,6 @@ struct SAIGA_VULKAN_API Texture
     uint32_t width, height;
     uint32_t mipLevels;
     uint32_t layerCount;
-    vk::Sampler sampler;
 
     void destroy();
 

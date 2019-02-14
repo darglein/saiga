@@ -9,9 +9,11 @@
 #include "saiga/export.h"
 #include "saiga/vulkan/memory/Chunk.h"
 
+#include <optional>
 #include <ostream>
 #include <saiga/core/util/assert.h>
 #include <vulkan/vulkan.hpp>
+
 namespace Saiga::Vulkan::Memory
 {
 template <typename Data>
@@ -236,6 +238,9 @@ struct SAIGA_VULKAN_API ImageData
     vk::ImageView view;
     vk::ImageViewCreateInfo view_create_info;
     vk::MemoryRequirements image_requirements;
+    std::optional<vk::SamplerCreateInfo> sampler_create_info;
+    vk::Sampler sampler;
+
 
     ImageData(vk::ImageCreateInfo _image_create_info, vk::ImageViewCreateInfo _view_create_info,
               vk::ImageLayout _layout)
@@ -244,7 +249,22 @@ struct SAIGA_VULKAN_API ImageData
           image_create_info(std::move(_image_create_info)),
           view(nullptr),
           view_create_info(std::move(_view_create_info)),
-          image_requirements()
+          image_requirements(),
+          sampler_create_info(),
+          sampler(nullptr)
+    {
+    }
+
+    ImageData(vk::ImageCreateInfo _image_create_info, vk::ImageViewCreateInfo _view_create_info,
+              vk::ImageLayout _layout, vk::SamplerCreateInfo _sampler_create_info)
+        : layout(_layout),
+          image(nullptr),
+          image_create_info(std::move(_image_create_info)),
+          view(nullptr),
+          view_create_info(std::move(_view_create_info)),
+          image_requirements(),
+          sampler_create_info(std::move(_sampler_create_info)),
+          sampler(nullptr)
     {
     }
 
@@ -254,7 +274,9 @@ struct SAIGA_VULKAN_API ImageData
           image_create_info(),
           view(nullptr),
           view_create_info(),
-          image_requirements()
+          image_requirements(),
+          sampler_create_info(),
+          sampler(nullptr)
     {
     }
 
@@ -264,7 +286,7 @@ struct SAIGA_VULKAN_API ImageData
     ImageData& operator=(const ImageData& other) = default;
     ImageData& operator=(ImageData&& other) = default;
 
-    explicit operator bool() const { return image; }
+    explicit operator bool() const { return image && view; }
 
     void copy_create_info_from(ImageData const& other) { set_info(other.image_create_info, other.view_create_info); }
 
@@ -284,27 +306,39 @@ struct SAIGA_VULKAN_API ImageData
 
     void create_view(vk::Device device) { view = device.createImageView(view_create_info); }
 
+    void create_sampler(vk::Device device)
+    {
+        if (sampler_create_info)
+        {
+            sampler = device.createSampler(sampler_create_info.value());
+        }
+    }
     void destroy(vk::Device device)
     {
+        if (sampler)
+        {
+            device.destroy(sampler);
+            sampler = nullptr;
+        }
         if (view)
         {
             device.destroy(view);
+            view = nullptr;
         }
 
         if (image)
         {
             device.destroy(image);
+            image = nullptr;
         }
-
-        view   = nullptr;
-        image  = nullptr;
         layout = vk::ImageLayout::eUndefined;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const ImageData& data)
     {
         std::stringstream ss;
-        ss << std::hex << vk::to_string(data.layout) << " " << data.image << ", " << data.view;
+        ss << std::hex << "L" << vk::to_string(data.layout) << " I" << data.image << " V" << data.view << " S"
+           << data.sampler;
         os << ss.str();
         return os;
     }

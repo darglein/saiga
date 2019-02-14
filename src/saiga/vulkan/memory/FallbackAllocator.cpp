@@ -98,14 +98,19 @@ ImageMemoryLocation* FallbackAllocator::allocate(const ImageType& type, ImageDat
         findMemoryType(m_physicalDevice, image_data.image_requirements.memoryTypeBits, type.memoryFlags);
     auto memory = SafeAllocator::instance()->allocateMemory(m_device, info);
 
-    mutex.lock();
-    m_image_allocations.emplace_back(
-        std::make_unique<ImageMemoryLocation>(image_data, memory, 0, image_data.image_requirements.size, nullptr));
-    auto retVal = m_image_allocations.back().get();
-    // m_device.bindImageMemory(retVal->data.image, retVal->memory, retVal->offset);
+
+    ImageMemoryLocation* retVal;
+    {
+        std::scoped_lock lock(mutex);
+        m_image_allocations.emplace_back(
+            std::make_unique<ImageMemoryLocation>(image_data, memory, 0, image_data.image_requirements.size, nullptr));
+        retVal = m_image_allocations.back().get();
+    }
+    SAIGA_ASSERT(retVal, "Invalid pointer returned");
     bind_image_data(m_device, retVal, image_data);
+
     retVal->data.create_view(m_device);
-    mutex.unlock();
+    retVal->data.create_sampler(m_device);
 
     LOG(INFO) << "Fallback image allocation: " << type << "->" << retVal;
     return retVal;

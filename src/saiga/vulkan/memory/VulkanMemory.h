@@ -10,6 +10,7 @@
 #include "Defragger.h"
 #include "FallbackAllocator.h"
 #include "ImageChunkAllocator.h"
+#include "ImageCopyComputeShader.h"
 #include "MemoryType.h"
 
 #include <algorithm>
@@ -19,14 +20,19 @@
 #include <vulkan/vulkan.hpp>
 
 #include <unordered_map>
+namespace Saiga::Vulkan
+{
+struct VulkanBase;
+}
 namespace Saiga::Vulkan::Memory
 {
 static const vk::BufferUsageFlags all_buffer_usage(VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM);
 static const vk::ImageUsageFlags all_image_usage(VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM);
-static const vk::MemoryPropertyFlags all_mem_properties(VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM);
 
+static const vk::MemoryPropertyFlags all_mem_properties(VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM);
 static const vk::DeviceSize fallback_buffer_chunk_size = 64 * 1024 * 1024;
-static const vk::DeviceSize fallback_image_chunk_size  = 256 * 1024 * 1024;
+
+static const vk::DeviceSize fallback_image_chunk_size = 256 * 1024 * 1024;
 
 class SAIGA_VULKAN_API VulkanMemory
 {
@@ -83,9 +89,12 @@ class SAIGA_VULKAN_API VulkanMemory
     using BufferDefaultMap = std::map<BufferType, vk::DeviceSize>;
     using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
 
+
+    VulkanBase* base;
     vk::PhysicalDevice m_pDevice;
     vk::Device m_device;
     Queue* m_queue;
+    std::unique_ptr<ImageCopyComputeShader> img_copy_shader;
 
 
     std::vector<vk::MemoryType> memoryTypes;
@@ -178,7 +187,7 @@ class SAIGA_VULKAN_API VulkanMemory
     ImageContainer& get_image_allocator_exact(const ImageType& type);
 
    public:
-    void init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue);
+    void init(VulkanBase* base);
 
     void destroy();
 

@@ -220,7 +220,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
         });
 
 
-    memory.init(physicalDevice, device, transferQueue);
+    memory.init(this);
 }
 
 void VulkanBase::init(VulkanParameters params) {}

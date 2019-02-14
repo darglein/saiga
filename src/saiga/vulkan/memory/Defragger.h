@@ -21,8 +21,14 @@
 
 #include <condition_variable>
 
+namespace Saiga::Vulkan
+{
+struct VulkanBase;
+}
+
 namespace Saiga::Vulkan::Memory
 {
+class ImageCopyComputeShader;
 struct OperationPenalties
 {
     float target_small_hole     = 100.0f;
@@ -35,7 +41,7 @@ struct OperationPenalties
 template <typename T>
 class Defragger
 {
-   private:
+   protected:
     struct DefragOperation
     {
         T* source;
@@ -47,6 +53,7 @@ class Defragger
         bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
     };
 
+    VulkanBase* base;
     vk::Device device;
     bool enabled;
     BaseChunkAllocator<T>* allocator;
@@ -73,8 +80,9 @@ class Defragger
     // end defrag thread functions
    public:
     OperationPenalties penalties;
-    Defragger(vk::Device _device, BaseChunkAllocator<T>* _allocator)
-        : device(_device),
+    Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator)
+        : base(_base),
+          device(_device),
           enabled(false),
           allocator(_allocator),
           defrag_operations(),
@@ -83,6 +91,7 @@ class Defragger
           worker(&Defragger::worker_func, this)
     {
     }
+
 
     Defragger(const Defragger& other) = delete;
     Defragger& operator=(const Defragger& other) = delete;
@@ -114,8 +123,10 @@ class Defragger
     void find_defrag_ops();
     void perform_defrag();
 
-    void execute_defrag_operation(const DefragOperation& op);
+   protected:
+    virtual void execute_defrag_operation(const DefragOperation& op) = 0;
 };
+
 
 
 template <typename T>
@@ -339,13 +350,43 @@ void Defragger<T>::invalidate(T* location)
 }
 
 
-using BufferDefragger = Defragger<BufferMemoryLocation>;
-using ImageDefragger  = Defragger<ImageMemoryLocation>;
 
-template <>
-void BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOperation& op);
+// using BufferDefragger = Defragger<BufferMemoryLocation>;
 
-template <>
-void ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperation& op);
+
+// template <>
+// void BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOperation& op);
+
+// template <>
+// void Defragger<ImageMemoryLocation>::execute_defrag_operation(
+//    const Defragger<ImageMemoryLocation>::DefragOperation& op);
+
+class BufferDefragger : public Defragger<BufferMemoryLocation>
+{
+   public:
+    BufferDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<BufferMemoryLocation>* allocator)
+        : Defragger(base, device, allocator)
+    {
+    }
+
+   protected:
+    void execute_defrag_operation(const DefragOperation& op) override;
+};
+
+class ImageDefragger : public Defragger<ImageMemoryLocation>
+{
+   private:
+    ImageCopyComputeShader* img_copy_shader;
+
+   public:
+    ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
+                   ImageCopyComputeShader* _img_copy_shader)
+        : Defragger(base, device, allocator), img_copy_shader(_img_copy_shader)
+    {
+    }
+
+   protected:
+    void execute_defrag_operation(const DefragOperation& op) override;
+};
 
 }  // namespace Saiga::Vulkan::Memory

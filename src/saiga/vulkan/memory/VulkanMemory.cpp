@@ -6,21 +6,27 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/vulkan/Base.h"
+
+#include "ImageCopyComputeShader.h"
 
 #include <memory>
 namespace Saiga::Vulkan::Memory
 {
-void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue)
+void VulkanMemory::init(VulkanBase* base)
 {
-    m_pDevice      = _pDevice;
-    m_device       = _device;
-    m_queue        = queue;
+    m_pDevice      = base->physicalDevice;
+    m_device       = base->device;
+    m_queue        = base->transferQueue;
     strategy       = std::make_unique<FirstFitStrategy<BufferMemoryLocation>>();
     image_strategy = std::make_unique<FirstFitStrategy<ImageMemoryLocation>>();
 
-    chunkCreator.init(_pDevice, _device);
+    img_copy_shader = std::make_unique<ImageCopyComputeShader>();
+    img_copy_shader->init(base);
 
-    auto props = _pDevice.getMemoryProperties();
+    chunkCreator.init(m_pDevice, m_device);
+
+    auto props = m_pDevice.getMemoryProperties();
     memoryTypes.resize(props.memoryTypeCount);
     for (auto i = 0U; i < props.memoryTypeCount; ++i)
     {
@@ -45,7 +51,7 @@ void VulkanMemory::init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* 
     auto effectiveStaging = BufferType{stagingType.usageFlags, effectiveFlags};
     get_allocator_exact(effectiveStaging);
 
-    fallbackAllocator = std::make_unique<FallbackAllocator>(_device, _pDevice);
+    fallbackAllocator = std::make_unique<FallbackAllocator>(m_device, m_pDevice);
 }
 
 VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::BufferMap& map,
@@ -75,7 +81,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     std::unique_ptr<BufferDefragger> defragger;
     if (allow_defragger)
     {
-        defragger = std::make_unique<BufferDefragger>(m_device, chunk_alloc.get());
+        defragger = std::make_unique<BufferDefragger>(base, m_device, chunk_alloc.get());
     }
     auto new_alloc = map.emplace(effectiveType, BufferContainer{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(new_alloc.second, "Allocator was already present.");
@@ -109,7 +115,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
                                                              m_queue, found->second);
     if (allow_defragger)
     {
-        defragger = std::make_unique<ImageDefragger>(m_device, chunk_alloc.get());
+        defragger = std::make_unique<ImageDefragger>(base, m_device, chunk_alloc.get(), img_copy_shader.get());
     }
     auto emplaced = map.emplace(effectiveType, ImageContainer{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");
@@ -175,6 +181,12 @@ void VulkanMemory::destroy()
     for (auto& allocator : imageAllocators)
     {
         allocator.second.allocator->destroy();
+    }
+
+    if (img_copy_shader)
+    {
+        img_copy_shader->destroy();
+        img_copy_shader = nullptr;
     }
 }
 

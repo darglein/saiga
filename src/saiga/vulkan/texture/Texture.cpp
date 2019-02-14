@@ -20,11 +20,6 @@ void Texture::destroy()
         base->memory.deallocateImage(type, memoryLocation);
         memoryLocation = nullptr;
     }
-    if (sampler)
-    {
-        base->device.destroy(sampler);
-        sampler = nullptr;
-    }
 }
 
 void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
@@ -84,11 +79,11 @@ void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLa
 
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
 {
-    SAIGA_ASSERT(memoryLocation->data && sampler);
+    SAIGA_ASSERT(memoryLocation->data && memoryLocation->data.sampler);
     vk::DescriptorImageInfo descriptorInfo;
     descriptorInfo.imageLayout = memoryLocation->data.layout;
     descriptorInfo.imageView   = memoryLocation->data.view;
-    descriptorInfo.sampler     = sampler;
+    descriptorInfo.sampler     = memoryLocation->data.sampler;
     return descriptorInfo;
 }
 
@@ -179,7 +174,24 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     viewCreateInfo.format                  = format;
     viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
 
-    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo, vk::ImageLayout::eUndefined);
+    vk::SamplerCreateInfo samplerCreateInfo = {};
+    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
+    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.mipLodBias            = 0.0f;
+    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
+    samplerCreateInfo.minLod                = 0.0f;
+    // Max level-of-detail should match mip level count
+    samplerCreateInfo.maxLod = 0.0f;
+    // Only enable anisotropic filtering if enabled on the devicec
+    samplerCreateInfo.maxAnisotropy    = 16;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
+    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
+
+    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo, vk::ImageLayout::eUndefined, samplerCreateInfo);
     // image                         = base->device.createImage(imageCreateInfo);
     // SAIGA_ASSERT(image);
 
@@ -245,27 +257,6 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     // viewCreateInfo.image                   = image;
     // imageView                              = base->device.createImageView(viewCreateInfo);
     // SAIGA_ASSERT(imageView);
-
-    // Create a defaultsampler
-    vk::SamplerCreateInfo samplerCreateInfo = {};
-    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
-    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
-    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
-    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.mipLodBias            = 0.0f;
-    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
-    samplerCreateInfo.minLod                = 0.0f;
-    // Max level-of-detail should match mip level count
-    samplerCreateInfo.maxLod = 0.0f;
-    // Only enable anisotropic filtering if enabled on the devicec
-    samplerCreateInfo.maxAnisotropy    = 16;
-    samplerCreateInfo.anisotropyEnable = VK_FALSE;
-    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
-
-    sampler = base->device.createSampler(samplerCreateInfo);
-    SAIGA_ASSERT(sampler);
 }
 
 AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint32_t height, vk::Format format,
@@ -311,7 +302,23 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     // imageView                              = base.device.createImageView(viewCreateInfo);
 
 
-    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo, vk::ImageLayout::eUndefined);
+    vk::SamplerCreateInfo samplerCreateInfo = {};
+    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
+    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.mipLodBias            = 0.0f;
+    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
+    samplerCreateInfo.minLod                = 0.0f;
+    // Max level-of-detail should match mip level count
+    samplerCreateInfo.maxLod = 0.0f;
+    // Only enable anisotropic filtering if enabled on the devicec
+    samplerCreateInfo.maxAnisotropy    = 16;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
+    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
+    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo, vk::ImageLayout::eUndefined, samplerCreateInfo);
 
     memoryLocation = base.memory.allocate(type, img_data);
     // base.device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
@@ -353,25 +360,6 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     // imageView                              = base.device.createImageView(viewCreateInfo);
 
     // Create a defaultsampler
-    vk::SamplerCreateInfo samplerCreateInfo = {};
-    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
-    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
-    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
-    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.mipLodBias            = 0.0f;
-    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
-    samplerCreateInfo.minLod                = 0.0f;
-    // Max level-of-detail should match mip level count
-    samplerCreateInfo.maxLod = 0.0f;
-    // Only enable anisotropic filtering if enabled on the devicec
-    samplerCreateInfo.maxAnisotropy    = 16;
-    samplerCreateInfo.anisotropyEnable = VK_FALSE;
-    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
-
-    sampler = base.device.createSampler(samplerCreateInfo);
-    SAIGA_ASSERT(sampler);
 
     auto fence = queue.submit(cmd);
     return AsyncCommand{cmd, fence};

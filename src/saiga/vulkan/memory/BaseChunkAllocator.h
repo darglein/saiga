@@ -271,6 +271,7 @@ T* BaseChunkAllocator<T>::reserve_space(vk::DeviceMemory memory, FreeListEntry f
 template <typename T>
 void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
 {
+    // TODO: has to be done differently for images
     std::scoped_lock lock(allocationMutex);
     const auto size = source->size;
 
