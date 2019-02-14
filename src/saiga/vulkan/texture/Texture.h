@@ -17,8 +17,8 @@ namespace Vulkan
 struct SAIGA_VULKAN_API Texture
 {
    protected:
-    VulkanBase* base;
-    Memory::ImageMemoryLocation* memoryLocation;
+    VulkanBase* base                            = nullptr;
+    Memory::ImageMemoryLocation* memoryLocation = nullptr;
     Memory::ImageType type;
 
    public:
