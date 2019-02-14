@@ -342,6 +342,16 @@ struct SAIGA_VULKAN_API ImageData
         os << ss.str();
         return os;
     }
+
+    inline vk::DescriptorImageInfo get_descriptor_info() const
+    {
+        SAIGA_ASSERT(view && sampler, "Can't create descriptors for images without view or sampler");
+        vk::DescriptorImageInfo descriptorInfo;
+        descriptorInfo.imageLayout = layout;
+        descriptorInfo.imageView   = view;
+        descriptorInfo.sampler     = sampler;
+        return descriptorInfo;
+    }
 };
 
 

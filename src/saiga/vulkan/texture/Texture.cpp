@@ -80,11 +80,7 @@ void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLa
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
 {
     SAIGA_ASSERT(memoryLocation->data && memoryLocation->data.sampler);
-    vk::DescriptorImageInfo descriptorInfo;
-    descriptorInfo.imageLayout = memoryLocation->data.layout;
-    descriptorInfo.imageView   = memoryLocation->data.view;
-    descriptorInfo.sampler     = memoryLocation->data.sampler;
-    return descriptorInfo;
+    return memoryLocation->data.get_descriptor_info();
 }
 
 void Texture2D::fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usage, bool flipY)
