@@ -29,7 +29,7 @@ void Texture::destroy()
 
 void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
 {
-    auto imageLayout                        = memoryLocation->data.layout;
+    auto& imageLayout                       = memoryLocation->data.layout;
     vk::ImageMemoryBarrier barrier          = {};
     barrier.oldLayout                       = imageLayout;
     barrier.newLayout                       = newLayout;
@@ -79,8 +79,7 @@ void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLa
     cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
 
 
-    // imageLayout = newLayout;
-    memoryLocation->data.layout = newLayout;
+    imageLayout = newLayout;
 }
 
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
@@ -284,7 +283,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
 
 
 
-    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
+    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
 
     type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
 

@@ -70,6 +70,8 @@ void VulkanExample::render(vk::CommandBuffer cmd) {}
 
 void VulkanExample::renderGUI()
 {
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL);
+
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Example settings");
 
@@ -82,6 +84,42 @@ void VulkanExample::renderGUI()
     }
     ImGui::Checkbox("Auto allocate indexed", &enable_auto_index);
     ImGui::Text("%d", auto_allocs);
+
+
+    if (ImGui::Button("Allocate Image"))
+    {
+        renderer.base.memory.enable_defragmentation(image_type, false);
+        renderer.base.memory.stop_defrag(image_type);
+        auto num_allocs = alloc_dist(mersenne_twister);
+
+        for (int i = 0; i < num_allocs; ++i)
+        {
+            auto size = tex_sizes[size_dist(mersenne_twister)];
+            // allocations.push_back(renderer.base.memory.allocate(buffer_type, size));
+            tex_allocations.push_back(allocate(image_type, size));
+        }
+        renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
+        renderer.base.memory.start_defrag(buffer_type);
+    }
+
+    if (ImGui::Button("Deallocate Image"))
+    {
+        renderer.base.memory.enable_defragmentation(image_type, false);
+        renderer.base.memory.stop_defrag(image_type);
+
+        auto num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
+
+
+        for (int i = 0; i < num_allocs; ++i)
+        {
+            auto index = mersenne_twister() % tex_allocations.size();
+
+            // renderer.base.memory.deallocateBuffer(buffer_type, allocations[index].first);
+            tex_allocations.erase(tex_allocations.begin() + index);
+        }
+        renderer.base.memory.enable_defragmentation(image_type, enable_defragger);
+        renderer.base.memory.start_defrag(image_type);
+    }
     ImGui::End();
 
     parentWindow.renderImGui();
@@ -209,10 +247,7 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::alloc
 
     std::vector<uint32_t> mem;
     mem.resize(size / sizeof(uint32_t) + 1);
-    std::generate(mem.begin(), mem.end(), [=]() {
-        static auto current = start;
-        return current++;
-    });
+    std::iota(mem.begin(), mem.end(), start);
     std::shared_ptr<Saiga::Vulkan::Buffer> buffer = std::make_shared<Saiga::Vulkan::Buffer>();
     buffer->createBuffer(renderer.base, size, type.usageFlags, type.memoryFlags);
 
@@ -221,4 +256,29 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::alloc
     buffer->mark_dynamic();
 
     return std::make_pair(buffer, start);
+}
+
+std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t> VulkanExample::allocate(
+    Saiga::Vulkan::Memory::ImageType type, unsigned long long int size)
+{
+    std::shared_ptr<Saiga::Vulkan::Texture2D> texture = std::make_shared<Saiga::Vulkan::Texture2D>();
+
+    std::vector<uint32_t> mem;
+    mem.resize(size * size);
+
+    std::iota(mem.begin(), mem.end(), 0);
+
+    Saiga::Vulkan::StagingBuffer staging;
+    staging.init(renderer.base, size * size, mem.data());
+
+    auto init_operation =
+        texture->fromStagingBuffer(renderer.base, size, size, vk::Format::eR8G8B8A8Uint, staging,
+                                   *renderer.base.transferQueue, renderer.base.transferQueue->commandPool);
+
+    renderer.base.device.waitForFences(init_operation.fence, true, 100000000000);
+    renderer.base.transferQueue->commandPool.freeCommandBuffer(init_operation.cmd);
+
+    texture->mark_dynamic();
+
+    return std::make_pair(texture, 0);
 }

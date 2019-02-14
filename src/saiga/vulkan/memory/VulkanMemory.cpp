@@ -128,7 +128,7 @@ VulkanMemory::BufferContainer& VulkanMemory::getAllocator(const BufferType& type
 
 
 
-ImageChunkAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
+VulkanMemory::ImageContainer& VulkanMemory::getImageAllocator(const ImageType& type)
 {
     auto foundAllocator = findAllocator<ImageMap, vk::ImageUsageFlags>(imageAllocators, type);
 
@@ -137,7 +137,7 @@ ImageChunkAllocator& VulkanMemory::getImageAllocator(const ImageType& type)
         foundAllocator = createNewImageAllocator(imageAllocators, default_image_chunk_sizes, type);
     }
 
-    return *(foundAllocator->second.allocator);
+    return foundAllocator->second;
 }
 
 VulkanMemory::BufferContainer& VulkanMemory::get_allocator_exact(const BufferType& type)
@@ -151,7 +151,7 @@ VulkanMemory::BufferContainer& VulkanMemory::get_allocator_exact(const BufferTyp
 }
 
 
-ImageChunkAllocator& VulkanMemory::get_image_allocator_exact(const ImageType& type)
+VulkanMemory::ImageContainer& VulkanMemory::get_image_allocator_exact(const ImageType& type)
 {
     auto foundAllocator = find_allocator_exact<ImageMap, vk::ImageUsageFlags>(imageAllocators, type);
 
@@ -160,7 +160,7 @@ ImageChunkAllocator& VulkanMemory::get_image_allocator_exact(const ImageType& ty
         foundAllocator = createNewImageAllocator(imageAllocators, default_image_chunk_sizes, type);
     }
 
-    return *(foundAllocator->second.allocator);
+    return foundAllocator->second;
 }
 
 void VulkanMemory::destroy()
@@ -207,14 +207,21 @@ ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& im
 {
     auto& allocator = getImageAllocator(type);
 
-    ImageMemoryLocation* location = nullptr;
-    if (image_data.image_requirements.size > allocator.m_chunkSize)
+    if (image_data.image_requirements.size > allocator.allocator->m_chunkSize)
     {
-        location = fallbackAllocator->allocate(type, image_data);
+        return fallbackAllocator->allocate(type, image_data);
     }
-    else
+
+    if (allocator.defragger)
     {
-        location = allocator.allocate(image_data);
+        allocator.defragger->stop();
+    }
+    auto location = allocator.allocator->allocate(image_data);
+
+    if (allocator.defragger)
+    {
+        allocator.defragger->invalidate(location->memory);
+        allocator.defragger->start();
     }
     return location;
 }
@@ -247,13 +254,23 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, BufferMemoryLocation
 void VulkanMemory::deallocateImage(const ImageType& type, ImageMemoryLocation* location)
 {
     auto& allocator = getImageAllocator(type);
-    if (location->size > allocator.m_chunkSize)
+    if (location->size > allocator.allocator->m_chunkSize)
     {
         fallbackAllocator->deallocate(location);
+        return;
     }
-    else
+    if (allocator.defragger)
     {
-        allocator.deallocate(location);
+        allocator.defragger->stop();
+        allocator.defragger->invalidate(location->memory);
+        allocator.defragger->invalidate(location);
+    }
+
+    allocator.allocator->deallocate(location);
+
+    if (allocator.defragger)
+    {
+        allocator.defragger->start();
     }
 }
 
@@ -270,6 +287,21 @@ void VulkanMemory::start_defrag(const BufferType& type)
 void VulkanMemory::stop_defrag(const BufferType& type)
 {
     getAllocator(type).defragger->stop();
+}
+
+void VulkanMemory::enable_defragmentation(const ImageType& type, bool enable)
+{
+    getImageAllocator(type).defragger->setEnabled(enable);
+}
+
+void VulkanMemory::start_defrag(const ImageType& type)
+{
+    getImageAllocator(type).defragger->start();
+}
+
+void VulkanMemory::stop_defrag(const ImageType& type)
+{
+    getImageAllocator(type).defragger->stop();
 }
 
 

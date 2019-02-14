@@ -66,6 +66,13 @@ struct SAIGA_VULKAN_API Texture
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
 
     vk::DescriptorImageInfo getDescriptorInfo();
+    inline void mark_dynamic()
+    {
+        if (memoryLocation)
+        {
+            memoryLocation->mark_dynamic();
+        }
+    }
 };
 
 struct SAIGA_VULKAN_API Texture2D : public Texture

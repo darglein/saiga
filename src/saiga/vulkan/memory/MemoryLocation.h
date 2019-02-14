@@ -340,16 +340,24 @@ inline void copy_image(vk::CommandBuffer cmd, ImageMemoryLocation* target, Image
                  "Images must have the same extent");
     SAIGA_ASSERT(src_data.layout == dst_data.layout, "Layouts must be the same");
 
-    static const vk::ImageAspectFlags copy_aspects =
-        vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
 
+    vk::ImageAspectFlags copy_aspects = vk::ImageAspectFlagBits::eColor;
+    if (src_data.image_create_info.usage == vk::ImageUsageFlagBits::eDepthStencilAttachment)
+    {
+        copy_aspects = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+    }
     for (uint32_t mip = 0; mip < src_data.image_create_info.mipLevels; ++mip)
     {
         vk::ImageSubresourceLayers layers{copy_aspects, mip, 0, src_data.image_create_info.arrayLayers};
-        vk::ImageCopy ic{layers, vk::Offset3D{0, 0, 0}, layers, vk::Offset3D{0, 0, 0},
-                         src_data.image_create_info.extent};
 
-        cmd.copyImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ic);
+        const vk::Offset3D start = vk::Offset3D{0, 0, 0};
+        const vk::Offset3D end(src_data.image_create_info.extent.width, src_data.image_create_info.extent.height,
+                               src_data.image_create_info.extent.depth);
+
+
+        vk::ImageBlit ib{layers, {vk::Offset3D{0, 0, 0}, end}, layers, {vk::Offset3D{0, 0, 0}, end}};
+        cmd.blitImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ib, vk::Filter::eNearest);
     }
+    // cmd.copyImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ic);
 }
 }  // namespace Saiga::Vulkan::Memory

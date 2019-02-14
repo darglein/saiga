@@ -173,9 +173,9 @@ class SAIGA_VULKAN_API VulkanMemory
 
     BufferContainer& get_allocator_exact(const BufferType& type);
 
-    ImageChunkAllocator& getImageAllocator(const ImageType& type);
+    ImageContainer& getImageAllocator(const ImageType& type);
 
-    ImageChunkAllocator& get_image_allocator_exact(const ImageType& type);
+    ImageContainer& get_image_allocator_exact(const ImageType& type);
 
    public:
     void init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue);
@@ -195,9 +195,15 @@ class SAIGA_VULKAN_API VulkanMemory
 
     void enable_defragmentation(const BufferType& type, bool enable);
 
+    void enable_defragmentation(const ImageType& type, bool enable);
+
     void start_defrag(const BufferType& type);
 
+    void start_defrag(const ImageType& type);
+
     void stop_defrag(const BufferType& type);
+
+    void stop_defrag(const ImageType& type);
 };
 
 }  // namespace Saiga::Vulkan::Memory
