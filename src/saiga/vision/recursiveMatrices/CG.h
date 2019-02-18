@@ -54,10 +54,10 @@ class RecursiveDiagonalPreconditioner
             while (it && it.index() != j) ++it;
             if (it && it.index() == j)
                 //          m_invdiag(j) = Scalar(1)/it.value();
-                m_invdiag(j) = inverseCholesky(it.value());
+                removeMatrixScalar(m_invdiag(j)) = removeMatrixScalar(inverseCholesky(it.value()));
             else
                 //                m_invdiag(j) = Scalar(1);
-                m_invdiag(j) = MultiplicativeNeutral<Scalar>::get();
+                removeMatrixScalar(m_invdiag(j)) = removeMatrixScalar(MultiplicativeNeutral<Scalar>::get());
         }
         m_isInitialized = true;
         return *this;

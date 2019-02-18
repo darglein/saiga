@@ -20,12 +20,12 @@ int main(int argc, char* argv[])
 
     // Type of benchmark
 
-    const int mat_mult = true;
     const int vec_mult = true;
-    const int cg_mult  = true;
+    const int mat_mult = false;
+    const int cg_mult  = false;
 
     if (vec_mult) bench_mv();
-    //    if (mat_mult) bench_mm();
-    //    if (cg_mult) bench_cg();
+    if (mat_mult) bench_mm();
+    if (cg_mult) bench_cg();
     return 0;
 }
