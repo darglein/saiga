@@ -30,6 +30,8 @@ class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener
 {
+    std::array<std::string, 3> image_names{"cat.png", "red-panda.png", "dog.png"};
+    std::array<std::shared_ptr<Saiga::Image>, 3> images;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t>> tex_allocations;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations;
@@ -42,6 +44,10 @@ class VulkanExample : public Saiga::Updating,
                                                   vk::MemoryPropertyFlagBits::eDeviceLocal};
     Saiga::Vulkan::Memory::ImageType image_type{vk::ImageUsageFlagBits::eSampled,
                                                 vk::MemoryPropertyFlagBits::eDeviceLocal};
+
+    Saiga::Vulkan::TextureDisplay textureDisplay;
+    vk::DescriptorSet textureDes = nullptr;
+
 
     bool enable_auto_index = false;
     bool enable_defragger  = false;
@@ -60,6 +66,8 @@ class VulkanExample : public Saiga::Updating,
     void renderGUI() override;
 
    private:
+    bool show_textures = false;
+    int texture_index  = 0;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
 

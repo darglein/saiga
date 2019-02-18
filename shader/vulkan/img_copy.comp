@@ -5,23 +5,26 @@
 
 
 
-layout(binding = 0, rgba8) uniform image2D targetTexture;
-layout(binding = 1, rgba8) uniform image2D sourceTexture;
+layout(binding = 0,rgba8) uniform image2D targetTexture;
+layout(binding = 1) uniform sampler2D sourceTexture;
 
-layout (push_constant) uniform PushConstants {
-	ivec2 dimensions;
-} pushConstants;
+layout(push_constant) uniform PushConstants
+{
+    ivec2 dimensions;
+}
+pushConstants;
 
-layout(local_size_x = 128, local_size_y = 128) in;
+layout(local_size_x = 8, local_size_y = 8) in;
 void main()
 {
-    // Current SSBO index
-    //    ivec2 pixel = gl_GlobalInvocationID.xy;
-    //    const ivec2 dimensions(1024,1024);
-    //    if (pixel.x >= dimensions.x || pixel.y >= dimensions.y)
-    //    {
-    //        return;
-    //    }
-    //
-    //    imageStore(targetTexture, pixel, imageLoad(sourceTexture, pixel));
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    if (pixel.x >= pushConstants.dimensions.x || pixel.y >= pushConstants.dimensions.y)
+    {
+        return;
+    }
+
+//    vec4 image_store = imageLoad(sourceTexture, pixel);
+//    imageStore(targetTexture, pixel, imageLoad(sourceTexture, pixel));
+//    imageStore(targetTexture, pixel, vec4(1,0,0,1));
+    imageStore(targetTexture, pixel, texelFetch(sourceTexture, pixel,0));
 }

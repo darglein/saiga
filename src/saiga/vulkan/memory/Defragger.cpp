@@ -51,7 +51,7 @@ void ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperat
     // allocator->queue->commandPool.freeCommandBuffer(defrag_cmd);
 
 
-    // allocator->move_allocation(reserve_space, op.source);
+     allocator->move_allocation(reserve_space, op.source);
 }
 
 }  // namespace Saiga::Vulkan::Memory

@@ -17,8 +17,9 @@ void ImageCopyComputeShader::init(VulkanBase* _base)
     pipeline = new ComputePipeline;
 
     pipeline->init(*_base, 1);
-    pipeline->addDescriptorSetLayout({{0, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute},
-                                      {1, vk::DescriptorType::eSampledImage, 1, vk::ShaderStageFlagBits::eCompute}});
+    pipeline->addDescriptorSetLayout(
+        {{0, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute},
+         {1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eCompute}});
 
     pipeline->addPushConstantRange(vk::PushConstantRange{vk::ShaderStageFlagBits::eCompute, 0, sizeof(glm::ivec2)});
     pipeline->shaderPipeline.loadCompute(_base->device, "vulkan/img_copy.comp");
@@ -46,10 +47,12 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
     target->data.transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
 
 
+
     cmd.end();
     base->computeQueue->submitAndWait(cmd);
 
     LOG(INFO) << target->data;
+    LOG(INFO) << vk::to_string(target->data.image_create_info.format);
 
     auto descriptorSet = pipeline->createDescriptorSet();
 
@@ -59,8 +62,8 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
         {
             vk::WriteDescriptorSet(descriptorSet, 0, 0, 1, vk::DescriptorType::eStorageImage, &target_info, nullptr,
                                    nullptr),
-            vk::WriteDescriptorSet(descriptorSet, 1, 0, 1, vk::DescriptorType::eSampledImage, &source_info, nullptr,
-                                   nullptr),
+            vk::WriteDescriptorSet(descriptorSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &source_info,
+                                   nullptr, nullptr),
         },
         nullptr);
 
@@ -75,8 +78,8 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
     pipeline->bindDescriptorSets(cmd, descriptorSet);
 
     const auto extent = source->data.image_create_info.extent;
-    int countX        = extent.width / 128 + 1;
-    int countY        = extent.height / 128 + 1;
+    int countX        = extent.width / 8 + 1;
+    int countY        = extent.height / 8 + 1;
 
     glm::ivec2 size{extent.width, extent.height};
     pipeline->pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(glm::ivec2), &size, 0);

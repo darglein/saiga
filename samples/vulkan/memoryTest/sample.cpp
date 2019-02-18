@@ -37,10 +37,22 @@ VulkanExample::~VulkanExample() {}
 
 void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 {
-    // m_location1 = base.memory.vertexIndexAllocator.allocate(1024);
-    // m_location2 = base.memory.vertexIndexAllocator.allocate(1024);
-    // m_location3 = base.memory.vertexIndexAllocator.allocate(1024);
+    for (int i = 0; i < image_names.size(); ++i)
+    {
+        auto image = std::make_shared<Saiga::Image>(image_names[i]);
+
+        if (image->type == Saiga::UC3)
+        {
+            auto img2 = std::make_shared<Saiga::TemplatedImage<ucvec4>>(image->height, image->width);
+            Saiga::ImageTransformation::addAlphaChannel(image->getImageView<ucvec3>(), img2->getImageView(), 255);
+            image = img2;
+        }
+
+        images[i] = image;
+    }
     num_allocations.resize(10, std::make_pair(nullptr, 0));
+
+    textureDisplay.init(base, renderer.renderPass);
 }
 
 
@@ -66,11 +78,20 @@ void VulkanExample::update(float dt)
 void VulkanExample::transfer(vk::CommandBuffer cmd) {}
 
 
-void VulkanExample::render(vk::CommandBuffer cmd) {}
+void VulkanExample::render(vk::CommandBuffer cmd)
+{
+    if (show_textures && !tex_allocations.empty() && textureDes)
+    {
+        if (textureDisplay.bind(cmd))
+        {
+            textureDisplay.renderTexture(cmd, textureDes, vec2(10, 10), vec2(256, 256));
+        }
+    }
+}
 
 void VulkanExample::renderGUI()
 {
-    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL);
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL), image_dist(0, 2);
 
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Example settings");
@@ -94,7 +115,7 @@ void VulkanExample::renderGUI()
 
         for (int i = 0; i < num_allocs; ++i)
         {
-            auto size = tex_sizes[size_dist(mersenne_twister)];
+            auto size = image_dist(mersenne_twister);
             // allocations.push_back(renderer.base.memory.allocate(buffer_type, size));
             tex_allocations.push_back(allocate(image_type, size));
         }
@@ -119,6 +140,22 @@ void VulkanExample::renderGUI()
         }
         renderer.base.memory.enable_defragmentation(image_type, enable_defragger);
         renderer.base.memory.start_defrag(image_type);
+    }
+
+    ImGui::Checkbox("Show textures", &show_textures);
+    if (show_textures && !tex_allocations.empty())
+    {
+        int new_index = texture_index;
+        ImGui::SliderInt("Texture Index", &new_index, 0, tex_allocations.size() - 1);
+        if (new_index != texture_index)
+        {
+            texture_index = new_index;
+            textureDes    = textureDisplay.createAndUpdateDescriptorSet(*tex_allocations[texture_index].first);
+        }
+    }
+    else
+    {
+        textureDes = nullptr;
     }
     ImGui::End();
 
@@ -259,25 +296,27 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::alloc
 }
 
 std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t> VulkanExample::allocate(
-    Saiga::Vulkan::Memory::ImageType type, unsigned long long int size)
+    Saiga::Vulkan::Memory::ImageType type, unsigned long long int index)
 {
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture = std::make_shared<Saiga::Vulkan::Texture2D>();
 
-    std::vector<uint32_t> mem;
-    mem.resize(size * size);
+    // std::vector<uint32_t> mem;
+    // mem.resize(size * size);
+    //
+    // std::iota(mem.begin(), mem.end(), 0);
 
-    std::iota(mem.begin(), mem.end(), 0);
+    // Saiga::Vulkan::StagingBuffer staging;
+    // staging.init(renderer.base, size * size, mem.data());
 
-    Saiga::Vulkan::StagingBuffer staging;
-    staging.init(renderer.base, size * size, mem.data());
-
-    auto init_operation =
-        texture->fromStagingBuffer(renderer.base, size, size, vk::Format::eR8G8B8A8Uint, staging,
-                                   *renderer.base.transferQueue, renderer.base.transferQueue->commandPool);
-
-    renderer.base.device.waitForFences(init_operation.fence, true, 100000000000);
-    renderer.base.transferQueue->commandPool.freeCommandBuffer(init_operation.cmd);
-
+    texture->fromImage(renderer.base, *images[index]);
+    // auto init_operation =
+    //    texture->fromStagingBuffer(renderer.base, size, size, vk::Format::eR8G8B8A8Uint, staging,
+    //                               *renderer.base.transferQueue, renderer.base.transferQueue->commandPool);
+    //
+    // renderer.base.device.waitForFences(init_operation.fence, true, 100000000000);
+    // renderer.base.transferQueue->commandPool.freeCommandBuffer(init_operation.cmd);
+    //
+    // renderer.base.device.destroy(init_operation.fence);
     texture->mark_dynamic();
 
     return std::make_pair(texture, 0);
