@@ -9,7 +9,7 @@
 #include "ImageCopyComputeShader.h"
 namespace Saiga::Vulkan::Memory
 {
-void BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOperation& op)
+bool BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOperation& op)
 {
     LOG(INFO) << "DEFRAG" << *(op.source) << "->" << op.targetMemory << "," << op.target.offset << " "
               << op.target.size;
@@ -27,9 +27,10 @@ void BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOper
     allocator->queue->commandPool.freeCommandBuffer(defrag_cmd);
 
     allocator->move_allocation(reserve_space, op.source);
+    return true;
 }
 
-void ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperation& op)
+bool ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperation& op)
 {
     ImageMemoryLocation* reserve_space = allocator->reserve_space(op.targetMemory, op.target, op.source->size);
 
@@ -44,14 +45,19 @@ void ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperat
     LOG(INFO) << "IMAGE DEFRAG" << *(op.source) << "->" << *reserve_space;
     // auto defrag_cmd = allocator->queue->commandPool.createAndBeginOneTimeBuffer();
     // copy_image(defrag_cmd, reserve_space, op.source);
-    img_copy_shader->copy_image(reserve_space, op.source);
+    bool didcopy = img_copy_shader->copy_image(reserve_space, op.source);
 
+    if (!didcopy)
+    {
+        return false;
+    }
     // defrag_cmd.end();
     // allocator->queue->submitAndWait(defrag_cmd);
     // allocator->queue->commandPool.freeCommandBuffer(defrag_cmd);
 
 
-     allocator->move_allocation(reserve_space, op.source);
+    allocator->move_allocation(reserve_space, op.source);
+    return true;
 }
 
 }  // namespace Saiga::Vulkan::Memory

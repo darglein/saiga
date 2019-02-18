@@ -121,10 +121,10 @@ class Defragger
     void invalidate(T* location);
 
     void find_defrag_ops();
-    void perform_defrag();
+    bool perform_defrag();
 
    protected:
-    virtual void execute_defrag_operation(const DefragOperation& op) = 0;
+    virtual bool execute_defrag_operation(const DefragOperation& op) = 0;
 };
 
 
@@ -187,8 +187,12 @@ void Defragger<T>::worker_func()
 template <typename T>
 void Defragger<T>::run()
 {
-    find_defrag_ops();
-    perform_defrag();
+    bool performed = true;
+    while (running && performed)
+    {
+        find_defrag_ops();
+        performed = perform_defrag();
+    }
 }
 
 template <typename T>
@@ -233,22 +237,24 @@ void Defragger<T>::find_defrag_ops()
 }
 
 template <typename T>
-void Defragger<T>::perform_defrag()
+bool Defragger<T>::perform_defrag()
 {
     {
         using namespace std::chrono_literals;
     }
 
-    auto op = defrag_operations.begin();
+    auto op        = defrag_operations.begin();
+    bool performed = false;
     while (running && op != defrag_operations.end())
     {
         if (allocator->memory_is_free(op->targetMemory, op->target))
         {
-            execute_defrag_operation(*op);
+            performed |= execute_defrag_operation(*op);
         }
 
         op = defrag_operations.erase(op);
     }
+    return performed;
 }
 
 
@@ -370,7 +376,7 @@ class BufferDefragger : public Defragger<BufferMemoryLocation>
     }
 
    protected:
-    void execute_defrag_operation(const DefragOperation& op) override;
+    bool execute_defrag_operation(const DefragOperation& op) override;
 };
 
 class ImageDefragger : public Defragger<ImageMemoryLocation>
@@ -386,7 +392,7 @@ class ImageDefragger : public Defragger<ImageMemoryLocation>
     }
 
    protected:
-    void execute_defrag_operation(const DefragOperation& op) override;
+    bool execute_defrag_operation(const DefragOperation& op) override;
 };
 
 }  // namespace Saiga::Vulkan::Memory
