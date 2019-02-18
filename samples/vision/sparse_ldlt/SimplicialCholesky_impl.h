@@ -42,15 +42,15 @@ LDL License:
 
 #include "Eigen/src/Core/util/NonMPL2.h"
 
-#ifndef EIGEN_SIMPLICIAL_CHOLESKY_IMPL_H
-#    define EIGEN_SIMPLICIAL_CHOLESKY_IMPL_H
+#pragma once
+#include "saiga/vision/recursiveMatrices/Cholesky.h"
 
-#    include "SimplicialCholesky.h"
+#include "SimplicialCholesky.h"
 
 namespace Eigen
 {
 template <typename Derived>
-void SimplicialCholeskyBase<Derived>::analyzePattern_preordered(const CholMatrixType& ap, bool doLDLT)
+void SimplicialCholeskyBase2<Derived>::analyzePattern_preordered(const CholMatrixType& ap, bool doLDLT)
 {
     const StorageIndex size = StorageIndex(ap.rows());
     m_matrix.resize(size, size);
@@ -98,8 +98,9 @@ void SimplicialCholeskyBase<Derived>::analyzePattern_preordered(const CholMatrix
 
 template <typename Derived>
 template <bool DoLDLT>
-void SimplicialCholeskyBase<Derived>::factorize_preordered(const CholMatrixType& ap)
+void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType& ap)
 {
+    static_assert(DoLDLT == true, "only ldlt supported");
     using std::sqrt;
 
     eigen_assert(m_analysisIsOk && "You must first call analyzePattern()");
@@ -112,12 +113,15 @@ void SimplicialCholeskyBase<Derived>::factorize_preordered(const CholMatrixType&
     StorageIndex* Li        = m_matrix.innerIndexPtr();
     Scalar* Lx              = m_matrix.valuePtr();
 
+    //    cout << "factorize" << endl;
+    //    cout << expand(ap) << endl << endl;
     ei_declare_aligned_stack_constructed_variable(Scalar, y, size, 0);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, pattern, size, 0);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, tags, size, 0);
 
     bool ok = true;
     m_diag.resize(DoLDLT ? size : 0);
+    m_diag_inv.resize(DoLDLT ? size : 0);
 
     for (StorageIndex k = 0; k < size; ++k)
     {
@@ -131,7 +135,7 @@ void SimplicialCholeskyBase<Derived>::factorize_preordered(const CholMatrixType&
             StorageIndex i = it.index();
             if (i <= k)
             {
-                y[i] += numext::conj(it.value()); /* scatter A(i,k) into Y (sum duplicates) */
+                y[i] += (it.value()); /* scatter A(i,k) into Y (sum duplicates) */
                 Index len;
                 for (len = 0; tags[i] != k; i = m_parent[i])
                 {
@@ -144,8 +148,11 @@ void SimplicialCholeskyBase<Derived>::factorize_preordered(const CholMatrixType&
 
         /* compute numerical values kth row of L (a sparse triangular solve) */
 
-        RealScalar d =
-            numext::real(y[k]) * m_shiftScale + m_shiftOffset;  // get D(k,k), apply the shift function, and clear Y(k)
+        RealScalar d = (y[k]);  // get D(k,k), apply the shift function, and clear Y(k)
+
+        //        cout << expand(y[k]) << endl;
+        //        cout << expand(d) << endl;
+
         y[k] = Scalar(0);
         for (; top < size; ++top)
         {
@@ -154,46 +161,36 @@ void SimplicialCholeskyBase<Derived>::factorize_preordered(const CholMatrixType&
             y[i]      = Scalar(0);
 
             /* the nonzero entry L(k,i) */
-            Scalar l_ki;
-            if (DoLDLT)
-                l_ki = yi / m_diag[i];
-            else
-                yi = l_ki = yi / Lx[Lp[i]];
+            m_diag_inv[i] = Saiga::inverseCholesky(m_diag[i]);
+            auto& inv     = m_diag_inv[i];
+            Scalar l_ki   = yi * inv;
+
 
             Index p2 = Lp[i] + m_nonZerosPerCol[i];
             Index p;
-            for (p = Lp[i] + (DoLDLT ? 0 : 1); p < p2; ++p) y[Li[p]] -= numext::conj(Lx[p]) * yi;
-            d -= numext::real(l_ki * numext::conj(yi));
+            //            for (p = Lp[i] + (DoLDLT ? 0 : 1); p < p2; ++p) y[Li[p]] -= (Lx[p]) * yi;
+            for (p = Lp[i] + (DoLDLT ? 0 : 1); p < p2; ++p) y[Li[p]] -= yi * (Lx[p]);
+
+            //            d -= (l_ki * (yi));
+            d.get() -= ((yi.get()) * l_ki.get().transpose());
             Li[p] = k; /* store L(k,i) in column form of L */
-            Lx[p] = l_ki;
+
+            cout << "test " << i << " " << k << endl << expand(l_ki) << endl << endl;
+            Lx[p].get() = l_ki.get().transpose();
             ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
         }
-        if (DoLDLT)
-        {
-            m_diag[k] = d;
-            if (d == RealScalar(0))
-            {
-                ok = false; /* failure, D(k,k) is zero */
-                break;
-            }
-        }
-        else
-        {
-            Index p = Lp[k] + m_nonZerosPerCol[k]++;
-            Li[p]   = k; /* store L(k,k) = sqrt (d) in column k */
-            if (d <= RealScalar(0))
-            {
-                ok = false; /* failure, matrix is not positive definite */
-                break;
-            }
-            Lx[p] = sqrt(d);
-        }
+
+        m_diag[k]     = d;
+        m_diag_inv[k] = Saiga::inverseCholesky(m_diag[k]);
     }
 
     m_info              = ok ? Success : NumericalIssue;
     m_factorizationIsOk = true;
+
+    cout << "Factorize done. L, D:" << endl;
+    cout << expand(m_matrix) << endl << endl;
+    cout << expand(m_diag.asDiagonal().toDenseMatrix()) << endl << endl;
+    exit(0);
 }
 
 }  // end namespace Eigen
-
-#endif  // EIGEN_SIMPLICIAL_CHOLESKY_IMPL_H

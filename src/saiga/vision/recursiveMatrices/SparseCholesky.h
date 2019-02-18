@@ -93,7 +93,10 @@ void SparseRecursiveLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
                 sum = -sum;
             }
 
-            sum            = sum * Dinv.diagonal()(j);
+            cout << "test " << i << " " << j << endl << expand(sum) << endl << endl;
+
+            sum = sum * Dinv.diagonal()(j);
+            cout << "test " << i << " " << j << endl << expand(sum) << endl << endl;
             L.insert(i, j) = sum;
             removeMatrixScalar(sumd) +=
                 removeMatrixScalar(sum) * removeMatrixScalar(D.diagonal()(j)) * removeMatrixScalar(transpose(sum));
