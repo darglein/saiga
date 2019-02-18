@@ -302,6 +302,7 @@ struct SAIGA_VULKAN_API ImageData
         image                  = device.createImage(image_create_info);
         image_requirements     = device.getImageMemoryRequirements(image);
         view_create_info.image = image;
+        layout                 = image_create_info.initialLayout;
     }
 
     void create_view(vk::Device device) { view = device.createImageView(view_create_info); }
@@ -352,6 +353,61 @@ struct SAIGA_VULKAN_API ImageData
         descriptorInfo.sampler     = sampler;
         return descriptorInfo;
     }
+
+    void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
+    {
+        auto& imageLayout                       = layout;
+        vk::ImageMemoryBarrier barrier          = {};
+        barrier.oldLayout                       = imageLayout;
+        barrier.newLayout                       = newLayout;
+        barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image                           = image;
+        barrier.subresourceRange.aspectMask     = vk::ImageAspectFlagBits::eColor;
+        barrier.subresourceRange.baseMipLevel   = 0;
+        barrier.subresourceRange.levelCount     = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount     = 1;
+        //        barrier.srcAccessMask = 0; // TODO
+        //        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite; // TODO
+
+
+        vk::PipelineStageFlags sourceStage;
+        vk::PipelineStageFlags destinationStage;
+
+        if (imageLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
+        {
+            barrier.srcAccessMask = {};
+            barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+            sourceStage      = vk::PipelineStageFlagBits::eHost;
+            destinationStage = vk::PipelineStageFlagBits::eTransfer;
+        }
+        else if (imageLayout == vk::ImageLayout::eTransferDstOptimal &&
+                 newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
+        {
+            barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+            barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+            sourceStage      = vk::PipelineStageFlagBits::eTransfer;
+            destinationStage = vk::PipelineStageFlagBits::eAllCommands;
+        }
+        else
+        {
+            //            throw std::invalid_argument("unsupported layout transition!");
+            barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
+            barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+            sourceStage           = vk::PipelineStageFlagBits::eAllCommands;
+            destinationStage      = vk::PipelineStageFlagBits::eAllCommands;
+        }
+
+
+
+        cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
+
+
+        imageLayout = newLayout;
+    }
 };
 
 
@@ -373,35 +429,35 @@ inline void bind_image_data(vk::Device device, ImageMemoryLocation* location, Im
     location->data = data;
 }
 
-inline void copy_image(vk::CommandBuffer cmd, ImageMemoryLocation* target, ImageMemoryLocation* source)
-{
-    SAIGA_ASSERT(target->size == source->size, "Different size copies are not supported");
-    const auto& src_data = source->data;
-    const auto& dst_data = target->data;
-    SAIGA_ASSERT(src_data.image_create_info.mipLevels == dst_data.image_create_info.mipLevels,
-                 "Source and Target must have same number of mip levels.");
-    SAIGA_ASSERT(src_data.image_create_info.extent == dst_data.image_create_info.extent,
-                 "Images must have the same extent");
-    SAIGA_ASSERT(src_data.layout == dst_data.layout, "Layouts must be the same");
-
-
-    vk::ImageAspectFlags copy_aspects = vk::ImageAspectFlagBits::eColor;
-    if (src_data.image_create_info.usage == vk::ImageUsageFlagBits::eDepthStencilAttachment)
-    {
-        copy_aspects = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-    }
-    for (uint32_t mip = 0; mip < src_data.image_create_info.mipLevels; ++mip)
-    {
-        vk::ImageSubresourceLayers layers{copy_aspects, mip, 0, src_data.image_create_info.arrayLayers};
-
-        const vk::Offset3D start = vk::Offset3D{0, 0, 0};
-        const vk::Offset3D end(src_data.image_create_info.extent.width, src_data.image_create_info.extent.height,
-                               src_data.image_create_info.extent.depth);
-
-
-        vk::ImageBlit ib{layers, {vk::Offset3D{0, 0, 0}, end}, layers, {vk::Offset3D{0, 0, 0}, end}};
-        cmd.blitImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ib, vk::Filter::eNearest);
-    }
-    // cmd.copyImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ic);
-}
+// inline void copy_image(vk::CommandBuffer cmd, ImageMemoryLocation* target, ImageMemoryLocation* source)
+//{
+//    SAIGA_ASSERT(target->size == source->size, "Different size copies are not supported");
+//    const auto& src_data = source->data;
+//    const auto& dst_data = target->data;
+//    SAIGA_ASSERT(src_data.image_create_info.mipLevels == dst_data.image_create_info.mipLevels,
+//                 "Source and Target must have same number of mip levels.");
+//    SAIGA_ASSERT(src_data.image_create_info.extent == dst_data.image_create_info.extent,
+//                 "Images must have the same extent");
+//    SAIGA_ASSERT(src_data.layout == dst_data.layout, "Layouts must be the same");
+//
+//
+//    vk::ImageAspectFlags copy_aspects = vk::ImageAspectFlagBits::eColor;
+//    if (src_data.image_create_info.usage == vk::ImageUsageFlagBits::eDepthStencilAttachment)
+//    {
+//        copy_aspects = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+//    }
+//    for (uint32_t mip = 0; mip < src_data.image_create_info.mipLevels; ++mip)
+//    {
+//        vk::ImageSubresourceLayers layers{copy_aspects, mip, 0, src_data.image_create_info.arrayLayers};
+//
+//        const vk::Offset3D start = vk::Offset3D{0, 0, 0};
+//        const vk::Offset3D end(src_data.image_create_info.extent.width, src_data.image_create_info.extent.height,
+//                               src_data.image_create_info.extent.depth);
+//
+//
+//        vk::ImageBlit ib{layers, {vk::Offset3D{0, 0, 0}, end}, layers, {vk::Offset3D{0, 0, 0}, end}};
+//        cmd.blitImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ib, vk::Filter::eNearest);
+//    }
+//    // cmd.copyImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ic);
+//}
 }  // namespace Saiga::Vulkan::Memory

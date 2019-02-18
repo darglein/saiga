@@ -12,7 +12,7 @@ layout (push_constant) uniform PushConstants {
 	ivec2 dimensions;
 } pushConstants;
 
-layout(local_size_x = 256, local_size_y = 256) in;
+layout(local_size_x = 128, local_size_y = 128) in;
 void main()
 {
     // Current SSBO index

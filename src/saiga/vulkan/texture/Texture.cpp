@@ -7,6 +7,9 @@ namespace Saiga
 {
 namespace Vulkan
 {
+static const vk::ImageUsageFlags necessary_flags =
+    vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage;
+
 void Texture::destroy()
 {
     if (!base)
@@ -24,57 +27,9 @@ void Texture::destroy()
 
 void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
 {
-    auto& imageLayout                       = memoryLocation->data.layout;
-    vk::ImageMemoryBarrier barrier          = {};
-    barrier.oldLayout                       = imageLayout;
-    barrier.newLayout                       = newLayout;
-    barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                           = memoryLocation->data.image;
-    barrier.subresourceRange.aspectMask     = vk::ImageAspectFlagBits::eColor;
-    barrier.subresourceRange.baseMipLevel   = 0;
-    barrier.subresourceRange.levelCount     = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount     = 1;
-    //        barrier.srcAccessMask = 0; // TODO
-    //        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite; // TODO
+    SAIGA_ASSERT(memoryLocation->data);
 
-
-    vk::PipelineStageFlags sourceStage;
-    vk::PipelineStageFlags destinationStage;
-
-    if (imageLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
-    {
-        barrier.srcAccessMask = {};
-        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-        sourceStage      = vk::PipelineStageFlagBits::eHost;
-        destinationStage = vk::PipelineStageFlagBits::eTransfer;
-    }
-    else if (imageLayout == vk::ImageLayout::eTransferDstOptimal &&
-             newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
-    {
-        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-        sourceStage      = vk::PipelineStageFlagBits::eTransfer;
-        destinationStage = vk::PipelineStageFlagBits::eAllCommands;
-    }
-    else
-    {
-        //            throw std::invalid_argument("unsupported layout transition!");
-        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-        sourceStage           = vk::PipelineStageFlagBits::eAllCommands;
-        destinationStage      = vk::PipelineStageFlagBits::eAllCommands;
-    }
-
-
-
-    cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
-
-
-    imageLayout = newLayout;
+    memoryLocation->data.transitionImageLayout(cmd, newLayout);
 }
 
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
@@ -147,7 +102,7 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
 
 
 
-    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
+    auto finalUsageFlags = usage | necessary_flags;
 
     type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
@@ -270,7 +225,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
 
 
 
-    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
+    auto finalUsageFlags = usage | necessary_flags;
 
     type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
 

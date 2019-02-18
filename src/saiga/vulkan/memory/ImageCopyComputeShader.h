@@ -30,7 +30,7 @@ class ImageCopyComputeShader
 
     virtual ~ImageCopyComputeShader() {destroy();};
 
-    void copy_image(ImageMemoryLocation* target, ImageMemoryLocation* source);
+    bool copy_image(ImageMemoryLocation* target, ImageMemoryLocation* source);
 };
 
 }  // namespace Saiga::Vulkan::Memory
