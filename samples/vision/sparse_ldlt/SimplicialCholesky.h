@@ -10,6 +10,7 @@
 #ifndef LDTL_TEST
 #define LDTL_TEST
 
+#include "saiga/core/time/Time"
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
 #include "Eigen/Sparse"
@@ -208,6 +209,7 @@ class SimplicialCholeskyBase2 : public SparseSolverBase<Derived>
 
         if (m_P.size() == 0 && (UpLo & Upper) == Upper)
         {
+            SAIGA_EXIT_ERROR("not implemented!");
             // If there is no ordering, try to directly use the input matrix without any copy
             internal::simplicial_cholesky_grab_input<CholMatrixType, MatrixType>::run(a, pmat, tmp);
         }
@@ -589,16 +591,17 @@ void SimplicialCholeskyBase2<Derived>::ordering(const MatrixType& a, ConstCholMa
         // The fix should be as following:
         //  - Use normal twisted by logic, but
         //  - Transpose element if it was copied from the other half of the diagonal
-        //        ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
+        ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
 
         // current workaround (not very smart)
-        CholMatrixType asdf;
-        asdf = a.twistedBy(m_P);
-        ap   = asdf.template selfadjointView<Upper>();
+
+        //        CholMatrixType asdf;
+        //        asdf = a.twistedBy(m_P);
+        //        ap   = asdf.template selfadjointView<Upper>();
     }
     else
     {
-        SAIGA_ASSERT(0);
+        SAIGA_EXIT_ERROR("not implemented");
         m_Pinv.resize(0);
         m_P.resize(0);
         if (int(UpLo) == int(Lower) || MatrixType::IsRowMajor)
