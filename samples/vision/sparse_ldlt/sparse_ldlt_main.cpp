@@ -24,11 +24,11 @@ namespace internal
 //{
 //    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<T>, Eigen::ColMajor>;
 
-template <typename Rhs, int Mode>
-struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixScalar<Eigen::Matrix<double, 2, 2>>>,
-                                        Rhs, Mode, Lower, ColMajor>
+template <typename T, typename Rhs, int Mode>
+struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>, Rhs, Mode, Lower, ColMajor>
 {
-    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<Eigen::Matrix<double, 2, 2>>>;
+    //    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<Eigen::Matrix<double, 2, 2>>>;
+    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<T>>;
     typedef typename Lhs::Scalar LScalar;
     typedef typename Rhs::Scalar RScalar;
     typedef evaluator<Lhs> LhsEval;
@@ -47,6 +47,7 @@ struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixS
                     while (it && it.index() < i) ++it;
                     if (!(Mode & UnitDiag))
                     {
+                        cout << "not unit :O" << endl;
                         eigen_assert(it && it.index() == i);
                         tmp.get() = Saiga::inverseCholesky(it.value().get()) * tmp.get();
                     }
@@ -61,12 +62,11 @@ struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixS
 
 
 // backward substitution, row-major
-template <typename Rhs, int Mode>
-struct sparse_solve_triangular_selector<
-    const Eigen::Transpose<const Eigen::SparseMatrix<Saiga::MatrixScalar<Eigen::Matrix<double, 2, 2>>>>, Rhs, Mode,
-    Upper, RowMajor>
+template <typename T, typename Rhs, int Mode>
+struct sparse_solve_triangular_selector<const Eigen::Transpose<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>>, Rhs,
+                                        Mode, Upper, RowMajor>
 {
-    using Lhs = const Eigen::Transpose<const Eigen::SparseMatrix<Saiga::MatrixScalar<Eigen::Matrix<double, 2, 2>>>>;
+    using Lhs = const Eigen::Transpose<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>>;
 
     typedef typename Lhs::Scalar LScalar;
     typedef typename Rhs::Scalar RScalar;
@@ -86,6 +86,7 @@ struct sparse_solve_triangular_selector<
                 while (it && it.index() < i) ++it;
                 if (!(Mode & UnitDiag))
                 {
+                    cout << "not unit :O" << endl;
                     eigen_assert(it && it.index() == i);
                     l_ii = it.value();
                     ++it;
@@ -98,9 +99,14 @@ struct sparse_solve_triangular_selector<
                 }
 
                 if (Mode & UnitDiag)
+                {
                     other.coeffRef(i, col) = tmp;
+                }
                 else
+                {
+                    cout << "not unit :O" << endl;
                     other.coeffRef(i, col).get() = Saiga::inverseCholesky(l_ii.get()) * tmp.get();
+                }
                 //                    other.coeffRef(i, col) = tmp / l_ii;
             }
         }
@@ -119,7 +125,7 @@ class Sparse_LDLT_TEST
 {
    public:
 #ifdef USE_BLOCKS
-    static constexpr int block_size = 2;
+    static constexpr int block_size = 4;
     using Block                     = Eigen::Matrix<double, block_size, block_size>;
     using Vector                    = Eigen::Matrix<double, block_size, 1>;
     using AType                     = Eigen::SparseMatrix<MatrixScalar<Block>>;
@@ -137,7 +143,8 @@ class Sparse_LDLT_TEST
 
     Sparse_LDLT_TEST(int n)
     {
-        int nnzr = 10;
+        int nnzr = std::min(10, n);
+
         A.resize(n, n);
         A2.resize(n, n);
         Anoblock.resize(n * block_size, n * block_size);
@@ -255,6 +262,7 @@ class Sparse_LDLT_TEST
 
         cout << "Error: " << (Anoblock * bx - be).squaredNorm() << endl << endl;
     }
+
 
     void solveSparseLDLTRecursive()
     {
@@ -417,8 +425,8 @@ int main(int, char**)
 
     Random::setSeed(15235);
 
-    Sparse_LDLT_TEST test(1000);
-    test.solveDenseLDLT();
+    Sparse_LDLT_TEST test(200);
+    //    test.solveDenseLDLT();
     test.solveSparseLDLT();
     test.solveCholmod();
     test.solveSparseLDLTRecursive();
