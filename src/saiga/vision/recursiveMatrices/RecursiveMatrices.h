@@ -20,6 +20,7 @@
 #include "saiga/vision/recursiveMatrices/MixedMatrix.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Norm.h"
+#include "saiga/vision/recursiveMatrices/Random.h"
 #include "saiga/vision/recursiveMatrices/ScalarMult.h"
 #include "saiga/vision/recursiveMatrices/SparseHelper.h"
 #include "saiga/vision/recursiveMatrices/SparseTranspose.h"

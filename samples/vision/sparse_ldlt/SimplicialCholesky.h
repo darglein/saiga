@@ -154,8 +154,7 @@ class SimplicialCholeskyBase2 : public SparseSolverBase<Derived>
                      "symbolic()/numeric()");
         eigen_assert(m_matrix.rows() == b.rows());
 
-        std::cout << "base solve" << std::endl;
-#    if 1
+
         if (m_info != Success) return;
 
         if (m_P.size() > 0)
@@ -163,21 +162,11 @@ class SimplicialCholeskyBase2 : public SparseSolverBase<Derived>
         else
             dest = b;
 
-        //        cout << expand(m_matrix) << endl;
-
-        //        cout << "dest: " << expand(dest).transpose() << endl;
 
         if (m_matrix.nonZeros() > 0)  // otherwise L==I
             derived().matrixL().solveInPlace(dest);
 
-        //        cout << expand(Rhs(derived().matrixL())) << endl;
-        //        cout << expand(dest).transpose() << endl;
 
-        //        exit(0);
-
-
-        //        if (m_diag.size() > 0) dest = m_diag_inv.asDiagonal() * dest;
-        //        dest = multDiagVector(m_diag_inv.asDiagonal(), dest);
 
         multDiagVector2(m_diag_inv.asDiagonal(), dest);
 
@@ -185,7 +174,6 @@ class SimplicialCholeskyBase2 : public SparseSolverBase<Derived>
             derived().matrixU().solveInPlace(dest);
 
         if (m_P.size() > 0) dest = m_Pinv * dest;
-#    endif
     }
 
     template <typename Rhs, typename Dest>
@@ -577,6 +565,7 @@ void SimplicialCholeskyBase2<Derived>::ordering(const MatrixType& a, ConstCholMa
 
             OrderingType ordering;
             ordering(C, m_Pinv);
+            //            m_Pinv.setIdentity();
         }
 
         if (m_Pinv.size() > 0)
@@ -585,22 +574,31 @@ void SimplicialCholeskyBase2<Derived>::ordering(const MatrixType& a, ConstCholMa
             m_P.resize(0);
 
         ap.resize(size, size);
-        ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
+        //        ap.setZero();
+        //        ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
+        //        std::cout << "ap" << std::endl << Saiga::expand(ap) << std::endl << std::endl;
+        //        ap.setZero();
+        //        ap.template selfadjointView<Upper>() = a.twistedBy(m_P);
+        //        std::cout << "ap" << std::endl << Saiga::expand(ap) << std::endl << std::endl;
+        //        ap.setZero();
+        //        ap = a.twistedBy(m_P);
 
-        {
-            auto test = (m_P * a.toDense()).eval();
 
+        // TODO:
+        // Fix the following line so we can use it with triangular matrices.
+        // The fix should be as following:
+        //  - Use normal twisted by logic, but
+        //  - Transpose element if it was copied from the other half of the diagonal
+        //        ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
 
-            //            std::cout << "twist" << std::endl;
-            //            std::cout << "P" << std::endl << m_P.toDenseMatrix() << std::endl << std::endl;
-            //            std::cout << "a" << std::endl << expand(a) << std::endl << std::endl;
-            //            std::cout << "ap" << std::endl << expand(test) << std::endl << std::endl;
-            std::cout << "ap" << std::endl << expand(ap) << std::endl << std::endl;
-        }
+        // current workaround (not very smart)
+        CholMatrixType asdf;
+        asdf = a.twistedBy(m_P);
+        ap   = asdf.template selfadjointView<Upper>();
     }
     else
     {
-        std::cout << "error" << std::endl;
+        SAIGA_ASSERT(0);
         m_Pinv.resize(0);
         m_P.resize(0);
         if (int(UpLo) == int(Lower) || MatrixType::IsRowMajor)

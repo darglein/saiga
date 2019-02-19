@@ -102,6 +102,7 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
 {
     static_assert(DoLDLT == true, "only ldlt supported");
     using std::sqrt;
+    using namespace Saiga;
 
     eigen_assert(m_analysisIsOk && "You must first call analyzePattern()");
     eigen_assert(ap.rows() == ap.cols());
@@ -123,6 +124,8 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
     m_diag.resize(DoLDLT ? size : 0);
     m_diag_inv.resize(DoLDLT ? size : 0);
 
+
+
     for (StorageIndex k = 0; k < size; ++k)
     {
         // compute nonzero pattern of kth row of L, in topological order
@@ -135,7 +138,17 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
             StorageIndex i = it.index();
             if (i <= k)
             {
-                y[i] += (it.value()); /* scatter A(i,k) into Y (sum duplicates) */
+                //                if (UpLo == Upper)
+                //                {
+                y[i] += transpose(it.value()); /* scatter A(i,k) into Y (sum duplicates) */
+                                               //                }
+                                               //                else
+                                               //                {
+                                               //                    y[i] += transpose(it.value());
+                //                    //                    y[i] += (it.value()); /* scatter A(i,k) into Y (sum
+                //                    duplicates) */
+                //                }
+
                 Index len;
                 for (len = 0; tags[i] != k; i = m_parent[i])
                 {
@@ -148,7 +161,7 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
 
         /* compute numerical values kth row of L (a sparse triangular solve) */
 
-        RealScalar d = (y[k]);  // get D(k,k), apply the shift function, and clear Y(k)
+        RealScalar d = (y[k]);
 
         //        cout << expand(y[k]) << endl;
         //        cout << expand(d) << endl;
@@ -160,6 +173,8 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
             Scalar yi = y[i];         /* get and clear Y(i) */
             y[i]      = Scalar(0);
 
+            //            cout << "yi" << endl << expand(yi) << endl;
+
             /* the nonzero entry L(k,i) */
             m_diag_inv[i] = Saiga::inverseCholesky(m_diag[i]);
             auto& inv     = m_diag_inv[i];
@@ -168,18 +183,19 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
 
             Index p2 = Lp[i] + m_nonZerosPerCol[i];
             Index p;
-            //            for (p = Lp[i] + (DoLDLT ? 0 : 1); p < p2; ++p) y[Li[p]] -= (Lx[p]) * yi;
-            for (p = Lp[i] + (DoLDLT ? 0 : 1); p < p2; ++p) y[Li[p]] -= yi * (Lx[p]);
+            for (p = Lp[i]; p < p2; ++p) y[Li[p]] -= yi * transpose(Lx[p]);
 
-            //            d -= (l_ki * (yi));
-            d.get() -= ((yi.get()) * l_ki.get().transpose());
-            Li[p] = k; /* store L(k,i) in column form of L */
+            d -= (yi)*transpose(l_ki);
 
-            cout << "test " << i << " " << k << endl << expand(l_ki) << endl << endl;
-            Lx[p].get() = l_ki.get().transpose();
+            //            cout << "d" << endl << expand(d) << endl;
+
+            //            cout << "test " << i << " " << k << endl << Saiga::expand(l_ki) << endl << endl;
+            Li[p] = k;
+            Lx[p] = l_ki;
             ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
         }
 
+        //        cout << "computed " << k << "ths diagonal element: " << endl << expand(d) << endl;
         m_diag[k]     = d;
         m_diag_inv[k] = Saiga::inverseCholesky(m_diag[k]);
     }
@@ -187,10 +203,10 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
     m_info              = ok ? Success : NumericalIssue;
     m_factorizationIsOk = true;
 
-    cout << "Factorize done. L, D:" << endl;
-    cout << expand(m_matrix) << endl << endl;
-    cout << expand(m_diag.asDiagonal().toDenseMatrix()) << endl << endl;
-    exit(0);
+    //    cout << "Factorize done. L, D:" << endl;
+    //    cout << "L" << endl << Saiga::expand(m_matrix) << endl << endl;
+    //    cout << "D" << endl << Saiga::expand(m_diag.asDiagonal().toDenseMatrix()) << endl << endl;
+    //    exit(0);
 }
 
 }  // end namespace Eigen

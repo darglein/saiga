@@ -207,6 +207,12 @@ if(CERES_FOUND)
 endif()
 PackageHelperTarget(ceres CERES_FOUND)
 
+#ceres
+find_package(Cholmod REQUIRED)
+if(CHOLMOD_FOUND)
+    SET(SAIGA_USE_CHOLMOD 1)
+endif()
+PackageHelper(Cholmod ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
 
 #bullet
 find_package(Bullet QUIET)
