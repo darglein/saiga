@@ -10,7 +10,6 @@
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/svulkan.h"
 
-#include <optional>
 namespace Saiga
 {
 namespace Vulkan
@@ -42,13 +41,6 @@ class SAIGA_VULKAN_API PipelineBase
                             uint32_t firstSet = 0, vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr);
     void pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void* data,
                       size_t offset = 0);
-
-    std::optional<vk::ShaderStatisticsInfoAMD> get_statistics(vk::ShaderStageFlagBits stage_flags)
-    {
-        auto statistics = device.getShaderInfoAMD(pipeline, stage_flags, vk::ShaderInfoTypeAMD::eStatistics);
-
-        return *reinterpret_cast<vk::ShaderStatisticsInfoAMD*>(statistics.data());
-    }
 
    protected:
     VulkanBase* base = nullptr;
