@@ -18,11 +18,11 @@ class SAIGA_VULKAN_API ShaderPipelineBase
    public:
     ~ShaderPipelineBase() { destroy(); }
 
-    void load(vk::Device device, std::vector<std::string> shaders);
-    void loadGLSL(vk::Device device,
+    bool load(vk::Device device, std::vector<std::string> shaders);
+    bool loadGLSL(vk::Device device,
                   std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders);
 
-    void loadCompute(vk::Device device, std::string shader, std::string injection = {});
+    bool loadCompute(vk::Device device, std::string shader, std::string injection = {});
 
 
     void destroy();
