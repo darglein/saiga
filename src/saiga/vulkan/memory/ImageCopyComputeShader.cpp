@@ -33,13 +33,6 @@ void ImageCopyComputeShader::init(VulkanBase* _base)
 
     pipeline->create();
 
-    auto info = pipeline->get_statistics(vk::ShaderStageFlagBits::eCompute);
-
-    if (info.has_value())
-    {
-        LOG(INFO) << info->computeWorkGroupSize[0] << " " << info->computeWorkGroupSize[1] << " "
-                  << info->computeWorkGroupSize[2];
-    }
     initialized = true;
 }
 
