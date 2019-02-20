@@ -60,4 +60,15 @@ bool ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperat
     return true;
 }
 
+ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
+                               ImageCopyComputeShader* _img_copy_shader)
+    : Defragger(base, device, allocator), img_copy_shader(_img_copy_shader)
+{
+    if (!img_copy_shader->is_initialized())
+    {
+        LOG(ERROR) << "Image copy shader could not be loaded. Image defragmentation is not possible.";
+        valid = false;
+    }
+}
+
 }  // namespace Saiga::Vulkan::Memory

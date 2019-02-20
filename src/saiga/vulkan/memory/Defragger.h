@@ -53,6 +53,8 @@ class Defragger
         bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
     };
 
+    bool valid;
+
     VulkanBase* base;
     vk::Device device;
     bool enabled;
@@ -83,6 +85,7 @@ class Defragger
     Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator)
         : base(_base),
           device(_device),
+          valid(true),
           enabled(false),
           allocator(_allocator),
           defrag_operations(),
@@ -132,7 +135,7 @@ class Defragger
 template <typename T>
 void Defragger<T>::start()
 {
-    if (!enabled || running)
+    if (!valid || !enabled || running)
     {
         return;
     }
@@ -147,7 +150,7 @@ void Defragger<T>::start()
 template <typename T>
 void Defragger<T>::stop()
 {
-    if (!running)
+    if (!valid || !running)
     {
         return;
     }
@@ -162,6 +165,10 @@ template <typename T>
 void Defragger<T>::worker_func()
 {
     Saiga::setThreadName("Defragger");
+    if (!valid)
+    {
+        return;
+    }
     while (true)
     {
         std::unique_lock<std::mutex> lock(start_mutex);
@@ -386,10 +393,7 @@ class ImageDefragger : public Defragger<ImageMemoryLocation>
 
    public:
     ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
-                   ImageCopyComputeShader* _img_copy_shader)
-        : Defragger(base, device, allocator), img_copy_shader(_img_copy_shader)
-    {
-    }
+                   ImageCopyComputeShader* _img_copy_shader);
 
    protected:
     bool execute_defrag_operation(const DefragOperation& op) override;

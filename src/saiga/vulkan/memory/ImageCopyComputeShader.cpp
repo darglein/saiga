@@ -22,8 +22,18 @@ void ImageCopyComputeShader::init(VulkanBase* _base)
          {1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eCompute}});
 
     pipeline->addPushConstantRange(vk::PushConstantRange{vk::ShaderStageFlagBits::eCompute, 0, sizeof(glm::ivec2)});
-    pipeline->shaderPipeline.loadCompute(_base->device, "vulkan/img_copy.comp");
+
+    bool valid = pipeline->shaderPipeline.loadCompute(_base->device, "vulkan/img_copy.comp");
+
+    if (!valid)
+    {
+        LOG(ERROR) << "Couldn't load image copy compute shader";
+        return;
+    }
+
     pipeline->create();
+
+    initialized = true;
 }
 
 

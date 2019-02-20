@@ -22,13 +22,15 @@ class ImageCopyComputeShader
    private:
     VulkanBase* base;
     ComputePipeline* pipeline;
+    bool initialized = false;
 
    public:
+    inline bool is_initialized() const { return initialized; }
     void init(VulkanBase* _base);
 
     void destroy();
 
-    virtual ~ImageCopyComputeShader() {destroy();};
+    virtual ~ImageCopyComputeShader() { destroy(); };
 
     bool copy_image(ImageMemoryLocation* target, ImageMemoryLocation* source);
 };
