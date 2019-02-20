@@ -54,10 +54,9 @@ class Defragger
     };
 
     bool valid;
-
+    bool enabled;
     VulkanBase* base;
     vk::Device device;
-    bool enabled;
     BaseChunkAllocator<T>* allocator;
     std::multiset<DefragOperation> defrag_operations;
 
@@ -83,10 +82,10 @@ class Defragger
    public:
     OperationPenalties penalties;
     Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator)
-        : base(_base),
-          device(_device),
-          valid(true),
+        : valid(true),
           enabled(false),
+          base(_base),
+          device(_device),
           allocator(_allocator),
           defrag_operations(),
           running(false),
