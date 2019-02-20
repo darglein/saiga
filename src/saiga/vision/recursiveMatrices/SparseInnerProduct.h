@@ -121,6 +121,18 @@ EIGEN_ALWAYS_INLINE Vec multDiagVector(const Diag& D, const Vec& v)
 }
 
 
+// v = D * v
+template <typename Diag, typename Vec>
+EIGEN_ALWAYS_INLINE void multDiagVector2(const Diag& D, Vec& v)
+{
+    //    cout << D.rows() << " " << D.cols() << " " << D.size() << endl;
+    SAIGA_ASSERT(D.cols() == v.rows());
+    for (int k = 0; k < D.rows(); ++k)
+    {
+        v(k) = D.diagonal()(k) * v(k);
+    }
+}
+
 template <typename Diag, typename Vec>
 EIGEN_ALWAYS_INLINE Vec multDiagVectorMulti(const Diag& D, const Vec& v)
 {

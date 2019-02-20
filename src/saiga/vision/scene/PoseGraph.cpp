@@ -12,6 +12,53 @@
 #include <fstream>
 namespace Saiga
 {
+PoseGraph::PoseGraph(const Scene& scene)
+{
+    poses.reserve(scene.extrinsics.size());
+    for (auto& p : scene.extrinsics)
+    {
+        PoseVertex pv;
+        pv.se3      = p.se3;
+        pv.constant = p.constant;
+        poses.push_back(pv);
+    }
+
+
+    int n = scene.extrinsics.size();
+    std::vector<std::vector<int>> schurStructure;
+    schurStructure.clear();
+    schurStructure.resize(n, std::vector<int>(n, -1));
+    for (auto& wp : scene.worldPoints)
+    {
+        for (auto& ref : wp.stereoreferences)
+        {
+            for (auto& ref2 : wp.stereoreferences)
+            {
+                int i1                 = ref.first;
+                int i2                 = ref2.first;
+                schurStructure[i1][i2] = i2;
+                schurStructure[i2][i1] = i1;
+            }
+        }
+    }
+
+
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = 0; j < i; ++j)
+        {
+            if (schurStructure[i][j] != -1)
+            {
+                PoseEdge e;
+                e.from = i;
+                e.to   = j;
+                e.setRel(poses[i].se3, poses[j].se3);
+                edges.push_back(e);
+            }
+        }
+    }
+}
+
 void PoseGraph::addNoise(double stddev)
 {
     for (auto& e : poses)

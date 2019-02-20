@@ -16,6 +16,9 @@
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
+#include "Eigen/SparseCholesky"
+
+
 namespace Saiga
 {
 template <typename MatrixType, typename VectorType>
@@ -43,22 +46,22 @@ void SparseRecursiveLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
     Dinv.resize(A.rows());
 
 
-    for (int i = 0; i < A.outerSize(); ++i)
+    for (int k = 0; k < A.outerSize(); ++k)
     {
         // compute Dj
         MatrixScalar sumd = AdditiveNeutral<MatrixScalar>::get();
 
-        typename Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>::InnerIterator it(A, i);
+        typename Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>::InnerIterator it(A, k);
 
 
-        for (int j = 0; j < i; ++j)
+        for (int j = 0; j < k; ++j)
 
         {
             MatrixScalar sum = AdditiveNeutral<MatrixScalar>::get();
 
             // dot product in L of row i with row j
             // but only until column j
-            typename Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>::InnerIterator Li(L, i);
+            typename Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>::InnerIterator Li(L, k);
             typename Eigen::SparseMatrix<MatrixScalar, Eigen::RowMajor>::InnerIterator Lj(L, j);
             while (Li && Lj && Li.col() < j && Lj.col() < j)
             {
@@ -68,6 +71,8 @@ void SparseRecursiveLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
                     removeMatrixScalar(sum) += removeMatrixScalar(Li.value()) *
                                                removeMatrixScalar(D.diagonal()(Li.col())) *
                                                removeMatrixScalar(transpose(Lj.value()));
+                    //                    cout << "li" << endl << expand(Li.value()) << endl;
+                    //                    cout << "lj" << endl << expand(Lj.value()) << endl;
                     ++Li;
                     ++Lj;
                 }
@@ -82,23 +87,29 @@ void SparseRecursiveLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
             }
             if (it.col() == j)
             {
+                //                cout << "itcol==j it " << endl << expand(it.value()) << endl;
+                //                cout << "itcol==j sum " << endl << expand(sum) << endl;
                 sum = it.value() - sum;
                 ++it;
             }
             else
             {
+                //                cout << "itcol!=j sum " << endl << expand(sum) << endl;
                 sum = -sum;
             }
 
-            sum            = sum * Dinv.diagonal()(j);
-            L.insert(i, j) = sum;
+            sum = sum * Dinv.diagonal()(j);
+            //            cout << "test " << i << " " << j << endl << expand(sum) << endl << endl;
+            L.insert(k, j) = sum;
             removeMatrixScalar(sumd) +=
                 removeMatrixScalar(sum) * removeMatrixScalar(D.diagonal()(j)) * removeMatrixScalar(transpose(sum));
         }
-        SAIGA_ASSERT(it.col() == i);
-        L.insert(i, i)     = MultiplicativeNeutral<MatrixScalar>::get();
-        D.diagonal()(i)    = it.value() - sumd;
-        Dinv.diagonal()(i) = inverseCholesky(D.diagonal()(i));
+        SAIGA_ASSERT(it.col() == k);
+        L.insert(k, k)     = MultiplicativeNeutral<MatrixScalar>::get();
+        D.diagonal()(k)    = it.value() - sumd;
+        Dinv.diagonal()(k) = inverseCholesky(D.diagonal()(k));
+
+        //        cout << "computed " << k << "ths diagonal element: " << endl << expand(D.diagonal()(k)) << endl;
     }
 
 #if 0

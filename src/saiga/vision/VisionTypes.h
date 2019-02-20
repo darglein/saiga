@@ -60,27 +60,6 @@ inline SE3 scale(const SE3& a, double alpha)
     return slerp(SE3(), a, alpha);
 }
 
-inline std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
-{
-    os << se3.unit_quaternion().coeffs().transpose() << " | " << se3.translation().transpose();
-    return os;
-}
-
-
-
-template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>& m)
-{
-    for (int i = 0; i < m.rows(); ++i)
-    {
-        for (int j = 0; j < m.cols(); ++j)
-        {
-            is >> m(i, j);
-        }
-    }
-    return is;
-}
-
 
 /**
  * Construct a skew symmetric matrix from a vector.
@@ -141,3 +120,26 @@ Sophus::SE3<Target> castSE3(const Source& se3)
 
 
 }  // namespace Saiga
+
+
+
+inline std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
+{
+    os << se3.unit_quaternion().coeffs().transpose() << " | " << se3.translation().transpose();
+    return os;
+}
+
+
+
+template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
+inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>& m)
+{
+    for (int i = 0; i < m.rows(); ++i)
+    {
+        for (int j = 0; j < m.cols(); ++j)
+        {
+            is >> m(i, j);
+        }
+    }
+    return is;
+}

@@ -207,6 +207,12 @@ if(CERES_FOUND)
 endif()
 PackageHelperTarget(ceres CERES_FOUND)
 
+#ceres
+find_package(Cholmod REQUIRED)
+if(CHOLMOD_FOUND)
+    SET(SAIGA_USE_CHOLMOD 1)
+endif()
+PackageHelper(Cholmod ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
 
 #bullet
 find_package(Bullet QUIET)
@@ -217,18 +223,18 @@ PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARI
 
 
 # Currently only mkl is supported
-set(BLA_VENDOR Intel10_64lp_seq)
-find_package(BLAS QUIET)
-PackageHelper(BLAS "${BLAS_FOUND}" "" "${BLAS_LIBRARIES}")
-message(STATUS "BLAS Library: ${BLAS_LIBRARIES}")
+#set(BLA_VENDOR Intel10_64lp_seq)
+#find_package(BLAS QUIET)
+#PackageHelper(BLAS "${BLAS_FOUND}" "" "${BLAS_LIBRARIES}")
+#message(STATUS "BLAS Library: ${BLAS_LIBRARIES}")
 
-find_package(LAPACK QUIET)
-PackageHelper(LAPACK "${LAPACK_FOUND}" "" "${LAPACK_LIBRARIES}")
-message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
+#find_package(LAPACK QUIET)
+#PackageHelper(LAPACK "${LAPACK_FOUND}" "" "${LAPACK_LIBRARIES}")
+#message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
 
 #mkl
 find_package(MKL QUIET)
-if(MKL_FOUND AND BLAS_FOUND AND LAPACK_FOUND)
+if(MKL_FOUND )
     SET(SAIGA_USE_MKL 1)
 endif()
 PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")

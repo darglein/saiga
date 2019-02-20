@@ -1,6 +1,10 @@
 add_subdirectory(ba_schur)
 add_subdirectory(block_matrices)
 
+if(SAIGA_USE_CHOLMOD)
+    add_subdirectory(sparse_ldlt)
+endif()
+
 
 if(G2O_FOUND)
     add_subdirectory(posegraph)

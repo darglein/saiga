@@ -9,6 +9,7 @@
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
+#include "saiga/vision/recursiveMatrices/CG.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/SparseHelper.h"
@@ -16,20 +17,9 @@
 
 #include "Eigen/Sparse"
 
-#define NO_CG_SPEZIALIZATIONS
-#define NO_CG_TYPES
-using Scalar = double;
-const int bn = Saiga::blockSizeCamera;
-const int bm = Saiga::blockSizeCamera;
-using Block  = Eigen::Matrix<Scalar, bn, bm>;
-using Vector = Eigen::Matrix<Scalar, bn, 1>;
-
-// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
-
-#include "saiga/vision/recursiveMatrices/CG.h"
-
 
 using namespace Saiga;
+using Block = ADiag;
 
 void simpleSchurTest()
 {
@@ -417,7 +407,7 @@ void baBlockSchurTest()
         da.setZero();
         RecursiveDiagonalPreconditioner<MatrixScalar<Block>> P;
         Eigen::Index iters = 50;
-        Scalar tol         = 1e-50;
+        BlockBAScalar tol  = 1e-50;
 
         if (explizitSchur)
         {

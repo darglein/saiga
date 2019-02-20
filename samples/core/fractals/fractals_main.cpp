@@ -116,6 +116,7 @@ int main(int argc, char* args[])
                 }
 #endif
 
+				#ifndef WIN32
                 float alpha = saturate(double(iteration) / max_iteration * 4);
 
                 if (iteration == max_iteration) alpha = 0;
@@ -126,6 +127,7 @@ int main(int argc, char* args[])
 
                 color *= 255.f;
                 img(i, j) = ucvec3(color[0], color[1], color[2]);
+#endif
             }
         }
     }

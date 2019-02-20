@@ -1,14 +1,48 @@
-#set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 set(MODULE_NAME "saiga_opengl")
 
 
-FILE(GLOB_RECURSE VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
-FILE(GLOB_RECURSE VULKAN_HEADER  "*.h" "*.hpp" "*.inl" "Opengl")
+add_subdirectory(animation)
+add_subdirectory(assets)
+
+if(ASSIMP_FOUND)
+    add_subdirectory(assimp)
+endif()
+
+if(EGL_FOUND)
+    add_subdirectory(egl)
+endif()
+
+if(FFMPEG_FOUND)
+    add_subdirectory(ffmpeg)
+endif()
+
+add_subdirectory(glbinding)
+add_subdirectory(glbinding-aux)
+add_subdirectory(imgui)
+add_subdirectory(query)
+add_subdirectory(rendering)
+
+add_subdirectory(shader)
+add_subdirectory(smaa)
+
+if(FREETYPE_FOUND)
+    add_subdirectory(text)
+endif()
+
+add_subdirectory(texture)
+add_subdirectory(window)
+add_subdirectory(world)
+
+
+
+
+FILE(GLOB VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
+FILE(GLOB VULKAN_HEADER  "*.h" "*.hpp" "*.inl" "Opengl")
 
 
 # the internal files are added to core
 SET(SAIGA_ALL_FILES
+    ${SAIGA_ALL_FILES}
     ${VULKAN_SRC}
     ${VULKAN_HEADER}
     )

@@ -128,6 +128,7 @@ static void uploadProcessDownloadAsync(int N, int slices, int streamCount)
 
 int main(int argc, char* argv[])
 {
+    Saiga::CUDA::initCUDA();
     uploadProcessDownloadAsync<8>(1024 * 1024, 1, 1);
     uploadProcessDownloadAsync<8>(1024 * 1024, 2, 2);
     uploadProcessDownloadAsync<8>(1024 * 1024, 4, 4);
