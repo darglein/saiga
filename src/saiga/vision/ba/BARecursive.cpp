@@ -415,6 +415,14 @@ void BARec::solve(Scene& scene, const BAOptions& options)
         loptions.buildExplizitSchur = explizitSchur;
         solver.solve(A, delta_x, b, loptions);
 
+        //        cout << expand(A.u).transpose() << endl;
+        //        cout << expand(A.v).transpose() << endl;
+        //        cout << expand(A.w).transpose() << endl;
+        //        cout << expand(b.u).transpose() << endl;
+        //        cout << expand(b.v).transpose() << endl;
+        //        cout << expand(delta_x.u).transpose() << endl;
+        //        cout << expand(delta_x.v).transpose() << endl;
+
         plus();
 
         updateScene(scene);

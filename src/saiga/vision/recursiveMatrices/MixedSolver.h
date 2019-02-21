@@ -113,6 +113,11 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
         if (hasWT)
         {
             transposeValueOnly(A.w, WT);
+            //            transpose(A.w, WT);
+            //            cout << expand(A.w) << endl << endl;
+            //            cout << expand(WT) << endl << endl;
+            //            cout << A.w.rows() << "x" << A.w.cols() << endl;
+            //            cout << WT.rows() << "x" << WT.cols() << endl;
         }
 
 
@@ -121,12 +126,16 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
         for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
         Y = multSparseDiag(W, Vinv);
 
-        if (solverOptions.buildExplizitSchur)
+        //        cout << "Vinv" << endl << expand(Vinv) << endl << endl;
+        //        cout << "Y" << endl << expand(Y) << endl << endl;
+
+        if (explizitSchur)
         {
             SAIGA_ASSERT(hasWT);
             S            = Y * WT;
             S            = -S;
             S.diagonal() = U.diagonal() + S.diagonal();
+            //            cout << "S" << endl << expand(S) << endl << endl;
         }
         else
         {
@@ -134,10 +143,11 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
             Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
         }
         ej = ea + -(Y * eb);
+        //        cout << "ej" << endl << expand(ej) << endl << endl;
 
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
         {
-            SAIGA_ASSERT(solverOptions.buildExplizitSchur);
+            SAIGA_ASSERT(explizitSchur);
             Eigen::SparseMatrix<double> ssparse(n * UBlock::M::RowsAtCompileTime, n * UBlock::M::RowsAtCompileTime);
             {
                 // Step 5
@@ -170,7 +180,7 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
             double tol         = solverOptions.iterativeTolerance;
 
 
-            if (solverOptions.buildExplizitSchur)
+            if (explizitSchur)
             {
                 P.compute(S);
                 XUType tmp(n);

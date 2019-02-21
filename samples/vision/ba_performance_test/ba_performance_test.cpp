@@ -140,13 +140,14 @@ int main(int, char**)
     //        scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
     //    scene.load(SearchPathes::data("vision/slam.scene"));
-    buildScene(scene);
+    //    buildScene(scene);
 
 
 
     //    test_to_file();
     //    return 0;
 
+    buildSceneBAL(scene, "vision/problem-00021-11315-pre.txt");
     //    buildSceneBAL(scene, "vision/problem-00257-65132-pre.txt");
     //    buildSceneBAL(scene, "vision/problem-356-226730-pre.txt");
 

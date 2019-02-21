@@ -26,11 +26,13 @@ namespace Saiga
 template <typename G, typename H, int options>
 void transpose(const Eigen::SparseMatrix<G, options>& other, Eigen::SparseMatrix<H, options>& dest)
 {
+    static_assert(options == Eigen::RowMajor, "todo");
     using SparseMatrix = Eigen::SparseMatrix<G, Eigen::RowMajor>;
 
     using namespace Eigen;
     //        SparseMatrix dest(other.rows(),other.cols());
-    dest.resize(other.rows(), other.cols());
+    //    dest.resize(other.rows(), other.cols());
+    dest.resize(other.cols(), other.rows());
     Eigen::Map<typename SparseMatrix::IndexVector>(dest.outerIndexPtr(), dest.outerSize()).setZero();
 
     // pass 1
@@ -52,6 +54,7 @@ void transpose(const Eigen::SparseMatrix<G, options>& other, Eigen::SparseMatrix
     // alloc
     //        dest.m_data.resize(count);
     dest.reserve(count);
+    cout << "test" << endl;
     // pass 2
     for (Index j = 0; j < other.outerSize(); ++j)
     {
@@ -68,11 +71,12 @@ void transpose(const Eigen::SparseMatrix<G, options>& other, Eigen::SparseMatrix
 template <typename G, typename H, int options>
 void transposeStructureOnly(const Eigen::SparseMatrix<G, options>& other, Eigen::SparseMatrix<H, options>& dest)
 {
+    static_assert(options == Eigen::RowMajor, "todo");
     using SparseMatrix = Eigen::SparseMatrix<G, Eigen::RowMajor>;
 
     using namespace Eigen;
     //        SparseMatrix dest(other.rows(),other.cols());
-    dest.resize(other.rows(), other.cols());
+    dest.resize(other.cols(), other.rows());
     Eigen::Map<typename SparseMatrix::IndexVector>(dest.outerIndexPtr(), dest.outerSize()).setZero();
 
     // pass 1
@@ -109,6 +113,7 @@ void transposeStructureOnly(const Eigen::SparseMatrix<G, options>& other, Eigen:
 template <typename G, typename H, int options>
 void transposeValueOnly(const Eigen::SparseMatrix<G, options>& other, Eigen::SparseMatrix<H, options>& dest)
 {
+    static_assert(options == Eigen::RowMajor, "todo");
     using SparseMatrix = Eigen::SparseMatrix<G, Eigen::RowMajor>;
     using namespace Eigen;
 
