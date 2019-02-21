@@ -281,10 +281,44 @@ struct SAIGA_VULKAN_API ImageData
     }
 
     ImageData(const ImageData& other) = default;
-    ImageData(ImageData&& other)      = default;
+
+    ImageData(ImageData&& other) noexcept
+        : layout(other.layout),
+          image(other.image),
+          image_create_info(other.image_create_info),
+          view(other.view),
+          view_create_info(other.view_create_info),
+          image_requirements(other.image_requirements),
+          sampler_create_info(other.sampler_create_info),
+          sampler(other.sampler)
+    {
+        other.sampler = nullptr;
+        other.image   = nullptr;
+        other.view    = nullptr;
+    }
 
     ImageData& operator=(const ImageData& other) = default;
-    ImageData& operator=(ImageData&& other) = default;
+
+    ImageData& operator=(ImageData&& other) noexcept
+    {
+        if (this != &other)
+        {
+            this->image               = other.image;
+            this->image_create_info   = other.image_create_info;
+            this->view                = other.view;
+            this->view_create_info    = other.view_create_info;
+            this->sampler             = other.sampler;
+            this->sampler_create_info = other.sampler_create_info;
+            this->image_requirements  = other.image_requirements;
+            this->layout              = other.layout;
+
+            other.image   = nullptr;
+            other.view    = nullptr;
+            other.sampler = nullptr;
+        }
+
+        return *this;
+    }
 
     explicit operator bool() const { return image && view; }
 
@@ -426,38 +460,7 @@ inline void copy_buffer(vk::CommandBuffer cmd, BufferMemoryLocation* target, Buf
 inline void bind_image_data(vk::Device device, ImageMemoryLocation* location, ImageData& data)
 {
     device.bindImageMemory(data.image, location->memory, location->offset);
-    location->data = data;
+    location->data = std::move(data);
 }
 
-// inline void copy_image(vk::CommandBuffer cmd, ImageMemoryLocation* target, ImageMemoryLocation* source)
-//{
-//    SAIGA_ASSERT(target->size == source->size, "Different size copies are not supported");
-//    const auto& src_data = source->data;
-//    const auto& dst_data = target->data;
-//    SAIGA_ASSERT(src_data.image_create_info.mipLevels == dst_data.image_create_info.mipLevels,
-//                 "Source and Target must have same number of mip levels.");
-//    SAIGA_ASSERT(src_data.image_create_info.extent == dst_data.image_create_info.extent,
-//                 "Images must have the same extent");
-//    SAIGA_ASSERT(src_data.layout == dst_data.layout, "Layouts must be the same");
-//
-//
-//    vk::ImageAspectFlags copy_aspects = vk::ImageAspectFlagBits::eColor;
-//    if (src_data.image_create_info.usage == vk::ImageUsageFlagBits::eDepthStencilAttachment)
-//    {
-//        copy_aspects = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-//    }
-//    for (uint32_t mip = 0; mip < src_data.image_create_info.mipLevels; ++mip)
-//    {
-//        vk::ImageSubresourceLayers layers{copy_aspects, mip, 0, src_data.image_create_info.arrayLayers};
-//
-//        const vk::Offset3D start = vk::Offset3D{0, 0, 0};
-//        const vk::Offset3D end(src_data.image_create_info.extent.width, src_data.image_create_info.extent.height,
-//                               src_data.image_create_info.extent.depth);
-//
-//
-//        vk::ImageBlit ib{layers, {vk::Offset3D{0, 0, 0}, end}, layers, {vk::Offset3D{0, 0, 0}, end}};
-//        cmd.blitImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ib, vk::Filter::eNearest);
-//    }
-//    // cmd.copyImage(src_data.image, src_data.layout, dst_data.image, dst_data.layout, ic);
-//}
 }  // namespace Saiga::Vulkan::Memory

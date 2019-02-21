@@ -43,18 +43,13 @@ bool ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperat
     reserve_space->data.create_sampler(device);
 
     LOG(INFO) << "IMAGE DEFRAG" << *(op.source) << "->" << *reserve_space;
-    // auto defrag_cmd = allocator->queue->commandPool.createAndBeginOneTimeBuffer();
-    // copy_image(defrag_cmd, reserve_space, op.source);
+
     bool didcopy = img_copy_shader->copy_image(reserve_space, op.source);
 
     if (!didcopy)
     {
         return false;
     }
-    // defrag_cmd.end();
-    // allocator->queue->submitAndWait(defrag_cmd);
-    // allocator->queue->commandPool.freeCommandBuffer(defrag_cmd);
-
 
     allocator->move_allocation(reserve_space, op.source);
     return true;
