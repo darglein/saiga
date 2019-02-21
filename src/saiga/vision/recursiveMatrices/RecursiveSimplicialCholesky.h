@@ -7,13 +7,21 @@
 // Public License v. 2.0. If a copy of the MPL was not distributed
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+/**
+ * Modified by Darius Rueckert with the following changes:
+ *
+ * - Renamed to RecursiveSimplicialCholesky
+ * - Applied recursive rules from the paper to the implementation.
+ * -> It works now with recursive sparse matrices!
+ */
+
 #ifndef LDTL_TEST
 #define LDTL_TEST
 
 #include "saiga/core/time/Time"
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
-#include "Eigen/Sparse"
+#include "SparseTriangular.h"
 
 #include <iostream>
 namespace Eigen
@@ -36,7 +44,7 @@ namespace internal
  *
  */
 template <typename Derived>
-class SimplicialCholeskyBase2 : public SparseSolverBase<Derived>
+class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
 {
     typedef SparseSolverBase<Derived> Base;
     using Base::m_isInitialized;
@@ -66,18 +74,18 @@ class SimplicialCholeskyBase2 : public SparseSolverBase<Derived>
     using Base::derived;
 
     /** Default constructor */
-    SimplicialCholeskyBase2()
+    RecursiveSimplicialCholeskyBase()
         : m_info(Success), m_factorizationIsOk(false), m_analysisIsOk(false), m_shiftOffset(0), m_shiftScale(1)
     {
     }
 
-    explicit SimplicialCholeskyBase2(const MatrixType& matrix)
+    explicit RecursiveSimplicialCholeskyBase(const MatrixType& matrix)
         : m_info(Success), m_factorizationIsOk(false), m_analysisIsOk(false), m_shiftOffset(0), m_shiftScale(1)
     {
         derived().compute(matrix);
     }
 
-    ~SimplicialCholeskyBase2() {}
+    ~RecursiveSimplicialCholeskyBase() {}
 
     Derived& derived() { return *static_cast<Derived*>(this); }
     const Derived& derived() const { return *static_cast<const Derived*>(this); }
@@ -263,15 +271,15 @@ class SimplicialCholeskyBase2 : public SparseSolverBase<Derived>
 
 template <typename _MatrixType, int _UpLo = Lower,
           typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex> >
-class SimplicialLDLT2;
+class RecursiveSimplicialLDLT;
 template <typename _MatrixType, int _UpLo = Lower,
           typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex> >
-class SimplicialCholesky22;
+class RecursiveSimplicialCholesky;
 
 namespace internal
 {
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-struct traits<SimplicialLDLT2<_MatrixType, _UpLo, _Ordering> >
+struct traits<RecursiveSimplicialLDLT<_MatrixType, _UpLo, _Ordering> >
 {
     typedef _MatrixType MatrixType;
     typedef _Ordering OrderingType;
@@ -284,12 +292,14 @@ struct traits<SimplicialLDLT2<_MatrixType, _UpLo, _Ordering> >
     typedef SparseMatrix<Scalar, ColMajor, StorageIndex> CholMatrixType;
     typedef TriangularView<const CholMatrixType, Eigen::UnitLower> MatrixL;
     typedef TriangularView<const typename CholMatrixType::AdjointReturnType, Eigen::UnitUpper> MatrixU;
-    static inline MatrixL getL(const MatrixType& m) { return MatrixL(m); }
-    static inline MatrixU getU(const MatrixType& m) { return MatrixU(m.adjoint()); }
+    //    static inline MatrixL getL(const MatrixType& m) { return MatrixL(m); }
+    //    static inline MatrixU getU(const MatrixType& m) { return MatrixU(m.adjoint()); }
+    static inline MatrixL getL(const CholMatrixType& m) { return MatrixL(m); }
+    static inline MatrixU getU(const CholMatrixType& m) { return MatrixU(m.adjoint()); }
 };
 
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-struct traits<SimplicialCholesky22<_MatrixType, _UpLo, _Ordering> >
+struct traits<RecursiveSimplicialCholesky<_MatrixType, _UpLo, _Ordering> >
 {
     typedef _MatrixType MatrixType;
     typedef _Ordering OrderingType;
@@ -323,7 +333,8 @@ struct traits<SimplicialCholesky22<_MatrixType, _UpLo, _Ordering> >
  */
 
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-class SimplicialLDLT2 : public SimplicialCholeskyBase2<SimplicialLDLT2<_MatrixType, _UpLo, _Ordering> >
+class RecursiveSimplicialLDLT
+    : public RecursiveSimplicialCholeskyBase<RecursiveSimplicialLDLT<_MatrixType, _UpLo, _Ordering> >
 {
    public:
     typedef _MatrixType MatrixType;
@@ -331,22 +342,22 @@ class SimplicialLDLT2 : public SimplicialCholeskyBase2<SimplicialLDLT2<_MatrixTy
     {
         UpLo = _UpLo
     };
-    typedef SimplicialCholeskyBase2<SimplicialLDLT2> Base;
+    typedef RecursiveSimplicialCholeskyBase<RecursiveSimplicialLDLT> Base;
     typedef typename MatrixType::Scalar Scalar;
     typedef typename MatrixType::RealScalar RealScalar;
     typedef typename MatrixType::StorageIndex StorageIndex;
     typedef SparseMatrix<Scalar, ColMajor, StorageIndex> CholMatrixType;
     typedef Matrix<Scalar, Dynamic, 1> VectorType;
-    typedef internal::traits<SimplicialLDLT2> Traits;
+    typedef internal::traits<RecursiveSimplicialLDLT> Traits;
     typedef typename Traits::MatrixL MatrixL;
     typedef typename Traits::MatrixU MatrixU;
 
    public:
     /** Default constructor */
-    SimplicialLDLT2() : Base() {}
+    RecursiveSimplicialLDLT() : Base() {}
 
     /** Constructs and performs the LLT factorization of \a matrix */
-    explicit SimplicialLDLT2(const MatrixType& matrix) : Base(matrix) {}
+    explicit RecursiveSimplicialLDLT(const MatrixType& matrix) : Base(matrix) {}
 
     /** \returns a vector expression of the diagonal D */
     inline const VectorType vectorD() const
@@ -369,7 +380,7 @@ class SimplicialLDLT2 : public SimplicialCholeskyBase2<SimplicialLDLT2<_MatrixTy
     }
 
     /** Computes the sparse Cholesky decomposition of \a matrix */
-    SimplicialLDLT2& compute(const MatrixType& matrix)
+    RecursiveSimplicialLDLT& compute(const MatrixType& matrix)
     {
         Base::template compute<true>(matrix);
         return *this;
@@ -403,7 +414,7 @@ class SimplicialLDLT2 : public SimplicialCholeskyBase2<SimplicialLDLT2<_MatrixTy
  * \sa class SimplicialLDLT2, class SimplicialLLT
  */
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-class SimplicialCholesky2 : public SimplicialCholeskyBase2<SimplicialCholesky2<_MatrixType, _UpLo, _Ordering> >
+class SimplicialCholesky2 : public RecursiveSimplicialCholeskyBase<SimplicialCholesky2<_MatrixType, _UpLo, _Ordering> >
 {
    public:
     typedef _MatrixType MatrixType;
@@ -411,14 +422,14 @@ class SimplicialCholesky2 : public SimplicialCholeskyBase2<SimplicialCholesky2<_
     {
         UpLo = _UpLo
     };
-    typedef SimplicialCholeskyBase2<SimplicialCholesky2> Base;
+    typedef RecursiveSimplicialCholeskyBase<SimplicialCholesky2> Base;
     typedef typename MatrixType::Scalar Scalar;
     typedef typename MatrixType::RealScalar RealScalar;
     typedef typename MatrixType::StorageIndex StorageIndex;
     typedef SparseMatrix<Scalar, ColMajor, StorageIndex> CholMatrixType;
     typedef Matrix<Scalar, Dynamic, 1> VectorType;
     typedef internal::traits<SimplicialCholesky2> Traits;
-    typedef internal::traits<SimplicialLDLT2<MatrixType, UpLo> > LDLTTraits;
+    typedef internal::traits<RecursiveSimplicialLDLT<MatrixType, UpLo> > LDLTTraits;
     typedef internal::traits<SimplicialLLT<MatrixType, UpLo> > LLTTraits;
 
    public:
@@ -496,6 +507,7 @@ class SimplicialCholesky2 : public SimplicialCholeskyBase2<SimplicialCholesky2<_
                      "symbolic()/numeric()");
         eigen_assert(Base::m_matrix.rows() == b.rows());
 
+        SAIGA_ASSERT(0);
 #if 0
         if (Base::m_info != Success) return;
 
@@ -553,7 +565,8 @@ class SimplicialCholesky2 : public SimplicialCholeskyBase2<SimplicialCholesky2<_
 };
 
 template <typename Derived>
-void SimplicialCholeskyBase2<Derived>::ordering(const MatrixType& a, ConstCholMatrixPtr& pmat, CholMatrixType& ap)
+void RecursiveSimplicialCholeskyBase<Derived>::ordering(const MatrixType& a, ConstCholMatrixPtr& pmat,
+                                                        CholMatrixType& ap)
 {
     eigen_assert(a.rows() == a.cols());
     const Index size = a.rows();
@@ -567,7 +580,6 @@ void SimplicialCholeskyBase2<Derived>::ordering(const MatrixType& a, ConstCholMa
 
             OrderingType ordering;
             ordering(C, m_Pinv);
-            //            m_Pinv.setIdentity();
         }
 
         if (m_Pinv.size() > 0)
@@ -576,28 +588,10 @@ void SimplicialCholeskyBase2<Derived>::ordering(const MatrixType& a, ConstCholMa
             m_P.resize(0);
 
         ap.resize(size, size);
-        //        ap.setZero();
-        //        ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
-        //        std::cout << "ap" << std::endl << Saiga::expand(ap) << std::endl << std::endl;
-        //        ap.setZero();
-        //        ap.template selfadjointView<Upper>() = a.twistedBy(m_P);
-        //        std::cout << "ap" << std::endl << Saiga::expand(ap) << std::endl << std::endl;
-        //        ap.setZero();
-        //        ap = a.twistedBy(m_P);
-
-
-        // TODO:
-        // Fix the following line so we can use it with triangular matrices.
-        // The fix should be as following:
-        //  - Use normal twisted by logic, but
-        //  - Transpose element if it was copied from the other half of the diagonal
+        //        cout << "before twist " << endl;
         ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
-
-        // current workaround (not very smart)
-
-        //        CholMatrixType asdf;
-        //        asdf = a.twistedBy(m_P);
-        //        ap   = asdf.template selfadjointView<Upper>();
+        //        cout << "after twist" << endl;
+        //        cout << expand(ap) << endl;
     }
     else
     {
@@ -613,12 +607,10 @@ void SimplicialCholeskyBase2<Derived>::ordering(const MatrixType& a, ConstCholMa
         else
             internal::simplicial_cholesky_grab_input<CholMatrixType, MatrixType>::run(a, pmat, ap);
     }
-
-    //    std::cout << "Ordering: " << std::endl << m_P.toDenseMatrix() << std::endl << std::endl;
 }
 
 }  // end namespace Eigen
 
-#include "SimplicialCholesky_impl.h"
+#include "RecursiveSimplicialCholesky_impl.h"
 
 #endif

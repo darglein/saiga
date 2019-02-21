@@ -44,13 +44,14 @@ LDL License:
 
 #pragma once
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
+#include "saiga/vision/recursiveMatrices/NeutralElements.h"
 
-#include "SimplicialCholesky.h"
+#include "RecursiveSimplicialCholesky.h"
 
 namespace Eigen
 {
 template <typename Derived>
-void SimplicialCholeskyBase2<Derived>::analyzePattern_preordered(const CholMatrixType& ap, bool doLDLT)
+void RecursiveSimplicialCholeskyBase<Derived>::analyzePattern_preordered(const CholMatrixType& ap, bool doLDLT)
 {
     const StorageIndex size = StorageIndex(ap.rows());
     m_matrix.resize(size, size);
@@ -98,7 +99,7 @@ void SimplicialCholeskyBase2<Derived>::analyzePattern_preordered(const CholMatri
 
 template <typename Derived>
 template <bool DoLDLT>
-void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType& ap)
+void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMatrixType& ap)
 {
     static_assert(DoLDLT == true, "only ldlt supported");
     using std::sqrt;
@@ -121,34 +122,25 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
     ei_declare_aligned_stack_constructed_variable(StorageIndex, tags, size, 0);
 
     bool ok = true;
-    m_diag.resize(DoLDLT ? size : 0);
-    m_diag_inv.resize(DoLDLT ? size : 0);
+    m_diag.resize(size);
+    m_diag_inv.resize(size);
 
 
 
     for (StorageIndex k = 0; k < size; ++k)
     {
         // compute nonzero pattern of kth row of L, in topological order
-        y[k]                = Scalar(0);  // Y(0:k) is now all zero
-        StorageIndex top    = size;       // stack for pattern is empty
-        tags[k]             = k;          // mark node k as visited
-        m_nonZerosPerCol[k] = 0;          // count of nonzeros in column k of L
+
+        y[k]                = Saiga::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
+        StorageIndex top    = size;                                   // stack for pattern is empty
+        tags[k]             = k;                                      // mark node k as visited
+        m_nonZerosPerCol[k] = 0;                                      // count of nonzeros in column k of L
         for (typename CholMatrixType::InnerIterator it(ap, k); it; ++it)
         {
             StorageIndex i = it.index();
             if (i <= k)
             {
-                //                if (UpLo == Upper)
-                //                {
                 y[i] += transpose(it.value()); /* scatter A(i,k) into Y (sum duplicates) */
-                                               //                }
-                                               //                else
-                                               //                {
-                                               //                    y[i] += transpose(it.value());
-                //                    //                    y[i] += (it.value()); /* scatter A(i,k) into Y (sum
-                //                    duplicates) */
-                //                }
-
                 Index len;
                 for (len = 0; tags[i] != k; i = m_parent[i])
                 {
@@ -162,51 +154,37 @@ void SimplicialCholeskyBase2<Derived>::factorize_preordered(const CholMatrixType
         /* compute numerical values kth row of L (a sparse triangular solve) */
 
         RealScalar d = (y[k]);
-
-        //        cout << expand(y[k]) << endl;
-        //        cout << expand(d) << endl;
-
-        y[k] = Scalar(0);
+        y[k]         = Saiga::AdditiveNeutral<Scalar>::get();
         for (; top < size; ++top)
         {
             Index i   = pattern[top]; /* pattern[top:n-1] is pattern of L(:,k) */
             Scalar yi = y[i];         /* get and clear Y(i) */
-            y[i]      = Scalar(0);
-
-            //            cout << "yi" << endl << expand(yi) << endl;
+            y[i]      = Saiga::AdditiveNeutral<Scalar>::get();
 
             /* the nonzero entry L(k,i) */
-            m_diag_inv[i] = Saiga::inverseCholesky(m_diag[i]);
-            auto& inv     = m_diag_inv[i];
-            Scalar l_ki   = yi * inv;
+            auto& inv   = m_diag_inv[i];
+            Scalar l_ki = yi * inv;
 
 
             Index p2 = Lp[i] + m_nonZerosPerCol[i];
             Index p;
-            for (p = Lp[i]; p < p2; ++p) y[Li[p]] -= yi * transpose(Lx[p]);
 
+            // Inner product transposition
+            for (p = Lp[i]; p < p2; ++p) y[Li[p]] -= yi * transpose(Lx[p]);
             d -= (yi)*transpose(l_ki);
 
-            //            cout << "d" << endl << expand(d) << endl;
-
-            //            cout << "test " << i << " " << k << endl << Saiga::expand(l_ki) << endl << endl;
             Li[p] = k;
             Lx[p] = l_ki;
             ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
         }
 
-        //        cout << "computed " << k << "ths diagonal element: " << endl << expand(d) << endl;
-        m_diag[k]     = d;
+        m_diag[k] = d;
+        // Recursive call
         m_diag_inv[k] = Saiga::inverseCholesky(m_diag[k]);
     }
 
     m_info              = ok ? Success : NumericalIssue;
     m_factorizationIsOk = true;
-
-    //    cout << "Factorize done. L, D:" << endl;
-    //    cout << "L" << endl << Saiga::expand(m_matrix) << endl << endl;
-    //    cout << "D" << endl << Saiga::expand(m_diag.asDiagonal().toDenseMatrix()) << endl << endl;
-    //    exit(0);
 }
 
 }  // end namespace Eigen
