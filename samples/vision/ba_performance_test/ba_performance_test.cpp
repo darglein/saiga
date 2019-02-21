@@ -147,24 +147,24 @@ int main(int, char**)
     //    test_to_file();
     //    return 0;
 
-    buildSceneBAL(scene, "vision/problem-00021-11315-pre.txt");
+    //    buildSceneBAL(scene, "vision/problem-00021-11315-pre.txt");
     //    buildSceneBAL(scene, "vision/problem-00257-65132-pre.txt");
-    //    buildSceneBAL(scene, "vision/problem-356-226730-pre.txt");
+    buildSceneBAL(scene, "vision/problem-00356-226730-pre.txt");
 
 
     cout << scene << endl;
 
     BAOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 1;
-    baoptions.maxIterativeIterations = 50;
+    baoptions.maxIterations          = 5;
+    baoptions.maxIterativeIterations = 10;
     baoptions.iterativeTolerance     = 1e-50;
 
     //    baoptions.huberMono   = 5.99;
     //    baoptions.huberStereo = 7.815;
 
-    //    baoptions.solverType = BAOptions::SolverType::Direct;
-    baoptions.solverType = BAOptions::SolverType::Iterative;
+    baoptions.solverType = BAOptions::SolverType::Direct;
+    //    baoptions.solverType = BAOptions::SolverType::Iterative;
     cout << baoptions << endl;
 
     std::vector<std::shared_ptr<BABase>> solvers;

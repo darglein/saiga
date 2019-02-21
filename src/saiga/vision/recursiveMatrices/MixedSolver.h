@@ -8,7 +8,7 @@
 #include "saiga/core/time/Time"
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-
+#include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
 namespace Saiga
 {
 struct LinearSolverOptions
@@ -148,6 +148,8 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
         {
             SAIGA_ASSERT(explizitSchur);
+
+#if 0
             Eigen::SparseMatrix<double> ssparse(n * UBlock::M::RowsAtCompileTime, n * UBlock::M::RowsAtCompileTime);
             {
                 // Step 5
@@ -170,6 +172,12 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
                     da(i) = deltaA.segment<UBlock::M::RowsAtCompileTime>(i * UBlock::M::RowsAtCompileTime);
                 }
             }
+#else
+            using LDLT = Eigen::RecursiveSimplicialLDLT<SType, Eigen::Upper>;
+            LDLT ldlt;
+            ldlt.compute(S);
+            da = ldlt.solve(ej);
+#endif
         }
         else
         {

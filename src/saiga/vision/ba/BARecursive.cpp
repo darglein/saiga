@@ -411,7 +411,9 @@ void BARec::solve(Scene& scene, const BAOptions& options)
         loptions.maxIterativeIterations = options.maxIterativeIterations;
         loptions.iterativeTolerance     = options.iterativeTolerance;
 
-        //        loptions.solverType         = LinearSolverOptions::SolverType::Direct;
+        loptions.solverType = (options.solverType == BAOptions::SolverType::Direct)
+                                  ? LinearSolverOptions::SolverType::Direct
+                                  : LinearSolverOptions::SolverType::Iterative;
         loptions.buildExplizitSchur = explizitSchur;
         solver.solve(A, delta_x, b, loptions);
 
