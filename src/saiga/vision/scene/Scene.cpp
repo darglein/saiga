@@ -118,8 +118,6 @@ void Scene::normalize()
     SE3 trans;
     trans.translation() = -m;
     transformScene(trans);
-
-    cout << "Scene normalized. Scale: " << target << " Translate: " << -m.transpose() << endl;
 }
 
 void Scene::fixWorldPointReferences()

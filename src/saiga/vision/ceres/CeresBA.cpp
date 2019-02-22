@@ -20,9 +20,11 @@
 
 namespace Saiga
 {
-void CeresBA::solve(Scene& scene, const BAOptions& options)
+OptimizationResults CeresBA::solve()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+    Scene& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
 
     ceres::Problem::Options problemOptions;
     problemOptions.local_parameterization_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
@@ -40,8 +42,8 @@ void CeresBA::solve(Scene& scene, const BAOptions& options)
         problem.AddParameterBlock(scene.extrinsics[i].se3.data(), 7, &camera_parameterization);
     }
 
-    ceres::HuberLoss lossFunctionMono(options.huberMono);
-    ceres::HuberLoss lossFunctionStereo(options.huberStereo);
+    ceres::HuberLoss lossFunctionMono(baOptions.huberMono);
+    ceres::HuberLoss lossFunctionStereo(baOptions.huberStereo);
 
 
 
@@ -104,7 +106,7 @@ void CeresBA::solve(Scene& scene, const BAOptions& options)
                 CostBAStereoAnalytic* cost = new CostBAStereoAnalytic(camera, ip.point, w);
                 monoCostFunctions.emplace_back(cost);
 
-                problem.AddResidualBlock(cost, options.huberMono > 0 ? &lossFunctionMono : nullptr, extr.data(),
+                problem.AddResidualBlock(cost, baOptions.huberMono > 0 ? &lossFunctionMono : nullptr, extr.data(),
                                          wp.data());
 #endif
             }
@@ -117,21 +119,21 @@ void CeresBA::solve(Scene& scene, const BAOptions& options)
     //    problem.Evaluate(defaultEvalOptions, &costInit, nullptr, nullptr, nullptr);
 
     ceres::Solver::Options ceres_options;
-    ceres_options.minimizer_progress_to_stdout = options.debugOutput;
+    ceres_options.minimizer_progress_to_stdout = optimizationOptions.debugOutput;
     //    ceres_options.minimizer_progress_to_stdout = true;
-    ceres_options.max_num_iterations           = options.maxIterations;
-    ceres_options.max_linear_solver_iterations = options.maxIterativeIterations;
-    ceres_options.min_linear_solver_iterations = options.maxIterativeIterations;
+    ceres_options.max_num_iterations           = optimizationOptions.maxIterations;
+    ceres_options.max_linear_solver_iterations = optimizationOptions.maxIterativeIterations;
+    ceres_options.min_linear_solver_iterations = optimizationOptions.maxIterativeIterations;
     ceres_options.min_relative_decrease        = 1e-50;
     ceres_options.function_tolerance           = 1e-50;
 
 
-    switch (options.solverType)
+    switch (optimizationOptions.solverType)
     {
-        case BAOptions::SolverType::Direct:
+        case OptimizationOptions::SolverType::Direct:
             ceres_options.linear_solver_type = ceres::LinearSolverType::SPARSE_SCHUR;
             break;
-        case BAOptions::SolverType::Iterative:
+        case OptimizationOptions::SolverType::Iterative:
             ceres_options.linear_solver_type = ceres::LinearSolverType::ITERATIVE_SCHUR;
             break;
     }
@@ -170,10 +172,20 @@ void CeresBA::solve(Scene& scene, const BAOptions& options)
 
 
     {
-        SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+        SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
         ceres::Solve(ceres_options, &problem, &summaryTest);
     }
 
+    //    cout << "linear solver time " << summaryTest.linear_solver_time_in_seconds << "s." << endl;
+    //    cout << summaryTest.FullReport() << endl;
+
+    OptimizationResults result;
+    result.name               = name;
+    result.cost_initial       = summaryTest.initial_cost * 2.0;
+    result.cost_final         = summaryTest.final_cost * 2.0;
+    result.linear_solver_time = summaryTest.linear_solver_time_in_seconds * 1000;
+    result.total_time         = summaryTest.total_time_in_seconds * 1000;
+    return result;
 
     //    std::cout << "optimizePoints residual: " << costInit << " -> " << costFinal << endl;
 }

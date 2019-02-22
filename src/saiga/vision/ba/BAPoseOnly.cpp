@@ -205,7 +205,7 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
     }
 }
 
-void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
+void BAPoseOnly::posePointSparseSchur(Scene& scene)
 {
     using T          = double;
     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
@@ -239,7 +239,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
     std::vector<KernelType::PoseDiaBlockType> diagPoseBlocks(numCameras);
     std::vector<KernelType::PointDiaBlockType> diagPointBlocks(numPoints);
 
-    for (int k = 0; k < options.maxIterations; ++k)
+    for (int k = 0; k < optimizationOptions.maxIterations; ++k)
     {
         typedef Eigen::Triplet<T> Trip;
         std::vector<Trip> tripletListW;
@@ -392,7 +392,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
             // Solve the schur system for da
             deltaA.setZero();
 
-            if (options.solverType == BAOptions::SolverType::Direct)
+            if (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
             {
                 Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
                 solver.compute(S);
@@ -401,8 +401,8 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
             else
             {
                 RecursiveDiagonalPreconditioner<double> P;
-                Eigen::Index iters = options.maxIterativeIterations;
-                double tol         = options.iterativeTolerance;
+                Eigen::Index iters = optimizationOptions.maxIterativeIterations;
+                double tol         = optimizationOptions.iterativeTolerance;
 
                 if (true)
                 {
@@ -419,7 +419,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
                         },
                         ej, deltaA, P, iters, tol);
                 }
-                if (options.debugOutput) cout << "error " << tol << " iterations " << iters << endl;
+                if (optimizationOptions.debugOutput) cout << "error " << tol << " iterations " << iters << endl;
             }
 
             // Step 6
@@ -447,10 +447,15 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
         }
     }
 }
-void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
+OptimizationResults BAPoseOnly::solve()
 {
-    posePointSparseSchur(scene, options);
-    return;
+    Scene& scene = *_scene;
+
+    posePointSparseSchur(scene);
+
+    OptimizationResults result;
+    return result;
+
     using T          = double;
     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
     KernelType::PoseJacobiType JrowPose;
@@ -477,7 +482,7 @@ void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
     std::vector<KernelType::PosePointUpperBlockType> posePointBlocks(N);
     Eigen::VectorXd Jtb(numUnknowns);
 
-    for (int k = 0; k < options.maxIterations; ++k)
+    for (int k = 0; k < optimizationOptions.maxIterations; ++k)
     {
         Jtb.setZero();
         for (auto& b : diagPoseBlocks) b.setZero();

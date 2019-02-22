@@ -7,6 +7,7 @@
 #include "saiga/core/time/Time"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/random.h"
+#include "saiga/core/util/table.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/ba/BAPoseOnly.h"
@@ -16,9 +17,8 @@
 #include "saiga/vision/scene/SynteticScene.h"
 
 #include <fstream>
-#ifdef SAIGA_USE_MKL
-#    include "saiga/vision/mkl/MKLBA.h"
-#endif
+
+const std::string balPrefix = "vision/bal/";
 
 using namespace Saiga;
 
@@ -46,8 +46,9 @@ void buildSceneBAL(Scene& scene, const std::string& path)
 
     Saiga::Random::setSeed(926703466);
 
-    scene.addImagePointNoise(0.1);
-    scene.addExtrinsicNoise(0.001);
+    scene.addImagePointNoise(0.001);
+    scene.addExtrinsicNoise(0.0001);
+    scene.addWorldPointNoise(0.001);
 
     //    scene.removeOutliers(2);
 
@@ -68,7 +69,6 @@ void buildSceneBAL(Scene& scene, const std::string& path)
     //        {
     //    }
     SAIGA_ASSERT(scene);
-    cout << endl;
 }
 
 #define WRITE_TO_FILE
@@ -78,51 +78,75 @@ void test_to_file()
 {
     cout << "Running long performance test to file..." << endl;
 #if 1
-    std::vector<std::string> files = {"vision/problem-00021-11315-pre.txt", "vision/problem-1490-935273-pre.txt",
-                                      "vision/problem-1723-156502-pre.txt", "vision/problem-1778-993923-pre.txt",
-                                      "vision/problem-201-54427-pre.txt",   "vision/problem-237-154414-pre.txt",
-                                      "vision/problem-257-65132-pre.txt",   "vision/problem-356-226730-pre.txt",
-                                      "vision/problem-885-97473-pre.txt",   "vision/problem-961-187103-pre.txt"};
+    std::vector<std::string> files = {
+        "problem-16-22106-pre.txt",     "problem-21-11315-pre.txt",    "problem-52-64053-pre.txt",
+        "problem-93-61203-pre.txt",     "problem-138-19878-pre.txt",   "problem-138-44033-pre.txt",
+        "problem-174-50489-pre.txt",    "problem-202-132796-pre.txt",  "problem-257-65132-pre.txt",
+        "problem-356-226730-pre.txt",   "problem-931-102699-pre.txt",  "problem-1102-780462-pre.txt",
+        "problem-1723-156502-pre.txt",  "problem-1778-993923-pre.txt", "problem-3068-310854-pre.txt",
+        "problem-13682-4456117-pre.txt"};
 #else
     std::vector<std::string> files = {"vision/problem-1723-156502-pre.txt"};
 #endif
 
-    BAOptions baoptions;
+    OptimizationOptions baoptions;
     baoptions.debugOutput            = false;
     baoptions.maxIterations          = 1;
-    baoptions.maxIterativeIterations = 1;
+    baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
-    baoptions.solverType             = BAOptions::SolverType::Iterative;
+    baoptions.solverType             = OptimizationOptions::SolverType::Direct;
     cout << baoptions << endl;
 
 
-    int its = 10;
-    std::ofstream strm("ba_perf.csv");
-    strm << "file,solver,time,rms" << endl;
+    int its = 1;
+    std::ofstream strm("ba_benchmark.csv");
+    strm << "file,solver,solver_type,iterationis,time,timeLS,rms" << endl;
+
+
+    Saiga::Table table({20, 20, 10, 10});
 
     for (auto file : files)
     {
         Scene scene;
-        buildSceneBAL(scene, file);
+        buildSceneBAL(scene, balPrefix + file);
 
         std::vector<std::shared_ptr<BABase>> solvers;
         solvers.push_back(std::make_shared<BARec>());
         solvers.push_back(std::make_shared<g2oBA2>());
         solvers.push_back(std::make_shared<CeresBA>());
 
+
+        table << "Name"
+              << "Error"
+              << "Time_LS"
+              << "Time_Total";
+
         for (auto& s : solvers)
         {
-            double rmsAfter = 0;
-            auto stat       = Saiga::measureObject(its, [&]() {
+            std::vector<double> times;
+            std::vector<double> timesl;
+            double chi2;
+            for (int i = 0; i < its; ++i)
+            {
                 Scene cpy = scene;
-                s->solve(cpy, baoptions);
-                rmsAfter = cpy.rms();
-            });
+                s->create(cpy);
+                auto opt                 = dynamic_cast<Optimizer*>(s.get());
+                opt->optimizationOptions = baoptions;
+                SAIGA_ASSERT(opt);
+                auto result = opt->solve();
+                chi2        = result.cost_final;
+                times.push_back(result.total_time);
+                timesl.push_back(result.linear_solver_time);
+            }
 
-            auto t = stat.median;
-            cout << s->name << ": " << t << "ms" << endl;
-            strm << file << "," << s->name << "," << t << "," << rmsAfter << endl;
+
+            auto t  = make_statistics(times).median;
+            auto tl = make_statistics(timesl).median;
+            table << s->name << chi2 << tl << t;
+            strm << file << "," << s->name << "," << (int)baoptions.solverType << "," << (int)baoptions.maxIterations
+                 << "," << t << "," << tl << "," << chi2 << endl;
         }
+        cout << endl;
     }
 }
 
@@ -144,17 +168,17 @@ int main(int, char**)
 
 
 
-    //    test_to_file();
-    //    return 0;
+    test_to_file();
+    return 0;
 
-    //    buildSceneBAL(scene, "vision/problem-00021-11315-pre.txt");
-    //    buildSceneBAL(scene, "vision/problem-00257-65132-pre.txt");
-    buildSceneBAL(scene, "vision/problem-00356-226730-pre.txt");
+    //    buildSceneBAL(scene, balPrefix + "problem-00021-11315-pre.txt");
+    buildSceneBAL(scene, balPrefix + "problem-257-65132-pre.txt");
+    //    buildSceneBAL(scene, balPrefix + "problem-00356-226730-pre.txt");
 
 
     cout << scene << endl;
 
-    BAOptions baoptions;
+    OptimizationOptions baoptions;
     baoptions.debugOutput            = false;
     baoptions.maxIterations          = 5;
     baoptions.maxIterativeIterations = 10;
@@ -163,7 +187,7 @@ int main(int, char**)
     //    baoptions.huberMono   = 5.99;
     //    baoptions.huberStereo = 7.815;
 
-    baoptions.solverType = BAOptions::SolverType::Direct;
+    baoptions.solverType = OptimizationOptions::SolverType::Direct;
     //    baoptions.solverType = BAOptions::SolverType::Iterative;
     cout << baoptions << endl;
 
@@ -174,32 +198,19 @@ int main(int, char**)
     solvers.push_back(std::make_shared<g2oBA2>());
     solvers.push_back(std::make_shared<CeresBA>());
 
-#if 0
-    {
-        Scene cpy      = scene;
-        auto rmsbefore = cpy.rms();
-        {
-            BAPoseOnly test;
-            test.posePointDense(cpy, 1);
-        }
-        cout << "Error " << rmsbefore << " -> " << cpy.rms() << endl << endl;
-    }
-#endif
-
-
-#ifdef SAIGA_USE_MKL
-//    solvers.push_back(std::make_shared<MKLBA>());
-#endif
     for (auto& s : solvers)
     {
         cout << "[Solver] " << s->name << endl;
-        Scene cpy      = scene;
-        auto rmsbefore = cpy.rms();
-        {
-            SAIGA_BLOCK_TIMER(s->name);
-            s->solve(cpy, baoptions);
-        }
-        cout << "Error " << rmsbefore << " -> " << cpy.rms() << endl << endl;
+        Scene cpy = scene;
+        s->create(cpy);
+        auto opt                 = dynamic_cast<Optimizer*>(s.get());
+        opt->optimizationOptions = baoptions;
+        SAIGA_ASSERT(opt);
+        auto result = opt->solve();
+
+        cout << "Error " << result.cost_initial << " -> " << result.cost_final << endl;
+        cout << "Time LinearSolver/Total: " << result.linear_solver_time << "/" << result.total_time << endl;
+        cout << endl;
     }
     return 0;
 }

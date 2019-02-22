@@ -14,15 +14,22 @@
 #include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
 namespace Saiga
 {
-class SAIGA_VISION_API BARec : public BABase
+class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
 {
    public:
     BARec() : BABase("Recursive BA"), U(A.u), V(A.v), W(A.w) {}
     virtual ~BARec() {}
-    virtual void solve(Scene& scene, const BAOptions& options) override;
+
+
+    //    virtual OptimizationResults solve() override;
+    virtual void create(Scene& scene) override { _scene = &scene; }
+
+   private:
+    Scene* _scene;
 
    private:
     // ==== Structure information ====
+    OptimizationResults result;
     int n, m;
     int observations;
     int schurEdges;
@@ -74,16 +81,20 @@ class SAIGA_VISION_API BARec : public BABase
     BAOptions options;
 
     double chi2;
-    double lambda = 1.0 / 1.00e+04;
 
-    void plus();
 
-    void initStructure(Scene& scene);
-    bool computeUVW(Scene& scene);
-    void updateScene(Scene& scene);
 
     bool explizitSchur = false;
     bool computeWT     = true;
+
+    virtual void init() override;
+    virtual double computeQuadraticForm() override;
+    virtual void addLambda(double lambda) override;
+    virtual void addDelta() override;
+    virtual void revertDelta() override;
+    virtual void solveLinearSystem() override;
+    virtual double computeCost() override;
+    virtual void finalize() override;
 };
 
 

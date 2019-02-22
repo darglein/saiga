@@ -20,14 +20,18 @@
 
 namespace Saiga
 {
-void BARec::initStructure(Scene& scene)
+void BARec::init()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
+    Scene& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
+
+    chi2 = 1e100;
 
     // currently the scene must be in a valid state
     SAIGA_ASSERT(scene);
 
-    if (options.solverType == BAOptions::SolverType::Direct)
+    if (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
     {
         explizitSchur = true;
         computeWT     = true;
@@ -140,7 +144,7 @@ void BARec::initStructure(Scene& scene)
 
 
     // Create sparsity histogram of the schur complement
-    if (options.debugOutput)
+    if (optimizationOptions.debugOutput)
     {
         HistogramImage img(n, n, 512, 512);
         schurStructure.clear();
@@ -174,7 +178,7 @@ void BARec::initStructure(Scene& scene)
 
 
     // Create a sparsity histogram of the complete matrix
-    if (options.debugOutput)
+    if (optimizationOptions.debugOutput)
     {
         HistogramImage img(n + m, n + m, 512, 512);
         for (int i = 0; i < n + m; ++i)
@@ -199,7 +203,7 @@ void BARec::initStructure(Scene& scene)
     }
 
 
-    if (options.debugOutput)
+    if (optimizationOptions.debugOutput)
     {
         cout << "." << endl;
         cout << "Structure Analyzed." << endl;
@@ -227,11 +231,11 @@ void BARec::initStructure(Scene& scene)
     }
 }
 
-
-
-bool BARec::computeUVW(Scene& scene)
+double BARec::computeQuadraticForm()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
+    Scene& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
 
     using T          = BlockBAScalar;
     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
@@ -335,87 +339,166 @@ bool BARec::computeUVW(Scene& scene)
         }
     }
 
-    if (newChi2 > chi2)
-    {
-        // it failed somehow
-        // -> revert last step + increase lambda
-        lambda *= 3.0;
-        x_u  = oldx_u;
-        x_v  = oldx_v;
-        chi2 = 1e100;
 
-        cerr << "Warning lm step failed!" << endl;
-        return false;
-    }
-    else
-    {
-        // ok!
-        chi2 = newChi2;
-        lambda /= 2.0;
-    }
-    applyLMDiagonal(U, lambda);
-    applyLMDiagonal(V, lambda);
-    return true;
+    return newChi2;
 }
 
-
-void BARec::updateScene(Scene& scene)
+void BARec::addDelta()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
+    oldx_u = x_u;
+    oldx_v = x_v;
+
+    for (int i = 0; i < n; ++i)
+    {
+        auto t = delta_x.u(i).get();
+        x_u[i] = SE3::exp(t) * x_u[i];
+    }
+    for (int i = 0; i < m; ++i)
+    {
+        auto t = delta_x.v(i).get();
+        x_v[i] += t;
+    }
+}
+
+void BARec::revertDelta()
+{
+    x_u = oldx_u;
+    x_v = oldx_v;
+}
+void BARec::finalize()
+{
+    Scene& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
     for (size_t i = 0; i < validImages.size(); ++i)
     {
-        Sophus::SE3<BlockBAScalar>::Tangent t;
-#ifdef RECURSIVE_BA_VECTORIZE
-        t = da(i).get().segment(0, 6);
-#else
-        t = delta_x.u(i).get();
-#endif
         auto id    = validImages[i];
         auto& extr = scene.extrinsics[id];
-        //        if (!extr.constant) extr.se3 = Sophus::SE3d::exp(t.cast<double>()) * extr.se3;
         if (!extr.constant) extr.se3 = x_u[i];
     }
 
     for (size_t i = 0; i < validPoints.size(); ++i)
     {
         Eigen::Matrix<BlockBAScalar, 3, 1> t;
-#ifdef RECURSIVE_BA_VECTORIZE
-        t = db(i).get().segment(0, 3);
-#else
-        t = delta_x.v(i).get();
-#endif
         auto id = validPoints[i];
         auto& p = scene.worldPoints[id].p;
-        //        p += t.cast<double>();
-        p = x_v[i];
+        p       = x_v[i];
     }
 }
 
 
-
-void BARec::solve(Scene& scene, const BAOptions& options)
+void BARec::addLambda(double lambda)
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && options.debugOutput);
-    this->options = options;
+    applyLMDiagonal(U, lambda);
+    applyLMDiagonal(V, lambda);
+}
+
+
+
+void BARec::solveLinearSystem()
+{
+    LinearSolverOptions loptions;
+    loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
+    loptions.iterativeTolerance     = optimizationOptions.iterativeTolerance;
+
+    loptions.solverType = (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
+                              ? LinearSolverOptions::SolverType::Direct
+                              : LinearSolverOptions::SolverType::Iterative;
+    loptions.buildExplizitSchur = explizitSchur;
+
+    float t = 0;
+    {
+        Saiga::ScopedTimer<float> timer(t);
+        solver.solve(A, delta_x, b, loptions);
+    }
+}
+
+double BARec::computeCost()
+{
+    Scene& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
+
+    using T = BlockBAScalar;
+
+    double newChi2 = 0;
+    {
+        for (int i = 0; i < (int)validImages.size(); ++i)
+        {
+            int imgid = validImages[i];
+            auto& img = scene.images[imgid];
+            //            auto& extr   = scene.extrinsics[img.extr].se3;
+            auto& extr   = x_u[i];
+            auto& camera = scene.intrinsics[img.intr];
+            StereoCamera4 scam(camera, scene.bf);
+
+            for (auto& ip : img.stereoPoints)
+            {
+                if (!ip) continue;
+                BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();
+                int j           = pointToValidMap[ip.wp];
+                auto& wp        = x_v[j];
+
+                if (ip.depth > 0)
+                {
+                    using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
+                    KernelType::ResidualType res;
+                    res    = KernelType::evaluateResidual(scam, extr, wp, ip.point, ip.depth, w);
+                    auto c = res.squaredNorm();
+                    newChi2 += c;
+                }
+                else
+                {
+                    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
+                    KernelType::PoseJacobiType JrowPose;
+                    KernelType::PointJacobiType JrowPoint;
+                    KernelType::ResidualType res;
+
+                    res    = KernelType::evaluateResidual(camera, extr, wp, ip.point, w);
+                    auto c = res.squaredNorm();
+                    newChi2 += c;
+                }
+            }
+        }
+    }
+    return newChi2;
+}
+
+
+#if 0
+OptimizationResults BARec::solve()
+{
+    Scene& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
+
+
     initStructure(scene);
 
     // Set a pretty high error, so the first iteratioin doesn't fail
-    chi2 = 1e100;
+
+    float linearSolverTime = 0;
     // ======================== Variables ========================
-    for (int k = 0; k < options.maxIterations; ++k)
+    for (int k = 0; k < optimizationOptions.maxIterations; ++k)
     {
         if (!computeUVW(scene)) computeUVW(scene);
 
 
         LinearSolverOptions loptions;
-        loptions.maxIterativeIterations = options.maxIterativeIterations;
-        loptions.iterativeTolerance     = options.iterativeTolerance;
+        loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
+        loptions.iterativeTolerance     = optimizationOptions.iterativeTolerance;
 
-        loptions.solverType = (options.solverType == BAOptions::SolverType::Direct)
+        loptions.solverType = (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
                                   ? LinearSolverOptions::SolverType::Direct
                                   : LinearSolverOptions::SolverType::Iterative;
         loptions.buildExplizitSchur = explizitSchur;
-        solver.solve(A, delta_x, b, loptions);
+
+        float t = 0;
+        {
+            Saiga::ScopedTimer<float> timer(t);
+            solver.solve(A, delta_x, b, loptions);
+        }
+        linearSolverTime += t;
 
         //        cout << expand(A.u).transpose() << endl;
         //        cout << expand(A.v).transpose() << endl;
@@ -429,6 +512,7 @@ void BARec::solve(Scene& scene, const BAOptions& options)
 
         updateScene(scene);
     }
+    cout << "totalLinearSolverTime: " << linearSolverTime << endl;
 
     // revert last step
     double finalChi2 = scene.chi2();
@@ -438,21 +522,14 @@ void BARec::solve(Scene& scene, const BAOptions& options)
         x_v = oldx_v;
         updateScene(scene);
     }
-}
 
-void BARec::plus()
-{
-    for (int i = 0; i < n; ++i)
-    {
-        auto t = delta_x.u(i).get();
-        x_u[i] = SE3::exp(t) * x_u[i];
-    }
-    for (int i = 0; i < m; ++i)
-    {
-        auto t = delta_x.v(i).get();
-        x_v[i] += t;
-    }
+    result.linear_solver_time = linearSolverTime;
+    result.cost_final         = finalChi2;
+
+    return result;
 }
+#endif
+
 
 
 #if 0
