@@ -4,6 +4,9 @@
  * See LICENSE file for more information.
  */
 
+#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
+
+
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/vision/Random.h"
@@ -21,7 +24,7 @@ using namespace Saiga;
 
 
 
-std::ofstream strm;
+static std::ofstream strm;
 
 #define USE_BLOCKS
 
@@ -48,11 +51,13 @@ class Sparse_LDLT_TEST
     using VType                     = Eigen::Matrix<Vector, -1, 1>;
 #endif
 
-    //    const int n    = 128 * factor / block_size;
-    //    const int nnzr = 4 * factor / block_size;
+    // Changes these constants to adjust the sparsity
+    // Here: 2% non zeros
+    const int n    = 100 * factor;
+    const int nnzr = 1 * factor;
 
-    const int n    = 5 * factor;
-    const int nnzr = 2 * factor;
+    //    const int n    = 5 * factor;
+    //    const int nnzr = 2 * factor;
 
     Sparse_LDLT_TEST()
     {
@@ -72,7 +77,7 @@ class Sparse_LDLT_TEST
 
             for (auto j : indices)
             {
-                if (i != j)
+                if (i < j)
                 {
                     Block b = RecursiveRandom<Block>::get();
                     trips.emplace_back(i, j, b);
@@ -151,7 +156,7 @@ class Sparse_LDLT_TEST
         cout << "N: " << n << endl;
         cout << "Non zeros (per row): " << nnzr << endl;
         cout << "Non zeros: " << Anoblock.nonZeros() << endl;
-        cout << "Density: " << (double)Anoblock.nonZeros() / double(n * n * block_size * block_size) << endl;
+        cout << "Density: " << (double)Anoblock.nonZeros() / double(double(n) * n * block_size * block_size) << endl;
         cout << "." << endl;
         cout << endl;
     }
@@ -271,13 +276,13 @@ class Sparse_LDLT_TEST
 };
 
 template <typename LDLT, typename T>
-void make_test(LDLT& ldlt, Saiga::Table& tab, T f)
+float make_test(LDLT& ldlt, Saiga::Table& tab, T f)
 {
     std::vector<double> time;
     std::string name;
     float error;
 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 50; ++i)
     {
         auto [time2, error2, name2] = (ldlt.*f)();
         time.push_back(time2);
@@ -291,6 +296,7 @@ void make_test(LDLT& ldlt, Saiga::Table& tab, T f)
     tab << name << t << t2 << error;
 
     strm << "," << t;
+    return t;
 }
 
 template <int block_size, int factor>
@@ -308,9 +314,11 @@ void run()
           << "Error";
     //    if (test.A.rows() < 100) make_test(test, table, &LDLT::solveEigenDenseLDLT);
     make_test(test, table, &LDLT::solveEigenSparseLDLT);
-    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
-    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
-    make_test(test, table, &LDLT::solveCholmod);
+    auto tr = make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
+    //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
+    auto tc = make_test(test, table, &LDLT::solveCholmod);
+
+    strm << "," << (tc / tr) << "," << 1;
 
     strm << endl;
 }
@@ -348,10 +356,11 @@ int main(int, char**)
     //    test.solveEigenRecursiveSparseLDLTRowMajor();
 
     strm.open("sparse_ldlt_benchmark.csv");
-    strm << "n,nnz,block_size,eigen_sparse,eigen_recursive,cholmod" << endl;
+    strm << "n,nnz,block_size,eigen_sparse,eigen_recursive,cholmod,rel_eigen,rel_cholmod" << endl;
     //        LauncherLoop<2, 8 + 1, 16> l;
-    LauncherLoop<2, 4 + 1, 4> l;
+    LauncherLoop<1, 32 + 1, 8> l;
     l();
+
 
     cout << "Done." << endl;
     return 0;
