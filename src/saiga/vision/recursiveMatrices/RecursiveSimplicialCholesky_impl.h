@@ -40,12 +40,14 @@ LDL License:
     and a notice that the code was modified is included.
  */
 
-#include "Eigen/src/Core/util/NonMPL2.h"
-
+//#ifndef LDTL_TEST_IMPL
+//#define LDTL_TEST_IMPL
 #pragma once
+
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 
+#include "Eigen/src/Core/util/NonMPL2.h"
 #include "RecursiveSimplicialCholesky.h"
 
 namespace Eigen
@@ -188,3 +190,5 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
 }
 
 }  // end namespace Eigen
+
+//#endif

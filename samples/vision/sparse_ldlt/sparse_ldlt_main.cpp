@@ -358,7 +358,8 @@ int main(int, char**)
     strm.open("sparse_ldlt_benchmark.csv");
     strm << "n,nnz,block_size,eigen_sparse,eigen_recursive,cholmod,rel_eigen,rel_cholmod" << endl;
     //        LauncherLoop<2, 8 + 1, 16> l;
-    LauncherLoop<1, 32 + 1, 8> l;
+    //    LauncherLoop<1, 32 + 1, 8> l;
+    LauncherLoop<8, 8 + 1, 2> l;
     l();
 
 

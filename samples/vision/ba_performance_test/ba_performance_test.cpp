@@ -168,12 +168,12 @@ int main(int, char**)
 
 
 
-    test_to_file();
-    return 0;
+    //    test_to_file();
+    //    return 0;
 
-    //    buildSceneBAL(scene, balPrefix + "problem-00021-11315-pre.txt");
+    //        buildSceneBAL(scene, balPrefix + "problem-21-11315-pre.txt");
     buildSceneBAL(scene, balPrefix + "problem-257-65132-pre.txt");
-    //    buildSceneBAL(scene, balPrefix + "problem-00356-226730-pre.txt");
+    //    buildSceneBAL(scene, balPrefix + "problem-356-226730-pre.txt");
 
 
     cout << scene << endl;

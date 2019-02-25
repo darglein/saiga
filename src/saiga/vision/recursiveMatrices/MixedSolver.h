@@ -71,6 +71,8 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
 
     using SType = Eigen::SparseMatrix<UBlock, Eigen::RowMajor>;
 
+    using LDLT = Eigen::RecursiveSimplicialLDLT<SType, Eigen::Upper>;
+
     void analyzePattern(const AType& A, const LinearSolverOptions& solverOptions)
     {
         n = A.u.rows();
@@ -95,6 +97,7 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
 
         patternAnalyzed = true;
     }
+
 
     void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
     {
@@ -147,37 +150,22 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
 
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
         {
+            // Direct solver using cholesky factorization
             SAIGA_ASSERT(explizitSchur);
 
-#if 0
-            Eigen::SparseMatrix<double> ssparse(n * UBlock::M::RowsAtCompileTime, n * UBlock::M::RowsAtCompileTime);
+            if (!ldlt)
             {
-                // Step 5
-                // Solve the schur system for da
-                // ~ 5.04%
-
-                auto triplets = sparseBlockToTriplets(S);
-                ssparse.setFromTriplets(triplets.begin(), triplets.end());
+                // Create cholesky solver and do a full compute
+                ldlt = std::make_unique<LDLT>();
+                ldlt->compute(S);
             }
+            else
             {
-                //~61%
-                Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
-                solver.compute(ssparse);
-
-                auto b                              = expand(ej);
-                Eigen::Matrix<double, -1, 1> deltaA = solver.solve(b);
-                // copy back into da
-                for (int i = 0; i < n; ++i)
-                {
-                    da(i) = deltaA.segment<UBlock::M::RowsAtCompileTime>(i * UBlock::M::RowsAtCompileTime);
-                }
+                // This line computes the factorization without analyzing the structure again
+                ldlt->factorize(S);
             }
-#else
-            using LDLT = Eigen::RecursiveSimplicialLDLT<SType, Eigen::Upper>;
-            LDLT ldlt;
-            ldlt.compute(S);
-            da = ldlt.solve(ej);
-#endif
+
+            da = ldlt->solve(ej);
         }
         else
         {
@@ -248,6 +236,8 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
     XUType ej;
 
     AWTType WT;
+
+    std::unique_ptr<LDLT> ldlt;
 
     bool patternAnalyzed = false;
     bool hasWT           = true;

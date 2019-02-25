@@ -15,8 +15,9 @@
  * -> It works now with recursive sparse matrices!
  */
 
-#ifndef LDTL_TEST
-#define LDTL_TEST
+#pragma once
+//#ifndef LDTL_TEST124
+//#    define LDTL_TEST124
 
 #include "saiga/core/time/Time"
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
@@ -24,6 +25,8 @@
 #include "SparseTriangular.h"
 
 #include <iostream>
+
+
 namespace Eigen
 {
 namespace internal
@@ -267,7 +270,6 @@ class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
     RealScalar m_shiftOffset;
     RealScalar m_shiftScale;
 };
-
 
 template <typename _MatrixType, int _UpLo = Lower,
           typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex> >
@@ -611,6 +613,6 @@ void RecursiveSimplicialCholeskyBase<Derived>::ordering(const MatrixType& a, Con
 
 }  // end namespace Eigen
 
-#include "RecursiveSimplicialCholesky_impl.h"
 
-#endif
+
+#include "RecursiveSimplicialCholesky_impl.h"
