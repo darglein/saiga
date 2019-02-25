@@ -76,22 +76,14 @@ void Buffer::copyTo(vk::CommandBuffer cmd, Buffer& target, vk::DeviceSize srcOff
 void Buffer::copyTo(vk::CommandBuffer cmd, vk::Image dstImage, vk::ImageLayout dstImageLayout,
                     vk::ArrayProxy<const vk::BufferImageCopy> regions)
 {
+    Memory::SafeAccessor acc(*m_memoryLocation);
     cmd.copyBufferToImage(m_memoryLocation->data, dstImage, dstImageLayout, regions);
 }
 
 vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const
 {
-    // func<vk::BufferImageCopy, Buffer>(
-    //    *this, [=](const Buffer& buffer) { return vk::BufferImageCopy{buffer.m_memoryLocation->offset + offset}; });
-    if (m_memoryLocation->is_dynamic())
-    {
-        std::scoped_lock lock(m_memoryLocation->mutex);
-        return {m_memoryLocation->offset + offset};
-    }
-    else
-    {
-        return {m_memoryLocation->offset + offset};
-    }
+    Memory::SafeAccessor acc(*m_memoryLocation);
+    return {m_memoryLocation->offset + offset};
 }
 
 void Buffer::update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset)

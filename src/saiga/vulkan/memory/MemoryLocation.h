@@ -35,6 +35,12 @@ struct SafeAccessor final
     SafeAccessor(T& _location, T& _location2)
         : lock1(_location.mutex, std::defer_lock), lock2(_location2.mutex, std::defer_lock)
     {
+        if (_location.is_dynamic() && _location2.is_dynamic())
+        {
+            std::lock(lock1, lock2);
+            return;
+        }
+
         if (_location.is_dynamic())
         {
             lock1.lock();
@@ -174,7 +180,11 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
     inline bool is_dynamic() const { return !is_static(); }
     inline bool is_static() const { return static_mem; }
 
-    inline void mark_dynamic() { static_mem = false; }
+    inline void mark_dynamic()
+    {
+        SafeAccessor acc(*this);
+        static_mem = false;
+    }
 
     void upload(vk::Device device, const void* data)
     {
@@ -221,15 +231,15 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         }
     }
 
-    bool operator==(const BaseMemoryLocation& rhs) const
+    bool operator==(const BaseMemoryLocation& rhs)
     {
-        SafeAccessor accessor(*this);
+        SafeAccessor accessor(*this, rhs);
 
         return std::tie(data, memory, offset, size, mappedPointer) ==
                std::tie(rhs.data, rhs.memory, rhs.offset, rhs.size, rhs.mappedPointer);
     }
 
-    bool operator!=(const BaseMemoryLocation& rhs) const { return !(rhs == *this); }
+    bool operator!=(const BaseMemoryLocation& rhs) { return !(rhs == *this); }
 
 
     friend std::ostream& operator<<(std::ostream& os, const BaseMemoryLocation& location)
@@ -247,7 +257,7 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
 
     void copy_to(BaseMemoryLocation<Data>& other)
     {
-        SafeAccessor accessor1(other);
+        SafeAccessor accessor(*this, other);
         other.memory = memory;
         other.offset = offset;
         other.size   = size;
