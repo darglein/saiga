@@ -18,8 +18,7 @@
 #include "Eigen/SparseCholesky"
 
 #include <fstream>
-
-
+#include <set>
 using namespace Saiga;
 
 
@@ -51,14 +50,23 @@ class Sparse_LDLT_TEST
     using VType                     = Eigen::Matrix<Vector, -1, 1>;
 #endif
 
-    // Changes these constants to adjust the sparsity
-    // Here: 2% non zeros
-    const int n    = 100 * factor;
-    const int nnzr = 1 * factor;
+#if 0
+    const double targetNNZ     = 2000 * 1000 * sqrt(block_size);
+    const double targetDensity = 0.01;
 
-    //    const int n    = 5 * factor;
-    //    const int nnzr = 2 * factor;
+    const double nnzBlocks = targetNNZ / double(block_size * block_size);
+    const double zBlocks   = 1.0 / targetDensity * nnzBlocks;
 
+    const int n    = sqrt(zBlocks);
+    const int nnzr = nnzBlocks / n;
+#else
+    const double targetNNZ          = 1000 * 1000 * 4;
+    const int nnzr                  = 8;
+
+    const double nnzBlocks = targetNNZ / double(block_size * block_size);
+
+    const int n = nnzBlocks / nnzr;
+#endif
     Sparse_LDLT_TEST()
     {
         A.resize(n, n);
@@ -72,8 +80,32 @@ class Sparse_LDLT_TEST
 
         for (int i = 0; i < n; ++i)
         {
+#if 1
+            // "Diagonal like" pattern
+            std::set<int> indices;
+            for (int k = 0; k < nnzr;)
+            {
+                int s = Random::gaussRand(i, nnzr * 0.5);
+                while (s < 0)
+                {
+                    s += n;
+                }
+                while (s >= n)
+                {
+                    s -= n;
+                }
+                if (s != i && indices.count(s) == 0)
+                {
+                    //                    cout << "insert " << i << " " << s << endl;
+                    indices.insert(s);
+                    ++k;
+                }
+            }
+#else
+            // Full random pattern
             auto indices = Random::uniqueIndices(nnzr, n);
             std::sort(indices.begin(), indices.end());
+#endif
 
             for (auto j : indices)
             {
@@ -103,7 +135,7 @@ class Sparse_LDLT_TEST
 
             // Make sure the matrix is positiv
             auto n = MultiplicativeNeutral<Block>::get();
-            D += n * 5.0;
+            D += n * 500.0;
             //            D += 5;
             //            D.diagonal() += Vector::Ones() * 5;
             trips.emplace_back(i, i, D);
@@ -194,23 +226,46 @@ class Sparse_LDLT_TEST
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
 
-    auto solveCholmod()
+    auto solveCholmodSimplicial()
     {
         x.setZero();
         auto be = expand(b);
         auto bx = expand(x);
         Eigen::CholmodSimplicialLDLT<decltype(Anoblock)> ldlt;
+        //        Eigen::CholmodSimplicialLLT<decltype(Anoblock)> ldlt;
 
         float time = 0;
         {
             Saiga::ScopedTimer<float> timer(time);
-            //            Eigen::CholmodSupernodalLLT<decltype(Anoblock)> ldlt;
             ldlt.compute(Anoblock);
             bx = ldlt.solve(be);
         }
         double error = (Anoblock * bx - be).squaredNorm();
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
+
+    auto solveCholmodSupernodal()
+    {
+        x.setZero();
+        auto be = expand(b);
+        auto bx = expand(x);
+        //        Eigen::CholmodSupernodalLLT<decltype(Anoblock)> ldlt;
+        Eigen::CholmodDecomposition<decltype(Anoblock)> ldlt;
+
+        ldlt.cholmod().supernodal = CHOLMOD_SUPERNODAL;
+        ldlt.cholmod().final_ll   = 0;
+        //        ldlt.cholmod().final_asis = 1;
+
+        float time = 0;
+        {
+            Saiga::ScopedTimer<float> timer(time);
+            ldlt.compute(Anoblock);
+            bx = ldlt.solve(be);
+        }
+        double error = (Anoblock * bx - be).squaredNorm();
+        return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
+    }
+
 
 
     auto solveEigenRecursiveSparseLDLT()
@@ -282,7 +337,7 @@ float make_test(LDLT& ldlt, Saiga::Table& tab, T f)
     std::string name;
     float error;
 
-    for (int i = 0; i < 50; ++i)
+    for (int i = 0; i < 1; ++i)
     {
         auto [time2, error2, name2] = (ldlt.*f)();
         time.push_back(time2);
@@ -313,12 +368,13 @@ void run()
           << "Time/NNZ (us)"
           << "Error";
     //    if (test.A.rows() < 100) make_test(test, table, &LDLT::solveEigenDenseLDLT);
-    make_test(test, table, &LDLT::solveEigenSparseLDLT);
+    //    make_test(test, table, &LDLT::solveEigenSparseLDLT);
     auto tr = make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
-    auto tc = make_test(test, table, &LDLT::solveCholmod);
+    auto tcs = make_test(test, table, &LDLT::solveCholmodSimplicial);
+    auto tcn = make_test(test, table, &LDLT::solveCholmodSupernodal);
 
-    strm << "," << (tc / tr) << "," << 1;
+    //    strm << "," << (tcs / tr) << "," << (tcn / tr) << "," << 1;
 
     strm << endl;
 }
@@ -356,13 +412,25 @@ int main(int, char**)
     //    test.solveEigenRecursiveSparseLDLTRowMajor();
 
     strm.open("sparse_ldlt_benchmark.csv");
-    strm << "n,nnz,block_size,eigen_sparse,eigen_recursive,cholmod,rel_eigen,rel_cholmod" << endl;
+    strm << "n,nnz,block_size,eigen_sparse,eigen_recursive,cholmod_simp,cholmod_super,rel_eigen,rel_cholmod" << endl;
     //        LauncherLoop<2, 8 + 1, 16> l;
     //    LauncherLoop<1, 32 + 1, 8> l;
-    LauncherLoop<8, 8 + 1, 2> l;
-    l();
+    {
+        LauncherLoop<4, 4 + 1, 2> l;
+        l();
+    }
+    {
+        LauncherLoop<8, 8 + 1, 2> l;
+        l();
+    }
+    {
+        LauncherLoop<32, 32 + 1, 2> l;
+        l();
+    }
+
 
 
     cout << "Done." << endl;
+
     return 0;
 }
