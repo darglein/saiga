@@ -34,9 +34,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 
     vulkanParameters.physicalDeviceFeatures.wideLines = VK_TRUE;
     base.createLogicalDevice(surface, vulkanParameters, true);
-
-
-
     swapChain.connect(instance, base.physicalDevice, base.device);
     swapChain.initSurface(surface);
     swapChain.create(&width, &height, false);

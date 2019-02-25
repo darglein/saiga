@@ -193,8 +193,8 @@ void BaseChunkAllocator<T>::base_deallocate(T* location)
 
     SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
 
-    LOG(INFO) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
-              << "/" << (*fLoc)->offset << "]";
+    VLOG(1) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
+            << "/" << (*fLoc)->offset << "]";
 
     add_to_free_list(fChunk, *(fLoc->get()));
 

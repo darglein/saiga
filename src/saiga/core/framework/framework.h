@@ -25,6 +25,7 @@ struct SAIGA_CORE_API SaigaParameters
     std::string mainThreadName = "Saiga::main";
 
     bool logging_enabled = false;
+    bool verbose_logging = false;
     /**
      *  Reads all paramters from the given config file.
      *  Creates the file with the default values if it doesn't exist.
