@@ -25,6 +25,7 @@ using namespace Saiga;
 
 static std::ofstream strm;
 
+//#define SPARSITY_TEST
 #define USE_BLOCKS
 
 template <int block_size2, int factor>
@@ -32,7 +33,13 @@ class Sparse_LDLT_TEST
 {
    public:
 #ifdef USE_BLOCKS
+
+#    ifdef SPARSITY_TEST
+    // use fixed block size
+    static constexpr int block_size = 4;
+#    else
     static constexpr int block_size = block_size2;
+#    endif
     using Block =
         typename std::conditional<block_size == 1, double, Eigen::Matrix<double, block_size, block_size>>::type;
     using Vector       = typename std::conditional<block_size == 1, double, Eigen::Matrix<double, block_size, 1>>::type;
@@ -50,23 +57,34 @@ class Sparse_LDLT_TEST
     using VType                     = Eigen::Matrix<Vector, -1, 1>;
 #endif
 
-#if 0
-    const double targetNNZ     = 2000 * 1000 * sqrt(block_size);
-    const double targetDensity = 0.01;
+
+
+#ifdef SPARSITY_TEST
+
+    const int n    = 100 * 1000 / (int)log(block_size2);
+    const int nnzr = 1 * block_size2 / (int)log(block_size2);
+#else
+
+#    if 1
+    const double targetNNZ          = factor * 1000 * 1000 * sqrt(block_size);
+    const double targetDensity      = 0.0002;
 
     const double nnzBlocks = targetNNZ / double(block_size * block_size);
     const double zBlocks   = 1.0 / targetDensity * nnzBlocks;
 
     const int n    = sqrt(zBlocks);
-    const int nnzr = nnzBlocks / n;
-#else
-    const double targetNNZ          = 1000 * 1000 * 4;
-    const int nnzr                  = 8;
+    const int nnzr = std::max<int>(nnzBlocks / n, 2);
+#    else
 
+    const double targetNNZ = 1000 * 1000 * 4;
+    const int nnzr         = 8;
     const double nnzBlocks = targetNNZ / double(block_size * block_size);
-
-    const int n = nnzBlocks / nnzr;
+    const int n            = nnzBlocks / nnzr;
+#    endif
 #endif
+
+    double density() { return (double)Anoblock.nonZeros() / double(double(n) * n * block_size * block_size); }
+
     Sparse_LDLT_TEST()
     {
         A.resize(n, n);
@@ -188,7 +206,7 @@ class Sparse_LDLT_TEST
         cout << "N: " << n << endl;
         cout << "Non zeros (per row): " << nnzr << endl;
         cout << "Non zeros: " << Anoblock.nonZeros() << endl;
-        cout << "Density: " << (double)Anoblock.nonZeros() / double(double(n) * n * block_size * block_size) << endl;
+        cout << "Density: " << density() << endl;
         cout << "." << endl;
         cout << endl;
     }
@@ -359,7 +377,7 @@ void run()
 {
     using LDLT = Sparse_LDLT_TEST<block_size, factor>;
     LDLT test;
-    strm << test.n << "," << test.Anoblock.nonZeros() << "," << block_size;
+    strm << test.n << "," << test.Anoblock.nonZeros() << "," << block_size << "," << test.density();
 
     Saiga::Table table{{35, 15, 15, 15}};
     table.setFloatPrecision(6);
@@ -369,19 +387,18 @@ void run()
           << "Error";
     //    if (test.A.rows() < 100) make_test(test, table, &LDLT::solveEigenDenseLDLT);
     //    make_test(test, table, &LDLT::solveEigenSparseLDLT);
-    auto tr = make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
-    auto tcs = make_test(test, table, &LDLT::solveCholmodSimplicial);
-    auto tcn = make_test(test, table, &LDLT::solveCholmodSupernodal);
+    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
+    make_test(test, table, &LDLT::solveCholmodSimplicial);
+    make_test(test, table, &LDLT::solveCholmodSupernodal);
 
-    //    strm << "," << (tcs / tr) << "," << (tcn / tr) << "," << 1;
 
     strm << endl;
 }
 
 
 
-template <int START, int END, int factor>
+template <int START, int END, int ADD, int MULT, int factor>
 struct LauncherLoop
 {
     void operator()()
@@ -389,13 +406,13 @@ struct LauncherLoop
         {
             run<START, factor>();
         }
-        LauncherLoop<START + 1, END, factor> l;
+        LauncherLoop<START * MULT + ADD, END, ADD, MULT, factor> l;
         l();
     }
 };
 
-template <int END, int factor>
-struct LauncherLoop<END, END, factor>
+template <int END, int ADD, int MULT, int factor>
+struct LauncherLoop<END, END, ADD, MULT, factor>
 {
     void operator()() {}
 };
@@ -412,22 +429,38 @@ int main(int, char**)
     //    test.solveEigenRecursiveSparseLDLTRowMajor();
 
     strm.open("sparse_ldlt_benchmark.csv");
-    strm << "n,nnz,block_size,eigen_sparse,eigen_recursive,cholmod_simp,cholmod_super,rel_eigen,rel_cholmod" << endl;
+    strm << "n,nnz,block_size,density,"
+            "eigen_recursive,"
+            "cholmod_simp,"
+            "cholmod_super"
+         << endl;
     //        LauncherLoop<2, 8 + 1, 16> l;
     //    LauncherLoop<1, 32 + 1, 8> l;
+
+#ifdef SPARSITY_TEST
     {
-        LauncherLoop<4, 4 + 1, 2> l;
-        l();
-    }
-    {
-        LauncherLoop<8, 8 + 1, 2> l;
-        l();
-    }
-    {
-        LauncherLoop<32, 32 + 1, 2> l;
+        LauncherLoop<1, 32 * 2, 0, 2, 2> l;
         l();
     }
 
+#else
+    {
+        LauncherLoop<4, 16 + 1, 1, 1, 2> l;
+        l();
+    }
+//    {
+//        LauncherLoop<8, 8 + 1, 2> l;
+//        l();
+//    }
+//    {
+//        LauncherLoop<16, 16 + 1, 2> l;
+//        l();
+//    }
+//    {
+//        LauncherLoop<32, 32 + 1, 2> l;
+//        l();
+//    }
+#endif
 
 
     cout << "Done." << endl;
