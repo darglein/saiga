@@ -23,7 +23,7 @@ void FallbackAllocator::deallocate(BufferMemoryLocation* location)
         LOG(FATAL) << "Allocation was not made with this allocator";
         return;
     }
-    (*foundAllocation)->destroy(m_device);
+    destroy(m_device, foundAllocation->get());
     m_allocations.erase(foundAllocation);
 }
 
@@ -39,7 +39,7 @@ void FallbackAllocator::deallocate(ImageMemoryLocation* location)
         LOG(FATAL) << "Allocation was not made with this allocator";
         return;
     }
-    (*foundAllocation)->destroy(m_device);
+    destroy(m_device, foundAllocation->get());
     m_image_allocations.erase(foundAllocation);
 }
 
@@ -48,13 +48,13 @@ void FallbackAllocator::destroy()
 {
     for (auto& location : m_allocations)
     {
-        location->destroy(m_device);
+        destroy(m_device, location.get());
     }
     m_allocations.clear();
 
     for (auto& image_location : m_image_allocations)
     {
-        image_location->destroy(m_device);
+        destroy(m_device, image_location.get());
     }
     m_image_allocations.clear();
 }
@@ -107,7 +107,7 @@ ImageMemoryLocation* FallbackAllocator::allocate(const ImageType& type, ImageDat
         retVal = m_image_allocations.back().get();
     }
     SAIGA_ASSERT(retVal, "Invalid pointer returned");
-    bind_image_data(m_device, retVal, image_data);
+    bind_image_data(m_device, retVal, std::move(image_data));
 
     retVal->data.create_view(m_device);
     retVal->data.create_sampler(m_device);

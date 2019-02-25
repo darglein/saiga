@@ -4,6 +4,7 @@
 
 #pragma once
 #include "BaseChunkAllocator.h"
+#include "ImageMemoryLocation.h"
 #include "MemoryType.h"
 namespace Saiga::Vulkan::Memory
 {

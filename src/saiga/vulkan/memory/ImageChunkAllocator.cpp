@@ -32,9 +32,9 @@ ImageMemoryLocation* ImageChunkAllocator::allocate(ImageData& image_data)
     auto aligned_size = Saiga::iAlignUp(image_data.image_requirements.size, image_data.image_requirements.alignment);
     auto location     = BaseChunkAllocator::base_allocate(aligned_size);
 
-    location->data = std::move(image_data);
+    // location->data = std::move(image_data);
 
-    bind_image_data(m_device, location, image_data);
+    bind_image_data(m_device, location, std::move(image_data));
 
     location->data.create_view(m_device);
     location->data.create_sampler(m_device);

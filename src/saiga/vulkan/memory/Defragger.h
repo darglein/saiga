@@ -9,9 +9,10 @@
 #include "saiga/vulkan/Queue.h"
 
 #include "BufferChunkAllocator.h"
+#include "BufferMemoryLocation.h"
 #include "ChunkAllocation.h"
 #include "FitStrategy.h"
-#include "MemoryLocation.h"
+#include "ImageMemoryLocation.h"
 
 #include <atomic>
 #include <mutex>

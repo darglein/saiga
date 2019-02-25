@@ -38,7 +38,8 @@ bool ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperat
 
     auto new_data = op.source->data;
     new_data.create_image(device);
-    bind_image_data(device, reserve_space, new_data);
+
+    bind_image_data(device, reserve_space, std::move(new_data));
     reserve_space->data.create_view(device);
     reserve_space->data.create_sampler(device);
 

@@ -109,7 +109,8 @@ class SAIGA_VULKAN_API BaseChunkAllocator
 
     void move_allocation(T* target, T* source);
 
-    void add_to_free_list(const ChunkIterator<T>& chunk, const T& location) const;
+    template <typename FreeList>
+    void add_to_free_list(const ChunkIterator<T>& chunk, const FreeList& location) const;
 };
 
 template <typename T>
@@ -275,7 +276,7 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
     std::scoped_lock lock(allocationMutex);
     const auto size = source->size;
 
-    T source_copy = *source;
+    FreeListEntry future_entry{source->offset, source->size};
 
     ChunkIterator<T> target_chunk, source_chunk;
     AllocationIterator<T> target_alloc, source_alloc;
@@ -283,7 +284,9 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
     std::tie(target_chunk, target_alloc) = find_allocation(target);
     std::tie(source_chunk, source_alloc) = find_allocation(source);
 
-    *source = *target;  // copy values from target to source;
+
+    target->copy_to(*source);
+    //*source = *target;  // copy values from target to source;
 
     source->mark_dynamic();
 
@@ -293,14 +296,15 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
 
     source_chunk->allocations.erase(source_alloc);
 
-    add_to_free_list(source_chunk, source_copy);
+    add_to_free_list(source_chunk, future_entry);
 
 
     findNewMax(source_chunk);
 }
 
 template <typename T>
-void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const T& location) const
+template <typename FreeList>
+void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const FreeList& location) const
 {
     auto& freeList = chunk->freeList;
     auto found = lower_bound(freeList.begin(), freeList.end(), location, [](const auto& free_entry, const auto& value) {
@@ -320,14 +324,13 @@ void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, cons
         free  = freeList.insert(found, FreeListEntry{location.offset, location.size});
         found = next(free);
     }
-
-
     if (found != freeList.end() && free->end() == found->offset)
     {
         free->size += found->size;
         freeList.erase(found);
     }
 }
+
 
 template <typename T>
 std::pair<ChunkIterator<T>, AllocationIterator<T>> BaseChunkAllocator<T>::find_allocation(T* location)

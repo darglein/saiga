@@ -11,10 +11,10 @@
 
 #include "BaseChunkAllocator.h"
 #include "BaseMemoryAllocator.h"
+#include "BufferMemoryLocation.h"
 #include "ChunkAllocation.h"
 #include "ChunkCreator.h"
 #include "FitStrategy.h"
-#include "MemoryLocation.h"
 #include "MemoryType.h"
 
 #include <limits>

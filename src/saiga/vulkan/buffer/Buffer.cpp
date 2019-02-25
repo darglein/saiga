@@ -81,7 +81,17 @@ void Buffer::copyTo(vk::CommandBuffer cmd, vk::Image dstImage, vk::ImageLayout d
 
 vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const
 {
-    return {m_memoryLocation->offset + offset};
+    // func<vk::BufferImageCopy, Buffer>(
+    //    *this, [=](const Buffer& buffer) { return vk::BufferImageCopy{buffer.m_memoryLocation->offset + offset}; });
+    if (m_memoryLocation->is_dynamic())
+    {
+        std::scoped_lock lock(m_memoryLocation->mutex);
+        return {m_memoryLocation->offset + offset};
+    }
+    else
+    {
+        return {m_memoryLocation->offset + offset};
+    }
 }
 
 void Buffer::update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset)
