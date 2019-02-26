@@ -24,7 +24,7 @@ install:
     apt-get install -y libsdl2-dev libglfw3-dev;
     apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
     apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
-    apt-get install -y libavutil-dev libavcodec-dev libavresample-dev;
+    apt-get install -y libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev;
     apt-get install -y libassimp-dev libeigen3-dev libsuitesparse-dev;"
 
 script:

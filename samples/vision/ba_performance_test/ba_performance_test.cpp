@@ -74,33 +74,25 @@ void buildSceneBAL(Scene& scene, const std::string& path)
 #define WRITE_TO_FILE
 
 
-void test_to_file()
+
+void test_to_file(const OptimizationOptions& baoptions, const std::string& file, int its)
 {
     cout << "Running long performance test to file..." << endl;
 #if 1
-    std::vector<std::string> files = {
-        "problem-16-22106-pre.txt",     "problem-21-11315-pre.txt",    "problem-52-64053-pre.txt",
-        "problem-93-61203-pre.txt",     "problem-138-19878-pre.txt",   "problem-138-44033-pre.txt",
-        "problem-174-50489-pre.txt",    "problem-202-132796-pre.txt",  "problem-257-65132-pre.txt",
-        "problem-356-226730-pre.txt",   "problem-931-102699-pre.txt",  "problem-1102-780462-pre.txt",
-        "problem-1723-156502-pre.txt",  "problem-1778-993923-pre.txt", "problem-3068-310854-pre.txt",
-        "problem-13682-4456117-pre.txt"};
+    std::vector<std::string> files = {"problem-16-22106-pre.txt",    "problem-21-11315-pre.txt",
+                                      "problem-52-64053-pre.txt",    "problem-93-61203-pre.txt",
+                                      "problem-138-19878-pre.txt",   "problem-138-44033-pre.txt",
+                                      "problem-174-50489-pre.txt",   "problem-202-132796-pre.txt",
+                                      "problem-257-65132-pre.txt",   "problem-356-226730-pre.txt",
+                                      "problem-931-102699-pre.txt",  "problem-1102-780462-pre.txt",
+                                      "problem-1723-156502-pre.txt", "problem-1778-993923-pre.txt",
+                                      "problem-3068-310854-pre.txt"};  //  "problem-13682-4456117-pre.txt"
 #else
     std::vector<std::string> files = {"vision/problem-1723-156502-pre.txt"};
 #endif
 
-    OptimizationOptions baoptions;
-    baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 1;
-    baoptions.maxIterativeIterations = 15;
-    baoptions.iterativeTolerance     = 1e-50;
-    baoptions.solverType             = OptimizationOptions::SolverType::Direct;
-    cout << baoptions << endl;
-
-
-    int its = 1;
-    std::ofstream strm("ba_benchmark.csv");
-    strm << "file,solver,solver_type,iterationis,time,timeLS,rms" << endl;
+    std::ofstream strm(file);
+    strm << "file,solver,images,points,solver_type,iterations,time secnds,timeLS seconds,rms" << endl;
 
 
     Saiga::Table table({20, 20, 10, 10});
@@ -116,6 +108,7 @@ void test_to_file()
         solvers.push_back(std::make_shared<CeresBA>());
 
 
+        cout << "> Initial Error: " << scene.chi2() << endl;
         table << "Name"
               << "Error"
               << "Time_LS"
@@ -140,11 +133,12 @@ void test_to_file()
             }
 
 
-            auto t  = make_statistics(times).median;
-            auto tl = make_statistics(timesl).median;
+            auto t  = make_statistics(times).median / 1000.0;
+            auto tl = make_statistics(timesl).median / 1000.0;
             table << s->name << chi2 << tl << t;
-            strm << file << "," << s->name << "," << (int)baoptions.solverType << "," << (int)baoptions.maxIterations
-                 << "," << t << "," << tl << "," << chi2 << endl;
+            strm << file << "," << s->name << "," << scene.images.size() << "," << scene.worldPoints.size() << ","
+                 << (int)baoptions.solverType << "," << (int)baoptions.maxIterations << "," << t << "," << tl << ","
+                 << chi2 << endl;
         }
         cout << endl;
     }
@@ -160,16 +154,39 @@ int main(int, char**)
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
     Saiga::Random::setSeed(93865023985);
 
+
+
+    if (0)
+    {
+        OptimizationOptions baoptions;
+        baoptions.debugOutput            = false;
+        baoptions.maxIterations          = 3;
+        baoptions.maxIterativeIterations = 15;
+        baoptions.iterativeTolerance     = 1e-50;
+        baoptions.initialLambda = 1e10;  // use a high lambda for the benchmark so it converges slowly, but surely
+        baoptions.solverType    = OptimizationOptions::SolverType::Iterative;
+        cout << baoptions << endl;
+
+        test_to_file(baoptions, "ba_benchmark_cg.csv", 1);
+    }
+    {
+        OptimizationOptions baoptions;
+        baoptions.debugOutput   = false;
+        baoptions.maxIterations = 3;
+        baoptions.solverType    = OptimizationOptions::SolverType::Direct;
+        baoptions.initialLambda = 1e10;  // use a high lambda for the benchmark so it converges slowly, but surely
+        cout << baoptions << endl;
+
+        test_to_file(baoptions, "ba_benchmark_chol.csv", 1);
+    }
+    return 0;
+
+
     Scene scene;
     //        scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
     //    scene.load(SearchPathes::data("vision/slam.scene"));
     //    buildScene(scene);
-
-
-
-    //    test_to_file();
-    //    return 0;
 
     //        buildSceneBAL(scene, balPrefix + "problem-21-11315-pre.txt");
     //    buildSceneBAL(scene, balPrefix + "problem-257-65132-pre.txt");
@@ -181,15 +198,11 @@ int main(int, char**)
     OptimizationOptions baoptions;
     baoptions.debugOutput            = false;
     baoptions.maxIterations          = 3;
-    baoptions.maxIterativeIterations = 20;
+    baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
-
-    //    baoptions.huberMono   = 5.99;
-    //    baoptions.huberStereo = 7.815;
-
-    //    baoptions.solverType = OptimizationOptions::SolverType::Direct;
-    baoptions.solverType = OptimizationOptions::SolverType::Iterative;
+    baoptions.solverType             = OptimizationOptions::SolverType::Iterative;
     cout << baoptions << endl;
+
 
     std::vector<std::shared_ptr<BABase>> solvers;
 
@@ -212,5 +225,6 @@ int main(int, char**)
         cout << "Time LinearSolver/Total: " << result.linear_solver_time << "/" << result.total_time << endl;
         cout << endl;
     }
+
     return 0;
 }

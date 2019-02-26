@@ -38,6 +38,8 @@ struct SAIGA_VISION_API OptimizationOptions
     int maxIterativeIterations = 50;
     double iterativeTolerance  = 1e-5;
 
+    double initialLambda = 1.00e-04;
+
     bool debugOutput = false;
 
     void imgui();
@@ -72,8 +74,8 @@ class SAIGA_VISION_API LMOptimizer : public Optimizer
     virtual double computeCost()          = 0;
     virtual void finalize()               = 0;
 
-    double lambda = 1.0 / 1.00e+04;
-    double v      = 2;
+    double lambda;
+    double v = 2;
 };
 
 }  // namespace Saiga

@@ -61,8 +61,8 @@ OptimizationResults g2oBA2::solve()
     }
 
     OptimizationAlgorithm* solver = new OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
-    solver->setUserLambdaInit(1.0);
-
+    solver->setUserLambdaInit(optimizationOptions.initialLambda);
+    solver->setMaxTrialsAfterFailure(2);
     g2o::SparseOptimizer optimizer;
     optimizer.setVerbose(optimizationOptions.debugOutput);
     //    optimizer.setComputeBatchStatistics(options.debugOutput);
@@ -260,15 +260,19 @@ OptimizationResults g2oBA2::solve()
         int its      = 0;
         double ltime = 0;
         auto stats   = optimizer.batchStatistics();
+        bool invalid = false;
         for (auto s : stats)
         {
             ltime += s.timeLinearSolution * 1000;
             its += s.iterationsLinearSolver;
+            if (s.levenbergIterations != 1) invalid = true;
         }
         result.linear_solver_time = ltime;
         //    result.cost_initial       = stats.front().chi2;
+
         result.cost_final = stats.back().chi2;
-        cout << "linear its " << its << endl;
+
+        if (invalid) result.cost_final = -1;
     }
 
     return result;

@@ -65,6 +65,8 @@ OptimizationResults CeresBA::solve()
         }
     }
 
+    auto ordering = std::make_shared<ceres::ParameterBlockOrdering>();
+
 
     std::vector<std::unique_ptr<CostBAStereoAnalytic>> monoCostFunctions;
     std::vector<std::unique_ptr<CostBAStereoAnalytic>> stereoCostFunctions;
@@ -108,6 +110,10 @@ OptimizationResults CeresBA::solve()
 
                 problem.AddResidualBlock(cost, baOptions.huberMono > 0 ? &lossFunctionMono : nullptr, extr.data(),
                                          wp.data());
+
+                // With this ordering the schur complement is computed in the correct order
+                ordering->AddElementToGroup(wp.data(), 0);
+                ordering->AddElementToGroup(extr.data(), 1);
 #endif
             }
         }
@@ -126,6 +132,10 @@ OptimizationResults CeresBA::solve()
     ceres_options.min_linear_solver_iterations = optimizationOptions.maxIterativeIterations;
     ceres_options.min_relative_decrease        = 1e-50;
     ceres_options.function_tolerance           = 1e-50;
+
+    ceres_options.initial_trust_region_radius = 1.0 / optimizationOptions.initialLambda;
+
+    ceres_options.linear_solver_ordering = ordering;
 
 
     switch (optimizationOptions.solverType)
