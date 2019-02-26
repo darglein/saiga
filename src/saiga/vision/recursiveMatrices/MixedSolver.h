@@ -86,10 +86,18 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
         S.resize(n, n);
 
 
-        // TODO: add heurisitc here
-        explizitSchur = true;
-        // TODO: use heuristic when to compute WT
-        hasWT = true;
+        if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
+        {
+            hasWT         = true;
+            explizitSchur = true;
+        }
+        else
+        {
+            // TODO: add heurisitc here
+            hasWT         = true;
+            explizitSchur = false;
+        }
+
         if (hasWT)
         {
             transposeStructureOnly(A.w, WT);
