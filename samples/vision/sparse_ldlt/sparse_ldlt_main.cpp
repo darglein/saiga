@@ -355,7 +355,7 @@ float make_test(LDLT& ldlt, Saiga::Table& tab, T f)
     std::string name;
     float error;
 
-    for (int i = 0; i < 1; ++i)
+    for (int i = 0; i < 3; ++i)
     {
         auto [time2, error2, name2] = (ldlt.*f)();
         time.push_back(time2);
@@ -389,7 +389,7 @@ void run()
     //    make_test(test, table, &LDLT::solveEigenSparseLDLT);
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
     make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
-    make_test(test, table, &LDLT::solveCholmodSimplicial);
+    //    make_test(test, table, &LDLT::solveCholmodSimplicial);
     make_test(test, table, &LDLT::solveCholmodSupernodal);
 
 
@@ -445,7 +445,7 @@ int main(int, char**)
 
 #else
     {
-        LauncherLoop<4, 16 + 1, 1, 1, 2> l;
+        LauncherLoop<4, 4 + 1, 1, 1, 16> l;
         l();
     }
 //    {

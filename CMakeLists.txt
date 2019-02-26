@@ -341,11 +341,12 @@ if(CUDA_FOUND)
     # We need this to get the actual cuda libraries, because
     # one sample only is linked with the host compiler and therefore
     # does not automatically link to the cuda runtime.
-    find_package(CUDA REQUIRED QUIET)
-
-    SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
 
     if(SAIGA_CUDA_BLSP)
+        find_package(CUDA REQUIRED QUIET)
+
+        SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
+
         if(CUDA_cusparse_LIBRARY)
             SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cusparse_LIBRARY})
             SET(SAIGA_USE_CUSPARSE 1)
@@ -393,7 +394,7 @@ else()
     SET(SAIGA_USE_CUDA 0)
 endif()
 
-PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
+#PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
 
 
 

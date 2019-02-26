@@ -142,14 +142,19 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
             StorageIndex i = it.index();
             if (i <= k)
             {
-                y[i] += transpose(it.value()); /* scatter A(i,k) into Y (sum duplicates) */
+                /* scatter A(i,k) into Y (sum duplicates) */
+                // Note: we need a + here if the matrix contains duplicates
+                y[i] = transpose(it.value());
                 Index len;
                 for (len = 0; tags[i] != k; i = m_parent[i])
                 {
                     pattern[len++] = i; /* L(k,i) is nonzero */
                     tags[i]        = k; /* mark i as visited */
                 }
-                while (len > 0) pattern[--top] = pattern[--len];
+                while (len > 0)
+                {
+                    pattern[--top] = pattern[--len];
+                }
             }
         }
 

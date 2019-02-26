@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-struct OptimizationResults
+struct SAIGA_VISION_API OptimizationResults
 {
     std::string name;
 
@@ -24,7 +24,7 @@ struct OptimizationResults
     bool success;
 };
 
-struct OptimizationOptions
+struct SAIGA_VISION_API OptimizationOptions
 {
     int maxIterations = 10;
 
@@ -45,7 +45,7 @@ struct OptimizationOptions
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, OptimizationOptions& op);
 
-class Optimizer
+class SAIGA_VISION_API Optimizer
 {
    public:
     Optimizer() {}
@@ -55,7 +55,7 @@ class Optimizer
 };
 
 
-class LMOptimizer : public Optimizer
+class SAIGA_VISION_API LMOptimizer : public Optimizer
 {
    public:
     LMOptimizer() {}
