@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#define CHOLMOD_OMP_NUM_THREADS 1
 #define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
 
 
@@ -65,21 +66,22 @@ class Sparse_LDLT_TEST
     const int nnzr = 1 * block_size2 / (int)log(block_size2);
 #else
 
-#    if 1
-    const double targetNNZ          = factor * 1000 * 1000 * sqrt(block_size);
-    const double targetDensity      = 0.0002;
+#    if 0
+    const double targetNNZ          = factor * 400 * 1000 * sqrt(block_size);
+    const double targetDensity      = 0.001;
 
     const double nnzBlocks = targetNNZ / double(block_size * block_size);
     const double zBlocks   = 1.0 / targetDensity * nnzBlocks;
 
     const int n    = sqrt(zBlocks);
-    const int nnzr = std::max<int>(nnzBlocks / n, 2);
+    const int nnzr = std::max<int>(nnzBlocks / n, 1);
 #    else
 
-    const double targetNNZ = 1000 * 1000 * 4;
-    const int nnzr         = 8;
-    const double nnzBlocks = targetNNZ / double(block_size * block_size);
-    const int n            = nnzBlocks / nnzr;
+    // const double targetNNZ = 1000 * 1000 * 4;
+    const int nnzr = 4;
+    const int n    = 4000;
+    // const double nnzBlocks = targetNNZ / double(block_size * block_size);
+    // const int n            = nnzBlocks / nnzr;
 #    endif
 #endif
 
@@ -270,8 +272,9 @@ class Sparse_LDLT_TEST
         //        Eigen::CholmodSupernodalLLT<decltype(Anoblock)> ldlt;
         Eigen::CholmodDecomposition<decltype(Anoblock)> ldlt;
 
-        ldlt.cholmod().supernodal = CHOLMOD_SUPERNODAL;
-        ldlt.cholmod().final_ll   = 0;
+        ldlt.cholmod().supernodal    = CHOLMOD_SUPERNODAL;
+        ldlt.cholmod().final_ll      = 0;
+        ldlt.cholmod().SPQR_nthreads = 1;
         //        ldlt.cholmod().final_asis = 1;
 
         float time = 0;
@@ -355,7 +358,7 @@ float make_test(LDLT& ldlt, Saiga::Table& tab, T f)
     std::string name;
     float error;
 
-    for (int i = 0; i < 1; ++i)
+    for (int i = 0; i < 20; ++i)
     {
         auto [time2, error2, name2] = (ldlt.*f)();
         time.push_back(time2);
@@ -388,8 +391,8 @@ void run()
     //    if (test.A.rows() < 100) make_test(test, table, &LDLT::solveEigenDenseLDLT);
     //    make_test(test, table, &LDLT::solveEigenSparseLDLT);
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
-    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
-    make_test(test, table, &LDLT::solveCholmodSimplicial);
+    //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
+    //    make_test(test, table, &LDLT::solveCholmodSimplicial);
     make_test(test, table, &LDLT::solveCholmodSupernodal);
 
 
@@ -445,8 +448,13 @@ int main(int, char**)
 
 #else
     {
-        LauncherLoop<4, 16 + 1, 1, 1, 2> l;
+        omp_set_num_threads(1);
+        LauncherLoop<24, 24 + 1, 1, 1, 2> l;
         l();
+    }
+    {
+        //        LauncherLoop<16, 32 + 2, 2, 1, 4> l;
+        //        l();
     }
 //    {
 //        LauncherLoop<8, 8 + 1, 2> l;
