@@ -89,7 +89,7 @@ static void bitonicSortTest()
 {
     int N   = 64;
     using T = float;
-    Saiga::thrust::pinned_vector<T> h_data(N), res;
+    Saiga::pinned_vector<T> h_data(N), res;
     thrust::device_vector<T> d_data(N);
 
     for (auto& f : h_data)

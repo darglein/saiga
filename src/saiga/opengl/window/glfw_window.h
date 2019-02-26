@@ -8,14 +8,15 @@
 
 
 #include "saiga/config.h"
+
+#ifndef SAIGA_USE_GLFW
+#    error Saiga was compiled without GLFW.
+#endif
+
+
 #include "saiga/core/glfw/glfw_eventhandler.h"
 #include "saiga/core/glfw/glfw_joystick.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
-
-#include <array>
-#include <list>
-#include <mutex>
-#include <thread>
 
 struct GLFWwindow;
 struct GLFWcursor;
