@@ -9,7 +9,6 @@
 
 #include "saiga/vulkan/window/Window.h"
 
-
 #ifndef SAIGA_USE_SDL
 #    error Saiga was compiled without SDL2.
 #endif

@@ -16,10 +16,15 @@
 #include "g2o/core/optimization_algorithm_levenberg.h"
 #include "g2o/core/robust_kernel_impl.h"
 #include "g2o/core/sparse_optimizer.h"
-//#include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
 #include "g2o/solvers/pcg/linear_solver_pcg.h"
 #include "g2o_kernels/sophus_sba.h"
+
+#define USE_CHOLMOD_SOLVER
+
+#ifdef USE_CHOLMOD_SOLVER
+#    include "g2o/solvers/cholmod/linear_solver_cholmod.h"
+#endif
 
 namespace Saiga
 {
@@ -37,7 +42,11 @@ OptimizationResults g2oBA2::solve()
     {
         case OptimizationOptions::SolverType::Direct:
         {
-            auto ls      = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
+#ifdef USE_CHOLMOD_SOLVER
+            auto ls = std::make_unique<g2o::LinearSolverCholmod<BlockSolver::PoseMatrixType>>();
+#else
+            auto ls = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
+#endif
             linearSolver = std::move(ls);
             break;
         }
@@ -45,15 +54,15 @@ OptimizationResults g2oBA2::solve()
         {
             auto ls = g2o::make_unique<g2o::LinearSolverPCG<BlockSolver::PoseMatrixType>>();
             ls->setMaxIterations(optimizationOptions.maxIterativeIterations);
-            ls->setTolerance(optimizationOptions.iterativeTolerance);
+            ls->setTolerance(optimizationOptions.iterativeTolerance * optimizationOptions.iterativeTolerance);
             linearSolver = std::move(ls);
             break;
         }
     }
 
     OptimizationAlgorithm* solver = new OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
-    solver->setUserLambdaInit(1.0);
-
+    solver->setUserLambdaInit(optimizationOptions.initialLambda * 2);
+    solver->setMaxTrialsAfterFailure(2);
     g2o::SparseOptimizer optimizer;
     optimizer.setVerbose(optimizationOptions.debugOutput);
     //    optimizer.setComputeBatchStatistics(options.debugOutput);
@@ -248,15 +257,22 @@ OptimizationResults g2oBA2::solve()
     }
 
     {
+        int its      = 0;
         double ltime = 0;
         auto stats   = optimizer.batchStatistics();
+        bool invalid = false;
         for (auto s : stats)
         {
             ltime += s.timeLinearSolution * 1000;
+            its += s.iterationsLinearSolver;
+            if (s.levenbergIterations != 1) invalid = true;
         }
         result.linear_solver_time = ltime;
         //    result.cost_initial       = stats.front().chi2;
+
         result.cost_final = stats.back().chi2;
+
+        if (invalid) result.cost_final = -1;
     }
 
     return result;

@@ -5,7 +5,7 @@
  */
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_OPENGL
+#ifdef SAIGA_USE_SDL
 
 #    include "saiga/opengl/imgui/imgui_impl_sdl_gl3.h"
 

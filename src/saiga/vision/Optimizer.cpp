@@ -29,25 +29,28 @@ void OptimizationOptions::imgui()
 
 std::ostream& operator<<(std::ostream& strm, OptimizationOptions& op)
 {
-    strm << "[BA Solver Options]" << endl;
+    strm << "[Optimization Options]" << endl;
     strm << " Iterations: " << op.maxIterations << endl;
+    strm << " Initial Lambda: " << op.initialLambda<< endl;
 
     if (op.solverType == OptimizationOptions::SolverType::Iterative)
     {
         strm << " solverType: CG Schur" << endl;
         strm << " maxIterativeIterations: " << op.maxIterativeIterations << endl;
+        strm << " iterativeTolerance: " << op.iterativeTolerance << endl;
     }
     else
     {
         strm << " solverType: LDLT Schur" << endl;
     }
-    strm << " iterativeTolerance: " << op.iterativeTolerance << endl;
     return strm;
 }
 
 OptimizationResults LMOptimizer::solve()
 {
     OptimizationResults result;
+
+    lambda = optimizationOptions.initialLambda;
 
     {
         Saiga::ScopedTimer<double> timer(result.total_time);

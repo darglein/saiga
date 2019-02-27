@@ -28,21 +28,23 @@ class SAIGA_CUDA_API CudaStream
     cudaStream_t stream;
 
 
-    CudaStream() { cudaStreamCreate(&stream); }
+    CudaStream();
 
-    ~CudaStream() { cudaStreamDestroy(stream); }
+    ~CudaStream();
 
     // Let the stream wait for this event
     // this call returns immediately
-    void waitForEvent(cudaEvent_t event) { cudaStreamWaitEvent(stream, event, 0); }
+    void waitForEvent(cudaEvent_t event);
 
 
-    operator cudaStream_t() const { return stream; }
+    operator cudaStream_t() const;
 
-    static cudaStream_t legacyStream() { return cudaStreamLegacy; }
+    static cudaStream_t legacyStream();
 
-    static cudaStream_t perThreadStream() { return cudaStreamPerThread; }
+    static cudaStream_t perThreadStream();
 };
+
+
 
 }  // namespace CUDA
 }  // namespace Saiga

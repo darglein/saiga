@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-struct OptimizationResults
+struct SAIGA_VISION_API OptimizationResults
 {
     std::string name;
 
@@ -24,7 +24,7 @@ struct OptimizationResults
     bool success;
 };
 
-struct OptimizationOptions
+struct SAIGA_VISION_API OptimizationOptions
 {
     int maxIterations = 10;
 
@@ -38,6 +38,8 @@ struct OptimizationOptions
     int maxIterativeIterations = 50;
     double iterativeTolerance  = 1e-5;
 
+    double initialLambda = 1.00e-04;
+
     bool debugOutput = false;
 
     void imgui();
@@ -45,7 +47,7 @@ struct OptimizationOptions
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, OptimizationOptions& op);
 
-class Optimizer
+class SAIGA_VISION_API Optimizer
 {
    public:
     Optimizer() {}
@@ -55,7 +57,7 @@ class Optimizer
 };
 
 
-class LMOptimizer : public Optimizer
+class SAIGA_VISION_API LMOptimizer : public Optimizer
 {
    public:
     LMOptimizer() {}
@@ -72,8 +74,8 @@ class LMOptimizer : public Optimizer
     virtual double computeCost()          = 0;
     virtual void finalize()               = 0;
 
-    double lambda = 1.0 / 1.00e+04;
-    double v      = 2;
+    double lambda;
+    double v = 2;
 };
 
 }  // namespace Saiga

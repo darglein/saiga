@@ -85,7 +85,7 @@ static void uploadProcessDownloadAsync(int N, int slices, int streamCount)
 {
     using T = Element<K>;
 
-    Saiga::thrust::pinned_vector<T> h_data(N);
+    Saiga::pinned_vector<T> h_data(N);
     //        thrust::host_vector<T> h_data(N);
     thrust::device_vector<T> d_data(N);
 //    size_t size = N * sizeof(T);

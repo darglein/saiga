@@ -168,7 +168,9 @@ void VulkanExample::renderGUI()
     {
         SAIGA_BLOCK_TIMER();
         Saiga::g2oBA2 ba;
-        ba.solve(scene, baoptions);
+        ba.baOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 
@@ -176,7 +178,9 @@ void VulkanExample::renderGUI()
     {
         SAIGA_BLOCK_TIMER();
         Saiga::CeresBA ba;
-        ba.solve(scene, baoptions);
+        ba.baOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 
@@ -203,7 +207,9 @@ void VulkanExample::renderGUI()
     {
         SAIGA_BLOCK_TIMER();
         //        Saiga::BARec barec;
-        barec.solve(scene, baoptions);
+        barec.baOptions = baoptions;
+        barec.create(scene);
+        barec.solve();
         change = true;
     }
 
@@ -211,7 +217,9 @@ void VulkanExample::renderGUI()
     {
         SAIGA_BLOCK_TIMER();
         Saiga::BAPoseOnly ba;
-        ba.solve(scene, baoptions);
+        ba.baOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 

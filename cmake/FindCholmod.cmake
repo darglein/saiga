@@ -5,6 +5,11 @@
 # Define:
 # CHOLMOD_LIBRARIES
 # CHOLMOD_INCLUDES
+# Uses:
+# SUITESPARSE_DIR
+
+
+
 
 if (CHOLMOD_INCLUDES AND CHOLMOD_LIBRARIES)
   set(CHOLMOD_FIND_QUIETLY TRUE)
@@ -14,14 +19,18 @@ find_path(CHOLMOD_INCLUDES
   NAMES
   cholmod.h
   PATHS
-  $ENV{CHOLMODDIR}
-  ${INCLUDE_INSTALL_DIR}
+  ${SUITESPARSE_DIR}/include
   PATH_SUFFIXES
   suitesparse
-  ufsparse
 )
 
-find_library(CHOLMOD_LIBRARIES cholmod PATHS $ENV{CHOLMODDIR} ${LIB_INSTALL_DIR})
+
+find_library(CHOLMOD_LIBRARIES
+    cholmod
+    PATHS
+    ${SUITESPARSE_DIR}/lib
+    )
+
 
 if(CHOLMOD_LIBRARIES)
 
