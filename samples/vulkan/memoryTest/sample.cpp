@@ -91,7 +91,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 void VulkanExample::renderGUI()
 {
-    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL), image_dist(0, 2);
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1, 5), size_dist(0UL, 3UL), image_dist(0, 3);
 
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Example settings");
@@ -103,9 +103,9 @@ void VulkanExample::renderGUI()
         enable_defragger = old_enable;
         renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
     }
+
     ImGui::Checkbox("Auto allocate indexed", &enable_auto_index);
     ImGui::Text("%d", auto_allocs);
-
 
     if (ImGui::Button("Allocate Image"))
     {
@@ -115,9 +115,9 @@ void VulkanExample::renderGUI()
 
         for (int i = 0; i < num_allocs; ++i)
         {
-            auto size = image_dist(mersenne_twister);
+            auto index = image_dist(mersenne_twister);
             // allocations.push_back(renderer.base.memory.allocate(buffer_type, size));
-            tex_allocations.push_back(allocate(image_type, size));
+            tex_allocations.push_back(allocate(image_type, index));
         }
         renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
         renderer.base.memory.start_defrag(buffer_type);
@@ -135,8 +135,16 @@ void VulkanExample::renderGUI()
         {
             auto index = mersenne_twister() % tex_allocations.size();
 
-            // renderer.base.memory.deallocateBuffer(buffer_type, allocations[index].first);
+            if (index == texture_index)
+            {
+                continue;
+            }
             tex_allocations.erase(tex_allocations.begin() + index);
+
+            if (index < texture_index)
+            {
+                texture_index--;
+            }
         }
         renderer.base.memory.enable_defragmentation(image_type, enable_defragger);
         renderer.base.memory.start_defrag(image_type);
@@ -243,6 +251,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
             break;
         case SDL_SCANCODE_ESCAPE:
+            cleanup();
             parentWindow.close();
             break;
         default:
@@ -320,4 +329,12 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t> VulkanExample::al
     texture->mark_dynamic();
 
     return std::make_pair(texture, 0);
+}
+
+void VulkanExample::cleanup()
+{
+    renderer.base.device.waitIdle();
+    allocations.resize(0);
+    num_allocations.resize(0);
+    tex_allocations.resize(0);
 }

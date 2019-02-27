@@ -30,8 +30,8 @@ class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener
 {
-    std::array<std::string, 3> image_names{"cat.png", "red-panda.png", "dog.png"};
-    std::array<std::shared_ptr<Saiga::Image>, 3> images;
+    std::array<std::string, 4> image_names{"cat.png", "red-panda.png", "dog.png", "pika.png"};
+    std::array<std::shared_ptr<Saiga::Image>, 4> images;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t>> tex_allocations;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations;
@@ -87,4 +87,5 @@ class VulkanExample : public Saiga::Updating,
 
     std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t> allocate(Saiga::Vulkan::Memory::ImageType type,
                                                                             unsigned long long int size);
+    void cleanup();
 };
