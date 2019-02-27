@@ -94,6 +94,7 @@ class SAIGA_VULKAN_API VulkanMemory
     vk::PhysicalDevice m_pDevice;
     vk::Device m_device;
     Queue* m_queue;
+    uint32_t m_swapchain_images;
     std::unique_ptr<ImageCopyComputeShader> img_copy_shader;
 
 
@@ -187,7 +188,7 @@ class SAIGA_VULKAN_API VulkanMemory
     ImageContainer& get_image_allocator_exact(const ImageType& type);
 
    public:
-    void init(VulkanBase* base);
+    void init(VulkanBase* base, uint32_t swapchain_frames);
 
     void destroy();
 
@@ -213,6 +214,29 @@ class SAIGA_VULKAN_API VulkanMemory
     void stop_defrag(const BufferType& type);
 
     void stop_defrag(const ImageType& type);
+
+    void update()
+    {
+        for (auto& allocator : bufferAllocators)
+        {
+            auto* defragger = allocator.second.defragger.get();
+
+            if (defragger)
+            {
+                defragger->update();
+            }
+        }
+
+        for (auto& allocator : imageAllocators)
+        {
+            auto* defragger = allocator.second.defragger.get();
+
+            if (defragger)
+            {
+                defragger->update();
+            }
+        }
+    }
 };
 
 }  // namespace Saiga::Vulkan::Memory

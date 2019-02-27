@@ -40,7 +40,7 @@ class VulkanExample : public Saiga::Updating,
     std::array<vk::DeviceSize, 4> tex_sizes{256, 512, 1024, 2048};
     std::array<vk::DeviceSize, 4> sizes{256 * 256, 512 * 512, 1024 * 1024, 16 * 1024 * 1024};
 
-    Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eVertexBuffer,
+    Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eTransferDst,
                                                   vk::MemoryPropertyFlagBits::eDeviceLocal};
     Saiga::Vulkan::Memory::ImageType image_type{vk::ImageUsageFlagBits::eSampled,
                                                 vk::MemoryPropertyFlagBits::eDeviceLocal};

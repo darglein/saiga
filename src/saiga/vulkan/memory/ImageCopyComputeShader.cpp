@@ -52,17 +52,10 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
 {
     auto cmd = base->computeQueue->commandPool.createAndBeginOneTimeBuffer();
 
-    // auto oldLayout = target->data.layout;
-
     target->data.transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
-
-
 
     cmd.end();
     base->computeQueue->submitAndWait(cmd);
-
-    LOG(INFO) << target->data;
-    LOG(INFO) << vk::to_string(target->data.image_create_info.format);
 
     auto descriptorSet = pipeline->createDescriptorSet();
 

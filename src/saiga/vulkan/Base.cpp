@@ -53,6 +53,7 @@ void VulkanBase::destroy()
 
 void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& parameters, bool useSwapChain)
 {
+    m_parameters = parameters;
     std::vector<uint32_t> queueCounts(queueFamilyProperties.size(), 0);
 
     uint32_t main_idx, transfer_idx, compute_idx;
@@ -219,9 +220,6 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, parameters.descriptorCounts[3]},
             vk::DescriptorPoolSize{vk::DescriptorType::eSampledImage, parameters.descriptorCounts[3]},
         });
-
-
-    memory.init(this);
 }
 
 void VulkanBase::init(VulkanParameters params) {}

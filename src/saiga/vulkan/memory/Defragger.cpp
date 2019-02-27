@@ -7,12 +7,14 @@
 #include "saiga/core/util/threadName.h"
 
 #include "ImageCopyComputeShader.h"
+
+#include <optional>
 namespace Saiga::Vulkan::Memory
 {
-bool BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOperation& op)
+std::optional<BufferDefragger::FreeOperation> BufferDefragger::execute_defrag_operation(
+    const BufferDefragger::DefragOperation& op)
 {
-    LOG(INFO) << "DEFRAG" << *(op.source) << "->" << op.targetMemory << "," << op.target.offset << " "
-              << op.target.size;
+    VLOG(1) << "DEFRAG" << *(op.source) << "->" << op.targetMemory << "," << op.target.offset << " " << op.target.size;
 
     BufferMemoryLocation* reserve_space = allocator->reserve_space(op.targetMemory, op.target, op.source->size);
     auto defrag_cmd                     = allocator->queue->commandPool.createAndBeginOneTimeBuffer();
@@ -26,11 +28,13 @@ bool BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOper
 
     allocator->queue->commandPool.freeCommandBuffer(defrag_cmd);
 
-    allocator->move_allocation(reserve_space, op.source);
-    return true;
+    // allocator->move_allocation(reserve_space, op.source);
+    return std::optional<BufferDefragger::FreeOperation>(
+        BufferDefragger::FreeOperation{reserve_space, op.source, dealloc_delay});
 }
 
-bool ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperation& op)
+std::optional<ImageDefragger::FreeOperation> ImageDefragger::execute_defrag_operation(
+    const ImageDefragger::DefragOperation& op)
 {
     ImageMemoryLocation* reserve_space = allocator->reserve_space(op.targetMemory, op.target, op.source->size);
 
@@ -43,22 +47,22 @@ bool ImageDefragger::execute_defrag_operation(const ImageDefragger::DefragOperat
     reserve_space->data.create_view(device);
     reserve_space->data.create_sampler(device);
 
-    LOG(INFO) << "IMAGE DEFRAG" << *(op.source) << "->" << *reserve_space;
+    VLOG(1) << "IMAGE DEFRAG" << *(op.source) << "->" << *reserve_space;
 
     bool didcopy = img_copy_shader->copy_image(reserve_space, op.source);
 
     if (!didcopy)
     {
-        return false;
+        return std::optional<ImageDefragger::FreeOperation>();
     }
 
-    allocator->move_allocation(reserve_space, op.source);
-    return true;
+    return std::optional<ImageDefragger::FreeOperation>(
+        ImageDefragger::FreeOperation{reserve_space, op.source, dealloc_delay});
 }
 
 ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
-                               ImageCopyComputeShader* _img_copy_shader)
-    : Defragger(base, device, allocator), img_copy_shader(_img_copy_shader)
+                               uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader)
+    : Defragger(base, device, allocator, dealloc_delay), img_copy_shader(_img_copy_shader)
 {
     if (!img_copy_shader->is_initialized())
     {

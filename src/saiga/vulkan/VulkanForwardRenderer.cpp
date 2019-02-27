@@ -274,6 +274,8 @@ void VulkanForwardRenderer::render(Camera* cam)
     //    presentQueue.waitIdle();
 
     nextSyncObject = (nextSyncObject + 1) % syncObjects.size();
+
+    base.memory.update();
 }
 
 void VulkanForwardRenderer::waitIdle()

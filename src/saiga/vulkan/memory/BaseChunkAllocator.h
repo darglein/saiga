@@ -95,13 +95,13 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     T* reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
 
 
-    bool memory_is_free(vk::DeviceMemory memory, FreeListEntry entry);
+    bool memory_is_free(vk::DeviceMemory memory, FreeListEntry free_mem);
 
     void destroy();
 
     MemoryStats collectMemoryStats();
 
-    void showDetailStats();
+    void showDetailStats(bool expand);
 
     T* allocate_in_free_space(vk::DeviceSize size, ChunkIterator<T>& chunkAlloc, FreeIterator<T>& freeSpace);
 
@@ -109,8 +109,8 @@ class SAIGA_VULKAN_API BaseChunkAllocator
 
     void move_allocation(T* target, T* source);
 
-    template <typename FreeList>
-    void add_to_free_list(const ChunkIterator<T>& chunk, const FreeList& location) const;
+    template <typename FreeEntry>
+    void add_to_free_list(const ChunkIterator<T>& chunk, const FreeEntry& location) const;
 };
 
 template <typename T>
@@ -272,7 +272,6 @@ T* BaseChunkAllocator<T>::reserve_space(vk::DeviceMemory memory, FreeListEntry f
 template <typename T>
 void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
 {
-    // TODO: has to be done differently for images
     std::scoped_lock lock(allocationMutex);
     const auto size = source->size;
 
@@ -303,8 +302,8 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
 }
 
 template <typename T>
-template <typename FreeList>
-void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const FreeList& location) const
+template <typename FreeEntry>
+void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const FreeEntry& location) const
 {
     auto& freeList = chunk->freeList;
     auto found = lower_bound(freeList.begin(), freeList.end(), location, [](const auto& free_entry, const auto& value) {
@@ -350,7 +349,7 @@ std::pair<ChunkIterator<T>, AllocationIterator<T>> BaseChunkAllocator<T>::find_a
 }
 
 template <typename T>
-void BaseChunkAllocator<T>::showDetailStats()
+void BaseChunkAllocator<T>::showDetailStats(bool expand)
 {
     using BarColor = ImGui::ColoredBar::BarColor;
     static const BarColor alloc_color_static{{1.00f, 0.447f, 0.133f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}};
@@ -358,7 +357,13 @@ void BaseChunkAllocator<T>::showDetailStats()
 
     static std::vector<ImGui::ColoredBar> allocation_bars;
 
-    if (ImGui::CollapsingHeader(gui_identifier.c_str()))
+
+    ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_None;
+    if (expand)
+    {
+        node_flags = ImGuiTreeNodeFlags_DefaultOpen;
+    }
+    if (ImGui::CollapsingHeader(gui_identifier.c_str(), node_flags))
     {
         std::scoped_lock lock(allocationMutex);
         ImGui::Indent();

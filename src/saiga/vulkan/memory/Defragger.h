@@ -15,6 +15,7 @@
 #include "ImageMemoryLocation.h"
 
 #include <atomic>
+#include <list>
 #include <mutex>
 #include <set>
 #include <thread>
@@ -54,15 +55,24 @@ class Defragger
         bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
     };
 
+    struct FreeOperation
+    {
+        T *target, *source;
+        int32_t delay;
+    };
+
     bool valid;
     bool enabled;
+    int32_t dealloc_delay;
     VulkanBase* base;
     vk::Device device;
     BaseChunkAllocator<T>* allocator;
     std::multiset<DefragOperation> defrag_operations;
 
+    std::list<FreeOperation> free_operations;
 
     std::atomic_bool running, quit;
+    std::atomic_int frame_counter;
 
     std::mutex start_mutex, running_mutex, invalidate_mutex;
     std::condition_variable start_condition;
@@ -79,18 +89,27 @@ class Defragger
     void apply_invalidations();
 
     void run();
+
+
+    void find_defrag_ops();
+    bool perform_defrag();
+    bool perform_free_operations();
+
     // end defrag thread functions
    public:
     OperationPenalties penalties;
-    Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator)
+    Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0)
         : valid(true),
           enabled(false),
+          dealloc_delay(_dealloc_delay + 1),
           base(_base),
           device(_device),
           allocator(_allocator),
           defrag_operations(),
+          free_operations(),
           running(false),
           quit(false),
+          frame_counter(0),
           worker(&Defragger::worker_func, this)
     {
     }
@@ -123,11 +142,10 @@ class Defragger
     void invalidate(vk::DeviceMemory memory);
     void invalidate(T* location);
 
-    void find_defrag_ops();
-    bool perform_defrag();
+    void update() { frame_counter++; }
 
    protected:
-    virtual bool execute_defrag_operation(const DefragOperation& op) = 0;
+    virtual std::optional<FreeOperation> execute_defrag_operation(const DefragOperation& op) = 0;
 };
 
 
@@ -197,8 +215,10 @@ void Defragger<T>::run()
     bool performed = true;
     while (running && performed)
     {
+        performed = false;
         find_defrag_ops();
-        performed = perform_defrag();
+        performed |= perform_defrag();
+        performed |= perform_free_operations();
     }
 }
 
@@ -212,9 +232,17 @@ void Defragger<T>::find_defrag_ops()
         auto& allocs = chunk_iter->allocations;
         for (auto alloc_iter = allocs.rbegin(); running && alloc_iter != allocs.rend(); ++alloc_iter)
         {
-            auto& source = **alloc_iter;
+            auto source_ptr = alloc_iter->get();
+            auto& source    = **alloc_iter;
 
             if (source.is_static())
+            {
+                continue;
+            }
+
+            auto found = std::find_if(free_operations.begin(), free_operations.end(),
+                                      [=](const FreeOperation& op) { return op.source == source_ptr; });
+            if (found != free_operations.end())
             {
                 continue;
             }
@@ -246,17 +274,18 @@ void Defragger<T>::find_defrag_ops()
 template <typename T>
 bool Defragger<T>::perform_defrag()
 {
-    {
-        using namespace std::chrono_literals;
-    }
-
     auto op        = defrag_operations.begin();
     bool performed = false;
     while (running && op != defrag_operations.end())
     {
         if (allocator->memory_is_free(op->targetMemory, op->target))
         {
-            performed |= execute_defrag_operation(*op);
+            auto free_op = execute_defrag_operation(*op);
+            if (free_op)
+            {
+                free_operations.push_back(free_op.value());
+                performed = true;
+            }
         }
 
         op = defrag_operations.erase(op);
@@ -264,6 +293,39 @@ bool Defragger<T>::perform_defrag()
     return performed;
 }
 
+template <typename T>
+bool Defragger<T>::perform_free_operations()
+{
+    // get the value atomically and reset to zero (if during freeing another frame is rendered)
+    int frames_advanced = frame_counter.exchange(0);
+
+    // std::for_each(free_operations.begin(), free_operations.end(), [=](auto& entry) { entry.delay -= frames_advanced;
+    // });
+    auto op  = free_operations.begin();
+    auto end = free_operations.end();
+    while (running && op != end)
+    {
+        op->delay -= frames_advanced;
+
+        if (op->delay <= 0)
+        {
+            if (op->source->is_static())
+            {
+                free_operations.push_back(FreeOperation{nullptr, op->target, dealloc_delay});
+            }
+            else
+            {
+                allocator->move_allocation(op->target, op->source);
+            }
+            op = free_operations.erase(op);
+        }
+        else
+        {
+            ++op;
+        }
+    }
+    return !free_operations.empty();
+}
 
 template <typename T>
 float Defragger<T>::get_operation_penalty(ConstChunkIterator<T> target_chunk, ConstFreeIterator<T> target_location,
@@ -362,28 +424,17 @@ void Defragger<T>::invalidate(T* location)
     }
 }
 
-
-
-// using BufferDefragger = Defragger<BufferMemoryLocation>;
-
-
-// template <>
-// void BufferDefragger::execute_defrag_operation(const BufferDefragger::DefragOperation& op);
-
-// template <>
-// void Defragger<ImageMemoryLocation>::execute_defrag_operation(
-//    const Defragger<ImageMemoryLocation>::DefragOperation& op);
-
 class BufferDefragger : public Defragger<BufferMemoryLocation>
 {
    public:
-    BufferDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<BufferMemoryLocation>* allocator)
-        : Defragger(base, device, allocator)
+    BufferDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<BufferMemoryLocation>* allocator,
+                    uint32_t dealloc_delay)
+        : Defragger(base, device, allocator, dealloc_delay)
     {
     }
 
    protected:
-    bool execute_defrag_operation(const DefragOperation& op) override;
+    std::optional<FreeOperation> execute_defrag_operation(const DefragOperation& op) override;
 };
 
 class ImageDefragger : public Defragger<ImageMemoryLocation>
@@ -393,10 +444,10 @@ class ImageDefragger : public Defragger<ImageMemoryLocation>
 
    public:
     ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
-                   ImageCopyComputeShader* _img_copy_shader);
+                   uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader);
 
    protected:
-    bool execute_defrag_operation(const DefragOperation& op) override;
+    std::optional<FreeOperation> execute_defrag_operation(const DefragOperation& op) override;
 };
 
 }  // namespace Saiga::Vulkan::Memory

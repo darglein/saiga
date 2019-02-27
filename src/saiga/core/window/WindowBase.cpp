@@ -12,7 +12,10 @@
 #include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
-WindowBase::WindowBase(WindowParameters _windowParameters) : mainLoop(*this), windowParameters(_windowParameters) {}
+WindowBase::WindowBase(WindowParameters _windowParameters) : mainLoop(*this), windowParameters(_windowParameters)
+{
+    showRendererImgui = windowParameters.showRendererWindow;
+}
 
 WindowBase::~WindowBase() {}
 

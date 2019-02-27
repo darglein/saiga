@@ -37,6 +37,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     swapChain.connect(instance, base.physicalDevice, base.device);
     swapChain.initSurface(surface);
     swapChain.create(&width, &height, false);
+    base.init_memory(swapChain.imageCount);
 }
 
 VulkanRenderer::~VulkanRenderer()
