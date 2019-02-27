@@ -563,7 +563,7 @@ static void compactSolve()
 
     BAMatrix A;
     BAVector x, b;
-    MixedRecursiveSolver<BAMatrix, BAVector> solver;
+    MixedSymmetricRecursiveSolver<BAMatrix, BAVector> solver;
 
     initializeSparseStructure(A);
     for (int k = 0; k < 10; ++k)

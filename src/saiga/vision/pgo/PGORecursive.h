@@ -22,7 +22,6 @@ class SAIGA_VISION_API PGORec : public PGOBase
    private:
     int n;
     PSType S;
-    PSDiagType Sdiag;
     PBType b;
     PBType x;
 
@@ -32,7 +31,6 @@ class SAIGA_VISION_API PGORec : public PGOBase
     PGOOptions options;
     void initStructure(PoseGraph& scene);
     void compute(PoseGraph& scene);
-    void solveL(PoseGraph& scene);
 };
 
 }  // namespace Saiga

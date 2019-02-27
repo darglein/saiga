@@ -61,7 +61,7 @@ OptimizationResults g2oBA2::solve()
     }
 
     OptimizationAlgorithm* solver = new OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
-    solver->setUserLambdaInit(optimizationOptions.initialLambda * 2);
+    //    solver->setUserLambdaInit(optimizationOptions.initialLambda * 2);
     solver->setMaxTrialsAfterFailure(2);
     g2o::SparseOptimizer optimizer;
     optimizer.setVerbose(optimizationOptions.debugOutput);

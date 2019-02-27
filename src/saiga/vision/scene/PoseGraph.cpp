@@ -57,6 +57,7 @@ PoseGraph::PoseGraph(const Scene& scene)
             }
         }
     }
+    sortEdges();
 }
 
 void PoseGraph::addNoise(double stddev)
@@ -162,6 +163,20 @@ void PoseGraph::load(const std::string& file)
         //        e.setRel(poses[e.from].se3, poses[e.to].se3);
     }
     std::sort(edges.begin(), edges.end());
+    sortEdges();
+}
+
+void PoseGraph::sortEdges()
+{
+    // first swap if j > i
+    for (auto& e : edges)
+    {
+        if (e.from > e.to) e.invert();
+    }
+
+    // and then sort by from/to index
+    std::sort(edges.begin(), edges.end());
+    cout << "Edges sorted!" << endl;
 }
 
 bool PoseGraph::imgui()

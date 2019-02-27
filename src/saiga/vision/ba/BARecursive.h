@@ -57,7 +57,7 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
                  Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>>, -1, 1>>
         delta_x, b;
 
-    MixedRecursiveSolver<SymmetricMixedMatrix2<UType, VType, WType>, MixedVector2<DAType, DBType>> solver;
+    MixedSymmetricRecursiveSolver<SymmetricMixedMatrix2<UType, VType, WType>, MixedVector2<DAType, DBType>> solver;
 
     // These are only reference into the global matrix A
     UType& U;

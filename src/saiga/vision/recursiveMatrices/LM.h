@@ -11,6 +11,19 @@
 
 namespace Saiga
 {
+template <typename T>
+void applyLMDiagonalInner(T& diag, double lambda = 1.00e-04, double min_lm_diagonal = 1e-6,
+                          double max_lm_diagonal = 1e32)
+{
+    for (int k = 0; k < diag.RowsAtCompileTime; ++k)
+    {
+        auto& value = diag.diagonal()(k);
+        value       = value + lambda * value;
+        value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
+    }
+}
+
+
 /**
  * Applies the Levenberg Marquarad Diagonal update to a recursive diagonal matrix.
  *
@@ -24,11 +37,12 @@ void applyLMDiagonal(Eigen::DiagonalMatrix<T, -1>& U, double lambda = 1.00e-04, 
     {
         auto& diag = U.diagonal()(i).get();
 
-        for (int k = 0; k < diag.RowsAtCompileTime; ++k)
+        applyLMDiagonalInner(diag, lambda, min_lm_diagonal, max_lm_diagonal);
+        //        for (int k = 0; k < diag.RowsAtCompileTime; ++k)
         {
-            auto& value = diag.diagonal()(k);
-            value       = value + lambda * value;
-            value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
+            //            auto& value = diag.diagonal()(k);
+            //            value       = value + lambda * value;
+            //            value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
         }
     }
 }

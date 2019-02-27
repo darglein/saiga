@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/fileChecker.h"
@@ -14,6 +13,7 @@
 #include "saiga/vision/g2o/g2oPoseGraph.h"
 #include "saiga/vision/pgo/PGORecursive.h"
 #include "saiga/vision/scene/PoseGraph.h"
+#include "saiga/vision/scene/SynteticScene.h"
 using namespace Saiga;
 
 int main(int, char**)
@@ -27,13 +27,28 @@ int main(int, char**)
 
 
     //    std::string path = "vision/problem-00257-65132-pre.txt";
-    std::string path = "vision/problem-00356-226730-pre.txt";
+    //    std::string path = "vision/problem-00356-226730-pre.txt";
     //    std::string path = "vision/problem-00257-65132-pre.txt";
     //    std::string path = "vision/problem-00257-65132-pre.txt";
 
-    Saiga::BALDataset bald(SearchPathes::data(path));
-    Scene scene = bald.makeScene();
+    //    Saiga::BALDataset bald(SearchPathes::data(path));
+    //    Scene scene = bald.makeScene();
 
+    Scene scene;
+    //    scene.load(SearchPathes::data("vision/tum_office.scene"));
+    scene.load(SearchPathes::data("vision/tum_large.scene"));
+
+    //    SynteticScene sscene;
+    //    sscene.numCameras     = 2;
+    //    sscene.numImagePoints = 2;
+    //    sscene.numWorldPoints = 7;
+    //    scene                 = sscene.circleSphere();
+    //    scene.addWorldPointNoise(0.01);
+    //    scene.addImagePointNoise(1.0);
+    //    scene.addExtrinsicNoise(0.01);
+
+
+    cout << "Density: " << scene.getSchurDensity() << endl;
     PoseGraph pg(scene);
     //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
     //    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
@@ -44,11 +59,11 @@ int main(int, char**)
 
     PGOOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 6;
+    baoptions.maxIterations          = 3;
     baoptions.maxIterativeIterations = 10;
     baoptions.iterativeTolerance     = 1e-50;
-    //    baoptions.solverType             = PGOOptions::SolverType::Direct;
-    baoptions.solverType = PGOOptions::SolverType::Iterative;
+    baoptions.solverType             = PGOOptions::SolverType::Direct;
+    //    baoptions.solverType = PGOOptions::SolverType::Iterative;
 
     std::vector<std::shared_ptr<PGOBase>> solvers;
 
