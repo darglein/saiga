@@ -89,10 +89,10 @@ void eigenHeatTest()
     MatrixType2 m1 = MatrixType2::Random();
     MatrixType2 m2 = MatrixType2::Identity();
 
-    size_t limit = 100000000;
+    long limit = 100000000;
 
 #pragma omp parallel for
-    for (int i = 0; i < limit; ++i)
+    for (long i = 0; i < limit; ++i)
     {
         m2 += m1 * m2;
     }

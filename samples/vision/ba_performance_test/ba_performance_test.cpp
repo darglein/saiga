@@ -43,7 +43,7 @@ std::vector<std::string> getBALFiles()
     files.insert(files.end(), {"vision/tum_office.scene"});
     files.insert(files.end(), {"vision/tum_large.scene"});
 //    files.insert(files.end(), {"dubrovnik-00356-226730.txt"});
-#if 0
+#if 1
     files.insert(files.end(), {"dubrovnik-00016-22106.txt", "dubrovnik-00161-103832.txt"});
     files.insert(files.end(), {"dubrovnik-00262-169354.txt", "dubrovnik-00356-226730.txt"});
 
@@ -90,16 +90,18 @@ void buildSceneBAL(Scene& scene, const std::string& path)
 
 void test_to_file(const OptimizationOptions& baoptions, const std::string& file, int its)
 {
+    cout << baoptions << endl;
+
     cout << "Running long performance test to file..." << endl;
 
     auto files = getBALFiles();
 
 
     std::ofstream strm(file);
-    strm << "file,solver,images,points,schur density,solver_type,iterations,time seconds,chi2" << endl;
+    strm << "file,images,points,schur density,solver_type,iterations,time_recursive,time_g2o,time_ceres" << endl;
 
 
-    Saiga::Table table({20, 20, 10, 10});
+    Saiga::Table table({20, 20, 15, 15});
 
     for (auto file : files)
     {
@@ -132,6 +134,9 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
               << "Time_LS"
               << "Time_Total";
 
+        strm << file << "," << scene.images.size() << "," << scene.worldPoints.size() << "," << scene.getSchurDensity()
+             << "," << (int)baoptions.solverType << "," << (int)baoptions.maxIterations;
+
         for (auto& s : solvers)
         {
             std::vector<double> times;
@@ -154,10 +159,9 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
             auto t  = make_statistics(times).median / 1000.0;
             auto tl = make_statistics(timesl).median / 1000.0;
             table << s->name << chi2 << tl << t;
-            strm << file << "," << s->name << "," << scene.images.size() << "," << scene.worldPoints.size() << ","
-                 << scene.getSchurDensity() << "," << (int)baoptions.solverType << "," << (int)baoptions.maxIterations
-                 << "," << t << "," << chi2 << endl;
+            strm << "," << t;
         }
+        strm << endl;
         cout << endl;
     }
 }
@@ -175,32 +179,26 @@ int main(int, char**)
 
 #if 1
 
-    if (1)
-    {
-        OptimizationOptions baoptions;
-        baoptions.debugOutput            = false;
-        baoptions.maxIterations          = 1;
-        baoptions.maxIterativeIterations = 25;
-        baoptions.iterativeTolerance     = 1e-50;
-        baoptions.initialLambda          = 1;  // use a high lambda for the benchmark so it converges slowly, but surely
-        baoptions.solverType             = OptimizationOptions::SolverType::Iterative;
-        cout << baoptions << endl;
-
-        test_to_file(baoptions, "ba_benchmark_cg.csv", 1);
-    }
-    if (1)
     {
         OptimizationOptions baoptions;
         baoptions.debugOutput   = false;
         baoptions.maxIterations = 3;
-        baoptions.solverType    = OptimizationOptions::SolverType::Direct;
-        baoptions.initialLambda = 1;  // use a high lambda for the benchmark so it converges slowly, but
-        //        surely
-        cout << baoptions << endl;
-
-        test_to_file(baoptions, "ba_benchmark_chol.csv", 1);
+        baoptions.initialLambda = 1;  // use a high lambda for the benchmark so it converges slowly, but surely
+        int testIts             = 1;
+        if (1)
+        {
+            baoptions.maxIterativeIterations = 25;
+            baoptions.iterativeTolerance     = 1e-50;
+            baoptions.solverType             = OptimizationOptions::SolverType::Iterative;
+            test_to_file(baoptions, "ba_benchmark_cg.csv", testIts);
+        }
+        if (1)
+        {
+            baoptions.solverType = OptimizationOptions::SolverType::Direct;
+            test_to_file(baoptions, "ba_benchmark_chol.csv", testIts);
+        }
+        return 0;
     }
-    return 0;
 #endif
 
     Scene scene;

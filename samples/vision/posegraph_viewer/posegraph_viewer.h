@@ -58,7 +58,7 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
     //    bool displayModels = true;
 
     Saiga::PoseGraph scene;
-    Saiga::PGOOptions baoptions;
+    Saiga::OptimizationOptions baoptions;
 
     std::vector<std::string> datasets, baldatasets;
 };

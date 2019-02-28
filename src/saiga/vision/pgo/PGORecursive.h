@@ -30,7 +30,6 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
 
     AlignedVector<SE3> x_u, oldx_u;
 
-    double chi2;
 
     std::vector<int> edgeOffsets;
     PoseGraph* _scene;

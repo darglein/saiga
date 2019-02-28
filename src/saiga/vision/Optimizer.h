@@ -45,7 +45,7 @@ struct SAIGA_VISION_API OptimizationOptions
     void imgui();
 };
 
-SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, OptimizationOptions& op);
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const OptimizationOptions& op);
 
 class SAIGA_VISION_API Optimizer
 {

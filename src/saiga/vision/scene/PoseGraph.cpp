@@ -80,6 +80,11 @@ Vec6 PoseGraph::residual6(const PoseEdge& edge)
     return error_.log() * edge.weight;
 }
 
+double PoseGraph::density()
+{
+    return double((edges.size() * 2) + poses.size()) / double(poses.size() * poses.size());
+}
+
 double PoseGraph::chi2()
 {
     double error = 0;
@@ -176,7 +181,6 @@ void PoseGraph::sortEdges()
 
     // and then sort by from/to index
     std::sort(edges.begin(), edges.end());
-    cout << "Edges sorted!" << endl;
 }
 
 bool PoseGraph::imgui()
@@ -212,8 +216,7 @@ std::ostream& operator<<(std::ostream& strm, PoseGraph& pg)
     strm << " Edges: " << pg.edges.size() << endl;
     strm << " Rms: " << pg.rms() << endl;
     strm << " Chi2: " << pg.chi2() << endl;
-    double density = double((pg.edges.size() * 2) + pg.poses.size()) / double(pg.poses.size() * pg.poses.size());
-    strm << " Density: " << density * 100 << "%" << endl;
+    strm << " Density: " << pg.density() * 100 << "%" << endl;
     return strm;
 }
 

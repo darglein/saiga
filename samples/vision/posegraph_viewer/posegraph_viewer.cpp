@@ -193,18 +193,22 @@ void VulkanExample::renderGUI()
     //        scene.load(Saiga::SearchPathes::data("vision/loop.posegraph"));
     //    }
 
-    if (ImGui::Button("Solve PGO with G2O"))
+    if (ImGui::Button("Solve G2O"))
     {
         Saiga::g2oPGO ba;
-        ba.solve(scene, baoptions);
+        ba.optimizationOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 
     //    barec.imgui();
-    if (ImGui::Button("Solve with Eigen Recursive Matrices"))
+    if (ImGui::Button("Solve Recursive"))
     {
         Saiga::PGORec barec;
-        barec.solve(scene, baoptions);
+        barec.optimizationOptions = baoptions;
+        barec.create(scene);
+        barec.solve();
         change = true;
     }
 

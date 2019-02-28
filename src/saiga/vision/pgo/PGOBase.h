@@ -21,6 +21,7 @@ class SAIGA_VISION_API PGOBase
 {
    public:
     PGOBase(const std::string& name) : name(name) {}
+    virtual ~PGOBase() {}
     virtual void create(PoseGraph& scene) = 0;
 
     std::string name;

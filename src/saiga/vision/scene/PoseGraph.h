@@ -69,6 +69,8 @@ struct SAIGA_VISION_API PoseGraph
 
     Vec6 residual6(const PoseEdge& edge);
 
+    double density();
+
     double chi2();
     double rms() { return sqrt(chi2() / edges.size()); }
     void save(const std::string& file);

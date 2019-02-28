@@ -27,11 +27,11 @@ void OptimizationOptions::imgui()
     ImGui::Checkbox("debugOutput", &debugOutput);
 }
 
-std::ostream& operator<<(std::ostream& strm, OptimizationOptions& op)
+std::ostream& operator<<(std::ostream& strm, const OptimizationOptions& op)
 {
     strm << "[Optimization Options]" << endl;
     strm << " Iterations: " << op.maxIterations << endl;
-    strm << " Initial Lambda: " << op.initialLambda<< endl;
+    strm << " Initial Lambda: " << op.initialLambda << endl;
 
     if (op.solverType == OptimizationOptions::SolverType::Iterative)
     {

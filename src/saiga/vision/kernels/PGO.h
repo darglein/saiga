@@ -27,25 +27,25 @@ struct PGO
     using SE3Type = Sophus::SE3<T>;
 
     static inline void evaluateResidual(const SE3Type& from, const SE3Type& to, const SE3Type& inverseMeasurement,
-                                        ResidualType& res)
+                                        ResidualType& res, T weight)
     {
         SE3Type res2 = from.inverse() * to * inverseMeasurement;
-        res          = res2.log();
+        res          = res2.log() * weight;
     }
 
     static inline void evaluateJacobian(const SE3Type& from, const SE3Type& to, const SE3Type& inverseMeasurement,
-                                        PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo)
+                                        PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo, T weight)
     {
-        JrowFrom = -from.inverse().Adj();
+        JrowFrom = -from.inverse().Adj() * weight;
         JrowTo   = -JrowFrom;
     }
 
     static inline void evaluateResidualAndJacobian(const SE3Type& from, const SE3Type& to,
                                                    const SE3Type& inverseMeasurement, ResidualType& res,
-                                                   PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo)
+                                                   PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo, T weight)
     {
-        evaluateResidual(from, to, inverseMeasurement, res);
-        evaluateJacobian(from, to, inverseMeasurement, JrowFrom, JrowTo);
+        evaluateResidual(from, to, inverseMeasurement, res, weight);
+        evaluateJacobian(from, to, inverseMeasurement, JrowFrom, JrowTo, weight);
     }
 };
 
