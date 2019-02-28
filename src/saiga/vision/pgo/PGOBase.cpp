@@ -10,23 +10,4 @@
 
 namespace Saiga
 {
-void PGOOptions::imgui()
-{
-    ImGui::InputInt("maxIterations", &maxIterations);
-    int currentItem             = (int)solverType;
-    static const char* items[2] = {"Iterative", "Direct"};
-    ImGui::Combo("SolverType", &currentItem, items, 2);
-    solverType = (SolverType)currentItem;
-
-    if (solverType == SolverType::Iterative)
-    {
-        ImGui::InputInt("maxIterativeIterations", &maxIterativeIterations);
-        ImGui::InputDouble("iterativeTolerance", &iterativeTolerance);
-    }
-
-    ImGui::Checkbox("debugOutput", &debugOutput);
-}
-
-
-
 }  // namespace Saiga

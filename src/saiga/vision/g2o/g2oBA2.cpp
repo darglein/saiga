@@ -8,23 +8,9 @@
 
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/vision/g2o/g2oHelper.h"
 
-#include "g2o/core/solver.h"
-
-#include "g2o/core/block_solver.h"
-#include "g2o/core/optimization_algorithm_gauss_newton.h"
-#include "g2o/core/optimization_algorithm_levenberg.h"
-#include "g2o/core/robust_kernel_impl.h"
-#include "g2o/core/sparse_optimizer.h"
-#include "g2o/solvers/eigen/linear_solver_eigen.h"
-#include "g2o/solvers/pcg/linear_solver_pcg.h"
 #include "g2o_kernels/sophus_sba.h"
-
-#define USE_CHOLMOD_SOLVER
-
-#ifdef USE_CHOLMOD_SOLVER
-#    include "g2o/solvers/cholmod/linear_solver_cholmod.h"
-#endif
 
 namespace Saiga
 {
@@ -33,39 +19,41 @@ OptimizationResults g2oBA2::solve()
     Scene& scene = *_scene;
 
     SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
-    using BlockSolver           = g2o::BlockSolver_6_3;
-    using OptimizationAlgorithm = g2o::OptimizationAlgorithmLevenberg;
-    using LinearSolver          = std::unique_ptr<BlockSolver::LinearSolverType>;
+    using BlockSolver = g2o::BlockSolver_6_3;
+    //    using OptimizationAlgorithm = g2o::OptimizationAlgorithmLevenberg;
+    //    using LinearSolver          = std::unique_ptr<BlockSolver::LinearSolverType>;
 
-    LinearSolver linearSolver;
-    switch (optimizationOptions.solverType)
-    {
-        case OptimizationOptions::SolverType::Direct:
-        {
-#ifdef USE_CHOLMOD_SOLVER
-            auto ls = std::make_unique<g2o::LinearSolverCholmod<BlockSolver::PoseMatrixType>>();
-#else
-            auto ls = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
-#endif
-            linearSolver = std::move(ls);
-            break;
-        }
-        case OptimizationOptions::SolverType::Iterative:
-        {
-            auto ls = g2o::make_unique<g2o::LinearSolverPCG<BlockSolver::PoseMatrixType>>();
-            ls->setMaxIterations(optimizationOptions.maxIterativeIterations);
-            ls->setTolerance(optimizationOptions.iterativeTolerance * optimizationOptions.iterativeTolerance);
-            linearSolver = std::move(ls);
-            break;
-        }
-    }
+    //    auto linearSolver = g2o_make_linearSolver<BlockSolver>(optimizationOptions);
+    //    switch (optimizationOptions.solverType)
+    //    {
+    //        case OptimizationOptions::SolverType::Direct:
+    //        {
+    //#ifdef USE_CHOLMOD_SOLVER
+    //            auto ls = std::make_unique<g2o::LinearSolverCholmod<BlockSolver::PoseMatrixType>>();
+    //#else
+    //            auto ls = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
+    //#endif
+    //            linearSolver = std::move(ls);
+    //            break;
+    //        }
+    //        case OptimizationOptions::SolverType::Iterative:
+    //        {
+    //            auto ls = g2o::make_unique<g2o::LinearSolverPCG<BlockSolver::PoseMatrixType>>();
+    //            ls->setMaxIterations(optimizationOptions.maxIterativeIterations);
+    //            ls->setTolerance(optimizationOptions.iterativeTolerance * optimizationOptions.iterativeTolerance);
+    //            linearSolver = std::move(ls);
+    //            break;
+    //        }
+    //    }
 
-    OptimizationAlgorithm* solver = new OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
+    auto solver = g2o_make_optimizationAlgorithm<BlockSolver>(optimizationOptions);
+    //    OptimizationAlgorithm* solver = new
+    //    OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
     //    solver->setUserLambdaInit(optimizationOptions.initialLambda * 2);
-    solver->setMaxTrialsAfterFailure(2);
+    //    solver->setMaxTrialsAfterFailure(2);
     g2o::SparseOptimizer optimizer;
-    optimizer.setVerbose(optimizationOptions.debugOutput);
-    //    optimizer.setComputeBatchStatistics(options.debugOutput);
+    //    optimizer.setVerbose(optimizationOptions.debugOutput);
+    //    //    optimizer.setComputeBatchStatistics(options.debugOutput);
     optimizer.setComputeBatchStatistics(true);
     optimizer.setAlgorithm(solver);
 

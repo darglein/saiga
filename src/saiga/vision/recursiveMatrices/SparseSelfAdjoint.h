@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#pragma once
 
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 

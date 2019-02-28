@@ -8,6 +8,7 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
+#include "saiga/core/util/tostring.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/ba/BAPoseOnly.h"
@@ -39,6 +40,10 @@ std::vector<std::string> getBALFiles()
 {
     std::vector<std::string> files;
 
+    files.insert(files.end(), {"vision/tum_office.scene"});
+    files.insert(files.end(), {"vision/tum_large.scene"});
+//    files.insert(files.end(), {"dubrovnik-00356-226730.txt"});
+#if 0
     files.insert(files.end(), {"dubrovnik-00016-22106.txt", "dubrovnik-00161-103832.txt"});
     files.insert(files.end(), {"dubrovnik-00262-169354.txt", "dubrovnik-00356-226730.txt"});
 
@@ -54,6 +59,8 @@ std::vector<std::string> getBALFiles()
 
     files.insert(files.end(), {"venice-00052-64053.txt", "venice-01184-816583.txt"});
     files.insert(files.end(), {"venice-01666-983911.txt", "venice-01778-993923.txt"});
+#endif
+
     return files;
 }
 
@@ -97,7 +104,20 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
     for (auto file : files)
     {
         Scene scene;
-        buildSceneBAL(scene, balPrefix + file);
+
+        if (hasEnding(file, ".scene"))
+        {
+            auto fullFile = file;
+            scene.load(fullFile);
+            scene.normalize();
+            scene.addImagePointNoise(0.001);
+            scene.addWorldPointNoise(0.001);
+        }
+        else
+        {
+            auto fullFile = SearchPathes::data(balPrefix + file);
+            buildSceneBAL(scene, fullFile);
+        }
 
         std::vector<std::shared_ptr<BABase>> solvers;
         solvers.push_back(std::make_shared<BARec>());
@@ -106,7 +126,7 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
 
 
 
-        cout << "> Initial Error: " << scene.chi2() << endl;
+        cout << "> Initial Error: " << scene.chi2() << " - " << scene.rms() << endl;
         table << "Name"
               << "Final Error"
               << "Time_LS"
@@ -168,7 +188,7 @@ int main(int, char**)
 
         test_to_file(baoptions, "ba_benchmark_cg.csv", 1);
     }
-    if (0)
+    if (1)
     {
         OptimizationOptions baoptions;
         baoptions.debugOutput   = false;

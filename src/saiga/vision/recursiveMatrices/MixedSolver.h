@@ -9,6 +9,7 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
+
 namespace Saiga
 {
 struct LinearSolverOptions
@@ -195,7 +196,9 @@ class MixedSymmetricRecursiveSolver<
         if (explizitSchur)
         {
             SAIGA_ASSERT(hasWT);
-            S            = Y * WT;
+            // (S is symmetric)
+            S = (Y * WT).template triangularView<Eigen::Upper>();
+            //            S            = (Y * WT);
             S            = -S;
             S.diagonal() = U.diagonal() + S.diagonal();
             //            cout << "S" << endl << expand(S) << endl << endl;
@@ -245,7 +248,7 @@ class MixedSymmetricRecursiveSolver<
                 XUType tmp(n);
                 recursive_conjugate_gradient(
                     [&](const XUType& v) {
-                        tmp = S * v;
+                        tmp = S.template selfadjointView<Eigen::Upper>() * v;
                         return tmp;
                     },
                     ej, da, P, iters, tol);

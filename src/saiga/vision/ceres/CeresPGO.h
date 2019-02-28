@@ -10,12 +10,16 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API CeresPGO : public PGOBase
+class SAIGA_VISION_API CeresPGO : public PGOBase, public Optimizer
 {
    public:
     CeresPGO() : PGOBase("CeresPGO") {}
     virtual ~CeresPGO() {}
-    virtual void solve(PoseGraph& scene, const PGOOptions& options) override;
+    virtual OptimizationResults solve() override;
+    virtual void create(PoseGraph& scene) override { _scene = &scene; }
+
+   private:
+    PoseGraph* _scene;
 };
 
 }  // namespace Saiga

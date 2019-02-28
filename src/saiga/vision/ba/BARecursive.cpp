@@ -406,11 +406,7 @@ void BARec::solveLinearSystem()
                               : LinearSolverOptions::SolverType::Iterative;
     loptions.buildExplizitSchur = explizitSchur;
 
-    float t = 0;
-    {
-        Saiga::ScopedTimer<float> timer(t);
-        solver.solve(A, delta_x, b, loptions);
-    }
+    solver.solve(A, delta_x, b, loptions);
 }
 
 double BARec::computeCost()

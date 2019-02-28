@@ -53,34 +53,44 @@ int main(int, char**)
     //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
     //    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
     //    pg.load(SearchPathes::data("vision/loop.posegraph"));
-    pg.addNoise(0.05);
+    pg.addNoise(1.05);
     cout << endl;
 
 
-    PGOOptions baoptions;
+    OptimizationOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 3;
-    baoptions.maxIterativeIterations = 10;
+    baoptions.maxIterations          = 10;
+    baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
-    baoptions.solverType             = PGOOptions::SolverType::Direct;
-    //    baoptions.solverType = PGOOptions::SolverType::Iterative;
+    //    baoptions.initialLambda          = 1e3;
+    baoptions.solverType = OptimizationOptions::SolverType::Direct;
+    //    baoptions.solverType = OptimizationOptions::SolverType::Iterative;
+    cout << baoptions << endl;
 
-    std::vector<std::shared_ptr<PGOBase>> solvers;
 
-    solvers.push_back(std::make_shared<PGORec>());
-    solvers.push_back(std::make_shared<g2oPGO>());
-    solvers.push_back(std::make_shared<CeresPGO>());
+    std::vector<std::unique_ptr<PGOBase>> solvers;
+
+    solvers.push_back(std::make_unique<PGORec>());
+    solvers.push_back(std::make_unique<g2oPGO>());
+    solvers.push_back(std::make_unique<CeresPGO>());
 
     for (auto& s : solvers)
     {
         cout << "[Solver] " << s->name << endl;
-        auto cpy       = pg;
-        auto rmsbefore = cpy.chi2();
-        {
-            SAIGA_BLOCK_TIMER(s->name);
-            s->solve(cpy, baoptions);
-        }
-        cout << "Error " << rmsbefore << " -> " << cpy.chi2() << endl << endl;
+        auto cpy = pg;
+        //        auto rmsbefore = cpy.chi2();
+        cout << "chi2 " << cpy.chi2() << endl;
+        //        {
+        //            SAIGA_BLOCK_TIMER(s->name);
+        s->create(cpy);
+        auto opt                 = dynamic_cast<Optimizer*>(s.get());
+        opt->optimizationOptions = baoptions;
+        SAIGA_ASSERT(opt);
+        auto result = opt->solve();
+        //        }
+        cout << "Error " << result.cost_initial << " -> " << result.cost_final << endl;
+        cout << "Time LinearSolver/Total: " << result.linear_solver_time << "/" << result.total_time << endl;
+        cout << endl;
     }
 
     return 0;

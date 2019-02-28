@@ -15,11 +15,23 @@
 
 namespace Saiga
 {
-void PGORec::initStructure(PoseGraph& scene)
+void PGORec::init()
 {
+    auto& scene = *_scene;
+
     n = scene.poses.size();
     b.resize(n);
-    x.resize(n);
+    delta_x.resize(n);
+
+    x_u.resize(n);
+    oldx_u.resize(n);
+
+    // Make a copy of the initial parameters
+    int i = 0;
+    for (auto& e : scene.poses)
+    {
+        x_u[i++] = e.se3;
+    }
 
     // Compute structure of S
     S.resize(n, n);
@@ -70,11 +82,11 @@ void PGORec::initStructure(PoseGraph& scene)
         S.innerIndexPtr()[offseti] = j;
 
 
-        edgeOffsets.emplace_back(offseti, 0);
+        edgeOffsets.emplace_back(offseti);
     }
 
     // Create a sparsity histogram
-    if (options.debugOutput)
+    if (optimizationOptions.debugOutput)
     {
         HistogramImage img(n, n, 1024, 1024);
         for (auto& e : scene.edges)
@@ -90,9 +102,11 @@ void PGORec::initStructure(PoseGraph& scene)
     }
 }
 
-void PGORec::compute(PoseGraph& scene)
+double PGORec::computeQuadraticForm()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+    auto& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<T>;
 
@@ -104,7 +118,7 @@ void PGORec::compute(PoseGraph& scene)
         S.valuePtr()[S.outerIndexPtr()[i]].get().setZero();
     }
 
-    chi2 = 0;
+    double chi2 = 0;
     for (size_t k = 0; k < scene.edges.size(); ++k)
     {
         auto& e       = scene.edges[k];
@@ -121,8 +135,7 @@ void PGORec::compute(PoseGraph& scene)
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(scene.poses[i].se3, scene.poses[j].se3, e.meassurement.inverse(),
-                                                    res, Jrowi, Jrowj);
+            KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement.inverse(), res, Jrowi, Jrowj);
 
             if (scene.poses[i].constant) Jrowi.setZero();
             if (scene.poses[j].constant) Jrowj.setZero();
@@ -132,7 +145,7 @@ void PGORec::compute(PoseGraph& scene)
             target_ir -= Jrowi.transpose() * res;
             target_jr -= Jrowj.transpose() * res;
 
-            S.valuePtr()[offsets.first] = target_ij;
+            S.valuePtr()[offsets] = target_ij;
 
             S.valuePtr()[S.outerIndexPtr()[i]].get() += Jrowi.transpose() * Jrowi;
             S.valuePtr()[S.outerIndexPtr()[j]].get() += Jrowj.transpose() * Jrowj;
@@ -143,47 +156,135 @@ void PGORec::compute(PoseGraph& scene)
         }
     }
 
+
+    if (optimizationOptions.debugOutput) cout << "chi2 " << chi2 << endl;
+    return chi2;
+}
+
+
+double PGORec::computeCost()
+{
+    auto& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+    using T          = BlockPGOScalar;
+    using KernelType = Saiga::Kernel::PGO<T>;
+
+
+
+    double chi2 = 0;
+    for (size_t k = 0; k < scene.edges.size(); ++k)
+    {
+        auto& e = scene.edges[k];
+        int i   = e.from;
+        int j   = e.to;
+
+
+        {
+            KernelType::PoseJacobiType Jrowi, Jrowj;
+            KernelType::ResidualType res;
+            KernelType::evaluateResidual(x_u[i], x_u[j], e.meassurement.inverse(), res);
+
+            auto c = res.squaredNorm();
+            chi2 += c;
+        }
+    }
+    return chi2;
+}
+
+void PGORec::addLambda(double lambda)
+{
     // apply lm
     for (int i = 0; i < n; ++i)
     {
         auto& d = S.valuePtr()[S.outerIndexPtr()[i]].get();
-        applyLMDiagonalInner(d);
+        applyLMDiagonalInner(d, lambda);
     }
+}
 
-    if (options.debugOutput) cout << "chi2 " << chi2 << endl;
+void PGORec::addDelta()
+{
+    oldx_u = x_u;
+
+    for (int i = 0; i < n; ++i)
+    {
+        auto t = delta_x(i).get();
+        x_u[i] = SE3::exp(t) * x_u[i];
+    }
+}
+
+void PGORec::solveLinearSystem()
+{
+    LinearSolverOptions loptions;
+
+    loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
+    loptions.iterativeTolerance     = optimizationOptions.iterativeTolerance;
+
+    loptions.solverType = (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
+                              ? LinearSolverOptions::SolverType::Direct
+                              : LinearSolverOptions::SolverType::Iterative;
+
+
+    solver.solve(S, delta_x, b, loptions);
+}
+
+void PGORec::revertDelta()
+{
+    x_u = oldx_u;
+}
+void PGORec::finalize()
+{
+    auto& scene = *_scene;
+
+    int i = 0;
+    for (auto& e : scene.poses)
+    {
+        if (!e.constant) e.se3 = x_u[i++];
+    }
 }
 
 
-
-void PGORec::solve(PoseGraph& scene, const PGOOptions& options)
+#if 0
+OptimizationResults PGORec::solve()
 {
-    this->options = options;
-    initStructure(scene);
+    auto& scene = *_scene;
+
+
+    init();
 
     LinearSolverOptions solverOptions;
-    solverOptions.maxIterativeIterations = options.maxIterativeIterations;
+    solverOptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
     solverOptions.solverType             = LinearSolverOptions ::SolverType::Direct;
 
     MixedSymmetricRecursiveSolver<PSType, PBType> solver;
 
 
-    for (int i = 0; i < options.maxIterations; ++i)
+    for (int i = 0; i < optimizationOptions.maxIterations; ++i)
     {
-        compute(scene);
+        chi2 = computeQuadraticForm();
+        addLambda(1e-4);
 
-        solver.solve(S, x, b, solverOptions);
+        solver.solve(S, delta_x, b, solverOptions);
+
+        addDelta();
 
         // update scene
-        for (size_t i = 0; i < scene.poses.size(); ++i)
-        {
-            Sophus::SE3<BlockPGOScalar>::Tangent t;
-            t         = x(i).get();
-            auto& se3 = scene.poses[i].se3;
-            se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
-        }
+        //        for (size_t i = 0; i < scene.poses.size(); ++i)
+        //        {
+        //            Sophus::SE3<BlockPGOScalar>::Tangent t;
+        //            t         = delta_x(i).get();
+        //            auto& se3 = scene.poses[i].se3;
+        //            se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
+        //        }
     }
+
+    finalize();
+
+    OptimizationResults result;
+    result.cost_final = chi2;
+    return result;
 }
 
-
+#endif
 
 }  // namespace Saiga
