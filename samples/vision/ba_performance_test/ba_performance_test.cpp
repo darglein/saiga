@@ -40,8 +40,10 @@ std::vector<std::string> getBALFiles()
 {
     std::vector<std::string> files;
 
+
     files.insert(files.end(), {"vision/tum_office.scene"});
     files.insert(files.end(), {"vision/tum_large.scene"});
+//    files.insert(files.end(), {"dubrovnik-00161-103832.txt"});
 //    files.insert(files.end(), {"dubrovnik-00356-226730.txt"});
 #if 1
     files.insert(files.end(), {"dubrovnik-00016-22106.txt", "dubrovnik-00161-103832.txt"});
@@ -54,7 +56,7 @@ std::vector<std::string> getBALFiles()
     files.insert(files.end(), {"ladybug-00049-7776.txt", "ladybug-00539-65220.txt"});
     files.insert(files.end(), {"ladybug-00969-105826.txt", "ladybug-01723-156502.txt"});
 
-    files.insert(files.end(), {"trafalgar-000138-44033.txt", "trafalgar-00021-11315.txt"});
+    files.insert(files.end(), {"trafalgar-00138-44033.txt", "trafalgar-00021-11315.txt"});
     files.insert(files.end(), {"trafalgar-00201-54427.txt", "trafalgar-00257-65132.txt"});
 
     files.insert(files.end(), {"venice-00052-64053.txt", "venice-01184-816583.txt"});
@@ -184,7 +186,7 @@ int main(int, char**)
         baoptions.debugOutput   = false;
         baoptions.maxIterations = 3;
         baoptions.initialLambda = 1;  // use a high lambda for the benchmark so it converges slowly, but surely
-        int testIts             = 1;
+        int testIts             = 25;
         if (1)
         {
             baoptions.maxIterativeIterations = 25;
