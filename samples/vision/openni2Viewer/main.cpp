@@ -1,11 +1,9 @@
-﻿#include "sample.h"
-#include "saiga/core/framework/framework.h"
+﻿#include "saiga/core/framework/framework.h"
 #include "saiga/vulkan/window/SDLWindow.h"
 
-#undef main
+#include "sample.h"
 
-extern int maingsdgdfg();
-int main(const int argc, const char* argv[])
+int main(int, const char**)
 {
     using namespace Saiga;
 
@@ -16,10 +14,9 @@ int main(const int argc, const char* argv[])
         windowParameters.fromConfigFile("config.ini");
 
         windowParameters.width  = 640 * 2;
-        windowParameters.height = 480;
+        windowParameters.height = 800;
 
         Saiga::Vulkan::SDLWindow window(windowParameters);
-        //        Saiga::Vulkan::GLFWWindow window(windowParameters);
 
         Saiga::Vulkan::VulkanParameters vulkanParams;
         vulkanParams.enableValidationLayer = true;
@@ -34,6 +31,5 @@ int main(const int argc, const char* argv[])
         renderer.waitIdle();
     }
 
-    //    maingsdgdfg();
     return 0;
 }

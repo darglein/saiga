@@ -50,6 +50,19 @@ class SAIGA_CORE_API TimeGraph : public Graph
 };
 
 
+class SAIGA_CORE_API HzTimeGraph : public Graph
+{
+   public:
+    HzTimeGraph(const std::string& name = "Hz", int numValues = 80);
+    void addTime();
+
+   protected:
+    virtual void renderImGuiDerived();
+    float hzExp = 0;
+    Saiga::Timer timer;
+};
+
+
 
 class SAIGA_CORE_API ColoredBar
 {
@@ -73,6 +86,7 @@ class SAIGA_CORE_API ColoredBar
    private:
     void DrawOutlinedRect(const vec2& begin, const vec2& end, const BarColor& color);
     void DrawRect(const vec2& begin, const vec2& end, const BarColor& color);
+
    public:
     ColoredBar(vec2 size, BarColor background, bool auto_size = false, uint32_t rows = 1, float rounding = 0.0f,
                int rounding_corners = 0)

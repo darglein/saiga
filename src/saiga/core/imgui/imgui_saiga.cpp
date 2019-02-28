@@ -72,6 +72,29 @@ void TimeGraph::renderImGuiDerived()
 }
 
 
+HzTimeGraph::HzTimeGraph(const std::string& name, int numValues) : Graph(name, numValues)
+{
+    timer.start();
+}
+
+void HzTimeGraph::addTime()
+{
+    timer.stop();
+
+    float t = timer.getTimeMS();
+    addValue(t);
+
+    float alpha = 0.1;
+    hzExp       = (1 - alpha) * hzExp + alpha * t;
+    timer.start();
+}
+
+void HzTimeGraph::renderImGuiDerived()
+{
+    ImGui::Text("%s Time: %fms Hz: %f", name.c_str(), lastValue, 1000.0f / hzExp);
+}
+
+
 void ColoredBar::renderBackground()
 {
     m_lastDrawList = ImGui::GetWindowDrawList();
