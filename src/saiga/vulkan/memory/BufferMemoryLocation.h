@@ -15,11 +15,11 @@ struct SAIGA_VULKAN_API BufferData
 
     BufferData(nullptr_t) : buffer(nullptr) {}
 
-    void destroy(vk::Device device)
-    {
-        device.destroy(buffer);
-        buffer = nullptr;
-    }
+    /**
+     * Destroys the data that is owned by this uniquely object.
+     * @param device device for the data.
+     */
+    void destroy_owned_data(vk::Device device) {}
 
 
     operator bool() const { return buffer; }

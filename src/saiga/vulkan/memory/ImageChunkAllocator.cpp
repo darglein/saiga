@@ -52,8 +52,7 @@ std::unique_ptr<ImageMemoryLocation> ImageChunkAllocator::create_location(
 
 void ImageChunkAllocator::deallocate(ImageMemoryLocation* location)
 {
-    location->destroy_data(m_device);
-
+    VLOG(1) << "Trying to deallocate image" << *location;
     BaseChunkAllocator::base_deallocate(location);
 }
 

@@ -124,7 +124,7 @@ struct SAIGA_VULKAN_API ImageData
             sampler = device.createSampler(sampler_create_info.value());
         }
     }
-    void destroy(vk::Device device)
+    void destroy_owned_data(vk::Device device)
     {
         if (sampler)
         {

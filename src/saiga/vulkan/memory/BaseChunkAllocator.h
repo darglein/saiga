@@ -8,11 +8,11 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vulkan/Queue.h"
-#include "saiga/vulkan/memory/BaseMemoryAllocator.h"
+#include "saiga/vulkan/memory/MemoryStats.h"
 
-#include "BaseMemoryAllocator.h"
 #include "ChunkCreator.h"
 #include "FitStrategy.h"
+#include "MemoryStats.h"
 
 #include <mutex>
 
@@ -193,6 +193,7 @@ void BaseChunkAllocator<T>::base_deallocate(T* location)
 
     SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
 
+    (**fLoc).destroy_owned_data(m_device);
     VLOG(1) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
             << "/" << (*fLoc)->offset << "]";
 

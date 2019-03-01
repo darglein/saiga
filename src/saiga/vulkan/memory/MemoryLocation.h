@@ -222,11 +222,14 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         }
     }
 
-    inline void destroy_data(const vk::Device& device)
+    /** destroys the owned data of the data member.
+     * @param device device of the data.
+     */
+    inline void destroy_owned_data(const vk::Device& device)
     {
         if (data)
         {
-            data.destroy(device);
+            data.destroy_owned_data(device);
             data = nullptr;
         }
     }

@@ -10,7 +10,7 @@
 #include "saiga/export.h"
 
 #include "BaseChunkAllocator.h"
-#include "BaseMemoryAllocator.h"
+#include "MemoryStats.h"
 #include "BufferMemoryLocation.h"
 #include "ChunkAllocation.h"
 #include "ChunkCreator.h"

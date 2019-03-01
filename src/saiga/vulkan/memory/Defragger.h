@@ -315,7 +315,15 @@ bool Defragger<T>::perform_free_operations()
             }
             else
             {
-                allocator->move_allocation(op->target, op->source);
+                if (op->target == nullptr)
+                {
+                    // Had to remove target earlier
+                    // allocator->base_deallocate(op->source);
+                }
+                else
+                {
+                    allocator->move_allocation(op->target, op->source);
+                }
             }
             op = free_operations.erase(op);
         }
@@ -343,12 +351,16 @@ float Defragger<T>::get_operation_penalty(ConstChunkIterator<T> target_chunk, Co
     }
 
     // if the move creates a hole that is smaller than the memory chunk itself -> add weight
+    // anhand von der chunk size
+    // ganz kleine löcher sind eigentlich auch egal -> smoothstep bei speicher / 1M (einfach 10kb)
     if (target_location->size != source_ptr->size && (target_location->size - source_ptr->size < source_ptr->size))
     {
         weight += penalties.target_small_hole * (1 - (static_cast<float>(source_ptr->size) / target_location->size));
     }
 
     // If move creates a hole at source -> add weight
+    // auch wenn erste allokation
+    // wenn kleine löcher davor oder danach auch smoothstep nehmen
     auto next = std::next(source_location);
     if (source_location != source_chunk->allocations.cbegin() && next != source_chunk->allocations.cend())
     {
@@ -373,6 +385,7 @@ float Defragger<T>::get_operation_penalty(ConstChunkIterator<T> target_chunk, Co
         weight += penalties.source_not_last_chunk;
     }
 
+    // minimales gewicht
     return weight;
 }
 

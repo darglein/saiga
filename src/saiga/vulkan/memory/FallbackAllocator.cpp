@@ -138,5 +138,28 @@ MemoryStats FallbackAllocator::collectMemoryStats()
 
     return MemoryStats{totalSize, totalSize, 0};
 }
+void FallbackAllocator::destroy(const vk::Device& device, BufferMemoryLocation* memory_location)
+{
+    SAIGA_ASSERT(memory_location->memory, "Already destroyed");
+    memory_location->destroy_owned_data(device);
+    device.destroy(memory_location->data.buffer);
+    if (memory_location->memory)
+    {
+        device.free(memory_location->memory);
+        memory_location->memory = nullptr;
+    }
+    memory_location->mappedPointer = nullptr;
+}
+void FallbackAllocator::destroy(const vk::Device& device, ImageMemoryLocation* memory_location)
+{
+    SAIGA_ASSERT(memory_location->memory, "Already destroyed");
+    memory_location->destroy_owned_data(device);
+    if (memory_location->memory)
+    {
+        device.free(memory_location->memory);
+        memory_location->memory = nullptr;
+    }
+    memory_location->mappedPointer = nullptr;
+}
 
 }  // namespace Saiga::Vulkan::Memory
