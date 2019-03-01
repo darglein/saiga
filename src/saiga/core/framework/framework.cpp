@@ -203,20 +203,28 @@ void initSaiga(const SaigaParameters& params)
 
     setThreadName(params.mainThreadName);
 
+
+
     el::Configurations defaultConf;
     defaultConf.setToDefault();
-    // Values are always std::string
-    defaultConf.set(el::Level::Global, el::ConfigurationType::ToFile, "false");
-    // defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput,
-    // std::to_string(params.logging_enabled));
-    defaultConf.set(el::Level::Global, el::ConfigurationType::Enabled, std::to_string(params.logging_enabled));
-    defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, std::to_string(params.verbose_logging));
-    el::Loggers::reconfigureLogger("default", defaultConf);
-
     if (params.logging_enabled)
     {
-        cout << "Logging is enabled" << endl;
+        cout << "Enabling logging" << endl;
+
+        // Values are always std::string
+        defaultConf.set(el::Level::Global, el::ConfigurationType::ToFile, "false");
+        // defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput,
+        // std::to_string(params.logging_enabled));
+        defaultConf.set(el::Level::Global, el::ConfigurationType::Enabled, std::to_string(params.logging_enabled));
+        defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, std::to_string(params.verbose_logging));
+
+        if (params.verbose_logging)
+        {
+            el::Loggers::setVerboseLevel(1);
+        }
     }
+    el::Loggers::reconfigureLogger("default", defaultConf);
+
 
     printSaigaInfo();
     cout << "========================== Saiga initialization done!  ==========================" << endl << endl;
