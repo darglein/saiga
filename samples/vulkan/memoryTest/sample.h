@@ -33,7 +33,8 @@ class VulkanExample : public Saiga::Updating,
     std::array<std::string, 4> image_names{"cat.png", "red-panda.png", "dog.png", "pika.png"};
     std::array<std::shared_ptr<Saiga::Image>, 4> images;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations;
-    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t>> tex_allocations;
+    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, vk::DescriptorSet>> tex_allocations;
+    std::vector<std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, vk::DescriptorSet, int32_t>> to_delete_tex;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations;
     std::mt19937 mersenne_twister, auto_mersenne;
 
@@ -67,7 +68,6 @@ class VulkanExample : public Saiga::Updating,
 
    private:
     bool show_textures = false;
-    int texture_index  = 0;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
 
@@ -85,7 +85,7 @@ class VulkanExample : public Saiga::Updating,
     std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> allocate(Saiga::Vulkan::Memory::BufferType type,
                                                                          unsigned long long int size);
 
-    std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t> allocate(Saiga::Vulkan::Memory::ImageType type,
-                                                                            unsigned long long int size);
+    std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, vk::DescriptorSet> allocate(
+        Saiga::Vulkan::Memory::ImageType type, unsigned long long int size);
     void cleanup();
 };

@@ -11,6 +11,7 @@
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/color.h"
+#include "saiga/core/util/imath.h"
 
 #include <algorithm>
 #include <saiga/core/imgui/imgui.h>
@@ -71,6 +72,13 @@ void VulkanExample::update(float dt)
         alloc_index(alloc_dist(auto_mersenne));
         auto_allocs++;
     }
+
+    std::for_each(to_delete_tex.begin(), to_delete_tex.end(), [](auto& entry) { std::get<2>(entry) -= 1; });
+
+    auto end = std::remove_if(to_delete_tex.begin(), to_delete_tex.end(),
+                              [](const auto& entry) { return std::get<2>(entry) <= 0; });
+
+    to_delete_tex.erase(end, to_delete_tex.end());
     //    renderer.base.memory.vertexIndexAllocator.deallocate(m_location3);
     //    m_location3 = renderer.base.memory.vertexIndexAllocator.allocate(1025);
 }
@@ -80,11 +88,18 @@ void VulkanExample::transfer(vk::CommandBuffer cmd) {}
 
 void VulkanExample::render(vk::CommandBuffer cmd)
 {
-    if (show_textures && !tex_allocations.empty() && textureDes)
+    if (show_textures && !tex_allocations.empty())
     {
         if (textureDisplay.bind(cmd))
         {
-            textureDisplay.renderTexture(cmd, textureDes, vec2(10, 10), vec2(256, 256));
+            const int width = 16;
+            int index       = 0;
+            for (auto& texture : tex_allocations)
+            {
+                vec2 position((index % width) * 64, (index / width) * 64);
+                textureDisplay.renderTexture(cmd, texture.second, position, vec2(64, 64));
+                index++;
+            }
         }
     }
 }
@@ -135,36 +150,15 @@ void VulkanExample::renderGUI()
         {
             auto index = mersenne_twister() % tex_allocations.size();
 
-            if (index == texture_index)
-            {
-                continue;
-            }
+            auto& alloc = tex_allocations[index];
+            to_delete_tex.emplace_back(alloc.first, alloc.second, 4);
             tex_allocations.erase(tex_allocations.begin() + index);
-
-            if (index < texture_index)
-            {
-                texture_index--;
-            }
         }
         renderer.base.memory.enable_defragmentation(image_type, enable_defragger);
         renderer.base.memory.start_defrag(image_type);
     }
 
     ImGui::Checkbox("Show textures", &show_textures);
-    if (show_textures && !tex_allocations.empty())
-    {
-        int new_index = texture_index;
-        ImGui::SliderInt("Texture Index", &new_index, 0, tex_allocations.size() - 1);
-        if (new_index != texture_index)
-        {
-            texture_index = new_index;
-            textureDes    = textureDisplay.createAndUpdateDescriptorSet(*tex_allocations[texture_index].first);
-        }
-    }
-    else
-    {
-        textureDes = nullptr;
-    }
     ImGui::End();
 
     parentWindow.renderImGui();
@@ -173,7 +167,7 @@ void VulkanExample::renderGUI()
 
 void VulkanExample::keyPressed(SDL_Keysym key)
 {
-    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL);
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL), image_dist(0, 3);
 
 
 
@@ -245,11 +239,42 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer.base.memory.start_defrag(buffer_type);
 
             break;
-        case SDL_SCANCODE_F:
-            enable_defragger = !enable_defragger;
+        case SDL_SCANCODE_Z:
+        {
+            renderer.base.memory.enable_defragmentation(image_type, false);
+            renderer.base.memory.stop_defrag(image_type);
+            num_allocs = alloc_dist(mersenne_twister);
 
+            for (int i = 0; i < num_allocs; ++i)
+            {
+                auto index = image_dist(mersenne_twister);
+                // allocations.push_back(renderer.base.memory.allocate(buffer_type, size));
+                tex_allocations.push_back(allocate(image_type, index));
+            }
             renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
-            break;
+            renderer.base.memory.start_defrag(buffer_type);
+        }
+        break;
+        case SDL_SCANCODE_C:
+        {
+            renderer.base.memory.enable_defragmentation(image_type, false);
+            renderer.base.memory.stop_defrag(image_type);
+
+            num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
+
+
+            for (int i = 0; i < num_allocs; ++i)
+            {
+                auto index = mersenne_twister() % tex_allocations.size();
+
+                auto& alloc = tex_allocations[index];
+                to_delete_tex.emplace_back(alloc.first, alloc.second, 4);
+                tex_allocations.erase(tex_allocations.begin() + index);
+            }
+            renderer.base.memory.enable_defragmentation(image_type, enable_defragger);
+            renderer.base.memory.start_defrag(image_type);
+        }
+        break;
         case SDL_SCANCODE_ESCAPE:
             cleanup();
             parentWindow.close();
@@ -304,7 +329,7 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::alloc
     return std::make_pair(buffer, start);
 }
 
-std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t> VulkanExample::allocate(
+std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, vk::DescriptorSet> VulkanExample::allocate(
     Saiga::Vulkan::Memory::ImageType type, unsigned long long int index)
 {
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture = std::make_shared<Saiga::Vulkan::Texture2D>();
@@ -328,7 +353,7 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t> VulkanExample::al
     // renderer.base.device.destroy(init_operation.fence);
     texture->mark_dynamic();
 
-    return std::make_pair(texture, 0);
+    return std::make_pair(texture, textureDisplay.createAndUpdateDescriptorSet(*texture));
 }
 
 void VulkanExample::cleanup()
