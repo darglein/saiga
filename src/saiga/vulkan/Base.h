@@ -36,6 +36,7 @@ struct SAIGA_VULKAN_API VulkanBase
     std::unique_ptr<Queue> dedicated_transfer_queue;
 
    public:
+    ~VulkanBase() { destroy(); }
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::PhysicalDeviceFeatures enabledFeatures = {};

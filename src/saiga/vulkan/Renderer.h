@@ -10,6 +10,7 @@
 //#include "saiga/vulkan/memory/ChunkAllocator.h"
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/Base.h"
+#include "saiga/vulkan/FrameSync.h"
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/Parameters.h"
 #include "saiga/vulkan/SwapChain.h"
@@ -36,7 +37,12 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
     virtual ~VulkanRenderer() override;
 
-    virtual void render(Camera*) override {}
+    virtual void createFrameBuffers(int numImages, int w, int h) = 0;
+    virtual void createDepthBuffer(int w, int h)                 = 0;
+    virtual void setupRenderPass()                               = 0;
+
+    virtual void render2(FrameSync& sync, int currentImage) = 0;
+    virtual void render(Camera*) override;
     virtual void bindCamera(Camera*) override {}
 
     virtual float getTotalRenderTime() override;
@@ -47,6 +53,10 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     void createSwapChain();
     void resizeSwapChain();
 
+    void waitIdle();
+
+    int swapChainSize() { return swapChain.imageCount; }
+
    protected:
     /**
      * Shared Member variables common for all vulkan render engines.
@@ -55,8 +65,15 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     Saiga::Vulkan::VulkanWindow& window;
     VkSurfaceKHR surface;
 
-    uint32_t width  = 1280;
-    uint32_t height = 720;
+    /**
+     * Size of the render surface.
+     * This might be different to the window size, because of
+     * the border.
+     *
+     * Use these dimensions for your framebuffers!
+     */
+    int surfaceWidth  = 1280;
+    int SurfaceHeight = 720;
 
     Saiga::Vulkan::Instance instance;
 
@@ -67,7 +84,15 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     VulkanParameters vulkanParameters;
 
    private:
+    uint32_t currentBuffer      = 0;
+    unsigned int nextSyncObject = 0;
+    std::vector<FrameSync> syncObjects;
+
     void initInstanceDevice();
+
+
+    bool valid       = true;
+    int validCounter = 0;
 };
 
 

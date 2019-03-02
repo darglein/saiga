@@ -18,8 +18,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 {
     window.setRenderer(this);
 
-    //    width  = window.getWidth() / 2;
-    //    height = window.getHeight() / 2;
 
     std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
     instance.create(instanceExtensions, vulkanParameters.enableValidationLayer);
@@ -29,26 +27,79 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 
     base.setPhysicalDevice(instance.pickPhysicalDevice());
 
-
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
-
-    vulkanParameters.physicalDeviceFeatures.wideLines = VK_TRUE;
+    vulkanParameters.physicalDeviceFeatures.wideLines        = VK_TRUE;
     base.createLogicalDevice(surface, vulkanParameters, true);
 
-
-
     createSwapChain();
+    syncObjects.resize(swapChain.imageCount);
+    for (auto& sync : syncObjects)
+    {
+        sync.create(base.device);
+    }
 }
 
 VulkanRenderer::~VulkanRenderer()
 {
-    // Clean up Vulkan resources
-    swapChain.cleanup();
+    // Only wait until the queue is done.
+    // All vulkan objects are destroyed in their destructor
+    waitIdle();
+}
 
-    //    delete base;
-    base.destroy();
+void VulkanRenderer::render(Camera*)
+{
+    if (!valid)
+    {
+        validCounter--;
 
-    instance.destroy();
+        if (validCounter == 0)
+        {
+            this->resizeSwapChain();
+            createDepthBuffer(surfaceWidth, SurfaceHeight);
+            createFrameBuffers(swapChain.imageCount, surfaceWidth, SurfaceHeight);
+            valid = true;
+        }
+        else
+        {
+            return;
+        }
+    }
+
+
+    FrameSync& sync = syncObjects[nextSyncObject];
+    sync.wait();
+
+
+    VkResult err = swapChain.acquireNextImage(sync.imageAvailable, &currentBuffer);
+    VK_CHECK_RESULT(err);
+
+    if (err == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        waitIdle();
+        valid        = false;
+        validCounter = 3;
+        return;
+    }
+
+
+    render2(sync, currentBuffer);
+
+
+    err = swapChain.queuePresent(base.mainQueue, currentBuffer, sync.renderComplete);
+
+    if (err == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        waitIdle();
+        valid        = false;
+        validCounter = 3;
+        return;
+    }
+
+    //    VK_CHECK_RESULT(swapChain.queuePresent(graphicsQueue, currentBuffer));
+    //    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
+    //    presentQueue.waitIdle();
+
+    nextSyncObject = (nextSyncObject + 1) % syncObjects.size();
 }
 
 float VulkanRenderer::getTotalRenderTime()
@@ -73,12 +124,19 @@ void VulkanRenderer::createSwapChain()
 {
     swapChain.connect(instance, base.physicalDevice, base.device);
     swapChain.initSurface(surface);
-    swapChain.create(&width, &height, false);
+    swapChain.create(&surfaceWidth, &SurfaceHeight, false);
 }
 
 void VulkanRenderer::resizeSwapChain()
 {
-    swapChain.create(&width, &height, false);
+    swapChain.create(&surfaceWidth, &SurfaceHeight, false);
+}
+
+void VulkanRenderer::waitIdle()
+{
+    base.mainQueue.waitIdle();
+    //    presentQueue.waitIdle();
+    //    transferQueue.waitIdle();
 }
 
 

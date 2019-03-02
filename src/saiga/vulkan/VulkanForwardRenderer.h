@@ -48,15 +48,17 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public Saiga::Vulkan::VulkanRende
     VkRenderPass renderPass;
 
     VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, VulkanParameters vulkanParameters);
-    virtual ~VulkanForwardRenderer();
+    virtual ~VulkanForwardRenderer() override;
 
     void initChildren();
-    virtual void render(Camera* cam);
+    virtual void render2(FrameSync& sync, int currentImage) override;
+    //    virtual void render(Camera* cam) override;
 
-    void waitIdle();
 
-    void createFrameBuffers();
-    void createBuffers();
+
+    virtual void createFrameBuffers(int numImages, int w, int h) override;
+    virtual void createDepthBuffer(int w, int h) override;
+    virtual void setupRenderPass() override;
 
    protected:
     int maxFramesInFlight = 10;
@@ -66,18 +68,10 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public Saiga::Vulkan::VulkanRende
 
     std::vector<vk::CommandBuffer> drawCmdBuffers;
     std::vector<Framebuffer> frameBuffers;
-    uint32_t currentBuffer = 0;
 
 
-    std::vector<FrameSync> syncObjects;
-    unsigned int nextSyncObject = 0;
 
     std::shared_ptr<ImGuiVulkanRenderer> imGui;
-
-    void setupRenderPass();
-
-    bool valid       = true;
-    int validCounter = 0;
 };
 
 }  // namespace Vulkan

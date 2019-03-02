@@ -131,7 +131,7 @@ void VulkanSwapChain::connect(VkInstance instance, VkPhysicalDevice physicalDevi
     //		GET_DEVICE_PROC_ADDR(device, QueuePresentKHR);
 }
 
-void VulkanSwapChain::create(uint32_t* width, uint32_t* height, bool vsync)
+void VulkanSwapChain::create(int* width, int* height, bool vsync)
 {
     if (swapChain)
     {

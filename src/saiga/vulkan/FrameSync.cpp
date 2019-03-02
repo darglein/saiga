@@ -11,25 +11,30 @@ namespace Vulkan
 {
 void FrameSync::create(vk::Device device)
 {
+    this->device = device;
+
+    SAIGA_ASSERT(!imageAvailable);
+
     vk::FenceCreateInfo fenceCreateInfo{vk::FenceCreateFlagBits::eSignaled};
     frameFence = device.createFence(fenceCreateInfo);
 
     vk::SemaphoreCreateInfo semaphoreCreateInfo{vk::SemaphoreCreateFlags()};
-    device.createSemaphore(&semaphoreCreateInfo, nullptr, &imageVailable);
+    device.createSemaphore(&semaphoreCreateInfo, nullptr, &imageAvailable);
     device.createSemaphore(&semaphoreCreateInfo, nullptr, &renderComplete);
 }
 
-void FrameSync::destroy(vk::Device device)
+void FrameSync::destroy()
 {
-    //    vkDestroySemaphore(device, imageVailable, nullptr);
-    //    vkDestroySemaphore(device, renderComplete, nullptr);
-    //    vkDestroyFence(device, frameFence, nullptr);
-    device.destroySemaphore(imageVailable);
-    device.destroySemaphore(renderComplete);
-    device.destroyFence(frameFence);
+    if (imageAvailable)
+    {
+        device.destroySemaphore(imageAvailable);
+        device.destroySemaphore(renderComplete);
+        device.destroyFence(frameFence);
+        imageAvailable = nullptr;
+    }
 }
 
-void FrameSync::wait(vk::Device device)
+void FrameSync::wait()
 {
     device.waitForFences(frameFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     device.resetFences(frameFence);

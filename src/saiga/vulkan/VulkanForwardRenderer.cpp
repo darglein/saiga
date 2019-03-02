@@ -28,13 +28,8 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
     // graphicsQueue.create(base.device, base.queueFamilyIndices.graphics);
 
 
-    createBuffers();
 
-    syncObjects.resize(swapChain.imageCount);
-    for (auto& sync : syncObjects)
-    {
-        sync.create(base.device);
-    }
+    createDepthBuffer(surfaceWidth, SurfaceHeight);
 
     renderCommandPool = base.mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 
@@ -42,8 +37,9 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 
 
     setupRenderPass();
+    createFrameBuffers(swapChain.imageCount, surfaceWidth, SurfaceHeight);
 
-    createFrameBuffers();
+    //    createFrameBuffers();
     //    frameBuffers.resize(swapChain.imageCount);
     //    for (uint32_t i = 0; i < frameBuffers.size(); i++)
     //    {
@@ -55,50 +51,30 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
-    // graphicsQueue.destroy();
-    //    presentQueue.destroy();
-    //    transferQueue.destroy();
-
-    waitIdle();
-
-
     vkDestroyRenderPass(base.device, renderPass, nullptr);
-    //    for (uint32_t i = 0; i < frameBuffers.size(); i++)
-    //    {
-    //        //        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
-    //        frameBuffers[i].destroy(base.device);
-    //    }
-
-
-    //    vkDestroyCommandPool(device, cmdPool, nullptr);
-
-    for (auto& s : syncObjects)
-    {
-        s.destroy(base.device);
-    }
 }
 
 
-void VulkanForwardRenderer::createBuffers()
+void VulkanForwardRenderer::createDepthBuffer(int w, int h)
 {
     depthBuffer.destroy();
-    depthBuffer.init(base, width, height);
+    depthBuffer.init(base, w, h);
 }
 
-void VulkanForwardRenderer::createFrameBuffers()
+void VulkanForwardRenderer::createFrameBuffers(int numImages, int w, int h)
 {
     frameBuffers.clear();
-    frameBuffers.resize(swapChain.imageCount);
-    for (uint32_t i = 0; i < frameBuffers.size(); i++)
+    frameBuffers.resize(numImages);
+    for (int i = 0; i < numImages; i++)
     {
-        frameBuffers[i].createColorDepthStencil(width, height, swapChain.buffers[i].view, depthBuffer.depthview,
-                                                renderPass, base.device);
+        frameBuffers[i].createColorDepthStencil(w, h, swapChain.buffers[i].view, depthBuffer.depthview, renderPass,
+                                                base.device);
     }
 }
 
 void VulkanForwardRenderer::initChildren()
 {
-    if (vulkanParameters.enableImgui) imGui = window.createImGui(syncObjects.size());
+    if (vulkanParameters.enableImgui) imGui = window.createImGui(swapChainSize());
 
 
     auto* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
@@ -191,26 +167,8 @@ void VulkanForwardRenderer::setupRenderPass()
 
 
 
-void VulkanForwardRenderer::render(Camera* cam)
+void VulkanForwardRenderer::render2(FrameSync& sync, int currentImage)
 {
-    if (!valid)
-    {
-        validCounter--;
-
-        if (validCounter == 0)
-        {
-            this->resizeSwapChain();
-            createBuffers();
-            createFrameBuffers();
-            valid = true;
-        }
-        else
-        {
-            return;
-        }
-    }
-
-
     VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
@@ -227,23 +185,6 @@ void VulkanForwardRenderer::render(Camera* cam)
 
 
 
-    FrameSync& sync = syncObjects[nextSyncObject];
-    sync.wait(base.device);
-
-
-    VkResult err = swapChain.acquireNextImage(sync.imageVailable, &currentBuffer);
-    VK_CHECK_RESULT(err);
-
-    if (err == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        waitIdle();
-        //        this->resizeSwapChain();
-        valid        = false;
-        validCounter = 3;
-        return;
-    }
-
-
     VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
     //    cmdBufInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
@@ -258,37 +199,37 @@ void VulkanForwardRenderer::render(Camera* cam)
     renderPassBeginInfo.renderPass               = renderPass;
     renderPassBeginInfo.renderArea.offset.x      = 0;
     renderPassBeginInfo.renderArea.offset.y      = 0;
-    renderPassBeginInfo.renderArea.extent.width  = width;
-    renderPassBeginInfo.renderArea.extent.height = height;
+    renderPassBeginInfo.renderArea.extent.width  = surfaceWidth;
+    renderPassBeginInfo.renderArea.extent.height = SurfaceHeight;
     renderPassBeginInfo.clearValueCount          = 2;
     renderPassBeginInfo.pClearValues             = clearValues;
 
 
-    vk::CommandBuffer& cmd = drawCmdBuffers[currentBuffer];
+    vk::CommandBuffer& cmd = drawCmdBuffers[currentImage];
 
     // Set target frame buffer
-    renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer].framebuffer;
+    renderPassBeginInfo.framebuffer = frameBuffers[currentImage].framebuffer;
 
     cmd.begin(cmdBufInfo);
     // VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
     renderingInterface->transfer(cmd);
 
 
-    if (imGui) imGui->updateBuffers(cmd, nextSyncObject);
+    if (imGui) imGui->updateBuffers(cmd, currentImage);
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
+    VkViewport viewport = vks::initializers::viewport((float)surfaceWidth, (float)SurfaceHeight, 0.0f, 1.0f);
     vkCmdSetViewport(cmd, 0, 1, &viewport);
 
-    VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
+    VkRect2D scissor = vks::initializers::rect2D(surfaceWidth, SurfaceHeight, 0, 0);
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 
     {
         // Actual rendering
         renderingInterface->render(cmd);
-        if (imGui) imGui->render(cmd, nextSyncObject);
+        if (imGui) imGui->render(cmd, currentImage);
     }
 
     vkCmdEndRenderPass(cmd);
@@ -302,7 +243,7 @@ void VulkanForwardRenderer::render(Camera* cam)
     //    submitInfo = vks::initializers::submitInfo();
     submitInfo.pWaitDstStageMask    = &submitPipelineStages;
     submitInfo.waitSemaphoreCount   = 1;
-    submitInfo.pWaitSemaphores      = &sync.imageVailable;
+    submitInfo.pWaitSemaphores      = &sync.imageAvailable;
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores    = &sync.renderComplete;
 
@@ -313,29 +254,6 @@ void VulkanForwardRenderer::render(Camera* cam)
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
-    err = swapChain.queuePresent(base.mainQueue, currentBuffer, sync.renderComplete);
-
-    if (err == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        //        this->resizeSwapChain();
-        waitIdle();
-        valid        = false;
-        validCounter = 3;
-        return;
-    }
-
-    //    VK_CHECK_RESULT(swapChain.queuePresent(graphicsQueue, currentBuffer));
-    //    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
-    //    presentQueue.waitIdle();
-
-    nextSyncObject = (nextSyncObject + 1) % syncObjects.size();
-}
-
-void VulkanForwardRenderer::waitIdle()
-{
-    base.mainQueue.waitIdle();
-    //    presentQueue.waitIdle();
-    //    transferQueue.waitIdle();
 }
 
 

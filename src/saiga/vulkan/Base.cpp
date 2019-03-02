@@ -27,6 +27,8 @@ void VulkanBase::setPhysicalDevice(vk::PhysicalDevice physicalDevice)
 
 void VulkanBase::destroy()
 {
+    if (!device) return;
+
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
 
@@ -47,6 +49,7 @@ void VulkanBase::destroy()
     if (device)
     {
         device.destroy();
+        device = nullptr;
     }
 }
 

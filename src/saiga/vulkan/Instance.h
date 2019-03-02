@@ -18,6 +18,7 @@ namespace Vulkan
 class SAIGA_VULKAN_API Instance
 {
    public:
+    //    ~Instance() { destroy(); }
     void destroy();
 
     void create(std::vector<const char*> instanceExtensions, bool enableValidation);
@@ -29,7 +30,7 @@ class SAIGA_VULKAN_API Instance
 
    private:
     // Vulkan instance, stores all per-application states
-    vk::Instance instance;
+    vk::Instance instance = nullptr;
     Debug debug;
 };
 
