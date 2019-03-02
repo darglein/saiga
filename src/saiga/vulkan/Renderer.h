@@ -71,22 +71,20 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
      */
     virtual void createBuffers(int numImages, int w, int h) = 0;
 
-    virtual void render2(FrameSync& sync, int currentImage) = 0;
+    /**
+     * The main render functions for the derived renderers.
+     * This should then call all required subpasses.
+     */
+    virtual void render(FrameSync& sync, int currentImage) = 0;
+
+
+
     virtual void render(Camera*) override;
     virtual void bindCamera(Camera*) override {}
-
     virtual float getTotalRenderTime() override;
-
     void renderImGui(bool* p_open) override;
-
-
-    void createSwapChain();
-    void resizeSwapChain();
-
     void waitIdle();
-
     int swapChainSize() { return swapChain.imageCount; }
-
     inline VulkanBase& base() { return vulkanBase; }
 
    protected:
@@ -131,7 +129,6 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     uint32_t currentBuffer      = 0;
     unsigned int nextSyncObject = 0;
     std::vector<FrameSync> syncObjects;
-    int resetCounter = 0;
     void reset();
 };
 

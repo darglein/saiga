@@ -58,6 +58,9 @@ void VulkanRenderer::init()
         sync.create(base().device);
     }
 
+    currentBuffer  = 0;
+    nextSyncObject = 0;
+
     if (vulkanParameters.enableImgui)
     {
         imGui.reset();
@@ -75,14 +78,7 @@ void VulkanRenderer::render(Camera*)
 {
     if (state == State::RESET)
     {
-        if (resetCounter-- == 0)
-        {
-            state = State::INITIALIZED;
-        }
-        else
-        {
-            return;
-        }
+        state = State::INITIALIZED;
     }
 
 
@@ -106,21 +102,15 @@ void VulkanRenderer::render(Camera*)
     }
 
 
-    render2(sync, currentBuffer);
+    render(sync, currentBuffer);
 
 
     err = swapChain.queuePresent(base().mainQueue, currentBuffer, sync.renderComplete);
-
     if (err == VK_ERROR_OUT_OF_DATE_KHR)
     {
         reset();
         return;
     }
-
-    //    VK_CHECK_RESULT(swapChain.queuePresent(graphicsQueue, currentBuffer));
-    //    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
-    //    presentQueue.waitIdle();
-
     nextSyncObject = (nextSyncObject + 1) % syncObjects.size();
 }
 
@@ -134,8 +124,7 @@ void VulkanRenderer::reset()
 {
     SAIGA_ASSERT(state == State::RESET || state == State::RENDERABLE);
     waitIdle();
-    state        = State::RESET;
-    resetCounter = 3;
+    state = State::RESET;
 }
 
 void VulkanRenderer::renderImGui(bool* p_open)
@@ -149,15 +138,6 @@ void VulkanRenderer::renderImGui(bool* p_open)
     ImGui::End();
 }
 
-void VulkanRenderer::createSwapChain()
-{
-    swapChain.create(&surfaceWidth, &SurfaceHeight, false);
-}
-
-void VulkanRenderer::resizeSwapChain()
-{
-    swapChain.create(&surfaceWidth, &SurfaceHeight, false);
-}
 
 void VulkanRenderer::waitIdle()
 {
