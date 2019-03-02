@@ -69,7 +69,7 @@ class Defragger
     BaseChunkAllocator<T>* allocator;
     std::multiset<DefragOperation> defrag_operations;
 
-    std::list<FreeOperation> free_operations;
+    std::vector<FreeOperation> free_operations;
 
     std::atomic_bool running, quit;
     std::atomic_int frame_counter;
@@ -299,39 +299,40 @@ bool Defragger<T>::perform_free_operations()
     // get the value atomically and reset to zero (if during freeing another frame is rendered)
     int frames_advanced = frame_counter.exchange(0);
 
-    // std::for_each(free_operations.begin(), free_operations.end(), [=](auto& entry) { entry.delay -= frames_advanced;
-    // });
-    auto op  = free_operations.begin();
-    auto end = free_operations.end();
-    while (running && op != end)
+    auto count = free_operations.size();
+    int index  = 0;
+    while (running && index < count)
     {
-        op->delay -= frames_advanced;
+        auto& op = free_operations[index];
+        op.delay -= frames_advanced;
 
-        if (op->delay <= 0)
+        if (op.delay <= 0)
         {
-            if (op->source->is_static())
+            if (op.source->is_static())
             {
-                free_operations.push_back(FreeOperation{nullptr, op->target, dealloc_delay});
+                free_operations.emplace_back(nullptr, op.target, dealloc_delay);
             }
             else
             {
-                if (op->target == nullptr)
+                if (op.target == nullptr)
                 {
                     // Had to remove target earlier
-                    // allocator->base_deallocate(op->source);
+                    allocator->deallocate(op.source);
                 }
                 else
                 {
-                    allocator->move_allocation(op->target, op->source);
+                    allocator->move_allocation(op.target, op.source);
                 }
             }
-            op = free_operations.erase(op);
         }
-        else
-        {
-            ++op;
-        }
+        ++index;
     }
+
+    auto new_end =
+        std::remove_if(free_operations.begin(), free_operations.end(), [=](auto& entry) { return entry.delay <= 0; });
+
+    free_operations.erase(new_end, free_operations.end());
+
     return !free_operations.empty();
 }
 

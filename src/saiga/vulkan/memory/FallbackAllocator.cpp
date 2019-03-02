@@ -150,6 +150,7 @@ void FallbackAllocator::destroy(const vk::Device& device, BufferMemoryLocation* 
     }
     memory_location->mappedPointer = nullptr;
 }
+
 void FallbackAllocator::destroy(const vk::Device& device, ImageMemoryLocation* memory_location)
 {
     SAIGA_ASSERT(memory_location->memory, "Already destroyed");

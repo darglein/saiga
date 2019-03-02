@@ -53,18 +53,9 @@ void TextureDisplay::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
 
 vk::DescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture& texture)
 {
-    //    vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(
-    //                vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())
-    //                )[0];
-
-    //    auto set = base->descriptorPool.allocateDescriptorSet(descriptorSetLayout[0]);
     auto set = createDescriptorSet();
 
-
-
     vk::DescriptorImageInfo descriptorInfoTexture = texture.getDescriptorInfo();
-
-
 
     device.updateDescriptorSets(
         {
@@ -74,8 +65,6 @@ vk::DescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture& texture)
         nullptr);
     return set;
 }
-
-
 
 }  // namespace Vulkan
 }  // namespace Saiga

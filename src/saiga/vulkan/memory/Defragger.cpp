@@ -38,10 +38,9 @@ std::optional<ImageDefragger::FreeOperation> ImageDefragger::execute_defrag_oper
 {
     ImageMemoryLocation* reserve_space = allocator->reserve_space(op.targetMemory, op.target, op.source->size);
 
-
-
     auto new_data = op.source->data;
     new_data.create_image(device);
+
 
     bind_image_data(device, reserve_space, std::move(new_data));
     reserve_space->data.create_view(device);

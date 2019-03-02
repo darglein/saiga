@@ -18,8 +18,8 @@ namespace Saiga::Vulkan::Memory
 {
 BufferMemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
 {
+    std::scoped_lock lock(allocationMutex);
     auto alignedSize = iAlignUp(size, m_alignment);
-    // LOG(INFO) << "Requested " << size << " (~" << alignedSize << ") bytes";
     SAIGA_ASSERT(alignedSize <= m_chunkSize, "Can't allocate sizes bigger than chunk size");
     auto location = BaseChunkAllocator::base_allocate(alignedSize);
     VLOG(1) << "Allocate buffer " << type << ":" << *location;
@@ -51,7 +51,7 @@ ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
 void BufferChunkAllocator::deallocate(BufferMemoryLocation* location)
 {
     VLOG(1) << "Trying to deallocate buffer " << type << ":" << *location;
-    BaseChunkAllocator::base_deallocate(location);
+    BaseChunkAllocator::deallocate(location);
 }
 
 void BufferChunkAllocator::headerInfo()

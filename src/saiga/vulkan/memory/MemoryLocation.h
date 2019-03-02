@@ -71,6 +71,9 @@ struct SafeAccessor final
 template <typename Data>
 struct SAIGA_VULKAN_API BaseMemoryLocation
 {
+    using Clock     = std::chrono::steady_clock;
+    using TimePoint = std::chrono::time_point<Clock>;
+
    public:
     Data data;
     vk::DeviceMemory memory;
@@ -79,18 +82,36 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
     void* mappedPointer;
     std::mutex mutex;
 
+
    private:
     bool static_mem;
 
    public:
+    TimePoint modified_time;
+
+   public:
     explicit BaseMemoryLocation(vk::DeviceSize _size)
-        : data(nullptr), memory(nullptr), offset(0), size(_size), mappedPointer(nullptr), mutex(), static_mem(true)
+        : data(nullptr),
+          memory(nullptr),
+          offset(0),
+          size(_size),
+          mappedPointer(nullptr),
+          mutex(),
+          static_mem(true),
+          modified_time(Clock::now())
     {
     }
 
     explicit BaseMemoryLocation(Data _data = nullptr, vk::DeviceMemory _memory = nullptr, vk::DeviceSize _offset = 0,
                                 vk::DeviceSize _size = 0, void* _basePointer = nullptr)
-        : data(_data), memory(_memory), offset(_offset), size(_size), mappedPointer(nullptr), mutex(), static_mem(true)
+        : data(_data),
+          memory(_memory),
+          offset(_offset),
+          size(_size),
+          mappedPointer(nullptr),
+          mutex(),
+          static_mem(true),
+          modified_time(Clock::now())
     {
         if (_basePointer)
         {
@@ -98,9 +119,9 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         }
     }
 
-    BaseMemoryLocation(const BaseMemoryLocation& other) = default;
+    BaseMemoryLocation(const BaseMemoryLocation& other) = delete;
 
-    BaseMemoryLocation& operator=(const BaseMemoryLocation& other) = default;
+    BaseMemoryLocation& operator=(const BaseMemoryLocation& other) = delete;
 
     BaseMemoryLocation(BaseMemoryLocation&& other) noexcept
         : data(other.data),
@@ -109,7 +130,8 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
           size(other.size),
           mappedPointer(other.mappedPointer),
           mutex(),
-          static_mem(other.static_mem)
+          static_mem(other.static_mem),
+          modified_time(other.modified_time)
     {
         other.make_invalid();
     }
@@ -125,7 +147,7 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
             mappedPointer = other.mappedPointer;
             mutex         = std::mutex();
             static_mem    = other.static_mem;
-
+            modified_time = std::move(other.modified_time);
             other.make_invalid();
         }
         return *this;
@@ -261,10 +283,17 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
     void copy_to(BaseMemoryLocation<Data>& other)
     {
         SafeAccessor accessor(*this, other);
-        other.memory = memory;
-        other.offset = offset;
-        other.size   = size;
-        other.data   = data;
+        other.memory        = memory;
+        other.offset        = offset;
+        other.size          = size;
+        other.data          = data;
+        other.modified_time = Clock::now();
+    }
+
+    void modified()
+    {
+        SafeAccessor(*this);
+        modified_time = Clock::now();
     }
 };
 

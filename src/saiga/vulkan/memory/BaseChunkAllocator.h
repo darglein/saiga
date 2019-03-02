@@ -21,11 +21,9 @@ namespace Saiga::Vulkan::Memory
 template <typename T>
 class SAIGA_VULKAN_API BaseChunkAllocator
 {
-   private:
+   protected:
     std::mutex allocationMutex;
     void findNewMax(ChunkIterator<T>& chunkAlloc) const;
-
-   protected:
     vk::Device m_device;
     ChunkCreator* m_chunkAllocator{};
 
@@ -45,14 +43,20 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     virtual void headerInfo() {}
 
 
+    /**
+     * Allocates \p size bytes
+     * @tparam T Type of location to allocate
+     * @param size Number of bytes to allocate
+     * @remarks Function is not synchronized with a mutex. This must be done by the calling method.
+     * @return A pointer to the allocated memory region. Data will not be set.
+     */
     virtual T* base_allocate(vk::DeviceSize size);
-
-    virtual void base_deallocate(T* location);
 
     virtual std::unique_ptr<T> create_location(ChunkIterator<T>& chunk_alloc, vk::DeviceSize start,
                                                vk::DeviceSize size) = 0;
 
    public:
+    virtual void deallocate(T* location);
     BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy<T>& strategy, Queue* _queue,
                        vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : m_device(_device),
@@ -116,7 +120,6 @@ class SAIGA_VULKAN_API BaseChunkAllocator
 template <typename T>
 T* BaseChunkAllocator<T>::base_allocate(vk::DeviceSize size)
 {
-    std::scoped_lock alloc_lock(allocationMutex);
     ChunkIterator<T> chunkAlloc;
     FreeIterator<T> freeSpace;
     std::tie(chunkAlloc, freeSpace) = strategy->findRange(chunks.begin(), chunks.end(), size);
@@ -180,7 +183,7 @@ void BaseChunkAllocator<T>::findNewMax(ChunkIterator<T>& chunkAlloc) const
 
 
 template <typename T>
-void BaseChunkAllocator<T>::base_deallocate(T* location)
+void BaseChunkAllocator<T>::deallocate(T* location)
 {
     std::scoped_lock alloc_lock(allocationMutex);
 
@@ -285,8 +288,8 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
     std::tie(source_chunk, source_alloc) = find_allocation(source);
 
 
+    source->destroy_owned_data(m_device);
     target->copy_to(*source);
-    //*source = *target;  // copy values from target to source;
 
     source->mark_dynamic();
 
@@ -300,6 +303,8 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
 
 
     findNewMax(source_chunk);
+
+    source->modified();
 }
 
 template <typename T>
