@@ -25,17 +25,17 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 
     window.createSurface(instance, &surface);
 
-    base.setPhysicalDevice(instance.pickPhysicalDevice());
+    base().setPhysicalDevice(instance.pickPhysicalDevice());
 
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
     vulkanParameters.physicalDeviceFeatures.wideLines        = VK_TRUE;
-    base.createLogicalDevice(surface, vulkanParameters, true);
+    base().createLogicalDevice(surface, vulkanParameters, true);
 
     createSwapChain();
     syncObjects.resize(swapChain.imageCount);
     for (auto& sync : syncObjects)
     {
-        sync.create(base.device);
+        sync.create(base().device);
     }
 }
 
@@ -85,7 +85,7 @@ void VulkanRenderer::render(Camera*)
     render2(sync, currentBuffer);
 
 
-    err = swapChain.queuePresent(base.mainQueue, currentBuffer, sync.renderComplete);
+    err = swapChain.queuePresent(base().mainQueue, currentBuffer, sync.renderComplete);
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -114,15 +114,15 @@ void VulkanRenderer::renderImGui(bool* p_open)
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Renderer Info", p_open, ImGuiWindowFlags_NoCollapse);
 
-    base.renderGUI();
-    base.memory.renderGUI();
+    base().renderGUI();
+    base().memory.renderGUI();
 
     ImGui::End();
 }
 
 void VulkanRenderer::createSwapChain()
 {
-    swapChain.connect(instance, base.physicalDevice, base.device);
+    swapChain.connect(instance, base().physicalDevice, base().device);
     swapChain.initSurface(surface);
     swapChain.create(&surfaceWidth, &SurfaceHeight, false);
 }
@@ -134,7 +134,7 @@ void VulkanRenderer::resizeSwapChain()
 
 void VulkanRenderer::waitIdle()
 {
-    base.mainQueue.waitIdle();
+    base().mainQueue.waitIdle();
     //    presentQueue.waitIdle();
     //    transferQueue.waitIdle();
 }

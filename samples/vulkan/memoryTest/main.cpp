@@ -29,7 +29,7 @@ int main(const int argc, const char* argv[])
 
         VulkanExample example(window, renderer);
 
-        Saiga::Vulkan::Memory::VulkanStlAllocator<int> alloc(renderer.base, vk::BufferUsageFlagBits::eUniformBuffer);
+        Saiga::Vulkan::Memory::VulkanStlAllocator<int> alloc(renderer.base(), vk::BufferUsageFlagBits::eUniformBuffer);
 
 
         // std::vector<int, VulkanStlAllocator<int>> test(alloc);

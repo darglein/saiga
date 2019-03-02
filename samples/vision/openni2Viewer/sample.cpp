@@ -82,14 +82,14 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
         //    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
         texture = std::make_shared<Saiga::Vulkan::Texture2D>();
-        texture->fromImage(renderer.base, rgbImage);
+        texture->fromImage(renderer.base(), rgbImage);
 
 
         texture2 = std::make_shared<Saiga::Vulkan::Texture2D>();
         //    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
         depthmg.create(frameData->depthImg.height, frameData->depthImg.width);
         Saiga::ImageTransformation::depthToRGBA(frameData->depthImg.getImageView(), depthmg.getImageView(), 0, 7000);
-        texture2->fromImage(renderer.base, depthmg);
+        texture2->fromImage(renderer.base(), depthmg);
 
 
 

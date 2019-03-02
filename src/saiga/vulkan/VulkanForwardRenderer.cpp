@@ -31,7 +31,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 
     createDepthBuffer(surfaceWidth, SurfaceHeight);
 
-    renderCommandPool = base.mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+    renderCommandPool = base().mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 
     drawCmdBuffers = renderCommandPool.allocateCommandBuffers(swapChain.imageCount, vk::CommandBufferLevel::ePrimary);
 
@@ -51,14 +51,14 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
-    vkDestroyRenderPass(base.device, renderPass, nullptr);
+    vkDestroyRenderPass(base().device, renderPass, nullptr);
 }
 
 
 void VulkanForwardRenderer::createDepthBuffer(int w, int h)
 {
     depthBuffer.destroy();
-    depthBuffer.init(base, w, h);
+    depthBuffer.init(base(), w, h);
 }
 
 void VulkanForwardRenderer::createFrameBuffers(int numImages, int w, int h)
@@ -68,7 +68,7 @@ void VulkanForwardRenderer::createFrameBuffers(int numImages, int w, int h)
     for (int i = 0; i < numImages; i++)
     {
         frameBuffers[i].createColorDepthStencil(w, h, swapChain.buffers[i].view, depthBuffer.depthview, renderPass,
-                                                base.device);
+                                                base().device);
     }
 }
 
@@ -80,9 +80,9 @@ void VulkanForwardRenderer::initChildren()
     auto* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    renderingInterface->init(base);
+    renderingInterface->init(base());
 
-    if (imGui) imGui->initResources(base, renderPass);
+    if (imGui) imGui->initResources(base(), renderPass);
 
     //    cmd.reset(vk::CommandBufferResetFlags());
 
@@ -162,7 +162,7 @@ void VulkanForwardRenderer::setupRenderPass()
     renderPassInfo.dependencyCount        = 1;  // static_cast<uint32_t>(dependencies.size());
     renderPassInfo.pDependencies          = dependencies.data();
 
-    VK_CHECK_RESULT(vkCreateRenderPass(base.device, &renderPassInfo, nullptr, &renderPass));
+    VK_CHECK_RESULT(vkCreateRenderPass(base().device, &renderPassInfo, nullptr, &renderPass));
 }
 
 
@@ -250,7 +250,7 @@ void VulkanForwardRenderer::render2(FrameSync& sync, int currentImage)
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
     //    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
-    base.mainQueue.submit(submitInfo, sync.frameFence);
+    base().mainQueue.submit(submitInfo, sync.frameFence);
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));

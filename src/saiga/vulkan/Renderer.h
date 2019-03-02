@@ -32,8 +32,6 @@ class VulkanWindow;
 class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 {
    public:
-    Saiga::Vulkan::VulkanBase base;
-
     VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
     virtual ~VulkanRenderer() override;
 
@@ -57,7 +55,10 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     int swapChainSize() { return swapChain.imageCount; }
 
+    inline VulkanBase& base() { return vulkanBase; }
+
    protected:
+    VulkanBase vulkanBase;
     /**
      * Shared Member variables common for all vulkan render engines.
      */
