@@ -25,44 +25,22 @@ namespace Vulkan
 VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParameters vulkanParameters)
     : VulkanRenderer(window, vulkanParameters)
 {
-    // graphicsQueue.create(base.device, base.queueFamilyIndices.graphics);
-
-
-
-    createDepthBuffer(surfaceWidth, SurfaceHeight);
-
-    renderCommandPool = base().mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-
-    drawCmdBuffers = renderCommandPool.allocateCommandBuffers(swapChain.imageCount, vk::CommandBufferLevel::ePrimary);
-
-
     setupRenderPass();
-    createFrameBuffers(swapChain.imageCount, surfaceWidth, SurfaceHeight);
-
-    //    createFrameBuffers();
-    //    frameBuffers.resize(swapChain.imageCount);
-    //    for (uint32_t i = 0; i < frameBuffers.size(); i++)
-    //    {
-    //        frameBuffers[i].createColorDepthStencil(width, height, swapChain.buffers[i].view, depthBuffer.depthview,
-    //                                                renderPass, base.device);
-    //    }
+    renderCommandPool = base().mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
     cout << "VulkanForwardRenderer init done." << endl;
 }
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
-    vkDestroyRenderPass(base().device, renderPass, nullptr);
+    base().device.destroyRenderPass(renderPass);
 }
 
 
-void VulkanForwardRenderer::createDepthBuffer(int w, int h)
+void VulkanForwardRenderer::createBuffers(int numImages, int w, int h)
 {
     depthBuffer.destroy();
     depthBuffer.init(base(), w, h);
-}
 
-void VulkanForwardRenderer::createFrameBuffers(int numImages, int w, int h)
-{
     frameBuffers.clear();
     frameBuffers.resize(numImages);
     for (int i = 0; i < numImages; i++)
@@ -70,27 +48,14 @@ void VulkanForwardRenderer::createFrameBuffers(int numImages, int w, int h)
         frameBuffers[i].createColorDepthStencil(w, h, swapChain.buffers[i].view, depthBuffer.depthview, renderPass,
                                                 base().device);
     }
-}
-
-void VulkanForwardRenderer::initChildren()
-{
-    if (vulkanParameters.enableImgui) imGui = window.createImGui(swapChainSize());
 
 
-    auto* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
-    SAIGA_ASSERT(renderingInterface);
-
-    renderingInterface->init(base());
+    renderCommandPool.freeCommandBuffers(drawCmdBuffers);
+    drawCmdBuffers.clear();
+    drawCmdBuffers = renderCommandPool.allocateCommandBuffers(numImages, vk::CommandBufferLevel::ePrimary);
 
     if (imGui) imGui->initResources(base(), renderPass);
-
-    //    cmd.reset(vk::CommandBufferResetFlags());
-
-
-
-    //    graphicsQueue.waitIdle();
 }
-
 
 
 void VulkanForwardRenderer::setupRenderPass()
@@ -106,7 +71,7 @@ void VulkanForwardRenderer::setupRenderPass()
     attachments[0].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
     attachments[0].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     // Depth attachment
-    attachments[1].format         = (VkFormat)depthBuffer.depthFormat;
+    attachments[1].format         = (VkFormat)depthBuffer.format;
     attachments[1].samples        = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[1].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;

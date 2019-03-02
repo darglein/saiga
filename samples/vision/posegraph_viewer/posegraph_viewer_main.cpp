@@ -24,7 +24,7 @@ int main(const int argc, const char* argv[])
 
 
         VulkanExample example(window, renderer);
-        renderer.initChildren();
+
 
         MainLoopParameters params;
         params.fromConfigFile("config.ini");

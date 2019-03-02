@@ -29,7 +29,7 @@ class VulkanExample : public Saiga::Updating,
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample();
 
-    virtual void init(Saiga::Vulkan::VulkanBase& base) override;
+    void init(Saiga::Vulkan::VulkanBase& base);
 
 
     virtual void update(float dt) override;

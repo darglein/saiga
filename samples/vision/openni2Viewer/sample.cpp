@@ -28,6 +28,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     Saiga::createGlobalThreadPool(8);
     Saiga::setThreadName("main");
     cout << "init done" << endl;
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample() {}

@@ -31,12 +31,11 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     vulkanParameters.physicalDeviceFeatures.wideLines        = VK_TRUE;
     base().createLogicalDevice(surface, vulkanParameters, true);
 
-    createSwapChain();
-    syncObjects.resize(swapChain.imageCount);
-    for (auto& sync : syncObjects)
-    {
-        sync.create(base().device);
-    }
+
+    swapChain.connect(instance, base().physicalDevice, base().device);
+    swapChain.initSurface(surface);
+
+    state = State::INITIALIZED;
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -46,23 +45,50 @@ VulkanRenderer::~VulkanRenderer()
     waitIdle();
 }
 
+void VulkanRenderer::init()
+{
+    SAIGA_ASSERT(state == State::INITIALIZED);
+    //    createSwapChain();
+    swapChain.create(&surfaceWidth, &SurfaceHeight, false);
+
+    syncObjects.clear();
+    syncObjects.resize(swapChain.imageCount);
+    for (auto& sync : syncObjects)
+    {
+        sync.create(base().device);
+    }
+
+    if (vulkanParameters.enableImgui)
+    {
+        imGui.reset();
+        imGui = window.createImGui(swapChainSize());
+    }
+
+    createBuffers(swapChainSize(), surfaceWidth, SurfaceHeight);
+
+    // Everyting fine.
+    // We can start rendering now :).
+    state = State::RENDERABLE;
+}
+
 void VulkanRenderer::render(Camera*)
 {
-    if (!valid)
+    if (state == State::RESET)
     {
-        validCounter--;
-
-        if (validCounter == 0)
+        if (resetCounter-- == 0)
         {
-            this->resizeSwapChain();
-            createDepthBuffer(surfaceWidth, SurfaceHeight);
-            createFrameBuffers(swapChain.imageCount, surfaceWidth, SurfaceHeight);
-            valid = true;
+            state = State::INITIALIZED;
         }
         else
         {
             return;
         }
+    }
+
+
+    if (state == State::INITIALIZED)
+    {
+        init();
     }
 
 
@@ -75,9 +101,7 @@ void VulkanRenderer::render(Camera*)
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        waitIdle();
-        valid        = false;
-        validCounter = 3;
+        reset();
         return;
     }
 
@@ -89,9 +113,7 @@ void VulkanRenderer::render(Camera*)
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        waitIdle();
-        valid        = false;
-        validCounter = 3;
+        reset();
         return;
     }
 
@@ -107,7 +129,14 @@ float VulkanRenderer::getTotalRenderTime()
     return window.mainLoop.renderCPUTimer.getTimeMS();
 }
 
-void VulkanRenderer::initInstanceDevice() {}
+
+void VulkanRenderer::reset()
+{
+    SAIGA_ASSERT(state == State::RESET || state == State::RENDERABLE);
+    waitIdle();
+    state        = State::RESET;
+    resetCounter = 3;
+}
 
 void VulkanRenderer::renderImGui(bool* p_open)
 {
@@ -122,8 +151,6 @@ void VulkanRenderer::renderImGui(bool* p_open)
 
 void VulkanRenderer::createSwapChain()
 {
-    swapChain.connect(instance, base().physicalDevice, base().device);
-    swapChain.initSurface(surface);
     swapChain.create(&surfaceWidth, &SurfaceHeight, false);
 }
 

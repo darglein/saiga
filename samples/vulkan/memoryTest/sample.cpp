@@ -31,6 +31,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     window.setCamera(&camera);
 
     auto_mersenne = std::mt19937();
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample() {}

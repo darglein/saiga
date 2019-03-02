@@ -159,6 +159,16 @@ void ColoredBar::DrawRect(const vec2& begin, const vec2& end, const ColoredBar::
 }
 
 
+bool captureMouse()
+{
+    return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse;
+}
+
+bool captureKeyboard()
+{
+    return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard;
+}
+
 }  // namespace ImGui
 
 namespace Saiga

@@ -25,6 +25,8 @@ Compute::Compute(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwa
     camera.rotationPoint = vec3(0);
 
     window.setCamera(&camera);
+
+    init(renderer.base());
 }
 
 Compute::~Compute()

@@ -7,9 +7,9 @@
 
 #pragma once
 
+#include "saiga/core/window/WindowBase.h"
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/svulkan.h"
-#include "saiga/core/window/WindowBase.h"
 
 
 typedef struct SDL_Window SDL_Window;
@@ -30,7 +30,7 @@ class SAIGA_VULKAN_API VulkanWindow : public WindowBase
     void renderImGui(bool* p_open = nullptr) override;
     virtual void swap() override;
 
-    virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) { return nullptr; }
+    virtual std::unique_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) { return nullptr; }
 
     virtual std::vector<const char*> getRequiredInstanceExtensions()       = 0;
     virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;

@@ -39,7 +39,7 @@ GLFWWindow::~GLFWWindow()
     glfwTerminate();
 }
 
-std::shared_ptr<ImGuiVulkanRenderer> GLFWWindow::createImGui(size_t frameCount)
+std::unique_ptr<ImGuiVulkanRenderer> GLFWWindow::createImGui(size_t frameCount)
 {
     // TODO: Create GLFW imgui
     return nullptr;

@@ -29,12 +29,11 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
     {
         // depth buffer
         vk::ImageCreateInfo image_info = {};
-        const vk::Format depth_format  = vk::Format::eD16Unorm;
         vk::FormatProperties props;
         //        vkGetPhysicalDeviceFormatProperties(info.gpus[0], depth_format, &props);
 
         vk::PhysicalDevice physicalDevice = base.physicalDevice;
-        props                             = physicalDevice.getFormatProperties(depth_format);
+        props                             = physicalDevice.getFormatProperties(format);
 
         if (props.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
         {
@@ -51,7 +50,7 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
             exit(-1);
         }
         image_info.imageType             = vk::ImageType::e2D;
-        image_info.format                = depth_format;
+        image_info.format                = format;
         image_info.extent.width          = width;
         image_info.extent.height         = height;
         image_info.extent.depth          = 1;
@@ -71,7 +70,7 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
 
         viewInfo.image                           = nullptr;
         viewInfo.viewType                        = vk::ImageViewType::e2D;
-        viewInfo.format                          = depth_format;
+        viewInfo.format                          = format;
         viewInfo.components.r                    = vk::ComponentSwizzle::eR;
         viewInfo.components.g                    = vk::ComponentSwizzle::eG;
         viewInfo.components.b                    = vk::ComponentSwizzle::eB;
@@ -84,7 +83,6 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
 
         vk::MemoryRequirements mem_reqs;
 
-        depthFormat = depth_format;
 
         /* Create image */
         //        res = vkCreateImage(info.device, &image_info, NULL, &info.depth.image);

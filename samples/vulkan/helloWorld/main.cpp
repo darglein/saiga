@@ -20,14 +20,13 @@ int main(const int argc, const char* argv[])
         //        Saiga::Vulkan::GLFWWindow window(windowParameters);
 
         Saiga::Vulkan::VulkanParameters vulkanParams;
-        //vulkanParams.enableValidationLayer = true;
+        // vulkanParams.enableValidationLayer = true;
         vulkanParams.fromConfigFile("config.ini");
         Saiga::Vulkan::VulkanForwardRenderer renderer(window, vulkanParams);
 
 
 
         VulkanExample example(window, renderer);
-        renderer.initChildren();
 
         MainLoopParameters params;
         params.fromConfigFile("config.ini");

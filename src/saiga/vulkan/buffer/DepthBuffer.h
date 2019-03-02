@@ -17,21 +17,21 @@ namespace Vulkan
 {
 class SAIGA_VULKAN_API DepthBuffer
 {
-   private:
-    VulkanBase* base;
-
    public:
+    DepthBuffer(vk::Format format = vk::Format::eD16Unorm) : format(format) {}
     ~DepthBuffer() { destroy(); }
-    Memory::MemoryLocation* location;
-    //    vk::DeviceMemory depthmem;
 
     // depth image
-    vk::Format depthFormat;
+    vk::Format format;
     vk::Image depthimage = nullptr;
     vk::ImageView depthview;
 
     void init(Saiga::Vulkan::VulkanBase& base, int width, int height);
     void destroy();
+
+   private:
+    VulkanBase* base;
+    Memory::MemoryLocation* location;
 };
 
 }  // namespace Vulkan

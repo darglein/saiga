@@ -21,7 +21,7 @@ namespace Saiga
 namespace Vulkan
 {
 class VulkanWindow;
-
+class ImGuiVulkanRenderer;
 /**
  * Base class for all Vulkan renderers.
  * This already includes basic functionality that every renderer needs:
@@ -32,12 +32,44 @@ class VulkanWindow;
 class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 {
    public:
+    /**
+     * - Create Instance
+     * - Create Device
+     * - Create Surface
+     */
     VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
     virtual ~VulkanRenderer() override;
 
-    virtual void createFrameBuffers(int numImages, int w, int h) = 0;
-    virtual void createDepthBuffer(int w, int h)                 = 0;
-    virtual void setupRenderPass()                               = 0;
+    /**
+     * - Create Swapchain
+     * - Create SyncObjects
+     * - Create Derived Render Objects
+     *      - DepthBuffer
+     *      - FrameBuffer
+     *
+     * All these objects depend on the swapchain. Either by the size or the number of
+     * images.
+     *
+     * -> This function is called every time the window resizes or the swapchain has to
+     * be recreated.
+     */
+    void init();
+
+
+    /**
+     * Must be overriden by the actual renderers.
+     *
+     * Should create (if required):
+     *  - Depthbuffer/Stencilbuffer
+     *  - Framebuffers
+     *  - Main Render Command buffers
+     *
+     * Important:
+     * This function can be called multiple times (for example when window size changes).
+     * -> Make sure no memory leaks when creating the buffers.
+     *
+     */
+    virtual void createBuffers(int numImages, int w, int h) = 0;
 
     virtual void render2(FrameSync& sync, int currentImage) = 0;
     virtual void render(Camera*) override;
@@ -58,14 +90,6 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     inline VulkanBase& base() { return vulkanBase; }
 
    protected:
-    VulkanBase vulkanBase;
-    /**
-     * Shared Member variables common for all vulkan render engines.
-     */
-
-    Saiga::Vulkan::VulkanWindow& window;
-    VkSurfaceKHR surface;
-
     /**
      * Size of the render surface.
      * This might be different to the window size, because of
@@ -76,24 +100,39 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     int surfaceWidth  = 1280;
     int SurfaceHeight = 720;
 
-    Saiga::Vulkan::Instance instance;
+    enum class State
+    {
+        // Initial State
+        UNINITIALIZED,
+        // After Constructor
+        INITIALIZED,
+        // After init()
+        RENDERABLE,
+        // Happens at resize window or change swapchain settings
+        RESET
+    };
+    State state = State::UNINITIALIZED;
 
+
+    Instance instance;
+    VulkanBase vulkanBase;
+    VulkanWindow& window;
+    VkSurfaceKHR surface;
 
     std::vector<const char*> enabledDeviceExtensions;
     std::vector<const char*> enabledInstanceExtensions;
     VulkanSwapChain swapChain;
     VulkanParameters vulkanParameters;
 
+
+    std::unique_ptr<ImGuiVulkanRenderer> imGui;
+
    private:
     uint32_t currentBuffer      = 0;
     unsigned int nextSyncObject = 0;
     std::vector<FrameSync> syncObjects;
-
-    void initInstanceDevice();
-
-
-    bool valid       = true;
-    int validCounter = 0;
+    int resetCounter = 0;
+    void reset();
 };
 
 

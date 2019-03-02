@@ -40,13 +40,13 @@ SDLWindow::~SDLWindow()
     SDL_Quit();
 }
 
-std::shared_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui(size_t frameCount)
+std::unique_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui(size_t frameCount)
 {
     if (windowParameters.imguiParameters.enable)
     {
-        auto imGui = std::make_shared<Saiga::Vulkan::ImGuiSDLRenderer>(frameCount, windowParameters.imguiParameters);
+        auto imGui = std::make_unique<Saiga::Vulkan::ImGuiSDLRenderer>(frameCount, windowParameters.imguiParameters);
         imGui->init(sdl_window, (float)windowParameters.width, (float)windowParameters.height);
-        return imGui;
+        return std::move(imGui);
     }
     return {};
 }

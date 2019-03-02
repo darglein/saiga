@@ -32,6 +32,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     //    exit(0);
 
     window.setCamera(&camera);
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample()
@@ -115,10 +117,16 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
 void VulkanExample::update(float dt)
 {
-    camera.update(dt);
-    camera.interpolate(dt, 0);
+    if (!ImGui::captureKeyboard())
+    {
+        camera.update(dt);
+    }
+    if (!ImGui::captureMouse())
+    {
+        camera.interpolate(dt, 0);
+    }
 
-    //    if(change)
+
     if (change)
     {
         //        renderer.waitIdle();

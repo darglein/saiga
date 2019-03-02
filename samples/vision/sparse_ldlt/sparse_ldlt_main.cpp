@@ -452,7 +452,7 @@ int main(int, char**)
 #else
     {
         omp_set_num_threads(1);
-        LauncherLoop<1, 32 + 1, 1, 1, 2> l;
+        LauncherLoop<4, 4 + 1, 1, 1, 2> l;
 
         //        LauncherLoop<4, 4 + 1, 1, 1, 16> l;
         l();

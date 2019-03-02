@@ -24,7 +24,7 @@ int main(int, const char**)
 
 
         VulkanExample example(window, renderer);
-        renderer.initChildren();
+
 
         window.startMainLoop();
 

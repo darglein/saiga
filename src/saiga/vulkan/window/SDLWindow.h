@@ -27,7 +27,7 @@ class SAIGA_VULKAN_API SDLWindow : public VulkanWindow
     SDLWindow(WindowParameters _windowParameters);
 
     ~SDLWindow();
-    virtual std::shared_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) override;
+    virtual std::unique_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) override;
 
     std::vector<const char*> getRequiredInstanceExtensions() override;
     void createSurface(VkInstance instance, VkSurfaceKHR* surface) override;

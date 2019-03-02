@@ -40,6 +40,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     Saiga::SearchPathes::data.getFiles(datasets, "vision", ".txt");
     std::sort(datasets.begin(), datasets.end());
     cout << "Found " << datasets.size() << " BAL datasets" << endl;
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample() {}
