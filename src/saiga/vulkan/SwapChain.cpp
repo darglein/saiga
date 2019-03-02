@@ -1,4 +1,5 @@
 ﻿#include "SwapChain.h"
+
 #include "VulkanInitializers.hpp"
 #include "VulkanTools.h"
 
@@ -132,7 +133,10 @@ void VulkanSwapChain::connect(VkInstance instance, VkPhysicalDevice physicalDevi
 
 void VulkanSwapChain::create(uint32_t* width, uint32_t* height, bool vsync)
 {
-    VkSwapchainKHR oldSwapchain = swapChain;
+    if (swapChain)
+    {
+        cleanup();
+    }
 
     // Get physical device surface properties and formats
     VkSurfaceCapabilitiesKHR surfCaps;
@@ -278,14 +282,7 @@ void VulkanSwapChain::create(uint32_t* width, uint32_t* height, bool vsync)
 
     // If an existing swap chain is re-created, destroy the old swap chain
     // This also cleans up all the presentable images
-    if (oldSwapchain != VK_NULL_HANDLE)
-    {
-        for (uint32_t i = 0; i < imageCount; i++)
-        {
-            vkDestroyImageView(device, buffers[i].view, nullptr);
-        }
-        vkDestroySwapchainKHR(device, oldSwapchain, nullptr);
-    }
+
     VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, swapChain, &imageCount, NULL));
     images.resize(imageCount);
     VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, swapChain, &imageCount, images.data()));
@@ -352,12 +349,15 @@ void VulkanSwapChain::cleanup()
         {
             vkDestroyImageView(device, buffers[i].view, nullptr);
         }
+        vkDestroySwapchainKHR(device, swapChain, nullptr);
     }
+    swapChain = VK_NULL_HANDLE;
+
+    return;
+
     if (surface != VK_NULL_HANDLE)
     {
-        vkDestroySwapchainKHR(device, swapChain, nullptr);
         vkDestroySurfaceKHR(instance, surface, nullptr);
     }
-    surface   = VK_NULL_HANDLE;
-    swapChain = VK_NULL_HANDLE;
+    surface = VK_NULL_HANDLE;
 }

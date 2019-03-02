@@ -21,13 +21,20 @@ namespace Vulkan
 {
 class VulkanWindow;
 
+/**
+ * Base class for all Vulkan renderers.
+ * This already includes basic functionality that every renderer needs:
+ * - Window management
+ * - Swap Chain
+ * - Instance and Device
+ */
 class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 {
    public:
     Saiga::Vulkan::VulkanBase base;
 
     VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
-    virtual ~VulkanRenderer();
+    virtual ~VulkanRenderer() override;
 
     virtual void render(Camera*) override {}
     virtual void bindCamera(Camera*) override {}
@@ -36,13 +43,17 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     void renderImGui(bool* p_open) override;
 
+
+    void createSwapChain();
+    void resizeSwapChain();
+
    protected:
     /**
      * Shared Member variables common for all vulkan render engines.
      */
 
     Saiga::Vulkan::VulkanWindow& window;
-
+    VkSurfaceKHR surface;
 
     uint32_t width  = 1280;
     uint32_t height = 720;

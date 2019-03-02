@@ -21,12 +21,13 @@ class SAIGA_VULKAN_API DepthBuffer
     VulkanBase* base;
 
    public:
+    ~DepthBuffer() { destroy(); }
     Memory::MemoryLocation* location;
     //    vk::DeviceMemory depthmem;
 
     // depth image
     vk::Format depthFormat;
-    vk::Image depthimage;
+    vk::Image depthimage = nullptr;
     vk::ImageView depthview;
 
     void init(Saiga::Vulkan::VulkanBase& base, int width, int height);

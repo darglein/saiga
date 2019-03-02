@@ -158,8 +158,8 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
             }
 
 
-            auto t  = make_statistics(times).median / 1000.0;
-            auto tl = make_statistics(timesl).median / 1000.0;
+            auto t  = make_statistics(times).median / 1000.0 / baoptions.maxIterations;
+            auto tl = make_statistics(timesl).median / 1000.0 / baoptions.maxIterations;
             table << s->name << chi2 << tl << t;
             strm << "," << t;
         }
@@ -185,8 +185,8 @@ int main(int, char**)
         OptimizationOptions baoptions;
         baoptions.debugOutput   = false;
         baoptions.maxIterations = 3;
-        baoptions.initialLambda = 1;  // use a high lambda for the benchmark so it converges slowly, but surely
-        int testIts             = 25;
+        baoptions.initialLambda = 1000;  // use a high lambda for the benchmark so it converges slowly, but surely
+        int testIts             = 11;
         if (1)
         {
             baoptions.maxIterativeIterations = 25;

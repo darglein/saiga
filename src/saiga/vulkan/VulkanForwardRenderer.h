@@ -55,6 +55,9 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public Saiga::Vulkan::VulkanRende
 
     void waitIdle();
 
+    void createFrameBuffers();
+    void createBuffers();
+
    protected:
     int maxFramesInFlight = 10;
     DepthBuffer depthBuffer;
@@ -69,9 +72,12 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public Saiga::Vulkan::VulkanRende
     std::vector<FrameSync> syncObjects;
     unsigned int nextSyncObject = 0;
 
-    std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
+    std::shared_ptr<ImGuiVulkanRenderer> imGui;
 
     void setupRenderPass();
+
+    bool valid       = true;
+    int validCounter = 0;
 };
 
 }  // namespace Vulkan

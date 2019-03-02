@@ -18,13 +18,13 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 {
     window.setRenderer(this);
 
-    width  = window.getWidth();
-    height = window.getHeight();
+    //    width  = window.getWidth() / 2;
+    //    height = window.getHeight() / 2;
 
     std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
     instance.create(instanceExtensions, vulkanParameters.enableValidationLayer);
 
-    VkSurfaceKHR surface;
+
     window.createSurface(instance, &surface);
 
     base.setPhysicalDevice(instance.pickPhysicalDevice());
@@ -37,9 +37,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 
 
 
-    swapChain.connect(instance, base.physicalDevice, base.device);
-    swapChain.initSurface(surface);
-    swapChain.create(&width, &height, false);
+    createSwapChain();
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -69,6 +67,18 @@ void VulkanRenderer::renderImGui(bool* p_open)
     base.memory.renderGUI();
 
     ImGui::End();
+}
+
+void VulkanRenderer::createSwapChain()
+{
+    swapChain.connect(instance, base.physicalDevice, base.device);
+    swapChain.initSurface(surface);
+    swapChain.create(&width, &height, false);
+}
+
+void VulkanRenderer::resizeSwapChain()
+{
+    swapChain.create(&width, &height, false);
 }
 
 

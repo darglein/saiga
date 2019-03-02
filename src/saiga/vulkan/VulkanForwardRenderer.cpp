@@ -26,8 +26,9 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
     : VulkanRenderer(window, vulkanParameters)
 {
     // graphicsQueue.create(base.device, base.queueFamilyIndices.graphics);
-    depthBuffer.init(base, width, height);
 
+
+    createBuffers();
 
     syncObjects.resize(swapChain.imageCount);
     for (auto& sync : syncObjects)
@@ -42,12 +43,13 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 
     setupRenderPass();
 
-    frameBuffers.resize(swapChain.imageCount);
-    for (uint32_t i = 0; i < frameBuffers.size(); i++)
-    {
-        frameBuffers[i].createColorDepthStencil(width, height, swapChain.buffers[i].view, depthBuffer.depthview,
-                                                renderPass, base.device);
-    }
+    createFrameBuffers();
+    //    frameBuffers.resize(swapChain.imageCount);
+    //    for (uint32_t i = 0; i < frameBuffers.size(); i++)
+    //    {
+    //        frameBuffers[i].createColorDepthStencil(width, height, swapChain.buffers[i].view, depthBuffer.depthview,
+    //                                                renderPass, base.device);
+    //    }
     cout << "VulkanForwardRenderer init done." << endl;
 }
 
@@ -61,19 +63,36 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 
 
     vkDestroyRenderPass(base.device, renderPass, nullptr);
-    for (uint32_t i = 0; i < frameBuffers.size(); i++)
-    {
-        //        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
-        frameBuffers[i].destroy(base.device);
-    }
+    //    for (uint32_t i = 0; i < frameBuffers.size(); i++)
+    //    {
+    //        //        vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
+    //        frameBuffers[i].destroy(base.device);
+    //    }
 
-    depthBuffer.destroy();
 
     //    vkDestroyCommandPool(device, cmdPool, nullptr);
 
     for (auto& s : syncObjects)
     {
         s.destroy(base.device);
+    }
+}
+
+
+void VulkanForwardRenderer::createBuffers()
+{
+    depthBuffer.destroy();
+    depthBuffer.init(base, width, height);
+}
+
+void VulkanForwardRenderer::createFrameBuffers()
+{
+    frameBuffers.clear();
+    frameBuffers.resize(swapChain.imageCount);
+    for (uint32_t i = 0; i < frameBuffers.size(); i++)
+    {
+        frameBuffers[i].createColorDepthStencil(width, height, swapChain.buffers[i].view, depthBuffer.depthview,
+                                                renderPass, base.device);
     }
 }
 
@@ -174,6 +193,24 @@ void VulkanForwardRenderer::setupRenderPass()
 
 void VulkanForwardRenderer::render(Camera* cam)
 {
+    if (!valid)
+    {
+        validCounter--;
+
+        if (validCounter == 0)
+        {
+            this->resizeSwapChain();
+            createBuffers();
+            createFrameBuffers();
+            valid = true;
+        }
+        else
+        {
+            return;
+        }
+    }
+
+
     VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
@@ -197,6 +234,14 @@ void VulkanForwardRenderer::render(Camera* cam)
     VkResult err = swapChain.acquireNextImage(sync.imageVailable, &currentBuffer);
     VK_CHECK_RESULT(err);
 
+    if (err == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        waitIdle();
+        //        this->resizeSwapChain();
+        valid        = false;
+        validCounter = 3;
+        return;
+    }
 
 
     VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
@@ -268,7 +313,17 @@ void VulkanForwardRenderer::render(Camera* cam)
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
-    VK_CHECK_RESULT(swapChain.queuePresent(base.mainQueue, currentBuffer, sync.renderComplete));
+    err = swapChain.queuePresent(base.mainQueue, currentBuffer, sync.renderComplete);
+
+    if (err == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        //        this->resizeSwapChain();
+        waitIdle();
+        valid        = false;
+        validCounter = 3;
+        return;
+    }
+
     //    VK_CHECK_RESULT(swapChain.queuePresent(graphicsQueue, currentBuffer));
     //    VK_CHECK_RESULT(vkQueueWaitIdle(presentQueue));
     //    presentQueue.waitIdle();

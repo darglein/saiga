@@ -11,14 +11,19 @@ namespace Saiga
 {
 namespace Vulkan
 {
-void Framebuffer::destroy(vk::Device device)
+void Framebuffer::destroy()
 {
-    vkDestroyFramebuffer(device, framebuffer, nullptr);
+    if (framebuffer)
+    {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+        framebuffer = nullptr;
+    }
 }
 
 void Framebuffer::createColorDepthStencil(int width, int height, vk::ImageView color, vk::ImageView depthStencil,
                                           vk::RenderPass renderPass, vk::Device device)
 {
+    this->device = device;
     VkImageView attachments[2];
 
     // Depth/Stencil attachment is the same for all frame buffers
@@ -43,6 +48,7 @@ void Framebuffer::createColorDepthStencil(int width, int height, vk::ImageView c
 
 void Framebuffer::createColor(int width, int height, vk::ImageView color, vk::RenderPass renderPass, vk::Device device)
 {
+    this->device = device;
     VkImageView attachments[1];
 
     // Depth/Stencil attachment is the same for all frame buffers
@@ -66,6 +72,8 @@ void Framebuffer::createColor(int width, int height, vk::ImageView color, vk::Re
 
 void Framebuffer::create(int width, int height, vk::RenderPass renderPass, vk::Device device)
 {
+    this->device = device;
+
     VkFramebufferCreateInfo frameBufferCreateInfo = {};
     frameBufferCreateInfo.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     frameBufferCreateInfo.pNext                   = NULL;

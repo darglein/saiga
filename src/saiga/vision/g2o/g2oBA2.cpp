@@ -49,7 +49,7 @@ OptimizationResults g2oBA2::solve()
     auto solver = g2o_make_optimizationAlgorithm<BlockSolver>(optimizationOptions);
     //    OptimizationAlgorithm* solver = new
     //    OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
-    //    solver->setUserLambdaInit(optimizationOptions.initialLambda * 2);
+    solver->setUserLambdaInit(optimizationOptions.initialLambda * optimizationOptions.initialLambda);
     //    solver->setMaxTrialsAfterFailure(2);
     g2o::SparseOptimizer optimizer;
     //    optimizer.setVerbose(optimizationOptions.debugOutput);

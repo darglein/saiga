@@ -13,8 +13,13 @@ namespace Vulkan
 {
 void DepthBuffer::destroy()
 {
-    base->device.destroyImage(depthimage);
-    base->device.destroyImageView(depthview);
+    if (depthimage)
+    {
+        base->device.destroyImage(depthimage);
+        base->device.destroyImageView(depthview);
+        depthimage = nullptr;
+        depthview  = nullptr;
+    }
 }
 
 void DepthBuffer::init(VulkanBase& base, int width, int height)
