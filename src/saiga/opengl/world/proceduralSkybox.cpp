@@ -7,7 +7,6 @@
 #include "saiga/opengl/world/proceduralSkybox.h"
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
-#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
@@ -51,13 +50,6 @@ void ProceduralSkybox::render(Camera* cam)
     shader->unbind();
 }
 
-void ProceduralSkybox::imgui()
-{
-    ImGui::InputFloat("horizonHeight", &horizonHeight);
-    ImGui::InputFloat("distance", &distance);
-    ImGui::SliderFloat("sunIntensity", &sunIntensity, 0, 2);
-    ImGui::SliderFloat("sunSize", &sunSize, 0, 2);
-    ImGui::Direction("sunDir", sunDir);
-}
+
 
 }  // namespace Saiga

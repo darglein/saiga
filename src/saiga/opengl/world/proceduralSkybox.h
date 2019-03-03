@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/camera/camera.h"
+#include "saiga/core/rendering/ProceduralSkyboxBase.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/texture/cube_texture.h"
@@ -25,15 +26,9 @@ class SAIGA_OPENGL_API ProceduralSkyboxShader : public MVPShader
     virtual void uploadParams(vec3 sunDir, float horizonHeight, float distance, float sunIntensity, float sunSize);
 };
 
-class SAIGA_OPENGL_API ProceduralSkybox
+class SAIGA_OPENGL_API ProceduralSkybox : public ProceduralSkyboxBase
 {
    public:
-    float horizonHeight = 0;
-    float distance      = 200;
-    float sunIntensity  = 1;
-    float sunSize       = 1;
-    vec3 sunDir         = vec3(0, -1, 0);
-
     IndexedVertexBuffer<VertexNT, GLuint> mesh;
     std::shared_ptr<ProceduralSkyboxShader> shader;
     mat4 model;
@@ -41,8 +36,6 @@ class SAIGA_OPENGL_API ProceduralSkybox
     ProceduralSkybox();
 
     void render(Camera* cam);
-
-    void imgui();
 };
 
 }  // namespace Saiga
