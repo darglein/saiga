@@ -49,7 +49,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
 void Sample::update(float dt)
 {
     // Update the camera position
-    camera.update(dt);
+    if (!ImGui::captureKeyboard()) camera.update(dt);
     sun->fitShadowToCamera(&camera);
 }
 
@@ -57,7 +57,7 @@ void Sample::interpolate(float dt, float interpolation)
 {
     // Update the camera rotation. This could also be done in 'update' but
     // doing it in the interpolate step will reduce latency
-    camera.interpolate(dt, interpolation);
+    if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
 }
 
 void Sample::render(Camera* cam)
@@ -78,6 +78,7 @@ void Sample::renderDepth(Camera* cam)
 void Sample::renderOverlay(Camera* cam)
 {
     // The skybox is rendered after lighting and before post processing
+    skybox.sunDir = vec3(sun->getDirection());
     skybox.render(cam);
 }
 
@@ -93,6 +94,8 @@ void Sample::renderFinal(Camera* cam)
         ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
 
+
+        skybox.imgui();
         ImGui::End();
     }
 }

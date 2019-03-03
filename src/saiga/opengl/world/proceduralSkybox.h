@@ -22,7 +22,7 @@ class SAIGA_OPENGL_API ProceduralSkyboxShader : public MVPShader
 
 
     virtual void checkUniforms();
-    virtual void uploadParams(float horizonHeight, float distance);
+    virtual void uploadParams(vec3 sunDir, float horizonHeight, float distance, float sunIntensity, float sunSize);
 };
 
 class SAIGA_OPENGL_API ProceduralSkybox
@@ -30,6 +30,9 @@ class SAIGA_OPENGL_API ProceduralSkybox
    public:
     float horizonHeight = 0;
     float distance      = 200;
+    float sunIntensity  = 1;
+    float sunSize       = 1;
+    vec3 sunDir         = vec3(0, -1, 0);
 
     IndexedVertexBuffer<VertexNT, GLuint> mesh;
     std::shared_ptr<ProceduralSkyboxShader> shader;
@@ -38,6 +41,8 @@ class SAIGA_OPENGL_API ProceduralSkybox
     ProceduralSkybox();
 
     void render(Camera* cam);
+
+    void imgui();
 };
 
 }  // namespace Saiga

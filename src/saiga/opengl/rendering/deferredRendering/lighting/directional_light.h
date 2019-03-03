@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/opengl/uniformBuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/lighting/light.h"
+#include "saiga/opengl/uniformBuffer.h"
 
 namespace Saiga
 {
@@ -96,6 +96,7 @@ class SAIGA_OPENGL_API DirectionalLight : public Light
      * Computes the view matrix for the shadow camera.
      */
     void setDirection(const vec3& dir);
+    vec3 getDirection() const { return direction; }
 
     /**
      * Computes the left/right, bottom/top and near/far planes of the shadow volume so that,

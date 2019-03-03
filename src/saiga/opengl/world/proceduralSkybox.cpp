@@ -7,6 +7,7 @@
 #include "saiga/opengl/world/proceduralSkybox.h"
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
@@ -17,10 +18,12 @@ void ProceduralSkyboxShader::checkUniforms()
     location_params = Shader::getUniformLocation("params");
 }
 
-void ProceduralSkyboxShader::uploadParams(float horizonHeight, float distance)
+void ProceduralSkyboxShader::uploadParams(glm::vec3 sunDir, float horizonHeight, float distance, float sunIntensity,
+                                          float sunSize)
 {
-    vec4 params = vec4(horizonHeight, distance, 0, 0);
-    Shader::upload(location_params, params);
+    vec4 params = vec4(horizonHeight, distance, sunIntensity, sunSize);
+    Shader::upload(0, params);
+    Shader::upload(1, sunDir);
 }
 
 
@@ -42,10 +45,19 @@ void ProceduralSkybox::render(Camera* cam)
 {
     shader->bind();
     shader->uploadModel(model);
-    shader->uploadParams(horizonHeight, distance);
+    shader->uploadParams(sunDir, horizonHeight, distance, sunIntensity, sunSize);
     mesh.bindAndDraw();
 
     shader->unbind();
+}
+
+void ProceduralSkybox::imgui()
+{
+    ImGui::InputFloat("horizonHeight", &horizonHeight);
+    ImGui::InputFloat("distance", &distance);
+    ImGui::SliderFloat("sunIntensity", &sunIntensity, 0, 2);
+    ImGui::SliderFloat("sunSize", &sunSize, 0, 2);
+    ImGui::Direction("sunDir", sunDir);
 }
 
 }  // namespace Saiga
