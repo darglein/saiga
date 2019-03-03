@@ -82,7 +82,6 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
     void* mappedPointer;
     std::mutex mutex;
 
-
    private:
     bool static_mem;
 

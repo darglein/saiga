@@ -37,6 +37,7 @@ static const vk::DeviceSize fallback_image_chunk_size = 256 * 1024 * 1024;
 class SAIGA_VULKAN_API VulkanMemory
 {
    private:
+    uint32_t frame_number = 0;
     template <bool usage_exact, bool memory_exact, typename T>
     struct allocator_find_functor
     {
@@ -217,13 +218,14 @@ class SAIGA_VULKAN_API VulkanMemory
 
     void update()
     {
+        frame_number++;
         for (auto& allocator : bufferAllocators)
         {
             auto* defragger = allocator.second.defragger.get();
 
             if (defragger)
             {
-                defragger->update();
+                defragger->update(frame_number);
             }
         }
 
@@ -233,7 +235,7 @@ class SAIGA_VULKAN_API VulkanMemory
 
             if (defragger)
             {
-                defragger->update();
+                defragger->update(frame_number);
             }
         }
     }

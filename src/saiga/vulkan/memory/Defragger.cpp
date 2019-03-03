@@ -30,7 +30,7 @@ std::optional<BufferDefragger::FreeOperation> BufferDefragger::execute_defrag_op
 
     // allocator->move_allocation(reserve_space, op.source);
     return std::optional<BufferDefragger::FreeOperation>(
-        BufferDefragger::FreeOperation{reserve_space, op.source, dealloc_delay});
+        BufferDefragger::FreeOperation{reserve_space, op.source, frame_number + dealloc_delay});
 }
 
 std::optional<ImageDefragger::FreeOperation> ImageDefragger::execute_defrag_operation(
@@ -56,7 +56,7 @@ std::optional<ImageDefragger::FreeOperation> ImageDefragger::execute_defrag_oper
     }
 
     return std::optional<ImageDefragger::FreeOperation>(
-        ImageDefragger::FreeOperation{reserve_space, op.source, dealloc_delay});
+        ImageDefragger::FreeOperation{reserve_space, op.source, frame_number + dealloc_delay});
 }
 
 ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,

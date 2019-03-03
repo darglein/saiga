@@ -275,6 +275,17 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer.base.memory.start_defrag(image_type);
         }
         break;
+        case SDL_SCANCODE_R:
+            renderer.base.memory.enable_defragmentation(buffer_type, false);
+            renderer.base.memory.stop_defrag(buffer_type);
+
+            for (int i = 0; i < 10; ++i)
+            {
+                alloc_index(i);
+            }
+            renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
+            renderer.base.memory.start_defrag(buffer_type);
+            break;
         case SDL_SCANCODE_ESCAPE:
             cleanup();
             parentWindow.close();
