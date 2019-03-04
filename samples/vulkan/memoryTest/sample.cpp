@@ -76,7 +76,7 @@ void VulkanExample::update(float dt)
     std::for_each(to_delete_tex.begin(), to_delete_tex.end(), [](auto& entry) { std::get<2>(entry) -= 1; });
 
     auto end = std::remove_if(to_delete_tex.begin(), to_delete_tex.end(),
-                              [](const auto& entry) { return std::get<2>(entry) <= 0; });
+                              [](const auto& entry) { return std::get<2>(entry) < 0; });
 
     to_delete_tex.erase(end, to_delete_tex.end());
     //    renderer.base.memory.vertexIndexAllocator.deallocate(m_location3);
@@ -96,10 +96,13 @@ void VulkanExample::render(vk::CommandBuffer cmd)
             int index       = 0;
             for (auto& texture : tex_allocations)
             {
+                auto set = textureDisplay.createAndUpdateDescriptorSet(*(texture.first));
+                // VLOG(1) << "Displaying " << texture.first->memoryLocation->data.sampler;
                 vec2 position((index % width) * 64, (index / width) * 64);
-                textureDisplay.renderTexture(cmd, texture.second, position, vec2(64, 64));
+                textureDisplay.renderTexture(cmd, set, position, vec2(64, 64));
                 index++;
             }
+            // VLOG(1) << "===============";
         }
     }
 }
@@ -151,7 +154,7 @@ void VulkanExample::renderGUI()
             auto index = mersenne_twister() % tex_allocations.size();
 
             auto& alloc = tex_allocations[index];
-            to_delete_tex.emplace_back(alloc.first, alloc.second, 4);
+            to_delete_tex.emplace_back(alloc.first, alloc.second, 12);
             tex_allocations.erase(tex_allocations.begin() + index);
         }
         renderer.base.memory.enable_defragmentation(image_type, enable_defragger);
@@ -167,7 +170,7 @@ void VulkanExample::renderGUI()
 
 void VulkanExample::keyPressed(SDL_Keysym key)
 {
-    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 15UL), size_dist(0UL, 3UL), image_dist(0, 3);
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 1UL), size_dist(0UL, 3UL), image_dist(0, 3);
 
 
 
@@ -364,7 +367,7 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, vk::DescriptorSet> VulkanEx
     // renderer.base.device.destroy(init_operation.fence);
     texture->mark_dynamic();
 
-    return std::make_pair(texture, textureDisplay.createAndUpdateDescriptorSet(*texture));
+    return std::make_pair(texture, nullptr);
 }
 
 void VulkanExample::cleanup()

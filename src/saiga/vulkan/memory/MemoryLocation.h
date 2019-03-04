@@ -144,7 +144,7 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
             offset        = other.offset;
             size          = other.size;
             mappedPointer = other.mappedPointer;
-            mutex         = std::mutex();
+            // mutex         = std::mutex();
             static_mem    = other.static_mem;
             modified_time = std::move(other.modified_time);
             other.make_invalid();

@@ -111,8 +111,8 @@ class Defragger
     Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0)
         : valid(true),
           enabled(false),
-          dealloc_delay(_dealloc_delay + 1),
-          // dealloc_delay(120),
+          // dealloc_delay(60),
+          dealloc_delay(120),
           base(_base),
           device(_device),
           allocator(_allocator),
@@ -156,7 +156,7 @@ class Defragger
     void update(uint32_t _frame_number) { frame_number = _frame_number; }
 
    protected:
-    virtual std::optional<FreeOperation> execute_defrag_operation(const DefragOperation& op) = 0;
+    virtual std::optional<FreeOperation> execute_copy_operation(const DefragOperation& op) = 0;
 
    private:
     template <typename Iter>
@@ -290,8 +290,8 @@ void Defragger<T>::run()
 template <typename T>
 void Defragger<T>::find_defrag_ops()
 {
+    // TODO: REFACTOR THIS!!!
     auto& chunks = allocator->chunks;
-
 
     // contains a vector for each chunk, which in turn contains the free memory between the allocations. contains 0 if
     // they are back to back.
@@ -516,10 +516,11 @@ bool Defragger<T>::perform_defrag()
     {
         if (allocator->memory_is_free(op->targetMemory, op->target))
         {
-            auto free_op = execute_defrag_operation(*op);
+            auto free_op = execute_copy_operation(*op);
             if (free_op)
             {
                 SAIGA_ASSERT(free_op.value().target && free_op.value().source);
+                allocator->swap(free_op.value().target, free_op.value().source);
                 free_operations.push_back(free_op.value());
                 performed = true;
             }
@@ -544,26 +545,30 @@ bool Defragger<T>::perform_free_operations()
         auto delay = current->delay;
         if (delay < current_frame)
         {
-            if (current->source && current->source->is_static())
+            if (current->target)
             {
-                free_operations.push_back(FreeOperation{nullptr, current->target, dealloc_delay});
+                allocator->deallocate(current->target);
             }
-            else
-            {
-                if (!current->source && current->target)
-                {
-                    allocator->deallocate(current->target);
-                }
-                else if (current->source && !current->target)
-                {
-                    // Had to remove target earlier
-                    allocator->deallocate(current->source);
-                }
-                else
-                {
-                    allocator->move_allocation(current->target, current->source);
-                }
-            }
+            // if (current->source && current->source->is_static())
+            //{
+            //    free_operations.push_back(FreeOperation{nullptr, current->target, dealloc_delay});
+            //}
+            // else
+            //{
+            //    if (!current->source && current->target)
+            //    {
+            //        allocator->deallocate(current->target);
+            //    }
+            //    else if (current->source && !current->target)
+            //    {
+            //        // Had to remove target earlier
+            //        allocator->deallocate(current->source);
+            //    }
+            //    else
+            //    {
+            //        // allocator->move_allocation(current->target, current->source);
+            //    }
+            //}
             current = free_operations.erase(current);
         }
         else
@@ -698,7 +703,7 @@ class BufferDefragger : public Defragger<BufferMemoryLocation>
     }
 
    protected:
-    std::optional<FreeOperation> execute_defrag_operation(const DefragOperation& op) override;
+    std::optional<FreeOperation> execute_copy_operation(const DefragOperation& op) override;
 };
 
 class ImageDefragger : public Defragger<ImageMemoryLocation>
@@ -711,7 +716,7 @@ class ImageDefragger : public Defragger<ImageMemoryLocation>
                    uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader);
 
    protected:
-    std::optional<FreeOperation> execute_defrag_operation(const DefragOperation& op) override;
+    std::optional<FreeOperation> execute_copy_operation(const DefragOperation& op) override;
 };
 
 }  // namespace Saiga::Vulkan::Memory

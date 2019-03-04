@@ -56,10 +56,11 @@ void Queue::submitAndWait(vk::CommandBuffer cmd)
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
     vk::FenceCreateInfo fci{};
-    submitMutex.lock();
-    auto fence = device.createFence(fci);
-    queue.submit(submitInfo, fence);
-    submitMutex.unlock();
+    vk::Fence fence = device.createFence(fci);
+    {
+        std::scoped_lock lock(submitMutex);
+        queue.submit(submitInfo, fence);
+    }
     device.waitForFences(fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     device.destroyFence(fence);
 }
@@ -73,7 +74,7 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd)
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
     submitMutex.lock();
-    auto fence                    = device.createFence({});
+    auto fence = device.createFence({});
     queue.submit(submitInfo, fence);
     submitMutex.unlock();
     return fence;

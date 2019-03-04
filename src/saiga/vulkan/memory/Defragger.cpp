@@ -11,7 +11,7 @@
 #include <optional>
 namespace Saiga::Vulkan::Memory
 {
-std::optional<BufferDefragger::FreeOperation> BufferDefragger::execute_defrag_operation(
+std::optional<BufferDefragger::FreeOperation> BufferDefragger::execute_copy_operation(
     const BufferDefragger::DefragOperation& op)
 {
     VLOG(1) << "DEFRAG" << *(op.source) << "->" << op.targetMemory << "," << op.target.offset << " " << op.target.size;
@@ -33,7 +33,7 @@ std::optional<BufferDefragger::FreeOperation> BufferDefragger::execute_defrag_op
         BufferDefragger::FreeOperation{reserve_space, op.source, frame_number + dealloc_delay});
 }
 
-std::optional<ImageDefragger::FreeOperation> ImageDefragger::execute_defrag_operation(
+std::optional<ImageDefragger::FreeOperation> ImageDefragger::execute_copy_operation(
     const ImageDefragger::DefragOperation& op)
 {
     ImageMemoryLocation* reserve_space = allocator->reserve_space(op.targetMemory, op.target, op.source->size);
@@ -55,8 +55,11 @@ std::optional<ImageDefragger::FreeOperation> ImageDefragger::execute_defrag_oper
         return std::optional<ImageDefragger::FreeOperation>();
     }
 
-    return std::optional<ImageDefragger::FreeOperation>(
+    auto operation = std::optional<ImageDefragger::FreeOperation>(
         ImageDefragger::FreeOperation{reserve_space, op.source, frame_number + dealloc_delay});
+
+
+    return operation;
 }
 
 ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,

@@ -111,7 +111,7 @@ class SAIGA_VULKAN_API BaseChunkAllocator
 
     std::pair<ChunkIterator<T>, AllocationIterator<T>> find_allocation(T* location);
 
-    void move_allocation(T* target, T* source);
+    void swap(T* target, T* source);
 
     template <typename FreeEntry>
     void add_to_free_list(const ChunkIterator<T>& chunk, const FreeEntry& location) const;
@@ -274,13 +274,19 @@ T* BaseChunkAllocator<T>::reserve_space(vk::DeviceMemory memory, FreeListEntry f
 }
 
 template <typename T>
-void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
+void BaseChunkAllocator<T>::swap(T* target, T* source)
 {
     std::scoped_lock lock(allocationMutex);
-    const auto size = source->size;
 
-    FreeListEntry future_entry{source->offset, source->size};
+    SafeAccessor acc(*target, *source);
 
+
+
+    //    std::scoped_lock lock(allocationMutex);
+    //    const auto size = source->size;
+    //
+    //    FreeListEntry future_entry{source->offset, source->size};
+    //
     ChunkIterator<T> target_chunk, source_chunk;
     AllocationIterator<T> target_alloc, source_alloc;
 
@@ -288,23 +294,48 @@ void BaseChunkAllocator<T>::move_allocation(T* target, T* source)
     std::tie(source_chunk, source_alloc) = find_allocation(source);
 
 
-    source->destroy_owned_data(m_device);
-    target->copy_to(*source);
+    vk::DeviceSize source_offset, target_offset;
+    vk::DeviceMemory source_mem, target_mem;
 
-    source->mark_dynamic();
+    source_offset = source->offset;
+    target_offset = target->offset;
 
-    source_chunk->allocated -= size;
-
-    std::move(source_alloc, std::next(source_alloc), target_alloc);
-
-    source_chunk->allocations.erase(source_alloc);
-
-    add_to_free_list(source_chunk, future_entry);
+    source_mem = source->memory;
+    target_mem = target->memory;
 
 
-    findNewMax(source_chunk);
+    source->offset = target_offset;
+    source->memory = target_mem;
 
-    source->modified();
+    target->offset = source_offset;
+    target->memory = source_mem;
+
+
+    std::swap(source->data, target->data);
+
+    // auto old = std::move(*target_alloc);
+
+    std::iter_swap(source_alloc, target_alloc);
+    // std::move(source_alloc, std::next(source_alloc), target_alloc);
+    //
+    //
+    //    source->destroy_owned_data(m_device);
+    //    target->copy_to(*source);
+    //
+    //    source->mark_dynamic();
+    //
+    //    source_chunk->allocated -= size;
+    //
+    //    std::move(source_alloc, std::next(source_alloc), target_alloc);
+    //
+    //    source_chunk->allocations.erase(source_alloc);
+    //
+    //    add_to_free_list(source_chunk, future_entry);
+    //
+    //
+    //    findNewMax(source_chunk);
+    //
+    //    source->modified();
 }
 
 template <typename T>
