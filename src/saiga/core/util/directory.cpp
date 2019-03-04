@@ -38,6 +38,7 @@ void Directory::getFiles(std::vector<std::string>& out)
     if (!dir) return;
 
     struct dirent* ent;
+    rewinddir(dir);
     while ((ent = readdir(dir)) != NULL)
     {
         if (ent->d_type == DT_REG)

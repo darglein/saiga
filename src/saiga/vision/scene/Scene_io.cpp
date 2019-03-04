@@ -6,6 +6,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/Random.h"
 
 #include "Scene.h"
@@ -125,7 +126,7 @@ void Scene::load(const std::string& file)
     cout << "Loading scene from " << file << "." << endl;
 
 
-    std::ifstream strm(file);
+    std::ifstream strm(SearchPathes::data(file));
     SAIGA_ASSERT(strm.is_open());
 
 

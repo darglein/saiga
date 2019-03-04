@@ -38,6 +38,7 @@ struct SAIGA_VULKAN_API VulkanBase
 
    public:
     VulkanParameters m_parameters;
+    ~VulkanBase() { destroy(); }
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::PhysicalDeviceFeatures enabledFeatures = {};

@@ -1,5 +1,5 @@
-﻿#include "saiga/core/sdl/sdl.h"
-#include "saiga/core/framework/framework.h"
+﻿#include "saiga/core/framework/framework.h"
+#include "saiga/core/sdl/sdl.h"
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/vulkan/memory/VulkanStlAllocator.h"
 #include "saiga/vulkan/window/SDLWindow.h"
@@ -29,7 +29,7 @@ int main(const int argc, const char* argv[])
 
         VulkanExample example(window, renderer);
 
-        Saiga::Vulkan::Memory::VulkanStlAllocator<int> alloc(renderer.base, vk::BufferUsageFlagBits::eUniformBuffer);
+        Saiga::Vulkan::Memory::VulkanStlAllocator<int> alloc(renderer.base(), vk::BufferUsageFlagBits::eUniformBuffer);
 
 
         // std::vector<int, VulkanStlAllocator<int>> test(alloc);
@@ -45,7 +45,7 @@ int main(const int argc, const char* argv[])
         //}
 
 
-        renderer.initChildren();
+        //        renderer.initChildren();
 
         MainLoopParameters params;
         params.mainLoopInfoTime = 1;

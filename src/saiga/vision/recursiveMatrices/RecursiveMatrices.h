@@ -23,7 +23,9 @@
 #include "saiga/vision/recursiveMatrices/Random.h"
 #include "saiga/vision/recursiveMatrices/ScalarMult.h"
 #include "saiga/vision/recursiveMatrices/SparseHelper.h"
+#include "saiga/vision/recursiveMatrices/SparseSelfAdjoint.h"
 #include "saiga/vision/recursiveMatrices/SparseTranspose.h"
+#include "saiga/vision/recursiveMatrices/SparseTriangular.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
 // High Level Functions

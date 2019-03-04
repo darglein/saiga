@@ -32,6 +32,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     window.setCamera(&camera);
 
     auto_mersenne = std::mt19937();
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample() {}
@@ -119,7 +121,7 @@ void VulkanExample::renderGUI()
     if (old_enable != enable_defragger)
     {
         enable_defragger = old_enable;
-        renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
+        renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
     }
 
     ImGui::Checkbox("Auto allocate indexed", &enable_auto_index);
@@ -210,23 +212,23 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             break;
 
         case SDL_SCANCODE_A:
-            renderer.base.memory.enable_defragmentation(buffer_type, false);
-            renderer.base.memory.stop_defrag(buffer_type);
+            renderer.base().memory.enable_defragmentation(buffer_type, false);
+            renderer.base().memory.stop_defrag(buffer_type);
             num_allocs = alloc_dist(mersenne_twister);
 
             for (int i = 0; i < num_allocs; ++i)
             {
                 auto size = sizes[size_dist(mersenne_twister)];
-                // allocations.push_back(renderer.base.memory.allocate(buffer_type, size));
+                // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
                 allocations.push_back(allocate(buffer_type, size));
             }
-            renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
-            renderer.base.memory.start_defrag(buffer_type);
+            renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
+            renderer.base().memory.start_defrag(buffer_type);
             break;
         case SDL_SCANCODE_D:
 
-            renderer.base.memory.enable_defragmentation(buffer_type, false);
-            renderer.base.memory.stop_defrag(buffer_type);
+            renderer.base().memory.enable_defragmentation(buffer_type, false);
+            renderer.base().memory.stop_defrag(buffer_type);
 
             num_allocs = std::min(alloc_dist(mersenne_twister), allocations.size());
 
@@ -235,11 +237,11 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             {
                 auto index = mersenne_twister() % allocations.size();
 
-                // renderer.base.memory.deallocateBuffer(buffer_type, allocations[index].first);
+                // renderer.base().memory.deallocateBuffer(buffer_type, allocations[index].first);
                 allocations.erase(allocations.begin() + index);
             }
-            renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
-            renderer.base.memory.start_defrag(buffer_type);
+            renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
+            renderer.base().memory.start_defrag(buffer_type);
 
             break;
         case SDL_SCANCODE_Z:
@@ -311,13 +313,13 @@ void VulkanExample::alloc_index(int index)
         // num_allocations[index].first->destroy();
         // BufferMemoryLocation* loc = num_allocations[index].first;
         // allocations.erase(allocations.begin() + index);
-        // renderer.base.memory.deallocateBuffer(buffer_type, loc);
+        // renderer.base().memory.deallocateBuffer(buffer_type, loc);
         num_allocations[index] = std::make_pair(nullptr, 0);
     }
     else
     {
         num_allocations[index] = allocate(buffer_type, sizes[3]);
-        // num_allocations[index] = renderer.base.memory.allocate(buffer_type, sizes[3]);
+        // num_allocations[index] = renderer.base().memory.allocate(buffer_type, sizes[3]);
     }
 }
 
@@ -334,9 +336,9 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::alloc
     mem.resize(size / sizeof(uint32_t) + 1);
     std::iota(mem.begin(), mem.end(), start);
     std::shared_ptr<Saiga::Vulkan::Buffer> buffer = std::make_shared<Saiga::Vulkan::Buffer>();
-    buffer->createBuffer(renderer.base, size, type.usageFlags, type.memoryFlags);
+    buffer->createBuffer(renderer.base(), size, type.usageFlags, type.memoryFlags);
 
-    buffer->stagedUpload(renderer.base, size, mem.data());
+    buffer->stagedUpload(renderer.base(), size, mem.data());
 
     buffer->mark_dynamic();
 

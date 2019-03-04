@@ -8,6 +8,7 @@
 
 #include "saiga/core/time/timer.h"
 
+#include "CeresHelper.h"
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
 #include "ceres/ceres.h"
@@ -20,9 +21,10 @@
 
 namespace Saiga
 {
-void CeresPGO::solve(PoseGraph& scene, const PGOOptions& options)
+OptimizationResults CeresPGO::solve()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+    auto& scene = *_scene;
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
 
     ceres::Problem::Options problemOptions;
     problemOptions.local_parameterization_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
@@ -60,78 +62,10 @@ void CeresPGO::solve(PoseGraph& scene, const PGOOptions& options)
     //    ceres::Problem::EvaluateOptions defaultEvalOptions;
     //    problem.Evaluate(defaultEvalOptions, &costInit, nullptr, nullptr, nullptr);
 
-    ceres::Solver::Options ceres_options;
-    ceres_options.minimizer_progress_to_stdout = options.debugOutput;
-    //    ceres_options.minimizer_progress_to_stdout = true;
-    ceres_options.max_num_iterations           = options.maxIterations;
-    ceres_options.max_linear_solver_iterations = options.maxIterativeIterations;
-    ceres_options.min_linear_solver_iterations = options.maxIterativeIterations;
-    ceres_options.min_relative_decrease        = 1e-50;
-    ceres_options.function_tolerance           = 1e-50;
-    ceres_options.gradient_tolerance           = 1e-50;
-    ceres_options.parameter_tolerance          = 1e-50;
+    ceres::Solver::Options ceres_options = make_options(optimizationOptions);
 
-
-    switch (options.solverType)
-    {
-        case PGOOptions::SolverType::Direct:
-            ceres_options.linear_solver_type = ceres::LinearSolverType::SPARSE_SCHUR;
-            break;
-        case PGOOptions::SolverType::Iterative:
-            ceres_options.linear_solver_type = ceres::LinearSolverType::ITERATIVE_SCHUR;
-            break;
-    }
-
-    ceres::Solver::Summary summaryTest;
-
-#if 0
-
-    ceres::Problem::EvaluateOptions defaultEvalOptions;
-    ceres::CRSMatrix matrix;
-    double costFinal = 0;
-    problem.Evaluate(defaultEvalOptions, &costFinal, nullptr, nullptr, &matrix);
-
-    cout << "num residuals: " << problem.NumResiduals() << endl;
-
-    cout << matrix.num_rows << "x" << matrix.num_cols << endl;
-
-    {
-        Eigen::SparseMatrix<double, Eigen::RowMajor> ematrix(matrix.num_rows, matrix.num_cols);
-        ematrix.resizeNonZeros(matrix.values.size());
-
-        for (int i = 0; i < matrix.num_rows + 1; ++i)
-        {
-            ematrix.outerIndexPtr()[i] = matrix.rows[i];
-        }
-        for (int i = 0; i < matrix.values.size(); ++i)
-        {
-            ematrix.valuePtr()[i]      = matrix.values[i];
-            ematrix.innerIndexPtr()[i] = matrix.cols[i];
-        }
-        cout << ematrix.toDense() << endl;
-    }
-#endif
-
-    //    exit(0);
-
-
-    {
-        SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-        ceres::Solve(ceres_options, &problem, &summaryTest);
-
-        if (options.debugOutput)
-        {
-            for (auto t : summaryTest.iterations)
-            {
-                cout << t.step_is_successful << " " << t.cost_change << " " << t.gradient_max_norm << " "
-                     << t.relative_decrease << " " << t.step_norm << " " << endl;
-            }
-            cout << "Termination: " << summaryTest.termination_type << endl;
-        }
-    }
-
-
-    //    std::cout << "optimizePoints residual: " << costInit << " -> " << costFinal << endl;
+    OptimizationResults result = ceres_solve(ceres_options, problem);
+    return result;
 }
 
 }  // namespace Saiga

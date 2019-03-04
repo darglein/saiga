@@ -39,7 +39,7 @@ class CostPGOAnalytic : public ceres::SizedCostFunction<6, 7, 7>
         {
             // only compute residuals
             Kernel::ResidualType res;
-            Kernel::evaluateResidual(from, to, _inverseMeasurement, res);
+            Kernel::evaluateResidual(from, to, _inverseMeasurement, res, weight);
             residual = res;
         }
         else
@@ -47,7 +47,7 @@ class CostPGOAnalytic : public ceres::SizedCostFunction<6, 7, 7>
             // compute both
             Kernel::PoseJacobiType JrowFrom, JrowTo;
             Kernel::ResidualType res;
-            Kernel::evaluateResidualAndJacobian(from, to, _inverseMeasurement, res, JrowFrom, JrowTo);
+            Kernel::evaluateResidualAndJacobian(from, to, _inverseMeasurement, res, JrowFrom, JrowTo, weight);
 
             residual = res;
 

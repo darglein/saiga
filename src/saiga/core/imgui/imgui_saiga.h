@@ -50,6 +50,19 @@ class SAIGA_CORE_API TimeGraph : public Graph
 };
 
 
+class SAIGA_CORE_API HzTimeGraph : public Graph
+{
+   public:
+    HzTimeGraph(const std::string& name = "Hz", int numValues = 80);
+    void addTime();
+
+   protected:
+    virtual void renderImGuiDerived();
+    float hzExp = 0;
+    Saiga::Timer timer;
+};
+
+
 
 class SAIGA_CORE_API ColoredBar
 {
@@ -73,6 +86,7 @@ class SAIGA_CORE_API ColoredBar
    private:
     void DrawOutlinedRect(const vec2& begin, const vec2& end, const BarColor& color);
     void DrawRect(const vec2& begin, const vec2& end, const BarColor& color);
+
    public:
     ColoredBar(vec2 size, BarColor background, bool auto_size = false, uint32_t rows = 1, float rounding = 0.0f,
                int rounding_corners = 0)
@@ -91,7 +105,24 @@ class SAIGA_CORE_API ColoredBar
     void renderArea(float begin, float end, const BarColor& color, bool outline = true);
 };
 
-
+/**
+ * A helper function that checks if a context is present and
+ * if ImGui wants to capture the mouse inputs.
+ *
+ * A typical use-case is to update the camera only if no ImGui widgets are active:
+ *
+ *   if (!ImGui::captureKeyboard())
+ *   {
+ *       camera.update(dt);
+ *   }
+ *   if (!ImGui::captureMouse())
+ *   {
+ *       camera.interpolate(dt, 0);
+ *   }
+ *
+ */
+SAIGA_CORE_API bool captureMouse();
+SAIGA_CORE_API bool captureKeyboard();
 
 }  // namespace ImGui
 
@@ -123,4 +154,5 @@ struct ImGuiParameters
 
 
 SAIGA_CORE_API void initImGui(const ImGuiParameters& params);
+
 }  // namespace Saiga

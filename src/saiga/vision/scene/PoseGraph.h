@@ -36,6 +36,12 @@ struct SAIGA_VISION_API PoseEdge
 #endif
     }
 
+    void invert()
+    {
+        std::swap(from, to);
+        meassurement = meassurement.inverse();
+    }
+
     bool operator<(const PoseEdge& other) { return std::tie(from, to) < std::tie(other.from, other.to); }
     explicit operator bool() const { return from >= 0 && to >= 0; }
 };
@@ -63,10 +69,17 @@ struct SAIGA_VISION_API PoseGraph
 
     Vec6 residual6(const PoseEdge& edge);
 
+    double density();
+
     double chi2();
     double rms() { return sqrt(chi2() / edges.size()); }
     void save(const std::string& file);
     void load(const std::string& file);
+
+    /**
+     * Ensures that i < j, and all edges are sorted by from->to.
+     */
+    void sortEdges();
 
     bool imgui();
 };

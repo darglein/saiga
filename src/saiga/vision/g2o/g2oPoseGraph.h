@@ -10,12 +10,17 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API g2oPGO : public PGOBase
+class SAIGA_VISION_API g2oPGO : public PGOBase, public Optimizer
 {
    public:
     g2oPGO() : PGOBase("g2oPGO") {}
     virtual ~g2oPGO() {}
-    virtual void solve(PoseGraph& scene, const PGOOptions& options) override;
+
+    virtual OptimizationResults solve() override;
+    virtual void create(PoseGraph& scene) override { _scene = &scene; }
+
+   private:
+    PoseGraph* _scene;
 };
 
 }  // namespace Saiga

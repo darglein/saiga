@@ -32,7 +32,6 @@ void testMatrixVector2()
     using Vec      = Eigen::Matrix<T, size, 1>;
 
 
-    int a = EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD;
 
     Mat A;
     Vec y, x;

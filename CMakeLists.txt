@@ -341,11 +341,12 @@ if(CUDA_FOUND)
     # We need this to get the actual cuda libraries, because
     # one sample only is linked with the host compiler and therefore
     # does not automatically link to the cuda runtime.
-    find_package(CUDA REQUIRED QUIET)
-
-    SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
 
     if(SAIGA_CUDA_BLSP)
+        find_package(CUDA REQUIRED QUIET)
+
+        SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
+
         if(CUDA_cusparse_LIBRARY)
             SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cusparse_LIBRARY})
             SET(SAIGA_USE_CUSPARSE 1)
@@ -364,6 +365,10 @@ if(CUDA_FOUND)
     endif()
     SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_52,code=sm_52")
     SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_61,code=sm_61")
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_61,code=sm_61") # Pascal
+    #SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70") # Volta
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_75,code=sm_75") # Turing
+
 
     if(SAIGA_CUDA_RDC)
         SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --relocatable-device-code=true") # for dynamic parallelism
@@ -393,7 +398,7 @@ else()
     SET(SAIGA_USE_CUDA 0)
 endif()
 
-PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
+#PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
 
 
 

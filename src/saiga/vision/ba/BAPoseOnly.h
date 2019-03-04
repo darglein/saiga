@@ -5,7 +5,7 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API BAPoseOnly : public BABase
+class SAIGA_VISION_API BAPoseOnly : public BABase, public Optimizer
 {
    public:
     /**
@@ -18,10 +18,14 @@ class SAIGA_VISION_API BAPoseOnly : public BABase
     void poseOnlySparse(Scene& scene, int its);
     void posePointDense(Scene& scene, int its);
     void posePointSparse(Scene& scene, int its);
-    void posePointSparseSchur(Scene& scene, const BAOptions& options);
+    void posePointSparseSchur(Scene& scene);
 
 
-    virtual void solve(Scene& scene, const BAOptions& options) override;
+    virtual OptimizationResults solve() override;
+    virtual void create(Scene& scene) override { _scene = &scene; }
+
+   private:
+    Scene* _scene;
 };
 
 

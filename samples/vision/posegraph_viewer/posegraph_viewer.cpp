@@ -36,6 +36,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     Saiga::SearchPathes::data.getFiles(baldatasets, "vision", ".txt");
     std::sort(baldatasets.begin(), baldatasets.end());
     cout << "Found " << baldatasets.size() << " BAL datasets" << endl;
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample() {}
@@ -49,18 +51,18 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
 
     grid.createGrid(10, 10);
-    grid.init(renderer.base);
+    grid.init(renderer.base());
 
 
 
     //    frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
-    //    frustum.init(renderer.base);
+    //    frustum.init(renderer.base());
 
     lineAsset.init(base, 10 * 1000 * 1000);
     lineAsset.size = 0;
 
     frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 1, 1, 1), false);
-    frustum.init(renderer.base);
+    frustum.init(renderer.base());
 
 
     pointCloud.init(base, 1000 * 1000 * 10);
@@ -193,18 +195,22 @@ void VulkanExample::renderGUI()
     //        scene.load(Saiga::SearchPathes::data("vision/loop.posegraph"));
     //    }
 
-    if (ImGui::Button("Solve PGO with G2O"))
+    if (ImGui::Button("Solve G2O"))
     {
         Saiga::g2oPGO ba;
-        ba.solve(scene, baoptions);
+        ba.optimizationOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 
     //    barec.imgui();
-    if (ImGui::Button("Solve with Eigen Recursive Matrices"))
+    if (ImGui::Button("Solve Recursive"))
     {
         Saiga::PGORec barec;
-        barec.solve(scene, baoptions);
+        barec.optimizationOptions = baoptions;
+        barec.create(scene);
+        barec.solve();
         change = true;
     }
 

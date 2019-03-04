@@ -25,6 +25,8 @@ Compute::Compute(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwa
     camera.rotationPoint = vec3(0);
 
     window.setCamera(&camera);
+
+    init(renderer.base());
 }
 
 Compute::~Compute()
@@ -59,16 +61,16 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
     }
 
 
-    vulkanDevice = &renderer.base;
+    vulkanDevice = &renderer.base();
     device       = vulkanDevice->device;
 
     // create storage buffer
     compute.data.resize(10, 1);
     //    compute.storageBuffer.
     compute.storageBuffer.createBuffer(
-        renderer.base, sizeof(int) * compute.data.size(), vk::BufferUsageFlagBits::eStorageBuffer,
+        renderer.base(), sizeof(int) * compute.data.size(), vk::BufferUsageFlagBits::eStorageBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-    //    compute.storageBuffer.allocateMemoryBuffer(renderer.base,vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
+    //    compute.storageBuffer.allocateMemoryBuffer(renderer.base(),vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
     compute.storageBuffer.upload(compute.data.data());
 
 

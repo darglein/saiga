@@ -5,20 +5,14 @@
  */
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_OPENGL
+#ifdef SAIGA_USE_GLFW
 
-#    include "saiga/core/framework/framework.h"
-#    include "saiga/core/glfw/glfw_eventhandler.h"
-#    include "saiga/opengl/error.h"
 #    include "saiga/opengl/imgui/imgui_impl_glfw_gl3.h"
-#    include "saiga/opengl/opengl.h"
-#    include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
-#    include "saiga/opengl/rendering/renderer.h"
-#    include "saiga/opengl/texture/textureLoader.h"
-#    include "saiga/opengl/window/glfw_window.h"
 
 #    include <GLFW/glfw3.h>
-#    include <chrono>
+
+#    include "glfw_window.h"
+
 namespace Saiga
 {
 glfw_Window::glfw_Window(WindowParameters windowParameters, OpenGLParameters openglParameters)

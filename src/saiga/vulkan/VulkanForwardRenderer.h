@@ -29,49 +29,32 @@ class SAIGA_VULKAN_API VulkanForwardRenderingInterface : public RenderingInterfa
     VulkanForwardRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
     virtual ~VulkanForwardRenderingInterface() {}
 
-    virtual void init(Saiga::Vulkan::VulkanBase& base) = 0;
     virtual void transfer(vk::CommandBuffer cmd) {}
     virtual void render(vk::CommandBuffer cmd) {}
     virtual void renderGUI() {}
 };
 
 
-
-class SAIGA_VULKAN_API VulkanForwardRenderer : public Saiga::Vulkan::VulkanRenderer
+class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
 {
    public:
-    // Queue graphicsQueue;
-    //    Queue presentQueue;
-    //    Queue transferQueue;
-
     CommandPool renderCommandPool;
     VkRenderPass renderPass;
 
-    VulkanForwardRenderer(Saiga::Vulkan::VulkanWindow& window, VulkanParameters vulkanParameters);
-    virtual ~VulkanForwardRenderer();
+    VulkanForwardRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
+    virtual ~VulkanForwardRenderer() override;
 
-    void initChildren();
-    virtual void render(Camera* cam);
+    virtual void render(FrameSync& sync, int currentImage) override;
+    //    virtual void render(Camera* cam) override;
 
-    void waitIdle();
+
+    virtual void createBuffers(int numImages, int w, int h) override;
+    void setupRenderPass();
 
    protected:
-    int maxFramesInFlight = 10;
     DepthBuffer depthBuffer;
-
-    //    CommandPool cmdPool;
-
     std::vector<vk::CommandBuffer> drawCmdBuffers;
     std::vector<Framebuffer> frameBuffers;
-    uint32_t currentBuffer = 0;
-
-
-    std::vector<FrameSync> syncObjects;
-    unsigned int nextSyncObject = 0;
-
-    std::shared_ptr<Saiga::Vulkan::ImGuiVulkanRenderer> imGui;
-
-    void setupRenderPass();
 };
 
 }  // namespace Vulkan

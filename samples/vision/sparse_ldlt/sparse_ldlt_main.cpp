@@ -4,214 +4,29 @@
  * See LICENSE file for more information.
  */
 
+#define CHOLMOD_OMP_NUM_THREADS 1
+#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
+
+
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/vision/Random.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
 
 #include "Eigen/CholmodSupport"
 #include "Eigen/SparseCholesky"
-#include "SimplicialCholesky.h"
 
 #include <fstream>
-namespace Eigen
-{
-namespace internal
-{
-// forward substitution, col-major
-template <typename T, typename Rhs, int Mode>
-struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>, Rhs, Mode, Lower, ColMajor>
-{
-    //    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<Eigen::Matrix<double, 2, 2>>>;
-    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<T>>;
-    typedef typename Lhs::Scalar LScalar;
-    typedef typename Rhs::Scalar RScalar;
-    typedef evaluator<Lhs> LhsEval;
-    typedef typename evaluator<Lhs>::InnerIterator LhsIterator;
-    static void run(const Lhs& lhs, Rhs& other)
-    {
-        LhsEval lhsEval(lhs);
-        for (Index col = 0; col < other.cols(); ++col)
-        {
-            for (Index i = 0; i < lhs.cols(); ++i)
-            {
-                RScalar& tmp = other.coeffRef(i, col);
-                //                if (tmp != Scalar(0))  // optimization when other is actually sparse
-                {
-                    LhsIterator it(lhsEval, i);
-                    while (it && it.index() < i) ++it;
-                    if (!(Mode & UnitDiag))
-                    {
-                        cout << "not unit :O" << endl;
-                        eigen_assert(it && it.index() == i);
-                        tmp.get() = Saiga::inverseCholesky(it.value().get()) * tmp.get();
-                    }
-                    if (it && it.index() == i) ++it;
-                    for (; it; ++it) other.coeffRef(it.index(), col).get() -= it.value().get() * tmp.get();
-                }
-            }
-        }
-    }
-};
-
-
-
-// backward substitution, row-major
-template <typename T, typename Rhs, int Mode>
-struct sparse_solve_triangular_selector<const Eigen::Transpose<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>>, Rhs,
-                                        Mode, Upper, RowMajor>
-{
-    using Lhs = const Eigen::Transpose<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>>;
-
-    typedef typename Lhs::Scalar LScalar;
-    typedef typename Rhs::Scalar RScalar;
-
-    typedef evaluator<Lhs> LhsEval;
-    typedef typename evaluator<Lhs>::InnerIterator LhsIterator;
-    static void run(const Lhs& lhs, Rhs& other)
-    {
-        LhsEval lhsEval(lhs);
-        for (Index col = 0; col < other.cols(); ++col)
-        {
-            for (Index i = lhs.rows() - 1; i >= 0; --i)
-            {
-                RScalar tmp = other.coeff(i, col);
-                LScalar l_ii(0);
-                LhsIterator it(lhsEval, i);
-                while (it && it.index() < i) ++it;
-                if (!(Mode & UnitDiag))
-                {
-                    cout << "not unit :O" << endl;
-                    eigen_assert(it && it.index() == i);
-                    l_ii = it.value();
-                    ++it;
-                }
-                else if (it && it.index() == i)
-                    ++it;
-                for (; it; ++it)
-                {
-                    tmp.get() -= it.value().get().transpose() * other.coeff(it.index(), col).get();
-                }
-
-                if (Mode & UnitDiag)
-                {
-                    other.coeffRef(i, col) = tmp;
-                }
-                else
-                {
-                    cout << "not unit :O" << endl;
-                    other.coeffRef(i, col).get() = Saiga::inverseCholesky(l_ii.get()) * tmp.get();
-                }
-                //                    other.coeffRef(i, col) = tmp / l_ii;
-            }
-        }
-    }
-};
-
-
-template <int _SrcMode, int _DstMode, typename MatrixType, int DstOrder>
-void permute_symm_to_symm_recursive(
-    const MatrixType& mat,
-    SparseMatrix<typename MatrixType::Scalar, DstOrder, typename MatrixType::StorageIndex>& _dest,
-    const typename MatrixType::StorageIndex* perm)
-{
-    typedef typename MatrixType::StorageIndex StorageIndex;
-    typedef typename MatrixType::Scalar Scalar;
-    SparseMatrix<Scalar, DstOrder, StorageIndex>& dest(_dest.derived());
-    typedef Matrix<StorageIndex, Dynamic, 1> VectorI;
-    typedef evaluator<MatrixType> MatEval;
-    typedef typename evaluator<MatrixType>::InnerIterator MatIterator;
-
-    enum
-    {
-        SrcOrder          = MatrixType::IsRowMajor ? RowMajor : ColMajor,
-        StorageOrderMatch = int(SrcOrder) == int(DstOrder),
-        DstMode           = DstOrder == RowMajor ? (_DstMode == Upper ? Lower : Upper) : _DstMode,
-        SrcMode           = SrcOrder == RowMajor ? (_SrcMode == Upper ? Lower : Upper) : _SrcMode
-    };
-
-    MatEval matEval(mat);
-
-    Index size = mat.rows();
-    VectorI count(size);
-    count.setZero();
-    dest.resize(size, size);
-    for (StorageIndex j = 0; j < size; ++j)
-    {
-        StorageIndex jp = perm ? perm[j] : j;
-        for (MatIterator it(matEval, j); it; ++it)
-        {
-            StorageIndex i = it.index();
-            if ((int(SrcMode) == int(Lower) && i < j) || (int(SrcMode) == int(Upper) && i > j)) continue;
-
-            StorageIndex ip = perm ? perm[i] : i;
-            count[int(DstMode) == int(Lower) ? (std::min)(ip, jp) : (std::max)(ip, jp)]++;
-        }
-    }
-    dest.outerIndexPtr()[0] = 0;
-    for (Index j = 0; j < size; ++j) dest.outerIndexPtr()[j + 1] = dest.outerIndexPtr()[j] + count[j];
-    dest.resizeNonZeros(dest.outerIndexPtr()[size]);
-    for (Index j = 0; j < size; ++j) count[j] = dest.outerIndexPtr()[j];
-
-    for (StorageIndex j = 0; j < size; ++j)
-    {
-        for (MatIterator it(matEval, j); it; ++it)
-        {
-            StorageIndex i = it.index();
-            if ((int(SrcMode) == int(Lower) && i < j) || (int(SrcMode) == int(Upper) && i > j)) continue;
-
-            StorageIndex jp = perm ? perm[j] : j;
-            StorageIndex ip = perm ? perm[i] : i;
-
-            Index k                 = count[int(DstMode) == int(Lower) ? (std::min)(ip, jp) : (std::max)(ip, jp)]++;
-            dest.innerIndexPtr()[k] = int(DstMode) == int(Lower) ? (std::max)(ip, jp) : (std::min)(ip, jp);
-
-            if (!StorageOrderMatch) std::swap(ip, jp);
-            if (((int(DstMode) == int(Lower) && ip < jp) || (int(DstMode) == int(Upper) && ip > jp)))
-                dest.valuePtr()[k].get() = Saiga::transpose(it.value().get());
-            else
-                dest.valuePtr()[k] = it.value();
-        }
-    }
-}
-
-template <typename DstXprType, typename T, int Mode, typename Scalar>
-struct Assignment<DstXprType, SparseSymmetricPermutationProduct<Eigen::SparseMatrix<Saiga::MatrixScalar<T>>, Mode>,
-                  internal::assign_op<Scalar, typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>>::Scalar>,
-                  Sparse2Sparse>
-{
-    using MatrixType = Eigen::SparseMatrix<Saiga::MatrixScalar<T>>;
-    typedef SparseSymmetricPermutationProduct<MatrixType, Mode> SrcXprType;
-    typedef typename DstXprType::StorageIndex DstIndex;
-    template <int Options>
-    static void run(SparseMatrix<Scalar, Options, DstIndex>& dst, const SrcXprType& src,
-                    const internal::assign_op<Scalar, typename MatrixType::Scalar>&)
-    {
-        // This is the same as eigens, because a full permuation doesn't need to propagate transposes
-        SparseMatrix<Scalar, (Options & RowMajor) == RowMajor ? ColMajor : RowMajor, DstIndex> tmp;
-        internal::permute_symm_to_fullsymm<Mode>(src.matrix(), tmp, src.perm().indices().data());
-        dst = tmp;
-    }
-
-    template <typename DestType, unsigned int DestMode>
-    static void run(SparseSelfAdjointView<DestType, DestMode>& dst, const SrcXprType& src,
-                    const internal::assign_op<Scalar, typename MatrixType::Scalar>&)
-    {
-        internal::permute_symm_to_symm_recursive<Mode, DestMode>(src.matrix(), dst.matrix(),
-                                                                 src.perm().indices().data());
-    }
-};
-
-}  // namespace internal
-}  // namespace Eigen
-
+#include <set>
 using namespace Saiga;
 
 
 
-std::ofstream strm;
+static std::ofstream strm;
 
+//#define SPARSITY_TEST
 #define USE_BLOCKS
 
 template <int block_size2, int factor>
@@ -219,7 +34,13 @@ class Sparse_LDLT_TEST
 {
    public:
 #ifdef USE_BLOCKS
+
+#    ifdef SPARSITY_TEST
+    // use fixed block size
+    static constexpr int block_size = 4;
+#    else
     static constexpr int block_size = block_size2;
+#    endif
     using Block =
         typename std::conditional<block_size == 1, double, Eigen::Matrix<double, block_size, block_size>>::type;
     using Vector       = typename std::conditional<block_size == 1, double, Eigen::Matrix<double, block_size, 1>>::type;
@@ -237,8 +58,34 @@ class Sparse_LDLT_TEST
     using VType                     = Eigen::Matrix<Vector, -1, 1>;
 #endif
 
-    const int n    = 128 * factor / block_size;
-    const int nnzr = 4 * factor / block_size;
+
+
+#ifdef SPARSITY_TEST
+
+    const int n    = 100 * 1000 / (int)log(block_size2);
+    const int nnzr = 1 * block_size2 / (int)log(block_size2);
+#else
+
+#    if 0
+    const double targetNNZ          = factor * 400 * 1000 * sqrt(block_size);
+    const double targetDensity      = 0.001;
+
+    const double nnzBlocks = targetNNZ / double(block_size * block_size);
+    const double zBlocks   = 1.0 / targetDensity * nnzBlocks;
+
+    const int n    = sqrt(zBlocks);
+    const int nnzr = std::max<int>(nnzBlocks / n, 1);
+#    else
+
+    // const double targetNNZ = 1000 * 1000 * 4;
+    const int nnzr = 4;
+    const int n    = 4000;
+    // const double nnzBlocks = targetNNZ / double(block_size * block_size);
+    // const int n            = nnzBlocks / nnzr;
+#    endif
+#endif
+
+    double density() { return (double)Anoblock.nonZeros() / double(double(n) * n * block_size * block_size); }
 
     Sparse_LDLT_TEST()
     {
@@ -253,12 +100,36 @@ class Sparse_LDLT_TEST
 
         for (int i = 0; i < n; ++i)
         {
+#if 1
+            // "Diagonal like" pattern
+            std::set<int> indices;
+            for (int k = 0; k < nnzr;)
+            {
+                int s = Random::gaussRand(i, nnzr * 0.5);
+                while (s < 0)
+                {
+                    s += n;
+                }
+                while (s >= n)
+                {
+                    s -= n;
+                }
+                if (s != i && indices.count(s) == 0)
+                {
+                    //                    cout << "insert " << i << " " << s << endl;
+                    indices.insert(s);
+                    ++k;
+                }
+            }
+#else
+            // Full random pattern
             auto indices = Random::uniqueIndices(nnzr, n);
             std::sort(indices.begin(), indices.end());
+#endif
 
             for (auto j : indices)
             {
-                if (i != j)
+                if (i < j)
                 {
                     Block b = RecursiveRandom<Block>::get();
                     trips.emplace_back(i, j, b);
@@ -284,7 +155,7 @@ class Sparse_LDLT_TEST
 
             // Make sure the matrix is positiv
             auto n = MultiplicativeNeutral<Block>::get();
-            D += n * 5.0;
+            D += n * 500.0;
             //            D += 5;
             //            D.diagonal() += Vector::Ones() * 5;
             trips.emplace_back(i, i, D);
@@ -337,7 +208,7 @@ class Sparse_LDLT_TEST
         cout << "N: " << n << endl;
         cout << "Non zeros (per row): " << nnzr << endl;
         cout << "Non zeros: " << Anoblock.nonZeros() << endl;
-        cout << "Density: " << (double)Anoblock.nonZeros() / double(n * n * block_size * block_size) << endl;
+        cout << "Density: " << density() << endl;
         cout << "." << endl;
         cout << endl;
     }
@@ -375,17 +246,40 @@ class Sparse_LDLT_TEST
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
 
-    auto solveCholmod()
+    auto solveCholmodSimplicial()
     {
         x.setZero();
         auto be = expand(b);
         auto bx = expand(x);
         Eigen::CholmodSimplicialLDLT<decltype(Anoblock)> ldlt;
+        //        Eigen::CholmodSimplicialLLT<decltype(Anoblock)> ldlt;
 
         float time = 0;
         {
             Saiga::ScopedTimer<float> timer(time);
-            //            Eigen::CholmodSupernodalLLT<decltype(Anoblock)> ldlt;
+            ldlt.compute(Anoblock);
+            bx = ldlt.solve(be);
+        }
+        double error = (Anoblock * bx - be).squaredNorm();
+        return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
+    }
+
+    auto solveCholmodSupernodal()
+    {
+        x.setZero();
+        auto be = expand(b);
+        auto bx = expand(x);
+        //        Eigen::CholmodSupernodalLLT<decltype(Anoblock)> ldlt;
+        Eigen::CholmodDecomposition<decltype(Anoblock)> ldlt;
+
+        ldlt.cholmod().supernodal    = CHOLMOD_SUPERNODAL;
+        ldlt.cholmod().final_ll      = 0;
+        ldlt.cholmod().SPQR_nthreads = 1;
+        //        ldlt.cholmod().final_asis = 1;
+
+        float time = 0;
+        {
+            Saiga::ScopedTimer<float> timer(time);
             ldlt.compute(Anoblock);
             bx = ldlt.solve(be);
         }
@@ -394,10 +288,11 @@ class Sparse_LDLT_TEST
     }
 
 
+
     auto solveEigenRecursiveSparseLDLT()
     {
         x.setZero();
-        using LDLT = Eigen::SimplicialLDLT2<AType, Eigen::Lower>;
+        using LDLT = Eigen::RecursiveSimplicialLDLT<AType, Eigen::Lower>;
 
         float time = 0;
         {
@@ -411,6 +306,26 @@ class Sparse_LDLT_TEST
 
         //        cout << expand(x).transpose() << endl;
         double error = expand((A * x - b).eval()).squaredNorm();
+        return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
+    }
+
+    auto solveEigenRecursiveSparseLDLTRowMajor()
+    {
+        x.setZero();
+        using LDLT = Eigen::RecursiveSimplicialLDLT<AType2, Eigen::Upper>;
+
+        float time = 0;
+        {
+            Saiga::ScopedTimer<float> timer(time);
+            LDLT ldlt;
+            ldlt.compute(A2);
+            //            ldlt.analyzePattern(A);
+            //            ldlt.factorize(A);
+            x = ldlt.solve(b);
+        }
+
+        //        cout << expand(x).transpose() << endl;
+        double error = expand((A2 * x - b).eval()).squaredNorm();
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
 
@@ -437,13 +352,13 @@ class Sparse_LDLT_TEST
 };
 
 template <typename LDLT, typename T>
-void make_test(LDLT& ldlt, Saiga::Table& tab, T f)
+float make_test(LDLT& ldlt, Saiga::Table& tab, T f)
 {
     std::vector<double> time;
     std::string name;
     float error;
 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 51; ++i)
     {
         auto [time2, error2, name2] = (ldlt.*f)();
         time.push_back(time2);
@@ -457,6 +372,7 @@ void make_test(LDLT& ldlt, Saiga::Table& tab, T f)
     tab << name << t << t2 << error;
 
     strm << "," << t;
+    return t;
 }
 
 template <int block_size, int factor>
@@ -464,7 +380,7 @@ void run()
 {
     using LDLT = Sparse_LDLT_TEST<block_size, factor>;
     LDLT test;
-    strm << test.n << "," << test.Anoblock.nonZeros() << "," << block_size;
+    strm << test.n << "," << test.Anoblock.nonZeros() << "," << block_size << "," << test.density();
 
     Saiga::Table table{{35, 15, 15, 15}};
     table.setFloatPrecision(6);
@@ -473,16 +389,22 @@ void run()
           << "Time/NNZ (us)"
           << "Error";
     //    if (test.A.rows() < 100) make_test(test, table, &LDLT::solveEigenDenseLDLT);
-    make_test(test, table, &LDLT::solveEigenSparseLDLT);
+    //    make_test(test, table, &LDLT::solveEigenSparseLDLT);
+    //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
+    //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
+
     make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
-    make_test(test, table, &LDLT::solveCholmod);
+
+    make_test(test, table, &LDLT::solveCholmodSimplicial);
+    make_test(test, table, &LDLT::solveCholmodSupernodal);
+
 
     strm << endl;
 }
 
 
 
-template <int START, int END, int factor>
+template <int START, int END, int ADD, int MULT, int factor>
 struct LauncherLoop
 {
     void operator()()
@@ -490,13 +412,13 @@ struct LauncherLoop
         {
             run<START, factor>();
         }
-        LauncherLoop<START + 1, END, factor> l;
+        LauncherLoop<START * MULT + ADD, END, ADD, MULT, factor> l;
         l();
     }
 };
 
-template <int END, int factor>
-struct LauncherLoop<END, END, factor>
+template <int END, int ADD, int MULT, int factor>
+struct LauncherLoop<END, END, ADD, MULT, factor>
 {
     void operator()() {}
 };
@@ -507,12 +429,54 @@ int main(int, char**)
     Saiga::EigenHelper::checkEigenCompabitilty<2765>();
     Random::setSeed(15235);
 
+    //    using LDLT = Sparse_LDLT_TEST<2, 1>;
+    //    LDLT test;
+    //    test.solveEigenRecursiveSparseLDLT();
+    //    test.solveEigenRecursiveSparseLDLTRowMajor();
+
     strm.open("sparse_ldlt_benchmark.csv");
-    strm << "n,nnz,block_size,eigen_sparse,eigen_recursive,cholmod" << endl;
-    //    LauncherLoop<2, 8 + 1, 16> l;
-    LauncherLoop<1, 8 + 1, 8> l;
-    l();
+    strm << "n,nnz,block_size,density,"
+            "eigen_recursive,"
+            "cholmod_simp,"
+            "cholmod_super"
+         << endl;
+    //        LauncherLoop<2, 8 + 1, 16> l;
+    //    LauncherLoop<1, 32 + 1, 8> l;
+
+#ifdef SPARSITY_TEST
+    {
+        LauncherLoop<1, 32 * 2, 0, 2, 2> l;
+        l();
+    }
+
+#else
+    {
+        omp_set_num_threads(1);
+        LauncherLoop<4, 4 + 1, 1, 1, 2> l;
+
+        //        LauncherLoop<4, 4 + 1, 1, 1, 16> l;
+        l();
+    }
+    {
+        //        LauncherLoop<16, 32 + 2, 2, 1, 4> l;
+        //        l();
+    }
+//    {
+//        LauncherLoop<8, 8 + 1, 2> l;
+//        l();
+//    }
+//    {
+//        LauncherLoop<16, 16 + 1, 2> l;
+//        l();
+//    }
+//    {
+//        LauncherLoop<32, 32 + 1, 2> l;
+//        l();
+//    }
+#endif
+
 
     cout << "Done." << endl;
+
     return 0;
 }

@@ -16,9 +16,10 @@ namespace Vulkan
 class SAIGA_VULKAN_API Framebuffer
 {
    public:
-    VkFramebuffer framebuffer;
+    VkFramebuffer framebuffer = nullptr;
 
-    void destroy(vk::Device device);
+    ~Framebuffer() { destroy(); }
+    void destroy();
 
     /**
      * Creates a framebuffer with one color attachment and a depth-stencil attachment.
@@ -28,6 +29,9 @@ class SAIGA_VULKAN_API Framebuffer
                                  vk::RenderPass renderPass, vk::Device device);
     void createColor(int width, int height, vk::ImageView color, vk::RenderPass renderPass, vk::Device device);
     void create(int width, int height, vk::RenderPass renderPass, vk::Device device);
+
+   private:
+    vk::Device device;
 };
 
 }  // namespace Vulkan

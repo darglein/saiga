@@ -118,8 +118,6 @@ void Scene::normalize()
     SE3 trans;
     trans.translation() = -m;
     transformScene(trans);
-
-    cout << "Scene normalized. Scale: " << target << " Translate: " << -m.transpose() << endl;
 }
 
 void Scene::fixWorldPointReferences()
@@ -232,7 +230,7 @@ void Scene::removeOutliers(float factor)
             }
         }
     }
-    cout << "Removed " << pointsRemoved << " observations." << endl;
+    cout << "Removed " << pointsRemoved << " outlier observations above the threshold " << threshold << endl;
     fixWorldPointReferences();
 }
 
@@ -300,7 +298,7 @@ void Scene::compress()
         }
         else
         {
-            cout << "removed wp" << endl;
+            // cout << "removed wp" << endl;
         }
     }
     worldPoints = newWorldPoints;
@@ -463,6 +461,42 @@ double Scene::rmsDense()
     return rms;
 }
 
+double Scene::getSchurDensity()
+{
+    std::vector<std::vector<int>> schurStructure;
+
+    auto imgs = validImages();
+    long n    = images.size();
+
+    schurStructure.clear();
+    schurStructure.resize(n, std::vector<int>(n, -1));
+    for (auto& wp : worldPoints)
+    {
+        for (auto& ref : wp.stereoreferences)
+        {
+            for (auto& ref2 : wp.stereoreferences)
+            {
+                int i1 = imgs[ref.first];
+                int i2 = imgs[ref2.first];
+
+                schurStructure[i1][ref2.first] = ref2.first;
+                schurStructure[i2][ref.first]  = ref.first;
+            }
+        }
+    }
+
+    // compact it
+    long schurEdges = 0;
+    for (auto& v : schurStructure)
+    {
+        v.erase(std::remove(v.begin(), v.end(), -1), v.end());
+        schurEdges += v.size();
+    }
+
+    double density = double(schurEdges) / double(n * n);
+    return density;
+}
+
 void Scene::addWorldPointNoise(double stddev)
 {
     for (auto& wp : worldPoints)
@@ -484,6 +518,28 @@ void Scene::addExtrinsicNoise(double stddev)
     for (auto& e : extrinsics)
     {
         e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+    }
+}
+
+void Scene::applyErrorToImagePoints()
+{
+    for (SceneImage& img : images)
+    {
+        for (auto& ip : img.stereoPoints)
+        {
+            if (!ip) continue;
+
+            WorldPoint& wp = worldPoints[ip.wp];
+
+            SAIGA_ASSERT(ip);
+            SAIGA_ASSERT(wp);
+
+            // project to screen
+            auto p  = extrinsics[img.extr].se3 * wp.p;
+            auto p2 = intrinsics[img.intr].project(p);
+
+            ip.point = p2;
+        }
     }
 }
 

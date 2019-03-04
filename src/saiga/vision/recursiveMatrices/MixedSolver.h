@@ -8,6 +8,7 @@
 #include "saiga/core/time/Time"
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
 
 namespace Saiga
 {
@@ -32,10 +33,61 @@ struct LinearSolverOptions
  * This class is spezialized for different structures of A.
  */
 template <typename AType, typename XType>
-struct MixedRecursiveSolver
+struct MixedSymmetricRecursiveSolver
 {
 };
 
+
+/**
+ * A solver for sparse block matrices.
+ */
+template <typename T, int _Options, typename XType>
+class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>, XType>
+{
+   public:
+    using AType = typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>;
+    using LDLT  = Eigen::RecursiveSimplicialLDLT<AType, Eigen::Upper>;
+
+    void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
+    {
+        int n = A.rows();
+        if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
+        {
+            if (!ldlt)
+            {
+                // Create cholesky solver and do a full compute
+                ldlt = std::make_unique<LDLT>();
+                ldlt->compute(A);
+            }
+            else
+            {
+                // This line computes the factorization without analyzing the structure again
+                ldlt->factorize(A);
+            }
+            x = ldlt->solve(b);
+        }
+        else
+        {
+            x.setZero();
+            RecursiveDiagonalPreconditioner<MatrixScalar<T>> P;
+            Eigen::Index iters = solverOptions.maxIterativeIterations;
+            double tol         = solverOptions.iterativeTolerance;
+
+            P.compute(A);
+
+            XType tmp(n);
+            recursive_conjugate_gradient(
+                [&](const XType& v) {
+                    tmp = A.template selfadjointView<Eigen::Upper>() * v;
+                    return tmp;
+                },
+                b, x, P, iters, tol);
+        }
+    }
+
+   private:
+    std::unique_ptr<LDLT> ldlt;
+};
 
 /**
  * A spezialized solver for BundleAjustment-like problems.
@@ -52,9 +104,10 @@ struct MixedRecursiveSolver
  * This solver computes the schur complement on U and solves the reduced system with CG.
  */
 template <typename UBlock, typename VBlock, typename WBlock, typename XType>
-class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>,
-                                                 Eigen::SparseMatrix<WBlock, Eigen::RowMajor>>,
-                           XType>
+class MixedSymmetricRecursiveSolver<
+    SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>,
+                          Eigen::SparseMatrix<WBlock, Eigen::RowMajor>>,
+    XType>
 {
    public:
     using AType = SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>,
@@ -71,6 +124,8 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
 
     using SType = Eigen::SparseMatrix<UBlock, Eigen::RowMajor>;
 
+    using LDLT = Eigen::RecursiveSimplicialLDLT<SType, Eigen::Upper>;
+
     void analyzePattern(const AType& A, const LinearSolverOptions& solverOptions)
     {
         n = A.u.rows();
@@ -84,10 +139,18 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
         S.resize(n, n);
 
 
-        // TODO: add heurisitc here
-        explizitSchur = true;
-        // TODO: use heuristic when to compute WT
-        hasWT = true;
+        if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
+        {
+            hasWT         = true;
+            explizitSchur = true;
+        }
+        else
+        {
+            // TODO: add heurisitc here
+            hasWT         = true;
+            explizitSchur = false;
+        }
+
         if (hasWT)
         {
             transposeStructureOnly(A.w, WT);
@@ -95,6 +158,7 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
 
         patternAnalyzed = true;
     }
+
 
     void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
     {
@@ -113,6 +177,11 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
         if (hasWT)
         {
             transposeValueOnly(A.w, WT);
+            //            transpose(A.w, WT);
+            //            cout << expand(A.w) << endl << endl;
+            //            cout << expand(WT) << endl << endl;
+            //            cout << A.w.rows() << "x" << A.w.cols() << endl;
+            //            cout << WT.rows() << "x" << WT.cols() << endl;
         }
 
 
@@ -121,12 +190,21 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
         for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
         Y = multSparseDiag(W, Vinv);
 
-        if (solverOptions.buildExplizitSchur)
+        //        cout << "Vinv" << endl << expand(Vinv) << endl << endl;
+        //        cout << "Y" << endl << expand(Y) << endl << endl;
+
+        if (explizitSchur)
         {
             SAIGA_ASSERT(hasWT);
-            S            = Y * WT;
+            // (S is symmetric)
+            S = (Y * WT).template triangularView<Eigen::Upper>();
+            //            S            = (Y * WT);
             S            = -S;
             S.diagonal() = U.diagonal() + S.diagonal();
+            //            cout << "S" << endl << expand(S) << endl << endl;
+
+            //            double S_density = S.nonZeros() / double(S.rows() * S.cols());
+            //            cout << "S density: " << S_density << endl;
         }
         else
         {
@@ -134,32 +212,26 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
             Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
         }
         ej = ea + -(Y * eb);
+        //        cout << "ej" << endl << expand(ej) << endl << endl;
 
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
         {
-            SAIGA_ASSERT(solverOptions.buildExplizitSchur);
-            Eigen::SparseMatrix<double> ssparse(n * UBlock::M::RowsAtCompileTime, n * UBlock::M::RowsAtCompileTime);
-            {
-                // Step 5
-                // Solve the schur system for da
-                // ~ 5.04%
+            // Direct solver using cholesky factorization
+            SAIGA_ASSERT(explizitSchur);
 
-                auto triplets = sparseBlockToTriplets(S);
-                ssparse.setFromTriplets(triplets.begin(), triplets.end());
-            }
+            if (!ldlt)
             {
-                //~61%
-                Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
-                solver.compute(ssparse);
-
-                auto b                              = expand(ej);
-                Eigen::Matrix<double, -1, 1> deltaA = solver.solve(b);
-                // copy back into da
-                for (int i = 0; i < n; ++i)
-                {
-                    da(i) = deltaA.segment<UBlock::M::RowsAtCompileTime>(i * UBlock::M::RowsAtCompileTime);
-                }
+                // Create cholesky solver and do a full compute
+                ldlt = std::make_unique<LDLT>();
+                ldlt->compute(S);
             }
+            else
+            {
+                // This line computes the factorization without analyzing the structure again
+                ldlt->factorize(S);
+            }
+
+            da = ldlt->solve(ej);
         }
         else
         {
@@ -170,13 +242,13 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
             double tol         = solverOptions.iterativeTolerance;
 
 
-            if (solverOptions.buildExplizitSchur)
+            if (explizitSchur)
             {
                 P.compute(S);
                 XUType tmp(n);
                 recursive_conjugate_gradient(
                     [&](const XUType& v) {
-                        tmp = S * v;
+                        tmp = S.template selfadjointView<Eigen::Upper>() * v;
                         return tmp;
                     },
                     ej, da, P, iters, tol);
@@ -230,6 +302,8 @@ class MixedRecursiveSolver<SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -
     XUType ej;
 
     AWTType WT;
+
+    std::unique_ptr<LDLT> ldlt;
 
     bool patternAnalyzed = false;
     bool hasWT           = true;
