@@ -36,7 +36,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     swapChain.initSurface(surface);
 
     state = State::INITIALIZED;
-    base.init_memory(swapChain.imageCount);
+    base().init_memory(swapChain.imageCount);
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -94,13 +94,13 @@ void VulkanRenderer::render(Camera*)
 
 
     VkResult err = swapChain.acquireNextImage(sync.imageAvailable, &currentBuffer);
-    VK_CHECK_RESULT(err);
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR)
     {
         reset();
         return;
     }
+    VK_CHECK_RESULT(err);
 
 
     render(sync, currentBuffer);
@@ -112,6 +112,7 @@ void VulkanRenderer::render(Camera*)
         reset();
         return;
     }
+    VK_CHECK_RESULT(err);
     nextSyncObject = (nextSyncObject + 1) % syncObjects.size();
 }
 
