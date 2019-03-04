@@ -179,7 +179,7 @@ int main(int, char**)
     Saiga::Random::setSeed(93865023985);
 
 
-#if 1
+#if 0
 
     {
         OptimizationOptions baoptions;
@@ -210,8 +210,8 @@ int main(int, char**)
     //    buildScene(scene);
 
     //        buildSceneBAL(scene, balPrefix + "problem-21-11315-pre.txt");
-    //    buildSceneBAL(scene, balPrefix + "problem-257-65132-pre.txt");
-    buildSceneBAL(scene, balPrefix + "problem-931-102699-pre.txt");
+    buildSceneBAL(scene, balPrefix + "trafalgar-00201-54427.txt");
+    //    buildSceneBAL(scene, balPrefix + "venice-01778-993923.txt");
 
 
     cout << scene << endl;
@@ -221,17 +221,18 @@ int main(int, char**)
     baoptions.maxIterations          = 3;
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
-    baoptions.initialLambda          = 1e10;
-    baoptions.solverType             = OptimizationOptions::SolverType::Direct;
+    baoptions.initialLambda          = 1;
+
+    baoptions.solverType = OptimizationOptions::SolverType::Direct;
     cout << baoptions << endl;
 
 
     std::vector<std::shared_ptr<BABase>> solvers;
 
-    //    solvers.push_back(std::make_shared<BARec>());
+    solvers.push_back(std::make_shared<BARec>());
     //    solvers.push_back(std::make_shared<BAPoseOnly>());
-    solvers.push_back(std::make_shared<g2oBA2>());
-    //    solvers.push_back(std::make_shared<CeresBA>());
+    //    solvers.push_back(std::make_shared<g2oBA2>());
+    solvers.push_back(std::make_shared<CeresBA>());
 
     for (auto& s : solvers)
     {

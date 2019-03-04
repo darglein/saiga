@@ -78,10 +78,13 @@ class Sparse_LDLT_TEST
 #    else
 
     // const double targetNNZ = 1000 * 1000 * 4;
-    const int nnzr = 4;
-    const int n    = 4000;
+    //    const int nnzr = 4;
+    //    const int n    = 4000;
     // const double nnzBlocks = targetNNZ / double(block_size * block_size);
     // const int n            = nnzBlocks / nnzr;
+
+    const int nnzr = 1;
+    const int n    = 4;
 #    endif
 #endif
 
@@ -309,8 +312,74 @@ class Sparse_LDLT_TEST
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
 
+    auto solveEigenRecursiveCholmod()
+    {
+        // Convert recursive to flat matrix
+
+        Eigen::SparseMatrix<double> test;
+        using AType = decltype(test);
+
+
+
+        x.setZero();
+
+        auto be = expand(b);
+        auto bx = expand(x);
+        //        Eigen::CholmodSupernodalLLT<decltype(Anoblock)> ldlt;
+        Eigen::CholmodDecomposition<decltype(test)> ldlt;
+
+        ldlt.cholmod().supernodal    = CHOLMOD_SUPERNODAL;
+        ldlt.cholmod().final_ll      = 0;
+        ldlt.cholmod().SPQR_nthreads = 1;
+        //        ldlt.cholmod().final_asis = 1;
+
+        float time = 0;
+        {
+            typedef typename AType::StorageIndex StorageIndex;
+            Saiga::ScopedTimer<float> timer(time);
+            sparseBlockToFlatMatrix(A, test);
+
+            test = Anoblock;
+
+            //            cout << expand(A) << endl << endl;
+            //            cout << expand(test) << endl << endl;
+
+            const auto& testasdf = test;
+            auto cholmod_matrix  = Eigen::viewAsCholmod(testasdf.selfadjointView<Eigen::Upper>());
+
+            double m_shiftOffset[2]         = {0, 0};
+            cholmod_factor* m_cholmodFactor = nullptr;
+            cholmod_common m_cholmod        = ldlt.cholmod();
+
+            m_cholmodFactor = Eigen::internal::cm_analyze<StorageIndex>(cholmod_matrix, m_cholmod);
+            SAIGA_ASSERT(m_cholmodFactor);
+
+            Eigen::internal::cm_factorize_p<StorageIndex>(&cholmod_matrix, m_shiftOffset, 0, 0, m_cholmodFactor,
+                                                          m_cholmod);
+            SAIGA_ASSERT(m_cholmodFactor->minor == m_cholmodFactor->n);
+
+
+
+            cholmod_dense b_cd  = viewAsCholmod(be);
+            cholmod_dense* x_cd = Eigen::internal::cm_solve<StorageIndex>(CHOLMOD_A, *m_cholmodFactor, b_cd, m_cholmod);
+
+            bx = Eigen::Matrix<double, -1, 1>::Map(reinterpret_cast<double*>(x_cd->x), bx.rows(), bx.cols());
+
+            Eigen::internal::cm_free_factor<StorageIndex>(m_cholmodFactor, m_cholmod);
+            Eigen::internal::cm_free_dense<StorageIndex>(x_cd, m_cholmod);
+        }
+        double error = (Anoblock * bx - be).squaredNorm();
+        return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
+    }
+
+
     auto solveEigenRecursiveSparseLDLTRowMajor()
     {
+        // Convert recursive to flat matrix
+
+        Eigen::SparseMatrix<double> test;
+        sparseBlockToFlatMatrix(A2, test);
+
         x.setZero();
         using LDLT = Eigen::RecursiveSimplicialLDLT<AType2, Eigen::Upper>;
 
@@ -393,10 +462,12 @@ void run()
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
 
-    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
+    //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
 
-    make_test(test, table, &LDLT::solveCholmodSimplicial);
+    //    make_test(test, table, &LDLT::solveCholmodSimplicial);
     make_test(test, table, &LDLT::solveCholmodSupernodal);
+    make_test(test, table, &LDLT::solveEigenRecursiveCholmod);
+
 
 
     strm << endl;
@@ -452,7 +523,7 @@ int main(int, char**)
 #else
     {
         omp_set_num_threads(1);
-        LauncherLoop<4, 4 + 1, 1, 1, 2> l;
+        LauncherLoop<2, 2 + 1, 1, 1, 2> l;
 
         //        LauncherLoop<4, 4 + 1, 1, 1, 16> l;
         l();

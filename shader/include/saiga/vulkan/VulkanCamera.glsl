@@ -7,8 +7,8 @@
 
 #include "VulkanCamera.h"
 
-
-layout (set = 5, binding = 7) uniform CameraUniformBufferObject
+layout(set = 5, binding = 7) uniform CameraUniformBufferObject
 {
     VulkanCameraData data;
-} camera;
+}
+camera;

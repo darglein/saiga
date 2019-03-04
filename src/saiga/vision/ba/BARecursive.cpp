@@ -405,6 +405,7 @@ void BARec::solveLinearSystem()
                               ? LinearSolverOptions::SolverType::Direct
                               : LinearSolverOptions::SolverType::Iterative;
     loptions.buildExplizitSchur = explizitSchur;
+    loptions.cholmod            = false;
 
     solver.solve(A, delta_x, b, loptions);
 }
