@@ -25,7 +25,7 @@ void TextureDisplay::destroy()
 
 void TextureDisplay::renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet texture, vec2 position, vec2 size)
 {
-    bindDescriptorSets(cmd, texture);
+    bindDescriptorSet(cmd, texture);
     vk::Viewport vp(position[0], position[1], size[0], size[1]);
     cmd.setViewport(0, vp);
     blitMesh.render(cmd);
@@ -37,7 +37,7 @@ void TextureDisplay::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice, 1);
     addDescriptorSetLayout({
-        {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment},
+        {0, {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}},
     });
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
     shaderPipeline.load(device, {"vulkan/blit.vert", "vulkan/blit.frag"});

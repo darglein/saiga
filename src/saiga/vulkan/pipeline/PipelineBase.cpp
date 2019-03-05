@@ -27,15 +27,15 @@ void PipelineBase::destroy()
     if (!device) return;
     vkDestroyPipeline(device, pipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-    for (auto& l : descriptorSetLayouts) vkDestroyDescriptorSetLayout(device, l, nullptr);
+    for (auto& l : descriptorSetLayouts) l.destroy();
     device = nullptr;
 }
 
-vk::DescriptorSet PipelineBase::createDescriptorSet(uint32_t id)
+StaticDescriptorSet PipelineBase::createDescriptorSet(uint32_t id)
 {
     SAIGA_ASSERT(isInitialized());
     SAIGA_ASSERT(id >= 0 && id < descriptorSetLayouts.size());
-    return base->descriptorPool.allocateDescriptorSet(descriptorSetLayouts[id]);
+    return descriptorSetLayouts[id].createDescriptorSet();
 }
 
 bool PipelineBase::bind(vk::CommandBuffer cmd)
@@ -51,11 +51,7 @@ bool PipelineBase::bind(vk::CommandBuffer cmd)
     }
 }
 
-void PipelineBase::bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets,
-                                      uint32_t firstSet, vk::ArrayProxy<const uint32_t> dynamicOffsets)
-{
-    cmd.bindDescriptorSets(type, pipelineLayout, firstSet, descriptorSets, dynamicOffsets);
-}
+
 
 void PipelineBase::pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void* data,
                                 size_t offset)
@@ -63,15 +59,16 @@ void PipelineBase::pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stag
     cmd.pushConstants(pipelineLayout, stage, offset, size, data);
 }
 
-void PipelineBase::addDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id)
+void PipelineBase::addDescriptorSetLayout(const DescriptorSetLayout& layout, uint32_t id)
 {
     SAIGA_ASSERT(isInitialized());
     SAIGA_ASSERT(id >= 0 && id < descriptorSetLayouts.size());
-    vk::DescriptorSetLayoutCreateInfo descriptorLayout(vk::DescriptorSetLayoutCreateFlags(), setLayoutBindings.size(),
-                                                       setLayoutBindings.data());
-    auto setLayout = device.createDescriptorSetLayout(descriptorLayout);
-    SAIGA_ASSERT(setLayout);
-    descriptorSetLayouts[id] = setLayout;
+
+    SAIGA_ASSERT(!layout.is_created(), "Creation must not be done beforehand");
+
+    descriptorSetLayouts[id] = layout;
+
+    descriptorSetLayouts[id].create(base);
 }
 
 void PipelineBase::addPushConstantRange(vk::PushConstantRange pcr)
@@ -83,14 +80,17 @@ void PipelineBase::addPushConstantRange(vk::PushConstantRange pcr)
 void PipelineBase::createPipelineLayout()
 {
     SAIGA_ASSERT(isInitialized());
-    vk::PipelineLayoutCreateInfo pPipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), descriptorSetLayouts.size(),
-                                                           descriptorSetLayouts.data(), pushConstantRanges.size(),
+
+    std::vector<vk::DescriptorSetLayout> layouts(descriptorSetLayouts.size());
+
+    std::transform(descriptorSetLayouts.begin(), descriptorSetLayouts.end(), layouts.begin(),
+                   [](auto& entry) { return static_cast<vk::DescriptorSetLayout>(entry); });
+    vk::PipelineLayoutCreateInfo pPipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), layouts.size(),
+                                                           layouts.data(), pushConstantRanges.size(),
                                                            pushConstantRanges.data());
     pipelineLayout = device.createPipelineLayout(pPipelineLayoutCreateInfo);
     SAIGA_ASSERT(pipelineLayout);
 }
-
-
 
 }  // namespace Vulkan
 }  // namespace Saiga

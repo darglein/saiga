@@ -50,8 +50,8 @@ void TexturedAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPa
     PipelineBase::init(vulkanDevice, 1);
     uniformBufferVS.init(vulkanDevice, &uboVS, sizeof(UBOVS));
     addDescriptorSetLayout({
-        {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
-        {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment},
+        {0, {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}},
+        {1, {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}},
     });
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
     shaderPipeline.load(device, {vertShader, fragShader});

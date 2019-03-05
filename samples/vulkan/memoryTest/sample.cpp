@@ -81,8 +81,8 @@ void VulkanExample::update(float dt)
                               [](const auto& entry) { return std::get<2>(entry) < 0; });
 
     to_delete_tex.erase(end, to_delete_tex.end());
-    //    renderer.base.memory.vertexIndexAllocator.deallocate(m_location3);
-    //    m_location3 = renderer.base.memory.vertexIndexAllocator.allocate(1025);
+    //    renderer.base().memory.vertexIndexAllocator.deallocate(m_location3);
+    //    m_location3 = renderer.base().memory.vertexIndexAllocator.allocate(1025);
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd) {}
@@ -129,24 +129,24 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("Allocate Image"))
     {
-        renderer.base.memory.enable_defragmentation(image_type, false);
-        renderer.base.memory.stop_defrag(image_type);
+        renderer.base().memory.enable_defragmentation(image_type, false);
+        renderer.base().memory.stop_defrag(image_type);
         auto num_allocs = alloc_dist(mersenne_twister);
 
         for (int i = 0; i < num_allocs; ++i)
         {
             auto index = image_dist(mersenne_twister);
-            // allocations.push_back(renderer.base.memory.allocate(buffer_type, size));
+            // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
             tex_allocations.push_back(allocate(image_type, index));
         }
-        renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
-        renderer.base.memory.start_defrag(buffer_type);
+        renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
+        renderer.base().memory.start_defrag(buffer_type);
     }
 
     if (ImGui::Button("Deallocate Image"))
     {
-        renderer.base.memory.enable_defragmentation(image_type, false);
-        renderer.base.memory.stop_defrag(image_type);
+        renderer.base().memory.enable_defragmentation(image_type, false);
+        renderer.base().memory.stop_defrag(image_type);
 
         auto num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
 
@@ -159,8 +159,8 @@ void VulkanExample::renderGUI()
             to_delete_tex.emplace_back(alloc.first, alloc.second, 12);
             tex_allocations.erase(tex_allocations.begin() + index);
         }
-        renderer.base.memory.enable_defragmentation(image_type, enable_defragger);
-        renderer.base.memory.start_defrag(image_type);
+        renderer.base().memory.enable_defragmentation(image_type, enable_defragger);
+        renderer.base().memory.start_defrag(image_type);
     }
 
     ImGui::Checkbox("Show textures", &show_textures);
@@ -246,24 +246,24 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             break;
         case SDL_SCANCODE_Z:
         {
-            renderer.base.memory.enable_defragmentation(image_type, false);
-            renderer.base.memory.stop_defrag(image_type);
+            renderer.base().memory.enable_defragmentation(image_type, false);
+            renderer.base().memory.stop_defrag(image_type);
             num_allocs = alloc_dist(mersenne_twister);
 
             for (int i = 0; i < num_allocs; ++i)
             {
                 auto index = image_dist(mersenne_twister);
-                // allocations.push_back(renderer.base.memory.allocate(buffer_type, size));
+                // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
                 tex_allocations.push_back(allocate(image_type, index));
             }
-            renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
-            renderer.base.memory.start_defrag(buffer_type);
+            renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
+            renderer.base().memory.start_defrag(buffer_type);
         }
         break;
         case SDL_SCANCODE_C:
         {
-            renderer.base.memory.enable_defragmentation(image_type, false);
-            renderer.base.memory.stop_defrag(image_type);
+            renderer.base().memory.enable_defragmentation(image_type, false);
+            renderer.base().memory.stop_defrag(image_type);
 
             num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
 
@@ -276,20 +276,20 @@ void VulkanExample::keyPressed(SDL_Keysym key)
                 to_delete_tex.emplace_back(alloc.first, alloc.second, 4);
                 tex_allocations.erase(tex_allocations.begin() + index);
             }
-            renderer.base.memory.enable_defragmentation(image_type, enable_defragger);
-            renderer.base.memory.start_defrag(image_type);
+            renderer.base().memory.enable_defragmentation(image_type, enable_defragger);
+            renderer.base().memory.start_defrag(image_type);
         }
         break;
         case SDL_SCANCODE_R:
-            renderer.base.memory.enable_defragmentation(buffer_type, false);
-            renderer.base.memory.stop_defrag(buffer_type);
+            renderer.base().memory.enable_defragmentation(buffer_type, false);
+            renderer.base().memory.stop_defrag(buffer_type);
 
             for (int i = 0; i < 10; ++i)
             {
                 alloc_index(i);
             }
-            renderer.base.memory.enable_defragmentation(buffer_type, enable_defragger);
-            renderer.base.memory.start_defrag(buffer_type);
+            renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
+            renderer.base().memory.start_defrag(buffer_type);
             break;
         case SDL_SCANCODE_ESCAPE:
             cleanup();
@@ -358,15 +358,15 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, vk::DescriptorSet> VulkanEx
     // Saiga::Vulkan::StagingBuffer staging;
     // staging.init(renderer.base, size * size, mem.data());
 
-    texture->fromImage(renderer.base, *images[index]);
+    texture->fromImage(renderer.base(), *images[index]);
     // auto init_operation =
     //    texture->fromStagingBuffer(renderer.base, size, size, vk::Format::eR8G8B8A8Uint, staging,
-    //                               *renderer.base.transferQueue, renderer.base.transferQueue->commandPool);
+    //                               *renderer.base().transferQueue, renderer.base().transferQueue->commandPool);
     //
-    // renderer.base.device.waitForFences(init_operation.fence, true, 100000000000);
-    // renderer.base.transferQueue->commandPool.freeCommandBuffer(init_operation.cmd);
+    // renderer.base().device.waitForFences(init_operation.fence, true, 100000000000);
+    // renderer.base().transferQueue->commandPool.freeCommandBuffer(init_operation.cmd);
     //
-    // renderer.base.device.destroy(init_operation.fence);
+    // renderer.base().device.destroy(init_operation.fence);
     texture->mark_dynamic();
 
     return std::make_pair(texture, nullptr);
@@ -374,7 +374,7 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, vk::DescriptorSet> VulkanEx
 
 void VulkanExample::cleanup()
 {
-    renderer.base.device.waitIdle();
+    renderer.base().device.waitIdle();
     allocations.resize(0);
     num_allocations.resize(0);
     tex_allocations.resize(0);

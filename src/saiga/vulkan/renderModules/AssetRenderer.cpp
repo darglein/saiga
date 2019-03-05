@@ -46,7 +46,7 @@ void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 
 void AssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice, 1);
-    addDescriptorSetLayout({{7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}});
+    addDescriptorSetLayout({{0, {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}}});
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
     shaderPipeline.load(device, {"vulkan/coloredAsset.vert", "vulkan/coloredAsset.frag"});
     PipelineInfo info;

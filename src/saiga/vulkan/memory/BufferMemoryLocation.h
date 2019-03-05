@@ -16,7 +16,7 @@ struct SAIGA_VULKAN_API BufferData
     BufferData(nullptr_t) : buffer(nullptr) {}
 
     /**
-     * Destroys the data that is owned by this uniquely object.
+     * Destroys the data that is owned by this object uniquely.
      * @param device device for the data.
      */
     void destroy_owned_data(vk::Device device) {}
@@ -39,11 +39,7 @@ struct SAIGA_VULKAN_API BufferData
     }
 };
 
-
-
 using BufferMemoryLocation = BaseMemoryLocation<BufferData>;
-
-
 
 inline void copy_buffer(vk::CommandBuffer cmd, BufferMemoryLocation* target, BufferMemoryLocation* source)
 {

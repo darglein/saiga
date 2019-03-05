@@ -18,8 +18,8 @@ void ImageCopyComputeShader::init(VulkanBase* _base)
 
     pipeline->init(*_base, 1);
     pipeline->addDescriptorSetLayout(
-        {{0, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute},
-         {1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eCompute}});
+        {{0, {0, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute}},
+         {1, {1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eCompute}}});
 
     pipeline->addPushConstantRange(vk::PushConstantRange{vk::ShaderStageFlagBits::eCompute, 0, sizeof(glm::ivec2)});
 
@@ -78,7 +78,7 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
     }
 
 
-    pipeline->bindDescriptorSets(cmd, descriptorSet);
+    pipeline->bindDescriptorSet(cmd, descriptorSet);
 
     const auto extent = source->data.image_create_info.extent;
     int countX        = extent.width / 8 + 1;
