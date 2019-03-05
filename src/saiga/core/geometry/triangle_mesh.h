@@ -35,6 +35,12 @@ class TriangleMesh
             // assume index_t alignment
             return *((&v1) + idx);
         }
+
+        const index_t& operator[](int idx) const
+        {
+            // assume index_t alignment
+            return *((&v1) + idx);
+        }
     };
 
     //    typedef IndexedVertexBuffer<vertex_t,index_t> buffer_t;
