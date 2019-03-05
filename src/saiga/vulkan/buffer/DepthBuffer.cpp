@@ -11,32 +11,29 @@ namespace Saiga
 {
 namespace Vulkan
 {
-const Memory::ImageType DepthBuffer::depth_type{vk::ImageUsageFlagBits::eDepthStencilAttachment,
-                                                vk::MemoryPropertyFlagBits::eDeviceLocal};
-
+static const Memory::ImageType depth_buffer_type{vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                                                 vk::MemoryPropertyFlagBits::eDeviceLocal};
 void DepthBuffer::destroy()
 {
     if (location)
     {
-        base->memory.deallocateImage(depth_type, location);
+        base->memory.deallocateImage(depth_buffer_type, location);
         location = nullptr;
     }
-    // base->device.destroyImage(depthimage);
-    // base->device.destroyImageView(depthview);
 }
 
 void DepthBuffer::init(VulkanBase& base, int width, int height)
 {
     this->base = &base;
+    vk::Result res;
     {
         // depth buffer
         vk::ImageCreateInfo image_info = {};
-        const vk::Format depth_format  = vk::Format::eD16Unorm;
         vk::FormatProperties props;
         //        vkGetPhysicalDeviceFormatProperties(info.gpus[0], depth_format, &props);
 
         vk::PhysicalDevice physicalDevice = base.physicalDevice;
-        props                             = physicalDevice.getFormatProperties(depth_format);
+        props                             = physicalDevice.getFormatProperties(format);
 
         if (props.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
         {
@@ -53,7 +50,7 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
             exit(-1);
         }
         image_info.imageType             = vk::ImageType::e2D;
-        image_info.format                = depth_format;
+        image_info.format                = format;
         image_info.extent.width          = width;
         image_info.extent.height         = height;
         image_info.extent.depth          = 1;
@@ -73,7 +70,7 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
 
         viewInfo.image                           = nullptr;
         viewInfo.viewType                        = vk::ImageViewType::e2D;
-        viewInfo.format                          = depth_format;
+        viewInfo.format                          = format;
         viewInfo.components.r                    = vk::ComponentSwizzle::eR;
         viewInfo.components.g                    = vk::ComponentSwizzle::eG;
         viewInfo.components.b                    = vk::ComponentSwizzle::eB;
@@ -84,34 +81,35 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount     = 1;
 
-        // vk::MemoryRequirements mem_reqs;
-
-        depthFormat = depth_format;
-
         Memory::ImageData img_data(image_info, viewInfo, vk::ImageLayout::eUndefined);
-
-        /* Create image */
-        //        res = vkCreateImage(info.device, &image_info, NULL, &info.depth.image);
+        // vk::MemoryRequirements mem_reqs;
+        //
+        //
+        ///* Create image */
+        ////        res = vkCreateImage(info.device, &image_info, NULL, &info.depth.image);
         // res = base.device.createImage(&image_info, nullptr, &depthimage);
         // SAIGA_ASSERT(res == vk::Result::eSuccess);
-        //        assert(res == VK_SUCCESS);
-
-
-        //        vkGetImageMemoryRequirements(info.device, info.depth.image, &mem_reqs);
+        ////        assert(res == VK_SUCCESS);
+        //
+        //
+        ////        vkGetImageMemoryRequirements(info.device, info.depth.image, &mem_reqs);
         // mem_reqs = base.device.getImageMemoryRequirements(depthimage);
-
-        location = base.memory.allocate(depth_type, img_data);
-
-
-        // allocateMemory(base, mem_reqs, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-
+        //
+        // location = base.memory.allocate(
+        //    {vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal}, depthimage);
+        //
+        //
+        //// allocateMemory(base, mem_reqs, vk::MemoryPropertyFlagBits::eDeviceLocal);
+        //
+        //
         // base.device.bindImageMemory(depthimage, location->memory, location->size);
-
-
+        //
+        //
         // viewInfo.image = depthimage;
         // res            = base.device.createImageView(&viewInfo, nullptr, &depthview);
         // SAIGA_ASSERT(res == vk::Result::eSuccess);
+
+        location = base.memory.allocate(depth_buffer_type, img_data);
     }
 }
 

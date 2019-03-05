@@ -45,8 +45,8 @@ void VulkanForwardRenderer::createBuffers(int numImages, int w, int h)
     frameBuffers.resize(numImages);
     for (int i = 0; i < numImages; i++)
     {
-        frameBuffers[i].createColorDepthStencil(w, h, swapChain.buffers[i].view, depthBuffer.depthview, renderPass,
-                                                base().device);
+        frameBuffers[i].createColorDepthStencil(w, h, swapChain.buffers[i].view, depthBuffer.location->data.view,
+                                                renderPass, base().device);
     }
 
 
@@ -219,7 +219,7 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
-    base.memory.update();
+    base().memory.update();
 }
 
 
