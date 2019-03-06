@@ -113,10 +113,17 @@ double RecursiveArap::computeQuadraticForm()
 
 
     b.setZero();
-    for (int i = 0; i < S.nonZeros(); ++i)
+
+    // set diagonal elements of S to zero
+    for (int i = 0; i < n; ++i)
     {
-        S.valuePtr()[i].get().setZero();
+        S.valuePtr()[S.outerIndexPtr()[i]].get().setZero();
     }
+
+    //    for (int i = 0; i < S.nonZeros(); ++i)
+    //    {
+    //        S.valuePtr()[i].get().setZero();
+    //    }
 
     double chi2 = 0;
 
@@ -183,7 +190,7 @@ double RecursiveArap::computeQuadraticForm()
             Jrowj *= w_Reg;
 
             // JtJ
-            target_ij += Jrowi.transpose() * Jrowj;
+            target_ij = Jrowi.transpose() * Jrowj;
             target_ii += Jrowi.transpose() * Jrowi;
             target_jj += Jrowj.transpose() * Jrowj;
 
@@ -210,11 +217,6 @@ double RecursiveArap::computeQuadraticForm()
             Jrowj *= w_Reg;
 
 
-
-            // JtJ
-            //            target_ij += Jrowi.transpose() * Jrowj;
-            //            target_ij += Jrowi.transpose() * Jrowj;
-            //            target_ij += (Jrowi.transpose() * Jrowj).transpose();
             target_ij += (Jrowi.transpose() * Jrowj);
             target_ii += Jrowi.transpose() * Jrowi;
             target_jj += Jrowj.transpose() * Jrowj;
@@ -227,8 +229,6 @@ double RecursiveArap::computeQuadraticForm()
             chi2 += c;
         }
     }
-
-    //    cout << expand(S) << endl << endl;
 
     return chi2;
 }
@@ -270,6 +270,7 @@ void RecursiveArap::solveLinearSystem()
     loptions.solverType = (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
                               ? LinearSolverOptions::SolverType::Direct
                               : LinearSolverOptions::SolverType::Iterative;
+
 
 
     solver.solve(S, delta_x, b, loptions);

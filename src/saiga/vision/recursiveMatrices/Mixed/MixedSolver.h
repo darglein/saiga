@@ -23,7 +23,11 @@ struct LinearSolverOptions
 
     // Schur complement options (not used by every solver)
     bool buildExplizitSchur = false;
-    bool cholmod            = false;
+
+    // Well the cholmod supernodal ist extremly fast
+    // -> Maybe in the future when I have implemented a supernodal recursive factorization
+    //      I switch it back to false ;)
+    bool cholmod = true;
 };
 
 /**

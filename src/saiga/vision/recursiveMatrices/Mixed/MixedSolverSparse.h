@@ -24,7 +24,11 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
     using LDLT  = Eigen::RecursiveSimplicialLDLT<AType, Eigen::Upper>;
 
     using ExpandedType = Eigen::SparseMatrix<typename T::Scalar, Eigen::RowMajor>;
-    using CholmodLDLT  = Eigen::CholmodSupernodalLLT<ExpandedType, Eigen::Upper>;
+
+    using CholmodLDLT = Eigen::CholmodSupernodalLLT<ExpandedType, Eigen::Upper>;
+    //        using CholmodLDLT = Eigen::CholmodSimplicialLDLT<ExpandedType, Eigen::Upper>;
+    //        using CholmodLDLT = Eigen::RecursiveSimplicialLDLT<ExpandedType, Eigen::Upper>;
+    //    using CholmodLDLT = Eigen::SimplicialLLT<ExpandedType, Eigen::Upper>;
 
     void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
     {

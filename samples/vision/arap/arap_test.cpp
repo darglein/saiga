@@ -8,7 +8,9 @@
 #include "saiga/core/geometry/openMeshWrapper.h"
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/ModelLoader.h"
 #include "saiga/core/model/objModelLoader.h"
+#include "saiga/core/model/plyModelLoader.h"
 #include "saiga/core/time/Time"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/random.h"
@@ -24,26 +26,106 @@
 
 using namespace Saiga;
 
-
-
-template <typename vertex_t, typename index_t>
-void saveMesh(const TriangleMesh<vertex_t, index_t>& mesh, const std::string& file)
+std::vector<std::string> getFiles()
 {
+    std::vector<std::string> files;
+    files.insert(files.end(), {"dragon_10k.ply"});
+    files.insert(files.end(), {"dragon_25k.ply"});
+    files.insert(files.end(), {"dragon_100k.ply"});
+    files.insert(files.end(), {"dragon_250k.ply"});
+    return files;
+}
+
+
+void test_to_file(const OptimizationOptions& options, const std::string& file, int its)
+{
+    cout << options << endl;
+    cout << "Running long performance test to file..." << endl;
+
+    auto files = getFiles();
+
+
     std::ofstream strm(file);
+    strm << "file,edges,poses,density,solver_type,iterations,time_recursive,time_g2o,time_ceres" << endl;
 
-    strm << "OFF" << endl;
-    // first line: number of vertices, number of faces, number of edges (can be ignored)
-    strm << mesh.vertices.size() << " " << mesh.faces.size() << " 0" << endl;
 
-    for (auto& v : mesh.vertices)
+    Saiga::Table table({20, 20, 15, 15});
+
+    for (auto file : files)
     {
-        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << endl;
-    }
+        ArapProblem problem;
 
-    for (auto& f : mesh.faces)
-    {
-        strm << "3"
-             << " " << f[0] << " " << f[1] << " " << f[2] << endl;
+        if (hasEnding(file, ".ply"))
+        {
+            PLYLoader pl(file);
+
+            TriangleMesh<VertexNC, uint32_t> baseMesh = pl.mesh;
+
+            ArabMesh mesh;
+            triangleMeshToOpenMesh(baseMesh, mesh);
+            problem.createFromMesh(mesh);
+        }
+
+        {
+            int id = 0;
+            // add an offset to the first vertex
+            auto p = problem.vertices[id].translation();
+            problem.target_indices.push_back(id);
+            problem.target_positions.push_back(p + Vec3(0, 0.2, 0));
+        }
+        {
+            //            problem.createFromMesh(mesh);
+            int id = 10;
+            // add an offset to the first vertex
+            auto p = problem.vertices[id].translation();
+            problem.target_indices.push_back(id);
+            problem.target_positions.push_back(p + Vec3(0, -0.2, 0));
+        }
+        std::vector<std::shared_ptr<ArapBase>> solvers;
+        solvers.push_back(std::make_shared<RecursiveArap>());
+        solvers.push_back(std::make_shared<CeresArap>());
+
+
+
+#if 1
+
+        cout << "> Initial Error: " << problem.chi2() << endl;
+        table << "Name"
+              << "Final Error"
+              << "Time_LS"
+              << "Time_Total";
+
+        strm << file << "," << problem.vertices.size() << "," << problem.constraints.size() << ","
+             << problem.target_indices.size() << "," << (int)options.solverType << "," << (int)options.maxIterations;
+
+        for (auto& s : solvers)
+        {
+            std::vector<double> times;
+            std::vector<double> timesl;
+            double chi2;
+            for (int i = 0; i < its; ++i)
+            {
+                auto cpy = problem;
+                s->create(cpy);
+                auto opt                 = dynamic_cast<Optimizer*>(s.get());
+                opt->optimizationOptions = options;
+                SAIGA_ASSERT(opt);
+                auto result = opt->solve();
+                chi2        = result.cost_final;
+                times.push_back(result.total_time);
+                timesl.push_back(result.linear_solver_time);
+            }
+
+
+            auto t  = make_statistics(times).median / 1000.0 / options.maxIterations;
+            auto tl = make_statistics(timesl).median / 1000.0 / options.maxIterations;
+            table << s->name << chi2 << tl << t;
+
+            strm << "," << t;
+        }
+        strm << endl;
+#endif
+        cout << endl;
     }
 }
 
@@ -55,11 +137,28 @@ int main(int, char**)
 
     Saiga::Random::setSeed(93865023985);
 
+    OptimizationOptions options;
+    options.solverType    = OptimizationOptions::SolverType::Iterative;
+    options.debugOutput   = false;
+    options.maxIterations = 5;
 
+    options.maxIterativeIterations = 100;
+    options.iterativeTolerance     = 0;
+    //    test_to_file(options, "arab.csv", 1);
+
+
+    GenericModel testModel("bunny.obj");
+    GenericModel testModel2("dragon_10k.ply");
+    return 0;
+
+#if 0
     ObjModelLoader ol("bunny.obj");
+    PLYLoader pl("dragon_100k.ply");
 
     TriangleMesh<VertexNC, uint32_t> baseMesh;
-    ol.toTriangleMesh(baseMesh);
+    //    ol.toTriangleMesh(baseMesh);
+
+    baseMesh = pl.mesh;
 
 
 
@@ -97,57 +196,24 @@ int main(int, char**)
     }
 
 
-    int its = 1;
-    if (0)
-    {
-        ArapProblem cpy = problem;
-        CeresArap ca;
-
-        {
-            //            SAIGA_BLOCK_TIMER();
-            ca.optimizeAutodiff(cpy, 3);
-        }
-
-        //        cpy.saveToMesh(mesh);
-        //        saveOpenMesh(mesh, "arab_1.off");
-    }
 
     {
         ArapProblem cpy = problem;
-
-        auto initialChi2 = cpy.chi2();
         CeresArap ca;
-
-        {
-            //            SAIGA_BLOCK_TIMER();
-            ca.optimize(cpy, its);
-        }
-
-        auto finalChi2 = cpy.chi2();
-
-        cout << "Ceres " << initialChi2 << " -> " << finalChi2 << endl << endl;
-        //        cpy.saveToMesh(mesh);
-        //        saveOpenMesh(mesh, "arab_2.off");
+        ca.optimizationOptions = options;
+        ca.create(cpy);
+        auto res = ca.solve();
+        cout << res << endl;
     }
 
 
     {
-        ArapProblem cpy  = problem;
-        auto initialChi2 = cpy.chi2();
+        ArapProblem cpy = problem;
         RecursiveArap ca;
-        ca.arap = &cpy;
-
-
-        ca.optimizationOptions.solverType    = OptimizationOptions::SolverType::Direct;
-        ca.optimizationOptions.debugOutput   = true;
-        ca.optimizationOptions.maxIterations = its;
-        {
-            //            SAIGA_BLOCK_TIMER();
-            ca.solve();
-        }
-        auto finalChi2 = cpy.chi2();
-
-        cout << "Recursive " << initialChi2 << " -> " << finalChi2 << endl << endl;
+        ca.arap                = &cpy;
+        ca.optimizationOptions = options;
+        auto res               = ca.solve();
+        cout << res << endl;
     }
 
     //    problem.saveToMesh(mesh);
@@ -159,4 +225,5 @@ int main(int, char**)
 
 
     return 0;
+#endif
 }

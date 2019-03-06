@@ -13,7 +13,7 @@ namespace Saiga
 {
 struct SAIGA_VISION_API OptimizationResults
 {
-    std::string name;
+    std::string name = "Optimizer";
 
     double cost_initial;
     double cost_final;
@@ -23,6 +23,8 @@ struct SAIGA_VISION_API OptimizationResults
 
     bool success;
 };
+
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const OptimizationResults& op);
 
 struct SAIGA_VISION_API OptimizationOptions
 {
@@ -41,6 +43,7 @@ struct SAIGA_VISION_API OptimizationOptions
     double initialLambda = 1.00e-04;
 
     bool debugOutput = false;
+    bool debug       = false;
 
     void imgui();
 };

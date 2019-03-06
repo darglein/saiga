@@ -5,15 +5,27 @@
  */
 
 #pragma once
+#include "saiga/vision/Optimizer.h"
+
+#include "ArapBase.h"
 #include "ArapProblem.h"
 
 namespace Saiga
 {
-class CeresArap
+class CeresArap : public ArapBase, public Optimizer
 {
    public:
+    CeresArap() : ArapBase("Ceres") {}
     void optimizeAutodiff(ArapProblem& arap, int its);
-    void optimize(ArapProblem& arap, int its);
+
+
+    virtual OptimizationResults solve() override;
+
+    void create(ArapProblem& scene) override { _scene = &scene; }
+
+
+   private:
+    ArapProblem* _scene;
 };
 
 }  // namespace Saiga

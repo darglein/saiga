@@ -182,6 +182,11 @@ class TriangleMesh
         return indices;
     }
 
+    /**
+     * Writes this mesh in OFF format to the given output stream.
+     */
+    void saveMeshOff(std::ostream& strm);
+
    public:
     std::vector<vertex_t> vertices;
     std::vector<Face> faces;
@@ -452,6 +457,27 @@ bool TriangleMesh<vertex_t, index_t>::isValid()
         if (f.v3 < 0 || f.v3 >= vertices.size()) return false;
     }
     return true;
+}
+
+
+
+template <typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm)
+{
+    strm << "OFF" << endl;
+    // first line: number of vertices, number of faces, number of edges (can be ignored)
+    strm << vertices.size() << " " << faces.size() << " 0" << endl;
+
+    for (auto& v : vertices)
+    {
+        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << endl;
+    }
+
+    for (auto& f : faces)
+    {
+        strm << "3"
+             << " " << f[0] << " " << f[1] << " " << f[2] << endl;
+    }
 }
 
 template <typename vertex_t, typename index_t>

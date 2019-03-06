@@ -25,24 +25,28 @@ inline void makeGaussNewtonOptions(ceres::Solver::Options& options)
     options.max_lm_diagonal = 1e-49;
 }
 
-inline ceres::Solver::Options make_options(const Saiga::OptimizationOptions& optimizationOptions)
+inline ceres::Solver::Options make_options(const Saiga::OptimizationOptions& optimizationOptions, bool schur = true)
 {
     ceres::Solver::Options ceres_options;
     ceres_options.minimizer_progress_to_stdout = optimizationOptions.debugOutput;
     ceres_options.max_num_iterations           = optimizationOptions.maxIterations;
     ceres_options.max_linear_solver_iterations = optimizationOptions.maxIterativeIterations;
     ceres_options.min_linear_solver_iterations = optimizationOptions.maxIterativeIterations;
-    ceres_options.min_relative_decrease        = 1e-50;
-    ceres_options.function_tolerance           = 1e-50;
-    ceres_options.initial_trust_region_radius  = 1.0 / optimizationOptions.initialLambda;
+
+    ceres_options.min_relative_decrease       = 1e-50;
+    ceres_options.function_tolerance          = 1e-50;
+    ceres_options.initial_trust_region_radius = 1.0 / optimizationOptions.initialLambda;
 
     switch (optimizationOptions.solverType)
     {
         case OptimizationOptions::SolverType::Direct:
-            ceres_options.linear_solver_type = ceres::LinearSolverType::SPARSE_SCHUR;
+            ceres_options.linear_solver_type =
+                schur ? ceres::LinearSolverType::SPARSE_SCHUR : ceres::LinearSolverType::SPARSE_NORMAL_CHOLESKY;
+
             break;
         case OptimizationOptions::SolverType::Iterative:
-            ceres_options.linear_solver_type = ceres::LinearSolverType::ITERATIVE_SCHUR;
+            ceres_options.linear_solver_type =
+                schur ? ceres::LinearSolverType::ITERATIVE_SCHUR : ceres::LinearSolverType::CGNR;
             break;
     }
 
@@ -65,6 +69,7 @@ inline Saiga::OptimizationResults ceres_solve(const ceres::Solver::Options& cere
     result.cost_final         = summaryTest.final_cost * 2.0;
     result.linear_solver_time = summaryTest.linear_solver_time_in_seconds * 1000;
     result.total_time         = summaryTest.total_time_in_seconds * 1000;
+    result.success            = summaryTest.IsSolutionUsable();
     return result;
 }
 

@@ -8,13 +8,17 @@
 #include "saiga/vision/Optimizer.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
+#include "ArapBase.h"
 #include "ArapProblem.h"
 namespace Saiga
 {
-class RecursiveArap : public LMOptimizer
+class RecursiveArap : public ArapBase, public LMOptimizer
 {
    public:
     ArapProblem* arap;
+
+    RecursiveArap() : ArapBase("Recursive") {}
+    virtual void create(ArapProblem& scene) override { arap = &scene; }
 
    protected:
     virtual void init() override;

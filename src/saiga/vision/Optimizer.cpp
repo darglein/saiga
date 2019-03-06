@@ -10,6 +10,15 @@
 
 namespace Saiga
 {
+std::ostream& operator<<(std::ostream& strm, const OptimizationResults& op)
+{
+    strm << "[" << op.name << "] " << op.cost_initial << "->" << op.cost_final << " in " << op.total_time / 1000.0
+         << "(" << op.linear_solver_time / 1000.0 << ")";
+    if (!op.success) strm << " FAILED!";
+    return strm;
+}
+
+
 void OptimizationOptions::imgui()
 {
     ImGui::InputInt("maxIterations", &maxIterations);
@@ -26,6 +35,7 @@ void OptimizationOptions::imgui()
 
     ImGui::Checkbox("debugOutput", &debugOutput);
 }
+
 
 std::ostream& operator<<(std::ostream& strm, const OptimizationOptions& op)
 {
@@ -65,15 +75,15 @@ OptimizationResults LMOptimizer::solve()
             double chi2 = computeQuadraticForm();
 
 
-            if (optimizationOptions.debugOutput)
+            if (optimizationOptions.debug)
             {
                 // A small sanity check in debug mode to see if compute cost is correct
                 double test = computeCost();
                 if (chi2 != test)
                 {
                     cerr << "Warning " << chi2 << "!=" << test << endl;
+                    SAIGA_ASSERT(chi2 == test);
                 }
-                //                SAIGA_ASSERT(chi2 == test);
             }
 
 
@@ -111,8 +121,9 @@ OptimizationResults LMOptimizer::solve()
                 lambda = lambda * v;
                 v      = 2 * v;
                 revertDelta();
-                cerr << i << " warning invalid lm step. lambda: " << lambda << " new/old: " << newChi2 << "/"
-                     << current_chi2 << endl;
+                if (optimizationOptions.debugOutput)
+                    cerr << i << " warning invalid lm step. lambda: " << lambda << " new/old: " << newChi2 << "/"
+                         << current_chi2 << endl;
             }
 
             if (optimizationOptions.debugOutput) cout << "current_chi2 = " << 0.5 * current_chi2 << endl;
@@ -123,5 +134,7 @@ OptimizationResults LMOptimizer::solve()
     }
     return result;
 }
+
+
 
 }  // namespace Saiga

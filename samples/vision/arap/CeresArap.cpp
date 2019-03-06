@@ -230,11 +230,13 @@ void CeresArap::optimizeAutodiff(ArapProblem& arap, int its)
 }
 
 
-void CeresArap::optimize(ArapProblem& arap, int its)
+
+OptimizationResults CeresArap::solve()
 {
     // fill targets and mesh
     // ...
 
+    auto& arap = *_scene;
 
     auto qp = new Sophus::test::LocalParameterizationSE32<false>();
 
@@ -278,18 +280,20 @@ void CeresArap::optimize(ArapProblem& arap, int its)
     }
 
 
-    //#if 0
-    //    Saiga::printDebugJacobi(problem, 10);
-    //#endif
-    //    Saiga::printDebugSmall(problem);
+
+    //    ceres::Solver::Options ceres_options = make_options(optimizationOptions, false);
 
     ceres::Solver::Options ceres_options;
-    ceres_options.minimizer_progress_to_stdout = true;
-    ceres_options.max_num_iterations           = its;
-    ceres_options.initial_trust_region_radius  = 1.0 / 1.00e-04;
+    ceres_options.minimizer_progress_to_stdout = optimizationOptions.debugOutput;
+    ceres_options.linear_solver_type           = ceres::LinearSolverType::CGNR;
+    ceres_options.max_num_iterations           = optimizationOptions.maxIterations;
 
-    ceres::Solver::Summary summaryTest;
-    ceres::Solve(ceres_options, &problem, &summaryTest);
+    ceres_options.min_linear_solver_iterations = optimizationOptions.maxIterativeIterations;
+    ceres_options.max_linear_solver_iterations = optimizationOptions.maxIterativeIterations;
+
+    OptimizationResults result = ceres_solve(ceres_options, problem);
+    result.name                = "Ceres ARAP";
+    return result;
 }
 
 
