@@ -289,11 +289,7 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         other.modified_time = Clock::now();
     }
 
-    void modified()
-    {
-        SafeAccessor(*this);
-        modified_time = Clock::now();
-    }
+    void modified() { modified_time = Clock::now(); }
 };
 
 }  // namespace Saiga::Vulkan::Memory

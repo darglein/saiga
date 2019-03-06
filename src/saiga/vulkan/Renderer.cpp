@@ -36,7 +36,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     swapChain.initSurface(surface);
 
     state = State::INITIALIZED;
-    base().init_memory(swapChain.imageCount);
+    base().finalize_init(swapChain.imageCount);
 }
 
 VulkanRenderer::~VulkanRenderer()

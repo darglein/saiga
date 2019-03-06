@@ -521,6 +521,8 @@ bool Defragger<T>::perform_defrag()
             {
                 SAIGA_ASSERT(free_op.value().target && free_op.value().source);
                 allocator->swap(free_op.value().target, free_op.value().source);
+
+
                 free_operations.push_back(free_op.value());
                 performed = true;
             }

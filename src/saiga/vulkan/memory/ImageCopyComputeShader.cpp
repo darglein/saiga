@@ -94,7 +94,6 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
     base->computeQueue->submitAndWait(cmd);
 
     base->computeQueue->commandPool.freeCommandBuffer(cmd);
-    base->descriptorPool.freeDescriptorSet(descriptorSet);
     return true;
 }
 }  // namespace Saiga::Vulkan::Memory

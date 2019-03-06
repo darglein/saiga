@@ -34,7 +34,7 @@ class SAIGA_VULKAN_API PipelineBase
 
     // ==== Runtime ====
     StaticDescriptorSet createDescriptorSet(uint32_t id = 0);
-
+    DynamicDescriptorSet createDynamicDescriptorSet(uint32_t id = 0);
 
     SAIGA_WARN_UNUSED_RESULT bool bind(vk::CommandBuffer cmd);
 

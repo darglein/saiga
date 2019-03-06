@@ -316,26 +316,8 @@ void BaseChunkAllocator<T>::swap(T* target, T* source)
     // auto old = std::move(*target_alloc);
 
     std::iter_swap(source_alloc, target_alloc);
-    // std::move(source_alloc, std::next(source_alloc), target_alloc);
-    //
-    //
-    //    source->destroy_owned_data(m_device);
-    //    target->copy_to(*source);
-    //
-    //    source->mark_dynamic();
-    //
-    //    source_chunk->allocated -= size;
-    //
-    //    std::move(source_alloc, std::next(source_alloc), target_alloc);
-    //
-    //    source_chunk->allocations.erase(source_alloc);
-    //
-    //    add_to_free_list(source_chunk, future_entry);
-    //
-    //
-    //    findNewMax(source_chunk);
-    //
-    //    source->modified();
+
+    source->modified();
 }
 
 template <typename T>

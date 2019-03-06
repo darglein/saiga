@@ -223,6 +223,8 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, parameters.descriptorCounts[3]},
             vk::DescriptorPoolSize{vk::DescriptorType::eSampledImage, parameters.descriptorCounts[3]},
         });
+
+    current_frame = 0;
 }
 
 void VulkanBase::init(VulkanParameters params) {}

@@ -38,6 +38,13 @@ StaticDescriptorSet PipelineBase::createDescriptorSet(uint32_t id)
     return descriptorSetLayouts[id].createDescriptorSet();
 }
 
+DynamicDescriptorSet PipelineBase::createDynamicDescriptorSet(uint32_t id)
+{
+    SAIGA_ASSERT(isInitialized());
+    SAIGA_ASSERT(id >= 0 && id < descriptorSetLayouts.size());
+    return descriptorSetLayouts[id].createDynamicDescriptorSet();
+}
+
 bool PipelineBase::bind(vk::CommandBuffer cmd)
 {
     if (checkShader())
@@ -91,6 +98,7 @@ void PipelineBase::createPipelineLayout()
     pipelineLayout = device.createPipelineLayout(pPipelineLayoutCreateInfo);
     SAIGA_ASSERT(pipelineLayout);
 }
+
 
 }  // namespace Vulkan
 }  // namespace Saiga

@@ -219,7 +219,7 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
-    base().memory.update();
+    base().finish_frame();
 }
 
 
