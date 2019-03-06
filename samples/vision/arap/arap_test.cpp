@@ -18,6 +18,7 @@
 
 #include "ArapProblem.h"
 #include "CeresArap.h"
+#include "RecursiveArap.h"
 
 #include <fstream>
 
@@ -70,29 +71,90 @@ int main(int, char**)
 
     saveOpenMesh(mesh, "arab_0.off");
     ArapProblem problem;
-    problem.createFromMesh(mesh);
 
     if (1)
     {
-        int id = 0;
-        // add an offset to the first vertex
-        auto p = problem.vertices[id].translation();
-        problem.target_indices.push_back(id);
-        problem.target_positions.push_back(p + Vec3(0, 0.2, 0));
+        problem.createFromMesh(mesh);
+        {
+            int id = 0;
+            // add an offset to the first vertex
+            auto p = problem.vertices[id].translation();
+            problem.target_indices.push_back(id);
+            problem.target_positions.push_back(p + Vec3(0, 0.2, 0));
+        }
+        {
+            //            problem.createFromMesh(mesh);
+            int id = 10;
+            // add an offset to the first vertex
+            auto p = problem.vertices[id].translation();
+            problem.target_indices.push_back(id);
+            problem.target_positions.push_back(p + Vec3(0, -0.2, 0));
+        }
+    }
+    else
+    {
+        problem.makeTest();
+    }
+
+
+    int its = 1;
+    if (0)
+    {
+        ArapProblem cpy = problem;
+        CeresArap ca;
+
+        {
+            //            SAIGA_BLOCK_TIMER();
+            ca.optimizeAutodiff(cpy, 3);
+        }
+
+        //        cpy.saveToMesh(mesh);
+        //        saveOpenMesh(mesh, "arab_1.off");
+    }
+
+    {
+        ArapProblem cpy = problem;
+
+        auto initialChi2 = cpy.chi2();
+        CeresArap ca;
+
+        {
+            //            SAIGA_BLOCK_TIMER();
+            ca.optimize(cpy, its);
+        }
+
+        auto finalChi2 = cpy.chi2();
+
+        cout << "Ceres " << initialChi2 << " -> " << finalChi2 << endl << endl;
+        //        cpy.saveToMesh(mesh);
+        //        saveOpenMesh(mesh, "arab_2.off");
     }
 
 
     {
-        ArapProblem cpy = problem;
-        CeresArap ca;
-        ca.optimize(cpy, 3);
+        ArapProblem cpy  = problem;
+        auto initialChi2 = cpy.chi2();
+        RecursiveArap ca;
+        ca.arap = &cpy;
+
+
+        ca.optimizationOptions.solverType    = OptimizationOptions::SolverType::Direct;
+        ca.optimizationOptions.debugOutput   = true;
+        ca.optimizationOptions.maxIterations = its;
+        {
+            //            SAIGA_BLOCK_TIMER();
+            ca.solve();
+        }
+        auto finalChi2 = cpy.chi2();
+
+        cout << "Recursive " << initialChi2 << " -> " << finalChi2 << endl << endl;
     }
 
-    problem.saveToMesh(mesh);
-    saveOpenMesh(mesh, "arab_1.off");
+    //    problem.saveToMesh(mesh);
+    //    saveOpenMesh(mesh, "arab_1.off");
 
     //    optimize(mesh);
-    cout << "openmesh vertices: " << mesh.n_vertices() << endl;
+    //    cout << "openmesh vertices: " << mesh.n_vertices() << endl;
 
 
 

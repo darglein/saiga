@@ -166,6 +166,7 @@ OptimizationResults CeresBA::solve()
         }
         cout << ematrix.toDense() << endl;
     }
+    return;
 #endif
 
     //    exit(0);

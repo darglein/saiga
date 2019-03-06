@@ -19,10 +19,22 @@ class ArapProblem
     struct HalfEdgeConstraint
     {
         // Vertex ids
-        int i, j;
+        //        int i, j;
+        std::pair<int, int> ids;
         // position_i - position_j
         Vec3 e_ij;
         double weight = 1;
+
+        HalfEdgeConstraint() {}
+        HalfEdgeConstraint(std::pair<int, int> ids, const Vec3& e_ij, double weight)
+            : ids(ids), e_ij(e_ij), weight(weight)
+        {
+        }
+
+        HalfEdgeConstraint flipped() { return {{ids.second, ids.first}, -e_ij, weight}; }
+
+
+        bool operator<(const HalfEdgeConstraint& other) { return ids < other.ids; }
 
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
     };
@@ -41,6 +53,18 @@ class ArapProblem
 
     void createFromMesh(const ArabMesh& mesh);
     void saveToMesh(ArabMesh& mesh);
+
+    /**
+     * Makes a small arapproblem for testing/debugging.
+     * It contains a single triangle, with vertex 0 being moved a little upwards.
+     */
+    void makeTest();
+
+    /**
+     * Remove all except the first count vertices
+     */
+    void makeSmall(int count);
+    double chi2();
 };
 
 }  // namespace Saiga

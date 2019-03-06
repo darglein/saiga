@@ -64,11 +64,26 @@ OptimizationResults LMOptimizer::solve()
         {
             double chi2 = computeQuadraticForm();
 
+
+            if (optimizationOptions.debugOutput)
+            {
+                // A small sanity check in debug mode to see if compute cost is correct
+                double test = computeCost();
+                if (chi2 != test)
+                {
+                    cerr << "Warning " << chi2 << "!=" << test << endl;
+                }
+                //                SAIGA_ASSERT(chi2 == test);
+            }
+
+
+
             addLambda(lambda);
             if (i == 0)
             {
                 current_chi2        = chi2;
                 result.cost_initial = chi2;
+                if (optimizationOptions.debugOutput) cout << "initial_chi2 = " << 0.5 * current_chi2 << endl;
             }
             result.cost_final = chi2;
 
@@ -96,8 +111,11 @@ OptimizationResults LMOptimizer::solve()
                 lambda = lambda * v;
                 v      = 2 * v;
                 revertDelta();
-                cerr << i << " warning invalid lm step. lambda: " << lambda << endl;
+                cerr << i << " warning invalid lm step. lambda: " << lambda << " new/old: " << newChi2 << "/"
+                     << current_chi2 << endl;
             }
+
+            if (optimizationOptions.debugOutput) cout << "current_chi2 = " << 0.5 * current_chi2 << endl;
         }
         finalize();
 

@@ -126,9 +126,9 @@ double PGORec::computeQuadraticForm()
         int i         = e.from;
         int j         = e.to;
 
-        PGOBlock target_ij;
-        PGOBlock target_ji;
-
+        auto& target_ij = S.valuePtr()[offsets].get();
+        auto& target_ii = S.valuePtr()[S.outerIndexPtr()[i]].get();
+        auto& target_jj = S.valuePtr()[S.outerIndexPtr()[j]].get();
         auto& target_ir = b(i).get();
         auto& target_jr = b(j).get();
 
@@ -141,15 +141,14 @@ double PGORec::computeQuadraticForm()
             if (scene.poses[i].constant) Jrowi.setZero();
             if (scene.poses[j].constant) Jrowj.setZero();
 
+            // JtJ
             target_ij = Jrowi.transpose() * Jrowj;
-            target_ji = target_ij.transpose();
+            target_ii += Jrowi.transpose() * Jrowi;
+            target_jj += Jrowj.transpose() * Jrowj;
+
+            // Jtb
             target_ir -= Jrowi.transpose() * res;
             target_jr -= Jrowj.transpose() * res;
-
-            S.valuePtr()[offsets] = target_ij;
-
-            S.valuePtr()[S.outerIndexPtr()[i]].get() += Jrowi.transpose() * Jrowi;
-            S.valuePtr()[S.outerIndexPtr()[j]].get() += Jrowj.transpose() * Jrowj;
 
 
             auto c = res.squaredNorm();

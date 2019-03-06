@@ -149,7 +149,7 @@ int main(int, char**)
         baoptions.debugOutput   = false;
         baoptions.maxIterations = 3;
         baoptions.initialLambda = 1;  // use a high lambda for the benchmark so it converges slowly, but surely
-        int testIts             = 25;
+        int testIts             = 1;
         if (1)
         {
             baoptions.maxIterativeIterations = 25;

@@ -12,6 +12,7 @@ namespace Saiga
 class CeresArap
 {
    public:
+    void optimizeAutodiff(ArapProblem& arap, int its);
     void optimize(ArapProblem& arap, int its);
 };
 

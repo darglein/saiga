@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-class HistogramImage
+class SAIGA_VISION_API HistogramImage
 {
    public:
     HistogramImage(int inputW, int inputH, int outputW, int outputH);

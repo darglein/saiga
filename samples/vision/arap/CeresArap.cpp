@@ -7,8 +7,10 @@
 #include "CeresArap.h"
 
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/ceres/CeresHelper.h"
 #include "saiga/vision/ceres/local_parameterization_se3.h"
 
+#include "Eigen/Sparse"
 #include "ceres/ceres.h"
 #include "ceres/problem.h"
 #include "ceres/rotation.h"
@@ -30,12 +32,17 @@ class F_ARAP
 
         Eigen::Map<const SE3> pHat(_pHat);
         Eigen::Map<const SE3> qHat(_qHat);
-        Eigen::Map<V3> residual(_residual);
+        Eigen::Map<V3> presidual(_residual);
+        Eigen::Map<V3> qresidual(_residual + 3);
 
-        V3 ij    = e_ij.cast<T>();
-        V3 R_eij = pHat.so3() * ij;
+        V3 ij = e_ij.cast<T>();
 
-        residual = w_Reg * (pHat.translation() - qHat.translation() - R_eij);
+        V3 R_eij  = pHat.so3() * ij;
+        presidual = w_Reg * (pHat.translation() - qHat.translation() - R_eij);
+
+        V3 R_eji  = qHat.so3() * -ij;
+        qresidual = w_Reg * (qHat.translation() - pHat.translation() - R_eji);
+
         return true;
     }
 
@@ -64,34 +71,25 @@ class ArapAnalytic : public ceres::SizedCostFunction<3, 7, 7>
         residual   = w_Reg * (pHat.translation() - qHat.translation() - R_eij);
 
 
+        //        Vec3 R_eji = qHat.so3() * (-e_ij);
+        //        residual += w_Reg * (qHat.translation() - pHat.translation() - R_eji);
+
         if (_jacobians)
         {
             if (_jacobians[0])
             {
-                Eigen::Map<Eigen::Matrix<T, 6, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
-                jpose2.setZero();
-
-                jpose2(0, 0) = -1;
-                jpose2(1, 1) = -1;
-                jpose2(2, 2) = -1;
-
-                jpose2.block(0, 3, 3, 3) = skew(R_eij);
-
-                jpose2 *= -1;
-
+                Eigen::Map<Eigen::Matrix<T, 3, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
+                jpose2.block<3, 3>(0, 0) = Mat3::Identity();
+                jpose2.block<3, 3>(0, 3) = skew(R_eij);
+                jpose2.block<3, 1>(0, 6) = Vec3::Zero();
                 jpose2 *= w_Reg;
             }
             if (_jacobians[1])
             {
-                Eigen::Map<Eigen::Matrix<T, 6, 7, Eigen::RowMajor>> jpose2(_jacobians[1]);
-                jpose2.setZero();
-
-                jpose2(0, 0) = 1;
-                jpose2(1, 1) = 1;
-                jpose2(2, 2) = 1;
-
-                jpose2 *= -1;
-
+                Eigen::Map<Eigen::Matrix<T, 3, 7, Eigen::RowMajor>> jpose2(_jacobians[1]);
+                jpose2.block<3, 3>(0, 0) = -Mat3::Identity();
+                jpose2.block<3, 3>(0, 3) = Mat3::Zero();
+                jpose2.block<3, 1>(0, 6) = Vec3::Zero();
                 jpose2 *= w_Reg;
             }
         }
@@ -151,12 +149,9 @@ class FitAnalytic : public ceres::SizedCostFunction<3, 7>
         {
             if (_jacobians[0])
             {
-                Eigen::Map<Eigen::Matrix<T, 6, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
-                jpose2.setZero();
-
-                jpose2(0, 0) = 1;
-                jpose2(1, 1) = 1;
-                jpose2(2, 2) = 1;
+                Eigen::Map<Eigen::Matrix<T, 3, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
+                jpose2.block<3, 3>(0, 0) = Mat3::Identity();
+                jpose2.block<3, 4>(0, 3).setZero();
             }
         }
 
@@ -169,60 +164,133 @@ class FitAnalytic : public ceres::SizedCostFunction<3, 7>
 
 #define CERES_AUTODIFF
 
-void CeresArap::optimize(ArapProblem& arap, int its)
+void CeresArap::optimizeAutodiff(ArapProblem& arap, int its)
 {
-// fill targets and mesh
-// ...
+    // fill targets and mesh
+    // ...
 
-//    auto qp = new ceres::EigenQuaternionParameterization();
-#ifdef CERES_AUTODIFF
-    auto qp = new Sophus::test::LocalParameterizationSE3();
-#else
-    auto qp = new Sophus::test::LocalParameterizationSE32();
-#endif
+    auto qp = new Sophus::test::LocalParameterizationSE3<false>();
 
     ceres::Problem problem;
 
     // Add targets
-    for (int i = 0; i < arap.target_indices.size(); ++i)
+    for (int i = 0; i < (int)arap.target_indices.size(); ++i)
     {
-#ifdef CERES_AUTODIFF
         const auto functor = new F_Fit(arap.target_positions[i]);
         auto cost_function = new ceres::AutoDiffCostFunction<F_Fit, 3, 7>(functor);
         problem.AddResidualBlock(cost_function, nullptr, arap.vertices[arap.target_indices[i]].data());
-#else
-        auto cost_function = new FitAnalytic(arap.target_positions[i]);
-        problem.AddResidualBlock(cost_function, nullptr, arap.vertices[arap.target_indices[i]].data());
-#endif
     }
 
-    for (auto& c : arap.constraints)
+    for (auto& c2 : arap.constraints)
     {
-        auto& p = arap.vertices[c.i];
-        auto& q = arap.vertices[c.j];
+        {
+            auto c  = c2;
+            int i   = c.ids.first;
+            int j   = c.ids.second;
+            auto& p = arap.vertices[i];
+            auto& q = arap.vertices[j];
 
-#ifdef CERES_AUTODIFF
-        const auto functor = new F_ARAP(sqrt(c.weight), p.translation(), q.translation());
-        auto cost_function = new ceres::AutoDiffCostFunction<F_ARAP, 3, 7, 7>(functor);
-        problem.AddResidualBlock(cost_function, nullptr, p.data(), q.data());
-        problem.SetParameterization(q.data(), qp);
-        problem.SetParameterization(p.data(), qp);
-#else
-        const auto cost_function = new ArapAnalytic(sqrt(c.weight), p.translation(), q.translation());
-        problem.AddResidualBlock(cost_function, nullptr, p.data(), q.data());
-        problem.SetParameterization(q.data(), qp);
-        problem.SetParameterization(p.data(), qp);
-#endif
+            const auto functor = new F_ARAP(sqrt(c.weight), p.translation(), q.translation());
+            auto cost_function = new ceres::AutoDiffCostFunction<F_ARAP, 6, 7, 7>(functor);
+            problem.AddResidualBlock(cost_function, nullptr, p.data(), q.data());
+            problem.SetParameterization(q.data(), qp);
+            problem.SetParameterization(p.data(), qp);
+        }
+
+        if (0)
+        {
+            auto c  = c2.flipped();
+            int i   = c.ids.first;
+            int j   = c.ids.second;
+            auto& p = arap.vertices[i];
+            auto& q = arap.vertices[j];
+
+            const auto functor = new F_ARAP(sqrt(c.weight), p.translation(), q.translation());
+            auto cost_function = new ceres::AutoDiffCostFunction<F_ARAP, 3, 7, 7>(functor);
+            problem.AddResidualBlock(cost_function, nullptr, p.data(), q.data());
+            problem.SetParameterization(q.data(), qp);
+            problem.SetParameterization(p.data(), qp);
+        }
     }
 
+    //#if 0
+    //    Saiga::printDebugJacobi(problem, 10);
+    //#endif
+    //    Saiga::printDebugSmall(problem);
 
 
     ceres::Solver::Options ceres_options;
     ceres_options.minimizer_progress_to_stdout = true;
     ceres_options.max_num_iterations           = its;
 
+
+
     ceres::Solver::Summary summaryTest;
     ceres::Solve(ceres_options, &problem, &summaryTest);
 }
+
+
+void CeresArap::optimize(ArapProblem& arap, int its)
+{
+    // fill targets and mesh
+    // ...
+
+
+    auto qp = new Sophus::test::LocalParameterizationSE32<false>();
+
+    ceres::Problem problem;
+
+    // Add targets
+    for (int i = 0; i < (int)arap.target_indices.size(); ++i)
+    {
+        auto cost_function = new FitAnalytic(arap.target_positions[i]);
+        problem.AddResidualBlock(cost_function, nullptr, arap.vertices[arap.target_indices[i]].data());
+    }
+
+    for (auto& c2 : arap.constraints)
+    {
+        {
+            auto c  = c2;
+            int i   = c.ids.first;
+            int j   = c.ids.second;
+            auto& p = arap.vertices[i];
+            auto& q = arap.vertices[j];
+
+            const auto cost_function = new ArapAnalytic(sqrt(c.weight), p.translation(), q.translation());
+            problem.AddResidualBlock(cost_function, nullptr, p.data(), q.data());
+            problem.SetParameterization(q.data(), qp);
+            problem.SetParameterization(p.data(), qp);
+        }
+
+        if (1)
+        {
+            auto c  = c2.flipped();
+            int i   = c.ids.first;
+            int j   = c.ids.second;
+            auto& p = arap.vertices[i];
+            auto& q = arap.vertices[j];
+
+            const auto cost_function = new ArapAnalytic(sqrt(c.weight), p.translation(), q.translation());
+            problem.AddResidualBlock(cost_function, nullptr, p.data(), q.data());
+            problem.SetParameterization(q.data(), qp);
+            problem.SetParameterization(p.data(), qp);
+        }
+    }
+
+
+    //#if 0
+    //    Saiga::printDebugJacobi(problem, 10);
+    //#endif
+    //    Saiga::printDebugSmall(problem);
+
+    ceres::Solver::Options ceres_options;
+    ceres_options.minimizer_progress_to_stdout = true;
+    ceres_options.max_num_iterations           = its;
+    ceres_options.initial_trust_region_radius  = 1.0 / 1.00e-04;
+
+    ceres::Solver::Summary summaryTest;
+    ceres::Solve(ceres_options, &problem, &summaryTest);
+}
+
 
 }  // namespace Saiga
