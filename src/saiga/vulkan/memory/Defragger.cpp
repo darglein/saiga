@@ -475,7 +475,6 @@ void Defragger<T>::invalidate(T* location)
     }
 }
 
-
 template class Defragger<BufferMemoryLocation>;
 template class Defragger<ImageMemoryLocation>;
 
