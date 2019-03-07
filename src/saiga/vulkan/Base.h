@@ -118,7 +118,11 @@ struct SAIGA_VULKAN_API VulkanBase
         memory.init(this, swapchain_frames);
     }
 
-    inline void finish_frame() { current_frame++; }
+    inline void finish_frame()
+    {
+        current_frame++;
+        memory.update();
+    }
 };
 
 }  // namespace Vulkan

@@ -32,12 +32,12 @@ class VulkanExample : public Saiga::Updating,
 {
     std::array<std::string, 5> image_names{"cat.png", "red-panda.png", "dog.png", "pika.png", "ludi.png"};
     std::array<std::shared_ptr<Saiga::Image>, 4> images;
-    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations;
+    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations{};
     std::vector<std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, Saiga::Vulkan::DynamicDescriptorSet, int32_t>>
-        tex_allocations;
+        tex_allocations{};
     std::vector<std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, Saiga::Vulkan::DynamicDescriptorSet, int32_t>>
-        to_delete_tex;
-    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations;
+        to_delete_tex{};
+    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations{};
     std::mt19937 mersenne_twister, auto_mersenne;
 
     std::array<vk::DeviceSize, 4> tex_sizes{256, 512, 1024, 2048};

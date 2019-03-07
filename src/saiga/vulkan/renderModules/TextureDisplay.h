@@ -33,7 +33,7 @@ class SAIGA_VULKAN_API TextureDisplay : public Pipeline
     /**
      * Render the texture at the given pixel position and size
      */
-    void renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet texture, vec2 position, vec2 size);
+    void renderTexture(vk::CommandBuffer cmd, DescriptorSet& descriptor, vec2 position, vec2 size);
 
 
 

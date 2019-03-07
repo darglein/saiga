@@ -23,9 +23,9 @@ void TextureDisplay::destroy()
     Pipeline::destroy();
 }
 
-void TextureDisplay::renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet texture, vec2 position, vec2 size)
+void TextureDisplay::renderTexture(vk::CommandBuffer cmd, DescriptorSet& descriptor, vec2 position, vec2 size)
 {
-    bindDescriptorSet(cmd, texture);
+    bindDescriptorSet(cmd, descriptor);
     vk::Viewport vp(position[0], position[1], size[0], size[1]);
     cmd.setViewport(0, vp);
     blitMesh.render(cmd);
@@ -44,7 +44,7 @@ void TextureDisplay::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
     info.rasterizationState.cullMode      = vk::CullModeFlagBits::eNone;
-    info.blendAttachmentState.blendEnable = true;
+    info.blendAttachmentState.blendEnable = VK_TRUE;
     create(renderPass, info);
 
     blitMesh.createFullscreenQuad();

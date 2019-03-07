@@ -81,7 +81,7 @@ void Saiga::Vulkan::DynamicDescriptorSet::update()
             if (!new_set)
             {
                 new_set   = layout->createDuplicateSet(descriptorSet);
-                m_old_set = std::make_pair(descriptorSet, current_frame + base->numSwapchainFrames + 1);
+                m_old_set = std::make_pair(descriptorSet, current_frame + base->numSwapchainFrames + 5);
             }
 
             write_updates.push_back(layout->getWriteForBinding(entry.first, new_set, texture->getDescriptorInfo()));
@@ -92,6 +92,7 @@ void Saiga::Vulkan::DynamicDescriptorSet::update()
 
     if (new_set)
     {
+        base->device.updateDescriptorSets(write_updates, nullptr);
         descriptorSet = new_set;
     }
 }

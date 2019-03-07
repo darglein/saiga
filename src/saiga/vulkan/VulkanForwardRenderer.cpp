@@ -171,7 +171,7 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
 
 
     vk::CommandBuffer& cmd = drawCmdBuffers[currentImage];
-
+    // cmd.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
     // Set target frame buffer
     renderPassBeginInfo.framebuffer = frameBuffers[currentImage].framebuffer;
 

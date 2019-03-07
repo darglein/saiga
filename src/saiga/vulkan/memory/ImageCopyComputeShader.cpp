@@ -57,6 +57,8 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
     cmd.end();
     base->computeQueue->submitAndWait(cmd);
 
+    base->computeQueue->commandPool.freeCommandBuffer(cmd);
+
     auto descriptorSet = pipeline->createDescriptorSet();
 
     auto source_info = source->data.get_descriptor_info();

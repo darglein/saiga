@@ -207,6 +207,12 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         static_mem = false;
     }
 
+    inline void mark_static()
+    {
+        SafeAccessor acc(*this);
+        static_mem = true;
+    }
+
     void upload(vk::Device device, const void* data)
     {
         void* pointer;

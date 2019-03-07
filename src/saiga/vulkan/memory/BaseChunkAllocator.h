@@ -294,26 +294,27 @@ void BaseChunkAllocator<T>::swap(T* target, T* source)
     std::tie(source_chunk, source_alloc) = find_allocation(source);
 
 
-    vk::DeviceSize source_offset, target_offset;
-    vk::DeviceMemory source_mem, target_mem;
+    // vk::DeviceSize source_offset, target_offset;
+    // vk::DeviceMemory source_mem, target_mem;
+    //
+    // source_offset = source->offset;
+    // target_offset = target->offset;
+    //
+    // source_mem = source->memory;
+    // target_mem = target->memory;
+    //
+    //
+    // source->offset = target_offset;
+    // source->memory = target_mem;
+    //
+    // target->offset = source_offset;
+    // target->memory = source_mem;
 
-    source_offset = source->offset;
-    target_offset = target->offset;
-
-    source_mem = source->memory;
-    target_mem = target->memory;
-
-
-    source->offset = target_offset;
-    source->memory = target_mem;
-
-    target->offset = source_offset;
-    target->memory = source_mem;
+    std::swap(source->offset, target->offset);
+    std::swap(source->memory, target->memory);
 
 
     std::swap(source->data, target->data);
-
-    // auto old = std::move(*target_alloc);
 
     std::iter_swap(source_alloc, target_alloc);
 

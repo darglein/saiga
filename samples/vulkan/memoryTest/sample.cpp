@@ -97,14 +97,19 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         {
             const int width = 16;
             int index       = 0;
+
+
+            std::stringstream ss;
             for (auto& texture : tex_allocations)
             {
                 // auto set = textureDisplay.createAndUpdateDescriptorSet(*(texture.first));
                 // VLOG(1) << "Displaying " << texture.first->memoryLocation->data.sampler;
+                ss << (std::get<0>(texture))->memoryLocation->data.sampler << " ";
                 vec2 position((index % width) * 64, (index / width) * 64);
                 textureDisplay.renderTexture(cmd, std::get<1>(texture), position, vec2(64, 64));
                 index++;
             }
+            VLOG(1) << ss.str();
             // VLOG(1) << "===============";
         }
     }
@@ -257,7 +262,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             {
                 auto index = image_dist(mersenne_twister);
                 // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
-                tex_allocations.push_back(allocate(image_type, index));
+                tex_allocations.push_back(allocate(image_type, 2));
             }
             renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
             renderer.base().memory.start_defrag(buffer_type);
@@ -355,23 +360,7 @@ VulkanExample::allocate(Saiga::Vulkan::Memory::ImageType type, unsigned long lon
 {
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture = std::make_shared<Saiga::Vulkan::Texture2D>();
 
-    // std::vector<uint32_t> mem;
-    // mem.resize(size * size);
-    //
-    // std::iota(mem.begin(), mem.end(), 0);
-
-    // Saiga::Vulkan::StagingBuffer staging;
-    // staging.init(renderer.base, size * size, mem.data());
-
     texture->fromImage(renderer.base(), *images[index]);
-    // auto init_operation =
-    //    texture->fromStagingBuffer(renderer.base, size, size, vk::Format::eR8G8B8A8Uint, staging,
-    //                               *renderer.base().transferQueue, renderer.base().transferQueue->commandPool);
-    //
-    // renderer.base().device.waitForFences(init_operation.fence, true, 100000000000);
-    // renderer.base().transferQueue->commandPool.freeCommandBuffer(init_operation.cmd);
-    //
-    // renderer.base().device.destroy(init_operation.fence);
     texture->mark_dynamic();
 
     auto descriptor = textureDisplay.createDynamicDescriptorSet();
@@ -382,7 +371,18 @@ VulkanExample::allocate(Saiga::Vulkan::Memory::ImageType type, unsigned long lon
 void VulkanExample::cleanup()
 {
     renderer.base().device.waitIdle();
-    if (!allocations.empty()) allocations.resize(0);
-    if (!num_allocations.empty()) num_allocations.resize(0);
-    if (!tex_allocations.empty()) tex_allocations.resize(0);
+
+    LOG(INFO) << allocations.size();
+    // if (!allocations.empty())
+    //{
+    //    allocations.resize(0);
+    //}
+    // if (!num_allocations.empty())
+    //{
+    //    num_allocations.resize(0);
+    //}
+    // if (!tex_allocations.empty())
+    //{
+    //    tex_allocations.resize(0);
+    //}
 }
