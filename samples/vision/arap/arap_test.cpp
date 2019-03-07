@@ -20,6 +20,7 @@
 
 #include "ArapProblem.h"
 #include "CeresArap.h"
+#include "G2OArap.h"
 #include "RecursiveArap.h"
 
 #include <fstream>
@@ -46,7 +47,8 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
 
 
     std::ofstream strm(file);
-    strm << "file,edges,poses,density,solver_type,iterations,time_recursive,time_g2o,time_ceres" << endl;
+    strm << "file,vertices,constraints,targets,density,solver_type,iterations,time_recursive,time_ceres,time_g2o"
+         << endl;
 
 
     Saiga::Table table({20, 20, 15, 15});
@@ -71,7 +73,7 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
             // add an offset to the first vertex
             auto p = problem.vertices[id].translation();
             problem.target_indices.push_back(id);
-            problem.target_positions.push_back(p + Vec3(0, 0.2, 0));
+            problem.target_positions.push_back(p + Vec3(0, 0.02, 0));
         }
         {
             //            problem.createFromMesh(mesh);
@@ -79,11 +81,12 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
             // add an offset to the first vertex
             auto p = problem.vertices[id].translation();
             problem.target_indices.push_back(id);
-            problem.target_positions.push_back(p + Vec3(0, -0.2, 0));
+            problem.target_positions.push_back(p + Vec3(0, -0.02, 0));
         }
         std::vector<std::shared_ptr<ArapBase>> solvers;
         solvers.push_back(std::make_shared<RecursiveArap>());
         solvers.push_back(std::make_shared<CeresArap>());
+        solvers.push_back(std::make_shared<G2OArap>());
 
 
 
@@ -96,7 +99,8 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
               << "Time_Total";
 
         strm << file << "," << problem.vertices.size() << "," << problem.constraints.size() << ","
-             << problem.target_indices.size() << "," << (int)options.solverType << "," << (int)options.maxIterations;
+             << problem.target_indices.size() << "," << problem.density() << "," << (int)options.solverType << ","
+             << (int)options.maxIterations;
 
         for (auto& s : solvers)
         {
@@ -111,7 +115,7 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
                 opt->optimizationOptions = options;
                 SAIGA_ASSERT(opt);
                 auto result = opt->solve();
-                chi2        = result.cost_final;
+                chi2        = cpy.chi2();
                 times.push_back(result.total_time);
                 timesl.push_back(result.linear_solver_time);
             }
@@ -141,14 +145,15 @@ int main(int, char**)
     options.solverType    = OptimizationOptions::SolverType::Iterative;
     options.debugOutput   = false;
     options.maxIterations = 5;
+    //    options.initialLambda = 100;
 
     options.maxIterativeIterations = 100;
     options.iterativeTolerance     = 0;
-    //    test_to_file(options, "arab.csv", 1);
+    test_to_file(options, "arab.csv", 11);
 
 
-    GenericModel testModel("bunny.obj");
-    GenericModel testModel2("dragon_10k.ply");
+    //    GenericModel testModel("bunny.obj");
+    //    GenericModel testModel2("dragon_10k.ply");
     return 0;
 
 #if 0

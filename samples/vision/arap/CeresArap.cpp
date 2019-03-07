@@ -140,8 +140,9 @@ class FitAnalytic : public ceres::SizedCostFunction<3, 7>
     {
         Eigen::Map<Sophus::SE3<T> const> const p(_parameters[0]);
         Eigen::Map<Eigen::Matrix<T, 3, 1>> residual(_residuals);
+        Vec3 t = target.cast<T>();
 
-        Vec3 t   = target.cast<T>();
+        // Error
         residual = p.translation() - t;
 
 
@@ -151,7 +152,9 @@ class FitAnalytic : public ceres::SizedCostFunction<3, 7>
             {
                 Eigen::Map<Eigen::Matrix<T, 3, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
                 jpose2.block<3, 3>(0, 0) = Mat3::Identity();
-                jpose2.block<3, 4>(0, 3).setZero();
+                //                jpose2.block<3, 4>(0, 3).setZero();
+                jpose2.block<3, 3>(0, 3) = Mat3::Zero();
+                jpose2.block<3, 1>(0, 6) = Vec3::Zero();
             }
         }
 

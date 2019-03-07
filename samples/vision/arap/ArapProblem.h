@@ -54,6 +54,8 @@ class ArapProblem
     void createFromMesh(const ArabMesh& mesh);
     void saveToMesh(ArabMesh& mesh);
 
+    double density();
+
     /**
      * Makes a small arapproblem for testing/debugging.
      * It contains a single triangle, with vertex 0 being moved a little upwards.

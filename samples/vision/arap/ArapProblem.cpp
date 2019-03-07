@@ -66,6 +66,13 @@ void ArapProblem::saveToMesh(ArabMesh& mesh)
     }
 }
 
+double ArapProblem::density()
+{
+    double n = constraints.size() + vertices.size();
+    double N = double(vertices.size()) * vertices.size();
+    return n / N;
+}
+
 void ArapProblem::makeTest()
 {
     vertices.emplace_back(Quat::Identity(), Vec3(0, 0, 0));

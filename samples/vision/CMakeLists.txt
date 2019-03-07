@@ -15,7 +15,7 @@ if(SAIGA_USE_MKL)
     add_subdirectory(mkl_test)
 endif()
 
-if(SAIGA_MODULE_EXTRA)
+if(SAIGA_MODULE_EXTRA AND OPENMESH_FOUND)
 	add_subdirectory(arap)
 endif()
 
