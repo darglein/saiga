@@ -35,7 +35,12 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
         int n = A.rows();
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
         {
-            if (solverOptions.cholmod)
+            // Use Cholmod's supernodal factorization for very large or very dense matrices.
+            double density  = A.nonZeros() / (double(A.rows()) * A.cols());
+            bool useCholmod = A.rows() > 1000 || density > 0.1;
+
+
+            if (useCholmod)
             {
                 if (!expandS) expandS = std::make_unique<ExpandedType>();
                 sparseBlockToFlatMatrix(A, *expandS);

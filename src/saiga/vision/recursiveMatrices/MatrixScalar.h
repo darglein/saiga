@@ -62,6 +62,11 @@ struct MatrixScalar
         data += other.data;
     }
 
+    template <typename G>
+    EIGEN_ALWAYS_INLINE void operator-=(const MatrixScalar<G>& other)
+    {
+        data -= other.data;
+    }
 
     EIGEN_ALWAYS_INLINE void operator-=(const ScalarType& other) { data -= other.data; }
 

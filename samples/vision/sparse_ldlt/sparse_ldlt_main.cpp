@@ -28,6 +28,8 @@ static std::ofstream strm;
 
 //#define SPARSITY_TEST
 #define USE_BLOCKS
+#define LDLT_DEBUG
+
 
 template <int block_size2, int factor>
 class Sparse_LDLT_TEST
@@ -83,7 +85,7 @@ class Sparse_LDLT_TEST
     // const double nnzBlocks = targetNNZ / double(block_size * block_size);
     // const int n            = nnzBlocks / nnzr;
 
-    const int nnzr = 1;
+    const int nnzr = 4;
     const int n    = 4;
 #    endif
 #endif
@@ -103,7 +105,7 @@ class Sparse_LDLT_TEST
 
         for (int i = 0; i < n; ++i)
         {
-#if 1
+#if 0
             // "Diagonal like" pattern
             std::set<int> indices;
             for (int k = 0; k < nnzr;)
@@ -245,6 +247,13 @@ class Sparse_LDLT_TEST
             bx = ldlt.solve(be);
         }
 
+#ifdef LDLT_DEBUG
+        Eigen::MatrixXd L(ldlt.matrixL());
+        L.diagonal().setOnes();
+        cout << "L" << endl << L << endl << endl;
+        cout << "D" << endl << ldlt.vectorD().transpose() << endl << endl;
+#endif
+
         double error = (Anoblock * bx - be).squaredNorm();
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
@@ -297,15 +306,27 @@ class Sparse_LDLT_TEST
         x.setZero();
         using LDLT = Eigen::RecursiveSimplicialLDLT<AType, Eigen::Lower>;
 
+        LDLT ldlt;
         float time = 0;
         {
             Saiga::ScopedTimer<float> timer(time);
-            LDLT ldlt;
             ldlt.compute(A);
             //            ldlt.analyzePattern(A);
             //            ldlt.factorize(A);
             x = ldlt.solve(b);
         }
+
+#ifdef LDLT_DEBUG
+        AType LA = ldlt.matrixL();
+        Eigen::MatrixXd L(expand(LA));
+        L.diagonal().setOnes();
+
+        auto d = ldlt.vectorD();
+
+
+        cout << "L" << endl << L << endl << endl;
+        cout << "D" << endl << expand(d) << endl << endl;
+#endif
 
         //        cout << expand(x).transpose() << endl;
         double error = expand((A * x - b).eval()).squaredNorm();
@@ -377,8 +398,8 @@ class Sparse_LDLT_TEST
     {
         // Convert recursive to flat matrix
 
-        Eigen::SparseMatrix<double> test;
-        sparseBlockToFlatMatrix(A2, test);
+        //        Eigen::SparseMatrix<double> test;
+        //        sparseBlockToFlatMatrix(A2, test);
 
         x.setZero();
         using LDLT = Eigen::RecursiveSimplicialLDLT<AType2, Eigen::Upper>;
@@ -495,16 +516,8 @@ struct LauncherLoop<END, END, ADD, MULT, factor>
 };
 
 
-int main(int, char**)
+void perf_test()
 {
-    Saiga::EigenHelper::checkEigenCompabitilty<2765>();
-    Random::setSeed(15235);
-
-    //    using LDLT = Sparse_LDLT_TEST<2, 1>;
-    //    LDLT test;
-    //    test.solveEigenRecursiveSparseLDLT();
-    //    test.solveEigenRecursiveSparseLDLTRowMajor();
-
     strm.open("sparse_ldlt_benchmark.csv");
     strm << "n,nnz,block_size,density,"
             "eigen_recursive,"
@@ -545,7 +558,30 @@ int main(int, char**)
 //        l();
 //    }
 #endif
+}
 
+
+void result_test()
+{
+    using LDLT = Sparse_LDLT_TEST<2, 1>;
+    LDLT test;
+    test.solveEigenSparseLDLT();
+
+    auto res = test.solveEigenRecursiveSparseLDLT();
+
+    cout << "Error: " << std::get<1>(res) << endl;
+    //    test.solveEigenRecursiveSparseLDLTRowMajor();
+}
+
+int main(int, char**)
+{
+    Saiga::EigenHelper::checkEigenCompabitilty<2765>();
+    Random::setSeed(15235);
+
+
+
+    result_test();
+    //    perf_test();
 
     cout << "Done." << endl;
 

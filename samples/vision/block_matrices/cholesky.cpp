@@ -56,6 +56,8 @@ Eigen::Matrix<_Scalar, _Rows, 1> solveLLT(const Eigen::Matrix<_Scalar, _Rows, _C
         }
     }
 
+    cout << "L" << endl << L << endl << endl;
+
     // forward / backward substituion
     z = L.template triangularView<Eigen::Lower>().solve(b);
     x = L.template triangularView<Eigen::Upper>().solve(z);
@@ -102,6 +104,12 @@ Eigen::Matrix<_Scalar, _Rows, 1> solveLDLT(const Eigen::Matrix<_Scalar, _Rows, _
     }
 
     //    cout << L << endl << endl;
+    cout << "L" << endl << L << endl << endl;
+
+    cout << "D" << endl << expand(D) << endl << endl;
+
+    int asdf = 2;
+    cout << "block" << endl << L.block(asdf, 0, asdf, asdf).eval() << endl;
 
     // forward / backward substituion
     z = L.template triangularView<Eigen::Lower>().solve(b);
@@ -138,28 +146,32 @@ VectorType solveLDLT2(const MatrixType& A, const VectorType& b)
     for (int i = 0; i < A.rows(); i++)
     {
         // compute Dj
-        MatrixScalar sumd = AdditiveNeutral<MatrixScalar>::get();
+        MatrixScalar sumd = A(i, i);
 
         for (int j = 0; j < i; ++j)
         {
             // compute all l's for this row
-            MatrixScalar sum = AdditiveNeutral<MatrixScalar>::get();
+            //            MatrixScalar sum = AdditiveNeutral<MatrixScalar>::get();
+            MatrixScalar sum = A(i, j);
 
             // dot product of row i with row j
             // but only until column j
             for (int k = 0; k < j; ++k)
             {
-                sum += L(i, k) * D.diagonal()(k) * transpose(L(j, k));
+                sum -= L(i, k) * D.diagonal()(k) * transpose(L(j, k));
             }
 
-            L(i, j) = (A(i, j) - sum) * Dinv.diagonal()(j);
+            L(i, j) = sum * Dinv.diagonal()(j);
             L(j, i) = AdditiveNeutral<MatrixScalar>::get();
-            sumd += L(i, j) * D.diagonal()(j) * transpose(L(i, j));
+            sumd -= L(i, j) * D.diagonal()(j) * transpose(L(i, j));
         }
         L(i, i)            = MultiplicativeNeutral<MatrixScalar>::get();
-        D.diagonal()(i)    = A(i, i) - sumd;
+        D.diagonal()(i)    = sumd;
         Dinv.diagonal()(i) = inverse(D.diagonal()(i));
     }
+
+    cout << "L" << endl << expand(L) << endl << endl;
+    cout << "D" << endl << expand(D) << endl << endl;
 
     z = forwardSubstituteDiagOne(L, b);
     //    z = forwardSubstituteDiagOne2(L, b);
@@ -178,13 +190,283 @@ VectorType solveLDLT2(const MatrixType& A, const VectorType& b)
     return x;
 }
 
+
+
+template <typename MatrixType, typename VectorType>
+VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
+{
+    SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
+    using MatrixScalar = typename MatrixType::Scalar;
+    using BlockType    = typename MatrixScalar::M;
+    using BlockVector  = typename VectorType::Scalar::M;
+    //    using VectorScalar = typename VectorType::Scalar;
+
+    MatrixType L;
+    L.resize(A.rows(), A.cols());
+
+    Eigen::DiagonalMatrix<MatrixScalar, MatrixType::RowsAtCompileTime> D;
+    Eigen::DiagonalMatrix<MatrixScalar, MatrixType::RowsAtCompileTime> Dinv;
+    D.resize(A.rows());
+    Dinv.resize(A.rows());
+
+    VectorType x, y, z;
+    x.resize(A.rows());
+    y.resize(A.rows());
+    z.resize(A.rows());
+
+
+
+    std::vector<MatrixScalar> ybuffer(A.rows());
+
+    MatrixScalar fakeYbuffer = 0;
+    // compute L
+    for (int k = 0; k < A.rows(); k++)
+    {
+        ybuffer[k] = AdditiveNeutral<MatrixScalar>::get();
+
+        for (int i = 0; i <= k; ++i)
+        {
+            ybuffer[i] = transpose(A(i, k));
+        }
+
+        MatrixScalar sumd = ybuffer[k];
+        ybuffer[k]        = Saiga::AdditiveNeutral<MatrixScalar>::get();
+
+
+
+        for (int i = 0; i < k; ++i)
+        {
+            //            cout << "compute L " << k << "," << i << endl;
+
+            MatrixScalar yi = ybuffer[i];
+            ybuffer[i]      = Saiga::AdditiveNeutral<MatrixScalar>::get();
+
+            if (k == 0 && i == 0)
+            {
+                fakeYbuffer = yi;
+            }
+
+
+            auto& inv         = Dinv.diagonal()[i];
+            MatrixScalar l_ki = yi * inv;
+            L(k, i)           = l_ki;
+            sumd -= yi * transpose(l_ki);
+
+            // Compute y buffer for next column
+            for (int j = i + 1; j < k; ++j)
+            {
+                ybuffer[j] -= yi * transpose(L(j, i));
+                //                cout << "subtract y: " << j << "," << i << endl;
+            }
+
+
+            //            if (k == 1 && i == 0)
+            //            {
+            //                //                fakeYbuffer -= yi * transpose(L(0, 0));
+            //                cout << "yi" << endl << expand(yi) << endl << endl;
+            //                cout << "test" << endl << expand(yi)(0,1) - (expand(yi)(0,0)) << endl << endl;
+            //            }
+
+            //            cout << expand(fakeYbuffer) << endl;
+            //            cout << expand(yi * transpose(L(i, i))) << endl;
+        }
+
+        //        Saiga::DenseLDLT<BlockType, BlockVector> ldlt;
+        //        ldlt.compute(sumd.get());
+
+        //        L(k, k)            = ldlt.L.template triangularView<Eigen::Lower>();
+        //        D.diagonal()(k)    = ldlt.D;
+        //        Dinv.diagonal()(k) = ldlt.Dinv;
+
+
+        L(k, k)            = MultiplicativeNeutral<MatrixScalar>::get();
+        D.diagonal()(k)    = sumd;
+        Dinv.diagonal()(k) = inverse(D.diagonal()(k));
+    }
+
+    cout << "L" << endl << expand(L) << endl << endl;
+    cout << "D" << endl << expand(D) << endl << endl;
+
+    z = forwardSubstituteDiagOne(L, b);
+    y = multDiagVector(Dinv, z);
+    x = backwardSubstituteDiagOneTranspose(L, y);
+
+
+#if 0
+    // Test if (Ax-b)==0
+    double test =
+        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
+    cout << "error solveLDLT2: " << test << endl;
+#endif
+
+
+    return x;
+}
+
+template <typename T, typename D>
+T ldltTriDot(const T& Asrc, const T& sum, const T& srcBlock, const D& srcDiag, const D& srcDiaginv);
+
+template <>
+double ldltTriDot<double, double>(const double& Asrc, const double& sum, const double& srcBlock, const double& srcDiag,
+                                  const double& srcDiaginv)
+{
+    return (Asrc - sum) * srcDiaginv;
+}
+
+
+template <typename T, typename D>
+T ldltTriDot(const T& Asrc, const T& sum, const T& _srcBlock, const D& _srcDiag, const D& _srcDiaginv)
+{
+    using Scalar = typename T::Scalar;
+
+    auto& A = removeMatrixScalar(Asrc);
+
+    auto& initialSum = removeMatrixScalar(sum);
+    auto& srcBlock   = removeMatrixScalar(_srcBlock);
+    auto& srcDiag    = removeMatrixScalar(_srcDiag);
+    auto& srcDiaginv = removeMatrixScalar(_srcDiaginv);
+
+    //    auto srcBlock     = L(j, j).get();
+    //    auto& targetBlock = L(i, j).get();
+    T _targetBlock;
+    auto& targetBlock = removeMatrixScalar(_targetBlock);
+    //    auto srcDiag      = D.diagonal()(j).get();
+    //    auto srcDiaginv   = Dinv.diagonal()(j).get();
+    //    auto Asrc         = A(i, j).get();
+    for (int l = 0; l < targetBlock.rows(); ++l)
+    {
+        for (int m = 0; m < targetBlock.cols(); ++m)
+        {
+            Scalar sum = initialSum(l, m);
+            for (int n = 0; n < m; ++n)
+            {
+                sum += targetBlock(l, n) * srcDiag.diagonal()(n) * transpose(srcBlock(m, n));
+            }
+
+            //            targetBlock(l, m) = (Asrc(l, m) - sum) * srcDiaginv.diagonal()(m);
+            targetBlock(l, m) =
+                ldltTriDot(A(l, m), sum, srcBlock(m, m), srcDiag.diagonal()(m), srcDiaginv.diagonal()(m));
+        }
+    }
+    return targetBlock;
+}
+
+
+
+template <typename MatrixType, typename VectorType>
+VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
+{
+    SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
+    using MatrixScalar = typename MatrixType::Scalar;
+    using BlockType    = typename MatrixScalar::M;
+    using BlockVector  = typename VectorType::Scalar::M;
+    //    using VectorScalar = typename VectorType::Scalar;
+
+    MatrixType L;
+    L.resize(A.rows(), A.cols());
+    L.setZero();
+
+
+    Eigen::DiagonalMatrix<MatrixScalar, MatrixType::RowsAtCompileTime> D;
+    Eigen::DiagonalMatrix<MatrixScalar, MatrixType::RowsAtCompileTime> Dinv;
+    D.resize(A.rows());
+    Dinv.resize(A.rows());
+    D.setZero();
+    Dinv.setZero();
+
+    VectorType x, y, z;
+    x.resize(A.rows());
+    y.resize(A.rows());
+    z.resize(A.rows());
+
+
+    // compute L
+    for (int i = 0; i < A.rows(); i++)
+    {
+        // compute Dj
+        MatrixScalar sumd = AdditiveNeutral<MatrixScalar>::get();
+
+        for (int j = 0; j < i; ++j)
+        {
+            cout << "Compute L " << i << "," << j << endl;
+            // compute all l's for this row
+            MatrixScalar sum = AdditiveNeutral<MatrixScalar>::get();
+
+            // dot product of row i with row j
+            // but only until column j
+            for (int k = 0; k < j; ++k)
+            {
+                sum += L(i, k) * D.diagonal()(k) * transpose(L(j, k));
+            }
+
+            L(i, j) = ldltTriDot(A(i, j), sum, L(j, j), D.diagonal()(j), Dinv.diagonal()(j));
+
+            L(j, i) = AdditiveNeutral<MatrixScalar>::get();
+            sumd += L(i, j) * D.diagonal()(j) * transpose(L(i, j));
+        }
+
+
+        cout << "Compute D " << i << "," << i << endl;
+        BlockType diagBlock = (A(i, i) - sumd).get();
+
+        //        Eigen::LDLT<BlockType> ldlt(diagBlock);
+
+        Saiga::DenseLDLT<BlockType, BlockVector> ldlt;
+        ldlt.compute(diagBlock);
+
+
+
+        //        BlockVector d =
+        //        BlockType Dblock;
+        //        Dblock = ldlt.D;
+        //        Dblock.setZero();
+        //        Dblock.diagonal() = ldlt.vectorD();
+
+        D.diagonal()(i)    = ldlt.D;
+        Dinv.diagonal()(i) = ldlt.Dinv;
+        //        Dinv.diagonal()(i) = inverse(D.diagonal()(i));
+
+        //        L(i, i)         = ldlt.matrixL();
+        L(i, i) = ldlt.L.template triangularView<Eigen::Lower>();
+        //        L(i, i)            = MultiplicativeNeutral<MatrixScalar>::get();
+    }
+
+    cout << "L" << endl << expand(L) << endl << endl;
+    cout << "D" << endl << expand(D) << endl << endl;
+
+    z = forwardSubstituteDiagOne(L, b);
+    //    z = forwardSubstituteDiagOne2(L, b);
+    y = multDiagVector(Dinv, z);
+    x = backwardSubstituteDiagOneTranspose(L, y);
+
+
+#if 0
+    // Test if (Ax-b)==0
+    double test =
+        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
+    cout << "error solveLDLT2: " << test << endl;
+#endif
+
+
+    return x;
+}
+
+
 void testBlockCholesky()
 {
     cout << "testBlockCholesky" << endl;
-    using CompleteMatrix = Eigen::Matrix<double, 4, 4>;
-    using CompleteVector = Eigen::Matrix<double, 4, 1>;
 
-    return;
+    const int n          = 2;
+    const int block_size = 2;
+
+
+    using CompleteMatrix = Eigen::Matrix<double, n * block_size, n * block_size>;
+    using CompleteVector = Eigen::Matrix<double, n * block_size, 1>;
+
+    using Block  = Eigen::Matrix<double, block_size, block_size>;
+    using Vector = Eigen::Matrix<double, block_size, 1>;
+
+    //    return;
 
     CompleteMatrix A;
     CompleteVector x;
@@ -196,19 +478,21 @@ void testBlockCholesky()
     b                = CompleteVector::Random();
     A.diagonal() += CompleteVector::Ones();
 
-    Eigen::Matrix<MatrixScalar<Block>, 2, 2> bA;
-    Eigen::Matrix<MatrixScalar<Vector>, 2, 1> bx, bb;
-    for (int i = 0; i < 2; ++i)
+    cout << A << endl << endl;
+
+    Eigen::Matrix<MatrixScalar<Block>, n, n> bA;
+    Eigen::Matrix<MatrixScalar<Vector>, n, 1> bx, bb;
+    for (int i = 0; i < n; ++i)
     {
-        for (int j = 0; j < 2; ++j)
+        for (int j = 0; j < n; ++j)
         {
-            bA(i, j) = A.block(i * 2, j * 2, 2, 2);
+            bA(i, j) = A.block<block_size, block_size>(i * block_size, j * block_size);
         }
-        bb(i) = b.segment(i * 2, 2);
+        bb(i) = b.segment<block_size>(i * block_size);
     }
 
-#if 1
 
+#if 0
     {
         x = A.llt().solve(b);
         cout << "x " << x.transpose() << endl;
@@ -220,11 +504,6 @@ void testBlockCholesky()
     //        cout << "error: " << (A * x - b).squaredNorm() << endl;
     //    }
 
-    {
-        x = solveLDLT(A, b);
-        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
-    }
 
     {
         //        x = solveLDLT2(A, b);
@@ -235,42 +514,89 @@ void testBlockCholesky()
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
+#endif
+    if (1)
+    {
+        x = solveLDLT(A, b);
+        //        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl;
+    }
 
+
+    if (0)
     {
         bx = solveLDLT2(bA, bb);
 
-        x = fixedBlockMatrixToMatrix(bx);
-        cout << "x " << x.transpose() << endl;
+        x = expand(bx);
+        //        cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
-#endif
+
+
+    if (0)
+    {
+        using SMat = Eigen::SparseMatrix<MatrixScalar<Block>, Eigen::ColMajor>;
+        using LDLT = Eigen::RecursiveSimplicialLDLT<SMat, Eigen::Lower>;
+
+        SMat sm(n, n);
+        for (int i = 0; i < n; ++i)
+        {
+            for (int j = 0; j < n; ++j)
+            {
+                sm.insert(i, j) = bA(i, j);
+            }
+        }
+        sm.makeCompressed();
+
+
+        LDLT ldlt;
+        ldlt.compute(sm);
+        bx = ldlt.solve(bb);
+        //        bx = solveLDLT2(bA, bb);
+
+        SMat L = ldlt.matrixL();
+        cout << expand(L) << endl << endl;
+        x = expand(bx);
+        //        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl;
+    }
+
+    if (1)
+    {
+        bx = solveLDLT_ybuffer(bA, bb);
+
+        x = expand(bx);
+        //        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl;
+    }
+
+    if (0)
+    {
+        bx = solveLDLT3(bA, bb);
+
+        x = expand(bx);
+        //        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl;
+    }
+#if 0
+
+    {
+        x = solveLDLT3(A, b);
+
+        //        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl;
+    }
     {
         DenseLDLT<decltype(bA), decltype(bb)> ldlt;
         ldlt.compute(bA);
         bx = ldlt.solve(bb);
 
-        //        cout << "test" << endl;
-
-
-        //        Eigen::Matrix<double, -1, -1> B(5, 5);
-        //        cout << expand(MultiplicativeNeutral<Eigen::Matrix<MatrixScalar<Block>, -1, -1>>::get(4, 4)) << endl;
-
-
-        //        return;
-
-        //        cout << expand(A) << endl;
-        //        cout << expand(bA) << endl;
-        //        auto inv = inverseCholesky(bA);
-        //        cout << expand(inv) << endl << endl;
-        //        cout << expand(bA).inverse() << endl << endl;
-
-        //        return;
-        //        bx = solveLDLT2(bA, bb);
 
         x = expand(bx);
         cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
+#endif
 }
 
 void perfTestDenseCholesky()

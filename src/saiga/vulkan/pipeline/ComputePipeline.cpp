@@ -39,7 +39,7 @@ bool ComputePipeline::checkShader()
     {
         if (shaderPipeline.autoReload())
         {
-            reloadCounter = 4;
+            if (shaderPipeline.valid()) reloadCounter = 4;
         }
     }
 
