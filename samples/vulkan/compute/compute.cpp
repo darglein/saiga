@@ -90,8 +90,8 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
 
     computePipeline.init(base, 1);
     computePipeline.addDescriptorSetLayout(
-        {{0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute},
-         {1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute}});
+        {{0,{0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute}},
+         {1,{1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute}}});
     computePipeline.shaderPipeline.loadCompute(device, "vulkan/test.comp");
     computePipeline.create();
 
@@ -118,7 +118,7 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
         compute.commandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
         if (computePipeline.bind(compute.commandBuffer))
         {
-            computePipeline.bindDescriptorSets(compute.commandBuffer, descriptorSet);
+            computePipeline.bindDescriptorSet(compute.commandBuffer, descriptorSet);
             // Dispatch 1 block
             compute.commandBuffer.dispatch(1, 1, 1);
             compute.commandBuffer.end();

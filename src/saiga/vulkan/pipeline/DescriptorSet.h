@@ -47,7 +47,7 @@ class SAIGA_VULKAN_API DescriptorSet
 
     inline operator vk::ArrayProxy<const vk::DescriptorSet>() { return descriptorSet; }
     inline operator vk::DescriptorSet() { return descriptorSet; }
-    inline virtual void update() = 0;
+    virtual void update() = 0;
 
     void assign(uint32_t index, UniformBuffer* buffer);
     void assign(uint32_t index, Texture* texture);
@@ -91,6 +91,6 @@ class SAIGA_VULKAN_API DynamicDescriptorSet final : public DescriptorSet
 
     ~DynamicDescriptorSet() final;
 
-    void update() override;
+    inline void update() override;
 };
 }  // namespace Saiga::Vulkan

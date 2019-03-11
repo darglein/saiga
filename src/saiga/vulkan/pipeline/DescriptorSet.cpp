@@ -29,7 +29,7 @@ Saiga::Vulkan::DescriptorSet::~DescriptorSet()
 {
     if (base && descriptorSet)
     {
-        VLOG(1) << "~DescriptorSet()" << descriptorSet;
+        VLOG(1) << "~DescriptorSet(): " << descriptorSet;
         base->descriptorPool.freeDescriptorSet(descriptorSet);
         descriptorSet = nullptr;
     }
@@ -71,6 +71,7 @@ void Saiga::Vulkan::DynamicDescriptorSet::update()
     }
 
     vk::DescriptorSet new_set = nullptr;
+    std::vector<vk::DescriptorImageInfo> image_infos;
     std::vector<vk::WriteDescriptorSet> write_updates;
     for (auto& entry : assigned_textures)
     {
@@ -84,7 +85,9 @@ void Saiga::Vulkan::DynamicDescriptorSet::update()
                 m_old_set = std::make_pair(descriptorSet, current_frame + base->numSwapchainFrames + 5);
             }
 
-            write_updates.push_back(layout->getWriteForBinding(entry.first, new_set, texture->getDescriptorInfo()));
+            base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set,texture->getDescriptorInfo()),nullptr);
+//            image_infos.push_back(texture->getDescriptorInfo())
+//            write_updates.push_back(layout->getWriteForBinding(entry.first, new_set, ));
 
             time = texture->memoryLocation->modified_time;
         }
@@ -92,7 +95,6 @@ void Saiga::Vulkan::DynamicDescriptorSet::update()
 
     if (new_set)
     {
-        base->device.updateDescriptorSets(write_updates, nullptr);
         descriptorSet = new_set;
     }
 }

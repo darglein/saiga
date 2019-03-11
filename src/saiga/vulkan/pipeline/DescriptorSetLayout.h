@@ -61,8 +61,8 @@ class SAIGA_VULKAN_API DescriptorSetLayout
         return duplicate;
     }
 
-    vk::WriteDescriptorSet getWriteForBinding(uint32_t index, vk::DescriptorSet set,
-                                              const vk::DescriptorImageInfo& imageInfo)
+    inline vk::WriteDescriptorSet getWriteForBinding(uint32_t index, vk::DescriptorSet set,
+                                              const vk::DescriptorImageInfo& imageInfo) const
     {
         auto binding = getBindingForIndex(index);
 

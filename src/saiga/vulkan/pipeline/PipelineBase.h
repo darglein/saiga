@@ -47,7 +47,6 @@ class SAIGA_VULKAN_API PipelineBase
                                dynamicOffsets);
     }
 
-    template <>
     void bindDescriptorSet(vk::CommandBuffer cmd, vk::DescriptorSet& descriptorSet, uint32_t firstSet,
                            vk::ArrayProxy<const uint32_t> dynamicOffsets)
     {

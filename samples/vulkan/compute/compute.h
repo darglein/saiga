@@ -17,7 +17,7 @@
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/texture/Texture.h"
-
+#include "saiga/vulkan/pipeline/DescriptorSet.h"
 
 class Compute : public Saiga::Updating,
                 public Saiga::Vulkan::VulkanForwardRenderingInterface,
@@ -59,7 +59,7 @@ class Compute : public Saiga::Updating,
         vk::CommandBuffer commandBuffer;  // Command buffer storing the dispatch commands and barriers
     } compute;
     Saiga::Vulkan::ComputePipeline computePipeline;
-    vk::DescriptorSet descriptorSet;
+    Saiga::Vulkan::StaticDescriptorSet descriptorSet;
 
     void keyPressed(SDL_Keysym key) override;
     void keyReleased(SDL_Keysym key) override;
