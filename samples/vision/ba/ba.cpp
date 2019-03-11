@@ -37,7 +37,11 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
 
-    findBALDatasets();
+    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".txt");
+    std::sort(datasets.begin(), datasets.end());
+    cout << "Found " << datasets.size() << " BAL datasets" << endl;
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample() {}
@@ -52,10 +56,10 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
 
     grid.createGrid(10, 10);
-    grid.init(renderer.base);
+    grid.init(renderer.base());
 
     frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
-    frustum.init(renderer.base);
+    frustum.init(renderer.base());
 
     pointCloud.init(base, 1000 * 1000 * 10);
 
@@ -86,9 +90,9 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
             pointCloud.pointCloud[i++] = v;
         }
         pointCloud.size = i;
-        change          = false;
         pointCloud.updateBuffer(cmd);
-        rms = scene.rms();
+        rms    = scene.rms();
+        change = false;
     }
 }
 
@@ -166,7 +170,9 @@ void VulkanExample::renderGUI()
     {
         SAIGA_BLOCK_TIMER();
         Saiga::g2oBA2 ba;
-        ba.solve(scene, baoptions);
+        ba.baOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 
@@ -174,7 +180,9 @@ void VulkanExample::renderGUI()
     {
         SAIGA_BLOCK_TIMER();
         Saiga::CeresBA ba;
-        ba.solve(scene, baoptions);
+        ba.baOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 
@@ -201,7 +209,9 @@ void VulkanExample::renderGUI()
     {
         SAIGA_BLOCK_TIMER();
         //        Saiga::BARec barec;
-        barec.solve(scene, baoptions);
+        barec.baOptions = baoptions;
+        barec.create(scene);
+        barec.solve();
         change = true;
     }
 
@@ -209,7 +219,9 @@ void VulkanExample::renderGUI()
     {
         SAIGA_BLOCK_TIMER();
         Saiga::BAPoseOnly ba;
-        ba.solve(scene, baoptions);
+        ba.baOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 
@@ -223,14 +235,4 @@ void VulkanExample::renderGUI()
 
     ImGui::End();
     Saiga::VulkanSDLExampleBase::renderGUI();
-}
-
-void VulkanExample::findBALDatasets()
-{
-    //    Saiga::Directory dir(".");
-    //    dir.getFilesPrefix(datasets, "problem-");
-
-    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".txt");
-    std::sort(datasets.begin(), datasets.end());
-    cout << "Found " << datasets.size() << " BAL datasets" << endl;
 }

@@ -54,28 +54,15 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
     {
         const VertexSim3* _from = static_cast<const VertexSim3*>(_vertices[0]);
         const VertexSim3* _to   = static_cast<const VertexSim3*>(_vertices[1]);
-#ifdef LSD_REL
-        SE3 error_ = _from->estimate().inverse() * _to->estimate() * _inverseMeasurement;
-#else
-        SE3 error_ = _inverseMeasurement * _to->estimate() * _from->estimate().inverse();
-//        SE3 error_       = _to->estimate() * _from->estimate().inverse() * _inverseMeasurement;
-#endif
-        _error = error_.log();
+        SE3 error_              = _from->estimate().inverse() * _to->estimate() * _inverseMeasurement;
+        _error                  = error_.log();
     }
 
     void linearizeOplus()
     {
-#ifdef LSD_REL
         const VertexSim3* _from = static_cast<const VertexSim3*>(_vertices[0]);
         _jacobianOplusXj        = _from->estimate().inverse().Adj();
         _jacobianOplusXi        = -_jacobianOplusXj;
-#else
-        const VertexSim3* _to = static_cast<const VertexSim3*>(_vertices[1]);
-        SE3 error             = _inverseMeasurement * _to->estimate() * _from->estimate().inverse();
-        _jacobianOplusXj      = error.Adj();
-        _jacobianOplusXi      = -_jacobianOplusXj;
-
-#endif
     }
 
 
@@ -89,11 +76,7 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
     {
         const VertexSim3* from = static_cast<const VertexSim3*>(_vertices[0]);
         const VertexSim3* to   = static_cast<const VertexSim3*>(_vertices[1]);
-#ifdef LSD_REL
-        SE3 delta = from->estimate().inverse() * to->estimate();
-#else
-        SE3 delta             = to->estimate() * from->estimate().inverse();
-#endif
+        SE3 delta              = from->estimate().inverse() * to->estimate();
         setMeasurement(delta);
         return true;
     }

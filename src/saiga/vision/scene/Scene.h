@@ -165,6 +165,9 @@ class SAIGA_VISION_API Scene
     void transformScene(const SE3& transform);
     void rescale(double s = 1);
 
+    // Move median to (0,0,0) and set average depth to sqrt(2)
+    void normalize();
+
     void fixWorldPointReferences();
 
     bool valid() const;
@@ -174,12 +177,22 @@ class SAIGA_VISION_API Scene
     double rms();
     double rmsDense();
 
+    /**
+     * Compute the non-zero density of the schur complement S.
+     * This call is pretty expensive.
+     */
+    double getSchurDensity();
     double scale() { return globalScale; }
 
     // add 0-mean gaussian noise to the world points
     void addWorldPointNoise(double stddev);
     void addImagePointNoise(double stddev);
     void addExtrinsicNoise(double stddev);
+
+    // projects the world points to the images and
+    // sets the image point = projection
+    // -> The rms will be 0 after this call
+    void applyErrorToImagePoints();
 
     void sortByWorldPointId();
 

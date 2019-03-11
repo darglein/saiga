@@ -7,6 +7,11 @@
 #pragma once
 
 #include "saiga/config.h"
+
+#ifndef SAIGA_USE_SDL
+#    error Saiga was compiled without SDL2.
+#endif
+
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 

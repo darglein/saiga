@@ -12,6 +12,54 @@
 #include <fstream>
 namespace Saiga
 {
+PoseGraph::PoseGraph(const Scene& scene)
+{
+    poses.reserve(scene.extrinsics.size());
+    for (auto& p : scene.extrinsics)
+    {
+        PoseVertex pv;
+        pv.se3      = p.se3;
+        pv.constant = p.constant;
+        poses.push_back(pv);
+    }
+
+
+    int n = scene.extrinsics.size();
+    std::vector<std::vector<int>> schurStructure;
+    schurStructure.clear();
+    schurStructure.resize(n, std::vector<int>(n, -1));
+    for (auto& wp : scene.worldPoints)
+    {
+        for (auto& ref : wp.stereoreferences)
+        {
+            for (auto& ref2 : wp.stereoreferences)
+            {
+                int i1                 = ref.first;
+                int i2                 = ref2.first;
+                schurStructure[i1][i2] = i2;
+                schurStructure[i2][i1] = i1;
+            }
+        }
+    }
+
+
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = 0; j < i; ++j)
+        {
+            if (schurStructure[i][j] != -1)
+            {
+                PoseEdge e;
+                e.from = i;
+                e.to   = j;
+                e.setRel(poses[i].se3, poses[j].se3);
+                edges.push_back(e);
+            }
+        }
+    }
+    sortEdges();
+}
+
 void PoseGraph::addNoise(double stddev)
 {
     for (auto& e : poses)
@@ -30,6 +78,11 @@ Vec6 PoseGraph::residual6(const PoseEdge& edge)
     auto error_ = edge.meassurement.inverse() * _to * _from.inverse();
 #endif
     return error_.log() * edge.weight;
+}
+
+double PoseGraph::density()
+{
+    return double((edges.size() * 2) + poses.size()) / double(poses.size() * poses.size());
 }
 
 double PoseGraph::chi2()
@@ -115,6 +168,19 @@ void PoseGraph::load(const std::string& file)
         //        e.setRel(poses[e.from].se3, poses[e.to].se3);
     }
     std::sort(edges.begin(), edges.end());
+    sortEdges();
+}
+
+void PoseGraph::sortEdges()
+{
+    // first swap if j > i
+    for (auto& e : edges)
+    {
+        if (e.from > e.to) e.invert();
+    }
+
+    // and then sort by from/to index
+    std::sort(edges.begin(), edges.end());
 }
 
 bool PoseGraph::imgui()
@@ -150,8 +216,7 @@ std::ostream& operator<<(std::ostream& strm, PoseGraph& pg)
     strm << " Edges: " << pg.edges.size() << endl;
     strm << " Rms: " << pg.rms() << endl;
     strm << " Chi2: " << pg.chi2() << endl;
-    double density = double((pg.edges.size() * 2) + pg.poses.size()) / double(pg.poses.size() * pg.poses.size());
-    strm << " Density: " << density * 100 << "%" << endl;
+    strm << " Density: " << pg.density() * 100 << "%" << endl;
     return strm;
 }
 

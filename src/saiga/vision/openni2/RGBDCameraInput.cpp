@@ -42,6 +42,7 @@ RGBDCameraInput::RGBDCameraInput(RGBDCameraInput::CameraOptions rgbo, RGBDCamera
 
 RGBDCameraInput::~RGBDCameraInput()
 {
+    cout << "~RGBDCameraInpu" << endl;
     close();
 }
 
@@ -85,6 +86,7 @@ void RGBDCameraInput::updateCameraSettings()
 
 bool RGBDCameraInput::open()
 {
+    cout << "open" << endl;
     resetCamera();
 
     openni::Status rc = openni::STATUS_OK;
@@ -97,6 +99,7 @@ bool RGBDCameraInput::open()
     rc = device->open(deviceURI);
     if (rc != openni::STATUS_OK)
     {
+        cout << "device open failed" << endl;
         return false;
     }
 
@@ -304,6 +307,8 @@ void RGBDCameraInput::eventLoop()
         }
         tmp = makeFrameData();
     }
+
+    cout << "OpenNI RGBD Camera done." << endl;
 
     resetCamera();
     foundCamera = false;

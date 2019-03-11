@@ -30,17 +30,20 @@ class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener
 {
-    std::array<std::string, 3> image_names{"cat.png", "red-panda.png", "dog.png"};
-    std::array<std::shared_ptr<Saiga::Image>, 3> images;
-    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations;
-    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t>> tex_allocations;
-    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations;
+    std::array<std::string, 5> image_names{"cat.png", "red-panda.png", "dog.png", "pika.png", "ludi.png"};
+    std::array<std::shared_ptr<Saiga::Image>, 4> images;
+    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations{};
+    std::vector<std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, Saiga::Vulkan::DynamicDescriptorSet, int32_t>>
+        tex_allocations{};
+    std::vector<std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, Saiga::Vulkan::DynamicDescriptorSet, int32_t>>
+        to_delete_tex{};
+    std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations{};
     std::mt19937 mersenne_twister, auto_mersenne;
 
     std::array<vk::DeviceSize, 4> tex_sizes{256, 512, 1024, 2048};
     std::array<vk::DeviceSize, 4> sizes{256 * 256, 512 * 512, 1024 * 1024, 16 * 1024 * 1024};
 
-    Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eVertexBuffer,
+    Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eTransferDst,
                                                   vk::MemoryPropertyFlagBits::eDeviceLocal};
     Saiga::Vulkan::Memory::ImageType image_type{vk::ImageUsageFlagBits::eSampled,
                                                 vk::MemoryPropertyFlagBits::eDeviceLocal};
@@ -57,7 +60,7 @@ class VulkanExample : public Saiga::Updating,
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample() override;
 
-    void init(Saiga::Vulkan::VulkanBase& base) override;
+    void init(Saiga::Vulkan::VulkanBase& base);
 
 
     void update(float dt) override;
@@ -67,7 +70,6 @@ class VulkanExample : public Saiga::Updating,
 
    private:
     bool show_textures = false;
-    int texture_index  = 0;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
 
@@ -85,6 +87,7 @@ class VulkanExample : public Saiga::Updating,
     std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> allocate(Saiga::Vulkan::Memory::BufferType type,
                                                                          unsigned long long int size);
 
-    std::pair<std::shared_ptr<Saiga::Vulkan::Texture2D>, uint32_t> allocate(Saiga::Vulkan::Memory::ImageType type,
-                                                                            unsigned long long int size);
+    std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, Saiga::Vulkan::DynamicDescriptorSet, int32_t> allocate(
+        Saiga::Vulkan::Memory::ImageType type, unsigned long long int size);
+    void cleanup();
 };

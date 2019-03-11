@@ -27,40 +27,25 @@ struct PGO
     using SE3Type = Sophus::SE3<T>;
 
     static inline void evaluateResidual(const SE3Type& from, const SE3Type& to, const SE3Type& inverseMeasurement,
-                                        ResidualType& res)
+                                        ResidualType& res, T weight)
     {
-#ifdef LSD_REL
         SE3Type res2 = from.inverse() * to * inverseMeasurement;
-#else
-        SE3Type res2 = to * from.inverse() * inverseMeasurement;
-#endif
-        res = res2.log();
+        res          = res2.log() * weight;
     }
 
     static inline void evaluateJacobian(const SE3Type& from, const SE3Type& to, const SE3Type& inverseMeasurement,
-                                        PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo)
+                                        PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo, T weight)
     {
-#ifdef LSD_REL
-        JrowFrom = from.inverse().Adj();
+        JrowFrom = -from.inverse().Adj() * weight;
         JrowTo   = -JrowFrom;
-#else
-        JrowFrom     = to.Adj();
-        JrowTo       = -JrowFrom;
-#endif
     }
 
     static inline void evaluateResidualAndJacobian(const SE3Type& from, const SE3Type& to,
                                                    const SE3Type& inverseMeasurement, ResidualType& res,
-                                                   PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo)
+                                                   PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo, T weight)
     {
-        evaluateResidual(from, to, inverseMeasurement, res);
-        evaluateJacobian(from, to, inverseMeasurement, JrowFrom, JrowTo);
-
-        //        JrowFrom = to.Adj();
-        //        JrowTo   = -JrowFrom;
-
-        //        JrowFrom = from.inverse().Adj();
-        //        JrowTo   = -JrowFrom;
+        evaluateResidual(from, to, inverseMeasurement, res, weight);
+        evaluateJacobian(from, to, inverseMeasurement, JrowFrom, JrowTo, weight);
     }
 };
 

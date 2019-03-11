@@ -18,6 +18,7 @@
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/texture/Texture.h"
 
+#include "pipeline/DescriptorSet.h"
 namespace Saiga
 {
 namespace Vulkan
@@ -76,7 +77,7 @@ class SAIGA_VULKAN_API VulkanTexturedAsset : public TexturedModel
     VertexBuffer<VertexType> vertexBuffer;
     IndexBuffer<uint32_t> indexBuffer;
     std::vector<std::shared_ptr<Texture2D>> textures;
-    vk::DescriptorSet descriptor;
+    StaticDescriptorSet descriptor;
 
     void init(VulkanBase& base);
     void render(vk::CommandBuffer cmd);

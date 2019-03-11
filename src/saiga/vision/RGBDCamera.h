@@ -40,6 +40,7 @@ class SAIGA_VISION_API RGBDCamera
 
     RGBDCamera() {}
     RGBDCamera(CameraOptions rgbo, CameraOptions deptho);
+    virtual ~RGBDCamera() {}
 
 
     virtual std::shared_ptr<FrameData> waitForImage() = 0;

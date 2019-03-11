@@ -207,6 +207,12 @@ if(CERES_FOUND)
 endif()
 PackageHelperTarget(ceres CERES_FOUND)
 
+#ceres
+find_package(Cholmod REQUIRED)
+if(CHOLMOD_FOUND)
+    SET(SAIGA_USE_CHOLMOD 1)
+endif()
+PackageHelper(Cholmod ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
 
 #bullet
 find_package(Bullet QUIET)
@@ -217,18 +223,18 @@ PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARI
 
 
 # Currently only mkl is supported
-set(BLA_VENDOR Intel10_64lp_seq)
-find_package(BLAS QUIET)
-PackageHelper(BLAS "${BLAS_FOUND}" "" "${BLAS_LIBRARIES}")
-message(STATUS "BLAS Library: ${BLAS_LIBRARIES}")
+#set(BLA_VENDOR Intel10_64lp_seq)
+#find_package(BLAS QUIET)
+#PackageHelper(BLAS "${BLAS_FOUND}" "" "${BLAS_LIBRARIES}")
+#message(STATUS "BLAS Library: ${BLAS_LIBRARIES}")
 
-find_package(LAPACK QUIET)
-PackageHelper(LAPACK "${LAPACK_FOUND}" "" "${LAPACK_LIBRARIES}")
-message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
+#find_package(LAPACK QUIET)
+#PackageHelper(LAPACK "${LAPACK_FOUND}" "" "${LAPACK_LIBRARIES}")
+#message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
 
 #mkl
 find_package(MKL QUIET)
-if(MKL_FOUND AND BLAS_FOUND AND LAPACK_FOUND)
+if(MKL_FOUND )
     SET(SAIGA_USE_MKL 1)
 endif()
 PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
@@ -335,11 +341,12 @@ if(CUDA_FOUND)
     # We need this to get the actual cuda libraries, because
     # one sample only is linked with the host compiler and therefore
     # does not automatically link to the cuda runtime.
-    find_package(CUDA REQUIRED QUIET)
-
-    SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
 
     if(SAIGA_CUDA_BLSP)
+        find_package(CUDA REQUIRED QUIET)
+
+        SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
+
         if(CUDA_cusparse_LIBRARY)
             SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cusparse_LIBRARY})
             SET(SAIGA_USE_CUSPARSE 1)
@@ -358,6 +365,10 @@ if(CUDA_FOUND)
     endif()
     SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_52,code=sm_52")
     SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_61,code=sm_61")
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_61,code=sm_61") # Pascal
+    #SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70") # Volta
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_75,code=sm_75") # Turing
+
 
     if(SAIGA_CUDA_RDC)
         SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --relocatable-device-code=true") # for dynamic parallelism
@@ -387,7 +398,7 @@ else()
     SET(SAIGA_USE_CUDA 0)
 endif()
 
-PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
+#PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
 
 
 

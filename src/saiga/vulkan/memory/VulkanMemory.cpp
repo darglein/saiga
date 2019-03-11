@@ -13,13 +13,15 @@
 #include <memory>
 namespace Saiga::Vulkan::Memory
 {
-void VulkanMemory::init(VulkanBase* base)
+void VulkanMemory::init(VulkanBase* base, uint32_t swapchain_frames)
 {
-    m_pDevice      = base->physicalDevice;
-    m_device       = base->device;
-    m_queue        = base->transferQueue;
-    strategy       = std::make_unique<FirstFitStrategy<BufferMemoryLocation>>();
-    image_strategy = std::make_unique<FirstFitStrategy<ImageMemoryLocation>>();
+    this->base         = base;
+    m_pDevice          = base->physicalDevice;
+    m_device           = base->device;
+    m_queue            = base->transferQueue;
+    m_swapchain_images = swapchain_frames;
+    strategy           = std::make_unique<FirstFitStrategy<BufferMemoryLocation>>();
+    image_strategy     = std::make_unique<FirstFitStrategy<ImageMemoryLocation>>();
 
     img_copy_shader = std::make_unique<ImageCopyComputeShader>();
     img_copy_shader->init(base);
@@ -81,7 +83,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     std::unique_ptr<BufferDefragger> defragger;
     if (allow_defragger)
     {
-        defragger = std::make_unique<BufferDefragger>(base, m_device, chunk_alloc.get());
+        defragger = std::make_unique<BufferDefragger>(base, m_device, chunk_alloc.get(), m_swapchain_images);
     }
     auto new_alloc = map.emplace(effectiveType, BufferContainer{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(new_alloc.second, "Allocator was already present.");
@@ -115,7 +117,8 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
                                                              m_queue, found->second);
     if (allow_defragger)
     {
-        defragger = std::make_unique<ImageDefragger>(base, m_device, chunk_alloc.get(), img_copy_shader.get());
+        defragger = std::make_unique<ImageDefragger>(base, m_device, chunk_alloc.get(), m_swapchain_images,
+                                                     img_copy_shader.get());
     }
     auto emplaced = map.emplace(effectiveType, ImageContainer{std::move(chunk_alloc), std::move(defragger)});
     SAIGA_ASSERT(emplaced.second, "Allocator was already present.");

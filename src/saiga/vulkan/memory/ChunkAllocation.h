@@ -85,22 +85,28 @@ template <typename T>
 using ChunkContainer = std::vector<ChunkAllocation<T>>;
 
 template <typename T>
-using ChunkIterator = typename std::vector<ChunkAllocation<T>>::iterator;
+using ChunkIterator = typename ChunkContainer<T>::iterator;
 
 template <typename T>
-using ConstChunkIterator = typename std::vector<ChunkAllocation<T>>::const_iterator;
+using ConstChunkIterator = typename ChunkContainer<T>::const_iterator;
 
 template <typename T>
-using RevChunkIterator = typename std::vector<ChunkAllocation<T>>::reverse_iterator;
+using RevChunkIterator = typename ChunkContainer<T>::reverse_iterator;
 
 template <typename T>
-using ConstRevChunkIterator = typename std::vector<ChunkAllocation<T>>::const_reverse_iterator;
+using ConstRevChunkIterator = typename ChunkContainer<T>::const_reverse_iterator;
 
 template <typename T>
 using AllocationIterator = typename ChunkAllocation<T>::AllocatedList::iterator;
 
 template <typename T>
 using ConstAllocationIterator = typename ChunkAllocation<T>::AllocatedList::const_iterator;
+
+template <typename T>
+using RevAllocationIterator = typename ChunkAllocation<T>::AllocatedList::reverse_iterator;
+
+template <typename T>
+using ConstRevAllocationIterator = typename ChunkAllocation<T>::AllocatedList::const_reverse_iterator;
 
 template <typename T>
 using FreeIterator = typename ChunkAllocation<T>::FreeList::iterator;

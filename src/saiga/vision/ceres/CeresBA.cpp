@@ -8,6 +8,7 @@
 
 #include "saiga/core/time/timer.h"
 
+#include "CeresHelper.h"
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
 #include "ceres/ceres.h"
@@ -18,24 +19,72 @@
 #include "CeresKernel_BA_Intr4.h"
 #include "local_parameterization_se3.h"
 
+//#define BA_AUTODIFF
+
 namespace Saiga
 {
-void CeresBA::solve(Scene& scene, const BAOptions& options)
+OptimizationResults CeresBA::solve()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-    ceres::Problem problem;
+    auto& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+
+    ceres::Problem::Options problemOptions;
+    problemOptions.local_parameterization_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
+    problemOptions.cost_function_ownership          = ceres::DO_NOT_TAKE_OWNERSHIP;
+    problemOptions.loss_function_ownership          = ceres::DO_NOT_TAKE_OWNERSHIP;
+
+    ceres::Problem problem(problemOptions);
 
 
-    Sophus::test::LocalParameterizationSE3* camera_parameterization = new Sophus::test::LocalParameterizationSE3;
+#ifdef BA_AUTODIFF
+    Sophus::test::LocalParameterizationSE3 camera_parameterization;
+#else
+    Sophus::test::LocalParameterizationSE32 camera_parameterization;
+#endif
     for (size_t i = 0; i < scene.extrinsics.size(); ++i)
     {
-        problem.AddParameterBlock(scene.extrinsics[i].se3.data(), 7, camera_parameterization);
+        problem.AddParameterBlock(scene.extrinsics[i].se3.data(), 7, &camera_parameterization);
     }
+
+    ceres::HuberLoss lossFunctionMono(baOptions.huberMono);
+    ceres::HuberLoss lossFunctionStereo(baOptions.huberStereo);
+
+
+
+    int monoCount   = 0;
+    int stereoCount = 0;
+    for (auto& img : scene.images)
+    {
+        for (auto& ip : img.stereoPoints)
+        {
+            if (!ip) continue;
+            if (ip.depth > 0)
+            {
+                stereoCount++;
+            }
+            else
+            {
+                monoCount++;
+            }
+        }
+    }
+
+    auto ordering = std::make_shared<ceres::ParameterBlockOrdering>();
+
+
+    std::vector<std::unique_ptr<CostBAMonoAnalytic>> monoCostFunctions;
+    std::vector<std::unique_ptr<CostBAStereoAnalytic>> stereoCostFunctions;
+
+    monoCostFunctions.reserve(monoCount);
+    stereoCostFunctions.reserve(stereoCount);
+
 
     for (auto& img : scene.images)
     {
         auto& extr   = scene.extrinsics[img.extr].se3;
         auto& camera = scene.intrinsics[img.intr];
+        StereoCamera4 scam(camera, scene.bf);
 
         for (auto& ip : img.stereoPoints)
         {
@@ -46,18 +95,36 @@ void CeresBA::solve(Scene& scene, const BAOptions& options)
 
             if (ip.depth > 0)
             {
+#ifdef BA_AUTODIFF
                 auto stereoPoint   = ip.point(0) - scene.bf / ip.depth;
                 auto cost_function = CostBAStereo<>::create(camera, ip.point, stereoPoint, scene.bf, Vec2(w, w));
-                ceres::LossFunction* lossFunction =
-                    options.huberStereo > 0 ? new ceres::HuberLoss(options.huberStereo) : nullptr;
+                ceres::LossFunction* lossFunction = baOptions.huberStereo > 0 ? &lossFunctionStereo : nullptr;
                 problem.AddResidualBlock(cost_function, lossFunction, extr.data(), wp.data());
+#else
+                auto* cost = new CostBAStereoAnalytic(scam, ip.point, ip.depth, w);
+                stereoCostFunctions.emplace_back(cost);
+                problem.AddResidualBlock(cost, baOptions.huberStereo > 0 ? &lossFunctionStereo : nullptr, extr.data(),
+                                         wp.data());
+#endif
+                // With this ordering the schur complement is computed in the correct order
+                ordering->AddElementToGroup(wp.data(), 0);
+                ordering->AddElementToGroup(extr.data(), 1);
             }
             else
             {
-                auto cost_function = CostBAMono::create(camera, ip.point, w);
-                ceres::LossFunction* lossFunction =
-                    options.huberMono > 0 ? new ceres::HuberLoss(options.huberMono) : nullptr;
+#ifdef BA_AUTODIFF
+                auto cost_function                = CostBAMono::create(camera, ip.point, w);
+                ceres::LossFunction* lossFunction = baOptions.huberMono > 0 ? &lossFunctionMono : nullptr;
                 problem.AddResidualBlock(cost_function, lossFunction, extr.data(), wp.data());
+#else
+                auto* cost = new CostBAMonoAnalytic(camera, ip.point, w);
+                monoCostFunctions.emplace_back(cost);
+                problem.AddResidualBlock(cost, baOptions.huberMono > 0 ? &lossFunctionMono : nullptr, extr.data(),
+                                         wp.data());
+                // With this ordering the schur complement is computed in the correct order
+                ordering->AddElementToGroup(wp.data(), 0);
+                ordering->AddElementToGroup(extr.data(), 1);
+#endif
             }
         }
     }
@@ -67,34 +134,65 @@ void CeresBA::solve(Scene& scene, const BAOptions& options)
     //    ceres::Problem::EvaluateOptions defaultEvalOptions;
     //    problem.Evaluate(defaultEvalOptions, &costInit, nullptr, nullptr, nullptr);
 
-    ceres::Solver::Options ceres_options;
-    ceres_options.minimizer_progress_to_stdout = options.debugOutput;
-    ceres_options.max_num_iterations           = options.maxIterations;
-    ceres_options.max_linear_solver_iterations = options.maxIterativeIterations;
-    ceres_options.min_linear_solver_iterations = options.maxIterativeIterations;
-    ceres_options.min_relative_decrease        = 1e-50;
-    ceres_options.function_tolerance           = 1e-50;
+
+    ceres::Solver::Options ceres_options = make_options(optimizationOptions);
+    ceres_options.linear_solver_ordering = ordering;
 
 
-    switch (options.solverType)
-    {
-        case BAOptions::SolverType::Direct:
-            ceres_options.linear_solver_type = ceres::LinearSolverType::SPARSE_SCHUR;
-            break;
-        case BAOptions::SolverType::Iterative:
-            ceres_options.linear_solver_type = ceres::LinearSolverType::ITERATIVE_SCHUR;
-            break;
-    }
 
-    ceres::Solver::Summary summaryTest;
+#if 0
+
+    ceres::Problem::EvaluateOptions defaultEvalOptions;
+    ceres::CRSMatrix matrix;
+    double costFinal = 0;
+    problem.Evaluate(defaultEvalOptions, &costFinal, nullptr, nullptr, &matrix);
+
+    cout << "num residuals: " << problem.NumResiduals() << endl;
+
+    cout << matrix.num_rows << "x" << matrix.num_cols << endl;
 
     {
-        SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-        ceres::Solve(ceres_options, &problem, &summaryTest);
-    }
+        Eigen::SparseMatrix<double, Eigen::RowMajor> ematrix(matrix.num_rows, matrix.num_cols);
+        ematrix.resizeNonZeros(matrix.values.size());
 
-    //    double costFinal = 0;
-    //    problem.Evaluate(defaultEvalOptions, &costFinal, nullptr, nullptr, nullptr);
+        for (int i = 0; i < matrix.num_rows + 1; ++i)
+        {
+            ematrix.outerIndexPtr()[i] = matrix.rows[i];
+        }
+        for (int i = 0; i < matrix.values.size(); ++i)
+        {
+            ematrix.valuePtr()[i]      = matrix.values[i];
+            ematrix.innerIndexPtr()[i] = matrix.cols[i];
+        }
+        cout << ematrix.toDense() << endl;
+    }
+#endif
+
+    //    exit(0);
+
+
+    //    ceres::Solver::Summary summaryTest;
+
+    //    {
+    //        SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+    //        ceres::Solve(ceres_options, &problem, &summaryTest);
+    //    }
+
+    //    cout << "linear solver time " << summaryTest.linear_solver_time_in_seconds << "s." << endl;
+    //    cout << summaryTest.FullReport() << endl;
+
+    OptimizationResults result = ceres_solve(ceres_options, problem);
+
+    //    result.name               = name;
+    //    result.cost_initial       = summaryTest.initial_cost * 2.0;
+    //    result.cost_final         = summaryTest.final_cost * 2.0;
+    //    result.linear_solver_time = summaryTest.linear_solver_time_in_seconds * 1000;
+    //    result.total_time         = summaryTest.total_time_in_seconds * 1000;
+    //    if (summaryTest.iterations.size() < optimizationOptions.maxIterations + 1)
+    //    {
+    //        cout << "less iterations than expected: " << summaryTest.iterations.size() << endl;
+    //    }
+    return result;
 
     //    std::cout << "optimizePoints residual: " << costInit << " -> " << costFinal << endl;
 }

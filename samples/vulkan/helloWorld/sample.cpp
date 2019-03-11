@@ -32,6 +32,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     //    exit(0);
 
     window.setCamera(&camera);
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample()
@@ -83,23 +85,23 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
     box.loadObj("box.obj");
     //    box.loadObj("cat.obj");
-    box.init(renderer.base);
+    box.init(renderer.base());
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
     //    teapot.loadObj("teapot.obj");
     teapot.loadObj("teapot.obj");
-    teapot.init(renderer.base);
+    teapot.init(renderer.base());
     teapotTrans.translateGlobal(vec3(0, 1, 0));
     teapotTrans.calculateModel();
 
     plane.createCheckerBoard(ivec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray);
-    plane.init(renderer.base);
+    plane.init(renderer.base());
 
     grid.createGrid(10, 10);
-    grid.init(renderer.base);
+    grid.init(renderer.base());
 
     frustum.createFrustum(camera.proj, 2, make_vec4(1), true);
-    frustum.init(renderer.base);
+    frustum.init(renderer.base());
 
     pointCloud.init(base, 1000 * 1000);
     for (int i = 0; i < 1000 * 1000; ++i)
@@ -115,10 +117,16 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
 void VulkanExample::update(float dt)
 {
-    camera.update(dt);
-    camera.interpolate(dt, 0);
+    if (!ImGui::captureKeyboard())
+    {
+        camera.update(dt);
+    }
+    if (!ImGui::captureMouse())
+    {
+        camera.interpolate(dt, 0);
+    }
 
-    //    if(change)
+
     if (change)
     {
         //        renderer.waitIdle();

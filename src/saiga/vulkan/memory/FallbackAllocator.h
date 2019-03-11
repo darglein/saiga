@@ -6,11 +6,12 @@
 
 #include "saiga/core/util/imath.h"
 #include "saiga/export.h"
-#include "saiga/vulkan/memory/ChunkCreator.h"
-#include "saiga/vulkan/memory/MemoryLocation.h"
 
-#include "BaseMemoryAllocator.h"
+#include "BufferMemoryLocation.h"
+#include "ChunkCreator.h"
 #include "FindMemoryType.h"
+#include "ImageMemoryLocation.h"
+#include "MemoryStats.h"
 #include "MemoryType.h"
 #include "SafeAllocator.h"
 
@@ -30,6 +31,10 @@ class FallbackAllocator
     std::vector<std::unique_ptr<BufferMemoryLocation>> m_allocations;
     std::vector<std::unique_ptr<ImageMemoryLocation>> m_image_allocations;
     std::string gui_identifier;
+
+    void destroy(const vk::Device& device, BufferMemoryLocation* memory_location);
+
+    void destroy(const vk::Device& device, ImageMemoryLocation* memory_location);
 
    public:
     FallbackAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice)

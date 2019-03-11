@@ -31,6 +31,13 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     Saiga::SearchPathes::data.getFiles(datasets, "vision", ".posegraph");
     std::sort(datasets.begin(), datasets.end());
     cout << "Found " << datasets.size() << " posegraph datasets" << endl;
+
+
+    Saiga::SearchPathes::data.getFiles(baldatasets, "vision", ".txt");
+    std::sort(baldatasets.begin(), baldatasets.end());
+    cout << "Found " << baldatasets.size() << " BAL datasets" << endl;
+
+    init(renderer.base());
 }
 
 VulkanExample::~VulkanExample() {}
@@ -44,14 +51,19 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
 
     grid.createGrid(10, 10);
-    grid.init(renderer.base);
+    grid.init(renderer.base());
 
-    lineAsset.init(base, 100000);
+
+
+    //    frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
+    //    frustum.init(renderer.base());
+
+    lineAsset.init(base, 10 * 1000 * 1000);
     lineAsset.size = 0;
 
-
     frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 1, 1, 1), false);
-    frustum.init(renderer.base);
+    frustum.init(renderer.base());
+
 
     pointCloud.init(base, 1000 * 1000 * 10);
 
@@ -63,6 +75,12 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 void VulkanExample::update(float dt)
 {
     VulkanSDLExampleBase::update(dt);
+}
+
+void VulkanExample::transfer(vk::CommandBuffer cmd)
+{
+    assetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
+    lineAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
 
     if (change)
     {
@@ -81,19 +99,16 @@ void VulkanExample::update(float dt)
             lines.emplace_back(vec3(p1(0), p1(1), p1(2)), vec3(0), vec3(0, 1, 0));
             lines.emplace_back(vec3(p2(0), p2(1), p2(2)), vec3(0), vec3(0, 1, 0));
         }
-    }
-}
 
-void VulkanExample::transfer(vk::CommandBuffer cmd)
-{
-    assetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
-    lineAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
+        if (lines.size() > 0)
+        {
+            cout << "num lines: " << lines.size() << endl;
+            lineAsset.size = lines.size();
+            std::copy(lines.begin(), lines.end(), lineAsset.pointCloud.begin());
+            lineAsset.updateBuffer(cmd, 0, lineAsset.size);
+        }
 
-    if (lines.size() > 0)
-    {
-        lineAsset.size = lines.size();
-        std::copy(lines.begin(), lines.end(), lineAsset.pointCloud.begin());
-        lineAsset.updateBuffer(cmd, 0, lineAsset.size);
+        change = false;
     }
 }
 
@@ -112,6 +127,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
             v              = Saiga::cvViewToGLView(v);
             v              = mat4(inverse(v));
 
+            //            cout << v << endl;
             vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
             lineAssetRenderer.pushModel(cmd, v, color);
             frustum.render(cmd);
@@ -142,36 +158,59 @@ void VulkanExample::renderGUI()
     ImGui::Separator();
 
 
-    std::vector<const char*> strings;
-    for (auto& d : datasets) strings.push_back(d.data());
-    static int currentItem = 0;
-    ImGui::Combo("Dataset", &currentItem, strings.data(), strings.size());
-    if (ImGui::Button("Load Dataset"))
+#if 1
     {
-        scene.load(Saiga::SearchPathes::data(datasets[currentItem]));
-        scene.poses[0].constant = true;
-        change                  = true;
+        std::vector<const char*> strings;
+        for (auto& d : datasets) strings.push_back(d.data());
+        static int currentItem = 0;
+        ImGui::Combo("Dataset", &currentItem, strings.data(), strings.size());
+        if (ImGui::Button("Load Dataset"))
+        {
+            scene.load(Saiga::SearchPathes::data(datasets[currentItem]));
+            scene.poses[0].constant = true;
+            change                  = true;
+        }
     }
+#endif
 
 
+    {
+        std::vector<const char*> strings;
+        for (auto& d : baldatasets) strings.push_back(d.data());
+        static int currentItem = 0;
+        ImGui::Combo("BAL Dataset", &currentItem, strings.data(), strings.size());
+        if (ImGui::Button("Load BAL Dataset"))
+        {
+            Saiga::BALDataset bal(baldatasets[currentItem]);
+            Saiga::Scene sc         = bal.makeScene();
+            scene                   = Saiga::PoseGraph(sc);
+            scene.poses[0].constant = true;
+            change                  = true;
+            cout << scene.chi2() << endl;
+        }
+    }
 
     //    if (ImGui::Button("Reload"))
     //    {
     //        scene.load(Saiga::SearchPathes::data("vision/loop.posegraph"));
     //    }
 
-    if (ImGui::Button("Solve PGO with G2O"))
+    if (ImGui::Button("Solve G2O"))
     {
         Saiga::g2oPGO ba;
-        ba.solve(scene, baoptions);
+        ba.optimizationOptions = baoptions;
+        ba.create(scene);
+        ba.solve();
         change = true;
     }
 
     //    barec.imgui();
-    if (ImGui::Button("Solve with Eigen Recursive Matrices"))
+    if (ImGui::Button("Solve Recursive"))
     {
         Saiga::PGORec barec;
-        barec.solve(scene, baoptions);
+        barec.optimizationOptions = baoptions;
+        barec.create(scene);
+        barec.solve();
         change = true;
     }
 

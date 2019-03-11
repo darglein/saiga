@@ -94,7 +94,7 @@ static void radixSortTest()
 {
     int N   = 64 * 1024 * 1024;
     using T = int;
-    Saiga::thrust::pinned_vector<T> h_data(N), res, res2;
+    Saiga::pinned_vector<T> h_data(N), res, res2;
     thrust::device_vector<T> d_data(N);
 
     // Initialize with random values

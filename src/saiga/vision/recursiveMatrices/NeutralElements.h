@@ -123,7 +123,7 @@ struct MultiplicativeNeutral<MatrixScalar<G>>
     {
         return MatrixScalar<G>(MultiplicativeNeutral<G>::get(rows, cols));
     }
-};  // namespace Saiga
+};
 
 
 }  // namespace Saiga

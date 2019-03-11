@@ -10,13 +10,13 @@
 
 #include "saiga/core/sdl/sdl_camera.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
+#include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/texture/Texture.h"
-#include "saiga/core/window/Interfaces.h"
 
 
 class Compute : public Saiga::Updating,
@@ -27,7 +27,7 @@ class Compute : public Saiga::Updating,
     Compute(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~Compute();
 
-    void init(Saiga::Vulkan::VulkanBase& base) override;
+    void init(Saiga::Vulkan::VulkanBase& base);
 
     void update(float dt) override;
 

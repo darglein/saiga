@@ -4,8 +4,7 @@
 
 #pragma once
 
-//#include "saiga/vulkan/pipeline/ComputePipeline.h"
-#include "MemoryLocation.h"
+#include "ImageMemoryLocation.h"
 namespace Saiga::Vulkan
 {
 struct VulkanBase;

@@ -26,7 +26,7 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample() override;
 
-    void init(Saiga::Vulkan::VulkanBase& base) override;
+    void init(Saiga::Vulkan::VulkanBase& base);
 
 
     void update(float dt) override;
@@ -64,5 +64,4 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
     Saiga::BARec barec;
 
     std::vector<std::string> datasets;
-    void findBALDatasets();
 };

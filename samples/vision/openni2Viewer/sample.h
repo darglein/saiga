@@ -8,9 +8,11 @@
 
 #pragma once
 
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/core/sdl/sdl_camera.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/util/ini/ini.h"
+#include "saiga/core/window/Interfaces.h"
 #include "saiga/vision/RGBDCamera.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
@@ -18,7 +20,6 @@
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
-#include "saiga/core/window/Interfaces.h"
 
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
@@ -28,7 +29,7 @@ class VulkanExample : public Saiga::Updating,
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample();
 
-    virtual void init(Saiga::Vulkan::VulkanBase& base) override;
+    void init(Saiga::Vulkan::VulkanBase& base);
 
 
     virtual void update(float dt) override;
@@ -38,7 +39,7 @@ class VulkanExample : public Saiga::Updating,
 
    private:
     std::shared_ptr<Saiga::RGBDCamera::FrameData> frameData;
-    std::shared_ptr<Saiga::RGBDCamera> rgbdcamera;
+    std::unique_ptr<Saiga::RGBDCamera> rgbdcamera;
 
     Saiga::TemplatedImage<ucvec4> rgbImage;
     Saiga::TemplatedImage<ucvec4> depthmg;
@@ -48,6 +49,11 @@ class VulkanExample : public Saiga::Updating,
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture2;
 
 
+    char dir[256]      = "recording/";
+    bool capturing     = false;
+    int frameId        = 0;
+    bool updateTexture = false;
+    bool initTexture   = false;
 
     vk::DescriptorSet textureDes;
     vk::DescriptorSet textureDes2;
@@ -56,6 +62,8 @@ class VulkanExample : public Saiga::Updating,
     Saiga::Vulkan::VulkanForwardRenderer& renderer;
 
 
+
+    ImGui::HzTimeGraph tg;
 
     void keyPressed(SDL_Keysym key) override;
     void keyReleased(SDL_Keysym key) override;

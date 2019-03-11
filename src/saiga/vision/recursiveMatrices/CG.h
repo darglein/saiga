@@ -7,8 +7,7 @@
 #pragma once
 
 #include "saiga/core/util/assert.h"
-#include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 
 namespace Saiga
@@ -55,10 +54,10 @@ class RecursiveDiagonalPreconditioner
             while (it && it.index() != j) ++it;
             if (it && it.index() == j)
                 //          m_invdiag(j) = Scalar(1)/it.value();
-                m_invdiag(j) = inverseCholesky(it.value());
+                removeMatrixScalar(m_invdiag(j)) = removeMatrixScalar(inverseCholesky(it.value()));
             else
                 //                m_invdiag(j) = Scalar(1);
-                m_invdiag(j) = MultiplicativeNeutral<Scalar>::get();
+                removeMatrixScalar(m_invdiag(j)) = removeMatrixScalar(MultiplicativeNeutral<Scalar>::get());
         }
         m_isInitialized = true;
         return *this;
@@ -109,6 +108,8 @@ class RecursiveDiagonalPreconditioner
     bool m_isInitialized;
 };
 
+//#define RM_CG_DEBUG_OUTPUT
+
 /**
  * A conjugate gradient solver, which works for recursives matrices.
  * Solve:
@@ -151,6 +152,13 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
     // Temp Vector variables
     Index n = rhs.rows();
 
+#ifdef RM_CG_DEBUG_OUTPUT
+    cout << "Starting recursive CG" << endl;
+    cout << "Iterations: " << iters << endl;
+    cout << "Tolerance: " << tol_error << endl;
+    cout << "N: " << n << endl;
+#endif
+
 #if 0
     // Create them locally
     VectorType z(n);
@@ -182,6 +190,9 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
     }
     RealScalar threshold     = tol * tol * rhsNorm2;
     RealScalar residualNorm2 = squaredNorm(residual);
+#ifdef RM_CG_DEBUG_OUTPUT
+    cout << "Initial residual: " << residualNorm2 << endl;
+#endif
     if (residualNorm2 < threshold)
     {
         iters     = 0;
@@ -190,15 +201,18 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
     }
 
     p = precond.solve(residual);  // initial search direction
-
     // the square of the absolute value of r scaled by invM
     RealScalar absNew = dot(residual, p);
-    Index i           = 0;
+#ifdef RM_CG_DEBUG_OUTPUT
+    cout << "dot(r,p): " << absNew << endl;
+#endif
 
+    Index i = 0;
     while (i < maxIters)
     {
         //        cout << "CG Residual " << i << ": " << residualNorm2 << endl;
         z = applyA(p);
+
         // the amount we travel on dir
         Scalar alpha = absNew / dot(p, z);
         // update solution
@@ -207,7 +221,9 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
         residual -= scalarMult(z, alpha);
 
         residualNorm2 = squaredNorm(residual);
-        //        cout << i << " " << residualNorm2 << endl;
+#ifdef RM_CG_DEBUG_OUTPUT
+        cout << "Iteration: " << i << " Residual: " << residualNorm2 << " Alpha: " << alpha << endl;
+#endif
         if (residualNorm2 < threshold) break;
 
         z = precond.solve(residual);  // approximately solve for "A z = residual"

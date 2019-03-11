@@ -47,7 +47,7 @@ class SAIGA_VULKAN_API PointCloudRenderer : public Pipeline
     } uboVS;
 
     UniformBuffer uniformBufferVS;
-    vk::DescriptorSet descriptorSet;
+    StaticDescriptorSet descriptorSet;
 };
 
 

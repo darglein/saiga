@@ -4,12 +4,12 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/util/math.h"
+#include "saiga/core/util/table.h"
 #include "saiga/cuda/bitonicSort.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/pinned_vector.h"
-#include "saiga/core/util/math.h"
-#include "saiga/core/util/table.h"
 
 #include <iostream>
 #include <vector>
@@ -89,7 +89,7 @@ static void bitonicSortTest()
 {
     int N   = 64;
     using T = float;
-    Saiga::thrust::pinned_vector<T> h_data(N), res;
+    Saiga::pinned_vector<T> h_data(N), res;
     thrust::device_vector<T> d_data(N);
 
     for (auto& f : h_data)

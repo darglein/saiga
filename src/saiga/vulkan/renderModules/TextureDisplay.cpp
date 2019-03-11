@@ -23,9 +23,9 @@ void TextureDisplay::destroy()
     Pipeline::destroy();
 }
 
-void TextureDisplay::renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet texture, vec2 position, vec2 size)
+void TextureDisplay::renderTexture(vk::CommandBuffer cmd, DescriptorSet& descriptor, vec2 position, vec2 size)
 {
-    bindDescriptorSets(cmd, texture);
+    bindDescriptorSet(cmd, descriptor);
     vk::Viewport vp(position[0], position[1], size[0], size[1]);
     cmd.setViewport(0, vp);
     blitMesh.render(cmd);
@@ -37,34 +37,25 @@ void TextureDisplay::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice, 1);
     addDescriptorSetLayout({
-        {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment},
+        {0, {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}},
     });
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
     shaderPipeline.load(device, {"vulkan/blit.vert", "vulkan/blit.frag"});
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
     info.rasterizationState.cullMode      = vk::CullModeFlagBits::eNone;
-    info.blendAttachmentState.blendEnable = true;
+    info.blendAttachmentState.blendEnable = VK_TRUE;
     create(renderPass, info);
 
     blitMesh.createFullscreenQuad();
     blitMesh.init(vulkanDevice);
 }
 
-vk::DescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture& texture)
+StaticDescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture& texture)
 {
-    //    vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(
-    //                vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())
-    //                )[0];
-
-    //    auto set = base->descriptorPool.allocateDescriptorSet(descriptorSetLayout[0]);
     auto set = createDescriptorSet();
 
-
-
     vk::DescriptorImageInfo descriptorInfoTexture = texture.getDescriptorInfo();
-
-
 
     device.updateDescriptorSets(
         {
@@ -74,8 +65,6 @@ vk::DescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture& texture)
         nullptr);
     return set;
 }
-
-
 
 }  // namespace Vulkan
 }  // namespace Saiga

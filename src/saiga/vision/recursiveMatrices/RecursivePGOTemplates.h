@@ -7,7 +7,7 @@
 #pragma once
 
 
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices_sparse.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 
 namespace Saiga

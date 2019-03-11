@@ -10,12 +10,16 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API CeresBA : public BABase
+class SAIGA_VISION_API CeresBA : public BABase, public Optimizer
 {
    public:
     CeresBA() : BABase("Ceres BA") {}
     virtual ~CeresBA() {}
-    virtual void solve(Scene& scene, const BAOptions& options) override;
+    virtual OptimizationResults solve() override;
+    virtual void create(Scene& scene) override { _scene = &scene; }
+
+   private:
+    Scene* _scene;
 };
 
 }  // namespace Saiga

@@ -26,7 +26,6 @@ int main(const int argc, const char* argv[])
 
 
         Compute example(window, renderer);
-        renderer.initChildren();
 
         Saiga::MainLoopParameters params;
         params.framesPerSecond = 60;

@@ -40,13 +40,13 @@ SDLWindow::~SDLWindow()
     SDL_Quit();
 }
 
-std::shared_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui(size_t frameCount)
+std::unique_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui(size_t frameCount)
 {
     if (windowParameters.imguiParameters.enable)
     {
-        auto imGui = std::make_shared<Saiga::Vulkan::ImGuiSDLRenderer>(frameCount, windowParameters.imguiParameters);
+        auto imGui = std::make_unique<Saiga::Vulkan::ImGuiSDLRenderer>(frameCount, windowParameters.imguiParameters);
         imGui->init(sdl_window, (float)windowParameters.width, (float)windowParameters.height);
-        return imGui;
+        return std::move(imGui);
     }
     return {};
 }
@@ -92,15 +92,11 @@ void SDLWindow::create()
 
     Uint32 window_flags = SDL_WINDOW_VULKAN;
 
-    if (windowParameters.fullscreen())
-    {
-        window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-    }
+    if (windowParameters.fullscreen()) window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    if (windowParameters.borderLess()) window_flags |= SDL_WINDOW_BORDERLESS;
+    if (windowParameters.resizeAble) window_flags |= SDL_WINDOW_RESIZABLE;
+    if (windowParameters.hidden) window_flags |= SDL_WINDOW_HIDDEN;
 
-    if (windowParameters.borderLess())
-    {
-        window_flags |= SDL_WINDOW_BORDERLESS;
-    }
     sdl_window = SDL_CreateWindow(windowParameters.name.c_str(),
                                   SDL_WINDOWPOS_CENTERED_DISPLAY(windowParameters.selected_display),
                                   SDL_WINDOWPOS_CENTERED_DISPLAY(windowParameters.selected_display),

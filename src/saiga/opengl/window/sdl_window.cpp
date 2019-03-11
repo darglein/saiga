@@ -5,7 +5,7 @@
  */
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_OPENGL
+#ifdef SAIGA_USE_SDL
 
 #    include "saiga/opengl/imgui/imgui_impl_sdl_gl3.h"
 
@@ -84,7 +84,6 @@ bool SDLWindow::initWindow()
     if (windowParameters.resizeAble) flags |= SDL_WINDOW_RESIZABLE;
     if (windowParameters.borderLess()) flags |= SDL_WINDOW_BORDERLESS;
     if (windowParameters.fullscreen()) flags |= SDL_WINDOW_FULLSCREEN;
-    if (windowParameters.resizeAble) flags |= SDL_WINDOW_RESIZABLE;
     if (windowParameters.hidden) flags |= SDL_WINDOW_HIDDEN;
 
     // Create window

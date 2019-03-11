@@ -89,11 +89,12 @@ void VulkanBase::renderGUI()
     ImGui::Text("Available Queues");
     ImGui::Indent();
 
-    auto queueFamilyProps = physicalDevice.getQueueFamilyProperties();
+    // auto queueFamilyProps = physicalDevice.getQueueFamilyProperties();
 
-    ImGui::Columns(3, "QUEUEINFO");
+    ImGui::Columns(4, "QUEUEINFO");
     ImGui::SetColumnWidth(0, ImGui::GetFontSize() * 3);
     ImGui::SetColumnWidth(1, ImGui::GetFontSize() * 6);
+    ImGui::SetColumnWidth(3, ImGui::GetFontSize() * 6);
 
     ImGui::Text("ID");
     ImGui::NextColumn();
@@ -101,9 +102,11 @@ void VulkanBase::renderGUI()
     ImGui::NextColumn();
     ImGui::Text("Type");
     ImGui::NextColumn();
+    ImGui::Text("Timestamp bits");
+    ImGui::NextColumn();
 
     size_t index = 0;
-    for (auto& prop : queueFamilyProps)
+    for (auto& prop : queueFamilyProperties)
     {
         ImGui::Separator();
         ImGui::Text("%lu", index);
@@ -111,6 +114,8 @@ void VulkanBase::renderGUI()
         ImGui::Text("%u", prop.queueCount);
         ImGui::NextColumn();
         ImGui::TextWrapped("%s", vk::to_string(prop.queueFlags).c_str());
+        ImGui::NextColumn();
+        ImGui::Text("%u", prop.timestampValidBits);
         ImGui::NextColumn();
         ++index;
     }

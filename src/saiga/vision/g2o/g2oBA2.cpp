@@ -8,53 +8,53 @@
 
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/vision/g2o/g2oHelper.h"
 
-#include "g2o/core/solver.h"
-
-#include "g2o/core/block_solver.h"
-#include "g2o/core/optimization_algorithm_gauss_newton.h"
-#include "g2o/core/optimization_algorithm_levenberg.h"
-#include "g2o/core/robust_kernel_impl.h"
-#include "g2o/core/sparse_optimizer.h"
-//#include "g2o/solvers/cholmod/linear_solver_cholmod.h"
-#include "g2o/solvers/eigen/linear_solver_eigen.h"
-#include "g2o/solvers/pcg/linear_solver_pcg.h"
 #include "g2o_kernels/sophus_sba.h"
 
 namespace Saiga
 {
-void g2oBA2::solve(Scene& scene, const BAOptions& options)
+OptimizationResults g2oBA2::solve()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-    using BlockSolver           = g2o::BlockSolver_6_3;
-    using OptimizationAlgorithm = g2o::OptimizationAlgorithmLevenberg;
-    using LinearSolver          = std::unique_ptr<BlockSolver::LinearSolverType>;
+    Scene& scene = *_scene;
 
-    LinearSolver linearSolver;
-    switch (options.solverType)
-    {
-        case BAOptions::SolverType::Direct:
-        {
-            auto ls      = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
-            linearSolver = std::move(ls);
-            break;
-        }
-        case BAOptions::SolverType::Iterative:
-        {
-            auto ls = g2o::make_unique<g2o::LinearSolverPCG<BlockSolver::PoseMatrixType>>();
-            ls->setMaxIterations(options.maxIterativeIterations);
-            ls->setTolerance(options.iterativeTolerance);
-            linearSolver = std::move(ls);
-            break;
-        }
-    }
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+    using BlockSolver = g2o::BlockSolver_6_3;
+    //    using OptimizationAlgorithm = g2o::OptimizationAlgorithmLevenberg;
+    //    using LinearSolver          = std::unique_ptr<BlockSolver::LinearSolverType>;
 
-    OptimizationAlgorithm* solver = new OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
-    solver->setUserLambdaInit(1.0);
+    //    auto linearSolver = g2o_make_linearSolver<BlockSolver>(optimizationOptions);
+    //    switch (optimizationOptions.solverType)
+    //    {
+    //        case OptimizationOptions::SolverType::Direct:
+    //        {
+    //#ifdef USE_CHOLMOD_SOLVER
+    //            auto ls = std::make_unique<g2o::LinearSolverCholmod<BlockSolver::PoseMatrixType>>();
+    //#else
+    //            auto ls = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
+    //#endif
+    //            linearSolver = std::move(ls);
+    //            break;
+    //        }
+    //        case OptimizationOptions::SolverType::Iterative:
+    //        {
+    //            auto ls = g2o::make_unique<g2o::LinearSolverPCG<BlockSolver::PoseMatrixType>>();
+    //            ls->setMaxIterations(optimizationOptions.maxIterativeIterations);
+    //            ls->setTolerance(optimizationOptions.iterativeTolerance * optimizationOptions.iterativeTolerance);
+    //            linearSolver = std::move(ls);
+    //            break;
+    //        }
+    //    }
 
+    auto solver = g2o_make_optimizationAlgorithm<BlockSolver>(optimizationOptions);
+    //    OptimizationAlgorithm* solver = new
+    //    OptimizationAlgorithm(std::make_unique<BlockSolver>(std::move(linearSolver)));
+    solver->setUserLambdaInit(optimizationOptions.initialLambda * optimizationOptions.initialLambda);
+    //    solver->setMaxTrialsAfterFailure(2);
     g2o::SparseOptimizer optimizer;
-    optimizer.setVerbose(options.debugOutput);
-    optimizer.setComputeBatchStatistics(options.debugOutput);
+    //    optimizer.setVerbose(optimizationOptions.debugOutput);
+    //    //    optimizer.setComputeBatchStatistics(options.debugOutput);
+    optimizer.setComputeBatchStatistics(true);
     optimizer.setAlgorithm(solver);
 
 
@@ -140,10 +140,10 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
                 e->intr          = camera;
                 e->weights       = Vec2(w, w);
 
-                if (options.huberStereo > 0)
+                if (baOptions.huberStereo > 0)
                 {
                     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
-                    rk->setDelta(options.huberStereo);
+                    rk->setDelta(baOptions.huberStereo);
                     e->setRobustKernel(rk);
                 }
 
@@ -161,10 +161,10 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
                 e->intr          = camera;
                 e->weight        = w;
 
-                if (options.huberMono > 0)
+                if (baOptions.huberMono > 0)
                 {
                     g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
-                    rk->setDelta(options.huberMono);
+                    rk->setDelta(baOptions.huberMono);
                     e->setRobustKernel(rk);
                 }
                 optimizer.addEdge(e);
@@ -174,23 +174,31 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
         currentImage++;
     }
 
-    if (options.debugOutput) cout << "g2o problem created. Mono/Stereo " << monoEdges << "/" << stereoEdges << endl;
+    if (optimizationOptions.debugOutput)
+        cout << "g2o problem created. Mono/Stereo " << monoEdges << "/" << stereoEdges << endl;
+
+
+    OptimizationResults result;
 
     {
-        SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+        Saiga::ScopedTimer<double> timer(result.total_time);
+        SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
         optimizer.initializeOptimization();
 
-        if (options.debugOutput)
+        optimizer.computeActiveErrors();
+        result.cost_initial = optimizer.chi2();
+
+        if (optimizationOptions.debugOutput)
         {
             optimizer.computeActiveErrors();
             double chi2b = optimizer.chi2();
-            optimizer.optimize(options.maxIterations);
+            optimizer.optimize(optimizationOptions.maxIterations);
             double chi2a = optimizer.chi2();
             cout << "g2o::optimize " << chi2b << " -> " << chi2a << endl;
         }
         else
         {
-            optimizer.optimize(options.maxIterations);
+            optimizer.optimize(optimizationOptions.maxIterations);
         }
     }
 
@@ -208,6 +216,7 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
              << " timeUpdate " << s.timeUpdate << endl
              << " timeIteration " << s.timeIteration << endl
              << " timeMarginals " << s.timeMarginals << endl;
+        cout << endl;
     }
 
     //    costFinal = optimizer.activeRobustChi2();
@@ -234,5 +243,26 @@ void g2oBA2::solve(Scene& scene, const BAOptions& options)
         g2o::VertexPoint* v_se3 = static_cast<g2o::VertexPoint*>(optimizer.vertex(vertex));
         wp.p                    = v_se3->estimate();
     }
+
+    {
+        int its      = 0;
+        double ltime = 0;
+        auto stats   = optimizer.batchStatistics();
+        bool invalid = false;
+        for (auto s : stats)
+        {
+            ltime += s.timeLinearSolution * 1000;
+            its += s.iterationsLinearSolver;
+            if (s.levenbergIterations != 1) invalid = true;
+        }
+        result.linear_solver_time = ltime;
+        //    result.cost_initial       = stats.front().chi2;
+
+        result.cost_final = stats.back().chi2;
+
+        if (invalid) result.cost_final = -1;
+    }
+
+    return result;
 }  // namespace Saiga
 }  // namespace Saiga

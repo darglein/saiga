@@ -57,7 +57,9 @@ class SAIGA_VULKAN_API CommandPool
     std::vector<vk::CommandBuffer> allocateCommandBuffers(
         uint32_t count, vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
 
+
     void freeCommandBuffer(vk::CommandBuffer cmd);
+    void freeCommandBuffers(std::vector<vk::CommandBuffer>& cmds);
 
 
     explicit operator vk::CommandPool() { return commandPool; }

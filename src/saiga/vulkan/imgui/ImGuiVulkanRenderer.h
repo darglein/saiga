@@ -111,7 +111,7 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
 
     Texture2D fontTexture;
 
-    vk::DescriptorSet descriptorSet;
+    StaticDescriptorSet descriptorSet;
     Saiga::Vulkan::VulkanBase* vulkanDevice;
 
     double g_Time = 0.0f;

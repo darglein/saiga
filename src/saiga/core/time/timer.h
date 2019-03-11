@@ -118,6 +118,7 @@ class ScopedTimer : public Timer
 };
 
 
+
 }  // namespace Saiga
 
 
@@ -134,14 +135,14 @@ class ScopedTimer : public Timer
 
 // The macro overloading with 0 arguments doesn't work with MSVC.
 // -> Just use the normal timer without message.
-#define SAIGA_BLOCK_TIMER(...) SAIGA_BLOCK_TIMER_NOMSG()
+#    define SAIGA_BLOCK_TIMER(...) SAIGA_BLOCK_TIMER_NOMSG()
 
 #else
 
 
-#define GET_SAIGA_BLOCK_TIMER_MACRO(_0, _1, NAME, ...) NAME
-#define SAIGA_BLOCK_TIMER(...) \
-    GET_SAIGA_BLOCK_TIMER_MACRO(_0,##__VA_ARGS__, SAIGA_BLOCK_TIMER_MSG, SAIGA_BLOCK_TIMER_NOMSG)(__VA_ARGS__)
+#    define GET_SAIGA_BLOCK_TIMER_MACRO(_0, _1, NAME, ...) NAME
+#    define SAIGA_BLOCK_TIMER(...) \
+        GET_SAIGA_BLOCK_TIMER_MACRO(_0, ##__VA_ARGS__, SAIGA_BLOCK_TIMER_MSG, SAIGA_BLOCK_TIMER_NOMSG)(__VA_ARGS__)
 
 #endif
 

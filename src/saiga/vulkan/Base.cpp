@@ -27,6 +27,8 @@ void VulkanBase::setPhysicalDevice(vk::PhysicalDevice physicalDevice)
 
 void VulkanBase::destroy()
 {
+    if (!device) return;
+
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
 
@@ -47,12 +49,14 @@ void VulkanBase::destroy()
     if (device)
     {
         device.destroy();
+        device = nullptr;
     }
 }
 
 
 void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& parameters, bool useSwapChain)
 {
+    m_parameters = parameters;
     std::vector<uint32_t> queueCounts(queueFamilyProperties.size(), 0);
 
     uint32_t main_idx, transfer_idx, compute_idx;
@@ -220,8 +224,7 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
             vk::DescriptorPoolSize{vk::DescriptorType::eSampledImage, parameters.descriptorCounts[3]},
         });
 
-
-    memory.init(this);
+    current_frame = 0;
 }
 
 void VulkanBase::init(VulkanParameters params) {}

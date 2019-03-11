@@ -38,6 +38,7 @@ class SAIGA_VULKAN_API VulkanSwapChain
     /** @brief Queue family index of the detected graphics and presenting device queue */
     uint32_t queueNodeIndex = UINT32_MAX;
 
+    ~VulkanSwapChain() { cleanup(); }
     void initSurface(VkSurfaceKHR _surface);
 
     /**
@@ -58,7 +59,7 @@ class SAIGA_VULKAN_API VulkanSwapChain
      * @param vsync (Optional) Can be used to force vsync'd rendering (by using VK_PRESENT_MODE_FIFO_KHR as presentation
      * mode)
      */
-    void create(uint32_t* width, uint32_t* height, bool vsync = false);
+    void create(int* width, int* height, bool vsync = false);
 
     /**
      * Acquires the next image in the swap chain

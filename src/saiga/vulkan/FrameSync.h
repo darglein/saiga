@@ -16,19 +16,22 @@ namespace Vulkan
 /**
  * Helper objects to syncronize rendering with multiple buffers in the swap chain.
  *
- *
  */
 class SAIGA_VULKAN_API FrameSync
 {
    public:
-    vk::Semaphore imageVailable;
-    vk::Semaphore renderComplete;
-    vk::Fence frameFence;
+    vk::Semaphore imageAvailable = nullptr;
+    vk::Semaphore renderComplete = nullptr;
+    vk::Fence frameFence         = nullptr;
 
+    ~FrameSync() { destroy(); }
     void create(vk::Device device);
-    void destroy(vk::Device device);
+    void destroy();
 
-    void wait(vk::Device device);
+    void wait();
+
+   private:
+    vk::Device device;
 };
 
 }  // namespace Vulkan

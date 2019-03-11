@@ -14,12 +14,18 @@ namespace Vulkan
 {
 void Instance::destroy()
 {
-    debug.destroy();
-    vkDestroyInstance(instance, nullptr);
+    if (instance)
+    {
+        debug.destroy();
+        instance.destroy();
+        instance = nullptr;
+    }
 }
 
 void Instance::create(std::vector<const char*> instanceExtensions, bool enableValidation)
 {
+    SAIGA_ASSERT(!instance);
+
     VkApplicationInfo appInfo = {};
     appInfo.sType             = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName  = "Saiga Application";

@@ -12,27 +12,37 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API PGORec : public PGOBase
+class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
 {
    public:
     PGORec() : PGOBase("recursive PGO") {}
     virtual ~PGORec() {}
-    virtual void solve(PoseGraph& scene, const PGOOptions& options) override;
+    //    virtual OptimizationResults solve() override;
+    virtual void create(PoseGraph& scene) override { _scene = &scene; }
+
 
    private:
     int n;
     PSType S;
-    PSDiagType Sdiag;
     PBType b;
-    PBType x;
+    PBType delta_x;
+    MixedSymmetricRecursiveSolver<PSType, PBType> solver;
 
-    double chi2;
+    AlignedVector<SE3> x_u, oldx_u;
 
-    std::vector<std::pair<int, int>> edgeOffsets;
-    PGOOptions options;
-    void initStructure(PoseGraph& scene);
-    void compute(PoseGraph& scene);
-    void solveL(PoseGraph& scene);
+
+    std::vector<int> edgeOffsets;
+    PoseGraph* _scene;
+
+
+    virtual void init() override;
+    virtual double computeQuadraticForm() override;
+    virtual void addLambda(double lambda) override;
+    virtual void revertDelta() override;
+    virtual void addDelta() override;
+    virtual void solveLinearSystem() override;
+    virtual double computeCost() override;
+    virtual void finalize() override;
 };
 
 }  // namespace Saiga

@@ -10,7 +10,9 @@ add_subdirectory(pgo)
 add_subdirectory(recursiveMatrices)
 add_subdirectory(scene)
 
-
+if(MKL_FOUND)
+    add_subdirectory(mkl)
+endif()
 
 if(OPENNI2_FOUND)
     add_subdirectory(openni2)

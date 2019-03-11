@@ -32,7 +32,7 @@ static void reduceTest()
 {
     int N   = 823674;
     using T = int;
-    Saiga::thrust::pinned_vector<T> h_data(N);
+    Saiga::pinned_vector<T> h_data(N);
 
     for (auto& f : h_data)
     {
@@ -168,7 +168,7 @@ static void reduceTest()
 {
     int N   = 823674;
     using T = int;
-    Saiga::thrust::pinned_vector<T> h_data(N);
+    Saiga::pinned_vector<T> h_data(N);
 
     for (auto& f : h_data)
     {

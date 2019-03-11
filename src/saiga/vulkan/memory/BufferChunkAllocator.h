@@ -10,11 +10,11 @@
 #include "saiga/export.h"
 
 #include "BaseChunkAllocator.h"
-#include "BaseMemoryAllocator.h"
+#include "BufferMemoryLocation.h"
 #include "ChunkAllocation.h"
 #include "ChunkCreator.h"
 #include "FitStrategy.h"
-#include "MemoryLocation.h"
+#include "MemoryStats.h"
 #include "MemoryType.h"
 
 #include <limits>
@@ -78,7 +78,7 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Bu
         return *this;
     }
 
-    void deallocate(BufferMemoryLocation* location);
+    void deallocate(BufferMemoryLocation* location) override;
 
     BufferMemoryLocation* allocate(vk::DeviceSize size);
 };

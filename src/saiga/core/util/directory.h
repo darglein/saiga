@@ -49,6 +49,8 @@ class SAIGA_CORE_API Directory
 
 
     bool existsFile(const std::string& file);
+
+    std::string operator()() { return dirname; }
 };
 
 }  // namespace Saiga

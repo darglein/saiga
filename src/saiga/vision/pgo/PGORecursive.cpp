@@ -6,8 +6,7 @@
 #include "saiga/vision/HistogramImage.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
-#include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/LM.h"
+#include "saiga/vision/recursiveMatrices/SparseSelfAdjoint.h"
 
 #include <fstream>
 #include <numeric>
@@ -16,17 +15,28 @@
 
 namespace Saiga
 {
-void PGORec::initStructure(PoseGraph& scene)
+void PGORec::init()
 {
+    auto& scene = *_scene;
+
     n = scene.poses.size();
     b.resize(n);
-    Sdiag.resize(n);
-    x.resize(n);
+    delta_x.resize(n);
+
+    x_u.resize(n);
+    oldx_u.resize(n);
+
+    // Make a copy of the initial parameters
+    int i = 0;
+    for (auto& e : scene.poses)
+    {
+        x_u[i++] = e.se3;
+    }
 
     // Compute structure of S
     S.resize(n, n);
     S.setZero();
-    int N = scene.edges.size() * 2;
+    int N = scene.edges.size() + n;
     S.reserve(N);
 
     // Compute outer structure pointer
@@ -34,36 +44,49 @@ void PGORec::initStructure(PoseGraph& scene)
     {
         int i = e.from;
         int j = e.to;
+        SAIGA_ASSERT(i != j);
+        SAIGA_ASSERT(i < j);
+
         S.outerIndexPtr()[i]++;
-        S.outerIndexPtr()[j]++;
+    }
+
+    // make room for the diagonal element
+    for (int i = 0; i < n; ++i)
+    {
+        S.outerIndexPtr()[i]++;
     }
 
     exclusive_scan(S.outerIndexPtr(), S.outerIndexPtr() + S.outerSize(), S.outerIndexPtr(), 0);
     S.outerIndexPtr()[S.outerSize()] = N;
 
 
+    // insert diagonal index
+    for (int i = 0; i < n; ++i)
+    {
+        int offseti                = S.outerIndexPtr()[i];
+        S.innerIndexPtr()[offseti] = i;
+    }
+
     // Precompute the offset in the sparse matrix for every edge
     edgeOffsets.reserve(scene.edges.size());
-    std::vector<int> localOffsets(n, 0);
+    std::vector<int> localOffsets(n, 1);
     for (auto& e : scene.edges)
     {
-        int i  = e.from;
-        int j  = e.to;
+        int i = e.from;
+        int j = e.to;
+
         int li = localOffsets[i]++;
-        int lj = localOffsets[j]++;
 
         int offseti = S.outerIndexPtr()[i] + li;
-        int offsetj = S.outerIndexPtr()[j] + lj;
 
         S.innerIndexPtr()[offseti] = j;
-        S.innerIndexPtr()[offsetj] = i;
 
 
-        edgeOffsets.emplace_back(offseti, offsetj);
+        edgeOffsets.emplace_back(offseti);
     }
 
     // Create a sparsity histogram
-    if (options.debugOutput)
+    if (optimizationOptions.debugOutput)
     {
         HistogramImage img(n, n, 1024, 1024);
         for (auto& e : scene.edges)
@@ -79,16 +102,23 @@ void PGORec::initStructure(PoseGraph& scene)
     }
 }
 
-void PGORec::compute(PoseGraph& scene)
+double PGORec::computeQuadraticForm()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
+    auto& scene = *_scene;
+
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<T>;
 
     b.setZero();
-    Sdiag.setZero();
 
-    chi2 = 0;
+    // set diagonal elements of S to zero
+    for (int i = 0; i < n; ++i)
+    {
+        S.valuePtr()[S.outerIndexPtr()[i]].get().setZero();
+    }
+
+    double chi2 = 0;
     for (size_t k = 0; k < scene.edges.size(); ++k)
     {
         auto& e       = scene.edges[k];
@@ -98,8 +128,6 @@ void PGORec::compute(PoseGraph& scene)
 
         PGOBlock target_ij;
         PGOBlock target_ji;
-        auto& target_ii = Sdiag.diagonal()(i).get();
-        auto& target_jj = Sdiag.diagonal()(j).get();
 
         auto& target_ir = b(i).get();
         auto& target_jr = b(j).get();
@@ -107,101 +135,157 @@ void PGORec::compute(PoseGraph& scene)
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(scene.poses[i].se3, scene.poses[j].se3, e.meassurement.inverse(),
-                                                    res, Jrowi, Jrowj);
+            KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement.inverse(), res, Jrowi, Jrowj,
+                                                    e.weight);
 
             if (scene.poses[i].constant) Jrowi.setZero();
             if (scene.poses[j].constant) Jrowj.setZero();
 
             target_ij = Jrowi.transpose() * Jrowj;
             target_ji = target_ij.transpose();
-            target_ii += Jrowi.transpose() * Jrowi;
-            target_jj += Jrowj.transpose() * Jrowj;
-            target_ir += Jrowi.transpose() * res;
-            target_jr += Jrowj.transpose() * res;
+            target_ir -= Jrowi.transpose() * res;
+            target_jr -= Jrowj.transpose() * res;
 
-            S.valuePtr()[offsets.first]  = target_ij;
-            S.valuePtr()[offsets.second] = target_ji;
+            S.valuePtr()[offsets] = target_ij;
+
+            S.valuePtr()[S.outerIndexPtr()[i]].get() += Jrowi.transpose() * Jrowi;
+            S.valuePtr()[S.outerIndexPtr()[j]].get() += Jrowj.transpose() * Jrowj;
+
 
             auto c = res.squaredNorm();
             chi2 += c;
         }
     }
 
-    applyLMDiagonal(Sdiag);
-    //    applyLMDiagonalG2O(Sdiag, 1);
 
-    if (options.debugOutput) cout << "chi2 " << chi2 << endl;
+    if (optimizationOptions.debugOutput) cout << "chi2 " << chi2 << endl;
+    return chi2;
 }
 
 
-void PGORec::solveL(PoseGraph& scene)
+double PGORec::computeCost()
 {
-    SAIGA_OPTIONAL_BLOCK_TIMER(options.debugOutput);
-    if (options.solverType == PGOOptions::SolverType::Direct)
+    auto& scene = *_scene;
 
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+    using T          = BlockPGOScalar;
+    using KernelType = Saiga::Kernel::PGO<T>;
+
+
+
+    double chi2 = 0;
+    for (size_t k = 0; k < scene.edges.size(); ++k)
     {
-        x.setZero();
+        auto& e = scene.edges[k];
+        int i   = e.from;
+        int j   = e.to;
 
-        Eigen::MatrixXd S3 = expand(S) + expand(Sdiag);
-        Eigen::VectorXd x2 = S3.ldlt().solve(expand(b));
 
-        // copy back into da
-        for (int i = 0; i < n; ++i)
         {
-            x(i) = x2.segment<pgoBlockSizeCamera>(i * pgoBlockSizeCamera);
+            KernelType::PoseJacobiType Jrowi, Jrowj;
+            KernelType::ResidualType res;
+            KernelType::evaluateResidual(x_u[i], x_u[j], e.meassurement.inverse(), res, e.weight);
+
+            auto c = res.squaredNorm();
+            chi2 += c;
         }
-
-        //        cout << expand(x).transpose() << endl;
-        //        cout << "Direct Residual: " << (expand(S) * expand(x) - expand(b)).norm() << endl;
     }
-    else
-    {
-        x.setZero();
-        RecursiveDiagonalPreconditioner<MatrixScalar<PGOBlock>> P;
-        Eigen::Index iters = options.maxIterativeIterations;
-        BlockPGOScalar tol = options.iterativeTolerance;
-
-
-        P.compute(Sdiag);
-        PBType tmp(n);
-        recursive_conjugate_gradient(
-            [&](const PBType& v) {
-                //                tmp = S * v;
-                tmp = Sdiag.diagonal().array() * v.array();
-                tmp = S * v + tmp;
-                return tmp;
-            },
-            b, x, P, iters, tol);
-
-        if (options.debugOutput) cout << S.nonZeros() << " error " << tol << " iterations " << iters << endl;
-        //        cout << expand(x).transpose() << endl;
-        //        cout << "Iterative Residual: " << (expand(S) * expand(x) - expand(b)).norm() << endl;
-    }
-
-    //    cout << expand(x).transpose() << endl;
-
-    for (size_t i = 0; i < scene.poses.size(); ++i)
-    {
-        Sophus::SE3<BlockPGOScalar>::Tangent t;
-        t         = x(i).get();
-        auto& se3 = scene.poses[i].se3;
-        se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
-    }
+    return chi2;
 }
 
-
-void PGORec::solve(PoseGraph& scene, const PGOOptions& options)
+void PGORec::addLambda(double lambda)
 {
-    this->options = options;
-    initStructure(scene);
-    for (int i = 0; i < options.maxIterations; ++i)
+    // apply lm
+    for (int i = 0; i < n; ++i)
     {
-        compute(scene);
-        solveL(scene);
+        auto& d = S.valuePtr()[S.outerIndexPtr()[i]].get();
+        applyLMDiagonalInner(d, lambda);
+    }
+}
+
+void PGORec::addDelta()
+{
+    oldx_u = x_u;
+
+    for (int i = 0; i < n; ++i)
+    {
+        auto t = delta_x(i).get();
+        x_u[i] = SE3::exp(t) * x_u[i];
+    }
+}
+
+void PGORec::solveLinearSystem()
+{
+    LinearSolverOptions loptions;
+
+    loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
+    loptions.iterativeTolerance     = optimizationOptions.iterativeTolerance;
+
+    loptions.solverType = (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
+                              ? LinearSolverOptions::SolverType::Direct
+                              : LinearSolverOptions::SolverType::Iterative;
+
+
+    solver.solve(S, delta_x, b, loptions);
+}
+
+void PGORec::revertDelta()
+{
+    x_u = oldx_u;
+}
+void PGORec::finalize()
+{
+    auto& scene = *_scene;
+
+    int i = 0;
+    for (auto& e : scene.poses)
+    {
+        if (!e.constant) e.se3 = x_u[i++];
     }
 }
 
 
+#if 0
+OptimizationResults PGORec::solve()
+{
+    auto& scene = *_scene;
+
+
+    init();
+
+    LinearSolverOptions solverOptions;
+    solverOptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
+    solverOptions.solverType             = LinearSolverOptions ::SolverType::Direct;
+
+    MixedSymmetricRecursiveSolver<PSType, PBType> solver;
+
+
+    for (int i = 0; i < optimizationOptions.maxIterations; ++i)
+    {
+        chi2 = computeQuadraticForm();
+        addLambda(1e-4);
+
+        solver.solve(S, delta_x, b, solverOptions);
+
+        addDelta();
+
+        // update scene
+        //        for (size_t i = 0; i < scene.poses.size(); ++i)
+        //        {
+        //            Sophus::SE3<BlockPGOScalar>::Tangent t;
+        //            t         = delta_x(i).get();
+        //            auto& se3 = scene.poses[i].se3;
+        //            se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
+        //        }
+    }
+
+    finalize();
+
+    OptimizationResults result;
+    result.cost_final = chi2;
+    return result;
+}
+
+#endif
 
 }  // namespace Saiga

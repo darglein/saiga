@@ -18,8 +18,8 @@ void ImageCopyComputeShader::init(VulkanBase* _base)
 
     pipeline->init(*_base, 1);
     pipeline->addDescriptorSetLayout(
-        {{0, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute},
-         {1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eCompute}});
+        {{0, {0, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute}},
+         {1, {1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eCompute}}});
 
     pipeline->addPushConstantRange(vk::PushConstantRange{vk::ShaderStageFlagBits::eCompute, 0, sizeof(glm::ivec2)});
 
@@ -52,17 +52,12 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
 {
     auto cmd = base->computeQueue->commandPool.createAndBeginOneTimeBuffer();
 
-    // auto oldLayout = target->data.layout;
-
     target->data.transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
-
-
 
     cmd.end();
     base->computeQueue->submitAndWait(cmd);
 
-    LOG(INFO) << target->data;
-    LOG(INFO) << vk::to_string(target->data.image_create_info.format);
+    base->computeQueue->commandPool.freeCommandBuffer(cmd);
 
     auto descriptorSet = pipeline->createDescriptorSet();
 
@@ -85,7 +80,7 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
     }
 
 
-    pipeline->bindDescriptorSets(cmd, descriptorSet);
+    pipeline->bindDescriptorSet(cmd, descriptorSet);
 
     const auto extent = source->data.image_create_info.extent;
     int countX        = extent.width / 8 + 1;
@@ -100,6 +95,7 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
     cmd.end();
     base->computeQueue->submitAndWait(cmd);
 
+    base->computeQueue->commandPool.freeCommandBuffer(cmd);
     return true;
 }
 }  // namespace Saiga::Vulkan::Memory

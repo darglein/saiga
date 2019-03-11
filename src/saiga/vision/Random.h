@@ -29,6 +29,14 @@ MatrixType gaussRandMatrix(double mean = 0, double stddev = 1)
     return M;
 }
 
+template <typename MatrixType>
+void setRandom(MatrixType& M)
+{
+    for (int i = 0; i < M.rows(); ++i)
+        for (int j = 0; j < M.cols(); ++j) M(i, j) = sampleDouble(-1, 1);
+}
+
+
 
 }  // namespace Random
 }  // namespace Saiga

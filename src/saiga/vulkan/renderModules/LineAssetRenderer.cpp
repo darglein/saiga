@@ -49,7 +49,7 @@ void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, m
 void LineAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass, float lineWidth)
 {
     PipelineBase::init(vulkanDevice, 1);
-    addDescriptorSetLayout({{7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}});
+    addDescriptorSetLayout({{0, {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}}});
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(PC)});
     shaderPipeline.load(device, {"vulkan/line.vert", "vulkan/line.frag"});
     PipelineInfo info;

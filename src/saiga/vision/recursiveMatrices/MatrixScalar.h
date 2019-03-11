@@ -8,6 +8,9 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/VisionIncludes.h"
+
+#include "Eigen/Sparse"
+
 namespace Saiga
 {
 template <typename MatrixType>
@@ -28,13 +31,17 @@ struct MatrixScalar
     // defined. We also can't remove this constructor because some eigen functions use Scalar(0). Therefore we need
     // a constructor from a single (actual) scalar value.
     EIGEN_ALWAYS_INLINE MatrixScalar(Scalar v) { data.setZero(); }
+    //    EIGEN_ALWAYS_INLINE MatrixScalar(int v) { data.setZero(); }
 
     EIGEN_ALWAYS_INLINE MatrixScalar(const MatrixType& v) : data(v) {}
+
+
     EIGEN_ALWAYS_INLINE MatrixScalar& operator=(const MatrixType& v)
     {
         data = v;
         return *this;
     }
+
 
     EIGEN_ALWAYS_INLINE MatrixScalar<TransposeBase> transpose() const { return {data.transpose()}; }
 

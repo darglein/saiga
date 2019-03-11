@@ -35,6 +35,7 @@ void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLa
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
 {
     SAIGA_ASSERT(memoryLocation->data && memoryLocation->data.sampler);
+    Memory::SafeAccessor acc(*memoryLocation);
     return memoryLocation->data.get_descriptor_info();
 }
 

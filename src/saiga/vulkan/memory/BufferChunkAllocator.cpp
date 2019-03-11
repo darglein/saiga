@@ -18,11 +18,11 @@ namespace Saiga::Vulkan::Memory
 {
 BufferMemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
 {
+    std::scoped_lock lock(allocationMutex);
     auto alignedSize = iAlignUp(size, m_alignment);
-    // LOG(INFO) << "Requested " << size << " (~" << alignedSize << ") bytes";
     SAIGA_ASSERT(alignedSize <= m_chunkSize, "Can't allocate sizes bigger than chunk size");
     auto location = BaseChunkAllocator::base_allocate(alignedSize);
-    LOG(INFO) << "Allocate buffer " << type << ":" << *location;
+    VLOG(1) << "Allocate buffer " << type << ":" << *location;
     return location;
 }
 
@@ -31,7 +31,7 @@ ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
     auto newChunk        = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
     auto newBuffer       = m_device.createBuffer(m_bufferCreateInfo);
     auto memRequirements = m_device.getBufferMemoryRequirements(newBuffer);
-    LOG(INFO) << "New chunk: " << chunks.size() << " Mem " << newChunk->memory << ", Buffer " << newBuffer;
+    VLOG(1) << "New chunk: " << chunks.size() << " Mem " << newChunk->memory << ", Buffer " << newBuffer;
     if (m_allocateSize != memRequirements.size)
     {
         LOG(ERROR) << "New buffer has differing memory requirements size";
@@ -41,7 +41,7 @@ ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
     if (type.is_mappable())
     {
         mappedPointer = m_device.mapMemory(newChunk->memory, 0, m_chunkSize);
-        LOG(INFO) << "Mapped pointer = " << mappedPointer;
+        VLOG(1) << "Mapped pointer = " << mappedPointer;
     }
     chunks.emplace_back(newChunk, newBuffer, m_chunkSize, mappedPointer);
 
@@ -50,8 +50,8 @@ ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
 
 void BufferChunkAllocator::deallocate(BufferMemoryLocation* location)
 {
-    LOG(INFO) << "Trying to deallocate buffer " << type << ":" << *location;
-    BaseChunkAllocator::base_deallocate(location);
+    VLOG(1) << "Trying to deallocate buffer " << type << ":" << *location;
+    BaseChunkAllocator::deallocate(location);
 }
 
 void BufferChunkAllocator::headerInfo()

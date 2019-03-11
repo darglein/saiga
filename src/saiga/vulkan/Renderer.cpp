@@ -18,39 +18,108 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 {
     window.setRenderer(this);
 
-    width  = window.getWidth();
-    height = window.getHeight();
 
     std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
     instance.create(instanceExtensions, vulkanParameters.enableValidationLayer);
 
-    VkSurfaceKHR surface;
+
     window.createSurface(instance, &surface);
 
-    base.setPhysicalDevice(instance.pickPhysicalDevice());
-
+    base().setPhysicalDevice(instance.pickPhysicalDevice());
 
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
-
-    vulkanParameters.physicalDeviceFeatures.wideLines = VK_TRUE;
-    base.createLogicalDevice(surface, vulkanParameters, true);
-
+    vulkanParameters.physicalDeviceFeatures.wideLines        = VK_TRUE;
+    base().createLogicalDevice(surface, vulkanParameters, true);
 
 
-    swapChain.connect(instance, base.physicalDevice, base.device);
+    swapChain.connect(instance, base().physicalDevice, base().device);
     swapChain.initSurface(surface);
-    swapChain.create(&width, &height, false);
+
+    state = State::INITIALIZED;
+    base().finalize_init(swapChain.imageCount);
+    timings = FrameTimings(base().device);
+
+    timings.registerFrameSection("TRANSFER", 0);
+    timings.registerFrameSection("MAIN", 1);
+    timings.registerFrameSection("IMGUI", 2);
 }
 
 VulkanRenderer::~VulkanRenderer()
 {
-    // Clean up Vulkan resources
-    swapChain.cleanup();
+    // Only wait until the queue is done.
+    // All vulkan objects are destroyed in their destructor
+    waitIdle();
+}
 
-    //    delete base;
-    base.destroy();
+void VulkanRenderer::init()
+{
+    SAIGA_ASSERT(state == State::INITIALIZED);
+    //    createSwapChain();
+    swapChain.create(&surfaceWidth, &SurfaceHeight, false);
 
-    instance.destroy();
+    syncObjects.clear();
+    syncObjects.resize(swapChain.imageCount);
+    for (auto& sync : syncObjects)
+    {
+        sync.create(base().device);
+    }
+
+    currentBuffer  = 0;
+    nextSyncObject = 0;
+
+    if (vulkanParameters.enableImgui)
+    {
+        imGui.reset();
+        imGui = window.createImGui(swapChainSize());
+    }
+
+    createBuffers(swapChainSize(), surfaceWidth, SurfaceHeight);
+
+    timings.create(swapChainSize());
+    // Everyting fine.
+    // We can start rendering now :).
+    state = State::RENDERABLE;
+}
+
+void VulkanRenderer::render(Camera*)
+{
+    if (state == State::RESET)
+    {
+        state = State::INITIALIZED;
+    }
+
+
+    if (state == State::INITIALIZED)
+    {
+        init();
+    }
+
+    timings.update();
+    FrameSync& sync = syncObjects[nextSyncObject];
+    sync.wait();
+    timings.beginFrame(sync);
+
+    VkResult err = swapChain.acquireNextImage(sync.imageAvailable, &currentBuffer);
+
+    if (err == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        reset();
+        return;
+    }
+    VK_CHECK_RESULT(err);
+
+
+    render(sync, currentBuffer);
+
+
+    err = swapChain.queuePresent(base().mainQueue, currentBuffer, sync.renderComplete);
+    if (err == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        reset();
+        return;
+    }
+    VK_CHECK_RESULT(err);
+    nextSyncObject = (nextSyncObject + 1) % syncObjects.size();
 }
 
 float VulkanRenderer::getTotalRenderTime()
@@ -58,17 +127,31 @@ float VulkanRenderer::getTotalRenderTime()
     return window.mainLoop.renderCPUTimer.getTimeMS();
 }
 
-void VulkanRenderer::initInstanceDevice() {}
+
+void VulkanRenderer::reset()
+{
+    SAIGA_ASSERT(state == State::RESET || state == State::RENDERABLE);
+    waitIdle();
+    state = State::RESET;
+}
 
 void VulkanRenderer::renderImGui(bool* p_open)
 {
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Renderer Info", p_open, ImGuiWindowFlags_NoCollapse);
 
-    base.renderGUI();
-    base.memory.renderGUI();
+    base().renderGUI();
+    base().memory.renderGUI();
 
     ImGui::End();
+}
+
+
+void VulkanRenderer::waitIdle()
+{
+    base().mainQueue.waitIdle();
+    //    presentQueue.waitIdle();
+    //    transferQueue.waitIdle();
 }
 
 

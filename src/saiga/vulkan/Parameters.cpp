@@ -19,6 +19,7 @@ void VulkanParameters::fromConfigFile(const std::string& file)
 
     enableValidationLayer = ini.GetAddBool("Vulkan", "enableValidationLayer", enableValidationLayer);
     enableImgui           = ini.GetAddBool("Vulkan", "enableImgui", enableImgui);
+    expand_memory_stats   = ini.GetBoolValue("Vulkan", "expandMemoryStats", false);
 
     if (ini.changed()) ini.SaveFile(file.c_str());
 }

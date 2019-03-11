@@ -10,14 +10,15 @@
 
 #include "saiga/core/sdl/sdl_camera.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
+#include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/memory/VulkanMemory.h"
+#include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
-#include "saiga/core/window/Interfaces.h"
 
 #include <vector>
 class VulkanExample : public Saiga::Updating,
@@ -28,7 +29,7 @@ class VulkanExample : public Saiga::Updating,
     VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
     ~VulkanExample() override;
 
-    void init(Saiga::Vulkan::VulkanBase& base) override;
+    void init(Saiga::Vulkan::VulkanBase& base);
 
 
     void update(float dt) override;
@@ -55,7 +56,7 @@ class VulkanExample : public Saiga::Updating,
     Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
 
     //
-    vk::DescriptorSet textureDes;
+    Saiga::Vulkan::StaticDescriptorSet textureDes;
     Saiga::Vulkan::TextureDisplay textureDisplay;
 
     Saiga::Vulkan::VulkanForwardRenderer& renderer;

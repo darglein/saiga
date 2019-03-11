@@ -97,8 +97,9 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
 
         uint32_t textureBindingPoint = 0;
 
-        addDescriptorSetLayout(
-            {{textureBindingPoint, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}});
+        addDescriptorSetLayout({{0,
+                                 {textureBindingPoint, vk::DescriptorType::eCombinedImageSampler, 1,
+                                  vk::ShaderStageFlagBits::eFragment}}});
         addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstBlock)});
 
         descriptorSet = createDescriptorSet();

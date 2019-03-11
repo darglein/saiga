@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/kernels/BAPosePoint.h"
 
 #include "ceres/autodiff_cost_function.h"
 
@@ -128,5 +129,128 @@ struct CostBAStereo
     Vec2 weights;
 };
 
+
+class CostBAMonoAnalytic : public ceres::SizedCostFunction<2, 7, 3>
+{
+   public:
+    using T = double;
+
+    using Kernel = Saiga::Kernel::BAPosePointMono<double>;
+
+    CostBAMonoAnalytic(const Intrinsics4& intr, const Eigen::Vector2d& observed, double weight = 1)
+        : intr(intr), observed(observed), weight(weight)
+    {
+    }
+
+    virtual ~CostBAMonoAnalytic() {}
+
+    virtual bool Evaluate(double const* const* _parameters, double* _residuals, double** _jacobians) const
+    {
+        Eigen::Map<Sophus::SE3<T> const> const se3(_parameters[0]);
+        Eigen::Map<const Eigen::Matrix<T, 3, 1>> wp(_parameters[1]);
+        Eigen::Map<Eigen::Matrix<T, 2, 1>> residual(_residuals);
+
+
+
+        if (!_jacobians)
+        {
+            // only compute residuals
+            residual = Kernel::evaluateResidual(intr, se3, wp, observed, weight);
+        }
+        else
+        {
+            // compute both
+            Kernel::PoseJacobiType jpose;
+            Kernel::PointJacobiType jpoint;
+            Kernel::ResidualType res;
+            Kernel::evaluateResidualAndJacobian(intr, se3, wp, observed, weight, res, jpose, jpoint);
+
+            residual = res;
+
+            if (_jacobians[0])
+            {
+                Eigen::Map<Eigen::Matrix<T, 2, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
+                jpose2.setZero();
+                jpose2.block<2, 6>(0, 0) = jpose;
+                //                std::cout << jpose2 << std::endl;
+            }
+            if (_jacobians[1])
+            {
+                Eigen::Map<Eigen::Matrix<T, 2, 3, Eigen::RowMajor>> jpoint2(_jacobians[1]);
+                jpoint2 = jpoint;
+                //                std::cout << jpoint2 << std::endl;
+            }
+        }
+
+        return true;
+    }
+
+   private:
+    Intrinsics4 intr;
+    Eigen::Vector2d observed;
+    double weight;
+};
+
+class CostBAStereoAnalytic : public ceres::SizedCostFunction<3, 7, 3>
+{
+   public:
+    using T = double;
+
+    using Kernel = Saiga::Kernel::BAPosePointStereo<double>;
+
+    CostBAStereoAnalytic(const Kernel::CameraType& intr, const Eigen::Vector2d& observed, double observedDepth,
+                         double weight)
+        : intr(intr), observed(observed), weight(weight), observedDepth(observedDepth)
+    {
+    }
+
+    virtual ~CostBAStereoAnalytic() {}
+
+    virtual bool Evaluate(double const* const* _parameters, double* _residuals, double** _jacobians) const
+    {
+        Eigen::Map<Sophus::SE3<T> const> const se3(_parameters[0]);
+        Eigen::Map<const Eigen::Matrix<T, 3, 1>> wp(_parameters[1]);
+        Eigen::Map<Eigen::Matrix<T, 3, 1>> residual(_residuals);
+
+
+
+        if (!_jacobians)
+        {
+            // only compute residuals
+            residual = Kernel::evaluateResidual(intr, se3, wp, observed, observedDepth, weight);
+        }
+        else
+        {
+            // compute both
+            Kernel::PoseJacobiType jpose;
+            Kernel::PointJacobiType jpoint;
+            Kernel::ResidualType res;
+            Kernel::evaluateResidualAndJacobian(intr, se3, wp, observed, observedDepth, weight, res, jpose, jpoint);
+
+            residual = res;
+
+            if (_jacobians[0])
+            {
+                Eigen::Map<Eigen::Matrix<T, 3, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
+                jpose2.setZero();
+                jpose2.block<3, 6>(0, 0) = jpose;
+                //                std::cout << jpose2 << std::endl;
+            }
+            if (_jacobians[1])
+            {
+                Eigen::Map<Eigen::Matrix<T, 3, 3, Eigen::RowMajor>> jpoint2(_jacobians[1]);
+                jpoint2 = jpoint;
+                //                std::cout << jpoint2 << std::endl;
+            }
+        }
+
+        return true;
+    }
+
+   private:
+    Kernel::CameraType intr;
+    Eigen::Vector2d observed;
+    double weight, observedDepth;
+};
 
 }  // namespace Saiga

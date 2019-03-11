@@ -40,6 +40,19 @@ struct EvaluateMatrixDimensions<float>
     static MatrixDimensions get() { return {1, 1}; }
 };
 
+template <typename T>
+struct EvaluateMatrixDimensions<Eigen::MatrixBase<T>>
+{
+    using MatrixType     = Eigen::MatrixBase<T>;
+    using Scalar         = typename MatrixType::Scalar;
+    using ChildExpansion = EvaluateMatrixDimensions<Scalar>;
+
+    static MatrixDimensions get(const MatrixType& m)
+    {
+        return MatrixDimensions{(int)m.rows(), (int)m.cols()} * ChildExpansion::get(m(0, 0));
+    }
+};
+
 template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
 struct EvaluateMatrixDimensions<Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
@@ -174,6 +187,44 @@ struct ExpandImpl<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxC
 };
 
 
+template <typename T>
+struct ExpandImpl<Eigen::MatrixBase<T>>
+{
+    using MatrixType = Eigen::MatrixBase<T>;
+
+    using Scalar = typename MatrixType::Scalar;
+
+    using ChildExpansion = ExpandImpl<Scalar>;
+    using BaseScalar     = typename ChildExpansion::BaseScalar;
+
+
+
+    static ExpansionType<BaseScalar> get(const MatrixType& A)
+    {
+        MatrixDimensions dim = EvaluateMatrixDimensions<MatrixType>::get(A);
+        auto n               = dim.rows / A.rows();
+        auto m               = dim.cols / A.cols();
+
+        ExpansionType<BaseScalar> result;
+        result.resize(A.rows() * n, A.cols() * m);
+
+        for (int i = 0; i < A.rows(); ++i)
+        {
+            for (int j = 0; j < A.cols(); ++j)
+            {
+                auto b = ChildExpansion::get(A(i, j));
+                SAIGA_ASSERT(b.rows() == n && b.cols() == m);  // all blocks must have the same dimension
+                result.block(i * n, j * m, n, m) = b;
+            }
+        }
+
+
+        return result;
+    }
+};
+
+
+
 template <typename _Scalar, int _Options>
 struct ExpandImpl<Eigen::SparseMatrix<_Scalar, _Options>>
 {
@@ -213,5 +264,35 @@ auto expand(const T& v)
 {
     return ExpandImpl<T>::get(v);
 }
+
+
+// =======================================================================================================
+
+
+template <typename T>
+struct ScalarType
+{
+    using Type = typename ScalarType<typename T::Scalar>::Type;
+};
+
+template <>
+struct ScalarType<double>
+{
+    using Type = double;
+};
+
+template <>
+struct ScalarType<float>
+{
+    using Type = float;
+};
+
+
+template <typename G>
+struct ScalarType<MatrixScalar<G>>
+{
+    using Type = typename ScalarType<G>::Type;
+};
+
 
 }  // namespace Saiga

@@ -85,7 +85,7 @@ static void uploadProcessDownloadAsync(int N, int slices, int streamCount)
 {
     using T = Element<K>;
 
-    Saiga::thrust::pinned_vector<T> h_data(N);
+    Saiga::pinned_vector<T> h_data(N);
     //        thrust::host_vector<T> h_data(N);
     thrust::device_vector<T> d_data(N);
 //    size_t size = N * sizeof(T);
@@ -128,6 +128,7 @@ static void uploadProcessDownloadAsync(int N, int slices, int streamCount)
 
 int main(int argc, char* argv[])
 {
+    Saiga::CUDA::initCUDA();
     uploadProcessDownloadAsync<8>(1024 * 1024, 1, 1);
     uploadProcessDownloadAsync<8>(1024 * 1024, 2, 2);
     uploadProcessDownloadAsync<8>(1024 * 1024, 4, 4);

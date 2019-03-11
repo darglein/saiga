@@ -4,6 +4,7 @@
 
 #pragma once
 #include "BaseChunkAllocator.h"
+#include "ImageMemoryLocation.h"
 #include "MemoryType.h"
 namespace Saiga::Vulkan::Memory
 {
@@ -39,7 +40,7 @@ class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<Ima
 
     ImageMemoryLocation* allocate(ImageData& image);
 
-    void deallocate(ImageMemoryLocation* location);
+    void deallocate(ImageMemoryLocation* location) override;
 };
 
 }  // namespace Saiga::Vulkan::Memory

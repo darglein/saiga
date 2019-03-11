@@ -73,6 +73,21 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
     KernelType::PointJacobiType JrowPoint;
     KernelType::ResidualType res;
 
+
+    int numObservations = 0;
+    for (auto& img : scene.images)
+    {
+        for (auto& ip : img.stereoPoints)
+        {
+            if (!ip)
+            {
+                SAIGA_ASSERT(0);
+                continue;
+            }
+            numObservations++;
+        }
+    }
+
     SAIGA_BLOCK_TIMER();
     int numCameras   = scene.extrinsics.size();
     int numPoints    = scene.worldPoints.size();
@@ -80,14 +95,16 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
     using MatrixType = Eigen::MatrixXd;
     MatrixType JtJ(numUnknowns, numUnknowns);
     Eigen::VectorXd Jtb(numUnknowns);
-
+    MatrixType J(numObservations * 2, numUnknowns);
 
 
     for (int k = 0; k < its; ++k)
     {
         JtJ.setZero();
         Jtb.setZero();
+        J.setZero();
 
+        int obs = 0;
         for (auto& img : scene.images)
         {
             auto extr   = scene.extrinsics[img.extr].se3;
@@ -123,8 +140,8 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
                 Jtb.segment(poseStart, 6) += JrowPose.transpose() * res;
                 Jtb.segment(pointStart, 3) += JrowPoint.transpose() * res;
 #else
-                auto pointStart = ip.wp * 3;
-                auto poseStart  = numPoints * 3 + img.extr * 6;
+                auto poseStart  = img.extr * 6;
+                auto pointStart = numCameras * 6 + ip.wp * 3;
                 JtJ.block(pointStart, pointStart, 3, 3) += (JrowPoint.transpose() * JrowPoint);
                 JtJ.block(poseStart, poseStart, 6, 6) += (JrowPose.transpose() * JrowPose);
 
@@ -132,11 +149,17 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
                 JtJ.block(poseStart, pointStart, 6, 3) = JrowPose.transpose() * JrowPoint;
                 JtJ.block(pointStart, poseStart, 3, 6) = JrowPoint.transpose() * JrowPose;
 
-                Jtb.segment(pointStart, 3) += JrowPoint.transpose() * res;
-                Jtb.segment(poseStart, 6) += JrowPose.transpose() * res;
+                Jtb.segment(pointStart, 3) -= JrowPoint.transpose() * res;
+                Jtb.segment(poseStart, 6) -= JrowPose.transpose() * res;
+
+                J.block<2, 6>(obs * 2, poseStart)  = JrowPose;
+                J.block<2, 3>(obs * 2, pointStart) = JrowPoint;
+                obs++;
 #endif
             }
         }
+
+        //        cout << "J" << endl << J << endl << endl;
 
         //        cout << JtJ << endl << endl;
 
@@ -146,7 +169,7 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
         //        strm.close();
 
 
-        if (0)
+        if (1)
         {
             double lambda = 1;
             // lm diagonal
@@ -161,12 +184,10 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
         Eigen::VectorXd x = JtJ.ldlt().solve(Jtb);
 
 
-        Eigen::VectorXd x1 = x.segment(0, numPoints * 3);
-        Eigen::VectorXd x2 = x.segment(numPoints * 3, numCameras * 6);
+        Eigen::VectorXd x2 = x.segment(0, numCameras * 6);
+        Eigen::VectorXd x1 = x.segment(numCameras * 6, numPoints * 3);
 
-        cout << x1.transpose() << endl;
-        cout << x2.transpose() << endl;
-        return;
+
 
         for (int i = 0; i < numPoints; ++i)
         {
@@ -184,7 +205,7 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
     }
 }
 
-void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
+void BAPoseOnly::posePointSparseSchur(Scene& scene)
 {
     using T          = double;
     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
@@ -218,7 +239,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
     std::vector<KernelType::PoseDiaBlockType> diagPoseBlocks(numCameras);
     std::vector<KernelType::PointDiaBlockType> diagPointBlocks(numPoints);
 
-    for (int k = 0; k < options.maxIterations; ++k)
+    for (int k = 0; k < optimizationOptions.maxIterations; ++k)
     {
         typedef Eigen::Triplet<T> Trip;
         std::vector<Trip> tripletListW;
@@ -273,8 +294,8 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
-                    targetPoseRes += JrowPose.transpose() * res;
-                    targetPointRes += JrowPoint.transpose() * res;
+                    targetPoseRes -= JrowPose.transpose() * res;
+                    targetPointRes -= JrowPoint.transpose() * res;
                 }
                 else
                 {
@@ -288,8 +309,8 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
-                    targetPoseRes += JrowPose.transpose() * res;
-                    targetPointRes += JrowPoint.transpose() * res;
+                    targetPoseRes -= JrowPose.transpose() * res;
+                    targetPointRes -= JrowPoint.transpose() * res;
                 }
 
                 for (int r = 0; r < 6; ++r)
@@ -371,7 +392,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
             // Solve the schur system for da
             deltaA.setZero();
 
-            if (options.solverType == BAOptions::SolverType::Direct)
+            if (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
             {
                 Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
                 solver.compute(S);
@@ -380,8 +401,8 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
             else
             {
                 RecursiveDiagonalPreconditioner<double> P;
-                Eigen::Index iters = options.maxIterativeIterations;
-                double tol         = options.iterativeTolerance;
+                Eigen::Index iters = optimizationOptions.maxIterativeIterations;
+                double tol         = optimizationOptions.iterativeTolerance;
 
                 if (true)
                 {
@@ -398,7 +419,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
                         },
                         ej, deltaA, P, iters, tol);
                 }
-                if (options.debugOutput) cout << "error " << tol << " iterations " << iters << endl;
+                if (optimizationOptions.debugOutput) cout << "error " << tol << " iterations " << iters << endl;
             }
 
             // Step 6
@@ -426,10 +447,15 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene, const BAOptions& options)
         }
     }
 }
-void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
+OptimizationResults BAPoseOnly::solve()
 {
-    posePointSparseSchur(scene, options);
-    return;
+    Scene& scene = *_scene;
+
+    posePointSparseSchur(scene);
+
+    OptimizationResults result;
+    return result;
+
     using T          = double;
     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
     KernelType::PoseJacobiType JrowPose;
@@ -456,7 +482,7 @@ void BAPoseOnly::solve(Scene& scene, const BAOptions& options)
     std::vector<KernelType::PosePointUpperBlockType> posePointBlocks(N);
     Eigen::VectorXd Jtb(numUnknowns);
 
-    for (int k = 0; k < options.maxIterations; ++k)
+    for (int k = 0; k < optimizationOptions.maxIterations; ++k)
     {
         Jtb.setZero();
         for (auto& b : diagPoseBlocks) b.setZero();

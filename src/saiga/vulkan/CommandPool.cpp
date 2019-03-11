@@ -45,8 +45,13 @@ std::vector<vk::CommandBuffer> CommandPool::allocateCommandBuffers(uint32_t coun
 
 void CommandPool::freeCommandBuffer(vk::CommandBuffer cmd)
 {
-    //            vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     device.freeCommandBuffers(commandPool, cmd);
+}
+
+void CommandPool::freeCommandBuffers(std::vector<vk::CommandBuffer>& cmds)
+{
+    if (cmds.empty()) return;
+    device.freeCommandBuffers(commandPool, cmds);
 }
 
 }  // namespace Vulkan

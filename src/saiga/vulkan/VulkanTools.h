@@ -9,6 +9,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/vulkan/VulkanInitializers.hpp"
 #include "saiga/vulkan/svulkan.h"
 
@@ -57,7 +58,7 @@
             {                                                                                                 \
                 std::cout << "Fatal : VkResult is \"" << vks::tools::errorString(res) << "\" in " << __FILE__ \
                           << " at line " << __LINE__ << std::endl;                                            \
-                assert(res == VK_SUCCESS);                                                                    \
+                SAIGA_ASSERT(res == VK_SUCCESS);                                                              \
             }                                                                                                 \
         }
 #endif

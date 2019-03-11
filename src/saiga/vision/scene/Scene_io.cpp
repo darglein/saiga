@@ -6,6 +6,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/Random.h"
 
 #include "Scene.h"
@@ -41,22 +42,9 @@ bool Scene::imgui()
         changed = true;
     }
 
-    if (ImGui::Button("Normalize Scale"))
+    if (ImGui::Button("Normalize"))
     {
-        auto d = depthStatistics();
-
-        double target = sqrt(2);
-        rescale(target / d.median);
-        changed = true;
-    }
-
-    if (ImGui::Button("Normalize Position"))
-    {
-        auto m = medianWorldPoint();
-        SE3 trans;
-        trans.translation() = -m;
-        transformScene(trans);
-        changed = true;
+        normalize();
     }
 
     static float sigma = 0.01;
@@ -138,7 +126,7 @@ void Scene::load(const std::string& file)
     cout << "Loading scene from " << file << "." << endl;
 
 
-    std::ifstream strm(file);
+    std::ifstream strm(SearchPathes::data(file));
     SAIGA_ASSERT(strm.is_open());
 
 
