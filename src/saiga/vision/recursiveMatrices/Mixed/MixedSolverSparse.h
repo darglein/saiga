@@ -10,7 +10,10 @@
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
 
+#ifdef SAIGA_USE_CHOLMOD
 #include "Eigen/CholmodSupport"
+#endif
+
 namespace Saiga
 {
 /**
@@ -24,11 +27,12 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
     using LDLT  = Eigen::RecursiveSimplicialLDLT<AType, Eigen::Upper>;
 
     using ExpandedType = Eigen::SparseMatrix<typename T::Scalar, Eigen::RowMajor>;
-
+#ifdef SAIGA_USE_CHOLMOD
     using CholmodLDLT = Eigen::CholmodSupernodalLLT<ExpandedType, Eigen::Upper>;
     //        using CholmodLDLT = Eigen::CholmodSimplicialLDLT<ExpandedType, Eigen::Upper>;
     //        using CholmodLDLT = Eigen::RecursiveSimplicialLDLT<ExpandedType, Eigen::Upper>;
     //    using CholmodLDLT = Eigen::SimplicialLLT<ExpandedType, Eigen::Upper>;
+#endif
 
     void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
     {
@@ -39,7 +43,7 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
             double density  = A.nonZeros() / (double(A.rows()) * A.cols());
             bool useCholmod = A.rows() > 1000 || density > 0.1;
 
-
+#ifdef SAIGA_USE_CHOLMOD
             if (useCholmod)
             {
                 if (!expandS) expandS = std::make_unique<ExpandedType>();
@@ -64,6 +68,7 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
                 }
             }
             else
+#endif
             {
                 if (!ldlt)
                 {
@@ -101,9 +106,11 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
    private:
     std::unique_ptr<LDLT> ldlt;
 
+#ifdef SAIGA_USE_CHOLMOD
     // Cholmod stuff
     std::unique_ptr<CholmodLDLT> cholmodldlt;
     std::unique_ptr<ExpandedType> expandS;
+#endif
 };
 
 }  // namespace Saiga

@@ -10,7 +10,6 @@
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
 
-#include "Eigen/CholmodSupport"
 namespace Saiga
 {
 /**
@@ -50,8 +49,6 @@ class MixedSymmetricRecursiveSolver<
 
     using LDLT = Eigen::RecursiveSimplicialLDLT<SType, Eigen::Upper>;
 
-    using ExpandedType = Eigen::SparseMatrix<double, Eigen::RowMajor>;
-    using CholmodLDLT  = Eigen::CholmodSupernodalLLT<ExpandedType, Eigen::Upper>;
 
     using InnerSolver = MixedSymmetricRecursiveSolver<SType, XUType>;
 
