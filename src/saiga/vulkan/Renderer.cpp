@@ -37,6 +37,11 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 
     state = State::INITIALIZED;
     base().finalize_init(swapChain.imageCount);
+    timings = FrameTimings(base().device);
+
+    timings.registerFrameSection("TRANSFER", 0);
+    timings.registerFrameSection("MAIN", 1);
+    timings.registerFrameSection("IMGUI", 2);
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -70,6 +75,7 @@ void VulkanRenderer::init()
 
     createBuffers(swapChainSize(), surfaceWidth, SurfaceHeight);
 
+    timings.create(swapChainSize());
     // Everyting fine.
     // We can start rendering now :).
     state = State::RENDERABLE;
@@ -88,10 +94,10 @@ void VulkanRenderer::render(Camera*)
         init();
     }
 
-
+    timings.update();
     FrameSync& sync = syncObjects[nextSyncObject];
     sync.wait();
-
+    timings.beginFrame(sync);
 
     VkResult err = swapChain.acquireNextImage(sync.imageAvailable, &currentBuffer);
 

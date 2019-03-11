@@ -40,7 +40,7 @@ class SAIGA_VULKAN_API TextureDisplay : public Pipeline
     void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
 
 
-    vk::DescriptorSet createAndUpdateDescriptorSet(Texture& texture);
+    StaticDescriptorSet createAndUpdateDescriptorSet(Texture& texture);
 
    private:
     Saiga::Vulkan::VulkanVertexColoredAsset blitMesh;

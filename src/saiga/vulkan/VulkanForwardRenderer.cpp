@@ -176,8 +176,13 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
     renderPassBeginInfo.framebuffer = frameBuffers[currentImage].framebuffer;
 
     cmd.begin(cmdBufInfo);
+    timings.resetFrame(cmd);
+    timings.enterSection("TRANSFER", cmd);
+
     // VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
     renderingInterface->transfer(cmd);
+
+    timings.leaveSection("TRANSFER", cmd);
 
 
     if (imGui) imGui->updateBuffers(cmd, currentImage);
@@ -193,8 +198,12 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
 
     {
         // Actual rendering
+        timings.enterSection("MAIN", cmd);
         renderingInterface->render(cmd);
+        timings.leaveSection("MAIN", cmd);
+        timings.enterSection("IMGUI", cmd);
         if (imGui) imGui->render(cmd, currentImage);
+        timings.leaveSection("IMGUI", cmd);
     }
 
     vkCmdEndRenderPass(cmd);

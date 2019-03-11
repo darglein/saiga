@@ -25,7 +25,8 @@ void AssetRenderer::destroy()
 }
 bool AssetRenderer::bind(vk::CommandBuffer cmd)
 {
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
+    bindDescriptorSet(cmd, descriptorSet, 0);
+    // cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
     return Pipeline::bind(cmd);
 }
 

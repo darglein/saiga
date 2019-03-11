@@ -54,7 +54,7 @@ class SAIGA_VULKAN_API LineAssetRenderer : public Pipeline
     } pc;
 
     UniformBuffer uniformBufferVS;
-    vk::DescriptorSet descriptorSet;
+    StaticDescriptorSet descriptorSet;
 };
 
 

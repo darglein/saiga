@@ -61,7 +61,7 @@ void TexturedAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPa
     create(renderPass, info);
 }
 
-vk::DescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture& texture)
+StaticDescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture& texture)
 {
     //    vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(
     //                vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())

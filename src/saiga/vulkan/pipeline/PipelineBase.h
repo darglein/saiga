@@ -58,9 +58,9 @@ class SAIGA_VULKAN_API PipelineBase
                             std::initializer_list<std::reference_wrapper<SetType>> descriptorSets,
                             uint32_t firstSet = 0, vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr)
     {
-        std::vector<vk::DescriptorSet> sets(descriptorSets.size());
-
         std::for_each(descriptorSets.begin(), descriptorSets.end(), [](DescriptorSet& set) { set.update(); });
+
+        std::vector<vk::DescriptorSet> sets(descriptorSets.size());
         std::transform(descriptorSets.begin(), descriptorSets.end(), sets.begin(), [](const auto& set) { return set; });
 
         cmd.bindDescriptorSets(type, pipelineLayout, firstSet, sets, dynamicOffsets);

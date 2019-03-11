@@ -51,7 +51,7 @@ void TextureDisplay::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
     blitMesh.init(vulkanDevice);
 }
 
-vk::DescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture& texture)
+StaticDescriptorSet TextureDisplay::createAndUpdateDescriptorSet(Texture& texture)
 {
     auto set = createDescriptorSet();
 
