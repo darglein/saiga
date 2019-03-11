@@ -8,19 +8,29 @@
 
 #include <algorithm>
 #include <exception>
-
+#include <glm/glm.hpp>
 namespace Saiga::Vulkan
 {
 void FrameTimings::beginFrame(const FrameSync& sync)
 {
     auto& timing = timings[next];
-
     timing.fence = sync.frameFence;
-    timing.begin = Clock::now();
     current      = next;
     next         = (next + 1) % numberOfFrames;
 }
 
+void FrameTimings::updateMeanStdDev(MovingMean& moving, uint64_t sample)
+{
+    auto newMean = alpha * sample  + (1-alpha) * moving.mean;
+
+    auto delta_i = sample - moving.ema;
+    auto new_ema = moving.ema + alpha * delta_i;
+    auto new_emvar = (1-alpha) * (moving.emvar + alpha *delta_i * delta_i);
+
+    moving.mean = newMean;
+    moving.ema = new_ema;
+    moving.emvar = new_emvar;
+}
 void FrameTimings::update()
 {
     // auto iter = running;
@@ -33,17 +43,31 @@ void FrameTimings::update()
 
         if (finished)
         {
-            timing.end = Clock::now();
-            LOG(INFO) << running << " " << getFirst(running) << " "
-                      << std::chrono::duration_cast<std::chrono::microseconds>(timing.begin.time_since_epoch()).count()
-                      << " - "
-                      << std::chrono::duration_cast<std::chrono::microseconds>(timing.end.time_since_epoch()).count();
-
+            LOG(INFO) << "Frame " << running;
             device.getQueryPoolResults(queryPool, getFirst(running), getCount(), getCount() * 8, timing.sections.data(),
                                        8, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
             for (auto& pair : timing.sections)
             {
                 LOG(INFO) << "  " << pair.first << " " << pair.second;
+            }
+
+            if (lastFrameSections.has_value()) {
+                auto& lastValue = lastFrameSections.value();
+                decltype (lastValue.begin()) curr;
+                decltype (lastValue.begin()) next;
+                decltype (meanStdDev.begin()) meanIter;
+                for(curr = lastValue.begin(), next = lastValue.begin()+1,meanIter =meanStdDev.begin() ; next != lastValue.end(); curr++, next++, meanIter++) {
+                    // https://dsp.stackexchange.com/questions/811/determining-the-mean-and-standard-deviation-in-real-time
+                    const auto pause = next->first - curr->second;
+                    updateMeanStdDev(*meanIter, pause);
+                }
+                auto lastPause = timing.sections.begin()->first - curr->second;
+                updateMeanStdDev(*meanIter, lastPause);
+            }
+
+            lastFrameSections = timing.sections;
+            for (auto & mean: meanStdDev) {
+                LOG(INFO) << "Mean: " << mean.mean << ",  STDEV: " << glm::sqrt(mean.emvar);
             }
             running = (running + 1) % numberOfFrames;
         }
@@ -96,7 +120,7 @@ void FrameTimings::unregisterFrameSection(uint32_t index)
     frameSections.erase(found);
 }
 
-void FrameTimings::create(uint32_t _numberOfFrames)
+void FrameTimings::create(uint32_t _numberOfFrames, uint32_t frameWindow)
 {
     destroyPool();
 
@@ -111,6 +135,10 @@ void FrameTimings::create(uint32_t _numberOfFrames)
 
     timings.resize(numberOfFrames);
     std::fill(timings.begin(), timings.end(), Timing(frameSections.size()));
+
+    meanStdDev.resize(frameSections.size());
+
+    std::fill(meanStdDev.begin(), meanStdDev.end(), MovingMean());
 }
 
 void FrameTimings::destroyPool()

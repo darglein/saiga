@@ -13,12 +13,13 @@
 #include <set>
 #include <string>
 #include <vector>
-
+#include <optional>
 namespace Saiga::Vulkan
 {
 class SAIGA_VULKAN_API FrameTimings final
 {
    private:
+    using SectionTimes = std::vector<std::pair<uint64_t, uint64_t>>;
     using Entry = std::pair<uint32_t, std::string>;
     struct KeyComparator
     {
@@ -30,15 +31,23 @@ class SAIGA_VULKAN_API FrameTimings final
     struct SAIGA_VULKAN_API Timing
     {
         vk::Fence fence;
-        TimePoint begin, end;
 
-        std::vector<std::pair<uint64_t, uint64_t>> sections;
+        SectionTimes sections;
 
         Timing() = default;
-        explicit Timing(size_t numSections) : fence(nullptr), begin(), sections(numSections) {}
+        explicit Timing(size_t numSections) : fence(nullptr), sections(numSections) {}
     };
 
+    std::optional<SectionTimes> lastFrameSections;
 
+    struct MovingMean {
+        double mean  = 0.0;
+        double ema   = 0.0;
+        double emvar = 0.0;
+    };
+    void updateMeanStdDev(MovingMean& moving, uint64_t sample);
+
+    std::vector<MovingMean> meanStdDev;
 
     vk::Device device;
     std::vector<Timing> timings;
@@ -51,17 +60,19 @@ class SAIGA_VULKAN_API FrameTimings final
     std::map<std::string, uint32_t> nameToSectionMap;
     void destroyPool();
 
-    inline uint32_t getBegin(uint32_t index) const { return current * frameSections.size() * 2 + index * 2; }
-    inline uint32_t getEnd(uint32_t index) const { return current * frameSections.size() * 2 + index * 2 + 1; }
-    inline uint32_t getFirst(uint32_t frame) const { return static_cast<uint32_t>(frame * frameSections.size() * 2); }
     inline uint32_t getCount() const { return static_cast<uint32_t>(frameSections.size() * 2); }
+    inline uint32_t getFirst(uint32_t frame) const { return static_cast<uint32_t>(frame * getCount()); }
+    inline uint32_t getBegin(uint32_t index) const { return getFirst(current) + index * 2; }
+    inline uint32_t getEnd(uint32_t index) const { return getFirst(current) + index * 2 + 1; }
 
+private:
+    double alpha = 0.95f;
    public:
     FrameTimings() = default;
 
     ~FrameTimings() { destroyPool(); }
 
-    FrameTimings(vk::Device _device)
+    FrameTimings(vk::Device _device, float _alpha = 0.95f)
         : device(_device),
           timings(0),
           numberOfFrames(0),
@@ -69,7 +80,8 @@ class SAIGA_VULKAN_API FrameTimings final
           current(0),
           running(0),
           queryPool(nullptr),
-          frameSections()
+          frameSections(),
+          alpha(_alpha)
     {
     }
 
@@ -98,7 +110,7 @@ class SAIGA_VULKAN_API FrameTimings final
 
     void registerFrameSection(const std::string& name, uint32_t index);
     void unregisterFrameSection(uint32_t index);
-    void create(uint32_t numberOfFrames);
+    void create(uint32_t numberOfFrames, uint32_t frameWindow = 20);
     void reset();
 
     void enterSection(const std::string& name, vk::CommandBuffer cmd);

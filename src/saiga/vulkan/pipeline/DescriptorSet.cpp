@@ -73,6 +73,9 @@ void Saiga::Vulkan::DynamicDescriptorSet::update()
     vk::DescriptorSet new_set = nullptr;
     std::vector<vk::DescriptorImageInfo> image_infos;
     std::vector<vk::WriteDescriptorSet> write_updates;
+
+    image_infos.reserve(assigned_textures.size());
+    write_updates.reserve(assigned_textures.size());
     for (auto& entry : assigned_textures)
     {
         auto& [texture, time] = entry.second;
@@ -86,8 +89,6 @@ void Saiga::Vulkan::DynamicDescriptorSet::update()
             }
 
             base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set,texture->getDescriptorInfo()),nullptr);
-//            image_infos.push_back(texture->getDescriptorInfo())
-//            write_updates.push_back(layout->getWriteForBinding(entry.first, new_set, ));
 
             time = texture->memoryLocation->modified_time;
         }
@@ -108,7 +109,7 @@ Saiga::Vulkan::DynamicDescriptorSet::~DynamicDescriptorSet()
     }
 }
 Saiga::Vulkan::DynamicDescriptorSet::DynamicDescriptorSet(Saiga::Vulkan::DynamicDescriptorSet&& other) noexcept
-    : DescriptorSet(std::move(static_cast<DescriptorSet&&>(other))), m_old_set(std::move(other.m_old_set))
+    : DescriptorSet(std::move(other)), m_old_set(std::move(other.m_old_set))
 {
     other.m_old_set = std::make_pair(nullptr, 0xFFFFFFFF);
 }
