@@ -47,6 +47,16 @@ void DescriptorSetLayout::destroy()
     }
 }
 
+
+vk::DescriptorSet DescriptorSetLayout::createRawDescriptorSet()
+{
+    if (!layout)
+    {
+        throw std::logic_error("Must call create() before creating descriptor sets.");
+    }
+    return base->descriptorPool.allocateDescriptorSet(layout);
+}
+
 StaticDescriptorSet DescriptorSetLayout::createDescriptorSet()
 {
     if (!layout)
@@ -80,6 +90,7 @@ void DescriptorSetLayout::create(VulkanBase* _base)
                                                  static_cast<uint32_t>(bindings_vector.size()), bindings_vector.data()};
     layout = base->device.createDescriptorSetLayout(createInfo);
 }
+
 
 
 }  // namespace Saiga::Vulkan

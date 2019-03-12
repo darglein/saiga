@@ -31,7 +31,7 @@ struct FreeListEntry
         return os;
     }
 
-    inline vk::DeviceSize end() { return offset + size; }
+    inline vk::DeviceSize end() const { return offset + size; }
 };
 
 
@@ -54,12 +54,12 @@ struct SAIGA_VULKAN_API ChunkAllocation
 
     vk::DeviceSize allocated;
     vk::DeviceSize size;
-	ChunkAllocation() = default;
+    ChunkAllocation() = default;
 
-	ChunkAllocation(ChunkAllocation&&) = default;
-	ChunkAllocation& operator=(ChunkAllocation&&) = default;
-	ChunkAllocation(const ChunkAllocation&) = delete;
-	ChunkAllocation& operator=(const ChunkAllocation&) = delete;
+    ChunkAllocation(ChunkAllocation&&) = default;
+    ChunkAllocation& operator=(ChunkAllocation&&) = default;
+    ChunkAllocation(const ChunkAllocation&)       = delete;
+    ChunkAllocation& operator=(const ChunkAllocation&) = delete;
 
     ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize _size, void* _mappedPointer)
         : chunk(std::move(_chunk)),

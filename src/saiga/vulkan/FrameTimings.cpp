@@ -11,7 +11,8 @@
 #include <glm/glm.hpp>
 namespace Saiga::Vulkan
 {
-void FrameTimings::beginFrame(const FrameSync& sync)
+template <typename Finder>
+void FrameTimings<Finder>::beginFrame(const FrameSync& sync)
 {
     auto& timing = timings[next];
     timing.fence = sync.frameFence;
@@ -19,19 +20,8 @@ void FrameTimings::beginFrame(const FrameSync& sync)
     next         = (next + 1) % numberOfFrames;
 }
 
-void FrameTimings::updateMeanStdDev(MovingMean& moving, uint64_t sample)
-{
-    auto newMean = alpha * sample  + (1-alpha) * moving.mean;
-
-    auto delta_i = sample - moving.ema;
-    auto new_ema = moving.ema + alpha * delta_i;
-    auto new_emvar = (1-alpha) * (moving.emvar + alpha *delta_i * delta_i);
-
-    moving.mean = newMean;
-    moving.ema = new_ema;
-    moving.emvar = new_emvar;
-}
-void FrameTimings::update()
+template <typename Finder>
+void FrameTimings<Finder>::update()
 {
     // auto iter = running;
 
@@ -43,31 +33,35 @@ void FrameTimings::update()
 
         if (finished)
         {
-            LOG(INFO) << "Frame " << running;
             device.getQueryPoolResults(queryPool, getFirst(running), getCount(), getCount() * 8, timing.sections.data(),
                                        8, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
-            for (auto& pair : timing.sections)
+
+            if (lastFrameSections.has_value())
             {
-                LOG(INFO) << "  " << pair.first << " " << pair.second;
+                auto& lastValue = lastFrameSections.value();
+                SectionTimesIter curr, next;
+                decltype(insertionPoint->pauses.begin()) pauseIter;
+                for (curr = lastValue.begin(), next = lastValue.begin() + 1, pauseIter = insertionPoint->pauses.begin();
+                     next != lastValue.end(); curr++, next++, pauseIter++)
+                {
+                    const auto pause = next->first - curr->second;
+                    *pauseIter       = pause;
+                }
+                const auto lastPause = timing.sections.begin()->first - curr->second;
+                *pauseIter           = lastPause;
             }
 
-            if (lastFrameSections.has_value()) {
-                auto& lastValue = lastFrameSections.value();
-                decltype (lastValue.begin()) curr;
-                decltype (lastValue.begin()) next;
-                decltype (meanStdDev.begin()) meanIter;
-                for(curr = lastValue.begin(), next = lastValue.begin()+1,meanIter =meanStdDev.begin() ; next != lastValue.end(); curr++, next++, meanIter++) {
-                    const auto pause = next->first - curr->second;
-                    updateMeanStdDev(*meanIter, pause);
-                }
-                auto lastPause = timing.sections.begin()->first - curr->second;
-                updateMeanStdDev(*meanIter, lastPause);
-            }
+            auto [pause, length] = finder.findSuitablePause(recentFramePauses, insertionPoint);
+
+            LOG(INFO) << pause << " " << length;
 
             lastFrameSections = timing.sections;
-            for (auto & mean: meanStdDev) {
-                LOG(INFO) << "Mean: " << mean.mean << ",  STDEV: " << glm::sqrt(mean.emvar);
+            insertionPoint++;
+            if (insertionPoint == recentFramePauses.end())
+            {
+                insertionPoint = recentFramePauses.begin();
             }
+
             running = (running + 1) % numberOfFrames;
         }
         else
@@ -77,14 +71,16 @@ void FrameTimings::update()
     }
 }
 
-void FrameTimings::reset()
+template <typename Finder>
+void FrameTimings<Finder>::reset()
 {
     running = 0;
     next    = 0;
     destroyPool();
 }
 
-void FrameTimings::registerFrameSection(const std::string& name, uint32_t index)
+template <typename Finder>
+void FrameTimings<Finder>::registerFrameSection(const std::string& name, uint32_t index)
 {
     if (queryPool)
     {
@@ -100,7 +96,8 @@ void FrameTimings::registerFrameSection(const std::string& name, uint32_t index)
     nameToSectionMap.insert(std::make_pair(name, index));
 }
 
-void FrameTimings::unregisterFrameSection(uint32_t index)
+template <typename Finder>
+void FrameTimings<Finder>::unregisterFrameSection(uint32_t index)
 {
     if (queryPool)
     {
@@ -119,7 +116,8 @@ void FrameTimings::unregisterFrameSection(uint32_t index)
     frameSections.erase(found);
 }
 
-void FrameTimings::create(uint32_t _numberOfFrames, uint32_t frameWindow)
+template <typename Finder>
+void FrameTimings<Finder>::create(uint32_t _numberOfFrames, uint32_t _frameWindow)
 {
     destroyPool();
 
@@ -127,6 +125,7 @@ void FrameTimings::create(uint32_t _numberOfFrames, uint32_t frameWindow)
     current        = 0;
     next           = 0;
     running        = 0;
+    frameWindow    = _frameWindow;
     auto queryPoolCreateInfo =
         vk::QueryPoolCreateInfo{vk::QueryPoolCreateFlags(), vk::QueryType ::eTimestamp,
                                 static_cast<uint32_t>(numberOfFrames * frameSections.size() * 2)};
@@ -135,12 +134,15 @@ void FrameTimings::create(uint32_t _numberOfFrames, uint32_t frameWindow)
     timings.resize(numberOfFrames);
     std::fill(timings.begin(), timings.end(), Timing(frameSections.size()));
 
-    meanStdDev.resize(frameSections.size());
+    recentFramePauses.resize(frameWindow);
 
-    std::fill(meanStdDev.begin(), meanStdDev.end(), MovingMean());
+    std::fill(recentFramePauses.begin(), recentFramePauses.end(), FramePauses(frameSections.size()));
+
+    insertionPoint = recentFramePauses.begin();
 }
 
-void FrameTimings::destroyPool()
+template <typename Finder>
+void FrameTimings<Finder>::destroyPool()
 {
     if (device && queryPool)
     {
@@ -149,23 +151,29 @@ void FrameTimings::destroyPool()
         queryPool = nullptr;
     }
 }
-void FrameTimings::enterSection(const std::string& name, vk::CommandBuffer cmd)
+
+template <typename Finder>
+void FrameTimings<Finder>::enterSection(const std::string& name, vk::CommandBuffer cmd)
 {
     auto index = nameToSectionMap[name];
     VLOG(1) << current << " " << current * frameSections.size() * 2 + index * 2;
     cmd.writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, queryPool, getBegin(index));
 }
-void FrameTimings::leaveSection(const std::string& name, vk::CommandBuffer cmd)
+
+template <typename Finder>
+void FrameTimings<Finder>::leaveSection(const std::string& name, vk::CommandBuffer cmd)
 {
     auto index = nameToSectionMap[name];
     VLOG(1) << current << " " << current * frameSections.size() * 2 + index * 2 + 1;
     cmd.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, queryPool, getEnd(index));
 }
-void FrameTimings::resetFrame(vk::CommandBuffer cmd)
+
+template <typename Finder>
+void FrameTimings<Finder>::resetFrame(vk::CommandBuffer cmd)
 {
     cmd.resetQueryPool(queryPool, getFirst(current), getCount());
 }
 
-
+template class FrameTimings<FindMinPause>;
 
 }  // namespace Saiga::Vulkan

@@ -33,6 +33,7 @@ class SAIGA_VULKAN_API DescriptorSetLayout
 
     inline bool is_created() const { return static_cast<bool>(layout); }
 
+    vk::DescriptorSet createRawDescriptorSet();
     StaticDescriptorSet createDescriptorSet();
     DynamicDescriptorSet createDynamicDescriptorSet();
 
@@ -62,7 +63,7 @@ class SAIGA_VULKAN_API DescriptorSetLayout
     }
 
     inline vk::WriteDescriptorSet getWriteForBinding(uint32_t index, vk::DescriptorSet set,
-                                              const vk::DescriptorImageInfo& imageInfo) const
+                                                     const vk::DescriptorImageInfo& imageInfo) const
     {
         auto binding = getBindingForIndex(index);
 

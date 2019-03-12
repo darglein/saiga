@@ -31,6 +31,13 @@ void PipelineBase::destroy()
     device = nullptr;
 }
 
+vk::DescriptorSet PipelineBase::createRawDescriptorSet(uint32_t id)
+{
+    SAIGA_ASSERT(isInitialized());
+    SAIGA_ASSERT(id >= 0 && id < descriptorSetLayouts.size());
+    return descriptorSetLayouts[id].createRawDescriptorSet();
+}
+
 StaticDescriptorSet PipelineBase::createDescriptorSet(uint32_t id)
 {
     SAIGA_ASSERT(isInitialized());
@@ -83,6 +90,8 @@ void PipelineBase::addPushConstantRange(vk::PushConstantRange pcr)
     SAIGA_ASSERT(isInitialized());
     pushConstantRanges.push_back(pcr);
 }
+
+
 
 void PipelineBase::createPipelineLayout()
 {

@@ -33,6 +33,7 @@ class SAIGA_VULKAN_API PipelineBase
     void addPushConstantRange(vk::PushConstantRange pcr);
 
     // ==== Runtime ====
+    vk::DescriptorSet createRawDescriptorSet(uint32_t id = 0);
     StaticDescriptorSet createDescriptorSet(uint32_t id = 0);
     DynamicDescriptorSet createDynamicDescriptorSet(uint32_t id = 0);
 
@@ -47,22 +48,10 @@ class SAIGA_VULKAN_API PipelineBase
                                dynamicOffsets);
     }
 
-    void bindDescriptorSet(vk::CommandBuffer cmd, vk::DescriptorSet& descriptorSet, uint32_t firstSet,
-                           vk::ArrayProxy<const uint32_t> dynamicOffsets)
+    void bindRawDescriptorSet(vk::CommandBuffer cmd, vk::DescriptorSet& descriptorSet, uint32_t firstSet = 0,
+                              vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr)
     {
         cmd.bindDescriptorSets(type, pipelineLayout, firstSet, (descriptorSet), dynamicOffsets);
-    }
-    template <typename SetType>
-    void bindDescriptorSets(vk::CommandBuffer cmd,
-                            std::initializer_list<std::reference_wrapper<SetType>> descriptorSets,
-                            uint32_t firstSet = 0, vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr)
-    {
-        std::for_each(descriptorSets.begin(), descriptorSets.end(), [](DescriptorSet& set) { set.update(); });
-
-        std::vector<vk::DescriptorSet> sets(descriptorSets.size());
-        std::transform(descriptorSets.begin(), descriptorSets.end(), sets.begin(), [](const auto& set) { return set; });
-
-        cmd.bindDescriptorSets(type, pipelineLayout, firstSet, sets, dynamicOffsets);
     }
 
 

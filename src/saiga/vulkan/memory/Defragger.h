@@ -3,7 +3,6 @@
 //
 
 #pragma once
-
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/threadName.h"
 #include "saiga/vulkan/Queue.h"
@@ -54,33 +53,32 @@ class Defragger
    protected:
     struct DefragOperation
     {
-        T* source;
+        T *source, *targetLocation;
         vk::DeviceMemory targetMemory;
         FreeListEntry target;
         float weight;
-
-
+        vk::CommandBuffer copy_cmd = nullptr;
         bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
     };
 
     struct FreeOperation
     {
         T *target, *source;
-        int32_t delay;
+        uint64_t delay;
     };
 
-    bool valid;
-    bool enabled;
-    int32_t dealloc_delay;
+
     VulkanBase* base;
+    uint64_t dealloc_delay;
     vk::Device device;
     BaseChunkAllocator<T>* allocator;
-    std::multiset<DefragOperation> defrag_operations;
+    std::vector<DefragOperation> defrag_operations;
 
     std::list<FreeOperation> free_operations;
 
+    bool valid, enabled;
     std::atomic_bool running, quit;
-    std::atomic_int frame_number;
+    std::atomic_uint64_t frame_number;
 
     std::mutex start_mutex, running_mutex, invalidate_mutex;
     std::condition_variable start_condition;
@@ -89,6 +87,9 @@ class Defragger
     void worker_func();
 
     std::set<vk::DeviceMemory> invalidate_set;
+
+    vk::QueryPool queryPool;
+    double kbPerNanoSecond = std::numeric_limits<double>::infinity();
 
     // Defrag thread functions
     float get_operation_penalty(ConstChunkIterator<T> target_chunk, ConstFreeIterator<T> target_location,
@@ -100,6 +101,7 @@ class Defragger
 
 
     void find_defrag_ops();
+    bool create_copy_commands();
     bool perform_defrag();
     bool perform_free_operations();
 
@@ -108,22 +110,7 @@ class Defragger
     OperationPenalties penalties;
     DefraggerConfiguration config;
 
-    Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0)
-        : valid(true),
-          enabled(false),
-          dealloc_delay(_dealloc_delay + 15),
-          // dealloc_delay(240),
-          base(_base),
-          device(_device),
-          allocator(_allocator),
-          defrag_operations(),
-          free_operations(),
-          running(false),
-          quit(false),
-          frame_number(0),
-          worker(&Defragger::worker_func, this)
-    {
-    }
+    Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0);
 
 
     Defragger(const Defragger& other) = delete;
@@ -131,19 +118,7 @@ class Defragger
 
     virtual ~Defragger() { exit(); }
 
-    void exit()
-    {
-        running = false;
-        std::unique_lock<std::mutex> lock(running_mutex);
-
-        {
-            std::lock_guard<std::mutex> lock(start_mutex);
-            running = false;
-            quit    = true;
-        }
-        start_condition.notify_one();
-        worker.join();
-    }
+    void exit();
 
     void start();
     void stop();
@@ -156,7 +131,7 @@ class Defragger
     void update(uint32_t _frame_number) { frame_number = _frame_number; }
 
    protected:
-    virtual std::optional<FreeOperation> execute_copy_operation(const DefragOperation& op) = 0;
+    virtual bool create_copy_command(DefragOperation& op, vk::CommandBuffer cmd) = 0;
 
    private:
     template <typename Iter>
@@ -213,7 +188,7 @@ class Defragger
 
 
 
-class BufferDefragger : public Defragger<BufferMemoryLocation>
+class BufferDefragger final : public Defragger<BufferMemoryLocation>
 {
    public:
     BufferDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<BufferMemoryLocation>* allocator,
@@ -223,12 +198,21 @@ class BufferDefragger : public Defragger<BufferMemoryLocation>
     }
 
    protected:
-    std::optional<FreeOperation> execute_copy_operation(const DefragOperation& op) override;
+    bool create_copy_command(DefragOperation& op, vk::CommandBuffer cmd) override;
 };
 
-class ImageDefragger : public Defragger<ImageMemoryLocation>
+struct CommandHash
+{
+    std::size_t operator()(vk::CommandBuffer const& cmd) const noexcept
+    {
+        return std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(static_cast<VkCommandBuffer>(cmd)));
+    }
+};
+
+class ImageDefragger final : public Defragger<ImageMemoryLocation>
 {
    private:
+    std::unordered_map<vk::CommandBuffer, vk::DescriptorSet, CommandHash> usedSets;
     ImageCopyComputeShader* img_copy_shader;
 
    public:
@@ -236,7 +220,7 @@ class ImageDefragger : public Defragger<ImageMemoryLocation>
                    uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader);
 
    protected:
-    std::optional<FreeOperation> execute_copy_operation(const DefragOperation& op) override;
+    bool create_copy_command(DefragOperation& op, vk::CommandBuffer cmd) override;
 };
 
 }  // namespace Saiga::Vulkan::Memory

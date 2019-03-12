@@ -178,11 +178,19 @@ void VulkanMemory::destroy()
 
     for (auto& allocator : bufferAllocators)
     {
+        if (allocator.second.defragger)
+        {
+            allocator.second.defragger->exit();
+        }
         allocator.second.allocator->destroy();
     }
 
     for (auto& allocator : imageAllocators)
     {
+        if (allocator.second.defragger)
+        {
+            allocator.second.defragger->exit();
+        }
         allocator.second.allocator->destroy();
     }
 

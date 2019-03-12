@@ -23,15 +23,17 @@ class ImageCopyComputeShader
     ComputePipeline* pipeline;
     bool initialized = false;
 
+
    public:
     inline bool is_initialized() const { return initialized; }
     void init(VulkanBase* _base);
 
     void destroy();
 
-    virtual ~ImageCopyComputeShader() { destroy(); };
+    virtual ~ImageCopyComputeShader() { destroy(); }
 
-    bool copy_image(ImageMemoryLocation* target, ImageMemoryLocation* source);
+    std::optional<vk::DescriptorSet> copy_image(vk::CommandBuffer cmd, ImageMemoryLocation* target,
+                                                ImageMemoryLocation* source);
 };
 
 }  // namespace Saiga::Vulkan::Memory

@@ -48,18 +48,12 @@ void ImageCopyComputeShader::destroy()
     }
 }
 
-bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemoryLocation* source)
+std::optional<vk::DescriptorSet> ImageCopyComputeShader::copy_image(vk::CommandBuffer cmd, ImageMemoryLocation* target,
+                                                                    ImageMemoryLocation* source)
 {
-    auto cmd = base->computeQueue->commandPool.createAndBeginOneTimeBuffer();
-
     target->data.transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
 
-    cmd.end();
-    base->computeQueue->submitAndWait(cmd);
-
-    base->computeQueue->commandPool.freeCommandBuffer(cmd);
-
-    auto descriptorSet = pipeline->createDescriptorSet();
+    auto descriptorSet = pipeline->createRawDescriptorSet();
 
     auto source_info = source->data.get_descriptor_info();
     auto target_info = target->data.get_descriptor_info();
@@ -72,15 +66,13 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
         },
         nullptr);
 
-    cmd = base->computeQueue->commandPool.createAndBeginOneTimeBuffer();
-
     if (!pipeline->bind(cmd))
     {
-        return false;
+        return std::optional<vk::DescriptorSet>();
     }
 
 
-    pipeline->bindDescriptorSet(cmd, descriptorSet);
+    pipeline->bindRawDescriptorSet(cmd, descriptorSet);
 
     const auto extent = source->data.image_create_info.extent;
     int countX        = extent.width / 8 + 1;
@@ -92,10 +84,7 @@ bool ImageCopyComputeShader::copy_image(ImageMemoryLocation* target, ImageMemory
     cmd.dispatch(countX, countY, 1);
 
     target->data.transitionImageLayout(cmd, source->data.layout);
-    cmd.end();
-    base->computeQueue->submitAndWait(cmd);
 
-    base->computeQueue->commandPool.freeCommandBuffer(cmd);
-    return true;
+    return descriptorSet;
 }
 }  // namespace Saiga::Vulkan::Memory

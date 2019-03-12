@@ -115,7 +115,7 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     Instance instance;
     VulkanBase vulkanBase;
-    FrameTimings timings;
+    FrameTimings<> timings;
     VulkanWindow& window;
     VkSurfaceKHR surface;
 
