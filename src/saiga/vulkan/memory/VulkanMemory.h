@@ -149,6 +149,10 @@ class SAIGA_VULKAN_API VulkanMemory
     ImageChunkAllocator& getImageAllocator(const ImageType& type);
 
    public:
+
+	   VulkanMemory() = default;
+	   VulkanMemory(const VulkanMemory&) = delete;
+	   VulkanMemory& operator=(const VulkanMemory&) = delete;
     void init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue);
 
     void destroy();

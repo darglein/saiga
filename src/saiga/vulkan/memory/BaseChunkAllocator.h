@@ -84,6 +84,9 @@ class SAIGA_VULKAN_API BaseChunkAllocator : public BaseMemoryAllocator
         return *this;
     }
 
+	BaseChunkAllocator(const BaseChunkAllocator&) = delete;
+	BaseChunkAllocator& operator= (const BaseChunkAllocator&) = delete;
+
     ~BaseChunkAllocator() override = default;
 
     MemoryLocation* allocate(vk::DeviceSize size) override;

@@ -58,6 +58,9 @@ class FallbackAllocator : public BaseMemoryAllocator
         return *this;
     }
 
+	FallbackAllocator(const FallbackAllocator&) = delete;
+	FallbackAllocator& operator=(const FallbackAllocator&) = delete;
+
     ~FallbackAllocator() override { destroy(); }
 
     MemoryLocation* allocate(vk::DeviceSize size) override;

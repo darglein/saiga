@@ -71,7 +71,8 @@ struct SAIGA_VULKAN_API SimpleMemoryAllocator : public BaseMemoryAllocator
         type                         = other.type;
         return *this;
     }
-
+	SimpleMemoryAllocator(const SimpleMemoryAllocator&) = delete;
+	SimpleMemoryAllocator& operator=(const SimpleMemoryAllocator&) = delete;
     ~SimpleMemoryAllocator() override { destroy(); }
 
 

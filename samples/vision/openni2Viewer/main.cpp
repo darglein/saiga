@@ -3,6 +3,8 @@
 
 #include "sample.h"
 
+#undef main
+
 int main(int, const char**)
 {
     using namespace Saiga;
