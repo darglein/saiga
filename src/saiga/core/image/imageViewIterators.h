@@ -26,7 +26,7 @@ struct RowIterator
     int y() { return row; }
     T& value() { return *_ptr; }
 
-    auto operator*() { return *this; }
+    RowIterator<T> operator*() { return *this; }
 
     RowIterator<T> operator++()
     {
@@ -53,15 +53,13 @@ struct ImageRow
 
     size_t size() { return width; }
 
-    auto& operator()(int i) { return _begin[i]; }
-    auto& operator[](int i) { return _begin[i]; }
-    auto& operator()(int i) const { return _begin[i]; }
-    auto& operator[](int i) const { return _begin[i]; }
+    T& operator()(int i) { return _begin[i]; }
+    T& operator[](int i) { return _begin[i]; }
+    T& operator()(int i) const { return _begin[i]; }
+    T& operator[](int i) const { return _begin[i]; }
 
-    auto operator()() const { return id; }
-    int id() { return id; }
-    auto begin() { return RowIterator<T>(_begin, _row, 0); }
-    auto end() { return RowIterator<T>(_begin + width, _row, width); }
+    RowIterator<T> begin() { return RowIterator<T>(_begin, _row, 0); }
+    RowIterator<T> end() { return RowIterator<T>(_begin + width, _row, width); }
 
    private:
     int _row;
@@ -84,14 +82,15 @@ struct ImageIteratorRowmajor
 
 
 
-    auto operator*() { return ImageRow<ValueType>(row, img.rowPtr(row), img.w); }
+    ImageRow<ValueType> operator*() { return ImageRow<ValueType>(row, img.rowPtr(row), img.w); }
     ImageIteratorRowmajor<ViewType> operator++()
     {
         ++row;
         return *this;
     }
     bool operator!=(const ImageIteratorRowmajor<ViewType> other) const { return row != other.row; }
-private:
+
+   private:
     ViewType& img;
     int row;
 };

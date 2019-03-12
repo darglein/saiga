@@ -532,6 +532,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     }
 
 
+    using ImageIterator = ImageIteratorRowmajor<ImageView<T>>;
     /**
      * This is the recommended way to iterate over all pixels of an image:
      *
@@ -543,8 +544,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
      *       }
      *   }
      */
-    auto begin() { return ImageIteratorRowmajor<ImageView<T>>(*this, 0); }
-    auto end() { return ImageIteratorRowmajor<ImageView<T>>(*this, h); }
+    ImageIterator begin() { return ImageIteratorRowmajor<ImageView<T>>(*this, 0); }
+    ImageIterator end() { return ImageIteratorRowmajor<ImageView<T>>(*this, h); }
 
 
     template <typename T2>
