@@ -57,7 +57,6 @@ void FrameTimings::update()
                 decltype (lastValue.begin()) next;
                 decltype (meanStdDev.begin()) meanIter;
                 for(curr = lastValue.begin(), next = lastValue.begin()+1,meanIter =meanStdDev.begin() ; next != lastValue.end(); curr++, next++, meanIter++) {
-                    // https://dsp.stackexchange.com/questions/811/determining-the-mean-and-standard-deviation-in-real-time
                     const auto pause = next->first - curr->second;
                     updateMeanStdDev(*meanIter, pause);
                 }
