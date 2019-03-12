@@ -12,7 +12,9 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/math.h"
 
+#include <algorithm>
 #include <cstring>
+#include <numeric>
 
 namespace Saiga
 {
@@ -105,6 +107,7 @@ class TriangleMesh
      */
 
     void addQuad(vertex_t verts[4]);
+    void addTriangle(vertex_t verts[3]);
 
     /*
      * Adds 2 Triangles given by 4 vertices and form a quad.
@@ -169,6 +172,25 @@ class TriangleMesh
 
     bool isValid();
 
+    /**
+     * Sorts the vertices by (x,y,z) lexical.
+     * The face indices are correct to match the new vertices.
+     */
+    void sortVerticesByPosition();
+
+
+    /**
+     * Removes subsequent vertices if they have identical position.
+     * It make sense to call it after 'sortVerticesByPosition'.
+     *
+     * The face indices are updated accordingly.
+     */
+    void removeSubsequentDuplicates();
+
+    /**
+     * Removes all triangles, which reference a vertex twice
+     */
+    void removeDegenerateFaces();
 
     template <typename v, typename i>
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v, i>& dt);
@@ -238,6 +260,20 @@ void TriangleMesh<vertex_t, index_t>::addQuad(vertex_t verts[])
 
     faces.push_back(Face(index, index + 1, index + 2));
     faces.push_back(Face(index, index + 2, index + 3));
+}
+
+
+
+template <typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t, index_t>::addTriangle(vertex_t verts[])
+{
+    int index = vertices.size();
+    for (int i = 0; i < 3; i++)
+    {
+        addVertex(verts[i]);
+    }
+
+    faces.push_back(Face(index, index + 1, index + 2));
 }
 
 template <typename vertex_t, typename index_t>
@@ -459,7 +495,82 @@ bool TriangleMesh<vertex_t, index_t>::isValid()
     return true;
 }
 
+template <typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t, index_t>::sortVerticesByPosition()
+{
+    std::vector<int> tmp_indices(vertices.size());
+    std::vector<int> tmp_indices2(vertices.size());
+    std::iota(tmp_indices.begin(), tmp_indices.end(), 0);
 
+    std::sort(tmp_indices.begin(), tmp_indices.end(), [&](int a, int b) {
+        auto p1 = vertices[a].position;
+        auto p2 = vertices[b].position;
+
+        return std::tie(p1.x, p1.y, p1.z) < std::tie(p2.x, p2.y, p2.z);
+    });
+
+    std::vector<Vertex> new_vertices(vertices.size());
+    for (int i = 0; i < (int)new_vertices.size(); ++i)
+    {
+        new_vertices[i]              = vertices[tmp_indices[i]];
+        tmp_indices2[tmp_indices[i]] = i;
+    }
+
+    for (auto& f : faces)
+    {
+        f.v1 = tmp_indices2[f.v1];
+        f.v2 = tmp_indices2[f.v2];
+        f.v3 = tmp_indices2[f.v3];
+    }
+    vertices.swap(new_vertices);
+}
+
+template <typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t, index_t>::removeSubsequentDuplicates()
+{
+    if (vertices.size() <= 1) return;
+
+    std::vector<int> tmp_indices(vertices.size());
+    std::vector<bool> valid(vertices.size(), false);
+    std::vector<Vertex> new_vertices;
+
+    int currentIdx = -1;
+    vec4 currentPos;
+
+    for (int i = 0; i < vertices.size(); ++i)
+    {
+        auto p = vertices[i].position;
+        if (p != currentPos || i == 0)
+        {
+            new_vertices.push_back(vertices[i]);
+            currentIdx++;
+            currentPos = p;
+            valid[i]   = true;
+        }
+        tmp_indices[i] = currentIdx;
+    }
+
+    for (int i = 0; i < (int)vertices.size(); ++i)
+    {
+        if (valid[i]) new_vertices[tmp_indices[i]] = vertices[i];
+    }
+
+    for (auto& f : faces)
+    {
+        f.v1 = tmp_indices[f.v1];
+        f.v2 = tmp_indices[f.v2];
+        f.v3 = tmp_indices[f.v3];
+    }
+    vertices.swap(new_vertices);
+}
+
+template <typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t, index_t>::removeDegenerateFaces()
+{
+    faces.erase(std::remove_if(faces.begin(), faces.end(),
+                               [](const Face& f) { return f.v1 == f.v2 || f.v1 == f.v3 || f.v2 == f.v3; }),
+                faces.end());
+}
 
 template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm)

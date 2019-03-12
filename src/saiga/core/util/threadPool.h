@@ -105,7 +105,7 @@ auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename std::res
  * A global thread pool that can be used from everywhere.
  * Create it at the beginning with createGlobalThreadPool.
  */
-extern SAIGA_CORE_API std::shared_ptr<ThreadPool> globalThreadPool;
+extern SAIGA_CORE_API std::unique_ptr<ThreadPool> globalThreadPool;
 extern SAIGA_CORE_API void createGlobalThreadPool(int threads);
 
 }  // namespace Saiga

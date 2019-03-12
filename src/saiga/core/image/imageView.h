@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/image/imageViewIterators.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/imath.h"
 
@@ -531,55 +532,19 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     }
 
 
-
-    template <typename ViewType>
-    struct ImageIterator
-    {
-        using ValueType = typename ViewType::Type;
-        struct Pixel
-        {
-            int x, y;
-            Pixel(int x, int y, ValueType& value) : x(x), y(y), _value(&value) {}
-            ValueType& value() { return *_value; }
-
-            ValueType* _value;
-        };
-
-        ViewType& img;
-        Pixel pixel;
-
-
-
-        ImageIterator(ViewType& img, int x, int y) : img(img), pixel(x, y, img(y, x)) {}
-
-        ImageIterator<ViewType> operator++()
-        {
-            auto nx = pixel.x + 1;
-            auto ny = pixel.y;
-            if (nx == img.w)
-            {
-                nx = 0;
-                ny++;
-            }
-
-            pixel = Pixel(nx, ny, img(ny, nx));
-
-            return *this;
-        }
-
-        auto& value() { return pixel; }
-        auto& operator*() { return pixel; }
-
-        bool operator==(const ImageIterator<ViewType> other) const
-        {
-            return pixel.x == other.pixel.x && pixel.y == other.pixel.y;
-        }
-        bool operator!=(const ImageIterator<ViewType> other) const { return !((*this) == other); }
-    };
-
-    auto begin() { return ImageIterator<ImageView<T>>(*this, 0, 0); }
-
-    auto end() { return ImageIterator<ImageView<T>>(*this, 0, h); }
+    /**
+     * This is the recommended way to iterate over all pixels of an image:
+     *
+     *   for (auto row : image)
+     *   {
+     *       for (auto p : row)
+     *       {
+     *           cout << p.x() << " " << p.y() << " " << p.value() << endl;
+     *       }
+     *   }
+     */
+    auto begin() { return ImageIteratorRowmajor<ImageView<T>>(*this, 0); }
+    auto end() { return ImageIteratorRowmajor<ImageView<T>>(*this, h); }
 
 
     template <typename T2>
