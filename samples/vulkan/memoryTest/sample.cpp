@@ -41,7 +41,7 @@ VulkanExample::~VulkanExample() {}
 
 void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 {
-    for (int i = 0; i < image_names.size(); ++i)
+    for (auto i = 0U; i < image_names.size(); ++i)
     {
         auto image = std::make_shared<Saiga::Image>(image_names[i]);
 
@@ -139,7 +139,7 @@ void VulkanExample::renderGUI()
         renderer.base().memory.stop_defrag(image_type);
         auto num_allocs = alloc_dist(mersenne_twister);
 
-        for (int i = 0; i < num_allocs; ++i)
+        for (auto i = 0U; i < num_allocs; ++i)
         {
             auto index = image_dist(mersenne_twister);
             // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
@@ -157,7 +157,7 @@ void VulkanExample::renderGUI()
         auto num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
 
 
-        for (int i = 0; i < num_allocs; ++i)
+        for (auto i = 0U; i < num_allocs; ++i)
         {
             auto index = mersenne_twister() % tex_allocations.size();
 
@@ -180,7 +180,7 @@ void VulkanExample::renderGUI()
 
 void VulkanExample::keyPressed(SDL_Keysym key)
 {
-    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 1UL), size_dist(0UL, 3UL), image_dist(0, 4);
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 4UL), size_dist(0UL, 3UL), image_dist(0, 4);
 
 
 
@@ -224,7 +224,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer.base().memory.stop_defrag(buffer_type);
             num_allocs = alloc_dist(mersenne_twister);
 
-            for (int i = 0; i < num_allocs; ++i)
+            for (auto i = 0U; i < num_allocs; ++i)
             {
                 auto size = sizes[size_dist(mersenne_twister)];
                 // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
@@ -241,7 +241,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             num_allocs = std::min(alloc_dist(mersenne_twister), allocations.size());
 
 
-            for (int i = 0; i < num_allocs; ++i)
+            for (auto i = 0U; i < num_allocs; ++i)
             {
                 auto index = mersenne_twister() % allocations.size();
 
@@ -258,11 +258,11 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer.base().memory.stop_defrag(image_type);
             num_allocs = alloc_dist(mersenne_twister);
 
-            for (int i = 0; i < num_allocs; ++i)
+            for (auto i = 0U; i < num_allocs; ++i)
             {
                 auto index = image_dist(mersenne_twister);
                 // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
-                tex_allocations.push_back(allocate(image_type, 2));
+                tex_allocations.push_back(allocate(image_type, index));
             }
             renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
             renderer.base().memory.start_defrag(buffer_type);
@@ -276,12 +276,10 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
 
 
-            for (int i = 0; i < num_allocs; ++i)
+            for (auto i = 0U; i < num_allocs; ++i)
             {
                 auto index = mersenne_twister() % tex_allocations.size();
 
-                auto& alloc = tex_allocations[index];
-                // to_delete_tex.emplace_back(alloc.first, alloc.second, 4);
                 std::move(tex_allocations.begin() + index, tex_allocations.begin() + index + 1,
                           std::back_inserter(to_delete_tex));
                 tex_allocations.erase(tex_allocations.begin() + index);
