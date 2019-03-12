@@ -18,9 +18,8 @@
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
 #include "g2o/solvers/pcg/linear_solver_pcg.h"
 
-#define USE_CHOLMOD_SOLVER
 
-#ifdef USE_CHOLMOD_SOLVER
+#ifdef SAIGA_USE_CHOLMOD
 #    include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 #endif
 
@@ -36,7 +35,7 @@ auto g2o_make_linearSolver(const Saiga::OptimizationOptions& optimizationOptions
     {
         case OptimizationOptions::SolverType::Direct:
         {
-#ifdef USE_CHOLMOD_SOLVER
+#ifdef SAIGA_USE_CHOLMOD
             auto ls = std::make_unique<g2o::LinearSolverCholmod<typename BlockSolver::PoseMatrixType>>();
 #else
             auto ls = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();
@@ -66,7 +65,7 @@ auto g2o_make_optimizationAlgorithm(const Saiga::OptimizationOptions& optimizati
     {
         case OptimizationOptions::SolverType::Direct:
         {
-#ifdef USE_CHOLMOD_SOLVER
+#ifdef SAIGA_USE_CHOLMOD
             auto ls = std::make_unique<g2o::LinearSolverCholmod<typename BlockSolver::PoseMatrixType>>();
 #else
             auto ls = std::make_unique<g2o::LinearSolverEigen<BlockSolver::PoseMatrixType>>();

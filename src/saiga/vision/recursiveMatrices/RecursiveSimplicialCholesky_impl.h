@@ -168,16 +168,24 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
             Scalar yi = y[i];         /* get and clear Y(i) */
             y[i]      = Saiga::AdditiveNeutral<Scalar>::get();
 
+
+            //            cout << "compute L " << k << "," << i << endl;
             /* the nonzero entry L(k,i) */
-            auto& inv   = m_diag_inv[i];
-            Scalar l_ki = yi * inv;
 
 
+            // Get i-th column in L
             Index p2 = Lp[i] + m_nonZerosPerCol[i];
             Index p;
 
             // Inner product transposition
-            for (p = Lp[i]; p < p2; ++p) y[Li[p]] -= yi * transpose(Lx[p]);
+            for (p = Lp[i]; p < p2; ++p)
+            {
+                y[Li[p]] -= yi * transpose(Lx[p]);
+                //                cout << "subtract y: " << Li[p] << "," << i << endl;
+            }
+
+            auto& inv   = m_diag_inv[i];
+            Scalar l_ki = yi * inv;
             d -= (yi)*transpose(l_ki);
 
             Li[p] = k;

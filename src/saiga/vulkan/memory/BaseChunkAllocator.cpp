@@ -114,7 +114,8 @@ void BaseChunkAllocator<T>::deallocate(T* location)
         last--;
         stol--;
 
-        chunks.erase(last + 1, chunks.end());
+		chunks.pop_back();
+        //chunks.erase(last + 1, chunks.end());
     }
 }
 

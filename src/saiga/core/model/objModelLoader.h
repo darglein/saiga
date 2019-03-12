@@ -9,7 +9,6 @@
 #include "saiga/config.h"
 #include "saiga/core/geometry/triangle_mesh.h"
 
-#include "ModelLoader.h"
 #include "objMaterialLoader.h"
 
 namespace Saiga
@@ -36,7 +35,7 @@ struct SAIGA_CORE_API ObjTriangle
     uint32_t v[3];
 };
 
-class SAIGA_CORE_API ObjModelLoader : public ModelLoader
+class SAIGA_CORE_API ObjModelLoader
 {
    public:
     std::string file;

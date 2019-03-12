@@ -17,10 +17,12 @@ void ProceduralSkyboxShader::checkUniforms()
     location_params = Shader::getUniformLocation("params");
 }
 
-void ProceduralSkyboxShader::uploadParams(float horizonHeight, float distance)
+void ProceduralSkyboxShader::uploadParams(glm::vec3 sunDir, float horizonHeight, float distance, float sunIntensity,
+                                          float sunSize)
 {
-    vec4 params = vec4(horizonHeight, distance, 0, 0);
-    Shader::upload(location_params, params);
+    vec4 params = vec4(horizonHeight, distance, sunIntensity, sunSize);
+    Shader::upload(0, params);
+    Shader::upload(1, sunDir);
 }
 
 
@@ -42,10 +44,12 @@ void ProceduralSkybox::render(Camera* cam)
 {
     shader->bind();
     shader->uploadModel(model);
-    shader->uploadParams(horizonHeight, distance);
+    shader->uploadParams(sunDir, horizonHeight, distance, sunIntensity, sunSize);
     mesh.bindAndDraw();
 
     shader->unbind();
 }
+
+
 
 }  // namespace Saiga

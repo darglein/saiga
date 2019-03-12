@@ -26,7 +26,7 @@ class SAIGA_VULKAN_API ChunkType
     vk::MemoryPropertyFlags propertyFlags;
 
     ChunkType(const ChunkType& memoryType) = delete;
-
+	ChunkType& operator=(const ChunkType&) = delete;
     ChunkType(ChunkType&& memoryType) noexcept
         : m_memoryTypeIndex(memoryType.m_memoryTypeIndex),
           m_device(memoryType.m_device),

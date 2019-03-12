@@ -14,9 +14,6 @@
 
 namespace Saiga
 {
-using std::string;
-
-
 class SAIGA_CORE_API Camera : public Object3D
 {
    public:

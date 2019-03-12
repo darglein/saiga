@@ -112,6 +112,7 @@ OptimizationResults g2oPGO::solve()
         if (invalid) result.cost_final = -1;
     }
 
+    result.name = name;
     return result;
 }
 

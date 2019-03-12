@@ -10,13 +10,11 @@
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/tostring.h"
 
-#include "ModelLoader.h"
-
 #include <fstream>
 
 namespace Saiga
 {
-class SAIGA_CORE_API PLYLoader : public ModelLoader
+class SAIGA_CORE_API PLYLoader
 {
    public:
     struct VertexProperty

@@ -24,6 +24,11 @@ class SafeAllocator : public Singleton<SafeAllocator>
     std::mutex allocMutex;
 
    public:
+	   SafeAllocator() = default;
+
+	   SafeAllocator(const SafeAllocator&) = delete;
+	   SafeAllocator& operator=(const SafeAllocator&) = delete;
+
     template <typename Dispatch = DispatchLoaderStatic>
     inline Result allocateMemory(const Device device, const MemoryAllocateInfo* pAllocateInfo,
                                  const AllocationCallbacks* pAllocator, DeviceMemory* pMemory,

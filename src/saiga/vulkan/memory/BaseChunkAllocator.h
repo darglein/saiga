@@ -94,7 +94,12 @@ class SAIGA_VULKAN_API BaseChunkAllocator
         return *this;
     }
 
+
     virtual ~BaseChunkAllocator() = default;
+
+	BaseChunkAllocator(const BaseChunkAllocator&) = delete;
+	BaseChunkAllocator& operator= (const BaseChunkAllocator&) = delete;
+
 
     T* reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
 

@@ -13,6 +13,7 @@ add_subdirectory(geometry)
 add_subdirectory(util)
 add_subdirectory(tests)
 add_subdirectory(imgui)
+add_subdirectory(rendering)
 
 if (SDL2_FOUND)
     add_subdirectory(sdl)

@@ -1,12 +1,12 @@
 
 if(SAIGA_MODULE_CORE)
-add_subdirectory(core)
+    add_subdirectory(core)
 endif()
 
 if(SAIGA_MODULE_VULKAN AND SAIGA_USE_VULKAN)
-if (SDL2_FOUND AND SAIGA_USE_VULKAN)
-    add_subdirectory(vulkan)
-endif()
+    if (SDL2_FOUND AND SAIGA_USE_VULKAN)
+        add_subdirectory(vulkan)
+    endif()
 endif()
 
 
@@ -24,7 +24,7 @@ if(SAIGA_MODULE_VISION AND SAIGA_VISION)
 endif()
 
 if(SAIGA_MODULE_EXTRA)
-add_subdirectory(modules)
+    add_subdirectory(modules)
 endif()
 
 

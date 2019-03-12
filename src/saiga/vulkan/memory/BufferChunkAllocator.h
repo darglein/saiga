@@ -78,7 +78,12 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Bu
         return *this;
     }
 
+
     void deallocate(BufferMemoryLocation* location) override;
+
+	BufferChunkAllocator(const BufferChunkAllocator&) = delete;
+
+	BufferChunkAllocator& operator= (const BufferChunkAllocator&) = delete;
 
     BufferMemoryLocation* allocate(vk::DeviceSize size);
 };

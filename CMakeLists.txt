@@ -458,6 +458,8 @@ endif()
 
 ############# Generate config file ###############
 
+
+
 if(SAIGA_NO_INSTALL)
     set(SAIGA_SHADER_PREFIX "${PROJECT_SOURCE_DIR}/shader")
 
@@ -470,6 +472,9 @@ if(SAIGA_NO_INSTALL)
 else()
     set(SAIGA_SHADER_PREFIX "${CMAKE_INSTALL_PREFIX}/share/saiga/shader")
 endif()
+
+STRING(REGEX REPLACE "\\\\" "/" SAIGA_SHADER_PREFIX ${SAIGA_SHADER_PREFIX} )
+STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} )
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga_buildconfig.h")

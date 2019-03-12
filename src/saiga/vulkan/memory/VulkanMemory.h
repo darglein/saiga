@@ -189,7 +189,11 @@ class SAIGA_VULKAN_API VulkanMemory
     ImageContainer& get_image_allocator_exact(const ImageType& type);
 
    public:
+
     void init(VulkanBase* base, uint32_t swapchain_frames);
+    VulkanMemory() = default;
+    VulkanMemory(const VulkanMemory&) = delete;
+    VulkanMemory& operator=(const VulkanMemory&) = delete;
 
     void destroy();
 

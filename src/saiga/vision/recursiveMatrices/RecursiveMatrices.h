@@ -17,7 +17,7 @@
 #include "saiga/vision/recursiveMatrices/EigenTemplateDefines_sparse.h"
 #include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
-#include "saiga/vision/recursiveMatrices/MixedMatrix.h"
+#include "saiga/vision/recursiveMatrices/Mixed/MixedMatrix.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Norm.h"
 #include "saiga/vision/recursiveMatrices/Random.h"
@@ -31,5 +31,7 @@
 // High Level Functions
 #include "saiga/vision/recursiveMatrices/CG.h"
 #include "saiga/vision/recursiveMatrices/LM.h"
-#include "saiga/vision/recursiveMatrices/MixedSolver.h"
+#include "saiga/vision/recursiveMatrices/Mixed/MixedSolver.h"
+#include "saiga/vision/recursiveMatrices/Mixed/MixedSolverSchur.h"
+#include "saiga/vision/recursiveMatrices/Mixed/MixedSolverSparse.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"

@@ -74,4 +74,75 @@ std::vector<Eigen::Triplet<typename MatrixType::Scalar>> sparseBlockToTriplets(
 }
 
 
+template <typename BlockType, typename T, int _options>
+void sparseBlockToFlatMatrix(const Eigen::SparseMatrix<MatrixScalar<BlockType>, _options>& src,
+                             Eigen::SparseMatrix<T, _options>& dst)
+{
+    using Lhs              = Eigen::SparseMatrix<MatrixScalar<BlockType>, _options>;
+    using LhsInnerIterator = typename Lhs::InnerIterator;
+
+    const int outerSizeBlock =
+        (_options & Eigen::RowMajorBit) ? BlockType::RowsAtCompileTime : BlockType::ColsAtCompileTime;
+    const int innerSizeBlock =
+        (_options & Eigen::RowMajorBit) ? BlockType::ColsAtCompileTime : BlockType::RowsAtCompileTime;
+    //    int outerSize = outerSizeBlock * src.outerSize();
+    //    int innerSize = innerSizeBlock * src.innerSize();
+
+    dst.resize(src.rows() * BlockType::RowsAtCompileTime, src.cols() * BlockType::ColsAtCompileTime);
+    dst.reserve(src.nonZeros() * BlockType::RowsAtCompileTime * BlockType::ColsAtCompileTime);
+
+    for (int i = 0; i < dst.outerSize() + 1; ++i)
+    {
+        dst.outerIndexPtr()[i] = 0;
+    }
+
+    for (int i = 0; i < src.outerSize(); ++i)
+    {
+        int numElementsBlock = src.outerIndexPtr()[i + 1] - src.outerIndexPtr()[i];
+        int numElementsRow   = numElementsBlock * innerSizeBlock;
+
+        // Set outer index pointers for dst
+        for (int j = 0; j < outerSizeBlock; ++j)
+        {
+            dst.outerIndexPtr()[j + i * outerSizeBlock + 1] =
+                dst.outerIndexPtr()[j + i * outerSizeBlock] + numElementsRow;
+        }
+
+
+
+        int innerValueOffset = 0;
+        for (LhsInnerIterator it(src, i); it; ++it)
+        {
+            int innerIndexOffset = it.index() * innerSizeBlock;
+
+            for (int j = 0; j < outerSizeBlock; ++j)
+            {
+                auto dstStart = dst.outerIndexPtr()[i * outerSizeBlock + j];
+                for (int k = 0; k < innerSizeBlock; ++k)
+                {
+                    dst.innerIndexPtr()[dstStart + innerValueOffset + k] = innerIndexOffset + k;
+
+                    if (_options & Eigen::RowMajorBit)
+                    {
+                        dst.valuePtr()[dstStart + innerValueOffset + k] = it.value().get()(j, k);
+                    }
+                    else
+                    {
+                        dst.valuePtr()[dstStart + innerValueOffset + k] = it.value().get()(k, j);
+                    }
+                }
+            }
+            //                res.coeffRef(it.index(), c) += (it.value() * rhs.coeff(j, c));
+            innerValueOffset += innerSizeBlock;
+        }
+
+
+        if constexpr (_options & Eigen::RowMajorBit)
+        {
+        }
+    }
+}
+
+
+
 }  // namespace Saiga

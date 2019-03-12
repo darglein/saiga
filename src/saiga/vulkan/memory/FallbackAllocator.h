@@ -66,6 +66,8 @@ class FallbackAllocator
 
     ~FallbackAllocator() { destroy(); }
 
+	FallbackAllocator(const FallbackAllocator&) = delete;
+	FallbackAllocator& operator=(const FallbackAllocator&) = delete;
 
     BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
     ImageMemoryLocation* allocate(const ImageType& type, ImageData& image_data);
