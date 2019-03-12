@@ -197,6 +197,111 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
 {
     SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
     using MatrixScalar = typename MatrixType::Scalar;
+    using BlockType    = double;
+    using BlockVector  = double;
+    //    using VectorScalar = typename VectorType::Scalar;
+
+    MatrixType L;
+    L.resize(A.rows(), A.cols());
+
+    Eigen::DiagonalMatrix<MatrixScalar, MatrixType::RowsAtCompileTime> D;
+    Eigen::DiagonalMatrix<MatrixScalar, MatrixType::RowsAtCompileTime> Dinv;
+    D.resize(A.rows());
+    Dinv.resize(A.rows());
+
+    VectorType x, y, z;
+    x.resize(A.rows());
+    y.resize(A.rows());
+    z.resize(A.rows());
+
+
+
+    std::vector<MatrixScalar> ybuffer(A.rows());
+
+    MatrixScalar fakeYbuffer = 0;
+    // compute L
+    for (int k = 0; k < A.rows(); k++)
+    {
+        ybuffer[k] = AdditiveNeutral<MatrixScalar>::get();
+
+        for (int i = 0; i <= k; ++i)
+        {
+            ybuffer[i] = transpose(A(i, k));
+        }
+
+        MatrixScalar sumd = ybuffer[k];
+        ybuffer[k]        = Saiga::AdditiveNeutral<MatrixScalar>::get();
+
+
+
+        for (int i = 0; i < k; ++i)
+        {
+            //            cout << "compute L " << k << "," << i << endl;
+
+            MatrixScalar yi = ybuffer[i];
+            ybuffer[i]      = Saiga::AdditiveNeutral<MatrixScalar>::get();
+
+            if (k == 0 && i == 0)
+            {
+                fakeYbuffer = yi;
+            }
+
+
+            auto& inv         = Dinv.diagonal()[i];
+            MatrixScalar l_ki = yi * inv;
+            L(k, i)           = l_ki;
+            sumd -= yi * transpose(l_ki);
+
+            // Compute y buffer for next column
+            for (int j = i + 1; j < k; ++j)
+            {
+                ybuffer[j] -= yi * transpose(L(j, i));
+                //                cout << "subtract y: " << j << "," << i << endl;
+            }
+
+
+            //            if (k == 1 && i == 0)
+            //            {
+            //                //                fakeYbuffer -= yi * transpose(L(0, 0));
+            //                cout << "yi" << endl << expand(yi) << endl << endl;
+            //                cout << "test" << endl << expand(yi)(0,1) - (expand(yi)(0,0)) << endl << endl;
+            //            }
+
+            //            cout << expand(fakeYbuffer) << endl;
+            //            cout << expand(yi * transpose(L(i, i))) << endl;
+        }
+
+
+
+        L(k, k)            = MultiplicativeNeutral<MatrixScalar>::get();
+        D.diagonal()(k)    = sumd;
+        Dinv.diagonal()(k) = inverse(D.diagonal()(k));
+    }
+
+    cout << "L" << endl << expand(L) << endl << endl;
+    cout << "D" << endl << expand(D) << endl << endl;
+
+    z = forwardSubstituteDiagOne(L, b);
+    y = multDiagVector(Dinv, z);
+    x = backwardSubstituteDiagOneTranspose(L, y);
+
+
+#if 0
+    // Test if (Ax-b)==0
+    double test =
+        (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
+    cout << "error solveLDLT2: " << test << endl;
+#endif
+
+
+    return x;
+}
+
+template <typename MatrixType, typename VectorType>
+VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
+{
+    SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
+    using MatrixScalar = typename MatrixType::Scalar;
     using BlockType    = typename MatrixScalar::M;
     using BlockVector  = typename VectorType::Scalar::M;
     //    using VectorScalar = typename VectorType::Scalar;
@@ -271,17 +376,19 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
             //            cout << expand(yi * transpose(L(i, i))) << endl;
         }
 
-        //        Saiga::DenseLDLT<BlockType, BlockVector> ldlt;
-        //        ldlt.compute(sumd.get());
+#if 1
+        Saiga::DenseLDLT<BlockType, BlockVector> ldlt;
+        ldlt.compute(sumd.get());
 
-        //        L(k, k)            = ldlt.L.template triangularView<Eigen::Lower>();
-        //        D.diagonal()(k)    = ldlt.D;
-        //        Dinv.diagonal()(k) = ldlt.Dinv;
-
+        L(k, k)            = ldlt.L.template triangularView<Eigen::Lower>();
+        D.diagonal()(k)    = ldlt.D;
+        Dinv.diagonal()(k) = ldlt.Dinv;
+#else
 
         L(k, k)            = MultiplicativeNeutral<MatrixScalar>::get();
         D.diagonal()(k)    = sumd;
         Dinv.diagonal()(k) = inverse(D.diagonal()(k));
+#endif
     }
 
     cout << "L" << endl << expand(L) << endl << endl;
@@ -457,7 +564,7 @@ void testBlockCholesky()
     cout << "testBlockCholesky" << endl;
 
     const int n          = 2;
-    const int block_size = 2;
+    const int block_size = 3;
 
 
     using CompleteMatrix = Eigen::Matrix<double, n * block_size, n * block_size>;
@@ -469,13 +576,33 @@ void testBlockCholesky()
     //    return;
 
     CompleteMatrix A;
+
+    // clang-format off
+    A <<
+            1, 0, 0, 0, 0, 0,
+            4, 1, 0, 0, 0, 0,
+            3, 4, 1, 0, 0, 0,
+            2, 3, 4, 1, 0, 0,
+            7, 4, 1, 2, 1, 0,
+            5, 2, 3, 5, 9, 1;
+    // clang-format on
+    Eigen::DiagonalMatrix<double, n * block_size> D;
+
+    CompleteVector d;
+    d << 4, 6, 3, 2, 1, 4;
+    D.diagonal() = d;
+
+    A = A.triangularView<Eigen::Lower>() * D.toDenseMatrix() * A.triangularView<Eigen::Lower>().transpose();
+
+
+
     CompleteVector x;
     CompleteVector b;
 
 
-    CompleteVector t = CompleteVector::Random();
-    A                = t * t.transpose();
-    b                = CompleteVector::Random();
+    //    CompleteVector t = CompleteVector::Random();
+    //    A                = t * t.transpose();
+    b = CompleteVector::Random();
     A.diagonal() += CompleteVector::Ones();
 
     cout << A << endl << endl;
@@ -515,7 +642,7 @@ void testBlockCholesky()
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
 #endif
-    if (1)
+    if (0)
     {
         x = solveLDLT(A, b);
         //        cout << "x " << x.transpose() << endl;
@@ -560,10 +687,17 @@ void testBlockCholesky()
         //        cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
+    if (1)
+    {
+        x = solveLDLT_ybuffer(A, b);
+
+        //        cout << "x " << x.transpose() << endl;
+        cout << "error: " << (A * x - b).squaredNorm() << endl;
+    }
 
     if (1)
     {
-        bx = solveLDLT_ybuffer(bA, bb);
+        bx = solveLDLT_ybuffer_block(bA, bb);
 
         x = expand(bx);
         //        cout << "x " << x.transpose() << endl;

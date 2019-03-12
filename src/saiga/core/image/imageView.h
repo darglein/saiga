@@ -42,7 +42,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     using RawDataType  = typename std::conditional<std::is_const<T>::value, const void, void>::type;
     using RawDataType8 = typename std::conditional<std::is_const<T>::value, const uint8_t, uint8_t>::type;
     using NoConstType  = typename std::remove_const<T>::type;
-
+    using Type         = T;
     union {
         RawDataType* data;
         RawDataType8* data8;
@@ -529,6 +529,57 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     {
         if (inImage(y, x)) (*this)(y, x) = v;
     }
+
+
+
+    template <typename ViewType>
+    struct ImageIterator
+    {
+        using ValueType = typename ViewType::Type;
+        struct Pixel
+        {
+            int x, y;
+            Pixel(int x, int y, ValueType& value) : x(x), y(y), _value(&value) {}
+            ValueType& value() { return *_value; }
+
+            ValueType* _value;
+        };
+
+        ViewType& img;
+        Pixel pixel;
+
+
+
+        ImageIterator(ViewType& img, int x, int y) : img(img), pixel(x, y, img(y, x)) {}
+
+        ImageIterator<ViewType> operator++()
+        {
+            auto nx = pixel.x + 1;
+            auto ny = pixel.y;
+            if (nx == img.w)
+            {
+                nx = 0;
+                ny++;
+            }
+
+            pixel = Pixel(nx, ny, img(ny, nx));
+
+            return *this;
+        }
+
+        auto& value() { return pixel; }
+        auto& operator*() { return pixel; }
+
+        bool operator==(const ImageIterator<ViewType> other) const
+        {
+            return pixel.x == other.pixel.x && pixel.y == other.pixel.y;
+        }
+        bool operator!=(const ImageIterator<ViewType> other) const { return !((*this) == other); }
+    };
+
+    auto begin() { return ImageIterator<ImageView<T>>(*this, 0, 0); }
+
+    auto end() { return ImageIterator<ImageView<T>>(*this, 0, h); }
 
 
     template <typename T2>
