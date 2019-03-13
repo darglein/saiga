@@ -28,6 +28,8 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/threadName.h"
 
+#include "omp.h"
+
 namespace Saiga
 {
 ThreadPool::ThreadPool(size_t threads, const std::string& name) : name(name), stop(false)
@@ -79,6 +81,10 @@ std::unique_ptr<ThreadPool> globalThreadPool;
 
 void createGlobalThreadPool(int threads)
 {
+    if (threads < 0)
+    {
+        threads = omp_get_thread_num();
+    }
     SAIGA_ASSERT(!globalThreadPool);
     globalThreadPool = std::make_unique<ThreadPool>(threads, "GlobalTP");
 }

@@ -166,17 +166,11 @@ void VulkanExample::renderGUI()
 
     ImGui::Text("Frame: %d", frameId);
 
-#if 0
-    std::shared_ptr<Saiga::RGBDCameraInput> cam = std::dynamic_pointer_cast<Saiga::RGBDCameraInput>(rgbdcamera);
-    cam->updateCameraSettings();
-
-
-    ImGui::Checkbox("autoexposure", &cam->autoexposure);
-    ImGui::Checkbox("autoWhiteBalance", &cam->autoWhiteBalance);
-
-    ImGui::InputInt("exposure", &cam->exposure);
-    ImGui::InputInt("gain", &cam->gain);
-#endif
+    Saiga::RGBDCameraInput* cam = dynamic_cast<Saiga::RGBDCameraInput*>(rgbdcamera.get());
+    if (cam)
+    {
+        cam->imgui();
+    }
 
     ImGui::End();
 }
