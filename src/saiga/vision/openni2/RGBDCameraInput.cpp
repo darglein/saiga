@@ -161,6 +161,7 @@ bool RGBDCameraInput::open()
     autoexposure     = settings->getAutoExposureEnabled();
     autoWhiteBalance = settings->getAutoWhiteBalanceEnabled();
 
+
     cout << "RGBD Camera opened." << endl;
 
     return true;

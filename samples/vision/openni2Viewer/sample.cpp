@@ -149,11 +149,17 @@ void VulkanExample::renderGUI()
         initTexture = true;
     }
 
+    static int depthWidth  = 640;
+    static int depthHeight = 480;
+
+    ImGui::InputInt("depthWidth", &depthWidth);
+    ImGui::InputInt("depthHeight", &depthHeight);
+
     if (ImGui::Button("Openni"))
     {
         Saiga::RGBDCameraInput::CameraOptions co1, co2;
-        //        co2.h = 240;
-        //        co2.w = 320;
+        co2.w = depthWidth;
+        co2.h = depthHeight;
 
         rgbdcamera  = std::make_unique<Saiga::RGBDCameraInput>(co1, co2);
         initTexture = true;
