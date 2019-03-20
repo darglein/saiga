@@ -64,8 +64,7 @@ find_path(SAIGA_GLM_INCLUDE_DIRS
 	NAMES 
 		glm/glm.hpp
 	PATHS
-		/usr/local/include
-                /usr/include
+        /usr/include
 )
 
 

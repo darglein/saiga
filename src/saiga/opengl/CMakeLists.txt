@@ -78,6 +78,20 @@ target_include_directories(
     #${PROJECT_SOURCE_DIR}/src/
     )
 
+install(
+    TARGETS ${MODULE_NAME}
+    EXPORT ${LIB_EXPORT}
+    RUNTIME DESTINATION ${INSTALL_BIN}
+    LIBRARY DESTINATION ${INSTALL_SHARED}
+    ARCHIVE DESTINATION ${INSTALL_LIB}
+    )
+
+install(
+    EXPORT ${LIB_EXPORT}
+    FILE SaigaTargets.cmake
+    DESTINATION ${INSTALL_SHARE}
+    )
+
 ##### Precompiled Headers #####
 if(SAIGA_PCH)
     set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "${PROJECT_SOURCE_DIR}/src/internal/pch_opengl.h")

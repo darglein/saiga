@@ -25,7 +25,7 @@ using Saiga::CUDA::ThreadInfo;
 //#define LECTURE
 
 template <int K>
-class GLM_ALIGN(16) Element
+class Element
 {
    public:
     vec4 data;

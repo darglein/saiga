@@ -551,6 +551,18 @@ install(
     DESTINATION ${INSTALL_INCLUDE}
     )
 
+install(
+    FILES "${SAIGA_MODULES_FILE}"
+    DESTINATION ${INSTALL_INCLUDE}
+    )
+
+install(
+    DIRECTORY ./src/saiga/
+    DESTINATION ${INSTALL_INCLUDE}
+    FILES_MATCHING PATTERN "*.h"
+    PATTERN "*.inl"
+    PATTERN "*.hpp"
+    )
 
 
 ############# UNINSTALL ###############
