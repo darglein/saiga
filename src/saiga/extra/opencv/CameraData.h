@@ -14,7 +14,7 @@ struct SAIGA_EXTRA_API Intrinsics
     cv::Mat1d K, dist;
 
     void writeToFile(std::string file);
-    void readFromFile(std::string file);
+    bool readFromFile(std::string file);
 };
 
 struct SAIGA_EXTRA_API StereoExtrinsics
@@ -24,7 +24,7 @@ struct SAIGA_EXTRA_API StereoExtrinsics
     cv::Matx44f getRelativeTransform();
 
     void writeToFile(std::string file);
-    void readFromFile(std::string file);
+    bool readFromFile(std::string file);
 };
 
 }  // namespace Saiga

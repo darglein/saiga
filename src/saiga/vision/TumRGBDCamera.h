@@ -55,6 +55,8 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
 
     size_t getFrameCount() { return frames.size(); }
 
+    void saveRaw(const std::string& dir);
+
    private:
     void associate(const std::string& datasetDir);
     void associateFromFile(const std::string& datasetDir);

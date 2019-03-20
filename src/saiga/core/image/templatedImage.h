@@ -20,7 +20,11 @@ class TemplatedImage : public Image
 
     TemplatedImage() : Image(TType::type) {}
     TemplatedImage(int h, int w) : Image(h, w, TType::type) {}
-    TemplatedImage(const std::string& file) { load(file); }
+    TemplatedImage(const std::string& file)
+    {
+        auto res = load(file);
+        SAIGA_ASSERT(res);
+    }
 
     // Note: This creates a copy of img
     TemplatedImage(ImageView<T> img)
@@ -58,6 +62,19 @@ class TemplatedImage : public Image
     bool load(const std::string& path)
     {
         auto r = Image::load(path);
+        if (!r)
+        {
+            return false;
+        }
+
+        if (type != TType::type)
+        {
+            cerr << "Image type does not match template argument!" << endl;
+            cerr << "Loaded:   " << channels(type) << "/" << elementType(type) << endl;
+            cerr << "Template: " << channels(TType::type) << "/" << elementType(TType::type) << endl;
+            cerr << "Path:     " << path << endl;
+            SAIGA_EXIT_ERROR("Image Load failed!");
+        }
         SAIGA_ASSERT(type == TType::type);
         return r;
     }
