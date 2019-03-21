@@ -84,13 +84,18 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
 
     box.loadObj("box.obj");
+
     //    box.loadObj("cat.obj");
     box.init(renderer.base());
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
-    //    teapot.loadObj("teapot.obj");
-    teapot.loadObj("teapot.obj");
+        teapot.loadObj("teapot.obj");
+    //        teapot.loadPly("dragon_10k.ply");
+//    teapot.loadPly("fr3_office.ply");
+    teapot.mesh.computePerVertexNormal();
     teapot.init(renderer.base());
+    teapotTrans.setScale(vec3(2, 2, 2));
+    //    teapotTrans.rotateGlobal(vec3(1, 0, 0), glm::pi<float>());
     teapotTrans.translateGlobal(vec3(0, 1, 0));
     teapotTrans.calculateModel();
 
@@ -171,12 +176,15 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         {
             assetRenderer.pushModel(cmd, identityMat4());
             plane.render(cmd);
+
+            lineAssetRenderer.pushModel(cmd, teapotTrans.model);
+            teapot.render(cmd);
         }
 
         if (lineAssetRenderer.bind(cmd))
         {
             lineAssetRenderer.pushModel(cmd, translate(vec3(-5, 1.5f, 0)));
-            teapot.render(cmd);
+            //            teapot.render(cmd);
 
             auto gridMatrix = rotate(0.5f * pi<float>(), vec3(1, 0, 0));
             gridMatrix      = translate(gridMatrix, vec3(0, -10, 0));

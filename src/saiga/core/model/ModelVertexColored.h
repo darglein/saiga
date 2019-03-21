@@ -17,6 +17,7 @@ class SAIGA_CORE_API VertexColoredModel : public TriangleModel<VertexNC, uint32_
 
     void createCheckerBoard(ivec2 size, float quadSize, vec4 color1, vec4 color2);
     void loadObj(const std::string& file);
+    void loadPly(const std::string& file);
 };
 
 

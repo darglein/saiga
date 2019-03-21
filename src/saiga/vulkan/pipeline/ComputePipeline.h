@@ -26,7 +26,7 @@ class SAIGA_VULKAN_API ComputePipeline : public PipelineBase
 
     void reload();
 
-    bool autoReload = false;
+    bool autoReload = true;
 
    protected:
     virtual bool checkShader() override;

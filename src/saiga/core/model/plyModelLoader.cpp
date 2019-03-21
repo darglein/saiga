@@ -23,6 +23,7 @@ PLYLoader::PLYLoader(const std::string& _file)
     if (!stream.is_open())
     {
         cerr << "Could not open file " << file << endl;
+        throw std::runtime_error("invalid file: " + file + ", " + _file);
     }
 
     // open the file:
