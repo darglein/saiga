@@ -143,9 +143,9 @@ void VulkanRenderer::renderImGui(bool* p_open)
 
 void VulkanRenderer::waitIdle()
 {
-    cout << "wait idle start" << endl;
+    //    cout << "wait idle start" << endl;
     base().mainQueue.waitIdle();
-    cout << "wait idle end" << endl;
+    //    cout << "wait idle end" << endl;
     //    presentQueue.waitIdle();
     //    transferQueue.waitIdle();
 }

@@ -1,5 +1,7 @@
 ﻿#include "SwapChain.h"
 
+#include "saiga/core/util/easylogging++.h"
+
 #include "VulkanInitializers.hpp"
 #include "VulkanTools.h"
 
@@ -343,6 +345,7 @@ VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSem
 
 void VulkanSwapChain::cleanup()
 {
+    LOG(INFO) << "Destroying Swap Chain";
     if (swapChain != VK_NULL_HANDLE)
     {
         for (uint32_t i = 0; i < imageCount; i++)
@@ -352,9 +355,11 @@ void VulkanSwapChain::cleanup()
         vkDestroySwapchainKHR(device, swapChain, nullptr);
     }
     swapChain = VK_NULL_HANDLE;
+}
 
-    return;
-
+void VulkanSwapChain::destroySurface()
+{
+    LOG(INFO) << "Destroying Surface";
     if (surface != VK_NULL_HANDLE)
     {
         vkDestroySurfaceKHR(instance, surface, nullptr);
