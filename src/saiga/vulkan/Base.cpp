@@ -31,6 +31,7 @@ void VulkanBase::destroy()
 
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
+    LOG(INFO) << "Destroying VulkanBase with device: " << device;
 
     if (dedicated_compute_queue)
     {
