@@ -38,6 +38,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 
 VulkanExample::~VulkanExample()
 {
+    LOG(INFO) << "~VulkanExample";
     assetRenderer.destroy();
     lineAssetRenderer.destroy();
     pointCloudRenderer.destroy();
@@ -89,9 +90,9 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     box.init(renderer.base());
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
-        teapot.loadObj("teapot.obj");
+    teapot.loadObj("teapot.obj");
     //        teapot.loadPly("dragon_10k.ply");
-//    teapot.loadPly("fr3_office.ply");
+    //    teapot.loadPly("fr3_office.ply");
     teapot.mesh.computePerVertexNormal();
     teapot.init(renderer.base());
     teapotTrans.setScale(vec3(2, 2, 2));
