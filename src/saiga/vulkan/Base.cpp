@@ -37,10 +37,12 @@ void VulkanBase::destroy()
     if (dedicated_compute_queue)
     {
         dedicated_compute_queue->destroy();
+        dedicated_compute_queue.reset();
     }
     if (dedicated_transfer_queue)
     {
         dedicated_transfer_queue->destroy();
+        dedicated_transfer_queue.reset();
     }
     mainQueue.destroy();
 
