@@ -13,7 +13,7 @@ struct SAIGA_VULKAN_API BufferData
 
     BufferData(vk::Buffer _buffer) : buffer(_buffer) {}
 
-    BufferData(nullptr_t) : buffer(nullptr) {}
+    BufferData(std::nullptr_t) : buffer(nullptr) {}
 
     /**
      * Destroys the data that is owned by this object uniquely.
