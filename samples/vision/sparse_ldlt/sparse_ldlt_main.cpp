@@ -333,6 +333,7 @@ class Sparse_LDLT_TEST
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
 
+#if 0
     auto solveEigenRecursiveCholmod()
     {
         // Convert recursive to flat matrix
@@ -372,6 +373,7 @@ class Sparse_LDLT_TEST
             cholmod_factor* m_cholmodFactor = nullptr;
             cholmod_common m_cholmod        = ldlt.cholmod();
 
+
             m_cholmodFactor = Eigen::internal::cm_analyze<StorageIndex>(cholmod_matrix, m_cholmod);
             SAIGA_ASSERT(m_cholmodFactor);
 
@@ -392,7 +394,7 @@ class Sparse_LDLT_TEST
         double error = (Anoblock * bx - be).squaredNorm();
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
-
+#endif
 
     auto solveEigenRecursiveSparseLDLTRowMajor()
     {
@@ -487,7 +489,7 @@ void run()
 
     //    make_test(test, table, &LDLT::solveCholmodSimplicial);
     make_test(test, table, &LDLT::solveCholmodSupernodal);
-    make_test(test, table, &LDLT::solveEigenRecursiveCholmod);
+    //    make_test(test, table, &LDLT::solveEigenRecursiveCholmod);
 
 
 

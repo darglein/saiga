@@ -6,6 +6,7 @@
 
 #include "Instance.h"
 
+#include "saiga/core/util/easylogging++.h"
 //#include "saiga/vulkan/VulkanTools.h"
 
 namespace Saiga
@@ -16,6 +17,7 @@ void Instance::destroy()
 {
     if (instance)
     {
+        LOG(INFO) << "Destroying Vulkan Instance: " << instance;
         debug.destroy();
         instance.destroy();
         instance = nullptr;

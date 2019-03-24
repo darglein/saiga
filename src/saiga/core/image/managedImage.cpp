@@ -202,6 +202,7 @@ bool Image::loadRaw(const std::string& path)
     pitchBytes = 0;
 
     SAIGA_ASSERT(magic == SAIGA_BINARY_IMAGE_MAGIC_NUMBER);
+    SAIGA_ASSERT(type != TYPE_UNKNOWN);
 
 
     create();

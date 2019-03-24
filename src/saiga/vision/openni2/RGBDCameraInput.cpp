@@ -7,6 +7,7 @@
 #include "RGBDCameraInput.h"
 
 #include "saiga/core/image/imageTransformations.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/threadName.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -84,6 +85,12 @@ void RGBDCameraInput::updateCameraSettings()
     updateS = true;
 }
 
+void RGBDCameraInput::imgui()
+{
+    if (ImGui::Checkbox("autoexposure", &autoexposure)) updateS = true;
+    if (ImGui::Checkbox("autoWhiteBalance", &autoWhiteBalance)) updateS = true;
+}
+
 bool RGBDCameraInput::open()
 {
     cout << "open" << endl;
@@ -148,6 +155,11 @@ bool RGBDCameraInput::open()
 
     CHECK_NI(color->start());
     CHECK_NI(depth->start());
+
+
+    auto settings    = color->getCameraSettings();
+    autoexposure     = settings->getAutoExposureEnabled();
+    autoWhiteBalance = settings->getAutoWhiteBalanceEnabled();
 
 
     cout << "RGBD Camera opened." << endl;
@@ -253,16 +265,17 @@ void RGBDCameraInput::updateSettingsIntern()
     SAIGA_ASSERT(foundCamera);
     auto settings = color->getCameraSettings();
 
+    //    return;
     (settings->setAutoExposureEnabled(autoexposure));
     (settings->setAutoWhiteBalanceEnabled(autoWhiteBalance));
 
-    int current_exposure_ = settings->getExposure();
-    (settings->setExposure(exposure));
-    cout << "Exposure " << current_exposure_ << " -> " << exposure << endl;
+    //    int current_exposure_ = settings->getExposure();
+    //    (settings->setExposure(exposure));
+    //    cout << "Exposure " << current_exposure_ << " -> " << exposure << endl;
 
-    int current_gain = settings->getGain();
-    (settings->setGain(gain));
-    cout << "Gain " << current_gain << " -> " << gain << endl;
+    //    int current_gain = settings->getGain();
+    //    (settings->setGain(gain));
+    //    cout << "Gain " << current_gain << " -> " << gain << endl;
 
     updateS = false;
 }

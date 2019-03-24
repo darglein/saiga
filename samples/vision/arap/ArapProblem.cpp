@@ -114,7 +114,7 @@ void ArapProblem::makeTest()
 
 void ArapProblem::makeSmall(int count)
 {
-    if (count > vertices.size())
+    if (count > (int)vertices.size())
     {
         vertices.resize(count);
     }

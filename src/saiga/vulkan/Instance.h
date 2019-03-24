@@ -18,7 +18,7 @@ namespace Vulkan
 class SAIGA_VULKAN_API Instance
 {
    public:
-    //    ~Instance() { destroy(); }
+    ~Instance() { destroy(); }
     void destroy();
 
     void create(std::vector<const char*> instanceExtensions, bool enableValidation);

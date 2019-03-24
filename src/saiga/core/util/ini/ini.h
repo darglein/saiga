@@ -33,3 +33,24 @@
  *   cout << name << " " << w << "x" << h << " " << b << endl;
  *
  */
+
+
+
+
+/**
+  * Helper macros for creating the most common use-case:
+  *
+  * - The variable x is loaded from the ini file
+  * - The default value is the previous value of x
+  * - The name in the .ini file is the actual variable name
+  *
+  * Example usage:
+  *
+  * double foo = 3.14;
+  * INI_GETADD_DOUBLE(ini, "Math", foo);
+  */
+#define INI_GETADD_BOOL(_ini, _section, _variable) (_variable) = (_ini).GetAddBool(_section, #_variable, _variable)
+#define INI_GETADD_LONG(_ini, _section, _variable) (_variable) = (_ini).GetAddLong(_section, #_variable, _variable)
+#define INI_GETADD_STRING(_ini, _section, _variable) (_variable) = (_ini).GetAddString(_section, #_variable, _variable)
+#define INI_GETADD_DOUBLE(_ini, _section, _variable) (_variable) = (_ini).GetAddDouble(_section, #_variable, _variable)
+

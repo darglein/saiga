@@ -29,16 +29,20 @@ void VulkanBase::destroy()
 {
     if (!device) return;
 
+    LOG(INFO) << "Destroying VulkanBase with device: " << device;
+
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
 
     if (dedicated_compute_queue)
     {
         dedicated_compute_queue->destroy();
+        dedicated_compute_queue.reset();
     }
     if (dedicated_transfer_queue)
     {
         dedicated_transfer_queue->destroy();
+        dedicated_transfer_queue.reset();
     }
     mainQueue.destroy();
 
@@ -51,6 +55,8 @@ void VulkanBase::destroy()
         device.destroy();
         device = nullptr;
     }
+
+    LOG(INFO) << "Vulkan device destroyed.";
 }
 
 
