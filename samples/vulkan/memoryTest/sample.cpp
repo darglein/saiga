@@ -136,7 +136,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer.base().memory.stop_defrag(buffer_type);
             num_allocs = alloc_dist(mersenne_twister);
 
-            for (int i = 0; i < num_allocs; ++i)
+            for (int i = 0; i < (int)num_allocs; ++i)
             {
                 auto size = sizes[size_dist(mersenne_twister)];
                 // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
@@ -153,7 +153,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             num_allocs = std::min(alloc_dist(mersenne_twister), allocations.size());
 
 
-            for (int i = 0; i < num_allocs; ++i)
+            for (int i = 0; i < (int)num_allocs; ++i)
             {
                 auto index = mersenne_twister() % allocations.size();
 

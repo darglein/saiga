@@ -100,10 +100,22 @@ if(SAIGA_FULL_OPTIMIZE)
     endif()
 endif()
 
-if(SAIGA_ENABLE_ASAN)
+# Sanitizers
+# https://github.com/google/sanitizers
+
+if(SAIGA_DEBUG_ASAN)
     if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
         SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g")
     else()
         message(FATAL_ERROR "ASAN not supported for your compiler.")
+    endif()
+endif()
+
+
+if(SAIGA_DEBUG_TSAN)
+    if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread -fno-omit-frame-pointer -g")
+    else()
+        message(FATAL_ERROR "TSAN not supported for your compiler.")
     endif()
 endif()
