@@ -46,6 +46,7 @@ OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external pro
 OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
 OptionsHelper(SAIGA_PCH "Generate a precompiled header" OFF)
 OptionsHelper(SAIGA_LIBSTDCPP "Use the GCC std lib for the clang compiler" OFF)
+OptionsHelper(SAIGA_ENABLE_ASAN "Enable the address sanatizer" OFF)
 
 
 OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
