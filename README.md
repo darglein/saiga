@@ -64,14 +64,24 @@ Utility
 #### Linux
  - Install dependencies with the package manager (in older Linux systems you might have to compile the latest library versions by yourself)
 
-   For Ubuntu and other Debian-based distributions:
+   Package names for Ubuntu and other Debian-based distributions. Install these with `sudo apt install <package_name>`
    ```
-   sudo apt-get install libglew-dev libglm-dev libfreetype6-dev libsdl2-dev libpng-dev
+	# Required
+	cmake libfreetype6-dev libglm-dev
+	# Window Management
+	libsdl2-dev libglfw3-dev
+	# Image
+	libpng-dev libfreeimage-dev libfreeimageplus-dev
+	# Sound
+	libopenal-dev libopus-dev libopusfile-dev
+	# Video 
+	libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev
+	# Other Misc
+	libassimp-dev 
+	libeigen3-dev 
+	libsuitesparse-dev
    ```
-   For Fedora:
-   ```
-   sudo dnf install glew-devel glm-devel freetype-devel SDL2-devel libXrandr-devel libXcursor-devel libXinerama-devel
-   ```
+
  - Build Saiga
 ```
 cd saiga
@@ -79,11 +89,6 @@ mkdir build
 cd build
 cmake ..
 make
-```
- - Running the samples
-```
-cd saiga/bin
-./simpleSDLWindow
 ```
 
 ## License
