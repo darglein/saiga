@@ -22,8 +22,8 @@ Saiga was successfully used as a game engine for [Redie](http://store.steampower
  * Visual Studio 2017
  * clang++ 7.0
 
-Branch Master [![Build Status](https://travis-ci.org/darglein/saiga.svg?branch=master)](https://travis-ci.org/darglein/saiga)
-Branch Experimental [![Build Status](https://travis-ci.org/darglein/saiga.svg?branch=experimental)](https://travis-ci.org/darglein/saiga)
+[![Build Status Master](https://travis-ci.org/darglein/saiga.svg?branch=master)](https://travis-ci.org/darglein/saiga) 
+[![Build Status Experimental](https://travis-ci.org/darglein/saiga.svg?branch=experimental)](https://travis-ci.org/darglein/saiga) 
  
 ## Required Dependencies
 
