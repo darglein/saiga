@@ -609,7 +609,7 @@ bool ImageDefragger::create_copy_command(Defragger::DefragOperation& op, vk::Com
 
 ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
                                uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader)
-    : Defragger(base, device, allocator, dealloc_delay), img_copy_shader(_img_copy_shader), usedSets()
+    : Defragger(base, device, allocator, dealloc_delay), usedSets(), img_copy_shader(_img_copy_shader)
 {
     if (!img_copy_shader->is_initialized())
     {
