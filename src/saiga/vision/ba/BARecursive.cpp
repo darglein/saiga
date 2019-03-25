@@ -580,12 +580,12 @@ static void compactSolve2()
                         DiagonalMatrix<Matrix<double, 6, 6>, -1>,
                         DiagonalMatrix<Matrix<double, 3, 3>, -1>,
                         SparseMatrix<Matrix<double, 6, 3>, RowMajor>>;
+
     using BAVector = MixedVector2<
                         Matrix<Matrix<double, 6, 1>, -1, 1>,
                         Matrix<Matrix<double, 3, 1>, -1, 1>>;
     BAMatrix A;
     BAVector x, b;
-
     for (int k = 0; k < 10; ++k)
     {
         computeDerivatives(A, b);
