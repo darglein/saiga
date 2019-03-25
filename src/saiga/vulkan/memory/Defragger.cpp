@@ -600,10 +600,10 @@ bool ImageDefragger::create_copy_command(Defragger::DefragOperation& op, vk::Com
     {
         return false;
     }
-    else
-    {
-        usedSets.insert(std::make_pair(cmd, set.value()));
-    }
+
+    usedSets.insert(std::make_pair(cmd, set.value()));
+
+    return true;
 }
 
 
