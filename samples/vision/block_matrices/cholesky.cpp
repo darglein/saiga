@@ -295,7 +295,7 @@ template <typename T>
 void ldltRightUpdatePropagate(T& target, T& prop_tmp, const T& LDiagUp, const T& invDiagUp)
 {
     // Compute dense propagation on current block inplace
-    const int inner_block_size = T::RowsAtCompileTime;
+    const int inner_block_size = T::M::RowsAtCompileTime;
     for (int k = 0; k < inner_block_size; ++k)
     {
         for (int i = 0; i < inner_block_size; ++i)
@@ -308,9 +308,7 @@ void ldltRightUpdatePropagate(T& target, T& prop_tmp, const T& LDiagUp, const T&
             {
                 target(k, j) -= yi * LDiagUp(j, i);
             }
-
             target(k, i) = yi * invDiagUp(i, i);
-            //                    target(k, i) = l_ki;
         }
     }
 }
@@ -320,8 +318,8 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
 {
     SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
     using MatrixScalar = typename MatrixType::Scalar;
-    using BlockType    = double;
-    using BlockVector  = double;
+    //    using BlockType    = double;
+    //    using BlockVector  = double;
     //    using VectorScalar = typename VectorType::Scalar;
 
     MatrixType L;
@@ -452,22 +450,22 @@ VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
 
         for (int i = 0; i < k; ++i)
         {
-            auto& target = L(k, i).get();
-            target       = rowCache[i].get();
+            auto& target = L(k, i);
+            target       = rowCache[i];
 
-            auto& LDiagUp   = L(i, i).get();
-            auto& invDiagUp = Dinv.diagonal()[i].get();
-            typename MatrixScalar::M prop_tmp;
+            auto& LDiagUp   = L(i, i);
+            auto& invDiagUp = Dinv.diagonal()[i];
+            MatrixScalar prop_tmp;
 
 
             ldltRightUpdatePropagate(target, prop_tmp, LDiagUp, invDiagUp);
 
 
 
-            diagElement.get() -= prop_tmp * transpose(target);
+            diagElement -= prop_tmp * transpose(target);
             for (int j = i + 1; j < k; ++j)
             {
-                rowCache[j].get() -= prop_tmp * transpose(L(j, i)).get();
+                rowCache[j] -= prop_tmp * transpose(L(j, i));
             }
         }
 
@@ -666,7 +664,7 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
 #endif
 
 
-    //    return x;
+    return x;
 }
 
 

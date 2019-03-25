@@ -10,7 +10,7 @@
 /**
  * Modified by Darius Rueckert with the following changes:
  *
- * - Renamed to RecursiveSimplicialCholesky
+ * - Renamed to RecursiveSimplicialCholesky3
  * - Applied recursive rules from the paper to the implementation.
  * -> It works now with recursive sparse matrices!
  */
@@ -46,7 +46,7 @@ namespace internal
  *
  */
 template <typename Derived>
-class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
+class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
 {
     typedef SparseSolverBase<Derived> Base;
     using Base::m_isInitialized;
@@ -76,18 +76,18 @@ class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
     using Base::derived;
 
     /** Default constructor */
-    RecursiveSimplicialCholeskyBase()
+    RecursiveSimplicialCholesky3Base2()
         : m_info(Success), m_factorizationIsOk(false), m_analysisIsOk(false), m_shiftOffset(0), m_shiftScale(1)
     {
     }
 
-    explicit RecursiveSimplicialCholeskyBase(const MatrixType& matrix)
+    explicit RecursiveSimplicialCholesky3Base2(const MatrixType& matrix)
         : m_info(Success), m_factorizationIsOk(false), m_analysisIsOk(false), m_shiftOffset(0), m_shiftScale(1)
     {
         derived().compute(matrix);
     }
 
-    ~RecursiveSimplicialCholeskyBase() {}
+    ~RecursiveSimplicialCholesky3Base2() {}
 
     Derived& derived() { return *static_cast<Derived*>(this); }
     const Derived& derived() const { return *static_cast<const Derived*>(this); }
@@ -174,6 +174,9 @@ class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
             dest = b;
 
 
+#    if 0
+        cout << "solve impl" << endl;
+
         if (m_matrix.nonZeros() > 0)  // otherwise L==I
             derived().matrixL().solveInPlace(dest);
 
@@ -183,6 +186,49 @@ class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
 
         if (m_matrix.nonZeros() > 0)  // otherwise U==I
             derived().matrixU().solveInPlace(dest);
+
+        cout << "solve done" << endl;
+#    else
+        // brute force solution
+
+        // build L and add the diag elements
+        auto denseL = m_matrix.toDense();
+        for (int i = 0; i < denseL.rows(); ++i)
+        {
+            denseL(i, i) = m_diagL(i);
+        }
+        auto L = expand(denseL);
+
+        const int block_size = 3;
+
+        Eigen::Matrix<double, -1, 1> dinv(L.rows());
+        for (int i = 0; i < denseL.rows(); ++i)
+        {
+            dinv.segment<block_size>(i * block_size) = m_diag_inv[i].get().diagonal();
+        }
+
+        Eigen::Matrix<double, -1, -1> x = expand(dest);
+
+        cout << L << endl;
+        //        cout << dinv.transpose() << endl;
+        //        cout << x.transpose() << endl;
+        //        cout << endl;
+        L.template triangularView<Eigen::Lower>().solveInPlace(x);
+        x.array() = dinv.array() * x.array();
+        L.template triangularView<Eigen::Lower>().transpose().solveInPlace(x);
+
+        dest.setZero();
+        for (int i = 0; i < dest.rows(); ++i)
+        {
+            //            dest[i].get() = x.block(i * 2, 1, 2, 1);
+            dest[i].get() = x.block<block_size, 1>(i * block_size, 0);
+            //            cout << i << endl << dest[i].get() << endl;
+        }
+
+        cout << "x1: " << x.transpose() << endl;
+        cout << "x2: " << expand(dest).transpose() << endl;
+
+#    endif
 
         if (m_P.size() > 0) dest = m_Pinv * dest;
     }
@@ -259,6 +305,7 @@ class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
     bool m_analysisIsOk;
 
     CholMatrixType m_matrix;
+    VectorType m_diagL;
     VectorType m_diag;  // the diagonal coefficients (LDLT mode)
     VectorType m_diag_inv;
     VectorI m_parent;  // elimination tree
@@ -272,15 +319,15 @@ class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
 
 template <typename _MatrixType, int _UpLo = Lower,
           typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex> >
-class RecursiveSimplicialLDLT;
+class RecursiveSimplicialLDLT2;
 template <typename _MatrixType, int _UpLo = Lower,
           typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex> >
-class RecursiveSimplicialCholesky;
+class RecursiveSimplicialCholesky3;
 
 namespace internal
 {
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-struct traits<RecursiveSimplicialLDLT<_MatrixType, _UpLo, _Ordering> >
+struct traits<RecursiveSimplicialLDLT2<_MatrixType, _UpLo, _Ordering> >
 {
     typedef _MatrixType MatrixType;
     typedef _Ordering OrderingType;
@@ -300,7 +347,7 @@ struct traits<RecursiveSimplicialLDLT<_MatrixType, _UpLo, _Ordering> >
 };
 
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-struct traits<RecursiveSimplicialCholesky<_MatrixType, _UpLo, _Ordering> >
+struct traits<RecursiveSimplicialCholesky3<_MatrixType, _UpLo, _Ordering> >
 {
     typedef _MatrixType MatrixType;
     typedef _Ordering OrderingType;
@@ -334,8 +381,8 @@ struct traits<RecursiveSimplicialCholesky<_MatrixType, _UpLo, _Ordering> >
  */
 
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-class RecursiveSimplicialLDLT
-    : public RecursiveSimplicialCholeskyBase<RecursiveSimplicialLDLT<_MatrixType, _UpLo, _Ordering> >
+class RecursiveSimplicialLDLT2
+    : public RecursiveSimplicialCholesky3Base2<RecursiveSimplicialLDLT2<_MatrixType, _UpLo, _Ordering> >
 {
    public:
     typedef _MatrixType MatrixType;
@@ -343,22 +390,22 @@ class RecursiveSimplicialLDLT
     {
         UpLo = _UpLo
     };
-    typedef RecursiveSimplicialCholeskyBase<RecursiveSimplicialLDLT> Base;
+    typedef RecursiveSimplicialCholesky3Base2<RecursiveSimplicialLDLT2> Base;
     typedef typename MatrixType::Scalar Scalar;
     typedef typename MatrixType::RealScalar RealScalar;
     typedef typename MatrixType::StorageIndex StorageIndex;
     typedef SparseMatrix<Scalar, ColMajor, StorageIndex> CholMatrixType;
     typedef Matrix<Scalar, Dynamic, 1> VectorType;
-    typedef internal::traits<RecursiveSimplicialLDLT> Traits;
+    typedef internal::traits<RecursiveSimplicialLDLT2> Traits;
     typedef typename Traits::MatrixL MatrixL;
     typedef typename Traits::MatrixU MatrixU;
 
    public:
     /** Default constructor */
-    RecursiveSimplicialLDLT() : Base() {}
+    RecursiveSimplicialLDLT2() : Base() {}
 
     /** Constructs and performs the LLT factorization of \a matrix */
-    explicit RecursiveSimplicialLDLT(const MatrixType& matrix) : Base(matrix) {}
+    explicit RecursiveSimplicialLDLT2(const MatrixType& matrix) : Base(matrix) {}
 
     /** \returns a vector expression of the diagonal D */
     inline const VectorType vectorD() const
@@ -381,7 +428,7 @@ class RecursiveSimplicialLDLT
     }
 
     /** Computes the sparse Cholesky decomposition of \a matrix */
-    RecursiveSimplicialLDLT& compute(const MatrixType& matrix)
+    RecursiveSimplicialLDLT2& compute(const MatrixType& matrix)
     {
         Base::template compute<true>(matrix);
         return *this;
@@ -410,12 +457,13 @@ class RecursiveSimplicialLDLT
 
 /** \deprecated use SimplicialLDLT2 or class SimplicialLLT
  * \ingroup SparseCholesky_Module
- * \class SimplicialCholesky2
+ * \class SimplicialCholesky3
  *
  * \sa class SimplicialLDLT2, class SimplicialLLT
  */
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-class SimplicialCholesky2 : public RecursiveSimplicialCholeskyBase<SimplicialCholesky2<_MatrixType, _UpLo, _Ordering> >
+class SimplicialCholesky3
+    : public RecursiveSimplicialCholesky3Base2<SimplicialCholesky3<_MatrixType, _UpLo, _Ordering> >
 {
    public:
     typedef _MatrixType MatrixType;
@@ -423,22 +471,22 @@ class SimplicialCholesky2 : public RecursiveSimplicialCholeskyBase<SimplicialCho
     {
         UpLo = _UpLo
     };
-    typedef RecursiveSimplicialCholeskyBase<SimplicialCholesky2> Base;
+    typedef RecursiveSimplicialCholesky3Base2<SimplicialCholesky3> Base;
     typedef typename MatrixType::Scalar Scalar;
     typedef typename MatrixType::RealScalar RealScalar;
     typedef typename MatrixType::StorageIndex StorageIndex;
     typedef SparseMatrix<Scalar, ColMajor, StorageIndex> CholMatrixType;
     typedef Matrix<Scalar, Dynamic, 1> VectorType;
-    typedef internal::traits<SimplicialCholesky2> Traits;
-    typedef internal::traits<RecursiveSimplicialLDLT<MatrixType, UpLo> > LDLTTraits;
+    typedef internal::traits<SimplicialCholesky3> Traits;
+    typedef internal::traits<RecursiveSimplicialLDLT2<MatrixType, UpLo> > LDLTTraits;
     typedef internal::traits<SimplicialLLT<MatrixType, UpLo> > LLTTraits;
 
    public:
-    SimplicialCholesky2() : Base(), m_LDLT(true) {}
+    SimplicialCholesky3() : Base(), m_LDLT(true) {}
 
-    explicit SimplicialCholesky2(const MatrixType& matrix) : Base(), m_LDLT(true) { compute(matrix); }
+    explicit SimplicialCholesky3(const MatrixType& matrix) : Base(), m_LDLT(true) { compute(matrix); }
 
-    SimplicialCholesky2& setMode(SimplicialCholeskyMode mode)
+    SimplicialCholesky3& setMode(SimplicialCholeskyMode mode)
     {
         switch (mode)
         {
@@ -467,7 +515,7 @@ class SimplicialCholesky2 : public RecursiveSimplicialCholeskyBase<SimplicialCho
     }
 
     /** Computes the sparse Cholesky decomposition of \a matrix */
-    SimplicialCholesky2& compute(const MatrixType& matrix)
+    SimplicialCholesky3& compute(const MatrixType& matrix)
     {
         if (m_LDLT)
             Base::template compute<true>(matrix);
@@ -566,8 +614,8 @@ class SimplicialCholesky2 : public RecursiveSimplicialCholeskyBase<SimplicialCho
 };
 
 template <typename Derived>
-void RecursiveSimplicialCholeskyBase<Derived>::ordering(const MatrixType& a, ConstCholMatrixPtr& pmat,
-                                                        CholMatrixType& ap)
+void RecursiveSimplicialCholesky3Base2<Derived>::ordering(const MatrixType& a, ConstCholMatrixPtr& pmat,
+                                                          CholMatrixType& ap)
 {
     eigen_assert(a.rows() == a.cols());
     const Index size = a.rows();
@@ -614,4 +662,4 @@ void RecursiveSimplicialCholeskyBase<Derived>::ordering(const MatrixType& a, Con
 
 
 
-#include "RecursiveSimplicialCholesky_impl.h"
+#include "RecursiveSimplicialCholesky_impl2.h"

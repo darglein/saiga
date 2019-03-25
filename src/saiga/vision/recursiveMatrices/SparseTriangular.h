@@ -24,6 +24,7 @@ struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixS
     typedef typename evaluator<Lhs>::InnerIterator LhsIterator;
     static void run(const Lhs& lhs, Rhs& other)
     {
+        std::cout << std::string("forward row-major") << std::endl;
         LhsEval lhsEval(lhs);
         for (Index col = 0; col < other.cols(); ++col)
         {
@@ -64,6 +65,7 @@ struct sparse_solve_triangular_selector<const Eigen::Transpose<const Eigen::Spar
     typedef typename evaluator<Lhs>::InnerIterator LhsIterator;
     static void run(const Lhs& lhs, Rhs& other)
     {
+        cout << "backward row-major" << endl;
         LhsEval lhsEval(lhs);
         for (Index col = 0; col < other.cols(); ++col)
         {

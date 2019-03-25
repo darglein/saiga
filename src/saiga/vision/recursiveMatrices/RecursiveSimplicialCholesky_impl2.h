@@ -48,13 +48,36 @@ LDL License:
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 
 #include "Eigen/src/Core/util/NonMPL2.h"
-#include "RecursiveSimplicialCholesky.h"
+#include "RecursiveSimplicialCholesky2.h"
 
+
+
+template <typename T>
+void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const T& invDiagUp)
+{
+    // Compute dense propagation on current block inplace
+    const int inner_block_size = T::M::RowsAtCompileTime;
+    for (int k = 0; k < inner_block_size; ++k)
+    {
+        for (int i = 0; i < inner_block_size; ++i)
+        {
+            auto yi        = target(k, i);
+            prop_tmp(k, i) = yi;
+
+            // propagate to the right in this row
+            for (int j = i + 1; j < inner_block_size; ++j)
+            {
+                target(k, j) -= yi * LDiagUp(j, i);
+            }
+            target(k, i) = yi * invDiagUp(i, i);
+        }
+    }
+}
 
 namespace Eigen
 {
 template <typename Derived>
-void RecursiveSimplicialCholeskyBase<Derived>::analyzePattern_preordered(const CholMatrixType& ap, bool doLDLT)
+void RecursiveSimplicialCholesky3Base2<Derived>::analyzePattern_preordered(const CholMatrixType& ap, bool doLDLT)
 {
     const StorageIndex size = StorageIndex(ap.rows());
     m_matrix.resize(size, size);
@@ -102,7 +125,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::analyzePattern_preordered(const C
 
 template <typename Derived>
 template <bool DoLDLT>
-void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMatrixType& ap)
+void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const CholMatrixType& ap)
 {
     static_assert(DoLDLT == true, "only ldlt supported");
     using std::sqrt;
@@ -127,6 +150,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
     bool ok = true;
     m_diag.resize(size);
     m_diag_inv.resize(size);
+    m_diagL.resize(size);
 
 
 
@@ -162,7 +186,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
         /* compute numerical values kth row of L (a sparse triangular solve) */
         // This is the diagonal element of the current row
         RealScalar diagElement = (rowCache[k]);
-        //        rowCache[k]            = Saiga::AdditiveNeutral<Scalar>::get();
+        rowCache[k]            = Saiga::AdditiveNeutral<Scalar>::get();
 
         for (; top < size; ++top)
         {
@@ -172,16 +196,18 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
 
 
             Scalar target = rowCache[i]; /* get and clear Y(i) */
-                                         //            rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
+            rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
 
             auto& invDiagUp = m_diag_inv[i];
+            auto& LDiagUp   = m_diagL(i);
 
             Scalar prop_tmp;
 
+            ldltRightUpdatePropagateTest(target, prop_tmp, LDiagUp, invDiagUp);
 
-            Scalar yi = target;
-            prop_tmp  = yi;
-            target    = yi * invDiagUp;
+            //            Scalar yi = target;
+            //            prop_tmp  = yi;
+            //            target    = yi * invDiagUp;
 
 
 
@@ -196,10 +222,39 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
             Lx[p] = target;
             ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
         }
+#if 1
 
+
+
+        //        Eigen::LDLT<typename CholMatrixType::Scalar::M> ldlt;
+        //        ldlt.compute(diagElement.get());
+        //        m_diagL(k).get() = ldlt.matrixL();
+        //        m_diag[k].get().setZero();
+        //        m_diag_inv[k].get().setZero();
+        //        m_diag[k].get().diagonal()             = ldlt.vectorD();
+        //        m_diag_inv[k].get().diagonal().array() = m_diag[k].get().diagonal().array().inverse();
+
+        // We have to use our ldlt here because eigen does reordering which breaks everything
+        Saiga::DenseLDLT<typename CholMatrixType::Scalar::M> ldlt;
+        ldlt.compute(diagElement.get());
+
+        m_diagL(k).get() = ldlt.L;
+        m_diag[k].get().setZero();
+        m_diag_inv[k].get().setZero();
+        m_diag[k].get().diagonal()             = ldlt.D.diagonal();
+        m_diag_inv[k].get().diagonal().array() = m_diag[k].get().diagonal().array().inverse();
+        if (k == 0)
+        {
+            cout << expand(diagElement.get()) << endl << endl;
+            cout << expand(m_diagL(k).get()) << endl << endl;
+        }
+
+//        m_diag_inv[k] = ldlt.Dinv;
+#else
         m_diag[k] = diagElement;
         // Recursive call
         m_diag_inv[k] = Saiga::inverseCholesky(m_diag[k]);
+#endif
     }
 
     m_info              = ok ? Success : NumericalIssue;

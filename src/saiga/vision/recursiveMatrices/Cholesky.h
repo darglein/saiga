@@ -21,16 +21,18 @@ template <typename T>
 auto inverseCholesky(const T& v);
 
 
-template <typename MatrixType, typename VectorType>
+template <typename MatrixType>
 struct DenseLDLT
 {
     using MatrixScalar = typename MatrixType::Scalar;
-    using VectorScalar = typename VectorType::Scalar;
 
    public:
     // Computes L, D and Dinv
     void compute(const MatrixType& A);
+
+    template <typename VectorType>
     VectorType solve(const VectorType& b);
+
     MatrixType solve(const MatrixType& b);
     MatrixType invert();
 
@@ -39,8 +41,8 @@ struct DenseLDLT
     Eigen::DiagonalMatrix<MatrixScalar, MatrixType::RowsAtCompileTime> Dinv;
 };
 
-template <typename MatrixType, typename VectorType>
-void DenseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
+template <typename MatrixType>
+void DenseLDLT<MatrixType>::compute(const MatrixType& A)
 {
     SAIGA_ASSERT(A.rows() == A.cols());
     L.resize(A.rows(), A.cols());
@@ -90,8 +92,10 @@ void DenseLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
     //    cout << expand(L) << endl << endl;
 }
 
-template <typename MatrixType, typename VectorType>
-VectorType DenseLDLT<MatrixType, VectorType>::solve(const VectorType& b)
+
+template <typename MatrixType>
+template <typename VectorType>
+VectorType DenseLDLT<MatrixType>::solve(const VectorType& b)
 {
     SAIGA_ASSERT(L.rows() == b.rows());
     VectorType x, y;
@@ -105,8 +109,8 @@ VectorType DenseLDLT<MatrixType, VectorType>::solve(const VectorType& b)
     return x;
 }
 
-template <typename MatrixType, typename VectorType>
-MatrixType DenseLDLT<MatrixType, VectorType>::solve(const MatrixType& b)
+template <typename MatrixType>
+MatrixType DenseLDLT<MatrixType>::solve(const MatrixType& b)
 {
     SAIGA_ASSERT(L.rows() == b.rows());
     MatrixType x, y;
@@ -121,8 +125,8 @@ MatrixType DenseLDLT<MatrixType, VectorType>::solve(const MatrixType& b)
 }
 
 
-template <typename MatrixType, typename VectorType>
-MatrixType DenseLDLT<MatrixType, VectorType>::invert()
+template <typename MatrixType>
+MatrixType DenseLDLT<MatrixType>::invert()
 {
     MatrixType id = MultiplicativeNeutral<MatrixType>::get(L.rows(), L.cols());
     return solve(id);
@@ -137,9 +141,9 @@ struct InverseCholeskyImpl
     {
         static_assert(T::RowsAtCompileTime == T::ColsAtCompileTime,
                       "The Symmetric Inverse is only defined for square matrices!");
-        using Scalar     = typename T::Scalar;
-        using VectorType = Eigen::Matrix<Scalar, T::RowsAtCompileTime, 1>;
-        DenseLDLT<T, VectorType> ldlt;
+        //        using Scalar = typename T::Scalar;
+        //        using VectorType = Eigen::Matrix<Scalar, T::RowsAtCompileTime, 1>;
+        DenseLDLT<T> ldlt;
         ldlt.compute(m);
         return ldlt.invert();
     }

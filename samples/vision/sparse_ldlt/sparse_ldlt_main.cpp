@@ -11,8 +11,8 @@
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/vision/Random.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-#include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
+//#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky2.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
 
 #include "Eigen/CholmodSupport"
@@ -136,7 +136,7 @@ class Sparse_LDLT_TEST
             {
                 if (i < j)
                 {
-                    Block b = RecursiveRandom<Block>::get();
+                    Block b = RecursiveRandom<Block>::get() * 100;
                     trips.emplace_back(i, j, b);
                     trips.emplace_back(j, i, transpose(b));
                 }
@@ -144,7 +144,7 @@ class Sparse_LDLT_TEST
 
             // Make sure we have a symmetric diagonal block
             //            Vector dv = Random::sampleDouble(-1, 1);
-            Vector dv = RecursiveRandom<Vector>::get();
+            Vector dv = RecursiveRandom<Vector>::get() * 1000;
 
 
 #ifdef USE_BLOCKS
@@ -202,7 +202,7 @@ class Sparse_LDLT_TEST
         //        Random::setRandom(x);
         //        Random::setRandom(b);
 
-        //        cout << expand(A) << endl << endl;
+        cout << expand(A) << endl << endl;
         //        cout << expand(Anoblock) << endl << endl;
         //        exit(0);
         //        cout << b.transpose() << endl;
@@ -250,8 +250,9 @@ class Sparse_LDLT_TEST
 #ifdef LDLT_DEBUG
         Eigen::MatrixXd L(ldlt.matrixL());
         L.diagonal().setOnes();
+        cout << "x: " << bx.transpose() << endl;
         cout << "L" << endl << L << endl << endl;
-        cout << "D" << endl << ldlt.vectorD().transpose() << endl << endl;
+//        cout << "D" << endl << ldlt.vectorD().transpose() << endl << endl;
 #endif
 
         double error = (Anoblock * bx - be).squaredNorm();
@@ -319,13 +320,48 @@ class Sparse_LDLT_TEST
 #ifdef LDLT_DEBUG
         AType LA = ldlt.matrixL();
         Eigen::MatrixXd L(expand(LA));
-        L.diagonal().setOnes();
+        //        L.diagonal().setOnes();
 
         auto d = ldlt.vectorD();
 
 
         cout << "L" << endl << L << endl << endl;
         cout << "D" << endl << expand(d) << endl << endl;
+#endif
+
+        //        cout << expand(x).transpose() << endl;
+        double error = expand((A * x - b).eval()).squaredNorm();
+        return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
+    }
+
+
+    auto solveEigenRecursiveSparseLDLT3()
+    {
+        x.setZero();
+        using LDLT = Eigen::RecursiveSimplicialLDLT2<AType, Eigen::Lower>;
+
+        LDLT ldlt;
+        float time = 0;
+        {
+            Saiga::ScopedTimer<float> timer(time);
+            ldlt.compute(A);
+            //            ldlt.analyzePattern(A);
+            //            ldlt.factorize(A);
+            x = ldlt.solve(b);
+        }
+
+#ifdef LDLT_DEBUG
+        AType LA = ldlt.matrixL();
+        Eigen::MatrixXd L(expand(LA));
+        //        L.diagonal().setOnes();
+
+        auto d = ldlt.vectorD();
+
+
+//        cout << "L" << endl << L << endl << endl;
+//        cout << "diagL" << endl << expand(ldlt.m_diagL) << endl << endl;
+//        cout << "D" << endl << expand(d) << endl << endl;
+//        cout << "Dinv" << endl << expand(ldlt.m_diag_inv) << endl << endl;
 #endif
 
         //        cout << expand(x).transpose() << endl;
@@ -565,13 +601,15 @@ void perf_test()
 
 void result_test()
 {
-    using LDLT = Sparse_LDLT_TEST<2, 1>;
+    using LDLT = Sparse_LDLT_TEST<3, 1>;
     LDLT test;
-    test.solveEigenSparseLDLT();
-
-    auto res = test.solveEigenRecursiveSparseLDLT();
-
+    auto res = test.solveEigenSparseLDLT();
     cout << "Error: " << std::get<1>(res) << endl;
+    //    auto res = test.solveEigenRecursiveSparseLDLT();
+    //    cout << "Error: " << std::get<1>(res) << endl;
+    res = test.solveEigenRecursiveSparseLDLT3();
+    cout << "Error: " << std::get<1>(res) << endl;
+
     //    test.solveEigenRecursiveSparseLDLTRowMajor();
 }
 

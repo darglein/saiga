@@ -42,6 +42,10 @@ struct MatrixScalar
         return *this;
     }
 
+    EIGEN_ALWAYS_INLINE Scalar& operator()(int i, int j) { return data(i, j); }
+    EIGEN_ALWAYS_INLINE const Scalar& operator()(int i, int j) const { return data(i, j); }
+
+
 
     EIGEN_ALWAYS_INLINE MatrixScalar<TransposeBase> transpose() const { return {data.transpose()}; }
 
