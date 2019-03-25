@@ -155,7 +155,6 @@ void Defragger<T>::run()
         performed = false;
         find_defrag_ops();
         performed |= create_copy_commands();
-        performed |= perform_defrag();
         performed |= perform_free_operations();
     }
 }
@@ -167,47 +166,9 @@ void Defragger<T>::find_defrag_ops()
     // TODO: REFACTOR THIS!!!
     auto& chunks = allocator->chunks;
 
-    // contains a vector for each chunk, which in turn contains the free memory between the allocations. contains 0 if
-    // they are back to back.
-    std::vector<std::vector<vk::DeviceSize>> all_free;
+    // fill all free with free sizes.
 
-    all_free.resize(chunks.size());
-    for (auto i = 0U; running && i < chunks.size(); ++i)
-    {
-        auto& freeSizes = all_free[i];
-        auto& allocs    = chunks[i].allocations;
-        freeSizes.resize(allocs.size() + 1);
-
-        if (!allocs.empty())
-        {
-            auto freeIter = freeSizes.begin();
-            auto curr     = allocs.begin();
-
-            while (curr != allocs.end())
-            {
-                vk::DeviceSize free_before;
-
-                if (curr == allocs.begin())
-                {
-                    free_before = begin(curr);
-                }
-                else
-                {
-                    free_before = begin(curr) - end(std::prev(curr));
-                }
-                *freeIter = free_before;
-
-                freeIter++;
-                curr++;
-            }
-
-            freeSizes[allocs.size()] = chunks[i].size - end(allocs.end() - 1);
-        }
-        else
-        {
-            freeSizes[0] = chunks[i].size;
-        }
-    }
+    fill_free_list();
 
     for (auto chunk_iter = chunks.rbegin(); running && chunk_iter != chunks.rend(); ++chunk_iter)
     {
@@ -241,7 +202,7 @@ void Defragger<T>::find_defrag_ops()
             auto alloc_index               = std::distance(allocs.cbegin(), curr);
             vk::DeviceSize size_if_removed = *freeIter + *std::next(freeIter) + size(curr);
 
-            // Get the weight of the current allocation and its neighbours
+            // Get the current and after removal weight of the current allocation and its neighbours.
             float weight_prev        = 0.0f;
             float weight_remove_prev = 0.0f;
 
@@ -273,7 +234,8 @@ void Defragger<T>::find_defrag_ops()
             float min_weight = std::numeric_limits<float>::infinity();
 
             auto targets_found = 0U;
-            std::pair<int, FreeListEntry> target;
+            std::pair<size_t, FreeListEntry> target;
+            // find up to config.max_targets targets and store the one with the highest delta weight
             for (auto t_chunk = 0U; targets_found < config.max_targets && t_chunk <= source_chunk_index; ++t_chunk)
             {
                 auto& chunk      = chunks[t_chunk];
@@ -358,7 +320,7 @@ void Defragger<T>::find_defrag_ops()
 
             if (targets_found != 0)
             {
-                int chunk  = std::get<0>(target);
+                auto chunk = std::get<0>(target);
                 auto entry = std::get<1>(target);
 
 
@@ -384,12 +346,59 @@ void Defragger<T>::find_defrag_ops()
               [](const auto& entry, const auto& other) { return entry.weight < other.weight; });
 }
 
+template <typename T>
+void Defragger<T>::fill_free_list()
+{
+    auto& chunks = allocator->chunks;
+    // contains a vector for each chunk, which in turn contains the free memory between the allocations. contains zeroes
+    // if two allocations are next to each other.
+
+    all_free.resize(chunks.size());
+    for (auto i = 0U; running && i < chunks.size(); ++i)
+    {
+        auto& freeSizes = all_free[i];
+        auto& allocs    = chunks[i].allocations;
+        freeSizes.resize(allocs.size() + 1);
+
+        if (!allocs.empty())
+        {
+            auto freeIter = freeSizes.begin();
+            auto curr     = allocs.begin();
+
+            while (curr != allocs.end())
+            {
+                vk::DeviceSize free_before;
+
+                if (curr == allocs.begin())
+                {
+                    free_before = begin(curr);
+                }
+                else
+                {
+                    free_before = begin(curr) - end(std::prev(curr));
+                }
+                *freeIter = free_before;
+
+                freeIter++;
+                curr++;
+            }
+
+            freeSizes[allocs.size()] = chunks[i].size - end(allocs.end() - 1);
+        }
+        else
+        {
+            freeSizes[0] = chunks[i].size;
+        }
+    }
+}
+
 
 template <typename T>
 bool Defragger<T>::create_copy_commands()
 {
     bool performed = false;
 
+    std::scoped_lock defrag_lock(defrag_mutex);
     for (auto opIter = defrag_operations.begin(); opIter != defrag_operations.end(); ++opIter)
     {
         DefragOperation& op = *opIter;
@@ -410,46 +419,71 @@ bool Defragger<T>::create_copy_commands()
 }
 
 template <typename T>
-bool Defragger<T>::perform_defrag()
+void Defragger<T>::perform_single_defrag(Defragger::DefragOperation& op)
 {
-    auto op        = defrag_operations.begin();
-    bool performed = false;
-    while (running && op != defrag_operations.end())
+    op.source->mark_static();
+    auto fence = base->mainQueue.submit(op.copy_cmd);
+
+    auto result = vk::Result::eIncomplete;
+    do
     {
+        result = base->device.waitForFences(fence, VK_TRUE, 1000000000);
+
+        if (result != vk::Result::eSuccess)
+        {
+            LOG(INFO) << vk::to_string(result);
+        }
+    } while (result != vk::Result::eSuccess);
+    base->device.destroy(fence);
+    base->mainQueue.commandPool.freeCommandBuffer(op.copy_cmd);
+    std::array<uint64_t, 2> timestamps;
+    base->device.getQueryPoolResults(queryPool, 0, 2, sizeof(uint64_t) * timestamps.size(), timestamps.data(), 8,
+                                     vk::QueryResultFlagBits::e64);
+    auto duration = timestamps[1] - timestamps[0];
+
+    auto last = static_cast<double>(op.source->size / 1024) / duration;
+    if (std::isinf(kbPerNanoSecond))
+    {
+        kbPerNanoSecond = last;
+    }
+    else
+    {
+        kbPerNanoSecond = 0.9 * last + 0.1 * kbPerNanoSecond;
+    }
+
+    auto free_op = FreeOperation{op.targetLocation, op.source, frame_number + dealloc_delay};
+
+    allocator->swap(free_op.target, free_op.source);
+
+    free_operations.push_back(free_op);
+}
+template <typename T>
+int64_t Defragger<T>::perform_defrag(int64_t allowed_time)
+{
+    std::scoped_lock defrag_lock(defrag_mutex);
+    auto remaining_time = allowed_time;
+
+    bool first = true;
+    auto op    = defrag_operations.begin();
+    while (op != defrag_operations.end())
+    {
+        auto size = op->source->size;
+        if (!first && (remaining_time - ((size / 1024) / kbPerNanoSecond)) < 0)
+        {
+            break;
+        }
         if (op->copy_cmd && op->targetLocation)
         {
-            op->source->mark_static();
-            base->mainQueue.submitAndWait(op->copy_cmd);
-
-            base->mainQueue.commandPool.freeCommandBuffer(op->copy_cmd);
-            std::array<uint64_t, 2> timestamps;
-            base->device.getQueryPoolResults(queryPool, 0, 2, timestamps.size(), timestamps.data(), 8,
-                                             vk::QueryResultFlagBits::e64);
-            auto duration = timestamps[1] - timestamps[0];
-
-            auto last = static_cast<double>(op->source->size / 1024) / duration;
-            if (std::isinf(kbPerNanoSecond))
-            {
-                kbPerNanoSecond = last;
-            }
-            else
-            {
-                kbPerNanoSecond = 0.9 * last + 0.1 * kbPerNanoSecond;
-            }
-
-            LOG(INFO) << kbPerNanoSecond;
-
-            auto free_op = FreeOperation{op->targetLocation, op->source, frame_number + dealloc_delay};
-
-            allocator->swap(free_op.target, free_op.source);
-
-            free_operations.push_back(free_op);
-            performed = true;
+            perform_single_defrag(*op);
+            remaining_time -= (size / 1024) / kbPerNanoSecond;
         }
-
-        op = defrag_operations.erase(op);
+        op    = defrag_operations.erase(op);
+        first = false;
     }
-    return performed;
+
+    start();
+
+    return remaining_time;
 }
 
 
@@ -567,6 +601,7 @@ void Defragger<T>::invalidate(T* location)
     }
 }
 
+
 template class Defragger<BufferMemoryLocation>;
 template class Defragger<ImageMemoryLocation>;
 
@@ -592,7 +627,7 @@ bool ImageDefragger::create_copy_command(Defragger::DefragOperation& op, vk::Com
     reserve_space->data.create_view(device);
     reserve_space->data.create_sampler(device);
 
-    VLOG(1) << "IMAGE DEFRAG" << *(op.source) << "->" << *reserve_space;
+    VLOG(1) << "IMAGE DEFRAG " << *(op.source) << "->" << *reserve_space;
 
     auto set = img_copy_shader->copy_image(cmd, reserve_space, op.source);
 
@@ -603,6 +638,7 @@ bool ImageDefragger::create_copy_command(Defragger::DefragOperation& op, vk::Com
 
     usedSets.insert(std::make_pair(cmd, set.value()));
 
+    op.targetLocation = reserve_space;
     return true;
 }
 

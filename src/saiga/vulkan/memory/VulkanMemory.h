@@ -37,7 +37,8 @@ static const vk::DeviceSize fallback_image_chunk_size = 256 * 1024 * 1024;
 class SAIGA_VULKAN_API VulkanMemory
 {
    private:
-    uint32_t frame_number = 0;
+    uint32_t frame_number      = 0;
+    bool enableDefragmentation = false;
     template <bool usage_exact, bool memory_exact, typename T>
     struct allocator_find_functor
     {
@@ -189,9 +190,8 @@ class SAIGA_VULKAN_API VulkanMemory
     ImageContainer& get_image_allocator_exact(const ImageType& type);
 
    public:
-
-    void init(VulkanBase* base, uint32_t swapchain_frames);
-    VulkanMemory() = default;
+    void init(VulkanBase* base, uint32_t swapchain_frames, bool enableDefragmentation);
+    VulkanMemory()                    = default;
     VulkanMemory(const VulkanMemory&) = delete;
     VulkanMemory& operator=(const VulkanMemory&) = delete;
 
@@ -219,6 +219,8 @@ class SAIGA_VULKAN_API VulkanMemory
     void stop_defrag(const BufferType& type);
 
     void stop_defrag(const ImageType& type);
+
+    void performTimedDefrag(int64_t time);
 
     void update()
     {

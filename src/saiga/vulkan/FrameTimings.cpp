@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <exception>
 #include <glm/glm.hpp>
+
 namespace Saiga::Vulkan
 {
 template <typename Finder>
@@ -51,9 +52,11 @@ void FrameTimings<Finder>::update()
                 *pauseIter           = lastPause;
             }
 
-            auto [pause, length] = finder.findSuitablePause(recentFramePauses, insertionPoint);
+            //            auto [pause, length] =
 
-            LOG(INFO) << pause << " " << length;
+            bestSection = finder.findSuitablePause(recentFramePauses, insertionPoint);
+
+            //            VLOG(INFO) << pause << " " << length;
 
             lastFrameSections = timing.sections;
             insertionPoint++;
@@ -156,16 +159,25 @@ template <typename Finder>
 void FrameTimings<Finder>::enterSection(const std::string& name, vk::CommandBuffer cmd)
 {
     auto index = nameToSectionMap[name];
-    VLOG(1) << current << " " << current * frameSections.size() * 2 + index * 2;
-    cmd.writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, queryPool, getBegin(index));
+    cmd.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, queryPool, getBegin(index));
 }
 
 template <typename Finder>
 void FrameTimings<Finder>::leaveSection(const std::string& name, vk::CommandBuffer cmd)
 {
     auto index = nameToSectionMap[name];
-    VLOG(1) << current << " " << current * frameSections.size() * 2 + index * 2 + 1;
-    cmd.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, queryPool, getEnd(index));
+    cmd.writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, queryPool, getEnd(index));
+
+    if (bestSection.has_value())
+    {
+        auto best = bestSection.value();
+
+        if (best.pauseIndex == index && best.length > 0)
+        {
+            LOG(INFO) << "Defrag now " << best.length;
+            memory->performTimedDefrag(static_cast<int64_t>(best.length));
+        }
+    }
 }
 
 template <typename Finder>

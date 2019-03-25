@@ -13,15 +13,16 @@
 #include <memory>
 namespace Saiga::Vulkan::Memory
 {
-void VulkanMemory::init(VulkanBase* base, uint32_t swapchain_frames)
+void VulkanMemory::init(VulkanBase* base, uint32_t swapchain_frames, bool enableDefragmentation)
 {
-    this->base         = base;
-    m_pDevice          = base->physicalDevice;
-    m_device           = base->device;
-    m_queue            = base->transferQueue;
-    m_swapchain_images = swapchain_frames;
-    strategy           = std::make_unique<FirstFitStrategy<BufferMemoryLocation>>();
-    image_strategy     = std::make_unique<FirstFitStrategy<ImageMemoryLocation>>();
+    this->base                  = base;
+    this->enableDefragmentation = enableDefragmentation;
+    m_pDevice                   = base->physicalDevice;
+    m_device                    = base->device;
+    m_queue                     = base->transferQueue;
+    m_swapchain_images          = swapchain_frames;
+    strategy                    = std::make_unique<FirstFitStrategy<BufferMemoryLocation>>();
+    image_strategy              = std::make_unique<FirstFitStrategy<ImageMemoryLocation>>();
 
     img_copy_shader = std::make_unique<ImageCopyComputeShader>();
     img_copy_shader->init(base);
@@ -69,7 +70,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     bool allow_defragger =
         (effectiveType.usageFlags & vk::BufferUsageFlagBits::eUniformBuffer) != vk::BufferUsageFlagBits::eUniformBuffer;
 
-    if (allow_defragger)
+    if (enableDefragmentation && allow_defragger)
     {
         effectiveType.usageFlags |= vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc;
     }
@@ -81,7 +82,7 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
                                                               m_queue, found->second);
 
     std::unique_ptr<BufferDefragger> defragger;
-    if (allow_defragger)
+    if (enableDefragmentation && allow_defragger)
     {
         defragger = std::make_unique<BufferDefragger>(base, m_device, chunk_alloc.get(), m_swapchain_images);
     }
@@ -106,7 +107,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
     bool allow_defragger = (effectiveType.usageFlags & vk::ImageUsageFlagBits::eDepthStencilAttachment) !=
                            vk::ImageUsageFlagBits::eDepthStencilAttachment;
 
-    if (allow_defragger)
+    if (enableDefragmentation && allow_defragger)
     {
         effectiveType.usageFlags |= vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
     }
@@ -115,7 +116,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
 
     auto chunk_alloc = std::make_unique<ImageChunkAllocator>(m_device, &chunkCreator, effectiveType, *image_strategy,
                                                              m_queue, found->second);
-    if (allow_defragger)
+    if (enableDefragmentation && allow_defragger)
     {
         defragger = std::make_unique<ImageDefragger>(base, m_device, chunk_alloc.get(), m_swapchain_images,
                                                      img_copy_shader.get());
@@ -299,32 +300,81 @@ void VulkanMemory::deallocateImage(const ImageType& type, ImageMemoryLocation* l
 
 void VulkanMemory::enable_defragmentation(const BufferType& type, bool enable)
 {
-    getAllocator(type).defragger->setEnabled(enable);
+    if (getAllocator(type).defragger)
+    {
+        getAllocator(type).defragger->setEnabled(enable);
+    }
 }
 
 void VulkanMemory::start_defrag(const BufferType& type)
 {
-    getAllocator(type).defragger->start();
+    if (getAllocator(type).defragger)
+    {
+        getAllocator(type).defragger->start();
+    }
 }
 
 void VulkanMemory::stop_defrag(const BufferType& type)
 {
-    getAllocator(type).defragger->stop();
+    if (getAllocator(type).defragger)
+    {
+        getAllocator(type).defragger->stop();
+    }
 }
 
 void VulkanMemory::enable_defragmentation(const ImageType& type, bool enable)
 {
-    getImageAllocator(type).defragger->setEnabled(enable);
+    if (getImageAllocator(type).defragger)
+    {
+        getImageAllocator(type).defragger->setEnabled(enable);
+    }
 }
 
 void VulkanMemory::start_defrag(const ImageType& type)
 {
-    getImageAllocator(type).defragger->start();
+    if (getImageAllocator(type).defragger)
+    {
+        getImageAllocator(type).defragger->start();
+    }
 }
 
 void VulkanMemory::stop_defrag(const ImageType& type)
 {
-    getImageAllocator(type).defragger->stop();
+    if (getImageAllocator(type).defragger)
+    {
+        getImageAllocator(type).defragger->stop();
+    }
+}
+
+void VulkanMemory::performTimedDefrag(int64_t time)
+{
+    auto remainingTime = time;
+
+    for (auto& allocator : bufferAllocators)
+    {
+        if (remainingTime < 0)
+        {
+            break;
+        }
+        auto* defragger = allocator.second.defragger.get();
+        if (defragger)
+        {
+            remainingTime = defragger->perform_defrag(remainingTime);
+        }
+    }
+
+    for (auto& allocator : imageAllocators)
+    {
+        if (remainingTime < 0)
+        {
+            break;
+        }
+        auto* defragger = allocator.second.defragger.get();
+        if (defragger)
+        {
+            remainingTime = defragger->perform_defrag(remainingTime);
+        }
+    }
 }
 
 

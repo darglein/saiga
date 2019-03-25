@@ -7,6 +7,7 @@
 #include "saiga/vulkan/svulkan.h"
 
 #include "FrameSync.h"
+#include "memory/VulkanMemory.h"
 
 #include <chrono>
 #include <map>
@@ -76,6 +77,7 @@ class SAIGA_VULKAN_API FrameTimings
 
 
 
+    std::optional<SuitablePause> bestSection;
     std::optional<SectionTimes> lastFrameSections;
     std::vector<FramePauses> recentFramePauses;
     std::vector<FramePauses>::iterator insertionPoint;
@@ -90,6 +92,7 @@ class SAIGA_VULKAN_API FrameTimings
     std::set<Entry, KeyComparator> frameSections;
     std::map<std::string, uint32_t> nameToSectionMap;
     Finder finder;
+    Memory::VulkanMemory* memory;
     void destroyPool();
 
     inline uint32_t getCount() const { return static_cast<uint32_t>(frameSections.size() * 2); }
@@ -102,7 +105,7 @@ class SAIGA_VULKAN_API FrameTimings
 
     ~FrameTimings() { destroyPool(); }
 
-    FrameTimings(vk::Device _device)
+    FrameTimings(vk::Device _device, Memory::VulkanMemory* _memory)
         : device(_device),
           timings(0),
           numberOfFrames(0),
@@ -112,7 +115,8 @@ class SAIGA_VULKAN_API FrameTimings
           frameWindow(0),
           queryPool(nullptr),
           frameSections(),
-          finder()
+          finder(),
+          memory(_memory)
     {
     }
 
@@ -120,18 +124,19 @@ class SAIGA_VULKAN_API FrameTimings
     {
         if (this != &other)
         {
-            device         = other.device;
-            timings        = std::move(other.timings);
-            numberOfFrames = other.numberOfFrames;
-            next           = other.next;
-            current        = other.current;
-            running        = other.running;
-            frameWindow    = other.frameWindow;
-            queryPool      = other.queryPool;
-            frameSections  = std::move(other.frameSections);
-
+            device          = other.device;
+            timings         = std::move(other.timings);
+            numberOfFrames  = other.numberOfFrames;
+            next            = other.next;
+            current         = other.current;
+            running         = other.running;
+            frameWindow     = other.frameWindow;
+            queryPool       = other.queryPool;
+            frameSections   = std::move(other.frameSections);
+            memory          = other.memory;
             other.device    = nullptr;
             other.queryPool = nullptr;
+            other.memory    = nullptr;
         }
         return *this;
     }

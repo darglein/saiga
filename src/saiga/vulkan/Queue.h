@@ -34,6 +34,8 @@ class SAIGA_VULKAN_API Queue
     void submit(vk::SubmitInfo submitInfo, vk::Fence fence);
     void submitAndWait(vk::CommandBuffer cmd);
 
+
+
     operator vk::Queue() const { return queue; }
     operator VkQueue() const { return queue; }
 

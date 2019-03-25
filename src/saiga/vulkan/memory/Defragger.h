@@ -67,7 +67,7 @@ class Defragger
         uint64_t delay;
     };
 
-
+    std::vector<std::vector<vk::DeviceSize>> all_free;
     VulkanBase* base;
     uint64_t dealloc_delay;
     vk::Device device;
@@ -80,7 +80,7 @@ class Defragger
     std::atomic_bool running, quit;
     std::atomic_uint64_t frame_number;
 
-    std::mutex start_mutex, running_mutex, invalidate_mutex;
+    std::mutex start_mutex, running_mutex, invalidate_mutex, defrag_mutex;
     std::condition_variable start_condition;
     std::thread worker;
 
@@ -101,8 +101,8 @@ class Defragger
 
 
     void find_defrag_ops();
+    void fill_free_list();
     bool create_copy_commands();
-    bool perform_defrag();
     bool perform_free_operations();
 
     // end defrag thread functions
@@ -129,6 +129,9 @@ class Defragger
     void invalidate(T* location);
 
     void update(uint32_t _frame_number) { frame_number = _frame_number; }
+
+    void perform_single_defrag(DefragOperation& op);
+    int64_t perform_defrag(int64_t allowed_time);
 
    protected:
     virtual bool create_copy_command(DefragOperation& op, vk::CommandBuffer cmd) = 0;

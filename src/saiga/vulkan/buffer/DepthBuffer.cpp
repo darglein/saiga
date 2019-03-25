@@ -25,7 +25,6 @@ void DepthBuffer::destroy()
 void DepthBuffer::init(VulkanBase& base, int width, int height)
 {
     this->base = &base;
-    vk::Result res;
     {
         // depth buffer
         vk::ImageCreateInfo image_info = {};

@@ -115,7 +115,7 @@ struct SAIGA_VULKAN_API VulkanBase
     void finalize_init(uint32_t swapchain_frames)
     {
         numSwapchainFrames = swapchain_frames;
-        memory.init(this, swapchain_frames);
+        memory.init(this, swapchain_frames, m_parameters.enableDefragmentation);
     }
 
     inline void finish_frame()

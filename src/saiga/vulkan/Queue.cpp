@@ -50,10 +50,7 @@ void Queue::destroy()
 
 void Queue::submitAndWait(vk::CommandBuffer cmd)
 {
-    if (!cmd)
-    {
-        return;
-    }
+    SAIGA_ASSERT(cmd, "invalid command buffer provided");
     vk::SubmitInfo submitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
@@ -75,10 +72,11 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd)
     vk::SubmitInfo submitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
-    submitMutex.lock();
-    auto fence = device.createFence({});
-    queue.submit(submitInfo, fence);
-    submitMutex.unlock();
+    auto fence                    = device.createFence({});
+    {
+        std::scoped_lock lock(submitMutex);
+        queue.submit(submitInfo, fence);
+    }
     return fence;
 }
 
