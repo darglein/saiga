@@ -9,6 +9,7 @@
 #include "internal/noGraphicsAPI.h"
 
 #include "objModelLoader.h"
+#include "plyModelLoader.h"
 
 namespace Saiga
 {
@@ -53,6 +54,12 @@ void VertexColoredModel::loadObj(const std::string& file)
     Saiga::ObjModelLoader loader(file);
     loader.computeVertexColorAndData();
     loader.toTriangleMesh(mesh);
+}
+
+void VertexColoredModel::loadPly(const std::string& file)
+{
+    Saiga::PLYLoader loader(file);
+    mesh = loader.mesh;
 }
 
 void TexturedModel::loadObj(const std::string& file)

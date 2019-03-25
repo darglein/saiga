@@ -38,7 +38,11 @@ class SAIGA_VULKAN_API VulkanSwapChain
     /** @brief Queue family index of the detected graphics and presenting device queue */
     uint32_t queueNodeIndex = UINT32_MAX;
 
-    ~VulkanSwapChain() { cleanup(); }
+    ~VulkanSwapChain()
+    {
+        cleanup();
+        destroySurface();
+    }
     void initSurface(VkSurfaceKHR _surface);
 
     /**
@@ -90,4 +94,5 @@ class SAIGA_VULKAN_API VulkanSwapChain
      * Destroy and free Vulkan resources used for the swapchain
      */
     void cleanup();
+    void destroySurface();
 };

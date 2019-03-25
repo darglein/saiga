@@ -9,3 +9,4 @@
 #include "saiga/config.h"
 
 #include "AccelerationStructure.h"
+#include "triangle_mesh.h"

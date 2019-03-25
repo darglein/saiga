@@ -25,9 +25,11 @@ void Queue::create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _que
 
 void Queue::waitIdle()
 {
+    LOG(INFO) << "Queue: wait idle...";
     submitMutex.lock();
     queue.waitIdle();
     submitMutex.unlock();
+    LOG(INFO) << "Queue: wait idle done.";
 }
 
 void Queue::destroy()

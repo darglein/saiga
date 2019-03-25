@@ -90,8 +90,8 @@ class SAIGA_VISION_API ArapEdge : public g2o::BaseBinaryEdge<3, Vec3, ArapVertex
 
     void linearizeOplus()
     {
-        SE3 pHat  = static_cast<const ArapVertex*>(_vertices[0])->estimate();
-        SE3 qHat  = static_cast<const ArapVertex*>(_vertices[1])->estimate();
+        SE3 pHat = static_cast<const ArapVertex*>(_vertices[0])->estimate();
+        //        SE3 qHat  = static_cast<const ArapVertex*>(_vertices[1])->estimate();
         Vec3 e_ij = this->measurement();
 
         Vec3 R_eij = pHat.so3() * e_ij;

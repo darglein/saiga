@@ -83,15 +83,6 @@ install(
     DESTINATION ${INSTALL_SHARE}
     )
 
-
-install(
-    DIRECTORY ./saiga/
-    DESTINATION ${INSTALL_INCLUDE}/core
-    FILES_MATCHING PATTERN "*.h"
-    PATTERN "*.inl"
-    PATTERN "*.hpp"
-    )
-
 ##### Precompiled Headers #####
 if(SAIGA_PCH)
     set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "${PROJECT_SOURCE_DIR}/src/internal/pch_core.h")

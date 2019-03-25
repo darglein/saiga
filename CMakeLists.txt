@@ -46,6 +46,8 @@ OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external pro
 OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
 OptionsHelper(SAIGA_PCH "Generate a precompiled header" OFF)
 OptionsHelper(SAIGA_LIBSTDCPP "Use the GCC std lib for the clang compiler" OFF)
+OptionsHelper(SAIGA_DEBUG_ASAN "Enable the address sanitizer. Does not work in combination with TSAN." OFF)
+OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in combination with ASAN." OFF)
 
 
 OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
@@ -551,6 +553,18 @@ install(
     DESTINATION ${INSTALL_INCLUDE}
     )
 
+install(
+    FILES "${SAIGA_MODULES_FILE}"
+    DESTINATION ${INSTALL_INCLUDE}
+    )
+
+install(
+    DIRECTORY ./src/saiga/
+    DESTINATION ${INSTALL_INCLUDE}
+    FILES_MATCHING PATTERN "*.h"
+    PATTERN "*.inl"
+    PATTERN "*.hpp"
+    )
 
 
 ############# UNINSTALL ###############

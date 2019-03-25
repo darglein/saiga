@@ -49,7 +49,7 @@ void AssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
     PipelineBase::init(vulkanDevice, 1);
     addDescriptorSetLayout({{0, {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}}});
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
-    shaderPipeline.load(device, {"vulkan/coloredAsset.vert", "vulkan/coloredAsset.frag"});
+    shaderPipeline.load(device, {vertexShader, fragmendShader});
     PipelineInfo info;
     info.addVertexInfo<VertexNC>();
     create(renderPass, info);

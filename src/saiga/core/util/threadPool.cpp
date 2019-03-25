@@ -25,7 +25,10 @@
 
 #include "threadPool.h"
 
+#include "saiga/core/util/assert.h"
 #include "saiga/core/util/threadName.h"
+
+#include "omp.h"
 
 namespace Saiga
 {
@@ -74,11 +77,16 @@ void ThreadPool::quit()
     workers.clear();
 }
 
-std::shared_ptr<ThreadPool> globalThreadPool;
+std::unique_ptr<ThreadPool> globalThreadPool;
 
 void createGlobalThreadPool(int threads)
 {
-    globalThreadPool = std::make_shared<ThreadPool>(threads, "GlobalTP");
+    if (threads < 0)
+    {
+        threads = omp_get_thread_num();
+    }
+    SAIGA_ASSERT(!globalThreadPool);
+    globalThreadPool = std::make_unique<ThreadPool>(threads, "GlobalTP");
 }
 
 

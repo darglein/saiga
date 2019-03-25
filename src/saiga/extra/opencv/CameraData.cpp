@@ -19,15 +19,18 @@ void Intrinsics::writeToFile(string file)
     cout << "Saved Intrinsics to " << file << endl;
 }
 
-void Intrinsics::readFromFile(string file)
+bool Intrinsics::readFromFile(string file)
 {
     cv::FileStorage fs(file, FileStorage::READ);
+    if(!fs.isOpened())
+        return false;
     fs["w"] >> w;
     fs["h"] >> h;
     fs["K"] >> K;
     fs["dist"] >> dist;
 
     cout << "Loaded Intrinsics from " << file << endl;
+    return true;
 }
 Matx44f StereoExtrinsics::getRelativeTransform()
 {
@@ -50,15 +53,18 @@ void StereoExtrinsics::writeToFile(string file)
     cout << "Saved StereoExtrinsics to " << file << endl;
 }
 
-void StereoExtrinsics::readFromFile(string file)
+bool StereoExtrinsics::readFromFile(string file)
 {
     cv::FileStorage fs(file, FileStorage::READ);
+    if(!fs.isOpened())
+        return false;
     fs["R"] >> R;
     fs["t"] >> t;
     fs["F"] >> F;
     fs["E"] >> E;
 
     cout << "Loaded StereoExtrinsics from " << file << endl;
+    return true;
 }
 
 }  // namespace Saiga

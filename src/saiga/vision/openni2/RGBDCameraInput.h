@@ -51,11 +51,14 @@ class SAIGA_VISION_API RGBDCameraInput : public RGBDCamera
 
     // The user can change these variables, but must call 'updateCameraSettings' to make the take effect
     bool autoexposure = true;
-    int exposure      = 33;
+    //    int exposure      = 33;
 
     bool autoWhiteBalance = true;
-    int gain              = 300;
+    //    int gain              = 300;
     void updateCameraSettings();
+
+
+    void imgui();
 
    private:
     SynchronizedBuffer<std::shared_ptr<FrameData>> frameBuffer;

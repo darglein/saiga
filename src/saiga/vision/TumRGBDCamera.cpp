@@ -132,6 +132,18 @@ SE3 TumRGBDCamera::getGroundTruth(int frame)
     return gt.se3;
 }
 
+void TumRGBDCamera::saveRaw(const std::string& dir)
+{
+#pragma omp parallel for
+    for (int i = 0; i < (int)frames.size(); ++i)
+    {
+        auto str = Saiga::leadingZeroString(i, 5);
+        auto tmp = frames[i];
+        tmp->colorImg.save(std::string(dir) + str + ".png");
+        tmp->depthImg.save(std::string(dir) + str + ".saigai");
+    }
+}
+
 
 void TumRGBDCamera::associate(const std::string& datasetDir)
 {

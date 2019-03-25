@@ -22,6 +22,10 @@ namespace Vulkan
 class SAIGA_VULKAN_API AssetRenderer : public Pipeline
 {
    public:
+    // Change these strings before calling 'init' to use your own shaders
+    std::string vertexShader = "vulkan/coloredAsset.vert";
+    std::string fragmendShader = "vulkan/coloredAsset.frag";
+
     ~AssetRenderer() { destroy(); }
     void destroy();
 

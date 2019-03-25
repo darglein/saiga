@@ -668,6 +668,7 @@ OptimizationResults BAPoseOnly::solve()
         }
 #endif
     }
+    return {};
 }
 
 }  // namespace Saiga

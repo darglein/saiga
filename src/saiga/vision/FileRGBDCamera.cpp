@@ -84,7 +84,7 @@ void FileRGBDCamera::load(const std::string& datasetDir)
     std::sort(rgbImages.begin(), rgbImages.end());
     std::sort(depthImages.begin(), depthImages.end());
 
-    maxFrames = rgbImages.size();
+    if (maxFrames <= 0) maxFrames = rgbImages.size();
 
 
     frames.resize(maxFrames);
