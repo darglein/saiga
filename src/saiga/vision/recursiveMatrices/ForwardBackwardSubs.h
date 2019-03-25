@@ -20,7 +20,7 @@ VectorType forwardSubstituteDiagOne(const MatrixType& A, const VectorType& b)
     using Scalar = typename VectorType::Scalar;
 
     // solve Ax=b
-    // with A triangular block matrix where diagonal elements are 1.
+    // with A triangular LOWER block matrix where diagonal elements are 1.
     VectorType x;
     x.resize(b.rows(), b.cols());
 

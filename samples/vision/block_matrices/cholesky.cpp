@@ -29,6 +29,95 @@ using namespace Saiga;
 
 namespace Saiga
 {
+// template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
+template <typename MatrixType, typename VectorType>
+VectorType forwardSubstituteDiagOneOnlyDiag(const MatrixType& A, const VectorType& b)
+{
+    using Scalar = typename VectorType::Scalar;
+
+    // solve Ax=b
+    // with A triangular LOWER block matrix where diagonal elements are 1.
+    VectorType x;
+    x.resize(b.rows(), b.cols());
+
+    for (int i = 0; i < A.rows(); ++i)
+    {
+        Scalar sum = AdditiveNeutral<Scalar>::get();
+        for (int j = 0; j < i; ++j)
+        {
+            sum += A(i, j) * x(j);
+        }
+
+        auto test = forwardSubstituteDiagOne(A(i, i).get(), (b(i).get() - sum.get()).eval());
+        //        x(i) = b(i) - sum;
+        //        x(i).get() = test - sum.get();
+        x(i).get() = test;
+    }
+
+#if 1
+    // Test if (Ax-b)==0
+    cout << expand(x).transpose() << endl;
+    double test = (expand(A).template triangularView<Eigen::Lower>() * expand(x) - expand(b)).squaredNorm();
+    cout << "error forwardSubstituteDiagOne: " << test << endl;
+    SAIGA_ASSERT(test < 1e-10);
+#endif
+    return x;
+}
+
+
+template <typename Diag, typename Vec>
+EIGEN_ALWAYS_INLINE Vec multDiagVectorOnlyDiag(const Diag& D, const Vec& v)
+{
+    SAIGA_ASSERT(D.cols() == v.rows());
+
+    Vec result;
+    result.resize(v.rows(), v.cols());
+    //    Vec result = v;
+
+    for (int k = 0; k < D.rows(); ++k)
+    {
+        //        result(k) = D.diagonal()(k) * v(k);
+        result(k).get() = multDiagVector(D.diagonal()(k).get(), v(k).get());
+    }
+
+    return result;
+}
+
+
+// template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
+template <typename MatrixType, typename VectorType>
+VectorType backwardSubstituteDiagOneTransposeOnlyDiag(const MatrixType& A, const VectorType& b)
+{
+    using Scalar = typename VectorType::Scalar;
+    // solve Ax=b
+    // with A triangular block matrix where diagonal elements are 1.
+    VectorType x;
+    x.resize(b.rows(), b.cols());
+
+    for (int i = A.rows() - 1; i >= 0; --i)
+    {
+        Scalar sum = AdditiveNeutral<Scalar>::get();
+        for (int j = i + 1; j < A.rows(); ++j)
+        {
+            sum += transpose(A(j, i)) * x(j);
+        }
+
+        auto test = backwardSubstituteDiagOneTranspose(A(i, i).get(), (b(i).get() - sum.get()).eval());
+        //        x(i)      = b(i) - test;
+        x(i) = test;
+    }
+
+#if 1
+    // Test if (Ax-b)==0
+    cout << "x: " << expand(x).transpose() << endl;
+    double test = (expand(A).transpose().template triangularView<Eigen::Upper>() * expand(x) - expand(b)).squaredNorm();
+    cout << "error backwardSubstituteDiagOneTranspose: " << test << endl;
+    SAIGA_ASSERT(test < 1e-10);
+#endif
+    return x;
+}
+
+
 template <typename _Scalar, int _Rows, int _Cols>
 Eigen::Matrix<_Scalar, _Rows, 1> solveLLT(const Eigen::Matrix<_Scalar, _Rows, _Cols>& A,
                                           const Eigen::Matrix<_Scalar, _Rows, 1>& b)
@@ -190,7 +279,41 @@ VectorType solveLDLT2(const MatrixType& A, const VectorType& b)
     return x;
 }
 
+template <typename T>
+void ldltRightUpdatePropagate(T& target, T& prop_tmp, const T& LDiagUp, const T& invDiagUp);
 
+template <>
+void ldltRightUpdatePropagate(double& target, double& prop_tmp, const double& LDiagUp, const double& invDiagUp)
+{
+    auto yi  = target;
+    prop_tmp = yi;
+    target   = yi * invDiagUp;
+}
+
+
+template <typename T>
+void ldltRightUpdatePropagate(T& target, T& prop_tmp, const T& LDiagUp, const T& invDiagUp)
+{
+    // Compute dense propagation on current block inplace
+    const int inner_block_size = T::RowsAtCompileTime;
+    for (int k = 0; k < inner_block_size; ++k)
+    {
+        for (int i = 0; i < inner_block_size; ++i)
+        {
+            auto yi        = target(k, i);
+            prop_tmp(k, i) = yi;
+
+            // propagate to the right in this row
+            for (int j = i + 1; j < inner_block_size; ++j)
+            {
+                target(k, j) -= yi * LDiagUp(j, i);
+            }
+
+            target(k, i) = yi * invDiagUp(i, i);
+            //                    target(k, i) = l_ki;
+        }
+    }
+}
 
 template <typename MatrixType, typename VectorType>
 VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
@@ -221,7 +344,6 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
     std::vector<MatrixScalar> rowCache(A.rows());
     for (int i = 0; i < A.rows(); ++i) rowCache[i] = 0;
 
-    MatrixScalar fakeYbuffer = 0;
     // compute L
     for (int k = 0; k < A.rows(); k++)
     {
@@ -233,60 +355,48 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
         }
 
         // This is the diagonal element of the current row
-        MatrixScalar sumd = rowCache[k];
-        rowCache[k]       = Saiga::AdditiveNeutral<MatrixScalar>::get();
+        MatrixScalar diagElement = rowCache[k];
+        rowCache[k]              = Saiga::AdditiveNeutral<MatrixScalar>::get();
 
 
 
         for (int i = 0; i < k; ++i)
         {
-            MatrixScalar yi = rowCache[i];
-            rowCache[i]     = Saiga::AdditiveNeutral<MatrixScalar>::get();
+            auto& target = L(k, i);
+            target       = rowCache[i];
 
-            if (k == 0 && i == 0)
-            {
-                fakeYbuffer = yi;
-            }
+            auto& LDiagUp   = L(i, i);
+            auto& invDiagUp = Dinv.diagonal()[i];
+
+            MatrixScalar prop_tmp;
+
+            ldltRightUpdatePropagate(target, prop_tmp, LDiagUp, invDiagUp);
 
 
-            // Compute y buffer for next column
+            // Propagate into everything to the right
+            diagElement -= prop_tmp * transpose(target);
             for (int j = i + 1; j < k; ++j)
             {
-                rowCache[j] -= yi * transpose(L(j, i));
-                //                cout << "subtract y: " << j << "," << i << endl;
+                rowCache[j] -= prop_tmp * transpose(L(j, i));
             }
-
-            auto& inv         = Dinv.diagonal()[i];
-            MatrixScalar l_ki = yi * inv;
-            L(k, i)           = l_ki;
-            sumd -= yi * transpose(l_ki);
-
-
-            //            if (k == 1 && i == 0)
-            //            {
-            //                //                fakeYbuffer -= yi * transpose(L(0, 0));
-            //                cout << "yi" << endl << expand(yi) << endl << endl;
-            //                cout << "test" << endl << expand(yi)(0,1) - (expand(yi)(0,0)) << endl << endl;
-            //            }
-
-            //            cout << expand(fakeYbuffer) << endl;
-            //            cout << expand(yi * transpose(L(i, i))) << endl;
         }
 
 
 
         L(k, k)            = MultiplicativeNeutral<MatrixScalar>::get();
-        D.diagonal()(k)    = sumd;
+        D.diagonal()(k)    = diagElement;
         Dinv.diagonal()(k) = inverse(D.diagonal()(k));
     }
 
     cout << "L" << endl << expand(L) << endl << endl;
     cout << "D" << endl << expand(D) << endl << endl;
 
+    //    z = forwardSubstituteDiagOneOnlyDiag(L, b);
     z = forwardSubstituteDiagOne(L, b);
     y = multDiagVector(Dinv, z);
+    cout << y.transpose() << endl;
     x = backwardSubstituteDiagOneTranspose(L, y);
-
+    cout << "x: " << x.transpose() << endl;
 
 #if 0
     // Test if (Ax-b)==0
@@ -300,7 +410,7 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
 }
 
 template <typename MatrixType, typename VectorType>
-Eigen::Matrix<double, -1, 1> solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
+VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
 {
     SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
     using MatrixScalar = typename MatrixType::Scalar;
@@ -342,78 +452,23 @@ Eigen::Matrix<double, -1, 1> solveLDLT_ybuffer_block(const MatrixType& A, const 
 
         for (int i = 0; i < k; ++i)
         {
-            // propate into rowcache
-            auto& block   = rowCache[i].get();
-            auto& LDiagUp = L(i, i).get();
-            auto& inv     = Dinv.diagonal()[i].get();
+            auto& target = L(k, i).get();
+            target       = rowCache[i].get();
 
-            const int inner_block_size = MatrixScalar::M::RowsAtCompileTime;
-
-
-            MatrixScalar prop;
-
-            //            cout << "block before" << endl << expand(block) << endl;
-
-            // Compute dense propagation on current block inplace
-            for (int k = 0; k < inner_block_size; ++k)
-            {
-                for (int i = 0; i < inner_block_size; ++i)
-                {
-                    auto yi          = block(k, i);
-                    prop.get()(k, i) = yi;
-
-                    // propagate to the right in this row
-                    for (int j = i + 1; j < inner_block_size; ++j)
-                    {
-                        block(k, j) -= yi * LDiagUp(j, i);
-                    }
-
-                    auto l_ki   = yi * inv(i, i);
-                    block(k, i) = l_ki;
-                }
-            }
-            L(k, i) = block;
+            auto& LDiagUp   = L(i, i).get();
+            auto& invDiagUp = Dinv.diagonal()[i].get();
+            typename MatrixScalar::M prop_tmp;
 
 
-            diagElement -= prop * transpose(block);
+            ldltRightUpdatePropagate(target, prop_tmp, LDiagUp, invDiagUp);
 
+
+
+            diagElement.get() -= prop_tmp * transpose(target);
             for (int j = i + 1; j < k; ++j)
             {
-                rowCache[j] -= prop * transpose(L(j, i));
+                rowCache[j].get() -= prop_tmp * transpose(L(j, i)).get();
             }
-
-            //            cout << "block after" << endl << expand(block) << endl;
-
-            continue;
-#if 0
-            for (int c = 1; c < 3; ++c)
-            {
-                rowCache[i].get()(0, c) -= rci(0, 0) * diagUp(c, 0);
-            }
-
-
-            MatrixScalar yi = rowCache[i];
-            rowCache[i]     = Saiga::AdditiveNeutral<MatrixScalar>::get();
-
-
-
-            // Compute y buffer for next column
-            for (int j = i + 1; j < k; ++j)
-            {
-                rowCache[j] -= yi * transpose(L(j, i));
-            }
-
-            if (k == 1 && i == 0)
-            {
-                cout << "asdg" << endl << expand(yi) << endl;
-                cout << "diag up" << endl << expand(L(i, i)) << endl;
-            }
-
-
-            MatrixScalar l_ki = yi * inv;
-            L(k, i)           = l_ki;
-            sumd -= yi * transpose(l_ki);
-#endif
         }
 
 #if 1
@@ -434,11 +489,16 @@ Eigen::Matrix<double, -1, 1> solveLDLT_ybuffer_block(const MatrixType& A, const 
     cout << "L" << endl << expand(L) << endl << endl;
     cout << "D" << endl << expand(D) << endl << endl;
 
-#if 0
-    z = forwardSubstituteDiagOne(L, b);
+#if 1
+    z = forwardSubstituteDiagOneOnlyDiag(L, b);
+    //    y = multDiagVector(Dinv, z);
+    y = multDiagVectorOnlyDiag(Dinv, z);
+    cout << expand(y).transpose() << endl;
     //    z = forwardSubstituteDiagOne2(L, b);
-    y = multDiagVector(Dinv, z);
-    x = backwardSubstituteDiagOneTranspose(L, y);
+    //    y = multDiagVector(Dinv, z);
+    x = backwardSubstituteDiagOneTransposeOnlyDiag(L, y);
+    cout << "x: " << expand(x).transpose() << endl;
+    return x;
 #else
 
     Eigen::Matrix<double, -1, 1> x2, z2, y2;
@@ -614,8 +674,8 @@ void testBlockCholesky()
 {
     cout << "testBlockCholesky" << endl;
 
-    const int n          = 4;
-    const int block_size = 4;
+    const int n          = 3;
+    const int block_size = 3;
 
 
     using CompleteMatrix = Eigen::Matrix<double, n * block_size, n * block_size>;
@@ -754,9 +814,9 @@ void testBlockCholesky()
 
     if (1)
     {
-        x = solveLDLT_ybuffer_block(bA, bb);
+        bx = solveLDLT_ybuffer_block(bA, bb);
 
-        //        x = expand(bx);
+        x = expand(bx);
         //        cout << "x " << x.transpose() << endl;
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
