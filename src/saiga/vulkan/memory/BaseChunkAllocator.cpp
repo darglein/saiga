@@ -111,11 +111,7 @@ void BaseChunkAllocator<T>::deallocate(T* location)
         m_device.destroy(last->buffer);
         m_chunkAllocator->deallocate(last->chunk);
 
-        last--;
-        stol--;
-
-		chunks.pop_back();
-        //chunks.erase(last + 1, chunks.end());
+        chunks.pop_back();
     }
 }
 

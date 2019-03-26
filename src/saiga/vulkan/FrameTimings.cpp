@@ -174,7 +174,7 @@ void FrameTimings<Finder>::leaveSection(const std::string& name, vk::CommandBuff
 
         if (best.pauseIndex == index && best.length > 0)
         {
-            LOG(INFO) << "Defrag now " << best.length;
+            //            LOG(INFO) << "Defrag now " << best.length;
             memory->performTimedDefrag(static_cast<int64_t>(best.length));
         }
     }
