@@ -181,7 +181,7 @@ void VulkanExample::renderGUI()
 
 void VulkanExample::keyPressed(SDL_Keysym key)
 {
-    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 4UL), size_dist(0UL, 3UL), image_dist(0, 4);
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 1UL), size_dist(0UL, 3UL), image_dist(0, 4);
 
 
 

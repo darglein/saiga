@@ -52,12 +52,7 @@ void FrameTimings<Finder>::update()
                 *pauseIter           = lastPause;
             }
 
-            //            auto [pause, length] =
-
-            bestSection = finder.findSuitablePause(recentFramePauses, insertionPoint);
-
-            //            VLOG(INFO) << pause << " " << length;
-
+            bestSection       = finder.findSuitablePause(recentFramePauses, insertionPoint);
             lastFrameSections = timing.sections;
             insertionPoint++;
             if (insertionPoint == recentFramePauses.end())

@@ -24,8 +24,13 @@ bool Defragger<T>::perform_free_operations()
         {
             if (current->target)
             {
+                LOG(INFO) << "Free op " << *current;
                 allocator->deallocate(current->target);
                 current->source->mark_dynamic();
+            }
+            else
+            {
+                LOG(ERROR) << "Error free " << *current;
             }
             current = free_operations.erase(current);
         }
@@ -54,7 +59,6 @@ Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocato
       quit(false),
       frame_number(0),
       worker(&Defragger::worker_func, this),
-      invalidate_set(),
       queryPool(nullptr)
 {
     auto queryPoolInfo = vk::QueryPoolCreateInfo{vk::QueryPoolCreateFlags(), vk::QueryType::eTimestamp, 2};
@@ -137,8 +141,6 @@ void Defragger<T>::worker_func()
         {
             continue;
         }
-
-        apply_invalidations();
 
         run();
 
@@ -320,8 +322,10 @@ void Defragger<T>::find_defrag_ops()
 
             if (targets_found != 0)
             {
+                std::scoped_lock lock(defrag_mutex);
                 auto chunk = std::get<0>(target);
                 auto entry = std::get<1>(target);
+
 
 
                 auto existing_defrag = std::find_if(defrag_operations.begin(), defrag_operations.end(),
@@ -331,19 +335,28 @@ void Defragger<T>::find_defrag_ops()
                 {
                     defrag_operations.push_back(
                         DefragOperation{get(curr), nullptr, chunks[chunk].chunk->memory, entry, min_weight, nullptr});
+                    LOG(INFO) << "New op: " << defrag_operations.back();
                 }
                 else
                 {
-                    defrag_operations.erase(existing_defrag);
-                    defrag_operations.push_back(
-                        DefragOperation{get(curr), nullptr, chunks[chunk].chunk->memory, entry, min_weight, nullptr});
+                    LOG(INFO) << "Old op" << *existing_defrag;
                 }
+                //                else if (!existing_defrag->copy_cmd && !existing_defrag->targetLocation)
+                //                {
+                //                    defrag_operations.erase(existing_defrag);
+                //                    defrag_operations.push_back(
+                //                        DefragOperation{get(curr), nullptr, chunks[chunk].chunk->memory, entry,
+                //                        min_weight, nullptr});
+                //                }
             }
         }
     }
+    {
+        std::scoped_lock lock(defrag_mutex);
 
-    std::sort(defrag_operations.begin(), defrag_operations.end(),
-              [](const auto& entry, const auto& other) { return entry.weight < other.weight; });
+        std::sort(defrag_operations.begin(), defrag_operations.end(),
+                  [](const auto& entry, const auto& other) { return entry.weight < other.weight; });
+    }
 }
 
 template <typename T>
@@ -399,11 +412,12 @@ bool Defragger<T>::create_copy_commands()
     bool performed = false;
 
     std::scoped_lock defrag_lock(defrag_mutex);
-    for (auto opIter = defrag_operations.begin(); opIter != defrag_operations.end(); ++opIter)
+    for (auto opIter = defrag_operations.begin(); running && opIter != defrag_operations.end(); ++opIter)
     {
         DefragOperation& op = *opIter;
         if (!op.copy_cmd && allocator->memory_is_free(op.targetMemory, op.target) && op.source->is_dynamic())
         {
+            LOG(INFO) << "Cpy op" << op;
             auto cmd = base->mainQueue.commandPool.createAndBeginOneTimeBuffer();
             cmd.resetQueryPool(queryPool, 0, 2);
             cmd.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, queryPool, 0);
@@ -421,6 +435,7 @@ bool Defragger<T>::create_copy_commands()
 template <typename T>
 void Defragger<T>::perform_single_defrag(Defragger::DefragOperation& op)
 {
+    LOG(INFO) << "Run op " << op;
     op.source->mark_static();
     auto fence = base->mainQueue.submit(op.copy_cmd);
 
@@ -468,10 +483,10 @@ int64_t Defragger<T>::perform_defrag(int64_t allowed_time)
     while (op != defrag_operations.end())
     {
         auto size = op->source->size;
-        if (!first && (remaining_time - ((size / 1024) / kbPerNanoSecond)) < 0)
-        {
-            break;
-        }
+        //        if (!first && (remaining_time - ((size / 1024) / kbPerNanoSecond)) < 0)
+        //        {
+        //            break;
+        //        }
         if (op->copy_cmd && op->targetLocation)
         {
             perform_single_defrag(*op);
@@ -484,121 +499,6 @@ int64_t Defragger<T>::perform_defrag(int64_t allowed_time)
     start();
 
     return remaining_time;
-}
-
-
-template <typename T>
-float Defragger<T>::get_operation_penalty(ConstChunkIterator<T> target_chunk, ConstFreeIterator<T> target_location,
-                                          ConstChunkIterator<T> source_chunk,
-                                          ConstAllocationIterator<T> source_location) const
-{
-    auto& source_ptr = *source_location;
-    float weight     = 0;
-
-
-    if (target_chunk == source_chunk)
-    {
-        // move inside a chunk should be done after moving to others
-        weight += penalties.same_chunk;
-    }
-
-    // if the move creates a hole that is smaller than the memory chunk itself -> add weight
-    // anhand von der chunk size
-    // ganz kleine löcher sind eigentlich auch egal -> smoothstep bei speicher / 1M (einfach 10kb)
-    if (target_location->size != source_ptr->size && (target_location->size - source_ptr->size < source_ptr->size))
-    {
-        weight += penalties.target_small_hole * (1 - (static_cast<float>(source_ptr->size) / target_location->size));
-    }
-
-    // If move creates a hole at source -> add weight
-    // auch wenn erste allokation
-    // wenn kleine löcher davor oder danach auch smoothstep nehmen
-    auto next = std::next(source_location);
-    if (source_location != source_chunk->allocations.cbegin() && next != source_chunk->allocations.cend())
-    {
-        auto& next_ptr = *next;
-        auto& prev     = *std::prev(source_location);
-
-        if (source_ptr->offset == prev->offset + prev->size &&
-            source_ptr->offset + source_ptr->size == next_ptr->offset)
-        {
-            weight += penalties.source_create_hole;
-        }
-    }
-
-    // Penalty if allocation is not the last allocation in chunk
-    if (next != source_chunk->allocations.cend())
-    {
-        weight += penalties.source_not_last_alloc;
-    }
-
-    if (std::next(source_chunk) != allocator->chunks.cend())
-    {
-        weight += penalties.source_not_last_chunk;
-    }
-
-    // minimales gewicht
-    return weight;
-}
-
-template <typename T>
-void Defragger<T>::apply_invalidations()
-{
-    std::unique_lock<std::mutex> invalidate_lock(invalidate_mutex);
-    if (!defrag_operations.empty() && !invalidate_set.empty())
-    {
-        auto ops_iter = defrag_operations.begin();
-
-        while (ops_iter != defrag_operations.end())
-        {
-            auto target_mem = ops_iter->targetMemory;
-            if (invalidate_set.find(target_mem) != invalidate_set.end())
-            {
-                ops_iter = defrag_operations.erase(ops_iter);
-            }
-            else
-            {
-                ++ops_iter;
-            }
-        }
-        invalidate_set.clear();
-    }
-}
-
-template <typename T>
-void Defragger<T>::invalidate(vk::DeviceMemory memory)
-{
-    std::unique_lock<std::mutex> invalidate_lock(invalidate_mutex);
-    invalidate_set.insert(memory);
-}
-
-template <typename T>
-void Defragger<T>::invalidate(T* location)
-{
-    std::unique_lock<std::mutex> invalidate_lock(invalidate_mutex);
-    for (auto op_iter = defrag_operations.begin(); op_iter != defrag_operations.end();)
-    {
-        if (op_iter->source == location)
-        {
-            op_iter = defrag_operations.erase(op_iter);
-        }
-        else
-        {
-            ++op_iter;
-        }
-    }
-
-    for (auto free_iter = free_operations.begin(); free_iter != free_operations.end();)
-    {
-        if (free_iter->source == location)
-        {
-            free_iter->source = nullptr;
-        }
-        else
-        {
-            ++free_iter;
-        }
-    }
 }
 
 

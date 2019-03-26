@@ -32,7 +32,7 @@ static const vk::ImageUsageFlags all_image_usage(VK_IMAGE_USAGE_FLAG_BITS_MAX_EN
 static const vk::MemoryPropertyFlags all_mem_properties(VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM);
 static const vk::DeviceSize fallback_buffer_chunk_size = 64 * 1024 * 1024;
 
-static const vk::DeviceSize fallback_image_chunk_size = 256 * 1024 * 1024;
+static const vk::DeviceSize fallback_image_chunk_size = 32 * 1024 * 1024;
 
 class SAIGA_VULKAN_API VulkanMemory
 {

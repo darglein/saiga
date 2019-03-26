@@ -16,6 +16,7 @@
 #include <atomic>
 #include <list>
 #include <mutex>
+#include <ostream>
 #include <set>
 #include <thread>
 #include <vector>
@@ -30,14 +31,6 @@ struct VulkanBase;
 namespace Saiga::Vulkan::Memory
 {
 class ImageCopyComputeShader;
-struct OperationPenalties
-{
-    float target_small_hole     = 100.0f;
-    float source_create_hole    = 200.0f;
-    float source_not_last_alloc = 100.0f;
-    float source_not_last_chunk = 400.0f;
-    float same_chunk            = 500.0f;
-};
 
 struct DefraggerConfiguration
 {
@@ -59,12 +52,46 @@ class Defragger
         float weight;
         vk::CommandBuffer copy_cmd = nullptr;
         bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
+
+        friend std::ostream& operator<<(std::ostream& os, const DefragOperation& operation)
+        {
+            os << "src: " << *operation.source << " tLoc: ";
+
+            if (operation.targetLocation)
+            {
+                os << *operation.targetLocation;
+            }
+            else
+            {
+                os << "nullptr";
+            }
+            os << " tMem: " << operation.targetMemory << " t: " << operation.target << " cmd: " << std::hex
+               << operation.copy_cmd << std::dec;
+            return os;
+        }
     };
 
     struct FreeOperation
     {
         T *target, *source;
         uint64_t delay;
+
+        friend std::ostream& operator<<(std::ostream& os, const FreeOperation& operation)
+        {
+            os << "target: ";
+            if (operation.target)
+                os << *operation.target;
+            else
+                os << "nullptr";
+
+            os << " source: ";
+            if (operation.source)
+                os << *operation.source;
+            else
+                os << "nullptr";
+            os << " delay: " << operation.delay;
+            return os;
+        }
     };
 
     std::vector<std::vector<vk::DeviceSize>> all_free;
@@ -80,22 +107,17 @@ class Defragger
     std::atomic_bool running, quit;
     std::atomic_uint64_t frame_number;
 
-    std::mutex start_mutex, running_mutex, invalidate_mutex, defrag_mutex;
+    std::mutex start_mutex, running_mutex, defrag_mutex;
     std::condition_variable start_condition;
     std::thread worker;
 
     void worker_func();
 
-    std::set<vk::DeviceMemory> invalidate_set;
 
     vk::QueryPool queryPool;
     double kbPerNanoSecond = std::numeric_limits<double>::infinity();
 
     // Defrag thread functions
-    float get_operation_penalty(ConstChunkIterator<T> target_chunk, ConstFreeIterator<T> target_location,
-                                ConstChunkIterator<T> source_chunk, ConstAllocationIterator<T> source_location) const;
-
-    void apply_invalidations();
 
     void run();
 
@@ -107,7 +129,6 @@ class Defragger
 
     // end defrag thread functions
    public:
-    OperationPenalties penalties;
     DefraggerConfiguration config;
 
     Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0);
@@ -124,9 +145,6 @@ class Defragger
     void stop();
 
     void setEnabled(bool enable) { enabled = enable; }
-
-    void invalidate(vk::DeviceMemory memory);
-    void invalidate(T* location);
 
     void update(uint32_t _frame_number) { frame_number = _frame_number; }
 
