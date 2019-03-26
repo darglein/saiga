@@ -45,7 +45,7 @@ struct SAIGA_VULKAN_API ImageData
     {
     }
 
-    ImageData(nullptr_t)
+    ImageData(std::nullptr_t)
         : layout(vk::ImageLayout::eUndefined),
           image(nullptr),
           image_create_info(),
