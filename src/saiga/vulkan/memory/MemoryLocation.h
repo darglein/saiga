@@ -66,6 +66,9 @@ struct SafeAccessor final
 
     SafeAccessor(const SafeAccessor&) = delete;
     SafeAccessor(SafeAccessor&&)      = delete;
+
+    SafeAccessor& operator=(const SafeAccessor&) = delete;
+    SafeAccessor& operator=(SafeAccessor&&) = delete;
 };
 
 template <typename Data>
@@ -215,7 +218,7 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
 
     void upload(vk::Device device, const void* data)
     {
-        void* pointer;
+        void* pointer = nullptr;
 
         {
             SafeAccessor safe(*this);
@@ -233,7 +236,7 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
 
     void download(vk::Device device, void* data)
     {
-        void* pointer;
+        void* pointer = nullptr;
 
         {
             SafeAccessor safe(*this);
