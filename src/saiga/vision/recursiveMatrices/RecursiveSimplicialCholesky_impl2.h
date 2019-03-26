@@ -51,6 +51,17 @@ LDL License:
 #include "RecursiveSimplicialCholesky2.h"
 
 
+template <typename T>
+void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const T& invDiagUp);
+
+template <>
+void ldltRightUpdatePropagateTest(double& target, double& prop_tmp, const double& LDiagUp, const double& invDiagUp)
+{
+    auto yi  = target;
+    prop_tmp = yi;
+    target   = yi * invDiagUp;
+}
+
 
 template <typename T>
 void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const T& invDiagUp)
@@ -61,15 +72,13 @@ void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, cons
     {
         for (int i = 0; i < inner_block_size; ++i)
         {
-            auto yi        = target(k, i);
-            prop_tmp(k, i) = yi;
-
+            // Propagate recursivly into inner elements
+            ldltRightUpdatePropagateTest(target(k, i), prop_tmp(k, i), LDiagUp(i, i), invDiagUp(i, i));
             // propagate to the right in this row
             for (int j = i + 1; j < inner_block_size; ++j)
             {
-                target(k, j) -= yi * LDiagUp(j, i);
+                target(k, j) -= prop_tmp(k, i) * LDiagUp(j, i);
             }
-            target(k, i) = yi * invDiagUp(i, i);
         }
     }
 }
@@ -152,111 +161,88 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
     m_diag_inv.resize(size);
     m_diagL.resize(size);
 
-
-
-    for (StorageIndex k = 0; k < size; ++k)
     {
-        // compute nonzero pattern of kth row of L, in topological order
-
-        rowCache[k]         = Saiga::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
-        StorageIndex top    = size;                                   // stack for pattern is empty
-        tags[k]             = k;                                      // mark node k as visited
-        m_nonZerosPerCol[k] = 0;                                      // count of nonzeros in column k of L
-        for (typename CholMatrixType::InnerIterator it(ap, k); it; ++it)
+        for (StorageIndex k = 0; k < size; ++k)
         {
-            StorageIndex i = it.index();
-            if (i <= k)
+            // compute nonzero pattern of kth row of L, in topological order
+
+            rowCache[k]         = Saiga::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
+            StorageIndex top    = size;                                   // stack for pattern is empty
+            tags[k]             = k;                                      // mark node k as visited
+            m_nonZerosPerCol[k] = 0;                                      // count of nonzeros in column k of L
+            for (typename CholMatrixType::InnerIterator it(ap, k); it; ++it)
             {
-                /* scatter A(i,k) into Y (sum duplicates) */
-                // Note: we need a + here if the matrix contains duplicates
-                rowCache[i] = transpose(it.value());
-                Index len;
-                for (len = 0; tags[i] != k; i = m_parent[i])
+                StorageIndex i = it.index();
+                if (i <= k)
                 {
-                    pattern[len++] = i; /* L(k,i) is nonzero */
-                    tags[i]        = k; /* mark i as visited */
-                }
-                while (len > 0)
-                {
-                    pattern[--top] = pattern[--len];
+                    /* scatter A(i,k) into Y (sum duplicates) */
+                    // Note: we need a + here if the matrix contains duplicates
+                    rowCache[i] = transpose(it.value());
+                    Index len;
+                    for (len = 0; tags[i] != k; i = m_parent[i])
+                    {
+                        pattern[len++] = i; /* L(k,i) is nonzero */
+                        tags[i]        = k; /* mark i as visited */
+                    }
+                    while (len > 0)
+                    {
+                        pattern[--top] = pattern[--len];
+                    }
                 }
             }
-        }
 
-        /* compute numerical values kth row of L (a sparse triangular solve) */
-        // This is the diagonal element of the current row
-        RealScalar diagElement = (rowCache[k]);
-        rowCache[k]            = Saiga::AdditiveNeutral<Scalar>::get();
+            /* compute numerical values kth row of L (a sparse triangular solve) */
+            // This is the diagonal element of the current row
+            RealScalar diagElement = (rowCache[k]);
+            rowCache[k]            = Saiga::AdditiveNeutral<Scalar>::get();
 
-        for (; top < size; ++top)
-        {
-            Index i  = pattern[top]; /* pattern[top:n-1] is pattern of L(:,k) */
-            Index p2 = Lp[i] + m_nonZerosPerCol[i];
-            Index p;
-
-
-            Scalar target = rowCache[i]; /* get and clear Y(i) */
-            rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
-
-            auto& invDiagUp = m_diag_inv[i];
-            auto& LDiagUp   = m_diagL(i);
-
-            Scalar prop_tmp;
-
-            ldltRightUpdatePropagateTest(target, prop_tmp, LDiagUp, invDiagUp);
-
-            //            Scalar yi = target;
-            //            prop_tmp  = yi;
-            //            target    = yi * invDiagUp;
-
-
-
-            // Propagate into everything to the right
-            diagElement -= (prop_tmp)*transpose(target);
-            for (p = Lp[i]; p < p2; ++p)
+            for (; top < size; ++top)
             {
-                rowCache[Li[p]] -= prop_tmp * transpose(Lx[p]);
-            }
+                Index i  = pattern[top]; /* pattern[top:n-1] is pattern of L(:,k) */
+                Index p2 = Lp[i] + m_nonZerosPerCol[i];
+                Index p  = Lp[i];
 
-            Li[p] = k;
-            Lx[p] = target;
-            ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
-        }
+                Scalar target = rowCache[i]; /* get and clear Y(i) */
+                rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
+
+
+                auto& invDiagUp = m_diag_inv[i];
+                auto& LDiagUp   = m_diagL(i);
+                Scalar prop_tmp;
+                ldltRightUpdatePropagateTest(target, prop_tmp, LDiagUp, invDiagUp);
+
+
+                // Propagate into everything to the right
+                diagElement.get() -= prop_tmp.get() * target.get().transpose();
+
+                //#pragma omp parallel for num_threads(4)
+                for (Index k = p; k < p2; ++k)
+                {
+                    rowCache[Li[k]].get() -= prop_tmp.get() * Lx[k].get().transpose();
+                    //                    rowCache[Li[k]].get() -= prop_tmp.get() * Lx[k].get();
+                }
+
+                Li[p2] = k;
+                Lx[p2] = target;
+                ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
+            }
 #if 1
+            // We have to use our ldlt here because eigen does reordering which breaks everything
+            Saiga::DenseLDLT<typename CholMatrixType::Scalar::M> ldlt;
+            ldlt.compute(diagElement.get());
 
-
-
-        //        Eigen::LDLT<typename CholMatrixType::Scalar::M> ldlt;
-        //        ldlt.compute(diagElement.get());
-        //        m_diagL(k).get() = ldlt.matrixL();
-        //        m_diag[k].get().setZero();
-        //        m_diag_inv[k].get().setZero();
-        //        m_diag[k].get().diagonal()             = ldlt.vectorD();
-        //        m_diag_inv[k].get().diagonal().array() = m_diag[k].get().diagonal().array().inverse();
-
-        // We have to use our ldlt here because eigen does reordering which breaks everything
-        Saiga::DenseLDLT<typename CholMatrixType::Scalar::M> ldlt;
-        ldlt.compute(diagElement.get());
-
-        m_diagL(k).get() = ldlt.L;
-        m_diag[k].get().setZero();
-        m_diag_inv[k].get().setZero();
-        m_diag[k].get().diagonal()             = ldlt.D.diagonal();
-        m_diag_inv[k].get().diagonal().array() = m_diag[k].get().diagonal().array().inverse();
-        if (k == 0)
-        {
-            cout << expand(diagElement.get()) << endl << endl;
-            cout << expand(m_diagL(k).get()) << endl << endl;
-        }
-
-//        m_diag_inv[k] = ldlt.Dinv;
+            m_diagL(k).get() = ldlt.L;
+            m_diag[k].get().setZero();
+            m_diag_inv[k].get().setZero();
+            m_diag[k].get().diagonal()             = ldlt.D.diagonal();
+            m_diag_inv[k].get().diagonal().array() = m_diag[k].get().diagonal().array().inverse();
 #else
-        m_diag[k] = diagElement;
-        // Recursive call
-        m_diag_inv[k] = Saiga::inverseCholesky(m_diag[k]);
+            m_diagL(k) = diagElement;
+            m_diag_inv[k].get().setIdentity();
+            m_diag[k].get().setIdentity();
 #endif
+        }
     }
-
     m_info              = ok ? Success : NumericalIssue;
     m_factorizationIsOk = true;
 }

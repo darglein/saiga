@@ -21,7 +21,7 @@ struct SAIGA_VISION_API OptimizationResults
     double linear_solver_time;
     double total_time;
 
-    bool success;
+    bool success = false;
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const OptimizationResults& op);

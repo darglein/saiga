@@ -163,20 +163,27 @@ struct InverseCholeskyImpl<float>
 };
 
 #if 1
+template <typename Derived>
+struct InverseCholeskyImpl<Eigen::MatrixBase<Derived>>
+{
+    using MatrixType = Eigen::MatrixBase<Derived>;
+    static MatrixType get(const MatrixType& m) { return m.ldlt().solve(MatrixType::Identity()); }
+};
+
 // spezialization for matrices of float and double
 // use the eigen inverse here instead of our recursive implementation
-template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct InverseCholeskyImpl<Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
-{
-    using MatrixType = Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
-    static MatrixType get(const MatrixType& m) { return m.ldlt().solve(MatrixType::Identity()); }
-};
-template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct InverseCholeskyImpl<Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
-{
-    using MatrixType = Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
-    static MatrixType get(const MatrixType& m) { return m.ldlt().solve(MatrixType::Identity()); }
-};
+// template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
+// struct InverseCholeskyImpl<Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+//{
+//    using MatrixType = Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+//    static MatrixType get(const MatrixType& m) { return m.ldlt().solve(MatrixType::Identity()); }
+//};
+// template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
+// struct InverseCholeskyImpl<Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+//{
+//    using MatrixType = Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+//    static MatrixType get(const MatrixType& m) { return m.ldlt().solve(MatrixType::Identity()); }
+//};
 #endif
 
 template <typename G>

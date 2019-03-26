@@ -360,7 +360,7 @@ void perfTestSparseCholesky()
         SAIGA_ASSERT((expand(bA) - A.toDense()).norm() == 0);
         SAIGA_ASSERT((expand(bb) - b).norm() == 0);
 
-        DenseLDLT<decltype(bA), decltype(bb)> ldlt3;
+        DenseLDLT<decltype(bA)> ldlt3;
         {
             SAIGA_BLOCK_TIMER();
             ldlt3.compute(bA);

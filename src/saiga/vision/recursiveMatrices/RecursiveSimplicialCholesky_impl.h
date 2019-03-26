@@ -162,7 +162,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
         /* compute numerical values kth row of L (a sparse triangular solve) */
         // This is the diagonal element of the current row
         RealScalar diagElement = (rowCache[k]);
-        //        rowCache[k]            = Saiga::AdditiveNeutral<Scalar>::get();
+        rowCache[k]            = Saiga::AdditiveNeutral<Scalar>::get();
 
         for (; top < size; ++top)
         {
@@ -172,7 +172,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
 
 
             Scalar target = rowCache[i]; /* get and clear Y(i) */
-                                         //            rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
+            rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
 
             auto& invDiagUp = m_diag_inv[i];
 

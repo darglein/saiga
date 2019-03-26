@@ -22,9 +22,132 @@
 #include "saiga/core/time/Time"
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 
-#include "SparseTriangular.h"
+#include "SparseTriangular2.h"
 
 #include <iostream>
+
+template <typename Lhs, typename LhsDiag, typename Rhs>
+void solveTriangularForwardLeftLowerCol(const Lhs& lhs, const LhsDiag& lhsDiag, Eigen::MatrixBase<Rhs>& other)
+{
+    //    std::cout << std::string("solveTriangularForwardLeftLowerCol 2") << std::endl;
+
+    using Index       = int;
+    using RScalar     = typename Rhs::Scalar;
+    using LhsIterator = typename Lhs::InnerIterator;
+
+    //    Rhs cpy = other.eval();
+
+    for (Index col = 0; col < other.cols(); ++col)
+    {
+        for (Index i = 0; i < lhs.cols(); ++i)
+        {
+            RScalar& tmp = other.coeffRef(i, col);
+
+            {
+                auto& diag = lhsDiag[i];
+                auto test  = Saiga::forwardSubstituteDiagOne(diag.get(), tmp.get());
+                tmp        = test;
+                //                ++it;
+            }
+
+            // it points now to the diagonal element
+            LhsIterator it(lhs, i);
+            while (it && it.index() < i) ++it;
+            SAIGA_ASSERT(!it || it.index() != i);
+
+
+            //            if (it && it.index() == i)
+
+
+            //                if (it && it.index() == i)
+
+            for (; it; ++it)
+            {
+                other.coeffRef(it.index(), col).get() -= it.value().get() * tmp.get();
+            }
+        }
+    }
+
+#if 0
+    cout << cpy.rows() << "x" << cpy.cols() << endl;
+    // Test if (Ax-b)==0
+    auto lcpy       = lhs.toDense().eval();
+    lcpy.diagonal() = lhsDiag;
+
+    auto lcpyE = expand(lcpy);
+    lcpyE.template triangularView<Eigen::Upper>().setZero();
+    lcpyE.diagonal().setOnes();
+
+    auto otherE = expand(other);
+    auto cpyE   = expand(cpy);
+
+
+    //    cout << lcpyE << endl << endl;
+    //    cout << "result: " << otherE.transpose() << endl;
+
+    double test = (lcpyE.template triangularView<Eigen::Lower>() * otherE - cpyE).squaredNorm();
+    cout << "error solveTriangularForwardLeftLowerCol: " << test << endl;
+    SAIGA_ASSERT(test < 1e-10);
+#endif
+}
+
+
+template <typename Lhs, typename LhsDiag, typename Rhs>
+void solveTriangularBackwardsLeftLowerCol(const Lhs& lhs, const LhsDiag& lhsDiag, Eigen::MatrixBase<Rhs>& other)
+{
+    //    std::cout << std::string("solveTriangularBackwardsLeftLowerCol 2") << std::endl;
+
+    using Index       = int;
+    using RScalar     = typename Rhs::Scalar;
+    using LhsIterator = typename Lhs::InnerIterator;
+
+    //    Rhs cpy = other.eval();
+
+    for (Index col = 0; col < other.cols(); ++col)
+    {
+        for (Index i = lhs.rows() - 1; i >= 0; --i)
+        {
+            RScalar tmp = other.coeff(i, col);
+            LhsIterator it(lhs, i);
+            while (it && it.index() < i) ++it;
+            SAIGA_ASSERT(!it || it.index() != i);
+
+            for (; it; ++it)
+            {
+                tmp.get() -= it.value().get().transpose() * other.coeff(it.index(), col).get();
+            }
+
+
+
+            auto test              = Saiga::backwardSubstituteDiagOneTranspose(lhsDiag[i].get(), (tmp.get()).eval());
+            other.coeffRef(i, col) = test;
+
+            //            other.coeffRef(i, col) = tmp;
+        }
+    }
+
+#if 0
+    cout << cpy.rows() << "x" << cpy.cols() << endl;
+    // Test if (Ax-b)==0
+    auto lcpy       = lhs.toDense().eval();
+    lcpy.diagonal() = lhsDiag;
+
+    auto lcpyE = expand(lcpy);
+    lcpyE.template triangularView<Eigen::Upper>().setZero();
+    lcpyE.diagonal().setOnes();
+
+    auto otherE = expand(other);
+    auto cpyE   = expand(cpy);
+
+
+    //    cout << lcpyE << endl << endl;
+    //    cout << "result: " << otherE.transpose() << endl;
+
+    double test = (lcpyE.template triangularView<Eigen::Lower>().transpose() * otherE - cpyE).squaredNorm();
+    cout << "error solveTriangularBackwardsLeftLowerCol: " << test << endl;
+    SAIGA_ASSERT(test < 1e-10);
+#endif
+}
 
 namespace Eigen
 {
@@ -168,27 +291,47 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
 
         if (m_info != Success) return;
 
+
+
+#    if 1
+        if (m_P.size() > 0)
+            dest = m_P * b;
+        else
+            dest = b;
+        //        cout << "solve impl" << endl;
+
+        //        if (m_matrix.nonZeros() > 0)
+        {
+            //            derived().matrixL().solveInPlace(dest);
+            solveTriangularForwardLeftLowerCol(m_matrix, m_diagL, dest);
+        }
+
+
+        //        cout << "solve L dest: " << expand(dest).transpose() << endl;
+
+        multDiagVector2(m_diag_inv.asDiagonal(), dest);
+
+        //        cout << "solve diag inv: " << expand(dest).transpose() << endl;
+
+        //        if (m_matrix.nonZeros() > 0)  // otherwise U==I
+        {
+            solveTriangularBackwardsLeftLowerCol(m_matrix, m_diagL, dest);
+            //            derived().matrixU().solveInPlace(dest);
+        }
+
+        //        cout << "solve L2 dest: " << expand(dest).transpose() << endl;
+
+//        cout << "x2: " << expand(dest).transpose() << endl;
+
+//        cout << "solve done" << endl;
+#    endif
+
+#    if 0
         if (m_P.size() > 0)
             dest = m_P * b;
         else
             dest = b;
 
-
-#    if 0
-        cout << "solve impl" << endl;
-
-        if (m_matrix.nonZeros() > 0)  // otherwise L==I
-            derived().matrixL().solveInPlace(dest);
-
-
-
-        multDiagVector2(m_diag_inv.asDiagonal(), dest);
-
-        if (m_matrix.nonZeros() > 0)  // otherwise U==I
-            derived().matrixU().solveInPlace(dest);
-
-        cout << "solve done" << endl;
-#    else
         // brute force solution
 
         // build L and add the diag elements
@@ -198,8 +341,11 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
             denseL(i, i) = m_diagL(i);
         }
         auto L = expand(denseL);
+        L.template triangularView<Eigen::Upper>().setZero();
+        L.diagonal().setOnes();
 
-        const int block_size = 3;
+        //        const int block_size = 3;
+        const int block_size = Rhs::Scalar::M::RowsAtCompileTime;
 
         Eigen::Matrix<double, -1, 1> dinv(L.rows());
         for (int i = 0; i < denseL.rows(); ++i)
@@ -209,13 +355,21 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
 
         Eigen::Matrix<double, -1, -1> x = expand(dest);
 
-        cout << L << endl;
+        cout << L << endl << endl;
         //        cout << dinv.transpose() << endl;
         //        cout << x.transpose() << endl;
         //        cout << endl;
         L.template triangularView<Eigen::Lower>().solveInPlace(x);
+
+        cout << "solve L dest: " << x.transpose() << endl;
+
         x.array() = dinv.array() * x.array();
+
+        cout << "solve diag inv: " << x.transpose() << endl;
+
         L.template triangularView<Eigen::Lower>().transpose().solveInPlace(x);
+
+        cout << "solve L2 dest: " << x.transpose() << endl;
 
         dest.setZero();
         for (int i = 0; i < dest.rows(); ++i)
@@ -225,9 +379,10 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
             //            cout << i << endl << dest[i].get() << endl;
         }
 
-        cout << "x1: " << x.transpose() << endl;
-        cout << "x2: " << expand(dest).transpose() << endl;
+        //        cout << "x1: " << x.transpose() << endl;
+        //        cout << "x2: " << expand(dest).transpose() << endl;
 
+//        exit(0);
 #    endif
 
         if (m_P.size() > 0) dest = m_Pinv * dest;

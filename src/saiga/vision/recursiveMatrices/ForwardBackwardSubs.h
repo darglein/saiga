@@ -26,12 +26,13 @@ VectorType forwardSubstituteDiagOne(const MatrixType& A, const VectorType& b)
 
     for (int i = 0; i < A.rows(); ++i)
     {
-        Scalar sum = AdditiveNeutral<Scalar>::get();
+        //        Scalar sum = AdditiveNeutral<Scalar>::get();
+        Scalar sum = b(i);
         for (int j = 0; j < i; ++j)
         {
-            sum += A(i, j) * x(j);
+            sum -= A(i, j) * x(j);
         }
-        x(i) = b(i) - sum;
+        x(i) = sum;
     }
 
 #if 0

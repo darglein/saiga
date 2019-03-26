@@ -208,6 +208,7 @@ int main(int, char**)
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
     scene.load(SearchPathes::data("vision/tum_office.scene"));
 
+#if 0
     cout << scene << endl;
 
     int maxcams = 20;
@@ -220,7 +221,7 @@ int main(int, char**)
     }
     scene.compress();
 
-    int maxwps = 50;
+    int maxwps = 80;
     if (maxwps < (int)scene.worldPoints.size())
     {
         for (int i = maxwps; i < (int)scene.worldPoints.size(); ++i)
@@ -229,6 +230,7 @@ int main(int, char**)
         }
     }
     scene.compress();
+#endif
 
     //    buildScene(scene);
 

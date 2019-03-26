@@ -40,6 +40,8 @@ VectorType forwardSubstituteDiagOneOnlyDiag(const MatrixType& A, const VectorTyp
     VectorType x;
     x.resize(b.rows(), b.cols());
 
+#if 0
+    // Row major
     for (int i = 0; i < A.rows(); ++i)
     {
         Scalar sum = AdditiveNeutral<Scalar>::get();
@@ -53,12 +55,29 @@ VectorType forwardSubstituteDiagOneOnlyDiag(const MatrixType& A, const VectorTyp
         //        x(i).get() = test - sum.get();
         x(i).get() = test;
     }
+#else
 
+    // Col major
+    x = b;
+    for (int i = 0; i < A.cols(); ++i)
+    {
+        auto& tmp = x(i).get();
+
+        auto test = forwardSubstituteDiagOne(A(i, i).get(), tmp);
+        tmp       = test;
+
+
+        for (int j = i + 1; j < A.rows(); ++j)
+        {
+            x(j).get() -= A(j, i).get() * tmp;
+        }
+    }
+#endif
 #if 1
     // Test if (Ax-b)==0
     cout << expand(x).transpose() << endl;
     double test = (expand(A).template triangularView<Eigen::Lower>() * expand(x) - expand(b)).squaredNorm();
-    cout << "error forwardSubstituteDiagOne: " << test << endl;
+    cout << "error forwardSubstituteDiagOneOnlyDiag: " << test << endl;
     SAIGA_ASSERT(test < 1e-10);
 #endif
     return x;
@@ -96,15 +115,14 @@ VectorType backwardSubstituteDiagOneTransposeOnlyDiag(const MatrixType& A, const
 
     for (int i = A.rows() - 1; i >= 0; --i)
     {
-        Scalar sum = AdditiveNeutral<Scalar>::get();
+        Scalar sum = b(i);
         for (int j = i + 1; j < A.rows(); ++j)
         {
-            sum += transpose(A(j, i)) * x(j);
+            sum -= transpose(A(j, i)) * x(j);
         }
 
-        auto test = backwardSubstituteDiagOneTranspose(A(i, i).get(), (b(i).get() - sum.get()).eval());
-        //        x(i)      = b(i) - test;
-        x(i) = test;
+        auto test = backwardSubstituteDiagOneTranspose(A(i, i).get(), (sum.get()).eval());
+        x(i)      = test;
     }
 
 #if 1
@@ -302,13 +320,13 @@ void ldltRightUpdatePropagate(T& target, T& prop_tmp, const T& LDiagUp, const T&
         {
             auto yi        = target(k, i);
             prop_tmp(k, i) = yi;
+            target(k, i)   = yi * invDiagUp(i, i);
 
             // propagate to the right in this row
             for (int j = i + 1; j < inner_block_size; ++j)
             {
                 target(k, j) -= yi * LDiagUp(j, i);
             }
-            target(k, i) = yi * invDiagUp(i, i);
         }
     }
 }
@@ -470,7 +488,7 @@ VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
         }
 
 #if 1
-        Saiga::DenseLDLT<BlockType, BlockVector> ldlt;
+        Saiga::DenseLDLT<BlockType> ldlt;
         ldlt.compute(diagElement.get());
 
         L(k, k)            = ldlt.L.template triangularView<Eigen::Lower>();
@@ -626,7 +644,7 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
 
         //        Eigen::LDLT<BlockType> ldlt(diagBlock);
 
-        Saiga::DenseLDLT<BlockType, BlockVector> ldlt;
+        Saiga::DenseLDLT<BlockType> ldlt;
         ldlt.compute(diagBlock);
 
 
@@ -903,7 +921,7 @@ void perfTestDenseCholesky()
     cout << "Eigen error: " << (A * x - b).squaredNorm() << endl;
 
 
-    DenseLDLT<decltype(A), decltype(b)> ldlt2;
+    DenseLDLT<decltype(A)> ldlt2;
     {
         SAIGA_BLOCK_TIMER();
         ldlt2.compute(A);
@@ -912,7 +930,7 @@ void perfTestDenseCholesky()
     cout << "My error: " << (A * x - b).squaredNorm() << endl;
 
 
-    DenseLDLT<decltype(bA), decltype(bb)> ldlt3;
+    DenseLDLT<decltype(bA)> ldlt3;
     {
         SAIGA_BLOCK_TIMER();
         ldlt3.compute(bA);

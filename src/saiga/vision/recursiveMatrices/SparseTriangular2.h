@@ -6,7 +6,11 @@
 
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
+#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+#include "saiga/vision/recursiveMatrices/SparseTriangular.h"
+#include "saiga/vision/recursiveMatrices/Transpose.h"
+#if 0
 
 namespace Eigen
 {
@@ -24,24 +28,27 @@ struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixS
     typedef typename evaluator<Lhs>::InnerIterator LhsIterator;
     static void run(const Lhs& lhs, Rhs& other)
     {
+        std::cout << std::string("forward row-major 2") << std::endl;
         LhsEval lhsEval(lhs);
         for (Index col = 0; col < other.cols(); ++col)
         {
             for (Index i = 0; i < lhs.cols(); ++i)
             {
                 RScalar& tmp = other.coeffRef(i, col);
-                //                if (tmp != Scalar(0))  // optimization when other is actually sparse
+
+
+
+                LhsIterator it(lhsEval, i);
+                while (it && it.index() < i) ++it;
+                if (!(Mode & UnitDiag))
                 {
-                    LhsIterator it(lhsEval, i);
-                    while (it && it.index() < i) ++it;
-                    if (!(Mode & UnitDiag))
-                    {
-                        cout << "not unit :O" << endl;
-                        eigen_assert(it && it.index() == i);
-                        tmp.get() = Saiga::inverseCholesky(it.value().get()) * tmp.get();
-                    }
-                    if (it && it.index() == i) ++it;
-                    for (; it; ++it) other.coeffRef(it.index(), col).get() -= it.value().get() * tmp.get();
+                    SAIGA_EXIT_ERROR("not immplemented");
+                }
+                if (it && it.index() == i) ++it;
+
+                for (; it; ++it)
+                {
+                    other.coeffRef(it.index(), col).get() -= it.value().get() * tmp.get();
                 }
             }
         }
@@ -64,6 +71,7 @@ struct sparse_solve_triangular_selector<const Eigen::Transpose<const Eigen::Spar
     typedef typename evaluator<Lhs>::InnerIterator LhsIterator;
     static void run(const Lhs& lhs, Rhs& other)
     {
+        cout << "backward row-major 2" << endl;
         LhsEval lhsEval(lhs);
         for (Index col = 0; col < other.cols(); ++col)
         {
@@ -75,10 +83,7 @@ struct sparse_solve_triangular_selector<const Eigen::Transpose<const Eigen::Spar
                 while (it && it.index() < i) ++it;
                 if (!(Mode & UnitDiag))
                 {
-                    cout << "not unit :O" << endl;
-                    eigen_assert(it && it.index() == i);
-                    l_ii = it.value();
-                    ++it;
+                    SAIGA_EXIT_ERROR("not immplemented");
                 }
                 else if (it && it.index() == i)
                     ++it;
@@ -93,8 +98,7 @@ struct sparse_solve_triangular_selector<const Eigen::Transpose<const Eigen::Spar
                 }
                 else
                 {
-                    cout << "not unit :O" << endl;
-                    other.coeffRef(i, col).get() = Saiga::inverseCholesky(l_ii.get()) * tmp.get();
+                    SAIGA_EXIT_ERROR("not immplemented");
                 }
                 //                    other.coeffRef(i, col) = tmp / l_ii;
             }
@@ -169,7 +173,7 @@ void permute_symm_to_symm_recursive(
     }
 }
 
-#if 0
+#    if 0
 template <typename DstXprType, typename T, int Mode, typename Scalar>
 struct Assignment<DstXprType, SparseSymmetricPermutationProduct<Eigen::SparseMatrix<Saiga::MatrixScalar<T>>, Mode>,
                   internal::assign_op<Scalar, typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>>::Scalar>,
@@ -197,7 +201,7 @@ struct Assignment<DstXprType, SparseSymmetricPermutationProduct<Eigen::SparseMat
                                                                  src.perm().indices().data());
     }
 };
-#endif
+#    endif
 
 
 template <typename DstXprType, typename T, int _Options, int Mode, typename Scalar>
@@ -231,3 +235,4 @@ struct Assignment<
 
 }  // namespace internal
 }  // namespace Eigen
+#endif

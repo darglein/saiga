@@ -11,7 +11,7 @@
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/vision/Random.h"
-//#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky2.h"
 #include "saiga/vision/recursiveMatrices/SparseCholesky.h"
 
@@ -28,7 +28,7 @@ static std::ofstream strm;
 
 //#define SPARSITY_TEST
 #define USE_BLOCKS
-#define LDLT_DEBUG
+//#define LDLT_DEBUG
 
 
 template <int block_size2, int factor>
@@ -69,8 +69,8 @@ class Sparse_LDLT_TEST
 #else
 
 #    if 0
-    const double targetNNZ          = factor * 400 * 1000 * sqrt(block_size);
-    const double targetDensity      = 0.001;
+    const double targetNNZ          = factor * 40 * 1000 * sqrt(block_size);
+    const double targetDensity      = 0.01;
 
     const double nnzBlocks = targetNNZ / double(block_size * block_size);
     const double zBlocks   = 1.0 / targetDensity * nnzBlocks;
@@ -85,8 +85,8 @@ class Sparse_LDLT_TEST
     // const double nnzBlocks = targetNNZ / double(block_size * block_size);
     // const int n            = nnzBlocks / nnzr;
 
-    const int nnzr = 4;
-    const int n    = 4;
+    const int nnzr = 1;
+    const int n    = 80 * 80;
 #    endif
 #endif
 
@@ -101,70 +101,13 @@ class Sparse_LDLT_TEST
         b.resize(n);
 
         std::vector<Eigen::Triplet<Block>> trips;
-        trips.reserve(nnzr * n * 2);
+
+        //        initRandom(trips);
+        initPoisson2D(trips);
+
 
         for (int i = 0; i < n; ++i)
         {
-#if 0
-            // "Diagonal like" pattern
-            std::set<int> indices;
-            for (int k = 0; k < nnzr;)
-            {
-                int s = Random::gaussRand(i, nnzr * 0.5);
-                while (s < 0)
-                {
-                    s += n;
-                }
-                while (s >= n)
-                {
-                    s -= n;
-                }
-                if (s != i && indices.count(s) == 0)
-                {
-                    //                    cout << "insert " << i << " " << s << endl;
-                    indices.insert(s);
-                    ++k;
-                }
-            }
-#else
-            // Full random pattern
-            auto indices = Random::uniqueIndices(nnzr, n);
-            std::sort(indices.begin(), indices.end());
-#endif
-
-            for (auto j : indices)
-            {
-                if (i < j)
-                {
-                    Block b = RecursiveRandom<Block>::get() * 100;
-                    trips.emplace_back(i, j, b);
-                    trips.emplace_back(j, i, transpose(b));
-                }
-            }
-
-            // Make sure we have a symmetric diagonal block
-            //            Vector dv = Random::sampleDouble(-1, 1);
-            Vector dv = RecursiveRandom<Vector>::get() * 1000;
-
-
-#ifdef USE_BLOCKS
-            Block D;
-            if constexpr (block_size == 1)
-                D = dv * dv;
-            else
-                D = dv * dv.transpose();
-//            Block D = dv * dv.transpose();
-#else
-            Block D = dv * transpose(dv);
-#endif
-
-            // Make sure the matrix is positiv
-            auto n = MultiplicativeNeutral<Block>::get();
-            D += n * 500.0;
-            //            D += 5;
-            //            D.diagonal() += Vector::Ones() * 5;
-            trips.emplace_back(i, i, D);
-
             b(i) = RecursiveRandom<Vector>::get();
         }
         A.setFromTriplets(trips.begin(), trips.end());
@@ -202,7 +145,9 @@ class Sparse_LDLT_TEST
         //        Random::setRandom(x);
         //        Random::setRandom(b);
 
+#ifdef LDLT_DEBUG
         cout << expand(A) << endl << endl;
+#endif
         //        cout << expand(Anoblock) << endl << endl;
         //        exit(0);
         //        cout << b.transpose() << endl;
@@ -216,6 +161,114 @@ class Sparse_LDLT_TEST
         cout << "Density: " << density() << endl;
         cout << "." << endl;
         cout << endl;
+    }
+    void addRank1Diagonal(std::vector<Eigen::Triplet<Block>>& trips)
+    {
+        for (int i = 0; i < n; ++i)
+        {
+            Vector dv = RecursiveRandom<Vector>::get() * 100;
+#ifdef USE_BLOCKS
+            Block D;
+            if constexpr (block_size == 1)
+                D = dv * dv;
+            else
+                D = dv * dv.transpose();
+//            Block D = dv * dv.transpose();
+#else
+            Block D = dv * transpose(dv);
+#endif
+
+            D = RecursiveRandom<Block>::get();
+            // Make sure the matrix is positiv
+            auto n = MultiplicativeNeutral<Block>::get();
+            D += n * 500.0;
+            //            D += 5;
+            //            D.diagonal() += Vector::Ones() * 5;
+            trips.emplace_back(i, i, D);
+        }
+    }
+
+    void initRandom(std::vector<Eigen::Triplet<Block>>& trips)
+    {
+        trips.reserve(nnzr * n * 2);
+        addRank1Diagonal(trips);
+
+        for (int i = 0; i < n; ++i)
+        {
+#if 0
+            // "Diagonal like" pattern
+            std::set<int> indices;
+            for (int k = 0; k < nnzr;)
+            {
+                int s = Random::gaussRand(i, nnzr * 0.5);
+                while (s < 0)
+                {
+                    s += n;
+                }
+                while (s >= n)
+                {
+                    s -= n;
+                }
+                if (s != i && indices.count(s) == 0)
+                {
+                    //                    cout << "insert " << i << " " << s << endl;
+                    indices.insert(s);
+                    ++k;
+                }
+            }
+#else
+            // Full random pattern
+            auto indices = Random::uniqueIndices(nnzr, n);
+            std::sort(indices.begin(), indices.end());
+#endif
+
+            // Set to 0 if you want a diagonal block matrix
+#if 0
+            for (auto j : indices)
+            {
+                if (i < j)
+                {
+                    Block b = RecursiveRandom<Block>::get() * 100;
+                    trips.emplace_back(i, j, b);
+                    trips.emplace_back(j, i, transpose(b));
+                }
+            }
+#endif
+        }
+    }
+
+    void initPoisson2D(std::vector<Eigen::Triplet<Block>>& trips)
+    {
+        trips.reserve(n);
+        addRank1Diagonal(trips);
+
+        int sideLength = sqrt(n);
+        SAIGA_ASSERT(sideLength * sideLength == n);
+
+        auto idx = [&](int i, int j) { return i * sideLength + j; };
+
+        for (int i = 0; i < sideLength; ++i)
+        {
+            for (int j = 0; j < sideLength; ++j)
+            {
+                int c = idx(i, j);
+
+                std::array<int, 4> neighs = {idx(i, j + 1), idx(i, j - 1), idx(i - 1, j), idx(i + 1, j)};
+
+                for (auto ne : neighs)
+                {
+                    // boundary: do nothing
+                    if (ne < 0 || ne >= n) continue;
+
+                    if (c < ne)
+                    {
+                        Block b = RecursiveRandom<Block>::get() * 1;
+                        trips.emplace_back(c, ne, b);
+                        trips.emplace_back(ne, c, transpose(b));
+                    }
+                }
+            }
+        }
     }
 
     auto solveEigenDenseLDLT()
@@ -248,7 +301,7 @@ class Sparse_LDLT_TEST
         }
 
 #ifdef LDLT_DEBUG
-        Eigen::MatrixXd L(ldlt.matrixL());
+        Eigen::MatrixXd L(ldlt.matrixL().eval());
         L.diagonal().setOnes();
         cout << "x: " << bx.transpose() << endl;
         cout << "L" << endl << L << endl << endl;
@@ -486,7 +539,7 @@ float make_test(LDLT& ldlt, Saiga::Table& tab, T f)
     std::string name;
     float error;
 
-    for (int i = 0; i < 51; ++i)
+    for (int i = 0; i < 1; ++i)
     {
         auto [time2, error2, name2] = (ldlt.*f)();
         time.push_back(time2);
@@ -518,12 +571,13 @@ void run()
           << "Error";
     //    if (test.A.rows() < 100) make_test(test, table, &LDLT::solveEigenDenseLDLT);
     //    make_test(test, table, &LDLT::solveEigenSparseLDLT);
-    //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
+    //        make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
+    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT3);
 
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
 
-    //    make_test(test, table, &LDLT::solveCholmodSimplicial);
+    make_test(test, table, &LDLT::solveCholmodSimplicial);
     make_test(test, table, &LDLT::solveCholmodSupernodal);
     //    make_test(test, table, &LDLT::solveEigenRecursiveCholmod);
 
@@ -574,7 +628,7 @@ void perf_test()
 #else
     {
         omp_set_num_threads(1);
-        LauncherLoop<2, 2 + 1, 1, 1, 2> l;
+        LauncherLoop<6, 6 + 1, 1, 1, 16> l;
 
         //        LauncherLoop<4, 4 + 1, 1, 1, 16> l;
         l();
@@ -601,12 +655,16 @@ void perf_test()
 
 void result_test()
 {
-    using LDLT = Sparse_LDLT_TEST<3, 1>;
+    using LDLT = Sparse_LDLT_TEST<7, 1>;
     LDLT test;
     auto res = test.solveEigenSparseLDLT();
     cout << "Error: " << std::get<1>(res) << endl;
     //    auto res = test.solveEigenRecursiveSparseLDLT();
     //    cout << "Error: " << std::get<1>(res) << endl;
+    //    auto res = test.solveEigenRecursiveSparseLDLT();
+    //    cout << "Error: " << std::get<1>(res) << endl;
+    res = test.solveEigenRecursiveSparseLDLT();
+    cout << "Error: " << std::get<1>(res) << endl;
     res = test.solveEigenRecursiveSparseLDLT3();
     cout << "Error: " << std::get<1>(res) << endl;
 
@@ -620,8 +678,8 @@ int main(int, char**)
 
 
 
-    result_test();
-    //    perf_test();
+    //    result_test();
+    perf_test();
 
     cout << "Done." << endl;
 
