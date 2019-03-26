@@ -25,6 +25,7 @@
 VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
     : Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), mersenne_twister(), renderer(renderer)
 {
+    SAIGA_ASSERT(image_names.size() == images.size());
     float aspect = window.getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 50.0f, true);
     camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
