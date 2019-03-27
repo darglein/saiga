@@ -187,6 +187,7 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
     typedef SparseMatrix<Scalar, ColMajor, StorageIndex> CholMatrixType;
     typedef CholMatrixType const* ConstCholMatrixPtr;
     typedef Matrix<Scalar, Dynamic, 1> VectorType;
+    typedef std::vector<DiagonalMatrix<typename Scalar::Scalar, Dynamic>> DiagonalType;
     typedef Matrix<StorageIndex, Dynamic, 1> VectorI;
 
     enum
@@ -309,7 +310,12 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
 
         //        cout << "solve L dest: " << expand(dest).transpose() << endl;
 
-        multDiagVector2(m_diag_inv.asDiagonal(), dest);
+        //        multDiagVector2(m_diag_inv.asDiagonal(), dest);
+
+        for (int k = 0; k < dest.rows(); ++k)
+        {
+            dest(k).get() = m_diag_inv[k] * dest(k).get();
+        }
 
         //        cout << "solve diag inv: " << expand(dest).transpose() << endl;
 
@@ -461,8 +467,12 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
 
     CholMatrixType m_matrix;
     VectorType m_diagL;
-    VectorType m_diag;  // the diagonal coefficients (LDLT mode)
-    VectorType m_diag_inv;
+
+    //    VectorType m_diag;  // the diagonal coefficients (LDLT mode)
+    //    VectorType m_diag_inv;
+
+    DiagonalType m_diag, m_diag_inv;
+
     VectorI m_parent;  // elimination tree
     VectorI m_nonZerosPerCol;
     PermutationMatrix<Dynamic, Dynamic, StorageIndex> m_P;     // the permutation
@@ -472,17 +482,15 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
     RealScalar m_shiftScale;
 };
 
-template <typename _MatrixType, int _UpLo = Lower,
-          typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex> >
+template <typename _MatrixType, int _UpLo = Lower, typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex>>
 class RecursiveSimplicialLDLT2;
-template <typename _MatrixType, int _UpLo = Lower,
-          typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex> >
+template <typename _MatrixType, int _UpLo = Lower, typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex>>
 class RecursiveSimplicialCholesky3;
 
 namespace internal
 {
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-struct traits<RecursiveSimplicialLDLT2<_MatrixType, _UpLo, _Ordering> >
+struct traits<RecursiveSimplicialLDLT2<_MatrixType, _UpLo, _Ordering>>
 {
     typedef _MatrixType MatrixType;
     typedef _Ordering OrderingType;
@@ -502,7 +510,7 @@ struct traits<RecursiveSimplicialLDLT2<_MatrixType, _UpLo, _Ordering> >
 };
 
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-struct traits<RecursiveSimplicialCholesky3<_MatrixType, _UpLo, _Ordering> >
+struct traits<RecursiveSimplicialCholesky3<_MatrixType, _UpLo, _Ordering>>
 {
     typedef _MatrixType MatrixType;
     typedef _Ordering OrderingType;
@@ -537,7 +545,7 @@ struct traits<RecursiveSimplicialCholesky3<_MatrixType, _UpLo, _Ordering> >
 
 template <typename _MatrixType, int _UpLo, typename _Ordering>
 class RecursiveSimplicialLDLT2
-    : public RecursiveSimplicialCholesky3Base2<RecursiveSimplicialLDLT2<_MatrixType, _UpLo, _Ordering> >
+    : public RecursiveSimplicialCholesky3Base2<RecursiveSimplicialLDLT2<_MatrixType, _UpLo, _Ordering>>
 {
    public:
     typedef _MatrixType MatrixType;
@@ -617,8 +625,7 @@ class RecursiveSimplicialLDLT2
  * \sa class SimplicialLDLT2, class SimplicialLLT
  */
 template <typename _MatrixType, int _UpLo, typename _Ordering>
-class SimplicialCholesky3
-    : public RecursiveSimplicialCholesky3Base2<SimplicialCholesky3<_MatrixType, _UpLo, _Ordering> >
+class SimplicialCholesky3 : public RecursiveSimplicialCholesky3Base2<SimplicialCholesky3<_MatrixType, _UpLo, _Ordering>>
 {
    public:
     typedef _MatrixType MatrixType;
@@ -633,8 +640,8 @@ class SimplicialCholesky3
     typedef SparseMatrix<Scalar, ColMajor, StorageIndex> CholMatrixType;
     typedef Matrix<Scalar, Dynamic, 1> VectorType;
     typedef internal::traits<SimplicialCholesky3> Traits;
-    typedef internal::traits<RecursiveSimplicialLDLT2<MatrixType, UpLo> > LDLTTraits;
-    typedef internal::traits<SimplicialLLT<MatrixType, UpLo> > LLTTraits;
+    typedef internal::traits<RecursiveSimplicialLDLT2<MatrixType, UpLo>> LDLTTraits;
+    typedef internal::traits<SimplicialLLT<MatrixType, UpLo>> LLTTraits;
 
    public:
     SimplicialCholesky3() : Base(), m_LDLT(true) {}
@@ -776,26 +783,32 @@ void RecursiveSimplicialCholesky3Base2<Derived>::ordering(const MatrixType& a, C
     const Index size = a.rows();
     pmat             = &ap;
     // Note that ordering methods compute the inverse permutation
-    if (!internal::is_same<OrderingType, NaturalOrdering<Index> >::value)
+    if (!internal::is_same<OrderingType, NaturalOrdering<Index>>::value)
     {
+        if (m_Pinv.size() > 0)
         {
-            CholMatrixType C;
-            C = a.template selfadjointView<UpLo>();
+            // The ordering is already set use it!
+            //            cout << "Using preset permutation!" << endl;
+            m_P = m_Pinv.inverse();
+        }
+        else
+        {
+            {
+                CholMatrixType C;
+                C = a.template selfadjointView<UpLo>();
 
-            OrderingType ordering;
-            ordering(C, m_Pinv);
+                OrderingType ordering;
+                ordering(C, m_Pinv);
+            }
+
+            if (m_Pinv.size() > 0)
+                m_P = m_Pinv.inverse();
+            else
+                m_P.resize(0);
         }
 
-        if (m_Pinv.size() > 0)
-            m_P = m_Pinv.inverse();
-        else
-            m_P.resize(0);
-
         ap.resize(size, size);
-        //        cout << "before twist " << endl;
         ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
-        //        cout << "after twist" << endl;
-        //        cout << expand(ap) << endl;
     }
     else
     {

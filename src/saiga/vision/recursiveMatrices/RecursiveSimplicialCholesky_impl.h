@@ -118,11 +118,16 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
     StorageIndex* Li        = m_matrix.innerIndexPtr();
     Scalar* Lx              = m_matrix.valuePtr();
 
-    //    cout << "factorize" << endl;
-    //    cout << expand(ap) << endl << endl;
+#if 0
+    // doesn't make a difference
     ei_declare_aligned_stack_constructed_variable(Scalar, rowCache, size, 0);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, pattern, size, 0);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, tags, size, 0);
+#else
+    std::vector<Scalar> rowCache(size);
+    std::vector<StorageIndex> pattern(size);
+    std::vector<StorageIndex> tags(size);
+#endif
 
     bool ok = true;
     m_diag.resize(size);
@@ -134,13 +139,22 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
     {
         // compute nonzero pattern of kth row of L, in topological order
 
-        rowCache[k]         = Saiga::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
-        StorageIndex top    = size;                                   // stack for pattern is empty
-        tags[k]             = k;                                      // mark node k as visited
-        m_nonZerosPerCol[k] = 0;                                      // count of nonzeros in column k of L
+
+        // We could clear the complete cache here, but it's more efficient to clear
+        // only k. (see line below)
+        for (auto& rc : rowCache) rc = Saiga::AdditiveNeutral<Scalar>::get();
+        rowCache[k] = Saiga::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
+
+        StorageIndex top    = size;  // stack for pattern is empty
+        tags[k]             = k;     // mark node k as visited
+        m_nonZerosPerCol[k] = 0;     // count of nonzeros in column k of L
+
+        // The columns of ap stored in the upper triangular part.
+        // This is the current row of the original matrix.
         for (typename CholMatrixType::InnerIterator it(ap, k); it; ++it)
         {
             StorageIndex i = it.index();
+            //            cout << "idx: " << i << "<=" << k << endl;
             if (i <= k)
             {
                 /* scatter A(i,k) into Y (sum duplicates) */
@@ -151,11 +165,16 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
                 {
                     pattern[len++] = i; /* L(k,i) is nonzero */
                     tags[i]        = k; /* mark i as visited */
+                                        //                    if (i != it.index())
+                    //                    cout << "found additional non zero L: " << k << "," << i << endl;
                 }
                 while (len > 0)
                 {
                     pattern[--top] = pattern[--len];
                 }
+
+                //                cout << "stack " << top << " is now " << pattern[top] << " for i " << i << " " <<
+                //                it.index() << endl;
             }
         }
 
@@ -171,6 +190,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
             Index p;
 
 
+            //            cout << "Pattern " << k << "," << i << endl;
             Scalar target = rowCache[i]; /* get and clear Y(i) */
             rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
 
@@ -189,6 +209,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
             diagElement -= (prop_tmp)*transpose(target);
             for (p = Lp[i]; p < p2; ++p)
             {
+                //                cout << "update: " << Li[p] << endl;
                 rowCache[Li[p]] -= prop_tmp * transpose(Lx[p]);
             }
 

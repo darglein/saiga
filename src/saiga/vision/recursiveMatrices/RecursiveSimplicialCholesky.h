@@ -573,30 +573,36 @@ void RecursiveSimplicialCholeskyBase<Derived>::ordering(const MatrixType& a, Con
     const Index size = a.rows();
     pmat             = &ap;
     // Note that ordering methods compute the inverse permutation
+    //    if (true)
     if (!internal::is_same<OrderingType, NaturalOrdering<Index> >::value)
     {
+        if (m_Pinv.size() > 0)
         {
-            CholMatrixType C;
-            C = a.template selfadjointView<UpLo>();
+            // The ordering is already set use it!
+            //            cout << "Using preset permutation!" << endl;
+            m_P = m_Pinv.inverse();
+        }
+        else
+        {
+            {
+                CholMatrixType C;
+                C = a.template selfadjointView<UpLo>();
 
-            OrderingType ordering;
-            ordering(C, m_Pinv);
+                OrderingType ordering;
+                ordering(C, m_Pinv);
+            }
+
+            if (m_Pinv.size() > 0)
+                m_P = m_Pinv.inverse();
+            else
+                m_P.resize(0);
         }
 
-        if (m_Pinv.size() > 0)
-            m_P = m_Pinv.inverse();
-        else
-            m_P.resize(0);
-
         ap.resize(size, size);
-        //        cout << "before twist " << endl;
         ap.template selfadjointView<Upper>() = a.template selfadjointView<UpLo>().twistedBy(m_P);
-        //        cout << "after twist" << endl;
-        //        cout << expand(ap) << endl;
     }
     else
     {
-        SAIGA_EXIT_ERROR("not implemented");
         m_Pinv.resize(0);
         m_P.resize(0);
         if (int(UpLo) == int(Lower) || MatrixType::IsRowMajor)

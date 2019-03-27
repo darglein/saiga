@@ -11,14 +11,15 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
-#include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/Expand.h"
-#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
-#include "saiga/vision/recursiveMatrices/Inverse.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-#include "saiga/vision/recursiveMatrices/Transpose.h"
+//#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
+//#include "saiga/vision/recursiveMatrices/Cholesky.h"
+//#include "saiga/vision/recursiveMatrices/Expand.h"
+//#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
+//#include "saiga/vision/recursiveMatrices/Inverse.h"
+//#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+//#include "saiga/vision/recursiveMatrices/NeutralElements.h"
+//#include "saiga/vision/recursiveMatrices/Transpose.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 using Block  = Eigen::Matrix<double, 2, 2>;
 using Vector = Eigen::Matrix<double, 2, 1>;
@@ -690,8 +691,8 @@ void testBlockCholesky()
 {
     cout << "testBlockCholesky" << endl;
 
-    const int n          = 3;
-    const int block_size = 3;
+    const int n          = 5;
+    const int block_size = 2;
 
 
     using CompleteMatrix = Eigen::Matrix<double, n * block_size, n * block_size>;
@@ -793,7 +794,7 @@ void testBlockCholesky()
     }
 
 
-    if (0)
+    if (1)
     {
         using SMat = Eigen::SparseMatrix<MatrixScalar<Block>, Eigen::ColMajor>;
         using LDLT = Eigen::RecursiveSimplicialLDLT<SMat, Eigen::Lower>;
@@ -803,11 +804,16 @@ void testBlockCholesky()
         {
             for (int j = 0; j < n; ++j)
             {
+                if (i == 2 && j == 0) continue;
+                if (i == 0 && j == 2) continue;
+                if (i == 3 && j == 1) continue;
+                if (i == 1 && j == 3) continue;
                 sm.insert(i, j) = bA(i, j);
             }
         }
         sm.makeCompressed();
 
+        cout << "non zeros: " << sm.nonZeros() << endl;
 
         LDLT ldlt;
         ldlt.compute(sm);
@@ -818,9 +824,10 @@ void testBlockCholesky()
         cout << expand(L) << endl << endl;
         x = expand(bx);
         //        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        //        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        cout << "error: " << (expand(sm) * expand(bx) - expand(bb)).squaredNorm() << endl;
     }
-    if (1)
+    if (0)
     {
         x = solveLDLT_ybuffer(A, b);
 
@@ -828,7 +835,7 @@ void testBlockCholesky()
         cout << "error: " << (A * x - b).squaredNorm() << endl;
     }
 
-    if (1)
+    if (0)
     {
         bx = solveLDLT_ybuffer_block(bA, bb);
 

@@ -51,8 +51,8 @@ LDL License:
 #include "RecursiveSimplicialCholesky2.h"
 
 
-template <typename T>
-void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const T& invDiagUp);
+template <typename T, typename D>
+void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const D& invDiagUp);
 
 template <>
 void ldltRightUpdatePropagateTest(double& target, double& prop_tmp, const double& LDiagUp, const double& invDiagUp)
@@ -63,8 +63,8 @@ void ldltRightUpdatePropagateTest(double& target, double& prop_tmp, const double
 }
 
 
-template <typename T>
-void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const T& invDiagUp)
+template <typename T, typename D>
+void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const D& invDiagUp)
 {
     // Compute dense propagation on current block inplace
     const int inner_block_size = T::M::RowsAtCompileTime;
@@ -73,7 +73,7 @@ void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, cons
         for (int i = 0; i < inner_block_size; ++i)
         {
             // Propagate recursivly into inner elements
-            ldltRightUpdatePropagateTest(target(k, i), prop_tmp(k, i), LDiagUp(i, i), invDiagUp(i, i));
+            ldltRightUpdatePropagateTest(target(k, i), prop_tmp(k, i), LDiagUp(i, i), invDiagUp.diagonal()(i));
             // propagate to the right in this row
             for (int j = i + 1; j < inner_block_size; ++j)
             {
@@ -226,7 +226,7 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
                 Lx[p2] = target;
                 ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
             }
-#if 1
+#if 0
             // We have to use our ldlt here because eigen does reordering which breaks everything
             Saiga::DenseLDLT<typename CholMatrixType::Scalar::M> ldlt;
             ldlt.compute(diagElement.get());
@@ -237,9 +237,18 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
             m_diag[k].get().diagonal()             = ldlt.D.diagonal();
             m_diag_inv[k].get().diagonal().array() = m_diag[k].get().diagonal().array().inverse();
 #else
-            m_diagL(k) = diagElement;
-            m_diag_inv[k].get().setIdentity();
-            m_diag[k].get().setIdentity();
+            // This block here is a little faster than above but
+            // requires a change in Eigen's source code:
+            //
+            // In LDLT.h line 324-326
+            // We need to remove the reordering inside the dense LDLT factorization
+
+            Eigen::LDLT<typename CholMatrixType::Scalar::M> ldlt;
+            ldlt.compute(diagElement.get());
+
+            m_diagL(k).get()                 = ldlt.matrixL();
+            m_diag[k].diagonal()             = ldlt.vectorD();
+            m_diag_inv[k].diagonal().array() = m_diag[k].diagonal().array().inverse();
 #endif
         }
     }
