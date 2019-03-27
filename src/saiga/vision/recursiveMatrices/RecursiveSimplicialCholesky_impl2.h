@@ -66,18 +66,40 @@ void ldltRightUpdatePropagateTest(double& target, double& prop_tmp, const double
 template <typename T, typename D>
 void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const D& invDiagUp)
 {
-    // Compute dense propagation on current block inplace
     const int inner_block_size = T::M::RowsAtCompileTime;
-    for (int k = 0; k < inner_block_size; ++k)
+    if (T::M::Options & Eigen::RowMajorBit)
+    {
+        // Compute dense propagation on current block inplace
+        for (int k = 0; k < inner_block_size; ++k)
+        {
+            for (int i = 0; i < inner_block_size; ++i)
+            {
+                // Propagate recursivly into inner elements
+                ldltRightUpdatePropagateTest(target(k, i), prop_tmp(k, i), LDiagUp(i, i), invDiagUp.diagonal()(i));
+                // propagate to the right in this row
+                for (int j = i + 1; j < inner_block_size; ++j)
+                {
+                    target(k, j) -= prop_tmp(k, i) * LDiagUp(j, i);
+                }
+            }
+        }
+    }
+    else
     {
         for (int i = 0; i < inner_block_size; ++i)
         {
-            // Propagate recursivly into inner elements
-            ldltRightUpdatePropagateTest(target(k, i), prop_tmp(k, i), LDiagUp(i, i), invDiagUp.diagonal()(i));
-            // propagate to the right in this row
+            // Compute column
+            for (int k = 0; k < inner_block_size; ++k)
+            {
+                ldltRightUpdatePropagateTest(target(k, i), prop_tmp(k, i), LDiagUp(i, i), invDiagUp.diagonal()(i));
+            }
+            // Propagate column for column
             for (int j = i + 1; j < inner_block_size; ++j)
             {
-                target(k, j) -= prop_tmp(k, i) * LDiagUp(j, i);
+                for (int k = 0; k < inner_block_size; ++k)
+                {
+                    target(k, j) -= prop_tmp(k, i) * LDiagUp(j, i);
+                }
             }
         }
     }
@@ -93,6 +115,12 @@ void RecursiveSimplicialCholesky3Base2<Derived>::analyzePattern_preordered(const
     m_parent.resize(size);
     m_nonZerosPerCol.resize(size);
 
+    rowCache.resize(size);
+    pattern.resize(size);
+    tags.resize(size);
+    m_diag.resize(size);
+    m_diag_inv.resize(size);
+    m_diagL.resize(size);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, tags, size, 0);
 
     for (StorageIndex k = 0; k < size; ++k)
@@ -152,16 +180,22 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
 
     //    cout << "factorize" << endl;
     //    cout << expand(ap) << endl << endl;
+#if 0
+    // doesn't make a difference
     ei_declare_aligned_stack_constructed_variable(Scalar, rowCache, size, 0);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, pattern, size, 0);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, tags, size, 0);
+#else
+
+
+#endif
 
     bool ok = true;
-    m_diag.resize(size);
-    m_diag_inv.resize(size);
-    m_diagL.resize(size);
+
+
 
     {
+        //        SAIGA_BLOCK_TIMER();
         for (StorageIndex k = 0; k < size; ++k)
         {
             // compute nonzero pattern of kth row of L, in topological order
@@ -177,7 +211,8 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
                 {
                     /* scatter A(i,k) into Y (sum duplicates) */
                     // Note: we need a + here if the matrix contains duplicates
-                    rowCache[i] = transpose(it.value());
+                    //                    rowCache[i] = transpose(it.value());
+                    rowCache[i].get() = it.value().get().transpose();
                     Index len;
                     for (len = 0; tags[i] != k; i = m_parent[i])
                     {
@@ -193,8 +228,8 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
 
             /* compute numerical values kth row of L (a sparse triangular solve) */
             // This is the diagonal element of the current row
-            RealScalar diagElement = (rowCache[k]);
-            rowCache[k]            = Saiga::AdditiveNeutral<Scalar>::get();
+            RealScalar& diagElement = (rowCache[k]);
+
 
             for (; top < size; ++top)
             {
@@ -202,8 +237,8 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
                 Index p2 = Lp[i] + m_nonZerosPerCol[i];
                 Index p  = Lp[i];
 
-                Scalar target = rowCache[i]; /* get and clear Y(i) */
-                rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
+                Scalar& target = rowCache[i]; /* get and clear Y(i) */
+
 
 
                 auto& invDiagUp = m_diag_inv[i];
@@ -215,27 +250,26 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
                 // Propagate into everything to the right
                 diagElement.get() -= prop_tmp.get() * target.get().transpose();
 
-                //#pragma omp parallel for num_threads(4)
                 for (Index k = p; k < p2; ++k)
                 {
                     rowCache[Li[k]].get() -= prop_tmp.get() * Lx[k].get().transpose();
-                    //                    rowCache[Li[k]].get() -= prop_tmp.get() * Lx[k].get();
                 }
 
                 Li[p2] = k;
                 Lx[p2] = target;
                 ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
+
+                target = Saiga::AdditiveNeutral<Scalar>::get();
             }
 #if 0
             // We have to use our ldlt here because eigen does reordering which breaks everything
-            Saiga::DenseLDLT<typename CholMatrixType::Scalar::M> ldlt;
+
             ldlt.compute(diagElement.get());
 
-            m_diagL(k).get() = ldlt.L;
-            m_diag[k].get().setZero();
-            m_diag_inv[k].get().setZero();
-            m_diag[k].get().diagonal()             = ldlt.D.diagonal();
-            m_diag_inv[k].get().diagonal().array() = m_diag[k].get().diagonal().array().inverse();
+
+            m_diagL(k).get()                 = ldlt.L;
+            m_diag[k].diagonal()             = ldlt.D.diagonal();
+            m_diag_inv[k].diagonal().array() = m_diag[k].diagonal().array().inverse();
 #else
             // This block here is a little faster than above but
             // requires a change in Eigen's source code:
@@ -243,13 +277,13 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
             // In LDLT.h line 324-326
             // We need to remove the reordering inside the dense LDLT factorization
 
-            Eigen::LDLT<typename CholMatrixType::Scalar::M> ldlt;
-            ldlt.compute(diagElement.get());
+            eldlt.compute(diagElement.get());
 
-            m_diagL(k).get()                 = ldlt.matrixL();
-            m_diag[k].diagonal()             = ldlt.vectorD();
+            m_diagL(k).get()                 = eldlt.matrixL();
+            m_diag[k].diagonal()             = eldlt.vectorD();
             m_diag_inv[k].diagonal().array() = m_diag[k].diagonal().array().inverse();
 #endif
+            diagElement = Saiga::AdditiveNeutral<Scalar>::get();
         }
     }
     m_info              = ok ? Success : NumericalIssue;

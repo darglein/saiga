@@ -60,7 +60,12 @@ void RecursiveSimplicialCholeskyBase<Derived>::analyzePattern_preordered(const C
     m_matrix.resize(size, size);
     m_parent.resize(size);
     m_nonZerosPerCol.resize(size);
+    m_diag.resize(size);
+    m_diag_inv.resize(size);
 
+    rowCache.resize(size);
+    pattern.resize(size);
+    tags.resize(size);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, tags, size, 0);
 
     for (StorageIndex k = 0; k < size; ++k)
@@ -124,15 +129,10 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
     ei_declare_aligned_stack_constructed_variable(StorageIndex, pattern, size, 0);
     ei_declare_aligned_stack_constructed_variable(StorageIndex, tags, size, 0);
 #else
-    std::vector<Scalar> rowCache(size);
-    std::vector<StorageIndex> pattern(size);
-    std::vector<StorageIndex> tags(size);
+
 #endif
 
     bool ok = true;
-    m_diag.resize(size);
-    m_diag_inv.resize(size);
-
 
 
     for (StorageIndex k = 0; k < size; ++k)
@@ -142,7 +142,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
 
         // We could clear the complete cache here, but it's more efficient to clear
         // only k. (see line below)
-        for (auto& rc : rowCache) rc = Saiga::AdditiveNeutral<Scalar>::get();
+        //        for (auto& rc : rowCache) rc = Saiga::AdditiveNeutral<Scalar>::get();
         rowCache[k] = Saiga::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
 
         StorageIndex top    = size;  // stack for pattern is empty
@@ -159,7 +159,8 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
             {
                 /* scatter A(i,k) into Y (sum duplicates) */
                 // Note: we need a + here if the matrix contains duplicates
-                rowCache[i] = transpose(it.value());
+                //                rowCache[i] = transpose(it.value());
+                rowCache[i].get() = it.value().get().transpose();
                 Index len;
                 for (len = 0; tags[i] != k; i = m_parent[i])
                 {
@@ -187,7 +188,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
         {
             Index i  = pattern[top]; /* pattern[top:n-1] is pattern of L(:,k) */
             Index p2 = Lp[i] + m_nonZerosPerCol[i];
-            Index p;
+            Index p  = Lp[i];
 
 
             //            cout << "Pattern " << k << "," << i << endl;
@@ -206,21 +207,28 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
 
 
             // Propagate into everything to the right
-            diagElement -= (prop_tmp)*transpose(target);
-            for (p = Lp[i]; p < p2; ++p)
+            //            diagElement -= (prop_tmp)*transpose(target);
+            diagElement.get() -= prop_tmp.get() * target.get().transpose();
+            //            for (p = Lp[i]; p < p2; ++p)
+            for (Index k = p; k < p2; ++k)
             {
-                //                cout << "update: " << Li[p] << endl;
-                rowCache[Li[p]] -= prop_tmp * transpose(Lx[p]);
+                //                rowCache[Li[p]] -= prop_tmp * transpose(Lx[p]);
+                rowCache[Li[k]].get() -= prop_tmp.get() * Lx[k].get().transpose();
             }
 
-            Li[p] = k;
-            Lx[p] = target;
+            Li[p2] = k;
+            Lx[p2] = target;
             ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
         }
 
         m_diag[k] = diagElement;
         // Recursive call
+#if 1
         m_diag_inv[k] = Saiga::inverseCholesky(m_diag[k]);
+#else
+        eldlt.compute(m_diag[k].get());
+        m_diag_inv[k] = eldlt.solve(Scalar::M::Identity());
+#endif
     }
 
     m_info              = ok ? Success : NumericalIssue;

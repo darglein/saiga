@@ -480,6 +480,12 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
 
     RealScalar m_shiftOffset;
     RealScalar m_shiftScale;
+
+    Saiga::DenseLDLT<typename CholMatrixType::Scalar::M> ldlt;
+    Eigen::LDLT<typename CholMatrixType::Scalar::M> eldlt;
+    std::vector<Scalar> rowCache;
+    std::vector<StorageIndex> pattern;
+    std::vector<StorageIndex> tags;
 };
 
 template <typename _MatrixType, int _UpLo = Lower, typename _Ordering = AMDOrdering<typename _MatrixType::StorageIndex>>

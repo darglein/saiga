@@ -43,8 +43,8 @@ class Sparse_LDLT_TEST
 #    else
     static constexpr int block_size = block_size2;
 #    endif
-    using Block =
-        typename std::conditional<block_size == 1, double, Eigen::Matrix<double, block_size, block_size>>::type;
+    using Block        = typename std::conditional<block_size == 1, double,
+                                            Eigen::Matrix<double, block_size, block_size, Eigen::ColMajor>>::type;
     using Vector       = typename std::conditional<block_size == 1, double, Eigen::Matrix<double, block_size, 1>>::type;
     using WrappedBlock = typename std::conditional<block_size == 1, double, MatrixScalar<Block>>::type;
     using WrappedVector = typename std::conditional<block_size == 1, double, MatrixScalar<Vector>>::type;
@@ -245,7 +245,7 @@ class Sparse_LDLT_TEST
             {
                 if (i < j)
                 {
-                    Block b = RecursiveRandom<Block>::get() * 100;
+                    Block b = RecursiveRandom<Block>::get();
                     trips.emplace_back(i, j, b);
                     trips.emplace_back(j, i, transpose(b));
                 }
@@ -262,7 +262,13 @@ class Sparse_LDLT_TEST
         int sideLength = sqrt(n);
         SAIGA_ASSERT(sideLength * sideLength == n);
 
-        auto idx = [&](int i, int j) { return i * sideLength + j; };
+        auto idx = [&](int i, int j) {
+            //            while (i < 0) i += sideLength;
+            //            while (j < 0) j += sideLength;
+            //            while (i >= sideLength) i -= sideLength;
+            //            while (j >= sideLength) j -= sideLength;
+            return i * sideLength + j;
+        };
 
         for (int i = 0; i < sideLength; ++i)
         {
@@ -270,9 +276,12 @@ class Sparse_LDLT_TEST
             {
                 int c = idx(i, j);
 
-                int dis                   = 3;
-                std::array<int, 4> neighs = {idx(i, j + dis), idx(i, j - dis), idx(i - dis, j), idx(i + dis, j)};
-                //                std::array<int, 8> neighs = {idx(i, j + 1),     idx(i, j - 1),     idx(i - 1, j),
+                int dis                   = 2;
+                std::array<int, 4> neighs = {idx(i, j + dis), idx(i, j - dis), idx(i, j + dis * 5),
+                                             idx(i, j - dis * 5)};
+                //                std::array<int, 4> neighs = {idx(i, j + dis), idx(i, j - dis), idx(i - dis, j), idx(i
+                //                + dis, j)}; std::array<int, 8> neighs = {idx(i, j + 1),     idx(i, j - 1),     idx(i -
+                //                1, j),
                 //                                             idx(i + 1, j),     idx(i + 1, j + 1), idx(i - 1, j - 1),
                 //                                             idx(i - 1, j + 1), idx(i + 1, j - 1)};
 
@@ -335,10 +344,10 @@ class Sparse_LDLT_TEST
         Eigen::RecursiveSimplicialLDLT<MType, Eigen::Lower> ldlt;
         ldlt.m_Pinv = permFull;
         ldlt.m_P    = permFull.inverse();
-        ldlt.analyzePattern(Anoblock);
-        float time = 0;
+        float time  = 0;
         {
             Saiga::ScopedTimer<float> timer(time);
+            ldlt.analyzePattern(Anoblock);
             ldlt.factorize(Anoblock);
         }
         bx           = ldlt.solve(be);
@@ -355,10 +364,10 @@ class Sparse_LDLT_TEST
         LDLT ldlt;
         ldlt.m_Pinv = permBlock;
         ldlt.m_P    = permBlock.inverse();
-        ldlt.analyzePattern(A);
-        float time = 0;
+        float time  = 0;
         {
             Saiga::ScopedTimer<float> timer(time);
+            ldlt.analyzePattern(A);
             ldlt.factorize(A);
         }
         x = ldlt.solve(b);
@@ -388,10 +397,10 @@ class Sparse_LDLT_TEST
         LDLT ldlt;
         ldlt.m_Pinv = permBlock;
         ldlt.m_P    = permBlock.inverse();
-        ldlt.analyzePattern(A);
-        float time = 0;
+        float time  = 0;
         {
             Saiga::ScopedTimer<float> timer(time);
+            ldlt.analyzePattern(A);
             ldlt.factorize(A);
         }
         x = ldlt.solve(b);
@@ -422,8 +431,6 @@ class Sparse_LDLT_TEST
 
     void computeOrdering()
     {
-        cholmod_factor* m_cholmodFactor      = nullptr;
-        cholmod_factor* m_cholmodFactorBlock = nullptr;
         cholmod_sparse cholmod_matrix;
         cholmod_sparse cholmod_matrix_block;
         //        cholmod_common m_cholmod;
@@ -448,21 +455,11 @@ class Sparse_LDLT_TEST
         m_cholmod.postorder          = false;
 
 
-        m_cholmodFactor      = cholmod_analyze(&cholmod_matrix, &m_cholmod);
-        m_cholmodFactorBlock = cholmod_analyze(&cholmod_matrix_block, &m_cholmod);
+        orderingFull.resize(Anoblock.rows());
+        orderingBlock.resize(A.rows());
 
-        for (int i = 0; i < (int)m_cholmodFactor->n; ++i)
-        {
-            //            orderingFull.push_back(i);
-            orderingFull.push_back(((int*)m_cholmodFactor->Perm)[i]);
-        }
-        for (int i = 0; i < (int)m_cholmodFactorBlock->n; ++i)
-        {
-            orderingBlock.push_back(((int*)m_cholmodFactorBlock->Perm)[i]);
-        }
-
-        cholmod_free_factor(&m_cholmodFactor, &m_cholmod);
-        cholmod_free_factor(&m_cholmodFactorBlock, &m_cholmod);
+        cholmod_amd(&cholmod_matrix, 0, 0, orderingFull.data(), &m_cholmod);
+        cholmod_amd(&cholmod_matrix_block, 0, 0, orderingBlock.data(), &m_cholmod);
 
 
         // eigen types
@@ -517,11 +514,12 @@ class Sparse_LDLT_TEST
         m_cholmod.method[0].ordering = CHOLMOD_GIVEN;
         m_cholmod.postorder          = false;
 
-        m_cholmodFactor = cholmod_analyze_p(&cholmod_matrix, orderingFull.data(), 0, 0, &m_cholmod);
+
 
         float time = 0;
         {
             Saiga::ScopedTimer<float> timer(time);
+            m_cholmodFactor = cholmod_analyze_p(&cholmod_matrix, orderingFull.data(), 0, 0, &m_cholmod);
             cholmod_factorize(&cholmod_matrix, m_cholmodFactor, &m_cholmod);
         }
 
@@ -592,7 +590,7 @@ float make_test(LDLT& ldlt, Saiga::Table& tab, T f)
     std::string name;
     float error;
 
-    for (int i = 0; i < 1; ++i)
+    for (int i = 0; i < 23; ++i)
     {
         auto [time2, error2, name2] = (ldlt.*f)();
         time.push_back(time2);
@@ -626,7 +624,7 @@ void run()
     //    make_test(test, table, &LDLT::solveEigenSparseLDLT);
     //    make_test(test, table, &LDLT::solveEigenSparseLDLTRecursiveFlat);
     //        make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLTRowMajor);
-    //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
+    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
     make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT3);
 
     //    make_test(test, table, &LDLT::solveEigenRecursiveSparseLDLT);
@@ -667,43 +665,30 @@ void perf_test()
     strm.open("sparse_ldlt_benchmark.csv");
     strm << "n,nnz,block_size,density,"
             "eigen_recursive,"
+            "eigen_recursive2,"
             "cholmod_simp,"
             "cholmod_super"
          << endl;
-    //        LauncherLoop<2, 8 + 1, 16> l;
-    //    LauncherLoop<1, 32 + 1, 8> l;
+
     omp_set_num_threads(1);
 
-#ifdef SPARSITY_TEST
+
     {
-        LauncherLoop<1, 32 * 2, 0, 2, 2> l;
+        LauncherLoop<2, 32 + 1, 1, 1, 32> l;
         l();
     }
-
-#else
-    {
-        LauncherLoop<4, 4 + 1, 1, 1, 32> l;
-
-        //        LauncherLoop<4, 32 + 4, 4, 1, 50> l;
-        l();
-    }
-    {
-        //        LauncherLoop<16, 32 + 2, 2, 1, 4> l;
-        //        l();
-    }
-//    {
-//        LauncherLoop<8, 8 + 1, 2> l;
-//        l();
-//    }
-//    {
-//        LauncherLoop<16, 16 + 1, 2> l;
-//        l();
-//    }
-//    {
-//        LauncherLoop<32, 32 + 1, 2> l;
-//        l();
-//    }
-#endif
+    //    {
+    //        LauncherLoop<8, 8 + 1, 1, 1, 32> l;
+    //        l();
+    //    }
+    //    {
+    //        LauncherLoop<16, 16 + 1, 1, 1, 32> l;
+    //        l();
+    //    }
+    //    {
+    //        LauncherLoop<24, 24 + 1, 1, 1, 32> l;
+    //        l();
+    //    }
 }
 
 

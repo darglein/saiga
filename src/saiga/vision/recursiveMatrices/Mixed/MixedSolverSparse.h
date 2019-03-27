@@ -10,8 +10,9 @@
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
 
+//#undef SAIGA_USE_CHOLMOD
 #ifdef SAIGA_USE_CHOLMOD
-#include "Eigen/CholmodSupport"
+#    include "Eigen/CholmodSupport"
 #endif
 
 namespace Saiga
@@ -39,11 +40,10 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
         int n = A.rows();
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
         {
+#ifdef SAIGA_USE_CHOLMOD
             // Use Cholmod's supernodal factorization for very large or very dense matrices.
             double density  = A.nonZeros() / (double(A.rows()) * A.cols());
             bool useCholmod = A.rows() > 1000 || density > 0.1;
-
-#ifdef SAIGA_USE_CHOLMOD
             if (useCholmod)
             {
                 if (!expandS) expandS = std::make_unique<ExpandedType>();
@@ -72,9 +72,49 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
             {
                 if (!ldlt)
                 {
+#if 0
+                    {
+                        // Use cholmod to compute the ordering
+                        cholmod_common m_cholmod;
+                        cholmod_start(&m_cholmod);
+                        cholmod_defaults(&m_cholmod);
+
+                        cholmod_sparse cholmod_matrix;
+
+                        const auto& testasdf = reinterpret_cast<Eigen::SparseMatrix<double>&>(A);
+                        cholmod_matrix       = Eigen::viewAsCholmod(testasdf.selfadjointView<Eigen::Upper>());
+
+                        m_cholmod.supernodal         = CHOLMOD_SIMPLICIAL;
+                        m_cholmod.nmethods           = 1;
+                        m_cholmod.method[0].ordering = CHOLMOD_AMD;
+                        m_cholmod.postorder          = false;
+
+                        orderingFull.resize(A.rows());
+                        cholmod_amd(&cholmod_matrix, 0, 0, orderingFull.data(), &m_cholmod);
+
+
+                        permFull.resize(A.rows());
+                        for (int i = 0; i < A.rows(); ++i)
+                        {
+                            permFull.indices()[i] = orderingFull[i];
+                        }
+
+                        cholmod_finish(&m_cholmod);
+                        cholmod_free_work(&m_cholmod);
+                    }
+#endif
+
                     // Create cholesky solver and do a full compute
                     ldlt = std::make_unique<LDLT>();
+#if 0
+                    ldlt->m_Pinv = permFull;
+                    ldlt->m_P    = permFull.inverse();
+                    ldlt->analyzePattern(A);
+                    ldlt->factorize(A);
+#else
+
                     ldlt->compute(A);
+#endif
                 }
                 else
                 {
@@ -105,7 +145,8 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
 
    private:
     std::unique_ptr<LDLT> ldlt;
-
+    Eigen::PermutationMatrix<-1> permFull;
+    std::vector<int> orderingFull;
 #ifdef SAIGA_USE_CHOLMOD
     // Cholmod stuff
     std::unique_ptr<CholmodLDLT> cholmodldlt;

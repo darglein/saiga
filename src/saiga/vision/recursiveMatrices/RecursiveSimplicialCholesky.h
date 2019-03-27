@@ -266,6 +266,11 @@ class RecursiveSimplicialCholeskyBase : public SparseSolverBase<Derived>
     PermutationMatrix<Dynamic, Dynamic, StorageIndex> m_P;     // the permutation
     PermutationMatrix<Dynamic, Dynamic, StorageIndex> m_Pinv;  // the inverse permutation
 
+    Eigen::LDLT<typename CholMatrixType::Scalar::M> eldlt;
+    std::vector<Scalar> rowCache;
+    std::vector<StorageIndex> pattern;
+    std::vector<StorageIndex> tags;
+
     RealScalar m_shiftOffset;
     RealScalar m_shiftScale;
 };

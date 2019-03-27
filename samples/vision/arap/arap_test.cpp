@@ -142,14 +142,14 @@ int main(int, char**)
     Saiga::Random::setSeed(93865023985);
 
     OptimizationOptions options;
-    options.solverType    = OptimizationOptions::SolverType::Iterative;
+    options.solverType    = OptimizationOptions::SolverType::Direct;
     options.debugOutput   = false;
     options.maxIterations = 5;
     //    options.initialLambda = 100;
 
     options.maxIterativeIterations = 100;
     options.iterativeTolerance     = 0;
-    test_to_file(options, "arab.csv", 11);
+    test_to_file(options, "arab.csv", 1);
 
 
     //    GenericModel testModel("bunny.obj");
