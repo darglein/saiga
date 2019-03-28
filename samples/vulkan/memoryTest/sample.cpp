@@ -54,6 +54,8 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
         }
 
         images[i] = image;
+
+        LOG(INFO) << image_names[i] << " " << image.get()->size();
     }
     num_allocations.resize(10, std::make_pair(nullptr, 0));
 
@@ -279,7 +281,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             for (auto i = 0U; i < num_allocs; ++i)
             {
                 auto index = mersenne_twister() % tex_allocations.size();
-
+                LOG(INFO) << "Dealloc image " << index;
                 std::move(tex_allocations.begin() + index, tex_allocations.begin() + index + 1,
                           std::back_inserter(to_delete_tex));
                 tex_allocations.erase(tex_allocations.begin() + index);

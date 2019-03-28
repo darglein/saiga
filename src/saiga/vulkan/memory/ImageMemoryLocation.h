@@ -166,6 +166,7 @@ struct SAIGA_VULKAN_API ImageData
 
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
     {
+        VLOG(1) << "I " << image << " o:" << vk::to_string(layout) << " n: " << vk::to_string(newLayout);
         auto& imageLayout                       = layout;
         vk::ImageMemoryBarrier barrier          = {};
         barrier.oldLayout                       = imageLayout;
@@ -207,8 +208,9 @@ struct SAIGA_VULKAN_API ImageData
             //            throw std::invalid_argument("unsupported layout transition!");
             barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
             barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-            sourceStage           = vk::PipelineStageFlagBits::eAllCommands;
-            destinationStage      = vk::PipelineStageFlagBits::eAllCommands;
+
+            sourceStage      = vk::PipelineStageFlagBits::eAllCommands;
+            destinationStage = vk::PipelineStageFlagBits::eAllCommands;
         }
 
         cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);

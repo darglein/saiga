@@ -14,6 +14,7 @@
 #include "ImageMemoryLocation.h"
 
 #include <atomic>
+#include <deque>
 #include <list>
 #include <mutex>
 #include <ostream>
@@ -72,6 +73,9 @@ class Defragger
             : memory(_mem), offset(_offset), size(_size)
         {
         }
+
+        Target() = default;
+
         vk::DeviceMemory memory;
         vk::DeviceSize offset, size;
 
@@ -80,6 +84,8 @@ class Defragger
             os << std::hex << target.memory << std::dec << " " << target.offset << "-" << target.size;
             return os;
         }
+
+        inline explicit operator FreeListEntry() const { return FreeListEntry{offset, size}; }
     };
     struct PossibleOp
     {
@@ -109,18 +115,19 @@ class Defragger
     };
     struct CopyOp
     {
-        CopyOp(T* _target, T* src, vk::CommandBuffer _cmd, vk::Fence _fence)
-            : target(_target), source(src), cmd(_cmd), fence(_fence)
+        CopyOp(T* _target, T* src, vk::CommandBuffer _cmd, vk::Fence _fence, vk::Semaphore _wait, vk::Semaphore _signal)
+            : target(_target), source(src), cmd(_cmd), fence(_fence), wait_semaphore(_wait), signal_semaphore(_signal)
         {
         }
         T *target, *source;
         vk::CommandBuffer cmd;
         vk::Fence fence;
+        vk::Semaphore wait_semaphore, signal_semaphore;
 
         friend std::ostream& operator<<(std::ostream& os, const CopyOp& op)
         {
             os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " cmd: " << op.cmd
-               << " fence: " << op.fence;
+               << " fence: " << op.fence << " wsem: " << op.wait_semaphore << " ssem: " << op.signal_semaphore;
             return os;
         }
     };
@@ -193,16 +200,17 @@ class Defragger
     vk::Device device;
     BaseChunkAllocator<T>* allocator;
 
-    std::list<PossibleOp> possibleOps;
+    std::vector<PossibleOp> possibleOps;
     std::list<DefragOp> defragOps;
-    std::list<CopyOp> copyOps;
+    std::deque<CopyOp> copyOps;
     std::list<FreeOp> freeOps;
+    std::set<T*> currentDefragSources;
 
     bool valid, enabled;
     std::atomic_bool running, quit;
     std::atomic_uint64_t frame_number;
 
-    std::mutex start_mutex, running_mutex, defrag_mutex;
+    std::mutex start_mutex, running_mutex, defrag_mutex, copy_mutex;
     std::condition_variable start_condition;
     std::thread worker;
 
@@ -217,9 +225,14 @@ class Defragger
     void run();
 
 
-    void find_defrag_ops();
+    bool find_defrag_ops();
     void fill_free_list();
     bool create_copy_commands();
+
+    void perform_single_defrag(DefragOp& op);
+
+    bool complete_copy_commands();
+
     bool perform_free_operations();
 
     // end defrag thread functions
@@ -239,17 +252,17 @@ class Defragger
     void start();
     void stop();
 
+    int64_t perform_defrag(int64_t allowed_time);
+
     void setEnabled(bool enable) { enabled = enable; }
 
     void invalidate(T* memoryLocation);
 
     void update(uint32_t _frame_number) { frame_number = _frame_number; }
 
-    void perform_single_defrag(DefragOp& op);
-    int64_t perform_defrag(int64_t allowed_time);
 
    protected:
-    virtual bool create_copy_command(DefragOp& op, vk::CommandBuffer cmd) = 0;
+    virtual void create_copy_command(PossibleOp& op, T*, vk::CommandBuffer cmd) = 0;
 
    private:
     template <typename Iter>
@@ -321,7 +334,7 @@ class BufferDefragger final : public Defragger<BufferMemoryLocation>
     }
 
    protected:
-    bool create_copy_command(DefragOp& op, vk::CommandBuffer cmd) override;
+    void create_copy_command(PossibleOp& op, BufferMemoryLocation* reservedSpace, vk::CommandBuffer cmd) override;
 };
 
 struct CommandHash
@@ -343,7 +356,7 @@ class ImageDefragger final : public Defragger<ImageMemoryLocation>
                    uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader);
 
    protected:
-    bool create_copy_command(DefragOp& op, vk::CommandBuffer cmd) override;
+    void create_copy_command(PossibleOp& op, ImageMemoryLocation* reservedSpace, vk::CommandBuffer cmd) override;
 };
 
 }  // namespace Saiga::Vulkan::Memory
