@@ -44,64 +44,159 @@ template <typename T>
 class Defragger
 {
    protected:
-    struct DefragOperation
+    template <typename PType>
+    class PointerOutput
     {
-        T *source, *targetLocation;
-        vk::DeviceMemory targetMemory;
-        FreeListEntry target;
-        float weight;
-        vk::CommandBuffer copy_cmd = nullptr;
-        bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
+       private:
+        PType* type;
 
-        friend std::ostream& operator<<(std::ostream& os, const DefragOperation& operation)
+       public:
+        explicit PointerOutput(PType* _type) : type(_type) {}
+
+        friend std::ostream& operator<<(std::ostream& os, const PointerOutput& output)
         {
-            os << "src: " << *operation.source << " tLoc: ";
-
-            if (operation.targetLocation)
+            if (output.type)
             {
-                os << *operation.targetLocation;
+                os << *(output.type);
             }
             else
             {
                 os << "nullptr";
             }
-            os << " tMem: " << operation.targetMemory << " t: " << operation.target << " cmd: " << std::hex
-               << operation.copy_cmd << std::dec;
             return os;
         }
     };
-
-    struct FreeOperation
+    struct Target
     {
+        Target(vk::DeviceMemory _mem, vk::DeviceSize _offset, vk::DeviceSize _size)
+            : memory(_mem), offset(_offset), size(_size)
+        {
+        }
+        vk::DeviceMemory memory;
+        vk::DeviceSize offset, size;
+
+        friend std::ostream& operator<<(std::ostream& os, const Target& target)
+        {
+            os << std::hex << target.memory << std::dec << " " << target.offset << "-" << target.size;
+            return os;
+        }
+    };
+    struct PossibleOp
+    {
+        PossibleOp(Target _target, T* _src, float _weight) : target(_target), source(_src), weight(_weight) {}
+
+        Target target;
+        T* source;
+        float weight;
+
+        friend std::ostream& operator<<(std::ostream& os, const PossibleOp& op)
+        {
+            os << op.target << "<-" << PointerOutput(op.source) << " w: " << op.weight;
+            return os;
+        }
+    };
+    struct DefragOp
+    {
+        DefragOp(T* _target, T* src, vk::CommandBuffer _cmd) : target(_target), source(src), cmd(_cmd) {}
+        T *target, *source;
+        vk::CommandBuffer cmd;
+
+        friend std::ostream& operator<<(std::ostream& os, const DefragOp& op)
+        {
+            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " cmd: " << op.cmd;
+            return os;
+        }
+    };
+    struct CopyOp
+    {
+        CopyOp(T* _target, T* src, vk::CommandBuffer _cmd, vk::Fence _fence)
+            : target(_target), source(src), cmd(_cmd), fence(_fence)
+        {
+        }
+        T *target, *source;
+        vk::CommandBuffer cmd;
+        vk::Fence fence;
+
+        friend std::ostream& operator<<(std::ostream& os, const CopyOp& op)
+        {
+            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " cmd: " << op.cmd
+               << " fence: " << op.fence;
+            return os;
+        }
+    };
+    struct FreeOp
+    {
+        FreeOp(T* _target, T* src, uint64_t _delay) : target(_target), source(src), delay(_delay) {}
         T *target, *source;
         uint64_t delay;
 
-        friend std::ostream& operator<<(std::ostream& os, const FreeOperation& operation)
+        friend std::ostream& operator<<(std::ostream& os, const FreeOp& op)
         {
-            os << "target: ";
-            if (operation.target)
-                os << *operation.target;
-            else
-                os << "nullptr";
-
-            os << " source: ";
-            if (operation.source)
-                os << *operation.source;
-            else
-                os << "nullptr";
-            os << " delay: " << operation.delay;
+            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " delay: " << op.delay;
             return os;
         }
     };
+
+    //    struct DefragOperation
+    //    {
+    //        T *source, *targetLocation;
+    //        vk::DeviceMemory targetMemory;
+    //        FreeListEntry target;
+    //        float weight;
+    //        vk::CommandBuffer copy_cmd = nullptr;
+    //        bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
+    //
+    //        friend std::ostream& operator<<(std::ostream& os, const DefragOperation& operation)
+    //        {
+    //            os << "src: " << *operation.source << " tLoc: ";
+    //
+    //            if (operation.targetLocation)
+    //            {
+    //                os << *operation.targetLocation;
+    //            }
+    //            else
+    //            {
+    //                os << "nullptr";
+    //            }
+    //            os << " tMem: " << operation.targetMemory << " t: " << operation.target << " cmd: " << std::hex
+    //               << operation.copy_cmd << std::dec;
+    //            return os;
+    //        }
+    //    };
+    //
+    //    struct FreeOperation
+    //    {
+    //        T *target, *source;
+    //        uint64_t delay;
+    //
+    //        friend std::ostream& operator<<(std::ostream& os, const FreeOperation& operation)
+    //        {
+    //            os << "target: ";
+    //            if (operation.target)
+    //                os << *operation.target;
+    //            else
+    //                os << "nullptr";
+    //
+    //            os << " source: ";
+    //            if (operation.source)
+    //                os << *operation.source;
+    //            else
+    //                os << "nullptr";
+    //            os << " delay: " << operation.delay;
+    //            return os;
+    //        }
+    //    };
 
     std::vector<std::vector<vk::DeviceSize>> all_free;
     VulkanBase* base;
     uint64_t dealloc_delay;
     vk::Device device;
     BaseChunkAllocator<T>* allocator;
-    std::vector<DefragOperation> defrag_operations;
 
-    std::list<FreeOperation> free_operations;
+    std::list<PossibleOp> possibleOps;
+    std::list<DefragOp> defragOps;
+    std::list<CopyOp> copyOps;
+    std::list<FreeOp> freeOps;
 
     bool valid, enabled;
     std::atomic_bool running, quit;
@@ -146,13 +241,15 @@ class Defragger
 
     void setEnabled(bool enable) { enabled = enable; }
 
+    void invalidate(T* memoryLocation);
+
     void update(uint32_t _frame_number) { frame_number = _frame_number; }
 
-    void perform_single_defrag(DefragOperation& op);
+    void perform_single_defrag(DefragOp& op);
     int64_t perform_defrag(int64_t allowed_time);
 
    protected:
-    virtual bool create_copy_command(DefragOperation& op, vk::CommandBuffer cmd) = 0;
+    virtual bool create_copy_command(DefragOp& op, vk::CommandBuffer cmd) = 0;
 
    private:
     template <typename Iter>
@@ -205,6 +302,11 @@ class Defragger
     {
         return (*iter).get();
     }
+
+    inline bool anyOperationsRemaining() const
+    {
+        return !possibleOps.empty() || !defragOps.empty() || !copyOps.empty() || !freeOps.empty();
+    }
 };
 
 
@@ -219,7 +321,7 @@ class BufferDefragger final : public Defragger<BufferMemoryLocation>
     }
 
    protected:
-    bool create_copy_command(DefragOperation& op, vk::CommandBuffer cmd) override;
+    bool create_copy_command(DefragOp& op, vk::CommandBuffer cmd) override;
 };
 
 struct CommandHash
@@ -241,7 +343,7 @@ class ImageDefragger final : public Defragger<ImageMemoryLocation>
                    uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader);
 
    protected:
-    bool create_copy_command(DefragOperation& op, vk::CommandBuffer cmd) override;
+    bool create_copy_command(DefragOp& op, vk::CommandBuffer cmd) override;
 };
 
 }  // namespace Saiga::Vulkan::Memory

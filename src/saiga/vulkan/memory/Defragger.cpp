@@ -51,8 +51,10 @@ Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocato
       // dealloc_delay(240),
       device(_device),
       allocator(_allocator),
-      defrag_operations(),
-      free_operations(),
+      possibleOps(),
+      defragOps(),
+      copyOps(),
+      freeOps(),
       valid(true),
       enabled(false),
       running(false),
@@ -151,13 +153,16 @@ void Defragger<T>::worker_func()
 template <typename T>
 void Defragger<T>::run()
 {
-    bool performed = true;
-    while (running && performed)
+    while (running)
     {
-        performed = false;
         find_defrag_ops();
-        performed |= create_copy_commands();
-        performed |= perform_free_operations();
+        create_copy_commands();
+        perform_free_operations();
+
+        if (!anyOperationsRemaining())
+        {
+            break;
+        }
     }
 }
 
@@ -167,8 +172,6 @@ void Defragger<T>::find_defrag_ops()
 {
     // TODO: REFACTOR THIS!!!
     auto& chunks = allocator->chunks;
-
-    // fill all free with free sizes.
 
     fill_free_list();
 
@@ -482,15 +485,15 @@ int64_t Defragger<T>::perform_defrag(int64_t allowed_time)
     auto op    = defrag_operations.begin();
     while (op != defrag_operations.end())
     {
-        auto size = op->source->size;
-        //        if (!first && (remaining_time - ((size / 1024) / kbPerNanoSecond)) < 0)
-        //        {
-        //            break;
-        //        }
+        auto sizeInKB = op->source->size / 1024;
+        if (!first && (remaining_time - (sizeInKB / kbPerNanoSecond)) < 0)
+        {
+            break;
+        }
         if (op->copy_cmd && op->targetLocation)
         {
             perform_single_defrag(*op);
-            remaining_time -= (size / 1024) / kbPerNanoSecond;
+            remaining_time -= sizeInKB / kbPerNanoSecond;
         }
         op    = defrag_operations.erase(op);
         first = false;
@@ -499,6 +502,16 @@ int64_t Defragger<T>::perform_defrag(int64_t allowed_time)
     start();
 
     return remaining_time;
+}
+
+template <typename T>
+void Defragger<T>::invalidate(T* memoryLocation)
+{
+    SAIGA_ASSERT(!running, "invalidate() may only be called when defragger is stopped");
+
+    for (auto defragIter = defrag_operations.begin(); defragIter != defrag_operations.end(); ++defragIter)
+    {
+    }
 }
 
 
