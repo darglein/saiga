@@ -144,6 +144,38 @@ bool BaseChunkAllocator<T>::memory_is_free(vk::DeviceMemory memory, FreeListEntr
     return found->offset == free_mem.offset && found->size == free_mem.size;
 }
 
+template <typename T>
+T* BaseChunkAllocator<T>::reserve_if_free(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size)
+{
+    std::scoped_lock lock(allocationMutex);
+
+    auto chunk = std::find_if(chunks.begin(), chunks.end(),
+                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
+
+    SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
+
+    if (chunk->freeList.empty())
+    {
+        return nullptr;
+    }
+
+    auto found =
+        std::lower_bound(chunk->freeList.begin(), chunk->freeList.end(), freeListEntry,
+                         [](const auto& free_entry, const auto& value) { return free_entry.offset < value.offset; });
+
+    if (found == chunk->freeList.end())
+    {
+        return nullptr;
+    }
+
+    if (found->offset != freeListEntry.offset || found->size != freeListEntry.size)
+    {
+        return nullptr;
+    }
+
+    return allocate_in_free_space(size, chunk, found);
+}
+
 
 template <typename T>
 T* BaseChunkAllocator<T>::reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size)

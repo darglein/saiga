@@ -42,8 +42,6 @@ struct SAIGA_VULKAN_API ChunkAllocation
     using FreeList      = std::vector<FreeListEntry>;
     using FreeIterator  = typename std::vector<FreeListEntry>::iterator;
     using AllocatedList = std::vector<std::unique_ptr<T>>;
-    // typedef typename AllocatedList::iterator AllocationIterator;
-    // typedef typename AllocatedList::const_iterator ConstAllocationIterator;
 
     std::shared_ptr<Chunk> chunk;
     vk::Buffer buffer;
@@ -79,14 +77,6 @@ struct SAIGA_VULKAN_API ChunkAllocation
     inline vk::DeviceSize getFree() const { return size - allocated; }
 };
 
-// typedef typename ChunkAllocation<T>::AllocationIterator AllocIter;
-// typedef typename ChunkAllocation<T>::FreeIterator FreeIter;
-//
-// typedef std::vector<ChunkAllocation<T>> ChunkContainer;
-// typedef typename ChunkContainer::iterator ChunkIterator;
-// typedef typename ChunkContainer::const_iterator ConstChunkIterator;
-// typedef typename ChunkContainer::reverse_iterator RevChunkIterator;
-// typedef typename ChunkContainer::const_reverse_iterator ConstRevChunkIterator;
 template <typename T>
 using ChunkContainer = std::vector<ChunkAllocation<T>>;
 
