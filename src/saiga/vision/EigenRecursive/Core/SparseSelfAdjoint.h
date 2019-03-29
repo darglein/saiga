@@ -1,7 +1,22 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * This file contains (modified) code from the Eigen library.
+ * Eigen License:
+ *
+ * Copyright (C) 2008 Gael Guennebaud <gael.guennebaud@inria.fr>
+ * Copyright (C) 2007-2011 Benoit Jacob <jacob.benoit.1@gmail.com>
+ *
+ * This Source Code Form is subject to the terms of the Mozilla
+ * Public License v. 2.0. If a copy of the MPL was not distributed
+ * with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ *
+ * ======================
+ *
+ * The modifications are part of the Eigen Recursive Matrix Extension (ERME).
+ * ERME License:
+ *
+ * Copyright (c) 2019 Darius Rückert
  * Licensed under the MIT License.
- * See LICENSE file for more information.
  */
 
 #pragma once
