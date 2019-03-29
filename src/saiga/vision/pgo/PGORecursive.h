@@ -8,7 +8,7 @@
 #pragma once
 
 #include "saiga/vision/pgo/PGOBase.h"
-#include "saiga/vision/recursiveMatrices/RecursivePGOTemplates.h"
+#include "saiga/vision/pgo/RecursivePGOTemplates.h"
 
 namespace Saiga
 {

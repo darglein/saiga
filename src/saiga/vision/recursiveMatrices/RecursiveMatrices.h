@@ -13,7 +13,6 @@
 // Low Level Functions
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
 #include "saiga/vision/recursiveMatrices/Dot.h"
-#include "saiga/vision/recursiveMatrices/EigenTemplateDefines.h"
 #include "saiga/vision/recursiveMatrices/EigenTemplateDefines_sparse.h"
 #include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
@@ -30,7 +29,6 @@
 
 // High Level Functions
 #include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/LM.h"
 #include "saiga/vision/recursiveMatrices/Mixed/MixedSolver.h"
 #include "saiga/vision/recursiveMatrices/Mixed/MixedSolverSchur.h"
 #include "saiga/vision/recursiveMatrices/Mixed/MixedSolverSparse.h"

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/EigenTemplateDefines.h"
 #include "saiga/vision/recursiveMatrices/SparseHelper.h"
 
 

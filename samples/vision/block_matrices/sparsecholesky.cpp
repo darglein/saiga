@@ -11,7 +11,7 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
+#include "saiga/vision/ba/BlockRecursiveBATemplates.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs_Sparse.h"

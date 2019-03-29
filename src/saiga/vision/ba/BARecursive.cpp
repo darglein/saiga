@@ -3,14 +3,13 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
-
 #include "BARecursive.h"
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
 #include "saiga/vision/HistogramImage.h"
+#include "saiga/vision/LM.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 #include "saiga/vision/kernels/Robust.h"
