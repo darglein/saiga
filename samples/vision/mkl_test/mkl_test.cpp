@@ -6,6 +6,7 @@
 
 #include "mkl_test.h"
 
+#include "saiga/vision/Eigen_Compile_Checker.h"
 
 
 void bench_mm();

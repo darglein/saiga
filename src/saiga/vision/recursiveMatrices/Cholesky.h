@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
 #include "saiga/vision/recursiveMatrices/Inverse.h"
@@ -15,7 +14,7 @@
 #include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename T>
 auto inverseCholesky(const T& v);
@@ -44,7 +43,7 @@ struct DenseLDLT
 template <typename MatrixType>
 void DenseLDLT<MatrixType>::compute(const MatrixType& A)
 {
-    SAIGA_ASSERT(A.rows() == A.cols());
+    eigen_assert(A.rows() == A.cols());
     L.resize(A.rows(), A.cols());
     D.resize(A.rows());
     Dinv.resize(A.rows());
@@ -86,7 +85,7 @@ void DenseLDLT<MatrixType>::compute(const MatrixType& A)
                                  expand(A))
                                     .norm();
     cout << "dense LDLT factorizationError " << factorizationError << endl;
-    SAIGA_ASSERT(factorizationError < 1e-10);
+    eigen_assert(factorizationError < 1e-10);
 #endif
     //    cout << expand(Dinv) << endl << endl;
     //    cout << expand(L) << endl << endl;
@@ -97,7 +96,7 @@ template <typename MatrixType>
 template <typename VectorType>
 VectorType DenseLDLT<MatrixType>::solve(const VectorType& b)
 {
-    SAIGA_ASSERT(L.rows() == b.rows());
+    eigen_assert(L.rows() == b.rows());
     VectorType x, y;
     x.resize(b.rows());
     y.resize(b.rows());
@@ -112,7 +111,7 @@ VectorType DenseLDLT<MatrixType>::solve(const VectorType& b)
 template <typename MatrixType>
 MatrixType DenseLDLT<MatrixType>::solve(const MatrixType& b)
 {
-    SAIGA_ASSERT(L.rows() == b.rows());
+    eigen_assert(L.rows() == b.rows());
     MatrixType x, y;
     x.resize(L.rows(), L.cols());
     y.resize(L.rows(), L.cols());
@@ -204,4 +203,4 @@ auto inverseCholesky(const T& v)
 }
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

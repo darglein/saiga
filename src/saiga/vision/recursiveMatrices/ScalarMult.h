@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename T>
 struct ScalarMultImpl
@@ -24,9 +23,9 @@ struct ScalarMultImpl
         T result;
         result.resize(a.rows());
 
-        for(int i = 0; i < a.rows(); ++i)
+        for (int i = 0; i < a.rows(); ++i)
         {
-            result(i) = ChildType::get(a(i),b);
+            result(i) = ChildType::get(a(i), b);
         }
         return result;
     }
@@ -52,14 +51,14 @@ struct ScalarMultImpl<MatrixScalar<G>>
     using Scalar    = G;
     using ChildType = ScalarMultImpl<Scalar>;
     using BaseType  = typename ChildType::BaseType;
-    static MatrixScalar<G> get(const MatrixScalar<G>& a, const BaseType& b) { return {ChildType::get(a.get(),b)}; }
+    static MatrixScalar<G> get(const MatrixScalar<G>& a, const BaseType& b) { return {ChildType::get(a.get(), b)}; }
 };
 
 
 template <typename T, typename G>
 auto scalarMult(const T& a, const G& b)
 {
-    return ScalarMultImpl<T>::get(a,b);
+    return ScalarMultImpl<T>::get(a, b);
 }
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

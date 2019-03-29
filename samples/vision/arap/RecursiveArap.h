@@ -37,15 +37,15 @@ class RecursiveArap : public ArapBase, public LMOptimizer
     using T          = double;
     using PGOBlock   = Eigen::Matrix<T, BlockSize, BlockSize>;
     using PGOVector  = Eigen::Matrix<T, BlockSize, 1>;
-    using PSType     = Eigen::SparseMatrix<MatrixScalar<PGOBlock>, Eigen::RowMajor>;
-    using PSDiagType = Eigen::DiagonalMatrix<MatrixScalar<PGOBlock>, -1>;
-    using PBType     = Eigen::Matrix<MatrixScalar<PGOVector>, -1, 1>;
+    using PSType     = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<PGOBlock>, Eigen::RowMajor>;
+    using PSDiagType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<PGOBlock>, -1>;
+    using PBType     = Eigen::Matrix<Eigen::Recursive::MatrixScalar<PGOVector>, -1, 1>;
 
     int n;
     PSType S;
     PBType b;
     PBType delta_x;
-    MixedSymmetricRecursiveSolver<PSType, PBType> solver;
+    Eigen::Recursive::MixedSymmetricRecursiveSolver<PSType, PBType> solver;
     AlignedVector<SE3> x_u, oldx_u;
     std::vector<int> edgeOffsets;
 };

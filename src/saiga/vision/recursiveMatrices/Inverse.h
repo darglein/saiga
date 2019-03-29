@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename T>
 struct InverseImpl
@@ -42,4 +41,4 @@ auto inverse(const T& v)
 
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

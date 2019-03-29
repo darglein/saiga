@@ -5,9 +5,8 @@
  */
 
 #pragma once
-#include "saiga/config.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 struct LinearSolverOptions
 {
@@ -40,4 +39,4 @@ struct MixedSymmetricRecursiveSolver
 };
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

@@ -9,6 +9,7 @@
 
 #include "mkl.h"
 
+
 template <typename T>
 struct MKLBlockMatrix
 {
@@ -130,7 +131,7 @@ inline void createBlockMKLFromEigen(Eigen::SparseMatrix<BlockType, options>& A, 
                                     matrix_descr* desc, int block_size)
 {
     static_assert(options == Eigen::RowMajor, "matrix must be row major");
-    using T = typename Saiga::ScalarType<BlockType>::Type;
+    using T = typename Eigen::Recursive::ScalarType<BlockType>::Type;
     int n   = A.rows();
     int m   = A.cols();
     mkl_sparse_d_create_bsr(mklA, SPARSE_INDEX_BASE_ZERO, SPARSE_LAYOUT_ROW_MAJOR, n, m, block_size, A.outerIndexPtr(),

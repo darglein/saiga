@@ -397,6 +397,7 @@ void BARec::addLambda(double lambda)
 
 void BARec::solveLinearSystem()
 {
+    using namespace Eigen::Recursive;
     LinearSolverOptions loptions;
     loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
     loptions.iterativeTolerance     = optimizationOptions.iterativeTolerance;
@@ -569,6 +570,12 @@ static void compactSolve()
     }
 }
 
+template<typename A, typename B, typename C, typename D>
+class MixedMatrix22{
+};
+template<typename A>
+class DiagonalMatrix{
+};
 
 static void compactSolve2()
 {
@@ -592,6 +599,11 @@ static void compactSolve2()
         solve(A, x, b);
     }
 
+    using BAMatrix = MixedMatrix22<
+        DiagonalMatrix<Matrix<double, 6, 6>>,
+        SparseMatrix  <Matrix<double, 6, 3>>,
+        SparseMatrix  <Matrix<double, 3, 6>>,
+        DiagonalMatrix<Matrix<double, 3, 3>>>;
 
     // clang-format on
 }

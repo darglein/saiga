@@ -215,6 +215,8 @@ void PGORec::addDelta()
 
 void PGORec::solveLinearSystem()
 {
+    using namespace Eigen::Recursive;
+
     LinearSolverOptions loptions;
 
     loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;

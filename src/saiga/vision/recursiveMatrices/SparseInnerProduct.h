@@ -6,21 +6,21 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
+
 #include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
 
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename LHS, typename RHS, typename DiagType>
 EIGEN_ALWAYS_INLINE void diagInnerProductTransposed(const LHS& lhs, const RHS& rhsTransposed, DiagType& res)
 {
-    SAIGA_ASSERT(lhs.IsRowMajor && rhsTransposed.IsRowMajor);
-    SAIGA_ASSERT(lhs.rows() == rhsTransposed.rows());
-    SAIGA_ASSERT(lhs.cols() == rhsTransposed.cols());
-    SAIGA_ASSERT(res.rows() == lhs.rows());
+    eigen_assert(lhs.IsRowMajor && rhsTransposed.IsRowMajor);
+    eigen_assert(lhs.rows() == rhsTransposed.rows());
+    eigen_assert(lhs.cols() == rhsTransposed.cols());
+    eigen_assert(res.rows() == lhs.rows());
 
     for (int i = 0; i < lhs.rows(); ++i)
     {
@@ -42,8 +42,8 @@ EIGEN_ALWAYS_INLINE void diagInnerProductTransposed(const LHS& lhs, const RHS& r
 template <typename LHS, typename RHS, typename RES>
 EIGEN_ALWAYS_INLINE void multSparseRowTransposedVector(const LHS& lhsTransposed, const RHS& rhs, RES& res)
 {
-    SAIGA_ASSERT(lhsTransposed.IsRowMajor);
-    SAIGA_ASSERT(lhsTransposed.rows() == rhs.rows());
+    eigen_assert(lhsTransposed.IsRowMajor);
+    eigen_assert(lhsTransposed.rows() == rhs.rows());
 
     setZero(res);
     for (int i = 0; i < lhsTransposed.outerSize(); ++i)
@@ -61,7 +61,7 @@ EIGEN_ALWAYS_INLINE void multSparseRowTransposedVector(const LHS& lhsTransposed,
 
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive
 
 
 
@@ -72,7 +72,7 @@ EIGEN_ALWAYS_INLINE void multSparseRowTransposedVector(const LHS& lhsTransposed,
 template <typename S, typename DiagType>
 EIGEN_ALWAYS_INLINE S multSparseDiag(const S& M, const DiagType& D)
 {
-    SAIGA_ASSERT(M.cols() == D.rows());
+    eigen_assert(M.cols() == D.rows());
 
     S result(M.rows(), M.cols());
     result.reserve(M.nonZeros());
@@ -106,7 +106,7 @@ EIGEN_ALWAYS_INLINE S multSparseDiag(const S& M, const DiagType& D)
 template <typename Diag, typename Vec>
 EIGEN_ALWAYS_INLINE Vec multDiagVector(const Diag& D, const Vec& v)
 {
-    SAIGA_ASSERT(D.cols() == v.rows());
+    eigen_assert(D.cols() == v.rows());
 
     Vec result;
     result.resize(v.rows(), v.cols());
@@ -126,7 +126,7 @@ template <typename Diag, typename Vec>
 EIGEN_ALWAYS_INLINE void multDiagVector2(const Diag& D, Vec& v)
 {
     //    cout << D.rows() << " " << D.cols() << " " << D.size() << endl;
-    SAIGA_ASSERT(D.cols() == v.rows());
+    eigen_assert(D.cols() == v.rows());
     for (int k = 0; k < D.rows(); ++k)
     {
         v(k) = D.diagonal()(k) * v(k);
@@ -136,7 +136,7 @@ EIGEN_ALWAYS_INLINE void multDiagVector2(const Diag& D, Vec& v)
 template <typename Diag, typename Vec>
 EIGEN_ALWAYS_INLINE Vec multDiagVectorMulti(const Diag& D, const Vec& v)
 {
-    SAIGA_ASSERT(D.cols() == v.rows());
+    eigen_assert(D.cols() == v.rows());
 
     Vec result;
     result.resize(v.rows(), v.cols());

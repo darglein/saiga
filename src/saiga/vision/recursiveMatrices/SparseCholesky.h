@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
 #include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
@@ -19,7 +18,7 @@
 #include "Eigen/SparseCholesky"
 
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename MatrixType, typename VectorType>
 struct SparseRecursiveLDLT
@@ -40,7 +39,7 @@ struct SparseRecursiveLDLT
 template <typename MatrixType, typename VectorType>
 void SparseRecursiveLDLT<MatrixType, VectorType>::compute(const MatrixType& A)
 {
-    SAIGA_ASSERT(A.rows() == A.cols());
+    eigen_assert(A.rows() == A.cols());
     L.resize(A.rows(), A.cols());
     D.resize(A.rows());
     Dinv.resize(A.rows());
@@ -141,4 +140,4 @@ VectorType SparseRecursiveLDLT<MatrixType, VectorType>::solve(const VectorType& 
 }
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

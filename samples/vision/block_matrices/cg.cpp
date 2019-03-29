@@ -20,12 +20,13 @@ const int bm = 2;
 using Block  = Eigen::Matrix<Scalar, bn, bm>;
 using Vector = Eigen::Matrix<Scalar, bn, 1>;
 
-using BlockVector = Eigen::Matrix<Saiga::MatrixScalar<Vector>, -1, 1>;
+using BlockVector = Eigen::Matrix<Eigen::Recursive::MatrixScalar<Vector>, -1, 1>;
 
-// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Block>, Saiga::MatrixScalar<Vector>, Saiga::MatrixScalar<Vector>);
-// SAIGA_RM_CREATE_SMV_ROW_MAJOR(BlockVector);
+// SAIGA_RM_CREATE_RETURN(Eigen::Recursive::MatrixScalar<Block>, Eigen::Recursive::MatrixScalar<Vector>,
+// Eigen::Recursive::MatrixScalar<Vector>); SAIGA_RM_CREATE_SMV_ROW_MAJOR(BlockVector);
 
 
+using namespace Eigen::Recursive;
 
 namespace Saiga
 {

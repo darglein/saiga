@@ -26,7 +26,7 @@
 using Block  = Eigen::Matrix<double, 2, 2>;
 using Vector = Eigen::Matrix<double, 2, 1>;
 
-using namespace Saiga;
+using namespace Eigen::Recursive;
 
 
 namespace Saiga

@@ -7,12 +7,13 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 #include "Eigen/Sparse"
 #include "cholesky.h"
 
 using namespace Saiga;
+using namespace Eigen::Recursive;
 
 void testMatrixMatrixOperations()
 {
@@ -44,7 +45,7 @@ void testMatrixMatrixOperations()
     res2 -= b1;
     res2 += b1;
     res2   = b1 * b2;
-    result = fixedBlockMatrixToMatrix(res2);
+    result = expand(res2);
     cout << "Result Block Matrix" << endl << result << endl;
 }
 
@@ -84,7 +85,7 @@ void testMatrixVectorOperations()
     }
 
     res2   = bm * bx;
-    result = fixedBlockMatrixToMatrix(res2);
+    result = expand(res2);
     cout << "Result Block Matrix" << endl << result << endl;
 }
 
@@ -140,7 +141,7 @@ void sparseMatrixVector()
     }
 
     res2   = sbm * bx;
-    result = fixedBlockMatrixToMatrix(res2);
+    result = expand(res2);
     cout << "Result Sparse Block Matrix" << endl << result << endl;
 }
 
@@ -212,7 +213,7 @@ void sparseRectangularMatrixVector()
     }
 
     res2   = sbm * bx;
-    result = fixedBlockMatrixToMatrix(res2);
+    result = expand(res2);
     cout << "Result Sparse Block Matrix" << endl << result << endl;
 }
 

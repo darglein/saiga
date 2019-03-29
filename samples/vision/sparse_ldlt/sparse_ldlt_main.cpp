@@ -10,6 +10,7 @@
 
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
+#include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/Random.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky2.h"
@@ -21,7 +22,7 @@
 #include <fstream>
 #include <set>
 using namespace Saiga;
-
+using namespace Eigen::Recursive;
 
 
 static std::ofstream strm;
@@ -564,7 +565,7 @@ class Sparse_LDLT_TEST
         x.setZero();
         {
             SAIGA_BLOCK_TIMER();
-            Saiga::SparseRecursiveLDLT<AType2, VType> ldlt;
+            SparseRecursiveLDLT<AType2, VType> ldlt;
             ldlt.compute(A2);
             x = ldlt.solve(b);
         }
@@ -673,14 +674,14 @@ void perf_test()
     omp_set_num_threads(1);
 
 
-    {
-        LauncherLoop<2, 32 + 1, 1, 1, 32> l;
-        l();
-    }
     //    {
-    //        LauncherLoop<8, 8 + 1, 1, 1, 32> l;
+    //        LauncherLoop<2, 32 + 1, 1, 1, 32> l;
     //        l();
     //    }
+    {
+        LauncherLoop<8, 8 + 1, 1, 1, 32> l;
+        l();
+    }
     //    {
     //        LauncherLoop<16, 16 + 1, 1, 1, 32> l;
     //        l();

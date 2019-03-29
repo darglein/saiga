@@ -18,10 +18,10 @@ namespace internal
 {
 // forward substitution, col-major
 template <typename T, typename Rhs, int Mode>
-struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>, Rhs, Mode, Lower, ColMajor>
+struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>>, Rhs, Mode, Lower, ColMajor>
 {
-    //    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<Eigen::Matrix<double, 2, 2>>>;
-    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<T>>;
+    //    using Lhs = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<Eigen::Matrix<double, 2, 2>>>;
+    using Lhs = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>>;
     typedef typename Lhs::Scalar LScalar;
     typedef typename Rhs::Scalar RScalar;
     typedef evaluator<Lhs> LhsEval;
@@ -59,10 +59,10 @@ struct sparse_solve_triangular_selector<const Eigen::SparseMatrix<Saiga::MatrixS
 
 // backward substitution, row-major
 template <typename T, typename Rhs, int Mode>
-struct sparse_solve_triangular_selector<const Eigen::Transpose<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>>, Rhs,
+struct sparse_solve_triangular_selector<const Eigen::Transpose<const Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>>>, Rhs,
                                         Mode, Upper, RowMajor>
 {
-    using Lhs = const Eigen::Transpose<const Eigen::SparseMatrix<Saiga::MatrixScalar<T>>>;
+    using Lhs = const Eigen::Transpose<const Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>>>;
 
     typedef typename Lhs::Scalar LScalar;
     typedef typename Rhs::Scalar RScalar;
@@ -175,11 +175,11 @@ void permute_symm_to_symm_recursive(
 
 #    if 0
 template <typename DstXprType, typename T, int Mode, typename Scalar>
-struct Assignment<DstXprType, SparseSymmetricPermutationProduct<Eigen::SparseMatrix<Saiga::MatrixScalar<T>>, Mode>,
-                  internal::assign_op<Scalar, typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>>::Scalar>,
+struct Assignment<DstXprType, SparseSymmetricPermutationProduct<Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>>, Mode>,
+                  internal::assign_op<Scalar, typename Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>>::Scalar>,
                   Sparse2Sparse>
 {
-    using MatrixType = Eigen::SparseMatrix<Saiga::MatrixScalar<T>>;
+    using MatrixType = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>>;
     typedef SparseSymmetricPermutationProduct<MatrixType, Mode> SrcXprType;
     typedef typename DstXprType::StorageIndex DstIndex;
     template <int Options>
@@ -206,10 +206,10 @@ struct Assignment<DstXprType, SparseSymmetricPermutationProduct<Eigen::SparseMat
 
 template <typename DstXprType, typename T, int _Options, int Mode, typename Scalar>
 struct Assignment<
-    DstXprType, SparseSymmetricPermutationProduct<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>, Mode>,
-    internal::assign_op<Scalar, typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>::Scalar>, Sparse2Sparse>
+    DstXprType, SparseSymmetricPermutationProduct<Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>, Mode>,
+    internal::assign_op<Scalar, typename Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>::Scalar>, Sparse2Sparse>
 {
-    using MatrixType = Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>;
+    using MatrixType = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>;
     typedef SparseSymmetricPermutationProduct<MatrixType, Mode> SrcXprType;
     typedef typename DstXprType::StorageIndex DstIndex;
     template <int Options>

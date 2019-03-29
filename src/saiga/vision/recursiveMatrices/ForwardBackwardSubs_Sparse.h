@@ -11,7 +11,7 @@
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename MatrixType, typename VectorType>
 VectorType forwardSubstituteDiagOne2(const MatrixType& A, const VectorType& b)
@@ -85,4 +85,4 @@ VectorType backwardSubstituteDiagOneTranspose2(const MatrixType& A, const Vector
 }
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

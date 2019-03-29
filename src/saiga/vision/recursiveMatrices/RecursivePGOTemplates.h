@@ -25,12 +25,9 @@ using BlockPGOScalar = double;
 
 using PGOBlock   = Eigen::Matrix<BlockPGOScalar, pgoBlockSizeCamera, pgoBlockSizeCamera>;
 using PGOVector  = Eigen::Matrix<BlockPGOScalar, pgoBlockSizeCamera, 1>;
-using PSType     = Eigen::SparseMatrix<MatrixScalar<PGOBlock>, Eigen::RowMajor>;
-using PSDiagType = Eigen::DiagonalMatrix<MatrixScalar<PGOBlock>, -1>;
-using PBType     = Eigen::Matrix<MatrixScalar<PGOVector>, -1, 1>;
+using PSType     = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<PGOBlock>, Eigen::RowMajor>;
+using PSDiagType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<PGOBlock>, -1>;
+using PBType     = Eigen::Matrix<Eigen::Recursive::MatrixScalar<PGOVector>, -1, 1>;
+
+using PGOSolver = Eigen::Recursive::MixedSymmetricRecursiveSolver<PSType, PBType>;
 }  // namespace Saiga
-
-// SAIGA_RM_CREATE_RETURN(Saiga::MatrixScalar<Saiga::PGOBlock>, Saiga::MatrixScalar<Saiga::PGOVector>,
-//                       Saiga::MatrixScalar<Saiga::PGOVector>);
-
-// SAIGA_RM_CREATE_SMV_ROW_MAJOR(Saiga::PBType);

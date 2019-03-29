@@ -88,11 +88,11 @@ static void conservative_sparse_sparse_product_impl_yx(const Lhs& lhs, const Rhs
 
 
 template <typename SparseLhsType, typename T, typename DenseResType>
-struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, Eigen::Matrix<Saiga::MatrixScalar<T>, -1, 1>,
-                                                       DenseResType, typename DenseResType::Scalar, Eigen::RowMajor,
-                                                       true>
+struct Eigen::internal::sparse_time_dense_product_impl<
+    SparseLhsType, Eigen::Matrix<Eigen::Recursive::MatrixScalar<T>, -1, 1>, DenseResType, typename DenseResType::Scalar,
+    Eigen::RowMajor, true>
 {
-    using DenseRhsType = Eigen::Matrix<Saiga::MatrixScalar<T>, -1, 1>;
+    using DenseRhsType = Eigen::Matrix<Eigen::Recursive::MatrixScalar<T>, -1, 1>;
 
     typedef typename internal::remove_all<SparseLhsType>::type Lhs;
     typedef typename internal::remove_all<DenseRhsType>::type Rhs;
@@ -152,11 +152,11 @@ struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, Eigen::Mat
 };
 
 template <typename SparseLhsType, typename T, typename DenseResType>
-struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, Eigen::Matrix<Saiga::MatrixScalar<T>, -1, 1>,
-                                                       DenseResType, typename DenseResType::Scalar, Eigen::ColMajor,
-                                                       true>
+struct Eigen::internal::sparse_time_dense_product_impl<
+    SparseLhsType, Eigen::Matrix<Eigen::Recursive::MatrixScalar<T>, -1, 1>, DenseResType, typename DenseResType::Scalar,
+    Eigen::ColMajor, true>
 {
-    using DenseRhsType = Eigen::Matrix<Saiga::MatrixScalar<T>, -1, 1>;
+    using DenseRhsType = Eigen::Matrix<Eigen::Recursive::MatrixScalar<T>, -1, 1>;
 
     typedef typename internal::remove_all<SparseLhsType>::type Lhs;
     typedef typename internal::remove_all<DenseRhsType>::type Rhs;
@@ -186,10 +186,11 @@ namespace Eigen
 namespace internal
 {
 template <typename T, typename Rhs, typename ResultType>
-struct conservative_sparse_sparse_product_selector<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, Eigen::RowMajor>, Rhs,
-                                                   ResultType, RowMajor, RowMajor, ColMajor>
+struct conservative_sparse_sparse_product_selector<
+    Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, Eigen::RowMajor>, Rhs, ResultType, RowMajor, RowMajor,
+    ColMajor>
 {
-    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<T>, Eigen::RowMajor>;
+    using Lhs = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, Eigen::RowMajor>;
     static void run(const Lhs& lhs, const Rhs& rhs, ResultType& res)
     {
         typedef SparseMatrix<typename ResultType::Scalar, RowMajor, typename ResultType::StorageIndex> RowMajorMatrix;
@@ -201,10 +202,11 @@ struct conservative_sparse_sparse_product_selector<Eigen::SparseMatrix<Saiga::Ma
 
 
 template <typename T, typename Rhs, typename ResultType>
-struct conservative_sparse_sparse_product_selector<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, Eigen::RowMajor>, Rhs,
-                                                   ResultType, RowMajor, ColMajor, ColMajor>
+struct conservative_sparse_sparse_product_selector<
+    Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, Eigen::RowMajor>, Rhs, ResultType, RowMajor, ColMajor,
+    ColMajor>
 {
-    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<T>, Eigen::RowMajor>;
+    using Lhs = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, Eigen::RowMajor>;
     static void run(const Lhs& lhs, const Rhs& rhs, ResultType& res)
     {
         typedef SparseMatrix<typename Rhs::Scalar, RowMajor, typename ResultType::StorageIndex> RowMajorRhs;
@@ -217,10 +219,11 @@ struct conservative_sparse_sparse_product_selector<Eigen::SparseMatrix<Saiga::Ma
 };
 
 template <typename T, typename Rhs, typename ResultType>
-struct conservative_sparse_sparse_product_selector<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, Eigen::RowMajor>, Rhs,
-                                                   ResultType, RowMajor, ColMajor, RowMajor>
+struct conservative_sparse_sparse_product_selector<
+    Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, Eigen::RowMajor>, Rhs, ResultType, RowMajor, ColMajor,
+    RowMajor>
 {
-    using Lhs = Eigen::SparseMatrix<Saiga::MatrixScalar<T>, Eigen::RowMajor>;
+    using Lhs = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, Eigen::RowMajor>;
     static void run(const Lhs& lhs, const Rhs& rhs, ResultType& res)
     {
         typedef SparseMatrix<typename Lhs::Scalar, ColMajor, typename ResultType::StorageIndex> ColMajorLhs;

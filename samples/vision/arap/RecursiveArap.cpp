@@ -262,6 +262,7 @@ void RecursiveArap::addDelta()
 
 void RecursiveArap::solveLinearSystem()
 {
+    using namespace Eigen::Recursive;
     LinearSolverOptions loptions;
 
     loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;

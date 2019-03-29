@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 /**
  * Additive neutral element e
@@ -81,9 +80,9 @@ struct MultiplicativeNeutral<float>
 };
 
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct MultiplicativeNeutral<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+struct MultiplicativeNeutral<Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
-    using MatrixType = Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    using MatrixType = Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
 
     static MatrixType get()
     {
@@ -101,7 +100,7 @@ struct MultiplicativeNeutral<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _Max
 
     static MatrixType get(int rows, int cols)
     {
-        SAIGA_ASSERT(rows == cols);
+        eigen_assert(rows == cols);
 
         MatrixType A = AdditiveNeutral<MatrixType>::get(rows, cols);
         for (int i = 0; i < A.rows(); ++i)
@@ -126,4 +125,4 @@ struct MultiplicativeNeutral<MatrixScalar<G>>
 };
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

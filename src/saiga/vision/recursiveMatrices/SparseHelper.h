@@ -5,12 +5,11 @@
  */
 
 #pragma once
-#include "saiga/core/util/assert.h"
-#include "saiga/vision/VisionIncludes.h"
 
 #include "Eigen/Sparse"
 #include "MatrixScalar.h"
-namespace Saiga
+
+namespace Eigen::Recursive
 {
 template <typename T, int options>
 std::vector<Eigen::Triplet<T>> to_triplets(const Eigen::SparseMatrix<T, options>& M)
@@ -145,4 +144,4 @@ void sparseBlockToFlatMatrix(const Eigen::SparseMatrix<MatrixScalar<BlockType>, 
 
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

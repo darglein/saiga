@@ -74,15 +74,15 @@ inline void sparse_selfadjoint_time_dense_product_recursive(const SparseLhsType&
 
 template <typename T, int _Options, unsigned int _Mode, typename Rhs, int ProductType>
 struct generic_product_impl<
-    Eigen::SparseSelfAdjointView<typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>, _Mode>, Rhs,
+    Eigen::SparseSelfAdjointView<typename Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>, _Mode>, Rhs,
     SparseSelfAdjointShape, DenseShape, ProductType>
     : generic_product_impl_base<
-          Eigen::SparseSelfAdjointView<typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>, _Mode>, Rhs,
+          Eigen::SparseSelfAdjointView<typename Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>, _Mode>, Rhs,
           generic_product_impl<
-              Eigen::SparseSelfAdjointView<typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>, _Mode>, Rhs,
+              Eigen::SparseSelfAdjointView<typename Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>, _Mode>, Rhs,
               SparseSelfAdjointShape, DenseShape, ProductType> >
 {
-    using LhsView = Eigen::SparseSelfAdjointView<typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>, _Mode>;
+    using LhsView = Eigen::SparseSelfAdjointView<typename Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>, _Mode>;
     template <typename Dest>
     static void scaleAndAddTo(Dest& dst, const LhsView& lhsView, const Rhs& rhs, const typename Dest::Scalar&)
     {

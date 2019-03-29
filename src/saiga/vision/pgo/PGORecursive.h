@@ -26,7 +26,7 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
     PSType S;
     PBType b;
     PBType delta_x;
-    MixedSymmetricRecursiveSolver<PSType, PBType> solver;
+    PGOSolver solver;
 
     AlignedVector<SE3> x_u, oldx_u;
 

@@ -6,12 +6,10 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
-#include "saiga/vision/VisionIncludes.h"
-
+#include "Eigen/Core"
 #include "Eigen/Sparse"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename MatrixType>
 struct MatrixScalar
@@ -132,104 +130,20 @@ EIGEN_ALWAYS_INLINE auto& removeMatrixScalar(const T& A)
     return RemoveMatrixScalarImpl<T>::get(A);
 }
 
+}  // namespace Eigen::Recursive
 
 
-/**
- * Convert a block vector (a vector of vectors) to a 1-dimensional vector.
- * The inner vector must be of constant size.
- */
-template <typename MatrixType>
-auto blockVectorToVector(const Eigen::Matrix<MatrixScalar<MatrixType>, -1, 1>& m)
+namespace Eigen
 {
-    static_assert(MatrixType::RowsAtCompileTime > 0, "The inner size must be fixed.");
-    Eigen::Matrix<typename MatrixType::Scalar, -1, 1> dense(m.rows() * MatrixType::RowsAtCompileTime);
-    for (int i = 0; i < m.rows(); ++i)
-    {
-        dense.segment(i * MatrixType::RowsAtCompileTime, MatrixType::RowsAtCompileTime) = m(i).get();
-    }
-    return dense;
-}
-
-
-
-/**
- * Convert a block vector (a vector of vectors) to a 1-dimensional vector.
- * The inner vector must be of constant size.
- */
-template <typename MatrixType>
-auto blockDiagonalToMatrix(const Eigen::DiagonalMatrix<MatrixScalar<MatrixType>, -1>& m)
-{
-    static_assert(MatrixType::RowsAtCompileTime > 0, "The inner size must be fixed.");
-    Eigen::Matrix<typename MatrixType::Scalar, -1, -1> dense(m.rows() * MatrixType::RowsAtCompileTime,
-                                                             m.cols() * MatrixType::ColsAtCompileTime);
-    dense.setZero();
-    for (int i = 0; i < m.rows(); ++i)
-    {
-        dense.block(i * MatrixType::RowsAtCompileTime, i * MatrixType::ColsAtCompileTime, MatrixType::RowsAtCompileTime,
-                    MatrixType::ColsAtCompileTime) = m.diagonal()(i).get();
-    }
-    return dense;
-}
-
-
-/**
- * Convert a block vector (a vector of vectors) to a 1-dimensional vector.
- * The inner vector must be of constant size.
- */
-template <typename MatrixType>
-auto blockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, -1, -1>& m)
-{
-    static_assert(MatrixType::RowsAtCompileTime > 0 && MatrixType::ColsAtCompileTime > 0,
-                  "The inner size must be fixed.");
-
-    Eigen::Matrix<typename MatrixType::Scalar, -1, -1> dense(m.rows() * MatrixType::RowsAtCompileTime,
-                                                             m.cols() * MatrixType::ColsAtCompileTime);
-    for (int i = 0; i < m.rows(); ++i)
-    {
-        for (int j = 0; j < m.cols(); ++j)
-        {
-            dense.block(i * MatrixType::RowsAtCompileTime, j * MatrixType::ColsAtCompileTime,
-                        MatrixType::RowsAtCompileTime, MatrixType::ColsAtCompileTime) = m(i, j).get();
-        }
-    }
-    return dense;
-}
-
-
-template <typename MatrixType, int n, int m>
-auto fixedBlockMatrixToMatrix(const Eigen::Matrix<MatrixScalar<MatrixType>, n, m>& M)
-{
-    static_assert(MatrixType::RowsAtCompileTime > 0 && MatrixType::ColsAtCompileTime > 0,
-                  "The inner size must be fixed.");
-
-    Eigen::Matrix<typename MatrixType::Scalar, n * MatrixType::RowsAtCompileTime, m * MatrixType::ColsAtCompileTime>
-        dense;
-
-    for (int i = 0; i < M.rows(); ++i)
-    {
-        for (int j = 0; j < M.cols(); ++j)
-        {
-            dense.block(i * MatrixType::RowsAtCompileTime, j * MatrixType::ColsAtCompileTime,
-                        MatrixType::RowsAtCompileTime, MatrixType::ColsAtCompileTime) = M(i, j).get();
-        }
-    }
-    return dense;
-}
-
-
-
-}  // namespace Saiga
-
-
 template <typename T, typename BinaryOp>
-struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<T>, Saiga::MatrixScalar<T>, BinaryOp>
+struct ScalarBinaryOpTraits<Recursive::MatrixScalar<T>, Recursive::MatrixScalar<T>, BinaryOp>
 {
-    typedef Saiga::MatrixScalar<T> ReturnType;
+    typedef Recursive::MatrixScalar<T> ReturnType;
 };
 
 
 template <typename LHS, typename RHS, typename BinaryOp>
-struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<LHS>, Saiga::MatrixScalar<RHS>, BinaryOp>
+struct ScalarBinaryOpTraits<Recursive::MatrixScalar<LHS>, Recursive::MatrixScalar<RHS>, BinaryOp>
 {
     enum
     {
@@ -239,9 +153,11 @@ struct Eigen::ScalarBinaryOpTraits<Saiga::MatrixScalar<LHS>, Saiga::MatrixScalar
         options = RHS::Options
     };
 
-    using ScalarType =
-        typename Eigen::ScalarBinaryOpTraits<typename LHS::Scalar, typename RHS::Scalar, BinaryOp>::ReturnType;
-    using MatrixType = Eigen::Matrix<ScalarType, n, m, options>;
+    using ScalarType = typename ScalarBinaryOpTraits<typename LHS::Scalar, typename RHS::Scalar, BinaryOp>::ReturnType;
+    using MatrixType = Matrix<ScalarType, n, m, options>;
 
-    typedef Saiga::MatrixScalar<MatrixType> ReturnType;
+    typedef Recursive::MatrixScalar<MatrixType> ReturnType;
 };
+
+
+}  // namespace Eigen

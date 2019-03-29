@@ -5,15 +5,3 @@
  */
 
 #pragma once
-
-#include "saiga/core/util/assert.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
-
-#if 0
-#    define SAIGA_RM_CREATE_RETURN(_LHS, _RHS, _RETURN)          \
-        template <typename BinaryOp>                             \
-        struct Eigen::ScalarBinaryOpTraits<_LHS, _RHS, BinaryOp> \
-        {                                                        \
-            typedef _RETURN ReturnType;                          \
-        };
-#endif

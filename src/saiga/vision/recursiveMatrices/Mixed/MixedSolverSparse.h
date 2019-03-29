@@ -5,30 +5,29 @@
  */
 
 #pragma once
-#include "saiga/core/time/Time"
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
 
-//#undef SAIGA_USE_CHOLMOD
-#ifdef SAIGA_USE_CHOLMOD
+
+#if __has_include("cholmod.h")
+#    define SOLVER_USE_CHOLMOD
 #    include "Eigen/CholmodSupport"
 #endif
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 /**
  * A solver for sparse matrices. The elements of A should be easily invertible.
  */
 template <typename T, int _Options, typename XType>
-class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>, XType>
+class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>, XType>
 {
    public:
-    using AType = typename Eigen::SparseMatrix<Saiga::MatrixScalar<T>, _Options>;
+    using AType = typename Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<T>, _Options>;
     using LDLT  = Eigen::RecursiveSimplicialLDLT<AType, Eigen::Upper>;
 
     using ExpandedType = Eigen::SparseMatrix<typename T::Scalar, Eigen::RowMajor>;
-#ifdef SAIGA_USE_CHOLMOD
+#ifdef SOLVER_USE_CHOLMOD
     using CholmodLDLT = Eigen::CholmodSupernodalLLT<ExpandedType, Eigen::Upper>;
     //        using CholmodLDLT = Eigen::CholmodSimplicialLDLT<ExpandedType, Eigen::Upper>;
     //        using CholmodLDLT = Eigen::RecursiveSimplicialLDLT<ExpandedType, Eigen::Upper>;
@@ -40,7 +39,7 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
         int n = A.rows();
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
         {
-#ifdef SAIGA_USE_CHOLMOD
+#ifdef SOLVER_USE_CHOLMOD
             // Use Cholmod's supernodal factorization for very large or very dense matrices.
             double density  = A.nonZeros() / (double(A.rows()) * A.cols());
             bool useCholmod = A.rows() > 1000 || density > 0.1;
@@ -147,11 +146,11 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Saiga::MatrixScalar<T>, 
     std::unique_ptr<LDLT> ldlt;
     Eigen::PermutationMatrix<-1> permFull;
     std::vector<int> orderingFull;
-#ifdef SAIGA_USE_CHOLMOD
+#ifdef SOLVER_USE_CHOLMOD
     // Cholmod stuff
     std::unique_ptr<CholmodLDLT> cholmodldlt;
     std::unique_ptr<ExpandedType> expandS;
 #endif
 };
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

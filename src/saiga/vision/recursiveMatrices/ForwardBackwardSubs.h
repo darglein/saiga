@@ -6,12 +6,11 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/Expand.h"
 #include "saiga/vision/recursiveMatrices/NeutralElements.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 // template <typename _Scalar, typename _Scalar2, int _Rows, int _Cols>
 template <typename MatrixType, typename VectorType>
@@ -37,7 +36,7 @@ VectorType forwardSubstituteDiagOne(const MatrixType& A, const VectorType& b)
 
 #if 0
     // Test if (Ax-b)==0
-    double test = (expand(A).template triangularView<Eigen::Lower>() * expand(x) - expand(b)).squaredNorm();
+    double test = (expand(A).template triangularView<Lower>() * expand(x) - expand(b)).squaredNorm();
     cout << "error forwardSubstituteDiagOne: " << test << endl;
     SAIGA_ASSERT(test < 1e-10);
 #endif
@@ -55,7 +54,7 @@ MatrixType forwardSubstituteDiagOneMulti(const MatrixType& A, const MatrixType& 
     x.resize(b.rows(), b.cols());
 
 
-    using RowType = Eigen::Matrix<typename MatrixType::Scalar, 1, MatrixType::ColsAtCompileTime>;
+    using RowType = Matrix<typename MatrixType::Scalar, 1, MatrixType::ColsAtCompileTime>;
     RowType row;
     row.resize(b.cols());
 
@@ -72,7 +71,7 @@ MatrixType forwardSubstituteDiagOneMulti(const MatrixType& A, const MatrixType& 
 
 #if 0
     // Test if (Ax-b)==0
-    double test = (expand(A).template triangularView<Eigen::Lower>() * expand(x) - expand(b)).squaredNorm();
+    double test = (expand(A).template triangularView<Lower>() * expand(x) - expand(b)).squaredNorm();
     cout << "error forwardSubstituteDiagOneMulti: " << test << endl;
     SAIGA_ASSERT(test < 1e-10);
 #endif
@@ -102,7 +101,7 @@ VectorType backwardSubstituteDiagOneTranspose(const MatrixType& A, const VectorT
 
 #if 0
     // Test if (Ax-b)==0
-    double test = (expand(A).transpose().template triangularView<Eigen::Upper>() * expand(x) - expand(b)).squaredNorm();
+    double test = (expand(A).transpose().template triangularView<Upper>() * expand(x) - expand(b)).squaredNorm();
     cout << "error backwardSubstituteDiagOneTranspose: " << test << endl;
     SAIGA_ASSERT(test < 1e-10);
 #endif
@@ -120,7 +119,7 @@ MatrixType backwardSubstituteDiagOneTransposeMulti(const MatrixType& A, const Ma
     x.resize(b.rows(), b.cols());
 
 
-    using RowType = Eigen::Matrix<typename MatrixType::Scalar, 1, MatrixType::ColsAtCompileTime>;
+    using RowType = Matrix<typename MatrixType::Scalar, 1, MatrixType::ColsAtCompileTime>;
     RowType row;
     row.resize(b.cols());
 
@@ -146,4 +145,4 @@ MatrixType backwardSubstituteDiagOneTransposeMulti(const MatrixType& A, const Ma
 
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

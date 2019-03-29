@@ -6,11 +6,10 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename _Scalar>
 class RecursiveDiagonalPreconditioner
@@ -242,4 +241,4 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
     iters     = i;
 }
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

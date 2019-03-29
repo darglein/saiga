@@ -143,7 +143,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
         // We could clear the complete cache here, but it's more efficient to clear
         // only k. (see line below)
         //        for (auto& rc : rowCache) rc = Saiga::AdditiveNeutral<Scalar>::get();
-        rowCache[k] = Saiga::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
+        rowCache[k] = Recursive::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
 
         StorageIndex top    = size;  // stack for pattern is empty
         tags[k]             = k;     // mark node k as visited
@@ -182,7 +182,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
         /* compute numerical values kth row of L (a sparse triangular solve) */
         // This is the diagonal element of the current row
         RealScalar diagElement = (rowCache[k]);
-        rowCache[k]            = Saiga::AdditiveNeutral<Scalar>::get();
+        rowCache[k]            = Recursive::AdditiveNeutral<Scalar>::get();
 
         for (; top < size; ++top)
         {
@@ -193,7 +193,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
 
             //            cout << "Pattern " << k << "," << i << endl;
             Scalar target = rowCache[i]; /* get and clear Y(i) */
-            rowCache[i]   = Saiga::AdditiveNeutral<Scalar>::get();
+            rowCache[i]   = Recursive::AdditiveNeutral<Scalar>::get();
 
             auto& invDiagUp = m_diag_inv[i];
 
@@ -224,7 +224,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
         m_diag[k] = diagElement;
         // Recursive call
 #if 1
-        m_diag_inv[k] = Saiga::inverseCholesky(m_diag[k]);
+        m_diag_inv[k] = Recursive::inverseCholesky(m_diag[k]);
 #else
         eldlt.compute(m_diag[k].get());
         m_diag_inv[k] = eldlt.solve(Scalar::M::Identity());
@@ -235,6 +235,6 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
     m_factorizationIsOk = true;
 }
 
-}  // end namespace Eigen
+}  // namespace Eigen
 
 //#endif

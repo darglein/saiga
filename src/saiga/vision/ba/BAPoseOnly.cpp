@@ -400,7 +400,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene)
             }
             else
             {
-                RecursiveDiagonalPreconditioner<double> P;
+                Eigen::Recursive::RecursiveDiagonalPreconditioner<double> P;
                 Eigen::Index iters = optimizationOptions.maxIterativeIterations;
                 double tol         = optimizationOptions.iterativeTolerance;
 

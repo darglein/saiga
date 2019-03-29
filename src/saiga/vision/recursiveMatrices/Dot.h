@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename T>
 struct DotImpl
@@ -22,9 +21,9 @@ struct DotImpl
     static BaseType get(const T& a, const T& b)
     {
         BaseType sum = BaseType(0);
-        for(int i = 0; i < a.rows(); ++i)
+        for (int i = 0; i < a.rows(); ++i)
         {
-            sum += ChildType::get(a(i),b(i));
+            sum += ChildType::get(a(i), b(i));
         }
         return sum;
     }
@@ -50,14 +49,14 @@ struct DotImpl<MatrixScalar<G>>
     using Scalar    = G;
     using ChildType = DotImpl<Scalar>;
     using BaseType  = typename ChildType::BaseType;
-    static BaseType get(const MatrixScalar<G>& a, const MatrixScalar<G>& b) { return ChildType::get(a.get(),b.get()); }
+    static BaseType get(const MatrixScalar<G>& a, const MatrixScalar<G>& b) { return ChildType::get(a.get(), b.get()); }
 };
 
 
 template <typename T>
 auto dot(const T& a, const T& b)
 {
-    return DotImpl<T>::get(a,b);
+    return DotImpl<T>::get(a, b);
 }
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

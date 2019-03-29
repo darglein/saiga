@@ -36,18 +36,21 @@ using ARes   = Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>;
 using BRes   = Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>;
 
 // Block structured diagonal matrices
-using UType = Eigen::DiagonalMatrix<MatrixScalar<ADiag>, -1>;
-using VType = Eigen::DiagonalMatrix<MatrixScalar<BDiag>, -1>;
+using UType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<ADiag>, -1>;
+using VType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<BDiag>, -1>;
 
 // Block structured vectors
-using DAType = Eigen::Matrix<MatrixScalar<ARes>, -1, 1>;
-using DBType = Eigen::Matrix<MatrixScalar<BRes>, -1, 1>;
+using DAType = Eigen::Matrix<Eigen::Recursive::MatrixScalar<ARes>, -1, 1>;
+using DBType = Eigen::Matrix<Eigen::Recursive::MatrixScalar<BRes>, -1, 1>;
 
 // Block structured sparse matrix
-using WType  = Eigen::SparseMatrix<MatrixScalar<WElem>, Eigen::RowMajor>;
-using WTType = Eigen::SparseMatrix<MatrixScalar<WTElem>, Eigen::RowMajor>;
-using SType  = Eigen::SparseMatrix<MatrixScalar<ADiag>, Eigen::RowMajor>;
+using WType  = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<WElem>, Eigen::RowMajor>;
+using WTType = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<WTElem>, Eigen::RowMajor>;
+using SType  = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<ADiag>, Eigen::RowMajor>;
 
 
+using BAMatrix = Eigen::Recursive::SymmetricMixedMatrix2<UType, VType, WType>;
+using BAVector = Eigen::Recursive::MixedVector2<DAType, DBType>;
 
+using BASolver = Eigen::Recursive::MixedSymmetricRecursiveSolver<BAMatrix, BAVector>;
 }  // namespace Saiga

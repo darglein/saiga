@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 /**
  * A symmetric 2x2 Matrix, where each element has a different type.
@@ -74,4 +73,4 @@ struct MixedVector2
     }
 };
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

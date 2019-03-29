@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 template <typename T>
 struct SquaredNormImpl
@@ -63,4 +62,4 @@ auto squaredNorm(const T& v)
     return SquaredNormImpl<T>::get(v);
 }
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

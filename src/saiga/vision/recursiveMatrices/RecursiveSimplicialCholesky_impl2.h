@@ -200,10 +200,10 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
         {
             // compute nonzero pattern of kth row of L, in topological order
 
-            rowCache[k]         = Saiga::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
-            StorageIndex top    = size;                                   // stack for pattern is empty
-            tags[k]             = k;                                      // mark node k as visited
-            m_nonZerosPerCol[k] = 0;                                      // count of nonzeros in column k of L
+            rowCache[k]         = Eigen::Recursive::AdditiveNeutral<Scalar>::get();  // Y(0:k) is now all zero
+            StorageIndex top    = size;                                              // stack for pattern is empty
+            tags[k]             = k;                                                 // mark node k as visited
+            m_nonZerosPerCol[k] = 0;  // count of nonzeros in column k of L
             for (typename CholMatrixType::InnerIterator it(ap, k); it; ++it)
             {
                 StorageIndex i = it.index();
@@ -259,7 +259,7 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
                 Lx[p2] = target;
                 ++m_nonZerosPerCol[i]; /* increment count of nonzeros in col i */
 
-                target = Saiga::AdditiveNeutral<Scalar>::get();
+                target = Eigen::Recursive::AdditiveNeutral<Scalar>::get();
             }
 #if 0
             // We have to use our ldlt here because eigen does reordering which breaks everything
@@ -283,7 +283,7 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
             m_diag[k].diagonal()             = eldlt.vectorD();
             m_diag_inv[k].diagonal().array() = m_diag[k].diagonal().array().inverse();
 #endif
-            diagElement = Saiga::AdditiveNeutral<Scalar>::get();
+            diagElement = Eigen::Recursive::AdditiveNeutral<Scalar>::get();
         }
     }
     m_info              = ok ? Success : NumericalIssue;

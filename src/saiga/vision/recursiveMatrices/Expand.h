@@ -6,11 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
-#include "Eigen/Sparse"
-namespace Saiga
+namespace Eigen::Recursive
 {
 struct MatrixDimensions
 {
@@ -41,9 +39,9 @@ struct EvaluateMatrixDimensions<float>
 };
 
 template <typename T>
-struct EvaluateMatrixDimensions<Eigen::MatrixBase<T>>
+struct EvaluateMatrixDimensions<MatrixBase<T>>
 {
-    using MatrixType     = Eigen::MatrixBase<T>;
+    using MatrixType     = MatrixBase<T>;
     using Scalar         = typename MatrixType::Scalar;
     using ChildExpansion = EvaluateMatrixDimensions<Scalar>;
 
@@ -54,10 +52,10 @@ struct EvaluateMatrixDimensions<Eigen::MatrixBase<T>>
 };
 
 template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct EvaluateMatrixDimensions<Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+struct EvaluateMatrixDimensions<Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
     using ChildExpansion = EvaluateMatrixDimensions<double>;
-    using MatrixType     = Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    using MatrixType     = Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
 
     static MatrixDimensions get(const MatrixType& m)
     {
@@ -66,10 +64,10 @@ struct EvaluateMatrixDimensions<Eigen::Matrix<double, _Rows, _Cols, _Options, _M
 };
 
 template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct EvaluateMatrixDimensions<Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+struct EvaluateMatrixDimensions<Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
     using ChildExpansion = EvaluateMatrixDimensions<float>;
-    using MatrixType     = Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    using MatrixType     = Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
 
     static MatrixDimensions get(const MatrixType& m)
     {
@@ -79,10 +77,10 @@ struct EvaluateMatrixDimensions<Eigen::Matrix<float, _Rows, _Cols, _Options, _Ma
 
 
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct EvaluateMatrixDimensions<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+struct EvaluateMatrixDimensions<Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
     using ChildExpansion = EvaluateMatrixDimensions<_Scalar>;
-    using MatrixType     = Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    using MatrixType     = Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
 
     static MatrixDimensions get(const MatrixType& m)
     {
@@ -99,7 +97,7 @@ struct EvaluateMatrixDimensions<MatrixScalar<G>>
 
 // ====================================================================================================
 template <typename T>
-using ExpansionType = Eigen::Matrix<T, -1, -1>;
+using ExpansionType = Matrix<T, -1, -1>;
 
 
 
@@ -134,25 +132,25 @@ struct ExpandImpl<float>
 };
 
 template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct ExpandImpl<Eigen::Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+struct ExpandImpl<Matrix<double, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
     using Scalar     = double;
     using BaseScalar = double;
-    using MatrixType = Eigen::Matrix<Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    using MatrixType = Matrix<Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
     static ExpansionType<Scalar> get(const MatrixType& m) { return ExpansionType<Scalar>(m); }
 };
 
 template <int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct ExpandImpl<Eigen::Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+struct ExpandImpl<Matrix<float, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
     using Scalar     = float;
     using BaseScalar = float;
-    using MatrixType = Eigen::Matrix<Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    using MatrixType = Matrix<Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
     static ExpansionType<Scalar> get(const MatrixType& m) { return ExpansionType<Scalar>(m); }
 };
 
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct ExpandImpl<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+struct ExpandImpl<Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
     using Scalar = _Scalar;
 
@@ -161,7 +159,7 @@ struct ExpandImpl<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxC
 
 
 
-    using MatrixType = Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    using MatrixType = Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
     static ExpansionType<BaseScalar> get(const MatrixType& A)
     {
         MatrixDimensions dim = EvaluateMatrixDimensions<MatrixType>::get(A);
@@ -176,7 +174,7 @@ struct ExpandImpl<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxC
             for (int j = 0; j < A.cols(); ++j)
             {
                 auto b = ChildExpansion::get(A(i, j));
-                SAIGA_ASSERT(b.rows() == n && b.cols() == m);  // all blocks must have the same dimension
+                eigen_assert(b.rows() == n && b.cols() == m);  // all blocks must have the same dimension
                 result.block(i * n, j * m, n, m) = b;
             }
         }
@@ -188,9 +186,9 @@ struct ExpandImpl<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxC
 
 
 template <typename T>
-struct ExpandImpl<Eigen::MatrixBase<T>>
+struct ExpandImpl<MatrixBase<T>>
 {
-    using MatrixType = Eigen::MatrixBase<T>;
+    using MatrixType = MatrixBase<T>;
 
     using Scalar = typename MatrixType::Scalar;
 
@@ -213,7 +211,7 @@ struct ExpandImpl<Eigen::MatrixBase<T>>
             for (int j = 0; j < A.cols(); ++j)
             {
                 auto b = ChildExpansion::get(A(i, j));
-                SAIGA_ASSERT(b.rows() == n && b.cols() == m);  // all blocks must have the same dimension
+                eigen_assert(b.rows() == n && b.cols() == m);  // all blocks must have the same dimension
                 result.block(i * n, j * m, n, m) = b;
             }
         }
@@ -226,22 +224,22 @@ struct ExpandImpl<Eigen::MatrixBase<T>>
 
 
 template <typename _Scalar, int _Options>
-struct ExpandImpl<Eigen::SparseMatrix<_Scalar, _Options>>
+struct ExpandImpl<SparseMatrix<_Scalar, _Options>>
 {
     using ChildExpansion = ExpandImpl<ExpansionType<_Scalar>>;
     using BaseScalar     = typename ChildExpansion::BaseScalar;
 
-    static auto get(const Eigen::SparseMatrix<_Scalar, _Options>& m) { return ChildExpansion::get(m.toDense()); }
+    static auto get(const SparseMatrix<_Scalar, _Options>& m) { return ChildExpansion::get(m.toDense()); }
 };
 
 
 template <typename _Scalar, int SizeAtCompileTime, int MaxSizeAtCompileTime>
-struct ExpandImpl<Eigen::DiagonalMatrix<_Scalar, SizeAtCompileTime, MaxSizeAtCompileTime>>
+struct ExpandImpl<DiagonalMatrix<_Scalar, SizeAtCompileTime, MaxSizeAtCompileTime>>
 {
     using ChildExpansion = ExpandImpl<ExpansionType<_Scalar>>;
     using BaseScalar     = typename ChildExpansion::BaseScalar;
 
-    static auto get(const Eigen::DiagonalMatrix<_Scalar, SizeAtCompileTime, MaxSizeAtCompileTime>& m)
+    static auto get(const DiagonalMatrix<_Scalar, SizeAtCompileTime, MaxSizeAtCompileTime>& m)
     {
         return ChildExpansion::get(m.toDenseMatrix());
     }
@@ -295,4 +293,4 @@ struct ScalarType<MatrixScalar<G>>
 };
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

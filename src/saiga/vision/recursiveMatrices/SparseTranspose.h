@@ -9,7 +9,7 @@
 #include "saiga/vision/recursiveMatrices/SparseHelper.h"
 #include "saiga/vision/recursiveMatrices/Transpose.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 /**
  * Sparse Matrix Transposition.
@@ -132,4 +132,4 @@ void transposeValueOnly(const Eigen::SparseMatrix<G, options>& other, Eigen::Spa
 
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

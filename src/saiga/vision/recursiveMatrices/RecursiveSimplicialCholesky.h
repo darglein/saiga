@@ -621,7 +621,7 @@ void RecursiveSimplicialCholeskyBase<Derived>::ordering(const MatrixType& a, Con
     }
 }
 
-}  // end namespace Eigen
+}  // namespace Eigen
 
 
 

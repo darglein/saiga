@@ -6,11 +6,10 @@
 
 #pragma once
 #include "saiga/core/time/Time"
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 #include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 /**
  * A spezialized solver for BundleAjustment-like problems.
@@ -121,7 +120,7 @@ class MixedSymmetricRecursiveSolver<
 
         if (explizitSchur)
         {
-            SAIGA_ASSERT(hasWT);
+            eigen_assert(hasWT);
             // (S is symmetric)
             S = (Y * WT).template triangularView<Eigen::Upper>();
             //            S            = (Y * WT);
@@ -208,4 +207,4 @@ class MixedSymmetricRecursiveSolver<
 };
 
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

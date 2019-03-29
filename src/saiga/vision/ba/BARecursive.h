@@ -41,7 +41,7 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     std::vector<int> pointCameraCounts, pointCameraCountsScan;
 
     // Main (recursive) Variables for the system Ax=b
-    SymmetricMixedMatrix2<UType, VType, WType> A;
+    BAMatrix A;
 
     //    SymmetricMixedMatrix22<
     //        Eigen::DiagonalMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera>>, -1>,
@@ -52,12 +52,14 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     //                            Eigen::RowMajor>>
     //        A;
 
-    //    MixedVector2<DAType, DBType> x, b;
-    MixedVector2<Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>>, -1, 1>,
-                 Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>>, -1, 1>>
-        delta_x, b;
+    BAVector x, b, delta_x;
+    //    MixedVector2<Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>>, -1, 1>,
+    //                 Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>>, -1, 1>>
+    //        delta_x, b;
 
-    MixedSymmetricRecursiveSolver<SymmetricMixedMatrix2<UType, VType, WType>, MixedVector2<DAType, DBType>> solver;
+    //    MixedSymmetricRecursiveSolver<SymmetricMixedMatrix2<UType, VType, WType>, MixedVector2<DAType, DBType>>
+    //    solver;
+    BASolver solver;
 
     // These are only reference into the global matrix A
     UType& U;

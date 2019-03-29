@@ -6,11 +6,10 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
 
-namespace Saiga
+namespace Eigen::Recursive
 {
 // ==================================================================================================
 /**
@@ -26,16 +25,16 @@ struct TransposeType
 
 
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
-struct TransposeType<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
+struct TransposeType<Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
     // Recursive Typedef with switch row/cols
-    using Type = Eigen::Matrix<typename TransposeType<_Scalar>::Type, _Cols, _Rows, _Options>;
+    using Type = Matrix<typename TransposeType<_Scalar>::Type, _Cols, _Rows, _Options>;
 };
 
 template <typename _Scalar, int _Options>
-struct TransposeType<Eigen::SparseMatrix<_Scalar, _Options>>
+struct TransposeType<SparseMatrix<_Scalar, _Options>>
 {
-    using Type = Eigen::SparseMatrix<typename TransposeType<_Scalar>::Type, _Options>;
+    using Type = SparseMatrix<typename TransposeType<_Scalar>::Type, _Options>;
 };
 
 template <typename G>
@@ -48,36 +47,36 @@ struct TransposeType<MatrixScalar<G>>
 // ==================================================================================================
 
 template <typename T>
-struct Transpose
+struct MSTranspose
 {
     using ReturnType = typename TransposeType<T>::Type;
     static ReturnType get(const T& m) { return (m.transpose().eval()); }
 };
 
 template <>
-struct Transpose<double>
+struct MSTranspose<double>
 {
     static double get(double d) { return d; }
 };
 
 template <>
-struct Transpose<float>
+struct MSTranspose<float>
 {
     static float get(float d) { return d; }
 };
 
 template <typename G>
-struct Transpose<MatrixScalar<G>>
+struct MSTranspose<MatrixScalar<G>>
 {
     using ReturnType = typename TransposeType<MatrixScalar<G>>::Type;
-    static ReturnType get(const MatrixScalar<G>& m) { return makeMatrixScalar(Transpose<G>::get(m.get())); }
+    static ReturnType get(const MatrixScalar<G>& m) { return makeMatrixScalar(MSTranspose<G>::get(m.get())); }
 };
 
 
 template <typename T>
 auto transpose(const T& v)
 {
-    return Transpose<T>::get(v);
+    return MSTranspose<T>::get(v);
 }
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

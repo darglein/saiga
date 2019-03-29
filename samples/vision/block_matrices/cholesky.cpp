@@ -11,20 +11,12 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
-//#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
-//#include "saiga/vision/recursiveMatrices/Cholesky.h"
-//#include "saiga/vision/recursiveMatrices/Expand.h"
-//#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
-//#include "saiga/vision/recursiveMatrices/Inverse.h"
-//#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
-//#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-//#include "saiga/vision/recursiveMatrices/Transpose.h"
 #include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 using Block  = Eigen::Matrix<double, 2, 2>;
 using Vector = Eigen::Matrix<double, 2, 1>;
 
-using namespace Saiga;
+using namespace Eigen::Recursive;
 
 
 
@@ -34,7 +26,7 @@ namespace Saiga
 template <typename MatrixType, typename VectorType>
 VectorType forwardSubstituteDiagOneOnlyDiag(const MatrixType& A, const VectorType& b)
 {
-    using Scalar = typename VectorType::Scalar;
+    //    using Scalar = typename VectorType::Scalar;
 
     // solve Ax=b
     // with A triangular LOWER block matrix where diagonal elements are 1.
@@ -373,7 +365,7 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
 
         // This is the diagonal element of the current row
         MatrixScalar diagElement = rowCache[k];
-        rowCache[k]              = Saiga::AdditiveNeutral<MatrixScalar>::get();
+        rowCache[k]              = AdditiveNeutral<MatrixScalar>::get();
 
 
 
@@ -432,7 +424,7 @@ VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
     SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
     using MatrixScalar = typename MatrixType::Scalar;
     using BlockType    = typename MatrixScalar::M;
-    using BlockVector  = typename VectorType::Scalar::M;
+    //    using BlockVector  = typename VectorType::Scalar::M;
     //    using VectorScalar = typename VectorType::Scalar;
 
     MatrixType L;
@@ -463,7 +455,7 @@ VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
         }
 
         MatrixScalar diagElement = rowCache[k];
-        rowCache[k]              = Saiga::AdditiveNeutral<MatrixScalar>::get();
+        rowCache[k]              = AdditiveNeutral<MatrixScalar>::get();
 
 
 
@@ -489,7 +481,7 @@ VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
         }
 
 #if 1
-        Saiga::DenseLDLT<BlockType> ldlt;
+        DenseLDLT<BlockType> ldlt;
         ldlt.compute(diagElement.get());
 
         L(k, k)            = ldlt.L.template triangularView<Eigen::Lower>();
@@ -593,7 +585,7 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
     SAIGA_ASSERT(A.rows() == A.cols() && A.rows() == b.rows());
     using MatrixScalar = typename MatrixType::Scalar;
     using BlockType    = typename MatrixScalar::M;
-    using BlockVector  = typename VectorType::Scalar::M;
+    //    using BlockVector  = typename VectorType::Scalar::M;
     //    using VectorScalar = typename VectorType::Scalar;
 
     MatrixType L;
@@ -645,7 +637,7 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
 
         //        Eigen::LDLT<BlockType> ldlt(diagBlock);
 
-        Saiga::DenseLDLT<BlockType> ldlt;
+        DenseLDLT<BlockType> ldlt;
         ldlt.compute(diagBlock);
 
 

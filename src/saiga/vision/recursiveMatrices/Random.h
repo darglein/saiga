@@ -6,15 +6,11 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
+#include "saiga/core/util/random.h"
 #include "saiga/vision/recursiveMatrices/MatrixScalar.h"
 
-#include "saiga/core/util/random.h"
-
-namespace Saiga
+namespace Eigen::Recursive
 {
-
-
 template <typename T>
 struct RecursiveRandom
 {
@@ -24,13 +20,13 @@ struct RecursiveRandom
 template <>
 struct RecursiveRandom<double>
 {
-    static double get() { return Random::sampleDouble(-1,1); }
+    static double get() { return Saiga::Random::sampleDouble(-1, 1); }
 };
 
 template <>
 struct RecursiveRandom<float>
 {
-    static float get() { return Random::sampleDouble(-1,1); }
+    static float get() { return Saiga::Random::sampleDouble(-1, 1); }
 };
 
 
@@ -45,9 +41,9 @@ struct RecursiveRandom<MatrixScalar<G>>
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
 struct RecursiveRandom<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>>
 {
-    using Scalar = _Scalar;
+    using Scalar         = _Scalar;
     using ChildExpansion = RecursiveRandom<_Scalar>;
-    using MatrixType = Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
+    using MatrixType     = Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>;
 
     static MatrixType get()
     {
@@ -57,11 +53,11 @@ struct RecursiveRandom<Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, 
         {
             for (int j = 0; j < A.cols(); ++j)
             {
-                A(i,j) = ChildExpansion::get();
+                A(i, j) = ChildExpansion::get();
             }
         }
         return A;
     }
 };
 
-}  // namespace Saiga
+}  // namespace Eigen::Recursive

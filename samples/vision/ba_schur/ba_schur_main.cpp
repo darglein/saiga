@@ -17,7 +17,7 @@
 
 #include "Eigen/Sparse"
 
-
+using namespace Eigen::Recursive;
 using namespace Saiga;
 using Block = ADiag;
 
@@ -293,15 +293,15 @@ void baBlockSchurTest()
 
         // Build the complete system matrix
         Eigen::MatrixXd M(m + n, m + n);
-        M.block(0, 0, n, n) = blockDiagonalToMatrix(U);
-        M.block(n, n, m, m) = blockDiagonalToMatrix(V);
-        M.block(0, n, n, m) = blockMatrixToMatrix(W.toDense());
-        M.block(n, 0, m, n) = blockMatrixToMatrix(W.toDense()).transpose();
+        M.block(0, 0, n, n) = expand(U);
+        M.block(n, n, m, m) = expand(V);
+        M.block(0, n, n, m) = expand(W.toDense());
+        M.block(n, 0, m, n) = expand(W.toDense()).transpose();
 
         // stack right hand side
         Eigen::VectorXd b(m + n);
-        b.segment(0, n) = blockVectorToVector(ea);
-        b.segment(n, m) = blockVectorToVector(eb);
+        b.segment(0, n) = expand(ea);
+        b.segment(n, m) = expand(eb);
 
         // compute solution
         Eigen::VectorXd x = M.ldlt().solve(b);

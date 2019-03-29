@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
-#include "saiga/vision/Eigen_Compile_Checker.h"
-#include "saiga/vision/VisionIncludes.h"
+//#include "saiga/core/util/assert.h"
+//#include "saiga/vision/Eigen_Compile_Checker.h"
+//#include "saiga/vision/VisionIncludes.h"
 
 // Low Level Functions
 #include "saiga/vision/recursiveMatrices/Cholesky.h"
