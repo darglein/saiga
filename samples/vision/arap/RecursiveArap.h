@@ -5,7 +5,7 @@
  */
 
 #pragma once
-#include "saiga/vision/EigenRecursive/All.h"
+#include "EigenRecursive/All.h"
 #include "saiga/vision/Optimizer.h"
 
 #include "ArapBase.h"

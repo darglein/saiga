@@ -197,6 +197,11 @@ endif()
 find_package(Sophus QUIET)
 PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
+
+#Sophus
+find_package(EigenRecursive QUIET)
+PackageHelperTarget(EigenRecursive EIGENRECURSIVE_FOUND)
+
 #g2o
 find_package(g2o QUIET)
 PackageHelperTarget(g2o::core G2O_FOUND)
@@ -409,7 +414,7 @@ if(SAIGA_EIGEN_AND_CUDA)
 endif()
 
 
-if(EIGEN3_FOUND AND SOPHUS_FOUND)
+if(EIGEN3_FOUND AND SOPHUS_FOUND AND EIGENRECURSIVE_FOUND)
     message(STATUS "Saiga vision enabled.")
     SET(SAIGA_VISION 1)
 endif()

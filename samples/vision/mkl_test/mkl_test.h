@@ -9,7 +9,7 @@
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
-#include "saiga/vision/EigenRecursive/All.h"
+#include "EigenRecursive/All.h"
 #include "saiga/vision/mkl/mkl_cg.h"
 #include "saiga/vision/mkl/mkl_helper.h"
 

@@ -11,7 +11,7 @@
 #include "saiga/core/time/Time"
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
-#include "saiga/vision/EigenRecursive/All.h"
+#include "EigenRecursive/All.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/Random.h"
 

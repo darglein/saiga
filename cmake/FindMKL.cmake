@@ -44,4 +44,4 @@ endif()
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(MKL DEFAULT_MSG MKL_INCLUDE_DIR MKL_LIBRARIES)
 
-mark_as_advanced(MKL_LIBRARIES)
+mark_as_advanced(MKL_LIBRARIES MKL_INCLUDE_DIR)
