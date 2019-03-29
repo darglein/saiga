@@ -244,7 +244,6 @@ ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& im
 
     if (allocator.defragger)
     {
-        //        allocator.defragger->invalidate(location->memory);
         allocator.defragger->start();
     }
     return location;

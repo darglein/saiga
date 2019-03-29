@@ -45,8 +45,7 @@ bool Defragger<T>::perform_free_operations()
             current++;
         }
     }
-    auto should_run = !freeOps.empty();
-    return should_run;
+    return !freeOps.empty();
 }
 
 template <typename T>
@@ -96,6 +95,19 @@ void Defragger<T>::exit()
     {
         base->device.destroyQueryPool(queryPool);
         queryPool = nullptr;
+    }
+    for (CopyOp& copyOp : copyOps)
+    {
+        base->device.waitForFences(copyOp.fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+        base->device.destroy(copyOp.fence);
+        base->device.destroy(copyOp.signal_semaphore);
+        base->mainQueue.commandPool.freeCommandBuffer(copyOp.cmd);
+    }
+
+    for (DefragOp& defragOp : defragOps)
+    {
+        base->mainQueue.commandPool.freeCommandBuffer(defragOp.cmd);
     }
 }
 
@@ -452,7 +464,7 @@ bool Defragger<T>::create_copy_commands()
 
     possibleOps.clear();
 
-    return performed;
+    return !defragOps.empty();
 }
 
 

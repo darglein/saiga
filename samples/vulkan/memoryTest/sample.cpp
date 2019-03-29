@@ -266,8 +266,8 @@ void VulkanExample::keyPressed(SDL_Keysym key)
                 // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
                 tex_allocations.push_back(allocate(image_type, index));
             }
-            renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
-            renderer.base().memory.start_defrag(buffer_type);
+            renderer.base().memory.enable_defragmentation(image_type, enable_defragger);
+            renderer.base().memory.start_defrag(image_type);
         }
         break;
         case SDL_SCANCODE_C:

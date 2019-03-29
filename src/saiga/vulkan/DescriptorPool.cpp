@@ -30,7 +30,6 @@ vk::DescriptorSet DescriptorPool::allocateDescriptorSet(vk::DescriptorSetLayout 
     std::scoped_lock lock(pool_mutex);
     auto set = device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(descriptorPool, 1, &layout))[0];
     SAIGA_ASSERT(set);
-
     return set;
 }
 
