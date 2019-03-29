@@ -54,7 +54,6 @@ void transpose(const Eigen::SparseMatrix<G, options>& other, Eigen::SparseMatrix
     // alloc
     //        dest.m_data.resize(count);
     dest.reserve(count);
-    cout << "test" << endl;
     // pass 2
     for (Index j = 0; j < other.outerSize(); ++j)
     {

@@ -10,8 +10,8 @@
 
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
+#include "saiga/vision/EigenRecursive/All.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/recursiveMatrices/All.h"
 
 using Block  = Eigen::Matrix<double, 2, 2>;
 using Vector = Eigen::Matrix<double, 2, 1>;

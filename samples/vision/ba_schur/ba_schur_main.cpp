@@ -6,10 +6,10 @@
 
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
+#include "saiga/vision/EigenRecursive/All.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/ba/BlockRecursiveBATemplates.h"
-#include "saiga/vision/recursiveMatrices/All.h"
 
 
 using namespace Eigen::Recursive;

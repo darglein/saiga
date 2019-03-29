@@ -110,7 +110,6 @@ void RecursiveSimplicialCholeskyBase<Derived>::factorize_preordered(const CholMa
 {
     static_assert(DoLDLT == true, "only ldlt supported");
     using std::sqrt;
-    using namespace Saiga;
 
     eigen_assert(m_analysisIsOk && "You must first call analyzePattern()");
     eigen_assert(ap.rows() == ap.cols());

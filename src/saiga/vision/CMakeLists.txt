@@ -7,7 +7,7 @@ add_subdirectory(ba)
 add_subdirectory(icp)
 add_subdirectory(kernels)
 add_subdirectory(pgo)
-add_subdirectory(recursiveMatrices)
+add_subdirectory(EigenRecursive)
 add_subdirectory(scene)
 
 if(MKL_FOUND)

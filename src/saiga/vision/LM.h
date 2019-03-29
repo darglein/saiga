@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/All.h"
+#include "saiga/vision/EigenRecursive/All.h"
 
 namespace Saiga
 {

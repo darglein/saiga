@@ -9,6 +9,8 @@
 #include "../Core.h"
 #include "MixedSolver.h"
 
+#include <memory>
+#include <vector>
 #if __has_include("cholmod.h")
 #    define SOLVER_USE_CHOLMOD
 #    include "Eigen/CholmodSupport"
