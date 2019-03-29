@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
-#include "saiga/vision/recursiveMatrices/Expand.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-#include "saiga/vision/recursiveMatrices/Transpose.h"
+#include "Expand.h"
+#include "NeutralElements.h"
+#include "Transpose.h"
 
 namespace Eigen::Recursive
 {

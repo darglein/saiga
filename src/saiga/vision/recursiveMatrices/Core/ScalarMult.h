@@ -6,57 +6,59 @@
 
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+#include "MatrixScalar.h"
 
 namespace Eigen::Recursive
 {
 template <typename T>
-struct DotImpl
+struct ScalarMultImpl
 {
     using Scalar    = typename T::Scalar;
-    using ChildType = DotImpl<Scalar>;
+    using ChildType = ScalarMultImpl<Scalar>;
     using BaseType  = typename ChildType::BaseType;
 
     // This is the actual recursive spezialization
-    static BaseType get(const T& a, const T& b)
+    static T get(const T& a, BaseType b)
     {
-        BaseType sum = BaseType(0);
+        T result;
+        result.resize(a.rows());
+
         for (int i = 0; i < a.rows(); ++i)
         {
-            sum += ChildType::get(a(i), b(i));
+            result(i) = ChildType::get(a(i), b);
         }
-        return sum;
+        return result;
     }
 };
 
 template <>
-struct DotImpl<double>
+struct ScalarMultImpl<double>
 {
     using BaseType = double;
     static double get(double a, double b) { return a * b; }
 };
 
 template <>
-struct DotImpl<float>
+struct ScalarMultImpl<float>
 {
     using BaseType = float;
     static float get(float a, float b) { return a * b; }
 };
 
 template <typename G>
-struct DotImpl<MatrixScalar<G>>
+struct ScalarMultImpl<MatrixScalar<G>>
 {
     using Scalar    = G;
-    using ChildType = DotImpl<Scalar>;
+    using ChildType = ScalarMultImpl<Scalar>;
     using BaseType  = typename ChildType::BaseType;
-    static BaseType get(const MatrixScalar<G>& a, const MatrixScalar<G>& b) { return ChildType::get(a.get(), b.get()); }
+    static MatrixScalar<G> get(const MatrixScalar<G>& a, const BaseType& b) { return {ChildType::get(a.get(), b)}; }
 };
 
 
-template <typename T>
-auto dot(const T& a, const T& b)
+template <typename T, typename G>
+auto scalarMult(const T& a, const G& b)
 {
-    return DotImpl<T>::get(a, b);
+    return ScalarMultImpl<T>::get(a, b);
 }
 
 }  // namespace Eigen::Recursive

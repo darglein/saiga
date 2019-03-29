@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
-#include "saiga/vision/recursiveMatrices/Transpose.h"
+#include "SparseHelper.h"
+#include "Transpose.h"
 
 namespace Eigen::Recursive
 {

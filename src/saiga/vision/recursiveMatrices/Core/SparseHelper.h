@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "Eigen/Sparse"
 #include "MatrixScalar.h"
 
 namespace Eigen::Recursive

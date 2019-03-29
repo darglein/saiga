@@ -7,7 +7,7 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
 #include "Eigen/Sparse"
 #include "cholesky.h"

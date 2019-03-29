@@ -16,13 +16,8 @@
  */
 
 #pragma once
-//#ifndef LDTL_TEST124
-//#    define LDTL_TEST124
 
-#include "saiga/core/time/Time"
-#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
-
-#include "SparseTriangular2.h"
+#include "../Core.h"
 
 #include <iostream>
 
@@ -426,7 +421,7 @@ class RecursiveSimplicialCholesky3Base2 : public SparseSolverBase<Derived>
 
         if (m_P.size() == 0 && (UpLo & Upper) == Upper)
         {
-            SAIGA_EXIT_ERROR("not implemented!");
+            eigen_assert(0);
             // If there is no ordering, try to directly use the input matrix without any copy
             internal::simplicial_cholesky_grab_input<CholMatrixType, MatrixType>::run(a, pmat, tmp);
         }
@@ -724,7 +719,7 @@ class SimplicialCholesky3 : public RecursiveSimplicialCholesky3Base2<SimplicialC
                      "symbolic()/numeric()");
         eigen_assert(Base::m_matrix.rows() == b.rows());
 
-        SAIGA_ASSERT(0);
+        eigen_assert(0);
 #if 0
         if (Base::m_info != Success) return;
 
@@ -818,7 +813,7 @@ void RecursiveSimplicialCholesky3Base2<Derived>::ordering(const MatrixType& a, C
     }
     else
     {
-        SAIGA_EXIT_ERROR("not implemented");
+        eigen_assert(0);
         m_Pinv.resize(0);
         m_P.resize(0);
         if (int(UpLo) == int(Lower) || MatrixType::IsRowMajor)

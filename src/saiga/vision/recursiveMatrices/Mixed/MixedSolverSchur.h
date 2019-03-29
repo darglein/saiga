@@ -5,9 +5,10 @@
  */
 
 #pragma once
-#include "saiga/core/time/Time"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-#include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
+
+#include "../Cholesky.h"
+#include "../Core.h"
+#include "MixedSolver.h"
 
 namespace Eigen::Recursive
 {

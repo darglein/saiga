@@ -8,13 +8,12 @@
 #define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
 
 
+#include "saiga/core/time/Time"
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/Random.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-#include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky2.h"
-#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
 #include "Eigen/CholmodSupport"
 #include "Eigen/SparseCholesky"

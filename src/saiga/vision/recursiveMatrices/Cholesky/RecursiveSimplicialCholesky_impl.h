@@ -44,9 +44,8 @@ LDL License:
 //#define LDTL_TEST_IMPL
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-
+#include "../Core.h"
+#include "Cholesky.h"
 #include "Eigen/src/Core/util/NonMPL2.h"
 #include "RecursiveSimplicialCholesky.h"
 

@@ -6,7 +6,7 @@
 
 #pragma once
 #include "saiga/vision/Optimizer.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
 #include "ArapBase.h"
 #include "ArapProblem.h"

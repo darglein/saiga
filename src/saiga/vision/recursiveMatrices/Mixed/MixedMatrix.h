@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+#include "../Core.h"
 
 namespace Eigen::Recursive
 {

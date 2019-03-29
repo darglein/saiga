@@ -11,7 +11,7 @@
 #include "saiga/core/util/random.h"
 #include "saiga/vision/mkl/mkl_cg.h"
 #include "saiga/vision/mkl/mkl_helper.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
 #include "mkl.h"
 

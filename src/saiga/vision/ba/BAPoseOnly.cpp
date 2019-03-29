@@ -7,8 +7,7 @@
 #include "saiga/vision/ba/BlockRecursiveBATemplates.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
-#include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"

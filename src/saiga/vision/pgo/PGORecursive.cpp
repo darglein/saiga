@@ -7,7 +7,6 @@
 #include "saiga/vision/LM.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
-#include "saiga/vision/recursiveMatrices/SparseSelfAdjoint.h"
 
 #include <fstream>
 #include <numeric>

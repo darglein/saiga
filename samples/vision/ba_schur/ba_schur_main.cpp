@@ -9,13 +9,8 @@
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/ba/BlockRecursiveBATemplates.h"
-#include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
-#include "saiga/vision/recursiveMatrices/SparseInnerProduct.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
-#include "Eigen/Sparse"
 
 using namespace Eigen::Recursive;
 using namespace Saiga;

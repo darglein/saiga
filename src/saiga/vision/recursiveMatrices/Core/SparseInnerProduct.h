@@ -7,8 +7,8 @@
 #pragma once
 
 
-#include "saiga/vision/recursiveMatrices/Expand.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+#include "Expand.h"
+#include "MatrixScalar.h"
 
 
 

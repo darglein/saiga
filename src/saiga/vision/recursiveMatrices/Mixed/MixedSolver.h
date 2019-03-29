@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "../Core.h"
+#include "MixedMatrix.h"
 namespace Eigen::Recursive
 {
 struct LinearSolverOptions

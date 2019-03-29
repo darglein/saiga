@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
+#include "SparseHelper.h"
 
 
 

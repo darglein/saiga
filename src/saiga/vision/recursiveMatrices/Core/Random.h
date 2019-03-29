@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/core/util/random.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+#include "MatrixScalar.h"
+
 
 namespace Eigen::Recursive
 {
@@ -20,13 +20,13 @@ struct RecursiveRandom
 template <>
 struct RecursiveRandom<double>
 {
-    static double get() { return Saiga::Random::sampleDouble(-1, 1); }
+    static double get() { return ((double)rand() / RAND_MAX) * 2.0 - 1.0; }
 };
 
 template <>
 struct RecursiveRandom<float>
 {
-    static float get() { return Saiga::Random::sampleDouble(-1, 1); }
+    static float get() { return ((float)rand() / RAND_MAX) * 2.0f - 1.0f; }
 };
 
 

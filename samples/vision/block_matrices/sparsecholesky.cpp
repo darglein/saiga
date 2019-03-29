@@ -6,22 +6,12 @@
 
 
 
-#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
-
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/ba/BlockRecursiveBATemplates.h"
-#include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
-#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs_Sparse.h"
-#include "saiga/vision/recursiveMatrices/Inverse.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
-#include "saiga/vision/recursiveMatrices/Transpose.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
-#include "cholesky.h"
 
 using Block  = Eigen::Matrix<double, 2, 2>;
 using Vector = Eigen::Matrix<double, 2, 1>;

@@ -5,7 +5,7 @@
  */
 
 #include "saiga/core/util/assert.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
 #include "mkl.h"
 

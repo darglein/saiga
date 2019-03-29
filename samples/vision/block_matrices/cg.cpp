@@ -10,7 +10,7 @@
 
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
+#include "saiga/vision/recursiveMatrices/All.h"
 
 #include "cholesky.h"
 

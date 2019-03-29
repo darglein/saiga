@@ -5,9 +5,8 @@
  */
 
 #pragma once
-
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-
+#include "../Core.h"
+#include "Cholesky.h"
 
 namespace Eigen::Recursive
 {

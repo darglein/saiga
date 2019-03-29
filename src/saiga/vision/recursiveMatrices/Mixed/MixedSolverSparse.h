@@ -5,9 +5,9 @@
  */
 
 #pragma once
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
-#include "saiga/vision/recursiveMatrices/RecursiveSimplicialCholesky.h"
-
+#include "../Cholesky.h"
+#include "../Core.h"
+#include "MixedSolver.h"
 
 #if __has_include("cholmod.h")
 #    define SOLVER_USE_CHOLMOD

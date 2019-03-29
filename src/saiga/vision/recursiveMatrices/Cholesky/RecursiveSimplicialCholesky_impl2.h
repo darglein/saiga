@@ -44,18 +44,18 @@ LDL License:
 //#define LDTL_TEST_IMPL
 #pragma once
 
-#include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-
+#include "../Core.h"
+#include "Cholesky.h"
 #include "Eigen/src/Core/util/NonMPL2.h"
 #include "RecursiveSimplicialCholesky2.h"
 
 
 template <typename T, typename D>
-void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const D& invDiagUp);
+inline void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const D& invDiagUp);
 
 template <>
-void ldltRightUpdatePropagateTest(double& target, double& prop_tmp, const double& LDiagUp, const double& invDiagUp)
+inline void ldltRightUpdatePropagateTest(double& target, double& prop_tmp, const double& LDiagUp,
+                                         const double& invDiagUp)
 {
     auto yi  = target;
     prop_tmp = yi;
@@ -64,7 +64,7 @@ void ldltRightUpdatePropagateTest(double& target, double& prop_tmp, const double
 
 
 template <typename T, typename D>
-void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const D& invDiagUp)
+inline void ldltRightUpdatePropagateTest(T& target, T& prop_tmp, const T& LDiagUp, const D& invDiagUp)
 {
     const int inner_block_size = T::M::RowsAtCompileTime;
     if (T::M::Options & Eigen::RowMajorBit)
@@ -166,7 +166,6 @@ void RecursiveSimplicialCholesky3Base2<Derived>::factorize_preordered(const Chol
 {
     static_assert(DoLDLT == true, "only ldlt supported");
     using std::sqrt;
-    using namespace Saiga;
 
     eigen_assert(m_analysisIsOk && "You must first call analyzePattern()");
     eigen_assert(ap.rows() == ap.cols());
