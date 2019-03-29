@@ -70,6 +70,7 @@ class SAIGA_VULKAN_API Buffer
      */
     void stagedUpload(VulkanBase& base, size_t size, const void* data);  // TODO: Remove base parameter
 
+    void stagedDownload(void* data);
     vk::DescriptorBufferInfo createInfo();
 
     void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE,

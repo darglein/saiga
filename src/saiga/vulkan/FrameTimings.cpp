@@ -52,7 +52,8 @@ void FrameTimings<Finder>::update()
                 *pauseIter           = lastPause;
             }
 
-            bestSection       = finder.findSuitablePause(recentFramePauses, insertionPoint);
+            bestSection = finder.findSuitablePause(recentFramePauses, insertionPoint);
+
             lastFrameSections = timing.sections;
             insertionPoint++;
             if (insertionPoint == recentFramePauses.end())
@@ -167,9 +168,8 @@ void FrameTimings<Finder>::leaveSection(const std::string& name, vk::CommandBuff
     {
         auto best = bestSection.value();
 
-        if (best.pauseIndex == index && best.length > 0)
+        if (best.pauseIndex == index)
         {
-            //            LOG(INFO) << "Defrag now " << best.length;
             memory->performTimedDefrag(static_cast<int64_t>(best.length));
         }
     }

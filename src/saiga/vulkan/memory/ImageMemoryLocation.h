@@ -166,7 +166,6 @@ struct SAIGA_VULKAN_API ImageData
 
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
     {
-        VLOG(1) << "I " << image << " o:" << vk::to_string(layout) << " n: " << vk::to_string(newLayout);
         auto& imageLayout                       = layout;
         vk::ImageMemoryBarrier barrier          = {};
         barrier.oldLayout                       = imageLayout;

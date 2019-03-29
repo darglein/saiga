@@ -313,7 +313,7 @@ void BaseChunkAllocator<T>::showDetailStats(bool expand)
                 auto& color = (*allocIter)->is_static() ? alloc_color_static : alloc_color_dynamic;
                 bar.renderArea(static_cast<float>((*allocIter)->offset) / m_chunkSize,
                                static_cast<float>((*allocIter)->offset + (*allocIter)->size) / m_chunkSize, color,
-                               false);
+                               true);
                 usedSpace += (*allocIter)->size;
             }
             numAllocs += j;

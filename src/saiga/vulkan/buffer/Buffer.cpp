@@ -46,6 +46,21 @@ void Buffer::stagedUpload(VulkanBase& base, size_t size, const void* data)
     base.mainQueue.submitAndWait(cmd);
 }
 
+void Buffer::stagedDownload(void* data)
+{
+    vk::CommandBuffer cmd = base->mainQueue.commandPool.createAndBeginOneTimeBuffer();
+
+    StagingBuffer staging;
+    staging.init(*base, size());
+
+    copy_buffer(cmd, staging.m_memoryLocation, m_memoryLocation);
+
+    cmd.end();
+    base->mainQueue.submitAndWait(cmd);
+
+    staging.download(data);
+}
+
 vk::DescriptorBufferInfo Buffer::createInfo()
 {
     return {m_memoryLocation->data, m_memoryLocation->offset, m_memoryLocation->size};

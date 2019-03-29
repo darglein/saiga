@@ -82,21 +82,18 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd)
 
 CommandPool Queue::createCommandPool(vk::CommandPoolCreateFlags commandPoolCreateFlags)
 {
-    commandPoolCreationMutex.lock();
-
+    std::scoped_lock pool_create_lock(commandPoolCreationMutex);
     CommandPool newCommandPool;
     newCommandPool.create(device, queueFamilyIndex, commandPoolCreateFlags);
     LOG(INFO) << "Creating command pool: " << static_cast<vk::CommandPool>(newCommandPool);
     commandPools.push_back(newCommandPool);
-    commandPoolCreationMutex.unlock();
     return newCommandPool;
 }
 
 void Queue::submit(vk::SubmitInfo submitInfo, vk::Fence fence)
 {
-    submitMutex.lock();
+    std::scoped_lock submit_lock(submitMutex);
     queue.submit(submitInfo, fence);
-    submitMutex.unlock();
 }
 
 

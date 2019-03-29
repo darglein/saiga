@@ -37,7 +37,7 @@ struct DefraggerConfiguration
 {
     float weight_chunk      = 1.0f;
     float weight_offset     = 0.5f;
-    float weight_small_free = 0.5f;
+    float weight_small_free = 0.05f;
     uint32_t max_targets    = 3;
 };
 
@@ -104,6 +104,7 @@ class Defragger
     struct DefragOp
     {
         DefragOp(T* _target, T* src, vk::CommandBuffer _cmd) : target(_target), source(src), cmd(_cmd) {}
+
         T *target, *source;
         vk::CommandBuffer cmd;
 

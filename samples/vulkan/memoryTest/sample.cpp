@@ -183,7 +183,7 @@ void VulkanExample::renderGUI()
 
 void VulkanExample::keyPressed(SDL_Keysym key)
 {
-    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 1UL), size_dist(0UL, 3UL), image_dist(0, 4);
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 8UL), size_dist(0UL, 3UL), image_dist(0, 4);
 
 
 
@@ -301,6 +301,31 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
             renderer.base().memory.start_defrag(buffer_type);
             break;
+        case SDL_SCANCODE_V:
+        {
+            for (auto& numAlloc : num_allocations)
+            {
+                if (numAlloc.first)
+                {
+                    auto& buffer      = *numAlloc.first.get();
+                    auto num_elements = buffer.size() / sizeof(uint32_t);
+                    std::vector<uint32_t> copy(num_elements);
+
+                    buffer.stagedDownload(copy.data());
+
+
+                    if (copy[0] != numAlloc.second)
+                    {
+                        LOG(ERROR) << "Wrong value " << copy[0] << " != " << numAlloc.second;
+                    }
+                    else
+                    {
+                        LOG(INFO) << "Verified " << copy[0];
+                    }
+                }
+            }
+        }
+        break;
         case SDL_SCANCODE_ESCAPE:
             cleanup();
             parentWindow.close();
@@ -342,8 +367,9 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::alloc
 
     auto start = init_dist(mersenne_twister);
 
+    LOG(INFO) << "Creating buffer of size " << size << " beginning at " << start;
     std::vector<uint32_t> mem;
-    mem.resize(size / sizeof(uint32_t) + 1);
+    mem.resize(size / sizeof(uint32_t));
     std::iota(mem.begin(), mem.end(), start);
     std::shared_ptr<Saiga::Vulkan::Buffer> buffer = std::make_shared<Saiga::Vulkan::Buffer>();
     buffer->createBuffer(renderer.base(), size, type.usageFlags, type.memoryFlags);

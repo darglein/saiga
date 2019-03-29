@@ -26,7 +26,10 @@ bool Defragger<T>::perform_free_operations()
             {
                 LOG(INFO) << "Free op " << *current;
                 allocator->deallocate(current->target);
-                current->source->mark_dynamic();
+                if (current->source)
+                {
+                    current->source->mark_dynamic();
+                }
             }
             else
             {
@@ -158,7 +161,7 @@ template <typename T>
 void Defragger<T>::run()
 {
     bool performed = true;
-    while (running && performed)
+    while (running)
     {
         performed = false;
         performed |= find_defrag_ops();
@@ -432,10 +435,10 @@ bool Defragger<T>::create_copy_commands()
             //            LOG(INFO) << "/*Cpy*/ op" << op;
             op.source->mark_static();
             auto cmd = base->mainQueue.commandPool.createAndBeginOneTimeBuffer();
-            //            cmd.resetQueryPool(queryPool, 0, 2);
-            cmd.writeTimestamp(vk::PipelineStageFlagBits::eAllCommands, queryPool, 0);
+            cmd.resetQueryPool(queryPool, 0, 2);
+            cmd.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, queryPool, 0);
             create_copy_command(op, reserve_space, cmd);
-            cmd.writeTimestamp(vk::PipelineStageFlagBits::eAllCommands, queryPool, 1);
+            cmd.writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, queryPool, 1);
             cmd.end();
 
             auto [iterator, inserted] = currentDefragSources.insert(op.source);
@@ -465,10 +468,6 @@ int64_t Defragger<T>::perform_defrag(int64_t allowed_time)
     {
         std::scoped_lock copy_lock(copy_mutex);
 
-        if (!copyOps.empty())
-        {
-            break;
-        }
         auto sizeInKB = op->source->size / 1024;
         if (!first && (remaining_time - (sizeInKB / kbPerNanoSecond)) < 0)
         {
@@ -495,8 +494,10 @@ void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op)
     //    std::scoped_lock copy_lock(copy_mutex);
     //    LOG(INFO) << "Run op " << op;
 
-    vk::SubmitInfo submit{};
+    vk::SubmitInfo submit;
 
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers    = &op.cmd;
     vk::Semaphore wait;
     auto waitStage = vk::PipelineStageFlagBits::eAllCommands | vk::PipelineStageFlagBits::eAllGraphics;
     if (copyOps.empty())
@@ -506,20 +507,19 @@ void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op)
     }
     else
     {
-        //        submit.waitSemaphoreCount = 1;
-        //        submit.pWaitSemaphores    = &copyOps.back().signal_semaphore;
-        //        submit.pWaitDstStageMask  = &waitStage;
-        wait = copyOps.back().signal_semaphore;
+        submit.waitSemaphoreCount = 1;
+        submit.pWaitSemaphores    = &copyOps.back().signal_semaphore;
+        submit.pWaitDstStageMask  = &waitStage;
+        wait                      = copyOps.back().signal_semaphore;
     }
     auto fence     = device.createFence(vk::FenceCreateInfo{});
     auto semaphore = device.createSemaphore(vk::SemaphoreCreateInfo{});
 
-    //    submit.signalSemaphoreCount = 1;
-    //    submit.pSignalSemaphores    = &semaphore;
+    submit.signalSemaphoreCount = 1;
+    submit.pSignalSemaphores    = &semaphore;
 
     base->mainQueue.submit(submit, fence);
 
-    //    base->device.waitForFences(fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
 
     copyOps.push_back(CopyOp{op.target, op.source, op.cmd, fence, wait, semaphore});
 
@@ -543,21 +543,8 @@ bool Defragger<T>::complete_copy_commands()
             auto result = device.waitForFences(copy.fence, VK_TRUE, 1000);
             if (result != vk::Result::eSuccess)
             {
-                LOG(INFO) << "WAIT " << vk::to_string(result);
-
-
                 break;
             }
-
-
-            device.destroy(copy.fence);
-
-            device.destroy(copy.wait_semaphore);
-            if (copyOps.size() == 1)
-            {
-                device.destroy(copy.signal_semaphore);
-            }
-            base->mainQueue.commandPool.freeCommandBuffer(copy.cmd);
 
             std::array<uint64_t, 2> timestamps;
             base->device.getQueryPoolResults(queryPool, 0, 2, sizeof(uint64_t) * timestamps.size(), timestamps.data(),
@@ -581,6 +568,20 @@ bool Defragger<T>::complete_copy_commands()
 
             LOG(INFO) << "Free " << freeOps.back();
             copy.source->modified();
+
+
+            device.destroy(copy.fence);
+
+            if (copy.wait_semaphore)
+            {
+                device.destroy(copy.wait_semaphore);
+            }
+            if (copy.signal_semaphore && copyOps.size() == 1)
+            {
+                device.destroy(copy.signal_semaphore);
+            }
+            base->mainQueue.commandPool.freeCommandBuffer(copy.cmd);
+
             copyOps.pop_front();
         }
     }
@@ -592,9 +593,59 @@ void Defragger<T>::invalidate(T* memoryLocation)
 {
     SAIGA_ASSERT(!running, "invalidate() may only be called when defragger is stopped");
 
-    //    for (auto defragIter = defrag_operations.begin(); defragIter != defrag_operations.end(); ++defragIter)
-    //    {
-    //    }
+    auto defrag               = currentDefragSources.find(memoryLocation);
+    auto isCurrentlyDefragged = defrag != currentDefragSources.end();
+
+    if (isCurrentlyDefragged)
+    {
+        LOG(INFO) << "in use " << PointerOutput<T>(memoryLocation);
+        std::scoped_lock lock(defrag_mutex, copy_mutex);
+
+        auto defragOp = std::find_if(defragOps.begin(), defragOps.end(),
+                                     [&](const auto& entry) { return entry.source == memoryLocation; });
+
+        if (defragOp != defragOps.end())
+        {
+            base->mainQueue.commandPool.freeCommandBuffer(defragOp->cmd);
+            allocator->deallocate(defragOp->target);
+            defragOps.erase(defragOp);
+        }
+
+        auto copyOp = std::find_if(copyOps.begin(), copyOps.end(),
+                                   [&](const auto& entry) { return entry.source == memoryLocation; });
+
+        if (copyOp != copyOps.end())
+        {
+            base->device.waitForFences(copyOp->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+            base->device.destroy(copyOp->fence);
+            if (copyOp->wait_semaphore)
+            {
+                base->device.destroy(copyOp->wait_semaphore);
+            }
+            if (copyOp != copyOps.begin())
+            {
+                std::prev(copyOp)->signal_semaphore = nullptr;
+            }
+
+            base->mainQueue.commandPool.freeCommandBuffer(copyOp->cmd);
+            allocator->deallocate(copyOp->target);
+            copyOps.erase(copyOp);
+        }
+
+        auto freeOp = std::find_if(freeOps.begin(), freeOps.end(),
+                                   [&](const auto& entry) { return entry.source == memoryLocation; });
+        if (freeOp != freeOps.end())
+        {
+            freeOp->source = nullptr;
+
+            allocator->deallocate(freeOp->target);
+
+            freeOps.erase(freeOp);
+        }
+
+        currentDefragSources.erase(defrag);
+    }
 }
 
 
@@ -609,7 +660,7 @@ void BufferDefragger::create_copy_command(BufferDefragger::PossibleOp& op, Buffe
 {
     //    BufferMemoryLocation* reserve_space = allocator->reserve_space(op.targetMemory, op.target,
     //    op.source->size);
-
+    VLOG(1) << "Create Buffer Copy" << PointerOutput<BufferMemoryLocation>(reserve_space) << " " << op << " " << cmd;
     copy_buffer(cmd, reserve_space, op.source);
 }
 
@@ -624,7 +675,6 @@ void ImageDefragger::create_copy_command(ImageDefragger::PossibleOp& op, ImageMe
     reserve_space->data.create_sampler(device);
 
     auto set = img_copy_shader->copy_image(cmd, reserve_space, op.source);
-
     usedSets.insert(std::make_pair(cmd, set.value()));
 }
 

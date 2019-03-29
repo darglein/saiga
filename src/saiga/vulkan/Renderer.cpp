@@ -56,7 +56,7 @@ void VulkanRenderer::init()
 {
     SAIGA_ASSERT(state == State::INITIALIZED);
     //    createSwapChain();
-    swapChain.create(&surfaceWidth, &SurfaceHeight, false);
+    swapChain.create(&surfaceWidth, &SurfaceHeight, true);
 
     syncObjects.clear();
     syncObjects.resize(swapChain.imageCount);
