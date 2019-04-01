@@ -199,7 +199,7 @@ PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
 
 #Sophus
-find_package(EigenRecursive REQUIRED)
+find_package(EigenRecursive QUIET)
 PackageHelperTarget(EigenRecursive EIGENRECURSIVE_FOUND)
 
 #g2o
