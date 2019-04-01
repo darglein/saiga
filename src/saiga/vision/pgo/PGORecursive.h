@@ -8,16 +8,30 @@
 #pragma once
 
 #include "saiga/vision/pgo/PGOBase.h"
-#include "saiga/vision/pgo/RecursivePGOTemplates.h"
+
+#include "EigenRecursive/All.h"
 
 namespace Saiga
 {
 class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
 {
    public:
+    // ============== Recusrive Matrix Types ==============
+
+    static constexpr int pgoBlockSizeCamera = 6;
+    using BlockPGOScalar                    = double;
+
+    using PGOBlock   = Eigen::Matrix<BlockPGOScalar, pgoBlockSizeCamera, pgoBlockSizeCamera>;
+    using PGOVector  = Eigen::Matrix<BlockPGOScalar, pgoBlockSizeCamera, 1>;
+    using PSType     = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<PGOBlock>, Eigen::RowMajor>;
+    using PSDiagType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<PGOBlock>, -1>;
+    using PBType     = Eigen::Matrix<Eigen::Recursive::MatrixScalar<PGOVector>, -1, 1>;
+
+    using PGOSolver = Eigen::Recursive::MixedSymmetricRecursiveSolver<PSType, PBType>;
+
+   public:
     PGORec() : PGOBase("recursive PGO") {}
     virtual ~PGORec() {}
-    //    virtual OptimizationResults solve() override;
     virtual void create(PoseGraph& scene) override { _scene = &scene; }
 
 
@@ -34,6 +48,7 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
     std::vector<int> edgeOffsets;
     PoseGraph* _scene;
 
+    // ============== LM Functions ==============
 
     virtual void init() override;
     virtual double computeQuadraticForm() override;

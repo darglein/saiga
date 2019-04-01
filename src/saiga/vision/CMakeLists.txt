@@ -1,5 +1,3 @@
-#set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 set(MODULE_NAME "saiga_vision")
 
 
@@ -7,7 +5,7 @@ add_subdirectory(ba)
 add_subdirectory(icp)
 add_subdirectory(kernels)
 add_subdirectory(pgo)
-#add_subdirectory(EigenRecursive)
+add_subdirectory(arap)
 add_subdirectory(scene)
 
 if(MKL_FOUND)

@@ -11,7 +11,7 @@
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/g2o/g2oHelper.h"
 
-#include "sophus_arap.h"
+#include "g2o_kernels/sophus_arap.h"
 
 namespace Saiga
 {

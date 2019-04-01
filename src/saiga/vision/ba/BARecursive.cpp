@@ -17,6 +17,8 @@
 #include <fstream>
 #include <numeric>
 
+#define RECURSIVE_BA_USE_TIMERS false
+
 namespace Saiga
 {
 void BARec::init()
@@ -25,7 +27,6 @@ void BARec::init()
 
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
 
-    chi2 = 1e100;
 
     // currently the scene must be in a valid state
     SAIGA_ASSERT(scene);
@@ -41,9 +42,6 @@ void BARec::init()
         computeWT     = true;
     }
 
-    //    imageIds        = scene.validImages();
-    //    auto numCameras = imageIds.size();
-    //    auto numPoints  = scene.worldPoints.size();
 
 
     // Check how many valid and cameras exist and construct the compact index sets
@@ -76,8 +74,9 @@ void BARec::init()
 
     SAIGA_ASSERT(n > 0 && m > 0);
 
-    U.resize(n);
-    V.resize(m);
+    A.resize(n, m);
+    //    U.resize(n);
+    //    V.resize(m);
 
     delta_x.resize(n, m);
     b.resize(n, m);
@@ -130,15 +129,15 @@ void BARec::init()
     SAIGA_ASSERT(test1 == observations && test2 == observations);
 
     // preset the outer matrix structure
-    W.resize(n, m);
-    W.setZero();
-    W.reserve(observations);
+    //    W.resize(n, m);
+    A.w.setZero();
+    A.w.reserve(observations);
 
-    for (int k = 0; k < W.outerSize(); ++k)
+    for (int k = 0; k < A.w.outerSize(); ++k)
     {
-        W.outerIndexPtr()[k] = cameraPointCountsScan[k];
+        A.w.outerIndexPtr()[k] = cameraPointCountsScan[k];
     }
-    W.outerIndexPtr()[W.outerSize()] = observations;
+    A.w.outerIndexPtr()[A.w.outerSize()] = observations;
 
 
 
@@ -245,10 +244,10 @@ double BARec::computeQuadraticForm()
 
 
     b.setZero();
-    U.setZero();
-    V.setZero();
+    A.u.setZero();
+    A.v.setZero();
 
-    SAIGA_ASSERT(W.IsRowMajor);
+    SAIGA_ASSERT(A.w.IsRowMajor);
 
 
     double newChi2 = 0;
@@ -273,8 +272,8 @@ double BARec::computeQuadraticForm()
                 auto& wp = x_v[j];
 
                 WElem targetPosePoint;
-                auto& targetPosePose   = U.diagonal()(i).get();
-                auto& targetPointPoint = V.diagonal()(j).get();
+                auto& targetPosePose   = A.u.diagonal()(i).get();
+                auto& targetPointPoint = A.v.diagonal()(j).get();
                 auto& targetPoseRes    = b.u(i).get();
                 auto& targetPointRes   = b.v(j).get();
 
@@ -291,9 +290,9 @@ double BARec::computeQuadraticForm()
 
                     auto c = res.squaredNorm();
                     newChi2 += c;
-                    if (options.huberStereo > 0)
+                    if (baOptions.huberStereo > 0)
                     {
-                        auto rw = Kernel::huberWeight<T>(options.huberStereo, c);
+                        auto rw = Kernel::huberWeight<T>(baOptions.huberStereo, c);
                         JrowPose *= rw;
                         JrowPoint *= rw;
                         res *= rw;
@@ -315,9 +314,9 @@ double BARec::computeQuadraticForm()
                     if (extr2.constant) JrowPose.setZero();
                     auto c = res.squaredNorm();
                     newChi2 += c;
-                    if (options.huberMono > 0)
+                    if (baOptions.huberMono > 0)
                     {
-                        auto rw = Kernel::huberWeight<T>(options.huberMono, c);
+                        auto rw = Kernel::huberWeight<T>(baOptions.huberMono, c);
                         JrowPose *= rw;
                         JrowPoint *= rw;
                         res *= rw;
@@ -330,8 +329,8 @@ double BARec::computeQuadraticForm()
                     targetPointRes -= JrowPoint.transpose() * res;
                 }
 
-                W.innerIndexPtr()[k] = j;
-                W.valuePtr()[k]      = targetPosePoint;
+                A.w.innerIndexPtr()[k] = j;
+                A.w.valuePtr()[k]      = targetPosePoint;
 
                 ++k;
             }
@@ -388,8 +387,8 @@ void BARec::finalize()
 
 void BARec::addLambda(double lambda)
 {
-    applyLMDiagonal(U, lambda);
-    applyLMDiagonal(V, lambda);
+    applyLMDiagonal(A.u, lambda);
+    applyLMDiagonal(A.v, lambda);
 }
 
 

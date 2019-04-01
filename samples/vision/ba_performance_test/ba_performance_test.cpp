@@ -204,9 +204,9 @@ int main(int, char**)
 #endif
 
     Scene scene;
-    //        scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
+    //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
-    scene.load(SearchPathes::data("vision/tum_office.scene"));
+    //    scene.load(SearchPathes::data("vision/tum_office.scene"));
 
 #if 0
     cout << scene << endl;
@@ -236,7 +236,7 @@ int main(int, char**)
 
     //        buildSceneBAL(scene, balPrefix + "problem-21-11315-pre.txt");
     // buildSceneBAL(scene, balPrefix + "trafalgar-00201-54427.txt");
-    //    buildSceneBAL(scene, balPrefix + "ladybug-00049-7776.txt");
+    buildSceneBAL(scene, balPrefix + "ladybug-00049-7776.txt");
     //    buildSceneBAL(scene, balPrefix + "venice-01778-993923.txt");
 
 
@@ -244,7 +244,7 @@ int main(int, char**)
 
     OptimizationOptions baoptions;
     baoptions.debugOutput            = true;
-    baoptions.maxIterations          = 1;
+    baoptions.maxIterations          = 3;
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
     baoptions.initialLambda          = 1;
@@ -258,7 +258,7 @@ int main(int, char**)
 
     solvers.push_back(std::make_shared<BARec>());
     //    solvers.push_back(std::make_shared<BAPoseOnly>());
-    //    solvers.push_back(std::make_shared<g2oBA2>());
+    solvers.push_back(std::make_shared<g2oBA2>());
     //    solvers.push_back(std::make_shared<CeresBA>());
 
     for (auto& s : solvers)

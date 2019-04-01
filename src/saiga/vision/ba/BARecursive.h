@@ -8,29 +8,63 @@
 #pragma once
 
 #include "BABase.h"
-//#define RECURSIVE_BA_VECTORIZE
-//#define RECURSIVE_BA_FLOAT
-#define RECURSIVE_BA_USE_TIMERS false
-#include "saiga/vision/ba/BlockRecursiveBATemplates.h"
+#include "EigenRecursive/All.h"
+
 namespace Saiga
 {
 class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
 {
    public:
-    BARec() : BABase("Recursive BA"), U(A.u), V(A.v), W(A.w) {}
+    // ============== Recusrive Matrix Types ==============
+    static constexpr int blockSizeCamera = 6;
+    static constexpr int blockSizePoint  = 3;
+    using BlockBAScalar                  = double;
+
+    using ADiag  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera, Eigen::RowMajor>;
+    using BDiag  = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint, Eigen::RowMajor>;
+    using WElem  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint, Eigen::RowMajor>;
+    using WTElem = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizeCamera, Eigen::RowMajor>;
+    using ARes   = Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>;
+    using BRes   = Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>;
+
+    // Block structured diagonal matrices
+    using UType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<ADiag>, -1>;
+    using VType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<BDiag>, -1>;
+
+    // Block structured vectors
+    using DAType = Eigen::Matrix<Eigen::Recursive::MatrixScalar<ARes>, -1, 1>;
+    using DBType = Eigen::Matrix<Eigen::Recursive::MatrixScalar<BRes>, -1, 1>;
+
+    // Block structured sparse matrix
+    using WType  = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<WElem>, Eigen::RowMajor>;
+    using WTType = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<WTElem>, Eigen::RowMajor>;
+    using SType  = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<ADiag>, Eigen::RowMajor>;
+
+
+    using BAMatrix = Eigen::Recursive::SymmetricMixedMatrix2<UType, VType, WType>;
+    using BAVector = Eigen::Recursive::MixedVector2<DAType, DBType>;
+    using BASolver = Eigen::Recursive::MixedSymmetricRecursiveSolver<BAMatrix, BAVector>;
+
+   public:
+    BARec() : BABase("Recursive BA") {}
     virtual ~BARec() {}
-
-
-    //    virtual OptimizationResults solve() override;
     virtual void create(Scene& scene) override { _scene = &scene; }
 
    private:
     Scene* _scene;
 
    private:
-    // ==== Structure information ====
-    OptimizationResults result;
     int n, m;
+
+    BAMatrix A;
+    BAVector x, b, delta_x;
+    BASolver solver;
+
+    AlignedVector<SE3> x_u, oldx_u;
+    AlignedVector<Vec3> x_v, oldx_v;
+
+    // ============== Structure information ==============
+
     int observations;
     int schurEdges;
     std::vector<std::vector<int>> schurStructure;
@@ -40,54 +74,17 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     // Number of observing cameras for each world point+ the corresponding exclusive scan and sum
     std::vector<int> pointCameraCounts, pointCameraCountsScan;
 
-    // Main (recursive) Variables for the system Ax=b
-    BAMatrix A;
 
-    //    SymmetricMixedMatrix22<
-    //        Eigen::DiagonalMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera>>, -1>,
-    //        Eigen::DiagonalMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint>>, -1>,
-    //        Eigen::SparseMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint>>,
-    //                            Eigen::RowMajor>,
-    //        Eigen::SparseMatrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizeCamera>>,
-    //                            Eigen::RowMajor>>
-    //        A;
-
-    BAVector x, b, delta_x;
-    //    MixedVector2<Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>>, -1, 1>,
-    //                 Eigen::Matrix<MatrixScalar<Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>>, -1, 1>>
-    //        delta_x, b;
-
-    //    MixedSymmetricRecursiveSolver<SymmetricMixedMatrix2<UType, VType, WType>, MixedVector2<DAType, DBType>>
-    //    solver;
-    BASolver solver;
-
-    // These are only reference into the global matrix A
-    UType& U;
-    VType& V;
-    WType& W;
-
-    AlignedVector<SE3> x_u, oldx_u;
-    AlignedVector<Vec3> x_v, oldx_v;
-
-    //    DAType& da;
-    //    DBType& db;
-    //    DAType& ea;
-    //    DBType& eb;
-
-
-    //    std::vector<int> imageIds;
     std::vector<int> validImages;
     std::vector<int> validPoints;
     std::vector<int> pointToValidMap;
-
-    BAOptions options;
-
-    double chi2;
 
 
 
     bool explizitSchur = false;
     bool computeWT     = true;
+
+    // ============== LM Functions ==============
 
     virtual void init() override;
     virtual double computeQuadraticForm() override;

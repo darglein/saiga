@@ -4,13 +4,12 @@
 #include "saiga/core/util/random.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/ba/BlockRecursiveBATemplates.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
-#include "EigenRecursive/All.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
+#include "EigenRecursive/All.h"
 
 #include <fstream>
 

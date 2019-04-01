@@ -17,11 +17,10 @@
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/VisionIncludes.h"
-
-#include "ArapProblem.h"
-#include "CeresArap.h"
-#include "G2OArap.h"
-#include "RecursiveArap.h"
+#include "saiga/vision/arap/ArapProblem.h"
+#include "saiga/vision/arap/RecursiveArap.h"
+#include "saiga/vision/ceres/CeresArap.h"
+#include "saiga/vision/g2o/G2OArap.h"
 
 #include <fstream>
 

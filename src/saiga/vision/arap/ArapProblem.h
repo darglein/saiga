@@ -13,7 +13,7 @@ namespace Saiga
 using ArabMesh = OpenMesh::TriMesh_ArrayKernelT<OpenMesh::DefaultTraits>;
 
 
-class ArapProblem
+class SAIGA_VISION_API ArapProblem
 {
    public:
     struct HalfEdgeConstraint

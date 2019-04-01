@@ -6,13 +6,12 @@
 
 #pragma once
 #include "saiga/vision/Optimizer.h"
-
-#include "ArapBase.h"
-#include "ArapProblem.h"
+#include "saiga/vision/arap/ArapBase.h"
+#include "saiga/vision/arap/ArapProblem.h"
 
 namespace Saiga
 {
-class CeresArap : public ArapBase, public Optimizer
+class SAIGA_VISION_API CeresArap : public ArapBase, public Optimizer
 {
    public:
     CeresArap() : ArapBase("Ceres") {}
