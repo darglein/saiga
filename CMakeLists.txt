@@ -198,7 +198,7 @@ find_package(Sophus QUIET)
 PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
 
-#Sophus
+#Recursive
 find_package(EigenRecursive QUIET)
 PackageHelperTarget(EigenRecursive EIGENRECURSIVE_FOUND)
 
