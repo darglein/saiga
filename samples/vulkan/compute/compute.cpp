@@ -71,7 +71,7 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
         renderer.base(), sizeof(int) * compute.data.size(), vk::BufferUsageFlagBits::eStorageBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     //    compute.storageBuffer.allocateMemoryBuffer(renderer.base(),vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
-    compute.storageBuffer.upload(compute.data.data());
+    compute.storageBuffer.upload(compute.data.data(), compute.data.size());
 
 
     {
@@ -90,8 +90,8 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
 
     computePipeline.init(base, 1);
     computePipeline.addDescriptorSetLayout(
-        {{0,{0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute}},
-         {1,{1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute}}});
+        {{0, {0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute}},
+         {1, {1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute}}});
     computePipeline.shaderPipeline.loadCompute(device, "vulkan/test.comp");
     computePipeline.create();
 

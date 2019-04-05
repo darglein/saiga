@@ -119,7 +119,7 @@ class SAIGA_VULKAN_API Buffer
      * Upload new data to the buffer. Only copies size() number of bytes.
      * @param data Data to upload.
      */
-    void upload(void* data) { m_memoryLocation->upload(base->device, data); }
+    void upload(void* data, size_t size) { m_memoryLocation->upload(base->device, data, size); }
 
     /**
      * Downloads the buffer into the data vector. It must provide enough memory to store size() bytes.

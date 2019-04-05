@@ -32,7 +32,7 @@ class SAIGA_VULKAN_API UniformBuffer : public Buffer
 
         if (data)
         {
-            m_memoryLocation->upload(base.device, data);
+            m_memoryLocation->upload(base.device, data, size);
         }
     }
 

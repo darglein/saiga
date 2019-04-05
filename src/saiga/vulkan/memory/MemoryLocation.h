@@ -166,9 +166,10 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         this->size          = VK_WHOLE_SIZE;
         this->mappedPointer = nullptr;
     }
-    void mappedUpload(vk::Device device, const void* data)
+    void mappedUpload(vk::Device device, const void* data, size_t data_size)
     {
-        SAIGA_ASSERT(!mappedPointer, "Memory already mapped");
+        SAIGA_ASSERT(data_size <= size, "data is too large");
+        SAIGA_ASSERT(!mappedPointer, "memory already mapped");
         void* target;
         vk::Result result;
         vk::DeviceMemory mem;
@@ -181,7 +182,7 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         {
             LOG(FATAL) << "Could not map " << mem << vk::to_string(result);
         }
-        std::memcpy(target, data, size);
+        std::memcpy(target, data, data_size);
         device.unmapMemory(mem);
     }
 
@@ -216,8 +217,9 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         static_mem = true;
     }
 
-    void upload(vk::Device device, const void* data)
+    void upload(vk::Device device, const void* data, size_t data_size)
     {
+        SAIGA_ASSERT(data_size <= size, "data_size is too large");
         void* pointer = nullptr;
 
         {
@@ -226,11 +228,11 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         }
         if (pointer)
         {
-            std::memcpy(pointer, data, size);
+            std::memcpy(pointer, data, data_size);
         }
         else
         {
-            mappedUpload(device, data);
+            mappedUpload(device, data, data_size);
         }
     }
 
