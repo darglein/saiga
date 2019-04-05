@@ -95,13 +95,13 @@ void BaseChunkAllocator::deallocate(MemoryLocation* location)
     LOG(INFO) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
               << "/" << (*fLoc)->offset << "]";
 
+    fChunk->allocated -= location->size;
     add_to_free_list(fChunk, *(fLoc->get()));
 
     findNewMax(fChunk);
 
     chunkAllocs.erase(fLoc);
 
-    fChunk->allocated -= location->size;
     while (chunks.size() >= 2)
     {
         auto last = chunks.end() - 1;
