@@ -1,34 +1,33 @@
 
-if(SAIGA_MODULE_CORE)
+if(MODULE_CORE)
     add_subdirectory(core)
 endif()
 
-if(SAIGA_MODULE_VULKAN AND SAIGA_USE_VULKAN)
-    if (SDL2_FOUND AND SAIGA_USE_VULKAN)
+if(MODULE_VULKAN)
+    # All vulkan samples also need sdl2
+    if (SDL2_FOUND)
         add_subdirectory(vulkan)
     endif()
 endif()
 
 
-if(SAIGA_MODULE_OPENGL AND SAIGA_USE_OPENGL)
+if(MODULE_OPENGL)
     add_subdirectory(opengl)
 endif()
 
 
-if(SAIGA_MODULE_CUDA AND SAIGA_USE_CUDA)
+if(MODULE_CUDA)
     add_subdirectory(cuda)
 endif ()
 
-if(SAIGA_MODULE_VISION AND SAIGA_VISION)
+if(MODULE_VISION)
     add_subdirectory(vision)
 endif()
 
-if(SAIGA_MODULE_EXTRA)
+if(MODULE_EXTRA)
     add_subdirectory(modules)
 endif()
 
-
-return()
 
 
 

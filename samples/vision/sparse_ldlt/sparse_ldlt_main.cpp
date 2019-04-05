@@ -11,12 +11,12 @@
 #include "saiga/core/time/Time"
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
-#include "EigenRecursive/All.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/Random.h"
 
 #include "Eigen/CholmodSupport"
 #include "Eigen/SparseCholesky"
+#include "EigenRecursive/All.h"
 
 #include <fstream>
 #include <set>
@@ -107,10 +107,12 @@ class Sparse_LDLT_TEST
         initPoisson2D(trips);
 
 
-        for (int i = 0; i < n; ++i)
-        {
-            b(i) = RecursiveRandom<Vector>::get();
-        }
+        setRandom(b);
+        //        for (int i = 0; i < n; ++i)
+        //        {
+        //            b(i) = RecursiveRandom<Vector>::get();
+        //        }
+
         A.setFromTriplets(trips.begin(), trips.end());
         A.makeCompressed();
 
@@ -183,7 +185,9 @@ class Sparse_LDLT_TEST
     {
         for (int i = 0; i < n; ++i)
         {
-            Vector dv = RecursiveRandom<Vector>::get() * 100;
+            Vector dv;
+            setRandom(dv);
+            dv *= 100;
 #ifdef USE_BLOCKS
             Block D;
             if constexpr (block_size == 1)
@@ -195,7 +199,8 @@ class Sparse_LDLT_TEST
             Block D = dv * transpose(dv);
 #endif
 
-            D = RecursiveRandom<Block>::get();
+            setRandom(D);
+            //            D = RecursiveRandom<Block>::get();
             // Make sure the matrix is positiv
             auto n = MultiplicativeNeutral<Block>::get();
             D += n * 500.0;
@@ -292,7 +297,9 @@ class Sparse_LDLT_TEST
 
                     if (c < ne)
                     {
-                        Block b = RecursiveRandom<Block>::get() * 1;
+                        //                        Block b = RecursiveRandom<Block>::get() * 1;
+                        Block b;
+                        setRandom(b);
                         trips.emplace_back(c, ne, b);
                         trips.emplace_back(ne, c, transpose(b));
                     }

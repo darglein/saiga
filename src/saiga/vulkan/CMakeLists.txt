@@ -21,10 +21,8 @@ else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
 
-target_link_libraries(${MODULE_NAME}  saiga_core )
-target_link_libraries(${MODULE_NAME} ${ALL_CUDA_LIBS}  )
-target_link_libraries(${MODULE_NAME}  ${LIBS} )
-target_link_libraries(${MODULE_NAME} ${LIB_TARGETS} )
+target_link_libraries(${MODULE_NAME} ${VULKAN_TARGETS}  ${VULKAN_LIBS})
+
 
 target_include_directories(
     ${MODULE_NAME}
@@ -38,7 +36,7 @@ target_include_directories(
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
-    "$<BUILD_INTERFACE:${PACKAGE_INCLUDES}>"
+    "$<BUILD_INTERFACE:${VULKAN_INCLUDES}>"
     #PRIVATE
     # for the internal files
     #${PROJECT_SOURCE_DIR}/src/
@@ -52,11 +50,11 @@ install(
     ARCHIVE DESTINATION ${INSTALL_LIB}
     )
 
-install(
-    EXPORT ${LIB_EXPORT}
-    FILE SaigaTargets.cmake
-    DESTINATION ${INSTALL_SHARE}
-    )
+#install(
+#    EXPORT ${LIB_EXPORT}
+#    FILE SaigaTargets.cmake
+#    DESTINATION ${INSTALL_SHARE}
+#    )
 
 ##### Precompiled Headers #####
 if(SAIGA_PCH)

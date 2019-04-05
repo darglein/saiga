@@ -8,9 +8,10 @@
 
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
-#include "EigenRecursive/All.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/ba/BlockRecursiveBATemplates.h"
+
+#include "EigenRecursive/All.h"
+//#include "saiga/vision/ba/BlockRecursiveBATemplates.h"
 
 
 using Block  = Eigen::Matrix<double, 2, 2>;

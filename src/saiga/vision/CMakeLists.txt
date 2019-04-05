@@ -42,11 +42,7 @@ else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
 
-target_link_libraries(${MODULE_NAME}  saiga_core )
-target_link_libraries(${MODULE_NAME} ${ALL_CUDA_LIBS}  )
-target_link_libraries(${MODULE_NAME}  ${LIBS} )
-target_link_libraries(${MODULE_NAME} ${LIB_TARGETS} )
-
+target_link_libraries(${MODULE_NAME} ${VISION_TARGETS}  ${VISION_LIBS})
 target_include_directories(
     ${MODULE_NAME}
     PUBLIC
@@ -54,12 +50,12 @@ target_include_directories(
     $<INSTALL_INTERFACE:include/saiga/opengl/glbinding/include>
     $<INSTALL_INTERFACE:include/saiga/opengl/glbinding-aux/include>
     $<INSTALL_INTERFACE:share/saiga/shader/include>
-    #"$<INSTALL_INTERFACE:${PACKAGE_INCLUDES}>"
+    "$<INSTALL_INTERFACE:${VISION_INCLUDES}>"
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
-    "$<BUILD_INTERFACE:${PACKAGE_INCLUDES}>"
+    "$<BUILD_INTERFACE:${VISION_INCLUDES}>"
     #PRIVATE
     # for the internal files
     #${PROJECT_SOURCE_DIR}/src/
@@ -73,11 +69,11 @@ install(
     ARCHIVE DESTINATION ${INSTALL_LIB}
     )
 
-install(
-    EXPORT ${LIB_EXPORT}
-    FILE SaigaTargets.cmake
-    DESTINATION ${INSTALL_SHARE}
-    )
+#install(
+#    EXPORT ${LIB_EXPORT}
+#    FILE SaigaTargets.cmake
+#    DESTINATION ${INSTALL_SHARE}
+#    )
 
 ##### Precompiled Headers #####
 if(SAIGA_PCH)

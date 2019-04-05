@@ -166,7 +166,7 @@ class TriangleMesh
     size_t size();
     void free();
 
-    int numIndices();
+    int numIndices(){return faces.size() * 3;}
 
     AABB calculateAabb();
 
@@ -385,13 +385,6 @@ void TriangleMesh<vertex_t, index_t>::addMesh(const TriangleMesh<mesh_vertex_t, 
         f.v3 += oldVertexCount;
         this->addFace(f.v1, f.v2, f.v3);
     }
-}
-
-
-template <typename vertex_t, typename index_t>
-int TriangleMesh<vertex_t, index_t>::numIndices()
-{
-    return faces.size() * 3;
 }
 
 template <typename vertex_t, typename index_t>

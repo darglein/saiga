@@ -1,7 +1,4 @@
-#set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 set(MODULE_NAME "saiga_core")
-
 
 add_subdirectory(camera)
 add_subdirectory(framework)
@@ -45,9 +42,7 @@ else ()
 endif()
 
 
-target_link_libraries(${MODULE_NAME} ${ALL_CUDA_LIBS}  )
-target_link_libraries(${MODULE_NAME}  ${LIBS} )
-target_link_libraries(${MODULE_NAME} ${LIB_TARGETS} )
+target_link_libraries(${MODULE_NAME} ${CORE_LIBS} ${CORE_TARGETS})
 
 target_include_directories(
     ${MODULE_NAME}
@@ -61,7 +56,7 @@ target_include_directories(
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
-    "$<BUILD_INTERFACE:${PACKAGE_INCLUDES}>"
+    "$<BUILD_INTERFACE:${CORE_INCLUDES}>"
     #PRIVATE
     # for the internal files
     #${PROJECT_SOURCE_DIR}/src/
@@ -77,11 +72,11 @@ install(
     ARCHIVE DESTINATION ${INSTALL_LIB}
     )
 
-install(
-    EXPORT ${LIB_EXPORT}
-    FILE SaigaTargets.cmake
-    DESTINATION ${INSTALL_SHARE}
-    )
+#install(
+#    EXPORT ${LIB_EXPORT}
+#    FILE SaigaTargets.cmake
+#    DESTINATION ${INSTALL_SHARE}
+#    )
 
 ##### Precompiled Headers #####
 if(SAIGA_PCH)
