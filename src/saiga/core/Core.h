@@ -8,15 +8,15 @@
 
 #include "saiga/config.h"
 
-#include "camera/Camera"
+#include "camera/all.h"
 #include "framework/framework.h"
-#include "geometry/Geometry"
+#include "geometry/all.h"
 #include "image/image.h"
 #include "model/Model"
-#include "time/Time"
-#include "util/Util"
-#include "window/Window"
+#include "time/all.h"
+#include "util/all.h"
+#include "window/all.h"
 
 #ifdef SAIGA_USE_OPENAL
-#include "sound/Sound"
+#    include "sound/all.h"
 #endif
