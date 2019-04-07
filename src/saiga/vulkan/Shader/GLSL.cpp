@@ -55,6 +55,12 @@ struct MyIncluder : public glslang::TShader::Includer
 {
     std::vector<std::string> data;
     std::string baseFile;
+    std::vector<IncludeResult*> results;
+
+    virtual ~MyIncluder()
+    {
+        for (auto r : results) delete r;
+    }
 
     virtual IncludeResult* includeSystem(const char* headerName, const char* includerName,
                                          size_t inclusionDepth) override
@@ -83,6 +89,7 @@ struct MyIncluder : public glslang::TShader::Includer
         data.push_back(File::loadFileString(includeFileName));
 
         IncludeResult* result = new IncludeResult(includeFileName, data.back().data(), data.back().size(), nullptr);
+        results.push_back(result);
 
         return result;
     }
