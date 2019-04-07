@@ -44,7 +44,7 @@ struct DefraggerConfiguration
 template <typename T>
 class Defragger
 {
-   protected:
+   public:
     template <typename PType>
     class PointerOutput
     {

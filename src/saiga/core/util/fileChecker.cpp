@@ -34,7 +34,6 @@ std::string FileChecker::getFile(const std::string& file)
     {
         // Do not generate a double '/'
         std::string fullName = file.front() == '/' ? path + file : path + "/" + file;
-		cout << "check " << fullName << endl;
         if (existsFile(fullName))
         {
             return fullName;
