@@ -6,10 +6,11 @@
 
 
 #pragma once
-
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/svulkan.h"
 
+#include "DescriptorSet.h"
+#include "DescriptorSetLayout.h"
 namespace Saiga
 {
 namespace Vulkan
@@ -23,22 +24,37 @@ class SAIGA_VULKAN_API PipelineBase
    public:
     // ==== Initialization ====
     PipelineBase(vk::PipelineBindPoint type);
-    ~PipelineBase() { destroy(); }
+    virtual ~PipelineBase() { destroy(); }
 
     void init(VulkanBase& base, uint32_t numDescriptorSetLayouts);
     void destroy();
 
-    void addDescriptorSetLayout(std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings, uint32_t id = 0);
+    void addDescriptorSetLayout(const DescriptorSetLayout& layout, uint32_t id = 0);
     void addPushConstantRange(vk::PushConstantRange pcr);
 
     // ==== Runtime ====
-    vk::DescriptorSet createDescriptorSet(uint32_t id = 0);
-
+    vk::DescriptorSet createRawDescriptorSet(uint32_t id = 0);
+    StaticDescriptorSet createDescriptorSet(uint32_t id = 0);
+    DynamicDescriptorSet createDynamicDescriptorSet(uint32_t id = 0);
 
     SAIGA_WARN_UNUSED_RESULT bool bind(vk::CommandBuffer cmd);
 
-    void bindDescriptorSets(vk::CommandBuffer cmd, vk::ArrayProxy<const vk::DescriptorSet> descriptorSets,
-                            uint32_t firstSet = 0, vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr);
+    template <typename SetType>
+    void bindDescriptorSet(vk::CommandBuffer cmd, SetType& descriptorSet, uint32_t firstSet = 0,
+                           vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr)
+    {
+        descriptorSet.update();
+        cmd.bindDescriptorSets(type, pipelineLayout, firstSet, static_cast<vk::DescriptorSet>(descriptorSet),
+                               dynamicOffsets);
+    }
+
+    void bindRawDescriptorSet(vk::CommandBuffer cmd, vk::DescriptorSet& descriptorSet, uint32_t firstSet = 0,
+                              vk::ArrayProxy<const uint32_t> dynamicOffsets = nullptr)
+    {
+        cmd.bindDescriptorSets(type, pipelineLayout, firstSet, (descriptorSet), dynamicOffsets);
+    }
+
+
     void pushConstant(vk::CommandBuffer cmd, vk::ShaderStageFlags stage, size_t size, const void* data,
                       size_t offset = 0);
 
@@ -49,7 +65,7 @@ class SAIGA_VULKAN_API PipelineBase
 
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
+    std::vector<DescriptorSetLayout> descriptorSetLayouts;
     std::vector<vk::PushConstantRange> pushConstantRanges;
 
     bool isInitialized() { return base; }

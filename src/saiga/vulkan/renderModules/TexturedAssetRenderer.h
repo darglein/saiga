@@ -42,7 +42,7 @@ class SAIGA_VULKAN_API TexturedAssetRenderer : public Pipeline
     void prepareUniformBuffers(Saiga::Vulkan::VulkanBase* vulkanDevice);
     void setupLayoutsAndDescriptors();
 
-    vk::DescriptorSet createAndUpdateDescriptorSet(Texture& texture);
+    StaticDescriptorSet createAndUpdateDescriptorSet(Texture& texture);
 
    private:
     struct UBOVS

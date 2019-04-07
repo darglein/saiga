@@ -2508,7 +2508,7 @@ class RegisteredLoggers : public base::utils::Registry<Logger, std::string>
     void unsafeFlushAll(void);
 };
 /// @brief Represents registries for verbose logging
-class VRegistry : base::NoCopy, public base::threading::ThreadSafe
+class ELPP_EXPORT VRegistry : base::NoCopy, public base::threading::ThreadSafe
 {
    public:
     explicit VRegistry(base::type::VerboseLevel level, base::type::EnumType* pFlags);

@@ -17,8 +17,11 @@ namespace Vulkan
 struct SAIGA_VULKAN_API Texture
 {
    protected:
-    VulkanBase* base                       = nullptr;
-    Memory::MemoryLocation* memoryLocation = nullptr;
+    VulkanBase* base = nullptr;
+
+   public:
+
+    Memory::ImageMemoryLocation* memoryLocation = nullptr;
     Memory::ImageType type;
 
    public:
@@ -30,55 +33,47 @@ struct SAIGA_VULKAN_API Texture
         : base(other.base),
           memoryLocation(other.memoryLocation),
           type(std::move(other.type)),
-          image(other.image),
-          imageLayout(other.imageLayout),
-          imageView(other.imageView),
           width(other.width),
           height(other.height),
           mipLevels(other.mipLevels),
-          layerCount(other.layerCount),
-          sampler(other.sampler)
+          layerCount(other.layerCount)
     {
-        other.image          = nullptr;
-        other.imageView      = nullptr;
-        other.sampler        = nullptr;
         other.memoryLocation = nullptr;
     }
 
     Texture& operator=(Texture&& other) noexcept
     {
-        base                 = other.base;
-        memoryLocation       = std::move(other.memoryLocation);
-        type                 = other.type;
-        image                = other.image;
-        imageLayout          = other.imageLayout;
-        imageView            = other.imageView;
-        width                = other.width;
-        height               = other.height;
-        mipLevels            = other.mipLevels;
-        layerCount           = other.layerCount;
-        sampler              = other.sampler;
-        other.image          = nullptr;
-        other.imageView      = nullptr;
-        other.sampler        = nullptr;
-        other.memoryLocation = nullptr;
+        if (this != &other)
+        {
+            base                 = other.base;
+            memoryLocation       = std::move(other.memoryLocation);
+            type                 = other.type;
+            width                = other.width;
+            height               = other.height;
+            mipLevels            = other.mipLevels;
+            layerCount           = other.layerCount;
+            other.memoryLocation = nullptr;
+        }
         return *this;
     }
 
     virtual ~Texture() { destroy(); }
-    vk::Image image;
-    vk::ImageLayout imageLayout;
-    vk::ImageView imageView;
     uint32_t width, height;
     uint32_t mipLevels;
     uint32_t layerCount;
-    vk::Sampler sampler;
 
     void destroy();
 
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
 
     vk::DescriptorImageInfo getDescriptorInfo();
+    inline void mark_dynamic()
+    {
+        if (memoryLocation)
+        {
+            memoryLocation->mark_dynamic();
+        }
+    }
 };
 
 struct SAIGA_VULKAN_API Texture2D : public Texture

@@ -7,20 +7,16 @@ namespace Saiga
 {
 namespace Vulkan
 {
+static const vk::ImageUsageFlags necessary_flags =
+    vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage;
+
 void Texture::destroy()
 {
     if (!base)
     {
         return;
     }
-    if (image)
-    {
-        LOG(INFO) << "Destroying image: " << image;
-        base->device.destroyImage(image);
-        base->device.destroyImageView(imageView);
-        base->device.destroySampler(sampler);
-        image = nullptr;
-    }
+
 
     if (memoryLocation)
     {
@@ -31,67 +27,16 @@ void Texture::destroy()
 
 void Texture::transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
 {
-    vk::ImageMemoryBarrier barrier          = {};
-    barrier.oldLayout                       = imageLayout;
-    barrier.newLayout                       = newLayout;
-    barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                           = image;
-    barrier.subresourceRange.aspectMask     = vk::ImageAspectFlagBits::eColor;
-    barrier.subresourceRange.baseMipLevel   = 0;
-    barrier.subresourceRange.levelCount     = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount     = 1;
-    //        barrier.srcAccessMask = 0; // TODO
-    //        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite; // TODO
+    SAIGA_ASSERT(memoryLocation->data);
 
-
-    vk::PipelineStageFlags sourceStage;
-    vk::PipelineStageFlags destinationStage;
-
-    if (imageLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
-    {
-        barrier.srcAccessMask = {};
-        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-        sourceStage      = vk::PipelineStageFlagBits::eHost;
-        destinationStage = vk::PipelineStageFlagBits::eTransfer;
-    }
-    else if (imageLayout == vk::ImageLayout::eTransferDstOptimal &&
-             newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
-    {
-        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-        sourceStage      = vk::PipelineStageFlagBits::eTransfer;
-        destinationStage = vk::PipelineStageFlagBits::eAllCommands;
-    }
-    else
-    {
-        //            throw std::invalid_argument("unsupported layout transition!");
-        barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-        sourceStage           = vk::PipelineStageFlagBits::eAllCommands;
-        destinationStage      = vk::PipelineStageFlagBits::eAllCommands;
-    }
-
-
-
-    cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
-
-
-    imageLayout = newLayout;
+    memoryLocation->data.transitionImageLayout(cmd, newLayout);
 }
 
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
 {
-    SAIGA_ASSERT(image);
-    vk::DescriptorImageInfo descriptorInfo;
-    descriptorInfo.imageLayout = imageLayout;
-    descriptorInfo.imageView   = imageView;
-    descriptorInfo.sampler     = sampler;
-    SAIGA_ASSERT(imageView && sampler);
-    return descriptorInfo;
+    SAIGA_ASSERT(memoryLocation->data && memoryLocation->data.sampler);
+    Memory::SafeAccessor acc(*memoryLocation);
+    return memoryLocation->data.get_descriptor_info();
 }
 
 void Texture2D::fromImage(VulkanBase& base, Image& img, vk::ImageUsageFlags usage, bool flipY)
@@ -133,7 +78,7 @@ void Texture2D::uploadImage(Image& img, bool flipY)
     bufferCopyRegion.imageExtent.height              = height;
     bufferCopyRegion.imageExtent.depth               = 1;
 
-    staging.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
+    staging.copyTo(cmd, memoryLocation->data.image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -158,11 +103,10 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
 
 
 
-    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
+    auto finalUsageFlags = usage | necessary_flags;
 
     type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
-    imageLayout = vk::ImageLayout::eUndefined;
     // Create optimal tiled target image
     vk::ImageCreateInfo imageCreateInfo;
     imageCreateInfo.imageType     = vk::ImageType::e2D;
@@ -172,19 +116,47 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     imageCreateInfo.samples       = vk::SampleCountFlagBits::e1;
     imageCreateInfo.tiling        = vk::ImageTiling::eOptimal;
     imageCreateInfo.sharingMode   = vk::SharingMode::eExclusive;
-    imageCreateInfo.initialLayout = imageLayout;
+    imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
     imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
     imageCreateInfo.usage         = finalUsageFlags;
-    image                         = base->device.createImage(imageCreateInfo);
-    SAIGA_ASSERT(image);
 
 
-    LOG(INFO) << "Creating image synched: " << image;
+    vk::ImageViewCreateInfo viewCreateInfo = {};
+    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    viewCreateInfo.format                  = format;
+    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+
+    vk::SamplerCreateInfo samplerCreateInfo = {};
+    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
+    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.mipLodBias            = 0.0f;
+    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
+    samplerCreateInfo.minLod                = 0.0f;
+    // Max level-of-detail should match mip level count
+    samplerCreateInfo.maxLod = 0.0f;
+    // Only enable anisotropic filtering if enabled on the devicec
+    samplerCreateInfo.maxAnisotropy    = 16;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
+    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
+
+    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo, vk::ImageLayout::eUndefined, samplerCreateInfo);
+    // image                         = base->device.createImage(imageCreateInfo);
+    // SAIGA_ASSERT(image);
 
 
+    // LOG(INFO) << "Creating image synched: " << image;
 
-    memoryLocation = base->memory.allocate(type, image);
-    base->device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
+    memoryLocation = base->memory.allocate(type, img_data);
+
+    // memoryLocation->data = std::move(img_data);
+
+    // memoryLocation->data.create(base->device);
+
+    // base->device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
@@ -218,7 +190,7 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     bufferCopyRegion.imageExtent.height              = height;
     bufferCopyRegion.imageExtent.depth               = 1;
 
-    staging.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
+    staging.copyTo(cmd, memoryLocation->data.image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -230,34 +202,13 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     staging.destroy();
 
 
-    vk::ImageViewCreateInfo viewCreateInfo = {};
-    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
-    viewCreateInfo.format                  = format;
-    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
-    viewCreateInfo.image                   = image;
-    imageView                              = base->device.createImageView(viewCreateInfo);
-    SAIGA_ASSERT(imageView);
-
-    // Create a defaultsampler
-    vk::SamplerCreateInfo samplerCreateInfo = {};
-    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
-    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
-    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
-    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.mipLodBias            = 0.0f;
-    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
-    samplerCreateInfo.minLod                = 0.0f;
-    // Max level-of-detail should match mip level count
-    samplerCreateInfo.maxLod = 0.0f;
-    // Only enable anisotropic filtering if enabled on the devicec
-    samplerCreateInfo.maxAnisotropy    = 16;
-    samplerCreateInfo.anisotropyEnable = VK_FALSE;
-    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
-
-    sampler = base->device.createSampler(samplerCreateInfo);
-    SAIGA_ASSERT(sampler);
+    // vk::ImageViewCreateInfo viewCreateInfo = {};
+    // viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    // viewCreateInfo.format                  = format;
+    // viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+    // viewCreateInfo.image                   = image;
+    // imageView                              = base->device.createImageView(viewCreateInfo);
+    // SAIGA_ASSERT(imageView);
 }
 
 AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint32_t height, vk::Format format,
@@ -275,11 +226,11 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
 
 
 
-    auto finalUsageFlags = usage | vk::ImageUsageFlagBits::eTransferDst;
+    auto finalUsageFlags = usage | necessary_flags;
 
     type = Memory::ImageType{finalUsageFlags, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
-    imageLayout = vk::ImageLayout::eUndefined;
+    // imageLayout = vk::ImageLayout::eUndefined;
     // Create optimal tiled target image
     vk::ImageCreateInfo imageCreateInfo;
     imageCreateInfo.imageType     = vk::ImageType::e2D;
@@ -289,16 +240,40 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     imageCreateInfo.samples       = vk::SampleCountFlagBits::e1;
     imageCreateInfo.tiling        = vk::ImageTiling::eOptimal;
     imageCreateInfo.sharingMode   = vk::SharingMode::eExclusive;
-    imageCreateInfo.initialLayout = imageLayout;
+    imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
     imageCreateInfo.extent        = vk::Extent3D{width, height, 1U};
     imageCreateInfo.usage         = finalUsageFlags;
-    image                         = base.device.createImage(imageCreateInfo);
+    // image                         = base.device.createImage(imageCreateInfo);
 
-    LOG(INFO) << "Creating image: " << image << " from " << stagingBuffer;
-    SAIGA_ASSERT(image);
 
-    memoryLocation = base.memory.allocate(type, image);
-    base.device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
+
+    vk::ImageViewCreateInfo viewCreateInfo = {};
+    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    viewCreateInfo.format                  = format;
+    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+    // imageView                              = base.device.createImageView(viewCreateInfo);
+
+
+    vk::SamplerCreateInfo samplerCreateInfo = {};
+    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
+    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
+    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
+    samplerCreateInfo.mipLodBias            = 0.0f;
+    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
+    samplerCreateInfo.minLod                = 0.0f;
+    // Max level-of-detail should match mip level count
+    samplerCreateInfo.maxLod = 0.0f;
+    // Only enable anisotropic filtering if enabled on the devicec
+    samplerCreateInfo.maxAnisotropy    = 16;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
+    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
+    Memory::ImageData img_data(imageCreateInfo, viewCreateInfo, vk::ImageLayout::eUndefined, samplerCreateInfo);
+
+    memoryLocation = base.memory.allocate(type, img_data);
+    // base.device.bindImageMemory(image, memoryLocation->memory, memoryLocation->offset);
 
     vk::CommandBuffer cmd = pool.createAndBeginOneTimeBuffer();
 
@@ -318,7 +293,7 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
     //
     //    staging.init(base,img.size(),img.data());
 
-    stagingBuffer.copyTo(cmd, image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
+    stagingBuffer.copyTo(cmd, memoryLocation->data.image, vk::ImageLayout::eTransferDstOptimal, bufferCopyRegion);
 
     transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -329,34 +304,14 @@ AsyncCommand Texture2D::fromStagingBuffer(VulkanBase& base, uint32_t width, uint
 
 
 
-    vk::ImageViewCreateInfo viewCreateInfo = {};
-    viewCreateInfo.viewType                = vk::ImageViewType::e2D;
-    viewCreateInfo.format                  = format;
-    viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
-    viewCreateInfo.image                   = image;
-    imageView                              = base.device.createImageView(viewCreateInfo);
-    SAIGA_ASSERT(imageView);
+    // vk::ImageViewCreateInfo viewCreateInfo = {};
+    // viewCreateInfo.viewType                = vk::ImageViewType::e2D;
+    // viewCreateInfo.format                  = format;
+    // viewCreateInfo.subresourceRange        = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+    // viewCreateInfo.image                   = image;
+    // imageView                              = base.device.createImageView(viewCreateInfo);
 
     // Create a defaultsampler
-    vk::SamplerCreateInfo samplerCreateInfo = {};
-    samplerCreateInfo.magFilter             = vk::Filter::eLinear;
-    samplerCreateInfo.minFilter             = vk::Filter::eLinear;
-    samplerCreateInfo.mipmapMode            = vk::SamplerMipmapMode::eLinear;
-    samplerCreateInfo.addressModeU          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeV          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeW          = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.mipLodBias            = 0.0f;
-    samplerCreateInfo.compareOp             = vk::CompareOp::eNever;
-    samplerCreateInfo.minLod                = 0.0f;
-    // Max level-of-detail should match mip level count
-    samplerCreateInfo.maxLod = 0.0f;
-    // Only enable anisotropic filtering if enabled on the devicec
-    samplerCreateInfo.maxAnisotropy    = 16;
-    samplerCreateInfo.anisotropyEnable = VK_FALSE;
-    samplerCreateInfo.borderColor      = vk::BorderColor::eIntOpaqueWhite;
-
-    sampler = base.device.createSampler(samplerCreateInfo);
-    SAIGA_ASSERT(sampler);
 
     auto fence = queue.submit(cmd);
     return AsyncCommand{cmd, fence};

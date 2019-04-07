@@ -12,34 +12,42 @@ namespace Saiga
 {
 namespace Vulkan
 {
-void ShaderPipelineBase::load(vk::Device device, std::vector<std::string> shaders)
+bool ShaderPipelineBase::load(vk::Device device, std::vector<std::string> shaders)
 {
+    bool valid = true;
     for (auto p : shaders)
     {
         ShaderModule module;
-        module.load(device, p);
+        valid &= module.load(device, p);
         modules.push_back(module);
     }
+    return true;
 }
 
 
-void ShaderPipelineBase::loadGLSL(vk::Device device,
+bool ShaderPipelineBase::loadGLSL(vk::Device device,
                                   std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders)
 {
+    bool valid = true;
     for (auto p : shaders)
     {
         ShaderModule module;
         //        module.loadGLSL(device,p.second,p.first);
-        module.loadGLSL(device, std::get<1>(p), std::get<0>(p), std::get<2>(p));
+        valid &= module.loadGLSL(device, std::get<1>(p), std::get<0>(p), std::get<2>(p));
         modules.push_back(module);
     }
+    return valid;
 }
 
-void ShaderPipelineBase::loadCompute(vk::Device device, std::string shader, std::string injection)
+bool ShaderPipelineBase::loadCompute(vk::Device device, std::string shader, std::string injection)
 {
     ShaderModule module;
-    module.load(device, shader, injection);
-    modules.push_back(module);
+    bool valid = module.load(device, shader, injection);
+    if (valid)
+    {
+        modules.push_back(module);
+    }
+    return valid;
 }
 
 void ShaderPipelineBase::destroy()

@@ -23,9 +23,9 @@ void ProceduralSkybox::destroy()
     Pipeline::destroy();
 }
 
-void ProceduralSkybox::renderTexture(vk::CommandBuffer cmd, vk::DescriptorSet texture, vec2 position, vec2 size)
+void ProceduralSkybox::renderTexture(vk::CommandBuffer cmd, StaticDescriptorSet texture, vec2 position, vec2 size)
 {
-    bindDescriptorSets(cmd, texture);
+    bindDescriptorSet(cmd, texture);
     vk::Viewport vp(position[0], position[1], size[0], size[1]);
     cmd.setViewport(0, vp);
     blitMesh.render(cmd);
@@ -37,8 +37,8 @@ void ProceduralSkybox::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice, 1);
     addDescriptorSetLayout({
-        {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment},
-    });
+        {0,{11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment},
+    }});
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
     shaderPipeline.load(device, {"vulkan/skybox.vert", "vulkan/skybox.frag"});
     PipelineInfo info;
@@ -51,7 +51,7 @@ void ProceduralSkybox::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
     blitMesh.init(vulkanDevice);
 }
 
-vk::DescriptorSet ProceduralSkybox::createAndUpdateDescriptorSet(Texture& texture)
+StaticDescriptorSet ProceduralSkybox::createAndUpdateDescriptorSet(Texture& texture)
 {
     //    vk::DescriptorSet descriptorSet = device.allocateDescriptorSets(
     //                vk::DescriptorSetAllocateInfo(descriptorPool,descriptorSetLayout.size(),descriptorSetLayout.data())
@@ -60,18 +60,8 @@ vk::DescriptorSet ProceduralSkybox::createAndUpdateDescriptorSet(Texture& textur
     //    auto set = base->descriptorPool.allocateDescriptorSet(descriptorSetLayout[0]);
     auto set = createDescriptorSet();
 
+    set.assign(0, &texture);
 
-
-    vk::DescriptorImageInfo descriptorInfoTexture = texture.getDescriptorInfo();
-
-
-
-    device.updateDescriptorSets(
-        {
-            vk::WriteDescriptorSet(set, 11, 0, 1, vk::DescriptorType::eCombinedImageSampler, &descriptorInfoTexture,
-                                   nullptr, nullptr),
-        },
-        nullptr);
     return set;
 }
 

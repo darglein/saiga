@@ -10,11 +10,11 @@
 #include "saiga/export.h"
 
 #include "BaseChunkAllocator.h"
-#include "BaseMemoryAllocator.h"
+#include "BufferMemoryLocation.h"
 #include "ChunkAllocation.h"
 #include "ChunkCreator.h"
 #include "FitStrategy.h"
-#include "MemoryLocation.h"
+#include "MemoryStats.h"
 #include "MemoryType.h"
 
 #include <limits>
@@ -24,21 +24,27 @@
 
 namespace Saiga::Vulkan::Memory
 {
-class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator
+class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<BufferMemoryLocation>
 {
    private:
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();
     vk::BufferCreateInfo m_bufferCreateInfo;
 
    protected:
-    ChunkIterator createNewChunk() override;
+    ChunkIterator<BufferMemoryLocation> createNewChunk() override;
+
+    void headerInfo() override;
+
+    std::unique_ptr<BufferMemoryLocation> create_location(ChunkIterator<BufferMemoryLocation>& chunk_alloc,
+                                                          vk::DeviceSize start, vk::DeviceSize size) override;
 
    public:
     BufferType type;
     ~BufferChunkAllocator() override = default;
 
-    BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type, FitStrategy& strategy,
-                         Queue* _queue, vk::DeviceSize chunkSize = 64 * 1024 * 1024)
+    BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type,
+                         FitStrategy<BufferMemoryLocation>& strategy, Queue* _queue,
+                         vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         std::stringstream identifier_stream;
@@ -72,17 +78,13 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator
         return *this;
     }
 
+
+    void deallocate(BufferMemoryLocation* location) override;
+
 	BufferChunkAllocator(const BufferChunkAllocator&) = delete;
 
 	BufferChunkAllocator& operator= (const BufferChunkAllocator&) = delete;
 
-    void deallocate(MemoryLocation* location) override;
-
-    MemoryLocation* allocate(vk::DeviceSize size) override;
-
-    using BaseChunkAllocator::allocate;
-
-   protected:
-    void headerInfo() override;
+    BufferMemoryLocation* allocate(vk::DeviceSize size);
 };
 }  // namespace Saiga::Vulkan::Memory

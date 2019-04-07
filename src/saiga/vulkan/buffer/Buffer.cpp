@@ -40,15 +40,30 @@ void Buffer::stagedUpload(VulkanBase& base, size_t size, const void* data)
     StagingBuffer staging;
     staging.init(base, size, data);
 
-    staging.m_memoryLocation->copy_to(cmd, m_memoryLocation);
+    copy_buffer(cmd, m_memoryLocation, staging.m_memoryLocation);
 
     cmd.end();
     base.mainQueue.submitAndWait(cmd);
 }
 
+void Buffer::stagedDownload(void* data)
+{
+    vk::CommandBuffer cmd = base->mainQueue.commandPool.createAndBeginOneTimeBuffer();
+
+    StagingBuffer staging;
+    staging.init(*base, size());
+
+    copy_buffer(cmd, staging.m_memoryLocation, m_memoryLocation);
+
+    cmd.end();
+    base->mainQueue.submitAndWait(cmd);
+
+    staging.download(data);
+}
+
 vk::DescriptorBufferInfo Buffer::createInfo()
 {
-    return {m_memoryLocation->buffer, m_memoryLocation->offset, m_memoryLocation->size};
+    return {m_memoryLocation->data, m_memoryLocation->offset, m_memoryLocation->size};
 }
 
 void Buffer::flush(VulkanBase& base, vk::DeviceSize size, vk::DeviceSize offset)
@@ -70,23 +85,25 @@ void Buffer::copyTo(vk::CommandBuffer cmd, Buffer& target, vk::DeviceSize srcOff
     SAIGA_ASSERT(this->size() - srcOffset >= size, "Source buffer is not large enough");
     SAIGA_ASSERT(target.size() - dstOffset >= size, "Destination buffer is not large enough");
     vk::BufferCopy bc{m_memoryLocation->offset + srcOffset, target.m_memoryLocation->offset + dstOffset, size};
-    cmd.copyBuffer(m_memoryLocation->buffer, target.m_memoryLocation->buffer, bc);
+    cmd.copyBuffer(m_memoryLocation->data, target.m_memoryLocation->data, bc);
 }
 
 void Buffer::copyTo(vk::CommandBuffer cmd, vk::Image dstImage, vk::ImageLayout dstImageLayout,
                     vk::ArrayProxy<const vk::BufferImageCopy> regions)
 {
-    cmd.copyBufferToImage(m_memoryLocation->buffer, dstImage, dstImageLayout, regions);
+    Memory::SafeAccessor acc(*m_memoryLocation);
+    cmd.copyBufferToImage(m_memoryLocation->data, dstImage, dstImageLayout, regions);
 }
 
 vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const
 {
+    Memory::SafeAccessor acc(*m_memoryLocation);
     return {m_memoryLocation->offset + offset};
 }
 
 void Buffer::update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset)
 {
-    cmd.updateBuffer(m_memoryLocation->buffer, m_memoryLocation->offset + offset, size, data);
+    cmd.updateBuffer(m_memoryLocation->data, m_memoryLocation->offset + offset, size, data);
 }
 
 std::ostream& operator<<(std::ostream& os, const Buffer& buffer)

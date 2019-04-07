@@ -11,7 +11,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-void FallbackAllocator::deallocate(MemoryLocation* location)
+void FallbackAllocator::deallocate(BufferMemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
     LOG(INFO) << "Fallback deallocate: " << location;
@@ -23,20 +23,43 @@ void FallbackAllocator::deallocate(MemoryLocation* location)
         LOG(FATAL) << "Allocation was not made with this allocator";
         return;
     }
-    (*foundAllocation)->destroy(m_device);
+    destroy(m_device, foundAllocation->get());
     m_allocations.erase(foundAllocation);
 }
+
+void FallbackAllocator::deallocate(ImageMemoryLocation* location)
+{
+    std::scoped_lock lock(mutex);
+    LOG(INFO) << "Fallback deallocate: " << location;
+
+    auto foundAllocation = std::find_if(m_image_allocations.begin(), m_image_allocations.end(),
+                                        [location](auto& alloc) { return alloc.get() == location; });
+    if (foundAllocation == m_image_allocations.end())
+    {
+        LOG(FATAL) << "Allocation was not made with this allocator";
+        return;
+    }
+    destroy(m_device, foundAllocation->get());
+    m_image_allocations.erase(foundAllocation);
+}
+
 
 void FallbackAllocator::destroy()
 {
     for (auto& location : m_allocations)
     {
-        location->destroy(m_device);
+        destroy(m_device, location.get());
     }
     m_allocations.clear();
+
+    for (auto& image_location : m_image_allocations)
+    {
+        destroy(m_device, image_location.get());
+    }
+    m_image_allocations.clear();
 }
 
-MemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::DeviceSize size)
+BufferMemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::DeviceSize size)
 {
     vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(), size, type.usageFlags};
     auto buffer = m_device.createBuffer(bufferCreateInfo);
@@ -55,29 +78,39 @@ MemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::DeviceSi
     }
     m_device.bindBufferMemory(buffer, memory, 0);
 
-    MemoryLocation* retVal;
+    BufferMemoryLocation* retVal;
     {
         std::scoped_lock lock(mutex);
-        m_allocations.emplace_back(std::make_unique<MemoryLocation>(buffer, memory, 0, size, mappedPtr));
+        m_allocations.emplace_back(std::make_unique<BufferMemoryLocation>(buffer, memory, 0, size, mappedPtr));
         retVal = m_allocations.back().get();
     }
     LOG(INFO) << "Fallback allocation: " << type << "->" << retVal;
     return retVal;
 }
 
-MemoryLocation* FallbackAllocator::allocate(const ImageType& type, const vk::Image& image)
+ImageMemoryLocation* FallbackAllocator::allocate(const ImageType& type, ImageData& image_data)
 {
-    auto memReqs = m_device.getImageMemoryRequirements(image);
+    image_data.create_image(m_device);
 
     vk::MemoryAllocateInfo info;
-    info.allocationSize  = memReqs.size;
-    info.memoryTypeIndex = findMemoryType(m_physicalDevice, memReqs.memoryTypeBits, type.memoryFlags);
-    auto memory          = SafeAllocator::instance()->allocateMemory(m_device, info);
+    info.allocationSize = image_data.image_requirements.size;
+    info.memoryTypeIndex =
+        findMemoryType(m_physicalDevice, image_data.image_requirements.memoryTypeBits, type.memoryFlags);
+    auto memory = SafeAllocator::instance()->allocateMemory(m_device, info);
 
-    mutex.lock();
-    m_allocations.emplace_back(std::make_unique<MemoryLocation>(vk::Buffer(), memory, 0, memReqs.size, nullptr));
-    auto retVal = m_allocations.back().get();
-    mutex.unlock();
+
+    ImageMemoryLocation* retVal;
+    {
+        std::scoped_lock lock(mutex);
+        m_image_allocations.emplace_back(
+            std::make_unique<ImageMemoryLocation>(image_data, memory, 0, image_data.image_requirements.size, nullptr));
+        retVal = m_image_allocations.back().get();
+    }
+    SAIGA_ASSERT(retVal, "Invalid pointer returned");
+    bind_image_data(m_device, retVal, std::move(image_data));
+
+    retVal->data.create_view(m_device);
+    retVal->data.create_sampler(m_device);
 
     LOG(INFO) << "Fallback image allocation: " << type << "->" << retVal;
     return retVal;
@@ -105,10 +138,29 @@ MemoryStats FallbackAllocator::collectMemoryStats()
 
     return MemoryStats{totalSize, totalSize, 0};
 }
-
-MemoryLocation* FallbackAllocator::allocate(vk::DeviceSize size)
+void FallbackAllocator::destroy(const vk::Device& device, BufferMemoryLocation* memory_location)
 {
-    SAIGA_ASSERT(false, "Fallback allocator must specify a buffer/image type for allocations");
-    return nullptr;
+    SAIGA_ASSERT(memory_location->memory, "Already destroyed");
+    memory_location->destroy_owned_data(device);
+    device.destroy(memory_location->data.buffer);
+    if (memory_location->memory)
+    {
+        device.free(memory_location->memory);
+        memory_location->memory = nullptr;
+    }
+    memory_location->mappedPointer = nullptr;
 }
+
+void FallbackAllocator::destroy(const vk::Device& device, ImageMemoryLocation* memory_location)
+{
+    SAIGA_ASSERT(memory_location->memory, "Already destroyed");
+    memory_location->destroy_owned_data(device);
+    if (memory_location->memory)
+    {
+        device.free(memory_location->memory);
+        memory_location->memory = nullptr;
+    }
+    memory_location->mappedPointer = nullptr;
+}
+
 }  // namespace Saiga::Vulkan::Memory

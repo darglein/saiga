@@ -11,21 +11,20 @@ namespace Saiga
 {
 namespace Vulkan
 {
+static const Memory::ImageType depth_buffer_type{vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                                                 vk::MemoryPropertyFlagBits::eDeviceLocal};
 void DepthBuffer::destroy()
 {
-    if (depthimage)
+    if (location)
     {
-        base->device.destroyImage(depthimage);
-        base->device.destroyImageView(depthview);
-        depthimage = nullptr;
-        depthview  = nullptr;
+        base->memory.deallocateImage(depth_buffer_type, location);
+        location = nullptr;
     }
 }
 
 void DepthBuffer::init(VulkanBase& base, int width, int height)
 {
     this->base = &base;
-    vk::Result res;
     {
         // depth buffer
         vk::ImageCreateInfo image_info = {};
@@ -81,32 +80,35 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount     = 1;
 
-        vk::MemoryRequirements mem_reqs;
+        Memory::ImageData img_data(image_info, viewInfo, vk::ImageLayout::eUndefined);
+        // vk::MemoryRequirements mem_reqs;
+        //
+        //
+        ///* Create image */
+        ////        res = vkCreateImage(info.device, &image_info, NULL, &info.depth.image);
+        // res = base.device.createImage(&image_info, nullptr, &depthimage);
+        // SAIGA_ASSERT(res == vk::Result::eSuccess);
+        ////        assert(res == VK_SUCCESS);
+        //
+        //
+        ////        vkGetImageMemoryRequirements(info.device, info.depth.image, &mem_reqs);
+        // mem_reqs = base.device.getImageMemoryRequirements(depthimage);
+        //
+        // location = base.memory.allocate(
+        //    {vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal}, depthimage);
+        //
+        //
+        //// allocateMemory(base, mem_reqs, vk::MemoryPropertyFlagBits::eDeviceLocal);
+        //
+        //
+        // base.device.bindImageMemory(depthimage, location->memory, location->size);
+        //
+        //
+        // viewInfo.image = depthimage;
+        // res            = base.device.createImageView(&viewInfo, nullptr, &depthview);
+        // SAIGA_ASSERT(res == vk::Result::eSuccess);
 
-
-        /* Create image */
-        //        res = vkCreateImage(info.device, &image_info, NULL, &info.depth.image);
-        res = base.device.createImage(&image_info, nullptr, &depthimage);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
-        //        assert(res == VK_SUCCESS);
-
-
-        //        vkGetImageMemoryRequirements(info.device, info.depth.image, &mem_reqs);
-        mem_reqs = base.device.getImageMemoryRequirements(depthimage);
-
-        location = base.memory.allocate(
-            {vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal}, depthimage);
-
-
-        // allocateMemory(base, mem_reqs, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-
-        base.device.bindImageMemory(depthimage, location->memory, location->size);
-
-
-        viewInfo.image = depthimage;
-        res            = base.device.createImageView(&viewInfo, nullptr, &depthview);
-        SAIGA_ASSERT(res == vk::Result::eSuccess);
+        location = base.memory.allocate(depth_buffer_type, img_data);
     }
 }
 

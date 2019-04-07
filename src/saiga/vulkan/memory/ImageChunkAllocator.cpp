@@ -10,7 +10,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-Saiga::Vulkan::Memory::ChunkIterator Saiga::Vulkan::Memory::ImageChunkAllocator::createNewChunk()
+ChunkIterator<ImageMemoryLocation> ImageChunkAllocator::createNewChunk()
 {
     auto newChunk = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
 
@@ -26,12 +26,32 @@ void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
     ImGui::LabelText("Memory Type", "%s", ss.str().c_str());
 }
 
-Saiga::Vulkan::Memory::MemoryLocation* Saiga::Vulkan::Memory::ImageChunkAllocator::allocate(vk::DeviceSize size,
-                                                                                            const vk::Image& image)
+ImageMemoryLocation* ImageChunkAllocator::allocate(ImageData& image_data)
 {
-    auto image_mem_reqs = m_device.getImageMemoryRequirements(image);
-    auto aligned_size   = Saiga::iAlignUp(size, image_mem_reqs.alignment);
-    return BaseChunkAllocator::allocate(aligned_size);
+    image_data.create_image(m_device);
+    auto aligned_size = Saiga::iAlignUp(image_data.image_requirements.size, image_data.image_requirements.alignment);
+    auto location     = BaseChunkAllocator::base_allocate(aligned_size);
+
+    bind_image_data(m_device, location, std::move(image_data));
+
+    location->data.create_view(m_device);
+    location->data.create_sampler(m_device);
+
+    VLOG(1) << "Allocated image" << *location;
+    return location;
+}
+
+std::unique_ptr<ImageMemoryLocation> ImageChunkAllocator::create_location(
+    ChunkIterator<ImageMemoryLocation>& chunk_alloc, vk::DeviceSize start, vk::DeviceSize size)
+{
+    return std::make_unique<ImageMemoryLocation>(nullptr, chunk_alloc->chunk->memory, start, size,
+                                                 chunk_alloc->mappedPointer);
+}
+
+void ImageChunkAllocator::deallocate(ImageMemoryLocation* location)
+{
+    VLOG(1) << "Trying to deallocate image" << *location;
+    BaseChunkAllocator::deallocate(location);
 }
 
 }  // namespace Saiga::Vulkan::Memory

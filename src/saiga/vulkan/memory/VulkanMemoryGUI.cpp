@@ -5,6 +5,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/vulkan/Base.h"
 
 #include "VulkanMemory.h"
 
@@ -12,7 +13,14 @@ namespace Saiga::Vulkan::Memory
 {
 void VulkanMemory::renderGUI()
 {
-    if (!ImGui::CollapsingHeader("Memory Stats"))
+    static bool mem_stats_open = base->m_parameters.expand_memory_stats;
+
+    ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_None;
+    if (mem_stats_open)
+    {
+        node_flags = ImGuiTreeNodeFlags_DefaultOpen;
+    }
+    if (!ImGui::CollapsingHeader("Memory Stats", node_flags))
     {
         return;
     }
@@ -42,7 +50,7 @@ void VulkanMemory::renderGUI()
         {
             memoryTypeStats[allocator.first.memoryFlags] = MemoryStats();
         }
-        memoryTypeStats[allocator.first.memoryFlags] += allocator.second->collectMemoryStats();
+        memoryTypeStats[allocator.first.memoryFlags] += allocator.second.allocator->collectMemoryStats();
     }
 
     static std::vector<ImGui::ColoredBar> bars;
@@ -73,7 +81,7 @@ void VulkanMemory::renderGUI()
 
 
     ImGui::Indent();
-    if (!ImGui::CollapsingHeader("Detailed Memory Stats"))
+    if (!ImGui::CollapsingHeader("Detailed Memory Stats", node_flags))
     {
         return;
     }
@@ -82,11 +90,11 @@ void VulkanMemory::renderGUI()
 
     for (auto& allocator : bufferAllocators)
     {
-        allocator.second.allocator->showDetailStats();
+        allocator.second.allocator->showDetailStats(mem_stats_open);
     }
     for (auto& allocator : imageAllocators)
     {
-        allocator.second->showDetailStats();
+        allocator.second.allocator->showDetailStats(mem_stats_open);
     }
 
     ImGui::Unindent();

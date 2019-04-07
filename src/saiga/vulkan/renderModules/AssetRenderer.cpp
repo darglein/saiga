@@ -25,7 +25,8 @@ void AssetRenderer::destroy()
 }
 bool AssetRenderer::bind(vk::CommandBuffer cmd)
 {
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
+    bindDescriptorSet(cmd, descriptorSet, 0);
+    // cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
     return Pipeline::bind(cmd);
 }
 
@@ -46,7 +47,7 @@ void AssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 
 void AssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice, 1);
-    addDescriptorSetLayout({{7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}});
+    addDescriptorSetLayout({{0, {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}}});
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
     shaderPipeline.load(device, {vertexShader, fragmendShader});
     PipelineInfo info;

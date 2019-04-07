@@ -50,18 +50,16 @@ void Queue::destroy()
 
 void Queue::submitAndWait(vk::CommandBuffer cmd)
 {
-    if (!cmd)
-    {
-        return;
-    }
+    SAIGA_ASSERT(cmd, "invalid command buffer provided");
     vk::SubmitInfo submitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
     vk::FenceCreateInfo fci{};
-    submitMutex.lock();
-    auto fence = device.createFence(fci);
-    queue.submit(submitInfo, fence);
-    submitMutex.unlock();
+    vk::Fence fence = device.createFence(fci);
+    {
+        std::scoped_lock lock(submitMutex);
+        queue.submit(submitInfo, fence);
+    }
     device.waitForFences(fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     device.destroyFence(fence);
 }
@@ -74,30 +72,28 @@ vk::Fence Queue::submit(vk::CommandBuffer cmd)
     vk::SubmitInfo submitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
-    submitMutex.lock();
-    auto fence = device.createFence({});
-    queue.submit(submitInfo, fence);
-    submitMutex.unlock();
+    auto fence                    = device.createFence({});
+    {
+        std::scoped_lock lock(submitMutex);
+        queue.submit(submitInfo, fence);
+    }
     return fence;
 }
 
 CommandPool Queue::createCommandPool(vk::CommandPoolCreateFlags commandPoolCreateFlags)
 {
-    commandPoolCreationMutex.lock();
-
+    std::scoped_lock pool_create_lock(commandPoolCreationMutex);
     CommandPool newCommandPool;
     newCommandPool.create(device, queueFamilyIndex, commandPoolCreateFlags);
     LOG(INFO) << "Creating command pool: " << static_cast<vk::CommandPool>(newCommandPool);
     commandPools.push_back(newCommandPool);
-    commandPoolCreationMutex.unlock();
     return newCommandPool;
 }
 
 void Queue::submit(vk::SubmitInfo submitInfo, vk::Fence fence)
 {
-    submitMutex.lock();
+    std::scoped_lock submit_lock(submitMutex);
     queue.submit(submitInfo, fence);
-    submitMutex.unlock();
 }
 
 

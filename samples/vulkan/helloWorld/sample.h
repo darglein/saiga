@@ -13,6 +13,7 @@
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/memory/VulkanMemory.h"
+#include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
@@ -55,7 +56,7 @@ class VulkanExample : public Saiga::Updating,
     Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
 
     //
-    vk::DescriptorSet textureDes;
+    Saiga::Vulkan::StaticDescriptorSet textureDes;
     Saiga::Vulkan::TextureDisplay textureDisplay;
 
     Saiga::Vulkan::VulkanForwardRenderer& renderer;

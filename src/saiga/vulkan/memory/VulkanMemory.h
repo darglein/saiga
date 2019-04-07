@@ -10,8 +10,8 @@
 #include "Defragger.h"
 #include "FallbackAllocator.h"
 #include "ImageChunkAllocator.h"
+#include "ImageCopyComputeShader.h"
 #include "MemoryType.h"
-#include "SimpleMemoryAllocator.h"
 
 #include <algorithm>
 #include <map>
@@ -20,59 +20,87 @@
 #include <vulkan/vulkan.hpp>
 
 #include <unordered_map>
+namespace Saiga::Vulkan
+{
+struct VulkanBase;
+}
 namespace Saiga::Vulkan::Memory
 {
+static const vk::BufferUsageFlags all_buffer_usage(VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM);
+static const vk::ImageUsageFlags all_image_usage(VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM);
+
+static const vk::MemoryPropertyFlags all_mem_properties(VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM);
+static const vk::DeviceSize fallback_buffer_chunk_size = 64 * 1024 * 1024;
+
+static const vk::DeviceSize fallback_image_chunk_size = 32 * 1024 * 1024;
+
 class SAIGA_VULKAN_API VulkanMemory
 {
    private:
-    struct BufferAllocator
+    uint32_t frame_number      = 0;
+    bool enableDefragmentation = false;
+    template <bool usage_exact, bool memory_exact, typename T>
+    struct allocator_find_functor
+    {
+        T type;
+        explicit allocator_find_functor(T _type) : type(_type) {}
+        template <typename MapIter>
+        inline bool operator()(const MapIter& iter) const
+        {
+            bool usage_valid;
+            if (usage_exact)
+            {
+                usage_valid = iter.first.usageFlags == type.usageFlags;
+            }
+            else
+            {
+                usage_valid = (iter.first.usageFlags & type.usageFlags) == type.usageFlags;
+            }
+
+            bool memory_valid;
+
+            if (memory_exact)
+            {
+                memory_valid = iter.first.memoryFlags == type.memoryFlags;
+            }
+            else
+            {
+                memory_valid = ((iter.first.memoryFlags & type.memoryFlags) == type.memoryFlags);
+            }
+
+            return usage_valid && memory_valid;
+        }
+    };
+
+    struct BufferContainer
     {
         std::unique_ptr<BufferChunkAllocator> allocator;
-        std::unique_ptr<Defragger> defragger;
+        std::unique_ptr<BufferDefragger> defragger;
     };
-    using BufferMap = std::map<BufferType, BufferAllocator>;
-    using ImageMap  = std::map<ImageType, std::unique_ptr<ImageChunkAllocator>>;
+
+    struct ImageContainer
+    {
+        std::unique_ptr<ImageChunkAllocator> allocator;
+        std::unique_ptr<ImageDefragger> defragger;
+    };
+    using BufferMap  = std::map<BufferType, BufferContainer>;
+    using ImageMap   = std::map<ImageType, ImageContainer>;
+    using BufferIter = BufferMap::iterator;
+    using ImageIter  = ImageMap::iterator;
 
     using BufferDefaultMap = std::map<BufferType, vk::DeviceSize>;
     using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
-    using BufferIter       = BufferMap::iterator;
-    using ImageIter        = ImageMap::iterator;
 
+
+    VulkanBase* base;
     vk::PhysicalDevice m_pDevice;
     vk::Device m_device;
     Queue* m_queue;
+    uint32_t m_swapchain_images;
+    std::unique_ptr<ImageCopyComputeShader> img_copy_shader;
 
 
     std::vector<vk::MemoryType> memoryTypes;
-    const vk::BufferUsageFlags all_buffer_usage = static_cast<vk::BufferUsageFlags>(VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM);
-    const vk::ImageUsageFlags all_image_usage   = static_cast<vk::ImageUsageFlags>(VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM);
-    const vk::MemoryPropertyFlags all_mem_properties =
-        static_cast<vk::MemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM);
-
-    const vk::DeviceSize fallback_buffer_chunk_size = 64 * 1024 * 1024;
-    const vk::DeviceSize fallback_image_chunk_size  = 256 * 1024 * 1024;
-
-
-    template <typename T>
-    inline bool allocator_valid_exact(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
-    {
-        return ((allocator_type.usageFlags & type.usageFlags) == type.usageFlags) &&
-               (allocator_type.memoryFlags == type.memoryFlags);
-    }
-
-    template <typename T>
-    inline bool allocator_valid_relaxed(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
-    {
-        return ((allocator_type.usageFlags & type.usageFlags) == type.usageFlags) &&
-               ((allocator_type.memoryFlags & type.memoryFlags) == type.memoryFlags);
-    }
-
-    template <typename T>
-    inline bool default_valid(const MemoryType<T> allocator_type, const MemoryType<T>& type) const
-    {
-        return ((allocator_type.usageFlags & type.usageFlags) == type.usageFlags) &&
-               ((allocator_type.memoryFlags & type.memoryFlags) == type.memoryFlags);
-    }
 
 
     BufferDefaultMap default_buffer_chunk_sizes{
@@ -90,7 +118,8 @@ class SAIGA_VULKAN_API VulkanMemory
 
     std::unique_ptr<FallbackAllocator> fallbackAllocator;
     ChunkCreator chunkCreator;
-    std::unique_ptr<FitStrategy> strategy;
+    std::unique_ptr<FitStrategy<BufferMemoryLocation>> strategy;
+    std::unique_ptr<FitStrategy<ImageMemoryLocation>> image_strategy;
 
 
     template <typename DefaultSizeMap, typename MemoryType>
@@ -99,9 +128,8 @@ class SAIGA_VULKAN_API VulkanMemory
     {
         const auto sizes_begin = defaultSizes.cbegin();
         const auto sizes_end   = defaultSizes.cend();
-        auto found = std::find_if(sizes_begin, sizes_end, [&](typename DefaultSizeMap::const_reference entry) {
-            return (default_valid(entry.first, type));
-        });
+
+        auto found = std::find_if(sizes_begin, sizes_end, allocator_find_functor<false, false, MemoryType>(type));
 
         SAIGA_ASSERT(found != defaultSizes.cend(), "No default size found. At least a fallback size must be added.");
         return found;
@@ -117,18 +145,27 @@ class SAIGA_VULKAN_API VulkanMemory
         const auto begin = map.begin();
         const auto end   = map.end();
 
-        auto found = std::find_if(
-            begin, end, [=](typename Map::reference entry) { return allocator_valid_exact(entry.first, memoryType); });
+        auto found = std::find_if(begin, end, allocator_find_functor<false, true, MemoryType<UsageType>>(memoryType));
 
         if (found == end)
         {
-            found = std::find_if(begin, end, [=](typename Map::reference entry) {
-                return allocator_valid_relaxed(entry.first, memoryType);
-            });
+            found = std::find_if(begin, end, allocator_find_functor<false, false, MemoryType<UsageType>>(memoryType));
         }
 
         return found;
     }
+
+    template <typename Map, typename UsageType>
+    inline typename Map::iterator find_allocator_exact(Map& map, const MemoryType<UsageType>& memoryType)
+    {
+        const auto begin = map.begin();
+        const auto end   = map.end();
+
+        auto found = std::find_if(begin, end, allocator_find_functor<true, true, MemoryType<UsageType>>(memoryType));
+
+        return found;
+    }
+
 
     inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const
     {
@@ -144,34 +181,70 @@ class SAIGA_VULKAN_API VulkanMemory
     }
 
 
-    BufferAllocator& getAllocator(const BufferType& type);
+    BufferContainer& getAllocator(const BufferType& type);
 
-    ImageChunkAllocator& getImageAllocator(const ImageType& type);
+    BufferContainer& get_allocator_exact(const BufferType& type);
+
+    ImageContainer& getImageAllocator(const ImageType& type);
+
+    ImageContainer& get_image_allocator_exact(const ImageType& type);
 
    public:
-
-	   VulkanMemory() = default;
-	   VulkanMemory(const VulkanMemory&) = delete;
-	   VulkanMemory& operator=(const VulkanMemory&) = delete;
-    void init(vk::PhysicalDevice _pDevice, vk::Device _device, Queue* queue);
+    void init(VulkanBase* base, uint32_t swapchain_frames, bool enableDefragmentation);
+    VulkanMemory()                    = default;
+    VulkanMemory(const VulkanMemory&) = delete;
+    VulkanMemory& operator=(const VulkanMemory&) = delete;
 
     void destroy();
 
     void renderGUI();
 
-    MemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
+    BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
 
-    MemoryLocation* allocate(const ImageType& type, const vk::Image& image);
+    // Continue here: change from image to ImageData
+    ImageMemoryLocation* allocate(const ImageType& type, ImageData& image);
 
-    void deallocateBuffer(const BufferType& type, MemoryLocation* location);
+    void deallocateBuffer(const BufferType& type, BufferMemoryLocation* location);
 
-    void deallocateImage(const ImageType& type, MemoryLocation* location);
+    void deallocateImage(const ImageType& type, ImageMemoryLocation* location);
 
     void enable_defragmentation(const BufferType& type, bool enable);
 
+    void enable_defragmentation(const ImageType& type, bool enable);
+
     void start_defrag(const BufferType& type);
 
+    void start_defrag(const ImageType& type);
+
     void stop_defrag(const BufferType& type);
+
+    void stop_defrag(const ImageType& type);
+
+    void performTimedDefrag(int64_t time);
+
+    void update()
+    {
+        frame_number++;
+        for (auto& allocator : bufferAllocators)
+        {
+            auto* defragger = allocator.second.defragger.get();
+
+            if (defragger)
+            {
+                defragger->update(frame_number);
+            }
+        }
+
+        for (auto& allocator : imageAllocators)
+        {
+            auto* defragger = allocator.second.defragger.get();
+
+            if (defragger)
+            {
+                defragger->update(frame_number);
+            }
+        }
+    }
 };
 
 }  // namespace Saiga::Vulkan::Memory

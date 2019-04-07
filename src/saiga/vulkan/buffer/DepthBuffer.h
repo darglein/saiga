@@ -23,15 +23,14 @@ class SAIGA_VULKAN_API DepthBuffer
 
     // depth image
     vk::Format format;
-    vk::Image depthimage = nullptr;
-    vk::ImageView depthview;
 
     void init(Saiga::Vulkan::VulkanBase& base, int width, int height);
     void destroy();
 
+    Memory::ImageMemoryLocation* location = nullptr;
+
    private:
     VulkanBase* base;
-    Memory::MemoryLocation* location;
 };
 
 }  // namespace Vulkan

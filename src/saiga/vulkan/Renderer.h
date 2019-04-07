@@ -16,6 +16,7 @@
 #include "saiga/vulkan/SwapChain.h"
 #include "saiga/vulkan/svulkan.h"
 
+#include "FrameTimings.h"
 namespace Saiga
 {
 namespace Vulkan
@@ -114,6 +115,7 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     Instance instance;
     VulkanBase vulkanBase;
+    FrameTimings<> timings;
     VulkanWindow& window;
     VkSurfaceKHR surface;
 

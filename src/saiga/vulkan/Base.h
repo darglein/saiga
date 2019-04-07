@@ -35,7 +35,11 @@ struct SAIGA_VULKAN_API VulkanBase
     std::unique_ptr<Queue> dedicated_compute_queue;
     std::unique_ptr<Queue> dedicated_transfer_queue;
 
+
    public:
+    std::atomic_uint32_t current_frame;
+    uint32_t numSwapchainFrames;
+    VulkanParameters m_parameters;
     ~VulkanBase() { destroy(); }
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
@@ -107,6 +111,18 @@ struct SAIGA_VULKAN_API VulkanBase
     bool findQueueFamily(vk::QueueFlags flags, uint32_t& family, uint32_t offset = 0);
 
     bool findDedicatedQueueFamily(vk::QueueFlags flags, uint32_t& family);
+
+    void finalize_init(uint32_t swapchain_frames)
+    {
+        numSwapchainFrames = swapchain_frames;
+        memory.init(this, swapchain_frames, m_parameters.enableDefragmentation);
+    }
+
+    inline void finish_frame()
+    {
+        current_frame++;
+        memory.update();
+    }
 };
 
 }  // namespace Vulkan

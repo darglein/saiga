@@ -47,7 +47,7 @@ void PointCloudRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, 
 void PointCloudRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass, float pointSize)
 {
     PipelineBase::init(vulkanDevice, 1);
-    addDescriptorSetLayout({{7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}});
+    addDescriptorSetLayout({{0, {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}}});
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
     shaderPipeline.loadGLSL(device, {{"vulkan/point.vert", vk::ShaderStageFlagBits::eVertex,
                                       "#define POINT_SIZE " + std::to_string(pointSize)},

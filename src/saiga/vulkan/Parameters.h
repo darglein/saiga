@@ -19,7 +19,8 @@ struct SAIGA_VULKAN_API VulkanParameters
     std::vector<const char*> deviceExtensions;
     bool enableValidationLayer = true;
     bool enableImgui           = true;
-
+    bool expand_memory_stats   = false;
+    bool enableDefragmentation = false;
     uint32_t maxDescriptorSets = 4096 * 4;
     // for {uniformBuffer,texture}
     std::array<uint32_t, 4> descriptorCounts = {4096, 4096, 4096, 4096};

@@ -31,19 +31,18 @@ struct FreeListEntry
         return os;
     }
 
-    inline vk::DeviceSize end() { return offset + size; }
+    inline vk::DeviceSize end() const { return offset + size; }
 };
 
-using FreeList          = std::vector<FreeListEntry>;
-using FreeIterator      = FreeList::iterator;
-using ConstFreeIterator = FreeList::const_iterator;
 
-using AllocatedList           = std::vector<std::unique_ptr<MemoryLocation>>;
-using AllocationIterator      = AllocatedList::iterator;
-using ConstAllocationIterator = AllocatedList::const_iterator;
 
+template <typename T>
 struct SAIGA_VULKAN_API ChunkAllocation
 {
+    using FreeList      = std::vector<FreeListEntry>;
+    using FreeIterator  = typename std::vector<FreeListEntry>::iterator;
+    using AllocatedList = std::vector<std::unique_ptr<T>>;
+
     std::shared_ptr<Chunk> chunk;
     vk::Buffer buffer;
     AllocatedList allocations;
@@ -53,12 +52,12 @@ struct SAIGA_VULKAN_API ChunkAllocation
 
     vk::DeviceSize allocated;
     vk::DeviceSize size;
-	ChunkAllocation() = default;
+    ChunkAllocation() = default;
 
-	ChunkAllocation(ChunkAllocation&&) = default;
-	ChunkAllocation& operator=(ChunkAllocation&&) = default;
-	ChunkAllocation(const ChunkAllocation&) = delete;
-	ChunkAllocation& operator=(const ChunkAllocation&) = delete;
+    ChunkAllocation(ChunkAllocation&&) = default;
+    ChunkAllocation& operator=(ChunkAllocation&&) = default;
+    ChunkAllocation(const ChunkAllocation&)       = delete;
+    ChunkAllocation& operator=(const ChunkAllocation&) = delete;
 
     ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize _size, void* _mappedPointer)
         : chunk(std::move(_chunk)),
@@ -78,11 +77,36 @@ struct SAIGA_VULKAN_API ChunkAllocation
     inline vk::DeviceSize getFree() const { return size - allocated; }
 };
 
+template <typename T>
+using ChunkContainer = std::vector<ChunkAllocation<T>>;
 
-typedef std::vector<ChunkAllocation> ChunkContainer;
-typedef ChunkContainer::iterator ChunkIterator;
-typedef ChunkContainer::const_iterator ConstChunkIterator;
-typedef ChunkContainer::reverse_iterator RevChunkIterator;
-typedef ChunkContainer::const_reverse_iterator ConstRevChunkIterator;
+template <typename T>
+using ChunkIterator = typename ChunkContainer<T>::iterator;
 
+template <typename T>
+using ConstChunkIterator = typename ChunkContainer<T>::const_iterator;
+
+template <typename T>
+using RevChunkIterator = typename ChunkContainer<T>::reverse_iterator;
+
+template <typename T>
+using ConstRevChunkIterator = typename ChunkContainer<T>::const_reverse_iterator;
+
+template <typename T>
+using AllocationIterator = typename ChunkAllocation<T>::AllocatedList::iterator;
+
+template <typename T>
+using ConstAllocationIterator = typename ChunkAllocation<T>::AllocatedList::const_iterator;
+
+template <typename T>
+using RevAllocationIterator = typename ChunkAllocation<T>::AllocatedList::reverse_iterator;
+
+template <typename T>
+using ConstRevAllocationIterator = typename ChunkAllocation<T>::AllocatedList::const_reverse_iterator;
+
+template <typename T>
+using FreeIterator = typename ChunkAllocation<T>::FreeList::iterator;
+
+template <typename T>
+using ConstFreeIterator = typename ChunkAllocation<T>::FreeList::const_iterator;
 }  // namespace Saiga::Vulkan::Memory

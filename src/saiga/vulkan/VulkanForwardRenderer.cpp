@@ -45,8 +45,8 @@ void VulkanForwardRenderer::createBuffers(int numImages, int w, int h)
     frameBuffers.resize(numImages);
     for (int i = 0; i < numImages; i++)
     {
-        frameBuffers[i].createColorDepthStencil(w, h, swapChain.buffers[i].view, depthBuffer.depthview, renderPass,
-                                                base().device);
+        frameBuffers[i].createColorDepthStencil(w, h, swapChain.buffers[i].view, depthBuffer.location->data.view,
+                                                renderPass, base().device);
     }
 
 
@@ -171,13 +171,18 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
 
 
     vk::CommandBuffer& cmd = drawCmdBuffers[currentImage];
-
+    // cmd.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
     // Set target frame buffer
     renderPassBeginInfo.framebuffer = frameBuffers[currentImage].framebuffer;
 
     cmd.begin(cmdBufInfo);
+    timings.resetFrame(cmd);
+    timings.enterSection("TRANSFER", cmd);
+
     // VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
     renderingInterface->transfer(cmd);
+
+    timings.leaveSection("TRANSFER", cmd);
 
 
     if (imGui) imGui->updateBuffers(cmd, currentImage);
@@ -193,8 +198,12 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
 
     {
         // Actual rendering
+        timings.enterSection("MAIN", cmd);
         renderingInterface->render(cmd);
+        timings.leaveSection("MAIN", cmd);
+        timings.enterSection("IMGUI", cmd);
         if (imGui) imGui->render(cmd, currentImage);
+        timings.leaveSection("IMGUI", cmd);
     }
 
     vkCmdEndRenderPass(cmd);
@@ -219,6 +228,7 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
+    base().finish_frame();
 }
 
 

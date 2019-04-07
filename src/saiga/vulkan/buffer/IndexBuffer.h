@@ -77,7 +77,7 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
 
     void bind(vk::CommandBuffer& cmd)
     {
-        cmd.bindIndexBuffer(m_memoryLocation->buffer, m_memoryLocation->offset, VKType::value);
+        cmd.bindIndexBuffer(m_memoryLocation->data, m_memoryLocation->offset, VKType::value);
     }
 
     void draw(vk::CommandBuffer& cmd) { cmd.drawIndexed(indexCount, 1, 0, 0, 0); }

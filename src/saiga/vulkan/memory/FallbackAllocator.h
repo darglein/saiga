@@ -6,11 +6,12 @@
 
 #include "saiga/core/util/imath.h"
 #include "saiga/export.h"
-#include "saiga/vulkan/memory/ChunkCreator.h"
-#include "saiga/vulkan/memory/MemoryLocation.h"
 
-#include "BaseMemoryAllocator.h"
+#include "BufferMemoryLocation.h"
+#include "ChunkCreator.h"
 #include "FindMemoryType.h"
+#include "ImageMemoryLocation.h"
+#include "MemoryStats.h"
 #include "MemoryType.h"
 #include "SafeAllocator.h"
 
@@ -21,18 +22,23 @@
 
 namespace Saiga::Vulkan::Memory
 {
-class FallbackAllocator : public BaseMemoryAllocator
+class FallbackAllocator
 {
    private:
     std::mutex mutex;
     vk::Device m_device;
     vk::PhysicalDevice m_physicalDevice;
-    std::vector<std::unique_ptr<MemoryLocation>> m_allocations;
+    std::vector<std::unique_ptr<BufferMemoryLocation>> m_allocations;
+    std::vector<std::unique_ptr<ImageMemoryLocation>> m_image_allocations;
     std::string gui_identifier;
+
+    void destroy(const vk::Device& device, BufferMemoryLocation* memory_location);
+
+    void destroy(const vk::Device& device, ImageMemoryLocation* memory_location);
 
    public:
     FallbackAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice)
-        : BaseMemoryAllocator(), m_device(_device), m_physicalDevice(_physicalDevice)
+        : m_device(_device), m_physicalDevice(_physicalDevice)
     {
         std::stringstream identifier_stream;
         identifier_stream << "Fallback allocator";
@@ -40,41 +46,40 @@ class FallbackAllocator : public BaseMemoryAllocator
     }
 
     FallbackAllocator(FallbackAllocator&& other) noexcept
-        : BaseMemoryAllocator(std::move(other)),
-          m_device(other.m_device),
+        : m_device(other.m_device),
           m_physicalDevice(other.m_physicalDevice),
           m_allocations(std::move(other.m_allocations)),
+          m_image_allocations(std::move(other.m_image_allocations)),
           gui_identifier(std::move(other.gui_identifier))
     {
     }
 
     FallbackAllocator& operator=(FallbackAllocator&& other) noexcept
     {
-        BaseMemoryAllocator::operator=(std::move(static_cast<BaseMemoryAllocator&&>(other)));
-        m_device                     = other.m_device;
-        m_physicalDevice             = other.m_physicalDevice;
-        m_allocations                = std::move(other.m_allocations);
-        gui_identifier               = std::move(other.gui_identifier);
+        m_device            = other.m_device;
+        m_physicalDevice    = other.m_physicalDevice;
+        m_allocations       = std::move(other.m_allocations);
+        m_image_allocations = std::move(other.m_image_allocations);
+        gui_identifier      = std::move(other.gui_identifier);
         return *this;
     }
+
+    ~FallbackAllocator() { destroy(); }
 
 	FallbackAllocator(const FallbackAllocator&) = delete;
 	FallbackAllocator& operator=(const FallbackAllocator&) = delete;
 
-    ~FallbackAllocator() override { destroy(); }
+    BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
+    ImageMemoryLocation* allocate(const ImageType& type, ImageData& image_data);
 
-    MemoryLocation* allocate(vk::DeviceSize size) override;
+    void destroy();
 
-    MemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
-    MemoryLocation* allocate(const ImageType& type, const vk::Image& image);
+    void deallocate(BufferMemoryLocation* location);
+    void deallocate(ImageMemoryLocation* location);
 
-    void destroy() override;
+    void showDetailStats();
 
-    void deallocate(MemoryLocation* location) override;
-
-    void showDetailStats() override;
-
-    MemoryStats collectMemoryStats() override;
+    MemoryStats collectMemoryStats();
 };
 
 }  // namespace Saiga::Vulkan::Memory

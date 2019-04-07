@@ -20,10 +20,10 @@ namespace Vulkan
 class SAIGA_VULKAN_API Buffer
 {
    protected:
-    VulkanBase* base                         = nullptr;
-    vk::BufferUsageFlags bufferUsage         = vk::BufferUsageFlagBits();
-    vk::MemoryPropertyFlags memoryProperties = vk::MemoryPropertyFlags();
-    Memory::MemoryLocation* m_memoryLocation = nullptr;
+    VulkanBase* base                               = nullptr;
+    vk::BufferUsageFlags bufferUsage               = vk::BufferUsageFlagBits();
+    vk::MemoryPropertyFlags memoryProperties       = vk::MemoryPropertyFlags();
+    Memory::BufferMemoryLocation* m_memoryLocation = nullptr;
 
    public:
     Buffer()                    = default;
@@ -70,6 +70,7 @@ class SAIGA_VULKAN_API Buffer
      */
     void stagedUpload(VulkanBase& base, size_t size, const void* data);  // TODO: Remove base parameter
 
+    void stagedDownload(void* data);
     vk::DescriptorBufferInfo createInfo();
 
     void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE,
@@ -118,7 +119,7 @@ class SAIGA_VULKAN_API Buffer
      * Upload new data to the buffer. Only copies size() number of bytes.
      * @param data Data to upload.
      */
-    void upload(void* data) { m_memoryLocation->upload(base->device, data); }
+    void upload(void* data, size_t size) { m_memoryLocation->upload(base->device, data, size); }
 
     /**
      * Downloads the buffer into the data vector. It must provide enough memory to store size() bytes.
