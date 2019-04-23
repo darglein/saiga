@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 #include "saiga/core/framework/framework.h"
-#include "saiga/core/time/Time"
+#include "saiga/core/time/all.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"

@@ -55,8 +55,8 @@ class VulkanExample : public Saiga::Updating,
     bool updateTexture = false;
     bool initTexture   = false;
 
-    vk::DescriptorSet textureDes;
-    vk::DescriptorSet textureDes2;
+    Saiga::Vulkan::StaticDescriptorSet textureDes;
+    Saiga::Vulkan::StaticDescriptorSet textureDes2;
     Saiga::Vulkan::TextureDisplay textureDisplay;
 
     Saiga::Vulkan::VulkanForwardRenderer& renderer;

@@ -64,12 +64,13 @@ PackageHelper(Cholmod ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIE
 #message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
 
 #mkl
-find_package(MKL QUIET)
-if(MKL_FOUND )
-    SET(SAIGA_USE_MKL 1)
+if(SAIGA_WITH_MKL)
+    find_package(MKL QUIET)
+    if(MKL_FOUND )
+        SET(SAIGA_USE_MKL 1)
+    endif()
+    PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
 endif()
-PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
-
 
 
 #openni2
