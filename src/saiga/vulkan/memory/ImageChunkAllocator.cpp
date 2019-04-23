@@ -28,7 +28,6 @@ void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
 
 ImageMemoryLocation* ImageChunkAllocator::allocate(ImageData& image_data)
 {
-    image_data.create_image(m_device);
     auto aligned_size = Saiga::iAlignUp(image_data.image_requirements.size, image_data.image_requirements.alignment);
     auto location     = BaseChunkAllocator::base_allocate(aligned_size);
 
