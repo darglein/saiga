@@ -42,7 +42,8 @@ else ()
 endif()
 
 
-target_link_libraries(${MODULE_NAME} ${CORE_LIBS} ${CORE_TARGETS})
+target_link_libraries(${MODULE_NAME} PUBLIC ${CORE_LIBS} ${CORE_TARGETS} )
+target_link_libraries(${MODULE_NAME} PRIVATE std::filesystem)
 
 target_include_directories(
     ${MODULE_NAME}

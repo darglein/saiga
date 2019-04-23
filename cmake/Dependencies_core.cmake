@@ -91,11 +91,11 @@ PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
 
 
 #c++17 filesystem
-find_package(Filesystem QUIET)
-PackageHelper(Filesystem "${FILESYSTEM_FOUND}" "" "${FILESYSTEM_LIBRARY}")
-if(FILESYSTEM_FOUND)
-    SET(SAIGA_USE_FILESYSTEM 1)
-endif()
+find_package(Filesystem REQUIRED)
+SET(SAIGA_USE_FILESYSTEM 1)
+#PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
+#if(FILESYSTEM_FOUND)
+#endif()
 
 
 #openmesh

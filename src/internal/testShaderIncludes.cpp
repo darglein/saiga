@@ -1,18 +1,18 @@
-﻿#include "saiga_buildconfig.h"
+﻿#include "saiga/saiga_buildconfig.h"
 
 // Only test this if we have glm
 #ifndef SAIGA_FULL_EIGEN
 
-#ifdef _WIN32
+#    ifdef _WIN32
 // TODO fix for windows
-#    include "saiga/shaderConfig.h"
-#else
-#    include "saiga/colorize.h"
-#    include "saiga/hlslDefines.h"
-#    include "saiga/hsv.h"
-#    include "saiga/normal_sf.h"
-#    include "saiga/shaderConfig.h"
-#endif
+#        include "saiga/shaderConfig.h"
+#    else
+#        include "saiga/colorize.h"
+#        include "saiga/hlslDefines.h"
+#        include "saiga/hsv.h"
+#        include "saiga/normal_sf.h"
+#        include "saiga/shaderConfig.h"
+#    endif
 
 
 /**

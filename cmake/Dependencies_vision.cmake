@@ -30,7 +30,7 @@ PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
 #Recursive
 find_package(EigenRecursive QUIET)
-PackageHelperTarget(EigenRecursive EIGENRECURSIVE_FOUND)
+PackageHelperTarget(Eigen::EigenRecursive EIGENRECURSIVE_FOUND)
 
 #g2o
 find_package(g2o QUIET)

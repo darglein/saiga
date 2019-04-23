@@ -35,5 +35,6 @@ endif()
 install(
     EXPORT ${LIB_EXPORT}
     FILE SaigaTargets.cmake
+    NAMESPACE Saiga::
     DESTINATION ${INSTALL_SHARE}
     )

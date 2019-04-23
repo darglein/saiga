@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga_buildconfig.h"
+#include "saiga/saiga_buildconfig.h"
 
 
 // source: https://gcc.gnu.org/wiki/Visibility
