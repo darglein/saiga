@@ -87,6 +87,8 @@ using Intrinsics4f = Intrinsics4Base<float>;
 template <typename T>
 struct StereoCamera4Base : public Intrinsics4Base<T>
 {
+    using Vec5 = Eigen::Matrix<T, 5, 1>;
+
     /**
      * Baseline * FocalLength_x
      *
@@ -98,16 +100,23 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
     StereoCamera4Base() {}
     StereoCamera4Base(T fx, T fy, T cx, T cy, T bf) : Intrinsics4Base<T>(fx, fy, cx, cy), bf(bf) {}
     StereoCamera4Base(const Intrinsics4Base<T>& i, T bf) : Intrinsics4Base<T>(i), bf(bf) {}
+    StereoCamera4Base(const Vec5& v) : Intrinsics4Base<T>(v.segment<4>(0)), bf(v(4)) {}
 
     template <typename G>
     StereoCamera4Base<G> cast()
     {
         return {Intrinsics4Base<T>::template cast<G>(), bf};
     }
+
+    Vec5 coeffs() const { return {this->fx, this->fy, this->cx, this->cy, bf}; }
+    void coeffs(Vec5 v) { (*this) = v; }
 };
 
 using StereoCamera4  = StereoCamera4Base<double>;
 using StereoCamera4f = StereoCamera4Base<float>;
+
+
+using Distortion = Eigen::Matrix<double, 5, 1>;
 
 
 }  // namespace Saiga

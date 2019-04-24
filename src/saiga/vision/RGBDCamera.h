@@ -14,37 +14,67 @@
 
 namespace Saiga
 {
+// The image types
 using RGBImageType   = TemplatedImage<ucvec4>;
 using DepthImageType = TemplatedImage<float>;
 
+// All required intrinsics for the depth sensor
+struct SAIGA_VISION_API RGBDIntrinsics
+{
+    // K matrix for depth and color
+    // the image should already be registered
+    StereoCamera4 K;
+    Distortion dis;
+
+
+    // Image options
+    struct CameraOptions
+    {
+        int w = 640;
+        int h = 480;
+    };
+    CameraOptions rgbo, deptho;
+
+    int fps = 30;
+
+    // Used to convert from the actual depth data to metric floats
+    double depthFactor = 1.0;
+
+    // The camera disconnects after this amount of frames
+    int maxFrames = -1;
+
+
+    /**
+     *  Reads all paramters from the given config file.
+     *  Creates the file with the default values if it doesn't exist.
+     */
+    void fromConfigFile(const std::string& file);
+};
+
+
+struct SAIGA_VISION_API RGBDFrameData
+{
+    RGBImageType colorImg;
+    DepthImageType depthImg;
+    int frameId;
+    std::chrono::steady_clock::time_point captureTime;
+
+    // Some datasets provide ground truth pose estimations
+    std::optional<SE3> groundTruth;
+};
 
 class SAIGA_VISION_API RGBDCamera
 {
    public:
-    struct FrameData
-    {
-        RGBImageType colorImg;
-        DepthImageType depthImg;
-        int frameId;
-        std::chrono::steady_clock::time_point captureTime;
-    };
-
-    struct CameraOptions
-    {
-        int w   = 640;
-        int h   = 480;
-        int fps = 30;
-    };
-
-
-
     RGBDCamera() {}
-    RGBDCamera(CameraOptions rgbo, CameraOptions deptho);
+    RGBDCamera(const RGBDIntrinsics& intr) : _intrinsics(intr) {}
     virtual ~RGBDCamera() {}
 
+    // Blocks until the next image is available
+    virtual std::shared_ptr<RGBDFrameData> getImageSync() = 0;
 
-    virtual std::shared_ptr<FrameData> waitForImage() = 0;
-    virtual std::shared_ptr<FrameData> tryGetImage() { return waitForImage(); }
+    // Returns 0 if no image is currently available
+    virtual std::shared_ptr<RGBDFrameData> getImage() { return getImageSync(); }
 
     // Close the camera.
     // Blocking calls to waitForImage should return a 'nullptr'
@@ -52,14 +82,17 @@ class SAIGA_VISION_API RGBDCamera
     virtual bool isOpened() { return true; }
 
 
-    void setDmpp(const std::shared_ptr<DMPP>& value);
+    const RGBDIntrinsics& intrinsics() { return _intrinsics; }
 
    protected:
-    std::shared_ptr<DMPP> dmpp;
-    CameraOptions rgbo, deptho;
+    RGBDIntrinsics _intrinsics;
     int currentId = 0;
-    std::shared_ptr<FrameData> makeFrameData();
-    void setNextFrame(FrameData& data);
+
+    // Create a frame data object with the images already allocated in the correct size
+    std::shared_ptr<RGBDFrameData> makeFrameData();
+
+    // Set frame id and capture time
+    void setNextFrame(RGBDFrameData& data);
 };
 
 }  // namespace Saiga

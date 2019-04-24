@@ -6,27 +6,46 @@
 
 #include "RGBDCamera.h"
 
+#include "saiga/core/util/ini/ini.h"
+#include "saiga/core/util/threadName.h"
+#include "saiga/core/util/tostring.h"
+#include "saiga/vision/Ini.h"
 namespace Saiga
 {
-RGBDCamera::RGBDCamera(RGBDCamera::CameraOptions rgbo, RGBDCamera::CameraOptions deptho) : rgbo(rgbo), deptho(deptho) {}
-
-void RGBDCamera::setDmpp(const std::shared_ptr<DMPP>& value)
+void RGBDIntrinsics::fromConfigFile(const std::string& file)
 {
-    dmpp = value;
+    Saiga::SimpleIni ini;
+    ini.LoadFile(file.c_str());
+
+
+    INI_GETADD_LONG(ini, "Sensor", fps);
+    INI_GETADD_DOUBLE(ini, "Sensor", depthFactor);
+    INI_GETADD_LONG(ini, "Sensor", maxFrames);
+
+    rgbo.w = ini.GetAddLong("Color", "width", rgbo.w);
+    rgbo.h = ini.GetAddLong("Color", "height", rgbo.h);
+
+    deptho.w = ini.GetAddLong("Depth", "width", deptho.w);
+    deptho.h = ini.GetAddLong("Depth", "height", deptho.h);
+
+    auto Kstr = toIniString(K);
+
+    if (ini.changed()) ini.SaveFile(file.c_str());
 }
-
-std::shared_ptr<RGBDCamera::FrameData> RGBDCamera::makeFrameData()
+std::shared_ptr<RGBDFrameData> RGBDCamera::makeFrameData()
 {
-    auto fd = std::make_aligned_shared<RGBDCamera::FrameData>();
-    fd->colorImg.create(rgbo.h, rgbo.w);
-    fd->depthImg.create(deptho.h, deptho.w);
+    auto fd = std::make_aligned_shared<RGBDFrameData>();
+    fd->colorImg.create(intrinsics().rgbo.h, intrinsics().rgbo.w);
+    fd->depthImg.create(intrinsics().deptho.h, intrinsics().deptho.w);
     return fd;
 }
 
-void RGBDCamera::setNextFrame(RGBDCamera::FrameData& data)
+void RGBDCamera::setNextFrame(RGBDFrameData& data)
 {
     data.frameId     = currentId++;
     data.captureTime = std::chrono::steady_clock::now();
 }
+
+
 
 }  // namespace Saiga

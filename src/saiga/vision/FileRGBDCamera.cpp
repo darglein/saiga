@@ -14,16 +14,14 @@
 #include <thread>
 namespace Saiga
 {
-FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, double depthFactor, int maxFrames, int fps,
-                               const std::shared_ptr<DMPP>& dmpp)
-    : maxFrames(maxFrames)
+FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr) : RGBDCamera(intr)
 {
-    this->dmpp = dmpp;
     cout << "Loading File RGBD Dataset: " << datasetDir << endl;
 
     load(datasetDir);
 
-    timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::milli>(1000.0 / double(fps)));
+    timeStep = std::chrono::duration_cast<tick_t>(
+        std::chrono::duration<double, std::milli>(1000.0 / double(intrinsics().fps)));
 
     timer.start();
     lastFrameTime = timer.stop();
@@ -35,7 +33,7 @@ FileRGBDCamera::~FileRGBDCamera()
     cout << "~FileRGBDCamera" << endl;
 }
 
-std::shared_ptr<RGBDCamera::FrameData> FileRGBDCamera::waitForImage()
+std::shared_ptr<RGBDFrameData> FileRGBDCamera::getImageSync()
 {
     if (!isOpened())
     {
@@ -84,38 +82,38 @@ void FileRGBDCamera::load(const std::string& datasetDir)
     std::sort(rgbImages.begin(), rgbImages.end());
     std::sort(depthImages.begin(), depthImages.end());
 
-    if (maxFrames <= 0) maxFrames = rgbImages.size();
+    if (intrinsics().maxFrames <= 0) _intrinsics.maxFrames = rgbImages.size();
 
 
-    frames.resize(maxFrames);
+    frames.resize(intrinsics().maxFrames);
 
 #pragma omp parallel for
-    for (int i = 0; i < maxFrames; ++i)
+    for (int i = 0; i < (int)frames.size(); ++i)
     {
         auto& f = frames[i];
 
         RGBImageType cimg;
         cimg.load(dir() + rgbImages[i]);
-        rgbo.h = cimg.h;
-        rgbo.w = cimg.w;
+        //        rgbo.h = cimg.h;
+        //        rgbo.w = cimg.w;
 
 
         DepthImageType dimg;
         dimg.load(dir() + depthImages[i]);
-        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
-        int targetW    = downScale ? dimg.w / 2 : dimg.w;
-        int targetH    = downScale ? dimg.h / 2 : dimg.h;
-        deptho.w       = targetW;
-        deptho.h       = targetH;
+        //        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
+        //        int targetW    = downScale ? dimg.w / 2 : dimg.w;
+        //        int targetH    = downScale ? dimg.h / 2 : dimg.h;
+        //        deptho.w       = targetW;
+        //        deptho.h       = targetH;
 
 
         f = makeFrameData();
 
-        if (dmpp)
-        {
-            (*dmpp)(dimg, f->depthImg.getImageView());
-        }
-        else
+        //        if (dmpp)
+        //        {
+        //            (*dmpp)(dimg, f->depthImg.getImageView());
+        //        }
+        //        else
         {
             f->depthImg.load(dir() + depthImages[i]);
         }

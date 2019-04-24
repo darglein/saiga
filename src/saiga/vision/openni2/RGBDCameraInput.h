@@ -25,25 +25,24 @@ class VideoFrameRef;
 
 namespace Saiga
 {
-class SAIGA_VISION_API RGBDCameraInput : public RGBDCamera
+class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
 {
    public:
-    RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, const std::shared_ptr<DMPP>& dmpp = {},
-                    float depthFactor = 1.0 / 1000.0);
-    virtual ~RGBDCameraInput();
+    RGBDCameraOpenni(const RGBDIntrinsics& intr);
+    virtual ~RGBDCameraOpenni();
 
 
 
     /**
      * Blocks until a new image arrives.
      */
-    virtual std::shared_ptr<FrameData> waitForImage() override;
+    virtual std::shared_ptr<RGBDFrameData> getImageSync() override;
 
     /**
      * Tries to return the last dslr image.
      * If none are ready a nullptr is returned.
      */
-    virtual std::shared_ptr<FrameData> tryGetImage() override;
+    virtual std::shared_ptr<RGBDFrameData> getImage() override;
 
 
     virtual void close() override;
@@ -61,7 +60,7 @@ class SAIGA_VISION_API RGBDCameraInput : public RGBDCamera
     void imgui();
 
    private:
-    SynchronizedBuffer<std::shared_ptr<FrameData>> frameBuffer;
+    SynchronizedBuffer<std::shared_ptr<RGBDFrameData>> frameBuffer;
 
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;
@@ -69,7 +68,7 @@ class SAIGA_VISION_API RGBDCameraInput : public RGBDCamera
 
     bool open();
     void resetCamera();
-    bool waitFrame(FrameData& data);
+    bool waitFrame(RGBDFrameData& data);
     bool readDepth(DepthImageType::ViewType depthImg);
     bool readColor(RGBImageType::ViewType colorImg);
 

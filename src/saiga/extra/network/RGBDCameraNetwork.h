@@ -29,8 +29,8 @@ class SAIGA_EXTRA_API RGBDCameraNetwork : public RGBDCamera
 
     //    bool readFrame(FrameData& data) override;
 
-    virtual std::shared_ptr<FrameData> waitForImage() override;
-    virtual std::shared_ptr<FrameData> tryGetImage() override;
+    virtual std::shared_ptr<RGBDFrameData> waitForImage() override;
+    virtual std::shared_ptr<RGBDFrameData> tryGetImage() override;
 
    private:
     std::shared_ptr<ImageTransmition> trans;

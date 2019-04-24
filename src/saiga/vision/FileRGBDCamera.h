@@ -17,13 +17,12 @@ namespace Saiga
 class SAIGA_VISION_API FileRGBDCamera : public RGBDCamera
 {
    public:
-    FileRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1, int fps = 30,
-                   const std::shared_ptr<DMPP>& dmpp = nullptr);
+    FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr);
     ~FileRGBDCamera();
     /**
      * Blocks until a new image arrives.
      */
-    virtual std::shared_ptr<FrameData> waitForImage() override;
+    virtual std::shared_ptr<RGBDFrameData> getImageSync() override;
 
 
     virtual bool isOpened() override { return currentId < (int)frames.size(); }
@@ -33,9 +32,7 @@ class SAIGA_VISION_API FileRGBDCamera : public RGBDCamera
     void load(const std::string& datasetDir);
 
    private:
-    int maxFrames;
-
-    std::vector<std::shared_ptr<FrameData>> frames;
+    std::vector<std::shared_ptr<RGBDFrameData>> frames;
 
     Timer timer;
     tick_t timeStep;

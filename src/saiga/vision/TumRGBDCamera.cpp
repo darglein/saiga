@@ -71,18 +71,16 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, double depthFactor, int maxFrames, int fps,
-                             const std::shared_ptr<DMPP>& dmpp)
-    : depthFactor(depthFactor), maxFrames(maxFrames)
+TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr) : RGBDCamera(intr)
 {
-    this->dmpp = dmpp;
     cout << "Loading TUM RGBD Dataset: " << datasetDir << endl;
     //    associate(datasetDir);
     associateFromFile(datasetDir + "/associations.txt");
 
     load(datasetDir);
 
-    timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::milli>(1000.0 / double(fps)));
+    timeStep = std::chrono::duration_cast<tick_t>(
+        std::chrono::duration<double, std::milli>(1000.0 / double(intrinsics().fps)));
 
     timer.start();
     lastFrameTime = timer.stop();
@@ -94,7 +92,7 @@ TumRGBDCamera::~TumRGBDCamera()
     cout << "~TumRGBDCamera" << endl;
 }
 
-std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
+std::shared_ptr<RGBDFrameData> TumRGBDCamera::getImageSync()
 {
     if (!isOpened())
     //    if(currentId == (int)frames.size())
@@ -280,9 +278,9 @@ void TumRGBDCamera::associateFromFile(const std::string& datasetDir)
 
 void TumRGBDCamera::load(const std::string& datasetDir)
 {
-    if (maxFrames >= 0)
+    if (intrinsics().maxFrames >= 0)
     {
-        tumframes.resize(std::min((size_t)maxFrames, tumframes.size()));
+        tumframes.resize(std::min((size_t)intrinsics().maxFrames, tumframes.size()));
     }
 
 
@@ -296,18 +294,18 @@ void TumRGBDCamera::load(const std::string& datasetDir)
 
 
         Image cimg(datasetDir + "/" + d.rgb.img);
-        rgbo.h = cimg.h;
-        rgbo.w = cimg.w;
+        //        rgbo.h = cimg.h;
+        //        rgbo.w = cimg.w;
 
 
         Image dimg(datasetDir + "/" + d.depth.img);
 
-        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
-        int targetW    = downScale ? dimg.w / 2 : dimg.w;
-        int targetH    = downScale ? dimg.h / 2 : dimg.h;
+        //        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
+        //        int targetW    = downScale ? dimg.w / 2 : dimg.w;
+        //        int targetH    = downScale ? dimg.h / 2 : dimg.h;
 
-        deptho.w = targetW;
-        deptho.h = targetH;
+        //        deptho.w = targetW;
+        //        deptho.h = targetH;
 
         auto f = makeFrameData();
 
@@ -331,18 +329,18 @@ void TumRGBDCamera::load(const std::string& datasetDir)
 
         if (dimg.type == US1)
         {
-            dimg.getImageView<unsigned short>().copyTo(tmp.getImageView(), depthFactor);
+            dimg.getImageView<unsigned short>().copyTo(tmp.getImageView(), intrinsics().depthFactor);
         }
         else
         {
             SAIGA_ASSERT(0);
         }
 
-        if (dmpp)
-        {
-            (*dmpp)(tmp, f->depthImg.getImageView());
-        }
-        else
+        //        if (dmpp)
+        //        {
+        //            (*dmpp)(tmp, f->depthImg.getImageView());
+        //        }
+        //        else
         {
             tmp.getImageView().copyTo(f->depthImg.getImageView());
         }
