@@ -205,7 +205,7 @@ if(CXX_FILESYSTEM_HAVE_FS)
 
     if(can_link)
         add_library(std::filesystem INTERFACE IMPORTED)
-        target_compile_features(std::filesystem INTERFACE cxx_std_17)
+        #target_compile_features(std::filesystem INTERFACE cxx_std_17)
         set(_found TRUE)
 
         if(CXX_FILESYSTEM_NO_LINK_NEEDED)
