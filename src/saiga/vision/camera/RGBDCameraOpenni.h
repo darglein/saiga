@@ -7,13 +7,14 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/image/image.h"
-#include "saiga/core/util/synchronizedBuffer.h"
 
-#include <thread>
+#ifdef SAIGA_USE_OPENNI2
+#    include "saiga/core/image/image.h"
+#    include "saiga/core/util/synchronizedBuffer.h"
 
-#ifdef SAIGA_VISION
-#    include "saiga/vision/RGBDCamera.h"
+#    include "RGBDCamera.h"
+
+#    include <thread>
 
 // Use shared pointer of openni objects so that we don't have to include the header here
 namespace openni

@@ -7,13 +7,10 @@ add_subdirectory(kernels)
 add_subdirectory(pgo)
 add_subdirectory(arap)
 add_subdirectory(scene)
+add_subdirectory(camera)
 
 if(MKL_FOUND)
     add_subdirectory(mkl)
-endif()
-
-if(OPENNI2_FOUND)
-    add_subdirectory(openni2)
 endif()
 
 if(G2O_FOUND)

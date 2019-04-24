@@ -15,8 +15,7 @@
 #include "saiga/core/util/threadPool.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/extra/network/RGBDCameraNetwork.h"
-#include "saiga/vision/FileRGBDCamera.h"
-#include "saiga/vision/openni2/RGBDCameraInput.h"
+#include "saiga/vision/camera/all.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.

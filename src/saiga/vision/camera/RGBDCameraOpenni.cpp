@@ -4,18 +4,18 @@
  * See LICENSE file for more information.
  */
 
-#include "RGBDCameraInput.h"
+#include "RGBDCameraOpenni.h"
 
-#include "saiga/core/image/imageTransformations.h"
-#include "saiga/core/imgui/imgui.h"
-#include "saiga/core/util/threadName.h"
+#ifdef SAIGA_USE_OPENNI2
+#    include "saiga/core/image/imageTransformations.h"
+#    include "saiga/core/imgui/imgui.h"
+#    include "saiga/core/util/threadName.h"
 
-#include "internal/noGraphicsAPI.h"
+#    include "internal/noGraphicsAPI.h"
 
-#include <OpenNI.h>
-#include <thread>
+#    include <OpenNI.h>
+#    include <thread>
 
-#ifdef SAIGA_VISION
 namespace Saiga
 {
 #    define CHECK_NI(_X)                                                           \

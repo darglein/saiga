@@ -13,7 +13,7 @@
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/window/Interfaces.h"
-#include "saiga/vision/RGBDCamera.h"
+#include "saiga/vision/camera/RGBDCamera.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
