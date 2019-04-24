@@ -1,3 +1,3 @@
 include(saiga_sample_macros)
-list(APPEND required_modules "saiga_core")
+list(APPEND required_modules "saiga_core" "std::filesystem")
 saiga_make_sample(required_modules)
