@@ -68,13 +68,34 @@ if(SAIGA_PCH)
 endif()
 
 ####### Dependencies #######
-include (Dependencies_core)
+
+unset(MODULE_CORE)
+unset(MODULE_CUDA)
+unset(MODULE_EXTRA)
+unset(MODULE_OPENGL)
+unset(MODULE_VISION)
+unset(MODULE_VULKAN)
+
+if(SAIGA_MODULE_CORE)
+    include (Dependencies_core)
+endif()
+
 if(MODULE_CORE)
-    include (Dependencies_cuda)
-    include (Dependencies_extra)
-    include (Dependencies_opengl)
-    include (Dependencies_vision)
-    include (Dependencies_vulkan)
+    if(SAIGA_MODULE_CUDA)
+        include (Dependencies_cuda)
+    endif()
+    if(SAIGA_MODULE_EXTRA)
+        include (Dependencies_extra)
+    endif()
+    if(SAIGA_MODULE_OPENGL)
+        include (Dependencies_opengl)
+    endif()
+    if(SAIGA_MODULE_VISION)
+        include (Dependencies_vision)
+    endif()
+    if(SAIGA_MODULE_VULKAN)
+        include (Dependencies_vulkan)
+    endif()
 endif()
 
 ############# INSTALL PATHS ###############
@@ -126,15 +147,21 @@ endif()
 
 if(SAIGA_NO_INSTALL)
     set(SAIGA_SHADER_PREFIX "${PROJECT_SOURCE_DIR}/shader")
+    set(SAIGA_INCLUDE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/src")
+    set(SAIGA_LIB_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/bin")
+    set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/include")
 
-    set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
-        "${SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL}"
-        @ONLY
-        )
+    #set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
+    #configure_file(
+     #   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
+      #  "${SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL}"
+       # @ONLY
+        #)
 else()
     set(SAIGA_SHADER_PREFIX "${CMAKE_INSTALL_PREFIX}/share/saiga/shader")
+    set(SAIGA_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")
+    set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")
+    set(SAIGA_LIB_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/lib")
 endif()
 
 STRING(REGEX REPLACE "\\\\" "/" SAIGA_SHADER_PREFIX ${SAIGA_SHADER_PREFIX} )

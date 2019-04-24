@@ -3,7 +3,7 @@
 # SAIGA_FOUND
 # SAIGA_INCLUDE_DIRS
 # SAIGA_LIBRARIES
-# SAIGA_LIBRARY
+# SAIGA_LIBRARY2
 
 
 find_path(SAIGA_INCLUDE_DIRS 
@@ -125,8 +125,9 @@ set_target_properties(${_target} PROPERTIES
 
 endmacro()
 
-
+if(@MODULE_CORE@)
 saiga_make_target(Saiga::saiga_core   "${SAIGA_CORE_LIBRARY}"   SAIGA_LIBRARIES "saiga_core.so")
+endif()
 saiga_make_target(Saiga::saiga_vision "${SAIGA_VISION_LIBRARY}" SAIGA_LIBRARIES "saiga_vision.so")
 saiga_make_target(Saiga::saiga_vulkan "${SAIGA_VULKAN_LIBRARY}" SAIGA_LIBRARIES "saiga_vulkan.so")
 saiga_make_target(Saiga::saiga_extra  "${SAIGA_EXTRA_LIBRARY}"  SAIGA_LIBRARIES "saiga_extra.so")

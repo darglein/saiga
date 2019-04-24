@@ -37,4 +37,5 @@ install(
     FILE SaigaTargets.cmake
     NAMESPACE Saiga::
     DESTINATION ${INSTALL_SHARE}
+
     )
