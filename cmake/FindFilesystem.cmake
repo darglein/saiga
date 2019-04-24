@@ -211,9 +211,15 @@ if(CXX_FILESYSTEM_HAVE_FS)
         if(CXX_FILESYSTEM_NO_LINK_NEEDED)
             # Nothing to add...
         elseif(CXX_FILESYSTEM_STDCPPFS_NEEDED)
-            target_link_libraries(std::filesystem INTERFACE -lstdc++fs)
+            #target_link_libraries(std::filesystem INTERFACE -lstdc++fs)
+            set_target_properties(std::filesystem PROPERTIES
+              INTERFACE_LINK_LIBRARIES -lstdc++fs
+            )
         elseif(CXX_FILESYSTEM_CPPFS_NEEDED)
-            target_link_libraries(std::filesystem INTERFACE -lc++fs)
+            #target_link_libraries(std::filesystem INTERFACE -lc++fs)
+            set_target_properties(std::filesystem PROPERTIES
+              INTERFACE_LINK_LIBRARIES -lc++fs
+            )
         endif()
     endif()
 endif()
