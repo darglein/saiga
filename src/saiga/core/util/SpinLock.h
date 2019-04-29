@@ -23,7 +23,7 @@ namespace Saiga
  *     std::unique_lock l(sl);
  *     // Critical Section
  * }
- *
+ *.
  * @brief The SpinLock class
  */
 class SAIGA_CORE_API SpinLock
@@ -31,11 +31,15 @@ class SAIGA_CORE_API SpinLock
    public:
     void lock()
     {
-        while (locked.test_and_set(std::memory_order_acquire))
+        while (!try_lock())
         {
             ;
         }
     }
+
+    // Returns true if the lock was set
+    bool try_lock() { return !locked.test_and_set(std::memory_order_acquire); }
+
     void unlock() { locked.clear(std::memory_order_release); }
 
    private:
