@@ -117,6 +117,8 @@ class SAIGA_VULKAN_API ChunkAllocator
     std::pair<ChunkIterator<T>, AllocationIterator<T>> find_allocation(T* location);
 
     void swap(T* target, T* source);
+
+    inline bool can_allocate(vk::DeviceSize size) const { return size <= m_chunkSize; }
 };
 
 }  // namespace Saiga::Vulkan::Memory

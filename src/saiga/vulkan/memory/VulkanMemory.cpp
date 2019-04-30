@@ -203,7 +203,7 @@ BufferMemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceS
 {
     auto& allocator = getAllocator(type);
 
-    if (size > allocator.allocator->m_chunkSize)
+    if (!allocator.allocator->can_allocate(size))
     {
         return fallbackAllocator->allocate(type, size);
     }
@@ -229,7 +229,7 @@ ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& im
     auto& allocator = getImageAllocator(type);
 
     image_data.create_image(m_device);
-    if (image_data.image_requirements.size > allocator.allocator->m_chunkSize)
+    if (!allocator.allocator->can_allocate(image_data.image_requirements.size))
     {
         return fallbackAllocator->allocate(type, image_data);
     }
@@ -250,7 +250,7 @@ ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& im
 void VulkanMemory::deallocateBuffer(const BufferType& type, BufferMemoryLocation* location)
 {
     auto& allocator = getAllocator(type);
-    if (location->size > allocator.allocator->m_chunkSize)
+    if (!allocator.allocator->can_allocate(location->size))
     {
         fallbackAllocator->deallocate(location);
 
@@ -275,7 +275,7 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, BufferMemoryLocation
 void VulkanMemory::deallocateImage(const ImageType& type, ImageMemoryLocation* location)
 {
     auto& allocator = getImageAllocator(type);
-    if (location->size > allocator.allocator->m_chunkSize)
+    if (!allocator.allocator->can_allocate(location->size))
     {
         fallbackAllocator->deallocate(location);
         return;
