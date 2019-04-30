@@ -27,8 +27,6 @@ void VulkanMemory::init(VulkanBase* base, uint32_t swapchain_frames, bool enable
     img_copy_shader = std::make_unique<ImageCopyComputeShader>();
     img_copy_shader->init(base);
 
-    chunkCreator.init(m_pDevice, m_device);
-
     auto props = m_pDevice.getMemoryProperties();
     memoryTypes.resize(props.memoryTypeCount);
     for (auto i = 0U; i < props.memoryTypeCount; ++i)
@@ -54,7 +52,7 @@ void VulkanMemory::init(VulkanBase* base, uint32_t swapchain_frames, bool enable
     auto effectiveStaging = BufferType{stagingType.usageFlags, effectiveFlags};
     get_allocator_exact(effectiveStaging);
 
-    fallbackAllocator = std::make_unique<FallbackAllocator>(m_device, m_pDevice);
+    fallbackAllocator = std::make_unique<UniqueAllocator>(m_device, m_pDevice);
 }
 
 VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::BufferMap& map,
@@ -78,8 +76,8 @@ VulkanMemory::BufferIter VulkanMemory::createNewBufferAllocator(VulkanMemory::Bu
     auto found = find_default_size<BufferDefaultMap, BufferType>(default_buffer_chunk_sizes, effectiveType);
 
 
-    auto chunk_alloc = std::make_unique<BufferChunkAllocator>(m_device, &chunkCreator, effectiveType, *strategy,
-                                                              m_queue, found->second);
+    auto chunk_alloc =
+        std::make_unique<BufferChunkAllocator>(m_pDevice, m_device, effectiveType, *strategy, m_queue, found->second);
 
     std::unique_ptr<BufferDefragger> defragger;
     if (enableDefragmentation && allow_defragger)
@@ -114,7 +112,7 @@ VulkanMemory::ImageIter VulkanMemory::createNewImageAllocator(VulkanMemory::Imag
 
     std::unique_ptr<ImageDefragger> defragger;
 
-    auto chunk_alloc = std::make_unique<ImageChunkAllocator>(m_device, &chunkCreator, effectiveType, *image_strategy,
+    auto chunk_alloc = std::make_unique<ImageChunkAllocator>(m_pDevice, m_device, effectiveType, *image_strategy,
                                                              m_queue, found->second);
     if (enableDefragmentation && allow_defragger)
     {
@@ -175,8 +173,6 @@ VulkanMemory::ImageContainer& VulkanMemory::get_image_allocator_exact(const Imag
 
 void VulkanMemory::destroy()
 {
-    chunkCreator.destroy();
-
     for (auto& allocator : bufferAllocators)
     {
         if (allocator.second.defragger)

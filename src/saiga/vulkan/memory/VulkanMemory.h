@@ -6,12 +6,11 @@
 #include "saiga/core/util/assert.h"
 
 #include "BufferChunkAllocator.h"
-#include "ChunkCreator.h"
 #include "Defragger.h"
-#include "FallbackAllocator.h"
 #include "ImageChunkAllocator.h"
 #include "ImageCopyComputeShader.h"
 #include "MemoryType.h"
+#include "UniqueAllocator.h"
 
 #include <algorithm>
 #include <map>
@@ -116,8 +115,7 @@ class SAIGA_VULKAN_API VulkanMemory
     BufferMap bufferAllocators;
     ImageMap imageAllocators;
 
-    std::unique_ptr<FallbackAllocator> fallbackAllocator;
-    ChunkCreator chunkCreator;
+    std::unique_ptr<UniqueAllocator> fallbackAllocator;
     std::unique_ptr<FitStrategy<BufferMemoryLocation>> strategy;
     std::unique_ptr<FitStrategy<ImageMemoryLocation>> image_strategy;
 

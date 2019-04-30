@@ -8,7 +8,8 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/easylogging++.h"
 
-#include "BaseChunkAllocator.h"
+#include "FindMemoryType.h"
+#include "SafeAllocator.h"
 
 #include <functional>
 #include <sstream>
@@ -28,19 +29,27 @@ BufferMemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
 
 ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
 {
-    auto newChunk        = m_chunkAllocator->allocate(type.memoryFlags, m_allocateSize);
+    vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(), m_chunkSize, type.usageFlags};
+    auto buffer = m_device.createBuffer(bufferCreateInfo);
+
+    auto memReqs = m_device.getBufferMemoryRequirements(buffer);
+
+    vk::MemoryAllocateInfo info;
+    info.allocationSize  = memReqs.size;
+    info.memoryTypeIndex = findMemoryType(m_pDevice, memReqs.memoryTypeBits, type.memoryFlags);
+    auto newChunk        = SafeAllocator::instance()->allocateMemory(m_device, info);
     auto newBuffer       = m_device.createBuffer(m_bufferCreateInfo);
     auto memRequirements = m_device.getBufferMemoryRequirements(newBuffer);
-    VLOG(1) << "New chunk: " << chunks.size() << " Mem " << newChunk->memory << ", Buffer " << newBuffer;
+    VLOG(1) << "New chunk: " << chunks.size() << " Mem " << newChunk << ", Buffer " << newBuffer;
     if (m_allocateSize != memRequirements.size)
     {
         LOG(ERROR) << "New buffer has differing memory requirements size";
     }
-    m_device.bindBufferMemory(newBuffer, newChunk->memory, 0);
+    m_device.bindBufferMemory(newBuffer, newChunk, 0);
     void* mappedPointer = nullptr;
     if (type.is_mappable())
     {
-        mappedPointer = m_device.mapMemory(newChunk->memory, 0, m_chunkSize);
+        mappedPointer = m_device.mapMemory(newChunk, 0, m_chunkSize);
         VLOG(1) << "Mapped pointer = " << mappedPointer;
     }
     chunks.emplace_back(newChunk, newBuffer, m_chunkSize, mappedPointer);
@@ -64,7 +73,7 @@ std::unique_ptr<BufferMemoryLocation> BufferChunkAllocator::create_location(
     ChunkIterator<Saiga::Vulkan::Memory::BaseMemoryLocation<Saiga::Vulkan::Memory::BufferData>>& chunk_alloc,
     vk::DeviceSize start, vk::DeviceSize size)
 {
-    return std::make_unique<BufferMemoryLocation>(chunk_alloc->buffer, chunk_alloc->chunk->memory, start, size,
+    return std::make_unique<BufferMemoryLocation>(chunk_alloc->buffer, chunk_alloc->memory, start, size,
                                                   chunk_alloc->mappedPointer);
 }
 }  // namespace Saiga::Vulkan::Memory

@@ -5,7 +5,7 @@
 #pragma once
 #include "saiga/export.h"
 
-#include "ChunkAllocation.h"
+#include "Chunk.h"
 
 #include <tuple>
 namespace Saiga::Vulkan::Memory

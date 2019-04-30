@@ -7,9 +7,9 @@
 #include "saiga/core/util/threadName.h"
 #include "saiga/vulkan/Queue.h"
 
-#include "BufferChunkAllocator.h"
 #include "BufferMemoryLocation.h"
-#include "ChunkAllocation.h"
+#include "Chunk.h"
+#include "ChunkAllocator.h"
 #include "FitStrategy.h"
 #include "ImageMemoryLocation.h"
 

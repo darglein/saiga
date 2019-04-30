@@ -10,7 +10,6 @@
 #include "saiga/vulkan/Queue.h"
 #include "saiga/vulkan/memory/MemoryStats.h"
 
-#include "ChunkCreator.h"
 #include "FitStrategy.h"
 #include "MemoryStats.h"
 
@@ -24,8 +23,9 @@ class SAIGA_VULKAN_API ChunkAllocator
    protected:
     std::mutex allocationMutex;
     void findNewMax(ChunkIterator<T>& chunkAlloc) const;
+    vk::PhysicalDevice m_pDevice;
     vk::Device m_device;
-    ChunkCreator* m_chunkAllocator{};
+
 
    public:
     FitStrategy<T>* strategy{};
@@ -63,10 +63,10 @@ class SAIGA_VULKAN_API ChunkAllocator
 
    public:
     virtual void deallocate(T* location);
-    ChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy<T>& strategy, Queue* _queue,
+    ChunkAllocator(vk::PhysicalDevice _pDevice, vk::Device _device, FitStrategy<T>& strategy, Queue* _queue,
                    vk::DeviceSize chunkSize = 64 * 1024 * 1024)
-        : m_device(_device),
-          m_chunkAllocator(chunkAllocator),
+        : m_pDevice(_pDevice),
+          m_device(_device),
           strategy(&strategy),
           queue(_queue),
           m_chunkSize(chunkSize),
@@ -76,8 +76,8 @@ class SAIGA_VULKAN_API ChunkAllocator
     }
 
     ChunkAllocator(ChunkAllocator&& other) noexcept
-        : m_device(other.m_device),
-          m_chunkAllocator(other.m_chunkAllocator),
+        : m_pDevice(other.m_pDevice),
+          m_device(other.m_device),
           strategy(other.strategy),
           queue(other.queue),
           m_chunkSize(other.m_chunkSize),
@@ -89,14 +89,14 @@ class SAIGA_VULKAN_API ChunkAllocator
 
     ChunkAllocator& operator=(ChunkAllocator&& other) noexcept
     {
-        m_device         = other.m_device;
-        m_chunkAllocator = other.m_chunkAllocator;
-        strategy         = other.strategy;
-        queue            = other.queue;
-        m_chunkSize      = other.m_chunkSize;
-        m_allocateSize   = other.m_allocateSize;
-        chunks           = std::move(other.chunks);
-        gui_identifier   = std::move(other.gui_identifier);
+        m_pDevice      = other.m_pDevice;
+        m_device       = other.m_device;
+        strategy       = other.strategy;
+        queue          = other.queue;
+        m_chunkSize    = other.m_chunkSize;
+        m_allocateSize = other.m_allocateSize;
+        chunks         = std::move(other.chunks);
+        gui_identifier = std::move(other.gui_identifier);
         return *this;
     }
 

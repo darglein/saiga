@@ -13,7 +13,6 @@
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/memory/BufferChunkAllocator.h"
-#include "saiga/vulkan/memory/ChunkCreator.h"
 #include "saiga/vulkan/memory/VulkanMemory.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"

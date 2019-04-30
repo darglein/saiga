@@ -9,10 +9,9 @@
 #include "saiga/core/util/imath.h"
 #include "saiga/export.h"
 
-#include "BaseChunkAllocator.h"
 #include "BufferMemoryLocation.h"
-#include "ChunkAllocation.h"
-#include "ChunkCreator.h"
+#include "Chunk.h"
+#include "ChunkAllocator.h"
 #include "FitStrategy.h"
 #include "MemoryStats.h"
 #include "MemoryType.h"
@@ -42,10 +41,10 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public ChunkAllocator<Buffer
     BufferType type;
     ~BufferChunkAllocator() override = default;
 
-    BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type,
+    BufferChunkAllocator(vk::PhysicalDevice _pDevice, vk::Device _device, BufferType _type,
                          FitStrategy<BufferMemoryLocation>& strategy, Queue* _queue,
                          vk::DeviceSize chunkSize = 64 * 1024 * 1024)
-        : ChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
+        : ChunkAllocator(_pDevice, _device, strategy, _queue, chunkSize), type(std::move(_type))
     {
         std::stringstream identifier_stream;
         identifier_stream << "Buffer Chunk " << type;
@@ -73,17 +72,17 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public ChunkAllocator<Buffer
     BufferChunkAllocator& operator=(BufferChunkAllocator&& other) noexcept
     {
         ChunkAllocator::operator=(std::move(static_cast<ChunkAllocator&&>(other)));
-        m_alignment                 = other.m_alignment;
-        m_bufferCreateInfo          = other.m_bufferCreateInfo;
+        m_alignment             = other.m_alignment;
+        m_bufferCreateInfo      = other.m_bufferCreateInfo;
         return *this;
     }
 
 
     void deallocate(BufferMemoryLocation* location) override;
 
-	BufferChunkAllocator(const BufferChunkAllocator&) = delete;
+    BufferChunkAllocator(const BufferChunkAllocator&) = delete;
 
-	BufferChunkAllocator& operator= (const BufferChunkAllocator&) = delete;
+    BufferChunkAllocator& operator=(const BufferChunkAllocator&) = delete;
 
     BufferMemoryLocation* allocate(vk::DeviceSize size);
 };

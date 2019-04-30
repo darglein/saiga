@@ -49,8 +49,7 @@ bool Defragger<T>::perform_free_operations()
 }
 
 template <typename T>
-Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator,
-                        uint32_t _dealloc_delay)
+Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator, uint32_t _dealloc_delay)
     : base(_base),
       dealloc_delay(_dealloc_delay + 15),
       // dealloc_delay(240),
@@ -325,11 +324,11 @@ bool Defragger<T>::find_defrag_ops()
                             if (alloc_iter == t_allocs.cend())
                             {
                                 // Allocate in last free space
-                                entry = Target{chunk.chunk->memory, chunk.size - free_size, free_size};
+                                entry = Target{chunk.memory, chunk.size - free_size, free_size};
                             }
                             else
                             {
-                                entry = Target{chunk.chunk->memory, begin(alloc_iter) - free_size, free_size};
+                                entry = Target{chunk.memory, begin(alloc_iter) - free_size, free_size};
                             }
                             target = entry;
                         }

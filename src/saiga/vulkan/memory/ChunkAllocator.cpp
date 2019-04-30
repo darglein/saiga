@@ -1,7 +1,7 @@
 //
 // Created by Peter Eichinger on 2019-03-07.
 //
-#include "BaseChunkAllocator.h"
+#include "ChunkAllocator.h"
 
 #include "BufferMemoryLocation.h"
 #include "ImageMemoryLocation.h"
@@ -72,7 +72,6 @@ void ChunkAllocator<T>::findNewMax(ChunkIterator<T>& chunkAlloc) const
                                             [](auto& first, auto& second) { return first.size < second.size; });
 }
 
-
 template <typename T>
 void ChunkAllocator<T>::deallocate(T* location)
 {
@@ -109,7 +108,7 @@ void ChunkAllocator<T>::deallocate(T* location)
         }
 
         m_device.destroy(last->buffer);
-        m_chunkAllocator->deallocate(last->chunk);
+        m_device.free(last->memory);
 
         chunks.pop_back();
     }
@@ -121,6 +120,7 @@ void ChunkAllocator<T>::destroy()
     for (auto& alloc : chunks)
     {
         m_device.destroy(alloc.buffer);
+        m_device.free(alloc.memory);
     }
 }
 
@@ -130,7 +130,7 @@ T* ChunkAllocator<T>::reserve_if_free(vk::DeviceMemory memory, FreeListEntry fre
     std::scoped_lock lock(allocationMutex);
 
     auto chunk = std::find_if(chunks.begin(), chunks.end(),
-                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
+                              [&](const auto& chunk_entry) { return chunk_entry.memory == memory; });
 
     SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
 
@@ -214,9 +214,8 @@ void ChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const Fr
 template <typename T>
 std::pair<ChunkIterator<T>, AllocationIterator<T>> ChunkAllocator<T>::find_allocation(T* location)
 {
-    auto fChunk = std::find_if(chunks.begin(), chunks.end(), [&](ChunkAllocation<T> const& alloc) {
-        return alloc.chunk->memory == location->memory;
-    });
+    auto fChunk = std::find_if(chunks.begin(), chunks.end(),
+                               [&](Chunk<T> const& alloc) { return alloc.memory == location->memory; });
 
     SAIGA_ASSERT(fChunk != chunks.end(), "Allocation was not done with this allocator!");
 
@@ -263,7 +262,7 @@ void ChunkAllocator<T>::showDetailStats(bool expand)
             auto& chunk = chunks[i];
 
             std::stringstream ss;
-            ss << "Mem " << std::hex << chunk.chunk->memory << " Buffer " << chunk.buffer;
+            ss << "Mem " << std::hex << chunk.memory << " Buffer " << chunk.buffer;
 
             ImGui::Text("Chunk %d (%s, %s) %s", i + 1, sizeToString(chunk.getFree()).c_str(),
                         sizeToString(chunk.allocated).c_str(), ss.str().c_str());

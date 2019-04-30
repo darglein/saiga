@@ -8,7 +8,6 @@
 #include "saiga/export.h"
 
 #include "BufferMemoryLocation.h"
-#include "ChunkCreator.h"
 #include "FindMemoryType.h"
 #include "ImageMemoryLocation.h"
 #include "MemoryStats.h"
@@ -22,7 +21,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-class FallbackAllocator
+class UniqueAllocator
 {
    private:
     std::mutex mutex;
@@ -37,7 +36,7 @@ class FallbackAllocator
     void destroy(const vk::Device& device, ImageMemoryLocation* memory_location);
 
    public:
-    FallbackAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice)
+    UniqueAllocator(vk::Device _device, vk::PhysicalDevice _physicalDevice)
         : m_device(_device), m_physicalDevice(_physicalDevice)
     {
         std::stringstream identifier_stream;
@@ -45,7 +44,7 @@ class FallbackAllocator
         gui_identifier = identifier_stream.str();
     }
 
-    FallbackAllocator(FallbackAllocator&& other) noexcept
+    UniqueAllocator(UniqueAllocator&& other) noexcept
         : m_device(other.m_device),
           m_physicalDevice(other.m_physicalDevice),
           m_allocations(std::move(other.m_allocations)),
@@ -54,7 +53,7 @@ class FallbackAllocator
     {
     }
 
-    FallbackAllocator& operator=(FallbackAllocator&& other) noexcept
+    UniqueAllocator& operator=(UniqueAllocator&& other) noexcept
     {
         m_device            = other.m_device;
         m_physicalDevice    = other.m_physicalDevice;
@@ -64,10 +63,10 @@ class FallbackAllocator
         return *this;
     }
 
-    ~FallbackAllocator() { destroy(); }
+    ~UniqueAllocator() { destroy(); }
 
-	FallbackAllocator(const FallbackAllocator&) = delete;
-	FallbackAllocator& operator=(const FallbackAllocator&) = delete;
+    UniqueAllocator(const UniqueAllocator&) = delete;
+    UniqueAllocator& operator=(const UniqueAllocator&) = delete;
 
     BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
     ImageMemoryLocation* allocate(const ImageType& type, ImageData& image_data);

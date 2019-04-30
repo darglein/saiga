@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "ChunkCreator.h"
 #include "MemoryLocation.h"
 
 #include <list>
@@ -44,7 +43,7 @@ struct SAIGA_VULKAN_API Chunk
     using FreeIterator  = typename std::vector<FreeListEntry>::iterator;
     using AllocatedList = std::vector<std::unique_ptr<T>>;
 
-    std::shared_ptr<Memory> chunk;
+    vk::DeviceMemory memory;
     vk::Buffer buffer;
     AllocatedList allocations;
     FreeList freeList;
@@ -60,8 +59,8 @@ struct SAIGA_VULKAN_API Chunk
     Chunk(const Chunk&)       = delete;
     Chunk& operator=(const Chunk&) = delete;
 
-    Chunk(std::shared_ptr<Memory> _chunk, vk::Buffer _buffer, vk::DeviceSize _size, void* _mappedPointer)
-        : chunk(std::move(_chunk)),
+    Chunk(vk::DeviceMemory _memory, vk::Buffer _buffer, vk::DeviceSize _size, void* _mappedPointer)
+        : memory(_memory),
           buffer(_buffer),
           allocations(),
           freeList(),
