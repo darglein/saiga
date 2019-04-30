@@ -125,7 +125,7 @@ void ChunkAllocator<T>::destroy()
 }
 
 template <typename T>
-T* BaseChunkAllocator<T>::reserve_if_free(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size)
+T* ChunkAllocator<T>::reserve_if_free(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size)
 {
     std::scoped_lock lock(allocationMutex);
 
@@ -158,7 +158,7 @@ T* BaseChunkAllocator<T>::reserve_if_free(vk::DeviceMemory memory, FreeListEntry
 
 
 template <typename T>
-void BaseChunkAllocator<T>::swap(T* target, T* source)
+void ChunkAllocator<T>::swap(T* target, T* source)
 {
     std::scoped_lock lock(allocationMutex);
 
