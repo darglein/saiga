@@ -67,7 +67,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-
+#define SAIGA_INCLUDED
 
 // ============== CUDA Stuff ==============
 

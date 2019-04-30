@@ -17,11 +17,10 @@
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/VisionIncludes.h"
-
-#include "ArapProblem.h"
-#include "CeresArap.h"
-#include "G2OArap.h"
-#include "RecursiveArap.h"
+#include "saiga/vision/arap/ArapProblem.h"
+#include "saiga/vision/arap/RecursiveArap.h"
+#include "saiga/vision/ceres/CeresArap.h"
+#include "saiga/vision/g2o/G2OArap.h"
 
 #include <fstream>
 
@@ -142,14 +141,14 @@ int main(int, char**)
     Saiga::Random::setSeed(93865023985);
 
     OptimizationOptions options;
-    options.solverType    = OptimizationOptions::SolverType::Iterative;
+    options.solverType    = OptimizationOptions::SolverType::Direct;
     options.debugOutput   = false;
     options.maxIterations = 5;
     //    options.initialLambda = 100;
 
     options.maxIterativeIterations = 100;
     options.iterativeTolerance     = 0;
-    test_to_file(options, "arab.csv", 11);
+    test_to_file(options, "arab.csv", 1);
 
 
     //    GenericModel testModel("bunny.obj");

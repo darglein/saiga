@@ -15,13 +15,13 @@ struct SAIGA_VISION_API OptimizationResults
 {
     std::string name = "Optimizer";
 
-    double cost_initial;
-    double cost_final;
+    double cost_initial = 0;
+    double cost_final   = 0;
 
-    double linear_solver_time;
-    double total_time;
+    double linear_solver_time = 0;
+    double total_time         = 0;
 
-    bool success;
+    bool success = false;
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const OptimizationResults& op);

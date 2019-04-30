@@ -4,9 +4,9 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
 #include "saiga/vision/HistogramImage.h"
+#include "saiga/vision/LM.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
-#include "saiga/vision/recursiveMatrices/SparseSelfAdjoint.h"
 
 #include <fstream>
 #include <numeric>
@@ -215,6 +215,8 @@ void PGORec::addDelta()
 
 void PGORec::solveLinearSystem()
 {
+    using namespace Eigen::Recursive;
+
     LinearSolverOptions loptions;
 
     loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
@@ -242,49 +244,5 @@ void PGORec::finalize()
         if (!e.constant) e.se3 = x_u[i++];
     }
 }
-
-
-#if 0
-OptimizationResults PGORec::solve()
-{
-    auto& scene = *_scene;
-
-
-    init();
-
-    LinearSolverOptions solverOptions;
-    solverOptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
-    solverOptions.solverType             = LinearSolverOptions ::SolverType::Direct;
-
-    MixedSymmetricRecursiveSolver<PSType, PBType> solver;
-
-
-    for (int i = 0; i < optimizationOptions.maxIterations; ++i)
-    {
-        chi2 = computeQuadraticForm();
-        addLambda(1e-4);
-
-        solver.solve(S, delta_x, b, solverOptions);
-
-        addDelta();
-
-        // update scene
-        //        for (size_t i = 0; i < scene.poses.size(); ++i)
-        //        {
-        //            Sophus::SE3<BlockPGOScalar>::Tangent t;
-        //            t         = delta_x(i).get();
-        //            auto& se3 = scene.poses[i].se3;
-        //            se3       = Sophus::SE3d::exp(t.cast<double>()) * se3;
-        //        }
-    }
-
-    finalize();
-
-    OptimizationResults result;
-    result.cost_final = chi2;
-    return result;
-}
-
-#endif
 
 }  // namespace Saiga

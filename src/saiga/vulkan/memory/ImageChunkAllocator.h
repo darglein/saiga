@@ -8,7 +8,7 @@
 #include "MemoryType.h"
 namespace Saiga::Vulkan::Memory
 {
-class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<ImageMemoryLocation>
+class SAIGA_VULKAN_API ImageChunkAllocator final : public ChunkAllocator<ImageMemoryLocation>
 {
    protected:
     ChunkIterator<ImageMemoryLocation> createNewChunk() override;
@@ -22,7 +22,7 @@ class SAIGA_VULKAN_API ImageChunkAllocator final : public BaseChunkAllocator<Ima
     ImageType type;
     ImageChunkAllocator(const vk::Device& _device, ChunkCreator* chunkAllocator, ImageType _type,
                         FitStrategy<ImageMemoryLocation>& strategy, Queue* _queue, vk::DeviceSize chunkSize)
-        : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
+        : ChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         LOG(INFO) << "Created new image allocator for flags " << type;
         std::stringstream identifier_stream;

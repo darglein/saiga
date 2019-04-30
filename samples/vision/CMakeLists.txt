@@ -1,4 +1,3 @@
-add_subdirectory(ba_schur)
 add_subdirectory(block_matrices)
 
 if(SAIGA_USE_CHOLMOD)

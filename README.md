@@ -1,6 +1,8 @@
 # SAIGA
 
-SAIGA is a lightweight OpenGL utility and rendering framework. It was successfully used as a game engine for [Redie](http://store.steampowered.com/app/536990/) and in many privat and university projects.
+Saiga is a lightweight utility and rendering framework. 
+It supports all major desktop operating systems and provides OpenGL and Vulkan rendering backends.
+Saiga was successfully used as a game engine for [Redie](http://store.steampowered.com/app/536990/) and in many privat and university projects.
 
 <img src="data/textures/sample.png" width="425"/> <img src="data/textures/redie.jpg" width="425"/> 
 
@@ -11,17 +13,18 @@ SAIGA is a lightweight OpenGL utility and rendering framework. It was successful
  * April 2014 - December 2016: Development of the game [Redie](http://store.steampowered.com/app/536990/). In this time most of SAIGA's functionality was added so it could be used as a lightweight game engine.
  * January 2017 - August 2017: Increased usability and documentation in preparation of the open source release.
  * August 2017: Open-Source Release.
+ * September 2018: Experimental Vulkan support.
+ * December 2018: Added Vision module with focus on SLAM, Reconstruction, Registration, and Optimization
 
 ## Supported Compilers
 
- * g++ 7.3
+ * g++ 8.2
  * Visual Studio 2017
- * clang++ 6.0
- 
- [![Build Status](https://travis-ci.org/darglein/saiga.svg?branch=master)](https://travis-ci.org/darglein/saiga)
- 
-Older version might work too, but are not officially supported.
+ * clang++ 7.0
 
+Master | Experimental 
+--- | --- 
+[![Build Status](https://travis-ci.org/darglein/saiga.svg?branch=master)](https://travis-ci.org/darglein/saiga)  | [![Build Status](https://travis-ci.org/darglein/saiga.svg?branch=experimental)](https://travis-ci.org/darglein/saiga)  
 
 ## Required Dependencies
 
@@ -64,14 +67,30 @@ Utility
 #### Linux
  - Install dependencies with the package manager (in older Linux systems you might have to compile the latest library versions by yourself)
 
-   For Ubuntu and other Debian-based distributions:
-   ```
-   sudo apt-get install libglew-dev libglm-dev libfreetype6-dev libsdl2-dev libpng-dev
-   ```
-   For Fedora:
-   ```
-   sudo dnf install glew-devel glm-devel freetype-devel SDL2-devel libXrandr-devel libXcursor-devel libXinerama-devel
-   ```
+   Package names for Ubuntu and other Debian-based distributions. Install these with `sudo apt install <package_name>`
+```
+# Required
+cmake libglm-dev
+
+# Window Management
+libsdl2-dev libglfw3-dev
+
+# Image
+libpng-dev libfreeimage-dev libfreeimageplus-dev
+
+# Sound
+libopenal-dev libopus-dev libopusfile-dev
+
+# Video 
+libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev
+
+# Other Misc
+libassimp-dev 
+libeigen3-dev 
+libsuitesparse-dev
+libfreetype6-dev
+```
+
  - Build Saiga
 ```
 cd saiga
@@ -79,11 +98,6 @@ mkdir build
 cd build
 cmake ..
 make
-```
- - Running the samples
-```
-cd saiga/bin
-./simpleSDLWindow
 ```
 
 ## License

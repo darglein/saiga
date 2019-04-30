@@ -27,9 +27,9 @@ using namespace Saiga;
 void buildScene(Scene& scene)
 {
     SynteticScene sscene;
-    sscene.numCameras     = 2;
-    sscene.numImagePoints = 2;
-    sscene.numWorldPoints = 2;
+    sscene.numCameras     = 100;
+    sscene.numImagePoints = 100;
+    sscene.numWorldPoints = 500;
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
     scene.addImagePointNoise(1.0);
@@ -204,26 +204,53 @@ int main(int, char**)
 #endif
 
     Scene scene;
-    //        scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
+    //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
-    //    scene.load(SearchPathes::data("vision/slam.scene"));
+    //    scene.load(SearchPathes::data("vision/tum_office.scene"));
+
+#if 0
+    cout << scene << endl;
+
+    int maxcams = 20;
+    if (maxcams < (int)scene.images.size())
+    {
+        for (int i = maxcams; i < (int)scene.images.size(); ++i)
+        {
+            scene.removeCamera(i);
+        }
+    }
+    scene.compress();
+
+    int maxwps = 80;
+    if (maxwps < (int)scene.worldPoints.size())
+    {
+        for (int i = maxwps; i < (int)scene.worldPoints.size(); ++i)
+        {
+            scene.removeWorldPoint(i);
+        }
+    }
+    scene.compress();
+#endif
+
     //    buildScene(scene);
 
     //        buildSceneBAL(scene, balPrefix + "problem-21-11315-pre.txt");
-    buildSceneBAL(scene, balPrefix + "trafalgar-00201-54427.txt");
+    // buildSceneBAL(scene, balPrefix + "trafalgar-00201-54427.txt");
+    buildSceneBAL(scene, balPrefix + "ladybug-00049-7776.txt");
     //    buildSceneBAL(scene, balPrefix + "venice-01778-993923.txt");
 
 
     cout << scene << endl;
 
     OptimizationOptions baoptions;
-    baoptions.debugOutput            = false;
+    baoptions.debugOutput            = true;
     baoptions.maxIterations          = 3;
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
     baoptions.initialLambda          = 1;
 
-    baoptions.solverType = OptimizationOptions::SolverType::Direct;
+
+    baoptions.solverType = OptimizationOptions::SolverType::Iterative;
     cout << baoptions << endl;
 
 
@@ -231,8 +258,8 @@ int main(int, char**)
 
     solvers.push_back(std::make_shared<BARec>());
     //    solvers.push_back(std::make_shared<BAPoseOnly>());
-    //    solvers.push_back(std::make_shared<g2oBA2>());
-    solvers.push_back(std::make_shared<CeresBA>());
+    solvers.push_back(std::make_shared<g2oBA2>());
+    //    solvers.push_back(std::make_shared<CeresBA>());
 
     for (auto& s : solvers)
     {

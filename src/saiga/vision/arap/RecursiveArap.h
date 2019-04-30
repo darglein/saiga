@@ -6,14 +6,25 @@
 
 #pragma once
 #include "saiga/vision/Optimizer.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 #include "ArapBase.h"
 #include "ArapProblem.h"
+#include "EigenRecursive/All.h"
 namespace Saiga
 {
-class RecursiveArap : public ArapBase, public LMOptimizer
+class SAIGA_VISION_API RecursiveArap : public ArapBase, public LMOptimizer
 {
+   public:
+    static constexpr int BlockSize = 6;
+
+
+    using T          = double;
+    using PGOBlock   = Eigen::Matrix<T, BlockSize, BlockSize>;
+    using PGOVector  = Eigen::Matrix<T, BlockSize, 1>;
+    using PSType     = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<PGOBlock>, Eigen::RowMajor>;
+    using PSDiagType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<PGOBlock>, -1>;
+    using PBType     = Eigen::Matrix<Eigen::Recursive::MatrixScalar<PGOVector>, -1, 1>;
+
    public:
     ArapProblem* arap;
 
@@ -31,21 +42,11 @@ class RecursiveArap : public ArapBase, public LMOptimizer
     virtual void finalize() override;
 
    private:
-    static constexpr int BlockSize = 6;
-
-
-    using T          = double;
-    using PGOBlock   = Eigen::Matrix<T, BlockSize, BlockSize>;
-    using PGOVector  = Eigen::Matrix<T, BlockSize, 1>;
-    using PSType     = Eigen::SparseMatrix<MatrixScalar<PGOBlock>, Eigen::RowMajor>;
-    using PSDiagType = Eigen::DiagonalMatrix<MatrixScalar<PGOBlock>, -1>;
-    using PBType     = Eigen::Matrix<MatrixScalar<PGOVector>, -1, 1>;
-
     int n;
     PSType S;
     PBType b;
     PBType delta_x;
-    MixedSymmetricRecursiveSolver<PSType, PBType> solver;
+    Eigen::Recursive::MixedSymmetricRecursiveSolver<PSType, PBType> solver;
     AlignedVector<SE3> x_u, oldx_u;
     std::vector<int> edgeOffsets;
 };

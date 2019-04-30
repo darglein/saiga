@@ -90,8 +90,7 @@ BufferMemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::De
 
 ImageMemoryLocation* FallbackAllocator::allocate(const ImageType& type, ImageData& image_data)
 {
-    image_data.create_image(m_device);
-
+    SAIGA_ASSERT(image_data.image, "Image must already be created before allocating");
     vk::MemoryAllocateInfo info;
     info.allocationSize = image_data.image_requirements.size;
     info.memoryTypeIndex =

@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/Core"
+#include "saiga/core/Core.h"
 
 using namespace Saiga;
 

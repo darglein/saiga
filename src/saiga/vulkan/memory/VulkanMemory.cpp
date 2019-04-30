@@ -229,8 +229,10 @@ BufferMemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceS
 
 ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& image_data)
 {
+    SAIGA_ASSERT(!image_data.image, "Image must not be created beforehand.");
     auto& allocator = getImageAllocator(type);
 
+    image_data.create_image(m_device);
     if (image_data.image_requirements.size > allocator.allocator->m_chunkSize)
     {
         return fallbackAllocator->allocate(type, image_data);

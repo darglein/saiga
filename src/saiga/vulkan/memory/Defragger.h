@@ -44,7 +44,7 @@ struct DefraggerConfiguration
 template <typename T>
 class Defragger
 {
-   protected:
+   public:
     template <typename PType>
     class PointerOutput
     {
@@ -199,7 +199,7 @@ class Defragger
     VulkanBase* base;
     uint64_t dealloc_delay;
     vk::Device device;
-    BaseChunkAllocator<T>* allocator;
+    ChunkAllocator<T>* allocator;
 
     std::vector<PossibleOp> possibleOps;
     std::list<DefragOp> defragOps;
@@ -240,7 +240,7 @@ class Defragger
    public:
     DefraggerConfiguration config;
 
-    Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0);
+    Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0);
 
 
     Defragger(const Defragger& other) = delete;
@@ -328,7 +328,7 @@ class Defragger
 class BufferDefragger final : public Defragger<BufferMemoryLocation>
 {
    public:
-    BufferDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<BufferMemoryLocation>* allocator,
+    BufferDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<BufferMemoryLocation>* allocator,
                     uint32_t dealloc_delay)
         : Defragger(base, device, allocator, dealloc_delay)
     {
@@ -353,7 +353,7 @@ class ImageDefragger final : public Defragger<ImageMemoryLocation>
     ImageCopyComputeShader* img_copy_shader;
 
    public:
-    ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
+    ImageDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<ImageMemoryLocation>* allocator,
                    uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader);
 
    protected:

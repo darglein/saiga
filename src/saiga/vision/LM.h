@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
+#include "EigenRecursive/All.h"
 
 namespace Saiga
 {

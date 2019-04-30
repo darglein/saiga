@@ -1,6 +1,10 @@
-#set_target_properties(${LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 set(MODULE_NAME "saiga_cuda")
+
+
+
+
+##############################################################################################################################################################
+
 
 
 FILE(GLOB_RECURSE VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
@@ -52,11 +56,11 @@ install(
     ARCHIVE DESTINATION ${INSTALL_LIB}
     )
 
-install(
-    EXPORT ${LIB_EXPORT}
-    FILE SaigaTargets.cmake
-    DESTINATION ${INSTALL_SHARE}
-    )
+#install(
+#    EXPORT ${LIB_EXPORT}
+#    FILE SaigaTargets.cmake
+#    DESTINATION ${INSTALL_SHARE}
+#    )
 
 ##### Precompiled Headers #####
 if(SAIGA_PCH)
@@ -64,3 +68,4 @@ if(SAIGA_PCH)
     set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_ADD_UNITY_BUILD false)
     cotire(${MODULE_NAME})
 endif()
+

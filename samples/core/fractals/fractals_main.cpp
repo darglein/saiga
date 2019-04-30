@@ -10,7 +10,7 @@
 #    include "saiga/colorize.h"
 #endif
 
-#include "saiga/core/Core"
+#include "saiga/core/Core.h"
 
 #include <complex>
 
@@ -116,7 +116,7 @@ int main(int argc, char* args[])
                 }
 #endif
 
-				#ifndef WIN32
+#ifndef WIN32
                 float alpha = saturate(double(iteration) / max_iteration * 4);
 
                 if (iteration == max_iteration) alpha = 0;

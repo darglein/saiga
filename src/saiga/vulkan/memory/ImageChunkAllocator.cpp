@@ -28,9 +28,8 @@ void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
 
 ImageMemoryLocation* ImageChunkAllocator::allocate(ImageData& image_data)
 {
-    image_data.create_image(m_device);
     auto aligned_size = Saiga::iAlignUp(image_data.image_requirements.size, image_data.image_requirements.alignment);
-    auto location     = BaseChunkAllocator::base_allocate(aligned_size);
+    auto location     = ChunkAllocator::base_allocate(aligned_size);
 
     bind_image_data(m_device, location, std::move(image_data));
 
@@ -51,7 +50,7 @@ std::unique_ptr<ImageMemoryLocation> ImageChunkAllocator::create_location(
 void ImageChunkAllocator::deallocate(ImageMemoryLocation* location)
 {
     VLOG(1) << "Trying to deallocate image" << *location;
-    BaseChunkAllocator::deallocate(location);
+    ChunkAllocator::deallocate(location);
 }
 
 }  // namespace Saiga::Vulkan::Memory

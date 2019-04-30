@@ -10,9 +10,10 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
 #include "saiga/vision/HistogramImage.h"
+#include "saiga/vision/LM.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
-#include "saiga/vision/recursiveMatrices/SparseSelfAdjoint.h"
+
 
 
 namespace Saiga
@@ -120,10 +121,6 @@ double RecursiveArap::computeQuadraticForm()
         S.valuePtr()[S.outerIndexPtr()[i]].get().setZero();
     }
 
-    //    for (int i = 0; i < S.nonZeros(); ++i)
-    //    {
-    //        S.valuePtr()[i].get().setZero();
-    //    }
 
     double chi2 = 0;
 
@@ -255,13 +252,13 @@ void RecursiveArap::addDelta()
     for (int i = 0; i < n; ++i)
     {
         auto t = delta_x(i).get();
-        //        x_u[i] = SE3::exp(t) * x_u[i];
         x_u[i] = x_u[i] * SE3::exp(t);
     }
 }
 
 void RecursiveArap::solveLinearSystem()
 {
+    using namespace Eigen::Recursive;
     LinearSolverOptions loptions;
 
     loptions.maxIterativeIterations = optimizationOptions.maxIterativeIterations;
@@ -307,7 +304,6 @@ double RecursiveArap::computeCost()
             auto c     = res.squaredNorm();
             chi2 += c;
         }
-        if (1)
         {
             Vec3 R_eji = qHat.so3() * (-e.e_ij);
             Vec3 res   = sqrt(e.weight) * (qHat.translation() - pHat.translation() - R_eji);

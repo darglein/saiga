@@ -6,6 +6,22 @@
 
 namespace Saiga::Vulkan::Memory
 {
+std::shared_ptr<Memory> ChunkType::allocate(vk::DeviceSize chunkSize)
+{
+    vk::MemoryAllocateInfo info(chunkSize, m_memoryTypeIndex);
+
+    auto chunk =
+        std::make_shared<Memory>(SafeAllocator::instance()->allocateMemory(m_device, info), chunkSize, propertyFlags);
+    m_chunks.push_back(chunk);
+    return chunk;
+}
+
+void ChunkType::deallocate(std::shared_ptr<Memory> chunk)
+{
+    m_device.free(chunk->memory);
+    m_chunks.erase(std::remove(m_chunks.begin(), m_chunks.end(), chunk), m_chunks.end());
+}
+
 ChunkType& ChunkCreator::findMemoryType(vk::MemoryPropertyFlags flags)
 {
     for (auto& memType : m_memoryTypes)
@@ -35,7 +51,7 @@ void Saiga::Vulkan::Memory::ChunkCreator::init(vk::PhysicalDevice _physicalDevic
     m_initialized = true;
 }
 
-std::shared_ptr<Chunk> ChunkCreator::allocate(vk::MemoryPropertyFlags propertyFlags, vk::DeviceSize chunkSize)
+std::shared_ptr<Memory> ChunkCreator::allocate(vk::MemoryPropertyFlags propertyFlags, vk::DeviceSize chunkSize)
 {
     if (!m_initialized)
     {
@@ -46,7 +62,7 @@ std::shared_ptr<Chunk> ChunkCreator::allocate(vk::MemoryPropertyFlags propertyFl
     return memType.allocate(chunkSize);
 }
 
-void Saiga::Vulkan::Memory::ChunkCreator::deallocate(std::shared_ptr<Chunk> chunk)
+void Saiga::Vulkan::Memory::ChunkCreator::deallocate(std::shared_ptr<Memory> chunk)
 {
     if (!m_initialized)
     {

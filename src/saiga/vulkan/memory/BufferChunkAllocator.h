@@ -24,7 +24,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<BufferMemoryLocation>
+class SAIGA_VULKAN_API BufferChunkAllocator final : public ChunkAllocator<BufferMemoryLocation>
 {
    private:
     vk::DeviceSize m_alignment = std::numeric_limits<vk::DeviceSize>::max();
@@ -45,7 +45,7 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Bu
     BufferChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, BufferType _type,
                          FitStrategy<BufferMemoryLocation>& strategy, Queue* _queue,
                          vk::DeviceSize chunkSize = 64 * 1024 * 1024)
-        : BaseChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
+        : ChunkAllocator(_device, chunkAllocator, strategy, _queue, chunkSize), type(std::move(_type))
     {
         std::stringstream identifier_stream;
         identifier_stream << "Buffer Chunk " << type;
@@ -63,7 +63,7 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Bu
     }
 
     BufferChunkAllocator(BufferChunkAllocator&& other) noexcept
-        : BaseChunkAllocator(std::move(other)),
+        : ChunkAllocator(std::move(other)),
           m_alignment(other.m_alignment),
           m_bufferCreateInfo(std::move(other.m_bufferCreateInfo))
     {
@@ -72,7 +72,7 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public BaseChunkAllocator<Bu
 
     BufferChunkAllocator& operator=(BufferChunkAllocator&& other) noexcept
     {
-        BaseChunkAllocator::operator=(std::move(static_cast<BaseChunkAllocator&&>(other)));
+        ChunkAllocator::operator=(std::move(static_cast<ChunkAllocator&&>(other)));
         m_alignment                 = other.m_alignment;
         m_bufferCreateInfo          = other.m_bufferCreateInfo;
         return *this;

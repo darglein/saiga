@@ -19,7 +19,7 @@
 namespace Saiga::Vulkan::Memory
 {
 template <typename T>
-class SAIGA_VULKAN_API BaseChunkAllocator
+class SAIGA_VULKAN_API ChunkAllocator
 {
    protected:
     std::mutex allocationMutex;
@@ -63,8 +63,8 @@ class SAIGA_VULKAN_API BaseChunkAllocator
 
    public:
     virtual void deallocate(T* location);
-    BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy<T>& strategy, Queue* _queue,
-                       vk::DeviceSize chunkSize = 64 * 1024 * 1024)
+    ChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy<T>& strategy, Queue* _queue,
+                   vk::DeviceSize chunkSize = 64 * 1024 * 1024)
         : m_device(_device),
           m_chunkAllocator(chunkAllocator),
           strategy(&strategy),
@@ -75,7 +75,7 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     {
     }
 
-    BaseChunkAllocator(BaseChunkAllocator&& other) noexcept
+    ChunkAllocator(ChunkAllocator&& other) noexcept
         : m_device(other.m_device),
           m_chunkAllocator(other.m_chunkAllocator),
           strategy(other.strategy),
@@ -87,7 +87,7 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     {
     }
 
-    BaseChunkAllocator& operator=(BaseChunkAllocator&& other) noexcept
+    ChunkAllocator& operator=(ChunkAllocator&& other) noexcept
     {
         m_device         = other.m_device;
         m_chunkAllocator = other.m_chunkAllocator;
@@ -101,10 +101,10 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     }
 
 
-    virtual ~BaseChunkAllocator() = default;
+    virtual ~ChunkAllocator() = default;
 
-    BaseChunkAllocator(const BaseChunkAllocator&) = delete;
-    BaseChunkAllocator& operator=(const BaseChunkAllocator&) = delete;
+    ChunkAllocator(const ChunkAllocator&) = delete;
+    ChunkAllocator& operator=(const ChunkAllocator&) = delete;
 
     T* reserve_if_free(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
 

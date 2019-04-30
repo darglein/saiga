@@ -6,13 +6,12 @@
 
 #pragma once
 #include "saiga/vision/Optimizer.h"
-
-#include "ArapBase.h"
-#include "ArapProblem.h"
+#include "saiga/vision/arap/ArapBase.h"
+#include "saiga/vision/arap/ArapProblem.h"
 
 namespace Saiga
 {
-class G2OArap : public ArapBase, public Optimizer
+class SAIGA_VISION_API G2OArap : public ArapBase, public Optimizer
 {
    public:
     G2OArap() : ArapBase("G2O") {}

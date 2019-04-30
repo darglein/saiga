@@ -9,9 +9,9 @@
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
+#include "EigenRecursive/All.h"
 #include "saiga/vision/mkl/mkl_cg.h"
 #include "saiga/vision/mkl/mkl_helper.h"
-#include "saiga/vision/recursiveMatrices/RecursiveMatrices.h"
 
 #include "mkl.h"
 
@@ -21,70 +21,12 @@
 #    error Saiga was compiled without the required libs for this example.
 #endif
 
-// ===================================================================================================
-// Performance test parameters for Block Sparse Matrix operations
-
-
-
-// ===================================================================================================
-// Output for block sizes 6 and 8 on Xeon E5620 compiled with clang
-/*
- * .
- * Block Size : 6x6
- * Matrix Size (in Blocks): 4000x4000
- * Matrix Size Total: 24000x24000
- * Non Zero blocks per row: 50
- * Non Zero BLocks: 200000
- * Non Zeros: 7200000
- * .
- *
- * Running Block Sparse Matrix-Vector Benchmark...
- * Number of Runs: 1000
- * Done.
- * Median Time Eigen : 0.0155178 -> 0.463985 GFlop/s
- * Median Time MKL   : 0.0268985 -> 0.267673 GFlop/s
- * MKL Speedup: -42.31%
- *
- * Running Block Sparse CG Benchmark...
- * Number of Runs: 500
- * Number of inner CG iterations: 5
- * Done.
- * Median Time Eigen : 0.0954034 -> 0.472436 GFlop/s
- * Median Time MKL   : 0.163822 -> 0.275129 GFlop/s
- * MKL Speedup: -41.7638%
- *
- *
- *
- *
- * Block Size : 8x8
- * Matrix Size (in Blocks): 4000x4000
- * Matrix Size Total: 32000x32000
- * Non Zero blocks per row: 50
- * Non Zero BLocks: 200000
- * Non Zeros: 12800000
- * .
- *
- * Running Block Sparse Matrix-Vector Benchmark...
- * Number of Runs: 1000
- * Done.
- * Median Time Eigen : 0.0370042 -> 0.345907 GFlop/s
- * Median Time MKL   : 0.037879 -> 0.337918 GFlop/s
- * MKL Speedup: -2.30946%
- *
- * Running Block Sparse CG Benchmark...
- * Number of Runs: 500
- * Number of inner CG iterations: 5
- * Done.
- * Median Time Eigen : 0.227134 -> 0.350807 GFlop/s
- * Median Time MKL   : 0.227447 -> 0.350323 GFlop/s
- * MKL Speedup: -0.13771%
- */
 
 
 // ===================================================================================================
 // Block Types
 using namespace Saiga;
-
+using namespace Eigen::Recursive;
 
 
 namespace Saiga

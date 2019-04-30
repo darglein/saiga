@@ -6,12 +6,10 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
-#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
-#include "saiga/vision/recursiveMatrices/CG.h"
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
+#include "EigenRecursive/All.h"
 
 #include <fstream>
 
@@ -400,7 +398,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene)
             }
             else
             {
-                RecursiveDiagonalPreconditioner<double> P;
+                Eigen::Recursive::RecursiveDiagonalPreconditioner<double> P;
                 Eigen::Index iters = optimizationOptions.maxIterativeIterations;
                 double tol         = optimizationOptions.iterativeTolerance;
 

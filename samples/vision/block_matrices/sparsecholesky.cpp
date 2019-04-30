@@ -6,27 +6,18 @@
 
 
 
-#include "saiga/vision/recursiveMatrices/SparseCholesky.h"
-
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/recursiveMatrices/BlockRecursiveBATemplates.h"
-#include "saiga/vision/recursiveMatrices/Cholesky.h"
-#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs.h"
-#include "saiga/vision/recursiveMatrices/ForwardBackwardSubs_Sparse.h"
-#include "saiga/vision/recursiveMatrices/Inverse.h"
-#include "saiga/vision/recursiveMatrices/MatrixScalar.h"
-#include "saiga/vision/recursiveMatrices/NeutralElements.h"
-#include "saiga/vision/recursiveMatrices/SparseHelper.h"
-#include "saiga/vision/recursiveMatrices/Transpose.h"
 
-#include "cholesky.h"
+#include "EigenRecursive/All.h"
+//#include "saiga/vision/ba/BlockRecursiveBATemplates.h"
+
 
 using Block  = Eigen::Matrix<double, 2, 2>;
 using Vector = Eigen::Matrix<double, 2, 1>;
 
-using namespace Saiga;
+using namespace Eigen::Recursive;
 
 
 namespace Saiga
@@ -360,7 +351,7 @@ void perfTestSparseCholesky()
         SAIGA_ASSERT((expand(bA) - A.toDense()).norm() == 0);
         SAIGA_ASSERT((expand(bb) - b).norm() == 0);
 
-        DenseLDLT<decltype(bA), decltype(bb)> ldlt3;
+        DenseLDLT<decltype(bA)> ldlt3;
         {
             SAIGA_BLOCK_TIMER();
             ldlt3.compute(bA);
