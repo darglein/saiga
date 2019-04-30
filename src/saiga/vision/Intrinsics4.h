@@ -108,7 +108,12 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
         return {Intrinsics4Base<T>::template cast<G>(), bf};
     }
 
-    Vec5 coeffs() const { return {this->fx, this->fy, this->cx, this->cy, bf}; }
+    Vec5 coeffs() const
+    {
+        Vec5 v;
+        v << this->fx, this->fy, this->cx, this->cy, bf;
+        return v;
+    }
     void coeffs(Vec5 v) { (*this) = v; }
 };
 

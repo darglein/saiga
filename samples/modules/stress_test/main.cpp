@@ -64,18 +64,19 @@ void eigenHeatTest(int numThreads)
 
     using MatrixType2 = Eigen::Matrix<T, size, size>;
 
-    omp_set_dynamic(0);
+    //    omp_set_dynamic(0);
+    omp_set_num_threads(numThreads);
 
     //    numThreads = 2;
 
-#pragma omp parallel num_threads(numThreads)
+#pragma omp parallel
     {
         MatrixType2 m1 = MatrixType2::Random();
         MatrixType2 m2 = MatrixType2::Identity();
 
         long limit = 10000000;
 
-#pragma omp parallel for num_threads(numThreads)
+#pragma omp parallel for
         for (long i = 0; i < limit; ++i)
         {
             m2 += m1 * m2;
@@ -90,7 +91,7 @@ void testMatrixVector();
 int main(int argc, char* argv[])
 {
     Saiga::CommandLineArguments cla;
-    cla.arguments.push_back({"threads", 't', "Number of threads", "-1", false});
+    cla.arguments.push_back({"threads", 't', "Number of threads", "2", false});
     cla.arguments.push_back({"avx", 0, "Use Avx", "0", true});
     cla.arguments.push_back({"double", 0, "Use double precision", "0", true});
     cla.parse(argc, argv);
