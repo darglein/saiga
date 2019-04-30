@@ -201,7 +201,6 @@ class SAIGA_VULKAN_API VulkanMemory
 
     BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
 
-    // Continue here: change from image to ImageData
     ImageMemoryLocation* allocate(const ImageType& type, ImageData& image);
 
     void deallocateBuffer(const BufferType& type, BufferMemoryLocation* location);
