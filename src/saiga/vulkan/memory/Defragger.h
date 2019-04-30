@@ -97,7 +97,7 @@ class Defragger
 
         friend std::ostream& operator<<(std::ostream& os, const PossibleOp& op)
         {
-            os << op.target << "<-" << PointerOutput(op.source) << " w: " << op.weight;
+            os << op.target << "<-" << PointerOutput<T>(op.source) << " w: " << op.weight;
             return os;
         }
     };
@@ -110,7 +110,7 @@ class Defragger
 
         friend std::ostream& operator<<(std::ostream& os, const DefragOp& op)
         {
-            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " cmd: " << op.cmd;
+            os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " cmd: " << op.cmd;
             return os;
         }
     };
@@ -127,7 +127,7 @@ class Defragger
 
         friend std::ostream& operator<<(std::ostream& os, const CopyOp& op)
         {
-            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " cmd: " << op.cmd
+            os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " cmd: " << op.cmd
                << " fence: " << op.fence << " wsem: " << op.wait_semaphore << " ssem: " << op.signal_semaphore;
             return os;
         }
@@ -140,7 +140,7 @@ class Defragger
 
         friend std::ostream& operator<<(std::ostream& os, const FreeOp& op)
         {
-            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " delay: " << op.delay;
+            os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " delay: " << op.delay;
             return os;
         }
     };
