@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include "saiga/vulkan/memory/MemoryLocation.h"
+#include "ChunkCreator.h"
+#include "MemoryLocation.h"
 
 #include <list>
 #include <memory>
@@ -37,13 +38,13 @@ struct FreeListEntry
 
 
 template <typename T>
-struct SAIGA_VULKAN_API ChunkAllocation
+struct SAIGA_VULKAN_API Chunk
 {
     using FreeList      = std::vector<FreeListEntry>;
     using FreeIterator  = typename std::vector<FreeListEntry>::iterator;
     using AllocatedList = std::vector<std::unique_ptr<T>>;
 
-    std::shared_ptr<Chunk> chunk;
+    std::shared_ptr<Memory> chunk;
     vk::Buffer buffer;
     AllocatedList allocations;
     FreeList freeList;
@@ -52,14 +53,14 @@ struct SAIGA_VULKAN_API ChunkAllocation
 
     vk::DeviceSize allocated;
     vk::DeviceSize size;
-    ChunkAllocation() = default;
+    Chunk() = default;
 
-    ChunkAllocation(ChunkAllocation&&) = default;
-    ChunkAllocation& operator=(ChunkAllocation&&) = default;
-    ChunkAllocation(const ChunkAllocation&)       = delete;
-    ChunkAllocation& operator=(const ChunkAllocation&) = delete;
+    Chunk(Chunk&&) = default;
+    Chunk& operator=(Chunk&&) = default;
+    Chunk(const Chunk&)       = delete;
+    Chunk& operator=(const Chunk&) = delete;
 
-    ChunkAllocation(std::shared_ptr<Chunk> _chunk, vk::Buffer _buffer, vk::DeviceSize _size, void* _mappedPointer)
+    Chunk(std::shared_ptr<Memory> _chunk, vk::Buffer _buffer, vk::DeviceSize _size, void* _mappedPointer)
         : chunk(std::move(_chunk)),
           buffer(_buffer),
           allocations(),
@@ -78,7 +79,7 @@ struct SAIGA_VULKAN_API ChunkAllocation
 };
 
 template <typename T>
-using ChunkContainer = std::vector<ChunkAllocation<T>>;
+using ChunkContainer = std::vector<Chunk<T>>;
 
 template <typename T>
 using ChunkIterator = typename ChunkContainer<T>::iterator;
@@ -93,20 +94,20 @@ template <typename T>
 using ConstRevChunkIterator = typename ChunkContainer<T>::const_reverse_iterator;
 
 template <typename T>
-using AllocationIterator = typename ChunkAllocation<T>::AllocatedList::iterator;
+using AllocationIterator = typename Chunk<T>::AllocatedList::iterator;
 
 template <typename T>
-using ConstAllocationIterator = typename ChunkAllocation<T>::AllocatedList::const_iterator;
+using ConstAllocationIterator = typename Chunk<T>::AllocatedList::const_iterator;
 
 template <typename T>
-using RevAllocationIterator = typename ChunkAllocation<T>::AllocatedList::reverse_iterator;
+using RevAllocationIterator = typename Chunk<T>::AllocatedList::reverse_iterator;
 
 template <typename T>
-using ConstRevAllocationIterator = typename ChunkAllocation<T>::AllocatedList::const_reverse_iterator;
+using ConstRevAllocationIterator = typename Chunk<T>::AllocatedList::const_reverse_iterator;
 
 template <typename T>
-using FreeIterator = typename ChunkAllocation<T>::FreeList::iterator;
+using FreeIterator = typename Chunk<T>::FreeList::iterator;
 
 template <typename T>
-using ConstFreeIterator = typename ChunkAllocation<T>::FreeList::const_iterator;
+using ConstFreeIterator = typename Chunk<T>::FreeList::const_iterator;
 }  // namespace Saiga::Vulkan::Memory

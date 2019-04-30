@@ -45,7 +45,7 @@ template <typename T>
 std::pair<ChunkIterator<T>, FreeIterator<T>> FirstFitStrategy<T>::findRange(ChunkIterator<T> begin,
                                                                             ChunkIterator<T> end, vk::DeviceSize size)
 {
-    auto foundChunk = std::find_if(begin, end, [&](ChunkAllocation<T>& alloc) {
+    auto foundChunk = std::find_if(begin, end, [&](Chunk<T>& alloc) {
         return alloc.maxFreeRange.value_or(FreeListEntry{0, 0}).size >= size;
     });
 
