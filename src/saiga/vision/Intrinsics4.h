@@ -100,7 +100,7 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
     StereoCamera4Base() {}
     StereoCamera4Base(T fx, T fy, T cx, T cy, T bf) : Intrinsics4Base<T>(fx, fy, cx, cy), bf(bf) {}
     StereoCamera4Base(const Intrinsics4Base<T>& i, T bf) : Intrinsics4Base<T>(i), bf(bf) {}
-    StereoCamera4Base(const Vec5& v) : Intrinsics4Base<T>(v.segment<4>(0)), bf(v(4)) {}
+    StereoCamera4Base(const Vec5& v) : Intrinsics4Base<T>(Vec4(v.template segment<4>(0))), bf(v(4)) {}
 
     template <typename G>
     StereoCamera4Base<G> cast()

@@ -33,42 +33,55 @@ namespace Saiga
 
 
 RGBDCameraOpenni::RGBDCameraOpenni(const RGBDIntrinsics& intr)
-    : RGBDCamera(intr), frameBuffer(10), depthFactor(1.0 / 1000)
+    : RGBDCamera(intr),
+      //      frameBuffer(10),
+      depthFactor(1.0 / intr.depthFactor)
 {
     CHECK_NI(openni::OpenNI::initialize());
-    eventThread = std::thread(&RGBDCameraOpenni::eventLoop, this);
+
+    while (!tryOpen())
+    {
+        cout << "RGBD Camera Open Failed. Trying again shortly." << endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    //    eventThread = std::thread(&RGBDCameraOpenni::eventLoop, this);
 }
 
 RGBDCameraOpenni::~RGBDCameraOpenni()
 {
-    cout << "~RGBDCameraInpu" << endl;
-    close();
+    cout << "~RGBDCameraOpenni" << endl;
 }
 
 
 std::shared_ptr<RGBDFrameData> RGBDCameraOpenni::getImageSync()
 {
-    return foundCamera ? frameBuffer.get() : nullptr;
+    auto tmp = makeFrameData();
+    while (!waitFrame(*tmp, true))
+    {
+        if (!foundCamera) return nullptr;
+    }
+    return tmp;
 }
 
 std::shared_ptr<RGBDFrameData> RGBDCameraOpenni::getImage()
 {
-    if (!foundCamera) return nullptr;
-    std::shared_ptr<RGBDFrameData> img;
-    frameBuffer.tryGet(img);
-    return img;
+    if (!tmp)
+    {
+        tmp = makeFrameData();
+    }
+
+    bool ret = waitFrame(*tmp, false);
+
+    if (ret)
+    {
+        return std::move(tmp);
+    }
+    return nullptr;
 }
 
 void RGBDCameraOpenni::close()
 {
-    if (running)
-    {
-        running = false;
-        eventThread.join();
-    }
-
-    // try add one nullptr frame to unblock waiting threads
-    frameBuffer.tryAdd(nullptr);
+    resetCamera();
 
     cout << "RGBDCameraInput closed." << endl;
 }
@@ -89,9 +102,8 @@ void RGBDCameraOpenni::imgui()
     if (ImGui::Checkbox("autoWhiteBalance", &autoWhiteBalance)) updateS = true;
 }
 
-bool RGBDCameraOpenni::open()
+bool RGBDCameraOpenni::tryOpen()
 {
-    cout << "open" << endl;
     resetCamera();
 
     openni::Status rc = openni::STATUS_OK;
@@ -104,7 +116,7 @@ bool RGBDCameraOpenni::open()
     rc = device->open(deviceURI);
     if (rc != openni::STATUS_OK)
     {
-        cout << "device open failed" << endl;
+        cout << "device open failed: " << rc << endl;
         return false;
     }
 
@@ -160,6 +172,7 @@ bool RGBDCameraOpenni::open()
     autoexposure     = settings->getAutoExposureEnabled();
     autoWhiteBalance = settings->getAutoWhiteBalanceEnabled();
 
+    foundCamera = true;
 
     cout << "RGBD Camera opened." << endl;
 
@@ -177,13 +190,24 @@ void RGBDCameraOpenni::resetCamera()
     device = std::make_shared<openni::Device>();
 }
 
-bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data)
+bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data, bool wait)
 {
     openni::VideoStream* streams[2] = {depth.get(), color.get()};
     int streamIndex;
 
-    auto wret = openni::OpenNI::waitForAnyStream(streams, 2, &streamIndex, 1000);
-    if (wret != openni::STATUS_OK) return false;
+    int timeout = wait ? 1000 : 0;
+
+    if (!device->isValid() || !depth->isValid() || !color->isValid())
+    {
+        cout << "wait frame on invalid device!" << endl;
+        foundCamera = false;
+    }
+
+    auto wret = openni::OpenNI::waitForAnyStream(streams, 2, &streamIndex, timeout);
+    if (wret != openni::STATUS_OK)
+    {
+        return false;
+    }
 
     setNextFrame(data);
 
@@ -193,7 +217,7 @@ bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data)
     {
         ret &= readDepth(data.depthImg);
 
-        wret = openni::OpenNI::waitForAnyStream(streams + 1, 1, &streamIndex, 1000);
+        wret = openni::OpenNI::waitForAnyStream(streams + 1, 1, &streamIndex, timeout);
         if (wret != openni::STATUS_OK) return false;
 
         ret &= readColor(data.colorImg);
@@ -202,7 +226,7 @@ bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data)
     {
         ret &= readColor(data.colorImg);
 
-        wret = openni::OpenNI::waitForAnyStream(streams, 1, &streamIndex, 1000);
+        wret = openni::OpenNI::waitForAnyStream(streams, 1, &streamIndex, timeout);
         if (wret != openni::STATUS_OK) return false;
 
         ret &= readDepth(data.depthImg);
@@ -289,7 +313,7 @@ void RGBDCameraOpenni::eventLoop()
     {
         if (!foundCamera)
         {
-            foundCamera = open();
+            //            foundCamera = open();
 
             if (!foundCamera)
             {
@@ -300,7 +324,7 @@ void RGBDCameraOpenni::eventLoop()
 
         if (updateS) updateSettingsIntern();
 
-        if (!waitFrame(*tmp))
+        //        if (!waitFrame(*tmp))
         {
             cout << "lost camera connection!" << endl;
             foundCamera = false;
@@ -308,7 +332,7 @@ void RGBDCameraOpenni::eventLoop()
         }
 
         //        if(!frameBuffer.tryAdd(tmp))
-        frameBuffer.addOverride(tmp);
+        //        frameBuffer.addOverride(tmp);
         {
             //            cout << "buffer full" << endl;
         }

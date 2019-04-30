@@ -49,6 +49,14 @@ class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
     virtual void close() override;
     virtual bool isOpened() override;
 
+
+
+    /**
+     * Tries to open a camera and set the given parameters.
+     * Returns true if it was sucessfull.
+     */
+    bool tryOpen();
+
     // The user can change these variables, but must call 'updateCameraSettings' to make the take effect
     bool autoexposure = true;
     //    int exposure      = 33;
@@ -61,19 +69,20 @@ class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
     void imgui();
 
    private:
-    SynchronizedBuffer<std::shared_ptr<RGBDFrameData>> frameBuffer;
+    //    SynchronizedBuffer<std::shared_ptr<RGBDFrameData>> frameBuffer;
+
+    std::shared_ptr<RGBDFrameData> tmp;
 
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;
     std::shared_ptr<openni::VideoFrameRef> m_depthFrame, m_colorFrame;
 
-    bool open();
     void resetCamera();
-    bool waitFrame(RGBDFrameData& data);
+    bool waitFrame(RGBDFrameData& data, bool wait);
     bool readDepth(DepthImageType::ViewType depthImg);
     bool readColor(RGBImageType::ViewType colorImg);
 
-    std::thread eventThread;
+    //    std::thread eventThread;
 
     bool foundCamera = false;
     bool running     = false;

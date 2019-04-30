@@ -76,5 +76,13 @@ void fromIniString(const std::string& str, Intrinsics4Base<_Scalar>& I)
     I.coeffs(v);
 }
 
+template <typename _Scalar>
+void fromIniString(const std::string& str, StereoCamera4Base<_Scalar>& I)
+{
+    typename StereoCamera4Base<_Scalar>::Vec5 v;
+    fromIniString(str, v);
+    I.coeffs(v);
+}
+
 
 }  // namespace Saiga

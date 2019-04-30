@@ -24,6 +24,7 @@ struct SAIGA_VISION_API RGBDIntrinsics
     // K matrix for depth and color
     // the image should already be registered
     StereoCamera4 K;
+    Intrinsics4 depthK;
     Distortion dis;
 
 
@@ -44,12 +45,16 @@ struct SAIGA_VISION_API RGBDIntrinsics
     int maxFrames = -1;
 
 
+
     /**
      *  Reads all paramters from the given config file.
      *  Creates the file with the default values if it doesn't exist.
      */
     void fromConfigFile(const std::string& file);
 };
+
+
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value);
 
 
 struct SAIGA_VISION_API RGBDFrameData

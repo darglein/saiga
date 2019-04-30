@@ -155,6 +155,7 @@ void VulkanExample::renderGUI()
     intr.fps      = fps;
 
 
+
     if (ImGui::Checkbox("Capture", &capturing))
     {
         if (capturing)
@@ -177,8 +178,9 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("Openni"))
     {
-        rgbdcamera  = std::make_unique<Saiga::RGBDCameraOpenni>(intr);
-        initTexture = true;
+        intr.depthFactor = 1000.0;
+        rgbdcamera       = std::make_unique<Saiga::RGBDCameraOpenni>(intr);
+        initTexture      = true;
     }
 
     if (ImGui::Button("Clear"))
