@@ -10,6 +10,7 @@
 
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/time/timer.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/imath.h"
 
@@ -136,6 +137,83 @@ void VulkanExample::renderGUI()
     ImGui::Checkbox("Auto allocate indexed", &enable_auto_index);
     ImGui::Text("%d", auto_allocs);
 
+    static bool singleAllocs = true;
+    static int allocCount    = 100;
+    static int allocSizeKB   = 1024;
+    ImGui::Text("Profiling");
+    auto& memory = renderer.base().memory;
+    ImGui::Checkbox("Enable chunk alloc", &memory.enableChunkAllocator);
+    ImGui::Checkbox("Single allocs", &singleAllocs);
+    ImGui::InputInt("allocCount", &allocCount, 10);
+    ImGui::InputInt("allocSizeKB", &allocSizeKB, 128, 1024);
+
+    if (ImGui::Button("Profile allocation"))
+    {
+        const Saiga::Vulkan::Memory::BufferType type{vk::BufferUsageFlagBits ::eVertexBuffer,
+                                                     vk::MemoryPropertyFlagBits::eDeviceLocal};
+
+        std::vector<BufferMemoryLocation*> locations;
+        std::vector<double> times;
+        for (int i = 0; i < allocCount; i++)
+        {
+            BufferMemoryLocation* location = nullptr;
+
+            {
+                times.push_back(0.0);
+                Saiga::ScopedTimer timer(times.back());
+                location = memory.allocate(type, allocSizeKB * 1024);
+            }
+            if (location)
+            {
+                if (singleAllocs)
+
+                {
+                    memory.deallocateBuffer(type, location);
+                }
+                else
+                {
+                    locations.push_back(location);
+                }
+            }
+        }
+
+        for (auto* location : locations)
+        {
+            memory.deallocateBuffer(type, location);
+        }
+
+        std::ofstream file;
+        file.open("results.txt", std::ios::out | std::ios::app);
+
+        file << "chunk " << memory.enableChunkAllocator << " sAllocs " << singleAllocs << " count " << allocCount
+             << " allocSize " << allocSizeKB;
+
+        for (auto& time : times)
+        {
+            file << time << std::endl;
+        }
+
+        file << std::endl;
+
+
+        file.close();
+    }
+
+    // ImGui::Checkbox("Enable profiling", &renderer.base().memory.enable_profiling);
+
+    // auto& times = renderer.base().memory.times;
+    // auto sum = std::accumulate(times.begin(), times.end(),0.0);
+    //
+    // if (times.size() > 0) {
+    //    sum /= times.size();
+    //}
+    //
+    // if (ImGui::Button("Clear times")) {
+    //    times.clear();
+    //}
+    //
+    // ImGui::Text("%f", sum);
+
     if (ImGui::Button("Allocate Image"))
     {
         renderer.base().memory.enable_defragmentation(image_type, false);
@@ -145,7 +223,6 @@ void VulkanExample::renderGUI()
         for (auto i = 0U; i < num_allocs; ++i)
         {
             auto index = image_dist(mersenne_twister);
-            // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
             tex_allocations.push_back(allocate(image_type, index));
         }
         renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
