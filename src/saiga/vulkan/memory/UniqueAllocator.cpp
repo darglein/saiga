@@ -14,7 +14,7 @@ namespace Saiga::Vulkan::Memory
 void UniqueAllocator::deallocate(BufferMemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
-    LOG(INFO) << "Fallback deallocate: " << location;
+    LOG(INFO) << "Unique deallocate: " << *location;
 
     auto foundAllocation = std::find_if(m_allocations.begin(), m_allocations.end(),
                                         [location](auto& alloc) { return alloc.get() == location; });
@@ -30,7 +30,7 @@ void UniqueAllocator::deallocate(BufferMemoryLocation* location)
 void UniqueAllocator::deallocate(ImageMemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
-    LOG(INFO) << "Fallback deallocate: " << location;
+    LOG(INFO) << "Unique deallocate: " << *location;
 
     auto foundAllocation = std::find_if(m_image_allocations.begin(), m_image_allocations.end(),
                                         [location](auto& alloc) { return alloc.get() == location; });
@@ -84,7 +84,7 @@ BufferMemoryLocation* UniqueAllocator::allocate(const BufferType& type, vk::Devi
         m_allocations.emplace_back(std::make_unique<BufferMemoryLocation>(buffer, memory, 0, size, mappedPtr));
         retVal = m_allocations.back().get();
     }
-    LOG(INFO) << "Fallback allocation: " << type << "->" << retVal;
+    LOG(INFO) << "Unique allocation: " << type << "->" << *retVal;
     return retVal;
 }
 
@@ -111,7 +111,7 @@ ImageMemoryLocation* UniqueAllocator::allocate(const ImageType& type, ImageData&
     retVal->data.create_view(m_device);
     retVal->data.create_sampler(m_device);
 
-    LOG(INFO) << "Fallback image allocation: " << type << "->" << retVal;
+    LOG(INFO) << "Unique image allocation: " << type << "->" << *retVal;
     return retVal;
 }
 
@@ -140,8 +140,11 @@ MemoryStats UniqueAllocator::collectMemoryStats()
 void UniqueAllocator::destroy(const vk::Device& device, BufferMemoryLocation* memory_location)
 {
     SAIGA_ASSERT(memory_location->memory, "Already destroyed");
+    if (memory_location->data.buffer)
+    {
+        device.destroy(memory_location->data.buffer);
+    }
     memory_location->destroy_owned_data(device);
-    device.destroy(memory_location->data.buffer);
     if (memory_location->memory)
     {
         device.free(memory_location->memory);
