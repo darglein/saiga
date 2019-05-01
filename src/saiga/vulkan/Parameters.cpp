@@ -21,6 +21,7 @@ void VulkanParameters::fromConfigFile(const std::string& file)
     enableImgui           = ini.GetAddBool("Vulkan", "enableImgui", enableImgui);
     expand_memory_stats   = ini.GetBoolValue("Vulkan", "expandMemoryStats", false);
     enableDefragmentation = ini.GetAddBool("Vulkan", "enableDefragmentation", false);
+    enableChunkAllocator  = ini.GetAddBool("Vulkan", "enableChunkAllocator", true);
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 

@@ -17,7 +17,6 @@
 
 #include "gameTime.h"
 
-
 #include <algorithm>
 
 namespace Saiga

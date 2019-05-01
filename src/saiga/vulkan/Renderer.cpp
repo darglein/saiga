@@ -36,7 +36,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     swapChain.initSurface(surface);
 
     state = State::INITIALIZED;
-    base().finalize_init(swapChain.imageCount);
+    base().initMemory(swapChain.imageCount);
     timings = FrameTimings(base().device, &(base().memory));
 
     timings.registerFrameSection("TRANSFER", 0);
