@@ -21,7 +21,7 @@
 
 namespace Saiga::Vulkan::Memory
 {
-class UniqueAllocator
+class SAIGA_VULKAN_API UniqueAllocator
 {
    private:
     std::mutex mutex;
@@ -71,10 +71,11 @@ class UniqueAllocator
     BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
     ImageMemoryLocation* allocate(const ImageType& type, ImageData& image_data);
 
-    void destroy();
 
     void deallocate(BufferMemoryLocation* location);
     void deallocate(ImageMemoryLocation* location);
+
+    void destroy();
 
     void showDetailStats();
 

@@ -29,16 +29,13 @@ BufferMemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
 
 ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
 {
-    vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(), m_chunkSize, type.usageFlags};
-    auto buffer = m_device.createBuffer(bufferCreateInfo);
-
-    auto memReqs = m_device.getBufferMemoryRequirements(buffer);
+    auto newBuffer = m_device.createBuffer(m_bufferCreateInfo);
+    auto memReqs   = m_device.getBufferMemoryRequirements(newBuffer);
 
     vk::MemoryAllocateInfo info;
     info.allocationSize  = memReqs.size;
     info.memoryTypeIndex = findMemoryType(m_pDevice, memReqs.memoryTypeBits, type.memoryFlags);
     auto newChunk        = SafeAllocator::instance()->allocateMemory(m_device, info);
-    auto newBuffer       = m_device.createBuffer(m_bufferCreateInfo);
     auto memRequirements = m_device.getBufferMemoryRequirements(newBuffer);
     VLOG(1) << "New chunk: " << chunks.size() << " Mem " << newChunk << ", Buffer " << newBuffer;
     if (m_allocateSize != memRequirements.size)
