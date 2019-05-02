@@ -92,7 +92,7 @@ TumRGBDCamera::~TumRGBDCamera()
     cout << "~TumRGBDCamera" << endl;
 }
 
-std::shared_ptr<RGBDFrameData> TumRGBDCamera::getImageSync()
+std::unique_ptr<RGBDFrameData> TumRGBDCamera::getImageSync()
 {
     if (!isOpened())
     //    if(currentId == (int)frames.size())
@@ -118,9 +118,9 @@ std::shared_ptr<RGBDFrameData> TumRGBDCamera::getImageSync()
     }
 
 
-    auto img = frames[currentId];
+    auto&& img = frames[currentId];
     setNextFrame(*img);
-    return img;
+    return std::move(img);
 }
 
 SE3 TumRGBDCamera::getGroundTruth(int frame)
@@ -135,8 +135,8 @@ void TumRGBDCamera::saveRaw(const std::string& dir)
 #pragma omp parallel for
     for (int i = 0; i < (int)frames.size(); ++i)
     {
-        auto str = Saiga::leadingZeroString(i, 5);
-        auto tmp = frames[i];
+        auto str  = Saiga::leadingZeroString(i, 5);
+        auto& tmp = frames[i];
         tmp->colorImg.save(std::string(dir) + str + ".png");
         tmp->depthImg.save(std::string(dir) + str + ".saigai");
     }
@@ -346,7 +346,7 @@ void TumRGBDCamera::load(const std::string& datasetDir)
         }
 
 
-        frames[i] = f;
+        frames[i] = std::move(f);
     }
 
     cout << "Loaded " << tumframes.size() << " images." << endl;

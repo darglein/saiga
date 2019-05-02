@@ -59,9 +59,9 @@ std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value)
     return strm;
 }
 
-std::shared_ptr<RGBDFrameData> RGBDCamera::makeFrameData()
+std::unique_ptr<RGBDFrameData> RGBDCamera::makeFrameData()
 {
-    auto fd = std::make_aligned_shared<RGBDFrameData>();
+    auto fd = std::make_unique<RGBDFrameData>();
     fd->colorImg.create(intrinsics().rgbo.h, intrinsics().rgbo.w);
     fd->depthImg.create(intrinsics().deptho.h, intrinsics().deptho.w);
     return fd;

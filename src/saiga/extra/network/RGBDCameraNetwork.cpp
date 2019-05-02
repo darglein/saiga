@@ -56,7 +56,7 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
     }
 }
 
-std::shared_ptr<RGBDFrameData> RGBDCameraNetwork::waitForImage()
+std::unique_ptr<RGBDFrameData> RGBDCameraNetwork::waitForImage()
 {
     auto data = makeFrameData();
     while (true)
@@ -71,7 +71,7 @@ std::shared_ptr<RGBDFrameData> RGBDCameraNetwork::waitForImage()
     return nullptr;
 }
 
-std::shared_ptr<RGBDFrameData> RGBDCameraNetwork::tryGetImage()
+std::unique_ptr<RGBDFrameData> RGBDCameraNetwork::tryGetImage()
 {
     return nullptr;
 }

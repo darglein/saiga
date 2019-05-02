@@ -47,7 +47,7 @@ void VulkanExample::update(float dt)
 
     if (newFrameData)
     {
-        frameData     = newFrameData;
+        frameData     = std::move(newFrameData);
         updateTexture = true;
         tg.addTime();
 

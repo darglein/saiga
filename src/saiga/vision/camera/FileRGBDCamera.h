@@ -23,7 +23,7 @@ class SAIGA_VISION_API FileRGBDCamera : public RGBDCamera
     /**
      * Blocks until a new image arrives.
      */
-    virtual std::shared_ptr<RGBDFrameData> getImageSync() override;
+    virtual std::unique_ptr<RGBDFrameData> getImageSync() override;
 
 
     virtual bool isOpened() override { return currentId < (int)frames.size(); }
@@ -33,7 +33,7 @@ class SAIGA_VISION_API FileRGBDCamera : public RGBDCamera
     void load(const std::string& datasetDir);
 
    private:
-    std::vector<std::shared_ptr<RGBDFrameData>> frames;
+    std::vector<std::unique_ptr<RGBDFrameData>> frames;
 
     Timer timer;
     tick_t timeStep;

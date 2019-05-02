@@ -33,7 +33,7 @@ FileRGBDCamera::~FileRGBDCamera()
     cout << "~FileRGBDCamera" << endl;
 }
 
-std::shared_ptr<RGBDFrameData> FileRGBDCamera::getImageSync()
+std::unique_ptr<RGBDFrameData> FileRGBDCamera::getImageSync()
 {
     if (!isOpened())
     {
@@ -58,9 +58,9 @@ std::shared_ptr<RGBDFrameData> FileRGBDCamera::getImageSync()
     }
 
 
-    auto img = frames[currentId];
+    auto&& img = frames[currentId];
     setNextFrame(*img);
-    return img;
+    return std::move(img);
 }
 
 

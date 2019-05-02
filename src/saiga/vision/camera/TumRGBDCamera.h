@@ -46,7 +46,7 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
     /**
      * Blocks until a new image arrives.
      */
-    virtual std::shared_ptr<RGBDFrameData> getImageSync() override;
+    virtual std::unique_ptr<RGBDFrameData> getImageSync() override;
 
 
     SE3 getGroundTruth(int frame);
@@ -63,7 +63,7 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
     void load(const std::string& datasetDir);
 
 
-    std::vector<std::shared_ptr<RGBDFrameData>> frames;
+    std::vector<std::unique_ptr<RGBDFrameData>> frames;
     AlignedVector<TumFrame> tumframes;
 
     Timer timer;

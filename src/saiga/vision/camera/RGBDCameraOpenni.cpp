@@ -53,7 +53,7 @@ RGBDCameraOpenni::~RGBDCameraOpenni()
 }
 
 
-std::shared_ptr<RGBDFrameData> RGBDCameraOpenni::getImageSync()
+std::unique_ptr<RGBDFrameData> RGBDCameraOpenni::getImageSync()
 {
     auto tmp = makeFrameData();
     while (!waitFrame(*tmp, true))
@@ -63,7 +63,7 @@ std::shared_ptr<RGBDFrameData> RGBDCameraOpenni::getImageSync()
     return tmp;
 }
 
-std::shared_ptr<RGBDFrameData> RGBDCameraOpenni::getImage()
+std::unique_ptr<RGBDFrameData> RGBDCameraOpenni::getImage()
 {
     if (!tmp)
     {
@@ -304,7 +304,7 @@ void RGBDCameraOpenni::eventLoop()
 
     setThreadName("Saiga::NI");
 
-    std::shared_ptr<RGBDFrameData> tmp = makeFrameData();
+    std::unique_ptr<RGBDFrameData> tmp = makeFrameData();
 
     cout << "Starting OpenNI RGBD Camera..." << endl;
 
