@@ -39,7 +39,7 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public ChunkAllocator<Buffer
 
    public:
     BufferType type;
-    ~BufferChunkAllocator() override = default;
+    ~BufferChunkAllocator() override;
 
     BufferChunkAllocator(vk::PhysicalDevice _pDevice, vk::Device _device, BufferType _type,
                          FitStrategy<BufferMemoryLocation>& strategy, Queue* _queue,
