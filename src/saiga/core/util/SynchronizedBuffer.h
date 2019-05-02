@@ -42,18 +42,18 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
 
 
 
-    void add(const T& data)
+    void add(T&& data)
     {
         std::unique_lock<std::mutex> l(lock);
         not_full.wait(l, [this]() { return !this->full(); });
-        RingBuffer<T>::add(data);
+        RingBuffer<T>::add(std::move(data));
         not_empty.notify_one();
     }
 
-    void addOverride(const T& data)
+    void addOverride(T&& data)
     {
         std::unique_lock<std::mutex> l(lock);
-        RingBuffer<T>::addOverride(data);
+        RingBuffer<T>::addOverride(std::move(data));
         not_empty.notify_one();
     }
 

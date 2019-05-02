@@ -14,12 +14,20 @@
 #include <thread>
 namespace Saiga
 {
-FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr) : RGBDCamera(intr)
+FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool _preload,
+                               bool multithreaded)
+    : RGBDCamera(intr)
 {
     cout << "Loading File RGBD Dataset: " << datasetDir << endl;
 
-    load(datasetDir);
-
+    if (_preload)
+    {
+        preload(datasetDir, multithreaded);
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("Not implemented!");
+    }
     timeStep = std::chrono::duration_cast<tick_t>(
         std::chrono::duration<double, std::milli>(1000.0 / double(intrinsics().fps)));
 
@@ -64,7 +72,7 @@ std::unique_ptr<RGBDFrameData> FileRGBDCamera::getImageSync()
 }
 
 
-void FileRGBDCamera::load(const std::string& datasetDir)
+void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
 {
     Directory dir(datasetDir);
 
@@ -74,7 +82,6 @@ void FileRGBDCamera::load(const std::string& datasetDir)
     dir.getFiles(rgbImages, ".png");
     dir.getFiles(depthImages, ".saigai");
 
-    cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << endl;
 
     SAIGA_ASSERT(rgbImages.size() == depthImages.size());
     SAIGA_ASSERT(rgbImages.size() > 0);
@@ -84,22 +91,34 @@ void FileRGBDCamera::load(const std::string& datasetDir)
 
     if (intrinsics().maxFrames <= 0) _intrinsics.maxFrames = rgbImages.size();
 
+    cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << " Loading "
+         << _intrinsics.maxFrames << " images..." << endl;
 
     frames.resize(intrinsics().maxFrames);
 
-#pragma omp parallel for
+#pragma omp parallel for if (multithreaded)
     for (int i = 0; i < (int)frames.size(); ++i)
     {
         auto& f = frames[i];
 
-        RGBImageType cimg;
-        cimg.load(dir() + rgbImages[i]);
+        //        cout << "dir: " << dir() + rgbImages[i] << endl;
+        RGBImageType cimg(dir() + "/" + rgbImages[i]);
+        //        cimg.load(dir() + rgbImages[i]);
+
+        // make sure it matches the defined intrinsics
+        SAIGA_ASSERT(cimg.h == intrinsics().rgbo.h);
+        SAIGA_ASSERT(cimg.w == intrinsics().rgbo.w);
         //        rgbo.h = cimg.h;
         //        rgbo.w = cimg.w;
 
 
-        DepthImageType dimg;
-        dimg.load(dir() + depthImages[i]);
+        DepthImageType dimg(dir() + "/" + depthImages[i]);
+        //        dimg.load(dir() + depthImages[i]);
+
+        // make sure it matches the defined intrinsics
+        SAIGA_ASSERT(dimg.h == intrinsics().deptho.h);
+        SAIGA_ASSERT(dimg.w == intrinsics().deptho.w);
+
         //        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
         //        int targetW    = downScale ? dimg.w / 2 : dimg.w;
         //        int targetH    = downScale ? dimg.h / 2 : dimg.h;
