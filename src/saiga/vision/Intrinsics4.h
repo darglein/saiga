@@ -48,6 +48,8 @@ struct Intrinsics4Base
         return p * depth;
     }
 
+    Vec2 unproject2(const Vec2& ip) const { return {(ip(0) - cx) / fx, (ip(1) - cy) / fy}; }
+
     Vec2 normalizedToImage(const Vec2& p) const { return {fx * p(0) + cx, fy * p(1) + cy}; }
 
     void scale(T s)
@@ -71,7 +73,7 @@ struct Intrinsics4Base
     }
 
     template <typename G>
-    Intrinsics4Base<G> cast()
+    Intrinsics4Base<G> cast() const
     {
         return {(G)fx, (G)fy, (G)cx, (G)cy};
     }
@@ -120,8 +122,6 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
 using StereoCamera4  = StereoCamera4Base<double>;
 using StereoCamera4f = StereoCamera4Base<float>;
 
-
-using Distortion = Eigen::Matrix<double, 5, 1>;
 
 
 }  // namespace Saiga

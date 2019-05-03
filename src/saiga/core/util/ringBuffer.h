@@ -149,11 +149,12 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
 
 
     // adds one element to the buffer
-    void add(T&& data)
+    template <typename G>
+    void add(G&& data)
     {
         SAIGA_ASSERT(!full());
         if (empty()) front = rear;
-        (*this)[rear] = std::move(data);
+        (*this)[rear] = std::forward<G>(data);
         rear          = (rear + 1) % capacity;
     }
 
@@ -161,18 +162,19 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
     // if full
     //    - overrides the first element
     //    - increment the front point
-    void addOverride(T&& data)
+    template <typename G>
+    void addOverride(G&& data)
     {
         if (full())
         {
             // Override first element and increment both pointers
-            (*this)[front] = std::move(data);
+            (*this)[front] = std::forward<G>(data);
             front          = (front + 1) % capacity;
             rear           = (rear + 1) % capacity;
         }
         else
         {
-            add(std::move(data));
+            add(std::forward<G>(data));
         }
     }
 

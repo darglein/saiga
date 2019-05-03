@@ -134,10 +134,11 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         //        }
         //        else
         {
-            f->depthImg.load(dir() + depthImages[i]);
+            //            f->depthImg.load(dir() + depthImages[i]);
         }
 
-        f->colorImg = cimg;
+        f->depthImg = std::move(dimg);
+        f->colorImg = std::move(cimg);
     }
 
     cout << "Loading done." << endl;

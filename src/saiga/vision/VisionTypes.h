@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/vision/Distortion.h"
 #include "saiga/vision/Intrinsics4.h"
 #include "saiga/vision/VisionIncludes.h"
 
@@ -102,6 +103,24 @@ inline Mat3 onb(const Vec3& dir, const Vec3& up)
     // make sure it works even if dir and up are not orthogonal
     R.col(1) = R.col(2).cross(R.col(0));
     return R;
+}
+
+
+/**
+ * Undistorts all points from begin to end and writes them to output.
+ */
+template <typename _InputIterator1, typename _InputIterator2, typename _T>
+inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __output,
+                          const Intrinsics4Base<_T>& intr, const DistortionBase<_T>& dis)
+{
+    for (; __first1 != __last1; ++__first1, (void)++__output)
+    {
+        auto tmp  = *__first1;  // make sure it works inplace
+        tmp = intr.unproject2(tmp);
+        tmp = undistortNormalizedPoint(tmp,dis);
+        tmp = intr.normalizedToImage(tmp);
+        *__output = tmp;
+    }
 }
 
 /**

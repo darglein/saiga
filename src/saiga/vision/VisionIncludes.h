@@ -27,6 +27,10 @@ using Vec4 = Eigen::Matrix<double, 4, 1>;
 using Vec3 = Eigen::Matrix<double, 3, 1>;
 using Vec2 = Eigen::Matrix<double, 2, 1>;
 
+using Vec4f = Eigen::Matrix<float, 4, 1>;
+using Vec3f = Eigen::Matrix<float, 3, 1>;
+using Vec2f = Eigen::Matrix<float, 2, 1>;
+
 using Mat4 = Eigen::Matrix4d;
 using Mat3 = Eigen::Matrix3d;
 
