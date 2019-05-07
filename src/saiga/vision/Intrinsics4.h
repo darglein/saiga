@@ -28,8 +28,9 @@ struct Intrinsics4Base
 
     Vec2 project(const Vec3& X) const
     {
-        auto x = X(0) / X(2);
-        auto y = X(1) / X(2);
+        auto invz = T(1) / X(2);
+        auto x = X(0) * invz;
+        auto y = X(1) * invz;
         return {fx * x + cx, fy * y + cy};
     }
 
